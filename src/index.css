@@ -2639,6 +2639,44 @@ body.theme-midnight .moe-calendar {
     font-weight: 800;
   }
   .studio-theme .teacher-plan-chip--pro { background: #fde6d6; border-color: #f5b78c; color: #b4530f; }
+  .studio-theme .teacher-plan-chip--max { background: #e2f0e7; border-color: #a9d3bc; color: #1f5c44; }
+
+  /* Inside the compact plan+usage card the chip sits inline, not stacked. */
+  .studio-theme .teacher-usage-card__row .teacher-plan-chip {
+    margin-bottom: 0;
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+  .studio-theme .teacher-usage-card__actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+    flex-wrap: wrap;
+  }
+  .studio-theme .teacher-usage-card__upgrade {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    background: #ff7a2e;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 800;
+    text-decoration: none;
+    min-height: 42px;
+    box-shadow: 0 6px 16px rgba(243,106,42,.28);
+    transition: background .15s ease;
+  }
+  .studio-theme .teacher-usage-card__upgrade:hover { background: #e6651a; }
+  .studio-theme .teacher-usage-card__manage {
+    font-size: 12.5px;
+    font-weight: 800;
+    color: #566f76;
+    text-decoration: none;
+  }
+  .studio-theme .teacher-usage-card__manage:hover { color: #0e2a32; text-decoration: underline; }
 
   /* ── Usage this month (compact gauge card) ────────────────────── */
   .studio-theme .teacher-usage-section { margin-bottom: 30px; }
@@ -2725,6 +2763,8 @@ body.theme-midnight .moe-calendar {
     .studio-theme .teacher-usage-card__row { flex-wrap: wrap; }
     .studio-theme .teacher-usage-card__divider { display: none; }
     .studio-theme .teacher-usage-card__toggle { margin-left: 0; width: 100%; justify-content: center; }
+    .studio-theme .teacher-usage-card__actions { width: 100%; margin-left: 0; }
+    .studio-theme .teacher-usage-card__upgrade { flex: 1 1 auto; justify-content: center; }
   }
 
   /* Four-across on wide screens (the mockup device); a clean 2×2 on standard
