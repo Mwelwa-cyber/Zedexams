@@ -8,7 +8,12 @@ import {
   summarizeGenerations,
   titleForGeneration,
   formatDate,
+  deleteGeneration,
+  duplicateGeneration,
+  CLIENT_CREATED_TOOLS,
+  TOOL_META as LIB_TOOL_META,
 } from '../../utils/teacherLibraryService'
+import { useToast } from '../ui/Toast'
 import { resolveTeacherPlan, PLAN_LABELS } from '../../utils/teacherPlans'
 import { isExamPaperType, assessmentEditPath } from './paperTaxonomy'
 import {
@@ -26,6 +31,7 @@ import SeoHelmet from '../seo/SeoHelmet'
 import AiRecommendations from './AiRecommendations'
 import PrepareThisWeek from './PrepareThisWeek'
 import QuickCreate from './QuickCreate'
+import RecentDocuments from './RecentDocuments'
 import TeacherOnboardingTour from './TeacherOnboardingTour'
 import FeedbackButton from '../feedback/FeedbackButton'
 import SuggestionNudge from '../feedback/SuggestionNudge'
@@ -681,8 +687,9 @@ function PlanQuickCard({ plan }) {
 
 export default function TeacherDashboard() {
   const { currentUser, userProfile } = useAuth()
-  const { getMyAssessments } = useFirestore()
+  const { getMyAssessments, updateAssessment, deleteAssessment } = useFirestore()
   const navigate = useNavigate()
+  const toast = useToast()
 
   // "Current plan" reflects the teacher's actual studio entitlement
   // (users.teacherPlan, same field the usage meter + server gate on), not the
@@ -744,10 +751,13 @@ export default function TeacherDashboard() {
       grade: g.inputs?.grade || g.output?.header?.grade || '',
       topic: g.output?.header?.topic || g.inputs?.topic || '',
       createdAt: toMs(g.createdAt),
+      modifiedAt: 0, // generations carry no updatedAt — createdAt is the truth
       title: titleForGeneration(g),
       to: `/teacher/library/${g.id}`,
       status: 'ready',
       questionCount: 0,
+      // The raw doc, kept for duplicateGeneration (it needs inputs/output/library).
+      raw: g,
     }))
     // Test papers + exam papers both live in the `assessments` collection and
     // are edited by AssessmentStudio. The studio is split by paper type across
@@ -765,6 +775,7 @@ export default function TeacherDashboard() {
         grade: a.grade || a.targetGrade || '',
         topic: a.topic || '',
         createdAt: toMs(a.createdAt),
+        modifiedAt: toMs(a.updatedAt), // stamped by updateAssessment on every edit
         title: a.title || a.topic || `Untitled ${isExam ? 'exam' : 'test'} paper`,
         to: assessmentEditPath(a),
         // Papers with at least one question are ready artifacts; only empty
@@ -867,6 +878,69 @@ export default function TeacherDashboard() {
     const rest = resources.filter((r) => r.status !== 'draft')
     return [...drafts, ...rest].slice(0, 4)
   }, [resources])
+
+  // Recent documents — newest first by last edit (assessments carry
+  // updatedAt; generations only createdAt), shaped for the RecentDocuments
+  // rows. Duplicate is limited to client-created tools (the Library's own
+  // constraint) and rename to test/exam papers (title is a real field there).
+  const recentItems = useMemo(() => {
+    return [...resources]
+      .sort((a, b) => (b.modifiedAt || b.createdAt) - (a.modifiedAt || a.createdAt))
+      .slice(0, 5)
+      .map((r) => ({
+        id: r.id,
+        kind: r.kind,
+        tool: r.tool,
+        icon: LIB_TOOL_META[r.tool]?.icon || '📄',
+        title: r.title,
+        typeLabel: LIB_TOOL_META[r.tool]?.label || TOOL_META[r.tool]?.label || 'Document',
+        grade: r.grade,
+        subject: formatSubject(r.subject),
+        timeLabel: `${r.modifiedAt && r.modifiedAt !== r.createdAt ? 'Edited' : 'Created'} ${formatDate(r.modifiedAt || r.createdAt)}`,
+        status: r.status === 'draft' ? 'draft' : 'ready',
+        to: r.to,
+        canRename: r.kind === 'assessment',
+        canDuplicate: r.kind === 'generation' && CLIENT_CREATED_TOOLS.includes(r.tool),
+        raw: r.raw,
+      }))
+  }, [resources])
+
+  async function handleDuplicateRecent(item) {
+    try {
+      await duplicateGeneration(item.raw, currentUser?.uid)
+      toast.success('Copy saved to your library.')
+      setLoading(true)
+      setReloadKey((k) => k + 1)
+    } catch (err) {
+      toast.error(err?.message || 'Could not duplicate this document.')
+    }
+  }
+
+  async function handleRenameRecent(item, title) {
+    try {
+      await updateAssessment(item.id, { title })
+      setAssessments((prev) => prev.map((a) => (a.id === item.id ? { ...a, title } : a)))
+      toast.success('Renamed.')
+    } catch {
+      toast.error('Could not rename. Try again.')
+    }
+  }
+
+  async function handleDeleteRecent(item) {
+    try {
+      if (item.kind === 'assessment') {
+        await deleteAssessment(item.id)
+        setAssessments((prev) => prev.filter((a) => a.id !== item.id))
+      } else {
+        const ok = await deleteGeneration(item.id)
+        if (!ok) throw new Error('delete failed')
+        setGenerations((prev) => prev.filter((g) => g.id !== item.id))
+      }
+      toast.success('Deleted.')
+    } catch {
+      toast.error('Could not delete. Try again.')
+    }
+  }
 
   const lastItem = continueItems[0] || null
 
@@ -1035,6 +1109,15 @@ export default function TeacherDashboard() {
 
       {/* ── AI Recommendations (actionable; replaces AI insights) ─── */}
       {!loading && <AiRecommendations recommendations={recommendations} />}
+
+      {/* ── Recent documents ──────────────────────────────────────── */}
+      <RecentDocuments
+        items={recentItems}
+        loading={loading}
+        onDuplicate={handleDuplicateRecent}
+        onRename={handleRenameRecent}
+        onDelete={handleDeleteRecent}
+      />
 
       {/* ── Teacher workspace (studios) ───────────────────────────── */}
       <div id="teacher-workspace" className="teacher-workspace-header teacher-defer">

@@ -2133,6 +2133,165 @@ body.theme-midnight .moe-calendar {
     outline-offset: 2px;
   }
 
+  /* ── Recent documents ─────────────────────────────────────────── */
+  .studio-theme .teacher-recent { margin-bottom: 26px; }
+  .studio-theme .teacher-recent__skeleton {
+    min-height: 180px;
+    border-radius: 18px;
+    background: #f3eddf;
+    border: 1.5px solid #ece4d2;
+    animation: zum-pulse 1.4s ease-in-out infinite;
+  }
+  .studio-theme .teacher-recent__list {
+    display: flex;
+    flex-direction: column;
+    border: 1.5px solid #e4dcc6;
+    border-radius: 18px;
+    background: #fff;
+    overflow: visible;
+  }
+  .studio-theme .teacher-recent-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    min-height: 56px;
+    border-bottom: 1.5px solid #efe7d5;
+  }
+  .studio-theme .teacher-recent-row:last-child { border-bottom: 0; }
+  .studio-theme .teacher-recent-row__icon {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: #f5efe1;
+    font-size: 17px;
+  }
+  .studio-theme .teacher-recent-row__body { flex: 1; min-width: 0; }
+  .studio-theme .teacher-recent-row__title {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #0e2a32;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .studio-theme .teacher-recent-row__title:hover { color: #c2531a; }
+  .studio-theme .teacher-recent-row__title:focus-visible {
+    outline: 2px solid #ff7a2e;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  .studio-theme .teacher-recent-row__meta {
+    display: block;
+    margin-top: 1px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #566f76;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .studio-theme .teacher-recent-row__rename {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .studio-theme .teacher-recent-row__rename input {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 10px;
+    border: 1.5px solid #ff7a2e;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #0e2a32;
+  }
+  .studio-theme .teacher-recent-row__rename button {
+    padding: 6px 10px;
+    border: 1.5px solid #e4dcc6;
+    border-radius: 9px;
+    background: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    color: #0e2a32;
+    cursor: pointer;
+    min-height: 0;
+  }
+  .studio-theme .teacher-recent-row__time {
+    flex: 0 0 auto;
+    font-size: 12px;
+    font-weight: 700;
+    color: #8a7a58;
+    white-space: nowrap;
+  }
+  .studio-theme .teacher-recent-row__status {
+    flex: 0 0 auto;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+  }
+  .studio-theme .teacher-recent-row__status--ready { background: #e2f0e7; color: #2f7d5f; }
+  .studio-theme .teacher-recent-row__status--draft { background: #fff3dd; color: #9a6b17; }
+  .studio-theme .teacher-recent-row__menuwrap { position: relative; flex: 0 0 auto; }
+  .studio-theme .teacher-recent-row__more {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border: 0;
+    border-radius: 11px;
+    background: transparent;
+    color: #566f76;
+    cursor: pointer;
+    min-height: 0;
+  }
+  .studio-theme .teacher-recent-row__more:hover,
+  .studio-theme .teacher-recent-row__more[aria-expanded="true"] { background: #f5efe1; color: #0e2a32; }
+  .studio-theme .teacher-recent-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    z-index: 30;
+    min-width: 150px;
+    padding: 6px;
+    border-radius: 14px;
+    background: #fff;
+    border: 1.5px solid #e4dcc6;
+    box-shadow: 0 14px 30px rgba(14,42,50,.14);
+    display: flex;
+    flex-direction: column;
+  }
+  .studio-theme .teacher-recent-menu__item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 9px 12px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    font-size: 13px;
+    font-weight: 700;
+    color: #0e2a32;
+    text-decoration: none;
+    cursor: pointer;
+    min-height: 0;
+  }
+  .studio-theme .teacher-recent-menu__item:hover,
+  .studio-theme .teacher-recent-menu__item:focus-visible { background: #fdf8ec; }
+  .studio-theme .teacher-recent-menu__item--danger { color: #c0392b; }
+  /* Mobile keeps the status chip (it's information, not decoration) and
+     drops only the timestamp; the title truncates with ellipsis. */
+  @media (max-width: 720px) {
+    .studio-theme .teacher-recent-row__time { display: none; }
+  }
+
   /* ── AI insights ──────────────────────────────────────────────── */
   .studio-theme .teacher-insights { margin-bottom: 26px; }
   .studio-theme .teacher-insights__grid {
