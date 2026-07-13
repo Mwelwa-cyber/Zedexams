@@ -18,6 +18,7 @@ import {
 } from '../../../components/ui/icons'
 import { useTeachingProfile } from '../lib/useTeachingProfile'
 import AssignmentFormModal from '../components/teachingProfile/AssignmentFormModal'
+import TeachingProfileWizard from '../components/teachingProfile/TeachingProfileWizard'
 import {
   saveTeachingProfile,
   addAssignment,
@@ -31,7 +32,6 @@ import {
   curriculumTypeLabel,
   resolveDefaultAssignmentId,
 } from '../../../utils/teachingProfileCore'
-import { NATIONAL_CALENDAR_ID } from '../../../utils/calendarResolver'
 import { weeklyTargets } from '../../../utils/teachingTargets'
 
 const CALENDAR_REASON_TEXT = {
@@ -48,32 +48,9 @@ export default function TeachingProfilePanel() {
 
   const [modal, setModal] = useState(null) // { mode:'add'|'edit', initial }
   const [confirmRemove, setConfirmRemove] = useState(null) // assignment to remove
+  const [wizardOpen, setWizardOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState('')
-
-  // ── first-run: create an idempotent baseline DRAFT (wizard is Phase 4) ─────
-  // Merge semantics (setDoc merge, doc id == uid) mean this never duplicates a
-  // profile and never overwrites assignments, the default, or a
-  // previously-chosen calendar. It writes profileStatus:'draft' and leaves
-  // onboardingCompleted false — the profile is an incomplete draft until the
-  // Phase 4 wizard marks it complete.
-  const createBaseline = async () => {
-    setBusy(true)
-    setActionError('')
-    try {
-      await saveTeachingProfile(uid, {
-        calendarId: NATIONAL_CALENDAR_ID,
-        calendarSource: 'national',
-        academicYear: String(context.status === 'ok' ? context.academicYear : new Date().getFullYear()),
-        profileStatus: 'draft',
-      })
-      await reload()
-    } catch {
-      setActionError('Could not start your profile. Please try again.')
-    } finally {
-      setBusy(false)
-    }
-  }
 
   // ── assignment mutations ───────────────────────────────────────────────────
   const submitAssignment = async (payload) => {
@@ -156,10 +133,20 @@ export default function TeachingProfilePanel() {
             the correct teaching work.
           </p>
           {actionError && <p className="tset-savebar__status tset-savebar__status--error" role="alert">{actionError}</p>}
-          <button type="button" className="tset-btn" onClick={createBaseline} disabled={busy}>
-            {busy ? 'Starting…' : 'Start Teaching Profile'}
+          <button type="button" className="tset-btn" onClick={() => setWizardOpen(true)}>
+            Start Teaching Profile
           </button>
         </div>
+        {wizardOpen && (
+          <TeachingProfileWizard
+            uid={uid}
+            initialProfile={profile}
+            initialAssignments={assignments}
+            context={context}
+            onClose={() => setWizardOpen(false)}
+            onComplete={reload}
+          />
+        )}
       </SettingsDetailShell>
     )
   }
@@ -172,6 +159,18 @@ export default function TeachingProfilePanel() {
     <SettingsDetailShell rowId="teachingProfile">
       {actionError && (
         <p className="tset-savebar__status tset-savebar__status--error" role="alert">{actionError}</p>
+      )}
+
+      {/* Draft profile — offer the setup wizard ------------------------------ */}
+      {!profile.onboardingCompleted && (
+        <div className="tset-card tset-tp-warn" role="status">
+          <Icon as={GraduationCap} size="md" className="tset-tp-warn__icon" aria-hidden="true" />
+          <div className="tset-tp-warn__body">
+            <p className="tset-tp-warn__title">Finish setting up your Teaching Profile</p>
+            <p className="tset-tp-warn__desc">Complete the quick four-step setup so your dashboard and studios use the right teaching context.</p>
+            <button type="button" className="tset-btn tset-btn--sm" onClick={() => setWizardOpen(true)}>Continue setup</button>
+          </div>
+        </div>
       )}
 
       {/* Academic-year mismatch (non-blocking) -------------------------------- */}
@@ -370,6 +369,16 @@ export default function TeachingProfilePanel() {
           existing={assignments}
           onSubmit={submitAssignment}
           onClose={() => setModal(null)}
+        />
+      )}
+      {wizardOpen && (
+        <TeachingProfileWizard
+          uid={uid}
+          initialProfile={profile}
+          initialAssignments={assignments}
+          context={context}
+          onClose={() => setWizardOpen(false)}
+          onComplete={reload}
         />
       )}
       <ConfirmDialog

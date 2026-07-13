@@ -74,8 +74,8 @@ describe('TeachingProfilePanel', () => {
     expect(await screen.findByText('Set up your Teaching Profile')).toBeInTheDocument()
     const btn = screen.getByRole('button', { name: /Start Teaching Profile/i })
     fireEvent.click(btn)
-    // Idempotent baseline draft: never marks onboarding complete.
-    await waitFor(() => expect(svc.saveTeachingProfile).toHaveBeenCalledWith('uid-1', expect.objectContaining({ calendarSource: 'national', profileStatus: 'draft' })))
+    // Launches the four-step setup wizard (no immediate write).
+    expect(await screen.findByText('Tell us about your school')).toBeInTheDocument()
   })
 
   it('opens the add-assignment modal', async () => {
