@@ -814,13 +814,16 @@ function SubjectDetail({ meta, currentSheet, onSelectSheet, rowFilter, onRowFilt
   const activeSheetName = sheetNames.includes(currentSheet) ? currentSheet : sheetNames[0]
   const sheet = activeSheetName ? meta.sheets[activeSheetName] : null
 
-  // For the 2013 ("legacy") era, resolve which physical column holds the
-  // specific outcomes vs content/skills/values so the cell renderer can split
-  // each into independent list items (see renderLegacyCell).
-  const legacyRoles = useMemo(
-    () => (era === 'legacy' && sheet ? resolveColumnRoles(sheet.columns) : null),
-    [era, sheet],
+  // Resolve which physical column holds the outcomes/competences vs
+  // content/skills/values/activities so the cell renderer can split each into
+  // independent list items (see renderLegacyCell). Both eras need this: the
+  // 2013 books join outcomes in one cell, and the 2023 CBC's ECE sheets do the
+  // same with specific competences ("0.1.1.6.1 Name… 0.1.1.6.2 Use…").
+  const colRoles = useMemo(
+    () => (sheet ? resolveColumnRoles(sheet.columns) : null),
+    [sheet],
   )
+  const isLegacyEra = era === 'legacy'
 
   // Recompute the visible rows whenever the sheet or filter changes. Each
   // visible "topic group" is represented by a header row followed by zero or
@@ -844,23 +847,34 @@ function SubjectDetail({ meta, currentSheet, onSelectSheet, rowFilter, onRowFilt
       if (row.type !== 'data') continue
       let cellsObj = row.cells || {}
       let shiftedRow = false
-      if (legacyRoles) {
-        // 2013 sheets: drop repeated column-header rows (KNOWLEDGE/SKILLS/…)
-        // and re-align page-break rows whose cells shifted left — otherwise
-        // outcome text in the TOPIC column renders as a full-width heading.
-        if (isHeaderEchoRow(cellsObj)) continue
-        const repaired = repairColumnShiftedRow(cellsObj, sheet.columns, legacyRoles)
+      // Both eras: drop repeated column-header rows (KNOWLEDGE/SKILLS/… in
+      // 2013, TOPIC/SUB-TOPIC/SPECIFIC COMPETENCES/… in the CBC sheets) —
+      // otherwise "TOPIC" even renders as a bogus full-width topic heading.
+      if (isHeaderEchoRow(cellsObj)) continue
+      if (isLegacyEra && colRoles) {
+        // 2013 sheets: re-align page-break rows whose cells shifted left —
+        // otherwise outcome text in the TOPIC column renders as a heading.
+        const repaired = repairColumnShiftedRow(cellsObj, sheet.columns, colRoles)
         cellsObj = repaired.cells
         shiftedRow = repaired.shifted
       }
       const cells = sheet.columns.map(c => (cellsObj[c] || ''))
       if (q && !cells.some(c => c.toLowerCase().includes(q))) continue
 
-      // A repaired shifted row is the second half of the previous physical row
-      // (split at a PDF page break) — merge its cells back into that row so the
-      // subtopic reads as one row with all its outcomes + full content.
       const prevData = out.length && out[out.length - 1].kind === 'data' ? out[out.length - 1] : null
-      if (shiftedRow && prevData) {
+      // A repaired shifted row is the second half of the previous physical row
+      // (split at a PDF page break). A plain continuation row (blank topic +
+      // sub-topic + outcomes/competences but carrying activities/content) is
+      // the same thing without the column shift — both eras have them. Merge
+      // either back into the parent row so the subtopic reads as one row with
+      // all its outcomes and full content.
+      const structuralIdx = [colRoles?.topic, colRoles?.subtopic, colRoles?.outcomes]
+        .map((c) => (c ? sheet.columns.indexOf(c) : -1))
+        .filter((i) => i >= 0)
+      const isContinuation = colRoles && structuralIdx.length >= 2 &&
+        structuralIdx.every((i) => !(cells[i] || '').trim()) &&
+        cells.some((v, i) => !structuralIdx.includes(i) && (v || '').trim())
+      if ((shiftedRow || isContinuation) && prevData) {
         prevData.cells = prevData.cells.map((v, i) => joinCellText(v, cells[i]))
         continue
       }
@@ -883,7 +897,7 @@ function SubjectDetail({ meta, currentSheet, onSelectSheet, rowFilter, onRowFilt
       })
     }
     return { rows: out, shown }
-  }, [sheet, rowFilter, legacyRoles])
+  }, [sheet, rowFilter, colRoles, isLegacyEra])
 
   if (!sheet) {
     return <p className="ss-empty">No sheet to display.</p>
@@ -1028,8 +1042,8 @@ function SubjectDetail({ meta, currentSheet, onSelectSheet, rowFilter, onRowFilt
                       const colName = sheet.columns[ci]
                       return (
                         <td key={ci} className={className}>
-                          {legacyRoles
-                            ? renderLegacyCell(colName, val, legacyRoles, rowFilter.trim())
+                          {colRoles
+                            ? renderLegacyCell(colName, val, colRoles, rowFilter.trim())
                             : renderCell(val, rowFilter.trim())}
                         </td>
                       )

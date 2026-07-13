@@ -321,5 +321,30 @@ check('splitPoints keeps commas inside a point, splits only on bullets', () => {
   assert.deepEqual(splitPoints('• Head, neck, arm • Elbow, hand'), ['Head, neck, arm', 'Elbow, hand'])
 })
 
+console.log('\n2023 CBC sheets share the same primitives')
+check('CBC header-echo rows are recognised (TOPIC/SUB-TOPIC/SPECIFIC COMPETENCES)', () => {
+  assert.equal(isHeaderEchoRow({ TOPIC: 'TOPIC', 'SUB-TOPIC': 'SUB-TOPIC', 'SPECIFIC COMPETENCES': 'SPECIFIC COMPETENCES' }), true)
+  assert.equal(isHeaderEchoRow({ TOPIC: '', 'SUB-TOPIC': 'SUB-TOPIC', 'SPECIFIC COMPETENCES': 'SPECIFIC COMPETENCES', 'LEARNING ACTIVITIES': 'LEARNING ACTIVITIES' }), true)
+  // A real row that merely mentions a header word is NOT an echo.
+  assert.equal(isHeaderEchoRow({ TOPIC: '1.1 Numbers', 'SUB-TOPIC': 'Counting' }), false)
+})
+check('CBC columns resolve: SPECIFIC COMPETENCES plays the outcomes role', () => {
+  const roles = resolveColumnRoles(['TOPIC', 'SUB-TOPIC', 'SPECIFIC COMPETENCES', 'LEARNING ACTIVITIES', 'EXPECTED STANDARD'])
+  assert.equal(roles.topic, 'TOPIC')
+  assert.equal(roles.subtopic, 'SUB-TOPIC')
+  assert.equal(roles.outcomes, 'SPECIFIC COMPETENCES')
+  assert.equal(roles.activities, 'LEARNING ACTIVITIES')
+})
+check('joined 5-segment ECE competences split one per code', () => {
+  const out = splitSpecificOutcomes('0.1.1.6.1 Name objects in the home environment 0.1.1.6.2 Use appropriate language to state the functions of objects in the home environment')
+  assert.equal(out.length, 2)
+  assert.equal(out[0].code, '0.1.1.6.1')
+  assert.equal(out[1].code, '0.1.1.6.2')
+})
+check('an uncoded CBC competence passes through as one statement', () => {
+  const out = splitSpecificOutcomes('Explain common cybersecurity threats')
+  assert.deepEqual(out, [{ code: null, statement: 'Explain common cybersecurity threats' }])
+})
+
 console.log(`\n${passed} checks passed`)
 if (process.exitCode) { console.error('\nSOME TESTS FAILED'); } else { console.log('ALL TESTS PASSED') }

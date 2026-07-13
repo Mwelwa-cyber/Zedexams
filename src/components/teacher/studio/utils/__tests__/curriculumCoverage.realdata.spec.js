@@ -149,3 +149,42 @@ describe('2013 hierarchy correctness (real data)', () => {
     expect(detail.specificOutcomes[2]).toMatch(/^5\.2\.3\.3/)
   })
 })
+
+// CBC (2023) shares the same page-break artefacts, milder: header-echo rows,
+// joined ECE competences, and continuation rows whose activities were cut
+// mid-phrase. These real-data checks pin the healed behaviour.
+describe('CBC hierarchy correctness (real data)', () => {
+  it('Literature in English Form 1 Prose activities include the page-break continuation', async () => {
+    const subjects = await getSubjectsForGrade('Form 1', 'cbc')
+    const lit = subjects.find((s) => /literature in english/i.test(s))
+    expect(lit).toBeTruthy()
+    const topics = await getTopicsForSubject(lit, 'Form 1', 'cbc')
+    let hit = null
+    for (const t of topics) {
+      const sub = t.subtopics.find((s) => /prose/i.test(s))
+      if (sub) { hit = { topic: t.label, sub }; break }
+    }
+    expect(hit).toBeTruthy()
+    const detail = await getSubtopicDetail(lit, 'Form 1', hit.topic, hit.sub, 'cbc')
+    expect(detail).toBeTruthy()
+    const allActivities = detail.learningActivities.join(' ')
+    // The continuation fragment ("chapter: fiction and non- fiction, …") used
+    // to be dropped — it must now be part of the Prose activities.
+    expect(allActivities).toMatch(/fiction and non-? ?fiction/i)
+  })
+
+  it('no CBC topic list contains a bogus TOPIC/SUB-TOPIC header row', async () => {
+    for (const grade of ['Form 1', 'Grade 4']) {
+      const subjects = await getSubjectsForGrade(grade, 'cbc')
+      for (const subject of subjects) {
+        const topics = await getTopicsForSubject(subject, grade, 'cbc')
+        for (const t of topics) {
+          expect(t.label.trim().toUpperCase()).not.toBe('TOPIC')
+          for (const s of t.subtopics) {
+            expect(s.trim().toUpperCase()).not.toBe('SUB-TOPIC')
+          }
+        }
+      }
+    }
+  })
+})
