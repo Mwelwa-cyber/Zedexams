@@ -8,9 +8,11 @@
 
 import {
   NATIONAL_CALENDAR_ID,
+  DEFAULT_TEACHING_DAYS,
   listAvailableCalendars,
   resolveCalendar,
   calendarLabel,
+  isTeachingWeekday,
   isWeekend,
   isPublicHoliday,
   publicHolidayOn,
@@ -18,6 +20,7 @@ import {
   isNonTeachingDay,
   teachingDaysInWeek,
   resolveTeachingContext,
+  isContextUsable,
 } from '../src/utils/calendarResolver.js'
 
 let pass = 0
@@ -67,6 +70,17 @@ test('calendarLabel is human', () => {
   eq(calendarLabel('unknown'), '')
 })
 
+// ── centralised teaching-day config (Risk 3) ─────────────────────────────────
+console.log('\nteaching-day config')
+test('default teaching days are Mon–Fri', () => {
+  eq(JSON.stringify(DEFAULT_TEACHING_DAYS), JSON.stringify([1, 2, 3, 4, 5]))
+})
+test('isTeachingWeekday honours the default and an override', () => {
+  eq(isTeachingWeekday('2026-05-18'), true) // Monday
+  eq(isTeachingWeekday('2026-05-16'), false) // Saturday, default
+  eq(isTeachingWeekday('2026-05-16', [1, 2, 3, 4, 5, 6]), true) // Saturday-teaching override
+})
+
 // ── weekend / holiday / break predicates ─────────────────────────────────────
 console.log('\nclosure predicates')
 test('isWeekend detects Sat/Sun', () => {
@@ -113,13 +127,18 @@ test('an ordinary week has five teaching days', () => {
   eq(days.filter((d) => d.isTeachingDay).length, 5)
 })
 
-// ── resolveTeachingContext ───────────────────────────────────────────────────
-console.log('\nresolveTeachingContext')
-test('active term: not closed, correct term + week + next term', () => {
+// ── resolveTeachingContext — the load-bearing safeguard (Risk 2) ────────────
+// Never returns null; always a structured object with a `status`. Every failure
+// mode below must degrade to closed/null fields, never a crash or a guessed
+// Week 1.
+console.log('\nresolveTeachingContext — success')
+test('valid term date: ok, correct term + week + next term, isTeachingDay', () => {
   const ctx = resolveTeachingContext({ calendarId: NATIONAL_CALENDAR_ID, date: '2026-05-20' })
-  assert(ctx, 'context should resolve')
+  eq(ctx.status, 'ok')
+  eq(isContextUsable(ctx), true)
   eq(ctx.isActiveTerm, true)
   eq(ctx.isClosed, false)
+  eq(ctx.isTeachingDay, true) // 2026-05-20 is a Wednesday in term, no holiday
   eq(ctx.academicYear, 2026)
   eq(ctx.termNumber, 2)
   eq(ctx.weekNumber, 2) // T2 opens 05-11 (Mon); 05-20 is week 2
@@ -128,18 +147,67 @@ test('active term: not closed, correct term + week + next term', () => {
   eq(ctx.nextTerm.termNumber, 3)
   assert(ctx.weekBeginningLabel.length > 0)
 })
-test('term break: isClosed true and points at the next term to prepare', () => {
+test('holiday date: ok but isTeachingDay false', () => {
+  const ctx = resolveTeachingContext({ calendarId: NATIONAL_CALENDAR_ID, date: '2026-07-06' })
+  eq(ctx.status, 'ok')
+  eq(ctx.isTeachingDay, false) // Heroes Day
+})
+test('missing calendarId falls back to national (ok, not a failure)', () => {
+  const ctx = resolveTeachingContext({ date: '2026-05-20' })
+  eq(ctx.status, 'ok')
+  eq(ctx.calendarId, NATIONAL_CALENDAR_ID)
+})
+test('term break: ok, isClosed true, points at the next term to prepare', () => {
   const ctx = resolveTeachingContext({ calendarId: NATIONAL_CALENDAR_ID, date: '2026-04-20' })
-  assert(ctx, 'context should resolve during a break')
+  eq(ctx.status, 'ok')
   eq(ctx.isActiveTerm, false)
   eq(ctx.isClosed, true)
+  eq(ctx.isTeachingDay, false)
   eq(ctx.termNumber, 2) // the upcoming term
   eq(ctx.nextTerm.termNumber, 2)
   assert(ctx.nextTerm.daysUntilOpen > 0)
   eq(ctx.nextTerm.open, '2026-05-11')
 })
-test('unknown calendar resolves to null (callers must handle it)', () => {
-  eq(resolveTeachingContext({ calendarId: 'school-xyz', date: '2026-05-20' }), null)
+
+console.log('\nresolveTeachingContext — failure modes never crash')
+function assertSafeEmpty(ctx) {
+  eq(isContextUsable(ctx), false)
+  eq(ctx.isTeachingDay, false)
+  eq(ctx.termNumber, null)
+  eq(ctx.weekNumber, null)
+  eq(ctx.nextTerm, null)
+  assert(Array.isArray(ctx.upcomingHolidays))
+}
+test('unknown calendar id → unavailable / calendar_not_found', () => {
+  const ctx = resolveTeachingContext({ calendarId: 'school-xyz', date: '2026-05-20' })
+  eq(ctx.status, 'unavailable')
+  eq(ctx.reason, 'calendar_not_found')
+  assertSafeEmpty(ctx)
+})
+test('year after 2030 → out_of_range / year_not_supported', () => {
+  const ctx = resolveTeachingContext({ calendarId: NATIONAL_CALENDAR_ID, date: '2031-06-01' })
+  eq(ctx.status, 'out_of_range')
+  eq(ctx.reason, 'year_not_supported')
+  assertSafeEmpty(ctx)
+})
+test('date before supported range still resolves forward, never crashes', () => {
+  // Late-2025 use: no active term, but 2026 T1 is upcoming — degrade to a
+  // "closed, prepare for next term" context rather than a hard failure.
+  const ctx = resolveTeachingContext({ calendarId: NATIONAL_CALENDAR_ID, date: '2025-12-01' })
+  eq(ctx.status, 'ok')
+  eq(ctx.isClosed, true)
+  eq(ctx.nextTerm.academicYear, 2026)
+})
+test('invalid date string → invalid_date', () => {
+  const ctx = resolveTeachingContext({ calendarId: NATIONAL_CALENDAR_ID, date: 'not-a-date' })
+  eq(ctx.status, 'invalid_date')
+  eq(ctx.reason, 'invalid_date')
+  assertSafeEmpty(ctx)
+})
+test('no date given defaults to today and still returns a structured object', () => {
+  const ctx = resolveTeachingContext({ calendarId: NATIONAL_CALENDAR_ID })
+  assert(['ok', 'out_of_range'].includes(ctx.status)) // depends on "today", but never throws/null
+  assert(typeof ctx.isTeachingDay === 'boolean')
 })
 
 // ── report ───────────────────────────────────────────────────────────────────
