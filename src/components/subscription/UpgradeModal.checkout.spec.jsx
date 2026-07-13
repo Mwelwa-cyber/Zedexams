@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import UpgradeModal from './UpgradeModal'
-import { getUpgradeQuote, initiateLencoPayment } from '../../utils/lenco'
+import { getUpgradeQuote, initiateLencoPayment, pollLencoStatus } from '../../utils/lenco'
 import { capture } from '../../utils/analytics'
 
 // Behaviour contract of the Lenco checkout step (Phase 3 payment-window
@@ -195,6 +195,78 @@ describe('Lenco checkout step', () => {
     expect(payButton()).toBeDisabled()
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'mtn' } })
     expect(payButton()).not.toBeDisabled()
+  })
+
+  it('shows Check your phone (reference, network, amount) while the prompt is pending', async () => {
+    initiateLencoPayment.mockResolvedValue({ paymentId: 'p1', status: 'pending' })
+    pollLencoStatus.mockImplementation(() => new Promise(() => {})) // prompt stays live
+    openCheckout()
+    await waitFor(() => expect(screen.getByText(/until 12 August 2026/)).toBeInTheDocument())
+    fireEvent.change(phoneInput(), { target: { value: '0977740465' } })
+    fireEvent.click(payButton())
+    await waitFor(() => expect(screen.getByText('Check your phone')).toBeInTheDocument())
+    expect(screen.getByText('0977 740 465')).toBeInTheDocument()
+    expect(screen.getByText('p1')).toBeInTheDocument()
+    expect(screen.getByText('Airtel Money')).toBeInTheDocument()
+    expect(screen.getByText('K59', { selector: 'dd' })).toBeInTheDocument()
+    expect(pollLencoStatus).toHaveBeenCalledWith('p1', expect.anything())
+    // "I have approved" advances to the verifying view — verification itself
+    // stays automatic (the poll keeps running).
+    fireEvent.click(screen.getByRole('button', { name: 'I have approved' }))
+    expect(screen.getByText('Verifying your payment')).toBeInTheDocument()
+    expect(screen.getByText(/do not close this window/i)).toBeInTheDocument()
+  })
+
+  it('times out into "still waiting" and re-checks the SAME transaction only', async () => {
+    initiateLencoPayment.mockResolvedValue({ paymentId: 'p1', status: 'pending' })
+    pollLencoStatus.mockResolvedValue('pending') // poll window elapses
+    openCheckout()
+    await waitFor(() => expect(screen.getByText(/until 12 August 2026/)).toBeInTheDocument())
+    fireEvent.change(phoneInput(), { target: { value: '0977740465' } })
+    fireEvent.click(payButton())
+    await waitFor(() => expect(screen.getByText(/still waiting for confirmation/i)).toBeInTheDocument())
+    expect(screen.getByText(/Do not make another payment yet/)).toBeInTheDocument()
+    pollLencoStatus.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'Check payment status' }))
+    await waitFor(() => expect(pollLencoStatus).toHaveBeenCalledWith('p1', expect.anything()))
+    // Re-check polls the existing reference — no new initiation.
+    expect(initiateLencoPayment).toHaveBeenCalledTimes(1)
+  })
+
+  it('failed payment offers Try again, a different number, and Cancel — work preserved', async () => {
+    initiateLencoPayment.mockResolvedValue({ paymentId: 'p1', status: 'pending' })
+    pollLencoStatus.mockResolvedValue('failed')
+    openCheckout()
+    await waitFor(() => expect(screen.getByText(/until 12 August 2026/)).toBeInTheDocument())
+    fireEvent.change(phoneInput(), { target: { value: '0977740465' } })
+    fireEvent.click(payButton())
+    await waitFor(() => expect(screen.getByText('Payment was not completed')).toBeInTheDocument())
+    expect(screen.getByText(/provider did not confirm the payment/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Use a different number' }))
+    // Back on the form with the number cleared, ready for a new attempt.
+    expect(phoneInput().value).toBe('')
+    expect(screen.getByRole('button', { name: /Pay K59/ })).toBeDisabled()
+  })
+
+  it('cancelling a pending payment warns first, then closes without a new charge', async () => {
+    initiateLencoPayment.mockResolvedValue({ paymentId: 'p1', status: 'pending' })
+    pollLencoStatus.mockImplementation(() => new Promise(() => {}))
+    const onClose = vi.fn()
+    render(
+      <UpgradeModal portal="teacher" planIds={['pro_monthly']} defaultPlanId="pro_monthly" onClose={onClose} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Continue to Payment/i }))
+    await waitFor(() => expect(screen.getByText(/until 12 August 2026/)).toBeInTheDocument())
+    fireEvent.change(phoneInput(), { target: { value: '0977740465' } })
+    fireEvent.click(payButton())
+    await waitFor(() => expect(screen.getByText('Check your phone')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel payment' }))
+    expect(screen.getByText(/will not automatically reverse a payment already approved/)).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel payment' })) // confirm
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(initiateLencoPayment).toHaveBeenCalledTimes(1)
+    expect(capture).toHaveBeenCalledWith('lenco_payment_cancelled', { planId: 'pro_monthly', via: 'pending-screen' })
   })
 
   it('captures number-entered and network-detected funnel events without the number', async () => {
