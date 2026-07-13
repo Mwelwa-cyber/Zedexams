@@ -8,11 +8,11 @@ import {
   summarizeGenerations,
   titleForGeneration,
   formatDate,
-  deleteGeneration,
   duplicateGeneration,
   CLIENT_CREATED_TOOLS,
   TOOL_META as LIB_TOOL_META,
 } from '../../utils/teacherLibraryService'
+import { getDocumentActions } from '../../utils/documentActions'
 import { useToast } from '../ui/Toast'
 import { resolveTeacherPlan, PLAN_LABELS } from '../../utils/teacherPlans'
 import { isExamPaperType, assessmentEditPath } from './paperTaxonomy'
@@ -687,7 +687,7 @@ function PlanQuickCard({ plan }) {
 
 export default function TeacherDashboard() {
   const { currentUser, userProfile } = useAuth()
-  const { getMyAssessments, updateAssessment, deleteAssessment } = useFirestore()
+  const { getMyAssessments, updateAssessment } = useFirestore()
   const navigate = useNavigate()
   const toast = useToast()
 
@@ -881,8 +881,8 @@ export default function TeacherDashboard() {
 
   // Recent documents — newest first by last edit (assessments carry
   // updatedAt; generations only createdAt), shaped for the RecentDocuments
-  // rows. Duplicate is limited to client-created tools (the Library's own
-  // constraint) and rename to test/exam papers (title is a real field there).
+  // rows. Capabilities come from the central resolver so the menu never
+  // offers an action this document type can't honour.
   const recentItems = useMemo(() => {
     return [...resources]
       .sort((a, b) => (b.modifiedAt || b.createdAt) - (a.modifiedAt || a.createdAt))
@@ -899,8 +899,7 @@ export default function TeacherDashboard() {
         timeLabel: `${r.modifiedAt && r.modifiedAt !== r.createdAt ? 'Edited' : 'Created'} ${formatDate(r.modifiedAt || r.createdAt)}`,
         status: r.status === 'draft' ? 'draft' : 'ready',
         to: r.to,
-        canRename: r.kind === 'assessment',
-        canDuplicate: r.kind === 'generation' && CLIENT_CREATED_TOOLS.includes(r.tool),
+        actions: getDocumentActions(r, { clientCreatedTools: CLIENT_CREATED_TOOLS }),
         raw: r.raw,
       }))
   }, [resources])
@@ -908,11 +907,13 @@ export default function TeacherDashboard() {
   async function handleDuplicateRecent(item) {
     try {
       await duplicateGeneration(item.raw, currentUser?.uid)
-      toast.success('Copy saved to your library.')
+      toast.success('Document duplicated — a copy has been added to Recent documents.')
+      // One server-confirmed refetch of the existing limited query; no new
+      // listeners, no full-page reload, scroll position untouched.
       setLoading(true)
       setReloadKey((k) => k + 1)
     } catch (err) {
-      toast.error(err?.message || 'Could not duplicate this document.')
+      toast.error(err?.message || 'We could not duplicate this document. The original document was not changed.')
     }
   }
 
@@ -923,22 +924,6 @@ export default function TeacherDashboard() {
       toast.success('Renamed.')
     } catch {
       toast.error('Could not rename. Try again.')
-    }
-  }
-
-  async function handleDeleteRecent(item) {
-    try {
-      if (item.kind === 'assessment') {
-        await deleteAssessment(item.id)
-        setAssessments((prev) => prev.filter((a) => a.id !== item.id))
-      } else {
-        const ok = await deleteGeneration(item.id)
-        if (!ok) throw new Error('delete failed')
-        setGenerations((prev) => prev.filter((g) => g.id !== item.id))
-      }
-      toast.success('Deleted.')
-    } catch {
-      toast.error('Could not delete. Try again.')
     }
   }
 
@@ -1116,7 +1101,6 @@ export default function TeacherDashboard() {
         loading={loading}
         onDuplicate={handleDuplicateRecent}
         onRename={handleRenameRecent}
-        onDelete={handleDeleteRecent}
       />
 
       {/* ── Teacher workspace (studios) ───────────────────────────── */}

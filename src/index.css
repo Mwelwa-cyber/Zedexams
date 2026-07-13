@@ -2285,7 +2285,29 @@ body.theme-midnight .moe-calendar {
   }
   .studio-theme .teacher-recent-menu__item:hover,
   .studio-theme .teacher-recent-menu__item:focus-visible { background: #fdf8ec; }
-  .studio-theme .teacher-recent-menu__item--danger { color: #c0392b; }
+  .studio-theme .teacher-recent-menu__item:disabled { color: #9aa7a5; cursor: default; }
+  .studio-theme .teacher-recent-menu__hint {
+    margin: 4px 2px 2px;
+    padding: 7px 12px 3px;
+    border-top: 1px solid #efe7d5;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #8a7a58;
+  }
+  .studio-theme .teacher-recent-row__busy {
+    flex: 0 0 auto;
+    font-size: 12px;
+    font-weight: 800;
+    color: #c2531a;
+    white-space: nowrap;
+  }
+  .studio-theme .teacher-recent-row__rename-problem {
+    flex-basis: 100%;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #c0392b;
+  }
+  .studio-theme .teacher-recent-row__rename { flex-wrap: wrap; }
   /* Mobile keeps the status chip (it's information, not decoration) and
      drops only the timestamp; the title truncates with ellipsis. */
   @media (max-width: 720px) {

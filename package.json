@@ -120,6 +120,7 @@
     "test:dashboard-intel": "node src/utils/teacherDashboardIntel.test.js",
     "test:prepare-week": "node src/utils/prepareThisWeek.test.js",
     "test:recommendations": "node src/utils/teacherRecommendations.test.js",
+    "test:document-actions": "node src/utils/documentActions.test.js",
     "test:assessment-autosave": "node scripts/test-assessment-autosave.mjs",
     "test:assessment-pdf": "node src/utils/assessmentToPdf.test.js",
     "test:studio-question-types": "node src/components/teacher/assessmentQuestionTypes.test.js",

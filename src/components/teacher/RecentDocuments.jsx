@@ -1,25 +1,21 @@
 /**
  * RecentDocuments — the teacher's latest documents with quick actions
- * (redesign §9). Purely presentational: TeacherDashboard shapes the items
- * from the data it already fetched (no extra reads) and owns the action
- * handlers (duplicate / rename / delete) so all Firestore writes go through
- * the same services the Library uses.
+ * (redesign §9 + risk review). Purely presentational: TeacherDashboard
+ * shapes the items from the data it already fetched (no extra reads) and
+ * owns the action handlers, with capabilities decided centrally by
+ * src/utils/documentActions.js — the menu only ever shows actions that
+ * genuinely work for that document type.
  *
- * Action honesty:
- *  - Duplicate appears only for client-created tools (the same
- *    CLIENT_CREATED_TOOLS constraint the Library documents — AI-generated
- *    docs are created server-side and can't be client-copied).
- *  - Rename appears only for test/exam papers, where `title` is a real
- *    first-class field; generation titles are derived from content, so a
- *    dashboard rename would silently not stick.
- *  - Delete is a permanent delete behind a ConfirmDialog — there is no
- *    trash/restore in the data model, so the menu never says "Move to
- *    Trash".
+ * Deliberately absent (see documentActions.js for the full rationale):
+ *  - Download — exporters live inside each document view; the menu says so.
+ *  - Trash/Delete — no soft-delete lifecycle exists yet, and a permanent
+ *    delete is not an acceptable stand-in, so the dashboard offers no
+ *    destructive action at all. Deletion stays in the Library.
  */
 
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import ConfirmDialog from '../ui/ConfirmDialog'
+import { validateDocumentTitle } from '../../utils/documentActions'
 import { capture } from '../../utils/analytics'
 
 function MoreDots() {
@@ -32,7 +28,7 @@ function MoreDots() {
   )
 }
 
-function RowMenu({ item, onRenameStart, onDuplicate, onDeleteAsk }) {
+function RowMenu({ item, busy, onRenameStart, onDuplicate }) {
   const [open, setOpen] = useState(false)
   const wrapRef = useRef(null)
 
@@ -74,7 +70,7 @@ function RowMenu({ item, onRenameStart, onDuplicate, onDeleteAsk }) {
           >
             Open
           </Link>
-          {item.canRename && (
+          {item.actions.canRename && (
             <button
               type="button"
               role="menuitem"
@@ -84,34 +80,29 @@ function RowMenu({ item, onRenameStart, onDuplicate, onDeleteAsk }) {
               Rename
             </button>
           )}
-          {item.canDuplicate && (
+          {item.actions.canDuplicate && (
             <button
               type="button"
               role="menuitem"
               className="teacher-recent-menu__item"
+              disabled={busy}
               onClick={() => { setOpen(false); onDuplicate(item) }}
             >
-              Duplicate
+              {busy ? 'Duplicating…' : 'Duplicate'}
             </button>
           )}
-          <button
-            type="button"
-            role="menuitem"
-            className="teacher-recent-menu__item teacher-recent-menu__item--danger"
-            onClick={() => { setOpen(false); onDeleteAsk(item) }}
-          >
-            Delete
-          </button>
+          {/* Exporters are per-type and live in the document views — say so
+              instead of offering a Download that couldn't work here. */}
+          <p className="teacher-recent-menu__hint">Open this document to download or export it.</p>
         </div>
       )}
     </div>
   )
 }
 
-export default function RecentDocuments({ items = [], loading, onDuplicate, onRename, onDelete }) {
-  const [confirmItem, setConfirmItem] = useState(null)
-  const [deleting, setDeleting] = useState(false)
-  const [renaming, setRenaming] = useState(null) // { id, value }
+export default function RecentDocuments({ items = [], loading, onDuplicate, onRename }) {
+  const [renaming, setRenaming] = useState(null) // { id, value, problem }
+  const [duplicatingId, setDuplicatingId] = useState(null)
 
   if (loading) {
     return (
@@ -123,23 +114,27 @@ export default function RecentDocuments({ items = [], loading, onDuplicate, onRe
   }
   if (!items.length) return null
 
-  async function handleDelete() {
-    if (!confirmItem) return
-    setDeleting(true)
+  async function handleDuplicate(item) {
+    if (duplicatingId) return
+    setDuplicatingId(item.id)
     try {
-      await onDelete(confirmItem)
-      capture('recent_document_deleted', { type: confirmItem.tool })
-      setConfirmItem(null)
+      await onDuplicate(item)
+      capture('recent_document_duplicated', { type: item.tool })
     } finally {
-      setDeleting(false)
+      setDuplicatingId(null)
     }
   }
 
   async function submitRename(item) {
-    const value = renaming?.value?.trim()
+    const value = renaming?.value ?? ''
+    const problem = validateDocumentTitle(value)
+    if (problem) {
+      setRenaming((r) => (r ? { ...r, problem } : r))
+      return
+    }
     setRenaming(null)
-    if (!value || value === item.title) return
-    await onRename(item, value)
+    if (value.trim() === item.title) return
+    await onRename(item, value.trim())
     capture('recent_document_renamed', { type: item.tool })
   }
 
@@ -164,11 +159,15 @@ export default function RecentDocuments({ items = [], loading, onDuplicate, onRe
                     value={renaming.value}
                     maxLength={140}
                     aria-label={`New name for ${item.title}`}
+                    aria-invalid={Boolean(renaming.problem)}
                     onChange={(e) => setRenaming({ id: item.id, value: e.target.value })}
                     onKeyDown={(e) => { if (e.key === 'Escape') setRenaming(null) }}
                   />
                   <button type="submit">Save</button>
                   <button type="button" onClick={() => setRenaming(null)}>Cancel</button>
+                  {renaming.problem && (
+                    <span className="teacher-recent-row__rename-problem" role="alert">{renaming.problem}</span>
+                  )}
                 </form>
               ) : (
                 <Link
@@ -183,29 +182,23 @@ export default function RecentDocuments({ items = [], loading, onDuplicate, onRe
                 {[item.typeLabel, item.grade, item.subject].filter(Boolean).join(' · ')}
               </span>
             </div>
-            <span className="teacher-recent-row__time">{item.timeLabel}</span>
+            {duplicatingId === item.id ? (
+              <span className="teacher-recent-row__busy" role="status">Duplicating…</span>
+            ) : (
+              <span className="teacher-recent-row__time">{item.timeLabel}</span>
+            )}
             <span className={`teacher-recent-row__status teacher-recent-row__status--${item.status}`}>
               {item.status === 'draft' ? 'Draft' : 'Ready'}
             </span>
             <RowMenu
               item={item}
+              busy={duplicatingId === item.id}
               onRenameStart={(it) => setRenaming({ id: it.id, value: it.title })}
-              onDuplicate={onDuplicate}
-              onDeleteAsk={setConfirmItem}
+              onDuplicate={handleDuplicate}
             />
           </div>
         ))}
       </div>
-
-      <ConfirmDialog
-        open={Boolean(confirmItem)}
-        title="Delete this document?"
-        message={confirmItem ? `"${confirmItem.title}" will be permanently deleted. This cannot be undone.` : ''}
-        confirmLabel="Delete"
-        loading={deleting}
-        onConfirm={handleDelete}
-        onCancel={() => setConfirmItem(null)}
-      />
     </section>
   )
 }

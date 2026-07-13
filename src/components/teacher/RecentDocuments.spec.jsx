@@ -18,8 +18,7 @@ function item(id, extra = {}) {
     timeLabel: 'Created 2d ago',
     status: 'ready',
     to: `/teacher/library/${id}`,
-    canRename: false,
-    canDuplicate: true,
+    actions: { canOpen: true, canRename: false, canDuplicate: true, canDownload: false, canTrash: false },
     raw: { id },
     ...extra,
   }
@@ -33,7 +32,6 @@ function renderRecent(props = {}) {
         loading={props.loading ?? false}
         onDuplicate={props.onDuplicate ?? vi.fn()}
         onRename={props.onRename ?? vi.fn()}
-        onDelete={props.onDelete ?? vi.fn()}
       />
     </MemoryRouter>,
   )
@@ -57,45 +55,57 @@ describe('RecentDocuments', () => {
     expect(screen.getByRole('link', { name: /view all/i })).toHaveAttribute('href', '/teacher/library')
   })
 
-  it('opens the row menu with Open/Duplicate/Delete and honours capability flags', () => {
-    renderRecent({ items: [item('a', { canDuplicate: false, canRename: false })] })
+  it('menu offers only capability-approved actions — never Download, Delete or Trash', () => {
+    renderRecent({
+      items: [item('a', {
+        actions: { canOpen: true, canRename: false, canDuplicate: false, canDownload: false, canTrash: false },
+      })],
+    })
     fireEvent.click(screen.getByRole('button', { name: /actions for doc a/i }))
-    expect(screen.getByRole('menu')).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Open' })).toHaveAttribute('href', '/teacher/library/a')
     expect(screen.queryByRole('menuitem', { name: 'Duplicate' })).not.toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Rename' })).not.toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: /download/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: /delete|trash/i })).not.toBeInTheDocument()
+    // The menu explains where exporting lives instead of faking a Download.
+    expect(screen.getByText(/open this document to download or export it/i)).toBeInTheDocument()
   })
 
-  it('duplicates via the menu', () => {
-    const onDuplicate = vi.fn()
+  it('duplicates via the menu with a visible progress state', async () => {
+    let release
+    const onDuplicate = vi.fn(() => new Promise((res) => { release = res }))
     renderRecent({ onDuplicate })
     fireEvent.click(screen.getByRole('button', { name: /actions for doc a/i }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Duplicate' }))
     expect(onDuplicate).toHaveBeenCalledWith(expect.objectContaining({ id: 'a' }))
+    expect(screen.getByText('Duplicating…')).toBeInTheDocument()
+    release()
+    await waitFor(() => expect(screen.queryByText('Duplicating…')).not.toBeInTheDocument())
   })
 
-  it('renames inline for items that support it', async () => {
+  it('renames inline with validation for items that support it', async () => {
     const onRename = vi.fn(async () => {})
-    renderRecent({ items: [item('a', { kind: 'assessment', canRename: true, canDuplicate: false })], onRename })
+    renderRecent({
+      items: [item('a', {
+        kind: 'assessment',
+        actions: { canOpen: true, canRename: true, canDuplicate: false, canDownload: false, canTrash: false },
+      })],
+      onRename,
+    })
     fireEvent.click(screen.getByRole('button', { name: /actions for doc a/i }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
     const input = screen.getByRole('textbox', { name: /new name for doc a/i })
+
+    // Empty name is rejected with a visible problem, nothing submitted.
+    fireEvent.change(input, { target: { value: '   ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByRole('alert')).toHaveTextContent(/enter a name/i)
+    expect(onRename).not.toHaveBeenCalled()
+
     fireEvent.change(input, { target: { value: 'End of Term 2 Test' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() =>
       expect(onRename).toHaveBeenCalledWith(expect.objectContaining({ id: 'a' }), 'End of Term 2 Test'),
     )
-  })
-
-  it('deletes only after the ConfirmDialog is confirmed', async () => {
-    const onDelete = vi.fn(async () => {})
-    renderRecent({ onDelete })
-    fireEvent.click(screen.getByRole('button', { name: /actions for doc a/i }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
-    expect(onDelete).not.toHaveBeenCalled()
-    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    await waitFor(() => expect(onDelete).toHaveBeenCalledWith(expect.objectContaining({ id: 'a' })))
   })
 })
