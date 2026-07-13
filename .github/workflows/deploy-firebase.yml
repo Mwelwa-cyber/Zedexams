@@ -301,7 +301,18 @@ jobs:
               echo "Firebase deploy clean — all targets deployed."
               exit 0
             fi
-            echo "::error::Firebase deploy exited ${code} with no per-function failure markers — likely a firestore.rules / indexes / storage or CLI error. See the log above."
+            # Detect a 401 authentication failure specifically — this is the
+            # pattern produced when the FIREBASE_TOKEN has been revoked by a
+            # Google account security event (password change, sign-out, etc.)
+            # or when the service account key is missing/invalid.
+            if printf '%s\n' "${out}" | grep -qi "HTTP Error: 401\|invalid authentication credentials\|authentication.*credential"; then
+              echo "::error::Firebase deploy failed with an authentication error (HTTP 401)."
+              echo "::error::The FIREBASE_TOKEN may have been revoked by a Google account security event (password change, suspicious sign-in, etc.). Fix options:"
+              echo "::error::  1. (Preferred) Add a FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON secret — a service-account key is not tied to a personal account and cannot be revoked this way. See DEPLOY.md."
+              echo "::error::  2. (Legacy) Rotate the token: npx firebase-tools@latest login:ci → update the FIREBASE_TOKEN secret at Settings > Secrets and variables > Actions."
+            else
+              echo "::error::Firebase deploy exited ${code} with no per-function failure markers — likely a firestore.rules / indexes / storage or CLI error. See the log above."
+            fi
             exit 1
           fi
 
