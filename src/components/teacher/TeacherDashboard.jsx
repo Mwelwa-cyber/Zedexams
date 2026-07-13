@@ -22,8 +22,10 @@ import {
 } from '../../utils/teacherDashboardIntel'
 import { buildWeekPrep } from '../../utils/prepareThisWeek'
 import { getCurrentForecastWeek } from '../../utils/moeCalendar'
+import { capture } from '../../utils/analytics'
 import SeoHelmet from '../seo/SeoHelmet'
 import PrepareThisWeek from './PrepareThisWeek'
+import QuickCreate from './QuickCreate'
 import TeacherOnboardingTour from './TeacherOnboardingTour'
 import FeedbackButton from '../feedback/FeedbackButton'
 import SuggestionNudge from '../feedback/SuggestionNudge'
@@ -695,6 +697,9 @@ export default function TeacherDashboard() {
   const [reloadKey, setReloadKey] = useState(0)
   const [searchTerm, setSearchTerm] = useState('')
   const [activityRange, setActivityRange] = useState('week')
+  // Activity statistics live behind a collapsed disclosure at the bottom of
+  // the page (redesign §7) — Quick Create owns their old slot.
+  const [activityOpen, setActivityOpen] = useState(false)
 
   useEffect(() => {
     if (!currentUser) return
@@ -974,62 +979,8 @@ export default function TeacherDashboard() {
         )}
       </section>
 
-      {/* ── Your activity ─────────────────────────────────────────── */}
-      {!loading && (
-        <section className="teacher-activity">
-          <div className="teacher-section-head">
-            <SectionLabel>Your activity</SectionLabel>
-            <label className="teacher-range">
-              <select
-                value={activityRange}
-                onChange={(e) => setActivityRange(e.target.value)}
-                aria-label="Activity range"
-              >
-                <option value="week">This week</option>
-                <option value="month">This month</option>
-              </select>
-              <Icon as={ChevronDown} size="xs" />
-            </label>
-          </div>
-          <div className="teacher-activity__grid">
-            {activityStats.filter((s) => s.key !== 'library').map((s) => {
-              const am = ACTIVITY_META[s.key] || { icon: DocumentTextIcon, tone: 'slate' }
-              // 'new' shares the positive (green) styling with 'up'.
-              const toneDir = s.trend.dir === 'new' ? 'up' : s.trend.dir
-              return (
-                <div key={s.key} className="teacher-activity-card">
-                  <div className="teacher-activity-card__top">
-                    <span className={`teacher-activity-card__badge teacher-activity-card__badge--${am.tone}`}>
-                      <Icon as={am.icon} size="sm" />
-                    </span>
-                    <p className="teacher-activity-card__value">{s.period}</p>
-                  </div>
-                  <p className="teacher-activity-card__label">{s.label}</p>
-                  <span className={`teacher-activity-card__trend teacher-activity-card__trend--${toneDir}`}>
-                    {formatTrend(s.trend, s.basis)}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-          {(() => {
-            const lib = activityStats.find((s) => s.key === 'library')
-            if (!lib) return null
-            return (
-              <Link to="/teacher/library" className="teacher-activity-total">
-                <span className="teacher-activity-card__badge teacher-activity-card__badge--blue">
-                  <Icon as={FolderOpen} size="sm" />
-                </span>
-                <div className="teacher-activity-total__body">
-                  <p className="teacher-activity-total__value">{lib.total}</p>
-                  <p className="teacher-activity-total__label">Total in library</p>
-                </div>
-                <Icon as={ChevronRight} size="sm" className="teacher-activity-total__arrow" />
-              </Link>
-            )
-          })()}
-        </section>
-      )}
+      {/* ── Quick create (the four primary studio actions) ────────── */}
+      <QuickCreate />
 
       {/* ── AI insights ───────────────────────────────────────────── */}
       {!loading && insights.length > 0 && (
@@ -1047,7 +998,7 @@ export default function TeacherDashboard() {
       )}
 
       {/* ── Teacher workspace (studios) ───────────────────────────── */}
-      <div className="teacher-workspace-header teacher-defer">
+      <div id="teacher-workspace" className="teacher-workspace-header teacher-defer">
         <span className="teacher-workspace-header__icon">
           <Icon as={LayoutGrid} size="md" />
         </span>
@@ -1078,6 +1029,90 @@ export default function TeacherDashboard() {
           </div>
         </section>
       ))}
+
+      {/* ── Your activity (collapsed disclosure — the stats moved out of
+          the main flow when Quick Create took their slot; the numbers and
+          honest trends stay one tap away) ──────────────────────────── */}
+      {!loading && (
+        <section className="teacher-activity teacher-defer">
+          <button
+            type="button"
+            className="teacher-activity__toggle"
+            aria-expanded={activityOpen}
+            onClick={() => {
+              setActivityOpen((v) => {
+                if (!v) capture('dashboard_activity_expanded', {})
+                return !v
+              })
+            }}
+          >
+            <span className="teacher-dashboard-eyebrow">Your activity</span>
+            <span className="teacher-activity__toggle-hint">
+              {activityOpen ? 'Hide' : 'View'}
+              <Icon
+                as={ChevronDown}
+                size="xs"
+                className={activityOpen ? 'teacher-usage-card__chevron is-open' : 'teacher-usage-card__chevron'}
+              />
+            </span>
+          </button>
+          {activityOpen && (
+            <>
+              <div className="teacher-section-head">
+                <span className="sr-only">Activity statistics</span>
+                <label className="teacher-range">
+                  <select
+                    value={activityRange}
+                    onChange={(e) => setActivityRange(e.target.value)}
+                    aria-label="Activity range"
+                  >
+                    <option value="week">This week</option>
+                    <option value="month">This month</option>
+                  </select>
+                  <Icon as={ChevronDown} size="xs" />
+                </label>
+              </div>
+              <div className="teacher-activity__grid">
+                {activityStats.filter((s) => s.key !== 'library').map((s) => {
+                  const am = ACTIVITY_META[s.key] || { icon: DocumentTextIcon, tone: 'slate' }
+                  // 'new' shares the positive (green) styling with 'up'.
+                  const toneDir = s.trend.dir === 'new' ? 'up' : s.trend.dir
+                  return (
+                    <div key={s.key} className="teacher-activity-card">
+                      <div className="teacher-activity-card__top">
+                        <span className={`teacher-activity-card__badge teacher-activity-card__badge--${am.tone}`}>
+                          <Icon as={am.icon} size="sm" />
+                        </span>
+                        <p className="teacher-activity-card__value">{s.period}</p>
+                      </div>
+                      <p className="teacher-activity-card__label">{s.label}</p>
+                      <span className={`teacher-activity-card__trend teacher-activity-card__trend--${toneDir}`}>
+                        {formatTrend(s.trend, s.basis)}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+              {(() => {
+                const lib = activityStats.find((s) => s.key === 'library')
+                if (!lib) return null
+                return (
+                  <Link to="/teacher/library" className="teacher-activity-total">
+                    <span className="teacher-activity-card__badge teacher-activity-card__badge--blue">
+                      <Icon as={FolderOpen} size="sm" />
+                    </span>
+                    <div className="teacher-activity-total__body">
+                      <p className="teacher-activity-total__value">{lib.total}</p>
+                      <p className="teacher-activity-total__label">Total in library</p>
+                    </div>
+                    <Icon as={ChevronRight} size="sm" className="teacher-activity-total__arrow" />
+                  </Link>
+                )
+              })()}
+            </>
+          )}
+        </section>
+      )}
 
       {/* ── Compact plan + usage (bottom of the page by design: the dashboard
           leads with teaching work, not usage statistics; the full breakdown
