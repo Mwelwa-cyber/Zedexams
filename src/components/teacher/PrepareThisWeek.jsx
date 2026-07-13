@@ -81,8 +81,10 @@ function PrepRow({ row }) {
       </span>
       <span
         className={`teacher-prepweek-row__meta ${row.status === 'alert' ? 'teacher-prepweek-row__meta--alert' : ''}`}
+        title={row.estimated ? 'Estimated from creation dates — older documents don’t record a planned teaching date.' : undefined}
       >
         {row.meta}
+        {row.estimated && <span className="sr-only"> (estimated from creation dates)</span>}
       </span>
       <Icon as={ChevronRight} size="xs" className="teacher-prepweek-row__chev" />
     </Link>
@@ -150,12 +152,16 @@ export default function PrepareThisWeek({ loading, error, prep, onRetry }) {
             Create your first Weekly Focus — it captures your grade, subject and this term’s week in one step.
           </p>
           <div className="teacher-prepweek__state-actions">
+            {/* Labelled for what it actually does today (Weekly Focus captures
+                grade + subject + term). Becomes "Set up Teaching Profile" →
+                Settings once that feature exists — do not keep sending it to
+                Weekly Focus after that. */}
             <Link
               to="/teacher/generate/weekly-forecast"
               className="teacher-prepweek__btn teacher-prepweek__btn--primary"
               onClick={() => capture('prepare_week_setup_clicked', {})}
             >
-              Set up teaching profile
+              Choose grade, subject and term
               <Icon as={ArrowRight} size="xs" />
             </Link>
           </div>
@@ -165,29 +171,40 @@ export default function PrepareThisWeek({ loading, error, prep, onRetry }) {
   }
 
   const { context, rows, stage } = prep
+  // During school holidays the card prepares NEXT term's Week 1 — the title
+  // and date chip say so plainly instead of implying a live teaching week.
+  const nextTerm = prep.mode === 'next-term'
+  const title = nextTerm ? 'Prepare for Next Term' : 'Prepare This Week'
   const contextBits = [
     context.gradeLabel,
     `Term ${context.termNumber}`,
     `Week ${context.weekNumber}`,
     context.subjectLabel,
   ].filter(Boolean)
+  const rangeText = nextTerm
+    ? [
+        context.openLabel ? `School opens ${context.openLabel}` : '',
+        context.daysToOpen > 0 ? `in ${context.daysToOpen} day${context.daysToOpen === 1 ? '' : 's'}` : '',
+      ].filter(Boolean).join(' · ')
+    : context.rangeLabel
   const stageIdx = STAGES.findIndex((s) => s.key === stage)
 
   return (
-    <section className="teacher-prepweek" aria-label="Prepare This Week">
+    <section className="teacher-prepweek" aria-label={title}>
       <div className="teacher-prepweek__head">
         <div>
-          <h2 className="teacher-prepweek__title">Prepare This Week</h2>
+          <h2 className="teacher-prepweek__title">{title}</h2>
           <p className="teacher-prepweek__context">{contextBits.join(' · ')}</p>
         </div>
-        {context.rangeLabel && (
+        {rangeText && (
           <span className="teacher-prepweek__range">
             <Icon as={CalendarDays} size="xs" />
-            {context.rangeLabel}
+            {rangeText}
           </span>
         )}
       </div>
 
+      {nextTerm ? null : (
       <ol className="teacher-prepweek__stages" aria-label="Weekly stages">
         {STAGES.map((s, i) => {
           const state = stage === 'done' || i < stageIdx ? 'done' : i === stageIdx ? 'current' : 'next'
@@ -205,6 +222,7 @@ export default function PrepareThisWeek({ loading, error, prep, onRetry }) {
           )
         })}
       </ol>
+      )}
 
       <div className="teacher-prepweek__rows">
         {rows.map((row) => (
@@ -213,17 +231,19 @@ export default function PrepareThisWeek({ loading, error, prep, onRetry }) {
       </div>
 
       <p className="teacher-prepweek__tip">
-        <span aria-hidden="true">💡</span> Completing your weekly plan helps you stay organised and track learner
-        progress easily.
+        <span aria-hidden="true">💡</span>{' '}
+        {nextTerm
+          ? 'School is closed — preparing your scheme and Week 1 now makes opening week easy.'
+          : 'Completing your weekly plan helps you stay organised and track learner progress easily.'}
       </p>
 
       <div className="teacher-prepweek__actions">
         <Link
           to={prep.continueTo}
           className="teacher-prepweek__btn teacher-prepweek__btn--primary"
-          onClick={() => capture('weekly_preparation_continued', { stage })}
+          onClick={() => capture('weekly_preparation_continued', { stage, mode: prep.mode || 'week' })}
         >
-          Continue weekly preparation
+          {nextTerm ? 'Prepare Week 1' : 'Continue weekly preparation'}
           <Icon as={ArrowRight} size="xs" />
         </Link>
         <Link

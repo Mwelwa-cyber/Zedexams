@@ -175,12 +175,57 @@ export function resolveWeekContext({ generations = [], calendar, profileSubject 
   return null
 }
 
-/* ── the five progress rows ────────────────────────────────────────── */
+/* ── week attribution ladder ───────────────────────────────────────────
+   Which teaching week does a document belong to? In priority order:
+     1. Planned teaching date — the teacher-entered lesson date
+        (lesson plans store it as meta.date from a native date input;
+        output.header.date and inputs.plannedDate are accepted for other/
+        future doc shapes).
+     2. Linked Weekly Focus week — no link field exists yet (backlog).
+     3. Stored term: a doc stamped with a DIFFERENT term never counts
+        toward this week, whatever its creation date.
+     4. Creation date, as a legacy fallback — flagged `estimated` so the
+        UI never presents those counts as precise. updatedAt is never
+        consulted, so editing an old document cannot pull it into the
+        current week. */
 
-function withinWeek(g, weekStartMs, weekEndMs) {
-  const t = toMs(g.createdAt)
-  return t >= weekStartMs && t < weekEndMs + DAY_MS
+export function weekAttributionOf(g, { weekStartMs, weekEndMs, termNumber } = {}) {
+  const planned = parseIsoMs(g?.meta?.date || g?.output?.header?.date || g?.inputs?.plannedDate)
+  if (planned != null) {
+    return {
+      inWeek: planned >= weekStartMs && planned < weekEndMs + DAY_MS,
+      estimated: false,
+      basis: 'planned',
+    }
+  }
+  const term = genTerm(g)
+  if (term != null && term !== termNumber) {
+    return { inWeek: false, estimated: false, basis: 'term' }
+  }
+  const created = toMs(g.createdAt)
+  return {
+    inWeek: created >= weekStartMs && created < weekEndMs + DAY_MS,
+    estimated: true,
+    basis: 'created',
+  }
 }
+
+/** Count docs attributed to this week; `estimated` when any counted doc
+ *  fell through to the creation-date fallback. */
+function countInWeek(docs, weekWindow) {
+  let count = 0
+  let estimated = false
+  for (const g of docs) {
+    const a = weekAttributionOf(g, weekWindow)
+    if (a.inWeek) {
+      count += 1
+      if (a.estimated) estimated = true
+    }
+  }
+  return { count, estimated }
+}
+
+/* ── the progress rows ─────────────────────────────────────────────── */
 
 function forecastPreparedDays(focus) {
   const days = Array.isArray(focus?.output?.days) ? focus.output.days : []
@@ -207,8 +252,14 @@ export function buildWeekPrep({ generations = [], calendar = null, profileSubjec
   }
 
   const { termNumber, weekNumber, beginning, ending, beginningLabel, endingLabel, year } = calendar
+  // During school holidays the calendar hands us Week 1 of the NEXT term —
+  // the card switches to "Prepare for Next Term" mode: planning rows only,
+  // no current-week completion counts (school is closed; there is nothing
+  // honest to count).
+  const holiday = calendar.isActiveTermNow === false
   const weekStartMs = parseIsoMs(beginning) ?? now
   const weekEndMs = parseIsoMs(ending) ?? now
+  const weekWindow = { weekStartMs, weekEndMs, termNumber }
   const subject = context.subject
   const sameSubject = (g) => genSubject(g) === subject
 
@@ -236,13 +287,17 @@ export function buildWeekPrep({ generations = [], calendar = null, profileSubjec
 
   const focusPrepared = focus ? Math.min(forecastPreparedDays(focus), dayTarget) : 0
 
-  // Lesson plans + worksheets created inside this school week for the subject.
-  const lessonsThisWeek = generations.filter((g) =>
-    g.tool === 'lesson_plan' && sameSubject(g) && withinWeek(g, weekStartMs, weekEndMs)
-  ).length
-  const worksheetsThisWeek = generations.filter((g) =>
-    g.tool === 'worksheet' && sameSubject(g) && withinWeek(g, weekStartMs, weekEndMs)
-  ).length
+  // Lesson plans + worksheets attributed to this school week for the
+  // subject (planned-date first; creation date only as an estimated
+  // fallback — see weekAttributionOf).
+  const lessons = countInWeek(
+    generations.filter((g) => g.tool === 'lesson_plan' && sameSubject(g)),
+    weekWindow,
+  )
+  const worksheets = countInWeek(
+    generations.filter((g) => g.tool === 'worksheet' && sameSubject(g)),
+    weekWindow,
+  )
 
   // Record of Work: current term + subject, with this week's coverage filled.
   const record = newestFirst(generations.filter((g) =>
@@ -253,7 +308,7 @@ export function buildWeekPrep({ generations = [], calendar = null, profileSubjec
     termNumberOf(w?.week) === weekNumber && String(w?.coverage || '').trim() !== ''
   )
 
-  const rows = [
+  const planningRows = [
     {
       key: 'scheme',
       label: scheme ? 'Scheme of Work selected' : 'Scheme of Work missing',
@@ -276,27 +331,32 @@ export function buildWeekPrep({ generations = [], calendar = null, profileSubjec
       to: focus ? PREP_ROUTES.library(focus.id) : PREP_ROUTES.focus,
       meta: `${focusPrepared} / ${dayTarget}`,
     },
+  ]
+
+  const weekRows = [
     {
       key: 'lessons',
-      label: `Lesson plans: ${lessonsThisWeek} of ${lessonTarget} completed`,
+      label: `Lesson plans: ${lessons.count} of ${lessonTarget} completed`,
       detail: 'CBC lessons with stages, resources and assessment',
-      status: lessonsThisWeek >= lessonTarget ? 'done' : lessonsThisWeek > 0 ? 'progress' : 'todo',
-      done: Math.min(lessonsThisWeek, lessonTarget),
+      status: lessons.count >= lessonTarget ? 'done' : lessons.count > 0 ? 'progress' : 'todo',
+      done: Math.min(lessons.count, lessonTarget),
       target: lessonTarget,
       to: PREP_ROUTES.lessons,
-      meta: `${lessonsThisWeek} / ${lessonTarget}`,
+      meta: `${lessons.estimated ? '≈ ' : ''}${lessons.count} / ${lessonTarget}`,
+      estimated: lessons.estimated,
     },
     {
       key: 'worksheet',
-      label: worksheetsThisWeek > 0
-        ? `Worksheet: ${worksheetsThisWeek} created`
+      label: worksheets.count > 0
+        ? `Worksheet: ${worksheets.count} created`
         : 'Worksheet: none created yet',
-      detail: worksheetsThisWeek > 0 ? 'Ready to assign or print' : 'Give learners practice on this week’s topics',
-      status: worksheetsThisWeek > 0 ? 'done' : 'todo',
-      done: worksheetsThisWeek > 0 ? 1 : 0,
+      detail: worksheets.count > 0 ? 'Ready to assign or print' : 'Give learners practice on this week’s topics',
+      status: worksheets.count > 0 ? 'done' : 'todo',
+      done: worksheets.count > 0 ? 1 : 0,
       target: 1,
       to: PREP_ROUTES.worksheet,
-      meta: worksheetsThisWeek > 0 ? `${worksheetsThisWeek} created` : 'None yet',
+      meta: worksheets.count > 0 ? `${worksheets.estimated ? '≈ ' : ''}${worksheets.count} created` : 'None yet',
+      estimated: worksheets.estimated,
     },
     {
       key: 'record',
@@ -310,19 +370,27 @@ export function buildWeekPrep({ generations = [], calendar = null, profileSubjec
     },
   ]
 
+  // Holidays: planning ahead is meaningful, current-week completion is not.
+  const rows = holiday ? planningRows : [...planningRows, ...weekRows]
+
   // Stage stepper: Plan (scheme + focus) → Teach (lessons) → Assess
   // (worksheet) → Record. The current stage is the first incomplete group.
-  const planDone = rows[0].status === 'done' && rows[1].status === 'done'
-  const teachDone = rows[2].status === 'done'
-  const assessDone = rows[3].status === 'done'
-  const recordDone = rows[4].status === 'done'
-  const stage = !planDone ? 'plan' : !teachDone ? 'teach' : !assessDone ? 'assess' : !recordDone ? 'record' : 'done'
+  // In holiday mode only planning applies.
+  const planDone = planningRows.every((r) => r.status === 'done')
+  const stage = holiday
+    ? 'plan'
+    : !planDone ? 'plan'
+    : weekRows[0].status !== 'done' ? 'teach'
+    : weekRows[1].status !== 'done' ? 'assess'
+    : weekRows[2].status !== 'done' ? 'record'
+    : 'done'
 
   const firstIncomplete = rows.find((r) => r.status !== 'done')
   const viewWeekTo = focus ? PREP_ROUTES.library(focus.id) : PREP_ROUTES.focus
 
   return {
     empty: false,
+    mode: holiday ? 'next-term' : 'week',
     context: {
       grade: context.grade,
       gradeLabel: gradeLabelOf(context.grade),
@@ -332,6 +400,10 @@ export function buildWeekPrep({ generations = [], calendar = null, profileSubjec
       weekNumber,
       year: year ?? null,
       rangeLabel: [beginningLabel, endingLabel].filter(Boolean).join(' – '),
+      // Holiday extras — the component shows the opening date instead of a
+      // week range while school is closed.
+      openLabel: calendar.openLabel || '',
+      daysToOpen: Number.isFinite(calendar.daysToOpen) ? calendar.daysToOpen : null,
       source: context.source,
     },
     stage,

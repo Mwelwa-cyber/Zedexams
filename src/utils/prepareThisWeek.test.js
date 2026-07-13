@@ -8,6 +8,7 @@ import {
   buildWeekPrep,
   resolveWeekContext,
   timetableAllocation,
+  weekAttributionOf,
   termNumberOf,
   normSubject,
   normGrade,
@@ -37,13 +38,14 @@ const IN_WEEK = new Date(2026, 4, 19, 10, 0, 0).getTime()
 const BEFORE_WEEK = new Date(2026, 4, 4, 10, 0, 0).getTime()
 
 let idSeq = 0
-function gen(tool, { subject, grade, term, createdAt = IN_WEEK, output = {}, header = {} } = {}) {
+function gen(tool, { subject, grade, term, createdAt = IN_WEEK, output = {}, header = {}, meta } = {}) {
   return {
     id: `g${++idSeq}`,
     tool,
     createdAt,
     inputs: { subject, grade, term: term != null ? String(term) : null },
     output: { header: { subject, grade, term, ...header }, ...output },
+    ...(meta ? { meta } : {}),
   }
 }
 
@@ -171,6 +173,75 @@ check('subjectLabelOf title-cases slug', subjectLabelOf('integrated_science') ==
   check('focus done when all timetable days prepared', byKey.focus.status === 'done')
   check('record row done when this week’s coverage is filled', byKey.record.status === 'done')
   check('scheme row still todo → routed to the studio', byKey.scheme.to === '/teacher/generate/scheme-of-work')
+}
+
+/* ── week attribution ladder (risk item 5) ───────────────────────── */
+{
+  const WINDOW = { weekStartMs: new Date(2026, 4, 18).getTime(), weekEndMs: new Date(2026, 4, 22).getTime(), termNumber: 2 }
+  // 1. Planned teaching date wins over creation date, both directions.
+  const plannedIn = gen('lesson_plan', { subject: 'english', term: 2, createdAt: BEFORE_WEEK, meta: { date: '2026-05-20' } })
+  let a = weekAttributionOf(plannedIn, WINDOW)
+  check('planned date inside week counts even when created earlier', a.inWeek && !a.estimated && a.basis === 'planned')
+  const plannedOut = gen('lesson_plan', { subject: 'english', term: 2, createdAt: IN_WEEK, meta: { date: '2026-06-03' } })
+  a = weekAttributionOf(plannedOut, WINDOW)
+  check('planned date outside week excludes a doc created this week', !a.inWeek && a.basis === 'planned')
+  // 3. A different stored term never counts, whatever the creation date.
+  const otherTerm = gen('lesson_plan', { subject: 'english', term: 1, createdAt: IN_WEEK })
+  a = weekAttributionOf(otherTerm, WINDOW)
+  check('term mismatch excludes a doc created this week', !a.inWeek && a.basis === 'term')
+  // 4. Legacy fallback: creation date, flagged estimated.
+  const legacy = gen('lesson_plan', { subject: 'english', term: 2, createdAt: IN_WEEK })
+  a = weekAttributionOf(legacy, WINDOW)
+  check('creation-date fallback counts but is estimated', a.inWeek && a.estimated && a.basis === 'created')
+}
+
+{
+  // Estimated flag surfaces on the lessons row (≈ prefix) only when a
+  // counted doc used the fallback; planned-dated docs keep the row precise.
+  const gens = [
+    gen('weekly_forecast', { subject: 'english', grade: 'G4', term: 2, header: { weekNumber: 8 }, output: { days: [{ day: 'Monday', topic: 'Nouns' }] } }),
+    gen('lesson_plan', { subject: 'english', grade: 'G4', term: 2, createdAt: IN_WEEK }), // fallback
+    gen('lesson_plan', { subject: 'english', grade: 'G4', term: 2, createdAt: BEFORE_WEEK, meta: { date: '2026-05-21' } }), // planned
+  ]
+  const out = buildWeekPrep({ generations: gens, calendar: CAL, now: NOW })
+  const lessons = out.rows.find((r) => r.key === 'lessons')
+  check('lessons row counts planned + fallback docs (2)', lessons.label.startsWith('Lesson plans: 2 of'))
+  check('lessons row is flagged estimated with an ≈ meta', lessons.estimated === true && lessons.meta.startsWith('≈'))
+
+  const preciseOut = buildWeekPrep({
+    generations: gens.filter((g) => !(g.tool === 'lesson_plan' && !g.meta)),
+    calendar: CAL,
+    now: NOW,
+  })
+  const preciseLessons = preciseOut.rows.find((r) => r.key === 'lessons')
+  check('row is precise when every counted doc has a planned date',
+    preciseLessons.estimated === false && !preciseLessons.meta.startsWith('≈'))
+}
+
+/* ── holiday mode (risk item 7) ──────────────────────────────────── */
+{
+  const HOLIDAY_CAL = {
+    year: 2026,
+    termNumber: 3,
+    weekNumber: 1,
+    beginning: '2026-09-07',
+    ending: '2026-09-11',
+    beginningLabel: '7 Sep 2026',
+    endingLabel: '11 Sep 2026',
+    isActiveTermNow: false,
+    openLabel: '7 September 2026',
+    daysToOpen: 26,
+  }
+  const gens = [gen('scheme_of_work', { subject: 'mathematics', grade: 'G5', term: 3 })]
+  const out = buildWeekPrep({ generations: gens, calendar: HOLIDAY_CAL, now: NOW })
+  check('holiday → next-term mode', out.mode === 'next-term')
+  check('holiday shows planning rows only (scheme + focus)',
+    out.rows.length === 2 && out.rows[0].key === 'scheme' && out.rows[1].key === 'focus')
+  check('holiday context carries opening date + countdown',
+    out.context.openLabel === '7 September 2026' && out.context.daysToOpen === 26)
+  check('holiday stage is plan', out.stage === 'plan')
+  const active = buildWeekPrep({ generations: gens, calendar: { ...HOLIDAY_CAL, isActiveTermNow: true }, now: NOW })
+  check('active term keeps week mode with all five rows', active.mode === 'week' && active.rows.length === 5)
 }
 
 console.log(`\nprepareThisWeek: ${passed} checks passed`)

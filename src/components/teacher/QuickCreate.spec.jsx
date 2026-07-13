@@ -23,14 +23,34 @@ describe('QuickCreate', () => {
       .toHaveAttribute('href', '/teacher/test-papers/new')
   })
 
-  it('links "View all teacher tools" to the workspace anchor and tracks selections', () => {
+  it('"View all teacher tools" scrolls to the workspace and moves focus to its heading', () => {
+    const scrollIntoView = vi.fn()
+    window.HTMLElement.prototype.scrollIntoView = scrollIntoView
+    render(
+      <MemoryRouter>
+        <div>
+          <QuickCreate />
+          <div id="teacher-workspace">
+            <h2 id="teacher-workspace-title" tabIndex={-1}>Teacher Workspace</h2>
+          </div>
+        </div>
+      </MemoryRouter>,
+    )
+    const btn = screen.getByRole('button', { name: /view all teacher tools/i })
+    fireEvent.click(btn)
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' })
+    expect(document.activeElement).toBe(document.getElementById('teacher-workspace-title'))
+    // No #hash is written into the URL.
+    expect(window.location.hash).toBe('')
+    expect(capture).toHaveBeenCalledWith('teacher_workspace_expanded', { from: 'quick-create' })
+  })
+
+  it('tracks card selections', () => {
     render(
       <MemoryRouter>
         <QuickCreate />
       </MemoryRouter>,
     )
-    expect(screen.getByRole('link', { name: /view all teacher tools/i }))
-      .toHaveAttribute('href', '#teacher-workspace')
     fireEvent.click(screen.getByRole('link', { name: /worksheet/i }))
     expect(capture).toHaveBeenCalledWith('quick_create_selected', { tool: 'worksheet' })
   })

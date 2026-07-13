@@ -21,7 +21,7 @@ import {
   formatTrend,
 } from '../../utils/teacherDashboardIntel'
 import { buildWeekPrep } from '../../utils/prepareThisWeek'
-import { getCurrentForecastWeek } from '../../utils/moeCalendar'
+import { daysUntil, fmtDate, getActiveTerm, getCurrentForecastWeek, getNextTerm } from '../../utils/moeCalendar'
 import { capture } from '../../utils/analytics'
 import SeoHelmet from '../seo/SeoHelmet'
 import PrepareThisWeek from './PrepareThisWeek'
@@ -611,7 +611,12 @@ function CompactUsage() {
             type="button"
             className="teacher-usage-card__toggle"
             aria-expanded={expanded}
-            onClick={() => setExpanded((v) => !v)}
+            onClick={() => setExpanded((v) => {
+              // Measures whether teachers still find the usage section now
+              // that it lives at the bottom of the dashboard (redesign §11).
+              if (!v) capture('usage_details_expanded', { placement: 'dashboard-bottom' })
+              return !v
+            })}
           >
             View details
             <Icon as={ChevronDown} size="xs" className={expanded ? 'teacher-usage-card__chevron is-open' : 'teacher-usage-card__chevron'} />
@@ -661,7 +666,10 @@ function PlanQuickCard({ plan }) {
       </span>
       <button
         type="button"
-        onClick={() => navigate('/my-subscription')}
+        onClick={() => {
+          capture('plan_upgrade_clicked', { source: 'dashboard-plan-card', placement: 'dashboard-bottom' })
+          navigate('/my-subscription')
+        }}
         className="inline-flex items-center gap-1 bg-transparent text-sm font-black text-amber-700 shadow-none min-h-0 hover:text-amber-900"
       >
         Upgrade to Pro
@@ -799,14 +807,30 @@ export default function TeacherDashboard() {
 
   // Weekly preparation model — derived from the SAME generations fetch the
   // rest of the dashboard uses (no extra Firestore reads) + the MoE
-  // calendar's current teaching week.
+  // calendar's current teaching week. During holidays the calendar points
+  // at Week 1 of the next term; isActiveTermNow + the opening-date extras
+  // switch the card into its "Prepare for Next Term" mode.
   const weekPrep = useMemo(
-    () => buildWeekPrep({
-      generations,
-      calendar: getCurrentForecastWeek(),
-      profileSubject: userProfile?.subject || '',
-      now: Date.now(),
-    }),
+    () => {
+      const wk = getCurrentForecastWeek()
+      let calendar = null
+      if (wk) {
+        calendar = { ...wk, isActiveTermNow: Boolean(getActiveTerm()) }
+        if (!calendar.isActiveTermNow) {
+          const next = getNextTerm()
+          if (next) {
+            calendar.openLabel = fmtDate(next.term.open, 'full')
+            calendar.daysToOpen = daysUntil(next.term.open)
+          }
+        }
+      }
+      return buildWeekPrep({
+        generations,
+        calendar,
+        profileSubject: userProfile?.subject || '',
+        now: Date.now(),
+      })
+    },
     [generations, userProfile],
   )
 
@@ -1003,7 +1027,11 @@ export default function TeacherDashboard() {
           <Icon as={LayoutGrid} size="md" />
         </span>
         <div>
-          <h2 className="teacher-workspace-header__title">Teacher Workspace</h2>
+          {/* Focus target for Quick Create's "View all teacher tools" —
+              tabIndex={-1} lets the button move keyboard focus here. */}
+          <h2 id="teacher-workspace-title" tabIndex={-1} className="teacher-workspace-header__title">
+            Teacher Workspace
+          </h2>
           <p className="teacher-workspace-header__text">Everything you need in one place</p>
         </div>
       </div>

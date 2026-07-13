@@ -56,8 +56,50 @@ describe('PrepareThisWeek', () => {
   it('shows the set-up empty state when there is no context', () => {
     renderCard({ loading: false, error: false, prep: { empty: true, emptyReason: 'no-context', rows: [] } })
     expect(screen.getByText(/set up your grade, subjects and current term/i)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /set up teaching profile/i }))
+    // Labelled for what it does today (opens Weekly Focus) — NOT "Set up
+    // Teaching Profile", which doesn't exist yet.
+    expect(screen.getByRole('link', { name: /choose grade, subject and term/i }))
       .toHaveAttribute('href', '/teacher/generate/weekly-forecast')
+    expect(screen.queryByText(/set up teaching profile/i)).not.toBeInTheDocument()
+  })
+
+  it('switches to Prepare for Next Term during school holidays', () => {
+    renderCard({
+      loading: false,
+      error: false,
+      prep: {
+        ...READY_PREP,
+        mode: 'next-term',
+        stage: 'plan',
+        rows: READY_PREP.rows.slice(0, 2),
+        context: {
+          ...READY_PREP.context,
+          termNumber: 3,
+          weekNumber: 1,
+          openLabel: '7 September 2026',
+          daysToOpen: 26,
+        },
+      },
+    })
+    expect(screen.getByText('Prepare for Next Term')).toBeInTheDocument()
+    expect(screen.queryByText('Prepare This Week')).not.toBeInTheDocument()
+    expect(screen.getByText(/school opens 7 september 2026 · in 26 days/i)).toBeInTheDocument()
+    // No weekly stepper and no current-week completion rows while closed.
+    expect(screen.queryByRole('list', { name: /weekly stages/i })).not.toBeInTheDocument()
+    expect(screen.queryByText(/lesson plans: /i)).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /prepare week 1/i })).toBeInTheDocument()
+  })
+
+  it('marks creation-date fallback counts as estimated', () => {
+    const prep = {
+      ...READY_PREP,
+      rows: READY_PREP.rows.map((r) =>
+        r.key === 'lessons' ? { ...r, meta: '≈ 2 / 5', estimated: true } : r,
+      ),
+    }
+    renderCard({ loading: false, error: false, prep })
+    expect(screen.getByText('≈ 2 / 5')).toHaveAttribute('title', expect.stringMatching(/estimated from creation dates/i))
+    expect(screen.getByText(/\(estimated from creation dates\)/i)).toBeInTheDocument()
   })
 
   it('renders context, stages, clickable rows and actions when ready', () => {

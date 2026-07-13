@@ -58,16 +58,21 @@ export default function QuickCreate() {
     <section className="teacher-quickcreate" aria-label="Quick create">
       <div className="teacher-section-head">
         <div className="teacher-dashboard-eyebrow">Quick create</div>
-        {/* Plain anchor on purpose: the full workspace lives further down
-            this same page, so the browser's native hash scroll is all we
-            need (react-router only intercepts <Link>). */}
-        <a
-          href="#teacher-workspace"
-          className="teacher-section-head__link"
-          onClick={() => capture('teacher_workspace_expanded', { from: 'quick-create' })}
+        {/* Button, not an anchor: scrolls to the workspace section on this
+            same page and moves keyboard focus to its heading, without
+            writing a #hash into the URL. */}
+        <button
+          type="button"
+          className="teacher-section-head__link teacher-section-head__link--button"
+          onClick={() => {
+            capture('teacher_workspace_expanded', { from: 'quick-create' })
+            const section = document.getElementById('teacher-workspace')
+            section?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+            document.getElementById('teacher-workspace-title')?.focus?.({ preventScroll: true })
+          }}
         >
           View all teacher tools
-        </a>
+        </button>
       </div>
       <div className="teacher-quickcreate__grid">
         {ACTIONS.map((a) => (
