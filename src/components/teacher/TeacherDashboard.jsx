@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, lazy, Suspense } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
@@ -8,8 +8,13 @@ import {
   summarizeGenerations,
   titleForGeneration,
   formatDate,
+  duplicateGeneration,
+  CLIENT_CREATED_TOOLS,
+  TOOL_META as LIB_TOOL_META,
 } from '../../utils/teacherLibraryService'
-import { resolveTeacherPlan, PLAN_LABELS } from '../../utils/teacherPlans'
+import { getDocumentActions } from '../../utils/documentActions'
+import { useToast } from '../ui/Toast'
+import { resolveTeacherPlan } from '../../utils/teacherPlans'
 import { isExamPaperType, assessmentEditPath } from './paperTaxonomy'
 import {
   getTimeGreeting,
@@ -24,8 +29,10 @@ import { daysUntil, fmtDate, getActiveTerm, getCurrentForecastWeek, getNextTerm 
 import { capture } from '../../utils/analytics'
 import SeoHelmet from '../seo/SeoHelmet'
 import AiRecommendations from './AiRecommendations'
+import PlanUsageCard from './PlanUsageCard'
 import PrepareThisWeek from './PrepareThisWeek'
 import QuickCreate from './QuickCreate'
+import RecentDocuments from './RecentDocuments'
 import TeacherOnboardingTour from './TeacherOnboardingTour'
 import FeedbackButton from '../feedback/FeedbackButton'
 import SuggestionNudge from '../feedback/SuggestionNudge'
@@ -75,11 +82,6 @@ import iconSyllabiStudio from '../../assets/teacher-icons/syllabi-studio.webp'
 // Premium hero illustration — 3D study-desk scene that matches the brand teal,
 // so it blends straight into the hero gradient. Compressed to ~20KB WebP.
 import heroDesk from '../../assets/teacher/hero-desk.webp'
-
-// The full usage meter is heavy (its own data hook + big inline stylesheet) and
-// lives behind the collapsed "View details" card, so it's lazy-loaded — the
-// dashboard's first paint never pays for it.
-const UsageMeter = lazy(() => import('./UsageMeter'))
 
 // Tiles are grouped into the teacher workflows the "Teacher Workspace" renders
 // as labelled sections (each with a header icon + "View all" link, matching the
@@ -511,133 +513,6 @@ function StudioCard({ img, tone, badge, libraryKey, isLibrary, title, tagline, t
   return <div className={`${cardClass} is-inactive`}>{inner}</div>
 }
 
-/* ── Compact monthly usage (collapsed by default) ─────────────────────────
-   Replaces the always-open UsageMeter block with a slim summary card: a
-   lesson-plan gauge, today's AI, and the next daily reset, plus the plan
-   chip. Tapping "View details" lazy-mounts the full UsageMeter beneath it. */
-function msToUtcMidnight(now = new Date()) {
-  const next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)
-  return Math.max(0, next - now.getTime())
-}
-
-function formatResetIn(ms) {
-  const totalMin = Math.max(1, Math.round(ms / 60000))
-  const h = Math.floor(totalMin / 60)
-  const m = totalMin % 60
-  if (h <= 0) return `${m}m`
-  return `${h}h ${String(m).padStart(2, '0')}m`
-}
-
-// Caps at or above this are treated as "unlimited" — the meter stores a
-// sentinel rather than a real ceiling for the Max plan's uncapped studios.
-const UNLIMITED_CAP = 99999
-
-// SVG ring gauge for the lesson-plan allowance. The caller supplies the fill
-// fraction: finite plans pass real used/cap (an empty ring at 0 usage),
-// unlimited plans pass a gentle decorative arc. No floor here, so a finite
-// plan at 0% genuinely reads as empty.
-function UsageGauge({ value, pct }) {
-  const r = 24
-  const c = 2 * Math.PI * r
-  const clamped = Math.max(0, Math.min(1, pct))
-  return (
-    <div className="teacher-usage-gauge">
-      <svg viewBox="0 0 60 60" aria-hidden="true">
-        <circle cx="30" cy="30" r={r} fill="none" stroke="#efe7d5" strokeWidth="7" />
-        <circle
-          cx="30" cy="30" r={r} fill="none" stroke="#2f7d5f" strokeWidth="7"
-          strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - clamped)}
-          transform="rotate(-90 30 30)"
-        />
-      </svg>
-      <span className="teacher-usage-gauge__value">{value}</span>
-    </div>
-  )
-}
-
-function CompactUsage() {
-  const { currentUser } = useAuth()
-  const { loading, data } = useTeacherUsage(currentUser?.uid)
-  const [expanded, setExpanded] = useState(false)
-
-  if (loading || !data) {
-    // role="status" (a polite live region) + visually-hidden text tell screen
-    // readers a load is pending; the skeleton shimmer stays decorative.
-    return (
-      <div className="teacher-usage-card teacher-usage-card--skeleton" role="status">
-        <span className="sr-only">Loading your usage summary…</span>
-      </div>
-    )
-  }
-
-  const isMax = data.plan === 'max'
-  const planCap = data.caps?.plans || 0
-  const planUsed = data.used?.plans || 0
-  const unlimited = isMax || planCap >= UNLIMITED_CAP
-  // Finite plans show real used/cap; unlimited shows a gentle decorative arc.
-  const gaugePct = unlimited ? Math.min(0.85, 0.18 + planUsed / 60) : planCap ? planUsed / planCap : 0
-  const resetIn = formatResetIn(msToUtcMidnight())
-
-  return (
-    <div className="teacher-usage-wrap">
-      <div className="teacher-usage-card">
-        <div className="teacher-usage-card__row">
-          <div className="teacher-usage-card__metric">
-            <UsageGauge value={planUsed} pct={gaugePct} />
-            <div className="teacher-usage-card__metric-body">
-              <span className="teacher-usage-card__big">
-                {planUsed}<span className="teacher-usage-card__den"> / {unlimited ? '∞' : planCap}</span>
-              </span>
-              <span className="teacher-usage-card__k">Lesson plans</span>
-            </div>
-          </div>
-
-          <div className="teacher-usage-card__divider" aria-hidden="true" />
-
-          <div className="teacher-usage-card__metric">
-            <span className="teacher-usage-card__spark" aria-hidden="true">
-              <Icon as={Sparkles} size="md" />
-            </span>
-            <div className="teacher-usage-card__metric-body">
-              <span className="teacher-usage-card__big">
-                {data.today}<span className="teacher-usage-card__den"> / {data.daily >= UNLIMITED_CAP ? '∞' : data.daily}</span>
-              </span>
-              <span className="teacher-usage-card__k">AI generations today</span>
-              <span className="teacher-usage-card__reset">Resets in {resetIn}</span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="teacher-usage-card__toggle"
-            aria-expanded={expanded}
-            onClick={() => setExpanded((v) => {
-              // Measures whether teachers still find the usage section now
-              // that it lives at the bottom of the dashboard (redesign §11).
-              if (!v) capture('usage_details_expanded', { placement: 'dashboard-bottom' })
-              return !v
-            })}
-          >
-            View details
-            <Icon as={ChevronDown} size="xs" className={expanded ? 'teacher-usage-card__chevron is-open' : 'teacher-usage-card__chevron'} />
-          </button>
-        </div>
-      </div>
-      {expanded && (
-        <Suspense
-          fallback={
-            <div className="teacher-usage-card teacher-usage-card--skeleton" role="status">
-              <span className="sr-only">Loading usage details…</span>
-            </div>
-          }
-        >
-          <UsageMeter />
-        </Suspense>
-      )}
-    </div>
-  )
-}
-
 /* ── Continue cards: recent work with a real progress signal ──────────────
    A saved generation is a finished artifact ("Ready"); a draft test paper
    reflects how far it actually is (has questions vs empty). No fabricated
@@ -648,41 +523,11 @@ function progressFor(resource) {
   return { pct: 25, label: 'Started' }
 }
 
-/* ── Compact plan card ────────────────────────────────────────────────────
-   Slim replacement for the old large promotional SubscriptionReminderCard
-   banner. Renders only for Free-plan teachers — it self-hides once they're on
-   a paid plan, the same way the old banner did. Shows the current plan on the
-   left and a quick Upgrade to Pro action on the right. */
-function PlanQuickCard({ plan }) {
-  const navigate = useNavigate()
-  // Self-hide for paying teachers (Pro/Max) — only Free sees the upgrade card.
-  if (plan !== 'free') return null
-
-  return (
-    <section className="zx-card flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm">
-      <span className="inline-flex items-center gap-2 text-sm font-black text-slate-900">
-        <span aria-hidden="true">⭐</span>
-        {`${PLAN_LABELS.free} Plan`}
-      </span>
-      <button
-        type="button"
-        onClick={() => {
-          capture('plan_upgrade_clicked', { source: 'dashboard-plan-card', placement: 'dashboard-bottom' })
-          navigate('/my-subscription')
-        }}
-        className="inline-flex items-center gap-1 bg-transparent text-sm font-black text-amber-700 shadow-none min-h-0 hover:text-amber-900"
-      >
-        Upgrade to Pro
-        <Icon as={ArrowRight} size="xs" />
-      </button>
-    </section>
-  )
-}
-
 export default function TeacherDashboard() {
   const { currentUser, userProfile } = useAuth()
-  const { getMyAssessments } = useFirestore()
+  const { getMyAssessments, updateAssessment } = useFirestore()
   const navigate = useNavigate()
+  const toast = useToast()
 
   // "Current plan" reflects the teacher's actual studio entitlement
   // (users.teacherPlan, same field the usage meter + server gate on), not the
@@ -693,7 +538,7 @@ export default function TeacherDashboard() {
   // read-only sample, so they're badged "Sample" on the workspace grid.
   const isFreePlan = teacherPlan === 'free'
 
-  const { data: usage } = useTeacherUsage(currentUser?.uid)
+  const { data: usage, loading: usageLoading } = useTeacherUsage(currentUser?.uid)
 
   const [generations, setGenerations] = useState([])
   const [assessments, setAssessments] = useState([])
@@ -744,10 +589,13 @@ export default function TeacherDashboard() {
       grade: g.inputs?.grade || g.output?.header?.grade || '',
       topic: g.output?.header?.topic || g.inputs?.topic || '',
       createdAt: toMs(g.createdAt),
+      modifiedAt: 0, // generations carry no updatedAt — createdAt is the truth
       title: titleForGeneration(g),
       to: `/teacher/library/${g.id}`,
       status: 'ready',
       questionCount: 0,
+      // The raw doc, kept for duplicateGeneration (it needs inputs/output/library).
+      raw: g,
     }))
     // Test papers + exam papers both live in the `assessments` collection and
     // are edited by AssessmentStudio. The studio is split by paper type across
@@ -765,6 +613,7 @@ export default function TeacherDashboard() {
         grade: a.grade || a.targetGrade || '',
         topic: a.topic || '',
         createdAt: toMs(a.createdAt),
+        modifiedAt: toMs(a.updatedAt), // stamped by updateAssessment on every edit
         title: a.title || a.topic || `Untitled ${isExam ? 'exam' : 'test'} paper`,
         to: assessmentEditPath(a),
         // Papers with at least one question are ready artifacts; only empty
@@ -867,6 +716,54 @@ export default function TeacherDashboard() {
     const rest = resources.filter((r) => r.status !== 'draft')
     return [...drafts, ...rest].slice(0, 4)
   }, [resources])
+
+  // Recent documents — newest first by last edit (assessments carry
+  // updatedAt; generations only createdAt), shaped for the RecentDocuments
+  // rows. Capabilities come from the central resolver so the menu never
+  // offers an action this document type can't honour.
+  const recentItems = useMemo(() => {
+    return [...resources]
+      .sort((a, b) => (b.modifiedAt || b.createdAt) - (a.modifiedAt || a.createdAt))
+      .slice(0, 5)
+      .map((r) => ({
+        id: r.id,
+        kind: r.kind,
+        tool: r.tool,
+        icon: LIB_TOOL_META[r.tool]?.icon || '📄',
+        title: r.title,
+        typeLabel: LIB_TOOL_META[r.tool]?.label || TOOL_META[r.tool]?.label || 'Document',
+        grade: r.grade,
+        subject: formatSubject(r.subject),
+        timeLabel: `${r.modifiedAt && r.modifiedAt !== r.createdAt ? 'Edited' : 'Created'} ${formatDate(r.modifiedAt || r.createdAt)}`,
+        status: r.status === 'draft' ? 'draft' : 'ready',
+        to: r.to,
+        actions: getDocumentActions(r, { clientCreatedTools: CLIENT_CREATED_TOOLS }),
+        raw: r.raw,
+      }))
+  }, [resources])
+
+  async function handleDuplicateRecent(item) {
+    try {
+      await duplicateGeneration(item.raw, currentUser?.uid)
+      toast.success('Document duplicated — a copy has been added to Recent documents.')
+      // One server-confirmed refetch of the existing limited query; no new
+      // listeners, no full-page reload, scroll position untouched.
+      setLoading(true)
+      setReloadKey((k) => k + 1)
+    } catch (err) {
+      toast.error(err?.message || 'We could not duplicate this document. The original document was not changed.')
+    }
+  }
+
+  async function handleRenameRecent(item, title) {
+    try {
+      await updateAssessment(item.id, { title })
+      setAssessments((prev) => prev.map((a) => (a.id === item.id ? { ...a, title } : a)))
+      toast.success('Renamed.')
+    } catch {
+      toast.error('Could not rename. Try again.')
+    }
+  }
 
   const lastItem = continueItems[0] || null
 
@@ -1036,6 +933,14 @@ export default function TeacherDashboard() {
       {/* ── AI Recommendations (actionable; replaces AI insights) ─── */}
       {!loading && <AiRecommendations recommendations={recommendations} />}
 
+      {/* ── Recent documents ──────────────────────────────────────── */}
+      <RecentDocuments
+        items={recentItems}
+        loading={loading}
+        onDuplicate={handleDuplicateRecent}
+        onRename={handleRenameRecent}
+      />
+
       {/* ── Teacher workspace (studios) ───────────────────────────── */}
       <div id="teacher-workspace" className="teacher-workspace-header teacher-defer">
         <span className="teacher-workspace-header__icon">
@@ -1157,21 +1062,14 @@ export default function TeacherDashboard() {
         </section>
       )}
 
-      {/* ── Compact plan + usage (bottom of the page by design: the dashboard
-          leads with teaching work, not usage statistics; the full breakdown
-          stays one tap away behind "View details") ─────────────────── */}
-      <PlanQuickCard plan={teacherPlan} />
-
+      {/* ── Compact plan + usage — ONE card, bottom of the page by design:
+          the dashboard leads with teaching work, not usage statistics; the
+          full breakdown stays one tap away behind "View details". ───── */}
       <section className="teacher-usage-section teacher-defer">
         <div className="teacher-section-head">
-          <SectionLabel>Your usage this month</SectionLabel>
-          {usage && usage.plan !== 'free' && (
-            <span className={`teacher-plan-chip teacher-plan-chip--${usage.plan}`}>
-              <span aria-hidden="true">👑</span> {usage.planLabel} Plan
-            </span>
-          )}
+          <SectionLabel>Plan &amp; usage</SectionLabel>
         </div>
-        <CompactUsage />
+        <PlanUsageCard usage={usage} loading={usageLoading} />
       </section>
 
       <div className="mt-6">
