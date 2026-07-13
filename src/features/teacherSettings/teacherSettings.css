@@ -850,3 +850,4 @@
   .studio-theme .tset-tp-step__label { display: none; }
   .studio-theme .tset-tp-step.is-current .tset-tp-step__label { display: block; }
 }
+.studio-theme .tset-tp-wizard__incorrect { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0e9d8; }

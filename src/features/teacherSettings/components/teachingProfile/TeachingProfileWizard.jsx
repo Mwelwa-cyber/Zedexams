@@ -1,7 +1,9 @@
-import { useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import useFocusTrap from '../../../../hooks/useFocusTrap'
 import { useAuth } from '../../../../contexts/AuthContext'
 import Icon from '../../../../components/ui/Icon'
+import ConfirmDialog from '../../../../components/ui/ConfirmDialog'
 import { CheckCircleIcon as CheckCircle, Plus, StarIcon as Star, AlertTriangle } from '../../../../components/ui/icons'
 import FieldRow from '../fields/FieldRow'
 import SelectField from '../fields/SelectField'
@@ -20,7 +22,22 @@ import {
 } from '../../../../utils/teachingProfileCore'
 import { NATIONAL_CALENDAR_NAME } from '../../../../utils/calendarResolver'
 
+// Lazy so the feedback surface (and its Firebase import) only loads if a
+// teacher actually opens "Report a problem" from step 3.
+const FeedbackDialog = lazy(() => import('../../../../components/feedback/FeedbackDialog'))
+
 const STEPS = ['Your School', 'Your Teaching', 'Current Term', 'Review & Save']
+
+// Resume from the earliest incomplete required step so a returning teacher never
+// re-enters what they already saved.
+function earliestIncompleteStep(profile, assignments) {
+  const level = profile?.schoolLevel
+  const year = profile?.academicYear
+  const active = (assignments || []).filter((a) => a && a.isActive !== false)
+  if (!level || !year) return 1
+  if (active.length === 0) return 2
+  return 4 // school + assignments exist → resume at review / default / save
+}
 
 // The four-step Teaching Profile setup wizard (supersedes the inline draft
 // baseline). One step at a time with a stepper header; centred panel on
@@ -40,10 +57,13 @@ export default function TeachingProfileWizard({
   const { userProfile, updateProfileFields } = useAuth()
   const panelRef = useRef(null)
 
-  const [step, setStep] = useState(1)
+  const [step, setStep] = useState(() => earliestIncompleteStep(initialProfile, initialAssignments))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [assignModal, setAssignModal] = useState(false)
+  const [confirmRemove, setConfirmRemove] = useState(null) // assignment pending removal
+  const [exitConfirm, setExitConfirm] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
 
   const calendarOk = context.status === 'ok'
   const defaultYear = String(calendarOk ? context.academicYear : new Date().getFullYear())
@@ -58,7 +78,15 @@ export default function TeachingProfileWizard({
     initialProfile.defaultAssignmentId || initialAssignments[0]?.id || '',
   )
 
-  useFocusTrap(panelRef, { active: true, onEscape: () => { if (!saving) onClose?.() } })
+  // Exit intent — if any assignment was already saved, confirm (and reassure
+  // that the saved work is kept) before closing an incomplete wizard.
+  const requestClose = () => {
+    if (saving) return
+    if (assignments.length > 0) setExitConfirm(true)
+    else onClose?.()
+  }
+
+  useFocusTrap(panelRef, { active: true, onEscape: requestClose })
 
   const yearOptions = useMemo(() => {
     const y = new Date().getFullYear()
@@ -79,11 +107,15 @@ export default function TeachingProfileWizard({
   }
   const onRemoveAssignment = async (id) => {
     try {
+      // Only removes the assignment record — never any lesson plan, test or
+      // other teaching document.
       await removeAssignment(uid, id)
       setAssignments((list) => list.filter((a) => a.id !== id))
       setDefaultId((d) => (d === id ? (assignments.find((a) => a.id !== id)?.id || '') : d))
+      setConfirmRemove(null)
     } catch {
       setError('Could not remove that assignment. Please try again.')
+      setConfirmRemove(null)
     }
   }
 
@@ -129,9 +161,12 @@ export default function TeachingProfileWizard({
         profileStatus: 'active',
         onboardingCompleted: true,
       })
-      // Best-effort: keep the shared school name in sync (hero/exports read it).
-      if (school.schoolName && school.schoolName !== userProfile?.school) {
-        try { await updateProfileFields({ school: school.schoolName }) } catch { /* non-fatal */ }
+      // Best-effort: keep the shared school NAME in sync on the existing
+      // users.school field (authoritative for display; hero/exports read it).
+      // Trim, cap length, and never overwrite an existing name with empty.
+      const trimmedSchool = school.schoolName.trim().slice(0, 200)
+      if (trimmedSchool && trimmedSchool !== (userProfile?.school || '')) {
+        try { await updateProfileFields({ school: trimmedSchool }) } catch { /* non-fatal */ }
       }
       onComplete?.()
       onClose?.()
@@ -146,13 +181,13 @@ export default function TeachingProfileWizard({
 
   return (
     <div className="tset-tp-modal__overlay" role="presentation" onMouseDown={(e) => {
-      if (e.target === e.currentTarget && !saving) onClose?.()
+      if (e.target === e.currentTarget) requestClose()
     }}>
       <div className="tset-tp-modal tset-tp-wizard" role="dialog" aria-modal="true" aria-labelledby={titleId} ref={panelRef}>
         <div className="tset-tp-modal__handle" aria-hidden="true" />
         <header className="tset-tp-modal__head">
           <h2 id={titleId} className="tset-section__title">Teaching Profile setup</h2>
-          <button type="button" className="tset-tp-iconbtn" onClick={() => onClose?.()} aria-label="Close" disabled={saving}>✕</button>
+          <button type="button" className="tset-tp-iconbtn" onClick={requestClose} aria-label="Close" disabled={saving}>✕</button>
         </header>
 
         {/* Stepper */}
@@ -177,10 +212,16 @@ export default function TeachingProfileWizard({
             <StepAssignments
               assignments={activeAssignments}
               onAdd={() => setAssignModal(true)}
-              onRemove={onRemoveAssignment}
+              onRemove={(a) => setConfirmRemove(a)}
             />
           )}
-          {step === 3 && <StepCurrentPeriod context={context} academicYear={school.academicYear} />}
+          {step === 3 && (
+            <StepCurrentPeriod
+              context={context}
+              academicYear={school.academicYear}
+              onReport={() => setReportOpen(true)}
+            />
+          )}
           {step === 4 && (
             <StepReview
               school={school}
@@ -198,7 +239,7 @@ export default function TeachingProfileWizard({
           {step > 1 ? (
             <button type="button" className="tset-btn tset-btn--ghost" onClick={goBack} disabled={saving}>Back</button>
           ) : (
-            <button type="button" className="tset-btn tset-btn--ghost" onClick={() => onClose?.()} disabled={saving}>Cancel</button>
+            <button type="button" className="tset-btn tset-btn--ghost" onClick={requestClose} disabled={saving}>Exit setup</button>
           )}
           {step < 4 ? (
             <button type="button" className="tset-btn" onClick={goNext}>Next</button>
@@ -218,6 +259,33 @@ export default function TeachingProfileWizard({
           onSubmit={onAddAssignment}
           onClose={() => setAssignModal(false)}
         />
+      )}
+
+      <ConfirmDialog
+        open={!!confirmRemove}
+        title="Remove this teaching assignment?"
+        message="It will no longer appear in your dashboard or studio selectors. Existing lesson plans, tests and other documents will not be deleted."
+        confirmLabel="Remove assignment"
+        cancelLabel="Keep assignment"
+        onConfirm={() => onRemoveAssignment(confirmRemove.id)}
+        onCancel={() => setConfirmRemove(null)}
+      />
+
+      <ConfirmDialog
+        open={exitConfirm}
+        variant="primary"
+        title="Finish setting up later?"
+        message="The teaching assignments you added have already been saved. Your Teaching Profile will remain incomplete until you finish the remaining steps."
+        confirmLabel="Finish later"
+        cancelLabel="Continue setup"
+        onConfirm={() => { setExitConfirm(false); onClose?.() }}
+        onCancel={() => setExitConfirm(false)}
+      />
+
+      {reportOpen && (
+        <Suspense fallback={null}>
+          <FeedbackDialog open onClose={() => setReportOpen(false)} source="teaching-profile-calendar" />
+        </Suspense>
       )}
     </div>
   )
@@ -265,7 +333,7 @@ function StepAssignments({ assignments, onAdd, onRemove }) {
           {assignments.map((a) => (
             <li key={a.id} className="tset-tp-wizard__chip">
               <span>{gradeLabel(a.grade)} · {subjectLabel(a.subject)}{a.className ? ` · ${a.className}` : ''} · {curriculumTypeLabel(a.curriculumType)}</span>
-              <button type="button" className="tset-tp-iconbtn" aria-label={`Remove ${gradeLabel(a.grade)} ${subjectLabel(a.subject)}`} onClick={() => onRemove(a.id)}>✕</button>
+              <button type="button" className="tset-tp-iconbtn" aria-label={`Remove ${gradeLabel(a.grade)} ${subjectLabel(a.subject)}`} onClick={() => onRemove(a)}>✕</button>
             </li>
           ))}
         </ul>
@@ -278,7 +346,11 @@ function StepAssignments({ assignments, onAdd, onRemove }) {
 }
 
 // ── Step 3: Current teaching period (derived, read-only) ─────────────────────
-function StepCurrentPeriod({ context, academicYear }) {
+// Confirmation-only: the School Calendar resolver is the source of truth for
+// the term/week/holiday state. There are deliberately NO editable override
+// controls (no permission system exists yet) — instead the teacher can review
+// the calendar or report an incorrect period.
+function StepCurrentPeriod({ context, academicYear, onReport }) {
   return (
     <div>
       <p className="tset-tp-wizard__lead">Confirm your current teaching period</p>
@@ -303,8 +375,16 @@ function StepCurrentPeriod({ context, academicYear }) {
         </div>
       )}
       <p className="tset-tp-wizard__hint">
-        The School Calendar works this out for you from {academicYear}. It updates automatically as the term progresses.
+        The School Calendar works this out for you from {academicYear}. It updates automatically as the term
+        progresses — you don’t need to enter it by hand.
       </p>
+      <div className="tset-tp-wizard__incorrect">
+        <p className="tset-tp-wizard__hint">Is this teaching period incorrect? Open the School Calendar to review the dates or report the issue.</p>
+        <div className="tset-tp-cal__actions">
+          <Link to="/teacher/calendar" target="_blank" rel="noopener noreferrer" className="tset-btn tset-btn--ghost tset-btn--sm">View School Calendar</Link>
+          <button type="button" className="tset-btn tset-btn--ghost tset-btn--sm" onClick={onReport}>Report a problem</button>
+        </div>
+      </div>
     </div>
   )
 }

@@ -166,8 +166,8 @@ export default function TeachingProfilePanel() {
         <div className="tset-card tset-tp-warn" role="status">
           <Icon as={GraduationCap} size="md" className="tset-tp-warn__icon" aria-hidden="true" />
           <div className="tset-tp-warn__body">
-            <p className="tset-tp-warn__title">Finish setting up your Teaching Profile</p>
-            <p className="tset-tp-warn__desc">Complete the quick four-step setup so your dashboard and studios use the right teaching context.</p>
+            <p className="tset-tp-warn__title">Continue setting up your Teaching Profile</p>
+            <p className="tset-tp-warn__desc">Your saved assignments are kept. Finish the quick four-step setup so your dashboard and studios use the right teaching context.</p>
             <button type="button" className="tset-btn tset-btn--sm" onClick={() => setWizardOpen(true)}>Continue setup</button>
           </div>
         </div>

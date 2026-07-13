@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import TeachingProfileWizard from './TeachingProfileWizard'
 
 vi.mock('../../../../contexts/AuthContext', () => ({
@@ -32,15 +33,17 @@ const ASSIGN = [{ id: 'a1', grade: 'G4', subject: 'mathematics', className: '', 
 
 function renderWizard(props = {}) {
   return render(
-    <TeachingProfileWizard
-      uid="uid-1"
-      initialProfile={{}}
-      initialAssignments={ASSIGN}
-      context={CONTEXT}
-      onClose={vi.fn()}
-      onComplete={vi.fn()}
-      {...props}
-    />,
+    <MemoryRouter>
+      <TeachingProfileWizard
+        uid="uid-1"
+        initialProfile={{}}
+        initialAssignments={ASSIGN}
+        context={CONTEXT}
+        onClose={vi.fn()}
+        onComplete={vi.fn()}
+        {...props}
+      />
+    </MemoryRouter>,
   )
 }
 
@@ -63,6 +66,22 @@ describe('TeachingProfileWizard', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/school level/i)
     // Still on step 1.
     expect(screen.getByText('Tell us about your school')).toBeInTheDocument()
+  })
+
+  it('resumes at the review step when school + assignments already exist', () => {
+    renderWizard({ initialProfile: { schoolLevel: 'primary', academicYear: '2026' } })
+    // Earliest incomplete required step → Review & default (step 4), not step 1.
+    expect(screen.getByText('Choose your default teaching view')).toBeInTheDocument()
+  })
+
+  it('on exit with saved assignments, reassures they are already saved', async () => {
+    const onClose = vi.fn()
+    renderWizard({ onClose })
+    fireEvent.click(screen.getByRole('button', { name: 'Exit setup' }))
+    expect(await screen.findByText(/have already been saved/i)).toBeInTheDocument()
+    // "Finish later" closes; "Continue setup" keeps the wizard.
+    fireEvent.click(screen.getByRole('button', { name: 'Finish later' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
   })
 
   it('walks all four steps and saves an active, onboarded profile', async () => {
