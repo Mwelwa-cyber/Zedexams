@@ -14,13 +14,18 @@ import { isExamPaperType, assessmentEditPath } from './paperTaxonomy'
 import {
   getTimeGreeting,
   buildAiMessage,
-  buildInsights,
-  rotateInsights,
   buildActivityStats,
   buildCelebrations,
   formatTrend,
 } from '../../utils/teacherDashboardIntel'
+import { buildRecommendations } from '../../utils/teacherRecommendations'
+import { buildWeekPrep } from '../../utils/prepareThisWeek'
+import { daysUntil, fmtDate, getActiveTerm, getCurrentForecastWeek, getNextTerm } from '../../utils/moeCalendar'
+import { capture } from '../../utils/analytics'
 import SeoHelmet from '../seo/SeoHelmet'
+import AiRecommendations from './AiRecommendations'
+import PrepareThisWeek from './PrepareThisWeek'
+import QuickCreate from './QuickCreate'
 import TeacherOnboardingTour from './TeacherOnboardingTour'
 import FeedbackButton from '../feedback/FeedbackButton'
 import SuggestionNudge from '../feedback/SuggestionNudge'
@@ -606,7 +611,12 @@ function CompactUsage() {
             type="button"
             className="teacher-usage-card__toggle"
             aria-expanded={expanded}
-            onClick={() => setExpanded((v) => !v)}
+            onClick={() => setExpanded((v) => {
+              // Measures whether teachers still find the usage section now
+              // that it lives at the bottom of the dashboard (redesign §11).
+              if (!v) capture('usage_details_expanded', { placement: 'dashboard-bottom' })
+              return !v
+            })}
           >
             View details
             <Icon as={ChevronDown} size="xs" className={expanded ? 'teacher-usage-card__chevron is-open' : 'teacher-usage-card__chevron'} />
@@ -656,7 +666,10 @@ function PlanQuickCard({ plan }) {
       </span>
       <button
         type="button"
-        onClick={() => navigate('/my-subscription')}
+        onClick={() => {
+          capture('plan_upgrade_clicked', { source: 'dashboard-plan-card', placement: 'dashboard-bottom' })
+          navigate('/my-subscription')
+        }}
         className="inline-flex items-center gap-1 bg-transparent text-sm font-black text-amber-700 shadow-none min-h-0 hover:text-amber-900"
       >
         Upgrade to Pro
@@ -685,25 +698,35 @@ export default function TeacherDashboard() {
   const [generations, setGenerations] = useState([])
   const [assessments, setAssessments] = useState([])
   const [loading, setLoading] = useState(true)
+  // True when the generations fetch itself failed (not merely returned
+  // empty) — Prepare This Week shows its error state with a retry instead
+  // of a misleading "set up your week" empty state.
+  const [gensError, setGensError] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
   const [searchTerm, setSearchTerm] = useState('')
   const [activityRange, setActivityRange] = useState('week')
+  // Activity statistics live behind a collapsed disclosure at the bottom of
+  // the page (redesign §7) — Quick Create owns their old slot.
+  const [activityOpen, setActivityOpen] = useState(false)
 
   useEffect(() => {
     if (!currentUser) return
     let cancelled = false
     async function load() {
+      let gensFailed = false
       const [gens, papers] = await Promise.all([
-        listMyGenerations({ uid: currentUser.uid }).catch(() => []),
+        listMyGenerations({ uid: currentUser.uid }).catch(() => { gensFailed = true; return [] }),
         getMyAssessments(currentUser.uid).catch(() => []),
       ])
       if (cancelled) return
       setGenerations(gens)
       setAssessments(papers)
+      setGensError(gensFailed)
       setLoading(false)
     }
     load()
     return () => { cancelled = true }
-  }, [currentUser, getMyAssessments])
+  }, [currentUser, getMyAssessments, reloadKey])
 
   // byTool keys stay snake_cased (the Firestore tool ids) — StudioCard
   // normalizes its dash-cased libraryKey before looking up.
@@ -769,10 +792,6 @@ export default function TeacherDashboard() {
     () => buildAiMessage({ resources, usage, now: Date.now() }),
     [resources, usage],
   )
-  const insights = useMemo(
-    () => rotateInsights(buildInsights({ resources, usage, now: Date.now() }), Date.now(), 3),
-    [resources, usage],
-  )
   const activityStats = useMemo(
     () => buildActivityStats({ resources, now: Date.now(), range: activityRange }),
     [resources, activityRange],
@@ -780,6 +799,66 @@ export default function TeacherDashboard() {
   const celebration = useMemo(
     () => buildCelebrations({ resources })[0] || null,
     [resources],
+  )
+
+  // The last subject context the dashboard resolved for this teacher —
+  // persisted so Prepare This Week + AI Recommendations never silently
+  // switch subject just because a document in another subject was edited
+  // more recently. Replaced by Teaching Profile assignments when those land.
+  const prepContextKey = currentUser ? `zedexams:prep-context:${currentUser.uid}` : null
+  const preferredSubject = useMemo(() => {
+    if (!prepContextKey) return ''
+    try { return localStorage.getItem(prepContextKey) || '' } catch { return '' }
+  }, [prepContextKey])
+
+  // The MoE calendar context both weekly-preparation surfaces share. During
+  // holidays the calendar points at Week 1 of the next term; isActiveTermNow
+  // + the opening-date extras switch the cards into "next term" behaviour.
+  const prepCalendar = useMemo(() => {
+    const wk = getCurrentForecastWeek()
+    if (!wk) return null
+    const calendar = { ...wk, isActiveTermNow: Boolean(getActiveTerm()) }
+    if (!calendar.isActiveTermNow) {
+      const next = getNextTerm()
+      if (next) {
+        calendar.openLabel = fmtDate(next.term.open, 'full')
+        calendar.daysToOpen = daysUntil(next.term.open)
+      }
+    }
+    return calendar
+  }, [])
+
+  // Weekly preparation model — derived from the SAME generations fetch the
+  // rest of the dashboard uses (no extra Firestore reads).
+  const weekPrep = useMemo(
+    () => buildWeekPrep({
+      generations,
+      calendar: prepCalendar,
+      profileSubject: userProfile?.subject || '',
+      preferredSubject,
+      now: Date.now(),
+    }),
+    [generations, userProfile, prepCalendar, preferredSubject],
+  )
+
+  // Persist whatever context was resolved so the next visit sticks with it.
+  useEffect(() => {
+    const subject = weekPrep?.context?.subject
+    if (!prepContextKey || !subject) return
+    try { localStorage.setItem(prepContextKey, subject) } catch { /* storage unavailable */ }
+  }, [weekPrep, prepContextKey])
+
+  // Actionable AI Recommendations (replaces the passive insights) — same
+  // inputs, no extra reads; every card's condition is verified in data.
+  const recommendations = useMemo(
+    () => buildRecommendations({
+      generations,
+      assessments,
+      calendar: prepCalendar,
+      profileSubject: userProfile?.subject || '',
+      preferredSubject,
+    }),
+    [generations, assessments, userProfile, prepCalendar, preferredSubject],
   )
 
   const continueItems = useMemo(() => {
@@ -893,21 +972,13 @@ export default function TeacherDashboard() {
         </button>
       </form>
 
-      {/* ── Free Plan card (compact subscription indicator) ───────── */}
-      <PlanQuickCard plan={teacherPlan} />
-
-      {/* ── Your usage this month (compact, collapsed) ────────────── */}
-      <section className="teacher-usage-section">
-        <div className="teacher-section-head">
-          <SectionLabel>Your usage this month</SectionLabel>
-          {usage && usage.plan !== 'free' && (
-            <span className={`teacher-plan-chip teacher-plan-chip--${usage.plan}`}>
-              <span aria-hidden="true">👑</span> {usage.planLabel} Plan
-            </span>
-          )}
-        </div>
-        <CompactUsage />
-      </section>
+      {/* ── Prepare This Week (weekly preparation guide) ──────────── */}
+      <PrepareThisWeek
+        loading={loading}
+        error={gensError}
+        prep={weekPrep}
+        onRetry={() => { setLoading(true); setReloadKey((k) => k + 1) }}
+      />
 
       {/* ── Continue where you left off ───────────────────────────── */}
       <section className="teacher-continue">
@@ -959,85 +1030,23 @@ export default function TeacherDashboard() {
         )}
       </section>
 
-      {/* ── Your activity ─────────────────────────────────────────── */}
-      {!loading && (
-        <section className="teacher-activity">
-          <div className="teacher-section-head">
-            <SectionLabel>Your activity</SectionLabel>
-            <label className="teacher-range">
-              <select
-                value={activityRange}
-                onChange={(e) => setActivityRange(e.target.value)}
-                aria-label="Activity range"
-              >
-                <option value="week">This week</option>
-                <option value="month">This month</option>
-              </select>
-              <Icon as={ChevronDown} size="xs" />
-            </label>
-          </div>
-          <div className="teacher-activity__grid">
-            {activityStats.filter((s) => s.key !== 'library').map((s) => {
-              const am = ACTIVITY_META[s.key] || { icon: DocumentTextIcon, tone: 'slate' }
-              // 'new' shares the positive (green) styling with 'up'.
-              const toneDir = s.trend.dir === 'new' ? 'up' : s.trend.dir
-              return (
-                <div key={s.key} className="teacher-activity-card">
-                  <div className="teacher-activity-card__top">
-                    <span className={`teacher-activity-card__badge teacher-activity-card__badge--${am.tone}`}>
-                      <Icon as={am.icon} size="sm" />
-                    </span>
-                    <p className="teacher-activity-card__value">{s.period}</p>
-                  </div>
-                  <p className="teacher-activity-card__label">{s.label}</p>
-                  <span className={`teacher-activity-card__trend teacher-activity-card__trend--${toneDir}`}>
-                    {formatTrend(s.trend, s.basis)}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-          {(() => {
-            const lib = activityStats.find((s) => s.key === 'library')
-            if (!lib) return null
-            return (
-              <Link to="/teacher/library" className="teacher-activity-total">
-                <span className="teacher-activity-card__badge teacher-activity-card__badge--blue">
-                  <Icon as={FolderOpen} size="sm" />
-                </span>
-                <div className="teacher-activity-total__body">
-                  <p className="teacher-activity-total__value">{lib.total}</p>
-                  <p className="teacher-activity-total__label">Total in library</p>
-                </div>
-                <Icon as={ChevronRight} size="sm" className="teacher-activity-total__arrow" />
-              </Link>
-            )
-          })()}
-        </section>
-      )}
+      {/* ── Quick create (the four primary studio actions) ────────── */}
+      <QuickCreate />
 
-      {/* ── AI insights ───────────────────────────────────────────── */}
-      {!loading && insights.length > 0 && (
-        <section className="teacher-insights teacher-defer">
-          <SectionLabel>AI insights</SectionLabel>
-          <div className="teacher-insights__grid">
-            {insights.map((it) => (
-              <div key={it.id} className="teacher-insight-card">
-                <span className="teacher-insight-card__icon" aria-hidden="true">{it.icon}</span>
-                <p className="teacher-insight-card__text">{it.text}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* ── AI Recommendations (actionable; replaces AI insights) ─── */}
+      {!loading && <AiRecommendations recommendations={recommendations} />}
 
       {/* ── Teacher workspace (studios) ───────────────────────────── */}
-      <div className="teacher-workspace-header teacher-defer">
+      <div id="teacher-workspace" className="teacher-workspace-header teacher-defer">
         <span className="teacher-workspace-header__icon">
           <Icon as={LayoutGrid} size="md" />
         </span>
         <div>
-          <h2 className="teacher-workspace-header__title">Teacher Workspace</h2>
+          {/* Focus target for Quick Create's "View all teacher tools" —
+              tabIndex={-1} lets the button move keyboard focus here. */}
+          <h2 id="teacher-workspace-title" tabIndex={-1} className="teacher-workspace-header__title">
+            Teacher Workspace
+          </h2>
           <p className="teacher-workspace-header__text">Everything you need in one place</p>
         </div>
       </div>
@@ -1063,6 +1072,107 @@ export default function TeacherDashboard() {
           </div>
         </section>
       ))}
+
+      {/* ── Your activity (collapsed disclosure — the stats moved out of
+          the main flow when Quick Create took their slot; the numbers and
+          honest trends stay one tap away) ──────────────────────────── */}
+      {!loading && (
+        <section className="teacher-activity teacher-defer">
+          <button
+            type="button"
+            className="teacher-activity__toggle"
+            aria-expanded={activityOpen}
+            onClick={() => {
+              setActivityOpen((v) => {
+                if (!v) capture('dashboard_activity_expanded', {})
+                return !v
+              })
+            }}
+          >
+            <span className="teacher-dashboard-eyebrow">Your activity</span>
+            <span className="teacher-activity__toggle-hint">
+              {activityOpen ? 'Hide' : 'View'}
+              <Icon
+                as={ChevronDown}
+                size="xs"
+                className={activityOpen ? 'teacher-usage-card__chevron is-open' : 'teacher-usage-card__chevron'}
+              />
+            </span>
+          </button>
+          {activityOpen && (
+            <>
+              <div className="teacher-section-head">
+                <span className="sr-only">Activity statistics</span>
+                <label className="teacher-range">
+                  <select
+                    value={activityRange}
+                    onChange={(e) => setActivityRange(e.target.value)}
+                    aria-label="Activity range"
+                  >
+                    <option value="week">This week</option>
+                    <option value="month">This month</option>
+                  </select>
+                  <Icon as={ChevronDown} size="xs" />
+                </label>
+              </div>
+              <div className="teacher-activity__grid">
+                {activityStats.filter((s) => s.key !== 'library').map((s) => {
+                  const am = ACTIVITY_META[s.key] || { icon: DocumentTextIcon, tone: 'slate' }
+                  // 'new' shares the positive (green) styling with 'up'.
+                  const toneDir = s.trend.dir === 'new' ? 'up' : s.trend.dir
+                  return (
+                    <div key={s.key} className="teacher-activity-card">
+                      <div className="teacher-activity-card__top">
+                        <span className={`teacher-activity-card__badge teacher-activity-card__badge--${am.tone}`}>
+                          <Icon as={am.icon} size="sm" />
+                        </span>
+                        <p className="teacher-activity-card__value">{s.period}</p>
+                      </div>
+                      <p className="teacher-activity-card__label">{s.label}</p>
+                      <span className={`teacher-activity-card__trend teacher-activity-card__trend--${toneDir}`}>
+                        {formatTrend(s.trend, s.basis)}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+              {(() => {
+                const lib = activityStats.find((s) => s.key === 'library')
+                if (!lib) return null
+                return (
+                  <Link to="/teacher/library" className="teacher-activity-total">
+                    <span className="teacher-activity-card__badge teacher-activity-card__badge--blue">
+                      <Icon as={FolderOpen} size="sm" />
+                    </span>
+                    <div className="teacher-activity-total__body">
+                      <p className="teacher-activity-total__value">{lib.total}</p>
+                      <p className="teacher-activity-total__label">Total in library</p>
+                    </div>
+                    <Icon as={ChevronRight} size="sm" className="teacher-activity-total__arrow" />
+                  </Link>
+                )
+              })()}
+            </>
+          )}
+        </section>
+      )}
+
+      {/* ── Compact plan + usage (bottom of the page by design: the dashboard
+          leads with teaching work, not usage statistics; the full breakdown
+          stays one tap away behind "View details") ─────────────────── */}
+      <PlanQuickCard plan={teacherPlan} />
+
+      <section className="teacher-usage-section teacher-defer">
+        <div className="teacher-section-head">
+          <SectionLabel>Your usage this month</SectionLabel>
+          {usage && usage.plan !== 'free' && (
+            <span className={`teacher-plan-chip teacher-plan-chip--${usage.plan}`}>
+              <span aria-hidden="true">👑</span> {usage.planLabel} Plan
+            </span>
+          )}
+        </div>
+        <CompactUsage />
+      </section>
 
       <div className="mt-6">
         <FeedbackButton source="teacher-dashboard" />
