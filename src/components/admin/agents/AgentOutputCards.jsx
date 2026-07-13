@@ -370,8 +370,8 @@ function TillCard({ value }) {
   return (
     <Card
       tone={rec.length > 0 ? 'good' : 'neutral'}
-      title="Payment reconciliation"
-      subtitle={clean ? 'No stuck payments needed recovery.' : `${rec.length} buyer${rec.length === 1 ? '' : 's'} recovered.`}
+      title="Payment reconciliation — Lenco"
+      subtitle={clean ? 'No stuck Lenco payments needed recovery.' : `${rec.length} buyer${rec.length === 1 ? '' : 's'} recovered.`}
     >
       {skipped && (
         <p className="rounded-lg bg-white/60 px-3 py-2 text-xs theme-text-muted">
@@ -403,6 +403,15 @@ function TillCard({ value }) {
         </Section>
       )}
       <ErrorList errors={errors} />
+      {/* Till's sweep covers Lenco only (Play verification failures never
+          create a payment doc), so a green card here must not read as "all
+          payment channels are healthy" — that misread hid a broken Play
+          config while Google was auto-refunding real buyers. */}
+      <p className="text-[11px] theme-text-muted">
+        Covers Lenco (mobile money + cards) only. Google Play purchases are
+        verified separately — Vigil&apos;s hourly site-health check flags Play
+        billing problems.
+      </p>
     </Card>
   )
 }

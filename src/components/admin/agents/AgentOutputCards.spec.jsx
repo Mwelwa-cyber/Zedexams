@@ -21,9 +21,23 @@ describe('AgentOutput — readable cards (no raw JSON)', () => {
       errors: [],
     } }} />)
 
-    expect(screen.getByText('Payment reconciliation')).toBeInTheDocument()
+    expect(screen.getByText('Payment reconciliation — Lenco')).toBeInTheDocument()
     expect(screen.getByText(/1 buyer recovered/i)).toBeInTheDocument()
     expect(screen.getByText('K50')).toBeInTheDocument()
+    // The sweep covers Lenco only — the card must say so, so an all-zero
+    // "quiet" run can't be misread as "every payment channel is healthy"
+    // while e.g. Google Play verification is broken.
+    expect(screen.getByText(/Covers Lenco .*only/i)).toBeInTheDocument()
+  })
+
+  it('scopes a quiet Till run to Lenco (no all-channels overclaim)', () => {
+    render(<AgentOutput output={{ till: {
+      checked: 0, recovered: [], failedClosed: [], stillPending: 0,
+      skippedTooNew: 0, errors: [],
+    } }} />)
+
+    expect(screen.getByText('No stuck Lenco payments needed recovery.')).toBeInTheDocument()
+    expect(screen.getByText(/Google Play purchases are verified separately/i)).toBeInTheDocument()
   })
 
   it('renders Compass backlog with ranked recommendations', () => {
