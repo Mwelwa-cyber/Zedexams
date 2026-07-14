@@ -79,12 +79,21 @@ describe('useGenerationGate', () => {
   )
 
   it('shows feature-locked for a Free teacher on a 0-cap studio', () => {
+    // Notes stays a 0-cap studio on Free (worksheets gained a free-preview
+    // allowance in the dashboard redesign, so they no longer lock here).
     const { result } = mountGate({ teacherPlan: 'free' }, { counters: {} })
-    expect(result.current.ensureCanGenerate('worksheet')).toBe(false)
+    expect(result.current.ensureCanGenerate('notes')).toBe(false)
     expect(paywall.show).toHaveBeenCalledWith(
       'feature-locked',
-      expect.objectContaining({ feature: 'Worksheets', tool: 'worksheet' })
+      expect.objectContaining({ feature: 'Teacher notes', tool: 'notes' })
     )
+  })
+
+  it('lets a Free teacher through a preview-funded studio under its cap', () => {
+    const { result } = mountGate({ teacherPlan: 'free' }, { counters: {} })
+    expect(result.current.ensureCanGenerate('worksheet')).toBe(true)
+    expect(result.current.ensureCanGenerate('assessment')).toBe(true)
+    expect(paywall.show).not.toHaveBeenCalled()
   })
 
   it('shows monthly-limit when a Pro teacher exhausts a funded studio', () => {
@@ -99,10 +108,10 @@ describe('useGenerationGate', () => {
     )
   })
 
-  it('routes a Pro teacher who used the Max-only taster to the Max paywall', () => {
+  it('routes a Pro teacher who used the Max-only allowance to the Max paywall', () => {
     const { result } = mountGate(
       { teacherPlan: 'pro' },
-      { counters: { assessment: 1 } } // taster cap on pro
+      { counters: { assessment: 4 } } // monthly allowance cap on pro
     )
     expect(result.current.ensureCanGenerate('assessment')).toBe(false)
     expect(paywall.show).toHaveBeenCalledWith(

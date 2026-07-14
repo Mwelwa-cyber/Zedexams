@@ -82,7 +82,10 @@ let claudeImpl = async () => {
 };
 let refundImpl = async () => {};
 let sourcedImpl = async () => ({questions: [], fromBank: 0, marks: 0, scanned: 0});
-const USAGE = {plan: "free", used: 1, period: "202607"};
+// Max plan so the general-behaviour tests run unclamped; the free-preview
+// clamps get their own dedicated block at the end of the suite (flip
+// USAGE.plan to "free" there and restore it after).
+const USAGE = {plan: "max", used: 1, period: "202607"};
 
 const origLoad = Module._load;
 Module._load = function (request, ...rest) {
@@ -339,6 +342,42 @@ async function caught(promise) {
   });
   await runAssessment({uid: "t5", rawInputs: {...INPUTS, useQuestionBank: false}, apiKey: "k"});
   ok("useQuestionBank:false never queries the bank", calls.sourced.length === 0);
+
+  // ── Free preview (§12–13): marks clamp + hard 5-question cap ─────────
+  console.log("\nrunAssessment — free-preview clamps");
+  reset();
+  USAGE.plan = "free";
+  const bigQ = (n) => ({
+    type: "short_answer", prompt: `Preview Q${n}`, marks: 2,
+    answer: `A${n}`, markingGuide: "2 marks.",
+  });
+  claudeImpl = async () => ({
+    // Model overshoots the preview: 8 questions across two sections.
+    parsed: {
+      header: {...validPaper().header, totalMarks: 16},
+      sections: [
+        {title: "A", instructions: "Answer.",
+          questions: [bigQ(1), bigQ(2), bigQ(3), bigQ(4), bigQ(5), bigQ(6)]},
+        {title: "B", instructions: "Answer.", questions: [bigQ(7), bigQ(8)]},
+      ],
+    },
+    text: "",
+    usage: {inputTokens: 100, outputTokens: 500},
+    model: "claude-test",
+  });
+  const freeRun = await runAssessment(
+      {uid: "t6", rawInputs: {...INPUTS, useQuestionBank: false}, apiKey: "k"});
+  const freeQs = freeRun.assessment.sections.flatMap((s) => s.questions);
+  ok("free preview never returns more than 5 questions", freeQs.length === 5);
+  ok("free preview drops emptied sections",
+      freeRun.assessment.sections.length === 1);
+  ok("free preview restamps header marks from kept questions",
+      freeRun.assessment.header.totalMarks === 10);
+  ok("free preview marker is returned to the studio",
+      freeRun.preview && freeRun.preview.maxQuestions === 5 &&
+      freeRun.preview.truncated === true);
+  ok("paid runs carry no preview marker", mixed.preview === null);
+  USAGE.plan = "max";
 
   Module._load = origLoad;
   console.log(`\n${passed} passed`);

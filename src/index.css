@@ -2093,6 +2093,59 @@ body.theme-midnight .moe-calendar {
     color: #566f76;
   }
 
+  /* ── Free-preview upsell (post-generation upgrade prompt) ─────── */
+  .studio-theme .teacher-preview-upsell {
+    margin-bottom: 16px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: #fff8e8;
+    border: 1.5px solid #f1d09a;
+  }
+  .studio-theme .teacher-preview-upsell__title {
+    margin: 0;
+    font-size: 14.5px;
+    font-weight: 800;
+    color: #0e2a32;
+  }
+  .studio-theme .teacher-preview-upsell__text {
+    margin: 4px 0 0;
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: #7a5a1e;
+  }
+  .studio-theme .teacher-preview-upsell__actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+  .studio-theme .teacher-preview-upsell__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 800;
+    text-decoration: none;
+    min-height: 42px;
+  }
+  .studio-theme .teacher-preview-upsell__btn--primary {
+    background: #ff7a2e;
+    color: #fff;
+    box-shadow: 0 6px 16px rgba(243,106,42,.28);
+    transition: background .15s ease;
+  }
+  .studio-theme .teacher-preview-upsell__btn--primary:hover { background: #e6651a; }
+  .studio-theme .teacher-preview-upsell__btn--ghost {
+    background: #fff;
+    color: #0e2a32;
+    border: 1.5px solid #e4dcc6;
+  }
+  .studio-theme .teacher-preview-upsell__btn--ghost:hover { background: #fdf8ec; }
+
   /* ── AI Recommendations (actionable cards) ────────────────────── */
   .studio-theme .teacher-reco { margin-bottom: 26px; }
   .studio-theme .teacher-reco__grid {

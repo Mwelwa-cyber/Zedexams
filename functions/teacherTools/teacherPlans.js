@@ -25,22 +25,27 @@
  */
 
 const PLAN_LIMITS = {
-  // Free can only use the Lesson Plan studio — every other generator studio is
-  // closed (0) and shown as a read-only sample until the teacher upgrades (the
-  // client gates the route in StudioGate; this is the authoritative server gate
-  // for direct calls). Keep lesson_plan + the quiz-editor micro-helpers
-  // (suggest_answer / revise_question) and the in-studio diagram tool funded.
+  // Free runs the weekly teaching loop in limited form (dashboard redesign
+  // §12): lesson plans plus a small monthly allowance of worksheets, homework
+  // and short tests, and a 2-week Scheme of Work preview — enough to
+  // experience each studio's value before the paywall. The metering is
+  // monthly (this catalogue) + the DAILY_LIMITS cap, so the spec's per-week
+  // suggestions are expressed as ~4-weeks-worth per month. Preview shaping
+  // (5-question tests, 2-week schemes) lives in FREE_PREVIEW_LIMITS below
+  // and is enforced inside the generators. Studios not listed above stay
+  // closed (0) and render as read-only samples (StudioGate); this catalogue
+  // remains the authoritative server gate for direct calls.
   free: {
-    lesson_plan: 2,
-    worksheet: 0,
+    lesson_plan: 8,
+    worksheet: 4,
     flashcards: 0,
     quiz: 0,
     rubric: 0,
-    scheme_of_work: 0,
+    scheme_of_work: 2,
     notes: 0,
-    homework: 0,
+    homework: 4,
     lesson_activities: 0,
-    assessment: 0,
+    assessment: 4,
     sba_task: 0,
     exam_paper: 0,
     diagram: 3,
@@ -62,10 +67,11 @@ const PLAN_LIMITS = {
     // Exercise + homework generated together from the Lesson Plan Studio.
     lesson_activities: 30,
     // assessment + exam_paper are Max-only studios (see MAX_ONLY_TOOLS): the
-    // most expensive generations on the platform. Pro (and Free) get a single
-    // taster per month so teachers can feel the quality before upgrading to
-    // Max for unlimited use — the 2nd generation hits the Max paywall.
-    assessment: 1,
+    // most expensive generations on the platform. Pro gets a small monthly
+    // allowance of FULL papers — it must never trail Free, whose 4/month are
+    // 5-question previews (FREE_PREVIEW_LIMITS) — and exam_paper keeps the
+    // single taster. The next generation past a cap hits the Max paywall.
+    assessment: 4,
     sba_task: 15,
     exam_paper: 1,
     diagram: 30,
@@ -173,8 +179,21 @@ function normalizeTeacherPlan(raw) {
   return null;
 }
 
+// Free-preview shaping enforced inside the generators (not the meter): a
+// free short test is truncated to maxShortTestQuestions with its marks
+// budget clamped, and a free Scheme of Work covers only the first
+// schemePreviewWeeks weeks of the term. Mirrored in src/utils/teacherPlans.js
+// (guarded by scripts/test-teacher-plan-resolution.mjs) so the studios can
+// explain the preview before the teacher generates.
+const FREE_PREVIEW_LIMITS = {
+  schemePreviewWeeks: 2,
+  maxShortTestQuestions: 5,
+  shortTestMarksCap: 10,
+};
+
 module.exports = {
   PLAN_LIMITS,
+  FREE_PREVIEW_LIMITS,
   PLAN_LABELS,
   DAILY_LIMITS,
   DAILY_COUNTED_TOOLS,

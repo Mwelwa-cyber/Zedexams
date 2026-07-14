@@ -333,20 +333,19 @@ export const MORE_GROUPS = [
   },
 ]
 
-// Studio tile routes that are Pro/Max only — a Free teacher who opens one
+// Studio tile routes that stay Pro/Max only — a Free teacher who opens one
 // sees a read-only sample (StudioGate), so the tile is badged "Sample".
+// Schemes of Work, Worksheets, Homework and Test Papers left this set in the
+// free-preview phase (§12): Free now opens them with limited allowances
+// (PLAN_LIMITS.free) and preview shaping (FREE_PREVIEW_LIMITS).
 const LOCKED_STUDIO_PATHS = new Set([
-  '/teacher/generate/scheme-of-work',
   '/teacher/generate/weekly-forecast',
   '/teacher/generate/record-of-work',
   '/teacher/generate/class-timetable',
   '/teacher/generate/notes',
-  '/teacher/generate/worksheet',
   '/teacher/generate/flashcards',
-  '/teacher/generate/homework',
   '/teacher/generate/rubric',
   '/teacher/generate/mark-schedule',
-  '/teacher/test-papers',
   '/teacher/exam-papers',
   '/teacher/generate/sba',
   '/teacher/generate/sba-tracker',

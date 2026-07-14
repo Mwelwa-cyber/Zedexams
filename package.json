@@ -125,6 +125,7 @@
     "test:recommendations": "node src/utils/teacherRecommendations.test.js",
     "test:document-actions": "node src/utils/documentActions.test.js",
     "test:usage-reset": "node src/utils/usageReset.test.js",
+    "test:free-preview": "node functions/teacherTools/freePreview.test.js",
     "test:assessment-autosave": "node scripts/test-assessment-autosave.mjs",
     "test:assessment-pdf": "node src/utils/assessmentToPdf.test.js",
     "test:studio-question-types": "node src/components/teacher/assessmentQuestionTypes.test.js",

@@ -25,6 +25,9 @@ import {
 } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
 import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
+import FreePreviewUpsell from '../FreePreviewUpsell'
+import { capture } from '../../../utils/analytics'
+import { resolveTeacherPlan, FREE_PREVIEW_LIMITS } from '../../../utils/teacherPlans'
 import { useToast } from '../../ui/Toast'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
@@ -106,6 +109,7 @@ export default function SchemeOfWorkGenerator() {
   const [scheme, setScheme] = useState(null)
   const [generationId, setGenerationId] = useState(null)
   const [usage, setUsage] = useState(null)
+  const [previewInfo, setPreviewInfo] = useState(null)
   const [warning, setWarning] = useState('')
   const [advisories, setAdvisories] = useState([])
   const [curriculumSource, setCurriculumSource] = useState('')
@@ -406,6 +410,10 @@ export default function SchemeOfWorkGenerator() {
     setScheme(res.data.schemeOfWork)
     setGenerationId(res.data.generationId)
     setUsage(res.data.usage)
+    // Server-stamped free-preview marker (first N weeks only) — drives the
+    // post-generation upgrade prompt in the editor header.
+    setPreviewInfo(res.data.preview || null)
+    if (res.data.preview) capture('free_preview_generated', { tool: 'scheme_of_work' })
     setWarning(res.data.warning || '')
     setAdvisories(Array.isArray(res.data.advisories) ? res.data.advisories : [])
     setCurriculumSource(res.data.curriculumSource || '')
@@ -475,6 +483,12 @@ export default function SchemeOfWorkGenerator() {
         />
 
         <div className="space-y-6">
+          {resolveTeacherPlan(userProfile) === 'free' && (
+            <div className="studio-form rounded-xl border theme-border px-4 py-3 text-sm" style={{ background: '#fff8e8', color: '#7a5a1e', fontWeight: 600 }}>
+              Free plan: you’ll get a preview of the first {FREE_PREVIEW_LIMITS.schemePreviewWeeks} weeks
+              — set up your whole term, see the quality, then upgrade for the complete scheme.
+            </div>
+          )}
           <div className="studio-form">
             <DraftRecoveryPrompt {...draft} label="scheme of work" />
           </div>
@@ -706,6 +720,13 @@ export default function SchemeOfWorkGenerator() {
                     </button>
                   </div>
                 </div>
+                {previewInfo && (
+                  <FreePreviewUpsell
+                    context="scheme-preview"
+                    title={`Your first ${previewInfo.weeks} weeks are ready.`}
+                    text="Upgrade to generate the complete term, include school holidays and connect your Scheme of Work to Weekly Focus — this preview stays yours either way."
+                  />
+                )}
                 {saveMsg && (
                   <div className="mb-4 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-900 px-4 py-2 text-sm">
                     ✓ {saveMsg}

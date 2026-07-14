@@ -79,13 +79,15 @@ describe('useTeacherUsage', () => {
     expect(data.planLabel).toBe('Free')
     expect(data.used.plans).toBe(2)
     expect(data.used.worksheets).toBe(1)
-    expect(data.caps.plans).toBe(2) // free lesson_plan — the one open studio
-    // Free can only use the Lesson Plan studio now; every other studio is
-    // locked to a read-only sample (cap 0) until the teacher upgrades. The
-    // Test Paper (`assessment`) and Exam Paper studios are no exception.
-    expect(data.caps.assessments).toBe(0) // assessment locked → sample only
+    expect(data.caps.plans).toBe(8) // free lesson_plan allowance
+    // The free-preview tier (dashboard redesign §12) opens the weekly loop
+    // in limited form: worksheets/homework/short tests carry small monthly
+    // caps and schemes a 2-week preview. Studios outside the loop stay
+    // locked to a read-only sample (cap 0) until the teacher upgrades.
+    expect(data.caps.worksheets).toBe(4) // free-preview allowance
+    expect(data.caps.assessments).toBe(4) // 5-question short-test previews
     expect(data.caps.exams).toBe(0) // exam_paper locked → sample only
-    expect(data.caps.worksheets).toBe(0) // worksheet locked → sample only
+    expect(data.caps.notes).toBe(0) // notes locked → sample only
     expect(data.daily).toBe(2)
   })
 
