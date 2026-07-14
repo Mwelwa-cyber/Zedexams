@@ -5560,7 +5560,11 @@ body.theme-midnight .learner-game-theme .theme-bg-subtle {
 
 .learner-chrome-label,
 .learner-chrome-icon {
-  color: #64748b;
+  /* slate-700 — slate-500 (#64748b) washed out to near-white against the
+     light cream/white header, so the Progress/Alerts/Account icons + labels
+     read as faint. This darker tone keeps the "chrome" feel while giving
+     comfortable contrast on the default/brand light surface. */
+  color: #334155;
 }
 
 /* ── Learner dashboard welcome card art ──────────────────────────────────
