@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import TeacherWorkspace, { PRIMARY_GROUPS, MORE_GROUPS } from './TeacherWorkspace'
+import { capture } from '../../utils/analytics'
 
 vi.mock('../../utils/analytics', () => ({ capture: vi.fn() }))
 
@@ -52,10 +53,30 @@ describe('TeacherWorkspace', () => {
     expect(screen.queryByText('Flashcards')).not.toBeInTheDocument()
   })
 
-  it('never renders a "0 saved" badge but shows real counts', () => {
+  it('never renders a "0 saved" badge but shows real counts with accessible labels', () => {
     renderWs({ librarySummary: { total: 3, byTool: { lesson_plan: 3, scheme_of_work: 0 } } })
-    expect(screen.getByText('3 saved')).toBeInTheDocument()
+    const badge = screen.getByText('3 saved')
+    expect(badge).toBeInTheDocument()
+    expect(badge).toHaveAttribute('aria-label', '3 saved documents')
     expect(screen.queryByText('0 saved')).not.toBeInTheDocument()
+  })
+
+  it('summary unavailable (query failed → empty) hides counts but keeps tools usable', () => {
+    renderWs({ librarySummary: { total: 0, byTool: {} } })
+    expect(screen.queryByText(/\d+ saved/)).not.toBeInTheDocument()
+    expect(screen.getByText('Lesson Plans').closest('a'))
+      .toHaveAttribute('href', '/teacher/generate/lesson-plan')
+  })
+
+  it('tracks tool selections with their area and collapse events', () => {
+    renderWs()
+    fireEvent.click(screen.getByText('Worksheets').closest('a'))
+    expect(capture).toHaveBeenCalledWith('workspace_tool_selected', { tool: 'Worksheets', area: 'primary' })
+    fireEvent.click(screen.getByRole('button', { name: /view all teacher tools/i }))
+    fireEvent.click(screen.getByText('Flashcards').closest('a'))
+    expect(capture).toHaveBeenCalledWith('workspace_tool_selected', { tool: 'Flashcards', area: 'expanded' })
+    fireEvent.click(screen.getByRole('button', { name: /show fewer tools/i }))
+    expect(capture).toHaveBeenCalledWith('teacher_workspace_collapsed', { from: 'workspace' })
   })
 
   it('badges Pro/Max-only tiles as Sample for Free teachers', () => {

@@ -153,6 +153,11 @@ export default function TeacherDashboard() {
   // it before scrolling down.
   const [workspaceExpanded, setWorkspaceExpanded] = useState(false)
 
+  // One "viewed" event per dashboard mount (§19) — covers the workspace too.
+  useEffect(() => {
+    capture('teacher_dashboard_viewed', {})
+  }, [])
+
   useEffect(() => {
     if (!currentUser) return
     let cancelled = false
@@ -166,6 +171,9 @@ export default function TeacherDashboard() {
       setGenerations(gens)
       setAssessments(papers)
       setGensError(gensFailed)
+      // A failed summary query hides saved-count badges rather than showing
+      // wrong zeros — record it so we can see how often that path is hit.
+      if (gensFailed) capture('workspace_count_query_failed', {})
       setLoading(false)
     }
     load()

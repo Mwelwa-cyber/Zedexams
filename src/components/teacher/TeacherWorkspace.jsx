@@ -377,7 +377,7 @@ function WorkspaceSectionHead({ icon, accent, label, viewAll, description }) {
   )
 }
 
-function StudioCard({ img, tone, badge, libraryKey, isLibrary, title, tagline, to, librarySummary, locked }) {
+function StudioCard({ img, tone, badge, libraryKey, isLibrary, title, tagline, to, librarySummary, locked, area }) {
   // STUDIOS uses dash-cased libraryKeys ('lesson-plan') but byTool is keyed
   // by the snake_cased Firestore tool ids ('lesson_plan') — normalize or the
   // saved count never matches.
@@ -400,8 +400,18 @@ function StudioCard({ img, tone, badge, libraryKey, isLibrary, title, tagline, t
     : 'teacher-workspace-card__badge--saved'
   const cardClass = ['teacher-workspace-card', `teacher-workspace-card--${tone || 'slate'}`].join(' ')
 
+  // Saved-count badges get a full accessible label ("4 saved documents");
+  // NEW/Sample badges read out their visible text as-is.
+  const badgeAria = !locked && badge === null && count !== null && count > 0
+    ? `${count} saved document${count === 1 ? '' : 's'}`
+    : undefined
+
   return (
-    <Link to={to} className={cardClass}>
+    <Link
+      to={to}
+      className={cardClass}
+      onClick={() => capture('workspace_tool_selected', { tool: title, area })}
+    >
       <div className="teacher-workspace-card__top">
         <span className="teacher-workspace-card__icon">
           <img
@@ -416,7 +426,7 @@ function StudioCard({ img, tone, badge, libraryKey, isLibrary, title, tagline, t
           />
         </span>
         {showBadge && (
-          <span className={`teacher-workspace-card__badge ${badgeClass}`}>
+          <span className={`teacher-workspace-card__badge ${badgeClass}`} aria-label={badgeAria}>
             {badgeText}
           </span>
         )}
@@ -427,7 +437,7 @@ function StudioCard({ img, tone, badge, libraryKey, isLibrary, title, tagline, t
   )
 }
 
-function WorkspaceGroup({ group, librarySummary, isFreePlan }) {
+function WorkspaceGroup({ group, librarySummary, isFreePlan, area }) {
   return (
     <section className="teacher-workspace-section teacher-defer">
       <WorkspaceSectionHead
@@ -444,6 +454,7 @@ function WorkspaceGroup({ group, librarySummary, isFreePlan }) {
             {...s}
             librarySummary={librarySummary}
             locked={isFreePlan && LOCKED_STUDIO_PATHS.has(s.to)}
+            area={area}
           />
         ))}
       </div>
@@ -456,7 +467,7 @@ export default function TeacherWorkspace({ librarySummary, isFreePlan, expanded,
   const [selfExpanded, setSelfExpanded] = useState(false)
   const isExpanded = expanded ?? selfExpanded
   const toggle = () => {
-    if (!isExpanded) capture('teacher_workspace_expanded', { from: 'workspace' })
+    capture(isExpanded ? 'teacher_workspace_collapsed' : 'teacher_workspace_expanded', { from: 'workspace' })
     if (onToggle) onToggle(!isExpanded)
     else setSelfExpanded((v) => !v)
   }
@@ -477,7 +488,7 @@ export default function TeacherWorkspace({ librarySummary, isFreePlan, expanded,
       </div>
 
       {PRIMARY_GROUPS.map((group) => (
-        <WorkspaceGroup key={group.label} group={group} librarySummary={librarySummary} isFreePlan={isFreePlan} />
+        <WorkspaceGroup key={group.label} group={group} librarySummary={librarySummary} isFreePlan={isFreePlan} area="primary" />
       ))}
 
       <button
@@ -498,7 +509,7 @@ export default function TeacherWorkspace({ librarySummary, isFreePlan, expanded,
       <div id="teacher-workspace-more">
         {isExpanded &&
           MORE_GROUPS.map((group) => (
-            <WorkspaceGroup key={group.label} group={group} librarySummary={librarySummary} isFreePlan={isFreePlan} />
+            <WorkspaceGroup key={group.label} group={group} librarySummary={librarySummary} isFreePlan={isFreePlan} area="expanded" />
           ))}
       </div>
     </>
