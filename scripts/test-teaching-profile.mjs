@@ -26,6 +26,8 @@ import {
 import {
   inferAssignments,
   inferProfileDefaults,
+  suggestNewAssignments,
+  buildMigrationPlan,
 } from '../src/utils/teachingProfileMigration.js'
 
 let pass = 0
@@ -346,6 +348,39 @@ test('no active assignments at all → empty', () => {
   const r = resolveActiveAssignmentId({ activeAssignmentId: 'a3' }, [C_INACTIVE])
   eq(r.id, '')
   eq(r.source, 'none')
+})
+
+console.log('\nmigration plan (onboarding pre-fill)')
+const GENS = [
+  { inputs: { grade: 'G4', subject: 'mathematics', curriculum: 'cbc' } },
+  { inputs: { grade: 'G4', subject: 'mathematics', curriculum: 'cbc' } },
+  { inputs: { grade: 'G5', subject: 'english', curriculum: 'cbc' } },
+]
+test('suggestNewAssignments drops ones the teacher already has', () => {
+  const inferred = inferAssignments({ generations: GENS })
+  const existing = [{ grade: 'G4', subject: 'mathematics', className: '' }]
+  const fresh = suggestNewAssignments(inferred, existing)
+  eq(fresh.length, 1)
+  eq(fresh[0].subject, 'english')
+})
+test('suggestNewAssignments returns all when nothing exists', () => {
+  eq(suggestNewAssignments(inferAssignments({ generations: GENS }), []).length, 2)
+})
+test('buildMigrationPlan infers + dedupes + derives defaults', () => {
+  const plan = buildMigrationPlan({
+    generations: GENS,
+    teacherPreferences: { curriculum: { academicYear: '2026', curriculum: 'cbc' } },
+    existingAssignments: [],
+  })
+  eq(plan.suggestions.length, 2)
+  eq(plan.suggestions[0].subject, 'mathematics') // strongest signal (count 2) first
+  eq(plan.defaults.academicYear, '2026')
+  eq(plan.defaults.schoolLevel, 'primary')
+})
+test('buildMigrationPlan on a teacher with no work → empty suggestions, safe defaults', () => {
+  const plan = buildMigrationPlan({})
+  eq(plan.suggestions.length, 0)
+  eq(typeof plan.defaults.schoolLevel, 'string')
 })
 
 // ── report ───────────────────────────────────────────────────────────────────

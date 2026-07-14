@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import SettingsDetailShell from '../components/SettingsDetailShell'
 import ConfirmDialog from '../../../components/ui/ConfirmDialog'
@@ -31,8 +31,14 @@ import {
   subjectLabel,
   curriculumTypeLabel,
   resolveDefaultAssignmentId,
+  assignmentKey,
+  findDuplicateAssignment,
 } from '../../../utils/teachingProfileCore'
 import { weeklyTargets } from '../../../utils/teachingTargets'
+import { buildMigrationPlan } from '../../../utils/teachingProfileMigration'
+import { listMyGenerations } from '../../../utils/teacherLibraryService'
+import { useAuth } from '../../../contexts/AuthContext'
+import TeachingProfileMigrationCard from '../components/teachingProfile/TeachingProfileMigrationCard'
 
 const CALENDAR_REASON_TEXT = {
   calendar_not_found: 'We couldn’t find the calendar linked to your profile.',
@@ -46,11 +52,85 @@ export default function TeachingProfilePanel() {
     schoolName, context, completion, yearMismatch, effectiveDefaultId, reload,
   } = useTeachingProfile()
 
+  const { userProfile } = useAuth()
   const [modal, setModal] = useState(null) // { mode:'add'|'edit', initial }
   const [confirmRemove, setConfirmRemove] = useState(null) // assignment to remove
   const [wizardOpen, setWizardOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState('')
+
+  // ── existing-teacher migration (suggest a pre-filled profile) ───────────────
+  // For a teacher who has no profile yet, infer the classes they teach from their
+  // existing work so onboarding starts from a confirmable draft, not a blank
+  // form. Suggest-only: nothing is saved until they tick + continue.
+  const [migration, setMigration] = useState({ suggestions: [], defaults: {}, error: '' })
+  const [selectedKeys, setSelectedKeys] = useState(() => new Set())
+  const [applyingMigration, setApplyingMigration] = useState(false)
+  const [migrationSeed, setMigrationSeed] = useState(null) // { initialProfile, initialAssignments }
+  const migrationLoadedRef = useRef(false)
+
+  useEffect(() => {
+    if (loading || hasProfile || !uid) return
+    if (assignments.length > 0) return // already started — don't re-suggest
+    if (migrationLoadedRef.current) return
+    migrationLoadedRef.current = true
+    let cancelled = false
+    ;(async () => {
+      let generations = []
+      try { generations = await listMyGenerations({ uid }) } catch { generations = [] }
+      if (cancelled) return
+      const plan = buildMigrationPlan({
+        generations,
+        teacherPreferences: userProfile?.teacherPreferences,
+        existingAssignments: assignments,
+      })
+      setMigration({ suggestions: plan.suggestions, defaults: plan.defaults, error: '' })
+      setSelectedKeys(new Set(plan.suggestions.map((s) => assignmentKey(s))))
+    })()
+    return () => { cancelled = true }
+  }, [loading, hasProfile, uid, assignments, userProfile])
+
+  const toggleSuggestion = (key) => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  // Persist the ticked suggestions, then open the wizard pre-filled from them +
+  // the inferred defaults. Assignments persist immediately (same as the wizard's
+  // own add path); the profile doc is only written when the wizard is completed.
+  const applyMigration = async () => {
+    const chosen = migration.suggestions.filter((s) => selectedKeys.has(assignmentKey(s)))
+    if (!chosen.length || applyingMigration) return
+    setApplyingMigration(true)
+    setMigration((m) => ({ ...m, error: '' }))
+    try {
+      const seedRecords = []
+      for (const s of chosen) {
+        // Idempotent: never create a second identical assignment. If the teacher
+        // already has this grade+subject+class (e.g. a re-run), reuse it.
+        const existing = findDuplicateAssignment(assignments, s)
+        if (existing) { seedRecords.push(existing); continue }
+        const rec = await addAssignment(uid, {
+          grade: s.grade, subject: s.subject, className: s.className, curriculumType: s.curriculumType, isActive: true,
+        })
+        seedRecords.push(rec)
+      }
+      setMigrationSeed({
+        initialProfile: { schoolLevel: migration.defaults.schoolLevel || '', academicYear: migration.defaults.academicYear || '' },
+        initialAssignments: seedRecords,
+      })
+      reload()
+      setWizardOpen(true)
+    } catch {
+      setMigration((m) => ({ ...m, error: 'We could not add those assignments. Please try again or start from scratch.' }))
+    } finally {
+      setApplyingMigration(false)
+    }
+  }
 
   // ── assignment mutations ───────────────────────────────────────────────────
   const submitAssignment = async (payload) => {
@@ -123,25 +203,38 @@ export default function TeachingProfilePanel() {
   }
 
   if (!hasProfile) {
+    const hasSuggestions = migration.suggestions.length > 0
     return (
       <SettingsDetailShell rowId="teachingProfile">
-        <div className="tset-card tset-tp-empty">
-          <Icon as={GraduationCap} size="lg" className="tset-tp-empty__icon" />
-          <p className="tset-tp-empty__title">Set up your Teaching Profile</p>
-          <p className="tset-tp-empty__desc">
-            Add the grades, subjects and classes you teach so your dashboard and studios can prepare
-            the correct teaching work.
-          </p>
-          {actionError && <p className="tset-savebar__status tset-savebar__status--error" role="alert">{actionError}</p>}
-          <button type="button" className="tset-btn" onClick={() => setWizardOpen(true)}>
-            Start Teaching Profile
-          </button>
-        </div>
+        {hasSuggestions ? (
+          <TeachingProfileMigrationCard
+            suggestions={migration.suggestions}
+            selectedKeys={selectedKeys}
+            onToggle={toggleSuggestion}
+            onApply={applyMigration}
+            onSkip={() => { setMigrationSeed(null); setWizardOpen(true) }}
+            applying={applyingMigration}
+            error={migration.error}
+          />
+        ) : (
+          <div className="tset-card tset-tp-empty">
+            <Icon as={GraduationCap} size="lg" className="tset-tp-empty__icon" />
+            <p className="tset-tp-empty__title">Set up your Teaching Profile</p>
+            <p className="tset-tp-empty__desc">
+              Add the grades, subjects and classes you teach so your dashboard and studios can prepare
+              the correct teaching work.
+            </p>
+            {actionError && <p className="tset-savebar__status tset-savebar__status--error" role="alert">{actionError}</p>}
+            <button type="button" className="tset-btn" onClick={() => { setMigrationSeed(null); setWizardOpen(true) }}>
+              Start Teaching Profile
+            </button>
+          </div>
+        )}
         {wizardOpen && (
           <TeachingProfileWizard
             uid={uid}
-            initialProfile={profile}
-            initialAssignments={assignments}
+            initialProfile={migrationSeed?.initialProfile || profile}
+            initialAssignments={migrationSeed?.initialAssignments || assignments}
             context={context}
             onClose={() => setWizardOpen(false)}
             onComplete={reload}

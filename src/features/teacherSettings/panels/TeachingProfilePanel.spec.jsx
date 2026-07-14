@@ -24,6 +24,12 @@ const svc = vi.hoisted(() => ({
 }))
 vi.mock('../../../utils/teachingProfileService', () => svc)
 
+// Library service is only used to infer migration suggestions; stub it so the
+// spec never pulls in firebase/config. Default: no prior work → no suggestions.
+vi.mock('../../../utils/teacherLibraryService', () => ({
+  listMyGenerations: vi.fn(() => Promise.resolve([])),
+}))
+
 function renderPanel() {
   return render(
     <MemoryRouter>
