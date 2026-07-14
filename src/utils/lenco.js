@@ -19,6 +19,7 @@ const initiateCallable = httpsCallable(fns, 'initiateLencoPayment')
 const submitOtpCallable = httpsCallable(fns, 'submitLencoOtp')
 const statusCallable = httpsCallable(fns, 'getLencoPaymentStatus')
 const recoverCallable = httpsCallable(fns, 'recoverMyPendingPayments')
+const quoteCallable = httpsCallable(fns, 'getUpgradeQuote')
 
 // Mirror of functions/lencoService.js OPERATORS — kept in sync so the
 // checkout dropdown and the auto-detect agree with the server.
@@ -70,6 +71,17 @@ export function resolveOperator({ phone, operator, operatorTouched } = {}) {
 
 export async function initiateLencoPayment(payload) {
   const res = await initiateCallable(payload)
+  return res.data
+}
+
+/**
+ * Server-computed checkout quote: the amount due today (prorated for a live
+ * Pro→Max step), whether it's an upgrade, and the renewal date a successful
+ * payment would produce. The checkout displays this and echoes amountZMW
+ * back on initiation, where the server verifies it before charging.
+ */
+export async function getUpgradeQuote(planId) {
+  const res = await quoteCallable({ planId })
   return res.data
 }
 

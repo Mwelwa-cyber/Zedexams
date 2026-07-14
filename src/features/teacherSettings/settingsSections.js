@@ -13,6 +13,7 @@ import {
   Home,
   ImageIcon,
   Layers,
+  GraduationCap,
   BookOpen,
   Clock,
   ClipboardList,
@@ -83,6 +84,14 @@ export const SETTINGS_SECTIONS = [
     id: 'teaching',
     label: 'My Teaching',
     rows: [
+      {
+        id: 'teachingProfile',
+        path: 'teaching-profile',
+        title: 'Teaching Profile',
+        desc: 'Your school calendar, grades, subjects and teaching responsibilities',
+        icon: GraduationCap,
+        tone: 'orange',
+      },
       {
         id: 'teaching',
         path: 'teaching',

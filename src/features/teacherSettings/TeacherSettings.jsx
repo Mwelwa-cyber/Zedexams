@@ -24,6 +24,7 @@ const SecurityPanel = lazy(() => import('./panels/SecurityPanel'))
 const SchoolPanel = lazy(() => import('./panels/SchoolPanel'))
 const BrandingPanel = lazy(() => import('./panels/BrandingPanel'))
 const ResourcesPanel = lazy(() => import('./panels/ResourcesPanel'))
+const TeachingProfilePanel = lazy(() => import('./panels/TeachingProfilePanel'))
 const TeachingPanel = lazy(() => import('./panels/TeachingPanel'))
 const TimetablePanel = lazy(() => import('./panels/TimetablePanel'))
 const CurriculumPanel = lazy(() => import('./panels/CurriculumPanel'))
@@ -63,6 +64,7 @@ export default function TeacherSettings() {
         <Route path="branding" element={<Panel><BrandingPanel /></Panel>} />
         <Route path="resources" element={<Panel><ResourcesPanel /></Panel>} />
         {/* My Teaching */}
+        <Route path="teaching-profile" element={<Panel><TeachingProfilePanel /></Panel>} />
         <Route path="teaching" element={<Panel><TeachingPanel /></Panel>} />
         <Route path="timetable" element={<Panel><TimetablePanel /></Panel>} />
         <Route path="curriculum" element={<Panel><CurriculumPanel /></Panel>} />

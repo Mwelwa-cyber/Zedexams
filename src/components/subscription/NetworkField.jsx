@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { OPERATORS, detectOperator, resolveOperator } from '../../utils/lenco'
+import { OPERATORS, detectOperator, looksLikeZambianPhone, resolveOperator } from '../../utils/lenco'
 import { Check } from '../ui/icons'
 import Icon from '../ui/Icon'
 
@@ -24,12 +24,22 @@ export default function NetworkField({ phone, operator, operatorTouched, onSelec
   // Show the dropdown when: the payer overrode the detection, they tapped
   // "Change", or we have a number but couldn't recognise the network.
   const showManual = operatorTouched || manualOpen || (hasPhone && !auto)
+  // A complete Zambian number whose prefix maps to no supported operator —
+  // tell the payer plainly instead of leaving a silent dropdown.
+  const unsupported = !operatorTouched && !manualOpen && looksLikeZambianPhone(phone) && !auto
 
   return (
     <div>
       <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">
         Network
       </label>
+
+      {unsupported && (
+        <p className="mb-1.5 text-xs text-amber-700" role="alert">
+          We could not detect a supported mobile-money network from this number.
+          Check the number, or choose your network below.
+        </p>
+      )}
 
       {showManual ? (
         <select

@@ -8,15 +8,19 @@ import { getUpgradeQuoteForProfile } from '../../utils/subscriptionUpgrade'
 import { capture } from '../../utils/analytics'
 import { friendlyMessage } from '../../utils/friendlyErrors'
 import {
+  OPERATORS,
+  getUpgradeQuote,
   initiateLencoPayment,
   looksLikeZambianPhone,
   pollLencoStatus,
   resolveOperator,
   submitLencoOtp,
 } from '../../utils/lenco'
+import { formatZambianPhoneInput, zambianPhoneDigits } from '../../utils/phoneFormat'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import NetworkField from './NetworkField'
+import PaymentStatusTracker from './PaymentStatusTracker'
 
 const DEFAULT_PLAN_ORDER_BY_PORTAL = {
   learner: ['weekly', 'monthly'],
@@ -132,6 +136,21 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
   const [payState, setPayState] = useState('idle')
   const [error, setError] = useState('')
   const [timedOut, setTimedOut] = useState(false)
+  // Visual stage of the pending screen: 'waiting' (check your phone) →
+  // 'verifying' (after "I have approved"). Purely presentational — the poll
+  // + webhook confirm regardless of which stage is on screen.
+  const [approvalStage, setApprovalStage] = useState('waiting')
+  const [checkingStatus, setCheckingStatus] = useState(false)
+
+  // Server-authoritative price for the checkout screen. The client mirror
+  // (getUpgradeQuoteForProfile) paints instantly as a placeholder; the
+  // getUpgradeQuote callable then confirms the amount + renewal date, and
+  // handlePay echoes the displayed amount back so the server refuses to
+  // charge anything else (code 'quote-changed').
+  const [serverQuote, setServerQuote] = useState(null)
+  const [quoteState, setQuoteState] = useState('idle') // idle|loading|ready|error
+  const [quoteNotice, setQuoteNotice] = useState('')
+  const [quoteAttempt, setQuoteAttempt] = useState(0)
 
   // Abort token so an in-flight poll stops if the modal unmounts.
   const pollAbortRef = useRef({ aborted: false })
@@ -140,16 +159,63 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
     return () => { token.aborted = true }
   }, [])
 
+  // Fetch the authoritative quote whenever the checkout opens, the plan
+  // changes, or the buyer retries after a network error. Responses are keyed
+  // by planId (see quoteForPlan) so a stale response for a previously
+  // selected plan can never misprice the current one.
+  useEffect(() => {
+    if (step !== 'checkout' || !selectedPlanId) return undefined
+    let cancelled = false
+    setQuoteState('loading')
+    setQuoteNotice('')
+    getUpgradeQuote(selectedPlanId)
+      .then((q) => {
+        if (cancelled) return
+        setServerQuote(q)
+        setQuoteState('ready')
+      })
+      .catch(() => { if (!cancelled) setQuoteState('error') })
+    return () => { cancelled = true }
+  }, [step, selectedPlanId, quoteAttempt])
+
+  // Funnel analytics: fire once per checkout entry when the number first
+  // becomes valid, and when a supported network is first detected. The
+  // number itself is never captured.
+  const numberEnteredRef = useRef(false)
+  const networkDetectedRef = useRef(false)
+  useEffect(() => {
+    if (step !== 'checkout') {
+      numberEnteredRef.current = false
+      networkDetectedRef.current = false
+      return
+    }
+    if (phoneValid && !numberEnteredRef.current) {
+      numberEnteredRef.current = true
+      capture('lenco_number_entered', { planId: selectedPlanId })
+    }
+    if (phoneValid && detectedOperator && !networkDetectedRef.current) {
+      networkDetectedRef.current = true
+      capture('lenco_network_detected', { planId: selectedPlanId, operator: detectedOperator })
+    }
+  })
+
   const plan = selectedPlanId ? PLANS[selectedPlanId] : null
 
   // Pro → Max upgrade pricing: the server charges only the prorated difference
-  // for the days left and keeps the current renewal date. Mirror that here so
-  // the price the buyer sees matches what they're charged.
+  // for the days left and keeps the current renewal date. The client mirror
+  // paints instantly; once the server quote for THIS plan lands it wins.
   const upgradeQuote = selectedPlanId ? getUpgradeQuoteForProfile(userProfile, selectedPlanId) : null
-  const isUpgrade = !!upgradeQuote?.isUpgrade
-  const effectivePrice = isUpgrade ? upgradeQuote.amountZMW : (plan?.priceZMW ?? 0)
-  const renewalDateLabel = isUpgrade && upgradeQuote.expiry
-    ? upgradeQuote.expiry.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
+  const clientIsUpgrade = !!upgradeQuote?.isUpgrade
+  const clientPrice = clientIsUpgrade ? upgradeQuote.amountZMW : (plan?.priceZMW ?? 0)
+  const quoteForPlan = serverQuote?.planId === selectedPlanId ? serverQuote : null
+  const isUpgrade = quoteForPlan ? !!quoteForPlan.isUpgrade : clientIsUpgrade
+  const effectivePrice = quoteForPlan ? Number(quoteForPlan.amountZMW) : clientPrice
+  const daysRemaining = Number(quoteForPlan ? quoteForPlan.daysRemaining : upgradeQuote?.daysRemaining) || 0
+  const renewalDate = quoteForPlan?.renewalDate
+    ? new Date(quoteForPlan.renewalDate)
+    : (clientIsUpgrade ? upgradeQuote.expiry : null)
+  const renewalDateLabel = renewalDate && !Number.isNaN(renewalDate.getTime())
+    ? renewalDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
     : null
 
   const userEmail = userProfile?.email || currentUser?.email || ''
@@ -177,17 +243,18 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
     }
     if (status === 'failed') {
       setPayState('failed')
-      setError('The payment did not go through. No money was taken — please try again.')
+      setError('The mobile-money provider did not confirm the payment. No money was taken — you can try again.')
       capture('lenco_payment_failed', { planId: selectedPlanId, method })
       return true
     }
     return false
   }
 
-  async function beginPolling(ref) {
+  async function beginPolling(ref, { maxAttempts = 40 } = {}) {
     setPayState('processing')
     setTimedOut(false)
     const final = await pollLencoStatus(ref, {
+      maxAttempts,
       signal: pollAbortRef.current,
       onTick: (status) => { if (status === 'successful' || status === 'failed') resolveTerminal(status) },
     })
@@ -198,18 +265,50 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
     }
   }
 
+  // Timeout screen's "Check payment status": one short re-poll of the SAME
+  // transaction — never a new payment.
+  async function handleCheckStatus() {
+    if (!paymentId || checkingStatus) return
+    setCheckingStatus(true)
+    try {
+      await beginPolling(paymentId, { maxAttempts: 4 })
+    } finally {
+      setCheckingStatus(false)
+    }
+  }
+
+  // Confirmed cancel from the pending screen: stop the poll and close. The
+  // payment doc stays pending server-side — if the buyer already approved on
+  // the phone, the webhook (or Till) still activates them, and reopening the
+  // checkout resumes this same reference via the duplicate-initiation guard.
+  function handleCancelPending() {
+    pollAbortRef.current.aborted = true
+    capture('lenco_payment_cancelled', { planId: selectedPlanId, via: 'pending-screen' })
+    onClose()
+  }
+
   async function handlePay() {
     if (!plan || busy) return
-    setError('')
-    const operatorToSend = detectedOperator
-
+    // The button is disabled until these hold; belt-and-braces for keyboard
+    // submission paths.
     if (!phoneValid) { setError('Enter a valid Zambian mobile number, e.g. 0977 740 465.'); return }
-    if (!operatorToSend) { setError('Please choose your mobile money operator.'); return }
+    if (!detectedOperator) { setError('Please choose your mobile money operator.'); return }
+    setError('')
+    setQuoteNotice('')
 
     setPayState('starting')
     capture('lenco_payment_initiated', { planId: selectedPlanId, method })
     try {
-      const payload = { planId: selectedPlanId, method, phone, operator: operatorToSend }
+      const payload = {
+        planId: selectedPlanId,
+        method,
+        // Spaces are display-only — submit the bare digits.
+        phone: zambianPhoneDigits(phone),
+        operator: detectedOperator,
+        // Echo the displayed amount; the server refuses to charge a different
+        // one and returns the fresh quote instead (code 'quote-changed').
+        expectedAmountZMW: effectivePrice,
+      }
 
       const res = await initiateLencoPayment(payload)
       setPaymentId(res.paymentId)
@@ -219,8 +318,22 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
         setPayState('otp')
         return
       }
+      // res.reused means a prompt for this exact purchase is already live on
+      // the phone (double-tap / reopened checkout) — no second charge was
+      // created; we simply resume waiting on the existing one.
       await beginPolling(res.paymentId)
     } catch (err) {
+      if (err?.details?.code === 'quote-changed') {
+        // The price moved between display and charge (e.g. a day boundary
+        // changed the prorated days-remaining). Nothing was charged — show
+        // the updated amount and let the teacher confirm again.
+        setServerQuote({ planId: selectedPlanId, ...err.details })
+        setQuoteState('ready')
+        setQuoteNotice('Your amount has been updated — we recalculated it using your current subscription period. Review it below before paying.')
+        setPayState('idle')
+        capture('lenco_quote_changed', { planId: selectedPlanId })
+        return
+      }
       setPayState('failed')
       setError(friendlyMessage(err, 'Could not start the payment. Please try again.'))
       capture('lenco_payment_failed', { planId: selectedPlanId, method, reason: 'initiate_error' })
@@ -252,6 +365,8 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
     setOtp('')
     setPaymentId(null)
     setTimedOut(false)
+    setApprovalStage('waiting')
+    setCheckingStatus(false)
   }
 
   return (
@@ -484,9 +599,26 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
                     </p>
                     <p className="mt-2 text-xs text-white/70">
                       {isUpgrade && renewalDateLabel
-                        ? `One-off charge for the ${upgradeQuote.daysRemaining} day${upgradeQuote.daysRemaining === 1 ? '' : 's'} left. Renews on ${renewalDateLabel}.`
-                        : `${plan.durationDays} days of full access. ${plan.tagline}`}
+                        ? `One-off charge for the ${daysRemaining} day${daysRemaining === 1 ? '' : 's'} left. Renews on ${renewalDateLabel}.`
+                        : `${plan.durationDays} days of full access${renewalDateLabel ? ` · until ${renewalDateLabel}` : `. ${plan.tagline}`}`}
                     </p>
+                    {quoteState === 'loading' && (
+                      <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-white/50">
+                        <Icon as={Loader2} size="xs" className="animate-spin" /> Confirming price…
+                      </p>
+                    )}
+                    {quoteState === 'error' && (
+                      <p className="mt-1.5 text-[11px] text-amber-300" role="alert">
+                        We could not confirm the price.{' '}
+                        <button
+                          type="button"
+                          onClick={() => setQuoteAttempt((n) => n + 1)}
+                          className="font-semibold text-amber-200 underline min-h-0 p-0 bg-transparent shadow-none"
+                        >
+                          Try again
+                        </button>
+                      </p>
+                    )}
                   </div>
 
                   {isUpgrade && renewalDateLabel && (
@@ -521,22 +653,20 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
                 </div>
               )}
 
-              {/* ── Processing / waiting ────────────────────────── */}
+              {/* ── Pending lifecycle: check phone → verifying → timeout ── */}
               {payState === 'processing' && (
-                <div className="text-center py-6">
-                  <Icon as={Loader2} size="lg" className="mx-auto animate-spin text-orange-500" />
-                  <h3 className="text-base font-black text-gray-800 mt-3">Approve the prompt on your phone</h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Check your phone for a Mobile Money prompt and enter your PIN. This can take up to a minute —
-                    keep this page open and your access unlocks automatically.
-                  </p>
-                  {timedOut && (
-                    <p className="text-xs text-gray-500 mt-3">
-                      Still waiting… you can safely close this — we&apos;ll unlock your access and email a receipt as soon as
-                      the payment confirms.
-                    </p>
-                  )}
-                </div>
+                <PaymentStatusTracker
+                  stage={approvalStage}
+                  timedOut={timedOut}
+                  checking={checkingStatus}
+                  phoneDisplay={phone}
+                  reference={paymentId}
+                  operatorLabel={OPERATORS.find((op) => op.id === detectedOperator)?.label || ''}
+                  amountZMW={effectivePrice}
+                  onApproved={() => setApprovalStage('verifying')}
+                  onCheckStatus={handleCheckStatus}
+                  onCancelPayment={handleCancelPending}
+                />
               )}
 
               {/* ── OTP entry ───────────────────────────────────── */}
@@ -569,23 +699,44 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
                 </div>
               )}
 
-              {/* ── Failed ──────────────────────────────────────── */}
+              {/* ── Failed / declined ───────────────────────────── */}
               {payState === 'failed' && (
                 <div className="text-center py-4">
                   <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-red-600">
                     <Icon as={X} size="lg" strokeWidth={2.4} />
                   </div>
-                  <h3 className="text-lg font-black text-gray-800">Payment not completed</h3>
+                  <h3 className="text-lg font-black text-gray-800">Payment was not completed</h3>
                   <p className="text-sm text-gray-600 mt-1">{error || 'Something went wrong. Please try again.'}</p>
-                  <Button variant="primary" size="lg" fullWidth className="mt-5" onClick={resetCheckout}>
-                    Try again
-                  </Button>
+                  <div className="mt-5 space-y-2">
+                    <Button variant="primary" size="lg" fullWidth onClick={resetCheckout}>
+                      Try again
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => { resetCheckout(); setPhone('') }}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 hover:border-gray-400"
+                    >
+                      Use a different number
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="w-full rounded-xl px-3 py-2 text-[13px] font-medium text-gray-500 hover:text-gray-800 bg-transparent shadow-none"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               )}
 
               {/* ── Payment form (idle / starting) ──────────────── */}
               {(payState === 'idle' || payState === 'starting') && (
                 <>
+                  {quoteNotice && (
+                    <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
+                      {quoteNotice}
+                    </div>
+                  )}
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <label htmlFor="mm-number" className="text-sm font-bold text-gray-800">
                       Pay with your mobile money
@@ -615,14 +766,21 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
                           type="tel"
                           inputMode="tel"
                           autoComplete="tel"
+                          maxLength={12}
                           value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
+                          onChange={(e) => setPhone(formatZambianPhoneInput(e.target.value))}
                           placeholder="0977 740 465"
+                          aria-invalid={phone !== '' && !phoneValid}
                           className={`w-full border-2 rounded-xl pl-9 pr-3 py-2.5 text-base focus:outline-none ${
                             phone === '' || phoneValid ? 'border-gray-200 focus:border-orange-400' : 'border-red-300 focus:border-red-500'
                           }`}
                         />
                       </div>
+                      {phone !== '' && !phoneValid && (
+                        <p className="mt-1 text-xs text-red-600" role="alert">
+                          Enter a valid Zambian mobile number, e.g. 0977 740 465.
+                        </p>
+                      )}
                     </div>
                     <NetworkField
                       phone={phone}
@@ -643,7 +801,7 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
                     size="lg"
                     fullWidth
                     className="mt-4"
-                    disabled={busy}
+                    disabled={busy || !phoneValid || !detectedOperator}
                     onClick={handlePay}
                   >
                     {payState === 'starting'
