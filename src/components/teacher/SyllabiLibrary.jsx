@@ -242,10 +242,14 @@ function renderLegacyCell(colName, val, roles, q) {
   }
   if (roles && ((roles.content || []).includes(colName) || colName === roles.skills || colName === roles.values || colName === roles.activities)) {
     const points = splitPoints(val)
-    if (points.length > 1) {
+    // Always render list columns (learning activities / content / skills /
+    // values) as a bulleted list — even a SINGLE activity — so every activity
+    // carries a bullet, matching the source syllabus (where each activity is
+    // bulleted regardless of count). Rendering a lone activity as plain text
+    // made single-activity cells look bullet-less next to multi-activity ones.
+    if (points.length >= 1) {
       return <ul>{points.map((p, i) => <li key={i}>{highlight(p, q)}</li>)}</ul>
     }
-    if (points.length === 1) return highlight(points[0], q)
   }
   return renderCell(val, q)
 }

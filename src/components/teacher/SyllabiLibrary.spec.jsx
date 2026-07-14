@@ -161,6 +161,20 @@ describe('SyllabiLibrary (Syllabus Studio)', () => {
     expect(container.querySelector('.ss-backdrop')).toBeNull()
   })
 
+  it('renders even a SINGLE learning activity as a bullet (matches the source syllabus)', async () => {
+    const { container } = await openPhysics()
+    // Form 1 has two activities → bulleted list (baseline).
+    const form1Items = container.querySelectorAll('.ss-activities-cell li')
+    expect(form1Items.length).toBe(2)
+    // Switch to Form 2, whose subtopic has ONE activity ("• Demonstrating
+    // friction"). It must still render inside a bulleted <li>, not as plain
+    // text — otherwise single-activity cells look bullet-less next to
+    // multi-activity ones.
+    fireEvent.click(screen.getByRole('tab', { name: 'Form 2' }))
+    const cell = container.querySelector('.ss-activities-cell')
+    expect(cell.querySelector('li')).toHaveTextContent('Demonstrating friction')
+  })
+
   it('era switcher in the slide-out panel switches to the 2013 curriculum and closes the panel', async () => {
     // Stub fetch so the lazy 2013 data load resolves immediately rather than
     // leaving async state updates pending after the synchronous assertion.
