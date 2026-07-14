@@ -20,6 +20,8 @@ import { lessonStudioSeed, aiPrefsPromptLines } from '../../../utils/teacherDefa
 import { getSchoolProfile } from '../../../utils/schoolProfileService'
 import { useAILessonCount } from './hooks/useAILessonCount'
 import { useTeacherPlanContext } from './hooks/useTeacherPlanContext'
+import { useActiveAssignmentContext } from './hooks/useActiveAssignmentContext'
+import { buildPlannedTeachingMeta } from '../../../utils/plannedTeachingMeta'
 import { useCoverageAnalysis } from './hooks/useCoverageAnalysis'
 import { buildAlignmentInstructions } from './utils/teacherPlanContext'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
@@ -317,6 +319,35 @@ export default function LessonPlanStudio() {
   // Per-run token: stops a resolved callable from hijacking the UI if Stop was
   // clicked before the response landed.
   const runRef = useRef(0)
+
+  // ── Active Teaching Profile assignment auto-fill ────────────────────────────
+  // Prefill a NEW plan from the teacher's ACTIVE assignment (grade / subject /
+  // curriculum / a valid planned teaching date). Runs before the weekly-forecast
+  // fill so the profile is the primary source; both are fill-blanks-only, so
+  // neither clobbers a typed value or a restored draft. `assignmentContext`
+  // (assignment + calendar context) is also read at save time to stamp the
+  // planned-teaching metadata.
+  const assignmentContext = useActiveAssignmentContext()
+  // Mirror the studioStateRef pattern so handleGenerate (deps: [uid]) reads the
+  // freshest assignment/calendar context at save time without a stale closure.
+  const assignmentContextRef = useRef(assignmentContext)
+  assignmentContextRef.current = assignmentContext
+  const appliedAssignmentRef = useRef(false)
+  useEffect(() => {
+    const s = studioStateRef.current
+    const seed = assignmentContext.seed
+    if (!seed || appliedAssignmentRef.current) return
+    if (restoredDraftRef.current) return // a restored draft always wins
+    appliedAssignmentRef.current = true
+    if (!s.curriculumMode) s.setCurriculumMode(seed.curriculumMode)
+    s.setLessonDetails((prev) => {
+      const next = { ...prev }
+      if (!next.grade && seed.grade) next.grade = seed.grade
+      if (!next.subject && seed.subject) next.subject = seed.subject
+      if (!next.date && seed.date) next.date = seed.date
+      return next
+    })
+  }, [assignmentContext.seed])
 
   // ── "This week's lesson" auto-fill ──────────────────────────────────────────
   // Read the teacher's latest Weekly Forecast and, once, prefill the studio's
@@ -661,6 +692,16 @@ export default function LessonPlanStudio() {
     // into the loading state — before the model replies. The same object is
     // reused to render the finished plan, so the header the teacher watches fill
     // in is byte-for-byte the header of the final document.
+    // Planned-teaching metadata from the active assignment + School Calendar,
+    // stamped onto NEW plans. Nested under `meta` (an allowlisted map in the
+    // aiGenerations rules), so it needs no rules change. Reused by
+    // persistPlanToLibrary via lastMeta, so a manual re-save keeps it.
+    const ac = assignmentContextRef.current
+    const plannedMeta = buildPlannedTeachingMeta({
+      assignment: ac.assignment,
+      context: ac.context,
+      plannedDate: lessonDetails.date,
+    })
     const meta = {
       format: formatOptions.format || 'modern',
       showReflection: formatOptions.advanced?.includeLessonEvaluation ?? false,
@@ -679,6 +720,7 @@ export default function LessonPlanStudio() {
       medium: lessonDetails.medium || 'English',
       lessonNumber,
       totalLessons,
+      ...(plannedMeta ? { planned: plannedMeta } : {}),
     }
     setLiveMeta(meta)
 
@@ -762,6 +804,9 @@ export default function LessonPlanStudio() {
               subject: lessonDetails.subject || null,
               topic: topicData.topic || null,
               subtopic: topicData.subtopic || null,
+              // Stamp the term so the dashboard attributes the plan to the right
+              // term (genTerm reads inputs.term); read back via meta.planned too.
+              ...(plannedMeta?.termNumber != null ? { term: String(plannedMeta.termNumber) } : {}),
             },
             classification: {
               libraryType: LIBRARY_TYPES.LESSON_PLANS,
@@ -990,6 +1035,8 @@ export default function LessonPlanStudio() {
         subject: s.lessonDetails.subject || null,
         topic: s.topicData.topic || null,
         subtopic: s.topicData.subtopic || null,
+        // Preserve the term stamped at generation time (carried on lastMeta).
+        ...(lastMeta?.planned?.termNumber != null ? { term: String(lastMeta.planned.termNumber) } : {}),
       },
       classification: {
         libraryType: LIBRARY_TYPES.LESSON_PLANS,
