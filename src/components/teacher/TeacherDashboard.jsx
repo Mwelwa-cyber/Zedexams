@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
@@ -26,6 +26,8 @@ import {
 import { buildRecommendations } from '../../utils/teacherRecommendations'
 import { buildWeekPrep } from '../../utils/prepareThisWeek'
 import { writeActiveAssignmentSeed } from '../../utils/activeAssignmentSeed'
+import { resolveActiveAssignmentId } from '../../utils/teachingProfileCore'
+import { setActiveAssignmentId as persistActiveAssignmentId } from '../../utils/teachingProfileService'
 import { useTeachingProfile } from '../../features/teacherSettings/lib/useTeachingProfile'
 import { daysUntil, fmtDate, getActiveTerm, getCurrentForecastWeek, getNextTerm } from '../../utils/moeCalendar'
 import { capture } from '../../utils/analytics'
@@ -295,12 +297,14 @@ export default function TeacherDashboard() {
   const activeAssignment = useMemo(() => {
     const list = activeTeachingAssignments
     if (!list.length) return null
-    // Last selected → default → first active (safely handles inactive/deleted ids).
-    const byId = activeAssignmentId && list.find((a) => a.id === activeAssignmentId)
-    if (byId) return byId
-    const byDefault = teachingProfile.effectiveDefaultId && list.find((a) => a.id === teachingProfile.effectiveDefaultId)
-    return byDefault || list[0]
-  }, [activeTeachingAssignments, activeAssignmentId, teachingProfile.effectiveDefaultId])
+    // Cross-device source of truth: this device's last pick (localStorage) →
+    // the assignment synced from any device (profile.activeAssignmentId) →
+    // effective default → only active. So a fresh device that hasn't opened the
+    // dashboard before still lands on the last assignment used elsewhere,
+    // without requiring the local cache to be populated first.
+    const { id } = resolveActiveAssignmentId(teachingProfile.profile, list, { deviceId: activeAssignmentId })
+    return (id && list.find((a) => a.id === id)) || list[0]
+  }, [activeTeachingAssignments, activeAssignmentId, teachingProfile.profile])
 
   // Persist the active assignment's grade/subject/curriculum to localStorage so
   // every generate-studio can synchronously pre-fill from the SAME teaching
@@ -310,6 +314,25 @@ export default function TeacherDashboard() {
     if (!currentUser?.uid) return
     writeActiveAssignmentSeed(currentUser.uid, activeAssignment)
   }, [currentUser?.uid, activeAssignment])
+
+  // Repair a dangling cross-device reference: if profile.activeAssignmentId
+  // points at a deleted/deactivated assignment, write the freshly-resolved id
+  // back once so other devices stop inheriting the stale value. Guarded per
+  // resolved value so it can't loop (the profile hook loads once, not live).
+  const repairedActiveRef = useRef('')
+  useEffect(() => {
+    const uid = currentUser?.uid
+    if (!uid || !teachingProfile.hasProfile) return
+    const { id, storedInvalid } = resolveActiveAssignmentId(
+      teachingProfile.profile,
+      activeTeachingAssignments,
+      { deviceId: activeAssignmentId },
+    )
+    if (storedInvalid && id && repairedActiveRef.current !== id) {
+      repairedActiveRef.current = id
+      persistActiveAssignmentId(uid, id).catch(() => { /* best-effort repair */ })
+    }
+  }, [currentUser?.uid, teachingProfile.hasProfile, teachingProfile.profile, activeTeachingAssignments, activeAssignmentId])
 
   // Feed the active assignment's subject + grade to every weekly-preparation
   // surface so Prepare This Week, Quick Create and AI Recommendations all show
@@ -358,14 +381,32 @@ export default function TeacherDashboard() {
     try { localStorage.setItem(prepContextKey, subject) } catch { /* storage unavailable */ }
   }, [weekPrep, prepContextKey])
 
-  // Switching the active assignment on the card persists the choice and re-seeds
-  // the weekly-preparation surfaces + Quick Create.
+  // Persist the active assignment to the Teaching Profile so other devices pick
+  // it up. Non-blocking (never gates the UI); one silent retry covers a transient
+  // failure, then a soft warning — the local selection is kept, never cleared.
+  const syncActiveAssignment = async (assignmentId) => {
+    const uid = currentUser?.uid
+    if (!uid || !assignmentId) return
+    try {
+      await persistActiveAssignmentId(uid, assignmentId)
+    } catch {
+      try {
+        await persistActiveAssignmentId(uid, assignmentId) // one silent retry
+      } catch {
+        toast.info("We changed the assignment on this device, but couldn't sync it across your other devices.")
+      }
+    }
+  }
+
+  // Switching the active assignment on the card persists the choice (locally +
+  // across devices) and re-seeds the weekly-preparation surfaces + Quick Create.
   const handleSelectAssignment = (assignment) => {
     if (!assignment) return
     setActiveAssignmentId(assignment.id)
     if (prepAssignmentKey) {
       try { localStorage.setItem(prepAssignmentKey, assignment.id) } catch { /* storage unavailable */ }
     }
+    void syncActiveAssignment(assignment.id)
   }
   const activeQuickCreateContext = activeAssignment
     ? { grade: activeAssignment.grade, subject: activeAssignment.subject, term: prepCalendar?.termNumber }

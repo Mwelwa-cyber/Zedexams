@@ -980,6 +980,7 @@ service cloud.firestore {
         && (!('schoolId' in incoming()) || (incoming().schoolId is string && incoming().schoolId.size() <= 128))
         && (!('academicYear' in incoming()) || (incoming().academicYear is string && incoming().academicYear.size() <= 10))
         && (!('defaultAssignmentId' in incoming()) || (incoming().defaultAssignmentId is string && incoming().defaultAssignmentId.size() <= 64))
+        && (!('activeAssignmentId' in incoming()) || (incoming().activeAssignmentId is string && incoming().activeAssignmentId.size() <= 64))
         && (!('profileStatus' in incoming()) || incoming().profileStatus in ['draft', 'active'])
         && (!('onboardingCompleted' in incoming()) || incoming().onboardingCompleted is bool)
         && (!('profileCompletion' in incoming()) || (incoming().profileCompletion is int && incoming().profileCompletion >= 0 && incoming().profileCompletion <= 100));
