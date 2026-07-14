@@ -25,6 +25,7 @@
 
 import { getMergedSyllabi } from '../../../../utils/syllabusKbService.js'
 import { rowsWithPropagatedTopic } from '../../../../utils/syllabusMapping.js'
+import { sortByCurriculumCode } from '../../../../utils/curriculumTopicCell.js'
 import { splitSpecificOutcomes } from './splitSpecificOutcomes.js'
 import {
   resolveColumnRoles,
@@ -395,7 +396,15 @@ export async function getTopicsForSubject(subject, grade, curriculumMode = 'cbc'
     }
   }
 
-  return Array.from(topicMap.values())
+  // Sort topics — and each topic's sub-topics — NUMERICALLY by their leading
+  // code segments, so "1.2.2" precedes "1.2.10" (source order can be uneven and
+  // alphabetical sorting mis-orders multi-digit codes). Code-less topics keep
+  // their insertion order (stable sort).
+  const topics = Array.from(topicMap.values())
+  for (const t of topics) {
+    t.subtopics = sortByCurriculumCode(t.subtopics)
+  }
+  return sortByCurriculumCode(topics, (t) => t.label)
 }
 
 /**

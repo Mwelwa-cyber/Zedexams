@@ -20,6 +20,7 @@
 
 import { studioGradeToKbGrade, toKbSubjectKey } from '../paperTaxonomy.js'
 import { cleanSubjectName } from '../studio/utils/subjectName.js'
+import { mapLegacyTopicValue } from '../../../utils/curriculumTopicCell.js'
 
 /**
  * Grade lists per curriculum mode. Copied verbatim from
@@ -173,8 +174,18 @@ export function normalizeSelectorSeed(seedLike) {
     String(s.framework || '') === '2023' ? 'cbc' : null
   const gradeLabel = kbGradeToStudioLabel(s.gradeLabel || s.grade || '')
   const subjectKey = String(s.subjectKey || s.subject || '')
-  const topic = String(s.topic || '')
-  const subtopic = String(s.subtopic || '')
+  let topic = String(s.topic || '')
+  let subtopic = String(s.subtopic || '')
+  // Compatibility (Phase 7): an old saved selection may have captured the
+  // malformed combined "topic + first sub-topic" label. Remap it to the
+  // corrected split so the cascade re-seeds onto the real topic + sub-topic
+  // options instead of dead-ending on a value no picker offers any more. This
+  // is in-memory only — it never rewrites the stored record.
+  const remap = mapLegacyTopicValue(topic, subtopic)
+  if (remap.remapped) {
+    topic = remap.topic
+    if (!subtopic) subtopic = remap.subtopic
+  }
   if (!curriculumMode && (gradeLabel || subjectKey || topic)) curriculumMode = 'cbc'
   return { curriculumMode, gradeLabel, subjectKey, topic, subtopic }
 }

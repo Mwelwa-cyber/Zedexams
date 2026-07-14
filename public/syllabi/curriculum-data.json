@@ -195,7 +195,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "2.3 CLIMATE- SMART AGRICULTURE 2.3.I Climate Change Impact on Agriculture and Food Security",
+            "TOPIC": "2.3 Climate- Smart Agriculture",
             "SUB-TOPIC": "2.3.1 Climate Change Impact on Agriculture and Food Security",
             "SPECIFIC COMPETENCES": "2.3.1.1 Demonstrate understanding of the relationship of climate change, agriculture and food security",
             "LEARNING ACTIVITIES": "• Exploring effects of climate change on agriculture (Effects on crop and animal production)\n• Exploring how agricultural activities contribute to climate change\n• Discussing food security and its four dimensions (availability, accessibility, utilisation and stability)",
@@ -377,7 +377,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "3.4 CROP PRODUCTION 3.4.1 Fruit and Tuber Crop Production",
+            "TOPIC": "3.4 Crop Production",
             "SUB-TOPIC": "3.4.1 Farm Power",
             "SPECIFIC COMPETENCES": "3.4.1.1 Grow fruit crops",
             "LEARNING ACTIVITIES": "• Describing a fruit crop\n• Exploring varieties of the common fruit crops found a local area\n• Investigating the nutritive and economical value of fruits\n• Selecting a site suitable for fruit crop production\n• Carrying out routine management practices on a fruit crop being studied from nursery/in’situ to harvesting (seedbed preparation, sowing/planting-propagation, irrigation, weeding, fertilizer application, pest and disease control, harvesting…)\n• Adding value, storing and marketing fruits\n• Analysing yields and quality of the produce for possible improvement\n• Exploring innovative ways of increasing productivity",
@@ -499,7 +499,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "4.3 CROP PRODUCTION 4.3.1 Legume Crop Production",
+            "TOPIC": "4.3 Crop Production",
             "SUB-TOPIC": "4.3.1 Research on Climate-Smart Agriculture 4.",
             "SPECIFIC COMPETENCES": "4.3.1.1 Grow legume crops",
             "LEARNING ACTIVITIES": "• Describing a legume crop (peas, beans, groundnuts…)\n• Exploring varieties of leguminous crops found in the local area\n• Investigating nutritive and economical value of a legume crop being studied\n• Selecting a suitable site for a legume crop being studied\n• Managing a legume crop being studied from sowing to harvesting (land preparation, sowing, irrigation, weeding, fertilizer application, pest and disease control, harvesting and other routine management practices)\n• Adding value, storing and marketing of a legume crop\n• Analysing yields and quality of the produce for possible improvement\n• Exploring innovative ways of increasing productivity",
@@ -8507,8 +8507,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "1.2.1 COMPREHENSION 1.2.1.1. Listening Comprehension",
-            "SUB-TOPIC": "",
+            "TOPIC": "1.2.1 Comprehension",
+            "SUB-TOPIC": "1.2.1.1 Listening Comprehension",
             "SPECIFIC COMPETENCES": "1.2.1.1.1 Listen and comprehend information",
             "LEARNING ACTIVITIES": "• Listening to a read passage or information\n• Discussing the passage (Retelling the story, main subject…)\n• Completing given table while passage is being read\n• Answering questions based on the read passage or information",
             "EXPECTED STANDARD": "Information listened to and comprehended correctly"
@@ -8577,7 +8577,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "1.3.2 Narrative Writing",
             "SUB-TOPIC": "1.3.2.1 Story Writing",
             "SPECIFIC COMPETENCES": "1.3.2.1.1 Write stories",
             "LEARNING ACTIVITIES": "• Identifying the elements of a narrative (title, plot, characters, setting, theme, conflict, style…)\n• Composing stories (based on picture strips/jumbled sentences, paragraphs...)\n• Writing short stories using a clear layout (beginning, middle and ending)",
@@ -8587,7 +8587,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "1.3.3 Descriptive Writing",
             "SUB-TOPIC": "1.3.3.1 Describing a Person, an Animal or an Object",
             "SPECIFIC COMPETENCES": "1.3.3.1.1 Write a description of a person, an animal or an object",
             "LEARNING ACTIVITIES": "• Reading model descriptive compositions on people, animals or objects\n• Discussing features of a descriptive composition (physical appearance, personality, age, lifestyle …)\n• Description of a person, an animal or object written correctly COMPOSITION SUBTOPIC EXPECTED STANDARD\n• Using appropriate descriptive language (nouns, adjectives, adverbs and words that appeal to the 5 senses…)",
@@ -8597,8 +8597,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "1.3.4 LETTER WRITING 1.3.4.1. Informal Letter",
-            "SUB-TOPIC": "",
+            "TOPIC": "1.3.4 Letter Writing",
+            "SUB-TOPIC": "1.3.4.1 Informal Letter",
             "SPECIFIC COMPETENCES": "1.3.4.1.1 Write Informal Letters",
             "LEARNING ACTIVITIES": "• Discussing features of informal letters (address of the writer/sender, date, salutation/greeting, introduction, main body, conclusion…)\n• Using appropriate language to write an informal letter\n• Producing an informal letter orally\n• Writing informal letters",
             "EXPECTED STANDARD": "Informal letters written correctly"
@@ -8607,7 +8607,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "1.3.5 Expository Writing",
             "SUB-TOPIC": "1.3.5.1 Writing Expository Essays",
             "SPECIFIC COMPETENCES": "1.3.5.1.1 Write expository essays",
             "LEARNING ACTIVITIES": "• Discussing the significance of expository essay writing (for information, research…)\n• Discussing features of an expository essay (title, sub- titles, introduction, main body, conclusion…)\n• Making an outline of points based on the subject\n• Expository essays written correctly COMPOSITION SUBTOPIC EXPECTED STANDARD",
@@ -8617,7 +8617,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "1.3.6 Persuasive Writing",
             "SUB-TOPIC": "1.3.6.1 An Argumentative Composition",
             "SPECIFIC COMPETENCES": "1.3.6.1.1 Write an argumentative composition",
             "LEARNING ACTIVITIES": "• Discussing features of an argumentative composition\n• Using appropriate language to express opinions in writing by agreeing or disagreeing with controversial statements (corruption disadvantages the poor. Do you agree or disagree?)\n• Sequencing using appropriate language in a process (first.../ second..., after that..., then……, lastly, in addition, furthermore, next, in conclusion, and, so,…)\n• Writing an argumentative composition",
@@ -8888,7 +8888,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "1.4.10 Purpose",
-            "SUB-TOPIC": "1.4.10.1 Different Ways of",
+            "SUB-TOPIC": "1.4.10.1 Different Ways of Expressing Purpose",
             "SPECIFIC COMPETENCES": "1.4.10.1.1 Use different expressions to",
             "LEARNING ACTIVITIES": "• Discussing different expressions of Purpose (the infinitive (to+ a verb), in order to and so",
             "EXPECTED STANDARD": "Different expressions to show purpose used in sentences correctly"
@@ -8997,8 +8997,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "1.4.20 SENSE RELATIONS 1.4.20.1. Antonyms",
-            "SUB-TOPIC": "",
+            "TOPIC": "1.4.20 Sense Relations",
+            "SUB-TOPIC": "1.4.20.1 Antonyms",
             "SPECIFIC COMPETENCES": "1.4.20.1.1 Use Antonyms",
             "LEARNING ACTIVITIES": "• Discussing antonyms (words which are opposite of each other)\n• Supplying antonyms to given words ( gentle- rough, maximum- minimum…)",
             "EXPECTED STANDARD": "Antonyms used correctly"
@@ -9098,7 +9098,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "1.5.4 Advertisements",
-            "SUB-TOPIC": "1.5.4.1 Types of Advertisement s",
+            "SUB-TOPIC": "1.5.4.1 Types of Advertisements",
             "SPECIFIC COMPETENCES": "1.5.4.1.1 Write advertisements",
             "LEARNING ACTIVITIES": "• Discussing advertisement (This is an announcement online, in a newspaper, on television or on a poster about something such as a product, an event or a job.)\n• Discussing the purpose for advertising. (To sell a product, to offer a job, to offer a service or product, to announce an event…)\n• Composing adverts in a given situation.",
             "EXPECTED STANDARD": "Advertisements written correctly"
@@ -9159,8 +9159,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "2.1.3 ANNOUNCEMENTS 2.1.3.1. Making Announcements",
-            "SUB-TOPIC": "",
+            "TOPIC": "2.1.3 Announcements",
+            "SUB-TOPIC": "2.1.3.1 Making Announcements",
             "SPECIFIC COMPETENCES": "2.1.3.1.1 Use appropriate language to make announcements",
             "LEARNING ACTIVITIES": "• Discussing appropriate language for making announcements (clear and concise language, objective tone, standard pronunciation…)\n• Reacting to announcements (All right, and when are we expected to…. Where will the meeting take place and what...)\n• Role-playing making and responding to announcements (Listen, everyone! I have an important announcement to make…I am pleased to tell you that...I am happy to inform you that...)",
             "EXPECTED STANDARD": "Language to make announcements used correctly"
@@ -9230,8 +9230,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "2.1.9.2 Making an Offer 2.1.9.2.1. Use appropriate language to make an offer",
-            "SPECIFIC COMPETENCES": "",
+            "SUB-TOPIC": "2.1.9.2 Making an Offer",
+            "SPECIFIC COMPETENCES": "2.1.9.2.1 Use appropriate language to make an offer",
             "LEARNING ACTIVITIES": "• Identifying situations that require one to make an offer (offering food, accommodation, transport…)\n• Discussing language used to make an offer (Would you accept my…)\n• Practising making an offer (role-playing, dramatising…)",
             "EXPECTED STANDARD": "Language to make an offer used correctly"
           }
@@ -9309,7 +9309,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "2.3.2 Descriptive Writing",
             "SUB-TOPIC": "2.3.2.1 Describing a Place",
             "SPECIFIC COMPETENCES": "2.3.2.1.1 Describe a place x Discussing adjectives that are used to describe a place (small, big…)",
             "LEARNING ACTIVITIES": "• Using appropriate language that will appeal to the five senses (smell, touch, sight, taste, hearing)\n• Using the techniques used in descriptive writing (naming: name of the place, detailing: colour, location, distance… comparison: similes, metaphors, personification; figurative language)\n• Writing descriptive compositions on a place",
@@ -9319,7 +9319,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "2.3.3 Report Writing",
             "SUB-TOPIC": "2.3.3.1 Introduction to Report Writing",
             "SPECIFIC COMPETENCES": "2.3.3.1.1 Write a simple report",
             "LEARNING ACTIVITIES": "• Identifying types of reports (police report, book report, school report, incident based report…)\n• Discussing features of a report (title, introduction, main body, use of past tenses, formal language, factual,....)\n• Answering WH questions (what, who, how, where when…)\n• Writing simple reports from given notes",
@@ -9329,7 +9329,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "2.3.4 Speech Writing",
             "SUB-TOPIC": "2.3.4.1 Speech of Introduction",
             "SPECIFIC COMPETENCES": "2.3.4.1.1 Write a speech of introduction",
             "LEARNING ACTIVITIES": "• Identifying types of speeches (speech of introduction, main speech, and vote of thanks)\n• Discussing the features of a speech of introduction (title, observing protocol, speaker’s background, purpose for the visit/ meeting…)\n• Composing and writing a speech of introduction\n• Giving a speech orally",
@@ -9339,7 +9339,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "2.3.5 Biography Writing",
             "SUB-TOPIC": "2.3.5.1 Auto- biography",
             "SPECIFIC COMPETENCES": "2.3.5.1.1 Write an auto- biography",
             "LEARNING ACTIVITIES": "• Discussing an auto-biography (life story about oneself)\n• An auto-biography written accordingly COMPOSITION\n• Describing the type of auto- biographies; semi auto-biography and fictional auto-biography)\n• Discussing the structure of an auto-biography (the start, the middle, the end.)\n• Identifying features of an auto- biography (use of 1st person point of view, facts such as date of birth, place of birth, educational background…)",
@@ -9359,7 +9359,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "2.3.6 Expository Writing",
             "SUB-TOPIC": "2.3.6.1 Features of Expository Writing",
             "SPECIFIC COMPETENCES": "2.3.6.1.1 Write an expository composition",
             "LEARNING ACTIVITIES": "• Discussing features of an expository composition (clear purpose, neutral/objective, tone, formal language …)\n• Expository composition written correctly COMPOSITION\n• Making an outline of points based on the given topics (selecting, amplifying, ordering of points)",
@@ -9369,7 +9369,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "2.3.7 Persuasive Writing",
             "SUB-TOPIC": "2.3.7.1 Argumentative Composition",
             "SPECIFIC COMPETENCES": "2.3.7.1.1 Write an argumentative composition",
             "LEARNING ACTIVITIES": "• Discussing features of an argumentative composition (Picking a side; use of sequence indicators; avoiding sweeping statements; evidence-based; acknowledging counterarguments; logical reasoning; persuasive language…)\n• Using appropriate language to express opinions by agreeing or disagreeing with controversial statements (Technology has brought more harm than good. Do you agree or disagree?)\n• Writing an argumentative composition",
@@ -9389,7 +9389,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "2.3.8 Diary Writing",
             "SUB-TOPIC": "2.3.8.1 Writing Diary Entries",
             "SPECIFIC COMPETENCES": "2.3.8.1.1 Write diary entries",
             "LEARNING ACTIVITIES": "• Discussing the features of a diary (date, time, topic, note form, use of 1st person pronoun, brevity…)\n• Discussing the Structure/format of a diary. (greeting (dear Diary) opening, introduction, main body, closing paragraph and signing off)\n• Writing diary entries (recording of significant/memorable events or experiences based on given notes)",
@@ -9399,7 +9399,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "2.3.9 Letter Writing",
             "SUB-TOPIC": "2.3.9.1 Semi-Formal Letter",
             "SPECIFIC COMPETENCES": "2.3.9.1.1 Write a semi- formal letter",
             "LEARNING ACTIVITIES": "• Identifying the purpose of semi- formal letters (apologising to the neighbour, writing to civic leaders, teachers, parents…)\n• Outlining the layout of a semi- formal letter (one address, salutations, body of letter, ending, and name of sender …)\n• Using appropriate language tone (semi-formal use of language, stick to the point)\n• Writing a semi-formal letter on any given situation",
@@ -9629,9 +9629,9 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "2.5.1.1 Title Summary 2.5.1.1.1. Compose titles",
-            "SPECIFIC COMPETENCES": "",
+            "TOPIC": "2.5.1 Summary Writing",
+            "SUB-TOPIC": "2.5.1.1 Title Summary",
+            "SPECIFIC COMPETENCES": "2.5.1.1.1 Compose titles",
             "LEARNING ACTIVITIES": "• Choosing best titles from options given on a passage\n• Composing titles from a given passage",
             "EXPECTED STANDARD": "Titles composed correctly"
           }
@@ -9812,8 +9812,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.2.1.2 Efficient Reading 3.2.1.2.1. Read texts with understanding",
-            "SPECIFIC COMPETENCES": "",
+            "SUB-TOPIC": "3.2.1.2 Efficient Reading",
+            "SPECIFIC COMPETENCES": "3.2.1.2.1 Read texts with understanding",
             "LEARNING ACTIVITIES": "• Reading passages with understanding and recall the details\n• Reading at a speed of 300 words per minute\n• Skimming through passages to obtain the main points\n• Scanning pieces of text to locate specific information\n• Answering factual and inference questions.\n• Retelling detail of stories or passages\n• Deducing meanings of unfamiliar words and idiomatic expressions",
             "EXPECTED STANDARD": "Texts read with understanding READING COMPREHENSION LEARNING ACTIVITIES"
           }
@@ -9822,8 +9822,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.2.1.3 Intensive Reading 3.2.1.3.1. Read texts with comprehension",
-            "SPECIFIC COMPETENCES": "",
+            "SUB-TOPIC": "3.2.1.3 Intensive Reading",
+            "SPECIFIC COMPETENCES": "3.2.1.3.1 Read texts with comprehension",
             "LEARNING ACTIVITIES": "• Reading at a speed of 250 words per minute\n• Skimming through passages to obtain the main points\n• Scanning pieces of text to locate specific information\n• Answering factual and inference questions.\n• Retailing detail of stories or passages\n• Deducing meanings of unfamiliar words and idiomatic expressions\n• Drawing inferences from texts by direct or indirect reference\n• Describe feelings, qualities and motives of characters in stories (Themes analysis, character analysis, Main/minor characters, protagonist/antagonists, authors motives, readers’ point of view…)\n• Locating details and answer factual questions\n• Texts read with comprehension READING COMPREHENSION LEARNING ACTIVITIES",
             "EXPECTED STANDARD": "Using relevant reference materials effectively (index, table of content, glossary, dictionary, use of internet)"
           }
@@ -9851,7 +9851,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "3.3.2 Descriptive Writing",
             "SUB-TOPIC": "3.3.2.1 Describing Events",
             "SPECIFIC COMPETENCES": "3.3.2.1.1 Describe events",
             "LEARNING ACTIVITIES": "• Discussing appropriate adjectives to use when describing events (interesting, colourful, memorable, a never to forget, sombre…)\n• Using appropriate language that will appeal to the five senses (smell, touch, sight, taste, hearing)\n• using the techniques in descriptive writing (naming: name of event/s…, detailing: location, distance… comparing: use of figurative language…)\n• Writing descriptive compositions on events",
@@ -9861,7 +9861,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "3.3.3 Article Writing",
             "SUB-TOPIC": "3.3.3.1 News Article",
             "SPECIFIC COMPETENCES": "3.3.3.1.1 Write a news article",
             "LEARNING ACTIVITIES": "• Discussing the purpose of a news article (to inform, on current or latest happenings…)\n• Discussing elements of a news article (factual- statements, events,\n• News Article written correctly COMPOSITION LEARNING ACTIVITIES observations which can be verified, non- opinionated, …)",
@@ -9881,7 +9881,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "3.3.4 Report Writing",
             "SUB-TOPIC": "3.3.4.1 Detailed or Major Reports",
             "SPECIFIC COMPETENCES": "3.3.4.1.1 Write detailed or major reports",
             "LEARNING ACTIVITIES": "• Discussing features of a detailed/major report (Title, sub-headings, Introduction, main body, use of past tenses,\n• Detailed or major reports written correctly COMPOSITION LEARNING ACTIVITIES formal language, factual, longer and detailed, recommendations....)\n• Answering WH questions (what, who, how, where when…)",
@@ -9891,7 +9891,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "3.3.5 Speech Writing",
             "SUB-TOPIC": "3.3.5.1 Main Speech (Keynote)",
             "SPECIFIC COMPETENCES": "3.3.5.1.1 Compose a main speech",
             "LEARNING ACTIVITIES": "• Discussing the features of Main Speech. (Title, Salutation, introduction…)\n• Using appropriate language to compose the main speech (formal language, observing protocol in order of importance/seniority…)\n• Composing a main speech\n• Giving a speech orally",
@@ -9901,7 +9901,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "3.3.6 Minutes Writing",
             "SUB-TOPIC": "3.3.6.1 Introduction to Writing Minutes",
             "SPECIFIC COMPETENCES": "3.3.6.1.1 Write minutes x Discussing the purpose of minutes (Record keeping…)",
             "LEARNING ACTIVITIES": "• Discussing the format of minutes (Title, Attendance, Apologies, Agenda, sub-heading, numbering of captions…)\n• Writing minutes (Recording only importa meeting items, use of 3rd person and passive voice…)",
@@ -9941,8 +9941,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "3.3.9 EXPOSITORY 3.3.9.1. Expository Writing",
-            "SUB-TOPIC": "",
+            "TOPIC": "3.3.9 Expository",
+            "SUB-TOPIC": "3.3.9.1 Expository Writing",
             "SPECIFIC COMPETENCES": "3.3.9.1.1 Write an expository composition",
             "LEARNING ACTIVITIES": "• Discussing the purpose of an expository composition (exposing factual information on a given topic…)\n• Discussing features of an exposition (neutral tone, formal language, using evidence as examples…)\n• Selecting, amplifying and ordering of points\n• Writing an expository composition based on cross cutting issues. (effects of early",
             "EXPECTED STANDARD": "An expository composition written correctly COMPOSITION LEARNING ACTIVITIES marriages, causes of climate change…)"
@@ -9951,7 +9951,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "3.3.10 Argumenta Tive",
+            "TOPIC": "3.3.10 Argumentative",
             "SUB-TOPIC": "3.3.10.1 Argumentative Writing",
             "SPECIFIC COMPETENCES": "3.3.10.1.1 Write argumentative compositions",
             "LEARNING ACTIVITIES": "• Discussing features of an argumentative composition (Picking a side; use of sentence indicators; avoiding sweeping statements; evidence-based; acknowledging counterarguments; logical reasoning; persuasive language…)\n• Using appropriate language to express opinions by agreeing or disagreeing on given topics (democracy is good for a country. Argue for or against…)\n• Writing an argumentative composition",
@@ -9971,7 +9971,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "3.3.11 Letter Writing",
             "SUB-TOPIC": "3.3.11.1 Formal Letter",
             "SPECIFIC COMPETENCES": "3.3.11.1.1 Write Formal Letters",
             "LEARNING ACTIVITIES": "• Discussing the purpose of formal letters (applying for a Job, Scholarships/ Bursary…)\n• Discussing the features of a formal letter (two addresses, date, salutation, subject matter, main body of the letter, complimentary close, signature, and name of sender, use of formal language…)\n• Writing a formal letter based on given situation",
@@ -10002,8 +10002,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "3.4.2 Relative Clauses",
-            "SUB-TOPIC": "3.4.2.1 Adverbs as Relatives 3.4.2.1.1. Use adverbs as relative pronouns",
-            "SPECIFIC COMPETENCES": "",
+            "SUB-TOPIC": "3.4.2.1 Adverbs as Relatives",
+            "SPECIFIC COMPETENCES": "3.4.2.1.1 Use adverbs as relative pronouns",
             "LEARNING ACTIVITIES": "• Identifying adverbs as relative pronouns (where, when and why…)\n• Using adverbs as relative pronouns in sentence (Saturday is the day when we sensitise the community",
             "EXPECTED STANDARD": "Adverbs as relative pronouns used appropriately"
           }
@@ -10353,7 +10353,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "4.3.2 Descriptive Writing",
             "SUB-TOPIC": "4.3.2.1 Describing Careers/Professions",
             "SPECIFIC COMPETENCES": "4.3.2.1.1 Describe careers or professions",
             "LEARNING ACTIVITIES": "• Using appropriate adjectives to describe careers/professions (lucrative, boring, interesting, labour intensive…)\n• Using appropriate language that will appeal to the five senses (smell, touch, sight, taste, hearing)\n• Writing descriptive compositions on careers/professions",
@@ -10383,7 +10383,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "4.3.4 Report Writing",
             "SUB-TOPIC": "4.3.4.1 Detailed (Major) Reports",
             "SPECIFIC COMPETENCES": "4.3.4.1.1 Compose major reports",
             "LEARNING ACTIVITIES": "• Discussing features of a detailed/major report (Title, sub- headings, Introduction, main body, use of past tenses, formal language, factual, longer and detailed, recommendations....)\n• Answering WH questions (what, who, how, where when…)\n• Major/detailed reports written correctly COMPOSITION",
@@ -10393,7 +10393,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "4.3.5 Speech Writing",
             "SUB-TOPIC": "4.3.5.1 Vote of thanks",
             "SPECIFIC COMPETENCES": "4.3.5.1.1 Compose a Vote of Thanks",
             "LEARNING ACTIVITIES": "• Discussing features of a vote of thanks (Title, Salutation, introduction…)\n• Linking the Vote of Thanks to the Main Speech\n• Using appropriate language to write a Vote of Thanks\n• Giving a Vote of Thanks orally",
@@ -10403,7 +10403,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "4.3.6 Persuasive Writing",
             "SUB-TOPIC": "4.3.6.1 Discursive Composition",
             "SPECIFIC COMPETENCES": "4.3.6.1.1 Write a discursive composition",
             "LEARNING ACTIVITIES": "• Discussing features of a discursive composition\n• Researching on the topic given\n• Writing a discursive composition based on given topics (. poor die can affect learner performance i school. Discuss…)",
@@ -10413,7 +10413,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "4.3.7 Expository Writing",
             "SUB-TOPIC": "4.3.7.1 Compare and Contrast",
             "SPECIFIC COMPETENCES": "4.3.7.1.1 Write expository essays",
             "LEARNING ACTIVITIES": "• Using appropriate language structures to compare and contrast (while, conversely, in contrast, on the one hand…on the other hand…)\n• Examining the similarities and differences and drawing conclusions on a given topic\n• Expository essays written correctly COMPOSITION",
@@ -10423,7 +10423,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "",
+            "TOPIC": "4.3.8 Letter Writing",
             "SUB-TOPIC": "4.3.8.1 Formal Letters",
             "SPECIFIC COMPETENCES": "4.3.8.1.1 Write Formal Letters",
             "LEARNING ACTIVITIES": "• Discussing types of Formal Letters (Letter of Complaint/apology/ resignation/ inquiry/condolence/recommendation/reference…)\n• Discussing features of a formal letter (using formal language, concentrates on important issues….)\n• Writing a Formal Letter on given situation",
