@@ -115,3 +115,33 @@ export function inferProfileDefaults({ teacherPreferences = {}, assignments = []
     defaultCurriculumType: normalizeCurriculumType(curr.curriculum),
   }
 }
+
+/**
+ * Drop inferred suggestions the teacher already has as a saved assignment
+ * (matched on grade+subject+class), so a partially-migrated teacher is never
+ * re-offered a duplicate.
+ */
+export function suggestNewAssignments(inferred = [], existingAssignments = []) {
+  const existing = new Set(
+    (Array.isArray(existingAssignments) ? existingAssignments : []).map((a) => assignmentKey(a)),
+  )
+  return (Array.isArray(inferred) ? inferred : []).filter((sug) => !existing.has(assignmentKey(sug)))
+}
+
+/**
+ * One call the onboarding surface uses: infer assignments from existing work,
+ * drop any the teacher already has, and infer profile defaults. Pure — pass the
+ * already-loaded document lists in.
+ *
+ * @returns {{ suggestions: object[], defaults: object }}
+ */
+export function buildMigrationPlan({
+  generations, assessments, lessonPlans, other,
+  teacherPreferences = {}, existingAssignments = [],
+} = {}) {
+  const inferred = inferAssignments({ generations, assessments, lessonPlans, other })
+  return {
+    suggestions: suggestNewAssignments(inferred, existingAssignments),
+    defaults: inferProfileDefaults({ teacherPreferences, assignments: inferred }),
+  }
+}
