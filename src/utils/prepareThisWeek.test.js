@@ -86,6 +86,30 @@ check('subjectLabelOf title-cases slug', subjectLabelOf('integrated_science') ==
   check('profile subject is the last-resort context', ctx.subject === 'english' && ctx.source === 'profile')
 }
 {
+  // Teaching Profile grade is used as a fallback when no document reveals it.
+  const ctx = resolveWeekContext({ generations: [], calendar: CAL, profileSubject: 'english', profileGrade: 'G5' })
+  check('profileGrade fills the grade when no docs exist', ctx.subject === 'english' && ctx.grade === 'G5')
+}
+{
+  // profileGrade is AUTHORITATIVE — the header grade must reflect the chosen
+  // assignment, never silently switch to a document's grade.
+  const gens = [gen('lesson_plan', { subject: 'mathematics', grade: 'G4', term: 2 })]
+  const ctx = resolveWeekContext({ generations: gens, calendar: CAL, profileSubject: 'mathematics', preferredSubject: 'mathematics', profileGrade: 'G5' })
+  check('profileGrade overrides a document grade', ctx.grade === 'G5' && ctx.subject === 'mathematics')
+}
+{
+  // Same subject in two grades: with a profile grade the week counts must NOT
+  // combine grades; without one, the existing subject-only behaviour is kept.
+  const gens = [
+    gen('lesson_plan', { subject: 'mathematics', grade: 'G4', term: 2 }),
+    gen('lesson_plan', { subject: 'mathematics', grade: 'G5', term: 2 }),
+  ]
+  const scoped = buildWeekPrep({ generations: gens, calendar: CAL, profileSubject: 'mathematics', preferredSubject: 'mathematics', profileGrade: 'G4', now: NOW })
+  check('grade-scoped counts do not combine grades', scoped.rows.find((r) => r.key === 'lessons').done === 1)
+  const combined = buildWeekPrep({ generations: gens, calendar: CAL, profileSubject: 'mathematics', preferredSubject: 'mathematics', now: NOW })
+  check('subject-only (no profile grade) keeps existing behaviour', combined.rows.find((r) => r.key === 'lessons').done === 2)
+}
+{
   // A forecast for ANOTHER week must not define this week's context.
   const gens = [gen('weekly_forecast', { subject: 'english', grade: 'G4', term: 2, header: { weekNumber: 3 }, output: { days: [] } })]
   const ctx = resolveWeekContext({ generations: gens, calendar: CAL })

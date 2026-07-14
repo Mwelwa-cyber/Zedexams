@@ -20,6 +20,10 @@ import { lessonStudioSeed, aiPrefsPromptLines } from '../../../utils/teacherDefa
 import { getSchoolProfile } from '../../../utils/schoolProfileService'
 import { useAILessonCount } from './hooks/useAILessonCount'
 import { useTeacherPlanContext } from './hooks/useTeacherPlanContext'
+import { useActiveAssignmentContext } from './hooks/useActiveAssignmentContext'
+import { buildPlannedTeachingMeta } from '../../../utils/plannedTeachingMeta'
+import { isNonTeachingDay, isWeekend, publicHolidayOn } from '../../../utils/calendarResolver'
+import { gradeLabel as tpGradeLabel, subjectLabel as tpSubjectLabel } from '../../../utils/teachingProfileCore'
 import { useCoverageAnalysis } from './hooks/useCoverageAnalysis'
 import { buildAlignmentInstructions } from './utils/teacherPlanContext'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
@@ -317,6 +321,35 @@ export default function LessonPlanStudio() {
   // Per-run token: stops a resolved callable from hijacking the UI if Stop was
   // clicked before the response landed.
   const runRef = useRef(0)
+
+  // ── Active Teaching Profile assignment auto-fill ────────────────────────────
+  // Prefill a NEW plan from the teacher's ACTIVE assignment (grade / subject /
+  // curriculum / a valid planned teaching date). Runs before the weekly-forecast
+  // fill so the profile is the primary source; both are fill-blanks-only, so
+  // neither clobbers a typed value or a restored draft. `assignmentContext`
+  // (assignment + calendar context) is also read at save time to stamp the
+  // planned-teaching metadata.
+  const assignmentContext = useActiveAssignmentContext()
+  // Mirror the studioStateRef pattern so handleGenerate (deps: [uid]) reads the
+  // freshest assignment/calendar context at save time without a stale closure.
+  const assignmentContextRef = useRef(assignmentContext)
+  assignmentContextRef.current = assignmentContext
+  const appliedAssignmentRef = useRef(false)
+  useEffect(() => {
+    const s = studioStateRef.current
+    const seed = assignmentContext.seed
+    if (!seed || appliedAssignmentRef.current) return
+    if (restoredDraftRef.current) return // a restored draft always wins
+    appliedAssignmentRef.current = true
+    if (!s.curriculumMode) s.setCurriculumMode(seed.curriculumMode)
+    s.setLessonDetails((prev) => {
+      const next = { ...prev }
+      if (!next.grade && seed.grade) next.grade = seed.grade
+      if (!next.subject && seed.subject) next.subject = seed.subject
+      if (!next.date && seed.date) next.date = seed.date
+      return next
+    })
+  }, [assignmentContext.seed])
 
   // ── "This week's lesson" auto-fill ──────────────────────────────────────────
   // Read the teacher's latest Weekly Forecast and, once, prefill the studio's
@@ -661,6 +694,16 @@ export default function LessonPlanStudio() {
     // into the loading state — before the model replies. The same object is
     // reused to render the finished plan, so the header the teacher watches fill
     // in is byte-for-byte the header of the final document.
+    // Planned-teaching metadata from the active assignment + School Calendar,
+    // stamped onto NEW plans. Nested under `meta` (an allowlisted map in the
+    // aiGenerations rules), so it needs no rules change. Reused by
+    // persistPlanToLibrary via lastMeta, so a manual re-save keeps it.
+    const ac = assignmentContextRef.current
+    const plannedMeta = buildPlannedTeachingMeta({
+      assignment: ac.assignment,
+      context: ac.context,
+      plannedDate: lessonDetails.date,
+    })
     const meta = {
       format: formatOptions.format || 'modern',
       showReflection: formatOptions.advanced?.includeLessonEvaluation ?? false,
@@ -679,6 +722,7 @@ export default function LessonPlanStudio() {
       medium: lessonDetails.medium || 'English',
       lessonNumber,
       totalLessons,
+      ...(plannedMeta ? { planned: plannedMeta } : {}),
     }
     setLiveMeta(meta)
 
@@ -762,6 +806,9 @@ export default function LessonPlanStudio() {
               subject: lessonDetails.subject || null,
               topic: topicData.topic || null,
               subtopic: topicData.subtopic || null,
+              // Stamp the term so the dashboard attributes the plan to the right
+              // term (genTerm reads inputs.term); read back via meta.planned too.
+              ...(plannedMeta?.termNumber != null ? { term: String(plannedMeta.termNumber) } : {}),
             },
             classification: {
               libraryType: LIBRARY_TYPES.LESSON_PLANS,
@@ -990,6 +1037,8 @@ export default function LessonPlanStudio() {
         subject: s.lessonDetails.subject || null,
         topic: s.topicData.topic || null,
         subtopic: s.topicData.subtopic || null,
+        // Preserve the term stamped at generation time (carried on lastMeta).
+        ...(lastMeta?.planned?.termNumber != null ? { term: String(lastMeta.planned.termNumber) } : {}),
       },
       classification: {
         libraryType: LIBRARY_TYPES.LESSON_PLANS,
@@ -1205,6 +1254,34 @@ export default function LessonPlanStudio() {
     if (next) handleGenerate(0, { lessonNumber: next })
   }, [dupModal, handleGenerate])
 
+  // ── Teaching Profile context surfacing (read-only) ──────────────────────────
+  // A confidence line + non-blocking notices so an unsupported assignment or an
+  // unresolved/invalid teaching date is never a silent empty field.
+  const activeAssignment = assignmentContext.assignment
+  const activeAssignmentLabel = activeAssignment
+    ? [tpGradeLabel(activeAssignment.grade), tpSubjectLabel(activeAssignment.subject), activeAssignment.className]
+        .filter(Boolean).join(' · ')
+    : ''
+  const mappingNotice =
+    assignmentContext.mappingNotice && (!studioState.lessonDetails.grade || !studioState.lessonDetails.subject)
+      ? assignmentContext.mappingNotice
+      : ''
+  const activeLessonDate = studioState.lessonDetails.date
+  let dateWarning = ''
+  if (activeLessonDate && isNonTeachingDay(activeLessonDate)) {
+    const hol = publicHolidayOn(activeLessonDate)
+    const why = isWeekend(activeLessonDate)
+      ? 'Weekends are currently treated as non-teaching days.'
+      : hol ? `${hol.name} is a public holiday.`
+      : 'It falls outside the current term.'
+    dateWarning = `This date is not a normal teaching day. ${why} Choose another date or confirm that your school teaches on this day.`
+  }
+  const dateHint = (!activeLessonDate && assignmentContext.seed && !assignmentContext.seed.date)
+    ? (assignmentContext.calendarUnavailable
+        ? 'We could not suggest a teaching date from the School Calendar. Choose a valid date to continue.'
+        : 'Select the date you plan to teach this lesson.')
+    : ''
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -1234,6 +1311,10 @@ export default function LessonPlanStudio() {
             generateLabel={genButton.label}
             planContext={planContextDismissed ? null : planContext}
             onDismissPlanContext={() => setPlanContextDismissed(true)}
+            activeAssignmentLabel={activeAssignmentLabel}
+            mappingNotice={mappingNotice}
+            dateHint={dateHint}
+            dateWarning={dateWarning}
             coverageState={coverageState}
             lessonMemory={{
               subtopicName: stripCode(memSubtopic || ''),

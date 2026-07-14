@@ -23,6 +23,11 @@ vi.mock('../../utils/teacherPlans', () => ({
 vi.mock('./LockedStudio', () => ({
   default: (props) => <div data-testid="locked-studio" data-tool={props.tool} />,
 }))
+// The soft usage reminder needs router + usage-meter context — its own spec
+// covers it; here it's a marker so the gate's contract stays the focus.
+vi.mock('../subscription/UsageReminderBanner', () => ({
+  default: (props) => <div data-testid="usage-reminder" data-tool={props.tool} />,
+}))
 
 beforeEach(() => {
   vi.clearAllMocks()
