@@ -24,7 +24,7 @@ import {
   formatTrend,
 } from '../../utils/teacherDashboardIntel'
 import { buildRecommendations } from '../../utils/teacherRecommendations'
-import { buildWeekPrep, normSubject } from '../../utils/prepareThisWeek'
+import { buildWeekPrep } from '../../utils/prepareThisWeek'
 import { useTeachingProfile } from '../../features/teacherSettings/lib/useTeachingProfile'
 import { daysUntil, fmtDate, getActiveTerm, getCurrentForecastWeek, getNextTerm } from '../../utils/moeCalendar'
 import { capture } from '../../utils/analytics'
@@ -665,27 +665,41 @@ export default function TeacherDashboard() {
     () => teachingProfile.assignments.filter((a) => a.isActive),
     [teachingProfile.assignments],
   )
+  // Legacy subject-only context — kept for teachers who have not set up a
+  // Teaching Profile yet (no active assignments).
   const prepContextKey = currentUser ? `zedexams:prep-context:${currentUser.uid}` : null
-  const [preferredSubject, setPreferredSubject] = useState(() => {
+  const legacyPreferredSubject = useMemo(() => {
     if (!prepContextKey) return ''
     try { return localStorage.getItem(prepContextKey) || '' } catch { return '' }
+  }, [prepContextKey])
+
+  // The active assignment is persisted by its ID (assignment-level), so a
+  // teacher who teaches the same subject in two grades keeps the exact one —
+  // the subject-only selector can no longer resolve back to the wrong grade.
+  const prepAssignmentKey = currentUser ? `zedexams:prep-assignment:${currentUser.uid}` : null
+  const [activeAssignmentId, setActiveAssignmentId] = useState(() => {
+    if (!prepAssignmentKey) return ''
+    try { return localStorage.getItem(prepAssignmentKey) || '' } catch { return '' }
   })
 
   const activeAssignment = useMemo(() => {
     const list = activeTeachingAssignments
     if (!list.length) return null
-    const bySubject = preferredSubject && list.find((a) => normSubject(a.subject) === normSubject(preferredSubject))
-    if (bySubject) return bySubject
+    // Last selected → default → first active (safely handles inactive/deleted ids).
+    const byId = activeAssignmentId && list.find((a) => a.id === activeAssignmentId)
+    if (byId) return byId
     const byDefault = teachingProfile.effectiveDefaultId && list.find((a) => a.id === teachingProfile.effectiveDefaultId)
     return byDefault || list[0]
-  }, [activeTeachingAssignments, preferredSubject, teachingProfile.effectiveDefaultId])
+  }, [activeTeachingAssignments, activeAssignmentId, teachingProfile.effectiveDefaultId])
 
-  // Feed the active assignment's subject + grade to the weekly-preparation
-  // surfaces. When an assignment is active it is authoritative — passed as BOTH
-  // profileSubject and preferredSubject so resolveWeekContext locks onto it.
+  // Feed the active assignment's subject + grade to every weekly-preparation
+  // surface so Prepare This Week, Quick Create and AI Recommendations all show
+  // the SAME resolved grade + subject. Grade is authoritative (see
+  // prepareThisWeek.resolveWeekContext), so progress is never combined across
+  // grades and the grade never silently switches.
   const profileSubject = activeAssignment?.subject || userProfile?.subject || ''
   const profileGrade = activeAssignment?.grade || ''
-  const effectivePreferredSubject = activeAssignment ? activeAssignment.subject : preferredSubject
+  const effectivePreferredSubject = activeAssignment ? activeAssignment.subject : legacyPreferredSubject
 
   // The MoE calendar context both weekly-preparation surfaces share. During
   // holidays the calendar points at Week 1 of the next term; isActiveTermNow
@@ -729,9 +743,9 @@ export default function TeacherDashboard() {
   // the weekly-preparation surfaces + Quick Create.
   const handleSelectAssignment = (assignment) => {
     if (!assignment) return
-    setPreferredSubject(assignment.subject)
-    if (prepContextKey) {
-      try { localStorage.setItem(prepContextKey, normSubject(assignment.subject)) } catch { /* storage unavailable */ }
+    setActiveAssignmentId(assignment.id)
+    if (prepAssignmentKey) {
+      try { localStorage.setItem(prepAssignmentKey, assignment.id) } catch { /* storage unavailable */ }
     }
   }
   const activeQuickCreateContext = activeAssignment

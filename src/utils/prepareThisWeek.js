@@ -170,7 +170,10 @@ export function resolveWeekContext({ generations = [], calendar, profileSubject 
       const timetable = newestFirst(generations.filter((g) => g.tool === 'class_timetable'))[0]
       return {
         subject: preferred,
-        grade: graded ? genGrade(graded) : (timetable ? genGrade(timetable) : profileGradeNorm),
+        // The Teaching Profile grade is AUTHORITATIVE when present — the visible
+        // context must reflect the chosen assignment, never silently switch to a
+        // document's grade.
+        grade: profileGradeNorm || (graded ? genGrade(graded) : (timetable ? genGrade(timetable) : '')),
         source: 'preferred',
       }
     }
@@ -197,7 +200,7 @@ export function resolveWeekContext({ generations = [], calendar, profileSubject 
   const profile = normSubject(profileSubject)
   if (profile) {
     const timetable = newestFirst(generations.filter((g) => g.tool === 'class_timetable'))[0]
-    return { subject: profile, grade: timetable ? genGrade(timetable) : profileGradeNorm, source: 'profile' }
+    return { subject: profile, grade: profileGradeNorm || (timetable ? genGrade(timetable) : ''), source: 'profile' }
   }
   return null
 }
@@ -288,7 +291,18 @@ export function buildWeekPrep({ generations = [], calendar = null, profileSubjec
   const weekEndMs = parseIsoMs(ending) ?? now
   const weekWindow = { weekStartMs, weekEndMs, termNumber }
   const subject = context.subject
-  const sameSubject = (g) => genSubject(g) === subject
+  // Grade-scope the week's progress ONLY when the Teaching Profile supplied a
+  // grade (i.e. an active assignment) — so a teacher who teaches the same
+  // subject in two grades never sees COMBINED progress. Without a profile grade
+  // we keep the existing subject-only behaviour (no regression). Grade-less
+  // legacy documents still count.
+  const contextGrade = profileGrade ? normGrade(profileGrade) : ''
+  const sameSubject = (g) => {
+    if (genSubject(g) !== subject) return false
+    if (!contextGrade) return true
+    const gg = genGrade(g)
+    return !gg || gg === contextGrade
+  }
 
   // Weekly target: timetable allocation → this week's focus day count → default.
   const allocation = timetableAllocation(generations, { subject, grade: context.grade })
