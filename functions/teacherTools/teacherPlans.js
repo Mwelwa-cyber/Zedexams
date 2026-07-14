@@ -45,7 +45,7 @@ const PLAN_LIMITS = {
     notes: 0,
     homework: 4,
     lesson_activities: 0,
-    assessment: 4,
+    assessment: 2,
     sba_task: 0,
     exam_paper: 0,
     diagram: 3,
@@ -66,12 +66,11 @@ const PLAN_LIMITS = {
     homework: 30,
     // Exercise + homework generated together from the Lesson Plan Studio.
     lesson_activities: 30,
-    // assessment + exam_paper are Max-only studios (see MAX_ONLY_TOOLS): the
-    // most expensive generations on the platform. Pro gets a small monthly
-    // allowance of FULL papers — it must never trail Free, whose 4/month are
-    // 5-question previews (FREE_PREVIEW_LIMITS) — and exam_paper keeps the
-    // single taster. The next generation past a cap hits the Max paywall.
-    assessment: 4,
+    // Test Papers are an allowance-based entitlement, not a Max-only lock:
+    // Free gets 2 five-question previews (FREE_PREVIEW_LIMITS), Pro gets 3
+    // COMPLETE papers/month, Max keeps the heavy allowance below. exam_paper
+    // stays the classic Max-anchor (single Pro taster → Max paywall).
+    assessment: 3,
     sba_task: 15,
     exam_paper: 1,
     diagram: 30,
@@ -146,14 +145,14 @@ function isDailyCountedTool(tool) {
   return DAILY_COUNTED_TOOLS.includes(tool);
 }
 
-// Studios reserved for the Max plan. These are the two most compute-heavy
-// generations (Assessment ~250s/60+ items, Exam Paper ~185s), so they anchor
-// the Max tier rather than being sold purely on volume. Below Max the
-// allowances are small (Free: 4 five-question test previews; Pro: 4 full
-// papers + 1 exam-paper taster — see PLAN_LIMITS); the next attempt past a
-// cap routes to the Max paywall instead of the generic monthly-limit copy.
-// Keep this list in sync with the client mirror in src/utils/teacherPlans.js.
-const MAX_ONLY_TOOLS = ["assessment", "exam_paper"];
+// Studios that stay Max-anchored: locked below Max to a single Pro taster,
+// so the next attempt routes to the Max paywall rather than the generic
+// monthly-limit copy. Only Exam Paper remains here — Test Papers
+// (assessment) became an allowance-based entitlement (Free 2 previews /
+// Pro 3 complete papers / Max heavy) once Pro started getting full papers,
+// so it is deliberately NOT max-only. Keep this list in sync with the
+// client mirror in src/utils/teacherPlans.js.
+const MAX_ONLY_TOOLS = ["exam_paper"];
 
 function isMaxOnlyTool(tool) {
   return MAX_ONLY_TOOLS.includes(tool);

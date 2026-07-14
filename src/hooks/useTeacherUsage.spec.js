@@ -85,7 +85,7 @@ describe('useTeacherUsage', () => {
     // caps and schemes a 2-week preview. Studios outside the loop stay
     // locked to a read-only sample (cap 0) until the teacher upgrades.
     expect(data.caps.worksheets).toBe(4) // free-preview allowance
-    expect(data.caps.assessments).toBe(4) // 5-question short-test previews
+    expect(data.caps.assessments).toBe(2) // 5-question short-test previews
     expect(data.caps.exams).toBe(0) // exam_paper locked → sample only
     expect(data.caps.notes).toBe(0) // notes locked → sample only
     expect(data.daily).toBe(2)

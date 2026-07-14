@@ -123,24 +123,27 @@ test("pro limits match the published marketing numbers", () => {
   assert.strictEqual(PLAN_LIMITS.pro.scheme_of_work, 2); // "2 schemes of work / term"
 });
 
-// ── Max-only studios (assessment + exam paper) ───────────────────────
-test("MAX_ONLY_TOOLS lists exactly the assessment + exam paper studios", () => {
-  assert.deepStrictEqual([...MAX_ONLY_TOOLS].sort(), ["assessment", "exam_paper"]);
+// ── Max-anchored studios (exam paper only) ───────────────────────────
+test("MAX_ONLY_TOOLS lists exactly the exam paper studio", () => {
+  // Test Papers (assessment) is an allowance-based entitlement now, NOT a
+  // Max-only lock — Pro gets complete papers, so only exam_paper anchors Max.
+  assert.deepStrictEqual([...MAX_ONLY_TOOLS], ["exam_paper"]);
 });
 
-test("isMaxOnlyTool flags only the Max studios", () => {
-  assert.ok(isMaxOnlyTool("assessment"));
+test("isMaxOnlyTool flags only the Exam Paper studio", () => {
   assert.ok(isMaxOnlyTool("exam_paper"));
+  assert.ok(!isMaxOnlyTool("assessment"));
   assert.ok(!isMaxOnlyTool("lesson_plan"));
   assert.ok(!isMaxOnlyTool("worksheet"));
 });
 
-test("Max-studio access below Max: free previews tests, exam papers stay tasters", () => {
-  // Test papers: Free gets 5-question previews (dashboard redesign §12),
-  // Pro a small allowance of full papers — never fewer than Free.
-  assert.strictEqual(PLAN_LIMITS.free.assessment, 4, "free.assessment previews");
-  assert.strictEqual(PLAN_LIMITS.pro.assessment, 4, "pro.assessment allowance");
-  // Exam papers remain the classic taster ladder: locked on Free, one on Pro.
+test("Test Papers ladder: Free previews → Pro complete → Max heavy", () => {
+  // Free 2 five-question previews, Pro 3 COMPLETE papers, Max heavy — a real
+  // Free→Pro→Max progression (Option 2 catalogue decision).
+  assert.strictEqual(PLAN_LIMITS.free.assessment, 2, "free.assessment previews");
+  assert.strictEqual(PLAN_LIMITS.pro.assessment, 3, "pro.assessment complete papers");
+  assert.ok(PLAN_LIMITS.max.assessment > PLAN_LIMITS.pro.assessment, "max > pro");
+  // Exam papers remain the classic Max-anchor: locked on Free, one Pro taster.
   assert.strictEqual(PLAN_LIMITS.free.exam_paper, 0, "free.exam_paper locked");
   assert.strictEqual(PLAN_LIMITS.pro.exam_paper, 1, "pro.exam_paper taster");
 });
@@ -164,7 +167,7 @@ test("free runs the weekly loop in limited form; everything else stays locked", 
   assert.strictEqual(PLAN_LIMITS.free.lesson_plan, 8);
   assert.strictEqual(PLAN_LIMITS.free.worksheet, 4);
   assert.strictEqual(PLAN_LIMITS.free.homework, 4);
-  assert.strictEqual(PLAN_LIMITS.free.assessment, 4); // 5-question previews
+  assert.strictEqual(PLAN_LIMITS.free.assessment, 2); // 5-question previews
   assert.strictEqual(PLAN_LIMITS.free.scheme_of_work, 2); // 2-week previews
   // Tools that stay funded on Free even though they aren't full studios: the
   // quiz-editor micro-helpers, the Lesson Plan studio's AI section-editor,

@@ -17,7 +17,7 @@ vi.mock('../../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('../../utils/teacherPlans', () => ({
   resolveTeacherPlan: vi.fn(),
   PLAN_LIMITS: {
-    free: { lesson_plan: 8, worksheet: 4, homework: 4, assessment: 4, scheme_of_work: 2, exam_paper: 0, rubric: 0 },
+    free: { lesson_plan: 8, worksheet: 4, homework: 4, assessment: 2, scheme_of_work: 2, exam_paper: 0, rubric: 0 },
   },
 }))
 vi.mock('./LockedStudio', () => ({
@@ -79,7 +79,7 @@ describe('StudioGate', () => {
   it('maps route slugs to catalogue keys', () => {
     expect(freeAllowanceFor('exam-paper')).toBe(0)
     expect(freeAllowanceFor('scheme_of_work')).toBe(2)
-    expect(freeAllowanceFor('assessment')).toBe(4)
+    expect(freeAllowanceFor('assessment')).toBe(2)
     expect(freeAllowanceFor('nonexistent-tool')).toBe(0)
   })
 
