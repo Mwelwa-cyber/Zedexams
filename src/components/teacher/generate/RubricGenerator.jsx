@@ -22,6 +22,7 @@ import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
+import StudioAssignmentChangeNotice from './StudioAssignmentChangeNotice'
 import {
   FieldTextarea,
   FieldSelect,
@@ -209,6 +210,11 @@ export default function RubricGenerator() {
           emoji="📋"
         />
 
+        <StudioAssignmentChangeNotice
+          uid={currentUser?.uid}
+          currentSeed={{ grade: curr.grade || selectorSeed?.grade || '', subject: curr.subject || selectorSeed?.subject || '', curriculum: curr.curriculum || selectorSeed?.curriculum || '' }}
+          onApply={(seed) => { setSelectorSeed(seed); setSelectorKey((k) => k + 1); setCurr({}) }}
+        />
         <div className="mb-4"><DraftRecoveryPrompt {...draft} label="rubric" /></div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6">

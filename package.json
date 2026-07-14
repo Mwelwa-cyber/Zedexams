@@ -69,6 +69,7 @@
     "test:weekly-focus-holidays": "node scripts/test-weekly-focus-holidays.mjs",
     "test:active-assignment-seed": "node scripts/test-active-assignment-seed.mjs",
     "test:lesson-plan-inheritance": "node scripts/test-lesson-plan-inheritance.mjs",
+    "test:assignment-change-notice": "node scripts/test-assignment-change-notice.mjs",
     "test:planned-teaching-meta": "node scripts/test-planned-teaching-meta.mjs",
     "test:curriculum-2013": "node scripts/test-curriculum-2013-parser.mjs",
     "test:curriculum-2013-migration": "node scripts/test-migrate-2013-curriculum.mjs",

@@ -33,6 +33,7 @@ import { useToast } from '../../ui/Toast'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
+import StudioAssignmentChangeNotice from './StudioAssignmentChangeNotice'
 import { SOURCE_META } from '../views/SchemeOfWorkView'
 import {
   FieldText,
@@ -493,6 +494,11 @@ export default function SchemeOfWorkGenerator() {
               — set up your whole term, see the quality, then upgrade for the complete scheme.
             </div>
           )}
+          <StudioAssignmentChangeNotice
+            uid={currentUser?.uid}
+            currentSeed={{ grade: curr.grade || selectorSeed?.grade || '', subject: curr.subject || selectorSeed?.subject || '', curriculum: curr.curriculum || selectorSeed?.curriculum || '' }}
+            onApply={(seed) => { setSelectorSeed(seed); setSelectorKey((k) => k + 1); setCurr({}) }}
+          />
           <div className="studio-form">
             <DraftRecoveryPrompt {...draft} label="scheme of work" />
           </div>
