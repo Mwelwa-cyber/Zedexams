@@ -300,7 +300,7 @@ describe('Lenco checkout step', () => {
     expect(screen.getByText('teacher@example.zm')).toBeInTheDocument()
   })
 
-  it('Continue to my work returns to the interrupted studio and consumes the action', async () => {
+  it('Continue to my work returns to the interrupted studio and marks the action paid', async () => {
     rememberPremiumAction({ sourceRoute: '/teacher/generate/worksheet', tool: 'worksheet', reason: 'monthly-limit' })
     initiateLencoPayment.mockResolvedValue({ paymentId: 'p1', status: 'successful' })
     const onClose = vi.fn()
@@ -315,7 +315,9 @@ describe('Lenco checkout step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continue to my work' }))
     expect(navigateSpy).toHaveBeenCalledWith('/teacher/generate/worksheet')
     expect(onClose).toHaveBeenCalledTimes(1)
-    expect(peekPremiumAction()).toBeNull() // honoured exactly once
+    // The record survives as 'paid' so the studio's continuation card can
+    // offer the next step — that card (not the checkout) consumes it.
+    expect(peekPremiumAction()).toMatchObject({ status: 'paid', tool: 'worksheet' })
     expect(capture).toHaveBeenCalledWith('paywall_return_to_work', {
       tool: 'worksheet',
       reason: 'monthly-limit',

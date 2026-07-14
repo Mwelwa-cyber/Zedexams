@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../contexts/AuthContext'
 import { paywall } from '../../utils/paywall'
 import { topup } from '../../utils/topup'
 import { capture } from '../../utils/analytics'
@@ -25,6 +26,8 @@ export default function PaywallHost() {
   const native = isNativePlatform()
   const navigate = useNavigate()
   const location = useLocation()
+  const { currentUser } = useAuth()
+  const currentUid = currentUser?.uid || null
   const [state, setState] = useState(null)
   const [showUpgrade, setShowUpgrade] = useState(false)
   // Plan routing of the scenario that triggered the upgrade modal — captured
@@ -61,6 +64,7 @@ export default function PaywallHost() {
     // in handleDismiss if they close without upgrading.
     rememberPremiumAction({
       sourceRoute: location.pathname + location.search,
+      uid: currentUid || null,
       reason: state.reason,
       tool: state.ctx?.tool || null,
       feature: state.ctx?.feature || null,

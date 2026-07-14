@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Check, Loader2, Lock, Sparkles, X } from '../ui/icons'
 import { isNativePlatform } from '../../utils/runtime'
-import { consumePremiumAction } from '../../utils/pendingPremiumAction'
+import { markPremiumActionPaid } from '../../utils/pendingPremiumAction'
 import { resolveInvoicePdfUrl } from '../../utils/invoices'
 import { useAuth } from '../../contexts/AuthContext'
 import { useDataSaver } from '../../contexts/DataSaverContext'
@@ -300,9 +300,11 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
   // they've since navigated away — e.g. via "Compare plans" → /pricing).
   // The studio's own draft system restores the form; the profile snapshot
   // (AuthContext onSnapshot) has already refreshed the plan, so the gate
-  // that blocked them no longer fires.
+  // that blocked them no longer fires. The record is stamped 'paid' (not
+  // consumed) so PostUpgradeContinuation can show the pick-up-where-you-
+  // left-off card inside the studio — that card consumes it.
   function handleReturnToWork() {
-    const action = consumePremiumAction()
+    const action = markPremiumActionPaid()
     const here = location.pathname + location.search
     const navigated = !!(action?.sourceRoute && action.sourceRoute !== here)
     capture('paywall_return_to_work', {

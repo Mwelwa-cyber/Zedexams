@@ -21,6 +21,10 @@ vi.mock('./UpgradeModal', () => ({
 vi.mock('./TopUpModal', () => ({
   default: () => <div data-testid="topup-modal" />,
 }))
+// The host stamps the pending-premium-action with the owner's uid.
+vi.mock('../../contexts/AuthContext', () => ({
+  useAuth: () => ({ currentUser: { uid: 'u1' } }),
+}))
 
 // The host navigates to /pricing from the "Compare plans" link, so it needs a
 // router context.
