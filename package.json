@@ -66,6 +66,8 @@
     "test:teaching-profile": "node scripts/test-teaching-profile.mjs",
     "test:calendar-resolver": "node scripts/test-calendar-resolver.mjs",
     "test:teaching-targets": "node scripts/test-teaching-targets.mjs",
+    "test:weekly-focus-holidays": "node scripts/test-weekly-focus-holidays.mjs",
+    "test:active-assignment-seed": "node scripts/test-active-assignment-seed.mjs",
     "test:planned-teaching-meta": "node scripts/test-planned-teaching-meta.mjs",
     "test:curriculum-2013": "node scripts/test-curriculum-2013-parser.mjs",
     "test:curriculum-2013-migration": "node scripts/test-migrate-2013-curriculum.mjs",

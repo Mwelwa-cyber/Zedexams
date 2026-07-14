@@ -32,6 +32,7 @@ import StudioPageHeader from '../StudioPageHeader'
 import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
+import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
 import {
   FieldLabel,
   FieldText,
@@ -70,13 +71,16 @@ export default function NotesStudio() {
   const { currentUser, userProfile, isAdmin } = useAuth()
   const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   const urlDefaults = useFormDefaultsFromUrl()
-  // Selector seed: a deep-link handoff (?grade=…) wins; otherwise the
+  // Selector seed: a deep-link handoff (?grade=…) wins; then the active
+  // Teaching Profile assignment (persisted by the dashboard); then the
   // teacher's saved curriculum defaults (Teacher Settings → My Teaching).
   // Read once on mount by the selector — never re-seeds reactively.
   const [selectorSeed, setSelectorSeed] = useState(() =>
-    urlDefaults && (urlDefaults.grade || urlDefaults.subject || urlDefaults.topic)
-      ? urlDefaults
-      : curriculumSeedFromProfile(userProfile),
+    resolveStudioSeed({
+      urlSeed: urlDefaults,
+      activeSeed: readActiveAssignmentSeed(currentUser?.uid),
+      profileSeed: curriculumSeedFromProfile(userProfile),
+    }),
   )
   const [selectorKey, setSelectorKey] = useState(0)
 

@@ -25,6 +25,7 @@ import {
 } from '../../utils/teacherDashboardIntel'
 import { buildRecommendations } from '../../utils/teacherRecommendations'
 import { buildWeekPrep } from '../../utils/prepareThisWeek'
+import { writeActiveAssignmentSeed } from '../../utils/activeAssignmentSeed'
 import { useTeachingProfile } from '../../features/teacherSettings/lib/useTeachingProfile'
 import { daysUntil, fmtDate, getActiveTerm, getCurrentForecastWeek, getNextTerm } from '../../utils/moeCalendar'
 import { capture } from '../../utils/analytics'
@@ -300,6 +301,15 @@ export default function TeacherDashboard() {
     const byDefault = teachingProfile.effectiveDefaultId && list.find((a) => a.id === teachingProfile.effectiveDefaultId)
     return byDefault || list[0]
   }, [activeTeachingAssignments, activeAssignmentId, teachingProfile.effectiveDefaultId])
+
+  // Persist the active assignment's grade/subject/curriculum to localStorage so
+  // every generate-studio can synchronously pre-fill from the SAME teaching
+  // context the dashboard shows — without its own Firestore round-trip. Cleared
+  // (null assignment) when the teacher has no active assignment.
+  useEffect(() => {
+    if (!currentUser?.uid) return
+    writeActiveAssignmentSeed(currentUser.uid, activeAssignment)
+  }, [currentUser?.uid, activeAssignment])
 
   // Feed the active assignment's subject + grade to every weekly-preparation
   // surface so Prepare This Week, Quick Create and AI Recommendations all show

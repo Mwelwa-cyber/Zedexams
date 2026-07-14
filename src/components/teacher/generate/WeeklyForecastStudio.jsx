@@ -30,6 +30,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
+import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
 import {
   TEACHER_SUBJECTS,
   getTermModuleOutline,
@@ -44,6 +45,7 @@ import {
   getCalendarYears, getTermWeeks, getCurrentForecastWeek,
 } from '../../../utils/moeCalendar'
 import { schemeWeeks, weekNumberOf, normalizeSchemeWeek, buildForecastDays } from '../../../utils/weeklyForecast'
+import { weekTeachingAvailability, excludeHolidayWeekdays, holidaySummary, openMoveTargets } from '../../../utils/weeklyFocusHolidays'
 import {
   WEEKDAYS, buildTopicCatalog, subtopicsForTopic, dayFieldsFromTopic,
   subjectScheduleFromTimetable, forecastAlerts,
@@ -122,6 +124,14 @@ function currentWeekDefaults() {
   }
 }
 
+// A day the teacher has actually started filling — never auto-pruned when the
+// week changes even if it lands on a (new) holiday.
+const dayHasContent = (d) =>
+  !!(String(d?.topic || '').trim() ||
+    String(d?.subtopic || '').trim() ||
+    String(d?.specificCompetence || '').trim() ||
+    (Array.isArray(d?.learningActivities) && d.learningActivities.length > 0))
+
 const blankDay = (weekday) => ({
   day: weekday,
   topic: '',
@@ -182,11 +192,23 @@ export default function WeeklyForecastStudio() {
   // derived values below whenever the selector is untouched. Starts empty; the
   // Universal Draft Manager fills it on recovery (see onRestore).
   const [restoredMeta, setRestoredMeta] = useState({ grade: '', subjectLabel: '' })
-  // Seed for the mount-once curriculum selector. Recovering a draft re-seeds it
-  // and bumps selectorKey to remount on the saved grade/subject.
-  const [selectorSeed, setSelectorSeed] = useState(() => curriculumSeedFromProfile(userProfile))
+  // Seed for the mount-once curriculum selector: the active Teaching Profile
+  // assignment (persisted by the dashboard) wins over the teacher's saved
+  // curriculum default. Recovering a draft re-seeds it and bumps selectorKey to
+  // remount on the saved grade/subject.
+  const [selectorSeed, setSelectorSeed] = useState(() =>
+    resolveStudioSeed({
+      activeSeed: readActiveAssignmentSeed(uid),
+      profileSeed: curriculumSeedFromProfile(userProfile),
+    }),
+  )
   const [selectorKey, setSelectorKey] = useState(0)
-  const [days, setDays] = useState(() => DEFAULT_WEEKDAYS.map(blankDay))
+  const [days, setDays] = useState(() => {
+    // Exclude days closed by a public holiday from the initial teaching spread.
+    const iso = getCurrentForecastWeek()?.beginning || ''
+    const wd = excludeHolidayWeekdays(DEFAULT_WEEKDAYS, weekTeachingAvailability(iso).holidays)
+    return (wd.length ? wd : DEFAULT_WEEKDAYS).map(blankDay)
+  })
 
   // Scheme source picker.
   const [schemes, setSchemes] = useState([])
@@ -302,6 +324,29 @@ export default function WeeklyForecastStudio() {
     () => getTermWeeks(Number(header.year), header.term),
     [header.year, header.term],
   )
+  // The selected week's Monday (ISO) → School-Calendar teaching-day availability,
+  // so closed (public-holiday) days can be excluded from the default spread and
+  // shown as unavailable. A ref lets the timetable-apply paths read the current
+  // availability without re-running on every week change.
+  const weekBeginningISO = useMemo(
+    () => termWeeks.find((w) => w.weekNumber === Number(header.weekNumber))?.beginning || '',
+    [termWeeks, header.weekNumber],
+  )
+  const availability = useMemo(() => weekTeachingAvailability(weekBeginningISO), [weekBeginningISO])
+  const availabilityRef = useRef(availability)
+  availabilityRef.current = availability
+
+  // When the teacher changes the week, drop EMPTY days that are now closed by a
+  // holiday (so no lesson slot is auto-created on a closed day); days they have
+  // already started filling are kept, with the holiday flagged in the toggles.
+  useEffect(() => {
+    const set = new Set(availabilityRef.current.holidays.map((h) => h.weekday))
+    if (!set.size) return
+    setDays((prev) => {
+      const pruned = prev.filter((d) => !set.has(d.day) || dayHasContent(d))
+      return pruned.length && pruned.length !== prev.length ? pruned : prev
+    })
+  }, [weekBeginningISO])
   const weekNumberChoices = useMemo(
     () => (termWeeks.length ? termWeeks.map((w) => w.weekNumber) : Array.from({ length: 14 }, (_, i) => i + 1)),
     [termWeeks],
@@ -346,7 +391,7 @@ export default function WeeklyForecastStudio() {
     if (!timetableId || autoTimetableRef.current === key) return
     if (schedule.days.length) {
       autoTimetableRef.current = key
-      setDays((prev) => reconcileDays(prev, schedule.days))
+      setDays((prev) => reconcileDays(prev, excludeHolidayWeekdays(schedule.days, availabilityRef.current.holidays)))
     }
   }, [timetableId, subjectLabel, schedule.days])
 
@@ -456,12 +501,43 @@ export default function WeeklyForecastStudio() {
   }
   function applyTimetableDays() {
     if (!schedule.days.length) { toast.error('This subject isn’t on the selected timetable.'); return }
-    setDays((prev) => reconcileDays(prev, schedule.days))
-    toast.success(`Days set from the timetable: ${schedule.days.join(', ')}.`)
+    const openDays = excludeHolidayWeekdays(schedule.days, availabilityRef.current.holidays)
+    setDays((prev) => reconcileDays(prev, openDays.length ? openDays : schedule.days))
+    toast.success(`Days set from the timetable: ${(openDays.length ? openDays : schedule.days).join(', ')}.`)
   }
 
   function updateDay(index, field, value) {
-    setDays((list) => list.map((d, i) => (i === index ? { ...d, [field]: value } : d)))
+    // Editing a day's content re-opens the non-teaching-day review (the teacher
+    // may want to reconsider the date now that it holds new content).
+    setDays((list) => list.map((d, i) => (i === index ? { ...d, [field]: value, nonTeachingDayConfirmed: false } : d)))
+  }
+
+  // ── Non-teaching-day review (filled holiday days) ──
+  const [clearConfirmIndex, setClearConfirmIndex] = useState(null)
+  // Keep the lesson on this closed day — records an explicit teacher override so
+  // the amber review stops showing (until the date/content changes again).
+  function confirmNonTeachingDay(index) {
+    setDays((list) => list.map((d, i) => (
+      i === index
+        ? { ...d, nonTeachingDayConfirmed: true, confirmationReason: 'teacher_override', confirmedAt: new Date().toISOString() }
+        : d
+    )))
+  }
+  // Move the lesson to a valid open teaching day this week, preserving content.
+  function moveDayTo(index, targetWeekday) {
+    if (!targetWeekday) return
+    setDays((list) => {
+      const moved = list.map((d, i) => (
+        i === index ? { ...d, day: targetWeekday, nonTeachingDayConfirmed: false, confirmationReason: '', confirmedAt: '' } : d
+      ))
+      return reconcileDays(moved, moved.map((d) => d.day))
+    })
+    toast.success(`Lesson moved to ${targetWeekday}.`)
+  }
+  // Clear this closed day's content (removes the day from the forecast).
+  function clearDay(index) {
+    setDays((list) => (list.length <= 1 ? list : list.filter((_, i) => i !== index)))
+    setClearConfirmIndex(null)
   }
 
   // Auto-fill a day's curriculum fields from the chosen topic (and optionally
@@ -525,7 +601,11 @@ export default function WeeklyForecastStudio() {
       teacherName: profileName,
       ...currentWeekDefaults(),
     })
-    setDays(DEFAULT_WEEKDAYS.map(blankDay))
+    {
+      const iso = getCurrentForecastWeek()?.beginning || ''
+      const wd = excludeHolidayWeekdays(DEFAULT_WEEKDAYS, weekTeachingAvailability(iso).holidays)
+      setDays((wd.length ? wd : DEFAULT_WEEKDAYS).map(blankDay))
+    }
     setSchemeId(''); setWeekPick(''); setTimetableId('')
     setModuleWeeks([]); setModuleStatus('idle')
     setUsedModuleFallback(false)
@@ -744,17 +824,26 @@ export default function WeeklyForecastStudio() {
               <div className="flex flex-wrap gap-2">
                 {WEEKDAYS.map((day) => {
                   const on = days.some((d) => d.day === day)
+                  const holiday = availability.holidays.find((h) => h.weekday === day)
                   return (
                     <button key={day} type="button" onClick={() => toggleWeekday(day)}
                       aria-pressed={on}
+                      title={holiday ? `${day} — ${holiday.holiday} (public holiday). Add it only if your school teaches this day.` : undefined}
                       className={`rounded-full px-3 py-1.5 text-xs font-black border transition-all ${
-                        on ? 'theme-accent-fill theme-on-accent border-transparent' : 'bg-white theme-text-muted theme-border hover:theme-text'
+                        on ? 'theme-accent-fill theme-on-accent border-transparent'
+                        : holiday ? 'bg-amber-50 text-amber-700 border-amber-300'
+                        : 'bg-white theme-text-muted theme-border hover:theme-text'
                       }`}>
-                      {day}
+                      {day}{holiday ? ' ·' : ''}{holiday && <span className="ml-0.5 opacity-80" aria-hidden="true">🎉</span>}
                     </button>
                   )
                 })}
               </div>
+              {availability.holidays.length > 0 && (
+                <p className="text-xs mt-1.5" style={{ color: '#b45309' }} role="status">
+                  {holidaySummary(availability.holidays)} this week — {availability.count} teaching day{availability.count === 1 ? '' : 's'} available. Holiday days are left out of the plan unless you add them.
+                </p>
+              )}
               <p className="text-xs mt-1" style={{ color: '#566f76' }}>
                 Add or remove days to match how often this subject is taught — some subjects run all five days, others only two or three.
               </p>
@@ -784,9 +873,56 @@ export default function WeeklyForecastStudio() {
               </p>
             </div>
             <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4">
-              {days.map((d, i) => (
+              {days.map((d, i) => {
+                const holiday = availability.holidays.find((h) => h.weekday === d.day)
+                const needsReview = !!holiday && dayHasContent(d) && !d.nonTeachingDayConfirmed
+                const moveTargets = needsReview ? openMoveTargets(days, availability.teachingDays) : []
+                return (
                 <div key={d.day} className="rounded-xl border theme-border bg-white p-3 space-y-2">
-                  <p className="text-xs font-black uppercase tracking-wide" style={{ color: '#0e2a32' }}>{d.day}</p>
+                  <p className="text-xs font-black uppercase tracking-wide" style={{ color: '#0e2a32' }}>
+                    {d.day}
+                    {holiday && d.nonTeachingDayConfirmed && (
+                      <span className="ml-2 text-[10px] font-bold text-amber-700" title={`${holiday.holiday} — you confirmed teaching on this day`}>· holiday (confirmed)</span>
+                    )}
+                  </p>
+
+                  {needsReview && (
+                    <div className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-amber-800" role="status">
+                      <p className="flex items-center gap-1.5 text-xs font-black">
+                        <span aria-hidden="true">⚠</span> This is not a normal teaching day
+                      </p>
+                      <p className="mt-0.5 text-[11.5px] leading-snug">
+                        {d.day} is marked as {holiday.holiday} (a public holiday), but this day already contains teaching content. Review it before saving.
+                      </p>
+                      {clearConfirmIndex === i ? (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <span className="text-[11.5px] font-bold">Clear this teaching day?</span>
+                          <button type="button" onClick={() => clearDay(i)} className="rounded-md border border-amber-400 bg-white px-2 py-1 text-[11px] font-bold text-amber-800 hover:bg-amber-100">Clear day</button>
+                          <button type="button" onClick={() => setClearConfirmIndex(null)} className="rounded-md px-2 py-1 text-[11px] font-bold text-amber-800 hover:bg-amber-100">Keep content</button>
+                        </div>
+                      ) : (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <button type="button" onClick={() => confirmNonTeachingDay(i)} className="rounded-md border border-amber-400 bg-white px-2 py-1 text-[11px] font-bold hover:bg-amber-100">Keep on this date</button>
+                          {moveTargets.length > 0 && (
+                            <label className="flex items-center gap-1 text-[11px] font-bold">
+                              Move to
+                              <select
+                                aria-label={`Move ${d.day}'s lesson to another teaching day`}
+                                defaultValue=""
+                                onChange={(e) => { moveDayTo(i, e.target.value); e.target.value = '' }}
+                                className="rounded-md border border-amber-400 bg-white px-1.5 py-1 text-[11px] font-bold"
+                              >
+                                <option value="" disabled>day…</option>
+                                {moveTargets.map((wd) => <option key={wd} value={wd}>{wd}</option>)}
+                              </select>
+                            </label>
+                          )}
+                          <button type="button" onClick={() => setClearConfirmIndex(i)} className="rounded-md px-2 py-1 text-[11px] font-bold text-amber-800 hover:bg-amber-100">Clear this day</button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div>
                     <label className="studio-label">Topic</label>
                     {topicNames.length > 0 && (
@@ -849,7 +985,8 @@ export default function WeeklyForecastStudio() {
                     <input type="text" value={d.remarks} maxLength={200} onChange={(e) => updateDay(i, 'remarks', e.target.value)} className="studio-input !py-1.5 text-sm" />
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </section>
 

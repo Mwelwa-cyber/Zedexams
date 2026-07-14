@@ -31,6 +31,7 @@ import { resolveTeacherPlan, FREE_PREVIEW_LIMITS } from '../../../utils/teacherP
 import { useToast } from '../../ui/Toast'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
+import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
 import { SOURCE_META } from '../views/SchemeOfWorkView'
 import {
   FieldText,
@@ -82,9 +83,11 @@ export default function SchemeOfWorkGenerator() {
   // saved curriculum defaults. Read once on mount by the selector; recovering a
   // draft re-seeds it and bumps selectorKey to remount on the saved curriculum.
   const [selectorSeed, setSelectorSeed] = useState(() =>
-    urlDefaults && (urlDefaults.grade || urlDefaults.subject || urlDefaults.topic)
-      ? urlDefaults
-      : curriculumSeedFromProfile(userProfile),
+    resolveStudioSeed({
+      urlSeed: urlDefaults,
+      activeSeed: readActiveAssignmentSeed(currentUser?.uid),
+      profileSeed: curriculumSeedFromProfile(userProfile),
+    }),
   )
   const [selectorKey, setSelectorKey] = useState(0)
   const [form, setForm] = useState(() => ({

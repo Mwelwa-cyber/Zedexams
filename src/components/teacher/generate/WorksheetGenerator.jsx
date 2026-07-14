@@ -45,6 +45,7 @@ import { Download, Key } from '../../ui/icons'
 import WorksheetView from '../views/WorksheetView'
 import StudioOutputBoundary from '../StudioOutputBoundary'
 import { curriculumSeedFromProfile, preferredDifficulty, preferredTermYear } from '../../../utils/teacherDefaults'
+import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
 
 /**
  * Worksheet Generator — pupil-facing worksheet + separate answer-key export.
@@ -82,9 +83,11 @@ export default function WorksheetGenerator() {
   // re-seeds it and bumps selectorKey to remount the selector on the saved
   // curriculum (the selector reads its seed once on mount).
   const [selectorSeed, setSelectorSeed] = useState(() =>
-    urlDefaults && (urlDefaults.grade || urlDefaults.subject || urlDefaults.topic)
-      ? urlDefaults
-      : curriculumSeedFromProfile(userProfile),
+    resolveStudioSeed({
+      urlSeed: urlDefaults,
+      activeSeed: readActiveAssignmentSeed(currentUser?.uid),
+      profileSeed: curriculumSeedFromProfile(userProfile),
+    }),
   )
   const [selectorKey, setSelectorKey] = useState(0)
   const [status, setStatus] = useState('idle')
