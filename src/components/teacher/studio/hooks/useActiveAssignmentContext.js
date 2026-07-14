@@ -6,7 +6,8 @@ import {
   gradeToStudioFormat,
   pickPlannedDate,
 } from '../../../../utils/plannedTeachingMeta.js'
-import { subjectLabel } from '../../../../utils/teachingProfileCore.js'
+import { subjectLabel, gradeLabel } from '../../../../utils/teachingProfileCore.js'
+import { isEceGrade } from '../../../../config/teacherTaxonomy.js'
 import { getSubjectsForGrade } from '../utils/curriculumDataService.js'
 import { cleanSubjectName } from '../utils/subjectName.js'
 import { matchSubjectKey } from '../utils/teacherPlanContext.js'
@@ -49,10 +50,16 @@ export function useActiveAssignmentContext() {
   }, [activeAssignments, tp.effectiveDefaultId, uid])
 
   const [seed, setSeed] = useState(null)
+  // A compact, non-blocking notice when the active assignment could NOT be fully
+  // applied (ECE grade not offered here, or a subject that maps to no syllabus
+  // key). Null when everything mapped or there's no active assignment. The
+  // assignment metadata is preserved regardless — this only tells the teacher to
+  // pick the field manually.
+  const [mappingNotice, setMappingNotice] = useState(null)
 
   useEffect(() => {
     let cancelled = false
-    if (!assignment) { setSeed(null); return undefined }
+    if (!assignment) { setSeed(null); setMappingNotice(null); return undefined }
     const grade = gradeToStudioFormat(assignment.grade)
     const curriculumMode = assignment.curriculumType === 'previous' ? 'previous' : 'cbc'
     const date = pickPlannedDate({ context: tp.context, todayISO: todayLocalISO() })
@@ -66,7 +73,18 @@ export function useActiveAssignmentContext() {
           }
         } catch { subject = '' }
       }
-      if (!cancelled) setSeed({ grade, subject, curriculumMode, date })
+      if (cancelled) return
+      setSeed({ grade, subject, curriculumMode, date })
+      // Build the notice from what failed to map.
+      let notice = null
+      if (!grade) {
+        notice = isEceGrade(assignment.grade)
+          ? 'Early Childhood Education is not yet mapped to this Lesson Plan format.'
+          : `${gradeLabel(assignment.grade)} is not available in this Lesson Plan format.`
+      } else if (!subject) {
+        notice = `“${subjectLabel(assignment.subject)}” could not be matched to a syllabus subject.`
+      }
+      setMappingNotice(notice)
     }
     run()
     return () => { cancelled = true }
@@ -77,6 +95,7 @@ export function useActiveAssignmentContext() {
     assignment,
     context: tp.context,
     seed,
+    mappingNotice,
     calendarUnavailable: tp.context?.status !== 'ok',
   }
 }

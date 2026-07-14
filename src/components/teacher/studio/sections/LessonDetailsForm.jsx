@@ -118,7 +118,7 @@ function FieldIcon({ children }) {
  *   onChange: (field, value) => void
  *   disabled: boolean — true when curriculumMode is null
  */
-export function LessonDetailsForm({ lessonDetails, curriculumMode, onChange, disabled }) {
+export function LessonDetailsForm({ lessonDetails, curriculumMode, onChange, disabled, dateHint = '', dateWarning = '' }) {
   const [open, setOpen] = useState(true)
 
   // When curriculumMode changes, reset grade if it is no longer valid for the
@@ -327,8 +327,18 @@ export function LessonDetailsForm({ lessonDetails, curriculumMode, onChange, dis
                   onChange={(e) => onChange('date', e.target.value)}
                   className={INPUT_CLS}
                   disabled={disabled}
+                  aria-describedby={dateWarning ? 'ldf-date-warning' : (dateHint ? 'ldf-date-hint' : undefined)}
                 />
               </div>
+              {dateWarning ? (
+                <p id="ldf-date-warning" className="mt-1 text-[11.5px] leading-snug" style={{ color: '#b45309' }} role="alert">
+                  {dateWarning}
+                </p>
+              ) : dateHint ? (
+                <p id="ldf-date-hint" className="mt-1 text-[11.5px] leading-snug" style={{ color: '#6a7c82' }}>
+                  {dateHint}
+                </p>
+              ) : null}
             </div>
 
             <div>

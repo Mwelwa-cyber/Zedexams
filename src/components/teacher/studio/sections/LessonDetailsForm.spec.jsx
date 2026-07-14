@@ -45,6 +45,29 @@ function renderForm(props = {}) {
   return { ...render(<LessonDetailsForm {...defaults} />), onChange: defaults.onChange }
 }
 
+// ── Planned-date hint + non-teaching-day warning ─────────────────────────────
+describe('planned-date guidance', () => {
+  it('shows an inline hint when a date could not be suggested', () => {
+    const { getByText, queryByRole } = renderForm({ dateHint: 'Select the date you plan to teach this lesson.' })
+    expect(getByText('Select the date you plan to teach this lesson.')).toBeInTheDocument()
+    expect(queryByRole('alert')).toBeNull()
+  })
+  it('shows a non-teaching-day warning (which supersedes the hint)', () => {
+    const { getByRole, queryByText } = renderForm({
+      lessonDetails: { ...DEFAULT_DETAILS, date: '2026-05-16' },
+      dateHint: 'Select the date you plan to teach this lesson.',
+      dateWarning: 'This date is not a normal teaching day. Weekends are currently treated as non-teaching days. Choose another date or confirm that your school teaches on this day.',
+    })
+    expect(getByRole('alert')).toHaveTextContent(/not a normal teaching day/i)
+    expect(queryByText('Select the date you plan to teach this lesson.')).toBeNull()
+  })
+  it('shows neither by default', () => {
+    const { queryByRole, queryByText } = renderForm()
+    expect(queryByRole('alert')).toBeNull()
+    expect(queryByText(/plan to teach/i)).toBeNull()
+  })
+})
+
 // ── Section header ────────────────────────────────────────────────────────────
 
 describe('LessonDetailsForm — section header', () => {

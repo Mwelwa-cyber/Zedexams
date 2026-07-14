@@ -22,6 +22,8 @@ import { useAILessonCount } from './hooks/useAILessonCount'
 import { useTeacherPlanContext } from './hooks/useTeacherPlanContext'
 import { useActiveAssignmentContext } from './hooks/useActiveAssignmentContext'
 import { buildPlannedTeachingMeta } from '../../../utils/plannedTeachingMeta'
+import { isNonTeachingDay, isWeekend, publicHolidayOn } from '../../../utils/calendarResolver'
+import { gradeLabel as tpGradeLabel, subjectLabel as tpSubjectLabel } from '../../../utils/teachingProfileCore'
 import { useCoverageAnalysis } from './hooks/useCoverageAnalysis'
 import { buildAlignmentInstructions } from './utils/teacherPlanContext'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
@@ -1252,6 +1254,34 @@ export default function LessonPlanStudio() {
     if (next) handleGenerate(0, { lessonNumber: next })
   }, [dupModal, handleGenerate])
 
+  // ── Teaching Profile context surfacing (read-only) ──────────────────────────
+  // A confidence line + non-blocking notices so an unsupported assignment or an
+  // unresolved/invalid teaching date is never a silent empty field.
+  const activeAssignment = assignmentContext.assignment
+  const activeAssignmentLabel = activeAssignment
+    ? [tpGradeLabel(activeAssignment.grade), tpSubjectLabel(activeAssignment.subject), activeAssignment.className]
+        .filter(Boolean).join(' · ')
+    : ''
+  const mappingNotice =
+    assignmentContext.mappingNotice && (!studioState.lessonDetails.grade || !studioState.lessonDetails.subject)
+      ? assignmentContext.mappingNotice
+      : ''
+  const activeLessonDate = studioState.lessonDetails.date
+  let dateWarning = ''
+  if (activeLessonDate && isNonTeachingDay(activeLessonDate)) {
+    const hol = publicHolidayOn(activeLessonDate)
+    const why = isWeekend(activeLessonDate)
+      ? 'Weekends are currently treated as non-teaching days.'
+      : hol ? `${hol.name} is a public holiday.`
+      : 'It falls outside the current term.'
+    dateWarning = `This date is not a normal teaching day. ${why} Choose another date or confirm that your school teaches on this day.`
+  }
+  const dateHint = (!activeLessonDate && assignmentContext.seed && !assignmentContext.seed.date)
+    ? (assignmentContext.calendarUnavailable
+        ? 'We could not suggest a teaching date from the School Calendar. Choose a valid date to continue.'
+        : 'Select the date you plan to teach this lesson.')
+    : ''
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -1281,6 +1311,10 @@ export default function LessonPlanStudio() {
             generateLabel={genButton.label}
             planContext={planContextDismissed ? null : planContext}
             onDismissPlanContext={() => setPlanContextDismissed(true)}
+            activeAssignmentLabel={activeAssignmentLabel}
+            mappingNotice={mappingNotice}
+            dateHint={dateHint}
+            dateWarning={dateWarning}
             coverageState={coverageState}
             lessonMemory={{
               subtopicName: stripCode(memSubtopic || ''),
