@@ -53,14 +53,32 @@ describe('PrepareThisWeek', () => {
       .toHaveAttribute('href', '/teacher/generate/weekly-forecast')
   })
 
-  it('shows the set-up empty state when there is no context', () => {
+  it('shows the Teaching Profile set-up empty state when there is no context', () => {
     renderCard({ loading: false, error: false, prep: { empty: true, emptyReason: 'no-context', rows: [] } })
-    expect(screen.getByText(/set up your grade, subjects and current term/i)).toBeInTheDocument()
-    // Labelled for what it does today (opens Weekly Focus) — NOT "Set up
-    // Teaching Profile", which doesn't exist yet.
-    expect(screen.getByRole('link', { name: /choose grade, subject and term/i }))
-      .toHaveAttribute('href', '/teacher/generate/weekly-forecast')
+    expect(screen.getByText(/set up your teaching profile/i)).toBeInTheDocument()
+    // The Teaching Profile now exists → the CTA opens it in Settings.
+    expect(screen.getByRole('link', { name: /set up teaching profile/i }))
+      .toHaveAttribute('href', '/settings/teaching-profile')
+  })
+
+  it('shows a calendar-unavailable state (not a profile nudge) when the calendar is missing', () => {
+    renderCard({ loading: false, error: false, prep: { empty: true, emptyReason: 'no-calendar', rows: [] } })
+    expect(screen.getByText(/school calendar information is unavailable/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /view school calendar/i }))
+      .toHaveAttribute('href', '/teacher/calendar')
     expect(screen.queryByText(/set up teaching profile/i)).not.toBeInTheDocument()
+  })
+
+  it('renders an assignment selector for multi-subject teachers and reports selection', () => {
+    const onSelectAssignment = vi.fn()
+    const assignments = [
+      { id: 'a1', grade: 'G4', subject: 'integrated_science', isActive: true },
+      { id: 'a2', grade: 'G4', subject: 'mathematics', isActive: true },
+    ]
+    renderCard({ loading: false, error: false, prep: READY_PREP, assignments, activeAssignmentId: 'a1', onSelectAssignment })
+    const select = screen.getByRole('combobox', { name: /teaching assignment/i })
+    fireEvent.change(select, { target: { value: 'a2' } })
+    expect(onSelectAssignment).toHaveBeenCalledWith(expect.objectContaining({ id: 'a2' }))
   })
 
   it('switches to Prepare for Next Term during school holidays', () => {

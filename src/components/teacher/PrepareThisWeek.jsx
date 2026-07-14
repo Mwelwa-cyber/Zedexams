@@ -26,6 +26,7 @@ import {
   RefreshCw,
 } from '../ui/icons'
 import { capture } from '../../utils/analytics'
+import { gradeLabel, subjectLabel } from '../../utils/teachingProfileCore'
 
 const STAGES = [
   { key: 'plan', label: 'Plan', icon: ClipboardList },
@@ -91,7 +92,7 @@ function PrepRow({ row }) {
   )
 }
 
-export default function PrepareThisWeek({ loading, error, prep, onRetry }) {
+export default function PrepareThisWeek({ loading, error, prep, onRetry, assignments = [], activeAssignmentId, onSelectAssignment }) {
   const ready = !loading && !error && prep && !prep.empty
   const openedRef = useRef(false)
   useEffect(() => {
@@ -136,6 +137,8 @@ export default function PrepareThisWeek({ loading, error, prep, onRetry }) {
   }
 
   if (!prep || prep.empty) {
+    // A missing calendar is a different problem from a missing Teaching Profile.
+    const noCalendar = prep?.emptyReason === 'no-calendar'
     return (
       <section className="teacher-prepweek" aria-label="Prepare This Week">
         <div className="teacher-prepweek__head">
@@ -145,26 +148,39 @@ export default function PrepareThisWeek({ loading, error, prep, onRetry }) {
           <span className="teacher-prepweek__state-icon" aria-hidden="true">
             <Icon as={CalendarDays} size="lg" />
           </span>
-          <p className="teacher-prepweek__state-title">
-            Set up your grade, subjects and current term to start weekly preparation.
-          </p>
-          <p className="teacher-prepweek__state-text">
-            Create your first Weekly Focus — it captures your grade, subject and this term’s week in one step.
-          </p>
-          <div className="teacher-prepweek__state-actions">
-            {/* Labelled for what it actually does today (Weekly Focus captures
-                grade + subject + term). Becomes "Set up Teaching Profile" →
-                Settings once that feature exists — do not keep sending it to
-                Weekly Focus after that. */}
-            <Link
-              to="/teacher/generate/weekly-forecast"
-              className="teacher-prepweek__btn teacher-prepweek__btn--primary"
-              onClick={() => capture('prepare_week_setup_clicked', {})}
-            >
-              Choose grade, subject and term
-              <Icon as={ArrowRight} size="xs" />
-            </Link>
-          </div>
+          {noCalendar ? (
+            <>
+              <p className="teacher-prepweek__state-title">School Calendar information is unavailable.</p>
+              <p className="teacher-prepweek__state-text">
+                Your Teaching Profile is still safe. Review your School Calendar or try again shortly.
+              </p>
+              <div className="teacher-prepweek__state-actions">
+                <Link to="/teacher/calendar" className="teacher-prepweek__btn teacher-prepweek__btn--primary">
+                  View School Calendar
+                  <Icon as={ArrowRight} size="xs" />
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="teacher-prepweek__state-title">
+                Set up your Teaching Profile to start weekly preparation.
+              </p>
+              <p className="teacher-prepweek__state-text">
+                Tell ZedExams which grades and subjects you teach so your dashboard can prepare the correct teaching work.
+              </p>
+              <div className="teacher-prepweek__state-actions">
+                <Link
+                  to="/settings/teaching-profile"
+                  className="teacher-prepweek__btn teacher-prepweek__btn--primary"
+                  onClick={() => capture('prepare_week_setup_clicked', {})}
+                >
+                  Set up Teaching Profile
+                  <Icon as={ArrowRight} size="xs" />
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       </section>
     )
@@ -196,12 +212,35 @@ export default function PrepareThisWeek({ loading, error, prep, onRetry }) {
           <h2 className="teacher-prepweek__title">{title}</h2>
           <p className="teacher-prepweek__context">{contextBits.join(' · ')}</p>
         </div>
-        {rangeText && (
-          <span className="teacher-prepweek__range">
-            <Icon as={CalendarDays} size="xs" />
-            {rangeText}
-          </span>
-        )}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+          {/* Assignment context selector — only for a multi-subject teacher. */}
+          {assignments.length > 1 && (
+            <>
+              <label htmlFor="prepweek-assignment" className="sr-only">Teaching assignment</label>
+              <select
+                id="prepweek-assignment"
+                value={activeAssignmentId || ''}
+                onChange={(e) => {
+                  const a = assignments.find((x) => x.id === e.target.value)
+                  if (a) onSelectAssignment?.(a)
+                }}
+                style={{ background: '#fff', color: '#0e2a32', border: '1.5px solid #e4dcc6', borderRadius: 10, padding: '6px 10px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', maxWidth: 220 }}
+              >
+                {assignments.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {gradeLabel(a.grade)} · {subjectLabel(a.subject)}{a.className ? ` · ${a.className}` : ''}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+          {rangeText && (
+            <span className="teacher-prepweek__range">
+              <Icon as={CalendarDays} size="xs" />
+              {rangeText}
+            </span>
+          )}
+        </div>
       </div>
 
       {nextTerm ? null : (

@@ -151,22 +151,26 @@ export function timetableAllocation(generations, { subject, grade } = {}) {
  * Timetable (grade) + profile subject. Null when no subject can be
  * determined — the card then shows its set-up empty state.
  */
-export function resolveWeekContext({ generations = [], calendar, profileSubject = '', preferredSubject = '' } = {}) {
+export function resolveWeekContext({ generations = [], calendar, profileSubject = '', preferredSubject = '', profileGrade = '' } = {}) {
   if (!calendar) return null
   const { termNumber, weekNumber } = calendar
+  // A Teaching Profile assignment's grade, used only as a fallback when no saved
+  // document reveals the grade (so a brand-new teacher with a profile but no
+  // documents still sees the right grade on the card).
+  const profileGradeNorm = normGrade(profileGrade)
 
   const preferred = normSubject(preferredSubject)
   if (preferred) {
     const docsFor = newestFirst(generations.filter((g) => genSubject(g) === preferred))
     if (docsFor.length || preferred === normSubject(profileSubject)) {
       // Grade: prefer a current-term doc of this subject, else its newest
-      // doc, else the newest timetable.
+      // doc, else the newest timetable, else the Teaching Profile grade.
       const graded = docsFor.find((g) => genTerm(g) === termNumber && genGrade(g)) ||
         docsFor.find((g) => genGrade(g))
       const timetable = newestFirst(generations.filter((g) => g.tool === 'class_timetable'))[0]
       return {
         subject: preferred,
-        grade: graded ? genGrade(graded) : (timetable ? genGrade(timetable) : ''),
+        grade: graded ? genGrade(graded) : (timetable ? genGrade(timetable) : profileGradeNorm),
         source: 'preferred',
       }
     }
@@ -193,7 +197,7 @@ export function resolveWeekContext({ generations = [], calendar, profileSubject 
   const profile = normSubject(profileSubject)
   if (profile) {
     const timetable = newestFirst(generations.filter((g) => g.tool === 'class_timetable'))[0]
-    return { subject: profile, grade: timetable ? genGrade(timetable) : '', source: 'profile' }
+    return { subject: profile, grade: timetable ? genGrade(timetable) : profileGradeNorm, source: 'profile' }
   }
   return null
 }
@@ -265,11 +269,11 @@ function forecastPreparedDays(focus) {
  * Each row: { key, label, detail, status:'done'|'progress'|'todo'|'alert',
  *             done, target (nullable), to, meta }
  */
-export function buildWeekPrep({ generations = [], calendar = null, profileSubject = '', preferredSubject = '', now = Date.now() } = {}) {
+export function buildWeekPrep({ generations = [], calendar = null, profileSubject = '', preferredSubject = '', profileGrade = '', now = Date.now() } = {}) {
   if (!calendar) {
     return { empty: true, emptyReason: 'no-calendar', rows: [] }
   }
-  const context = resolveWeekContext({ generations, calendar, profileSubject, preferredSubject })
+  const context = resolveWeekContext({ generations, calendar, profileSubject, preferredSubject, profileGrade })
   if (!context) {
     return { empty: true, emptyReason: 'no-context', rows: [] }
   }

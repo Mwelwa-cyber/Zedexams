@@ -86,6 +86,11 @@ check('subjectLabelOf title-cases slug', subjectLabelOf('integrated_science') ==
   check('profile subject is the last-resort context', ctx.subject === 'english' && ctx.source === 'profile')
 }
 {
+  // Teaching Profile grade is used as a fallback when no document reveals it.
+  const ctx = resolveWeekContext({ generations: [], calendar: CAL, profileSubject: 'english', profileGrade: 'G5' })
+  check('profileGrade fills the grade when no docs exist', ctx.subject === 'english' && ctx.grade === 'G5')
+}
+{
   // A forecast for ANOTHER week must not define this week's context.
   const gens = [gen('weekly_forecast', { subject: 'english', grade: 'G4', term: 2, header: { weekNumber: 3 }, output: { days: [] } })]
   const ctx = resolveWeekContext({ generations: gens, calendar: CAL })

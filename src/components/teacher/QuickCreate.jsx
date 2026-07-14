@@ -13,6 +13,7 @@ import { Link } from 'react-router-dom'
 import Icon from '../ui/Icon'
 import { ArrowRight } from '../ui/icons'
 import { capture } from '../../utils/analytics'
+import { buildGeneratorQueryString } from '../../utils/useFormDefaultsFromUrl'
 import iconLessonPlan from '../../assets/teacher-icons/lesson-plan.webp'
 import iconWeeklyForecast from '../../assets/teacher-icons/weekly-forecast.webp'
 import iconWorksheet from '../../assets/teacher-icons/worksheet.webp'
@@ -53,7 +54,11 @@ const ACTIONS = [
   },
 ]
 
-export default function QuickCreate() {
+export default function QuickCreate({ context = null }) {
+  // Seed each studio with the active Teaching Profile context (grade/subject/
+  // term) when one is available, so Quick Create opens on the right teaching
+  // context rather than the generic profile default.
+  const qs = context ? buildGeneratorQueryString({ grade: context.grade, subject: context.subject, term: context.term }) : ''
   return (
     <section className="teacher-quickcreate" aria-label="Quick create">
       <div className="teacher-section-head">
@@ -78,7 +83,7 @@ export default function QuickCreate() {
         {ACTIONS.map((a) => (
           <Link
             key={a.key}
-            to={a.to}
+            to={`${a.to}${qs}`}
             className={`teacher-quickcreate-card teacher-quickcreate-card--${a.tone}`}
             onClick={() => capture('quick_create_selected', { tool: a.key })}
           >
