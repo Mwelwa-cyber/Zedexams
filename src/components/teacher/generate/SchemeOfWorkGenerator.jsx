@@ -50,6 +50,7 @@ import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
 import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
 import { getCalendarYears, getCurrentForecastWeek } from '../../../utils/moeCalendar'
 import { resolveSchemeTermYear, isOffCurrentTerm } from '../../../utils/schemeCalendarDefaults'
+import ConfirmDialog from '../../ui/ConfirmDialog'
 import {
   buildTermPlan,
   reserveWeeks,
@@ -118,6 +119,9 @@ export default function SchemeOfWorkGenerator() {
     ...urlDefaults,
   }))
   const [curr, setCurr] = useState({})
+  // Impact confirmation for the "Use current term" one-click (never changes term
+  // silently; keeps + recalculates the teacher's reservations).
+  const [confirmUseCurrent, setConfirmUseCurrent] = useState(false)
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const isMounted = useIsMounted()
@@ -541,12 +545,13 @@ export default function SchemeOfWorkGenerator() {
             </div>
             {isOffCurrentTerm(calendarTermYear, form) && (
               <div className="text-sm flex flex-wrap items-center gap-2" style={{ color: '#566f76' }} role="status">
-                <span>📅 Your School Calendar says you're in <b>Term {calendarTermYear.term} {calendarTermYear.year}</b>.</span>
+                <span>📅 The national school calendar shows you're in <b>Term {calendarTermYear.term} {calendarTermYear.year}</b>.</span>
                 <button
                   type="button"
                   className="font-bold underline"
                   style={{ color: '#0e2a32' }}
-                  onClick={() => setForm((f) => ({ ...f, term: calendarTermYear.term, year: calendarTermYear.year }))}
+                  title="Switch to the current calendar term, keeping your exam, revision and custom week reservations"
+                  onClick={() => setConfirmUseCurrent(true)}
                 >
                   Use current term
                 </button>
@@ -837,6 +842,34 @@ export default function SchemeOfWorkGenerator() {
           )}
         </div>
       </div>
+
+      {/* "Use current term" impact confirmation — spells out that reservations
+          are kept + recalculated, and never resets the scheme. */}
+      <ConfirmDialog
+        open={confirmUseCurrent}
+        title={`Update to Term ${calendarTermYear.term}, ${calendarTermYear.year}?`}
+        message={
+          <div className="space-y-2">
+            <p>
+              This switches the Scheme of Work from <b>Term {form.term} {form.year}</b> to the current calendar term,{' '}
+              <b>Term {calendarTermYear.term} {calendarTermYear.year}</b>
+              {(() => {
+                const w = buildTermPlan({ year: calendarTermYear.year, term: calendarTermYear.term })?.weeks.length || 0
+                return w ? <> ({w} teaching weeks)</> : null
+              })()}.
+            </p>
+            <p>Your examination, revision and custom week reservations are kept and recalculated for the new term. Topics and outcomes are not changed.</p>
+          </div>
+        }
+        confirmLabel="Use current term"
+        cancelLabel="Cancel"
+        variant="primary"
+        onConfirm={() => {
+          setForm((f) => ({ ...f, term: calendarTermYear.term, year: calendarTermYear.year }))
+          setConfirmUseCurrent(false)
+        }}
+        onCancel={() => setConfirmUseCurrent(false)}
+      />
     </div>
   )
 }
