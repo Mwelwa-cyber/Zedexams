@@ -317,4 +317,43 @@ test('no sub-topic is orphaned under a non-ancestor topic (English Form 3)', () 
   }
 })
 
+console.log('\ncurriculum-hierarchy: English Form 4 restored hierarchy')
+
+const form4 = raw['English Syllabus (Forms 1-4)']?.['Form 4']
+assert.ok(form4, 'English Form 4 sheet must exist')
+const rows4 = rowsWithPropagatedTopic(form4.rows)
+const topicMap4 = new Map()
+for (const row of rows4) {
+  if (!row.topic) continue
+  const t = topicMap4.get(row.topic) || { label: row.topic, subtopics: [] }
+  if (row.subtopic && !t.subtopics.includes(row.subtopic)) t.subtopics.push(row.subtopic)
+  topicMap4.set(row.topic, t)
+}
+
+test('Form 4 COMPOSITION topic headers restored with their sub-topics', () => {
+  const cases = [
+    ['4.3.2 Descriptive Writing', '4.3.2.1 Describing Careers/Professions'],
+    ['4.3.4 Report Writing', '4.3.4.1 Detailed (Major) Reports'],
+    ['4.3.5 Speech Writing', '4.3.5.1 Vote of thanks'],
+    ['4.3.6 Persuasive Writing', '4.3.6.1 Discursive Composition'],
+    ['4.3.7 Expository Writing', '4.3.7.1 Compare and Contrast'],
+    ['4.3.8 Letter Writing', '4.3.8.2 Memorandum'],
+  ]
+  for (const [topicLabel, subLabel] of cases) {
+    assert.ok(topicMap4.has(topicLabel), `topic "${topicLabel}" present`)
+    assert.ok(topicMap4.get(topicLabel).subtopics.includes(subLabel), `"${subLabel}" under "${topicLabel}"`)
+  }
+})
+
+test('no sub-topic is orphaned under a non-ancestor topic (English Form 4)', () => {
+  const lead = (s) => (String(s).match(/^(\d+(?:\.\d+)*)/) || [])[1] || ''
+  for (const t of topicMap4.values()) {
+    const tc = lead(t.label)
+    for (const s of t.subtopics) {
+      const sc = lead(s)
+      if (tc && sc) assert.ok(sc.startsWith(tc), `orphan: "${s}" filed under "${t.label}"`)
+    }
+  }
+})
+
 console.log(`\n✅ curriculum-hierarchy: all ${passed} checks passed\n`)

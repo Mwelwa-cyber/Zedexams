@@ -79,6 +79,21 @@ const BACKFILL = [
     expectSubtopic: 'Introduction to Writing Minutes' },
   { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 3', subtopicCode: '3.3.11.1', topic: '3.3.11 Letter Writing',
     expectSubtopic: 'Formal Letter' },
+
+  // Form 4 COMPOSITION (section 4.3) — topic headers dropped by extraction.
+  // Titles verified against the official Form 4 pages.
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 4', subtopicCode: '4.3.2.1', topic: '4.3.2 Descriptive Writing',
+    expectSubtopic: 'Describing Careers/Professions' },
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 4', subtopicCode: '4.3.4.1', topic: '4.3.4 Report Writing',
+    expectSubtopic: 'Detailed (Major) Reports' },
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 4', subtopicCode: '4.3.5.1', topic: '4.3.5 Speech Writing',
+    expectSubtopic: 'Vote of thanks' },
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 4', subtopicCode: '4.3.6.1', topic: '4.3.6 Persuasive Writing',
+    expectSubtopic: 'Discursive Composition' },
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 4', subtopicCode: '4.3.7.1', topic: '4.3.7 Expository Writing',
+    expectSubtopic: 'Compare and Contrast' },
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 4', subtopicCode: '4.3.8.1', topic: '4.3.8 Letter Writing',
+    expectSubtopic: 'Formal Letters' },
 ]
 
 // TOPIC-header TITLE repairs (an existing topic cell whose title the extraction
