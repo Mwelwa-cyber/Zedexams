@@ -2148,6 +2148,58 @@ body.theme-midnight .moe-calendar {
   }
   .studio-theme .teacher-allowance-notice__close:hover { background: rgba(47,125,95,.12); }
 
+  /* ── Post-save "What next?" panel (connected workflow) ────────── */
+  .studio-theme .studio-next-steps {
+    margin: 14px 0;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: #eef4fb;
+    border: 1.5px solid #c4d8ef;
+  }
+  .studio-theme .studio-next-steps__title {
+    margin: 0 0 8px;
+    font-size: 14px;
+    font-weight: 800;
+    color: #0e2a32;
+  }
+  .studio-theme .studio-next-steps__facts {
+    list-style: none;
+    margin: 0 0 10px;
+    padding: 0;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #2f5c86;
+  }
+  .studio-theme .studio-next-steps__facts li { margin: 2px 0; }
+  .studio-theme .studio-next-steps__actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .studio-theme .studio-next-steps__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 15px;
+    border-radius: 12px;
+    background: #fff;
+    border: 1.5px solid #c4d8ef;
+    color: #0e2a32;
+    font-size: 13px;
+    font-weight: 800;
+    text-decoration: none;
+    min-height: 42px;
+  }
+  .studio-theme .studio-next-steps__btn:hover { background: #f4f8fd; }
+  .studio-theme .studio-next-steps__btn--primary {
+    background: #ff7a2e;
+    border-color: #ff7a2e;
+    color: #fff;
+    box-shadow: 0 6px 16px rgba(243,106,42,.28);
+  }
+  .studio-theme .studio-next-steps__btn--primary:hover { background: #e6651a; }
+
   /* ── Free-preview upsell (post-generation upgrade prompt) ─────── */
   .studio-theme .teacher-preview-upsell {
     margin-bottom: 16px;
