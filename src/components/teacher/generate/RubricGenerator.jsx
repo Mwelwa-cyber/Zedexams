@@ -21,6 +21,7 @@ import { LIBRARY_TYPES } from '../../../config/library'
 import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
+import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
 import {
   FieldTextarea,
   FieldSelect,
@@ -45,9 +46,11 @@ export default function RubricGenerator() {
   // teacher's saved curriculum defaults (Teacher Settings → My Teaching).
   // Read once on mount by the selector — never re-seeds reactively.
   const [selectorSeed, setSelectorSeed] = useState(() =>
-    urlDefaults && (urlDefaults.grade || urlDefaults.subject || urlDefaults.topic)
-      ? urlDefaults
-      : curriculumSeedFromProfile(userProfile),
+    resolveStudioSeed({
+      urlSeed: urlDefaults,
+      activeSeed: readActiveAssignmentSeed(currentUser?.uid),
+      profileSeed: curriculumSeedFromProfile(userProfile),
+    }),
   )
   const [selectorKey, setSelectorKey] = useState(0)
   const [form, setForm] = useState(() => ({

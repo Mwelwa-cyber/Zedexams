@@ -39,6 +39,7 @@ import { homeworkInputDescriptor } from '../../../hooks/draft/descriptors'
 import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
 import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
 import { curriculumSeedFromProfile, preferredDifficulty, preferredTermYear } from '../../../utils/teacherDefaults'
+import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
 
 /**
  * Homework Studio — short take-home practice grounded on the stored
@@ -70,9 +71,11 @@ export default function HomeworkStudio() {
   // teacher's saved curriculum defaults (Teacher Settings → My Teaching).
   // Read once on mount by the selector — never re-seeds reactively.
   const [selectorSeed, setSelectorSeed] = useState(() =>
-    urlDefaults && (urlDefaults.grade || urlDefaults.subject || urlDefaults.topic)
-      ? urlDefaults
-      : curriculumSeedFromProfile(userProfile),
+    resolveStudioSeed({
+      urlSeed: urlDefaults,
+      activeSeed: readActiveAssignmentSeed(currentUser?.uid),
+      profileSeed: curriculumSeedFromProfile(userProfile),
+    }),
   )
   const [selectorKey, setSelectorKey] = useState(0)
   const [status, setStatus] = useState('idle')

@@ -30,6 +30,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
+import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
 import {
   TEACHER_SUBJECTS,
   getTermModuleOutline,
@@ -191,9 +192,16 @@ export default function WeeklyForecastStudio() {
   // derived values below whenever the selector is untouched. Starts empty; the
   // Universal Draft Manager fills it on recovery (see onRestore).
   const [restoredMeta, setRestoredMeta] = useState({ grade: '', subjectLabel: '' })
-  // Seed for the mount-once curriculum selector. Recovering a draft re-seeds it
-  // and bumps selectorKey to remount on the saved grade/subject.
-  const [selectorSeed, setSelectorSeed] = useState(() => curriculumSeedFromProfile(userProfile))
+  // Seed for the mount-once curriculum selector: the active Teaching Profile
+  // assignment (persisted by the dashboard) wins over the teacher's saved
+  // curriculum default. Recovering a draft re-seeds it and bumps selectorKey to
+  // remount on the saved grade/subject.
+  const [selectorSeed, setSelectorSeed] = useState(() =>
+    resolveStudioSeed({
+      activeSeed: readActiveAssignmentSeed(uid),
+      profileSeed: curriculumSeedFromProfile(userProfile),
+    }),
+  )
   const [selectorKey, setSelectorKey] = useState(0)
   const [days, setDays] = useState(() => {
     // Exclude days closed by a public holiday from the initial teaching spread.
