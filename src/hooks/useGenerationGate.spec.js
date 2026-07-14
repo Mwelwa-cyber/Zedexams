@@ -108,19 +108,35 @@ describe('useGenerationGate', () => {
     )
   })
 
-  it('routes a Pro teacher who used the Max-only allowance to the Max paywall', () => {
+  it('routes a Pro teacher who exhausted the Exam Paper taster to the Max paywall', () => {
+    // Exam Paper stays the Max-anchor (MAX_ONLY_TOOLS): Pro's single taster
+    // spent → the Max-feature paywall, not the generic monthly-limit copy.
     const { result } = mountGate(
       { teacherPlan: 'pro' },
-      { counters: { assessment: 4 } } // monthly allowance cap on pro
+      { counters: { exam_paper: 1 } } // pro exam-paper taster spent
     )
-    expect(result.current.ensureCanGenerate('assessment')).toBe(false)
+    expect(result.current.ensureCanGenerate('exam_paper')).toBe(false)
     expect(paywall.show).toHaveBeenCalledWith(
       'max-feature',
-      expect.objectContaining({ feature: 'Test papers', tool: 'assessment' })
+      expect.objectContaining({ feature: 'Exam papers', tool: 'exam_paper' })
     )
   })
 
-  it('shows plain monthly-limit for a Max teacher at a Max-only cap', () => {
+  it('routes a Pro teacher who used all 3 Test Papers to the monthly-limit paywall', () => {
+    // Test Papers are an allowance-based entitlement now (not Max-only), so
+    // exhausting the Pro allowance shows the ordinary monthly-limit paywall.
+    const { result } = mountGate(
+      { teacherPlan: 'pro' },
+      { counters: { assessment: 3 } } // pro complete-paper allowance spent
+    )
+    expect(result.current.ensureCanGenerate('assessment')).toBe(false)
+    expect(paywall.show).toHaveBeenCalledWith(
+      'monthly-limit',
+      expect.objectContaining({ feature: 'test papers', tool: 'assessment' })
+    )
+  })
+
+  it('shows plain monthly-limit for a Max teacher at the assessment cap', () => {
     const { result } = mountGate(
       { teacherPlan: 'max' },
       { counters: { assessment: 200 } }

@@ -437,11 +437,21 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
     })
     if (run !== runRef.current) return
     if (!res.ok) {
-      // Out of the monthly taster on Free/Pro → open the "Upgrade to Max"
-      // paywall rather than dumping the raw quota error (the server marks
-      // this with details.reason === 'max-only').
-      if (res.details?.reason === 'max-only') {
+      // Defensive fallback: ensureCanGenerate('assessment') above is the
+      // primary gate, but if a stale client meter let the call through and
+      // the server rejects on quota, open the matching paywall (contextual
+      // copy per plan) rather than dumping the raw error. Test Papers are an
+      // allowance-based entitlement now, so exhaustion is 'monthly-limit'
+      // (the paywall adapts Free→Pro / Pro→Max copy); 'max-only' stays
+      // handled for any tool still anchored to Max.
+      const reason = res.details?.reason
+      if (reason === 'max-only') {
         paywall.show('max-feature', { feature: 'Test papers' })
+        setStatus('idle')
+        return
+      }
+      if (reason === 'monthly-limit' || reason === 'daily-cap') {
+        paywall.show(reason, { feature: 'test papers', tool: 'assessment' })
         setStatus('idle')
         return
       }

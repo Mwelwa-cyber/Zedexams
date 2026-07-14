@@ -39,7 +39,7 @@ export const PLAN_LIMITS = {
     notes: 0,
     homework: 4,
     lesson_activities: 0,
-    assessment: 4,
+    assessment: 2,
     sba_task: 0,
     exam_paper: 0,
     diagram: 3,
@@ -59,10 +59,11 @@ export const PLAN_LIMITS = {
     notes: 25,
     homework: 30,
     lesson_activities: 30,
-    // assessment + exam_paper are Max-only studios (see MAX_ONLY_TOOLS): Pro
-    // gets a small monthly allowance of FULL papers (never fewer than Free's
-    // 5-question previews); exam_paper keeps the single taster.
-    assessment: 4,
+    // Test Papers are an allowance-based entitlement, not a Max-only lock:
+    // Pro gets 3 COMPLETE papers/month (Free gets 2 five-question previews,
+    // Max the heavy allowance). exam_paper stays the Max-anchor with a
+    // single Pro taster.
+    assessment: 3,
     sba_task: 15,
     exam_paper: 1,
     diagram: 30,
@@ -122,11 +123,12 @@ export const DAILY_LIMITS = {
   max: 30,
 }
 
-// Studios reserved for the Max plan — the two most compute-heavy generations.
-// Free and Pro get a single monthly taster (PLAN_LIMITS.{free,pro}.{...} = 1);
-// the next attempt routes to the "Upgrade to Max" paywall. Mirror of
+// Studios that stay Max-anchored: locked below Max to a single Pro taster,
+// so the next attempt routes to the "Upgrade to Max" paywall. Only Exam
+// Paper remains — Test Papers (assessment) became an allowance-based
+// entitlement (Free 2 previews / Pro 3 complete / Max heavy). Mirror of
 // functions/teacherTools/teacherPlans.js MAX_ONLY_TOOLS — keep in sync.
-export const MAX_ONLY_TOOLS = ['assessment', 'exam_paper']
+export const MAX_ONLY_TOOLS = ['exam_paper']
 
 export function isMaxOnlyTool(tool) {
   return MAX_ONLY_TOOLS.includes(tool)
