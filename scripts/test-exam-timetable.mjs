@@ -239,6 +239,18 @@ test('filterTimetable matches names and codes, case-insensitively', () => {
   assert(guide.days[0]?.sessions[0]?.key === 'briefing', 'briefing title search failed')
 })
 
+test('filterTimetable matches dates: weekday, month, and ISO — day kept whole', () => {
+  // A weekday query keeps every session on that day (Tuesday = English + Science).
+  const tue = filterTimetable(PSLE_2026, 'tuesday')
+  assert(tue.days.length === 1 && tue.days[0].date === '2026-10-27', 'weekday date filter failed')
+  assert(tue.days[0].sessions.length === 2, 'date match should keep all sessions of the day')
+  // A month query spans the whole week.
+  assert(filterTimetable(PSLE_2026, 'october').days.length === PSLE_2026.days.length, 'month filter failed')
+  // The ISO date works too.
+  const iso = filterTimetable(PSLE_2026, '2026-10-30')
+  assert(iso.days.length === 1 && iso.days[0].date === '2026-10-30', 'ISO date filter failed')
+})
+
 test('filterTimetable: blank query is identity, no-match prunes all days', () => {
   assert(filterTimetable(PSLE_2026, '  ') === PSLE_2026, 'blank query should return input')
   assert(filterTimetable(PSLE_2026, 'zzzz').days.length === 0, 'expected no days')

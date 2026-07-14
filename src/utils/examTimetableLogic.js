@@ -111,19 +111,28 @@ export function computeProgress(timetable, nowMs) {
   return { completed, total, pct: total ? Math.round((completed / total) * 100) : 0 }
 }
 
-// Case-insensitive subject search. Matches paper names, paper codes, and the
-// briefing title; returns a copy of the timetable with non-matching sessions
-// (and then empty days) pruned. An empty/blank query returns the input as-is.
+// Case-insensitive search across the timetable. Matches paper names, paper
+// codes, the briefing title, AND the day's date (ISO "2026-10-27" or the
+// human "Tuesday, 27 October" heading) — so a learner can search a subject,
+// a paper number, a Zambian language, a special paper, or a date. Returns a
+// copy of the timetable with non-matching sessions (and then empty days)
+// pruned; a day whose date matches keeps all of its sessions. An empty/blank
+// query returns the input as-is.
 export function filterTimetable(timetable, query) {
   const q = (query || '').trim().toLowerCase()
   if (!q || !timetable) return timetable
+  const dayMatches = (day) =>
+    (day.date || '').toLowerCase().includes(q) ||
+    formatDayHeading(day.date).toLowerCase().includes(q)
   const sessionMatches = (session) =>
     (session.title || '').toLowerCase().includes(q) ||
     (session.papers || []).some(
       (p) => p.name.toLowerCase().includes(q) || (p.code || '').toLowerCase().includes(q),
     )
   const days = (timetable.days || [])
-    .map((day) => ({ ...day, sessions: (day.sessions || []).filter(sessionMatches) }))
+    .map((day) =>
+      dayMatches(day) ? day : { ...day, sessions: (day.sessions || []).filter(sessionMatches) },
+    )
     .filter((day) => day.sessions.length > 0)
   return { ...timetable, days }
 }

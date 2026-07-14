@@ -18,6 +18,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import useHideOnScroll from '../../hooks/useHideOnScroll'
 import ProfessorPako from '../ui/ProfessorPako'
 
 const ZedChat = lazy(() => import('./ZedChat'))
@@ -51,6 +52,12 @@ export default function ZedChatLauncher() {
   const { currentUser } = useAuth()
   const { pathname } = useLocation()
   const [open, setOpen] = useState(false)
+  // Shrink the bubble while the learner is actively scrolling DOWN so it never
+  // sits on top of subject actions / timetable controls; it springs back to
+  // full size when scrolling stops or reverses. Suppressed while the panel is
+  // open (the bubble is hidden behind the backdrop then anyway).
+  const scrolling = useHideOnScroll({ threshold: 120 })
+  const shrink = scrolling && !open
 
   // Close on route change so a learner who hits a deep link from inside
   // the chat lands on the new page without the panel sticking around.
@@ -80,16 +87,20 @@ export default function ZedChatLauncher() {
 
   return (
     <>
-      {/* Launcher button. mb-20 / md:mb-4 keeps it above the mobile
-          bottom nav without floating absurdly far on desktop. */}
+      {/* Launcher button. Sits above the mobile bottom nav and respects the
+          device safe-area inset so it never overlaps content or the home
+          indicator; shrinks to a smaller puck while scrolling down. */}
       <button
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Open Zed AI study chat"
         aria-expanded={open}
-        className="fixed bottom-20 lg:bottom-4 right-4 z-40 rounded-full theme-accent-fill theme-on-accent shadow-elev-md hover:shadow-elev-lg transition-shadow w-14 h-14 flex items-center justify-center border-4 border-white"
+        style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom))' }}
+        className={`fixed lg:!bottom-4 right-4 z-40 rounded-full theme-accent-fill theme-on-accent shadow-elev-md hover:shadow-elev-lg flex items-center justify-center border-4 border-white transition-all duration-300 ease-out ${
+          shrink ? 'w-11 h-11 opacity-70' : 'w-14 h-14 opacity-100'
+        }`}
       >
-        <ProfessorPako size={48} animate={false} />
+        <ProfessorPako size={shrink ? 34 : 48} animate={false} />
         <span className="sr-only">Ask Zed</span>
       </button>
 
