@@ -1,6 +1,9 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Check, Loader2, Lock, Sparkles, X } from '../ui/icons'
 import { isNativePlatform } from '../../utils/runtime'
+import { markPremiumActionPaid } from '../../utils/pendingPremiumAction'
+import { resolveInvoicePdfUrl } from '../../utils/invoices'
 import { useAuth } from '../../contexts/AuthContext'
 import { useDataSaver } from '../../contexts/DataSaverContext'
 import { PLANS } from '../../utils/subscriptionConfig'
@@ -112,6 +115,8 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
   const copy = PORTAL_COPY[portal] || PORTAL_COPY.generic
   const { userProfile, currentUser } = useAuth()
   const { dataSaver } = useDataSaver()
+  const navigate = useNavigate()
+  const location = useLocation()
   const pendingReferralCredits = Number(userProfile?.referralCredits || 0)
 
   const defaultOrder =
@@ -141,6 +146,9 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
   // + webhook confirm regardless of which stage is on screen.
   const [approvalStage, setApprovalStage] = useState('waiting')
   const [checkingStatus, setCheckingStatus] = useState(false)
+  // "View receipt" on the success screen: idle | loading | missing (the PDF
+  // is generated asynchronously after activation, so it may not exist yet).
+  const [receiptState, setReceiptState] = useState('idle')
 
   // Server-authoritative price for the checkout screen. The client mirror
   // (getUpgradeQuoteForProfile) paints instantly as a placeholder; the
@@ -285,6 +293,44 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
     pollAbortRef.current.aborted = true
     capture('lenco_payment_cancelled', { planId: selectedPlanId, via: 'pending-screen' })
     onClose()
+  }
+
+  // Success screen's "Continue to my work": return the teacher to the exact
+  // route the paywall interrupted (if this checkout was reached from one and
+  // they've since navigated away — e.g. via "Compare plans" → /pricing).
+  // The studio's own draft system restores the form; the profile snapshot
+  // (AuthContext onSnapshot) has already refreshed the plan, so the gate
+  // that blocked them no longer fires. The record is stamped 'paid' (not
+  // consumed) so PostUpgradeContinuation can show the pick-up-where-you-
+  // left-off card inside the studio — that card consumes it.
+  function handleReturnToWork() {
+    const action = markPremiumActionPaid()
+    const here = location.pathname + location.search
+    const navigated = !!(action?.sourceRoute && action.sourceRoute !== here)
+    capture('paywall_return_to_work', {
+      tool: action?.tool || null,
+      reason: action?.reason || null,
+      navigated,
+    })
+    if (navigated) navigate(action.sourceRoute)
+    onClose()
+  }
+
+  // The receipt PDF is generated + emailed asynchronously after activation;
+  // open it when it's ready, otherwise reassure that it's on its way.
+  async function handleViewReceipt() {
+    if (receiptState === 'loading') return
+    setReceiptState('loading')
+    const uid = currentUser?.uid
+    const url = uid && paymentId
+      ? await resolveInvoicePdfUrl(`invoices/${uid}/${paymentId}.pdf`)
+      : null
+    if (url) {
+      setReceiptState('idle')
+      window.open(url, '_blank', 'noopener')
+    } else {
+      setReceiptState('missing')
+    }
   }
 
   async function handlePay() {
@@ -635,21 +681,69 @@ function LencoUpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
                 </div>
               </div>
 
-              {/* ── Success ─────────────────────────────────────── */}
+              {/* ── Success: return the teacher to their work ───── */}
               {payState === 'success' && (
                 <div className="text-center py-4">
                   <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-600">
                     <Icon as={Check} size="lg" strokeWidth={2.6} />
                   </div>
-                  <h3 className="text-xl font-black text-gray-800">Payment confirmed 🎉</h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {isUpgrade
-                      ? `You're now on ${plan.name}${renewalDateLabel ? `, renewing ${renewalDateLabel} as before` : ''}. A receipt is on its way to your email.`
-                      : `Your ${plan.name} plan is active for ${plan.durationDays} days. A receipt is on its way to your email.`}
+                  <h3 className="text-xl font-black text-gray-800">Payment successful! 🎉</h3>
+                  <p className="text-sm text-gray-700 mt-1 font-semibold">
+                    Your {plan.name} plan is now active.
                   </p>
-                  <Button variant="primary" size="lg" fullWidth className="mt-5" onClick={onClose}>
-                    Start learning
+                  <p className="text-sm text-gray-600 mt-1.5">
+                    Your work has been preserved — you can continue from where you stopped.
+                  </p>
+
+                  <dl className="mt-4 rounded-2xl bg-orange-50/70 border border-orange-100 px-4 py-3 text-sm text-left">
+                    <div className="flex justify-between gap-3 py-0.5">
+                      <dt className="text-gray-500">Plan</dt>
+                      <dd className="font-semibold text-gray-800">{plan.name}</dd>
+                    </div>
+                    <div className="flex justify-between gap-3 py-0.5">
+                      <dt className="text-gray-500">Amount paid</dt>
+                      <dd className="font-semibold text-gray-800">K{effectivePrice}</dd>
+                    </div>
+                    {renewalDateLabel && (
+                      <div className="flex justify-between gap-3 py-0.5">
+                        <dt className="text-gray-500">{isUpgrade ? 'Renews on' : 'Active until'}</dt>
+                        <dd className="font-semibold text-gray-800">{renewalDateLabel}</dd>
+                      </div>
+                    )}
+                    {zambianPhoneDigits(phone) && (
+                      <div className="flex justify-between gap-3 py-0.5">
+                        <dt className="text-gray-500">Paid from</dt>
+                        <dd className="font-semibold text-gray-800">
+                          {`${zambianPhoneDigits(phone).slice(0, 4)} ••• ${zambianPhoneDigits(phone).slice(7)}`}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+
+                  {userEmail && (
+                    <p className="mt-3 rounded-xl bg-gray-50 px-4 py-2.5 text-xs text-gray-600">
+                      Receipt sent to <span className="font-semibold">{userEmail}</span>
+                    </p>
+                  )}
+
+                  <Button variant="primary" size="lg" fullWidth className="mt-4" onClick={handleReturnToWork}>
+                    Continue to my work
                   </Button>
+                  <button
+                    type="button"
+                    onClick={handleViewReceipt}
+                    disabled={receiptState === 'loading'}
+                    className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 hover:border-gray-400 disabled:opacity-60"
+                  >
+                    {receiptState === 'loading'
+                      ? <span className="flex items-center justify-center gap-2"><Icon as={Loader2} size="sm" className="animate-spin" /> Fetching receipt…</span>
+                      : 'View receipt'}
+                  </button>
+                  {receiptState === 'missing' && (
+                    <p className="mt-2 text-xs text-gray-500" role="status">
+                      Your receipt is still being prepared — it will be emailed to you shortly.
+                    </p>
+                  )}
                 </div>
               )}
 

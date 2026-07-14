@@ -3187,7 +3187,7 @@ exports.initiateLencoPayment = onCall({
   // must refresh its quote and re-confirm with the buyer. Legacy clients
   // that send nothing skip the check (the server amount is charged either
   // way; this only protects the display promise).
-  const {findReusableRecentPayment, quoteMismatch} = require("./paymentInitiationCore");
+  const {decideLockedInitiation, quoteMismatch} = require("./paymentInitiationCore");
   if (quoteMismatch(request.data?.expectedAmountZMW, amount)) {
     const renewal = projectRenewalDate(user, planId);
     throw new HttpsError(
@@ -3204,50 +3204,6 @@ exports.initiateLencoPayment = onCall({
     );
   }
 
-  // Duplicate-initiation guard: a fresh pending collection for the same
-  // plan + phone is the SAME purchase attempt (double-tap, reopened modal,
-  // refresh) — return it instead of pushing a second mobile-money prompt.
-  // A fresh SUCCESSFUL payment for the same purchase means the first attempt
-  // already completed (lost response + retry) — return it as already-paid
-  // instead of charging twice. Equality/in-only query, no composite index.
-  const recentSnap = await db.collection("payments")
-      .where("userId", "==", uid)
-      .where("status", "in", ["pending", "successful"])
-      .where("planId", "==", planId)
-      .limit(10)
-      .get();
-  const reusable = findReusableRecentPayment(
-      recentSnap.docs.map((d) => ({id: d.id, data: d.data()})),
-      {phone: rawPhone},
-  );
-  if (reusable) {
-    const existing = reusable.data;
-    if (existing.status === "successful") {
-      return {
-        paymentId: reusable.id,
-        reference: reusable.id,
-        status: "successful",
-        requiresOtp: false,
-        amountZMW: Number(existing.amountZMW) || amount,
-        reused: true,
-        alreadyPaid: true,
-        message: "This payment was already completed — your access is active.",
-        authorization: null,
-      };
-    }
-    const existingStatus = String(existing.lencoStatus || "pending");
-    return {
-      paymentId: reusable.id,
-      reference: reusable.id,
-      status: existingStatus,
-      requiresOtp: existingStatus === "otp-required",
-      amountZMW: Number(existing.amountZMW) || amount,
-      reused: true,
-      message: "Your payment request is already in progress — approve the prompt on your phone.",
-      authorization: null,
-    };
-  }
-
   const upgradeFields = quote.isUpgrade ? {
     isUpgrade: true,
     upgradeFromPlanId: quote.fromPlanId,
@@ -3259,27 +3215,92 @@ exports.initiateLencoPayment = onCall({
     ...(quote.expiry ? {intendedExpiry: admin.firestore.Timestamp.fromDate(quote.expiry)} : {}),
   } : {};
 
-  // Create the pending payment doc first; its id IS the Lenco reference,
-  // so the webhook resolves the doc by a direct lookup (no query/index).
-  const payRef = await db.collection("payments").add({
-    userId: uid,
-    displayName: user.displayName || "",
-    email: user.email || "",
-    userRole: user.role || "learner",
-    planId,
-    planName: plan.name,
-    amountZMW: amount,
-    currency: "ZMW",
-    provider: "lenco",
-    method,
-    phoneNumber,
-    operator,
-    paymentReference: "",
-    status: "pending",
-    lencoStatus: "pending",
-    ...upgradeFields,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  // Duplicate-initiation protection — ATOMIC. paymentLocks/{uid} points at
+  // the user's latest payment attempt (server-only collection: no Firestore
+  // rule matches it, so clients are default-denied). Inside one transaction
+  // we read the lock + the payment doc it points at, decide via the pure
+  // rules in paymentInitiationCore, and either return that attempt (same
+  // reference — double-tap, second tab, second device, repeated invocation,
+  // retry after a lost response) or create the new payment doc AND move the
+  // lock in the same commit. Concurrent requests serialize on the lock doc,
+  // so Lenco can never receive two initiations for one purchase attempt,
+  // and an attempt whose first response was lost after SUCCESS comes back
+  // as already-paid instead of charging twice.
+  //
+  // The payment doc id IS the Lenco reference, so the webhook resolves the
+  // doc by a direct lookup (no query/index).
+  const lockRef = db.collection("paymentLocks").doc(uid);
+  const newPayRef = db.collection("payments").doc();
+  const outcome = await db.runTransaction(async (tx) => {
+    const lockSnap = await tx.get(lockRef);
+    const lock = lockSnap.exists ? (lockSnap.data() || {}) : null;
+    let existing = null;
+    if (lock?.paymentId) {
+      const paySnap = await tx.get(db.collection("payments").doc(String(lock.paymentId)));
+      if (paySnap.exists) existing = {id: paySnap.id, data: paySnap.data() || {}};
+    }
+    const decision = decideLockedInitiation({existing, planId, phone: rawPhone});
+    if (decision.action !== "create") return decision;
+
+    tx.set(newPayRef, {
+      userId: uid,
+      displayName: user.displayName || "",
+      email: user.email || "",
+      userRole: user.role || "learner",
+      planId,
+      planName: plan.name,
+      amountZMW: amount,
+      currency: "ZMW",
+      provider: "lenco",
+      method,
+      phoneNumber,
+      operator,
+      paymentReference: "",
+      status: "pending",
+      lencoStatus: "pending",
+      ...upgradeFields,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    tx.set(lockRef, {
+      paymentId: newPayRef.id,
+      userId: uid,
+      planId,
+      phoneNumber,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return {action: "created"};
   });
+
+  if (outcome.action === "reuse-paid") {
+    const existing = outcome.payment.data;
+    return {
+      paymentId: outcome.payment.id,
+      reference: outcome.payment.id,
+      status: "successful",
+      requiresOtp: false,
+      amountZMW: Number(existing.amountZMW) || amount,
+      reused: true,
+      alreadyPaid: true,
+      message: "This payment was already completed — your access is active.",
+      authorization: null,
+    };
+  }
+  if (outcome.action === "reuse-pending") {
+    const existing = outcome.payment.data;
+    const existingStatus = String(existing.lencoStatus || "pending");
+    return {
+      paymentId: outcome.payment.id,
+      reference: outcome.payment.id,
+      status: existingStatus,
+      requiresOtp: existingStatus === "otp-required",
+      amountZMW: Number(existing.amountZMW) || amount,
+      reused: true,
+      message: "Your payment request is already in progress — approve the prompt on your phone.",
+      authorization: null,
+    };
+  }
+
+  const payRef = newPayRef;
   const reference = payRef.id;
 
   try {

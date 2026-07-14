@@ -206,6 +206,24 @@ async function run() {
     assert.strictEqual(out.status, "");
   });
 
+  // ── duplicate webhook delivery (Lenco retries on our 5xx, and can also
+  //    redeliver) — the processor routes BOTH deliveries to activation and
+  //    delegates dedup to activateSubscriptionFromPayment's transaction,
+  //    which no-ops once payments/{id}.status is already successful. This
+  //    pins that contract: same event twice → two activate calls, no error,
+  //    no markFailed — never a second entitlement path of its own. ─────────
+  await test("a duplicated successful event is safely routed twice to idempotent activation", async () => {
+    const {db} = fakeDb({docs: {pay_dup: {userId: "u1", status: "successful"}}});
+    const s = makeSinks();
+    const event = {event: "collection.successful", data: {reference: "pay_dup", status: "successful", amount: 75, currency: "ZMW"}};
+    const first = await processLencoWebhookEvent({event, db, activate: s.activate, markFailed: s.markFailed});
+    const second = await processLencoWebhookEvent({event, db, activate: s.activate, markFailed: s.markFailed});
+    assert.strictEqual(first.action, "activated");
+    assert.strictEqual(second.action, "activated");
+    assert.strictEqual(s.activateCalls.length, 2); // both delegated
+    assert.strictEqual(s.markFailedCalls.length, 0);
+  });
+
   console.log(`\n${passed} passed`);
 }
 

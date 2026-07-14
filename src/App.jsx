@@ -109,6 +109,7 @@ const ZedExamsSettings = lazy(() => import('./components/settings/zedexams-setti
 const TeacherSettings = lazy(() => import('./features/teacherSettings/TeacherSettings'))
 const LearnerSettings = lazy(() => import('./features/learnerSettings/LearnerSettings'))
 const PaywallHost = lazy(() => import('./components/subscription/PaywallHost'))
+const PostUpgradeContinuation = lazy(() => import('./components/subscription/PostUpgradeContinuation'))
 const NativePlayBillingSync = lazy(() => import('./components/native/NativePlayBillingSync'))
 const LockedFeatureModal = lazy(() => import('./components/subscription/LockedFeatureModal'))
 const QuizLimitPopup = lazy(() => import('./components/subscription/QuizLimitPopup'))
@@ -717,6 +718,9 @@ export default function App() {
         </RouteErrorBoundary>
         {/* Paywall — listens for paywall.show(reason, ctx) from anywhere */}
           <PaywallHost />
+          {/* "Pick up where you left off" card after a successful upgrade
+              returned the teacher to the studio a paywall interrupted. */}
+          <PostUpgradeContinuation />
           {/* Android only: restore/verify Google Play subscriptions on open.
               Gated so the web bundle never loads the billing chunk. */}
           {isNativePlatform() && <NativePlayBillingSync />}

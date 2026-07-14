@@ -28,6 +28,7 @@ import { buildWeekPrep } from '../../utils/prepareThisWeek'
 import { daysUntil, fmtDate, getActiveTerm, getCurrentForecastWeek, getNextTerm } from '../../utils/moeCalendar'
 import { capture } from '../../utils/analytics'
 import SeoHelmet from '../seo/SeoHelmet'
+import UsageReminderBanner from '../subscription/UsageReminderBanner'
 import AiRecommendations from './AiRecommendations'
 import PlanUsageCard from './PlanUsageCard'
 import PrepareThisWeek from './PrepareThisWeek'
@@ -868,6 +869,9 @@ export default function TeacherDashboard() {
           <Icon as={ArrowRight} size="sm" />
         </button>
       </form>
+
+      {/* ── Soft usage reminder (~80% of an allowance used) ───────── */}
+      <UsageReminderBanner />
 
       {/* ── Prepare This Week (weekly preparation guide) ──────────── */}
       <PrepareThisWeek
