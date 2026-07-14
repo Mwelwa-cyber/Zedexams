@@ -79,6 +79,134 @@ export function paperGradeOptions(framework = '2023') {
   return String(framework) === '2013' ? PREVIOUS_GRADE_OPTIONS : CBC_GRADE_OPTIONS
 }
 
+// ── Level identity + ordering (normalized IDs) ───────────────────────────────
+// Every selectable level carries a STABLE id, its OFFICIAL label, an education
+// stage and an EXPLICIT sort order so pickers never sort alphabetically (which
+// interleaves "Grade 10" between "Grade 1" and "Grade 2", or lists Form 1
+// before Grade 1). The `value` stays the KB-pipeline token the syllabus lookups
+// + generators already speak — a bare number for primary grades, 'G8'..'G12'
+// for the forms displayed as Form 1..5, and 'ECE_N'/'ECE_R' for the two ECE
+// bands — so nothing downstream has to change to gain proper Form/Nursery
+// labels. A Form is NEVER relabelled as a Grade: G8 is "Form 1", not "Grade 8".
+export const LEVEL_STAGE_LABELS = {
+  ece: 'Early Childhood',
+  primary: 'Primary',
+  secondary: 'Secondary',
+}
+
+const LEVEL_META = (() => {
+  const m = {
+    ECE_N: { id: 'nursery', label: 'Nursery', stage: 'ece', order: 10 },
+    ECE_R: { id: 'reception', label: 'Reception', stage: 'ece', order: 20 },
+  }
+  // Primary grades 1–7 → bare-number values, order 40..100.
+  for (let n = 1; n <= 7; n++) {
+    m[String(n)] = { id: `grade-${n}`, label: `Grade ${n}`, stage: 'primary', order: 30 + n * 10 }
+  }
+  // Forms 1–5 → KB codes G8..G12, order 110..150 (always AFTER every grade).
+  for (let n = 1; n <= 5; n++) {
+    m[`G${n + 7}`] = { id: `form-${n}`, label: `Form ${n}`, stage: 'secondary', order: 100 + n * 10 }
+  }
+  return m
+})()
+
+// A legacy paper saved before secondary was surfaced as forms carries a bare
+// secondary grade token ('8'..'12') that literally meant "Grade 8"…"Grade 12".
+// Per the backward-compatibility rule we must NOT silently convert those to
+// forms — keep the historical "Grade N" label and flag them as legacy.
+export function isLegacySecondaryGrade(value) {
+  const n = Number(String(value ?? '').trim())
+  return Number.isInteger(n) && n >= 8 && n <= 12
+}
+
+/**
+ * Normalized level descriptor for a picker/stored value:
+ *   { id, label, stage, order }
+ * Recognises the canonical option values, human labels ('Grade 4', 'Form 1',
+ * 'Nursery') and legacy bare secondary numbers. Unknown values degrade to a
+ * best-effort label so a paper never crashes on an unexpected grade token.
+ */
+export function paperLevel(value) {
+  const raw = String(value ?? '').trim()
+  if (!raw) return null
+  if (LEVEL_META[raw]) return { value: raw, ...LEVEL_META[raw] }
+  // Legacy bare secondary number → keep "Grade N", flag it.
+  if (isLegacySecondaryGrade(raw)) {
+    const n = Number(raw)
+    return { value: raw, id: `grade-${n}`, label: `Grade ${n}`, stage: 'secondary', order: 100 + (n - 7) * 10, legacy: true }
+  }
+  // Human labels the studio sometimes stores ('Grade 4', 'Form 1', 'Nursery').
+  const lower = raw.toLowerCase()
+  if (lower === 'nursery') return { value: 'ECE_N', ...LEVEL_META.ECE_N }
+  if (lower === 'reception') return { value: 'ECE_R', ...LEVEL_META.ECE_R }
+  const form = lower.match(/^form\s*(\d)$/)
+  if (form) {
+    const code = `G${Number(form[1]) + 7}`
+    if (LEVEL_META[code]) return { value: code, ...LEVEL_META[code] }
+  }
+  const grade = lower.match(/^grade\s*(\d{1,2})$/)
+  if (grade) {
+    const n = Number(grade[1])
+    if (LEVEL_META[String(n)]) return { value: String(n), ...LEVEL_META[String(n)] }
+    if (n >= 8 && n <= 12) {
+      return { value: String(n), id: `grade-${n}`, label: `Grade ${n}`, stage: 'secondary', order: 100 + (n - 7) * 10, legacy: true }
+    }
+  }
+  return { value: raw, id: raw, label: raw, stage: 'unknown', order: 999 }
+}
+
+/** Official display label for a grade/level value ('Grade 4' / 'Form 1' / 'Nursery'). */
+export function paperGradeLabel(value) {
+  return paperLevel(value)?.label || String(value ?? '')
+}
+
+/** Sort level descriptors/options into the fixed educational order. */
+export function orderLevels(levels) {
+  return [...(levels || [])].sort((a, b) => (a?.order ?? 999) - (b?.order ?? 999))
+}
+
+/**
+ * Enriched, ordered level options for a curriculum framework — the same values
+ * paperGradeOptions returns, decorated with { id, label, stage, order, group }.
+ */
+export function paperLevelOptions(framework = '2023') {
+  return orderLevels(
+    paperGradeOptions(framework).map((o) => {
+      const meta = LEVEL_META[o.value] || paperLevel(o.value)
+      return {
+        value: o.value,
+        label: meta?.label || o.label,
+        id: meta?.id,
+        stage: meta?.stage,
+        order: meta?.order,
+        group: LEVEL_STAGE_LABELS[meta?.stage] || 'Other',
+      }
+    }),
+  )
+}
+
+/**
+ * The levels genuinely available for a curriculum, given the set of KB grade
+ * codes that actually have syllabus records under it. This is the source of
+ * truth the pickers use: a level is shown ONLY when the Syllabi Studio carries
+ * data for it under the selected curriculum — no universal Grade 1–12 list.
+ *
+ * @param {object} args
+ * @param {'cbc'|'previous'|'2023'|'2013'} args.curriculumId
+ * @param {Iterable<string>|null} args.gradeCodes  KB codes present in the syllabus
+ *   (e.g. ['G4','G8','ECE_N']). When null/undefined the full curriculum list is
+ *   returned (the syllabus index hasn't resolved yet) rather than an empty one.
+ * @returns enriched, ordered level options
+ */
+export function getAvailableLevels({ curriculumId = 'cbc', gradeCodes = null } = {}) {
+  const framework = curriculumId === 'previous' || curriculumId === '2013' ? '2013' : '2023'
+  const all = paperLevelOptions(framework)
+  if (!gradeCodes) return all
+  const present = gradeCodes instanceof Set ? gradeCodes : new Set(gradeCodes)
+  if (present.size === 0) return []
+  return all.filter((o) => present.has(studioGradeToKbGrade(o.value)))
+}
+
 // Coerce a grade arriving from the studio header (bare '4'…'12', 'Grade 8'),
 // a legacy paper (KB code 'G10'), or a form label ('Form 2') into the value
 // scheme the modal's grade <select> uses: primary grades stay bare numbers,

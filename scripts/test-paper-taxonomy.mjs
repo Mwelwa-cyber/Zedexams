@@ -16,6 +16,8 @@ import {
   maxTopicsFor, isCumulativeType, subjectLabel, toKbSubjectKey,
   studioGradeToKbGrade, FALLBACK_SUBJECT_KEYS,
   assessmentRouteBase, assessmentEditPath,
+  paperLevel, paperGradeLabel, paperLevelOptions, getAvailableLevels,
+  orderLevels, isLegacySecondaryGrade, LEVEL_STAGE_LABELS,
 } from '../src/components/teacher/paperTaxonomy.js'
 
 let passed = 0
@@ -188,5 +190,89 @@ eq(assessmentEditPath({ id: 'xyz', assessmentType: undefined }),
   '/teacher/test-papers/xyz/edit', 'untyped paper defaults to test-papers')
 eq(assessmentEditPath({ assessmentType: 'topic_test' }), null, 'no id → null (no broken link)')
 eq(assessmentEditPath(null), null, 'null assessment → null')
+
+// ── Level catalogue: normalized ids + official labels ────────────────────
+// Every level carries a stable id, official label, stage and explicit order.
+eq(paperLevel('ECE_N').id, 'nursery', 'ECE_N id = nursery')
+eq(paperLevel('ECE_N').label, 'Nursery', 'ECE_N label = Nursery')
+eq(paperLevel('ECE_N').stage, 'ece', 'ECE_N stage = ece')
+eq(paperLevel('ECE_R').label, 'Reception', 'ECE_R label = Reception')
+eq(paperLevel('4').id, 'grade-4', 'grade 4 id')
+eq(paperLevel('4').label, 'Grade 4', 'grade 4 label')
+eq(paperLevel('4').stage, 'primary', 'grade 4 stage')
+// A Form is NEVER relabelled a Grade: G8 is Form 1, not Grade 8.
+eq(paperLevel('G8').id, 'form-1', 'G8 id = form-1')
+eq(paperLevel('G8').label, 'Form 1', 'G8 label = Form 1 (never "Grade 8")')
+eq(paperLevel('G12').label, 'Form 5', 'G12 label = Form 5')
+eq(paperLevel('G8').stage, 'secondary', 'G8 stage = secondary')
+// Human labels + KB codes normalise to the same canonical value.
+eq(paperLevel('Nursery').value, 'ECE_N', 'label Nursery → ECE_N')
+eq(paperLevel('Form 1').value, 'G8', 'label Form 1 → G8')
+eq(paperLevel('Grade 4').value, '4', 'label Grade 4 → 4')
+eq(paperGradeLabel('G10'), 'Form 3', 'paperGradeLabel(G10) = Form 3')
+eq(paperGradeLabel('ECE_N'), 'Nursery', 'paperGradeLabel(ECE_N) = Nursery')
+eq(paperGradeLabel('5'), 'Grade 5', 'paperGradeLabel(5) = Grade 5')
+
+// ── Legacy secondary grades (backward compatibility) ─────────────────────
+// A saved bare '8'..'12' meant Grade 8..12 — keep it, flag legacy, DON'T
+// convert to a Form.
+ok(isLegacySecondaryGrade('8') && isLegacySecondaryGrade('12'), 'bare 8/12 are legacy secondary')
+ok(!isLegacySecondaryGrade('7') && !isLegacySecondaryGrade('G8'), 'G7 + form-code are not legacy secondary')
+eq(paperLevel('8').label, 'Grade 8', 'legacy bare 8 keeps "Grade 8"')
+eq(paperLevel('8').legacy, true, 'legacy bare 8 flagged')
+eq(paperLevel('8').value, '8', 'legacy bare 8 keeps its value (not converted to G8/Form 1)')
+
+// ── Ordering: educational, never alphabetical ────────────────────────────
+const orderedCbc = paperLevelOptions('2023').map((o) => o.label)
+eq(orderedCbc[0], 'Nursery', 'CBC ordering starts at Nursery')
+eq(orderedCbc[1], 'Reception', 'Reception is second')
+// Grade 10 would sort before Grade 2 alphabetically; the explicit order avoids
+// that and always lists every Form AFTER every Grade.
+const idxGrade1 = orderedCbc.indexOf('Grade 1')
+const idxGrade6 = orderedCbc.indexOf('Grade 6')
+const idxForm1 = orderedCbc.indexOf('Form 1')
+ok(idxGrade1 < idxGrade6 && idxGrade6 < idxForm1, 'Grade 1 < Grade 6 < Form 1 (educational order)')
+// orderLevels sorts a shuffled set back into order.
+const shuffled = [paperLevel('G8'), paperLevel('ECE_N'), paperLevel('4')]
+eq(orderLevels(shuffled).map((l) => l.label).join(','), 'Nursery,Grade 4,Form 1', 'orderLevels sorts by order')
+ok(Object.keys(LEVEL_STAGE_LABELS).length >= 3, 'stage labels exist for grouping')
+
+// ── getAvailableLevels: curriculum-specific, syllabus-driven ─────────────
+// The full curriculum list when the syllabus index hasn't resolved (null) —
+// never an empty picker, never a generic 1–12.
+const cbcAll = getAvailableLevels({ curriculumId: 'cbc', gradeCodes: null }).map((l) => l.value)
+ok(cbcAll.includes('ECE_N') && cbcAll.includes('4') && cbcAll.includes('G8'),
+  'CBC full list includes ECE + grades + forms')
+ok(!cbcAll.includes('7'), 'CBC has no Grade 7')
+ok(!cbcAll.includes('G12'), 'CBC has no Form 5')
+
+const prevAll = getAvailableLevels({ curriculumId: 'previous', gradeCodes: null }).map((l) => l.value)
+ok(prevAll.includes('7'), 'previous curriculum keeps Grade 7')
+ok(prevAll.includes('G12'), 'previous curriculum has Form 5')
+ok(!prevAll.includes('ECE_N'), 'previous curriculum has no ECE bands')
+// CBC and OBC return DIFFERENT lists (the reported bug: identical grade sets).
+ok(JSON.stringify(cbcAll) !== JSON.stringify(prevAll), 'CBC and OBC level lists differ')
+
+// Only levels with syllabus records are shown. Grade 10 (a form under CBC =
+// G10) is hidden when the syllabus carries no G10 rows.
+const cbcPresent = getAvailableLevels({
+  curriculumId: 'cbc', gradeCodes: new Set(['ECE_N', 'G4', 'G8']),
+}).map((l) => l.value)
+eq(cbcPresent.join(','), 'ECE_N,4,G8', 'only syllabus-present levels shown, in order')
+ok(!cbcPresent.includes('G10'), 'Grade 10 (G10) not shown when absent from the syllabus')
+// An empty present-set yields an empty list (caller shows the empty state) —
+// NOT a silent fall-back to Grade 1–12.
+eq(getAvailableLevels({ curriculumId: 'cbc', gradeCodes: new Set() }).length, 0,
+  'no syllabus levels → empty (explicit empty state, no 1–12 fallback)')
+// Nursery + Reception surface correctly when their age-band sheets are present.
+const ece = getAvailableLevels({
+  curriculumId: 'cbc', gradeCodes: new Set(['ECE_N', 'ECE_R']),
+}).map((l) => l.label)
+eq(ece.join(','), 'Nursery,Reception', 'Nursery + Reception display correctly')
+// Form 1–5 surface (previous curriculum) with correct labels + order.
+const forms = getAvailableLevels({
+  curriculumId: 'previous', gradeCodes: new Set(['G8', 'G9', 'G10', 'G11', 'G12']),
+}).map((l) => l.label)
+eq(forms.join(','), 'Form 1,Form 2,Form 3,Form 4,Form 5', 'Form 1–5 display in order')
 
 console.log(`✓ paper-taxonomy: ${passed} assertions passed`)

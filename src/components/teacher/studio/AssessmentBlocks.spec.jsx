@@ -44,6 +44,14 @@ vi.mock('../AssessmentQuestionBlock', () => ({ QuestionBlock: () => null }))
 // firebase-free and deterministic.
 vi.mock('../syllabusTopicOptions', () => ({
   useStudioSubjectChoices: () => ({ options: ['English', 'Mathematics'], loading: false }),
+  useSyllabusLevelOptions: () => ({
+    levels: [
+      { value: 'ECE_N', label: 'Nursery', group: 'Early Childhood' },
+      { value: '4', label: 'Grade 4', group: 'Primary' },
+      { value: 'G8', label: 'Form 1', group: 'Secondary' },
+    ],
+    loading: false,
+  }),
   normalizeStudioFramework: (v) => (String(v || '') === '2013' ? '2013' : '2023'),
   CURRICULUM_FRAMEWORKS: [
     { value: '2023', label: 'New CBC (2023)' },

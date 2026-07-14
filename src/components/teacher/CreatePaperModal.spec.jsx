@@ -32,6 +32,18 @@ vi.mock('./syllabusTopicOptions', () => ({
     subtopics: SUBTOPICS,
     loading: false,
   }),
+  // Curriculum-aware level list (includes Grade 4 so the seeded grade stays
+  // valid for both frameworks) — mirrors the shape useSyllabusLevelOptions returns.
+  useSyllabusLevelOptions: (framework) => ({
+    levels: String(framework) === '2013'
+      ? [{ value: '1', label: 'Grade 1' }, { value: '4', label: 'Grade 4' },
+         { value: '7', label: 'Grade 7' }, { value: 'G8', label: 'Form 1' },
+         { value: 'G12', label: 'Form 5' }]
+      : [{ value: 'ECE_N', label: 'Nursery' }, { value: '1', label: 'Grade 1' },
+         { value: '4', label: 'Grade 4' }, { value: '6', label: 'Grade 6' },
+         { value: 'G8', label: 'Form 1' }, { value: 'G11', label: 'Form 4' }],
+    loading: false,
+  }),
 }))
 
 vi.mock('../../utils/teacherTools', () => ({

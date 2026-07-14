@@ -2,14 +2,15 @@
 //
 // The Lesson Plan Studio's "Create for this lesson" bar deep-links into the
 // companion studios with CBC query params (grade=G5, subject=mathematics,
-// topic, term). AssessmentStudio uses its own flat lists (STUDIO_GRADES '1'–'12'
-// and 8 display-name STUDIO_SUBJECTS), so the CBC values need converting — and
-// any value that has no studio equivalent (secondary-only subjects, ECE grades)
-// must fall back to the form default rather than wedge an invalid <select>
-// value. This module owns that mapping so it stays unit-testable.
+// topic, term). AssessmentStudio's level picker now speaks the curriculum-aware
+// level scheme (bare numbers for primary grades, 'G8'…'G12' for the forms, ECE
+// bands), so a CBC grade code maps straight through — a Form-1 (G8) kit seeds
+// Form 1, an ECE kit seeds Nursery, and nothing is relabelled a Grade. Subjects
+// with no studio equivalent (secondary-only subjects) still fall back to the
+// form default. This module owns that mapping so it stays unit-testable.
 
-import { STUDIO_GRADES, STUDIO_SUBJECTS } from './assessmentStudioMeta'
-import { subjectLabel } from './paperTaxonomy'
+import { STUDIO_SUBJECTS } from './assessmentStudioMeta'
+import { subjectLabel, normalizePaperGrade, isPaperGrade } from './paperTaxonomy'
 
 // CBC subject slug → one of AssessmentStudio's 8 subjects. Secondary-only
 // subjects (biology, geography, history, …) have no studio equivalent and are
@@ -42,7 +43,7 @@ function studioSubjectFromCbc(slug) {
 /**
  * Convert lesson-kit query params into AssessmentStudio form overrides.
  * Accepts a URLSearchParams (or anything with a .get(key) method). Only values
- * valid for the studio's flat grade/subject/term lists are returned; everything
+ * valid for the studio's level/subject/term scheme are returned; everything
  * else is omitted so the caller keeps its default.
  *
  * @returns {{ grade?: string, subject?: string, topic?: string, term?: string }}
@@ -53,8 +54,9 @@ export function assessmentDefaultsFromParams(params) {
 
   const rawGrade = get('grade')
   if (rawGrade) {
-    const g = String(rawGrade).replace(/^G/i, '').trim()
-    if (STUDIO_GRADES.includes(g)) out.grade = g
+    // 'G5' → '5', 'G8' → 'G8' (Form 1), 'ECE'/'ECE_N' → 'ECE_N'; unknown → omit.
+    const g = normalizePaperGrade(rawGrade)
+    if (isPaperGrade(g)) out.grade = g
   }
 
   const subject = studioSubjectFromCbc(get('subject'))
