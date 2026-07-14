@@ -591,7 +591,7 @@ export default function LibraryItemDetail() {
   // the same kind already exists, ask before creating another (duplicate guard).
   const KIT_ROUTES = { worksheet: '/teacher/generate/worksheet', homework: '/teacher/generate/homework' }
   const [creatingKit, setCreatingKit] = useState(false)
-  const [dupPrompt, setDupPrompt] = useState(null) // { tool, existingId, url }
+  const [dupPrompt, setDupPrompt] = useState(null) // { tool, url, title, when, status }
 
   function goToKitStudio(tool) {
     const seed = inheritFromLessonPlan(item, readActiveAssignmentSeed(currentUser?.uid))
@@ -603,18 +603,33 @@ export default function LibraryItemDetail() {
     if (!item || !KIT_ROUTES[tool] || creatingKit) return
     setCreatingKit(true)
     try {
-      // Detect an existing worksheet/homework already linked to this plan.
+      // Detect an existing worksheet/homework already linked to this plan. This
+      // only scans the recent library (listMyGenerations caps at 60), so an
+      // older linked resource can be missed — a missed convenience warning, not
+      // a correctness issue.
       let existing = null
+      let lookupFailed = false
       try {
         const rows = await listMyGenerations({ uid: currentUser?.uid, tool })
         existing = (rows || []).find((r) => r?.inputs?.sourceLessonPlanId === item.id) || null
       } catch {
-        // A failed lookup must not block creation — fall through to open the
-        // studio (worst case a duplicate, which the teacher can delete).
-        existing = null
+        // A failed lookup must never block creation — tell the teacher we
+        // couldn't check, then continue (worst case a duplicate they can delete).
+        lookupFailed = true
+      }
+      if (lookupFailed) {
+        toast.info('We could not check for an existing linked resource. Continuing.')
+        goToKitStudio(tool)
+        return
       }
       if (existing) {
-        setDupPrompt({ tool, existingId: existing.id, url: `/teacher/library/${existing.id}` })
+        setDupPrompt({
+          tool,
+          url: `/teacher/library/${existing.id}`,
+          title: titleForGeneration(existing),
+          when: formatDate(existing.updatedAt || existing.createdAt),
+          status: existing.status || '',
+        })
         return
       }
       goToKitStudio(tool)
@@ -1134,6 +1149,14 @@ export default function LibraryItemDetail() {
         message={
           <div>
             <p>You already created one from this plan. Open it, or create another.</p>
+            {dupPrompt?.title && (
+              <div className="mt-2 rounded-lg border theme-border px-3 py-2 text-body-sm">
+                <div className="font-bold truncate">{dupPrompt.title}</div>
+                <div className="theme-text-muted">
+                  {[dupPrompt.when, dupPrompt.status].filter(Boolean).join(' · ')}
+                </div>
+              </div>
+            )}
             <button
               type="button"
               className="studio-btn-ghost mt-3"
