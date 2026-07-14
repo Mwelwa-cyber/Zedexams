@@ -17,6 +17,7 @@ import { lazy, Suspense } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { resolveTeacherPlan } from '../../utils/teacherPlans'
 import PageLoader from '../ui/PageLoader'
+import UsageReminderBanner from '../subscription/UsageReminderBanner'
 
 const LockedStudio = lazy(() => import('./LockedStudio'))
 
@@ -30,5 +31,13 @@ export default function StudioGate({ tool, children }) {
       </Suspense>
     )
   }
-  return children
+  return (
+    <>
+      {/* Soft usage reminder (~80% of this studio's allowance) — a slim
+          dismissible strip, so a paying teacher approaching a cap is warned
+          BEFORE the contextual paywall interrupts a generation. */}
+      <UsageReminderBanner tool={tool} className="mt-3 px-1 sm:px-2" />
+      {children}
+    </>
+  )
 }
