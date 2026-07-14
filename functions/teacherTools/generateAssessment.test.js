@@ -42,6 +42,8 @@ function ok(name, cond) {
 const SERVER_TS = Symbol("serverTimestamp");
 let genDocs = {}; // id -> merged doc data
 let genSeq = 0;
+// Controls the stubbed classifySubjectForGrade (combination validation).
+let classifyResult = "unknown";
 
 const firestoreFn = () => ({
   collection: (name) => {
@@ -117,6 +119,9 @@ Module._load = function (request, ...rest) {
         kbVersion: "kb-test",
       }),
       getActiveKbVersion: async () => "kb-test",
+      // Controllable per assertion via `classifyResult`; defaults to the
+      // fail-open "unknown" so the existing valid-input runs are untouched.
+      classifySubjectForGrade: () => classifyResult,
     };
   }
   if (request === "./usageMeter") {
@@ -212,6 +217,7 @@ function reset() {
   calls.sourced.length = 0;
   refundImpl = async () => {};
   sourcedImpl = async () => ({questions: [], fromBank: 0, marks: 0, scanned: 0});
+  classifyResult = "unknown";
 }
 
 async function caught(promise) {
@@ -378,6 +384,39 @@ async function caught(promise) {
       freeRun.preview.truncated === true);
   ok("paid runs carry no preview marker", mixed.preview === null);
   USAGE.plan = "max";
+
+  // ── Combination validation: curriculum + level + subject ─────────────
+  console.log("\nvalidateInputs — curriculum/level/subject combination");
+  reset();
+  const {validateInputs, gradeLabelFor, subjectLabelFor} =
+    require("./generateAssessment");
+  // Fail-open: an unverified pair (classify → 'unknown') passes through so
+  // valid teaching combos without a digitised syllabus are never blocked.
+  classifyResult = "unknown";
+  ok("unknown combination is allowed (fail-open)",
+      validateInputs({grade: "G5", subject: "integrated_science", topic: "x",
+        framework: "2023"}).length === 0);
+  // A definitively-invalid CBC pair is rejected with the exact guidance.
+  classifyResult = "not_in_grade";
+  const comboErrs = validateInputs({grade: "G10", subject: "integrated_science",
+    topic: "x", framework: "2023"});
+  ok("invalid CBC combination is rejected", comboErrs.some((e) =>
+    e.includes("is not available for") &&
+    e.includes("valid curriculum, level and subject combination")));
+  ok("rejection names the subject + level (Form, not Grade)",
+      comboErrs.some((e) =>
+        e.startsWith("Integrated Science is not available for Form 3")));
+  // The 2013 framework has no authoritative CBC map — never blocked on combo.
+  ok("previous-curriculum combos are not blocked by the CBC check",
+      validateInputs({grade: "G10", subject: "integrated_science", topic: "x",
+        framework: "2013"}).length === 0);
+  // Label helpers: a Form is never relabelled a Grade.
+  ok("gradeLabelFor keeps forms as forms",
+      gradeLabelFor("G8") === "Form 1" && gradeLabelFor("G4") === "Grade 4");
+  ok("gradeLabelFor maps ECE bands", gradeLabelFor("ECE_N") === "Nursery");
+  ok("subjectLabelFor humanises keys",
+      subjectLabelFor("integrated_science") === "Integrated Science");
+  classifyResult = "unknown";
 
   Module._load = origLoad;
   console.log(`\n${passed} passed`);

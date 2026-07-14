@@ -66,7 +66,7 @@ import ScanPaperModal from './scan/ScanPaperModal'
 import ImportReviewScreen from './scan/ImportReviewScreen'
 import { importHasQuestions } from './scan/importReviewModel'
 import { studioGradeToKbGrade, studioSubjectToKey, normalizeStudioFramework } from './syllabusTopicOptions'
-import { subjectLabel as kbSubjectLabel, isExamPaperType } from './paperTaxonomy'
+import { subjectLabel as kbSubjectLabel, isExamPaperType, paperGradeLabel, paperLevel } from './paperTaxonomy'
 import { getStudioVariant } from './studioVariant'
 import { STUDIO_SUBJECTS, STUDIO_GRADES, ASSESSMENT_TYPE_LABELS as ASSESSMENT_TYPE_LABELS_META } from './assessmentStudioMeta'
 import {
@@ -137,11 +137,10 @@ const STUDIO_TO_LIBRARY_ASSESSMENT_TYPE = {
 }
 
 export const SUBJECTS = STUDIO_SUBJECTS
+// Kept for back-compat with importers/tests; the paper-header + AI pickers now
+// source their levels from the Syllabi Studio (useSyllabusLevelOptions), not
+// this flat curriculum-blind list.
 export const GRADES = STUDIO_GRADES
-const GRADE_WORDS = {
-  1: 'ONE', 2: 'TWO', 3: 'THREE', 4: 'FOUR', 5: 'FIVE', 6: 'SIX',
-  7: 'SEVEN', 8: 'EIGHT', 9: 'NINE', 10: 'TEN', 11: 'ELEVEN', 12: 'TWELVE',
-}
 export const TERMS = ['1', '2', '3']
 
 // Re-exported from assessmentStudioMeta.js — the canonical single source of
@@ -222,7 +221,11 @@ function mapAssessmentToForm(a = {}) {
   }
   copy('title')
   if (a.subject != null) out.subject = normalizeSubject(a.subject)
-  copy('grade', String)
+  // Normalise a saved grade into the picker's value scheme ('Grade 4' → '4',
+  // 'Nursery' → 'ECE_N', 'Form 1' → 'G8'). A legacy secondary "Grade 8"…"12"
+  // is deliberately kept as its bare number (NOT converted to a Form) so old
+  // papers open under their original level, flagged Legacy in the picker.
+  copy('grade', (g) => paperLevel(g)?.value ?? String(g))
   copy('term', String)
   copy('year')
   copy('duration')
@@ -257,7 +260,9 @@ function mapAssessmentToForm(a = {}) {
 }
 
 export function buildTitleFromForm(form) {
-  const gradeWord = GRADE_WORDS[form.grade] || form.grade
+  // Official level label ("GRADE 4" / "FORM 1" / "NURSERY"), so a Form paper is
+  // never mis-titled "GRADE 8" and an ECE paper never reads "GRADE ECE_N".
+  const levelWord = paperGradeLabel(form.grade).toUpperCase()
   const type = ASSESSMENT_TYPE_LABELS[form.assessmentType] || 'Assessment'
   const termBit = form.term ? `TERM ${form.term}` : ''
   const typeUpper = type.toUpperCase()
@@ -276,12 +281,12 @@ export function buildTitleFromForm(form) {
     typeFormatted = `${termBit} ${typeUpper}`
   }
   const year = form.year || new Date().getFullYear()
-  return `GRADE ${gradeWord} ${typeFormatted} - ${year}`
+  return `${levelWord} ${typeFormatted} - ${year}`
 }
 
 function buildFooterCode(form) {
   const parts = [
-    `G${form.grade || ''}`,
+    studioGradeToKbGrade(form.grade) || '',
     form.subject || '',
     `Term ${form.term || ''}`,
     String(form.year || new Date().getFullYear()),
@@ -1384,11 +1389,10 @@ export default function AssessmentStudio({ variant = 'test' }) {
     // it back to something human-readable for the header/exports.
     const aiSubjectLabel = aiPaperForm.subject
       ? kbSubjectLabel(aiPaperForm.subject) : ''
-    // The modal surfaces secondary grades as forms whose VALUE is the KB grade
-    // code ('G8'…'G12'); the studio form stores a bare grade token ('8'), which
-    // it interpolates elsewhere as `G${grade}`. Strip the G-prefix on the way
-    // back so those don't double up into 'GG8'.
-    const aiStudioGrade = String(aiPaperForm.grade || '').replace(/^G(?=\d)/, '')
+    // Builder + modal now share one level value scheme (bare number for primary
+    // grades, 'G8'…'G12' for the forms). Carry the modal's chosen value through
+    // verbatim so a Form paper stays a Form and is never relabelled a Grade.
+    const aiStudioGrade = String(aiPaperForm.grade || '')
     setForm(f => {
       const lastWithSchool = recentPapers.find(p => (p.schoolName || '').trim())
       const recentBranding = {
@@ -1580,7 +1584,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
     setSections(prev => hasOnlyEmptyStarterSection(prev)
       ? nextSections
       : [...prev, ...nextSections])
-    if (!form.title.trim()) setF('title', `Grade ${form.grade} ${form.subject} - ${aiReview.titleTopic}`)
+    if (!form.title.trim()) setF('title', `${paperGradeLabel(form.grade)} ${form.subject} - ${aiReview.titleTopic}`)
     const dropped = aiReview.droppedCount
     showToast(dropped
       ? `Added ${nextSections.length} question${nextSections.length === 1 ? '' : 's'} — ${dropped} incomplete ${dropped === 1 ? 'was' : 'were'} dropped.`
@@ -1921,7 +1925,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
     const totalMarksForSave = questionsForSave.reduce((sum, q) => sum + (q.marks || 1), 0)
     const library = classifyForLibrary({
       libraryType: LIBRARY_TYPES.ASSESSMENTS,
-      grade: `Grade ${form.grade}`,
+      grade: paperGradeLabel(form.grade),
       term: form.term,
       subject: STUDIO_TO_LIBRARY_SUBJECT[form.subject] || form.subject,
       assessmentType: STUDIO_TO_LIBRARY_ASSESSMENT_TYPE[form.assessmentType] || form.assessmentType,

@@ -12,7 +12,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useGenerationGate } from '../../hooks/useGenerationGate'
 import { aiAssessmentToStudioBlocks } from '../../utils/aiPaperToSections'
 import {
-  useSyllabusTopicOptions, useSyllabusSubjectOptions,
+  useSyllabusTopicOptions, useSyllabusSubjectOptions, useSyllabusLevelOptions,
 } from './syllabusTopicOptions'
 import { CurriculumPicker } from './studio/sections/CurriculumPicker'
 import './studio/lessonStudio.css'
@@ -205,19 +205,25 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
 
   const maxTopics = maxTopicsFor(form.assessmentType)
   const cumulative = isCumulativeType(form.assessmentType)
-  const gradeOptions = useMemo(() => paperGradeOptions(form.framework), [form.framework])
+  // Levels come from the Syllabi Studio for the chosen curriculum — the same
+  // ordered, curriculum-aware list the paper header shows. Never a flat 1–12.
+  const { levels: gradeOptions, loading: levelsLoading } =
+    useSyllabusLevelOptions(form.framework, form.grade)
+  const noLevels = !levelsLoading && gradeOptions.length === 0
 
-  // Keep the selected grade valid for the framework — e.g. Grade 7 doesn't
-  // exist under the 2023 curriculum, so switching to it snaps back to a
-  // valid grade (and drops the now-stale topics).
+  // Keep the selected grade valid for the curriculum — e.g. Grade 7 doesn't
+  // exist under CBC, so switching curriculum snaps back to the first available
+  // level (and drops the now-stale topics). Wait for the syllabi to settle so a
+  // transient empty list doesn't reset a legitimate seeded grade.
   useEffect(() => {
-    if (!paperGradeOptions(form.framework).some((g) => g.value === form.grade)) {
+    if (levelsLoading || gradeOptions.length === 0) return
+    if (!gradeOptions.some((g) => g.value === form.grade)) {
       setForm((f) => ({
-        ...f, grade: '4',
+        ...f, grade: gradeOptions[0].value,
         topics: [], topicInput: '', subtopics: [], subtopicInput: '',
       }))
     }
-  }, [form.framework, form.grade])
+  }, [levelsLoading, gradeOptions, form.grade])
 
   // Subjects come STRICTLY from the Syllabus Studio for this curriculum +
   // grade — no static fallback. CBC shows exactly the CBC syllabus subjects and
@@ -505,13 +511,19 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="sv-cpm-grid2">
               <div>
-                <label className="sv-cpm-label">Grade</label>
+                <label className="sv-cpm-label">Grade / level</label>
                 <select className="sv-cpm-input" value={form.grade}
+                  disabled={levelsLoading || noLevels}
                   onChange={(e) => setMeta('grade', e.target.value)}>
-                  {gradeOptions.map((g) => (
+                  {levelsLoading && <option value={form.grade}>Loading education levels…</option>}
+                  {noLevels && <option value="">No syllabus levels for this curriculum</option>}
+                  {!levelsLoading && !noLevels && gradeOptions.map((g) => (
                     <option key={g.value} value={g.value}>{g.label}</option>
                   ))}
                 </select>
+                {noLevels && (
+                  <p className="sv-cpm-hint">No syllabus levels are available for this curriculum.</p>
+                )}
               </div>
               <div>
                 <label className="sv-cpm-label">Subject</label>

@@ -19,7 +19,7 @@ const {
 } = require("../aiService");
 const {callClaude} = require("./anthropicClient");
 
-const {resolveCbcContext} = require("./cbcKnowledge");
+const {resolveCbcContext, classifySubjectForGrade} = require("./cbcKnowledge");
 const {
   ASSESSMENT_TYPES,
   resolveAssessmentFormatContext,
@@ -108,6 +108,42 @@ function sanitizeInputs(raw = {}) {
   };
 }
 
+// Human-readable grade label for the combination error. Mirrors the client
+// level catalogue: G1–G7 → "Grade N", G8–G12 → the forms "Form 1"…"Form 5",
+// ECE bands → Nursery / Reception. A Form is never relabelled a Grade.
+function gradeLabelFor(code) {
+  const g = String(code || "").toUpperCase();
+  if (g === "ECE_N") return "Nursery";
+  if (g === "ECE_R" || g === "ECE") return "Reception";
+  const m = g.match(/^G(\d{1,2})$/);
+  if (m) {
+    const n = Number(m[1]);
+    if (n >= 8 && n <= 12) return `Form ${n - 7}`;
+    return `Grade ${n}`;
+  }
+  const f = g.match(/^F(\d)$/);
+  if (f) return `Form ${f[1]}`;
+  return String(code || "");
+}
+
+function subjectLabelFor(key) {
+  const known = {
+    integrated_science: "Integrated Science",
+    social_studies: "Social Studies",
+    expressive_arts: "Expressive Arts",
+    technology_studies: "Technology Studies",
+    home_economics: "Home Economics",
+    zambian_language: "Zambian Language",
+    creative_and_technology_studies: "Creative & Technology Studies",
+    religious_education: "Religious Education",
+    civic_education: "Civic Education",
+    physical_education: "Physical Education",
+    environmental_science: "Environmental Science",
+  };
+  const k = String(key || "").trim();
+  return known[k] || k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 function validateInputs(inputs) {
   const errs = [];
   if (!inputs.grade || !ALLOWED_GRADES.has(inputs.grade)) {
@@ -118,6 +154,21 @@ function validateInputs(inputs) {
   }
   if (!inputs.topic) {
     errs.push("Please provide a topic.");
+  }
+  // Reject a definitively invalid curriculum/level/subject combination so bad
+  // paper metadata can never be saved. Fail-OPEN: classifySubjectForGrade
+  // returns 'unknown' for any grade without an authoritative subject list (and
+  // for the 2013 framework), so this only blocks pairs we KNOW are wrong —
+  // e.g. Integrated Science requested for a grade whose CBC syllabus omits it.
+  if (
+    inputs.grade && inputs.subject && inputs.framework === "2023" &&
+    classifySubjectForGrade(inputs.grade, inputs.subject) === "not_in_grade"
+  ) {
+    errs.push(
+        `${subjectLabelFor(inputs.subject)} is not available for ` +
+        `${gradeLabelFor(inputs.grade)} under the selected curriculum. ` +
+        "Please choose a valid curriculum, level and subject combination.",
+    );
   }
   return errs;
 }
@@ -402,5 +453,6 @@ function createGenerateAssessment(anthropicApiKeySecret) {
 module.exports = {
   createGenerateAssessment, runAssessment, sanitizeInputs,
   normalizeQuestionTypes,
+  validateInputs, gradeLabelFor, subjectLabelFor,
   ALLOWED_SUBJECTS, ALLOWED_GRADES,
 };

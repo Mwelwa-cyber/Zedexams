@@ -4,11 +4,15 @@ import { assessmentDefaultsFromParams } from './assessmentDeepLink'
 const params = (qs) => new URLSearchParams(qs)
 
 describe('assessmentDefaultsFromParams', () => {
-  it('strips the G prefix from a CBC grade and keeps it only when 1–12', () => {
+  it('maps a CBC grade code into the level scheme, keeping Forms as Forms', () => {
+    // Primary grade → bare number.
     expect(assessmentDefaultsFromParams(params('grade=G5')).grade).toBe('5')
-    expect(assessmentDefaultsFromParams(params('grade=G8')).grade).toBe('8')
-    // ECE / unknown grades have no studio equivalent → omitted (caller keeps default).
-    expect(assessmentDefaultsFromParams(params('grade=ECE')).grade).toBeUndefined()
+    // Secondary → its form code (G8 = Form 1), never collapsed to "Grade 8".
+    expect(assessmentDefaultsFromParams(params('grade=G8')).grade).toBe('G8')
+    // ECE seeds the Nursery band rather than being dropped.
+    expect(assessmentDefaultsFromParams(params('grade=ECE')).grade).toBe('ECE_N')
+    expect(assessmentDefaultsFromParams(params('grade=ECE_R')).grade).toBe('ECE_R')
+    // Out-of-range grades have no level equivalent → omitted (caller keeps default).
     expect(assessmentDefaultsFromParams(params('grade=G13')).grade).toBeUndefined()
     expect(assessmentDefaultsFromParams(params('')).grade).toBeUndefined()
   })

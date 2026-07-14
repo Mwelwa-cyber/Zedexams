@@ -13,13 +13,14 @@ import RichEditor from '../../editor/components/RichEditor.jsx'
 import { clampInt } from '../../utils/inputs.js'
 import AiGenerationProgress from '../ui/AiGenerationProgress'
 import {
-  useSyllabusTopicOptions, useStudioSubjectChoices, normalizeStudioFramework,
+  useSyllabusTopicOptions, useStudioSubjectChoices, useSyllabusLevelOptions,
+  normalizeStudioFramework,
 } from './syllabusTopicOptions'
 import { QUIZ_DOCUMENT_ACCEPT } from '../quiz/documentQuizImporter'
 import { PaperBlock } from './views/PaperBlocks'
 import Icon from './studio/studioIcons'
 import { bloomLevel, BLOOM_LABELS, BLOOM_LEVELS } from '../../utils/assessmentBloom'
-import { STUDIO_GRADES } from './assessmentStudioMeta'
+import { paperGradeLabel } from './paperTaxonomy'
 import {
   BalanceDifficultyAction,
   BloomBalanceAction,
@@ -509,6 +510,13 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
   const { options: subjectChoices, loading: subjectsLoading } =
     useStudioSubjectChoices(form.grade, framework, form.subject)
   const noSubjects = !subjectsLoading && subjectChoices.length === 0
+  // Levels come from the Syllabi Studio for the paper's curriculum — the same
+  // curriculum-aware, ordered list the paper header shows (Nursery … Form N),
+  // never a flat Grade 1–12. This picker writes straight to the shared paper
+  // state, so header + AI assistant can never disagree on the level.
+  const { levels: levelOptions, loading: levelsLoading } =
+    useSyllabusLevelOptions(framework, form.grade)
+  const noLevels = !levelsLoading && levelOptions.length === 0
   // A pending review batch takes over the slide: the generated questions
   // must be accepted or discarded before the tool list distracts from them.
   if (review) {
@@ -542,7 +550,7 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
           <Icon name="ai" size={15} /> Create paper with AI
         </button>
         <div className="sv-ai-msg" style={{ marginBottom: 16 }}>
-          A full {form.subject} paper for Grade {form.grade} — pick the topics,
+          A full {form.subject} paper for {paperGradeLabel(form.grade)} — pick the topics,
           marks and question types, and it lands here as editable blocks with a
           marking key.
         </div>
@@ -555,13 +563,16 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
 
         <div className="sv-field-grid two" style={{ marginBottom: 12 }}>
           <div className="sv-field">
-            <label>Grade</label>
+            <label>Grade / level</label>
             <select
               value={form.grade}
+              disabled={levelsLoading || noLevels}
               onChange={e => { onUpdatePaperMeta?.('grade', e.target.value); setAiForm(prev => ({ ...prev, topics: [], subtopics: [], topic: '' })) }}
             >
-              {STUDIO_GRADES.map(g => (
-                <option key={g} value={g}>Grade {g}</option>
+              {levelsLoading && <option value={form.grade}>Loading education levels…</option>}
+              {noLevels && <option value="">No syllabus levels for this curriculum</option>}
+              {!levelsLoading && !noLevels && levelOptions.map(lvl => (
+                <option key={lvl.value} value={lvl.value}>{lvl.label}</option>
               ))}
             </select>
           </div>

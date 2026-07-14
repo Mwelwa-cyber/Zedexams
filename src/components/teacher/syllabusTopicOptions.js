@@ -9,7 +9,7 @@ import { getMergedSyllabi } from '../../utils/syllabusKbService'
 import { syllabiToKbTopics } from '../../utils/syllabusMapping'
 import { extract2013TopicLookup } from '../../utils/syllabus2013Topics'
 import {
-  studioGradeToKbGrade, toKbSubjectKey, subjectLabel,
+  studioGradeToKbGrade, toKbSubjectKey, subjectLabel, getAvailableLevels, paperLevel,
 } from './paperTaxonomy'
 
 // Curriculum frameworks the pickers can suggest from. Values match the
@@ -138,6 +138,62 @@ export function useSyllabusSubjectOptions(grade, framework = '2023') {
     .map((key) => ({ key, label: subjectLabel(key) }))
     .sort((a, b) => a.label.localeCompare(b.label))
   return { subjects, loading }
+}
+
+/**
+ * Hook: the education levels (Nursery / Reception / Grade N / Form N) that
+ * genuinely have syllabus records for the chosen curriculum framework, as
+ * enriched, EDUCATIONALLY-ORDERED options ({ value, label, stage, group, … }).
+ *
+ * This is what replaces the flat, curriculum-blind "Grade 1–12" list in the
+ * paper studios: CBC and the previous syllabus each surface exactly the levels
+ * their own Syllabi Studio data covers (so the two never collapse to an
+ * identical hard-coded set), Forms stay labelled as Forms, and ordering is the
+ * fixed Nursery → Reception → Grade → Form sequence — never alphabetical.
+ *
+ * While the syllabus index is still loading `loading` is true and `levels`
+ * carries the full curriculum list (so the picker is usable immediately and
+ * never momentarily empty); once resolved it narrows to the levels actually on
+ * file. `currentValue` is always kept selectable so an existing paper never
+ * loses its saved grade — even a legacy one absent from the current data.
+ */
+export function useSyllabusLevelOptions(framework = '2023', currentValue = '') {
+  const fw = normalizeStudioFramework(framework)
+  const { lookup, loading } = useSyllabusLookup(fw)
+  const curriculumId = fw === '2013' ? 'previous' : 'cbc'
+
+  // Present KB grade codes = the "GRADE|subject" keys' grade halves.
+  let gradeCodes = null
+  if (lookup) {
+    gradeCodes = new Set()
+    for (const k of lookup.keys()) {
+      const code = String(k).split('|')[0]
+      if (code) gradeCodes.add(code)
+    }
+  }
+
+  const levels = getAvailableLevels({ curriculumId, gradeCodes })
+
+  // Guarantee the paper's own saved level stays pickable (legacy or narrowed
+  // out) so switching curriculum/loading never drops a valid current value.
+  const current = String(currentValue || '').trim()
+  if (current && !levels.some((o) => o.value === current)) {
+    const meta = paperLevel(current)
+    if (meta) {
+      levels.push({
+        value: current,
+        label: meta.legacy ? `${meta.label} (Legacy)` : meta.label,
+        id: meta.id,
+        stage: meta.stage,
+        order: meta.order,
+        group: meta.legacy ? 'Legacy' : 'Other',
+        legacy: !!meta.legacy,
+      })
+      levels.sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
+    }
+  }
+
+  return { levels, loading }
 }
 
 /**

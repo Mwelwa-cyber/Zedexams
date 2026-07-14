@@ -13,14 +13,44 @@ import { QuestionBlock } from '../AssessmentQuestionBlock'
 import { QUIZ_DOCUMENT_ACCEPT } from '../../quiz/documentQuizImporter'
 import {
   ASSESSMENT_TYPE_LABELS,
-  GRADES,
   TERMS,
   INSTRUCTION_PRESETS,
   buildTitleFromForm,
 } from '../AssessmentStudio'
 import {
-  useStudioSubjectChoices, normalizeStudioFramework, CURRICULUM_FRAMEWORKS,
+  useStudioSubjectChoices, useSyllabusLevelOptions,
+  normalizeStudioFramework, CURRICULUM_FRAMEWORKS,
 } from '../syllabusTopicOptions'
+import { LEVEL_STAGE_LABELS } from '../paperTaxonomy'
+
+/**
+ * Render an ordered level list as <optgroup>s by education stage (Early
+ * Childhood → Primary → Secondary → Legacy), preserving the fixed educational
+ * order the options already carry.
+ */
+function GroupedLevelOptions({ levels }) {
+  const order = [...Object.values(LEVEL_STAGE_LABELS), 'Other', 'Legacy']
+  const groups = new Map()
+  for (const lvl of levels) {
+    const g = lvl.group || 'Other'
+    if (!groups.has(g)) groups.set(g, [])
+    groups.get(g).push(lvl)
+  }
+  const groupNames = [...groups.keys()].sort(
+    (a, b) => (order.indexOf(a) === -1 ? 99 : order.indexOf(a)) - (order.indexOf(b) === -1 ? 99 : order.indexOf(b)),
+  )
+  return (
+    <>
+      {groupNames.map((name) => (
+        <optgroup key={name} label={name}>
+          {groups.get(name).map((lvl) => (
+            <option key={lvl.value} value={lvl.value}>{lvl.label}</option>
+          ))}
+        </optgroup>
+      ))}
+    </>
+  )
+}
 import Icon from './studioIcons'
 
 /* ==================================================================
@@ -96,6 +126,15 @@ export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, a
   const { options: subjectChoices, loading: subjectsLoading } =
     useStudioSubjectChoices(form.grade, framework, form.subject)
   const noSubjects = !subjectsLoading && subjectChoices.length === 0
+  // Levels come STRICTLY from the Syllabi Studio for this curriculum — no
+  // universal Grade 1–12 list. CBC and the previous syllabus each show only
+  // their own levels, Forms stay Forms, in fixed educational order.
+  const { levels: levelOptions, loading: levelsLoading } =
+    useSyllabusLevelOptions(framework, form.grade)
+  const noLevels = !levelsLoading && levelOptions.length === 0
+  // Changing the level invalidates the free-text topic (it belongs to a
+  // different syllabus page); the subject list re-scopes via the hooks above.
+  const changeGrade = (value) => { setF('grade', value); if (form.topic) setF('topic', '') }
 
   return (
     <div className="sv-block b-header">
@@ -139,10 +178,18 @@ export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, a
 
       <div className="sv-field-grid four" style={{ marginBottom: 'var(--sv-s3)' }}>
         <div className="sv-field">
-          <label>Grade</label>
-          <select value={form.grade} onChange={e => setF('grade', e.target.value)}>
-            {GRADES.map(g => <option key={g} value={g}>Grade {g}</option>)}
+          <label>Grade / level</label>
+          <select value={form.grade} onChange={e => changeGrade(e.target.value)}
+            disabled={levelsLoading || noLevels}>
+            {levelsLoading && <option value={form.grade}>Loading education levels…</option>}
+            {noLevels && <option value="">No syllabus levels for this curriculum</option>}
+            {!levelsLoading && !noLevels && <GroupedLevelOptions levels={levelOptions} />}
           </select>
+          {noLevels && (
+            <div style={{ fontSize: 11, color: 'var(--sv-muted)', marginTop: 4 }}>
+              No syllabus levels are available for this curriculum.
+            </div>
+          )}
         </div>
         <div className="sv-field">
           <label>{assessmentTypeLabel}</label>
