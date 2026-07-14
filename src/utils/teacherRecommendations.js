@@ -236,3 +236,89 @@ export function buildRecommendations({
     return true
   })
 }
+
+// Recommendations that are independent of any one grade/subject (they read the
+// whole test-paper list), so across a multi-class profile they're emitted once.
+const GLOBAL_REC_IDS = new Set(['draft-papers'])
+
+/** "Grade 5 · English" scope tag for a per-assignment recommendation. */
+function assignmentScopeLabel(a) {
+  const parts = []
+  const g = gradeLabelOf(a.grade)
+  if (g) parts.push(g)
+  const s = subjectLabelOf(a.subject)
+  if (s) parts.push(s)
+  return parts.join(' · ')
+}
+
+/**
+ * Whole-profile recommendations: run the per-context engine for EVERY active
+ * assignment so a teacher who handles several classes sees prep gaps across all
+ * of them, not just the active one. Per-assignment cards are tagged with a
+ * `scope` label + a class-unique id and interleaved round-robin (so every class
+ * surfaces before any repeats); profile-wide cards (draft papers) appear once.
+ *
+ * With one active assignment (or none), this is exactly the single-context
+ * `buildRecommendations` output — zero change for the common case.
+ */
+export function buildProfileRecommendations({
+  generations = [],
+  assessments = [],
+  calendar = null,
+  assignments = [],
+  profileSubject = '',
+  preferredSubject = '',
+  profileGrade = '',
+} = {}) {
+  const active = (Array.isArray(assignments) ? assignments : []).filter(
+    (a) => a && a.isActive !== false && a.subject,
+  )
+  if (active.length <= 1) {
+    // Pin to the single assignment when present; else fall back to the passed
+    // context (profile-less teachers keep today's behaviour exactly).
+    const a = active[0]
+    return buildRecommendations({
+      generations,
+      assessments,
+      calendar,
+      profileSubject: a ? a.subject : profileSubject,
+      preferredSubject: a ? a.subject : preferredSubject,
+      profileGrade: a ? a.grade : profileGrade,
+    })
+  }
+
+  const perAssignment = []
+  const globals = []
+  const globalSeen = new Set()
+  for (const a of active) {
+    const recs = buildRecommendations({
+      generations,
+      assessments,
+      calendar,
+      profileSubject: a.subject,
+      preferredSubject: a.subject,
+      profileGrade: a.grade,
+    })
+    const mine = []
+    for (const r of recs) {
+      if (GLOBAL_REC_IDS.has(r.id)) {
+        if (!globalSeen.has(r.id)) { globalSeen.add(r.id); globals.push(r) }
+        continue
+      }
+      mine.push({ ...r, id: `${r.id}::${a.grade}::${a.subject}`, scope: assignmentScopeLabel(a) })
+    }
+    perAssignment.push(mine)
+  }
+
+  // Round-robin interleave across classes, then the once-only profile cards.
+  const merged = []
+  for (let i = 0; ; i++) {
+    let any = false
+    for (const list of perAssignment) {
+      if (list[i]) { merged.push(list[i]); any = true }
+    }
+    if (!any) break
+  }
+  merged.push(...globals)
+  return merged
+}

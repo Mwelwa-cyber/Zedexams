@@ -5,7 +5,7 @@
  * when it is not (no false or padded recommendations).
  */
 
-import { buildRecommendations, subjectsTaught } from './teacherRecommendations.js'
+import { buildRecommendations, buildProfileRecommendations, subjectsTaught } from './teacherRecommendations.js'
 
 let passed = 0
 function check(name, cond) {
@@ -182,6 +182,43 @@ function ids(args) {
   ]
   const list = ids({ generations: gens, calendar: CAL, assessments: [{ id: 'a1', questionCount: 0, createdAt: IN_WEEK }] })
   check('every recommendation id is unique', new Set(list).size === list.length)
+}
+
+/* ── buildProfileRecommendations — whole-profile (all assignments) ── */
+{
+  const A = [
+    { grade: 'G4', subject: 'mathematics', isActive: true },
+    { grade: 'G5', subject: 'english', isActive: true },
+  ]
+  const drafts = [{ id: 'a1', questionCount: 0, createdAt: IN_WEEK }]
+  const list = buildProfileRecommendations({ calendar: CAL, assignments: A, assessments: drafts })
+  const byId = new Map(list.map((r) => [r.id, r]))
+
+  check('emits an unplanned-scheme card for EACH class',
+    byId.has('scheme-mathematics::G4::mathematics') && byId.has('scheme-english::G5::english'))
+  check('per-assignment cards carry a scope label',
+    byId.get('scheme-mathematics::G4::mathematics').scope === 'Grade 4 · Mathematics' &&
+    byId.get('scheme-english::G5::english').scope === 'Grade 5 · English')
+  check('a profile-wide card (draft papers) appears exactly once',
+    list.filter((r) => r.id === 'draft-papers').length === 1)
+  check('every id is unique across classes', new Set(list.map((r) => r.id)).size === list.length)
+  check('classes are interleaved (both surface before the global card)', (() => {
+    const g = list.findIndex((r) => r.id === 'draft-papers')
+    const m = list.findIndex((r) => r.id.startsWith('scheme-mathematics'))
+    const e = list.findIndex((r) => r.id.startsWith('scheme-english'))
+    return m < g && e < g
+  })())
+}
+
+/* single (or no) active assignment → identical to buildRecommendations */
+{
+  const one = [{ grade: 'G4', subject: 'english', isActive: true }]
+  const profile = buildProfileRecommendations({ calendar: CAL, assignments: one })
+  const single = buildRecommendations({ calendar: CAL, profileSubject: 'english', preferredSubject: 'english', profileGrade: 'G4' })
+  check('one active assignment matches single-context output',
+    JSON.stringify(profile.map((r) => r.id)) === JSON.stringify(single.map((r) => r.id)))
+  check('no assignments → no scope tags, unchanged behaviour',
+    buildProfileRecommendations({ calendar: CAL, assignments: [] }).every((r) => !r.scope))
 }
 
 console.log(`\nteacherRecommendations: ${passed} checks passed`)

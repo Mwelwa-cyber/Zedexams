@@ -23,7 +23,7 @@ import {
   buildCelebrations,
   formatTrend,
 } from '../../utils/teacherDashboardIntel'
-import { buildRecommendations } from '../../utils/teacherRecommendations'
+import { buildProfileRecommendations } from '../../utils/teacherRecommendations'
 import { buildWeekPrep } from '../../utils/prepareThisWeek'
 import { writeActiveAssignmentSeed } from '../../utils/activeAssignmentSeed'
 import { resolveActiveAssignmentId } from '../../utils/teachingProfileCore'
@@ -415,15 +415,16 @@ export default function TeacherDashboard() {
   // Actionable AI Recommendations (replaces the passive insights) — same
   // inputs, no extra reads; every card's condition is verified in data.
   const recommendations = useMemo(
-    () => buildRecommendations({
+    () => buildProfileRecommendations({
       generations,
       assessments,
       calendar: prepCalendar,
+      assignments: activeTeachingAssignments,
       profileSubject,
       profileGrade,
       preferredSubject: effectivePreferredSubject,
     }),
-    [generations, assessments, prepCalendar, profileSubject, profileGrade, effectivePreferredSubject],
+    [generations, assessments, prepCalendar, activeTeachingAssignments, profileSubject, profileGrade, effectivePreferredSubject],
   )
 
   const continueItems = useMemo(() => {
