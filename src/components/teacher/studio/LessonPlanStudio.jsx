@@ -68,10 +68,11 @@ const generateCallable = httpsCallable(functions, 'studioGenerateLessonPlan', { 
 
 // Teaching Kit tools surfaced once a plan exists. `id` drives openKitTool().
 const KIT_TOOLS = [
-  { id: 'worksheet', label: 'Worksheet',  icon: '📝' },
-  { id: 'homework',  label: 'Homework',   icon: '🏡' },
-  { id: 'notes',     label: 'Notes',      icon: '📚' },
-  { id: 'test',      label: 'Test Paper', icon: '📄' },
+  { id: 'worksheet',  label: 'Worksheet',  icon: '📝' },
+  { id: 'homework',   label: 'Homework',   icon: '🏡' },
+  { id: 'notes',      label: 'Notes',      icon: '📚' },
+  { id: 'flashcards', label: 'Flashcards', icon: '🎴' },
+  { id: 'test',       label: 'Test Paper', icon: '📄' },
 ]
 
 // Map a studioGenerateLessonPlan quota rejection to the matching upgrade
@@ -1121,9 +1122,11 @@ export default function LessonPlanStudio() {
     }
     const path = tool === 'homework'
       ? '/teacher/generate/homework'
-      : tool === 'test'
-        ? '/teacher/test-papers/new'
-        : '/teacher/generate/worksheet'
+      : tool === 'flashcards'
+        ? '/teacher/generate/flashcards'
+        : tool === 'test'
+          ? '/teacher/test-papers/new'
+          : '/teacher/generate/worksheet'
     navigate(path + buildGeneratorQueryString(withAlign))
   }, [kit, lastPlanJson, ensurePlanSaved, navigate])
 

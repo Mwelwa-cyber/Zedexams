@@ -27,7 +27,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
@@ -45,6 +45,8 @@ import {
   getCalendarYears, getTermWeeks, getCurrentForecastWeek,
 } from '../../../utils/moeCalendar'
 import { schemeWeeks, weekNumberOf, normalizeSchemeWeek, buildForecastDays } from '../../../utils/weeklyForecast'
+import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
+import StudioNextSteps from '../StudioNextSteps'
 import { weekTeachingAvailability, excludeHolidayWeekdays, holidaySummary, openMoveTargets } from '../../../utils/weeklyFocusHolidays'
 import {
   WEEKDAYS, buildTopicCatalog, subtopicsForTopic, dayFieldsFromTopic,
@@ -214,6 +216,19 @@ export default function WeeklyForecastStudio() {
   const [schemes, setSchemes] = useState([])
   const [schemesStatus, setSchemesStatus] = useState('loading')
   const [schemeId, setSchemeId] = useState('')
+  // Connected workflow (§14): the Scheme studio's "Create Weekly Focus"
+  // hand-off deep-links here with ?schemeId= so the freshly generated scheme
+  // arrives pre-selected in the picker — grade, subject and term then flow
+  // from the scheme itself. Applied once when the scheme list loads; the
+  // teacher's own picks always win afterwards.
+  const [searchParams] = useSearchParams()
+  const handoffSchemeId = searchParams.get('schemeId') || ''
+  const handoffAppliedRef = useRef(false)
+  useEffect(() => {
+    if (handoffAppliedRef.current || !handoffSchemeId || schemesStatus !== 'ready') return
+    handoffAppliedRef.current = true
+    if (schemes.some((s) => s.id === handoffSchemeId)) setSchemeId(handoffSchemeId)
+  }, [handoffSchemeId, schemes, schemesStatus])
   const [weekPick, setWeekPick] = useState('')
   // Curriculum-module fallback: when there's no saved scheme, the teacher can
   // load the term's uploaded modules and build the forecast from those.
@@ -1029,6 +1044,31 @@ export default function WeeklyForecastStudio() {
                 In your library — <Link to={`/teacher/library/${generationId}`} className="font-bold underline">open the saved copy</Link>.
               </p>
             )}
+            {generationId && (() => {
+              // Connected workflow (§14): the saved week's grade/subject/term
+              // + topics flow into the follow-up studios via their existing
+              // URL seeding. Lesson Plan Studio takes only the assignment
+              // seed today (its topics must come from curriculum rows), so
+              // that action opens it plainly.
+              const weekTopics = days.map((d) => String(d.topic || '').trim()).filter(Boolean)
+              const ctx = {
+                grade,
+                subject: subjectSlug,
+                term: header.term,
+                topic: weekTopics.join('; ').slice(0, 240),
+              }
+              return (
+                <StudioNextSteps
+                  context="weekly-focus"
+                  actions={[
+                    { key: 'lesson', label: 'Create this week’s lessons', to: '/teacher/generate/lesson-plan' },
+                    { key: 'worksheet', label: 'Create weekly worksheet', to: `/teacher/generate/worksheet${buildGeneratorQueryString(ctx)}` },
+                    { key: 'short-test', label: 'Create a short test', to: `/teacher/test-papers/new${buildGeneratorQueryString(ctx)}` },
+                    { key: 'record', label: 'Update Record of Work', to: '/teacher/generate/record-of-work' },
+                  ]}
+                />
+              )
+            })()}
             {artifact ? (
               <WeeklyForecastView forecast={artifact} />
             ) : (

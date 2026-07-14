@@ -26,6 +26,7 @@ import {
 import { LIBRARY_TYPES } from '../../../config/library'
 import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
 import FreePreviewUpsell from '../FreePreviewUpsell'
+import StudioNextSteps from '../StudioNextSteps'
 import { capture } from '../../../utils/analytics'
 import { resolveTeacherPlan, FREE_PREVIEW_LIMITS } from '../../../utils/teacherPlans'
 import { useToast } from '../../ui/Toast'
@@ -730,6 +731,29 @@ export default function SchemeOfWorkGenerator() {
                     text="Upgrade to generate the complete term, include school holidays and connect your Scheme of Work to Weekly Focus — this preview stays yours either way."
                   />
                 )}
+                {/* Connected workflow (§14): the freshly saved scheme flows
+                    straight into Weekly Focus (?schemeId pre-selects it, so
+                    grade/subject/term come from the scheme itself). */}
+                <StudioNextSteps
+                  context="scheme-of-work"
+                  actions={[
+                    {
+                      key: 'weekly-focus',
+                      label: 'Create Weekly Focus from this scheme',
+                      to: `/teacher/generate/weekly-forecast${generationId ? `?schemeId=${generationId}` : ''}`,
+                    },
+                    {
+                      // Plain link on purpose: the Lesson Plan Studio doesn't
+                      // read URL params (its topics must come from curriculum
+                      // rows); grade + subject arrive via the active
+                      // assignment seed it already consumes.
+                      key: 'lesson',
+                      label: 'Prepare Week 1 lessons',
+                      to: '/teacher/generate/lesson-plan',
+                    },
+                    { key: 'later', label: 'Save and return later', to: '/teacher' },
+                  ]}
+                />
                 {saveMsg && (
                   <div className="mb-4 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-900 px-4 py-2 text-sm">
                     ✓ {saveMsg}
