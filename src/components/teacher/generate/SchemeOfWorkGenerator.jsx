@@ -48,7 +48,9 @@ import { useStudioInputDraft } from '../../../hooks/draft/useStudioInputDraft'
 import { schemeInputDescriptor } from '../../../hooks/draft/descriptors'
 import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
 import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
-import { getCalendarYears } from '../../../utils/moeCalendar'
+import { getCalendarYears, getCurrentForecastWeek } from '../../../utils/moeCalendar'
+import { resolveSchemeTermYear, isOffCurrentTerm } from '../../../utils/schemeCalendarDefaults'
+import ConfirmDialog from '../../ui/ConfirmDialog'
 import {
   buildTermPlan,
   reserveWeeks,
@@ -92,11 +94,20 @@ export default function SchemeOfWorkGenerator() {
     }),
   )
   const [selectorKey, setSelectorKey] = useState(0)
+  // Open on the term the teacher is actually in, read from the School Calendar
+  // (falls back to Term 1 / current year between terms). A ?term= deep-link and
+  // a recovered draft still win (spread below / draft restore).
+  const calendarTermYear = useMemo(
+    () => resolveSchemeTermYear({
+      forecastWeek: getCurrentForecastWeek(),
+      calendarYears: CALENDAR_YEARS,
+      todayYear: new Date().getFullYear(),
+    }),
+    [],
+  )
   const [form, setForm] = useState(() => ({
-    term: 1,
-    year: CALENDAR_YEARS.includes(new Date().getFullYear())
-      ? new Date().getFullYear()
-      : CALENDAR_YEARS[0],
+    term: calendarTermYear.term,
+    year: calendarTermYear.year,
     weeksOverride: '', // '' = use the calendar's teaching-week count
     examWeeks: '', // comma-separated week numbers; '' → defaults to the last week
     revisionWeeks: '',
@@ -108,6 +119,9 @@ export default function SchemeOfWorkGenerator() {
     ...urlDefaults,
   }))
   const [curr, setCurr] = useState({})
+  // Impact confirmation for the "Use current term" one-click (never changes term
+  // silently; keeps + recalculates the teacher's reservations).
+  const [confirmUseCurrent, setConfirmUseCurrent] = useState(false)
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const isMounted = useIsMounted()
@@ -529,6 +543,20 @@ export default function SchemeOfWorkGenerator() {
                 onChange={(v) => updateField('year', Number(v))}
               />
             </div>
+            {isOffCurrentTerm(calendarTermYear, form) && (
+              <div className="text-sm flex flex-wrap items-center gap-2" style={{ color: '#566f76' }} role="status">
+                <span>📅 The national school calendar shows you're in <b>Term {calendarTermYear.term} {calendarTermYear.year}</b>.</span>
+                <button
+                  type="button"
+                  className="font-bold underline"
+                  style={{ color: '#0e2a32' }}
+                  title="Switch to the current calendar term, keeping your exam, revision and custom week reservations"
+                  onClick={() => setConfirmUseCurrent(true)}
+                >
+                  Use current term
+                </button>
+              </div>
+            )}
 
             {/* Calendar-derived teaching weeks + reservation */}
             <div className="rounded-xl border theme-border p-3.5 space-y-3" style={{ background: '#fbfaf5' }}>
@@ -814,6 +842,34 @@ export default function SchemeOfWorkGenerator() {
           )}
         </div>
       </div>
+
+      {/* "Use current term" impact confirmation — spells out that reservations
+          are kept + recalculated, and never resets the scheme. */}
+      <ConfirmDialog
+        open={confirmUseCurrent}
+        title={`Update to Term ${calendarTermYear.term}, ${calendarTermYear.year}?`}
+        message={
+          <div className="space-y-2">
+            <p>
+              This switches the Scheme of Work from <b>Term {form.term} {form.year}</b> to the current calendar term,{' '}
+              <b>Term {calendarTermYear.term} {calendarTermYear.year}</b>
+              {(() => {
+                const w = buildTermPlan({ year: calendarTermYear.year, term: calendarTermYear.term })?.weeks.length || 0
+                return w ? <> ({w} teaching weeks)</> : null
+              })()}.
+            </p>
+            <p>Your examination, revision and custom week reservations are kept and recalculated for the new term. Topics and outcomes are not changed.</p>
+          </div>
+        }
+        confirmLabel="Use current term"
+        cancelLabel="Cancel"
+        variant="primary"
+        onConfirm={() => {
+          setForm((f) => ({ ...f, term: calendarTermYear.term, year: calendarTermYear.year }))
+          setConfirmUseCurrent(false)
+        }}
+        onCancel={() => setConfirmUseCurrent(false)}
+      />
     </div>
   )
 }
