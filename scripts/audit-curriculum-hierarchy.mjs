@@ -78,9 +78,15 @@ function auditCurriculum(label, relPath) {
             subtopicCodes.add(sc)
             // Missing-parent check (only when both codes share a scheme depth):
             // a 4-seg sub-topic ("1.2.1.1") should have a 3-seg topic ("1.2.1").
+            // When the sub-topic's code does NOT descend from its (propagated)
+            // topic's code, the topic-header row for the sub-topic's real parent
+            // is absent from the source, so the sub-topic is filed under the
+            // wrong topic. Titles for the missing headers aren't in the source,
+            // so these are reported for manual authoring — never fabricated.
             const parent = sc.split('.').slice(0, -1).join('.')
             if (tc && parent && !parent.startsWith(tc) && !tc.startsWith(parent)) {
               totals.missingParents++
+              issues.push(`ORPHAN SUB-TOPIC [${subject} / ${sheetName}]: "${row.subtopic}" filed under topic "${row.topic}" (missing header row for topic ${parent})`)
             }
           }
           if (row.specificCompetence) totals.competencies += (row.specificCompetence.match(/\d+(?:\.\d+){3,}/g) || []).length || 1
