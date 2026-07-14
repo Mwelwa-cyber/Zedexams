@@ -53,19 +53,20 @@ const ACTIONS = [
   },
 ]
 
-export default function QuickCreate() {
+export default function QuickCreate({ onViewAllTools }) {
   return (
     <section className="teacher-quickcreate" aria-label="Quick create">
       <div className="teacher-section-head">
         <div className="teacher-dashboard-eyebrow">Quick create</div>
-        {/* Button, not an anchor: scrolls to the workspace section on this
-            same page and moves keyboard focus to its heading, without
-            writing a #hash into the URL. */}
+        {/* Button, not an anchor: expands the full workspace (via the
+            dashboard's callback), scrolls to the section on this same page,
+            and moves keyboard focus to its heading — no #hash in the URL. */}
         <button
           type="button"
           className="teacher-section-head__link teacher-section-head__link--button"
           onClick={() => {
             capture('teacher_workspace_expanded', { from: 'quick-create' })
+            onViewAllTools?.()
             const section = document.getElementById('teacher-workspace')
             section?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
             document.getElementById('teacher-workspace-title')?.focus?.({ preventScroll: true })

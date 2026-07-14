@@ -2023,6 +2023,34 @@ body.theme-midnight .moe-calendar {
   .studio-theme .teacher-workspace-header {
     scroll-margin-top: calc(5.5rem + env(safe-area-inset-top, 0px));
   }
+  /* Workspace expansion toggle — full-width ghost bar between the primary
+     groups and the expanded "everything else" set. */
+  .studio-theme .teacher-workspace-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin-bottom: 26px;
+    padding: 13px 18px;
+    border-radius: 15px;
+    border: 1.5px dashed #d9cfae;
+    background: #fffdf7;
+    color: #7a5a1e;
+    font-size: 13.5px;
+    font-weight: 800;
+    cursor: pointer;
+    min-height: 46px;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .studio-theme .teacher-workspace-toggle:hover {
+    background: #fdf8ec;
+    border-color: #f1d09a;
+  }
+  .studio-theme .teacher-workspace-toggle:focus-visible {
+    outline: 2px solid #ff7a2e;
+    outline-offset: 2px;
+  }
   /* The button variant of a section-head link (same look, no anchor). */
   .studio-theme button.teacher-section-head__link--button {
     background: none;
