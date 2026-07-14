@@ -240,6 +240,11 @@ export function normalizeTeachingProfile(data = {}) {
     calendarInheritedFromSchool: bool(d.calendarInheritedFromSchool, false),
     academicYear: str(d.academicYear, 10),
     defaultAssignmentId: str(d.defaultAssignmentId, 64),
+    // The assignment most recently selected ACROSS DEVICES (distinct from
+    // defaultAssignmentId, the teacher's preferred first assignment). Written by
+    // the dashboard when the teacher switches context, so a second device opens
+    // on the same assignment. '' until the teacher picks one.
+    activeAssignmentId: str(d.activeAssignmentId, 64),
     profileStatus: oneOf(d.profileStatus, PROFILE_STATUSES, 'draft'),
     onboardingCompleted: bool(d.onboardingCompleted, false),
     // A stored snapshot for cheap display; the live value is always recomputable
@@ -260,6 +265,7 @@ export function normalizeTeachingProfilePartial(data = {}) {
     out.calendarInheritedFromSchool = bool(d.calendarInheritedFromSchool, false)
   if ('academicYear' in d) out.academicYear = str(d.academicYear, 10)
   if ('defaultAssignmentId' in d) out.defaultAssignmentId = str(d.defaultAssignmentId, 64)
+  if ('activeAssignmentId' in d) out.activeAssignmentId = str(d.activeAssignmentId, 64)
   if ('profileStatus' in d) out.profileStatus = oneOf(d.profileStatus, PROFILE_STATUSES, 'draft')
   if ('onboardingCompleted' in d) out.onboardingCompleted = bool(d.onboardingCompleted, false)
   if ('profileCompletion' in d) out.profileCompletion = intInRange(d.profileCompletion, 0, 100) ?? 0
@@ -355,4 +361,48 @@ export function resolveDefaultAssignmentId(profile = {}, assignments = []) {
   if (stored) return stored.id
   const firstActive = list.find((a) => a && normalizeAssignment(a).isActive)
   return firstActive ? firstActive.id : null
+}
+
+/**
+ * Resolve which assignment is ACTIVE, in the cross-device source-of-truth order:
+ *   1. deviceId            — this device's last selection (localStorage cache)
+ *   2. profile.activeAssignmentId — the last selection synced from any device
+ *   3. effective default   — stored default → first/only active
+ *   4. '' — none resolvable (the UI should ask the teacher to choose)
+ * Every candidate must still point at an ACTIVE assignment, so a deleted or
+ * deactivated reference degrades safely instead of wedging a stale id.
+ *
+ * `storedInvalid` flags that profile.activeAssignmentId is set but no longer
+ * points at an active assignment — the caller can repair it (write the resolved
+ * id back) so other devices stop inheriting a dangling reference.
+ *
+ * @returns {{ id: string, source: string, storedInvalid: boolean }}
+ */
+export function resolveActiveAssignmentId(profile = {}, assignments = [], { deviceId = '' } = {}) {
+  const p = normalizeTeachingProfile(profile)
+  const list = (Array.isArray(assignments) ? assignments : []).filter(
+    (a) => a && normalizeAssignment(a).isActive,
+  )
+  const has = (id) => !!id && list.some((a) => a.id === id)
+  const storedActive = p.activeAssignmentId
+  const storedInvalid = !!storedActive && !has(storedActive)
+
+  let id = ''
+  let source = 'none'
+  if (has(deviceId)) {
+    id = deviceId
+    source = 'device'
+  } else if (has(storedActive)) {
+    id = storedActive
+    source = 'profile-active'
+  } else {
+    // Effective default → first active (resolveDefaultAssignmentId already
+    // falls back to the first/only active), so a lone assignment is covered here.
+    const def = resolveDefaultAssignmentId(p, list)
+    if (has(def)) {
+      id = def
+      source = 'profile-default'
+    }
+  }
+  return { id, source, storedInvalid }
 }

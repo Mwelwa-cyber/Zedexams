@@ -21,6 +21,7 @@ import {
   computeProfileCompletion,
   academicYearMismatch,
   resolveDefaultAssignmentId,
+  resolveActiveAssignmentId,
 } from '../src/utils/teachingProfileCore.js'
 import {
   inferAssignments,
@@ -291,6 +292,60 @@ test('inferProfileDefaults votes school level from grades', () => {
   eq(d.schoolLevel, 'primary')
   eq(d.academicYear, '2026')
   eq(d.defaultCurriculumType, 'cbc')
+})
+
+console.log('\ncross-device active assignment')
+const A = { id: 'a1', grade: 'G4', subject: 'mathematics', isActive: true }
+const B = { id: 'a2', grade: 'G5', subject: 'english', isActive: true }
+const C_INACTIVE = { id: 'a3', grade: 'G6', subject: 'science', isActive: false }
+test('normalizeTeachingProfile carries activeAssignmentId', () => {
+  eq(normalizeTeachingProfile({ activeAssignmentId: 'a2' }).activeAssignmentId, 'a2')
+  eq(normalizeTeachingProfile({}).activeAssignmentId, '')
+})
+test('partial normalizer shapes activeAssignmentId only when present', () => {
+  eq('activeAssignmentId' in normalizeTeachingProfilePartial({}), false)
+  eq(normalizeTeachingProfilePartial({ activeAssignmentId: 'a1' }).activeAssignmentId, 'a1')
+})
+test('device selection wins over the synced profile value', () => {
+  const r = resolveActiveAssignmentId({ activeAssignmentId: 'a2' }, [A, B], { deviceId: 'a1' })
+  eq(r.id, 'a1')
+  eq(r.source, 'device')
+  eq(r.storedInvalid, false)
+})
+test('fresh device (no local) inherits profile.activeAssignmentId', () => {
+  const r = resolveActiveAssignmentId({ activeAssignmentId: 'a2' }, [A, B], { deviceId: '' })
+  eq(r.id, 'a2')
+  eq(r.source, 'profile-active')
+})
+test('falls to the default when neither device nor active is set', () => {
+  const r = resolveActiveAssignmentId({ defaultAssignmentId: 'a2' }, [A, B])
+  eq(r.id, 'a2')
+  eq(r.source, 'profile-default')
+})
+test('a single active assignment is used when nothing else resolves', () => {
+  const r = resolveActiveAssignmentId({}, [A])
+  eq(r.id, 'a1')
+  eq(r.source, 'profile-default') // the default resolver falls back to the only active
+})
+test('several actives, no hints → first active via the default resolver', () => {
+  const r = resolveActiveAssignmentId({}, [A, B])
+  eq(r.id, 'a1')
+  eq(r.source, 'profile-default')
+})
+test('a dangling stored active is flagged invalid and degrades safely', () => {
+  const r = resolveActiveAssignmentId({ activeAssignmentId: 'gone', defaultAssignmentId: 'a2' }, [A, B])
+  eq(r.storedInvalid, true)
+  eq(r.id, 'a2')
+})
+test('an inactive assignment cannot be the active one', () => {
+  const r = resolveActiveAssignmentId({ activeAssignmentId: 'a3' }, [A, B, C_INACTIVE], { deviceId: 'a3' })
+  eq(r.storedInvalid, true)
+  eq(r.id, 'a1') // falls through to first active (no default set)
+})
+test('no active assignments at all → empty', () => {
+  const r = resolveActiveAssignmentId({ activeAssignmentId: 'a3' }, [C_INACTIVE])
+  eq(r.id, '')
+  eq(r.source, 'none')
 })
 
 // ── report ───────────────────────────────────────────────────────────────────

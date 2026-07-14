@@ -77,6 +77,22 @@ export async function saveTeachingProfile(uid, data) {
   return payload
 }
 
+/**
+ * Persist the cross-device ACTIVE assignment (distinct from the default). A
+ * merge-write of a single field, so it never disturbs the rest of the profile.
+ * Throws on failure so the caller can retry / warn without clearing the local
+ * selection. Pass '' to clear.
+ */
+export async function setActiveAssignmentId(uid, assignmentId) {
+  if (!uid) throw new Error('Sign in to update your active assignment.')
+  await setDoc(
+    doc(db, PROFILES, uid),
+    { activeAssignmentId: assignmentId || '', teacherId: uid, updatedAt: serverTimestamp() },
+    { merge: true },
+  )
+  return assignmentId || ''
+}
+
 // ── assignments ──────────────────────────────────────────────────────────────
 
 // List the teacher's assignments, oldest first (stable card order). Each item
