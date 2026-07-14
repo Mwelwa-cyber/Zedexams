@@ -356,4 +356,43 @@ test('no sub-topic is orphaned under a non-ancestor topic (English Form 4)', () 
   }
 })
 
+console.log('\ncurriculum-hierarchy: Lower Primary Grade 3 Creative & Technology (normalised codes)')
+
+const g3ct = raw['Lower Primary Syllabi (Grades 1-3)']?.['Grade 3 - Creative & Technology']
+assert.ok(g3ct, 'Grade 3 Creative & Technology sheet must exist')
+const rowsG3 = rowsWithPropagatedTopic(g3ct.rows)
+const topicMapG3 = new Map()
+for (const row of rowsG3) {
+  if (!row.topic) continue
+  const t = topicMapG3.get(row.topic) || { label: row.topic, subtopics: [] }
+  if (row.subtopic && !t.subtopics.includes(row.subtopic)) t.subtopics.push(row.subtopic)
+  topicMapG3.set(row.topic, t)
+}
+
+test('child codes normalised to their parent topic (source off-by-one corrected)', () => {
+  // CRAFTS is 3.15 → its sub-topics must be 3.15.x, not the source's 3.16.x.
+  const crafts = topicMapG3.get('3.15. CRAFTS')
+  assert.ok(crafts, 'CRAFTS topic present')
+  assert.ok(crafts.subtopics.includes('3.15.1 Plaiting'), 'Plaiting renumbered to 3.15.1')
+  assert.ok(crafts.subtopics.includes('3.15.6 Types of Structures'), '3.15.6 present')
+  assert.ok(!crafts.subtopics.some((s) => s.startsWith('3.16')), 'no stray 3.16.x under CRAFTS')
+})
+
+test('split "Tumbling and Stunts" sub-topic title is merged', () => {
+  const all = [...topicMapG3.values()].flatMap((t) => t.subtopics)
+  assert.ok(all.includes('3.12.3 Educational gymnastics (Tumbling and Stunts)'), 'merged title present')
+  assert.ok(!all.includes('and Stunts)'), 'orphan title fragment gone')
+})
+
+test('no sub-topic is orphaned in Grade 3 Creative & Technology', () => {
+  const lead = (s) => (String(s).match(/^(\d+(?:\.\d+)*)/) || [])[1] || ''
+  for (const t of topicMapG3.values()) {
+    const tc = lead(t.label)
+    for (const s of t.subtopics) {
+      const sc = lead(s)
+      if (tc && sc) assert.ok(sc.startsWith(tc), `orphan: "${s}" under "${t.label}"`)
+    }
+  }
+})
+
 console.log(`\n✅ curriculum-hierarchy: all ${passed} checks passed\n`)

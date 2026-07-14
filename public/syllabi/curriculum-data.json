@@ -21407,7 +21407,7 @@
           "cells": {
             "TOPIC": "3.5. PATTERNS",
             "SUB-TOPIC": "3.5.1 Patterns",
-            "SPECIFIC COMPETENCES": "4.5.1.1 Print patterns.",
+            "SPECIFIC COMPETENCES": "3.5.1.1 Print patterns.",
             "LEARNING ACTIVITIES": "• Collecting objects which can be used to create patterns\n• Printing patterns (Leaf print, Potato print, String-pull, dup patterns)",
             "EXPECTED STANDARD": "• Patterns printed correctly"
           }
@@ -21526,7 +21526,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.12.3 Educational gymnastics (Tumbling",
+            "SUB-TOPIC": "3.12.3 Educational gymnastics (Tumbling and Stunts)",
             "SPECIFIC COMPETENCES": "3.12.3.1 Perform simple tumbling activities",
             "LEARNING ACTIVITIES": "• Performing simple tumbling activities (landing, balancing…)",
             "EXPECTED STANDARD": "Simple tumbling activities performed appropriately"
@@ -21536,7 +21536,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "and Stunts)",
+            "SUB-TOPIC": "3.12.3 Educational gymnastics (Tumbling and Stunts)",
             "SPECIFIC COMPETENCES": "3.12.3.2 Demonstrate simple stunts activities",
             "LEARNING ACTIVITIES": "• Demonstrating simple stunts (pyramid formation, balance…)",
             "EXPECTED STANDARD": "• Simple stunt activities demonstrated correctly"
@@ -21586,8 +21586,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "3.15. CRAFTS",
-            "SUB-TOPIC": "3.16.1 Plaiting",
-            "SPECIFIC COMPETENCES": "3.16.1.1 Plait using different styles",
+            "SUB-TOPIC": "3.15.1 Plaiting",
+            "SPECIFIC COMPETENCES": "3.15.1.1 Plait using different styles",
             "LEARNING ACTIVITIES": "• Plaiting using different styles (twisting, corn roll…)",
             "EXPECTED STANDARD": "• Different styles of plaiting used accordingly."
           }
@@ -21596,8 +21596,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.16.2 Weaving",
-            "SPECIFIC COMPETENCES": "3.16.2.1 Make familiar objects using weaving techniques",
+            "SUB-TOPIC": "3.15.2 Weaving",
+            "SPECIFIC COMPETENCES": "3.15.2.1 Make familiar objects using weaving techniques",
             "LEARNING ACTIVITIES": "• Making objects using weaving techniques (Belts, baskets…)",
             "EXPECTED STANDARD": "Familiar objects made using weaving techniques accordingly"
           }
@@ -21606,8 +21606,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.16.3 Knotting",
-            "SPECIFIC COMPETENCES": "3.16.3.1 Knot familiar objects",
+            "SUB-TOPIC": "3.15.3 Knotting",
+            "SPECIFIC COMPETENCES": "3.15.3.1 Knot familiar objects",
             "LEARNING ACTIVITIES": "• Knotting familiar objects (ropes, bags…)",
             "EXPECTED STANDARD": "• Familiar objects knotted correctly"
           }
@@ -21616,8 +21616,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.16.4 Modeling",
-            "SPECIFIC COMPETENCES": "3.16.4.1 Model familiar objects",
+            "SUB-TOPIC": "3.15.4 Modeling",
+            "SPECIFIC COMPETENCES": "3.15.4.1 Model familiar objects",
             "LEARNING ACTIVITIES": "• Modeling familiar objects using clay/ paper pulp (Cups, pots bowls, fruits…)",
             "EXPECTED STANDARD": "• Familiar objects modelled correctly"
           }
@@ -21627,7 +21627,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC COMPETENCES": "3.16.4.2 Decorate finished items",
+            "SPECIFIC COMPETENCES": "3.15.4.2 Decorate finished items",
             "LEARNING ACTIVITIES": "• Decorating finished items by painting, vanishing or firing",
             "EXPECTED STANDARD": "• Finished items decorated appropriately"
           }
@@ -21636,8 +21636,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.16.5 Construction",
-            "SPECIFIC COMPETENCES": "3.16.5.1 Construct familiar items using locally available materials",
+            "SUB-TOPIC": "3.15.5 Construction",
+            "SPECIFIC COMPETENCES": "3.15.5.1 Construct familiar items using locally available materials",
             "LEARNING ACTIVITIES": "• Constructing familiar items (buildings, human figures, mobiles, wire cars…)using locally available materials",
             "EXPECTED STANDARD": "• Familiar items constructed using locally available materials appropriately"
           }
@@ -21646,8 +21646,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.16.6 Types of Structures",
-            "SPECIFIC COMPETENCES": "3.16.6.1 Differentiate natural and artificial structures",
+            "SUB-TOPIC": "3.15.6 Types of Structures",
+            "SPECIFIC COMPETENCES": "3.15.6.1 Differentiate natural and artificial structures",
             "LEARNING ACTIVITIES": "• Differentiating natural from artificial structures (Artificial: bridges, house…, Natural: hill, )",
             "EXPECTED STANDARD": "• Natural and artificial structures differentiated correctly"
           }
@@ -21656,8 +21656,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "3.16. DESIGNING",
-            "SUB-TOPIC": "3.17.1 Item Designing and Making",
-            "SPECIFIC COMPETENCES": "3.17.1.1 Design and make Items",
+            "SUB-TOPIC": "3.16.1 Item Designing and Making",
+            "SPECIFIC COMPETENCES": "3.16.1.1 Design and make Items",
             "LEARNING ACTIVITIES": "• Designing items (kite, toy car, house…)\n• Selecting materials for the design\n• Making items (kite, toy car…)",
             "EXPECTED STANDARD": "• Items designed and made appropriately"
           }
@@ -21666,8 +21666,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "3.17. LETTERING",
-            "SUB-TOPIC": "3.18.1 Letters",
-            "SPECIFIC COMPETENCES": "3.18.1.1 Design capital and small letters",
+            "SUB-TOPIC": "3.17.1 Letters",
+            "SPECIFIC COMPETENCES": "3.17.1.1 Design capital and small letters",
             "LEARNING ACTIVITIES": "• Designing letters (Upper and lower case letters, spacing, size, and colour)\n• Cutting designed letters",
             "EXPECTED STANDARD": "Capital and small letters designed correctly"
           }
@@ -21676,8 +21676,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.18.2 Poster Making",
-            "SPECIFIC COMPETENCES": "3.18.2.1 Design posters based on different concepts",
+            "SUB-TOPIC": "3.17.2 Poster Making",
+            "SPECIFIC COMPETENCES": "3.17.2.1 Design posters based on different concepts",
             "LEARNING ACTIVITIES": "• Designing posters to convey short meaningful messages based on different concepts (human rights, environmental health and pollution, child labour, road safety…)",
             "EXPECTED STANDARD": "• Posters to based on different concepts designed appropriately"
           }
@@ -21686,8 +21686,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "3.18. SWIMMING",
-            "SUB-TOPIC": "3.19.1 Water Orientation",
-            "SPECIFIC COMPETENCES": "3.19.1.1 Demonstrate basic swimming strokes",
+            "SUB-TOPIC": "3.18.1 Water Orientation",
+            "SPECIFIC COMPETENCES": "3.18.1.1 Demonstrate basic swimming strokes",
             "LEARNING ACTIVITIES": "• Demonstrating basic swimming strokes (side strokes, unskilled strokes: push inhale float…)",
             "EXPECTED STANDARD": "• Basic swimming strokes demonstrated correctly"
           }
@@ -21696,8 +21696,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "3.19. ENTREPRENEURSHIP",
-            "SUB-TOPIC": "3.20.1 Entrepreneurial activities",
-            "SPECIFIC COMPETENCES": "3.20.1.1 Practise making and selling items",
+            "SUB-TOPIC": "3.19.1 Entrepreneurial activities",
+            "SPECIFIC COMPETENCES": "3.19.1.1 Practise making and selling items",
             "LEARNING ACTIVITIES": "• Identifying the products to make\n• Costing materials for making the product\n• Pricing the products to be made with a view of making profit\n• Identifying the possible selling places and targeted customers\n• Saving the profit in the saving box",
             "EXPECTED STANDARD": "• Making and selling of items practised accordingly"
           }
