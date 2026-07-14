@@ -64,6 +64,29 @@ const BACKFILL = [
     expectSubtopic: 'Semi-Formal Letter' },
   { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 2', subtopicCode: '2.5.1.1', topic: '2.5.1 Summary Writing',
     expectSubtopic: 'Title Summary' },
+
+  // Form 3 COMPOSITION (section 3.3) — topic headers dropped by extraction.
+  // Titles verified against the official Form 3 pages.
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 3', subtopicCode: '3.3.2.1', topic: '3.3.2 Descriptive Writing',
+    expectSubtopic: 'Describing Events' },
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 3', subtopicCode: '3.3.3.1', topic: '3.3.3 Article Writing',
+    expectSubtopic: 'News Article' },
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 3', subtopicCode: '3.3.4.1', topic: '3.3.4 Report Writing',
+    expectSubtopic: 'Detailed or Major Reports' },
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 3', subtopicCode: '3.3.5.1', topic: '3.3.5 Speech Writing',
+    expectSubtopic: 'Main Speech' },
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 3', subtopicCode: '3.3.6.1', topic: '3.3.6 Minutes Writing',
+    expectSubtopic: 'Introduction to Writing Minutes' },
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 3', subtopicCode: '3.3.11.1', topic: '3.3.11 Letter Writing',
+    expectSubtopic: 'Formal Letter' },
+]
+
+// TOPIC-header TITLE repairs (an existing topic cell whose title the extraction
+// mangled). `from`/`to` are the exact text after the code. Verified against source.
+const TOPIC_FIXES = [
+  // Source prints "ARGUMENTA TIVE" (ARGUMENTATIVE broken across a line).
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 3', code: '3.3.10',
+    from: 'Argumenta Tive', to: 'Argumentative' },
 ]
 
 // Sub-topic TITLE repairs — a title the extraction truncated at a page break or
@@ -80,6 +103,23 @@ const SUBTOPIC_FIXES = [
 ]
 
 const leadingCode = (s) => (String(s || '').trim().match(/^(\d+(?:\.\d+)*)/) || [])[1] || ''
+
+function applyTopicFixes(data, changes) {
+  for (const f of TOPIC_FIXES) {
+    const sheet = data?.[f.subject]?.[f.sheet]
+    if (!sheet) { changes.push({ fix: f, status: 'sheet-missing' }); continue }
+    const row = (sheet.rows || []).find(
+      (r) => r.type === 'data' && leadingCode(r.cells?.TOPIC) === f.code,
+    )
+    if (!row) { changes.push({ fix: f, status: 'row-missing' }); continue }
+    const current = String(row.cells.TOPIC || '').trim()
+    const target = `${f.code} ${f.to}`
+    if (current === target) { changes.push({ fix: f, status: 'already' }); continue }
+    if (current !== `${f.code} ${f.from}`) { changes.push({ fix: f, status: 'drift', found: current }); continue }
+    row.cells.TOPIC = target
+    changes.push({ fix: f, status: 'fixed', to: target })
+  }
+}
 
 function applySubtopicFixes(data, changes) {
   for (const f of SUBTOPIC_FIXES) {
@@ -121,6 +161,8 @@ function apply(data, changes) {
 const primary = JSON.parse(readFileSync(join(ROOT, FILES[0]), 'utf8'))
 const changes = []
 apply(primary, changes)
+const topicFixChanges = []
+applyTopicFixes(primary, topicFixChanges)
 const subChanges = []
 applySubtopicFixes(primary, subChanges)
 
@@ -130,6 +172,12 @@ for (const c of changes) {
   console.log(`  ${tag}: ${c.b.subject} / ${c.b.sheet} → TOPIC "${c.b.topic}" on sub-topic ${c.b.subtopicCode}`)
   if (c.found) console.log(`        found: ${JSON.stringify(c.found)}`)
 }
+console.log('\n── topic title repairs ──')
+for (const c of topicFixChanges) {
+  const tag = { fixed: '✓ FIX', already: '· already correct', drift: '⚠ DRIFT (skipped)', 'row-missing': '⚠ row not found', 'sheet-missing': '⚠ sheet not found' }[c.status]
+  console.log(`  ${tag}: ${c.fix.subject} / ${c.fix.sheet} ${c.fix.code} → "${c.fix.to}"`)
+  if (c.found) console.log(`        found: ${JSON.stringify(c.found)}`)
+}
 console.log('\n── sub-topic title repairs ──')
 for (const c of subChanges) {
   const tag = { fixed: '✓ FIX', already: '· already correct', drift: '⚠ DRIFT (skipped)', 'row-missing': '⚠ row not found', 'sheet-missing': '⚠ sheet not found' }[c.status]
@@ -137,10 +185,12 @@ for (const c of subChanges) {
   if (c.found) console.log(`        found: ${JSON.stringify(c.found)}`)
 }
 const filled = changes.filter((c) => c.status === 'filled').length
+const topicFixed = topicFixChanges.filter((c) => c.status === 'fixed').length
 const fixed = subChanges.filter((c) => c.status === 'fixed').length
-console.log(`\n${filled} header(s) to fill, ${fixed} sub-topic title(s) to repair.`)
+const anyChange = filled > 0 || fixed > 0 || topicFixed > 0
+console.log(`\n${filled} header(s) to fill, ${topicFixed} topic title(s) + ${fixed} sub-topic title(s) to repair.`)
 
-if (APPLY && (filled > 0 || fixed > 0)) {
+if (APPLY && anyChange) {
   const serialized = JSON.stringify(primary, null, 2) + '\n'
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')
   for (const rel of FILES) {
@@ -149,6 +199,6 @@ if (APPLY && (filled > 0 || fixed > 0)) {
     writeFileSync(abs, serialized)
   }
   console.log('Applied to both file copies (.bak saved).')
-} else if (!APPLY && (filled > 0 || fixed > 0)) {
+} else if (!APPLY && anyChange) {
   console.log('Dry-run — re-run with --apply to write.')
 }

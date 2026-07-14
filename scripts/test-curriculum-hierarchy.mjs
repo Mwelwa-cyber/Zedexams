@@ -275,4 +275,46 @@ test('page-break-truncated sub-topic titles are repaired from source', () => {
   assert.ok(f1.has('1.5.4.1 Types of Advertisements'), '1.5.4.1 word un-split')
 })
 
+console.log('\ncurriculum-hierarchy: English Form 3 restored hierarchy')
+
+const form3 = raw['English Syllabus (Forms 1-4)']?.['Form 3']
+assert.ok(form3, 'English Form 3 sheet must exist')
+const rows3 = rowsWithPropagatedTopic(form3.rows)
+const topicMap3 = new Map()
+for (const row of rows3) {
+  if (!row.topic) continue
+  const t = topicMap3.get(row.topic) || { label: row.topic, subtopics: [] }
+  if (row.subtopic && !t.subtopics.includes(row.subtopic)) t.subtopics.push(row.subtopic)
+  topicMap3.set(row.topic, t)
+}
+
+test('Form 3 COMPOSITION topic headers restored + 3.3.10 title repaired', () => {
+  const cases = [
+    ['3.3.2 Descriptive Writing', '3.3.2.1 Describing Events'],
+    ['3.3.3 Article Writing', '3.3.3.2 Feature Article'],
+    ['3.3.4 Report Writing', '3.3.4.1 Detailed or Major Reports'],
+    ['3.3.5 Speech Writing', '3.3.5.1 Main Speech (Keynote)'],
+    ['3.3.6 Minutes Writing', '3.3.6.1 Introduction to Writing Minutes'],
+    ['3.3.11 Letter Writing', '3.3.11.1 Formal Letter'],
+  ]
+  for (const [topicLabel, subLabel] of cases) {
+    assert.ok(topicMap3.has(topicLabel), `topic "${topicLabel}" present`)
+    assert.ok(topicMap3.get(topicLabel).subtopics.includes(subLabel), `"${subLabel}" under "${topicLabel}"`)
+  }
+  // OCR line-break repair: "Argumenta Tive" → "Argumentative"
+  assert.ok(topicMap3.has('3.3.10 Argumentative'), '3.3.10 title repaired')
+  assert.ok(!topicMap3.has('3.3.10 Argumenta Tive'), 'old broken title gone')
+})
+
+test('no sub-topic is orphaned under a non-ancestor topic (English Form 3)', () => {
+  const lead = (s) => (String(s).match(/^(\d+(?:\.\d+)*)/) || [])[1] || ''
+  for (const t of topicMap3.values()) {
+    const tc = lead(t.label)
+    for (const s of t.subtopics) {
+      const sc = lead(s)
+      if (tc && sc) assert.ok(sc.startsWith(tc), `orphan: "${s}" filed under "${t.label}"`)
+    }
+  }
+})
+
 console.log(`\n✅ curriculum-hierarchy: all ${passed} checks passed\n`)
