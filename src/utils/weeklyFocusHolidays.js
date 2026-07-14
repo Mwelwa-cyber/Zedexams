@@ -33,6 +33,16 @@ export function excludeHolidayWeekdays(weekdays, holidays) {
   return (weekdays || []).filter((d) => !set.has(d))
 }
 
+/**
+ * Open teaching weekdays in the current week that aren't already occupied — the
+ * valid destinations when moving a lesson off a closed day. `currentDays` items
+ * may be day objects ({ day }) or plain weekday strings.
+ */
+export function openMoveTargets(currentDays, teachingDays) {
+  const occupied = new Set((currentDays || []).map((d) => (d && d.day) || d))
+  return (teachingDays || []).filter((wd) => !occupied.has(wd))
+}
+
 /** A short, human summary of the week's holidays, or '' when none. */
 export function holidaySummary(holidays) {
   if (!Array.isArray(holidays) || holidays.length === 0) return ''

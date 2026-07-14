@@ -7,6 +7,7 @@ import {
   weekTeachingAvailability,
   excludeHolidayWeekdays,
   holidaySummary,
+  openMoveTargets,
 } from '../src/utils/weeklyFocusHolidays.js'
 
 let pass = 0
@@ -48,6 +49,19 @@ test('drops holiday weekdays from a list', () => {
 })
 test('no holidays → list unchanged', () => {
   eq(excludeHolidayWeekdays(['Monday', 'Friday'], []).join(','), 'Monday,Friday')
+})
+
+console.log('\nopenMoveTargets')
+test('returns open teaching days not already occupied', () => {
+  const currentDays = [{ day: 'Monday' }, { day: 'Wednesday' }, { day: 'Friday' }]
+  const teaching = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+  eq(openMoveTargets(currentDays, teaching).join(','), 'Tuesday,Thursday')
+})
+test('accepts plain weekday strings', () => {
+  eq(openMoveTargets(['Monday'], ['Monday', 'Tuesday']).join(','), 'Tuesday')
+})
+test('empty when the week is full', () => {
+  eq(openMoveTargets(['Monday', 'Tuesday'], ['Monday', 'Tuesday']).length, 0)
 })
 
 console.log('\nholidaySummary')
