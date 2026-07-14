@@ -21,6 +21,14 @@ describe('TeachingAssignmentChangeNotice (presentational)', () => {
     expect(screen.getByRole('button', { name: /keep grade 4 · mathematics/i })).toBeInTheDocument()
   })
 
+  it('is honest that Switch keeps typed content but resets structured selections', () => {
+    render(<TeachingAssignmentChangeNotice fromLabel="Grade 4 · Mathematics" toLabel="Grade 5 · Mathematics" onSwitch={() => {}} onKeep={() => {}} />)
+    expect(screen.getByText(/your typed content will remain/i)).toBeInTheDocument()
+    expect(screen.getByText(/grade, subject, topic and curriculum selections will update/i)).toBeInTheDocument()
+    // Never claims work was "saved".
+    expect(screen.queryByText(/has been saved/i)).toBeNull()
+  })
+
   it('shows the read-only variant for an existing document (no Switch)', () => {
     render(<TeachingAssignmentChangeNotice fromLabel="Grade 4 · Mathematics" toLabel="Grade 5 · Mathematics" existingDocument onSwitch={() => {}} onKeep={() => {}} />)
     expect(screen.getByText(/its teaching assignment stays unchanged/i)).toBeInTheDocument()

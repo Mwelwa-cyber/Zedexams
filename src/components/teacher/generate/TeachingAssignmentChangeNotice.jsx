@@ -42,6 +42,11 @@ export default function TeachingAssignmentChangeNotice({
       <p className="text-sm mt-1">
         The Dashboard is now using <b>{toLabel}</b>. This studio is still using <b>{fromLabel || 'its current assignment'}</b>.
       </p>
+      {/* Honest about what Switch does: free text is kept; structured selections
+          reset to the new assignment's valid options. Never claims "saved". */}
+      <p className="text-sm mt-1">
+        If you switch, your typed content will remain, but the grade, subject, topic and curriculum selections will update to the new assignment.
+      </p>
       <div className="flex flex-wrap gap-2 mt-3">
         <button type="button" className="studio-btn-primary" onClick={onSwitch}>
           Switch to {toLabel}
