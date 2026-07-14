@@ -205,6 +205,33 @@ describe('ExamTimetablePage', () => {
     expect(JSON.parse(localStorage.getItem('zx_exam_reminders_u1_g7-2026')).offsets).toContain('1d')
   })
 
+  it('status filter chips appear mid-season and partition the timeline', () => {
+    at('2026-10-27T08:30:00+02:00') // English in progress; briefing done; rest upcoming
+    renderPage()
+    // The chip row shows because several buckets are non-empty.
+    const completedChip = screen.getByRole('button', { name: /show completed exams/i })
+    const todayChip = screen.getByRole('button', { name: /show today exams/i })
+    // Filtering to Completed leaves only the finished briefing day in the
+    // timeline (paper chips prove which subject cards render there — the
+    // summary's "Next Examination" panel is unaffected by the filter).
+    fireEvent.click(completedChip)
+    expect(screen.getByText('Guidelines to candidates and invigilators')).toBeInTheDocument()
+    expect(screen.queryByText('Paper 3/1')).not.toBeInTheDocument() // Mathematics (upcoming)
+    expect(screen.queryByText('Paper 4/1')).not.toBeInTheDocument() // Science (today)
+    // Switching to Today swaps the visible sessions.
+    fireEvent.click(todayChip)
+    expect(screen.getByText('Paper 4/1')).toBeInTheDocument() // Integrated Science, today
+    expect(
+      screen.queryByText('Guidelines to candidates and invigilators'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('does not show the filter row before the season (nothing to partition)', () => {
+    renderPage() // beforeEach pins 2026-09-01 — everything is "upcoming"
+    expect(screen.queryByRole('button', { name: /show upcoming exams/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /show completed exams/i })).not.toBeInTheDocument()
+  })
+
   it('offers the official PDF as view + download buttons, not the default view', () => {
     renderPage()
     expect(

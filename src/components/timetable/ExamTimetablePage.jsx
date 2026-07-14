@@ -67,6 +67,8 @@ import {
   listSessions,
   computeProgress,
   filterTimetable,
+  filterTimetableByStatus,
+  statusBucketCounts,
   formatSessionTime,
   formatDayHeading,
   countdownParts,
@@ -539,6 +541,47 @@ function TimetableSearch({ value, onChange }) {
   )
 }
 
+// Filter chips over the (already search-filtered) timeline. Each chip carries
+// its live match count and only renders when it would match something; the
+// whole row hides unless at least two buckets are non-empty — so filters never
+// appear when they couldn't meaningfully partition the list (e.g. before the
+// season, when everything is simply "upcoming").
+const FILTER_CHIPS = [
+  { key: 'today', label: 'Today' },
+  { key: 'upcoming', label: 'Upcoming' },
+  { key: 'completed', label: 'Completed' },
+]
+
+function TimetableFilters({ counts, value, onChange }) {
+  const available = FILTER_CHIPS.filter((c) => counts[c.key] > 0)
+  if (available.length < 2) return null
+  const chips = [{ key: 'all', label: 'All', count: counts.all }, ...available.map((c) => ({ ...c, count: counts[c.key] }))]
+  return (
+    <div
+      role="group"
+      aria-label="Filter exams by status"
+      className="flex flex-wrap gap-1.5"
+    >
+      {chips.map((c) => {
+        const on = value === c.key
+        return (
+          <button
+            key={c.key}
+            type="button"
+            aria-pressed={on}
+            aria-label={`Show ${c.label.toLowerCase()} exams`}
+            onClick={() => onChange(c.key)}
+            className={`ztt-pick ${on ? 'ztt-pick-sel' : ''}`}
+          >
+            {c.label}
+            <span className="ml-1 opacity-70 tabular-nums">{c.count}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function PastTimetablesSection({ archived, nowMs }) {
   const [openId, setOpenId] = useState(null)
   if (archived.length === 0) return null
@@ -640,6 +683,10 @@ export default function ExamTimetablePage() {
 
   const [search, setSearch] = useState('')
   const isSearching = search.trim().length > 0
+  // Status filter chips ('all' | 'today' | 'upcoming' | 'completed'). Like a
+  // search, an active filter expands every matching day so results are visible.
+  const [statusFilter, setStatusFilter] = useState('all')
+  const isFiltering = isSearching || statusFilter !== 'all'
 
   // Collapsible days: today + the next exam day start open, the rest start
   // collapsed. A learner's taps override the defaults until the page reloads
@@ -652,16 +699,19 @@ export default function ExamTimetablePage() {
     [defaultOpenKey],
   )
   const [dayOverrides, setDayOverrides] = useState({})
-  useEffect(() => setDayOverrides({}), [active?.id])
+  useEffect(() => {
+    setDayOverrides({})
+    setStatusFilter('all')
+  }, [active?.id])
   const toggleDay = useCallback(
     (date) => {
-      if (isSearching) return
+      if (isFiltering) return
       setDayOverrides((prev) => ({
         ...prev,
         [date]: !(prev[date] ?? defaultOpenDates.has(date)),
       }))
     },
-    [defaultOpenDates, isSearching],
+    [defaultOpenDates, isFiltering],
   )
 
   // Open (if collapsed) and scroll to a specific day — used by the next-exam
@@ -728,7 +778,17 @@ export default function ExamTimetablePage() {
     [active, prefs, nowMinuteMs],
   )
 
-  const filtered = useMemo(() => (active ? filterTimetable(active, search) : null), [active, search])
+  // Search first, then the status chip — order-independent, both prune days.
+  const filtered = useMemo(() => {
+    if (!active) return null
+    return filterTimetableByStatus(filterTimetable(active, search), statusFilter, nowMinuteMs)
+  }, [active, search, statusFilter, nowMinuteMs])
+  // Chip counts run over the search-filtered set so they reflect the current
+  // search context (and the row hides itself when filters wouldn't partition).
+  const filterCounts = useMemo(
+    () => (active ? statusBucketCounts(filterTimetable(active, search), nowMinuteMs) : null),
+    [active, search, nowMinuteMs],
+  )
   const dayNumbers = useMemo(
     () => new Map((active?.days || []).map((d, i) => [d.date, i + 1])),
     [active],
@@ -798,7 +858,14 @@ export default function ExamTimetablePage() {
 
                 <OfficialPdfButtons pdfUrl={active.pdfUrl} />
 
-                <TimetableSearch value={search} onChange={setSearch} />
+                <div className="space-y-2.5">
+                  <TimetableSearch value={search} onChange={setSearch} />
+                  <TimetableFilters
+                    counts={filterCounts}
+                    value={statusFilter}
+                    onChange={setStatusFilter}
+                  />
+                </div>
               </div>
 
               {/* Right column — the exam timeline */}
@@ -806,14 +873,17 @@ export default function ExamTimetablePage() {
                 {filtered.days.length === 0 ? (
                   <div className="ztt-card p-6 text-center">
                     <p className="text-[13px] font-bold theme-text-muted">
-                      No timetable items match your search.
+                      No timetable items match your {isSearching ? 'search' : 'filter'}.
                     </p>
                     <button
                       type="button"
-                      onClick={() => setSearch('')}
+                      onClick={() => {
+                        setSearch('')
+                        setStatusFilter('all')
+                      }}
                       className="ztt-btn mx-auto mt-3"
                     >
-                      Clear search
+                      {isSearching ? 'Clear search' : 'Show all'}
                     </button>
                   </div>
                 ) : (
@@ -828,7 +898,7 @@ export default function ExamTimetablePage() {
                         nowMs={nowMinuteMs}
                         nextKey={nextPaperKey}
                         open={
-                          isSearching
+                          isFiltering
                             ? true
                             : (dayOverrides[day.date] ?? defaultOpenDates.has(day.date))
                         }

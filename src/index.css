@@ -4750,6 +4750,9 @@ select option {
     transition: background 0.15s ease, color 0.15s ease;
   }
   .ztt-pick-on { background: #f97316; color: #fff; }
+  /* Selected timeline filter chip (blue accent, distinct from the orange
+     reminder-offset picks). */
+  .ztt-pick-sel { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
 
   /* Vertical exam timeline. */
   .ztt-timeline { position: relative; }
