@@ -40,6 +40,7 @@ import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
 import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
 import { curriculumSeedFromProfile, preferredDifficulty, preferredTermYear } from '../../../utils/teacherDefaults'
 import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
+import CreatedFromLessonPlanNotice from './CreatedFromLessonPlanNotice'
 
 /**
  * Homework Studio — short take-home practice grounded on the stored
@@ -122,6 +123,9 @@ export default function HomeworkStudio() {
       subtopic: curr.subtopic,
       curriculum: curr.curriculum,
       framework: curr.framework,
+      // Link back to the source lesson plan (Lesson Plan → Homework
+      // inheritance), persisted in the generation's inputs. '' when standalone.
+      sourceLessonPlanId: urlDefaults.sourceLessonPlanId || '',
     }
   }
 
@@ -252,6 +256,7 @@ export default function HomeworkStudio() {
           subtitle="Grounded on the verified curriculum module — questions, answer key and a note for parents."
           emoji="🏠"
         />
+        <CreatedFromLessonPlanNotice urlDefaults={urlDefaults} />
         <div className="mb-4">
           <DraftRecoveryPrompt {...draft} label="homework" />
         </div>

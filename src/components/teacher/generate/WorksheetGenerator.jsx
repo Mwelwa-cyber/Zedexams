@@ -46,6 +46,7 @@ import WorksheetView from '../views/WorksheetView'
 import StudioOutputBoundary from '../StudioOutputBoundary'
 import { curriculumSeedFromProfile, preferredDifficulty, preferredTermYear } from '../../../utils/teacherDefaults'
 import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
+import CreatedFromLessonPlanNotice from './CreatedFromLessonPlanNotice'
 
 /**
  * Worksheet Generator — pupil-facing worksheet + separate answer-key export.
@@ -132,6 +133,9 @@ export default function WorksheetGenerator() {
       subtopic: curr.subtopic,
       curriculum: curr.curriculum,
       framework: curr.framework,
+      // Link back to the source lesson plan (Lesson Plan → Worksheet
+      // inheritance), persisted in the generation's inputs. '' when standalone.
+      sourceLessonPlanId: urlDefaults.sourceLessonPlanId || '',
     }
   }
 
@@ -300,6 +304,7 @@ export default function WorksheetGenerator() {
           emoji="🐢"
         />
 
+        <CreatedFromLessonPlanNotice urlDefaults={urlDefaults} />
         <div className="mb-4">
           <DraftRecoveryPrompt {...draft} label="worksheet" />
         </div>
