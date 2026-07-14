@@ -18,12 +18,18 @@ const STRING_KEYS = [
   'teacherName', 'school', 'language',
   'difficulty', 'instructions',
   'lessonPlanId', 'learningEnvironment',
+  // Lesson Plan → Worksheet/Homework inheritance: the curriculum type seeds
+  // the studio selector, and the source link + planned context ride along so
+  // the destination studio can show a "Created from Lesson Plan" notice and
+  // persist the link back to the plan.
+  'curriculum', 'sourceLessonPlanId', 'plannedDate', 'className',
 ]
 
 const NUMBER_KEYS = [
   'durationMinutes', 'numberOfPupils', 'count',
   'term', 'numberOfWeeks',
   'lessonNumber', 'totalLessons',
+  'schoolWeek',
 ]
 
 const BOOL_KEYS = [

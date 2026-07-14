@@ -190,6 +190,11 @@ function sanitizeInputs(raw = {}) {
     language: ALLOWED_LANGUAGES.has(language) ? language : "english",
     includeAnswerKey: raw.includeAnswerKey !== false,
     instructions: str(raw.instructions, 500),
+    // Optional link back to the lesson plan this worksheet was created from
+    // (Lesson Plan → Worksheet inheritance). Persisted in `inputs` so the
+    // library can detect an existing linked worksheet + show a back-reference —
+    // mirrors the notes `inputs.lessonPlanId` convention. '' when standalone.
+    sourceLessonPlanId: str(raw.sourceLessonPlanId, 60),
     // Explicit curriculum chosen by the teacher — drives CBC vs Previous
     // prompt/terminology + framework-aware KB grounding.
     framework: String(raw.framework) === "2013" ? "2013" : "2023",

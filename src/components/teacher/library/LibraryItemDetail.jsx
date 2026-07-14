@@ -6,6 +6,7 @@ import {
   duplicateGeneration,
   recordExport,
   updateGenerationOutput,
+  listMyGenerations,
   CLIENT_CREATED_TOOLS,
   TOOL_META,
   titleForGeneration,
@@ -91,6 +92,8 @@ const TOOL_DOC_TYPES = {
 }
 
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
+import { inheritFromLessonPlan } from '../../../utils/lessonPlanInheritance'
+import { readActiveAssignmentSeed } from '../../../utils/activeAssignmentSeed'
 import { resolveGeneration } from '../../../utils/adminGenerationsService'
 import { publishShare, revokeShare, listSharesForGeneration } from '../../../utils/shareService'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -582,6 +585,59 @@ export default function LibraryItemDetail() {
     navigate(`${meta.route}${qs}`)
   }
 
+  // Lesson Plan → Worksheet/Homework inheritance. Opens the companion studio
+  // pre-filled from THIS plan (plan metadata authoritative; the active
+  // assignment only fills fields a legacy plan lacks). If a linked resource of
+  // the same kind already exists, ask before creating another (duplicate guard).
+  const KIT_ROUTES = { worksheet: '/teacher/generate/worksheet', homework: '/teacher/generate/homework' }
+  const [creatingKit, setCreatingKit] = useState(false)
+  const [dupPrompt, setDupPrompt] = useState(null) // { tool, url, title, when, status }
+
+  function goToKitStudio(tool) {
+    const seed = inheritFromLessonPlan(item, readActiveAssignmentSeed(currentUser?.uid))
+    const qs = buildGeneratorQueryString(seed?.coords || { sourceLessonPlanId: item.id })
+    navigate(`${KIT_ROUTES[tool]}${qs}`)
+  }
+
+  async function onCreateFromPlan(tool) {
+    if (!item || !KIT_ROUTES[tool] || creatingKit) return
+    setCreatingKit(true)
+    try {
+      // Detect an existing worksheet/homework already linked to this plan. This
+      // only scans the recent library (listMyGenerations caps at 60), so an
+      // older linked resource can be missed — a missed convenience warning, not
+      // a correctness issue.
+      let existing = null
+      let lookupFailed = false
+      try {
+        const rows = await listMyGenerations({ uid: currentUser?.uid, tool })
+        existing = (rows || []).find((r) => r?.inputs?.sourceLessonPlanId === item.id) || null
+      } catch {
+        // A failed lookup must never block creation — tell the teacher we
+        // couldn't check, then continue (worst case a duplicate they can delete).
+        lookupFailed = true
+      }
+      if (lookupFailed) {
+        toast.info('We could not check for an existing linked resource. Continuing.')
+        goToKitStudio(tool)
+        return
+      }
+      if (existing) {
+        setDupPrompt({
+          tool,
+          url: `/teacher/library/${existing.id}`,
+          title: titleForGeneration(existing),
+          when: formatDate(existing.updatedAt || existing.createdAt),
+          status: existing.status || '',
+        })
+        return
+      }
+      goToKitStudio(tool)
+    } finally {
+      setCreatingKit(false)
+    }
+  }
+
   async function onSaveHeaderEdits(nextHeader) {
     if (!item) return
     setSavingEdit(true)
@@ -851,14 +907,40 @@ export default function LibraryItemDetail() {
                 🔁 Generate similar
               </button>
             )}
-            {item.tool === 'lesson_plan' &&
-              (item.output || item.data) && (
+            {(item.tool === 'worksheet' || item.tool === 'homework') && item.inputs?.sourceLessonPlanId && (
               <button
-                onClick={() => navigate(`/teacher/generate/notes?lessonPlanId=${item.id}`)}
-                className="studio-btn-primary"
+                onClick={() => navigate(`/teacher/library/${item.inputs.sourceLessonPlanId}`)}
+                className="studio-btn-ghost"
+                title="Open the lesson plan this was created from"
               >
-                📓 Generate Notes
+                📘 Built from lesson plan
               </button>
+            )}
+            {item.tool === 'lesson_plan' && (item.output || item.data) && (
+              <>
+                <button
+                  onClick={() => onCreateFromPlan('worksheet')}
+                  disabled={creatingKit}
+                  className="studio-btn-ghost disabled:opacity-50"
+                  title="Turn this lesson plan into learner practice"
+                >
+                  📝 Create Worksheet
+                </button>
+                <button
+                  onClick={() => onCreateFromPlan('homework')}
+                  disabled={creatingKit}
+                  className="studio-btn-ghost disabled:opacity-50"
+                  title="Turn this lesson plan into a take-home activity"
+                >
+                  🏠 Create Homework
+                </button>
+                <button
+                  onClick={() => navigate(`/teacher/generate/notes?lessonPlanId=${item.id}`)}
+                  className="studio-btn-primary"
+                >
+                  📓 Generate Notes
+                </button>
+              </>
             )}
             <button
               onClick={onDelete}
@@ -1056,6 +1138,39 @@ export default function LibraryItemDetail() {
         loading={deleting}
         onConfirm={confirmDelete}
         onCancel={() => setConfirmingDelete(false)}
+      />
+
+      {/* Duplicate guard for Create Worksheet/Homework from a lesson plan.
+          Confirm = open the one that exists; the in-message button makes a
+          fresh one; Cancel backs out. */}
+      <ConfirmDialog
+        open={Boolean(dupPrompt)}
+        title={`A ${dupPrompt?.tool === 'homework' ? 'Homework activity' : 'Worksheet'} already exists for this Lesson Plan`}
+        message={
+          <div>
+            <p>You already created one from this plan. Open it, or create another.</p>
+            {dupPrompt?.title && (
+              <div className="mt-2 rounded-lg border theme-border px-3 py-2 text-body-sm">
+                <div className="font-bold truncate">{dupPrompt.title}</div>
+                <div className="theme-text-muted">
+                  {[dupPrompt.when, dupPrompt.status].filter(Boolean).join(' · ')}
+                </div>
+              </div>
+            )}
+            <button
+              type="button"
+              className="studio-btn-ghost mt-3"
+              onClick={() => { const t = dupPrompt?.tool; setDupPrompt(null); if (t) goToKitStudio(t) }}
+            >
+              ＋ Create another {dupPrompt?.tool === 'homework' ? 'Homework activity' : 'Worksheet'}
+            </button>
+          </div>
+        }
+        confirmLabel={`Continue ${dupPrompt?.tool === 'homework' ? 'Homework' : 'Worksheet'}`}
+        cancelLabel="Cancel"
+        variant="primary"
+        onConfirm={() => { const url = dupPrompt?.url; setDupPrompt(null); if (url) navigate(url) }}
+        onCancel={() => setDupPrompt(null)}
       />
 
       {studyOpen && item?.tool === 'flashcards' && item.output?.cards?.length > 0 && (
