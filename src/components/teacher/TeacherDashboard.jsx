@@ -29,6 +29,7 @@ import { daysUntil, fmtDate, getActiveTerm, getCurrentForecastWeek, getNextTerm 
 import { capture } from '../../utils/analytics'
 import SeoHelmet from '../seo/SeoHelmet'
 import AiRecommendations from './AiRecommendations'
+import FreeAllowanceNotice from './FreeAllowanceNotice'
 import PlanUsageCard from './PlanUsageCard'
 import PrepareThisWeek from './PrepareThisWeek'
 import QuickCreate from './QuickCreate'
@@ -396,6 +397,15 @@ export default function TeacherDashboard() {
           unasked + permission 'default', so it renders nothing once handled). */}
       <PushPermissionPrompt variant="teacher" />
 
+      {/* One-time "your free allowance increased" notice (self-gates on plan
+          + a per-catalogue-revision seen flag). */}
+      <FreeAllowanceNotice
+        plan={teacherPlan}
+        onViewAllowance={() => {
+          document.getElementById('teacher-plan-usage')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+        }}
+      />
+
       {/* ── AI Workspace hero ─────────────────────────────────────── */}
       <section className={`teacher-hero teacher-hero--${greeting.part}`}>
         <img
@@ -644,7 +654,7 @@ export default function TeacherDashboard() {
       {/* ── Compact plan + usage — ONE card, bottom of the page by design:
           the dashboard leads with teaching work, not usage statistics; the
           full breakdown stays one tap away behind "View details". ───── */}
-      <section className="teacher-usage-section teacher-defer">
+      <section id="teacher-plan-usage" className="teacher-usage-section teacher-defer">
         <div className="teacher-section-head">
           <SectionLabel>Plan &amp; usage</SectionLabel>
         </div>

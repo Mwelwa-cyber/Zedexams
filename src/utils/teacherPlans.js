@@ -98,6 +98,10 @@ export const PLAN_LIMITS = {
 // of functions/teacherTools/teacherPlans.js FREE_PREVIEW_LIMITS (guarded by
 // scripts/test-teacher-plan-resolution.mjs). The studios read this to
 // explain the preview before the teacher generates.
+// Bumped whenever plan allowances change — mirror of the server constant so
+// client analytics can stamp which catalogue revision a teacher saw.
+export const PLAN_CATALOG_VERSION = '2026-07-14-free-preview'
+
 export const FREE_PREVIEW_LIMITS = {
   schemePreviewWeeks: 2,
   maxShortTestQuestions: 5,

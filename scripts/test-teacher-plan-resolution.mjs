@@ -22,6 +22,7 @@ const {
   PLAN_LABELS,
   DAILY_LIMITS,
   FREE_PREVIEW_LIMITS,
+  PLAN_CATALOG_VERSION,
 } = await import('../src/utils/teacherPlans.js')
 
 // Server-side catalogue the client mirror must stay in sync with.
@@ -110,6 +111,10 @@ test('client PLAN_LABELS and DAILY_LIMITS match the server', () => {
 
 test('client FREE_PREVIEW_LIMITS deep-equals the server', () => {
   assert.deepEqual(FREE_PREVIEW_LIMITS, server.FREE_PREVIEW_LIMITS)
+})
+
+test('client PLAN_CATALOG_VERSION matches the server', () => {
+  assert.equal(PLAN_CATALOG_VERSION, server.PLAN_CATALOG_VERSION)
 })
 
 console.log(`\nteacher-plan-resolution: ${passed} tests passed`)

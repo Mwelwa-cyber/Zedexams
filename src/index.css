@@ -2093,6 +2093,61 @@ body.theme-midnight .moe-calendar {
     color: #566f76;
   }
 
+  /* ── One-time free-allowance notice ───────────────────────────── */
+  .studio-theme .teacher-allowance-notice {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: #e2f0e7;
+    border: 1.5px solid #a9d3bc;
+  }
+  .studio-theme .teacher-allowance-notice__icon { font-size: 20px; flex: 0 0 auto; }
+  .studio-theme .teacher-allowance-notice__body { flex: 1; min-width: 200px; }
+  .studio-theme .teacher-allowance-notice__title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 800;
+    color: #0e2a32;
+  }
+  .studio-theme .teacher-allowance-notice__text {
+    margin: 2px 0 0;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #1f5c44;
+  }
+  .studio-theme .teacher-allowance-notice__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 14px;
+    border: 0;
+    border-radius: 11px;
+    background: #2f7d5f;
+    color: #fff;
+    font-size: 12.5px;
+    font-weight: 800;
+    cursor: pointer;
+    min-height: 40px;
+  }
+  .studio-theme .teacher-allowance-notice__cta:hover { background: #256a4f; }
+  .studio-theme .teacher-allowance-notice__close {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: #1f5c44;
+    cursor: pointer;
+    min-height: 0;
+  }
+  .studio-theme .teacher-allowance-notice__close:hover { background: rgba(47,125,95,.12); }
+
   /* ── Free-preview upsell (post-generation upgrade prompt) ─────── */
   .studio-theme .teacher-preview-upsell {
     margin-bottom: 16px;

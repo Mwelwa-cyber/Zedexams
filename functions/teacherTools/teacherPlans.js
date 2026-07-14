@@ -148,11 +148,11 @@ function isDailyCountedTool(tool) {
 
 // Studios reserved for the Max plan. These are the two most compute-heavy
 // generations (Assessment ~250s/60+ items, Exam Paper ~185s), so they anchor
-// the Max tier rather than being sold purely on volume. Free and Pro keep a
-// single monthly taster (PLAN_LIMITS.{free,pro}.{assessment,exam_paper} = 1)
-// so a teacher can try the studio once; the next attempt routes to the Max
-// paywall instead of the generic monthly-limit copy. Keep this list in sync
-// with the client mirror in src/utils/teacherPlans.js.
+// the Max tier rather than being sold purely on volume. Below Max the
+// allowances are small (Free: 4 five-question test previews; Pro: 4 full
+// papers + 1 exam-paper taster — see PLAN_LIMITS); the next attempt past a
+// cap routes to the Max paywall instead of the generic monthly-limit copy.
+// Keep this list in sync with the client mirror in src/utils/teacherPlans.js.
 const MAX_ONLY_TOOLS = ["assessment", "exam_paper"];
 
 function isMaxOnlyTool(tool) {
@@ -185,6 +185,10 @@ function normalizeTeacherPlan(raw) {
 // schemePreviewWeeks weeks of the term. Mirrored in src/utils/teacherPlans.js
 // (guarded by scripts/test-teacher-plan-resolution.mjs) so the studios can
 // explain the preview before the teacher generates.
+// Bumped whenever plan allowances change, so a rollout can be traced from
+// analytics/support reports back to the exact catalogue revision.
+const PLAN_CATALOG_VERSION = "2026-07-14-free-preview";
+
 const FREE_PREVIEW_LIMITS = {
   schemePreviewWeeks: 2,
   maxShortTestQuestions: 5,
@@ -194,6 +198,7 @@ const FREE_PREVIEW_LIMITS = {
 module.exports = {
   PLAN_LIMITS,
   FREE_PREVIEW_LIMITS,
+  PLAN_CATALOG_VERSION,
   PLAN_LABELS,
   DAILY_LIMITS,
   DAILY_COUNTED_TOOLS,

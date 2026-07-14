@@ -1,8 +1,9 @@
 /**
  * LockedStudio — what a Free-plan teacher sees in place of a closed studio.
  *
- * On the Free plan only the Lesson Plan studio is openable; every other
- * generator studio routes through <StudioGate>, which renders this for Free
+ * Free opens the studios with a free-preview allowance (PLAN_LIMITS.free[tool]
+ * > 0: lesson plans, worksheets, homework, short tests, scheme previews);
+ * every zero-allowance studio routes through <StudioGate>, which renders this for Free
  * teachers (Pro/Max get the real studio). It shows the studio header, a clear
  * "upgrade to unlock" banner, and a read-only SAMPLE of what the studio
  * produces — rendered with the studio's own View component so the preview
