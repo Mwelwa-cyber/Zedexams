@@ -184,6 +184,32 @@ test('"1.3.4 Letter Writing" and "1.3.4.1 Informal Letter" are separate records'
   )
 })
 
+test('backfilled COMPOSITION topic headers exist with their own sub-topics', () => {
+  // Authoritative topic headers restored from the official Form 1 PDF — each
+  // orphaned sub-topic now sits under its real topic, not the preceding one.
+  const cases = [
+    ['1.3.2 Narrative Writing', '1.3.2.1 Story Writing'],
+    ['1.3.3 Descriptive Writing', '1.3.3.1 Describing a Person, an Animal or an Object'],
+    ['1.3.5 Expository Writing', '1.3.5.1 Writing Expository Essays'],
+    ['1.3.6 Persuasive Writing', '1.3.6.1 An Argumentative Composition'],
+  ]
+  for (const [topicLabel, subLabel] of cases) {
+    assert.ok(topicMap.has(topicLabel), `topic "${topicLabel}" present`)
+    assert.ok(topicMap.get(topicLabel).subtopics.includes(subLabel), `"${subLabel}" under "${topicLabel}"`)
+  }
+})
+
+test('no sub-topic is orphaned under a non-ancestor topic (English Form 1)', () => {
+  const lead = (s) => (String(s).match(/^(\d+(?:\.\d+)*)/) || [])[1] || ''
+  for (const t of topicMap.values()) {
+    const tc = lead(t.label)
+    for (const s of t.subtopics) {
+      const sc = lead(s)
+      if (tc && sc) assert.ok(sc.startsWith(tc), `orphan: "${s}" filed under "${t.label}"`)
+    }
+  }
+})
+
 test('no topic label contains a second (child) curriculum code', () => {
   for (const label of topicMap.keys()) {
     const codes = (label.match(/\d+(?:\.\d+)+/g) || [])
