@@ -5,7 +5,7 @@
  * when it is not (no false or padded recommendations).
  */
 
-import { buildRecommendations, subjectsTaught } from './teacherRecommendations.js'
+import { buildRecommendations, buildProfileRecommendations, subjectsTaught } from './teacherRecommendations.js'
 
 let passed = 0
 function check(name, cond) {
@@ -182,6 +182,59 @@ function ids(args) {
   ]
   const list = ids({ generations: gens, calendar: CAL, assessments: [{ id: 'a1', questionCount: 0, createdAt: IN_WEEK }] })
   check('every recommendation id is unique', new Set(list).size === list.length)
+}
+
+/* ── buildProfileRecommendations — whole-profile (all assignments) ── */
+{
+  const A = [
+    { id: 'asg-1', grade: 'G4', subject: 'mathematics', isActive: true },
+    { id: 'asg-2', grade: 'G5', subject: 'english', isActive: true },
+  ]
+  const drafts = [{ id: 'a1', questionCount: 0, createdAt: IN_WEEK }]
+  const list = buildProfileRecommendations({ calendar: CAL, assignments: A, assessments: drafts })
+  const byId = new Map(list.map((r) => [r.id, r]))
+
+  check('emits an unplanned-scheme card for EACH class',
+    byId.has('scheme-mathematics::asg-1') && byId.has('scheme-english::asg-2'))
+  check('per-assignment cards carry a scope label',
+    byId.get('scheme-mathematics::asg-1').scope === 'Grade 4 · Mathematics' &&
+    byId.get('scheme-english::asg-2').scope === 'Grade 5 · English')
+  check('a profile-wide card (draft papers) appears exactly once',
+    list.filter((r) => r.id === 'draft-papers').length === 1)
+  check('every id is unique across classes', new Set(list.map((r) => r.id)).size === list.length)
+  check('classes are interleaved (both surface before the global card)', (() => {
+    const g = list.findIndex((r) => r.id === 'draft-papers')
+    const m = list.findIndex((r) => r.id.startsWith('scheme-mathematics'))
+    const e = list.findIndex((r) => r.id.startsWith('scheme-english'))
+    return m < g && e < g
+  })())
+}
+
+/* same subject in two classes/streams — never merged, stays distinct */
+{
+  const streams = [
+    { id: 'asg-a', grade: 'G4', subject: 'mathematics', className: 'A', isActive: true },
+    { id: 'asg-b', grade: 'G4', subject: 'mathematics', className: 'B', isActive: true },
+  ]
+  const list = buildProfileRecommendations({ calendar: CAL, assignments: streams })
+  const byId = new Map(list.map((r) => [r.id, r]))
+  check('same grade+subject in two classes produces two distinct cards',
+    byId.has('scheme-mathematics::asg-a') && byId.has('scheme-mathematics::asg-b'))
+  check('each stream keeps its class in the scope label',
+    byId.get('scheme-mathematics::asg-a').scope === 'Grade 4 A · Mathematics' &&
+    byId.get('scheme-mathematics::asg-b').scope === 'Grade 4 B · Mathematics')
+  check('no id collision between streams', new Set(list.map((r) => r.id)).size === list.length)
+}
+
+/* single (or no) active assignment → identical to buildRecommendations */
+{
+  const one = [{ grade: 'G4', subject: 'english', isActive: true }]
+  const profile = buildProfileRecommendations({ calendar: CAL, assignments: one })
+  const single = buildRecommendations({ calendar: CAL, profileSubject: 'english', preferredSubject: 'english', profileGrade: 'G4' })
+  check('one active assignment matches single-context output',
+    JSON.stringify(profile.map((r) => r.id)) === JSON.stringify(single.map((r) => r.id)))
+  check('no assignments → no scope tags, unchanged behaviour',
+    buildProfileRecommendations({ calendar: CAL, assignments: [] }).every((r) => !r.scope))
 }
 
 console.log(`\nteacherRecommendations: ${passed} checks passed`)

@@ -59,6 +59,14 @@ export default function AiRecommendations({ recommendations = [] }) {
         {visible.map((r) => (
           <div key={r.id} className="teacher-reco-card">
             <span className="teacher-reco-card__icon" aria-hidden="true">{r.icon}</span>
+            {r.scope && (
+              <span
+                className="teacher-reco-card__scope"
+                style={{ display: 'inline-block', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.02em', textTransform: 'uppercase', opacity: 0.72 }}
+              >
+                {r.scope}
+              </span>
+            )}
             <p className="teacher-reco-card__title">{r.title}</p>
             <p className="teacher-reco-card__text">{r.text}</p>
             <Link
