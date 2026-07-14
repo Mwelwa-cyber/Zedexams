@@ -62,7 +62,10 @@ check('greeting interpolates the name and falls back', () => {
 /* ── AI message priority ──────────────────────────────────── */
 check('AI message: out of generations wins', () => {
   const msg = buildAiMessage({ resources: [res()], usage: { daily: 30, today: 30 }, now: NOW })
-  assert.match(msg, /reset at midnight/)
+  // The reset is the server's UTC boundary rendered as a LOCAL clock time
+  // (02:00 in Zambia) — never described as "midnight".
+  assert.match(msg, /reset at \d{2}:\d{2}/)
+  assert.doesNotMatch(msg, /midnight/i)
 })
 
 check('AI message: a single draft is surfaced by name', () => {

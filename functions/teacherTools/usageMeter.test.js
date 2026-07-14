@@ -140,20 +140,20 @@ async function caught(promise) {
   // Monthly cap hit, no credit → throws monthly-limit with structured reason.
   reset();
   store[userPath("u2")] = {teacherPlan: "free"};
-  store[meterPath("u2")] = {counters: {lesson_plan: 2}};
+  store[meterPath("u2")] = {counters: {lesson_plan: 8}}; // at the free cap
   const e2 = await caught(assertAndIncrement("u2", "lesson_plan"));
   ok("monthly cap + no credit throws", e2 instanceof HttpsError);
   ok("monthly throw carries reason=monthly-limit", e2.details && e2.details.reason === "monthly-limit");
-  ok("monthly throw does not move the counter", store[meterPath("u2")].counters.lesson_plan === 2);
+  ok("monthly throw does not move the counter", store[meterPath("u2")].counters.lesson_plan === 8);
 
   // Monthly cap hit WITH a credit → spend one, allow, don't push counter past cap.
   reset();
   store[userPath("u3")] = {teacherPlan: "free", generationCredits: 2};
-  store[meterPath("u3")] = {counters: {lesson_plan: 2}};
+  store[meterPath("u3")] = {counters: {lesson_plan: 8}}; // at the free cap
   const r3 = await assertAndIncrement("u3", "lesson_plan");
   ok("monthly cap + credit is allowed via credit", r3.usedCredit === true && r3.creditsRemaining === 1);
   ok("credit spend decrements the balance (2→1)", store[userPath("u3")].generationCredits === 1);
-  ok("credit spend does NOT push the counter past cap", store[meterPath("u3")].counters.lesson_plan === 2);
+  ok("credit spend does NOT push the counter past cap", store[meterPath("u3")].counters.lesson_plan === 8);
 
   // Max-only tool (exam_paper) at its taster cap, with a credit → still allowed.
   reset();

@@ -17,6 +17,12 @@
  *     createdAt (ms), title, to, status:'draft'|'ready' }
  */
 
+// The one permitted import: pure + dependency-free like this module, so the
+// plain-node test still runs — and every surface derives the daily-reset
+// time from the same helper (no page may claim "midnight" while the real
+// boundary is the server's UTC day key, ~02:00 in Zambia).
+import { formatResetClock } from './usageReset.js'
+
 const DAY = 24 * 60 * 60 * 1000
 
 function cleanSubject(s) {
@@ -114,9 +120,11 @@ export function buildAiMessage({ resources = [], usage = null, now = Date.now() 
   const thisWeek = lastNDays(resources, now, 7)
   const remaining = usage ? Math.max(0, (usage.daily || 0) - (usage.today || 0)) : null
 
-  // 1. Out of daily generations — the most blocking state.
+  // 1. Out of daily generations — the most blocking state. The reset is the
+  // server's UTC day boundary (~02:00 in Zambia), so state the actual local
+  // time instead of claiming "midnight".
   if (usage && usage.daily > 0 && remaining === 0) {
-    return "You've used all of today's AI generations. They reset at midnight."
+    return `You've used all of today's AI generations. They reset at ${formatResetClock(now)}.`
   }
 
   // 2. Unfinished work waiting (drafts).

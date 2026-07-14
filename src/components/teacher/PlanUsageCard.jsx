@@ -13,30 +13,18 @@
  * generation allowance (there is no weekly-credit concept to display).
  */
 
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Icon from '../ui/Icon'
 import { ArrowRight, ChevronDown, Sparkles } from '../ui/icons'
 import { capture } from '../../utils/analytics'
+import { formatResetClock, formatResetIn, msUntilDailyReset } from '../../utils/usageReset'
 
 // Heavy (own data hook + big stylesheet); only mounted behind View details.
 const UsageMeter = lazy(() => import('./UsageMeter'))
 
 // Caps at or above this are the "unlimited" sentinel the meter uses.
 const UNLIMITED_CAP = 99999
-
-function msToUtcMidnight(now = new Date()) {
-  const next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)
-  return Math.max(0, next - now.getTime())
-}
-
-function formatResetIn(ms) {
-  const totalMin = Math.max(1, Math.round(ms / 60000))
-  const h = Math.floor(totalMin / 60)
-  const m = totalMin % 60
-  if (h <= 0) return `${m}m`
-  return `${h}h ${String(m).padStart(2, '0')}m`
-}
 
 // SVG ring gauge — fill fraction is remaining/all for finite plans, a
 // gentle decorative arc for unlimited ones.
@@ -61,6 +49,14 @@ function UsageGauge({ value, pct }) {
 
 export default function PlanUsageCard({ usage, loading }) {
   const [expanded, setExpanded] = useState(false)
+  // Re-render each minute so the countdown stays live instead of freezing
+  // at whatever it was when the card mounted (never negative — the helper
+  // floors at zero, and the boundary rolls to the next day's reset).
+  const [nowTick, setNowTick] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 60_000)
+    return () => clearInterval(id)
+  }, [])
 
   if (loading || !usage) {
     return (
@@ -73,7 +69,10 @@ export default function PlanUsageCard({ usage, loading }) {
   const unlimited = usage.daily >= UNLIMITED_CAP
   const remaining = Math.max(0, (usage.daily || 0) - (usage.today || 0))
   const isFree = usage.plan === 'free'
-  const resetIn = formatResetIn(msToUtcMidnight())
+  // Countdown + exact LOCAL wall-clock time of the reset, both derived from
+  // the server's real UTC day boundary (≈02:00 in Zambia — never "midnight").
+  const resetIn = formatResetIn(msUntilDailyReset(nowTick))
+  const resetClock = formatResetClock(nowTick)
   const gaugePct = unlimited ? 0.85 : usage.daily ? remaining / usage.daily : 0
 
   return (
@@ -100,7 +99,7 @@ export default function PlanUsageCard({ usage, loading }) {
                 AI generation{unlimited || remaining !== 1 ? 's' : ''} remaining today
               </span>
               <span className="teacher-usage-card__reset">
-                Resets in {resetIn}
+                Resets in {resetIn} · at {resetClock} local time
                 {usage.credits > 0 && (
                   <> · {usage.credits} top-up credit{usage.credits === 1 ? '' : 's'}</>
                 )}

@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../contexts/AuthContext'
 import { isSuperAdmin } from '../utils/permissions'
+import { msUntilDailyReset } from '../utils/usageReset'
 import {
   PLAN_LIMITS,
   PLAN_LABELS,
@@ -148,23 +149,57 @@ export function useTeacherUsage(uid) {
   // without a reload.
   const credits = Math.max(0, Number(userProfile?.generationCredits || 0))
   const [state, setState] = useState({ loading: true, data: null, error: null })
+  // Latest raw meter snapshot, kept so the projection can be recomputed
+  // WITHOUT a new Firestore read when the UTC day rolls over or the app
+  // resumes from the background — todayCount() compares against the current
+  // day key, so a stale "today" self-corrects on re-projection.
+  const rawRef = useRef(null)
+  const hasSnapshotRef = useRef(false)
 
   useEffect(() => {
     if (!uid) {
       setState({ loading: false, data: null, error: null })
       return
     }
+    const projectNow = () =>
+      isAdmin ? projectAdmin(rawRef.current) : project(rawRef.current, livePlan, credits)
+
     const ref = doc(db, `usageMeters/${uid}/periods/${yyyymm()}`)
     const unsub = onSnapshot(
       ref,
       (snap) => {
-        const raw = snap.exists() ? snap.data() : null
-        const projected = isAdmin ? projectAdmin(raw) : project(raw, livePlan, credits)
-        setState({ loading: false, data: projected, error: null })
+        rawRef.current = snap.exists() ? snap.data() : null
+        hasSnapshotRef.current = true
+        setState({ loading: false, data: projectNow(), error: null })
       },
       (error) => setState({ loading: false, data: null, error })
     )
-    return unsub
+
+    // Re-project just after the daily reset boundary so "today" flips back
+    // to 0 without waiting for the next write, re-arming for each new day.
+    let boundaryTimer
+    const armBoundary = () => {
+      boundaryTimer = setTimeout(() => {
+        if (hasSnapshotRef.current) setState({ loading: false, data: projectNow(), error: null })
+        armBoundary()
+      }, msUntilDailyReset() + 1000)
+    }
+    armBoundary()
+
+    // App resume (tab refocus / Capacitor foreground): the clock may have
+    // crossed the boundary while backgrounded — re-project from the cache.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && hasSnapshotRef.current) {
+        setState({ loading: false, data: projectNow(), error: null })
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      unsub()
+      clearTimeout(boundaryTimer)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [uid, isAdmin, livePlan, credits])
 
   return state

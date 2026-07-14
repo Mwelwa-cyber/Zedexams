@@ -135,13 +135,14 @@ test("isMaxOnlyTool flags only the Max studios", () => {
   assert.ok(!isMaxOnlyTool("worksheet"));
 });
 
-test("free is sample-only for the Max studios; pro keeps a single taster", () => {
-  for (const tool of MAX_ONLY_TOOLS) {
-    // Free can only open the Lesson Plan studio — the Max studios (like every
-    // other generator) are locked to a read-only sample (0), not a taster.
-    assert.strictEqual(PLAN_LIMITS.free[tool], 0, `free.${tool} locked`);
-    assert.strictEqual(PLAN_LIMITS.pro[tool], 1, `pro.${tool} taster`);
-  }
+test("Max-studio access below Max: free previews tests, exam papers stay tasters", () => {
+  // Test papers: Free gets 5-question previews (dashboard redesign §12),
+  // Pro a small allowance of full papers — never fewer than Free.
+  assert.strictEqual(PLAN_LIMITS.free.assessment, 4, "free.assessment previews");
+  assert.strictEqual(PLAN_LIMITS.pro.assessment, 4, "pro.assessment allowance");
+  // Exam papers remain the classic taster ladder: locked on Free, one on Pro.
+  assert.strictEqual(PLAN_LIMITS.free.exam_paper, 0, "free.exam_paper locked");
+  assert.strictEqual(PLAN_LIMITS.pro.exam_paper, 1, "pro.exam_paper taster");
 });
 
 test("max unlocks the Max studios well beyond the taster", () => {
@@ -157,23 +158,36 @@ test("every Max-only tool is a registered, daily-counted tool", () => {
   }
 });
 
-test("free can only use the Lesson Plan studio; every other studio is locked", () => {
-  // The Lesson Plan studio is the one generator a Free teacher can use.
-  assert.strictEqual(PLAN_LIMITS.free.lesson_plan, 2);
+test("free runs the weekly loop in limited form; everything else stays locked", () => {
+  // The limited free tier (dashboard redesign §12): the weekly teaching loop
+  // in preview form. Weekly-feeling allowances expressed monthly (~4 weeks).
+  assert.strictEqual(PLAN_LIMITS.free.lesson_plan, 8);
+  assert.strictEqual(PLAN_LIMITS.free.worksheet, 4);
+  assert.strictEqual(PLAN_LIMITS.free.homework, 4);
+  assert.strictEqual(PLAN_LIMITS.free.assessment, 4); // 5-question previews
+  assert.strictEqual(PLAN_LIMITS.free.scheme_of_work, 2); // 2-week previews
   // Tools that stay funded on Free even though they aren't full studios: the
-  // quiz-editor micro-helpers, the Lesson Plan studio's AI section-editor
-  // (Free can use the Lesson Plan studio), and the in-studio diagram tool.
-  const stillFunded = new Set([
+  // quiz-editor micro-helpers, the Lesson Plan studio's AI section-editor,
+  // and the in-studio diagram tool.
+  const openOnFree = new Set([
+    "lesson_plan", "worksheet", "homework", "assessment", "scheme_of_work",
     "suggest_answer", "revise_question", "revise_lesson_section", "diagram",
   ]);
   for (const [tool, limit] of Object.entries(PLAN_LIMITS.free)) {
-    if (tool === "lesson_plan") continue;
-    if (stillFunded.has(tool)) {
+    if (openOnFree.has(tool)) {
       assert.ok(limit > 0, `free.${tool} stays funded`);
     } else {
       assert.strictEqual(limit, 0, `free.${tool} must be locked (sample only)`);
     }
   }
+});
+
+// ── free-preview shaping (enforced inside the generators) ────────────
+test("FREE_PREVIEW_LIMITS pins the preview shape", () => {
+  const {FREE_PREVIEW_LIMITS} = require("./teacherPlans");
+  assert.strictEqual(FREE_PREVIEW_LIMITS.schemePreviewWeeks, 2);
+  assert.strictEqual(FREE_PREVIEW_LIMITS.maxShortTestQuestions, 5);
+  assert.ok(FREE_PREVIEW_LIMITS.shortTestMarksCap >= 5);
 });
 
 // ── daily caps (marketing: "Daily cap of 2/10/30 generations") ───────

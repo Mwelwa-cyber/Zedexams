@@ -22,6 +22,9 @@ import {
   isCumulativeType, toKbSubjectKey, studioGradeToKbGrade,
 } from './paperTaxonomy'
 import LiveGenerationCanvas from '../ui/LiveGenerationCanvas'
+import FreePreviewUpsell from './FreePreviewUpsell'
+import { capture } from '../../utils/analytics'
+import { resolveTeacherPlan, FREE_PREVIEW_LIMITS } from '../../utils/teacherPlans'
 import { canonicalizeAssessmentType } from '../../utils/questionType'
 
 // Each chip maps to a canonical schema question type (`canonical`) sent to the
@@ -141,7 +144,10 @@ function ModeToggle({ value, onChange, pickLabel = 'From syllabus', writeLabel =
 }
 
 export default function CreatePaperModal({ paperMeta, onApply, onClose, variant = 'test' }) {
-  const { currentUser } = useAuth()
+  const { currentUser, userProfile } = useAuth()
+  // Free teachers generate a 5-question short-test preview (server-clamped);
+  // say so up front instead of surprising them after the wait.
+  const isFreePreview = resolveTeacherPlan(userProfile) === 'free'
   const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
   // The Exam Studio runs this same modal locked to exam standard: it offers the
   // three exam paper types instead of the four test types, and every one
@@ -456,7 +462,11 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
       warning: res.data?.warning || '',
       sourcing: res.data?.sourcing || null,
       quality: res.data?.quality || null,
+      // Server-stamped free-preview marker (5-question short test) — drives
+      // the post-generation upgrade prompt below.
+      preview: res.data?.preview || null,
     })
+    if (res.data?.preview) capture('free_preview_generated', { tool: 'assessment' })
     setStatus('done')
   }
 
@@ -686,6 +696,13 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
               )}
             </div>
 
+            {isFreePreview && (
+              <p style={{ margin: '10px 0 0', fontSize: 12.5, fontWeight: 700, color: 'var(--sv-muted)' }}>
+                Free plan: you’ll get a short test of up to {FREE_PREVIEW_LIMITS.maxShortTestQuestions} questions
+                — upgrade for full-length papers.
+              </p>
+            )}
+
             <div className="sv-cpm-grid2">
               <div>
                 <label className="sv-cpm-label">Total marks</label>
@@ -783,6 +800,13 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
               docTitle={result.assessment?.header?.title}
               title={isExam ? 'Your exam' : 'Your paper'}
             />
+            {result.preview && (
+              <FreePreviewUpsell
+                context="short-test"
+                title={`Your ${result.blocks.questionCount}-question short test is ready.`}
+                text="Upgrade to add more questions, sections, marking keys, diagrams and Word downloads — you can save this short test either way."
+              />
+            )}
             <div style={{ borderRadius: 10, border: '1px solid var(--sv-border)', padding: 12, fontSize: 14, color: 'var(--sv-text)' }}>
               <strong>{result.assessment?.header?.title || 'Paper ready'}</strong>
               <div style={{ fontSize: 13, color: 'var(--sv-muted)', marginTop: 4 }}>

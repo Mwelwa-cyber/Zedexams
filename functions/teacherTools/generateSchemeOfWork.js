@@ -31,6 +31,8 @@ const {buildSchemeQualityChecks} = require("./schemeQualityCheck");
 const {PROMPT_VERSION, pickSystemPrompt, buildUserPrompt} =
   require("./schemeOfWorkPrompt");
 const {assertAndIncrement} = require("./usageMeter");
+const {FREE_PREVIEW_LIMITS} = require("./teacherPlans");
+const {clampSchemePreview} = require("./freePreview");
 const {resolveSchemeOutline} = require("./schemeCurriculumOutline");
 const {sliceOutlineToTerm} = require("./schemeTermDivision");
 const {
@@ -289,6 +291,19 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
 
   const usage = await assertAndIncrement(uid, "scheme_of_work");
 
+  // Free preview (§12–13): a free scheme covers only the first
+  // FREE_PREVIEW_LIMITS.schemePreviewWeeks weeks of the term. Clamping the
+  // inputs steers the prompt (buildUserPrompt reads numberOfWeeks/weekPlan
+  // below); the hard guarantee is the output truncation after validation.
+  const freePreview = usage.plan === "free";
+  if (freePreview) {
+    const previewWeeks = FREE_PREVIEW_LIMITS.schemePreviewWeeks;
+    inputs.numberOfWeeks = Math.min(inputs.numberOfWeeks, previewWeeks);
+    if (Array.isArray(inputs.weekPlan)) {
+      inputs.weekPlan = inputs.weekPlan.slice(0, previewWeeks);
+    }
+  }
+
   const genRef = admin.firestore().collection("aiGenerations").doc();
   await genRef.set({
     ownerUid: uid,
@@ -353,7 +368,16 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
   }
 
   const validation = validateSchemeOfWork(parsed);
-  const scheme = validation.value;
+  let scheme = validation.value;
+  // Hard free-preview guarantee: never return more than the preview weeks,
+  // whatever the model produced (fail-closed on the revenue boundary).
+  let previewTruncated = false;
+  if (freePreview) {
+    const clamped = clampSchemePreview(
+      scheme, FREE_PREVIEW_LIMITS.schemePreviewWeeks);
+    scheme = clamped.scheme;
+    previewTruncated = clamped.truncated;
+  }
   // The form already knows these — never trust the model with them (it
   // has invented "UNKNOWN" for a blank school and last year's date).
   scheme.header.school = inputs.school;
@@ -407,6 +431,10 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
         kbWarning,
       ].filter(Boolean).join(" "),
       kbGrounded: Boolean(kbMatch) || moduleGrounded,
+      preview: freePreview ? {
+        weeks: FREE_PREVIEW_LIMITS.schemePreviewWeeks,
+        truncated: previewTruncated,
+      } : null,
     };
   }
 
@@ -436,6 +464,12 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
     qualityChecks,
     warning: kbWarning || null,
     kbGrounded: Boolean(kbMatch) || moduleGrounded,
+    // Free preview markers — the studio uses these to show the honest
+    // "your first weeks are ready, upgrade for the full term" prompt.
+    preview: freePreview ? {
+      weeks: FREE_PREVIEW_LIMITS.schemePreviewWeeks,
+      truncated: previewTruncated,
+    } : null,
   };
 }
 

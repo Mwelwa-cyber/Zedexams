@@ -23,21 +23,23 @@
 // PLAN_LIMITS. A 0 means the tool is not available on that plan (the widget
 // renders it as a locked "Not on <plan> · unlock" row).
 export const PLAN_LIMITS = {
-  // Free can only use the Lesson Plan studio — every other generator studio is
-  // closed (0) and shown as a read-only sample until the teacher upgrades (see
-  // StudioGate / LockedStudio). Keep lesson_plan + the quiz-editor micro-helpers
-  // (suggest_answer / revise_question) and the in-studio diagram tool funded.
+  // Free runs the weekly teaching loop in limited form (dashboard redesign
+  // §12): lesson plans plus a small monthly allowance of worksheets, homework
+  // and short tests, and a 2-week Scheme of Work preview. Preview shaping
+  // (5-question tests, 2-week schemes) is FREE_PREVIEW_LIMITS below, enforced
+  // server-side inside the generators. Studios still at 0 render as read-only
+  // samples (StudioGate / LockedStudio).
   free: {
-    lesson_plan: 2,
-    worksheet: 0,
+    lesson_plan: 8,
+    worksheet: 4,
     flashcards: 0,
     quiz: 0,
     rubric: 0,
-    scheme_of_work: 0,
+    scheme_of_work: 2,
     notes: 0,
-    homework: 0,
+    homework: 4,
     lesson_activities: 0,
-    assessment: 0,
+    assessment: 4,
     sba_task: 0,
     exam_paper: 0,
     diagram: 3,
@@ -58,8 +60,9 @@ export const PLAN_LIMITS = {
     homework: 30,
     lesson_activities: 30,
     // assessment + exam_paper are Max-only studios (see MAX_ONLY_TOOLS): Pro
-    // and Free get a single monthly taster, then the Max paywall.
-    assessment: 1,
+    // gets a small monthly allowance of FULL papers (never fewer than Free's
+    // 5-question previews); exam_paper keeps the single taster.
+    assessment: 4,
     sba_task: 15,
     exam_paper: 1,
     diagram: 30,
@@ -90,6 +93,20 @@ export const PLAN_LIMITS = {
     revise_lesson_section: 2000,
   },
 }
+
+// Free-preview shaping enforced server-side inside the generators — mirror
+// of functions/teacherTools/teacherPlans.js FREE_PREVIEW_LIMITS (guarded by
+// scripts/test-teacher-plan-resolution.mjs). The studios read this to
+// explain the preview before the teacher generates.
+// Bumped whenever plan allowances change — mirror of the server constant so
+// client analytics can stamp which catalogue revision a teacher saw.
+export const PLAN_CATALOG_VERSION = '2026-07-14-free-preview'
+
+export const FREE_PREVIEW_LIMITS = {
+  schemePreviewWeeks: 2,
+  maxShortTestQuestions: 5,
+  shortTestMarksCap: 10,
+};
 
 // Human labels shown on the dashboard chip / "Current plan" stat.
 export const PLAN_LABELS = {

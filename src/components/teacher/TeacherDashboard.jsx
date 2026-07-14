@@ -31,11 +31,13 @@ import { capture } from '../../utils/analytics'
 import SeoHelmet from '../seo/SeoHelmet'
 import UsageReminderBanner from '../subscription/UsageReminderBanner'
 import AiRecommendations from './AiRecommendations'
+import FreeAllowanceNotice from './FreeAllowanceNotice'
 import PlanUsageCard from './PlanUsageCard'
 import PrepareThisWeek from './PrepareThisWeek'
 import QuickCreate from './QuickCreate'
 import RecentDocuments from './RecentDocuments'
 import TeacherOnboardingTour from './TeacherOnboardingTour'
+import TeacherWorkspace from './TeacherWorkspace'
 import FeedbackButton from '../feedback/FeedbackButton'
 import SuggestionNudge from '../feedback/SuggestionNudge'
 import PushPermissionPrompt from '../ui/PushPermissionPrompt'
@@ -55,321 +57,15 @@ import {
   FolderOpen,
   GraduationCap,
   Layers,
-  LayoutGrid,
   PencilLine,
   Play,
   Search,
   Sparkles,
   Target,
 } from '../ui/icons'
-// 3D studio tile icons (optimised WebP, ~2KB each). Replaces the flat line
-// icons on the workspace grid; one per tile, keyed to each studio below.
-import iconClassRegister from '../../assets/teacher-icons/class-register.webp'
-import iconVisualStudio from '../../assets/teacher-icons/visual-studio.webp'
-import iconSchemeOfWork from '../../assets/teacher-icons/scheme-of-work.webp'
-import iconWeeklyForecast from '../../assets/teacher-icons/weekly-forecast.webp'
-import iconRecordOfWork from '../../assets/teacher-icons/record-of-work.webp'
-import iconMarkSchedule from '../../assets/teacher-icons/mark-schedule.webp'
-import iconClassTimetable from '../../assets/teacher-icons/class-timetable.webp'
-import iconLessonPlan from '../../assets/teacher-icons/lesson-plan.webp'
-import iconNotesStudio from '../../assets/teacher-icons/notes-studio.webp'
-import iconWorksheet from '../../assets/teacher-icons/worksheet.webp'
-import iconFlashcards from '../../assets/teacher-icons/flashcards.webp'
-import iconRubric from '../../assets/teacher-icons/rubric.webp'
-import iconAssessments from '../../assets/teacher-icons/assessments.webp'
-import iconSbaStudio from '../../assets/teacher-icons/sba-studio.webp'
-import iconLibrary from '../../assets/teacher-icons/library.webp'
-import iconSchoolCalendar from '../../assets/teacher-icons/school-calendar.webp'
-import iconSyllabiStudio from '../../assets/teacher-icons/syllabi-studio.webp'
 // Premium hero illustration — 3D study-desk scene that matches the brand teal,
 // so it blends straight into the hero gradient. Compressed to ~20KB WebP.
 import heroDesk from '../../assets/teacher/hero-desk.webp'
-
-// Tiles are grouped into the teacher workflows the "Teacher Workspace" renders
-// as labelled sections (each with a header icon + "View all" link, matching the
-// app design). `NEW` is reserved for genuinely recent tools so the badge keeps
-// its signal; every other tile shows either its saved-count or no badge. Keep
-// each group's items in their display order.
-const STUDIO_GROUPS = [
-  {
-    label: 'Planning',
-    icon: ClipboardList,
-    accent: 'amber',
-    viewAll: '/teacher/library',
-    items: [
-      {
-        img: iconSyllabiStudio,
-        tone: 'sky',
-        badge: null,
-        title: 'Syllabus Studio',
-        tagline: 'Browse CBC subjects, topics, competences, and standards.',
-        to: '/teacher/syllabi',
-      },
-      {
-        img: iconSchemeOfWork,
-        tone: 'amber',
-        badge: null,
-        libraryKey: 'scheme-of-work',
-        title: 'Schemes of Work',
-        tagline: 'Map term pacing, outcomes, and weekly checkpoints.',
-        to: '/teacher/generate/scheme-of-work',
-      },
-      {
-        img: iconSchoolCalendar,
-        tone: 'indigo',
-        badge: null,
-        title: 'School Calendar',
-        tagline: 'Check MoE terms, public holidays, and working days.',
-        to: '/teacher/calendar',
-      },
-      {
-        img: iconWeeklyForecast,
-        tone: 'blue',
-        badge: null,
-        libraryKey: 'weekly-forecast',
-        title: 'Weekly Forecast',
-        tagline: 'Plan the week day by day from your scheme, syllabus and timetable.',
-        to: '/teacher/generate/weekly-forecast',
-      },
-      {
-        img: iconLessonPlan,
-        tone: 'orange',
-        badge: null,
-        libraryKey: 'lesson-plan',
-        title: 'Lesson Plans',
-        tagline: 'Prepare CBC lessons with stages, resources, and assessment.',
-        to: '/teacher/generate/lesson-plan',
-      },
-      {
-        img: iconLessonPlan,
-        tone: 'amber',
-        badge: 'NEW',
-        libraryKey: null,
-        title: 'Template Bank',
-        tagline: 'Find, copy and customise ready-made, curriculum-aligned lesson plan templates.',
-        to: '/teacher/templates',
-      },
-      {
-        img: iconRecordOfWork,
-        tone: 'cyan',
-        badge: null,
-        libraryKey: 'record-of-work',
-        title: 'Record of Work',
-        tagline: 'Log what you actually taught each week, checked against your scheme.',
-        to: '/teacher/generate/record-of-work',
-      },
-      {
-        img: iconClassRegister,
-        tone: 'green',
-        badge: 'NEW',
-        libraryKey: null,
-        title: 'Class Register',
-        tagline: 'Build one class list per class — SBA, marks and reports load every learner.',
-        to: '/teacher/register',
-      },
-      {
-        img: iconClassTimetable,
-        tone: 'violet',
-        badge: null,
-        libraryKey: 'class-timetable',
-        title: 'Class Timetable',
-        tagline: 'Auto-fill a balanced week from the curriculum subjects.',
-        to: '/teacher/generate/class-timetable',
-      },
-    ],
-  },
-  {
-    label: 'Content & Teaching Materials',
-    icon: BookOpen,
-    accent: 'blue',
-    viewAll: '/teacher/library',
-    items: [
-      {
-        img: iconNotesStudio,
-        tone: 'blue',
-        badge: null,
-        libraryKey: 'notes',
-        title: 'Notes Studio',
-        tagline: 'Turn a lesson plan into delivery notes and examples.',
-        to: '/teacher/generate/notes',
-      },
-      {
-        img: iconWorksheet,
-        tone: 'green',
-        badge: null,
-        libraryKey: 'worksheet',
-        title: 'Worksheets',
-        tagline: 'Create classroom practice, exercises, and consolidation tasks.',
-        to: '/teacher/generate/worksheet',
-      },
-      {
-        img: iconFlashcards,
-        tone: 'yellow',
-        badge: null,
-        libraryKey: 'flashcards',
-        title: 'Flashcards',
-        tagline: 'Build short revision prompts for recall and practice.',
-        to: '/teacher/generate/flashcards',
-      },
-      {
-        img: iconWorksheet,
-        tone: 'sky',
-        badge: null,
-        libraryKey: 'homework',
-        title: 'Homework Studio',
-        tagline: 'Short take-home practice with an answer key and a parent note.',
-        to: '/teacher/generate/homework',
-      },
-      {
-        img: iconVisualStudio,
-        tone: 'orange',
-        badge: 'NEW',
-        libraryKey: null,
-        title: 'Visual Studio',
-        tagline: 'Make labelled diagrams & test pictures, then send to a studio.',
-        to: '/teacher/visual-studio',
-      },
-    ],
-  },
-  {
-    label: 'Assessment & Marking',
-    icon: ClipboardCheckList,
-    accent: 'violet',
-    viewAll: '/teacher/library',
-    items: [
-      {
-        img: iconAssessments,
-        tone: 'violet',
-        badge: null,
-        title: 'Test Papers',
-        tagline: 'Build topic, weekly, mid-term, and end-of-term test papers.',
-        to: '/teacher/test-papers',
-      },
-      {
-        img: iconLibrary,
-        tone: 'indigo',
-        badge: 'NEW',
-        title: 'Question Bank',
-        tagline: 'Search your saved questions and the platform Master Bank. Reuse, duplicate, favourite.',
-        to: '/teacher/question-bank',
-      },
-      {
-        img: iconAssessments,
-        tone: 'indigo',
-        badge: 'NEW',
-        libraryKey: 'exam-paper',
-        title: 'Exam Studio',
-        tagline: 'Build mock, examination, and exam papers at full exam standard.',
-        to: '/teacher/exam-papers',
-      },
-      {
-        img: iconRubric,
-        tone: 'rose',
-        badge: null,
-        libraryKey: 'rubric',
-        title: 'Rubrics',
-        tagline: 'Define criteria, levels, and marking guidance.',
-        to: '/teacher/generate/rubric',
-      },
-      {
-        img: iconMarkSchedule,
-        tone: 'green',
-        badge: null,
-        libraryKey: 'mark-schedule',
-        title: 'Mark Schedule',
-        tagline: 'Marks in — totals, class positions and report comments out.',
-        to: '/teacher/generate/mark-schedule',
-      },
-    ],
-  },
-  {
-    // All three SBA tools live together here so teachers can see at a glance
-    // that they belong to the ECZ School Based Assessment workflow — not the
-    // general test/exam tools above. The `description` spells out what SBA is
-    // and who it's for; "View all" opens the SBA Hub, which carries the
-    // step-by-step guide for each tool.
-    label: 'School Based Assessment (SBA)',
-    icon: GraduationCap,
-    accent: 'blue',
-    viewAll: '/teacher/sba',
-    description:
-      'ECZ School Based Assessment — Grades 5–7 only, worth 30% of the final Grade 7 mark (10% banked per grade). Create tasks, record marks and track coverage. These are not for ordinary class tests — use Test Papers or Exam Studio for those. New to SBA? Tap “View all” for a short how-to guide.',
-    items: [
-      {
-        img: iconSbaStudio,
-        tone: 'sky',
-        badge: null,
-        libraryKey: 'sba-task',
-        title: 'SBA Studio',
-        tagline: 'Step 1 · Create an ECZ-compliant SBA task — the right task type, Bloom level and marking scheme. Never multiple-choice.',
-        to: '/teacher/generate/sba',
-      },
-      {
-        img: iconSbaStudio,
-        tone: 'cyan',
-        badge: null,
-        title: 'SBA Mark Tracker',
-        tagline: 'Step 2 · Enter each pupil’s task marks; the 10%-per-grade SBA mark converts for you, ready for the ECZ OMES portal.',
-        to: '/teacher/generate/sba-tracker',
-      },
-      {
-        img: iconSbaStudio,
-        tone: 'green',
-        badge: null,
-        title: 'SBA Year Planner',
-        tagline: 'Step 3 · Plan every required task across the year and track each one Planned → Administered → Marked.',
-        to: '/teacher/generate/sba-planner',
-      },
-    ],
-  },
-  {
-    label: 'Library',
-    icon: FolderOpen,
-    accent: 'slate',
-    viewAll: '/teacher/library',
-    items: [
-      {
-        img: iconLibrary,
-        tone: 'slate',
-        badge: null,
-        isLibrary: true,
-        title: 'My Library',
-        tagline: 'All saved plans, notes, worksheets, rubrics, and assessments.',
-        to: '/teacher/library',
-      },
-      {
-        img: iconLibrary,
-        tone: 'slate',
-        badge: null,
-        title: 'Recovery Centre',
-        tagline: 'Every unfinished draft across your studios — resume or clear it out.',
-        to: '/teacher/drafts',
-      },
-    ],
-  },
-]
-
-// Studio tile routes that are Pro/Max only — a Free teacher who opens one sees a
-// read-only sample (StudioGate), so the tile is badged "Sample" for them. The
-// Lesson Plan tile and the non-generator utilities (Syllabus, Calendar,
-// Register, Visual Studio, SBA hub, Library) stay open and are absent here.
-const LOCKED_STUDIO_PATHS = new Set([
-  '/teacher/generate/scheme-of-work',
-  '/teacher/generate/weekly-forecast',
-  '/teacher/generate/record-of-work',
-  '/teacher/generate/class-timetable',
-  '/teacher/generate/notes',
-  '/teacher/generate/worksheet',
-  '/teacher/generate/flashcards',
-  '/teacher/generate/homework',
-  '/teacher/generate/rubric',
-  '/teacher/generate/mark-schedule',
-  '/teacher/test-papers',
-  '/teacher/exam-papers',
-  '/teacher/generate/sba',
-  '/teacher/generate/sba-tracker',
-  '/teacher/generate/sba-planner',
-])
 
 const TOOL_META = {
   lesson_plan: { icon: PencilLine, accent: '#fde2c4', label: 'Lesson Plan' },
@@ -415,106 +111,6 @@ function SectionLabel({ children }) {
   return <div className="teacher-dashboard-eyebrow">{children}</div>
 }
 
-function WorkspaceSectionHead({ icon, accent, label, viewAll, description }) {
-  return (
-    <div className="teacher-workspace-section__head">
-      <span className={`teacher-workspace-section__icon teacher-workspace-section__icon--${accent || 'amber'}`}>
-        <Icon as={icon} size="sm" />
-      </span>
-      <div className="teacher-workspace-section__titles">
-        <span className="teacher-workspace-section__label">{label}</span>
-        {description && (
-          <span className="teacher-workspace-section__desc">{description}</span>
-        )}
-      </div>
-      {viewAll && (
-        <Link to={viewAll} className="teacher-workspace-section__viewall">
-          View all
-          <Icon as={ArrowRight} size="xs" />
-        </Link>
-      )}
-    </div>
-  )
-}
-
-function StudioCard({ img, tone, badge, libraryKey, isLibrary, title, tagline, to, librarySummary, locked }) {
-  const isSoon = badge === 'SOON'
-  // STUDIOS uses dash-cased libraryKeys ('lesson-plan') but byTool is keyed
-  // by the snake_cased Firestore tool ids ('lesson_plan') — normalize or the
-  // saved count never matches.
-  const count = libraryKey
-    ? (librarySummary?.byTool?.[libraryKey.replace(/-/g, '_')] ?? 0)
-    : isLibrary
-    ? (librarySummary?.total ?? 0)
-    : null
-  // Only show a badge when there's something real to show: an explicit badge
-  // (NEW/FREE/SOON) or a saved-count for library-backed tiles. Without this
-  // guard, a badge-less tile with no count would render the literal "null saved".
-  // A locked (Free-plan, Pro/Max-only) tile shows a "🔒 Sample" badge that
-  // takes priority over the saved-count / NEW badge — it's the more useful
-  // signal: clicking opens a read-only sample, not the studio.
-  const showBadge = locked || badge !== null || count !== null
-  const badgeText = locked ? '🔒 Sample' : badge !== null ? badge : `${count} saved`
-  const badgeClass = locked
-    ? 'teacher-workspace-card__badge--muted'
-    : badge === 'FREE'
-    ? 'teacher-workspace-card__badge--success'
-    : badge === 'SOON'
-    ? 'teacher-workspace-card__badge--muted'
-    : badge === 'NEW'
-    ? 'teacher-workspace-card__badge--accent'
-    : 'teacher-workspace-card__badge--saved'
-  const cardClass = [
-    'teacher-workspace-card',
-    `teacher-workspace-card--${tone || 'slate'}`,
-    isSoon ? 'is-disabled' : '',
-  ].filter(Boolean).join(' ')
-
-  const inner = (
-    <>
-      <div className="teacher-workspace-card__top">
-        <span className="teacher-workspace-card__icon">
-          <img
-            className="teacher-workspace-card__icon-img"
-            src={img}
-            alt=""
-            aria-hidden="true"
-            width="44"
-            height="44"
-            loading="lazy"
-            decoding="async"
-          />
-        </span>
-        {showBadge && (
-          <span className={`teacher-workspace-card__badge ${badgeClass}`}>
-            {badgeText}
-          </span>
-        )}
-      </div>
-      <p className="teacher-workspace-card__title">{title}</p>
-      <p className="teacher-workspace-card__text">{tagline}</p>
-    </>
-  )
-
-  if (isSoon) {
-    return (
-      <div className={cardClass} aria-disabled="true" title={`${title} - coming soon`}>
-        {inner}
-      </div>
-    )
-  }
-
-  if (to) {
-    return (
-      <Link to={to} className={cardClass}>
-        {inner}
-      </Link>
-    )
-  }
-
-  return <div className={`${cardClass} is-inactive`}>{inner}</div>
-}
-
 /* ── Continue cards: recent work with a real progress signal ──────────────
    A saved generation is a finished artifact ("Ready"); a draft test paper
    reflects how far it actually is (has questions vs empty). No fabricated
@@ -555,6 +151,15 @@ export default function TeacherDashboard() {
   // Activity statistics live behind a collapsed disclosure at the bottom of
   // the page (redesign §7) — Quick Create owns their old slot.
   const [activityOpen, setActivityOpen] = useState(false)
+  // Workspace shows three primary groups; the rest expand in place (§10).
+  // State lives here so Quick Create's "View all teacher tools" can expand
+  // it before scrolling down.
+  const [workspaceExpanded, setWorkspaceExpanded] = useState(false)
+
+  // One "viewed" event per dashboard mount (§19) — covers the workspace too.
+  useEffect(() => {
+    capture('teacher_dashboard_viewed', {})
+  }, [])
 
   useEffect(() => {
     if (!currentUser) return
@@ -569,6 +174,9 @@ export default function TeacherDashboard() {
       setGenerations(gens)
       setAssessments(papers)
       setGensError(gensFailed)
+      // A failed summary query hides saved-count badges rather than showing
+      // wrong zeros — record it so we can see how often that path is hit.
+      if (gensFailed) capture('workspace_count_query_failed', {})
       setLoading(false)
     }
     load()
@@ -846,6 +454,15 @@ export default function TeacherDashboard() {
           unasked + permission 'default', so it renders nothing once handled). */}
       <PushPermissionPrompt variant="teacher" />
 
+      {/* One-time "your free allowance increased" notice (self-gates on plan
+          + a per-catalogue-revision seen flag). */}
+      <FreeAllowanceNotice
+        plan={teacherPlan}
+        onViewAllowance={() => {
+          document.getElementById('teacher-plan-usage')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+        }}
+      />
+
       {/* ── AI Workspace hero ─────────────────────────────────────── */}
       <section className={`teacher-hero teacher-hero--${greeting.part}`}>
         <img
@@ -991,7 +608,10 @@ export default function TeacherDashboard() {
       </section>
 
       {/* ── Quick create (the four primary studio actions) ────────── */}
-      <QuickCreate context={activeQuickCreateContext} />
+      <QuickCreate
+        context={activeQuickCreateContext}
+        onViewAllTools={() => setWorkspaceExpanded(true)}
+      />
 
       {/* ── AI Recommendations (actionable; replaces AI insights) ─── */}
       {!loading && <AiRecommendations recommendations={recommendations} />}
@@ -1004,42 +624,14 @@ export default function TeacherDashboard() {
         onRename={handleRenameRecent}
       />
 
-      {/* ── Teacher workspace (studios) ───────────────────────────── */}
-      <div id="teacher-workspace" className="teacher-workspace-header teacher-defer">
-        <span className="teacher-workspace-header__icon">
-          <Icon as={LayoutGrid} size="md" />
-        </span>
-        <div>
-          {/* Focus target for Quick Create's "View all teacher tools" —
-              tabIndex={-1} lets the button move keyboard focus here. */}
-          <h2 id="teacher-workspace-title" tabIndex={-1} className="teacher-workspace-header__title">
-            Teacher Workspace
-          </h2>
-          <p className="teacher-workspace-header__text">Everything you need in one place</p>
-        </div>
-      </div>
-
-      {STUDIO_GROUPS.map((group) => (
-        <section key={group.label} className="teacher-workspace-section teacher-defer">
-          <WorkspaceSectionHead
-            icon={group.icon}
-            accent={group.accent}
-            label={group.label}
-            viewAll={group.viewAll}
-            description={group.description}
-          />
-          <div className="teacher-workspace-grid">
-            {group.items.map((s) => (
-              <StudioCard
-                key={s.title}
-                {...s}
-                librarySummary={librarySummary}
-                locked={isFreePlan && LOCKED_STUDIO_PATHS.has(s.to)}
-              />
-            ))}
-          </div>
-        </section>
-      ))}
+      {/* ── Teacher workspace (studios) — three primary groups; the rest
+          expand in place behind "View all teacher tools" ───────────── */}
+      <TeacherWorkspace
+        librarySummary={librarySummary}
+        isFreePlan={isFreePlan}
+        expanded={workspaceExpanded}
+        onToggle={setWorkspaceExpanded}
+      />
 
       {/* ── Your activity (collapsed disclosure — the stats moved out of
           the main flow when Quick Create took their slot; the numbers and
@@ -1128,7 +720,7 @@ export default function TeacherDashboard() {
       {/* ── Compact plan + usage — ONE card, bottom of the page by design:
           the dashboard leads with teaching work, not usage statistics; the
           full breakdown stays one tap away behind "View details". ───── */}
-      <section className="teacher-usage-section teacher-defer">
+      <section id="teacher-plan-usage" className="teacher-usage-section teacher-defer">
         <div className="teacher-section-head">
           <SectionLabel>Plan &amp; usage</SectionLabel>
         </div>

@@ -29,6 +29,8 @@ const {validateAssessment} = require("./assessmentSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./assessmentPromptV10");
 const {assertAndIncrement, refundGeneration} = require("./usageMeter");
+const {FREE_PREVIEW_LIMITS} = require("./teacherPlans");
+const {clampAssessmentPreview} = require("./freePreview");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
 const {sourceAssessmentFromBank} = require("./masterBankSourcing");
 const {buildAvoidNote, mergeSourcedIntoSections} = require("./masterBankSourcingCore");
@@ -153,6 +155,18 @@ async function runAssessment({uid, rawInputs, apiKey}) {
     assertAndIncrement(uid, "assessment"),
   ]);
 
+  // Free preview (§12–13): a free short test aims at a small marks budget so
+  // the model authors ~FREE_PREVIEW_LIMITS.maxShortTestQuestions questions
+  // (the hard question cap is enforced on the OUTPUT below — the marks clamp
+  // alone is a soft lever). Everything downstream (bank marksBudget,
+  // gapMarks, maxTokens, the prompt) reads inputs.totalMarks, so clamping
+  // here propagates everywhere.
+  const freePreview = usage.plan === "free";
+  if (freePreview) {
+    inputs.totalMarks = Math.min(inputs.totalMarks, FREE_PREVIEW_LIMITS.shortTestMarksCap);
+    inputs.durationMinutes = Math.min(inputs.durationMinutes, 30);
+  }
+
   const genRef = admin.firestore().collection("aiGenerations").doc();
   await genRef.set({
     ownerUid: uid,
@@ -276,7 +290,17 @@ async function runAssessment({uid, rawInputs, apiKey}) {
   }
 
   const validation = validateAssessment(mergedParsed);
-  const assessment = validation.value;
+  let assessment = validation.value;
+  // Hard free-preview guarantee: never return more than the preview's
+  // question cap, whatever the model produced (fail-closed on the revenue
+  // boundary). Header marks are restamped from the kept questions.
+  let previewTruncated = false;
+  if (freePreview) {
+    const clamped = clampAssessmentPreview(
+        assessment, FREE_PREVIEW_LIMITS.maxShortTestQuestions);
+    assessment = clamped.assessment;
+    previewTruncated = clamped.truncated;
+  }
   // Final report on the validated paper (post-reorder), persisted + returned so
   // the studio can surface the quality summary to the teacher.
   const quality = checkAssessmentQuality(assessment,
@@ -347,6 +371,12 @@ async function runAssessment({uid, rawInputs, apiKey}) {
     kbGrounded: Boolean(kbMatch),
     sourcing,
     quality,
+    // Free preview markers — the studio uses these to show the honest
+    // "your short test is ready, upgrade for the full paper" prompt.
+    preview: freePreview ? {
+      maxQuestions: FREE_PREVIEW_LIMITS.maxShortTestQuestions,
+      truncated: previewTruncated,
+    } : null,
   };
 }
 
