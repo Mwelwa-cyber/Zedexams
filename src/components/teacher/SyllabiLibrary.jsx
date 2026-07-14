@@ -5,6 +5,7 @@ import {
   resolveColumnRoles, splitSpecificOutcomes, splitPoints,
   repairColumnShiftedRow, isHeaderEchoRow, joinCellText,
 } from '../../utils/curriculum2013Parser'
+import { splitConcatenatedTopicCell } from '../../utils/curriculumTopicCell'
 
 // Subject metadata — maps the raw JSON keys to icon + category + short label.
 // Keep aligned with public/syllabi/curriculum-data.json. New subjects fall
@@ -851,6 +852,27 @@ function SubjectDetail({ meta, currentSheet, onSelectSheet, rowFilter, onRowFilt
       // 2013, TOPIC/SUB-TOPIC/SPECIFIC COMPETENCES/… in the CBC sheets) —
       // otherwise "TOPIC" even renders as a bogus full-width topic heading.
       if (isHeaderEchoRow(cellsObj)) continue
+      // CBC sheets: defensively split a TOPIC cell that glued a topic + its
+      // first sub-topic ("1.2.1 COMPREHENSION 1.2.1.1 …") with an empty
+      // SUB-TOPIC cell, so the table shows a topic header and a separate
+      // sub-topic row even if the source is re-imported malformed. No-op on
+      // well-formed cells. (2013 sheets keep their own repair path below.)
+      if (!isLegacyEra) {
+        const tSplit = splitConcatenatedTopicCell(
+          cellsObj.TOPIC, cellsObj['SUB-TOPIC'] || cellsObj.SUBTOPIC,
+        )
+        if (tSplit.split) {
+          cellsObj = { ...cellsObj, TOPIC: tSplit.topic, 'SUB-TOPIC': tSplit.subtopic }
+        }
+        // Same split one tier down: a SUB-TOPIC cell that glued a sub-topic +
+        // its first competence, backfilling an empty competences cell.
+        const sSplit = splitConcatenatedTopicCell(
+          cellsObj['SUB-TOPIC'] || cellsObj.SUBTOPIC, cellsObj['SPECIFIC COMPETENCES'],
+        )
+        if (sSplit.split) {
+          cellsObj = { ...cellsObj, 'SUB-TOPIC': sSplit.topic, 'SPECIFIC COMPETENCES': sSplit.subtopic }
+        }
+      }
       if (isLegacyEra && colRoles) {
         // 2013 sheets: re-align page-break rows whose cells shifted left —
         // otherwise outcome text in the TOPIC column renders as a heading.

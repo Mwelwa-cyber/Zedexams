@@ -1,0 +1,203 @@
+#!/usr/bin/env node
+/**
+ * test-curriculum-hierarchy.mjs
+ * ==============================
+ * Regression tests for the curriculum TOPIC-cell hierarchy repair.
+ *
+ * Guards the "concatenated topic + sub-topic in one cell" bug at three layers:
+ *   1. the pure splitConcatenatedTopicCell classifier (unit),
+ *   2. numeric code-segment ordering (unit),
+ *   3. the real curriculum-data.json → rowsWithPropagatedTopic pipeline that
+ *      feeds every studio picker + coverage counter (integration).
+ *
+ * Plain `node` assertion script (throws on failure) — discovered by
+ * scripts/run-all-tests.mjs via the `test:curriculum-hierarchy` npm script.
+ */
+
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
+import {
+  splitConcatenatedTopicCell,
+  compareCurriculumCodes,
+  sortByCurriculumCode,
+  mapLegacyTopicValue,
+} from '../src/utils/curriculumTopicCell.js'
+import { rowsWithPropagatedTopic } from '../src/utils/syllabusMapping.js'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const ROOT = join(__dirname, '..')
+
+let passed = 0
+function test(name, fn) {
+  fn()
+  passed++
+  console.log(`  ✓ ${name}`)
+}
+
+console.log('\ncurriculum-hierarchy: splitConcatenatedTopicCell')
+
+test('English Comprehension: splits topic + fills empty sub-topic', () => {
+  const r = splitConcatenatedTopicCell('1.2.1 COMPREHENSION 1.2.1.1. Listening Comprehension', '')
+  assert.equal(r.split, true)
+  assert.equal(r.topic, '1.2.1 Comprehension')
+  assert.equal(r.subtopic, '1.2.1.1 Listening Comprehension')
+})
+
+test('English Letter Writing: splits and title-cases', () => {
+  const r = splitConcatenatedTopicCell('1.3.4 LETTER WRITING 1.3.4.1. Informal Letter', '')
+  assert.equal(r.topic, '1.3.4 Letter Writing')
+  assert.equal(r.subtopic, '1.3.4.1 Informal Letter')
+})
+
+test('Agriculture with OCR "2.3.I": fixes topic, keeps existing sub-topic', () => {
+  const r = splitConcatenatedTopicCell(
+    '2.3 CLIMATE- SMART AGRICULTURE 2.3.I Climate Change Impact on Agriculture and Food Security',
+    '2.3.1 Climate Change Impact on Agriculture and Food Security',
+  )
+  assert.equal(r.split, true)
+  assert.equal(r.topic, '2.3 Climate- Smart Agriculture')
+  // Sub-topic cell was already populated — must NOT be overwritten.
+  assert.equal(r.subtopic, '2.3.1 Climate Change Impact on Agriculture and Food Security')
+})
+
+test('SUB-TOPIC cell glued to first competence: splits (same bug one tier down)', () => {
+  const r = splitConcatenatedTopicCell(
+    '2.1.9.2 Making an Offer 2.1.9.2.1. Use appropriate language to make an offer', '',
+  )
+  assert.equal(r.split, true)
+  assert.equal(r.topic, '2.1.9.2 Making an Offer')
+  assert.equal(r.subtopic, '2.1.9.2.1 Use appropriate language to make an offer')
+})
+
+test('data-loss guard: child cell holds a DIFFERENT code → not split', () => {
+  // Truncating would drop "3.21.1.2 Water orientation" (the competence cell
+  // already holds an unrelated "3.13.1.1" code) — refuse to guess.
+  const r = splitConcatenatedTopicCell(
+    '3.21.1 Pool hygiene 3.21.1.2 Water orientation',
+    '3.13.1.1 Demonstrate pool hygiene activities',
+  )
+  assert.equal(r.split, false)
+  assert.equal(r.ambiguous, true)
+})
+
+test('same-code child cell → safe to truncate the parent (Agriculture)', () => {
+  const r = splitConcatenatedTopicCell(
+    '3.4 CROP PRODUCTION 3.4.1 Fruit and Tuber Crop Production',
+    '3.4.1 Farm Power',
+  )
+  assert.equal(r.split, true)
+  assert.equal(r.topic, '3.4 Crop Production')
+  assert.equal(r.subtopic, '3.4.1 Farm Power') // existing child kept, not overwritten
+})
+
+test('Sibling codes (Geography) are NOT split — flagged ambiguous', () => {
+  const r = splitConcatenatedTopicCell('1.1 Geography 1.2.The Solar System', '')
+  assert.equal(r.split, false)
+  assert.equal(r.ambiguous, true)
+  assert.equal(r.topic, '1.1 Geography 1.2.The Solar System') // untouched
+})
+
+test('Three+ codes are NOT split — flagged ambiguous', () => {
+  const r = splitConcatenatedTopicCell('10.6 Weather 10.7 Vegetation 10.8 Hazards', '')
+  assert.equal(r.split, false)
+  assert.equal(r.ambiguous, true)
+})
+
+test('Well-formed single-code topic is a no-op', () => {
+  const r = splitConcatenatedTopicCell('1.1.1 Greetings', '1.1.1.1 Formal and Informal Greetings')
+  assert.equal(r.split, false)
+  assert.equal(r.ambiguous, false)
+  assert.equal(r.topic, '1.1.1 Greetings')
+  assert.equal(r.subtopic, '1.1.1.1 Formal and Informal Greetings')
+})
+
+test('idempotent: splitting an already-split topic is a no-op', () => {
+  const once = splitConcatenatedTopicCell('1.2.1 COMPREHENSION 1.2.1.1. Listening Comprehension', '')
+  const twice = splitConcatenatedTopicCell(once.topic, once.subtopic)
+  assert.equal(twice.split, false)
+  assert.equal(twice.topic, once.topic)
+  assert.equal(twice.subtopic, once.subtopic)
+})
+
+test('empty / code-less topic cells are left alone', () => {
+  assert.equal(splitConcatenatedTopicCell('', '').split, false)
+  assert.equal(splitConcatenatedTopicCell('Reading Skills', '').split, false)
+})
+
+console.log('\ncurriculum-hierarchy: numeric code ordering')
+
+test('compareCurriculumCodes orders 1.2.2 < 1.2.9 < 1.2.10', () => {
+  const input = ['1.2.10 Ten', '1.2.2 Two', '1.2.9 Nine']
+  const sorted = sortByCurriculumCode(input)
+  assert.deepEqual(sorted, ['1.2.2 Two', '1.2.9 Nine', '1.2.10 Ten'])
+  assert.ok(compareCurriculumCodes('1.2.2', '1.2.10') < 0)
+  assert.ok(compareCurriculumCodes('1.2.10', '1.2.9') > 0)
+})
+
+test('code-less labels sort after coded ones, stably', () => {
+  const sorted = sortByCurriculumCode(['Zebra', '1.1 Alpha', 'Apple', '1.2 Beta'])
+  assert.deepEqual(sorted, ['1.1 Alpha', '1.2 Beta', 'Zebra', 'Apple'])
+})
+
+console.log('\ncurriculum-hierarchy: legacy value remap (Phase 7)')
+
+test('mapLegacyTopicValue remaps a stored combined label', () => {
+  const r = mapLegacyTopicValue('1.2.1 COMPREHENSION 1.2.1.1. Listening Comprehension')
+  assert.equal(r.remapped, true)
+  assert.equal(r.topic, '1.2.1 Comprehension')
+  assert.equal(r.subtopic, '1.2.1.1 Listening Comprehension')
+})
+
+console.log('\ncurriculum-hierarchy: real data → picker pipeline (English Form 1)')
+
+const raw = JSON.parse(readFileSync(join(ROOT, 'public/syllabi/curriculum-data.json'), 'utf8'))
+const englishForm1 = raw['English Syllabus (Forms 1-4)']?.['Form 1']
+assert.ok(englishForm1, 'English Form 1 sheet must exist')
+const rows = rowsWithPropagatedTopic(englishForm1.rows)
+
+// Build the topic → subtopics map exactly as getTopicsForSubject does.
+const topicMap = new Map()
+for (const row of rows) {
+  if (!row.topic) continue
+  const t = topicMap.get(row.topic) || { label: row.topic, subtopics: [] }
+  if (row.subtopic && !t.subtopics.includes(row.subtopic)) t.subtopics.push(row.subtopic)
+  topicMap.set(row.topic, t)
+}
+
+test('topic "1.2.1 Comprehension" exists as its own topic', () => {
+  assert.ok(topicMap.has('1.2.1 Comprehension'), 'Comprehension topic present')
+})
+
+test('Comprehension has separate Listening + Reading sub-topics', () => {
+  const subs = topicMap.get('1.2.1 Comprehension').subtopics
+  assert.ok(subs.includes('1.2.1.1 Listening Comprehension'), 'Listening Comprehension present')
+  assert.ok(subs.includes('1.2.1.2 Reading Comprehension'), 'Reading Comprehension present')
+})
+
+test('"1.3.4 Letter Writing" and "1.3.4.1 Informal Letter" are separate records', () => {
+  assert.ok(topicMap.has('1.3.4 Letter Writing'), 'Letter Writing is a topic')
+  assert.ok(
+    topicMap.get('1.3.4 Letter Writing').subtopics.includes('1.3.4.1 Informal Letter'),
+    'Informal Letter is a sub-topic of Letter Writing',
+  )
+})
+
+test('no topic label contains a second (child) curriculum code', () => {
+  for (const label of topicMap.keys()) {
+    const codes = (label.match(/\d+(?:\.\d+)+/g) || [])
+    assert.ok(codes.length <= 1, `topic label still concatenated: "${label}"`)
+  }
+})
+
+test('no sub-topic option represents two hierarchy levels', () => {
+  for (const t of topicMap.values()) {
+    for (const s of t.subtopics) {
+      const codes = (s.match(/\d+(?:\.\d+)+/g) || [])
+      assert.ok(codes.length <= 1, `sub-topic still concatenated: "${s}"`)
+    }
+  }
+})
+
+console.log(`\n✅ curriculum-hierarchy: all ${passed} checks passed\n`)

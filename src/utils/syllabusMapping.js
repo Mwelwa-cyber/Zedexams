@@ -17,6 +17,11 @@
 // Pure text helpers shared with the curriculum parser (page-break fragment
 // healing + joined-competence splitting) — no SDK imports there either.
 import { joinCellText, splitSpecificOutcomes } from './curriculum2013Parser.js'
+// Defensive splitter for TOPIC cells that glued a topic + its first sub-topic
+// into one value at a PDF page break (see curriculumTopicCell.js). Applied here
+// so EVERY picker + coverage consumer of this normaliser gets the corrected
+// hierarchy even if a future re-import reintroduces the concatenation.
+import { splitConcatenatedTopicCell } from './curriculumTopicCell.js'
 
 // ── Subject-key mapping ──────────────────────────────────────────────────
 // The Syllabi Studio uses long human-readable subject names (e.g.
@@ -184,10 +189,21 @@ export function rowsWithPropagatedTopic(rows) {
     if (row.type !== 'data') continue
     const cells = row.cells || {}
     if (isHeaderEchoRow(cells)) continue
-    const raw = String(cells.TOPIC || '').trim()
-    if (raw) topic = raw
-    const subtopic = String(cells['SUB-TOPIC'] || cells.SUBTOPIC || '').trim()
-    const specificCompetence = String(cells['SPECIFIC COMPETENCES'] || '').trim()
+    // Split a concatenated TOPIC cell (topic glued to its first sub-topic with
+    // an empty SUB-TOPIC cell) before reading either. A well-formed cell is
+    // returned unchanged, so this is a no-op on already-repaired data.
+    const rawTopicCell = String(cells.TOPIC || '').trim()
+    const rawSubCell = String(cells['SUB-TOPIC'] || cells.SUBTOPIC || '').trim()
+    const fixed = splitConcatenatedTopicCell(rawTopicCell, rawSubCell)
+    const raw = rawTopicCell // preserve "was the TOPIC cell non-empty?" semantics
+    if (fixed.topic) topic = fixed.topic
+    const rawCompetence = String(cells['SPECIFIC COMPETENCES'] || '').trim()
+    // Same split one tier down: a SUB-TOPIC cell that glued a sub-topic + its
+    // first specific competence ("2.1.9.2 Making an Offer 2.1.9.2.1 …"). The
+    // recovered competence backfills an empty SPECIFIC COMPETENCES cell.
+    const subFixed = splitConcatenatedTopicCell(fixed.subtopic, rawCompetence)
+    const subtopic = subFixed.topic
+    const specificCompetence = subFixed.subtopic
     const learningActivities = String(cells['LEARNING ACTIVITIES'] || '').trim()
     const expectedStandard = String(cells['EXPECTED STANDARD'] || '').trim()
     // Page-break continuation row: no sub-topic and no competence, only the

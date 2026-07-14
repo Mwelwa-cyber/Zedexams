@@ -162,6 +162,87 @@ const COLUMN_HEADER_NAMES = new Set([
   "LEARNING ACTIVITIES", "EXPECTED STANDARD",
 ]);
 
+// ── Concatenated TOPIC-cell splitter ─────────────────────────────────────────
+// Lock-step copy of splitConcatenatedTopicCell in src/utils/curriculumTopicCell.js
+// (kept self-contained so this module has no cross-package src/ import). Splits a
+// TOPIC cell that glued a topic + its first sub-topic ("1.2.1 COMPREHENSION
+// 1.2.1.1. Listening Comprehension") with an empty SUB-TOPIC cell. Only splits
+// two codes in a genuine parent-child relationship — never guesses. Keep in sync.
+const CODE_TOKEN_SRV = /\d+(?:\.\d+)+\.?/g;
+
+function repairOcrCodeDigitsSrv(text) {
+  return String(text == null ? "" : text)
+      .replace(/(\d\.)[Il](?=[.\s]|$)/g, "$11")
+      .replace(/(\d\.)O(?=[.\s]|$)/g, "$10");
+}
+
+function repairCodePunctuationSrv(text) {
+  return String(text == null ? "" : text)
+      .replace(/(\d)\s*\.\s*\.+\s*(\d)/g, "$1.$2")
+      .replace(/(\d)\s+\.(\d)/g, "$1.$2");
+}
+
+function cleanStatementSrv(text) {
+  let s = String(text == null ? "" : text);
+  s = s.replace(/\s+/g, " ").trim();
+  s = s.replace(/^[•●·▪◦*\-–—\s.,;:]+/, "");
+  s = s.replace(/\.{2,}/g, ".");
+  return s.trim();
+}
+
+function titleCaseIfAllCapsSrv(title) {
+  const s = String(title == null ? "" : title);
+  const letters = s.replace(/[^A-Za-z]/g, "");
+  if (!letters || letters !== letters.toUpperCase()) return s;
+  return s.toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase());
+}
+
+function parseCodedFragmentSrv(fragment) {
+  const cleaned = cleanStatementSrv(fragment);
+  const m = cleaned.match(/^(\d+(?:\.\d+)+)\.?\s*(.*)$/);
+  if (!m) return {code: null, title: cleaned};
+  return {code: m[1], title: cleanStatementSrv(m[2])};
+}
+
+function splitConcatenatedTopicCell(topicCell, subtopicCell) {
+  const rawTopic = String(topicCell == null ? "" : topicCell).trim();
+  const rawSub = String(subtopicCell == null ? "" : subtopicCell).trim();
+  const result = {topic: rawTopic, subtopic: rawSub, split: false, ambiguous: false};
+  if (!rawTopic) return result;
+  const norm = repairOcrCodeDigitsSrv(repairCodePunctuationSrv(rawTopic));
+  const codes = [];
+  CODE_TOKEN_SRV.lastIndex = 0;
+  let m;
+  while ((m = CODE_TOKEN_SRV.exec(norm)) !== null) {
+    const idx = m.index;
+    const prev = idx > 0 ? norm[idx - 1] : "";
+    if (prev && /[\d.]/.test(prev)) continue;
+    codes.push({idx, code: m[0].replace(/\.$/, "")});
+  }
+  if (codes.length < 2) return result;
+  if (codes.length > 2) { result.ambiguous = true; return result; }
+  const [c1, c2] = codes;
+  if (!c2.code.startsWith(c1.code + ".")) { result.ambiguous = true; return result; }
+  const topicPart = parseCodedFragmentSrv(norm.slice(c1.idx, c2.idx));
+  const subPart = parseCodedFragmentSrv(norm.slice(c2.idx));
+  if (!topicPart.code || !topicPart.title || !subPart.code || !subPart.title) {
+    result.ambiguous = true;
+    return result;
+  }
+  // Data-loss guard: only truncate the embedded child when the child cell is
+  // empty or already carries the SAME code (see src/utils/curriculumTopicCell.js).
+  const childMatch = String(rawSub).match(/^(\d+(?:\.\d+)*)/);
+  const childCode = childMatch ? childMatch[1] : null;
+  if (rawSub && childCode !== subPart.code) {
+    result.ambiguous = true;
+    return result;
+  }
+  result.topic = `${topicPart.code} ${titleCaseIfAllCapsSrv(topicPart.title)}`.trim();
+  result.split = true;
+  if (!rawSub) result.subtopic = `${subPart.code} ${subPart.title}`.trim();
+  return result;
+}
+
 // True when a data row is just the sheet's column-header line repeated in the
 // body (captured at PDF page breaks). These would otherwise surface as a bogus
 // "TOPIC" topic with a "SUB-TOPIC" sub-topic.
@@ -184,10 +265,20 @@ function rowsWithPropagatedTopic(rows) {
     if (row.type !== "data") continue;
     const cells = row.cells || {};
     if (isHeaderEchoRow(cells)) continue;
-    const raw = String(cells.TOPIC || "").trim();
-    if (raw) topic = raw;
-    const subtopic = String(cells["SUB-TOPIC"] || cells.SUBTOPIC || "").trim();
-    const specificCompetence = String(cells["SPECIFIC COMPETENCES"] || "").trim();
+    // Split a concatenated TOPIC cell before reading either column. A
+    // well-formed cell returns unchanged (no-op on already-repaired data).
+    const rawTopicCell = String(cells.TOPIC || "").trim();
+    const rawSubCell = String(cells["SUB-TOPIC"] || cells.SUBTOPIC || "").trim();
+    const fixed = splitConcatenatedTopicCell(rawTopicCell, rawSubCell);
+    const raw = rawTopicCell;
+    if (fixed.topic) topic = fixed.topic;
+    const rawCompetence = String(cells["SPECIFIC COMPETENCES"] || "").trim();
+    // Same split one tier down: a SUB-TOPIC cell that glued a sub-topic + its
+    // first specific competence. The recovered competence backfills an empty
+    // SPECIFIC COMPETENCES cell.
+    const subFixed = splitConcatenatedTopicCell(fixed.subtopic, rawCompetence);
+    const subtopic = subFixed.topic;
+    const specificCompetence = subFixed.subtopic;
     const learningActivities = String(cells["LEARNING ACTIVITIES"] || "").trim();
     const expectedStandard = String(cells["EXPECTED STANDARD"] || "").trim();
     // Page-break continuation row (no sub-topic/competence, only the tail of
