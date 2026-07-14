@@ -87,6 +87,7 @@ export function buildRecommendations({
   calendar = null,
   profileSubject = '',
   preferredSubject = '',
+  profileGrade = '',
 } = {}) {
   const out = []
   const termNumber = calendar?.termNumber ?? null
@@ -102,7 +103,7 @@ export function buildRecommendations({
   // Prepare This Week, so recommendations always belong to the grade +
   // subject the teacher can SEE on that card.
   const context = calendar
-    ? resolveWeekContext({ generations, calendar, profileSubject, preferredSubject })
+    ? resolveWeekContext({ generations, calendar, profileSubject, preferredSubject, profileGrade })
     : null
 
   /* 1 ── "<Subject> is not planned yet" — the teacher teaches it but has no

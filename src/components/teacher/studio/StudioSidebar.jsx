@@ -1,3 +1,4 @@
+import { Link }                      from 'react-router-dom'
 import { Sparkles }                  from '../../ui/icons'
 import { CurriculumPicker }         from './sections/CurriculumPicker.jsx'
 import { LessonDetailsForm }         from './sections/LessonDetailsForm.jsx'
@@ -25,7 +26,7 @@ import { FormatOptionsForm }         from './sections/FormatOptionsForm.jsx'
  *   onGenerate   ← called when the Generate button is clicked
  *   isValid      ← boolean — whether all required fields are filled (enables Generate)
  */
-export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, onContinue, onViewCompleted, isValid, generateLabel = 'Generate Lesson Plan', planContext = null, onDismissPlanContext, coverageState = {}, lessonMemory = {} }) {
+export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, onContinue, onViewCompleted, isValid, generateLabel = 'Generate Lesson Plan', planContext = null, onDismissPlanContext, coverageState = {}, lessonMemory = {}, activeAssignmentLabel = '', mappingNotice = '', dateHint = '', dateWarning = '' }) {
   const {
     curriculumMode,   setCurriculumMode,
     lessonDetails,    setLessonDetail,
@@ -95,6 +96,23 @@ export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, o
         </div>
       )}
 
+      {/* ── Active Teaching Profile assignment + mapping notice ── */}
+      {(activeAssignmentLabel || mappingNotice) && (
+        <div className="mx-4 mb-2 rounded-[14px] bg-[#EEF4FF] px-3 py-2 lps-soft-shadow">
+          {activeAssignmentLabel && (
+            <p className="text-[11.5px] font-semibold text-[#1d3b53]">Teaching: {activeAssignmentLabel}</p>
+          )}
+          {mappingNotice && (
+            <div className={activeAssignmentLabel ? 'mt-1' : ''}>
+              <p className="text-[11px] leading-snug text-[#b45309]">
+                Some Teaching Profile details could not be selected automatically. {mappingNotice} Choose the correct grade and subject below before creating the Lesson Plan.
+              </p>
+              <Link to="/settings/teaching-profile" className="text-[11px] font-semibold text-[#b45309] underline">Review Teaching Profile</Link>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Sections ── */}
       <div className="flex-1">
 
@@ -110,6 +128,8 @@ export function StudioSidebar({ studioState, aiState, seriesState, onGenerate, o
           curriculumMode={curriculumMode}
           onChange={setLessonDetail}
           disabled={!curriculumMode}
+          dateHint={dateHint}
+          dateWarning={dateWarning}
         />
 
         {/* 3. Topic / Subtopic */}

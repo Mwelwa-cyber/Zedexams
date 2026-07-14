@@ -25,6 +25,7 @@ import {
 } from '../../utils/teacherDashboardIntel'
 import { buildRecommendations } from '../../utils/teacherRecommendations'
 import { buildWeekPrep } from '../../utils/prepareThisWeek'
+import { useTeachingProfile } from '../../features/teacherSettings/lib/useTeachingProfile'
 import { daysUntil, fmtDate, getActiveTerm, getCurrentForecastWeek, getNextTerm } from '../../utils/moeCalendar'
 import { capture } from '../../utils/analytics'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -654,12 +655,52 @@ export default function TeacherDashboard() {
   // The last subject context the dashboard resolved for this teacher —
   // persisted so Prepare This Week + AI Recommendations never silently
   // switch subject just because a document in another subject was edited
-  // more recently. Replaced by Teaching Profile assignments when those land.
+  // more recently.
+  //
+  // The Teaching Profile's active assignment is now the source of truth for
+  // which grade + subject "this week" is about: the persisted last choice, else
+  // the profile default, else the first active assignment. A multi-subject
+  // teacher switches it on the card (handleSelectAssignment below).
+  const teachingProfile = useTeachingProfile()
+  const activeTeachingAssignments = useMemo(
+    () => teachingProfile.assignments.filter((a) => a.isActive),
+    [teachingProfile.assignments],
+  )
+  // Legacy subject-only context — kept for teachers who have not set up a
+  // Teaching Profile yet (no active assignments).
   const prepContextKey = currentUser ? `zedexams:prep-context:${currentUser.uid}` : null
-  const preferredSubject = useMemo(() => {
+  const legacyPreferredSubject = useMemo(() => {
     if (!prepContextKey) return ''
     try { return localStorage.getItem(prepContextKey) || '' } catch { return '' }
   }, [prepContextKey])
+
+  // The active assignment is persisted by its ID (assignment-level), so a
+  // teacher who teaches the same subject in two grades keeps the exact one —
+  // the subject-only selector can no longer resolve back to the wrong grade.
+  const prepAssignmentKey = currentUser ? `zedexams:prep-assignment:${currentUser.uid}` : null
+  const [activeAssignmentId, setActiveAssignmentId] = useState(() => {
+    if (!prepAssignmentKey) return ''
+    try { return localStorage.getItem(prepAssignmentKey) || '' } catch { return '' }
+  })
+
+  const activeAssignment = useMemo(() => {
+    const list = activeTeachingAssignments
+    if (!list.length) return null
+    // Last selected → default → first active (safely handles inactive/deleted ids).
+    const byId = activeAssignmentId && list.find((a) => a.id === activeAssignmentId)
+    if (byId) return byId
+    const byDefault = teachingProfile.effectiveDefaultId && list.find((a) => a.id === teachingProfile.effectiveDefaultId)
+    return byDefault || list[0]
+  }, [activeTeachingAssignments, activeAssignmentId, teachingProfile.effectiveDefaultId])
+
+  // Feed the active assignment's subject + grade to every weekly-preparation
+  // surface so Prepare This Week, Quick Create and AI Recommendations all show
+  // the SAME resolved grade + subject. Grade is authoritative (see
+  // prepareThisWeek.resolveWeekContext), so progress is never combined across
+  // grades and the grade never silently switches.
+  const profileSubject = activeAssignment?.subject || userProfile?.subject || ''
+  const profileGrade = activeAssignment?.grade || ''
+  const effectivePreferredSubject = activeAssignment ? activeAssignment.subject : legacyPreferredSubject
 
   // The MoE calendar context both weekly-preparation surfaces share. During
   // holidays the calendar points at Week 1 of the next term; isActiveTermNow
@@ -684,11 +725,12 @@ export default function TeacherDashboard() {
     () => buildWeekPrep({
       generations,
       calendar: prepCalendar,
-      profileSubject: userProfile?.subject || '',
-      preferredSubject,
+      profileSubject,
+      profileGrade,
+      preferredSubject: effectivePreferredSubject,
       now: Date.now(),
     }),
-    [generations, userProfile, prepCalendar, preferredSubject],
+    [generations, prepCalendar, profileSubject, profileGrade, effectivePreferredSubject],
   )
 
   // Persist whatever context was resolved so the next visit sticks with it.
@@ -698,6 +740,19 @@ export default function TeacherDashboard() {
     try { localStorage.setItem(prepContextKey, subject) } catch { /* storage unavailable */ }
   }, [weekPrep, prepContextKey])
 
+  // Switching the active assignment on the card persists the choice and re-seeds
+  // the weekly-preparation surfaces + Quick Create.
+  const handleSelectAssignment = (assignment) => {
+    if (!assignment) return
+    setActiveAssignmentId(assignment.id)
+    if (prepAssignmentKey) {
+      try { localStorage.setItem(prepAssignmentKey, assignment.id) } catch { /* storage unavailable */ }
+    }
+  }
+  const activeQuickCreateContext = activeAssignment
+    ? { grade: activeAssignment.grade, subject: activeAssignment.subject, term: prepCalendar?.termNumber }
+    : null
+
   // Actionable AI Recommendations (replaces the passive insights) — same
   // inputs, no extra reads; every card's condition is verified in data.
   const recommendations = useMemo(
@@ -705,10 +760,11 @@ export default function TeacherDashboard() {
       generations,
       assessments,
       calendar: prepCalendar,
-      profileSubject: userProfile?.subject || '',
-      preferredSubject,
+      profileSubject,
+      profileGrade,
+      preferredSubject: effectivePreferredSubject,
     }),
-    [generations, assessments, userProfile, prepCalendar, preferredSubject],
+    [generations, assessments, prepCalendar, profileSubject, profileGrade, effectivePreferredSubject],
   )
 
   const continueItems = useMemo(() => {
@@ -878,6 +934,9 @@ export default function TeacherDashboard() {
         loading={loading}
         error={gensError}
         prep={weekPrep}
+        assignments={activeTeachingAssignments}
+        activeAssignmentId={activeAssignment?.id}
+        onSelectAssignment={handleSelectAssignment}
         onRetry={() => { setLoading(true); setReloadKey((k) => k + 1) }}
       />
 
@@ -932,7 +991,7 @@ export default function TeacherDashboard() {
       </section>
 
       {/* ── Quick create (the four primary studio actions) ────────── */}
-      <QuickCreate />
+      <QuickCreate context={activeQuickCreateContext} />
 
       {/* ── AI Recommendations (actionable; replaces AI insights) ─── */}
       {!loading && <AiRecommendations recommendations={recommendations} />}
