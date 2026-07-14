@@ -42,9 +42,61 @@ const BACKFILL = [
     expectSubtopic: 'Writing Expository Essays' },
   { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 1', subtopicCode: '1.3.6.1', topic: '1.3.6 Persuasive Writing',
     expectSubtopic: 'An Argumentative Composition' },
+
+  // Form 2 COMPOSITION (section 2.3) + SUMMARY (2.5.1) — topic headers dropped
+  // by extraction; sub-topics 2.3.2.x-2.3.9.x + 2.5.1.x were filed under the
+  // preceding topic. Titles verified against the official Form 2 pages.
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 2', subtopicCode: '2.3.2.1', topic: '2.3.2 Descriptive Writing',
+    expectSubtopic: 'Describing a Place' },
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 2', subtopicCode: '2.3.3.1', topic: '2.3.3 Report Writing',
+    expectSubtopic: 'Introduction to Report Writing' },
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 2', subtopicCode: '2.3.4.1', topic: '2.3.4 Speech Writing',
+    expectSubtopic: 'Speech of Introduction' },
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 2', subtopicCode: '2.3.5.1', topic: '2.3.5 Biography Writing',
+    expectSubtopic: 'Auto' },
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 2', subtopicCode: '2.3.6.1', topic: '2.3.6 Expository Writing',
+    expectSubtopic: 'Features of Expository Writing' },
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 2', subtopicCode: '2.3.7.1', topic: '2.3.7 Persuasive Writing',
+    expectSubtopic: 'Argumentative Composition' },
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 2', subtopicCode: '2.3.8.1', topic: '2.3.8 Diary Writing',
+    expectSubtopic: 'Writing Diary Entries' },
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 2', subtopicCode: '2.3.9.1', topic: '2.3.9 Letter Writing',
+    expectSubtopic: 'Semi-Formal Letter' },
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 2', subtopicCode: '2.5.1.1', topic: '2.5.1 Summary Writing',
+    expectSubtopic: 'Title Summary' },
+]
+
+// Sub-topic TITLE repairs — a title the extraction truncated at a page break or
+// broke a word in. `from`/`to` are the exact text after the code. Verified
+// against the official source page.
+const SUBTOPIC_FIXES = [
+  // 1.4.10.1 spanned a page break: "Different Ways of" (p30) + "Expressing
+  // Purpose" (p31); parallels 1.4.11.1 "Different Ways of Expressing Result".
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 1', code: '1.4.10.1',
+    from: 'Different Ways of', to: 'Different Ways of Expressing Purpose' },
+  // OCR split the word "Advertisements".
+  { subject: 'English Syllabus (Forms 1-4)', sheet: 'Form 1', code: '1.5.4.1',
+    from: 'Types of Advertisement s', to: 'Types of Advertisements' },
 ]
 
 const leadingCode = (s) => (String(s || '').trim().match(/^(\d+(?:\.\d+)*)/) || [])[1] || ''
+
+function applySubtopicFixes(data, changes) {
+  for (const f of SUBTOPIC_FIXES) {
+    const sheet = data?.[f.subject]?.[f.sheet]
+    if (!sheet) { changes.push({ fix: f, status: 'sheet-missing' }); continue }
+    const row = (sheet.rows || []).find(
+      (r) => r.type === 'data' && leadingCode(r.cells?.['SUB-TOPIC']) === f.code,
+    )
+    if (!row) { changes.push({ fix: f, status: 'row-missing' }); continue }
+    const current = String(row.cells['SUB-TOPIC'] || '').trim()
+    const target = `${f.code} ${f.to}`
+    if (current === target) { changes.push({ fix: f, status: 'already' }); continue }
+    if (current !== `${f.code} ${f.from}`) { changes.push({ fix: f, status: 'drift', found: current }); continue }
+    row.cells['SUB-TOPIC'] = target
+    changes.push({ fix: f, status: 'fixed', to: target })
+  }
+}
 
 function apply(data, changes) {
   for (const b of BACKFILL) {
@@ -69,6 +121,8 @@ function apply(data, changes) {
 const primary = JSON.parse(readFileSync(join(ROOT, FILES[0]), 'utf8'))
 const changes = []
 apply(primary, changes)
+const subChanges = []
+applySubtopicFixes(primary, subChanges)
 
 console.log(`\n=== Topic-header backfill ${APPLY ? '(APPLIED)' : '(DRY-RUN)'} ===\n`)
 for (const c of changes) {
@@ -76,10 +130,17 @@ for (const c of changes) {
   console.log(`  ${tag}: ${c.b.subject} / ${c.b.sheet} → TOPIC "${c.b.topic}" on sub-topic ${c.b.subtopicCode}`)
   if (c.found) console.log(`        found: ${JSON.stringify(c.found)}`)
 }
+console.log('\n── sub-topic title repairs ──')
+for (const c of subChanges) {
+  const tag = { fixed: '✓ FIX', already: '· already correct', drift: '⚠ DRIFT (skipped)', 'row-missing': '⚠ row not found', 'sheet-missing': '⚠ sheet not found' }[c.status]
+  console.log(`  ${tag}: ${c.fix.subject} / ${c.fix.sheet} ${c.fix.code} → "${c.fix.to}"`)
+  if (c.found) console.log(`        found: ${JSON.stringify(c.found)}`)
+}
 const filled = changes.filter((c) => c.status === 'filled').length
-console.log(`\n${filled} header(s) to fill.`)
+const fixed = subChanges.filter((c) => c.status === 'fixed').length
+console.log(`\n${filled} header(s) to fill, ${fixed} sub-topic title(s) to repair.`)
 
-if (APPLY && filled > 0) {
+if (APPLY && (filled > 0 || fixed > 0)) {
   const serialized = JSON.stringify(primary, null, 2) + '\n'
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')
   for (const rel of FILES) {
@@ -88,6 +149,6 @@ if (APPLY && filled > 0) {
     writeFileSync(abs, serialized)
   }
   console.log('Applied to both file copies (.bak saved).')
-} else if (!APPLY && filled > 0) {
+} else if (!APPLY && (filled > 0 || fixed > 0)) {
   console.log('Dry-run — re-run with --apply to write.')
 }

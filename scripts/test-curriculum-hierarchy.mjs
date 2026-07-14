@@ -226,4 +226,53 @@ test('no sub-topic option represents two hierarchy levels', () => {
   }
 })
 
+console.log('\ncurriculum-hierarchy: English Form 2 restored hierarchy')
+
+const form2 = raw['English Syllabus (Forms 1-4)']?.['Form 2']
+assert.ok(form2, 'English Form 2 sheet must exist')
+const rows2 = rowsWithPropagatedTopic(form2.rows)
+const topicMap2 = new Map()
+for (const row of rows2) {
+  if (!row.topic) continue
+  const t = topicMap2.get(row.topic) || { label: row.topic, subtopics: [] }
+  if (row.subtopic && !t.subtopics.includes(row.subtopic)) t.subtopics.push(row.subtopic)
+  topicMap2.set(row.topic, t)
+}
+
+test('Form 2 COMPOSITION topic headers (2.3.2-2.3.9) restored with their sub-topics', () => {
+  const cases = [
+    ['2.3.2 Descriptive Writing', '2.3.2.1 Describing a Place'],
+    ['2.3.3 Report Writing', '2.3.3.1 Introduction to Report Writing'],
+    ['2.3.4 Speech Writing', '2.3.4.1 Speech of Introduction'],
+    ['2.3.5 Biography Writing', '2.3.5.2 Biography'],
+    ['2.3.6 Expository Writing', '2.3.6.1 Features of Expository Writing'],
+    ['2.3.7 Persuasive Writing', '2.3.7.2 Discursive Composition'],
+    ['2.3.8 Diary Writing', '2.3.8.1 Writing Diary Entries'],
+    ['2.3.9 Letter Writing', '2.3.9.1 Semi-Formal Letter'],
+    ['2.5.1 Summary Writing', '2.5.1.7 Prose Summaries'],
+  ]
+  for (const [topicLabel, subLabel] of cases) {
+    assert.ok(topicMap2.has(topicLabel), `topic "${topicLabel}" present`)
+    assert.ok(topicMap2.get(topicLabel).subtopics.includes(subLabel), `"${subLabel}" under "${topicLabel}"`)
+  }
+})
+
+test('no sub-topic is orphaned under a non-ancestor topic (English Form 2)', () => {
+  const lead = (s) => (String(s).match(/^(\d+(?:\.\d+)*)/) || [])[1] || ''
+  for (const t of topicMap2.values()) {
+    const tc = lead(t.label)
+    for (const s of t.subtopics) {
+      const sc = lead(s)
+      if (tc && sc) assert.ok(sc.startsWith(tc), `orphan: "${s}" filed under "${t.label}"`)
+    }
+  }
+})
+
+test('page-break-truncated sub-topic titles are repaired from source', () => {
+  const f1 = new Set()
+  for (const t of topicMap.values()) for (const s of t.subtopics) f1.add(s)
+  assert.ok(f1.has('1.4.10.1 Different Ways of Expressing Purpose'), '1.4.10.1 full title')
+  assert.ok(f1.has('1.5.4.1 Types of Advertisements'), '1.5.4.1 word un-split')
+})
+
 console.log(`\n✅ curriculum-hierarchy: all ${passed} checks passed\n`)
