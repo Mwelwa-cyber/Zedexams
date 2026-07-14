@@ -22,10 +22,10 @@ export default function TeachingProfileMigrationCard({
 
   return (
     <div className="tset-card" role="group" aria-label="Teaching assignments found from your existing work">
-      <p className="tset-tp-empty__title">We found these teaching assignments from your existing work</p>
+      <p className="tset-tp-empty__title">We found these possible teaching assignments from your recent work</p>
       <p className="tset-tp-empty__desc">
-        Based on your lesson plans, schemes and other documents. Tick the ones you teach — you can edit
-        or add more in the next step. Nothing is saved until you continue.
+        Based on your recent lesson plans, schemes and other documents — not everything you teach. Tick the
+        ones you teach; you can edit or add more in the next step. Nothing is saved until you continue.
       </p>
 
       <ul className="tset-tp-migrate__list" style={{ listStyle: 'none', padding: 0, margin: '12px 0', display: 'grid', gap: 8 }}>

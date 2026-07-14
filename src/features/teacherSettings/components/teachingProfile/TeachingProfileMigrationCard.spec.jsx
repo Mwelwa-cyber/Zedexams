@@ -22,7 +22,7 @@ describe('TeachingProfileMigrationCard', () => {
     render(
       <TeachingProfileMigrationCard suggestions={SUGGESTIONS} selectedKeys={allKeys()} onToggle={() => {}} onApply={() => {}} onSkip={() => {}} />,
     )
-    expect(screen.getByText(/we found these teaching assignments/i)).toBeInTheDocument()
+    expect(screen.getByText(/we found these possible teaching assignments from your recent work/i)).toBeInTheDocument()
     expect(screen.getByText(/Grade 4 · Mathematics/)).toBeInTheDocument()
     expect(screen.getByText(/from 3 documents/)).toBeInTheDocument()
     expect(screen.getByText(/Grade 5 · English · 4A/)).toBeInTheDocument()

@@ -32,6 +32,7 @@ import {
   curriculumTypeLabel,
   resolveDefaultAssignmentId,
   assignmentKey,
+  findDuplicateAssignment,
 } from '../../../utils/teachingProfileCore'
 import { weeklyTargets } from '../../../utils/teachingTargets'
 import { buildMigrationPlan } from '../../../utils/teachingProfileMigration'
@@ -107,16 +108,20 @@ export default function TeachingProfilePanel() {
     setApplyingMigration(true)
     setMigration((m) => ({ ...m, error: '' }))
     try {
-      const created = []
+      const seedRecords = []
       for (const s of chosen) {
+        // Idempotent: never create a second identical assignment. If the teacher
+        // already has this grade+subject+class (e.g. a re-run), reuse it.
+        const existing = findDuplicateAssignment(assignments, s)
+        if (existing) { seedRecords.push(existing); continue }
         const rec = await addAssignment(uid, {
           grade: s.grade, subject: s.subject, className: s.className, curriculumType: s.curriculumType, isActive: true,
         })
-        created.push(rec)
+        seedRecords.push(rec)
       }
       setMigrationSeed({
         initialProfile: { schoolLevel: migration.defaults.schoolLevel || '', academicYear: migration.defaults.academicYear || '' },
-        initialAssignments: created,
+        initialAssignments: seedRecords,
       })
       reload()
       setWizardOpen(true)
