@@ -47,6 +47,7 @@ import StudioOutputBoundary from '../StudioOutputBoundary'
 import { curriculumSeedFromProfile, preferredDifficulty, preferredTermYear } from '../../../utils/teacherDefaults'
 import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
 import CreatedFromLessonPlanNotice from './CreatedFromLessonPlanNotice'
+import StudioAssignmentChangeNotice from './StudioAssignmentChangeNotice'
 
 /**
  * Worksheet Generator — pupil-facing worksheet + separate answer-key export.
@@ -305,6 +306,11 @@ export default function WorksheetGenerator() {
         />
 
         <CreatedFromLessonPlanNotice urlDefaults={urlDefaults} />
+        <StudioAssignmentChangeNotice
+          uid={currentUser?.uid}
+          currentSeed={{ grade: curr.grade || selectorSeed?.grade || '', subject: curr.subject || selectorSeed?.subject || '', curriculum: curr.curriculum || selectorSeed?.curriculum || '' }}
+          onApply={(seed) => { setSelectorSeed(seed); setSelectorKey((k) => k + 1); setCurr({}) }}
+        />
         <div className="mb-4">
           <DraftRecoveryPrompt {...draft} label="worksheet" />
         </div>

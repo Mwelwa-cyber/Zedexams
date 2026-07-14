@@ -31,6 +31,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
+import StudioAssignmentChangeNotice from './StudioAssignmentChangeNotice'
 import {
   TEACHER_SUBJECTS,
   getTermModuleOutline,
@@ -681,6 +682,11 @@ export default function WeeklyForecastStudio() {
         />
 
         <div className="space-y-6">
+          <StudioAssignmentChangeNotice
+            uid={uid}
+            currentSeed={{ grade: curr.grade || selectorSeed?.grade || '', subject: curr.subject || selectorSeed?.subject || '', curriculum: curr.curriculum || selectorSeed?.curriculum || '' }}
+            onApply={(seed) => { setSelectorSeed(seed); setSelectorKey((k) => k + 1); setCurr({}) }}
+          />
           <DraftRecoveryPrompt {...draft} label="weekly forecast" />
           {/* ── Plan details (select first) ── */}
           <section className="studio-card p-5 space-y-4">

@@ -19,6 +19,7 @@ import { LIBRARY_TYPES } from '../../../config/library'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
+import StudioAssignmentChangeNotice from './StudioAssignmentChangeNotice'
 import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
 import {
   FieldTextarea,
@@ -229,6 +230,11 @@ export default function FlashcardGenerator() {
           emoji="🎴"
         />
 
+        <StudioAssignmentChangeNotice
+          uid={currentUser?.uid}
+          currentSeed={{ grade: curr.grade || selectorSeed?.grade || '', subject: curr.subject || selectorSeed?.subject || '', curriculum: curr.curriculum || selectorSeed?.curriculum || '' }}
+          onApply={(seed) => { setSelectorSeed(seed); setSelectorKey((k) => k + 1); setCurr({}) }}
+        />
         <div className="mb-4"><DraftRecoveryPrompt {...draft} label="flashcards" /></div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6">
