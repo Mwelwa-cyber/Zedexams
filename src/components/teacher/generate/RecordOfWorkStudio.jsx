@@ -178,20 +178,29 @@ export default function RecordOfWorkStudio() {
   // week's planned topic pre-filled from the teacher's lesson plans.
   function buildFromCalendar() {
     const termWeeks = getTermWeeks(Number(header.year), Number(header.term))
-    if (!termWeeks.length) { toast.error('No School Calendar data for that term and year.'); return }
-    const { weeks: built, plannedCount } = buildRecordOfWorkFromPlan({
+    if (!termWeeks.length) {
+      toast.error('School-week information is unavailable for that term and year. Review your School Calendar settings, then try again.')
+      return
+    }
+    // Merge-not-overwrite: weeks already carrying typed work keep every teacher
+    // value; only blank topic/subtopic/week-ending cells are filled in.
+    const { weeks: built, plannedCount, preservedCount, conflictWeeks } = buildRecordOfWorkFromPlan({
       generations: plans,
       termWeeks,
+      existingWeeks: weeks,
       grade: header.grade,
       subject: header.subject,
       termNumber: Number(header.term),
+      academicYear: header.year,
     })
     setWeeks(built)
-    toast.success(
-      plannedCount > 0
-        ? `${built.length} weeks from the calendar — ${plannedCount} pre-filled from your lesson plans. Log coverage as you teach.`
-        : `${built.length} weeks from the calendar. Add topics${header.subject ? '' : ' (choose a subject to pull planned topics)'} and log coverage as you teach.`,
-    )
+    const bits = [`${built.length} weeks from the calendar`]
+    if (plannedCount > 0) bits.push(`${plannedCount} planned topic${plannedCount === 1 ? '' : 's'} filled from your lesson plans`)
+    if (preservedCount > 0) bits.push(`${preservedCount} week${preservedCount === 1 ? '' : 's'} you already filled kept as-is`)
+    toast.success(`${bits.join(' · ')}. Log the work actually covered as you teach.`)
+    if (conflictWeeks.length) {
+      toast.info(`Week${conflictWeeks.length === 1 ? '' : 's'} ${conflictWeeks.join(', ')} had more than one planned topic — review ${conflictWeeks.length === 1 ? 'it' : 'them'} before saving.`)
+    }
   }
 
   function updateWeek(index, field, value) {

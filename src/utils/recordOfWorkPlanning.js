@@ -23,16 +23,28 @@ function toMs(t) {
 
 /**
  * Index the teacher's lesson plans for one term by their planned school week.
- * Matches on grade + subject (via meta.planned first, then inputs) + term;
- * the most recently created plan wins a given week.
+ * Matching is scoped by grade + subject (via meta.planned first, then inputs)
+ * + term + ACADEMIC YEAR — a 2025 plan never seeds a 2026 record. Only
+ * meta.planned.schoolWeek attributes a plan to a week (never createdAt/
+ * updatedAt/array position); legacy plans without it are simply not indexed —
+ * their weeks stay blank for manual entry.
  *
- * @returns {Map<number, {week, topic, subtopic, plannedDate}>}
+ * When several plans land on the same week, the winner is deterministic per the
+ * statutory-record rule: the EARLIEST planned lesson in that school week, tie-
+ * broken by stable document id — never Firestore return order. A week whose
+ * candidates carry genuinely different topics is flagged (`conflict: true`) so
+ * the caller can tell the teacher to review it rather than trust a silent pick.
+ *
+ * @returns {Map<number, {week, topic, subtopic, plannedDate, sourceLessonPlanId, conflict}>}
  */
-export function plannedLessonsForTerm(generations, { grade = '', subject = '', termNumber = null } = {}) {
+export function plannedLessonsForTerm(
+  generations,
+  { grade = '', subject = '', termNumber = null, academicYear = '' } = {},
+) {
   const wantGrade = normGrade(grade)
   const wantSubject = normSubject(subject)
-  const byWeek = new Map()
-  const stamp = new Map() // week → createdMs of the current winner
+  const wantYear = String(academicYear || '').trim()
+  const candidates = new Map() // week → [{ plan fields }]
 
   for (const g of Array.isArray(generations) ? generations : []) {
     if (!g || g.tool !== 'lesson_plan') continue
@@ -43,34 +55,95 @@ export function plannedLessonsForTerm(generations, { grade = '', subject = '', t
     if (wantSubject && gSubject !== wantSubject) continue
     const gTerm = termNumberOf(planned.termNumber ?? g.inputs?.term)
     if (termNumber != null && gTerm !== termNumber) continue
+    // Year boundary: modern planned metadata always carries academicYear
+    // alongside schoolWeek; a plan that can't prove its year must not seed.
+    if (wantYear && String(planned.academicYear || '').trim() !== wantYear) continue
 
     const week = Number(planned.schoolWeek)
     if (!Number.isInteger(week) || week < 1) continue
 
-    const createdMs = toMs(g.createdAt)
-    if (byWeek.has(week) && createdMs <= (stamp.get(week) || 0)) continue
-    stamp.set(week, createdMs)
-    byWeek.set(week, {
+    const entry = {
       week,
       topic: String(g.inputs?.topic || '').trim(),
       subtopic: String(g.inputs?.subtopic || '').trim(),
       plannedDate: planned.plannedDate || '',
+      sourceLessonPlanId: g.id || '',
+      createdMs: toMs(g.createdAt),
+    }
+    if (!candidates.has(week)) candidates.set(week, [])
+    candidates.get(week).push(entry)
+  }
+
+  const byWeek = new Map()
+  for (const [week, list] of candidates) {
+    // Earliest planned lesson in the week wins; '' (no date) sorts last;
+    // stable document-id tie-breaker.
+    const sorted = [...list].sort((a, b) =>
+      (a.plannedDate || '9999-99-99').localeCompare(b.plannedDate || '9999-99-99') ||
+      String(a.sourceLessonPlanId).localeCompare(String(b.sourceLessonPlanId)),
+    )
+    const winner = sorted[0]
+    const topics = new Set(list.map((e) => e.topic).filter(Boolean))
+    byWeek.set(week, {
+      week,
+      topic: winner.topic,
+      subtopic: winner.subtopic,
+      plannedDate: winner.plannedDate,
+      sourceLessonPlanId: winner.sourceLessonPlanId,
+      conflict: topics.size > 1,
     })
   }
   return byWeek
 }
 
+/** True when a record week row carries any teacher content worth preserving. */
+export function recordWeekHasContent(w) {
+  if (!w || typeof w !== 'object') return false
+  return Boolean(
+    String(w.topic || '').trim() ||
+    String(w.subtopic || '').trim() ||
+    (Array.isArray(w.workDone) && w.workDone.length) ||
+    String(w.coverage || '').trim() ||
+    String(w.remarks || '').trim(),
+  )
+}
+
 /**
  * Build Record of Work week rows from a calendar week skeleton, pre-filling the
  * planned topic/subtopic for weeks that have a lesson plan. Coverage/remarks are
- * left blank for the teacher to record. Row shape = blankRecordWeek's shape.
+ * left blank for the teacher to record. Row shape = blankRecordWeek's shape,
+ * plus `sourceLessonPlanId` on seeded rows (a reference only — the row stays
+ * fully editable, and a later-deleted plan never erases record content).
+ *
+ * Seeding NEVER overwrites teacher content: an `existingWeeks` row with any
+ * content keeps every teacher value; only its blank topic/subtopic/weekEnding
+ * are filled in.
  *
  * @param termWeeks     getTermWeeks() → [{ weekNumber, ending, endingLabel }]
  * @param plannedByWeek plannedLessonsForTerm() result
+ * @param existingWeeks the studio's current week rows (may hold typed work)
  */
-export function buildRecordWeeksFromCalendar({ termWeeks = [], plannedByWeek = new Map() } = {}) {
+export function buildRecordWeeksFromCalendar({ termWeeks = [], plannedByWeek = new Map(), existingWeeks = [] } = {}) {
+  const existingByWeek = new Map(
+    (Array.isArray(existingWeeks) ? existingWeeks : [])
+      .filter((w) => recordWeekHasContent(w))
+      .map((w) => [Number(w.week), w]),
+  )
   return (Array.isArray(termWeeks) ? termWeeks : []).map((w) => {
     const planned = plannedByWeek instanceof Map ? plannedByWeek.get(w.weekNumber) : null
+    const existing = existingByWeek.get(w.weekNumber)
+    if (existing) {
+      // Teacher-entered content wins; fill only the blanks.
+      const topicFromPlan = !String(existing.topic || '').trim() && planned?.topic
+      return {
+        ...existing,
+        week: String(w.weekNumber),
+        weekEnding: String(existing.weekEnding || '').trim() || w.endingLabel || w.ending || '',
+        topic: String(existing.topic || '').trim() || (planned ? planned.topic : ''),
+        subtopic: String(existing.subtopic || '').trim() || (planned ? planned.subtopic : ''),
+        ...(topicFromPlan && planned.sourceLessonPlanId ? { sourceLessonPlanId: planned.sourceLessonPlanId } : {}),
+      }
+    }
     return {
       week: String(w.weekNumber),
       weekEnding: w.endingLabel || w.ending || '',
@@ -79,18 +152,29 @@ export function buildRecordWeeksFromCalendar({ termWeeks = [], plannedByWeek = n
       workDone: [],
       coverage: '',
       remarks: '',
+      ...(planned?.topic && planned.sourceLessonPlanId ? { sourceLessonPlanId: planned.sourceLessonPlanId } : {}),
     }
   })
 }
 
 /**
  * One call for the studio: calendar week skeleton + lesson-plan topics → record
- * week rows, plus how many weeks came pre-filled from a plan (for a friendly
- * "N of M weeks prefilled from your lesson plans" toast).
+ * week rows. Also reports how many weeks were pre-filled from a plan, how many
+ * kept teacher-entered content, and which weeks had MORE than one distinct
+ * planned topic (the teacher should review those — never silently trusted).
  */
-export function buildRecordOfWorkFromPlan({ generations = [], termWeeks = [], grade = '', subject = '', termNumber = null } = {}) {
-  const plannedByWeek = plannedLessonsForTerm(generations, { grade, subject, termNumber })
-  const weeks = buildRecordWeeksFromCalendar({ termWeeks, plannedByWeek })
-  const plannedCount = weeks.filter((w) => w.topic).length
-  return { weeks, plannedCount }
+export function buildRecordOfWorkFromPlan({
+  generations = [], termWeeks = [], existingWeeks = [],
+  grade = '', subject = '', termNumber = null, academicYear = '',
+} = {}) {
+  const plannedByWeek = plannedLessonsForTerm(generations, { grade, subject, termNumber, academicYear })
+  const weeks = buildRecordWeeksFromCalendar({ termWeeks, plannedByWeek, existingWeeks })
+  const preservedWeeks = new Set(
+    (Array.isArray(existingWeeks) ? existingWeeks : [])
+      .filter((w) => recordWeekHasContent(w))
+      .map((w) => Number(w.week)),
+  )
+  const plannedCount = weeks.filter((w) => w.topic && !preservedWeeks.has(Number(w.week))).length
+  const conflictWeeks = [...plannedByWeek.values()].filter((p) => p.conflict).map((p) => p.week).sort((a, b) => a - b)
+  return { weeks, plannedCount, preservedCount: preservedWeeks.size, conflictWeeks }
 }
