@@ -48,7 +48,8 @@ import { useStudioInputDraft } from '../../../hooks/draft/useStudioInputDraft'
 import { schemeInputDescriptor } from '../../../hooks/draft/descriptors'
 import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
 import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
-import { getCalendarYears } from '../../../utils/moeCalendar'
+import { getCalendarYears, getCurrentForecastWeek } from '../../../utils/moeCalendar'
+import { resolveSchemeTermYear, isOffCurrentTerm } from '../../../utils/schemeCalendarDefaults'
 import {
   buildTermPlan,
   reserveWeeks,
@@ -92,11 +93,20 @@ export default function SchemeOfWorkGenerator() {
     }),
   )
   const [selectorKey, setSelectorKey] = useState(0)
+  // Open on the term the teacher is actually in, read from the School Calendar
+  // (falls back to Term 1 / current year between terms). A ?term= deep-link and
+  // a recovered draft still win (spread below / draft restore).
+  const calendarTermYear = useMemo(
+    () => resolveSchemeTermYear({
+      forecastWeek: getCurrentForecastWeek(),
+      calendarYears: CALENDAR_YEARS,
+      todayYear: new Date().getFullYear(),
+    }),
+    [],
+  )
   const [form, setForm] = useState(() => ({
-    term: 1,
-    year: CALENDAR_YEARS.includes(new Date().getFullYear())
-      ? new Date().getFullYear()
-      : CALENDAR_YEARS[0],
+    term: calendarTermYear.term,
+    year: calendarTermYear.year,
     weeksOverride: '', // '' = use the calendar's teaching-week count
     examWeeks: '', // comma-separated week numbers; '' → defaults to the last week
     revisionWeeks: '',
@@ -529,6 +539,19 @@ export default function SchemeOfWorkGenerator() {
                 onChange={(v) => updateField('year', Number(v))}
               />
             </div>
+            {isOffCurrentTerm(calendarTermYear, form) && (
+              <div className="text-sm flex flex-wrap items-center gap-2" style={{ color: '#566f76' }} role="status">
+                <span>📅 Your School Calendar says you're in <b>Term {calendarTermYear.term} {calendarTermYear.year}</b>.</span>
+                <button
+                  type="button"
+                  className="font-bold underline"
+                  style={{ color: '#0e2a32' }}
+                  onClick={() => setForm((f) => ({ ...f, term: calendarTermYear.term, year: calendarTermYear.year }))}
+                >
+                  Use current term
+                </button>
+              </div>
+            )}
 
             {/* Calendar-derived teaching weeks + reservation */}
             <div className="rounded-xl border theme-border p-3.5 space-y-3" style={{ background: '#fbfaf5' }}>
