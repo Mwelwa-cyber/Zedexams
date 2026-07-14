@@ -100,14 +100,21 @@ once:
 
 1. Google Cloud Console → **IAM & Admin → Service Accounts** (project
    `examsprepzambia`) → **Create service account** (e.g. `github-deploy`).
-2. Grant it three roles: **Firebase Admin** (`roles/firebase.admin`),
-   **Service Account User** (`roles/iam.serviceAccountUser`), and
-   **Secret Manager Admin** (`roles/secretmanager.admin`). The third is not
+2. Grant it four roles: **Firebase Admin** (`roles/firebase.admin`),
+   **Service Account User** (`roles/iam.serviceAccountUser`),
+   **Secret Manager Admin** (`roles/secretmanager.admin`), and
+   **Cloud Scheduler Admin** (`roles/cloudscheduler.admin`). The third is not
    optional: the functions deploy reads every bound secret
    (`ANTHROPIC_API_KEY`, `GITHUB_BOT_TOKEN`, …) from Secret Manager and
    manages the runtime account's access grants, and Firebase Admin does not
    include those permissions — without it the deploy fails with
    `403 Permission 'secretmanager.secrets.get' denied` (first hit 2026-07-13).
+   The fourth is needed whenever the deploy touches a **scheduled** function
+   (`onSchedule` crons): firebase-tools upserts each one's Cloud Scheduler
+   job, and without it every cron in the deploy set fails with
+   `403 … lacks IAM permission "cloudscheduler.jobs.update"` and the whole
+   deploy — including the Hosting stage that waits on it — goes red
+   (first hit 2026-07-14).
    If a later deploy fails with `PERMISSION_DENIED` naming a different
    permission, add the role it names. Note: a freshly granted role can lose a
    race against an already-running deploy (IAM propagation takes a minute or
