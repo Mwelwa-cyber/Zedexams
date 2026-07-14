@@ -241,14 +241,22 @@ export function buildRecommendations({
 // whole test-paper list), so across a multi-class profile they're emitted once.
 const GLOBAL_REC_IDS = new Set(['draft-papers'])
 
-/** "Grade 5 · English" scope tag for a per-assignment recommendation. */
+/**
+ * "Grade 4A · Mathematics" scope tag for a per-assignment recommendation. The
+ * class/stream is kept so two assignments of the SAME grade+subject in different
+ * classes stay visibly distinct (never merged).
+ */
 function assignmentScopeLabel(a) {
-  const parts = []
-  const g = gradeLabelOf(a.grade)
-  if (g) parts.push(g)
-  const s = subjectLabelOf(a.subject)
-  if (s) parts.push(s)
-  return parts.join(' · ')
+  const grade = gradeLabelOf(a.grade)
+  const cls = typeof a.className === 'string' ? a.className.trim() : ''
+  const gradeBit = [grade, cls].filter(Boolean).join(' ') // "Grade 4 A" / "Grade 4"
+  const subject = subjectLabelOf(a.subject)
+  return [gradeBit, subject].filter(Boolean).join(' · ')
+}
+
+/** Stable per-assignment identity: the Firestore id, else grade+subject+class. */
+function assignmentIdentity(a) {
+  return a.id || `${a.grade || ''}:${a.subject || ''}:${(a.className || '').trim()}`
 }
 
 /**
@@ -305,7 +313,7 @@ export function buildProfileRecommendations({
         if (!globalSeen.has(r.id)) { globalSeen.add(r.id); globals.push(r) }
         continue
       }
-      mine.push({ ...r, id: `${r.id}::${a.grade}::${a.subject}`, scope: assignmentScopeLabel(a) })
+      mine.push({ ...r, id: `${r.id}::${assignmentIdentity(a)}`, scope: assignmentScopeLabel(a) })
     }
     perAssignment.push(mine)
   }
