@@ -21,6 +21,9 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { TEACHER_GRADES, TEACHER_SUBJECTS } from '../../../utils/teacherTools'
 import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { COVERAGE_OPTIONS, blankRecordWeek, buildRecordWeeks, coverageSummary } from '../../../utils/recordOfWork'
+import { getTermWeeks, getCurrentForecastWeek } from '../../../utils/moeCalendar'
+import { buildRecordOfWorkFromPlan } from '../../../utils/recordOfWorkPlanning'
+import { readActiveAssignmentSeed } from '../../../utils/activeAssignmentSeed'
 import { downloadRecordOfWorkDocx } from '../../../utils/recordOfWorkToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import {
@@ -48,20 +51,30 @@ export default function RecordOfWorkStudio() {
   const toast = useToast()
   const uid = currentUser?.uid
 
-  const [header, setHeader] = useState(() => ({
-    school: userProfile?.school || userProfile?.schoolName || '',
-    teacherName: userProfile?.displayName || '',
-    grade: 'G4',
-    subject: '',
-    term: 1,
-    year: String(new Date().getFullYear()),
-  }))
+  const [header, setHeader] = useState(() => {
+    // Open on the current teaching term (School Calendar) and the active
+    // Teaching Profile assignment's grade, so the record starts on the right
+    // term/class instead of a fixed Term 1 · Grade 4.
+    const fw = getCurrentForecastWeek()
+    const seed = readActiveAssignmentSeed(currentUser?.uid)
+    return {
+      school: userProfile?.school || userProfile?.schoolName || '',
+      teacherName: userProfile?.displayName || '',
+      grade: (seed && seed.grade) || 'G4',
+      subject: '',
+      term: fw?.termNumber || 1,
+      year: String(fw?.year || new Date().getFullYear()),
+    }
+  })
   const [weeks, setWeeks] = useState(() => [blankRecordWeek(1)])
 
   // Scheme source picker.
   const [schemes, setSchemes] = useState([])
   const [schemesStatus, setSchemesStatus] = useState('loading')
   const [schemeId, setSchemeId] = useState('')
+  // Lesson plans — used to pre-fill each week's planned topic when building the
+  // term from the School Calendar.
+  const [plans, setPlans] = useState([])
 
   const [confirmClear, setConfirmClear] = useState(false)
   const [generationId, setGenerationId] = useState(null)
@@ -78,6 +91,17 @@ export default function RecordOfWorkStudio() {
     listMyGenerations({ uid, tool: 'scheme_of_work' })
       .then((rows) => { if (!cancelled) { setSchemes(rows.filter((r) => r.output)); setSchemesStatus('ready') } })
       .catch(() => { if (!cancelled) setSchemesStatus('error') })
+    return () => { cancelled = true }
+  }, [uid])
+
+  // Lesson plans (for planned-topic pre-fill). Best-effort — the calendar build
+  // still works with no plans (blank topics).
+  useEffect(() => {
+    if (!uid) return
+    let cancelled = false
+    listMyGenerations({ uid, tool: 'lesson_plan' })
+      .then((rows) => { if (!cancelled) setPlans(rows || []) })
+      .catch(() => { if (!cancelled) setPlans([]) })
     return () => { cancelled = true }
   }, [uid])
 
@@ -148,6 +172,35 @@ export default function RecordOfWorkStudio() {
       term: Number(out.header?.term || selectedScheme.inputs?.term || h.term) || h.term,
     }))
     toast.success(`${built.length} weeks loaded — log coverage and remarks as you teach.`)
+  }
+
+  // Build the term from the School Calendar (real week-ending dates) with each
+  // week's planned topic pre-filled from the teacher's lesson plans.
+  function buildFromCalendar() {
+    const termWeeks = getTermWeeks(Number(header.year), Number(header.term))
+    if (!termWeeks.length) {
+      toast.error('School-week information is unavailable for that term and year. Review your School Calendar settings, then try again.')
+      return
+    }
+    // Merge-not-overwrite: weeks already carrying typed work keep every teacher
+    // value; only blank topic/subtopic/week-ending cells are filled in.
+    const { weeks: built, plannedCount, preservedCount, conflictWeeks } = buildRecordOfWorkFromPlan({
+      generations: plans,
+      termWeeks,
+      existingWeeks: weeks,
+      grade: header.grade,
+      subject: header.subject,
+      termNumber: Number(header.term),
+      academicYear: header.year,
+    })
+    setWeeks(built)
+    const bits = [`${built.length} weeks from the calendar`]
+    if (plannedCount > 0) bits.push(`${plannedCount} planned topic${plannedCount === 1 ? '' : 's'} filled from your lesson plans`)
+    if (preservedCount > 0) bits.push(`${preservedCount} week${preservedCount === 1 ? '' : 's'} you already filled kept as-is`)
+    toast.success(`${bits.join(' · ')}. Log the work actually covered as you teach.`)
+    if (conflictWeeks.length) {
+      toast.info(`Week${conflictWeeks.length === 1 ? '' : 's'} ${conflictWeeks.join(', ')} had more than one planned topic — review ${conflictWeeks.length === 1 ? 'it' : 'them'} before saving.`)
+    }
   }
 
   function updateWeek(index, field, value) {
@@ -265,6 +318,18 @@ export default function RecordOfWorkStudio() {
               <button type="button" onClick={buildFromScheme} disabled={!schemeId} className="studio-btn-primary disabled:opacity-50">
                 ▶ Build the term
               </button>
+            </div>
+            {/* Calendar + lesson-plan build — an alternative to a saved scheme:
+                real week-ending dates from the School Calendar, planned topics
+                pulled from this term's lesson plans. Uses the grade/subject/term
+                set in Record details below. */}
+            <div className="mt-3 pt-3 border-t theme-border flex flex-wrap items-center gap-3">
+              <button type="button" onClick={buildFromCalendar} className="studio-btn-ghost">
+                📅 Fill from the School Calendar &amp; my lesson plans
+              </button>
+              <span className="text-xs" style={{ color: '#566f76' }}>
+                Uses Term {header.term} · {header.year} and your grade/subject below.
+              </span>
             </div>
           </section>
 
