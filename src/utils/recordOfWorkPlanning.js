@@ -96,6 +96,43 @@ export function plannedLessonsForTerm(
   return byWeek
 }
 
+/**
+ * Restore studio state from a SAVED Record of Work generation (opened by id).
+ * The stored document is authoritative: header and weeks come from it verbatim
+ * (normalized to the studio's shapes) — never from the Teaching Profile or the
+ * Dashboard's active assignment. Returns null for anything that isn't a loadable
+ * record (wrong tool, missing output/weeks) so the caller can show a safe
+ * not-found state instead of hydrating garbage.
+ */
+export function restoreRecordFromGeneration(gen) {
+  if (!gen || typeof gen !== 'object') return null
+  if (gen.tool !== 'record_of_work') return null
+  const out = gen.output && typeof gen.output === 'object' ? gen.output : null
+  if (!out || !Array.isArray(out.weeks) || !out.weeks.length) return null
+  const h = out.header && typeof out.header === 'object' ? out.header : {}
+  const header = {
+    school: String(h.school || ''),
+    teacherName: String(h.teacherName || ''),
+    grade: String(h.grade || ''),
+    subject: String(h.subject || ''),
+    term: Number(h.term) >= 1 && Number(h.term) <= 3 ? Number(h.term) : 1,
+    year: String(h.year || ''),
+  }
+  // Preserve every stored row field (incl. sourceLessonPlanId) while guaranteeing
+  // the studio's editable shape.
+  const weeks = out.weeks.map((w) => ({
+    ...(w && typeof w === 'object' ? w : {}),
+    week: String(w?.week ?? ''),
+    weekEnding: String(w?.weekEnding ?? ''),
+    topic: String(w?.topic ?? ''),
+    subtopic: String(w?.subtopic ?? ''),
+    workDone: Array.isArray(w?.workDone) ? w.workDone : [],
+    coverage: String(w?.coverage ?? ''),
+    remarks: String(w?.remarks ?? ''),
+  }))
+  return { header, weeks }
+}
+
 /** True when a record week row carries any teacher content worth preserving. */
 export function recordWeekHasContent(w) {
   if (!w || typeof w !== 'object') return false

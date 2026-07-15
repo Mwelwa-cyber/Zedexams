@@ -16,19 +16,19 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { TEACHER_GRADES, TEACHER_SUBJECTS } from '../../../utils/teacherTools'
 import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { COVERAGE_OPTIONS, blankRecordWeek, buildRecordWeeks, coverageSummary } from '../../../utils/recordOfWork'
 import { getTermWeeks, getCurrentForecastWeek } from '../../../utils/moeCalendar'
-import { buildRecordOfWorkFromPlan } from '../../../utils/recordOfWorkPlanning'
+import { buildRecordOfWorkFromPlan, restoreRecordFromGeneration } from '../../../utils/recordOfWorkPlanning'
 import { currentWeekForRecord, weekComparisonStatus, WEEK_STATUS_META, recordAttentionSummary } from '../../../utils/recordOfWorkStatus'
 import { readActiveAssignmentSeed } from '../../../utils/activeAssignmentSeed'
 import { downloadRecordOfWorkDocx } from '../../../utils/recordOfWorkToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import {
-  listMyGenerations, titleForGeneration, saveRecordOfWorkGeneration, isFreePlanTeacher,
+  listMyGenerations, titleForGeneration, saveRecordOfWorkGeneration, isFreePlanTeacher, getGeneration,
 } from '../../../utils/teacherLibraryService'
 import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
 import RecordOfWorkView from '../views/RecordOfWorkView'
@@ -79,6 +79,50 @@ export default function RecordOfWorkStudio() {
 
   const [confirmClear, setConfirmClear] = useState(false)
   const [generationId, setGenerationId] = useState(null)
+
+  // ── open an existing record by id (?id=…&week=N) ────────────────────────────
+  // The stored record is authoritative — its header replaces the calendar/
+  // profile defaults entirely. The route id is never trusted as proof of
+  // access: the Firestore read itself is owner-gated, and a denied/missing read
+  // surfaces the same safe not-found state (no metadata leak).
+  const [searchParams] = useSearchParams()
+  const openRecordId = searchParams.get('id') || ''
+  const openWeekParam = Number(searchParams.get('week'))
+  const [openState, setOpenState] = useState(openRecordId ? 'loading' : 'idle') // idle|loading|error
+  const [openRetry, setOpenRetry] = useState(0)
+  const [highlightWeek, setHighlightWeek] = useState(null)
+  const loadedIdRef = useRef('')
+
+  useEffect(() => {
+    if (!uid || !openRecordId || loadedIdRef.current === openRecordId) return
+    let cancelled = false
+    setOpenState('loading')
+    ;(async () => {
+      const gen = await getGeneration(openRecordId).catch(() => null)
+      if (cancelled) return
+      const restored = restoreRecordFromGeneration(gen)
+      if (!restored) { setOpenState('error'); return }
+      loadedIdRef.current = openRecordId
+      setHeader(restored.header)
+      setWeeks(restored.weeks)
+      setGenerationId(openRecordId)
+      dirtySkipRef.current += 1 // a freshly-opened record isn't "unsaved changes"
+      setOpenState('idle')
+      if (Number.isInteger(openWeekParam) && openWeekParam >= 1) setHighlightWeek(openWeekParam)
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, openRecordId, openRetry])
+
+  // Scroll to + temporarily highlight the deep-linked week; the highlight clears
+  // once the teacher starts working (or after a few seconds). Never auto-edits.
+  useEffect(() => {
+    if (highlightWeek == null) return undefined
+    const el = document.getElementById(`record-week-${highlightWeek}`)
+    el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
+    const t = setTimeout(() => setHighlightWeek(null), 8000)
+    return () => clearTimeout(t)
+  }, [highlightWeek])
   const [saving, setSaving] = useState(false)
   const [dirtySinceSave, setDirtySinceSave] = useState(false)
   // Skip the mount + draft-restore runs of the dirty-marking effect so a
@@ -205,6 +249,7 @@ export default function RecordOfWorkStudio() {
   }
 
   function updateWeek(index, field, value) {
+    setHighlightWeek(null) // teacher started working — drop the deep-link highlight
     setWeeks((list) => list.map((w, i) => (i === index ? { ...w, [field]: value } : w)))
   }
 
@@ -308,6 +353,25 @@ export default function RecordOfWorkStudio() {
         />
 
         <div className="space-y-6">
+          {/* Opening an existing record by id — loading + safe not-found states. */}
+          {openState === 'loading' && (
+            <div className="rounded-xl border theme-border bg-white px-4 py-3 text-sm" role="status" style={{ color: '#566f76' }}>
+              Opening your Record of Work…
+            </div>
+          )}
+          {openState === 'error' && (
+            <div className="rounded-xl border-2 px-4 py-3 space-y-2" role="alert" style={{ borderColor: '#fecaca', background: '#fef2f2', color: '#991b1b' }}>
+              <p className="font-bold">Record of Work not found</p>
+              <p className="text-sm">It may have been deleted or moved, or you may not have permission to open it. You can start a fresh record below.</p>
+              <div className="flex flex-wrap gap-2">
+                <Link to="/teacher/library?tool=record_of_work" className="studio-btn-ghost">Open My Library</Link>
+                <Link to="/teacher" className="studio-btn-ghost">Return to Dashboard</Link>
+                <button type="button" className="studio-btn-ghost" onClick={() => { loadedIdRef.current = ''; setOpenRetry((n) => n + 1) }}>
+                  Try again
+                </button>
+              </div>
+            </div>
+          )}
           <DraftRecoveryPrompt {...draft} label="record of work" />
           {/* ── Build from a scheme ── */}
           <section className="studio-card p-5 space-y-3">
@@ -409,8 +473,14 @@ export default function RecordOfWorkStudio() {
               {weeks.map((w, i) => {
                 const status = weekComparisonStatus(w, currentWeek)
                 const meta = WEEK_STATUS_META[status]
+                const highlighted = highlightWeek != null && Number(w.week) === highlightWeek
                 return (
-                <div key={i} className="rounded-xl border theme-border bg-white p-3 space-y-2">
+                <div
+                  key={i}
+                  id={`record-week-${w.week}`}
+                  className="rounded-xl border theme-border bg-white p-3 space-y-2"
+                  style={highlighted ? { boxShadow: '0 0 0 3px #fcd34d', borderColor: '#f59e0b' } : undefined}
+                >
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-xs font-black uppercase tracking-wide" style={{ color: '#0e2a32' }}>Week {w.week || i + 1}</p>
