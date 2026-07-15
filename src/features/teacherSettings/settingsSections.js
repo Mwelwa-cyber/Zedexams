@@ -14,7 +14,6 @@ import {
   ImageIcon,
   Layers,
   GraduationCap,
-  BookOpen,
   Clock,
   ClipboardList,
   CalendarDays,
@@ -88,17 +87,9 @@ export const SETTINGS_SECTIONS = [
         id: 'teachingProfile',
         path: 'teaching-profile',
         title: 'Teaching Profile',
-        desc: 'Your school calendar, grades, subjects and teaching responsibilities',
+        desc: 'Your school calendar, grades, subjects and classes you teach',
         icon: GraduationCap,
         tone: 'orange',
-      },
-      {
-        id: 'teaching',
-        path: 'teaching',
-        title: 'Teaching',
-        desc: 'Your grades, subjects, streams and weekly load',
-        icon: BookOpen,
-        tone: 'purple',
       },
       {
         id: 'timetable',
@@ -206,6 +197,9 @@ export const LEGACY_TAB_TO_PATH = {
   appearance: 'appearance',
   accessibility: 'appearance',
   account: 'security',
+  // The standalone "Teaching" panel was folded into the Teaching Profile
+  // (its grades/subjects/classes are the same data); old links redirect there.
+  teaching: 'teaching-profile',
 }
 
 // Flat row lookup used by the router + specs.

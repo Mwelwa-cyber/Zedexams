@@ -5,6 +5,7 @@ import { getTimeGreeting } from '../../../utils/teacherDashboardIntel'
 import { resolveTeacherPlan, PLAN_LABELS } from '../../../utils/teacherPlans'
 import { teachingCounts } from '../../../utils/teacherDefaults'
 import { normalizeTeacherProfile } from '../../../utils/teacherSettingsCore'
+import { useTeachingProfile } from '../lib/useTeachingProfile'
 import Icon from '../../../components/ui/Icon'
 import { Home, PencilLine } from '../../../components/ui/icons'
 import heroDesk from '../../../assets/teacher/hero-desk.webp'
@@ -32,6 +33,10 @@ function memberSince(userProfile, currentUser) {
 export default function SettingsHero() {
   const { userProfile, currentUser } = useAuth()
   const usage = useTeacherUsage(currentUser?.uid)
+  // Classes / Subjects come from the Teaching Profile assignments (single
+  // source of truth); the hook degrades to an empty list on any read error,
+  // so teachingCounts falls back to the legacy flat teaching field.
+  const { assignments } = useTeachingProfile()
 
   const displayName = userProfile?.displayName || ''
   const firstName = displayName.split(' ')[0] || 'Teacher'
@@ -39,7 +44,7 @@ export default function SettingsHero() {
   const plan = resolveTeacherPlan(userProfile)
   const planLabel = plan === 'free' ? 'Free plan' : `${PLAN_LABELS[plan] || 'Pro'} Teacher`
   const profile = normalizeTeacherProfile(userProfile?.teacherProfile)
-  const counts = teachingCounts(userProfile)
+  const counts = teachingCounts(userProfile, assignments)
   const plansUsed = usage?.data?.used?.plans ?? null
   const school = userProfile?.school || ''
   const since = memberSince(userProfile, currentUser)

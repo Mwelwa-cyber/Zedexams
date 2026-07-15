@@ -10,7 +10,7 @@ vi.mock('./panels/SecurityPanel', () => ({ default: () => <div data-testid="pane
 vi.mock('./panels/SchoolPanel', () => ({ default: () => <div data-testid="panel-school" /> }))
 vi.mock('./panels/BrandingPanel', () => ({ default: () => <div data-testid="panel-branding" /> }))
 vi.mock('./panels/ResourcesPanel', () => ({ default: () => <div data-testid="panel-resources" /> }))
-vi.mock('./panels/TeachingPanel', () => ({ default: () => <div data-testid="panel-teaching" /> }))
+vi.mock('./panels/TeachingProfilePanel', () => ({ default: () => <div data-testid="panel-teaching-profile" /> }))
 vi.mock('./panels/TimetablePanel', () => ({ default: () => <div data-testid="panel-timetable" /> }))
 vi.mock('./panels/CurriculumPanel', () => ({ default: () => <div data-testid="panel-curriculum" /> }))
 vi.mock('./panels/CalendarPanel', () => ({ default: () => <div data-testid="panel-calendar" /> }))
@@ -56,6 +56,16 @@ describe('TeacherSettings routing', () => {
   it('renders a detail panel at its nested path', async () => {
     renderAt('/settings/profile')
     expect(await screen.findByTestId('panel-profile')).toBeInTheDocument()
+  })
+
+  it('redirects the merged /settings/teaching path to the Teaching Profile', async () => {
+    renderAt('/settings/teaching')
+    expect(await screen.findByTestId('panel-teaching-profile')).toBeInTheDocument()
+  })
+
+  it('redirects the legacy ?tab=teaching deep link to the Teaching Profile', async () => {
+    renderAt('/settings?tab=teaching')
+    expect(await screen.findByTestId('panel-teaching-profile')).toBeInTheDocument()
   })
 
   it('sends unknown subpaths back to the hub', async () => {

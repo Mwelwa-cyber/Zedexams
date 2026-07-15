@@ -25,7 +25,6 @@ const SchoolPanel = lazy(() => import('./panels/SchoolPanel'))
 const BrandingPanel = lazy(() => import('./panels/BrandingPanel'))
 const ResourcesPanel = lazy(() => import('./panels/ResourcesPanel'))
 const TeachingProfilePanel = lazy(() => import('./panels/TeachingProfilePanel'))
-const TeachingPanel = lazy(() => import('./panels/TeachingPanel'))
 const TimetablePanel = lazy(() => import('./panels/TimetablePanel'))
 const CurriculumPanel = lazy(() => import('./panels/CurriculumPanel'))
 const CalendarPanel = lazy(() => import('./panels/CalendarPanel'))
@@ -65,7 +64,8 @@ export default function TeacherSettings() {
         <Route path="resources" element={<Panel><ResourcesPanel /></Panel>} />
         {/* My Teaching */}
         <Route path="teaching-profile" element={<Panel><TeachingProfilePanel /></Panel>} />
-        <Route path="teaching" element={<Panel><TeachingPanel /></Panel>} />
+        {/* "Teaching" was merged into the Teaching Profile — redirect old links. */}
+        <Route path="teaching" element={<Navigate to="/settings/teaching-profile" replace />} />
         <Route path="timetable" element={<Panel><TimetablePanel /></Panel>} />
         <Route path="curriculum" element={<Panel><CurriculumPanel /></Panel>} />
         <Route path="calendar" element={<Panel><CalendarPanel /></Panel>} />

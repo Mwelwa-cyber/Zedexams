@@ -189,6 +189,37 @@ console.log('\nteachingCounts')
   const noStreams = teachingCounts({ teaching: { grades: ['G5', 'G6'], subjects: [] } })
   assert(noStreams.classes === 2, 'falls back to grades when no streams')
   assert(teachingCounts(null).classes === 0, 'no profile → zero')
+
+  // Teaching Profile assignments are the single source of truth when present.
+  const fromAssignments = teachingCounts(
+    { teaching: { grades: ['G1'], subjects: ['art'], streams: ['1A'] } }, // legacy ignored
+    [
+      { grade: 'G5', subject: 'mathematics', className: '5A', isActive: true },
+      { grade: 'G5', subject: 'english', className: '5A', isActive: true },
+      { grade: 'G6', subject: 'mathematics', className: '6B', isActive: true },
+    ],
+  )
+  assert(fromAssignments.classes === 2, 'classes = distinct class names (5A, 6B)')
+  assert(fromAssignments.subjects === 2, 'subjects = distinct subjects (maths, english)')
+
+  const noClassNames = teachingCounts(null, [
+    { grade: 'G5', subject: 'mathematics', className: '', isActive: true },
+    { grade: 'G6', subject: 'mathematics', className: '', isActive: true },
+  ])
+  assert(noClassNames.classes === 2, 'no class names → distinct grades count as classes')
+  assert(noClassNames.subjects === 1, 'distinct subjects deduped')
+
+  const activeOnly = teachingCounts(null, [
+    { grade: 'G5', subject: 'mathematics', className: '5A', isActive: true },
+    { grade: 'G6', subject: 'english', className: '6B', isActive: false },
+  ])
+  assert(activeOnly.classes === 1 && activeOnly.subjects === 1, 'inactive assignments are excluded')
+
+  const emptyAssignments = teachingCounts(
+    { teaching: { grades: ['G5', 'G6'], subjects: ['mathematics'] } },
+    [],
+  )
+  assert(emptyAssignments.classes === 2, 'empty assignment list falls back to the legacy field')
 }
 
 console.log('')
