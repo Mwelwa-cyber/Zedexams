@@ -41,6 +41,11 @@ import { useFirestore } from '../../../hooks/useFirestore'
 import { useAuth } from '../../../contexts/AuthContext'
 import TeachingProfileMigrationCard from '../components/teachingProfile/TeachingProfileMigrationCard'
 
+// Inference only needs enough RECENT metadata to spot likely current
+// assignments — not the full assessment history. Matches the generations
+// page size so both migration sources are equally bounded.
+const MIGRATION_ASSESSMENTS_LIMIT = 60
+
 const CALENDAR_REASON_TEXT = {
   calendar_not_found: 'We couldn’t find the calendar linked to your profile.',
   year_not_supported: 'We don’t have calendar data for this year yet.',
@@ -84,7 +89,7 @@ export default function TeachingProfilePanel() {
       // a subcollection) — no full-document loads. Both are best-effort.
       const [generations, assessments] = await Promise.all([
         listMyGenerations({ uid }).catch(() => []),
-        Promise.resolve().then(() => getMyAssessments(uid)).catch(() => []),
+        Promise.resolve().then(() => getMyAssessments(uid, MIGRATION_ASSESSMENTS_LIMIT)).catch(() => []),
       ])
       if (cancelled) return
       const plan = buildMigrationPlan({

@@ -26,12 +26,18 @@ vi.mock('../../../utils/teachingProfileService', () => svc)
 
 // Library service is only used to infer migration suggestions; stub it so the
 // spec never pulls in firebase/config. Default: no prior work → no suggestions.
-vi.mock('../../../utils/teacherLibraryService', () => ({
+// Hoisted so the tests can assert WHEN the inference reads run (they must not
+// run at all for a teacher with a completed profile).
+const inferenceReads = vi.hoisted(() => ({
   listMyGenerations: vi.fn(() => Promise.resolve([])),
+  getMyAssessments: vi.fn(() => Promise.resolve([])),
+}))
+vi.mock('../../../utils/teacherLibraryService', () => ({
+  listMyGenerations: inferenceReads.listMyGenerations,
 }))
 // Same for the assessments read (broader migration inference).
 vi.mock('../../../hooks/useFirestore', () => ({
-  useFirestore: () => ({ getMyAssessments: vi.fn(() => Promise.resolve([])) }),
+  useFirestore: () => ({ getMyAssessments: inferenceReads.getMyAssessments }),
 }))
 
 function renderPanel() {
@@ -75,6 +81,9 @@ describe('TeachingProfilePanel', () => {
     expect(screen.getByRole('heading', { name: 'Your Teaching Assignments' })).toBeInTheDocument()
     // The default assignment shows a Default badge.
     expect(screen.getByText('Default')).toBeInTheDocument()
+    // Completed profile → the migration inference reads never run.
+    expect(inferenceReads.listMyGenerations).not.toHaveBeenCalled()
+    expect(inferenceReads.getMyAssessments).not.toHaveBeenCalled()
   })
 
   it('shows the set-up empty state when there is no profile yet', async () => {
@@ -82,6 +91,11 @@ describe('TeachingProfilePanel', () => {
     svc.listAssignments.mockResolvedValue([])
     renderPanel()
     expect(await screen.findByText('Set up your Teaching Profile')).toBeInTheDocument()
+    // No profile → inference runs once, and the assessments read is bounded
+    // (explicit small limit, never the teacher's full assessment history).
+    await waitFor(() => expect(inferenceReads.getMyAssessments).toHaveBeenCalledTimes(1))
+    expect(inferenceReads.getMyAssessments).toHaveBeenCalledWith('uid-1', 60)
+    expect(inferenceReads.listMyGenerations).toHaveBeenCalledTimes(1)
     const btn = screen.getByRole('button', { name: /Start Teaching Profile/i })
     fireEvent.click(btn)
     // Launches the four-step setup wizard (no immediate write).
