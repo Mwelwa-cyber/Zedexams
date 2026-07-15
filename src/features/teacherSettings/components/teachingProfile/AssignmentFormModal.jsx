@@ -69,18 +69,33 @@ export default function AssignmentFormModal({ open, mode = 'add', initial = null
   })
 
   const subjectOptions = useMemo(() => {
-    // Filter to pedagogically-valid subjects for the chosen grade.
-    return getSubjectsForGrade(form.grade).filter((s) => s.value)
-  }, [form.grade])
+    // Filter to pedagogically-valid subjects for the chosen grade AND curriculum,
+    // so switching the Curriculum selector actually changes the subject list
+    // (e.g. the OBC's Principles of Accounts vs the CBC's Commerce & Principles
+    // of Accounts).
+    return getSubjectsForGrade(form.grade, form.curriculumType).filter((s) => s.value)
+  }, [form.grade, form.curriculumType])
 
   if (!open) return null
 
   const setField = (patch) => setForm((f) => ({ ...f, ...patch }))
 
   const onGradeChange = (grade) => {
-    // When the grade changes, keep the subject if still valid, else pick a sane default.
-    const stillValid = getSubjectsForGrade(grade).some((s) => s.value === form.subject)
-    setField({ grade, subject: stillValid ? form.subject : (grade ? defaultSubjectForGrade(grade) : '') })
+    // When the grade changes, keep the subject if still valid for the current
+    // curriculum, else pick a sane default.
+    const stillValid = getSubjectsForGrade(grade, form.curriculumType).some((s) => s.value === form.subject)
+    setField({ grade, subject: stillValid ? form.subject : (grade ? defaultSubjectForGrade(grade, form.curriculumType) : '') })
+  }
+
+  const onCurriculumChange = (curriculumType) => {
+    // Switching curriculum can drop the selected subject (e.g. Commerce &
+    // Principles of Accounts exists only in the CBC). Keep it if still valid for
+    // the new curriculum, else fall back to a valid default for the grade.
+    const stillValid = getSubjectsForGrade(form.grade, curriculumType).some((s) => s.value === form.subject)
+    setField({
+      curriculumType,
+      subject: stillValid ? form.subject : (form.grade ? defaultSubjectForGrade(form.grade, curriculumType) : ''),
+    })
   }
 
   const handleSubmit = async (e) => {
@@ -163,7 +178,7 @@ export default function AssignmentFormModal({ open, mode = 'add', initial = null
               <SelectField
                 id="tp-curric"
                 value={form.curriculumType}
-                onChange={(curriculumType) => setField({ curriculumType })}
+                onChange={onCurriculumChange}
                 options={CURRICULUM_OPTIONS}
               />
             </FieldRow>

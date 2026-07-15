@@ -120,10 +120,20 @@ export function isEceGrade(grade) {
 }
 
 // Maps each subject value to the grades it's actually taught at in the
-// Zambian CBC. Used by getSubjectsForGrade() to filter the dropdown so
+// Zambian curriculum. Used by getSubjectsForGrade() to filter the dropdown so
 // teachers only see pedagogically valid combinations (no Biology for
 // Grade 1, no Literacy for Grade 12). ECE bands are handled separately by
 // ECE_SUBJECTS above and bypass this map.
+//
+// A value is EITHER a flat grade array (the subject is taught the same way in
+// both the 2013 (OBC) and 2023 (CBC) curricula) OR a `{ cbc, previous }` object
+// when the two curricula genuinely differ — a subject one curriculum carries and
+// the other doesn't, or carries at a different grade band. gradesForSubject()
+// resolves the object against the requested curriculum; with no curriculum it
+// returns the UNION so a curriculum-agnostic caller still sees every subject.
+// The differences below are grounded in the digitised syllabi on file
+// (functions/data/curriculum-data.json for CBC, public/syllabi/
+// curriculum-data-2013.json for the 2013/OBC set).
 const SUBJECT_GRADE_MAP = {
   // Languages — English & Zambian Language span everything; Literacy is
   // the lower-primary reading-and-writing strand that gives way to English.
@@ -132,11 +142,20 @@ const SUBJECT_GRADE_MAP = {
   cinyanja:          ['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
   zambian_language:  ['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
 
-  // STEM — Numeracy is the early-grade pre-Mathematics strand. Integrated
-  // Science covers all primary + junior secondary, then splits into
-  // Bio/Chem/Phys at senior secondary.
-  mathematics:       ['G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
-  numeracy:          ['ECE_N','ECE_R','G1','G2','G3','G4'],
+  // STEM — the CBC (2023) folds early-grade Mathematics into the combined
+  // "Mathematics and Science" learning area (the `numeracy` slug, Grades 1-4),
+  // so standalone Mathematics only appears from G3 upward; the 2013 (OBC)
+  // curriculum taught Mathematics as its own subject from Grade 1 and had no
+  // combined lower-primary learning area. Integrated Science covers all primary
+  // + junior secondary, then splits into Bio/Chem/Phys at senior secondary.
+  mathematics: {
+    cbc:      ['G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
+    previous: ['G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
+  },
+  numeracy: {
+    cbc:      ['ECE_N','ECE_R','G1','G2','G3','G4'],
+    previous: [], // no combined "Mathematics and Science" area in the OBC.
+  },
   integrated_science:['G1','G2','G3','G4','G5','G6','G7','G8','G9'],
   environmental_science: ['G1','G2','G3','G4'],
   biology:           ['G8','G9','G10','G11','G12'],
@@ -152,39 +171,88 @@ const SUBJECT_GRADE_MAP = {
   civic_education:   ['G5','G6','G7','G8','G9','G10','G11','G12'],
   religious_education:['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
 
-  // Business — Principles of Accounts is the 2013 senior-secondary subject;
-  // the CBC (2023) teaches the combined Commerce & Principles of Accounts
-  // across Forms 1-4 (G8-G11).
-  accounts:          ['G10','G11','G12'],
-  commerce_and_principles_of_accounts: ['G8','G9','G10','G11'],
+  // Business — the 2013 (OBC) taught standalone Principles of Accounts at senior
+  // secondary; the CBC (2023) replaced it with the combined Commerce &
+  // Principles of Accounts across Forms 1-4 (G8-G11). Each exists in exactly one
+  // curriculum, so switching the Curriculum selector swaps one for the other.
+  accounts: {
+    cbc:      [],
+    previous: ['G10','G11','G12'],
+  },
+  commerce_and_principles_of_accounts: {
+    cbc:      ['G8','G9','G10','G11'],
+    previous: [],
+  },
 
   // Technical & creative — Creative & Technology Studies is the primary-
   // level integrated subject; Technology Studies and Home Economics take
   // over from upper primary onwards. Expressive Arts runs ECE–junior.
-  // Design & Technology Studies, Art & Design and Music & Creative Arts are
-  // the CBC (2023) Forms 1-4 electives (Art & Design also exists as a 2013
-  // Grades 10-12 syllabus, so it extends to G12).
+  // Design & Technology Studies and Music & Creative Arts are CBC (2023)
+  // Forms 1-4 electives with no 2013 equivalent, so they show only under the
+  // CBC. Art & Design exists in both (a CBC Forms 1-4 subject and a 2013
+  // Grades 10-12 syllabus), so it stays a flat array spanning G8-G12.
   technology_studies:['G5','G6','G7','G8','G9','G10','G11','G12'],
   creative_and_technology_studies: ['G1','G2','G3','G4','G5','G6','G7'],
-  design_and_technology_studies: ['G8','G9','G10','G11'],
+  design_and_technology_studies: {
+    cbc:      ['G8','G9','G10','G11'],
+    previous: [],
+  },
   art_and_design:    ['G8','G9','G10','G11','G12'],
-  music_and_creative_arts: ['G8','G9','G10','G11'],
+  music_and_creative_arts: {
+    cbc:      ['G8','G9','G10','G11'],
+    previous: [],
+  },
   home_economics:    ['G5','G6','G7','G8','G9','G10','G11','G12'],
   expressive_arts:   ['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9'],
   physical_education:['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
 }
 
+// Fold any spelling of the two curricula into 'cbc' | 'previous', or '' when the
+// caller passed nothing (→ curriculum-agnostic: union of both). Kept local to
+// this pure module so it stays firebase-free; teachingProfileCore exports the
+// canonical normalizeCurriculumType for the rest of the app.
+function normalizeCurriculum(v) {
+  const s = String(v ?? '').trim().toLowerCase()
+  if (['previous', 'obc', 'old', '2013'].includes(s)) return 'previous'
+  if (['cbc', 'new', '2023'].includes(s)) return 'cbc'
+  return ''
+}
+
 /**
- * Returns the subject list for a grade. ECE bands (Nursery / Reception) get
- * the dedicated four-area ECE syllabus menu; every other grade gets
- * TEACHER_SUBJECTS filtered by SUBJECT_GRADE_MAP. Group headers are kept
- * only if at least one subject in that group survives the filter. Falls back
- * to the full list if grade is unknown (e.g. a legacy URL deeplink).
+ * Resolve the grade list a subject is taught at for a curriculum. Flat-array
+ * entries apply to both curricula. Object entries return the requested
+ * curriculum's list, or the UNION of both when no curriculum is given (so a
+ * curriculum-agnostic caller still sees every subject). Returns null for an
+ * unmapped subject (no grade restriction — forward-compatible).
  */
-export function getSubjectsForGrade(grade) {
+function gradesForSubject(subject, curriculum) {
+  const spec = SUBJECT_GRADE_MAP[subject]
+  if (spec === undefined) return null
+  if (Array.isArray(spec)) return spec
+  const cbc = spec.cbc || []
+  const previous = spec.previous || []
+  const mode = normalizeCurriculum(curriculum)
+  if (mode === 'cbc') return cbc
+  if (mode === 'previous') return previous
+  return Array.from(new Set([...cbc, ...previous]))
+}
+
+/**
+ * Returns the subject list for a grade, optionally scoped to a curriculum.
+ * ECE bands (Nursery / Reception) get the dedicated four-area ECE syllabus
+ * menu; every other grade gets TEACHER_SUBJECTS filtered by SUBJECT_GRADE_MAP.
+ * When `curriculum` ('cbc' | 'previous') is given, subjects that belong only to
+ * the other curriculum are dropped — so switching the Curriculum selector
+ * actually changes the list (e.g. Principles of Accounts vs Commerce &
+ * Principles of Accounts). With no curriculum the union of both is returned.
+ * Group headers are kept only if at least one subject in that group survives
+ * the filter. Falls back to the full list if grade is unknown (e.g. a legacy
+ * URL deeplink).
+ */
+export function getSubjectsForGrade(grade, curriculum) {
   if (!grade) return TEACHER_SUBJECTS
   // ECE (Nursery / Reception) follows its own four-area syllabus, not the
-  // Grade-1+ subject menu.
+  // Grade-1+ subject menu, and is identical across curricula.
   if (isEceGrade(grade)) return ECE_SUBJECTS
   const filtered = []
   let pendingGroup = null
@@ -195,7 +263,7 @@ export function getSubjectsForGrade(grade) {
       groupHasItems = false
       continue
     }
-    const grades = SUBJECT_GRADE_MAP[opt.value]
+    const grades = gradesForSubject(opt.value, curriculum)
     const allowed = !grades || grades.includes(grade)
     if (!allowed) continue
     if (pendingGroup && !groupHasItems) {
@@ -211,24 +279,26 @@ export function getSubjectsForGrade(grade) {
 }
 
 /**
- * Picks a sensible default subject for a grade — used when the grade
- * changes and the previously-selected subject no longer applies.
- * Returns the first non-group option from getSubjectsForGrade().
+ * Picks a sensible default subject for a grade (and optional curriculum) — used
+ * when the grade or curriculum changes and the previously-selected subject no
+ * longer applies. Returns the first non-group option from getSubjectsForGrade().
  */
-export function defaultSubjectForGrade(grade) {
-  const opts = getSubjectsForGrade(grade)
+export function defaultSubjectForGrade(grade, curriculum) {
+  const opts = getSubjectsForGrade(grade, curriculum)
   const firstSubject = opts.find((o) => o.value !== undefined)
   return firstSubject?.value || 'mathematics'
 }
 
 /**
- * True if `subject` is taught at `grade`. ECE bands are validated against the
- * ECE_SUBJECTS set; all other grades against SUBJECT_GRADE_MAP (subjects with
- * no mapping entry default to true, forward-compatible).
+ * True if `subject` is taught at `grade` (in `curriculum`, when given). ECE
+ * bands are validated against the ECE_SUBJECTS set; all other grades against
+ * SUBJECT_GRADE_MAP (subjects with no mapping entry default to true,
+ * forward-compatible). Passing a curriculum rejects a subject that belongs only
+ * to the other curriculum.
  */
-export function isSubjectValidForGrade(subject, grade) {
+export function isSubjectValidForGrade(subject, grade, curriculum) {
   if (isEceGrade(grade)) return ECE_SUBJECT_VALUES.has(subject)
-  const grades = SUBJECT_GRADE_MAP[subject]
+  const grades = gradesForSubject(subject, curriculum)
   if (!grades) return true
   return grades.includes(grade)
 }

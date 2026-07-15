@@ -203,8 +203,8 @@ export function validateAssignment(data = {}) {
   if (!n.subject) errors.push('Choose a subject.')
   else if (!VALID_SUBJECT_VALUES.has(n.subject)) warnings.push(`Unrecognised subject "${n.subject}".`)
   if (n.grade && n.subject && VALID_GRADE_VALUES.has(n.grade) && VALID_SUBJECT_VALUES.has(n.subject)) {
-    if (!isSubjectValidForGrade(n.subject, n.grade)) {
-      warnings.push(`${subjectLabel(n.subject)} is not usually taught at ${gradeLabel(n.grade)}.`)
+    if (!isSubjectValidForGrade(n.subject, n.grade, n.curriculumType)) {
+      warnings.push(`${subjectLabel(n.subject)} is not usually taught at ${gradeLabel(n.grade)} in the ${curriculumTypeLabel(n.curriculumType)}.`)
     }
   }
   return { valid: errors.length === 0, errors, warnings }

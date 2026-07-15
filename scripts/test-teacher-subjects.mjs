@@ -117,4 +117,70 @@ check('Lower Primary numeracy is labelled "Mathematics and Science", not "Numera
   assert.equal(labelOf(getSubjectsForGrade('ECE_N'), 'numeracy'), 'Pre-Maths & Science')
 })
 
+console.log('teacher subject taxonomy — CBC vs OBC (previous) curriculum split')
+
+check('Curriculum selector changes the Grade 4 subject list (CBC combined Maths & Science)', () => {
+  const cbc = valuesOf(getSubjectsForGrade('G4', 'cbc'))
+  const obc = valuesOf(getSubjectsForGrade('G4', 'previous'))
+  // The combined "Mathematics and Science" learning area is CBC-only.
+  assert.ok(cbc.includes('numeracy'), 'CBC G4 offers combined Mathematics and Science')
+  assert.ok(!obc.includes('numeracy'), 'OBC G4 has no combined Mathematics and Science')
+  // Standalone Mathematics is present in both at G4.
+  assert.ok(cbc.includes('mathematics') && obc.includes('mathematics'), 'both curricula offer Mathematics at G4')
+  // The two lists must actually differ — the whole point of the selector.
+  assert.notDeepEqual(cbc, obc, 'CBC and OBC Grade 4 subject lists must differ')
+})
+
+check('Lower-primary Mathematics: OBC from Grade 1, CBC from Grade 3', () => {
+  // 2013/OBC taught standalone Mathematics from Grade 1.
+  assert.equal(isSubjectValidForGrade('mathematics', 'G1', 'previous'), true)
+  assert.equal(isSubjectValidForGrade('mathematics', 'G2', 'previous'), true)
+  // CBC folds G1-G2 Mathematics into the combined area, so standalone starts G3.
+  assert.equal(isSubjectValidForGrade('mathematics', 'G1', 'cbc'), false)
+  assert.equal(isSubjectValidForGrade('mathematics', 'G2', 'cbc'), false)
+  assert.equal(isSubjectValidForGrade('mathematics', 'G3', 'cbc'), true)
+})
+
+check('Business: OBC Principles of Accounts ⇄ CBC Commerce & Principles of Accounts', () => {
+  // Senior secondary Principles of Accounts is OBC-only.
+  assert.equal(isSubjectValidForGrade('accounts', 'G12', 'previous'), true)
+  assert.equal(isSubjectValidForGrade('accounts', 'G12', 'cbc'), false)
+  // The combined Commerce & Principles of Accounts is CBC-only.
+  assert.equal(isSubjectValidForGrade('commerce_and_principles_of_accounts', 'G10', 'cbc'), true)
+  assert.equal(isSubjectValidForGrade('commerce_and_principles_of_accounts', 'G10', 'previous'), false)
+  // At Grade 10 the two curricula surface different business subjects.
+  const cbc = valuesOf(getSubjectsForGrade('G10', 'cbc'))
+  const obc = valuesOf(getSubjectsForGrade('G10', 'previous'))
+  assert.ok(cbc.includes('commerce_and_principles_of_accounts') && !cbc.includes('accounts'))
+  assert.ok(obc.includes('accounts') && !obc.includes('commerce_and_principles_of_accounts'))
+})
+
+check('CBC-only Forms 1-4 electives (Design & Tech, Music & Creative Arts) hidden under OBC', () => {
+  for (const subject of ['design_and_technology_studies', 'music_and_creative_arts']) {
+    assert.equal(isSubjectValidForGrade(subject, 'G9', 'cbc'), true, `${subject} shows in CBC`)
+    assert.equal(isSubjectValidForGrade(subject, 'G9', 'previous'), false, `${subject} hidden in OBC`)
+  }
+})
+
+check('default subject stays valid for the chosen curriculum', () => {
+  // Grade 10 CBC default must be a CBC subject, Grade 10 OBC default an OBC one.
+  const cbcDefault = defaultSubjectForGrade('G10', 'cbc')
+  const obcDefault = defaultSubjectForGrade('G10', 'previous')
+  assert.equal(isSubjectValidForGrade(cbcDefault, 'G10', 'cbc'), true)
+  assert.equal(isSubjectValidForGrade(obcDefault, 'G10', 'previous'), true)
+})
+
+check('curriculum-agnostic calls (no curriculum arg) return the union — unchanged behaviour', () => {
+  // A subject taught in EITHER curriculum still appears when no curriculum is
+  // passed, so existing single-arg callers keep seeing every subject.
+  const g10 = valuesOf(getSubjectsForGrade('G10'))
+  assert.ok(g10.includes('accounts'), 'union includes OBC-only accounts')
+  assert.ok(g10.includes('commerce_and_principles_of_accounts'), 'union includes CBC-only commerce')
+  const g4 = valuesOf(getSubjectsForGrade('G4'))
+  assert.ok(g4.includes('numeracy') && g4.includes('mathematics'))
+  // Unmapped-subject fallthrough and ECE are untouched by the curriculum split.
+  assert.deepEqual(valuesOf(getSubjectsForGrade('ECE_N', 'previous')), valuesOf(ECE_SUBJECTS))
+  assert.deepEqual(valuesOf(getSubjectsForGrade('ECE_N', 'cbc')), valuesOf(ECE_SUBJECTS))
+})
+
 console.log(`\n✅ teacher-subjects: ${passed} checks passed`)
