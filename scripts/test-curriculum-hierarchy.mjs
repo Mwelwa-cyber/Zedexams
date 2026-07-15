@@ -429,4 +429,46 @@ test('the runtime guard drops a garbled recap row (re-import protection)', () =>
   assert.deepEqual(out.map((r) => r.topic), ['4.1 Real'])
 })
 
+console.log('\ncurriculum-hierarchy: History (Forms 1-4) source-verified repairs')
+
+test('History Form 1 TOPIC 1.5 has no "SPEAD" phantom and a single sub-topic', () => {
+  const f1 = raw['History Syllabus (Forms 1-4)']?.['Form 1']
+  assert.ok(f1, 'History Form 1 sheet exists')
+  const rows = rowsWithPropagatedTopic(f1.rows)
+  // The OCR-typo duplicate topic must be gone.
+  assert.ok(!rows.some((r) => /SPEAD/.test(String(r.topic || ''))), 'SPEAD phantom survived')
+  // TOPIC 1.5 must expose exactly its one real sub-topic (1.5.1).
+  const subs = rows
+    .filter((r) => /^1\.5\s+THE BEGINNING AND SPREAD OF IRON-WORKING/i.test(String(r.topic || '')))
+    .map((r) => String(r.subtopic || ''))
+    .filter(Boolean)
+  assert.equal(subs.length, 1, `expected one 1.5 sub-topic, got ${subs.length}`)
+  assert.match(subs[0], /^1\.5\.1\s+Development of Iron-Technology and Farming/)
+  // The recovered continuation bullets are present, "Kalomo" un-broken.
+  const act = String(rows.find((r) => /^1\.5\.1/.test(String(r.subtopic || '')))?.learningActivities || '')
+  assert.ok(act.includes('global trade environment'), 'continuation bullet lost')
+  assert.ok(act.includes('Kalomo') && !act.includes('Kalo mo'), 'Kalomo still broken')
+})
+
+test('History Form 3 TOPIC 3.1 title un-broken ("ZAMBIA" not "ZAM BIA")', () => {
+  const f3 = raw['History Syllabus (Forms 1-4)']?.['Form 3']
+  const topics = new Set(rowsWithPropagatedTopic(f3.rows).map((r) => r.topic).filter(Boolean))
+  assert.ok(topics.has('3.1 COPPER MINING IN ZAMBIA'), '3.1 topic title not normalised')
+  assert.ok(![...topics].some((t) => /ZAM BIA/.test(t)), 'ZAM BIA break survived')
+})
+
+test('no competence-appendix row leaks into any picker (History + Geography F3)', () => {
+  // The generic S/N | COMPETENCE appendix (Critical Thinking, Digital…) must
+  // never appear as a sub-topic. Signature: a bare serial in SUB-TOPIC.
+  for (const [subject, sheets] of Object.entries(raw)) {
+    for (const [sheetName, sheet] of Object.entries(sheets || {})) {
+      for (const r of rowsWithPropagatedTopic(sheet.rows || [])) {
+        const sub = String(r.subtopic || '').trim()
+        assert.ok(!/^(S\/N|\d{1,2})$/.test(sub),
+          `competence-appendix row survived in ${subject}/${sheetName}: SUB=${JSON.stringify(sub)}`)
+      }
+    }
+  }
+})
+
 console.log(`\n✅ curriculum-hierarchy: all ${passed} checks passed\n`)

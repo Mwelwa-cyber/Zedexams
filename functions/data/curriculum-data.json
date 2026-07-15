@@ -12977,136 +12977,6 @@
             "LEARNING ACTIVITIES": "• Discussing the concept of pandemic\n• Assessing the effects of the global pandemics (HIV/AIDS and COVID-19) on the population and socio- economic development of a country (loss of life, economic slump….)\n• Coping with pandemics (vaccination, abstinence, adherence to medication...)",
             "EXPECTED STANDARD": "• Ways of coping with pandemics adopted appropriately"
           }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "S/N",
-            "SPECIFIC COMPETENCES": "COMPETENCE",
-            "LEARNING ACTIVITIES": "DESCRIPTORS",
-            "EXPECTED STANDARD": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "1",
-            "SPECIFIC COMPETENCES": "Analytical Thinking",
-            "LEARNING ACTIVITIES": "• Analyse implications Zambia’s location\n• Analyse efforts to improve transport and communication in landlocked countries\n• Evaluate renewable and non-renewable resources\n• Analyse land tenure\n• Analyse unsustainable farming\n• Evaluate fish farming in Zimbabwe\n• Evaluate challenges and solutions of tourism\n• Analyse hydro-electric power in Zambia",
-            "EXPECTED STANDARD": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "2",
-            "SPECIFIC COMPETENCES": "Citizenship",
-            "LEARNING ACTIVITIES": "• Promote cultural features of Zambia",
-            "EXPECTED STANDARD": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "3",
-            "SPECIFIC COMPETENCES": "Collaboration",
-            "LEARNING ACTIVITIES": "• Use sustainable energy responsibly\n• Demonstrate understanding of new trends in transport and communication\n• Demonstrate knowledge of tourism in Zambia",
-            "EXPECTED STANDARD": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "4",
-            "SPECIFIC COMPETENCES": "Communication",
-            "LEARNING ACTIVITIES": "• Exhibit knowledge transport and communication in Zambia",
-            "EXPECTED STANDARD": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "5",
-            "SPECIFIC COMPETENCES": "Creativity and Innovation",
-            "LEARNING ACTIVITIES": "• Analyse the relationship between farming and climate change\n• Relate relief and drainage to real-life situations in Zambia\n• Provide solutions to invasive plants\n• Address deforestation\n• Relate sugar cane growing in South Africa to Zambia\n• Relate pastoral farming in Botswana to Zambia\n• Adopt fishing practices from the fisheries of Malawi\n• Draw lessons of fish farming from Zimbabwe\n• Adopt tourism practices from Kenya and South Africa\n• Adopt measures to reduce overdependence on HEP\n• Draw lessons of mining from Angola and South Africa\n• Draw lessons of rapid industrial expansion in Japan and China\n• Develop solutions to Zambia’s transport and communication challenges",
-            "EXPECTED STANDARD": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "S/N",
-            "SPECIFIC COMPETENCES": "COMPETENCE",
-            "LEARNING ACTIVITIES": "DESCRIPTORS",
-            "EXPECTED STANDARD": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "6",
-            "SPECIFIC COMPETENCES": "Critical Thinking",
-            "LEARNING ACTIVITIES": "• Analyse the relationship between farming and climate change\n• Show relationship between energy and climate change\n• Examine the relationship between energy and climate change\n• Evaluate HEP in the Sub-Region\n• Relate mineral processing to economic growth in Zambia\n• Examine major processing and manufacturing industries in Zambia",
-            "EXPECTED STANDARD": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "7",
-            "SPECIFIC COMPETENCES": "Entrepreneurship",
-            "LEARNING ACTIVITIES": "• Practise fisheries related entrepreneurship\n• Use opportunities within Zambia’s mineral value chain.",
-            "EXPECTED STANDARD": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "S/N",
-            "SPECIFIC COMPETENCES": "COMPETENCE",
-            "LEARNING ACTIVITIES": "DESCRIPTORS",
-            "EXPECTED STANDARD": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "8",
-            "SPECIFIC COMPETENCES": "Environmental Sustainability",
-            "LEARNING ACTIVITIES": "• Demonstrate understanding of relief and drainage features of Zambia\n• Promote sustainable use of vegetation in Zambia\n• Demonstrate knowledge of vegetation in Zambia\n• Explore exploitation of forests\n• Practise sustainable farming\n• Practise sustainable tourism\n• Adopt sustainable mobility practices",
-            "EXPECTED STANDARD": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "9",
-            "SPECIFIC COMPETENCES": "Financial Education",
-            "LEARNING ACTIVITIES": "• Provide solutions to challenges Zambia faces in mineral markets",
-            "EXPECTED STANDARD": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "10",
-            "SPECIFIC COMPETENCES": "Problem Solving",
-            "LEARNING ACTIVITIES": "• Provide solutions to fishing challenges\n• Practise irrigation farming\n• Practise fish farming\n• Provide solutions to the challenges of tourism\n• Provide solution to the challenges of transporting fuel and power\n• Address challenges associated with production of different types of energy\n• Provide solutions to challenges Zambia faces in mineral markets\n• Provide solution to challenges and impacts of processing and manufacturing industries",
-            "EXPECTED STANDARD": ""
-          }
         }
       ]
     },
@@ -13730,38 +13600,8 @@
             "TOPIC": "1.5 THE BEGINNING AND SPREAD OF IRON-WORKING AND FARMING",
             "SUB-TOPIC": "1.5.1 Development of Iron-Technology and Farming",
             "SPECIFIC COMPETENCES": "1.5.1.1 Analyse impact of Iron technology in farming",
-            "LEARNING ACTIVITIES": "• Locating on the map early areas of farming and Iron- working (In the Middle East and Africa)\n• Identifying settlement areas of Iron Age farmers in Zambia (Kalundu, Isamu Pati in Kalo mo and In’gombe Ilede).",
+            "LEARNING ACTIVITIES": "• Locating on the map early areas of farming and Iron-working (In the Middle East and Africa)\n• Identifying settlement areas of Iron Age farmers in Zambia (Kalundu, Isamu Pati in Kalomo and In’gombe Ilede).\n• Relating In’gombe Ilede in to the global trade environment.\n• Analysing the importance of Iron technology (agriculture, trade, and hunting, fishing...)",
             "EXPECTED STANDARD": "• Impact of Iron technology in farming analysed accordingly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "1.5 THE BEGINNING AND SPEAD OF",
-            "SUB-TOPIC": "1.5.1 Development of Iron-Technology",
-            "SPECIFIC COMPETENCES": "1.5.1.1 Analyse impact of Iron technology in farming",
-            "LEARNING ACTIVITIES": "HISTORY SYLLABUS SECON",
-            "EXPECTED STANDARD": "DARY EDUCATION ORDINARY FORM 1-4"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "IRO",
-            "SUB-TOPIC": "and Farming",
-            "SPECIFIC COMPETENCES": "",
-            "LEARNING ACTIVITIES": "working",
-            "EXPECTED STANDARD": "accordingly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "",
-            "SPECIFIC COMPETENCES": "",
-            "LEARNING ACTIVITIES": "• Identifying settlement areas of Iron Age farmers in Zambia (Kalundu, Isamu Pati in Kalomo and In’gombe Ilede).\n• Relating In’gombe Ilede in to the global trade environment.\n• Analysing the importance of Iron technology (agriculture, trade, and hunting, fishing...)",
-            "EXPECTED STANDARD": ""
           }
         },
         {
@@ -13931,7 +13771,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "2.4.2 The Central African Federation (1953-1963)",
-            "SPECIFIC COMPETENCES": "2.4.2.1 Dem onstrate understanding of Central African Federation",
+            "SPECIFIC COMPETENCES": "2.4.2.1 Demonstrate understanding of Central African Federation",
             "LEARNING ACTIVITIES": "• Discus sing the formation of the Central African Federation (reasons for and against the formation of Central African)\n• Assess ing African’s collaboration in dismantling the Central African Federation\n• Showing ways in which former Central African Federation members are collaborating today",
             "EXPECTED STANDARD": "• Understanding of Central African Federation demonstrated accordingly"
           }
@@ -13971,7 +13811,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "3.1 COPPER MINING IN ZAM BIA",
+            "TOPIC": "3.1 COPPER MINING IN ZAMBIA",
             "SUB-TOPIC": "The History of Copper mining in Zambia",
             "SPECIFIC COMPETENCES": "3.1.1.1 Explore Copper mining in Zambia",
             "LEARNING ACTIVITIES": "• Describing the background of copper mining in Zambia (Mining in pre-colonial, colonial and post-colonial)\n• Analysing the impact of copper mining in Zambia (Economic, social, political...)",
@@ -14096,66 +13936,6 @@
             "SPECIFIC COMPETENCES": "3.6.7.1 Analyse UPND’s policies since 2021",
             "LEARNING ACTIVITIES": "• Identifying the president of Zambia under the UPND (Hakainde Hichilema)\n• Discussing the domestic policy of the UPND government (Political, economic, social...)\n• Analysing the Foreign policy of the UPND government",
             "EXPECTED STANDARD": "• Policies of the UPND government analysed accordingly"
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "S/N",
-            "SPECIFIC COMPETENCES": "COMPETENCE",
-            "LEARNING ACTIVITIES": "DESCRIPTORS",
-            "EXPECTED STANDARD": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "6",
-            "SPECIFIC COMPETENCES": "Critical Thinking",
-            "LEARNING ACTIVITIES": "• Analyse ideas and adjust them accordingly\n• Reflect and justify the ways of life and opinions\n• Establish opinions about what is right and wrong\n• Solve problems with innovative solutions\n• Evaluate the credibility of sources of information\n• Collect specific information and present findin gsofthesame.\n• Interpret the activities of the colonial masters\n• Demonstrates extensive knowledge and understanding of significant historical forces and factors that shaped the modern world and Zambia",
-            "EXPECTED STANDARD": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "7",
-            "SPECIFIC COMPETENCES": "Digital",
-            "LEARNING ACTIVITIES": "• Upload and download information\n• Recount some historical events in chronological order and identify significant changes\n• locates information from sources to answer historical questions\n• Evaluate sources, and reference information.\n• Communicate responsibly using social media.\n• Apply digital resources to learn about the past\n• Communicate an understanding of the past through basic accounts of events and issues in digital forms, using simple historical terms and concepts.",
-            "EXPECTED STANDARD": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "8",
-            "SPECIFIC COMPETENCES": "Emotional Intelligence",
-            "LEARNING ACTIVITIES": "• Express self-awareness and self-management.\n• Manage personal emotions and build relationships with others.\n• Express sympathy and empathy\n• Communicate and relate effectively with others\n• Negotiate and resolve differences in a win-win situation",
-            "EXPECTED STANDARD": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "9",
-            "SPECIFIC COMPETENCES": "Entrepreneurship",
-            "LEARNING ACTIVITIES": "• Generate ideas for simple products, services, or projects.\n• Apply historical knowledge of National Heritage sites for business opportunities.\n• Practice effective presentation and communication of business idea",
-            "EXPECTED STANDARD": ""
-          }
-        },
-        {
-          "type": "data",
-          "cells": {
-            "TOPIC": "",
-            "SUB-TOPIC": "10",
-            "SPECIFIC COMPETENCES": "Environmental Sustainability",
-            "LEARNING ACTIVITIES": "• Adapt to effects of climate change.\n• Care for the environment.\n• Recognise institutions that help to protect the environment.",
-            "EXPECTED STANDARD": ""
           }
         }
       ]

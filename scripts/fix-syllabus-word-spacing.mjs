@@ -785,6 +785,9 @@ export const CORRECTIONS = {
   "cha rcoal": "charcoal",
   "DESCRIP TORS": "DESCRIPTORS",
   "satell ite": "satellite",
+  // History (Forms 1-4) OCR breaks verified in-context against the source PDF.
+  "ZAM BIA": "ZAMBIA",
+  "Dem onstrate": "Demonstrate",
 }
 
 // Match keys longest-first so multi-token repairs (e.g. "p reser ves")
