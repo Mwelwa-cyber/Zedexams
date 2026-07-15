@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import useClickAway from '../../hooks/useClickAway'
 import useTeacherReminders from '../../hooks/useTeacherReminders'
+import { useTeachingProfile } from '../../features/teacherSettings/lib/useTeachingProfile'
+import { resolveActiveAssignment } from '../../utils/plannedTeachingMeta.js'
+import { buildGeneratorQueryString } from '../../utils/useFormDefaultsFromUrl'
 import ReminderPanel from './ReminderPanel'
 import { QUICK_CREATE } from './teacherNav'
 import { Bell, Plus, X } from '../ui/icons'
@@ -13,6 +16,22 @@ export default function TeacherTopBar() {
 
   const [bellOpen, setBellOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
+
+  // Seed the Create menu with the ACTIVE Teaching Profile assignment (the same
+  // choice the dashboard persists) so each studio opens on the teacher's real
+  // grade/subject/term instead of the generic default. Fail-open: with no
+  // profile the query string is empty and the links behave exactly as before.
+  const tp = useTeachingProfile()
+  const createQuery = useMemo(() => {
+    const uid = currentUser?.uid || null
+    const active = tp.assignments.filter((a) => a.isActive)
+    let storedId = ''
+    try { storedId = uid ? (localStorage.getItem(`zedexams:prep-assignment:${uid}`) || '') : '' } catch { /* private mode */ }
+    const assignment = resolveActiveAssignment(active, tp.effectiveDefaultId, storedId)
+    if (!assignment) return ''
+    const term = tp.context?.status === 'ok' ? tp.context.termNumber : null
+    return buildGeneratorQueryString({ grade: assignment.grade, subject: assignment.subject, term })
+  }, [currentUser?.uid, tp.assignments, tp.effectiveDefaultId, tp.context])
 
   const bellRef = useRef(null)
   const createRef = useRef(null)
@@ -95,7 +114,7 @@ export default function TeacherTopBar() {
               {QUICK_CREATE.map((item) => (
                 <li key={item.to}>
                   <Link
-                    to={item.to}
+                    to={`${item.to}${createQuery}`}
                     onClick={() => setCreateOpen(false)}
                     className="flex items-center gap-3 px-4 py-2.5 no-underline hover:bg-[#fff5e6] transition-colors"
                   >
