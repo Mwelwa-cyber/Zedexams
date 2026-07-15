@@ -641,4 +641,21 @@ test('English Grade 4 Note Making sits under 4.3.5 SUMMARY, sheet orphan-free', 
   }
 })
 
+test('Art & Design Forms 1-4 topics all carry a numeric code, no orphans', () => {
+  const ad = raw['Art & Design Syllabus (Forms 1-4)']
+  assert.ok(ad, 'Art & Design sheet exists')
+  const lead = (s) => (String(s || '').match(/^\s*(\d+(?:\.\d+)*)/) || [])[1] || null
+  for (const form of ['Form 1', 'Form 2', 'Form 3', 'Form 4']) {
+    const rows = rowsWithPropagatedTopic(ad[form].rows)
+    for (const r of rows) {
+      if (r.topic) assert.ok(/^\d+\.\d+\s/.test(String(r.topic)), `Art & Design ${form} topic missing code: "${r.topic}"`)
+      const tc = lead(r.topic); const sc = lead(r.subtopic)
+      if (tc && sc) assert.ok(sc.startsWith(tc), `Art & Design ${form} orphan: "${r.subtopic}" under "${r.topic}"`)
+    }
+  }
+  // Spot-check the recovered gap-fillers whose sub-topics had no code to derive from.
+  const f1 = new Set(rowsWithPropagatedTopic(ad['Form 1'].rows).map((r) => r.topic).filter(Boolean))
+  assert.ok(f1.has('1.4 Studio Practice') && f1.has('1.11 Crafts in 2D'), 'Form 1 gap-fillers missing')
+})
+
 console.log(`\n✅ curriculum-hierarchy: all ${passed} checks passed\n`)

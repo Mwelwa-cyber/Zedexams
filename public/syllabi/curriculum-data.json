@@ -583,7 +583,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Introduction to Art, Crafts and Design",
+            "TOPIC": "1.1 Introduction to Art, Crafts and Design",
             "SUB-TOPIC": "1.1.1 Art Awareness and Appreciation",
             "SPECIFIC COMPETENCES": "Categorise branches of Art",
             "LEARNING ACTIVITIES": "• Defining Art (performing, literary and visual)\n• Categorising branches of Art (Visual Art, performing Arts, Digital Art…)\n• Visiting different places where the named branches of Art are found. (Museum, cultural centres…)\n• Critiquing various artworks",
@@ -673,7 +673,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "History of Zambian Art-I",
+            "TOPIC": "1.2 History of Zambian Art-I",
             "SUB-TOPIC": "1.2.1 Pre-historic Rock Art of Zambia",
             "SPECIFIC COMPETENCES": "Research the Pre-historic Rock Art of Zambia",
             "LEARNING ACTIVITIES": "• Identifying the pre-historic rock art of Zambia. (Mwela rocks, Kasama rock arts…)\n• Researching on the pre-historic arts of Zambia (Materials and tools, themes, styles of painting…)\n• Analysing the pre-historic rock Art of Zambia.",
@@ -733,7 +733,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Introduction to Colour",
+            "TOPIC": "1.3 Introduction to Colour",
             "SUB-TOPIC": "1.3.1 Types of Colours",
             "SPECIFIC COMPETENCES": "Experiment colours of the spectrum",
             "LEARNING ACTIVITIES": "• Experimenting colours of the spectrum (primary, secondary and tertiary)",
@@ -753,7 +753,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Studio Practice",
+            "TOPIC": "1.4 Studio Practice",
             "SUB-TOPIC": "Tools and Materials",
             "SPECIFIC COMPETENCES": "Use variety of tools and materials for drawing and painting",
             "LEARNING ACTIVITIES": "• Discussing the use of variety of tools and materials for drawing: Tools (charcoal, chalk, pastels, crayons, pencils, pens…). Materials (paper, ink, walls, floors, fabrics…)\n• Experimenting with tools and materials",
@@ -783,7 +783,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Graphic Design",
+            "TOPIC": "1.5 Graphic Design",
             "SUB-TOPIC": "Lettering",
             "SPECIFIC COMPETENCES": "Design letters",
             "LEARNING ACTIVITIES": "• Identifying and defining letters / related terms (lower case, upper case / types of letters, Letter spacing, word spacing, block and Roman lettering…)\n• Defining calligraphy\n• Discussing functions of lettering\n• Identifying careers relating to lettering works\n• Designing letters",
@@ -813,7 +813,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Pattern and Design",
+            "TOPIC": "1.6 Pattern and Design",
             "SUB-TOPIC": "1.6.1 Patterns",
             "SPECIFIC COMPETENCES": "Make patterns",
             "LEARNING ACTIVITIES": "• Identifying examples of patterns (Artificial and natural…)\n• Identifying motif types\n• Exploring with various motif designs\n• Making patterns (Random, regular)\n• Block (potato printing…), stencil, linocut and intaglio",
@@ -823,7 +823,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing and or Painting from Imagination",
+            "TOPIC": "1.7 Drawing and or Painting from Imagination",
             "SUB-TOPIC": "1.7.1 Imaginative Compositions",
             "SPECIFIC COMPETENCES": "Compose pictures based on a given theme",
             "LEARNING ACTIVITIES": "• Composing pictures from the given themes (my family, market place, hunting…)\n• Interpreting ideas and Crosscutting issues (environmental education, GBV, National values and principles…)\n• Drawing and painting (Landscape, Village scenery, Townscape…)",
@@ -833,7 +833,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing and or Painting from Observation",
+            "TOPIC": "1.8 Drawing and or Painting from Observation",
             "SUB-TOPIC": "Drawing or Painting from Natural or Man-made objects",
             "SPECIFIC COMPETENCES": "Draw or paint pictures from observation",
             "LEARNING ACTIVITIES": "• Drawing or painting from observation (trees, flowers, fruits, landscape, village scenery, townscape…)",
@@ -843,7 +843,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing and or Painting from Still Life",
+            "TOPIC": "1.9 Drawing and or Painting from Still Life",
             "SUB-TOPIC": "1.9.1 Still Life Drawing and or Painting",
             "SPECIFIC COMPETENCES": "Compose pictures from Still life",
             "LEARNING ACTIVITIES": "• Composing pictures from Still Life (Household objects, fruits, still objects…)",
@@ -853,7 +853,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Figure Drawing",
+            "TOPIC": "1.10 Figure Drawing",
             "SUB-TOPIC": "1.10.1 Stick-Figure Drawing",
             "SPECIFIC COMPETENCES": "Compose Stick Figures",
             "LEARNING ACTIVITIES": "• Composing Stick-figures (Persons in action…)",
@@ -863,7 +863,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Crafts in 2D",
+            "TOPIC": "1.11 Crafts in 2D",
             "SUB-TOPIC": "Picture Making",
             "SPECIFIC COMPETENCES": "Compose pictures using different techniques",
             "LEARNING ACTIVITIES": "• Defining picture making (collage, montage, mosaic and frieze…)\n• Experimenting with possibilities and limitations of materials and techniques in picture making (found objects, accidentals…)\n• Composing pictures using different techniques (collage, mosaic, montage…)",
@@ -883,7 +883,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Crafts in 3D",
+            "TOPIC": "1.12 Crafts in 3D",
             "SUB-TOPIC": "Book Crafts",
             "SPECIFIC COMPETENCES": "Apply book binding skills",
             "LEARNING ACTIVITIES": "• Applying binding skills in book making and repairing",
@@ -913,7 +913,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Sculpture",
+            "TOPIC": "1.13 Sculpture",
             "SUB-TOPIC": "1.13.1 Introduction to Sculpture",
             "SPECIFIC COMPETENCES": "Apply basic approaches in sculpture making",
             "LEARNING ACTIVITIES": "• Defining sculpture (free standing, relief sculpture, Marquette…)\n• Identifying local materials used for sculpture making\n• Applying basic approaches in sculpture making (additive, subtractive, casting…)",
@@ -943,7 +943,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Entrepreneurship",
+            "TOPIC": "1.14 Entrepreneurship",
             "SUB-TOPIC": "1.14.1 Entrepreneurship in Art",
             "SPECIFIC COMPETENCES": "Use Art as a business",
             "LEARNING ACTIVITIES": "• Defining entrepreneurship\n• Using Art as a business\n• Appreciating Art (study tours, guided online tutorials, talk shows…)\n• Hosting annual art exhibitions (Galleries, studio, schools, public spaces…)",
@@ -965,7 +965,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "History of Zambian Art-II",
+            "TOPIC": "2.1 History of Zambian Art-II",
             "SUB-TOPIC": "2.1.1 Art Organizations",
             "SPECIFIC COMPETENCES": "Identify art organisations",
             "LEARNING ACTIVITIES": "• Identifying Art Organizations (National Arts Council, Visual Arts Council…)\n• Discussing art organisations.\n• Listing the Founding members of VAC: (Martin Abasi Phiri, William Bwalya Miko, Agness Buya Yombwe…)",
@@ -1025,7 +1025,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Colour",
+            "TOPIC": "2.2 Colour",
             "SUB-TOPIC": "2.2.1 Colour Properties",
             "SPECIFIC COMPETENCES": "Use colour properties.",
             "LEARNING ACTIVITIES": "• Mixing colour to obtain a variety of colour properties. (hues, values, intensities…)\n• Illustrating arrangement of colours on the colour wheel\n• Identifying tertiary colours (Blue-green, Red-violet, Yellow-green…), warm colours (red, orange, yellow…) cool colours (green, blue, violet…)\n• Using values, hues and intensity in a painting",
@@ -1055,7 +1055,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Studio Practice",
+            "TOPIC": "2.3 Studio Practice",
             "SUB-TOPIC": "2.3.1",
             "SPECIFIC COMPETENCES": "Create paintings",
             "LEARNING ACTIVITIES": "• Analyse the techniques and processes (brush strokes, washing out, palette knife, resist, dry pigment, and mixed media.)\n• Exploring painting techniques (spraying, splattering, dubbing, dotting/pointillism).\n• Creating paintings based on given themes",
@@ -1075,7 +1075,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Perspective",
+            "TOPIC": "2.4 Perspective",
             "SUB-TOPIC": "2.4.1 Types of Perspectives",
             "SPECIFIC COMPETENCES": "Apply types of Perspectives",
             "LEARNING ACTIVITIES": "• Exploring types of perspectives (linear, 2 and 3 point, scale and proportion, overlapping, aerial/ atmospheric, foreshortening perspective…)\n• Categorising the types of views; (Bird's, normal, frog, worms' eye views)\n• Applying the rules of perspective (receding colours, depth, height…)",
@@ -1085,7 +1085,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing or Painting from Imaginative Composition",
+            "TOPIC": "2.5 Drawing or Painting from Imaginative Composition",
             "SUB-TOPIC": "Imaginative composition",
             "SPECIFIC COMPETENCES": "Compose pictures based on given themes",
             "LEARNING ACTIVITIES": "• Composing pictures based on given themes (climate change, public health concerns…) water and sanitation, traditional ceremonies, celebrations, festivals…",
@@ -1095,7 +1095,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing or Painting from Observation",
+            "TOPIC": "2.6 Drawing or Painting from Observation",
             "SUB-TOPIC": "Natural or man-made objects",
             "SPECIFIC COMPETENCES": "Create pictures from natural objects / scenes",
             "LEARNING ACTIVITIES": "• Creating pictures from Nature (tree trunks, logs, twigs / landscape…)",
@@ -1105,7 +1105,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing or Painting from Still Life",
+            "TOPIC": "2.7 Drawing or Painting from Still Life",
             "SUB-TOPIC": "Natural, Man made and Traditional Objects",
             "SPECIFIC COMPETENCES": "Compose pictures from Still Life objects",
             "LEARNING ACTIVITIES": "• Composing pictures from Still Life objects (household objects, parts of simple machines, bottles, traditional utensils…)",
@@ -1115,7 +1115,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Figure Drawing",
+            "TOPIC": "2.8 Figure Drawing",
             "SUB-TOPIC": "2.8.1 Human Figure Drawing",
             "SPECIFIC COMPETENCES": "Draw human body parts",
             "LEARNING ACTIVITIES": "• Drawing studies of human body parts (head, bust, torso, palm, limbs, facial features…)",
@@ -1125,7 +1125,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Crafts",
+            "TOPIC": "2.9 Crafts",
             "SUB-TOPIC": "2.9.1 Picture Making",
             "SPECIFIC COMPETENCES": "Make frieze, montage, collage and mosaic",
             "LEARNING ACTIVITIES": "• Making frieze, montage, collage and mosaic",
@@ -1195,7 +1195,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Graphic Design",
+            "TOPIC": "2.10 Graphic Design",
             "SUB-TOPIC": "Computer Aided Design – CAD",
             "SPECIFIC COMPETENCES": "Design Art works using a computer",
             "LEARNING ACTIVITIES": "• Analysing qualities of computer aided designs\n• Designing artworks using a computer (lettering, logo, emblem, cards, letterhead…)",
@@ -1245,7 +1245,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Sculpture",
+            "TOPIC": "2.11 Sculpture",
             "SUB-TOPIC": "2.11.1 Modelling",
             "SPECIFIC COMPETENCES": "Model free standing sculptures",
             "LEARNING ACTIVITIES": "• Analysing qualities of free standing sculptures, techniques and processes involved\n• Modelling free standing sculptures (human figure, head, bust…)",
@@ -1285,7 +1285,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Entrepreneurship",
+            "TOPIC": "2.12 Entrepreneurship",
             "SUB-TOPIC": "2.12.1 Art Appreciation",
             "SPECIFIC COMPETENCES": "Appreciate Art",
             "LEARNING ACTIVITIES": "• Appreciating Art (field project, study tours, guided online tutorials…)\n• Hold annual exhibitions (Galleries, studio spaces, schools, public and private spaces…)",
@@ -1307,7 +1307,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Introduction to African Art",
+            "TOPIC": "3.1 Introduction to African Art",
             "SUB-TOPIC": "Types of African Art",
             "SPECIFIC COMPETENCES": "Demonstrate knowledge of types of African Art",
             "LEARNING ACTIVITIES": "• Discussing various Art styles from different parts of Africa (North, East, Southern Africa…)\n• Identifying the types of African Art (rock paintings, masks, terracotta figures…)\n• Comparing functions of African Art (ritual, utilitarian, functional, religious, divination, prestigious…)",
@@ -1347,7 +1347,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing or Painting from Imagination",
+            "TOPIC": "3.2 Drawing or Painting from Imagination",
             "SUB-TOPIC": "3.2.1 Composition in colour",
             "SPECIFIC COMPETENCES": "Compose pictures based on given themes",
             "LEARNING ACTIVITIES": "• Composing pictures based on given themes (festivals, traditional dances, cross cutting issues…)",
@@ -1357,7 +1357,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing or Painting from Observation",
+            "TOPIC": "3.3 Drawing or Painting from Observation",
             "SUB-TOPIC": "Drawing or painting natural objects",
             "SPECIFIC COMPETENCES": "Create pictures to depict the structure of natural objects",
             "LEARNING ACTIVITIES": "• Creating pictures to depict the structure of natural objects (leaf, bark, branch, twig, bone, foliage, stone, tree, trunk…)",
@@ -1387,7 +1387,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing or Painting from Still Life",
+            "TOPIC": "3.4 Drawing or Painting from Still Life",
             "SUB-TOPIC": "Drawing or painting natural objects",
             "SPECIFIC COMPETENCES": "Compose pictures to depict natural objects",
             "LEARNING ACTIVITIES": "• Composing pictures to depict natural objects (bones, skull, plank, log…)",
@@ -1417,7 +1417,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Figure Drawing or Painting",
+            "TOPIC": "3.5 Figure Drawing or Painting",
             "SUB-TOPIC": "3.5.1 Human Figure",
             "SPECIFIC COMPETENCES": "Compose human figure drawings or paintings",
             "LEARNING ACTIVITIES": "• Composing human figure drawings or paintings (Persons in action /different poses)",
@@ -1427,7 +1427,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Crafts",
+            "TOPIC": "3.6 Crafts",
             "SUB-TOPIC": "3.6.1 Textile Design",
             "SPECIFIC COMPETENCES": "Create a print for textile production",
             "LEARNING ACTIVITIES": "• Discussing fabric print making\n• Experimenting with printing techniques (block, stencil, intaglio…)\n• Creating fabric printing motifs for textile production (geometric, organic…)",
@@ -1537,7 +1537,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Graphic Design",
+            "TOPIC": "3.7 Graphic Design",
             "SUB-TOPIC": "3.7.1 Logo Design",
             "SPECIFIC COMPETENCES": "Design various logos",
             "LEARNING ACTIVITIES": "• Identifying various kinds of logos\n• Discussing the purpose and functions of logo designs\n• Demonstrating the process of making various logos\n• Designing various logos (Company identity…)",
@@ -1607,7 +1607,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Photography and Filming",
+            "TOPIC": "3.8 Photography and Filming",
             "SUB-TOPIC": "3.8.1 Photography",
             "SPECIFIC COMPETENCES": "Produce pictures using photography",
             "LEARNING ACTIVITIES": "• Discussing photography\n• Identifying various kinds of photography (portrait, landscape, still life, street…)\n• Categorising pictures (lifestyle, documentary, traditional, posed artistic…)\n• Analysing picture compositions\n• Producing pictures based on different themes (photomontage, frieze, props…)",
@@ -1627,7 +1627,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Sculpture",
+            "TOPIC": "3.9 Sculpture",
             "SUB-TOPIC": "Sculptures",
             "SPECIFIC COMPETENCES": "Make sculptures using different materials",
             "LEARNING ACTIVITIES": "• Identifying various sculpture techniques\n• Analysing African sculpture working styles (north, east, west, south, central…)\n• Making sculptures using different materials (wood, metal, plaster of Paris, cement…)",
@@ -1637,7 +1637,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Entrepreneurship",
+            "TOPIC": "3.10 Entrepreneurship",
             "SUB-TOPIC": "3.10.1 Creative Art projects",
             "SPECIFIC COMPETENCES": "Develop Creative Art projects",
             "LEARNING ACTIVITIES": "• Developing Creative Art projects (reuse, reduce, recycle…)\n• Applying Marketing skills (negotiation, advertising…)\n• Organising annual exhibitions (galleries, studios, schools, public and private spaces…)",
@@ -1659,7 +1659,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Introduction to Art Careers",
+            "TOPIC": "4.1 Introduction to Art Careers",
             "SUB-TOPIC": "4.1.1 Careers in Art",
             "SPECIFIC COMPETENCES": "Develop Art portfolios",
             "LEARNING ACTIVITIES": "• Identifying careers in Art (Art Teacher, Art administrator, fashion designer, makeup Artist, creative director, museum docent, illustrator, cartoonist, photographer, costume designer, textile designer, interior/exterior decorator, stage designer, graphic designer, tattoo Artist, muralist…)\n• Designing work models/ portfolios / work samples for careers in Art (Muralist- mural painting/ Makeup artist- facial painting demo, Curator- art class display critic session…)",
@@ -1679,7 +1679,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "World Art History",
+            "TOPIC": "4.2 World Art History",
             "SUB-TOPIC": "4.2.1 Famous movements",
             "SPECIFIC COMPETENCES": "Explore famous movements in Art",
             "LEARNING ACTIVITIES": "• Discussing the characteristics of Gothic Art\n• Stating the masters of Gothic Art (Giotto, Botticelli, Simone Martini…)\n• Describing the significance of Renaissance Art (working styles, exhibition spaces…)\n• Listing the masters of Renaissance Art (Michelangelo Buonarroti, Leonardo Da Vinci, Raphaeli Santi, Merisi Da Caravaggio…)\n• Analysing the famous movements in Art\n• Discussing contemporary Art (Vincent Van goh, Vassily Kandinsky, Pablo Picasso…)\n• Exploring famous movements in Art (repainting the Gothic, Renaissance, Contemporary masters works…)",
@@ -1699,7 +1699,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing or Painting from Imagination",
+            "TOPIC": "4.3 Drawing or Painting from Imagination",
             "SUB-TOPIC": "Imaginative Composition",
             "SPECIFIC COMPETENCES": "Compose imaginative pictures based on different themes",
             "LEARNING ACTIVITIES": "• Composing imaginative pictures based on different themes (text given, stories narrated, crosscutting issues, abstract themes, contemporary issues, Gender Based Violence…)",
@@ -1709,7 +1709,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing or Painting from Observation",
+            "TOPIC": "4.4 Drawing or Painting from Observation",
             "SUB-TOPIC": "Natural Objects",
             "SPECIFIC COMPETENCES": "Compose pictures to depict natural objects",
             "LEARNING ACTIVITIES": "• Composing pictures to depict natural objects (flowers, snails, shells, animals, skulls, seed pods, root…)",
@@ -1739,7 +1739,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing or Painting from Still Life",
+            "TOPIC": "4.5 Drawing or Painting from Still Life",
             "SUB-TOPIC": "Natural Objects",
             "SPECIFIC COMPETENCES": "Compose pictures to depict natural objects",
             "LEARNING ACTIVITIES": "• Composing pictures to depict natural objects (vegetables, fruits, stone, wood…)",
@@ -1769,7 +1769,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Figure Drawing or Painting",
+            "TOPIC": "4.6 Figure Drawing or Painting",
             "SUB-TOPIC": "Human figures",
             "SPECIFIC COMPETENCES": "Draw human figures in action using different techniques",
             "LEARNING ACTIVITIES": "• Demonstrating various techniques to depict human figures in action (traditional ceremonies, contemporary life, religious festivals…)",
@@ -1779,7 +1779,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Crafts",
+            "TOPIC": "4.7 Crafts",
             "SUB-TOPIC": "Print making",
             "SPECIFIC COMPETENCES": "Make prints using various techniques",
             "LEARNING ACTIVITIES": "• Identifying techniques used in print making (relief printing, intaglio, lithography, serigraphy…)\n• Making prints using various techniques",
@@ -1819,7 +1819,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Graphic Design (Computer Aided)",
+            "TOPIC": "4.8 Graphic Design (Computer Aided)",
             "SUB-TOPIC": "4.8.1 Calligraphy",
             "SPECIFIC COMPETENCES": "Use various calligraphic fonts",
             "LEARNING ACTIVITIES": "• Identifying calligraphy tools. (calligraphy pen, reeds, brush, chisel-shaped markers…)\n• Experimenting with various calligraphic fonts\n• Using various calligraphy fonts",
@@ -1879,7 +1879,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Photography and Filming",
+            "TOPIC": "4.9 Photography and Filming",
             "SUB-TOPIC": "4.9.1 Introduction to Animation",
             "SPECIFIC COMPETENCES": "Produce Art works using animation",
             "LEARNING ACTIVITIES": "• Discussing animation (Traditional scenes, computer aided animation…)\n• Exploring animation (2D and 3D)\n• Producing Art works using animation\n• Making Art works using camera photography/ Artificial Intelligence based on different themes (sceneries, portraits, nature…)",
@@ -1889,7 +1889,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Sculpture",
+            "TOPIC": "4.10 Sculpture",
             "SUB-TOPIC": "4.10.1 Sculpture in the round",
             "SPECIFIC COMPETENCES": "Create sculptures in the round",
             "LEARNING ACTIVITIES": "• Utilizing the benefits of collecting and recycling materials from the environment\n• Create sculptures using various materials (clay, cement, Plaster of Paris, stone…)\n• Creating sculptures in the round (human figure, head, foot…)",
@@ -1909,7 +1909,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Entrepreneurship",
+            "TOPIC": "4.11 Entrepreneurship",
             "SUB-TOPIC": "4.11.1 Value Addition",
             "SPECIFIC COMPETENCES": "Add value to Art works",
             "LEARNING ACTIVITIES": "• Costing Artworks\n• Applying Marketing skills\n• Adding value to Art works\n• Organizing annual exhibitions (galleries, studios, schools, public spaces…)",
