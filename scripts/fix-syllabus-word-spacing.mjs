@@ -752,6 +752,39 @@ export const CORRECTIONS = {
   "asrelatingdecimalsto": "as relating decimals to",
   "managingbudgets": "managing budgets",
   "ina": "in a",
+  // ── Auditor-derived internal-space rejoins (scripts/audit-syllabus-word-breaks.mjs) ──
+  // Each: the joined form is a frequent corpus word AND the trailing shard is a
+  // non-word fragment (≥2 chars, not a real word), so the rejoin is deterministic
+  // and evidence-based — not a guess. See the AUTO class in the auditor.
+  "accord ingly": "accordingly",
+  "Discu ssing": "Discussing",
+  "MATE RIALS": "MATERIALS",
+  "MATER IALS": "MATERIALS",
+  "Understan ding": "Understanding",
+  "wa ys": "ways",
+  "tradit ional": "traditional",
+  "produ ction": "production",
+  "practi ces": "practices",
+  "poi nts": "points",
+  "Comp aring": "Comparing",
+  "His tory": "History",
+  "Infer ences": "Inferences",
+  "Colle cting": "Collecting",
+  "len gth": "length",
+  "PRODUCTIV ITY": "PRODUCTIVITY",
+  "Hin duism": "Hinduism",
+  "TRANSFORMATI ONS": "TRANSFORMATIONS",
+  "Entrepren eur": "Entrepreneur",
+  "Entrepreneur ship": "Entrepreneurship",   // residual second break after the rejoin above
+  "Bl ack": "Black",
+  "emi ssion": "emission",
+  "st ars": "stars",
+  "developm ents": "developments",
+  "Professional ism": "Professionalism",
+  "traffi cking": "trafficking",
+  "cha rcoal": "charcoal",
+  "DESCRIP TORS": "DESCRIPTORS",
+  "satell ite": "satellite",
 }
 
 // Match keys longest-first so multi-token repairs (e.g. "p reser ves")

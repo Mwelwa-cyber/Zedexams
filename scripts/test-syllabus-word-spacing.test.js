@@ -101,6 +101,42 @@ check('double break resolves fully: "p reser ves" -> "preserves"', () => {
   assert.strictEqual(fixSpacing('types of p reser ves: (jam, pickles)'),
     'types of preserves: (jam, pickles)')
 })
+// Auditor-derived internal-space rejoins (scripts/audit-syllabus-word-breaks.mjs
+// AUTO class): each joined form is a frequent corpus word and the trailing shard
+// is a non-word fragment, so the rejoin is evidence-based, not a guess.
+check('auditor AUTO rejoins across subjects', () => {
+  assert.strictEqual(fixSpacing('promoted accord ingly'), 'promoted accordingly')
+  assert.strictEqual(fixSpacing('Preserve foods using tradit ional methods'),
+    'Preserve foods using traditional methods')
+  assert.strictEqual(fixSpacing('planning, produ ction, tracking'),
+    'planning, production, tracking')
+  assert.strictEqual(fixSpacing('management practi ces'), 'management practices')
+  assert.strictEqual(fixSpacing('the locus of poi nts'), 'the locus of points')
+  assert.strictEqual(fixSpacing('Colle cting data'), 'Collecting data')
+  assert.strictEqual(fixSpacing('the len gth, area and volume'),
+    'the length, area and volume')
+  assert.strictEqual(fixSpacing('4.5. GEOMETRICAL TRANSFORMATI ONS'),
+    '4.5. GEOMETRICAL TRANSFORMATIONS')
+  assert.strictEqual(fixSpacing('3.3 PRODUCTIV ITY TOOLS'), '3.3 PRODUCTIVITY TOOLS')
+  assert.strictEqual(fixSpacing('1.4.MATE RIALS'), '1.4.MATERIALS')
+  assert.strictEqual(fixSpacing('3.10.1 Infer ences'), '3.10.1 Inferences')
+  assert.strictEqual(fixSpacing('Bl ack Friday'), 'Black Friday')
+  assert.strictEqual(fixSpacing('effects of human traffi cking'),
+    'effects of human trafficking')
+  assert.strictEqual(fixSpacing('medicine, cha rcoal, fruits'),
+    'medicine, charcoal, fruits')
+  assert.strictEqual(fixSpacing('phases of the moon, st ars, eclipses'),
+    'phases of the moon, stars, eclipses')
+  assert.strictEqual(fixSpacing('curvature in satell ite positioning'),
+    'curvature in satellite positioning')
+  assert.strictEqual(fixSpacing('Professional ism in the Hospitality Industry'),
+    'Professionalism in the Hospitality Industry')
+  assert.strictEqual(fixSpacing('Hin duism,Islam'), 'Hinduism,Islam')
+})
+check('auditor rejoin chains a residual second break: "Entrepren eur ship" -> "Entrepreneurship"', () => {
+  assert.strictEqual(fixSpacing('1.12.1 Sports Entrepren eur ship'),
+    '1.12.1 Sports Entrepreneurship')
+})
 
 // ── 2. Genuine phrases are NOT over-merged ────────────────────────────────
 console.log('\npreserves legitimate text')
