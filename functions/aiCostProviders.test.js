@@ -97,7 +97,12 @@ function stubFirestoreCapture(monthCostUsd = 0) {
     get: async () => ({exists: true, data: () => ({totalCostUsd: monthCostUsd})}),
     collection: (name) => makeColl(`${path}/${name}`),
   });
-  const makeColl = (path) => ({doc: (id) => makeDoc(`${path}/${id}`)});
+  // Collections support doc() for writes and an (empty) get() for the sharded
+  // month reader, which sums doc().collection('shards').get().
+  const makeColl = (path) => ({
+    doc: (id) => makeDoc(`${path}/${id}`),
+    get: async () => ({forEach: () => {}, docs: []}),
+  });
   const fs = () => ({collection: (name) => makeColl(name)});
   fs.FieldValue = {
     increment: (n) => ({__inc: n}),
@@ -119,16 +124,19 @@ function stubFirestoreCapture(monthCostUsd = 0) {
     });
     ok("recordAiImageUsage returns the flat cost",
       res && Math.abs(res.costUsd - 0.063) < 1e-9 && res.inputTokens === 0);
-    const day = writes.find((w) => /^aiUsage\/\d{4}-\d{2}-\d{2}$/.test(w.path));
-    ok("image spend lands on the daily rollup",
+    // Day totals now land on a SHARD doc (aiUsage/{date}/shards/{shardId}).
+    const day = writes.find((w) => /^aiUsage\/\d{4}-\d{2}-\d{2}\/shards\/\d+$/.test(w.path));
+    ok("image spend lands on the daily rollup shard",
       day && Math.abs(day.data.totalCostUsd.__inc - 0.063) < 1e-9 &&
       day.data.callCount.__inc === 1);
-    const month = writes.find((w) => /^aiUsageMonthly\//.test(w.path));
+    // Month totals on a SHARD doc (aiUsageMonthly/{month}/shards/{shardId}).
+    const month = writes.find((w) => /^aiUsageMonthly\/[\d-]+\/shards\/\d+$/.test(w.path));
     ok("image spend lands on the monthly rollup the ceiling reads",
       month && Math.abs(month.data.totalCostUsd.__inc - 0.063) < 1e-9);
+    // Per-user doc unchanged; per-tool lands on a flattened tool shard.
     ok("image spend attributes to the user and tool rollups",
       writes.some((w) => w.path.endsWith("/users/teacher1")) &&
-      writes.some((w) => w.path.endsWith("/tools/diagram")));
+      writes.some((w) => /\/toolShards\/diagram__\d+$/.test(w.path)));
   }
 
   {
@@ -143,7 +151,7 @@ function stubFirestoreCapture(monthCostUsd = 0) {
       res && Math.abs(res.costUsd - (0.5 * 0.30 + 0.1 * 2.50)) < 1e-9);
     ok("null uid skips the per-user rollup but keeps the tool rollup",
       !writes.some((w) => w.path.includes("/users/")) &&
-      writes.some((w) => w.path.endsWith("/tools/documentImport")));
+      writes.some((w) => /\/toolShards\/documentImport__\d+$/.test(w.path)));
   }
 
   // ── isOverBudget: the shared client gate ─────────────────────────────────

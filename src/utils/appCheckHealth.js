@@ -22,7 +22,7 @@
  * from a non-admin context resolves to permission-denied.
  */
 
-import { collection, getDocs, orderBy, query, where, limit as fsLimit } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore'
 import { db } from '../firebase/config'
 
 const COLLECTION = 'appCheckHealth'
@@ -31,17 +31,53 @@ const COUNTERS = ['attempts', 'valid', 'missing', 'invalid']
 
 function isoDate(d) { return d.toISOString().slice(0, 10) }
 
-/** Last `days` day-rollup docs, oldest → newest. */
+/**
+ * Merge a legacy day doc + its shard docs into one flat day row, summing
+ * every numeric counter. Legacy single-doc days (pre-migration) live on
+ * the parent doc; new days (post-migration) live only in the `shards`
+ * subcollection — a given date has data in exactly one shape, so summing
+ * both never double-counts. Exported for unit tests.
+ */
+export function mergeDayCounters(date, docs) {
+  const merged = { date }
+  for (const d of docs) {
+    if (!d) continue
+    for (const [k, v] of Object.entries(d)) {
+      if (k === 'date' || k === 'updatedAt') continue
+      if (typeof v === 'number' && Number.isFinite(v)) {
+        merged[k] = (merged[k] || 0) + v
+      }
+    }
+  }
+  return merged
+}
+
+/**
+ * Last `days` day-rollups, oldest → newest. Each day is summed from its
+ * legacy parent doc (if any) PLUS every doc in its `shards` subcollection
+ * (the sharded + sampled writer, appCheckHealthCore.js). Date keys are
+ * enumerated locally rather than via a collection query because the new
+ * writer never touches the shared parent doc.
+ */
 export async function listAppCheckHealth({ days = 14 } = {}) {
-  const since = isoDate(new Date(Date.now() - (days - 1) * ONE_DAY_MS))
-  const q = query(
-    collection(db, COLLECTION),
-    where('__name__', '>=', since),
-    orderBy('__name__', 'asc'),
-    fsLimit(days + 5),
-  )
-  const snap = await getDocs(q)
-  return snap.docs.map((d) => ({ date: d.id, ...d.data() }))
+  const today = Date.now()
+  const dates = []
+  for (let i = days - 1; i >= 0; i -= 1) {
+    dates.push(isoDate(new Date(today - i * ONE_DAY_MS)))
+  }
+  return Promise.all(dates.map((date) => readDayHealth(date)))
+}
+
+/** Read + merge one date's legacy doc and shard subcollection. */
+async function readDayHealth(date) {
+  const [legacySnap, shardsSnap] = await Promise.all([
+    getDoc(doc(db, COLLECTION, date)).catch(() => null),
+    getDocs(collection(db, COLLECTION, date, 'shards')).catch(() => null),
+  ])
+  const docs = []
+  if (legacySnap && legacySnap.exists()) docs.push(legacySnap.data())
+  if (shardsSnap) shardsSnap.forEach((s) => docs.push(s.data()))
+  return mergeDayCounters(date, docs)
 }
 
 /**
@@ -66,23 +102,43 @@ function pct(valid, attempts) {
 }
 
 /**
+ * Observed sampling rate for a label/window, DERIVED from the counters we
+ * already store: `_attempts` is weighted (each sampled write adds 1/rate),
+ * `_sampled` is the raw write count, so sampled/attempts == the active rate.
+ * null when there were no attempts. Returns a fraction in (0, 1].
+ */
+function sampleRateOf(sampled, attempts) {
+  if (!attempts || !sampled) return null
+  return Math.min(1, Math.round((sampled / attempts) * 1000) / 1000)
+}
+
+/**
  * Collapse `rawDays` into one row per endpoint label, summing each
  * counter across the window. `validPct` is null when there were no
  * attempts (so the UI can show "—" rather than a misleading 0%).
+ * `attempts`/`valid`/`missing`/`invalid` are WEIGHTED estimates when
+ * sampling is active; `sampled` is the raw sampled-write count and
+ * `sampleRate` (= sampled/attempts) exposes the active rate so the UI can
+ * label the totals as estimates.
  */
 export function summarise(rawDays) {
   const labels = discoverLabels(rawDays)
   const rows = labels.map((label) => {
     const totals = { attempts: 0, valid: 0, missing: 0, invalid: 0 }
+    let sampled = 0
     for (const day of rawDays) {
       for (const c of COUNTERS) {
         const v = day[`${label}_${c}`]
         if (typeof v === 'number') totals[c] += v
       }
+      const s = day[`${label}_sampled`]
+      if (typeof s === 'number') sampled += s
     }
     return {
       label,
       ...totals,
+      sampled,
+      sampleRate: sampleRateOf(sampled, totals.attempts),
       unattested: totals.missing + totals.invalid,
       validPct: pct(totals.valid, totals.attempts),
     }
@@ -92,13 +148,15 @@ export function summarise(rawDays) {
     valid: acc.valid + r.valid,
     missing: acc.missing + r.missing,
     invalid: acc.invalid + r.invalid,
-  }), { attempts: 0, valid: 0, missing: 0, invalid: 0 })
+    sampled: acc.sampled + r.sampled,
+  }), { attempts: 0, valid: 0, missing: 0, invalid: 0, sampled: 0 })
   return {
     rows,
     overall: {
       ...overall,
       unattested: overall.missing + overall.invalid,
       validPct: pct(overall.valid, overall.attempts),
+      sampleRate: sampleRateOf(overall.sampled, overall.attempts),
     },
   }
 }

@@ -32,6 +32,7 @@
  */
 
 const admin = require("firebase-admin");
+const crypto = require("node:crypto");
 const {
   getBudgetMode,
   getReinvestRatio,
@@ -41,6 +42,13 @@ const {
   resolveZmwPerUsd,
   FX_MAX_AGE_MS,
 } = require("./treasury");
+const {
+  resolveShardCount,
+  pickShardId,
+  toolShardDocId,
+  sumShardDocs,
+} = require("./shardedCounter");
+const reservation = require("./aiBudgetReservation");
 
 // All rates in USD per million tokens.
 const PRICE_PER_MTOK = {
@@ -262,6 +270,13 @@ async function recordAiImageUsage({uid, model, quality, size, tool}) {
 /**
  * Shared rollup writer behind recordAiUsage / recordAiImageUsage. Never
  * throws — accounting failures must not crash the user-facing AI flow.
+ *
+ * The day-total, month-total, and per-tool counters are SHARDED (each call
+ * increments one random shard doc) so a burst of concurrent AI calls — or a
+ * single tool dominating traffic — never serialises on one hot document.
+ * The per-user counter is left un-sharded: it's already keyed per uid, so it
+ * spreads across users on its own. Readers sum the shards back together
+ * (shardedCounter.sumShardDocs / groupToolShards).
  */
 async function writeUsageRollups({
   uid, tool, inputTokens, outputTokens, cacheCreation, cacheRead, costUsd,
@@ -269,14 +284,18 @@ async function writeUsageRollups({
   try {
     const db = admin.firestore();
     const date = dateKeyUtc();
+    const month = monthKeyUtc();
 
-    const dayRef = db.collection("aiUsage").doc(date);
     const inc = (n) => admin.firestore.FieldValue.increment(n);
     const now = admin.firestore.FieldValue.serverTimestamp();
+    // One shard id per call, reused across the day/month/tool counters.
+    const shardId = pickShardId(resolveShardCount());
 
-    // Ensure the parent doc exists with the date stamped (so list
-    // queries on aiUsage can sort by date without an index).
-    const dayUpdate = dayRef.set({
+    const dayRef = db.collection("aiUsage").doc(date);
+
+    // Day totals → aiUsage/{date}/shards/{shardId}
+    const writes = [];
+    writes.push(dayRef.collection("shards").doc(String(shardId)).set({
       date,
       totalInputTokens: inc(inputTokens),
       totalOutputTokens: inc(outputTokens),
@@ -285,11 +304,11 @@ async function writeUsageRollups({
       totalCostUsd: inc(costUsd),
       callCount: inc(1),
       updatedAt: now,
-    }, {merge: true});
+    }, {merge: true}));
 
-    const subUpdates = [];
+    // Per-user totals → aiUsage/{date}/users/{uid} (UNCHANGED — per-uid).
     if (uid) {
-      subUpdates.push(dayRef.collection("users").doc(uid).set({
+      writes.push(dayRef.collection("users").doc(uid).set({
         uid,
         inputTokens: inc(inputTokens),
         outputTokens: inc(outputTokens),
@@ -300,9 +319,12 @@ async function writeUsageRollups({
         updatedAt: now,
       }, {merge: true}));
     }
+
+    // Per-tool totals → aiUsage/{date}/toolShards/{tool}__{shardId}
+    // (flattened so every doc is a real, listable doc regardless of parent).
     if (tool) {
       const safeTool = String(tool).slice(0, 64);
-      subUpdates.push(dayRef.collection("tools").doc(safeTool).set({
+      writes.push(dayRef.collection("toolShards").doc(toolShardDocId(safeTool, shardId)).set({
         tool: safeTool,
         inputTokens: inc(inputTokens),
         outputTokens: inc(outputTokens),
@@ -312,21 +334,21 @@ async function writeUsageRollups({
       }, {merge: true}));
     }
 
-    // Month-to-date rollup that the spend ceiling reads. One extra
-    // increment write, same fire-and-forget contract as the rest.
-    const monthRef = db.collection(MONTHLY_COLLECTION).doc(monthKeyUtc());
-    subUpdates.push(monthRef.set({
-      month: monthKeyUtc(),
-      totalInputTokens: inc(inputTokens),
-      totalOutputTokens: inc(outputTokens),
-      totalCacheCreationTokens: inc(cacheCreation),
-      totalCacheReadTokens: inc(cacheRead),
-      totalCostUsd: inc(costUsd),
-      callCount: inc(1),
-      updatedAt: now,
-    }, {merge: true}));
+    // Month-to-date totals → aiUsageMonthly/{month}/shards/{shardId}
+    // (the ceiling reads this — summed across shards).
+    writes.push(db.collection(MONTHLY_COLLECTION).doc(month)
+        .collection("shards").doc(String(shardId)).set({
+          month,
+          totalInputTokens: inc(inputTokens),
+          totalOutputTokens: inc(outputTokens),
+          totalCacheCreationTokens: inc(cacheCreation),
+          totalCacheReadTokens: inc(cacheRead),
+          totalCostUsd: inc(costUsd),
+          callCount: inc(1),
+          updatedAt: now,
+        }, {merge: true}));
 
-    await Promise.allSettled([dayUpdate, ...subUpdates]);
+    await Promise.allSettled(writes);
     return {costUsd, inputTokens, outputTokens};
   } catch (err) {
     // Accounting NEVER blocks the request. Log + move on.
@@ -368,6 +390,25 @@ function getMonthlyBudgetUsd() {
 }
 
 /**
+ * Sum month-to-date tracked spend across the monthly shard docs, folding
+ * in the legacy single-doc total for pre-migration months. A month's spend
+ * lives in exactly one shape (parent doc before migration, shards after),
+ * so adding both never double-counts.
+ */
+async function readMonthToDateCostUsd(monthKey) {
+  const monthDoc = admin.firestore().collection(MONTHLY_COLLECTION).doc(monthKey);
+  const [legacySnap, shardsSnap] = await Promise.all([
+    monthDoc.get(),
+    monthDoc.collection("shards").get(),
+  ]);
+  const docs = [];
+  if (legacySnap.exists) docs.push(legacySnap.data());
+  shardsSnap.forEach((s) => docs.push(s.data()));
+  const totals = sumShardDocs(docs, {carry: ["month"]});
+  return Number(totals.totalCostUsd || 0);
+}
+
+/**
  * Month-to-date tracked spend in USD, read from the aiUsageMonthly
  * rollup. Cached 60s; fails open (returns 0) so the gate never blocks
  * a call because accounting hiccuped.
@@ -379,11 +420,7 @@ async function getMonthToDateCostUsd() {
     return budgetCache.monthCostUsd;
   }
   try {
-    const snap = await admin.firestore()
-        .collection(MONTHLY_COLLECTION).doc(monthKey).get();
-    const monthCostUsd = Number(
-        snap.exists ? (snap.data().totalCostUsd || 0) : 0,
-    );
+    const monthCostUsd = await readMonthToDateCostUsd(monthKey);
     budgetCache = {
       expiresAt: nowMs + BUDGET_CACHE_TTL_MS,
       monthKey,
@@ -624,6 +661,103 @@ async function isOverBudget() {
   }
 }
 
+// ── Reservation-based hard gate (begin / settle / release) ────────────────
+//
+// The month-to-date read above is an eventually-consistent REPORT, not a
+// lock — under concurrency many callers can read the same stale total and
+// all proceed past the ceiling. The reservation gate (aiBudgetReservation.js)
+// makes the ceiling enforceable: reserve a conservative max cost up front,
+// reconcile to the actual cost after, release on failure. It is armed by the
+// SAME ceiling resolution as isOverBudget (static or revenue-linked); when no
+// ceiling is armed it is a no-op and every call is allowed. Everything below
+// FAILS OPEN — an accounting glitch never blocks a legitimate AI call.
+
+// Conservative input-token allowance for the pre-call cost estimate. The
+// prompt size isn't known until the call returns, so we assume a generous
+// fixed budget for input on top of the full output allowance (maxTokens).
+const DEFAULT_INPUT_ALLOWANCE_TOKENS = 40000;
+
+/** Conservative MAX USD cost of a text call, used to size a reservation. */
+function estimateMaxCostUsd({model, maxTokens = 4000, inputAllowanceTokens = DEFAULT_INPUT_ALLOWANCE_TOKENS} = {}) {
+  const rates = pickRates(model);
+  const out = (Number(maxTokens) || 0) * rates.output;
+  const inp = (Number(inputAllowanceTokens) || 0) * rates.input;
+  return (out + inp) / 1_000_000;
+}
+
+/**
+ * Reserve budget for an AI call before dispatching it. Returns
+ *   { allowed, reservation, generationId, mode|reason }
+ * `allowed:false` (reason 'budget_exhausted') means the ceiling is armed and
+ * the month's budget is fully reserved — the caller should refuse the call
+ * with BUDGET_PAUSED_MESSAGE. Any other outcome allows the call (fail-open);
+ * a null reservation just means nothing needs reconciling afterwards.
+ */
+async function beginAiCall({generationId, model, maxTokens, inputAllowanceTokens, provider = null} = {}) {
+  const genId = generationId || crypto.randomUUID();
+  try {
+    const status = await getBudgetStatus();
+    if (!status || !status.enabled || !(Number(status.budgetUsd) > 0)) {
+      return {allowed: true, reservation: null, generationId: genId, mode: "disabled"};
+    }
+    const estCostUsd = estimateMaxCostUsd({model, maxTokens, inputAllowanceTokens});
+    const res = await reservation.reserveBudget(admin.firestore(), {
+      month: monthKeyUtc(),
+      generationId: genId,
+      estCostUsd,
+      monthlyBudgetUsd: Number(status.budgetUsd),
+      provider,
+      now: Date.now(),
+    });
+    if (!res.allowed && res.reason === "budget_exhausted") {
+      return {allowed: false, reservation: null, generationId: genId, reason: res.reason};
+    }
+    // Fail OPEN on any other non-allow reason (e.g. estimate_exceeds_bucket).
+    return {
+      allowed: true,
+      reservation: res.reservation || null,
+      generationId: genId,
+      mode: res.mode || "open",
+    };
+  } catch (err) {
+    console.warn("[aiCostTracking] beginAiCall failed (allowing call)", err?.message || err);
+    return {allowed: true, reservation: null, generationId: genId, mode: "error"};
+  }
+}
+
+/**
+ * Reconcile a reservation to the actual cost AND record the call in the
+ * sharded analytics counters. Idempotent + never throws. Pass the handle
+ * returned by beginAiCall (null when the gate was off).
+ */
+async function settleAiCall({reservation: handle, uid, tool, model, usage} = {}) {
+  if (handle && handle.id) {
+    const actualCostUsd = computeCostUsd(model, usage);
+    await reservation.settleReservation(admin.firestore(), {
+      month: handle.month || monthKeyUtc(),
+      generationId: handle.id,
+      actualCostUsd,
+      now: Date.now(),
+    }).catch((err) => console.warn("[aiCostTracking] settle failed", err?.message || err));
+  }
+  return recordAiUsage({uid, model, usage, tool});
+}
+
+/**
+ * Release a reservation whose AI call failed (returns the full held amount
+ * to the budget). Idempotent + never throws. No analytics write — the call
+ * produced no billable usage.
+ */
+async function releaseAiCall({reservation: handle} = {}) {
+  if (handle && handle.id) {
+    await reservation.releaseReservation(admin.firestore(), {
+      month: handle.month || monthKeyUtc(),
+      generationId: handle.id,
+      now: Date.now(),
+    }).catch((err) => console.warn("[aiCostTracking] release failed", err?.message || err));
+  }
+}
+
 // Test seam — let tests reset the in-memory caches between cases.
 function _resetBudgetCache() {
   budgetCache = {expiresAt: 0, monthKey: null, monthCostUsd: 0};
@@ -650,5 +784,10 @@ module.exports = {
   getBudgetStatus,
   BUDGET_WARN_RATIO,
   MONTHLY_COLLECTION,
+  // Reservation-based hard gate (see aiBudgetReservation.js).
+  estimateMaxCostUsd,
+  beginAiCall,
+  settleAiCall,
+  releaseAiCall,
   _resetBudgetCache,
 };

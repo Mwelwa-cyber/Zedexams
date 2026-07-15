@@ -38,7 +38,12 @@ function ok(name, cond) {
 function stubFirestore(behaviour) {
   Object.defineProperty(admin, "firestore", {
     configurable: true,
-    value: () => ({collection: () => ({doc: () => ({get: behaviour})})}),
+    // doc().get() is the legacy parent read; doc().collection('shards').get()
+    // is the (here empty) shard subcollection the sharded reader also sums.
+    value: () => ({collection: () => ({doc: () => ({
+      get: behaviour,
+      collection: () => ({get: async () => ({forEach: () => {}})}),
+    })})}),
   });
 }
 

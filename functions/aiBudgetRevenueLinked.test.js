@@ -43,10 +43,16 @@ function stubFirestore({revenueZmw = [], costUsd = 0, revenueThrows = false, cos
         };
         return {where: () => ({where: () => ({get})})};
       }
-      return {doc: () => ({get: async () => {
-        if (costThrows) throw new Error("cost read failed");
-        return {exists: true, data: () => ({totalCostUsd: costUsd})};
-      }})};
+      return {doc: () => ({
+        get: async () => {
+          if (costThrows) throw new Error("cost read failed");
+          return {exists: true, data: () => ({totalCostUsd: costUsd})};
+        },
+        // Sharded reader also sums the (here empty) shard subcollection.
+        collection: () => ({get: async () => {
+          if (costThrows) throw new Error("cost read failed");
+          return {forEach: () => {}};
+        }})})};
     },
   });
   fsFn.Timestamp = {fromDate: (d) => d};

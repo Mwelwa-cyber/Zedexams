@@ -8,7 +8,7 @@ import { describe, it, expect, vi } from 'vitest'
 
 vi.mock('../firebase/config', () => ({ db: {} }))
 
-import { classifyDeviceAttestation } from './appCheckHealth'
+import { classifyDeviceAttestation, mergeDayCounters, summarise } from './appCheckHealth'
 
 const base = {
   native: false,
@@ -78,5 +78,61 @@ describe('classifyDeviceAttestation', () => {
     const v = classifyDeviceAttestation({ ...base, attested: null, pingError: 'unavailable' })
     expect(v.tone).toBe('warn')
     expect(v.detail).toContain('unavailable')
+  })
+})
+
+describe('mergeDayCounters', () => {
+  it('sums a pre-migration legacy day off the parent doc', () => {
+    const row = mergeDayCounters('2026-07-01', [
+      { date: '2026-07-01', aiChat_attempts: 100, aiChat_valid: 90, updatedAt: 'ts' },
+    ])
+    expect(row.aiChat_attempts).toBe(100)
+    expect(row.aiChat_valid).toBe(90)
+    expect(row.updatedAt).toBeUndefined() // non-numeric fields are dropped
+  })
+
+  it('sums shard docs across the subcollection', () => {
+    const row = mergeDayCounters('2026-07-15', [
+      { aiChat_attempts: 20, aiChat_valid: 20 },
+      { aiChat_attempts: 40, aiChat_valid: 20, aiChat_missing: 20 },
+    ])
+    expect(row.aiChat_attempts).toBe(60)
+    expect(row.aiChat_valid).toBe(40)
+    expect(row.aiChat_missing).toBe(20)
+  })
+
+  it('is additive across legacy + shards without double-counting', () => {
+    const row = mergeDayCounters('2026-07-10', [
+      { aiChat_attempts: 5 },
+      { aiChat_attempts: 15 },
+    ])
+    expect(row.aiChat_attempts).toBe(20)
+    expect(row.date).toBe('2026-07-10')
+  })
+
+  it('tolerates a null (failed) shard read', () => {
+    const row = mergeDayCounters('2026-07-10', [null, { aiChat_attempts: 7 }, undefined])
+    expect(row.aiChat_attempts).toBe(7)
+  })
+})
+
+describe('summarise sampling exposure', () => {
+  it('reports sampleRate 1.0 when every call is recorded (weight 1)', () => {
+    // rate 1.0: attempts == sampled (each write weight 1, 1 sampled).
+    const s = summarise([{ date: 'd', aiChat_attempts: 100, aiChat_valid: 100, aiChat_sampled: 100 }])
+    expect(s.overall.sampleRate).toBe(1)
+    expect(s.rows[0].sampled).toBe(100)
+  })
+
+  it('derives a fractional rate from weighted attempts / raw sampled', () => {
+    // rate 0.05: 5 sampled writes each weighted 20 → attempts 100, sampled 5.
+    const s = summarise([{ date: 'd', aiChat_attempts: 100, aiChat_valid: 100, aiChat_sampled: 5 }])
+    expect(s.overall.sampleRate).toBe(0.05)
+    expect(s.overall.attempts).toBe(100) // weighted estimate preserved
+  })
+
+  it('returns null sampleRate when there is no traffic', () => {
+    const s = summarise([])
+    expect(s.overall.sampleRate).toBeNull()
   })
 })

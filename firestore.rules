@@ -1598,18 +1598,24 @@ service cloud.firestore {
         && (!('expiresAt' in incoming()) || incoming().expiresAt is timestamp);
     }
     // ── appCheckHealth (audit B3 — soft-verify observability) ─────────
-    // Per-day rollups of App Check verification attempts. Schema:
-    //   appCheckHealth/{YYYY-MM-DD}: {
+    // Per-day rollups of App Check verification attempts. To avoid a
+    // per-request write hotspot, the writer SHARDS + SAMPLES into
+    //   appCheckHealth/{YYYY-MM-DD}/shards/{shardId}: {
     //     date,
-    //     {label}_attempts, {label}_valid,
-    //     {label}_missing, {label}_invalid,
-    //     updatedAt
+    //     {label}_attempts, {label}_valid, {label}_missing,
+    //     {label}_invalid, {label}_sampled, updatedAt
     //   }
+    // (weighted by 1/sampleRate). Legacy pre-migration days still carry
+    // the same counters on the parent doc; the dashboard sums both.
     // Admin-read only — leaks per-day attestation telemetry that
     // shouldn't be surfaced to users. Server-only writes.
     match /appCheckHealth/{date} {
       allow read: if isAdmin();
       allow create, update, delete: if false;
+      match /shards/{shardId} {
+        allow read: if isAdmin();
+        allow create, update, delete: if false;
+      }
     }
 
     // ── playBindingHealth (issue #1596 — Play account-binding rollout) ─
@@ -1643,10 +1649,19 @@ service cloud.firestore {
     // Daily rollups written exclusively by aiCostTracking.recordAiUsage
     // (Cloud Functions, admin SDK). Admin-only reads — the data
     // exposes per-user spend which is sensitive operational info.
-    // Schema:
-    //   aiUsage/{date} { totalCostUsd, callCount, totalInput/Output... }
-    //   aiUsage/{date}/users/{uid} { costUsd, callCount, ... }
-    //   aiUsage/{date}/tools/{tool} { costUsd, callCount, ... }
+    // The day-total and per-tool counters are SHARDED to avoid a
+    // per-call write hotspot; readers sum the shards (see aiCosts.js):
+    //   aiUsage/{date}/shards/{shardId}       { totalCostUsd, callCount, ... }
+    //   aiUsage/{date}/toolShards/{tool__n}   { tool, costUsd, callCount, ... }
+    //   aiUsage/{date}/users/{uid}            { costUsd, callCount, ... }  (per-uid)
+    //   aiUsage/{date}                        legacy pre-migration parent doc
+    // The single wildcard covers every subcollection (shards / toolShards /
+    // users) at admin-read, server-only-write.
+    //
+    // The month-to-date ceiling counter (aiUsageMonthly/{month}/shards/*)
+    // and the reservation buckets (aiBudgetBuckets/{month}/...) are written
+    // AND read only by Cloud Functions (admin SDK), so they have no client
+    // rule here and default-deny to clients.
     match /aiUsage/{date} {
       allow read: if isAdmin();
       allow create, update, delete: if false;
