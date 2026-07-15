@@ -24,6 +24,9 @@ import {
   getDefaultExpandedDates,
   computeProgress,
   filterTimetable,
+  filterTimetableByStatus,
+  statusBucket,
+  statusBucketCounts,
   formatSessionTime,
   formatDayHeading,
   countdownParts,
@@ -254,6 +257,36 @@ test('filterTimetable matches dates: weekday, month, and ISO — day kept whole'
 test('filterTimetable: blank query is identity, no-match prunes all days', () => {
   assert(filterTimetable(PSLE_2026, '  ') === PSLE_2026, 'blank query should return input')
   assert(filterTimetable(PSLE_2026, 'zzzz').days.length === 0, 'expected no days')
+})
+
+test('statusBucket maps live statuses to the three chip buckets', () => {
+  assert(statusBucket('today') === 'today', 'today bucket')
+  assert(statusBucket('in-progress') === 'today', 'in-progress → today')
+  assert(statusBucket('upcoming') === 'upcoming', 'upcoming bucket')
+  assert(statusBucket('next') === 'upcoming', 'next → upcoming')
+  assert(statusBucket('completed') === 'completed', 'completed bucket')
+  assert(statusBucket('archived') === null, 'archived → no bucket')
+})
+
+test('statusBucketCounts + filterTimetableByStatus partition the timetable', () => {
+  // Mid-season: Tuesday 27th, 08:30 — English in progress (today), the 26th
+  // briefing is done (completed), Wednesday+ are upcoming.
+  const now = Date.parse('2026-10-27T08:30:00+02:00')
+  const counts = statusBucketCounts(PSLE_2026, now)
+  assert(counts.all === 9, `expected 9 sessions, got ${counts.all}`)
+  assert(counts.completed === 1, `expected 1 completed (briefing), got ${counts.completed}`)
+  assert(counts.today === 2, `expected 2 today (English + Science), got ${counts.today}`)
+  assert(counts.upcoming === counts.all - counts.today - counts.completed, 'buckets must sum')
+
+  // 'all' is identity; a bucket prunes to only its sessions.
+  assert(filterTimetableByStatus(PSLE_2026, 'all', now) === PSLE_2026, 'all is identity')
+  const completed = filterTimetableByStatus(PSLE_2026, 'completed', now)
+  assert(
+    completed.days.length === 1 && completed.days[0].sessions[0].key === 'briefing',
+    'completed filter should keep only the finished briefing',
+  )
+  const today = filterTimetableByStatus(PSLE_2026, 'today', now)
+  assert(today.days.length === 1 && today.days[0].sessions.length === 2, 'today filter shape')
 })
 
 // ── Formatting ────────────────────────────────────────────────────────────

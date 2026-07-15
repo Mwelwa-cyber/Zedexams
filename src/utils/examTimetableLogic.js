@@ -137,6 +137,47 @@ export function filterTimetable(timetable, query) {
   return { ...timetable, days }
 }
 
+// The three status buckets the timeline filter chips offer. A session's live
+// status collapses to one of them (or null for a briefing, which no chip
+// claims): NEXT reads as "upcoming", IN_PROGRESS as "today".
+export const STATUS_BUCKET = { TODAY: 'today', UPCOMING: 'upcoming', COMPLETED: 'completed' }
+
+export function statusBucket(status) {
+  if (status === STATUS.TODAY || status === STATUS.IN_PROGRESS) return STATUS_BUCKET.TODAY
+  if (status === STATUS.UPCOMING || status === STATUS.NEXT) return STATUS_BUCKET.UPCOMING
+  if (status === STATUS.COMPLETED) return STATUS_BUCKET.COMPLETED
+  return null
+}
+
+// How many sessions fall in each bucket right now — drives the filter chips
+// (a chip is only worth showing when it would actually match something, and
+// the chip row is only worth showing when it would partition the list).
+export function statusBucketCounts(timetable, nowMs) {
+  const counts = { all: 0, today: 0, upcoming: 0, completed: 0 }
+  for (const s of listSessions(timetable)) {
+    counts.all += 1
+    const b = statusBucket(getSessionStatus(s, nowMs))
+    if (b) counts[b] += 1
+  }
+  return counts
+}
+
+// Prune the timetable to the sessions in one status bucket ('today' /
+// 'upcoming' / 'completed'); 'all' or a falsy bucket returns the input as-is.
+// Composes with filterTimetable (search first, then status, order-independent).
+export function filterTimetableByStatus(timetable, bucket, nowMs) {
+  if (!timetable || !bucket || bucket === 'all') return timetable
+  const days = (timetable.days || [])
+    .map((day) => ({
+      ...day,
+      sessions: (day.sessions || []).filter(
+        (s) => statusBucket(getSessionStatus(s, nowMs)) === bucket,
+      ),
+    }))
+    .filter((day) => day.sessions.length > 0)
+  return { ...timetable, days }
+}
+
 // "08:00 – 09:30" from the stored ISO strings (wall-clock slice, never local
 // Date getters — see the timezone contract above).
 export function formatSessionTime(session) {
