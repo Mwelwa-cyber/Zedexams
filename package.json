@@ -73,6 +73,7 @@
     "test:assignment-change-notice": "node scripts/test-assignment-change-notice.mjs",
     "test:scheme-calendar-defaults": "node scripts/test-scheme-calendar-defaults.mjs",
     "test:record-of-work-planning": "node scripts/test-record-of-work-planning.mjs",
+    "test:record-of-work-status": "node scripts/test-record-of-work-status.mjs",
     "test:planned-teaching-meta": "node scripts/test-planned-teaching-meta.mjs",
     "test:curriculum-2013": "node scripts/test-curriculum-2013-parser.mjs",
     "test:curriculum-2013-migration": "node scripts/test-migrate-2013-curriculum.mjs",

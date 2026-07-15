@@ -23,6 +23,7 @@ import { useCurriculumOptions } from '../../../hooks/useCurriculumOptions'
 import { COVERAGE_OPTIONS, blankRecordWeek, buildRecordWeeks, coverageSummary } from '../../../utils/recordOfWork'
 import { getTermWeeks, getCurrentForecastWeek } from '../../../utils/moeCalendar'
 import { buildRecordOfWorkFromPlan } from '../../../utils/recordOfWorkPlanning'
+import { currentWeekForRecord, weekComparisonStatus, WEEK_STATUS_META, recordAttentionSummary } from '../../../utils/recordOfWorkStatus'
 import { readActiveAssignmentSeed } from '../../../utils/activeAssignmentSeed'
 import { downloadRecordOfWorkDocx } from '../../../utils/recordOfWorkToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
@@ -219,6 +220,19 @@ export default function RecordOfWorkStudio() {
     setWeeks((list) => (list.length > 1 ? list.filter((_, i) => i !== index) : list))
   }
 
+  // Planned-vs-actual comparison (derived at render, never stored). Only the
+  // live calendar week for THIS record's term/year produces due/overdue states;
+  // an unresolvable calendar means no date-derived state at all — recorded
+  // coverage always wins either way.
+  const currentWeek = useMemo(
+    () => currentWeekForRecord(header, getCurrentForecastWeek()),
+    [header],
+  )
+  const attentionSummary = useMemo(
+    () => recordAttentionSummary(weeks, currentWeek),
+    [weeks, currentWeek],
+  )
+
   const artifact = useMemo(() => {
     const filled = weeks.filter((w) => w.topic.trim() || w.workDone.length)
     if (!filled.length) return null
@@ -383,14 +397,37 @@ export default function RecordOfWorkStudio() {
                 <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
                   One line per item of work done. Mark coverage after each week — remarks are for what to re-teach or carry over.
                 </p>
+                {attentionSummary && (
+                  <p className="text-xs mt-1 font-bold" style={{ color: '#92400e' }} role="status">
+                    ⏰ {attentionSummary}
+                  </p>
+                )}
               </div>
               <button type="button" onClick={addWeek} className="studio-btn-ghost">＋ Add week</button>
             </div>
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              {weeks.map((w, i) => (
+              {weeks.map((w, i) => {
+                const status = weekComparisonStatus(w, currentWeek)
+                const meta = WEEK_STATUS_META[status]
+                return (
                 <div key={i} className="rounded-xl border theme-border bg-white p-3 space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-black uppercase tracking-wide" style={{ color: '#0e2a32' }}>Week {w.week || i + 1}</p>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-xs font-black uppercase tracking-wide" style={{ color: '#0e2a32' }}>Week {w.week || i + 1}</p>
+                      {/* Text + icon, never colour alone. Derived, not stored. */}
+                      <span
+                        className="text-[11px] font-bold px-2 py-0.5 rounded-full border"
+                        style={
+                          meta.tone === 'good' ? { background: '#ecfdf5', borderColor: '#a7f3d0', color: '#065f46' }
+                            : meta.tone === 'warn' ? { background: '#fffbeb', borderColor: '#fcd34d', color: '#92400e' }
+                              : meta.tone === 'bad' ? { background: '#fef2f2', borderColor: '#fecaca', color: '#991b1b' }
+                                : meta.tone === 'info' ? { background: '#eff6ff', borderColor: '#bfdbfe', color: '#1e40af' }
+                                  : { background: '#f8fafc', borderColor: '#e2e8f0', color: '#475569' }
+                        }
+                      >
+                        {meta.icon} {meta.label}
+                      </span>
+                    </div>
                     {weeks.length > 1 && (
                       <button
                         type="button"
@@ -415,6 +452,16 @@ export default function RecordOfWorkStudio() {
                   <div>
                     <label className="studio-label">Topic</label>
                     <input type="text" value={w.topic} maxLength={120} onChange={(e) => updateWeek(i, 'topic', e.target.value)} className="studio-input !py-1.5 text-sm" />
+                    {w.sourceLessonPlanId && (
+                      <Link
+                        to={`/teacher/library/${w.sourceLessonPlanId}`}
+                        className="text-[11px] font-bold underline"
+                        style={{ color: '#4338ca' }}
+                        title="Open the lesson plan this planned topic came from"
+                      >
+                        📘 From your lesson plan
+                      </Link>
+                    )}
                   </div>
                   <div>
                     <label className="studio-label">Sub-topic</label>
@@ -437,7 +484,8 @@ export default function RecordOfWorkStudio() {
                     </div>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </section>
 
