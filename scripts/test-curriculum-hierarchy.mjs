@@ -531,4 +531,18 @@ test('Hospitality key renumberings landed (Gastronomy 4.3, Entrepreneurship code
   assert.match(String(ethics?.topic || ''), /^1\.6\b/)
 })
 
+test('History Form 3 folds the 3.6.x UNIP->UPND rows into topic 3.5 (no 3.6 orphan)', () => {
+  const f3 = raw['History Syllabus (Forms 1-4)']?.['Form 3']
+  assert.ok(f3, 'History Form 3 sheet exists')
+  const rows = rowsWithPropagatedTopic(f3.rows)
+  // No 3.6.x sub-topic survives (the source declares no topic 3.6).
+  assert.ok(!rows.some((r) => /^\s*3\.6\./.test(String(r.subtopic || ''))), '3.6.x row survived')
+  // Topic 3.5 now carries the full 3.5.1..3.5.9 run, incl. the UPND row.
+  const under35 = rows
+    .filter((r) => /^3\.5\b/.test(String(r.topic || '')))
+    .map((r) => String(r.subtopic || ''))
+  assert.ok(under35.some((s) => /^3\.5\.9\b/.test(s) && /UPND/.test(s)), '3.5.9 UPND missing under 3.5')
+  assert.ok(under35.some((s) => /^3\.5\.3\b/.test(s) && /Lumpa/.test(s)), '3.5.3 Lumpa Church missing under 3.5')
+})
+
 console.log(`\n✅ curriculum-hierarchy: all ${passed} checks passed\n`)
