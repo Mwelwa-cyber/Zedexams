@@ -12387,11 +12387,21 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "1.1 Geography 1.2.The Solar System",
-            "SUB-TOPIC": "1.1.1 .Introduction to Geography 1.2.1.The Earth in the Solar System",
-            "SPECIFIC COMPETENCES": "1.1.1.1.Demonstrate understanding of Geography 1.2.1.1.Demonstrate understanding of the position of the Earth in the solar system",
-            "LEARNING ACTIVITIES": "• Discus singGeogra phy(Major concepts in Geogra phy)\n• Identifying various branches of Geography (Physical and Hu man )\n• Analysing the importance of studying Geography (Conservation of the environment, spatial and navigational skill…)\n• Identifyingvarious elements found in the solar system (Sun, Planets, Meteors…)\n• Engaging in observing celestial activities as a hobby or for educational purposes such as (observing visibleplanets, phases of the moon, stars, eclipses, meteor showers…)",
-            "EXPECTED STANDARD": "• Understanding of Geography demonstrated clearly\n• Understanding of the position of the earth in the solar system demonstrated correctly"
+            "TOPIC": "1.1 Geography",
+            "SUB-TOPIC": "1.1.1 Introduction to Geography",
+            "SPECIFIC COMPETENCES": "1.1.1.1.Demonstrate understanding of Geography",
+            "LEARNING ACTIVITIES": "• Discus singGeogra phy(Major concepts in Geogra phy)\n• Identifying various branches of Geography (Physical and Hu man )\n• Analysing the importance of studying Geography (Conservation of the environment, spatial and navigational skill…)",
+            "EXPECTED STANDARD": "• Understanding of Geography demonstrated clearly"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "1.2 The Solar System",
+            "SUB-TOPIC": "1.2.1 The Earth in the Solar System",
+            "SPECIFIC COMPETENCES": "1.2.1.1.Demonstrate understanding of the position of the Earth in the solar system",
+            "LEARNING ACTIVITIES": "• Identifyingvarious elements found in the solar system (Sun, Planets, Meteors…)\n• Engaging in observing celestial activities as a hobby or for educational purposes such as (observing visibleplanets, phases of the moon, stars, eclipses, meteor showers…)",
+            "EXPECTED STANDARD": "• Understanding of the position of the earth in the solar system demonstrated correctly"
           }
         },
         {

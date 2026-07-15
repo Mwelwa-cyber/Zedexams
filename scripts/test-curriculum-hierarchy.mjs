@@ -471,4 +471,30 @@ test('no competence-appendix row leaks into any picker (History + Geography F3)'
   }
 })
 
+console.log('\ncurriculum-hierarchy: Geography Form 1 glued-header split')
+
+test('Geography Form 1 exposes 1.1 Geography and 1.2 The Solar System as separate topics', () => {
+  const g1 = raw['Geography Syllabus (Forms 1-4)']?.['Form 1']
+  assert.ok(g1, 'Geography Form 1 sheet exists')
+  const rows = rowsWithPropagatedTopic(g1.rows)
+  const topics = new Set(rows.map((r) => r.topic).filter(Boolean))
+  // The two-topics-in-one-cell fusion must be gone; both real topics present.
+  assert.ok(![...topics].some((t) => /Geography.*Solar System/i.test(t)), 'glued topic survived')
+  assert.ok(topics.has('1.1 Geography'), '1.1 Geography topic missing')
+  assert.ok(topics.has('1.2 The Solar System'), '1.2 The Solar System topic missing')
+  // 1.1.1 sits under 1.1, 1.2.1 under 1.2, and the Solar-System bullets moved with it.
+  const geo = rows.find((r) => /^1\.1\.1/.test(String(r.subtopic || '')))
+  const solar = rows.find((r) => /^1\.2\.1/.test(String(r.subtopic || '')))
+  assert.equal(geo?.topic, '1.1 Geography')
+  assert.equal(solar?.topic, '1.2 The Solar System')
+  assert.ok(/branches of Geography/i.test(String(geo?.learningActivities || '')), '1.1.1 activities lost')
+  assert.ok(/elements found in the solar system/i.test(String(solar?.learningActivities || '')), '1.2.1 activities lost')
+  // No code-mismatch orphan under the Solar-System topic (1.2.2–1.2.5 attach cleanly).
+  const lead = (s) => (String(s || '').match(/^\s*(\d+(?:\.\d+)*)/) || [])[1] || null
+  for (const r of rows) {
+    const tc = lead(r.topic); const sc = lead(r.subtopic)
+    if (tc && sc) assert.ok(sc.startsWith(tc), `Geography F1 orphan: "${r.subtopic}" under "${r.topic}"`)
+  }
+})
+
 console.log(`\n✅ curriculum-hierarchy: all ${passed} checks passed\n`)
