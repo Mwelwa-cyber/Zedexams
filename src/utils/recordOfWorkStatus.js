@@ -96,6 +96,52 @@ export function oldestDueIncompleteWeek(weeks, currentWeek) {
 }
 
 /**
+ * Term coverage rollup (Phase 3 slice 3) — planned vs actually-recorded
+ * coverage across the term, for a compact Dashboard summary.
+ *
+ * Semantics (statutory-record review):
+ *   - Denominator = DUE teaching weeks with planned work: week ≤ currentWeek
+ *     AND (a planned topic exists OR the teacher recorded coverage). A due week
+ *     with nothing planned and nothing recorded is not counted as missed, and
+ *     future weeks are never counted — only reported separately.
+ *   - covered  = recorded 'full'   · partial = recorded 'partial'
+ *   - behind   = the rest of the denominator ('none' + due-but-unrecorded)
+ *   - Completion comes ONLY from recorded coverage — never inferred from
+ *     lesson-plan/worksheet creation or a passed date.
+ * Returns null when there's no calendar context or nothing is due yet, so the
+ * Dashboard shows nothing rather than a guessed 0%.
+ */
+export function termCoverageSummary(weeks, currentWeek) {
+  if (currentWeek == null) return null
+  const list = Array.isArray(weeks) ? weeks : []
+  let covered = 0
+  let partial = 0
+  let behind = 0
+  let future = 0
+  for (const w of list) {
+    const status = weekComparisonStatus(w, currentWeek)
+    if (status === 'future') { future += 1; continue }
+    if (status === 'pending') continue
+    const hasPlan = Boolean(String(w?.topic || '').trim())
+    const recorded = status === 'completed' || status === 'partial' || status === 'not-covered'
+    if (!hasPlan && !recorded) continue // due, nothing planned, nothing recorded — not "missed"
+    if (status === 'completed') covered += 1
+    else if (status === 'partial') partial += 1
+    else behind += 1 // recorded 'none', or planned work still unrecorded (due/overdue)
+  }
+  const due = covered + partial + behind
+  if (due === 0) return null
+  return {
+    due,
+    covered,
+    partial,
+    behind,
+    future,
+    percent: Math.round((covered / due) * 100),
+  }
+}
+
+/**
  * Compact "what needs attention" summary for the studio header:
  * how many past weeks still have nothing recorded, and how many were partial.
  * Returns '' when there's nothing to flag (or no calendar context).

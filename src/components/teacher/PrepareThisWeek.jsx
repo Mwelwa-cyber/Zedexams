@@ -92,7 +92,7 @@ function PrepRow({ row }) {
   )
 }
 
-export default function PrepareThisWeek({ loading, error, prep, onRetry, assignments = [], activeAssignmentId, onSelectAssignment }) {
+export default function PrepareThisWeek({ loading, error, prep, onRetry, assignments = [], activeAssignmentId, onSelectAssignment, termCoverage = null }) {
   const ready = !loading && !error && prep && !prep.empty
   const openedRef = useRef(false)
   useEffect(() => {
@@ -275,6 +275,25 @@ export default function PrepareThisWeek({ loading, error, prep, onRetry, assignm
           ? 'School is closed — preparing your scheme and Week 1 now makes opening week easy.'
           : 'Completing your weekly plan helps you stay organised and track learner progress easily.'}
       </p>
+
+      {/* Term coverage rollup — a compact recorded-vs-planned summary for the
+          current term's Record of Work (derived; completion is never inferred).
+          Null when there's no record or no calendar context: renders nothing. */}
+      {termCoverage && (
+        <p className="teacher-prepweek__tip" role="status">
+          <span aria-hidden="true">🗂️</span>{' '}
+          Term coverage: <b>{termCoverage.covered} of {termCoverage.due}</b> due teaching weeks covered
+          {termCoverage.partial > 0 && <> · {termCoverage.partial} partially covered</>}
+          {termCoverage.behind > 0 && <> · {termCoverage.behind} behind</>}
+          {' — '}
+          <Link
+            to={`/teacher/generate/record-of-work?id=${termCoverage.recordId}`}
+            onClick={() => capture('prepare_week_term_coverage_opened', {})}
+          >
+            View Record of Work
+          </Link>
+        </p>
+      )}
 
       <div className="teacher-prepweek__actions">
         <Link
