@@ -182,6 +182,7 @@ async function callClaude(apiKey, opts = {}) {
     generationId: track && track.generationId,
     model,
     maxTokens,
+    provider: "anthropic",
   });
   if (!reservationGate.allowed) {
     throw new HttpsError("resource-exhausted", budgetGate.BUDGET_PAUSED_MESSAGE);

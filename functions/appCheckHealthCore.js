@@ -23,10 +23,21 @@
  * The default sample rate is 1.0 (record everything) — sharding alone
  * removes the hotspot, and App-Check attestation telemetry is the signal
  * the admin uses to decide whether to hard-enforce, so we don't silently
- * throw most of it away. Operators dial APPCHECK_HEALTH_SAMPLE_RATE down
- * (e.g. 0.05) once traffic is high enough that the sampled subset is
- * statistically sufficient. Weighting keeps the dashboard numbers honest
+ * throw most of it away. Weighting keeps the dashboard numbers honest
  * at any rate.
+ *
+ * OPERATIONAL GUIDANCE (APPCHECK_HEALTH_SAMPLE_RATE):
+ *   - Start at 1.0 (the default). There is no correctness reason to lower
+ *     it — sharding already fixes the write-contention hotspot.
+ *   - Reduce it (e.g. 0.25 → 0.05) ONLY if Firestore write cost from this
+ *     telemetry becomes material, and only once traffic is high enough that
+ *     the sampled subset is statistically sufficient to trust the estimate.
+ *   - Weighted counters are preserved at every rate, so reports stay
+ *     comparable before/after a rate change.
+ *   - The active rate is exposed on /admin/app-check (derived as
+ *     sampled/attempts) so a viewer always knows when totals are estimates.
+ *   - resolveSampleRate() clamps the configured value into (0, 1]: junk /
+ *     non-positive falls back to 1.0, and > 1 clamps to 1.0.
  */
 
 // Canonical per-label counters the dashboard sums. Exactly one of

@@ -134,16 +134,19 @@ ok("isExpired false when not open", R.isExpired({status: "settled", expiresAt: 1
       res.allowed && res.reservation === null && res.mode === "disabled");
   }
 
-  // ── Reserve success ───────────────────────────────────────────────────
+  // ── Reserve success (with provider identity) ──────────────────────────
   {
     const db = makeDb();
     const res = await R.reserveBudget(db, {
-      month, generationId: "g1", estCostUsd: 0.30, monthlyBudgetUsd: 8,
+      month, generationId: "g1", estCostUsd: 0.30, monthlyBudgetUsd: 8, provider: "anthropic",
       bucketCount: 4, ttlMs: 1000, now: 1000, rng: () => 0,
     });
     ok("reserve → allowed + open reservation", res.allowed && res.reservation && res.reservation.status === "open");
     ok("reserve → held amount recorded", approx(res.reservation.reservedUsd, 0.30));
     ok("reserve → bucket holds the amount", approx(totalReserved(db, month, 4), 0.30));
+    ok("reserve → provider recorded on the handle", res.reservation.provider === "anthropic");
+    const stored = db._store.get(`aiBudgetBuckets/${month}/reservations/g1`);
+    ok("reserve → provider persisted on the reservation doc", stored.provider === "anthropic");
   }
 
   // ── Idempotent retry (same generationId) ──────────────────────────────

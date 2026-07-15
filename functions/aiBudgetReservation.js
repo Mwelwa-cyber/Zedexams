@@ -119,7 +119,7 @@ function reservationRef(db, month, generationId) {
  * OPEN (allow, no reservation) so a granularity artefact never bricks AI.
  */
 async function reserveBudget(db, {
-  month, generationId, estCostUsd, monthlyBudgetUsd,
+  month, generationId, estCostUsd, monthlyBudgetUsd, provider = null,
   bucketCount, ttlMs, now = Date.now(), rng = Math.random,
 }) {
   if (!(Number(monthlyBudgetUsd) > 0)) {
@@ -151,7 +151,7 @@ async function reserveBudget(db, {
   for (let pass = 0; pass < 2; pass += 1) {
     for (const bId of order) {
       const got = await tryReserveInBucket(db, {
-        month, bucketId: bId, generationId, resRef, amount, cap, now, ttl,
+        month, bucketId: bId, generationId, resRef, amount, cap, now, ttl, provider,
       });
       if (got) return {allowed: true, mode: got.mode, reservation: got.reservation};
     }
@@ -164,7 +164,7 @@ async function reserveBudget(db, {
 }
 
 async function tryReserveInBucket(db, {
-  month, bucketId, generationId, resRef, amount, cap, now, ttl,
+  month, bucketId, generationId, resRef, amount, cap, now, ttl, provider = null,
 }) {
   const bRef = bucketRef(db, month, bucketId);
   return db.runTransaction(async (tx) => {
@@ -182,7 +182,7 @@ async function tryReserveInBucket(db, {
     if (reserved + amount > cap + EPS) return null; // bucket full → caller tries next
     tx.set(bRef, {reservedUsd: reserved + amount, updatedAt: now}, {merge: true});
     const doc = {
-      bucketId, month, reservedUsd: amount, actualUsd: null,
+      bucketId, month, provider, reservedUsd: amount, actualUsd: null,
       status: "open", createdAt: now, expiresAt: now + ttl,
     };
     tx.set(resRef, doc, {merge: true});
@@ -195,6 +195,7 @@ function toHandle(generationId, month, d) {
     id: String(generationId),
     month,
     bucketId: d.bucketId,
+    provider: d.provider || null,
     reservedUsd: Number(d.reservedUsd || 0),
     status: d.status,
   };

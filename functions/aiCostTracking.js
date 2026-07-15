@@ -693,7 +693,7 @@ function estimateMaxCostUsd({model, maxTokens = 4000, inputAllowanceTokens = DEF
  * with BUDGET_PAUSED_MESSAGE. Any other outcome allows the call (fail-open);
  * a null reservation just means nothing needs reconciling afterwards.
  */
-async function beginAiCall({generationId, model, maxTokens, inputAllowanceTokens} = {}) {
+async function beginAiCall({generationId, model, maxTokens, inputAllowanceTokens, provider = null} = {}) {
   const genId = generationId || crypto.randomUUID();
   try {
     const status = await getBudgetStatus();
@@ -706,6 +706,7 @@ async function beginAiCall({generationId, model, maxTokens, inputAllowanceTokens
       generationId: genId,
       estCostUsd,
       monthlyBudgetUsd: Number(status.budgetUsd),
+      provider,
       now: Date.now(),
     });
     if (!res.allowed && res.reason === "budget_exhausted") {

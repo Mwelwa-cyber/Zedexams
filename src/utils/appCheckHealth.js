@@ -102,23 +102,43 @@ function pct(valid, attempts) {
 }
 
 /**
+ * Observed sampling rate for a label/window, DERIVED from the counters we
+ * already store: `_attempts` is weighted (each sampled write adds 1/rate),
+ * `_sampled` is the raw write count, so sampled/attempts == the active rate.
+ * null when there were no attempts. Returns a fraction in (0, 1].
+ */
+function sampleRateOf(sampled, attempts) {
+  if (!attempts || !sampled) return null
+  return Math.min(1, Math.round((sampled / attempts) * 1000) / 1000)
+}
+
+/**
  * Collapse `rawDays` into one row per endpoint label, summing each
  * counter across the window. `validPct` is null when there were no
  * attempts (so the UI can show "—" rather than a misleading 0%).
+ * `attempts`/`valid`/`missing`/`invalid` are WEIGHTED estimates when
+ * sampling is active; `sampled` is the raw sampled-write count and
+ * `sampleRate` (= sampled/attempts) exposes the active rate so the UI can
+ * label the totals as estimates.
  */
 export function summarise(rawDays) {
   const labels = discoverLabels(rawDays)
   const rows = labels.map((label) => {
     const totals = { attempts: 0, valid: 0, missing: 0, invalid: 0 }
+    let sampled = 0
     for (const day of rawDays) {
       for (const c of COUNTERS) {
         const v = day[`${label}_${c}`]
         if (typeof v === 'number') totals[c] += v
       }
+      const s = day[`${label}_sampled`]
+      if (typeof s === 'number') sampled += s
     }
     return {
       label,
       ...totals,
+      sampled,
+      sampleRate: sampleRateOf(sampled, totals.attempts),
       unattested: totals.missing + totals.invalid,
       validPct: pct(totals.valid, totals.attempts),
     }
@@ -128,13 +148,15 @@ export function summarise(rawDays) {
     valid: acc.valid + r.valid,
     missing: acc.missing + r.missing,
     invalid: acc.invalid + r.invalid,
-  }), { attempts: 0, valid: 0, missing: 0, invalid: 0 })
+    sampled: acc.sampled + r.sampled,
+  }), { attempts: 0, valid: 0, missing: 0, invalid: 0, sampled: 0 })
   return {
     rows,
     overall: {
       ...overall,
       unattested: overall.missing + overall.invalid,
       validPct: pct(overall.valid, overall.attempts),
+      sampleRate: sampleRateOf(overall.sampled, overall.attempts),
     },
   }
 }

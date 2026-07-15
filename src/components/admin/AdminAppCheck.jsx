@@ -313,6 +313,16 @@ export default function AdminAppCheck() {
               By endpoint — last 7 days
             </p>
             <EndpointTable rows={weekSummary.rows} />
+            {weekSummary.overall.sampleRate != null && weekSummary.overall.sampleRate < 0.999 && (
+              <p className="theme-text-muted text-[11px] mt-3 max-w-prose">
+                <span className="font-bold theme-text">Sampled telemetry:</span>{' '}
+                writes are recorded at ~{Math.round(weekSummary.overall.sampleRate * 100)}% of
+                traffic (from {numFmt.format(weekSummary.overall.sampled)} sampled writes) and the
+                counts above are weighted estimates. Set{' '}
+                <code className="font-mono">APPCHECK_HEALTH_SAMPLE_RATE=1</code> to record every
+                call. Weighting keeps totals comparable across rate changes.
+              </p>
+            )}
             <p className="theme-text-muted text-[11px] mt-3 max-w-prose">
               Callables fold &ldquo;no token&rdquo; and &ldquo;bad token&rdquo;
               into <span className="font-mono">missing</span> (the runtime can&apos;t
