@@ -83,7 +83,7 @@ await test('free-plan export keeps the attribution AND gains page numbers', asyn
   assert.ok(/ZedExams/.test(branded.headers), 'watermark header missing')
 })
 
-await test('digital-only variance detail NEVER leaks into the printed document', async () => {
+await test('variance: follow-up prints in REMARKS; date/reason/initials stay digital-only', async () => {
   const withVariance = {
     ...RECORD,
     weeks: [{
@@ -93,9 +93,13 @@ await test('digital-only variance detail NEVER leaks into the printed document',
   }
   const xml = await xmlOf(withVariance)
   const everywhere = xml.document + xml.footers + xml.headers
-  for (const leak of ['variance-reason-sentinel', 'follow-up-sentinel', 'ZZ-sentinel', '2026-07-14']) {
-    assert.ok(!everywhere.includes(leak), `variance field leaked into the export: ${leak}`)
+  // Signed-off (2026-07-15): ONLY the follow-up prints, inside REMARKS.
+  assert.ok(xml.document.includes('Follow-up: follow-up-sentinel'), 'approved follow-up missing from REMARKS')
+  for (const leak of ['variance-reason-sentinel', 'ZZ-sentinel', '2026-07-14']) {
+    assert.ok(!everywhere.includes(leak), `digital-only variance field leaked into the export: ${leak}`)
   }
+  // No INITIALS column was added — the six statutory columns stand alone.
+  assert.ok(!xml.document.includes('INITIALS'), 'unapproved INITIALS column appeared')
   // The statutory content still exports normally alongside it.
   assert.ok(xml.document.includes('Fractions'))
 })
