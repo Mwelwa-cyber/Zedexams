@@ -591,4 +591,40 @@ test('Fashion & Fabrics Forms 3-4 are orphan-free with no leaked recap rows', ()
   assert.match(String(blend?.topic || ''), /^4\.2\b/)
 })
 
+test('Religious Education Form 1 rebuilds topics 1.1-1.4 with all sub-topics, no orphans', () => {
+  const f1 = raw['Religious Education Syllabus (Forms 1-4)']?.['Form 1']
+  assert.ok(f1, 'RE Form 1 sheet exists')
+  const rows = rowsWithPropagatedTopic(f1.rows)
+  const lead = (s) => (String(s || '').match(/^\s*(\d+(?:\.\d+)*)/) || [])[1] || null
+  // No orphan anywhere in the sheet.
+  for (const r of rows) {
+    const tc = lead(r.topic); const sc = lead(r.subtopic)
+    if (tc && sc) assert.ok(sc.startsWith(tc), `RE F1 orphan: "${r.subtopic}" under "${r.topic}"`)
+  }
+  // The three previously-missing topic headers are back.
+  const topics = new Set(rows.map((r) => r.topic).filter(Boolean))
+  for (const t of ['1.1 LEARNING ABOUT RELIGION', '1.2 GROWING UP', '1.4 CHOOSING AND TALENTS']) {
+    assert.ok(topics.has(t), `missing topic header ${t}`)
+  }
+  // Every source sub-topic 1.1.1 .. 1.4.3 is present (the recovered ones included).
+  const subs = rows.map((r) => String(r.subtopic || '')).filter(Boolean)
+  for (const code of ['1.1.1', '1.1.2', '1.2.1', '1.2.2', '1.2.3', '1.3.1', '1.3.2', '1.4.1', '1.4.2', '1.4.3']) {
+    assert.ok(subs.some((s) => s.startsWith(code)), `missing sub-topic ${code}`)
+  }
+})
+
+test('Physics Form 4 topic 4.4 RENEWABLE ENERGY SYSTEM owns sub-topic 4.4.1', () => {
+  const f4 = raw['Physics Syllabus (Forms 1-4)']?.['Form 4']
+  assert.ok(f4, 'Physics Form 4 sheet exists')
+  const rows = rowsWithPropagatedTopic(f4.rows)
+  const renew = rows.find((r) => /Renewable Energy Systems/.test(String(r.subtopic || '')))
+  assert.match(String(renew?.topic || ''), /^4\.4\b/)
+  assert.match(String(renew?.subtopic || ''), /^4\.4\.1\b/)
+  const lead = (s) => (String(s || '').match(/^\s*(\d+(?:\.\d+)*)/) || [])[1] || null
+  for (const r of rows) {
+    const tc = lead(r.topic); const sc = lead(r.subtopic)
+    if (tc && sc) assert.ok(sc.startsWith(tc), `Physics F4 orphan: "${r.subtopic}" under "${r.topic}"`)
+  }
+})
+
 console.log(`\n✅ curriculum-hierarchy: all ${passed} checks passed\n`)

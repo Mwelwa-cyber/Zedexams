@@ -24930,8 +24930,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "4.4 RENEWABLE ENERGY SYSTEM",
-            "SUB-TOPIC": "4.2.1 Renewable Energy Systems",
-            "SPECIFIC COMPETENCES": "4.2.1.1 Explore renewable energy systems",
+            "SUB-TOPIC": "4.4.1 Renewable Energy Systems",
+            "SPECIFIC COMPETENCES": "4.4.1.1 Explore renewable energy systems",
             "LEARNING ACTIVITIES": "• Exploring renewable energy systems (wind, solar, hydro power, biomass….)\n• Applying knowledge of renewable energy systems to improve energy efficiency in buildings and industries\n• Exploring the contributions of renewable systems to sustainable development\n• Exploring the role of renewable energy in mitigating climate change\n• Researching on renewable energy system (geothermal energy system…)",
             "EXPECTED STANDARD": "• Renewable energy systems explored accordingly"
           }
@@ -24953,10 +24953,20 @@
         {
           "type": "data",
           "cells": {
+            "TOPIC": "1.1 LEARNING ABOUT RELIGION",
+            "SUB-TOPIC": "1.1.1 The Idea of Religion",
+            "SPECIFIC COMPETENCES": "1.1.1.1 Recognise other people's Religions",
+            "LEARNING ACTIVITIES": "• Describing Religion\n• Evaluating how religion began (Songs, Proverbs, Laws, Myths, Theories…)\n• Analysing ways of learning about religion (see and imitate, they read and are taught, they hear and repeat…)",
+            "EXPECTED STANDARD": "• Other people's Religions recognised accordingly"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
             "SPECIFIC COMPETENCES": "1.1.1.2 Appreciate Religious Education in day to day living",
-            "LEARNING ACTIVITIES": "• Describing Religious Education\n• Explaining the purpose of Religious Education in school and society (Understanding different religions, respecting other people’s faith, Promote tolerance…)\n• Justifying the importance of Religious Education in society (Promotes Unity, tolerance, Creating order in Society, Helping solve problems)",
+            "LEARNING ACTIVITIES": "• Describing Religious Education\n• Explaining the purpose of Religious Education in school and society (Understanding different religions, respecting other people's faith, Promote tolerance…)\n• Justifying the importance of Religious Education in society (Promotes Unity, tolerance, Creating order in Society, Helping solve problems)",
             "EXPECTED STANDARD": "• Religious Education in day today living appreciated accordingly."
           }
         },
@@ -24965,19 +24975,29 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "1.1.2 Four Religions in Zambia",
-            "SPECIFIC COMPETENCES": "1.1.2.1 Evaluating the four Religions in Zambia 1.2.1.2 Demonstrate responsible citizenship in grow ing up",
-            "LEARNING ACTIVITIES": "• Identifying the four religions in Zambia ( Christianity, Hinduism, Islam and Zambian Traditional Religion)\n• Describing the historical development of four Religions in Zambia (Important dates)\n• Identifying the scriptures of the four religions in Zambia (Christianity; Bible, Islam; Quran and Hadith, Hinduism; Vedas, Bhagavad- Gita, Mahabharata, Isha Upanishads; Zambian Traditional Religion; Proverbs and Songs…)\n• Describing the composition of scriptures of the four religions.\n• Explaining responsible citizenship\n• Identifying qualities of a responsible citizen\n• Applying sense of responsibility as you grow up",
-            "EXPECTED STANDARD": "• Four Religions evaluated accordingly\n• Responsible citizenship in growing up demonstrated accordingly"
+            "SPECIFIC COMPETENCES": "1.1.2.1 Evaluating the four Religions in Zambia",
+            "LEARNING ACTIVITIES": "• Identifying the four religions in Zambia (Christianity, Hinduism, Islam and Zambian Traditional Religion)\n• Describing the historical development of four Religions in Zambia (Important dates)\n• Identifying the scriptures of the four religions in Zambia (Christianity; Bible, Islam; Quran and Hadith, Hinduism; Vedas, Bhagavad-Gita, Mahabharata, Isha Upanishads; Zambian Traditional Religion; Proverbs and Songs…)\n• Describing the composition of scriptures of the four religions.",
+            "EXPECTED STANDARD": "• Four Religions evaluated accordingly"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "1.2 GROWING UP",
+            "SUB-TOPIC": "1.2.1 Types of growth",
+            "SPECIFIC COMPETENCES": "1.2.1.1 Analyse types of growth",
+            "LEARNING ACTIVITIES": "• Explaining the meaning of growth\n• Identifying the types of growth (physical, intellectual, social, emotional, spiritual, aesthetic)\n• Analysing each type of growth\n• Comparing characteristics of living and non-living things (Plants, Animal, Human Beings, Stones…)",
+            "EXPECTED STANDARD": "• Types of growth analysed appropriately"
           }
         },
         {
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "1.2.2 Different ways people develop",
-            "SPECIFIC COMPETENCES": "1.2.2.1 Demonstrate different ways people dev elop",
-            "LEARNING ACTIVITIES": "• Describing different ways in which people develop (Being with God, Being with other People and Using Natural resources wisely)\n• Explaining ways of maintaining good relations with God and other people (Reading religious texts, prayer, sharing with others, belonging to groups…)",
-            "EXPECTED STANDARD": "• Different ways people develop demonstrated adequately."
+            "SUB-TOPIC": "",
+            "SPECIFIC COMPETENCES": "1.2.1.2 Demonstrate responsible citizenship in growing up",
+            "LEARNING ACTIVITIES": "• Explaining responsible citizenship\n• Identifying qualities of a responsible citizen\n• Applying sense of responsibility as you grow up",
+            "EXPECTED STANDARD": "• Responsible citizenship in growing up demonstrated accordingly"
           }
         },
         {
@@ -24988,6 +25008,26 @@
             "SPECIFIC COMPETENCES": "1.2.1.3 Care for the environment",
             "LEARNING ACTIVITIES": "• Identifying ways of using the environment properly (Afforestation, Re-afforestation, waste management…)\n• Applying ways of caring for the environment",
             "EXPECTED STANDARD": "• Environment cared for appropriately"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "1.2.2 Different ways people develop",
+            "SPECIFIC COMPETENCES": "1.2.2.1 Demonstrate different ways people develop",
+            "LEARNING ACTIVITIES": "• Describing different ways in which people develop (Being with God, Being with other People and Using Natural resources wisely)\n• Explaining ways of maintaining good relations with God and other people (Reading religious texts, prayer, sharing with others, belonging to groups…)",
+            "EXPECTED STANDARD": "• Different ways people develop demonstrated adequately."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "1.2.3 Growing up in different religions (Hinduism, Islam, Christianity and ZTR)",
+            "SPECIFIC COMPETENCES": "1.2.3.1 Communicate teachings of different religions on growing up",
+            "LEARNING ACTIVITIES": "• Discussing different teachings\n• Analysing growing up in different religions; Zambian Traditional Religion (Learn from elders through stories, myths, and folk stories), Hinduism (Parents have responsibility to teach their children), Islam (Children are expected to grow into good Muslim adults), Christianity (Parents are to train children in the way they should go (Proverbs 22:6))\n• Applying values of religious teachings on growing in real life situation.",
+            "EXPECTED STANDARD": "• Teachings of different religions on growing up communicated accordingly"
           }
         },
         {
@@ -25005,19 +25045,49 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "",
-            "SPECIFIC COMPETENCES": "1.3.1.2 Analyse moral dilemmas 1.4.1.2 Evaluate decision making steps",
-            "LEARNING ACTIVITIES": "• Describing moral dilemma\n• Analysing moral dilemmas (difficult moral situations that people find themselves in; choosing between two conflicting morals or behaviours)\n• Applying critical thinking in solving moral dilemmas\n• Identifying steps of decision making see, Judge, Ac t\n• Evaluating decision making in real life situation",
-            "EXPECTED STANDARD": "• Moral dilemmas analysed accordingly.\n• Decision making evaluated accordingly"
+            "SPECIFIC COMPETENCES": "1.3.1.2 Analyse moral dilemmas",
+            "LEARNING ACTIVITIES": "• Describing moral dilemma\n• Analysing moral dilemmas (difficult moral situations that people find themselves in; choosing between two conflicting morals or behaviours)\n• Applying critical thinking in solving moral dilemmas",
+            "EXPECTED STANDARD": "• Moral dilemmas analysed accordingly."
           }
         },
         {
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "1.4.2 Central teachings on making choices in the four religions in Zambia.",
+            "SUB-TOPIC": "1.3.2 Sources of moral codes",
+            "SPECIFIC COMPETENCES": "1.3.2.1 Differentiate sources of religious and secular moral codes",
+            "LEARNING ACTIVITIES": "• Identifying Religious sources of moral codes (Christianity – Bible Exodus 20:1-17, Rom. 13:1-7, 8-14. Islam – Quran 82:13-14; 17:70 and Hadit Hinduism – Bhagavad Gita 2:56; 3:19, Zambia Traditional Religion - Proverbs, Songs)\n• Identifying none Religious sources of moral codes (Family, School, Friends, Constitution and Community)\n• Evaluating religious and secular moral codes",
+            "EXPECTED STANDARD": "• Sources of religious and secular moral codes differentiated accordingly"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "1.4 CHOOSING AND TALENTS",
+            "SUB-TOPIC": "1.4.1 Making Choices",
+            "SPECIFIC COMPETENCES": "1.4.1.1 Accept responsibility for one's choices",
+            "LEARNING ACTIVITIES": "• Describing how people make choices (See, Judge and Act)\n• Differentiating chosen and unchosen circumstances (Chosen circumstances: friends, hobbies, career, marriage: Unchosen circumstances Race, Gender, parentage)\n• Identifying the different levels of choices (Individual, Family and Community)\n• Role playing acceptance of responsibility of our choices",
+            "EXPECTED STANDARD": "• Responsibility for one's choice accepted accordingly"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC COMPETENCES": "1.4.1.2 Evaluate decision making steps",
+            "LEARNING ACTIVITIES": "• Identifying steps of decision making see, Judge, Act\n• Evaluating decision making in real life situation",
+            "EXPECTED STANDARD": "• Decision making evaluated accordingly"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "1.4.2 Central teachings on making choices in the four religions in Zambia",
             "SPECIFIC COMPETENCES": "1.4.2.1 Analyse central teachings on making choices in the four religions",
-            "LEARNING ACTIVITIES": "• Identifying Central teachings of the four religions in Zambi aon making choices\n• Evaluating Central teaching son making choices from four religions(Hinduism, Christianity, Islam and Zambian Traditional Religion )",
-            "EXPECTED STANDARD": "• Central teachings o nmaking choices in the fou rreligions analyse daccordingl y"
+            "LEARNING ACTIVITIES": "• Identifying Central teachings of the four religions in Zambia on making choices\n• Evaluating Central teachings on making choices from four religions (Hinduism, Christianity, Islam and Zambian Traditional Religion)",
+            "EXPECTED STANDARD": "• Central teachings on making choices in the four religions analysed accordingly"
           }
         },
         {
@@ -25026,8 +25096,18 @@
             "TOPIC": "",
             "SUB-TOPIC": "1.4.3 Talents",
             "SPECIFIC COMPETENCES": "1.4.3.1 Use talent as a source of earning a living",
-            "LEARNING ACTIVITIES": "• Exploring ways talents could be a source of earning a living\n• Exploringhow one can discover talent (trying different things, )\n• Demonstrating how one can develop a talent ( Regular Practice)\n• Demonstrating how one can lose a talent(the Parable of Talents Mt 25:14-30)",
+            "LEARNING ACTIVITIES": "• Exploring ways talents could be a source of earning a living\n• Exploring how one can discover talent (trying different things,)\n• Demonstrating how one can develop a talent (Regular Practice)\n• Demonstrating how one can lose a talent (the Parable of Talents Mt 25:14-30)",
             "EXPECTED STANDARD": "• Talent as a source of earning a living used skillfully"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "",
+            "SPECIFIC COMPETENCES": "1.4.3.2 Develop talent to promote entrepreneurship",
+            "LEARNING ACTIVITIES": "• Identifying talents that can develop into entrepreneurial ventures (Tailoring, hair dressing, sports…)\n• Demonstrate how one's talent can promote entrepreneurship",
+            "EXPECTED STANDARD": "• Talent to promote entrepreneurship developed accordingly"
           }
         },
         {
