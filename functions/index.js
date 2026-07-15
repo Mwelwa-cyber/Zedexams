@@ -2160,6 +2160,14 @@ exports.checkShortAnswer = onCall(
       );
     }
 
+    // Per-user daily cap (denial-of-wallet guard). This learner-facing marker
+    // hits Anthropic on every call, so it must share the same daily ceiling as
+    // its sibling markers (explainAnswer / generateNoteInsights) — without it a
+    // single account could loop the callable and run up spend until the GLOBAL
+    // monthly budget trips and pauses AI for everyone.
+    const role = await getUserRole(request.auth.uid);
+    await assertDailyLimit(request.auth.uid, role, "markAnswer");
+
     const context = [grade ? `Grade ${grade}` : "", subject]
       .filter(Boolean)
       .join(", ");
