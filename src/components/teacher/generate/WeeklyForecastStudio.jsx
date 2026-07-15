@@ -686,6 +686,8 @@ export default function WeeklyForecastStudio() {
             uid={uid}
             currentSeed={{ grade: curr.grade || selectorSeed?.grade || '', subject: curr.subject || selectorSeed?.subject || '', curriculum: curr.curriculum || selectorSeed?.curriculum || '' }}
             onApply={(seed) => { setSelectorSeed(seed); setSelectorKey((k) => k + 1); setCurr({}) }}
+          hasUnsavedChanges={draft.status !== 'idle'}
+          saveDraft={draft.flush}
           />
           <DraftRecoveryPrompt {...draft} label="weekly forecast" />
           {/* ── Plan details (select first) ── */}

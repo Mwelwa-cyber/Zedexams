@@ -7,6 +7,7 @@ import {
   parseStoredSeed,
   seedsDiffer,
   seedLabel,
+  compatibilityNotice,
 } from '../src/components/teacher/generate/teachingAssignmentChangeNoticeCore.js'
 
 let pass = 0
@@ -57,6 +58,32 @@ test('skips unresolvable parts; empty → empty string', () => {
   eq(seedLabel({ grade: 'G4' }), 'Grade 4')
   eq(seedLabel({}), '')
   eq(seedLabel(null), '')
+})
+
+console.log('\ncompatibilityNotice')
+test('compatible seed → no warning', () => {
+  eq(compatibilityNotice({ seed: { grade: 'G5', subject: 'mathematics' }, gradeMapped: true, subjectsLoaded: true, subjectMatched: true }), '')
+})
+test('unmapped grade → class warning naming the grade', () => {
+  const msg = compatibilityNotice({ seed: { grade: 'G5', subject: 'mathematics' }, gradeMapped: false, subjectsLoaded: false, subjectMatched: false })
+  assert(msg.includes('Grade 5'), 'names the grade')
+  assert(msg.includes('pick the class manually'), 'tells the teacher what to do')
+})
+test('unmatched subject (after load) → subject warning', () => {
+  const msg = compatibilityNotice({ seed: { grade: 'G5', subject: 'mathematics' }, gradeMapped: true, subjectsLoaded: true, subjectMatched: false })
+  assert(msg.includes('Mathematics'), 'names the subject')
+  assert(msg.includes('pick the subject manually'), 'tells the teacher what to do')
+})
+test('subjects still loading → no premature warning', () => {
+  eq(compatibilityNotice({ seed: { grade: 'G5', subject: 'mathematics' }, gradeMapped: true, subjectsLoaded: false, subjectMatched: false }), '')
+})
+test('warns, never blocks: message is a sentence, not a flag to disable Switch', () => {
+  const msg = compatibilityNotice({ seed: { grade: 'G5', subject: 'x' }, gradeMapped: false })
+  assert(typeof msg === 'string' && msg.length > 0, 'string message')
+})
+test('null-safe on empty seed', () => {
+  eq(compatibilityNotice({}), '')
+  eq(compatibilityNotice(), '')
 })
 
 console.log('')
