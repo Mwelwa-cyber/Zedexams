@@ -563,4 +563,32 @@ test('Hospitality Form 1 topic 1.1 exposes all four sub-topics with matching com
   assert.match(String(s113?.specificCompetence || ''), /^1\.1\.3\.1/)
 })
 
+test('Fashion & Fabrics Forms 3-4 are orphan-free with no leaked recap rows', () => {
+  const ff = raw['Fashion & Fabrics Syllabus (Forms 1-4)']
+  assert.ok(ff, 'Fashion & Fabrics sheet exists')
+  const lead = (s) => (String(s || '').match(/^\s*(\d+(?:\.\d+)*)/) || [])[1] || null
+  for (const form of ['Form 3', 'Form 4']) {
+    const rows = rowsWithPropagatedTopic(ff[form].rows)
+    for (const r of rows) {
+      const tc = lead(r.topic); const sc = lead(r.subtopic)
+      if (tc && sc) assert.ok(sc.startsWith(tc), `F&F ${form} orphan: "${r.subtopic}" under "${r.topic}"`)
+      // Every surviving topic must start with a numeric code — the leaked
+      // "Scope and Sequence" recap topics ("FASHION A", "For", …) had none.
+      if (r.topic) assert.ok(/^\d/.test(String(r.topic).trim()), `F&F ${form} junk topic survived: "${r.topic}"`)
+    }
+  }
+  // Form 3: Millinery folded under 3.1 GROOMING; Hem renumbered 3.6.5.
+  const f3 = rowsWithPropagatedTopic(ff['Form 3'].rows)
+  const mill = f3.find((r) => /Millinery/.test(String(r.subtopic || '')))
+  assert.match(String(mill?.topic || ''), /^3\.1\b.*GROOMING/i)
+  assert.match(String(mill?.subtopic || ''), /^3\.1\.2/)
+  assert.ok(f3.some((r) => /^3\.6\.5 Hem/.test(String(r.subtopic || ''))), 'Hem not renumbered to 3.6.5')
+  assert.ok(!f3.some((r) => /WARDROBE PLANNING/i.test(String(r.topic || ''))), 'spurious F3 WARDROBE PLANNING survived')
+  // Form 4: Blending folded to 4.2.2 under FIBRES.
+  const f4 = rowsWithPropagatedTopic(ff['Form 4'].rows)
+  const blend = f4.find((r) => /Blending and Mixing/.test(String(r.subtopic || '')))
+  assert.match(String(blend?.subtopic || ''), /^4\.2\.2/)
+  assert.match(String(blend?.topic || ''), /^4\.2\b/)
+})
+
 console.log(`\n✅ curriculum-hierarchy: all ${passed} checks passed\n`)
