@@ -30,6 +30,7 @@ import { writeActiveAssignmentSeed } from '../../utils/activeAssignmentSeed'
 import { resolveActiveAssignmentId } from '../../utils/teachingProfileCore'
 import { setActiveAssignmentId as persistActiveAssignmentId } from '../../utils/teachingProfileService'
 import useRemoteAssignmentAdoption from '../../hooks/useRemoteAssignmentAdoption'
+import { dashboardAdoptionPlan } from './dashboardAssignmentAdoption'
 import { seedLabel } from './generate/teachingAssignmentChangeNoticeCore'
 import { useTeachingProfile } from '../../features/teacherSettings/lib/useTeachingProfile'
 import { daysUntil, fmtDate, getActiveTerm, getCurrentForecastWeek, getNextTerm } from '../../utils/moeCalendar'
@@ -412,22 +413,14 @@ export default function TeacherDashboard() {
   // listener already mirrored localStorage before dispatching.
   const [remoteAssignmentNotice, setRemoteAssignmentNotice] = useState('')
   useRemoteAssignmentAdoption(currentUser?.uid, activeAssignment?.id || '', ({ id, seed, source }) => {
-    if (source === 'cross-tab') {
-      // Another tab on THIS device — the teacher's own pick moments ago.
-      // Validate against the loaded list (a deleted/deactivated/unknown id is
-      // ignored), update the selector silently — no "another device" notice,
-      // and no Firestore write-back (the picking tab already synced it).
-      if (!activeTeachingAssignments.some((a) => a.id === id)) return
-      setActiveAssignmentId(id)
-      setRemoteAssignmentNotice('')
-      return
-    }
+    // The full decision table (cross-tab silent adopt / unknown-id ignore /
+    // remote adopt-with-notice + reload) is pure and node-tested — see
+    // dashboardAssignmentAdoption.js for why unknown cross-tab ids are ignored.
+    const plan = dashboardAdoptionPlan({ id, source, knownIds: activeTeachingAssignments.map((a) => a.id) })
+    if (plan.action === 'ignore') return
     setActiveAssignmentId(id)
-    setRemoteAssignmentNotice(seedLabel(seed) || 'a different class')
-    // The adopted assignment was validated against Firestore, but if it isn't
-    // in the mount-time list (just created on the other device), refresh the
-    // profile so the selector can resolve and display it.
-    if (!activeTeachingAssignments.some((a) => a.id === id)) teachingProfile.reload()
+    setRemoteAssignmentNotice(plan.action === 'adopt-notice' ? (seedLabel(seed) || 'a different class') : '')
+    if (plan.reload) teachingProfile.reload()
   })
 
   // Switching the active assignment on the card persists the choice (locally +

@@ -5,6 +5,7 @@ import {
   planRemoteAdoption,
   REMOTE_ACTIVE_ASSIGNMENT_EVENT,
 } from '../src/utils/activeAssignmentSyncCore.js'
+import { dashboardAdoptionPlan } from '../src/components/teacher/dashboardAssignmentAdoption.js'
 
 let passed = 0
 function test(name, fn) {
@@ -92,6 +93,50 @@ test('non-object assignment shapes → ignore, never throw', () => {
 
 test('event name is the stable public contract', () => {
   assert.equal(REMOTE_ACTIVE_ASSIGNMENT_EVENT, 'zedexams:active-assignment-remote-change')
+})
+
+// ── dashboardAdoptionPlan (the dashboard's decision table) ──────────────────
+
+const KNOWN = ['a1', 'a2']
+
+test('cross-tab pick of a KNOWN assignment → silent adoption (no notice)', () => {
+  assert.deepEqual(dashboardAdoptionPlan({ id: 'a2', source: 'cross-tab', knownIds: KNOWN }), { action: 'adopt-silent' })
+})
+
+test('cross-tab pick of an UNKNOWN assignment (created after this tab loaded) → ignore', () => {
+  // Keep the current valid assignment; never clear the selector, never guess,
+  // never write back. The next mount loads the latest list.
+  assert.deepEqual(dashboardAdoptionPlan({ id: 'a-new', source: 'cross-tab', knownIds: KNOWN }), { action: 'ignore' })
+})
+
+test('cross-tab: deleted-before-resolution / other-teacher assignment ids are also unknown → ignore', () => {
+  assert.deepEqual(dashboardAdoptionPlan({ id: 'a-deleted', source: 'cross-tab', knownIds: [] }), { action: 'ignore' })
+})
+
+test('remote change to a known assignment → adopt with notice, no reload', () => {
+  assert.deepEqual(dashboardAdoptionPlan({ id: 'a1', source: 'remote', knownIds: KNOWN }), { action: 'adopt-notice', reload: false })
+})
+
+test('remote change to an unknown assignment → adopt with notice + one list reload', () => {
+  // The sync listener already validated it against Firestore; only the
+  // mount-time list is stale, so a targeted refresh resolves the selector.
+  assert.deepEqual(dashboardAdoptionPlan({ id: 'a-new', source: 'remote', knownIds: KNOWN }), { action: 'adopt-notice', reload: true })
+})
+
+test('malformed / empty ids → ignore, never an empty selector state', () => {
+  assert.deepEqual(dashboardAdoptionPlan({ id: '', source: 'cross-tab', knownIds: KNOWN }), { action: 'ignore' })
+  assert.deepEqual(dashboardAdoptionPlan({ id: '   ', source: 'remote', knownIds: KNOWN }), { action: 'ignore' })
+  assert.deepEqual(dashboardAdoptionPlan({ id: 42, source: 'cross-tab', knownIds: KNOWN }), { action: 'ignore' })
+  assert.deepEqual(dashboardAdoptionPlan(), { action: 'ignore' })
+})
+
+test('no plan ever writes back or clears: the only actions are ignore/adopt-silent/adopt-notice', () => {
+  for (const source of ['cross-tab', 'remote']) {
+    for (const id of ['a1', 'a-new', '']) {
+      const plan = dashboardAdoptionPlan({ id, source, knownIds: KNOWN })
+      assert.ok(['ignore', 'adopt-silent', 'adopt-notice'].includes(plan.action), `${source}/${id} → ${plan.action}`)
+    }
+  }
 })
 
 console.log(`\n─── ${passed} tests · ${passed} passed · 0 failed ───`)
