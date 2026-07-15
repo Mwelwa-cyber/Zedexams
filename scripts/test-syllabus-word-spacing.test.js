@@ -67,6 +67,23 @@ check('function word: "o f" -> "of", "t he" -> "the", "i n" -> "in"', () => {
 check('proper adjective: "Africa n" -> "African"', () => {
   assert.strictEqual(fixSpacing('Service in Africa n Tradition'), 'Service in African Tradition')
 })
+check('Mathematics OCR: broken words + fused words', () => {
+  assert.strictEqual(fixSpacing('Transpos ing matric es'), 'Transposing matrices')
+  assert.strictEqual(fixSpacing('the fir st principle'), 'the first principle')
+  assert.strictEqual(fixSpacing('Exploring three-dimension al shapes'),
+    'Exploring three-dimensional shapes')
+  assert.strictEqual(fixSpacing('Distinguishingvariables and coefficients'),
+    'Distinguishing variables and coefficients')
+  assert.strictEqual(fixSpacing('problems usingPythagoras Theorem'),
+    'problems using Pythagoras Theorem')
+  assert.strictEqual(fixSpacing('lines and compering their gradients'),
+    'lines and comparing their gradients')
+})
+check('Mathematics OCR: scrambled set-operation symbols', () => {
+  assert.strictEqual(
+    fixSpacing('(intersection∩∩∪, union ∩∪∪ c o mplement(Ac), set difference (-))'),
+    '(intersection(∩), union (∪) complement(Ac), set difference (-))')
+})
 check('capitalised command word: "M ake"/"R ead"/"W rite"/"S how"/"U se"', () => {
   assert.strictEqual(fixSpacing('M ake a business plan'), 'Make a business plan')
   assert.strictEqual(fixSpacing('R ead the given passages'), 'Read the given passages')
