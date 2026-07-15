@@ -24,6 +24,7 @@ import { COVERAGE_OPTIONS, blankRecordWeek, buildRecordWeeks, coverageSummary } 
 import { getTermWeeks, getCurrentForecastWeek } from '../../../utils/moeCalendar'
 import { buildRecordOfWorkFromPlan, restoreRecordFromGeneration } from '../../../utils/recordOfWorkPlanning'
 import { currentWeekForRecord, weekComparisonStatus, WEEK_STATUS_META, recordAttentionSummary } from '../../../utils/recordOfWorkStatus'
+import { weekWithVarianceField, weekHasVariance } from '../../../utils/recordOfWorkVariance'
 import { readActiveAssignmentSeed } from '../../../utils/activeAssignmentSeed'
 import { downloadRecordOfWorkDocx } from '../../../utils/recordOfWorkToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
@@ -280,6 +281,14 @@ export default function RecordOfWorkStudio() {
   function updateWeek(index, field, value) {
     setHighlightWeek(null) // teacher started working — drop the deep-link highlight
     setWeeks((list) => list.map((w, i) => (i === index ? { ...w, [field]: value } : w)))
+  }
+
+  // Variance detail (digital-only; never printed/exported). The variance key is
+  // present on a row only while it holds content, so untouched weeks keep the
+  // exact legacy shape.
+  function updateVarianceField(index, field, value) {
+    setHighlightWeek(null)
+    setWeeks((list) => list.map((w, i) => (i === index ? weekWithVarianceField(w, field, value) : w)))
   }
 
   function addWeek() {
@@ -586,6 +595,33 @@ export default function RecordOfWorkStudio() {
                       <input type="text" value={w.remarks} maxLength={200} onChange={(e) => updateWeek(i, 'remarks', e.target.value)} placeholder="e.g. re-teach carrying tens" className="studio-input !py-1.5 text-sm" />
                     </div>
                   </div>
+                  {/* Digital-only variance detail — kept out of the printed
+                      statutory table and the Word export until the statutory
+                      format is signed off. Optional; legacy records need no
+                      backfill. */}
+                  <details open={weekHasVariance(w)}>
+                    <summary className="text-xs font-bold cursor-pointer" style={{ color: '#566f76' }}>
+                      Variance details (optional — not printed)
+                    </summary>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <div>
+                        <label className="studio-label">Date actually taught</label>
+                        <input type="date" value={w.variance?.actualDate || ''} onChange={(e) => updateVarianceField(i, 'actualDate', e.target.value)} className="studio-input !py-1.5 text-sm" />
+                      </div>
+                      <div>
+                        <label className="studio-label">Teacher initials</label>
+                        <input type="text" value={w.variance?.initials || ''} maxLength={10} onChange={(e) => updateVarianceField(i, 'initials', e.target.value)} placeholder="e.g. MM" className="studio-input !py-1.5 text-sm" />
+                      </div>
+                      <div>
+                        <label className="studio-label">Reason for variance</label>
+                        <input type="text" value={w.variance?.reason || ''} maxLength={300} onChange={(e) => updateVarianceField(i, 'reason', e.target.value)} placeholder="e.g. school event" className="studio-input !py-1.5 text-sm" />
+                      </div>
+                      <div>
+                        <label className="studio-label">Follow-up action</label>
+                        <input type="text" value={w.variance?.followUp || ''} maxLength={300} onChange={(e) => updateVarianceField(i, 'followUp', e.target.value)} placeholder="e.g. complete next lesson" className="studio-input !py-1.5 text-sm" />
+                      </div>
+                    </div>
+                  </details>
                 </div>
                 )
               })}

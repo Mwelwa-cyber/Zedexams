@@ -83,6 +83,23 @@ await test('free-plan export keeps the attribution AND gains page numbers', asyn
   assert.ok(/ZedExams/.test(branded.headers), 'watermark header missing')
 })
 
+await test('digital-only variance detail NEVER leaks into the printed document', async () => {
+  const withVariance = {
+    ...RECORD,
+    weeks: [{
+      ...RECORD.weeks[0],
+      variance: { actualDate: '2026-07-14', reason: 'sports day variance-reason-sentinel', followUp: 'follow-up-sentinel', initials: 'ZZ-sentinel' },
+    }],
+  }
+  const xml = await xmlOf(withVariance)
+  const everywhere = xml.document + xml.footers + xml.headers
+  for (const leak of ['variance-reason-sentinel', 'follow-up-sentinel', 'ZZ-sentinel', '2026-07-14']) {
+    assert.ok(!everywhere.includes(leak), `variance field leaked into the export: ${leak}`)
+  }
+  // The statutory content still exports normally alongside it.
+  assert.ok(xml.document.includes('Fractions'))
+})
+
 await test('an empty WORK DONE cell prints an em-dash, and teacher content survives', async () => {
   assert.ok(clean.document.includes('—'))
   assert.ok(clean.document.includes('Taught halves'))
