@@ -1,9 +1,17 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import TeachingAssignmentChangeNotice from './TeachingAssignmentChangeNotice'
 import StudioAssignmentChangeNotice from './StudioAssignmentChangeNotice'
 import { REMOTE_ACTIVE_ASSIGNMENT_EVENT } from '../../../utils/activeAssignmentSyncCore'
+
+// The container validates the pending seed against the studio's own syllabus
+// data; mock the data hook so jsdom never loads the syllabi service. Default:
+// nothing loaded yet → no compatibility warning (same as data still loading).
+const subjectsMock = vi.hoisted(() => ({ value: { subjects: [], loading: false } }))
+vi.mock('../studio/hooks/useSubjectsForGrade', () => ({
+  useSubjectsForGrade: () => subjectsMock.value,
+}))
 
 function fireStorage(uid, seed) {
   act(() => {
@@ -53,6 +61,10 @@ describe('TeachingAssignmentChangeNotice (presentational)', () => {
 describe('StudioAssignmentChangeNotice (container)', () => {
   const current = { grade: 'G4', subject: 'mathematics', curriculum: 'cbc' }
 
+  beforeEach(() => {
+    subjectsMock.value = { subjects: [], loading: false }
+  })
+
   it('surfaces a cross-tab change and applies it on Switch', async () => {
     const onApply = vi.fn()
     render(<StudioAssignmentChangeNotice uid="u1" currentSeed={current} onApply={onApply} />)
@@ -94,5 +106,82 @@ describe('StudioAssignmentChangeNotice (container)', () => {
     await userEvent.click(screen.getByRole('button', { name: /keep grade 4/i }))
     expect(onApply).not.toHaveBeenCalled()
     expect(screen.queryByText(/your active teaching assignment has changed/i)).toBeNull()
+  })
+
+  it('offers the three-way choice when the studio has draft content, and flushes before switching', async () => {
+    const calls = []
+    const onApply = vi.fn(() => calls.push('apply'))
+    const saveDraft = vi.fn(() => { calls.push('save'); return Promise.resolve() })
+    render(
+      <StudioAssignmentChangeNotice
+        uid="u1" currentSeed={current} onApply={onApply}
+        hasUnsavedChanges saveDraft={saveDraft}
+      />,
+    )
+    fireStorage('u1', { grade: 'G5', subject: 'mathematics', curriculum: 'cbc' })
+    await userEvent.click(await screen.findByRole('button', { name: /save draft & switch to grade 5/i }))
+    expect(calls).toEqual(['save', 'apply']) // snapshot first, then apply
+    expect(screen.queryByText(/your active teaching assignment has changed/i)).toBeNull()
+  })
+
+  it('"Switch without saving" applies without flushing the draft', async () => {
+    const onApply = vi.fn()
+    const saveDraft = vi.fn(() => Promise.resolve())
+    render(
+      <StudioAssignmentChangeNotice
+        uid="u1" currentSeed={current} onApply={onApply}
+        hasUnsavedChanges saveDraft={saveDraft}
+      />,
+    )
+    fireStorage('u1', { grade: 'G5', subject: 'mathematics', curriculum: 'cbc' })
+    await userEvent.click(await screen.findByRole('button', { name: /switch without saving/i }))
+    expect(saveDraft).not.toHaveBeenCalled()
+    expect(onApply).toHaveBeenCalled()
+  })
+
+  it('a failed draft flush still honours the switch (typed content survives in the form)', async () => {
+    const onApply = vi.fn()
+    const saveDraft = vi.fn(() => Promise.reject(new Error('offline')))
+    render(
+      <StudioAssignmentChangeNotice
+        uid="u1" currentSeed={current} onApply={onApply}
+        hasUnsavedChanges saveDraft={saveDraft}
+      />,
+    )
+    fireStorage('u1', { grade: 'G5', subject: 'mathematics', curriculum: 'cbc' })
+    await userEvent.click(await screen.findByRole('button', { name: /save draft & switch/i }))
+    expect(saveDraft).toHaveBeenCalled()
+    expect(onApply).toHaveBeenCalled()
+  })
+
+  it('stays two-way without draft content (no save button)', async () => {
+    render(<StudioAssignmentChangeNotice uid="u1" currentSeed={current} onApply={vi.fn()} hasUnsavedChanges={false} saveDraft={vi.fn()} />)
+    fireStorage('u1', { grade: 'G5', subject: 'mathematics', curriculum: 'cbc' })
+    expect(await screen.findByRole('button', { name: /switch to grade 5/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /save draft/i })).toBeNull()
+  })
+
+  it('flags a grade this studio cannot map — warns, never blocks', async () => {
+    render(<StudioAssignmentChangeNotice uid="u1" currentSeed={current} onApply={vi.fn()} />)
+    // 'baby_class' (ECE) has no studio grade format → the class warning shows.
+    fireStorage('u1', { grade: 'baby_class', subject: 'mathematics', curriculum: 'cbc' })
+    expect(await screen.findByText(/pick the class manually/i)).toBeInTheDocument()
+    // Switch is still offered — the flag never blocks.
+    expect(screen.getByRole('button', { name: /switch to/i })).toBeInTheDocument()
+  })
+
+  it('flags a subject that matches no syllabus key once subjects have loaded', async () => {
+    subjectsMock.value = { subjects: ['English Syllabus (Grades 4-6)'], loading: false }
+    render(<StudioAssignmentChangeNotice uid="u1" currentSeed={current} onApply={vi.fn()} />)
+    fireStorage('u1', { grade: 'G5', subject: 'zambian_languages', curriculum: 'cbc' })
+    expect(await screen.findByText(/pick the subject manually/i)).toBeInTheDocument()
+  })
+
+  it('shows no compatibility warning when grade and subject both map', async () => {
+    subjectsMock.value = { subjects: ['Mathematics Syllabus (Grades 4-6)'], loading: false }
+    render(<StudioAssignmentChangeNotice uid="u1" currentSeed={current} onApply={vi.fn()} />)
+    fireStorage('u1', { grade: 'G5', subject: 'mathematics', curriculum: 'cbc' })
+    expect(await screen.findByText(/your active teaching assignment has changed/i)).toBeInTheDocument()
+    expect(screen.queryByText(/manually/i)).toBeNull()
   })
 })

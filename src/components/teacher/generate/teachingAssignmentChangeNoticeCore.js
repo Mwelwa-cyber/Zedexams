@@ -46,3 +46,25 @@ export function seedLabel(seed) {
   if (sub && sub !== g) parts.push(sub)
   return parts.join(' · ')
 }
+
+/**
+ * Compatibility flag for the pending seed against THIS studio's own syllabus
+ * data (validateAssignmentCompatibility of the save-and-switch contract).
+ * Pure: the container passes what it resolved — whether the pending grade maps
+ * to a grade this studio offers, and (once the subject list for that grade has
+ * loaded) whether the pending subject matched a syllabus key.
+ *
+ * Returns a warning sentence, or '' when compatible / not yet known. The flag
+ * NEVER blocks switching — structured fields that can't map are simply left
+ * for the teacher to pick manually, and the warning says exactly that.
+ */
+export function compatibilityNotice({ seed, gradeMapped, subjectsLoaded, subjectMatched } = {}) {
+  const s = seed || {}
+  if (s.grade && !gradeMapped) {
+    return `${gradeLabel(s.grade) || 'That class'} is not available in this studio — if you switch, pick the class manually.`
+  }
+  if (s.subject && subjectsLoaded && !subjectMatched) {
+    return `“${subjectLabel(s.subject)}” could not be matched to a syllabus subject here — if you switch, pick the subject manually.`
+  }
+  return ''
+}
