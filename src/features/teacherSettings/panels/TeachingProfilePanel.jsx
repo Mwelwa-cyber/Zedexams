@@ -37,6 +37,7 @@ import {
 import { weeklyTargets } from '../../../utils/teachingTargets'
 import { buildMigrationPlan } from '../../../utils/teachingProfileMigration'
 import { listMyGenerations } from '../../../utils/teacherLibraryService'
+import { useFirestore } from '../../../hooks/useFirestore'
 import { useAuth } from '../../../contexts/AuthContext'
 import TeachingProfileMigrationCard from '../components/teachingProfile/TeachingProfileMigrationCard'
 
@@ -53,6 +54,7 @@ export default function TeachingProfilePanel() {
   } = useTeachingProfile()
 
   const { userProfile } = useAuth()
+  const { getMyAssessments } = useFirestore()
   const [modal, setModal] = useState(null) // { mode:'add'|'edit', initial }
   const [confirmRemove, setConfirmRemove] = useState(null) // assignment to remove
   const [wizardOpen, setWizardOpen] = useState(false)
@@ -76,11 +78,18 @@ export default function TeachingProfilePanel() {
     migrationLoadedRef.current = true
     let cancelled = false
     ;(async () => {
-      let generations = []
-      try { generations = await listMyGenerations({ uid }) } catch { generations = [] }
+      // Broader inference (Phase 8 follow-up): recent generations AND test
+      // papers. getMyAssessments reads only the assessment docs' summary
+      // metadata (grade/subject/curriculum live top-level; question bodies are
+      // a subcollection) — no full-document loads. Both are best-effort.
+      const [generations, assessments] = await Promise.all([
+        listMyGenerations({ uid }).catch(() => []),
+        Promise.resolve().then(() => getMyAssessments(uid)).catch(() => []),
+      ])
       if (cancelled) return
       const plan = buildMigrationPlan({
         generations,
+        assessments,
         teacherPreferences: userProfile?.teacherPreferences,
         existingAssignments: assignments,
       })
@@ -88,6 +97,9 @@ export default function TeachingProfilePanel() {
       setSelectedKeys(new Set(plan.suggestions.map((s) => assignmentKey(s))))
     })()
     return () => { cancelled = true }
+    // getMyAssessments is stable-enough here: migrationLoadedRef guarantees the
+    // inference runs once per mount regardless of hook identity churn.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, hasProfile, uid, assignments, userProfile])
 
   const toggleSuggestion = (key) => {

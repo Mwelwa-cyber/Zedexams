@@ -382,6 +382,31 @@ test('buildMigrationPlan on a teacher with no work → empty suggestions, safe d
   eq(plan.suggestions.length, 0)
   eq(typeof plan.defaults.schoolLevel, 'string')
 })
+test('buildMigrationPlan merges assessments with generations (broader inference)', () => {
+  const plan = buildMigrationPlan({
+    generations: GENS,
+    assessments: [
+      // same key as a generation → strengthens the count, no duplicate card
+      { grade: 'G4', subject: 'mathematics', curriculumType: 'cbc' },
+      // assessment-only signal, via the targetGrade field shape
+      { targetGrade: 'G7', subject: 'social_studies', curriculumType: 'cbc' },
+    ],
+    existingAssignments: [],
+  })
+  eq(plan.suggestions.length, 3)
+  const maths = plan.suggestions.find((s) => s.subject === 'mathematics')
+  eq(maths.count, 3, 'generation + assessment docs pool into one suggestion')
+  const social = plan.suggestions.find((s) => s.subject === 'social_studies')
+  eq(social.grade, 'G7')
+  eq(social.source, 'assessment')
+})
+test('buildMigrationPlan drops assessment-inferred suggestions already saved', () => {
+  const plan = buildMigrationPlan({
+    assessments: [{ grade: 'G4', subject: 'mathematics', curriculumType: 'cbc' }],
+    existingAssignments: [{ grade: 'G4', subject: 'mathematics', className: '' }],
+  })
+  eq(plan.suggestions.length, 0)
+})
 
 // ── report ───────────────────────────────────────────────────────────────────
 console.log('')

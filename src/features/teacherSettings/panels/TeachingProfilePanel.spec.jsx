@@ -29,6 +29,10 @@ vi.mock('../../../utils/teachingProfileService', () => svc)
 vi.mock('../../../utils/teacherLibraryService', () => ({
   listMyGenerations: vi.fn(() => Promise.resolve([])),
 }))
+// Same for the assessments read (broader migration inference).
+vi.mock('../../../hooks/useFirestore', () => ({
+  useFirestore: () => ({ getMyAssessments: vi.fn(() => Promise.resolve([])) }),
+}))
 
 function renderPanel() {
   return render(
