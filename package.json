@@ -45,6 +45,7 @@
     "test:2013-primary": "node scripts/test-2013-primary.test.js",
     "test:syllabus-word-spacing": "node scripts/test-syllabus-word-spacing.test.js",
     "test:curriculum-hierarchy": "node scripts/test-curriculum-hierarchy.mjs",
+    "audit:word-breaks": "node scripts/audit-syllabus-word-breaks.mjs",
     "test:sanitize": "node scripts/test-rich-text-sanitize.mjs",
     "test:live-canvas": "node scripts/test-live-generation-sections.mjs",
     "test:settings-registry": "node scripts/test-settings-registry.mjs",
