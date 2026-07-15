@@ -148,4 +148,22 @@ describe('PrepareThisWeek', () => {
     expect(screen.getByRole('link', { name: /view week/i }))
       .toHaveAttribute('href', '/teacher/library/def')
   })
+
+  it('shows the term coverage rollup with a deep link when provided', () => {
+    renderCard({
+      loading: false, error: false, prep: READY_PREP,
+      termCoverage: { due: 10, covered: 7, partial: 2, behind: 1, future: 3, percent: 70, recordId: 'rec-1' },
+    })
+    expect(screen.getByText(/term coverage/i)).toBeInTheDocument()
+    expect(screen.getByText(/7 of 10/)).toBeInTheDocument()
+    expect(screen.getByText(/2 partially covered/)).toBeInTheDocument()
+    expect(screen.getByText(/1 behind/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /view record of work/i }))
+      .toHaveAttribute('href', '/teacher/generate/record-of-work?id=rec-1')
+  })
+
+  it('renders no coverage line without a rollup', () => {
+    renderCard({ loading: false, error: false, prep: READY_PREP })
+    expect(screen.queryByText(/term coverage/i)).toBeNull()
+  })
 })

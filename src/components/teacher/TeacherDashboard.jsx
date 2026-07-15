@@ -24,7 +24,8 @@ import {
   formatTrend,
 } from '../../utils/teacherDashboardIntel'
 import { buildProfileRecommendations } from '../../utils/teacherRecommendations'
-import { buildWeekPrep } from '../../utils/prepareThisWeek'
+import { buildWeekPrep, genSubject, genTerm, normSubject } from '../../utils/prepareThisWeek'
+import { termCoverageSummary, currentWeekForRecord } from '../../utils/recordOfWorkStatus'
 import { writeActiveAssignmentSeed } from '../../utils/activeAssignmentSeed'
 import { resolveActiveAssignmentId } from '../../utils/teachingProfileCore'
 import { setActiveAssignmentId as persistActiveAssignmentId } from '../../utils/teachingProfileService'
@@ -427,6 +428,27 @@ export default function TeacherDashboard() {
     [generations, assessments, prepCalendar, activeTeachingAssignments, profileSubject, profileGrade, effectivePreferredSubject],
   )
 
+  // Term coverage rollup for the ACTIVE context's current-term Record of Work.
+  // Derived from recorded coverage only (never inferred); restricted to a
+  // record whose term + year match the live calendar so a past-year record
+  // can't inflate "behind". generations arrive newest-first, so find() picks
+  // the latest matching record. Null (→ nothing rendered) when there's no
+  // record, no calendar context, or nothing due yet.
+  const termCoverage = useMemo(() => {
+    const fw = getCurrentForecastWeek()
+    const termNumber = prepCalendar?.termNumber ?? null
+    if (!fw || termNumber == null) return null
+    const wantSubject = normSubject(profileSubject || effectivePreferredSubject)
+    const record = generations.find((g) =>
+      g.tool === 'record_of_work' && genTerm(g) === termNumber &&
+      (!wantSubject || genSubject(g) === wantSubject))
+    if (!record) return null
+    const cw = currentWeekForRecord(record.output?.header, fw)
+    if (!Number.isFinite(cw) || cw <= 0) return null
+    const summary = termCoverageSummary(record.output?.weeks, cw)
+    return summary ? { ...summary, recordId: record.id } : null
+  }, [generations, prepCalendar, profileSubject, effectivePreferredSubject])
+
   const continueItems = useMemo(() => {
     // Drafts (genuinely unfinished) first, then the most recent saved work.
     const drafts = resources.filter((r) => r.status === 'draft')
@@ -607,6 +629,7 @@ export default function TeacherDashboard() {
         activeAssignmentId={activeAssignment?.id}
         onSelectAssignment={handleSelectAssignment}
         onRetry={() => { setLoading(true); setReloadKey((k) => k + 1) }}
+        termCoverage={termCoverage}
       />
 
       {/* ── Continue where you left off ───────────────────────────── */}

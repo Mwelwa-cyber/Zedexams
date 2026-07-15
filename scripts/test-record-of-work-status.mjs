@@ -8,6 +8,7 @@ import {
   weekComparisonStatus,
   recordAttentionSummary,
   oldestDueIncompleteWeek,
+  termCoverageSummary,
   WEEK_STATUS_META,
 } from '../src/utils/recordOfWorkStatus.js'
 
@@ -104,6 +105,43 @@ test('future weeks are excluded; fully recorded → null', () => {
 })
 test('no calendar context → null (no guessed deep-link)', () => {
   eq(oldestDueIncompleteWeek([{ week: '3', coverage: '' }], null), null)
+})
+
+console.log('\ntermCoverageSummary (dashboard rollup)')
+test('counts covered / partial / behind over due weeks with planned work', () => {
+  const weeks = [
+    { week: '1', topic: 'A', coverage: 'full' },
+    { week: '2', topic: 'B', coverage: 'full' },
+    { week: '3', topic: 'C', coverage: 'partial' },
+    { week: '4', topic: 'D', coverage: 'none' },    // behind (recorded not covered)
+    { week: '5', topic: 'E', coverage: '' },        // behind (due, unrecorded)
+    { week: '6', topic: '', coverage: '' },         // due, nothing planned → excluded
+    { week: '9', topic: 'F', coverage: '' },        // future → excluded, counted separately
+  ]
+  const s = termCoverageSummary(weeks, 8)
+  eq(s.due, 5)
+  eq(s.covered, 2)
+  eq(s.partial, 1)
+  eq(s.behind, 2)
+  eq(s.future, 1)
+  eq(s.percent, 40)
+})
+test('a recorded week without a planned topic still counts (teacher taught it)', () => {
+  const s = termCoverageSummary([{ week: '2', topic: '', coverage: 'full' }], 8)
+  eq(s.due, 1); eq(s.covered, 1); eq(s.percent, 100)
+})
+test('future weeks are never counted as missed', () => {
+  eq(termCoverageSummary([{ week: '9', topic: 'X', coverage: '' }], 8), null)
+})
+test('completion is never inferred — a planned topic alone reads behind, not covered', () => {
+  const s = termCoverageSummary([{ week: '2', topic: 'Planned only', coverage: '' }], 8)
+  eq(s.behind, 1); eq(s.covered, 0)
+})
+test('no calendar context → null (never a guessed 0%)', () => {
+  eq(termCoverageSummary([{ week: '1', topic: 'A', coverage: 'full' }], null), null)
+})
+test('nothing due yet → null', () => {
+  eq(termCoverageSummary([], 8), null)
 })
 
 console.log('\nrecordAttentionSummary')
