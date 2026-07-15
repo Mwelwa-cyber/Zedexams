@@ -497,4 +497,38 @@ test('Geography Form 1 exposes 1.1 Geography and 1.2 The Solar System as separat
   }
 })
 
+console.log('\ncurriculum-hierarchy: Hospitality Management code normalisation')
+
+test('Hospitality Forms 1-4 have no code-mismatch orphan in any picker', () => {
+  const hm = raw['Hospitality Management Syllabus (Forms 1-4)']
+  assert.ok(hm, 'Hospitality sheet exists')
+  const lead = (s) => (String(s || '').match(/^\s*(\d+(?:\.\d+)*)/) || [])[1] || null
+  for (const form of ['Form 1', 'Form 2', 'Form 3', 'Form 4']) {
+    const rows = rowsWithPropagatedTopic(hm[form].rows)
+    for (const r of rows) {
+      const tc = lead(r.topic); const sc = lead(r.subtopic)
+      if (tc && sc) assert.ok(sc.startsWith(tc), `Hospitality ${form} orphan: "${r.subtopic}" under "${r.topic}"`)
+    }
+    // No duplicate sub-topic code within a form.
+    const codes = rows.map((r) => lead(r.subtopic)).filter(Boolean)
+    assert.equal(codes.length, new Set(codes).size, `Hospitality ${form} has a duplicate sub-topic code`)
+  }
+})
+
+test('Hospitality key renumberings landed (Gastronomy 4.3, Entrepreneurship codes)', () => {
+  const hm = raw['Hospitality Management Syllabus (Forms 1-4)']
+  const topics = (form) => new Set(rowsWithPropagatedTopic(hm[form].rows).map((r) => r.topic).filter(Boolean))
+  // Form 4: the second "4.1" topic became 4.3 GASTRONOMY (no duplicate 4.1).
+  const f4 = topics('Form 4')
+  assert.ok([...f4].some((t) => /^4\.3\.?\s+GASTRONOMY/i.test(t)), '4.3 GASTRONOMY missing')
+  assert.ok([...f4].filter((t) => /^4\.1\b/.test(t)).length === 1, 'duplicate 4.1 topic remains')
+  // Form 3: Entrepreneurship moved off the 3.2 collision to 3.8.
+  assert.ok([...topics('Form 3')].some((t) => /^3\.8\.?\s+ENTREPRENEURSHIP/i.test(t)), '3.8 ENTREPRENEURSHIP missing')
+  // Form 1: Ethics sits under 1.6 with a matching 1.6.1 code.
+  const f1 = rowsWithPropagatedTopic(hm['Form 1'].rows)
+  const ethics = f1.find((r) => /Ethics/.test(String(r.subtopic || '')))
+  assert.match(String(ethics?.subtopic || ''), /^1\.6\.1/)
+  assert.match(String(ethics?.topic || ''), /^1\.6\b/)
+})
+
 console.log(`\n✅ curriculum-hierarchy: all ${passed} checks passed\n`)
