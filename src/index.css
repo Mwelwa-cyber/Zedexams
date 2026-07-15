@@ -1428,6 +1428,14 @@ body.theme-midnight .moe-calendar {
     color: #0e2a32; font-size: 14.5px; font-weight: 800;
     font-family: 'Fraunces', serif;
   }
+  .studio-theme .teacher-celebrate__dismiss {
+    margin-left: auto;
+    border: 0; background: none; cursor: pointer;
+    color: #9a6a3f; font-size: 14px; line-height: 1;
+    padding: 6px; border-radius: 8px;
+    min-width: 32px; min-height: 32px;
+  }
+  .studio-theme .teacher-celebrate__dismiss:hover { background: rgba(243,106,42,.12); }
   @keyframes teacher-pop {
     from { opacity: 0; transform: translateY(-8px) scale(.98); }
     to   { opacity: 1; transform: translateY(0) scale(1); }

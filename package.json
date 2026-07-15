@@ -70,6 +70,7 @@
     "test:teaching-targets": "node scripts/test-teaching-targets.mjs",
     "test:weekly-focus-holidays": "node scripts/test-weekly-focus-holidays.mjs",
     "test:active-assignment-seed": "node scripts/test-active-assignment-seed.mjs",
+    "test:active-assignment-sync": "node scripts/test-active-assignment-sync.mjs",
     "test:lesson-plan-inheritance": "node scripts/test-lesson-plan-inheritance.mjs",
     "test:assignment-change-notice": "node scripts/test-assignment-change-notice.mjs",
     "test:scheme-calendar-defaults": "node scripts/test-scheme-calendar-defaults.mjs",
