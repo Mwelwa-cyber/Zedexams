@@ -265,6 +265,10 @@ function rowsWithPropagatedTopic(rows) {
     if (row.type !== "data") continue;
     const cells = row.cells || {};
     if (isHeaderEchoRow(cells)) continue;
+    // Drop garbled "revision recap" rows: a leaked "SUB-TOPIC" header in the
+    // TOPIC cell is a scrambled multi-column recap, never a real topic
+    // (mirror of the guard in src/utils/syllabusMapping.js).
+    if (/sub\s*-?\s*topic/i.test(String(cells.TOPIC || ""))) continue;
     // Split a concatenated TOPIC cell before reading either column. A
     // well-formed cell returns unchanged (no-op on already-repaired data).
     const rawTopicCell = String(cells.TOPIC || "").trim();
