@@ -79,13 +79,19 @@ export function buildRecordWeeks(schemeOutput) {
 
 /**
  * The REMARKS cell as printed: the coverage label leads, the teacher's
- * own remark follows (e.g. "Partially covered — re-teach carrying tens").
+ * own remark follows (e.g. "Partially covered — re-teach carrying tens"),
+ * and a recorded follow-up action closes the cell as "Follow-up: …" —
+ * the one variance field approved for the statutory print (2026-07-15
+ * sign-off: follow-up in REMARKS only; date taught, reason and initials
+ * stay digital-only).
  */
 export function printedRemark(row) {
   const label = coverageLabel(row?.coverage)
   const remark = String(row?.remarks || '').trim()
-  if (label && remark) return `${label} — ${remark}`
-  return label || remark
+  const followUp = String(row?.variance?.followUp || '').trim()
+  const base = label && remark ? `${label} — ${remark}` : label || remark
+  if (!followUp) return base
+  return base ? `${base} · Follow-up: ${followUp}` : `Follow-up: ${followUp}`
 }
 
 /** How much of the term is logged — drives the studio's coverage chip. */

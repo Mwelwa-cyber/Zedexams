@@ -135,6 +135,17 @@ test('printedRemark joins coverage and the teacher remark', () => {
   assert(printedRemark({ coverage: 'partial', remarks: 're-teach carrying tens' }) === 'Partially covered — re-teach carrying tens', 'label — remark')
   assert(printedRemark({ coverage: 'full', remarks: '' }) === 'Fully covered', 'label alone')
   assert(printedRemark({ coverage: '', remarks: 'absent: sports day' }) === 'absent: sports day', 'remark alone')
+  // Signed-off print addition: a recorded follow-up closes the REMARKS cell.
+  assert(
+    printedRemark({ coverage: 'partial', remarks: 're-teach carrying tens', variance: { followUp: 'complete next lesson' } }) ===
+      'Partially covered — re-teach carrying tens · Follow-up: complete next lesson',
+    'follow-up appended',
+  )
+  assert(printedRemark({ coverage: '', remarks: '', variance: { followUp: 'finish exercise' } }) === 'Follow-up: finish exercise', 'follow-up alone')
+  assert(
+    printedRemark({ coverage: 'full', remarks: '', variance: { reason: 'digital only', actualDate: '2026-07-14', initials: 'MM' } }) === 'Fully covered',
+    'other variance fields never print',
+  )
   assert(printedRemark({}) === '' && printedRemark(null) === '', 'nothing → empty')
 })
 

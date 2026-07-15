@@ -595,13 +595,13 @@ export default function RecordOfWorkStudio() {
                       <input type="text" value={w.remarks} maxLength={200} onChange={(e) => updateWeek(i, 'remarks', e.target.value)} placeholder="e.g. re-teach carrying tens" className="studio-input !py-1.5 text-sm" />
                     </div>
                   </div>
-                  {/* Digital-only variance detail — kept out of the printed
-                      statutory table and the Word export until the statutory
-                      format is signed off. Optional; legacy records need no
-                      backfill. */}
+                  {/* Variance detail. Per the 2026-07-15 statutory sign-off,
+                      ONLY the follow-up action prints (inside REMARKS); date
+                      taught, reason and initials stay digital-only. Optional;
+                      legacy records need no backfill. */}
                   <details open={weekHasVariance(w)}>
                     <summary className="text-xs font-bold cursor-pointer" style={{ color: '#566f76' }}>
-                      Variance details (optional — not printed)
+                      Variance details (optional — only the follow-up prints, in REMARKS)
                     </summary>
                     <div className="grid grid-cols-2 gap-2 mt-2">
                       <div>
@@ -617,7 +617,7 @@ export default function RecordOfWorkStudio() {
                         <input type="text" value={w.variance?.reason || ''} maxLength={300} onChange={(e) => updateVarianceField(i, 'reason', e.target.value)} placeholder="e.g. school event" className="studio-input !py-1.5 text-sm" />
                       </div>
                       <div>
-                        <label className="studio-label">Follow-up action</label>
+                        <label className="studio-label">Follow-up action (prints in REMARKS)</label>
                         <input type="text" value={w.variance?.followUp || ''} maxLength={300} onChange={(e) => updateVarianceField(i, 'followUp', e.target.value)} placeholder="e.g. complete next lesson" className="studio-input !py-1.5 text-sm" />
                       </div>
                     </div>
