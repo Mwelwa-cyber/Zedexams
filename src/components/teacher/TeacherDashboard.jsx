@@ -370,9 +370,10 @@ export default function TeacherDashboard() {
       profileSubject,
       profileGrade,
       preferredSubject: effectivePreferredSubject,
+      activeAssignment,
       now: Date.now(),
     }),
-    [generations, prepCalendar, profileSubject, profileGrade, effectivePreferredSubject],
+    [generations, prepCalendar, profileSubject, profileGrade, effectivePreferredSubject, activeAssignment],
   )
 
   // Persist whatever context was resolved so the next visit sticks with it.

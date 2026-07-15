@@ -12,9 +12,11 @@
  *
  * Data rules honoured here:
  *  - The weekly target comes from the teacher's saved Class Timetable
- *    (periods per week for the subject) when one exists; else from the
- *    week's saved Weekly Focus day count; else a conservative default. We
- *    never assume every subject runs five times a week.
+ *    (periods per week for the subject) when one exists; else the active
+ *    Teaching Profile assignment's periods (teacher-entered, or the CBC
+ *    framework allocation, via teachingTargets.weeklyTargetForAssignment);
+ *    else the week's saved Weekly Focus day count; else a conservative
+ *    default. We never assume every subject runs five times a week.
  *  - A Record of Work week counts as "updated" only when the teacher filled
  *    its coverage (workDone is pre-seeded from the scheme, so it can't be
  *    the signal).
@@ -22,8 +24,14 @@
  *    its absence).
  */
 
+import { weeklyTargetForAssignment } from './teachingTargets.js'
+
 const DAY_MS = 24 * 60 * 60 * 1000
 const DEFAULT_WEEKLY_TARGET = 5
+// A school week has at most five teaching days; a period-based target (which
+// can exceed 5 for double-period subjects like English) is clamped to this
+// when used as a DAY target (the Weekly Focus is day-by-day).
+const SCHOOL_WEEK_DAYS = 5
 
 /* ── small normalisers ─────────────────────────────────────────────── */
 
@@ -272,7 +280,7 @@ function forecastPreparedDays(focus) {
  * Each row: { key, label, detail, status:'done'|'progress'|'todo'|'alert',
  *             done, target (nullable), to, meta }
  */
-export function buildWeekPrep({ generations = [], calendar = null, profileSubject = '', preferredSubject = '', profileGrade = '', now = Date.now() } = {}) {
+export function buildWeekPrep({ generations = [], calendar = null, profileSubject = '', preferredSubject = '', profileGrade = '', activeAssignment = null, now = Date.now() } = {}) {
   if (!calendar) {
     return { empty: true, emptyReason: 'no-calendar', rows: [] }
   }
@@ -304,8 +312,19 @@ export function buildWeekPrep({ generations = [], calendar = null, profileSubjec
     return !gg || gg === contextGrade
   }
 
-  // Weekly target: timetable allocation → this week's focus day count → default.
+  // Weekly target ladder: real Class Timetable → active Teaching Profile
+  // assignment periods (teacher-entered, or the CBC framework allocation) →
+  // this week's focus day count → conservative default.
   const allocation = timetableAllocation(generations, { subject, grade: context.grade })
+  // Only trust the active assignment's periods when it matches the resolved
+  // week context (a teacher who teaches the same subject in two grades keeps
+  // an honest per-grade target). weeklyTargetForAssignment returns null when
+  // no safe value exists (never fabricated).
+  const assignmentTarget = (activeAssignment &&
+    normSubject(activeAssignment.subject) === subject &&
+    (!contextGrade || normGrade(activeAssignment.grade) === contextGrade))
+    ? weeklyTargetForAssignment(activeAssignment).periods
+    : null
 
   // Scheme of Work for this term + subject.
   const scheme = newestFirst(generations.filter((g) =>
@@ -323,8 +342,12 @@ export function buildWeekPrep({ generations = [], calendar = null, profileSubjec
     ? focus.output.days.length
     : null
 
-  const dayTarget = allocation?.days ?? focusDayTarget ?? DEFAULT_WEEKLY_TARGET
-  const lessonTarget = allocation?.periods ?? focusDayTarget ?? DEFAULT_WEEKLY_TARGET
+  // Weekly Focus is a day-by-day plan, so a period count (which can exceed the
+  // number of school days for double-period subjects) is clamped when used as a
+  // DAY target; the lessons row uses the raw period count.
+  const assignmentDayTarget = assignmentTarget ? Math.min(assignmentTarget, SCHOOL_WEEK_DAYS) : null
+  const dayTarget = allocation?.days ?? assignmentDayTarget ?? focusDayTarget ?? DEFAULT_WEEKLY_TARGET
+  const lessonTarget = allocation?.periods ?? assignmentTarget ?? focusDayTarget ?? DEFAULT_WEEKLY_TARGET
 
   const focusPrepared = focus ? Math.min(forecastPreparedDays(focus), dayTarget) : 0
 

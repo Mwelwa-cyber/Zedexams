@@ -15,6 +15,7 @@ import {
   gradeLabelOf,
   subjectLabelOf,
 } from './prepareThisWeek.js'
+import { weeklyTargetForAssignment } from './teachingTargets.js'
 
 let passed = 0
 function check(name, cond) {
@@ -211,6 +212,77 @@ check('subjectLabelOf title-cases slug', subjectLabelOf('integrated_science') ==
   check('focus done when all timetable days prepared', byKey.focus.status === 'done')
   check('record row done when this week’s coverage is filled', byKey.record.status === 'done')
   check('scheme row still todo → routed to the studio', byKey.scheme.to === '/teacher/generate/scheme-of-work')
+}
+
+/* ── active Teaching Profile assignment drives the weekly target ──── */
+{
+  // No timetable, no focus: the active assignment's teacher-entered periods
+  // become the weekly target (below a real timetable, above the default 5).
+  const gens = [gen('scheme_of_work', { subject: 'mathematics', grade: 'G4', term: 2, createdAt: BEFORE_WEEK })]
+  const activeAssignment = { grade: 'G4', subject: 'mathematics', periodsPerWeek: 4 }
+  const out = buildWeekPrep({
+    generations: gens, calendar: CAL, profileSubject: 'mathematics', profileGrade: 'G4',
+    preferredSubject: 'mathematics', activeAssignment, now: NOW,
+  })
+  const byKey = Object.fromEntries(out.rows.map((r) => [r.key, r]))
+  check('teacher-entered assignment periods drive the lesson target (4, not default 5)', byKey.lessons.target === 4)
+  check('assignment periods also drive the day target when ≤ 5', byKey.focus.target === 4)
+}
+{
+  // A period count above the 5-day school week is clamped for the DAY target
+  // (Weekly Focus is day-by-day) but kept whole for the lessons target.
+  const gens = [gen('scheme_of_work', { subject: 'english', grade: 'G4', term: 2, createdAt: BEFORE_WEEK })]
+  const activeAssignment = { grade: 'G4', subject: 'english', periodsPerWeek: 6 }
+  const out = buildWeekPrep({
+    generations: gens, calendar: CAL, profileSubject: 'english', profileGrade: 'G4',
+    preferredSubject: 'english', activeAssignment, now: NOW,
+  })
+  const byKey = Object.fromEntries(out.rows.map((r) => [r.key, r]))
+  check('lessons target keeps the whole period count (6)', byKey.lessons.target === 6)
+  check('day target clamps a 6-period subject to the 5-day week', byKey.focus.target === 5)
+}
+{
+  // No teacher-entered periods → fall through to the CBC framework allocation.
+  const gens = [gen('scheme_of_work', { subject: 'mathematics', grade: 'G4', term: 2, createdAt: BEFORE_WEEK })]
+  const activeAssignment = { grade: 'G4', subject: 'mathematics' }
+  const expected = weeklyTargetForAssignment(activeAssignment).periods
+  const out = buildWeekPrep({
+    generations: gens, calendar: CAL, profileSubject: 'mathematics', profileGrade: 'G4',
+    preferredSubject: 'mathematics', activeAssignment, now: NOW,
+  })
+  const byKey = Object.fromEntries(out.rows.map((r) => [r.key, r]))
+  check('curriculum framework periods drive the target when nothing is entered',
+    Number.isFinite(expected) && expected > 0 && byKey.lessons.target === expected)
+}
+{
+  // A real timetable still outranks the assignment.
+  const gens = [
+    gen('scheme_of_work', { subject: 'mathematics', grade: 'G4', term: 2, createdAt: BEFORE_WEEK }),
+    gen('class_timetable', {
+      grade: 'G4', createdAt: BEFORE_WEEK,
+      output: { slots: { p1: { Monday: 'Mathematics', Wednesday: 'Mathematics' }, p2: { Monday: 'Mathematics' } } },
+    }),
+  ]
+  const activeAssignment = { grade: 'G4', subject: 'mathematics', periodsPerWeek: 4 }
+  const out = buildWeekPrep({
+    generations: gens, calendar: CAL, profileSubject: 'mathematics', profileGrade: 'G4',
+    preferredSubject: 'mathematics', activeAssignment, now: NOW,
+  })
+  const byKey = Object.fromEntries(out.rows.map((r) => [r.key, r]))
+  check('timetable periods (3) outrank the assignment (4)', byKey.lessons.target === 3)
+  check('timetable distinct days (2) outrank the assignment day target', byKey.focus.target === 2)
+}
+{
+  // An assignment for a DIFFERENT grade than the resolved context is ignored —
+  // a teacher who teaches the same subject in two grades keeps an honest target.
+  const gens = [gen('scheme_of_work', { subject: 'mathematics', grade: 'G4', term: 2, createdAt: BEFORE_WEEK })]
+  const activeAssignment = { grade: 'G5', subject: 'mathematics', periodsPerWeek: 9 }
+  const out = buildWeekPrep({
+    generations: gens, calendar: CAL, profileSubject: 'mathematics', profileGrade: 'G4',
+    preferredSubject: 'mathematics', activeAssignment, now: NOW,
+  })
+  const byKey = Object.fromEntries(out.rows.map((r) => [r.key, r]))
+  check('assignment for another grade is ignored (falls to default 5)', byKey.lessons.target === 5)
 }
 
 /* ── week attribution ladder (risk item 5) ───────────────────────── */
