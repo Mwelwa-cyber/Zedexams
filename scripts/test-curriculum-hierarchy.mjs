@@ -658,19 +658,38 @@ test('Art & Design Forms 1-4 topics all carry a numeric code, no orphans', () =>
   assert.ok(f1.has('1.4 Studio Practice') && f1.has('1.11 Crafts in 2D'), 'Form 1 gap-fillers missing')
 })
 
-test('Zambian Languages Form 2 Punctuation topic owns its 2.4.6.1 sub-topic', () => {
-  const f2 = raw['Zambian Languages Syllabus (Forms 1-4)']?.['Form 2']
-  assert.ok(f2, 'Zambian Languages Form 2 sheet exists')
-  const rows = rowsWithPropagatedTopic(f2.rows)
-  const punc = rows.find((r) => /Punctuation Marks/.test(String(r.subtopic || '')))
-  assert.match(String(punc?.topic || ''), /^2\.4\.6\b/)
-  // No coded sub-topic left under a code-less parent anywhere in the sheet.
+test('Zambian Languages Forms 1-4: every topic + sub-topic carries a code, no orphans', () => {
+  const zl = raw['Zambian Languages Syllabus (Forms 1-4)']
+  assert.ok(zl, 'Zambian Languages sheet exists')
   const lead = (s) => (String(s || '').match(/^\s*(\d+(?:\.\d+)*)/) || [])[1] || null
-  for (const r of rows) {
-    const tc = lead(r.topic); const sc = lead(r.subtopic)
-    if (sc && !tc) assert.fail(`Zambian Languages F2 orphan: coded "${r.subtopic}" under code-less "${r.topic}"`)
-    if (tc && sc) assert.ok(sc.startsWith(tc), `Zambian Languages F2 mismatch: "${r.subtopic}" under "${r.topic}"`)
+  for (const form of ['Form 1', 'Form 2', 'Form 3', 'Form 4']) {
+    const rows = rowsWithPropagatedTopic(zl[form].rows)
+    for (const r of rows) {
+      if (r.topic) assert.ok(lead(r.topic), `Zambian Languages ${form} topic missing code: "${r.topic}"`)
+      if (r.subtopic) assert.ok(lead(r.subtopic), `Zambian Languages ${form} sub-topic missing code: "${r.subtopic}"`)
+      const tc = lead(r.topic); const sc = lead(r.subtopic)
+      if (sc && !tc) assert.fail(`Zambian Languages ${form} orphan: coded "${r.subtopic}" under code-less "${r.topic}"`)
+      if (tc && sc) assert.ok(sc.startsWith(tc + '.'), `Zambian Languages ${form} orphan: "${r.subtopic}" under "${r.topic}"`)
+    }
   }
+  // The Form 2 Punctuation topic (fixed earlier from its 2.4.6.1 sub-topic) still holds.
+  const f2 = rowsWithPropagatedTopic(zl['Form 2'].rows)
+  const punc = f2.find((r) => /Punctuation Marks/.test(String(r.subtopic || '')))
+  assert.match(String(punc?.topic || ''), /^2\.4\.6\b/)
+})
+
+test('Zambian Languages: restored Writing/Grammar topic codes match the source', () => {
+  const zl = raw['Zambian Languages Syllabus (Forms 1-4)']
+  const topicsOf = (form) => new Set(rowsWithPropagatedTopic(zl[form].rows).map((r) => r.topic).filter(Boolean))
+  const f1 = topicsOf('Form 1')
+  assert.ok(f1.has('1.3.1 Composition') && f1.has('1.4.3 Nouns') && f1.has('1.5.1 Translation'), 'Form 1 codes')
+  const f3 = topicsOf('Form 3')
+  assert.ok(f3.has('3.3.1 Composition') && f3.has('3.4.2 Verbs') && f3.has('3.5.1 Translation'), 'Form 3 codes')
+  const f4 = topicsOf('Form 4')
+  assert.ok(f4.has('4.3.1 Composition') && f4.has('4.4.10 Active and Passive Voices'), 'Form 4 codes')
+  // Sub-topics numbered positionally within their app topic (kept, not restructured).
+  const subsF1 = new Set(rowsWithPropagatedTopic(zl['Form 1'].rows).map((r) => r.subtopic).filter(Boolean))
+  assert.ok(subsF1.has('1.4.14.3 Sayings'), 'Form 1 Vocabulary "Sayings" numbered under its app parent')
 })
 
 console.log(`\n✅ curriculum-hierarchy: all ${passed} checks passed\n`)
