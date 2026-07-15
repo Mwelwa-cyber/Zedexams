@@ -8,6 +8,7 @@ import {
   buildRecordWeeksFromCalendar,
   buildRecordOfWorkFromPlan,
   recordWeekHasContent,
+  restoreRecordFromGeneration,
 } from '../src/utils/recordOfWorkPlanning.js'
 
 let pass = 0
@@ -191,6 +192,42 @@ test('recordWeekHasContent distinguishes typed rows from blanks', () => {
   eq(recordWeekHasContent({ week: '1', topic: 'x', workDone: [] }), true)
   eq(recordWeekHasContent({ week: '1', topic: '', workDone: ['did'] }), true)
   eq(recordWeekHasContent(null), false)
+})
+
+console.log('\nrestoreRecordFromGeneration (open by id)')
+const SAVED = {
+  id: 'rec-1',
+  tool: 'record_of_work',
+  output: {
+    schemaVersion: 'record-of-work-1.0',
+    header: { school: 'Kabulonga Primary', teacherName: 'M. M.', grade: 'G4', subject: 'Mathematics', term: 2, year: '2026' },
+    weeks: [
+      { week: '1', weekEnding: '22 May 2026', topic: 'Fractions', subtopic: '', workDone: ['taught halves'], coverage: 'full', remarks: '', sourceLessonPlanId: 'plan-9' },
+      { week: '2', weekEnding: '', topic: '', subtopic: '', workDone: [], coverage: '', remarks: '' },
+    ],
+  },
+}
+test('restores the stored header + weeks verbatim (record is authoritative)', () => {
+  const r = restoreRecordFromGeneration(SAVED)
+  eq(r.header.grade, 'G4'); eq(r.header.subject, 'Mathematics'); eq(r.header.term, 2); eq(r.header.year, '2026')
+  eq(r.weeks.length, 2)
+  eq(r.weeks[0].topic, 'Fractions'); eq(r.weeks[0].coverage, 'full')
+  eq(r.weeks[0].sourceLessonPlanId, 'plan-9') // extra stored fields preserved
+})
+test('normalizes malformed rows into the editable shape', () => {
+  const r = restoreRecordFromGeneration({
+    tool: 'record_of_work',
+    output: { header: {}, weeks: [{ week: 3, workDone: 'not-an-array' }] },
+  })
+  eq(r.weeks[0].week, '3')
+  eq(Array.isArray(r.weeks[0].workDone), true)
+  eq(r.header.term, 1) // out-of-range term degrades to 1
+})
+test('rejects anything that is not a loadable record', () => {
+  eq(restoreRecordFromGeneration(null), null)
+  eq(restoreRecordFromGeneration({ tool: 'lesson_plan', output: { weeks: [{}] } }), null)
+  eq(restoreRecordFromGeneration({ tool: 'record_of_work' }), null)                       // no output
+  eq(restoreRecordFromGeneration({ tool: 'record_of_work', output: { weeks: [] } }), null) // empty weeks
 })
 
 console.log('')
