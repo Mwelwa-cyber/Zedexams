@@ -69,6 +69,11 @@ export default function AssignmentFormModal({ open, mode = 'add', initial = null
   })
 
   const subjectOptions = useMemo(() => {
+    // No grade chosen yet → show NO subjects. getSubjectsForGrade('') returns
+    // the full cross-level, cross-curriculum list, which is the "subjects are
+    // mixed" bug: a teacher opening the form saw every subject at once. The
+    // grade is picked first, then the list is scoped to that grade + curriculum.
+    if (!form.grade) return []
     // Filter to pedagogically-valid subjects for the chosen grade AND curriculum,
     // so switching the Curriculum selector actually changes the subject list
     // (e.g. the OBC's Principles of Accounts vs the CBC's Commerce & Principles
@@ -160,7 +165,8 @@ export default function AssignmentFormModal({ open, mode = 'add', initial = null
                 value={form.subject}
                 onChange={(subject) => setField({ subject })}
                 options={subjectOptions}
-                placeholder="Select subject"
+                placeholder={form.grade ? 'Select subject' : 'Select a grade or form first'}
+                disabled={!form.grade}
               />
             </FieldRow>
             <FieldRow label="Class or stream (optional)" htmlFor="tp-class" help="Helps when you teach the same subject to more than one class.">

@@ -21,6 +21,19 @@ function openModal() {
 }
 
 describe('AssignmentFormModal — curriculum-aware subject list', () => {
+  it('shows no subjects (and disables the select) until a grade is chosen', () => {
+    openModal()
+    // Before a grade is picked the Subject list must be empty — not the full
+    // cross-level, cross-curriculum dump (the "subjects are mixed" bug).
+    expect(subjectValues()).toEqual([])
+    expect(screen.getByLabelText('Subject')).toBeDisabled()
+
+    // Picking a grade populates and enables it.
+    fireEvent.change(screen.getByLabelText('Grade or Form'), { target: { value: 'G4' } })
+    expect(screen.getByLabelText('Subject')).not.toBeDisabled()
+    expect(subjectValues().length).toBeGreaterThan(0)
+  })
+
   it('changes the Subject list when the Curriculum selector switches OBC ⇄ CBC', () => {
     openModal()
     fireEvent.change(screen.getByLabelText('Grade or Form'), { target: { value: 'G4' } })
