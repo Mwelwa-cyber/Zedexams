@@ -411,7 +411,17 @@ export default function TeacherDashboard() {
   // Switch / Keep prompt instead. No Firestore write happens here: the sync
   // listener already mirrored localStorage before dispatching.
   const [remoteAssignmentNotice, setRemoteAssignmentNotice] = useState('')
-  useRemoteAssignmentAdoption(currentUser?.uid, activeAssignment?.id || '', ({ id, seed }) => {
+  useRemoteAssignmentAdoption(currentUser?.uid, activeAssignment?.id || '', ({ id, seed, source }) => {
+    if (source === 'cross-tab') {
+      // Another tab on THIS device — the teacher's own pick moments ago.
+      // Validate against the loaded list (a deleted/deactivated/unknown id is
+      // ignored), update the selector silently — no "another device" notice,
+      // and no Firestore write-back (the picking tab already synced it).
+      if (!activeTeachingAssignments.some((a) => a.id === id)) return
+      setActiveAssignmentId(id)
+      setRemoteAssignmentNotice('')
+      return
+    }
     setActiveAssignmentId(id)
     setRemoteAssignmentNotice(seedLabel(seed) || 'a different class')
     // The adopted assignment was validated against Firestore, but if it isn't
