@@ -54,6 +54,15 @@ const {runSuggestQuizAnswers} = require("./suggestQuizAnswers");
 const {applyCors} = require("./cors");
 const {resolveAppCheckEnforcement} = require("./appCheckEnforcement");
 const {
+  resolveShardCount: resolveAppCheckShardCount,
+  resolveSampleRate: resolveAppCheckSampleRate,
+  weightForSampleRate: appCheckWeightForSampleRate,
+  shouldSample: shouldSampleAppCheck,
+  pickShardId: pickAppCheckShardId,
+  classifyOutcome: classifyAppCheckOutcome,
+  buildHealthShardUpdate: buildAppCheckShardUpdate,
+} = require("./appCheckHealthCore");
+const {
   assertHttpRateLimit,
   assertCallableRateLimit,
 } = require("./rateLimit");
@@ -423,22 +432,14 @@ async function softVerifyAppCheckHttp(req, label) {
       console.warn(`[appCheck:${label}] verifyToken failed`, err?.message || err);
     }
   }
-  // Best-effort observability — counts attempts vs. valid tokens by day.
-  try {
-    const date = new Date().toISOString().slice(0, 10);
-    const ref = admin.firestore().collection("appCheckHealth").doc(date);
-    const inc = (n) => admin.firestore.FieldValue.increment(n);
-    await ref.set({
-      date,
-      [`${label}_attempts`]: inc(1),
-      [`${label}_valid`]: inc(verified ? 1 : 0),
-      [`${label}_missing`]: inc(token ? 0 : 1),
-      [`${label}_invalid`]: inc(token && !verified ? 1 : 0),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, {merge: true});
-  } catch (err) {
-    console.warn(`[appCheck:${label}] health write failed`, err?.message || err);
-  }
+  // Best-effort observability — sharded + sampled so it never becomes a
+  // per-request hotspot on one daily doc (see appCheckHealthCore.js).
+  await recordAppCheckHealth({
+    label,
+    tokenPresent: Boolean(token),
+    verified: Boolean(verified),
+    canDistinguishInvalid: true, // HTTP path: token-but-unverified == invalid
+  });
   if (shouldEnforceAppCheck(label) && !verified) {
     throw new HttpsError("permission-denied", "App Check verification failed.");
   }
@@ -494,21 +495,41 @@ async function recordAppCheckCallable(request, label) {
   // The runtime already rejected unverified calls when
   // enforceAppCheck is on, so a missing request.app on an
   // enforce-on callable means we're in observability-only mode.
-  // Treat absent token as "missing" rather than "invalid" — there's
-  // no way to distinguish the two at this layer.
+  // A callable can't tell "no token" from "invalid token", so an
+  // unverified call folds into "missing" (canDistinguishInvalid: false).
+  await recordAppCheckHealth({
+    label,
+    tokenPresent: verified, // callables only surface a token when it verified
+    verified,
+    canDistinguishInvalid: false,
+  });
+}
+
+// Shared writer for the App Check health telemetry. Sampled (only a
+// fraction of requests write) and sharded (writes fan out across N docs)
+// so it can never serialise the request path on one hot daily document.
+// ALWAYS best-effort: sampling-out and any Firestore error are swallowed
+// so a metrics failure can never fail or delay App Check verification.
+async function recordAppCheckHealth({label, tokenPresent, verified, canDistinguishInvalid}) {
   try {
+    const sampleRate = resolveAppCheckSampleRate();
+    if (!shouldSampleAppCheck(sampleRate)) return; // not selected → no write
     const date = new Date().toISOString().slice(0, 10);
-    const ref = admin.firestore().collection("appCheckHealth").doc(date);
+    const shardCount = resolveAppCheckShardCount();
+    const shardId = pickAppCheckShardId(shardCount);
+    const outcome = classifyAppCheckOutcome({tokenPresent, verified, canDistinguishInvalid});
     const inc = (n) => admin.firestore.FieldValue.increment(n);
-    await ref.set({
-      date,
-      [`${label}_attempts`]: inc(1),
-      [`${label}_valid`]: inc(verified ? 1 : 0),
-      [`${label}_missing`]: inc(verified ? 0 : 1),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, {merge: true});
+    const update = buildAppCheckShardUpdate({
+      label, outcome, weight: appCheckWeightForSampleRate(sampleRate), inc,
+    });
+    update.date = date;
+    update.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+    await admin.firestore()
+        .collection("appCheckHealth").doc(date)
+        .collection("shards").doc(String(shardId))
+        .set(update, {merge: true});
   } catch (err) {
-    console.warn(`[appCheck:${label}] callable health write failed`, err?.message || err);
+    console.warn(`[appCheck:${label}] health write failed`, err?.message || err);
   }
 }
 

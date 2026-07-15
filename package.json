@@ -246,6 +246,7 @@
     "test:family-portal": "node functions/familyPortalCore.test.js",
     "test:trusted-image": "node functions/agents/trustedImageHost.test.js",
     "test:appcheck-enforce": "node functions/appCheckEnforcement.test.js",
+    "test:appcheck-health": "node functions/appCheckHealthCore.test.js",
     "test:admin-payments": "node functions/adminPaymentsCore.test.js",
     "test:recaptcha": "node functions/recaptchaAssessment.test.js",
     "test:image-proxy": "node functions/imageProxy.test.js",
