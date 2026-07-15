@@ -613,4 +613,18 @@ test('Religious Education Form 1 rebuilds topics 1.1-1.4 with all sub-topics, no
   }
 })
 
+test('Physics Form 4 topic 4.4 RENEWABLE ENERGY SYSTEM owns sub-topic 4.4.1', () => {
+  const f4 = raw['Physics Syllabus (Forms 1-4)']?.['Form 4']
+  assert.ok(f4, 'Physics Form 4 sheet exists')
+  const rows = rowsWithPropagatedTopic(f4.rows)
+  const renew = rows.find((r) => /Renewable Energy Systems/.test(String(r.subtopic || '')))
+  assert.match(String(renew?.topic || ''), /^4\.4\b/)
+  assert.match(String(renew?.subtopic || ''), /^4\.4\.1\b/)
+  const lead = (s) => (String(s || '').match(/^\s*(\d+(?:\.\d+)*)/) || [])[1] || null
+  for (const r of rows) {
+    const tc = lead(r.topic); const sc = lead(r.subtopic)
+    if (tc && sc) assert.ok(sc.startsWith(tc), `Physics F4 orphan: "${r.subtopic}" under "${r.topic}"`)
+  }
+})
+
 console.log(`\n✅ curriculum-hierarchy: all ${passed} checks passed\n`)
