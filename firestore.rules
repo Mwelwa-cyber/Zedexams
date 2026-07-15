@@ -999,8 +999,13 @@ service cloud.firestore {
             && (!('subject' in incoming()) || (incoming().subject is string && incoming().subject.size() <= 40))
             && (!('className' in incoming()) || (incoming().className is string && incoming().className.size() <= 40))
             && (!('curriculumType' in incoming()) || incoming().curriculumType in ['cbc', 'previous'])
-            && (!('periodsPerWeek' in incoming()) || (incoming().periodsPerWeek is int && incoming().periodsPerWeek >= 0 && incoming().periodsPerWeek <= 60))
-            && (!('lessonDurationMinutes' in incoming()) || (incoming().lessonDurationMinutes is int && incoming().lessonDurationMinutes >= 5 && incoming().lessonDurationMinutes <= 240))
+            // The client's canonical "not set" for these OPTIONAL numerics is an
+            // explicit null (normalizeAssignment in teachingProfileCore.js), and a
+            // merge-update needs null to clear a previously saved value — so null
+            // must pass alongside the in-range int (2026-07: rejecting it made
+            // every assignment save with a blank optional field fail).
+            && (!('periodsPerWeek' in incoming()) || incoming().periodsPerWeek == null || (incoming().periodsPerWeek is int && incoming().periodsPerWeek >= 0 && incoming().periodsPerWeek <= 60))
+            && (!('lessonDurationMinutes' in incoming()) || incoming().lessonDurationMinutes == null || (incoming().lessonDurationMinutes is int && incoming().lessonDurationMinutes >= 5 && incoming().lessonDurationMinutes <= 240))
             && (!('isDefault' in incoming()) || incoming().isDefault is bool)
             && (!('isActive' in incoming()) || incoming().isActive is bool);
         }
