@@ -90,6 +90,33 @@ function ids(args) {
   })]
   check('record updated this week → recommendation gone',
     !ids({ generations: recorded, calendar: CAL }).includes('record-behind'))
+
+  // Deep-link: an existing record opens IN THE STUDIO at the oldest due
+  // unrecorded week — not simply today's week.
+  const behindRecord = gen('record_of_work', {
+    subject: 'english', grade: 'G4', term: 2,
+    output: { weeks: [
+      { week: '5', coverage: 'full' },
+      { week: '6', topic: 'Fractions', coverage: '' }, // oldest unresolved
+      { week: '7', coverage: 'partial' },
+      { week: '8', coverage: '' },                     // current week, also unrecorded
+    ] },
+  })
+  const withBehind = buildRecommendations({ generations: [...base, behindRecord], calendar: CAL })
+  const behind = withBehind.find((r) => r.id === 'record-behind')
+  check('behind recommendation targets the oldest due unrecorded week',
+    Boolean(behind) &&
+    behind.actionLabel === 'Update Week 6' &&
+    new RegExp(`/teacher/generate/record-of-work\\?id=${behindRecord.id}&week=6$`).test(behind.to))
+  check('behind copy names the planned work without accusatory wording',
+    behind.title === 'Record of Work needs updating' &&
+    /planned work for Week 6/.test(behind.text) &&
+    !/fail|neglect/i.test(behind.text))
+  check('no existing record still routes to create-new',
+    (() => {
+      const none = buildRecommendations({ generations: base, calendar: CAL }).find((r) => r.id === 'record-behind')
+      return none && none.to === '/teacher/generate/record-of-work' && none.actionLabel === 'Update now'
+    })())
 }
 
 /* ── 3. create worksheet ─────────────────────────────────────────── */

@@ -7,6 +7,7 @@ import {
   currentWeekForRecord,
   weekComparisonStatus,
   recordAttentionSummary,
+  oldestDueIncompleteWeek,
   WEEK_STATUS_META,
 } from '../src/utils/recordOfWorkStatus.js'
 
@@ -74,6 +75,35 @@ test('every state has a text label + icon (never colour alone)', () => {
   for (const s of ['completed', 'partial', 'not-covered', 'due', 'overdue', 'future', 'pending']) {
     assert(WEEK_STATUS_META[s]?.icon && WEEK_STATUS_META[s]?.label, `missing meta for ${s}`)
   }
+})
+
+console.log('\noldestDueIncompleteWeek (deep-link target)')
+test('targets the OLDEST unrecorded due week, not today', () => {
+  const weeks = [
+    { week: '6', coverage: '' },        // overdue — oldest
+    { week: '7', coverage: '' },        // overdue
+    { week: '8', coverage: '' },        // due (current)
+  ]
+  eq(oldestDueIncompleteWeek(weeks, 8), 6)
+})
+test('recorded weeks (full/partial/none) are never targeted', () => {
+  const weeks = [
+    { week: '5', coverage: 'full' },
+    { week: '6', coverage: 'partial' },
+    { week: '7', coverage: 'none' },
+    { week: '8', coverage: '' },
+  ]
+  eq(oldestDueIncompleteWeek(weeks, 8), 8)
+})
+test('current week is the target when it is the only unresolved entry', () => {
+  eq(oldestDueIncompleteWeek([{ week: '8', coverage: '' }], 8), 8)
+})
+test('future weeks are excluded; fully recorded → null', () => {
+  eq(oldestDueIncompleteWeek([{ week: '9', coverage: '' }, { week: '10', coverage: '' }], 8), null)
+  eq(oldestDueIncompleteWeek([{ week: '7', coverage: 'full' }, { week: '8', coverage: 'partial' }], 8), null)
+})
+test('no calendar context → null (no guessed deep-link)', () => {
+  eq(oldestDueIncompleteWeek([{ week: '3', coverage: '' }], null), null)
 })
 
 console.log('\nrecordAttentionSummary')

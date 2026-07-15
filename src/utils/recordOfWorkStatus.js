@@ -76,6 +76,26 @@ export const WEEK_STATUS_META = {
 }
 
 /**
+ * The week a "Record of Work is behind" deep-link should open: the OLDEST week
+ * that is due (or overdue) with nothing recorded yet — not simply today's week,
+ * since an earlier unrecorded week is usually the real cause of the behind
+ * status. Returns null when nothing is due-and-unrecorded or when there's no
+ * calendar context (recorded coverage always outranks date-derived states, so a
+ * 'partial'/'none' week is already recorded and never targeted).
+ */
+export function oldestDueIncompleteWeek(weeks, currentWeek) {
+  if (currentWeek == null) return null
+  let oldest = null
+  for (const w of Array.isArray(weeks) ? weeks : []) {
+    const status = weekComparisonStatus(w, currentWeek)
+    if (status !== 'due' && status !== 'overdue') continue
+    const n = Number(w.week)
+    if (oldest == null || n < oldest) oldest = n
+  }
+  return oldest
+}
+
+/**
  * Compact "what needs attention" summary for the studio header:
  * how many past weeks still have nothing recorded, and how many were partial.
  * Returns '' when there's nothing to flag (or no calendar context).
