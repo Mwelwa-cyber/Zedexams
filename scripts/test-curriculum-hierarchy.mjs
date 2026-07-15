@@ -545,4 +545,22 @@ test('History Form 3 folds the 3.6.x UNIP->UPND rows into topic 3.5 (no 3.6 orph
   assert.ok(under35.some((s) => /^3\.5\.3\b/.test(s) && /Lumpa/.test(s)), '3.5.3 Lumpa Church missing under 3.5')
 })
 
+test('Hospitality Form 1 topic 1.1 exposes all four sub-topics with matching competence codes', () => {
+  const f1 = raw['Hospitality Management Syllabus (Forms 1-4)']?.['Form 1']
+  const rows = rowsWithPropagatedTopic(f1.rows).filter((r) => /^1\.1\b/.test(String(r.topic || '')))
+  const subs = rows.map((r) => String(r.subtopic || ''))
+  for (const code of ['1.1.1', '1.1.2', '1.1.3', '1.1.4']) {
+    assert.ok(subs.some((s) => s.startsWith(code)), `missing sub-topic ${code}`)
+  }
+  // 1.1.2 was recovered (previously merged into 1.1.1) with its own competence.
+  const s112 = rows.find((r) => /^1\.1\.2\b/.test(String(r.subtopic || '')))
+  assert.match(String(s112?.subtopic || ''), /Traditional and modern hospitality practices/)
+  assert.match(String(s112?.specificCompetence || ''), /^1\.1\.2\.1/)
+  // 1.1.1 no longer carries 1.1.2's competence; 1.1.3's code typo is fixed.
+  const s111 = rows.find((r) => /^1\.1\.1\b/.test(String(r.subtopic || '')))
+  assert.match(String(s111?.specificCompetence || ''), /^1\.1\.1\.1/)
+  const s113 = rows.find((r) => /^1\.1\.3\b/.test(String(r.subtopic || '')))
+  assert.match(String(s113?.specificCompetence || ''), /^1\.1\.3\.1/)
+})
+
 console.log(`\n✅ curriculum-hierarchy: all ${passed} checks passed\n`)
