@@ -3,6 +3,7 @@ import { render, screen, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import TeachingAssignmentChangeNotice from './TeachingAssignmentChangeNotice'
 import StudioAssignmentChangeNotice from './StudioAssignmentChangeNotice'
+import { REMOTE_ACTIVE_ASSIGNMENT_EVENT } from '../../../utils/activeAssignmentSyncCore'
 
 function fireStorage(uid, seed) {
   act(() => {
@@ -10,6 +11,14 @@ function fireStorage(uid, seed) {
       key: `zedexams:active-seed:${uid}`,
       newValue: seed ? JSON.stringify(seed) : null,
     }))
+  })
+}
+
+// Cross-device path: useActiveAssignmentSync adopted a remote change and
+// dispatched the same-tab event (storage events never fire in the writing tab).
+function fireRemote(uid, seed) {
+  act(() => {
+    window.dispatchEvent(new CustomEvent(REMOTE_ACTIVE_ASSIGNMENT_EVENT, { detail: { uid, seed } }))
   })
 }
 
@@ -60,6 +69,20 @@ describe('StudioAssignmentChangeNotice (container)', () => {
   it('ignores a change to the SAME assignment', () => {
     render(<StudioAssignmentChangeNotice uid="u1" currentSeed={current} onApply={vi.fn()} />)
     fireStorage('u1', { grade: 'G4', subject: 'mathematics', curriculum: 'cbc' })
+    expect(screen.queryByText(/changed/i)).toBeNull()
+  })
+
+  it('surfaces a cross-DEVICE change delivered by the sync event', async () => {
+    render(<StudioAssignmentChangeNotice uid="u1" currentSeed={current} onApply={vi.fn()} />)
+    fireRemote('u1', { grade: 'G6', subject: 'english', curriculum: 'cbc' })
+    expect(await screen.findByText(/your active teaching assignment has changed/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /switch to grade 6 · english/i })).toBeInTheDocument()
+  })
+
+  it('ignores a sync event for a different user or with a junk seed', () => {
+    render(<StudioAssignmentChangeNotice uid="u1" currentSeed={current} onApply={vi.fn()} />)
+    fireRemote('someone-else', { grade: 'G6', subject: 'english', curriculum: 'cbc' })
+    fireRemote('u1', 'not-a-seed')
     expect(screen.queryByText(/changed/i)).toBeNull()
   })
 

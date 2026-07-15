@@ -24,6 +24,7 @@ import ZedChatLauncher from './components/ai/ZedChatLauncher'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import ScrollToTop from './components/ui/ScrollToTop'
 import VisitorTracker from './components/ui/VisitorTracker'
+import { ActiveAssignmentSync } from './hooks/useActiveAssignmentSync'
 
 // Auth/legal routes always render in the brand-default theme so a
 // visitor's previously-saved preference (e.g. Vivid's deep violet bg)
@@ -418,6 +419,10 @@ export default function App() {
           default. Self-hides once a decision is recorded. */}
       <CookieConsentBanner />
       <ThemeApplicator />
+      {/* Live cross-device sync of the teacher's ACTIVE teaching assignment
+          (headless; no-op unless a teacher is signed in). Notifies open
+          studios via the Switch / Keep notice — never mutates form state. */}
+      <ActiveAssignmentSync />
       {/* Reset scroll to the top on every client-side navigation so new
           pages don't inherit the previous page's scroll offset. */}
       <ScrollToTop />
