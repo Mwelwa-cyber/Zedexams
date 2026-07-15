@@ -395,4 +395,38 @@ test('no sub-topic is orphaned in Grade 3 Creative & Technology', () => {
   }
 })
 
+console.log('\ncurriculum-hierarchy: garbled recap-row removal + guard')
+
+test('no garbled "Sub-Topic"-header topic survives in any picker', () => {
+  for (const [subject, sheets] of Object.entries(raw)) {
+    for (const [sheetName, sheet] of Object.entries(sheets || {})) {
+      for (const r of rowsWithPropagatedTopic(sheet.rows || [])) {
+        assert.ok(!/sub\s*-?\s*topic/i.test(String(r.topic || '')),
+          `garbled topic survived in ${subject}/${sheetName}: "${r.topic}"`)
+      }
+    }
+  }
+})
+
+test('Food & Nutrition Form 4 shows only its four real topics', () => {
+  const fn = raw['Food & Nutrition Syllabus (Forms 1-4)']?.['Form 4']
+  assert.ok(fn, 'Food & Nutrition Form 4 sheet exists')
+  const topics = new Set()
+  for (const r of rowsWithPropagatedTopic(fn.rows)) if (r.topic) topics.add(r.topic)
+  assert.deepEqual([...topics].sort(), [
+    '4.1 RESEARCH IN FOOD AND NUTRITION',
+    '4.2 FOOD SERVICE',
+    '4.3 CONSUMER EDUCATION',
+    '4.4 ENTREPRENEURSHIP',
+  ].sort())
+})
+
+test('the runtime guard drops a garbled recap row (re-import protection)', () => {
+  const out = rowsWithPropagatedTopic([
+    { type: 'data', cells: { TOPIC: 'For Sub -Topic -junk content' } },
+    { type: 'data', cells: { TOPIC: '4.1 Real', 'SUB-TOPIC': '4.1.1 Sub' } },
+  ])
+  assert.deepEqual(out.map((r) => r.topic), ['4.1 Real'])
+})
+
 console.log(`\n✅ curriculum-hierarchy: all ${passed} checks passed\n`)

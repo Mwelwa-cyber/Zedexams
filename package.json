@@ -348,6 +348,7 @@
     "audit:curriculum-hierarchy": "node scripts/audit-curriculum-hierarchy.mjs",
     "repair:curriculum-hierarchy": "node scripts/repair-curriculum-hierarchy.mjs",
     "normalize:child-codes": "node scripts/normalize-child-codes.mjs",
+    "remove:garbled-recap-rows": "node scripts/remove-garbled-recap-rows.mjs",
     "test:cbc-kb": "node functions/scripts/validate-cbc-kb.mjs",
     "test:rules-emulator": "npx -y firebase-tools@latest emulators:exec --only firestore --project examsprepzambia-test \"node scripts/test-firestore-rules-emulator.mjs\"",
     "test:quiz-autosave-rules": "npx -y firebase-tools@latest emulators:exec --only firestore --project examsprepzambia-test \"node scripts/test-quiz-autosave-rules-emulator.mjs\"",

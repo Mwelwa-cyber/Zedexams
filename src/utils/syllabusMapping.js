@@ -189,6 +189,11 @@ export function rowsWithPropagatedTopic(rows) {
     if (row.type !== 'data') continue
     const cells = row.cells || {}
     if (isHeaderEchoRow(cells)) continue
+    // Drop garbled "revision recap" rows: a TOPIC cell containing the leaked
+    // "SUB-TOPIC" column header is a scrambled multi-column recap the PDF
+    // extraction mangled, never a real topic. Guards against a re-import
+    // reintroducing them (see scripts/remove-garbled-recap-rows.mjs).
+    if (/sub\s*-?\s*topic/i.test(String(cells.TOPIC || ''))) continue
     // Split a concatenated TOPIC cell (topic glued to its first sub-topic with
     // an empty SUB-TOPIC cell) before reading either. A well-formed cell is
     // returned unchanged, so this is a no-op on already-repaired data.
