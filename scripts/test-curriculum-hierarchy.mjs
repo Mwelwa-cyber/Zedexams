@@ -658,4 +658,19 @@ test('Art & Design Forms 1-4 topics all carry a numeric code, no orphans', () =>
   assert.ok(f1.has('1.4 Studio Practice') && f1.has('1.11 Crafts in 2D'), 'Form 1 gap-fillers missing')
 })
 
+test('Zambian Languages Form 2 Punctuation topic owns its 2.4.6.1 sub-topic', () => {
+  const f2 = raw['Zambian Languages Syllabus (Forms 1-4)']?.['Form 2']
+  assert.ok(f2, 'Zambian Languages Form 2 sheet exists')
+  const rows = rowsWithPropagatedTopic(f2.rows)
+  const punc = rows.find((r) => /Punctuation Marks/.test(String(r.subtopic || '')))
+  assert.match(String(punc?.topic || ''), /^2\.4\.6\b/)
+  // No coded sub-topic left under a code-less parent anywhere in the sheet.
+  const lead = (s) => (String(s || '').match(/^\s*(\d+(?:\.\d+)*)/) || [])[1] || null
+  for (const r of rows) {
+    const tc = lead(r.topic); const sc = lead(r.subtopic)
+    if (sc && !tc) assert.fail(`Zambian Languages F2 orphan: coded "${r.subtopic}" under code-less "${r.topic}"`)
+    if (tc && sc) assert.ok(sc.startsWith(tc), `Zambian Languages F2 mismatch: "${r.subtopic}" under "${r.topic}"`)
+  }
+})
+
 console.log(`\n✅ curriculum-hierarchy: all ${passed} checks passed\n`)
