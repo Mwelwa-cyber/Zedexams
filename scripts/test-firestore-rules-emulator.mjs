@@ -944,6 +944,88 @@ async function main() {
     }))
   })
 
+  // ── teacherProfiles/{uid}/teachingAssignments — optional numerics ─
+  section('teachingAssignments — null optional numerics save, guards hold')
+
+  // Regression (2026-07): the client writes periodsPerWeek/lessonDurationMinutes
+  // as explicit null when the optional field is left blank, but the validator
+  // demanded `is int` whenever the key was present — so EVERY "Add teaching
+  // assignment" with a blank optional field was denied and surfaced as the
+  // generic "Could not save — please check your connection" error.
+  await test('teacher CAN create an assignment with null optional numerics (blank fields)', async () => {
+    await assertSucceeds(setDoc(doc(teacherA, 'teacherProfiles', TEACHER_A, 'teachingAssignments', 'ta_nulls'), {
+      teacherId: TEACHER_A,
+      grade: 'G4',
+      subject: 'mathematics',
+      className: '',
+      curriculumType: 'cbc',
+      periodsPerWeek: null,
+      lessonDurationMinutes: null,
+      isDefault: false,
+      isActive: true,
+    }))
+  })
+
+  await test('teacher CAN create an assignment with in-range numerics', async () => {
+    await assertSucceeds(setDoc(doc(teacherA, 'teacherProfiles', TEACHER_A, 'teachingAssignments', 'ta_ints'), {
+      teacherId: TEACHER_A,
+      grade: 'G4',
+      subject: 'english',
+      curriculumType: 'cbc',
+      periodsPerWeek: 5,
+      lessonDurationMinutes: 40,
+      isDefault: false,
+      isActive: true,
+    }))
+  })
+
+  await test('teacher CAN merge-clear a saved lesson duration back to null', async () => {
+    await assertSucceeds(setDoc(
+      doc(teacherA, 'teacherProfiles', TEACHER_A, 'teachingAssignments', 'ta_ints'),
+      { teacherId: TEACHER_A, lessonDurationMinutes: null },
+      { merge: true },
+    ))
+  })
+
+  await test('out-of-range lessonDurationMinutes is still rejected', async () => {
+    await assertFails(setDoc(doc(teacherA, 'teacherProfiles', TEACHER_A, 'teachingAssignments', 'ta_bad_minutes'), {
+      teacherId: TEACHER_A,
+      grade: 'G4',
+      subject: 'mathematics',
+      curriculumType: 'cbc',
+      periodsPerWeek: 5,
+      lessonDurationMinutes: 3,
+      isDefault: false,
+      isActive: true,
+    }))
+  })
+
+  await test('assignment spoofing another teacherId is still rejected', async () => {
+    await assertFails(setDoc(doc(teacherA, 'teacherProfiles', TEACHER_A, 'teachingAssignments', 'ta_spoof'), {
+      teacherId: TEACHER_B,
+      grade: 'G4',
+      subject: 'mathematics',
+      curriculumType: 'cbc',
+      periodsPerWeek: null,
+      lessonDurationMinutes: null,
+      isDefault: false,
+      isActive: true,
+    }))
+  })
+
+  await test('another teacher CANNOT create under someone else’s profile', async () => {
+    await assertFails(setDoc(doc(teacherB, 'teacherProfiles', TEACHER_A, 'teachingAssignments', 'ta_foreign'), {
+      teacherId: TEACHER_A,
+      grade: 'G4',
+      subject: 'mathematics',
+      curriculumType: 'cbc',
+      periodsPerWeek: null,
+      lessonDurationMinutes: null,
+      isDefault: false,
+      isActive: true,
+    }))
+  })
+
   // ── usageMeters/{uid}/periods — client-unwritable cost meter ─
   section('usageMeters — owner read, no client writes')
 

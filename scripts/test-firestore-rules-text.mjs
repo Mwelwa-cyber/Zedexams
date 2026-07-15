@@ -690,6 +690,26 @@ test('the signup surface stays available to unverified users', () => {
   )
 })
 
+// ── teachingAssignments — optional numerics accept explicit null ─
+
+console.log('\nteachingAssignments — optional numerics accept explicit null')
+
+test('periodsPerWeek / lessonDurationMinutes allow null (blank optional fields)', () => {
+  // Regression (2026-07): normalizeAssignment writes these as explicit null
+  // when the teacher leaves the optional field blank — which is nearly every
+  // save. Demanding `is int` whenever the key is present denied EVERY such
+  // create, surfacing as "Could not save — please check your connection" in
+  // the Add-teaching-assignment modal and the migration bulk-add.
+  assertContains(
+    "|| incoming().periodsPerWeek == null ||",
+    'periodsPerWeek must accept explicit null — the client writes null for a blank optional field',
+  )
+  assertContains(
+    "|| incoming().lessonDurationMinutes == null ||",
+    'lessonDurationMinutes must accept explicit null — the client writes null for a blank optional field',
+  )
+})
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log('')
