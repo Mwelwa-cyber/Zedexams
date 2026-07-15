@@ -171,13 +171,20 @@ async function callClaude(apiKey, opts = {}) {
     track,
   } = opts;
 
-  // Monthly spend ceiling. No-op unless a ceiling is armed on the runtime;
-  // fails open so an accounting glitch never blocks a generation.
-  {
-    const {isOverBudget, BUDGET_PAUSED_MESSAGE} = require("../aiCostTracking");
-    if (await isOverBudget()) {
-      throw new HttpsError("resource-exhausted", BUDGET_PAUSED_MESSAGE);
-    }
+  // Monthly spend ceiling — reservation-based hard gate. Reserves a
+  // conservative max cost up front so concurrent generations can't all read a
+  // stale "under budget" total and collectively overspend. No-op unless a
+  // ceiling is armed; fails open so an accounting glitch never blocks a
+  // generation. The reservation is reconciled to the actual cost after the
+  // call (settleAiCall) or released on failure (releaseAiCall).
+  const budgetGate = require("../aiCostTracking");
+  const reservationGate = await budgetGate.beginAiCall({
+    generationId: track && track.generationId,
+    model,
+    maxTokens,
+  });
+  if (!reservationGate.allowed) {
+    throw new HttpsError("resource-exhausted", budgetGate.BUDGET_PAUSED_MESSAGE);
   }
 
   // Validate mode + required params up front so config errors fail fast and
@@ -228,20 +235,30 @@ async function callClaude(apiKey, opts = {}) {
     });
   };
 
-  const result = await attemptWithFallback({
-    models: buildModelLadder(model),
-    dispatch,
-    streamProgressed: () => streamProgressed,
-  });
+  let result;
+  try {
+    result = await attemptWithFallback({
+      models: buildModelLadder(model),
+      dispatch,
+      streamProgressed: () => streamProgressed,
+    });
+  } catch (err) {
+    // The call failed → return the reserved budget so a burst of failures
+    // can't strand the month's ceiling. Idempotent + never throws.
+    budgetGate.releaseAiCall({reservation: reservationGate.reservation})
+        .catch((e) => console.warn("[anthropicClient] release failed", e));
+    throw err;
+  }
 
-  // Fire-and-forget usage rollup (same idiom as aiService — never throws,
-  // never awaited) so the monthly ceiling, the treasury governor, and
-  // /admin/ai-costs see teacher-generator spend, historically the largest
-  // category that never reached the meter the budget gate reads.
+  // Fire-and-forget reconcile + usage rollup (same idiom as aiService —
+  // never awaited on the response path). settleAiCall swaps the reserved
+  // amount for the ACTUAL cost in its bucket AND records the call in the
+  // sharded /admin/ai-costs + monthly-ceiling counters. A result with no
+  // usage means nothing was billed, so we just release the reservation.
   if (result && result.usage) {
     try {
-      const {recordAiUsage} = require("../aiCostTracking");
-      recordAiUsage({
+      budgetGate.settleAiCall({
+        reservation: reservationGate.reservation,
         uid: (track && track.uid) || null,
         tool: (track && track.tool) || "teacherTools",
         model: result.model || model,
@@ -251,10 +268,13 @@ async function callClaude(apiKey, opts = {}) {
           cache_creation_input_tokens: result.usage.cacheCreationTokens,
           cache_read_input_tokens: result.usage.cacheReadTokens,
         },
-      });
+      }).catch((err) => console.warn("[anthropicClient] settle/track failed", err));
     } catch (err) {
       console.warn("[anthropicClient] cost track failed", err);
     }
+  } else {
+    budgetGate.releaseAiCall({reservation: reservationGate.reservation})
+        .catch((e) => console.warn("[anthropicClient] release failed", e));
   }
   return result;
 }

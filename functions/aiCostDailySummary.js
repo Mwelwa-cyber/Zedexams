@@ -30,6 +30,7 @@ const {
   evaluateBudget,
   monthKeyUtc,
 } = require("./aiCostTracking");
+const {sumShardDocs, groupToolShards} = require("./shardedCounter");
 
 const REGION = "us-central1";
 const ANOMALY_MULTIPLIER = 2;
@@ -54,6 +55,41 @@ function median(values) {
 
 function fmtUsd(n) {
   return `$${(Number(n) || 0).toFixed(2)}`;
+}
+
+/**
+ * Read one day's totals by summing its shard docs (aiUsage/{date}/shards/*)
+ * and folding in the legacy single-doc total for pre-migration days. Returns
+ * null when the day has no data. Never throws.
+ */
+async function readDayRow(db, date) {
+  const dayRef = db.collection("aiUsage").doc(date);
+  const [legacy, shards] = await Promise.all([
+    dayRef.get().catch(() => null),
+    dayRef.collection("shards").get().catch(() => null),
+  ]);
+  const docs = [];
+  if (legacy && legacy.exists) docs.push(legacy.data());
+  if (shards) shards.forEach((s) => docs.push(s.data()));
+  if (docs.length === 0) return null;
+  return {...sumShardDocs(docs, {carry: ["date"]}), date};
+}
+
+/**
+ * Top tools for a day, summed across the flattened tool shards
+ * (aiUsage/{date}/toolShards/{tool}__{shard}) plus any legacy per-tool docs.
+ * Sorted by cost desc, limited. Never throws.
+ */
+async function readTopTools(db, date, limit) {
+  const dayRef = db.collection("aiUsage").doc(date);
+  const [legacy, shards] = await Promise.all([
+    dayRef.collection("tools").get().catch(() => ({docs: []})),
+    dayRef.collection("toolShards").get().catch(() => ({docs: []})),
+  ]);
+  const docs = [];
+  legacy.docs.forEach((d) => docs.push({tool: d.id, ...d.data()}));
+  shards.docs.forEach((d) => docs.push(d.data()));
+  return groupToolShards(docs).slice(0, limit);
 }
 
 let cachedTransporter = null;
@@ -192,13 +228,8 @@ const aiCostDailySummary = onSchedule({
   for (let i = 1; i <= HISTORY_DAYS + 1; i += 1) {
     dayKeys.push(dateKey(-i));
   }
-  const docs = await Promise.all(
-      dayKeys.map((k) => db.collection("aiUsage").doc(k).get().catch(() => null)),
-  );
-
-  const rows = docs
-      .filter((s) => s && s.exists)
-      .map((s) => ({date: s.id, ...(s.data() || {})}));
+  const rows = (await Promise.all(dayKeys.map((k) => readDayRow(db, k))))
+      .filter(Boolean);
 
   const yesterdayRow = rows.find((r) => r.date === yesterday);
   const historyRows = rows
@@ -219,12 +250,7 @@ const aiCostDailySummary = onSchedule({
   let topUsers = [];
   if (yesterdayRow) {
     try {
-      const toolsSnap = await db
-          .collection("aiUsage").doc(yesterday).collection("tools")
-          .orderBy("costUsd", "desc")
-          .limit(5)
-          .get();
-      topTools = toolsSnap.docs.map((d) => ({id: d.id, ...d.data()}));
+      topTools = await readTopTools(db, yesterday, 5);
     } catch (err) {
       console.warn("[aiCostDailySummary] tools read failed", err);
     }
