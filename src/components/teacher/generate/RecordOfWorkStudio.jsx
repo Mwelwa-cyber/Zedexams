@@ -52,10 +52,11 @@ export default function RecordOfWorkStudio() {
   const toast = useToast()
   const uid = currentUser?.uid
 
-  const [header, setHeader] = useState(() => {
-    // Open on the current teaching term (School Calendar) and the active
-    // Teaching Profile assignment's grade, so the record starts on the right
-    // term/class instead of a fixed Term 1 · Grade 4.
+  // Fresh-record defaults: the current teaching term (School Calendar) and the
+  // active Teaching Profile assignment's grade — the right term/class instead
+  // of a fixed Term 1 · Grade 4. Also used to reset when an id-load fails or
+  // the teacher navigates back to the plain route.
+  const freshHeader = () => {
     const fw = getCurrentForecastWeek()
     const seed = readActiveAssignmentSeed(currentUser?.uid)
     return {
@@ -66,7 +67,8 @@ export default function RecordOfWorkStudio() {
       term: fw?.termNumber || 1,
       year: String(fw?.year || new Date().getFullYear()),
     }
-  })
+  }
+  const [header, setHeader] = useState(freshHeader)
   const [weeks, setWeeks] = useState(() => [blankRecordWeek(1)])
 
   // Scheme source picker.
@@ -93,15 +95,42 @@ export default function RecordOfWorkStudio() {
   const [highlightWeek, setHighlightWeek] = useState(null)
   const loadedIdRef = useRef('')
 
+  // Reset the studio to a fresh record — used when an id-load fails (so edits
+  // and saves can never keep targeting a previously opened library item) and
+  // when the teacher navigates from ?id=… back to the plain route (React Router
+  // reuses this component instance, so state must be cleared explicitly).
+  const resetToFreshRecord = () => {
+    loadedIdRef.current = ''
+    setHeader(freshHeader())
+    setWeeks([blankRecordWeek(1)])
+    setGenerationId(null)
+    setHighlightWeek(null)
+    dirtySkipRef.current += 1
+  }
+
   useEffect(() => {
-    if (!uid || !openRecordId || loadedIdRef.current === openRecordId) return
+    if (!openRecordId) {
+      // Back on the plain route after viewing a record by id — start fresh so
+      // the default flow never silently edits the previously opened record.
+      if (loadedIdRef.current) { resetToFreshRecord(); setOpenState('idle') }
+      return undefined
+    }
+    if (!uid || loadedIdRef.current === openRecordId) return undefined
     let cancelled = false
     setOpenState('loading')
     ;(async () => {
       const gen = await getGeneration(openRecordId).catch(() => null)
       if (cancelled) return
-      const restored = restoreRecordFromGeneration(gen)
-      if (!restored) { setOpenState('error'); return }
+      // Ownership: admins can READ any generation, but this is a teacher
+      // editing surface — only the owner may hydrate + save through it.
+      const restored = gen && gen.ownerUid === uid ? restoreRecordFromGeneration(gen) : null
+      if (!restored) {
+        // Never leave a previously loaded record (or its generationId) behind a
+        // failed load — the error card offers a genuinely fresh start.
+        resetToFreshRecord()
+        setOpenState('error')
+        return
+      }
       loadedIdRef.current = openRecordId
       setHeader(restored.header)
       setWeeks(restored.weeks)
@@ -372,7 +401,11 @@ export default function RecordOfWorkStudio() {
               </div>
             </div>
           )}
-          <DraftRecoveryPrompt {...draft} label="record of work" />
+          {/* The shared current-draft recovery is suppressed when a specific
+              record was opened by id: restoring an unrelated draft here would
+              overwrite the opened record's state (and its save target). The
+              stored draft is kept — it reappears on a normal visit. */}
+          {!openRecordId && <DraftRecoveryPrompt {...draft} label="record of work" />}
           {/* ── Build from a scheme ── */}
           <section className="studio-card p-5 space-y-3">
             <div>

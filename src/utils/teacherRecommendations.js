@@ -26,6 +26,7 @@ import {
   weekAttributionOf,
   PREP_ROUTES,
 } from './prepareThisWeek.js'
+import { oldestDueIncompleteWeek } from './recordOfWorkStatus.js'
 
 function toMs(t) {
   if (!t) return 0
@@ -159,13 +160,30 @@ export function buildRecommendations({
     const taughtEvidence = lessonsThisWeek > 0 || focusDays > 0
     if (taughtEvidence && !recordUpdated) {
       const n = lessonsThisWeek || focusDays
+      // Deep-link to the OLDEST due week with nothing recorded — an earlier
+      // unrecorded week, not necessarily today's, is the real cause of the
+      // behind status. The studio opens that record (?id=) focused on that
+      // week (&week=). Recorded coverage always outranks date-derived states.
+      const targetWeek = record ? oldestDueIncompleteWeek(record.output?.weeks, weekNumber) : null
+      const targetRow = targetWeek != null
+        ? (record.output?.weeks || []).find((w) => Number(w?.week) === targetWeek)
+        : null
+      const scopeBits = [context.grade ? gradeLabelOf(context.grade) : '', subjectLabelOf(context.subject)].filter(Boolean).join(' ')
       out.push({
         id: 'record-behind',
         icon: '🗂️',
-        title: 'Record of Work is behind',
-        text: `${n} lesson${n === 1 ? ' was' : 's were'} planned for this week but ${n === 1 ? 'has' : 'have'} not been recorded.`,
-        actionLabel: 'Update now',
-        to: record ? PREP_ROUTES.library(record.id) : PREP_ROUTES.record,
+        title: 'Record of Work needs updating',
+        text: targetWeek != null
+          ? (String(targetRow?.topic || '').trim()
+            ? `${scopeBits} has planned work for Week ${targetWeek}, but actual coverage has not been recorded.`
+            : `${scopeBits} Week ${targetWeek} has not been recorded yet.`)
+          : `${n} lesson${n === 1 ? ' was' : 's were'} planned for this week but ${n === 1 ? 'has' : 'have'} not been recorded.`,
+        actionLabel: targetWeek != null ? `Update Week ${targetWeek}` : 'Update now',
+        to: record
+          ? (targetWeek != null
+            ? `${PREP_ROUTES.record}?id=${record.id}&week=${targetWeek}`
+            : PREP_ROUTES.library(record.id))
+          : PREP_ROUTES.record,
       })
     }
 
