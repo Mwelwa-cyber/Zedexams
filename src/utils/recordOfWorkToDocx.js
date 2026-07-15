@@ -12,7 +12,9 @@ import {
   AlignmentType,
   BorderStyle,
   Document,
+  Footer,
   Packer,
+  PageNumber,
   PageOrientation,
   Paragraph,
   Table,
@@ -22,7 +24,7 @@ import {
   WidthType,
 } from 'docx'
 import { printedRemark } from './recordOfWork.js'
-import { attributionSection } from './docxAttribution.js'
+import { attributionSection, attributionFooterParagraph } from './docxAttribution.js'
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '000000' },
@@ -80,6 +82,9 @@ export function buildRecordOfWorkDocument(record, opts = {}) {
   })
 
   const weekRows = weeks.map((w) => new TableRow({
+    // A week's row is never cut across a page break — a multi-page term moves
+    // the whole week to the next page (the header row repeats via tableHeader).
+    cantSplit: true,
     children: [
       cell(w.week, { bold: true, center: true }),
       cell(w.weekEnding || ''),
@@ -90,9 +95,31 @@ export function buildRecordOfWorkDocument(record, opts = {}) {
     ],
   }))
 
+  // Footer: "Page X of Y" so a multi-page record photocopies/collates safely.
+  // Free-plan exports keep the attribution line in the same footer (the
+  // watermark header still comes from attributionSection); statutory content
+  // is untouched — this is page furniture only.
+  const grey = { size: 14, color: '888888' }
+  const footer = new Footer({
+    children: [
+      ...(opts?.attribution ? [attributionFooterParagraph()] : []),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new TextRun({ text: 'Page ', ...grey }),
+          new TextRun({ children: [PageNumber.CURRENT], ...grey }),
+          new TextRun({ text: ' of ', ...grey }),
+          new TextRun({ children: [PageNumber.TOTAL_PAGES], ...grey }),
+        ],
+      }),
+    ],
+  })
+
+  const attr = attributionSection(opts) // watermark header (free plan) or {}
   return new Document({
     sections: [{
-      ...attributionSection(opts),
+      ...(attr.headers ? { headers: attr.headers } : {}),
+      footers: { default: footer },
       properties: {
         // Landscape — matches the scheme + forecast family and gives the
         // WORK DONE column the room a term's log actually needs.

@@ -513,10 +513,12 @@ for (const c of CASES) {
       assert(branded.footerNames.length >= 1, 'attribution:true — document carries a real footer part')
       assert(branded.footerXml.includes('Made with ZedExams'), 'attribution:true — footer carries the attribution line')
 
-      // Paid/admin export stays clean.
+      // Paid/admin export stays clean — no branding anywhere. (A footer part
+      // may legitimately exist for page furniture, e.g. the Record of Work's
+      // "Page X of Y"; the invariant is no ATTRIBUTION, not no footer.)
       const clean = await unzipDoc(await c.build({ attribution: false }))
       assert(!clean.headerXml.includes('textpath'), 'attribution:false — no watermark in any header part')
-      assert(clean.footerNames.length === 0, 'attribution:false — no attribution footer part')
+      assert(!clean.footerXml.includes('Made with ZedExams'), 'attribution:false — no attribution line in any footer part')
     }
     if (c.extra) await c.extra()
   } catch (err) {
