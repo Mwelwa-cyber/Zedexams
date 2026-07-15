@@ -56,7 +56,7 @@ export default function TeachingProfilePanel() {
   const {
     uid, loading, error, hasProfile, profile, assignments,
     schoolName, context, completion, yearMismatch, effectiveDefaultId, reload,
-  } = useTeachingProfile()
+  } = useTeachingProfile({ detectConnections: true }) // this panel renders the checklist
 
   const { userProfile } = useAuth()
   const { getMyAssessments } = useFirestore()
