@@ -24,6 +24,14 @@ vi.mock('../../hooks/useTeacherUsage', () => ({
   FEATURE_LABELS: {},
 }))
 
+// The hero derives its Classes/Subjects tiles from the Teaching Profile
+// assignments; stub the IO so the spec never touches firebase/config. No
+// assignments here → counts fall back to the legacy `teaching` field below.
+vi.mock('../../utils/teachingProfileService', () => ({
+  getTeachingProfile: vi.fn(() => Promise.resolve(null)),
+  listAssignments: vi.fn(() => Promise.resolve([])),
+}))
+
 // The feedback dialog pulls Firestore; the hub only needs its launcher.
 vi.mock('../../components/feedback/FeedbackDialog', () => ({
   default: () => null,
@@ -63,7 +71,7 @@ describe('SettingsHome', () => {
       )
       expect(hit, `row link for ${row.id}`).toBeTruthy()
     }
-    expect(ALL_SETTINGS_ROWS).toHaveLength(17)
+    expect(ALL_SETTINGS_ROWS).toHaveLength(16)
   })
 
   it('shows the hero with greeting, plan badge, school and stats', () => {

@@ -122,10 +122,38 @@ export function preferredDifficulty(userProfile, kind) {
   return kind === 'homework' ? prefs.ai.homeworkDifficulty : prefs.ai.assessmentDifficulty
 }
 
-// Convenience for hero/summary surfaces: counts derived from the saved
-// teaching assignment ({ classes, subjects } — classes prefers streams, since
-// "5A + 5B" is two classes even when both are Grade 5).
-export function teachingCounts(userProfile) {
+// Convenience for hero/summary surfaces: { classes, subjects }.
+//
+// Single source of truth is the Teaching Profile — the list of discrete
+// teaching assignments (grade + subject + class). When any are passed, counts
+// derive from them: classes prefer distinct class names (streams), since
+// "5A + 5B" is two classes even when both are Grade 5, and fall back to
+// distinct grades when no class names are set. Only ACTIVE assignments count.
+//
+// `assignments` is optional so legacy callers still work: with none (a teacher
+// who has not built a Teaching Profile yet) counts fall back to the flat
+// `userProfile.teaching` field, so nobody's stats drop to zero mid-migration.
+export function teachingCounts(userProfile, assignments = null) {
+  const active = Array.isArray(assignments)
+    ? assignments.filter((a) => a && a.isActive !== false)
+    : []
+
+  if (active.length > 0) {
+    const classNames = new Set()
+    const grades = new Set()
+    const subjects = new Set()
+    for (const a of active) {
+      const className = typeof a.className === 'string' ? a.className.trim() : ''
+      if (className) classNames.add(className.toLowerCase())
+      if (a.grade) grades.add(String(a.grade))
+      if (a.subject) subjects.add(String(a.subject))
+    }
+    return {
+      classes: classNames.size > 0 ? classNames.size : grades.size,
+      subjects: subjects.size,
+    }
+  }
+
   const t = normalizeTeaching(userProfile?.teaching)
   return {
     classes: t.streams.length > 0 ? t.streams.length : t.grades.length,
