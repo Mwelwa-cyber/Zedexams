@@ -12387,11 +12387,21 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "1.1 Geography 1.2.The Solar System",
-            "SUB-TOPIC": "1.1.1 .Introduction to Geography 1.2.1.The Earth in the Solar System",
-            "SPECIFIC COMPETENCES": "1.1.1.1.Demonstrate understanding of Geography 1.2.1.1.Demonstrate understanding of the position of the Earth in the solar system",
-            "LEARNING ACTIVITIES": "• Discus singGeogra phy(Major concepts in Geogra phy)\n• Identifying various branches of Geography (Physical and Hu man )\n• Analysing the importance of studying Geography (Conservation of the environment, spatial and navigational skill…)\n• Identifyingvarious elements found in the solar system (Sun, Planets, Meteors…)\n• Engaging in observing celestial activities as a hobby or for educational purposes such as (observing visibleplanets, phases of the moon, stars, eclipses, meteor showers…)",
-            "EXPECTED STANDARD": "• Understanding of Geography demonstrated clearly\n• Understanding of the position of the earth in the solar system demonstrated correctly"
+            "TOPIC": "1.1 Geography",
+            "SUB-TOPIC": "1.1.1 Introduction to Geography",
+            "SPECIFIC COMPETENCES": "1.1.1.1.Demonstrate understanding of Geography",
+            "LEARNING ACTIVITIES": "• Discus singGeogra phy(Major concepts in Geogra phy)\n• Identifying various branches of Geography (Physical and Hu man )\n• Analysing the importance of studying Geography (Conservation of the environment, spatial and navigational skill…)",
+            "EXPECTED STANDARD": "• Understanding of Geography demonstrated clearly"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "1.2 The Solar System",
+            "SUB-TOPIC": "1.2.1 The Earth in the Solar System",
+            "SPECIFIC COMPETENCES": "1.2.1.1.Demonstrate understanding of the position of the Earth in the solar system",
+            "LEARNING ACTIVITIES": "• Identifyingvarious elements found in the solar system (Sun, Planets, Meteors…)\n• Engaging in observing celestial activities as a hobby or for educational purposes such as (observing visibleplanets, phases of the moon, stars, eclipses, meteor showers…)",
+            "EXPECTED STANDARD": "• Understanding of the position of the earth in the solar system demonstrated correctly"
           }
         },
         {
@@ -13872,8 +13882,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.6.1 UNIP and the Lumpa Church",
-            "SPECIFIC COMPETENCES": "3.6.1.1 Utilise different strategies in responding to challenges",
+            "SUB-TOPIC": "3.5.3 UNIP and the Lumpa Church",
+            "SPECIFIC COMPETENCES": "3.5.3.1 Utilise different strategies in responding to challenges",
             "LEARNING ACTIVITIES": "• Examining activities of the Lumpa Church (how these activities threatened UNIP rule)\n• Assessing UNIP’s response to the Lumpa church problem\n• Analysing the rebirth of the church after the change of government in 1991(Jerusalem Church)",
             "EXPECTED STANDARD": "• Different strategies in responding to challenges utilised accordingly"
           }
@@ -13882,8 +13892,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.6.2 UNIP and the Insurgency of Adamson Mushala",
-            "SPECIFIC COMPETENCES": "3.6.2.1 Engage in ways of conflict resolution in society",
+            "SUB-TOPIC": "3.5.4 UNIP and the Insurgency of Adamson Mushala",
+            "SPECIFIC COMPETENCES": "3.5.4.1 Engage in ways of conflict resolution in society",
             "LEARNING ACTIVITIES": "• Exploring ways of conflict resolution\n• Accounting for the rise of Adamson Mushala\n• Describing activities of Adamson Mushala",
             "EXPECTED STANDARD": "• Ways of engaging in conflict resolution in society explored accordingly"
           }
@@ -13892,8 +13902,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.6.3 UNIP’s reign and attempted military coups.",
-            "SPECIFIC COMPETENCES": "3.6.3.1 Promote the culture of ascending to power democratically",
+            "SUB-TOPIC": "3.5.5 UNIP’s reign and attempted military coups.",
+            "SPECIFIC COMPETENCES": "3.5.5.1 Promote the culture of ascending to power democratically",
             "LEARNING ACTIVITIES": "• Identifying attempted military coups under UNIP’s reign (Christon Tembo, Mwamba Luchembe)\n• Assessing reasons for attempted coups during the UNIP regime\n• Evaluating the impact of the attempted coups on Zambia politics",
             "EXPECTED STANDARD": "• Democratic methods of ascending to power promoted accordingly"
           }
@@ -13902,8 +13912,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.6.4 UNIP’s Foreign policy-1964 –1991.",
-            "SPECIFIC COMPETENCES": "3.6.4.1 Examine UNIP’s foreign policies (Political and socio- economic)",
+            "SUB-TOPIC": "3.5.6 UNIP’s Foreign policy-1964 –1991.",
+            "SPECIFIC COMPETENCES": "3.5.6.1 Examine UNIP’s foreign policies (Political and socio- economic)",
             "LEARNING ACTIVITIES": "• Discussing the Foreign policy of UNIP government (Non- Alignment, Pan- Africanism…)\n• Evaluating the effects of UNIP’s foreign policy on Zambia",
             "EXPECTED STANDARD": "• UNIP’s foreign policy examined correctly"
           }
@@ -13912,8 +13922,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.6.5 Zambia under the Movement for Multi- Party Democracy (MMD): 1991 –2011.",
-            "SPECIFIC COMPETENCES": "3.6.5.1 Analyse policies of the MMD government",
+            "SUB-TOPIC": "3.5.7 Zambia under the Movement for Multi- Party Democracy (MMD): 1991 –2011.",
+            "SPECIFIC COMPETENCES": "3.5.7.1 Analyse policies of the MMD government",
             "LEARNING ACTIVITIES": "• Identifying the Presidents of Zambia under the MMD (Fredrick T.J Chiluba, Levy P. Mwanawasa, and Rupiah B. Banda).\n• Discussing the domestic policy of the MMD government (Political, economic, social...)\n• Analysing the challenges that came witht he MMD’s domestic policy (Privatization, loss of jobs, economic problems, 1997 attempted coup…)\n• Discussing the MMD’s foreign policy (promotion of international relations, Non-Aligned…)",
             "EXPECTED STANDARD": "• Policies of the MMD government analysed correctly"
           }
@@ -13922,8 +13932,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.6.6 Zambia under the Patriotic Front (PF): 2011– 2021",
-            "SPECIFIC COMPETENCES": "3.6.6.1 Examine PF government policies",
+            "SUB-TOPIC": "3.5.8 Zambia under the Patriotic Front (PF): 2011– 2021",
+            "SPECIFIC COMPETENCES": "3.5.8.1 Examine PF government policies",
             "LEARNING ACTIVITIES": "• Identifying the Presidents of Zambia under the PF(Michael C. Sata, Edgar C. Lungu)\n• Discussing the domestic policy of the PF government (Political, socio- economic...)\n• Discussing the Foreign policy of the PF government.\n• Analysing the challenges faced by the PF government arising from its domestic and foreign policies",
             "EXPECTED STANDARD": "• Policies of the PF government examined correctly"
           }
@@ -13932,8 +13942,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.6.7 Zambia under the United Party for National Development (UPND): since 2021",
-            "SPECIFIC COMPETENCES": "3.6.7.1 Analyse UPND’s policies since 2021",
+            "SUB-TOPIC": "3.5.9 Zambia under the United Party for National Development (UPND): since 2021",
+            "SPECIFIC COMPETENCES": "3.5.9.1 Analyse UPND’s policies since 2021",
             "LEARNING ACTIVITIES": "• Identifying the president of Zambia under the UPND (Hakainde Hichilema)\n• Discussing the domestic policy of the UPND government (Political, economic, social...)\n• Analysing the Foreign policy of the UPND government",
             "EXPECTED STANDARD": "• Policies of the UPND government analysed accordingly"
           }
@@ -14403,9 +14413,19 @@
           "cells": {
             "TOPIC": "1.1.INTRODUCTION TO HOSPITALITY",
             "SUB-TOPIC": "1.1.1. Historical Overview",
+            "SPECIFIC COMPETENCES": "1.1.1.1. Demonstrate understanding of the historical background of hospitality industry",
+            "LEARNING ACTIVITIES": "• Discussing hospitality industry sectors:(lodging, food and beverage travel and tourism, recreation and entertainment, event management…)\n• Explaining the history of hospitality industry:(ancient times, middle ages, renaissance, enlightenment…)\n• Describing the link between hospitality and tourism: (hotels and resorts, restaurants and bars, tour operations, travel agencies service…)\n• Identifying job/career opportunities in the hospitality business:(hotel manager, receptionist, chef, event coordinator, entrepreneur…)\n• Conducting career talks by industry people\n• Undertaking an educational tour to a Hospitality facility: (hotels, leisure resorts, restaurants…)",
+            "EXPECTED STANDARD": "• Understanding of the historical background of the hospitality industry demonstrated appropriately"
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "",
+            "SUB-TOPIC": "1.1.2 Traditional and modern hospitality practices in Zambia",
             "SPECIFIC COMPETENCES": "1.1.2.1 Apply traditional and modern hospitality practices in Zambia",
-            "LEARNING ACTIVITIES": "• Discussing hospitality industry sectors:(lodging, food and beverage travel and tourism, recreation and entertainment, event management…)\n• Explaining the history of hospitality industry:(ancient times, middle ages, renaissance, enlightenment…)\n• Describing the link between hospitality and tourism: (hotels and resorts, restaurants and bars, tour operations, travel agencies service…)\n• Identifying job/career opportunities in the hospitality business:(hotel manager, receptionist, chef, event coordinator, entrepreneur…)\n• Conducting career talks by industry people\n• Undertaking an educational tour to a Hospitality facility: (hotels, leisure resorts, restaurants…)\n• Practicing traditional and modern social hospitality norms:(Greeting people, waiting in line, taking turns…)\n• Applying Cultural hospitality norms:(removing shoes before entering the house, using correct utensils, observing table manners…)\n• Illustrating Organizational hospitality norms:(dress code, communication styles, protocols…) Developing Group hospitality norms:(team work, conflict resolution, communication…)",
-            "EXPECTED STANDARD": "• Understanding of the historical background of the hospitality industry demonstrated appropriately Traditional and modern hospitality practices in Zambia applied accordingly"
+            "LEARNING ACTIVITIES": "• Practicing traditional and modern social hospitality norms:(Greeting people, waiting in line, taking turns…)\n• Applying Cultural hospitality norms:(removing shoes before entering the house, using correct utensils, observing table manners…)\n• Illustrating Organizational hospitality norms:(dress code, communication styles, protocols…)\n• Developing Group hospitality norms:(team work, conflict resolution, communication…)",
+            "EXPECTED STANDARD": "• Traditional and modern hospitality practices in Zambia applied accordingly"
           }
         },
         {
@@ -14413,7 +14433,7 @@
           "cells": {
             "TOPIC": "",
             "SUB-TOPIC": "1.1.3. Benefits of the hospitality industry",
-            "SPECIFIC COMPETENCES": "1.1.1.1. Explore benefits of the hospitality industry",
+            "SPECIFIC COMPETENCES": "1.1.3.1. Explore benefits of the hospitality industry",
             "LEARNING ACTIVITIES": "• Creating relationships in the hospitality industry: (loyalty programs, consistency and reliability, active listening, community involvement…)\n• Conducting a cultural exchange in the hospitality industry:(language training, cultural orientation, traditional events, local partnerships…)\n• Creating memorable experiences in the hospitality:(Service personalization, attention to detail, storytelling , local experiences …)",
             "EXPECTED STANDARD": "Benefits of the hospitality industry explored accordingly"
           }
@@ -14602,7 +14622,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "1.6. ENTREPRENEURSHIP",
-            "SUB-TOPIC": "1.1.1. Ethics",
+            "SUB-TOPIC": "1.6.1. Ethics",
             "SPECIFIC COMPETENCES": "1.6.1.1. Identify business opportunities",
             "LEARNING ACTIVITIES": "• Discussing entrepreneurship\n• Describing qualities of an entrepreneur: (risk taking, disciplined…)\n• Exploring business opportunities: ( selling of sweets, scones, pens, landscaping…)",
             "EXPECTED STANDARD": "Business ideas explored extensively"
@@ -14633,7 +14653,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "2.21. Front office",
+            "TOPIC": "2.2. Front office",
             "SUB-TOPIC": "2.2.1. Front office operations",
             "SPECIFIC COMPETENCES": "2.2.1.1. Apply skills to deliver exceptional front office services",
             "LEARNING ACTIVITIES": "• Creating a mock scenario for front office desk customer service: Pre-arrival stage :(inquiries, reservations…); Arrivals stage: (Porter, Registration, room assignment…); Occupancy stage: (guest services, billing, complaints…); Departure stage:(payments, handovers...); Social skills :(Posture, Eye contact, Pose and deportment, Gestures…)",
@@ -14654,8 +14674,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "2.3.2.1 Cleaning areas and processes",
-            "SPECIFIC COMPETENCES": "2..1.1. Apply correct cleaning processes.",
+            "SUB-TOPIC": "2.3.2 Cleaning areas and processes",
+            "SPECIFIC COMPETENCES": "2.3.2.1. Apply correct cleaning processes.",
             "LEARNING ACTIVITIES": "• Identifying cleaning areas: (guest rooms, Corridors, public areas, conference rooms…)\n• Using correct cleaning processes for different areas:(Sanitizing, Sterilizing, disinfecting, decontaminating, polishing, mopping, vacuuming…)\n• Making use of cleaning processes on: (cars, carpets, upholstered furniture…)",
             "EXPECTED STANDARD": "Cleaning processes applied skillfully"
           }
@@ -14664,7 +14684,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "2.3.1 Laundry in hospitality facility",
+            "SUB-TOPIC": "2.3.3 Laundry in hospitality facility",
             "SPECIFIC COMPETENCES": "2.3.3.1 Perform laundry procedures in hospitality facility",
             "LEARNING ACTIVITIES": "• Demonstrating laundry procedures for guest linen:(collecting and Sorting, pre-treatment, washing drying, ironing, Storage, Distribution…)",
             "EXPECTED STANDARD": "Laundry procedures performed accordingly"
@@ -14764,8 +14784,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "2.6. ENTREPRENEURSHIP",
-            "SUB-TOPIC": "2.5.1.Types of Businesses",
-            "SPECIFIC COMPETENCES": "2.5.1.1. Set up a business venture",
+            "SUB-TOPIC": "2.6.1.Types of Businesses",
+            "SPECIFIC COMPETENCES": "2.6.1.1. Set up a business venture",
             "LEARNING ACTIVITIES": "• exploring different types of businesses: (partnership, sole trade limited business…)\n• explaining the requirement for setting up a business: pre operational requirements: (business plan, registration and licensing, financial…);\n• operational requirements: (business location…)\n• regulatory compliance: ( health and safety…)",
             "EXPECTED STANDARD": "Business ventures set up successfully"
           }
@@ -14956,8 +14976,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Barriers to Communication",
-            "SPECIFIC COMPETENCES": "3.1.2.1. Recognise barriers to communication in hospitality facility.",
+            "SUB-TOPIC": "3.6.2. Barriers to Communication",
+            "SPECIFIC COMPETENCES": "3.6.2.1. Recognise barriers to communication in hospitality facility.",
             "LEARNING ACTIVITIES": "• Exploring common barriers to communication (language, cultural, noise and distractions, emotional…)\n• Illustrating effective communication: (cultural awareness, active listening, non- judgmental attitude, patience…)\n• Role playing scenarios demonstrating different barriers (language, cultural, generational, status…)",
             "EXPECTED STANDARD": "Barriers to communication in hospitality facility recognised efficiently"
           }
@@ -14986,8 +15006,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "3.1.1.Security Risks in Hospitality Facility",
-            "SPECIFIC COMPETENCES": "SPECIFIC COMPETENCIES 3.1.1.1.Mitigate security risks in hospitality facility",
+            "SUB-TOPIC": "3.7.2. Security Risks in Hospitality Facility",
+            "SPECIFIC COMPETENCES": "3.7.2.1. Mitigate security risks in hospitality facility",
             "LEARNING ACTIVITIES": "• Discussing potential security risks in a hospitality facility :(theft, violence, cyber security, property damage…)\n• Developing security mitigation strategies in hospitality facilities:(risk assessment, protocol, access control, emergency preparedness…)\n• Developing a security protocol (define security goals, identify assets, and assign roles…)\n• Practicing mitigation strategies (guest safety, property protection, employee safety, compliance…)",
             "EXPECTED STANDARD": "Security risks in hospitality facility mitigated successfully"
           }
@@ -14995,9 +15015,9 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "3.2. ENTREPRENEURSHIP",
-            "SUB-TOPIC": "3.2.1. Business Plan",
-            "SPECIFIC COMPETENCES": "3.2.1.1. Develop a business plan",
+            "TOPIC": "3.8. ENTREPRENEURSHIP",
+            "SUB-TOPIC": "3.8.1. Business Plan",
+            "SPECIFIC COMPETENCES": "3.8.1.1. Develop a business plan",
             "LEARNING ACTIVITIES": "• Developing a business plan for any business of choice from any component of hospitality management.\n• Nurturing and growing an identified business venture.",
             "EXPECTED STANDARD": "Business plan developed concisely"
           }
@@ -15037,9 +15057,9 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "4.1. GASTRONOMY",
-            "SUB-TOPIC": "4.1.1. Culinary Techniques and Methods",
-            "SPECIFIC COMPETENCES": "4.1.1.1. Present culinary styles of cuisines",
+            "TOPIC": "4.3. GASTRONOMY",
+            "SUB-TOPIC": "4.3.1. Culinary Techniques and Methods",
+            "SPECIFIC COMPETENCES": "4.3.1.1. Present culinary styles of cuisines",
             "LEARNING ACTIVITIES": "• Displaying the culinary skills using nouvelle techniques to prepare different cuisines and traditional dishes: (Charcoal and smoke infusion, fermentation and pickling, 3D food printing…)\n• Practicing Zambian Gastronomy\n• Preparing different styles of cuisines: (Mediterranean, oriental, classical cuisines, fusion cuisines, Haute, Molecular…)",
             "EXPECTED STANDARD": "Culinary styles of cuisines presented skillfully"
           }
@@ -15048,8 +15068,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.4.2. Sous-Vide Cooking Technique (vacuum packaging)",
-            "SPECIFIC COMPETENCES": "4.4.2.1. Apply the techniques of using Sous-vide",
+            "SUB-TOPIC": "4.3.2. Sous-Vide Cooking Technique (vacuum packaging)",
+            "SPECIFIC COMPETENCES": "4.3.2.1. Apply the techniques of using Sous-vide",
             "LEARNING ACTIVITIES": "• Discussing sous-vide cooking technique\n• Demonstrating how to set up the sous- vide machine and water bath.\n• Showing how to vacuum-seal different types of ingredients, ensuring proper sealing.\n• Demonstrating the sous-vide cooking process, emphasizing the importance of temperature and time for different types of food (steak at 131°F for medium, rare, chicken breast at 140°F…)",
             "EXPECTED STANDARD": "Techniques of sous vide applied correctly"
           }
@@ -15058,8 +15078,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.4.3. Food and Culture",
-            "SPECIFIC COMPETENCES": "4.4.3.1. Utilise cultural uniqueness and their cuisines",
+            "SUB-TOPIC": "4.3.3. Food and Culture",
+            "SPECIFIC COMPETENCES": "4.3.3.1. Utilise cultural uniqueness and their cuisines",
             "LEARNING ACTIVITIES": "• Engaging in cooking experience of different cultural significance and traditions.\n• Researching on the relationship between food and Zambian culture: (matebeto, viphiko, pobwe lya chizyole...)\n• familiarising with food processing industry.",
             "EXPECTED STANDARD": "Cultural uniqueness and their cuisine utulised accordingly"
           }
@@ -15068,8 +15088,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.4.4. Gastronomy and Innovation",
-            "SPECIFIC COMPETENCES": "4.4.4.1. Reinvent Indigenous dishes",
+            "SUB-TOPIC": "4.3.4. Gastronomy and Innovation",
+            "SPECIFIC COMPETENCES": "4.3.4.1. Reinvent Indigenous dishes",
             "LEARNING ACTIVITIES": "• Discussing the culinary highlights of different regions: (Chikanda, Lusala, cassava, mabuyu…)\n• Organizing a classroom exhibition where pupils display their food prepared using indigenous ingredients.\n• Creating a food culture diary : (stalls, vendors ,traditional ceremonies…)",
             "EXPECTED STANDARD": "Indigenous dishes reinvented successfully"
           }
@@ -15078,8 +15098,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.4.5. Food Preservation",
-            "SPECIFIC COMPETENCES": "4.4.5.1. Apply food preservation methods",
+            "SUB-TOPIC": "4.3.5. Food Preservation",
+            "SPECIFIC COMPETENCES": "4.3.5.1. Apply food preservation methods",
             "LEARNING ACTIVITIES": "• Discussing food preservation\n• Preserving different foods using suitable methods: heat treatment:(sterilization, pasteurization, bottling…); Removal of moisture: (sun drying, smoking…); Addition of chemical: (salting, acidification, food additives…);\n• Adding value to food: (Biltong, Tomato paste…)\n• Storing and handling preserved foods: (air tight containers, cool dry place, labelling and dating…)\n• Using locally preserved foods to create new and exciting dishes",
             "EXPECTED STANDARD": "Food preservation methods applied skillfully"
           }
@@ -15128,8 +15148,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.5.1. Barbering",
-            "SPECIFIC COMPETENCES": "4.5.1.1. Apply barbering skills",
+            "SUB-TOPIC": "4.5.4. Barbering",
+            "SPECIFIC COMPETENCES": "4.5.4.1. Apply barbering skills",
             "LEARNING ACTIVITIES": "• Demonstrating proper sanitation and safety procedures: (hand washing, sanitizing equipment, cleaning and disinfection…)\n• Demonstrating proficiency in cutting and shaving techniques: Hair cutting (Straight cutting, Diagonal cut, round cut…); Hair shaving (Wet shaving, dry shaving, safety razor shaving…)\n• Mastering fading and tampering techniques:(gradual transitions, feathering, Layering, blending…)",
             "EXPECTED STANDARD": "Barbering skills applied artfully"
           }
@@ -15138,8 +15158,8 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "4.5.2. Spa Services",
-            "SPECIFIC COMPETENCES": "4.5.2.1. Applying Spa services",
+            "SUB-TOPIC": "4.5.5. Spa Services",
+            "SPECIFIC COMPETENCES": "4.5.5.1. Applying Spa services",
             "LEARNING ACTIVITIES": "• Identifying importance of spas: (Physical well-being, Emotional well-being, Mental well-being, Social benefits, Economic benefits….)\n• Discussing Spa Services: (Massage therapy, Body treatments …)\n• Exploring different types of spa services",
             "EXPECTED STANDARD": "Spa services applied correctly"
           }

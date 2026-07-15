@@ -471,4 +471,96 @@ test('no competence-appendix row leaks into any picker (History + Geography F3)'
   }
 })
 
+console.log('\ncurriculum-hierarchy: Geography Form 1 glued-header split')
+
+test('Geography Form 1 exposes 1.1 Geography and 1.2 The Solar System as separate topics', () => {
+  const g1 = raw['Geography Syllabus (Forms 1-4)']?.['Form 1']
+  assert.ok(g1, 'Geography Form 1 sheet exists')
+  const rows = rowsWithPropagatedTopic(g1.rows)
+  const topics = new Set(rows.map((r) => r.topic).filter(Boolean))
+  // The two-topics-in-one-cell fusion must be gone; both real topics present.
+  assert.ok(![...topics].some((t) => /Geography.*Solar System/i.test(t)), 'glued topic survived')
+  assert.ok(topics.has('1.1 Geography'), '1.1 Geography topic missing')
+  assert.ok(topics.has('1.2 The Solar System'), '1.2 The Solar System topic missing')
+  // 1.1.1 sits under 1.1, 1.2.1 under 1.2, and the Solar-System bullets moved with it.
+  const geo = rows.find((r) => /^1\.1\.1/.test(String(r.subtopic || '')))
+  const solar = rows.find((r) => /^1\.2\.1/.test(String(r.subtopic || '')))
+  assert.equal(geo?.topic, '1.1 Geography')
+  assert.equal(solar?.topic, '1.2 The Solar System')
+  assert.ok(/branches of Geography/i.test(String(geo?.learningActivities || '')), '1.1.1 activities lost')
+  assert.ok(/elements found in the solar system/i.test(String(solar?.learningActivities || '')), '1.2.1 activities lost')
+  // No code-mismatch orphan under the Solar-System topic (1.2.2–1.2.5 attach cleanly).
+  const lead = (s) => (String(s || '').match(/^\s*(\d+(?:\.\d+)*)/) || [])[1] || null
+  for (const r of rows) {
+    const tc = lead(r.topic); const sc = lead(r.subtopic)
+    if (tc && sc) assert.ok(sc.startsWith(tc), `Geography F1 orphan: "${r.subtopic}" under "${r.topic}"`)
+  }
+})
+
+console.log('\ncurriculum-hierarchy: Hospitality Management code normalisation')
+
+test('Hospitality Forms 1-4 have no code-mismatch orphan in any picker', () => {
+  const hm = raw['Hospitality Management Syllabus (Forms 1-4)']
+  assert.ok(hm, 'Hospitality sheet exists')
+  const lead = (s) => (String(s || '').match(/^\s*(\d+(?:\.\d+)*)/) || [])[1] || null
+  for (const form of ['Form 1', 'Form 2', 'Form 3', 'Form 4']) {
+    const rows = rowsWithPropagatedTopic(hm[form].rows)
+    for (const r of rows) {
+      const tc = lead(r.topic); const sc = lead(r.subtopic)
+      if (tc && sc) assert.ok(sc.startsWith(tc), `Hospitality ${form} orphan: "${r.subtopic}" under "${r.topic}"`)
+    }
+    // No duplicate sub-topic code within a form.
+    const codes = rows.map((r) => lead(r.subtopic)).filter(Boolean)
+    assert.equal(codes.length, new Set(codes).size, `Hospitality ${form} has a duplicate sub-topic code`)
+  }
+})
+
+test('Hospitality key renumberings landed (Gastronomy 4.3, Entrepreneurship codes)', () => {
+  const hm = raw['Hospitality Management Syllabus (Forms 1-4)']
+  const topics = (form) => new Set(rowsWithPropagatedTopic(hm[form].rows).map((r) => r.topic).filter(Boolean))
+  // Form 4: the second "4.1" topic became 4.3 GASTRONOMY (no duplicate 4.1).
+  const f4 = topics('Form 4')
+  assert.ok([...f4].some((t) => /^4\.3\.?\s+GASTRONOMY/i.test(t)), '4.3 GASTRONOMY missing')
+  assert.ok([...f4].filter((t) => /^4\.1\b/.test(t)).length === 1, 'duplicate 4.1 topic remains')
+  // Form 3: Entrepreneurship moved off the 3.2 collision to 3.8.
+  assert.ok([...topics('Form 3')].some((t) => /^3\.8\.?\s+ENTREPRENEURSHIP/i.test(t)), '3.8 ENTREPRENEURSHIP missing')
+  // Form 1: Ethics sits under 1.6 with a matching 1.6.1 code.
+  const f1 = rowsWithPropagatedTopic(hm['Form 1'].rows)
+  const ethics = f1.find((r) => /Ethics/.test(String(r.subtopic || '')))
+  assert.match(String(ethics?.subtopic || ''), /^1\.6\.1/)
+  assert.match(String(ethics?.topic || ''), /^1\.6\b/)
+})
+
+test('History Form 3 folds the 3.6.x UNIP->UPND rows into topic 3.5 (no 3.6 orphan)', () => {
+  const f3 = raw['History Syllabus (Forms 1-4)']?.['Form 3']
+  assert.ok(f3, 'History Form 3 sheet exists')
+  const rows = rowsWithPropagatedTopic(f3.rows)
+  // No 3.6.x sub-topic survives (the source declares no topic 3.6).
+  assert.ok(!rows.some((r) => /^\s*3\.6\./.test(String(r.subtopic || ''))), '3.6.x row survived')
+  // Topic 3.5 now carries the full 3.5.1..3.5.9 run, incl. the UPND row.
+  const under35 = rows
+    .filter((r) => /^3\.5\b/.test(String(r.topic || '')))
+    .map((r) => String(r.subtopic || ''))
+  assert.ok(under35.some((s) => /^3\.5\.9\b/.test(s) && /UPND/.test(s)), '3.5.9 UPND missing under 3.5')
+  assert.ok(under35.some((s) => /^3\.5\.3\b/.test(s) && /Lumpa/.test(s)), '3.5.3 Lumpa Church missing under 3.5')
+})
+
+test('Hospitality Form 1 topic 1.1 exposes all four sub-topics with matching competence codes', () => {
+  const f1 = raw['Hospitality Management Syllabus (Forms 1-4)']?.['Form 1']
+  const rows = rowsWithPropagatedTopic(f1.rows).filter((r) => /^1\.1\b/.test(String(r.topic || '')))
+  const subs = rows.map((r) => String(r.subtopic || ''))
+  for (const code of ['1.1.1', '1.1.2', '1.1.3', '1.1.4']) {
+    assert.ok(subs.some((s) => s.startsWith(code)), `missing sub-topic ${code}`)
+  }
+  // 1.1.2 was recovered (previously merged into 1.1.1) with its own competence.
+  const s112 = rows.find((r) => /^1\.1\.2\b/.test(String(r.subtopic || '')))
+  assert.match(String(s112?.subtopic || ''), /Traditional and modern hospitality practices/)
+  assert.match(String(s112?.specificCompetence || ''), /^1\.1\.2\.1/)
+  // 1.1.1 no longer carries 1.1.2's competence; 1.1.3's code typo is fixed.
+  const s111 = rows.find((r) => /^1\.1\.1\b/.test(String(r.subtopic || '')))
+  assert.match(String(s111?.specificCompetence || ''), /^1\.1\.1\.1/)
+  const s113 = rows.find((r) => /^1\.1\.3\b/.test(String(r.subtopic || '')))
+  assert.match(String(s113?.specificCompetence || ''), /^1\.1\.3\.1/)
+})
+
 console.log(`\n✅ curriculum-hierarchy: all ${passed} checks passed\n`)
