@@ -627,4 +627,18 @@ test('Physics Form 4 topic 4.4 RENEWABLE ENERGY SYSTEM owns sub-topic 4.4.1', ()
   }
 })
 
+test('English Grade 4 Note Making sits under 4.3.5 SUMMARY, sheet orphan-free', () => {
+  const g4 = raw['English Language Syllabus (Grades 4-6)']?.['Grade 4']
+  assert.ok(g4, 'English Grade 4 sheet exists')
+  const rows = rowsWithPropagatedTopic(g4.rows)
+  const note = rows.find((r) => /Note Making/.test(String(r.subtopic || '')))
+  assert.match(String(note?.topic || ''), /^4\.3\.5\b/)
+  assert.match(String(note?.subtopic || ''), /^4\.3\.5\.2\b/)
+  const lead = (s) => (String(s || '').match(/^\s*(\d+(?:\.\d+)*)/) || [])[1] || null
+  for (const r of rows) {
+    const tc = lead(r.topic); const sc = lead(r.subtopic)
+    if (tc && sc) assert.ok(sc.startsWith(tc), `English G4 orphan: "${r.subtopic}" under "${r.topic}"`)
+  }
+})
+
 console.log(`\n✅ curriculum-hierarchy: all ${passed} checks passed\n`)
