@@ -82,7 +82,9 @@ export default function useActiveAssignmentSync() {
           try { window.localStorage.setItem(prepKey(uid), remoteId) } catch { /* quota / private mode */ }
           writeActiveAssignmentSeed(uid, assignment)
           window.dispatchEvent(
-            new CustomEvent(REMOTE_ACTIVE_ASSIGNMENT_EVENT, { detail: { uid, seed: plan.seed } }),
+            new CustomEvent(REMOTE_ACTIVE_ASSIGNMENT_EVENT, {
+              detail: { uid, id: remoteId, seed: plan.seed },
+            }),
           )
         }
       } finally {

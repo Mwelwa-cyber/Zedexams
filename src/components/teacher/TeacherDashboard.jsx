@@ -29,6 +29,8 @@ import { termCoverageSummary, currentWeekForRecord } from '../../utils/recordOfW
 import { writeActiveAssignmentSeed } from '../../utils/activeAssignmentSeed'
 import { resolveActiveAssignmentId } from '../../utils/teachingProfileCore'
 import { setActiveAssignmentId as persistActiveAssignmentId } from '../../utils/teachingProfileService'
+import useRemoteAssignmentAdoption from '../../hooks/useRemoteAssignmentAdoption'
+import { seedLabel } from './generate/teachingAssignmentChangeNoticeCore'
 import { useTeachingProfile } from '../../features/teacherSettings/lib/useTeachingProfile'
 import { daysUntil, fmtDate, getActiveTerm, getCurrentForecastWeek, getNextTerm } from '../../utils/moeCalendar'
 import { capture } from '../../utils/analytics'
@@ -399,11 +401,30 @@ export default function TeacherDashboard() {
     }
   }
 
+  // Live cross-device adoption: the dashboard owns the selector and carries no
+  // draft form state, so when useActiveAssignmentSync adopts a validated remote
+  // change, an open dashboard updates the selector automatically — every
+  // assignment-derived surface (Prepare This Week, recommendations, Quick
+  // Create, term coverage) re-derives from the new id — and shows a small
+  // informational notice. Studios, which DO carry drafts, keep their
+  // Switch / Keep prompt instead. No Firestore write happens here: the sync
+  // listener already mirrored localStorage before dispatching.
+  const [remoteAssignmentNotice, setRemoteAssignmentNotice] = useState('')
+  useRemoteAssignmentAdoption(currentUser?.uid, activeAssignment?.id || '', ({ id, seed }) => {
+    setActiveAssignmentId(id)
+    setRemoteAssignmentNotice(seedLabel(seed) || 'a different class')
+    // The adopted assignment was validated against Firestore, but if it isn't
+    // in the mount-time list (just created on the other device), refresh the
+    // profile so the selector can resolve and display it.
+    if (!activeTeachingAssignments.some((a) => a.id === id)) teachingProfile.reload()
+  })
+
   // Switching the active assignment on the card persists the choice (locally +
   // across devices) and re-seeds the weekly-preparation surfaces + Quick Create.
   const handleSelectAssignment = (assignment) => {
     if (!assignment) return
     setActiveAssignmentId(assignment.id)
+    setRemoteAssignmentNotice('') // a manual pick supersedes the remote notice
     if (prepAssignmentKey) {
       try { localStorage.setItem(prepAssignmentKey, assignment.id) } catch { /* storage unavailable */ }
     }
@@ -619,6 +640,25 @@ export default function TeacherDashboard() {
 
       {/* ── Soft usage reminder (~80% of an allowance used) ───────── */}
       <UsageReminderBanner />
+
+      {/* ── Cross-device assignment change (informational — the switch has
+             already happened; a manual pick or dismiss clears it) ───── */}
+      {remoteAssignmentNotice && (
+        <div className="teacher-celebrate" role="status">
+          <span className="teacher-celebrate__emoji" aria-hidden="true">🔄</span>
+          <span className="teacher-celebrate__text">
+            Teaching assignment updated — another device changed your active assignment to {remoteAssignmentNotice}.
+          </span>
+          <button
+            type="button"
+            className="teacher-celebrate__dismiss"
+            onClick={() => setRemoteAssignmentNotice('')}
+            aria-label="Dismiss assignment update notice"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* ── Prepare This Week (weekly preparation guide) ──────────── */}
       <PrepareThisWeek

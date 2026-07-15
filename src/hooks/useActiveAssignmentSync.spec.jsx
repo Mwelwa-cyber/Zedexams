@@ -61,8 +61,9 @@ describe('ActiveAssignmentSync', () => {
       expect(fb.doc).toHaveBeenCalledWith({}, 'teacherProfiles', 'u1', 'teachingAssignments', 'a2')
       // The studio seed mirrors the adopted assignment.
       expect(JSON.parse(localStorage.getItem(SEED_KEY))).toEqual({ curriculum: 'cbc', grade: 'G5', subject: 'mathematics' })
-      // Same-tab notice event carries the seed — studios notify, never mutate.
-      expect(events).toEqual([{ uid: 'u1', seed: { curriculum: 'cbc', grade: 'G5', subject: 'mathematics' } }])
+      // Same-tab notice event carries the id (dashboard adoption) + seed
+      // (studio notices) — studios notify, never mutate.
+      expect(events).toEqual([{ uid: 'u1', id: 'a2', seed: { curriculum: 'cbc', grade: 'G5', subject: 'mathematics' } }])
     } finally {
       window.removeEventListener(REMOTE_ACTIVE_ASSIGNMENT_EVENT, onEvent)
     }
