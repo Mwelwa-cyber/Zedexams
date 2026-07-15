@@ -21,21 +21,24 @@ import { AlignmentType, Footer, Header, ImportedXmlComponent, Paragraph, TextRun
 // path stays legible when rotated across the page.
 export const WATERMARK_TEXT = 'ZedExams.com'
 
-export function attributionFooter() {
-  return new Footer({
+// The attribution line as a bare Paragraph — exported so exporters that build
+// their own footer (e.g. to add page numbers) can include the same line
+// instead of duplicating the marketing string.
+export function attributionFooterParagraph() {
+  return new Paragraph({
+    alignment: AlignmentType.CENTER,
     children: [
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: [
-          new TextRun({
-            text: 'Made with ZedExams — free CBC teacher tools at zedexams.com/teachers',
-            size: 14,
-            color: '888888',
-          }),
-        ],
+      new TextRun({
+        text: 'Made with ZedExams — free CBC teacher tools at zedexams.com/teachers',
+        size: 14,
+        color: '888888',
       }),
     ],
   })
+}
+
+export function attributionFooter() {
+  return new Footer({ children: [attributionFooterParagraph()] })
 }
 
 // Canonical WordArt text-effect shape (`_x0000_t136`) — the same shape Word
