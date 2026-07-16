@@ -685,6 +685,20 @@ function estimateMaxCostUsd({model, maxTokens = 4000, inputAllowanceTokens = DEF
   return (out + inp) / 1_000_000;
 }
 
+// A generationId that Firestore rejects as a document id ('/', '.', '..',
+// or over-long) would throw inside reserveBudget and the fail-open catch
+// would skip enforcement entirely — so a caller-influenced id must never
+// reach the reservation path unchecked. Accept only obviously-safe ids
+// (Firestore push ids, UUIDs — everything the app generates); anything else
+// gets a fresh server-side id, which costs only retry idempotency for that
+// one call, never enforcement.
+const SAFE_GENERATION_ID = /^[A-Za-z0-9_-]{1,128}$/;
+
+function safeGenerationId(generationId) {
+  const id = typeof generationId === "string" ? generationId : "";
+  return SAFE_GENERATION_ID.test(id) ? id : crypto.randomUUID();
+}
+
 // Conservative hold for an image whose flat price is unknown (imageCostUsd
 // returns 0 for model/quality/size combos outside the price matrix). A
 // reservation is a HOLD, not accounting — unlike the rollups' "never
@@ -727,7 +741,7 @@ async function reserveForCall({generationId, estCostUsd, provider}) {
  * a null reservation just means nothing needs reconciling afterwards.
  */
 async function beginAiCall({generationId, model, maxTokens, inputAllowanceTokens, provider = null} = {}) {
-  const genId = generationId || crypto.randomUUID();
+  const genId = safeGenerationId(generationId);
   try {
     return await reserveForCall({
       generationId: genId,
@@ -747,7 +761,7 @@ async function beginAiCall({generationId, model, maxTokens, inputAllowanceTokens
  * catch-all row and understate the hold. Same contract as beginAiCall.
  */
 async function beginAiImageCall({generationId, model, quality, size, provider = null} = {}) {
-  const genId = generationId || crypto.randomUUID();
+  const genId = safeGenerationId(generationId);
   try {
     const flat = imageCostUsd(model, {quality, size});
     return await reserveForCall({
@@ -839,6 +853,7 @@ module.exports = {
   MONTHLY_COLLECTION,
   // Reservation-based hard gate (see aiBudgetReservation.js).
   estimateMaxCostUsd,
+  safeGenerationId,
   beginAiCall,
   beginAiImageCall,
   settleAiCall,

@@ -17,11 +17,16 @@
  *       openaiClient.callOpenAIImage — flat settle / release on API error
  *       openaiEmbeddings.embedText   — degrades to null when blocked, settles
  *
+ * Plain `node` script (repo convention). firebase-admin, HttpsError, and the
+ * v2 scheduler are stubbed via Module._load before the modules under test
+ * load, so the test runs with root deps only (CI's node-test jobs don't
+ * install functions/ deps — same pattern as aiService.test.js).
+ *
  * Run: node functions/aiBudgetProviderGates.test.js
  */
 
 const assert = require("node:assert");
-const admin = require("firebase-admin");
+const Module = require("node:module");
 
 let passed = 0;
 function ok(name, cond) {
@@ -99,15 +104,38 @@ function makeDb() {
   };
 }
 
+// ── Module stubs (before the modules under test load) ─────────────────────
+let currentDb = makeDb();
+const firestoreFn = () => currentDb;
+firestoreFn.FieldValue = {
+  increment: (n) => ({__inc: n}),
+  serverTimestamp: () => ({__ts: true}),
+};
+const adminStub = {firestore: firestoreFn};
+
+// Minimal HttpsError stub matching firebase-functions/v2/https shape.
+class HttpsError extends Error {
+  constructor(code, message, details) {
+    super(message);
+    this.code = code;
+    this.details = details;
+  }
+}
+
+const origLoad = Module._load;
+Module._load = function (request, ...rest) {
+  if (request === "firebase-admin") return adminStub;
+  if (request === "firebase-functions/v2/https") return {HttpsError};
+  // aiBudgetReclaim wraps its handler in onSchedule at module load.
+  if (request === "firebase-functions/v2/scheduler") {
+    return {onSchedule: (opts, handler) => handler};
+  }
+  return origLoad.call(this, request, ...rest);
+};
+
 function installDb() {
-  const db = makeDb();
-  const fs = () => db;
-  fs.FieldValue = {
-    increment: (n) => ({__inc: n}),
-    serverTimestamp: () => ({__ts: true}),
-  };
-  Object.defineProperty(admin, "firestore", {configurable: true, value: fs});
-  return db;
+  currentDb = makeDb();
+  return currentDb;
 }
 
 function totalReserved(db, month, buckets = 8) {
@@ -215,6 +243,30 @@ const ORIG_FETCH = global.fetch;
     });
     ok("exhausted budget rejects beginAiImageCall",
       img.allowed === false && img.reason === "budget_exhausted");
+  }
+
+  // ── generationId sanitisation ────────────────────────────────────────────
+  // A caller-influenced id Firestore rejects ('/', '..', over-long) would
+  // throw inside reserveBudget and the fail-open catch would skip enforcement
+  // — the id must be replaced server-side, never passed through unchecked.
+  {
+    tracking._resetBudgetCache();
+    const db = installDb();
+    const hostile = "../evil/../doc";
+    const gate = await tracking.beginAiCall({
+      generationId: hostile, model: "gpt-4o-mini", maxTokens: 100, provider: "openai",
+    });
+    ok("hostile generationId is replaced with a server-side id",
+      gate.allowed && gate.generationId !== hostile &&
+      /^[A-Za-z0-9-]+$/.test(gate.generationId));
+    ok("sanitised call still holds an enforced reservation",
+      gate.reservation && totalReserved(db, month) > 0);
+    ok("safeGenerationId keeps app-generated ids",
+      tracking.safeGenerationId("abc_DEF-123") === "abc_DEF-123");
+    ok("safeGenerationId rejects path separators",
+      tracking.safeGenerationId("a/b") !== "a/b");
+    ok("safeGenerationId rejects over-long ids",
+      tracking.safeGenerationId("x".repeat(200)) !== "x".repeat(200));
   }
 
   // ── aiService.callOpenAI wiring ──────────────────────────────────────────
