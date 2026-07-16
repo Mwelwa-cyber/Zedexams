@@ -263,6 +263,8 @@ const {dailyStreakReminders: dailyStreakRemindersCron} = require("./dailyReminde
 const {updatePublicStats: updatePublicStatsCron} = require("./publicStats");
 // Audit B4 follow-up — daily AI-cost summary cron (Africa/Lusaka 02:00).
 const {aiCostDailySummary} = require("./aiCostDailySummary");
+// Hourly sweep of expired AI-budget reservations (issue #1755).
+const {reclaimAiBudgetReservations} = require("./aiBudgetReclaim");
 // Audit A10 — teacher classroom roster (invite codes + join + remove + leave + assignments).
 const {
   generateClassInvite,
@@ -3041,6 +3043,11 @@ exports.getClassStats = getClassStats;
 // yesterday > 2× the 7-day median. Always writes an agentJobs
 // rollup so /admin/agents shows the run alongside the other crons.
 exports.aiCostDailySummary = aiCostDailySummary;
+
+// Hourly reclaim of expired AI-budget reservations — frees budget a
+// crashed/timed-out call left on hold even when no contention triggers
+// the reserve path's own lazy reclaim (aiBudgetReclaim.js).
+exports.reclaimAiBudgetReservations = reclaimAiBudgetReservations;
 
 // A10 PR 5 — per-assignment drill-down. Returns a roster with each
 // learner's completion status + best score for one specific

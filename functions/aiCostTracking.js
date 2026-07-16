@@ -685,6 +685,39 @@ function estimateMaxCostUsd({model, maxTokens = 4000, inputAllowanceTokens = DEF
   return (out + inp) / 1_000_000;
 }
 
+// Conservative hold for an image whose flat price is unknown (imageCostUsd
+// returns 0 for model/quality/size combos outside the price matrix). A
+// reservation is a HOLD, not accounting — unlike the rollups' "never
+// fabricate" policy, the safe direction here is to over-reserve; the settle
+// step reconciles the bucket back to the (possibly $0) actual.
+const DEFAULT_IMAGE_EST_USD = 0.25;
+
+/** Shared reserve step behind beginAiCall / beginAiImageCall. */
+async function reserveForCall({generationId, estCostUsd, provider}) {
+  const status = await getBudgetStatus();
+  if (!status || !status.enabled || !(Number(status.budgetUsd) > 0)) {
+    return {allowed: true, reservation: null, generationId, mode: "disabled"};
+  }
+  const res = await reservation.reserveBudget(admin.firestore(), {
+    month: monthKeyUtc(),
+    generationId,
+    estCostUsd,
+    monthlyBudgetUsd: Number(status.budgetUsd),
+    provider,
+    now: Date.now(),
+  });
+  if (!res.allowed && res.reason === "budget_exhausted") {
+    return {allowed: false, reservation: null, generationId, reason: res.reason};
+  }
+  // Fail OPEN on any other non-allow reason (e.g. estimate_exceeds_bucket).
+  return {
+    allowed: true,
+    reservation: res.reservation || null,
+    generationId,
+    mode: res.mode || "open",
+  };
+}
+
 /**
  * Reserve budget for an AI call before dispatching it. Returns
  *   { allowed, reservation, generationId, mode|reason }
@@ -696,31 +729,34 @@ function estimateMaxCostUsd({model, maxTokens = 4000, inputAllowanceTokens = DEF
 async function beginAiCall({generationId, model, maxTokens, inputAllowanceTokens, provider = null} = {}) {
   const genId = generationId || crypto.randomUUID();
   try {
-    const status = await getBudgetStatus();
-    if (!status || !status.enabled || !(Number(status.budgetUsd) > 0)) {
-      return {allowed: true, reservation: null, generationId: genId, mode: "disabled"};
-    }
-    const estCostUsd = estimateMaxCostUsd({model, maxTokens, inputAllowanceTokens});
-    const res = await reservation.reserveBudget(admin.firestore(), {
-      month: monthKeyUtc(),
+    return await reserveForCall({
       generationId: genId,
-      estCostUsd,
-      monthlyBudgetUsd: Number(status.budgetUsd),
+      estCostUsd: estimateMaxCostUsd({model, maxTokens, inputAllowanceTokens}),
       provider,
-      now: Date.now(),
     });
-    if (!res.allowed && res.reason === "budget_exhausted") {
-      return {allowed: false, reservation: null, generationId: genId, reason: res.reason};
-    }
-    // Fail OPEN on any other non-allow reason (e.g. estimate_exceeds_bucket).
-    return {
-      allowed: true,
-      reservation: res.reservation || null,
-      generationId: genId,
-      mode: res.mode || "open",
-    };
   } catch (err) {
     console.warn("[aiCostTracking] beginAiCall failed (allowing call)", err?.message || err);
+    return {allowed: true, reservation: null, generationId: genId, mode: "error"};
+  }
+}
+
+/**
+ * Image-generation variant of beginAiCall: the reservation is sized off the
+ * flat per-image price (imageCostUsd by model + quality + size) rather than
+ * token rates — token pricing would route gpt-image-1 through the "gpt"
+ * catch-all row and understate the hold. Same contract as beginAiCall.
+ */
+async function beginAiImageCall({generationId, model, quality, size, provider = null} = {}) {
+  const genId = generationId || crypto.randomUUID();
+  try {
+    const flat = imageCostUsd(model, {quality, size});
+    return await reserveForCall({
+      generationId: genId,
+      estCostUsd: flat > 0 ? flat : DEFAULT_IMAGE_EST_USD,
+      provider,
+    });
+  } catch (err) {
+    console.warn("[aiCostTracking] beginAiImageCall failed (allowing call)", err?.message || err);
     return {allowed: true, reservation: null, generationId: genId, mode: "error"};
   }
 }
@@ -741,6 +777,23 @@ async function settleAiCall({reservation: handle, uid, tool, model, usage} = {})
     }).catch((err) => console.warn("[aiCostTracking] settle failed", err?.message || err));
   }
   return recordAiUsage({uid, model, usage, tool});
+}
+
+/**
+ * Image-call counterpart of settleAiCall: reconcile the reservation to the
+ * flat per-image actual AND record the call in the flat-priced image rollups.
+ * Idempotent + never throws.
+ */
+async function settleAiImageCall({reservation: handle, uid, tool, model, quality, size} = {}) {
+  if (handle && handle.id) {
+    await reservation.settleReservation(admin.firestore(), {
+      month: handle.month || monthKeyUtc(),
+      generationId: handle.id,
+      actualCostUsd: imageCostUsd(model, {quality, size}),
+      now: Date.now(),
+    }).catch((err) => console.warn("[aiCostTracking] image settle failed", err?.message || err));
+  }
+  return recordAiImageUsage({uid, model, quality, size, tool});
 }
 
 /**
@@ -787,7 +840,10 @@ module.exports = {
   // Reservation-based hard gate (see aiBudgetReservation.js).
   estimateMaxCostUsd,
   beginAiCall,
+  beginAiImageCall,
   settleAiCall,
+  settleAiImageCall,
   releaseAiCall,
+  DEFAULT_IMAGE_EST_USD,
   _resetBudgetCache,
 };

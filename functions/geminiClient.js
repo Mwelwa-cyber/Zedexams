@@ -31,15 +31,23 @@ async function callGemini(apiKey, opts = {}) {
       "Gemini API key is not configured.",
     );
   }
-  // Monthly spend ceiling — Gemini calls historically bypassed the gate.
-  // Fails open inside isOverBudget so an accounting glitch never blocks.
-  {
-    const {isOverBudget, BUDGET_PAUSED_MESSAGE} = require("./aiCostTracking");
-    if (await isOverBudget()) {
-      throw new HttpsError("resource-exhausted", BUDGET_PAUSED_MESSAGE);
-    }
-  }
   const model = opts.model || DEFAULT_MODEL;
+  const maxOutputTokens = Math.min(8000, Math.max(200, Number(opts.maxTokens) || 4000));
+  // Monthly spend ceiling — reservation-based hard gate (same as
+  // anthropicClient): reserve a conservative max cost up front so concurrent
+  // callers can't collectively overspend a stale month-to-date read, settle
+  // to the actual cost after, release on failure. Fails open so an
+  // accounting glitch never blocks a call.
+  const budgetGate = require("./aiCostTracking");
+  const gate = await budgetGate.beginAiCall({
+    generationId: opts.track && opts.track.generationId,
+    model,
+    maxTokens: maxOutputTokens,
+    provider: "gemini",
+  });
+  if (!gate.allowed) {
+    throw new HttpsError("resource-exhausted", budgetGate.BUDGET_PAUSED_MESSAGE);
+  }
   const url = `${GEMINI_BASE}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
   // Build the user-turn parts. Always start with the text, then attach
@@ -70,7 +78,7 @@ async function callGemini(apiKey, opts = {}) {
     contents: [{role: "user", parts: userParts}],
     generationConfig: {
       temperature: typeof opts.temperature === "number" ? opts.temperature : 0.2,
-      maxOutputTokens: Math.min(8000, Math.max(200, Number(opts.maxTokens) || 4000)),
+      maxOutputTokens,
       ...(opts.responseJson ? {responseMimeType: "application/json"} : {}),
     },
   };
@@ -78,29 +86,38 @@ async function callGemini(apiKey, opts = {}) {
     body.systemInstruction = {parts: [{text: String(opts.systemPrompt)}]};
   }
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    const errBody = await res.text().catch(() => "");
-    console.error("Gemini API error", {status: res.status, model, body: errBody.slice(0, 400)});
-    throw new HttpsError(
-      "internal",
-      `Gemini request failed (${res.status}). Please try again.`,
-    );
-  }
-
-  const data = await res.json();
-  // Fire-and-forget usage rollup (never throws, never awaited) so Gemini
-  // spend reaches the meter the budget ceiling and /admin/ai-costs read.
-  // usageMetadata's prompt/candidates counts map onto input/output tokens.
+  let data;
   try {
-    const {recordAiUsage} = require("./aiCostTracking");
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      console.error("Gemini API error", {status: res.status, model, body: errBody.slice(0, 400)});
+      throw new HttpsError(
+        "internal",
+        `Gemini request failed (${res.status}). Please try again.`,
+      );
+    }
+
+    data = await res.json();
+  } catch (err) {
+    // The call failed → return the reserved budget. Idempotent, never throws.
+    budgetGate.releaseAiCall({reservation: gate.reservation})
+        .catch((e) => console.warn("[geminiClient] budget release failed", e));
+    throw err;
+  }
+  // Fire-and-forget settle + usage rollup (never throws, never awaited):
+  // swaps the reserved max for the ACTUAL cost and lands the spend on the
+  // meter the budget ceiling and /admin/ai-costs read. usageMetadata's
+  // prompt/candidates counts map onto input/output tokens.
+  try {
     const um = data?.usageMetadata;
-    recordAiUsage({
+    budgetGate.settleAiCall({
+      reservation: gate.reservation,
       uid: (opts.track && opts.track.uid) || null,
       tool: (opts.track && opts.track.tool) || "gemini",
       model,
@@ -108,7 +125,7 @@ async function callGemini(apiKey, opts = {}) {
         input_tokens: Number(um?.promptTokenCount || 0),
         output_tokens: Number(um?.candidatesTokenCount || 0),
       },
-    });
+    }).catch((err) => console.warn("[geminiClient] budget settle failed", err));
   } catch (err) {
     console.warn("[geminiClient] cost track failed", err);
   }

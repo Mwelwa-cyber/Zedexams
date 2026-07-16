@@ -45,21 +45,29 @@ async function callOpenAIImage(apiKey, opts = {}) {
       "OpenAI API key is not configured.",
     );
   }
-  // Monthly spend ceiling — images are the priciest per-call spend
-  // (~$0.06 each) and historically bypassed the gate entirely. Fails open
-  // inside isOverBudget so an accounting glitch never blocks a generation.
-  {
-    const {isOverBudget, BUDGET_PAUSED_MESSAGE} = require("./aiCostTracking");
-    if (await isOverBudget()) {
-      throw new HttpsError("resource-exhausted", BUDGET_PAUSED_MESSAGE);
-    }
-  }
   const prompt = String(opts.prompt || "").slice(0, 4000);
   const size = ALLOWED_OPENAI_SIZES.has(opts.size) ? opts.size : "1536x1024";
   const quality = ALLOWED_OPENAI_QUALITIES.has(opts.quality)
     ? opts.quality
     : "medium";
   const model = opts.model || DEFAULT_MODEL;
+
+  // Monthly spend ceiling — images are the priciest per-call spend (~$0.06
+  // each) and historically bypassed the gate entirely. Reservation-based hard
+  // gate: hold the flat per-image price up front (token rates would misprice
+  // gpt-image-1), settle after, release on failure. Fails open so an
+  // accounting glitch never blocks a generation.
+  const budgetGate = require("./aiCostTracking");
+  const gate = await budgetGate.beginAiImageCall({
+    generationId: opts.track && opts.track.generationId,
+    model, quality, size,
+    provider: "openai",
+  });
+  if (!gate.allowed) {
+    throw new HttpsError("resource-exhausted", budgetGate.BUDGET_PAUSED_MESSAGE);
+  }
+  const releaseGate = () => budgetGate.releaseAiCall({reservation: gate.reservation})
+      .catch((e) => console.warn("[openaiClient] budget release failed", e));
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), OPENAI_IMAGE_TIMEOUT_MS);
@@ -81,6 +89,7 @@ async function callOpenAIImage(apiKey, opts = {}) {
       signal: controller.signal,
     });
   } catch (err) {
+    releaseGate();
     if (err && err.name === "AbortError") {
       throw new HttpsError(
         "deadline-exceeded",
@@ -93,6 +102,7 @@ async function callOpenAIImage(apiKey, opts = {}) {
   }
 
   if (!res.ok) {
+    releaseGate();
     const errBody = await res.text().catch(() => "");
     console.error("OpenAI image error", {status: res.status, model, body: errBody.slice(0, 400)});
     if (res.status === 401) {
@@ -135,17 +145,19 @@ async function callOpenAIImage(apiKey, opts = {}) {
   const json = await res.json();
   const b64 = json?.data?.[0]?.b64_json;
   if (!b64) {
+    releaseGate();
     throw new HttpsError("internal", "OpenAI returned no image data.");
   }
-  // Fire-and-forget flat-cost rollup (never throws, never awaited) so image
-  // spend reaches the same meter the budget ceiling and /admin/ai-costs read.
+  // Fire-and-forget settle + flat-cost rollup (never throws, never awaited):
+  // reconciles the reservation to the flat per-image actual and lands the
+  // spend on the meter the budget ceiling and /admin/ai-costs read.
   try {
-    const {recordAiImageUsage} = require("./aiCostTracking");
-    recordAiImageUsage({
+    budgetGate.settleAiImageCall({
+      reservation: gate.reservation,
       uid: (opts.track && opts.track.uid) || null,
       tool: (opts.track && opts.track.tool) || "imageGeneration",
       model, quality, size,
-    });
+    }).catch((err) => console.warn("[openaiClient] budget settle failed", err));
   } catch (err) {
     console.warn("[openaiClient] image cost track failed", err);
   }
