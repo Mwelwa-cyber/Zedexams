@@ -16,6 +16,9 @@ import { GENDERS, ROSTER_STATUSES } from '../utils/rosterImport.js'
 const emptyableString = (max) =>
   z.preprocess((v) => (v == null ? '' : v), z.string().max(max))
 
+// 'YYYY-MM-DD' or null — enrolment-window dates for the attendance register.
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null)
+
 export const rosterEntryWriteSchema = z
   .object({
     classId: z.string().min(1).max(200),
@@ -29,6 +32,10 @@ export const rosterEntryWriteSchema = z
     // Set only when the entry was imported from / linked to a learner account.
     linkedUid: z.string().max(200).nullable().default(null),
     order: z.number().int().min(0).max(100000).default(0),
+    // Attendance eligibility window (Class Register Studio). null = whole term:
+    // legacy learners without enrolment dates stay fully eligible.
+    joinedClassOn: isoDate,
+    leftClassOn: isoDate,
   })
   .passthrough()
 
@@ -64,6 +71,8 @@ export function coerceRosterEntry(raw) {
     status,
     linkedUid: raw.linkedUid == null ? null : safeString(raw.linkedUid),
     order: safeNumber(raw.order, 0),
+    joinedClassOn: /^\d{4}-\d{2}-\d{2}$/.test(raw.joinedClassOn || '') ? raw.joinedClassOn : null,
+    leftClassOn: /^\d{4}-\d{2}-\d{2}$/.test(raw.leftClassOn || '') ? raw.leftClassOn : null,
   }
 }
 

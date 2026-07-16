@@ -39,6 +39,7 @@ export const ROUTES = {
   curriculum:     '/teacher/curriculum',
   calendar:       '/teacher/calendar',
   register:       '/teacher/register',
+  attendance:     '/teacher/attendance',
   settings:       '/settings',
 }
 
@@ -52,6 +53,7 @@ export const SIDEBAR_NAV = [
   { to: ROUTES.library,        icon: FolderOpen,         label: 'My Library' },
   { to: ROUTES.testPapers,     icon: PencilLine,         label: 'Test Papers' },
   { to: ROUTES.register,       icon: Users,              label: 'My Class' },
+  { to: ROUTES.attendance,     icon: ClipboardCheckList, label: 'Attendance' },
   { to: ROUTES.syllabi,        icon: FolderOpen,         label: 'Syllabi Studio' },
   { to: ROUTES.curriculum,     icon: GraduationCap,      label: 'Curriculum' },
   { to: ROUTES.calendar,       icon: CalendarDays,       label: 'School Calendar' },

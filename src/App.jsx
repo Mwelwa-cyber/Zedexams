@@ -184,6 +184,7 @@ const TeacherClassesList = lazy(() => import('./components/teacher/classes/Teach
 const TeacherClassEditor = lazy(() => import('./components/teacher/classes/TeacherClassEditor'))
 const TeacherClassDetail = lazy(() => import('./components/teacher/classes/TeacherClassDetail'))
 const ClassRegisterList = lazy(() => import('./components/teacher/register/ClassRegisterList'))
+const ClassRegisterStudio = lazy(() => import('./components/teacher/register/attendance/ClassRegisterStudio'))
 const ClassRegisterEditor = lazy(() => import('./components/teacher/register/ClassRegisterEditor'))
 const ClassRegisterDetail = lazy(() => import('./components/teacher/register/ClassRegisterDetail'))
 // Audit A10 PR 2 — learner-side join + view classes.
@@ -712,6 +713,10 @@ export default function App() {
           {/* Class Register — official class lists that feed SBA, mark
               schedules, results, reports and progress (one roster, no
               retyping). Separate from the invite-code classes above. */}
+          {/* Class Register Studio — daily attendance + official register
+              printing on top of the classRegisters roster. Ungated like the
+              rest of the register (organisational tool, not a generator). */}
+          <Route path="/teacher/attendance"              element={<TeacherRoute><ClassRegisterStudio /></TeacherRoute>} />
           <Route path="/teacher/register"                element={<TeacherRoute><ClassRegisterList /></TeacherRoute>} />
           <Route path="/teacher/register/new"            element={<TeacherRoute><ClassRegisterEditor /></TeacherRoute>} />
           <Route path="/teacher/register/:classId"       element={<TeacherRoute><ClassRegisterDetail /></TeacherRoute>} />

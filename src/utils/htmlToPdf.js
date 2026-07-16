@@ -17,8 +17,10 @@ import { saveBlob } from './saveBlob.js'
 import { toProxyImageUrl } from './imageProxy.js'
 
 // 210mm at 96dpi — the CSS pixel width of an A4 page. Rendering at this width
-// makes the rasterised layout line up with the @page A4 print CSS.
+// makes the rasterised layout line up with the @page A4 print CSS. Landscape
+// documents (e.g. the class attendance register) render at the long edge.
 const A4_WIDTH_PX = 794
+const A4_LANDSCAPE_WIDTH_PX = 1123
 
 let _libsPromise = null
 function loadLibs() {
@@ -179,11 +181,12 @@ export function chooseSliceBottom({ sliceTop, limit, canvasHeight, atomic = [], 
  * Render an HTML document string to a PDF Blob. Throws on any failure so the
  * caller can fall back to printing.
  */
-export async function htmlToPdfBlob(html, { scale = 2, onImageFailures } = {}) {
+export async function htmlToPdfBlob(html, { scale = 2, onImageFailures, orientation = 'portrait' } = {}) {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     throw new Error('PDF generation requires a browser environment.')
   }
   const { html2canvas, jsPDF } = await loadLibs()
+  const pageWidthPx = orientation === 'landscape' ? A4_LANDSCAPE_WIDTH_PX : A4_WIDTH_PX
 
   // A standalone iframe is the only container that honours the <style> in the
   // document's <head>; injecting the markup into a <div> would drop those rules
@@ -191,7 +194,7 @@ export async function htmlToPdfBlob(html, { scale = 2, onImageFailures } = {}) {
   const iframe = document.createElement('iframe')
   iframe.setAttribute('aria-hidden', 'true')
   iframe.style.cssText =
-    `position:fixed;left:-10000px;top:0;width:${A4_WIDTH_PX}px;height:1123px;border:0;background:#fff;`
+    `position:fixed;left:-10000px;top:0;width:${pageWidthPx}px;height:1123px;border:0;background:#fff;`
   document.body.appendChild(iframe)
 
   try {
@@ -226,8 +229,8 @@ export async function htmlToPdfBlob(html, { scale = 2, onImageFailures } = {}) {
       scale,
       useCORS: true,
       backgroundColor: '#ffffff',
-      windowWidth: A4_WIDTH_PX,
-      width: A4_WIDTH_PX,
+      windowWidth: pageWidthPx,
+      width: pageWidthPx,
       height: fullHeight,
       scrollX: 0,
       scrollY: 0,
@@ -237,7 +240,7 @@ export async function htmlToPdfBlob(html, { scale = 2, onImageFailures } = {}) {
       throw new Error('Rendered canvas was empty.')
     }
 
-    const pdf = new jsPDF({ unit: 'pt', format: 'a4', compress: true })
+    const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation, compress: true })
     const pageW = pdf.internal.pageSize.getWidth()
     const pageH = pdf.internal.pageSize.getHeight()
 
@@ -302,9 +305,9 @@ export async function htmlToPdfBlob(html, { scale = 2, onImageFailures } = {}) {
  *
  * @returns {Promise<boolean>} true if a real PDF file was saved.
  */
-export async function downloadHtmlAsPdf(html, filename, { onFallback, onImageFailures } = {}) {
+export async function downloadHtmlAsPdf(html, filename, { onFallback, onImageFailures, orientation } = {}) {
   try {
-    const blob = await htmlToPdfBlob(html, { onImageFailures })
+    const blob = await htmlToPdfBlob(html, { onImageFailures, orientation })
     await saveBlob(blob, filename)
     return true
   } catch (e) {

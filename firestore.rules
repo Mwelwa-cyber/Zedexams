@@ -1969,6 +1969,37 @@ service cloud.firestore {
     function _registerOwner(classId) {
       return get(/databases/$(database)/documents/classRegisters/$(classId)).data.teacherUid;
     }
+    // Class Register Studio (attendance). A term register that has been
+    // LOCKED is read/print-only for teachers; only an admin can reopen it.
+    // Fail-open only when the term doc doesn't exist yet (a brand-new term
+    // starts as an implicit draft).
+    function _attendanceTermLocked(classId, termId) {
+      return exists(/databases/$(database)/documents/classRegisters/$(classId)/attendanceTerms/$(termId))
+        && get(/databases/$(database)/documents/classRegisters/$(classId)/attendanceTerms/$(termId)).data.state == 'locked';
+    }
+    function _validAttendanceStatus(value) {
+      return value in ['present', 'absent', 'sick', 'late', 'excused', 'not_applicable'];
+    }
+    function _validAttendanceDay(dayId) {
+      return incoming().date == dayId
+        && dayId.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+        && incoming().records is map
+        && incoming().version is int && incoming().version >= 1
+        && incoming().termId is string && incoming().termId.size() <= 40
+        && incoming().term is string && incoming().term.size() <= 40
+        && (incoming().year == null || incoming().year is int)
+        && incoming().classification in ['teaching_day', 'half_day', 'optional_attendance_day', 'non_teaching_day', 'school_closure'];
+    }
+    function _validAttendanceTermFields() {
+      return (!('state' in incoming()) || incoming().state in ['draft', 'submitted', 'locked', 'reopened'])
+        && (!('term' in incoming()) || (incoming().term is string && incoming().term.size() <= 40))
+        && (!('year' in incoming()) || incoming().year == null || (incoming().year is int && incoming().year >= 2000 && incoming().year <= 2100))
+        && (!('policy' in incoming()) || incoming().policy is map)
+        && (!('dayOverrides' in incoming()) || incoming().dayOverrides is map)
+        && (!('customStartDate' in incoming()) || incoming().customStartDate == null || incoming().customStartDate.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}'))
+        && (!('customEndDate' in incoming()) || incoming().customEndDate == null || incoming().customEndDate.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}'))
+        && (!('reopenReason' in incoming()) || (incoming().reopenReason is string && incoming().reopenReason.size() <= 200));
+    }
     match /classRegisters/{classId} {
       allow read: if isVerified() && (resource.data.teacherUid == request.auth.uid || isAdmin());
       allow create: if isTeacherOrAbove()
@@ -2005,6 +2036,66 @@ service cloud.firestore {
           && resource.data.teacherUid == request.auth.uid
           && incoming().teacherUid == resource.data.teacherUid;
         allow delete: if isVerified() && (resource.data.teacherUid == request.auth.uid || isAdmin());
+      }
+
+      // ── Class Register Studio: attendance ──────────────────────
+      // One doc per class per date (docId = YYYY-MM-DD). Owner-only like the
+      // roster; every write validates the date/term/classification shape, a
+      // monotonic version (stale-overwrite guard — the client saves through a
+      // merging transaction), and the term's lock state. Teachers can never
+      // delete attendance history.
+      match /attendance/{dayId} {
+        allow read: if isVerified() && (_registerOwner(classId) == request.auth.uid || isAdmin());
+        allow create: if isTeacherOrAbove()
+          && incoming().teacherUid == request.auth.uid
+          && _registerOwner(classId) == request.auth.uid
+          && _validAttendanceDay(dayId)
+          && !_attendanceTermLocked(classId, incoming().termId);
+        allow update: if isVerified()
+          && resource.data.teacherUid == request.auth.uid
+          && incoming().teacherUid == resource.data.teacherUid
+          && _validAttendanceDay(dayId)
+          && incoming().version > resource.data.get('version', 0)
+          && !_attendanceTermLocked(classId, incoming().termId);
+        allow delete: if isAdmin();
+      }
+
+      // Per-term settings + lifecycle (draft → submitted → locked → reopened).
+      // A teacher manages their register up to locking it; once LOCKED only an
+      // admin can update (reopen, with the reason field the client requires).
+      match /attendanceTerms/{termId} {
+        allow read: if isVerified() && (_registerOwner(classId) == request.auth.uid || isAdmin());
+        allow create: if isTeacherOrAbove()
+          && incoming().teacherUid == request.auth.uid
+          && _registerOwner(classId) == request.auth.uid
+          && _validAttendanceTermFields()
+          && (!('state' in incoming()) || incoming().state in ['draft', 'submitted', 'locked']);
+        allow update: if isVerified()
+          && _validAttendanceTermFields()
+          && (
+            isAdmin()
+            || (
+              resource.data.teacherUid == request.auth.uid
+              && incoming().teacherUid == resource.data.teacherUid
+              && resource.data.state != 'locked'
+              && (!('state' in incoming()) || incoming().state in ['draft', 'submitted', 'locked'])
+            )
+          );
+        allow delete: if isAdmin();
+      }
+
+      // APPEND-ONLY audit trail of attendance changes + lifecycle moves.
+      // Nobody — teacher or admin — can update or delete an entry from the
+      // client; inspection is read-only.
+      match /attendanceAudit/{entryId} {
+        allow read: if isVerified() && (_registerOwner(classId) == request.auth.uid || isAdmin());
+        allow create: if isTeacherOrAbove()
+          && incoming().uid == request.auth.uid
+          && (_registerOwner(classId) == request.auth.uid || isAdmin())
+          && (incoming().prevStatus == null || _validAttendanceStatus(incoming().prevStatus))
+          && (incoming().newStatus == null || _validAttendanceStatus(incoming().newStatus));
+        allow update: if false;
+        allow delete: if false;
       }
     }
 
