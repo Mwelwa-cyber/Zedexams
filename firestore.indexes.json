@@ -444,6 +444,15 @@
       ]
     },
     {
+      "collectionGroup": "aiGenerations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ownerUid",    "order": "ASCENDING" },
+        { "fieldPath": "tool",        "order": "ASCENDING" },
+        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "games",
       "queryScope": "COLLECTION",
       "fields": [

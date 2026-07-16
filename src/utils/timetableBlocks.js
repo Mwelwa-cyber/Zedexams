@@ -76,7 +76,7 @@ export function makeBlockId(day, startSlot) {
   return `blk_${String(day).toLowerCase()}_${startSlot}`
 }
 
-export function makeBlock({ day, startSlot, length = 1, subjectId = null, label, type = BLOCK_TYPES.CURRICULUM, locked = false, teacher = null, room = null, teacherId = null, assignmentId = null }) {
+export function makeBlock({ day, startSlot, length = 1, subjectId = null, label, type = BLOCK_TYPES.CURRICULUM, locked = false, teacher = null, room = null, teacherId = null, assignmentId = null, roomId = null }) {
   return {
     blockId: makeBlockId(day, startSlot),
     day,
@@ -88,13 +88,34 @@ export function makeBlock({ day, startSlot, length = 1, subjectId = null, label,
     locked: Boolean(locked),
     teacher: teacher || null,
     room: room || null,
-    // Stable-identity seam for the personal teacher timetable
-    // (teacherTimetableCore): a block stamped with a teacher's uid and/or
-    // teaching-assignment id can sync to that teacher's schedule by id rather
-    // than by label matching. Optional — the studio UI doesn't set them yet.
+    // Stable-identity seams: teacherId/assignmentId link a block to a
+    // teacher account + Teaching Assignment (personal timetable sync,
+    // teacher conflict checking); roomId is the canonical shared-facility
+    // id (timetableConflictEngine.SHARED_FACILITIES) for room conflicts.
+    // Free-text `teacher`/`room` labels are display-only — never identity.
     teacherId: teacherId || null,
     assignmentId: assignmentId || null,
+    roomId: roomId || null,
   }
+}
+
+/**
+ * Update a block's teacher/room details in place — blockId, position,
+ * length, lock state and subject are all preserved, so conflict ids and
+ * personal-timetable links stay stable across a details edit.
+ */
+export function setBlockDetails(blocks, blockId, { teacher, teacherId, assignmentId, room, roomId } = {}) {
+  return (Array.isArray(blocks) ? blocks : []).map((b) => {
+    if (b.blockId !== blockId) return b
+    return {
+      ...b,
+      ...(teacher !== undefined ? { teacher: teacher || null } : {}),
+      ...(teacherId !== undefined ? { teacherId: teacherId || null } : {}),
+      ...(assignmentId !== undefined ? { assignmentId: assignmentId || null } : {}),
+      ...(room !== undefined ? { room: room || null } : {}),
+      ...(roomId !== undefined ? { roomId: roomId || null } : {}),
+    }
+  })
 }
 
 export function isDouble(block) {

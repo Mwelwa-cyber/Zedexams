@@ -374,17 +374,25 @@ export async function saveRecordOfWorkGeneration({ uid, existingId, artifact }) 
   })
 }
 
-export async function saveClassTimetableGeneration({ uid, existingId, artifact }) {
+export async function saveClassTimetableGeneration({ uid, existingId, artifact, publishState }) {
   const hasLesson = artifact?.slots && Object.values(artifact.slots)
     .some((row) => row && Object.values(row).some(Boolean))
   if (!hasLesson) throw new Error('Fill at least one lesson before saving.')
   const header = artifact.header || {}
   const cls = header.className || (header.grade ? `Grade ${String(header.grade).replace(/^G/i, '')}` : '')
+  // savedAt lives INSIDE the artifact (security rules pin the top-level field
+  // set), so sibling conflict checks can tell when another class timetable
+  // changed between refreshes. publishState marks a final, conflict-gated save.
+  const stamped = {
+    ...artifact,
+    savedAt: new Date().toISOString(),
+    ...(publishState ? { publishState } : {}),
+  }
   return saveClientToolGeneration({
     uid,
     existingId,
     tool: 'class_timetable',
-    artifact,
+    artifact: stamped,
     inputs: {
       grade: header.grade || null,
       term: header.term != null && header.term !== '' ? String(header.term) : null,
