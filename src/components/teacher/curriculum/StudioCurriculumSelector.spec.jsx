@@ -111,6 +111,24 @@ describe('StudioCurriculumSelector — reset on curriculum change', () => {
   })
 })
 
+describe('StudioCurriculumSelector — configured-empty subject state', () => {
+  it('shows the no-subjects message with admin diagnostics instead of a generic list', () => {
+    render(<StudioCurriculumSelector onChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('radio', { name: /Competency-Based Curriculum/i }))
+    // The mock catalog carries subjects only for Grade 4 — Grade 1 is empty.
+    fireEvent.change(screen.getByRole('combobox', { name: /class \/ grade/i }), {
+      target: { value: 'Grade 1' },
+    })
+    expect(screen.getByText(/No subjects have been configured for this curriculum and grade/i)).toBeInTheDocument()
+    expect(screen.getByText(/curriculum “cbc”, grade “Grade 1”/i)).toBeInTheDocument()
+  })
+
+  it('renders custom field labels when the host overrides them', () => {
+    render(<StudioCurriculumSelector onChange={vi.fn()} gradeFieldLabel="Grade or Form" />)
+    expect(screen.getByRole('combobox', { name: /grade or form/i })).toBeInTheDocument()
+  })
+})
+
 describe('StudioCurriculumSelector — seeding (deep links / edited records)', () => {
   it('normalizes a legacy KB-shaped seed and defaults the curriculum to CBC', () => {
     const onChange = vi.fn()

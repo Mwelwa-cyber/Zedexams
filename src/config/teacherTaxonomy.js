@@ -43,10 +43,155 @@ export const TEACHER_GRADES = [
   { value: 'G12', label: 'Grade 12 / Form 5' },
 ]
 
+// ── Per-curriculum grade/form structures ─────────────────────────────────────
+// Each curriculum has its OWN stage layout — they are deliberately NOT a shared
+// generic Grade 1–12 list:
+//   • CBC (2023, 3-6-4 restructure): ECE bands, primary Grades 1–6 (Grade 7 was
+//     abolished), secondary Forms 1–4 (stored as G8–G11 — the same Form N →
+//     G(N+7) fold paperTaxonomy + the syllabus KB use). No Grade 12.
+//   • Previous (2013): Grades 1–7 primary, Grades 8–12 secondary (dual-named
+//     with the Form the teachers know). No ECE bands — the 2013 catalog has none.
+// Stage objects are headings ONLY (rendered as <optgroup> labels) — they are
+// never selectable values. Grades carry the canonical G-code / ECE band VALUE
+// the backend and the Teaching Profile store.
+export const CURRICULUM_GRADE_STRUCTURES = {
+  cbc: {
+    id: 'cbc',
+    label: 'New Curriculum (CBC)',
+    stages: [
+      {
+        id: 'pre-primary',
+        label: 'Pre-Primary (ECE)',
+        grades: [
+          { value: 'ECE_N', label: 'Nursery (3–4 yrs)' },
+          { value: 'ECE_R', label: 'Reception (4–5 yrs)' },
+        ],
+      },
+      {
+        id: 'lower-primary',
+        label: 'Lower Primary (Grades 1–3)',
+        grades: [
+          { value: 'G1', label: 'Grade 1' },
+          { value: 'G2', label: 'Grade 2' },
+          { value: 'G3', label: 'Grade 3' },
+        ],
+      },
+      {
+        id: 'upper-primary',
+        label: 'Upper Primary (Grades 4–6)',
+        grades: [
+          { value: 'G4', label: 'Grade 4' },
+          { value: 'G5', label: 'Grade 5' },
+          { value: 'G6', label: 'Grade 6' },
+        ],
+      },
+      {
+        id: 'secondary',
+        label: 'Secondary (Forms 1–4)',
+        grades: [
+          { value: 'G8', label: 'Form 1' },
+          { value: 'G9', label: 'Form 2' },
+          { value: 'G10', label: 'Form 3' },
+          { value: 'G11', label: 'Form 4' },
+        ],
+      },
+    ],
+  },
+  previous: {
+    id: 'previous',
+    label: 'Old Curriculum (OBC)',
+    stages: [
+      {
+        id: 'lower-primary',
+        label: 'Lower Primary (Grades 1–4)',
+        grades: [
+          { value: 'G1', label: 'Grade 1' },
+          { value: 'G2', label: 'Grade 2' },
+          { value: 'G3', label: 'Grade 3' },
+          { value: 'G4', label: 'Grade 4' },
+        ],
+      },
+      {
+        id: 'upper-primary',
+        label: 'Upper Primary (Grades 5–7)',
+        grades: [
+          { value: 'G5', label: 'Grade 5' },
+          { value: 'G6', label: 'Grade 6' },
+          { value: 'G7', label: 'Grade 7' },
+        ],
+      },
+      {
+        id: 'junior-secondary',
+        label: 'Junior Secondary (Grades 8–9)',
+        grades: [
+          { value: 'G8', label: 'Grade 8 / Form 1' },
+          { value: 'G9', label: 'Grade 9 / Form 2' },
+        ],
+      },
+      {
+        id: 'senior-secondary',
+        label: 'Senior Secondary (Grades 10–12)',
+        grades: [
+          { value: 'G10', label: 'Grade 10 / Form 3' },
+          { value: 'G11', label: 'Grade 11 / Form 4' },
+          { value: 'G12', label: 'Grade 12 / Form 5' },
+        ],
+      },
+    ],
+  },
+}
+
+/** The stage structure for a curriculum ('cbc' | 'previous', any spelling). */
+export function gradeStructureFor(curriculum) {
+  const mode = normalizeCurriculum(curriculum)
+  return CURRICULUM_GRADE_STRUCTURES[mode || 'cbc']
+}
+
+/**
+ * Flat option list for a curriculum's grades in the shared
+ * `{group}` / `{value,label}` shape FieldSelect + the settings selects render
+ * (group entries become non-selectable <optgroup> headings).
+ */
+export function gradeOptionsForCurriculum(curriculum) {
+  const out = []
+  for (const stage of gradeStructureFor(curriculum).stages) {
+    out.push({ group: stage.label })
+    out.push(...stage.grades)
+  }
+  return out
+}
+
+// Valid grade codes per curriculum. Legacy band code 'ECE' predates the
+// Nursery/Reception split and is still stored on old CBC assignments — accept
+// it for validation (it is never OFFERED by gradeOptionsForCurriculum).
+const CURRICULUM_GRADE_VALUES = {
+  cbc: new Set([
+    ...CURRICULUM_GRADE_STRUCTURES.cbc.stages.flatMap((s) => s.grades.map((g) => g.value)),
+    'ECE',
+  ]),
+  previous: new Set(
+    CURRICULUM_GRADE_STRUCTURES.previous.stages.flatMap((s) => s.grades.map((g) => g.value)),
+  ),
+}
+
+/**
+ * True when `grade` exists in the given curriculum's structure. With no (or an
+ * unknown) curriculum the check is the union of both — curriculum-agnostic
+ * callers keep working.
+ */
+export function isGradeInCurriculum(grade, curriculum) {
+  const g = String(grade || '').toUpperCase()
+  if (!g) return false
+  const mode = normalizeCurriculum(curriculum)
+  if (mode) return CURRICULUM_GRADE_VALUES[mode].has(g)
+  return CURRICULUM_GRADE_VALUES.cbc.has(g) || CURRICULUM_GRADE_VALUES.previous.has(g)
+}
+
 // Subjects grouped by curriculum area across all CBC phases.
 export const TEACHER_SUBJECTS = [
   { group: 'Languages' },
   { value: 'english',          label: 'English' },
+  { value: 'literature_in_english', label: 'Literature in English' },
   { value: 'literacy',         label: 'Literacy' },
   { value: 'cinyanja',         label: 'Cinyanja' },
   { value: 'zambian_language', label: 'Zambian Language (other)' },
@@ -80,6 +225,11 @@ export const TEACHER_SUBJECTS = [
   { value: 'art_and_design',   label: 'Art & Design' },
   { value: 'music_and_creative_arts', label: 'Music & Creative Arts' },
   { value: 'home_economics',   label: 'Home Economics' },
+  { value: 'home_management',  label: 'Home Management' },
+  { value: 'food_nutrition',   label: 'Food & Nutrition' },
+  { value: 'fashion_fabrics',  label: 'Fashion & Fabrics' },
+  { value: 'hospitality_management', label: 'Hospitality Management' },
+  { value: 'travel_tourism',   label: 'Travel & Tourism' },
   { value: 'expressive_arts',  label: 'Expressive Arts' },
   { value: 'physical_education', label: 'Physical Education' },
 ]
@@ -138,6 +288,12 @@ const SUBJECT_GRADE_MAP = {
   // Languages — English & Zambian Language span everything; Literacy is
   // the lower-primary reading-and-writing strand that gives way to English.
   english:           ['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
+  // Literature in English: a CBC Forms 1-4 subject (on the digitised CBC
+  // secondary syllabi) and a 2013 senior-secondary option.
+  literature_in_english: {
+    cbc:      ['G8','G9','G10','G11'],
+    previous: ['G10','G11','G12'],
+  },
   literacy:          ['ECE_N','ECE_R','G1','G2','G3','G4'],
   cinyanja:          ['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
   zambian_language:  ['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
@@ -191,7 +347,12 @@ const SUBJECT_GRADE_MAP = {
   // Forms 1-4 electives with no 2013 equivalent, so they show only under the
   // CBC. Art & Design exists in both (a CBC Forms 1-4 subject and a 2013
   // Grades 10-12 syllabus), so it stays a flat array spanning G8-G12.
-  technology_studies:['G5','G6','G7','G8','G9','G10','G11','G12'],
+  // Technology Studies: the CBC carries it from upper primary (the digitised
+  // "(Grades 4-6)" sheets) through Forms 1-4; the 2013 set runs G5-G12.
+  technology_studies: {
+    cbc:      ['G4','G5','G6','G8','G9','G10','G11'],
+    previous: ['G5','G6','G7','G8','G9','G10','G11','G12'],
+  },
   creative_and_technology_studies: ['G1','G2','G3','G4','G5','G6','G7'],
   design_and_technology_studies: {
     cbc:      ['G8','G9','G10','G11'],
@@ -202,7 +363,36 @@ const SUBJECT_GRADE_MAP = {
     cbc:      ['G8','G9','G10','G11'],
     previous: [],
   },
-  home_economics:    ['G5','G6','G7','G8','G9','G10','G11','G12'],
+  // Home Economics: the CBC upper-primary "(Grades 4-6)" sheets carry it from
+  // Grade 4 (secondary CBC splits it into Food & Nutrition / Fashion & Fabrics /
+  // Hospitality below); the 2013 set runs Grade 5 through senior secondary.
+  home_economics: {
+    cbc:      ['G4','G5','G6'],
+    previous: ['G5','G6','G7','G8','G9','G10','G11','G12'],
+  },
+  // 2013 senior-secondary home-economics strands; the CBC replaces Home
+  // Management with the vocational subjects below.
+  home_management: {
+    cbc:      [],
+    previous: ['G10','G11','G12'],
+  },
+  food_nutrition: {
+    cbc:      ['G8','G9','G10','G11'],
+    previous: ['G10','G11','G12'],
+  },
+  fashion_fabrics: {
+    cbc:      ['G8','G9','G10','G11'],
+    previous: ['G10','G11','G12'],
+  },
+  // CBC Forms 1-4 vocational pathways with no 2013 equivalent.
+  hospitality_management: {
+    cbc:      ['G8','G9','G10','G11'],
+    previous: [],
+  },
+  travel_tourism: {
+    cbc:      ['G8','G9','G10','G11'],
+    previous: [],
+  },
   expressive_arts:   ['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9'],
   physical_education:['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
 }
@@ -241,18 +431,28 @@ function gradesForSubject(subject, curriculum) {
  * Returns the subject list for a grade, optionally scoped to a curriculum.
  * ECE bands (Nursery / Reception) get the dedicated four-area ECE syllabus
  * menu; every other grade gets TEACHER_SUBJECTS filtered by SUBJECT_GRADE_MAP.
- * When `curriculum` ('cbc' | 'previous') is given, subjects that belong only to
- * the other curriculum are dropped — so switching the Curriculum selector
- * actually changes the list (e.g. Principles of Accounts vs Commerce &
- * Principles of Accounts). With no curriculum the union of both is returned.
+ *
+ * When `curriculum` ('cbc' | 'previous') is given the filter is STRICT:
+ *   • subjects that belong only to the other curriculum are dropped (e.g.
+ *     Principles of Accounts vs Commerce & Principles of Accounts),
+ *   • a grade the curriculum doesn't offer (Grade 7 / Grade 12 under the CBC,
+ *     the ECE bands under the 2013 set) returns [] — never a generic
+ *     every-subject fallback, so a missing mapping shows up as an explicit
+ *     empty state instead of silently mixing curricula.
+ *
+ * With no curriculum the legacy union-of-both behaviour is preserved for
+ * curriculum-agnostic callers (admin filters, label resolution), including the
+ * full-list fallback for an unknown grade (e.g. a legacy URL deeplink).
  * Group headers are kept only if at least one subject in that group survives
- * the filter. Falls back to the full list if grade is unknown (e.g. a legacy
- * URL deeplink).
+ * the filter.
  */
 export function getSubjectsForGrade(grade, curriculum) {
-  if (!grade) return TEACHER_SUBJECTS
+  const mode = normalizeCurriculum(curriculum)
+  if (!grade) return mode ? [] : TEACHER_SUBJECTS
+  if (mode && !isGradeInCurriculum(grade, mode)) return []
   // ECE (Nursery / Reception) follows its own four-area syllabus, not the
-  // Grade-1+ subject menu, and is identical across curricula.
+  // Grade-1+ subject menu (CBC-only — the grade gate above keeps it out of
+  // the 2013 set).
   if (isEceGrade(grade)) return ECE_SUBJECTS
   const filtered = []
   let pendingGroup = null
@@ -272,10 +472,20 @@ export function getSubjectsForGrade(grade, curriculum) {
     }
     filtered.push(opt)
   }
-  // Defensive: never return an empty list. If a future grade has no
-  // subject mappings at all, fall back to the full list rather than
-  // showing an empty dropdown.
-  return filtered.length > 0 ? filtered : TEACHER_SUBJECTS
+  // Curriculum-agnostic legacy callers keep the defensive full-list fallback;
+  // a curriculum-scoped call must NOT silently return every subject.
+  return filtered.length > 0 ? filtered : (mode ? [] : TEACHER_SUBJECTS)
+}
+
+/**
+ * True when the subject exists AT ALL in the given curriculum (at any grade).
+ * False means it belongs exclusively to the other curriculum (e.g. Principles
+ * of Accounts under the CBC, the combined Mathematics and Science area under
+ * the 2013 set). Unmapped subjects default to true (forward-compatible).
+ */
+export function subjectExistsInCurriculum(subject, curriculum) {
+  const grades = gradesForSubject(subject, curriculum)
+  return !grades || grades.length > 0
 }
 
 /**

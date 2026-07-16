@@ -34,6 +34,9 @@
  *                      independently selectable (selecting one never selects
  *                      its siblings). '' = whole subtopic.
  *   showCurriculumPicker default true.
+ *   gradeFieldLabel / subjectFieldLabel  optional label text overrides for the
+ *                      two cascade fields (e.g. the Teaching Profile's
+ *                      "Grade or Form") — the cascade behaviour is identical.
  *   gradeOptions       optional [{group, value, label}] override. When given,
  *                      this exact list is offered for BOTH curricula (no
  *                      syllabi-availability filtering, no validity clearing) —
@@ -91,6 +94,8 @@ export default function StudioCurriculumSelector({
   className = '',
   labelClassName = 'studio-label',
   inputClassName = 'studio-input',
+  gradeFieldLabel = 'Class / Grade',
+  subjectFieldLabel = 'Subject',
 }) {
   const uid = useId()
   // Normalize the loose seed once (state initializers run only on mount).
@@ -297,7 +302,7 @@ export default function StudioCurriculumSelector({
 
       {/* Grade */}
       <div>
-        <label htmlFor={`${uid}-grade`} className={labelClassName}>Class / Grade</label>
+        <label htmlFor={`${uid}-grade`} className={labelClassName}>{gradeFieldLabel}</label>
         <select
           id={`${uid}-grade`}
           className={inputClassName}
@@ -324,7 +329,7 @@ export default function StudioCurriculumSelector({
 
       {/* Subject */}
       <div>
-        <label htmlFor={`${uid}-subject`} className={labelClassName}>Subject</label>
+        <label htmlFor={`${uid}-subject`} className={labelClassName}>{subjectFieldLabel}</label>
         <select
           id={`${uid}-subject`}
           className={inputClassName}
@@ -345,6 +350,17 @@ export default function StudioCurriculumSelector({
             <option key={s} value={s}>{cleanSubjectName(s)}</option>
           ))}
         </select>
+        {/* Configured-empty state: never silently fall back to a generic
+            all-subjects list — tell the teacher, and give admins the exact
+            curriculum + grade coordinates to check in the Syllabus Studio. */}
+        {gradeLabel && !subjectsLoading && subjectOptions.length === 0 && (
+          <p role="status" className="mt-1 text-sm text-amber-700">
+            No subjects have been configured for this curriculum and grade.
+            <span className="block text-xs opacity-80">
+              Administrators: check the syllabus catalog for curriculum “{curriculumMode || 'none'}”, grade “{gradeLabel}”.
+            </span>
+          </p>
+        )}
       </div>
 
       {showTopicSubtopic && (
