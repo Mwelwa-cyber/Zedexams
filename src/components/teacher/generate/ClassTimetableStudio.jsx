@@ -24,7 +24,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
-import { TEACHER_GRADES } from '../../../utils/teacherTools'
 import {
   DAYS_OF_WEEK,
   DEFAULT_DAYS,
@@ -38,12 +37,12 @@ import {
   lessonPeriods as lessonRowsOf,
   curriculumSubjectsForGrade,
   newSubject,
-  defaultPeriodsPerWeek,
   recommendedLessonPeriods,
   distributePeriodsPerDay,
   weeklyCapacity,
   autoFillBlocks,
   validateTimetableBlocks,
+  resolveAllocationReadiness,
   totalAllocated,
   buildTimetableArtifact,
   dayEndTime,
@@ -52,9 +51,15 @@ import {
 import {
   CURRICULA,
   DEFAULT_CURRICULUM_ID,
+  getCurriculum,
   resolveTimetableCurriculum,
+  gradeStructureModeFor,
   FRAMEWORK_SOURCE,
 } from '../../../utils/curriculumFramework'
+import {
+  gradeStructureFor,
+  isGradeInCurriculum,
+} from '../../../config/teacherTaxonomy'
 import {
   BLOCK_TYPES,
   SCHOOL_ACTIVITIES,
@@ -100,18 +105,35 @@ import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
 import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
 import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
 
-const GRADE_OPTIONS = TEACHER_GRADES.filter((g) => g.value || g.group)
 const DEFAULT_ACTIVITIES = ['Remedial work', 'Library', 'Clubs']
 const HISTORY_LIMIT = 60
 
+/** The grade/form options for the selected curriculum, grouped by stage — the
+ * SAME per-curriculum structure Teaching Assignments uses (CBC: ECE, Lower
+ * Primary 1–3, Upper Primary 4–6, Secondary Forms 1–4; OBC: its own 1–7 / 8–12
+ * layout). There is deliberately NO separate Class-Timetable grade list. */
+function gradeStagesFor(curriculumId) {
+  return gradeStructureFor(gradeStructureModeFor(curriculumId)).stages
+}
+
+/**
+ * Seed the studio's subject list for a curriculum + grade. There is NO generic
+ * or hard-coded fallback: a curriculum that prescribes an official allocation
+ * (CBC 2023 / adapted) is seeded ONLY from the framework — a grade with no
+ * prescribed table (CBC Grade 7 / secondary, or an empty grade) returns [] so
+ * the studio surfaces the "curriculum timetable data unavailable" diagnostic
+ * instead of guessing. Curricula with no catalogued table (OBC 2013 / custom)
+ * fall back to the manual subject list the teacher edits by hand.
+ */
 function seedSubjects(grade, curriculumId, selectedOptions) {
-  const fromCurriculum = curriculumSubjectsForGrade(grade, curriculumId, selectedOptions)
-  if (fromCurriculum.length) return fromCurriculum
-  // Grades with no catalogued list — start from a minimal core the teacher
-  // can rename/extend.
-  return ['Mathematics', 'English', 'Science'].map((l) => ({
-    id: `s-${l}`, label: l, periodsPerWeek: defaultPeriodsPerWeek(l),
-  }))
+  if (!grade) return []
+  const curriculum = getCurriculum(curriculumId)
+  if (curriculum?.hasAllocations) {
+    return resolveTimetableCurriculum({ curriculumId, grade, selectedOptions })
+      ? curriculumSubjectsForGrade(grade, curriculumId, selectedOptions)
+      : []
+  }
+  return curriculumSubjectsForGrade(grade, curriculumId, selectedOptions)
 }
 
 /** Lesson periods/day that fit the curriculum's weekly load for a grade, or
@@ -219,6 +241,10 @@ export default function ClassTimetableStudio() {
   // Pending curriculum/grade/option switch — changing any of these reseeds
   // subjects, so we ask first when the teacher has lessons placed.
   const [pendingSwitch, setPendingSwitch] = useState(null) // { kind, value, groupId? }
+  // A recovered draft whose curriculum/grade/subjects don't reconcile against
+  // the current catalog — surfaced as "Needs review" instead of silently
+  // generating from stale values.
+  const [recoveredReview, setRecoveredReview] = useState(null) // { curriculumId, grade, gradeValid, missing[] }
   const [mobileDay, setMobileDay] = useState('all')
   const lastSeedKeyRef = useRef(`${DEFAULT_CURRICULUM_ID}|${initialGrade}`)
   // Skip the mount + draft-restore runs of the dirty-marking effect so a
@@ -230,6 +256,19 @@ export default function ClassTimetableStudio() {
     () => resolveTimetableCurriculum({ curriculumId, grade: header.grade, selectedOptions }),
     [curriculumId, header.grade, selectedOptions],
   )
+  const curriculumMeta = useMemo(() => getCurriculum(curriculumId), [curriculumId])
+  const gradeStages = useMemo(() => gradeStagesFor(curriculumId), [curriculumId])
+  // Does this curriculum prescribe an official weekly allocation for the chosen
+  // grade, and is the loaded subject list a COMPLETE resolution of it?
+  const readiness = useMemo(
+    () => resolveAllocationReadiness({ subjects, curriculum }),
+    [subjects, curriculum],
+  )
+  // The curriculum expects an official table (CBC / adapted) but either the
+  // grade has none (Grade 7 / secondary) or the loaded allocation is incomplete
+  // (e.g. a stale draft that dropped Mathematics and Science → 32 of 42).
+  const expectsAllocation = Boolean(curriculumMeta?.hasAllocations)
+  const allocationBlocked = expectsAllocation && (!curriculum || !readiness.ready)
   const segments = useMemo(() => segmentsOf(periods), [periods])
 
   // Mode A per-day structure (only when the teacher chose the exact week).
@@ -378,6 +417,30 @@ export default function ClassTimetableStudio() {
       }
       if (p.generationId !== undefined) setGenerationId(p.generationId)
       dirtySkipRef.current += 1
+
+      // Reconcile the recovered draft against the CURRENT catalog. A stale
+      // curriculum/grade (e.g. an old CBC Grade 7, or a Grades 1–4 grouping) or
+      // an incomplete subject set must not silently generate — flag it "Needs
+      // review" so the teacher confirms before replacing valid selections.
+      const restoredMode = gradeStructureModeFor(restoredCurriculum)
+      const gradeValid = isGradeInCurriculum(restoredGrade, restoredMode)
+      const restoredCurriculumFw = resolveTimetableCurriculum({
+        curriculumId: restoredCurriculum, grade: restoredGrade, selectedOptions: p.selectedOptions || {},
+      })
+      const restoredReadiness = resolveAllocationReadiness({
+        subjects: Array.isArray(p.subjects) ? p.subjects : [],
+        curriculum: restoredCurriculumFw,
+      })
+      const stale = !gradeValid
+        || (getCurriculum(restoredCurriculum)?.hasAllocations && (!restoredCurriculumFw || !restoredReadiness.ready))
+      setRecoveredReview(stale
+        ? {
+            curriculumId: restoredCurriculum,
+            grade: restoredGrade,
+            gradeValid,
+            missing: restoredReadiness.missing || [],
+          }
+        : null)
     },
   })
 
@@ -436,9 +499,22 @@ export default function ClassTimetableStudio() {
     applySwitch({ kind, value, groupId })
   }
   function applySwitch({ kind, value, groupId }) {
-    if (kind === 'curriculum') setCurriculumId(value)
-    else if (kind === 'grade') setH('grade', value)
-    else if (kind === 'option') {
+    if (kind === 'curriculum') {
+      setCurriculumId(value)
+      // Curriculum is the top of the dependency chain: clear optional-subject
+      // choices, and drop a grade that isn't valid in the new curriculum's
+      // structure (e.g. an OBC Grade 7 when switching to CBC). The reseed effect
+      // then clears the subjects and grid so nothing stale carries over.
+      setSelectedOptions({})
+      setRecoveredReview(null)
+      if (!isGradeInCurriculum(header.grade, gradeStructureModeFor(value))) {
+        setH('grade', '')
+        toast.info('Grade cleared — it is not offered in this curriculum. Pick a grade to load its subjects.')
+      }
+    } else if (kind === 'grade') {
+      setH('grade', value)
+      setRecoveredReview(null)
+    } else if (kind === 'option') {
       setSelectedOptions((o) => ({ ...o, [groupId]: value }))
       toast.info('Optional subject changed — re-check the curriculum validation below.')
     }
@@ -463,6 +539,7 @@ export default function ClassTimetableStudio() {
   }
   function resetSubjectsFromCurriculum() {
     setSubjects(seedSubjects(header.grade, curriculumId, selectedOptions))
+    setRecoveredReview(null)
     toast.info('Subjects reset from the curriculum for this grade.')
   }
 
@@ -560,6 +637,15 @@ export default function ClassTimetableStudio() {
    * allocation, right-size the grid, then run the block-aware auto-fill. */
   function onGenerateFromCurriculum() {
     if (!days.length) { toast.error('Pick at least one teaching day first.'); return }
+    // Never generate from an incomplete official allocation — the guard below
+    // (and the diagnostic panel) tell the teacher exactly what is missing.
+    if (allocationBlocked) {
+      const miss = readiness.missing?.[0]?.label
+      toast.error(miss
+        ? `Generation is unavailable because ${miss} is missing from the ${header.grade || 'grade'} curriculum allocation.`
+        : 'No curriculum timetable allocation is available for this curriculum and grade.')
+      return
+    }
     const fresh = seedSubjects(header.grade, curriculumId, selectedOptions)
     setSubjects(fresh)
     if (curriculum) {
@@ -885,9 +971,12 @@ export default function ClassTimetableStudio() {
   }
 
   /* ── validation panel line ── */
-  const statusStyle = validation.status === 'passed'
+  // The curriculum check must NOT pass when an official learning area is absent
+  // from the loaded allocation, even if every placed cell is internally sound.
+  const effectiveStatus = allocationBlocked ? 'failed' : validation.status
+  const statusStyle = effectiveStatus === 'passed'
     ? { borderColor: 'rgba(30,132,73,0.3)', background: 'rgba(30,132,73,0.06)' }
-    : validation.status === 'warning'
+    : effectiveStatus === 'warning'
       ? { borderColor: 'rgba(212,160,23,0.35)', background: 'rgba(212,160,23,0.08)' }
       : { borderColor: 'rgba(190,49,68,0.35)', background: 'rgba(190,49,68,0.06)' }
 
@@ -919,12 +1008,15 @@ export default function ClassTimetableStudio() {
                   {CURRICULA.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </FieldWrapper>
-              <FieldWrapper label="Grade">
+              <FieldWrapper label="Grade / Form">
                 <select value={header.grade} onChange={(e) => requestSwitch('grade', e.target.value)} className="studio-input">
-                  {GRADE_OPTIONS.map((g) => (
-                    g.group
-                      ? <optgroup key={g.group} label={g.group} />
-                      : <option key={g.value} value={g.value}>{g.label}</option>
+                  <option value="">Select a grade…</option>
+                  {gradeStages.map((stage) => (
+                    <optgroup key={stage.id} label={stage.label}>
+                      {stage.grades.map((g) => (
+                        <option key={g.value} value={g.value}>{g.label}</option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               </FieldWrapper>
@@ -989,18 +1081,81 @@ export default function ClassTimetableStudio() {
                     {curriculum.curriculumName} · {curriculum.levelLabel} ·{' '}
                     <strong>{curriculum.totalPeriods} periods/week</strong> · {curriculum.periodMinutes}-minute periods · {curriculum.contactLabel} contact time.
                   </p>
-                ) : (
+                ) : !header.grade ? (
+                  <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                    Pick a grade to load its official subjects and weekly allocation.
+                  </p>
+                ) : expectsAllocation ? (
                   <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
                     No official allocation is prescribed for this curriculum and grade
                     {/^G7$/i.test(header.grade) ? ' (Grade 7 does not use the Grades 4–6 CBC table)' : ''} —
-                    subjects below start from the standard list; set the weekly periods yourself.
+                    see the diagnostic below.
+                  </p>
+                ) : (
+                  <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                    This curriculum has no catalogued allocation table — the subjects below
+                    start from the standard list for this grade; set the weekly periods yourself.
                   </p>
                 )}
               </div>
-              <button type="button" onClick={onGenerateFromCurriculum} className="studio-btn-primary whitespace-nowrap">
+              <button type="button" onClick={onGenerateFromCurriculum}
+                disabled={allocationBlocked}
+                className="studio-btn-primary whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
                 ✨ Generate curriculum timetable
               </button>
             </div>
+
+            {/* Recovered-draft reconciliation — a restored curriculum/grade or
+                subject set that no longer matches the catalog is flagged for
+                review, never silently generated from. */}
+            {recoveredReview && (
+              <div className="rounded-xl border p-3 text-xs space-y-1.5"
+                style={{ borderColor: 'rgba(212,160,23,0.45)', background: 'rgba(212,160,23,0.08)' }}>
+                <div className="font-black uppercase tracking-wide" style={{ color: '#7a5800' }}>
+                  ⚠ Recovered draft — needs review
+                </div>
+                <p style={{ color: '#566f76' }}>
+                  This unfinished timetable was recovered from another device. Its saved
+                  {' '}curriculum/grade{!recoveredReview.gradeValid ? ' is not offered in the current catalog' : ' allocation is incomplete'}.
+                  {recoveredReview.missing?.length
+                    ? ` Missing: ${recoveredReview.missing.map((m) => m.label).join(', ')}.`
+                    : ''}
+                  {' '}The original values are kept so you can review them — nothing was generated. Reset the
+                  subjects from the curriculum, or pick a valid grade, before generating.
+                </p>
+                <button type="button" onClick={resetSubjectsFromCurriculum}
+                  className="studio-btn-ghost text-xs">↺ Reset subjects from curriculum</button>
+              </div>
+            )}
+
+            {/* Generation guard diagnostic — an incomplete/unavailable official
+                allocation blocks generation and shows the exact coordinates. */}
+            {allocationBlocked && header.grade && (
+              <div className="rounded-xl border p-3 text-xs space-y-1.5"
+                style={{ borderColor: 'rgba(190,49,68,0.4)', background: 'rgba(190,49,68,0.06)' }}>
+                <div className="font-black uppercase tracking-wide" style={{ color: '#be3144' }}>
+                  Curriculum timetable data unavailable
+                </div>
+                <p style={{ color: '#566f76' }}>
+                  {readiness.missing?.length
+                    ? `No complete curriculum allocation was found for this grade — ${readiness.missing.map((m) => m.label).join(', ')} ${readiness.missing.length === 1 ? 'is' : 'are'} missing. Generation has been disabled.`
+                    : 'No timetable allocation was found for this curriculum and grade. Generation has been disabled.'}
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 font-mono text-[11px]" style={{ color: '#566f76' }}>
+                  <span>Curriculum ID: {curriculumId}</span>
+                  <span>Grade ID: {header.grade || '—'}</span>
+                  <span>Stage ID: {curriculum?.stageId || '—'}</span>
+                  <span>Resolved subjects: {readiness.resolvedSubjects}</span>
+                  <span>Required subjects: {readiness.requiredSubjects}</span>
+                  <span>Resolved periods: {readiness.resolvedPeriods}</span>
+                  <span>Required periods: {readiness.requiredPeriods}</span>
+                </div>
+                {curriculum && (
+                  <button type="button" onClick={resetSubjectsFromCurriculum}
+                    className="studio-btn-ghost text-xs">↺ Reset subjects from curriculum</button>
+                )}
+              </div>
+            )}
 
             {/* One-of option groups (Expressive Arts OR Home Economics, language provision) */}
             {curriculum?.optionGroups?.map((g) => (
@@ -1463,9 +1618,9 @@ export default function ClassTimetableStudio() {
               <div className="mt-4 rounded-xl border p-3 text-xs space-y-1.5" style={statusStyle}>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-black uppercase tracking-wide"
-                    style={{ color: validation.status === 'passed' ? '#1E8449' : validation.status === 'warning' ? '#7a5800' : '#be3144' }}>
-                    {validation.status === 'passed' ? '✓ Curriculum check passed'
-                      : validation.status === 'warning' ? '△ Curriculum check — warnings'
+                    style={{ color: effectiveStatus === 'passed' ? '#1E8449' : effectiveStatus === 'warning' ? '#7a5800' : '#be3144' }}>
+                    {effectiveStatus === 'passed' ? '✓ Curriculum check passed'
+                      : effectiveStatus === 'warning' ? '△ Curriculum check — warnings'
                         : '✗ Curriculum check failed'}
                   </span>
                   {validation.customised && (
@@ -1509,6 +1664,11 @@ export default function ClassTimetableStudio() {
                   )
                 })}
 
+                {allocationBlocked && readiness.missing.map((m) => (
+                  <div key={m.subjectId || m.label} className="font-bold text-rose-700">
+                    • {m.label} is missing from the curriculum allocation ({m.weeklyPeriods} periods) — reset the subjects from the curriculum.
+                  </div>
+                ))}
                 {validation.errors.map((m) => (
                   <div key={m} className="font-bold text-rose-700">• {m}</div>
                 ))}

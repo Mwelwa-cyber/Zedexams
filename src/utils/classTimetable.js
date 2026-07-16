@@ -510,6 +510,77 @@ export function newSubject(label = 'New subject') {
 }
 
 /**
+ * Generation guard — is the loaded subject list a COMPLETE resolution of the
+ * curriculum's official allocation for this grade?
+ *
+ * Matches the studio's loaded subjects to the resolved framework by CANONICAL
+ * subjectId (never by loose display-name matching) and reports, exactly as the
+ * admin diagnostic panel needs:
+ *   resolvedSubjects / requiredSubjects  — how many official areas are present
+ *   resolvedPeriods  / requiredPeriods   — the official periods of the present
+ *                                          areas vs the curriculum total
+ *   resolvedMinutes  / requiredMinutes   — the same in contact minutes
+ *   missing[]                            — the official areas not yet loaded
+ *
+ * `ready` is true only when every official area resolves (so a stale draft that
+ * dropped Mathematics and Science — 32 of 42 periods — is caught and generation
+ * is blocked). Editing an allocation's period counts does NOT make it
+ * incomplete: readiness keys on the SET of canonical areas, using each area's
+ * official periods, so a legitimate "customised from baseline" week still
+ * resolves to the full 42. `applicable:false` means the curriculum prescribes no
+ * allocation for this grade (OBC / custom / CBC Grade 7 / secondary).
+ */
+export function resolveAllocationReadiness({ subjects, curriculum } = {}) {
+  if (!curriculum || !Array.isArray(curriculum.subjects)) {
+    return {
+      applicable: false, ready: false,
+      requiredSubjects: 0, resolvedSubjects: 0,
+      requiredPeriods: 0, resolvedPeriods: 0,
+      requiredMinutes: null, resolvedMinutes: 0,
+      missing: [],
+    }
+  }
+  const required = curriculum.subjects.filter(
+    (s) => s.selected !== false && (Number(s.weeklyPeriods ?? s.periodsPerWeek) || 0) > 0,
+  )
+  const loadedIds = new Set(
+    (Array.isArray(subjects) ? subjects : [])
+      .filter((s) => s.selected !== false)
+      .map((s) => s.subjectId || s.id)
+      .filter(Boolean),
+  )
+  const missing = []
+  let resolvedSubjects = 0
+  let resolvedPeriods = 0
+  let resolvedMinutes = 0
+  for (const r of required) {
+    const id = r.subjectId || r.id
+    const periods = Number(r.weeklyPeriods ?? r.periodsPerWeek) || 0
+    const minutes = Number(r.weeklyMinutes) || periods * (Number(curriculum.periodLengthMinutes ?? curriculum.periodMinutes) || 0)
+    if (id && loadedIds.has(id)) {
+      resolvedSubjects += 1
+      resolvedPeriods += periods
+      resolvedMinutes += minutes
+    } else {
+      missing.push({ subjectId: id, label: r.label || r.canonicalName || id, weeklyPeriods: periods })
+    }
+  }
+  const requiredPeriods = curriculum.requiredWeeklyPeriods
+    ?? required.reduce((n, r) => n + (Number(r.weeklyPeriods ?? r.periodsPerWeek) || 0), 0)
+  const requiredMinutes = curriculum.weeklyContactMinutes ?? null
+  const ready = missing.length === 0
+    && resolvedPeriods === requiredPeriods
+    && (requiredMinutes == null || resolvedMinutes === requiredMinutes)
+  return {
+    applicable: true, ready,
+    requiredSubjects: required.length, resolvedSubjects,
+    requiredPeriods, resolvedPeriods,
+    requiredMinutes, resolvedMinutes,
+    missing,
+  }
+}
+
+/**
  * Lesson periods per day needed to fit a weekly total across the teaching
  * days, e.g. 42 periods over 5 days → 9/day. Clamped to the studio's 1–14
  * range. Used to right-size the grid for the framework's weekly load.
