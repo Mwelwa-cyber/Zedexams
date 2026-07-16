@@ -1,0 +1,403 @@
+/* ── Session-restoration screen ──────────────────────────────────────────
+ *
+ * The branded loader shown while Firebase restores the persisted session and
+ * the Firestore profile round-trips on a cold start / reload (chiefly /teacher,
+ * via ProtectedRoute). It is the heavier, polished sibling of <FullScreenLoader>.
+ *
+ * COLOURS — this renders at BOOT, before a saved learner theme is guaranteed to
+ * be on <body>, and must hand off seamlessly from the pre-React skeleton in
+ * index.html. So instead of scattering hex values it defines ONE local set of
+ * brand custom properties that mirror index.html's boot skeleton AND the
+ * `oatmeal` brand-default theme tokens (--bg #FDF6EC, ink #1C1917/#1A1F2E,
+ * accent orange). Everything below references these — no loose hex in rules. */
+.zsr {
+  --zsr-cream:        #FDF6EC; /* brand bg — matches index.html + theme-oatmeal --bg */
+  --zsr-cream-2:      #FFFDF7; /* card surface — theme-oatmeal --card */
+  --zsr-navy:         #1A1F2E; /* wordmark ink — matches index.html boot skeleton */
+  --zsr-navy-soft:    #4B6280; /* muted ink */
+  --zsr-orange:       #EA580C; /* brand orange — matches .text-brand-orange */
+  --zsr-orange-soft:  #FDBA74; /* light orange for the track */
+  --zsr-orange-glow:  rgba(234, 88, 12, 0.22);
+  --zsr-blue:         #2563EB; /* brand blue — matches the logo mark + arc */
+  --zsr-track:        #EBD9C2; /* warm ring track — matches boot spinner border */
+  --zsr-border:       #E7D5C0; /* theme-oatmeal --border */
+  --zsr-danger:       #B91C1C;
+  --zsr-shadow:       0 12px 34px rgba(120, 70, 20, 0.14), 0 4px 12px rgba(120, 70, 20, 0.08);
+
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(18px, 4vw, 26px);
+  /* 100dvh tracks the *usable* viewport under mobile browser chrome; 100vh is
+   * the safe fallback for browsers without dynamic-viewport units. */
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: calc(24px + env(safe-area-inset-top, 0px))
+           calc(20px + env(safe-area-inset-right, 0px))
+           calc(24px + env(safe-area-inset-bottom, 0px))
+           calc(20px + env(safe-area-inset-left, 0px));
+  box-sizing: border-box;
+  background: var(--zsr-cream);
+  color: var(--zsr-navy);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  animation: zsr-screen-in var(--zsr-in-dur, 240ms) ease-out both;
+}
+
+/* Fade-out when restoration completes (200–300ms) before the dashboard shows. */
+.zsr--leaving {
+  animation: zsr-screen-out 240ms ease-in both;
+  pointer-events: none;
+}
+
+/* ── Elevated loader card (sits above the optional skeleton) ─────────────── */
+.zsr__card {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(14px, 3vw, 20px);
+  width: min(100%, 460px);
+  padding: clamp(24px, 5vw, 36px) clamp(20px, 5vw, 32px);
+  text-align: center;
+}
+
+/* When the skeleton is behind it, give the card a real surface so it reads as
+ * an elevated overlay rather than floating text. */
+.zsr--with-skeleton .zsr__card {
+  background: var(--zsr-cream-2);
+  border: 1px solid var(--zsr-border);
+  border-radius: 20px;
+  box-shadow: var(--zsr-shadow);
+}
+
+/* ── Circular loader: glow → track ring → rotating arc → wordmark ────────── */
+.zsr__loader {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  display: grid;
+  place-items: center;
+}
+
+.zsr__glow {
+  position: absolute;
+  inset: -18%;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--zsr-orange-glow) 0%, rgba(234, 88, 12, 0) 68%);
+  filter: blur(6px);
+  animation: zsr-glow 2.8s ease-in-out infinite;
+}
+
+.zsr__ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.zsr__ring-track {
+  fill: none;
+  stroke: var(--zsr-track);
+  stroke-width: 5;
+  opacity: 0.5;
+}
+
+/* Two counter-offset arcs (blue + orange), each rotating as a group so its
+ * leading dot orbits with it. */
+.zsr__ring-arc {
+  transform-origin: 50% 50%;
+  animation: zsr-spin 1.5s linear infinite;
+}
+.zsr__ring-arc--orange { animation-duration: 1.9s; animation-direction: reverse; }
+
+.zsr__ring-stroke {
+  fill: none;
+  stroke-width: 5;
+  stroke-linecap: round;
+  /* ~30% arc of a r=72 circle (circumference ≈ 452.4). */
+  stroke-dasharray: 135 320;
+}
+.zsr__ring-stroke--blue   { stroke: var(--zsr-blue); }
+.zsr__ring-stroke--orange { stroke: var(--zsr-orange); }
+
+.zsr__ring-dot--blue   { fill: var(--zsr-blue); }
+.zsr__ring-dot--orange { fill: var(--zsr-orange); }
+
+/* Centre badge — the ZedExams app icon, clipped to a soft-rounded square. */
+.zsr__badge {
+  position: relative;
+  z-index: 1;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  object-fit: cover;
+  box-shadow: 0 6px 16px rgba(26, 31, 46, 0.28);
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* ── Message block ──────────────────────────────────────────────────────── */
+.zsr__message {
+  min-height: 3.4em; /* reserve height so the cross-fade never shifts layout */
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+.zsr__title {
+  margin: 0;
+  font-size: clamp(1.15rem, 4.5vw, 1.4rem);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--zsr-navy);
+  animation: zsr-fade var(--zsr-fade-dur, 260ms) ease-out both;
+}
+.zsr__subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--zsr-navy-soft);
+  animation: zsr-fade var(--zsr-fade-dur, 260ms) ease-out both;
+}
+
+/* ── Indeterminate progress bar ─────────────────────────────────────────── */
+.zsr__bar {
+  position: relative;
+  width: min(100%, 320px);
+  height: 4px;
+  border-radius: 999px;
+  background: var(--zsr-track);
+  overflow: hidden;
+}
+.zsr__bar-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 40%;
+  border-radius: 999px;
+  /* Brand blue → orange sweep, matching the loader arcs. */
+  background: linear-gradient(90deg, var(--zsr-blue), var(--zsr-orange));
+  animation: zsr-indeterminate 1.5s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+/* Steady (non-animated) fill for the terminal offline/timeout/error states. */
+.zsr__bar--stalled .zsr__bar-fill {
+  width: 100%;
+  animation: none;
+  opacity: 0.45;
+  background: var(--zsr-track);
+}
+
+/* ── Trust row ──────────────────────────────────────────────────────────── */
+.zsr__trust {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--zsr-navy-soft);
+}
+.zsr__trust svg { width: 15px; height: 15px; color: var(--zsr-orange); }
+
+/* ── Recovery / offline / error card ────────────────────────────────────── */
+.zsr__recovery {
+  width: min(100%, 440px);
+  margin-top: 4px;
+  padding: 18px 20px;
+  background: var(--zsr-cream-2);
+  border: 1px solid var(--zsr-border);
+  border-radius: 16px;
+  box-shadow: var(--zsr-shadow);
+  text-align: center;
+  animation: zsr-fade 260ms ease-out both;
+}
+.zsr__recovery-title {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--zsr-navy);
+}
+.zsr__recovery-text {
+  margin: 0 0 14px;
+  font-size: 0.86rem;
+  color: var(--zsr-navy-soft);
+}
+.zsr__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Buttons — brand orange primary + text secondary, both ≥44px touch target. */
+.zsr__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 150ms ease, transform 100ms ease, opacity 150ms ease;
+}
+.zsr__btn svg { width: 16px; height: 16px; }
+.zsr__btn:active { transform: translateY(1px); }
+.zsr__btn:focus-visible {
+  outline: 3px solid var(--zsr-orange);
+  outline-offset: 2px;
+}
+.zsr__btn--primary {
+  background: var(--zsr-orange);
+  color: #fff;
+}
+.zsr__btn--primary:hover:not(:disabled) { background: #d24d09; }
+.zsr__btn--primary:disabled { opacity: 0.6; cursor: progress; }
+.zsr__btn--ghost {
+  background: transparent;
+  color: var(--zsr-navy);
+  min-height: 44px;
+  padding: 0 8px;
+}
+.zsr__btn--ghost:hover:not(:disabled) { color: var(--zsr-orange); }
+.zsr__btn--ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.zsr__btn-spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: zsr-spin 0.7s linear infinite;
+}
+
+/* ── Optional teacher-dashboard skeleton (faint, behind the loader) ──────── */
+.zsr__skeleton {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  opacity: 0.5;
+  pointer-events: none;
+  overflow: hidden;
+}
+.zsr__sk-topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 60px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--zsr-border);
+  background: var(--zsr-cream-2);
+}
+.zsr__sk-body { flex: 1; display: flex; min-height: 0; }
+.zsr__sk-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-right: 1px solid var(--zsr-border);
+  background: var(--zsr-cream-2);
+}
+.zsr__sk-main {
+  flex: 1;
+  padding: 28px clamp(16px, 4vw, 36px);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.zsr__sk-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.zsr__sk-card {
+  height: 96px;
+  border-radius: 14px;
+  border: 1px solid var(--zsr-border);
+  background: var(--zsr-cream-2);
+}
+.zsr__sk-rows { display: flex; flex-direction: column; gap: 12px; }
+
+/* Shimmer blocks */
+.zsr__sk {
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--zsr-track) 25%, #f3e6d3 37%, var(--zsr-track) 63%);
+  background-size: 400% 100%;
+  animation: zsr-shimmer 1.6s ease infinite;
+}
+.zsr__sk--logo { width: 108px; height: 22px; }
+.zsr__sk--pill { width: 100%; height: 34px; border-radius: 10px; }
+.zsr__sk--title { width: 240px; height: 26px; }
+.zsr__sk--line { height: 14px; }
+.zsr__sk--row { height: 56px; border-radius: 12px; }
+
+/* On phones the real teacher dashboard collapses the sidebar — don't render a
+ * desktop sidebar skeleton that never appears in the live layout. */
+@media (max-width: 767px) {
+  .zsr__sk-sidebar { display: none; }
+  .zsr__sk-cards { grid-template-columns: 1fr; }
+  .zsr__loader { width: 112px; height: 112px; }
+}
+
+/* Very narrow screens (small Android phones): stack the recovery actions so
+ * both stay fully visible with no horizontal scroll and comfortable targets. */
+@media (max-width: 400px) {
+  .zsr__actions { flex-direction: column; align-items: stretch; }
+  .zsr__btn { width: 100%; }
+}
+
+/* ── Motion ─────────────────────────────────────────────────────────────── */
+@keyframes zsr-spin { to { transform: rotate(360deg); } }
+@keyframes zsr-glow {
+  0%, 100% { opacity: 0.55; transform: scale(0.96); }
+  50%      { opacity: 1;    transform: scale(1.04); }
+}
+@keyframes zsr-indeterminate {
+  0%   { left: -40%; width: 40%; }
+  50%  { left: 25%;  width: 55%; }
+  100% { left: 100%; width: 40%; }
+}
+@keyframes zsr-shimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+@keyframes zsr-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes zsr-screen-in  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes zsr-screen-out { from { opacity: 1; } to { opacity: 0; } }
+
+/* Respect reduced-motion: no spin/glow/shimmer/slide, no fade transforms. The
+ * arc stays as a static branded ring; the bar shows a calm static fill. */
+@media (prefers-reduced-motion: reduce) {
+  .zsr,
+  .zsr--leaving,
+  .zsr__title,
+  .zsr__subtitle,
+  .zsr__recovery { animation: none; }
+  .zsr__ring-arc,
+  .zsr__glow,
+  .zsr__btn-spinner,
+  .zsr__sk { animation: none; }
+  .zsr__bar-fill {
+    animation: none;
+    left: 0;
+    width: 100%;
+    opacity: 0.8;
+  }
+  .zsr__glow { opacity: 0.7; }
+}

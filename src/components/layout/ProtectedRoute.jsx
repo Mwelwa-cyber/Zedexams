@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { getRoleLandingPath } from '../../utils/navigation'
 import { isWithinVerificationGrace } from '../../utils/verification'
 import FullScreenLoader from '../ui/FullScreenLoader'
+import SessionRestorationLoader from '../auth/SessionRestorationLoader'
 import MissingProfileRecovery from '../auth/MissingProfileRecovery'
 import VerifyEmailBanner from '../ui/VerifyEmailBanner'
 
@@ -12,12 +13,18 @@ export default function ProtectedRoute({ children, requiredRole }) {
   const { currentUser, userProfile, loading, profileIssue, needsEmailVerification } = useAuth()
   const location = useLocation()
 
-  // Branded splash (not the thin bar) while the session + profile resolve on a
-  // cold start / reload, so a returning user never sees a blank white page.
-  // Firebase restores the persisted session asynchronously — currentUser is
-  // null on the first frames even for a signed-in user — so we must never
-  // redirect to /login while `loading` is still true.
-  if (loading) return <FullScreenLoader label="Restoring your session…" />
+  // Branded session-restoration screen (progressive stages + offline/timeout/
+  // retry/error recovery) while the session + profile resolve on a cold start /
+  // reload, so a returning user never sees a blank white page and is never
+  // stuck without an action. Firebase restores the persisted session
+  // asynchronously — currentUser is null on the first frames even for a
+  // signed-in user — so we must never redirect to /login while `loading` is
+  // still true. The skeleton is shown only for the teacher workspace and only
+  // once auth has resolved (handled inside the screen), so a signed-out visitor
+  // can't glimpse an authenticated layout.
+  if (loading) {
+    return <SessionRestorationLoader showDashboardSkeleton={requiredRole === 'teacher'} />
+  }
   // Genuinely signed out. Carry the requested URL so Login can send the user
   // back to the page they were on instead of the generic role landing page.
   if (!currentUser) {
@@ -43,7 +50,14 @@ export default function ProtectedRoute({ children, requiredRole }) {
   // restores the profile, this guard re-renders and the user continues on the
   // exact page they refreshed. Never sign the user out here.
   if (profileIssue) return <MissingProfileRecovery />
-  if (requiredRole && !userProfile) return <FullScreenLoader label="Loading your workspace…" />
+  if (requiredRole && !userProfile) {
+    return (
+      <SessionRestorationLoader
+        forcedStage="loading-dashboard"
+        showDashboardSkeleton={requiredRole === 'teacher'}
+      />
+    )
+  }
 
   if (requiredRole && userProfile) {
     const userLevel     = ROLE_LEVEL[userProfile.role]   ?? 1
