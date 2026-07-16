@@ -249,6 +249,7 @@
     "test:appcheck-enforce": "node functions/appCheckEnforcement.test.js",
     "test:appcheck-health": "node functions/appCheckHealthCore.test.js",
     "test:ai-budget-reservation": "node functions/aiBudgetReservation.test.js",
+    "test:ai-budget-provider-gates": "node functions/aiBudgetProviderGates.test.js",
     "test:ai-usage-shards": "node functions/aiUsageShards.test.js",
     "test:admin-payments": "node functions/adminPaymentsCore.test.js",
     "test:recaptcha": "node functions/recaptchaAssessment.test.js",

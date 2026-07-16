@@ -171,48 +171,69 @@ async function assertDailyLimit(uid, role, action) {
   }
 }
 
-// Monthly spend ceiling. No-op unless AI_MONTHLY_BUDGET_USD is set on the
-// runtime. When the month-to-date app spend has hit the ceiling, refuse
-// the call so a runaway can't keep burning credit. Fails open — a budget
-// read error must never block a legitimate request.
+// Monthly spend ceiling — reservation-based hard gate (aiCostTracking's
+// beginAiCall / settleAiCall / releaseAiCall). Reserves a conservative max
+// cost before dispatch so concurrent callers can't all read a stale "under
+// budget" total and collectively overspend; the reservation is reconciled to
+// the actual cost after the call, or released on failure. No-op unless a
+// ceiling is armed; fails open so an accounting glitch never blocks a call.
 const MONTHLY_BUDGET_MESSAGE =
   "The monthly AI budget has been reached. AI features are paused until " +
   "the next billing month or until an admin raises the limit.";
 
-async function assertAiBudget() {
-  let status;
-  try {
-    const {getBudgetStatus} = require("./aiCostTracking");
-    status = await getBudgetStatus();
-  } catch (err) {
-    console.warn("[aiService] budget check failed (allowing call)", err);
-    return;
-  }
-  if (status && status.overBudget) {
+async function beginBudgetGate({model, maxTokens, provider, track}) {
+  const {beginAiCall} = require("./aiCostTracking");
+  const gate = await beginAiCall({
+    generationId: track && track.generationId,
+    model,
+    maxTokens,
+    provider,
+  });
+  if (!gate.allowed) {
     throw new HttpsError("resource-exhausted", MONTHLY_BUDGET_MESSAGE);
+  }
+  return gate;
+}
+
+// Fire-and-forget: return a failed call's reserved budget. Never throws.
+function releaseBudgetGate(gate) {
+  try {
+    const {releaseAiCall} = require("./aiCostTracking");
+    releaseAiCall({reservation: gate && gate.reservation})
+        .catch((err) => console.warn("[aiService] budget release failed", err));
+  } catch (err) {
+    console.warn("[aiService] budget release failed", err);
+  }
+}
+
+// Fire-and-forget: reconcile the reservation to the actual cost AND land the
+// call on the /admin/ai-costs + monthly-ceiling rollups. Runs regardless of
+// `track` — the reservation must always settle, and untracked spend still
+// counts toward the ceiling (uid/tool just stay null). Never throws.
+function settleBudgetGate(gate, track, model, usage) {
+  try {
+    const {settleAiCall} = require("./aiCostTracking");
+    settleAiCall({
+      reservation: gate && gate.reservation,
+      uid: (track && track.uid) || null,
+      tool: (track && track.tool) || null,
+      model,
+      usage: usage || {},
+    }).catch((err) => console.warn("[aiService] budget settle failed", err));
+  } catch (err) {
+    console.warn("[aiService] cost track failed", err);
   }
 }
 
 // Normalise an OpenAI usage block ({prompt_tokens, completion_tokens}) into
-// the Anthropic-shaped {input_tokens, output_tokens} that recordAiUsage reads,
-// so OpenAI spend lands on the same /admin/ai-costs rollup. Cost is priced by
-// the gpt-* entries in aiCostTracking's price table.
-function recordOpenAiUsage(track, model, usage) {
-  if (!track || !usage) return;
-  try {
-    const {recordAiUsage} = require("./aiCostTracking");
-    recordAiUsage({
-      uid: track.uid || null,
-      tool: track.tool || null,
-      model,
-      usage: {
-        input_tokens: usage.prompt_tokens || 0,
-        output_tokens: usage.completion_tokens || 0,
-      },
-    });
-  } catch (err) {
-    console.warn("[aiService] openai cost track failed", err);
-  }
+// the Anthropic-shaped {input_tokens, output_tokens} that the cost rollups
+// read, so OpenAI spend lands on the same /admin/ai-costs meter. Cost is
+// priced by the gpt-* entries in aiCostTracking's price table.
+function fromOpenAiUsage(usage) {
+  return {
+    input_tokens: (usage && usage.prompt_tokens) || 0,
+    output_tokens: (usage && usage.completion_tokens) || 0,
+  };
 }
 
 async function callOpenAI(apiKey, {
@@ -225,56 +246,65 @@ async function callOpenAI(apiKey, {
   // Audit B4 — same opt-in usage tracking as callAnthropic.
   track = null,
 }) {
-  await assertAiBudget();
+  const gate = await beginBudgetGate({
+    model: model || MODEL, maxTokens, provider: "openai", track,
+  });
   // Accept an Anthropic-shaped {systemPrompt, messages[]} call and fold the
   // system prompt into OpenAI's system role, unless the caller already put a
   // system message first.
   const finalMessages = systemPrompt && messages[0]?.role !== "system" ?
     [{role: "system", content: systemPrompt}, ...messages] :
     messages;
-  let res;
+  let data;
   try {
-    res = await fetch(OPENAI_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: model || MODEL,
-        messages: finalMessages,
-        temperature,
-        max_tokens: maxTokens,
-        ...(json && {response_format: {type: "json_object"}}),
-      }),
-    });
-  } catch {
-    throw new HttpsError(
-      "unavailable",
-      "AI is temporarily unavailable. Please try again.",
-    );
-  }
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    console.error("OpenAI assistant error", {
-      status: res.status,
-      message: body?.error?.message,
-    });
-    if (res.status === 429) {
+    let res;
+    try {
+      res = await fetch(OPENAI_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: model || MODEL,
+          messages: finalMessages,
+          temperature,
+          max_tokens: maxTokens,
+          ...(json && {response_format: {type: "json_object"}}),
+        }),
+      });
+    } catch {
       throw new HttpsError(
-        "resource-exhausted",
-        "AI is busy right now. Please wait a moment and try again.",
+        "unavailable",
+        "AI is temporarily unavailable. Please try again.",
       );
     }
-    throw new HttpsError(
-      "unavailable",
-      "AI is temporarily unavailable. Please try again.",
-    );
-  }
 
-  const data = await res.json();
-  recordOpenAiUsage(track, data?.model || model || MODEL, data?.usage);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      console.error("OpenAI assistant error", {
+        status: res.status,
+        message: body?.error?.message,
+      });
+      if (res.status === 429) {
+        throw new HttpsError(
+          "resource-exhausted",
+          "AI is busy right now. Please wait a moment and try again.",
+        );
+      }
+      throw new HttpsError(
+        "unavailable",
+        "AI is temporarily unavailable. Please try again.",
+      );
+    }
+
+    data = await res.json();
+  } catch (err) {
+    releaseBudgetGate(gate);
+    throw err;
+  }
+  settleBudgetGate(gate, track, data?.model || model || MODEL,
+      fromOpenAiUsage(data?.usage));
   return cleanString(data?.choices?.[0]?.message?.content, 4000);
 }
 
@@ -294,87 +324,94 @@ async function callOpenAIStream(apiKey, {
   model,
   track = null,
 }, onToken) {
-  await assertAiBudget();
+  const gate = await beginBudgetGate({
+    model: model || MODEL, maxTokens, provider: "openai", track,
+  });
   const finalMessages = systemPrompt && messages[0]?.role !== "system" ?
     [{role: "system", content: systemPrompt}, ...messages] :
     messages;
-  let res;
-  try {
-    res = await fetch(OPENAI_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: model || MODEL,
-        messages: finalMessages,
-        temperature,
-        max_tokens: maxTokens,
-        stream: true,
-        stream_options: {include_usage: true},
-      }),
-    });
-  } catch (err) {
-    console.error("callOpenAIStream fetch failed", err);
-    throw new HttpsError(
-      "unavailable",
-      "AI is temporarily unavailable. Please try again.",
-    );
-  }
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    console.error("callOpenAIStream API error", {
-      status: res.status,
-      message: body?.error?.message,
-    });
-    if (res.status === 429) {
-      throw new HttpsError(
-        "resource-exhausted",
-        "AI is busy. Please wait a moment and try again.",
-      );
-    }
-    throw new HttpsError(
-      "unavailable",
-      "AI is temporarily unavailable. Please try again.",
-    );
-  }
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
   let fullText = "";
   let usage = null;
   let streamModel = model || MODEL;
+  try {
+    let res;
+    try {
+      res = await fetch(OPENAI_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: model || MODEL,
+          messages: finalMessages,
+          temperature,
+          max_tokens: maxTokens,
+          stream: true,
+          stream_options: {include_usage: true},
+        }),
+      });
+    } catch (err) {
+      console.error("callOpenAIStream fetch failed", err);
+      throw new HttpsError(
+        "unavailable",
+        "AI is temporarily unavailable. Please try again.",
+      );
+    }
 
-  while (true) {
-    const {done, value} = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, {stream: true});
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
-      const raw = line.slice(6).trim();
-      if (!raw || raw === "[DONE]") continue;
-      try {
-        const parsed = JSON.parse(raw);
-        if (parsed.model) streamModel = parsed.model;
-        const token = parsed.choices?.[0]?.delta?.content;
-        if (typeof token === "string" && token) {
-          fullText += token;
-          onToken(token);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      console.error("callOpenAIStream API error", {
+        status: res.status,
+        message: body?.error?.message,
+      });
+      if (res.status === 429) {
+        throw new HttpsError(
+          "resource-exhausted",
+          "AI is busy. Please wait a moment and try again.",
+        );
+      }
+      throw new HttpsError(
+        "unavailable",
+        "AI is temporarily unavailable. Please try again.",
+      );
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, {stream: true});
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const raw = line.slice(6).trim();
+        if (!raw || raw === "[DONE]") continue;
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed.model) streamModel = parsed.model;
+          const token = parsed.choices?.[0]?.delta?.content;
+          if (typeof token === "string" && token) {
+            fullText += token;
+            onToken(token);
+          }
+          // The include_usage chunk arrives with empty choices + a usage block.
+          if (parsed.usage) usage = parsed.usage;
+        } catch {
+          // ignore malformed SSE lines
         }
-        // The include_usage chunk arrives with empty choices + a usage block.
-        if (parsed.usage) usage = parsed.usage;
-      } catch {
-        // ignore malformed SSE lines
       }
     }
+  } catch (err) {
+    releaseBudgetGate(gate);
+    throw err;
   }
 
-  recordOpenAiUsage(track, streamModel, usage);
+  settleBudgetGate(gate, track, streamModel, fromOpenAiUsage(usage));
   return fullText;
 }
 
@@ -400,7 +437,9 @@ async function callAnthropic(apiKey, {
   tools,
   toolChoice,
 }) {
-  await assertAiBudget();
+  const gate = await beginBudgetGate({
+    model: model || ANTHROPIC_MODEL, maxTokens, provider: "anthropic", track,
+  });
   let res;
   try {
     res = await anthropicFetch(ANTHROPIC_URL, {
@@ -431,6 +470,7 @@ async function callAnthropic(apiKey, {
       }),
     }, {label: "aiService"});
   } catch {
+    releaseBudgetGate(gate);
     throw new HttpsError(
       "unavailable",
       "AI is temporarily unavailable. Please try again.",
@@ -444,6 +484,7 @@ async function callAnthropic(apiKey, {
       message: body?.error?.message,
       type: body?.error?.type,
     });
+    releaseBudgetGate(gate);
     if (res.status === 429) {
       throw new HttpsError(
         "resource-exhausted",
@@ -456,7 +497,17 @@ async function callAnthropic(apiKey, {
     );
   }
 
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    releaseBudgetGate(gate);
+    throw err;
+  }
+  // Settle before any return path — the tool-use branch below returns early,
+  // and an unsettled reservation would strand budget until its TTL reclaim.
+  settleBudgetGate(gate, track, data?.model || model || ANTHROPIC_MODEL,
+      data?.usage);
   const blocks = Array.isArray(data?.content) ? data.content : [];
 
   // Tool-use callers (e.g. Vex) want schema-enforced structured output.
@@ -478,20 +529,6 @@ async function callAnthropic(apiKey, {
     .map((block) => block.text)
     .join("\n")
     .trim();
-  // Audit B4 — fire-and-forget usage rollup. Never throws; never awaited.
-  if (track && data?.usage) {
-    try {
-      const {recordAiUsage} = require("./aiCostTracking");
-      recordAiUsage({
-        uid: track.uid || null,
-        tool: track.tool || null,
-        model: data.model || ANTHROPIC_MODEL,
-        usage: data.usage,
-      });
-    } catch (err) {
-      console.warn("[aiService] cost track failed", err);
-    }
-  }
   const cleaned = json ? stripJsonFences(text) : text;
   // Anthropic has no native JSON mode — if the model still wrapped output
   // in prose, try to extract the first JSON object as a last resort.
@@ -1551,106 +1588,99 @@ async function callAnthropicStream(apiKey, {
   // it and fire recordAiUsage after the stream completes.
   track = null,
 }, onToken) {
-  await assertAiBudget();
-  let res;
-  try {
-    res = await anthropicFetch(ANTHROPIC_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": ANTHROPIC_VERSION,
-      },
-      body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
-        max_tokens: maxTokens,
-        temperature,
-        stream: true,
-        ...(systemPrompt ? {
-          system: [{
-            type: "text",
-            text: systemPrompt,
-            cache_control: {type: "ephemeral"},
-          }],
-        } : {}),
-        messages,
-      }),
-    }, {label: "aiService:stream"});
-  } catch (err) {
-    console.error("callAnthropicStream fetch failed", err);
-    throw new HttpsError("unavailable", "AI is temporarily unavailable. Please try again.");
-  }
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    console.error("callAnthropicStream API error", {
-      status: res.status,
-      type: body?.error?.type,
-      message: body?.error?.message,
-    });
-    if (res.status === 429) {
-      throw new HttpsError("resource-exhausted", "AI is busy. Please wait a moment and try again.");
-    }
-    throw new HttpsError("unavailable", "AI is temporarily unavailable. Please try again.");
-  }
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
+  const gate = await beginBudgetGate({
+    model: ANTHROPIC_MODEL, maxTokens, provider: "anthropic", track,
+  });
   let fullText = "";
   // Anthropic streams cumulative usage on `message_start` (input
   // tokens incl. cache reads / writes) and again on `message_delta`
   // (output tokens). Merge the two into one usage object for tracking.
   let streamUsage = null;
   let streamModel = ANTHROPIC_MODEL;
+  try {
+    let res;
+    try {
+      res = await anthropicFetch(ANTHROPIC_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": ANTHROPIC_VERSION,
+        },
+        body: JSON.stringify({
+          model: ANTHROPIC_MODEL,
+          max_tokens: maxTokens,
+          temperature,
+          stream: true,
+          ...(systemPrompt ? {
+            system: [{
+              type: "text",
+              text: systemPrompt,
+              cache_control: {type: "ephemeral"},
+            }],
+          } : {}),
+          messages,
+        }),
+      }, {label: "aiService:stream"});
+    } catch (err) {
+      console.error("callAnthropicStream fetch failed", err);
+      throw new HttpsError("unavailable", "AI is temporarily unavailable. Please try again.");
+    }
 
-  while (true) {
-    const {done, value} = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, {stream: true});
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
-      const raw = line.slice(6).trim();
-      if (raw === "[DONE]") continue;
-      try {
-        const parsed = JSON.parse(raw);
-        if (
-          parsed.type === "content_block_delta" &&
-          parsed.delta?.type === "text_delta" &&
-          typeof parsed.delta.text === "string"
-        ) {
-          const token = parsed.delta.text;
-          fullText += token;
-          onToken(token);
-        } else if (parsed.type === "message_start" && parsed.message?.usage) {
-          streamUsage = {...streamUsage, ...parsed.message.usage};
-          if (parsed.message.model) streamModel = parsed.message.model;
-        } else if (parsed.type === "message_delta" && parsed.usage) {
-          streamUsage = {...streamUsage, ...parsed.usage};
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      console.error("callAnthropicStream API error", {
+        status: res.status,
+        type: body?.error?.type,
+        message: body?.error?.message,
+      });
+      if (res.status === 429) {
+        throw new HttpsError("resource-exhausted", "AI is busy. Please wait a moment and try again.");
+      }
+      throw new HttpsError("unavailable", "AI is temporarily unavailable. Please try again.");
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, {stream: true});
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const raw = line.slice(6).trim();
+        if (raw === "[DONE]") continue;
+        try {
+          const parsed = JSON.parse(raw);
+          if (
+            parsed.type === "content_block_delta" &&
+            parsed.delta?.type === "text_delta" &&
+            typeof parsed.delta.text === "string"
+          ) {
+            const token = parsed.delta.text;
+            fullText += token;
+            onToken(token);
+          } else if (parsed.type === "message_start" && parsed.message?.usage) {
+            streamUsage = {...streamUsage, ...parsed.message.usage};
+            if (parsed.message.model) streamModel = parsed.message.model;
+          } else if (parsed.type === "message_delta" && parsed.usage) {
+            streamUsage = {...streamUsage, ...parsed.usage};
+          }
+        } catch {
+          // ignore malformed SSE lines
         }
-      } catch {
-        // ignore malformed SSE lines
       }
     }
+  } catch (err) {
+    releaseBudgetGate(gate);
+    throw err;
   }
 
-  // Audit B4 — record streaming usage.
-  if (track && streamUsage) {
-    try {
-      const {recordAiUsage} = require("./aiCostTracking");
-      recordAiUsage({
-        uid: track.uid || null,
-        tool: track.tool || null,
-        model: streamModel,
-        usage: streamUsage,
-      });
-    } catch (err) {
-      console.warn("[aiService] stream cost track failed", err);
-    }
-  }
-
+  settleBudgetGate(gate, track, streamModel, streamUsage);
   return fullText;
 }
 
