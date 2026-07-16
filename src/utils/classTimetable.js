@@ -20,13 +20,43 @@
 import { getSubjectsForGradeForm } from '../config/library.js'
 import { resolveGradeForm } from './libraryClassification.js'
 import {
-  getFrameworkForGrade,
+  resolveTimetableCurriculum,
+  DEFAULT_CURRICULUM_ID,
   subjectLoad,
   subjectLoadWeight,
   LOAD_WEIGHT,
 } from './curriculumFramework.js'
+import {
+  BLOCK_TYPES,
+  segmentsOf,
+  fitsInOneSegment,
+  makeBlock,
+  blockSlots,
+  blocksToSlots,
+  slotsToBlocks,
+  validateBlockLayout,
+} from './timetableBlocks.js'
 
-export const SCHEMA_VERSION = 'class-timetable-1.0'
+export const SCHEMA_VERSION_1 = 'class-timetable-1.0'
+export const SCHEMA_VERSION = 'class-timetable-2.0'
+
+/* ── Display preferences ──────────────────────────────────────── */
+
+export const TIMETABLE_LAYOUTS = [
+  { id: 'days-as-columns', label: 'Days across the top' },
+  { id: 'days-as-rows', label: 'Days down the left' },
+]
+
+export const PERIOD_LABEL_MODES = [
+  { id: 'period-time', label: 'Period number and time' },
+  { id: 'time', label: 'Time only' },
+  { id: 'period', label: 'Period number only' },
+]
+
+export const DEFAULT_DISPLAY_PREFERENCES = {
+  timetableLayout: 'days-as-columns',
+  periodLabelMode: 'period-time',
+}
 
 /** The teaching days a school can run, in week order. Mon–Fri are the
  * default; Saturday is offered for schools that run weekend lessons. */
@@ -274,6 +304,107 @@ function buildPeriodsFitted(config = {}) {
   return rows
 }
 
+/* ── School-day templates ─────────────────────────────────────────
+ * Starting points for common Zambian school-day arrangements. A template
+ * only seeds the timing settings — every value stays editable afterwards.
+ */
+export const SCHOOL_DAY_TEMPLATES = [
+  {
+    id: 'full-day-break-lunch',
+    label: 'Full day · break + lunch',
+    description: 'Reports in the morning, runs past lunch. Assembly, one break and a lunch hour.',
+    timing: {
+      startTime: '07:30', endTime: '15:30', fitToEndTime: false, periodMinutes: 40,
+      breaks: [
+        { afterPeriod: 0, time: '07:30', minutes: 15, name: 'ASSEMBLY', event: 'assembly', enabled: true },
+        { afterPeriod: 2, time: '09:30', minutes: 20, name: 'BREAK', event: 'break', enabled: true },
+        { afterPeriod: 5, time: '12:00', minutes: 40, name: 'LUNCH', event: 'lunch', enabled: true },
+        { afterPeriod: 'end', time: '', minutes: 10, name: 'CLOSING', event: 'closing', enabled: true },
+      ],
+    },
+  },
+  {
+    id: 'full-day-break-only',
+    label: 'Full day · break only',
+    description: 'A full teaching day with a single mid-morning break and no lunch hour.',
+    timing: {
+      startTime: '07:30', endTime: '13:30', fitToEndTime: false, periodMinutes: 40,
+      breaks: [
+        { afterPeriod: 0, time: '07:30', minutes: 15, name: 'ASSEMBLY', event: 'assembly', enabled: true },
+        { afterPeriod: 3, time: '10:00', minutes: 30, name: 'BREAK', event: 'break', enabled: true },
+        { afterPeriod: 5, time: '12:00', minutes: 40, name: 'LUNCH', event: 'lunch', enabled: false },
+        { afterPeriod: 'end', time: '', minutes: 10, name: 'CLOSING', event: 'closing', enabled: true },
+      ],
+    },
+  },
+  {
+    id: 'government-break-only',
+    label: 'Government school day · break only',
+    description: 'The common government-school pattern: early report, one break, knock off after the last lesson.',
+    timing: {
+      startTime: '07:00', endTime: '12:50', fitToEndTime: false, periodMinutes: 40,
+      breaks: [
+        { afterPeriod: 0, time: '07:00', minutes: 15, name: 'ASSEMBLY', event: 'assembly', enabled: true },
+        { afterPeriod: 3, time: '09:30', minutes: 30, name: 'BREAK', event: 'break', enabled: true },
+        { afterPeriod: 5, time: '12:00', minutes: 40, name: 'LUNCH', event: 'lunch', enabled: false },
+        { afterPeriod: 'end', time: '', minutes: 5, name: 'CLOSING', event: 'closing', enabled: true },
+      ],
+    },
+  },
+  {
+    id: 'morning-shift',
+    label: 'Morning shift',
+    description: 'The morning session of a two-session school — early start, short break, midday knock-off.',
+    timing: {
+      startTime: '06:45', endTime: '12:00', fitToEndTime: false, periodMinutes: 40,
+      breaks: [
+        { afterPeriod: 0, time: '06:45', minutes: 10, name: 'ASSEMBLY', event: 'assembly', enabled: true },
+        { afterPeriod: 3, time: '09:00', minutes: 20, name: 'BREAK', event: 'break', enabled: true },
+        { afterPeriod: 5, time: '11:00', minutes: 40, name: 'LUNCH', event: 'lunch', enabled: false },
+        { afterPeriod: 'end', time: '', minutes: 5, name: 'CLOSING', event: 'closing', enabled: true },
+      ],
+    },
+  },
+  {
+    id: 'afternoon-shift',
+    label: 'Afternoon shift',
+    description: 'The afternoon session of a two-session school — starts after midday, runs to late afternoon.',
+    timing: {
+      startTime: '12:15', endTime: '17:30', fitToEndTime: false, periodMinutes: 40,
+      breaks: [
+        { afterPeriod: 0, time: '12:15', minutes: 10, name: 'ASSEMBLY', event: 'assembly', enabled: true },
+        { afterPeriod: 3, time: '14:30', minutes: 20, name: 'BREAK', event: 'break', enabled: true },
+        { afterPeriod: 5, time: '15:30', minutes: 40, name: 'LUNCH', event: 'lunch', enabled: false },
+        { afterPeriod: 'end', time: '', minutes: 5, name: 'CLOSING', event: 'closing', enabled: true },
+      ],
+    },
+  },
+  {
+    id: 'double-session',
+    label: 'Double-session school',
+    description: 'Your school runs two sessions a day. Build this class’s session — pick morning or afternoon times.',
+    timing: {
+      startTime: '06:45', endTime: '12:00', fitToEndTime: false, periodMinutes: 40,
+      breaks: [
+        { afterPeriod: 0, time: '06:45', minutes: 10, name: 'ASSEMBLY', event: 'assembly', enabled: true },
+        { afterPeriod: 3, time: '09:00', minutes: 20, name: 'BREAK', event: 'break', enabled: true },
+        { afterPeriod: 5, time: '11:00', minutes: 40, name: 'LUNCH', event: 'lunch', enabled: false },
+        { afterPeriod: 'end', time: '', minutes: 5, name: 'CLOSING', event: 'closing', enabled: true },
+      ],
+    },
+  },
+  {
+    id: 'custom',
+    label: 'Custom school day',
+    description: 'Start from the current settings and shape the day yourself.',
+    timing: null,
+  },
+]
+
+export function getSchoolDayTemplate(id) {
+  return SCHOOL_DAY_TEMPLATES.find((t) => t.id === id) || null
+}
+
 /** The clock time the day finishes — the end of the last row (the last lesson,
  * or the closing row when there is one). '' for an empty period list. */
 export function dayEndTime(periods) {
@@ -318,37 +449,54 @@ let subjectSeq = 0
 function makeSubject(label, extra = {}) {
   subjectSeq += 1
   return {
-    id: `s${subjectSeq}`,
+    id: extra.subjectId || `s${subjectSeq}`,
+    subjectId: extra.subjectId || null,
     label,
+    shortName: extra.shortName || null,
     periodsPerWeek: extra.periodsPerWeek ?? defaultPeriodsPerWeek(label),
     load: extra.load || subjectLoad(label),
     category: extra.category || null,
     choiceGroup: extra.choiceGroup || null,
+    optionGroupId: extra.optionGroupId ?? extra.choiceGroup ?? null,
     timeAllocation: extra.timeAllocation || null,
+    weeklyMinutes: extra.weeklyMinutes ?? null,
+    compulsory: extra.compulsory ?? null,
+    subjectType: extra.subjectType || null,
+    blockPreference: extra.blockPreference || null,
+    selected: extra.selected ?? true,
   }
 }
 
 /**
- * The curriculum subject list for a teacher grade (e.g. 'G5'), each seeded
- * with its weekly allocation.
+ * The curriculum subject list for a curriculum + grade (+ option choices),
+ * each seeded with its official weekly allocation.
  *
- * When the 2023 Curriculum Framework prescribes an allocation for the grade
- * (Lower / Upper Primary), the official subjects and period counts are used
- * verbatim — so the studio knows, for example, that a Grade 5 week is the
- * seven CBC learning areas at the framework's exact period counts (42/week).
- * For grades the framework doesn't yet cover (secondary), it falls back to
- * the canonical Library subject list with heuristic weekly counts. Returns []
- * only when no list exists at all (caller seeds a minimal core).
+ * When the selected curriculum prescribes an allocation (CBC 2023 ECE /
+ * Lower / Upper Primary, or the adapted baseline), the official subjects,
+ * ids, block preferences and period counts are used verbatim. Option-group
+ * alternatives that are NOT selected come back at 0 periods so the week
+ * sums to the framework total. For grades without a prescribed allocation
+ * (Grade 7, secondary, OBC 2013, custom) it falls back to the canonical
+ * Library subject list with heuristic weekly counts. Returns [] only when
+ * no list exists at all (caller seeds a minimal core).
  */
-export function curriculumSubjectsForGrade(grade) {
-  const framework = getFrameworkForGrade(grade)
+export function curriculumSubjectsForGrade(grade, curriculumId = DEFAULT_CURRICULUM_ID, selectedOptions = {}) {
+  const framework = resolveTimetableCurriculum({ curriculumId, grade, selectedOptions })
   if (framework) {
     return framework.subjects.map((s) => makeSubject(s.label, {
+      subjectId: s.id,
+      shortName: s.shortName,
       periodsPerWeek: s.periodsPerWeek,
       load: s.load,
       category: s.category,
       choiceGroup: s.choiceGroup,
+      optionGroupId: s.optionGroupId,
       timeAllocation: s.timeAllocation,
+      weeklyMinutes: s.weeklyMinutes,
+      compulsory: s.compulsory,
+      subjectType: s.subjectType,
+      blockPreference: s.blockPreference,
+      selected: s.selected,
     }))
   }
   const { syllabus, gradeForm } = resolveGradeForm(grade)
@@ -371,6 +519,44 @@ export function recommendedLessonPeriods(totalPeriods, days) {
   const total = Math.round(Number(totalPeriods) || 0)
   if (!d || total <= 0) return DEFAULT_TIMING.lessonPeriods
   return Math.min(14, Math.max(1, Math.ceil(total / d)))
+}
+
+/* ── Day structure (per-day lesson counts) ────────────────────── */
+
+/**
+ * Spread a weekly period total across the teaching days as evenly as
+ * possible (Mode A — "exact curriculum week"). 42 over Mon–Fri →
+ * { Monday: 9, Tuesday: 9, Wednesday: 8, Thursday: 8, Friday: 8 }.
+ */
+export function distributePeriodsPerDay(totalPeriods, days) {
+  const dayList = Array.isArray(days) ? days : []
+  const total = Math.max(0, Math.round(Number(totalPeriods) || 0))
+  if (!dayList.length) return {}
+  const base = Math.floor(total / dayList.length)
+  let extra = total - base * dayList.length
+  const out = {}
+  for (const day of dayList) {
+    out[day] = base + (extra > 0 ? 1 : 0)
+    if (extra > 0) extra -= 1
+  }
+  return out
+}
+
+/** Lesson slots available on a day: the grid's lesson rows, optionally
+ * shortened by dayStructure.periodsPerDay (Mode A). */
+export function slotCountForDay(day, periods, dayStructure) {
+  const rows = lessonPeriods(periods).length
+  const override = dayStructure?.periodsPerDay?.[day]
+  if (override == null) return rows
+  const n = Math.round(Number(override))
+  if (!Number.isFinite(n)) return rows
+  return Math.min(rows, Math.max(0, n))
+}
+
+/** Total fillable lesson cells across the week, honouring per-day counts. */
+export function weeklyCapacity(periods, days, dayStructure) {
+  return (Array.isArray(days) ? days : [])
+    .reduce((sum, d) => sum + slotCountForDay(d, periods, dayStructure), 0)
 }
 
 /* ── Auto-fill ────────────────────────────────────────────────── */
@@ -466,6 +652,219 @@ export function autoFillTimetable({ subjects, days, periods }) {
   return slots
 }
 
+/**
+ * Block-aware auto-fill — the v2 generator.
+ *
+ * Places explicit schedule blocks (singles + double periods) instead of raw
+ * cells, honouring:
+ *   - locked blocks (kept verbatim; their periods count toward the subject's
+ *     weekly allocation)
+ *   - per-day lesson counts (Mode A: a 42-period week over 9/9/8/8/8 days)
+ *   - block preferences (a subject wanting double periods gets them placed
+ *     inside one segment — never across a break/lunch/assembly)
+ *   - the balanced-week scoring the studio has always used (spread the load,
+ *     don't cluster heavy subjects, heavy earlier / light later)
+ *   - unselected option-group subjects (0 periods) are never placed
+ *
+ * With `activities` given (Mode B), spare lesson cells are filled with
+ * school-activity blocks — labelled, non-curriculum time — preferring the
+ * end of the day, so no unexplained dashes sit mid-timetable.
+ *
+ * Never silently returns an invalid week: the result carries `unplaced`
+ * (what couldn't fit + why) and `notes` for the validation panel.
+ *
+ * @returns {{ blocks:Array, unplaced:Array<{label,missing,reason}>, notes:string[] }}
+ */
+export function autoFillBlocks({ subjects, days, periods, dayStructure, lockedBlocks = [], activities = [] }) {
+  const rows = lessonPeriods(periods)
+  const dayList = Array.isArray(days) ? days : []
+  const subjList = (Array.isArray(subjects) ? subjects : []).filter((s) => (Number(s.periodsPerWeek) || 0) > 0)
+  const segments = segmentsOf(periods)
+  const capacityOf = (day) => slotCountForDay(day, periods, dayStructure)
+  const notes = []
+  const unplaced = []
+
+  // Occupancy from locked blocks (drop any that no longer fit the grid).
+  const occupied = new Set()
+  const blocks = []
+  const lockedCounts = new Map() // label → periods held by locked blocks
+  for (const b of Array.isArray(lockedBlocks) ? lockedBlocks : []) {
+    if (!dayList.includes(b.day)) continue
+    if (b.startSlot < 1 || b.startSlot + b.length - 1 > capacityOf(b.day)) continue
+    let clash = false
+    for (const s of blockSlots(b)) if (occupied.has(`${b.day}__${s}`)) clash = true
+    if (clash) continue
+    for (const s of blockSlots(b)) occupied.add(`${b.day}__${s}`)
+    blocks.push({ ...b, locked: true })
+    if (b.type === BLOCK_TYPES.CURRICULUM && b.label) {
+      lockedCounts.set(b.label, (lockedCounts.get(b.label) || 0) + b.length)
+    }
+  }
+
+  // Balance bookkeeping (locked blocks included).
+  const weightById = new Map(subjList.map((s) => [
+    s.id, s.load ? (LOAD_WEIGHT[s.load] || LOAD_WEIGHT.medium) : subjectLoadWeight(s.label),
+  ]))
+  const totalPerDay = new Map(dayList.map((d) => [d, 0]))
+  const heavyPerDay = new Map(dayList.map((d) => [d, 0]))
+  const subjectPerDay = new Map(dayList.map((d) => [d, new Map()])) // day → label → count
+  for (const b of blocks) {
+    if (b.type !== BLOCK_TYPES.CURRICULUM) continue
+    totalPerDay.set(b.day, (totalPerDay.get(b.day) || 0) + b.length)
+    const map = subjectPerDay.get(b.day)
+    if (map) map.set(b.label, (map.get(b.label) || 0) + b.length)
+    if (subjectLoad(b.label) === 'heavy') heavyPerDay.set(b.day, (heavyPerDay.get(b.day) || 0) + b.length)
+  }
+
+  const lastRow = Math.max(0, rows.length - 1)
+  const remaining = new Map()
+  for (const s of subjList) {
+    const target = Math.max(0, Math.round(Number(s.periodsPerWeek) || 0))
+    remaining.set(s.id, Math.max(0, target - (lockedCounts.get(s.label) || 0)))
+  }
+  const maxPerDayOf = (s) => {
+    const explicit = Math.round(Number(s.maxPeriodsPerDay))
+    if (Number.isFinite(explicit) && explicit > 0) return explicit
+    const target = Math.max(0, Math.round(Number(s.periodsPerWeek) || 0))
+    const spread = dayList.length ? Math.ceil(target / dayList.length) : target
+    const biggestBlock = Math.max(1, ...(s.blockPreference?.preferredBlocks || [1]))
+    return Math.max(spread, biggestBlock)
+  }
+
+  const place = (subject, day, startSlot, length) => {
+    const isHeavy = (weightById.get(subject.id) ?? LOAD_WEIGHT.medium) >= LOAD_WEIGHT.heavy
+    blocks.push(makeBlock({
+      day, startSlot, length,
+      subjectId: subject.subjectId || subject.id || null,
+      label: subject.label,
+      type: BLOCK_TYPES.CURRICULUM,
+    }))
+    for (let s = startSlot; s < startSlot + length; s += 1) occupied.add(`${day}__${s}`)
+    totalPerDay.set(day, (totalPerDay.get(day) || 0) + length)
+    const map = subjectPerDay.get(day)
+    if (map) map.set(subject.label, (map.get(subject.label) || 0) + length)
+    if (isHeavy) heavyPerDay.set(day, (heavyPerDay.get(day) || 0) + length)
+    remaining.set(subject.id, (remaining.get(subject.id) || 0) - length)
+  }
+
+  /* Phase 1 — preferred double periods, most-doubles-first so practical
+   * subjects claim adjacent pairs before the grid tightens. */
+  const doublesWanted = subjList.map((s) => ({
+    s,
+    n: Math.min(
+      Math.floor((remaining.get(s.id) || 0) / 2),
+      (s.blockPreference?.preferredBlocks || []).filter((b) => b >= 2).length,
+    ),
+  })).filter((d) => d.n > 0)
+  doublesWanted.sort((a, b) => b.n - a.n || (b.s.periodsPerWeek || 0) - (a.s.periodsPerWeek || 0))
+
+  for (const { s, n } of doublesWanted) {
+    const weight = weightById.get(s.id) ?? LOAD_WEIGHT.medium
+    const isHeavy = weight >= LOAD_WEIGHT.heavy
+    const maxPerDay = maxPerDayOf(s)
+    for (let k = 0; k < n; k += 1) {
+      if ((remaining.get(s.id) || 0) < 2) break
+      const candidates = []
+      for (const day of dayList) {
+        const cap = capacityOf(day)
+        const already = subjectPerDay.get(day)?.get(s.label) || 0
+        if (already + 2 > maxPerDay) continue
+        for (const seg of segments) {
+          for (const slot of seg) {
+            if (slot + 1 > cap || !seg.includes(slot + 1)) continue
+            if (occupied.has(`${day}__${slot}`) || occupied.has(`${day}__${slot + 1}`)) continue
+            candidates.push({ day, slot, already })
+          }
+        }
+      }
+      if (!candidates.length) {
+        notes.push(`Could not place a preferred ${s.label} double period — it will be placed as single periods instead.`)
+        break
+      }
+      const score = (c) => {
+        let v = c.already * 40                       // spread the subject across days
+          + (totalPerDay.get(c.day) || 0) * 10       // even weekly spread
+        if (isHeavy) v += (heavyPerDay.get(c.day) || 0) * 6
+        v += isHeavy ? c.slot : (lastRow - c.slot)   // heavy early, light/practical later
+        return v
+      }
+      candidates.sort((a, b) => score(a) - score(b) || a.slot - b.slot || dayList.indexOf(a.day) - dayList.indexOf(b.day))
+      const best = candidates[0]
+      place(s, best.day, best.slot, 2)
+    }
+  }
+
+  /* Phase 2 — remaining periods as singles, round-robin interleaved. */
+  const tokens = roundRobinTokens(subjList.map((s) => ({
+    id: s.id, label: s.label, periodsPerWeek: remaining.get(s.id) || 0,
+  })))
+  const byId = new Map(subjList.map((s) => [s.id, s]))
+  for (const tok of tokens) {
+    const s = byId.get(tok.id)
+    if (!s || (remaining.get(s.id) || 0) <= 0) continue
+    const weight = weightById.get(s.id) ?? LOAD_WEIGHT.medium
+    const isHeavy = weight >= LOAD_WEIGHT.heavy
+    const maxPerDay = maxPerDayOf(s)
+
+    const free = []
+    for (const day of dayList) {
+      const cap = capacityOf(day)
+      const already = subjectPerDay.get(day)?.get(s.label) || 0
+      for (let slot = 1; slot <= cap; slot += 1) {
+        if (occupied.has(`${day}__${slot}`)) continue
+        free.push({ day, slot, already, overCap: already >= maxPerDay })
+      }
+    }
+    if (!free.length) {
+      unplaced.push({ label: s.label, missing: remaining.get(s.id) || 0, reason: 'The grid is full — add lesson periods or reduce another subject.' })
+      remaining.set(s.id, 0)
+      continue
+    }
+    // Prefer days that don't hold this subject yet, then days under the
+    // per-day cap; only then relax (a tight grid beats dropping the period).
+    const freshOnly = free.filter((c) => c.already === 0)
+    const underCap = free.filter((c) => !c.overCap)
+    const pool = freshOnly.length ? freshOnly : (underCap.length ? underCap : free)
+
+    const score = (c) => {
+      let v = c.already * 40
+        + (totalPerDay.get(c.day) || 0) * 10
+      if (isHeavy) v += (heavyPerDay.get(c.day) || 0) * 6
+      v += isHeavy ? c.slot : (lastRow - c.slot)
+      return v
+    }
+    pool.sort((a, b) => score(a) - score(b) || a.slot - b.slot || dayList.indexOf(a.day) - dayList.indexOf(b.day))
+    const best = pool[0]
+    place(s, best.day, best.slot, 1)
+  }
+
+  /* Phase 3 — spare cells become school activities (Mode B). Fill from the
+   * END of each day so activities close the day rather than punch holes. */
+  if (Array.isArray(activities) && activities.length) {
+    const spare = []
+    for (const day of dayList) {
+      const cap = capacityOf(day)
+      for (let slot = cap; slot >= 1; slot -= 1) {
+        if (!occupied.has(`${day}__${slot}`)) spare.push({ day, slot })
+      }
+    }
+    // Round-robin days so activities spread across the week.
+    spare.sort((a, b) => b.slot - a.slot || dayList.indexOf(a.day) - dayList.indexOf(b.day))
+    let ai = 0
+    for (const cell of spare) {
+      const label = activities[ai % activities.length]
+      ai += 1
+      blocks.push(makeBlock({
+        day: cell.day, startSlot: cell.slot, length: 1,
+        label, type: BLOCK_TYPES.ACTIVITY,
+      }))
+      occupied.add(`${cell.day}__${cell.slot}`)
+    }
+  }
+
+  return { blocks, unplaced, notes }
+}
+
 /** Heavy lessons on one day beyond this count earns a "too heavy" warning. */
 export const HEAVY_PER_DAY_LIMIT = 4
 
@@ -539,6 +938,208 @@ export function validateTimetable({ slots, subjects, periods, days }) {
   return { ok: errors.length === 0 && warnings.length === 0, errors, warnings, bySubject, totalTarget, totalPlaced }
 }
 
+/**
+ * Detailed, block-aware validation — the data behind the studio's
+ * validation panel and the exports' Details sheet.
+ *
+ * Checks the placed blocks against the subject allocations, the official
+ * curriculum figures (when one is selected), the double-period invariants
+ * and the practical school rules. Distinguishes curriculum periods from
+ * school activities, counts real contact time from the actual row
+ * durations, and finds unexplained mid-day gaps.
+ *
+ * @returns {{
+ *   status:'passed'|'warning'|'failed', customised:boolean,
+ *   errors:string[], warnings:string[], notes:string[],
+ *   bySubject:Array<{label,shortName,target,placed,remaining,status,load,compulsory,optionGroupId,selected}>,
+ *   summary:{requiredPeriods,curriculumPeriods,activityPeriods,totalSlots,
+ *            contactMinutes,requiredContactMinutes,validDoubles,brokenDoubles,
+ *            unexplainedGaps,emptySlots}
+ * }}
+ */
+export function validateTimetableBlocks({ blocks, subjects, periods, days, dayStructure, curriculum }) {
+  const rows = lessonPeriods(periods)
+  const dayList = Array.isArray(days) ? days : []
+  const subjList = Array.isArray(subjects) ? subjects : []
+  const blockList = Array.isArray(blocks) ? blocks : []
+  const segments = segmentsOf(periods)
+  const capacityOf = (day) => slotCountForDay(day, periods, dayStructure)
+
+  const errors = []
+  const warnings = []
+  const notes = []
+  const plural = (n) => (n === 1 ? '' : 's')
+
+  /* Structural soundness: overlaps, out-of-range blocks, doubles crossing a
+   * break. These are hard failures. */
+  const structural = validateBlockLayout(blockList, {
+    segments, days: dayList, slotCountForDay: capacityOf,
+  })
+  errors.push(...structural)
+
+  /* Per-subject placement counts (a double counts as 2). */
+  const placed = new Map()
+  let curriculumPeriods = 0
+  let activityPeriods = 0
+  let contactMinutes = 0
+  let validDoubles = 0
+  let brokenDoubles = 0
+  for (const b of blockList) {
+    if (!dayList.includes(b.day)) continue
+    if (b.type === BLOCK_TYPES.ACTIVITY) { activityPeriods += b.length; continue }
+    placed.set(b.label, (placed.get(b.label) || 0) + b.length)
+    curriculumPeriods += b.length
+    for (const s of blockSlots(b)) {
+      const row = rows[s - 1]
+      if (row) contactMinutes += timeToMinutes(row.end) - timeToMinutes(row.start)
+    }
+    if (b.length >= 2) {
+      if (fitsInOneSegment(segments, b.startSlot, b.length)) validDoubles += 1
+      else brokenDoubles += 1
+    }
+  }
+
+  const bySubject = subjList.map((s) => {
+    const target = Math.max(0, Math.round(Number(s.periodsPerWeek) || 0))
+    const got = placed.get(s.label) || 0
+    let status = 'ok'
+    if (target > 0 && got === 0) status = 'missing'
+    else if (got < target) status = 'under'
+    else if (got > target) status = 'over'
+    return {
+      label: s.label,
+      shortName: s.shortName || null,
+      target,
+      placed: got,
+      remaining: Math.max(0, target - got),
+      status,
+      load: s.load || subjectLoad(s.label),
+      compulsory: s.compulsory ?? null,
+      optionGroupId: s.optionGroupId || s.choiceGroup || null,
+      selected: s.selected !== false,
+    }
+  })
+
+  for (const r of bySubject) {
+    if (!r.selected && r.target === 0) {
+      if ((placed.get(r.label) || 0) > 0) {
+        errors.push(`${r.label} is placed on the grid, but it is not the selected option for this class.`)
+      }
+      continue
+    }
+    if (r.status === 'missing') {
+      errors.push(`${r.label}: needs ${r.target} period${plural(r.target)} a week but none are placed.`)
+    } else if (r.status === 'under') {
+      errors.push(`${r.label}: ${r.placed} of ${r.target} period${plural(r.target)} placed — ${r.target - r.placed} short.`)
+    } else if (r.status === 'over') {
+      warnings.push(`${r.label}: ${r.placed} placed, ${r.placed - r.target} more than the ${r.target} required.`)
+    }
+  }
+
+  /* Subjects on the grid that aren't in the subject list at all. */
+  const known = new Set(subjList.map((s) => s.label))
+  for (const [label] of placed) {
+    if (!known.has(label)) warnings.push(`${label} is placed in the week but is not in this class's subject list.`)
+  }
+
+  /* Repeated-subject analysis per day: adjacent matching singles are join
+   * candidates; separated repeats are explicitly two singles (never a double). */
+  const heavyPerDay = new Map(dayList.map((d) => [d, 0]))
+  for (const day of dayList) {
+    const cap = capacityOf(day)
+    const bySlot = new Array(cap + 1).fill(null)
+    for (const b of blockList) {
+      if (b.day !== day) continue
+      for (const s of blockSlots(b)) if (s <= cap) bySlot[s] = b
+      if (b.type === BLOCK_TYPES.CURRICULUM && subjectLoad(b.label) === 'heavy') {
+        heavyPerDay.set(day, (heavyPerDay.get(day) || 0) + b.length)
+      }
+    }
+    // Non-consecutive repeats of the same subject (curriculum blocks only).
+    const singlesByLabel = new Map()
+    for (const b of blockList) {
+      if (b.day !== day || b.type !== BLOCK_TYPES.CURRICULUM) continue
+      if (!singlesByLabel.has(b.label)) singlesByLabel.set(b.label, [])
+      singlesByLabel.get(b.label).push(b)
+    }
+    for (const [label, list] of singlesByLabel) {
+      if (list.length < 2) continue
+      const sorted = list.slice().sort((a, b) => a.startSlot - b.startSlot)
+      for (let i = 0; i < sorted.length - 1; i += 1) {
+        const a = sorted[i]
+        const b = sorted[i + 1]
+        const adjacent = a.startSlot + a.length === b.startSlot
+          && fitsInOneSegment(segments, a.startSlot, a.length + b.length)
+        if (adjacent && a.length === 1 && b.length === 1) {
+          notes.push(`${label} has two consecutive single periods on ${day} — you can join them into a double period.`)
+        } else if (!adjacent) {
+          notes.push(`${label} appears more than once on ${day}, but the lessons are not consecutive. They are separate single periods, not a double period.`)
+        }
+      }
+    }
+    // Unexplained gaps: an empty cell with a filled cell after it that day.
+    // (Cells beyond the day's configured lesson count are not gaps.)
+    let lastFilled = 0
+    for (let s = cap; s >= 1; s -= 1) { if (bySlot[s]) { lastFilled = s; break } }
+    for (let s = 1; s < lastFilled; s += 1) {
+      if (!bySlot[s]) {
+        warnings.push(`${day} has an unexplained empty period before ${rows[lastFilled - 1]?.start || 'the last lesson'} — assign a subject or mark it as a school activity.`)
+      }
+    }
+  }
+
+  for (const day of dayList) {
+    const n = heavyPerDay.get(day) || 0
+    if (n > HEAVY_PER_DAY_LIMIT) {
+      warnings.push(`${day} has ${n} demanding lessons — consider moving one to a lighter day.`)
+    }
+  }
+
+  /* Curriculum totals + customisation. */
+  const requiredPeriods = curriculum?.requiredWeeklyPeriods
+    ?? subjList.reduce((sum, s) => sum + Math.max(0, Math.round(Number(s.periodsPerWeek) || 0)), 0)
+  const requiredContactMinutes = curriculum?.weeklyContactMinutes ?? null
+  let customised = false
+  if (curriculum?.subjects?.length) {
+    const official = new Map(curriculum.subjects.map((s) => [s.label, s.weeklyPeriods ?? s.periodsPerWeek]))
+    for (const s of subjList) {
+      if (!official.has(s.label)) { customised = true; break }
+      const off = Math.round(Number(official.get(s.label)) || 0)
+      if (off !== Math.max(0, Math.round(Number(s.periodsPerWeek) || 0))) { customised = true; break }
+    }
+  }
+
+  const totalSlots = weeklyCapacity(periods, dayList, dayStructure)
+  const emptySlots = Math.max(0, totalSlots - curriculumPeriods - activityPeriods)
+  if (brokenDoubles > 0) {
+    // Already covered by structural errors, but keep the count visible.
+    notes.push(`${brokenDoubles} double period${plural(brokenDoubles)} cross a break and must be split.`)
+  }
+
+  const status = errors.length ? 'failed' : (warnings.length ? 'warning' : 'passed')
+  return {
+    status,
+    ok: status === 'passed',
+    customised,
+    errors,
+    warnings,
+    notes,
+    bySubject,
+    summary: {
+      requiredPeriods,
+      curriculumPeriods,
+      activityPeriods,
+      totalSlots,
+      contactMinutes,
+      requiredContactMinutes,
+      validDoubles,
+      brokenDoubles,
+      unexplainedGaps: warnings.filter((w) => w.includes('unexplained empty period')).length,
+      emptySlots,
+    },
+  }
+}
+
 /** Total periods requested across all subjects. */
 export function totalAllocated(subjects) {
   return (Array.isArray(subjects) ? subjects : [])
@@ -565,13 +1166,79 @@ export function filledCount(slots, periods, days) {
  * Assemble the canonical, saveable timetable artifact from studio state.
  * The shape stored in aiGenerations.output and consumed by the view +
  * exporters.
+ *
+ * Schema v2 stores explicit schedule BLOCKS (the source of truth — singles,
+ * double periods and school activities) alongside a derived legacy `slots`
+ * map so older readers keep working. When called with only `slots` (legacy
+ * callers), blocks are derived as single periods.
  */
-export function buildTimetableArtifact({ header, days, periods, slots }) {
+export function buildTimetableArtifact({
+  header, days, periods, slots, blocks,
+  dayStructure = null, displayPreferences = null,
+  curriculumId = null, selectedOptions = null, subjectAllocations = null,
+}) {
+  const dayList = Array.isArray(days) ? days : []
+  const periodList = Array.isArray(periods) ? periods : []
+  const blockList = Array.isArray(blocks)
+    ? blocks
+    : slotsToBlocks(slots || {}, periodList, dayList)
   return {
     schemaVersion: SCHEMA_VERSION,
     header: header || {},
-    days: Array.isArray(days) ? days : [],
-    periods: Array.isArray(periods) ? periods : [],
-    slots: slots || {},
+    days: dayList,
+    periods: periodList,
+    blocks: blockList,
+    // Derived, kept for legacy readers (old library views + exporters).
+    slots: blocksToSlots(blockList, periodList, dayList),
+    dayStructure: dayStructure || null,
+    displayPreferences: { ...DEFAULT_DISPLAY_PREFERENCES, ...(displayPreferences || {}) },
+    curriculumId: curriculumId || null,
+    selectedOptions: selectedOptions || null,
+    subjectAllocations: Array.isArray(subjectAllocations)
+      ? subjectAllocations.map((s) => ({
+          subjectId: s.subjectId || s.id || null,
+          label: s.label,
+          shortName: s.shortName || null,
+          periodsPerWeek: Math.max(0, Math.round(Number(s.periodsPerWeek) || 0)),
+          optionGroupId: s.optionGroupId || s.choiceGroup || null,
+          selected: s.selected !== false,
+        }))
+      : null,
+  }
+}
+
+/**
+ * Upgrade any saved timetable artifact to the v2 shape without touching the
+ * original document. v1 artifacts (per-cell `slots` only) get their cells
+ * migrated to single-period blocks — adjacent matching cells stay separate
+ * singles (the teacher can join them into doubles) — and default to the
+ * "Days across the top" layout. v2 artifacts pass through with defaults
+ * filled in. Existing saved timetables therefore keep loading forever.
+ */
+export function normalizeTimetableArtifact(timetable) {
+  if (!timetable || typeof timetable !== 'object') return null
+  const days = Array.isArray(timetable.days) ? timetable.days : []
+  const periods = Array.isArray(timetable.periods) ? timetable.periods : []
+  const hasBlocks = Array.isArray(timetable.blocks)
+  const blocks = hasBlocks
+    ? timetable.blocks
+    : slotsToBlocks(timetable.slots || {}, periods, days)
+  return {
+    ...timetable,
+    schemaVersion: SCHEMA_VERSION,
+    header: timetable.header || {},
+    days,
+    periods,
+    blocks,
+    slots: hasBlocks
+      ? (timetable.slots || blocksToSlots(blocks, periods, days))
+      : (timetable.slots || {}),
+    dayStructure: timetable.dayStructure || null,
+    displayPreferences: {
+      ...DEFAULT_DISPLAY_PREFERENCES,
+      ...(timetable.displayPreferences || {}),
+    },
+    curriculumId: timetable.curriculumId || null,
+    selectedOptions: timetable.selectedOptions || null,
   }
 }

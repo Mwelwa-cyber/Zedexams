@@ -3,6 +3,10 @@ import { Link } from 'react-router-dom'
 import { ArrowLeft, Search, ChevronDown, ChevronUp } from '../../ui/icons'
 import Icon from '../../ui/Icon'
 import SeoHelmet from '../../seo/SeoHelmet'
+import { allocationTableRows } from '../../../utils/curriculumFramework'
+
+const LP_ALLOCATION = allocationTableRows('lower_primary')
+const UP_ALLOCATION = allocationTableRows('upper_primary')
 
 const ZAMBIA_GREEN = '#1a7a4a'
 const ZAMBIA_GOLD = '#d4a017'
@@ -706,35 +710,24 @@ export default function PrimaryCurriculum() {
           />
         )}
 
-        {/* Timetables */}
-        {showLpTimetable && (
+        {/* Timetables — rows come from the central curriculum timetable
+            configuration (src/utils/curriculumFramework.js), the same source
+            the Class Timetable Studio generates from. */}
+        {showLpTimetable && LP_ALLOCATION && (
           <ThemedTable
-            title="🕐 Timetable — Lower Primary (G 1–3) · 21 hrs / 42 periods per week"
+            title={`🕐 Timetable — Lower Primary (G 1–3) · ${LP_ALLOCATION.contactLabel} / ${LP_ALLOCATION.totalPeriods} periods per week`}
             headers={['#', 'Learning Area', 'Time / Week', 'Periods']}
-            rows={[
-              ['1a', 'Literacy & Language — English Language', '5 h 30 min', '11'],
-              ['1b', 'Literacy & Language — Zambian Language', '5 h 30 min', '11'],
-              ['2',  'Mathematics and Science', '5 h 00 min', '10'],
-              ['3',  'Creative and Technology Studies (CTS)', '5 h 00 min', '10'],
-            ]}
-            totalRow={['', 'TOTAL', '21 hours', '42']}
+            rows={LP_ALLOCATION.rows.map((r) => [String(r.index), r.label, r.timeAllocation, String(r.periods)])}
+            totalRow={['', 'TOTAL', LP_ALLOCATION.contactLabel, String(LP_ALLOCATION.totalPeriods)]}
           />
         )}
 
-        {showUpTimetable && (
+        {showUpTimetable && UP_ALLOCATION && (
           <ThemedTable
-            title="🕐 Timetable — Upper Primary (G 4–6) · 28 hrs / 42 periods per week"
+            title={`🕐 Timetable — Upper Primary (G 4–6) · ${UP_ALLOCATION.contactLabel} / ${UP_ALLOCATION.totalPeriods} periods per week`}
             headers={['#', 'Subject', 'Time / Week', 'Periods']}
-            rows={[
-              ['1', 'English Language', '4 h 00 min', '6'],
-              ['2', 'Mathematics', '4 h 00 min', '6'],
-              ['3', 'Science (incl. Agricultural Science)', '4 h 00 min', '6'],
-              ['4', 'Zambian Language', '3 h 20 min', '5'],
-              ['5', 'Social Studies (incl. Mining content)', '3 h 20 min', '5'],
-              ['6', 'Technology Studies', '4 h 40 min', '7'],
-              ['7', 'Expressive Arts OR Home Economics (optional)', '4 h 40 min', '7'],
-            ]}
-            totalRow={['', 'TOTAL', '28 hours', '42']}
+            rows={UP_ALLOCATION.rows.map((r) => [String(r.index), r.label, r.timeAllocation, String(r.periods)])}
+            totalRow={['', 'TOTAL', UP_ALLOCATION.contactLabel, String(UP_ALLOCATION.totalPeriods)]}
           />
         )}
 

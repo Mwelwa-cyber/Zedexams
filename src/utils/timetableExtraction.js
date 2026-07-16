@@ -46,23 +46,30 @@ export function fileKind(file) {
 const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '')
 
 // Common abbreviations teachers write on a paper timetable → canonical token.
+// Safe aliases only — genuinely different subjects are never merged just
+// because their names look similar.
 const SUBJECT_ALIASES = [
   [/^maths?$/, 'mathematics'],
-  [/^eng$/, 'english'],
+  [/^eng(lish)?$/, 'english language'],
   [/^sci$/, 'science'],
-  [/^intsci(ence)?$/, 'integrated science'],
+  [/^intsci(ence)?$/, 'science'],
+  [/^integratedscience$/, 'science'],
   [/^ss$/, 'social studies'],
   [/^soc(ial)?$/, 'social studies'],
   [/^re$/, 'religious education'],
   [/^ict$/, 'technology studies'],
   [/^computers?$/, 'technology studies'],
-  [/^tech$/, 'technology studies'],
+  [/^tech(nology)?$/, 'technology studies'],
+  [/^techstudies$/, 'technology studies'],
   [/^pe$/, 'expressive arts'],
   [/^art$/, 'expressive arts'],
   [/^music$/, 'expressive arts'],
-  [/^homeec$/, 'home economics'],
+  [/^ea$/, 'expressive arts'],
+  [/^home?ec(on(omics)?)?$/, 'home economics'],
   [/^lit$/, 'literacy & language'],
   [/^zam(bian)?(lang(uage)?)?$/, 'zambian language'],
+  [/^cts$/, 'creative and technology studies'],
+  [/^adl$/, 'activities for daily living'],
 ]
 
 function expandAlias(raw) {
@@ -178,10 +185,23 @@ export function normalizeExtracted(raw = {}, opts = {}) {
     detected.add(subject)
   }
 
+  // Consecutive repeats of the same subject are CANDIDATE double periods —
+  // flagged for the teacher to confirm (never auto-merged). Separated
+  // repeats are two singles and are never suggested as a double.
+  const possibleDoubles = []
+  for (const day of orderedDays) {
+    for (let n = 1; n < lessonPeriods; n += 1) {
+      const a = slots[`p${n}`]?.[day]
+      const b = slots[`p${n + 1}`]?.[day]
+      if (a && a === b) possibleDoubles.push({ day, period: n, subject: a })
+    }
+  }
+
   return {
     days: orderedDays,
     timing,
     slots,
+    possibleDoubles,
     detectedGrade: raw.detectedGrade || null,
     detectedSubjects: [...detected],
     notes: typeof raw.notes === 'string' ? raw.notes : '',

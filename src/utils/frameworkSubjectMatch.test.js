@@ -25,7 +25,10 @@ console.log('matchFrameworkSubject — upper primary')
 
   assert(matchFrameworkSubject('G4', 'integrated_science').periodsPerWeek === 6, 'integrated science = 6')
   assert(matchFrameworkSubject('G6', 'english').periodsPerWeek === 6, 'english = 6')
-  assert(matchFrameworkSubject('G7', 'zambian_language').periodsPerWeek === 5, 'zambian language = 5')
+  assert(matchFrameworkSubject('G6', 'zambian_language').periodsPerWeek === 5, 'zambian language = 5')
+  // Upper Primary is Grades 4–6 in the 2023 framework — Grade 7 must NOT
+  // silently inherit its allocation (manual entry path instead).
+  assert(matchFrameworkSubject('G7', 'zambian_language') === null, 'G7 has no automatic allocation')
   assert(matchFrameworkSubject('G5', 'cinyanja').periodsPerWeek === 5, 'cinyanja folds into zambian language = 5')
   assert(matchFrameworkSubject('G5', 'social_studies').periodsPerWeek === 5, 'social studies = 5')
 }

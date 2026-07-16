@@ -109,6 +109,43 @@ test('normalizeExtracted falls back to default days when none parse', () => {
   assert(r.days.join(',') === 'Monday,Wednesday', `fallback days wrong: ${r.days.join(',')}`)
 })
 
+/* ── safe aliases ─────────────────────────────────────────────── */
+
+test('safe aliases map to canonical curriculum names, never merging distinct subjects', () => {
+  const CANON = ['English Language', 'Mathematics', 'Science', 'Zambian Language', 'Technology Studies', 'Home Economics', 'Expressive Arts']
+  assert(snapSubjectLabel('English', CANON) === 'English Language', 'English → English Language')
+  assert(snapSubjectLabel('Maths', CANON) === 'Mathematics', 'Maths → Mathematics')
+  assert(snapSubjectLabel('Tech Studies', CANON) === 'Technology Studies', 'Tech Studies → Technology Studies')
+  assert(snapSubjectLabel('Home Ec', CANON) === 'Home Economics', 'Home Ec → Home Economics')
+  assert(snapSubjectLabel('Zambian Lang', CANON) === 'Zambian Language', 'Zambian Lang → Zambian Language')
+  assert(snapSubjectLabel('Integrated Science', CANON) === 'Science', 'legacy Integrated Science → canonical Science')
+  // A genuinely different subject stays itself — similar-looking names are not merged.
+  assert(snapSubjectLabel('French', CANON) === 'French', 'French is not forced onto a curriculum subject')
+})
+
+/* ── candidate double periods ─────────────────────────────────── */
+
+test('consecutive repeats are flagged as candidate doubles; separated repeats are not', () => {
+  const raw = {
+    days: ['Monday', 'Tuesday'],
+    periodCount: 4,
+    lessons: [
+      { day: 'Monday', period: 1, subject: 'English Language' },
+      { day: 'Monday', period: 2, subject: 'English Language' }, // consecutive → candidate
+      { day: 'Tuesday', period: 1, subject: 'Mathematics' },
+      { day: 'Tuesday', period: 2, subject: 'Science' },
+      { day: 'Tuesday', period: 3, subject: 'Mathematics' },      // separated → NOT a candidate
+    ],
+  }
+  const r = normalizeExtracted(raw, { candidates: ['English Language', 'Mathematics', 'Science'] })
+  assert(Array.isArray(r.possibleDoubles), 'possibleDoubles is reported')
+  assert(r.possibleDoubles.length === 1, `only the consecutive pair is a candidate: ${JSON.stringify(r.possibleDoubles)}`)
+  assert(r.possibleDoubles[0].day === 'Monday' && r.possibleDoubles[0].subject === 'English Language',
+    'the Monday English pair is the candidate')
+  // The slots themselves stay as two separate cells — the teacher confirms the join.
+  assert(r.slots.p1.Monday === 'English Language' && r.slots.p2.Monday === 'English Language', 'cells stay singles')
+})
+
 console.log('')
 console.log(`─── ${pass + fail} tests · ${pass} passed · ${fail} failed ───`)
 if (fail > 0) {
