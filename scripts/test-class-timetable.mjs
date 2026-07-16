@@ -27,11 +27,26 @@ import {
   DEFAULT_DAYS,
 } from '../src/utils/classTimetable.js'
 import {
+  autoFillBlocks,
+  validateTimetableBlocks,
+  normalizeTimetableArtifact,
+  distributePeriodsPerDay,
+  slotCountForDay,
+  weeklyCapacity,
+  SCHOOL_DAY_TEMPLATES,
+  SCHEMA_VERSION,
+} from '../src/utils/classTimetable.js'
+import {
   getFrameworkForGrade,
+  resolveTimetableCurriculum,
   bandForGrade,
   subjectLoad,
+  CURRICULA,
 } from '../src/utils/curriculumFramework.js'
+import { BLOCK_TYPES, makeBlock, segmentsOf, fitsInOneSegment } from '../src/utils/timetableBlocks.js'
+import { buildTimetableGridModel, cellState } from '../src/utils/timetableGridModel.js'
 import { buildClassTimetableWorkbookFiles } from '../src/utils/classTimetableToXlsx.js'
+import { buildPrintableHtml } from '../src/utils/classTimetableToPdf.js'
 
 let pass = 0
 let fail = 0
@@ -363,6 +378,381 @@ test('validateTimetable passes a correctly-allocated week', () => {
   const report = validateTimetable({ slots, subjects, periods, days: DEFAULT_DAYS })
   assert(report.totalPlaced === 42, `expected all 42 framework periods placed, got ${report.totalPlaced}`)
   assert(report.errors.length === 0, `expected no errors, got: ${report.errors.join('; ')}`)
+})
+
+/* ══ Central curriculum configuration ═════════════════════════ */
+
+test('ECE totals 30 periods of 30 minutes (15 hours)', () => {
+  const fw = resolveTimetableCurriculum({ grade: 'ECE_N' })
+  assert(fw && fw.level === 'ece', 'ECE_N resolves to the ECE band')
+  assert(fw.periodMinutes === 30 && fw.totalPeriods === 30, `30×30min expected, got ${fw.totalPeriods}×${fw.periodMinutes}`)
+  assert(fw.weeklyContactMinutes === 900, '15 hours contact time')
+  // One language provision only — the alternatives sit at 0.
+  const langs = fw.subjects.filter((s) => s.optionGroupId === 'ece-language')
+  assert(langs.length === 3, 'three alternative language provisions')
+  assert(langs.filter((s) => s.periodsPerWeek > 0).length === 1, 'exactly one provision selected')
+  const active = fw.subjects.filter((s) => s.periodsPerWeek > 0)
+  assert(active.reduce((n, s) => n + s.periodsPerWeek, 0) === 30, 'selected subjects sum to 30')
+})
+
+test('Lower Primary (G1–3) is 42 × 30-min periods with the two integrated learning areas', () => {
+  for (const g of ['G1', 'G2', 'G3']) {
+    const fw = resolveTimetableCurriculum({ grade: g })
+    assert(fw && fw.level === 'lower_primary', `${g} is lower primary`)
+    assert(fw.periodMinutes === 30 && fw.totalPeriods === 42, `${g}: 42×30min`)
+  }
+  const fw = resolveTimetableCurriculum({ grade: 'G2' })
+  const maths = fw.subjects.find((s) => s.label === 'Mathematics and Science')
+  assert(maths && maths.periodsPerWeek === 10, 'Mathematics and Science is ONE integrated area at 10 periods')
+  assert(!fw.subjects.some((s) => s.label === 'Mathematics'), 'no separate Mathematics in Lower Primary')
+  assert(!fw.subjects.some((s) => s.label === 'Science'), 'no separate Science in Lower Primary')
+  const cts = fw.subjects.find((s) => s.label === 'Creative and Technology Studies')
+  assert(cts && cts.periodsPerWeek === 10, 'Creative and Technology Studies is ONE integrated area at 10')
+  const english = fw.subjects.find((s) => /English/.test(s.label))
+  assert(english && english.periodsPerWeek === 11, 'English literacy strand gets 11 periods')
+})
+
+test('Upper Primary covers Grades 4–6 with 42 × 40-min periods and canonical "Science"', () => {
+  for (const g of ['G4', 'G5', 'G6']) {
+    const fw = resolveTimetableCurriculum({ grade: g })
+    assert(fw && fw.level === 'upper_primary', `${g} is upper primary`)
+    assert(fw.periodMinutes === 40 && fw.totalPeriods === 42, `${g}: 42×40min`)
+  }
+  const fw = resolveTimetableCurriculum({ grade: 'G5' })
+  const sci = fw.subjects.find((s) => s.label === 'Science')
+  assert(sci && sci.periodsPerWeek === 6, 'canonical subject name is Science (6/wk)')
+  assert(!fw.subjects.some((s) => s.label === 'Integrated Science'), 'not renamed to Integrated Science')
+  assert(!fw.subjects.some((s) => s.label === 'Agricultural Science'), 'Agricultural Science is not an extra subject')
+  assert(fw.bandLabel.includes('4–6'), `band label says Grades 4–6: ${fw.bandLabel}`)
+})
+
+test('Grade 7 does NOT inherit the Grades 4–6 allocation', () => {
+  assert(bandForGrade('G7') === null, 'G7 has no framework band')
+  assert(getFrameworkForGrade('G7') === null, 'no automatic allocation for G7')
+  // The studio falls back to a manual list with heuristic counts.
+  const subjects = curriculumSubjectsForGrade('G7')
+  assert(Array.isArray(subjects), 'G7 still gets a subject list to edit')
+})
+
+test('Expressive Arts / Home Economics is a strict choose-one group', () => {
+  const ea = resolveTimetableCurriculum({ grade: 'G5', selectedOptions: { practical: 'expressive-arts' } })
+  const he = resolveTimetableCurriculum({ grade: 'G5', selectedOptions: { practical: 'home-economics' } })
+  const get = (fw, label) => fw.subjects.find((s) => s.label === label)
+  assert(get(ea, 'Expressive Arts').periodsPerWeek === 7 && get(ea, 'Home Economics').periodsPerWeek === 0,
+    'EA selected → EA 7, HE 0')
+  assert(get(he, 'Home Economics').periodsPerWeek === 7 && get(he, 'Expressive Arts').periodsPerWeek === 0,
+    'HE selected → HE 7, EA 0')
+  for (const fw of [ea, he]) {
+    const total = fw.subjects.reduce((n, s) => n + s.periodsPerWeek, 0)
+    assert(total === 42, `weekly total stays 42 whichever option is chosen, got ${total}`)
+  }
+})
+
+test('the adapted curriculum baseline is 22 periods / 14 h 40 min with a language choice', () => {
+  const fw = resolveTimetableCurriculum({ curriculumId: 'adapted-2023', grade: 'G5' })
+  assert(fw && fw.level === 'adapted', 'adapted band resolves for any grade')
+  assert(fw.totalPeriods === 22 && fw.weeklyContactMinutes === 880, `22 periods / 880 min, got ${fw.totalPeriods}/${fw.weeklyContactMinutes}`)
+  const active = fw.subjects.filter((s) => s.periodsPerWeek > 0)
+  assert(active.reduce((n, s) => n + s.periodsPerWeek, 0) === 22, 'selected subjects sum to 22')
+  const cts = active.find((s) => s.label === 'Creative and Technology Studies')
+  assert(cts && cts.periodsPerWeek === 10, 'CTS carries 10 periods (6 h 40 min)')
+  const langGroup = fw.optionGroups.find((g) => g.id === 'adapted-language')
+  assert(langGroup && langGroup.options.length === 2, 'English Language OR Sign Language')
+})
+
+test('curricula without catalogued allocations fall back to the manual path', () => {
+  assert(CURRICULA.some((c) => c.id === 'obc-2013'), '2013 OBC is offered')
+  assert(resolveTimetableCurriculum({ curriculumId: 'obc-2013', grade: 'G5' }) === null,
+    'OBC has no prescribed table → manual subject list')
+  assert(resolveTimetableCurriculum({ curriculumId: 'custom', grade: 'G5' }) === null,
+    'custom school curriculum is fully manual')
+})
+
+/* ══ Day structure (Mode A) + school-day templates ═════════════ */
+
+test('distributePeriodsPerDay spreads 42 over 5 days as 9/9/8/8/8', () => {
+  const counts = distributePeriodsPerDay(42, DEFAULT_DAYS)
+  assert(JSON.stringify(Object.values(counts)) === JSON.stringify([9, 9, 8, 8, 8]),
+    `bad spread: ${JSON.stringify(counts)}`)
+  const periods = buildPeriods({ lessonPeriods: 9, breaks: [] })
+  const structure = { periodsPerDay: counts }
+  assert(slotCountForDay('Wednesday', periods, structure) === 8, 'Wednesday holds 8 lesson slots')
+  assert(weeklyCapacity(periods, DEFAULT_DAYS, structure) === 42, 'weekly capacity is exactly 42')
+})
+
+test('school-day templates cover government, full-day, shift and custom days', () => {
+  const ids = SCHOOL_DAY_TEMPLATES.map((t) => t.id)
+  for (const wanted of ['full-day-break-lunch', 'full-day-break-only', 'government-break-only', 'morning-shift', 'afternoon-shift', 'double-session', 'custom']) {
+    assert(ids.includes(wanted), `missing template ${wanted}`)
+  }
+  const gov = SCHOOL_DAY_TEMPLATES.find((t) => t.id === 'government-break-only')
+  assert(gov.timing.breaks.find((b) => b.event === 'lunch').enabled === false, 'government day has no lunch')
+})
+
+/* ══ Block-aware auto-fill ═════════════════════════════════════ */
+
+const G5_PERIODS = buildPeriods({
+  startTime: '07:30', periodMinutes: 40, lessonPeriods: 9,
+  breaks: [
+    { afterPeriod: 3, minutes: 20, name: 'BREAK', event: 'break' },
+    { afterPeriod: 6, minutes: 40, name: 'LUNCH', event: 'lunch' },
+  ],
+})
+
+test('autoFillBlocks places every official period — nothing missing, nothing over', () => {
+  const subjects = curriculumSubjectsForGrade('G5', 'cbc-2023', { practical: 'home-economics' })
+  const { blocks, unplaced } = autoFillBlocks({ subjects, days: DEFAULT_DAYS, periods: G5_PERIODS })
+  assert(unplaced.length === 0, `nothing should be unplaced: ${JSON.stringify(unplaced)}`)
+  const placed = new Map()
+  for (const b of blocks.filter((x) => x.type === BLOCK_TYPES.CURRICULUM)) {
+    placed.set(b.label, (placed.get(b.label) || 0) + b.length)
+  }
+  for (const s of subjects) {
+    assert((placed.get(s.label) || 0) === s.periodsPerWeek,
+      `${s.label}: placed ${placed.get(s.label) || 0}, wanted ${s.periodsPerWeek}`)
+  }
+  assert(!placed.has('Expressive Arts'), 'the unselected option never appears in auto-fill')
+})
+
+test('autoFillBlocks produces preferred double periods inside one segment', () => {
+  const subjects = curriculumSubjectsForGrade('G5')
+  const { blocks } = autoFillBlocks({ subjects, days: DEFAULT_DAYS, periods: G5_PERIODS })
+  const segments = segmentsOf(G5_PERIODS)
+  const doubles = blocks.filter((b) => b.length === 2)
+  assert(doubles.length >= 3, `practical subjects should earn doubles, got ${doubles.length}`)
+  for (const d of doubles) {
+    assert(fitsInOneSegment(segments, d.startSlot, d.length), `double ${d.label} must not cross a break`)
+  }
+  assert(doubles.some((d) => d.label === 'Technology Studies'), 'Technology Studies prefers doubles')
+})
+
+test('autoFillBlocks keeps locked blocks exactly where they are', () => {
+  const subjects = curriculumSubjectsForGrade('G5')
+  const locked = makeBlock({ day: 'Friday', startSlot: 1, length: 2, label: 'Technology Studies', locked: true })
+  const { blocks } = autoFillBlocks({ subjects, days: DEFAULT_DAYS, periods: G5_PERIODS, lockedBlocks: [locked] })
+  const kept = blocks.find((b) => b.day === 'Friday' && b.startSlot === 1)
+  assert(kept && kept.label === 'Technology Studies' && kept.length === 2 && kept.locked,
+    'the locked double survives auto-fill untouched')
+  const total = blocks.filter((b) => b.type === BLOCK_TYPES.CURRICULUM && b.label === 'Technology Studies')
+    .reduce((n, b) => n + b.length, 0)
+  assert(total === 7, `locked periods count toward the allocation: ${total}`)
+})
+
+test('autoFillBlocks honours per-day lesson counts (exact 42-period week)', () => {
+  const subjects = curriculumSubjectsForGrade('G5')
+  const structure = { periodsPerDay: distributePeriodsPerDay(42, DEFAULT_DAYS) }
+  const { blocks, unplaced } = autoFillBlocks({ subjects, days: DEFAULT_DAYS, periods: G5_PERIODS, dayStructure: structure })
+  assert(unplaced.length === 0, 'the 42-period week fits exactly')
+  for (const b of blocks) {
+    const cap = structure.periodsPerDay[b.day]
+    assert(b.startSlot + b.length - 1 <= cap, `${b.label} on ${b.day} exceeds that day's ${cap} lessons`)
+  }
+  const total = blocks.reduce((n, b) => n + b.length, 0)
+  assert(total === 42, `exactly 42 periods placed, got ${total}`)
+})
+
+test('autoFillBlocks fills the 3 spare slots of a 45-slot week with school activities (Mode B)', () => {
+  const subjects = curriculumSubjectsForGrade('G5')
+  const { blocks } = autoFillBlocks({
+    subjects, days: DEFAULT_DAYS, periods: G5_PERIODS,
+    activities: ['Remedial work', 'Library', 'Clubs'],
+  })
+  const acts = blocks.filter((b) => b.type === BLOCK_TYPES.ACTIVITY)
+  assert(acts.reduce((n, b) => n + b.length, 0) === 3, `45 − 42 = 3 activity slots, got ${acts.length}`)
+  const total = blocks.reduce((n, b) => n + b.length, 0)
+  assert(total === 45, 'every slot is used — no unexplained dashes')
+})
+
+test('autoFillBlocks reports what cannot fit instead of failing silently', () => {
+  const tiny = buildPeriods({ lessonPeriods: 2, breaks: [] }) // 10 slots
+  const subjects = curriculumSubjectsForGrade('G5')          // needs 42
+  const { unplaced } = autoFillBlocks({ subjects, days: DEFAULT_DAYS, periods: tiny })
+  assert(unplaced.length > 0, 'over-allocation must be reported')
+  assert(unplaced.every((u) => u.label && u.missing > 0 && u.reason), 'each report says what, how many and why')
+})
+
+/* ══ Detailed validation ═══════════════════════════════════════ */
+
+test('validateTimetableBlocks passes a complete G5 week and reports exact counts', () => {
+  const curriculum = resolveTimetableCurriculum({ grade: 'G5' })
+  const subjects = curriculumSubjectsForGrade('G5')
+  const { blocks } = autoFillBlocks({ subjects, days: DEFAULT_DAYS, periods: G5_PERIODS, activities: ['Clubs'] })
+  const v = validateTimetableBlocks({ blocks, subjects, periods: G5_PERIODS, days: DEFAULT_DAYS, curriculum })
+  assert(v.status === 'passed', `expected passed, got ${v.status}: ${[...v.errors, ...v.warnings].join(' | ')}`)
+  assert(!v.customised, 'an untouched official week is not customised')
+  assert(v.summary.curriculumPeriods === 42 && v.summary.requiredPeriods === 42, 'exact period counts reported')
+  assert(v.summary.contactMinutes === 42 * 40, 'contact time computed from curriculum periods only')
+  assert(v.summary.activityPeriods === 3, 'activity slots counted separately')
+  const eng = v.bySubject.find((r) => r.label === 'English Language')
+  assert(eng && eng.placed === 6 && eng.target === 6, 'per-subject counts are exact')
+})
+
+test('validateTimetableBlocks fails a short week and flags a stray unselected option', () => {
+  const curriculum = resolveTimetableCurriculum({ grade: 'G5' }) // EA selected by default
+  const subjects = curriculumSubjectsForGrade('G5')
+  const blocks = [
+    makeBlock({ day: 'Monday', startSlot: 1, length: 1, label: 'Mathematics' }),
+    makeBlock({ day: 'Monday', startSlot: 2, length: 1, label: 'Home Economics' }), // not the selected option
+  ]
+  const v = validateTimetableBlocks({ blocks, subjects, periods: G5_PERIODS, days: DEFAULT_DAYS, curriculum })
+  assert(v.status === 'failed', 'a short week fails, not warns')
+  assert(v.errors.some((e) => /Home Economics.*not the selected option/.test(e)),
+    `stray option flagged: ${v.errors.join(' | ')}`)
+  assert(v.errors.some((e) => /English Language/.test(e)), 'missing subjects are named')
+})
+
+test('validateTimetableBlocks marks changed allocations as customised and finds mid-day gaps', () => {
+  const curriculum = resolveTimetableCurriculum({ grade: 'G5' })
+  const subjects = curriculumSubjectsForGrade('G5').map((s) =>
+    s.label === 'Mathematics' ? { ...s, periodsPerWeek: 8 } : s)
+  const blocks = [
+    makeBlock({ day: 'Monday', startSlot: 1, length: 1, label: 'Mathematics' }),
+    makeBlock({ day: 'Monday', startSlot: 3, length: 1, label: 'Science' }), // slot 2 is an unexplained gap
+  ]
+  const v = validateTimetableBlocks({ blocks, subjects, periods: G5_PERIODS, days: DEFAULT_DAYS, curriculum })
+  assert(v.customised, 'edited allocations are marked customised from the curriculum baseline')
+  assert(v.warnings.some((w) => /unexplained empty period/.test(w)), 'the mid-day gap is called out')
+})
+
+test('validation notes distinguish joinable neighbours from separated repeats', () => {
+  const curriculum = resolveTimetableCurriculum({ grade: 'G5' })
+  const subjects = curriculumSubjectsForGrade('G5')
+  const blocks = [
+    makeBlock({ day: 'Monday', startSlot: 1, length: 1, label: 'English Language' }),
+    makeBlock({ day: 'Monday', startSlot: 2, length: 1, label: 'English Language' }), // adjacent → joinable
+    makeBlock({ day: 'Tuesday', startSlot: 1, length: 1, label: 'Mathematics' }),
+    makeBlock({ day: 'Tuesday', startSlot: 2, length: 1, label: 'Science' }),
+    makeBlock({ day: 'Tuesday', startSlot: 3, length: 1, label: 'Mathematics' }),      // separated → two singles
+  ]
+  const v = validateTimetableBlocks({ blocks, subjects, periods: G5_PERIODS, days: DEFAULT_DAYS, curriculum })
+  assert(v.notes.some((n) => /English Language.*join them into a double/.test(n)), 'join suggestion offered')
+  assert(v.notes.some((n) => /Mathematics.*not consecutive.*not a double/i.test(n) || /Mathematics appears more than once/.test(n)),
+    `separated repeats explicitly called two singles: ${v.notes.join(' | ')}`)
+})
+
+/* ══ Layouts + grid model ══════════════════════════════════════ */
+
+function sampleArtifact(layout) {
+  const subjects = curriculumSubjectsForGrade('G5')
+  const { blocks } = autoFillBlocks({ subjects, days: DEFAULT_DAYS, periods: G5_PERIODS, activities: ['Clubs'] })
+  return buildTimetableArtifact({
+    header: { school: 'Demo Primary', grade: 'G5', className: '5B', term: 1, year: '2026', teacherName: 'Ms Zulu' },
+    days: DEFAULT_DAYS,
+    periods: G5_PERIODS,
+    blocks,
+    displayPreferences: layout ? { timetableLayout: layout } : null,
+    curriculumId: 'cbc-2023',
+    selectedOptions: { practical: 'expressive-arts' },
+    subjectAllocations: subjects,
+  })
+}
+
+test('switching layouts never changes the schedule content', () => {
+  const artifact = sampleArtifact()
+  const cols = buildTimetableGridModel(artifact, { layout: 'days-as-columns' })
+  const rows = buildTimetableGridModel(artifact, { layout: 'days-as-rows' })
+  for (const day of DEFAULT_DAYS) {
+    for (let s = 1; s <= cols.maxSlot; s += 1) {
+      const a = cellState(cols, day, s)
+      const b = cellState(rows, day, s)
+      assert((a.block?.label || null) === (b.block?.label || null),
+        `cell ${day}/${s} differs between layouts`)
+      assert((a.block?.length || 0) === (b.block?.length || 0), 'double periods stay intact across layouts')
+    }
+  }
+})
+
+test('the grid model marks doubles for vertical/horizontal merging and keeps breaks in both layouts', () => {
+  const artifact = sampleArtifact()
+  const model = buildTimetableGridModel(artifact)
+  const dbl = artifact.blocks.find((b) => b.length === 2)
+  assert(dbl, 'the sample week contains a double period')
+  const start = cellState(model, dbl.day, dbl.startSlot)
+  const covered = cellState(model, dbl.day, dbl.startSlot + 1)
+  assert(start.state === 'start' && covered.state === 'covered', 'start + covered states drive the merge')
+  assert(model.rows.some((r) => r.kind === 'break' && r.label === 'BREAK'), 'break rows survive')
+  assert(model.rows.some((r) => r.kind === 'break' && r.label === 'LUNCH'), 'lunch rows survive')
+})
+
+test('artifacts default to "Days across the top" and persist the chosen layout', () => {
+  const def = sampleArtifact()
+  assert(def.displayPreferences.timetableLayout === 'days-as-columns', 'default layout')
+  const rowsFirst = sampleArtifact('days-as-rows')
+  assert(buildTimetableGridModel(rowsFirst).layout === 'days-as-rows', 'saved preference wins')
+})
+
+/* ══ Migration (legacy v1 artifacts) ═══════════════════════════ */
+
+test('a legacy v1 artifact loads: cells become singles, layout defaults, nothing is lost', () => {
+  const legacy = {
+    schemaVersion: 'class-timetable-1.0',
+    header: { grade: 'G5', school: 'Old School' },
+    days: DEFAULT_DAYS,
+    periods: G5_PERIODS,
+    slots: {
+      p1: { Monday: 'English Language', Tuesday: 'Mathematics' },
+      p2: { Monday: 'English Language' },  // adjacent repeat — may be suggested, never auto-joined
+      p4: { Monday: 'English Language' },  // separated repeat — stays a single
+    },
+  }
+  const norm = normalizeTimetableArtifact(legacy)
+  assert(norm.schemaVersion === SCHEMA_VERSION, 'normalised to v2')
+  assert(norm.blocks.length === 4 && norm.blocks.every((b) => b.length === 1),
+    'every legacy cell survives as a single block')
+  assert(norm.displayPreferences.timetableLayout === 'days-as-columns', 'existing timetables default to days-as-columns')
+  assert(norm.slots.p1.Monday === 'English Language', 'the original slots map is preserved')
+  const model = buildTimetableGridModel(legacy)
+  assert(cellState(model, 'Monday', 4).block.label === 'English Language', 'separated repeat renders as its own single')
+})
+
+/* ══ Exports ═══════════════════════════════════════════════════ */
+
+test('the PDF HTML is A4 landscape with full times, all days and the last period, in both layouts', () => {
+  for (const layout of ['days-as-columns', 'days-as-rows']) {
+    const html = buildPrintableHtml(sampleArtifact(layout), false)
+    assert(html.includes('size: A4 landscape'), 'A4 landscape page')
+    assert(html.includes('table-layout: fixed'), 'fixed table layout prevents column clipping')
+    for (const day of ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY']) {
+      assert(html.includes(day), `${day} present in ${layout}`)
+    }
+    assert(html.includes('07:30'), 'full start time present (not clipped to a final digit)')
+    const lastLesson = lessonPeriods(G5_PERIODS).at(-1)
+    assert(html.includes(lastLesson.end), `the final period's end time ${lastLesson.end} appears`)
+    assert(html.includes('Technology Studies'), 'long subject names are kept whole')
+  }
+})
+
+test('the PDF HTML merges double periods with rowspan / colspan per layout', () => {
+  const colsHtml = buildPrintableHtml(sampleArtifact('days-as-columns'), false)
+  const rowsHtml = buildPrintableHtml(sampleArtifact('days-as-rows'), false)
+  assert(/rowspan="2"/.test(colsHtml), 'days-as-columns merges doubles vertically')
+  assert(/colspan="2"/.test(rowsHtml), 'days-as-rows merges doubles horizontally')
+})
+
+test('the XLSX workbook carries both sheets, merges, frozen panes and the details audit', () => {
+  const artifact = sampleArtifact()
+  const files = buildClassTimetableWorkbookFiles(artifact, {
+    validation: validateTimetableBlocks({
+      blocks: artifact.blocks,
+      subjects: artifact.subjectAllocations.map((s) => ({ ...s, id: s.subjectId || s.label })),
+      periods: G5_PERIODS, days: DEFAULT_DAYS,
+      curriculum: resolveTimetableCurriculum({ grade: 'G5' }),
+    }),
+  })
+  const sheet1 = files['xl/worksheets/sheet1.xml']
+  const sheet2 = files['xl/worksheets/sheet2.xml']
+  assert(files['xl/workbook.xml'].includes('Timetable') && files['xl/workbook.xml'].includes('Details'),
+    'two worksheets declared')
+  assert(sheet1.includes('MONDAY') && sheet1.includes('FRIDAY'), 'all days present')
+  assert(sheet1.includes('state="frozen"') && sheet1.includes('xSplit="1"'), 'header row + first column frozen')
+  assert(sheet1.includes('<mergeCells'), 'double periods / titles merged')
+  assert(sheet1.includes('orientation="landscape"'), 'printable landscape setup')
+  assert(sheet2.includes('Official weekly allocations') && sheet2.includes('Actual placed periods'),
+    'details sheet carries official vs actual allocations')
+  assert(sheet2.includes('Validation'), 'validation results included')
+  // Days-as-rows variant renders too.
+  const rowsFiles = buildClassTimetableWorkbookFiles(sampleArtifact('days-as-rows'))
+  assert(rowsFiles['xl/worksheets/sheet1.xml'].includes('DAY'), 'days-as-rows sheet renders')
 })
 
 console.log('')

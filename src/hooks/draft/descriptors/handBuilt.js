@@ -45,10 +45,20 @@ export const classTimetableDescriptor = {
   studioId: 'class_timetable',
   schemaVersion: 1,
   ttl: 60 * DAY,
-  serialize: (s) => ({ header: s.header, days: s.days, timing: s.timing, subjects: s.subjects, slots: s.slots, generationId: s.generationId }),
+  // v2 studio state: `blocks` are the schedule's source of truth; the derived
+  // `slots` map is still serialized so an old client restoring this draft —
+  // or this client restoring an old draft — keeps working.
+  serialize: (s) => ({
+    header: s.header, days: s.days, timing: s.timing, subjects: s.subjects,
+    slots: s.slots, blocks: s.blocks, generationId: s.generationId,
+    curriculumId: s.curriculumId, selectedOptions: s.selectedOptions,
+    weekMode: s.weekMode, dayCounts: s.dayCounts, activities: s.activities,
+    displayPreferences: s.displayPreferences, dayTemplate: s.dayTemplate,
+  }),
   hydrate: identity,
-  // Mirrors the studio's `filled > 0` save gate: at least one slot is assigned.
-  isNonEmpty: (p) => Object.values(p?.slots || {}).some((v) => v && (typeof v !== 'object' || Object.keys(v).length)),
+  // Mirrors the studio's `filled > 0` save gate: at least one lesson placed.
+  isNonEmpty: (p) => (Array.isArray(p?.blocks) && p.blocks.length > 0)
+    || Object.values(p?.slots || {}).some((v) => v && (typeof v !== 'object' || Object.keys(v).length)),
 }
 
 export const weeklyForecastDescriptor = {

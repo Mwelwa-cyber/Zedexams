@@ -1,8 +1,10 @@
 /**
  * Export a class timetable as a Word (.docx) file in landscape — the grid
- * teachers print and pin to the classroom wall. Mirrors
- * src/components/teacher/views/ClassTimetableView.jsx: a title block, then a
- * TIME × days grid with break/lunch rows spanning every day column.
+ * teachers print and pin to the classroom wall. Renders from the SAME
+ * shared grid model as the on-screen preview (timetableGridModel.js):
+ * both layouts, merged double periods (vertical merge in "Days across the
+ * top", horizontal span in "Days down the left"), full time values and
+ * wrapped subject names inside the printable margins.
  */
 
 import { saveBlob } from './saveBlob.js'
@@ -18,9 +20,11 @@ import {
   TableCell,
   TableRow,
   TextRun,
+  VerticalMergeType,
   WidthType,
 } from 'docx'
 import { attributionSection } from './docxAttribution.js'
+import { buildTimetableGridModel, cellState } from './timetableGridModel.js'
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '000000' },
@@ -36,13 +40,14 @@ const centred = (runs) => new Paragraph({
   spacing: { after: 20 },
 })
 
-function cell(content, { bold = false, shade, colSpan, widthPct } = {}) {
-  const runs = Array.isArray(content) ? content : [text(content, { bold })]
+function cell(content, { bold = false, italics = false, shade, colSpan, verticalMerge, widthPct } = {}) {
+  const runs = Array.isArray(content) ? content : [text(content, { bold, italics })]
   return new TableCell({
     children: [centred(runs)],
     borders: CELL_BORDER,
     ...(shade ? { shading: { fill: shade } } : {}),
     ...(colSpan ? { columnSpan: colSpan } : {}),
+    ...(verticalMerge ? { verticalMerge } : {}),
     ...(widthPct ? { width: { size: widthPct, type: WidthType.PERCENTAGE } } : {}),
     verticalAlign: 'center',
   })
@@ -84,43 +89,138 @@ function titleBlock(h) {
   return lines
 }
 
-export function buildClassTimetableDocument(timetable, opts = {}) {
-  const h = timetable.header || {}
-  const days = Array.isArray(timetable.days) ? timetable.days : []
-  const periods = Array.isArray(timetable.periods) ? timetable.periods : []
-  const slots = timetable.slots || {}
+function signatureBlock(h) {
+  const bits = [
+    h.preparedBy && `Prepared by: ${h.preparedBy}`,
+    h.approvedBy && `Approved by: ${h.approvedBy}`,
+  ].filter(Boolean)
+  if (!bits.length) return []
+  return [new Paragraph({
+    children: [text(bits.join('   ·   '), { size: 18 })],
+    alignment: AlignmentType.CENTER, spacing: { before: 240 },
+  })]
+}
 
-  const dayWidth = days.length ? Math.floor(86 / days.length) : 86
+/** Content runs for a placed block cell. */
+function blockCellOpts(block, span, layout) {
+  const isActivity = block.type === 'school-activity'
+  const runs = [text(block.label, { bold: !isActivity, italics: isActivity })]
+  if (span > 1) {
+    runs.push(new TextRun({ break: 1 }))
+    runs.push(text('DOUBLE PERIOD', { size: 12, color: '666666' }))
+  }
+  return {
+    runs,
+    opts: {
+      ...(isActivity ? { shade: 'F6F3EA' } : {}),
+      ...(span > 1 && layout === 'days-as-rows' ? { colSpan: span } : {}),
+    },
+  }
+}
+
+function timeLabelRuns(model, p) {
+  const runs = []
+  if (model.labelMode !== 'period') runs.push(text(`${p.start}–${p.end}`, { bold: true }))
+  if (model.labelMode !== 'time') {
+    if (runs.length) runs.push(new TextRun({ break: 1 }))
+    runs.push(text(`Period ${p.slot}`, { size: 14, color: '555555' }))
+  }
+  return runs
+}
+
+function daysAsColumnsRows(model) {
+  const dayWidth = model.days.length ? Math.floor(86 / model.days.length) : 86
   const headerRow = new TableRow({
     tableHeader: true,
     children: [
       cell('TIME', { bold: true, shade: 'E2E8F0', widthPct: 14 }),
-      ...days.map((d) => cell(d.toUpperCase(), { bold: true, shade: 'E2E8F0', widthPct: dayWidth })),
+      ...model.days.map((d) => cell(d.toUpperCase(), { bold: true, shade: 'E2E8F0', widthPct: dayWidth })),
     ],
   })
 
-  const bodyRows = periods.map((p) => {
+  const bodyRows = model.rows.map((p) => {
     if (p.kind === 'break') {
       return new TableRow({
         children: [
           cell(`${p.start}–${p.end}`, { bold: true }),
-          cell(p.label, { bold: true, shade: 'F1ECE0', colSpan: days.length || 1 }),
+          cell(p.label, { bold: true, shade: 'F1ECE0', colSpan: model.days.length || 1 }),
         ],
       })
     }
     return new TableRow({
       children: [
-        cell([
-          text(`${p.start}–${p.end}`, { bold: true }),
-        ], { bold: true }),
-        ...days.map((d) => cell(slots?.[p.id]?.[d] || '', {})),
+        cell(timeLabelRuns(model, p), {}),
+        ...model.days.map((d) => {
+          const c = cellState(model, d, p.slot)
+          if (c.state === 'covered') {
+            // Word merges vertically: continuation cells carry CONTINUE.
+            return cell('', { verticalMerge: VerticalMergeType.CONTINUE })
+          }
+          if (c.state === 'off') return cell('—', { shade: 'EFECE3' })
+          if (!c.block) return cell('', {})
+          const { runs, opts } = blockCellOpts(c.block, c.block.length, 'days-as-columns')
+          return cell(runs, {
+            ...opts,
+            ...(c.block.length > 1 ? { verticalMerge: VerticalMergeType.RESTART } : {}),
+          })
+        }),
       ],
     })
   })
+  return [headerRow, ...bodyRows]
+}
 
+function daysAsRowsRows(model) {
+  const n = model.rows.length || 1
+  const colWidth = Math.floor(91 / n)
+  const headerRow = new TableRow({
+    tableHeader: true,
+    children: [
+      cell('DAY', { bold: true, shade: 'E2E8F0', widthPct: 9 }),
+      ...model.rows.map((p) => {
+        if (p.kind === 'break') {
+          return cell([
+            text(p.label, { bold: true, size: 12 }),
+            new TextRun({ break: 1 }),
+            text(`${p.start}–${p.end}`, { size: 11, color: '555555' }),
+          ], { shade: 'F1ECE0', widthPct: colWidth })
+        }
+        const runs = []
+        if (model.labelMode !== 'time') runs.push(text(`P${p.slot}`, { bold: true, size: 14 }))
+        if (model.labelMode !== 'period') {
+          if (runs.length) runs.push(new TextRun({ break: 1 }))
+          runs.push(text(`${p.start}–${p.end}`, { size: 11, color: '555555' }))
+        }
+        return cell(runs, { shade: 'E2E8F0', widthPct: colWidth })
+      }),
+    ],
+  })
+
+  const bodyRows = model.days.map((day) => new TableRow({
+    children: [
+      cell(day.toUpperCase(), { bold: true }),
+      ...model.rows.map((p) => {
+        if (p.kind === 'break') return cell(p.label, { bold: true, shade: 'F1ECE0' })
+        const c = cellState(model, day, p.slot)
+        if (c.state === 'covered') return null // consumed by the colSpan
+        if (c.state === 'off') return cell('—', { shade: 'EFECE3' })
+        if (!c.block) return cell('', {})
+        const { runs, opts } = blockCellOpts(c.block, c.block.length, 'days-as-rows')
+        return cell(runs, opts)
+      }).filter(Boolean),
+    ],
+  }))
+  return [headerRow, ...bodyRows]
+}
+
+export function buildClassTimetableDocument(timetable, opts = {}) {
+  const model = buildTimetableGridModel(timetable, opts.layout ? { layout: opts.layout } : {})
+  const h = model?.header || {}
+
+  const rows = model.layout === 'days-as-rows' ? daysAsRowsRows(model) : daysAsColumnsRows(model)
   const table = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
-    rows: [headerRow, ...bodyRows],
+    rows,
   })
 
   return new Document({
@@ -131,7 +231,7 @@ export function buildClassTimetableDocument(timetable, opts = {}) {
     sections: [{
       ...attributionSection(opts),
       properties: { page: { size: { orientation: PageOrientation.LANDSCAPE } } },
-      children: [...titleBlock(h), table],
+      children: [...titleBlock(h), table, ...signatureBlock(h)],
     }],
   })
 }

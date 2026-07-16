@@ -164,6 +164,7 @@
     "test:question-type": "node src/utils/questionType.test.js",
     "test:mark-schedule": "node scripts/test-mark-schedule.mjs",
     "test:class-timetable": "node scripts/test-class-timetable.mjs",
+    "test:timetable-blocks": "node scripts/test-timetable-blocks.mjs",
     "test:timetable-extraction": "node scripts/test-timetable-extraction.mjs",
     "test:weekly-forecast": "node scripts/test-weekly-forecast.mjs",
     "test:weekly-focus-planner": "node scripts/test-weekly-focus-planner.mjs",
