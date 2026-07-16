@@ -417,6 +417,30 @@ export function AuthProvider({ children }) {
     if (currentUser) return ensureUserProfile(currentUser)
   }
 
+  // Re-run session restoration on demand — the "Try again" action on the
+  // <SessionRestorationScreen>. Forces a fresh ID token (a stale one is the
+  // usual reason a resumed tab's profile snapshot fails) and re-attaches the
+  // profile listener. Never signs the user out: a throw here (offline / flaky
+  // link) propagates to the caller, which surfaces a recoverable state rather
+  // than a logout. If auth hasn't resolved yet, waits for Firebase's first
+  // emission instead of forcing anything.
+  const retrySession = useCallback(async () => {
+    const user = auth.currentUser
+    if (!user) {
+      // authStateReady() resolves once the initial onAuthStateChanged fires —
+      // give a hung cold-start init another window rather than a hard reload.
+      try { await auth.authStateReady?.() } catch { /* older SDK — no-op */ }
+      return
+    }
+    if (!disposedRef.current) {
+      setLoading(true)
+      setProfileIssue(null)
+    }
+    await user.getIdToken(true)
+    if (disposedRef.current) return
+    subscribeProfileRef.current?.()
+  }, [])
+
   async function updateProfileFields(fields) {
     if (!currentUser) return
     await updateDoc(doc(db, 'users', currentUser.uid), fields)
@@ -697,7 +721,7 @@ export function AuthProvider({ children }) {
       needsEmailVerification: !!currentUser && emailVerified === false,
       refreshEmailVerification, resendVerificationEmail,
       login, loginWithGoogle, register, logout, resetPassword,
-      fetchUserProfile, ensureUserProfile, refreshProfile, updateProfileFields, updateLearnerGrade,
+      fetchUserProfile, ensureUserProfile, refreshProfile, retrySession, updateProfileFields, updateLearnerGrade,
       isLearner, isTeacher, isParent, isAdmin, isAdminOnly, isSuperAdmin, isPremium, isPaidTeacher, canAccessFullContent, canAccessLearnerPortal,
       permissions,
       userStatus, isSuspended,

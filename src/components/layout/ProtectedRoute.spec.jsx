@@ -121,7 +121,7 @@ describe('ProtectedRoute', () => {
       <ProtectedRoute requiredRole="teacher"><div data-testid="page" /></ProtectedRoute>,
     )
 
-    expect(screen.getByText(/loading your workspace/i)).toBeInTheDocument()
+    expect(screen.getByText(/preparing your dashboard/i)).toBeInTheDocument()
     expect(screen.queryByTestId('login-page')).not.toBeInTheDocument()
   })
 
