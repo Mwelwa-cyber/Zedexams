@@ -193,28 +193,6 @@ async function assertAiBudget() {
   }
 }
 
-// Normalise an OpenAI usage block ({prompt_tokens, completion_tokens}) into
-// the Anthropic-shaped {input_tokens, output_tokens} that recordAiUsage reads,
-// so OpenAI spend lands on the same /admin/ai-costs rollup. Cost is priced by
-// the gpt-* entries in aiCostTracking's price table.
-function recordOpenAiUsage(track, model, usage) {
-  if (!track || !usage) return;
-  try {
-    const {recordAiUsage} = require("./aiCostTracking");
-    recordAiUsage({
-      uid: track.uid || null,
-      tool: track.tool || null,
-      model,
-      usage: {
-        input_tokens: usage.prompt_tokens || 0,
-        output_tokens: usage.completion_tokens || 0,
-      },
-    });
-  } catch (err) {
-    console.warn("[aiService] openai cost track failed", err);
-  }
-}
-
 async function callOpenAI(apiKey, {
   systemPrompt,
   messages,
@@ -225,7 +203,17 @@ async function callOpenAI(apiKey, {
   // Audit B4 — same opt-in usage tracking as callAnthropic.
   track = null,
 }) {
-  await assertAiBudget();
+  const budgetGate = require("./aiCostTracking");
+  const activeModel = model || MODEL;
+  const reservationGate = await budgetGate.beginAiCall({
+    generationId: track && track.generationId,
+    model: activeModel,
+    maxTokens,
+    provider: "openai",
+  });
+  if (!reservationGate.allowed) {
+    throw new HttpsError("resource-exhausted", budgetGate.BUDGET_PAUSED_MESSAGE);
+  }
   // Accept an Anthropic-shaped {systemPrompt, messages[]} call and fold the
   // system prompt into OpenAI's system role, unless the caller already put a
   // system message first.
@@ -238,10 +226,10 @@ async function callOpenAI(apiKey, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
+        "Authorization": "Bearer " + apiKey,
       },
       body: JSON.stringify({
-        model: model || MODEL,
+        model: activeModel,
         messages: finalMessages,
         temperature,
         max_tokens: maxTokens,
@@ -249,6 +237,7 @@ async function callOpenAI(apiKey, {
       }),
     });
   } catch {
+    await budgetGate.releaseAiCall({reservation: reservationGate.reservation});
     throw new HttpsError(
       "unavailable",
       "AI is temporarily unavailable. Please try again.",
@@ -262,11 +251,13 @@ async function callOpenAI(apiKey, {
       message: body?.error?.message,
     });
     if (res.status === 429) {
+      await budgetGate.releaseAiCall({reservation: reservationGate.reservation});
       throw new HttpsError(
         "resource-exhausted",
         "AI is busy right now. Please wait a moment and try again.",
       );
     }
+    await budgetGate.releaseAiCall({reservation: reservationGate.reservation});
     throw new HttpsError(
       "unavailable",
       "AI is temporarily unavailable. Please try again.",
@@ -274,7 +265,22 @@ async function callOpenAI(apiKey, {
   }
 
   const data = await res.json();
-  recordOpenAiUsage(track, data?.model || model || MODEL, data?.usage);
+  const usage = data?.usage;
+  if (usage) {
+    budgetGate.settleAiCall({
+      reservation: reservationGate.reservation,
+      uid: (track && track.uid) || null,
+      tool: (track && track.tool) || null,
+      model: data?.model || activeModel,
+      usage: {
+        input_tokens: usage.prompt_tokens || 0,
+        output_tokens: usage.completion_tokens || 0,
+      },
+    }).catch((err) => console.warn("[aiService] openai settle/track failed", err));
+  } else {
+    budgetGate.releaseAiCall({reservation: reservationGate.reservation})
+        .catch((err) => console.warn("[aiService] openai release failed", err));
+  }
   return cleanString(data?.choices?.[0]?.message?.content, 4000);
 }
 
@@ -294,7 +300,17 @@ async function callOpenAIStream(apiKey, {
   model,
   track = null,
 }, onToken) {
-  await assertAiBudget();
+  const budgetGate = require("./aiCostTracking");
+  const activeModel = model || MODEL;
+  const reservationGate = await budgetGate.beginAiCall({
+    generationId: track && track.generationId,
+    model: activeModel,
+    maxTokens,
+    provider: "openai",
+  });
+  if (!reservationGate.allowed) {
+    throw new HttpsError("resource-exhausted", budgetGate.BUDGET_PAUSED_MESSAGE);
+  }
   const finalMessages = systemPrompt && messages[0]?.role !== "system" ?
     [{role: "system", content: systemPrompt}, ...messages] :
     messages;
@@ -304,10 +320,10 @@ async function callOpenAIStream(apiKey, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
+        "Authorization": "Bearer " + apiKey,
       },
       body: JSON.stringify({
-        model: model || MODEL,
+        model: activeModel,
         messages: finalMessages,
         temperature,
         max_tokens: maxTokens,
@@ -317,6 +333,7 @@ async function callOpenAIStream(apiKey, {
     });
   } catch (err) {
     console.error("callOpenAIStream fetch failed", err);
+    await budgetGate.releaseAiCall({reservation: reservationGate.reservation});
     throw new HttpsError(
       "unavailable",
       "AI is temporarily unavailable. Please try again.",
@@ -330,11 +347,13 @@ async function callOpenAIStream(apiKey, {
       message: body?.error?.message,
     });
     if (res.status === 429) {
+      await budgetGate.releaseAiCall({reservation: reservationGate.reservation});
       throw new HttpsError(
         "resource-exhausted",
         "AI is busy. Please wait a moment and try again.",
       );
     }
+    await budgetGate.releaseAiCall({reservation: reservationGate.reservation});
     throw new HttpsError(
       "unavailable",
       "AI is temporarily unavailable. Please try again.",
@@ -346,7 +365,7 @@ async function callOpenAIStream(apiKey, {
   let buffer = "";
   let fullText = "";
   let usage = null;
-  let streamModel = model || MODEL;
+  let streamModel = activeModel;
 
   while (true) {
     const {done, value} = await reader.read();
@@ -374,7 +393,21 @@ async function callOpenAIStream(apiKey, {
     }
   }
 
-  recordOpenAiUsage(track, streamModel, usage);
+  if (usage) {
+    budgetGate.settleAiCall({
+      reservation: reservationGate.reservation,
+      uid: (track && track.uid) || null,
+      tool: (track && track.tool) || null,
+      model: streamModel,
+      usage: {
+        input_tokens: usage.prompt_tokens || 0,
+        output_tokens: usage.completion_tokens || 0,
+      },
+    }).catch((err) => console.warn("[aiService] openai stream settle/track failed", err));
+  } else {
+    budgetGate.releaseAiCall({reservation: reservationGate.reservation})
+        .catch((err) => console.warn("[aiService] openai stream release failed", err));
+  }
   return fullText;
 }
 

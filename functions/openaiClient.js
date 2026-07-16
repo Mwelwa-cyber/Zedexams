@@ -45,111 +45,113 @@ async function callOpenAIImage(apiKey, opts = {}) {
       "OpenAI API key is not configured.",
     );
   }
-  // Monthly spend ceiling — images are the priciest per-call spend
-  // (~$0.06 each) and historically bypassed the gate entirely. Fails open
-  // inside isOverBudget so an accounting glitch never blocks a generation.
-  {
-    const {isOverBudget, BUDGET_PAUSED_MESSAGE} = require("./aiCostTracking");
-    if (await isOverBudget()) {
-      throw new HttpsError("resource-exhausted", BUDGET_PAUSED_MESSAGE);
-    }
-  }
   const prompt = String(opts.prompt || "").slice(0, 4000);
   const size = ALLOWED_OPENAI_SIZES.has(opts.size) ? opts.size : "1536x1024";
   const quality = ALLOWED_OPENAI_QUALITIES.has(opts.quality)
     ? opts.quality
     : "medium";
   const model = opts.model || DEFAULT_MODEL;
+  const budgetGate = require("./aiCostTracking");
+  const reservationGate = await budgetGate.beginAiCall({
+    generationId: opts.track && opts.track.generationId,
+    model,
+    provider: "openai",
+    estCostUsd: budgetGate.imageCostUsd(model, {quality, size}),
+  });
+  if (!reservationGate.allowed) {
+    throw new HttpsError("resource-exhausted", budgetGate.BUDGET_PAUSED_MESSAGE);
+  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), OPENAI_IMAGE_TIMEOUT_MS);
-  let res;
   try {
-    res = await fetch(OPENAI_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        prompt,
-        size,
-        quality,
-        n: 1,
-      }),
-      signal: controller.signal,
-    });
-  } catch (err) {
-    if (err && err.name === "AbortError") {
+    let res;
+    try {
+      res = await fetch(OPENAI_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + apiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          prompt,
+          size,
+          quality,
+          n: 1,
+        }),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (err && err.name === "AbortError") {
+        throw new HttpsError(
+          "deadline-exceeded",
+          "Image generation took too long. Please try again.",
+        );
+      }
+      throw err;
+    }
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      console.error("OpenAI image error", {status: res.status, model, body: errBody.slice(0, 400)});
+      if (res.status === 401) {
+        throw new HttpsError(
+          "failed-precondition",
+          "OpenAI key looks invalid — admin needs to rotate OPENAI_API_KEY in Firebase Secrets.",
+        );
+      }
+      if (res.status === 403) {
+        // gpt-image-1 needs the OpenAI organisation to be verified; a 403
+        // here is an account-level problem, not a prompt problem.
+        throw new HttpsError(
+          "failed-precondition",
+          "OpenAI rejected the image request (403) — the OpenAI account may " +
+          "need organisation verification for gpt-image-1.",
+        );
+      }
+      if (res.status === 429) {
+        throw new HttpsError(
+          "resource-exhausted",
+          "OpenAI image API is rate-limited. Wait a moment and try again.",
+        );
+      }
+      // Surface OpenAI's own error message (content-policy rejections, bad
+      // params) so admins aren't debugging a bare status code.
+      let detail = "";
+      try {
+        const parsed = JSON.parse(errBody);
+        const m = parsed && parsed.error && parsed.error.message;
+        if (m) detail = `: ${String(m).slice(0, 160)}`;
+      } catch {
+        // non-JSON body — the status code alone will have to do
+      }
       throw new HttpsError(
-        "deadline-exceeded",
-        "Image generation took too long. Please try again.",
+        "internal",
+        `OpenAI image request failed (${res.status})${detail}`,
       );
     }
+
+    const json = await res.json();
+    const b64 = json?.data?.[0]?.b64_json;
+    if (!b64) {
+      throw new HttpsError("internal", "OpenAI returned no image data.");
+    }
+    budgetGate.settleAiImageCall({
+      reservation: reservationGate.reservation,
+      uid: (opts.track && opts.track.uid) || null,
+      tool: (opts.track && opts.track.tool) || "imageGeneration",
+      model,
+      quality,
+      size,
+    }).catch((err) => console.warn("[openaiClient] settle/track failed", err));
+    return {b64, model, size, quality};
+  } catch (err) {
+    await budgetGate.releaseAiCall({reservation: reservationGate.reservation});
     throw err;
   } finally {
     clearTimeout(timer);
   }
-
-  if (!res.ok) {
-    const errBody = await res.text().catch(() => "");
-    console.error("OpenAI image error", {status: res.status, model, body: errBody.slice(0, 400)});
-    if (res.status === 401) {
-      throw new HttpsError(
-        "failed-precondition",
-        "OpenAI key looks invalid — admin needs to rotate OPENAI_API_KEY in Firebase Secrets.",
-      );
-    }
-    if (res.status === 403) {
-      // gpt-image-1 needs the OpenAI organisation to be verified; a 403
-      // here is an account-level problem, not a prompt problem.
-      throw new HttpsError(
-        "failed-precondition",
-        "OpenAI rejected the image request (403) — the OpenAI account may " +
-        "need organisation verification for gpt-image-1.",
-      );
-    }
-    if (res.status === 429) {
-      throw new HttpsError(
-        "resource-exhausted",
-        "OpenAI image API is rate-limited. Wait a moment and try again.",
-      );
-    }
-    // Surface OpenAI's own error message (content-policy rejections, bad
-    // params) so admins aren't debugging a bare status code.
-    let detail = "";
-    try {
-      const parsed = JSON.parse(errBody);
-      const m = parsed && parsed.error && parsed.error.message;
-      if (m) detail = `: ${String(m).slice(0, 160)}`;
-    } catch {
-      // non-JSON body — the status code alone will have to do
-    }
-    throw new HttpsError(
-      "internal",
-      `OpenAI image request failed (${res.status})${detail}`,
-    );
-  }
-
-  const json = await res.json();
-  const b64 = json?.data?.[0]?.b64_json;
-  if (!b64) {
-    throw new HttpsError("internal", "OpenAI returned no image data.");
-  }
-  // Fire-and-forget flat-cost rollup (never throws, never awaited) so image
-  // spend reaches the same meter the budget ceiling and /admin/ai-costs read.
-  try {
-    const {recordAiImageUsage} = require("./aiCostTracking");
-    recordAiImageUsage({
-      uid: (opts.track && opts.track.uid) || null,
-      tool: (opts.track && opts.track.tool) || "imageGeneration",
-      model, quality, size,
-    });
-  } catch (err) {
-    console.warn("[openaiClient] image cost track failed", err);
-  }
-  return {b64, model, size, quality};
 }
 
 module.exports = {

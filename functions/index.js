@@ -263,6 +263,11 @@ const {dailyStreakReminders: dailyStreakRemindersCron} = require("./dailyReminde
 const {updatePublicStats: updatePublicStatsCron} = require("./publicStats");
 // Audit B4 follow-up — daily AI-cost summary cron (Africa/Lusaka 02:00).
 const {aiCostDailySummary} = require("./aiCostDailySummary");
+const {
+  getAiBudgetEnforcementSummary,
+  reclaimExpiredAiReservations,
+  monthKeyUtc,
+} = require("./aiCostTracking");
 // Audit A10 — teacher classroom roster (invite codes + join + remove + leave + assignments).
 const {
   generateClassInvite,
@@ -3041,6 +3046,50 @@ exports.getClassStats = getClassStats;
 // yesterday > 2× the 7-day median. Always writes an agentJobs
 // rollup so /admin/agents shows the run alongside the other crons.
 exports.aiCostDailySummary = aiCostDailySummary;
+
+// Admin-only live view of reservation-enforced AI spend vs advisory-only
+// spend for /admin/ai-costs.
+exports.getAiBudgetEnforcementSummary = onCall({
+  region: "us-central1",
+  timeoutSeconds: 30,
+}, async (request) => {
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
+  const callerSnap = await admin.firestore().collection("users").doc(uid).get();
+  const role = callerSnap.exists ? (callerSnap.data()?.role || "") : "";
+  if (role !== "admin" && role !== "superAdmin") {
+    throw new HttpsError("permission-denied", "Admin only.");
+  }
+  const month = String(request.data?.month || monthKeyUtc()).slice(0, 7);
+  return getAiBudgetEnforcementSummary({month});
+});
+
+// Reservation safety net: proactively reclaims expired holds every 30 minutes
+// so abandoned calls don't strand budget when contention is low.
+exports.reclaimExpiredAiReservations = onSchedule({
+  schedule: "every 30 minutes",
+  timeZone: "Africa/Lusaka",
+  region: "us-central1",
+  memory: "256MiB",
+  timeoutSeconds: 60,
+}, async () => {
+  const now = Date.now();
+  const current = monthKeyUtc();
+  const prevDate = new Date();
+  prevDate.setUTCDate(1);
+  prevDate.setUTCMonth(prevDate.getUTCMonth() - 1);
+  const previous = prevDate.toISOString().slice(0, 7);
+  const [currentCount, previousCount] = await Promise.all([
+    reclaimExpiredAiReservations({month: current, now}),
+    reclaimExpiredAiReservations({month: previous, now}),
+  ]);
+  console.log("[reclaimExpiredAiReservations]", {
+    current,
+    previous,
+    currentCount,
+    previousCount,
+  });
+  return {ok: true, currentCount, previousCount};
+});
 
 // A10 PR 5 — per-assignment drill-down. Returns a roster with each
 // learner's completion status + best score for one specific

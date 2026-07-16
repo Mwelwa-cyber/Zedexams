@@ -39,16 +39,17 @@ async function callGeminiImage(apiKey, opts = {}) {
     throw new HttpsError("invalid-argument", "Image prompt is required.");
   }
 
-  // Monthly spend ceiling — same gate as the other model clients. Fails
-  // open inside isOverBudget so an accounting glitch never blocks.
-  {
-    const {isOverBudget, BUDGET_PAUSED_MESSAGE} = require("./aiCostTracking");
-    if (await isOverBudget()) {
-      throw new HttpsError("resource-exhausted", BUDGET_PAUSED_MESSAGE);
-    }
-  }
-
   const model = opts.model || DEFAULT_IMAGE_MODEL;
+  const budgetGate = require("./aiCostTracking");
+  const reservationGate = await budgetGate.beginAiCall({
+    generationId: opts.track && opts.track.generationId,
+    model,
+    provider: "gemini",
+    estCostUsd: budgetGate.imageCostUsd(model),
+  });
+  if (!reservationGate.allowed) {
+    throw new HttpsError("resource-exhausted", budgetGate.BUDGET_PAUSED_MESSAGE);
+  }
   const url =
     `${GEMINI_BASE}/${encodeURIComponent(model)}:generateContent` +
     `?key=${encodeURIComponent(apiKey)}`;
@@ -69,62 +70,61 @@ async function callGeminiImage(apiKey, opts = {}) {
     },
   };
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    // Include the full response body so failures are debuggable in logs
-    // without needing to replay the request.
-    const errBody = await res.text().catch(() => "");
-    console.error("Gemini image API error", {
-      status: res.status,
-      model,
-      body: errBody.slice(0, 600),
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(body),
     });
-    throw new Error(
-      `Gemini image request failed (HTTP ${res.status}): ${errBody.slice(0, 300)}`,
-    );
-  }
 
-  const data = await res.json();
-  const candidate = data?.candidates?.[0];
-  const parts = candidate?.content?.parts || [];
+    if (!res.ok) {
+      // Include the full response body so failures are debuggable in logs
+      // without needing to replay the request.
+      const errBody = await res.text().catch(() => "");
+      console.error("Gemini image API error", {
+        status: res.status,
+        model,
+        body: errBody.slice(0, 600),
+      });
+      throw new Error(
+        `Gemini image request failed (HTTP ${res.status}): ${errBody.slice(0, 300)}`,
+      );
+    }
 
-  // The model returns the image as an inlineData part. Walk all parts and
-  // return the first image blob found; ignore text parts.
-  for (const part of parts) {
-    const inline = part?.inlineData;
-    if (inline && inline.data && inline.mimeType) {
-      // Fire-and-forget flat-cost rollup (never throws, never awaited) so
-      // Gemini image spend reaches the budget meter + /admin/ai-costs.
-      try {
-        const {recordAiImageUsage} = require("./aiCostTracking");
-        recordAiImageUsage({
+    const data = await res.json();
+    const candidate = data?.candidates?.[0];
+    const parts = candidate?.content?.parts || [];
+
+    // The model returns the image as an inlineData part. Walk all parts and
+    // return the first image blob found; ignore text parts.
+    for (const part of parts) {
+      const inline = part?.inlineData;
+      if (inline && inline.data && inline.mimeType) {
+        budgetGate.settleAiImageCall({
+          reservation: reservationGate.reservation,
           uid: (opts.track && opts.track.uid) || null,
           tool: (opts.track && opts.track.tool) || "imageGeneration",
           model,
-        });
-      } catch (err) {
-        console.warn("[geminiImageClient] image cost track failed", err);
+        }).catch((err) => console.warn("[geminiImageClient] settle/track failed", err));
+        return {b64: String(inline.data), mimeType: String(inline.mimeType)};
       }
-      return {b64: String(inline.data), mimeType: String(inline.mimeType)};
     }
-  }
 
-  // No inline image found — log enough to diagnose.
-  console.error("Gemini image returned no inlineData", {
-    finishReason: candidate?.finishReason,
-    blockReason: data?.promptFeedback?.blockReason,
-    partCount: parts.length,
-    partTypes: parts.map((p) => Object.keys(p || {}).join(",")),
-  });
-  throw new Error(
-    "Gemini image generation returned no image data." +
-    (candidate?.finishReason ? ` Finish reason: ${candidate.finishReason}.` : ""),
-  );
+    // No inline image found — log enough to diagnose.
+    console.error("Gemini image returned no inlineData", {
+      finishReason: candidate?.finishReason,
+      blockReason: data?.promptFeedback?.blockReason,
+      partCount: parts.length,
+      partTypes: parts.map((p) => Object.keys(p || {}).join(",")),
+    });
+    throw new Error(
+      "Gemini image generation returned no image data." +
+      (candidate?.finishReason ? ` Finish reason: ${candidate.finishReason}.` : ""),
+    );
+  } catch (err) {
+    await budgetGate.releaseAiCall({reservation: reservationGate.reservation});
+    throw err;
+  }
 }
 
 module.exports = {callGeminiImage, DEFAULT_IMAGE_MODEL};

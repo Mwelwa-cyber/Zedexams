@@ -7,9 +7,11 @@
  */
 
 import { collection, doc, getDoc, getDocs, limit as fsLimit, orderBy, query } from 'firebase/firestore'
-import { db } from '../firebase/config'
+import { getFunctions, httpsCallable } from 'firebase/functions'
+import app, { db } from '../firebase/config'
 
 const COLLECTION = 'aiUsage'
+const callable = httpsCallable(getFunctions(app, 'us-central1'), 'getAiBudgetEnforcementSummary')
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
 
@@ -153,4 +155,10 @@ export function isAnomalous(today, previousDays) {
     : (sample[mid - 1] + sample[mid]) / 2
   if (median <= 0.0001) return false
   return today.totalCostUsd > median * 2
+}
+
+export async function getBudgetEnforcementSummary(month = null) {
+  const payload = month ? { month } : {}
+  const res = await callable(payload)
+  return res?.data || null
 }

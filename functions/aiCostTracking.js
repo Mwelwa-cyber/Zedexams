@@ -693,18 +693,23 @@ function estimateMaxCostUsd({model, maxTokens = 4000, inputAllowanceTokens = DEF
  * with BUDGET_PAUSED_MESSAGE. Any other outcome allows the call (fail-open);
  * a null reservation just means nothing needs reconciling afterwards.
  */
-async function beginAiCall({generationId, model, maxTokens, inputAllowanceTokens, provider = null} = {}) {
+async function beginAiCall({
+  generationId, model, maxTokens, inputAllowanceTokens, provider = null, estCostUsd,
+} = {}) {
   const genId = generationId || crypto.randomUUID();
   try {
     const status = await getBudgetStatus();
     if (!status || !status.enabled || !(Number(status.budgetUsd) > 0)) {
       return {allowed: true, reservation: null, generationId: genId, mode: "disabled"};
     }
-    const estCostUsd = estimateMaxCostUsd({model, maxTokens, inputAllowanceTokens});
+    const est =
+      Number.isFinite(Number(estCostUsd)) && Number(estCostUsd) >= 0 ?
+      Number(estCostUsd) :
+      estimateMaxCostUsd({model, maxTokens, inputAllowanceTokens});
     const res = await reservation.reserveBudget(admin.firestore(), {
       month: monthKeyUtc(),
       generationId: genId,
-      estCostUsd,
+      estCostUsd: est,
       monthlyBudgetUsd: Number(status.budgetUsd),
       provider,
       now: Date.now(),
@@ -744,6 +749,25 @@ async function settleAiCall({reservation: handle, uid, tool, model, usage} = {})
 }
 
 /**
+ * Image equivalent of settleAiCall: reconciles a reservation to the flat
+ * image cost and records the image usage rollups.
+ */
+async function settleAiImageCall({
+  reservation: handle, uid, tool, model, quality, size,
+} = {}) {
+  if (handle && handle.id) {
+    const actualCostUsd = imageCostUsd(model, {quality, size});
+    await reservation.settleReservation(admin.firestore(), {
+      month: handle.month || monthKeyUtc(),
+      generationId: handle.id,
+      actualCostUsd,
+      now: Date.now(),
+    }).catch((err) => console.warn("[aiCostTracking] settle image failed", err?.message || err));
+  }
+  return recordAiImageUsage({uid, model, quality, size, tool});
+}
+
+/**
  * Release a reservation whose AI call failed (returns the full held amount
  * to the budget). Idempotent + never throws. No analytics write — the call
  * produced no billable usage.
@@ -755,6 +779,68 @@ async function releaseAiCall({reservation: handle} = {}) {
       generationId: handle.id,
       now: Date.now(),
     }).catch((err) => console.warn("[aiCostTracking] release failed", err?.message || err));
+  }
+}
+
+/**
+ * Admin-only summary of reservation-enforced spend for dashboards.
+ * Returns provider rollups from aiBudgetBuckets/{month}/reservations plus
+ * advisory-only remainder from aiUsageMonthly.
+ */
+async function getAiBudgetEnforcementSummary({month = monthKeyUtc()} = {}) {
+  const out = {
+    month,
+    reservedTotalUsd: 0,
+    enforcedSettledUsd: 0,
+    advisoryOnlyUsd: 0,
+    providers: [],
+  };
+  try {
+    const db = admin.firestore();
+    const [reservedTotalUsd, monthCostUsd, resSnap] = await Promise.all([
+      reservation.getReservedTotalUsd(db, {month}),
+      getMonthToDateCostUsd(),
+      db.collection(reservation.COLLECTION)
+          .doc(month)
+          .collection("reservations")
+          .get(),
+    ]);
+    out.reservedTotalUsd = Number(reservedTotalUsd) || 0;
+    const byProvider = new Map();
+    resSnap.forEach((doc) => {
+      const d = doc.data() || {};
+      const provider = String(d.provider || "unknown");
+      if (!byProvider.has(provider)) {
+        byProvider.set(provider, {
+          provider,
+          reservations: 0,
+          openReservedUsd: 0,
+          settledActualUsd: 0,
+        });
+      }
+      const row = byProvider.get(provider);
+      row.reservations += 1;
+      if (d.status === "open") row.openReservedUsd += Number(d.reservedUsd || 0);
+      if (d.status === "settled") row.settledActualUsd += Number(d.actualUsd || 0);
+    });
+    out.providers = Array.from(byProvider.values())
+        .sort((a, b) => b.settledActualUsd - a.settledActualUsd);
+    out.enforcedSettledUsd = out.providers
+        .reduce((sum, row) => sum + Number(row.settledActualUsd || 0), 0);
+    out.advisoryOnlyUsd = Math.max(0, (Number(monthCostUsd) || 0) - out.enforcedSettledUsd);
+  } catch (err) {
+    console.warn("[aiCostTracking] enforcement summary failed", err?.message || err);
+  }
+  return out;
+}
+
+/** Reclaim expired reservations for one month. Never throws. */
+async function reclaimExpiredAiReservations({month = monthKeyUtc(), now = Date.now(), limit} = {}) {
+  try {
+    return await reservation.reclaimExpiredReservations(admin.firestore(), {month, now, limit});
+  } catch (err) {
+    console.warn("[aiCostTracking] reclaim expired failed", err?.message || err);
+    return 0;
   }
 }
 
@@ -788,6 +874,9 @@ module.exports = {
   estimateMaxCostUsd,
   beginAiCall,
   settleAiCall,
+  settleAiImageCall,
   releaseAiCall,
+  getAiBudgetEnforcementSummary,
+  reclaimExpiredAiReservations,
   _resetBudgetCache,
 };

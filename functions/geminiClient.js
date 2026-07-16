@@ -31,15 +31,17 @@ async function callGemini(apiKey, opts = {}) {
       "Gemini API key is not configured.",
     );
   }
-  // Monthly spend ceiling — Gemini calls historically bypassed the gate.
-  // Fails open inside isOverBudget so an accounting glitch never blocks.
-  {
-    const {isOverBudget, BUDGET_PAUSED_MESSAGE} = require("./aiCostTracking");
-    if (await isOverBudget()) {
-      throw new HttpsError("resource-exhausted", BUDGET_PAUSED_MESSAGE);
-    }
-  }
   const model = opts.model || DEFAULT_MODEL;
+  const budgetGate = require("./aiCostTracking");
+  const reservationGate = await budgetGate.beginAiCall({
+    generationId: opts.track && opts.track.generationId,
+    model,
+    maxTokens: Number(opts.maxTokens) || 4000,
+    provider: "gemini",
+  });
+  if (!reservationGate.allowed) {
+    throw new HttpsError("resource-exhausted", budgetGate.BUDGET_PAUSED_MESSAGE);
+  }
   const url = `${GEMINI_BASE}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
   // Build the user-turn parts. Always start with the text, then attach
@@ -78,29 +80,26 @@ async function callGemini(apiKey, opts = {}) {
     body.systemInstruction = {parts: [{text: String(opts.systemPrompt)}]};
   }
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    const errBody = await res.text().catch(() => "");
-    console.error("Gemini API error", {status: res.status, model, body: errBody.slice(0, 400)});
-    throw new HttpsError(
-      "internal",
-      `Gemini request failed (${res.status}). Please try again.`,
-    );
-  }
-
-  const data = await res.json();
-  // Fire-and-forget usage rollup (never throws, never awaited) so Gemini
-  // spend reaches the meter the budget ceiling and /admin/ai-costs read.
-  // usageMetadata's prompt/candidates counts map onto input/output tokens.
   try {
-    const {recordAiUsage} = require("./aiCostTracking");
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      console.error("Gemini API error", {status: res.status, model, body: errBody.slice(0, 400)});
+      throw new HttpsError(
+        "internal",
+        `Gemini request failed (${res.status}). Please try again.`,
+      );
+    }
+
+    const data = await res.json();
     const um = data?.usageMetadata;
-    recordAiUsage({
+    budgetGate.settleAiCall({
+      reservation: reservationGate.reservation,
       uid: (opts.track && opts.track.uid) || null,
       tool: (opts.track && opts.track.tool) || "gemini",
       model,
@@ -108,26 +107,27 @@ async function callGemini(apiKey, opts = {}) {
         input_tokens: Number(um?.promptTokenCount || 0),
         output_tokens: Number(um?.candidatesTokenCount || 0),
       },
-    });
-  } catch (err) {
-    console.warn("[geminiClient] cost track failed", err);
-  }
+    }).catch((err) => console.warn("[geminiClient] settle/track failed", err));
   // Gemini returns candidates[0].content.parts[].text; concatenate any
   // text parts so we don't drop content if the model emits multiple.
-  const candidate = data?.candidates?.[0];
-  const parts = candidate?.content?.parts || [];
-  const text = parts
-    .map((p) => (typeof p?.text === "string" ? p.text : ""))
-    .join("")
-    .trim();
-  if (!text) {
-    console.error("Gemini returned no text", {
-      finishReason: candidate?.finishReason,
-      blockReason: data?.promptFeedback?.blockReason,
-    });
-    throw new HttpsError("internal", "Gemini returned an empty response.");
+    const candidate = data?.candidates?.[0];
+    const parts = candidate?.content?.parts || [];
+    const text = parts
+      .map((p) => (typeof p?.text === "string" ? p.text : ""))
+      .join("")
+      .trim();
+    if (!text) {
+      console.error("Gemini returned no text", {
+        finishReason: candidate?.finishReason,
+        blockReason: data?.promptFeedback?.blockReason,
+      });
+      throw new HttpsError("internal", "Gemini returned an empty response.");
+    }
+    return text;
+  } catch (err) {
+    await budgetGate.releaseAiCall({reservation: reservationGate.reservation});
+    throw err;
   }
-  return text;
 }
 
 module.exports = {callGemini, DEFAULT_MODEL};

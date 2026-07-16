@@ -15,6 +15,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   getDayUsage,
+  getBudgetEnforcementSummary,
   isAnomalous,
   listDailyUsage,
   listToolsForDate,
@@ -121,6 +122,7 @@ export default function AdminAiCosts() {
   const [userLabels, setUserLabels] = useState(() => new Map())
   const [loading, setLoading] = useState(true)
   const [errored, setErrored] = useState(false)
+  const [enforcement, setEnforcement] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -136,12 +138,14 @@ export default function AdminAiCosts() {
       getDayUsage(date).catch(() => null),
       listToolsForDate(date).catch(() => []),
       listTopUsersForDate(date).catch(() => []),
-    ]).then(([dailyRows, todayDoc, toolRows, userRows]) => {
+      getBudgetEnforcementSummary().catch(() => null),
+    ]).then(([dailyRows, todayDoc, toolRows, userRows, enforcementSummary]) => {
       if (cancelled) return
       setDaily(dailyRows)
       setToday(todayDoc)
       setTools(toolRows)
       setTopUsers(userRows)
+      setEnforcement(enforcementSummary)
     }).catch((err) => {
       console.warn('[AdminAiCosts] load failed', err)
       if (!cancelled) setErrored(true)
@@ -227,6 +231,23 @@ export default function AdminAiCosts() {
               </p>
               <CostChart days={daily} />
             </div>
+            {enforcement && (
+              <div className="rounded-radius-md border theme-border p-3">
+                <p className="theme-text-muted text-[11px] uppercase tracking-wider font-bold">
+                  Budget enforcement
+                </p>
+                <p className="theme-text text-sm mt-1">
+                  Enforced (reservations): <strong>{usdFmt.format(enforcement.enforcedSettledUsd || 0)}</strong>
+                  {' · '}Advisory-only remainder: <strong>{usdFmt.format(enforcement.advisoryOnlyUsd || 0)}</strong>
+                </p>
+                <p className="theme-text-muted text-xs mt-1">
+                  Providers with enforced reservations: {(enforcement.providers || [])
+                    .map((p) => p.provider)
+                    .filter(Boolean)
+                    .join(', ') || 'none yet this month'}
+                </p>
+              </div>
+            )}
           </section>
 
           <section className="grid sm:grid-cols-2 gap-4">
