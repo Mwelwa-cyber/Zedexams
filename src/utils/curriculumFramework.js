@@ -110,6 +110,7 @@ export function bandForGrade(grade) {
 const BAND_META = {
   ece: {
     label: 'Early Childhood Education',
+    stageId: 'pre-primary',
     periodMinutes: 30,
     totalPeriods: 30,
     weeklyContactMinutes: 900, // 15 hours
@@ -117,6 +118,7 @@ const BAND_META = {
   },
   lower_primary: {
     label: 'Lower Primary (Grades 1–3)',
+    stageId: 'lower-primary',
     periodMinutes: 30,
     totalPeriods: 42,
     weeklyContactMinutes: 1260, // 21 hours
@@ -124,6 +126,7 @@ const BAND_META = {
   },
   upper_primary: {
     label: 'Upper Primary (Grades 4–6)',
+    stageId: 'upper-primary',
     periodMinutes: 40,
     totalPeriods: 42,
     weeklyContactMinutes: 1680, // 28 hours
@@ -131,11 +134,24 @@ const BAND_META = {
   },
   adapted: {
     label: 'Adapted (intellectual disabilities)',
+    stageId: 'adapted',
     periodMinutes: 40,
     totalPeriods: 22,
     weeklyContactMinutes: 880, // 14 h 40 min
     contactLabel: '14 h 40 min',
   },
+}
+
+/**
+ * Which per-curriculum grade STRUCTURE a timetable curriculum id uses — the
+ * bridge to the shared CURRICULUM_GRADE_STRUCTURES in config/teacherTaxonomy.js
+ * (the same source Teaching Assignments / the Teaching Profile use). Only the
+ * 2013 OBC uses the previous-era grade layout (Grades 1–7 primary, 8–12
+ * secondary); the 2023 CBC, its adapted baseline and a custom school day all
+ * use the CBC-era layout (ECE, LP 1–3, UP 4–6, Secondary Forms 1–4).
+ */
+export function gradeStructureModeFor(curriculumId) {
+  return curriculumId === 'obc-2013' ? 'previous' : 'cbc'
 }
 
 /* ── Block preferences ────────────────────────────────────────────
@@ -200,29 +216,37 @@ const ECE_SUBJECTS = [
 
 const LOWER_PRIMARY_SUBJECTS = [
   {
-    id: 'literacy-english', canonicalName: 'Literacy and Language — English Language', shortName: 'English',
-    aliases: ['english', 'eng', 'english language', 'literacy & language — english', 'literacy english'],
+    id: 'literacy-language-english', canonicalName: 'Literacy and Language — English Language', shortName: 'English',
+    aliases: ['english', 'eng', 'english language', 'literacy & language — english', 'literacy english', 'literacy-english'],
     weeklyPeriods: 11, weeklyMinutes: 330, timeAllocation: '5 h 30 min',
     compulsory: true, optionGroupId: null, subjectType: 'language',
     blockPreference: BLOCKS([2, 2, 1, 1, 1, 1, 1, 1, 1]),
   },
   {
-    id: 'literacy-zambian', canonicalName: 'Literacy and Language — Zambian Language', shortName: 'Zambian Lang',
-    aliases: ['zambian', 'zambian language', 'zambian lang', 'literacy & language — zambian', 'literacy zambian', 'local language'],
+    id: 'literacy-language-zambian', canonicalName: 'Literacy and Language — Zambian Language', shortName: 'Zambian Lang',
+    aliases: ['zambian', 'zambian language', 'zambian lang', 'literacy & language — zambian', 'literacy zambian', 'literacy-zambian', 'local language'],
     weeklyPeriods: 11, weeklyMinutes: 330, timeAllocation: '5 h 30 min',
     compulsory: true, optionGroupId: null, subjectType: 'language',
     blockPreference: BLOCKS([2, 2, 1, 1, 1, 1, 1, 1, 1]),
   },
   {
-    id: 'mathematics-science', canonicalName: 'Mathematics and Science', shortName: 'Maths & Science',
-    aliases: ['maths and science', 'mathematics & science', 'maths & science', 'maths', 'mathematics', 'science'],
+    // Canonical id `mathematics-and-science`. The many display-name variants
+    // teachers/import files use collapse onto THIS one subject via the aliases —
+    // they must never spawn a second subject or cause the official area to be
+    // dropped from the Grade 1–3 allocation.
+    id: 'mathematics-and-science', canonicalName: 'Mathematics and Science', shortName: 'Maths & Science',
+    aliases: [
+      'mathematics and science', 'maths and science', 'mathematics & science', 'maths & science',
+      'maths', 'mathematics', 'science', 'mathematics-science',
+      'mathematics and pre-science', 'pre-mathematics and pre-science', 'pre maths and science',
+    ],
     weeklyPeriods: 10, weeklyMinutes: 300, timeAllocation: '5 h 00 min',
     compulsory: true, optionGroupId: null, subjectType: 'integrated',
     blockPreference: BLOCKS([2, 2, 2, 1, 1, 1, 1]),
   },
   {
-    id: 'creative-technology', canonicalName: 'Creative and Technology Studies', shortName: 'CTS',
-    aliases: ['cts', 'creative & technology studies', 'creative and technology', 'creative studies'],
+    id: 'creative-and-technology-studies', canonicalName: 'Creative and Technology Studies', shortName: 'CTS',
+    aliases: ['cts', 'creative and technology studies', 'creative & technology studies', 'creative and technology', 'creative studies', 'creative-technology'],
     weeklyPeriods: 10, weeklyMinutes: 300, timeAllocation: '5 h 00 min',
     compulsory: true, optionGroupId: null, subjectType: 'integrated',
     blockPreference: BLOCKS([2, 2, 2, 1, 1, 1, 1]),
@@ -397,9 +421,14 @@ export function optionGroupsForBand(band) {
  * Returns null when the curriculum has no prescribed allocation for the
  * grade (OBC 2013, custom, CBC secondary, Grade 7).
  */
-export function resolveTimetableCurriculum({ curriculumId = DEFAULT_CURRICULUM_ID, grade, selectedOptions = {} } = {}) {
+export function resolveTimetableCurriculum({
+  curriculumId = DEFAULT_CURRICULUM_ID, grade, gradeId, selectedOptions = {},
+} = {}) {
+  // `gradeId` is the documented resolver param; `grade` is the long-standing
+  // studio field. Accept either so the one resolver serves both callers.
+  const gradeValue = grade ?? gradeId ?? null
   const curriculum = getCurriculum(curriculumId) || getCurriculum(DEFAULT_CURRICULUM_ID)
-  const band = bandForCurriculum(curriculum.id, grade)
+  const band = bandForCurriculum(curriculum.id, gradeValue)
   if (!band || !BAND_SUBJECTS[band]) return null
   const meta = BAND_META[band]
   const groups = optionGroupsForBand(band)
@@ -414,6 +443,7 @@ export function resolveTimetableCurriculum({ curriculumId = DEFAULT_CURRICULUM_I
     const selected = !s.optionGroupId || chosen[s.optionGroupId] === s.id
     return {
       ...s,
+      subjectId: s.id, // canonical id under the documented resolver contract
       label: s.canonicalName, // legacy field name used across the studio
       selected,
       weeklyPeriods: selected ? s.weeklyPeriods : 0,
@@ -427,11 +457,13 @@ export function resolveTimetableCurriculum({ curriculumId = DEFAULT_CURRICULUM_I
   return {
     curriculumId: curriculum.id,
     curriculumName: curriculum.name,
+    stageId: meta.stageId,
     level: band,
     levelLabel: meta.label,
     band,
     bandLabel: meta.label,
-    grade: grade ?? null,
+    grade: gradeValue,
+    gradeId: gradeValue,
     periodMinutes: meta.periodMinutes,
     periodLengthMinutes: meta.periodMinutes,
     totalPeriods: meta.totalPeriods,
