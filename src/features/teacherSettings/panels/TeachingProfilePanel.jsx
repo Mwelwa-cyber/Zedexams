@@ -31,7 +31,6 @@ import {
   subjectLabel,
   curriculumTypeLabel,
   resolveDefaultAssignmentId,
-  assignmentKey,
   findDuplicateAssignment,
 } from '../../../utils/teachingProfileCore'
 import { weeklyTargets } from '../../../utils/teachingTargets'
@@ -40,6 +39,7 @@ import { listMyGenerations } from '../../../utils/teacherLibraryService'
 import { useFirestore } from '../../../hooks/useFirestore'
 import { useAuth } from '../../../contexts/AuthContext'
 import TeachingProfileMigrationCard from '../components/teachingProfile/TeachingProfileMigrationCard'
+import TeachingProfileTip from '../components/teachingProfile/detected/TeachingProfileTip'
 
 // Inference only needs enough RECENT metadata to spot likely current
 // assignments — not the full assessment history. Matches the generations
@@ -70,10 +70,12 @@ export default function TeachingProfilePanel() {
   // For a teacher who has no profile yet, infer the classes they teach from their
   // existing work so onboarding starts from a confirmable draft, not a blank
   // form. Suggest-only: nothing is saved until they tick + continue.
-  const [migration, setMigration] = useState({ suggestions: [], defaults: {}, error: '' })
+  // status: 'loading' (skeleton) → 'ready' | 'error' (retryable).
+  const [migration, setMigration] = useState({ status: 'loading', suggestions: [], defaults: {}, error: '' })
   const [selectedKeys, setSelectedKeys] = useState(() => new Set())
   const [applyingMigration, setApplyingMigration] = useState(false)
   const [migrationSeed, setMigrationSeed] = useState(null) // { initialProfile, initialAssignments }
+  const [migrationRetryToken, setMigrationRetryToken] = useState(0)
   const migrationLoadedRef = useRef(false)
 
   useEffect(() => {
@@ -82,30 +84,42 @@ export default function TeachingProfilePanel() {
     if (migrationLoadedRef.current) return
     migrationLoadedRef.current = true
     let cancelled = false
+    setMigration((m) => ({ ...m, status: 'loading' }))
     ;(async () => {
       // Broader inference (Phase 8 follow-up): recent generations AND test
       // papers. getMyAssessments reads only the assessment docs' summary
       // metadata (grade/subject/curriculum live top-level; question bodies are
-      // a subcollection) — no full-document loads. Both are best-effort.
-      const [generations, assessments] = await Promise.all([
-        listMyGenerations({ uid }).catch(() => []),
-        Promise.resolve().then(() => getMyAssessments(uid, MIGRATION_ASSESSMENTS_LIMIT)).catch(() => []),
+      // a subcollection) — no full-document loads. Both are best-effort, but
+      // if BOTH reads fail we show a retryable error instead of a silently
+      // empty screen.
+      const [gensResult, assessResult] = await Promise.allSettled([
+        listMyGenerations({ uid }),
+        Promise.resolve().then(() => getMyAssessments(uid, MIGRATION_ASSESSMENTS_LIMIT)),
       ])
       if (cancelled) return
+      if (gensResult.status === 'rejected' && assessResult.status === 'rejected') {
+        setMigration({ status: 'error', suggestions: [], defaults: {}, error: '' })
+        return
+      }
       const plan = buildMigrationPlan({
-        generations,
-        assessments,
+        generations: gensResult.status === 'fulfilled' ? gensResult.value : [],
+        assessments: assessResult.status === 'fulfilled' ? assessResult.value : [],
         teacherPreferences: userProfile?.teacherPreferences,
         existingAssignments: assignments,
       })
-      setMigration({ suggestions: plan.suggestions, defaults: plan.defaults, error: '' })
-      setSelectedKeys(new Set(plan.suggestions.map((s) => assignmentKey(s))))
+      setMigration({ status: 'ready', suggestions: plan.suggestions, defaults: plan.defaults, error: '' })
+      setSelectedKeys(new Set(plan.suggestions.map((s) => s.key)))
     })()
     return () => { cancelled = true }
     // getMyAssessments is stable-enough here: migrationLoadedRef guarantees the
     // inference runs once per mount regardless of hook identity churn.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, hasProfile, uid, assignments, userProfile])
+  }, [loading, hasProfile, uid, assignments, userProfile, migrationRetryToken])
+
+  const retryMigration = () => {
+    migrationLoadedRef.current = false
+    setMigrationRetryToken((t) => t + 1)
+  }
 
   const toggleSuggestion = (key) => {
     setSelectedKeys((prev) => {
@@ -115,12 +129,20 @@ export default function TeachingProfilePanel() {
       return next
     })
   }
+  const selectSuggestionKeys = (keys) => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev)
+      for (const key of keys) next.add(key)
+      return next
+    })
+  }
+  const clearSelectedSuggestions = () => setSelectedKeys(new Set())
 
   // Persist the ticked suggestions, then open the wizard pre-filled from them +
   // the inferred defaults. Assignments persist immediately (same as the wizard's
   // own add path); the profile doc is only written when the wizard is completed.
   const applyMigration = async () => {
-    const chosen = migration.suggestions.filter((s) => selectedKeys.has(assignmentKey(s)))
+    const chosen = migration.suggestions.filter((s) => selectedKeys.has(s.key))
     if (!chosen.length || applyingMigration) return
     setApplyingMigration(true)
     setMigration((m) => ({ ...m, error: '' }))
@@ -220,30 +242,54 @@ export default function TeachingProfilePanel() {
   }
 
   if (!hasProfile) {
-    const hasSuggestions = migration.suggestions.length > 0
+    const openManualSetup = () => { setMigrationSeed(null); setWizardOpen(true) }
     return (
       <SettingsDetailShell rowId="teachingProfile">
-        {hasSuggestions ? (
-          <TeachingProfileMigrationCard
-            suggestions={migration.suggestions}
-            selectedKeys={selectedKeys}
-            onToggle={toggleSuggestion}
-            onApply={applyMigration}
-            onSkip={() => { setMigrationSeed(null); setWizardOpen(true) }}
-            applying={applyingMigration}
-            error={migration.error}
-          />
+        {migration.status === 'loading' ? (
+          <div className="tset-card tset-dta tset-dta--skeleton" aria-busy="true" aria-label="Loading suggested assignments">
+            <div className="tset-dta-skel tset-dta-skel--banner" />
+            <div className="tset-dta-skel tset-dta-skel--summary" />
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div key={i} className="tset-dta-skel tset-dta-skel--row" />
+            ))}
+          </div>
+        ) : migration.status === 'error' ? (
+          <div className="tset-card tset-tp-empty">
+            <Icon as={AlertTriangle} size="lg" className="tset-tp-empty__icon" />
+            <p className="tset-tp-empty__title">We could not load your suggested assignments</p>
+            <div className="tset-dta-empty__actions">
+              <button type="button" className="tset-btn" onClick={retryMigration}>Try again</button>
+              <button type="button" className="tset-btn tset-btn--ghost" onClick={openManualSetup}>
+                Set up manually
+              </button>
+            </div>
+          </div>
+        ) : migration.suggestions.length > 0 ? (
+          <>
+            <TeachingProfileMigrationCard
+              suggestions={migration.suggestions}
+              selectedKeys={selectedKeys}
+              onToggle={toggleSuggestion}
+              onSelectKeys={selectSuggestionKeys}
+              onClearAll={clearSelectedSuggestions}
+              onApply={applyMigration}
+              onSkip={openManualSetup}
+              applying={applyingMigration}
+              error={migration.error}
+            />
+            <TeachingProfileTip />
+          </>
         ) : (
           <div className="tset-card tset-tp-empty">
             <Icon as={GraduationCap} size="lg" className="tset-tp-empty__icon" />
-            <p className="tset-tp-empty__title">Set up your Teaching Profile</p>
+            <p className="tset-tp-empty__title">No teaching assignments found</p>
             <p className="tset-tp-empty__desc">
-              Add the grades, subjects and classes you teach so your dashboard and studios can prepare
-              the correct teaching work.
+              We could not confidently identify assignments from your recent work. Set up your
+              teaching profile manually.
             </p>
             {actionError && <p className="tset-savebar__status tset-savebar__status--error" role="alert">{actionError}</p>}
-            <button type="button" className="tset-btn" onClick={() => { setMigrationSeed(null); setWizardOpen(true) }}>
-              Start Teaching Profile
+            <button type="button" className="tset-btn" onClick={openManualSetup}>
+              Set up manually
             </button>
           </div>
         )}

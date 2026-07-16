@@ -66,6 +66,7 @@
     "test:sba-paper": "node scripts/test-sba-task-to-paper.mjs",
     "test:schema": "node scripts/test-question-schema.mjs",
     "test:teaching-profile": "node scripts/test-teaching-profile.mjs",
+    "test:detected-assignments": "node scripts/test-detected-assignments.mjs",
     "test:calendar-resolver": "node scripts/test-calendar-resolver.mjs",
     "test:teaching-targets": "node scripts/test-teaching-targets.mjs",
     "test:weekly-focus-holidays": "node scripts/test-weekly-focus-holidays.mjs",
