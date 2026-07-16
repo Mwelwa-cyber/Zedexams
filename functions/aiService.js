@@ -278,8 +278,7 @@ async function callOpenAI(apiKey, {
       },
     }).catch((err) => console.warn("[aiService] openai settle/track failed", err));
   } else {
-    budgetGate.releaseAiCall({reservation: reservationGate.reservation})
-        .catch((err) => console.warn("[aiService] openai release failed", err));
+    await budgetGate.releaseAiCall({reservation: reservationGate.reservation});
   }
   return cleanString(data?.choices?.[0]?.message?.content, 4000);
 }
@@ -405,8 +404,7 @@ async function callOpenAIStream(apiKey, {
       },
     }).catch((err) => console.warn("[aiService] openai stream settle/track failed", err));
   } else {
-    budgetGate.releaseAiCall({reservation: reservationGate.reservation})
-        .catch((err) => console.warn("[aiService] openai stream release failed", err));
+    await budgetGate.releaseAiCall({reservation: reservationGate.reservation});
   }
   return fullText;
 }
