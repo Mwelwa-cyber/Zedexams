@@ -155,11 +155,17 @@ export default function TimetableConflictPanel({
         ))}
       </div>
 
-      {/* Coverage */}
+      {/* Coverage. Scope is stated honestly: sibling loading is account-level
+          (owner-scoped reads) until a canonical schoolId + school membership
+          model exists — never claim "all school timetables checked". */}
       {coverage && (
         <div className="rounded-xl border theme-border bg-white px-3 py-2 text-[11px] space-y-0.5" style={{ color: '#566f76' }}>
           <div className="font-black" style={{ color: coverageTone.color }}>
-            Coverage: {coverageTone.label}
+            Conflict coverage: Account-level · {coverageTone.label}
+          </div>
+          <div>
+            Timetables accessible to this account and matching the current school name, term and year were checked.
+            Timetables owned by other school accounts may not be included.
           </div>
           <div>
             Sibling timetables checked: {coverage.siblingsChecked} · Blocks checked: {coverage.blocksChecked} ·

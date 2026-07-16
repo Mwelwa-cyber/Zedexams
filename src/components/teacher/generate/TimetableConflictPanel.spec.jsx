@@ -143,9 +143,16 @@ describe('TimetableConflictPanel', () => {
     expect(screen.getByText('Checking conflicts…')).toBeInTheDocument()
   })
 
+  it('states account-level coverage honestly — never claims all school timetables were checked', () => {
+    renderPanel()
+    expect(screen.getByText(/Conflict coverage: Account-level/)).toBeInTheDocument()
+    expect(screen.getByText(/Timetables owned by other school accounts may not be included/)).toBeInTheDocument()
+    expect(screen.queryByText(/All school timetables checked/i)).not.toBeInTheDocument()
+  })
+
   it('shows partial coverage so "0 conflicts" is never fully trusted, and the failure state', () => {
     renderPanel({ conflicts: [] })
-    expect(screen.getByText(/Coverage: Partial/)).toBeInTheDocument()
+    expect(screen.getByText(/Account-level · Partial/)).toBeInTheDocument()
     expect(screen.getByText('No confirmed conflicts found')).toBeInTheDocument()
     expect(screen.getByText(/could not be fully checked/)).toBeInTheDocument()
     renderPanel({ status: 'error', errorMessage: 'network down' })
