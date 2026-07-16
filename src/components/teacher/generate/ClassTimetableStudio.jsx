@@ -21,8 +21,8 @@
  * current editing session.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { TEACHER_GRADES } from '../../../utils/teacherTools'
 import {
@@ -62,12 +62,23 @@ import {
   blockAt,
   slotsToBlocks,
   setCellBlock,
+  setBlockDetails,
   joinBlocks,
   splitBlock,
   toggleBlockLock,
   canJoin,
   suggestJoins,
 } from '../../../utils/timetableBlocks'
+import {
+  normaliseTimetableForConflictCheck,
+  findCrossTimetableConflicts,
+  changedSiblingsSince,
+  blockingConflicts,
+} from '../../../utils/timetableConflictEngine'
+import { loadSiblingTimetables } from '../../../utils/siblingTimetables'
+import TimetableConflictPanel from './TimetableConflictPanel'
+import BlockDetailsModal from './BlockDetailsModal'
+import { useTeachingProfile } from '../../../features/teacherSettings/lib/useTeachingProfile'
 import { buildTimetableGridModel, cellState, subjectTintMap } from '../../../utils/timetableGridModel'
 import { saveClassTimetableGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
@@ -183,6 +194,26 @@ export default function ClassTimetableStudio() {
   const [saving, setSaving] = useState(false)
   const [dirtySinceSave, setDirtySinceSave] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
+
+  /* ── Cross-timetable conflict checking ── */
+  const navigate = useNavigate()
+  const { assignments } = useTeachingProfile()
+  const [siblings, setSiblings] = useState([])
+  const [siblingStatus, setSiblingStatus] = useState('idle') // idle|loading|ready|error
+  const [siblingError, setSiblingError] = useState('')
+  const [lastCheckedAt, setLastCheckedAt] = useState(null)
+  const [staleSiblings, setStaleSiblings] = useState([])
+  const [selectedConflict, setSelectedConflict] = useState(null)
+  const [detailsBlockId, setDetailsBlockId] = useState(null)
+  const [finalChecking, setFinalChecking] = useState(false)
+  const [offline, setOffline] = useState(typeof navigator !== 'undefined' && navigator.onLine === false)
+  useEffect(() => {
+    const on = () => setOffline(false)
+    const off = () => setOffline(true)
+    window.addEventListener('online', on)
+    window.addEventListener('offline', off)
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off) }
+  }, [])
   const [confirmRemoveDouble, setConfirmRemoveDouble] = useState(null) // blockId
   const [confirmRemoveSubject, setConfirmRemoveSubject] = useState(null) // subject id
   // Pending curriculum/grade/option switch — changing any of these reseeds
@@ -253,6 +284,57 @@ export default function ClassTimetableStudio() {
 
   // The editable grid + preview render from the same shared model.
   const gridModel = useMemo(() => buildTimetableGridModel(artifact), [artifact])
+
+  /* Cross-timetable conflicts: the CURRENT in-memory artifact (including
+   * unsaved edits) is normalised and compared against the loaded siblings by
+   * the pure engine — every block/teacher/room/time edit recalculates
+   * locally, with no extra Firestore reads (§ refresh re-queries). */
+  const currentNormalised = useMemo(
+    () => normaliseTimetableForConflictCheck({ id: generationId || '', output: artifact }),
+    [artifact, generationId],
+  )
+  const conflictResult = useMemo(
+    () => findCrossTimetableConflicts({ currentTimetable: currentNormalised, siblingTimetables: siblings }),
+    [currentNormalised, siblings],
+  )
+
+  const refreshConflicts = useCallback(async ({ silent = false } = {}) => {
+    if (!uid) return null
+    setSiblingStatus('loading')
+    setSiblingError('')
+    try {
+      const fresh = await loadSiblingTimetables({
+        uid,
+        timetableId: generationId || '',
+        school: header.school,
+        year: header.year,
+        term: header.term,
+      })
+      // Stale-data note: which siblings changed since the previous check.
+      setStaleSiblings((lastCheckedAt ? changedSiblingsSince(siblings, fresh.siblings) : []))
+      setSiblings(fresh.siblings)
+      setLastCheckedAt(fresh.checkedAt)
+      setSiblingStatus('ready')
+      return fresh.siblings
+    } catch (err) {
+      console.error('[ClassTimetableStudio] sibling load failed', err)
+      setSiblingStatus('error')
+      setSiblingError(offline ? 'you appear to be offline' : (err?.message || ''))
+      if (!silent) toast.error('Could not load your other timetables for conflict checking.')
+      return null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, generationId, header.school, header.year, header.term, siblings, lastCheckedAt, offline])
+
+  /* Load siblings once the studio knows who's signed in, and re-scope when
+   * the school / year / term context changes (debounced — school is typed). */
+  const refreshRef = useRef(refreshConflicts)
+  refreshRef.current = refreshConflicts
+  useEffect(() => {
+    if (!uid) return undefined
+    const t = setTimeout(() => { refreshRef.current({ silent: true }) }, 900)
+    return () => clearTimeout(t)
+  }, [uid, header.school, header.year, header.term])
 
   // Universal Draft Manager: cross-device auto-save + recovery. The library
   // copy (aiGenerations) is saved separately by useLibraryAutoSave below.
@@ -537,21 +619,108 @@ export default function ClassTimetableStudio() {
     }
   }
 
+  /* ── conflict actions ── */
+  function highlightConflictBlock(blockId) {
+    if (!blockId) return
+    const cell = document.getElementById(`ttcell-${blockId}`)
+    if (cell) cell.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+  function onSelectConflict(conflict) {
+    setSelectedConflict(conflict)
+    highlightConflictBlock(conflict?.currentBlock?.blockId)
+  }
+  function onOpenConflictingTimetable(timetableId) {
+    if (!timetableId) return
+    if (!siblings.some((s) => s.timetableId === timetableId)) {
+      toast.error('Source timetable is no longer available.')
+      return
+    }
+    // The saved-library view renders the sibling with its normal permissions.
+    navigate(`/teacher/library/${timetableId}`)
+  }
+  function onEditBlockDetails(blockId) {
+    if (!blockId) return
+    setDetailsBlockId(blockId)
+    highlightConflictBlock(blockId)
+  }
+  function onMoveLessonAction(blockId) {
+    // No drag-and-drop in this phase: focus the affected cell so the teacher
+    // can reassign it with the existing cell editor.
+    const block = blocks.find((b) => b.blockId === blockId)
+    if (block) {
+      highlightConflictBlock(blockId)
+      toast.info(`Use the ${block.day} cell's dropdown to move or clear ${block.label} — the block keeps its links when its details are unchanged.`)
+    }
+  }
+  function onSaveBlockDetails(details) {
+    if (!detailsBlockId) return
+    setBlocks((prev) => setBlockDetails(prev, detailsBlockId, details))
+    toast.success('Block details updated — conflicts recalculated.')
+  }
+
   /* ── persistence + export ── */
-  async function onSaveToLibrary({ silent = false } = {}) {
+  async function onSaveToLibrary({ silent = false, publishState } = {}) {
     if (saving) return
     if (filled === 0) { if (!silent) toast.error('Fill at least one lesson before saving.'); return }
     setSaving(true)
     try {
-      const id = await saveClassTimetableGeneration({ uid, existingId: generationId, artifact })
+      const id = await saveClassTimetableGeneration({ uid, existingId: generationId, artifact, publishState })
       setGenerationId(id)
       setDirtySinceSave(false)
-      if (!silent) toast.success(generationId ? 'Library copy updated.' : 'Saved to your library.')
+      if (!silent) {
+        // Draft saves are allowed with conflicts — but never silently.
+        const blocking = blockingConflicts(conflictResult.conflicts)
+        if (!publishState && blocking.length) {
+          toast.info(`Saved with ${blocking.length} unresolved conflict${blocking.length === 1 ? '' : 's'} — see the Timetable conflicts panel.`)
+        } else if (publishState === 'final') {
+          toast.success('Final timetable saved — no blocking conflicts.')
+        } else {
+          toast.success(generationId ? 'Library copy updated.' : 'Saved to your library.')
+        }
+      }
+      return id
     } catch (err) {
       console.error('[ClassTimetableStudio] save failed', err)
       if (!silent) toast.error(err?.message || 'Could not save to your library. Please try again.')
+      return null
     } finally {
       setSaving(false)
+    }
+  }
+
+  /* Final check & save: refresh siblings FIRST (never publish on stale
+   * data), re-run the engine against the fresh set, and block the final
+   * save while error-level conflicts remain. */
+  async function onFinalCheckAndSave() {
+    if (finalChecking || saving) return
+    if (filled === 0) { toast.error('Fill the timetable first.'); return }
+    if (offline) {
+      toast.error('You are offline. Cross-class conflict results may be outdated — reconnect before a final save.')
+      return
+    }
+    setFinalChecking(true)
+    try {
+      const freshSiblings = await refreshConflicts()
+      if (freshSiblings === null) {
+        toast.error('The pre-save conflict check failed — fix the connection and try again.')
+        return
+      }
+      const fresh = findCrossTimetableConflicts({
+        currentTimetable: currentNormalised,
+        siblingTimetables: freshSiblings,
+      })
+      const blocking = blockingConflicts(fresh.conflicts)
+      if (blocking.length) {
+        const changed = changedSiblingsSince(siblings, freshSiblings)
+        const changedNote = changed.length
+          ? ` ${changed.join(', ')} ${changed.length === 1 ? 'was' : 'were'} updated after your last conflict check.`
+          : ''
+        toast.error(`Cannot save as final: ${blocking.length} unresolved error-level conflict${blocking.length === 1 ? '' : 's'}.${changedNote} Resolve them in the Timetable conflicts panel.`)
+        return
+      }
+      await onSaveToLibrary({ publishState: 'final' })
+    } finally {
+      setFinalChecking(false)
     }
   }
 
@@ -634,9 +803,15 @@ export default function ClassTimetableStudio() {
     const below = block ? blockAt(blocks, day, row.slot + block.length) : null
     const joinable = block && below && !isDouble && below.length === 1
       && canJoin(block, below, segments).ok
+    // Conflict highlight: colour + a visible ring + icon (never colour alone).
+    const isConflictTarget = block && selectedConflict?.currentBlock?.blockId === block.blockId
     return (
-      <td key={day} className="py-1 px-1 align-top" rowSpan={isDouble ? block.length : undefined}
-        style={block?.type === BLOCK_TYPES.ACTIVITY ? { background: '#f6f3ea' } : block ? { background: `${tints[block.label] || '#fff'}55` } : undefined}>
+      <td key={day} id={block ? `ttcell-${block.blockId}` : undefined}
+        className="py-1 px-1 align-top" rowSpan={isDouble ? block.length : undefined}
+        style={{
+          ...(block?.type === BLOCK_TYPES.ACTIVITY ? { background: '#f6f3ea' } : block ? { background: `${tints[block.label] || '#fff'}55` } : {}),
+          ...(isConflictTarget ? { outline: '3px solid #be3144', outlineOffset: '-2px', borderRadius: 8 } : {}),
+        }}>
         <select
           value={block?.label || ''}
           aria-label={`${row.label} ${day}`}
@@ -683,6 +858,25 @@ export default function ClassTimetableStudio() {
                 className="text-[10px] font-black leading-none px-1 rounded border theme-border bg-white hover:theme-text">
                 ✂ Split
               </button>
+            )}
+            {block.type === BLOCK_TYPES.CURRICULUM && (
+              <button type="button" onClick={() => setDetailsBlockId(block.blockId)}
+                title="Teacher & room details (conflict checking)"
+                aria-label={`Edit teacher and room for ${block.label}`}
+                className="text-[10px] font-black leading-none px-1 rounded border theme-border bg-white hover:theme-text">
+                👤 Details
+              </button>
+            )}
+            {isConflictTarget && (
+              <span className="text-[9px] font-black uppercase" style={{ color: '#be3144' }}>
+                ⛔ In conflict
+              </span>
+            )}
+            {(block.teacher || block.room) && (
+              <span className="w-full text-[9px] truncate" style={{ color: '#566f76' }}
+                title={[block.teacher, block.room].filter(Boolean).join(' · ')}>
+                {[block.teacher, block.room].filter(Boolean).join(' · ')}
+              </span>
             )}
           </div>
         )}
@@ -1328,16 +1522,43 @@ export default function ClassTimetableStudio() {
             )}
           </section>
 
+          {/* ── Cross-timetable conflicts ── */}
+          <TimetableConflictPanel
+            conflicts={conflictResult.conflicts}
+            coverage={conflictResult.coverage}
+            status={siblingStatus}
+            errorMessage={siblingError}
+            lastCheckedAt={lastCheckedAt}
+            offline={offline}
+            staleSiblings={staleSiblings}
+            currentTimetableId={generationId || ''}
+            currentClassName={header.className || (header.grade ? `Grade ${String(header.grade).replace(/^G/i, '')}` : '')}
+            days={days}
+            selectedConflictId={selectedConflict?.conflictId || null}
+            onRefresh={() => refreshConflicts()}
+            onSelectConflict={onSelectConflict}
+            onOpenTimetable={onOpenConflictingTimetable}
+            onChangeTeacher={onEditBlockDetails}
+            onChangeRoom={onEditBlockDetails}
+            onMoveLesson={onMoveLessonAction}
+          />
+
           {/* ── Preview + export ── */}
           <section className="studio-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>Preview &amp; export</h2>
               <div className="flex gap-2 flex-wrap items-center">
                 <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
-                <button type="button" onClick={onSaveToLibrary}
+                <button type="button" onClick={() => onSaveToLibrary()}
                   disabled={filled === 0 || saving || (generationId && !dirtySinceSave)}
                   className="studio-btn-ghost disabled:opacity-50">
                   {saving ? 'Saving…' : generationId ? (dirtySinceSave ? '💾 Update in library' : '✓ Saved') : '💾 Save to library'}
+                </button>
+                <button type="button" onClick={onFinalCheckAndSave}
+                  disabled={filled === 0 || saving || finalChecking}
+                  title="Re-checks your other timetables for conflicts, then saves as final. Blocked while error-level conflicts remain."
+                  className="studio-btn-ghost disabled:opacity-50">
+                  {finalChecking ? 'Checking conflicts…' : '✅ Final check & save'}
                 </button>
                 <button type="button" onClick={onExportXlsx} disabled={filled === 0} className="studio-btn-ghost disabled:opacity-50">
                   📊 .xlsx
@@ -1404,6 +1625,15 @@ export default function ClassTimetableStudio() {
         variant="danger"
         onConfirm={() => { setSubjects((list) => list.filter((x) => x.id !== confirmRemoveSubject)); setConfirmRemoveSubject(null) }}
         onCancel={() => setConfirmRemoveSubject(null)}
+      />
+      <BlockDetailsModal
+        open={detailsBlockId !== null}
+        block={blocks.find((b) => b.blockId === detailsBlockId) || null}
+        uid={uid}
+        teacherDisplayName={header.teacherName || userProfile?.displayName || ''}
+        assignments={assignments}
+        onSave={onSaveBlockDetails}
+        onClose={() => setDetailsBlockId(null)}
       />
     </div>
   )
