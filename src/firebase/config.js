@@ -17,10 +17,17 @@ import { getMessaging, isSupported } from 'firebase/messaging'
 import { getPerformance } from 'firebase/performance'
 import { getStorage } from 'firebase/storage'
 import { isNativePlatform } from '../utils/runtime'
+import { resolveAuthDomain } from './authDomain'
 
 const firebaseConfig = {
   apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  // On the production custom domain the page's own hostname serves the
+  // /__/auth/* helpers, so the Google popup shows "zedexams.com" instead of
+  // the env's firebaseapp.com domain — see authDomain.js for the rules.
+  authDomain:        resolveAuthDomain(
+    import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    typeof window !== 'undefined' ? window.location.hostname : ''
+  ),
   projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
