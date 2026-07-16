@@ -710,6 +710,36 @@ test('periodsPerWeek / lessonDurationMinutes allow null (blank optional fields)'
   )
 })
 
+console.log('\nClass Register Studio — attendance rules stay locked down')
+
+test('attendance day docs validate date/status shape + version guard', () => {
+  assertContains('match /attendance/{dayId}', 'attendance subcollection must have a rules block')
+  assertContains("dayId.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')", 'attendance doc ids must be ISO dates')
+  assertContains('incoming().date == dayId', 'the date field must equal the doc id')
+  assertContains("incoming().version > resource.data.get('version', 0)", 'stale-overwrite guard: version must increase on update')
+})
+
+const { ATTENDANCE_STATUS_ORDER } = await import('../src/utils/attendanceConstants.js')
+test('attendance statuses in rules mirror attendanceConstants', () => {
+  const expected = `value in ['${ATTENDANCE_STATUS_ORDER.join("', '")}']`
+  assertContains(expected, '_validAttendanceStatus must whitelist exactly the statuses in attendanceConstants.js (same order)')
+})
+
+test('locked terms block attendance writes; only admins reopen', () => {
+  assertContains('function _attendanceTermLocked', 'lock check helper must exist')
+  assertContains('!_attendanceTermLocked(classId, incoming().termId)', 'attendance day writes must check the term lock')
+  assertContains("resource.data.state != 'locked'", 'teachers must not update a locked attendanceTerms doc')
+  // The teacher branch may set draft/submitted/locked but never 'reopened' —
+  // reopening is the admin-only path.
+  assertContains("incoming().state in ['draft', 'submitted', 'locked']", 'teacher lifecycle states exclude reopened')
+})
+
+test('attendance audit trail is append-only for everyone', () => {
+  const auditBlock = rules.split('match /attendanceAudit/{entryId}')[1]?.split('match /')[0] || ''
+  assert(auditBlock.includes('allow update: if false'), 'audit entries must never be client-updatable')
+  assert(auditBlock.includes('allow delete: if false'), 'audit entries must never be client-deletable')
+})
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log('')

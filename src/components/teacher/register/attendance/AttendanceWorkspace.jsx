@@ -1,0 +1,260 @@
+/**
+ * AttendanceWorkspace — the working surface of the Class Register Studio for
+ * one class + term: context bar (term dates · register state · lock
+ * controls), section switcher (Daily · Term grid · Summary · Roster · Print &
+ * Export), and the calendar-not-configured empty state with custom term dates.
+ *
+ * Mounted by both the standalone studio page (/teacher/attendance) and the
+ * Attendance tab of a Class Register.
+ */
+
+import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../../../../contexts/AuthContext'
+import useClassRegister from '../../../../hooks/useClassRegister'
+import { resolveAttendancePolicy, REGISTER_STATES } from '../../../../utils/attendanceConstants'
+import { canMarkDay } from '../../../../utils/attendanceDayCore'
+import { formatDateLong, isValidIsoDate } from '../../../../utils/attendanceCalendarResolver'
+import { saveAttendanceTermSettings, setAttendanceTermState } from '../../../../utils/attendanceService'
+import { useToast } from '../../../ui/Toast'
+import Button from '../../../ui/Button'
+import ConfirmDialog from '../../../ui/ConfirmDialog'
+import Skeleton from '../../../ui/Skeleton'
+import DailyAttendanceView from './DailyAttendanceView'
+import AttendanceGridView from './AttendanceGridView'
+import AttendanceSummaryPanel from './AttendanceSummaryPanel'
+import RegisterRosterManager from './RegisterRosterManager'
+import RegisterPrintView from './RegisterPrintView'
+
+const SECTIONS = [
+  { key: 'daily', label: 'Daily' },
+  { key: 'grid', label: 'Term grid' },
+  { key: 'summary', label: 'Summary' },
+  { key: 'roster', label: 'Roster' },
+  { key: 'export', label: 'Print & Export' },
+]
+
+const STATE_TONE = {
+  draft: 'bg-gray-100 text-gray-700 border-gray-300',
+  submitted: 'bg-blue-100 text-blue-800 border-blue-300',
+  locked: 'bg-red-100 text-red-800 border-red-300',
+  reopened: 'bg-amber-100 text-amber-800 border-amber-300',
+}
+
+function defaultSection() {
+  if (typeof window !== 'undefined' && window.matchMedia?.('(min-width: 1024px)').matches) return 'grid'
+  return 'daily'
+}
+
+export default function AttendanceWorkspace({ register, termSelection }) {
+  const { currentUser, userProfile, isAdmin } = useAuth()
+  const uid = currentUser?.uid
+  const toast = useToast()
+  const [section, setSection] = useState(defaultSection)
+  const [lockConfirm, setLockConfirm] = useState(false)
+  const [reopenOpen, setReopenOpen] = useState(false)
+  const [reopenReason, setReopenReason] = useState('')
+  const [stateBusy, setStateBusy] = useState(false)
+  const [customDates, setCustomDates] = useState({ start: '', end: '' })
+
+  const registerHook = useClassRegister({
+    register,
+    termSelection,
+    uid,
+    onConflict: ({ date, learnerIds }) => {
+      toast.info(`Another teacher edited ${learnerIds.length} learner${learnerIds.length === 1 ? '' : 's'} on ${formatDateLong(date)} — both sets of changes were kept, latest tap wins.`)
+    },
+  })
+  const {
+    termInfo, termId, termState, termDocLoaded, days, selectedDate, hydrated, loadError,
+  } = registerHook
+
+  const policy = useMemo(
+    () => resolveAttendancePolicy(registerHook.termDoc?.policy),
+    [registerHook.termDoc],
+  )
+
+  const selectedDay = days.find((d) => d.date === selectedDate) || null
+  const canMark = useMemo(
+    () => canMarkDay({ day: selectedDay, termInfo, termState }),
+    [selectedDay, termInfo, termState],
+  )
+  const stateInfo = REGISTER_STATES[termState] || REGISTER_STATES.draft
+  const canEdit = stateInfo.editable
+
+  const termMeta = { termId, term: termSelection?.term, year: termSelection?.year, teacherUid: register.teacherUid }
+
+  async function moveState(state, reason = '') {
+    setStateBusy(true)
+    try {
+      await setAttendanceTermState(register.id, uid, termMeta, { state, reason })
+      toast.success(`Register ${REGISTER_STATES[state].label.toLowerCase()}.`)
+    } catch (err) {
+      toast.error(`Could not update the register state: ${err.message || 'unexpected error'}`)
+    } finally {
+      setStateBusy(false)
+      setLockConfirm(false)
+      setReopenOpen(false)
+      setReopenReason('')
+    }
+  }
+
+  async function saveCustomDates(e) {
+    e.preventDefault()
+    if (!isValidIsoDate(customDates.start) || !isValidIsoDate(customDates.end) || customDates.start > customDates.end) {
+      toast.error('Enter a valid start and end date (start before end).')
+      return
+    }
+    try {
+      await saveAttendanceTermSettings(register.id, uid, termMeta, {
+        customStartDate: customDates.start,
+        customEndDate: customDates.end,
+      })
+      toast.success('Term dates saved — the register calendar is ready.')
+    } catch (err) {
+      toast.error(`Could not save term dates: ${err.message || 'unexpected error'}`)
+    }
+  }
+
+  if (loadError) {
+    return (
+      <div role="alert" className="theme-card border border-red-300 rounded-radius-md p-6 text-center">
+        <p className="theme-text font-black">Couldn&apos;t load the register.</p>
+        <p className="theme-text-muted text-sm mt-1">Check your connection and refresh the page.</p>
+      </div>
+    )
+  }
+
+  // Calendar not configured: no MoE data for this year/term and no custom dates yet.
+  if (!termInfo) {
+    if (!termDocLoaded) {
+      return <div className="space-y-3"><Skeleton className="h-10" /><Skeleton className="h-40" /></div>
+    }
+    return (
+      <div className="theme-card border theme-border rounded-radius-md p-6 space-y-3">
+        <p className="theme-text font-black">The school calendar isn&apos;t configured for {termSelection?.term} {termSelection?.year}.</p>
+        <p className="theme-text-muted text-sm">
+          The national MoE calendar covers 2026–2030. For other years (or a school-specific calendar), enter this
+          term&apos;s dates below, or review the{' '}
+          <Link to="/teacher/calendar" className="theme-accent-text font-black">School Calendar</Link> page.
+        </p>
+        <form onSubmit={saveCustomDates} className="flex flex-wrap items-end gap-2">
+          <label className="block">
+            <span className="theme-text-muted text-xs font-black uppercase tracking-wider">Term start</span>
+            <input type="date" value={customDates.start} onChange={(e) => setCustomDates((d) => ({ ...d, start: e.target.value }))}
+              className="mt-1 block rounded-radius-md border theme-border theme-card theme-text px-2.5 py-2 text-sm" required />
+          </label>
+          <label className="block">
+            <span className="theme-text-muted text-xs font-black uppercase tracking-wider">Term end</span>
+            <input type="date" value={customDates.end} onChange={(e) => setCustomDates((d) => ({ ...d, end: e.target.value }))}
+              className="mt-1 block rounded-radius-md border theme-border theme-card theme-text px-2.5 py-2 text-sm" required />
+          </label>
+          <Button type="submit" size="sm">Save term dates</Button>
+        </form>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* context bar: term window + state + lifecycle */}
+      <div className="theme-card border theme-border rounded-radius-md p-3 flex flex-wrap items-center gap-2">
+        <div className="min-w-0 mr-auto">
+          <p className="theme-text text-sm font-black">
+            {termSelection?.term} · {termSelection?.year}
+            <span className={`ml-2 inline-block px-2 py-0.5 rounded-radius-md border text-xs font-black align-middle ${STATE_TONE[termState] || STATE_TONE.draft}`}>
+              {stateInfo.label}
+            </span>
+          </p>
+          <p className="theme-text-muted text-xs">
+            {formatDateLong(termInfo.startDate)} → {formatDateLong(termInfo.endDate)}
+            {termInfo.source === 'custom' ? ' · custom dates' : ' · MoE calendar'}
+          </p>
+        </div>
+        {termState === 'draft' && (
+          <Button type="button" size="sm" variant="secondary" loading={stateBusy} onClick={() => moveState('submitted')}>Submit register</Button>
+        )}
+        {termState === 'submitted' && (
+          <>
+            <Button type="button" size="sm" variant="ghost" loading={stateBusy} onClick={() => moveState('draft')}>Back to draft</Button>
+            <Button type="button" size="sm" variant="secondary" loading={stateBusy} onClick={() => setLockConfirm(true)}>Lock register</Button>
+          </>
+        )}
+        {termState === 'reopened' && (
+          <Button type="button" size="sm" variant="secondary" loading={stateBusy} onClick={() => setLockConfirm(true)}>Lock register</Button>
+        )}
+        {termState === 'locked' && (
+          isAdmin ? (
+            <Button type="button" size="sm" variant="secondary" loading={stateBusy} onClick={() => setReopenOpen(true)}>Reopen…</Button>
+          ) : (
+            <span className="theme-text-muted text-xs font-bold">Locked — view &amp; print only. An administrator can reopen it.</span>
+          )
+        )}
+      </div>
+
+      {/* section switcher */}
+      <nav className="flex gap-1 overflow-x-auto -mx-1 px-1 border-b theme-border" aria-label="Register sections">
+        {SECTIONS.map((s) => (
+          <button key={s.key} type="button" onClick={() => setSection(s.key)}
+            className={`whitespace-nowrap px-3 py-2.5 text-sm font-black border-b-2 transition-colors ${
+              s.key === section ? 'theme-accent-text border-current' : 'theme-text-muted border-transparent hover:theme-text'
+            }`}>
+            {s.label}
+          </button>
+        ))}
+      </nav>
+
+      {!hydrated && <div className="space-y-3"><Skeleton className="h-10" /><Skeleton className="h-64" /></div>}
+
+      {hydrated && section === 'daily' && (
+        <DailyAttendanceView registerHook={registerHook} canMark={canMark} />
+      )}
+      {hydrated && section === 'grid' && (
+        <AttendanceGridView registerHook={registerHook} canEdit={canEdit} policy={policy} />
+      )}
+      {hydrated && section === 'summary' && (
+        <AttendanceSummaryPanel registerHook={registerHook} policy={policy} uid={uid} canEdit={canEdit} />
+      )}
+      {hydrated && section === 'roster' && (
+        <RegisterRosterManager registerHook={registerHook} register={register} uid={uid} canEdit={canEdit} termInfo={termInfo} />
+      )}
+      {hydrated && section === 'export' && (
+        <RegisterPrintView
+          registerHook={registerHook}
+          register={register}
+          uid={uid}
+          teacherName={userProfile?.displayName || ''}
+          policy={policy}
+        />
+      )}
+
+      <ConfirmDialog
+        open={lockConfirm}
+        title="Lock this term's register?"
+        message="After locking, attendance can be viewed and printed but not changed. An administrator can reopen the register with a recorded reason."
+        confirmLabel="Lock register"
+        onConfirm={() => moveState('locked')}
+        onCancel={() => setLockConfirm(false)}
+      />
+
+      {reopenOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3" role="dialog" aria-modal="true" aria-label="Reopen register">
+          <div className="theme-card border theme-border rounded-radius-md w-full max-w-md p-4 space-y-3">
+            <h2 className="theme-text font-black text-lg">Reopen locked register</h2>
+            <p className="theme-text-muted text-sm">A reason is required and will be recorded in the audit trail.</p>
+            <textarea value={reopenReason} onChange={(e) => setReopenReason(e.target.value)} rows={3} maxLength={200}
+              placeholder="Reason for reopening…"
+              className="w-full rounded-radius-md border theme-border theme-card theme-text px-2.5 py-2 text-sm" />
+            <div className="flex justify-end gap-2">
+              <Button type="button" size="sm" variant="ghost" onClick={() => { setReopenOpen(false); setReopenReason('') }}>Cancel</Button>
+              <Button type="button" size="sm" loading={stateBusy} disabled={!reopenReason.trim()}
+                onClick={() => moveState('reopened', reopenReason)}>
+                Reopen register
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

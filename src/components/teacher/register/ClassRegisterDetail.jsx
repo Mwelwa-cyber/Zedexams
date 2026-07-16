@@ -17,6 +17,7 @@ import ConfirmDialog from '../../ui/ConfirmDialog'
 import SeoHelmet from '../../seo/SeoHelmet'
 import Skeleton from '../../ui/Skeleton'
 import ClassListTab from './ClassListTab'
+import AttendanceTab from './AttendanceTab'
 import MarkSchedulesTab from './MarkSchedulesTab'
 import ReportsTab from './ReportsTab'
 import SbaTab from './SbaTab'
@@ -25,6 +26,7 @@ import ProgressTab from './ProgressTab'
 
 const TABS = [
   { key: 'class-list', label: 'Class List' },
+  { key: 'attendance', label: 'Attendance' },
   { key: 'sba', label: 'SBA' },
   { key: 'results', label: 'Assessment Results' },
   { key: 'schedules', label: 'Mark Schedules' },
@@ -189,6 +191,7 @@ export default function ClassRegisterDetail() {
       {activeTab === 'class-list' && (
         <ClassListTab register={reg} onRosterChange={(count) => setReg((r) => (r ? { ...r, learnerCount: count } : r))} />
       )}
+      {activeTab === 'attendance' && <AttendanceTab register={reg} />}
       {activeTab === 'sba' && <SbaTab register={reg} />}
       {activeTab === 'results' && <AssessmentResultsTab register={reg} />}
       {activeTab === 'schedules' && <MarkSchedulesTab register={reg} />}
