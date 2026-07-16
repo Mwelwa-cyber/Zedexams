@@ -265,6 +265,8 @@ const {updatePublicStats: updatePublicStatsCron} = require("./publicStats");
 const {aiCostDailySummary} = require("./aiCostDailySummary");
 // Hourly sweep of expired AI-budget reservations (issue #1755).
 const {reclaimAiBudgetReservations} = require("./aiBudgetReclaim");
+// Admin read model for the /admin/ai-costs budget-enforcement panel.
+const {getAiBudgetEnforcement} = require("./aiBudgetEnforcement");
 // Audit A10 — teacher classroom roster (invite codes + join + remove + leave + assignments).
 const {
   generateClassInvite,
@@ -3048,6 +3050,11 @@ exports.aiCostDailySummary = aiCostDailySummary;
 // crashed/timed-out call left on hold even when no contention triggers
 // the reserve path's own lazy reclaim (aiBudgetReclaim.js).
 exports.reclaimAiBudgetReservations = reclaimAiBudgetReservations;
+
+// Admin-only budget-enforcement summary (ceiling status + per-provider
+// reservation breakdown) for /admin/ai-costs. The reservation buckets are
+// server-only, so the dashboard reads them through this callable.
+exports.getAiBudgetEnforcement = getAiBudgetEnforcement;
 
 // A10 PR 5 — per-assignment drill-down. Returns a roster with each
 // learner's completion status + best score for one specific
