@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
-import { useState } from 'react'
+import { StrictMode, useState } from 'react'
 import LessonPlanStudio from './LessonPlanStudio'
 import { LIBRARY_TYPES } from '../../../config/library'
 
@@ -273,6 +273,32 @@ describe('LessonPlanStudio — rendering', () => {
   it('passes null generationError to canvas on mount', () => {
     renderStudio()
     expect(screen.getByTestId('canvas-error')).toHaveTextContent('')
+  })
+})
+
+describe('LessonPlanStudio — mount stability (render-loop regression)', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('mounts without throwing "Maximum update depth exceeded"', () => {
+    // The production crash surfaced as a render loop on mount. A clean mount is
+    // the regression assertion — a loop throws here.
+    expect(() => renderStudio()).not.toThrow()
+    expect(screen.getByTestId('studio-shell')).toBeInTheDocument()
+  })
+
+  it('mounts cleanly under React.StrictMode (double-invoked effects)', async () => {
+    mockUseStudioState.mockReturnValue(makeStudioState())
+    let renderResult
+    expect(() => {
+      renderResult = render(
+        <StrictMode>
+          <LessonPlanStudio />
+        </StrictMode>,
+      )
+    }).not.toThrow()
+    // Let effects/microtasks settle; a self-perpetuating effect would blow up here.
+    await act(async () => { await Promise.resolve() })
+    expect(renderResult.getByTestId('studio-shell')).toBeInTheDocument()
   })
 })
 

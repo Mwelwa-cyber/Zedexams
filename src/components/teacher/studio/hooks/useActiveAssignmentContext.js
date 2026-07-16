@@ -17,6 +17,21 @@ function todayLocalISO() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+// Value equality for the resolved seed. Used as an equality guard before
+// setSeed so an async resolution that produces an equivalent seed returns the
+// SAME object reference — React then bails out of the re-render instead of
+// re-running this effect and looping.
+function seedsEqual(a, b) {
+  if (a === b) return true
+  if (!a || !b) return false
+  return (
+    a.grade === b.grade &&
+    a.subject === b.subject &&
+    a.curriculumMode === b.curriculumMode &&
+    a.date === b.date
+  )
+}
+
 /**
  * useActiveAssignmentContext — resolves the teacher's ACTIVE Teaching Profile
  * assignment into the Lesson Plan Studio's own field values, so a new plan can
@@ -57,12 +72,23 @@ export function useActiveAssignmentContext() {
   // pick the field manually.
   const [mappingNotice, setMappingNotice] = useState(null)
 
+  // Depend on the primitive context fields pickPlannedDate actually reads, not
+  // the whole `tp.context` object. Even though useTeachingProfile now memoises
+  // context, keying the effect on primitives makes this hook immune to any future
+  // identity churn in that object — the effect only re-runs when a value that
+  // changes the planned date changes.
+  const ctxStatus = tp.context?.status
+  const ctxWeekBeginning = tp.context?.weekBeginning
+  const ctxTermClose = tp.context?.termClose
   useEffect(() => {
     let cancelled = false
     if (!assignment) { setSeed(null); setMappingNotice(null); return undefined }
     const grade = gradeToStudioFormat(assignment.grade)
     const curriculumMode = assignment.curriculumType === 'previous' ? 'previous' : 'cbc'
-    const date = pickPlannedDate({ context: tp.context, todayISO: todayLocalISO() })
+    const date = pickPlannedDate({
+      context: { status: ctxStatus, weekBeginning: ctxWeekBeginning, termClose: ctxTermClose },
+      todayISO: todayLocalISO(),
+    })
     async function run() {
       let subject = ''
       if (grade) {
@@ -74,7 +100,13 @@ export function useActiveAssignmentContext() {
         } catch { subject = '' }
       }
       if (cancelled) return
-      setSeed({ grade, subject, curriculumMode, date })
+      // Equality guard: if the resolved seed is value-equal to the current one,
+      // return the SAME reference so React skips the re-render. Without this, the
+      // async write minted a new object every run and — combined with an unstable
+      // context identity — spun the render loop that crashed the studio in
+      // production ("Maximum update depth exceeded").
+      const next = { grade, subject, curriculumMode, date }
+      setSeed((prev) => (seedsEqual(prev, next) ? prev : next))
       // Build the notice from what failed to map.
       let notice = null
       if (!grade) {
@@ -84,11 +116,11 @@ export function useActiveAssignmentContext() {
       } else if (!subject) {
         notice = `“${subjectLabel(assignment.subject)}” could not be matched to a syllabus subject.`
       }
-      setMappingNotice(notice)
+      setMappingNotice((prev) => (prev === notice ? prev : notice))
     }
     run()
     return () => { cancelled = true }
-  }, [assignment, tp.context])
+  }, [assignment, ctxStatus, ctxWeekBeginning, ctxTermClose])
 
   return {
     loading: tp.loading,

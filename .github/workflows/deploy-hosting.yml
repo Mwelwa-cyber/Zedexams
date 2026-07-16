@@ -23,6 +23,9 @@ name: Deploy Hosting
 #   VITE_GOOGLE_MAPS_STATIC_KEY          — optional (Maps Static API; map-based games show a fallback if missing)
 #   VITE_SENTRY_DSN                      — optional (error monitoring; without it the @sentry/react package is tree-shaken out of the build)
 #   VITE_APP_VERSION                     — optional (release tag for Sentry; falls back to "dev")
+#   SENTRY_AUTH_TOKEN                    — optional (build-time source-map upload; org:releases + project:read/write scope). With SENTRY_ORG + SENTRY_PROJECT, hidden maps upload to Sentry then get stripped from dist/ so minified stack traces resolve to original JSX. Unset ⇒ no upload, build unchanged.
+#   SENTRY_ORG                           — optional (Sentry org slug; required with SENTRY_AUTH_TOKEN)
+#   SENTRY_PROJECT                       — optional (Sentry project slug; required with SENTRY_AUTH_TOKEN)
 #   VITE_FIREBASE_VAPID_KEY              — optional (web-push public key from Firebase Console → Cloud Messaging → Web Push certificates; without it the in-app permission prompt no-ops and no FCM tokens are minted)
 #
 # The sibling `deploy-firebase.yml` workflow handles Firestore rules,
@@ -160,6 +163,15 @@ jobs:
           VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY: ${{ secrets.VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY }}
           VITE_POSTHOG_KEY:                 ${{ secrets.VITE_POSTHOG_KEY }}
           VITE_POSTHOG_HOST:                ${{ secrets.VITE_POSTHOG_HOST }}
+          # Sentry source-map upload (build-time only — NOT VITE_ vars, so they
+          # never enter the browser bundle). When all three are set the build
+          # emits hidden maps, uploads them under release
+          # zedexams@${VITE_APP_VERSION}-production, then deletes them from dist/
+          # so nothing ships to the CDN. Unset ⇒ upload is skipped, build is
+          # unchanged. See maybeSentryPlugin() in vite.config.js.
+          SENTRY_AUTH_TOKEN:                ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG:                       ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT:                   ${{ secrets.SENTRY_PROJECT }}
         run: npm run build
 
       # Static prerendering (SEO) — snapshot the content-only public routes

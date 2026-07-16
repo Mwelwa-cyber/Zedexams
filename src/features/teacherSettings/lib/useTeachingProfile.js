@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
   getTeachingProfile,
@@ -83,14 +83,29 @@ export function useTeachingProfile({ detectConnections = false } = {}) {
     return () => { cancelled = true }
   }, [detectConnections, uid])
 
-  const normalizedProfile = normalizeTeachingProfile(profile || {})
+  // Memoise the normalized profile so its identity is stable across renders when
+  // the raw `profile` state hasn't changed. `normalizeTeachingProfile` returns a
+  // fresh object every call; without this, every derived value below (and every
+  // consumer that lists them in a dependency array) would see a new identity on
+  // each render.
+  const normalizedProfile = useMemo(() => normalizeTeachingProfile(profile || {}), [profile])
   const hasProfile = !!profile
   const schoolName = typeof userProfile?.school === 'string' ? userProfile.school : ''
 
   // Calendar context is derived at read time (today) from the referenced
   // calendar; it is ALWAYS a structured object (never null) — callers branch on
-  // context.status.
-  const context = resolveTeachingContext({ calendarId: normalizedProfile.calendarId })
+  // context.status. Memoised on the primitive calendarId so its identity is
+  // stable across renders: `resolveTeachingContext` builds a fresh object every
+  // call, and an unstable `context` identity fed a render loop in
+  // useActiveAssignmentContext (its effect depends on `tp.context`, and its async
+  // seed write re-rendered this hook, minting yet another context → "Maximum
+  // update depth exceeded"). Depending on the id (not the whole profile) keeps it
+  // stable while still recomputing when the teacher points at a different
+  // calendar.
+  const context = useMemo(
+    () => resolveTeachingContext({ calendarId: normalizedProfile.calendarId }),
+    [normalizedProfile.calendarId],
+  )
 
   const completion = computeProfileCompletion({
     profile: normalizedProfile,
