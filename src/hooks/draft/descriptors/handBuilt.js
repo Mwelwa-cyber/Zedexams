@@ -88,6 +88,18 @@ export const sbaTrackerDescriptor = {
   isNonEmpty: (p) => (p?.pupils || []).some((pu) => pu?.name?.trim()),
 }
 
+export const teacherTimetableDescriptor = {
+  studioId: 'settings_timetable',
+  schemaVersion: 1,
+  ttl: 30 * DAY,
+  // The whole v2 timetable doc (see teacherTimetableCore) — blocks, default
+  // period length and display preferences travel together so a recovered
+  // draft is exactly what the teacher last saw.
+  serialize: (s) => ({ doc: s.doc }),
+  hydrate: identity,
+  isNonEmpty: (p) => Array.isArray(p?.doc?.scheduleBlocks) && p.doc.scheduleBlocks.length > 0,
+}
+
 export const sbaPlannerDescriptor = {
   studioId: 'sba_planner',
   schemaVersion: 1,

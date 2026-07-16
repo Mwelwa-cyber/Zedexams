@@ -76,7 +76,7 @@ export function makeBlockId(day, startSlot) {
   return `blk_${String(day).toLowerCase()}_${startSlot}`
 }
 
-export function makeBlock({ day, startSlot, length = 1, subjectId = null, label, type = BLOCK_TYPES.CURRICULUM, locked = false, teacher = null, room = null }) {
+export function makeBlock({ day, startSlot, length = 1, subjectId = null, label, type = BLOCK_TYPES.CURRICULUM, locked = false, teacher = null, room = null, teacherId = null, assignmentId = null }) {
   return {
     blockId: makeBlockId(day, startSlot),
     day,
@@ -88,6 +88,12 @@ export function makeBlock({ day, startSlot, length = 1, subjectId = null, label,
     locked: Boolean(locked),
     teacher: teacher || null,
     room: room || null,
+    // Stable-identity seam for the personal teacher timetable
+    // (teacherTimetableCore): a block stamped with a teacher's uid and/or
+    // teaching-assignment id can sync to that teacher's schedule by id rather
+    // than by label matching. Optional — the studio UI doesn't set them yet.
+    teacherId: teacherId || null,
+    assignmentId: assignmentId || null,
   }
 }
 
