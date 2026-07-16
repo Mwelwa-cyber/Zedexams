@@ -88,17 +88,18 @@ describe('TeachingProfilePanel', () => {
     expect(inferenceReads.getMyAssessments).not.toHaveBeenCalled()
   })
 
-  it('shows the set-up empty state when there is no profile yet', async () => {
+  it('shows the no-assignments-found empty state when there is no profile yet', async () => {
     svc.getTeachingProfile.mockResolvedValue(null)
     svc.listAssignments.mockResolvedValue([])
     renderPanel()
-    expect(await screen.findByText('Set up your Teaching Profile')).toBeInTheDocument()
+    expect(await screen.findByText('No teaching assignments found')).toBeInTheDocument()
+    expect(screen.getByText(/could not confidently identify assignments/i)).toBeInTheDocument()
     // No profile → inference runs once, and the assessments read is bounded
     // (explicit small limit, never the teacher's full assessment history).
     await waitFor(() => expect(inferenceReads.getMyAssessments).toHaveBeenCalledTimes(1))
     expect(inferenceReads.getMyAssessments).toHaveBeenCalledWith('uid-1', 60)
     expect(inferenceReads.listMyGenerations).toHaveBeenCalledTimes(1)
-    const btn = screen.getByRole('button', { name: /Start Teaching Profile/i })
+    const btn = screen.getByRole('button', { name: /Set up manually/i })
     fireEvent.click(btn)
     // Launches the four-step setup wizard (no immediate write).
     expect(await screen.findByText('Tell us about your school')).toBeInTheDocument()
@@ -124,6 +125,65 @@ describe('TeachingProfilePanel', () => {
     renderPanel()
     await screen.findByText('Grade 4 — Integrated Science')
     expect(screen.getByText('Scheme of Work connected').closest('li')).not.toHaveClass('is-done')
+  })
+
+  describe('detected assignments (no profile, prior work found)', () => {
+    beforeEach(() => {
+      svc.getTeachingProfile.mockResolvedValue(null)
+      svc.listAssignments.mockResolvedValue([])
+      // Two suggestions after normalisation: the messy Grade-4 maths titles
+      // collapse into ONE row; Grade 5 English stays separate.
+      inferenceReads.listMyGenerations.mockResolvedValue([
+        { id: 'g1', tool: 'lesson_plan', inputs: { grade: 'G4', subject: 'Mathematics', curriculum: 'cbc' } },
+        { id: 'g2', tool: 'scheme_of_work', inputs: { grade: '4', subject: 'Mathematics Syllabus (Grades 4–6)', curriculum: 'CBC' } },
+        { id: 'g3', tool: 'worksheet', inputs: { grade: 'G5', subject: 'English', curriculum: 'cbc' } },
+      ])
+    })
+
+    it('renders deduplicated, normalised rows with a dynamic count', async () => {
+      renderPanel()
+      expect(await screen.findByText('Teaching assignments found (2)')).toBeInTheDocument()
+      expect(screen.getByText('Grade 4 · Mathematics')).toBeInTheDocument()
+      expect(screen.queryByText(/Syllabus \(Grades 4–6\)/)).toBeNull()
+      expect(screen.getByText(/From 2 documents/)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /add 2 & continue/i })).toBeEnabled()
+    })
+
+    it('saves ONLY the selected normalised assignments on continue', async () => {
+      renderPanel()
+      await screen.findByText('Grade 4 · Mathematics')
+      // Untick Grade 5 English (checkboxes follow list order: maths first — 2 docs).
+      fireEvent.click(screen.getAllByRole('checkbox')[1])
+      expect(screen.getByText('1 selected')).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Add 1 & continue' }))
+      await waitFor(() => expect(svc.addAssignment).toHaveBeenCalledTimes(1))
+      expect(svc.addAssignment).toHaveBeenCalledWith('uid-1', expect.objectContaining({
+        grade: 'G4', subject: 'mathematics', curriculumType: 'cbc',
+      }))
+    })
+
+    it('select all / clear all drive the selected count', async () => {
+      renderPanel()
+      await screen.findByText('2 selected')
+      fireEvent.click(screen.getByRole('button', { name: 'Clear all' }))
+      expect(screen.getByText('No assignments selected')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /add 0 & continue/i })).toBeDisabled()
+      fireEvent.click(screen.getByRole('button', { name: 'Select all' }))
+      expect(screen.getByText('2 selected')).toBeInTheDocument()
+    })
+
+    it('a failed save keeps the selections and shows an accessible error', async () => {
+      svc.addAssignment.mockRejectedValue(new Error('offline'))
+      renderPanel()
+      await screen.findByText('Grade 4 · Mathematics')
+      fireEvent.click(screen.getByRole('button', { name: /add 2 & continue/i }))
+      expect(await screen.findByRole('alert')).toHaveTextContent(/could not add those assignments/i)
+      // Selections preserved for a retry.
+      const boxes = screen.getAllByRole('checkbox')
+      expect(boxes).toHaveLength(2)
+      boxes.forEach((box) => expect(box).toBeChecked())
+      expect(screen.getByRole('button', { name: /add 2 & continue/i })).toBeEnabled()
+    })
   })
 
   it('opens the add-assignment modal', async () => {

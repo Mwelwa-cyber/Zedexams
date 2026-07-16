@@ -851,3 +851,403 @@
   .studio-theme .tset-tp-step.is-current .tset-tp-step__label { display: block; }
 }
 .studio-theme .tset-tp-wizard__incorrect { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0e9d8; }
+
+/* ── Teaching Profile — detected assignments (onboarding redesign) ──
+   The "We found possible teaching assignments" card: banner → summary
+   toolbar → selectable rows → footer actions, plus the blue tip card
+   below and the loading skeleton. Mobile-first: rows render as compact
+   cards and switch to the 5-column grid from 861px up. */
+
+.studio-theme .tset-dta { padding: 0; }
+
+/* Banner */
+.studio-theme .tset-dta-banner {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin: 16px 16px 0;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #f0f7ec;
+  border: 1.5px solid #d8ecd0;
+}
+.studio-theme .tset-dta-banner__icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #d8ecd0;
+  color: #166534;
+}
+.studio-theme .tset-dta-banner__title {
+  margin: 0 0 4px;
+  font-size: 14.5px;
+  font-weight: 800;
+  color: #0e2a32;
+  line-height: 1.3;
+}
+.studio-theme .tset-dta-banner__desc {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #566f76;
+  line-height: 1.5;
+}
+
+/* Summary toolbar */
+.studio-theme .tset-dta-toolbar { border-bottom: 1px solid #f0e9d8; }
+.studio-theme .tset-dta-toolbar__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  flex-wrap: wrap;
+  padding: 14px 18px 12px;
+}
+.studio-theme .tset-dta-toolbar__found {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #0e2a32;
+}
+.studio-theme .tset-dta-toolbar__selection {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.studio-theme .tset-dta-toolbar__count {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #6a7c82;
+}
+.studio-theme .tset-dta-toolbar__sep { color: #d9cfb8; }
+.studio-theme .tset-dta-toolbar__action {
+  border: none;
+  background: transparent;
+  padding: 6px 2px;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #c2531a;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.studio-theme .tset-dta-toolbar__action:hover:not(:disabled) { color: #ff7a2e; text-decoration: underline; }
+.studio-theme .tset-dta-toolbar__action:disabled { color: #b8ab8f; cursor: not-allowed; }
+.studio-theme .tset-dta-toolbar__action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 122, 46, .3);
+}
+
+/* Search + filters (shown when the list is long) */
+.studio-theme .tset-dta-toolbar__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 0 18px 12px;
+}
+.studio-theme .tset-dta-toolbar__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 200px;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1.5px solid #d9cfb8;
+  border-radius: 10px;
+  background: #fff;
+  color: #8a9aa1;
+}
+.studio-theme .tset-dta-toolbar__search:focus-within {
+  border-color: #ff7a2e;
+  box-shadow: 0 0 0 3px rgba(255, 122, 46, .18);
+}
+.studio-theme .tset-dta-toolbar__search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0e2a32;
+  outline: none;
+}
+.studio-theme .tset-dta-toolbar__filter select {
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1.5px solid #d9cfb8;
+  border-radius: 10px;
+  background: #fff;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #234141;
+  cursor: pointer;
+}
+.studio-theme .tset-dta-toolbar__filter select:focus-visible {
+  outline: none;
+  border-color: #ff7a2e;
+  box-shadow: 0 0 0 3px rgba(255, 122, 46, .18);
+}
+.studio-theme .tset-dta-toolbar__clear {
+  border: none;
+  background: transparent;
+  padding: 6px 4px;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #c2531a;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.studio-theme .tset-dta-toolbar__clear:hover { text-decoration: underline; }
+.studio-theme .tset-dta-toolbar__clear:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 122, 46, .3);
+}
+
+/* Assignment rows */
+.studio-theme .tset-dta-list { list-style: none; margin: 0; padding: 0; }
+.studio-theme .tset-dta-list__none {
+  margin: 0;
+  padding: 22px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6a7c82;
+}
+.studio-theme .tset-dta-row { border-bottom: 1px solid #f0e9d8; }
+.studio-theme .tset-dta-row__main {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: 2px 8px;
+  min-height: 60px;
+  padding: 10px 14px 10px 18px;
+  transition: background .15s ease;
+}
+.studio-theme .tset-dta-row__main:hover { background: #faf5e9; }
+.studio-theme .tset-dta-row.is-selected .tset-dta-row__main { background: #fff8ef; }
+.studio-theme .tset-dta-row.is-selected .tset-dta-row__main:hover { background: #fff3e2; }
+.studio-theme .tset-dta-row__main:focus-within { background: #fff8ef; }
+.studio-theme .tset-dta-row__checkcell {
+  display: grid;
+  place-items: center;
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  padding-top: 3px;
+}
+.studio-theme .tset-dta-row__check {
+  width: 18px;
+  height: 18px;
+  accent-color: #f2761b;
+  cursor: pointer;
+}
+.studio-theme .tset-dta-row__check:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 122, 46, .35);
+  border-radius: 4px;
+}
+/* The label spreads its children into the grid so every cell stays a native
+   click-to-toggle target for the checkbox. */
+.studio-theme .tset-dta-row__body { display: contents; cursor: pointer; }
+.studio-theme .tset-dta-row__title {
+  grid-column: 2;
+  grid-row: 1;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0e2a32;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.studio-theme .tset-dta-row__class { font-weight: 600; color: #566f76; }
+.studio-theme .tset-dta-row__curriculum {
+  grid-column: 2;
+  grid-row: 2;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #6a7c82;
+  cursor: pointer;
+}
+.studio-theme .tset-dta-row__curriculum.is-unconfirmed { font-style: italic; color: #8a9aa1; }
+.studio-theme .tset-dta-row__count {
+  grid-column: 2;
+  grid-row: 3;
+  font-size: 12px;
+  font-weight: 600;
+  color: #8a9aa1;
+  cursor: pointer;
+}
+.studio-theme .tset-dta-row__expand {
+  grid-column: 3;
+  grid-row: 1;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #b8ab8f;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.studio-theme .tset-dta-row__expand:hover { background: #f5eedd; color: #ff7a2e; }
+.studio-theme .tset-dta-row__expand:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 122, 46, .35);
+}
+.studio-theme .tset-dta-row__expand svg { transition: transform .18s ease; }
+.studio-theme .tset-dta-row__expand.is-open svg { transform: rotate(180deg); }
+
+/* Expanded source details */
+.studio-theme .tset-dta-sources {
+  padding: 10px 18px 14px 58px;
+  background: #fdfaf3;
+  border-top: 1px dashed #f0e9d8;
+}
+.studio-theme .tset-dta-sources__lead {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #8a9aa1;
+}
+.studio-theme .tset-dta-sources__empty { margin: 0; font-size: 12.5px; color: #6a7c82; }
+.studio-theme .tset-dta-sources__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.studio-theme .tset-dta-sources__item { display: flex; flex-direction: column; gap: 1px; }
+.studio-theme .tset-dta-sources__title { font-size: 13px; font-weight: 700; color: #0e2a32; overflow-wrap: anywhere; }
+.studio-theme .tset-dta-sources__meta { font-size: 12px; font-weight: 500; color: #8a9aa1; }
+
+/* Footer actions */
+.studio-theme .tset-dta-actions {
+  padding: 14px 18px 16px;
+  border-top: 1.5px solid #f0e9d8;
+  background: #fff;
+}
+.studio-theme .tset-dta-actions__error {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #b91c1c;
+}
+.studio-theme .tset-dta-actions__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-start;
+}
+.studio-theme .tset-dta-empty__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+/* Tip (below the main card) */
+.studio-theme .tset-dta-tip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 13px 16px;
+  border-radius: 16px;
+  background: #eef4fb;
+  border: 1.5px solid #dbe7f4;
+}
+.studio-theme .tset-dta-tip__icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #dbe7f4;
+  color: #1d4e89;
+}
+.studio-theme .tset-dta-tip__text {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #33526b;
+  line-height: 1.45;
+}
+.studio-theme .tset-dta-tip__text strong { color: #1d4e89; font-weight: 800; }
+
+/* Loading skeleton */
+.studio-theme .tset-dta--skeleton { padding: 16px; }
+.studio-theme .tset-dta-skel {
+  border-radius: 12px;
+  background: linear-gradient(90deg, #f4efe2 25%, #faf6ec 50%, #f4efe2 75%);
+  background-size: 200% 100%;
+  animation: tset-dta-shimmer 1.4s ease-in-out infinite;
+}
+.studio-theme .tset-dta-skel--banner { height: 84px; margin-bottom: 14px; border-radius: 14px; }
+.studio-theme .tset-dta-skel--summary { height: 34px; margin-bottom: 14px; max-width: 420px; }
+.studio-theme .tset-dta-skel--row { height: 58px; margin-bottom: 10px; }
+@keyframes tset-dta-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .studio-theme .tset-dta-skel { animation: none; }
+}
+
+/* Desktop rows: 5-column grid — checkbox · grade/subject · curriculum ·
+   source count · chevron. Tablet below 861px keeps the stacked card so the
+   curriculum + count wrap cleanly with no horizontal scrolling. */
+@media (min-width: 861px) {
+  .studio-theme .tset-dta-row__main {
+    grid-template-columns: 40px minmax(260px, 1fr) minmax(180px, auto) 140px 40px;
+    gap: 8px;
+    padding: 9px 16px 9px 18px;
+    min-height: 62px;
+  }
+  .studio-theme .tset-dta-row__checkcell { align-self: center; padding-top: 0; }
+  .studio-theme .tset-dta-row__title { grid-row: 1; }
+  .studio-theme .tset-dta-row__curriculum { grid-column: 3; grid-row: 1; }
+  .studio-theme .tset-dta-row__count { grid-column: 4; grid-row: 1; white-space: nowrap; }
+  .studio-theme .tset-dta-row__expand { grid-column: 5; }
+}
+
+/* Mobile: sticky footer above TeacherBottomNav (fixed below Tailwind lg),
+   stacked full-width buttons, comfortable tap targets. */
+@media (max-width: 1023.98px) {
+  .studio-theme .tset-dta-actions {
+    position: sticky;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 5.25rem);
+    z-index: 5;
+    border-radius: 0 0 20px 20px;
+    background: rgba(255, 255, 255, .95);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 -8px 20px rgba(14, 42, 50, .06);
+  }
+  /* The stuck footer floats up to 5.25rem above its natural slot (clearing the
+     fixed TeacherBottomNav); this padding keeps the FINAL assignment row above
+     that covered zone so it is never hidden behind the action area. */
+  .studio-theme .tset-dta-list { padding-bottom: 6rem; }
+}
+@media (max-width: 720px) {
+  .studio-theme .tset-dta-banner { margin: 12px 12px 0; padding: 12px 14px; }
+  .studio-theme .tset-dta-toolbar__summary { padding: 12px 16px 10px; }
+  .studio-theme .tset-dta-toolbar__filters { padding: 0 16px 10px; }
+  .studio-theme .tset-dta-row__main { padding: 12px 10px 12px 16px; }
+  .studio-theme .tset-dta-row__expand { width: 44px; height: 44px; }
+  .studio-theme .tset-dta-sources { padding-left: 16px; }
+  .studio-theme .tset-dta-actions__buttons { flex-direction: column; }
+  .studio-theme .tset-dta-actions__buttons .tset-btn { width: 100%; }
+  .studio-theme .tset-dta-tip { align-items: flex-start; }
+}

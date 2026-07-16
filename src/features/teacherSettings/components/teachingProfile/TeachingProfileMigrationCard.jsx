@@ -1,66 +1,98 @@
 /**
- * TeachingProfileMigrationCard — shown in the Teaching Profile empty state to an
- * EXISTING teacher (no profile yet) whose past work suggests which classes they
- * teach. It only SUGGESTS: the teacher ticks the ones to keep and confirms;
- * nothing is saved until they click "Add selected & continue", and no existing
- * document is touched. "Start from scratch" skips straight to the blank wizard.
+ * TeachingProfileMigrationCard — the detected-assignments onboarding card shown
+ * to an EXISTING teacher (no profile yet) whose past work suggests which
+ * classes they teach. It only SUGGESTS: the teacher ticks the assignments they
+ * currently teach and confirms; nothing is saved until they click
+ * "Add N & continue", and no existing document is touched. "Start from
+ * scratch" skips straight to the blank wizard.
+ *
+ * Suggestions arrive already NORMALISED + DEDUPED (see
+ * src/utils/detectedAssignments.js via buildMigrationPlan): canonical grade +
+ * subject labels, one entry per grade + subject + curriculum + class, source
+ * documents merged. This component only renders and filters them.
  */
 
-import { assignmentKey, gradeLabel, subjectLabel, curriculumTypeLabel } from '../../../../utils/teachingProfileCore'
+import { useMemo, useState } from 'react'
+import DetectedAssignmentsBanner from './detected/DetectedAssignmentsBanner'
+import AssignmentToolbar from './detected/AssignmentToolbar'
+import AssignmentList from './detected/AssignmentList'
+import TeachingProfileActions from './detected/TeachingProfileActions'
+import {
+  filterDetectedAssignments,
+  gradeFilterOptions,
+  curriculumFilterOptions,
+} from '../../../../utils/detectedAssignments'
+
+// Search + filter controls only appear once the list is long enough to need
+// them (section 7 of the redesign spec).
+const FILTERS_THRESHOLD = 8
 
 export default function TeachingProfileMigrationCard({
   suggestions = [],
   selectedKeys,
   onToggle,
+  onSelectKeys,
+  onClearAll,
   onApply,
   onSkip,
   applying = false,
   error = '',
 }) {
+  const [expandedKey, setExpandedKey] = useState(null)
+  const [query, setQuery] = useState('')
+  const [gradeFilter, setGradeFilter] = useState('')
+  const [curriculumFilter, setCurriculumFilter] = useState('')
+
+  const visible = useMemo(
+    () => filterDetectedAssignments(suggestions, { query, gradeId: gradeFilter, curriculumId: curriculumFilter }),
+    [suggestions, query, gradeFilter, curriculumFilter],
+  )
+  const gradeOptions = useMemo(() => gradeFilterOptions(suggestions), [suggestions])
+  const curriculumOptions = useMemo(() => curriculumFilterOptions(suggestions), [suggestions])
+
   if (!suggestions.length) return null
-  const selectedCount = suggestions.filter((s) => selectedKeys.has(assignmentKey(s))).length
+  const selectedCount = suggestions.filter((sug) => selectedKeys.has(sug.key)).length
+
+  const clearFilters = () => {
+    setQuery('')
+    setGradeFilter('')
+    setCurriculumFilter('')
+  }
 
   return (
-    <div className="tset-card" role="group" aria-label="Teaching assignments found from your existing work">
-      <p className="tset-tp-empty__title">We found these possible teaching assignments from your recent work</p>
-      <p className="tset-tp-empty__desc">
-        Based on your recent lesson plans, schemes and other documents — not everything you teach. Tick the
-        ones you teach; you can edit or add more in the next step. Nothing is saved until you continue.
-      </p>
-
-      <ul className="tset-tp-migrate__list" style={{ listStyle: 'none', padding: 0, margin: '12px 0', display: 'grid', gap: 8 }}>
-        {suggestions.map((s) => {
-          const key = assignmentKey(s)
-          const checked = selectedKeys.has(key)
-          const bits = [gradeLabel(s.grade), subjectLabel(s.subject)]
-          if (s.className) bits.push(s.className)
-          return (
-            <li key={key}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-                <input type="checkbox" checked={checked} onChange={() => onToggle(key)} />
-                <span>
-                  <b>{bits.join(' · ')}</b>
-                  <span style={{ opacity: 0.7 }}>
-                    {' '}· {curriculumTypeLabel(s.curriculumType)}
-                    {s.count ? ` · from ${s.count} document${s.count === 1 ? '' : 's'}` : ''}
-                  </span>
-                </span>
-              </label>
-            </li>
-          )
-        })}
-      </ul>
-
-      {error && <p className="tset-savebar__status tset-savebar__status--error" role="alert">{error}</p>}
-
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        <button type="button" className="tset-btn" onClick={onApply} disabled={applying || selectedCount === 0}>
-          {applying ? 'Adding…' : `Add ${selectedCount} & continue`}
-        </button>
-        <button type="button" className="tset-btn tset-btn--ghost" onClick={onSkip} disabled={applying}>
-          Start from scratch
-        </button>
-      </div>
-    </div>
+    <section className="tset-card tset-dta" aria-labelledby="tset-dta-found">
+      <DetectedAssignmentsBanner />
+      <AssignmentToolbar
+        totalCount={suggestions.length}
+        visibleCount={visible.length}
+        selectedCount={selectedCount}
+        onSelectAll={() => onSelectKeys(visible.map((sug) => sug.key))}
+        onClearAll={onClearAll}
+        showFilters={suggestions.length > FILTERS_THRESHOLD}
+        query={query}
+        onQueryChange={setQuery}
+        gradeFilter={gradeFilter}
+        onGradeFilterChange={setGradeFilter}
+        gradeOptions={gradeOptions}
+        curriculumFilter={curriculumFilter}
+        onCurriculumFilterChange={setCurriculumFilter}
+        curriculumOptions={curriculumOptions}
+        onClearFilters={clearFilters}
+      />
+      <AssignmentList
+        items={visible}
+        selectedKeys={selectedKeys}
+        expandedKey={expandedKey}
+        onToggle={onToggle}
+        onToggleExpand={(key) => setExpandedKey((cur) => (cur === key ? null : key))}
+      />
+      <TeachingProfileActions
+        selectedCount={selectedCount}
+        applying={applying}
+        error={error}
+        onApply={onApply}
+        onSkip={onSkip}
+      />
+    </section>
   )
 }
