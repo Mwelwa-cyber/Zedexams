@@ -94,8 +94,8 @@ export const SETTINGS_SECTIONS = [
       {
         id: 'timetable',
         path: 'timetable',
-        title: 'Timetable',
-        desc: 'Your weekly teaching schedule and periods',
+        title: 'My Teaching Timetable',
+        desc: 'Your weekly teaching schedule, workload and assignment coverage',
         icon: Clock,
         tone: 'orange',
       },

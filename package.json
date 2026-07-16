@@ -213,6 +213,7 @@
     "test:bloom": "node src/utils/assessmentBloom.test.js",
     "test:school-profile": "node src/utils/schoolProfile.test.js",
     "test:teacher-settings": "node src/utils/teacherSettingsCore.test.js",
+    "test:teacher-timetable": "node scripts/test-teacher-timetable-core.mjs",
     "test:teacher-defaults": "node src/utils/teacherDefaults.test.js",
     "test:rich-formatting": "node src/utils/richTextFormatting.test.js",
     "test:exam-paper-library": "node functions/teacherTools/examPaperLibraryHelpers.test.js",
