@@ -23,6 +23,7 @@ import {
 } from '../../utils/aiCosts'
 import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
+import BudgetEnforcementPanel from './BudgetEnforcementPanel'
 
 const usdFmt = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -184,6 +185,10 @@ export default function AdminAiCosts() {
           </p>
         </div>
       </div>
+
+      {/* Loads independently of the spend rollups below — the enforcement
+          callable degrading must never blank the charts, and vice versa. */}
+      <BudgetEnforcementPanel />
 
       {loading ? (
         <div className="space-y-3">
