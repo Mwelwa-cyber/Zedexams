@@ -25,6 +25,8 @@ import {
   ECE_SUBJECTS,
   ECE_GRADE_CODES,
   isSubjectValidForGrade,
+  isGradeInCurriculum,
+  subjectExistsInCurriculum,
 } from '../config/teacherTaxonomy.js'
 
 // ── value spaces ─────────────────────────────────────────────────────────────
@@ -189,9 +191,16 @@ export function assignmentLabel(a) {
 }
 
 /**
- * Validate an assignment for saving. Grade + subject are required; an
- * out-of-syllabus subject/grade pairing is a soft warning (kept forward-
- * compatible — the taxonomy map is not exhaustive for every future grade).
+ * Validate an assignment for saving. Grade + subject are required, and the
+ * (curriculum, grade, subject) trio must be a possible combination:
+ *   • a grade the selected curriculum does not offer at all (Grade 7 / Grade 12
+ *     under the CBC, the ECE bands under the 2013 set) is a hard ERROR,
+ *   • a subject that exists exclusively in the OTHER curriculum (Principles of
+ *     Accounts under the CBC, the combined Mathematics and Science area under
+ *     the 2013 set) is a hard ERROR,
+ *   • a within-curriculum grade-range mismatch stays a soft WARNING (the static
+ *     map is a floor — the live syllabus catalog is the finer-grained picker
+ *     source and may legitimately lead it).
  * Returns { valid, errors[], warnings[] }.
  */
 export function validateAssignment(data = {}) {
@@ -200,14 +209,32 @@ export function validateAssignment(data = {}) {
   const warnings = []
   if (!n.grade) errors.push('Choose a grade or form.')
   else if (!VALID_GRADE_VALUES.has(n.grade)) warnings.push(`Unrecognised grade "${n.grade}".`)
+  else if (!isGradeInCurriculum(n.grade, n.curriculumType)) {
+    errors.push(`${gradeLabel(n.grade)} is not offered in the ${curriculumTypeLabel(n.curriculumType)}. Choose a grade or form from that curriculum.`)
+  }
   if (!n.subject) errors.push('Choose a subject.')
   else if (!VALID_SUBJECT_VALUES.has(n.subject)) warnings.push(`Unrecognised subject "${n.subject}".`)
-  if (n.grade && n.subject && VALID_GRADE_VALUES.has(n.grade) && VALID_SUBJECT_VALUES.has(n.subject)) {
+  else if (!subjectExistsInCurriculum(n.subject, n.curriculumType)) {
+    errors.push('The selected subject does not belong to the selected curriculum and grade.')
+  }
+  if (n.grade && n.subject && VALID_GRADE_VALUES.has(n.grade) && VALID_SUBJECT_VALUES.has(n.subject) && errors.length === 0) {
     if (!isSubjectValidForGrade(n.subject, n.grade, n.curriculumType)) {
       warnings.push(`${subjectLabel(n.subject)} is not usually taught at ${gradeLabel(n.grade)} in the ${curriculumTypeLabel(n.curriculumType)}.`)
     }
   }
   return { valid: errors.length === 0, errors, warnings }
+}
+
+/**
+ * Review flag for an EXISTING assignment: true when its stored
+ * (curriculum, grade, subject) trio is no longer a valid combination (stale
+ * local data, a curriculum migration, or an old generic-list selection). The
+ * caller shows the stored values and asks the teacher to re-select — the
+ * assignment is never silently rewritten. Returns { needsReview, reasons[] }.
+ */
+export function assignmentNeedsReview(data = {}) {
+  const v = validateAssignment(data)
+  return { needsReview: !v.valid, reasons: v.errors }
 }
 
 /**

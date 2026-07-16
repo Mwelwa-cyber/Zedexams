@@ -2,15 +2,13 @@ import { useMemo, useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { normalizeTeacherPreferences } from '../../../utils/teacherSettingsCore'
 import {
-  TEACHER_GRADES, getSubjectsForGrade, isSubjectValidForGrade,
+  getSubjectsForGrade, gradeOptionsForCurriculum,
 } from '../../../config/teacherTaxonomy'
 import SettingsDetailShell from '../components/SettingsDetailShell'
 import FieldRow from '../components/fields/FieldRow'
 import SelectField from '../components/fields/SelectField'
 import OptionCards from '../components/fields/OptionCards'
 import { useSettingsSave } from '../lib/useSettingsSave'
-
-const GRADE_OPTIONS = TEACHER_GRADES.filter((g) => g.value)
 
 function editable(prefs) {
   const { curriculum, grade, subject } = prefs.curriculum
@@ -29,6 +27,14 @@ export default function CurriculumPanel() {
   const dirty = useMemo(
     () => JSON.stringify(form) !== JSON.stringify(editable(source)),
     [form, source],
+  )
+
+  // Each curriculum offers its OWN grade/form structure — never a shared
+  // generic Grade 1–12 list (CBC has ECE bands + Forms 1–4 and no Grade 7/12;
+  // the 2013 set has Grades 1–12 and no ECE).
+  const gradeOptions = useMemo(
+    () => gradeOptionsForCurriculum(form.curriculum).filter((o) => o.value !== undefined),
+    [form.curriculum],
   )
 
   // Scope the default-subject options to the default grade + curriculum so the
@@ -61,14 +67,12 @@ export default function CurriculumPanel() {
           label="Curriculum"
           columns={2}
           value={form.curriculum}
-          onChange={(curriculum) => setForm((f) => ({
-            ...f,
-            curriculum,
-            // Drop a default subject the new curriculum doesn't carry at the
-            // chosen grade so the saved trio never goes out of sync.
-            subject: f.grade && f.subject && !isSubjectValidForGrade(f.subject, f.grade, curriculum)
-              ? '' : f.subject,
-          }))}
+          onChange={(curriculum) => setForm((f) => (
+            // Changing the curriculum clears BOTH downstream picks — the new
+            // curriculum has its own grade structure and subject catalog, so a
+            // carried-over grade/subject could silently be invalid.
+            curriculum === f.curriculum ? f : { ...f, curriculum, grade: '', subject: '' }
+          ))}
           options={[
             { value: 'cbc', title: 'CBC (2023)', hint: 'The Competency-Based Curriculum — current syllabi.' },
             { value: 'previous', title: 'Previous (2013)', hint: 'The outgoing curriculum, for classes still on it.' },
@@ -86,14 +90,12 @@ export default function CurriculumPanel() {
             <SelectField
               id="cu-grade"
               value={form.grade}
-              onChange={(grade) => setForm((f) => ({
-                ...f,
-                grade,
-                // Drop a now-invalid default subject when the grade changes.
-                subject: f.subject && grade && !isSubjectValidForGrade(f.subject, grade, f.curriculum)
-                  ? '' : f.subject,
-              }))}
-              options={GRADE_OPTIONS}
+              onChange={(grade) => setForm((f) => (
+                // Changing the grade always clears the subject — it must be
+                // re-picked from the new grade's list, never carried over.
+                grade === f.grade ? f : { ...f, grade, subject: '' }
+              ))}
+              options={gradeOptions}
               placeholder="No default"
             />
           </FieldRow>

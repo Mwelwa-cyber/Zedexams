@@ -178,9 +178,38 @@ check('curriculum-agnostic calls (no curriculum arg) return the union — unchan
   assert.ok(g10.includes('commerce_and_principles_of_accounts'), 'union includes CBC-only commerce')
   const g4 = valuesOf(getSubjectsForGrade('G4'))
   assert.ok(g4.includes('numeracy') && g4.includes('mathematics'))
-  // Unmapped-subject fallthrough and ECE are untouched by the curriculum split.
-  assert.deepEqual(valuesOf(getSubjectsForGrade('ECE_N', 'previous')), valuesOf(ECE_SUBJECTS))
+  // ECE stays available on curriculum-agnostic and CBC calls.
+  assert.deepEqual(valuesOf(getSubjectsForGrade('ECE_N')), valuesOf(ECE_SUBJECTS))
   assert.deepEqual(valuesOf(getSubjectsForGrade('ECE_N', 'cbc')), valuesOf(ECE_SUBJECTS))
+})
+
+console.log('teacher subject taxonomy — strict curriculum scoping (no generic fallback)')
+
+check('a curriculum-scoped call never falls back to the full subject list', () => {
+  // The 2013 set has no ECE bands — scoping ECE to it must be EMPTY, not the
+  // ECE menu (and never the full cross-curriculum dump).
+  assert.deepEqual(getSubjectsForGrade('ECE_N', 'previous'), [])
+  assert.deepEqual(getSubjectsForGrade('ECE_R', 'previous'), [])
+  // The CBC's 3-6-4 restructure abolished Grade 7 and ends at Form 4 (G11).
+  assert.deepEqual(getSubjectsForGrade('G7', 'cbc'), [])
+  assert.deepEqual(getSubjectsForGrade('G12', 'cbc'), [])
+  // An unknown grade with a curriculum is empty too — not the full list.
+  assert.deepEqual(getSubjectsForGrade('G99', 'cbc'), [])
+  assert.deepEqual(getSubjectsForGrade('', 'cbc'), [])
+})
+
+check('CBC secondary carries the digitised Forms 1-4 subjects; the 2013 set does not', () => {
+  const cbcG9 = valuesOf(getSubjectsForGrade('G9', 'cbc'))
+  for (const s of ['literature_in_english', 'food_nutrition', 'fashion_fabrics', 'hospitality_management', 'travel_tourism']) {
+    assert.ok(cbcG9.includes(s), `CBC Form 2 offers ${s}`)
+  }
+  const obcG9 = valuesOf(getSubjectsForGrade('G9', 'previous'))
+  for (const s of ['hospitality_management', 'travel_tourism', 'home_management']) {
+    assert.ok(!obcG9.includes(s), `OBC Grade 9 must not offer ${s}`)
+  }
+  // Home Management is a 2013 senior-secondary subject only.
+  assert.ok(valuesOf(getSubjectsForGrade('G11', 'previous')).includes('home_management'))
+  assert.ok(!valuesOf(getSubjectsForGrade('G11', 'cbc')).includes('home_management'))
 })
 
 console.log(`\n✅ teacher-subjects: ${passed} checks passed`)

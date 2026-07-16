@@ -151,6 +151,40 @@ export function kbGradeToStudioLabel(value) {
 }
 
 /**
+ * Fold a Forms-syllabus KB code onto the grade code the Teaching Profile and
+ * the rest of the app store (F1 → G8 … F5 → G12, the same equivalence
+ * paperTaxonomy + kbLookupCandidates already use). Anything that isn't an
+ * F-code passes through unchanged ('G4', 'ECE_N', '').
+ */
+export function foldFormCodeToGrade(code) {
+  const m = String(code || '').trim().toUpperCase().match(/^F(\d+)$/)
+  return m ? `G${Number(m[1]) + 7}` : String(code || '')
+}
+
+/**
+ * Teaching-profile grade code → the studio grade LABEL the selector's cascade
+ * matches, PER CURRICULUM: the CBC syllabi key secondary as Forms (G8 →
+ * 'Form 1'), the 2013 sheets key it by grade (G8 → 'Grade 8'). Primary and the
+ * ECE bands are label-identical in both. Returns '' for an unrecognisable
+ * value; a label the current curriculum doesn't offer is cleared by the
+ * selector's own validity guard, so callers don't need to pre-filter.
+ *
+ * @param {string} code e.g. 'G4', 'G8', 'ECE_N'
+ * @param {'cbc'|'previous'|string} curriculumMode
+ */
+export function assignmentGradeToStudioLabel(code, curriculumMode) {
+  const upper = String(code || '').trim().toUpperCase()
+  if (!upper) return ''
+  if (upper === 'ECE_N') return 'Nursery'
+  if (upper === 'ECE_R') return 'Reception'
+  const g = upper.match(/^G(\d+)$/)
+  if (!g) return kbGradeToStudioLabel(code)
+  const n = Number(g[1])
+  if (n >= 8 && curriculumMode !== 'previous') return `Form ${n - 7}`
+  return `Grade ${n}`
+}
+
+/**
  * Normalize a loose seed (deep link, Teaching-Kit handoff, edited record)
  * into the exact seed shape StudioCurriculumSelector's state expects.
  *

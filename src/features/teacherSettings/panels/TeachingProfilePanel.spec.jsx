@@ -11,6 +11,14 @@ vi.mock('../../../contexts/AuthContext', () => ({
   })),
 }))
 
+// The assignment modal embeds StudioCurriculumSelector, whose data layer
+// (curriculumDataService → syllabusKbService) imports firebase/config. Stub the
+// syllabi source so the import chain stays firebase-free; an empty catalog is
+// fine — these tests don't drive the cascade.
+vi.mock('../../../utils/syllabusKbService', () => ({
+  getMergedSyllabi: vi.fn(() => Promise.resolve({})),
+}))
+
 // Service: fully mocked IO so the real hook/core/resolver run against fixtures.
 // vi.hoisted so the object exists when the (hoisted) vi.mock factory runs.
 const svc = vi.hoisted(() => ({
