@@ -4,6 +4,7 @@ import {
   getTeachingProfile,
   listAssignments,
 } from '../../../utils/teachingProfileService'
+import { hasGenerationOfTool } from '../../../utils/teacherLibraryService'
 import {
   normalizeTeachingProfile,
   computeProfileCompletion,
@@ -19,7 +20,14 @@ import { resolveTeachingContext } from '../../../utils/calendarResolver'
 //
 // Never throws: a failed read surfaces as `error` while leaving `profile`/
 // `assignments` at safe empties, so one bad query can't blank the page.
-export function useTeachingProfile() {
+//
+// `detectConnections` (opt-in, panel-only): probe whether the teacher has a
+// saved Scheme of Work / Class Timetable so the completion checklist's
+// recommended items can show "Done". Two limit(1) existence queries — at most
+// two document reads, once per mount — and only the surface that RENDERS the
+// checklist pays for them. Other consumers (dashboard, top bar, studios) pass
+// nothing and read nothing extra.
+export function useTeachingProfile({ detectConnections = false } = {}) {
   const { currentUser, userProfile } = useAuth()
   const uid = currentUser?.uid || null
 
@@ -60,6 +68,21 @@ export function useTeachingProfile() {
     load()
   }, [load])
 
+  // Optional connection probes (see JSDoc above). Best-effort and cancel-safe:
+  // a failed probe leaves the item at its safe default ("Optional", not done).
+  const [connections, setConnections] = useState({ timetable: false, scheme: false })
+  useEffect(() => {
+    if (!detectConnections || !uid) return undefined
+    let cancelled = false
+    Promise.all([
+      hasGenerationOfTool(uid, 'class_timetable'),
+      hasGenerationOfTool(uid, 'scheme_of_work'),
+    ]).then(([timetable, scheme]) => {
+      if (!cancelled) setConnections({ timetable, scheme })
+    }).catch(() => { /* keep safe defaults */ })
+    return () => { cancelled = true }
+  }, [detectConnections, uid])
+
   const normalizedProfile = normalizeTeachingProfile(profile || {})
   const hasProfile = !!profile
   const schoolName = typeof userProfile?.school === 'string' ? userProfile.school : ''
@@ -73,9 +96,10 @@ export function useTeachingProfile() {
     profile: normalizedProfile,
     assignments,
     teachingPeriodResolved: context.status === 'ok',
-    // Phase 3 does not yet detect a saved Class Timetable or Scheme (Phase 7).
-    timetableConnected: false,
-    schemeConnected: false,
+    // Detected only when the caller opted in (detectConnections); otherwise
+    // the safe defaults keep these recommended items at "Optional".
+    timetableConnected: connections.timetable,
+    schemeConnected: connections.scheme,
   })
 
   // Non-blocking: stored academic year vs the year the calendar resolved today.

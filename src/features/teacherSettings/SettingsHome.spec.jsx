@@ -31,6 +31,11 @@ vi.mock('../../utils/teachingProfileService', () => ({
   getTeachingProfile: vi.fn(() => Promise.resolve(null)),
   listAssignments: vi.fn(() => Promise.resolve([])),
 }))
+// useTeachingProfile also imports the library service (connection probes for
+// the completion checklist — not exercised here); stub it for the same reason.
+vi.mock('../../utils/teacherLibraryService', () => ({
+  hasGenerationOfTool: vi.fn(() => Promise.resolve(false)),
+}))
 
 // The feedback dialog pulls Firestore; the hub only needs its launcher.
 vi.mock('../../components/feedback/FeedbackDialog', () => ({

@@ -31,9 +31,11 @@ vi.mock('../../../utils/teachingProfileService', () => svc)
 const inferenceReads = vi.hoisted(() => ({
   listMyGenerations: vi.fn(() => Promise.resolve([])),
   getMyAssessments: vi.fn(() => Promise.resolve([])),
+  hasGenerationOfTool: vi.fn(() => Promise.resolve(false)),
 }))
 vi.mock('../../../utils/teacherLibraryService', () => ({
   listMyGenerations: inferenceReads.listMyGenerations,
+  hasGenerationOfTool: inferenceReads.hasGenerationOfTool,
 }))
 // Same for the assessments read (broader migration inference).
 vi.mock('../../../hooks/useFirestore', () => ({
@@ -100,6 +102,28 @@ describe('TeachingProfilePanel', () => {
     fireEvent.click(btn)
     // Launches the four-step setup wizard (no immediate write).
     expect(await screen.findByText('Tell us about your school')).toBeInTheDocument()
+  })
+
+  it('marks Scheme of Work / Class Timetable as connected when the teacher has one saved', async () => {
+    inferenceReads.hasGenerationOfTool.mockImplementation((_uid, tool) =>
+      Promise.resolve(tool === 'scheme_of_work'))
+    renderPanel()
+    await screen.findByText('Grade 4 — Integrated Science')
+    // The probes are limit(1) existence checks for exactly these two tools.
+    await waitFor(() => expect(inferenceReads.hasGenerationOfTool).toHaveBeenCalledWith('uid-1', 'scheme_of_work'))
+    expect(inferenceReads.hasGenerationOfTool).toHaveBeenCalledWith('uid-1', 'class_timetable')
+    await waitFor(() =>
+      expect(screen.getByText('Scheme of Work connected').closest('li')).toHaveClass('is-done'))
+    // The timetable probe returned false → stays an optional to-do.
+    const timetable = screen.getByText('Class Timetable connected').closest('li')
+    expect(timetable).not.toHaveClass('is-done')
+  })
+
+  it('keeps the recommended items at Optional when the probes fail', async () => {
+    inferenceReads.hasGenerationOfTool.mockRejectedValue(new Error('offline'))
+    renderPanel()
+    await screen.findByText('Grade 4 — Integrated Science')
+    expect(screen.getByText('Scheme of Work connected').closest('li')).not.toHaveClass('is-done')
   })
 
   it('opens the add-assignment modal', async () => {

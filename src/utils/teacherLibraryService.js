@@ -67,6 +67,30 @@ export async function listMyGenerations(opts = {}) {
 }
 
 /**
+ * Existence probe: does the teacher have ANY saved generation of `tool`?
+ * Used by the Teaching Profile completion checklist ("Scheme of Work
+ * connected", "Class Timetable connected"). Equality-only + limit(1), so it
+ * costs at most one document read and needs no composite index (Firestore
+ * merges single-field indexes for pure-equality queries). Best-effort: false
+ * on any failure — the checklist item simply stays "Optional".
+ */
+export async function hasGenerationOfTool(uid, tool) {
+  if (!uid || !tool) return false
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'aiGenerations'),
+      where('ownerUid', '==', uid),
+      where('tool', '==', tool),
+      limit(1),
+    ))
+    return !snap.empty
+  } catch (err) {
+    console.warn('hasGenerationOfTool failed:', err)
+    return false
+  }
+}
+
+/**
  * Fetch a single generation by id. Returns null if not found or not owned.
  */
 export async function getGeneration(id) {
