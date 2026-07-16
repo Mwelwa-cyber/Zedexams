@@ -583,7 +583,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Introduction to Art, Crafts and Design",
+            "TOPIC": "1.1 Introduction to Art, Crafts and Design",
             "SUB-TOPIC": "1.1.1 Art Awareness and Appreciation",
             "SPECIFIC COMPETENCES": "Categorise branches of Art",
             "LEARNING ACTIVITIES": "• Defining Art (performing, literary and visual)\n• Categorising branches of Art (Visual Art, performing Arts, Digital Art…)\n• Visiting different places where the named branches of Art are found. (Museum, cultural centres…)\n• Critiquing various artworks",
@@ -673,7 +673,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "History of Zambian Art-I",
+            "TOPIC": "1.2 History of Zambian Art-I",
             "SUB-TOPIC": "1.2.1 Pre-historic Rock Art of Zambia",
             "SPECIFIC COMPETENCES": "Research the Pre-historic Rock Art of Zambia",
             "LEARNING ACTIVITIES": "• Identifying the pre-historic rock art of Zambia. (Mwela rocks, Kasama rock arts…)\n• Researching on the pre-historic arts of Zambia (Materials and tools, themes, styles of painting…)\n• Analysing the pre-historic rock Art of Zambia.",
@@ -733,7 +733,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Introduction to Colour",
+            "TOPIC": "1.3 Introduction to Colour",
             "SUB-TOPIC": "1.3.1 Types of Colours",
             "SPECIFIC COMPETENCES": "Experiment colours of the spectrum",
             "LEARNING ACTIVITIES": "• Experimenting colours of the spectrum (primary, secondary and tertiary)",
@@ -753,7 +753,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Studio Practice",
+            "TOPIC": "1.4 Studio Practice",
             "SUB-TOPIC": "Tools and Materials",
             "SPECIFIC COMPETENCES": "Use variety of tools and materials for drawing and painting",
             "LEARNING ACTIVITIES": "• Discussing the use of variety of tools and materials for drawing: Tools (charcoal, chalk, pastels, crayons, pencils, pens…). Materials (paper, ink, walls, floors, fabrics…)\n• Experimenting with tools and materials",
@@ -783,7 +783,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Graphic Design",
+            "TOPIC": "1.5 Graphic Design",
             "SUB-TOPIC": "Lettering",
             "SPECIFIC COMPETENCES": "Design letters",
             "LEARNING ACTIVITIES": "• Identifying and defining letters / related terms (lower case, upper case / types of letters, Letter spacing, word spacing, block and Roman lettering…)\n• Defining calligraphy\n• Discussing functions of lettering\n• Identifying careers relating to lettering works\n• Designing letters",
@@ -813,7 +813,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Pattern and Design",
+            "TOPIC": "1.6 Pattern and Design",
             "SUB-TOPIC": "1.6.1 Patterns",
             "SPECIFIC COMPETENCES": "Make patterns",
             "LEARNING ACTIVITIES": "• Identifying examples of patterns (Artificial and natural…)\n• Identifying motif types\n• Exploring with various motif designs\n• Making patterns (Random, regular)\n• Block (potato printing…), stencil, linocut and intaglio",
@@ -823,7 +823,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing and or Painting from Imagination",
+            "TOPIC": "1.7 Drawing and or Painting from Imagination",
             "SUB-TOPIC": "1.7.1 Imaginative Compositions",
             "SPECIFIC COMPETENCES": "Compose pictures based on a given theme",
             "LEARNING ACTIVITIES": "• Composing pictures from the given themes (my family, market place, hunting…)\n• Interpreting ideas and Crosscutting issues (environmental education, GBV, National values and principles…)\n• Drawing and painting (Landscape, Village scenery, Townscape…)",
@@ -833,7 +833,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing and or Painting from Observation",
+            "TOPIC": "1.8 Drawing and or Painting from Observation",
             "SUB-TOPIC": "Drawing or Painting from Natural or Man-made objects",
             "SPECIFIC COMPETENCES": "Draw or paint pictures from observation",
             "LEARNING ACTIVITIES": "• Drawing or painting from observation (trees, flowers, fruits, landscape, village scenery, townscape…)",
@@ -843,7 +843,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing and or Painting from Still Life",
+            "TOPIC": "1.9 Drawing and or Painting from Still Life",
             "SUB-TOPIC": "1.9.1 Still Life Drawing and or Painting",
             "SPECIFIC COMPETENCES": "Compose pictures from Still life",
             "LEARNING ACTIVITIES": "• Composing pictures from Still Life (Household objects, fruits, still objects…)",
@@ -853,7 +853,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Figure Drawing",
+            "TOPIC": "1.10 Figure Drawing",
             "SUB-TOPIC": "1.10.1 Stick-Figure Drawing",
             "SPECIFIC COMPETENCES": "Compose Stick Figures",
             "LEARNING ACTIVITIES": "• Composing Stick-figures (Persons in action…)",
@@ -863,7 +863,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Crafts in 2D",
+            "TOPIC": "1.11 Crafts in 2D",
             "SUB-TOPIC": "Picture Making",
             "SPECIFIC COMPETENCES": "Compose pictures using different techniques",
             "LEARNING ACTIVITIES": "• Defining picture making (collage, montage, mosaic and frieze…)\n• Experimenting with possibilities and limitations of materials and techniques in picture making (found objects, accidentals…)\n• Composing pictures using different techniques (collage, mosaic, montage…)",
@@ -883,7 +883,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Crafts in 3D",
+            "TOPIC": "1.12 Crafts in 3D",
             "SUB-TOPIC": "Book Crafts",
             "SPECIFIC COMPETENCES": "Apply book binding skills",
             "LEARNING ACTIVITIES": "• Applying binding skills in book making and repairing",
@@ -913,7 +913,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Sculpture",
+            "TOPIC": "1.13 Sculpture",
             "SUB-TOPIC": "1.13.1 Introduction to Sculpture",
             "SPECIFIC COMPETENCES": "Apply basic approaches in sculpture making",
             "LEARNING ACTIVITIES": "• Defining sculpture (free standing, relief sculpture, Marquette…)\n• Identifying local materials used for sculpture making\n• Applying basic approaches in sculpture making (additive, subtractive, casting…)",
@@ -943,7 +943,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Entrepreneurship",
+            "TOPIC": "1.14 Entrepreneurship",
             "SUB-TOPIC": "1.14.1 Entrepreneurship in Art",
             "SPECIFIC COMPETENCES": "Use Art as a business",
             "LEARNING ACTIVITIES": "• Defining entrepreneurship\n• Using Art as a business\n• Appreciating Art (study tours, guided online tutorials, talk shows…)\n• Hosting annual art exhibitions (Galleries, studio, schools, public spaces…)",
@@ -965,7 +965,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "History of Zambian Art-II",
+            "TOPIC": "2.1 History of Zambian Art-II",
             "SUB-TOPIC": "2.1.1 Art Organizations",
             "SPECIFIC COMPETENCES": "Identify art organisations",
             "LEARNING ACTIVITIES": "• Identifying Art Organizations (National Arts Council, Visual Arts Council…)\n• Discussing art organisations.\n• Listing the Founding members of VAC: (Martin Abasi Phiri, William Bwalya Miko, Agness Buya Yombwe…)",
@@ -1025,7 +1025,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Colour",
+            "TOPIC": "2.2 Colour",
             "SUB-TOPIC": "2.2.1 Colour Properties",
             "SPECIFIC COMPETENCES": "Use colour properties.",
             "LEARNING ACTIVITIES": "• Mixing colour to obtain a variety of colour properties. (hues, values, intensities…)\n• Illustrating arrangement of colours on the colour wheel\n• Identifying tertiary colours (Blue-green, Red-violet, Yellow-green…), warm colours (red, orange, yellow…) cool colours (green, blue, violet…)\n• Using values, hues and intensity in a painting",
@@ -1055,7 +1055,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Studio Practice",
+            "TOPIC": "2.3 Studio Practice",
             "SUB-TOPIC": "2.3.1",
             "SPECIFIC COMPETENCES": "Create paintings",
             "LEARNING ACTIVITIES": "• Analyse the techniques and processes (brush strokes, washing out, palette knife, resist, dry pigment, and mixed media.)\n• Exploring painting techniques (spraying, splattering, dubbing, dotting/pointillism).\n• Creating paintings based on given themes",
@@ -1075,7 +1075,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Perspective",
+            "TOPIC": "2.4 Perspective",
             "SUB-TOPIC": "2.4.1 Types of Perspectives",
             "SPECIFIC COMPETENCES": "Apply types of Perspectives",
             "LEARNING ACTIVITIES": "• Exploring types of perspectives (linear, 2 and 3 point, scale and proportion, overlapping, aerial/ atmospheric, foreshortening perspective…)\n• Categorising the types of views; (Bird's, normal, frog, worms' eye views)\n• Applying the rules of perspective (receding colours, depth, height…)",
@@ -1085,7 +1085,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing or Painting from Imaginative Composition",
+            "TOPIC": "2.5 Drawing or Painting from Imaginative Composition",
             "SUB-TOPIC": "Imaginative composition",
             "SPECIFIC COMPETENCES": "Compose pictures based on given themes",
             "LEARNING ACTIVITIES": "• Composing pictures based on given themes (climate change, public health concerns…) water and sanitation, traditional ceremonies, celebrations, festivals…",
@@ -1095,7 +1095,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing or Painting from Observation",
+            "TOPIC": "2.6 Drawing or Painting from Observation",
             "SUB-TOPIC": "Natural or man-made objects",
             "SPECIFIC COMPETENCES": "Create pictures from natural objects / scenes",
             "LEARNING ACTIVITIES": "• Creating pictures from Nature (tree trunks, logs, twigs / landscape…)",
@@ -1105,7 +1105,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing or Painting from Still Life",
+            "TOPIC": "2.7 Drawing or Painting from Still Life",
             "SUB-TOPIC": "Natural, Man made and Traditional Objects",
             "SPECIFIC COMPETENCES": "Compose pictures from Still Life objects",
             "LEARNING ACTIVITIES": "• Composing pictures from Still Life objects (household objects, parts of simple machines, bottles, traditional utensils…)",
@@ -1115,7 +1115,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Figure Drawing",
+            "TOPIC": "2.8 Figure Drawing",
             "SUB-TOPIC": "2.8.1 Human Figure Drawing",
             "SPECIFIC COMPETENCES": "Draw human body parts",
             "LEARNING ACTIVITIES": "• Drawing studies of human body parts (head, bust, torso, palm, limbs, facial features…)",
@@ -1125,7 +1125,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Crafts",
+            "TOPIC": "2.9 Crafts",
             "SUB-TOPIC": "2.9.1 Picture Making",
             "SPECIFIC COMPETENCES": "Make frieze, montage, collage and mosaic",
             "LEARNING ACTIVITIES": "• Making frieze, montage, collage and mosaic",
@@ -1195,7 +1195,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Graphic Design",
+            "TOPIC": "2.10 Graphic Design",
             "SUB-TOPIC": "Computer Aided Design – CAD",
             "SPECIFIC COMPETENCES": "Design Art works using a computer",
             "LEARNING ACTIVITIES": "• Analysing qualities of computer aided designs\n• Designing artworks using a computer (lettering, logo, emblem, cards, letterhead…)",
@@ -1245,7 +1245,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Sculpture",
+            "TOPIC": "2.11 Sculpture",
             "SUB-TOPIC": "2.11.1 Modelling",
             "SPECIFIC COMPETENCES": "Model free standing sculptures",
             "LEARNING ACTIVITIES": "• Analysing qualities of free standing sculptures, techniques and processes involved\n• Modelling free standing sculptures (human figure, head, bust…)",
@@ -1285,7 +1285,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Entrepreneurship",
+            "TOPIC": "2.12 Entrepreneurship",
             "SUB-TOPIC": "2.12.1 Art Appreciation",
             "SPECIFIC COMPETENCES": "Appreciate Art",
             "LEARNING ACTIVITIES": "• Appreciating Art (field project, study tours, guided online tutorials…)\n• Hold annual exhibitions (Galleries, studio spaces, schools, public and private spaces…)",
@@ -1307,7 +1307,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Introduction to African Art",
+            "TOPIC": "3.1 Introduction to African Art",
             "SUB-TOPIC": "Types of African Art",
             "SPECIFIC COMPETENCES": "Demonstrate knowledge of types of African Art",
             "LEARNING ACTIVITIES": "• Discussing various Art styles from different parts of Africa (North, East, Southern Africa…)\n• Identifying the types of African Art (rock paintings, masks, terracotta figures…)\n• Comparing functions of African Art (ritual, utilitarian, functional, religious, divination, prestigious…)",
@@ -1347,7 +1347,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing or Painting from Imagination",
+            "TOPIC": "3.2 Drawing or Painting from Imagination",
             "SUB-TOPIC": "3.2.1 Composition in colour",
             "SPECIFIC COMPETENCES": "Compose pictures based on given themes",
             "LEARNING ACTIVITIES": "• Composing pictures based on given themes (festivals, traditional dances, cross cutting issues…)",
@@ -1357,7 +1357,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing or Painting from Observation",
+            "TOPIC": "3.3 Drawing or Painting from Observation",
             "SUB-TOPIC": "Drawing or painting natural objects",
             "SPECIFIC COMPETENCES": "Create pictures to depict the structure of natural objects",
             "LEARNING ACTIVITIES": "• Creating pictures to depict the structure of natural objects (leaf, bark, branch, twig, bone, foliage, stone, tree, trunk…)",
@@ -1387,7 +1387,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing or Painting from Still Life",
+            "TOPIC": "3.4 Drawing or Painting from Still Life",
             "SUB-TOPIC": "Drawing or painting natural objects",
             "SPECIFIC COMPETENCES": "Compose pictures to depict natural objects",
             "LEARNING ACTIVITIES": "• Composing pictures to depict natural objects (bones, skull, plank, log…)",
@@ -1417,7 +1417,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Figure Drawing or Painting",
+            "TOPIC": "3.5 Figure Drawing or Painting",
             "SUB-TOPIC": "3.5.1 Human Figure",
             "SPECIFIC COMPETENCES": "Compose human figure drawings or paintings",
             "LEARNING ACTIVITIES": "• Composing human figure drawings or paintings (Persons in action /different poses)",
@@ -1427,7 +1427,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Crafts",
+            "TOPIC": "3.6 Crafts",
             "SUB-TOPIC": "3.6.1 Textile Design",
             "SPECIFIC COMPETENCES": "Create a print for textile production",
             "LEARNING ACTIVITIES": "• Discussing fabric print making\n• Experimenting with printing techniques (block, stencil, intaglio…)\n• Creating fabric printing motifs for textile production (geometric, organic…)",
@@ -1537,7 +1537,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Graphic Design",
+            "TOPIC": "3.7 Graphic Design",
             "SUB-TOPIC": "3.7.1 Logo Design",
             "SPECIFIC COMPETENCES": "Design various logos",
             "LEARNING ACTIVITIES": "• Identifying various kinds of logos\n• Discussing the purpose and functions of logo designs\n• Demonstrating the process of making various logos\n• Designing various logos (Company identity…)",
@@ -1607,7 +1607,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Photography and Filming",
+            "TOPIC": "3.8 Photography and Filming",
             "SUB-TOPIC": "3.8.1 Photography",
             "SPECIFIC COMPETENCES": "Produce pictures using photography",
             "LEARNING ACTIVITIES": "• Discussing photography\n• Identifying various kinds of photography (portrait, landscape, still life, street…)\n• Categorising pictures (lifestyle, documentary, traditional, posed artistic…)\n• Analysing picture compositions\n• Producing pictures based on different themes (photomontage, frieze, props…)",
@@ -1627,7 +1627,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Sculpture",
+            "TOPIC": "3.9 Sculpture",
             "SUB-TOPIC": "Sculptures",
             "SPECIFIC COMPETENCES": "Make sculptures using different materials",
             "LEARNING ACTIVITIES": "• Identifying various sculpture techniques\n• Analysing African sculpture working styles (north, east, west, south, central…)\n• Making sculptures using different materials (wood, metal, plaster of Paris, cement…)",
@@ -1637,7 +1637,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Entrepreneurship",
+            "TOPIC": "3.10 Entrepreneurship",
             "SUB-TOPIC": "3.10.1 Creative Art projects",
             "SPECIFIC COMPETENCES": "Develop Creative Art projects",
             "LEARNING ACTIVITIES": "• Developing Creative Art projects (reuse, reduce, recycle…)\n• Applying Marketing skills (negotiation, advertising…)\n• Organising annual exhibitions (galleries, studios, schools, public and private spaces…)",
@@ -1659,7 +1659,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Introduction to Art Careers",
+            "TOPIC": "4.1 Introduction to Art Careers",
             "SUB-TOPIC": "4.1.1 Careers in Art",
             "SPECIFIC COMPETENCES": "Develop Art portfolios",
             "LEARNING ACTIVITIES": "• Identifying careers in Art (Art Teacher, Art administrator, fashion designer, makeup Artist, creative director, museum docent, illustrator, cartoonist, photographer, costume designer, textile designer, interior/exterior decorator, stage designer, graphic designer, tattoo Artist, muralist…)\n• Designing work models/ portfolios / work samples for careers in Art (Muralist- mural painting/ Makeup artist- facial painting demo, Curator- art class display critic session…)",
@@ -1679,7 +1679,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "World Art History",
+            "TOPIC": "4.2 World Art History",
             "SUB-TOPIC": "4.2.1 Famous movements",
             "SPECIFIC COMPETENCES": "Explore famous movements in Art",
             "LEARNING ACTIVITIES": "• Discussing the characteristics of Gothic Art\n• Stating the masters of Gothic Art (Giotto, Botticelli, Simone Martini…)\n• Describing the significance of Renaissance Art (working styles, exhibition spaces…)\n• Listing the masters of Renaissance Art (Michelangelo Buonarroti, Leonardo Da Vinci, Raphaeli Santi, Merisi Da Caravaggio…)\n• Analysing the famous movements in Art\n• Discussing contemporary Art (Vincent Van goh, Vassily Kandinsky, Pablo Picasso…)\n• Exploring famous movements in Art (repainting the Gothic, Renaissance, Contemporary masters works…)",
@@ -1699,7 +1699,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing or Painting from Imagination",
+            "TOPIC": "4.3 Drawing or Painting from Imagination",
             "SUB-TOPIC": "Imaginative Composition",
             "SPECIFIC COMPETENCES": "Compose imaginative pictures based on different themes",
             "LEARNING ACTIVITIES": "• Composing imaginative pictures based on different themes (text given, stories narrated, crosscutting issues, abstract themes, contemporary issues, Gender Based Violence…)",
@@ -1709,7 +1709,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing or Painting from Observation",
+            "TOPIC": "4.4 Drawing or Painting from Observation",
             "SUB-TOPIC": "Natural Objects",
             "SPECIFIC COMPETENCES": "Compose pictures to depict natural objects",
             "LEARNING ACTIVITIES": "• Composing pictures to depict natural objects (flowers, snails, shells, animals, skulls, seed pods, root…)",
@@ -1739,7 +1739,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Drawing or Painting from Still Life",
+            "TOPIC": "4.5 Drawing or Painting from Still Life",
             "SUB-TOPIC": "Natural Objects",
             "SPECIFIC COMPETENCES": "Compose pictures to depict natural objects",
             "LEARNING ACTIVITIES": "• Composing pictures to depict natural objects (vegetables, fruits, stone, wood…)",
@@ -1769,7 +1769,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Figure Drawing or Painting",
+            "TOPIC": "4.6 Figure Drawing or Painting",
             "SUB-TOPIC": "Human figures",
             "SPECIFIC COMPETENCES": "Draw human figures in action using different techniques",
             "LEARNING ACTIVITIES": "• Demonstrating various techniques to depict human figures in action (traditional ceremonies, contemporary life, religious festivals…)",
@@ -1779,7 +1779,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Crafts",
+            "TOPIC": "4.7 Crafts",
             "SUB-TOPIC": "Print making",
             "SPECIFIC COMPETENCES": "Make prints using various techniques",
             "LEARNING ACTIVITIES": "• Identifying techniques used in print making (relief printing, intaglio, lithography, serigraphy…)\n• Making prints using various techniques",
@@ -1819,7 +1819,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Graphic Design (Computer Aided)",
+            "TOPIC": "4.8 Graphic Design (Computer Aided)",
             "SUB-TOPIC": "4.8.1 Calligraphy",
             "SPECIFIC COMPETENCES": "Use various calligraphic fonts",
             "LEARNING ACTIVITIES": "• Identifying calligraphy tools. (calligraphy pen, reeds, brush, chisel-shaped markers…)\n• Experimenting with various calligraphic fonts\n• Using various calligraphy fonts",
@@ -1879,7 +1879,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Photography and Filming",
+            "TOPIC": "4.9 Photography and Filming",
             "SUB-TOPIC": "4.9.1 Introduction to Animation",
             "SPECIFIC COMPETENCES": "Produce Art works using animation",
             "LEARNING ACTIVITIES": "• Discussing animation (Traditional scenes, computer aided animation…)\n• Exploring animation (2D and 3D)\n• Producing Art works using animation\n• Making Art works using camera photography/ Artificial Intelligence based on different themes (sceneries, portraits, nature…)",
@@ -1889,7 +1889,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Sculpture",
+            "TOPIC": "4.10 Sculpture",
             "SUB-TOPIC": "4.10.1 Sculpture in the round",
             "SPECIFIC COMPETENCES": "Create sculptures in the round",
             "LEARNING ACTIVITIES": "• Utilizing the benefits of collecting and recycling materials from the environment\n• Create sculptures using various materials (clay, cement, Plaster of Paris, stone…)\n• Creating sculptures in the round (human figure, head, foot…)",
@@ -1909,7 +1909,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Entrepreneurship",
+            "TOPIC": "4.11 Entrepreneurship",
             "SUB-TOPIC": "4.11.1 Value Addition",
             "SPECIFIC COMPETENCES": "Add value to Art works",
             "LEARNING ACTIVITIES": "• Costing Artworks\n• Applying Marketing skills\n• Adding value to Art works\n• Organizing annual exhibitions (galleries, studios, schools, public spaces…)",
@@ -8225,7 +8225,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "4.2.3 READING FLUENCY",
+            "TOPIC": "4.3.5 SUMMARY",
             "SUB-TOPIC": "4.3.5.2 Note Making",
             "SPECIFIC COMPETENCES": "4.3.5.2.1 Make",
             "LEARNING ACTIVITIES": "• Writing main points from written sources\n• Making notes from written sources ",
@@ -27245,8 +27245,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Composition",
-            "SUB-TOPIC": "Structure of a composition",
+            "TOPIC": "1.3.1 Composition",
+            "SUB-TOPIC": "1.3.1.1 Structure of a composition",
             "SPECIFIC COMPETENCES": "Outline the structure of a composition",
             "LEARNING ACTIVITIES": "• Discussing the structure and features of a composition\n• Identifying the features of a composition",
             "EXPECTED STANDARD": "Structure of a composition discussed accordingly; Features of a composition identified correctly"
@@ -27256,7 +27256,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Paragraphing",
+            "SUB-TOPIC": "1.3.1.2 Paragraphing",
             "SPECIFIC COMPETENCES": "Build paragraphs from given topic sentences",
             "LEARNING ACTIVITIES": "• Discussing topic sentences\n• Developing a paragraph from topic sentences",
             "EXPECTED STANDARD": "Topic sentences discussed adequately; Paragraph developed accordingly"
@@ -27266,7 +27266,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Autobiography",
+            "SUB-TOPIC": "1.3.1.3 Autobiography",
             "SPECIFIC COMPETENCES": "Write an autobiography",
             "LEARNING ACTIVITIES": "• Discussing the features and structure of an autobiography\n• Presenting autobiography orally\n• Writing an autobiography",
             "EXPECTED STANDARD": "Features and structure of an autobiography discussed accordingly; An autobiography presented accordingly; An autobiography written correctly"
@@ -27276,7 +27276,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Narratives",
+            "SUB-TOPIC": "1.3.1.4 Narratives",
             "SPECIFIC COMPETENCES": "Write both fiction and non-fiction narratives",
             "LEARNING ACTIVITIES": "• Discussing the features and structure of fiction and non-fiction narratives\n• Distinguishing fiction from non-fiction narratives\n• Writing narrative composition",
             "EXPECTED STANDARD": "Features of fiction and non-fiction narratives discussed effectively; Fiction from non-fiction narratives distinguished effectively; Narrative composition written accordingly"
@@ -27286,7 +27286,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Letter Writing",
+            "SUB-TOPIC": "1.3.1.5 Letter Writing",
             "SPECIFIC COMPETENCES": "Write an informal letter",
             "LEARNING ACTIVITIES": "• Discussing the structure and features of an informal letter\n• Writing of an informal letter",
             "EXPECTED STANDARD": "Structure and features of an informal letter discussed adequately; Informal letter written correctly"
@@ -27296,7 +27296,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Letter Writing",
+            "SUB-TOPIC": "1.3.1.5 Letter Writing",
             "SPECIFIC COMPETENCES": "Write a semi-formal letter",
             "LEARNING ACTIVITIES": "• Discussing the structure and features of a semi-formal letter\n• Differentiating semi-formal letter from an informal letter\n• Writing a semi-formal letter",
             "EXPECTED STANDARD": "Structure and features of a semi-formal letter discussed adequately; Informal letter and semi-formal letter distinguished correctly; Semi-formal letter written correctly"
@@ -27306,7 +27306,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Descriptive Writing",
+            "SUB-TOPIC": "1.3.1.6 Descriptive Writing",
             "SPECIFIC COMPETENCES": "Write a descriptive essay",
             "LEARNING ACTIVITIES": "• Discussing the structure and features of descriptive composition\n• Writing descriptive composition (people and animals)",
             "EXPECTED STANDARD": "Structure and features of a descriptive composition discussed accordingly; Descriptive composition written accordingly"
@@ -27316,7 +27316,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Argumentative Writing",
+            "SUB-TOPIC": "1.3.1.7 Argumentative Writing",
             "SPECIFIC COMPETENCES": "Write an argumentative composition",
             "LEARNING ACTIVITIES": "• Discussing the structure and features of an argumentative composition\n• Writing an argumentative composition",
             "EXPECTED STANDARD": "Structure and features of an argumentative composition discussed adequately; Argumentative composition written accordingly"
@@ -27325,8 +27325,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Summary",
-            "SUB-TOPIC": "Note Summary",
+            "TOPIC": "1.3.2 Summary",
+            "SUB-TOPIC": "1.3.2.1 Note Summary",
             "SPECIFIC COMPETENCES": "Take notes from any oral source",
             "LEARNING ACTIVITIES": "• Discussing features and structure of note summary\n• Writing relevant points from an oral source",
             "EXPECTED STANDARD": "Features and structure of note summary discussed accordingly; Relevant points from an oral source written correctly"
@@ -27336,7 +27336,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Note Summary",
+            "SUB-TOPIC": "1.3.2.1 Note Summary",
             "SPECIFIC COMPETENCES": "Make notes from a written source",
             "LEARNING ACTIVITIES": "• Discussing features and structure of note summary\n• Identifying key points from a written source\n• Writing notes from written sources",
             "EXPECTED STANDARD": "Features and structure of note summary discussed accordingly; Key points from a written source identified accordingly; Notes from a written source written accordingly"
@@ -27346,7 +27346,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Prose Summary",
+            "SUB-TOPIC": "1.3.2.2 Prose Summary",
             "SPECIFIC COMPETENCES": "Summarise short passages",
             "LEARNING ACTIVITIES": "• Discussing the features of prose summary\n• Identifying key points from a text\n• Summarising a given text into a paragraph",
             "EXPECTED STANDARD": "Features of a prose summary discussed accordingly; Key points of a text identified accordingly; Given text summarised into a paragraph accordingly"
@@ -27356,7 +27356,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Notices and Posters",
+            "SUB-TOPIC": "1.3.2.3 Notices and Posters",
             "SPECIFIC COMPETENCES": "Write notices and posters",
             "LEARNING ACTIVITIES": "• Discussing the features of notices and posters\n• Discussing the purpose of notices and posters\n• Writing notices and posters",
             "EXPECTED STANDARD": "Features of notices and posters discussed accordingly; Purpose of notices and posters discussed accordingly; Notices and posters written creatively"
@@ -27365,8 +27365,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Word Classes",
-            "SUB-TOPIC": "Parts of Speech",
+            "TOPIC": "1.4.1 Word Classes",
+            "SUB-TOPIC": "1.4.1.1 Parts of Speech",
             "SPECIFIC COMPETENCES": "Categorise words according to word classes",
             "LEARNING ACTIVITIES": "• Identifying the word classes (nouns, pronouns, verbs, adverbs, adjectives, conjunctions, locatives, interjections)\n• Discussing each word class with examples\n• Classifying words according to classes",
             "EXPECTED STANDARD": "Word classes identified correctly; Word classes discussed with examples correctly; Words classified according to classes correctly"
@@ -27375,8 +27375,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Punctuation",
-            "SUB-TOPIC": "Punctuation Marks",
+            "TOPIC": "1.4.2 Punctuation",
+            "SUB-TOPIC": "1.4.2.1 Punctuation Marks",
             "SPECIFIC COMPETENCES": "Punctuate sentences",
             "LEARNING ACTIVITIES": "• Explaining the functions of punctuation marks (capital letters, comma, full stop, exclamation mark, question mark...)\n• Applying punctuation marks in sentences",
             "EXPECTED STANDARD": "Functions of punctuation marks explained accurately; Sentences punctuated correctly"
@@ -27385,8 +27385,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Nouns",
-            "SUB-TOPIC": "Countable and Uncountable Nouns",
+            "TOPIC": "1.4.3 Nouns",
+            "SUB-TOPIC": "1.4.3.1 Countable and Uncountable Nouns",
             "SPECIFIC COMPETENCES": "Use countable and uncountable nouns",
             "LEARNING ACTIVITIES": "• Discussing meaning of countable and uncountable nouns\n• Identifying countable and uncountable nouns\n• Sorting countable and uncountable nouns\n• Constructing sentences using countable and uncountable nouns",
             "EXPECTED STANDARD": "Meaning of countable and uncountable nouns discussed accordingly; Countable and uncountable nouns identified correctly; Countable and uncountable nouns sorted accordingly; Sentences constructed correctly using countable and uncountable nouns"
@@ -27396,7 +27396,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Proper and Common Nouns",
+            "SUB-TOPIC": "1.4.3.2 Proper and Common Nouns",
             "SPECIFIC COMPETENCES": "Use proper and common nouns",
             "LEARNING ACTIVITIES": "• Discussing meaning of proper and common nouns\n• Identifying proper and common nouns\n• Sorting proper and common nouns\n• Constructing sentences using proper and common nouns",
             "EXPECTED STANDARD": "Meaning of proper and common nouns discussed accordingly; Proper and common nouns identified correctly; Proper and common nouns sorted accordingly; Sentences constructed correctly using proper and common nouns"
@@ -27406,7 +27406,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Collective, Abstract and Concrete Nouns",
+            "SUB-TOPIC": "1.4.3.3 Collective, Abstract and Concrete Nouns",
             "SPECIFIC COMPETENCES": "Use collective, abstract and concrete nouns in sentences",
             "LEARNING ACTIVITIES": "• Discussing meaning of collective, abstract and concrete nouns\n• Identifying collective, abstract and concrete nouns\n• Sorting collective, abstract and concrete nouns\n• Constructing sentences using collective, abstract and concrete nouns",
             "EXPECTED STANDARD": "Meanings of collective, abstract and concrete nouns discussed accordingly; Collective, abstract and concrete nouns identified correctly; Collective, abstract and concrete nouns sorted accordingly; Sentences constructed correctly using collective, abstract and concrete nouns"
@@ -27416,7 +27416,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Structure of a Noun",
+            "SUB-TOPIC": "1.4.3.4 Structure of a Noun",
             "SPECIFIC COMPETENCES": "Explain the structure of a noun",
             "LEARNING ACTIVITIES": "• Discussing the structure of a noun\n• Segmenting nouns into constituent parts (prefix and stem)",
             "EXPECTED STANDARD": "The structure of a noun discussed accordingly; Nouns segmented into constituent parts correctly"
@@ -27425,8 +27425,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Pronouns",
-            "SUB-TOPIC": "Types of Pronouns",
+            "TOPIC": "1.4.4 Pronouns",
+            "SUB-TOPIC": "1.4.4.1 Types of Pronouns",
             "SPECIFIC COMPETENCES": "Use pronouns",
             "LEARNING ACTIVITIES": "• Discussing the meaning and function of pronouns\n• Identifying the different types of pronouns (personal, possessive, and demonstrative)\n• Using different types of pronouns in sentences",
             "EXPECTED STANDARD": "The meaning and function of pronouns discussed accordingly; Different types of pronouns identified correctly; Different types of pronouns used in sentences correctly"
@@ -27435,8 +27435,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Adverbs",
-            "SUB-TOPIC": "Types of Adverbs",
+            "TOPIC": "1.4.5 Adverbs",
+            "SUB-TOPIC": "1.4.5.1 Types of Adverbs",
             "SPECIFIC COMPETENCES": "Use different types of adverbs",
             "LEARNING ACTIVITIES": "• Explaining the meaning and function of adverbs\n• Identifying different types of adverbs (adverbs of time, manner, frequency, degree and place)\n• Sorting adverbs according to type\n• Constructing sentences using different types of adverbs",
             "EXPECTED STANDARD": "Meaning and function of adverbs explained correctly; Different types of adverbs identified correctly; Adverbs sorted correctly according to type; Sentences constructed using different types of adverbs correctly"
@@ -27445,8 +27445,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Vowels",
-            "SUB-TOPIC": "Long and Short Vowels",
+            "TOPIC": "1.4.6 Vowels",
+            "SUB-TOPIC": "1.4.6.1 Long and Short Vowels",
             "SPECIFIC COMPETENCES": "Distinguish word meaning according to vowel length",
             "LEARNING ACTIVITIES": "• Distinguishing word meaning according to short and long vowels\n• Giving examples of words with long and short vowels",
             "EXPECTED STANDARD": "Meaning of words according to long and short vowels distinguished correctly; Examples of words with long and short vowels given correctly"
@@ -27455,8 +27455,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Word Building",
-            "SUB-TOPIC": "Affixation",
+            "TOPIC": "1.4.8 Word Building",
+            "SUB-TOPIC": "1.4.8.1 Affixation",
             "SPECIFIC COMPETENCES": "Use prefixes and suffixes to build words",
             "LEARNING ACTIVITIES": "• Explaining the meaning and function of affixation\n• Identifying the different types of affixes\n• Classifying affixes according to type\n• Forming words using affixes",
             "EXPECTED STANDARD": "Meaning and function of affixes explained correctly; Different types of affixes identified accordingly; Affixes classified correctly; Words correctly formed using affixes"
@@ -27465,8 +27465,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Ideophones",
-            "SUB-TOPIC": "Types of Ideophones",
+            "TOPIC": "1.4.9 Ideophones",
+            "SUB-TOPIC": "1.4.9.1 Types of Ideophones",
             "SPECIFIC COMPETENCES": "Use different types of ideophones in sentences",
             "LEARNING ACTIVITIES": "• Explaining the meaning of ideophones\n• Identifying ideophones according to type (colour, condition)\n• Constructing sentences using different types of ideophones",
             "EXPECTED STANDARD": "Meaning of ideophones explained correctly; Ideophones identified according to type correctly; Sentences constructed using different types of ideophones accordingly"
@@ -27475,8 +27475,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Locatives",
-            "SUB-TOPIC": "Locatives",
+            "TOPIC": "1.4.7 Locatives",
+            "SUB-TOPIC": "1.4.7.1 Locatives",
             "SPECIFIC COMPETENCES": "Use locatives in sentences",
             "LEARNING ACTIVITIES": "• Explaining meaning and function of locatives\n• Identifying locatives in sentences and texts\n• Using locatives in sentences",
             "EXPECTED STANDARD": "Meaning and functions of locatives explained correctly; Locatives correctly used in sentences and texts"
@@ -27485,8 +27485,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Tenses",
-            "SUB-TOPIC": "Present Tense",
+            "TOPIC": "1.4.10 Tenses",
+            "SUB-TOPIC": "1.4.10.1 Present Tense",
             "SPECIFIC COMPETENCES": "Use different forms of present tense",
             "LEARNING ACTIVITIES": "• Discussing the functions of different forms of present tense (present simple, present continuous, present perfect, present perfect continuous)\n• Identifying the present tense marker in words\n• Constructing sentences using different forms of the present tense\n• Constructing positive and negative sentences in the present tense\n• Constructing interrogative sentences in the present tense",
             "EXPECTED STANDARD": "Meaning and function of present tense explained accordingly; Present tense marker identified accordingly; Sentences in the present tense constructed correctly; Positive and negative sentences in the present tense constructed correctly; Interrogative sentences in the present tense constructed correctly"
@@ -27496,7 +27496,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Past Tense",
+            "SUB-TOPIC": "1.4.10.2 Past Tense",
             "SPECIFIC COMPETENCES": "Use different forms of past tense",
             "LEARNING ACTIVITIES": "• Explaining meaning and function of different forms of past tense (past simple, past continuous, past perfect, perfect continuous)\n• Identifying the past tense marker in words\n• Constructing sentences in different forms of past tense\n• Constructing positive and negative sentences in the past tense\n• Constructing interrogative sentences in the past tense",
             "EXPECTED STANDARD": "Meaning and function of Past tense explained accordingly; Past tense marker identified accordingly; Sentences in the Past tense constructed correctly; Positive and negative sentences in the past tense constructed correctly; Interrogative sentences in the Past tense constructed correctly"
@@ -27505,8 +27505,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Direct and Indirect Speech",
-            "SUB-TOPIC": "Direct Speech",
+            "TOPIC": "1.4.11 Direct and Indirect Speech",
+            "SUB-TOPIC": "1.4.11.1 Direct Speech",
             "SPECIFIC COMPETENCES": "Use Direct Speech",
             "LEARNING ACTIVITIES": "• Discussing the meaning and function of direct speech\n• Identifying direct speech sentences in texts\n• Punctuate direct speech sentences\n• Construct sentences to express direct speech",
             "EXPECTED STANDARD": "Meaning and function of Direct speech explained accordingly; Direct speech sentences identified correctly; Direct speech sentences punctuated correctly; Direct speech sentences constructed accordingly"
@@ -27516,7 +27516,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Indirect Speech",
+            "SUB-TOPIC": "1.4.11.2 Indirect Speech",
             "SPECIFIC COMPETENCES": "Construct indirect speech sentences",
             "LEARNING ACTIVITIES": "• Identifying indirect speech sentences\n• Punctuating indirect speech sentences\n• Constructing sentences to express indirect speech\n• Change indirect to direct speech and vice-versa",
             "EXPECTED STANDARD": "Indirect speech sentences identified accordingly; Indirect speech sentences punctuated correctly; Indirect speech sentences constructed accordingly; Indirect sentences correctly changed to direct speech and vice-versa"
@@ -27525,8 +27525,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Active and Passive Voice",
-            "SUB-TOPIC": "Active and Passive Sentences",
+            "TOPIC": "1.4.12 Active and Passive Voice",
+            "SUB-TOPIC": "1.4.12.1 Active and Passive Sentences",
             "SPECIFIC COMPETENCES": "Use active and passive voice",
             "LEARNING ACTIVITIES": "• Identifying active and passive voice\n• Constructing sentences in the active and passive voice\n• Changing sentences from active to passive voice and vice versa",
             "EXPECTED STANDARD": "Active and passive voice identified accordingly; Sentences in the active and passive voices constructed accordingly; Sentences changed from active to passive voice and vice versa accordingly"
@@ -27535,8 +27535,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Figurative Language",
-            "SUB-TOPIC": "Proverbs",
+            "TOPIC": "1.4.13 Figurative Language",
+            "SUB-TOPIC": "1.4.13.1 Proverbs",
             "SPECIFIC COMPETENCES": "Use proverbs",
             "LEARNING ACTIVITIES": "• Discussing the meaning and use of proverbs\n• Categorising proverbs according to specific functions\n• Identifying appropriate proverbs to be used in particular situations\n• Identifying appropriate situations in which to use particular proverbs",
             "EXPECTED STANDARD": "Meaning and use of proverbs discussed accordingly; Proverbs categorised correctly according to specific functions; Appropriate proverbs to be used in particular situations identified correctly; Appropriate situations in which to use particular proverbs identified correctly"
@@ -27545,8 +27545,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Vocabulary",
-            "SUB-TOPIC": "Word Meaning",
+            "TOPIC": "1.4.14 Vocabulary",
+            "SUB-TOPIC": "1.4.14.1 Word Meaning",
             "SPECIFIC COMPETENCES": "Use form level vocabulary",
             "LEARNING ACTIVITIES": "• Discussing meaning of selected vocabulary\n• Presenting meanings of vocabulary\n• Using selected vocabulary in sentences",
             "EXPECTED STANDARD": "Meaning of selected vocabulary discussed accordingly; Meanings of selected vocabulary presented correctly; Selected vocabulary correctly used in sentences"
@@ -27556,7 +27556,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Counting Numbers",
+            "SUB-TOPIC": "1.4.14.2 Counting Numbers",
             "SPECIFIC COMPETENCES": "Count from 1 to 1000 in a Zambian language",
             "LEARNING ACTIVITIES": "• Counting from 1 to 1000 in a Zambian language",
             "EXPECTED STANDARD": "Numbers from 1 to 1000,000 counted correctly in a Zambian language"
@@ -27566,7 +27566,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Sayings",
+            "SUB-TOPIC": "1.4.14.3 Sayings",
             "SPECIFIC COMPETENCES": "Use sayings",
             "LEARNING ACTIVITIES": "• Discussing the meaning and use of saying\n• Categorising sayings according to specific functions\n• Using sayings in discourse\n• Identifying appropriate sayings to be used in particular situations",
             "EXPECTED STANDARD": "Meaning and use of sayings discussed accordingly; Sayings categorised according to specific functions; Sayings used in discourse appropriately; Appropriate sayings to be used in particular situations identified correctly"
@@ -27575,8 +27575,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Translation",
-            "SUB-TOPIC": "Concepts in Translation",
+            "TOPIC": "1.5.1 Translation",
+            "SUB-TOPIC": "1.5.1.1 Concepts in Translation",
             "SPECIFIC COMPETENCES": "Explain the concepts used in translation",
             "LEARNING ACTIVITIES": "• Discussing meaning and importance of translation\n• Discussing basic concepts in translation (translation and interpretation; source and target language; interlingual and intralingual)\n• Distinguishing concepts in translation",
             "EXPECTED STANDARD": "Meaning and importance of translation discussed accordingly; Basic concepts in translation discussed accordingly; Translation concepts differentiated accordingly"
@@ -27586,7 +27586,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Translation Techniques",
+            "SUB-TOPIC": "1.5.1.2 Translation Techniques",
             "SPECIFIC COMPETENCES": "Apply various translation techniques to translate a text from English into a Zambian Language and vice-versa",
             "LEARNING ACTIVITIES": "• Translating a text from English into a Zambian Language and vice-versa using various techniques (literal translation, substitution, borrowing, loaning, transliteration, description, generalisation)",
             "EXPECTED STANDARD": "Various translation techniques used accordingly to translate texts from source language into target language and vice versa"
@@ -27648,7 +27648,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "2.1.2 Drama",
-            "SUB-TOPIC": "Play",
+            "SUB-TOPIC": "2.1.2.1 Play",
             "SPECIFIC COMPETENCES": "Use appropriate language to act out plays on given cross-cutting themes",
             "LEARNING ACTIVITIES": "• Acting out plays on cross-cutting issues (human rights, mental health, social and emotional learning...)",
             "EXPECTED STANDARD": "Plays acted out accordingly using appropriate language"
@@ -27667,8 +27667,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Riddles and Puzzles",
-            "SUB-TOPIC": "Puzzles",
+            "TOPIC": "2.1.4 Riddles and Puzzles",
+            "SUB-TOPIC": "2.1.4.1 Puzzles",
             "SPECIFIC COMPETENCES": "Analyse puzzles",
             "LEARNING ACTIVITIES": "• Initiating puzzles\n• Providing answers",
             "EXPECTED STANDARD": "Puzzles initiated accordingly; Answers provided correctly"
@@ -27677,8 +27677,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Story Telling",
-            "SUB-TOPIC": "Fiction Stories",
+            "TOPIC": "2.1.5 Story Telling",
+            "SUB-TOPIC": "2.1.5.1 Fiction Stories",
             "SPECIFIC COMPETENCES": "Tell fiction stories",
             "LEARNING ACTIVITIES": "• Narrating fiction stories\n• Analysing the moral lessons in fiction stories",
             "EXPECTED STANDARD": "Fiction stories narrated coherently; Teachings in fiction stories analysed accordingly"
@@ -27687,8 +27687,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Public Speaking",
-            "SUB-TOPIC": "Speech",
+            "TOPIC": "2.1.6 Public Speaking",
+            "SUB-TOPIC": "2.1.6.1 Speech",
             "SPECIFIC COMPETENCES": "Use appropriate language to deliver a speech on a given topic",
             "LEARNING ACTIVITIES": "• Delivering a speech",
             "EXPECTED STANDARD": "Speech delivered accordingly"
@@ -27697,8 +27697,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Intensive Reading",
-            "SUB-TOPIC": "Reading Comprehension",
+            "TOPIC": "2.2.1 Intensive Reading",
+            "SUB-TOPIC": "2.2.1.1 Reading Comprehension",
             "SPECIFIC COMPETENCES": "Read a variety of form level texts with understanding",
             "LEARNING ACTIVITIES": "• Reading texts\n• Answering questions\n• Discussing vocabulary\n• Summarising read texts\n• Paraphrasing texts",
             "EXPECTED STANDARD": "Form level texts read accordingly; Questions answered correctly; Vocabulary discussed accordingly; Form level text summarised accordingly; Form level text paraphrased accordingly"
@@ -27707,8 +27707,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Reading Aloud",
-            "SUB-TOPIC": "Reading Fluency",
+            "TOPIC": "2.2.2 Reading Aloud",
+            "SUB-TOPIC": "2.2.2.1 Reading Fluency",
             "SPECIFIC COMPETENCES": "Read form level texts",
             "LEARNING ACTIVITIES": "• Reading aloud form level texts with accuracy, pace and expression",
             "EXPECTED STANDARD": "Form level texts read with accuracy, pace and expression"
@@ -27717,8 +27717,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Extensive Reading",
-            "SUB-TOPIC": "Extensive Reading",
+            "TOPIC": "2.2.3 Extensive Reading",
+            "SUB-TOPIC": "2.2.3.1 Extensive Reading",
             "SPECIFIC COMPETENCES": "Read a variety of texts",
             "LEARNING ACTIVITIES": "• Reading a variety of texts\n• Summarising read texts orally and/or in writing",
             "EXPECTED STANDARD": "Variety of texts read accordingly; Read texts summarised accordingly"
@@ -27727,8 +27727,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Study Skills",
-            "SUB-TOPIC": "Reference Resources",
+            "TOPIC": "2.2.4 Study Skills",
+            "SUB-TOPIC": "2.2.4.1 Reference Resources",
             "SPECIFIC COMPETENCES": "Locate information in books",
             "LEARNING ACTIVITIES": "• Locating information from given materials (dictionaries, magazines...)",
             "EXPECTED STANDARD": "Information located from given materials accordingly"
@@ -27738,7 +27738,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Skimming and Scanning",
+            "SUB-TOPIC": "2.2.4.2 Skimming and Scanning",
             "SPECIFIC COMPETENCES": "Skim and scan different materials",
             "LEARNING ACTIVITIES": "• Finding specific and general information (from magazines, newspapers, books...)\n• Answering questions",
             "EXPECTED STANDARD": "Specific and general information skimmed and scanned correctly; Questions answered correctly"
@@ -27747,8 +27747,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Composition",
-            "SUB-TOPIC": "Biography",
+            "TOPIC": "2.3.1 Composition",
+            "SUB-TOPIC": "2.3.1.1 Biography",
             "SPECIFIC COMPETENCES": "Write a biography of a given personality",
             "LEARNING ACTIVITIES": "• Discussing the features of a biography\n• Writing a biography",
             "EXPECTED STANDARD": "Features of a biography discussed accordingly; A biography written accordingly"
@@ -27758,7 +27758,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Expository Writing",
+            "SUB-TOPIC": "2.3.1.2 Expository Writing",
             "SPECIFIC COMPETENCES": "Write expository composition",
             "LEARNING ACTIVITIES": "• Discussing the features of an expository composition\n• Writing an expository composition",
             "EXPECTED STANDARD": "Features of an expository composition discussed accordingly; An expository composition written accordingly"
@@ -27768,7 +27768,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Letter Writing",
+            "SUB-TOPIC": "2.3.1.3 Letter Writing",
             "SPECIFIC COMPETENCES": "Write an application letter",
             "LEARNING ACTIVITIES": "• Discussing the structure and features of a formal letter\n• Writing an application letter (job, services...)",
             "EXPECTED STANDARD": "Structure and features of a formal letter discussed accordingly; Application letter written correctly"
@@ -27778,7 +27778,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Descriptive Writing",
+            "SUB-TOPIC": "2.3.1.4 Descriptive Writing",
             "SPECIFIC COMPETENCES": "Write a descriptive composition",
             "LEARNING ACTIVITIES": "• Discussing the structure and features of a descriptive composition\n• Writing a descriptive composition (places, objects)",
             "EXPECTED STANDARD": "The structure and features of a descriptive composition discussed accordingly; A descriptive composition written accordingly"
@@ -27788,7 +27788,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Report Writing",
+            "SUB-TOPIC": "2.3.1.5 Report Writing",
             "SPECIFIC COMPETENCES": "Write a report about a given event",
             "LEARNING ACTIVITIES": "• Discussing the features and structure of a report\n• Writing a report on a given event",
             "EXPECTED STANDARD": "Features of a report discussed accordingly; A report written correctly"
@@ -27798,7 +27798,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Minutes",
+            "SUB-TOPIC": "2.3.1.6 Minutes",
             "SPECIFIC COMPETENCES": "Write minutes of proceedings",
             "LEARNING ACTIVITIES": "• Discussing the structure and features of minutes\n• Writing minutes of a recorded meeting (club/class, meetings...)",
             "EXPECTED STANDARD": "The structure and features of minutes discussed adequately; Minutes written accordingly"
@@ -27808,7 +27808,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Articles",
+            "SUB-TOPIC": "2.3.1.7 Articles",
             "SPECIFIC COMPETENCES": "Write articles for magazines and newspapers",
             "LEARNING ACTIVITIES": "• Discussing the structure and features of an article\n• Writing an article",
             "EXPECTED STANDARD": "The structure and features of an article discussed adequately; An article written accordingly"
@@ -27818,7 +27818,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Argumentative Writing",
+            "SUB-TOPIC": "2.3.1.8 Argumentative Writing",
             "SPECIFIC COMPETENCES": "Write an argumentative composition",
             "LEARNING ACTIVITIES": "• Discussing the features and structure of an argumentative composition\n• Writing an argumentative composition",
             "EXPECTED STANDARD": "The features and structure of an argumentative composition discussed accordingly; An argumentative composition written accordingly"
@@ -27827,8 +27827,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Summary",
-            "SUB-TOPIC": "Prose Summary",
+            "TOPIC": "2.3.2 Summary",
+            "SUB-TOPIC": "2.3.2.1 Prose Summary",
             "SPECIFIC COMPETENCES": "Summarise given texts",
             "LEARNING ACTIVITIES": "• Discussing features of prose summary\n• Identifying key points of a text\n• Summarising a given text into a paragraph",
             "EXPECTED STANDARD": "Features of prose summary discussed accordingly; Key points of a text identified accordingly; A given text summarised into a paragraph accordingly"
@@ -27837,8 +27837,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Dictation",
-            "SUB-TOPIC": "Passages",
+            "TOPIC": "2.3.3 Dictation",
+            "SUB-TOPIC": "2.3.3.1 Passages",
             "SPECIFIC COMPETENCES": "Write dictated text",
             "LEARNING ACTIVITIES": "• Writing a dictated text",
             "EXPECTED STANDARD": "Dictated text written correctly"
@@ -27877,8 +27877,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Adjectives",
-            "SUB-TOPIC": "Types of Adjectives",
+            "TOPIC": "2.4.3 Adjectives",
+            "SUB-TOPIC": "2.4.3.1 Types of Adjectives",
             "SPECIFIC COMPETENCES": "Use adjectives in sentences",
             "LEARNING ACTIVITIES": "• Discussing the meaning and function of adjectives\n• Identifying different types of adjectives (number, colour, quality...)\n• Sorting adjectives according to type\n• Constructing sentences using different types of adjectives",
             "EXPECTED STANDARD": "Meaning and functions of adjectives discussed; Different types of adjectives identified correctly; Adjectives sorted correctly according to type; Sentences constructed using different types of adjectives correctly"
@@ -27887,8 +27887,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Conjunctions",
-            "SUB-TOPIC": "Types of Conjunctions",
+            "TOPIC": "2.4.4 Conjunctions",
+            "SUB-TOPIC": "2.4.4.1 Types of Conjunctions",
             "SPECIFIC COMPETENCES": "Use different types of conjunctions in sentences",
             "LEARNING ACTIVITIES": "• Discussing different types of conjunctions\n• Identifying conjunctions in sentences (coordinating, correlative, contrastive...)\n• Classifying conjunctions according to type\n• Discussing the role of conjunctions in sentences (contrast, reason, condition, addition, comparison)\n• Using conjunctions in sentences",
             "EXPECTED STANDARD": "Different types of conjunction discussed accordingly; Conjunctions identified accordingly; Conjunctions classified according to type correctly; The role of conjunctions in sentences discussed explicitly; Conjunctions used in sentences correctly"
@@ -27897,8 +27897,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Word Building",
-            "SUB-TOPIC": "Affixation",
+            "TOPIC": "2.4.7 Word Building",
+            "SUB-TOPIC": "2.4.7.1 Affixation",
             "SPECIFIC COMPETENCES": "Use affixes to build words",
             "LEARNING ACTIVITIES": "• Identifying affixes in words\n• Building words from stems and roots using affixes",
             "EXPECTED STANDARD": "Affixes in words identified accordingly; Words built correctly from stems and roots using affixes"
@@ -27908,7 +27908,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Derivation",
+            "SUB-TOPIC": "2.4.7.2 Derivation",
             "SPECIFIC COMPETENCES": "Derive nouns from verbs and vice-versa",
             "LEARNING ACTIVITIES": "• Forming nouns from verbs and vice-versa\n• Using derived words in sentences",
             "EXPECTED STANDARD": "Nouns and verbs formed correctly; Derived words used in sentences correctly"
@@ -27917,8 +27917,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Interjections",
-            "SUB-TOPIC": "Interjections",
+            "TOPIC": "2.4.5 Interjections",
+            "SUB-TOPIC": "2.4.5.1 Interjections",
             "SPECIFIC COMPETENCES": "Use interjections",
             "LEARNING ACTIVITIES": "• Identifying interjections in sentences\n• Using interjections in sentences",
             "EXPECTED STANDARD": "Interjections in sentences identified accordingly; Interjections used in sentences correctly"
@@ -27927,7 +27927,7 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Punctuation",
+            "TOPIC": "2.4.6 Punctuation",
             "SUB-TOPIC": "2.4.6.1 Punctuation Marks",
             "SPECIFIC COMPETENCES": "Punctuate texts",
             "LEARNING ACTIVITIES": "• Discussing the use of punctuation marks (capital letters, comma, full stop, exclamation mark, question mark...)\n• Applying punctuation marks in texts",
@@ -27937,8 +27937,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Onomatopoeia",
-            "SUB-TOPIC": "Onomatopoeia",
+            "TOPIC": "2.4.8 Onomatopoeia",
+            "SUB-TOPIC": "2.4.8.1 Onomatopoeia",
             "SPECIFIC COMPETENCES": "Use onomatopoeia",
             "LEARNING ACTIVITIES": "• Identifying onomatopoeic words\n• Constructing sentences with onomatopoeic words",
             "EXPECTED STANDARD": "Onomatopoeic words identified accordingly; Sentences constructed using onomatopoeic words correctly"
@@ -27947,8 +27947,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Tenses",
-            "SUB-TOPIC": "Future Tense",
+            "TOPIC": "2.4.9 Tenses",
+            "SUB-TOPIC": "2.4.9.1 Future Tense",
             "SPECIFIC COMPETENCES": "Use different forms of future tense",
             "LEARNING ACTIVITIES": "• Identifying the future tense marker in words\n• Constructing sentences in the future tense\n• Constructing positive and negative sentences in the future tense\n• Constructing interrogative sentences in the future tense",
             "EXPECTED STANDARD": "Future tense marker identified accordingly; Sentences in the future tense constructed correctly; Positive and negative sentences in the future tense constructed correctly; Interrogative sentence in the future tense constructed correctly"
@@ -27957,8 +27957,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Active and Passive Voice",
-            "SUB-TOPIC": "Active and Passive Sentences",
+            "TOPIC": "2.4.10 Active and Passive Voice",
+            "SUB-TOPIC": "2.4.10.1 Active and Passive Sentences",
             "SPECIFIC COMPETENCES": "Construct sentences in active and passive voice",
             "LEARNING ACTIVITIES": "• Identifying sentences in active and passive voice\n• Constructing sentences in the active and passive voice\n• Changing sentences from active to passive voice and vice versa",
             "EXPECTED STANDARD": "Sentences in active and passive voice identified accordingly; Sentences in active and passive voices constructed accordingly; Sentences changed from active to passive voice and vice versa accordingly"
@@ -27967,8 +27967,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Figurative Language",
-            "SUB-TOPIC": "Proverbs",
+            "TOPIC": "2.4.11 Figurative Language",
+            "SUB-TOPIC": "2.4.11.1 Proverbs",
             "SPECIFIC COMPETENCES": "Use different types of proverbs",
             "LEARNING ACTIVITIES": "• Discussing the meaning and use of proverbs\n• Categorising proverbs according to specific functions\n• Identifying appropriate proverbs to use in particular situations",
             "EXPECTED STANDARD": "Meaning and use of proverbs discussed accordingly; Proverbs categorised according to specific functions correctly; Appropriate proverbs to use in particular situations identified correctly"
@@ -27978,7 +27978,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Sayings",
+            "SUB-TOPIC": "2.4.11.2 Sayings",
             "SPECIFIC COMPETENCES": "Use sayings in sentences",
             "LEARNING ACTIVITIES": "• Discussing the meaning and use of saying\n• Categorising sayings according to specific functions\n• Identifying appropriate sayings to use in particular situations",
             "EXPECTED STANDARD": "Meaning and use of sayings discussed accordingly; Sayings categorised according to specific functions correctly; Appropriate sayings to use in particular situations identified accordingly"
@@ -27987,8 +27987,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Vocabulary",
-            "SUB-TOPIC": "Word Meaning",
+            "TOPIC": "2.4.12 Vocabulary",
+            "SUB-TOPIC": "2.4.12.1 Word Meaning",
             "SPECIFIC COMPETENCES": "Use form level words in sentences",
             "LEARNING ACTIVITIES": "• Discussing meaning of given vocabulary\n• Presenting meanings of vocabulary\n• Using selected vocabulary in sentences",
             "EXPECTED STANDARD": "Meaning of selected vocabulary discussed accordingly; Meanings of selected vocabulary presented correctly; Selected vocabulary used in sentences correctly"
@@ -27997,8 +27997,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Translation",
-            "SUB-TOPIC": "Translation Techniques",
+            "TOPIC": "2.5.1 Translation",
+            "SUB-TOPIC": "2.5.1.1 Translation Techniques",
             "SPECIFIC COMPETENCES": "Apply various translation techniques to translate text from English into a Zambian language and vice-versa",
             "LEARNING ACTIVITIES": "• Translating a given text using various techniques (adaptation, amplification, compensation, particularisation, established equivalent and reduction)",
             "EXPECTED STANDARD": "Translation techniques used appropriately"
@@ -28079,8 +28079,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Intensive Reading",
-            "SUB-TOPIC": "Reading Comprehension",
+            "TOPIC": "3.2.1 Intensive Reading",
+            "SUB-TOPIC": "3.2.1.1 Reading Comprehension",
             "SPECIFIC COMPETENCES": "Read form level texts",
             "LEARNING ACTIVITIES": "• Reading texts\n• Answering questions from texts read\n• Discussing vocabulary from read texts\n• Summarising read texts\n• Paraphrasing sentences from read texts",
             "EXPECTED STANDARD": "Form level texts read accordingly; Questions answered correctly; Vocabulary discussed accordingly; Form level text summarised accordingly; Form level text paraphrased accordingly"
@@ -28090,7 +28090,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Reading Comprehension",
+            "SUB-TOPIC": "3.2.1.1 Reading Comprehension",
             "SPECIFIC COMPETENCES": "Evaluate materials read",
             "LEARNING ACTIVITIES": "• Evaluating materials read",
             "EXPECTED STANDARD": "Materials evaluated accordingly"
@@ -28099,8 +28099,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Extensive Reading",
-            "SUB-TOPIC": "Extensive Reading",
+            "TOPIC": "3.2.2 Extensive Reading",
+            "SUB-TOPIC": "3.2.2.1 Extensive Reading",
             "SPECIFIC COMPETENCES": "Read a variety of texts",
             "LEARNING ACTIVITIES": "• Reading a variety of texts\n• Retelling what has been read",
             "EXPECTED STANDARD": "Variety of texts read accordingly; What has been read retold accordingly"
@@ -28109,8 +28109,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Study Skills",
-            "SUB-TOPIC": "Reference Resources",
+            "TOPIC": "3.2.3 Study Skills",
+            "SUB-TOPIC": "3.2.3.1 Reference Resources",
             "SPECIFIC COMPETENCES": "Locate information from written source",
             "LEARNING ACTIVITIES": "• Using table of content, glossary and index to locate information",
             "EXPECTED STANDARD": "Information located accordingly using table of content, glossary and index"
@@ -28120,7 +28120,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Skimming and Scanning",
+            "SUB-TOPIC": "3.2.3.2 Skimming and Scanning",
             "SPECIFIC COMPETENCES": "Use appropriate study skills to find appropriate information",
             "LEARNING ACTIVITIES": "• Skimming\n• Scanning",
             "EXPECTED STANDARD": "Information skimmed accordingly; Information scanned accordingly"
@@ -28129,8 +28129,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Composition",
-            "SUB-TOPIC": "Expository Writing",
+            "TOPIC": "3.3.1 Composition",
+            "SUB-TOPIC": "3.3.1.1 Expository Writing",
             "SPECIFIC COMPETENCES": "Write an expository composition",
             "LEARNING ACTIVITIES": "• Discussing the features and structure of an expository composition\n• Writing an expository composition",
             "EXPECTED STANDARD": "Features and structure of an expository composition discussed accordingly; An expository composition written accordingly"
@@ -28140,7 +28140,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Narratives",
+            "SUB-TOPIC": "3.3.1.2 Narratives",
             "SPECIFIC COMPETENCES": "Write narrative composition",
             "LEARNING ACTIVITIES": "• Discussing the features and structure of a narrative composition\n• Writing of a narrative composition",
             "EXPECTED STANDARD": "The features and structure of a narrative composition discussed accordingly; A narrative composition written accordingly"
@@ -28150,7 +28150,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Letter Writing (recommendation letter)",
+            "SUB-TOPIC": "3.3.1.3 Letter Writing (recommendation letter)",
             "SPECIFIC COMPETENCES": "Write a recommendation letter",
             "LEARNING ACTIVITIES": "• Discussing the structure and features of a recommendation letter\n• Writing a recommendation letter",
             "EXPECTED STANDARD": "Structure and features of a recommendation letter discussed accordingly; A recommendation letter written accordingly"
@@ -28160,7 +28160,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Descriptive Writing",
+            "SUB-TOPIC": "3.3.1.4 Descriptive Writing",
             "SPECIFIC COMPETENCES": "Write a descriptive essay about an event",
             "LEARNING ACTIVITIES": "• Discussing the structure and features of a descriptive composition about an event\n• Writing a descriptive composition",
             "EXPECTED STANDARD": "The structure and features of a descriptive composition discussed effectively; Descriptive composition written accordingly"
@@ -28170,7 +28170,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Report Writing",
+            "SUB-TOPIC": "3.3.1.5 Report Writing",
             "SPECIFIC COMPETENCES": "Write reports on various situations/events",
             "LEARNING ACTIVITIES": "• Discussing features of a report\n• Writing a report on given situations/events",
             "EXPECTED STANDARD": "Features of a report discussed accordingly; Report written accordingly"
@@ -28180,7 +28180,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Speech Writing",
+            "SUB-TOPIC": "3.3.1.6 Speech Writing",
             "SPECIFIC COMPETENCES": "Write an introductory speech",
             "LEARNING ACTIVITIES": "• Discussing the features and structure of an introductory speech\n• Writing an introductory speech\n• Presenting an introductory speech",
             "EXPECTED STANDARD": "The features and structure of an introductory speech discussed accordingly; An introductory speech written correctly; An introductory speech presented accordingly"
@@ -28190,7 +28190,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Speech Writing",
+            "SUB-TOPIC": "3.3.1.6 Speech Writing",
             "SPECIFIC COMPETENCES": "Write key note speech",
             "LEARNING ACTIVITIES": "• Discussing the features and structure of a key note speech\n• Writing a key note speech\n• Presenting a key note speech",
             "EXPECTED STANDARD": "Features and structure of a key note speech discussed accordingly; Key note speech written correctly; Key note speech presented accordingly"
@@ -28200,7 +28200,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Letter to the Editor",
+            "SUB-TOPIC": "3.3.1.7 Letter to the Editor",
             "SPECIFIC COMPETENCES": "Write a letter to the editor",
             "LEARNING ACTIVITIES": "• Discussing the structure and features of a letter to the editor\n• Writing a letter to the editor",
             "EXPECTED STANDARD": "Structure and features of a letter to the editor discussed accordingly; A letter to the editor written correctly"
@@ -28210,7 +28210,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Argumentative Writing",
+            "SUB-TOPIC": "3.3.1.8 Argumentative Writing",
             "SPECIFIC COMPETENCES": "Write an argumentative composition",
             "LEARNING ACTIVITIES": "• Discussing the structure and features of an argumentative composition\n• Writing an argumentative composition",
             "EXPECTED STANDARD": "Structure and features of an argumentative composition discussed accordingly; An argumentative composition written correctly"
@@ -28220,7 +28220,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Advertisements",
+            "SUB-TOPIC": "3.3.1.9 Advertisements",
             "SPECIFIC COMPETENCES": "Write advertisements",
             "LEARNING ACTIVITIES": "• Discussing the structure and features of an advert\n• Writing an advertisement",
             "EXPECTED STANDARD": "Structure and features of an advert discussed accordingly; An advertisement written accordingly"
@@ -28229,8 +28229,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Dictation",
-            "SUB-TOPIC": "Passages",
+            "TOPIC": "3.3.3 Dictation",
+            "SUB-TOPIC": "3.3.3.1 Passages",
             "SPECIFIC COMPETENCES": "Write dictated text",
             "LEARNING ACTIVITIES": "• Writing a dictated text",
             "EXPECTED STANDARD": "Dictated text written accordingly"
@@ -28239,8 +28239,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Summary",
-            "SUB-TOPIC": "Prose Summary",
+            "TOPIC": "3.3.2 Summary",
+            "SUB-TOPIC": "3.3.2.1 Prose Summary",
             "SPECIFIC COMPETENCES": "Summarise given text",
             "LEARNING ACTIVITIES": "• Identifying relevant points from a given text\n• Writing prose summary",
             "EXPECTED STANDARD": "Relevant points identified correctly; Prose summary written correctly"
@@ -28250,7 +28250,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Tabulations",
+            "SUB-TOPIC": "3.3.2.2 Tabulations",
             "SPECIFIC COMPETENCES": "Summarise given text into a table",
             "LEARNING ACTIVITIES": "• Summarising information into table form",
             "EXPECTED STANDARD": "Information summarised into table form accordingly"
@@ -28260,7 +28260,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Tabulations",
+            "SUB-TOPIC": "3.3.2.2 Tabulations",
             "SPECIFIC COMPETENCES": "Summarise given text into a graph",
             "LEARNING ACTIVITIES": "• Summarising information into a graph",
             "EXPECTED STANDARD": "Information summarised into graph form accordingly"
@@ -28270,7 +28270,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Diary",
+            "SUB-TOPIC": "3.3.2.3 Diary",
             "SPECIFIC COMPETENCES": "Write diary entries",
             "LEARNING ACTIVITIES": "• Discussing features and structure of diary entries\n• Writing diary entries",
             "EXPECTED STANDARD": "Features and structure of a diary entry discussed accordingly; Diary entries written accurately"
@@ -28279,8 +28279,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Nouns",
-            "SUB-TOPIC": "Noun Classes",
+            "TOPIC": "3.4.1 Nouns",
+            "SUB-TOPIC": "3.4.1.1 Noun Classes",
             "SPECIFIC COMPETENCES": "Use noun classes to show agreement in sentences",
             "LEARNING ACTIVITIES": "• Categorising nouns according to classes\n• Constructing sentences that express grammatical agreement according to noun classes\n• Correcting sentences with wrong agreement",
             "EXPECTED STANDARD": "Nouns categorised correctly according to classes; Sentences that express grammatical agreement according to noun classes constructed correctly; Sentences with wrong agreement corrected"
@@ -28289,8 +28289,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Verbs",
-            "SUB-TOPIC": "Verb Structure",
+            "TOPIC": "3.4.2 Verbs",
+            "SUB-TOPIC": "3.4.2.1 Verb Structure",
             "SPECIFIC COMPETENCES": "Explain the structure of a verb",
             "LEARNING ACTIVITIES": "• Identifying verbs\n• Analysing the structure of a verb\n• Constructing sentences using different verb forms",
             "EXPECTED STANDARD": "Verbs identified correctly; Structure of verbs analysed correctly; Sentences using different verb forms constructed correctly"
@@ -28300,7 +28300,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Verbal Extensions",
+            "SUB-TOPIC": "3.4.2.2 Verbal Extensions",
             "SPECIFIC COMPETENCES": "Apply verbal extensions",
             "LEARNING ACTIVITIES": "• Identifying verbal extensions (causative, reciprocal, reversal)\n• Discussing the meaning of verbal extensions\n• Using verbal extensions in sentences",
             "EXPECTED STANDARD": "Verbal extensions identified correctly; Meaning of verbal extensions discussed accordingly; Verbal extension correctly used in sentences"
@@ -28309,8 +28309,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Punctuation",
-            "SUB-TOPIC": "Punctuation",
+            "TOPIC": "3.4.3 Punctuation",
+            "SUB-TOPIC": "3.4.3.1 Punctuation",
             "SPECIFIC COMPETENCES": "Punctuate paragraphs",
             "LEARNING ACTIVITIES": "• Identifying punctuation marks in paragraphs (capital letters, comma, full stop, exclamation mark, question mark...)\n• Punctuating short paragraphs",
             "EXPECTED STANDARD": "Punctuation in paragraphs identified correctly; Punctuation marks in short paragraphs applied correctly"
@@ -28319,8 +28319,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Word Building",
-            "SUB-TOPIC": "Affixation",
+            "TOPIC": "3.4.4 Word Building",
+            "SUB-TOPIC": "3.4.4.1 Affixation",
             "SPECIFIC COMPETENCES": "Use affixes to build words",
             "LEARNING ACTIVITIES": "• Identifying affixes in words\n• Using affixes to build words",
             "EXPECTED STANDARD": "Affixes in words identified accordingly; Words built correctly using affixes"
@@ -28330,7 +28330,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Derivation",
+            "SUB-TOPIC": "3.4.4.2 Derivation",
             "SPECIFIC COMPETENCES": "Derive nouns from verbs and vice-versa",
             "LEARNING ACTIVITIES": "• Forming nouns from verbs and vice-versa\n• Using derived words in sentences",
             "EXPECTED STANDARD": "Nouns and verbs formed correctly; Derived words used in sentences correctly"
@@ -28340,7 +28340,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Compound Words",
+            "SUB-TOPIC": "3.4.4.3 Compound Words",
             "SPECIFIC COMPETENCES": "Use compound words in sentences",
             "LEARNING ACTIVITIES": "• Discussing the structure and meaning of compound words\n• Identifying compound words\n• Using compound words in sentences",
             "EXPECTED STANDARD": "Structure and meaning of compound words discussed accordingly; Compound words identified correctly; Compound words used in sentences correctly"
@@ -28350,7 +28350,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Reduplicated Words",
+            "SUB-TOPIC": "3.4.4.4 Reduplicated Words",
             "SPECIFIC COMPETENCES": "Form reduplication of given verbs",
             "LEARNING ACTIVITIES": "• Identifying reduplicated words\n• Analysing the structure of reduplicated words\n• Using reduplicated words in sentences",
             "EXPECTED STANDARD": "Reduplicated words identified correctly; Structure of reduplicated words analysed correctly; Reduplicated words used correctly"
@@ -28359,8 +28359,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Tenses",
-            "SUB-TOPIC": "Future Tense",
+            "TOPIC": "3.4.5 Tenses",
+            "SUB-TOPIC": "3.4.5.1 Future Tense",
             "SPECIFIC COMPETENCES": "Use different forms of future tense",
             "LEARNING ACTIVITIES": "• Identifying different forms of the future tense (immediate future, remote future...)\n• Constructing sentences using different forms of the future",
             "EXPECTED STANDARD": "Different tenses identified accordingly; Sentences constructed using different tenses correctly"
@@ -28369,8 +28369,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Comparison",
-            "SUB-TOPIC": "Comparatives",
+            "TOPIC": "3.4.6 Comparison",
+            "SUB-TOPIC": "3.4.6.1 Comparatives",
             "SPECIFIC COMPETENCES": "Use comparatives in sentences",
             "LEARNING ACTIVITIES": "• Identifying comparative markers in language (size, height, appearance, colour, manner...)\n• Constructing sentences to express comparison",
             "EXPECTED STANDARD": "Comparative markers in language identified correctly; Sentences to express comparison constructed correctly"
@@ -28379,8 +28379,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Direct and Indirect Speech",
-            "SUB-TOPIC": "Direct Speech",
+            "TOPIC": "3.4.7 Direct and Indirect Speech",
+            "SUB-TOPIC": "3.4.7.1 Direct Speech",
             "SPECIFIC COMPETENCES": "Change direct speech to indirect speech and vice-versa",
             "LEARNING ACTIVITIES": "• Identifying Direct Speech sentences\n• Punctuating Direct Speech sentences\n• Constructing sentences to express Direct speech\n• Changing sentences from direct to indirect speech and vice-versa",
             "EXPECTED STANDARD": "Direct Speech sentences identified correctly; Direct Speech sentences punctuated correctly; Direct Speech sentences constructed accordingly; Direct speech sentences changed to indirect and vice-versa accordingly"
@@ -28390,7 +28390,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Indirect Speech",
+            "SUB-TOPIC": "3.4.7.2 Indirect Speech",
             "SPECIFIC COMPETENCES": "Change indirect speech into direct speech and vice-versa",
             "LEARNING ACTIVITIES": "• Identifying Indirect Speech sentences\n• Punctuating Indirect Speech sentences\n• Constructing sentences to express Indirect speech\n• Changing sentences from indirect to direct speech and vice-versa",
             "EXPECTED STANDARD": "Indirect Speech sentences identified correctly; Indirect Speech sentences punctuated correctly; Indirect Speech sentences constructed accordingly; Indirect speech sentences changed to direct and vice-versa accordingly"
@@ -28399,8 +28399,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Sentence",
-            "SUB-TOPIC": "Sentence Structure",
+            "TOPIC": "3.4.8 Sentence",
+            "SUB-TOPIC": "3.4.8.1 Sentence Structure",
             "SPECIFIC COMPETENCES": "Analyse a sentence into parts",
             "LEARNING ACTIVITIES": "• Discussing parts of a sentence (subject, predicate)\n• Identifying parts of a sentence",
             "EXPECTED STANDARD": "Parts of a sentence discussed accordingly; Parts of a sentence identified correctly"
@@ -28409,8 +28409,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Word Relationships",
-            "SUB-TOPIC": "Homophones",
+            "TOPIC": "3.4.9 Word Relationships",
+            "SUB-TOPIC": "3.4.9.1 Homophones",
             "SPECIFIC COMPETENCES": "Use homophones in sentences",
             "LEARNING ACTIVITIES": "• Discussing the meaning of homophones\n• Identifying homophones\n• Using homophones in sentences",
             "EXPECTED STANDARD": "Meaning and use of homophones discussed accordingly; Homophones identified correctly; Homophones used in discourse appropriately"
@@ -28419,8 +28419,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Figurative Language",
-            "SUB-TOPIC": "Proverbs",
+            "TOPIC": "3.4.10 Figurative Language",
+            "SUB-TOPIC": "3.4.10.1 Proverbs",
             "SPECIFIC COMPETENCES": "Use different types of proverbs",
             "LEARNING ACTIVITIES": "• Discussing the meaning and use of proverbs\n• Categorising proverbs according to specific functions\n• Identifying appropriate proverbs to use in particular situations\n• Identifying appropriate situations in which to use particular proverbs",
             "EXPECTED STANDARD": "Meaning and use of proverbs discussed accordingly; Proverbs categorised according to specific functions correctly; Appropriate proverbs to be used in particular situations identified correctly; Appropriate situations in which to use particular proverbs identified correctly"
@@ -28430,7 +28430,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Sayings",
+            "SUB-TOPIC": "3.4.10.2 Sayings",
             "SPECIFIC COMPETENCES": "Use sayings",
             "LEARNING ACTIVITIES": "• Discussing the meaning and use of sayings\n• Categorising sayings according to specific functions\n• Identifying appropriate situations in which to use particular sayings\n• Identifying sayings with similar meanings\n• Providing sayings to be given in given situations",
             "EXPECTED STANDARD": "Appropriate situations in which to use particular sayings identified correctly; Sayings with similar meanings identified accordingly; Meaning and use of sayings discussed accordingly; Sayings categorised according to specific functions correctly; Sayings to be provided in given situations provided"
@@ -28440,7 +28440,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Idioms",
+            "SUB-TOPIC": "3.4.10.3 Idioms",
             "SPECIFIC COMPETENCES": "Use idioms",
             "LEARNING ACTIVITIES": "• Discussing the meaning and use of idioms\n• Categorising idioms according to specific functions",
             "EXPECTED STANDARD": "Meaning and use of idioms discussed accordingly; Idioms categorised according to specific functions correctly"
@@ -28449,8 +28449,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Vocabulary",
-            "SUB-TOPIC": "Word Meaning",
+            "TOPIC": "3.4.11 Vocabulary",
+            "SUB-TOPIC": "3.4.11.1 Word Meaning",
             "SPECIFIC COMPETENCES": "Explain meaning of form level vocabulary",
             "LEARNING ACTIVITIES": "• Explaining the meanings of given vocabulary\n• Using given vocabulary in sentences",
             "EXPECTED STANDARD": "Meanings of given vocabulary explained correctly; Selected vocabulary used in sentences correctly"
@@ -28459,8 +28459,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Translation",
-            "SUB-TOPIC": "Translation Techniques",
+            "TOPIC": "3.5.1 Translation",
+            "SUB-TOPIC": "3.5.1.1 Translation Techniques",
             "SPECIFIC COMPETENCES": "Apply various translation techniques to translate texts from English into a Zambian language and vice-versa",
             "LEARNING ACTIVITIES": "• Translating a given text using various translation techniques to translate the source language into target language",
             "EXPECTED STANDARD": "A given text translated accordingly"
@@ -28551,8 +28551,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Composition",
-            "SUB-TOPIC": "Essay Writing",
+            "TOPIC": "4.3.1 Composition",
+            "SUB-TOPIC": "4.3.1.1 Essay Writing",
             "SPECIFIC COMPETENCES": "Write an essay",
             "LEARNING ACTIVITIES": "• Discussing features and structure of an essay\n• Writing an essay",
             "EXPECTED STANDARD": "Features and structure of an essay discussed accordingly; An essay written correctly"
@@ -28562,7 +28562,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Formal Letter (Complaint letter)",
+            "SUB-TOPIC": "4.3.1.2 Formal Letter (Complaint letter)",
             "SPECIFIC COMPETENCES": "Write a complaint letter",
             "LEARNING ACTIVITIES": "• Discussing features of a complaint letter\n• Writing a complaint letter",
             "EXPECTED STANDARD": "Features of a complaint letter discussed accordingly; A complaint letter written correctly"
@@ -28572,7 +28572,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Descriptive Writing",
+            "SUB-TOPIC": "4.3.1.3 Descriptive Writing",
             "SPECIFIC COMPETENCES": "Write a descriptive composition",
             "LEARNING ACTIVITIES": "• Discussing the features of a descriptive composition (situations, occasion)\n• Writing a descriptive composition of an occasion or situation",
             "EXPECTED STANDARD": "Features of a descriptive composition discussed accordingly; A descriptive composition written correctly"
@@ -28582,7 +28582,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Report Writing",
+            "SUB-TOPIC": "4.3.1.4 Report Writing",
             "SPECIFIC COMPETENCES": "Write reports on witnessed incidences",
             "LEARNING ACTIVITIES": "• Discussing a structure and features of a report\n• Writing a report on a witnessed incident",
             "EXPECTED STANDARD": "Structure and features of a report discussed accordingly; Report written accordingly"
@@ -28592,7 +28592,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Argumentative Writing",
+            "SUB-TOPIC": "4.3.1.5 Argumentative Writing",
             "SPECIFIC COMPETENCES": "Write an argumentative composition",
             "LEARNING ACTIVITIES": "• Gathering information on a given topic (economy, climate change...)\n• Discussing a given topic\n• Writing an argumentative composition",
             "EXPECTED STANDARD": "Information on a given topic gathered accordingly; Given topic discussed accordingly; An argumentative composition written accordingly"
@@ -28602,7 +28602,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Speech",
+            "SUB-TOPIC": "4.3.1.6 Speech",
             "SPECIFIC COMPETENCES": "Write a vote of thanks",
             "LEARNING ACTIVITIES": "• Discussing features of a vote of thanks\n• Writing a vote of thanks\n• Delivering a vote of thanks",
             "EXPECTED STANDARD": "Features of a vote of thanks discussed adequately; Vote of thanks written accordingly; Vote of thanks moved accordingly"
@@ -28612,7 +28612,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Curriculum Vitae",
+            "SUB-TOPIC": "4.3.1.7 Curriculum Vitae",
             "SPECIFIC COMPETENCES": "Write a curriculum vitae",
             "LEARNING ACTIVITIES": "• Discussing features and structure of a curriculum vitae\n• Writing a curriculum vitae",
             "EXPECTED STANDARD": "Features and structure of a curriculum vitae discussed accordingly; Curriculum vitae written correctly"
@@ -28621,8 +28621,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Summary",
-            "SUB-TOPIC": "Prose Summary",
+            "TOPIC": "4.3.2 Summary",
+            "SUB-TOPIC": "4.3.2.1 Prose Summary",
             "SPECIFIC COMPETENCES": "Summarise a given text",
             "LEARNING ACTIVITIES": "• Identifying relevant points\n• Writing prose summary",
             "EXPECTED STANDARD": "Relevant points identified accordingly; Prose summary written accordingly"
@@ -28631,8 +28631,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Verbs",
-            "SUB-TOPIC": "Verbal Extensions",
+            "TOPIC": "4.4.1 Verbs",
+            "SUB-TOPIC": "4.4.1.1 Verbal Extensions",
             "SPECIFIC COMPETENCES": "4.4.1.1.1 Apply verbal extensions",
             "LEARNING ACTIVITIES": "• Identifying verbal extensions\n• Discussing the meaning of verbal extensions (intensive, applicative...)\n• Changing the form of a verb using given verbal extensions",
             "EXPECTED STANDARD": "Verbal extensions identified correctly; Meaning of verbal extensions discussed accordingly; Form of the verb changed correctly using given verbal extensions"
@@ -28641,8 +28641,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Word Building",
-            "SUB-TOPIC": "Compound Words",
+            "TOPIC": "4.4.2 Word Building",
+            "SUB-TOPIC": "4.4.2.1 Compound Words",
             "SPECIFIC COMPETENCES": "Use compound words in sentences",
             "LEARNING ACTIVITIES": "• Discussing the structure and meaning of compound words\n• Identifying compound words\n• Using compound words in sentences",
             "EXPECTED STANDARD": "Structure and meaning of compound words discussed accordingly; Compound words identified correctly; Compound words used in sentences correctly"
@@ -28652,7 +28652,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Reduplicated Words",
+            "SUB-TOPIC": "4.4.2.2 Reduplicated Words",
             "SPECIFIC COMPETENCES": "Use reduplicated words in sentences",
             "LEARNING ACTIVITIES": "• Discussing the effect of reduplication on the meaning of words\n• Identifying reduplicated words\n• Analysing the structure of reduplicated words\n• Using reduplicated words in sentences",
             "EXPECTED STANDARD": "Effect of reduplication on the meaning of words discussed accordingly; Reduplicated words identified correctly; Structure of reduplicated words analysed correctly; Reduplicated words used correctly"
@@ -28661,8 +28661,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Punctuation",
-            "SUB-TOPIC": "Punctuation Marks",
+            "TOPIC": "4.4.3 Punctuation",
+            "SUB-TOPIC": "4.4.3.1 Punctuation Marks",
             "SPECIFIC COMPETENCES": "Punctuate longer texts",
             "LEARNING ACTIVITIES": "• Punctuating longer texts (capital letters, comma, full stop, exclamation mark, quotation mark, question mark...)",
             "EXPECTED STANDARD": "Longer texts punctuated correctly"
@@ -28671,8 +28671,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Indirect Speech",
-            "SUB-TOPIC": "Indirect Speech",
+            "TOPIC": "4.4.4 Indirect Speech",
+            "SUB-TOPIC": "4.4.4.1 Indirect Speech",
             "SPECIFIC COMPETENCES": "Change indirect speech into direct speech and vice-versa",
             "LEARNING ACTIVITIES": "• Identifying Indirect Speech sentences\n• Punctuate Indirect Speech sentences\n• Construct sentences to express Indirect speech\n• Change sentences from indirect to direct speech and vice-versa",
             "EXPECTED STANDARD": "Indirect Speech sentences identified correctly; Indirect Speech sentences punctuated correctly; Indirect Speech sentences constructed accordingly; Indirect speech sentences changed to direct and vice-versa accordingly"
@@ -28681,8 +28681,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Tenses",
-            "SUB-TOPIC": "Tenses",
+            "TOPIC": "4.4.5 Tenses",
+            "SUB-TOPIC": "4.4.5.1 Tenses",
             "SPECIFIC COMPETENCES": "Transform sentences from one tense to another",
             "LEARNING ACTIVITIES": "• Identifying different types of tenses (Present, Past and Future)\n• Constructing sentences using different types of tenses\n• Transforming sentences from one tense to another",
             "EXPECTED STANDARD": "Different types of tenses identified correctly; Sentences using different types of tenses constructed correctly; Sentences from one tense to another transformed correctly"
@@ -28691,8 +28691,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Adverbial Phrases",
-            "SUB-TOPIC": "Adverbial Phrase",
+            "TOPIC": "4.4.6 Adverbial Phrases",
+            "SUB-TOPIC": "4.4.6.1 Adverbial Phrase",
             "SPECIFIC COMPETENCES": "Write sentences containing adverbial phrases",
             "LEARNING ACTIVITIES": "• Identifying adverbial phrases in sentences\n• Constructing sentences containing adverbial phrases",
             "EXPECTED STANDARD": "Adverbial phrases in sentences identified correctly; Sentences containing adverbial phrases constructed correctly"
@@ -28701,8 +28701,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Relative Clauses",
-            "SUB-TOPIC": "Relative Clauses",
+            "TOPIC": "4.4.8 Relative Clauses",
+            "SUB-TOPIC": "4.4.8.1 Relative Clauses",
             "SPECIFIC COMPETENCES": "Construct sentences containing relative clauses",
             "LEARNING ACTIVITIES": "• Identifying relative clauses in sentences\n• Constructing sentences containing relative clauses",
             "EXPECTED STANDARD": "Relative clauses in sentences identified correctly; Sentences containing relative clauses constructed correctly"
@@ -28711,8 +28711,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Word Relationships",
-            "SUB-TOPIC": "Synonyms",
+            "TOPIC": "4.4.9 Word Relationships",
+            "SUB-TOPIC": "4.4.9.1 Synonyms",
             "SPECIFIC COMPETENCES": "Use synonyms",
             "LEARNING ACTIVITIES": "• Identifying synonyms of given words\n• Constructing sentences using synonyms",
             "EXPECTED STANDARD": "Synonyms identified correctly; Sentences using synonyms constructed correctly"
@@ -28722,7 +28722,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Antonyms",
+            "SUB-TOPIC": "4.4.9.2 Antonyms",
             "SPECIFIC COMPETENCES": "Use antonyms",
             "LEARNING ACTIVITIES": "• Identifying antonyms of given words\n• Constructing sentences using antonyms",
             "EXPECTED STANDARD": "Antonyms of given words identified correctly; Sentences using antonyms constructed correctly"
@@ -28732,7 +28732,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Homonyms",
+            "SUB-TOPIC": "4.4.9.3 Homonyms",
             "SPECIFIC COMPETENCES": "Use homonyms",
             "LEARNING ACTIVITIES": "• Identifying homonyms\n• Constructing sentences using homonyms",
             "EXPECTED STANDARD": "Homonyms identified correctly; Sentences using homonyms constructed correctly"
@@ -28741,8 +28741,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Adverbial Clauses",
-            "SUB-TOPIC": "Adverbial Clause",
+            "TOPIC": "4.4.7 Adverbial Clauses",
+            "SUB-TOPIC": "4.4.7.1 Adverbial Clause",
             "SPECIFIC COMPETENCES": "Write sentences containing adverbial clauses",
             "LEARNING ACTIVITIES": "• Identifying adverbial clauses in sentences\n• Constructing sentences containing adverbial clauses",
             "EXPECTED STANDARD": "Adverbial clauses in sentences identified correctly; Sentences containing adverbial clauses constructed correctly"
@@ -28751,8 +28751,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Active and Passive Voices",
-            "SUB-TOPIC": "Active and Passive Voice",
+            "TOPIC": "4.4.10 Active and Passive Voices",
+            "SUB-TOPIC": "4.4.10.1 Active and Passive Voice",
             "SPECIFIC COMPETENCES": "Transform active to passive voice and vice-versa",
             "LEARNING ACTIVITIES": "• Identifying active and passive voice\n• Constructing sentences in the active and passive voice\n• Changing sentences from active to passive voice and vice versa",
             "EXPECTED STANDARD": "Active and passive voice identified accordingly; Sentences in the active and passive voices constructed accordingly; Sentences changed from active to passive voice and vice versa accordingly"
@@ -28761,8 +28761,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Figurative Language",
-            "SUB-TOPIC": "Proverbs",
+            "TOPIC": "4.4.11 Figurative Language",
+            "SUB-TOPIC": "4.4.11.1 Proverbs",
             "SPECIFIC COMPETENCES": "Use appropriate proverbs for particular situations",
             "LEARNING ACTIVITIES": "• Discussing the meaning and use of proverbs\n• Categorising proverbs according to specific functions\n• Identifying proverbs to be used in particular situations\n• Identifying appropriate situations in which to use particular proverbs",
             "EXPECTED STANDARD": "Meaning and use of proverbs discussed accordingly; Proverbs categorised according to specific functions correctly; Appropriate proverbs to be used in particular situations identified correctly; Appropriate situations in which to use particular proverbs identified accordingly"
@@ -28772,7 +28772,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Sayings",
+            "SUB-TOPIC": "4.4.11.2 Sayings",
             "SPECIFIC COMPETENCES": "Use appropriate sayings for particular situations",
             "LEARNING ACTIVITIES": "• Discussing the meaning and use of sayings\n• Categorising sayings according to specific functions\n• Using sayings in discourse\n• Identifying appropriate sayings to be used in particular situations",
             "EXPECTED STANDARD": "Meaning and use of sayings discussed accordingly; Sayings categorised according to specific functions correctly; Sayings used in discourse appropriately; Appropriate sayings to be used in particular situations identified correctly"
@@ -28782,7 +28782,7 @@
           "type": "data",
           "cells": {
             "TOPIC": "",
-            "SUB-TOPIC": "Idioms",
+            "SUB-TOPIC": "4.4.11.3 Idioms",
             "SPECIFIC COMPETENCES": "Use appropriate idioms for particular situations",
             "LEARNING ACTIVITIES": "• Discussing the meaning and use of idioms\n• Categorising idioms according to specific functions\n• Using idioms in discourse\n• Identifying appropriate situations in which to use particular idioms",
             "EXPECTED STANDARD": "Meaning and use of idioms discussed accordingly; Idioms categorised according to specific functions correctly; Idioms used in discourse appropriately; Appropriate situations in which to use particular idioms identified correctly"
@@ -28791,8 +28791,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Vocabulary",
-            "SUB-TOPIC": "Word Meaning",
+            "TOPIC": "4.4.12 Vocabulary",
+            "SUB-TOPIC": "4.4.12.1 Word Meaning",
             "SPECIFIC COMPETENCES": "Use vocabulary connotatively and denotatively in discourse",
             "LEARNING ACTIVITIES": "• Analysing the denotative and connotative use of vocabulary in a given text\n• Using selected vocabulary denotatively and connotatively in sentences",
             "EXPECTED STANDARD": "Denotative and connotative use of vocabulary in a given text analysed correctly; Selected vocabulary used denotatively and connotatively in sentences correctly"
@@ -28801,8 +28801,8 @@
         {
           "type": "data",
           "cells": {
-            "TOPIC": "Translation",
-            "SUB-TOPIC": "Translation Techniques",
+            "TOPIC": "4.5.1 Translation",
+            "SUB-TOPIC": "4.5.1.1 Translation Techniques",
             "SPECIFIC COMPETENCES": "Apply various translation techniques to translate from source language to target language and vice-versa",
             "LEARNING ACTIVITIES": "• Translating a given text using various translation techniques to translate the source language into target language and vice-versa",
             "EXPECTED STANDARD": "A given text translated accordingly"
