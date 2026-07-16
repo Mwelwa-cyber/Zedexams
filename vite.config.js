@@ -1,8 +1,66 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync, readdirSync, rmSync } from 'node:fs'
 import { resolve } from 'node:path'
+
+/**
+ * The Sentry release string. Must be byte-for-byte identical to the one the
+ * runtime stamps on every event in src/utils/sentry.js
+ * (`zedexams@${VITE_APP_VERSION ?? 'dev'}-${MODE}`), or uploaded source maps
+ * won't bind to incoming events and stack traces stay minified.
+ */
+function sentryRelease(mode, env) {
+  const version = process.env.VITE_APP_VERSION || env.VITE_APP_VERSION || 'dev'
+  return `zedexams@${version}-${mode}`
+}
+
+/**
+ * Production source-map upload for Sentry — so a frame like
+ * `LessonPlanStudio-DuIX0BPH.js:142:5420` resolves back to the original JSX
+ * file + line instead of a minified column.
+ *
+ * Gated on SENTRY_AUTH_TOKEN (a build-time secret, NOT a VITE_ var — it must
+ * never reach the browser bundle). With no token the plugin is skipped
+ * entirely and the build is unchanged, so local + lint-only CI builds don't
+ * need it. The plugin (`@sentry/vite-plugin`) is imported dynamically for the
+ * same reason the runtime SDK is: a build without the secret pays nothing, and
+ * a missing dev-dependency can't break the core build.
+ *
+ * Maps are emitted `hidden` (no sourceMappingURL comment in the shipped JS) and
+ * deleted from dist/ after upload, so the .map files are never publicly served
+ * — Sentry has them, the origin does not.
+ */
+async function maybeSentryPlugin(mode, env) {
+  const authToken = process.env.SENTRY_AUTH_TOKEN
+  const org = process.env.SENTRY_ORG
+  const project = process.env.SENTRY_PROJECT
+  if (!authToken || !org || !project) return []
+  try {
+    const { sentryVitePlugin } = await import('@sentry/vite-plugin')
+    return [
+      sentryVitePlugin({
+        org,
+        project,
+        authToken,
+        release: { name: sentryRelease(mode, env) },
+        sourcemaps: {
+          // Upload every emitted chunk map, then remove the .map files from the
+          // build output so they aren't shipped to the CDN.
+          filesToDeleteAfterUpload: ['./dist/**/*.map'],
+        },
+        // Don't fail a production deploy just because the symbol upload hiccuped;
+        // the app is already built. A telemetry gap is preferable to a blocked ship.
+        errorHandler: (err) => {
+          console.warn('[sentry] source-map upload failed (build continues):', err?.message || err)
+        },
+      }),
+    ]
+  } catch (err) {
+    console.warn('[sentry] vite plugin unavailable — skipping source-map upload:', err?.message || err)
+    return []
+  }
+}
 
 /**
  * firebase-messaging-sw.js lives in /public so it ships untouched at the
@@ -68,6 +126,36 @@ function firebaseMessagingSwConfig(env) {
  * into the wrong chunk (check rollupOptions.output.manualChunks below) or a
  * dependency upgrade ballooned a chunk.
  */
+/**
+ * Backstop: after everything has been written (and Sentry has uploaded), delete
+ * every leftover *.map from dist/ so no source map is served from the origin.
+ * The Sentry plugin already prunes the app-chunk maps it uploads, but VitePWA's
+ * generated service-worker maps (sw.js.map / workbox-*.js.map) are written later
+ * and slip past it — this closeBundle pass, ordered LAST, sweeps whatever
+ * remains. Only active when we actually emitted maps for an upload.
+ */
+function pruneSourceMaps({ enabled }) {
+  return {
+    name: 'prune-source-maps',
+    apply: 'build',
+    enforce: 'post',
+    closeBundle() {
+      if (!enabled) return
+      const distDir = resolve(__dirname, 'dist')
+      let removed = 0
+      const walk = (dir) => {
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+          const full = resolve(dir, entry.name)
+          if (entry.isDirectory()) walk(full)
+          else if (entry.name.endsWith('.map')) { rmSync(full, { force: true }); removed += 1 }
+        }
+      }
+      try { walk(distDir) } catch { /* dist absent (lib build) — nothing to prune */ }
+      if (removed) console.info(`[prune-source-maps] removed ${removed} .map file(s) from dist/`)
+    },
+  }
+}
+
 function chunkSizeBudgets({ defaultBudget, budgets }) {
   return {
     name: 'chunk-size-budgets',
@@ -89,8 +177,14 @@ function chunkSizeBudgets({ defaultBudget, budgets }) {
   }
 }
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(async ({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_')
+  // Source-map upload to Sentry (empty unless SENTRY_AUTH_TOKEN + org/project
+  // are set). Must be the LAST plugin so it runs after the bundle is written.
+  const sentryPlugins = await maybeSentryPlugin(mode, env)
+  // Emit maps only when we're actually uploading them; 'hidden' keeps the
+  // sourceMappingURL comment out of the shipped JS so browsers never fetch them.
+  const uploadingSourceMaps = sentryPlugins.length > 0
   return {
     plugins: [
       react(),
@@ -273,9 +367,19 @@ export default defineConfig(({ mode }) => {
         // a pdfjs-dist upgrade that grows it still trips the warning.
         budgets: { pdfjs: 1_800_000 },
       }),
+      // Keep Sentry last: it reads the finished bundle to upload + prune maps.
+      ...sentryPlugins,
+      // Backstop after Sentry: strip any *.map the upload didn't remove (the
+      // late-written service-worker maps) so nothing ships to the origin.
+      pruneSourceMaps({ enabled: uploadingSourceMaps }),
     ],
     build: {
       outDir: 'dist',
+      // 'hidden' source maps ONLY when uploading to Sentry — emitted for the
+      // symbol upload, stripped of their sourceMappingURL comment so the shipped
+      // JS doesn't reference them, then deleted from dist/ by the Sentry plugin.
+      // Off otherwise, so a normal build ships no maps (unchanged behaviour).
+      sourcemap: uploadingSourceMaps ? 'hidden' : false,
       // Chunk-size policing lives in the chunkSizeBudgets plugin above: the
       // known ~1.74 MB pdfjs chunk (legacy core + bundled worker, lazy,
       // precache-excluded) gets its own cap, every other chunk keeps the
