@@ -1,0 +1,35 @@
+# 21 — Duplication & Inconsistency Register
+
+> Snapshot as of 2026-07-17 — verify before acting. Audited commit `0cd4c49`.
+> Read-only findings. Nothing was modified. "Canonical" = the implementation to keep; "duplicates" = candidates to migrate onto it.
+
+| # | Cluster | Canonical | Duplicates to migrate | Risk | Tests |
+|---|---|---|---|---|---|
+| D1 | **Grade lists** `['4','5','6','7']` | `config/curriculum.js` (`GRADES`/`ALL_GRADES`); `questionBankImportCore.VALID_GRADES`; `schemas/quiz.ACTIVE_GRADE_STRINGS`; `learnerPrefs.GRADE_NUMBERS` | 12 local re-declarations: `EditQuizV2:85`, `QuizList:30`, `CreateQuizV2:53`, `AdminResults:20`, `AdminLearners:10`, `settingsRegistry:28`, `BulkPublishQuizzesButton:42`, `zedexams-settings:727`, inline `GradeHub:639`, `GenerateFromTopicMenu:153`, `PastPaperStudio:480`, `ManageContent:914` | Low–Med (numeric vs string form) | schema + dropdown smoke |
+| D2 | **Curriculum vocabularies** | learner `config/curriculum.js`; teacher `config/teacherTaxonomy.js`; timetable `curriculumFramework.js`; studio `curriculumDataService.js` | `curriculumSelectorConstants.js` grade lists are an **admitted VERBATIM copy** of `LessonDetailsForm.jsx` (hand-synced) | Med (frozen by design) | selector specs |
+| D3 | **Admin role checks** | `permissions.js` `isSuperAdmin`/`isAdminRole` | inline `role==='admin'\|\|role==='superAdmin'`: `subscriptionStatus:52`, `teacherPlans:162`, `navigation:6`, `feedbackOptions:38`, `NotFound:17`, `ProfilePage:115`, `ReplayTourCard:107`, `AdminUserProfile:258` | Low | `permissions.spec`, `navigation.spec` |
+| D4 | **Route/access guards** | `ProtectedRoute.jsx` + `isSuperAdmin` | overlapping gates: `LearnerOnlyRoute`, inline `AdminRoute`, `notes/AdminGuard` (also dead — R5), `LearnerGate`; keep `StudioGate`/`LockedStudio` (tier-gating distinct) | Med (routing) | `StudioGate.spec` + new guard tests |
+| D5 | **Firestore collection path strings** | **NONE — no `COLLECTIONS` module** | literal `'users'/'quizzes'/'results'/…` across 22+ files / 67+ sites (`useFirestore.js` ×24, `AdminAnalytics` ×7, `questionBankService` ×5, `teacherLibraryService` ×5) | Low mechanically, High churn | add `config/collections.js` + guard |
+| D6 | **Storage path strings** | **NONE** | `ref(storage,…)` + inline `${uid}/…` across 43 files | Low/High churn | add path helpers |
+| D7 | **DOCX/PDF export boilerplate** | partial: `docxAttribution.js`, `exportWatermark.js`, `studioHtmlToDocx.js`, `htmlToPdf.js`, `saveBlob.js`, `downloadFilename.js` | ~27 `*ToDocx.js` + ~15 `*ToPdf.js` each re-import `docx` and rebuild branded header/page-setup | Med (visual regressions) | per-tool export tests |
+| D8 | **Subscription/entitlement** | `subscriptionConfig.js` + `teacherPlans.js` + `subscriptionStatus.js` + `permissions.js` (layered — itself a smell) | `toDateValue()` + access-flag block **triplicated** (`subscriptionConfig:266`, `subscriptionStatus:57`, `teacherPlans:165`); inline expiry re-derivation in `RenewalBanner:62`, `WelcomeToPro:56`; `useSubscription:17` re-derives `canAccessFullContent` already in `AuthContext:476` | Low–Med | `useSubscription.spec` |
+| D9 | **Usage/quota** | `useTeacherUsage.js` + `useGenerationGate.js`; caps in `teacherPlans.js` | cap-check + paywall-routing ladder duplicated: `useGenerationGate:47` vs `UsageMeter:142`; `MAX_ONLY_FEATURE_KEYS` rebuilt in both | Low | `UsageMeter.spec`, `useGenerationGate.spec` |
+| D10 | **Draft persistence** | `hooks/draft/` (`useDraftManager` + `draftCore.js`) | `assessmentDraftCore.js`+`useAssessmentDraft.js` and `useCreateQuizDraft.js` re-implement save/load/merge/strip/TTL (draftCore header says it "generalises" the assessment one). **All live** → consolidate, not delete. `useQuizPersistence.js` is distinct | Med | `useCreateQuizDraft.spec`, `useQuizPersistence.spec` |
+| D11 | **Calendar/term/week** | `moeCalendar.js` + `calendarResolver.js` | `attendanceCalendarResolver.js` is a parallel resolver over the same `MOE_CALENDAR`; week-in-term math (`floor(days/7)+1`) re-rolled in `schemeTermPlan`, `teacherRecommendations`, `SchoolCalendar`, `WeeklyForecastStudio`, `LearnerCalendar`, `TodayStudyPlan`, `GradeHub` | Med | attendance tests |
+| D12 | **Teaching-assignment resolution** | `teachingProfileCore.resolveActiveAssignmentId` | `plannedTeachingMeta.js:17 resolveActiveAssignment` is a **2nd resolver** (the one `useActiveAssignmentContext:64` actually calls); 3 grade-format converters | Med | assignment-sync spec |
+| D13 | **Client AI-request construction** | **NONE — biggest opportunity** | `getFunctions(app,'us-central1')` copied in **48 files**; `withTimeout`+`messageFromError`+`{ok,data}`-envelope re-authored in 11 files; SSE reader duplicated (×2); ~10 near-identical `generate*` wrappers in `teacherTools.js` | Med | teacherTools/aiAssistant tests |
+| D14 | **Date formatting** | **NONE global** (feature-local `notes/lib/format.js`, `storageStatsCore.js`) | ~54 inline `toLocaleDateString`; 3 separate "N ago" impls | Low | add `utils/dateFormat.js` |
+| D15 | **Loading spinners** | **NONE generic** | ~53 inline `animate-spin rounded-full border-2…` across 35 files | Low | visual |
+| D16 | **Error reporting** | `utils/clientErrorReporting.reportClientError` | bypassed by inline `console.warn`/`toast.error` (clearest: `NotificationContext` 5 blocks) | Low | client-errors test |
+| D17 | **Toasts/notifications** | `components/ui/Toast.useToast` | healthy — `NotificationContext` is a complementary durable feed; only leftover `alert()` is legacy | Low | — |
+| D18 | **Mobile breakpoints** | **NONE** (a ready `useIsMobile` is trapped in `zedexams-settings:101`) | inline `window.innerWidth`/`matchMedia` in `statusBarManager`, `AttendanceWorkspace:45`, `AdminLayout`; `prefers-reduced-motion` matchMedia duplicated ~8× | Low | — |
+
+## Highest-priority consolidations
+
+1. **D13 — client AI gateway** (48-file `getFunctions` + 11-file wrapper): a single `callFn(name, payload, opts)` module removes the most copy-paste and centralises timeout/error/SSE handling.
+2. **D1/D2 — curriculum lists** (see [`06`](./06-curriculum-architecture.md)): highest correctness leverage; also fixes drift bugs.
+3. **D5/D6 — path constants** (`config/collections.js` + storage-path helpers): removes ~110 literal call sites and typo risk.
+4. **D8/D10 — subscription + draft consolidation:** collapse the triplicated entitlement logic and migrate the two legacy draft systems onto `draftCore`.
+5. **D7 — shared export engine** (see [`24`](./24-recommended-target-architecture.md)).
+
+Each row is a candidate, not a mandate — migrate incrementally behind the tests listed. See [`24-recommended-target-architecture.md`](./24-recommended-target-architecture.md).
