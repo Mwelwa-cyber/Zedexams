@@ -47,16 +47,52 @@ function unverifiedError() {
   );
 }
 
+function suspendedError() {
+  // details.reason lets the client show the account-suspended screen instead
+  // of a generic permission error (and stop retrying).
+  return new HttpsError(
+    "permission-denied",
+    "Your account has been suspended. Please contact support.",
+    { reason: "account-suspended" },
+  );
+}
+
+// Backend suspension enforcement (P0). The canonical lifecycle field is
+// users/{uid}.status ('active'|'suspended'|'deleted'), written only by the
+// admin adminSetUserStatus Cloud Function. Absence == active (legacy accounts
+// predate the field). adminSetUserStatus revokes refresh tokens on suspend,
+// but the already-issued ID token stays valid ~1h, so this status check — not
+// token revocation — is what actually blocks a suspended caller mid-session.
+//
+// Fails OPEN on a transient read error: a moderation check must never lock the
+// whole platform out during a Firestore blip. Revoked refresh tokens still
+// bound the exposure window and the next successful call re-checks.
+async function assertActiveAccount(uid) {
+  try {
+    const snap = await admin.firestore().doc(`users/${uid}`).get();
+    const status = snap.exists ? snap.data()?.status : null;
+    if (status === "suspended" || status === "deleted") {
+      throw suspendedError();
+    }
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+    console.warn("[authGuard] status lookup failed:", err?.message || err);
+  }
+}
+
 // Callable entry guard. Replaces the bare `if (!request.auth) throw` line.
+// Verifies sign-in + email (or grace) AND that the account is not suspended.
 // Returns the caller's uid.
 async function assertVerifiedAuth(request, message = "Please sign in first.") {
   if (!request.auth?.uid) {
     throw new HttpsError("unauthenticated", message);
   }
   if (tokenNeedsVerification(request.auth.token)) {
-    if (await isWithinGrace(request.auth.uid)) return request.auth.uid;
-    throw unverifiedError();
+    if (!(await isWithinGrace(request.auth.uid))) {
+      throw unverifiedError();
+    }
   }
+  await assertActiveAccount(request.auth.uid);
   return request.auth.uid;
 }
 
@@ -64,14 +100,17 @@ async function assertVerifiedAuth(request, message = "Please sign in first.") {
 // result (which carries email/email_verified directly).
 async function assertDecodedVerified(decoded) {
   if (tokenNeedsVerification(decoded)) {
-    if (await isWithinGrace(decoded.uid)) return decoded;
-    throw unverifiedError();
+    if (!(await isWithinGrace(decoded.uid))) {
+      throw unverifiedError();
+    }
   }
+  await assertActiveAccount(decoded.uid);
   return decoded;
 }
 
 module.exports = {
   assertVerifiedAuth,
   assertDecodedVerified,
+  assertActiveAccount,
   tokenNeedsVerification,
 };

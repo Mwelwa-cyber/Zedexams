@@ -58,6 +58,10 @@ const ADMIN = 'admin_user'
 const UNVERIFIED_LEARNER = 'unverified_learner'
 const UNVERIFIED_TEACHER = 'unverified_teacher'
 const GRACE_LEARNER = 'grace_learner'
+// P0 — premium entitlement + suspended-account fixtures.
+const PREMIUM_LEARNER = 'premium_learner'
+const SUSPENDED_LEARNER = 'suspended_learner'
+const SUSPENDED_TEACHER = 'suspended_teacher'
 
 // storage.rules now requires the email_verified token claim everywhere
 // (isVerified()), so authed contexts must mint it — a claimless token reads
@@ -154,6 +158,18 @@ async function main() {
       grade: '5',
       verificationGraceUntil: new Date(Date.now() + 24 * 60 * 60 * 1000),
     })
+    // P0 — premium entitlement + suspension fixtures. SUSPENDED_LEARNER is
+    // premium AND suspended, proving callerActive() blocks an entitled user.
+    await setDoc(doc(db, 'users', PREMIUM_LEARNER), {
+      role: 'learner', grade: '5', premium: true, subscriptionStatus: 'active',
+      plan: 'premium', subscriptionExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    })
+    await setDoc(doc(db, 'users', SUSPENDED_LEARNER), {
+      role: 'learner', grade: '5', premium: true,
+      subscriptionExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      status: 'suspended',
+    })
+    await setDoc(doc(db, 'users', SUSPENDED_TEACHER), { role: 'teacher', status: 'suspended' })
   })
 
   const learnerAStorage = testEnv.authenticatedContext(LEARNER_A, verifiedToken(LEARNER_A)).storage()
@@ -165,6 +181,9 @@ async function main() {
   const unverifiedStorage = testEnv.authenticatedContext(UNVERIFIED_LEARNER, unverifiedToken(UNVERIFIED_LEARNER)).storage()
   const unverifiedTeacherStorage = testEnv.authenticatedContext(UNVERIFIED_TEACHER, unverifiedToken(UNVERIFIED_TEACHER)).storage()
   const graceStorage = testEnv.authenticatedContext(GRACE_LEARNER, unverifiedToken(GRACE_LEARNER)).storage()
+  const premiumLearnerStorage = testEnv.authenticatedContext(PREMIUM_LEARNER, verifiedToken(PREMIUM_LEARNER)).storage()
+  const suspendedLearnerStorage = testEnv.authenticatedContext(SUSPENDED_LEARNER, verifiedToken(SUSPENDED_LEARNER)).storage()
+  const suspendedTeacherStorage = testEnv.authenticatedContext(SUSPENDED_TEACHER, verifiedToken(SUSPENDED_TEACHER)).storage()
 
   // Pre-seed a few read fixtures via security-rules-disabled storage so
   // the read tests have something to fetch. The library exposes a
@@ -226,12 +245,36 @@ async function main() {
   // ── /papers/{ownerUid}/ — per-teacher past papers ─────────────
   section('papers/{ownerUid}/ — per-teacher past papers')
 
-  await test('any authed user can read papers (learners study from them)', async () => {
-    await assertSucceeds(getBytes(ref(learnerAStorage, `papers/${TEACHER_A}/seed.pdf`)))
+  await test('free learner CANNOT read premium past-paper PDFs (P0 entitlement gate)', async () => {
+    await assertFails(getBytes(ref(learnerAStorage, `papers/${TEACHER_A}/seed.pdf`)))
+  })
+
+  await test('entitled learner CAN read past-paper PDFs', async () => {
+    await assertSucceeds(getBytes(ref(premiumLearnerStorage, `papers/${TEACHER_A}/seed.pdf`)))
+  })
+
+  await test('teacher content manager CAN read past-paper PDFs', async () => {
+    await assertSucceeds(getBytes(ref(teacherAStorage, `papers/${TEACHER_A}/seed.pdf`)))
+  })
+
+  await test('admin CAN read past-paper PDFs', async () => {
+    await assertSucceeds(getBytes(ref(adminStorage, `papers/${TEACHER_A}/seed.pdf`)))
+  })
+
+  await test('suspended (but premium) learner CANNOT read past-paper PDFs (P0 suspension gate)', async () => {
+    await assertFails(getBytes(ref(suspendedLearnerStorage, `papers/${TEACHER_A}/seed.pdf`)))
   })
 
   await test('guest CANNOT read papers (auth-gated)', async () => {
     await assertFails(getBytes(ref(guestStorage, `papers/${TEACHER_A}/seed.pdf`)))
+  })
+
+  await test('suspended teacher CANNOT upload to own /papers/ path (P0 suspension gate)', async () => {
+    await assertFails(uploadBytes(
+      ref(suspendedTeacherStorage, `papers/${SUSPENDED_TEACHER}/exam.pdf`),
+      PDF_BYTES,
+      { contentType: 'application/pdf' },
+    ))
   })
 
   await test('teacher can upload a PDF under own /papers/ path', async () => {
@@ -649,8 +692,12 @@ async function main() {
     ))
   })
 
-  await test('grace-window user CAN still read papers (migration grace honoured)', async () => {
-    await assertSucceeds(getBytes(ref(graceStorage, `papers/${TEACHER_A}/seed.pdf`)))
+  await test('grace-window user CAN still read non-premium assets (migration grace honoured)', async () => {
+    // papers/ now require a paid entitlement (P0), which a grace user — free by
+    // default — does not have; grace only satisfies the verification gate, so
+    // this proves grace == verified access against a purely isVerified()-gated
+    // path (quiz images) rather than the entitlement-gated papers path.
+    await assertSucceeds(getBytes(ref(graceStorage, `quiz-images/${TEACHER_A}/seed.png`)))
   })
 
   // ── teardown ──────────────────────────────────────────────────

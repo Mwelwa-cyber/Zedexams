@@ -53,6 +53,12 @@ const ADMIN = 'admin_user'
 const UNVERIFIED_LEARNER = 'unverified_learner'
 const GRACE_LEARNER = 'grace_learner'
 const UNVERIFIED_TEACHER = 'unverified_teacher'
+// P0 — premium-entitlement + suspended-account fixtures.
+const PREMIUM_LEARNER = 'premium_learner'
+const EXPIRED_LEARNER = 'expired_learner'
+const LIFETIME_LEARNER = 'lifetime_learner'
+const SUSPENDED_LEARNER = 'suspended_learner'
+const SUSPENDED_TEACHER = 'suspended_teacher'
 
 // Every rule beyond the signup surface now requires the email_verified token
 // claim (firestore.rules isVerified()), so authed contexts must mint it —
@@ -124,6 +130,29 @@ async function main() {
     })
     await setDoc(doc(db, 'users', UNVERIFIED_TEACHER), { role: 'teacher' })
 
+    // P0 — premium entitlement + suspension fixtures. FUTURE/PAST drive the
+    // read-time expiry check in hasValidEntitlement(); status drives the
+    // notSuspended() gate folded into isVerified().
+    const FUTURE = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    const PAST = new Date(Date.now() - 24 * 60 * 60 * 1000)
+    await setDoc(doc(db, 'users', PREMIUM_LEARNER), {
+      role: 'learner', grade: '5', premium: true, isPremium: true,
+      subscriptionStatus: 'active', plan: 'premium', subscriptionExpiry: FUTURE,
+    })
+    await setDoc(doc(db, 'users', EXPIRED_LEARNER), {
+      role: 'learner', grade: '5', premium: true, subscriptionStatus: 'active',
+      plan: 'premium', subscriptionExpiry: PAST,
+    })
+    await setDoc(doc(db, 'users', LIFETIME_LEARNER), {
+      role: 'learner', grade: '5', premium: true, subscriptionLifetime: true,
+    })
+    await setDoc(doc(db, 'users', SUSPENDED_LEARNER), {
+      role: 'learner', grade: '5', status: 'suspended', suspendedAt: new Date(),
+    })
+    await setDoc(doc(db, 'users', SUSPENDED_TEACHER), {
+      role: 'teacher', status: 'suspended',
+    })
+
     // Quizzes used by the read / answer-key tests.
     await setDoc(doc(db, 'quizzes', 'published_practice'), {
       title: 'Practice quiz',
@@ -155,6 +184,26 @@ async function main() {
     await setDoc(
       doc(db, 'quizzes', 'daily_exam_quiz', 'questions', 'q1'),
       { type: 'mcq', text: 'Daily Q1?', options: ['a', 'b'], correctAnswer: 0, marks: 1, order: 0 },
+    )
+    // P0 — a free DEMO practice quiz (isDemo) whose questions stay readable to
+    // any verified learner, unlike the premium `published_practice` above.
+    await setDoc(doc(db, 'quizzes', 'demo_quiz'), {
+      title: 'Demo quiz', createdBy: TEACHER_A, isPublished: true,
+      grade: '5', subject: 'English', quizType: 'practice', isDemo: true,
+    })
+    await setDoc(
+      doc(db, 'quizzes', 'demo_quiz', 'questions', 'q1'),
+      { type: 'mcq', text: 'Demo Q1?', options: ['a', 'b'], correctAnswer: 0, marks: 1, order: 0 },
+    )
+    // P0 — a fully-public past-paper preview quiz (publicAccess) whose
+    // questions are readable even anonymously (marketing preview must survive).
+    await setDoc(doc(db, 'quizzes', 'public_paper_quiz'), {
+      title: 'Past paper preview', createdBy: ADMIN, isPublished: true,
+      publicAccess: true, grade: '7', subject: 'Mathematics', quizType: 'practice',
+    })
+    await setDoc(
+      doc(db, 'quizzes', 'public_paper_quiz', 'questions', 'q1'),
+      { type: 'mcq', text: 'Public Q1?', options: ['a', 'b'], correctAnswer: 0, marks: 1, order: 0 },
     )
 
     // Attempts / results / generatedContent fixtures.
@@ -282,6 +331,11 @@ async function main() {
   const unverified = testEnv.authenticatedContext(UNVERIFIED_LEARNER, unverifiedToken(UNVERIFIED_LEARNER)).firestore()
   const graceLearner = testEnv.authenticatedContext(GRACE_LEARNER, unverifiedToken(GRACE_LEARNER)).firestore()
   const unverifiedTeacher = testEnv.authenticatedContext(UNVERIFIED_TEACHER, unverifiedToken(UNVERIFIED_TEACHER)).firestore()
+  const premiumLearner = testEnv.authenticatedContext(PREMIUM_LEARNER, verifiedToken(PREMIUM_LEARNER)).firestore()
+  const expiredLearner = testEnv.authenticatedContext(EXPIRED_LEARNER, verifiedToken(EXPIRED_LEARNER)).firestore()
+  const lifetimeLearner = testEnv.authenticatedContext(LIFETIME_LEARNER, verifiedToken(LIFETIME_LEARNER)).firestore()
+  const suspendedLearner = testEnv.authenticatedContext(SUSPENDED_LEARNER, verifiedToken(SUSPENDED_LEARNER)).firestore()
+  const suspendedTeacher = testEnv.authenticatedContext(SUSPENDED_TEACHER, verifiedToken(SUSPENDED_TEACHER)).firestore()
 
   // ── users/{uid} ──────────────────────────────────────────────
   section('users/{uid} — profile + role + subscription pinning')
@@ -407,17 +461,87 @@ async function main() {
     }))
   })
 
-  // ── quizzes/{id}/questions — daily-exam answer-key leak ─────
-  section('quiz questions — daily exam answer-key leak guard')
+  // ── quizzes/{id}/questions — premium gate + daily-exam leak ─
+  section('quiz questions — premium entitlement gate (P0) + daily exam leak')
 
-  await test('learner CAN read a published practice quiz’s questions', async () => {
-    await assertSucceeds(getDoc(doc(learnerA, 'quizzes', 'published_practice', 'questions', 'q1')))
+  await test('free learner CANNOT read a premium (non-demo) published quiz’s questions (P0)', async () => {
+    // The answer key + explanations live in the questions; a free learner
+    // could previously scrape the full premium quiz body from Firestore.
+    await assertFails(getDoc(doc(learnerA, 'quizzes', 'published_practice', 'questions', 'q1')))
+  })
+
+  await test('free learner CAN read a DEMO quiz’s questions (free preview preserved)', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'quizzes', 'demo_quiz', 'questions', 'q1')))
+  })
+
+  await test('entitled learner CAN read a premium quiz’s questions', async () => {
+    await assertSucceeds(getDoc(doc(premiumLearner, 'quizzes', 'published_practice', 'questions', 'q1')))
+  })
+
+  await test('lifetime learner CAN read a premium quiz’s questions', async () => {
+    await assertSucceeds(getDoc(doc(lifetimeLearner, 'quizzes', 'published_practice', 'questions', 'q1')))
+  })
+
+  await test('expired learner CANNOT read a premium quiz’s questions (read-time expiry)', async () => {
+    await assertFails(getDoc(doc(expiredLearner, 'quizzes', 'published_practice', 'questions', 'q1')))
+  })
+
+  await test('quiz owner (teacher) CAN read own published quiz’s questions', async () => {
+    await assertSucceeds(getDoc(doc(teacherA, 'quizzes', 'published_practice', 'questions', 'q1')))
+  })
+
+  await test('admin CAN read any published quiz’s questions', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'quizzes', 'published_practice', 'questions', 'q1')))
+  })
+
+  await test('anonymous CAN read a publicAccess past-paper quiz’s questions (preview preserved)', async () => {
+    await assertSucceeds(getDoc(doc(guest, 'quizzes', 'public_paper_quiz', 'questions', 'q1')))
+  })
+
+  await test('quiz METADATA doc stays readable to a free learner (locked-card preview, list-safe)', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'quizzes', 'published_practice')))
   })
 
   await test('learner CANNOT read a daily_exam quiz’s questions (server-served only)', async () => {
     // Regression guard: scraping correctAnswer from daily_exam questions
     // before submission was the original answer-key leak.
     await assertFails(getDoc(doc(learnerA, 'quizzes', 'daily_exam_quiz', 'questions', 'q1')))
+  })
+
+  // ── suspended-account enforcement (P0) ──────────────────────
+  section('suspended accounts — backend rules enforcement')
+
+  await test('active learner CAN read a published quiz (not over-blocking legacy/active users)', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'quizzes', 'published_practice')))
+  })
+
+  await test('suspended learner CANNOT read a published quiz', async () => {
+    await assertFails(getDoc(doc(suspendedLearner, 'quizzes', 'published_practice')))
+  })
+
+  await test('suspended learner CANNOT read a demo quiz’s questions (isVerified now enforces status)', async () => {
+    await assertFails(getDoc(doc(suspendedLearner, 'quizzes', 'demo_quiz', 'questions', 'q1')))
+  })
+
+  await test('suspended learner CANNOT create a result', async () => {
+    await assertFails(addDoc(collection(suspendedLearner, 'results'), {
+      userId: SUSPENDED_LEARNER, quizId: 'demo_quiz', score: 1, percentage: 100,
+      grade: '5', subject: 'English', completedAt: serverTimestamp(),
+    }))
+  })
+
+  await test('suspended teacher CANNOT create a quiz', async () => {
+    await assertFails(addDoc(collection(suspendedTeacher, 'quizzes'), {
+      title: 'x', createdBy: SUSPENDED_TEACHER, isPublished: false, grade: '5', subject: 'English',
+    }))
+  })
+
+  await test('suspended learner CAN still read their own profile (suspension notice + sign-out path)', async () => {
+    await assertSucceeds(getDoc(doc(suspendedLearner, 'users', SUSPENDED_LEARNER)))
+  })
+
+  await test('suspended learner CANNOT clear their own status field', async () => {
+    await assertFails(updateDoc(doc(suspendedLearner, 'users', SUSPENDED_LEARNER), { status: 'active' }))
   })
 
   // ── quizzes/{id}/questions — every editor question type saves ─
