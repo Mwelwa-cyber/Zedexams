@@ -12,10 +12,12 @@
  *       submittedAt/By?, lockedAt/By?, reopenedAt/By?, reopenReason?, ... }
  *   classRegisters/{classId}/attendanceAudit/{autoId}  append-only change trail
  *
- * Day saves go through a TRANSACTION with a per-learner three-way merge
- * (attendanceDayCore.mergeDayRecords) + a version counter, so two teachers
- * marking the same day never silently clobber each other. Decisions live in
- * the pure core modules; this file is only I/O.
+ * HARDENED 2026-07: day saves go through the saveClassAttendance CALLABLE
+ * (functions/attendance/) — Firestore rules deny direct client writes to the
+ * attendance subcollection, so the server is the only authority on term
+ * resolution, locking, eligibility, statuses, counts and versioning. This
+ * file keeps reads/subscriptions, term settings, lifecycle moves and the
+ * (lifecycle-only) client audit writes.
  */
 
 import {
@@ -26,16 +28,18 @@ import {
   limit as fsLimit,
   onSnapshot,
   query,
-  runTransaction,
   serverTimestamp,
   setDoc,
   where,
   writeBatch,
 } from 'firebase/firestore'
-import { db } from '../firebase/config'
-import { computeDailyCounts } from './attendanceCalculator'
-import { mergeDayRecords, plainRecords, sanitizeNote } from './attendanceDayCore'
+import { getFunctions, httpsCallable } from 'firebase/functions'
+import app, { db } from '../firebase/config'
+import { sanitizeNote } from './attendanceDayCore'
 import { REGISTER_STATES } from './attendanceConstants'
+
+const fns = getFunctions(app, 'us-central1')
+const saveClassAttendanceCallable = httpsCallable(fns, 'saveClassAttendance')
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -86,69 +90,70 @@ export function subscribeTermAttendance(classId, termId, onData, onError) {
   )
 }
 
+/** One-shot fetch of a single day (used to rebase after STALE_VERSION). */
+export async function getAttendanceDay(classId, date) {
+  const snap = await getDoc(dayRef(classId, date))
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null
+}
+
+// Structured error codes returned by the saveClassAttendance callable.
+// Every UI surface maps codes → copy through ATTENDANCE_ERROR_MESSAGES.
+export const ATTENDANCE_ERROR_MESSAGES = {
+  TERM_LOCKED: 'This term’s register is locked — ask an administrator to reopen it. Your changes are kept until then.',
+  TERM_MISMATCH: 'The selected term doesn’t match this date. Re-select the term and try again.',
+  DATE_OUTSIDE_TERM: 'This date falls outside the term, so it can’t be marked.',
+  NON_TEACHING_DAY: 'This date isn’t a teaching day (weekend, holiday or closure).',
+  FUTURE_DATE: 'This date is in the future — the register opens on the day.',
+  TEACHER_NOT_ASSIGNED: 'You’re not assigned to this class, so the server refused the change.',
+  INVALID_ATTENDANCE_STATUS: 'One of the marks had an invalid status and was refused.',
+  LEARNER_NOT_IN_CLASS: 'A learner in this change is not on the class roster.',
+  LEARNER_NOT_ELIGIBLE: 'A learner in this change was not enrolled on this date.',
+  STALE_VERSION: 'Someone else updated this day first — reviewing their changes…',
+  INVALID_ARGUMENT: 'The change couldn’t be understood by the server.',
+  NETWORK: 'No connection — the change is saved on this device and will sync when you’re back online.',
+}
+
 /**
- * Save one day's marks. `localChanges` holds only the learners this client
- * touched ({ [learnerId]: { status, note } }); `baseRecords` is the server
- * state those changes were made against. The transaction re-reads the doc,
- * merges per learner (an explicit local tap wins its own row, everything the
- * other editor did is preserved), recomputes counts, and bumps `version`.
- *
- * Returns { records, version, conflicts } — conflicts is the list of learner
- * ids where another editor changed the same row since `baseRecords`.
+ * Normalise a callable failure to { code, details, offline }. Firebase
+ * transport errors (offline, timeouts) become code 'NETWORK' so the outbox
+ * keeps them queued instead of surfacing them as rejections.
  */
-export async function saveAttendanceDay({
-  classId,
-  teacherUid,
-  date,
-  termMeta, // { term, year, termId, classification }
-  baseRecords,
-  localChanges,
-}) {
+export function normalizeAttendanceError(err) {
+  const details = err?.details && typeof err.details === 'object' ? err.details : {}
+  const code = typeof details.code === 'string' && ATTENDANCE_ERROR_MESSAGES[details.code]
+    ? details.code
+    : (typeof err?.message === 'string' && ATTENDANCE_ERROR_MESSAGES[err.message] ? err.message : null)
+  if (code) return { code, details, offline: false }
+  // functions/unavailable, functions/deadline-exceeded, fetch failures…
+  return { code: 'NETWORK', details: { raw: String(err?.code || err?.message || err) }, offline: true }
+}
+
+/**
+ * Submit one day's changes to the AUTHORITATIVE server mutation
+ * (functions/attendance/saveClassAttendance). The server resolves the term
+ * from the date, verifies the submitted termId, checks the lock, teacher
+ * assignment, per-learner eligibility and statuses, recomputes counts, and
+ * rejects stale versions — nothing here is trusted from this client.
+ *
+ * `records` holds ONLY the learners this client changed
+ * ({ [learnerId]: { status, note } }); `baseVersion` is the day-doc version
+ * those changes were made against (0 when unmarked).
+ *
+ * Resolves { version, counts, termId, changed }; rejects with the raw
+ * callable error (pass it to normalizeAttendanceError).
+ */
+export async function submitAttendanceDay({ classId, date, termId, baseVersion, records, reason, source }) {
   if (!ISO_DATE_RE.test(date)) throw new Error(`Invalid attendance date: ${date}`)
-  const ref = dayRef(classId, date)
-  return runTransaction(db, async (tx) => {
-    const snap = await tx.get(ref)
-    const existing = snap.exists() ? snap.data() : null
-    const serverPlain = plainRecords(existing?.records)
-    const { merged, conflicts } = mergeDayRecords({
-      base: baseRecords || {},
-      server: serverPlain,
-      local: localChanges || {},
-    })
-
-    // Re-attach per-record metadata: keep the other editor's stamps, restamp
-    // only the rows this save touches.
-    const records = {}
-    for (const [learnerId, record] of Object.entries(merged)) {
-      const prior = existing?.records?.[learnerId]
-      const touched = Object.prototype.hasOwnProperty.call(localChanges || {}, learnerId)
-      records[learnerId] = {
-        status: record.status,
-        note: sanitizeNote(record.note),
-        updatedBy: touched || !prior?.updatedBy ? teacherUid : prior.updatedBy,
-        updatedAt: touched || !prior?.updatedAt ? serverTimestamp() : prior.updatedAt,
-      }
-    }
-
-    const version = (Number(existing?.version) || 0) + 1
-    tx.set(ref, {
-      classId,
-      teacherUid: existing?.teacherUid || teacherUid,
-      date,
-      term: termMeta?.term ?? existing?.term ?? '',
-      year: termMeta?.year ?? existing?.year ?? null,
-      termId: termMeta?.termId ?? existing?.termId ?? '',
-      classification: termMeta?.classification ?? existing?.classification ?? 'teaching_day',
-      records,
-      counts: computeDailyCounts(merged),
-      markedBy: existing?.markedBy || teacherUid,
-      markedAt: existing?.markedAt || serverTimestamp(),
-      updatedBy: teacherUid,
-      updatedAt: serverTimestamp(),
-      version,
-    })
-    return { records: merged, version, conflicts }
+  const response = await saveClassAttendanceCallable({
+    classId,
+    date,
+    termId,
+    baseVersion: Number.isInteger(baseVersion) ? baseVersion : 0,
+    records,
+    reason: reason || '',
+    source: source || 'web',
   })
+  return response.data
 }
 
 // ── term settings + lifecycle ────────────────────────────────────

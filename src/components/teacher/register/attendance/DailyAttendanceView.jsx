@@ -10,6 +10,7 @@
 import { useMemo, useState } from 'react'
 import AttendanceLearnerRow from './AttendanceLearnerRow'
 import { markableLearnersOn } from '../../../../utils/attendanceDayCore'
+import { ATTENDANCE_ERROR_MESSAGES } from '../../../../utils/attendanceService'
 import { ATTENDANCE_STATUS_ORDER, ATTENDANCE_STATUSES } from '../../../../utils/attendanceConstants'
 import {
   formatDateLong,
@@ -28,13 +29,16 @@ const BLOCK_REASON_COPY = {
   no_day: 'Pick a date inside the term to mark the register.',
 }
 
+// Outbox sync states — an invalid write can never masquerade as saved.
 const SAVE_STATE_COPY = {
   idle: null,
-  dirty: { label: 'Saving…', tone: 'theme-text-muted' },
-  saving: { label: 'Saving…', tone: 'theme-text-muted' },
-  saved: { label: 'All changes saved', tone: 'text-emerald-600' },
+  dirty: { label: 'Saved on this device — syncing…', tone: 'theme-text-muted' },
+  saving: { label: 'Syncing…', tone: 'theme-text-muted' },
+  saved: { label: 'All changes synced', tone: 'text-emerald-600' },
+  offline: { label: 'Offline — saved locally, will sync when back online', tone: 'text-amber-600' },
+  rejected: { label: 'Some changes were rejected by the server', tone: 'text-red-600' },
+  conflict: { label: 'Conflict detected — review below', tone: 'text-amber-600' },
   error: { label: 'Save failed', tone: 'text-red-600' },
-  offline: { label: 'Offline — will retry', tone: 'text-amber-600' },
 }
 
 export default function DailyAttendanceView({ registerHook, canMark }) {
@@ -42,9 +46,11 @@ export default function DailyAttendanceView({ registerHook, canMark }) {
     roster, termInfo, days, todayIso,
     selectedDate, setSelectedDate, displayedRecords,
     setStatus, setNote, markAllPresent, undoLast, canUndo,
-    saveState, pendingCount, pendingLearnerIds, retry, saveNow, hydrated,
+    saveState, pendingCount, pendingLearnerIds, syncIssues, retry, saveNow, hydrated,
     remoteEditNotice, dismissRemoteEditNotice,
+    resolveConflict, retryRejected, discardRejected,
   } = registerHook
+  const nameOf = (learnerId) => roster.find((l) => l.id === learnerId)?.fullName || learnerId
   const toast = useToast()
   const [search, setSearch] = useState('')
   const [correctionReason, setCorrectionReason] = useState('')
@@ -119,6 +125,33 @@ export default function DailyAttendanceView({ registerHook, canMark }) {
           })}
         </div>
       )}
+
+      {/* server rejections + conflicts: always visible, never silently dropped */}
+      {(syncIssues || []).map((issue) => (
+        <div key={`${issue.kind}-${issue.date}`} role="alert"
+          className={`rounded-radius-md border px-3 py-2 text-xs space-y-1.5 ${
+            issue.kind === 'conflict' ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-red-300 bg-red-50 text-red-800'
+          }`}>
+          <p className="font-bold">
+            {issue.kind === 'conflict'
+              ? `${formatDateLong(issue.date)}: another teacher also changed ${issue.learnerIds.map(nameOf).join(', ')}.`
+              : `${formatDateLong(issue.date)}: ${ATTENDANCE_ERROR_MESSAGES[issue.code] || 'The server rejected this change.'}`}
+          </p>
+          <div className="flex gap-2">
+            {issue.kind === 'conflict' ? (
+              <>
+                <button type="button" className="font-black underline" onClick={() => resolveConflict(issue.date, 'mine')}>Keep my marks</button>
+                <button type="button" className="font-black underline" onClick={() => resolveConflict(issue.date, 'theirs')}>Keep theirs</button>
+              </>
+            ) : (
+              <>
+                <button type="button" className="font-black underline" onClick={() => retryRejected(issue.date)}>Retry</button>
+                <button type="button" className="font-black underline" onClick={() => discardRejected(issue.date)}>Discard my changes</button>
+              </>
+            )}
+          </div>
+        </div>
+      ))}
 
       {remoteEditNotice && (
         <div role="status" className="rounded-radius-md border border-amber-300 bg-amber-50 text-amber-800 text-xs font-bold px-3 py-2 flex justify-between gap-2">
@@ -204,10 +237,10 @@ export default function DailyAttendanceView({ registerHook, canMark }) {
         }} disabled={!canUndo}>
           ↺ Undo last change
         </Button>
-        {(saveState === 'error' || saveState === 'offline') ? (
+        {(saveState === 'error' || saveState === 'offline' || saveState === 'rejected') ? (
           <Button type="button" size="sm" onClick={retry}>Retry save</Button>
         ) : (
-          <Button type="button" size="sm" variant="secondary" onClick={() => saveNow(markOpts)} disabled={pendingCount === 0}>
+          <Button type="button" size="sm" variant="secondary" onClick={() => saveNow()} disabled={pendingCount === 0}>
             Save now
           </Button>
         )}

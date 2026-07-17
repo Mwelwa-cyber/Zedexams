@@ -170,33 +170,40 @@ export default function AttendanceGridView({ registerHook, canEdit, policy }) {
         </span>
       </div>
 
-      <div className="overflow-x-auto border theme-border rounded-radius-md" onKeyDown={handleKeyDown}>
+      {/* Both scroll axes live INSIDE this container so `position: sticky`
+          pins the date headers vertically AND the learner columns
+          horizontally. Every sticky cell carries an opaque theme-card
+          background; the header/identity intersection sits on the highest
+          layer so no cell content shows through while scrolling. The print
+          documents are separate HTML (attendanceExportService) and never
+          inherit any of this positioning. */}
+      <div className="overflow-auto max-h-[75vh] border theme-border rounded-radius-md" onKeyDown={handleKeyDown}>
         <table className="border-collapse text-left w-max min-w-full">
-          <thead className="sticky top-0 z-20">
-            <tr className="theme-card border-b theme-border">
-              <th className="sticky left-0 z-30 theme-card px-2 py-1.5 text-xs theme-text-muted">No.</th>
-              <th className="sticky left-8 z-30 theme-card px-2 py-1.5 text-xs theme-text-muted">Adm</th>
-              <th className="sticky left-28 z-30 theme-card px-2 py-1.5 text-xs theme-text-muted">Learner</th>
+          <thead>
+            <tr className="border-b theme-border">
+              <th className="sticky top-0 left-0 z-40 theme-card h-8 px-2 py-1.5 text-xs theme-text-muted">No.</th>
+              <th className="sticky top-0 left-8 z-40 theme-card h-8 px-2 py-1.5 text-xs theme-text-muted">Adm</th>
+              <th className="sticky top-0 left-28 z-40 theme-card h-8 px-2 py-1.5 text-xs theme-text-muted">Learner</th>
               {weeks.map((week) => (
                 <th key={week.key} colSpan={week.days.length}
-                  className="px-1 py-1.5 text-center text-[11px] font-black theme-text-muted border-l theme-border whitespace-nowrap">
+                  className="sticky top-0 z-30 theme-card h-8 px-1 py-1.5 text-center text-[11px] font-black theme-text-muted border-l theme-border whitespace-nowrap">
                   {week.label} ({week.monthLabel})
                 </th>
               ))}
-              <th colSpan={7} className="px-2 py-1.5 text-center text-[11px] font-black theme-text-muted border-l theme-border">Term totals</th>
+              <th colSpan={7} className="sticky top-0 z-30 theme-card h-8 px-2 py-1.5 text-center text-[11px] font-black theme-text-muted border-l theme-border">Term totals</th>
             </tr>
-            <tr className="theme-card border-b theme-border">
-              <th className="sticky left-0 z-30 theme-card" aria-hidden="true" />
-              <th className="sticky left-8 z-30 theme-card" aria-hidden="true" />
-              <th className="sticky left-28 z-30 theme-card" aria-hidden="true" />
+            <tr className="border-b theme-border">
+              <th className="sticky top-8 left-0 z-40 theme-card" aria-hidden="true" />
+              <th className="sticky top-8 left-8 z-40 theme-card" aria-hidden="true" />
+              <th className="sticky top-8 left-28 z-40 theme-card" aria-hidden="true" />
               {weeks.map((week) => week.days.map((day, di) => (
-                <th key={day.date} title={day.holidayName || undefined}
-                  className={`px-0 py-1 text-center text-[10px] font-black theme-text-muted ${di === 0 ? 'border-l theme-border' : ''} ${day.isToday ? 'theme-accent-text' : ''}`}>
+                <th key={day.date} title={day.holidayName || day.closureLabel || undefined}
+                  className={`sticky top-8 z-30 theme-card px-0 py-1 text-center text-[10px] font-black theme-text-muted ${di === 0 ? 'border-l theme-border' : ''} ${day.isToday ? 'theme-accent-text' : ''}`}>
                   {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][day.weekday]}<br />{Number(day.date.slice(8, 10))}
                 </th>
               )))}
               {['P', 'A', 'S', 'L', 'E', 'Elig', '%'].map((h, i) => (
-                <th key={h} className={`px-2 py-1 text-center text-[10px] font-black theme-text-muted ${i === 0 ? 'border-l theme-border' : ''}`}>{h}</th>
+                <th key={h} className={`sticky top-8 z-30 theme-card px-2 py-1 text-center text-[10px] font-black theme-text-muted ${i === 0 ? 'border-l theme-border' : ''}`}>{h}</th>
               ))}
             </tr>
           </thead>
