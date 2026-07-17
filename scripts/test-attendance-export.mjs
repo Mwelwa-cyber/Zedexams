@@ -155,4 +155,9 @@ assert.equal(registerMatrixRows(emptyModel).length, 0);
   assert.ok(bytes < 64 * 1024, `day doc for 60 learners is ${bytes} bytes — must stay well under Firestore's limit`);
 }
 
+// ── print documents never inherit the grid's sticky positioning ─────────────
+for (const html of [registerHtml, summaryHtml, reportHtml]) {
+  assert.ok(!/position:\s*sticky|\bsticky\b/i.test(html), 'print HTML must not contain sticky positioning');
+}
+
 console.log('test-attendance-export: all assertions passed');

@@ -7,11 +7,19 @@
 
 import { useMemo, useState } from 'react'
 import { computeClassSummary, formatPercent } from '../../../../utils/attendanceCalculator'
-import { markableDays } from '../../../../utils/attendanceCalendarResolver'
+import { calendarMetaForTerm, markableDays } from '../../../../utils/attendanceCalendarResolver'
 import { saveAttendanceTermSettings } from '../../../../utils/attendanceService'
 import { DEFAULT_ATTENDANCE_POLICY } from '../../../../utils/attendanceConstants'
 import { useToast } from '../../../ui/Toast'
 import Button from '../../../ui/Button'
+import ConfirmDialog from '../../../ui/ConfirmDialog'
+
+const BREAK_MODES = [
+  { id: 'none', label: 'No mid-term break' },
+  { id: 'general', label: 'General school mid-term break' },
+  { id: 'ece', label: 'ECE-specific mid-term break (ECE classes only)' },
+  { id: 'custom', label: 'Custom break dates' },
+]
 
 function Stat({ label, value, tone = 'theme-text' }) {
   return (
@@ -23,7 +31,7 @@ function Stat({ label, value, tone = 'theme-text' }) {
 }
 
 export default function AttendanceSummaryPanel({ registerHook, policy, uid, canEdit }) {
-  const { roster, termInfo, termId, daysWithRecords, todayIso, termDoc } = registerHook
+  const { roster, termInfo, termId, daysWithRecords, todayIso, termDoc, termDayDocs, isEceClass } = registerHook
   const toast = useToast()
 
   const summary = useMemo(() => computeClassSummary({
@@ -58,6 +66,71 @@ export default function AttendanceSummaryPanel({ registerHook, policy, uid, canE
     } finally {
       setSavingThreshold(false)
     }
+  }
+
+  // ── mid-term break configuration (with retro-change guard) ──────
+  const breakConfig = termDoc?.midTermBreak || { mode: 'none' }
+  const [breakDraft, setBreakDraft] = useState({
+    mode: breakConfig.mode || 'none',
+    customBreakStart: breakConfig.customBreakStart || '',
+    customBreakEnd: breakConfig.customBreakEnd || '',
+  })
+  const [savingBreak, setSavingBreak] = useState(false)
+  const [breakConfirm, setBreakConfirm] = useState(null) // { affectedDates }
+
+  function breakWindowFor(draft) {
+    if (draft.mode === 'custom' && draft.customBreakStart && draft.customBreakEnd) {
+      return { start: draft.customBreakStart, end: draft.customBreakEnd }
+    }
+    if ((draft.mode === 'general' || (draft.mode === 'ece' && isEceClass)) && termInfo?.eceMidBreak) {
+      return termInfo.eceMidBreak
+    }
+    return null
+  }
+
+  async function persistBreak(draft) {
+    setSavingBreak(true)
+    try {
+      await saveAttendanceTermSettings(registerHook.classId, uid, {
+        termId,
+        term: termInfo?.termLabel,
+        year: termInfo?.year,
+      }, {
+        midTermBreak: {
+          mode: draft.mode,
+          customBreakStart: draft.mode === 'custom' ? draft.customBreakStart || null : null,
+          customBreakEnd: draft.mode === 'custom' ? draft.customBreakEnd || null : null,
+        },
+        calendarSource: calendarMetaForTerm(termInfo).source,
+        calendarDatasetId: calendarMetaForTerm(termInfo).datasetId,
+        calendarVersion: calendarMetaForTerm(termInfo).version,
+      })
+      toast.success('Mid-term break setting saved.')
+    } catch (err) {
+      toast.error(`Could not save: ${err.message || 'unexpected error'}`)
+    } finally {
+      setSavingBreak(false)
+      setBreakConfirm(null)
+    }
+  }
+
+  function handleSaveBreak() {
+    if (breakDraft.mode === 'custom' && (!breakDraft.customBreakStart || !breakDraft.customBreakEnd || breakDraft.customBreakStart > breakDraft.customBreakEnd)) {
+      toast.error('Enter a valid custom break range (start before end).')
+      return
+    }
+    // Retro guard: enabling a break over dates that already carry attendance
+    // requires an explicit confirmation — never a silent retroactive change.
+    const window = breakWindowFor(breakDraft)
+    if (window) {
+      const affected = (termDayDocs || []).filter((d) =>
+        d.date >= window.start && d.date <= window.end && Object.keys(d.records || {}).length > 0)
+      if (affected.length) {
+        setBreakConfirm({ affectedDates: affected.map((d) => d.date) })
+        return
+      }
+    }
+    persistBreak(breakDraft)
   }
 
   const t = summary.todayCounts
@@ -140,6 +213,41 @@ export default function AttendanceSummaryPanel({ registerHook, policy, uid, canE
         </div>
       </div>
 
+      {/* mid-term break config */}
+      <div className="theme-card border theme-border rounded-radius-md p-3 space-y-2">
+        <h3 className="theme-text font-black text-sm">Mid-term break</h3>
+        <p className="theme-text-muted text-xs">
+          {calendarMetaForTerm(termInfo).label}
+          {termInfo?.eceMidBreak ? ` · preset break window ${termInfo.eceMidBreak.start} → ${termInfo.eceMidBreak.end}` : ''}
+          {` · this class is ${isEceClass ? 'an ECE class' : 'not an ECE class'}`}
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <select value={breakDraft.mode} disabled={!canEdit}
+            aria-label="Mid-term break mode"
+            onChange={(e) => setBreakDraft((d) => ({ ...d, mode: e.target.value }))}
+            className="rounded-radius-md border theme-border theme-card theme-text px-2 py-1.5 text-sm font-bold">
+            {BREAK_MODES.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+          </select>
+          {breakDraft.mode === 'custom' && (
+            <>
+              <input type="date" value={breakDraft.customBreakStart} disabled={!canEdit} aria-label="Break start"
+                onChange={(e) => setBreakDraft((d) => ({ ...d, customBreakStart: e.target.value }))}
+                className="rounded-radius-md border theme-border theme-card theme-text px-2 py-1.5 text-sm" />
+              <span className="theme-text-muted text-sm">to</span>
+              <input type="date" value={breakDraft.customBreakEnd} disabled={!canEdit} aria-label="Break end"
+                onChange={(e) => setBreakDraft((d) => ({ ...d, customBreakEnd: e.target.value }))}
+                className="rounded-radius-md border theme-border theme-card theme-text px-2 py-1.5 text-sm" />
+            </>
+          )}
+          <Button type="button" size="sm" onClick={handleSaveBreak} loading={savingBreak} disabled={!canEdit}>
+            Save
+          </Button>
+        </div>
+        {breakDraft.mode === 'ece' && !isEceClass && (
+          <p className="theme-text-muted text-xs">This class is not ECE, so the ECE break will not exclude any of its days.</p>
+        )}
+      </div>
+
       {/* threshold config */}
       <div className="theme-card border theme-border rounded-radius-md p-3 flex flex-wrap items-center gap-2">
         <label htmlFor="att-threshold" className="theme-text-muted text-xs font-black uppercase tracking-wider">
@@ -153,6 +261,17 @@ export default function AttendanceSummaryPanel({ registerHook, policy, uid, canE
           Save
         </Button>
       </div>
+
+      <ConfirmDialog
+        open={Boolean(breakConfirm)}
+        title="Change the break over marked days?"
+        message={breakConfirm
+          ? `${breakConfirm.affectedDates.length} day${breakConfirm.affectedDates.length === 1 ? ' already has' : 's already have'} attendance records inside this break window (${breakConfirm.affectedDates.join(', ')}). The marks are kept, but those days become non-markable and drop out of eligible-day totals. Continue?`
+          : ''}
+        confirmLabel="Apply break"
+        onConfirm={() => persistBreak(breakDraft)}
+        onCancel={() => setBreakConfirm(null)}
+      />
     </div>
   )
 }

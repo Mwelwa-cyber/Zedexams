@@ -14,7 +14,7 @@ import { useAuth } from '../../../../contexts/AuthContext'
 import useClassRegister from '../../../../hooks/useClassRegister'
 import { resolveAttendancePolicy, REGISTER_STATES } from '../../../../utils/attendanceConstants'
 import { canMarkDay } from '../../../../utils/attendanceDayCore'
-import { formatDateLong, isValidIsoDate } from '../../../../utils/attendanceCalendarResolver'
+import { calendarMetaForTerm, formatDateLong, isValidIsoDate } from '../../../../utils/attendanceCalendarResolver'
 import { saveAttendanceTermSettings, setAttendanceTermState } from '../../../../utils/attendanceService'
 import { useToast } from '../../../ui/Toast'
 import Button from '../../../ui/Button'
@@ -109,6 +109,11 @@ export default function AttendanceWorkspace({ register, termSelection }) {
       await saveAttendanceTermSettings(register.id, uid, termMeta, {
         customStartDate: customDates.start,
         customEndDate: customDates.end,
+        // Provenance metadata — printed registers and audits can always say
+        // which calendar produced these dates.
+        calendarSource: 'custom',
+        calendarDatasetId: null,
+        calendarVersion: null,
       })
       toast.success('Term dates saved — the register calendar is ready.')
     } catch (err) {
@@ -132,11 +137,14 @@ export default function AttendanceWorkspace({ register, termSelection }) {
     }
     return (
       <div className="theme-card border theme-border rounded-radius-md p-6 space-y-3">
-        <p className="theme-text font-black">The school calendar isn&apos;t configured for {termSelection?.term} {termSelection?.year}.</p>
+        <p className="theme-text font-black">
+          No official calendar preset exists for {termSelection?.term} {termSelection?.year}.
+        </p>
         <p className="theme-text-muted text-sm">
-          The national MoE calendar covers 2026–2030. For other years (or a school-specific calendar), enter this
-          term&apos;s dates below, or review the{' '}
+          The bundled MoE presets cover 2026–2030; dates are never reused from another year. Enter this term&apos;s
+          dates below (stored as school-customised dates), or review the{' '}
           <Link to="/teacher/calendar" className="theme-accent-text font-black">School Calendar</Link> page.
+          When an official preset for {termSelection?.year} is released it can be added as a new versioned dataset.
         </p>
         <form onSubmit={saveCustomDates} className="flex flex-wrap items-end gap-2">
           <label className="block">
@@ -168,7 +176,7 @@ export default function AttendanceWorkspace({ register, termSelection }) {
           </p>
           <p className="theme-text-muted text-xs">
             {formatDateLong(termInfo.startDate)} → {formatDateLong(termInfo.endDate)}
-            {termInfo.source === 'custom' ? ' · custom dates' : ' · MoE calendar'}
+            {' · '}{calendarMetaForTerm(termInfo).label}
           </p>
         </div>
         {termState === 'draft' && (

@@ -712,11 +712,18 @@ test('periodsPerWeek / lessonDurationMinutes allow null (blank optional fields)'
 
 console.log('\nClass Register Studio — attendance rules stay locked down')
 
-test('attendance day docs validate date/status shape + version guard', () => {
-  assertContains('match /attendance/{dayId}', 'attendance subcollection must have a rules block')
-  assertContains("dayId.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')", 'attendance doc ids must be ISO dates')
-  assertContains('incoming().date == dayId', 'the date field must equal the doc id')
-  assertContains("incoming().version > resource.data.get('version', 0)", 'stale-overwrite guard: version must increase on update')
+test('attendance day writes are server-only (saveClassAttendance callable)', () => {
+  // HARDENED 2026-07: a modified client used to be able to forge termId and
+  // dodge the locked-term check. Now the rules deny ALL direct client writes
+  // to attendance days — the only write path is the callable, which resolves
+  // the term from the date, checks the lock, validates every record and
+  // recomputes counts server-side. If these deny lines disappear, the
+  // forged-termId bypass comes back.
+  const dayBlock = rules.split('match /attendance/{dayId}')[1]?.split('match /')[0] || ''
+  assert(dayBlock.includes('allow read: if isVerified()'), 'attendance days must stay readable by the owner/admin')
+  assert(dayBlock.includes('allow create: if false'), 'attendance day creates must be server-only')
+  assert(dayBlock.includes('allow update: if false'), 'attendance day updates must be server-only')
+  assert(dayBlock.includes('allow delete: if false'), 'attendance days must never be client-deletable')
 })
 
 const { ATTENDANCE_STATUS_ORDER } = await import('../src/utils/attendanceConstants.js')
@@ -725,12 +732,11 @@ test('attendance statuses in rules mirror attendanceConstants', () => {
   assertContains(expected, '_validAttendanceStatus must whitelist exactly the statuses in attendanceConstants.js (same order)')
 })
 
-test('locked terms block attendance writes; only admins reopen', () => {
-  assertContains('function _attendanceTermLocked', 'lock check helper must exist')
-  assertContains('!_attendanceTermLocked(classId, incoming().termId)', 'attendance day writes must check the term lock')
+test('locked attendanceTerms stay teacher-immutable; only admins reopen', () => {
   assertContains("resource.data.state != 'locked'", 'teachers must not update a locked attendanceTerms doc')
   // The teacher branch may set draft/submitted/locked but never 'reopened' —
-  // reopening is the admin-only path.
+  // reopening is the admin-only path. (Day-write lock enforcement moved
+  // server-side into saveClassAttendance.)
   assertContains("incoming().state in ['draft', 'submitted', 'locked']", 'teacher lifecycle states exclude reopened')
 })
 

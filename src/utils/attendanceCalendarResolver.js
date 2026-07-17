@@ -24,6 +24,48 @@ import { DAY_CLASSIFICATIONS, VALID_DAY_CLASSIFICATIONS } from './attendanceCons
 // Saturday-teaching school can override without touching call sites.
 export const DEFAULT_TEACHING_WEEKDAYS = [1, 2, 3, 4, 5]
 
+// ── versioned calendar datasets ──────────────────────────────────
+// Official calendars are registered here as versioned datasets so future MoE
+// releases (2031+) slot in WITHOUT touching attendance components: add an
+// entry (and its data source) and resolveTermInfo picks it up. Years with no
+// official dataset fall back to teacher/administrator-entered custom term
+// dates (customTermInfo) — dates are NEVER silently reused from a previous
+// year: resolution is exact-year only, or null.
+export const CALENDAR_DATASETS = [
+  {
+    id: 'moe-zambia-2026-2030',
+    name: 'Zambia MoE Calendar 2026–2030',
+    version: 1,
+    years: Object.keys(MOE_CALENDAR).map(Number),
+    getTerm: (year, termNumber) => MOE_CALENDAR[year]?.terms?.[termNumber - 1] || null,
+  },
+]
+
+/** The official dataset covering a year, or null (→ custom dates required). */
+export function officialDatasetFor(year) {
+  const numericYear = Number(year)
+  return CALENDAR_DATASETS.find((d) => d.years.includes(numericYear)) || null
+}
+
+/**
+ * Display + storage metadata for where a term's dates came from. Stored on
+ * the attendanceTerms doc (calendarSource/calendarDatasetId/calendarVersion)
+ * so a printed register can always say which calendar produced it.
+ */
+export function calendarMetaForTerm(termInfo) {
+  if (!termInfo) return { source: 'none', datasetId: null, version: null, label: 'No calendar configured' }
+  if (termInfo.source === 'custom') {
+    return { source: 'custom', datasetId: null, version: null, label: 'School-customised dates' }
+  }
+  const dataset = officialDatasetFor(termInfo.year)
+  return {
+    source: 'official',
+    datasetId: dataset?.id || 'moe-national',
+    version: dataset?.version ?? 1,
+    label: dataset ? `Official preset (${dataset.name}, v${dataset.version})` : 'Official preset',
+  }
+}
+
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December']
 const DAY_NAMES_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -92,9 +134,12 @@ export function resolveTermInfo({ term, year }) {
   const number = termNumberFromLabel(term)
   const numericYear = Number(year)
   if (!number || !numericYear) return null
-  const data = MOE_CALENDAR[numericYear]?.terms?.[number - 1]
+  const dataset = officialDatasetFor(numericYear)
+  const data = dataset ? dataset.getTerm(numericYear, number) : null
   if (!data?.open || !data?.close) return null
   return {
+    calendarDatasetId: dataset.id,
+    calendarVersion: dataset.version,
     termId: data.id,
     termNumber: number,
     termLabel: term,

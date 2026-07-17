@@ -124,6 +124,8 @@
     "test:attendance-calendar": "node scripts/test-attendance-calendar.mjs",
     "test:attendance-day-core": "node scripts/test-attendance-day-core.mjs",
     "test:attendance-export": "node scripts/test-attendance-export.mjs",
+    "test:attendance-server": "node functions/attendance/attendanceServer.test.js",
+    "test:attendance-term-mirror": "node scripts/test-attendance-term-mirror.mjs",
     "test:class-record-export": "node scripts/test-class-record-export.mjs",
     "test:sba-cross-year": "node scripts/test-sba-cross-year.mjs",
     "test:class-progress": "node scripts/test-class-progress.mjs",

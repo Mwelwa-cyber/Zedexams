@@ -5,6 +5,14 @@ vi.mock('../../../ui/Toast', () => ({
   useToast: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }),
 }))
 
+// The real service module initialises Firebase — the view only needs the
+// error-copy map.
+vi.mock('../../../../utils/attendanceService', () => ({
+  ATTENDANCE_ERROR_MESSAGES: {
+    TERM_LOCKED: 'This term’s register is locked — ask an administrator to reopen it. Your changes are kept until then.',
+  },
+}))
+
 import DailyAttendanceView from './DailyAttendanceView'
 import { buildTermDays, resolveTermInfo } from '../../../../utils/attendanceCalendarResolver'
 
@@ -32,11 +40,16 @@ function makeHook(overrides = {}) {
     canUndo: false,
     saveState: 'idle',
     pendingCount: 0,
+    pendingLearnerIds: new Set(),
+    syncIssues: [],
     retry: vi.fn(),
     saveNow: vi.fn(),
     hydrated: true,
     remoteEditNotice: null,
     dismissRemoteEditNotice: vi.fn(),
+    resolveConflict: vi.fn(),
+    retryRejected: vi.fn(),
+    discardRejected: vi.fn(),
     ...overrides,
   }
 }
@@ -98,6 +111,33 @@ describe('DailyAttendanceView', () => {
     expect(screen.getByText('Save failed')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Retry save' })).toBeInTheDocument()
     expect(screen.getByText(/Another device updated/i)).toBeInTheDocument()
+  })
+
+  it('server rejections stay visible with retry/discard — never silently saved', () => {
+    const hook = makeHook({
+      saveState: 'rejected',
+      pendingCount: 1,
+      syncIssues: [{ date: TODAY, kind: 'rejected', code: 'TERM_LOCKED', learnerIds: ['a'] }],
+    })
+    render(<DailyAttendanceView registerHook={hook} canMark={CAN_MARK} />)
+    expect(screen.getByText(/register is locked — ask an administrator/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(hook.retryRejected).toHaveBeenCalledWith(TODAY)
+    fireEvent.click(screen.getByRole('button', { name: 'Discard my changes' }))
+    expect(hook.discardRejected).toHaveBeenCalledWith(TODAY)
+  })
+
+  it('conflicts offer an explicit keep-mine / keep-theirs decision', () => {
+    const hook = makeHook({
+      saveState: 'conflict',
+      syncIssues: [{ date: TODAY, kind: 'conflict', code: 'STALE_VERSION', learnerIds: ['a'] }],
+    })
+    render(<DailyAttendanceView registerHook={hook} canMark={CAN_MARK} />)
+    expect(screen.getByText(/another teacher also changed Amos Banda/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Keep my marks' }))
+    expect(hook.resolveConflict).toHaveBeenCalledWith(TODAY, 'mine')
+    fireEvent.click(screen.getByRole('button', { name: 'Keep theirs' }))
+    expect(hook.resolveConflict).toHaveBeenCalledWith(TODAY, 'theirs')
   })
 
   it('empty roster shows the no-learners state', () => {

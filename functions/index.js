@@ -278,6 +278,11 @@ const {
   createClassAssignment,
   removeClassAssignment,
 } = require("./classManagement");
+// Class Register Studio — the single authoritative attendance mutation
+// (term-from-date + lock + roster eligibility + per-record validation +
+// server-recomputed counts). Direct client writes to attendance days are
+// denied by rules; everything goes through this callable.
+const {saveClassAttendance} = require("./attendance/saveClassAttendance");
 // Audit A10 PR 4 + PR 5 — per-class analytics + per-assignment drill-down.
 const {getClassStats, getAssignmentCompletion} = require("./classAnalytics");
 // Audit A3 PR 1 — parent portal share-link infrastructure.
@@ -3030,6 +3035,10 @@ exports.approveLearner = approveLearner;
 exports.declineLearner = declineLearner;
 exports.removeLearnerFromClass = removeLearnerFromClass;
 exports.leaveClass = leaveClass;
+// Class Register Studio — server-validated attendance writes (see
+// functions/attendance/). Rules deny direct client writes to the
+// attendance subcollection, so this is the only write path.
+exports.saveClassAttendance = saveClassAttendance;
 // A10 PR 3 — assignments. Validate caller owns the class, denormalise
 // resource title / subject onto the assignment doc so the learner-side
 // "From your teacher" card renders without a second read per row.

@@ -4,11 +4,17 @@
  * Owns, for one class + resolved term:
  *   - realtime subscriptions: roster, term settings doc, every saved
  *     attendance day in the term, and the currently selected day;
- *   - optimistic marking with a per-date pending queue, debounced auto-save
- *     (through attendanceService's merging transaction), retry, and undo;
- *   - save-state reporting ('idle'|'dirty'|'saving'|'saved'|'error'|'offline');
- *   - audit logging for every change batch (diffed in attendanceDayCore);
- *   - guards: nothing saves before the initial snapshots hydrate, and no
+ *   - an OUTBOX of pending attendance operations: optimistic marking with a
+ *     per-date queue persisted to localStorage, debounced submission to the
+ *     authoritative saveClassAttendance callable, per-entry sync states
+ *     (queued → syncing → synced | conflict | rejected), retry/discard, and
+ *     undo. An invalid write can never look "saved": server rejections stay
+ *     visible with their reason and the teacher's changes intact;
+ *   - concurrency: the server rejects stale versions (STALE_VERSION); the
+ *     outbox rebases on the latest doc, auto-resubmits non-conflicting rows,
+ *     and surfaces genuinely conflicting learners for an explicit
+ *     keep-mine / keep-theirs decision — never a silent overwrite;
+ *   - guards: nothing submits before the initial snapshots hydrate, and no
  *     effect depends on an unstable object it also writes (queues live in
  *     refs; renders are triggered by a monotonic counter).
  *
@@ -19,13 +25,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { subscribeRoster } from '../utils/classRoster'
 import {
-  saveAttendanceDay,
+  getAttendanceDay,
+  normalizeAttendanceError,
+  submitAttendanceDay,
   subscribeAttendanceDay,
   subscribeAttendanceTerm,
   subscribeTermAttendance,
-  logAttendanceAudit,
 } from '../utils/attendanceService'
-import { plainRecords, diffRecords, buildMarkAllPresent, sanitizeNote } from '../utils/attendanceDayCore'
+import { plainRecords, buildMarkAllPresent, mergeDayRecords, sanitizeNote } from '../utils/attendanceDayCore'
 import {
   buildTermDays,
   customTermInfo,
@@ -36,6 +43,56 @@ import {
 } from '../utils/attendanceCalendarResolver'
 
 const AUTOSAVE_DELAY_MS = 900
+const OUTBOX_PREFIX = 'zedexams:attendanceOutbox:'
+
+function loadOutbox(storageKey) {
+  try {
+    const raw = localStorage.getItem(storageKey)
+    if (!raw) return new Map()
+    const parsed = JSON.parse(raw)
+    const map = new Map()
+    for (const [date, entry] of Object.entries(parsed || {})) {
+      if (!entry || typeof entry !== 'object' || !entry.changes) continue
+      map.set(date, {
+        baseVersion: Number.isInteger(entry.baseVersion) ? entry.baseVersion : 0,
+        base: entry.base && typeof entry.base === 'object' ? entry.base : {},
+        changes: entry.changes,
+        reason: typeof entry.reason === 'string' ? entry.reason : '',
+        state: 'queued', // every restored op re-validates against the server
+        code: null,
+        conflictLearnerIds: [],
+      })
+    }
+    return map
+  } catch {
+    return new Map()
+  }
+}
+
+function persistOutbox(storageKey, queue) {
+  try {
+    if (!queue.size) {
+      localStorage.removeItem(storageKey)
+      return
+    }
+    const plain = {}
+    for (const [date, entry] of queue) {
+      plain[date] = {
+        baseVersion: entry.baseVersion,
+        base: entry.base,
+        changes: entry.changes,
+        reason: entry.reason || '',
+      }
+    }
+    localStorage.setItem(storageKey, JSON.stringify(plain))
+  } catch {
+    // storage full/blocked — ops still live in memory for this session
+  }
+}
+
+function sameRecord(a, b) {
+  return (a?.status || null) === (b?.status || null) && sanitizeNote(a?.note) === sanitizeNote(b?.note)
+}
 
 export default function useClassRegister({ register, termSelection, uid, onConflict }) {
   const classId = register?.id
@@ -97,14 +154,32 @@ export default function useClassRegister({ register, termSelection, uid, onConfl
   }, [termLabel, termYear, termDoc])
 
   const todayIso = useMemo(() => localTodayIso(), [])
+  const isEceClass = ['baby', 'middle', 'reception'].includes(register?.grade)
   const days = useMemo(() => {
     if (!termInfo) return []
+    const loadedTermDoc = termDoc !== undefined ? termDoc : null
+    const breakConfig = loadedTermDoc?.midTermBreak || { mode: 'none' }
+    const closures = []
+    if (breakConfig.mode === 'custom' && breakConfig.customBreakStart && breakConfig.customBreakEnd) {
+      closures.push({ start: breakConfig.customBreakStart, end: breakConfig.customBreakEnd, label: 'Mid-term break' })
+    } else if (
+      (breakConfig.mode === 'general' || (breakConfig.mode === 'ece' && isEceClass)) &&
+      termInfo.eceMidBreak
+    ) {
+      closures.push({
+        ...termInfo.eceMidBreak,
+        label: breakConfig.mode === 'ece'
+          ? 'ECE mid-term break — attendance not required'
+          : 'Mid-term break — attendance not required',
+      })
+    }
     return buildTermDays({
       termInfo,
-      dayOverrides: (termDoc !== undefined && termDoc?.dayOverrides) || {},
+      dayOverrides: loadedTermDoc?.dayOverrides || {},
+      closures,
       todayIso,
     })
-  }, [termInfo, termDoc, todayIso])
+  }, [termInfo, termDoc, todayIso, isEceClass])
 
   // Default the selected date once the day list exists (today, or the most
   // recent markable day). Guarded so a user's choice is never overridden.
@@ -124,15 +199,36 @@ export default function useClassRegister({ register, termSelection, uid, onConfl
     return unsub
   }, [classId, selectedDate])
 
-  // ── pending-change queue (refs — never effect dependencies) ────
-  // pending: Map<date, { base: plainRecords-at-edit-time, changes: {learnerId: {status,note}} }>
-  const pendingRef = useRef(new Map())
+  // ── the outbox (refs — never effect dependencies) ──────────────
+  // Map<date, { baseVersion, base, changes, reason, state, code, conflictLearnerIds }>
+  //   state: 'queued' | 'syncing' | 'rejected' | 'conflict'
+  const outboxRef = useRef(new Map())
   const undoRef = useRef([])
   const timerRef = useRef(null)
-  const savingRef = useRef(false)
+  const flushingRef = useRef(false)
   const [mutation, setMutation] = useState(0) // monotonic render trigger
-  const [saveState, setSaveState] = useState('idle')
   const [remoteEditNotice, setRemoteEditNotice] = useState(null)
+
+  const storageKey = uid && classId && termId ? `${OUTBOX_PREFIX}${uid}:${classId}:${termId}` : null
+  const persist = useCallback(() => {
+    if (storageKey) persistOutbox(storageKey, outboxRef.current)
+  }, [storageKey])
+
+  // Restore pending offline work from a previous session — every restored op
+  // is re-validated by the server on submit, so a term locked in the
+  // meantime rejects it (visibly) rather than letting it slip through.
+  const restoredRef = useRef(null)
+  useEffect(() => {
+    if (!storageKey || restoredRef.current === storageKey) return
+    restoredRef.current = storageKey
+    const restored = loadOutbox(storageKey)
+    if (restored.size) {
+      outboxRef.current = restored
+      setMutation((m) => m + 1)
+    } else {
+      outboxRef.current = new Map()
+    }
+  }, [storageKey])
 
   // Server records for any date, from the live term subscription (the selected
   // day also has its own doc subscription, which is fresher during typing).
@@ -144,15 +240,13 @@ export default function useClassRegister({ register, termSelection, uid, onConfl
     return plainRecords(dayDoc?.records)
   }, [selectedDate, selectedDayDoc, termDayDocs])
 
-  const dayMetaFor = useCallback((date) => {
-    const day = days.find((d) => d.date === date)
-    return {
-      term: termInfo?.termLabel ?? '',
-      year: termInfo?.year ?? null,
-      termId: termInfo?.termId ?? '',
-      classification: day?.classification || 'teaching_day',
+  const serverVersionFor = useCallback((date) => {
+    if (date === selectedDate && selectedDayDoc !== undefined) {
+      return Number(selectedDayDoc?.version) || 0
     }
-  }, [days, termInfo])
+    const dayDoc = (termDayDocs || []).find((d) => d.date === date)
+    return Number(dayDoc?.version) || 0
+  }, [selectedDate, selectedDayDoc, termDayDocs])
 
   // Flag when another editor changes the selected day underneath local edits.
   const lastSeenVersionRef = useRef(null)
@@ -167,95 +261,147 @@ export default function useClassRegister({ register, termSelection, uid, onConfl
   }, [selectedDayDoc, selectedDate, uid])
   useEffect(() => { lastSeenVersionRef.current = null; setRemoteEditNotice(null) }, [selectedDate])
 
-  // ── save pipeline ──────────────────────────────────────────────
-  const flush = useCallback(async ({ reason = '' } = {}) => {
-    if (savingRef.current) return
-    if (!pendingRef.current.size) return
-    if (!classId || !uid) return
-    savingRef.current = true
-    setSaveState('saving')
-
-    // Capture and detach the batch; edits made while saving start a new one.
-    const batch = pendingRef.current
-    pendingRef.current = new Map()
-    let failed = false
-
-    for (const [date, entry] of batch) {
-      try {
-        const result = await saveAttendanceDay({
-          classId,
-          teacherUid: register?.teacherUid || uid,
-          date,
-          termMeta: dayMetaFor(date),
-          baseRecords: entry.base,
-          localChanges: entry.changes,
-        })
-        if (result.conflicts.length && typeof onConflict === 'function') {
-          onConflict({ date, learnerIds: result.conflicts })
-        }
-        // Audit: what this batch actually changed relative to its base.
-        const before = {}
-        const after = {}
-        for (const learnerId of Object.keys(entry.changes)) {
-          if (entry.base[learnerId]) before[learnerId] = entry.base[learnerId]
-          after[learnerId] = entry.changes[learnerId]
-        }
-        const entries = diffRecords(before, after)
-        const isCorrection = date < todayIso
-        await logAttendanceAudit(classId, uid, entries, {
-          teacherUid: register?.teacherUid || uid,
-          termId: termId || '',
-          date,
-          action: isCorrection ? 'correction' : 'mark',
-          reason: isCorrection ? sanitizeNote(reason) : '',
-        })
-      } catch (err) {
-        failed = true
-        // Re-queue this date's changes (newest edits win over the failed batch).
-        const current = pendingRef.current.get(date)
-        pendingRef.current.set(date, {
-          base: entry.base,
-          changes: { ...entry.changes, ...(current?.changes || {}) },
-        })
-        console.warn('[useClassRegister] save failed', date, err)
-      }
-    }
-
-    savingRef.current = false
-    if (failed) {
-      setSaveState(typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'error')
-    } else if (pendingRef.current.size) {
-      setSaveState('dirty')
-    } else {
-      setSaveState('saved')
-    }
+  // ── submit pipeline ────────────────────────────────────────────
+  const submitEntry = useCallback(async (date, entry) => {
+    const submitted = { ...entry.changes }
+    entry.state = 'syncing'
     setMutation((m) => m + 1)
-  }, [classId, uid, register, dayMetaFor, termId, todayIso, onConflict])
+    try {
+      const result = await submitAttendanceDay({
+        classId,
+        date,
+        termId,
+        baseVersion: entry.baseVersion,
+        records: submitted,
+        reason: entry.reason || '',
+      })
+      // Edits made while the request was in flight stay queued for the next
+      // round; everything submitted is now synced.
+      const leftover = {}
+      for (const [learnerId, record] of Object.entries(entry.changes)) {
+        if (!sameRecord(record, submitted[learnerId])) leftover[learnerId] = record
+      }
+      if (Object.keys(leftover).length) {
+        outboxRef.current.set(date, {
+          baseVersion: result.version,
+          base: { ...entry.base, ...submitted },
+          changes: leftover,
+          reason: entry.reason || '',
+          state: 'queued',
+          code: null,
+          conflictLearnerIds: [],
+        })
+        return { status: 'partial' }
+      }
+      outboxRef.current.delete(date)
+      return { status: 'synced' }
+    } catch (err) {
+      const { code, offline } = normalizeAttendanceError(err)
+      if (offline) {
+        entry.state = 'queued' // stays in the outbox; the 'online' event retries
+        return { status: 'offline' }
+      }
+      if (code === 'STALE_VERSION') {
+        // Someone else saved first. Rebase on the latest server copy: rows
+        // only they touched are theirs; rows only we touched auto-resubmit;
+        // rows BOTH sides changed become an explicit conflict decision.
+        // Re-look-up the live entry after the await — edits made while the
+        // fetch was in flight land in the same object, and mutating the
+        // fresh reference keeps the update atomic w.r.t. the outbox map.
+        let latest = null
+        try {
+          latest = await getAttendanceDay(classId, date)
+        } catch {
+          const live = outboxRef.current.get(date)
+          if (live) live.state = 'queued'
+          return { status: 'offline' }
+        }
+        const live = outboxRef.current.get(date)
+        if (!live) return { status: 'synced' }
+        const latestPlain = plainRecords(latest?.records)
+        const { conflicts } = mergeDayRecords({ base: live.base, server: latestPlain, local: live.changes })
+        const stillDiffering = {}
+        for (const [learnerId, record] of Object.entries(live.changes)) {
+          if (!sameRecord(record, latestPlain[learnerId])) stillDiffering[learnerId] = record
+        }
+        live.baseVersion = Number(latest?.version) || 0
+        live.base = latestPlain
+        live.changes = stillDiffering
+        if (!Object.keys(stillDiffering).length) {
+          outboxRef.current.delete(date) // they already wrote what we wanted
+          return { status: 'synced' }
+        }
+        const realConflicts = conflicts.filter((id) => stillDiffering[id])
+        if (realConflicts.length) {
+          live.state = 'conflict'
+          live.code = 'STALE_VERSION'
+          live.conflictLearnerIds = realConflicts
+          return { status: 'conflict', learnerIds: realConflicts }
+        }
+        live.state = 'queued'
+        return { status: 'rebased' } // non-conflicting rows retry immediately
+      }
+      entry.state = 'rejected'
+      entry.code = code
+      return { status: 'rejected', code }
+    }
+  }, [classId, termId])
+
+  const flush = useCallback(async () => {
+    if (flushingRef.current) return
+    if (!classId || !termId || !uid) return
+    flushingRef.current = true
+    try {
+      let rounds = 0
+      // A rebase after STALE_VERSION retries once within the same flush.
+      let retry = true
+      while (retry && rounds < 3) {
+        retry = false
+        rounds += 1
+        for (const [date, entry] of [...outboxRef.current.entries()]) {
+          if (entry.state !== 'queued') continue
+          const outcome = await submitEntry(date, entry)
+          if (outcome.status === 'rebased' || outcome.status === 'partial') retry = true
+          if (outcome.status === 'conflict' && typeof onConflict === 'function') {
+            onConflict({ date, learnerIds: outcome.learnerIds })
+          }
+          if (outcome.status === 'offline') { retry = false; break }
+        }
+      }
+    } finally {
+      flushingRef.current = false
+      persist()
+      setMutation((m) => m + 1)
+    }
+  }, [classId, termId, uid, submitEntry, onConflict, persist])
 
   const flushRef = useRef(flush)
   useEffect(() => { flushRef.current = flush }, [flush])
 
-  const scheduleSave = useCallback((opts) => {
+  const scheduleSave = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current)
     timerRef.current = setTimeout(() => {
       timerRef.current = null
-      flushRef.current(opts)
+      flushRef.current()
     }, AUTOSAVE_DELAY_MS)
   }, [])
 
-  // Never lose the queue on unmount / tab close.
+  // Reconnect → drain the outbox; warn before closing with unsynced work.
   useEffect(() => {
+    const onOnline = () => flushRef.current()
     const onBeforeUnload = (e) => {
-      if (pendingRef.current.size || savingRef.current) {
+      if (outboxRef.current.size || flushingRef.current) {
         e.preventDefault()
         e.returnValue = ''
       }
     }
+    window.addEventListener('online', onOnline)
     window.addEventListener('beforeunload', onBeforeUnload)
     return () => {
+      window.removeEventListener('online', onOnline)
       window.removeEventListener('beforeunload', onBeforeUnload)
       if (timerRef.current) clearTimeout(timerRef.current)
-      if (pendingRef.current.size) flushRef.current({})
+      if (outboxRef.current.size) flushRef.current()
     }
   }, [])
 
@@ -268,19 +414,30 @@ export default function useClassRegister({ register, termSelection, uid, onConfl
 
   const mutate = useCallback((date, learnerId, record, { correctionReason = '' } = {}) => {
     if (!hydrated) return // never mutate before stored data has loaded
-    const queue = pendingRef.current
+    const queue = outboxRef.current
     if (!queue.has(date)) {
-      queue.set(date, { base: serverRecordsFor(date), changes: {} })
+      queue.set(date, {
+        baseVersion: serverVersionFor(date),
+        base: serverRecordsFor(date),
+        changes: {},
+        reason: '',
+        state: 'queued',
+        code: null,
+        conflictLearnerIds: [],
+      })
     }
     const entry = queue.get(date)
     const prev = entry.changes[learnerId] || entry.base[learnerId] || null
     undoRef.current.push({ date, learnerId, prev })
     if (undoRef.current.length > 100) undoRef.current.shift()
     entry.changes[learnerId] = { status: record.status, note: sanitizeNote(record.note ?? prev?.note ?? '') }
-    setSaveState('dirty')
+    if (correctionReason) entry.reason = sanitizeNote(correctionReason)
+    // A fresh edit un-rejects the entry — it re-validates on next submit.
+    if (entry.state === 'rejected') { entry.state = 'queued'; entry.code = null }
+    persist()
     setMutation((m) => m + 1)
-    scheduleSave({ reason: correctionReason })
-  }, [hydrated, serverRecordsFor, scheduleSave])
+    scheduleSave()
+  }, [hydrated, serverRecordsFor, serverVersionFor, scheduleSave, persist])
 
   const setStatus = useCallback((learnerId, status, opts = {}) => {
     if (!selectedDate) return
@@ -297,7 +454,7 @@ export default function useClassRegister({ register, termSelection, uid, onConfl
 
   /** Mark a cell on ANY date (term grid view). */
   const setStatusOn = useCallback((date, learnerId, status, opts = {}) => {
-    const base = pendingRef.current.get(date)
+    const base = outboxRef.current.get(date)
     const current = base?.changes[learnerId] || serverRecordsFor(date)[learnerId]
     mutate(date, learnerId, { status, note: current?.note ?? '' }, opts)
   }, [mutate, serverRecordsFor])
@@ -318,9 +475,17 @@ export default function useClassRegister({ register, termSelection, uid, onConfl
   const undoLast = useCallback(() => {
     const last = undoRef.current.pop()
     if (!last) return null
-    const queue = pendingRef.current
+    const queue = outboxRef.current
     if (!queue.has(last.date)) {
-      queue.set(last.date, { base: serverRecordsFor(last.date), changes: {} })
+      queue.set(last.date, {
+        baseVersion: serverVersionFor(last.date),
+        base: serverRecordsFor(last.date),
+        changes: {},
+        reason: '',
+        state: 'queued',
+        code: null,
+        conflictLearnerIds: [],
+      })
     }
     const entry = queue.get(last.date)
     if (last.prev) {
@@ -331,24 +496,70 @@ export default function useClassRegister({ register, termSelection, uid, onConfl
       delete entry.changes[last.learnerId]
       if (!Object.keys(entry.changes).length) queue.delete(last.date)
     }
-    setSaveState(queue.size ? 'dirty' : 'saved')
+    persist()
     setMutation((m) => m + 1)
-    if (queue.size) scheduleSave({})
+    if (queue.size) scheduleSave()
     return last
-  }, [serverRecordsFor, scheduleSave])
+  }, [serverRecordsFor, serverVersionFor, scheduleSave, persist])
 
-  const retry = useCallback(() => { flushRef.current({}) }, [])
-  const saveNow = useCallback((opts = {}) => {
+  // ── conflict / rejection handling ──────────────────────────────
+  /**
+   * Resolve a conflicted date: 'mine' resubmits the teacher's rows over the
+   * rebased server copy; 'theirs' keeps the other editor's rows (drops only
+   * the conflicting local changes, keeps the rest queued).
+   */
+  const resolveConflict = useCallback((date, choice) => {
+    const entry = outboxRef.current.get(date)
+    if (!entry || entry.state !== 'conflict') return
+    if (choice === 'theirs') {
+      for (const learnerId of entry.conflictLearnerIds) delete entry.changes[learnerId]
+      if (!Object.keys(entry.changes).length) outboxRef.current.delete(date)
+    }
+    if (outboxRef.current.has(date)) {
+      entry.state = 'queued'
+      entry.code = null
+      entry.conflictLearnerIds = []
+    }
+    persist()
+    setMutation((m) => m + 1)
+    flushRef.current()
+  }, [persist])
+
+  /** Retry a rejected date (e.g. after an admin reopened the term). */
+  const retryRejected = useCallback((date) => {
+    const entry = outboxRef.current.get(date)
+    if (!entry) return
+    entry.state = 'queued'
+    entry.code = null
+    persist()
+    setMutation((m) => m + 1)
+    flushRef.current()
+  }, [persist])
+
+  /** Discard a rejected date's local changes (explicit teacher action). */
+  const discardRejected = useCallback((date) => {
+    outboxRef.current.delete(date)
+    persist()
+    setMutation((m) => m + 1)
+  }, [persist])
+
+  const retry = useCallback(() => {
+    for (const entry of outboxRef.current.values()) {
+      if (entry.state === 'rejected') { entry.state = 'queued'; entry.code = null }
+    }
+    flushRef.current()
+  }, [])
+  const saveNow = useCallback(() => {
     if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
-    return flushRef.current(opts)
+    return flushRef.current()
   }, [])
 
   // ── derived views ──────────────────────────────────────────────
   // Displayed records for the selected day = server state + pending overlay.
   const displayedRecords = useMemo(() => {
-    void mutation // pending queue changed
+    void mutation // outbox changed
     const server = selectedDayDoc === undefined ? {} : plainRecords(selectedDayDoc?.records)
-    const pending = pendingRef.current.get(selectedDate)?.changes || {}
+    const pending = outboxRef.current.get(selectedDate)?.changes || {}
     return { ...server, ...pending }
   }, [selectedDayDoc, selectedDate, mutation])
   useEffect(() => { displayedRecordsRef.current = displayedRecords }, [displayedRecords])
@@ -360,7 +571,7 @@ export default function useClassRegister({ register, termSelection, uid, onConfl
     const byDate = new Map((termDayDocs || []).map((d) => [d.date, d]))
     return days.map((day) => {
       const server = plainRecords(byDate.get(day.date)?.records)
-      const pending = pendingRef.current.get(day.date)?.changes
+      const pending = outboxRef.current.get(day.date)?.changes
       const records = day.date === selectedDate
         ? displayedRecords
         : (pending ? { ...server, ...pending } : server)
@@ -371,21 +582,48 @@ export default function useClassRegister({ register, termSelection, uid, onConfl
   const pendingCount = useMemo(() => {
     void mutation
     let n = 0
-    for (const entry of pendingRef.current.values()) n += Object.keys(entry.changes).length
+    for (const entry of outboxRef.current.values()) n += Object.keys(entry.changes).length
     return n
   }, [mutation])
 
   // Learners with unsaved changes on the selected day (row-level indicators).
   const pendingLearnerIds = useMemo(() => {
     void mutation
-    return new Set(Object.keys(pendingRef.current.get(selectedDate)?.changes || {}))
+    return new Set(Object.keys(outboxRef.current.get(selectedDate)?.changes || {}))
   }, [mutation, selectedDate])
+
+  // Per-date sync issues for the UI (conflicts + server rejections).
+  const syncIssues = useMemo(() => {
+    void mutation
+    const issues = []
+    for (const [date, entry] of outboxRef.current.entries()) {
+      if (entry.state === 'conflict') {
+        issues.push({ date, kind: 'conflict', code: entry.code, learnerIds: entry.conflictLearnerIds })
+      } else if (entry.state === 'rejected') {
+        issues.push({ date, kind: 'rejected', code: entry.code, learnerIds: Object.keys(entry.changes) })
+      }
+    }
+    return issues.sort((a, b) => (a.date < b.date ? -1 : 1))
+  }, [mutation])
+
+  // Overall save state: rejected/conflict outrank offline/queued/syncing.
+  const saveState = useMemo(() => {
+    void mutation
+    const entries = [...outboxRef.current.values()]
+    if (!entries.length) return flushingRef.current ? 'saving' : 'saved'
+    if (entries.some((e) => e.state === 'rejected')) return 'rejected'
+    if (entries.some((e) => e.state === 'conflict')) return 'conflict'
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'offline'
+    if (entries.some((e) => e.state === 'syncing')) return 'saving'
+    return 'dirty'
+  }, [mutation])
 
   return {
     classId,
     // term resolution
     termInfo,
     termId,
+    isEceClass,
     // data
     roster: roster || [],
     rosterLoaded: roster !== null,
@@ -407,6 +645,7 @@ export default function useClassRegister({ register, termSelection, uid, onConfl
     saveState,
     pendingCount,
     pendingLearnerIds,
+    syncIssues,
     remoteEditNotice,
     dismissRemoteEditNotice: () => setRemoteEditNotice(null),
     // actions
@@ -418,5 +657,8 @@ export default function useClassRegister({ register, termSelection, uid, onConfl
     canUndo: undoRef.current.length > 0,
     retry,
     saveNow,
+    resolveConflict,
+    retryRejected,
+    discardRejected,
   }
 }
