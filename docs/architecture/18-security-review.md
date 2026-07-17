@@ -2,6 +2,8 @@
 
 > Snapshot as of 2026-07-17 — verify before acting. Audited commit `0cd4c49`.
 > No secret values appear in this document. Findings are classified Critical / High / Medium / Low / Informational.
+>
+> **P0 remediation landed 2026-07-17** (branch `claude/zedexams-architecture-audit-con2lc`): **SEC-H1** (premium content) and **SEC-H2** (suspension) are now enforced on the backend — see the ✅ notes on those findings and [`25-remediation-plan.md`](./25-remediation-plan.md). Enforcement points: `firestore.rules` `notSuspended()` (folded into `isVerified()`) + `hasValidEntitlement()` (quiz `questions` read); `storage.rules` `callerActive()` + `hasValidEntitlement()` (`papers/` read, `ownsPath()` uploads); `functions/authGuard.js` `assertActiveAccount` (folded into `assertVerifiedAuth`/`assertDecodedVerified`). Regression tests: `scripts/test-firestore-rules-emulator.mjs`, `scripts/test-storage-rules-emulator.mjs`, `functions/authGuard.test.js`.
 
 ## Posture summary
 
@@ -25,17 +27,16 @@ The **write side is strong**: all money/role/entitlement fields are backend-only
 
 ### High
 
-**SEC-H1 — Learner premium *content* gating is client-side only.** (= PAY-1)
-- **Risk:** A free/expired verified user can read any `isPublished==true` quiz + its answer-bearing questions and published lessons directly from Firestore; the demo/paywall distinction lives only in React.
-- **Evidence:** `firestore.rules` quizzes 489–534, lessons 593–596 (no premium check). Daily exams (511–532) are the correctly server-gated exception.
-- **Exploit:** authenticated client reads collection directly, bypassing the paywall UI.
+**SEC-H1 — Learner premium *content* gating is client-side only.** (= PAY-1) — **✅ RESOLVED (2026-07-17) for quiz questions + past-paper PDFs.**
+- **Risk:** A free/expired verified user could read any `isPublished==true` quiz's answer-bearing questions (and premium past-paper PDFs) directly from Firestore/Storage; the demo/paywall distinction lived only in React.
+- **Evidence (before):** `firestore.rules` quiz `questions` read had no premium check; `storage.rules` `papers/` read was `isVerified()` only.
+- **✅ Fix applied:** the quiz `questions` read rule now requires `parent.isDemo == true || hasValidEntitlement()` (owner/admin retained); `hasValidEntitlement()` mirrors `hasPremiumAccess()` (flags + read-time `subscriptionExpiry`/lifetime). Storage `papers/` read now requires `hasValidEntitlement() || isTeacherOrAdmin() || ownsPath()` + `callerActive()`. The quiz metadata doc stays public (locked-card preview → list-safe). Verified by `scripts/test-firestore-rules-emulator.mjs` (free/expired/suspended denied; entitled/lifetime/owner/admin allowed; demo + anonymous past-paper preview preserved) and the storage suite.
+- **Scope note:** **lessons/notes were verified NOT premium-gated in the current client** (`LearnerGate` is auth-only; readers have no `PremiumGate`; `isDemo` is quiz-only) — they are free content, so they are *not* part of this leak. If the business decides to make them premium, that needs a body/metadata split (they share one doc) — tracked as a follow-up in [`25-remediation-plan.md`](./25-remediation-plan.md).
 - **Not:** a billing bypass — cannot flip the premium flag or steal paid AI generations.
-- **Fix:** gate premium content reads server-side (Cloud Function delivery like daily exams) or add a rules-level premium check; **regression test:** rules-emulator test that a free learner is denied premium quiz questions.
 
-**SEC-H2 — Suspension not enforced at the rules layer.** (= AUTH-H1)
-- **Risk:** `adminSetUserStatus` sets status + `revokeRefreshTokens`, but rules never check `status` and the current ID token stays valid ~1h; client sign-out is cosmetic. A suspended user keeps backend access up to an hour.
-- **Evidence:** `adminUsers.js:52–69`, `firestore.rules:22–41`, `AuthContext.jsx:542–556`.
-- **Fix:** gate sensitive rules on `status=='active'` and/or `verifyIdToken(..., checkRevoked=true)` on HTTP endpoints; **regression test:** rules-emulator denial for suspended user.
+**SEC-H2 — Suspension not enforced at the rules layer.** (= AUTH-H1) — **✅ RESOLVED (2026-07-17).**
+- **Risk:** `adminSetUserStatus` set status + `revokeRefreshTokens`, but rules/functions never checked `status` and the current ID token stayed valid ~1h; client sign-out was cosmetic. A suspended user kept backend access up to an hour.
+- **✅ Fix applied:** canonical `users.status` (absence == active). `firestore.rules` `notSuspended()` folded into `isVerified()` → every verified read/write is denied for `suspended`/`deleted`. `storage.rules` `callerActive()` folded into `ownsPath()` (blocks suspended uploads) + the `papers/` read. `functions/authGuard.js` `assertActiveAccount` folded into `assertVerifiedAuth`/`assertDecodedVerified` (fail-OPEN on transient read error so a Firestore blip can't lock out the platform) → blocks every sensitive callable/HTTP (AI, payments, publishing). Allowed minimum preserved: suspended users still read their own profile (users self-read uses bare `isAuthed()`) and can sign out; admins managing *other* accounts are unaffected. Verified by `functions/authGuard.test.js` (12 cases) and the rules emulator (suspended denied read/write/questions; can't clear own status; active/legacy not over-blocked).
 
 **SEC-H3 — Client-side Gemini bypasses all AI guardrails.** (= AI-1)
 - **Risk:** `src/utils/aiLogic.js` + `src/firebase/ai.js` call Gemini directly from the browser — no reservation/budget gate, no treasury cap, not in cost rollups, no per-user cap. Gated only by App Check + Firebase quota (and App Check is observe-only, SEC-M2). Potential uncapped spend / abuse vector.

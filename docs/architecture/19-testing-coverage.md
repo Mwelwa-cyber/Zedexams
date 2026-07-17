@@ -41,6 +41,14 @@ Emulator/smoke suites (separate CI jobs, **not** in `test:all` because they aren
 | Games | **Strong** | per-engine |
 | **Android native (Java)** | **Weak/None** | only stock stubs; `MainActivity` splash, `RecaptchaPlugin`, `ZedExamsApplication` untested; JS-side specs exist (`test:android-release-config`, `test:statusbar`, `test:play-catalog-mirror`, `nativeDownload.spec.js`, `CameraCaptureModal.spec.jsx`, `test:boot-watchdog`) |
 
+## P0 security regression tests (added 2026-07-17)
+
+| Test | Proves |
+|---|---|
+| `functions/authGuard.test.js` (`test:auth-guard`, in `test:all`) | `assertVerifiedAuth`/`assertDecodedVerified`/`assertActiveAccount` reject suspended/deleted, pass active/legacy/missing-doc, keep unauth/unverified/grace behaviour, and fail-open on transient read error (12 cases). |
+| `scripts/test-firestore-rules-emulator.mjs` (premium + suspension suites) | Free/expired/suspended learners denied premium quiz questions; demo + entitled + lifetime + owner + admin + anonymous past-paper preview allowed; metadata stays list-safe; suspended denied reads/writes and can't clear own status; active/legacy not over-blocked. **138 pass.** |
+| `scripts/test-storage-rules-emulator.mjs` (papers entitlement + suspension) | Free/suspended denied premium past-paper PDFs; entitled/teacher/admin allowed; suspended teacher can't upload. (Validates in CI; this sandbox's Storage→Firestore cross-service lookup doesn't resolve — 15 pre-existing baseline failures on unchanged rules confirm the environment limitation.) |
+
 ## Recommended tests for critical workflows not fully covered
 
 | Workflow | Recommended test |

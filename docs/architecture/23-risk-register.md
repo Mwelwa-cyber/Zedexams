@@ -2,6 +2,8 @@
 
 > Snapshot as of 2026-07-17 — verify before acting. Audited commit `0cd4c49`.
 > Severity = worst-case impact; Probability = likelihood of occurrence/exploitation given current code. Priority is severity×probability adjusted for blast radius.
+>
+> **P0 status update (2026-07-17):** **RISK-3** (suspension) is **RESOLVED** and **RISK-2** (premium content) is **RESOLVED for quiz answer-keys + past-paper PDFs** — enforced in `firestore.rules`/`storage.rules`/`functions/authGuard.js` with emulator + unit regression tests. RISK-2's lessons/notes portion was found to be free content (not premium) in the current client, so it is out of the leak; making it premium later is a scoped follow-up. See [`18-security-review.md`](./18-security-review.md) and [`25-remediation-plan.md`](./25-remediation-plan.md). RISK-1 (curriculum) and RISK-4 (client Gemini) remain open by design — deferred to the P1 follow-up PRs, not this focused security PR.
 
 | ID | Title | Sev | Prob | Impact | Evidence | Affected | Immediate mitigation | Long-term fix | Tests | Priority |
 |---|---|---|---|---|---|---|---|---|---|---|

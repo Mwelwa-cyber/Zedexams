@@ -21,7 +21,8 @@ service cloud.firestore {
     }
     function isVerified() {
       return isAuthed()
-        && (tokenEmailVerified() || inVerificationGrace());
+        && (tokenEmailVerified() || inVerificationGrace())
+        && notSuspended();
     }
     function inVerificationGrace() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid))
@@ -39,6 +40,58 @@ service cloud.firestore {
     // to every collection an admin can touch.
     function isAdmin() { return isVerified() && (callerRole() == 'admin' || callerRole() == 'superAdmin'); }
     function isTeacherOrAbove() { return isVerified() && (callerRole() == 'teacher' || callerRole() == 'admin' || callerRole() == 'superAdmin'); }
+
+    // ── account-status gate (P0: suspended-account enforcement) ──────────
+    // Canonical lifecycle field is users/{uid}.status ('active'|'suspended'|
+    // 'deleted'), written ONLY by the admin adminSetUserStatus Cloud Function
+    // (and mirrored in the users self-update blocklist so a user cannot clear
+    // their own suspension). Absence == active (legacy accounts predate the
+    // field; matches functions/adminUsers.js `before.status || "active"`).
+    // Folded into isVerified() below so every verified read/write is denied
+    // for a suspended or deleted account — closing the ~1h window where a
+    // revoked refresh token still carried a valid ID token. The users self
+    // read/update rules use bare isAuthed(), so a suspended user can still
+    // read their own suspension notice and sign out. The exists() guard keeps
+    // a verified user whose profile doc has not been created yet from being
+    // locked out (bootstrapUserProfile repairs it).
+    function notSuspended() {
+      return !exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('status', 'active') == 'active';
+    }
+
+    // ── premium learner-content entitlement (P0) ─────────────────────────
+    // Mirrors hasPremiumAccess() in src/utils/subscriptionConfig.js: one of
+    // the access flags AND an unexpired subscriptionExpiry (or an explicit
+    // subscriptionLifetime grant). Admins/superAdmins always pass (isAdmin()).
+    // Expiry is enforced solely at read time (no cron flips premium=false), so
+    // a stale premium:true with a lapsed subscriptionExpiry correctly returns
+    // false. subscriptionActivation.js (Lenco + Google Play, the single
+    // idempotent activation path) always writes a concrete subscriptionExpiry
+    // Timestamp, so validly-entitled users always pass.
+    function callerUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function hasValidEntitlement() {
+      return isAdmin()
+        || (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && (
+            callerUserData().get('premium', false) == true
+            || callerUserData().get('isPremium', false) == true
+            || callerUserData().get('paymentStatus', '') == 'active'
+            || callerUserData().get('subscriptionStatus', '') == 'active'
+            || callerUserData().get('plan', '') == 'premium'
+          )
+          && (
+            callerUserData().get('subscriptionLifetime', false) == true
+            || (
+              'subscriptionExpiry' in callerUserData()
+              && callerUserData().subscriptionExpiry > request.time
+            )
+          )
+        );
+    }
+
     function incoming() { return request.resource.data; }
     function changedKeys() { return request.resource.data.diff(resource.data).affectedKeys(); }
     // Teachers cannot set isPublished:true or status:'published'
@@ -530,12 +583,27 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/quizzes/$(quizId)).data.get('isPublished', false) == true
           && get(/databases/$(database)/documents/quizzes/$(quizId)).data.get('quizType', '') != 'daily_exam'
         );
+        // Premium gate (P0): a published practice quiz's questions carry the
+        // answer key + explanations (practice quizzes grade client-side), so
+        // the questions ARE the premium body. Free learners may read only the
+        // questions of a demo quiz (parent isDemo == true — the same flag the
+        // QuizList "locked" UI keys on); every other published quiz requires a
+        // valid entitlement. The quiz METADATA doc read (above) stays open so
+        // the locked-card library preview + list query are unaffected —
+        // questions are only ever read one quiz at a time (getQuestions),
+        // never via a collection-group query, so this rule is list-safe.
+        // Owner + admin keep full access for authoring/moderation, and the
+        // separate publicAccess arm above keeps anonymous past-paper previews.
         allow read: if isVerified() && (
           isAdmin()
           || get(/databases/$(database)/documents/quizzes/$(quizId)).data.createdBy == request.auth.uid
           || (
             get(/databases/$(database)/documents/quizzes/$(quizId)).data.isPublished == true
             && get(/databases/$(database)/documents/quizzes/$(quizId)).data.get('quizType', '') != 'daily_exam'
+            && (
+              get(/databases/$(database)/documents/quizzes/$(quizId)).data.get('isDemo', false) == true
+              || hasValidEntitlement()
+            )
           )
         );
         // Authorization first, validator last: an unauthorised caller is

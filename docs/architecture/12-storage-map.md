@@ -11,7 +11,7 @@ Shared helpers (`storage.rules` lines 4–48): `isAuthed()`, `isVerified()` (ema
 
 | Path pattern | Purpose | Read | Write | Limits | Uploader (code) | Reader (code) |
 |---|---|---|---|---|---|---|
-| `papers/{ownerUid}/{**}` | Past-paper PDFs, mark schemes, page assets, passage figures | any verified | owner+teacher/admin | ≤50 MB; pdf/doc/docx/jpeg/png/webp | `src/utils/pastPapers.js` (`uploadPaperPdf` L289, `uploadPaperAsset` L342), `paperFigureAttach.js:130` | `getPaperPdfUrl` L280, `PastPaperViewer.jsx`, `paperToQuizConverter.js` |
+| `papers/{ownerUid}/{**}` | Past-paper PDFs, mark schemes, page assets, passage figures | **entitled learner / teacher / admin / owner + active** (P0, 2026-07-17: was any verified) | owner+teacher/admin (active) | ≤50 MB; pdf/doc/docx/jpeg/png/webp | `src/utils/pastPapers.js` (`uploadPaperPdf` L289, `uploadPaperAsset` L342), `paperFigureAttach.js:130` | `getPaperPdfUrl` L280, `PastPaperViewer.jsx`, `paperToQuizConverter.js` |
 | `papers/{fileName}` (legacy, 1-level) | Legacy paper uploads | any verified | admin | ≤50 MB | — (defensive) | — |
 | `quiz-images/{ownerUid}/{**}` | Quiz question/passage/option images | any verified | owner+teacher/admin | ≤10 MB; jpeg/png/webp | `EditQuizV2.jsx`, `CreateQuizV2.jsx`, `quizDocumentImport.js` | quiz runners |
 | `assessment-images/{ownerUid}/{**}` | Assessment images + server diagrams | **owner or admin** | owner+teacher/admin | ≤10 MB | `AssessmentStudio.jsx`, server `generateDiagram.js:200` (admin SDK) | AssessmentStudio, exporters |

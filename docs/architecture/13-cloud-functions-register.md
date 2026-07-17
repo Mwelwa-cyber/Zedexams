@@ -8,6 +8,7 @@
 - **Region:** HTTP/callable (`onCall`/`onRequest`) + all crons + both v1 Auth triggers → **us-central1** (v2 default). Every Firestore `onDocument*` and the one Storage trigger → **africa-south1** (verified: convention holds cleanly).
 - **Runtime:** Node 22.
 - **Auth legend:** *staff* = `isStaffRole`; *admin* = admin/superAdmin; *verified* = `assertVerifiedAuth`; *public* = logged-out ok.
+- **Suspension (P0, 2026-07-17):** `assertVerifiedAuth`/`assertDecodedVerified` now also reject `users.status ∈ {suspended, deleted}` via `assertActiveAccount` (fail-open on transient read error), so every function using the shared guard blocks suspended callers. Deliberately-exempt functions (`deleteMyAccount`, `bootstrapUserProfile`, `sendPasswordResetEmail`, webhooks) don't call the guard and stay status-agnostic.
 - **App Check:** graduated / **observe-only** default via `enforceAppCheck: shouldEnforceAppCheck("<label>")` (env-gated); `softVerifyAppCheckHttp` on HTTP. `consumeAppCheckToken` was removed (2026-07). The two webhooks (`lencoWebhook`, `apiWhatsAppWebhook`) authenticate by **HMAC**, not App Check/CORS.
 - **Secrets** (`defineSecret`, names only): `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `LENCO_API_KEY`, `GOOGLE_PLAY_SA_JSON`, `EMAIL_SMTP_USER`/`EMAIL_SMTP_PASSWORD`, WhatsApp groups (`WHATSAPP_SECRETS`/`WHATSAPP_WEBHOOK_SECRETS`). Dead-provider secrets `RECRAFT_API_KEY`/`KIE_API_KEY` are deliberately **not** declared (would hard-fail deploy) — all image styles run on `gpt-image-1`.
 

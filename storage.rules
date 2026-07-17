@@ -43,8 +43,49 @@ service firebase.storage {
         && userDoc().data.role == 'admin';
     }
 
+    // ── account-status gate (P0: suspended-account enforcement) ──
+    // Canonical users/{uid}.status ('active'|'suspended'|'deleted'), written
+    // only by the admin adminSetUserStatus Cloud Function. Absence == active.
+    // Folded into ownsPath() below (blocks suspended uploads + own-file reads)
+    // and into the premium papers read. Deliberately kept OUT of the broad
+    // isVerified() used by every asset read so ordinary image loads don't each
+    // pay a firestore.get.
+    function callerActive() {
+      return !firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        || !('status' in userDoc().data)
+        || (userDoc().data.status != 'suspended' && userDoc().data.status != 'deleted');
+    }
+
+    // ── premium learner-content entitlement (P0) ─────────────────
+    // Mirrors hasPremiumAccess() in src/utils/subscriptionConfig.js so premium
+    // past-paper PDFs + mark schemes require a valid learner subscription.
+    // Admins/superAdmins always pass; teacher/admin content managers pass via
+    // the papers read rule's isTeacherOrAdmin() arm.
+    function hasValidEntitlement() {
+      return isVerified()
+        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        && (
+          ('role' in userDoc().data
+            && (userDoc().data.role == 'admin' || userDoc().data.role == 'superAdmin'))
+          || (
+            (
+              ('premium' in userDoc().data && userDoc().data.premium == true)
+              || ('isPremium' in userDoc().data && userDoc().data.isPremium == true)
+              || ('paymentStatus' in userDoc().data && userDoc().data.paymentStatus == 'active')
+              || ('subscriptionStatus' in userDoc().data && userDoc().data.subscriptionStatus == 'active')
+              || ('plan' in userDoc().data && userDoc().data.plan == 'premium')
+            )
+            && (
+              ('subscriptionLifetime' in userDoc().data && userDoc().data.subscriptionLifetime == true)
+              || ('subscriptionExpiry' in userDoc().data
+                  && userDoc().data.subscriptionExpiry > request.time)
+            )
+          )
+        );
+    }
+
     function ownsPath(ownerUid) {
-      return isVerified() && request.auth.uid == ownerUid;
+      return isVerified() && request.auth.uid == ownerUid && callerActive();
     }
 
     function validPaperUpload() {
@@ -117,7 +158,14 @@ service firebase.storage {
     // Past papers: learners can read, teachers/admins can only write under
     // their own user folder. One-level legacy writes are admin-only.
     match /papers/{ownerUid}/{fileName=**} {
-      allow read: if isVerified();
+      // Premium gate (P0): past-paper PDFs + mark schemes (answer keys) are a
+      // paid learner artefact. Free/expired/suspended learners must not read
+      // them. Entitled learners, the uploading owner, and any teacher/admin
+      // content manager keep access. callerActive() blocks a suspended user
+      // even if they still hold premium.
+      allow read: if isVerified()
+        && callerActive()
+        && (hasValidEntitlement() || isTeacherOrAdmin() || ownsPath(ownerUid));
       allow create, update: if ownsPath(ownerUid)
         && isTeacherOrAdmin()
         && validPaperUpload();
@@ -125,7 +173,9 @@ service firebase.storage {
     }
 
     match /papers/{fileName} {
-      allow read: if isVerified();
+      allow read: if isVerified()
+        && callerActive()
+        && (hasValidEntitlement() || isTeacherOrAdmin());
       allow create, update: if isAdmin() && validPaperUpload();
       allow delete: if isAdmin();
     }

@@ -49,7 +49,10 @@ ZedExams (zedexams.com, Firebase project `examsprepzambia`) is a CBC-aligned lea
 | 22 | [Dead Code Register](./22-dead-code-register.md) | Removal candidates with evidence (nothing deleted) |
 | 23 | [Risk Register](./23-risk-register.md) | Prioritised P0–P3 technical risks |
 | 24 | [Target Architecture](./24-recommended-target-architecture.md) | Incremental consolidation plan (no rewrite) |
+| 25 | [Remediation Plan](./25-remediation-plan.md) | ✅ P0 security fixes landed + P1/P2 follow-up roadmap |
 | — | [Diagrams index](./diagrams/README.md) | Location of all 26 Mermaid diagrams |
+
+> **P0 security remediation landed 2026-07-17:** premium quiz answer-keys + past-paper PDFs and suspended-account access are now enforced on the backend (Firestore/Storage rules + `functions/authGuard.js`). See [`25-remediation-plan.md`](./25-remediation-plan.md).
 
 ## Main data stores
 
