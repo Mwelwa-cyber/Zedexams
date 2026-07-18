@@ -219,6 +219,9 @@ async function main() {
     await uploadBytes(ref(st, `tmp-downloads/${TEACHER_A}/export.pdf`), PDF_BYTES, {
       contentType: 'application/pdf',
     })
+    await uploadBytes(ref(st, 'picture-bank/uploads/seed.png'), PNG_BYTES, {
+      contentType: 'image/png',
+    })
   })
 
   // ── /syllabi/ — DECOMMISSIONED (no rule matches it anymore) ───
@@ -643,6 +646,44 @@ async function main() {
       ref(teacherAStorage, `tmp-downloads/${TEACHER_B}/sneaky.pdf`),
       PDF_BYTES,
       { contentType: 'application/pdf' },
+    ))
+  })
+
+  // ── picture-bank/ — admin-write, verified-read, raster-only ───
+  section('picture-bank/ — admin-only write, raster-only (no SVG), verified read')
+
+  await test('any verified user can read a picture-bank blob', async () => {
+    await assertSucceeds(getBytes(ref(learnerAStorage, 'picture-bank/uploads/seed.png')))
+  })
+
+  await test('guest CANNOT read a picture-bank blob', async () => {
+    await assertFails(getBytes(ref(guestStorage, 'picture-bank/uploads/seed.png')))
+  })
+
+  await test('admin can upload a PNG to the picture bank', async () => {
+    await assertSucceeds(uploadBytes(
+      ref(adminStorage, 'picture-bank/uploads/new.png'),
+      PNG_BYTES,
+      { contentType: 'image/png' },
+    ))
+  })
+
+  await test('admin CANNOT upload an SVG to the picture bank (script-injection guard)', async () => {
+    // The regression this pins: validPictureBankUpload() used image/.* which
+    // accepted image/svg+xml. A picture-bank SVG is readable by every verified
+    // user and its URL is stored in Firestore → stored XSS.
+    await assertFails(uploadBytes(
+      ref(adminStorage, 'picture-bank/uploads/payload.svg'),
+      SVG_BYTES,
+      { contentType: 'image/svg+xml' },
+    ))
+  })
+
+  await test('teacher CANNOT upload to the picture bank (admin-only write)', async () => {
+    await assertFails(uploadBytes(
+      ref(teacherAStorage, 'picture-bank/uploads/teacher.png'),
+      PNG_BYTES,
+      { contentType: 'image/png' },
     ))
   })
 
