@@ -260,6 +260,7 @@
     "test:template-bank": "node functions/teacherTools/lessonPlanTemplateBank.test.js",
     "test:cors": "node functions/cors.test.js",
     "test:ai-operations": "node functions/aiOperationsCore.test.js && node functions/aiOperations.test.js",
+    "test:ai-validation": "node functions/aiValidation/validationResult.test.js && node functions/aiValidation/responseParser.test.js && node functions/aiValidation/operationRegistry.test.js && node functions/aiValidation/curriculumGuard.test.js",
     "test:auth-guard": "node functions/authGuard.test.js",
     "test:rate-limit": "node functions/rateLimitCore.test.js",
     "test:family-portal": "node functions/familyPortalCore.test.js",

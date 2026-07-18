@@ -37,6 +37,9 @@ const {sourceAssessmentFromBank} = require("./masterBankSourcing");
 const {buildAvoidNote, mergeSourcedIntoSections} = require("./masterBankSourcingCore");
 const {checkAssessmentQuality, interleaveSections} =
   require("./assessmentQualityCheck");
+const {buildProvenance} = require("../aiValidation/operationRegistry");
+const {validateCurriculumContext} = require("../aiValidation/curriculumGuard");
+const {deriveAcceptanceState} = require("../aiValidation/validationResult");
 
 // The assessment types the Master Bank can supply (the rest — structured,
 // calculation, essay, matching — stay AI-only).
@@ -315,6 +318,18 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
     kbVersion,
     formatProfileId,
     formatSource,
+    // Version provenance (§35) — the prompt/schema/validator/catalogue
+    // quadruple that produced this doc, so a later regression can be traced to
+    // the exact combination. Read from the shared operation registry rather
+    // than hard-coded here.
+    provenance: buildProvenance("generate_assessment", {
+      model: ASSESSMENT_MODEL,
+      promptVersion: PROMPT_VERSION,
+      curriculumVersion: kbVersion || null,
+      framework: inputs.framework === "2013" ? "obc" : "cbc",
+    }),
+    // Acceptance-state lifecycle (§31): server-managed, never client-writable.
+    acceptanceStatus: "validating",
     tokensIn: 0,
     tokensOut: 0,
     costUsdCents: 0,
@@ -437,6 +452,21 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
 
   const validation = validateAssessment(mergedParsed);
   let assessment = validation.value;
+
+  // Curriculum-context guard (§7–9): defence-in-depth against the model
+  // echoing a DIFFERENT grade/subject/framework than the teacher selected, or
+  // leaking framework-incompatible fields (CBC ↔ 2013/OBC). Input validation
+  // (validateInputs → classifySubjectForGrade) already blocks a wrong request;
+  // this catches a wrong RESPONSE. Fail-open on omitted coordinates, fail-closed
+  // on contradiction. Advisory here — folded into the acceptance state below.
+  const curriculumGuard = validateCurriculumContext({
+    response: assessment,
+    selected: {
+      framework: inputs.framework,
+      grade: inputs.grade,
+      subject: inputs.subject,
+    },
+  });
   // Hard free-preview guarantee: never return more than the preview's
   // question cap, whatever the model produced (fail-closed on the revenue
   // boundary). Header marks are restamped from the kept questions.
@@ -468,10 +498,38 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
       ((tokensIn / 1e6) * 300) + ((tokensOut / 1e6) * 1500),
   );
 
-  if (!validation.ok) {
+  // Combine the schema-validator verdict and the curriculum guard into one
+  // acceptance state (§31). Schema failures are repairable errors; a curriculum
+  // mismatch is a non-repairable critical (→ "rejected"). The state is recorded
+  // for observability and to mark a paper that needs a human look; it never
+  // relaxes the existing flagged/complete Firestore status the studio reads.
+  const acceptanceIssues = [
+    ...curriculumGuard.issues,
+    ...(validation.ok ? [] : [{
+      path: "(root)", code: "SCHEMA_INVALID",
+      message: (validation.errors || []).join("; "),
+      severity: "error", repairable: true,
+    }]),
+  ];
+  const acceptanceStatus = deriveAcceptanceState({
+    issues: acceptanceIssues, allowRepairReview: true,
+  });
+  const guardCritical = curriculumGuard.issues.some((i) => i.severity === "critical");
+  // A wrong-curriculum RESPONSE must never be saved as a clean "complete" paper,
+  // even if it happens to pass the shape validator — flag it for review.
+  const forceFlag = guardCritical;
+
+  if (!validation.ok || forceFlag) {
+    const flagReasons = [
+      validation.ok ? "" : `Schema errors: ${validation.errors.join("; ")}`,
+      guardCritical ?
+        `Curriculum mismatch: ${curriculumGuard.issues.map((i) => i.message).join("; ")}` : "",
+    ].filter(Boolean).join(" | ");
     await genRef.update({
       status: "flagged",
-      errorMessage: `Schema errors: ${validation.errors.join("; ")}`,
+      errorMessage: flagReasons,
+      acceptanceStatus,
+      curriculumIssues: curriculumGuard.issues,
       output: assessment,
       outputText: String(raw || "").slice(0, 20000),
       completedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -507,6 +565,8 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
 
   await genRef.update({
     status: "complete",
+    acceptanceStatus,
+    curriculumIssues: curriculumGuard.issues,
     output: assessment,
     outputText: String(raw || "").slice(0, 20000),
     tokensIn,

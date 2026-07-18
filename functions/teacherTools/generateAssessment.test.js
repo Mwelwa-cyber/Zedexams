@@ -395,6 +395,36 @@ async function caught(promise) {
   ok("the operation completes with the aiGenerations doc id + one usage charge",
       calls.complete.length === 1 && calls.complete[0].resultDocumentId === IDK &&
       calls.complete[0].usageCharged === 1);
+  // Validation framework wiring (Prompt 14 §31/§35): a clean paper records a
+  // "validated" acceptance status and a version-provenance quadruple.
+  ok("a clean paper is marked acceptanceStatus 'validated'",
+      genDocs[IDK].acceptanceStatus === "validated");
+  ok("provenance stamps the prompt/schema/validator quadruple",
+      genDocs[IDK].provenance && genDocs[IDK].provenance.promptVersion &&
+      genDocs[IDK].provenance.schemaVersion && genDocs[IDK].provenance.validatorVersion);
+  ok("no curriculum issues on a matching paper",
+      Array.isArray(genDocs[IDK].curriculumIssues) && genDocs[IDK].curriculumIssues.length === 0);
+
+  // Curriculum guard (§7–9): a valid-SHAPE paper that echoes the WRONG grade is
+  // flagged for review, never saved as a clean "complete" — defence in depth
+  // against a response that contradicts the teacher's selected context.
+  console.log("\nrunAssessment — wrong-curriculum response → flagged by the guard");
+  reset();
+  claudeImpl = async () => {
+    const wrong = validPaper();
+    wrong.header.grade = "G3"; // teacher asked for G7
+    return {parsed: wrong, text: "{}", usage: {inputTokens: 10, outputTokens: 20}, model: "claude-test"};
+  };
+  const guarded = await runAssessment({uid: "t9", rawInputs: INPUTS, apiKey: "k", idempotencyKey: IDK});
+  ok("wrong-grade response resolves (no throw)", Boolean(guarded && guarded.generationId));
+  ok("wrong-grade response is flagged, not completed", genDocs[IDK].status === "flagged");
+  ok("the flag names the curriculum mismatch",
+      String(genDocs[IDK].errorMessage).includes("Curriculum mismatch"));
+  ok("acceptanceStatus is 'rejected' for a curriculum mismatch (non-repairable)",
+      genDocs[IDK].acceptanceStatus === "rejected");
+  ok("the curriculum issue is recorded with a GRADE_MISMATCH code",
+      genDocs[IDK].curriculumIssues.some((i) => i.code === "GRADE_MISMATCH"));
+  ok("a guard-flagged paper still bills once, never refunds", calls.refund.length === 0 && calls.complete.length === 1);
 
   console.log("\nrunAssessment — Master Bank questions are merged + reported");
   reset();
