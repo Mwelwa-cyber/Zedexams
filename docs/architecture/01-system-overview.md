@@ -4,7 +4,7 @@
 
 ## What ZedExams is
 
-ZedExams (live at **zedexams.com**, Firebase project **`examsprepzambia`**) is a CBC-aligned learning platform for Zambian learners, teachers, admins and parents. It is:
+ZedExams (live at **zedexams.com**, Firebase project **`examsprepzambia`**) is a **Zambian curriculum-aligned learning platform supporting CBC, OBC/2013 curriculum structures and transitional grade configurations** (evidenced by `public/syllabi/curriculum-data.json` + `curriculum-data-2013.json`, `teacherTaxonomy.CURRICULUM_GRADE_STRUCTURES` cbc/previous, and the 2013 curriculum reference pages), for learners, teachers, admins and parents. It is:
 
 - A **Vite + React 19 SPA** served from **Firebase Hosting** (`dist/`).
 - Backed by **Firebase**: Auth, Firestore, Storage, Cloud Functions v2 (Node 22), App Check.
@@ -106,7 +106,7 @@ flowchart TB
 | `httpsCallable(...)` | Firebase callable | ID token + App Check | `functions/index.js` | All non-SSE function calls. |
 | Firestore/Storage SDK | WebChannel/HTTPS | Rules + App Check | `firestore.rules`, `storage.rules` | Direct client reads/writes. |
 
-CSP `connect-src` (`firebase.json`) whitelists the external hosts: `*.googleapis.com`, `*.firebaseio.com`, `*.firebasestorage.app`, `*.cloudfunctions.net`, `*.run.app`, `api.lenco.co`, `*.posthog.com`, `*.sentry.io`. This is the authoritative list of network egress from the browser.
+CSP `connect-src` (`firebase.json`) whitelists the external hosts the SPA may contact: `*.googleapis.com`, `*.firebaseio.com`, `*.firebasestorage.app`, `*.cloudfunctions.net`, `*.run.app`, `api.lenco.co`, `*.posthog.com`, `*.sentry.io`. This is the authoritative **browser-side network allowlist** — it governs connections the browser makes. It is **not** the full backend egress list: server-side Cloud Functions reach additional external services (Lenco, the Google Play Developer API, Anthropic/OpenAI/Gemini, SMTP, GitHub) that never appear in the browser CSP. Treat browser-side allowlist and server-side outbound integrations as separate registers.
 
 ## The "AI company" (internal agents)
 

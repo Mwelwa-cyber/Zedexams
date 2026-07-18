@@ -2,9 +2,26 @@
 
 > Snapshot as of 2026-07-17 — verify before acting. Baseline commit `0cd4c49`.
 
-This tracks the security/consistency remediation programme. The **P0 security PR** (this branch) is scoped to two backend-authorization fixes only; everything else is sequenced into separate follow-up PRs so no unrelated refactor rides along.
+This tracks the security/consistency remediation programme. The **P0 security PR** was scoped to two backend-authorization fixes only; everything else is sequenced into separate follow-up PRs so no unrelated refactor rides along.
 
-## ✅ P0 — landed in this PR
+## P0 — lifecycle status
+
+| Stage | State |
+|---|---|
+| Identified | ✔ (architecture audit, snapshot `0cd4c49`) |
+| Implementation | ✔ complete (Firestore rules, Storage rules, `functions/authGuard.js`) |
+| Behavioural tests | ✔ passed — 138/138 Firestore emulator, 12/12 `authGuard.test.js`; Storage rules passed in CI |
+| Merge | ✔ complete — PR #1774, head `63e796a`, merge `7b0ad2f` |
+| Production deployment | ✔ **confirmed** — Deploy Firebase run `29571690692` released Firestore rules, Storage rules, indexes and the affected Cloud Functions (project `examsprepzambia`) |
+| Independent review | ✔ **Approved with follow-ups** |
+| Residual risks | **F1** payment-initiation fail-open ([`23`](./23-risk-register.md) RISK-19); **F2** previously issued Storage download tokens ([`23`](./23-risk-register.md) RISK-20) |
+
+### Residual follow-ups (not resolved by the P0 PR)
+
+- **F1 — Payment-initiation fail-open.** `assertActiveAccount` (used by `initiateLencoPayment` etc.) fails **open** on a transient `users/{uid}.status` read error so a Firestore blip can't lock the platform out. Low severity (not attacker-inducible; rules + revoked tokens still bound it). *Follow-up:* review payment initiation separately; make it fail **closed** where appropriate; ensure no Lenco request is created after an authorization failure; add suspended/deleted/missing-user/read-error tests. **Do not change payment code as a documentation task.**
+- **F2 — Existing Storage download tokens.** Storage rules gate `getDownloadURL()`/SDK access (the app path), and no token URLs are persisted in Firestore — but a token minted/shared before the change stays valid until rotated. **Unverified** whether any were distributed; tokens were **not** rotated. *Follow-up options:* audit premium-file metadata tokens; rotate/remove them; stop persisting long-lived tokenised URLs; use authenticated or short-lived signed downloads; or a backend download endpoint. **Do not rotate tokens as a documentation task.**
+
+## ✅ P0 — what landed (enforcement)
 
 **Goal:** premium learner content and suspended accounts are enforced by the backend, not the client.
 
