@@ -43,7 +43,7 @@ Highlights (full list verified in findings): `curriculum.js` alone holds three (
 ## D. Server allowlist DRIFT (real bugs, not just duplication)
 
 - `generateLessonPlan.js:109 ALLOWED_GRADES` has **no `F1`–`F4`**, but `assessmentAllowlists.js`, `generateNotes.js`, `generateFlashcards.js` **do** → a studio emitting `'F1'` passes assessment/notes but is rejected by lesson-plan.
-- `assessmentAllowlists.js:14 ALLOWED_SUBJECTS` **omits** `fashion_fabrics`, `food_nutrition`, `hospitality_management`, `travel_tourism`, `literature_in_english` that `generateNotes.js`/`generateLessonPlan.js` include → "Please select a supported subject" errors that depend on which studio you're in.
+- `assessmentAllowlists.js:14 ALLOWED_SUBJECTS` **omits** `fashion_fabrics`, `food_nutrition`, `hospitality_management`, `travel_tourism`, `literature_in_english`, which `generateNotes.js`/`generateHomework.js`/`generateFlashcards.js`/`generateRubric.js`/`generateSchemeOfWork.js`/`generateWorksheet.js` **include** → "Please select a supported subject" errors that depend on which studio you're in. (Correction: `generateLessonPlan.js` **also omits** these five, matching `assessmentAllowlists.js` — an earlier draft of this doc wrongly listed it among the includers.)
 - `generateLessonPlan.js:113` comment claims it "Mirrors the frontend TEACHER_SUBJECTS list" but has no shared import — hand-copied and drifted.
 
 ## E. Fallbacks that expose the WRONG curriculum

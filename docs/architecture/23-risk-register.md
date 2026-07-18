@@ -3,7 +3,14 @@
 > Snapshot as of 2026-07-17 — verify before acting. Audited commit `0cd4c49`.
 > Severity = worst-case impact; Probability = likelihood of occurrence/exploitation given current code. Priority is severity×probability adjusted for blast radius.
 >
-> **P0 status update (2026-07-17):** **RISK-3** (suspension) is **RESOLVED** and **RISK-2** (premium content) is **RESOLVED for quiz answer-keys + past-paper PDFs** — enforced in `firestore.rules`/`storage.rules`/`functions/authGuard.js` with emulator + unit regression tests. RISK-2's lessons/notes portion was found to be free content (not premium) in the current client, so it is out of the leak; making it premium later is a scoped follow-up. See [`18-security-review.md`](./18-security-review.md) and [`25-remediation-plan.md`](./25-remediation-plan.md). RISK-1 (curriculum) and RISK-4 (client Gemini) remain open by design — deferred to the P1 follow-up PRs, not this focused security PR.
+> **P0 status update (2026-07-17) — lifecycle, not a single "resolved":**
+>
+> | Risk | Implemented | Behaviourally tested | Merged | Deployed | Independently reviewed | Residual |
+> |---|---|---|---|---|---|---|
+> | **RISK-3** (suspension) | ✔ | ✔ | ✔ (#1774 / `7b0ad2f`) | ✔ (run `29571690692`) | ✔ Approved w/ follow-ups | **RISK-19** payment-initiation fail-open |
+> | **RISK-2** (premium content) | ✔ (quiz questions + past-paper PDFs) | ✔ | ✔ | ✔ | ✔ Approved w/ follow-ups | **RISK-20** existing Storage tokens |
+>
+> Enforced in `firestore.rules`/`storage.rules`/`functions/authGuard.js`. **RISK-2's lessons/notes portion was verified as free content (not premium)** in the current client, so it is out of the leak; making it premium later is a scoped follow-up. RISK-1 (curriculum) and RISK-4 (client Gemini) **remain open by design** — deferred to P1 follow-up PRs. See [`18-security-review.md`](./18-security-review.md) and [`25-remediation-plan.md`](./25-remediation-plan.md). New residual rows **RISK-19** and **RISK-20** are added below.
 
 | ID | Title | Sev | Prob | Impact | Evidence | Affected | Immediate mitigation | Long-term fix | Tests | Priority |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -25,6 +32,8 @@
 | RISK-16 | **Legacy collections/indexes carried** | Low | Low | Index maintenance cost, collision risk, confusion | [`22`](./22-dead-code-register.md) R7 | ops | Drop after writer-confirmation | Prune indexes/rules | — | P3 |
 | RISK-17 | **Android lifecycle / no native tests + no App Links** | Low | Med | Deep-link/back-button/native-auth regressions ship unseen | [`17`](./17-android-capacitor.md) AND-1/2 | Android | Manual release smoke | Instrumented tests + App Links | Espresso smoke | P3 |
 | RISK-18 | **Play revenue counted at list price in treasury** | Low | Low | AI budget ceiling slightly over-stated | PAY-3 | budgeting | Note in dashboard | Use Google net revenue | — | P3 |
+| RISK-19 | **Payment-initiation fail-open on account-status read error** (P0 residual) | Low | Low | Suspended user could initiate a payment during a Firestore read failure; not attacker-inducible; rules still block direct data access + tokens revoked | SEC-F1 ([`18`](./18-security-review.md)) | payment initiation | Accept short-term (rules + token revocation bound it) | Make payment initiation fail **closed**; ensure no Lenco request after auth failure | suspended/deleted/missing-user/read-error cases | P2 |
+| RISK-20 | **Previously issued Storage download tokens may bypass new `papers/` rule** (P0 residual) | Low | Med | A tokenised past-paper URL minted/shared before the rule change still works until rotated; **unverified** whether any were distributed; tokens not rotated | SEC-F2 ([`18`](./18-security-review.md)) | past-paper files | App path is gated (`getDownloadURL`); no persisted token URLs | Audit + rotate premium-file tokens, or move to signed/authenticated downloads | token-audit script | P2 |
 
 ## Priority buckets
 
