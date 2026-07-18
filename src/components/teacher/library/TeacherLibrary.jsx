@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useFirestore } from '../../../hooks/useFirestore'
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 import {
   listMyGenerations,
   titleForGeneration,
@@ -366,7 +367,8 @@ export default function TeacherLibrary() {
   }, [allRows])
 
   /* ── Search across the whole library ───────────────────────── */
-  const trimmedQuery = query.trim()
+  const debouncedQuery = useDebouncedValue(query, 200)
+  const trimmedQuery = debouncedQuery.trim()
   const searchRows = useMemo(() => {
     if (!trimmedQuery) return []
     const needle = trimmedQuery.toLowerCase()

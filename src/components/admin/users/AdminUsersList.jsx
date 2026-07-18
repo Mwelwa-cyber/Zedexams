@@ -12,6 +12,7 @@ import UserStatusBadge from './UserStatusBadge'
 import ConfirmDialog from '../../ui/ConfirmDialog'
 import { adminSetUserStatus } from '../../../utils/adminUsersService'
 import { ADMIN_QUERY_LIMIT } from '../../../hooks/useFirestore'
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 import { useToast } from '../../ui/Toast'
 
 const ROLE_LABELS = { admin: 'Admin', teacher: 'Teacher', learner: 'Learner', student: 'Learner' }
@@ -55,6 +56,7 @@ export default function AdminUsersList({ defaultRole = 'all' }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebouncedValue(search, 200)
   const [roleFilter, setRoleFilter] = useState(defaultRole)
   const [params] = useSearchParams()
   const [statusFilter, setStatusFilter] = useState(params.get('status') || 'all')
@@ -97,7 +99,7 @@ export default function AdminUsersList({ defaultRole = 'all' }) {
   }, [defaultRole, location.key])
 
   const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase()
+    const term = debouncedSearch.trim().toLowerCase()
     return users.filter(u => {
       if (roleFilter !== 'all' && defaultRole === 'all') {
         const matchesRole = roleFilter === 'learner'
@@ -117,7 +119,7 @@ export default function AdminUsersList({ defaultRole = 'all' }) {
       const hay = `${u.email || ''} ${u.displayName || ''} ${u.school || ''}`.toLowerCase()
       return hay.includes(term)
     })
-  }, [users, roleFilter, statusFilter, verifiedFilter, search, defaultRole])
+  }, [users, roleFilter, statusFilter, verifiedFilter, debouncedSearch, defaultRole])
 
   function handleSuspend(u, current) {
     if (busy[u.id]) return

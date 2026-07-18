@@ -19,6 +19,7 @@ import {
   synthesizeAssessmentFormat,
 } from '../../utils/adminCbcKbService'
 import { useAuth } from '../../contexts/AuthContext'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import {
   getMergedSyllabi, saveSyllabusRow, removeSyllabusRow, restoreSyllabusRow,
   invalidateSyllabiCache,
@@ -173,7 +174,8 @@ export default function CbcKbAdmin() {
   const [activeVersion, setActiveVersion] = useState(null)
 
   const [query, setQuery] = useState('')
-  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const debouncedRawQuery = useDebouncedValue(query, 250)
+  const debouncedQuery = debouncedRawQuery.trim()
   const [currentSubject, setCurrentSubject] = useState(null)
   const [currentSheet, setCurrentSheet] = useState(null)
   const [rowFilter, setRowFilter] = useState('')
@@ -247,13 +249,6 @@ export default function CbcKbAdmin() {
     link.href = 'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&display=swap'
     document.head.appendChild(link)
   }, [])
-
-  useEffect(() => {
-    const trimmed = query.trim()
-    if (!trimmed) { setDebouncedQuery(''); return undefined }
-    const t = setTimeout(() => setDebouncedQuery(trimmed), 250)
-    return () => clearTimeout(t)
-  }, [query])
 
   const view = debouncedQuery ? 'search' : (currentSubject ? 'subject' : 'home')
 

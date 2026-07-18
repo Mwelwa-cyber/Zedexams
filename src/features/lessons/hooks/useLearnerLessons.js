@@ -6,6 +6,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { subscribeLearnerLessons } from '../lib/firestore'
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 
 export function useLearnerLessons({ grade, subject = 'all', search = '' }) {
   const [lessons, setLessons] = useState([])
@@ -32,11 +33,12 @@ export function useLearnerLessons({ grade, subject = 'all', search = '' }) {
     return unsub
   }, [grade, reloadKey])
 
+  const debouncedSearch = useDebouncedValue(search, 200)
   const filtered = useMemo(() => {
     let list = lessons
     if (subject !== 'all') list = list.filter(l => l.subject === subject)
-    if (search.trim()) {
-      const q = search.toLowerCase()
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase()
       list = list.filter(l =>
         l.title?.toLowerCase().includes(q) ||
         l.excerpt?.toLowerCase().includes(q) ||
@@ -44,7 +46,7 @@ export function useLearnerLessons({ grade, subject = 'all', search = '' }) {
       )
     }
     return list
-  }, [lessons, subject, search])
+  }, [lessons, subject, debouncedSearch])
 
   const countsBySubject = useMemo(() => {
     const counts = {}

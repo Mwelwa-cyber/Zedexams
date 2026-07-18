@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Search, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Users } from '../ui/icons'
 import { useFirestore, ADMIN_QUERY_LIMIT } from '../../hooks/useFirestore'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
 import { downloadCSV } from '../../utils/csvExport'
@@ -61,6 +62,7 @@ export default function AdminLearners() {
   const [loading, setLoading] = useState(true)
 
   const [search, setSearch]   = useState('')
+  const debouncedSearch = useDebouncedValue(search, 200)
   const [gradeF, setGradeF]   = useState('')
   const [statusF, setStatusF] = useState('')
   const [sortBy, setSortBy]   = useState('registered_desc')
@@ -161,7 +163,7 @@ export default function AdminLearners() {
 
   // Filter + sort
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
+    const q = debouncedSearch.trim().toLowerCase()
     const rows = learners.filter(l => {
       if (gradeF && String(l.grade) !== gradeF) return false
       if (statusF === 'premium' && !(l.isPremium || l.premium)) return false
@@ -200,7 +202,7 @@ export default function AdminLearners() {
       }
     })
     return rows
-  }, [learners, perLearner, search, gradeF, statusF, sortBy])
+  }, [learners, perLearner, debouncedSearch, gradeF, statusF, sortBy])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const safePage   = Math.min(page, totalPages)
@@ -208,7 +210,7 @@ export default function AdminLearners() {
 
   // Reset to page 1 whenever the filter or page size changes — otherwise
   // the user can end up parked on an empty page beyond the new last page.
-  useEffect(() => { setPage(1) }, [search, gradeF, statusF, sortBy, pageSize])
+  useEffect(() => { setPage(1) }, [debouncedSearch, gradeF, statusF, sortBy, pageSize])
 
   function handleExport() {
     const rows = filtered.map(l => {

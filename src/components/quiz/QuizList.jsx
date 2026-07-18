@@ -14,6 +14,7 @@ import {
   X,
 } from '../ui/icons'
 import { useFirestore } from '../../hooks/useFirestore'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useSubscription } from '../../hooks/useSubscription'
 import { useAuth } from '../../contexts/AuthContext'
 import UpgradeModal from '../subscription/UpgradeModal'
@@ -337,8 +338,10 @@ export default function QuizList() {
     return () => clearTimeout(t)
   }, [blockedToast])
 
+  const debouncedSearch = useDebouncedValue(search, 200)
+
   const filteredQuizzes = useMemo(() => {
-    const needle = search.trim().toLowerCase()
+    const needle = debouncedSearch.trim().toLowerCase()
     if (!needle) return quizzes
     return quizzes.filter(q =>
       q && (
@@ -346,7 +349,7 @@ export default function QuizList() {
         (q.topic ?? '').toLowerCase().includes(needle)
       )
     )
-  }, [quizzes, search])
+  }, [quizzes, debouncedSearch])
 
   // Group filtered quizzes by subject. Subjects without any matching quizzes
   // still appear in the grid as "Coming soon" so the layout stays predictable.
@@ -375,10 +378,10 @@ export default function QuizList() {
   // Auto-open a single subject when search narrows the results so learners
   // immediately see what matched, instead of having to tap to reveal it.
   useEffect(() => {
-    if (!search.trim()) return
+    if (!debouncedSearch.trim()) return
     const populated = grouped.filter(g => g.items.length > 0)
     if (populated.length === 1) setExpanded(populated[0].subject.id)
-  }, [search, grouped])
+  }, [debouncedSearch, grouped])
 
   function handleToggle(subjectId) {
     setExpanded(prev => (prev === subjectId ? null : subjectId))
