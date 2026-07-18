@@ -49,8 +49,8 @@ const firestoreFn = () => ({
   collection: (name) => {
     assert.strictEqual(name, "aiGenerations", "only aiGenerations is written");
     return {
-      doc: () => {
-        const id = `gen_${++genSeq}`;
+      doc: (suppliedId) => {
+        const id = suppliedId || `gen_${++genSeq}`;
         return {
           id,
           set: async (data) => {
@@ -59,6 +59,10 @@ const firestoreFn = () => ({
           update: async (data) => {
             genDocs[id] = {...(genDocs[id] || {}), ...data};
           },
+          get: async () => ({
+            exists: id in genDocs,
+            data: () => genDocs[id],
+          }),
         };
       },
     };
@@ -78,12 +82,50 @@ class HttpsError extends Error {
   }
 }
 
-const calls = {claude: [], refund: [], meter: [], sourced: []};
+const calls = {claude: [], refund: [], meter: [], sourced: [], reserve: [], complete: [], fail: []};
 let claudeImpl = async () => {
   throw new Error("claudeImpl not set");
 };
 let refundImpl = async () => {};
 let sourcedImpl = async () => ({questions: [], fromBank: 0, marks: 0, scanned: 0});
+
+// ── Fake aiOperations service (in-memory, keyed by idempotencyKey) ─────────
+// A deliberately simplified stand-in for functions/aiOperations.js — real
+// reservation-transaction semantics (concurrency, fingerprint mismatch,
+// retry backoff) are covered by aiOperations.test.js. This fake only needs
+// to prove that generateAssessment.js WIRES the service correctly: reserve
+// before the provider call, resume a completed key without re-calling
+// Claude, refuse a terminally-failed key, and settle on success/flagged.
+let opStore = new Map();
+const reserveImpl = async ({uid, idempotencyKey, operationType, fingerprintInput}) => {
+  calls.reserve.push({uid, idempotencyKey, operationType, fingerprintInput});
+  const existing = opStore.get(idempotencyKey);
+  if (!existing) {
+    const record = {userId: uid, status: "processing", resultDocumentId: null, errorMessage: null, errorCode: null};
+    opStore.set(idempotencyKey, record);
+    return {status: "created", operation: record};
+  }
+  if (existing.status === "completed") return {status: "completed", operation: existing};
+  if (existing.status === "failed") return {status: "failed", operation: existing};
+  return {status: "processing", operation: existing};
+};
+const completeImpl = async ({idempotencyKey, resultDocumentId, usageCharged}) => {
+  calls.complete.push({idempotencyKey, resultDocumentId, usageCharged});
+  const rec = opStore.get(idempotencyKey);
+  if (rec) {
+    rec.status = "completed";
+    rec.resultDocumentId = resultDocumentId;
+  }
+};
+const failImpl = async ({idempotencyKey, err, usageCharged}) => {
+  calls.fail.push({idempotencyKey, err, usageCharged});
+  const rec = opStore.get(idempotencyKey);
+  if (rec) {
+    rec.status = "failed";
+    rec.errorMessage = String((err && err.message) || err);
+    rec.errorCode = "PROVIDER_ERROR";
+  }
+};
 // Max plan so the general-behaviour tests run unclamped; the free-preview
 // clamps get their own dedicated block at the end of the suite (flip
 // USAGE.plan to "free" there and restore it after).
@@ -134,6 +176,13 @@ Module._load = function (request, ...rest) {
         calls.refund.push({uid, usage, tool});
         return refundImpl(uid, usage, tool);
       },
+    };
+  }
+  if (request === "../aiOperations") {
+    return {
+      reserveAiOperation: (args) => reserveImpl(args),
+      completeAiOperation: (args) => completeImpl(args),
+      failAiOperation: (args) => failImpl(args),
     };
   }
   if (request === "./masterBankSourcing") {
@@ -208,6 +257,13 @@ function validPaper() {
   };
 }
 
+// Every test call site shares one fixed, valid idempotency key — reset()
+// clears the fake operation store between tests, and each test's own
+// aiGenerations doc id is deterministically THIS key (generateAssessment.js
+// now uses `.doc(idempotencyKey)` — see the "deterministic result ids"
+// comment in generateAssessment.js).
+const IDK = "11111111-1111-4111-8111-111111111111";
+
 function reset() {
   genDocs = {};
   genSeq = 0;
@@ -215,6 +271,10 @@ function reset() {
   calls.refund.length = 0;
   calls.meter.length = 0;
   calls.sourced.length = 0;
+  calls.reserve.length = 0;
+  calls.complete.length = 0;
+  calls.fail.length = 0;
+  opStore = new Map();
   refundImpl = async () => {};
   sourcedImpl = async () => ({questions: [], fromBank: 0, marks: 0, scanned: 0});
   classifyResult = "unknown";
@@ -233,10 +293,11 @@ async function caught(promise) {
   console.log("runAssessment — input validation");
   reset();
   const eBad = await caught(runAssessment({
-    uid: "t1", rawInputs: {...INPUTS, grade: "G99"}, apiKey: "k",
+    uid: "t1", rawInputs: {...INPUTS, grade: "G99"}, apiKey: "k", idempotencyKey: IDK,
   }));
   ok("invalid grade throws invalid-argument", eBad instanceof HttpsError && eBad.code === "invalid-argument");
   ok("invalid input never reaches the usage meter", calls.meter.length === 0);
+  ok("invalid input never reaches the idempotency reservation", calls.reserve.length === 0);
   ok("invalid input writes no aiGenerations doc", Object.keys(genDocs).length === 0);
 
   // Defensive validation (the fix for the "Examination silently generates as
@@ -244,7 +305,7 @@ async function caught(promise) {
   // never silently coerced to a different type.
   reset();
   const eBadType = await caught(runAssessment({
-    uid: "t1", rawInputs: {...INPUTS, assessmentType: "not_a_real_type"}, apiKey: "k",
+    uid: "t1", rawInputs: {...INPUTS, assessmentType: "not_a_real_type"}, apiKey: "k", idempotencyKey: IDK,
   }));
   ok("unsupported assessmentType throws invalid-argument",
     eBadType instanceof HttpsError && eBadType.code === "invalid-argument");
@@ -256,9 +317,9 @@ async function caught(promise) {
   for (const type of ["mock_exam", "examination", "final_exam"]) {
     reset();
     claudeImpl = async () => validPaper();
-    await runAssessment({uid: "t1", rawInputs: {...INPUTS, assessmentType: type}, apiKey: "k"});
+    await runAssessment({uid: "t1", rawInputs: {...INPUTS, assessmentType: type}, apiKey: "k", idempotencyKey: IDK});
     ok(`assessmentType "${type}" is persisted unchanged`,
-      genDocs.gen_1 && genDocs.gen_1.inputs.assessmentType === type);
+      genDocs[IDK] && genDocs[IDK].inputs.assessmentType === type);
   }
 
   console.log("\nrunAssessment — AI failure → failed + refund + rethrow");
@@ -266,13 +327,14 @@ async function caught(promise) {
   claudeImpl = async () => {
     throw new Error("anthropic exploded");
   };
-  const eFail = await caught(runAssessment({uid: "t1", rawInputs: INPUTS, apiKey: "k"}));
+  const eFail = await caught(runAssessment({uid: "t1", rawInputs: INPUTS, apiKey: "k", idempotencyKey: IDK}));
   ok("the original error is rethrown", eFail && eFail.message === "anthropic exploded");
-  ok("the generation doc flips to failed", genDocs.gen_1 && genDocs.gen_1.status === "failed");
-  ok("the failure message is persisted", String(genDocs.gen_1.errorMessage).includes("anthropic exploded"));
+  ok("the generation doc flips to failed", genDocs[IDK] && genDocs[IDK].status === "failed");
+  ok("the failure message is persisted", String(genDocs[IDK].errorMessage).includes("anthropic exploded"));
   ok("the quota is refunded once", calls.refund.length === 1);
   ok("refund carries uid + usage + tool", calls.refund[0].uid === "t1" &&
     calls.refund[0].tool === "assessment" && calls.refund[0].usage.period === USAGE.period);
+  ok("the operation record is marked failed", calls.fail.length === 1 && calls.fail[0].idempotencyKey === IDK);
 
   // The refund is best-effort: a refund failure must be swallowed (and logged)
   // so the ORIGINAL generation error is what the caller sees.
@@ -286,7 +348,7 @@ async function caught(promise) {
   const origErr = console.error;
   const logged = [];
   console.error = (...args) => logged.push(args.map(String).join(" "));
-  const eBoth = await caught(runAssessment({uid: "t1", rawInputs: INPUTS, apiKey: "k"}));
+  const eBoth = await caught(runAssessment({uid: "t1", rawInputs: INPUTS, apiKey: "k", idempotencyKey: IDK}));
   console.error = origErr;
   ok("a failing refund does not mask the generation error",
       eBoth && eBoth.message === "anthropic exploded");
@@ -301,13 +363,15 @@ async function caught(promise) {
     usage: {inputTokens: 10, outputTokens: 20},
     model: "claude-test",
   });
-  const flagged = await runAssessment({uid: "t2", rawInputs: INPUTS, apiKey: "k"});
+  const flagged = await runAssessment({uid: "t2", rawInputs: INPUTS, apiKey: "k", idempotencyKey: IDK});
   ok("invalid output resolves (no throw)", Boolean(flagged && flagged.generationId));
-  ok("the generation doc is flagged", genDocs.gen_1.status === "flagged");
-  ok("schema errors are persisted", String(genDocs.gen_1.errorMessage).startsWith("Schema errors:"));
+  ok("the generation doc is flagged", genDocs[IDK].status === "flagged");
+  ok("schema errors are persisted", String(genDocs[IDK].errorMessage).startsWith("Schema errors:"));
   ok("a review warning is returned to the studio",
       String(flagged.warning).includes("incomplete"));
   ok("NO refund on flagged (the teacher still got a paper)", calls.refund.length === 0);
+  ok("a flagged paper still completes the operation record (billed once, not retried)",
+      calls.complete.length === 1 && calls.complete[0].idempotencyKey === IDK);
 
   console.log("\nrunAssessment — valid output → complete");
   reset();
@@ -317,16 +381,20 @@ async function caught(promise) {
     usage: {inputTokens: 100, outputTokens: 500},
     model: "claude-test",
   });
-  const done = await runAssessment({uid: "t3", rawInputs: INPUTS, apiKey: "k"});
+  const done = await runAssessment({uid: "t3", rawInputs: INPUTS, apiKey: "k", idempotencyKey: IDK});
   ok("returns the validated assessment", done.assessment &&
     done.assessment.header.title === "Fractions Topic Test");
-  ok("the generation doc completes", genDocs.gen_1.status === "complete");
-  ok("token usage + cost are persisted", genDocs.gen_1.tokensIn === 100 &&
-    genDocs.gen_1.tokensOut === 500 && genDocs.gen_1.costUsdCents > 0);
+  ok("the generation doc completes", genDocs[IDK].status === "complete");
+  ok("token usage + cost are persisted", genDocs[IDK].tokensIn === 100 &&
+    genDocs[IDK].tokensOut === 500 && genDocs[IDK].costUsdCents > 0);
   ok("sourcing summary reports a pure-AI paper", done.sourcing.fromBank === 0 &&
     done.sourcing.generated === 2 && done.sourcing.aiCalled === true);
   ok("no refund on success", calls.refund.length === 0);
   ok("marks are recomputed from the questions", done.assessment.header.totalMarks === 4);
+  ok("the operation is reserved exactly once", calls.reserve.length === 1);
+  ok("the operation completes with the aiGenerations doc id + one usage charge",
+      calls.complete.length === 1 && calls.complete[0].resultDocumentId === IDK &&
+      calls.complete[0].usageCharged === 1);
 
   console.log("\nrunAssessment — Master Bank questions are merged + reported");
   reset();
@@ -347,7 +415,7 @@ async function caught(promise) {
     usage: {inputTokens: 100, outputTokens: 500},
     model: "claude-test",
   });
-  const mixed = await runAssessment({uid: "t4", rawInputs: INPUTS, apiKey: "k"});
+  const mixed = await runAssessment({uid: "t4", rawInputs: INPUTS, apiKey: "k", idempotencyKey: IDK});
   const prompts = mixed.assessment.sections
       .flatMap((s) => s.questions).map((q) => q.prompt);
   ok("bank questions land in the paper", prompts.includes("Bank Q1") && prompts.includes("Bank Q2"));
@@ -368,7 +436,7 @@ async function caught(promise) {
     parsed: validPaper(), text: "",
     usage: {inputTokens: 1, outputTokens: 1}, model: "claude-test",
   });
-  await runAssessment({uid: "t5", rawInputs: {...INPUTS, useQuestionBank: false}, apiKey: "k"});
+  await runAssessment({uid: "t5", rawInputs: {...INPUTS, useQuestionBank: false}, apiKey: "k", idempotencyKey: IDK});
   ok("useQuestionBank:false never queries the bank", calls.sourced.length === 0);
 
   // ── Free preview (§12–13): marks clamp + hard 5-question cap ─────────
@@ -394,7 +462,7 @@ async function caught(promise) {
     model: "claude-test",
   });
   const freeRun = await runAssessment(
-      {uid: "t6", rawInputs: {...INPUTS, useQuestionBank: false}, apiKey: "k"});
+      {uid: "t6", rawInputs: {...INPUTS, useQuestionBank: false}, apiKey: "k", idempotencyKey: IDK});
   const freeQs = freeRun.assessment.sections.flatMap((s) => s.questions);
   ok("free preview never returns more than 5 questions", freeQs.length === 5);
   ok("free preview drops emptied sections",
@@ -406,6 +474,60 @@ async function caught(promise) {
       freeRun.preview.truncated === true);
   ok("paid runs carry no preview marker", mixed.preview === null);
   USAGE.plan = "max";
+
+  // ── Idempotency wiring (request-locking / duplicate-billing initiative) ──
+  console.log("\nrunAssessment — idempotency: resume, block-duplicate, refuse-retry");
+
+  // A second call with the SAME idempotencyKey after the first has already
+  // completed must resume the existing result WITHOUT calling Claude again
+  // or charging usage again.
+  reset();
+  claudeImpl = async () => ({
+    parsed: validPaper(), text: "", usage: {inputTokens: 10, outputTokens: 10}, model: "claude-test",
+  });
+  const first = await runAssessment({uid: "t7", rawInputs: INPUTS, apiKey: "k", idempotencyKey: IDK});
+  ok("first call reaches the provider", calls.claude.length === 1);
+  ok("first call charges usage once", calls.meter.length === 1);
+  const resumed = await runAssessment({uid: "t7", rawInputs: INPUTS, apiKey: "k", idempotencyKey: IDK});
+  ok("a duplicate call with a completed key does NOT call the provider again", calls.claude.length === 1);
+  ok("a duplicate call with a completed key does NOT charge usage again", calls.meter.length === 1);
+  ok("a duplicate call does NOT write a second aiGenerations doc",
+      Object.keys(genDocs).length === 1);
+  ok("the resumed response is marked resumed", resumed.resumed === true);
+  ok("the resumed response returns the SAME assessment", resumed.assessment &&
+      resumed.assessment.header.title === first.assessment.header.title);
+  ok("the resumed response carries the same generationId", resumed.generationId === first.generationId);
+
+  // Two calls with the same key fired without waiting for the first to
+  // settle: the second must see "processing" and must not call the provider
+  // a second time (real cross-request/cross-tab concurrency is covered by
+  // aiOperations.test.js's transaction test — this proves generateAssessment
+  // ACTS on that "processing" status correctly rather than plowing ahead).
+  reset();
+  claudeImpl = async () => ({
+    parsed: validPaper(), text: "", usage: {inputTokens: 10, outputTokens: 10}, model: "claude-test",
+  });
+  const [raceA, raceB] = await Promise.all([
+    runAssessment({uid: "t8", rawInputs: INPUTS, apiKey: "k", idempotencyKey: IDK}),
+    runAssessment({uid: "t8", rawInputs: INPUTS, apiKey: "k", idempotencyKey: IDK}),
+  ]);
+  ok("only one of the two racing calls reaches the provider", calls.claude.length === 1);
+  ok("only one of the two racing calls charges usage", calls.meter.length === 1);
+  const raceOutcomes = [raceA, raceB].map((r) => (r.status === "processing" ? "processing" : "assessment"));
+  ok("one racer gets the assessment, the other gets a processing status",
+      raceOutcomes.sort().join(",") === "assessment,processing");
+
+  // A key that already failed terminally must not be retried automatically.
+  reset();
+  claudeImpl = async () => {
+    throw new Error("anthropic exploded");
+  };
+  await caught(runAssessment({uid: "t9", rawInputs: INPUTS, apiKey: "k", idempotencyKey: IDK}));
+  ok("the first attempt reached the provider", calls.claude.length === 1);
+  const eRetry = await caught(runAssessment({uid: "t9", rawInputs: INPUTS, apiKey: "k", idempotencyKey: IDK}));
+  ok("a duplicate call after a terminal failure is rejected, not retried",
+      eRetry instanceof HttpsError && eRetry.code === "failed-precondition");
+  ok("the provider is NOT called again for an already-failed key", calls.claude.length === 1);
 
   // ── Combination validation: curriculum + level + subject ─────────────
   console.log("\nvalidateInputs — curriculum/level/subject combination");

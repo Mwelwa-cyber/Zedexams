@@ -29,6 +29,7 @@ const {validateAssessment} = require("./assessmentSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./assessmentPromptV10");
 const {assertAndIncrement, refundGeneration} = require("./usageMeter");
+const {reserveAiOperation, completeAiOperation, failAiOperation} = require("../aiOperations");
 const {FREE_PREVIEW_LIMITS} = require("./teacherPlans");
 const {clampAssessmentPreview} = require("./freePreview");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
@@ -189,12 +190,75 @@ function validateInputs(inputs) {
   return errs;
 }
 
-async function runAssessment({uid, rawInputs, apiKey}) {
+/**
+ * Reconstruct the client-facing response for an idempotency key that already
+ * completed (§7 — a duplicate/retried request must return the existing
+ * result, never call the provider again). Reads the persisted aiGenerations
+ * doc rather than re-deriving anything, so a resumed response is exactly
+ * what the original caller would have seen.
+ */
+async function buildResumedAssessmentResponse(operation) {
+  const genId = operation.resultDocumentId;
+  const genSnap = genId ?
+    await admin.firestore().collection("aiGenerations").doc(genId).get() : null;
+  const genData = genSnap && genSnap.exists ? genSnap.data() : null;
+  return {
+    generationId: genId,
+    assessment: genData ? genData.output : null,
+    usage: null,
+    warning: genData && genData.status === "flagged" ?
+      "Some fields were incomplete — please review." : null,
+    kbGrounded: Boolean(genData && genData.kbVersion),
+    sourcing: genData ? genData.sourcing : null,
+    quality: genData ? genData.quality : null,
+    preview: null,
+    resumed: true,
+  };
+}
+
+async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
   const inputs = sanitizeInputs(rawInputs || {});
   const inputErrors = validateInputs(inputs);
   if (inputErrors.length > 0) {
     throw new HttpsError("invalid-argument", inputErrors.join(" "));
   }
+
+  // Idempotency reservation (§6/§7/§8) — MUST happen before the CBC-context
+  // resolution / usage meter / Anthropic call below, so a duplicate request
+  // (double-click, rapid tap, retried timeout, a second tab) can never reach
+  // the provider or the usage meter a second time for the same logical
+  // generation. `inputs` doubles as the canonical fingerprint payload — any
+  // field a teacher could change between two calls is already in there.
+  const reservation = await reserveAiOperation({
+    uid,
+    idempotencyKey,
+    operationType: "generate_assessment",
+    fingerprintInput: inputs,
+  });
+  if (reservation.status === "completed") {
+    return buildResumedAssessmentResponse(reservation.operation);
+  }
+  if (reservation.status === "processing") {
+    // Another call (this tab's retry, another tab, or a network resend) is
+    // already running the provider call for this exact request — do not
+    // start a second one. The client-side lock (useAiOperationLock) is what
+    // prevents this from firing FROM the same tab in the first place; this
+    // is the server-side backstop for everything else (§12/§13).
+    return {status: "processing", operationId: idempotencyKey};
+  }
+  if (reservation.status === "failed") {
+    throw new HttpsError(
+        "failed-precondition",
+        reservation.operation.errorMessage ||
+          "This request already failed and cannot be retried automatically.",
+        {code: reservation.operation.errorCode, retryable: false, operationId: idempotencyKey},
+    );
+  }
+  if (reservation.status === "cancelled") {
+    throw new HttpsError("cancelled", "This request was cancelled.");
+  }
+  // reservation.status is "created" or "retrying" — exactly one provider
+  // call happens below.
 
   const [
     {contextBlock, kbMatch, kbWarning, kbVersion},
@@ -234,7 +298,12 @@ async function runAssessment({uid, rawInputs, apiKey}) {
     inputs.durationMinutes = Math.min(inputs.durationMinutes, 30);
   }
 
-  const genRef = admin.firestore().collection("aiGenerations").doc();
+  // Deterministic doc id (= the idempotency key) rather than a random push
+  // id: makes the result write idempotent by construction — a retry of the
+  // SAME logical request (reservation.status === "retrying") re-`set()`s
+  // this exact doc instead of creating a sibling, and the resumed-completed
+  // path above can read it straight back by id (§10).
+  const genRef = admin.firestore().collection("aiGenerations").doc(idempotencyKey);
   await genRef.set({
     ownerUid: uid,
     tool: "assessment",
@@ -332,6 +401,16 @@ async function runAssessment({uid, rawInputs, apiKey}) {
       console.error("[generateAssessment] refund failed after generation error",
           {uid, generationId: genRef.id, usage}, refundErr);
     }
+    try {
+      await failAiOperation({idempotencyKey, err, usageCharged: 0});
+    } catch (opErr) {
+      // Best-effort — the original provider/refund error is what the
+      // caller needs to see; a failed operation-record write just means
+      // the durable audit trail is incomplete, not that anything was
+      // double-charged (the meter refund above already ran).
+      console.error("[generateAssessment] failAiOperation failed after generation error",
+          {uid, generationId: genRef.id}, opErr);
+    }
     throw err;
   }
 
@@ -403,6 +482,15 @@ async function runAssessment({uid, rawInputs, apiKey}) {
       sourcing,
       quality,
     });
+    // A "flagged" paper is still a real result the teacher already got and
+    // was already billed for — this is a completion for idempotency
+    // purposes, not a failure (no retry, no refund).
+    try {
+      await completeAiOperation({idempotencyKey, resultDocumentId: genRef.id, usageCharged: 1});
+    } catch (opErr) {
+      console.error("[generateAssessment] completeAiOperation failed (flagged)",
+          {uid, generationId: genRef.id}, opErr);
+    }
     return {
       generationId: genRef.id,
       assessment,
@@ -429,6 +517,16 @@ async function runAssessment({uid, rawInputs, apiKey}) {
     quality,
     completedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
+  try {
+    await completeAiOperation({idempotencyKey, resultDocumentId: genRef.id, usageCharged: 1});
+  } catch (opErr) {
+    // Best-effort — the teacher already has their paper; a failed
+    // operation-record write only means a retry with this SAME key would
+    // (harmlessly) re-run the reservation transaction and see "processing"
+    // stuck, not that anything gets double-billed.
+    console.error("[generateAssessment] completeAiOperation failed",
+        {uid, generationId: genRef.id}, opErr);
+  }
 
   return {
     generationId: genRef.id,
@@ -461,7 +559,8 @@ function createGenerateAssessment(anthropicApiKeySecret) {
           );
         }
         const apiKey = getAnthropicApiKey(anthropicApiKeySecret);
-        return runAssessment({uid, rawInputs: request.data, apiKey});
+        const idempotencyKey = request.data && request.data.idempotencyKey;
+        return runAssessment({uid, rawInputs: request.data, apiKey, idempotencyKey});
       },
   );
 }
