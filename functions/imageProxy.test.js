@@ -8,7 +8,17 @@
  */
 
 const assert = require("assert");
-const {resolveStorageTarget} = require("./imageProxyCore");
+const {
+  resolveStorageTarget,
+  checkUpstreamHeaders,
+  MAX_PROXY_BYTES,
+} = require("./imageProxyCore");
+
+function fakeHeaders(map) {
+  const lower = {};
+  for (const k of Object.keys(map || {})) lower[k.toLowerCase()] = map[k];
+  return {get: (n) => (n && n.toLowerCase() in lower ? lower[n.toLowerCase()] : null)};
+}
 
 let failures = 0;
 function check(cond, msg) {
@@ -63,6 +73,26 @@ check(
 check(
   resolveStorageTarget("https://firebasestorage.googleapis.com/healthz") === null,
   "storage host but no /v0/b/<bucket>/o/ path",
+);
+
+console.log("\ncheckUpstreamHeaders — vets content-type + declared size pre-buffer");
+check(
+  checkUpstreamHeaders(fakeHeaders({"content-type": "image/png"})).ok === true,
+  "accepts image/* with no content-length",
+);
+check(
+  checkUpstreamHeaders(fakeHeaders({"content-type": "image/jpeg", "content-length": "1024"})).ok === true,
+  "accepts small declared image",
+);
+const notImage = checkUpstreamHeaders(fakeHeaders({"content-type": "text/html"}));
+check(notImage.ok === false && notImage.status === 415, "rejects non-image content-type with 415");
+const tooBig = checkUpstreamHeaders(
+  fakeHeaders({"content-type": "image/png", "content-length": String(MAX_PROXY_BYTES + 1)}),
+);
+check(tooBig.ok === false && tooBig.status === 413, "rejects oversized declared length with 413");
+check(
+  checkUpstreamHeaders(fakeHeaders({})).ok === true,
+  "missing content-type defaults to image/png (allowed)",
 );
 
 assert.strictEqual(failures, 0, `${failures} image-proxy test(s) failed`);

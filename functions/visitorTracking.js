@@ -39,6 +39,7 @@ const {onRequest} = require("firebase-functions/v2/https");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const admin = require("firebase-admin");
 const {applyCors} = require("./cors");
+const {enforceRateLimit, standardBuckets, resolveClientIp} = require("./rateLimit");
 const {
   dayKeyFor,
   pickShardId,
@@ -183,6 +184,23 @@ exports.apiTrackVisit = onRequest(
 
         const beacon = normalizeBeacon(req.body || {});
         if (!beacon) {
+          res.status(204).send("");
+          return;
+        }
+
+        // IP-scoped fixed-window cap (fail-open) before any Firestore write:
+        // this is an unauthenticated write endpoint (one `visits/{autoId}` doc
+        // + a counter txn per hit), so an unthrottled loop is a billing-abuse
+        // and data-poisoning (spoofed pageviews) surface. A blocked beacon is
+        // dropped SILENTLY with 204 to preserve the never-surface-an-error
+        // contract — a real page emits far fewer hits than the cap. A school
+        // computer-lab NAT stays well under the generous per-IP limit.
+        const ip = resolveClientIp(req);
+        const rl = await enforceRateLimit(
+            admin.firestore(),
+            standardBuckets({action: "track-visit", ip, ipPerMin: 300}),
+        );
+        if (!rl.allowed) {
           res.status(204).send("");
           return;
         }
