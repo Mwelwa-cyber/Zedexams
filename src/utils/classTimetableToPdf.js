@@ -18,6 +18,7 @@ import {
   buildTimetableGridModel,
   cellState,
   subjectTintMap,
+  dayRowForSlot,
 } from './timetableGridModel.js'
 
 const ATTRIBUTION_TEXT =
@@ -82,17 +83,28 @@ function timeCellLabel(model, p) {
   return bits.join('')
 }
 
-function lessonCellHtml(cell, tints, layout) {
+/** A cell's own-day time caption — only rendered when a day-specific school
+ * structure (e.g. a half-day Friday) gives this cell's slot a different
+ * clock time than the shared reference row shown in the header/gutter. */
+function dayTimeCaptionHtml(model, day, slot) {
+  const dayRow = dayRowForSlot(model, day, slot)
+  const refRow = model.rows.find((r) => r.kind === 'lesson' && r.slot === slot)
+  if (!dayRow || !refRow || (dayRow.start === refRow.start && dayRow.end === refRow.end)) return ''
+  return `<div class="daytime">${escapeHtml(dayRow.start)}&ndash;${escapeHtml(dayRow.end)}</div>`
+}
+
+function lessonCellHtml(model, day, slot, cell, tints, layout) {
   const block = cell.block
-  if (!block) return '<td class="empty">&mdash;</td>'
+  const caption = dayTimeCaptionHtml(model, day, slot)
+  if (!block) return `<td class="empty">&mdash;${caption}</td>`
   const span = block.length > 1
     ? (layout === 'days-as-columns' ? ` rowspan="${block.length}"` : ` colspan="${block.length}"`)
     : ''
   if (block.type === 'school-activity') {
-    return `<td class="act"${span}>${escapeHtml(block.label)}</td>`
+    return `<td class="act"${span}>${escapeHtml(block.label)}${caption}</td>`
   }
   const dbl = block.length > 1 ? '<div class="dbl">Double period</div>' : ''
-  return `<td style="background:${tints[block.label] || '#fff'}"${span}>${escapeHtml(block.label)}${dbl}</td>`
+  return `<td style="background:${tints[block.label] || '#fff'}"${span}>${escapeHtml(block.label)}${dbl}${caption}</td>`
 }
 
 const OFF_CELL = '<td class="off">&mdash;</td>'
@@ -108,7 +120,7 @@ function daysAsColumnsTable(model, tints) {
       const cell = cellState(model, d, p.slot)
       if (cell.state === 'covered') return ''
       if (cell.state === 'off') return OFF_CELL
-      return lessonCellHtml(cell, tints, 'days-as-columns')
+      return lessonCellHtml(model, d, p.slot, cell, tints, 'days-as-columns')
     }).join('')
     return `<tr><td class="time">${timeCellLabel(model, p)}</td>${cells}</tr>`
   }).join('')
@@ -128,7 +140,7 @@ function daysAsRowsTable(model, tints) {
       const cell = cellState(model, day, p.slot)
       if (cell.state === 'covered') return ''
       if (cell.state === 'off') return OFF_CELL
-      return lessonCellHtml(cell, tints, 'days-as-rows')
+      return lessonCellHtml(model, day, p.slot, cell, tints, 'days-as-rows')
     }).join('')
     return `<tr><td class="day">${escapeHtml(day.toUpperCase())}</td>${cells}</tr>`
   }).join('')
@@ -202,6 +214,7 @@ export function buildPrintableHtml(timetable, attribution, paper = 'A4') {
   td.empty { color: #999; }
   .dbl { font-size: ${Math.max(6, fontPx - 4)}px; font-weight: bold; text-transform: uppercase;
          letter-spacing: .08em; opacity: .55; }
+  .daytime { font-size: ${Math.max(6, fontPx - 4)}px; font-weight: normal; opacity: .6; }
   .sig { margin-top: 14px; text-align: center; font-size: 11px; }
   .foot { margin-top: 12px; text-align: center; font-size: 10px; color: #888; }
 </style>

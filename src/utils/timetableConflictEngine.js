@@ -37,6 +37,8 @@
  * tested under plain node (scripts/test-timetable-conflict-engine.mjs).
  */
 
+import { periodsForDay } from './classTimetable.js'
+
 /* ── Canonical shared facilities ──────────────────────────────────
  * ZedExams has no school room model yet, so this catalog is the safe
  * canonical mapping for the common shared facilities. Picking one in the
@@ -131,7 +133,7 @@ export function normaliseTimetableForConflictCheck(doc, opts = {}) {
   const header = artifact.header || {}
   const timetableId = opts.timetableId || doc.id || artifact.id || ''
   const periods = Array.isArray(artifact.periods) ? artifact.periods : []
-  const lessonRows = periods.filter((p) => p && p.kind === 'lesson')
+  const dayStructure = artifact.dayStructure || null
   const rawBlocks = Array.isArray(artifact.blocks) ? artifact.blocks : []
 
   const gradeLabel = str(header.grade).replace(/^G/i, '')
@@ -142,8 +144,17 @@ export function normaliseTimetableForConflictCheck(doc, opts = {}) {
   ].filter(Boolean).join(' · ') || 'Class timetable'
 
   const scheduleBlocks = []
+  const lessonRowsByDay = new Map()
   for (const b of rawBlocks) {
     if (!b || (b.type && b.type !== 'curriculum')) continue
+    // A day-specific school-day structure (see classTimetable.periodsForDay)
+    // gives that day its own reporting/knock-off time — never fall back to
+    // another day's row list, or its slot times would be wrong.
+    const dayKey = b.day || ''
+    if (!lessonRowsByDay.has(dayKey)) {
+      lessonRowsByDay.set(dayKey, periodsForDay(b.day, periods, dayStructure).filter((p) => p && p.kind === 'lesson'))
+    }
+    const lessonRows = lessonRowsByDay.get(dayKey)
     const startRow = lessonRows[(b.startSlot || 0) - 1]
     const endRow = lessonRows[(b.startSlot || 0) + (b.length || 1) - 2]
     const startMinutes = startRow ? timeToMin(startRow.start) : null

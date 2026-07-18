@@ -318,8 +318,14 @@ export function suggestJoins(blocks, segments, { maxBlockLength = 2 } = {}) {
  * Structural errors in a block layout: overlapping blocks, blocks outside
  * the day's slot range, and doubles crossing a segment boundary (a break).
  * Returns an array of message strings — empty means structurally sound.
+ *
+ * `segments` may be a single array (every day shares one segment layout —
+ * the original, uniform-week shape) or a `(day) => segments[]` resolver, for
+ * timetables where a day-specific school-day structure gives some days their
+ * own break layout and knock-off time.
  */
 export function validateBlockLayout(blocks, { segments, days, slotCountForDay }) {
+  const segmentsFor = typeof segments === 'function' ? segments : () => segments
   const errors = []
   const dayList = new Set(Array.isArray(days) ? days : [])
   const seen = new Map()
@@ -333,7 +339,8 @@ export function validateBlockLayout(blocks, { segments, days, slotCountForDay })
       errors.push(`${b.label || 'A lesson'} on ${b.day} falls outside that day's lesson periods.`)
       continue
     }
-    if (b.length > 1 && segments && !fitsInOneSegment(segments, b.startSlot, b.length)) {
+    const daySegments = segmentsFor(b.day)
+    if (b.length > 1 && daySegments && !fitsInOneSegment(daySegments, b.startSlot, b.length)) {
       errors.push(`The ${b.label} double period on ${b.day} crosses a break — split it into two singles.`)
     }
     for (const s of blockSlots(b)) {
