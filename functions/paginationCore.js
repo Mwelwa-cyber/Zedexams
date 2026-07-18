@@ -43,17 +43,41 @@ function clampPageSize(requested, { min = MIN_PAGE_SIZE, max = MAX_PAGE_SIZE, fa
 }
 
 /**
- * Stable fingerprint of a filters object — sorted keys, primitive values only.
- * Two callers with the same effective filters get the same fingerprint so a
- * cursor minted under one is accepted by the other; a changed filter changes
- * the fingerprint and invalidates old cursors (§11).
+ * Recursively sort object keys so a filter value's serialization is stable
+ * regardless of the insertion order its keys happened to have. Primitives pass
+ * through untouched, so `1` (number) and `'1'` (string) stay distinguishable.
+ */
+function canonicalizeValue(value) {
+  if (Array.isArray(value)) return value.map(canonicalizeValue);
+  if (value && typeof value === "object") {
+    const out = {};
+    for (const k of Object.keys(value).sort()) out[k] = canonicalizeValue(value[k]);
+    return out;
+  }
+  return value;
+}
+
+/**
+ * Stable, type-preserving fingerprint of a filters object. Two callers with the
+ * same effective filters get the same fingerprint so a cursor minted under one
+ * is accepted by the other; a changed filter changes the fingerprint and
+ * invalidates old cursors (§11).
+ *
+ * The serialization is a canonical JSON array of `[key, value]` pairs rather
+ * than `key=value` concatenation, which had two ambiguities: (1) delimiter
+ * collision — `{ q: 'x&status=y' }` and `{ q: 'x', status: 'y' }` both
+ * flattened to `q=x&status=y`; (2) type erasure — numeric `1` and string `'1'`
+ * both became `"1"`. Either could let a cursor minted for one query be accepted
+ * for a materially different one, skipping or duplicating rows. JSON escaping
+ * removes the collision and preserves value types.
  */
 function fingerprintFilters(filters) {
   if (!filters || typeof filters !== "object") return "";
-  const keys = Object.keys(filters)
+  const pairs = Object.keys(filters)
     .filter((k) => filters[k] !== undefined && filters[k] !== null && filters[k] !== "")
-    .sort();
-  return keys.map((k) => `${k}=${String(filters[k])}`).join("&");
+    .sort()
+    .map((k) => [k, canonicalizeValue(filters[k])]);
+  return JSON.stringify(pairs);
 }
 
 /**
@@ -74,6 +98,55 @@ function sign(payloadB64, secret) {
   return crypto.createHmac("sha256", secret).update(payloadB64).digest("base64url").slice(0, 22);
 }
 
+// ── Typed value codec (§ preserve Firestore ordering types) ────────────────
+//
+// A cursor's ordering values are round-tripped through JSON, which silently
+// flattens non-primitive Firestore types. The worst offender is a Timestamp
+// (the default `createdAt` sort): `JSON.stringify` turns it into a plain
+// `{ _seconds, _nanoseconds }` map, and Admin SDK `startAfter(...)` then encodes
+// that map as a field value rather than a timestamp boundary — so timestamp-
+// sorted endpoints can't fetch page two. A pluggable codec lets the effectful
+// caller teach this pure module how to serialize/revive its storage types
+// without importing firebase-admin here. Primitives pass through unchanged.
+
+const IDENTITY_VALUE_CODEC = Object.freeze({ encode: (v) => v, decode: (v) => v });
+
+const TIMESTAMP_TAG = "__ts__";
+
+/**
+ * Build a value codec that round-trips Firestore Timestamps (and passes every
+ * other supported ordering type — string/number/boolean/null — through
+ * unchanged). Pass the Admin SDK `Timestamp` class so `decode` can rebuild a
+ * real instance the query layer can hand to `startAfter(...)`; when it's absent
+ * (e.g. a unit test), decode returns the canonical `{ _seconds, _nanoseconds }`
+ * shape so callers can still reconstruct it themselves.
+ *
+ * @param {(new (seconds: number, nanoseconds: number) => any)|null} [Timestamp]
+ */
+function createFirestoreTimestampCodec(Timestamp) {
+  const seconds = (v) => (typeof v._seconds === "number" ? v._seconds : v.seconds);
+  const nanos = (v) => (typeof v._nanoseconds === "number" ? v._nanoseconds : v.nanoseconds);
+  return {
+    encode(value) {
+      if (value && typeof value === "object") {
+        const s = seconds(value);
+        const n = nanos(value);
+        const looksLikeTimestamp = typeof s === "number" && typeof n === "number" &&
+          (typeof value.toMillis === "function" || "_seconds" in value || "seconds" in value);
+        if (looksLikeTimestamp) return { [TIMESTAMP_TAG]: true, s, n };
+      }
+      return value;
+    },
+    decode(value) {
+      if (value && typeof value === "object" && value[TIMESTAMP_TAG] === true) {
+        if (typeof Timestamp === "function") return new Timestamp(value.s, value.n);
+        return { _seconds: value.s, _nanoseconds: value.n };
+      }
+      return value;
+    },
+  };
+}
+
 /**
  * Encode an opaque cursor token from the last document's ordering values
  * (`orderValues` = the array Firestore `startAfter(...)` expects) plus the
@@ -83,13 +156,15 @@ function sign(payloadB64, secret) {
  * @param {Array<string|number|boolean>} args.orderValues values for startAfter (sort field(s) + document id)
  * @param {object} args.binding { scope, sortField, sortDirection, filters }
  * @param {string} [secret] optional HMAC secret for tamper-evidence
+ * @param {{ encode: (v:any)=>any, decode: (v:any)=>any }} [valueCodec] typed round-trip for non-primitive ordering values (see createFirestoreTimestampCodec)
  * @returns {string}
  */
-function encodeCursorToken({ orderValues, binding }, secret) {
+function encodeCursorToken({ orderValues, binding }, secret, valueCodec = IDENTITY_VALUE_CODEC) {
+  const values = Array.isArray(orderValues) ? orderValues : [];
   const payload = {
     v: TOKEN_VERSION,
     b: bindingString(binding),
-    c: Array.isArray(orderValues) ? orderValues : [],
+    c: values.map((v) => valueCodec.encode(v)),
   };
   const json = JSON.stringify(payload);
   const b64 = Buffer.from(json, "utf8").toString("base64url");
@@ -116,7 +191,7 @@ const MAX_TOKEN_LENGTH = 2048;
  * A caller should treat any `ok: false` as "start from the first page" or
  * reject the request — never fall through to an unbounded read.
  */
-function decodeCursorToken(token, currentBinding, secret) {
+function decodeCursorToken(token, currentBinding, secret, valueCodec = IDENTITY_VALUE_CODEC) {
   if (typeof token !== "string" || !token) return { ok: false, error: DECODE_ERRORS.MALFORMED };
   if (token.length > MAX_TOKEN_LENGTH) return { ok: false, error: DECODE_ERRORS.TOO_LONG };
 
@@ -127,9 +202,15 @@ function decodeCursorToken(token, currentBinding, secret) {
 
   if (secret) {
     const expected = sign(b64, secret);
-    // Constant-time-ish compare on equal-length strings.
-    if (sig.length !== expected.length ||
-        !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
+    const sigBuf = Buffer.from(sig, "utf8");
+    const expBuf = Buffer.from(expected, "utf8");
+    // Compare BYTE lengths before timingSafeEqual, not character lengths: a
+    // client-controlled signature carrying multibyte characters can have the
+    // same string length as `expected` while `Buffer.from(sig)` is a different
+    // byte length, which makes crypto.timingSafeEqual throw
+    // ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH (crashing the request path) instead of
+    // returning a clean CURSOR_BAD_SIGNATURE.
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
       return { ok: false, error: DECODE_ERRORS.BAD_SIGNATURE };
     }
   }
@@ -145,7 +226,7 @@ function decodeCursorToken(token, currentBinding, secret) {
   if (payload.b !== bindingString(currentBinding)) return { ok: false, error: DECODE_ERRORS.BINDING_MISMATCH };
   if (!Array.isArray(payload.c)) return { ok: false, error: DECODE_ERRORS.MALFORMED };
 
-  return { ok: true, orderValues: payload.c };
+  return { ok: true, orderValues: payload.c.map((v) => valueCodec.decode(v)) };
 }
 
 /**
@@ -173,7 +254,7 @@ function resolvePageRequest({
   requestedPageSize, requestedSort, cursorToken,
   allowedSortFields, scope, filters,
   maxPageSize = MAX_PAGE_SIZE, defaultPageSize = DEFAULT_PAGE_SIZE, defaultSortDirection = "desc",
-  secret,
+  secret, valueCodec = IDENTITY_VALUE_CODEC,
 } = {}) {
   const pageSize = clampPageSize(requestedPageSize, { max: maxPageSize, fallback: defaultPageSize });
   const { sortField, sortDirection } = resolveSort(requestedSort, allowedSortFields, { defaultDirection: defaultSortDirection });
@@ -182,7 +263,7 @@ function resolvePageRequest({
   let cursorValues = null;
   let cursorError = null;
   if (cursorToken) {
-    const decoded = decodeCursorToken(cursorToken, binding, secret);
+    const decoded = decodeCursorToken(cursorToken, binding, secret, valueCodec);
     if (decoded.ok) cursorValues = decoded.orderValues;
     else cursorError = decoded.error;
   }
@@ -202,4 +283,6 @@ module.exports = {
   decodeCursorToken,
   resolveSort,
   resolvePageRequest,
+  IDENTITY_VALUE_CODEC,
+  createFirestoreTimestampCodec,
 };

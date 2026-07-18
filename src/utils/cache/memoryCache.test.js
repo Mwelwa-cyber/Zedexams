@@ -222,6 +222,38 @@ await test('only one background refresh runs even if getOrSet is called repeated
   assert.equal(backgroundCalls, 1)
 })
 
+// ── in-flight invalidation guard ─────────────────────────────────────────
+await test('a getOrSet in flight when the key is deleted does not repopulate the cache', async () => {
+  const cache = new MemoryCache({ now: fakeClock(), ttlMs: 1000 })
+  let release
+  const gate = new Promise((r) => { release = r })
+  const fetcher = async () => { await gate; return 'stale' }
+
+  const inflight = cache.getOrSet('k', fetcher)
+  cache.delete('k') // invalidation lands while the fetch is still pending
+  release()
+  const value = await inflight
+  assert.equal(value, 'stale') // the awaiting caller still receives the value…
+  assert.equal(cache.get('k'), undefined) // …but it was NOT written back to the cache
+})
+
+await test('a getOrSet in flight when the scope is cleared does not repopulate the cache', async () => {
+  const cache = new MemoryCache({ now: fakeClock(), ttlMs: 1000 })
+  let release
+  const gate = new Promise((r) => { release = r })
+  const inflight = cache.getOrSet('k', async () => { await gate; return 'stale' })
+  cache.clear()
+  release()
+  await inflight
+  assert.equal(cache.get('k'), undefined)
+})
+
+await test('a normal getOrSet with no intervening invalidation still caches', async () => {
+  const cache = new MemoryCache({ now: fakeClock(), ttlMs: 1000 })
+  await cache.getOrSet('k', async () => 'v1')
+  assert.equal(cache.get('k'), 'v1') // guard must not suppress the normal write
+})
+
 // ── createMemoryCache factory ────────────────────────────────────────────
 await test('createMemoryCache returns a working MemoryCache instance', () => {
   const cache = createMemoryCache({ now: fakeClock() })

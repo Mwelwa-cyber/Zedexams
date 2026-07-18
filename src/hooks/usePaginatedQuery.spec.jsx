@@ -157,6 +157,49 @@ describe('usePaginatedQuery', () => {
     expect(result.current.items.map((x) => x.id)).toEqual(['a', 'c'])
   })
 
+  it('removeItem also drops the record from the stored pages (keeps items/pages consistent)', async () => {
+    const fetchPage = makePagedFetcher([
+      { items: [{ id: 'a' }, { id: 'b' }], hasNextPage: true },
+      { items: [{ id: 'c' }, { id: 'd' }], hasNextPage: false },
+    ])
+    const { result } = renderHook(() => usePaginatedQuery({ queryKey: 'k8b', fetchPage, pageSize: 10 }))
+    await waitFor(() => expect(result.current.items).toHaveLength(2))
+    await act(async () => { await result.current.loadNextPage() })
+    expect(result.current.pages).toHaveLength(2)
+
+    act(() => { result.current.removeItem('c') })
+    expect(result.current.items.map((x) => x.id)).toEqual(['a', 'b', 'd'])
+    // The record must be gone from the per-page view too, not just `items`.
+    const pageIds = result.current.pages.flatMap((p) => p.items.map((x) => x.id))
+    expect(pageIds).toEqual(['a', 'b', 'd'])
+  })
+
+  it('a stale next-page response never overwrites a refresh that superseded it', async () => {
+    const dNext = deferred()
+    const dRefresh = deferred()
+    const fetchPage = vi.fn()
+      .mockResolvedValueOnce({ items: [{ id: 'a' }], cursor: { id: 'a', __idx: 1 }, hasNextPage: true }) // initial
+      .mockImplementationOnce(() => dNext.promise) // loadNextPage
+      .mockImplementationOnce(() => dRefresh.promise) // refresh
+
+    const { result } = renderHook(() => usePaginatedQuery({ queryKey: 'kgen', fetchPage, pageSize: 10 }))
+    await waitFor(() => expect(result.current.items).toHaveLength(1))
+
+    // A next-page and a refresh are in flight at the same time — same query key,
+    // so only the request generation can tell them apart.
+    act(() => { result.current.loadNextPage() })
+    act(() => { result.current.refresh() })
+
+    // The refresh resolves first: fresh page 1, end-of-results.
+    await act(async () => { dRefresh.resolve({ items: [{ id: 'a' }], cursor: { id: 'a', __idx: 1 }, hasNextPage: false }) })
+    // The older next-page resolves LATE and must be dropped — not appended, and
+    // it must not resurrect hasNextPage over the refreshed state.
+    await act(async () => { dNext.resolve({ items: [{ id: 'b' }], cursor: { id: 'b', __idx: 2 }, hasNextPage: true }) })
+
+    expect(result.current.items.map((x) => x.id)).toEqual(['a'])
+    expect(result.current.hasNextPage).toBe(false)
+  })
+
   it('does not fetch while disabled and loads once enabled', async () => {
     const fetchPage = makePagedFetcher([{ items: [{ id: 'a' }], hasNextPage: false }])
     const { result, rerender } = renderHook(
