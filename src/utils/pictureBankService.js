@@ -26,6 +26,21 @@ export const PICTURE_BANK_SUBJECTS_GENERIC = '_generic'
 const MAX_PICTURE_BYTES = 10 * 1024 * 1024
 const FETCH_LIMIT = 500
 
+// Raster formats only. SVG is rejected up front (a picture-bank blob is
+// readable by every verified user and its download URL is stored in Firestore,
+// so a script-bearing SVG would be a stored-XSS vector) — this mirrors the
+// storage.rules validPictureBankUpload() backstop so admins get a clear message
+// instead of an opaque storage/unauthorized when the rule rejects the upload.
+const PICTURE_BANK_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+
+function assertUploadableImage(file) {
+  if (!file) throw new Error('Pick an image file.')
+  if (!PICTURE_BANK_CONTENT_TYPES.includes(file.type)) {
+    throw new Error('Only JPEG, PNG or WebP images are supported (SVG is not allowed).')
+  }
+  if (file.size > MAX_PICTURE_BYTES) throw new Error('Image is over the 10 MB limit.')
+}
+
 function tokenize(text) {
   return String(text || '')
     .toLowerCase()
@@ -154,9 +169,7 @@ export async function deleteBankPicture(pic) {
 
 /** Admin: upload a new picture straight into the bank as active. */
 export async function uploadBankPicture(file, { name, keywords, subject, gradeBand, uid }) {
-  if (!file) throw new Error('Pick an image file.')
-  if (!file.type?.startsWith('image/')) throw new Error('Only image files are supported.')
-  if (file.size > MAX_PICTURE_BYTES) throw new Error('Image is over the 10 MB limit.')
+  assertUploadableImage(file)
   const cleanName = String(name || '').trim().slice(0, 120)
   if (!cleanName) throw new Error('Give the picture a name.')
   const kw = normaliseKeywords(keywords)
@@ -207,9 +220,7 @@ function nameFromFile(fileName) {
  * keywords required up front, unlike the single active upload.
  */
 export async function uploadStagedBankPicture(file, { subject, gradeBand, uid } = {}) {
-  if (!file) throw new Error('Pick an image file.')
-  if (!file.type?.startsWith('image/')) throw new Error('Only image files are supported.')
-  if (file.size > MAX_PICTURE_BYTES) throw new Error('Image is over the 10 MB limit.')
+  assertUploadableImage(file)
 
   const ref = doc(collection(db, 'pictureBank'))
   const ext = (String(file.name || '').split('.').pop() || 'png').toLowerCase()

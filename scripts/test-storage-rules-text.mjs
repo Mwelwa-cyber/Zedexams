@@ -102,6 +102,24 @@ test('quiz/assessment images remain jpeg|png|webp (no SVG, no gif)', () => {
   assert(!/image\/gif/.test(quizImgFn[0]), 'GIF is back in quiz uploads')
 })
 
+test('picture-bank uploads are raster-only (no SVG script-injection vector)', () => {
+  // Every picture-bank blob is readable by any verified user and its
+  // download URL is persisted in a Firestore doc, so a script-bearing SVG
+  // would be stored XSS. The validator must stay raster-only; the broad
+  // image/.* matcher it replaced silently allowed image/svg+xml.
+  const bankFn = rules.match(/function validPictureBankUpload\(\)[\s\S]*?\}/)
+  assert(bankFn, 'validPictureBankUpload not found')
+  assert(
+    /image\/\(jpeg\|png\|webp\)/.test(bankFn[0]),
+    'picture-bank whitelist no longer matches jpeg|png|webp',
+  )
+  assert(!/image\/svg/.test(bankFn[0]), 'SVG is back in picture-bank uploads — script-injection risk')
+  assert(
+    !/matches\('image\/\.\*'\)/.test(bankFn[0]),
+    'picture-bank reverted to the broad image/.* matcher, which allows SVG',
+  )
+})
+
 test('lesson presentations explicitly exclude SVG', () => {
   // The existing comment in storage.rules calls out the SVG risk
   // explicitly. Don't let the next refactor lose that.

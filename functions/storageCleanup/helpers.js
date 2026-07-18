@@ -237,6 +237,16 @@ const USER_KEYED_PREFIXES = Object.freeze([
   // Teacher Settings branding assets (profile photo, school logo, signature,
   // stamp, letterhead) — fixed filenames under user-branding/{uid}/.
   "user-branding/",
+  // Baked diagrams + uploaded source pictures from Visual Studio, keyed
+  // visual-studio/{uid}/... — a teacher's own working assets.
+  "visual-studio/",
+  // Server-generated (Admin SDK) AI images keyed by the owning uid:
+  //   note-pictures/{uid}/{noteId}/...  (generateNotePictures)
+  //   slide-notes-images/{uid}/{deckId}/... (generateSlideNotes/Diagram)
+  // These were previously orphaned on account deletion — the blobs (and their
+  // tokened download URLs) outlived the user because no sweep listed them.
+  "note-pictures/",
+  "slide-notes-images/",
 ]);
 
 /**

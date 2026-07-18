@@ -317,9 +317,18 @@ service firebase.storage {
     // assessments. Teacher-read (the picker resolves download URLs from
     // storagePath); writes come from admins (uploads) and the extraction
     // Cloud Function (admin SDK bypasses rules).
+    //
+    // Raster-only (jpeg/png/webp) — SVG is DELIBERATELY excluded for the same
+    // reason validQuizImageUpload / validLessonPresentationUpload exclude it:
+    // an SVG can carry <script>/on* handlers that execute when the blob is
+    // opened directly on the firebasestorage.googleapis.com origin, and every
+    // picture-bank blob is readable by any verified user (allow read below) and
+    // its download URL is stored in a Firestore doc. The broad `image/.*`
+    // matcher this replaces silently re-opened that hole. gpt-image-1 and the
+    // extraction pipeline both emit PNG, so no legitimate writer needs SVG.
     function validPictureBankUpload() {
       return request.resource.size < 10 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
     }
     match /picture-bank/{allPaths=**} {
       allow read: if isVerified();
