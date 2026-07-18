@@ -224,6 +224,15 @@ export const MORE_GROUPS = [
         to: '/teacher/register',
       },
       {
+        img: iconMarkSchedule,
+        tone: 'sky',
+        badge: 'NEW',
+        libraryKey: null,
+        title: 'Class Register',
+        tagline: 'Mark daily attendance and print the official class register.',
+        to: '/teacher/attendance',
+      },
+      {
         img: iconClassTimetable,
         tone: 'violet',
         badge: null,
