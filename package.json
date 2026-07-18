@@ -185,6 +185,8 @@
     "test:android-release-config": "node scripts/test-android-release-config.mjs",
     "test:boot-watchdog": "node scripts/test-boot-watchdog.mjs",
     "test:exam-grading": "node functions/grading/dailyExamGrading.test.js",
+    "test:idempotency": "node functions/idempotency.test.js",
+    "test:gamification-core": "node scripts/test-gamification-core.mjs",
     "test:daily-exam-picker": "node functions/dailyExamPicker.test.js",
     "test:exam-timetable": "node scripts/test-exam-timetable.mjs",
     "test:account-deletion": "node functions/accountDeletion.test.js",

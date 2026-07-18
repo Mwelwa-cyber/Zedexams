@@ -148,6 +148,17 @@ export async function assignQuizToTargets({
   }
 
   const already = new Set(existingClassIds)
+  // One idempotency base per assign action. The per-class key derived from it
+  // is stable across retries of THIS action, so a dropped response + retry (or
+  // a concurrent double-submit) resolves the same server-side assignment doc
+  // instead of creating a duplicate that fans out to every learner again.
+  // Callers that own their own retry loop can pass options.batchId to keep the
+  // key stable across those retries too.
+  const batchId = typeof options.batchId === 'string' && options.batchId
+    ? options.batchId
+    : (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`)
+  const idemKeyFor = (classId) =>
+    `${batchId}_${classId}`.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 128)
   const payloadBase = {
     resourceType,
     resourceId,
@@ -180,6 +191,7 @@ export async function assignQuizToTargets({
       const { data } = await createClassAssignmentCallable({
         ...payloadBase,
         classId: target.classId,
+        idempotencyKey: idemKeyFor(target.classId),
         learnerUids: Array.isArray(target.learnerUids) && target.learnerUids.length > 0
           ? target.learnerUids.slice(0, 200)
           : null,

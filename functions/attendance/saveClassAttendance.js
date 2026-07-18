@@ -47,20 +47,29 @@ const saveClassAttendance = onCall({
   const classRef = db.collection("classRegisters").doc(classId);
   const dayRef = classRef.collection("attendance").doc(payload.date);
 
-  // Register / roster / term docs change rarely — read outside the
-  // transaction; the day doc (version counter) is re-read inside it.
-  const [registerSnap, rosterSnap, termsSnap] = await Promise.all([
+  // Register + roster change rarely and are not the concurrency-critical
+  // invariant here — read them outside the transaction. The term docs carry
+  // the LOCK STATE, so they are re-read INSIDE the transaction below: reading
+  // the lock before the transaction is a TOCTOU — an admin/teacher could lock
+  // the term in the millisecond window between that read and the day write,
+  // and the write would commit against a term that is now locked.
+  const [registerSnap, rosterSnap] = await Promise.all([
     classRef.get(),
     classRef.collection("roster").get(),
-    classRef.collection("attendanceTerms").get(),
   ]);
   const register = registerSnap.exists ? registerSnap.data() : null;
   const roster = rosterSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  const termDocs = termsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
   const result = await db.runTransaction(async (tx) => {
-    const daySnap = await tx.get(dayRef);
+    // Reads before writes. Re-read the lock state (attendanceTerms) and the
+    // day version inside the transaction so a concurrent term lock or a
+    // racing day write is serialised against this one and re-validated.
+    const [daySnap, termsSnap] = await Promise.all([
+      tx.get(dayRef),
+      tx.get(classRef.collection("attendanceTerms")),
+    ]);
     const existingDay = daySnap.exists ? daySnap.data() : null;
+    const termDocs = termsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
     const verdict = validateAttendanceMutation({
       uid, register, roster, termDocs, payload, existingDay, nowMs: Date.now(),

@@ -373,6 +373,15 @@ const createClassAssignment = onCall({
         .slice(0, 200)
     : null;
 
+  // Idempotency: the wizard mints one key per "Assign" press and resends it on
+  // every retry. A double-tap, a callable retry after a dropped response, or a
+  // second tab all carry the SAME key, so they resolve one deterministic
+  // assignment doc instead of creating N duplicates that fan out N times to
+  // every learner. Malformed/absent keys fall back to the legacy random-id
+  // path (older clients) — never trust the raw key as a doc id.
+  const {deriveIdempotentId} = require("./idempotency");
+  const idempotentId = deriveIdempotentId(`assignment:${uid}`, request.data?.idempotencyKey, "a_");
+
   if (!classId) throw new HttpsError("invalid-argument", "classId is required.");
   if (!["quiz", "exam"].includes(resourceType)) {
     throw new HttpsError("invalid-argument", "resourceType must be 'quiz' or 'exam'.");
@@ -386,6 +395,17 @@ const createClassAssignment = onCall({
   }
 
   const db = admin.firestore();
+
+  // Fast idempotent replay: a retry of an already-committed assign returns the
+  // existing doc without re-fetching the resource or re-notifying learners.
+  if (idempotentId) {
+    const prior = await db.collection("assignments").doc(idempotentId).get();
+    if (prior.exists) {
+      const p = prior.data() || {};
+      return {assignmentId: idempotentId, classId: p.classId || classId, resourceTitle: p.resourceTitle || "Assigned work", idempotentReplay: true};
+    }
+  }
+
   const {data: classData} = await loadClassOrThrow(db, classId, uid);
   if (classData.active === false) {
     throw new HttpsError("failed-precondition", "Cannot assign work to an archived class.");
@@ -427,7 +447,7 @@ const createClassAssignment = onCall({
   // learner-side rendering hides locked assignments until openAt passes.
   const isScheduled = openAt && openAt.toMillis() > Date.now() + 60000;
 
-  const ref = await db.collection("assignments").add({
+  const assignmentDoc = {
     classId,
     teacherUid: uid,
     resourceType,
@@ -451,7 +471,30 @@ const createClassAssignment = onCall({
     },
     learnerUids: learnerUids && learnerUids.length > 0 ? learnerUids : null,
     assignedAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
+  };
+
+  let ref;
+  let alreadyExisted = false;
+  if (idempotentId) {
+    // Deterministic id + transactional create-if-absent closes the window
+    // where two concurrent double-taps both passed the fast replay check
+    // above: exactly one transaction creates the doc; the other reads it and
+    // returns the same assignment without a second create or notification.
+    ref = db.collection("assignments").doc(idempotentId);
+    alreadyExisted = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (snap.exists) return true;
+      tx.set(ref, assignmentDoc);
+      return false;
+    });
+  } else {
+    ref = await db.collection("assignments").add(assignmentDoc);
+  }
+
+  if (alreadyExisted) {
+    const p = (await ref.get()).data() || {};
+    return {assignmentId: ref.id, classId: p.classId || classId, resourceTitle: p.resourceTitle || resourceTitle, idempotentReplay: true};
+  }
 
   // Notify the targeted learners (best-effort — never block the assignment).
   if (notifyLearners && !isScheduled) {

@@ -1764,6 +1764,17 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ── processedEvents (at-least-once trigger dedup) ────────────────
+    // "{scope}_{eventId}" claim docs written exclusively by
+    // functions/idempotency.js claimEventOnce (Cloud Functions, admin SDK)
+    // so a duplicate Eventarc delivery of the same event runs its trigger
+    // body at most once. Carry an `expiresAt` field for a Firestore TTL
+    // policy to reap. Internal dedup bookkeeping — no client read or write,
+    // and clients must never forge a claim to suppress a real trigger.
+    match /processedEvents/{id} {
+      allow read, write: if false;
+    }
+
     // ── aiAutomationSettings (admin-managed learner-AI policy) ────────
     //
     // The /global doc carries the master enabled switch, daily caps,
