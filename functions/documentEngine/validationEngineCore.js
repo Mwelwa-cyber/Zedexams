@@ -259,6 +259,56 @@ function detectUnclear(question) {
   return hits;
 }
 
+// ── Manifest comparison (req: expectedQuestionNumbers === importedQuestionNumbers) ──
+
+/**
+ * Compare the ACTUAL printed numbers on the accepted questions against the
+ * paper's own declared/expected set (from reconcilePastPaper's `expectedNumbers`
+ * — a continuous 1..N run built from the cover-page count and/or printed Part
+ * ranges). This is the strict, SET-based check the count-only invariant needs:
+ * a list of 60 records containing 1..58, 59, 61 (missing 60, extra 61) has the
+ * RIGHT COUNT but the WRONG SET, and must fail — findSourceNumberGaps alone
+ * cannot see this because it only looks for gaps between the observed min and
+ * max, so it misses both a truncated tail (paper stops at 55 of 60) and an
+ * extra number sitting past the declared end.
+ *
+ * Returns null when no expected set was supplied (callers that have no
+ * declared-range manifest keep the pre-existing, looser gap-based behaviour).
+ */
+function analyzeAgainstManifest(questions, expectedNumbers) {
+  const expected = Array.isArray(expectedNumbers) ?
+    expectedNumbers.filter((n) => Number.isInteger(n)) : [];
+  if (!expected.length) return null;
+
+  const expectedSet = new Set(expected);
+  const actualNums = [];
+  (Array.isArray(questions) ? questions : []).forEach((q) => {
+    const n = parseSourceNumber(q && q.sourceNumber);
+    if (n != null) actualNums.push(n);
+  });
+  const actualSet = new Set(actualNums);
+
+  const missing = expected.filter((n) => !actualSet.has(n));
+  const extras = uniqueSortedInts(actualNums.filter((n) => !expectedSet.has(n)));
+
+  const counts = new Map();
+  actualNums.forEach((n) => counts.set(n, (counts.get(n) || 0) + 1));
+  const duplicates = uniqueSortedInts(
+    [...counts.entries()].filter(([, c]) => c > 1).map(([n]) => n),
+  );
+
+  return {
+    expectedCount: expected.length,
+    actualCount: actualNums.length,
+    missing,
+    extras,
+    duplicates,
+    exact:
+      missing.length === 0 && extras.length === 0 && duplicates.length === 0 &&
+      actualNums.length === expected.length,
+  };
+}
+
 // ── Answer-key detection (req: keys must not become questions) ─────
 
 /**
@@ -348,16 +398,22 @@ function computeValidationStatus(question) {
 
 /**
  * Structural gate run BEFORE anything reaches the Quiz Editor. Accepts a
- * StructuredDocument, `{ questions }`, or a bare questions array. Hard-blocks
- * ONLY on the two problems that must never pass silently:
+ * StructuredDocument, `{ questions, expectedNumbers? }`, or a bare questions
+ * array. Hard-blocks on:
  *   1. missing printed question numbers ("Missing questions: 24, 47")
  *   2. an answer key / marking scheme imported among the questions
  *   3. (degenerate) nothing extracted at all
- * Everything else — duplicates, out-of-order, restarts, [UNCLEAR], thin MCQs,
- * no-answer — is surfaced as a non-blocking warning so a review flow (Scan,
- * Editor) is informed without being over-gated.
+ *   4. WHEN a declared-range manifest (`expectedNumbers`) is supplied: any
+ *      printed number outside the declared set ("extras" — the 61/62/63
+ *      phantom-count bug) and any duplicate printed number among the accepted
+ *      questions. This is the exact-set enforcement
+ *      (expectedQuestionNumbers === importedQuestionNumbers) — count alone is
+ *      not enough, since 60 records that are 1..58,59,61 still "has 60".
+ * Everything else — out-of-order, restarts, [UNCLEAR], thin MCQs, no-answer —
+ * is surfaced as a non-blocking warning so a review flow (Scan, Editor) is
+ * informed without being over-gated.
  *
- * Returns { ok, blockers[], warnings[], numbering }.
+ * Returns { ok, blockers[], warnings[], numbering, manifest }.
  */
 function gateImport(input) {
   const questions = Array.isArray(input)
@@ -365,17 +421,45 @@ function gateImport(input) {
     : input && Array.isArray(input.questions)
       ? input.questions
       : [];
+  const expectedNumbers =
+    input && !Array.isArray(input) ? input.expectedNumbers : undefined;
 
   const blockers = [];
   const warnings = [];
   const numbering = analyzeNumbering(questions);
+  const manifest = analyzeAgainstManifest(questions, expectedNumbers);
 
   if (!questions.length) {
     blockers.push("No questions could be extracted from this paper.");
-    return { ok: false, blockers, warnings, numbering };
+    return { ok: false, blockers, warnings, numbering, manifest };
   }
 
-  if (numbering.missing.length) {
+  // Missing numbers: prefer the manifest's exact declared set (catches a
+  // truncated tail past the observed max, which the gap-based check below
+  // cannot see) — fall back to the gap-based check when there's no manifest.
+  if (manifest) {
+    if (manifest.missing.length) {
+      const shown = manifest.missing.slice(0, 20).join(", ");
+      blockers.push(
+        `Missing questions: ${shown}` +
+          (manifest.missing.length > 20 ? ", …" : ""),
+      );
+    }
+    if (manifest.extras.length) {
+      const shown = manifest.extras.slice(0, 20).join(", ");
+      blockers.push(
+        `Unexpected extra question number(s) not declared on the paper: ${shown}` +
+          (manifest.extras.length > 20 ? ", …" : "") +
+          ` (the paper declares ${manifest.expectedCount} question(s)).`,
+      );
+    }
+    if (manifest.duplicates.length) {
+      blockers.push(
+        `Duplicate question number(s) must be resolved before import: ` +
+          manifest.duplicates.join(", "),
+      );
+    }
+  } else if (numbering.missing.length) {
     const shown = numbering.missing.slice(0, 20).join(", ");
     blockers.push(
       `Missing questions: ${shown}` +
@@ -434,7 +518,18 @@ function gateImport(input) {
     );
   }
 
-  return { ok: blockers.length === 0, blockers, warnings, numbering };
+  // A stem-less item whose Part instruction couldn't be resolved (no matching
+  // range, or the range carries no instruction) still has an empty prompt at
+  // this point — surfaced, never silently written as a blank question.
+  const emptyPrompt = questions.filter((q) => !str(q && q.prompt).trim()).length;
+  if (emptyPrompt) {
+    warnings.push(
+      `${emptyPrompt} question(s) still have no question text after Part-` +
+        `instruction reconciliation — add a stem manually before publishing.`,
+    );
+  }
+
+  return { ok: blockers.length === 0, blockers, warnings, numbering, manifest };
 }
 
 module.exports = {
@@ -453,6 +548,7 @@ module.exports = {
   canonicalType,
   // New gap-closing validators.
   analyzeNumbering,
+  analyzeAgainstManifest,
   analyzeMcqCompleteness,
   detectUnclear,
   detectAnswerKeyBlock,

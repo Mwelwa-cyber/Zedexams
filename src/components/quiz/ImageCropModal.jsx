@@ -17,6 +17,12 @@
  *   imageUrl        — source image (blob: from an import, or a Storage URL)
  *   onCropped(blob) — called with the cropped PNG Blob
  *   onCancel()      — close without changing anything
+ *   initialBox      — optional AI-detected {x,y,w,h} (fractions 0-1) to open
+ *                     with instead of a generic centred 70% box (Phase 10:
+ *                     "the initial crop rectangle must use the detected
+ *                     sourceFigureBox when available").
+ *   pageNumber, questionNumber — optional labels shown in the header so the
+ *                     admin knows exactly what they're cropping.
  */
 
 import { useRef, useState } from 'react'
@@ -26,8 +32,11 @@ import {
   cropRectToPixels,
   moveCropRect,
   resizeCropRect,
+  pointerDistance,
+  computeZoomFromPinch,
 } from './cropGeometry'
 import { loadCorsImage } from './cropImageLoad'
+import { padAndClampBox } from '../../utils/paperFigureAttachCore'
 import useFocusTrap from '../../hooks/useFocusTrap'
 
 const MIN_ZOOM = 1
@@ -36,6 +45,11 @@ const MAX_ZOOM = 4
 const UPSCALE_TARGET = 1400 // upscale small crops toward this longest edge…
 const MAX_OUTPUT_EDGE = 2400 // …but never beyond this.
 const SHARPEN_PIXEL_CAP = 6_000_000 // skip the JS convolution above this size.
+
+// Minimum touch target for a resize handle (Phase 10: 28-32px). The visible
+// dot stays small; a transparent halo pads the actual hit area out to this so
+// a finger doesn't need pixel-perfect precision on a phone.
+const HANDLE_TOUCH_PX = 32
 
 // The 8 resize handles, with the css positioning + cursor for each.
 const HANDLES = [
@@ -48,6 +62,14 @@ const HANDLES = [
   { id: 'sw', style: { left: 0, top: '100%' }, cursor: 'nesw-resize' },
   { id: 'w', style: { left: 0, top: '50%' }, cursor: 'ew-resize' },
 ]
+
+const FULL_PAGE_RECT = { x: 0, y: 0, w: 1, h: 1 }
+const DEFAULT_CENTRED_RECT = { x: 0.15, y: 0.15, w: 0.7, h: 0.7 }
+
+function initialRectFor(initialBox) {
+  const padded = initialBox ? padAndClampBox(initialBox) : null
+  return padded || DEFAULT_CENTRED_RECT
+}
 
 function canvasToPngBlob(canvas) {
   return new Promise((resolve, reject) => {
@@ -83,14 +105,21 @@ function sharpenCanvas(ctx, w, h, amount = 0.4) {
   ctx.putImageData(out, 0, 0)
 }
 
-export default function ImageCropModal({ imageUrl, onCropped, onCancel }) {
+export default function ImageCropModal({ imageUrl, onCropped, onCancel, initialBox = null, pageNumber = null, questionNumber = null }) {
   const imgRef = useRef(null)
   const scrollRef = useRef(null)
   const panelRef = useRef(null)
   // Active drag: { mode: 'draw'|'move'|'resize', handle?, startPoint, startRect }.
   const drag = useRef(null)
-  // Default to a centred 70% box so there is always a valid crop.
-  const [rect, setRect] = useState({ x: 0.15, y: 0.15, w: 0.7, h: 0.7 })
+  // Live two-finger pinch: { pointers: Map<id,{clientX,clientY}>, startDistance, startZoom }.
+  const pinch = useRef(null)
+  // The rect the modal opened with — "Reset to automatic crop" returns here
+  // (distinct from "Reset to full page"). Stable for the component's lifetime.
+  const autoRectRef = useRef(initialRectFor(initialBox))
+  const [rect, setRect] = useState(autoRectRef.current)
+  // Single-level undo: the rect just before the last change that replaced it
+  // wholesale (expand / reset / undo itself never pushes onto this stack).
+  const undoRef = useRef(null)
   const [zoom, setZoom] = useState(MIN_ZOOM)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -113,20 +142,54 @@ export default function ImageCropModal({ imageUrl, onCropped, onCancel }) {
     }
   }
 
+  // Replace the rect wholesale (expand/reset/nudge), recording the PRIOR value
+  // for one-level undo.
+  function applyRect(next) {
+    undoRef.current = rect
+    setRect(clampCropRect(next))
+  }
+
   function beginDrag(event, mode, handle) {
     event.preventDefault()
     event.stopPropagation()
     setError('')
+    undoRef.current = rect
     drag.current = { mode, handle, startPoint: pointFromEvent(event), startRect: rect }
     scrollRef.current?.setPointerCapture?.(event.pointerId)
   }
 
   // Drawing a fresh box: only fires from the image itself (outside the box).
+  // A SECOND finger touching down while the first is already active upgrades
+  // the gesture to a two-finger pinch-zoom instead of drawing a box — the
+  // pending single-finger drag is abandoned so the two never fight.
   function handleImagePointerDown(event) {
+    if (event.pointerType === 'touch') {
+      if (!pinch.current) pinch.current = { pointers: new Map() }
+      pinch.current.pointers.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY })
+      if (pinch.current.pointers.size === 2) {
+        event.preventDefault()
+        drag.current = null // a pinch always wins over a pending single-finger draw
+        const [a, b] = [...pinch.current.pointers.values()]
+        pinch.current.startDistance = pointerDistance(a, b)
+        pinch.current.startZoom = zoom
+        return
+      }
+      if (pinch.current.pointers.size > 1) return
+    }
     beginDrag(event, 'draw')
   }
 
   function handlePointerMove(event) {
+    if (pinch.current && pinch.current.pointers.has(event.pointerId)) {
+      pinch.current.pointers.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY })
+      if (pinch.current.pointers.size === 2 && pinch.current.startDistance) {
+        event.preventDefault()
+        const [a, b] = [...pinch.current.pointers.values()]
+        const distance = pointerDistance(a, b)
+        setZoom(computeZoomFromPinch(pinch.current.startDistance, distance, pinch.current.startZoom, MIN_ZOOM, MAX_ZOOM))
+      }
+      return
+    }
     const d = drag.current
     if (!d) return
     const p = pointFromEvent(event)
@@ -140,10 +203,33 @@ export default function ImageCropModal({ imageUrl, onCropped, onCancel }) {
   }
 
   function handlePointerUp(event) {
+    if (pinch.current) {
+      pinch.current.pointers.delete(event.pointerId)
+      if (pinch.current.pointers.size < 2) pinch.current.startDistance = null
+      if (pinch.current.pointers.size === 0) pinch.current = null
+    }
     if (drag.current) {
       scrollRef.current?.releasePointerCapture?.(event.pointerId)
       drag.current = null
     }
+  }
+
+  function handleUndo() {
+    if (undoRef.current) {
+      const prev = undoRef.current
+      undoRef.current = null
+      setRect(prev)
+    }
+  }
+
+  function expandCrop(extraFrac) {
+    applyRect(padAndClampBox(rect, extraFrac) || rect)
+  }
+
+  // On-screen fine-adjust: nudge the whole box by a small fixed step —
+  // accessible alternative to a finger drag for 1-pixel-scale corrections.
+  function nudge(dx, dy) {
+    applyRect(moveCropRect(rect, dx, dy))
   }
 
   function handleWheel(event) {
@@ -203,11 +289,20 @@ export default function ImageCropModal({ imageUrl, onCropped, onCancel }) {
     >
       <div ref={panelRef} className="theme-card theme-text w-full max-w-2xl space-y-4 rounded-2xl border theme-border p-5 shadow-xl">
         <div className="flex items-center justify-between gap-3">
-          <h3 id="image-crop-modal-title" className="text-base font-black">✂️ Crop image</h3>
+          <div>
+            <h3 id="image-crop-modal-title" className="text-base font-black">✂️ Crop image</h3>
+            {(pageNumber != null || questionNumber != null) && (
+              <p className="theme-text-muted text-xs font-bold mt-0.5">
+                {questionNumber != null && `Question ${questionNumber}`}
+                {questionNumber != null && pageNumber != null && ' · '}
+                {pageNumber != null && `Page ${pageNumber}`}
+              </p>
+            )}
+          </div>
           <button type="button" onClick={onCancel} className="theme-text-muted text-sm font-bold hover:underline">Cancel</button>
         </div>
         <p className="theme-text-muted text-xs font-bold leading-relaxed">
-          Drag the handles to resize, drag inside the box to move it, or draw a new box on empty space. Scroll to zoom. Saved as a sharp, lossless PNG.
+          Drag the handles to resize, drag inside the box to move it, or draw a new box on empty space. Scroll or pinch with two fingers to zoom. Double-tap the box to fit the suggested figure. Saved as a sharp, lossless PNG.
         </p>
 
         <div
@@ -236,15 +331,20 @@ export default function ImageCropModal({ imageUrl, onCropped, onCancel }) {
                 className="pointer-events-auto absolute cursor-move border-2 border-amber-400 bg-amber-400/10 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"
                 style={{ left: pct(safe.x), top: pct(safe.y), width: pct(safe.w), height: pct(safe.h) }}
                 onPointerDown={event => beginDrag(event, 'move')}
+                onDoubleClick={() => applyRect(autoRectRef.current)}
               >
                 {HANDLES.map(h => (
                   <span
                     key={h.id}
                     role="presentation"
+                    data-handle={h.id}
                     onPointerDown={event => beginDrag(event, 'resize', h.id)}
-                    className="absolute h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amber-400 bg-white shadow"
-                    style={{ left: h.style.left, top: h.style.top, cursor: h.cursor }}
-                  />
+                    className="absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center rounded-full"
+                    style={{ left: h.style.left, top: h.style.top, cursor: h.cursor, width: HANDLE_TOUCH_PX, height: HANDLE_TOUCH_PX }}
+                  >
+                    {/* visible dot sits inside the larger transparent touch target above */}
+                    <span className="h-3.5 w-3.5 rounded-full border-2 border-amber-400 bg-white shadow" />
+                  </span>
                 ))}
               </div>
             </div>
@@ -257,6 +357,42 @@ export default function ImageCropModal({ imageUrl, onCropped, onCancel }) {
           </p>
         )}
         {error && <p className="text-xs font-bold text-red-600">{error}</p>}
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="theme-text-muted text-xs font-black">Expand</span>
+          <button type="button" onClick={() => expandCrop(0.02)} disabled={busy}
+            className="theme-border theme-text rounded-lg border px-2.5 py-1 text-xs font-black disabled:opacity-40">
+            +2%
+          </button>
+          <button type="button" onClick={() => expandCrop(0.05)} disabled={busy}
+            className="theme-border theme-text rounded-lg border px-2.5 py-1 text-xs font-black disabled:opacity-40">
+            +5%
+          </button>
+          <button type="button" onClick={handleUndo} disabled={busy || !undoRef.current}
+            className="theme-border theme-text rounded-lg border px-2.5 py-1 text-xs font-black disabled:opacity-40">
+            ↶ Undo
+          </button>
+          <div className="ml-2 flex items-center gap-1" role="group" aria-label="Fine-adjust position">
+            <span className="theme-text-muted text-xs font-black">Nudge</span>
+            {[
+              { label: '←', dx: -0.005, dy: 0 },
+              { label: '→', dx: 0.005, dy: 0 },
+              { label: '↑', dx: 0, dy: -0.005 },
+              { label: '↓', dx: 0, dy: 0.005 },
+            ].map(n => (
+              <button
+                key={n.label}
+                type="button"
+                onClick={() => nudge(n.dx, n.dy)}
+                disabled={busy}
+                aria-label={`Nudge crop ${n.label}`}
+                className="theme-border theme-text rounded-lg border px-2 py-1 text-xs font-black disabled:opacity-40"
+              >
+                {n.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">
@@ -280,14 +416,26 @@ export default function ImageCropModal({ imageUrl, onCropped, onCancel }) {
               +
             </button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {autoRectRef.current !== DEFAULT_CENTRED_RECT && (
+              <button
+                type="button"
+                onClick={() => applyRect(autoRectRef.current)}
+                disabled={busy}
+                className="theme-border theme-text rounded-lg border px-3 py-1.5 text-xs font-black disabled:opacity-50"
+                title="Auto-detect diagram — return to the AI-suggested crop"
+              >
+                🔍 Auto-detect
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => { setRect({ x: 0, y: 0, w: 1, h: 1 }); setZoom(MIN_ZOOM) }}
+              onClick={() => { applyRect(FULL_PAGE_RECT); setZoom(MIN_ZOOM) }}
               disabled={busy}
               className="theme-border theme-text rounded-lg border px-3 py-1.5 text-xs font-black disabled:opacity-50"
+              title="Use the full question image, uncropped"
             >
-              Reset
+              Full page
             </button>
             <button
               type="button"

@@ -32,6 +32,26 @@
 const RANGE_RE = /questions?\s*\(?\s*(\d{1,3})\s*(?:[-–—]|to)\s*(\d{1,3})/gi
 // A "Part N" / "Section X" label sitting near the range, captured for display.
 const PART_LABEL_RE = /\b(part\s+[0-9ivx]+|section\s+[a-z0-9]+)\b/i
+// Cover-page declared TOTAL — mirrors functions/teacherTools/pastPaperImportReconcile.js
+// so a paper with no printed "Part" ranges but an explicit "There are 60
+// questions in this paper." still gets a global 1..N range to reconcile against.
+const DECLARED_COUNT_RE =
+  /(?:there\s+are|this\s+paper\s+(?:has|contains)|total\s+of|consists\s+of|comprises)\s+(\d{1,3})\s+questions?/gi
+
+/** Scan free text for an explicit "There are N questions" declaration. */
+export function parseDeclaredCountFromText(texts = []) {
+  for (const raw of Array.isArray(texts) ? texts : []) {
+    const text = String(raw ?? '')
+    if (!text) continue
+    DECLARED_COUNT_RE.lastIndex = 0
+    const m = DECLARED_COUNT_RE.exec(text)
+    if (m) {
+      const n = Number(m[1])
+      if (Number.isInteger(n) && n >= 1 && n <= 500) return n
+    }
+  }
+  return null
+}
 
 /**
  * Extract every "Questions X–Y" range found in a list of strings. Returns
@@ -195,13 +215,19 @@ function completenessScore(q) {
  *     number to the declared sequence in reading order (repairs mis-reads).
  *
  * Returns a NEW `{ sections, droppedOutOfRange, droppedDuplicate, missing,
- * snapped, declaredTotal }` — never mutates the input. A paper with no declared
- * ranges (or fewer than 3 declared numbers) is returned unchanged so unusual
- * layouts are never harmed.
+ * snapped, declaredTotal, expectedNumbers }` — never mutates the input. A paper
+ * with no declared ranges (or fewer than 3 declared numbers) is returned
+ * unchanged so unusual layouts are never harmed.
+ *
+ * `ranges` may be empty even on a continuously-numbered paper when it prints
+ * no "Part" headings — in that case the caller should pass a synthesised
+ * `[{start:1, end:declaredCount}]` (see synthesizeGlobalRange) built from a
+ * cover-page "There are N questions" declaration, so the reconcile (and the
+ * exact-set gate downstream) still has ground truth to check against.
  */
 export function reconcilePaperNumbering(sections = [], ranges = []) {
   const declared = declaredNumbers(ranges)
-  const empty = { droppedOutOfRange: 0, droppedDuplicate: 0, missing: [], snapped: false, declaredTotal: declared.length }
+  const empty = { droppedOutOfRange: 0, droppedDuplicate: 0, missing: [], snapped: false, declaredTotal: declared.length, expectedNumbers: [] }
   if (declared.length < 3) {
     return { sections: Array.isArray(sections) ? sections : [], ...empty }
   }
@@ -279,7 +305,26 @@ export function reconcilePaperNumbering(sections = [], ranges = []) {
     missing,
     snapped,
     declaredTotal: declared.length,
+    expectedNumbers: declared,
   }
+}
+
+/**
+ * Build a synthetic {start:1, end:declaredCount} global range when a paper has
+ * no printed "Part" ranges at all but DOES state its total on the cover page
+ * ("There are 60 questions in this paper."). Mirrors the server's
+ * pastPaperImportReconcile.js so the client scanned/document importer gets the
+ * same exact-count ground truth a Part-structured paper already has. Returns
+ * the existing `ranges` unchanged when they're non-empty (explicit Part
+ * structure is more granular ground truth) or when there's nothing to
+ * synthesise from.
+ */
+export function synthesizeGlobalRange(ranges = [], declaredCount) {
+  const existing = Array.isArray(ranges) ? ranges : []
+  if (existing.length) return existing
+  const n = Number(declaredCount)
+  if (!Number.isInteger(n) || n < 1 || n > 500) return existing
+  return [{ start: 1, end: n, label: '', sectionTitle: '', instruction: '' }]
 }
 
 /**

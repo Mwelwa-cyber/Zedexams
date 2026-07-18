@@ -45,16 +45,36 @@ function optionImagesMissingAlt(question) {
  *   - 'No answer'        — an MCQ/TF with no correct option set
  *   - 'Flagged'          — question.requiresReview is true
  *   - 'Missing alt text' — a picture option with no alt text
+ *   - 'Low confidence'   — an AI-imported question the model was unsure about
+ *                          (aiConfidence < 0.8 — mirrors the server's
+ *                          confidenceBand 'review'/'approve' threshold)
+ *   - 'Missing image'    — the question's shared map/figure passage was
+ *                          located by the importer but never got an image
+ *                          attached (a failed/skipped figure-attach)
  *
  * `notes` carries the specific reasons a question was flagged (from
  * question.reviewNotes, falling back to importWarnings) so the panel can
  * tell the teacher *why* it needs a look, not just *that* it does.
  */
+const LOW_CONFIDENCE_THRESHOLD = 0.8
+
+function isLowConfidence(question) {
+  const c = question?.aiConfidence
+  return c != null && Number.isFinite(Number(c)) && Number(c) < LOW_CONFIDENCE_THRESHOLD
+}
+
+function passageMissingImage(passage) {
+  if (!passage) return false
+  const isMap = passage.passageKind === 'map' || passage.passageKind === 'diagram'
+  const located = Boolean(passage.figureMeta) // the importer found a printed figure for this passage
+  return isMap && located && !String(passage.imageUrl ?? '').trim()
+}
+
 export function collectReviewItems(sections = []) {
   const items = []
   let total = 0
 
-  const inspect = (question, inPassage) => {
+  const inspect = (question, inPassage, passage) => {
     if (!question) return
     total += 1
     const number = Number.isFinite(question.sourceQuestionNumber)
@@ -67,6 +87,8 @@ export function collectReviewItems(sections = []) {
     }
     if (question.requiresReview) issues.push('Flagged')
     if (optionImagesMissingAlt(question)) issues.push('Missing alt text')
+    if (isLowConfidence(question)) issues.push('Low confidence')
+    if (passageMissingImage(passage)) issues.push('Missing image')
 
     if (issues.length && question.localId) {
       const noteSource = Array.isArray(question.reviewNotes) && question.reviewNotes.length
@@ -79,9 +101,9 @@ export function collectReviewItems(sections = []) {
 
   sections.forEach(section => {
     if (section?.kind === 'passage') {
-      (section.passage?.questions || []).forEach(q => inspect(q, true))
+      (section.passage?.questions || []).forEach(q => inspect(q, true, section.passage))
     } else if (section?.kind === 'standalone') {
-      inspect(section.question, false)
+      inspect(section.question, false, null)
     }
     // pagebreak / unknown: nothing to review.
   })
@@ -91,7 +113,7 @@ export function collectReviewItems(sections = []) {
 
 /** Roll the items up into per-issue counts for the panel summary. */
 export function summariseReviewIssues(items = []) {
-  const counts = { 'No answer': 0, Flagged: 0, 'Missing alt text': 0 }
+  const counts = { 'No answer': 0, Flagged: 0, 'Missing alt text': 0, 'Low confidence': 0, 'Missing image': 0 }
   items.forEach(item => {
     item.issues.forEach(issue => {
       if (issue in counts) counts[issue] += 1

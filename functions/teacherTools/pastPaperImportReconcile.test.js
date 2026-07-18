@@ -5,6 +5,7 @@
 const assert = require("node:assert");
 const {
   parseDeclaredRanges,
+  parseDeclaredCountFromText,
   collectDeclaredRanges,
   rangesOverlap,
   reconcilePastPaper,
@@ -150,6 +151,67 @@ test("a paper with no declared ranges is returned untouched", () => {
   assert.strictEqual(res.questions.length, 2);
   assert.strictEqual(res.snapped, false);
   assert.strictEqual(res.declaredTotal, 0);
+});
+
+// ── cover-page declared-count manifest (Phase 1/2 — no Part ranges at all) ──
+test("parseDeclaredCountFromText reads common cover-page phrasings", () => {
+  assert.strictEqual(parseDeclaredCountFromText(["There are 60 questions in this paper."]), 60);
+  assert.strictEqual(parseDeclaredCountFromText(["This paper has 50 questions."]), 50);
+  assert.strictEqual(parseDeclaredCountFromText(["This paper contains 45 questions and 2 sections."]), 45);
+  assert.strictEqual(parseDeclaredCountFromText(["Total of 60 questions."]), 60);
+  assert.strictEqual(parseDeclaredCountFromText(["No statement here."]), null);
+  assert.strictEqual(parseDeclaredCountFromText([]), null);
+});
+
+test("a continuously-numbered paper with NO Part headings still reconciles against a cover-declared total", () => {
+  // Social-Studies-style: bare cover declaration, no "Part N: Questions X–Y"
+  // headings anywhere — the bug this fixes is that ranges.length was 0 so the
+  // whole number reconcile used to no-op, letting phantom 61-63 through.
+  const questions = [];
+  for (let n = 1; n <= 60; n++) questions.push(q({sourceNumber: n, prompt: `Q${n}`}));
+  questions.push(q({sourceNumber: 61, prompt: "phantom 1"}));
+  questions.push(q({sourceNumber: 62, prompt: "phantom 2"}));
+  questions.push(q({sourceNumber: 63, prompt: "phantom 3"}));
+  const res = reconcilePastPaper(questions, [], 60);
+  assert.strictEqual(res.questions.length, 60, "exactly 60 survive, not 63");
+  assert.deepStrictEqual(res.questions.map((x) => x.sourceNumber), Array.from({length: 60}, (_, i) => i + 1));
+  assert.strictEqual(res.droppedOutOfRange, 3);
+  assert.deepStrictEqual(res.droppedNumbers.outOfRange, [61, 62, 63]);
+  assert.deepStrictEqual(res.expectedNumbers, Array.from({length: 60}, (_, i) => i + 1));
+  assert.strictEqual(res.declaredQuestionCount, 60);
+});
+
+test("declared count is also picked up from a regex-scanned cover sentence when not passed explicitly", () => {
+  const questions = [
+    q({sourceNumber: 1, prompt: "There are 5 questions in this paper."}),
+    q({sourceNumber: 2, prompt: "Q2"}),
+    q({sourceNumber: 3, prompt: "Q3"}),
+    q({sourceNumber: 4, prompt: "Q4"}),
+    q({sourceNumber: 5, prompt: "Q5"}),
+    q({sourceNumber: 9, prompt: "phantom"}),
+  ];
+  const res = reconcilePastPaper(questions, []); // no explicit declaredCount param
+  assert.strictEqual(res.questions.length, 5);
+  assert.deepStrictEqual(res.droppedNumbers.outOfRange, [9]);
+});
+
+test("explicit Part ranges take precedence over a disagreeing cover count, with a warning", () => {
+  const parts = [{firstNumber: 1, lastNumber: 5, sectionLabel: "SECTION A"}];
+  const questions = [1, 2, 3, 4, 5].map((n) => q({sourceNumber: n}));
+  const res = reconcilePastPaper(questions, parts, 6); // cover says 6, Parts say 5
+  assert.strictEqual(res.declaredTotal, 5, "Part ranges (more granular) win");
+  assert.ok(res.warnings.some((w) => /declares 6 question/.test(w)));
+});
+
+test("a missing tail past the observed max is caught by expectedNumbers (not just a mid-range gap)", () => {
+  // The paper declares 60 but extraction stopped dead at 55 — no INTERNAL gap
+  // exists in 1..55, so the old min..max gap check would see nothing wrong.
+  const questions = Array.from({length: 55}, (_, i) => q({sourceNumber: i + 1}));
+  const res = reconcilePastPaper(questions, [], 60);
+  assert.strictEqual(res.expectedNumbers.length, 60);
+  const present = new Set(res.questions.map((x) => x.sourceNumber));
+  const missingTail = res.expectedNumbers.filter((n) => !present.has(n));
+  assert.deepStrictEqual(missingTail, [56, 57, 58, 59, 60]);
 });
 
 test("does not mutate the input questions", () => {
