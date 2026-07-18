@@ -14,6 +14,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import CentralQuestionBank, { questionToPasteText } from './CentralQuestionBank.jsx'
 import { parsePastedQuestions } from '../../utils/pasteQuestionParser.js'
+import { _resetSearchCachesForTests } from '../../utils/cache/searchCache.js'
 
 // ── Module mocks ─────────────────────────────────────────────────────────────
 
@@ -103,6 +104,10 @@ describe('questionToPasteText → parsePastedQuestions round-trip', () => {
 
 describe('CentralQuestionBank handleUse clipboard behaviour', () => {
   beforeEach(() => {
+    // Each test remounts the component fresh — reset the shared search cache
+    // too, so a previous test's cached result never masks whether this
+    // test's mock is actually being called.
+    _resetSearchCachesForTests()
     mockSearchQuestionBank.mockReset().mockResolvedValue({ rows: [makeRow(MCQ_Q)], error: null })
     mockListFavouriteIds.mockReset().mockResolvedValue(new Set())
   })

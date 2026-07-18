@@ -439,7 +439,10 @@
     "test:offline-cache": "node src/offline/contentCacheCore.test.js",
     "test:offline-sync": "node src/offline/syncQueueCore.test.js",
     "test:offline-storage-stats": "node src/offline/storageStatsCore.test.js",
-    "test:offline-connectivity": "node src/offline/connectivityCore.test.js"
+    "test:offline-connectivity": "node src/offline/connectivityCore.test.js",
+    "test:memory-cache": "node src/utils/cache/memoryCache.test.js",
+    "test:cache-keys": "node src/utils/cache/cacheKeys.test.js",
+    "test:search-cache": "node src/utils/cache/searchCache.test.js"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
