@@ -33,9 +33,35 @@
 
 const RANGE_RE = /questions?\s*\(?\s*(\d{1,3})\s*(?:[-–—]|to)\s*(\d{1,3})/gi;
 const PART_LABEL_RE = /\b(part\s+[0-9ivx]+|section\s+[a-z0-9]+)\b/i;
+// Cover-page declared TOTAL — "There are 60 questions in this paper.", "This
+// paper has 50 questions.", "consists of 60 questions", "Total of 60 questions".
+// Detection priority 1 per the structure-manifest design: the printed total is
+// ground truth for the paper's exact count even when no Part headings exist.
+const DECLARED_COUNT_RE =
+  /(?:there\s+are|this\s+paper\s+(?:has|contains)|total\s+of|consists\s+of|comprises)\s+(\d{1,3})\s+questions?/gi;
 
 function str(v) {
   return v == null ? "" : String(v);
+}
+
+/**
+ * Scan free text for an explicit "There are N questions in this paper" style
+ * declaration. Returns the first sane (1-500) count found, or null. Used as a
+ * fallback when the model didn't set the dedicated declaredQuestionCount field
+ * but the sentence appears in captured text anyway.
+ */
+function parseDeclaredCountFromText(texts) {
+  for (const raw of Array.isArray(texts) ? texts : []) {
+    const text = str(raw);
+    if (!text) continue;
+    DECLARED_COUNT_RE.lastIndex = 0;
+    const m = DECLARED_COUNT_RE.exec(text);
+    if (m) {
+      const n = Number(m[1]);
+      if (Number.isInteger(n) && n >= 1 && n <= 500) return n;
+    }
+  }
+  return null;
 }
 
 /** Extract every "Questions X–Y" range from a list of strings. */
@@ -151,15 +177,53 @@ function completenessScore(q) {
 /**
  * Reconcile a flat question list against its declared ranges. Returns a NEW
  * `{ questions, droppedOutOfRange, droppedDuplicate, missing, snapped,
- * declaredTotal, stemsFilled, skippedRestartNumbering }`. Never mutates input.
+ * declaredTotal, stemsFilled, skippedRestartNumbering, expectedNumbers,
+ * droppedNumbers, declaredQuestionCount, warnings }`. Never mutates input.
  *
  * When ranges are absent / too few, or the paper restarts numbering (overlapping
  * ranges), the number reconcile is skipped; the stem-fill still runs when it's
  * safe (a range with an instruction and a matching stem-less item).
+ *
+ * `declaredCount` (optional) is the paper's own printed total — e.g. from a
+ * cover-page "There are 60 questions in this paper." When NO Part/section
+ * ranges were found at all (a continuously-numbered paper with no Part
+ * headings), this is used to synthesise a single {1..declaredCount} global
+ * range so the number reconcile (drop-out-of-range, dedupe, snap) still runs —
+ * this is the fix for a paper whose only structural signal is the cover
+ * declaration, not printed "Questions X–Y" ranges. When explicit ranges DO
+ * exist and disagree with declaredCount, the explicit ranges win (they are
+ * more granular ground truth) and the disagreement is surfaced as a warning
+ * rather than silently guessed.
  */
-function reconcilePastPaper(questions, parts) {
+function reconcilePastPaper(questions, parts, declaredCount) {
   const list = Array.isArray(questions) ? questions.map((q) => ({...q})) : [];
-  const ranges = collectDeclaredRanges(parts, list);
+  let ranges = collectDeclaredRanges(parts, list);
+  const warnings = [];
+
+  // Resolve the declared total: an explicit param wins; else fall back to a
+  // regex scan of the same texts collectDeclaredRanges already looks at.
+  const scanTexts = [];
+  (Array.isArray(list) ? list : []).forEach((qq) => {
+    if (qq && str(qq.sectionLabel).trim()) scanTexts.push(str(qq.sectionLabel));
+    if (qq && str(qq.prompt).trim()) scanTexts.push(str(qq.prompt));
+  });
+  const declaredCountNum = Number.isInteger(declaredCount) && declaredCount >= 1 && declaredCount <= 500 ?
+    declaredCount : null;
+  const effectiveDeclaredCount = declaredCountNum != null ? declaredCountNum : parseDeclaredCountFromText(scanTexts);
+
+  if (!ranges.length && effectiveDeclaredCount) {
+    // No Part/section structure at all — the cover total IS the structure.
+    ranges = [{start: 1, end: effectiveDeclaredCount, label: "", sectionLabel: "", instruction: ""}];
+  } else if (ranges.length && effectiveDeclaredCount) {
+    const totalFromRanges = declaredNumbers(ranges).length;
+    if (totalFromRanges !== effectiveDeclaredCount) {
+      warnings.push(
+        `The paper declares ${effectiveDeclaredCount} question(s) but the printed Part ranges ` +
+        `total ${totalFromRanges} — using the Part ranges; check the cover statement and Part headings agree.`,
+      );
+    }
+  }
+
   const base = {
     questions: list,
     droppedOutOfRange: 0,
@@ -169,6 +233,10 @@ function reconcilePastPaper(questions, parts) {
     declaredTotal: 0,
     stemsFilled: 0,
     skippedRestartNumbering: false,
+    expectedNumbers: [],
+    droppedNumbers: {outOfRange: [], duplicate: []},
+    declaredQuestionCount: effectiveDeclaredCount || 0,
+    warnings,
   };
   if (!ranges.length) return base;
 
@@ -181,6 +249,8 @@ function reconcilePastPaper(questions, parts) {
   let droppedDuplicate = 0;
   let snapped = false;
   let missing = [];
+  const droppedOutOfRangeNumbers = new Set();
+  const droppedDuplicateNumbers = new Set();
 
   // ── Number reconcile — only when continuously numbered (non-overlapping). ──
   if (!overlap && declared.length >= 3) {
@@ -192,6 +262,7 @@ function reconcilePastPaper(questions, parts) {
       if (Number.isInteger(n) && n > 0 && !declaredSet.has(n)) {
         ref.drop = true;
         droppedOutOfRange += 1;
+        droppedOutOfRangeNumbers.add(n);
       }
     });
 
@@ -204,9 +275,11 @@ function reconcilePastPaper(questions, parts) {
       if (!current) { bestByNumber.set(n, ref); return; }
       if (completenessScore(ref.q) > completenessScore(current.q)) {
         current.drop = true;
+        droppedDuplicateNumbers.add(n);
         bestByNumber.set(n, ref);
       } else {
         ref.drop = true;
+        droppedDuplicateNumbers.add(n);
       }
     });
     droppedDuplicate = refs.filter((r) => r.drop).length - droppedOutOfRange;
@@ -224,6 +297,7 @@ function reconcilePastPaper(questions, parts) {
     kept = keptRefs.map((r) => r.q);
     const present = new Set(kept.map((q) => toInt(q.sourceNumber)).filter(Number.isInteger));
     missing = snapped ? [] : declared.filter((n) => !present.has(n));
+    base.expectedNumbers = declared;
   }
 
   // ── Stem-fill (safe regardless of overlap): a spelling / punctuation item
@@ -284,11 +358,19 @@ function reconcilePastPaper(questions, parts) {
     declaredTotal: declared.length,
     stemsFilled,
     skippedRestartNumbering: overlap,
+    expectedNumbers: base.expectedNumbers,
+    droppedNumbers: {
+      outOfRange: [...droppedOutOfRangeNumbers].sort((a, b) => a - b),
+      duplicate: [...droppedDuplicateNumbers].sort((a, b) => a - b),
+    },
+    declaredQuestionCount: effectiveDeclaredCount || 0,
+    warnings,
   };
 }
 
 module.exports = {
   parseDeclaredRanges,
+  parseDeclaredCountFromText,
   collectDeclaredRanges,
   rangesOverlap,
   declaredNumbers,

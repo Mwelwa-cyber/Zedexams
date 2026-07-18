@@ -68,6 +68,7 @@ const importPastPaperQuestionsCallable = httpsCallable(
   { timeout: 540_000 },
 )
 import SeoHelmet from '../seo/SeoHelmet'
+import { ImportReportCard } from './pastPaperReport'
 
 const CURRENT_YEAR = new Date().getFullYear()
 const YEARS = Array.from({ length: 25 }, (_, i) => CURRENT_YEAR - i)
@@ -565,6 +566,15 @@ export default function PastPaperStudio() {
           if (fig.failed || fig.skipped) {
             parts.push(`${fig.failed + fig.skipped} figure${fig.failed + fig.skipped === 1 ? '' : 's'} could not be attached automatically — add them in the Quiz Editor.`)
           }
+          // The server only LOCATES figures (no rasteriser); fold the real
+          // attach outcome into the displayed verification report so
+          // "diagrams attached / needing review" reflects what actually
+          // happened, not the server's placeholder (0 attached / all pending).
+          setImportReport((prev) => (prev ? {
+            ...prev,
+            diagramsAttached: fig.attached,
+            diagramsNeedingReview: fig.failed + fig.skipped,
+          } : prev))
         } catch (err) {
           console.warn('[PastPaperStudio] figure attach failed', err)
           parts.push('The paper\'s figures could not be attached automatically — add them in the Quiz Editor.')
@@ -1170,140 +1180,6 @@ function QuizStep({
         open at the same time. When you come back, click <em>Refresh count</em>
         to see how many questions the editor now holds.
       </div>
-    </section>
-  )
-}
-
-// Render the structured report returned by the AI importer: what it processed,
-// what it found, the per-type breakdown, the confidence score, and any issues
-// (numbering gaps, un-keyed answers) it detected + automatic corrections it
-// applied. Gives the admin a verifiable "did it import the whole paper" view.
-const TYPE_LABELS = {
-  mcq: 'Multiple choice', tf: 'True / false', short_answer: 'Short answer',
-  fill_blanks: 'Fill in the blanks', essay: 'Essay', numeric: 'Numeric',
-}
-
-function ImportReportCard({ report }) {
-  if (!report) return null
-  const pct = Math.round((Number(report.confidence) || 0) * 100)
-  const confTone = pct >= 85 ? 'text-emerald-700' : pct >= 60 ? 'text-amber-700' : 'text-rose-700'
-  const stat = (label, value) => (
-    <div className="theme-bg-subtle rounded-lg px-3 py-2">
-      <p className="text-[11px] font-bold uppercase tracking-wide theme-text-muted">{label}</p>
-      <p className="theme-text font-black text-lg leading-tight">{value}</p>
-    </div>
-  )
-  const byType = report.byType && typeof report.byType === 'object' ? report.byType : {}
-  const typeEntries = Object.entries(byType).filter(([, n]) => n > 0)
-  const blockers = Array.isArray(report.blockers) ? report.blockers : []
-  const validationWarnings = Array.isArray(report.validationWarnings) ? report.validationWarnings : []
-  return (
-    <section className="theme-card border theme-border rounded-radius-md p-5 space-y-4">
-      <div className="flex items-baseline justify-between gap-3 flex-wrap">
-        <p className="theme-accent-text font-black text-xs uppercase tracking-widest">Import report</p>
-        <p className={`text-sm font-black ${confTone}`}>Confidence {pct}%</p>
-      </div>
-
-      {report.gated && (
-        <div className="border-l-4 border-rose-600 bg-rose-50 text-rose-900 text-sm rounded-r-lg p-3">
-          <p className="font-black mb-1">⛔ Import paused — nothing was saved</p>
-          <p className="text-xs mb-2">
-            The paper has structural problems that must be fixed before it can
-            reach the Quiz Editor. Your existing quiz was left untouched.
-          </p>
-          <ul className="list-disc ml-4 space-y-0.5 font-bold">
-            {blockers.map((b, i) => <li key={i}>{b}</li>)}
-          </ul>
-          {/* numbering.missing is NOT repeated here — gateImport already
-              includes a "Missing questions: …" line in blockers. */}
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {stat('Pages processed', report.pagesProcessed ?? '—')}
-        {stat('Questions found', report.questionsFound ?? '—')}
-        {stat('Questions imported', report.questionsImported ?? '—')}
-        {stat('Duplicates removed', report.duplicatesRemoved ?? 0)}
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {stat('With answer key', report.withAnswerKey ?? 0)}
-        {stat('Need an answer', report.withoutAnswerKey ?? 0)}
-        {stat('Reading passages', report.passagesCaptured ?? 0)}
-        {stat('Tables rebuilt', report.tablesCaptured ?? 0)}
-      </div>
-
-      {Array.isArray(report.figures) && report.figures.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {stat('Figures / maps located', report.figures.length)}
-        </div>
-      )}
-
-      {report.confidenceBands && report.confidenceBands.scored > 0 && (
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-wide theme-text-muted mb-1.5">
-            AI read confidence — check the lower bands first in the Quiz Editor
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <span className="rounded-full px-3 py-1 text-xs font-black bg-emerald-100 text-emerald-800">
-              High: {report.confidenceBands.auto ?? 0}
-            </span>
-            <span className="rounded-full px-3 py-1 text-xs font-black bg-amber-100 text-amber-800">
-              Review: {report.confidenceBands.review ?? 0}
-            </span>
-            <span className="rounded-full px-3 py-1 text-xs font-black bg-rose-100 text-rose-800">
-              Check: {report.confidenceBands.approve ?? 0}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {typeEntries.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {typeEntries.map(([type, n]) => (
-            <span key={type} className="theme-bg-subtle rounded-full px-3 py-1 text-xs font-bold theme-text">
-              {TYPE_LABELS[type] || type}: {n}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {Array.isArray(report.corrections) && report.corrections.length > 0 && (
-        <div className="border-l-4 border-emerald-500 bg-emerald-50 text-emerald-900 text-xs rounded-r-lg p-3">
-          <p className="font-black mb-1">Automatically corrected</p>
-          <ul className="list-disc ml-4 space-y-0.5">
-            {report.corrections.map((c, i) => <li key={i}>{c}</li>)}
-          </ul>
-        </div>
-      )}
-
-      {(() => {
-        // Merge the deterministic report issues with the engine's non-blocking
-        // validation warnings (dedup so a shared message isn't shown twice).
-        const items = Array.from(new Set([
-          ...(Array.isArray(report.issues) ? report.issues : []),
-          ...validationWarnings,
-        ]))
-        if (!items.length) return null
-        return (
-          <div className="border-l-4 border-amber-500 bg-amber-50 text-amber-900 text-xs rounded-r-lg p-3">
-            <p className="font-black mb-1">Review before publishing</p>
-            <ul className="list-disc ml-4 space-y-0.5">
-              {items.map((c, i) => <li key={i}>{c}</li>)}
-            </ul>
-          </div>
-        )
-      })()}
-
-      {/* Deploy observability: which import-engine version actually ran. An
-          empty value means the deployed Cloud Function is running code older
-          than version stamping — i.e. a stale deploy, the exact failure that
-          made past importer fixes look broken while every test passed. */}
-      <p className="font-mono text-[11px] font-bold theme-text-muted">
-        {report.engineVersion
-          ? `engine ${report.engineVersion}`
-          : '⚠ engine version not reported — the import function is running OLD code (stale deploy)'}
-      </p>
     </section>
   )
 }

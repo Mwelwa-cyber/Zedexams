@@ -709,13 +709,17 @@ export default function EditQuizV2() {
   // Blob that we run through the SAME upload path as a normal image, so the
   // cropped picture replaces the original. Cancel changes nothing.
   const [cropTarget, setCropTarget] = useState(null)
-  const requestStandaloneImageCrop = useCallback(function requestStandaloneImageCrop(sectionIndex, imageUrl) {
+  // `source` is the question/passage the crop was opened from — carries the
+  // AI-located figureMeta box (Phase 10: "the initial crop rectangle must use
+  // the detected sourceFigureBox when available") and the printed question /
+  // page numbers shown in the modal header.
+  const requestStandaloneImageCrop = useCallback(function requestStandaloneImageCrop(sectionIndex, imageUrl, source) {
     if (!imageUrl) return
-    setCropTarget({ kind: 'standalone', sectionIndex, imageUrl })
+    setCropTarget({ kind: 'standalone', sectionIndex, imageUrl, source })
   }, [])
-  const requestPassageImageCrop = useCallback(function requestPassageImageCrop(sectionIndex, imageUrl) {
+  const requestPassageImageCrop = useCallback(function requestPassageImageCrop(sectionIndex, imageUrl, source) {
     if (!imageUrl) return
-    setCropTarget({ kind: 'passage', sectionIndex, imageUrl })
+    setCropTarget({ kind: 'passage', sectionIndex, imageUrl, source })
   }, [])
   async function handleCroppedImage(blob) {
     const target = cropTarget
@@ -2467,6 +2471,12 @@ export default function EditQuizV2() {
           imageUrl={cropTarget.imageUrl}
           onCropped={handleCroppedImage}
           onCancel={() => setCropTarget(null)}
+          initialBox={cropTarget.source?.figureMeta?.box || null}
+          pageNumber={
+            cropTarget.source?.figureMeta?.sourcePage ??
+            (Number.isFinite(Number(cropTarget.source?.sourcePage)) ? Number(cropTarget.source.sourcePage) : null)
+          }
+          questionNumber={Number.isFinite(cropTarget.source?.sourceQuestionNumber) ? cropTarget.source.sourceQuestionNumber : null}
         />
       )}
 

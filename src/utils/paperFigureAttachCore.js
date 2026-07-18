@@ -19,6 +19,34 @@ function isImageAsset(asset) {
   return String(asset?.contentType || '').toLowerCase().startsWith('image/')
 }
 
+// Default padding added around an AI-detected figure box before cropping, as
+// a fraction of the box's own width/height — generous enough that an
+// arrowhead or axis label sitting right at the reported edge doesn't get cut
+// off, small enough not to pull in the neighbouring question's text.
+const DEFAULT_CROP_PADDING = 0.025
+
+/**
+ * Pad a figure box outward by `paddingFrac` (relative to the box's own size)
+ * and clamp the result to the page (0..1 on both axes). Pure geometry — no
+ * DOM/canvas — so the automatic-crop step (Phase 9) is unit-testable and the
+ * manual cropper (ImageCropModal) can reuse the exact same padding math for
+ * its "Expand crop +2% / +5%" actions. Returns null for a degenerate box.
+ */
+export function padAndClampBox(box, paddingFrac = DEFAULT_CROP_PADDING) {
+  if (!box || typeof box !== 'object') return null
+  const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : NaN)
+  const x = num(box.x), y = num(box.y), w = num(box.w), h = num(box.h)
+  if ([x, y, w, h].some((n) => !Number.isFinite(n)) || w <= 0 || h <= 0) return null
+  const pad = Math.max(0, Number(paddingFrac) || 0)
+  const padX = w * pad
+  const padY = h * pad
+  const x0 = Math.max(0, x - padX)
+  const y0 = Math.max(0, y - padY)
+  const x1 = Math.min(1, x + w + padX)
+  const y1 = Math.min(1, y + h + padY)
+  return { x: x0, y: y0, w: Math.max(0, x1 - x0), h: Math.max(0, y1 - y0) }
+}
+
 /**
  * Decide, for each figure the importer located, which uploaded asset (and page
  * within it) to crop from. Mark-scheme assets are never used — the figure is
