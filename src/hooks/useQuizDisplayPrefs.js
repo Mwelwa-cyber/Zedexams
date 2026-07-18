@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { useDebouncedCallback } from './useDebouncedCallback'
 import {
   DEFAULT_QUIZ_DISPLAY,
   QUIZ_DISPLAY_STORAGE_KEY,
@@ -56,7 +57,6 @@ export function useQuizDisplayPrefs() {
   // Seed synchronously from cache so the first paint is already themed.
   const [prefs, setLocalPrefs] = useState(readCachedPrefs)
   const [saving, setSaving] = useState(false)
-  const writeTimer = useRef(null)
   // Once the learner has touched a setting this session, stop letting a late
   // profile snapshot clobber their in-flight choice.
   const dirtyRef = useRef(false)
@@ -72,26 +72,23 @@ export function useQuizDisplayPrefs() {
     }
   }, [userProfile])
 
-  useEffect(() => () => {
-    if (writeTimer.current) clearTimeout(writeTimer.current)
-  }, [])
+  const { run: scheduleWrite } = useDebouncedCallback((patch) => {
+    Promise.resolve(updateProfileFields(patch))
+      .catch(() => {
+        // Offline writes queue and replay via Firestore persistence; a hard
+        // failure is non-fatal — the cache keeps the learner's choice.
+      })
+      .finally(() => setSaving(false))
+  }, WRITE_DEBOUNCE_MS)
 
   const persist = useCallback(
     (next) => {
       writeCachedPrefs(next)
       if (!currentUser || typeof updateProfileFields !== 'function') return
       setSaving(true)
-      if (writeTimer.current) clearTimeout(writeTimer.current)
-      writeTimer.current = setTimeout(() => {
-        Promise.resolve(updateProfileFields({ quizDisplayPrefs: next }))
-          .catch(() => {
-            // Offline writes queue and replay via Firestore persistence; a hard
-            // failure is non-fatal — the cache keeps the learner's choice.
-          })
-          .finally(() => setSaving(false))
-      }, WRITE_DEBOUNCE_MS)
+      scheduleWrite({ quizDisplayPrefs: next })
     },
-    [currentUser, updateProfileFields]
+    [currentUser, updateProfileFields, scheduleWrite]
   )
 
   const setPrefs = useCallback(

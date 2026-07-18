@@ -10,6 +10,7 @@ import assert from 'node:assert/strict'
 import {
   planFigureAttachments,
   mergeFigureUrlsIntoPassages,
+  padAndClampBox,
 } from './paperFigureAttachCore.js'
 
 let passed = 0
@@ -97,6 +98,41 @@ test('mergeFigureUrlsIntoPassages keeps existing alt when the crop has none', ()
   )
   assert.equal(out[0].imageUrl, 'new-url')
   assert.equal(out[0].imageAlt, 'existing alt')
+})
+
+// ── padAndClampBox (Phase 9: automatic crop padding + page clamp) ──────────
+test('padAndClampBox adds ~2.5% padding around the box', () => {
+  const box = { x: 0.3, y: 0.3, w: 0.2, h: 0.2 }
+  const padded = padAndClampBox(box)
+  assert.ok(padded.x < box.x, 'left edge moves outward')
+  assert.ok(padded.y < box.y, 'top edge moves outward')
+  assert.ok(padded.w > box.w, 'wider than the source box')
+  assert.ok(padded.h > box.h, 'taller than the source box')
+  // 2.5% of 0.2 = 0.005 on each side.
+  assert.ok(Math.abs(padded.x - (box.x - 0.005)) < 1e-9)
+  assert.ok(Math.abs(padded.w - (box.w + 0.01)) < 1e-9)
+})
+
+test('padAndClampBox clamps to the page — never goes negative or past 1', () => {
+  const nearTopLeft = padAndClampBox({ x: 0.001, y: 0.001, w: 0.1, h: 0.1 })
+  assert.ok(nearTopLeft.x >= 0)
+  assert.ok(nearTopLeft.y >= 0)
+  const nearBottomRight = padAndClampBox({ x: 0.92, y: 0.92, w: 0.08, h: 0.08 })
+  assert.ok(nearBottomRight.x + nearBottomRight.w <= 1 + 1e-9)
+  assert.ok(nearBottomRight.y + nearBottomRight.h <= 1 + 1e-9)
+})
+
+test('padAndClampBox supports a custom padding fraction (e.g. the "+5%" expand action)', () => {
+  const box = { x: 0.4, y: 0.4, w: 0.2, h: 0.2 }
+  const p2 = padAndClampBox(box, 0.02)
+  const p5 = padAndClampBox(box, 0.05)
+  assert.ok(p5.w > p2.w, 'a larger padding fraction yields a larger box')
+})
+
+test('padAndClampBox rejects a degenerate/garbage box', () => {
+  assert.equal(padAndClampBox(null), null)
+  assert.equal(padAndClampBox({ x: 0.1, y: 0.1, w: 0, h: 0.2 }), null)
+  assert.equal(padAndClampBox({ x: 'a', y: 0.1, w: 0.2, h: 0.2 }), null)
 })
 
 console.log(`\npaperFigureAttachCore: ${passed} passed`)

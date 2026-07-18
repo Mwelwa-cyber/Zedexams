@@ -54,6 +54,7 @@ const {
   tableToHtml,
   buildImportReport,
   dedupeExtractedQuestions,
+  classifyContentRole,
 } = require("./pastPaperImportHelpers");
 // Declared-range reconciliation — drops phantom over-counts, repairs mis-read
 // numbering, and turns stem-less spelling/punctuation items into real questions,
@@ -123,7 +124,7 @@ const MAX_GAP_NUMBERS_PER_ASK = 40;
 // (the silent firebase-tools "exit 0 but stale" deploy failure that made
 // importer fixes look broken in production while passing every test). Bump on
 // any change to the extraction/dedup/recovery logic in this pipeline.
-const PAST_PAPER_ENGINE_VERSION = "2026.07.12-parts";
+const PAST_PAPER_ENGINE_VERSION = "2026.07.18-exact-count";
 
 const DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -136,6 +137,19 @@ const DOC_MIME = "application/msword";
 const QUESTIONS_TOOL_SCHEMA = {
   type: "object",
   properties: {
+    // Cover/instruction-page declared TOTAL — "There are 60 questions in this
+    // paper." Detection priority 1: the strongest ground-truth signal for the
+    // paper's exact count, used even when the paper prints no "Part"
+    // structure at all (a plainly continuous 1..N paper). Null when the
+    // cover states no explicit total.
+    declaredQuestionCount: {
+      type: ["integer", "null"],
+      description:
+        "The EXACT total number of questions the cover/instruction page " +
+        "states, e.g. 'There are 60 questions in this paper.' → 60. Null if " +
+        "no explicit total is printed. Never guess — only report a number " +
+        "that is actually printed on the paper.",
+    },
     // Declared Part/section structure — the paper's OWN ground truth. The
     // server reconciler uses these ranges to drop phantom over-counts, repair
     // mis-read numbers, and fill stem-less spelling/punctuation items.
@@ -168,6 +182,28 @@ const QUESTIONS_TOOL_SCHEMA = {
             description:
               "The question number printed on the paper (e.g. 12). Used to " +
               "detect skipped questions. Null if the paper shows none.",
+          },
+          sourcePageNumber: {
+            type: ["integer", "null"],
+            description:
+              "The 1-based page this question is PRINTED on: for a PDF, the " +
+              "page counting the cover; for photographed pages, the number " +
+              "in the '--- Uploaded page N ---' marker directly above the " +
+              "image (always use the marker, never your own count). Null if " +
+              "unclear.",
+          },
+          contentRole: {
+            type: "string",
+            description:
+              "'question' for a real numbered/printed question (the default " +
+              "— use this unless one of the others clearly applies). " +
+              "'example' for a worked Example shown under a Part (never " +
+              "printed with its own question number) — you should normally " +
+              "omit examples entirely rather than return them, but if you do " +
+              "include one, mark it 'example' so it is never scored as a " +
+              "question. 'instruction' for a Part's shared instruction " +
+              "sentence with no question of its own. 'heading' for a section " +
+              "title. Leave unset ('') to default to 'question'.",
           },
           sectionLabel: {
             type: ["string", "null"],
@@ -267,7 +303,11 @@ const SYSTEM_PROMPT = `You are digitising a Zambian ECZ examination paper. The u
 
 COMPLETENESS IS THE TOP PRIORITY. Capture every question on every page, in the order they appear. Do not stop early, do not summarise, do not skip a question because it has a diagram or is hard to read — transcribe what you can. A paper may have 20, 50, or 100+ questions; return all of them.
 
-SKIP THE COVER / INSTRUCTION PAGE. The front page (and any instruction page) of an exam paper carries only the heading — the exam title, candidate-information boxes (name, examination number, school), the time allowed, the total marks, and general directions such as "Answer ALL questions", "Do not open this paper until told", or "Write your answers in the spaces provided". These are NOT questions. Never turn an instruction, a heading, or a candidate-info field into a question. Begin extracting at the FIRST printed, numbered question, and number each question with the number printed beside it on the paper.
+SKIP THE COVER / INSTRUCTION PAGE. The front page (and any instruction page) of an exam paper carries only the heading — the exam title, candidate-information boxes (name, examination number, school), the time allowed, the total marks, and general directions such as "Answer ALL questions", "Do not open this paper until told", or "Write your answers in the spaces provided". These are NOT questions. Never turn an instruction, a heading, or a candidate-info field into a question. Begin extracting at the FIRST printed, numbered question, and number each question with the number printed beside it on the paper. HOWEVER, read that cover/instruction page for one thing: an explicit statement of the total number of questions ("There are 60 questions in this paper.", "This paper has 50 questions."). Report that exact number as the top-level declaredQuestionCount — this is the strongest ground truth for the paper's exact count, used even on a paper that prints no Part/Section structure at all. Report null when no such statement is printed; never guess a total.
+
+WORKED EXAMPLES ARE NEVER QUESTIONS. A Part often shows a worked "Example" (with its own answer) directly under the instruction, before the real numbered items begin. It never carries a printed question number. Do not extract it as a question at all — skip straight from the instruction to the first numbered item. If you are ever unsure whether something is the worked Example, set that item's contentRole to "example" rather than risk it being scored as a real question.
+
+REPORT WHICH PAGE EACH QUESTION IS ON. Set sourcePageNumber on every question to the page it is printed on (the PDF's own 1-based page count, or the "--- Uploaded page N ---" marker for photographed pages) — this is DIFFERENT from sourceNumber (the printed question number); never put the question number in sourcePageNumber or vice versa.
 
 READING PASSAGES & SHARED FIGURES — DO NOT MISS THESE. Many papers include a comprehension passage (a story, letter, poem, advert, dialogue, notice or report) or a shared map/figure/table/graph that a GROUP of questions is based on. Whenever the paper prints such a passage/figure, OR any question refers to "the passage", "the story", "the advert", "the poem", "the figure/map/table above", a named character, or says "according to the passage" / "read the following", there IS a shared passage. You MUST then: (1) transcribe the FULL passage/extract text VERBATIM into passage.text — never summarise, shorten or skip it; (2) attach the passage (same identical passage.ref, e.g. "P1") to EVERY question that reads from it; (3) put the full text on at least the first such question. Returning a comprehension question WITHOUT its passage text is an error — find the passage and include it.
 
@@ -600,7 +640,10 @@ function buildExtractionPrompt({paper, segment, seenStems, round, progress}) {
  * ones, until a round adds nothing (or the round cap is hit). This is what
  * makes a single truncated call unable to lose questions.
  */
-async function extractSegment({apiKey, paper, segment, seenKeys, seenNumbers, accum, partsAccum}) {
+async function extractSegment({
+  apiKey, paper, segment, seenKeys, seenNumbers, accum, partsAccum,
+  declaredCounts, roleRejections,
+}) {
   const segmentQuestions = [];
   let rounds = 0;
   let truncationHit = false;
@@ -648,10 +691,28 @@ async function extractSegment({apiKey, paper, segment, seenKeys, seenNumbers, ac
     if (partsAccum && Array.isArray(result?.parsed?.parts)) {
       partsAccum.push(...result.parsed.parts);
     }
+    // Cover-page declared TOTAL — usually only reported on the segment that
+    // actually contains the cover, so most segments report null. Collected
+    // raw; runPastPaperImport picks the most-agreed-on value.
+    if (declaredCounts && Number.isInteger(result?.parsed?.declaredQuestionCount)) {
+      declaredCounts.push(result.parsed.declaredQuestionCount);
+    }
 
     const rawQuestions = Array.isArray(result?.parsed?.questions) ?
       result.parsed.questions : [];
-    const normalised = rawQuestions
+    // Reject worked Examples / Part instructions / headings BEFORE they ever
+    // become a candidate question — a rejected block never gets a number, a
+    // ledger slot, or a chance to occupy a real question's place.
+    const questionBlocks = [];
+    rawQuestions.forEach((q) => {
+      const role = classifyContentRole(q);
+      if (role === "question") {
+        questionBlocks.push(q);
+      } else if (roleRejections) {
+        roleRejections[role] = (roleRejections[role] || 0) + 1;
+      }
+    });
+    const normalised = questionBlocks
       .map((q, i) => normaliseImportedQuestion(q, accum.length + i))
       .filter(Boolean);
     const {fresh} = selectNewQuestions(seenKeys, normalised, seenNumbers);
@@ -700,7 +761,7 @@ function buildGapRecoveryPrompt({paper, segment, missingNumbers}) {
  * the same number-driven recovery the scanned-paper importer uses. Bounded by
  * round + count caps so a number that truly isn't on the paper can't loop.
  */
-async function recoverNumberGaps({apiKey, paper, segments, accum, seenKeys, seenNumbers}) {
+async function recoverNumberGaps({apiKey, paper, segments, accum, seenKeys, seenNumbers, roleRejections}) {
   let rounds = 0;
   const usage = {inputTokens: 0, outputTokens: 0};
   for (let r = 0; r < MAX_GAP_RECOVERY_ROUNDS; r++) {
@@ -733,13 +794,24 @@ async function recoverNumberGaps({apiKey, paper, segments, accum, seenKeys, seen
       usage.inputTokens += Number(result?.usage?.inputTokens || 0);
       usage.outputTokens += Number(result?.usage?.outputTokens || 0);
       const raw = Array.isArray(result?.parsed?.questions) ? result.parsed.questions : [];
+      // Same content-role rejection as the main coverage loop — a worked
+      // Example or Part instruction must never fill a missing-number gap.
+      const questionBlocks = [];
+      raw.forEach((q) => {
+        const role = classifyContentRole(q);
+        if (role === "question") {
+          questionBlocks.push(q);
+        } else if (roleRejections) {
+          roleRejections[role] = (roleRejections[role] || 0) + 1;
+        }
+      });
       // ANTI-INVENTION GUARD (see filterRecoveredToWanted). Under gap-recovery
       // pressure the model sometimes "finds" a listed number by re-wording a
       // question it already returned, or by re-numbering a nearby one — which
       // imported WRONG questions that don't exist on the paper. Accept ONLY
       // questions whose printed number is one we explicitly asked for.
       const normalised = filterRecoveredToWanted(
-        raw
+        questionBlocks
           .map((q, i) => normaliseImportedQuestion(q, accum.length + i))
           .filter(Boolean),
         gaps,
@@ -802,11 +874,23 @@ function toQuestionDoc(q, order) {
     importSource: "past_paper_ai",
   };
   if (q.sourceNumber != null) {
-    base.sourcePage = String(q.sourceNumber);
-    // Dedicated integer field for the printed number — the editor's numbering
-    // analysis reads this (sourcePage's meaning varies across import paths).
+    // Dedicated integer field for the PRINTED QUESTION NUMBER — never conflate
+    // this with sourcePage (below), which every other import path in this
+    // codebase (the Teacher Scan importer, documentQuizImporter, CSV import)
+    // already uses for the real page number. Earlier versions of this writer
+    // stored the question number IN sourcePage, which broke that convention
+    // and made a genuine page-provenance feature (view/crop from the right
+    // page) impossible to build on top of it.
     const n = Number(q.sourceNumber);
     if (Number.isInteger(n) && n >= 1 && n <= 9999) base.sourceQuestionNumber = n;
+  }
+  if (q.sourcePageNumber != null) {
+    // The REAL page this question is printed on, when the model reported one.
+    // Old imported questions may still carry the printed number in sourcePage
+    // (pre-fix docs) — readers needing backward compatibility should prefer
+    // sourceQuestionNumber and only fall back to parsing sourcePage as an int.
+    const p = Number(q.sourcePageNumber);
+    if (Number.isInteger(p) && p >= 1 && p <= 9999) base.sourcePage = p;
   }
   // Carry an importer confidence onto the card when the extractor provided one.
   if (q.confidence != null && Number.isFinite(Number(q.confidence))) {
@@ -899,6 +983,14 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
   // number (OCR drift across continuation rounds) is dropped rather than
   // inflating the count. Shared across segments + the gap-recovery pass.
   const seenNumbers = new Set();
+  // Cover-page declared totals ("There are 60 questions in this paper")
+  // reported per-segment — usually only the cover-carrying segment reports
+  // one. Reduced to a single value below (majority vote).
+  const declaredCounts = [];
+  // Worked-Example / Part-instruction / heading blocks rejected before they
+  // could become a question candidate — surfaced in the report, never in the
+  // quiz (learners must never see a rejected candidate).
+  const roleRejections = {example: 0, instruction: 0, heading: 0};
   let pagesProcessed = 0;
   let extractionRounds = 0;
   let truncationHit = false;
@@ -907,6 +999,7 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
   for (const segment of segments) {
     const segResult = await extractSegment({
       apiKey, paper, segment, seenKeys, seenNumbers, accum, partsAccum,
+      declaredCounts, roleRejections,
     });
     extractionRounds += segResult.rounds;
     if (segResult.truncationHit) truncationHit = true;
@@ -918,7 +1011,9 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
   // Targeted recovery for holes in the printed numbering (e.g. the model
   // skipped Q21/Q22 while reporting "nothing new"). No-op when the numbering is
   // already complete or too sparse to trust.
-  const gapRecovery = await recoverNumberGaps({apiKey, paper, segments, accum, seenKeys, seenNumbers});
+  const gapRecovery = await recoverNumberGaps({
+    apiKey, paper, segments, accum, seenKeys, seenNumbers, roleRejections,
+  });
   extractionRounds += gapRecovery.rounds;
   usage.inputTokens += gapRecovery.usage.inputTokens;
   usage.outputTokens += gapRecovery.usage.outputTokens;
@@ -926,15 +1021,31 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
   const questionsFound = accum.length;
   const merged = mergeAndRenumber(accum);
   const duplicatesRemoved = merged.duplicatesRemoved;
+  const examplesRejected = roleRejections.example + roleRejections.instruction + roleRejections.heading;
 
-  // ── Declared-range reconciliation (printed "Questions X–Y" as ground truth) ──
+  // Cover-declared total: the value most segments agree on (ties broken by
+  // first-seen). Null when the cover states no explicit total — reconcile()
+  // then falls back to its own regex scan / the paper's Part ranges alone.
+  let declaredQuestionCount = null;
+  if (declaredCounts.length) {
+    const tally = new Map();
+    declaredCounts.forEach((n) => tally.set(n, (tally.get(n) || 0) + 1));
+    let bestCount = -1;
+    declaredCounts.forEach((n) => {
+      const c = tally.get(n);
+      if (c > bestCount) { bestCount = c; declaredQuestionCount = n; }
+    });
+  }
+
+  // ── Declared-range reconciliation (printed "Questions X–Y" — or a bare
+  // cover-page total on a paper with no Part headings — as ground truth) ──
   // Drop questions numbered outside every declared range (the phantom
   // over-count), dedupe same-number reads, snap mis-read numbers to the printed
   // sequence when the count lines up, and give a stem-less spelling/punctuation
   // item the Part instruction as its question. Skips the number reconcile on a
   // restart-numbering paper (overlapping ranges) and no-ops when the paper
-  // declares no ranges. Same logic as the client scanned importer.
-  const reconciled = reconcilePastPaper(merged.questions, partsAccum);
+  // declares no ranges/total at all. Same logic as the client scanned importer.
+  const reconciled = reconcilePastPaper(merged.questions, partsAccum, declaredQuestionCount);
 
   // Lift shared reading passages / maps out of the flat list into the editor's
   // passage model: a deduped passages[] array + a passageId stamped on each
@@ -980,12 +1091,18 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
 
   // ── Validation gate ──────────────────────────────────────────────
   // Run the shared engine's structural gate BEFORE the destructive write. A
-  // blocker (missing printed numbers, an answer key imported as a question, or
-  // nothing extracted) fails the import gracefully: we return the report so the
-  // admin sees exactly what's wrong and DO NOT clear/overwrite the existing
-  // quiz. Non-blocking problems (duplicates, [UNCLEAR], thin MCQs, no-answer)
-  // ride through as warnings so a good-enough paper still imports.
-  const gate = gateImport({questions});
+  // blocker (missing printed numbers, an extra number outside the declared
+  // range, a duplicate number, an answer key imported as a question, or
+  // nothing extracted) fails the import gracefully: we return the report so
+  // the admin sees exactly what's wrong and DO NOT clear/overwrite the
+  // existing quiz. Non-blocking problems (out-of-order, [UNCLEAR], thin MCQs,
+  // no-answer) ride through as warnings so a good-enough paper still imports.
+  // `expectedNumbers` — when the reconciler resolved a continuous declared
+  // range — makes this an EXACT set comparison
+  // (expectedQuestionNumbers === importedQuestionNumbers), not just a count or
+  // a gap check: it also catches extras past the declared end and a
+  // truncated tail the gap-only check can't see.
+  const gate = gateImport({questions, expectedNumbers: reconciled.expectedNumbers});
 
   // Persist + keep the parent quiz count + passages in sync — only when the
   // gate passes. When gated, nothing is cleared or written (non-destructive).
@@ -1008,6 +1125,21 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
         err && err.message);
     }
   }
+
+  // Every rejected candidate, for audit — never shown to learners, only in the
+  // admin-facing verification report (Phase 7 / Phase 11).
+  const rejectedExtras = [
+    ...reconciled.droppedNumbers.outOfRange.map((n) =>
+      ({sourceQuestionNumber: n, reason: "outside_declared_range"})),
+    ...reconciled.droppedNumbers.duplicate.map((n) =>
+      ({sourceQuestionNumber: n, reason: "duplicate_candidate"})),
+    ...Array.from({length: roleRejections.example},
+      () => ({sourceQuestionNumber: null, reason: "worked_example"})),
+    ...Array.from({length: roleRejections.instruction},
+      () => ({sourceQuestionNumber: null, reason: "instruction_block"})),
+    ...Array.from({length: roleRejections.heading},
+      () => ({sourceQuestionNumber: null, reason: "heading_block"})),
+  ];
 
   const report = {
     ...buildImportReport({
@@ -1033,6 +1165,24 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
     blockers: gate.blockers,
     validationWarnings: gate.warnings,
     numbering: gate.numbering,
+    // ── Exact-count verification (Phase 7 / Phase 11 report shape) ──
+    // expectedCount is null when the paper declared no total/ranges at all
+    // (nothing to compare against — count-only papers keep the old behaviour).
+    expectedCount: reconciled.expectedNumbers.length || reconciled.declaredQuestionCount || null,
+    candidateCount: questionsFound,
+    validCount: questions.length,
+    missingNumbers: gate.manifest ? gate.manifest.missing : gate.numbering.missing,
+    duplicateNumbers: gate.manifest ? gate.manifest.duplicates : gate.numbering.duplicates,
+    rejectedExtras,
+    examplesRejected,
+    // Diagram counts: the server only LOCATES figures (no rasteriser); the
+    // studio's client-side figure-attach pass fills attached/needingReview
+    // after cropping runs (see PastPaperStudio's ImportReportCard merge).
+    diagramsDetected: figuresDetected.length,
+    diagramsAttached: 0,
+    diagramsNeedingReview: figuresDetected.length,
+    gatePassed: gate.ok,
+    reconcileWarnings: reconciled.warnings,
   };
 
   // Log to aiGenerations for cost tracking + audit trail.
@@ -1098,6 +1248,12 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey, isAdmin = false
         `${reconciled.stemsFilled} question${reconciled.stemsFilled === 1 ? "" : "s"} (e.g. spelling / punctuation) had no printed wording, ` +
         "so the Part's instruction was used as the question and the printed choices as the options — review them before publishing.");
     }
+    reconciled.warnings.forEach((w) => warnings.push(w));
+  }
+  if (examplesRejected > 0) {
+    warnings.push(
+      `${examplesRejected} worked example / instruction block${examplesRejected === 1 ? "" : "s"} ` +
+      "was found and correctly excluded from the questions.");
   }
   if (questions.length === 0) {
     warnings.push("The AI could not extract any questions from this paper.");

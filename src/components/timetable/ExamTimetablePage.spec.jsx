@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import useExamTimetables from '../../hooks/useExamTimetables'
@@ -140,6 +140,8 @@ describe('ExamTimetablePage', () => {
     fireEvent.change(screen.getByRole('searchbox', { name: /search subjects/i }), {
       target: { value: 'math' },
     })
+    // The search text is debounced before it drives filtering.
+    act(() => { vi.advanceTimersByTime(200) })
     // The matching day auto-expands; non-matching days are pruned.
     expect(screen.getAllByText('Mathematics').length).toBeGreaterThan(0)
     expect(screen.getByText('Paper 3/1')).toBeInTheDocument()

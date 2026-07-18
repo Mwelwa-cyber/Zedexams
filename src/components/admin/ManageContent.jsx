@@ -8,6 +8,7 @@ import {
   CheckCircleIcon as CheckCircle, TrophyIcon as Trophy,
 } from '../ui/icons'
 import { useFirestore } from '../../hooks/useFirestore'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useAuth } from '../../contexts/AuthContext'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
@@ -780,7 +781,8 @@ export default function ManageContent() {
   }
 
   // ── Filtering ───────────────────────────────────────────────────────────
-  const needle = search.toLowerCase().trim()
+  const debouncedSearch = useDebouncedValue(search, 200)
+  const needle = debouncedSearch.toLowerCase().trim()
 
   const filteredQuizzes = useMemo(() => quizzes.filter(q => {
     const qt = q.quizType ?? ''

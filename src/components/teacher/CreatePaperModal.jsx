@@ -10,6 +10,8 @@ import { generateAssessment } from '../../utils/teacherTools'
 import { paywall } from '../../utils/paywall'
 import { useAuth } from '../../contexts/AuthContext'
 import { useGenerationGate } from '../../hooks/useGenerationGate'
+import { useAiOperationLock } from '../../hooks/useAiOperationLock'
+import { stableFingerprint } from '../../hooks/aiOperationLockCore'
 import { aiAssessmentToStudioBlocks } from '../../utils/aiPaperToSections'
 import {
   useSyllabusTopicOptions, useSyllabusSubjectOptions, useSyllabusLevelOptions,
@@ -150,6 +152,10 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
   // say so up front instead of surprising them after the wait.
   const isFreePreview = resolveTeacherPlan(userProfile) === 'free'
   const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
+  // One modal instance creates at most one paper at a time — a double-click
+  // or rapid tap on "Generate paper" must produce exactly one Anthropic call
+  // and one saved aiGenerations doc, never two. See useAiOperationLock.js.
+  const { run: runGenerateLocked } = useAiOperationLock('assessment-studio:create-paper:generate-full')
   const [form, setForm] = useState(() => {
     // Follow the paper's curriculum choice (set in the builder header / AI
     // slide); '2023' for papers from before the field existed.
@@ -422,10 +428,18 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
     // Fail fast: assessments are a Max studio — a capped Free/Pro teacher gets
     // the pay/upgrade prompt now, not after a wasted generation round-trip.
     if (!ensureCanGenerate('assessment')) return
-    const run = ++runRef.current
-    setStatus('generating')
-    setError('')
-    const res = await generateAssessment({
+
+    // The teacher's chosen type reaches the backend UNCHANGED — every
+    // canonical value (topic_test/weekly_test/mid_term/end_of_term/
+    // mock_exam/examination/final_exam) is a real server-recognised
+    // ASSESSMENT_TYPE (functions/teacherTools/assessmentFormats.js).
+    // Previously every examination type was collapsed to the literal
+    // 'mock_exam' here, so choosing "Examination" silently generated and
+    // saved as a Mock Examination — fixed: the format profile a type has
+    // no dedicated seeds for (examination/final_exam) still borrows the
+    // mock_exam paper STRUCTURE server-side via FORMAT_TYPE_ALIASES, but
+    // the type/title/label stay the one the teacher actually picked.
+    const payload = {
       grade: studioGradeToKbGrade(form.grade),
       subject: toKbSubjectKey(form.subject),
       framework: form.framework,
@@ -434,16 +448,6 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
       term: form.term ? Number(form.term) : null,
       totalMarks: Number(form.totalMarks),
       durationMinutes: Number(form.durationMinutes),
-      // The teacher's chosen type reaches the backend UNCHANGED — every
-      // canonical value (topic_test/weekly_test/mid_term/end_of_term/
-      // mock_exam/examination/final_exam) is a real server-recognised
-      // ASSESSMENT_TYPE (functions/teacherTools/assessmentFormats.js).
-      // Previously every examination type was collapsed to the literal
-      // 'mock_exam' here, so choosing "Examination" silently generated and
-      // saved as a Mock Examination — fixed: the format profile a type has
-      // no dedicated seeds for (examination/final_exam) still borrows the
-      // mock_exam paper STRUCTURE server-side via FORMAT_TYPE_ALIASES, but
-      // the type/title/label stay the one the teacher actually picked.
       assessmentType: form.assessmentType,
       // Canonical question types — the generator filters the paper format to
       // these and refuses to emit any other type. Sent alongside the
@@ -451,8 +455,53 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
       // phrases fill-in-the-blank as blanks rather than open short answers.
       questionTypes: canonicalTypesFor(form.questionTypes),
       instructions: buildInstructions(),
+    }
+
+    const run = ++runRef.current
+    setStatus('generating')
+    setError('')
+    // useAiOperationLock: a synchronous ref-based lock (set before any
+    // await) plus a client-generated idempotency key that survives refresh —
+    // the server-side reservation in generateAssessment.js is what actually
+    // guarantees one Anthropic call + one saved paper + one usage charge per
+    // logical request; this is the client-side belt on top of that buckle.
+    const lockResult = await runGenerateLocked({
+      fingerprint: stableFingerprint(payload),
+      action: async (idempotencyKey) => {
+        const outcome = await generateAssessment({ ...payload, idempotencyKey })
+        if (!outcome.ok) {
+          // generateAssessment() resolves rather than throws on failure, but
+          // the lock only keeps an idempotencyKey reserved for a same-input
+          // retry (§7/§14) on its CATCH path — so a genuine failure has to
+          // be thrown here, not returned, or a retry with unchanged inputs
+          // would mint a fresh key and the server would treat it as a brand
+          // new (separately billable) request instead of resuming/retrying.
+          const err = new Error(outcome.error || 'Generation failed')
+          err.response = outcome
+          throw err
+        }
+        return outcome
+      },
     })
     if (run !== runRef.current) return
+    if (lockResult.reason === 'locked') {
+      // A generation for this modal is already in flight (the button
+      // should already be disabled — this only fires if a click slipped
+      // through before the disabled state applied). The in-flight call
+      // owns the UI update; nothing to do here.
+      return
+    }
+    const res = lockResult.ok ? lockResult.data : (lockResult.error?.response || {
+      ok: false, error: lockResult.error?.message || 'Generation failed. Please try again.',
+    })
+    if (res.ok && res.data?.status === 'processing') {
+      // The server already has this EXACT request in flight (a retried
+      // network call, or another browser tab) — not an error. Leave
+      // "Generating…" showing; whichever call actually owns the reservation
+      // will complete it, and reopening/reusing this modal later resumes via
+      // the same idempotency key.
+      return
+    }
     if (!res.ok) {
       // Defensive fallback: ensureCanGenerate('assessment') above is the
       // primary gate, but if a stale client meter let the call through and

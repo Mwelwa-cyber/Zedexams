@@ -9,6 +9,7 @@ const assert = require("node:assert");
 const {
   UNCLEAR_TOKEN,
   analyzeNumbering,
+  analyzeAgainstManifest,
   analyzeMcqCompleteness,
   detectUnclear,
   detectAnswerKeyBlock,
@@ -297,6 +298,82 @@ test("thin MCQ + no-answer surface as WARNINGS, not blockers", () => {
   assert.strictEqual(r.ok, true);
   assert.ok(r.warnings.some((w) => /no answer set/i.test(w)));
   assert.ok(r.warnings.some((w) => /only 3 options/i.test(w)));
+});
+
+// ── analyzeAgainstManifest / exact-set gate (the 1-60 exact-count invariant) ──
+test("analyzeAgainstManifest: exact match", () => {
+  const expected = Array.from({length: 60}, (_, i) => i + 1);
+  const m = analyzeAgainstManifest(qs(expected), expected);
+  assert.strictEqual(m.exact, true);
+  assert.deepStrictEqual(m.missing, []);
+  assert.deepStrictEqual(m.extras, []);
+  assert.deepStrictEqual(m.duplicates, []);
+});
+
+test("analyzeAgainstManifest: 63 candidates against a declared 1..60 flags 61-63 as extras", () => {
+  const expected = Array.from({length: 60}, (_, i) => i + 1);
+  const actual = [...expected, 61, 62, 63];
+  const m = analyzeAgainstManifest(qs(actual), expected);
+  assert.strictEqual(m.exact, false);
+  assert.deepStrictEqual(m.extras, [61, 62, 63]);
+  assert.deepStrictEqual(m.missing, []);
+});
+
+test("analyzeAgainstManifest: a truncated tail (paper stops at 55 of 60) is caught as missing", () => {
+  const expected = Array.from({length: 60}, (_, i) => i + 1);
+  const actual = Array.from({length: 55}, (_, i) => i + 1);
+  const m = analyzeAgainstManifest(qs(actual), expected);
+  assert.deepStrictEqual(m.missing, [56, 57, 58, 59, 60]);
+});
+
+test("analyzeAgainstManifest: a same-number duplicate among accepted questions is flagged", () => {
+  const expected = [1, 2, 3];
+  const m = analyzeAgainstManifest(qs([1, 2, 2, 3]), expected);
+  assert.deepStrictEqual(m.duplicates, [2]);
+});
+
+test("analyzeAgainstManifest returns null when no expected set is supplied (backward compatible)", () => {
+  assert.strictEqual(analyzeAgainstManifest(qs([1, 2, 3]), undefined), null);
+  assert.strictEqual(analyzeAgainstManifest(qs([1, 2, 3]), []), null);
+});
+
+test("gateImport with expectedNumbers: a clean 1..60 paper passes", () => {
+  const expected = Array.from({length: 60}, (_, i) => i + 1);
+  const r = gateImport({questions: qs(expected), expectedNumbers: expected});
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.manifest.exact, true);
+});
+
+test("gateImport with expectedNumbers: 63 candidates for a declared 60-question paper BLOCK on extras", () => {
+  const expected = Array.from({length: 60}, (_, i) => i + 1);
+  const actual = [...expected, 61, 62, 63];
+  const r = gateImport({questions: qs(actual), expectedNumbers: expected});
+  assert.strictEqual(r.ok, false);
+  assert.ok(r.blockers.some((b) => /Unexpected extra question number/.test(b)));
+  assert.ok(r.blockers.some((b) => /61, 62, 63/.test(b)));
+});
+
+test("gateImport with expectedNumbers: a truncated import (55 of 60) BLOCKS on the missing tail", () => {
+  // A gap-only check (analyzeNumbering) sees no INTERNAL gap in 1..55 and would
+  // pass this paper — the manifest catches the missing tail past the max seen.
+  const expected = Array.from({length: 60}, (_, i) => i + 1);
+  const actual = Array.from({length: 55}, (_, i) => i + 1);
+  const r = gateImport({questions: qs(actual), expectedNumbers: expected});
+  assert.strictEqual(r.ok, false);
+  assert.ok(r.blockers.some((b) => /Missing questions: 56, 57, 58, 59, 60/.test(b)));
+});
+
+test("gateImport with expectedNumbers: a duplicate printed number BLOCKS (never just a warning)", () => {
+  const expected = [1, 2, 3];
+  const r = gateImport({questions: qs([1, 2, 2, 3]), expectedNumbers: expected});
+  assert.strictEqual(r.ok, false);
+  assert.ok(r.blockers.some((b) => /Duplicate question number/.test(b)));
+});
+
+test("gateImport without expectedNumbers keeps the pre-existing gap-based behaviour (backward compatible)", () => {
+  const r = gateImport({questions: qs([1, 2, 3, 5, 6])});
+  assert.strictEqual(r.manifest, null);
+  assert.ok(r.blockers.some((b) => /Missing questions: 4/.test(b)));
 });
 
 test("an un-numbered paper does not falsely block on 'missing'", () => {

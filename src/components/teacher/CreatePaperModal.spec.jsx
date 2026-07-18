@@ -342,3 +342,87 @@ describe('CreatePaperModal — assessment-type chip map parity', () => {
     }
   })
 })
+
+// Request-locking / idempotency initiative — this is the UI-level guarantee
+// that a double-click or rapid tap on "Generate paper" produces exactly one
+// Anthropic call and one billed generation. useAiOperationLock itself is
+// unit-tested in isolation (useAiOperationLock.spec.jsx); this suite proves
+// CreatePaperModal actually wires it in on the real "Generate paper" button.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+describe('CreatePaperModal — duplicate-click protection', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('a double-click on Generate paper sends exactly one request', async () => {
+    const { generateAssessment } = await import('../../utils/teacherTools')
+    let resolveGenerate
+    generateAssessment.mockImplementation(
+      () => new Promise((res) => { resolveGenerate = res }),
+    )
+
+    renderModal()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Numbers' }))
+
+    const btn = screen.getByRole('button', { name: /Generate paper/i })
+    // Two rapid clicks in the same synchronous burst, like a real double-click
+    // firing before React re-renders the disabled state.
+    fireEvent.click(btn)
+    fireEvent.click(btn)
+
+    expect(generateAssessment).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      resolveGenerate({ ok: false, error: 'stop here' })
+    })
+  })
+
+  it('every request carries a client-generated UUID idempotencyKey', async () => {
+    const { generateAssessment } = await import('../../utils/teacherTools')
+    generateAssessment.mockResolvedValue({ ok: false, error: 'stop here' })
+
+    renderModal()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Numbers' }))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Generate paper/i }))
+    })
+
+    const payload = generateAssessment.mock.calls[0][0]
+    expect(payload.idempotencyKey).toMatch(UUID_RE)
+  })
+
+  it('retrying the same failed request (unchanged inputs) reuses the same idempotencyKey', async () => {
+    const { generateAssessment } = await import('../../utils/teacherTools')
+    generateAssessment.mockResolvedValue({ ok: false, error: 'stop here' })
+
+    renderModal()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Numbers' }))
+    const btn = screen.getByRole('button', { name: /Generate paper/i })
+
+    await act(async () => { fireEvent.click(btn) })
+    const firstKey = generateAssessment.mock.calls[0][0].idempotencyKey
+
+    await act(async () => { fireEvent.click(btn) })
+    const secondKey = generateAssessment.mock.calls[1][0].idempotencyKey
+
+    expect(secondKey).toBe(firstKey)
+  })
+
+  it('changing the topic before regenerating mints a fresh idempotencyKey', async () => {
+    const { generateAssessment } = await import('../../utils/teacherTools')
+    generateAssessment.mockResolvedValue({ ok: false, error: 'stop here' })
+
+    renderModal()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Numbers' }))
+    const btn = screen.getByRole('button', { name: /Generate paper/i })
+
+    await act(async () => { fireEvent.click(btn) })
+    const firstKey = generateAssessment.mock.calls[0][0].idempotencyKey
+
+    // A genuinely different request — different topic selection.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Fractions' }))
+    await act(async () => { fireEvent.click(btn) })
+    const secondKey = generateAssessment.mock.calls[1][0].idempotencyKey
+
+    expect(secondKey).not.toBe(firstKey)
+  })
+})

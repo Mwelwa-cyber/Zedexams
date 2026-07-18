@@ -12,6 +12,9 @@ import {
   moveCropRect,
   resizeCropRect,
   MIN_CROP_FRACTION,
+  pointerDistance,
+  pointerMidpoint,
+  computeZoomFromPinch,
 } from './cropGeometry.js'
 
 let passed = 0
@@ -111,6 +114,35 @@ test('resizeCropRect respects the minimum size when dragging past the anchor', (
 test('resizeCropRect ignores an unknown handle', () => {
   const r = resizeCropRect({ x: 0.2, y: 0.2, w: 0.3, h: 0.3 }, 'middle', { x: 0.9, y: 0.9 })
   assert.deepEqual(r, { x: 0.2, y: 0.2, w: 0.3, h: 0.3 })
+})
+
+// ── pinch-zoom geometry (Phase 10: two-finger pinch without corrupting coords) ──
+test('pointerDistance measures the gap between two touch points', () => {
+  assert.ok(approx(pointerDistance({ clientX: 0, clientY: 0 }, { clientX: 3, clientY: 4 }), 5))
+  assert.ok(approx(pointerDistance({ x: 10, y: 10 }, { x: 10, y: 10 }), 0))
+})
+
+test('pointerMidpoint is the average of the two points', () => {
+  const m = pointerMidpoint({ clientX: 0, clientY: 0 }, { clientX: 10, clientY: 20 })
+  assert.deepEqual(m, { x: 5, y: 10 })
+})
+
+test('computeZoomFromPinch scales proportionally to the distance change', () => {
+  // Fingers move twice as far apart ⇒ zoom doubles (clamped to maxZoom).
+  const z = computeZoomFromPinch(100, 200, 1, 1, 4)
+  assert.ok(approx(z, 2))
+})
+
+test('computeZoomFromPinch clamps to [minZoom, maxZoom]', () => {
+  assert.ok(approx(computeZoomFromPinch(100, 1000, 1, 1, 4), 4))
+  assert.ok(approx(computeZoomFromPinch(100, 10, 2, 1, 4), 1))
+})
+
+test('computeZoomFromPinch never produces NaN/Infinity on a degenerate starting distance', () => {
+  const z = computeZoomFromPinch(0, 50, 2, 1, 4)
+  assert.ok(Number.isFinite(z))
+  const z2 = computeZoomFromPinch(NaN, 50, 2, 1, 4)
+  assert.ok(Number.isFinite(z2))
 })
 
 console.log(`\ncropGeometry: ${passed} passed`)

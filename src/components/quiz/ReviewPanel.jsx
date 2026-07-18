@@ -15,6 +15,8 @@ const ISSUE_STYLES = {
   'No answer': 'bg-amber-100 text-amber-900',
   Flagged: 'bg-purple-100 text-purple-900',
   'Missing alt text': 'bg-sky-100 text-sky-900',
+  'Low confidence': 'bg-orange-100 text-orange-900',
+  'Missing image': 'bg-rose-100 text-rose-900',
 }
 
 export default function ReviewPanel({ items = [], total = 0, onJump }) {

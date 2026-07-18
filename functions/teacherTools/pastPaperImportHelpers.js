@@ -237,6 +237,37 @@ function canonicalType(raw) {
   return TYPE_ALIASES[key] || "";
 }
 
+// Content roles a raw extracted block can carry. Only 'question' may become a
+// quiz question — everything else (a worked Example, a Part's shared
+// instruction sentence, a heading) is rejected before normalisation so it can
+// never enter the ledger, get a number, or occupy a slot a real question needs.
+const CONTENT_ROLES = new Set(["question", "example", "instruction", "heading"]);
+
+// A worked Example is never printed with its own question number and starts
+// with the word "Example" (optionally "Worked Example"). Gated on the ABSENCE
+// of a printed number so a genuine numbered question that happens to mention
+// "example" in its wording is never misclassified.
+const EXAMPLE_TEXT_RE = /^\s*(worked\s+)?example\b\s*[:.\-]?\s*/i;
+
+/**
+ * Classify a RAW model-returned block before it is normalised into a question.
+ * Trusts an explicit `raw.contentRole` / `raw.isExample` signal from the model
+ * first; falls back to a conservative text heuristic. Returns one of
+ * CONTENT_ROLES ('question' unless there's a concrete signal otherwise) so a
+ * borderline case defaults to being KEPT — dropping a real question is far
+ * worse than occasionally letting a stray example through the deterministic
+ * gate downstream.
+ */
+function classifyContentRole(raw) {
+  const explicit = str(raw && raw.contentRole).trim().toLowerCase();
+  if (CONTENT_ROLES.has(explicit)) return explicit;
+  if (raw && raw.isExample === true) return "example";
+  const num = parseSourceNumber(raw && raw.sourceNumber);
+  const prompt = str(raw && raw.prompt).trim();
+  if (num == null && prompt && EXAMPLE_TEXT_RE.test(prompt)) return "example";
+  return "question";
+}
+
 /**
  * Stable identity for a question used to collapse duplicates across extraction
  * rounds and page batches. Stem + option-set, normalised for case/whitespace.
@@ -413,30 +444,65 @@ function filterRecoveredToWanted(questions, wantedNumbers) {
     });
 }
 
+// How "complete" a candidate read is, for choosing between two same-number
+// duplicates: more non-empty options first, then meaningfully higher
+// confidence. Mirrors the scoring the declared-range reconciler uses
+// (pastPaperImportReconcile.js's completenessScore) so both dedupe layers
+// agree on which read is "better".
+function optionCompleteness(q) {
+  return Array.isArray(q && q.options) ?
+    q.options.filter((o) => str(o).trim()).length : 0;
+}
+
+function questionConfidence(q) {
+  const c = Number(q && q.confidence);
+  return Number.isFinite(c) ? c : 0.5;
+}
+
 /**
  * Collapse questions that share the same PRINTED question number — they are the
- * same item re-read with OCR drift across continuation rounds. The first
- * occurrence of each number wins (round 0's read is the cleanest). Numbers are
- * section-scoped (numberKey), so a paper that restarts numbering per section
- * does not collide Section B's Q1 with Section A's. Questions with no printed
- * number are left untouched (they can't be number-matched and are handled by
- * the stem de-dupe instead). Returns {questions, removed}.
+ * same item re-read with OCR drift across continuation rounds. The FIRST
+ * occurrence's POSITION in the list is kept, but the more COMPLETE candidate's
+ * content wins that slot: a re-read with strictly more printed options, or the
+ * same option count with meaningfully (>0.15) higher confidence, replaces a
+ * thinner earlier read (Phase 2: "keep the most complete and highest-
+ * confidence transcription" for a duplicate candidate). Two near-identical
+ * reads with no meaningful completeness difference keep the first occurrence,
+ * unaffected by incidental OCR noise (a stray space, a punctuation slip).
+ * Numbers are section-scoped (numberKey), so a paper that restarts numbering
+ * per section does not collide Section B's Q1 with Section A's. Questions with
+ * no printed number are left untouched (they can't be number-matched and are
+ * handled by the stem de-dupe instead). Returns {questions, removed}.
  */
 function dedupeBySourceNumber(questions) {
-  const seen = new Set();
+  const list = Array.isArray(questions) ? questions : [];
+  const bestByKey = new Map(); // nkey → {q, optionCount, confidence}
+  list.forEach((q) => {
+    const nkey = numberKey(q);
+    if (nkey == null) return;
+    const optionCount = optionCompleteness(q);
+    const confidence = questionConfidence(q);
+    const current = bestByKey.get(nkey);
+    if (!current) {
+      bestByKey.set(nkey, {q, optionCount, confidence});
+      return;
+    }
+    const meaningfullyBetter =
+      optionCount > current.optionCount ||
+      (optionCount === current.optionCount && confidence - current.confidence > 0.15);
+    if (meaningfullyBetter) bestByKey.set(nkey, {q, optionCount, confidence});
+  });
+
+  const emitted = new Set();
   const out = [];
   let removed = 0;
-  for (const q of (Array.isArray(questions) ? questions : [])) {
+  list.forEach((q) => {
     const nkey = numberKey(q);
-    if (nkey != null) {
-      if (seen.has(nkey)) {
-        removed += 1;
-        continue;
-      }
-      seen.add(nkey);
-    }
-    out.push(q);
-  }
+    if (nkey == null) { out.push(q); return; }
+    if (emitted.has(nkey)) { removed += 1; return; }
+    emitted.add(nkey);
+    out.push(bestByKey.get(nkey).q);
+  });
   return {questions: out, removed};
 }
 
@@ -481,7 +547,17 @@ function summariseSeenStems(questions, limit = 60, perStem = 90) {
 /**
  * Coerce a raw model question into the importer's working shape, resolving the
  * type and the per-type answer. Returns null for an unusable question (no
- * prompt, or an MCQ with fewer than two options) so the caller can filter.
+ * prompt AND not a valid stem-less item, or an MCQ with fewer than two
+ * options) so the caller can filter.
+ *
+ * STEM-LESS EXCEPTION: a spelling/punctuation item legitimately has NO printed
+ * stem — the options themselves ARE the question ("Choose the correctly
+ * spelled word: A tributaly B tributary …") and the Part's shared instruction
+ * becomes the prompt during reconciliation (see pastPaperImportReconcile.js).
+ * Dropping every empty-prompt candidate here — before the reconciler ever runs
+ * — silently deleted those legitimate questions, so an empty prompt is kept
+ * when the candidate has a verifiable printed number AND at least two printed
+ * options; it is dropped only when it has neither a stem nor that pairing.
  *
  * Type resolution is defensive: an MCQ that arrives without enough options is
  * downgraded to short_answer (keeps the text), and a "numeric" whose answer
@@ -491,8 +567,7 @@ function summariseSeenStems(questions, limit = 60, perStem = 90) {
  * a record the editor can't re-save.
  */
 function normaliseImportedQuestion(raw, idx) {
-  const prompt = str(raw && raw.prompt).trim();
-  if (!prompt) return null;
+  const promptRaw = str(raw && raw.prompt).trim();
 
   const optionsRaw = Array.isArray(raw && raw.options) ? raw.options : [];
   let options = optionsRaw
@@ -500,12 +575,20 @@ function normaliseImportedQuestion(raw, idx) {
     .filter(Boolean)
     .slice(0, MAX_OPTIONS);
 
+  const sourceNumberEarly = parseSourceNumber(raw && raw.sourceNumber);
+  const isStemless = !promptRaw && options.length >= 2 && sourceNumberEarly != null;
+  if (!promptRaw && !isStemless) return null;
+  const prompt = promptRaw;
+
   let type = canonicalType(raw && raw.type);
   // Infer when the model omitted/garbled the type: 2+ options ⇒ MCQ-like.
   if (!type) type = options.length >= 2 ? "mcq" : "short_answer";
+  // A stem-less item's printed choices ARE the question — never let a
+  // mis-typed short_answer/essay below wipe them back to [].
+  if (isStemless && type !== "mcq" && type !== "tf") type = "mcq";
 
   const explanation = str(raw && raw.explanation).trim();
-  const sourceNumber = parseSourceNumber(raw && raw.sourceNumber);
+  const sourceNumber = sourceNumberEarly;
   const rawAnswer = raw == null ? null : raw.correctAnswer;
   // "Never guess." Treat null / undefined / "" as no answer printed on the
   // paper. Crucially this guards against Number(null) === 0 silently marking an
@@ -574,6 +657,10 @@ function normaliseImportedQuestion(raw, idx) {
   // restart-numbering papers dedupe correctly (see numberKey).
   const sectionLabel = str(raw && raw.sectionLabel).trim().slice(0, 80);
 
+  // The REAL page this question is printed on — separate from sourceNumber
+  // (the printed question NUMBER). Never conflate the two (see toQuestionDoc).
+  const sourcePageNumber = parseSourceNumber(raw && raw.sourcePageNumber);
+
   return {
     type,
     prompt,
@@ -581,6 +668,7 @@ function normaliseImportedQuestion(raw, idx) {
     correctAnswer,
     explanation,
     sourceNumber,
+    ...(sourcePageNumber != null ? {sourcePageNumber} : {}),
     ...(sectionLabel ? {sectionLabel} : {}),
     answerKnown,
     order: Number.isInteger(idx) ? idx : 0,
@@ -961,6 +1049,8 @@ module.exports = {
   SUPPORTED_TYPES,
   MAX_OPTIONS,
   canonicalType,
+  CONTENT_ROLES,
+  classifyContentRole,
   questionKey,
   numberKey,
   sanitiseFigureBox,

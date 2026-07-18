@@ -11,16 +11,21 @@
 // filtering logic (unit-tested) and AssessmentStudio's handleInsertBankQuestion
 // for the insert + usage-increment wiring.
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { searchQuestionBank, parseBankQuestion } from '../../utils/questionBankService'
 import { extractRichTextPlain } from '../../utils/quizRichText'
 import {
   deriveContext, applyPanelFilters, facetOptions,
 } from '../../utils/questionBankPanel'
 import DiagramSvg from '../diagrams/DiagramSvg'
-import { buildRequestKey } from '../../utils/requestControl.js'
-import { deduplicatedRequest } from '../../utils/requestDeduplication.js'
-import { useAbortableRequest } from '../../hooks/useAbortableRequest.js'
+import { useCachedQuery } from '../../hooks/useCachedQuery.js'
+import { getSearchCache, CACHE_TTL } from '../../utils/cache/searchCache.js'
+import { createSearchCacheKey } from '../../utils/cache/cacheKeys.js'
+
+// Same cache scope as CentralQuestionBank.jsx — an "all questions, no
+// filters" fetch from either surface can share one cached result and one
+// invalidation (CLAUDE.md #13.5/#13.7).
+const CACHE_SCOPE = 'question-bank'
 
 const TYPE_LABELS = {
   mcq: 'Multiple choice',
@@ -116,42 +121,33 @@ function BankCard({ row, busy, onInsert }) {
 
 export default function QuestionBankPanel({ open, onClose, uid, context = {}, onInsert }) {
   const { grade = '', subject = '', topic = '' } = context
-  const [allRows, setAllRows] = useState(null) // null = not loaded yet
-  const [error, setError] = useState('')
   const [busyId, setBusyId] = useState('')
   const [term, setTerm] = useState('')
   const [type, setType] = useState('')
   const [difficulty, setDifficulty] = useState('')
   const [marks, setMarks] = useState('')
-  // Cache the (uid) the rows were fetched for so re-opening doesn't refetch
-  // unless the signed-in teacher changed.
-  const loadedForRef = useRef('')
-  const { run, cancel } = useAbortableRequest({ timeoutMs: 15_000 })
 
-  useEffect(() => {
-    if (!open || !uid) return undefined
-    if (loadedForRef.current === uid && allRows) return undefined
-    setAllRows(null)
-    setError('')
-    // Keyed by uid (+ the fixed scope/sort this panel always requests) so two
-    // panels opened for the same teacher at once share one fetch, and a
-    // different teacher's rows are never shared with this one.
-    const key = buildRequestKey('question-bank-search', uid, 'all', 'newest')
-    run(({ signal }) => deduplicatedRequest(key, () => searchQuestionBank(uid, { scope: 'all', sort: 'newest' }), { signal }))
-      .then((result) => {
-        if (result.status === 'success') {
-          setAllRows(result.data.rows || [])
-          setError(result.data.error || '')
-          loadedForRef.current = uid
-        } else if (result.status === 'error') {
-          setAllRows([])
-          setError('Could not load the question bank.')
-        }
-        // 'stale' / 'aborted' — the panel closed or the teacher changed
-        // before this resolved; a newer request (or nothing) owns state now.
-      }).catch(() => {}) // run() resolves a status object and never rejects; guards regardless
-    return cancel
-  }, [open, uid, allRows, run, cancel])
+  // Full unfiltered bank fetch, cached + deduped (CLAUDE.md #13.5) — search +
+  // context scoping below run client-side over this one cached snapshot, so
+  // typing in the search box or reopening the panel never re-hits Firestore.
+  const fetchRows = useCallback(async () => {
+    const result = await searchQuestionBank(uid, { scope: 'all', sort: 'newest' })
+    if (result.error) throw new Error(result.error)
+    return result.rows || []
+  }, [uid])
+  const cacheKey = useMemo(
+    () => (uid ? createSearchCacheKey({ scope: CACHE_SCOPE, userId: uid, sort: 'newest', filters: { bankScope: 'all' } }) : null),
+    [uid],
+  )
+  const {
+    data: fetchedRows, loading: rowsLoading, error: fetchError,
+  } = useCachedQuery(open ? cacheKey : null, fetchRows, {
+    cache: getSearchCache(CACHE_SCOPE, { ttlMs: CACHE_TTL.TEACHER_DOCUMENTS }),
+    ttlMs: CACHE_TTL.TEACHER_DOCUMENTS,
+    staleAfterMs: 30 * 1000,
+  })
+  const allRows = useMemo(() => (rowsLoading ? null : (fetchedRows || [])), [rowsLoading, fetchedRows])
+  const error = fetchError ? 'Could not load the question bank.' : ''
 
   // Stage 1 — auto-scope to the paper's context (topic → subject fallback).
   const ctx = useMemo(

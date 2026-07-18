@@ -110,7 +110,50 @@ test('summariseReviewIssues rolls up per-issue counts', () => {
     { issues: ['No answer', 'Flagged'] },
     { issues: ['Missing alt text'] },
   ])
-  assert.deepEqual(counts, { 'No answer': 2, Flagged: 1, 'Missing alt text': 1 })
+  assert.deepEqual(counts, {
+    'No answer': 2, Flagged: 1, 'Missing alt text': 1, 'Low confidence': 0, 'Missing image': 0,
+  })
+})
+
+// ── Phase 12: Low confidence + Missing image filters ────────────────────────
+test('flags a low-confidence AI-imported question (< 0.8)', () => {
+  const { items } = collectReviewItems([standalone(mcq({ correctAnswer: 0, aiConfidence: 0.62 }))])
+  assert.deepEqual(items[0].issues, ['Low confidence'])
+})
+
+test('does NOT flag a high-confidence question', () => {
+  const { items } = collectReviewItems([standalone(mcq({ correctAnswer: 0, aiConfidence: 0.97 }))])
+  assert.equal(items.length, 0)
+})
+
+test('does NOT flag a question with no aiConfidence at all (not scored, not "low")', () => {
+  const { items } = collectReviewItems([standalone(mcq({ correctAnswer: 0 }))])
+  assert.equal(items.length, 0)
+})
+
+test('flags every question under a map passage the importer located but never got an image', () => {
+  const p = { passageKind: 'map', imageUrl: '', figureMeta: { sourcePage: 3, box: null } }
+  const { items } = collectReviewItems([
+    { kind: 'passage', passage: { ...p, questions: [mcq({ localId: 'x', correctAnswer: 0 }), mcq({ localId: 'y', correctAnswer: 1 })] } },
+  ])
+  assert.equal(items.length, 2)
+  assert.ok(items.every(i => i.issues.includes('Missing image')))
+})
+
+test('does NOT flag a map passage that already has an image attached', () => {
+  const p = { passageKind: 'map', imageUrl: 'https://cdn/x.jpg', figureMeta: { sourcePage: 3, box: null } }
+  const { items } = collectReviewItems([
+    { kind: 'passage', passage: { ...p, questions: [mcq({ correctAnswer: 0 })] } },
+  ])
+  assert.equal(items.length, 0)
+})
+
+test('does NOT flag a comprehension (non-map) passage for a missing image', () => {
+  const p = { passageKind: 'comprehension', imageUrl: '', figureMeta: null }
+  const { items } = collectReviewItems([
+    { kind: 'passage', passage: { ...p, questions: [mcq({ correctAnswer: 0 })] } },
+  ])
+  assert.equal(items.length, 0)
 })
 
 console.log(`\nreviewUtils: ${passed} passed`)

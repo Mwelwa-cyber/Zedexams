@@ -257,6 +257,7 @@
     "test:curriculum-upload": "node functions/teacherTools/uploadCurriculumModule.test.js",
     "test:template-bank": "node functions/teacherTools/lessonPlanTemplateBank.test.js",
     "test:cors": "node functions/cors.test.js",
+    "test:ai-operations": "node functions/aiOperationsCore.test.js && node functions/aiOperations.test.js",
     "test:auth-guard": "node functions/authGuard.test.js",
     "test:rate-limit": "node functions/rateLimitCore.test.js",
     "test:family-portal": "node functions/familyPortalCore.test.js",
@@ -313,6 +314,7 @@
     "test:past-papers-index": "node functions/pastPapersIndex.test.js",
     "test:past-paper-import": "node functions/teacherTools/pastPaperImport.test.js",
     "test:past-paper-reconcile": "node functions/teacherTools/pastPaperImportReconcile.test.js",
+    "test:past-paper-exact-count": "node functions/teacherTools/pastPaperImportExactCount.test.js",
     "test:document-engine": "node functions/documentEngine/validationEngineCore.test.js && node functions/documentEngine/structuredDocumentCore.test.js",
     "test:quiz-engine-adapter": "node scripts/test-quiz-engine-adapter.mjs",
     "test:bulk-question-ops": "node src/components/quiz/bulkQuestionOps.test.js",
@@ -439,7 +441,10 @@
     "test:offline-cache": "node src/offline/contentCacheCore.test.js",
     "test:offline-sync": "node src/offline/syncQueueCore.test.js",
     "test:offline-storage-stats": "node src/offline/storageStatsCore.test.js",
-    "test:offline-connectivity": "node src/offline/connectivityCore.test.js"
+    "test:offline-connectivity": "node src/offline/connectivityCore.test.js",
+    "test:memory-cache": "node src/utils/cache/memoryCache.test.js",
+    "test:cache-keys": "node src/utils/cache/cacheKeys.test.js",
+    "test:search-cache": "node src/utils/cache/searchCache.test.js"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

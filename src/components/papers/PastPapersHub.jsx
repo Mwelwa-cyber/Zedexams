@@ -38,6 +38,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import {
   PAPER_GRADES,
   getCachedPublishedPapers,
@@ -563,20 +564,23 @@ export default function PastPapersHub() {
   )
 
   // Determine the active mode. Search or a quick filter drops into a
-  // flat results list; otherwise the guided year → subject flow.
-  const searching = query.trim().length > 0
+  // flat results list; otherwise the guided year → subject flow. The query
+  // is debounced so a fast typist doesn't flicker between the years/subjects
+  // view and the flat results view on every keystroke.
+  const debouncedQuery = useDebouncedValue(query, 200)
+  const searching = debouncedQuery.trim().length > 0
   const filtering = quickFilter !== 'all'
   const mode = searching || filtering ? 'results' : year ? 'subjects' : 'years'
 
   const results = useMemo(() => {
     if (mode !== 'results') return []
     return filterPapers(gradePapers, {
-      query,
+      query: debouncedQuery,
       quizOnly: quickFilter === 'quiz',
       sort: quickFilter === 'recent' ? 'newest' : sort,
       labelOf: (id) => subjectMeta(id).label,
     }).filter((p) => (quickFilter === 'bookmarked' ? savedIds.has(p.id) : true))
-  }, [mode, gradePapers, query, quickFilter, sort, savedIds])
+  }, [mode, gradePapers, debouncedQuery, quickFilter, sort, savedIds])
 
   const clearBrowse = () => {
     setQuery('')

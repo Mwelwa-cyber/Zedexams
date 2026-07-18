@@ -85,6 +85,46 @@ export function resizeCropRect(rect = {}, handle, point = {}) {
   return clampCropRect({ x: left, y: top, w: right - left, h: bottom - top })
 }
 
+/**
+ * Distance in client pixels between two pointer points ({clientX, clientY}
+ * or {x, y}). Pure — used to drive two-finger pinch zoom without touching the
+ * DOM directly, so the zoom math is unit-testable.
+ */
+export function pointerDistance(a = {}, b = {}) {
+  const ax = a.clientX ?? a.x ?? 0
+  const ay = a.clientY ?? a.y ?? 0
+  const bx = b.clientX ?? b.x ?? 0
+  const by = b.clientY ?? b.y ?? 0
+  return Math.hypot(bx - ax, by - ay)
+}
+
+/** Midpoint in client pixels between two pointer points. */
+export function pointerMidpoint(a = {}, b = {}) {
+  const ax = a.clientX ?? a.x ?? 0
+  const ay = a.clientY ?? a.y ?? 0
+  const bx = b.clientX ?? b.x ?? 0
+  const by = b.clientY ?? b.y ?? 0
+  return { x: (ax + bx) / 2, y: (ay + by) / 2 }
+}
+
+/**
+ * New zoom level for a two-finger pinch gesture: scales `startZoom` by how
+ * much the distance between the two touch points has changed since the
+ * gesture began, clamped to [minZoom, maxZoom]. Pure ratio math — this is
+ * what keeps a pinch gesture from "corrupting" the zoom (no drift, no NaN on
+ * a near-zero starting distance).
+ */
+export function computeZoomFromPinch(startDistance, currentDistance, startZoom, minZoom, maxZoom) {
+  const sd = Number(startDistance)
+  const cd = Number(currentDistance)
+  const sz = Number(startZoom)
+  if (!Number.isFinite(sd) || sd <= 1 || !Number.isFinite(cd) || !Number.isFinite(sz)) {
+    return Math.min(maxZoom, Math.max(minZoom, sz || minZoom))
+  }
+  const next = sz * (cd / sd)
+  return Math.min(maxZoom, Math.max(minZoom, +next.toFixed(3)))
+}
+
 /** Convert a fractional rect to integer source-pixel box for drawImage. */
 export function cropRectToPixels(rect, naturalW, naturalH) {
   const r = clampCropRect(rect)

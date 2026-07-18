@@ -45,6 +45,45 @@ function ValidationStatusChip({ question }) {
   )
 }
 
+// Compact provenance strip for a past-paper-AI-imported question: the
+// printed question number, the real page it's printed on, and an "Imported"
+// tag — so an admin reviewing the editor can tell at a glance which cards
+// came from the AI importer and where to find them on the source paper.
+// Renders nothing for a manually-authored question (Phase 12: "Do not
+// disrupt normal manually created quizzes").
+function ImportProvenanceBadge({ question }) {
+  if (question?.importSource !== 'past_paper_ai') return null
+  const printedNumber = question.sourceQuestionNumber
+  // Backward-compatible read: pre-fix imports stored the printed number as a
+  // string in `sourcePage` (see functions/teacherTools/pastPaperImport.js
+  // toQuestionDoc) — fall back to it only when sourceQuestionNumber is absent.
+  const legacyPrinted = printedNumber == null && typeof question.sourcePage === 'string' ?
+    Number.parseInt(question.sourcePage, 10) : null
+  const shownNumber = Number.isFinite(printedNumber) ? printedNumber : (Number.isFinite(legacyPrinted) ? legacyPrinted : null)
+  const pageNumber = Number.isFinite(printedNumber) && Number.isFinite(Number(question.sourcePage)) ?
+    Number(question.sourcePage) : null
+  return (
+    <span className="flex flex-wrap items-center gap-1.5">
+      <span
+        className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-violet-700"
+        title="Imported by the Past Paper Studio AI importer"
+      >
+        Past paper
+      </span>
+      {shownNumber != null && (
+        <span className="theme-text-muted text-[10px] font-bold" title="Printed question number">
+          №{shownNumber}
+        </span>
+      )}
+      {pageNumber != null && (
+        <span className="theme-text-muted text-[10px] font-bold" title="Page this question is printed on">
+          p.{pageNumber}
+        </span>
+      )}
+    </span>
+  )
+}
+
 // CBC curriculum tagging — collapsible footer row shared by the standalone
 // and passage question cards. `set(field, value)` is each card's own updater,
 // so edits flow through the normal dirty → autosave path.
@@ -961,7 +1000,7 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
           onImageUpload(sectionIndex, file)
         }}
         onRemove={() => onImageRemove(sectionIndex)}
-        onCrop={onImageCrop && question.imageUrl ? () => onImageCrop(sectionIndex, question.imageUrl) : undefined}
+        onCrop={onImageCrop && question.imageUrl ? () => onImageCrop(sectionIndex, question.imageUrl, question) : undefined}
         onPickDiagram={() => setDiagramTarget({ kind: 'question' })}
         onRemoveDiagram={() => set('imageDiagram', null)}
         theme={theme}
@@ -1416,6 +1455,7 @@ const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
             />
           </div>
           <ValidationStatusChip question={question} />
+          <ImportProvenanceBadge question={question} />
         </div>
         <CbcMetaFields question={question} theme={theme} set={set} />
       </div>
@@ -1752,6 +1792,7 @@ const PassageQuestionCard = memo(function PassageQuestionCard({
         </div>
         <div className="flex items-center">
           <ValidationStatusChip question={question} />
+          <ImportProvenanceBadge question={question} />
         </div>
       </div>
       <CbcMetaFields question={question} theme={theme || THEMES.create} set={set} />
@@ -1968,7 +2009,7 @@ const PassageSectionCard = memo(function PassageSectionCard({
                 uploadStep={passage.imageUploadStep}
                 onFileSelect={file => onPassageImageUpload(sectionIndex, file)}
                 onRemove={() => onPassageImageRemove(sectionIndex)}
-                onCrop={onPassageImageCrop && passage.imageUrl ? () => onPassageImageCrop(sectionIndex, passage.imageUrl) : undefined}
+                onCrop={onPassageImageCrop && passage.imageUrl ? () => onPassageImageCrop(sectionIndex, passage.imageUrl, passage) : undefined}
                 theme={theme}
               />
             </div>

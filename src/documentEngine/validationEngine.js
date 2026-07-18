@@ -248,6 +248,41 @@ export function detectUnclear(question) {
   return hits
 }
 
+export function analyzeAgainstManifest(questions, expectedNumbers) {
+  const expected = Array.isArray(expectedNumbers)
+    ? expectedNumbers.filter((n) => Number.isInteger(n))
+    : []
+  if (!expected.length) return null
+
+  const expectedSet = new Set(expected)
+  const actualNums = []
+  ;(Array.isArray(questions) ? questions : []).forEach((q) => {
+    const n = parseSourceNumber(q && q.sourceNumber)
+    if (n != null) actualNums.push(n)
+  })
+  const actualSet = new Set(actualNums)
+
+  const missing = expected.filter((n) => !actualSet.has(n))
+  const extras = uniqueSortedInts(actualNums.filter((n) => !expectedSet.has(n)))
+
+  const counts = new Map()
+  actualNums.forEach((n) => counts.set(n, (counts.get(n) || 0) + 1))
+  const duplicates = uniqueSortedInts(
+    [...counts.entries()].filter(([, c]) => c > 1).map(([n]) => n),
+  )
+
+  return {
+    expectedCount: expected.length,
+    actualCount: actualNums.length,
+    missing,
+    extras,
+    duplicates,
+    exact:
+      missing.length === 0 && extras.length === 0 && duplicates.length === 0 &&
+      actualNums.length === expected.length,
+  }
+}
+
 export function detectAnswerKeyBlock(block) {
   const text = typeof block === 'string' ? block : str(block && block.prompt)
   const t = text.trim()
@@ -307,17 +342,38 @@ export function gateImport(input) {
     : input && Array.isArray(input.questions)
       ? input.questions
       : []
+  const expectedNumbers = input && !Array.isArray(input) ? input.expectedNumbers : undefined
 
   const blockers = []
   const warnings = []
   const numbering = analyzeNumbering(questions)
+  const manifest = analyzeAgainstManifest(questions, expectedNumbers)
 
   if (!questions.length) {
     blockers.push('No questions could be extracted from this paper.')
-    return { ok: false, blockers, warnings, numbering }
+    return { ok: false, blockers, warnings, numbering, manifest }
   }
 
-  if (numbering.missing.length) {
+  // Missing numbers: prefer the manifest's exact declared set (catches a
+  // truncated tail past the observed max) — else fall back to the gap check.
+  if (manifest) {
+    if (manifest.missing.length) {
+      const shown = manifest.missing.slice(0, 20).join(', ')
+      blockers.push(`Missing questions: ${shown}${manifest.missing.length > 20 ? ', …' : ''}`)
+    }
+    if (manifest.extras.length) {
+      const shown = manifest.extras.slice(0, 20).join(', ')
+      blockers.push(
+        `Unexpected extra question number(s) not declared on the paper: ${shown}` +
+          `${manifest.extras.length > 20 ? ', …' : ''} (the paper declares ${manifest.expectedCount} question(s)).`,
+      )
+    }
+    if (manifest.duplicates.length) {
+      blockers.push(
+        `Duplicate question number(s) must be resolved before import: ${manifest.duplicates.join(', ')}`,
+      )
+    }
+  } else if (numbering.missing.length) {
     const shown = numbering.missing.slice(0, 20).join(', ')
     blockers.push(`Missing questions: ${shown}${numbering.missing.length > 20 ? ', …' : ''}`)
   }
@@ -367,5 +423,13 @@ export function gateImport(input) {
     )
   }
 
-  return { ok: blockers.length === 0, blockers, warnings, numbering }
+  const emptyPrompt = questions.filter((q) => !str(q && q.prompt).trim()).length
+  if (emptyPrompt) {
+    warnings.push(
+      `${emptyPrompt} question(s) still have no question text after Part-` +
+        `instruction reconciliation — add a stem manually before publishing.`,
+    )
+  }
+
+  return { ok: blockers.length === 0, blockers, warnings, numbering, manifest }
 }

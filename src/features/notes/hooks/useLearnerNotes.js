@@ -12,6 +12,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { subscribeLearnerNotes } from '../lib/firestore'
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 
 function isReadingNote(doc) {
   if (!doc) return false
@@ -44,11 +45,12 @@ export function useLearnerNotes({ grade, subject = 'all', search = '' }) {
     return unsub
   }, [grade, reloadKey])
 
+  const debouncedSearch = useDebouncedValue(search, 200)
   const filtered = useMemo(() => {
     let list = notes
     if (subject !== 'all') list = list.filter(n => n.subject === subject)
-    if (search.trim()) {
-      const q = search.toLowerCase()
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase()
       list = list.filter(n =>
         n.title?.toLowerCase().includes(q) ||
         n.excerpt?.toLowerCase().includes(q) ||
@@ -56,7 +58,7 @@ export function useLearnerNotes({ grade, subject = 'all', search = '' }) {
       )
     }
     return list
-  }, [notes, subject, search])
+  }, [notes, subject, debouncedSearch])
 
   const countsBySubject = useMemo(() => {
     const counts = {}

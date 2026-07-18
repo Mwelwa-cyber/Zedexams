@@ -114,6 +114,9 @@ import { classTimetableDescriptor } from '../../../hooks/draft/descriptors/handB
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
 import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
 import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
+import { buildRequestKey, toDisplayMessage } from '../../../utils/requestControl.js'
+import { deduplicatedRequest } from '../../../utils/requestDeduplication.js'
+import { useAbortableRequest } from '../../../hooks/useAbortableRequest.js'
 
 const DEFAULT_ACTIVITIES = ['Remedial work', 'Library', 'Clubs']
 const HISTORY_LIMIT = 60
@@ -378,33 +381,55 @@ export default function ClassTimetableStudio() {
     [currentNormalised, siblings],
   )
 
+  // A debounced background probe, a manual "Refresh" click, and the
+  // pre-save "Final Check & Save" flow can all call this within moments of
+  // each other. `useAbortableRequest` makes only the LATEST call (whichever
+  // fired most recently — the strongest signal of current intent) able to
+  // update `siblings`/`staleSiblings`/`lastCheckedAt`; an earlier call that
+  // resolves after being superseded is dropped instead of clobbering fresher
+  // state with an out-of-order response. `deduplicatedRequest` additionally
+  // shares one Firestore round-trip when two callers ask for the exact same
+  // (uid, timetable, school, year, term) at once — e.g. the debounce firing
+  // right as the teacher clicks "Refresh" manually.
+  const { run: runSiblingRefresh } = useAbortableRequest({ timeoutMs: 15_000 })
   const refreshConflicts = useCallback(async ({ silent = false } = {}) => {
     if (!uid) return null
     setSiblingStatus('loading')
     setSiblingError('')
-    try {
-      const fresh = await loadSiblingTimetables({
-        uid,
-        timetableId: generationId || '',
-        school: header.school,
-        year: header.year,
-        term: header.term,
-      })
+    const key = buildRequestKey(
+      'timetable-siblings', uid, generationId || '', header.school, header.year, header.term,
+    )
+    const result = await runSiblingRefresh(({ signal }) => deduplicatedRequest(key, () => loadSiblingTimetables({
+      uid,
+      timetableId: generationId || '',
+      school: header.school,
+      year: header.year,
+      term: header.term,
+    }), { signal, timeoutMs: 15_000 }))
+
+    if (result.status === 'success') {
+      const fresh = result.data
       // Stale-data note: which siblings changed since the previous check.
       setStaleSiblings((lastCheckedAt ? changedSiblingsSince(siblings, fresh.siblings) : []))
       setSiblings(fresh.siblings)
       setLastCheckedAt(fresh.checkedAt)
       setSiblingStatus('ready')
       return fresh.siblings
-    } catch (err) {
-      console.error('[ClassTimetableStudio] sibling load failed', err)
+    }
+    if (result.status === 'error') {
+      console.error('[ClassTimetableStudio] sibling load failed', result.error)
       setSiblingStatus('error')
-      setSiblingError(offline ? 'you appear to be offline' : (err?.message || ''))
+      setSiblingError(offline ? 'you appear to be offline' : toDisplayMessage(result.error))
       if (!silent) toast.error('Could not load your other timetables for conflict checking.')
       return null
     }
+    // 'stale' / 'aborted' — a newer refresh call already superseded this one.
+    // Treat it like "couldn't confirm" rather than reusing possibly-outdated
+    // data, so a caller like Final Check & Save never saves against a result
+    // that isn't actually this call's own.
+    return null
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uid, generationId, header.school, header.year, header.term, siblings, lastCheckedAt, offline])
+  }, [uid, generationId, header.school, header.year, header.term, siblings, lastCheckedAt, offline, runSiblingRefresh])
 
   /* Load siblings once the studio knows who's signed in, and re-scope when
    * the school / year / term context changes (debounced — school is typed). */

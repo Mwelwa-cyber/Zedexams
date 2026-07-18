@@ -25,6 +25,7 @@ const {
   extractionProgress,
   summariseSeenStems,
   normaliseImportedQuestion,
+  classifyContentRole,
   parseSourceNumber,
   findSourceNumberGaps,
   mergeAndRenumber,
@@ -336,6 +337,88 @@ test('missing type is inferred from options', () => {
 
 test('empty prompt is rejected', () => {
   assert.equal(normaliseImportedQuestion({prompt: '   ', options: ['a', 'b']}, 0), null);
+});
+
+// ── Phase 5: stem-less spelling/punctuation items must survive normalisation ──
+test('a stem-less item with a printed number + 2 options SURVIVES with an empty prompt', () => {
+  const n = normaliseImportedQuestion({
+    prompt: '', sourceNumber: 26, options: [
+      'Cassava, maize potatoes and wheat are carbohydrate foods.',
+      'Cassava, maize, potatoes and wheat are carbohydrate foods.',
+    ],
+  }, 0);
+  assert.notEqual(n, null, 'must not be dropped — the reconciler fills the Part instruction later');
+  assert.equal(n.prompt, '');
+  assert.equal(n.type, 'mcq', 'the printed choices become MCQ options');
+  assert.equal(n.options.length, 2);
+  assert.equal(n.sourceNumber, 26);
+});
+
+test('a stem-less item with NO printed number is still rejected (cannot be trusted as a real question)', () => {
+  assert.equal(
+    normaliseImportedQuestion({prompt: '', options: ['a', 'b']}, 0), null,
+    'no sourceNumber ⇒ not distinguishable from junk — drop it',
+  );
+});
+
+test('a stem-less item with only 1 option is still rejected', () => {
+  assert.equal(
+    normaliseImportedQuestion({prompt: '', sourceNumber: 5, options: ['only one']}, 0), null,
+  );
+});
+
+test('a stem-less item explicitly typed short_answer keeps its options (never wiped to [])', () => {
+  const n = normaliseImportedQuestion({
+    prompt: '', sourceNumber: 7, type: 'short_answer', options: ['a', 'b', 'c'],
+  }, 0);
+  assert.equal(n.type, 'mcq', 'forced back to mcq so the printed choices are not lost');
+  assert.equal(n.options.length, 3);
+});
+
+// ── Phase 8: sourcePageNumber (real page) stays distinct from sourceNumber (printed number) ──
+test('normaliseImportedQuestion carries sourcePageNumber separately from sourceNumber', () => {
+  const n = normaliseImportedQuestion(
+    {prompt: 'Q?', type: 'mcq', options: ['a', 'b'], sourceNumber: 23, sourcePageNumber: 6}, 0);
+  assert.equal(n.sourceNumber, 23);
+  assert.equal(n.sourcePageNumber, 6);
+  assert.notEqual(n.sourceNumber, n.sourcePageNumber);
+});
+
+test('sourcePageNumber is omitted (not zero/null-written) when the model reports none', () => {
+  const n = normaliseImportedQuestion({prompt: 'Q?', type: 'mcq', options: ['a', 'b'], sourceNumber: 1}, 0);
+  assert.equal('sourcePageNumber' in n, false);
+});
+
+// ── Phase 4: worked-Example / instruction exclusion ─────────────────────────
+test('classifyContentRole trusts an explicit contentRole from the model', () => {
+  assert.equal(classifyContentRole({contentRole: 'example', prompt: 'Anything'}), 'example');
+  assert.equal(classifyContentRole({contentRole: 'instruction', prompt: 'Choose the correct word.'}), 'instruction');
+  assert.equal(classifyContentRole({contentRole: 'heading', prompt: 'SECTION B'}), 'heading');
+  assert.equal(classifyContentRole({contentRole: 'question', prompt: 'Q1'}), 'question');
+  assert.equal(classifyContentRole({contentRole: 'nonsense', prompt: 'Q1'}), 'question', 'unknown value ⇒ default');
+});
+
+test('classifyContentRole honours an explicit isExample flag', () => {
+  assert.equal(classifyContentRole({isExample: true, prompt: 'Whatever text'}), 'example');
+});
+
+test('classifyContentRole rejects an unnumbered "Example:" block by text heuristic', () => {
+  assert.equal(classifyContentRole({prompt: 'Example: The capital of Zambia is Lusaka.'}), 'example');
+  assert.equal(classifyContentRole({prompt: 'Worked Example — solve for x.'}), 'example');
+});
+
+test('classifyContentRole does NOT misclassify a real numbered question mentioning "example"', () => {
+  // A printed number is the deciding signal — a worked Example is NEVER given
+  // its own printed question number on a real paper.
+  assert.equal(
+    classifyContentRole({prompt: 'Example of a renewable energy source?', sourceNumber: 14, options: ['Solar', 'Coal']}),
+    'question',
+  );
+});
+
+test('classifyContentRole defaults an ordinary question to "question"', () => {
+  assert.equal(classifyContentRole({prompt: 'What is the capital of Zambia?', sourceNumber: 1}), 'question');
+  assert.equal(classifyContentRole({}), 'question');
 });
 
 test('answer "never guess" — null answer leaves mcq unknown', () => {

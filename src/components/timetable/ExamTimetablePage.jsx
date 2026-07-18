@@ -39,6 +39,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import useExamTimetables from '../../hooks/useExamTimetables'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { isNativePlatform } from '../../utils/runtime'
 import Navbar from '../layout/Navbar'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -682,7 +683,8 @@ export default function ExamTimetablePage() {
   const nowMinuteMs = nowMs - (nowMs % 60000)
 
   const [search, setSearch] = useState('')
-  const isSearching = search.trim().length > 0
+  const debouncedSearch = useDebouncedValue(search, 200)
+  const isSearching = debouncedSearch.trim().length > 0
   // Status filter chips ('all' | 'today' | 'upcoming' | 'completed'). Like a
   // search, an active filter expands every matching day so results are visible.
   const [statusFilter, setStatusFilter] = useState('all')
@@ -781,13 +783,13 @@ export default function ExamTimetablePage() {
   // Search first, then the status chip — order-independent, both prune days.
   const filtered = useMemo(() => {
     if (!active) return null
-    return filterTimetableByStatus(filterTimetable(active, search), statusFilter, nowMinuteMs)
-  }, [active, search, statusFilter, nowMinuteMs])
+    return filterTimetableByStatus(filterTimetable(active, debouncedSearch), statusFilter, nowMinuteMs)
+  }, [active, debouncedSearch, statusFilter, nowMinuteMs])
   // Chip counts run over the search-filtered set so they reflect the current
   // search context (and the row hides itself when filters wouldn't partition).
   const filterCounts = useMemo(
-    () => (active ? statusBucketCounts(filterTimetable(active, search), nowMinuteMs) : null),
-    [active, search, nowMinuteMs],
+    () => (active ? statusBucketCounts(filterTimetable(active, debouncedSearch), nowMinuteMs) : null),
+    [active, debouncedSearch, nowMinuteMs],
   )
   const dayNumbers = useMemo(
     () => new Map((active?.days || []).map((d, i) => [d.date, i + 1])),

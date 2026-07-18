@@ -25,9 +25,9 @@ import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage
 import { db, storage } from '../firebase/config'
 import { resolvePaperUrl } from './pastPapers.js'
 import { loadPdfDocument } from '../components/quiz/documentQuizImporter.js'
-import { planFigureAttachments, mergeFigureUrlsIntoPassages } from './paperFigureAttachCore.js'
+import { planFigureAttachments, mergeFigureUrlsIntoPassages, padAndClampBox } from './paperFigureAttachCore.js'
 
-export { planFigureAttachments, mergeFigureUrlsIntoPassages }
+export { planFigureAttachments, mergeFigureUrlsIntoPassages, padAndClampBox }
 
 // OCR-friendly render width for a PDF page; crops stay legible at print size.
 const PAGE_TARGET_WIDTH = 1500
@@ -73,7 +73,12 @@ function canvasToJpegBlob(canvas, quality = 0.87) {
 }
 
 async function renderFigureCrop(item, localFiles, pdfCache) {
-  const { source, page, box } = item
+  const { source, page } = item
+  // Automatic crop process (Phase 9): pad the AI-detected box outward a
+  // little before cropping so an arrowhead, axis, or label sitting right at
+  // the reported edge isn't sliced off. A missing box (whole-page figure)
+  // stays null — nothing to pad.
+  const box = item.box ? padAndClampBox(item.box) : null
   if (source.kind === 'pdf') {
     // Load (and cache) the PDF once for all figures on this paper. The cache
     // holds the PROMISE (assigned synchronously) so concurrent callers can

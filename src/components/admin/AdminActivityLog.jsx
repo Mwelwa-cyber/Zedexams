@@ -6,6 +6,7 @@ import Card from '../ui/Card'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import { Download, Search } from '../ui/icons'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 
 const ACTION_TYPES = [
   'all',
@@ -86,14 +87,15 @@ export default function AdminActivityLog() {
     return () => { cancelled = true }
   }, [actionFilter])
 
+  const debouncedSearch = useDebouncedValue(search, 200)
   const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase()
+    const term = debouncedSearch.trim().toLowerCase()
     if (!term) return rows
     return rows.filter(r => {
       const hay = `${r.actorEmail || ''} ${r.action || ''} ${r.targetType || ''} ${r.targetId || ''}`.toLowerCase()
       return hay.includes(term)
     })
-  }, [rows, search])
+  }, [rows, debouncedSearch])
 
   return (
     <div className="space-y-5">

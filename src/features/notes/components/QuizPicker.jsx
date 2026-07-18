@@ -9,6 +9,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Loader2, Search } from '../../../components/ui/icons'
 import { fetchPublishedQuizzes, quizMatchesSubject } from '../lib/quizzes'
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 
 export function QuizPicker({ open, grade, subject, currentQuizId, onPick, onClose }) {
   const [quizzes, setQuizzes] = useState([])
@@ -33,10 +34,11 @@ export function QuizPicker({ open, grade, subject, currentQuizId, onPick, onClos
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  const debouncedSearch = useDebouncedValue(search, 200)
   const filtered = useMemo(() => {
     let rows = quizzes
     if (onlySubject && subject) rows = rows.filter((q) => quizMatchesSubject(q, subject))
-    const needle = search.trim().toLowerCase()
+    const needle = debouncedSearch.trim().toLowerCase()
     if (needle) {
       rows = rows.filter((q) =>
         (q.title || '').toLowerCase().includes(needle)
@@ -44,7 +46,7 @@ export function QuizPicker({ open, grade, subject, currentQuizId, onPick, onClos
         || (q.subject || '').toLowerCase().includes(needle))
     }
     return rows
-  }, [quizzes, onlySubject, subject, search])
+  }, [quizzes, onlySubject, subject, debouncedSearch])
 
   if (!open) return null
 

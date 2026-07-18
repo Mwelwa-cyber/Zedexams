@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
+import { useRequestLock } from '../../hooks/useRequestLock'
 import {
   clearCreateQuizDraft,
   loadCreateQuizDraft,
@@ -341,7 +342,9 @@ export default function CreateQuizV2() {
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState(null)
   const [aiForm, setAiForm] = useState({ topic: '', count: 5, type: 'mcq' })
-  const [aiGenerating, setAiGenerating] = useState(false)
+  // Ref-based lock so a double-click can't fire a second concurrent
+  // generation before React re-renders the disabled button.
+  const { run: runGenerateQuestions, isLocked: aiGenerating } = useRequestLock()
   const [importingDocument, setImportingDocument] = useState(false)
   const [importSummary, setImportSummary] = useState(null)
   const [importedAssets, setImportedAssets] = useState({})
@@ -734,72 +737,71 @@ export default function CreateQuizV2() {
       return
     }
 
-    setAiGenerating(true)
-    try {
-      // generateAIQuizQuestions now returns { questions, warning }. The
-      // warning is populated when the requested topic wasn't in the verified
-      // CBC knowledge base and the generator fell back to general CBC
-      // knowledge — we surface it to the teacher so they can double-check
-      // or pick a nearby verified topic next time.
-      const { questions: generated, warning: kbWarning } = await generateAIQuizQuestions({
-        subject: form.subject,
-        grade: form.grade,
-        topic,
-        count: aiForm.count,
-        type: aiForm.type,
-      })
+    await runGenerateQuestions(async () => {
+      try {
+        // generateAIQuizQuestions now returns { questions, warning }. The
+        // warning is populated when the requested topic wasn't in the verified
+        // CBC knowledge base and the generator fell back to general CBC
+        // knowledge — we surface it to the teacher so they can double-check
+        // or pick a nearby verified topic next time.
+        const { questions: generated, warning: kbWarning } = await generateAIQuizQuestions({
+          subject: form.subject,
+          grade: form.grade,
+          topic,
+          count: aiForm.count,
+          type: aiForm.type,
+        })
 
-      // Keep only AI questions that actually have text and usable options/answer.
-      const generatedList = Array.isArray(generated) ? generated : []
-      const usableGenerated = generatedList.filter(question => {
-        if (!richTextHasContent(question?.text ?? '')) return false
-        const t = question?.type || 'mcq'
-        if (t === 'short_answer' || t === 'diagram') {
-          return String(question?.correctAnswer ?? '').trim().length > 0
+        // Keep only AI questions that actually have text and usable options/answer.
+        const generatedList = Array.isArray(generated) ? generated : []
+        const usableGenerated = generatedList.filter(question => {
+          if (!richTextHasContent(question?.text ?? '')) return false
+          const t = question?.type || 'mcq'
+          if (t === 'short_answer' || t === 'diagram') {
+            return String(question?.correctAnswer ?? '').trim().length > 0
+          }
+          const opts = Array.isArray(question?.options) ? question.options.filter(o => String(o ?? '').trim()) : []
+          return opts.length >= 2
+        })
+
+        const nextSections = usableGenerated.map(question => buildStandaloneSection({
+          ...question,
+          options: question.options?.length ? question.options : ['', '', '', ''],
+        }))
+
+        if (!nextSections.length) {
+          show('Zed could not generate questions. Please try again.', true)
+          return
         }
-        const opts = Array.isArray(question?.options) ? question.options.filter(o => String(o ?? '').trim()) : []
-        return opts.length >= 2
-      })
+        if (nextSections.length < generatedList.length) {
+          const skipped = generatedList.length - nextSections.length
+          show(`Zed returned ${skipped} incomplete question${skipped === 1 ? '' : 's'}; ${nextSections.length} kept. Review before saving.`)
+        }
 
-      const nextSections = usableGenerated.map(question => buildStandaloneSection({
-        ...question,
-        options: question.options?.length ? question.options : ['', '', '', ''],
-      }))
+        setSections(currentSections => hasOnlyEmptyStarterSection(currentSections)
+          ? nextSections
+          : [...currentSections, ...nextSections])
 
-      if (!nextSections.length) {
-        show('Zed could not generate questions. Please try again.', true)
-        return
+        if (!form.title.trim()) {
+          setF('title', `Grade ${form.grade} ${form.subject} - ${topic}`)
+        }
+
+        const usedFastDraft = nextSections.some(section => section.question.generatedBy === 'fast_draft')
+        show(usedFastDraft
+          ? `Added ${nextSections.length} quick draft question${nextSections.length === 1 ? '' : 's'}. Review before saving.`
+          : `Added ${nextSections.length} AI-generated question${nextSections.length === 1 ? '' : 's'}. Review before saving.`)
+
+        // Surface KB warning as a separate, non-blocking notice so teachers
+        // see both "questions added" and "topic wasn't in the verified list".
+        if (kbWarning) {
+          // Small delay so the success toast lands first and the warning
+          // doesn't immediately replace it.
+          setTimeout(() => show(kbWarning, false), 600)
+        }
+      } catch (error) {
+        show(getErrorMessage(error, 'AI generation failed. Please try again.'), true)
       }
-      if (nextSections.length < generatedList.length) {
-        const skipped = generatedList.length - nextSections.length
-        show(`Zed returned ${skipped} incomplete question${skipped === 1 ? '' : 's'}; ${nextSections.length} kept. Review before saving.`)
-      }
-
-      setSections(currentSections => hasOnlyEmptyStarterSection(currentSections)
-        ? nextSections
-        : [...currentSections, ...nextSections])
-
-      if (!form.title.trim()) {
-        setF('title', `Grade ${form.grade} ${form.subject} - ${topic}`)
-      }
-
-      const usedFastDraft = nextSections.some(section => section.question.generatedBy === 'fast_draft')
-      show(usedFastDraft
-        ? `Added ${nextSections.length} quick draft question${nextSections.length === 1 ? '' : 's'}. Review before saving.`
-        : `Added ${nextSections.length} AI-generated question${nextSections.length === 1 ? '' : 's'}. Review before saving.`)
-
-      // Surface KB warning as a separate, non-blocking notice so teachers
-      // see both "questions added" and "topic wasn't in the verified list".
-      if (kbWarning) {
-        // Small delay so the success toast lands first and the warning
-        // doesn't immediately replace it.
-        setTimeout(() => show(kbWarning, false), 600)
-      }
-    } catch (error) {
-      show(getErrorMessage(error, 'AI generation failed. Please try again.'), true)
-    } finally {
-      setAiGenerating(false)
-    }
+    })
   }
 
   function handleImportDocument(fileOrFiles, importOptions = {}) {
