@@ -17,9 +17,11 @@
  */
 
 import {
+  genGrade,
   genSubject,
   genTerm,
   gradeLabelOf,
+  normGrade,
   normSubject,
   resolveWeekContext,
   subjectLabelOf,
@@ -42,6 +44,45 @@ function parseIsoMs(iso) {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
+
+/**
+ * Is there a Scheme of Work for this exact subject in this term (and grade,
+ * when a grade is known)? Subject- and grade-scoped so a Technology Studies
+ * scheme never satisfies English — the bug the per-assignment cards had.
+ * Grade-less legacy schemes still count for their subject (same leniency the
+ * rest of the dashboard applies in prepareThisWeek's `sameSubject`).
+ */
+function hasSchemeFor(generations, { subject, grade, termNumber }) {
+  const wantSubject = normSubject(subject)
+  if (!wantSubject) return false
+  const wantGrade = normGrade(grade)
+  return generations.some((g) =>
+    g.tool === 'scheme_of_work' &&
+    genTerm(g) === termNumber &&
+    genSubject(g) === wantSubject &&
+    (!wantGrade || !genGrade(g) || genGrade(g) === wantGrade),
+  )
+}
+
+/**
+ * Deep link to the Scheme of Work Studio pre-seeded with THIS card's exact
+ * context (grade/subject/term/curriculum/class), so the studio never falls
+ * back to the active dashboard subject. The subject is underscore-encoded to
+ * match the studio's selector seed (same convention as the short-test link).
+ */
+function schemeStudioRoute({ grade, subject, termNumber, curriculum, className }) {
+  const qs = new URLSearchParams()
+  const g = normGrade(grade)
+  const s = normSubject(subject)
+  if (g) qs.set('grade', g)
+  if (s) qs.set('subject', s.replace(/ /g, '_'))
+  if (termNumber != null) qs.set('term', String(termNumber))
+  if (curriculum) qs.set('curriculum', curriculum === 'previous' ? 'previous' : 'cbc')
+  const cls = typeof className === 'string' ? className.trim() : ''
+  if (cls) qs.set('className', cls)
+  const str = qs.toString()
+  return str ? `${PREP_ROUTES.scheme}?${str}` : PREP_ROUTES.scheme
+}
 
 /**
  * Subjects the teacher demonstrably teaches, ranked by evidence: docs in
@@ -89,6 +130,11 @@ export function buildRecommendations({
   profileSubject = '',
   preferredSubject = '',
   profileGrade = '',
+  // The specific teaching assignment this list is for (profile mode). When
+  // present it is the IMMUTABLE subject/grade context for the scheme card —
+  // never a global ranking or the active dashboard subject — and its stable
+  // identifiers are stamped on the recommendation.
+  assignment = null,
 } = {}) {
   const out = []
   const termNumber = calendar?.termNumber ?? null
@@ -107,26 +153,47 @@ export function buildRecommendations({
     ? resolveWeekContext({ generations, calendar, profileSubject, preferredSubject, profileGrade })
     : null
 
-  /* 1 ── "<Subject> is not planned yet" — the teacher teaches it but has no
-         Scheme of Work for the current term. Best unplanned subject only. */
+  /* 1 ── "<Subject> is not planned yet" — the teacher teaches THIS subject but
+         has no Scheme of Work for the current term. Bound to this card's own
+         subject context (the assignment, else the resolved week context) — NOT
+         a global "best unplanned subject" ranking, which is what made every
+         per-assignment card show the same (highest-scored) subject. */
   if (termNumber != null) {
-    const schemed = new Set(
-      generations
-        .filter((g) => g.tool === 'scheme_of_work' && genTerm(g) === termNumber)
-        .map((g) => genSubject(g))
-        .filter(Boolean),
-    )
-    const unplanned = subjectsTaught({ generations, profileSubject, termNumber })
-      .find((s) => !schemed.has(s.subject))
-    if (unplanned) {
-      const gradeBit = context?.grade ? `${gradeLabelOf(context.grade)} syllabus` : 'syllabus'
+    // Immutable subject/grade for this card: the assignment when we have one,
+    // otherwise the resolved week context. Either way it is the subject the
+    // teacher SEES on this card — never the active dashboard subject.
+    const cardSubject = assignment?.subject
+      ? normSubject(assignment.subject)
+      : (context ? context.subject : '')
+    const cardGrade = assignment?.grade
+      ? normGrade(assignment.grade)
+      : (context ? context.grade : '')
+    if (cardSubject && !hasSchemeFor(generations, { subject: cardSubject, grade: cardGrade, termNumber })) {
+      const subjectName = subjectLabelOf(cardSubject)
+      const gradeLabel = cardGrade ? gradeLabelOf(cardGrade) : ''
+      const scopeBits = [gradeLabel, subjectName].filter(Boolean).join(' ')
+      const curriculum = assignment?.curriculumType || assignment?.curriculum || ''
+      const className = typeof assignment?.className === 'string' ? assignment.className.trim() : ''
       out.push({
-        id: `scheme-${unplanned.subject}`,
+        id: `scheme-${cardSubject}`,
+        type: 'missing-scheme',
         icon: '📘',
-        title: `${subjectLabelOf(unplanned.subject)} is not planned yet`,
-        text: `Create a Scheme of Work using the ${gradeBit} and current school calendar.`,
+        // Immutable subject context carried on the recommendation itself, so
+        // rendering, the CTA and any downstream consumer read the SAME subject.
+        assignmentId: assignment?.id || null,
+        curriculumId: curriculum || null,
+        gradeId: cardGrade || '',
+        gradeLabel,
+        classId: assignment?.classId || null,
+        className: className || null,
+        subjectId: cardSubject,
+        subjectName,
+        termId: termNumber,
+        schoolYear: calendar?.year ?? null,
+        title: `${subjectName} is not planned yet`,
+        text: `Create a Scheme of Work for ${scopeBits || subjectName} using the correct syllabus and current school calendar.`,
         actionLabel: 'Create Scheme',
-        to: PREP_ROUTES.scheme,
+        to: schemeStudioRoute({ grade: cardGrade, subject: cardSubject, termNumber, curriculum, className }),
       })
     }
   }
@@ -310,6 +377,7 @@ export function buildProfileRecommendations({
       profileSubject: a ? a.subject : profileSubject,
       preferredSubject: a ? a.subject : preferredSubject,
       profileGrade: a ? a.grade : profileGrade,
+      assignment: a || null,
     })
   }
 
@@ -324,6 +392,7 @@ export function buildProfileRecommendations({
       profileSubject: a.subject,
       preferredSubject: a.subject,
       profileGrade: a.grade,
+      assignment: a,
     })
     const mine = []
     for (const r of recs) {
@@ -346,5 +415,14 @@ export function buildProfileRecommendations({
     if (!any) break
   }
   merged.push(...globals)
-  return merged
+
+  // One card per (assignment, recommendation type). Per-assignment ids already
+  // fold in the assignment identity, so aliased/duplicate assignments (same id
+  // appearing twice) can't produce two identical cards.
+  const seen = new Set()
+  return merged.filter((r) => {
+    if (seen.has(r.id)) return false
+    seen.add(r.id)
+    return true
+  })
 }

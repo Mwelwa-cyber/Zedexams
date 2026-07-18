@@ -6,6 +6,7 @@
  */
 
 import { buildRecommendations, buildProfileRecommendations, subjectsTaught } from './teacherRecommendations.js'
+import { subjectLabelOf } from './prepareThisWeek.js'
 
 let passed = 0
 function check(name, cond) {
@@ -66,8 +67,12 @@ function ids(args) {
   const recs = buildRecommendations({ generations: gens, calendar: CAL })
   const scheme = recs.find((r) => r.id.startsWith('scheme-'))
   check('unschemed subject → Create Scheme recommendation', Boolean(scheme))
-  check('scheme card names the subject and routes to the studio',
-    scheme.title.startsWith('Mathematics') && scheme.to === '/teacher/generate/scheme-of-work')
+  check('scheme card names the subject and deep-links to the studio with its context',
+    scheme.title.startsWith('Mathematics') &&
+    scheme.to.startsWith('/teacher/generate/scheme-of-work?') &&
+    scheme.to.includes('subject=mathematics') &&
+    scheme.to.includes('grade=G4') &&
+    scheme.to.includes('term=2'))
 
   const withScheme = [...gens, gen('scheme_of_work', { subject: 'mathematics', grade: 'G4', term: 2 })]
   check('scheme exists → no scheme recommendation',
@@ -262,6 +267,165 @@ function ids(args) {
     JSON.stringify(profile.map((r) => r.id)) === JSON.stringify(single.map((r) => r.id)))
   check('no assignments → no scope tags, unchanged behaviour',
     buildProfileRecommendations({ calendar: CAL, assignments: [] }).every((r) => !r.scope))
+}
+
+/* ── subject-binding: every per-assignment scheme card keeps its OWN subject ──
+   Regression for the dashboard bug where all cards' titles read the single
+   highest-scored subject (e.g. "Technology Studies is not planned yet") while
+   only the scope tag differed. */
+{
+  const SUBJECTS = ['english', 'home_economics', 'mathematics', 'integrated_science', 'social_studies', 'technology_studies']
+  const G4 = SUBJECTS.map((s, i) => ({ id: `g4-${i}`, grade: 'G4', subject: s, isActive: true }))
+  // One subject (technology_studies) has the most current-term activity, so a
+  // GLOBAL ranking would surface it on every card. Binding to the assignment
+  // must keep each card on its own subject.
+  const gens = [
+    gen('lesson_plan', { subject: 'technology_studies', grade: 'G4', term: 2 }),
+    gen('lesson_plan', { subject: 'technology_studies', grade: 'G4', term: 2 }),
+    gen('lesson_plan', { subject: 'mathematics', grade: 'G4', term: 2 }),
+  ]
+  const list = buildProfileRecommendations({ generations: gens, calendar: CAL, assignments: G4 })
+  const schemeCards = list.filter((r) => r.type === 'missing-scheme')
+
+  check('1. every Grade 4 assignment with no scheme gets its own card',
+    schemeCards.length === 6)
+  check('2. each card title matches its own assignment subject (no shared/stale subject)',
+    schemeCards.every((r) => r.title === `${subjectLabelOf(r.subjectId)} is not planned yet`) &&
+    new Set(schemeCards.map((r) => r.title)).size === 6)
+  check('2b. no card borrows Technology Studies except the Technology Studies card',
+    schemeCards.filter((r) => /Technology Studies/.test(r.title)).length === 1)
+  check('2c. title, scope and CTA all agree on the subject',
+    schemeCards.every((r) => {
+      const sub = r.subjectId.replace(/ /g, '_')
+      return r.scope.includes(subjectLabelOf(r.subjectId)) &&
+        r.title.startsWith(subjectLabelOf(r.subjectId)) &&
+        r.to.includes(`subject=${sub}`)
+    }))
+  check('2d. description is subject-specific (names grade + subject)',
+    schemeCards.every((r) => r.text === `Create a Scheme of Work for Grade 4 ${subjectLabelOf(r.subjectId)} using the correct syllabus and current school calendar.`))
+  check('2e. immutable identifiers are stamped per card',
+    schemeCards.every((r) => r.assignmentId && r.gradeId === 'G4' && r.gradeLabel === 'Grade 4' && r.termId === 2 && r.schoolYear === 2026))
+}
+
+/* ── 3. a scheme for ONE subject only clears that subject ──────────── */
+{
+  const A = [
+    { id: 'a-en', grade: 'G4', subject: 'english', isActive: true },
+    { id: 'a-ts', grade: 'G4', subject: 'technology_studies', isActive: true },
+  ]
+  const withTsScheme = [gen('scheme_of_work', { subject: 'technology_studies', grade: 'G4', term: 2 })]
+  const list = buildProfileRecommendations({ generations: withTsScheme, calendar: CAL, assignments: A })
+  const subjects = list.filter((r) => r.type === 'missing-scheme').map((r) => r.subjectId)
+  check('3. a Technology Studies scheme does NOT remove the English recommendation',
+    subjects.includes('english'))
+  check('3b. the Technology Studies scheme removes only its own card',
+    !subjects.includes('technology studies'))
+}
+
+/* ── 4. creating an English scheme removes only English ───────────── */
+{
+  const A = [
+    { id: 'a-en', grade: 'G4', subject: 'english', isActive: true },
+    { id: 'a-ma', grade: 'G4', subject: 'mathematics', isActive: true },
+    { id: 'a-ts', grade: 'G4', subject: 'technology_studies', isActive: true },
+  ]
+  const before = buildProfileRecommendations({ generations: [], calendar: CAL, assignments: A })
+    .filter((r) => r.type === 'missing-scheme').map((r) => r.subjectId).sort()
+  check('4. before any scheme, all three subjects are unplanned',
+    JSON.stringify(before) === JSON.stringify(['english', 'mathematics', 'technology studies']))
+
+  const afterEnglish = buildProfileRecommendations({
+    generations: [gen('scheme_of_work', { subject: 'english', grade: 'G4', term: 2 })],
+    calendar: CAL, assignments: A,
+  }).filter((r) => r.type === 'missing-scheme').map((r) => r.subjectId).sort()
+  check('4b. creating an English scheme removes ONLY the English card',
+    JSON.stringify(afterEnglish) === JSON.stringify(['mathematics', 'technology studies']))
+
+  // Grade-scoping: an English scheme for a DIFFERENT grade must not clear the
+  // Grade 4 English card.
+  const otherGradeScheme = buildProfileRecommendations({
+    generations: [gen('scheme_of_work', { subject: 'english', grade: 'G7', term: 2 })],
+    calendar: CAL, assignments: [{ id: 'a-en', grade: 'G4', subject: 'english', isActive: true }],
+  }).filter((r) => r.type === 'missing-scheme').map((r) => r.subjectId)
+  check('4c. a scheme in another grade does not satisfy this grade',
+    otherGradeScheme.includes('english'))
+}
+
+/* ── 5. CTA carries the exact subject + assignment context ────────── */
+{
+  const A = [{ id: 'a-is', grade: 'G4', subject: 'integrated_science', className: 'B', curriculumType: 'cbc', isActive: true }]
+  const rec = buildProfileRecommendations({ generations: [], calendar: CAL, assignments: A })
+    .find((r) => r.type === 'missing-scheme')
+  check('5. CTA deep-links to the Scheme Studio with subject/grade/term/curriculum/class',
+    rec.to.startsWith('/teacher/generate/scheme-of-work?') &&
+    rec.to.includes('subject=integrated_science') &&
+    rec.to.includes('grade=G4') &&
+    rec.to.includes('term=2') &&
+    rec.to.includes('curriculum=cbc') &&
+    rec.to.includes('className=B'))
+  check('5b. the CTA subject matches the card subject (never a default)',
+    rec.subjectId === 'integrated science' && rec.subjectName === 'Integrated Science')
+}
+
+/* ── 6. reordering assignments does not change subject names ──────── */
+{
+  const base = [
+    { id: 'a-en', grade: 'G4', subject: 'english', isActive: true },
+    { id: 'a-ma', grade: 'G4', subject: 'mathematics', isActive: true },
+    { id: 'a-ts', grade: 'G4', subject: 'technology_studies', isActive: true },
+  ]
+  const reversed = [...base].reverse()
+  const titleFor = (list, id) => list.find((r) => r.assignmentId === id)?.title
+  const a = buildProfileRecommendations({ generations: [], calendar: CAL, assignments: base })
+    .filter((r) => r.type === 'missing-scheme')
+  const b = buildProfileRecommendations({ generations: [], calendar: CAL, assignments: reversed })
+    .filter((r) => r.type === 'missing-scheme')
+  check('6. each assignment keeps its subject title regardless of ordering',
+    titleFor(a, 'a-en') === 'English is not planned yet' &&
+    titleFor(b, 'a-en') === 'English is not planned yet' &&
+    titleFor(a, 'a-ts') === 'Technology Studies is not planned yet' &&
+    titleFor(b, 'a-ts') === 'Technology Studies is not planned yet')
+}
+
+/* ── 7. purity — repeated calls / switching don't leak the prev subject ── */
+{
+  const A1 = [{ id: 'a-en', grade: 'G4', subject: 'english', isActive: true }]
+  const A2 = [{ id: 'a-ts', grade: 'G4', subject: 'technology_studies', isActive: true }]
+  // Simulate a re-render on the same profile, then a profile switch, then back.
+  const first = buildProfileRecommendations({ generations: [], calendar: CAL, assignments: A1 }).find((r) => r.type === 'missing-scheme')
+  buildProfileRecommendations({ generations: [], calendar: CAL, assignments: A2 })
+  const again = buildProfileRecommendations({ generations: [], calendar: CAL, assignments: A1 }).find((r) => r.type === 'missing-scheme')
+  check('7. switching assignments and back yields the same subject (no leak)',
+    first.title === 'English is not planned yet' && again.title === 'English is not planned yet')
+  check('7b. each call returns fresh recommendation objects (no shared reference)',
+    first !== again)
+
+  // A multi-assignment build must not share object references between cards
+  // (mutating one card can never bleed into another).
+  const multi = buildProfileRecommendations({
+    generations: [], calendar: CAL,
+    assignments: [
+      { id: 'm-en', grade: 'G4', subject: 'english', isActive: true },
+      { id: 'm-ma', grade: 'G4', subject: 'mathematics', isActive: true },
+    ],
+  }).filter((r) => r.type === 'missing-scheme')
+  check('7c. sibling cards are distinct objects with distinct subjects',
+    multi[0] !== multi[1] && multi[0].subjectId !== multi[1].subjectId)
+}
+
+/* ── 8. no duplicate cards for the same assignment + type ─────────── */
+{
+  // Same assignment id appearing twice (aliasing / a stale duplicate) must not
+  // yield two identical cards.
+  const dupes = [
+    { id: 'a-en', grade: 'G4', subject: 'english', isActive: true },
+    { id: 'a-en', grade: 'G4', subject: 'english', isActive: true },
+  ]
+  const list = buildProfileRecommendations({ generations: [], calendar: CAL, assignments: dupes })
+  check('8. duplicate assignments produce a single card (deduped by id)',
+    list.filter((r) => r.type === 'missing-scheme').length === 1)
+  check('8b. every id in a profile build is unique',
+    new Set(list.map((r) => r.id)).size === list.length)
 }
 
 console.log(`\nteacherRecommendations: ${passed} checks passed`)
