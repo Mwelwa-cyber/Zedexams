@@ -35,8 +35,10 @@ const FEATURE_ROUTE = {
   notes: '/teacher/generate/notes',
   homework: '/teacher/generate/homework',
   rubric: '/teacher/generate/rubric',
-  assessments: '/teacher/test-papers/new',
-  exams: '/teacher/exam-papers',
+  // Tests and examinations are one merged Assessment Paper Studio now — both
+  // feature keys deep-link into the same "Generate" entry point.
+  assessments: '/teacher/assessment-papers/new',
+  exams: '/teacher/assessment-papers/new',
   schemes: '/teacher/generate/scheme-of-work',
   sba: '/teacher/generate/sba',
 }

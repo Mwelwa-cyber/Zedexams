@@ -148,18 +148,9 @@ export const PRIMARY_GROUPS = [
         img: iconAssessments,
         tone: 'violet',
         badge: null,
-        title: 'Test Papers',
-        tagline: 'Build topic, weekly, mid-term, and end-of-term test papers.',
-        to: '/teacher/test-papers',
-      },
-      {
-        img: iconAssessments,
-        tone: 'indigo',
-        badge: 'NEW',
-        libraryKey: 'exam-paper',
-        title: 'Exam Studio',
-        tagline: 'Build mock, examination, and exam papers at full exam standard.',
-        to: '/teacher/exam-papers',
+        title: 'Assessment Paper Studio',
+        tagline: 'Create topic tests, weekly tests, end-of-term tests, mock examinations, and formal examination papers.',
+        to: '/teacher/assessment-papers',
       },
       {
         img: iconLibrary,
@@ -277,7 +268,7 @@ export const MORE_GROUPS = [
     accent: 'blue',
     viewAll: '/teacher/sba',
     description:
-      'ECZ School Based Assessment — Grades 5–7 only, worth 30% of the final Grade 7 mark (10% banked per grade). Create tasks, record marks and track coverage. These are not for ordinary class tests — use Test Papers or Exam Studio for those. New to SBA? Tap “View all” for a short how-to guide.',
+      'ECZ School Based Assessment — Grades 5–7 only, worth 30% of the final Grade 7 mark (10% banked per grade). Create tasks, record marks and track coverage. These are not for ordinary class tests — use the Assessment Paper Studio for those. New to SBA? Tap “View all” for a short how-to guide.',
     items: [
       {
         img: iconSbaStudio,
@@ -335,9 +326,12 @@ export const MORE_GROUPS = [
 
 // Studio tile routes that stay Pro/Max only — a Free teacher who opens one
 // sees a read-only sample (StudioGate), so the tile is badged "Sample".
-// Schemes of Work, Worksheets, Homework and Test Papers left this set in the
-// free-preview phase (§12): Free now opens them with limited allowances
-// (PLAN_LIMITS.free) and preview shaping (FREE_PREVIEW_LIMITS).
+// Schemes of Work, Worksheets, Homework and Assessment Papers left this set
+// in the free-preview phase (§12): Free now opens them with limited
+// allowances (PLAN_LIMITS.free) and preview shaping (FREE_PREVIEW_LIMITS).
+// The Assessment Paper Studio (tests AND examinations, one merged studio) is
+// gated identically for every assessment type via StudioGate tool="assessment"
+// — there's no route-level distinction to badge "Sample" here any more.
 const LOCKED_STUDIO_PATHS = new Set([
   '/teacher/generate/weekly-forecast',
   '/teacher/generate/record-of-work',
@@ -346,7 +340,6 @@ const LOCKED_STUDIO_PATHS = new Set([
   '/teacher/generate/flashcards',
   '/teacher/generate/rubric',
   '/teacher/generate/mark-schedule',
-  '/teacher/exam-papers',
   '/teacher/generate/sba',
   '/teacher/generate/sba-tracker',
   '/teacher/generate/sba-planner',

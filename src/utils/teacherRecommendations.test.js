@@ -148,7 +148,7 @@ function ids(args) {
     test.actionLabel === 'Create short test' &&
     !/quiz/i.test(test.title) && !/quiz/i.test(test.actionLabel))
   check('short-test deep link preselects grade, subject and term',
-    test.to.startsWith('/teacher/test-papers/new?') &&
+    test.to.startsWith('/teacher/assessment-papers/new?') &&
     test.to.includes('grade=G4') && test.to.includes('subject=english') && test.to.includes('term=2'))
   const withTest = { generations: gens, calendar: CAL, assessments: [{ id: 'a1', questionCount: 5, createdAt: IN_WEEK }] }
   check('a test created this week → short-test recommendation gone',
@@ -177,8 +177,8 @@ function ids(args) {
   ] }
   const recs = buildRecommendations(args)
   const drafts = recs.find((r) => r.id === 'draft-papers')
-  check('empty paper → Review drafts, routed to Test Papers',
-    Boolean(drafts) && drafts.to === '/teacher/test-papers')
+  check('empty paper → Review drafts, routed to Assessment Papers',
+    Boolean(drafts) && drafts.to === '/teacher/assessment-papers')
   check('papers with questions are not called drafts', drafts.text.includes('your unfinished test paper'))
   check('no empty papers → no draft recommendation',
     !ids({ generations: [], calendar: CAL, assessments: [{ id: 'a2', questionCount: 7, createdAt: IN_WEEK }] })

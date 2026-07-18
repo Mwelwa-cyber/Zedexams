@@ -1,5 +1,6 @@
-// Test Paper Studio v2 — block-based, parchment + oxblood design.
-// Backs BOTH /teacher/test-papers/new and /teacher/test-papers/:id/edit:
+// Assessment Paper Studio v2 — block-based, parchment + oxblood design.
+// One studio for every assessment type (tests AND examinations); backs
+// /teacher/assessment-papers/new and /teacher/assessment-papers/:id/edit:
 // sections[] + parts[] flow through serializeQuizSections /
 // saveAssessmentQuestions on create and through hydrateQuizSections /
 // updateAssessmentWithQuestions on edit, so a saved paper reopens here in the
@@ -66,8 +67,10 @@ import ScanPaperModal from './scan/ScanPaperModal'
 import ImportReviewScreen from './scan/ImportReviewScreen'
 import { importHasQuestions } from './scan/importReviewModel'
 import { studioGradeToKbGrade, studioSubjectToKey, normalizeStudioFramework } from './syllabusTopicOptions'
-import { subjectLabel as kbSubjectLabel, isExamPaperType, paperGradeLabel, paperLevel } from './paperTaxonomy'
-import { getStudioVariant } from './studioVariant'
+import {
+  subjectLabel as kbSubjectLabel, paperGradeLabel, paperLevel,
+  ASSESSMENT_TYPE_VALUES, normalizeAssessmentType,
+} from './paperTaxonomy'
 import { STUDIO_SUBJECTS, STUDIO_GRADES, ASSESSMENT_TYPE_LABELS as ASSESSMENT_TYPE_LABELS_META } from './assessmentStudioMeta'
 import {
   importQuizDocument,
@@ -117,13 +120,19 @@ const STUDIO_TO_LIBRARY_SUBJECT = {
   'Home Economics': 'Home Economics',
 }
 const STUDIO_TO_LIBRARY_ASSESSMENT_TYPE = {
-  weekly: 'monthly',
-  monthly: 'monthly',
+  // Canonical registry values (paperTaxonomy.js ASSESSMENT_TYPES).
+  topic_test: 'topic',
+  weekly_test: 'monthly',
   mid_term: 'midterm',
   end_of_term: 'end_of_term',
+  mock_exam: 'end_of_term',
+  examination: 'end_of_term',
+  final_exam: 'end_of_term',
+  // Legacy/route-scoped values a saved paper may still carry.
+  weekly: 'monthly',
+  monthly: 'monthly',
   topic: 'topic',
   mock: 'end_of_term',
-  examination: 'end_of_term',
   exam: 'end_of_term',
   diagnostic: 'topic',
   pre_test: 'topic',
@@ -263,20 +272,24 @@ export function buildTitleFromForm(form) {
   // Official level label ("GRADE 4" / "FORM 1" / "NURSERY"), so a Form paper is
   // never mis-titled "GRADE 8" and an ECE paper never reads "GRADE ECE_N".
   const levelWord = paperGradeLabel(form.grade).toUpperCase()
-  const type = ASSESSMENT_TYPE_LABELS[form.assessmentType] || 'Assessment'
+  // Normalize so a legacy stored type ('mock', 'topic', 'exam' — from before
+  // the canonical registry) still titles correctly; canonical values pass
+  // through unchanged.
+  const type = normalizeAssessmentType(form.assessmentType)
+  const typeUpper = (ASSESSMENT_TYPE_LABELS[type] || 'Assessment').toUpperCase()
   const termBit = form.term ? `TERM ${form.term}` : ''
-  const typeUpper = type.toUpperCase()
   let typeFormatted = typeUpper
-  if (form.assessmentType === 'end_of_term' && termBit) {
+  if (type === 'end_of_term' && termBit) {
     typeFormatted = `END OF TERM ${form.term} TEST`
-  } else if (form.assessmentType === 'mid_term' && termBit) {
+  } else if (type === 'mid_term' && termBit) {
     typeFormatted = `MID-TERM ${form.term} TEST`
-  } else if (form.assessmentType === 'mock') {
-    typeFormatted = 'MOCK EXAMINATION'
-  } else if (form.assessmentType === 'examination' || form.assessmentType === 'exam') {
-    // Exam Studio papers are titled as a formal examination — no term prefix,
-    // since an exam covers the whole syllabus rather than a single term.
-    typeFormatted = 'EXAMINATION'
+  } else if (type === 'mock_exam' || type === 'examination' || type === 'final_exam') {
+    // Examination-category papers are titled as the formal paper they are —
+    // no term prefix, since an exam covers the whole syllabus rather than a
+    // single term — and each type keeps ITS OWN wording: an Examination is
+    // never titled "Mock Examination", a Final Examination never collapses
+    // to a plain "Examination".
+    typeFormatted = typeUpper
   } else if (termBit) {
     typeFormatted = `${termBit} ${typeUpper}`
   }
@@ -299,7 +312,7 @@ function buildFooterCode(form) {
  * Form defaults — module-level so startBlankPaper can reference the
  * same shape the useState initializer uses, without duplicating it.
  * ------------------------------------------------------------------ */
-function makeDefaultForm(cfg) {
+function makeDefaultForm() {
   return {
     title: '',
     subject: 'Integrated Science',
@@ -309,7 +322,10 @@ function makeDefaultForm(cfg) {
     duration: 60,
     type: 'assessment',
     topic: '',
-    assessmentType: cfg.defaultType,
+    // A blank paper defaults to an End-of-Term Test — the teacher can pick
+    // any of the 7 assessment types (4 tests, 3 examinations) from the
+    // grouped picker; nothing about the studio route restricts the choice.
+    assessmentType: 'end_of_term',
     // Curriculum framework the paper targets: '2023' (new CBC) or '2013'
     // (previous outcome-based syllabus). Drives which syllabus the subject +
     // topic pickers read AND which KB the generators ground on.
@@ -351,11 +367,21 @@ function makeDefaultForm(cfg) {
  * Top-level component
  * ------------------------------------------------------------------ */
 
-export default function AssessmentStudio({ variant = 'test' }) {
-  // The same builder backs the Test Paper Studio and the Exam Studio; `cfg`
-  // carries the route base, wording and paper-type list for the active flavour.
-  const cfg = getStudioVariant(variant)
-  const isExamStudio = cfg.key === 'exam'
+// Static studio identity — no route-level "test" vs "exam" variant. Every
+// assessment type (test AND examination) is authored from this one studio;
+// which type a saved paper is comes entirely from its own assessmentType.
+const STUDIO_COPY = {
+  studioName: 'Assessment Paper Studio',
+  eyebrow: '📄 Teacher-only · Assessment Paper Studio',
+  routeBase: '/teacher/assessment-papers',
+  noun: 'assessment paper',
+  nounPlural: 'assessment papers',
+  Noun: 'Assessment paper',
+  NounPlural: 'Assessment papers',
+}
+
+export default function AssessmentStudio() {
+  const cfg = STUDIO_COPY
   const {
     createAssessment, saveAssessmentQuestions, getMyAssessments,
     getAssessmentById, getAssessmentQuestions, updateAssessmentWithQuestions,
@@ -394,7 +420,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
   // Data state (compatible with existing schema). The initializer spreads the
   // deep-link params on top so a "Create for this lesson" link lands correctly.
   const [form, setForm] = useState(() => ({
-    ...makeDefaultForm(cfg),
+    ...makeDefaultForm(),
     // Pre-fill from a Lesson Plan Studio "Create for this lesson" deep-link
     // (?grade=G5&subject=mathematics&topic=…&term=2). Only values valid for the
     // studio's flat grade/subject/term lists are applied; the rest stay default.
@@ -621,7 +647,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
   }, [])
 
   // Visual Studio handoff (src/features/visualStudio): when this studio is
-  // opened via "Send to Test Paper Studio" (?from=visual-studio), pull the
+  // opened via "Send to Assessment Paper Studio" (?from=visual-studio), pull the
   // pending diagram out of sessionStorage and drop it onto the first question
   // — image above, blank "P: ___" rows + answer key as real question fields,
   // so the questions are never trapped inside the picture. Runs once on mount.
@@ -799,8 +825,8 @@ export default function AssessmentStudio({ variant = 'test' }) {
   // ── Continuous autosave to the durable library ──────────────────────────
   // Files the paper in the teacher's library — and keeps it updated as they
   // edit — without an explicit "Save to library" click, so their work is never
-  // stranded as a draft-only copy (covers both Exam Studio and Test Paper
-  // Studio). Heavier than the device draft autosave (it serializes, uploads
+  // stranded as a draft-only copy (covers every assessment type — tests and
+  // examinations alike). Heavier than the device draft autosave (it serializes, uploads
   // images and writes the assessment doc), so it runs on a longer debounce,
   // never overlaps itself, and yields to an explicit save / export / import /
   // generation via the gate in shouldAutosaveToLibrary. Best-effort: a failure
@@ -972,18 +998,15 @@ export default function AssessmentStudio({ variant = 'test' }) {
     getMyAssessments(currentUser.uid)
       .then(list => {
         if (cancelled) return
-        // Test Papers and Exam papers live in one collection but each studio
-        // only surfaces its own: the Exam Studio shows mock/examination/exam,
-        // the Test Paper Studio shows everything else.
-        const scoped = (Array.isArray(list) ? list : []).filter(
-          p => isExamPaperType(p.assessmentType) === isExamStudio,
-        )
+        // One unified studio, one collection — recent papers show every
+        // assessment type (tests and examinations alike), most-recent-first.
+        const scoped = Array.isArray(list) ? list : []
         setRecentPapers(scoped.slice(0, 8))
       })
       .catch(err => { console.warn('Failed to load recent papers:', err) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, currentUser?.uid, isExamStudio])
+  }, [view, currentUser?.uid])
 
   /* ------------ section + part mutators ------------ */
   function updateSection(sectionIndex, updater) {
@@ -1377,13 +1400,9 @@ export default function AssessmentStudio({ variant = 'test' }) {
     // name from the saved School Profile (falling back to the most recent
     // saved paper), so AI-created papers print with the school header without
     // re-typing it each time.
-    const typeMap = {
-      topic_test: 'topic', weekly_test: 'weekly',
-      mid_term: 'mid_term', end_of_term: 'end_of_term',
-      // Exam Studio types are passed through unchanged (the modal already emits
-      // the studio's own value for them — see CreatePaperModal).
-      mock: 'mock', examination: 'examination', exam: 'exam',
-    }
+    // The modal's assessmentType picker shares the SAME canonical registry as
+    // the builder's own dropdown (paperTaxonomy.js ASSESSMENT_TYPES), so the
+    // value it emits is applied straight through — no translation table.
     // The modal now emits a canonical subject KEY ('numeracy',
     // 'integrated_science'); the studio form carries a display label, so map
     // it back to something human-readable for the header/exports.
@@ -1408,7 +1427,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
         framework: normalizeStudioFramework(aiPaperForm.framework || f.framework),
         term: f.term || aiPaperForm.term,
         duration: f.duration || String(aiPaperForm.durationMinutes),
-        assessmentType: typeMap[aiPaperForm.assessmentType] || f.assessmentType,
+        assessmentType: aiPaperForm.assessmentType || f.assessmentType,
         coverInstructions: f.coverInstructions ||
           String(assessment?.header?.instructions || ''),
         // brandingForAiPaper already implements per-field form-wins, so all
@@ -2542,7 +2561,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
     setSections([createStandaloneSection()])
     setParts([])
     // Reset all form fields to defaults, then re-apply school profile branding.
-    setForm(applySchoolProfileDefaults(makeDefaultForm(cfg), schoolProfile))
+    setForm(applySchoolProfileDefaults(makeDefaultForm(), schoolProfile))
     // Clear the session identity so the next library write creates a fresh doc
     // instead of overwriting the paper that was previously saved this session.
     createdIdRef.current = null
@@ -2715,8 +2734,8 @@ export default function AssessmentStudio({ variant = 'test' }) {
           health={paperHealth}
           onShowHealth={() => setHealthOpen(true)}
           onShowTemplates={() => setTemplateOpen(true)}
-          assessmentTypes={cfg.types}
-          assessmentTypeLabel={isExamStudio ? 'Exam type' : 'Assessment'}
+          assessmentTypes={ASSESSMENT_TYPE_VALUES}
+          assessmentTypeLabel="Assessment type"
         />
       )}
 
@@ -2801,8 +2820,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
       />
       {createPaperOpen && (
         <CreatePaperModal
-          variant={variant}
-          paperMeta={{ grade: form.grade, subject: form.subject, term: form.term, framework: form.framework }}
+          paperMeta={{ grade: form.grade, subject: form.subject, term: form.term, framework: form.framework, assessmentType: form.assessmentType }}
           onApply={handleApplyAiPaper}
           onClose={() => setCreatePaperOpen(false)}
         />

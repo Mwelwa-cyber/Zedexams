@@ -64,7 +64,7 @@ export function buildReminders({ generations = [], quizzes = [] }) {
       tone: 'warn',
       title: 'Draft test paper ready to publish',
       body: `“${draftQuiz.title || draftQuiz.topic || 'Untitled test paper'}” is still a draft.`,
-      to: `/teacher/test-papers/${draftQuiz.id}/edit`,
+      to: `/teacher/assessment-papers/${draftQuiz.id}/edit`,
       cta: 'Finish it',
     })
   }

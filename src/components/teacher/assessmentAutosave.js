@@ -3,8 +3,8 @@
 // component so the *decision* (whether to persist) can be unit-tested without
 // React or Firebase; the studio owns the side effects.
 //
-// Both Exam Studio and Test Paper Studio run on AssessmentStudio, so this
-// covers both.
+// Every assessment type — tests and examinations alike — runs on the one
+// AssessmentStudio, so this covers all of them.
 //
 // KEY DISTINCTION — two kinds of "dirty":
 //   • draft-dirty   — edits not yet captured by the per-keystroke DEVICE draft

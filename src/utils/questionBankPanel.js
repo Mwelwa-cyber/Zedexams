@@ -1,5 +1,5 @@
 /**
- * Pure logic for the Exam Studio's embedded Question Bank side panel.
+ * Pure logic for the Assessment Paper Studio's embedded Question Bank side panel.
  *
  * The panel fetches a bounded set of bank rows once (owner + Master Bank) and
  * then narrows them entirely on the client, so all of the context-awareness

@@ -21,7 +21,7 @@ import {
   useStudioSubjectChoices, useSyllabusLevelOptions, useSyllabusSubjectOptions,
   normalizeStudioFramework, CURRICULUM_FRAMEWORKS,
 } from '../syllabusTopicOptions'
-import { LEVEL_STAGE_LABELS } from '../paperTaxonomy'
+import { LEVEL_STAGE_LABELS, assessmentCategory } from '../paperTaxonomy'
 
 /**
  * Render an ordered level list as <optgroup>s by education stage (Early
@@ -48,6 +48,30 @@ function GroupedLevelOptions({ levels }) {
           ))}
         </optgroup>
       ))}
+    </>
+  )
+}
+
+/**
+ * The ASSESSMENT TYPE picker, grouped into "Tests" and "Examinations" —
+ * one field, two labelled sections, so a teacher never has to guess which
+ * route to open to create a given paper type.
+ */
+function GroupedAssessmentTypeOptions({ types }) {
+  const tests = types.filter((t) => assessmentCategory(t) === 'test')
+  const examinations = types.filter((t) => assessmentCategory(t) === 'examination')
+  return (
+    <>
+      {tests.length > 0 && (
+        <optgroup label="Tests">
+          {tests.map((t) => <option key={t} value={t}>{ASSESSMENT_TYPE_LABELS[t]}</option>)}
+        </optgroup>
+      )}
+      {examinations.length > 0 && (
+        <optgroup label="Examinations">
+          {examinations.map((t) => <option key={t} value={t}>{ASSESSMENT_TYPE_LABELS[t]}</option>)}
+        </optgroup>
+      )}
     </>
   )
 }
@@ -110,7 +134,7 @@ function ImportSummaryBanner({ summary, onDismiss }) {
 /* ==================================================================
  * HEADER BLOCK
  * ================================================================== */
-export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, assessmentTypes = ['topic', 'weekly', 'mid_term', 'end_of_term'], assessmentTypeLabel = 'Assessment', importSummary, onDismissImportSummary }) {
+export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, assessmentTypes = ['topic_test', 'weekly_test', 'mid_term', 'end_of_term', 'mock_exam', 'examination', 'final_exam'], assessmentTypeLabel = 'Assessment type', importSummary, onDismissImportSummary }) {
   const docInputRef = useRef(null)
   // Import options — both default ON; threaded into the parser via onImportDocument.
   const [preserveNumbering, setPreserveNumbering] = useState(true)
@@ -221,9 +245,9 @@ export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, a
           )}
         </div>
         <div className="sv-field">
-          <label>{assessmentTypeLabel}</label>
-          <select value={form.assessmentType} onChange={e => setF('assessmentType', e.target.value)}>
-            {assessmentTypes.map(t => <option key={t} value={t}>{ASSESSMENT_TYPE_LABELS[t]}</option>)}
+          <label htmlFor="studio-assessment-type">{assessmentTypeLabel}</label>
+          <select id="studio-assessment-type" value={form.assessmentType} onChange={e => setF('assessmentType', e.target.value)}>
+            <GroupedAssessmentTypeOptions types={assessmentTypes} />
           </select>
         </div>
         <div className="sv-field">

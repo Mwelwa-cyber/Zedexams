@@ -336,7 +336,7 @@ export default function TeacherLibrary() {
         subject:        a.subject,
         assessmentType: a.assessmentType,
       }),
-      __linkTo:  `/teacher/test-papers/${a.id}/edit`,
+      __linkTo:  `/teacher/assessment-papers/${a.id}/edit`,
       __title:   a.title || `${a.subject || 'Assessment'} ${a.assessmentType || ''}`.trim(),
     }))
   }, [assessments])

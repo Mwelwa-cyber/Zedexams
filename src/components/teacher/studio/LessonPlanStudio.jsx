@@ -1125,7 +1125,7 @@ export default function LessonPlanStudio() {
       : tool === 'flashcards'
         ? '/teacher/generate/flashcards'
         : tool === 'test'
-          ? '/teacher/test-papers/new'
+          ? '/teacher/assessment-papers/new'
           : '/teacher/generate/worksheet'
     navigate(path + buildGeneratorQueryString(withAlign))
   }, [kit, lastPlanJson, ensurePlanSaved, navigate])

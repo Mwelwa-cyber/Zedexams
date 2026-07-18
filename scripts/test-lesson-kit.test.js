@@ -57,7 +57,7 @@ for (const route of [
   '/teacher/generate/worksheet',
   '/teacher/generate/homework',
   '/teacher/generate/notes',
-  '/teacher/test-papers/new',
+  '/teacher/assessment-papers/new',
 ]) {
   check(studio.includes(`'${route}'`),
     `LessonPlanStudio deep-links to ${route} with the pre-fill query string`)

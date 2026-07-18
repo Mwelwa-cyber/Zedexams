@@ -437,8 +437,8 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
           instruction,
           followUps,
         }))
-        onToast?.('Diagram + questions ready — opening Test Paper Studio…')
-        navigate('/teacher/test-papers/new?from=visual-studio')
+        onToast?.('Diagram + questions ready — opening the Assessment Paper Studio…')
+        navigate('/teacher/assessment-papers/new?from=visual-studio')
       }
       if (!pre.ok) {
         setPreflight({ result: pre, onProceed: finalize })
@@ -447,7 +447,7 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
       }
       await finalize()
     } catch (e) {
-      setError(e?.message || 'Could not send to Test Paper Studio.')
+      setError(e?.message || 'Could not send to the Assessment Paper Studio.')
       setBusy('')
     }
   }
@@ -672,7 +672,7 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
                 </div>
                 {labelObjs.length > 0 && (
                   <p className="vs-sub" style={{ marginTop: 6 }}>
-                    Sending to Test Paper Studio adds “Name the parts labelled {labelObjs.map((l) => l.letter).join(', ')}” plus these questions below the diagram.
+                    Sending to the Assessment Paper Studio adds “Name the parts labelled {labelObjs.map((l) => l.letter).join(', ')}” plus these questions below the diagram.
                   </p>
                 )}
               </div>
@@ -691,7 +691,7 @@ export default function VisualCanvas({ visual, onBack, onToast }) {
         </button>
         <button type="button" className="vs-iconbtn" disabled={!!busy} onClick={sendToAssessment}
           style={{ background: '#1e6b5c', color: '#fff', border: 'none' }}>
-          {busy === 'send' ? <span className="vs-spinner" /> : <IconSend size={15} />} Send to Test Paper Studio
+          {busy === 'send' ? <span className="vs-spinner" /> : <IconSend size={15} />} Send to Assessment Paper Studio
         </button>
         <button type="button" className="vs-iconbtn" disabled={!!busy} onClick={addToBank}>
           {busy === 'bank' ? <span className="vs-spinner" /> : <IconBank size={15} />} Add to Picture Bank

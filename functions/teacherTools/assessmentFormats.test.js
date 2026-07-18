@@ -173,4 +173,40 @@ console.log("assessmentFormats");
   ok("weekly_test borrows the topic_test format profile", true);
 }
 
+// ── examination + final_exam types (Assessment Paper Studio merge) ─────────
+// Regression coverage for the "Examination silently generates as Mock
+// Examination" bug: 'examination' and 'final_exam' are real, distinct,
+// server-recognised types now — never aliased away in the LABEL, only in
+// which format-profile STRUCTURE they borrow.
+{
+  for (const type of ["examination", "final_exam"]) {
+    assert.ok(ASSESSMENT_TYPES.includes(type),
+      `${type} is a recognised assessment type`);
+  }
+  ok("ASSESSMENT_TYPES includes examination and final_exam", true);
+
+  assert.strictEqual(ASSESSMENT_TYPE_LABELS.mock_exam, "Mock Examination");
+  assert.strictEqual(ASSESSMENT_TYPE_LABELS.examination, "Examination");
+  assert.strictEqual(ASSESSMENT_TYPE_LABELS.final_exam, "Final Examination");
+  // Distinct labels — an Examination is never rendered as "Mock Examination".
+  assert.notStrictEqual(ASSESSMENT_TYPE_LABELS.examination, ASSESSMENT_TYPE_LABELS.mock_exam);
+  assert.notStrictEqual(ASSESSMENT_TYPE_LABELS.final_exam, ASSESSMENT_TYPE_LABELS.mock_exam);
+  ok("examination and final_exam keep their own distinct labels", true);
+
+  // Neither has dedicated format seeds yet, so both borrow the mock_exam
+  // paper STRUCTURE — but only the structure, never the label/type.
+  assert.strictEqual(FORMAT_TYPE_ALIASES.examination, "mock_exam");
+  assert.strictEqual(FORMAT_TYPE_ALIASES.final_exam, "mock_exam");
+  for (const type of ["examination", "final_exam"]) {
+    const aliased = matchFormatProfile(FORMAT_PROFILES, {
+      gradeBand: "senior_secondary",
+      subject: "mathematics",
+      assessmentType: FORMAT_TYPE_ALIASES[type],
+    });
+    assert.ok(aliased && aliased.assessmentType === "mock_exam",
+      `${type} alias target resolves to a mock_exam profile`);
+  }
+  ok("examination and final_exam borrow the mock_exam format profile", true);
+}
+
 console.log(`assessmentFormats: ${passed} checks passed`);

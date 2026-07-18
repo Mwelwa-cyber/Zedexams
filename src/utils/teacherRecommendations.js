@@ -272,7 +272,7 @@ export function buildRecommendations({
 
     /* 4 ── "Create Friday's short test" — the week has topics but no test
            yet. Worded for what actually exists: the standalone Quiz Studio
-           was retired, so short assessments live in Test Paper Studio. The
+           was retired, so short assessments live in the Assessment Paper Studio. The
            deep link preselects grade/subject/term through the studio's
            existing lesson-kit params (assessmentDefaultsFromParams); test
            type and question count are not supported params, so they are
@@ -292,7 +292,7 @@ export function buildRecommendations({
         title: 'Create Friday’s short test',
         text: 'Create a short assessment using this week’s topics.',
         actionLabel: 'Create short test',
-        to: `/teacher/test-papers/new?${qs.toString()}`,
+        to: `/teacher/assessment-papers/new?${qs.toString()}`,
       })
     }
   }
@@ -309,7 +309,7 @@ export function buildRecommendations({
       title: draftPapers === 1 ? 'A test paper is still a draft' : 'Test papers are still drafts',
       text: `Review, publish or archive ${draftPapers === 1 ? 'your unfinished test paper' : `${draftPapers} unfinished test papers`}.`,
       actionLabel: 'Review drafts',
-      to: '/teacher/test-papers',
+      to: '/teacher/assessment-papers',
     })
   }
 

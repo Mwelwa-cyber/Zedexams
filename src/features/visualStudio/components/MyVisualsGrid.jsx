@@ -81,8 +81,8 @@ export default function MyVisualsGrid({ mode = 'mine', onEdit, onToast }) {
       labels,
       version: labels.length ? 'learner' : 'picture',
     }))
-    onToast?.('Diagram ready — opening Test Paper Studio…')
-    navigate('/teacher/test-papers/new?from=visual-studio')
+    onToast?.('Diagram ready — opening the Assessment Paper Studio…')
+    navigate('/teacher/assessment-papers/new?from=visual-studio')
   }
 
   async function remove(row) {
@@ -144,7 +144,7 @@ export default function MyVisualsGrid({ mode = 'mine', onEdit, onToast }) {
               </div>
               <div className="vs-bankcard__bar">
                 <button type="button" className="vs-iconbtn" style={{ flex: 1, justifyContent: 'center' }} onClick={() => onEdit(toVisual(row))}>Edit</button>
-                <button type="button" className="vs-iconbtn" title="Use in Test Paper Studio" aria-label="Use in Test Paper Studio" onClick={() => reuseInAssessment(row)}><IconSend size={14} /></button>
+                <button type="button" className="vs-iconbtn" title="Use in Assessment Paper Studio" aria-label="Use in Assessment Paper Studio" onClick={() => reuseInAssessment(row)}><IconSend size={14} /></button>
                 {!row.shared && <button type="button" className="vs-iconbtn danger" title="Delete" onClick={() => remove(row)}><IconTrash size={14} /></button>}
               </div>
             </div>

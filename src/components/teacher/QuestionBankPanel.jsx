@@ -1,5 +1,5 @@
-// Question Bank side panel — a collapsible drawer docked inside the Test Paper
-// Studio and Exam Studio so the curated bank comes to the teacher instead of
+// Question Bank side panel — a collapsible drawer docked inside the
+// Assessment Paper Studio so the curated bank comes to the teacher instead of
 // making them navigate to a separate page. Opening it never leaves the paper in
 // progress (the builder lives in the studio's React state; this is a sibling overlay).
 //

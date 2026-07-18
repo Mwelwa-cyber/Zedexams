@@ -18,9 +18,17 @@
 
 const {FORMAT_PROFILES} = require("./assessmentFormatSeeds");
 
+// Mirrors the client's canonical registry (src/components/teacher/
+// paperTaxonomy.js ASSESSMENT_TYPES) — 'examination' and 'final_exam' are
+// distinct, real server-recognised types now (previously the client
+// collapsed every examination-category type to the literal 'mock_exam'
+// before it ever reached this list — see CreatePaperModal.jsx history).
+// 'exercise' and 'monthly_test' stay server-only: 'exercise' belongs to the
+// Worksheet studio's own generator, and 'monthly_test' is a legacy type kept
+// so old saved papers/format profiles still resolve.
 const ASSESSMENT_TYPES = [
   "exercise", "topic_test", "weekly_test", "monthly_test", "mid_term",
-  "end_of_term", "mock_exam",
+  "end_of_term", "mock_exam", "examination", "final_exam",
 ];
 const ASSESSMENT_TYPE_LABELS = {
   exercise: "Exercise",
@@ -30,16 +38,24 @@ const ASSESSMENT_TYPE_LABELS = {
   mid_term: "Mid-Term Test",
   end_of_term: "End-of-Term Test",
   mock_exam: "Mock Examination",
+  examination: "Examination",
+  final_exam: "Final Examination",
 };
 
 // Types that have no dedicated format seeds yet borrow another type's paper
-// structure when resolving the format context. A monthly test is a short
-// cumulative check, so it reuses the mid-term layout; a weekly test is a
-// narrow recap, so it reuses the topic-test layout — until purpose-built
-// seeds are authored.
+// STRUCTURE when resolving the format context — the alias only affects which
+// seed profile is matched; the type/title/label used everywhere else
+// (ASSESSMENT_TYPE_LABELS, the saved document, the prompt's "Assessment
+// type:" line) always stays the real type, never the alias. A monthly test
+// is a short cumulative check, so it reuses the mid-term layout; a weekly
+// test is a narrow recap, so it reuses the topic-test layout; 'examination'
+// and 'final_exam' have no dedicated exam-format seeds yet, so they borrow
+// the mock_exam paper structure — until purpose-built seeds are authored.
 const FORMAT_TYPE_ALIASES = {
   weekly_test: "topic_test",
   monthly_test: "mid_term",
+  examination: "mock_exam",
+  final_exam: "mock_exam",
 };
 const GRADE_BANDS = [
   "lower_primary", "upper_primary", "junior_secondary", "senior_secondary",

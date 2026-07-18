@@ -37,8 +37,8 @@ function isTableLikeKind(kind) {
 const IMAGE_GEN_OPTION_IDS = new Set(['redraw', 'replace'])
 
 /**
- * DiagramHandlingChooser — per-figure control in the Test Paper Studio photo
- * import review screen.
+ * DiagramHandlingChooser — per-figure control in the Assessment Paper Studio
+ * photo import review screen.
  *
  * For each diagram Claude detected on a scanned paper, the teacher decides what
  * to do with it. This renders the five product handling options

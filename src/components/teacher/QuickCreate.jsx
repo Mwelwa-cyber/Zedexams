@@ -45,12 +45,12 @@ const ACTIONS = [
     to: '/teacher/generate/worksheet',
   },
   {
-    key: 'test_paper',
+    key: 'assessment_paper',
     img: iconAssessments,
     tone: 'blue',
-    title: 'Test Paper',
-    text: 'Build weekly, mid-term and end-of-term tests.',
-    to: '/teacher/test-papers/new',
+    title: 'Assessment Paper',
+    text: 'Build tests, mock exams and formal examinations.',
+    to: '/teacher/assessment-papers/new',
   },
 ]
 
