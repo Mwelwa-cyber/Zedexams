@@ -18,6 +18,7 @@ import {
   cellState,
   subjectTintMap,
   formatPeriodLabel,
+  dayRowForSlot,
 } from '../../../utils/timetableGridModel'
 
 const DOC_FONT = { fontFamily: "Georgia, 'Times New Roman', serif" }
@@ -50,11 +51,22 @@ function HeaderBlock({ h }) {
   )
 }
 
-function lessonCell({ cell, tints, key, layout }) {
+/** A cell's own-day time caption — only rendered when a day-specific school
+ * structure (e.g. a half-day Friday) gives this cell's slot a different
+ * clock time than the shared reference row shown in the header/gutter. */
+function dayTimeCaption(model, day, slot) {
+  const dayRow = dayRowForSlot(model, day, slot)
+  const refRow = model.rows.find((r) => r.kind === 'lesson' && r.slot === slot)
+  if (!dayRow || !refRow || (dayRow.start === refRow.start && dayRow.end === refRow.end)) return null
+  return `${dayRow.start}–${dayRow.end}`
+}
+
+function lessonCell({ model, day, slot, cell, tints, key, layout }) {
   const block = cell.block
   const isActivity = block?.type === 'school-activity'
   const span = block ? block.length : 1
   const spanProps = layout === 'days-as-columns' ? { rowSpan: span } : { colSpan: span }
+  const caption = dayTimeCaption(model, day, slot)
   return (
     <td
       key={key}
@@ -81,6 +93,7 @@ function lessonCell({ cell, tints, key, layout }) {
       ) : (
         <span className="opacity-30">—</span>
       )}
+      {caption && <div className="text-[8px] font-normal opacity-60 whitespace-nowrap">{caption}</div>}
     </td>
   )
 }
@@ -136,7 +149,7 @@ function DaysAsColumns({ model, tints }) {
                 const cell = cellState(model, day, p.slot)
                 if (cell.state === 'covered') return null
                 if (cell.state === 'off') return offCell(day)
-                return lessonCell({ cell, tints, key: day, layout: 'days-as-columns' })
+                return lessonCell({ model, day, slot: p.slot, cell, tints, key: day, layout: 'days-as-columns' })
               })}
             </tr>
           )
@@ -188,7 +201,7 @@ function DaysAsRows({ model, tints }) {
               const cell = cellState(model, day, p.slot)
               if (cell.state === 'covered') return null
               if (cell.state === 'off') return offCell(p.id)
-              return lessonCell({ cell, tints, key: p.id, layout: 'days-as-rows' })
+              return lessonCell({ model, day, slot: p.slot, cell, tints, key: p.id, layout: 'days-as-rows' })
             })}
           </tr>
         ))}

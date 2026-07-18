@@ -24,7 +24,7 @@ import {
   WidthType,
 } from 'docx'
 import { attributionSection } from './docxAttribution.js'
-import { buildTimetableGridModel, cellState } from './timetableGridModel.js'
+import { buildTimetableGridModel, cellState, dayRowForSlot } from './timetableGridModel.js'
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '000000' },
@@ -101,13 +101,27 @@ function signatureBlock(h) {
   })]
 }
 
+/** A cell's own-day time caption — only rendered when a day-specific school
+ * structure (e.g. a half-day Friday) gives this cell's slot a different
+ * clock time than the shared reference row shown in the header. */
+function dayTimeCaption(model, day, slot) {
+  const dayRow = dayRowForSlot(model, day, slot)
+  const refRow = model.rows.find((r) => r.kind === 'lesson' && r.slot === slot)
+  if (!dayRow || !refRow || (dayRow.start === refRow.start && dayRow.end === refRow.end)) return null
+  return `${dayRow.start}–${dayRow.end}`
+}
+
 /** Content runs for a placed block cell. */
-function blockCellOpts(block, span, layout) {
+function blockCellOpts(block, span, layout, caption) {
   const isActivity = block.type === 'school-activity'
   const runs = [text(block.label, { bold: !isActivity, italics: isActivity })]
   if (span > 1) {
     runs.push(new TextRun({ break: 1 }))
     runs.push(text('DOUBLE PERIOD', { size: 12, color: '666666' }))
+  }
+  if (caption) {
+    runs.push(new TextRun({ break: 1 }))
+    runs.push(text(caption, { size: 12, color: '888888' }))
   }
   return {
     runs,
@@ -158,7 +172,7 @@ function daysAsColumnsRows(model) {
           }
           if (c.state === 'off') return cell('—', { shade: 'EFECE3' })
           if (!c.block) return cell('', {})
-          const { runs, opts } = blockCellOpts(c.block, c.block.length, 'days-as-columns')
+          const { runs, opts } = blockCellOpts(c.block, c.block.length, 'days-as-columns', dayTimeCaption(model, d, p.slot))
           return cell(runs, {
             ...opts,
             ...(c.block.length > 1 ? { verticalMerge: VerticalMergeType.RESTART } : {}),
@@ -205,7 +219,7 @@ function daysAsRowsRows(model) {
         if (c.state === 'covered') return null // consumed by the colSpan
         if (c.state === 'off') return cell('—', { shade: 'EFECE3' })
         if (!c.block) return cell('', {})
-        const { runs, opts } = blockCellOpts(c.block, c.block.length, 'days-as-rows')
+        const { runs, opts } = blockCellOpts(c.block, c.block.length, 'days-as-rows', dayTimeCaption(model, day, p.slot))
         return cell(runs, opts)
       }).filter(Boolean),
     ],

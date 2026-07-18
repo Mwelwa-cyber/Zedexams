@@ -47,6 +47,16 @@ import {
   buildTimetableArtifact,
   dayEndTime,
   timeToMinutes,
+  DAY_TYPES,
+  dayTypeLabel,
+  templatesForDayType,
+  periodsForDay,
+  slotCountForDay,
+  lastLessonEndTime,
+  resolveCapacityFit,
+  withCalendarOverride,
+  removeCalendarOverride,
+  effectiveDayScheduleForDate,
 } from '../../../utils/classTimetable'
 import {
   CURRICULA,
@@ -180,6 +190,19 @@ export default function ClassTimetableStudio() {
   const [dayCounts, setDayCounts] = useState({}) // Mode A per-day lesson counts
   const [activities, setActivities] = useState(DEFAULT_ACTIVITIES)
   const [displayPreferences, setDisplayPreferences] = useState(DEFAULT_DISPLAY_PREFERENCES)
+  // Day-specific school structures: a day with no entry here shares the school
+  // day above. A day WITH an entry has its own Full/Half/Custom structure — a
+  // REGULAR weekly pattern (e.g. Friday always knocks off at 12:30), saved
+  // with this timetable. { [day]: { dayType, templateId, timing } }
+  const [daySchedules, setDaySchedules] = useState({})
+  const [editingDayStructureFor, setEditingDayStructureFor] = useState(null)
+  // School Calendar overrides: an OCCASIONAL, date-specific change (e.g. one
+  // Friday shortened for a staff meeting) that never touches daySchedules
+  // above. { date, dayType, timing, reason }[]
+  const [calendarOverrides, setCalendarOverrides] = useState([])
+  const [newOverrideDate, setNewOverrideDate] = useState('')
+  const [newOverrideDayType, setNewOverrideDayType] = useState('half')
+  const [newOverrideReason, setNewOverrideReason] = useState('')
 
   // The schedule itself: explicit blocks (source of truth) + undo history.
   const [blocks, setBlocksRaw] = useState([])
@@ -271,18 +294,35 @@ export default function ClassTimetableStudio() {
   const allocationBlocked = expectsAllocation && (!curriculum || !readiness.ready)
   const segments = useMemo(() => segmentsOf(periods), [periods])
 
-  // Mode A per-day structure (only when the teacher chose the exact week).
+  // Mode A per-day lesson counts (only when the teacher chose the exact
+  // week) PLUS any day-specific school-day structures — a day with its own
+  // structure (see daySchedules state) ignores the Mode A count for that day
+  // entirely, since its own timing determines its own lesson count.
   const dayStructure = useMemo(() => {
-    if (weekMode !== 'exact') return null
-    const counts = {}
-    for (const day of days) {
-      const n = dayCounts[day]
-      counts[day] = n == null ? lessonRowsOf(periods).length : n
+    const hasDaySchedules = Object.keys(daySchedules).length > 0
+    let counts = null
+    if (weekMode === 'exact') {
+      counts = {}
+      for (const day of days) {
+        const n = dayCounts[day]
+        counts[day] = n == null ? lessonRowsOf(periods).length : n
+      }
     }
-    return { periodsPerDay: counts }
-  }, [weekMode, dayCounts, days, periods])
+    if (!counts && !hasDaySchedules) return null
+    return {
+      ...(counts ? { periodsPerDay: counts } : {}),
+      ...(hasDaySchedules ? { daySchedules } : {}),
+    }
+  }, [weekMode, dayCounts, days, periods, daySchedules])
 
   const capacity = useMemo(() => weeklyCapacity(periods, days, dayStructure), [periods, days, dayStructure])
+  // Can the complete weekly curriculum allocation physically fit the current
+  // per-day capacity? Auto-fill/generation are blocked (never silently
+  // truncated) when it cannot.
+  const capacityFit = useMemo(
+    () => resolveCapacityFit({ subjects, days, periods, dayStructure }),
+    [subjects, days, periods, dayStructure],
+  )
 
   /* Timing readouts. In fit mode the period length is derived (shown to the
    * teacher); in fixed mode the day end is computed and checked against the
@@ -319,7 +359,8 @@ export default function ClassTimetableStudio() {
     curriculumId,
     selectedOptions,
     subjectAllocations: subjects,
-  }), [header, days, periods, blocks, dayStructure, displayPreferences, curriculumId, selectedOptions, subjects])
+    calendarOverrides,
+  }), [header, days, periods, blocks, dayStructure, displayPreferences, curriculumId, selectedOptions, subjects, calendarOverrides])
 
   // The editable grid + preview render from the same shared model.
   const gridModel = useMemo(() => buildTimetableGridModel(artifact), [artifact])
@@ -386,7 +427,7 @@ export default function ClassTimetableStudio() {
     state: {
       header, days, timing, subjects, generationId, blocks,
       curriculumId, selectedOptions, weekMode, dayCounts, activities,
-      displayPreferences, dayTemplate,
+      displayPreferences, dayTemplate, daySchedules, calendarOverrides,
       slots: artifact.slots, // legacy readers of old drafts
     },
     enabled: Boolean(uid && featureFlags?.universalDrafts !== false),
@@ -408,6 +449,8 @@ export default function ClassTimetableStudio() {
       if (Array.isArray(p.activities)) setActivities(p.activities)
       if (p.displayPreferences) setDisplayPreferences((d) => ({ ...d, ...p.displayPreferences }))
       if (p.dayTemplate) setDayTemplate(p.dayTemplate)
+      if (p.daySchedules && typeof p.daySchedules === 'object') setDaySchedules(p.daySchedules)
+      if (Array.isArray(p.calendarOverrides)) setCalendarOverrides(p.calendarOverrides)
       if (Array.isArray(p.blocks)) {
         setBlocksRaw(p.blocks)
       } else if (p.slots && typeof p.slots === 'object') {
@@ -478,7 +521,7 @@ export default function ClassTimetableStudio() {
   useEffect(() => {
     if (dirtySkipRef.current > 0) { dirtySkipRef.current -= 1; return }
     setDirtySinceSave(true)
-  }, [header, days, timing, subjects, blocks, curriculumId, selectedOptions, weekMode, dayCounts, activities, displayPreferences])
+  }, [header, days, timing, subjects, blocks, curriculumId, selectedOptions, weekMode, dayCounts, activities, displayPreferences, daySchedules, calendarOverrides])
 
   const setH = (field, value) => setHeader((h) => ({ ...h, [field]: value }))
   const setT = (field, value) => setTiming((t) => ({ ...t, [field]: value }))
@@ -563,6 +606,86 @@ export default function ClassTimetableStudio() {
     toast.info(`${tpl.label} times applied — adjust anything below.`)
   }
 
+  /* ── day-specific school structures (recurring, saved with this week) ── */
+  function setDayType(day, dayType) {
+    if (dayType === 'custom') {
+      setDaySchedules((prev) => ({
+        ...prev,
+        [day]: {
+          dayType: 'custom',
+          templateId: null,
+          timing: prev[day]?.timing
+            ? { ...prev[day].timing, fitToEndTime: true }
+            : { ...timing, fitToEndTime: true, breaks: timing.breaks.map((b) => ({ ...b })) },
+        },
+      }))
+      return
+    }
+    const tpl = templatesForDayType(dayType)[0]
+    if (!tpl?.timing) return
+    setDaySchedules((prev) => ({
+      ...prev,
+      [day]: { dayType, templateId: tpl.id, timing: { ...tpl.timing, breaks: tpl.timing.breaks.map((b) => ({ ...b })) } },
+    }))
+  }
+  function applyDayTemplateToDay(day, templateId) {
+    const tpl = getSchoolDayTemplate(templateId)
+    if (!tpl?.timing) return
+    setDaySchedules((prev) => ({
+      ...prev,
+      [day]: { dayType: tpl.dayType, templateId, timing: { ...tpl.timing, breaks: tpl.timing.breaks.map((b) => ({ ...b })) } },
+    }))
+  }
+  function updateDayTiming(day, field, value) {
+    setDaySchedules((prev) => {
+      const existing = prev[day]
+      if (!existing) return prev
+      return { ...prev, [day]: { ...existing, timing: { ...existing.timing, [field]: value } } }
+    })
+  }
+  function updateDayBreak(day, idx, field, value) {
+    setDaySchedules((prev) => {
+      const existing = prev[day]
+      if (!existing) return prev
+      return {
+        ...prev,
+        [day]: {
+          ...existing,
+          timing: { ...existing.timing, breaks: existing.timing.breaks.map((b, i) => (i === idx ? { ...b, [field]: value } : b)) },
+        },
+      }
+    })
+  }
+  function clearDaySchedule(day) {
+    setDaySchedules((prev) => {
+      if (!(day in prev)) return prev
+      const next = { ...prev }
+      delete next[day]
+      return next
+    })
+    if (editingDayStructureFor === day) setEditingDayStructureFor(null)
+  }
+
+  /* ── School Calendar overrides (occasional, date-specific — never the
+   * recurring weekly structure above) ── */
+  function addCalendarOverride() {
+    if (!newOverrideDate) { toast.error('Pick a date first.'); return }
+    const tpl = templatesForDayType(newOverrideDayType)[0]
+    setCalendarOverrides((prev) => withCalendarOverride(prev, {
+      date: newOverrideDate,
+      dayType: newOverrideDayType,
+      templateId: tpl?.id || null,
+      reason: newOverrideReason.trim() || null,
+      timing: tpl?.timing ? { ...tpl.timing, breaks: tpl.timing.breaks.map((b) => ({ ...b })) } : { ...timing, fitToEndTime: true },
+    }))
+    toast.success(`Calendar override added for ${newOverrideDate} — the saved weekly timetable is unchanged.`)
+    setNewOverrideDate('')
+    setNewOverrideReason('')
+  }
+  function removeOverride(date) {
+    setCalendarOverrides((prev) => removeCalendarOverride(prev, date))
+  }
+
   /* ── grid editing (block-aware) ── */
   function setCell(day, slot, value) {
     const existing = blockAt(blocks, day, slot)
@@ -607,15 +730,28 @@ export default function ClassTimetableStudio() {
   }
 
   /* ── auto-fill ── */
-  function runAutoFill(subjectList) {
+  // Generation is blocked (never silently truncated) whenever the complete
+  // weekly allocation cannot physically fit the per-day capacity — callers
+  // may pass the periods/dayStructure they are about to switch to (e.g.
+  // onGenerateFromCurriculum resizing the grid) so the check runs against
+  // what will actually be auto-filled, not stale state.
+  function runAutoFill(subjectList, opts = {}) {
+    const effPeriods = opts.periods || periods
+    const effStructure = opts.dayStructure !== undefined ? opts.dayStructure : dayStructure
+    const effActivities = opts.activities !== undefined ? opts.activities : (weekMode === 'activities' && curriculum ? activities : [])
+    const fit = resolveCapacityFit({ subjects: subjectList, days, periods: effPeriods, dayStructure: effStructure })
+    if (!fit.fits) {
+      toast.error(`This week needs ${fit.required} periods but the current day structures only hold ${fit.capacity} (${fit.shortfall} short) — add lesson periods or change a day's structure first.`)
+      return
+    }
     const lockedBlocks = blocks.filter((b) => b.locked)
     const result = autoFillBlocks({
       subjects: subjectList,
       days,
-      periods,
-      dayStructure,
+      periods: effPeriods,
+      dayStructure: effStructure,
       lockedBlocks,
-      activities: weekMode === 'activities' && curriculum ? activities : [],
+      activities: effActivities,
     })
     setBlocks(result.blocks)
     if (result.unplaced.length) {
@@ -654,22 +790,17 @@ export default function ClassTimetableStudio() {
         const nextTiming = { ...timing, lessonPeriods: rec }
         setTiming(nextTiming)
         const nextPeriods = buildPeriods(nextTiming)
-        const nextStructure = weekMode === 'exact'
-          ? { periodsPerDay: distributePeriodsPerDay(curriculum.totalPeriods, days) }
+        const hasDaySchedules = Object.keys(daySchedules).length > 0
+        const nextCounts = weekMode === 'exact' ? distributePeriodsPerDay(curriculum.totalPeriods, days) : null
+        const nextStructure = (nextCounts || hasDaySchedules)
+          ? { ...(nextCounts ? { periodsPerDay: nextCounts } : {}), ...(hasDaySchedules ? { daySchedules } : {}) }
           : null
-        if (weekMode === 'exact') setDayCounts(distributePeriodsPerDay(curriculum.totalPeriods, days))
-        const lockedBlocks = blocks.filter((b) => b.locked)
-        const result = autoFillBlocks({
-          subjects: fresh, days, periods: nextPeriods, dayStructure: nextStructure,
-          lockedBlocks,
+        if (weekMode === 'exact') setDayCounts(nextCounts)
+        runAutoFill(fresh, {
+          periods: nextPeriods,
+          dayStructure: nextStructure,
           activities: weekMode === 'activities' ? activities : [],
         })
-        setBlocks(result.blocks)
-        if (result.unplaced.length) {
-          toast.error(`Not everything fits: ${result.unplaced.map((u) => u.label).join(', ')}.`)
-        } else {
-          toast.success('Curriculum timetable generated — review and fine-tune below.')
-        }
         return
       }
       if (weekMode === 'exact') setDayCounts(distributePeriodsPerDay(curriculum.totalPeriods, days))
@@ -1401,6 +1532,197 @@ export default function ClassTimetableStudio() {
                 )
               })}
             </div>
+          </section>
+
+          {/* ── Day-specific school structure ── */}
+          <section className="studio-card p-5 space-y-3">
+            <div>
+              <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>Day-specific school structure</h2>
+              <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                Every teaching day uses the school day above by default. Give a day its own Full day / Half day / Custom
+                structure — its own reporting time, knock-off time, assembly, breaks, lunch and lesson count — for a
+                <strong> regular</strong> weekly pattern, like a Friday that always knocks off at 12:30. This is saved
+                with the timetable. An <strong>occasional</strong> one-off change (e.g. a single Friday shortened for a
+                staff meeting) belongs in the School Calendar below instead — it never touches this weekly structure.
+              </p>
+            </div>
+
+            {!capacityFit.fits && (
+              <div className="rounded-xl border px-3 py-2 text-xs font-bold" style={{ borderColor: '#e5b800', background: '#fff8e1', color: '#8a6d00' }}>
+                ⚠ This week needs {capacityFit.required} periods but the current day structures only hold {capacityFit.capacity}
+                {' '}({capacityFit.shortfall} short) — auto-fill and generation are blocked until you add lesson periods
+                or change a day's structure.
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-2">
+              {days.map((day) => {
+                const override = daySchedules[day] || null
+                const dayType = override?.dayType || 'full'
+                const dayPeriods = periodsForDay(day, periods, dayStructure)
+                const reports = dayPeriods.length ? dayPeriods[0].start : timing.startTime
+                const knockOff = lastLessonEndTime(dayPeriods)
+                const count = slotCountForDay(day, periods, dayStructure)
+                const expanded = editingDayStructureFor === day
+                return (
+                  <div key={day} className="rounded-xl border theme-border bg-white px-3 py-2" style={{ minWidth: 210, flex: '1 1 210px' }}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-black">{day}</span>
+                      <span className="text-[10px] font-black uppercase" style={{ color: override ? '#9a7000' : '#8a7f67' }}>
+                        {override ? dayTypeLabel(dayType) : 'Same as the week'}
+                      </span>
+                    </div>
+                    <div className="text-[11px] mt-0.5" style={{ color: '#566f76' }}>
+                      Reports {reports || '—'} · Knocks off {knockOff || '—'} · {count} lesson{count === 1 ? '' : 's'}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <button type="button" onClick={() => setEditingDayStructureFor(expanded ? null : day)}
+                        className="studio-btn-ghost !py-1 !px-2 text-[11px]">
+                        {expanded ? 'Close' : override ? 'Edit' : 'Customise'}
+                      </button>
+                      {override && (
+                        <button type="button" onClick={() => clearDaySchedule(day)}
+                          className="studio-btn-ghost !py-1 !px-2 text-[11px]" style={{ color: '#b3261e' }}>
+                          Reset to the week
+                        </button>
+                      )}
+                    </div>
+
+                    {expanded && (
+                      <div className="mt-2 pt-2 border-t theme-border space-y-2">
+                        <div className="inline-flex rounded-lg border theme-border overflow-hidden text-[11px] font-black">
+                          {DAY_TYPES.map((t) => {
+                            const on = dayType === t.id && !!override
+                            return (
+                              <button key={t.id} type="button" onClick={() => setDayType(day, t.id)} aria-pressed={on}
+                                className={`px-2 py-1 transition-all ${on ? 'theme-accent-fill theme-on-accent' : 'bg-white theme-text-muted hover:theme-text'}`}>
+                                {t.label}
+                              </button>
+                            )
+                          })}
+                        </div>
+
+                        {override && (
+                          <>
+                            <FieldWrapper label="Start from a template">
+                              <select value={override.templateId || ''} onChange={(e) => applyDayTemplateToDay(day, e.target.value)}
+                                className="studio-input !py-1 text-[11px]">
+                                {templatesForDayType(dayType).map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                              </select>
+                            </FieldWrapper>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <FieldWrapper label="Reports (start)">
+                                <input type="time" value={override.timing.startTime}
+                                  onChange={(e) => updateDayTiming(day, 'startTime', e.target.value)}
+                                  className="studio-input !py-1 text-[11px]" />
+                              </FieldWrapper>
+                              <FieldWrapper label="Knock-off (end)">
+                                <input type="time" value={override.timing.endTime}
+                                  onChange={(e) => updateDayTiming(day, 'endTime', e.target.value)}
+                                  className="studio-input !py-1 text-[11px]" />
+                              </FieldWrapper>
+                            </div>
+                            <FieldWrapper label="Lesson periods">
+                              <input type="number" min={1} max={14} value={override.timing.lessonPeriods}
+                                onChange={(e) => updateDayTiming(day, 'lessonPeriods', clampInt(e.target.value, 1, 14))}
+                                className="studio-input !py-1 text-[11px] w-20" />
+                            </FieldWrapper>
+
+                            <div className="space-y-1">
+                              {override.timing.breaks.map((b, idx) => {
+                                const isBookend = b.event === 'assembly' || b.event === 'closing'
+                                return (
+                                  <div key={idx} className="flex flex-wrap items-center gap-1.5 rounded-lg border theme-border px-2 py-1">
+                                    <label className="flex items-center gap-1 text-[11px] font-bold">
+                                      <input type="checkbox" checked={b.enabled !== false}
+                                        onChange={(e) => updateDayBreak(day, idx, 'enabled', e.target.checked)} />
+                                      {b.name}
+                                    </label>
+                                    {!isBookend && (
+                                      <>
+                                        <span className="text-[10px] theme-text-secondary">at</span>
+                                        <input type="time" value={b.time || ''}
+                                          onChange={(e) => updateDayBreak(day, idx, 'time', e.target.value)}
+                                          className="w-24 text-[11px] font-bold text-center studio-input !py-1" />
+                                      </>
+                                    )}
+                                    <span className="text-[10px] theme-text-secondary">for</span>
+                                    <input type="number" min={5} max={120} value={b.minutes}
+                                      onChange={(e) => updateDayBreak(day, idx, 'minutes', clampInt(e.target.value, 5, 120))}
+                                      className="w-14 text-[11px] font-bold text-center studio-input !py-1" />
+                                    <span className="text-[10px] theme-text-secondary">min</span>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+
+          {/* ── School Calendar overrides ── */}
+          <section className="studio-card p-5 space-y-3">
+            <div>
+              <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>School Calendar — date-specific overrides</h2>
+              <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                For an <strong>occasional</strong> change to one calendar date — a single Friday shortened for a staff
+                meeting, a sports day — without permanently changing the saved weekly timetable above.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-end gap-2">
+              <FieldWrapper label="Date">
+                <input type="date" value={newOverrideDate} onChange={(e) => setNewOverrideDate(e.target.value)}
+                  className="studio-input !py-1.5 text-xs" />
+              </FieldWrapper>
+              <FieldWrapper label="Day type">
+                <select value={newOverrideDayType} onChange={(e) => setNewOverrideDayType(e.target.value)}
+                  className="studio-input !py-1.5 text-xs">
+                  {DAY_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                </select>
+              </FieldWrapper>
+              <FieldWrapper label="Reason (optional)">
+                <input type="text" value={newOverrideReason} maxLength={80}
+                  onChange={(e) => setNewOverrideReason(e.target.value)}
+                  placeholder="e.g. Staff meeting" className="studio-input !py-1.5 text-xs" />
+              </FieldWrapper>
+              <button type="button" onClick={addCalendarOverride} className="studio-btn-primary !py-1.5 text-xs">
+                Add override
+              </button>
+            </div>
+
+            {calendarOverrides.length === 0 ? (
+              <p className="text-xs" style={{ color: '#8a7f67' }}>No date-specific overrides recorded.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {calendarOverrides.map((o) => {
+                  const resolved = effectiveDayScheduleForDate({
+                    date: o.date, periods, dayStructure, calendarOverrides,
+                  })
+                  return (
+                    <div key={o.date} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border theme-border bg-white px-3 py-2">
+                      <div>
+                        <span className="text-xs font-black">{o.date}</span>
+                        <span className="text-[11px] ml-2" style={{ color: '#566f76' }}>
+                          {resolved.weekday} · {dayTypeLabel(o.dayType)} · knocks off {lastLessonEndTime(resolved.periods) || '—'}
+                          {o.reason ? ` · ${o.reason}` : ''}
+                        </span>
+                      </div>
+                      <button type="button" onClick={() => removeOverride(o.date)}
+                        className="studio-btn-ghost !py-1 !px-2 text-[11px]" style={{ color: '#b3261e' }}>
+                        Remove
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </section>
 
           {/* ── Subjects ── */}
