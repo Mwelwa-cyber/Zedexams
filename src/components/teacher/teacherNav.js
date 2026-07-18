@@ -52,7 +52,7 @@ export const SIDEBAR_NAV = [
   { to: ROUTES.recordOfWork,   icon: ClipboardList,      label: 'Record of Work' },
   { to: ROUTES.library,        icon: FolderOpen,         label: 'My Library' },
   { to: ROUTES.testPapers,     icon: PencilLine,         label: 'Test Papers' },
-  { to: ROUTES.register,       icon: Users,              label: 'My Class' },
+  { to: ROUTES.register,       icon: Users,              label: 'Class List' },
   { to: ROUTES.attendance,     icon: ClipboardCheckList, label: 'Attendance' },
   { to: ROUTES.syllabi,        icon: FolderOpen,         label: 'Syllabi Studio' },
   { to: ROUTES.curriculum,     icon: GraduationCap,      label: 'Curriculum' },
@@ -66,7 +66,7 @@ export const BOTTOM_NAV = [
   { to: ROUTES.dashboard,  icon: Home,               label: 'Home',        end: true },
   { to: ROUTES.library,    icon: FolderOpen,         label: 'Library',     end: false },
   { to: ROUTES.testPapers, icon: ClipboardCheckList, label: 'Assessments', end: false },
-  { to: ROUTES.register,   icon: Users,              label: 'My Class',    end: false },
+  { to: ROUTES.register,   icon: Users,              label: 'Class List',  end: false },
 ]
 
 // Desktop "Create" menu (TeacherTopBar) — quick jumps into the studios a
