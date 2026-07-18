@@ -73,7 +73,7 @@ export default function ClassRegisterList() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-black theme-text-muted uppercase tracking-widest">Class Register</p>
-          <h1 className="theme-text font-display font-black text-2xl sm:text-3xl">My classes</h1>
+          <h1 className="theme-text font-display font-black text-2xl sm:text-3xl">Class List</h1>
           <p className="theme-text-muted text-sm mt-1 max-w-prose">
             Build one official class list per class. Enter it once — then SBA,
             mark schedules, results, and reports load every learner for you, so
