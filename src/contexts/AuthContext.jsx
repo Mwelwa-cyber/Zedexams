@@ -21,6 +21,7 @@ import { setSentryUser, clearSentryUser } from '../utils/sentry'
 import { capture, identifyUser, resetAnalytics } from '../utils/analytics'
 import { refreshTokenIfGranted, clearPushUser } from '../utils/fcm'
 import { mintAndPersistReferralCode, readPendingReferral, clearPendingReferral } from '../utils/referrals'
+import { clearAllSearchCaches } from '../utils/cache/searchCache.js'
 import { useAuthRecovery } from '../hooks/useAuthRecovery'
 import { shouldExpireSession, REFRESH_THROTTLE_MS } from '../hooks/authRecoveryPolicy'
 
@@ -677,6 +678,12 @@ export function AuthProvider({ children }) {
         // against, so a token that rotates while signed out on a shared
         // device isn't re-attributed to the user who just left.
         clearPushUser()
+        // Safe caching layer (CLAUDE.md #13.1/#13.9) — drop every cached
+        // search/query result so a shared device never serves the previous
+        // user's cached data to whoever signs in next. Covers every
+        // sign-out path (explicit logout, forced session expiry, another
+        // tab signing out), not just the logout() call below.
+        clearAllSearchCaches()
       }
       if (user) {
         setLoading(true)

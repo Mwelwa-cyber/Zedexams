@@ -10,6 +10,9 @@ import {
   searchQuestionBank, parseBankQuestion, duplicateBankQuestion,
   editMyBankQuestion, toggleFavouriteQuestion, listFavouriteIds,
 } from '../../utils/questionBankService'
+import { cachedSearch, invalidateSearchScope, CACHE_TTL } from '../../utils/cache/searchCache.js'
+
+const CACHE_SCOPE = 'question-bank'
 
 const TYPES = ['mcq', 'short_answer', 'tf', 'fill_blanks', 'numeric', 'matching', 'essay', 'diagram']
 const DIFFICULTIES = ['easy', 'medium', 'hard']
@@ -150,22 +153,68 @@ export default function CentralQuestionBank() {
   function show(msg) { setToast(msg); setTimeout(() => setToast(null), 2500) }
   const set = (k, v) => setFilters(f => ({ ...f, [k]: v }))
 
-  const load = useCallback(async () => {
+  // Debounce the free-text term so every keystroke doesn't re-run the
+  // Firestore search — only the settled value drives `load` (CLAUDE.md
+  // #13.17 combined debounce+cache search flow). The dropdown filters apply
+  // immediately since they're discrete choices, not a typing stream.
+  const [debouncedTerm, setDebouncedTerm] = useState(filters.term)
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedTerm(filters.term), 300)
+    return () => clearTimeout(id)
+  }, [filters.term])
+
+  const searchFilters = useMemo(() => ({ ...filters, term: debouncedTerm }), [filters, debouncedTerm])
+
+  const load = useCallback(async (opts) => {
     if (!uid) return
     setLoading(true)
-    const opts = { ...filters }
-    if (opts.withDiagram === 'yes') opts.withDiagram = true
-    else if (opts.withDiagram === 'no') opts.withDiagram = false
-    else delete opts.withDiagram
-    const [{ rows: data, error }, favs] = await Promise.all([
-      searchQuestionBank(uid, opts),
+    const bypassCache = Boolean(opts?.bypassCache)
+    const params = { ...searchFilters }
+    if (params.withDiagram === 'yes') params.withDiagram = true
+    else if (params.withDiagram === 'no') params.withDiagram = false
+    else delete params.withDiagram
+
+    const keyFields = {
+      scope: CACHE_SCOPE,
+      userId: uid,
+      gradeId: params.grade,
+      subjectId: params.subject,
+      sort: params.sort,
+      filters: {
+        bankScope: params.scope, type: params.type, difficulty: params.difficulty,
+        source: params.source, withDiagram: params.withDiagram,
+      },
+      query: params.term,
+    }
+    if (bypassCache) invalidateSearchScope(CACHE_SCOPE, { userId: uid })
+
+    // searchQuestionBank never rejects — it swallows its own errors into
+    // `{ rows: [], error }`. Re-throw that as a real rejection so the cache
+    // layer's "never cache a failure as a valid empty result" guarantee
+    // (CLAUDE.md #13.4/#13.15) actually applies here too.
+    const fetchRows = async () => {
+      const result = await searchQuestionBank(uid, params)
+      if (result.error) throw new Error(result.error)
+      return result.rows
+    }
+
+    let data = []
+    let loadError = ''
+    const [rowsOutcome, favs] = await Promise.all([
+      cachedSearch(keyFields, fetchRows, {
+        ttlMs: CACHE_TTL.TEACHER_DOCUMENTS,
+        staleAfterMs: 30 * 1000,
+        onFresh: (freshRows) => setRows(freshRows),
+      }).then((freshRows) => ({ rows: freshRows }), (err) => ({ error: err?.message || 'Could not load the question bank.' })),
       listFavouriteIds(uid),
     ])
-    if (error) show('⚠ ' + error)
+    if (rowsOutcome.error) loadError = rowsOutcome.error
+    else data = rowsOutcome.rows
+    if (loadError) show('⚠ ' + loadError)
     setRows(data)
     setFavIds(favs)
     setLoading(false)
-  }, [uid, filters])
+  }, [uid, searchFilters])
 
   useEffect(() => { load() }, [load])
 
@@ -184,7 +233,7 @@ export default function CentralQuestionBank() {
   async function handleDuplicate(row) {
     if (!uid) return
     setBusy(true)
-    try { await duplicateBankQuestion(uid, row); show('Duplicated into your bank.'); await load() }
+    try { await duplicateBankQuestion(uid, row); show('Duplicated into your bank.'); await load({ bypassCache: true }) }
     catch (e) { show('⚠ ' + (e?.message || 'Could not duplicate')) }
     setBusy(false)
   }
@@ -194,7 +243,7 @@ export default function CentralQuestionBank() {
     const text = window.prompt('Edit question text:', plain(q?.text))
     if (text == null) return
     setBusy(true)
-    try { await editMyBankQuestion(row.id, { text }, row); show('Saved — re-entering review.'); await load() }
+    try { await editMyBankQuestion(row.id, { text }, row); show('Saved — re-entering review.'); await load({ bypassCache: true }) }
     catch (e) { show('⚠ ' + (e?.message || 'Could not save')) }
     setBusy(false)
   }

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import QuestionBankPanel from './QuestionBankPanel.jsx'
+import { _resetSearchCachesForTests } from '../../utils/cache/searchCache.js'
 
 // The bank fixture the mocked service serves. `data` carries the full question
 // (stem, options, answer key, diagram params) exactly as the real bank stores
@@ -44,6 +45,7 @@ vi.mock('../../utils/quizRichText', () => ({ extractRichTextPlain: (v) => (typeo
 
 describe('QuestionBankPanel', () => {
   beforeEach(() => {
+    _resetSearchCachesForTests()
     searchQuestionBank.mockReset().mockResolvedValue({ rows: ROWS, error: null })
     bumpQuestionUsage.mockReset()
   })
