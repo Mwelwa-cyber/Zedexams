@@ -17,6 +17,16 @@
 >
 > Enforcement points: `firestore.rules` `notSuspended()` (folded into `isVerified()`) + `hasValidEntitlement()` (quiz `questions` read); `storage.rules` `callerActive()` + `hasValidEntitlement()` (`papers/` read, `ownsPath()` uploads); `functions/authGuard.js` `assertActiveAccount` (folded into `assertVerifiedAuth`/`assertDecodedVerified`). Regression tests: `scripts/test-firestore-rules-emulator.mjs`, `scripts/test-storage-rules-emulator.mjs`, `functions/authGuard.test.js`. Residual items F1/F2 are documented as findings below and in [`23-risk-register.md`](./23-risk-register.md) / [`25-remediation-plan.md`](./25-remediation-plan.md). **Scope note:** lessons/notes are free content (not premium-gated), so they are not part of SEC-H1.
 
+> **Public-access audit (2026-07-18):** the public-read allowlist, private-
+> collection list, Storage path classification, and default-deny hardening are
+> documented in [`26-public-access-audit.md`](./26-public-access-audit.md).
+> `firestore.rules` now carries an **explicit** recursive default-deny catch-all
+> (`match /{document=**} { allow read, write: if false; }`) mirroring
+> `storage.rules`; behaviour was already deny-by-default, so the change is
+> additive (an `if false` catch-all cannot narrow any existing grant). Pinned by
+> `test:rules-text`; anonymous/cross-tenant negative cases added to the rules
+> emulator suite.
+
 ## Posture summary
 
 The **write side is strong**: all money/role/entitlement fields are backend-only, self-escalation is blocked in Firestore rules (create + update), payments funnel through one idempotent activation path with HMAC-verified webhooks and strong duplicate protection, and grading/AI writes are server-authoritative. The main weaknesses are **read-side content confidentiality**, **suspension enforcement**, and **staged (not-yet-enforced) App Check**.
