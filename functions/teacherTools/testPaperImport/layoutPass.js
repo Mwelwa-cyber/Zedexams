@@ -269,6 +269,11 @@ function createAnalyzePaperLayout(anthropicApiKeySecret) {
             "Teacher tools are available to approved teachers only.",
           );
         }
+        // Per-minute burst cap (fail-open) before the Claude vision call. This
+        // classifier carries no usage-meter charge, so the rate limit is its
+        // only per-call cost control against a token-loop.
+        const {assertCallableRateLimit} = require("../../rateLimit");
+        await assertCallableRateLimit(request, {action: "paper-layout", userPerMin: 30});
         const anthropicKey = anthropicApiKeySecret.value() || process.env.ANTHROPIC_API_KEY || "";
         if (!anthropicKey) {
           throw new HttpsError("failed-precondition", "Layout analysis is not available — admin needs to configure the AI key.");

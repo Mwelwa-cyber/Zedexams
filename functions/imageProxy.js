@@ -24,7 +24,12 @@
  */
 
 const {onRequest} = require("firebase-functions/v2/https");
-const {resolveStorageTarget} = require("./imageProxyCore");
+const {
+  resolveStorageTarget,
+  checkUpstreamHeaders,
+  MAX_PROXY_BYTES,
+} = require("./imageProxyCore");
+const {guardHttpRateLimit} = require("./rateLimit");
 
 // The bucket embedded in the URL must belong to this project (see
 // imageProxyCore). GCLOUD_PROJECT is set in the Functions runtime.
@@ -32,7 +37,11 @@ const PROJECT_ID = process.env.GCLOUD_PROJECT || "examsprepzambia";
 
 // Max bytes we'll stream — diagrams/uploads are well under this; the cap stops
 // the proxy being abused to shuttle large files.
-const MAX_BYTES = 15 * 1024 * 1024;
+const MAX_BYTES = MAX_PROXY_BYTES;
+
+// Hard cap on the upstream fetch so a slow/hung Storage response can't pin a
+// function instance open for the full timeoutSeconds.
+const FETCH_TIMEOUT_MS = 20 * 1000;
 
 const apiImageProxy = onRequest(
   {region: "us-central1", timeoutSeconds: 60, memory: "256MiB", cors: true},
@@ -40,6 +49,14 @@ const apiImageProxy = onRequest(
     if (req.method !== "GET" && req.method !== "HEAD") {
       res.set("Allow", "GET, HEAD");
       res.status(405).send("Use GET.");
+      return;
+    }
+
+    // Unauthenticated public GET → IP-scoped fixed-window cap (fail-open) so
+    // it can't be driven as a bandwidth-amplification / Storage-egress-billing
+    // abuse surface. A studio export fetches a handful of figures; a scraper
+    // loop hits the cap in seconds. Sits before any outbound fetch.
+    if (await guardHttpRateLimit(req, res, {action: "image-proxy", ipPerMin: 240})) {
       return;
     }
 
@@ -53,17 +70,27 @@ const apiImageProxy = onRequest(
     }
 
     try {
-      const upstream = await fetch(target);
+      // redirect:"error" is the SSRF backstop: resolveStorageTarget() only
+      // vetted the URL we were GIVEN. A trusted Storage host answering with a
+      // 3xx to an internal/metadata address would otherwise be followed
+      // silently — refusing redirects keeps the fetch pinned to the one
+      // allow-listed target. AbortSignal caps the wall time.
+      const upstream = await fetch(target, {
+        redirect: "error",
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
       if (!upstream.ok) {
         res.status(upstream.status === 404 ? 404 : 502)
           .send("Could not fetch the image.");
         return;
       }
-      const contentType = upstream.headers.get("content-type") || "image/png";
-      if (!/^image\//i.test(contentType)) {
-        res.status(415).send("Target is not an image.");
+      // Vet headers (content-type + declared size) before buffering the body.
+      const headerCheck = checkUpstreamHeaders(upstream.headers, MAX_BYTES);
+      if (!headerCheck.ok) {
+        res.status(headerCheck.status).send(headerCheck.reason);
         return;
       }
+      const contentType = headerCheck.contentType;
       const buf = Buffer.from(await upstream.arrayBuffer());
       if (buf.length > MAX_BYTES) {
         res.status(413).send("Image too large to proxy.");

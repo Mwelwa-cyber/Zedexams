@@ -65,6 +65,9 @@ const {
 const {
   assertHttpRateLimit,
   assertCallableRateLimit,
+  enforceRateLimit,
+  standardBuckets,
+  resolveClientIp,
 } = require("./rateLimit");
 
 // Teacher Tools — Lesson Plan Generator (Zambian CBC).
@@ -847,6 +850,23 @@ exports.assessRecaptcha = onCall(
     if (!isAssessableToken(token)) {
       return {verdict: "skip", reason: "no-token"};
     }
+
+    // This endpoint is public (must run pre-auth) and every assessable token
+    // reaches a BILLED reCAPTCHA Enterprise Assessment call. Cap per source IP
+    // so it can't be driven to rack up Assessment-API spend. On block we return
+    // the same fail-open "skip" verdict rather than throwing — a real user
+    // never approaches the cap, and skipping preserves the never-block-sign-in
+    // contract while still avoiding the paid call.
+    try {
+      const ip = request.rawRequest ? resolveClientIp(request.rawRequest) : "unknown";
+      const rl = await enforceRateLimit(
+        admin.firestore(),
+        standardBuckets({action: "recaptcha-assess", ip, ipPerMin: 60}),
+      );
+      if (!rl.allowed) {
+        return {verdict: "skip", reason: "rate-limited"};
+      }
+    } catch (_rlErr) { /* fail-open: limiter trouble must not block sign-in */ }
 
     try {
       const assessment = await createAssessment({

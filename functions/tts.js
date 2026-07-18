@@ -100,11 +100,10 @@ exports.apiTextToSpeech = onRequest(
       res.set('Cache-Control', 'public, max-age=3600');
       return res.status(200).send(response.audioContent);
     } catch (err) {
+      // Log the real cause server-side; never forward the upstream/internal
+      // exception text to the caller (it can leak provider/internal detail).
       console.error('[tts]', err?.message || err);
-      return res.status(500).json({
-        error:  'TTS synthesis failed',
-        detail: String(err?.message || err).slice(0, 300),
-      });
+      return res.status(500).json({ error: 'TTS synthesis failed. Please try again.' });
     }
   }
 );

@@ -55,4 +55,39 @@ function resolveStorageTarget(raw, projectId = "examsprepzambia") {
   return u.toString();
 }
 
-module.exports = {ALLOWED_HOSTS, resolveStorageTarget};
+// Max bytes we'll proxy — diagrams/uploads are well under this; the cap stops
+// the proxy being abused to shuttle large files. Shared with imageProxy.js.
+const MAX_PROXY_BYTES = 15 * 1024 * 1024;
+
+/**
+ * Validate an upstream response's headers BEFORE its body is buffered into
+ * memory. Rejects non-image content types and any response whose declared
+ * Content-Length exceeds the cap (a lying/absent Content-Length is still
+ * bounded by the post-read length check in the handler). Pure (no I/O) so it
+ * unit-tests under plain `node`.
+ *
+ * @param {{get:(name:string)=>string|null}} headers a Headers-like object
+ * @param {number} [maxBytes]
+ * @returns {{ok:true, contentType:string}|{ok:false, status:number, reason:string}}
+ */
+function checkUpstreamHeaders(headers, maxBytes = MAX_PROXY_BYTES) {
+  const get = headers && typeof headers.get === "function"
+    ? (n) => headers.get(n)
+    : () => null;
+  const contentType = get("content-type") || "image/png";
+  if (!/^image\//i.test(contentType)) {
+    return {ok: false, status: 415, reason: "Target is not an image."};
+  }
+  const declared = Number.parseInt(get("content-length") || "", 10);
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    return {ok: false, status: 413, reason: "Image too large to proxy."};
+  }
+  return {ok: true, contentType};
+}
+
+module.exports = {
+  ALLOWED_HOSTS,
+  resolveStorageTarget,
+  checkUpstreamHeaders,
+  MAX_PROXY_BYTES,
+};

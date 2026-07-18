@@ -32,6 +32,7 @@ const admin = require("firebase-admin");
 const mammoth = require("mammoth");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
+const {assertCallableRateLimit} = require("../rateLimit");
 
 const {
   getAnthropicApiKey,
@@ -1290,6 +1291,13 @@ function createImportPastPaperQuestions(anthropicApiKeySecret) {
         throw new HttpsError("permission-denied",
           "Admin access is required to import past-paper questions.");
       }
+      // This is the single highest-cost AI endpoint: up to MAX_ROUNDS_PER_SEGMENT
+      // sequential Claude vision passes at 16k output tokens over a 32 MB PDF.
+      // The monthly treasury budget bounds TOTAL spend, but nothing else stopped
+      // a leaked teacher token (or an accidental client loop) from firing these
+      // back-to-back. A tight per-minute burst cap (fail-open) closes that before
+      // any provider call. A human runs one import at a time; 4/min is generous.
+      await assertCallableRateLimit(request, {action: "past-paper-import", userPerMin: 4});
       const apiKey = getAnthropicApiKey(anthropicApiKeySecret);
       const paperId = String(request.data && request.data.paperId || "");
       const quizId = request.data && request.data.quizId ?
