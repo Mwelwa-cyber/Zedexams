@@ -2614,5 +2614,21 @@ service cloud.firestore {
       }
     }
 
+    // ── default-deny fallback (belt-and-suspenders) ───────────────────
+    // Firestore already denies any path not matched by a more-specific
+    // rule above, but pinning an explicit recursive catch-all makes the
+    // "default deny + explicit allowlist" posture unmissable in review and
+    // future-proofs the file: a NEW top-level collection added by a
+    // migration or a stray client write lands here and is denied unless a
+    // reviewer deliberately grants it a narrower match block. Security
+    // Rules are additive (access is granted if ANY matching allow returns
+    // true), so this `if false` can never override a grant made by a
+    // more-specific rule above — it only closes the gaps between them.
+    // Mirrors the identical trailing block in storage.rules. Pinned by
+    // test:rules-text so it can't be silently removed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
   }
 }

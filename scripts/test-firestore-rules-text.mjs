@@ -142,6 +142,23 @@ test('rules_version is v2', () => {
   assert(/rules_version\s*=\s*'2'/.test(rules), "rules must declare rules_version = '2'")
 })
 
+test('an explicit default-deny catch-all closes the ruleset', () => {
+  // "Default deny + explicit public allowlist" is the whole posture. Firestore
+  // denies unmatched paths implicitly, but an explicit recursive catch-all
+  // (mirroring storage.rules) makes the posture unmissable and future-proofs
+  // the file: a new top-level collection lands on `if false` unless a reviewer
+  // deliberately grants it a narrower match. Because Security Rules are
+  // additive, this can never override a grant above it. If this disappears,
+  // the "belt-and-suspenders" backstop for accidentally-exposed new
+  // collections is gone.
+  const catchAll = rules.match(/match \/\{document=\*\*\}\s*\{([\s\S]*?)\}/)
+  assert(catchAll, 'no recursive default-deny catch-all (match /{document=**}) found')
+  assert(
+    /allow read,\s*write:\s*if false/.test(catchAll[1]),
+    'the default-deny catch-all must deny read + write (allow read, write: if false)',
+  )
+})
+
 test('user self-update blocks all subscription fields', () => {
   // The subscription field blocklist is the load-bearing self-promotion
   // guard. If any of these stops being blocked, a tampered client could

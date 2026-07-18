@@ -305,6 +305,26 @@ async function main() {
       counters: { assessment: 3 },
     })
 
+    // Past papers — a published paper (anonymous-readable index) and a draft
+    // (admin-only). Powers the public-access allowlist tests below.
+    await setDoc(doc(db, 'pastPapers', 'paper_published'), {
+      title: 'ECZ Grade 7 Maths 2023',
+      grade: '7', subject: 'Mathematics', year: 2023,
+      status: 'published', uploadedBy: ADMIN,
+    })
+    await setDoc(doc(db, 'pastPapers', 'paper_draft'), {
+      title: 'Unpublished draft', grade: '7', subject: 'Mathematics', year: 2024,
+      status: 'draft', uploadedBy: ADMIN,
+    })
+    await setDoc(doc(db, 'pastPapersIndex', 'published'), { papers: [] })
+    await setDoc(doc(db, 'publicStats', 'global'), { learners: 100 })
+
+    // aiOperations — request-locking record owned by TEACHER_A. Read-only,
+    // user-scoped; no other user (and no anonymous client) may read it.
+    await setDoc(doc(db, 'aiOperations', 'op_teacher_a'), {
+      userId: TEACHER_A, operationStatus: 'completed',
+    })
+
     // Class Register owned by TEACHER_A, with an EMPTY roster/records — the
     // first-learner case that exposed the unconstrained-list rule bug.
     await setDoc(doc(db, 'classRegisters', 'reg_teacher_a'), {
@@ -1271,6 +1291,84 @@ async function main() {
       await setDoc(doc(ctx.firestore(), 'settings', 'global'), { siteName: 'ZedExams' })
     })
     await assertSucceeds(getDoc(doc(unverified, 'settings', 'global')))
+  })
+
+  // ── default-deny fallback ────────────────────────────────────
+  section('default-deny — unlisted collections are denied for every identity')
+
+  await test('anonymous CANNOT read a doc in an unlisted collection', async () => {
+    await assertFails(getDoc(doc(guest, 'totallyUnlistedCollection', 'x')))
+  })
+
+  await test('a signed-in learner CANNOT read a doc in an unlisted collection', async () => {
+    await assertFails(getDoc(doc(learnerA, 'totallyUnlistedCollection', 'x')))
+  })
+
+  await test('an admin CANNOT read a doc in an unlisted collection (no catch-all grant)', async () => {
+    // The catch-all is `if false` — it grants nothing, not even to admins. A
+    // new collection must earn its own explicit rule; it never rides the
+    // fallback.
+    await assertFails(getDoc(doc(admin, 'totallyUnlistedCollection', 'x')))
+  })
+
+  await test('a learner CANNOT create a doc in an unlisted collection', async () => {
+    await assertFails(setDoc(doc(learnerA, 'totallyUnlistedCollection', 'y'), { foo: 1 }))
+  })
+
+  // ── public-access allowlist (§28) ────────────────────────────
+  section('public access — anonymous can read only explicitly-published, non-sensitive data')
+
+  await test('anonymous CAN read a PUBLISHED past paper (SEO/marketing index)', async () => {
+    await assertSucceeds(getDoc(doc(guest, 'pastPapers', 'paper_published')))
+  })
+
+  await test('anonymous CANNOT read a DRAFT past paper', async () => {
+    await assertFails(getDoc(doc(guest, 'pastPapers', 'paper_draft')))
+  })
+
+  await test('anonymous CAN read the denormalised published-papers index', async () => {
+    await assertSucceeds(getDoc(doc(guest, 'pastPapersIndex', 'published')))
+  })
+
+  await test('anonymous CAN read public marketing stats', async () => {
+    await assertSucceeds(getDoc(doc(guest, 'publicStats', 'global')))
+  })
+
+  await test('anonymous CANNOT read private teacher data (assessments)', async () => {
+    await assertFails(getDoc(doc(guest, 'assessments', 'assess_teacher_a')))
+  })
+
+  await test('anonymous CANNOT read learner payment data', async () => {
+    await assertFails(getDoc(doc(guest, 'payments', 'pay_learner_a')))
+  })
+
+  await test('anonymous CANNOT read AI operation records', async () => {
+    await assertFails(getDoc(doc(guest, 'aiOperations', 'op_teacher_a')))
+  })
+
+  await test('a signed-in teacher CANNOT read another user\'s AI operation record', async () => {
+    await assertFails(getDoc(doc(teacherB, 'aiOperations', 'op_teacher_a')))
+  })
+
+  await test('anonymous CANNOT read the server-only curriculum grounding corpus', async () => {
+    await assertFails(getDoc(doc(guest, 'curriculum', 'anything')))
+  })
+
+  await test('anonymous CANNOT create a public document (pastPapersIndex is server-only)', async () => {
+    await assertFails(setDoc(doc(guest, 'pastPapersIndex', 'published'), { papers: ['forged'] }))
+  })
+
+  await test('anonymous CANNOT create a past paper', async () => {
+    await assertFails(setDoc(doc(guest, 'pastPapers', 'guest_paper'), {
+      title: 'x', grade: '7', subject: 'Mathematics', year: 2023, status: 'published',
+    }))
+  })
+
+  await test('a signed-in learner CANNOT publish a past paper (admin-only writes)', async () => {
+    await assertFails(setDoc(doc(learnerA, 'pastPapers', 'learner_paper'), {
+      title: 'x', grade: '7', subject: 'Mathematics', year: 2023,
+      status: 'published', uploadedBy: LEARNER_A,
+    }))
   })
 
   await testEnv.cleanup()
