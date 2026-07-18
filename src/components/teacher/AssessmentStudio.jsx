@@ -21,6 +21,7 @@ import {
   saveAssessmentDraftRemote,
 } from '../../hooks/useAssessmentDraft'
 import { useUndoRedo } from '../../hooks/useUndoRedo'
+import { useRequestLock } from '../../hooks/useRequestLock'
 import { storage } from '../../firebase/config'
 import { generateAIQuizQuestions } from '../../utils/aiAssistant'
 import { partitionUsableQuestions } from './aiQuestionReview'
@@ -479,7 +480,10 @@ export default function AssessmentStudio() {
   // (form.framework) so the header, the quick generator and the full-paper
   // modal all follow one choice.
   const [aiForm, setAiForm] = useState({ topics: [], subtopics: [], topic: '', count: 5, type: 'mcq' })
-  const [aiGenerating, setAiGenerating] = useState(false)
+  // A ref-based lock (not just the disabled button prop) so a double-click or
+  // an effect re-render can't fire a second concurrent generation before
+  // React has re-rendered the disabled state.
+  const { run: runGenerateQuestions, isLocked: aiGenerating } = useRequestLock()
   // Quick-questions review gate: after generation the questions land here for
   // an accept/discard pass instead of being appended straight into the paper.
   // { questions, droppedCount, titleTopic, kbWarning } | null. Survives the
@@ -1556,38 +1560,37 @@ export default function AssessmentStudio() {
     // A readable title falls back to the first topic rather than the whole
     // '; '-joined list, which would run long across several topics.
     const titleTopic = topicsList[0] || topic
-    setAiGenerating(true)
-    try {
-      const { questions: generated, warning: kbWarning } = await generateAIQuizQuestions({
-        subject: form.subject,
-        grade: form.grade,
-        topic,
-        subtopic: subtopicsList.join('; ').slice(0, 300),
-        count: aiForm.count,
-        type: aiForm.type,
-        framework: normalizeStudioFramework(form.framework),
-      })
-      const { usable, dropped } = partitionUsableQuestions(generated)
-      if (!usable.length) {
-        showToast('Zed could not generate questions. Try again.', true)
-        return
+    await runGenerateQuestions(async () => {
+      try {
+        const { questions: generated, warning: kbWarning } = await generateAIQuizQuestions({
+          subject: form.subject,
+          grade: form.grade,
+          topic,
+          subtopic: subtopicsList.join('; ').slice(0, 300),
+          count: aiForm.count,
+          type: aiForm.type,
+          framework: normalizeStudioFramework(form.framework),
+        })
+        const { usable, dropped } = partitionUsableQuestions(generated)
+        if (!usable.length) {
+          showToast('Zed could not generate questions. Try again.', true)
+          return
+        }
+        // Nothing touches the paper yet — the batch lands in the review panel
+        // (AiReviewPanel inside AiSlide) for an accept/discard pass, with the
+        // dropped-as-incomplete count reported instead of silently swallowed.
+        setAiReview({
+          questions: usable,
+          droppedCount: dropped.length,
+          titleTopic,
+          kbWarning: kbWarning || '',
+        })
+      } catch (error) {
+        // Map daily-cap / timeout / offline to calm copy instead of a raw
+        // callable string ("resource-exhausted", "internal", …).
+        showToast(friendlyMessage(error, 'AI generation failed. Please try again.'), true)
       }
-      // Nothing touches the paper yet — the batch lands in the review panel
-      // (AiReviewPanel inside AiSlide) for an accept/discard pass, with the
-      // dropped-as-incomplete count reported instead of silently swallowed.
-      setAiReview({
-        questions: usable,
-        droppedCount: dropped.length,
-        titleTopic,
-        kbWarning: kbWarning || '',
-      })
-    } catch (error) {
-      // Map daily-cap / timeout / offline to calm copy instead of a raw
-      // callable string ("resource-exhausted", "internal", …).
-      showToast(friendlyMessage(error, 'AI generation failed. Please try again.'), true)
-    } finally {
-      setAiGenerating(false)
-    }
+    })
   }
 
   // "Add N questions" from the review panel — the only path that inserts the

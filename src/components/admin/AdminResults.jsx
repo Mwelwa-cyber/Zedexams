@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { ClipboardList } from '../ui/icons'
 import { useFirestore, ADMIN_QUERY_LIMIT } from '../../hooks/useFirestore'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import PageHeader from '../ui/PageHeader'
 import EmptyState from '../ui/EmptyState'
 import Skeleton from '../ui/Skeleton'
@@ -41,7 +42,7 @@ export default function AdminResults() {
   const [results, setResults]   = useState([])
   const [loading, setLoading]   = useState(true)
   const [search, setSearch]     = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const debouncedSearch = useDebouncedValue(search, 150)
   const [gradeF, setGradeF]     = useState('')
   const [subjectF, setSubjectF] = useState('')
   const [expanded, setExpanded] = useState(null)
@@ -54,13 +55,6 @@ export default function AdminResults() {
     }
     load()
   }, [getAllResults])
-
-  // Debounce the search input so we don't re-filter the whole result
-  // window on every keystroke when there are hundreds of rows.
-  useEffect(() => {
-    const id = setTimeout(() => setDebouncedSearch(search), 150)
-    return () => clearTimeout(id)
-  }, [search])
 
   function fmt(ts) {
     if (!ts) return '—'

@@ -15,6 +15,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { TEACHER_SUBJECTS } from '../../utils/teacherTools'
 import { searchActivePictures, resolvePictureUrl } from '../../utils/pictureBankService'
 import { generateDiagram } from '../../utils/generateDiagram'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { createSequenceGuard } from '../../utils/requestControl'
+import { useRequestLock } from '../../hooks/useRequestLock'
 
 const AI_STYLES = [
   { provider: 'recraft', label: '🖋 Line art', hint: 'B&W diagrams, prints crisply' },
@@ -31,36 +34,48 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
     const key = String(subject || '').toLowerCase().trim().replace(/\s+/g, '_')
     return TEACHER_SUBJECTS.some((s) => s.value === key) ? key : 'all'
   })
-  const [results, setResults] = useState(null) // null = loading
+  const [results, setResults] = useState(null) // null = never loaded yet
+  const [isSearching, setIsSearching] = useState(false)
   const [bankError, setBankError] = useState('')
   const [urls, setUrls] = useState({})
-  const debounceRef = useRef(null)
+  const sequenceRef = useRef(createSequenceGuard())
 
   // AI tab state
   const [prompt, setPrompt] = useState('')
   const [provider, setProvider] = useState('recraft')
-  const [aiBusy, setAiBusy] = useState(false)
+  const { run: runAiGenerateLock, isLocked: aiBusy } = useRequestLock()
   const [aiError, setAiError] = useState('')
   const [aiUrl, setAiUrl] = useState('')
 
+  const debouncedTerm = useDebouncedValue(term, 250)
+
   useEffect(() => {
     if (tab !== 'bank') return undefined
-    setResults(null)
+    const requestNumber = sequenceRef.current.bump()
+    setIsSearching(true)
     setBankError('')
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(async () => {
-      const { rows, error } = await searchActivePictures({ term, subject: subjectFilter })
+    let cancelled = false
+
+    async function runSearch() {
+      const { rows, error } = await searchActivePictures({ term: debouncedTerm, subject: subjectFilter })
+      // A newer search may have started (or the picker moved off this tab)
+      // while this one was in flight — never let a stale response replace
+      // fresher results.
+      if (cancelled || !sequenceRef.current.isCurrent(requestNumber)) return
       setResults(rows)
       setBankError(error || '')
+      setIsSearching(false)
       for (const p of rows) {
         if (p.url) continue
-        resolvePictureUrl(p).then((u) => {
-          if (u) setUrls((m) => (m[p.id] ? m : { ...m, [p.id]: u }))
-        }).catch(() => {})
+        resolvePictureUrl(p)
+          .then((u) => { if (u) setUrls((m) => (m[p.id] ? m : { ...m, [p.id]: u })) })
+          .catch(() => {})
       }
-    }, 250)
-    return () => clearTimeout(debounceRef.current)
-  }, [term, subjectFilter, tab])
+    }
+    runSearch()
+
+    return () => { cancelled = true }
+  }, [debouncedTerm, subjectFilter, tab])
 
   const subjectOptions = useMemo(
     () => TEACHER_SUBJECTS.filter((s) => s.value),
@@ -76,17 +91,16 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
   async function runAiGenerate() {
     const clean = prompt.trim()
     if (!clean) return
-    setAiBusy(true)
-    setAiError('')
-    setAiUrl('')
-    try {
-      const { url } = await generateDiagram({ prompt: clean, provider })
-      setAiUrl(url)
-    } catch (err) {
-      setAiError(err?.message || 'Generation failed. Please try again.')
-    } finally {
-      setAiBusy(false)
-    }
+    await runAiGenerateLock(async () => {
+      setAiError('')
+      setAiUrl('')
+      try {
+        const { url } = await generateDiagram({ prompt: clean, provider })
+        setAiUrl(url)
+      } catch (err) {
+        setAiError(err?.message || 'Generation failed. Please try again.')
+      }
+    })
   }
 
   const tabBtn = (key, label) => (
@@ -165,7 +179,7 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
                   ⚠️ Couldn't load the picture bank ({bankError}). Check your
                   connection and try again — or use ✨ Generate with AI.
                 </p>
-              ) : results === null ? (
+              ) : results === null || (isSearching && results.length === 0) ? (
                 <p className="text-sm" style={{ color: '#566f76' }}>Searching…</p>
               ) : results.length === 0 ? (
                 <div className="text-sm" style={{ color: '#566f76' }}>
@@ -198,14 +212,18 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
                   </button>
                 </div>
               ) : (
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-                    gap: 10,
-                  }}
-                >
-                  {results.map((p) => {
+                <>
+                  {isSearching && (
+                    <p className="text-xs" style={{ color: '#566f76', marginBottom: 6 }}>Searching…</p>
+                  )}
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                      gap: 10,
+                    }}
+                  >
+                    {results.map((p) => {
                     const url = p.url || urls[p.id]
                     return (
                       <button
@@ -235,8 +253,9 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
                         </div>
                       </button>
                     )
-                  })}
-                </div>
+                    })}
+                  </div>
+                </>
               )}
             </div>
           </>
