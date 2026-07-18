@@ -53,7 +53,7 @@ export const SIDEBAR_NAV = [
   { to: ROUTES.library,        icon: FolderOpen,         label: 'My Library' },
   { to: ROUTES.assessmentPapers, icon: PencilLine,       label: 'Assessment Papers' },
   { to: ROUTES.register,       icon: Users,              label: 'Class List' },
-  { to: ROUTES.attendance,     icon: ClipboardCheckList, label: 'Attendance' },
+  { to: ROUTES.attendance,     icon: ClipboardCheckList, label: 'Class Register' },
   { to: ROUTES.syllabi,        icon: FolderOpen,         label: 'Syllabi Studio' },
   { to: ROUTES.curriculum,     icon: GraduationCap,      label: 'Curriculum' },
   { to: ROUTES.calendar,       icon: CalendarDays,       label: 'School Calendar' },
