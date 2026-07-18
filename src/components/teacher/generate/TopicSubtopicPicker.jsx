@@ -3,6 +3,8 @@ import { getMergedSyllabi } from '../../../utils/syllabusKbService'
 import { syllabiToKbTopics } from '../../../utils/syllabusMapping'
 import { extract2013TopicLookup } from '../../../utils/syllabus2013Topics'
 import { studioGradeToKbGrade, toKbSubjectKey } from '../paperTaxonomy'
+import { createAsyncCache } from '../../../utils/requestDeduplication.js'
+import { useAbortableRequest } from '../../../hooks/useAbortableRequest.js'
 
 /**
  * Topic + sub-topic picker for the teacher generation studios.
@@ -37,11 +39,13 @@ import { studioGradeToKbGrade, toKbSubjectKey } from '../paperTaxonomy'
  *     onChangeSubtopic={(v) => set('subtopic', v)} />
  */
 
-// Module-scope cache, keyed by curriculum framework ('2023' new CBC /
-// '2013' old OBC), so flipping between studios doesn't re-fetch the syllabi
-// every mount and the two frameworks don't trample each other.
-const _cacheByFw = new Map()   // framework → Map<"grade|subject", Map<topic, Set<subtopic>>>
-const _promiseByFw = new Map() // framework → in-flight Promise
+// Cache keyed by curriculum framework ('2023' new CBC / '2013' old OBC), so
+// flipping between studios doesn't re-fetch the syllabi every mount and the
+// two frameworks don't trample each other. Shared `createAsyncCache` (see
+// requestDeduplication.js) replaces the previous hand-rolled
+// `_cacheByFw`/`_promiseByFw` module globals — same "load once, dedupe
+// concurrent mounts" behaviour, just not reimplemented per file.
+const lookupCache = createAsyncCache(loadFrameworkLookup, { name: 'topic-subtopic-lookup' })
 
 // Grades still on the 2013 OBC syllabus. Zambia is rolling out the 2023 CBC
 // gradually — currently live on CBC: ECE, G1, G2, G4, G8 (Form 1), G9 (Form 2).
@@ -81,25 +85,21 @@ async function build2013Lookup() {
   return extract2013TopicLookup(await response.json())
 }
 
-async function loadLookup(framework = '2023') {
-  if (_cacheByFw.has(framework)) return _cacheByFw.get(framework)
-  if (_promiseByFw.has(framework)) return _promiseByFw.get(framework)
-  const promise = (async () => {
-    try {
-      const byKey = framework === '2013' ? await build2013Lookup() : await build2023Lookup()
-      _cacheByFw.set(framework, byKey)
-      return byKey
-    } catch (err) {
-      console.warn('TopicSubtopicPicker: syllabi load failed', err)
-      const empty = new Map()
-      _cacheByFw.set(framework, empty)
-      return empty
-    } finally {
-      _promiseByFw.delete(framework)
-    }
-  })()
-  _promiseByFw.set(framework, promise)
-  return promise
+// The syllabi load failing degrades to "no rows on file" (every field falls
+// back to free text) rather than surfacing an error — caching that empty
+// fallback (instead of retrying every mount) matches the pre-existing
+// behaviour.
+async function loadFrameworkLookup(framework) {
+  try {
+    return framework === '2013' ? await build2013Lookup() : await build2023Lookup()
+  } catch (err) {
+    console.warn('TopicSubtopicPicker: syllabi load failed', err)
+    return new Map()
+  }
+}
+
+function loadLookup(framework = '2023', options) {
+  return lookupCache.get(framework, options)
 }
 
 export default function TopicSubtopicPicker({
@@ -127,21 +127,23 @@ export default function TopicSubtopicPicker({
 }) {
   const effectiveFramework = resolveFramework(grade, framework)
 
-  const [lookup, setLookup] = useState(() => _cacheByFw.get(effectiveFramework) || null)
+  const [lookup, setLookup] = useState(() => lookupCache.peek(effectiveFramework) || null)
   // 'pick' = choose from the syllabus drop-down, 'write' = free text.
   const [topicMode, setTopicMode] = useState('pick')
   const [subtopicMode, setSubtopicMode] = useState('pick')
+  const { run, cancel } = useAbortableRequest()
 
   useEffect(() => {
-    const cached = _cacheByFw.get(effectiveFramework)
+    const cached = lookupCache.peek(effectiveFramework)
     if (cached) { setLookup(cached); return undefined }
-    let cancelled = false
     setLookup(null)
-    loadLookup(effectiveFramework)
-      .then((v) => { if (!cancelled) setLookup(v) })
-      .catch(() => { /* loadLookup already swallows + logs; setLookup stays null */ })
-    return () => { cancelled = true }
-  }, [effectiveFramework])
+    run(({ signal }) => loadLookup(effectiveFramework, { signal })).then((result) => {
+      if (result.status === 'success') setLookup(result.data)
+      // 'stale'/'aborted' — a newer framework switch already owns this;
+      // loadFrameworkLookup never rejects, so there's no 'error' branch.
+    }).catch(() => {}) // run() resolves a status object and never rejects; guards regardless
+    return cancel
+  }, [effectiveFramework, run, cancel])
 
   // null until the merged syllabi resolve — lets us tell "still loading"
   // apart from "genuinely no rows" so a drop-down can wait rather than

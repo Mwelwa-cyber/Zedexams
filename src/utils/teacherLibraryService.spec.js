@@ -25,6 +25,8 @@ vi.mock('./libraryClassification', () => ({
   classifyForLibrary: vi.fn(() => ({ libraryType: 'lesson_plans', gradeForm: 'Grade 4', subject: 'Mathematics' })),
 }))
 
+import { getDocs } from 'firebase/firestore'
+import { __resetRequestDeduplicationForTests } from './requestDeduplication.js'
 import {
   saveLessonPlanGeneration,
   duplicateGeneration,
@@ -34,7 +36,12 @@ import {
   TOOL_META,
   TOOL_FILTER_OPTIONS,
   getItemPermissions,
+  listMyGenerations,
 } from './teacherLibraryService'
+
+function fakeSnap(rows) {
+  return { docs: rows.map((r) => ({ id: r.id, data: () => r })) }
+}
 
 // The exact top-level keys the firestore.rules `lesson_plan` create rule
 // permits (keys().hasOnly([...])). Keep in sync with firestore.rules.
@@ -260,5 +267,62 @@ describe('homework library metadata', () => {
     expect(titleForGeneration({ tool: 'homework', inputs: { topic: 'Fractions', grade: 'G5' } }))
       .toBe('Homework — Fractions · G5')
     expect(titleForGeneration({ tool: 'homework' })).toBe('Homework')
+  })
+})
+
+describe('listMyGenerations — request de-duplication', () => {
+  beforeEach(() => {
+    __resetRequestDeduplicationForTests()
+    getDocs.mockReset()
+  })
+
+  it('two concurrent callers for the same teacher share one Firestore read', async () => {
+    getDocs.mockResolvedValue(fakeSnap([{ id: 'g1', tool: 'lesson_plan', inputs: {} }]))
+
+    const [a, b] = await Promise.all([
+      listMyGenerations({ uid: 'teacher-1' }),
+      listMyGenerations({ uid: 'teacher-1' }),
+    ])
+
+    expect(getDocs).toHaveBeenCalledTimes(1)
+    expect(a).toEqual(b)
+  })
+
+  it('different teachers never share a request', async () => {
+    getDocs
+      .mockResolvedValueOnce(fakeSnap([{ id: 'g1', tool: 'lesson_plan', inputs: {}, ownerUid: 'teacher-1' }]))
+      .mockResolvedValueOnce(fakeSnap([{ id: 'g2', tool: 'lesson_plan', inputs: {}, ownerUid: 'teacher-2' }]))
+
+    const [a, b] = await Promise.all([
+      listMyGenerations({ uid: 'teacher-1' }),
+      listMyGenerations({ uid: 'teacher-2' }),
+    ])
+
+    expect(getDocs).toHaveBeenCalledTimes(2)
+    expect(a[0].id).toBe('g1')
+    expect(b[0].id).toBe('g2')
+  })
+
+  it('a different filter combination for the same teacher is a separate request', async () => {
+    getDocs.mockResolvedValue(fakeSnap([
+      { id: 'g1', tool: 'lesson_plan', inputs: { grade: 'G4' } },
+      { id: 'g2', tool: 'worksheet', inputs: { grade: 'G4' } },
+    ]))
+
+    await Promise.all([
+      listMyGenerations({ uid: 'teacher-1' }),
+      listMyGenerations({ uid: 'teacher-1', tool: 'worksheet' }),
+    ])
+
+    expect(getDocs).toHaveBeenCalledTimes(2)
+  })
+
+  it('a failed read is not cached — the next call retries against Firestore', async () => {
+    getDocs.mockRejectedValueOnce(Object.assign(new Error('boom'), { code: 'unavailable' }))
+    await expect(listMyGenerations({ uid: 'teacher-1' })).rejects.toThrow()
+
+    getDocs.mockResolvedValueOnce(fakeSnap([{ id: 'g1', tool: 'lesson_plan', inputs: {} }]))
+    const rows = await listMyGenerations({ uid: 'teacher-1' })
+    expect(rows).toHaveLength(1)
   })
 })

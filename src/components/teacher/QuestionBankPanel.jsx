@@ -18,6 +18,9 @@ import {
   deriveContext, applyPanelFilters, facetOptions,
 } from '../../utils/questionBankPanel'
 import DiagramSvg from '../diagrams/DiagramSvg'
+import { buildRequestKey } from '../../utils/requestControl.js'
+import { deduplicatedRequest } from '../../utils/requestDeduplication.js'
+import { useAbortableRequest } from '../../hooks/useAbortableRequest.js'
 
 const TYPE_LABELS = {
   mcq: 'Multiple choice',
@@ -123,27 +126,32 @@ export default function QuestionBankPanel({ open, onClose, uid, context = {}, on
   // Cache the (uid) the rows were fetched for so re-opening doesn't refetch
   // unless the signed-in teacher changed.
   const loadedForRef = useRef('')
+  const { run, cancel } = useAbortableRequest({ timeoutMs: 15_000 })
 
   useEffect(() => {
     if (!open || !uid) return undefined
     if (loadedForRef.current === uid && allRows) return undefined
-    let alive = true
     setAllRows(null)
     setError('')
-    searchQuestionBank(uid, { scope: 'all', sort: 'newest' })
-      .then(({ rows, error: err }) => {
-        if (!alive) return
-        setAllRows(rows || [])
-        setError(err || '')
-        loadedForRef.current = uid
-      })
-      .catch(() => {
-        if (!alive) return
-        setAllRows([])
-        setError('Could not load the question bank.')
-      })
-    return () => { alive = false }
-  }, [open, uid, allRows])
+    // Keyed by uid (+ the fixed scope/sort this panel always requests) so two
+    // panels opened for the same teacher at once share one fetch, and a
+    // different teacher's rows are never shared with this one.
+    const key = buildRequestKey('question-bank-search', uid, 'all', 'newest')
+    run(({ signal }) => deduplicatedRequest(key, () => searchQuestionBank(uid, { scope: 'all', sort: 'newest' }), { signal }))
+      .then((result) => {
+        if (result.status === 'success') {
+          setAllRows(result.data.rows || [])
+          setError(result.data.error || '')
+          loadedForRef.current = uid
+        } else if (result.status === 'error') {
+          setAllRows([])
+          setError('Could not load the question bank.')
+        }
+        // 'stale' / 'aborted' — the panel closed or the teacher changed
+        // before this resolved; a newer request (or nothing) owns state now.
+      }).catch(() => {}) // run() resolves a status object and never rejects; guards regardless
+    return cancel
+  }, [open, uid, allRows, run, cancel])
 
   // Stage 1 — auto-scope to the paper's context (topic → subject fallback).
   const ctx = useMemo(

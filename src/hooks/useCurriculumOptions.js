@@ -3,6 +3,8 @@ import { getMergedSyllabi } from '../utils/syllabusKbService'
 import { syllabiToKbTopics } from '../utils/syllabusMapping'
 import { buildSubjectOptions, subjectValuesOf } from '../utils/curriculumOptions'
 import { TEACHER_GRADES } from '../config/teacherTaxonomy'
+import { createAsyncCache } from '../utils/requestDeduplication.js'
+import { useAbortableRequest } from './useAbortableRequest.js'
 
 /**
  * Loads the Syllabi Studio (curriculum-data.json + admin overrides) and
@@ -11,7 +13,10 @@ import { TEACHER_GRADES } from '../config/teacherTaxonomy'
  * The index is built once per session and shared across every studio (same
  * caching philosophy as TopicSubtopicPicker — the underlying getMergedSyllabi
  * already caches the ~1.3MB JSON + a 15s TTL on the admin overrides). A
- * subject an admin adds to the syllabi surfaces on the next load.
+ * subject an admin adds to the syllabi surfaces on the next load. The
+ * in-flight/resolved-value cache is the shared `createAsyncCache` (see
+ * `requestDeduplication.js`) instead of a hand-rolled module-scope
+ * `_cache`/`_promise` pair, so concurrent mounts share one fetch.
  *
  * Returns:
  *   subjectOptions — grouped FieldSelect options (syllabi subjects first)
@@ -20,9 +25,7 @@ import { TEACHER_GRADES } from '../config/teacherTaxonomy'
  *   ready          — false until the syllabi index resolves
  */
 
-// Module-scope cache so flipping between studios doesn't re-fetch the syllabi.
-let _indexCache = null   // { subjectsByGrade: Map<grade, Set<subject>>, grades: Set }
-let _indexPromise = null
+const INDEX_KEY = 'index'
 
 async function buildIndex() {
   const merged = await getMergedSyllabi()
@@ -39,39 +42,44 @@ async function buildIndex() {
   return { subjectsByGrade, grades }
 }
 
-export async function loadCurriculumIndex({ force = false } = {}) {
-  if (_indexCache && !force) return _indexCache
-  if (_indexPromise) return _indexPromise
-  _indexPromise = (async () => {
-    try {
-      _indexCache = await buildIndex()
-    } catch (err) {
-      console.warn('useCurriculumOptions: syllabi load failed', err)
-      _indexCache = { subjectsByGrade: new Map(), grades: new Set() }
-    } finally {
-      _indexPromise = null
-    }
-    return _indexCache
-  })()
-  return _indexPromise
+// The syllabi load failing should never surface as an error to a studio — it
+// degrades to "no syllabus rows on file" instead. Caching this fallback
+// (rather than retrying every mount) matches the pre-existing behaviour.
+async function buildIndexSafe() {
+  try {
+    return await buildIndex()
+  } catch (err) {
+    console.warn('useCurriculumOptions: syllabi load failed', err)
+    return { subjectsByGrade: new Map(), grades: new Set() }
+  }
+}
+
+const indexCache = createAsyncCache(buildIndexSafe, { name: 'curriculum-index' })
+
+export async function loadCurriculumIndex({ force = false, signal, timeoutMs } = {}) {
+  return indexCache.get(INDEX_KEY, { force, signal, timeoutMs })
 }
 
 /** Drop the cached index so the next mount re-reads the syllabi. */
 export function invalidateCurriculumIndex() {
-  _indexCache = null
-  _indexPromise = null
+  indexCache.invalidate()
 }
 
 export function useCurriculumOptions(grade) {
-  const [index, setIndex] = useState(_indexCache)
+  const [index, setIndex] = useState(() => indexCache.peek(INDEX_KEY) ?? null)
+  const { run, cancel } = useAbortableRequest()
 
   useEffect(() => {
-    if (_indexCache) { setIndex(_indexCache); return undefined }
-    let cancelled = false
-    loadCurriculumIndex()
-      .then((v) => { if (!cancelled) setIndex(v) })
-      .catch(() => { /* loadCurriculumIndex swallows + logs */ })
-    return () => { cancelled = true }
+    const cached = indexCache.peek(INDEX_KEY)
+    if (cached) { setIndex(cached); return undefined }
+    run(({ signal }) => loadCurriculumIndex({ signal })).then((result) => {
+      if (result.status === 'success') setIndex(result.data)
+      // 'stale' / 'aborted' — a newer mount or unmount already won; a
+      // failure can't happen (buildIndexSafe never rejects), but if it
+      // somehow did, `ready` simply stays false rather than crashing.
+    }).catch(() => {}) // run() resolves a status object and never rejects; guards regardless
+    return cancel
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const syllabusSubjects = index?.subjectsByGrade?.get(grade) || null
