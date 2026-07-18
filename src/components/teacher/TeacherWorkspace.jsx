@@ -219,7 +219,7 @@ export const MORE_GROUPS = [
         tone: 'green',
         badge: 'NEW',
         libraryKey: null,
-        title: 'Class Register',
+        title: 'Class List',
         tagline: 'Build one class list per class — SBA, marks and reports load every learner.',
         to: '/teacher/register',
       },
