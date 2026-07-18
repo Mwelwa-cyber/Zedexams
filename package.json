@@ -444,7 +444,11 @@
     "test:offline-connectivity": "node src/offline/connectivityCore.test.js",
     "test:memory-cache": "node src/utils/cache/memoryCache.test.js",
     "test:cache-keys": "node src/utils/cache/cacheKeys.test.js",
-    "test:search-cache": "node src/utils/cache/searchCache.test.js"
+    "test:search-cache": "node src/utils/cache/searchCache.test.js",
+    "test:pagination-cursors": "node src/utils/pagination/cursors.test.js",
+    "test:pagination-keys": "node src/utils/pagination/queryKeys.test.js",
+    "test:pagination-cache": "node src/utils/pagination/pageCache.test.js",
+    "test:pagination-server": "node functions/paginationCore.test.js"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

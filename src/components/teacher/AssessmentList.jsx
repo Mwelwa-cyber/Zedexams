@@ -1,7 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
+import { where } from 'firebase/firestore'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
+import { db } from '../../firebase/config'
+import { usePaginatedQuery } from '../../hooks/usePaginatedQuery'
+import { createFirestorePageFetcher } from '../../utils/pagination/firestorePage'
+import { createPaginationKey } from '../../utils/pagination/queryKeys'
+import { PAGE_SIZES } from '../../utils/pagination/cursors'
 import { buildAssessmentName } from '../../utils/downloadFilename'
 import { isFreePlanTeacher } from '../../utils/teacherLibraryService'
 import { printAssessmentAsPdf, openPrintWindow } from '../../utils/assessmentToPdf'
@@ -9,6 +15,7 @@ import { summarizeImportReview } from '../../utils/importReviewSummary.js'
 import ImportReviewBadge from '../quiz/ImportReviewBadge'
 import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
+import PaginationFooter from '../ui/PaginationFooter'
 import { useToast } from '../ui/Toast'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { ASSESSMENT_TYPE_LABELS } from './assessmentStudioMeta'
@@ -155,15 +162,15 @@ const CATEGORY_FILTERS = [
 
 export default function AssessmentList() {
   const { currentUser, userProfile, isAdmin } = useAuth()
-  const { getMyAssessments, getAssessmentQuestions, deleteAssessment } = useFirestore()
+  const { getAssessmentQuestions, deleteAssessment } = useFirestore()
   const navigate = useNavigate()
   const toast = useToast()
   const cfg = STUDIO_COPY
 
-  const [assessments, setAssessments] = useState([])
-  const [loading, setLoading] = useState(true)
+  const uid = currentUser?.uid
+  const pageSize = PAGE_SIZES.DESKTOP_LIST
+
   const [busyId, setBusyId] = useState(null)
-  const [error, setError] = useState('')
   // Test vs Examination — narrows the view, never the underlying query (both
   // categories live in the same `assessments` collection).
   const [categoryFilter, setCategoryFilter] = useState('all')
@@ -174,23 +181,53 @@ export default function AssessmentList() {
   // Assessment queued for deletion — drives the ConfirmDialog.
   const [pendingDelete, setPendingDelete] = useState(null)
 
-  useEffect(() => {
-    if (!currentUser?.uid) return
-    let cancelled = false
-    async function load() {
-      setLoading(true)
-      try {
-        const items = await getMyAssessments(currentUser.uid)
-        if (!cancelled) setAssessments(Array.isArray(items) ? items : [])
-      } catch (err) {
-        if (!cancelled) setError(err.message || 'Failed to load assessments.')
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    load()
-    return () => { cancelled = true }
-  }, [currentUser?.uid, getMyAssessments])
+  // Cursor-based pagination over the teacher's own assessments (newest first).
+  // Replaces the old "read up to 300 in one shot" load: a prolific author now
+  // gets a small first page immediately and pulls more only on demand, and the
+  // hard 300-doc cap that silently truncated big libraries is gone. The
+  // (createdBy, createdAt DESC) composite index already exists; the appended
+  // __name__ DESC tiebreaker matches Firestore's implicit ordering, so no new
+  // index is required.
+  const fetchPage = useMemo(
+    () => createFirestorePageFetcher({
+      db,
+      path: 'assessments',
+      constraints: uid ? [where('createdBy', '==', uid)] : [],
+      orderByFields: [{ field: 'createdAt', direction: 'desc' }],
+    }),
+    [uid],
+  )
+
+  const queryKey = useMemo(
+    () => createPaginationKey({
+      scope: 'assessment-list',
+      userId: uid,
+      sortField: 'createdAt',
+      sortDirection: 'desc',
+      pageSize,
+    }),
+    [uid, pageSize],
+  )
+
+  const {
+    items: assessments,
+    isInitialLoading,
+    isLoadingNextPage,
+    hasNextPage,
+    error: pageError,
+    loadNextPage,
+    removeItem,
+  } = usePaginatedQuery({
+    queryKey,
+    fetchPage,
+    pageSize,
+    enabled: Boolean(uid),
+  })
+
+  const loading = isInitialLoading
+  const error = pageError && assessments.length === 0
+    ? (pageError.message || 'Failed to load assessments.')
+    : ''
 
   async function confirmDelete() {
     const assessment = pendingDelete
@@ -198,7 +235,8 @@ export default function AssessmentList() {
     setBusyId(assessment.id)
     try {
       await deleteAssessment(assessment.id)
-      setAssessments(curr => curr.filter(a => a.id !== assessment.id))
+      // Optimistically drop it from the loaded pages — no full refetch (§19).
+      removeItem(assessment.id)
     } catch (err) {
       toast.error(`Delete failed: ${err.message || 'unexpected error'}`)
     } finally {
@@ -428,6 +466,19 @@ export default function AssessmentList() {
                 />
               ))}
             </div>
+
+            {/* Load-More paging — pulls the next page from the full library
+                regardless of the Test/Examination or Needs-review view filter.
+                Existing rows stay visible while the next page loads (§8/§9). */}
+            <PaginationFooter
+              hasNextPage={hasNextPage}
+              isLoadingNextPage={isLoadingNextPage}
+              error={pageError}
+              onLoadMore={loadNextPage}
+              loadedCount={assessments.length}
+              noun={cfg.noun}
+              nounPlural={cfg.nounPlural}
+            />
             {needsReviewOnly && visible.length === 0 && (
               <p className="text-center text-sm font-bold mt-6" style={{ color: '#566f76' }}>
                 No {cfg.nounPlural} need review right now. Click the chip again to see all of them.
