@@ -71,4 +71,28 @@ describe('AiRecommendations', () => {
     expect(screen.getByText('Title r8')).toBeInTheDocument()
     expect(screen.queryByText('Title r9')).not.toBeInTheDocument()
   })
+
+  it('renders each card with its OWN subject title, scope and href (no leak across the map)', () => {
+    // Mirrors the per-assignment scheme cards: same type, distinct subjects.
+    const cards = [
+      { id: 'scheme-english::a1', title: 'English is not planned yet', scope: 'Grade 4 · English', to: '/teacher/generate/scheme-of-work?grade=G4&subject=english&term=2' },
+      { id: 'scheme-mathematics::a2', title: 'Mathematics is not planned yet', scope: 'Grade 4 · Mathematics', to: '/teacher/generate/scheme-of-work?grade=G4&subject=mathematics&term=2' },
+      { id: 'scheme-technology_studies::a3', title: 'Technology Studies is not planned yet', scope: 'Grade 4 · Technology Studies', to: '/teacher/generate/scheme-of-work?grade=G4&subject=technology_studies&term=2' },
+    ].map((c) => ({ icon: '📘', text: `Create a Scheme of Work for ${c.scope.split(' · ')[1]}`, actionLabel: 'Create Scheme', ...c }))
+    renderRecs(cards)
+
+    // Every distinct subject shows exactly once — no card borrows another's.
+    expect(screen.getByText('English is not planned yet')).toBeInTheDocument()
+    expect(screen.getByText('Mathematics is not planned yet')).toBeInTheDocument()
+    expect(screen.getByText('Technology Studies is not planned yet')).toBeInTheDocument()
+    expect(screen.getByText('Grade 4 · English')).toBeInTheDocument()
+
+    // Each "Create Scheme" link carries its own subject in the deep link.
+    const links = screen.getAllByRole('link', { name: /create scheme/i })
+    expect(links.map((l) => l.getAttribute('href'))).toEqual([
+      '/teacher/generate/scheme-of-work?grade=G4&subject=english&term=2',
+      '/teacher/generate/scheme-of-work?grade=G4&subject=mathematics&term=2',
+      '/teacher/generate/scheme-of-work?grade=G4&subject=technology_studies&term=2',
+    ])
+  })
 })
