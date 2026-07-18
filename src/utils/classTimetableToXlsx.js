@@ -16,7 +16,7 @@
  */
 
 import { saveBlob } from './saveBlob.js'
-import { buildTimetableGridModel, cellState } from './timetableGridModel.js'
+import { buildTimetableGridModel, cellState, dayRowForSlot } from './timetableGridModel.js'
 
 const XML_HEAD ='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
 
@@ -136,6 +136,16 @@ function timeLabel(model, p) {
   return `${time}\nPeriod ${p.slot}`
 }
 
+/** A cell's own-day time suffix — only non-empty when a day-specific school
+ * structure (e.g. a half-day Friday) gives this cell's slot a different
+ * clock time than the shared reference row shown in the header. */
+function dayTimeSuffix(model, day, slot) {
+  const dayRow = dayRowForSlot(model, day, slot)
+  const refRow = model.rows.find((r) => r.kind === 'lesson' && r.slot === slot)
+  if (!dayRow || !refRow || (dayRow.start === refRow.start && dayRow.end === refRow.end)) return ''
+  return `\n${dayRow.start}–${dayRow.end}`
+}
+
 /** "Days across the top": TIME rows down, day columns across, doubles merge
  * vertically across the covered rows. */
 function daysAsColumnsSheet(model, metaLine) {
@@ -183,7 +193,7 @@ function daysAsColumnsSheet(model, metaLine) {
         // crosses a break), so a straight vertical merge is safe.
         merges.push(`${ref}:${colLetter(i + 1)}${r + c.block.length - 1}`)
       }
-      cells.push(strCell(ref, c.block.label, blockStyle(c.block)))
+      cells.push(strCell(ref, `${c.block.label}${dayTimeSuffix(model, d, p.slot)}`, blockStyle(c.block)))
     })
     rows.push({ r, cells })
   })
@@ -227,7 +237,7 @@ function daysAsRowsSheet(model, metaLine) {
       if (c.block.length > 1) {
         merges.push(`${ref}:${colLetter(i + c.block.length)}${r}`)
       }
-      cells.push(strCell(ref, c.block.label, blockStyle(c.block)))
+      cells.push(strCell(ref, `${c.block.label}${dayTimeSuffix(model, day, p.slot)}`, blockStyle(c.block)))
     })
     rows.push({ r, cells })
   })

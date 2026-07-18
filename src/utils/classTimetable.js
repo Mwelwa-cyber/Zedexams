@@ -304,6 +304,23 @@ function buildPeriodsFitted(config = {}) {
   return rows
 }
 
+/* ── Day types ─────────────────────────────────────────────────────
+ * The broad shape a teaching day takes. Each SCHOOL_DAY_TEMPLATES entry
+ * below is tagged with one — the per-day picker in the studio groups its
+ * template choices by this. "Half day" is the shape a regular weekly
+ * shortened day takes (e.g. Friday knocking off at 12:30); "Custom" starts
+ * from whatever timing is already set and stays fully free-form.
+ */
+export const DAY_TYPES = [
+  { id: 'full', label: 'Full day' },
+  { id: 'half', label: 'Half day' },
+  { id: 'custom', label: 'Custom' },
+]
+
+export function dayTypeLabel(id) {
+  return DAY_TYPES.find((t) => t.id === id)?.label || 'Custom'
+}
+
 /* ── School-day templates ─────────────────────────────────────────
  * Starting points for common Zambian school-day arrangements. A template
  * only seeds the timing settings — every value stays editable afterwards.
@@ -313,6 +330,7 @@ export const SCHOOL_DAY_TEMPLATES = [
     id: 'full-day-break-lunch',
     label: 'Full day · break + lunch',
     description: 'Reports in the morning, runs past lunch. Assembly, one break and a lunch hour.',
+    dayType: 'full',
     timing: {
       startTime: '07:30', endTime: '15:30', fitToEndTime: false, periodMinutes: 40,
       breaks: [
@@ -327,6 +345,7 @@ export const SCHOOL_DAY_TEMPLATES = [
     id: 'full-day-break-only',
     label: 'Full day · break only',
     description: 'A full teaching day with a single mid-morning break and no lunch hour.',
+    dayType: 'full',
     timing: {
       startTime: '07:30', endTime: '13:30', fitToEndTime: false, periodMinutes: 40,
       breaks: [
@@ -341,6 +360,7 @@ export const SCHOOL_DAY_TEMPLATES = [
     id: 'government-break-only',
     label: 'Government school day · break only',
     description: 'The common government-school pattern: early report, one break, knock off after the last lesson.',
+    dayType: 'full',
     timing: {
       startTime: '07:00', endTime: '12:50', fitToEndTime: false, periodMinutes: 40,
       breaks: [
@@ -355,6 +375,7 @@ export const SCHOOL_DAY_TEMPLATES = [
     id: 'morning-shift',
     label: 'Morning shift',
     description: 'The morning session of a two-session school — early start, short break, midday knock-off.',
+    dayType: 'full',
     timing: {
       startTime: '06:45', endTime: '12:00', fitToEndTime: false, periodMinutes: 40,
       breaks: [
@@ -369,6 +390,7 @@ export const SCHOOL_DAY_TEMPLATES = [
     id: 'afternoon-shift',
     label: 'Afternoon shift',
     description: 'The afternoon session of a two-session school — starts after midday, runs to late afternoon.',
+    dayType: 'full',
     timing: {
       startTime: '12:15', endTime: '17:30', fitToEndTime: false, periodMinutes: 40,
       breaks: [
@@ -383,6 +405,7 @@ export const SCHOOL_DAY_TEMPLATES = [
     id: 'double-session',
     label: 'Double-session school',
     description: 'Your school runs two sessions a day. Build this class’s session — pick morning or afternoon times.',
+    dayType: 'full',
     timing: {
       startTime: '06:45', endTime: '12:00', fitToEndTime: false, periodMinutes: 40,
       breaks: [
@@ -394,12 +417,34 @@ export const SCHOOL_DAY_TEMPLATES = [
     },
   },
   {
+    id: 'half-day',
+    label: 'Half day',
+    description: 'A shortened teaching day that knocks off around midday — the common weekly half-day pattern (e.g. Friday 12:30). The knock-off time is fixed and the periods share whatever teaching time is left.',
+    dayType: 'half',
+    timing: {
+      startTime: '07:30', endTime: '12:30', fitToEndTime: true, periodMinutes: 35, lessonPeriods: 6,
+      breaks: [
+        { afterPeriod: 0, time: '07:30', minutes: 15, name: 'ASSEMBLY', event: 'assembly', enabled: true },
+        { afterPeriod: 3, time: '09:40', minutes: 20, name: 'BREAK', event: 'break', enabled: true },
+        { afterPeriod: 5, time: '11:30', minutes: 40, name: 'LUNCH', event: 'lunch', enabled: false },
+        { afterPeriod: 'end', time: '', minutes: 5, name: 'CLOSING', event: 'closing', enabled: true },
+      ],
+    },
+  },
+  {
     id: 'custom',
     label: 'Custom school day',
     description: 'Start from the current settings and shape the day yourself.',
+    dayType: 'custom',
     timing: null,
   },
 ]
+
+/** The templates belonging to one day type — what the per-day picker offers
+ * once a teacher chooses Full day / Half day / Custom for a specific day. */
+export function templatesForDayType(dayType) {
+  return SCHOOL_DAY_TEMPLATES.filter((t) => t.dayType === dayType)
+}
 
 export function getSchoolDayTemplate(id) {
   return SCHOOL_DAY_TEMPLATES.find((t) => t.id === id) || null
@@ -613,21 +658,195 @@ export function distributePeriodsPerDay(totalPeriods, days) {
   return out
 }
 
-/** Lesson slots available on a day: the grid's lesson rows, optionally
- * shortened by dayStructure.periodsPerDay (Mode A). */
+/* ── Day structure (independent per-day school days) ─────────────
+ *
+ * A day-specific structure lives at dayStructure.daySchedules[day] =
+ * { dayType: 'full'|'half'|'custom', templateId, timing }. A day with no
+ * entry there inherits the timetable's base timing/periods (the original,
+ * uniform-week behaviour) — so every saved v1/v2 timetable keeps loading
+ * and behaving exactly as before. A day WITH an entry ignores the base
+ * timing entirely: its own reporting time, knock-off time, assembly,
+ * breaks, lunch and lesson-period count are all its own. `timing` is the
+ * source of truth; periods are always derived fresh via buildPeriods() so
+ * they can never drift stale.
+ *
+ * This recurring, saved-with-the-timetable structure is deliberately
+ * separate from a School Calendar date-specific override (see
+ * `effectiveDayScheduleForDate` below): a regular weekly half day (e.g.
+ * Friday knocking off at 12:30 every week) belongs here; an occasional
+ * one-off half day belongs to the calendar and must never touch this.
+ */
+
+/** The day's own override entry, or null when the day inherits the base
+ * timing. */
+export function dayScheduleOverride(day, dayStructure) {
+  return dayStructure?.daySchedules?.[day] || null
+}
+
+/** Immutably set (or clear, when `schedule` is falsy) one day's override,
+ * returning a new dayStructure. Every other field (e.g. periodsPerDay) is
+ * preserved untouched. */
+export function withDaySchedule(dayStructure, day, schedule) {
+  const daySchedules = { ...(dayStructure?.daySchedules || {}) }
+  if (schedule) daySchedules[day] = schedule
+  else delete daySchedules[day]
+  return { ...(dayStructure || {}), daySchedules }
+}
+
+/** The built period rows (lessons + breaks) that actually apply to one
+ * specific teaching day — that day's own override when set, otherwise the
+ * timetable's base periods. */
+export function periodsForDay(day, basePeriods, dayStructure) {
+  const override = dayScheduleOverride(day, dayStructure)
+  if (override?.timing) return buildPeriods(override.timing)
+  return Array.isArray(basePeriods) ? basePeriods : []
+}
+
+/** The clock time a specific day reports at (assembly/opening), from that
+ * day's own resolved periods. '' when there are no rows. */
+export function reportingTimeForDay(day, basePeriods, dayStructure) {
+  const rows = periodsForDay(day, basePeriods, dayStructure)
+  return rows.length ? rows[0].start : ''
+}
+
+/** The clock time a specific day's last lesson ends (the real knock-off),
+ * from that day's own resolved periods. */
+export function knockOffTimeForDay(day, basePeriods, dayStructure) {
+  return lastLessonEndTime(periodsForDay(day, basePeriods, dayStructure))
+}
+
+/** Lesson slots available on a day: a day-specific override's own lesson
+ * count when set, otherwise the grid's shared lesson rows, optionally
+ * shortened by dayStructure.periodsPerDay (Mode A, legacy count-only
+ * override). */
 export function slotCountForDay(day, periods, dayStructure) {
+  const override = dayScheduleOverride(day, dayStructure)
+  if (override?.timing) return lessonPeriods(buildPeriods(override.timing)).length
   const rows = lessonPeriods(periods).length
-  const override = dayStructure?.periodsPerDay?.[day]
-  if (override == null) return rows
-  const n = Math.round(Number(override))
+  const countOverride = dayStructure?.periodsPerDay?.[day]
+  if (countOverride == null) return rows
+  const n = Math.round(Number(countOverride))
   if (!Number.isFinite(n)) return rows
   return Math.min(rows, Math.max(0, n))
 }
 
-/** Total fillable lesson cells across the week, honouring per-day counts. */
+/** Total fillable lesson cells across the week, honouring per-day counts
+ * and per-day school-day overrides. */
 export function weeklyCapacity(periods, days, dayStructure) {
   return (Array.isArray(days) ? days : [])
     .reduce((sum, d) => sum + slotCountForDay(d, periods, dayStructure), 0)
+}
+
+/**
+ * Whether the complete weekly curriculum allocation can physically fit the
+ * timetable's per-day capacity. Generation must be BLOCKED (never silently
+ * truncated) when it cannot — the teacher needs to add lesson periods or
+ * change a day's structure first.
+ *
+ * @returns {{fits:boolean, required:number, capacity:number, shortfall:number,
+ *   perDay:Object<string,number>}}
+ */
+export function resolveCapacityFit({ subjects, days, periods, dayStructure }) {
+  const dayList = Array.isArray(days) ? days : []
+  const required = totalAllocated(subjects)
+  const perDay = {}
+  let capacity = 0
+  for (const day of dayList) {
+    const n = slotCountForDay(day, periods, dayStructure)
+    perDay[day] = n
+    capacity += n
+  }
+  return {
+    fits: required <= capacity,
+    required,
+    capacity,
+    shortfall: Math.max(0, required - capacity),
+    perDay,
+  }
+}
+
+/* ── School Calendar overrides (date-specific, one-off) ───────────
+ *
+ * A calendar override records an occasional change to ONE calendar date —
+ * e.g. "Friday 14 Aug is a half day for a staff meeting" — WITHOUT touching
+ * the saved weekly daySchedules. A regular recurring change (every Friday is
+ * a half day) belongs in daySchedules (above); an occasional one-off belongs
+ * here, keyed by exact date so it can never leak into the recurring weekly
+ * pattern or silently change what auto-fill/generation plans for that
+ * weekday every other week.
+ *
+ * Each override: { date: 'YYYY-MM-DD', dayType, templateId, timing, reason }
+ */
+
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+/** The weekday name ('Monday', …) for a 'YYYY-MM-DD' date string, or null
+ * when the date can't be parsed. */
+export function weekdayNameForDate(date) {
+  const d = new Date(`${date}T00:00:00`)
+  if (Number.isNaN(d.getTime())) return null
+  return WEEKDAY_NAMES[d.getDay()]
+}
+
+/** Immutably add/replace one calendar override by date, returning a new
+ * array sorted by date. */
+export function withCalendarOverride(calendarOverrides, override) {
+  const list = (Array.isArray(calendarOverrides) ? calendarOverrides : [])
+    .filter((o) => o.date !== override.date)
+  list.push(override)
+  return list.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+}
+
+/** Remove the override recorded for one date, if any. */
+export function removeCalendarOverride(calendarOverrides, date) {
+  return (Array.isArray(calendarOverrides) ? calendarOverrides : []).filter((o) => o.date !== date)
+}
+
+/** The override recorded for an exact calendar date, or null. */
+export function calendarOverrideForDate(calendarOverrides, date) {
+  return (Array.isArray(calendarOverrides) ? calendarOverrides : []).find((o) => o.date === date) || null
+}
+
+/**
+ * What school actually looks like on ONE calendar date — never a mutation of
+ * the saved timetable. Priority: a School Calendar override for that EXACT
+ * date wins first; otherwise the recurring weekly daySchedules entry for
+ * that date's weekday; otherwise the timetable's base timing.
+ *
+ * `weekday` is derived from `date` when not given explicitly.
+ */
+export function effectiveDayScheduleForDate({ date, weekday, periods, dayStructure, calendarOverrides }) {
+  const wd = weekday || weekdayNameForDate(date)
+  const override = calendarOverrideForDate(calendarOverrides, date)
+  if (override?.timing) {
+    return {
+      date, weekday: wd,
+      dayType: override.dayType || 'custom',
+      templateId: override.templateId || null,
+      source: 'calendar-override',
+      reason: override.reason || null,
+      periods: buildPeriods(override.timing),
+    }
+  }
+  const dayOverride = dayScheduleOverride(wd, dayStructure)
+  if (dayOverride?.timing) {
+    return {
+      date, weekday: wd,
+      dayType: dayOverride.dayType || 'custom',
+      templateId: dayOverride.templateId || null,
+      source: 'weekly-structure',
+      reason: null,
+      periods: buildPeriods(dayOverride.timing),
+    }
+  }
+  return {
+    date, weekday: wd,
+    dayType: 'full',
+    templateId: null,
+    source: 'base',
+    reason: null,
+    periods: Array.isArray(periods) ? periods : [],
+  }
 }
 
 /* ── Auto-fill ────────────────────────────────────────────────── */
@@ -747,11 +966,16 @@ export function autoFillTimetable({ subjects, days, periods }) {
  * @returns {{ blocks:Array, unplaced:Array<{label,missing,reason}>, notes:string[] }}
  */
 export function autoFillBlocks({ subjects, days, periods, dayStructure, lockedBlocks = [], activities = [] }) {
-  const rows = lessonPeriods(periods)
   const dayList = Array.isArray(days) ? days : []
   const subjList = (Array.isArray(subjects) ? subjects : []).filter((s) => (Number(s.periodsPerWeek) || 0) > 0)
-  const segments = segmentsOf(periods)
+  // Each day resolves its OWN periods/segments — a day-specific override
+  // (see periodsForDay) never shares a break layout or knock-off time with
+  // another day, so a double period or a placement can never cross into
+  // another day's structure, and nothing is ever placed past a day's own
+  // last lesson row.
+  const segmentsByDay = new Map(dayList.map((d) => [d, segmentsOf(periodsForDay(d, periods, dayStructure))]))
   const capacityOf = (day) => slotCountForDay(day, periods, dayStructure)
+  const lastRowOf = (day) => Math.max(0, capacityOf(day) - 1)
   const notes = []
   const unplaced = []
 
@@ -787,7 +1011,6 @@ export function autoFillBlocks({ subjects, days, periods, dayStructure, lockedBl
     if (subjectLoad(b.label) === 'heavy') heavyPerDay.set(b.day, (heavyPerDay.get(b.day) || 0) + b.length)
   }
 
-  const lastRow = Math.max(0, rows.length - 1)
   const remaining = new Map()
   for (const s of subjList) {
     const target = Math.max(0, Math.round(Number(s.periodsPerWeek) || 0))
@@ -840,7 +1063,7 @@ export function autoFillBlocks({ subjects, days, periods, dayStructure, lockedBl
         const cap = capacityOf(day)
         const already = subjectPerDay.get(day)?.get(s.label) || 0
         if (already + 2 > maxPerDay) continue
-        for (const seg of segments) {
+        for (const seg of segmentsByDay.get(day) || []) {
           for (const slot of seg) {
             if (slot + 1 > cap || !seg.includes(slot + 1)) continue
             if (occupied.has(`${day}__${slot}`) || occupied.has(`${day}__${slot + 1}`)) continue
@@ -856,7 +1079,7 @@ export function autoFillBlocks({ subjects, days, periods, dayStructure, lockedBl
         let v = c.already * 40                       // spread the subject across days
           + (totalPerDay.get(c.day) || 0) * 10       // even weekly spread
         if (isHeavy) v += (heavyPerDay.get(c.day) || 0) * 6
-        v += isHeavy ? c.slot : (lastRow - c.slot)   // heavy early, light/practical later
+        v += isHeavy ? c.slot : (lastRowOf(c.day) - c.slot)   // heavy early, light/practical later
         return v
       }
       candidates.sort((a, b) => score(a) - score(b) || a.slot - b.slot || dayList.indexOf(a.day) - dayList.indexOf(b.day))
@@ -901,7 +1124,7 @@ export function autoFillBlocks({ subjects, days, periods, dayStructure, lockedBl
       let v = c.already * 40
         + (totalPerDay.get(c.day) || 0) * 10
       if (isHeavy) v += (heavyPerDay.get(c.day) || 0) * 6
-      v += isHeavy ? c.slot : (lastRow - c.slot)
+      v += isHeavy ? c.slot : (lastRowOf(c.day) - c.slot)
       return v
     }
     pool.sort((a, b) => score(a) - score(b) || a.slot - b.slot || dayList.indexOf(a.day) - dayList.indexOf(b.day))
@@ -1029,11 +1252,12 @@ export function validateTimetable({ slots, subjects, periods, days }) {
  * }}
  */
 export function validateTimetableBlocks({ blocks, subjects, periods, days, dayStructure, curriculum }) {
-  const rows = lessonPeriods(periods)
   const dayList = Array.isArray(days) ? days : []
   const subjList = Array.isArray(subjects) ? subjects : []
   const blockList = Array.isArray(blocks) ? blocks : []
-  const segments = segmentsOf(periods)
+  // Each day's own resolved periods/segments — see periodsForDay.
+  const rowsByDay = new Map(dayList.map((d) => [d, lessonPeriods(periodsForDay(d, periods, dayStructure))]))
+  const segmentsByDay = new Map(dayList.map((d) => [d, segmentsOf(periodsForDay(d, periods, dayStructure))]))
   const capacityOf = (day) => slotCountForDay(day, periods, dayStructure)
 
   const errors = []
@@ -1044,7 +1268,7 @@ export function validateTimetableBlocks({ blocks, subjects, periods, days, daySt
   /* Structural soundness: overlaps, out-of-range blocks, doubles crossing a
    * break. These are hard failures. */
   const structural = validateBlockLayout(blockList, {
-    segments, days: dayList, slotCountForDay: capacityOf,
+    segments: (day) => segmentsByDay.get(day) || [], days: dayList, slotCountForDay: capacityOf,
   })
   errors.push(...structural)
 
@@ -1060,12 +1284,13 @@ export function validateTimetableBlocks({ blocks, subjects, periods, days, daySt
     if (b.type === BLOCK_TYPES.ACTIVITY) { activityPeriods += b.length; continue }
     placed.set(b.label, (placed.get(b.label) || 0) + b.length)
     curriculumPeriods += b.length
+    const dayRows = rowsByDay.get(b.day) || []
     for (const s of blockSlots(b)) {
-      const row = rows[s - 1]
+      const row = dayRows[s - 1]
       if (row) contactMinutes += timeToMinutes(row.end) - timeToMinutes(row.start)
     }
     if (b.length >= 2) {
-      if (fitsInOneSegment(segments, b.startSlot, b.length)) validDoubles += 1
+      if (fitsInOneSegment(segmentsByDay.get(b.day) || [], b.startSlot, b.length)) validDoubles += 1
       else brokenDoubles += 1
     }
   }
@@ -1140,7 +1365,7 @@ export function validateTimetableBlocks({ blocks, subjects, periods, days, daySt
         const a = sorted[i]
         const b = sorted[i + 1]
         const adjacent = a.startSlot + a.length === b.startSlot
-          && fitsInOneSegment(segments, a.startSlot, a.length + b.length)
+          && fitsInOneSegment(segmentsByDay.get(day) || [], a.startSlot, a.length + b.length)
         if (adjacent && a.length === 1 && b.length === 1) {
           notes.push(`${label} has two consecutive single periods on ${day} — you can join them into a double period.`)
         } else if (!adjacent) {
@@ -1154,7 +1379,8 @@ export function validateTimetableBlocks({ blocks, subjects, periods, days, daySt
     for (let s = cap; s >= 1; s -= 1) { if (bySlot[s]) { lastFilled = s; break } }
     for (let s = 1; s < lastFilled; s += 1) {
       if (!bySlot[s]) {
-        warnings.push(`${day} has an unexplained empty period before ${rows[lastFilled - 1]?.start || 'the last lesson'} — assign a subject or mark it as a school activity.`)
+        const dayRows = rowsByDay.get(day) || []
+        warnings.push(`${day} has an unexplained empty period before ${dayRows[lastFilled - 1]?.start || 'the last lesson'} — assign a subject or mark it as a school activity.`)
       }
     }
   }
@@ -1247,6 +1473,7 @@ export function buildTimetableArtifact({
   header, days, periods, slots, blocks,
   dayStructure = null, displayPreferences = null,
   curriculumId = null, selectedOptions = null, subjectAllocations = null,
+  calendarOverrides = null,
 }) {
   const dayList = Array.isArray(days) ? days : []
   const periodList = Array.isArray(periods) ? periods : []
@@ -1262,6 +1489,9 @@ export function buildTimetableArtifact({
     // Derived, kept for legacy readers (old library views + exporters).
     slots: blocksToSlots(blockList, periodList, dayList),
     dayStructure: dayStructure || null,
+    // School Calendar date-specific overrides — never part of the recurring
+    // weekly structure above (see effectiveDayScheduleForDate).
+    calendarOverrides: Array.isArray(calendarOverrides) ? calendarOverrides : [],
     displayPreferences: { ...DEFAULT_DISPLAY_PREFERENCES, ...(displayPreferences || {}) },
     curriculumId: curriculumId || null,
     selectedOptions: selectedOptions || null,
@@ -1305,6 +1535,7 @@ export function normalizeTimetableArtifact(timetable) {
       ? (timetable.slots || blocksToSlots(blocks, periods, days))
       : (timetable.slots || {}),
     dayStructure: timetable.dayStructure || null,
+    calendarOverrides: Array.isArray(timetable.calendarOverrides) ? timetable.calendarOverrides : [],
     displayPreferences: {
       ...DEFAULT_DISPLAY_PREFERENCES,
       ...(timetable.displayPreferences || {}),

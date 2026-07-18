@@ -23,6 +23,7 @@
 import {
   normalizeTimetableArtifact,
   slotCountForDay,
+  periodsForDay,
 } from './classTimetable.js'
 import { BLOCK_TYPES } from './timetableBlocks.js'
 
@@ -37,9 +38,18 @@ export function formatPeriodLabel(row, slot, mode = 'period-time') {
 /**
  * Build the render model from any saved timetable artifact (v1 or v2).
  *
+ * A day-specific school-day structure (classTimetable.periodsForDay) gives
+ * some days their own reporting time, breaks and knock-off — `rowsByDay`
+ * carries each day's OWN row list (used for that day's actual cell times);
+ * `rows`/`maxSlot` stay a single reference row list — the day with the most
+ * lesson periods (typically the uniform "full day" pattern) — so existing
+ * header/gutter rendering and the exporters keep working unchanged when
+ * every day shares one structure (the original, still-most-common case).
+ *
  * @returns {{
  *   header, days:string[], layout:string, labelMode:string,
  *   rows:Array<{kind:'lesson'|'break', event?, slot?, id, label, start, end}>,
+ *   rowsByDay:Object<string, Array<...>>,
  *   maxSlot:number, slotCount:Object<string,number>,
  *   cells:Object<string, Object<number, {state:'start'|'covered', block}>>,
  *   subjects:string[] (distinct curriculum labels in first-appearance order)
@@ -53,14 +63,22 @@ export function buildTimetableGridModel(timetableRaw, overrides = {}) {
   const layout = overrides.layout || t.displayPreferences?.timetableLayout || 'days-as-columns'
   const labelMode = overrides.labelMode || t.displayPreferences?.periodLabelMode || 'period-time'
 
-  // Period rows annotated with their 1-based lesson slot.
-  let slot = 0
-  const rows = periods.map((p) => {
-    if (p.kind !== 'lesson') return { ...p }
-    slot += 1
-    return { ...p, slot }
-  })
-  const maxSlot = slot
+  // Each day's own period rows, annotated with their 1-based lesson slot.
+  const rowsByDay = {}
+  let maxSlot = 0
+  let referenceDay = null
+  for (const day of days) {
+    const dayPeriods = periodsForDay(day, periods, t.dayStructure)
+    let slot = 0
+    rowsByDay[day] = dayPeriods.map((p) => {
+      if (p.kind !== 'lesson') return { ...p }
+      slot += 1
+      return { ...p, slot }
+    })
+    if (slot > maxSlot) { maxSlot = slot; referenceDay = day }
+  }
+  if (!referenceDay) referenceDay = days[0] || null
+  const rows = referenceDay ? rowsByDay[referenceDay] : []
 
   const slotCount = {}
   for (const day of days) slotCount[day] = slotCountForDay(day, periods, t.dayStructure)
@@ -79,10 +97,9 @@ export function buildTimetableGridModel(timetableRaw, overrides = {}) {
   // Distinct curriculum subjects in first-appearance order (for tints).
   const subjects = []
   const seen = new Set()
-  for (const row of rows) {
-    if (row.kind !== 'lesson') continue
+  for (let slot = 1; slot <= maxSlot; slot += 1) {
     for (const day of days) {
-      const cell = cells[day][row.slot]
+      const cell = cells[day][slot]
       const label = cell?.block?.type === BLOCK_TYPES.CURRICULUM ? cell.block.label : null
       if (label && !seen.has(label)) { seen.add(label); subjects.push(label) }
     }
@@ -94,6 +111,7 @@ export function buildTimetableGridModel(timetableRaw, overrides = {}) {
     layout,
     labelMode,
     rows,
+    rowsByDay,
     maxSlot,
     slotCount,
     cells,
@@ -101,6 +119,15 @@ export function buildTimetableGridModel(timetableRaw, overrides = {}) {
     dayStructure: t.dayStructure || null,
     displayPreferences: t.displayPreferences,
   }
+}
+
+/** The lesson row that ACTUALLY applies to one (day, slot) cell — that
+ * day's own row when its school-day structure differs from the reference
+ * row list, otherwise the shared reference row. Use this (not `model.rows`)
+ * whenever a cell's own clock time matters, e.g. a half-day Friday. */
+export function dayRowForSlot(model, day, slot) {
+  const dayRows = model?.rowsByDay?.[day] || model?.rows || []
+  return dayRows.find((r) => r.kind === 'lesson' && r.slot === slot) || null
 }
 
 /** The state of one (day, slot) cell: 'start' | 'covered' | 'empty' | 'off'. */

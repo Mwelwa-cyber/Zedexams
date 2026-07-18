@@ -118,7 +118,7 @@ export default function ClassRegisterDetail() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <Link to="/teacher/register" className="theme-text-muted text-xs font-black uppercase tracking-wider hover:theme-accent-text">
-            ← My classes
+            ← Class List
           </Link>
           <h1 className="theme-text font-display font-black text-2xl sm:text-3xl mt-1 truncate">{reg.className}</h1>
           <p className="theme-text-muted text-sm mt-1">

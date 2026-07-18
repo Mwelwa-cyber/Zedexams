@@ -43,6 +43,8 @@ Emulator/smoke suites (separate CI jobs, **not** in `test:all` because they aren
 
 ## P0 security regression tests (added 2026-07-17)
 
+> **Status:** these tests passed, the fix was **merged (#1774) and deployed to production** (2026-07-17), and the change was **independently reviewed — approved with follow-ups**. Two low residual items remain (payment-initiation fail-open; existing Storage download tokens) — see [`18`](./18-security-review.md) / [`25`](./25-remediation-plan.md). The emulator suites require a **Java** runtime.
+
 | Test | Proves |
 |---|---|
 | `functions/authGuard.test.js` (`test:auth-guard`, in `test:all`) | `assertVerifiedAuth`/`assertDecodedVerified`/`assertActiveAccount` reject suspended/deleted, pass active/legacy/missing-doc, keep unauth/unverified/grace behaviour, and fail-open on transient read error (12 cases). |

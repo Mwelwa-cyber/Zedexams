@@ -35,6 +35,20 @@ import {
   weeklyCapacity,
   SCHOOL_DAY_TEMPLATES,
   SCHEMA_VERSION,
+  DAY_TYPES,
+  dayTypeLabel,
+  templatesForDayType,
+  periodsForDay,
+  dayScheduleOverride,
+  withDaySchedule,
+  reportingTimeForDay,
+  knockOffTimeForDay,
+  resolveCapacityFit,
+  weekdayNameForDate,
+  withCalendarOverride,
+  removeCalendarOverride,
+  calendarOverrideForDate,
+  effectiveDayScheduleForDate,
 } from '../src/utils/classTimetable.js'
 import {
   getFrameworkForGrade,
@@ -44,7 +58,7 @@ import {
   CURRICULA,
 } from '../src/utils/curriculumFramework.js'
 import { BLOCK_TYPES, makeBlock, segmentsOf, fitsInOneSegment } from '../src/utils/timetableBlocks.js'
-import { buildTimetableGridModel, cellState } from '../src/utils/timetableGridModel.js'
+import { buildTimetableGridModel, cellState, dayRowForSlot } from '../src/utils/timetableGridModel.js'
 import { buildClassTimetableWorkbookFiles } from '../src/utils/classTimetableToXlsx.js'
 import { buildPrintableHtml } from '../src/utils/classTimetableToPdf.js'
 
@@ -489,6 +503,139 @@ test('school-day templates cover government, full-day, shift and custom days', (
   assert(gov.timing.breaks.find((b) => b.event === 'lunch').enabled === false, 'government day has no lunch')
 })
 
+test('every school-day template is tagged full, half or custom; a half-day template exists', () => {
+  for (const t of SCHOOL_DAY_TEMPLATES) {
+    assert(DAY_TYPES.some((d) => d.id === t.dayType), `${t.id} carries an unknown dayType ${t.dayType}`)
+  }
+  assert(templatesForDayType('full').length >= 5, 'several full-day templates exist')
+  assert(templatesForDayType('half').length >= 1, 'at least one half-day template exists')
+  assert(templatesForDayType('custom').length === 1, 'exactly one custom template')
+  assert(dayTypeLabel('half') === 'Half day', 'half day label')
+})
+
+/* ══ Day-specific school structures (independent per-day timing) ══ */
+
+test('a day with its own school-day structure ignores the base timing entirely', () => {
+  const base = buildPeriods({ startTime: '07:30', periodMinutes: 40, lessonPeriods: 9, breaks: [] })
+  const fridayHalf = withDaySchedule(null, 'Friday', {
+    dayType: 'half', templateId: 'half-day',
+    timing: { startTime: '07:30', endTime: '12:30', fitToEndTime: true, lessonPeriods: 6, breaks: [] },
+  })
+  assert(dayScheduleOverride('Friday', fridayHalf)?.dayType === 'half', 'Friday carries its own override')
+  assert(dayScheduleOverride('Monday', fridayHalf) === null, 'Monday has no override — inherits the base')
+
+  assert(slotCountForDay('Monday', base, fridayHalf) === 9, 'Monday keeps the base 9 lessons')
+  assert(slotCountForDay('Friday', base, fridayHalf) === 6, 'Friday holds its own 6 lessons')
+
+  const fridayPeriods = periodsForDay('Friday', base, fridayHalf)
+  assert(lastLessonEndTime(fridayPeriods) === '12:30', 'Friday knocks off exactly at 12:30')
+  assert(knockOffTimeForDay('Friday', base, fridayHalf) === '12:30', 'knockOffTimeForDay agrees')
+  assert(knockOffTimeForDay('Monday', base, fridayHalf) === lastLessonEndTime(base), 'Monday keeps the base knock-off')
+  assert(reportingTimeForDay('Friday', base, fridayHalf) === '07:30', 'Friday still reports at 07:30')
+})
+
+test('withDaySchedule clears an override back to the base timing', () => {
+  const withFriday = withDaySchedule(null, 'Friday', { dayType: 'half', timing: { startTime: '07:30', endTime: '12:30', fitToEndTime: true, lessonPeriods: 6, breaks: [] } })
+  const cleared = withDaySchedule(withFriday, 'Friday', null)
+  assert(dayScheduleOverride('Friday', cleared) === null, 'clearing removes the override')
+})
+
+test('resolveCapacityFit blocks generation when the weekly curriculum cannot fit per-day capacity', () => {
+  const subjects = curriculumSubjectsForGrade('G5', 'cbc-2023', { practical: 'home-economics' })
+  const base = buildPeriods({ startTime: '07:30', periodMinutes: 40, lessonPeriods: 9, breaks: [] })
+  const roomy = resolveCapacityFit({ subjects, days: DEFAULT_DAYS, periods: base, dayStructure: null })
+  assert(roomy.fits, `42 periods should fit a 45-slot week: ${JSON.stringify(roomy)}`)
+  assert(roomy.required === 42 && roomy.capacity === 45, `required/capacity: ${JSON.stringify(roomy)}`)
+
+  // Shrink Friday to a 2-lesson half day — the 42-period week no longer fits.
+  const tightFriday = withDaySchedule(null, 'Friday', {
+    dayType: 'half', timing: { startTime: '07:30', endTime: '09:00', fitToEndTime: true, lessonPeriods: 2, breaks: [] },
+  })
+  const tight = resolveCapacityFit({ subjects, days: DEFAULT_DAYS, periods: base, dayStructure: tightFriday })
+  assert(!tight.fits, 'a shrunk Friday must fail the capacity check rather than silently truncate')
+  assert(tight.shortfall === tight.required - tight.capacity && tight.shortfall > 0, `shortfall reported: ${JSON.stringify(tight)}`)
+  assert(tight.perDay.Friday === 2, 'per-day capacity reports Friday at 2')
+})
+
+test('autoFillBlocks never schedules a lesson after a half day\'s own knock-off, and redistributes across the week', () => {
+  const subjects = curriculumSubjectsForGrade('G5')
+  const base = buildPeriods({
+    startTime: '07:30', periodMinutes: 40, lessonPeriods: 9,
+    breaks: [
+      { afterPeriod: 3, minutes: 20, name: 'BREAK', event: 'break' },
+      { afterPeriod: 6, minutes: 40, name: 'LUNCH', event: 'lunch' },
+    ],
+  })
+  // Friday becomes a half day (own knock-off well before the base week's).
+  const fridayHalf = withDaySchedule(null, 'Friday', {
+    dayType: 'half', templateId: 'half-day',
+    timing: { startTime: '07:30', endTime: '10:30', fitToEndTime: true, lessonPeriods: 4, breaks: [] },
+  })
+  const { blocks } = autoFillBlocks({ subjects, days: DEFAULT_DAYS, periods: base, dayStructure: fridayHalf })
+  const fridayBlocks = blocks.filter((b) => b.day === 'Friday')
+  const fridayCap = slotCountForDay('Friday', base, fridayHalf)
+  for (const b of fridayBlocks) {
+    assert(b.startSlot + b.length - 1 <= fridayCap, `${b.label} on Friday spills past the half day's own ${fridayCap} lessons`)
+  }
+  // Other days pick up the periods Friday's shorter week can no longer hold.
+  const mondayCount = blocks.filter((b) => b.day === 'Monday' && b.type === BLOCK_TYPES.CURRICULUM).length
+  assert(mondayCount >= 1, 'Monday absorbs some of the redistributed load')
+})
+
+/* ══ School Calendar date-specific overrides ═══════════════════ */
+
+test('weekdayNameForDate resolves a YYYY-MM-DD date to its weekday', () => {
+  assert(weekdayNameForDate('2026-07-17') === 'Friday', '17 Jul 2026 is a Friday')
+  assert(weekdayNameForDate('not-a-date') === null, 'bad input resolves to null')
+})
+
+test('a calendar override applies to its exact date only, never the recurring weekly pattern', () => {
+  const base = buildPeriods({ startTime: '07:30', periodMinutes: 40, lessonPeriods: 9, breaks: [] })
+  // Friday is a normal full day every week — no weekly override.
+  const dayStructure = null
+  let overrides = withCalendarOverride([], {
+    date: '2026-07-17', dayType: 'half', reason: 'Staff meeting',
+    timing: { startTime: '07:30', endTime: '12:00', fitToEndTime: true, lessonPeriods: 5, breaks: [] },
+  })
+  assert(calendarOverrideForDate(overrides, '2026-07-17')?.reason === 'Staff meeting', 'override recorded for the exact date')
+
+  const onThatFriday = effectiveDayScheduleForDate({
+    date: '2026-07-17', periods: base, dayStructure, calendarOverrides: overrides,
+  })
+  assert(onThatFriday.source === 'calendar-override', 'the specific date resolves to the calendar override')
+  assert(lastLessonEndTime(onThatFriday.periods) === '12:00', 'that Friday knocks off at noon')
+
+  // A different Friday (no override recorded) is unaffected — still a full day.
+  const otherFriday = effectiveDayScheduleForDate({
+    date: '2026-07-24', periods: base, dayStructure, calendarOverrides: overrides,
+  })
+  assert(otherFriday.source === 'base', 'every other Friday stays the normal saved structure')
+  assert(lastLessonEndTime(otherFriday.periods) === lastLessonEndTime(base), 'unaffected Friday keeps the base knock-off')
+
+  overrides = removeCalendarOverride(overrides, '2026-07-17')
+  assert(calendarOverrideForDate(overrides, '2026-07-17') === null, 'removing the override clears it')
+})
+
+test('effectiveDayScheduleForDate prefers a calendar override over the recurring weekly half day', () => {
+  const base = buildPeriods({ startTime: '07:30', periodMinutes: 40, lessonPeriods: 9, breaks: [] })
+  // Friday is NORMALLY a half day (recurring, saved in the weekly structure).
+  const dayStructure = withDaySchedule(null, 'Friday', {
+    dayType: 'half', timing: { startTime: '07:30', endTime: '12:30', fitToEndTime: true, lessonPeriods: 6, breaks: [] },
+  })
+  // This one Friday there's an even shorter, occasional half day.
+  const overrides = withCalendarOverride([], {
+    date: '2026-07-17', dayType: 'half', reason: 'Sports day',
+    timing: { startTime: '07:30', endTime: '10:00', fitToEndTime: true, lessonPeriods: 3, breaks: [] },
+  })
+  const resolved = effectiveDayScheduleForDate({ date: '2026-07-17', periods: base, dayStructure, calendarOverrides: overrides })
+  assert(resolved.source === 'calendar-override', 'the one-off override wins over the recurring weekly half day')
+  assert(lastLessonEndTime(resolved.periods) === '10:00', 'the occasional override time applies')
+
+  // The recurring weekly structure itself must be untouched by the override.
+  assert(dayScheduleOverride('Friday', dayStructure)?.timing?.endTime === '12:30',
+    'the saved weekly Friday half-day structure is not mutated by a calendar override')
+})
+
 /* ══ Block-aware auto-fill ═════════════════════════════════════ */
 
 const G5_PERIODS = buildPeriods({
@@ -679,6 +826,34 @@ test('artifacts default to "Days across the top" and persist the chosen layout',
   assert(def.displayPreferences.timetableLayout === 'days-as-columns', 'default layout')
   const rowsFirst = sampleArtifact('days-as-rows')
   assert(buildTimetableGridModel(rowsFirst).layout === 'days-as-rows', 'saved preference wins')
+})
+
+test('the grid model exposes each day\'s OWN rows when it has its own school-day structure', () => {
+  const fridayHalf = withDaySchedule(null, 'Friday', {
+    dayType: 'half',
+    timing: { startTime: '07:30', endTime: '10:30', fitToEndTime: true, lessonPeriods: 4, breaks: [] },
+  })
+  const half = buildTimetableArtifact({
+    header: { school: 'Demo Primary', grade: 'G5' },
+    days: DEFAULT_DAYS,
+    periods: G5_PERIODS,
+    blocks: [],
+    dayStructure: fridayHalf,
+  })
+  const model = buildTimetableGridModel(half)
+
+  // Monday (no override) keeps the base week's slot count; Friday holds its own.
+  assert(model.slotCount.Monday === lessonPeriods(G5_PERIODS).length, 'Monday keeps the base lesson count')
+  assert(model.slotCount.Friday === 4, 'Friday holds only its own 4 lessons')
+
+  // Slot 5+ on Friday is now "off" — the day ended.
+  const offCell = cellState(model, 'Friday', 5)
+  assert(offCell.state === 'off', 'Friday has nothing beyond its own 4 lessons')
+
+  // Friday's own row 4 knocks off at 10:30 — its own clock time, independent
+  // of whatever the shared reference row list shows for slot 4.
+  const fridayRow4 = dayRowForSlot(model, 'Friday', 4)
+  assert(fridayRow4?.end === '10:30', `Friday's own last lesson ends at 10:30, got ${fridayRow4?.end}`)
 })
 
 /* ══ Migration (legacy v1 artifacts) ═══════════════════════════ */

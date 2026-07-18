@@ -1,7 +1,7 @@
 # 13 — Cloud Functions Register
 
 > Snapshot as of 2026-07-17 — verify before acting. Audited commit `0cd4c49`.
-> Source: `functions/index.js` (~4,255 lines) + imported modules. **~167 exported functions** (CLAUDE.md says ~156; delta is paired/re-exported triggers).
+> Source: `functions/index.js` (~4,255 lines) + imported modules. **≈167 exported functions at the audited snapshot** (`0cd4c49`; an exact `exports.X =` count on `main` gives 168 — the number drifts as functions are added/removed, so treat it as approximate). CLAUDE.md says ~156; delta is paired/re-exported triggers.
 
 ## Conventions
 
@@ -18,7 +18,7 @@
 |---|---|---|
 | `onCall` | ~118 | us-central1 |
 | `onRequest` | 9 | us-central1 (all 9 map to `/api/*` rewrites) |
-| `onSchedule` (crons) | 24 | us-central1 |
+| `onSchedule` (crons) | ≈28 (repo-wide, at the audited snapshot) | us-central1 |
 | Firestore `onDocument*` | 12 | **africa-south1** |
 | Storage `onObjectFinalized` | 1 (`parseSyllabusUpload`) | **africa-south1** |
 | v1 Auth (`onCreate`/`onDelete`) | 2 | us-central1 |
