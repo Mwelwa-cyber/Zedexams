@@ -2562,6 +2562,14 @@ export default function AssessmentStudio({ variant = 'test' }) {
     changeView('builder')
   }
 
+  // HomeView's "Create with AI" entry points: land on a fresh blank paper
+  // (same reset as "Blank paper") then open the same Create-paper-with-AI
+  // modal the builder toolbar uses, so there's one AI paper flow, not two.
+  function openCreatePaperFromHome() {
+    startBlankPaper()
+    setCreatePaperOpen(true)
+  }
+
   /* ------------ render ------------ */
   // Edit mode: hold the builder behind a loader until the saved paper is
   // hydrated, and short-circuit to a clear message when it's missing or the
@@ -2629,7 +2637,7 @@ export default function AssessmentStudio({ variant = 'test' }) {
           eyebrow={cfg.eyebrow}
           onNewPaper={startBlankPaper}
           onOpenPaper={(paperId) => navigate(`${cfg.routeBase}/${paperId}/edit`)}
-          onAi={() => openSlide('ai')}
+          onCreateWithAi={openCreatePaperFromHome}
           onTemplate={() => setTemplateOpen(true)}
           onLibrary={() => navigate(cfg.routeBase)}
           questionCount={questionCount}

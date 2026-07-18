@@ -3,7 +3,7 @@ import Icon from './studioIcons'
 /* ==================================================================
  * HOME VIEW
  * ================================================================== */
-export function HomeView({ recentPapers, onNewPaper, onOpenPaper, onAi, onTemplate, onLibrary, eyebrow = 'Teacher-only · Test Paper Studio' }) {
+export function HomeView({ recentPapers, onNewPaper, onOpenPaper, onCreateWithAi, onTemplate, onLibrary, eyebrow = 'Teacher-only · Test Paper Studio' }) {
   const draftCount = recentPapers.filter(p => (p.importStatus || '') === 'needs_review' || !p.questionCount).length
   const totalQuestions = recentPapers.reduce((sum, p) => sum + (p.questionCount || 0), 0)
 
@@ -18,14 +18,14 @@ export function HomeView({ recentPapers, onNewPaper, onOpenPaper, onAi, onTempla
           <p>Composable blocks. Real A4 output. AI that drafts sections and writes marking keys — but never publishes to learners.</p>
           <div className="sv-welcome-cta">
             <button className="sv-btn sv-btn-cream" onClick={onTemplate}><Icon name="sections" size={15} /> Start from a template</button>
-            <button className="sv-btn sv-btn-ghost" onClick={onAi}><Icon name="ai" size={15} /> Generate with AI</button>
+            <button className="sv-btn sv-btn-ghost" onClick={onCreateWithAi}><Icon name="ai" size={15} /> Create with AI</button>
             <button className="sv-btn sv-btn-ghost" onClick={onNewPaper}><Icon name="scratch" size={15} /> Blank paper</button>
           </div>
         </div>
 
         <div className="sv-eyebrow">Quick actions</div>
 
-        <div className="sv-ai-strip" onClick={onAi}>
+        <div className="sv-ai-strip" onClick={onCreateWithAi}>
           <div className="sv-sparkle"><Icon name="ai" size={18} /></div>
           <div className="sv-ai-strip-text">
             <strong>Zed AI is ready to help</strong>
@@ -54,7 +54,7 @@ export function HomeView({ recentPapers, onNewPaper, onOpenPaper, onAi, onTempla
             </div>
             <div className="sv-empty-panel-cta">
               <button className="sv-btn sv-btn-primary sv-btn-sm" onClick={onTemplate}><Icon name="sections" size={14} /> Templates</button>
-              <button className="sv-btn sv-btn-outline sv-btn-sm" onClick={onAi}><Icon name="ai" size={14} /> Generate with AI</button>
+              <button className="sv-btn sv-btn-outline sv-btn-sm" onClick={onCreateWithAi}><Icon name="ai" size={14} /> Create with AI</button>
             </div>
           </div>
         ) : (

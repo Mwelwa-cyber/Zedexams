@@ -56,14 +56,14 @@ vi.mock('../../utils/imageCompression', () => ({ compressImage: vi.fn() }))
 // mounts. HomeView + BuilderView are *lightweight* stubs (not null): the edit
 // gate tests never render either (they return in the loading / error branch),
 // but the interaction tests below drive the real home→builder view wiring, so
-// these stubs surface the callbacks the studio passes down (onNewPaper / onAi)
-// as clickable buttons and mark which view is on screen.
+// these stubs surface the callbacks the studio passes down (onNewPaper /
+// onCreateWithAi) as clickable buttons and mark which view is on screen.
 vi.mock('./studio/AssessmentHomeView', () => ({
-  HomeView: ({ eyebrow, onNewPaper, onAi }) => (
+  HomeView: ({ eyebrow, onNewPaper, onCreateWithAi }) => (
     <div data-testid="home-view">
       <span data-testid="home-eyebrow">{eyebrow}</span>
       <button type="button" onClick={onNewPaper}>stub-new-paper</button>
-      <button type="button" onClick={onAi}>stub-home-ai</button>
+      <button type="button" onClick={onCreateWithAi}>stub-home-create-ai</button>
     </div>
   ),
 }))
@@ -109,7 +109,7 @@ vi.mock('../../utils/questionBankService', () => ({
 }))
 vi.mock('./studio/AssessmentBars', () => ({ TopBar: () => null, BottomBar: () => null }))
 vi.mock('./QuestionBankPanel', () => ({ default: () => null }))
-vi.mock('./CreatePaperModal', () => ({ default: () => null }))
+vi.mock('./CreatePaperModal', () => ({ default: () => <div data-testid="create-paper-modal">create-paper-modal</div> }))
 vi.mock('./DiagramFixupPanel', () => ({ default: () => null, countDiagramsNeeded: () => 0 }))
 vi.mock('./DiagramScanner', () => ({ default: () => null }))
 vi.mock('../quiz/QuizVerifyModal', () => ({ default: () => null }))
@@ -210,15 +210,18 @@ describe('AssessmentStudio — interaction', () => {
     expect(screen.queryByTestId('home-view')).not.toBeInTheDocument()
   })
 
-  it('home → AI slide-over: onAi opens the AI slide via openSlide', async () => {
+  it('home → Create with AI: opens the builder on the Create-paper-with-AI modal', async () => {
     renderStudioFresh('test')
-    expect(screen.queryByTestId('ai-slide')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('create-paper-modal')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'stub-home-ai' }))
+    fireEvent.click(screen.getByRole('button', { name: 'stub-home-create-ai' }))
 
-    await waitFor(() => expect(screen.getByTestId('ai-slide')).toBeInTheDocument())
-    // The AI slide is a slide-over, not a view switch — home stays mounted.
-    expect(screen.getByTestId('home-view')).toBeInTheDocument()
+    // openCreatePaperFromHome() does a full startBlankPaper() reset (→ builder
+    // view) AND opens CreatePaperModal — the same modal the builder toolbar's
+    // "Create with AI" button opens — instead of the old AI slide-over.
+    await waitFor(() => expect(screen.getByTestId('builder-view')).toBeInTheDocument())
+    expect(screen.getByTestId('create-paper-modal')).toBeInTheDocument()
+    expect(screen.queryByTestId('home-view')).not.toBeInTheDocument()
   })
 
   it('exam variant surfaces exam-flavoured eyebrow wording on the home view', () => {
