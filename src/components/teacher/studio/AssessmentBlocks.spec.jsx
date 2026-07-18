@@ -44,6 +44,13 @@ vi.mock('../AssessmentQuestionBlock', () => ({ QuestionBlock: () => null }))
 // firebase-free and deterministic.
 vi.mock('../syllabusTopicOptions', () => ({
   useStudioSubjectChoices: () => ({ options: ['English', 'Mathematics'], loading: false }),
+  useSyllabusSubjectOptions: () => ({
+    subjects: [
+      { key: 'english', label: 'English' },
+      { key: 'mathematics', label: 'Mathematics' },
+    ],
+    loading: false,
+  }),
   useSyllabusLevelOptions: () => ({
     levels: [
       { value: 'ECE_N', label: 'Nursery', group: 'Early Childhood' },

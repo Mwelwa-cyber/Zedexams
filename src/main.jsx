@@ -12,7 +12,8 @@ import { NotificationProvider } from './contexts/NotificationContext'
 import { initNativeShell } from './utils/nativeShell'
 import { initSentry } from './utils/sentry'
 import { initAnalytics, capture as captureAnalytics } from './utils/analytics'
-import { initClientErrorReporting } from './utils/clientErrorReporting'
+import { initClientErrorReporting, reportClientError } from './utils/clientErrorReporting'
+import { bootstrapCurriculumCatalogue } from './config/curriculumCatalogBootstrap'
 // Audit A7 — initialise the i18n runtime before <App /> mounts so the
 // detected language is in place for the first render. Side-effect
 // import; the singleton is consumed via useTranslation() in components.
@@ -50,6 +51,10 @@ initAnalytics()
 // signal even without a Sentry DSN" fallback. Rate-limited + deduped to
 // keep the analytics event stream usable.
 initClientErrorReporting(captureAnalytics)
+// Register the canonical curriculum catalogue's syllabi-backed topic provider +
+// diagnostics sink so every studio wired to useCurriculumSelection resolves
+// topics from one source and picker-resolution telemetry reaches observability.
+bootstrapCurriculumCatalogue({ capture: captureAnalytics, reportError: reportClientError })
 
 // Service worker registration moved to src/hooks/usePwaUpdate.js so the
 // "new version available" UX (audit A1.2) can wire registerSW's

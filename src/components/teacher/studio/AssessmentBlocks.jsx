@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { clampInt } from '../../../utils/inputs.js'
 import { toEditableText } from '../AssessmentQuestionEditors'
@@ -18,7 +18,7 @@ import {
   buildTitleFromForm,
 } from '../AssessmentStudio'
 import {
-  useStudioSubjectChoices, useSyllabusLevelOptions,
+  useStudioSubjectChoices, useSyllabusLevelOptions, useSyllabusSubjectOptions,
   normalizeStudioFramework, CURRICULUM_FRAMEWORKS,
 } from '../syllabusTopicOptions'
 import { LEVEL_STAGE_LABELS } from '../paperTaxonomy'
@@ -126,15 +126,44 @@ export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, a
   const { options: subjectChoices, loading: subjectsLoading } =
     useStudioSubjectChoices(form.grade, framework, form.subject)
   const noSubjects = !subjectsLoading && subjectChoices.length === 0
+  // The subjects genuinely on the syllabus for this grade + curriculum (NO
+  // saved-subject prepend) — the authority for whether the current subject is
+  // still valid after a grade/curriculum change.
+  const { subjects: validSubjectPairs, loading: validSubjectsLoading } =
+    useSyllabusSubjectOptions(form.grade, framework)
+  const validSubjectLabels = validSubjectPairs.map((s) => s.label)
   // Levels come STRICTLY from the Syllabi Studio for this curriculum — no
   // universal Grade 1–12 list. CBC and the previous syllabus each show only
   // their own levels, Forms stay Forms, in fixed educational order.
   const { levels: levelOptions, loading: levelsLoading } =
     useSyllabusLevelOptions(framework, form.grade)
   const noLevels = !levelsLoading && levelOptions.length === 0
+  // Only snap the subject on a change the TEACHER triggered — never silently
+  // rewrite a freshly-opened saved paper on mount (its saved subject stays
+  // selectable via useStudioSubjectChoices' prepend).
+  const selectionTouched = useRef(false)
   // Changing the level invalidates the free-text topic (it belongs to a
   // different syllabus page); the subject list re-scopes via the hooks above.
-  const changeGrade = (value) => { setF('grade', value); if (form.topic) setF('topic', '') }
+  const changeGrade = (value) => { selectionTouched.current = true; setF('grade', value); if (form.topic) setF('topic', '') }
+  const changeFramework = (value) => { selectionTouched.current = true; setF('framework', value) }
+  // After a teacher-triggered grade/curriculum change, drop a subject that is no
+  // longer valid for the new grade's syllabus and snap to the first valid one.
+  // Without this, a leftover subject (e.g. "Integrated Science" kept when the
+  // grade is switched to Nursery) stays selected, so the topic lookup runs
+  // against a subject the grade doesn't teach and shows "no syllabus topics on
+  // file" — the subject picker and topic picker disagreeing on the catalogue.
+  useEffect(() => {
+    if (!selectionTouched.current) return
+    if (validSubjectsLoading) return
+    if (validSubjectLabels.length === 0) return // fail-closed empty state → noSubjects UI
+    if (!validSubjectLabels.includes(form.subject)) {
+      setF('subject', validSubjectLabels[0])
+      if (form.topic) setF('topic', '')
+    }
+    selectionTouched.current = false
+    // validSubjectLabels is a fresh array each render; the selectionTouched flag
+    // (reset above) keeps this to a single snap per user change.
+  }, [validSubjectsLoading, validSubjectLabels, form.subject, form.topic, setF])
 
   return (
     <div className="sv-block b-header">
@@ -216,7 +245,7 @@ export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, a
 
       <div className="sv-field" style={{ marginBottom: 'var(--sv-s3)' }}>
         <label>Curriculum / syllabus</label>
-        <select value={framework} onChange={e => setF('framework', e.target.value)}>
+        <select value={framework} onChange={e => changeFramework(e.target.value)}>
           {CURRICULUM_FRAMEWORKS.map(f => (
             <option key={f.value} value={f.value}>{f.label}</option>
           ))}

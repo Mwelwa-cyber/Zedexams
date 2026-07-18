@@ -117,6 +117,29 @@ function useSyllabusLookup(framework = '2023') {
 }
 
 /**
+ * Non-hook resolvers for the canonical curriculum catalogue's topic provider
+ * (src/config/curriculumCatalog.js). Same merged-syllabi data the hooks use,
+ * exposed as plain async functions so the catalogue can serve topics/subtopics
+ * to any consumer (not just React). `gradeCode` is a KB grade code (ECE_N / G4),
+ * `subjectKey` a canonical subject slug (english / numeracy), `framework`
+ * '2023' | '2013'.
+ */
+export async function resolveSyllabusTopics(gradeCode, subjectKey, framework = '2023') {
+  const lookup = await (String(framework) === '2013' ? load2013Lookup() : loadLookup())
+  const key = `${String(gradeCode || '').toUpperCase()}|${String(subjectKey || '').toLowerCase()}`
+  const inner = lookup?.get(key)
+  return inner ? Array.from(inner.keys()).sort() : []
+}
+
+export async function resolveSyllabusSubtopics(gradeCode, subjectKey, topic, framework = '2023') {
+  const lookup = await (String(framework) === '2013' ? load2013Lookup() : loadLookup())
+  const key = `${String(gradeCode || '').toUpperCase()}|${String(subjectKey || '').toLowerCase()}`
+  const inner = lookup?.get(key)
+  const subs = inner?.get(String(topic || '').trim())
+  return subs ? Array.from(subs).sort() : []
+}
+
+/**
  * Hook: the subjects that actually have syllabus rows for a grade in the
  * chosen framework, as { key, label } pairs. This is what fixes "Grade 1 has
  * no syllabus" — lower-primary/ECE bundle their subjects under keys
