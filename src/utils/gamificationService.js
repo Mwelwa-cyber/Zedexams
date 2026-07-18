@@ -27,116 +27,25 @@
  */
 
 import {
-  collection, doc, getDoc, getDocs, setDoc, onSnapshot,
+  collection, doc, getDoc, getDocs, onSnapshot, runTransaction,
   query, where, orderBy, limit, serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { todayString } from './examService'
 import { getDailyLeaderboard } from './examLeaderboardService'
+// Pure XP/level/streak/completion logic lives in the dependency-free core so
+// it is unit-tested under plain node (scripts/test-gamification-core.mjs).
+import {
+  LEVELS, levelFromXp, STREAK_MILESTONES, xpForAttempt,
+  defaultStats, computeExamCompletion,
+} from './gamificationCore'
 
-// ── Levels ────────────────────────────────────────────────────────────────────
-
-// Cumulative XP thresholds. Title + icon used on every learner-facing surface.
-// Keep the table monotonically increasing — levelFromXp walks it once.
-export const LEVELS = [
-  { level: 1,  threshold: 0,    title: 'Beginner',   icon: '🌱' },
-  { level: 2,  threshold: 100,  title: 'Sprout',     icon: '🌿' },
-  { level: 3,  threshold: 250,  title: 'Learner',    icon: '📘' },
-  { level: 4,  threshold: 450,  title: 'Achiever',   icon: '🎯' },
-  { level: 5,  threshold: 700,  title: 'Explorer',   icon: '🧭' },
-  { level: 6,  threshold: 1000, title: 'Strategist', icon: '🧠' },
-  { level: 7,  threshold: 1400, title: 'Scholar',    icon: '📚' },
-  { level: 8,  threshold: 1900, title: 'Expert',     icon: '⚡' },
-  { level: 9,  threshold: 2500, title: 'Star',       icon: '⭐' },
-  { level: 10, threshold: 3200, title: 'Champion',   icon: '🏆' },
-  { level: 12, threshold: 4500, title: 'Hero',       icon: '🦸' },
-  { level: 15, threshold: 6500, title: 'Sage',       icon: '🦉' },
-  { level: 20, threshold: 10000, title: 'Master',    icon: '👑' },
-]
-
-export function levelFromXp(totalXp = 0) {
-  const xp = Math.max(0, Number(totalXp) || 0)
-  let curr = LEVELS[0]
-  let next = null
-  for (let i = 0; i < LEVELS.length; i++) {
-    if (LEVELS[i].threshold <= xp) curr = LEVELS[i]
-    if (LEVELS[i].threshold > xp) { next = LEVELS[i]; break }
-  }
-  const xpInLevel = xp - curr.threshold
-  const xpToNext = next ? next.threshold - curr.threshold : 0
-  const xpRemaining = next ? next.threshold - xp : 0
-  const progress = next && xpToNext > 0
-    ? Math.min(100, Math.round((xpInLevel / xpToNext) * 100))
-    : 100
-  return { ...curr, totalXp: xp, nextLevel: next, xpInLevel, xpToNext, xpRemaining, progress }
-}
-
-// ── Streaks ───────────────────────────────────────────────────────────────────
-
-export const STREAK_MILESTONES = [1, 3, 7, 14, 30, 60, 100]
-
-function streakMilestoneReached(prevStreak, newStreak) {
-  return STREAK_MILESTONES.find(m => prevStreak < m && newStreak >= m) ?? null
-}
-
-function computeStreakAfter(prevStreak, prevDate, todayKey) {
-  if (!prevDate) return 1
-  if (prevDate === todayKey) return prevStreak || 1   // same day: no change
-  // Was the previous activity yesterday? Then extend; else reset to 1.
-  const [y, m, d] = todayKey.split('-').map(Number)
-  const todayMs = Date.UTC(y, m - 1, d)
-  const ym = new Date(todayMs - 86400000)
-  const yKey = `${ym.getUTCFullYear()}-${String(ym.getUTCMonth() + 1).padStart(2, '0')}-${String(ym.getUTCDate()).padStart(2, '0')}`
-  if (prevDate === yKey) return (prevStreak || 0) + 1
-  return 1
-}
-
-// ── XP rules ──────────────────────────────────────────────────────────────────
-
-/**
- * Compute XP earned for a single submitted exam attempt.
- * Tuned so a daily learner who finishes one exam comfortably climbs ~50 XP/day
- * and a top-3 perfect-streak attempt can push 150+.
- */
-export function xpForAttempt({
-  percentage = 0,
-  rank = null,
-  streakAfter = 1,
-  personalBest = false,
-} = {}) {
-  let xp = 50 // base: completing a daily exam
-  if (percentage >= 90)      xp += 30
-  else if (percentage >= 75) xp += 20
-  else if (percentage >= 60) xp += 10
-  if (rank === 1)            xp += 50
-  else if (rank === 2)       xp += 30
-  else if (rank === 3)       xp += 20
-  else if (rank && rank <= 10) xp += 10
-  if (personalBest)          xp += 20
-  if (streakAfter >= 30)     xp += 30
-  else if (streakAfter >= 7) xp += 20
-  else if (streakAfter >= 3) xp += 10
-  return xp
-}
+// Re-exported for existing importers (levelFromXp, LEVELS, xpForAttempt, …).
+export { LEVELS, levelFromXp, STREAK_MILESTONES, xpForAttempt }
 
 // ── Stats doc ─────────────────────────────────────────────────────────────────
 
 const STATS_DOC = (uid) => doc(db, 'learnerStats', uid)
-
-function defaultStats() {
-  return {
-    xp: 0,
-    level: 1,
-    currentStreak: 0,
-    longestStreak: 0,
-    lastActivityDate: null,
-    bestPercentage: 0,
-    examsCompleted: 0,
-    subjectBests: {},
-    processedAttempts: [],
-    recentRanks: [],
-  }
-}
 
 export async function getLearnerStats(uid) {
   if (!uid) return defaultStats()
@@ -180,78 +89,42 @@ export function subscribeToLearnerStats(uid, onUpdate) {
 export async function recordExamCompletion({ userId, attempt, rank = null }) {
   if (!userId || !attempt?.id) return { ok: false, reason: 'bad_args' }
 
-  const prev = await getLearnerStats(userId)
-  if ((prev.processedAttempts || []).some(p => p.attemptId === attempt.id)) {
-    return { ok: true, deduped: true, stats: prev }
-  }
-
   const todayKey = attempt.attemptDate || todayString()
-  const percentage = Number(attempt.percentage) || 0
-  const subject    = attempt.subject || ''
+  const ref = STATS_DOC(userId)
 
-  const subjectBests = { ...(prev.subjectBests || {}) }
-  const existing = subjectBests[subject] || { bestPercentage: 0, attempts: 0 }
-  subjectBests[subject] = {
-    bestPercentage: Math.max(existing.bestPercentage || 0, percentage),
-    attempts: (existing.attempts || 0) + 1,
-    lastDate: todayKey,
-  }
-
-  const newStreak       = computeStreakAfter(prev.currentStreak, prev.lastActivityDate, todayKey)
-  const streakMilestone = streakMilestoneReached(prev.currentStreak, newStreak)
-  const isPersonalBest  = percentage > (prev.bestPercentage ?? 0)
-
-  const xpEarned = xpForAttempt({ percentage, rank, streakAfter: newStreak, personalBest: isPersonalBest })
-
-  const prevLevel = levelFromXp(prev.xp || 0)
-  const newXp     = (prev.xp || 0) + xpEarned
-  const newLevel  = levelFromXp(newXp)
-  const leveledUp = newLevel.level > prevLevel.level
-
-  const processedAttempts = [
-    ...(prev.processedAttempts || []),
-    { attemptId: attempt.id, xp: xpEarned, recordedAt: Date.now() },
-  ].slice(-30)
-
-  const recentRanks = [
-    ...(prev.recentRanks || []),
-    { attemptId: attempt.id, subject, rank: rank ?? null, percentage, date: todayKey },
-  ].slice(-20)
-
-  const next = {
-    userId,
-    xp: newXp,
-    level: newLevel.level,
-    currentStreak: newStreak,
-    longestStreak: Math.max(prev.longestStreak || 0, newStreak),
-    lastActivityDate: todayKey,
-    bestPercentage: Math.max(prev.bestPercentage || 0, percentage),
-    examsCompleted: (prev.examsCompleted || 0) + 1,
-    subjectBests,
-    processedAttempts,
-    recentRanks,
-    updatedAt: serverTimestamp(),
-  }
-
+  // The whole read-modify-write runs in a transaction: the previous read is
+  // the dedup check (processedAttempts) AND the base for the +xp/+streak/
+  // +examsCompleted maths. Without the transaction two concurrent completions
+  // of the same attempt both read the pre-write doc, both miss the dedup, and
+  // both add XP — double-counting. Firestore serialises transactions on the
+  // same doc, so the second re-reads the committed doc and dedups cleanly.
+  let outcome
   try {
-    await setDoc(STATS_DOC(userId), next, { merge: true })
+    outcome = await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref)
+      const prev = { ...defaultStats(), userId, ...(snap.exists() ? snap.data() : {}) }
+      const computed = computeExamCompletion(prev, {
+        attempt, rank, todayKey, nowMs: Date.now(),
+      })
+      if (computed.deduped) {
+        return { deduped: true, stats: computed.stats }
+      }
+      tx.set(ref, { ...computed.next, updatedAt: serverTimestamp() }, { merge: true })
+      return { deduped: false, stats: computed.next, envelope: computed.envelope }
+    })
   } catch (err) {
     console.warn('recordExamCompletion write failed', err)
     return { ok: false, reason: err?.code || 'write_failed' }
   }
 
+  if (outcome.deduped) {
+    return { ok: true, deduped: true, stats: outcome.stats }
+  }
+
   return {
     ok: true,
-    stats: next,
-    xpEarned,
-    leveledUp,
-    prevLevel,
-    newLevel,
-    isPersonalBest,
-    previousBestPercentage: prev.bestPercentage || 0,
-    streakBefore: prev.currentStreak || 0,
-    streakAfter: newStreak,
-    streakMilestone,
+    stats: outcome.stats,
+    ...outcome.envelope,
   }
 }
 

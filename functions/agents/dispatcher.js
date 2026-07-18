@@ -407,6 +407,20 @@ function createAgentJobsOnApproved(opsAlertSecrets = []) {
       // count against Pubo's circuit breaker).
       if (after.input && after.input.runType) return;
       if (after.seed === true) return;
+
+      // Eventarc delivers AT-LEAST-ONCE: a duplicate delivery of THIS SAME
+      // approved transition carries identical before/after and would sail past
+      // the state guards above and run Pubo a second time (re-publishing the
+      // generation, re-stamping approval, re-notifying). Claim the event id
+      // once so the body runs at most once per delivery. Fails open — the
+      // guard prevents double work, it must never drop a real approval.
+      const {claimEventOnce} = require("../idempotency");
+      const claim = await claimEventOnce(admin.firestore(), {
+        scope: "agentJobsOnApproved",
+        eventId: event.id,
+      });
+      if (!claim.claimed) return;
+
       const jobData = {id: jobId, ...after};
       const jobRef = admin.firestore().collection("agentJobs").doc(jobId);
 

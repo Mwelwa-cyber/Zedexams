@@ -90,13 +90,19 @@ export async function listAssignmentsForLearner(classIds, { limit = 60 } = {}) {
     .slice(0, limit)
 }
 
-export async function createClassAssignment({ classId, resourceType, resourceId, dueAt }) {
+export async function createClassAssignment({ classId, resourceType, resourceId, dueAt, idempotencyKey }) {
   const dueAtMs = dueAt instanceof Date ? dueAt.getTime() : (typeof dueAt === 'number' ? dueAt : null)
+  // A stable key lets a retry of the same assign resolve the same server-side
+  // doc instead of creating a duplicate; default to a fresh per-call key.
+  const key = (typeof idempotencyKey === 'string' && idempotencyKey)
+    ? idempotencyKey
+    : (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`)
   const result = await createClassAssignmentCallable({
     classId,
     resourceType,
     resourceId,
     dueAtMs,
+    idempotencyKey: `${key}`.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 128),
   })
   return result.data
 }
