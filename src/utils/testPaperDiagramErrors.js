@@ -1,5 +1,5 @@
 /**
- * Pure error-message mapping for the Test Paper Studio diagram tools.
+ * Pure error-message mapping for the Assessment Paper Studio diagram tools.
  *
  * Split out of testPaperDiagram.js (which imports firebase/functions and so
  * can't be unit-tested under plain `node`) following the repo's *Core split

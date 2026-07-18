@@ -3,7 +3,7 @@ import Icon from './studioIcons'
 /* ==================================================================
  * HOME VIEW
  * ================================================================== */
-export function HomeView({ recentPapers, onNewPaper, onOpenPaper, onCreateWithAi, onTemplate, onLibrary, eyebrow = 'Teacher-only · Test Paper Studio' }) {
+export function HomeView({ recentPapers, onNewPaper, onOpenPaper, onCreateWithAi, onTemplate, onLibrary, eyebrow = 'Teacher-only · Assessment Paper Studio' }) {
   const draftCount = recentPapers.filter(p => (p.importStatus || '') === 'needs_review' || !p.questionCount).length
   const totalQuestions = recentPapers.reduce((sum, p) => sum + (p.questionCount || 0), 0)
 

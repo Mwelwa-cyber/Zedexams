@@ -2439,9 +2439,12 @@ exports.generateSbaTask = createGenerateSbaTask(anthropicApiKey);
 exports.generateQuiz = createGenerateQuiz(anthropicApiKey);
 
 // The generateExamPaper callable was retired 2026-07: no frontend ever called
-// it — the Exam Studio generates through generateAssessment with
-// assessmentType 'mock_exam'. Legacy `tool:'exam_paper'` aiGenerations docs
-// still render in the library via src/utils/aiPaperToSections.js.
+// it — every assessment type, test AND examination, generates through the
+// one generateAssessment (Assessment Paper Studio; assessmentType is one of
+// topic_test/weekly_test/mid_term/end_of_term/mock_exam/examination/
+// final_exam — see functions/teacherTools/assessmentFormats.js). Legacy
+// `tool:'exam_paper'` aiGenerations docs still render in the library via
+// src/utils/aiPaperToSections.js.
 
 // Teacher Tools — Diagram Generator. All three styles (line-art, photoreal,
 // colour illustration) render via gpt-image-1: Recraft and Kie were both

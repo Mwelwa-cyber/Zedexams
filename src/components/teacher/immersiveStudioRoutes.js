@@ -10,10 +10,13 @@
  * dock plus the top-bar back button are the navigation surface there.
  *
  * This matches the studio (`.../new` and `.../:id/edit`) but NOT the plain list
- * route (`/teacher/test-papers`), which keeps the global nav.
+ * route (`/teacher/assessment-papers`), which keeps the global nav. Includes
+ * the legacy test-papers/exam-papers/assessments paths too — they redirect
+ * to the canonical route, but matching here avoids a one-frame nav flash
+ * before the redirect commits.
  */
 const IMMERSIVE_STUDIO_PATH =
-  /^\/teacher\/(test-papers|assessments|exam-papers)\/(new|[^/]+\/edit)\/?$/
+  /^\/teacher\/(assessment-papers|test-papers|assessments|exam-papers)\/(new|[^/]+\/edit)\/?$/
 
 export function isImmersiveStudioPath(pathname = '') {
   return IMMERSIVE_STUDIO_PATH.test(pathname)

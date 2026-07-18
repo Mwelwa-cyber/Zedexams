@@ -17,24 +17,7 @@ import { canonicalizeQuestionType } from '../editor/schema/question.js'
 import { normalizeSubParts, sumSubPartMarks } from './questionParts.js'
 import { hydrateTableData } from './tableData.js'
 import { orderPaperGroups } from './quizSections.js'
-
-export const ASSESSMENT_TYPE_LABELS = {
-  weekly: 'Weekly Test',
-  monthly: 'Monthly Test',
-  mid_term: 'Mid-term Test',
-  end_of_term: 'End-of-term Test',
-  topic: 'Topic Test',
-  mock: 'Mock Exam',
-  diagnostic: 'Diagnostic / Baseline',
-  pre_test: 'Pre-test',
-  post_test: 'Post-test',
-  revision: 'Revision Test',
-  continuous: 'Continuous Assessment',
-  summative: 'Summative Assessment',
-  practical: 'Practical Assessment',
-  oral: 'Oral Assessment',
-  project: 'Project-based Assessment',
-}
+import { assessmentTypeLabel } from '../components/teacher/paperTaxonomy.js'
 
 const GRADE_WORDS = {
   1: 'ONE', 2: 'TWO', 3: 'THREE', 4: 'FOUR', 5: 'FIVE', 6: 'SIX',
@@ -65,11 +48,18 @@ export function buildPaperTitle(assessment = {}) {
   const year = assessment.year ?? assessment.assessmentYear ?? (assessment.assessmentDate
     ? new Date(assessment.assessmentDate).getFullYear()
     : new Date().getFullYear())
-  let typeBit = (ASSESSMENT_TYPE_LABELS[type] || 'TEST').toUpperCase()
+  let typeBit = assessmentTypeLabel(type).toUpperCase()
   if (type === 'end_of_term' && term) typeBit = `END OF TERM ${term} TEST`
   else if (type === 'mid_term' && term) typeBit = `MID-TERM ${term} TEST`
-  else if (type === 'mock') typeBit = 'MOCK EXAMINATION'
-  else if (term) typeBit = `TERM ${term} ${typeBit}`
+  // Examination-category papers (mock_exam / examination / final_exam) cover
+  // the whole syllabus, not one term, so they never carry a term prefix —
+  // typeBit is already each type's own distinct wording (never flattened to
+  // "Mock Examination" for a plain Examination/Final Examination paper) —
+  // falling through to the generic term-prefixed branch below only for the
+  // remaining test types.
+  else if (type !== 'mock_exam' && type !== 'examination' && type !== 'final_exam' && term) {
+    typeBit = `TERM ${term} ${typeBit}`
+  }
   return `GRADE ${gradeWord} ${typeBit} - ${year}`
 }
 

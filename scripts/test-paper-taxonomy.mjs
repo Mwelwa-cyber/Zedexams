@@ -1,17 +1,22 @@
-// Unit tests for the "Create paper with AI" taxonomy helpers
+// Unit tests for the Assessment Paper Studio taxonomy helpers
 // (src/components/teacher/paperTaxonomy.js). Run with `node`.
 //
 // Guards the regressions behind the reported bugs:
 //   - lower-primary / ECE subjects must resolve to the keys the syllabus
 //     actually stores them under (numeracy, zambian_language, …),
 //   - ECE Nursery/Reception must be selectable grades,
-//   - topic caps must scale by test type (cumulative tests cover many),
-//   - the Test Paper Studio exposes exactly four test types
-//     (topic / weekly / mid-term / end-of-term).
+//   - topic caps must scale by assessment type (cumulative tests cover many),
+//   - the Assessment Paper Studio exposes exactly 7 assessment types
+//     (4 tests + 3 examinations) from ONE canonical registry, and every one
+//     of them — including every examination type — reaches downstream
+//     consumers UNCHANGED (the "Examination silently becomes Mock
+//     Examination" bug).
 
 import assert from 'node:assert'
 import {
-  PAPER_TYPES, EXAM_PAPER_TYPES, isExamPaperType,
+  ASSESSMENT_TYPES, ASSESSMENT_TYPE_VALUES, TEST_ASSESSMENT_TYPES,
+  EXAMINATION_ASSESSMENT_TYPES, isExaminationType, isExamPaperType,
+  normalizeAssessmentType, assessmentCategory, assessmentTypeLabel,
   PAPER_GRADE_OPTIONS, paperGradeOptions, isPaperGrade, normalizePaperGrade,
   maxTopicsFor, isCumulativeType, subjectLabel, toKbSubjectKey,
   studioGradeToKbGrade, FALLBACK_SUBJECT_KEYS,
@@ -126,16 +131,58 @@ eq(normalizePaperGrade('Form 2'), 'G9', 'form label → G-code')
 eq(normalizePaperGrade('ECE_N'), 'ECE_N', 'ECE band passes through')
 eq(normalizePaperGrade(''), '', 'empty → empty')
 
-// ── Test types ───────────────────────────────────────────────────────────
-// The studio exposes exactly four types, in increasing scope.
-const typeValues = PAPER_TYPES.map((t) => t.value)
-eq(typeValues.length, 4, 'exactly four test types')
-ok(!typeValues.includes('exercise'), 'exercise removed from AI paper UI')
-ok(!typeValues.includes('monthly_test') && !typeValues.includes('mock_exam'),
-  'monthly_test + mock_exam removed from the studio')
-ok(typeValues.includes('topic_test') && typeValues.includes('weekly_test') &&
-  typeValues.includes('mid_term') && typeValues.includes('end_of_term'),
-  'topic / weekly / mid-term / end-of-term present')
+// ── Canonical assessment-type registry ───────────────────────────────────
+// ONE registry, 7 types: 4 tests + 3 examinations. The picker groups them,
+// but they all live in the same studio and the same registry.
+eq(ASSESSMENT_TYPE_VALUES.length, 7, 'exactly 7 canonical assessment types')
+eq(TEST_ASSESSMENT_TYPES.length, 4, 'exactly 4 test types')
+eq(EXAMINATION_ASSESSMENT_TYPES.length, 3, 'exactly 3 examination types')
+ok(TEST_ASSESSMENT_TYPES.includes('topic_test') && TEST_ASSESSMENT_TYPES.includes('weekly_test') &&
+  TEST_ASSESSMENT_TYPES.includes('mid_term') && TEST_ASSESSMENT_TYPES.includes('end_of_term'),
+  'topic / weekly / mid-term / end-of-term present as test types')
+ok(EXAMINATION_ASSESSMENT_TYPES.includes('mock_exam') &&
+  EXAMINATION_ASSESSMENT_TYPES.includes('examination') &&
+  EXAMINATION_ASSESSMENT_TYPES.includes('final_exam'),
+  'mock_exam / examination / final_exam present as examination types')
+for (const t of TEST_ASSESSMENT_TYPES) eq(ASSESSMENT_TYPES[t].category, 'test', `${t} is category=test`)
+for (const t of EXAMINATION_ASSESSMENT_TYPES) {
+  eq(ASSESSMENT_TYPES[t].category, 'examination', `${t} is category=examination`)
+}
+
+// Regression: 'examination' and 'final_exam' must NEVER be silently
+// collapsed to 'mock_exam' — normalizeAssessmentType is idempotent on every
+// canonical value, and every canonical value keeps its own distinct label.
+for (const t of ASSESSMENT_TYPE_VALUES) {
+  eq(normalizeAssessmentType(t), t, `normalizeAssessmentType is a no-op on canonical value ${t}`)
+}
+ok(assessmentTypeLabel('examination') !== assessmentTypeLabel('mock_exam'),
+  'Examination keeps its own label, distinct from Mock Examination')
+ok(assessmentTypeLabel('final_exam') !== assessmentTypeLabel('mock_exam'),
+  'Final Examination keeps its own label, distinct from Mock Examination')
+eq(assessmentTypeLabel('examination'), 'Examination', 'examination label')
+eq(assessmentTypeLabel('final_exam'), 'Final Examination', 'final_exam label')
+eq(assessmentTypeLabel('mock_exam'), 'Mock Examination', 'mock_exam label')
+
+// isExaminationType (and its back-compat alias isExamPaperType) recognise
+// every examination-category type — canonical AND legacy — while every test
+// type stays false.
+for (const t of EXAMINATION_ASSESSMENT_TYPES) {
+  ok(isExaminationType(t) && isExamPaperType(t), `${t} recognised as an examination type`)
+}
+ok(!isExaminationType('end_of_term') && !isExaminationType('topic_test') && !isExaminationType(''),
+  'test types + empty are not examination types')
+
+// Legacy/route-scoped values fold onto the nearest canonical type — read-only
+// normalization, not a destructive rewrite of what's actually stored.
+eq(normalizeAssessmentType('topic'), 'topic_test', 'legacy "topic" → topic_test')
+eq(normalizeAssessmentType('weekly'), 'weekly_test', 'legacy "weekly" → weekly_test')
+eq(normalizeAssessmentType('mock'), 'mock_exam', 'legacy "mock" → mock_exam')
+eq(normalizeAssessmentType('exam'), 'examination', 'legacy "exam" → examination')
+eq(normalizeAssessmentType('monthly'), 'mid_term', 'legacy "monthly" → mid_term')
+eq(normalizeAssessmentType('nonsense'), 'topic_test', 'unrecognised value → safe default (topic_test)')
+eq(normalizeAssessmentType(''), 'topic_test', 'empty → safe default (topic_test)')
+eq(assessmentCategory('mock'), 'examination', 'legacy "mock" categorised as examination')
+eq(assessmentCategory('topic'), 'test', 'legacy "topic" categorised as test')
 
 // ── Topic caps scale by type ─────────────────────────────────────────────
 eq(maxTopicsFor('topic_test'), 3, 'topic test narrow')
@@ -145,49 +192,30 @@ ok(maxTopicsFor('end_of_term') >= maxTopicsFor('mid_term'), 'end of term ≥ mid
 ok(maxTopicsFor('end_of_term') >= 10, 'end of term covers many topics')
 eq(maxTopicsFor('unknown_type'), 3, 'unknown type → safe default')
 
-// Cumulative types expose the "Add all topics" affordance.
-ok(isCumulativeType('end_of_term') && isCumulativeType('mid_term'), 'cumulative types')
+// Cumulative types expose the "Add all topics" affordance. Every examination
+// type covers the whole syllabus, so every one is cumulative with a large cap.
+ok(isCumulativeType('end_of_term') && isCumulativeType('mid_term'), 'cumulative test types')
 ok(!isCumulativeType('topic_test') && !isCumulativeType('weekly_test'),
   'narrow types are not cumulative')
-
-// ── Exam paper types ─────────────────────────────────────────────────────
-// The Exam Studio offers exactly the three exam-grade papers, in increasing
-// formality, and every one is cumulative at full exam standard.
-const examTypeValues = EXAM_PAPER_TYPES.map((t) => t.value)
-eq(examTypeValues.length, 3, 'exactly three exam types')
-ok(examTypeValues.includes('mock') && examTypeValues.includes('examination') &&
-  examTypeValues.includes('exam'), 'mock / examination / exam present')
-// Exam types are recognised, the four test types are not exam types.
-ok(isExamPaperType('mock') && isExamPaperType('examination') && isExamPaperType('exam'),
-  'exam types recognised')
-ok(!isExamPaperType('end_of_term') && !isExamPaperType('topic_test') && !isExamPaperType(''),
-  'test types + empty are not exam types')
-// Exam papers cover the whole syllabus — every exam type is cumulative with a
-// large topic cap so "Select all topics" appears.
-for (const t of examTypeValues) {
+for (const t of EXAMINATION_ASSESSMENT_TYPES) {
   ok(maxTopicsFor(t) >= 10, `${t} covers many topics`)
   ok(isCumulativeType(t), `${t} is cumulative`)
 }
 
 // ── Assessment editor routing ────────────────────────────────────────────
-// Regression for the "Test paper not found" bug: every assessment (test paper
-// AND exam paper) lives in the `assessments` collection, but the editor is
-// split across two routes by paper type. A continue card / list row that links
-// an assessment to the wrong base (or sources it from the `quizzes` collection
-// entirely) lands on a studio that reports the paper missing. The edit path
-// must follow the type.
-eq(assessmentRouteBase('topic_test'), '/teacher/test-papers', 'test type → test-papers base')
-eq(assessmentRouteBase('end_of_term'), '/teacher/test-papers', 'end-of-term → test-papers base')
-eq(assessmentRouteBase('mock'), '/teacher/exam-papers', 'mock → exam-papers base')
-eq(assessmentRouteBase('exam'), '/teacher/exam-papers', 'exam → exam-papers base')
-eq(assessmentRouteBase(undefined), '/teacher/test-papers', 'missing type → test-papers base')
+// Regression for the "Test paper not found" bug: every assessment (test AND
+// examination) lives in the `assessments` collection and is edited at ONE
+// canonical route — no more type-based route branching to get wrong.
+for (const t of [...TEST_ASSESSMENT_TYPES, ...EXAMINATION_ASSESSMENT_TYPES, 'mock', undefined]) {
+  eq(assessmentRouteBase(t), '/teacher/assessment-papers', `${t} → canonical assessment-papers base`)
+}
 
 eq(assessmentEditPath({ id: 'abc123', assessmentType: 'topic_test' }),
-  '/teacher/test-papers/abc123/edit', 'test paper edit path')
-eq(assessmentEditPath({ id: 'abc123', assessmentType: 'mock' }),
-  '/teacher/exam-papers/abc123/edit', 'exam paper edit path')
+  '/teacher/assessment-papers/abc123/edit', 'test paper edit path')
+eq(assessmentEditPath({ id: 'abc123', assessmentType: 'examination' }),
+  '/teacher/assessment-papers/abc123/edit', 'examination paper edit path (same route as a test)')
 eq(assessmentEditPath({ id: 'xyz', assessmentType: undefined }),
-  '/teacher/test-papers/xyz/edit', 'untyped paper defaults to test-papers')
+  '/teacher/assessment-papers/xyz/edit', 'untyped paper still resolves to the canonical route')
 eq(assessmentEditPath({ assessmentType: 'topic_test' }), null, 'no id → null (no broken link)')
 eq(assessmentEditPath(null), null, 'null assessment → null')
 

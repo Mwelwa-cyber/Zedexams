@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { useAuth, hasAuthSessionHint } from './contexts/AuthContext'
 import { useTheme, applyThemeToBody, DEFAULT_THEME } from './contexts/ThemeContext'
 import { PlatformSettingsProvider } from './contexts/PlatformSettingsContext'
@@ -347,6 +347,20 @@ function TeacherRoute({ children }) {
   )
 }
 
+// Legacy /teacher/test-papers, /teacher/exam-papers and /teacher/assessments
+// paths redirect to the canonical /teacher/assessment-papers route family —
+// same paper id, same query string (e.g. ?view=builder), so a bookmark, a
+// dashboard deep-link or a saved notification link keeps landing on the
+// exact same paper it always did. `suffix` is '/new', '/edit' or ''.
+function LegacyAssessmentPaperRedirect({ suffix = '' }) {
+  const { paperId } = useParams()
+  const { search } = useLocation()
+  const target = paperId
+    ? `/teacher/assessment-papers/${paperId}${suffix}${search}`
+    : `/teacher/assessment-papers${suffix}${search}`
+  return <Navigate to={target} replace />
+}
+
 // Parent portal gate. The role levels in ProtectedRoute can't distinguish a
 // parent from a learner (both sit at level 1), so this checks the role
 // explicitly: only a parent (or an admin, for support) reaches the family
@@ -641,27 +655,30 @@ export default function App() {
           {/* Post-upgrade celebration page — full-bleed, outside TeacherLayout chrome */}
           <Route path="/teacher/welcome-to-pro"          element={<ProtectedRoute requiredRole="teacher"><WelcomeToPro /></ProtectedRoute>} />
           <Route path="/teacher"                         element={<TeacherRoute><TeacherDashboard /></TeacherRoute>} />
-          {/* Test Paper Studio — teacher-only, private. Replaces the old
-              teacher-side quiz creator and `/teacher/content` workflow.
-              Both create and edit run through the same studio so a saved paper
-              reopens in the full, type-complete builder. */}
-          {/* Test Paper / Assessment studio — Free sees a sample (StudioGate). */}
-          <Route path="/teacher/test-papers"                          element={<TeacherRoute><StudioGate tool="assessment"><AssessmentList /></StudioGate></TeacherRoute>} />
-          <Route path="/teacher/test-papers/new"                      element={<TeacherRoute><StudioGate tool="assessment"><AssessmentStudio /></StudioGate></TeacherRoute>} />
-          <Route path="/teacher/test-papers/:paperId/edit"            element={<TeacherRoute><StudioGate tool="assessment"><AssessmentStudio /></StudioGate></TeacherRoute>} />
-          {/* Legacy /teacher/assessments/* paths — kept as functional aliases
-              so existing bookmarks and saved links keep resolving after the
-              rename to the Test Paper Studio. */}
-          <Route path="/teacher/assessments"                          element={<TeacherRoute><StudioGate tool="assessment"><AssessmentList /></StudioGate></TeacherRoute>} />
-          <Route path="/teacher/assessments/new"                      element={<TeacherRoute><StudioGate tool="assessment"><AssessmentStudio /></StudioGate></TeacherRoute>} />
-          <Route path="/teacher/assessments/:paperId/edit"            element={<TeacherRoute><StudioGate tool="assessment"><AssessmentStudio /></StudioGate></TeacherRoute>} />
-          {/* Exam Studio — the same block-based builder as the Test Paper
-              Studio, locked to exam standard (mock / examination / exam).
-              Gated on the same `assessment` quota since it generates through
-              the assessment pipeline. */}
-          <Route path="/teacher/exam-papers"                          element={<TeacherRoute><StudioGate tool="assessment"><AssessmentList variant="exam" /></StudioGate></TeacherRoute>} />
-          <Route path="/teacher/exam-papers/new"                      element={<TeacherRoute><StudioGate tool="assessment"><AssessmentStudio variant="exam" /></StudioGate></TeacherRoute>} />
-          <Route path="/teacher/exam-papers/:paperId/edit"            element={<TeacherRoute><StudioGate tool="assessment"><AssessmentStudio variant="exam" /></StudioGate></TeacherRoute>} />
+          {/* Assessment Paper Studio — teacher-only, private. One studio for
+              every assessment type: topic/weekly/mid-term/end-of-term tests
+              AND mock/examination/final examinations — which type a paper is
+              comes from its own assessmentType, never from the route used to
+              open it. Both create and edit run through the same studio so a
+              saved paper reopens in the full, type-complete builder.
+              Free sees a sample (StudioGate). */}
+          <Route path="/teacher/assessment-papers"                    element={<TeacherRoute><StudioGate tool="assessment"><AssessmentList /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/assessment-papers/new"                element={<TeacherRoute><StudioGate tool="assessment"><AssessmentStudio /></StudioGate></TeacherRoute>} />
+          <Route path="/teacher/assessment-papers/:paperId/edit"      element={<TeacherRoute><StudioGate tool="assessment"><AssessmentStudio /></StudioGate></TeacherRoute>} />
+          {/* Legacy Test Paper Studio / Exam Studio / pre-rename Assessment
+              paths — the two studios were merged into one Assessment Paper
+              Studio (paper id + query string preserved); kept as redirects so
+              old bookmarks, dashboard deep-links and saved notification
+              links keep resolving. */}
+          <Route path="/teacher/test-papers"                          element={<TeacherRoute><LegacyAssessmentPaperRedirect /></TeacherRoute>} />
+          <Route path="/teacher/test-papers/new"                      element={<TeacherRoute><LegacyAssessmentPaperRedirect suffix="/new" /></TeacherRoute>} />
+          <Route path="/teacher/test-papers/:paperId/edit"            element={<TeacherRoute><LegacyAssessmentPaperRedirect suffix="/edit" /></TeacherRoute>} />
+          <Route path="/teacher/exam-papers"                          element={<TeacherRoute><LegacyAssessmentPaperRedirect /></TeacherRoute>} />
+          <Route path="/teacher/exam-papers/new"                      element={<TeacherRoute><LegacyAssessmentPaperRedirect suffix="/new" /></TeacherRoute>} />
+          <Route path="/teacher/exam-papers/:paperId/edit"            element={<TeacherRoute><LegacyAssessmentPaperRedirect suffix="/edit" /></TeacherRoute>} />
+          <Route path="/teacher/assessments"                          element={<TeacherRoute><LegacyAssessmentPaperRedirect /></TeacherRoute>} />
+          <Route path="/teacher/assessments/new"                      element={<TeacherRoute><LegacyAssessmentPaperRedirect suffix="/new" /></TeacherRoute>} />
+          <Route path="/teacher/assessments/:paperId/edit"            element={<TeacherRoute><LegacyAssessmentPaperRedirect suffix="/edit" /></TeacherRoute>} />
           <Route path="/teacher/lessons"                 element={<TeacherRoute><LessonDashboard /></TeacherRoute>} />
           <Route path="/teacher/lessons/new"             element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
           <Route path="/teacher/lessons/:lessonId/edit"  element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
@@ -669,10 +686,10 @@ export default function App() {
           <Route path="/teacher/generate/lesson-plan"    element={<ProtectedRoute requiredRole="teacher"><LessonPlanStudio /></ProtectedRoute>} />
           {/* All other generator studios are Pro/Max — Free sees a read-only sample. */}
           <Route path="/teacher/generate/homework"       element={<TeacherRoute><StudioGate tool="homework"><HomeworkStudio /></StudioGate></TeacherRoute>} />
-          {/* The Exam Studio was upgraded to the block-based paper builder
-              (now at /teacher/exam-papers). Keep the old generator path as a
+          {/* The old exam generator was upgraded to the block-based
+              Assessment Paper Studio. Keep the old generator path as a
               redirect so saved links and bookmarks still land in the studio. */}
-          <Route path="/teacher/generate/exam-paper"     element={<Navigate to="/teacher/exam-papers" replace />} />
+          <Route path="/teacher/generate/exam-paper"     element={<Navigate to="/teacher/assessment-papers" replace />} />
           <Route path="/teacher/generate/worksheet"      element={<TeacherRoute><StudioGate tool="worksheet"><WorksheetGenerator /></StudioGate></TeacherRoute>} />
           <Route path="/teacher/generate/flashcards"     element={<TeacherRoute><StudioGate tool="flashcards"><FlashcardGenerator /></StudioGate></TeacherRoute>} />
           <Route path="/teacher/generate/scheme-of-work" element={<TeacherRoute><StudioGate tool="scheme_of_work"><SchemeOfWorkGenerator /></StudioGate></TeacherRoute>} />

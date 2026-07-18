@@ -1,6 +1,8 @@
 /**
  * Behaviour tests for AssessmentStudio.jsx — the (largest) teacher paper
- * builder that backs both the Test Paper Studio and the Exam Studio.
+ * builder for the Assessment Paper Studio (every assessment type — tests
+ * AND examinations — is authored from this one studio; there's no
+ * route-level variant any more).
  *
  * The full builder mounts an enormous view tree, so these focus on the
  * edit-mode gate that returns *before* that tree — and, most importantly,
@@ -134,7 +136,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
 import AssessmentStudio from './AssessmentStudio'
 
 function renderStudio() {
-  return render(<MemoryRouter><AssessmentStudio variant="test" /></MemoryRouter>)
+  return render(<MemoryRouter><AssessmentStudio /></MemoryRouter>)
 }
 
 beforeEach(() => {
@@ -175,12 +177,13 @@ describe('AssessmentStudio — edit gate', () => {
  * child views (HomeView / BuilderView / TopBar / BottomBar) and slide-overs, so
  * the genuinely testable interactions are the ones AssessmentStudio owns
  * itself: the home→builder view switch it wires through `changeView`, the AI
- * slide-over it opens through `openSlide`, and the variant-driven wording it
- * emits directly in its OWN markup (the edit-gate error screen). Everything
- * that lives *inside* a stubbed child is deliberately out of scope here.
+ * slide-over it opens through `openSlide`, and the static Assessment Paper
+ * Studio wording it emits directly in its OWN markup (the edit-gate error
+ * screen). Everything that lives *inside* a stubbed child is deliberately
+ * out of scope here.
  */
-function renderStudioFresh(variant = 'test') {
-  return render(<MemoryRouter><AssessmentStudio variant={variant} /></MemoryRouter>)
+function renderStudioFresh() {
+  return render(<MemoryRouter><AssessmentStudio /></MemoryRouter>)
 }
 
 describe('AssessmentStudio — interaction', () => {
@@ -190,16 +193,15 @@ describe('AssessmentStudio — interaction', () => {
     mockParams = {}
   })
 
-  it('renders the home view fresh (no paperId) with the variant eyebrow', () => {
-    renderStudioFresh('test')
+  it('renders the home view fresh (no paperId) with the studio eyebrow', () => {
+    renderStudioFresh()
     expect(screen.getByTestId('home-view')).toBeInTheDocument()
     expect(screen.queryByTestId('builder-view')).not.toBeInTheDocument()
-    // cfg.eyebrow for the test variant is passed straight into HomeView.
-    expect(screen.getByTestId('home-eyebrow')).toHaveTextContent('Test Paper Studio')
+    expect(screen.getByTestId('home-eyebrow')).toHaveTextContent('Assessment Paper Studio')
   })
 
   it('home → builder: "New paper" switches the studio view to the builder', async () => {
-    renderStudioFresh('test')
+    renderStudioFresh()
     expect(screen.getByTestId('home-view')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'stub-new-paper' }))
@@ -211,7 +213,7 @@ describe('AssessmentStudio — interaction', () => {
   })
 
   it('home → Create with AI: opens the builder on the Create-paper-with-AI modal', async () => {
-    renderStudioFresh('test')
+    renderStudioFresh()
     expect(screen.queryByTestId('create-paper-modal')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'stub-home-create-ai' }))
@@ -223,43 +225,30 @@ describe('AssessmentStudio — interaction', () => {
     expect(screen.getByTestId('create-paper-modal')).toBeInTheDocument()
     expect(screen.queryByTestId('home-view')).not.toBeInTheDocument()
   })
-
-  it('exam variant surfaces exam-flavoured eyebrow wording on the home view', () => {
-    renderStudioFresh('exam')
-    expect(screen.getByTestId('home-eyebrow')).toHaveTextContent('Exam Studio')
-  })
 })
 
-describe('AssessmentStudio — variant wording (edit gate)', () => {
-  // The edit-gate error screen is markup AssessmentStudio emits itself, so it's
-  // the cleanest place to prove getStudioVariant(...) drives the copy. `test`
-  // and `exam` must produce distinct noun wording for the same failure.
-  it('test variant renders "Test paper not found" + test-paper back link', async () => {
+describe('AssessmentStudio — edit gate copy', () => {
+  // The edit-gate error screen is markup AssessmentStudio emits itself. There
+  // is no more route-level variant — every assessment type shares the same
+  // "assessment paper" wording regardless of whether the saved doc is a test
+  // or an examination.
+  it('renders "Assessment paper not found" + assessment-papers back link', async () => {
     mockParams = { paperId: 'missing' }
     mockGetAssessmentById.mockResolvedValue(null)
-    render(<MemoryRouter><AssessmentStudio variant="test" /></MemoryRouter>)
-    expect(await screen.findByText('Test paper not found')).toBeInTheDocument()
-    expect(screen.getByText(/Back to test papers/)).toBeInTheDocument()
-    expect(screen.queryByText('Exam paper not found')).not.toBeInTheDocument()
+    render(<MemoryRouter><AssessmentStudio /></MemoryRouter>)
+    expect(await screen.findByText('Assessment paper not found')).toBeInTheDocument()
+    expect(screen.getByText(/Back to assessment papers/)).toBeInTheDocument()
   })
 
-  it('exam variant renders "Exam paper not found" + exam-paper back link', async () => {
-    mockParams = { paperId: 'missing' }
-    mockGetAssessmentById.mockResolvedValue(null)
-    render(<MemoryRouter><AssessmentStudio variant="exam" /></MemoryRouter>)
-    expect(await screen.findByText('Exam paper not found')).toBeInTheDocument()
-    expect(screen.getByText(/Back to exam papers/)).toBeInTheDocument()
-  })
-
-  it('exam variant "access denied" copy names exam papers, not test papers', async () => {
+  it('"access denied" copy names assessment papers for any owner mismatch, test or examination', async () => {
     mockParams = { paperId: 'paper-1' }
     mockAuth = { currentUser: { uid: 'intruder' }, userProfile: { id: 'intruder' }, isAdmin: false }
     mockGetAssessmentById.mockResolvedValue({
-      id: 'paper-1', title: 'Confidential', createdBy: 'owner-1',
+      id: 'paper-1', title: 'Confidential', createdBy: 'owner-1', assessmentType: 'examination',
     })
-    render(<MemoryRouter><AssessmentStudio variant="exam" /></MemoryRouter>)
+    render(<MemoryRouter><AssessmentStudio /></MemoryRouter>)
     expect(await screen.findByText('Access denied')).toBeInTheDocument()
-    expect(screen.getByText(/You can only edit exam papers you created\./)).toBeInTheDocument()
+    expect(screen.getByText(/You can only edit assessment papers you created\./)).toBeInTheDocument()
   })
 })
 

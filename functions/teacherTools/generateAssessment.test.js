@@ -239,6 +239,28 @@ async function caught(promise) {
   ok("invalid input never reaches the usage meter", calls.meter.length === 0);
   ok("invalid input writes no aiGenerations doc", Object.keys(genDocs).length === 0);
 
+  // Defensive validation (the fix for the "Examination silently generates as
+  // Mock Examination" bug): an unrecognised assessmentType must be REJECTED,
+  // never silently coerced to a different type.
+  reset();
+  const eBadType = await caught(runAssessment({
+    uid: "t1", rawInputs: {...INPUTS, assessmentType: "not_a_real_type"}, apiKey: "k",
+  }));
+  ok("unsupported assessmentType throws invalid-argument",
+    eBadType instanceof HttpsError && eBadType.code === "invalid-argument");
+  ok("the rejection names the bad value", String(eBadType.message).includes("not_a_real_type"));
+  ok("an unsupported assessmentType never reaches the usage meter", calls.meter.length === 0);
+
+  // Regression: every examination-category type must reach the saved
+  // aiGenerations doc UNCHANGED — none of them collapse to 'mock_exam'.
+  for (const type of ["mock_exam", "examination", "final_exam"]) {
+    reset();
+    claudeImpl = async () => validPaper();
+    await runAssessment({uid: "t1", rawInputs: {...INPUTS, assessmentType: type}, apiKey: "k"});
+    ok(`assessmentType "${type}" is persisted unchanged`,
+      genDocs.gen_1 && genDocs.gen_1.inputs.assessmentType === type);
+  }
+
   console.log("\nrunAssessment — AI failure → failed + refund + rethrow");
   reset();
   claudeImpl = async () => {

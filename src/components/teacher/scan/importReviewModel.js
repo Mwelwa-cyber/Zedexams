@@ -1,6 +1,6 @@
 /**
- * importReviewModel — pure logic behind the Test Paper Studio photo-import
- * review screen.
+ * importReviewModel — pure logic behind the Assessment Paper Studio
+ * photo-import review screen.
  *
  * After a scanned/photographed paper is OCR'd into studio `sections`, the review
  * screen shows the teacher what was reconstructed, grouped by source page, with

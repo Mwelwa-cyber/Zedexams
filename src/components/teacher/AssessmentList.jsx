@@ -11,8 +11,8 @@ import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
 import { useToast } from '../ui/Toast'
 import ConfirmDialog from '../ui/ConfirmDialog'
-import { getStudioVariant, isExamPaperType } from './studioVariant'
 import { ASSESSMENT_TYPE_LABELS } from './assessmentStudioMeta'
+import { assessmentCategory } from './paperTaxonomy'
 
 function formatDate(ts) {
   if (!ts) return '—'
@@ -133,21 +133,40 @@ function AssessmentRow({ assessment, onDelete, onExport, busy, routeBase, fallba
   )
 }
 
-export default function AssessmentList({ variant = 'test' }) {
+// Static studio identity, shared with AssessmentStudio.jsx — one unified
+// library shows every assessment paper (tests AND examinations) from the one
+// `assessments` collection; the category filter below narrows the VIEW, it
+// never scopes the query into two disjoint libraries.
+const STUDIO_COPY = {
+  studioName: 'Assessment Paper Studio',
+  heroTitle: 'My assessment papers',
+  routeBase: '/teacher/assessment-papers',
+  noun: 'assessment paper',
+  nounPlural: 'assessment papers',
+  Noun: 'Assessment paper',
+  NounPlural: 'Assessment papers',
+}
+
+const CATEGORY_FILTERS = [
+  { value: 'all', label: 'All' },
+  { value: 'test', label: 'Tests' },
+  { value: 'examination', label: 'Examinations' },
+]
+
+export default function AssessmentList() {
   const { currentUser, userProfile, isAdmin } = useAuth()
   const { getMyAssessments, getAssessmentQuestions, deleteAssessment } = useFirestore()
   const navigate = useNavigate()
   const toast = useToast()
-  // Shared library backs both the Test Paper Studio and the Exam Studio; `cfg`
-  // carries the route base + wording, and we filter the one collection so each
-  // studio's library only lists its own papers.
-  const cfg = getStudioVariant(variant)
-  const isExamStudio = cfg.key === 'exam'
+  const cfg = STUDIO_COPY
 
   const [assessments, setAssessments] = useState([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState(null)
   const [error, setError] = useState('')
+  // Test vs Examination — narrows the view, never the underlying query (both
+  // categories live in the same `assessments` collection).
+  const [categoryFilter, setCategoryFilter] = useState('all')
   // Phase 8: teacher-side counterpart to ManageContent's filter chip — drops
   // the list to imports the parser flagged for review. Off by default so
   // a teacher landing here still sees everything.
@@ -162,10 +181,7 @@ export default function AssessmentList({ variant = 'test' }) {
       setLoading(true)
       try {
         const items = await getMyAssessments(currentUser.uid)
-        const scoped = (Array.isArray(items) ? items : []).filter(
-          a => isExamPaperType(a.assessmentType) === isExamStudio,
-        )
-        if (!cancelled) setAssessments(scoped)
+        if (!cancelled) setAssessments(Array.isArray(items) ? items : [])
       } catch (err) {
         if (!cancelled) setError(err.message || 'Failed to load assessments.')
       } finally {
@@ -174,7 +190,7 @@ export default function AssessmentList({ variant = 'test' }) {
     }
     load()
     return () => { cancelled = true }
-  }, [currentUser?.uid, getMyAssessments, isExamStudio])
+  }, [currentUser?.uid, getMyAssessments])
 
   async function confirmDelete() {
     const assessment = pendingDelete
@@ -267,9 +283,9 @@ export default function AssessmentList({ variant = 'test' }) {
             {cfg.heroTitle}
           </h1>
           <p style={{ fontSize: 14.5, opacity: .88, marginBottom: 16, maxWidth: 520, lineHeight: 1.55 }}>
-            {isExamStudio
-              ? "Mock and final examination papers you've created for your class — private to you, never shown to learners. Download as Word (.docx), print, or open the marking scheme."
-              : "Tests and exam papers you've created for your class — private to you, never shown to learners. Download as Word (.docx), print, or open the marking scheme."}
+            Topic tests, weekly tests, end-of-term tests, mock examinations, and formal
+            examination papers you've created for your class — private to you, never
+            shown to learners. Download as Word (.docx), print, or open the marking scheme.
           </p>
           <div className="flex gap-4 flex-wrap mb-5" style={{ fontSize: 13, opacity: .78, fontWeight: 500 }}>
             <span>📝 Word (.docx) export</span>
@@ -311,9 +327,7 @@ export default function AssessmentList({ variant = 'test' }) {
             No {cfg.nounPlural} yet
           </p>
           <p style={{ fontSize: 13, color: '#8a9aa1', margin: '0 0 16px' }}>
-            {isExamStudio
-              ? 'Create your first mock, examination, or exam paper.'
-              : 'Create your first weekly test, mid-term, or end-of-term paper.'}
+            Create your first topic test, end-of-term test, or examination paper.
           </p>
           <button
             type="button"
@@ -327,16 +341,21 @@ export default function AssessmentList({ variant = 'test' }) {
           </button>
         </div>
       ) : (() => {
+        // Category (Test / Examination) narrows the VIEW only — it never
+        // re-queries or splits the underlying `assessments` collection.
+        const byCategory = categoryFilter === 'all'
+          ? assessments
+          : assessments.filter(a => assessmentCategory(a.assessmentType) === categoryFilter)
         // Phase 8: filter the list down to imports flagged for review when
-        // the chip is on. Count is computed against the raw list so the
-        // chip can show "(N)" even when needsReviewOnly is off.
-        const needsReviewCount = assessments.reduce(
+        // the chip is on. Count is computed against the category-filtered
+        // list so the chip can show "(N)" even when needsReviewOnly is off.
+        const needsReviewCount = byCategory.reduce(
           (n, a) => (summarizeImportReview(a).needsReview ? n + 1 : n),
           0,
         )
         const visible = needsReviewOnly
-          ? assessments.filter(a => summarizeImportReview(a).needsReview)
-          : assessments
+          ? byCategory.filter(a => summarizeImportReview(a).needsReview)
+          : byCategory
 
         return (
           <>
@@ -344,11 +363,29 @@ export default function AssessmentList({ variant = 'test' }) {
               <span style={{ width: 32, height: 3, background: '#ff7a2e', borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
               Saved
             </div>
+            <div className="flex flex-wrap items-center gap-2 mb-4" role="group" aria-label="Filter by category">
+              {CATEGORY_FILTERS.map(f => (
+                <button
+                  key={f.value}
+                  type="button"
+                  onClick={() => setCategoryFilter(f.value)}
+                  aria-pressed={categoryFilter === f.value}
+                  className="rounded-full border-2 px-3 py-1.5 text-xs font-bold transition-colors"
+                  style={{
+                    borderColor: categoryFilter === f.value ? '#0e2a32' : '#e5e7eb',
+                    background: categoryFilter === f.value ? '#0e2a32' : '#fff',
+                    color: categoryFilter === f.value ? '#fff' : '#374151',
+                  }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
             <div className="flex flex-wrap items-baseline justify-between gap-3 mb-4">
               <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 24, color: '#0e2a32', margin: 0 }}>
                 {needsReviewOnly
-                  ? `${visible.length} of ${assessments.length} need review`
-                  : `${assessments.length} ${cfg.noun}${assessments.length === 1 ? '' : 's'}`}
+                  ? `${visible.length} of ${byCategory.length} need review`
+                  : `${byCategory.length} ${cfg.noun}${byCategory.length === 1 ? '' : 's'}`}
               </h2>
               <button
                 type="button"
@@ -394,6 +431,11 @@ export default function AssessmentList({ variant = 'test' }) {
             {needsReviewOnly && visible.length === 0 && (
               <p className="text-center text-sm font-bold mt-6" style={{ color: '#566f76' }}>
                 No {cfg.nounPlural} need review right now. Click the chip again to see all of them.
+              </p>
+            )}
+            {!needsReviewOnly && byCategory.length === 0 && (
+              <p className="text-center text-sm font-bold mt-6" style={{ color: '#566f76' }}>
+                No {categoryFilter === 'test' ? 'tests' : 'examinations'} yet — try the "All" filter or create one.
               </p>
             )}
           </>

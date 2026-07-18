@@ -1,7 +1,7 @@
 /**
  * Client wrapper for the `redrawTestPaperDiagram` Cloud Function.
  *
- * Used by the Test Paper Studio photo-import review screen: once Claude has
+ * Used by the Assessment Paper Studio photo-import review screen: once Claude has
  * understood a paper and described each detected figure, the teacher picks one
  * of the five Diagram Handling Options for each one and this carries it out —
  * reusing a Diagram Library figure when one matches, otherwise generating a

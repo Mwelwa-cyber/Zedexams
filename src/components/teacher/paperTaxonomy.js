@@ -242,77 +242,129 @@ export function studioGradeToKbGrade(grade) {
   return g.startsWith('G') || g.startsWith('F') || g.startsWith('ECE') ? g : `G${g}`
 }
 
-// ── Test types ───────────────────────────────────────────────────────────
-// The Test Paper Studio offers exactly four test types: a narrow topic
-// recap, a weekly check, the mid-term and the end-of-term paper. 'exercise'
-// belongs in the Worksheet studio; 'weekly_test' is grounded on the topic-test
-// paper format server-side (FORMAT_TYPE_ALIASES) until dedicated weekly seeds
-// exist. Order = increasing scope.
-export const PAPER_TYPES = [
-  { value: 'topic_test', label: 'Topic Test' },
-  { value: 'weekly_test', label: 'Weekly Test' },
-  { value: 'mid_term', label: 'Mid-Term Test' },
-  { value: 'end_of_term', label: 'End-of-Term Test' },
-]
-
-// ── Exam paper types ───────────────────────────────────────────────────────
-// The Exam Studio is the Test Paper Studio locked to exam standard: it offers
-// only the three exam-grade papers and every one of them generates at full
-// mock-exam / final-examination standard (cumulative, ECZ-style, exam-level
-// difficulty). They all map to the server's `mock_exam` format profile (see
-// CreatePaperModal) — the only thing that differs between them is the title
-// printed on the cover (Mock Examination / Examination / Exam).
-export const EXAM_PAPER_TYPES = [
-  { value: 'mock', label: 'Mock Exam' },
-  { value: 'examination', label: 'Examination' },
-  { value: 'exam', label: 'Exam' },
-]
-
-const EXAM_PAPER_TYPE_VALUES = new Set(EXAM_PAPER_TYPES.map((t) => t.value))
-
-export function isExamPaperType(value) {
-  return EXAM_PAPER_TYPE_VALUES.has(String(value || ''))
+// ── Assessment types (canonical registry) ──────────────────────────────────
+// ONE authoritative list of every selectable assessment type, shared by the
+// builder's own type <select>, the "Create with AI" modal, the library
+// filters, cover-title generation and export formatting. There is no longer
+// a route-level "test studio" vs "exam studio" split — the studio a paper
+// belongs to is entirely determined by which type the teacher picked here,
+// and every type below can be created from the same /teacher/assessment-papers
+// studio. Values match the server's canonical ASSESSMENT_TYPES
+// (functions/teacherTools/assessmentFormats.js) exactly, so the value chosen
+// in the picker reaches generateAssessment unchanged — no relabelling, no
+// collapsing distinct exam types onto a single 'mock_exam' format id.
+export const ASSESSMENT_TYPES = {
+  topic_test: { label: 'Topic Test', category: 'test' },
+  weekly_test: { label: 'Weekly Test', category: 'test' },
+  mid_term: { label: 'Mid-Term Test', category: 'test' },
+  end_of_term: { label: 'End-of-Term Test', category: 'test' },
+  mock_exam: { label: 'Mock Examination', category: 'examination' },
+  examination: { label: 'Examination', category: 'examination' },
+  final_exam: { label: 'Final Examination', category: 'examination' },
 }
 
-// Both test papers and exam papers live in the `assessments` collection and are
-// edited by AssessmentStudio, but the studio is split across two routes by
-// paper type. Any link to an assessment's editor (dashboard continue cards,
-// list rows, deep links) must pick the matching base, or the edit page loads
-// the wrong studio — or, worse, reports "not found" because the type doesn't
-// match what that route scopes to. Centralised here so there's one source of
-// truth for the route ↔ type mapping.
-export function assessmentRouteBase(assessmentType) {
-  return isExamPaperType(assessmentType) ? '/teacher/exam-papers' : '/teacher/test-papers'
+export const ASSESSMENT_TYPE_VALUES = Object.keys(ASSESSMENT_TYPES)
+export const TEST_ASSESSMENT_TYPES = ASSESSMENT_TYPE_VALUES.filter(
+  (t) => ASSESSMENT_TYPES[t].category === 'test',
+)
+export const EXAMINATION_ASSESSMENT_TYPES = ASSESSMENT_TYPE_VALUES.filter(
+  (t) => ASSESSMENT_TYPES[t].category === 'examination',
+)
+
+// Legacy stored values that predate the canonical registry (from the old
+// route-scoped 'test'/'exam' studio wording, and from assessment types that
+// were trimmed from the picker but still exist in saved documents). Mapped
+// onto the nearest canonical type so old papers keep working without a
+// destructive migration — see normalizeAssessmentType.
+const LEGACY_TYPE_MAP = {
+  topic: 'topic_test',
+  weekly: 'weekly_test',
+  test: 'topic_test',
+  mock: 'mock_exam',
+  exam: 'examination',
+  monthly: 'mid_term',
+  monthly_test: 'mid_term',
+  diagnostic: 'topic_test',
+  pre_test: 'topic_test',
+  post_test: 'topic_test',
+  revision: 'topic_test',
+  continuous: 'topic_test',
+  summative: 'end_of_term',
+  practical: 'topic_test',
+  oral: 'topic_test',
+  project: 'end_of_term',
+}
+
+/**
+ * Normalize any stored/legacy/route-scoped assessment-type string to one of
+ * the 7 canonical registry keys. Never throws — an unrecognised value falls
+ * back to 'topic_test' (the safest, narrowest default) rather than crashing
+ * a paper that predates the current type list. This is read-only: callers
+ * must NOT use the normalized value to silently rewrite the saved document —
+ * only persist it on the next explicit save (see AssessmentStudio).
+ */
+export function normalizeAssessmentType(value) {
+  const raw = String(value || '').trim().toLowerCase()
+  if (!raw) return 'topic_test'
+  if (ASSESSMENT_TYPES[raw]) return raw
+  return LEGACY_TYPE_MAP[raw] || 'topic_test'
+}
+
+/** 'test' | 'examination' for any canonical or legacy assessment-type value. */
+export function assessmentCategory(value) {
+  return ASSESSMENT_TYPES[normalizeAssessmentType(value)].category
+}
+
+export function isExaminationType(value) {
+  return assessmentCategory(value) === 'examination'
+}
+
+// Back-compat alias — several call sites still import isExamPaperType.
+export const isExamPaperType = isExaminationType
+
+/** Official display label — recognises canonical AND legacy values. */
+export function assessmentTypeLabel(value) {
+  const raw = String(value || '').trim().toLowerCase()
+  return ASSESSMENT_TYPES[raw]?.label || ASSESSMENT_TYPES[normalizeAssessmentType(raw)].label
+}
+
+// Both test papers and examination papers live in the `assessments`
+// collection and are edited by the same AssessmentStudio, at one canonical
+// route family — the type the teacher picked no longer changes which studio
+// route a paper opens in.
+export function assessmentRouteBase() {
+  return '/teacher/assessment-papers'
 }
 
 export function assessmentEditPath(assessment) {
   const id = assessment?.id
   if (!id) return null
-  return `${assessmentRouteBase(assessment?.assessmentType)}/${id}/edit`
+  return `/teacher/assessment-papers/${id}/edit`
 }
 
-// How many topics each test type may cover. Topic and weekly tests are
-// narrow; an end-of-term paper is cumulative and should span everything the
-// class has learned, so its cap is large and the modal offers an
-// "Add all topics" shortcut for it. The exam types are all cumulative — an
-// exam covers the whole syllabus — so they carry the largest cap.
+// How many topics each type may cover. Topic and weekly tests are narrow; an
+// end-of-term paper is cumulative and should span everything the class has
+// learned, so its cap is large and the modal offers an "Add all topics"
+// shortcut for it. Every examination type is cumulative — an exam covers the
+// whole syllabus — so they carry the largest cap.
 const TOPIC_CAPS = {
   topic_test: 3,
   weekly_test: 3,
   mid_term: 6,
   end_of_term: 15,
-  mock: 15,
+  mock_exam: 15,
   examination: 15,
-  exam: 15,
+  final_exam: 15,
 }
 const DEFAULT_TOPIC_CAP = 3
 
 export function maxTopicsFor(assessmentType) {
-  return TOPIC_CAPS[assessmentType] || DEFAULT_TOPIC_CAP
+  return TOPIC_CAPS[normalizeAssessmentType(assessmentType)] || DEFAULT_TOPIC_CAP
 }
 
-// Cumulative papers (end of term / mock) are expected to draw on every topic
-// covered, so the modal surfaces a one-click "Add all topics" affordance.
+// Cumulative papers (end of term / examinations) are expected to draw on
+// every topic covered, so the modal surfaces a one-click "Add all topics"
+// affordance.
 export function isCumulativeType(assessmentType) {
   return maxTopicsFor(assessmentType) >= 6
 }

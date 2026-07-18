@@ -19,8 +19,8 @@ describe('QuickCreate', () => {
       .toHaveAttribute('href', '/teacher/generate/weekly-forecast')
     expect(screen.getByRole('link', { name: /worksheet/i }))
       .toHaveAttribute('href', '/teacher/generate/worksheet')
-    expect(screen.getByRole('link', { name: /test paper/i }))
-      .toHaveAttribute('href', '/teacher/test-papers/new')
+    expect(screen.getByRole('link', { name: /assessment paper/i }))
+      .toHaveAttribute('href', '/teacher/assessment-papers/new')
   })
 
   it('"View all teacher tools" scrolls to the workspace and moves focus to its heading', () => {
@@ -64,6 +64,6 @@ describe('QuickCreate', () => {
     expect(screen.getByText(/teaching stages, resources and assessment/i)).toBeInTheDocument()
     expect(screen.getByText(/from your scheme of work and timetable/i)).toBeInTheDocument()
     expect(screen.getByText(/practice, exercises and consolidation/i)).toBeInTheDocument()
-    expect(screen.getByText(/weekly, mid-term and end-of-term tests/i)).toBeInTheDocument()
+    expect(screen.getByText(/tests, mock exams and formal examinations/i)).toBeInTheDocument()
   })
 })

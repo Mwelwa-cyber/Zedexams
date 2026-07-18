@@ -14,7 +14,7 @@ import {
 import { CONFIDENCE_BANDS } from '../../../utils/objectConfidence'
 
 /**
- * ImportReviewScreen — the photo-import review step for the Test Paper Studio.
+ * ImportReviewScreen — the photo-import review step for the Assessment Paper Studio.
  *
  * After a photographed/scanned paper is reconstructed into studio sections, this
  * full-screen overlay lets the teacher check the reconstruction page-by-page

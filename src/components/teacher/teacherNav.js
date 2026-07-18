@@ -32,9 +32,9 @@ export const ROUTES = {
   recordOfWork:   '/teacher/generate/record-of-work',
   notes:          '/teacher/generate/notes',
   flashcards:     '/teacher/generate/flashcards',
-  library:        '/teacher/library',
-  testPapers:     '/teacher/test-papers',
-  newTestPaper:   '/teacher/test-papers/new',
+  library:          '/teacher/library',
+  assessmentPapers: '/teacher/assessment-papers',
+  newAssessmentPaper: '/teacher/assessment-papers/new',
   syllabi:        '/teacher/syllabi',
   curriculum:     '/teacher/curriculum',
   calendar:       '/teacher/calendar',
@@ -51,7 +51,7 @@ export const SIDEBAR_NAV = [
   { to: ROUTES.weeklyForecast, icon: Target,             label: 'Weekly Focus' },
   { to: ROUTES.recordOfWork,   icon: ClipboardList,      label: 'Record of Work' },
   { to: ROUTES.library,        icon: FolderOpen,         label: 'My Library' },
-  { to: ROUTES.testPapers,     icon: PencilLine,         label: 'Test Papers' },
+  { to: ROUTES.assessmentPapers, icon: PencilLine,       label: 'Assessment Papers' },
   { to: ROUTES.register,       icon: Users,              label: 'Class List' },
   { to: ROUTES.attendance,     icon: ClipboardCheckList, label: 'Attendance' },
   { to: ROUTES.syllabi,        icon: FolderOpen,         label: 'Syllabi Studio' },
@@ -65,7 +65,7 @@ export const SIDEBAR_NAV = [
 export const BOTTOM_NAV = [
   { to: ROUTES.dashboard,  icon: Home,               label: 'Home',        end: true },
   { to: ROUTES.library,    icon: FolderOpen,         label: 'Library',     end: false },
-  { to: ROUTES.testPapers, icon: ClipboardCheckList, label: 'Assessments', end: false },
+  { to: ROUTES.assessmentPapers, icon: ClipboardCheckList, label: 'Assessments', end: false },
   { to: ROUTES.register,   icon: Users,              label: 'Class List',  end: false },
 ]
 
@@ -74,6 +74,6 @@ export const BOTTOM_NAV = [
 export const QUICK_CREATE = [
   { to: ROUTES.lessonPlans,  icon: BookOpen,   label: 'Lesson Plan',   accent: '#fde2c4' },
   { to: ROUTES.notes,        icon: FileText,   label: 'Teacher Notes', accent: '#dbe7f4' },
-  { to: ROUTES.newTestPaper, icon: PencilLine, label: 'Test Paper',    accent: '#e8d8f0' },
+  { to: ROUTES.newAssessmentPaper, icon: PencilLine, label: 'Assessment Paper', accent: '#e8d8f0' },
   { to: ROUTES.flashcards,   icon: Sparkles,   label: 'Flashcards',    accent: '#fde9b8' },
 ]

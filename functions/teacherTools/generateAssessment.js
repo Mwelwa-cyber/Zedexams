@@ -96,8 +96,12 @@ function sanitizeInputs(raw = {}) {
     language: ALLOWED_LANGUAGES.has(language) ? language : "english",
     questionTypes: normalizeQuestionTypes(raw.questionTypes),
     instructions: str(raw.instructions, 500),
-    assessmentType: ASSESSMENT_TYPES.includes(assessmentType) ?
-      assessmentType : "topic_test",
+    // Omitted → the safe default (topic_test), same as before. An explicit
+    // but unrecognised value is kept as-is here (NOT silently coerced) so
+    // validateInputs below can reject it with a clear error instead of the
+    // request silently generating (and saving) a different assessment type
+    // than the one the teacher actually picked.
+    assessmentType: assessmentType || "topic_test",
     // Curriculum framework the teacher chose: new CBC (default) or the
     // old 2013 syllabus. resolveCbcContext grounds on the matching
     // syllabi data file.
@@ -154,6 +158,18 @@ function validateInputs(inputs) {
   }
   if (!inputs.topic) {
     errs.push("Please provide a topic.");
+  }
+  // Defensive: reject an assessment type the server doesn't recognise
+  // instead of silently falling back to a different one. A client sending a
+  // garbage/stale value should see a clear error, not a paper quietly
+  // generated (and saved) as the wrong type. An OMITTED type is fine — that
+  // already defaulted to "topic_test" in sanitizeInputs (or, for a caller
+  // that hits validateInputs directly without sanitizing first, is simply
+  // not this check's concern).
+  if (inputs.assessmentType && !ASSESSMENT_TYPES.includes(inputs.assessmentType)) {
+    errs.push(
+        `"${inputs.assessmentType}" is not a supported assessment type.`,
+    );
   }
   // Reject a definitively invalid curriculum/level/subject combination so bad
   // paper metadata can never be saved. Fail-OPEN: classifySubjectForGrade

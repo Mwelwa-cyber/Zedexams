@@ -209,32 +209,63 @@ describe('CreatePaperModal — question types', () => {
   })
 })
 
-describe('CreatePaperModal — exam variant', () => {
+describe('CreatePaperModal — assessment type picker', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('offers the three exam types instead of the four test types', () => {
-    renderModal({ variant: 'exam' })
-    const typeSelect = screen.getAllByRole('combobox').find((s) => s.value === 'mock')
-    expect(typeSelect).toBeTruthy()
+  it('offers all 7 types, grouped into Tests and Examinations, in one picker', () => {
+    renderModal()
+    const typeSelect = screen.getByLabelText('Assessment type')
+    const groups = within(typeSelect).getAllByRole('group')
+    expect(groups.map((g) => g.getAttribute('label'))).toEqual(['Tests', 'Examinations'])
     const labels = within(typeSelect).getAllByRole('option').map((o) => o.textContent)
-    expect(labels).toEqual(['Mock Exam', 'Examination', 'Exam'])
+    expect(labels).toEqual([
+      'Topic Test', 'Weekly Test', 'Mid-Term Test', 'End-of-Term Test',
+      'Mock Examination', 'Examination', 'Final Examination',
+    ])
   })
 
-  it('generates at exam standard — maps every exam type to the mock_exam format', async () => {
+  it('defaults to End-of-Term Test regardless of how the modal was opened', () => {
+    renderModal()
+    expect(screen.getByLabelText('Assessment type').value).toBe('end_of_term')
+  })
+
+  // Regression: every examination type used to collapse to the literal
+  // 'mock_exam' before reaching generateAssessment — so picking "Examination"
+  // silently generated (and saved) a Mock Examination. The type the teacher
+  // picks must reach the backend completely unchanged.
+  it.each([
+    ['mock_exam', 'Mock Examination'],
+    ['examination', 'Examination'],
+    ['final_exam', 'Final Examination'],
+  ])('sends %s through unchanged when "%s" is selected — never collapsed to mock_exam', async (value) => {
     const { generateAssessment } = await import('../../utils/teacherTools')
     generateAssessment.mockResolvedValue({ ok: false, error: 'stop here' })
 
-    renderModal({ variant: 'exam' })
-    // A topic is still required before generation runs.
+    renderModal()
+    fireEvent.change(screen.getByLabelText('Assessment type'), { target: { value } })
     fireEvent.click(screen.getByRole('checkbox', { name: 'Numbers' }))
     fireEvent.click(screen.getByRole('button', { name: /Generate paper/i }))
 
     expect(generateAssessment).toHaveBeenCalledTimes(1)
     const payload = generateAssessment.mock.calls[0][0]
-    // The chosen exam type collapses to the server's mock_exam format profile.
-    expect(payload.assessmentType).toBe('mock_exam')
-    // The instruction pitches the paper at full exam standard.
+    expect(payload.assessmentType).toBe(value)
+    if (value !== 'mock_exam') expect(payload.assessmentType).not.toBe('mock_exam')
+    // Every examination-category type pitches the paper at full exam standard.
     expect(payload.instructions).toMatch(/exam standard/i)
+  })
+
+  it('a test-category type is sent unchanged too (no exam-standard framing)', async () => {
+    const { generateAssessment } = await import('../../utils/teacherTools')
+    generateAssessment.mockResolvedValue({ ok: false, error: 'stop here' })
+
+    renderModal()
+    fireEvent.change(screen.getByLabelText('Assessment type'), { target: { value: 'topic_test' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Numbers' }))
+    fireEvent.click(screen.getByRole('button', { name: /Generate paper/i }))
+
+    const payload = generateAssessment.mock.calls[0][0]
+    expect(payload.assessmentType).toBe('topic_test')
+    expect(payload.instructions).not.toMatch(/exam standard/i)
   })
 })
 

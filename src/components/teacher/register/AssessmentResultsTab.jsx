@@ -135,7 +135,7 @@ export default function AssessmentResultsTab({ register }) {
       intro="Test & exam results for this class."
       emptyIcon="🎯"
       emptyTitle="No assessment results yet"
-      emptyText="Link a test from Test Paper Studio (or enter a title) — your class list loads automatically for marking."
+      emptyText="Link a test from the Assessment Paper Studio (or enter a title) — your class list loads automatically for marking."
       renderCreate={(props) => <CreateForm {...props} />}
     />
   )

@@ -17,7 +17,8 @@ import {
 import { CurriculumPicker } from './studio/sections/CurriculumPicker'
 import './studio/lessonStudio.css'
 import {
-  PAPER_TYPES, EXAM_PAPER_TYPES, isExamPaperType,
+  ASSESSMENT_TYPES, TEST_ASSESSMENT_TYPES, EXAMINATION_ASSESSMENT_TYPES,
+  isExaminationType, normalizeAssessmentType,
   paperGradeOptions, normalizePaperGrade, maxTopicsFor,
   isCumulativeType, toKbSubjectKey, studioGradeToKbGrade,
 } from './paperTaxonomy'
@@ -143,18 +144,12 @@ function ModeToggle({ value, onChange, pickLabel = 'From syllabus', writeLabel =
   )
 }
 
-export default function CreatePaperModal({ paperMeta, onApply, onClose, variant = 'test' }) {
+export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
   const { currentUser, userProfile } = useAuth()
   // Free teachers generate a 5-question short-test preview (server-clamped);
   // say so up front instead of surprising them after the wait.
   const isFreePreview = resolveTeacherPlan(userProfile) === 'free'
   const { ensureCanGenerate } = useGenerationGate(currentUser?.uid)
-  // The Exam Studio runs this same modal locked to exam standard: it offers the
-  // three exam paper types instead of the four test types, and every one
-  // generates a cumulative, exam-level paper (mapped to the server's mock_exam
-  // format profile below).
-  const isExam = variant === 'exam'
-  const paperTypes = isExam ? EXAM_PAPER_TYPES : PAPER_TYPES
   const [form, setForm] = useState(() => {
     // Follow the paper's curriculum choice (set in the builder header / AI
     // slide); '2023' for papers from before the field existed.
@@ -170,7 +165,12 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
       grade,
       subject: toKbSubjectKey(paperMeta?.subject) || 'english',
       framework,
-      assessmentType: isExam ? 'mock' : 'end_of_term',
+      // Every assessment type — tests AND examinations — is selectable from
+      // this one modal now (see the ASSESSMENT TYPE grouped picker below), so
+      // the seed is just a sane, category-agnostic default; the teacher
+      // reopening a saved paper keeps whatever type it already carries.
+      assessmentType: paperMeta?.assessmentType
+        ? normalizeAssessmentType(paperMeta.assessmentType) : 'end_of_term',
       term: paperMeta?.term || '1',
       topicInput: '',
       topics: [],
@@ -205,6 +205,11 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
 
   const maxTopics = maxTopicsFor(form.assessmentType)
   const cumulative = isCumulativeType(form.assessmentType)
+  // Copy reacts to whichever type is CURRENTLY selected in the grouped
+  // picker, not to a route-level variant — an "exam standard" framing
+  // follows the Mock Examination / Examination / Final Examination choice
+  // wherever the modal was opened from.
+  const isExam = isExaminationType(form.assessmentType)
   // Levels come from the Syllabi Studio for the chosen curriculum — the same
   // ordered, curriculum-aware list the paper header shows. Never a flat 1–12.
   const { levels: gradeOptions, loading: levelsLoading } =
@@ -368,8 +373,8 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
     if (form.comprehension) {
       bits.push('Include a reading comprehension passage with questions on it.')
     }
-    if (isExam || isExamPaperType(form.assessmentType)) {
-      // Exam Studio: every type is a full, formal examination at ECZ standard.
+    if (isExam) {
+      // Every examination-category type is a full, formal paper at ECZ standard.
       bits.push(
         'This is a formal examination at full exam standard: pitch the ' +
         'difficulty at a final/mock examination, write it in authentic ' +
@@ -377,7 +382,7 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
         'ALL the listed topics, weighting each by how much it matters rather ' +
         'than over-focusing on one topic.',
       )
-    } else if (form.assessmentType === 'end_of_term' || form.assessmentType === 'mock_exam') {
+    } else if (form.assessmentType === 'end_of_term') {
       bits.push(
         'This is a cumulative paper that tests EVERYTHING the learners have ' +
         'covered: distribute the questions across ALL the listed topics, ' +
@@ -429,11 +434,17 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
       term: form.term ? Number(form.term) : null,
       totalMarks: Number(form.totalMarks),
       durationMinutes: Number(form.durationMinutes),
-      // Exam types (mock / examination / exam) all resolve to the server's
-      // `mock_exam` format profile — the studio keeps the specific type for the
-      // cover title (see handleApplyAiPaper / buildTitleFromForm). For test
-      // papers the studio type maps 1:1 to a server type already.
-      assessmentType: isExam ? 'mock_exam' : form.assessmentType,
+      // The teacher's chosen type reaches the backend UNCHANGED — every
+      // canonical value (topic_test/weekly_test/mid_term/end_of_term/
+      // mock_exam/examination/final_exam) is a real server-recognised
+      // ASSESSMENT_TYPE (functions/teacherTools/assessmentFormats.js).
+      // Previously every examination type was collapsed to the literal
+      // 'mock_exam' here, so choosing "Examination" silently generated and
+      // saved as a Mock Examination — fixed: the format profile a type has
+      // no dedicated seeds for (examination/final_exam) still borrows the
+      // mock_exam paper STRUCTURE server-side via FORMAT_TYPE_ALIASES, but
+      // the type/title/label stay the one the teacher actually picked.
+      assessmentType: form.assessmentType,
       // Canonical question types — the generator filters the paper format to
       // these and refuses to emit any other type. Sent alongside the
       // human-readable instruction (buildInstructions) so the prompt also
@@ -446,18 +457,18 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
       // Defensive fallback: ensureCanGenerate('assessment') above is the
       // primary gate, but if a stale client meter let the call through and
       // the server rejects on quota, open the matching paywall (contextual
-      // copy per plan) rather than dumping the raw error. Test Papers are an
-      // allowance-based entitlement now, so exhaustion is 'monthly-limit'
+      // copy per plan) rather than dumping the raw error. Assessment Papers
+      // are an allowance-based entitlement now, so exhaustion is 'monthly-limit'
       // (the paywall adapts Free→Pro / Pro→Max copy); 'max-only' stays
       // handled for any tool still anchored to Max.
       const reason = res.details?.reason
       if (reason === 'max-only') {
-        paywall.show('max-feature', { feature: 'Test papers' })
+        paywall.show('max-feature', { feature: 'Assessment papers' })
         setStatus('idle')
         return
       }
       if (reason === 'monthly-limit' || reason === 'daily-cap') {
-        paywall.show(reason, { feature: 'test papers', tool: 'assessment' })
+        paywall.show(reason, { feature: 'assessment papers', tool: 'assessment' })
         setStatus('idle')
         return
       }
@@ -562,12 +573,19 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose, variant 
             </div>
             <div className="sv-cpm-grid2">
               <div>
-                <label className="sv-cpm-label">{isExam ? 'Exam type' : 'Test type'}</label>
-                <select className="sv-cpm-input" value={form.assessmentType}
+                <label className="sv-cpm-label" htmlFor="cpm-assessment-type">Assessment type</label>
+                <select id="cpm-assessment-type" className="sv-cpm-input" value={form.assessmentType}
                   onChange={(e) => changeAssessmentType(e.target.value)}>
-                  {paperTypes.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
+                  <optgroup label="Tests">
+                    {TEST_ASSESSMENT_TYPES.map((t) => (
+                      <option key={t} value={t}>{ASSESSMENT_TYPES[t].label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Examinations">
+                    {EXAMINATION_ASSESSMENT_TYPES.map((t) => (
+                      <option key={t} value={t}>{ASSESSMENT_TYPES[t].label}</option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
               <div>

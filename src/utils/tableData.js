@@ -22,7 +22,7 @@
  *
  * Caps mirror the Zod schema: ≤ 10 columns, ≤ 16 rows, ≤ 60 chars per cell.
  * The hand-typed DataTableInputs editor stops at 6 × 12, but reconstructed
- * papers (the Test Paper Studio's "Rebuild as table" scan flow) legitimately
+ * papers (the Assessment Paper Studio's "Rebuild as table" scan flow) legitimately
  * carry wider tables — a school timetable is 7-8 columns — and the old
  * write-side 6 × 12 clamp silently dropped those extra columns on save.
  */

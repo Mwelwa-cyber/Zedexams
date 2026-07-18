@@ -20,13 +20,17 @@ function renderWs(props = {}) {
 }
 
 describe('TeacherWorkspace', () => {
-  it('defines the three primary groups from the spec, four tools each', () => {
+  it('defines the three primary groups from the spec', () => {
     expect(PRIMARY_GROUPS.map((g) => g.label)).toEqual(['Planning', 'Teaching Materials', 'Assessment'])
-    for (const g of PRIMARY_GROUPS) expect(g.items).toHaveLength(4)
+    expect(PRIMARY_GROUPS[0].items).toHaveLength(4)
+    expect(PRIMARY_GROUPS[1].items).toHaveLength(4)
+    // Assessment merged its Test Papers + Exam Studio tiles into one
+    // Assessment Paper Studio tile — 3 items, not 4 (no duplicate builder).
+    expect(PRIMARY_GROUPS[2].items).toHaveLength(3)
     expect(PRIMARY_GROUPS[0].items.map((i) => i.title))
       .toEqual(['Schemes of Work', 'Weekly Focus', 'Lesson Plans', 'Record of Work'])
     expect(PRIMARY_GROUPS[2].items.map((i) => i.title))
-      .toEqual(['Test Papers', 'Exam Studio', 'Question Bank', 'Mark Schedule'])
+      .toEqual(['Assessment Paper Studio', 'Question Bank', 'Mark Schedule'])
   })
 
   it('shows only primary tools by default; the rest appear after expanding', () => {
@@ -93,7 +97,7 @@ describe('TeacherWorkspace', () => {
       '/teacher/generate/scheme-of-work', '/teacher/generate/weekly-forecast',
       '/teacher/generate/lesson-plan', '/teacher/generate/record-of-work',
       '/teacher/generate/worksheet', '/teacher/generate/notes', '/teacher/generate/homework',
-      '/teacher/visual-studio', '/teacher/test-papers', '/teacher/exam-papers',
+      '/teacher/visual-studio', '/teacher/assessment-papers',
       '/teacher/question-bank', '/teacher/generate/mark-schedule',
       '/teacher/syllabi', '/teacher/curriculum', '/teacher/calendar', '/teacher/templates',
       '/teacher/register', '/teacher/generate/class-timetable',

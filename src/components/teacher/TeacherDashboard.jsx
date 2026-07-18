@@ -214,12 +214,9 @@ export default function TeacherDashboard() {
       // The raw doc, kept for duplicateGeneration (it needs inputs/output/library).
       raw: g,
     }))
-    // Test papers + exam papers both live in the `assessments` collection and
-    // are edited by AssessmentStudio. The studio is split by paper type across
-    // two routes (/teacher/test-papers vs /teacher/exam-papers), so the
-    // continue-card link must match the type — otherwise the edit page loads
-    // the wrong studio (or, when sourced from the wrong collection entirely,
-    // 404s with "Test paper not found").
+    // Tests and examinations both live in the `assessments` collection and
+    // are edited by the one Assessment Paper Studio, at one canonical route
+    // — assessmentEditPath no longer branches on the paper's type.
     const fromAssessments = assessments.map((a) => {
       const isExam = isExamPaperType(a.assessmentType)
       return {

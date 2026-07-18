@@ -4,18 +4,20 @@
 // the studio's display values ('4', 'English') — map to KB keys with
 // studioGradeToKbGrade / studioSubjectToKey when calling generators.
 
-// Canonical assessment-type labels. Single source of truth — imported by
-// AssessmentStudio.jsx and AssessmentList.jsx so the two surfaces never drift.
-// The list stays comprehensive: selectable types are a subset controlled by the
-// studio variant (getStudioVariant), while legacy keys are retained so papers
-// saved before the type list was trimmed still render a readable label.
+import { ASSESSMENT_TYPES } from './paperTaxonomy.js'
+
+// Display labels for every selectable assessment type PLUS every legacy/
+// route-scoped value a saved paper might still carry. The canonical 7 types
+// (paperTaxonomy.js's ASSESSMENT_TYPES registry — the single source of truth
+// used by the picker, generation and normalization) are spread in last so
+// they always win; the entries above them are purely for rendering a
+// readable label on old documents whose stored value predates the current
+// type list (they're folded onto a canonical type by normalizeAssessmentType
+// for anything besides display — filtering, generation, routing).
 export const ASSESSMENT_TYPE_LABELS = {
   topic: 'Topic Test',
   weekly: 'Weekly Test',
-  mid_term: 'Mid-Term Test',
-  end_of_term: 'End-of-Term Test',
   mock: 'Mock Exam',
-  examination: 'Examination',
   exam: 'Exam',
   monthly: 'Monthly test',
   diagnostic: 'Diagnostic / baseline',
@@ -27,6 +29,7 @@ export const ASSESSMENT_TYPE_LABELS = {
   practical: 'Practical assessment',
   oral: 'Oral assessment',
   project: 'Project-based assessment',
+  ...Object.fromEntries(Object.entries(ASSESSMENT_TYPES).map(([k, v]) => [k, v.label])),
 }
 
 export const STUDIO_SUBJECTS = [
