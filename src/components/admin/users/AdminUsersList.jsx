@@ -14,6 +14,9 @@ import { adminSetUserStatus } from '../../../utils/adminUsersService'
 import { ADMIN_QUERY_LIMIT } from '../../../hooks/useFirestore'
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue'
 import { useToast } from '../../ui/Toast'
+import { buildRequestKey } from '../../../utils/requestControl.js'
+import { deduplicatedRequest } from '../../../utils/requestDeduplication.js'
+import { useAbortableRequest } from '../../../hooks/useAbortableRequest.js'
 
 const ROLE_LABELS = { admin: 'Admin', teacher: 'Teacher', learner: 'Learner', student: 'Learner' }
 
@@ -72,31 +75,39 @@ export default function AdminUsersList({ defaultRole = 'all' }) {
   const [suspendReason, setSuspendReason] = useState('')
   const location = useLocation()
 
+  // The listing itself isn't scoped to which admin is viewing it, so two
+  // admins (or two tabs) browsing the same role filter at once can safely
+  // share one Firestore read via `deduplicatedRequest`. `useAbortableRequest`
+  // guards against an out-of-order response — e.g. navigating from
+  // /admin/teachers to /admin/admins and back fast enough that the first
+  // load's stale response would otherwise land after the second's.
+  const { run, cancel } = useAbortableRequest({ timeoutMs: 15_000 })
   useEffect(() => {
-    let cancelled = false
     setLoading(true)
-    async function load() {
-      try {
-        const constraints = []
-        if (defaultRole === 'teacher') constraints.push(where('role', '==', 'teacher'))
-        else if (defaultRole === 'admin') constraints.push(where('role', '==', 'admin'))
-        else if (defaultRole === 'learner') constraints.push(where('role', 'in', ['learner', 'student']))
-        constraints.push(limit(ADMIN_QUERY_LIMIT))
-        const snap = await getDocs(query(collection(db, 'users'), ...constraints))
-        if (cancelled) return
-        const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    const key = buildRequestKey('admin-users-list', defaultRole)
+    run(({ signal }) => deduplicatedRequest(key, () => {
+      const constraints = []
+      if (defaultRole === 'teacher') constraints.push(where('role', '==', 'teacher'))
+      else if (defaultRole === 'admin') constraints.push(where('role', '==', 'admin'))
+      else if (defaultRole === 'learner') constraints.push(where('role', 'in', ['learner', 'student']))
+      constraints.push(limit(ADMIN_QUERY_LIMIT))
+      return getDocs(query(collection(db, 'users'), ...constraints))
+    }, { signal, timeoutMs: 15_000 })).then((result) => {
+      if (result.status === 'success') {
+        const rows = result.data.docs.map(d => ({ id: d.id, ...d.data() }))
         setUsers(rows)
         setError(null)
-      } catch (e) {
-        console.error('AdminUsersList load:', e)
-        if (!cancelled) setError('Could not load users. Check your permissions and retry.')
-      } finally {
-        if (!cancelled) setLoading(false)
+        setLoading(false)
+      } else if (result.status === 'error') {
+        console.error('AdminUsersList load:', result.error)
+        setError('Could not load users. Check your permissions and retry.')
+        setLoading(false)
       }
-    }
-    load()
-    return () => { cancelled = true }
-  }, [defaultRole, location.key])
+      // 'stale' / 'aborted' — a newer load (role switch, or the same route
+      // re-triggered) already owns loading/users/error state.
+    }).catch(() => {}) // run() resolves a status object and never rejects; guards regardless
+    return cancel
+  }, [defaultRole, location.key, run, cancel])
 
   const filtered = useMemo(() => {
     const term = debouncedSearch.trim().toLowerCase()

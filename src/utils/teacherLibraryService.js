@@ -15,6 +15,8 @@ import {
 import { db } from '../firebase/config'
 import { LIBRARY_SECTION_BY_ID, LIBRARY_TYPES } from '../config/library'
 import { TOOL_TO_LIBRARY_TYPE, classifyForLibrary } from './libraryClassification'
+import { buildRequestKey } from './requestControl.js'
+import { deduplicatedRequest } from './requestDeduplication.js'
 
 const GENERATIONS_PAGE_SIZE = 60
 
@@ -31,6 +33,16 @@ export async function listMyGenerations(opts = {}) {
   const {uid, tool, grade, subject} = opts
   if (!uid) return []
 
+  // Several surfaces call this for the SAME teacher within moments of each
+  // other (the dashboard summary, the Library page, a studio's "connected?"
+  // probe) — share one Firestore round-trip instead of firing one per
+  // caller. Scoped by uid (never shared across teachers) + every filter that
+  // affects the result.
+  const key = buildRequestKey('teacher-library-generations', uid, tool, grade, subject)
+  return deduplicatedRequest(key, () => fetchMyGenerations(uid, {tool, grade, subject}))
+}
+
+async function fetchMyGenerations(uid, {tool, grade, subject}) {
   // Base query: own generations, newest first. We do tool/grade/subject
   // filtering client-side for simplicity; server-side indexing would need
   // a composite index for each combination. With ≤60 recent items this is

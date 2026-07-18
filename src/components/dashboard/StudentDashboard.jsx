@@ -28,6 +28,9 @@ import ProgressWidget from './ProgressWidget'
 import StreakXpCard from './StreakXpCard'
 import StudyPlanCard from './StudyPlanCard'
 import FeedbackButton from '../feedback/FeedbackButton'
+import { buildRequestKey } from '../../utils/requestControl.js'
+import { deduplicatedRequest } from '../../utils/requestDeduplication.js'
+import { useAbortableRequest } from '../../hooks/useAbortableRequest.js'
 
 const subjectBadge = {
   English:               'bg-violet-100 text-violet-700',
@@ -80,28 +83,39 @@ export default function StudentDashboard() {
   const [error, setError]       = useState(null)
   const [showUpgrade, setShowUpgrade] = useState(false)
 
-  // A failed read must clear the loading state and surface a retryable error
-  // instead of leaving the stats/widgets stuck on their placeholder skeletons
-  // forever (the infinite-loading bug this fixes).
+  // `getUserResults`/`getWeaknessAnalysis` (from useFirestore()) get a fresh
+  // identity every render, so `load` itself is re-created every render and
+  // this effect can refire far more often than `userProfile.id` actually
+  // changes. `deduplicatedRequest` collapses those repeat calls (same user,
+  // same flag) onto one shared Firestore round-trip, and
+  // `useAbortableRequest` makes sure only the LATEST call's result is ever
+  // applied — a failed or superseded read still clears loading and surfaces
+  // a retryable error instead of leaving the widgets stuck on their
+  // placeholder skeletons forever (the infinite-loading bug this fixes).
+  const { run, cancel } = useAbortableRequest({ timeoutMs: 15_000 })
   const load = useCallback(async () => {
     if (!userProfile?.id) return
     setLoading(true)
     setError(null)
-    try {
-      const [r, w] = await Promise.all([
-        getUserResults(userProfile.id, 30),
-        canUseWeaknessAnalysis ? getWeaknessAnalysis(userProfile.id) : Promise.resolve([]),
-      ])
+    const key = buildRequestKey('student-dashboard-progress', userProfile.id, canUseWeaknessAnalysis)
+    const result = await run(({ signal }) => deduplicatedRequest(key, () => Promise.all([
+      getUserResults(userProfile.id, 30),
+      canUseWeaknessAnalysis ? getWeaknessAnalysis(userProfile.id) : Promise.resolve([]),
+    ]), { signal, timeoutMs: 15_000 }))
+    if (result.status === 'success') {
+      const [r, w] = result.data
       setResults(r); setWeakness(w)
-    } catch (err) {
-      console.error('StudentDashboard load failed', err)
+      setLoading(false)
+    } else if (result.status === 'error') {
+      console.error('StudentDashboard load failed', result.error)
       setError('We couldn’t load your progress just now. Please check your connection and try again.')
-    } finally {
       setLoading(false)
     }
-  }, [userProfile?.id, canUseWeaknessAnalysis, getUserResults, getWeaknessAnalysis])
+    // 'stale' / 'aborted' — a newer load() call already owns loading/error/
+    // results/weakness state.
+  }, [userProfile?.id, canUseWeaknessAnalysis, getUserResults, getWeaknessAnalysis, run])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { load(); return cancel }, [load, cancel])
 
   const totalQuizzes = results.length
   const avgScore = totalQuizzes > 0

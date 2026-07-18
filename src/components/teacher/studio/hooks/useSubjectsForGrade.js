@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getSubjectsForGrade } from '../utils/curriculumDataService.js'
+import { toDisplayMessage } from '../../../../utils/requestControl.js'
+import { useAbortableRequest } from '../../../../hooks/useAbortableRequest.js'
 
 /**
  * Fetches the subjects available for a grade + curriculum mode, sourced from
@@ -10,6 +12,11 @@ import { getSubjectsForGrade } from '../utils/curriculumDataService.js'
  * up — so topics and subtopics actually load. Feeding it a static label like
  * "Mathematics" returns zero topics.
  *
+ * Uses `useAbortableRequest` so switching grade/curriculum mode mid-flight
+ * (a teacher tapping CBC Grade 4 then OBC Grade 7 before the first request
+ * lands) can never let the stale first response overwrite the fresh one —
+ * only the request that's still current when it resolves updates state.
+ *
  * @param {string} grade   - e.g. "Grade 4", "Form 1"
  * @param {'cbc'|'previous'|null} curriculumMode
  * @returns {{ subjects: string[], loading: boolean, error: string|null }}
@@ -18,37 +25,34 @@ export function useSubjectsForGrade(grade, curriculumMode) {
   const [subjects, setSubjects] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const { run, cancel } = useAbortableRequest({ timeoutMs: 10_000 })
 
   useEffect(() => {
     if (!grade || !curriculumMode) {
       setSubjects([])
       setLoading(false)
       setError(null)
-      return
+      return cancel
     }
-
-    let cancelled = false
 
     setLoading(true)
     setError(null)
 
-    getSubjectsForGrade(grade, curriculumMode)
-      .then((result) => {
-        if (cancelled) return
-        setSubjects(Array.isArray(result) ? result : [])
+    run(() => getSubjectsForGrade(grade, curriculumMode)).then((result) => {
+      if (result.status === 'success') {
+        setSubjects(Array.isArray(result.data) ? result.data : [])
         setLoading(false)
-      })
-      .catch((err) => {
-        if (cancelled) return
-        setError(err instanceof Error ? err.message : String(err))
+      } else if (result.status === 'error') {
+        setError(toDisplayMessage(result.error))
         setSubjects([])
         setLoading(false)
-      })
+      }
+      // 'stale' / 'aborted' — a newer grade/curriculumMode change already
+      // owns loading/error state; nothing to do here.
+    }).catch(() => {}) // run() resolves a status object and never rejects; guards regardless
 
-    return () => {
-      cancelled = true
-    }
-  }, [grade, curriculumMode])
+    return cancel
+  }, [grade, curriculumMode, run, cancel])
 
   return { subjects, loading, error }
 }

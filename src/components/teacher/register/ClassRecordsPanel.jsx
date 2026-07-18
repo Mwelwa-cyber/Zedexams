@@ -18,6 +18,7 @@ import ConfirmDialog from '../../ui/ConfirmDialog'
 import Skeleton from '../../ui/Skeleton'
 import MarkEntryGrid from './MarkEntryGrid'
 import TermPeriodFilter from './TermPeriodFilter'
+import { useAbortableRequest } from '../../../hooks/useAbortableRequest.js'
 
 export default function ClassRecordsPanel({
   register,
@@ -49,25 +50,35 @@ export default function ClassRecordsPanel({
     [records, viewPeriod, currentPeriod.term, currentPeriod.year, periodScoped], // eslint-disable-line react-hooks/exhaustive-deps
   )
 
+  // Switching classes/tabs quickly, or deleting a record right after the
+  // tab's own load kicks off, used to fire two unguarded `refresh()` calls
+  // that could resolve out of order and leave stale roster/records on
+  // screen. `useAbortableRequest` cancels/ignores whichever call is no
+  // longer current — only the latest `refresh()` may update state.
+  const { run, cancel } = useAbortableRequest({ timeoutMs: 15_000 })
+
   async function refresh() {
     setLoading(true)
     setLoadError(false)
-    try {
-      const types = Array.isArray(type) ? type : [type]
-      const [r, all] = await Promise.all([listRoster(classId), listRecords(classId)])
+    const types = Array.isArray(type) ? type : [type]
+    const result = await run(() => Promise.all([listRoster(classId), listRecords(classId)]))
+    if (result.status === 'success') {
+      const [r, all] = result.data
       setRoster(r)
       setRecords(all.filter((rec) => types.includes(rec.type)))
-    } catch (err) {
-      console.warn('[ClassRecordsPanel] load failed', err)
+      setLoading(false)
+    } else if (result.status === 'error') {
+      console.warn('[ClassRecordsPanel] load failed', result.error)
       setLoadError(true)
-    } finally {
       setLoading(false)
     }
+    // 'stale' / 'aborted' — a newer refresh() (class switch, tab switch, or
+    // a delete/save-triggered reload) already owns loading/roster/records.
   }
 
   // Key on a string so passing `type` as a fresh array literal can't loop.
   const typeKey = Array.isArray(type) ? type.join(',') : type
-  useEffect(() => { refresh() }, [classId, typeKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { refresh(); return cancel }, [classId, typeKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function openGrid(recordId) {
     try {
