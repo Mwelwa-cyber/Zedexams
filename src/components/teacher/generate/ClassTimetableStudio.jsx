@@ -102,6 +102,12 @@ import { downloadClassTimetableXlsx } from '../../../utils/classTimetableToXlsx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { downloadClassTimetablePdf } from '../../../utils/classTimetableToPdf'
 import { clampInt } from '../../../utils/inputs.js'
+import {
+  normalizeTimingBreaks,
+  normalizeDaySchedulesBreaks,
+  durationLabelForEvent,
+} from '../../../utils/durationOptions'
+import DurationSelect from '../../ui/DurationSelect'
 import ClassTimetableView from '../views/ClassTimetableView'
 import TimetableUploadPanel from './TimetableUploadPanel'
 import StudioPageHeader from '../StudioPageHeader'
@@ -467,14 +473,17 @@ export default function ClassTimetableStudio() {
       if (p.selectedOptions) setSelectedOptions(p.selectedOptions)
       if (p.header) setHeader((h) => ({ ...h, ...p.header }))
       if (Array.isArray(p.days) && p.days.length) setDays(p.days)
-      if (p.timing) setTiming((t) => ({ ...t, ...p.timing }))
+      // Coerce any legacy break durations (numeric strings, "20 min" labels)
+      // back to integer minutes as the draft loads, so the dropdowns and the
+      // grid builder only ever see whole numbers.
+      if (p.timing) setTiming((t) => ({ ...t, ...normalizeTimingBreaks(p.timing) }))
       if (Array.isArray(p.subjects) && p.subjects.length) setSubjects(p.subjects)
       if (p.weekMode) setWeekMode(p.weekMode)
       if (p.dayCounts) setDayCounts(p.dayCounts)
       if (Array.isArray(p.activities)) setActivities(p.activities)
       if (p.displayPreferences) setDisplayPreferences((d) => ({ ...d, ...p.displayPreferences }))
       if (p.dayTemplate) setDayTemplate(p.dayTemplate)
-      if (p.daySchedules && typeof p.daySchedules === 'object') setDaySchedules(p.daySchedules)
+      if (p.daySchedules && typeof p.daySchedules === 'object') setDaySchedules(normalizeDaySchedulesBreaks(p.daySchedules))
       if (Array.isArray(p.calendarOverrides)) setCalendarOverrides(p.calendarOverrides)
       if (Array.isArray(p.blocks)) {
         setBlocksRaw(p.blocks)
@@ -1516,43 +1525,58 @@ export default function ClassTimetableStudio() {
               </div>
               {timing.breaks.map((b, idx) => {
                 const isBookend = b.event === 'assembly' || b.event === 'closing'
+                const timeId = `brk-time-${idx}`
+                const afterId = `brk-after-${idx}`
                 return (
-                  <div key={idx} className="flex flex-wrap items-center gap-2 rounded-xl border theme-border bg-white px-3 py-2">
-                    <label className="flex items-center gap-1.5 text-xs font-bold">
+                  <div key={idx} className="rounded-xl border theme-border bg-white px-3 py-2.5 space-y-2">
+                    <label className="flex items-center gap-2 text-xs font-bold">
                       <input type="checkbox" checked={b.enabled !== false}
+                        style={{ minWidth: 18, minHeight: 18 }}
                         onChange={(e) => updateBreak(idx, 'enabled', e.target.checked)} />
                       <input type="text" value={b.name} maxLength={16}
-                        aria-label="Break name"
+                        aria-label="Block name"
                         onChange={(e) => updateBreak(idx, 'name', e.target.value.toUpperCase())}
-                        className="w-24 outline-none bg-transparent font-black" />
+                        className="flex-1 min-w-0 outline-none bg-transparent font-black" />
                     </label>
-                    {isBookend ? (
-                      <span className="text-xs theme-text-secondary">
-                        {b.event === 'assembly' ? 'before lessons' : 'after last period'}
-                      </span>
-                    ) : timing.fitToEndTime ? (
-                      <>
-                        <span className="text-xs theme-text-secondary">at</span>
-                        <input type="time" value={b.time || ''}
-                          aria-label="Break time"
-                          onChange={(e) => updateBreak(idx, 'time', e.target.value)}
-                          className="w-28 text-xs font-bold text-center studio-input !py-1.5" />
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-xs theme-text-secondary">after period</span>
-                        <input type="number" min={1} max={timing.lessonPeriods} value={b.afterPeriod}
-                          aria-label="After period"
-                          onChange={(e) => updateBreak(idx, 'afterPeriod', clampInt(e.target.value, 1, timing.lessonPeriods))}
-                          className="w-14 text-xs font-bold text-center studio-input !py-1.5" />
-                      </>
-                    )}
-                    <span className="text-xs theme-text-secondary">for</span>
-                    <input type="number" min={5} max={120} value={b.minutes}
-                      aria-label="Break minutes"
-                      onChange={(e) => updateBreak(idx, 'minutes', clampInt(e.target.value, 5, 120))}
-                      className="w-16 text-xs font-bold text-center studio-input !py-1.5" />
-                    <span className="text-xs theme-text-secondary">min</span>
+                    {/* Start-time control (kept separate from the duration dropdown)
+                        beside the duration dropdown: aligned on tablet/desktop,
+                        stacked on phones. */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        {isBookend ? (
+                          <>
+                            <span className="studio-label">When</span>
+                            <div className="studio-input w-full flex items-center text-xs"
+                              style={{ minHeight: 44, background: '#f7f4ec', color: '#566f76' }}>
+                              {b.event === 'assembly' ? 'Before lessons' : 'After last period'}
+                            </div>
+                          </>
+                        ) : timing.fitToEndTime ? (
+                          <>
+                            <label htmlFor={timeId} className="studio-label">Start time</label>
+                            <input id={timeId} type="time" value={b.time || ''}
+                              aria-label={`${b.name} start time`}
+                              onChange={(e) => updateBreak(idx, 'time', e.target.value)}
+                              className="studio-input w-full" style={{ minHeight: 44 }} />
+                          </>
+                        ) : (
+                          <>
+                            <label htmlFor={afterId} className="studio-label">After period</label>
+                            <input id={afterId} type="number" min={1} max={timing.lessonPeriods} value={b.afterPeriod}
+                              aria-label={`${b.name} after period`}
+                              onChange={(e) => updateBreak(idx, 'afterPeriod', clampInt(e.target.value, 1, timing.lessonPeriods))}
+                              className="studio-input w-full" style={{ minHeight: 44 }} />
+                          </>
+                        )}
+                      </div>
+                      <DurationSelect
+                        value={b.minutes}
+                        onChange={(m) => updateBreak(idx, 'minutes', m)}
+                        label={durationLabelForEvent(b.event, b.name)}
+                        min={1}
+                        max={180}
+                      />
+                    </div>
                   </div>
                 )
               })}
@@ -1654,29 +1678,47 @@ export default function ClassTimetableStudio() {
                                 className="studio-input !py-1 text-[11px] w-20" />
                             </FieldWrapper>
 
-                            <div className="space-y-1">
+                            <div className="space-y-2">
                               {override.timing.breaks.map((b, idx) => {
                                 const isBookend = b.event === 'assembly' || b.event === 'closing'
+                                const dayTimeId = `day-${day}-brk-time-${idx}`
                                 return (
-                                  <div key={idx} className="flex flex-wrap items-center gap-1.5 rounded-lg border theme-border px-2 py-1">
-                                    <label className="flex items-center gap-1 text-[11px] font-bold">
+                                  <div key={idx} className="rounded-lg border theme-border px-2 py-2 space-y-1.5">
+                                    <label className="flex items-center gap-1.5 text-[11px] font-bold">
                                       <input type="checkbox" checked={b.enabled !== false}
+                                        style={{ minWidth: 18, minHeight: 18 }}
                                         onChange={(e) => updateDayBreak(day, idx, 'enabled', e.target.checked)} />
                                       {b.name}
                                     </label>
-                                    {!isBookend && (
-                                      <>
-                                        <span className="text-[10px] theme-text-secondary">at</span>
-                                        <input type="time" value={b.time || ''}
-                                          onChange={(e) => updateDayBreak(day, idx, 'time', e.target.value)}
-                                          className="w-24 text-[11px] font-bold text-center studio-input !py-1" />
-                                      </>
-                                    )}
-                                    <span className="text-[10px] theme-text-secondary">for</span>
-                                    <input type="number" min={5} max={120} value={b.minutes}
-                                      onChange={(e) => updateDayBreak(day, idx, 'minutes', clampInt(e.target.value, 5, 120))}
-                                      className="w-14 text-[11px] font-bold text-center studio-input !py-1" />
-                                    <span className="text-[10px] theme-text-secondary">min</span>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                      <div>
+                                        {isBookend ? (
+                                          <>
+                                            <span className="studio-label">When</span>
+                                            <div className="studio-input w-full flex items-center text-[11px]"
+                                              style={{ minHeight: 44, background: '#f7f4ec', color: '#566f76' }}>
+                                              {b.event === 'assembly' ? 'Before lessons' : 'After last period'}
+                                            </div>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <label htmlFor={dayTimeId} className="studio-label">Start time</label>
+                                            <input id={dayTimeId} type="time" value={b.time || ''}
+                                              aria-label={`${day} ${b.name} start time`}
+                                              onChange={(e) => updateDayBreak(day, idx, 'time', e.target.value)}
+                                              className="studio-input w-full" style={{ minHeight: 44 }} />
+                                          </>
+                                        )}
+                                      </div>
+                                      <DurationSelect
+                                        value={b.minutes}
+                                        onChange={(m) => updateDayBreak(day, idx, 'minutes', m)}
+                                        label={durationLabelForEvent(b.event, b.name)}
+                                        ariaLabel={`${day} ${durationLabelForEvent(b.event, b.name)}`}
+                                        min={1}
+                                        max={180}
+                                      />
+                                    </div>
                                   </div>
                                 )
                               })}

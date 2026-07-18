@@ -173,6 +173,8 @@
     "test:question-type": "node src/utils/questionType.test.js",
     "test:mark-schedule": "node scripts/test-mark-schedule.mjs",
     "test:class-timetable": "node scripts/test-class-timetable.mjs",
+    "test:duration-options": "node scripts/test-duration-options.mjs",
+    "test:duration-timetable": "node scripts/test-duration-timetable.mjs",
     "test:timetable-curriculum": "node scripts/test-timetable-curriculum-resolution.mjs",
     "test:timetable-blocks": "node scripts/test-timetable-blocks.mjs",
     "test:timetable-conflicts": "node scripts/test-timetable-conflict-engine.mjs",
