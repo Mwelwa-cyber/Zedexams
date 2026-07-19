@@ -41,9 +41,14 @@ const {
   buildDraftFromExtraction,
   isLikelyContentImage,
   buildStagedPictureDoc,
+  capMediaByTotalBytes,
   extOf,
   MAX_IMAGES_PER_PAPER,
 } = require("./assessmentFormatExtractHelpers");
+const {
+  LIMITS, looksLikeZip, assessArchive,
+} = require("./docxArchiveGuard");
+const {assertCallableRateLimit} = require("../rateLimit");
 
 const EXTRACT_MODEL =
   process.env.ASSESSMENT_FORMAT_EXTRACT_MODEL || "claude-sonnet-4-6";
@@ -81,18 +86,48 @@ async function stageDocxImages({
   source, draftId, subject, gradeBand, sourceNote, uid,
 }) {
   if (!source || source.kind !== "docx") return 0;
+  // Structured security-skip log. Image staging is best-effort and non-
+  // blocking: a malicious/pathological archive skips staging (returns 0) but
+  // never fails the format extraction (the text path via mammoth already
+  // succeeded upstream) — preserving the legitimate teacher workflow while
+  // preventing the zip-bomb DoS. The internal `code` is logged, never shown.
+  const skip = (code, extra = {}) => {
+    try {
+      console.warn("[extractAssessmentFormat] docx_archive_rejected",
+        JSON.stringify({event: "docx_archive_rejected", code, uid, draftId, ...extra}));
+    } catch (_e) { /* logging must never throw */ }
+    return 0;
+  };
   try {
     // adm-zip reads the DOCX container directly; mammoth (used for the
     // text path) doesn't expose raw media entries.
     const AdmZip = require("adm-zip");
     const [buf] = await admin.storage().bucket()
       .file(source.path).download();
+    // Pre-parse guards: reject an oversized or non-ZIP buffer BEFORE handing
+    // it to the parser (defence-in-depth alongside the adm-zip@^0.6.0 fix).
+    if (buf.length > LIMITS.maxUploadBytes) return skip("archive_too_large", {bytes: buf.length});
+    if (!looksLikeZip(buf)) return skip("not_zip");
     const zip = new AdmZip(buf);
-    const media = zip.getEntries()
+    // getEntries() reads central-directory headers WITHOUT decompressing, so
+    // the archive is assessed on metadata before any getData() extraction.
+    const entries = zip.getEntries();
+    const verdict = assessArchive({
+      bufferLength: buf.length,
+      entries: entries.map((e) => ({
+        name: e.entryName,
+        isDirectory: e.isDirectory,
+        uncompressedSize: Number(e.header && e.header.size) || 0,
+        compressedSize: Number(e.header && e.header.compressedSize) || 0,
+        isEncrypted: Boolean(e.header && (e.header.encripted || e.header.encrypted)),
+      })),
+    });
+    if (!verdict.ok) return skip(verdict.code, {entries: entries.length});
+    const media = capMediaByTotalBytes(entries
       .filter((e) => e.entryName.startsWith("word/media/") && !e.isDirectory)
       .map((e) => ({name: e.entryName, byteLength: e.header.size, entry: e}))
       .filter(isLikelyContentImage)
-      .slice(0, MAX_IMAGES_PER_PAPER);
+      .slice(0, MAX_IMAGES_PER_PAPER));
     if (media.length === 0) return 0;
 
     const db = admin.firestore();
@@ -263,6 +298,12 @@ function createExtractAssessmentFormat(anthropicApiKeySecret) {
       if (role !== "admin") {
         throw new HttpsError("permission-denied", "Admin only.");
       }
+      // Per-user burst cap on this expensive (AI + archive-parsing) admin
+      // endpoint — a deterministic bad file can't be hammered in a loop.
+      // Fail-open (never blocks a legitimate admin on a limiter hiccup).
+      await assertCallableRateLimit(request, {
+        action: "extractAssessmentFormat", userPerMin: 6,
+      });
       const apiKey = getAnthropicApiKey(anthropicApiKeySecret);
       return runExtractAssessmentFormat({uid, data: request.data, apiKey});
     },

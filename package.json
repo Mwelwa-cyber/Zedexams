@@ -212,6 +212,7 @@
     "test:paper-taxonomy": "node scripts/test-paper-taxonomy.mjs",
     "test:past-paper-normalize": "node scripts/test-past-paper-normalize.mjs",
     "test:assessment-format-extract": "node functions/teacherTools/assessmentFormatExtractHelpers.test.js",
+    "test:docx-archive-guard": "node functions/teacherTools/docxArchiveGuard.test.js",
     "test:assessment-docx": "node src/utils/assessmentToDocx.test.js",
     "test:lesson-plan-docx-client": "node src/utils/lessonPlanToDocx.test.js",
     "test:lesson-plan-pdf-client": "node src/utils/lessonPlanToPdf.test.js",

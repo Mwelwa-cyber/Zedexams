@@ -15,6 +15,8 @@ const {
   buildDraftFromExtraction,
   isLikelyContentImage,
   buildStagedPictureDoc,
+  capMediaByTotalBytes,
+  MAX_TOTAL_MEDIA_BYTES,
 } = require("./assessmentFormatExtractHelpers");
 const {buildFormatId} = require("./assessmentFormats");
 
@@ -208,6 +210,34 @@ function goodExtraction() {
   assert.ok(Array.isArray(doc.keywords) && doc.keywords.length === 0,
     "staged docs start without keywords — the admin tags them");
   ok("buildStagedPictureDoc produces a taggable staged doc", true);
+}
+
+// ── Zip-bomb defence: total-extraction cap ────────────────────────────────
+{
+  const mb = 1024 * 1024;
+  // Under the cap: everything passes through, order preserved.
+  const small = [
+    {name: "a.png", byteLength: 2 * mb},
+    {name: "b.png", byteLength: 3 * mb},
+  ];
+  assert.strictEqual(capMediaByTotalBytes(small, 64 * mb).length, 2);
+
+  // Over the cap: only the leading run that fits is kept.
+  const many = Array.from({length: 10}, (_, i) =>
+    ({name: `img${i}.png`, byteLength: 10 * mb}));
+  const capped = capMediaByTotalBytes(many, 64 * mb);
+  ok("total-size cap truncates once cumulative bytes exceed the limit",
+    capped.length === 6); // 6 × 10MB = 60MB ≤ 64MB; 7th would be 70MB
+
+  // A single entry already over the cap yields nothing (never extracted).
+  ok("a single over-cap entry is dropped entirely",
+    capMediaByTotalBytes([{name: "bomb.png", byteLength: 200 * mb}], 64 * mb)
+      .length === 0);
+
+  // Defensive input handling.
+  ok("non-array input → empty list", capMediaByTotalBytes(null).length === 0);
+  ok("default cap is the exported constant",
+    typeof MAX_TOTAL_MEDIA_BYTES === "number" && MAX_TOTAL_MEDIA_BYTES > 0);
 }
 
 console.log(`assessmentFormatExtractHelpers: ${passed} checks passed`);
