@@ -763,6 +763,90 @@ test('attendance audit trail is append-only for everyone', () => {
   assert(auditBlock.includes('allow delete: if false'), 'audit entries must never be client-deletable')
 })
 
+// ── canonical school-membership RBAC foundation ────────────────
+
+console.log('\nschool-membership model — tamper-proof issuance + platformAdmin claim')
+
+test('platformAdmin custom claim helper exists and checks the token claim', () => {
+  assert(rules.includes('function isPlatformAdmin()'), 'isPlatformAdmin() helper missing')
+  assert(
+    rules.includes("'platformAdmin' in request.auth.token"),
+    'isPlatformAdmin() must gate on the platformAdmin TOKEN claim (present AND true), not a Firestore field',
+  )
+  // The claim must fold into isAdmin() so platform-wide admin does not depend
+  // on a client-writable users.role field alone.
+  assert(
+    /function isAdmin\(\) \{ return isVerified\(\) && \(isPlatformAdmin\(\)/.test(rules),
+    'isAdmin() must accept the platformAdmin claim (isPlatformAdmin() first, short-circuiting the callerRole() read)',
+  )
+})
+
+test('school-membership helpers resolve role from the membership doc, not the profile', () => {
+  for (const fn of ['membershipPath', 'hasActiveMembership', 'hasSchoolRole', 'isSchoolAdmin', 'isTeacherAtSchool']) {
+    assert(rules.includes(`function ${fn}(`), `${fn}() helper missing`)
+  }
+  assert(
+    rules.includes('schools/$(schoolId)/members/$(request.auth.uid)'),
+    'membershipPath() must point at schools/{schoolId}/members/{uid} — the tamper-proof membership record',
+  )
+  assert(
+    /function isSchoolAdmin\(schoolId\) \{\s*return isPlatformAdmin\(\) \|\| hasSchoolRole\(schoolId, 'school_admin'\)/.test(rules),
+    'isSchoolAdmin() must require an active school_admin membership in THIS school (or platform admin) — cross-school isolation',
+  )
+})
+
+test('schools/{schoolId} creation is platform-admin only (no self-serve → self-admin)', () => {
+  const block = rules.match(/match \/schools\/\{schoolId\}\s*\{([\s\S]*?)\n {4}\}/)
+  assert(block, 'schools match block not found')
+  assert(
+    /allow create: if isPlatformAdmin\(\);/.test(block[1]),
+    'schools create must be platform-admin only — a user must not be able to conjure a school and self-admin it',
+  )
+  assert(
+    /allow read: if isPlatformAdmin\(\) \|\| hasActiveMembership\(schoolId\)/.test(block[1]),
+    'schools read must be scoped to active members (+ platform admin)',
+  )
+})
+
+test('members/{uid} issuance is admin-only and never self-writable', () => {
+  const block = rules.match(/match \/members\/\{uid\}\s*\{([\s\S]*?)\n {6}\}/)
+  assert(block, 'members match block not found')
+  // Writes require school_admin (of THIS school) or platform admin — a member
+  // can never write their own membership (no self-promotion to school_admin).
+  assert(
+    /allow create, update: if isSchoolAdmin\(schoolId\)\s*&& validMembershipFields\(schoolId, uid\)/.test(block[1]),
+    'members create/update must require isSchoolAdmin(schoolId) + validMembershipFields — no forged/self-promoted membership',
+  )
+  assert(
+    /allow delete: if isSchoolAdmin\(schoolId\)/.test(block[1]),
+    'members delete must be school-admin only',
+  )
+  // The read rule must NOT let a member enumerate the roster — self-read is the
+  // widest a non-admin gets.
+  assert(
+    block[1].includes('request.auth.uid == uid'),
+    'members read must scope a regular member to their own record (uid == auth.uid)',
+  )
+})
+
+test('validMembershipFields pins uid + schoolId and enum-checks role/status', () => {
+  const start = rules.indexOf('function validMembershipFields(')
+  assert(start >= 0, 'validMembershipFields definition not found')
+  const body = rules.slice(start, rules.indexOf('\n    }', start))
+  assert(body.includes('incoming().uid == uid'), 'validMembershipFields must pin uid to the path')
+  assert(body.includes("incoming().schoolId == schoolId"), 'validMembershipFields must pin schoolId to the path')
+  assert(body.includes('_validMembershipRole(incoming().role)'), 'validMembershipFields must enum-check role')
+  assert(body.includes('_validMembershipStatus(incoming().status)'), 'validMembershipFields must enum-check status')
+  // The role enum must NOT admit a platform-level escalation term.
+  const roleFn = rules.match(/function _validMembershipRole\(v\) \{([\s\S]*?)\}/)
+  assert(roleFn, '_validMembershipRole not found')
+  assert(
+    roleFn[1].includes("'school_admin', 'teacher', 'learner', 'parent'"),
+    "_validMembershipRole must whitelist exactly the four school roles",
+  )
+  assert(!roleFn[1].includes("'admin'") || roleFn[1].includes("'school_admin'"), 'membership role must not admit a bare platform admin term')
+})
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log('')

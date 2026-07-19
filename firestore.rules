@@ -36,10 +36,85 @@ service cloud.firestore {
     // through their own bypass branches instead of comparing against
     // a real grade.
     function callerGrade() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('grade', ''); }
+    // ── platform-admin (high-level role via custom claim) ────────────────
+    // Per the RLS model: high-level, infrequently-changing platform roles
+    // live in Firebase CUSTOM CLAIMS, not in a client-writable Firestore
+    // field. The `platformAdmin` claim is minted only by the
+    // adminSetPlatformAdmin Cloud Function (admin SDK) and is the tamper-proof
+    // signal used for platform-wide administration. It is additive: the
+    // established Firestore-role check (users/{uid}.role in admin/superAdmin —
+    // itself blocklisted from client self-writes) still grants admin, so no
+    // existing admin loses access. The claim is checked WITHOUT a Firestore
+    // read, so it also lets a platform admin whose user doc is missing act
+    // (e.g. break-glass) and short-circuits before the callerRole() get().
+    // Mirrors tokenEmailVerified()'s "claim present AND true" pattern so a
+    // token without the claim denies closed rather than erroring.
+    function isPlatformAdmin() {
+      return isAuthed()
+        && 'platformAdmin' in request.auth.token
+        && request.auth.token.platformAdmin == true;
+    }
     // Admin and superAdmin are equivalent — both get full read/write access
-    // to every collection an admin can touch.
-    function isAdmin() { return isVerified() && (callerRole() == 'admin' || callerRole() == 'superAdmin'); }
+    // to every collection an admin can touch. The platformAdmin custom claim
+    // is an equivalent, tamper-proof grant (checked first so it short-circuits
+    // the callerRole() Firestore read).
+    function isAdmin() { return isVerified() && (isPlatformAdmin() || callerRole() == 'admin' || callerRole() == 'superAdmin'); }
     function isTeacherOrAbove() { return isVerified() && (callerRole() == 'teacher' || callerRole() == 'admin' || callerRole() == 'superAdmin'); }
+
+    // ── canonical school-membership helpers (multi-school RBAC) ───────────
+    // The single source of truth for a user's school-level role is the
+    // membership document at schools/{schoolId}/members/{uid} — NEVER a
+    // schoolId written into the user's own profile. These helpers resolve
+    // membership + school role from that document so every school-scoped
+    // rule reads the same tamper-proof record. See the schools/ match block
+    // near the end of this file for the full contract (issuance is
+    // admin-only, cross-school isolation, no self-promotion).
+    //
+    // Cost note: get()/exists() on the same membership path are cached and
+    // billed once per rule evaluation, so the layered helpers below cost a
+    // single membership read per request even though they call get() twice.
+    function membershipPath(schoolId) {
+      return /databases/$(database)/documents/schools/$(schoolId)/members/$(request.auth.uid);
+    }
+    function hasActiveMembership(schoolId) {
+      return isVerified()
+        && exists(membershipPath(schoolId))
+        && get(membershipPath(schoolId)).data.get('status', '') == 'active';
+    }
+    function schoolRole(schoolId) {
+      return get(membershipPath(schoolId)).data.get('role', '');
+    }
+    function hasSchoolRole(schoolId, role) {
+      return hasActiveMembership(schoolId) && schoolRole(schoolId) == role;
+    }
+    // A platform admin is a school admin everywhere (break-glass / support);
+    // otherwise the caller must hold an active school_admin membership in
+    // THIS school. Membership in school A never confers rights in school B.
+    function isSchoolAdmin(schoolId) {
+      return isPlatformAdmin() || hasSchoolRole(schoolId, 'school_admin');
+    }
+    function isTeacherAtSchool(schoolId) {
+      return hasSchoolRole(schoolId, 'teacher');
+    }
+    function _validMembershipRole(v) {
+      return v is string && v in ['school_admin', 'teacher', 'learner', 'parent'];
+    }
+    function _validMembershipStatus(v) {
+      return v is string && v in ['active', 'invited', 'suspended', 'removed'];
+    }
+    // Field-integrity backstop for a membership write. The path pins the
+    // schoolId + uid, and the write must not disagree with them (a school
+    // admin can never mint a membership for a different school or re-key it to
+    // another uid). role/status are enum-checked; classIds/permissions are
+    // size-capped.
+    function validMembershipFields(schoolId, uid) {
+      return incoming().uid == uid
+        && (!('schoolId' in incoming()) || incoming().schoolId == schoolId)
+        && (!('role' in incoming()) || _validMembershipRole(incoming().role))
+        && (!('status' in incoming()) || _validMembershipStatus(incoming().status))
+        && (!('classIds' in incoming()) || (incoming().classIds is list && incoming().classIds.size() <= 300))
+        && (!('permissions' in incoming()) || (incoming().permissions is list && incoming().permissions.size() <= 50));
+    }
 
     // ── account-status gate (P0: suspended-account enforcement) ──────────
     // Canonical lifecycle field is users/{uid}.status ('active'|'suspended'|
@@ -2622,6 +2697,76 @@ service cloud.firestore {
         allow update: if isVerified() && isOwner(uid)
           && changedKeys().hasOnly(['read', 'readAt']);
         allow delete: if isVerified() && (isOwner(uid) || isAdmin());
+      }
+    }
+
+    // ── schools + members (canonical multi-school RBAC foundation) ────
+    //
+    // The tamper-proof home for school membership + school-level roles. A
+    // user's school role is NEVER derived from a schoolId they wrote into
+    // their own profile — it lives ONLY in schools/{schoolId}/members/{uid},
+    // which can be issued or changed solely through a trusted administrative
+    // process (an existing school_admin of THIS school, a platform admin, or
+    // a Cloud Function via the admin SDK). This closes the "write a schoolId
+    // to gain access" and "self-promote to school_admin" vectors and gives
+    // cross-school isolation (a school_admin of school A has zero rights in
+    // school B). See the membership helpers near the top of this file.
+    //
+    // Adoption is phased: this is the foundation layer + admin surface. The
+    // existing user-owned content collections (quizzes, assessments, lessons,
+    // aiGenerations, classRegisters, …) stay owner-scoped as they are today;
+    // migrating a collection onto school-scoped sharing is a deliberate,
+    // separately-tested follow-up that also updates the matching client
+    // queries (see docs/security/RLS_AUDIT.md → "Phased school-scope
+    // adoption"). Nothing here widens access to any existing collection.
+    //
+    // Schema:
+    //   schools/{schoolId} {
+    //     name, address?, district?, province?, motto?, logoUrl?,
+    //     status: 'active'|'suspended', createdBy (platform-admin uid),
+    //     createdAt, updatedAt
+    //   }
+    //   schools/{schoolId}/members/{uid} {
+    //     uid, schoolId, role: 'school_admin'|'teacher'|'learner'|'parent',
+    //     status: 'active'|'invited'|'suspended'|'removed',
+    //     classIds: string[], permissions: string[],
+    //     invitedBy?/addedBy? (issuer uid), createdAt, updatedAt
+    //   }
+    match /schools/{schoolId} {
+      // Any active member of the school (or a platform admin) may read the
+      // school profile. Provisioning is platform-admin only — schools are
+      // created by a trusted process, never self-serve, so a user cannot
+      // conjure a school and make themselves its admin. A school_admin may
+      // update a bounded set of descriptive fields for their OWN school and
+      // can never change its id or lifecycle status.
+      allow read: if isPlatformAdmin() || hasActiveMembership(schoolId);
+      allow create: if isPlatformAdmin();
+      allow update: if isPlatformAdmin()
+        || (isSchoolAdmin(schoolId)
+            && changedKeys().hasOnly(['name', 'address', 'district', 'province', 'motto', 'logoUrl', 'updatedAt']));
+      allow delete: if isPlatformAdmin();
+
+      // ── members/{uid} — the security-critical membership record ──
+      // Issuance / change / revocation is a trusted admin action ONLY: an
+      // existing active school_admin of THIS school, or a platform admin, or
+      // a Cloud Function (admin SDK bypasses these rules). A member can NEVER
+      // write their own membership (that would let anyone self-promote to
+      // school_admin or fake `status:'active'`), and the FIRST school_admin is
+      // always provisioned server-side. Cross-school writes are impossible:
+      // isSchoolAdmin(schoolId) resolves the CALLER's membership in THIS
+      // school, so a school_admin of another school is rejected.
+      match /members/{uid} {
+        // Read: the member sees their own record; a school_admin (or platform
+        // admin) sees every member of their school. A regular member cannot
+        // `list` the roster (the own-record branch can't authorise an
+        // unconstrained list), so one school can never enumerate another's —
+        // or even its own — membership unless it holds school_admin.
+        allow read: if isPlatformAdmin()
+          || (isVerified() && request.auth.uid == uid)
+          || isSchoolAdmin(schoolId);
+        allow create, update: if isSchoolAdmin(schoolId)
+          && validMembershipFields(schoolId, uid);
+        allow delete: if isSchoolAdmin(schoolId);
       }
     }
 
