@@ -138,6 +138,31 @@ surrounding `functions/` google config (which does not enforce `max-len`).
 - Magic-byte validation added here is for the adm-zip image path;
   general upload magic-byte/malware scanning (STOR-003) remains Phase 2.
 
+## Follow-up corrections (subsequent PR, 2026-07-19)
+After the operator provisioned the GCP infrastructure (see
+[`dr-001-infrastructure-readiness.md`](./dr-001-infrastructure-readiness.md)),
+a narrowly-scoped follow-up landed:
+- **Restore-script import bug fixed** — `scripts/restore-firestore.mjs` resolved
+  `@google-cloud/firestore` from the repo root, where it isn't installed
+  (`ERR_MODULE_NOT_FOUND` on `--live`). Now resolved via a functions-anchored
+  `createRequire`, and refactored into testable `parseArgs`/`planRestore`/
+  `executeRestore` (injectable Admin loader, main-guarded). New
+  `scripts/test-restore-firestore.mjs` — **16 checks** (dry-run, scratch
+  request, default-db refusal, live client construction, failed startup).
+- **DOCX guard moved before EVERY decompression path** — new shared
+  `docxArchiveInspect.js` (guard on central-directory metadata before any
+  decompression) is now called by **both** the `mammoth` text path
+  (`pastPaperImport.extractDocxText`) and the `adm-zip` image path
+  (`extractAssessmentFormat.stageDocxImages`) — previously only the image path
+  was guarded. New `docxArchiveInspect.test.js` — **14 checks**, including proof
+  (via an injected parser spy) that the guard runs **before** the parser.
+- **`FIRESTORE_BACKUP_BUCKET=gs://zedexams-backups`** committed to
+  `functions/.env.examsprepzambia` (auto-loaded on deploy; the runbook shows how
+  to confirm the deployed function received it).
+- **Runbook regions corrected** — functions + Scheduler are `us-central1`; DB +
+  bucket `africa-south1`; UTC date-key caveat documented; function-region
+  migration flagged as a separate task.
+
 ## Recommended next phase (Phase 1)
 - Execute the backup + restore drill; add a completion-checker that stamps
   `completed:true`; have Marshal fold `opsBackups` freshness into `/admin/company`.

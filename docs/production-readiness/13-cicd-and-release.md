@@ -101,9 +101,15 @@ pinned to mutable tags, and **two production dependency vulnerabilities in `func
   `assessmentFormatExtractHelpers.js` (`MAX_DOCX_BUFFER_BYTES` before parse,
   `capMediaByTotalBytes` before extraction) wired into `extractAssessmentFormat.js`, with a
   unit test for the total-size cap.
-- **Residual:** magic-byte verification on uploads remains a separate item (STOR-003).
-- **Launch blocker:** cleared. **Tests:** `assessmentFormatExtractHelpers.test.js` (guard cap) —
-  passing.
+- **Follow-up (2026-07-19):** the guard was moved into a shared
+  `docxArchiveInspect.js` and now runs **before every DOCX decompression path** —
+  the `mammoth` text path (`pastPaperImport.extractDocxText`) as well as the
+  `adm-zip` image path — not just embedded-image staging. Tests
+  (`docxArchiveInspect.test.js`, 14) prove the guard executes before the parser.
+- **Residual:** general upload magic-byte/malware verification for non-DOCX types
+  remains a separate item (STOR-003).
+- **Launch blocker:** cleared. **Tests:** `docxArchiveGuard.test.js` (25) +
+  `docxArchiveInspect.test.js` (14) — passing.
 
 ### SEC-008 — Committed non-secret env + public build vars (accepted)
 - **Severity:** Informational · **Confidence:** Confirmed

@@ -45,9 +45,7 @@ const {
   extOf,
   MAX_IMAGES_PER_PAPER,
 } = require("./assessmentFormatExtractHelpers");
-const {
-  LIMITS, looksLikeZip, assessArchive,
-} = require("./docxArchiveGuard");
+const {inspectDocxBuffer} = require("./docxArchiveInspect");
 const {assertCallableRateLimit} = require("../rateLimit");
 
 const EXTRACT_MODEL =
@@ -99,31 +97,14 @@ async function stageDocxImages({
     return 0;
   };
   try {
-    // adm-zip reads the DOCX container directly; mammoth (used for the
-    // text path) doesn't expose raw media entries.
-    const AdmZip = require("adm-zip");
     const [buf] = await admin.storage().bucket()
       .file(source.path).download();
-    // Pre-parse guards: reject an oversized or non-ZIP buffer BEFORE handing
-    // it to the parser (defence-in-depth alongside the adm-zip@^0.6.0 fix).
-    if (buf.length > LIMITS.maxUploadBytes) return skip("archive_too_large", {bytes: buf.length});
-    if (!looksLikeZip(buf)) return skip("not_zip");
-    const zip = new AdmZip(buf);
-    // getEntries() reads central-directory headers WITHOUT decompressing, so
-    // the archive is assessed on metadata before any getData() extraction.
-    const entries = zip.getEntries();
-    const verdict = assessArchive({
-      bufferLength: buf.length,
-      entries: entries.map((e) => ({
-        name: e.entryName,
-        isDirectory: e.isDirectory,
-        uncompressedSize: Number(e.header && e.header.size) || 0,
-        compressedSize: Number(e.header && e.header.compressedSize) || 0,
-        isEncrypted: Boolean(e.header && (e.header.encripted || e.header.encrypted)),
-      })),
-    });
-    if (!verdict.ok) return skip(verdict.code, {entries: entries.length});
-    const media = capMediaByTotalBytes(entries
+    // Shared guard-before-decompression: inspectDocxBuffer parses only the
+    // central-directory headers (no getData) and rejects a bomb / traversal /
+    // fake-.docx / oversized archive on metadata BEFORE we extract any image.
+    const insp = inspectDocxBuffer(buf);
+    if (!insp.ok) return skip(insp.code, {bytes: buf.length});
+    const media = capMediaByTotalBytes(insp.entries
       .filter((e) => e.entryName.startsWith("word/media/") && !e.isDirectory)
       .map((e) => ({name: e.entryName, byteLength: e.header.size, entry: e}))
       .filter(isLikelyContentImage)

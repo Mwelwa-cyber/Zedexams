@@ -33,6 +33,7 @@ const mammoth = require("mammoth");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 const {assertCallableRateLimit} = require("../rateLimit");
+const {inspectDocxBuffer, safeUserError} = require("./docxArchiveInspect");
 
 const {
   getAnthropicApiKey,
@@ -461,6 +462,19 @@ async function extractDocxText(source) {
     throw new HttpsError("failed-precondition",
       `Document is ${Math.round(buf.length / 1024 / 1024)}MB; the AI ` +
       "importer accepts up to 25MB Word files.");
+  }
+  // SEC-007: guard the archive BEFORE mammoth decompresses it. A .docx is a
+  // ZIP; a bomb / traversal / fake-.docx is rejected on central-directory
+  // metadata here, so mammoth never decompresses a hostile archive. Legacy
+  // .doc (OLE compound file, not a ZIP) is exempt — mammoth handles/fails it
+  // as before (see the DOC_MIME note below).
+  if (source.mime !== DOC_MIME) {
+    const insp = inspectDocxBuffer(buf);
+    if (!insp.ok) {
+      console.warn("[pastPaperImport] docx_archive_rejected",
+        JSON.stringify({event: "docx_archive_rejected", code: insp.code}));
+      throw new HttpsError("failed-precondition", safeUserError());
+    }
   }
   let note = "";
   if (source.mime === DOC_MIME) {
