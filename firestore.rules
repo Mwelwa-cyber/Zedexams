@@ -1190,6 +1190,17 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Assessment export state (per-assessment cache status for paper/scheme
+    // exports). Written ONLY server-side (Cloud Functions, admin SDK) — the
+    // client never writes export status, storage paths or leases. The owning
+    // teacher may READ it to observe generation status; nobody may write it.
+    match /assessmentExports/{assessmentId} {
+      allow read: if isVerified() && (
+        isAdmin() || resource.data.ownerUid == request.auth.uid
+      );
+      allow write: if false;
+    }
+
     // ── private CBC curriculum grounding ─────────────────────
     // These collections hold the raw server-side curriculum corpus used to
     // ground AI generations. They must never be exposed to the browser.

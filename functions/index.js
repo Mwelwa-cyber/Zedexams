@@ -4029,6 +4029,17 @@ exports.createLibraryDownloadTicket = libraryDownload.createLibraryDownloadTicke
 exports.apiLibraryDownload = libraryDownload.apiLibraryDownload;
 exports.reapDownloadTickets = libraryDownload.reapDownloadTickets;
 
+// Versioned, cached assessment exports: source-hash keyed Storage objects served
+// through the branded same-origin endpoint /downloads/assessments/:id/:type so a
+// download comes FROM zedexams.com (never firebasestorage.googleapis.com) and an
+// unchanged paper streams its pre-generated file. See functions/assessmentExports/.
+const assessmentExports = require('./assessmentExports/exportService');
+exports.requestAssessmentExport = assessmentExports.requestAssessmentExport;
+exports.getAssessmentExportStatus = assessmentExports.getAssessmentExportStatus;
+exports.prewarmAssessmentExports = assessmentExports.prewarmAssessmentExports;
+exports.apiAssessmentDownload = assessmentExports.apiAssessmentDownload;
+exports.reapAssessmentExportsOnDelete = assessmentExports.reapAssessmentExportsOnDelete;
+
 // Same-origin image proxy: fetches a Storage image's bytes server-side (where
 // CORS doesn't apply) so the Word/PDF exporters can embed diagrams even when the
 // bucket's CORS config is missing/misapplied. See functions/imageProxy.js.

@@ -73,6 +73,11 @@ export function PaperRenderView({ mode, blocks, assessment, changeView, onExport
           <button className="sv-btn sv-btn-primary" onClick={() => onExport('docx')} disabled={exporting}>
             <Icon name={exporting ? 'spinner' : 'download'} size={15} spin={exporting} /> {exporting ? 'Working…' : (isKey ? 'Download key (Word)' : 'Download Word')}
           </button>
+          {!isKey && (
+            <button className="sv-btn sv-btn-outline" onClick={() => onExport('pdf')} disabled={exporting} title="Download a PDF from zedexams.com — cached, so repeat downloads are instant">
+              <Icon name={exporting ? 'spinner' : 'download'} size={15} spin={exporting} /> Download PDF
+            </button>
+          )}
           <button className="sv-btn sv-btn-outline" onClick={() => onExport('print')} title="Use your browser's Print dialog — pick “Save as PDF” there if you need a PDF">
             <Icon name="print" size={15} /> Print / Save as PDF
           </button>

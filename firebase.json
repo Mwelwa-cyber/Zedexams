@@ -114,6 +114,13 @@
     ],
     "rewrites": [
       {
+        "source": "/downloads/**",
+        "function": {
+          "functionId": "apiAssessmentDownload",
+          "region": "us-central1"
+        }
+      },
+      {
         "source": "/api/ai/chat",
         "function": {
           "functionId": "apiAiChat",
