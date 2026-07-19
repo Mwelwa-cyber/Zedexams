@@ -34,6 +34,7 @@ import {
   groupSectionsIntoParts,
   reconcileLayoutCoverage,
   mapWithConcurrency,
+  SCANNED_BATCH_CONCURRENCY,
   isRetryableImportError,
   readBatchResilient,
   formatPageList,
@@ -1049,6 +1050,47 @@ await testAsync('runVisionImport throws the real reason when every batch fails',
     /Daily AI limit reached/i,
     'the underlying failure reason is bubbled up',
   )
+})
+
+// ── Batch concurrency (the "import takes forever" perf fix) ──────────────────
+
+await testAsync('runVisionImport reads batches concurrently, bounded by SCANNED_BATCH_CONCURRENCY', async () => {
+  // 10 pages → chunkPages(10,4,1) = 4 batches. The old importer read them one at
+  // a time; now a small window runs at once so a long paper doesn't wait on
+  // every vision call back-to-back. Assert we DO overlap (max in-flight > 1) but
+  // never exceed the cap.
+  const pages = Array.from({ length: 10 }, (_, i) => ({ pageNumber: i + 1, dataUrl: 'data:image/jpeg;base64,AAAA' }))
+  let inFlight = 0
+  let maxInFlight = 0
+  const callVision = async ({ pages: batchPages }) => {
+    inFlight += 1
+    maxInFlight = Math.max(maxInFlight, inFlight)
+    // Yield across a macrotask so overlapping calls actually pile up.
+    await new Promise(resolve => setTimeout(resolve, 5))
+    inFlight -= 1
+    const first = batchPages[0].pageNumber
+    return {
+      detectedCount: batchPages.length,
+      sections: batchPages.map(p => ({
+        kind: 'standalone',
+        question: mcq({ text: `Question ${p.pageNumber}`, sourceQuestionNumber: p.pageNumber, sourcePage: p.pageNumber }),
+      })),
+      // keep the batch id observable for debugging on failure
+      _firstPage: first,
+    }
+  }
+  const out = await runVisionImport({
+    pageImages: pages,
+    assetByPage: {},
+    file: { name: 'long.pdf' },
+    callVision,
+    sourceNoun: 'scanned paper',
+  })
+  assert.ok(maxInFlight > 1, `batches should overlap (saw max ${maxInFlight} in flight)`)
+  assert.ok(maxInFlight <= SCANNED_BATCH_CONCURRENCY, `never exceed the cap (saw ${maxInFlight} > ${SCANNED_BATCH_CONCURRENCY})`)
+  // Every printed question still lands, regardless of read order.
+  const nums = out.sections.map(s => s.question.sourceQuestionNumber).sort((a, b) => a - b)
+  assert.deepEqual(nums, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 'all questions survive concurrent reads')
 })
 
 // ── Per-page retry ladder (the "one group of pages could not be read" fix) ──

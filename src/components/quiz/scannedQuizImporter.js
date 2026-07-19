@@ -45,7 +45,7 @@ export const DEFAULT_DIAGRAM_HANDLING = 'keep'
 // and the server (engineVersion) ships via the Functions deploy — showing both
 // makes a half-deployed state (new UI, stale function, or vice-versa) obvious.
 // Bump on a meaningful change to this file's extraction/merge/recovery logic.
-export const SCANNED_IMPORTER_VERSION = '2026.07.11-parts'
+export const SCANNED_IMPORTER_VERSION = '2026.07.19-parallel'
 
 export function normaliseDiagramHandling(mode) {
   return DIAGRAM_HANDLING_MODES.includes(mode) ? mode : DEFAULT_DIAGRAM_HANDLING
@@ -58,6 +58,16 @@ export function normaliseDiagramHandling(mode) {
 // while still capturing a passage/map that crosses a boundary whole.
 export const SCANNED_BATCH_SIZE = 4
 export const SCANNED_BATCH_OVERLAP = 1
+// How many extraction batches to read AT ONCE. The old importer read every
+// batch strictly one-after-another, so a long paper (a 16-page comprehension is
+// ~6 batches, each a 20–60s vision call) waited on all of them back-to-back —
+// the single biggest cause of the "why is import taking so long" complaint.
+// Reading a small window of batches concurrently overlaps those calls and cuts
+// wall-clock time by roughly this factor, while staying well under the vision
+// API's rate limit. It does NOT change cost or the daily AI meter, which count
+// TOTAL calls, not how many run at once. Kept small so a big paper can't fan
+// out into dozens of simultaneous requests.
+export const SCANNED_BATCH_CONCURRENCY = 3
 // Recovery re-scans use SMALLER batches than the first pass: fewer pages per
 // call make the vision model enumerate more reliably AND keep each call well
 // inside the function deadline (the pages being recovered are usually the
@@ -1444,38 +1454,46 @@ export async function runVisionImport({
   // recovery below tell an under-extracted page apart from a page that
   // genuinely has no questions (cover / instructions / passage continuation).
   let layoutQuestionsByPage = null
-  if (typeof callLayout === 'function') {
-    try {
-      const perPage = await mapWithConcurrency(pageImages, 4, (p) =>
-        callLayout(p.dataUrl).catch(() => null),
-      )
-      layoutQuestionsByPage = new Map()
-      perPage.forEach((res, i) => {
-        const s = res && res.summary
-        // Only record an AUTHORITATIVE per-page count from a NON-degraded
-        // layout that actually reported a `questions` number. A degraded /
-        // timed-out layout returns { summary: { total: 0 }, degraded: true }
-        // with no `questions` field — recording that as 0 would make the
-        // zero-yield pass treat the page as confirmed-empty and wrongly
-        // suppress its re-scan. Leaving it absent lets findZeroYieldPages fall
-        // back to its "assume a non-cover page has questions" heuristic.
-        if (s && !res.degraded && Number.isFinite(Number(s.questions))) {
-          layoutQuestionsByPage.set(pageImages[i].pageNumber, Number(s.questions))
-        }
-      })
-      layoutSummary = perPage.reduce((acc, res) => {
-        const s = res && res.summary
-        if (!s) return acc
-        acc.tables += Number(s.tables) || 0
-        acc.diagrams += Number(s.diagrams) || 0
-        acc.questions += Number(s.questions) || 0
-        return acc
-      }, { tables: 0, diagrams: 0, questions: 0 })
-    } catch {
-      layoutSummary = null
-      layoutQuestionsByPage = null
-    }
-  }
+  // Kick the layout pass off CONCURRENTLY with extraction rather than blocking
+  // on it up front. Its results are only consumed AFTER the main extraction
+  // pass (zero-yield recovery + coverage reconciliation), so starting it now and
+  // awaiting it just before the recovery step overlaps its latency with the
+  // batch reads instead of stacking on top of them — on a long paper this alone
+  // shaves the whole layout wave off the perceived import time.
+  const layoutPromise = (typeof callLayout === 'function')
+    ? (async () => {
+      try {
+        const perPage = await mapWithConcurrency(pageImages, 4, (p) =>
+          callLayout(p.dataUrl).catch(() => null),
+        )
+        const qByPage = new Map()
+        perPage.forEach((res, i) => {
+          const s = res && res.summary
+          // Only record an AUTHORITATIVE per-page count from a NON-degraded
+          // layout that actually reported a `questions` number. A degraded /
+          // timed-out layout returns { summary: { total: 0 }, degraded: true }
+          // with no `questions` field — recording that as 0 would make the
+          // zero-yield pass treat the page as confirmed-empty and wrongly
+          // suppress its re-scan. Leaving it absent lets findZeroYieldPages fall
+          // back to its "assume a non-cover page has questions" heuristic.
+          if (s && !res.degraded && Number.isFinite(Number(s.questions))) {
+            qByPage.set(pageImages[i].pageNumber, Number(s.questions))
+          }
+        })
+        const summary = perPage.reduce((acc, res) => {
+          const s = res && res.summary
+          if (!s) return acc
+          acc.tables += Number(s.tables) || 0
+          acc.diagrams += Number(s.diagrams) || 0
+          acc.questions += Number(s.questions) || 0
+          return acc
+        }, { tables: 0, diagrams: 0, questions: 0 })
+        return { layoutSummary: summary, layoutQuestionsByPage: qByPage }
+      } catch {
+        return { layoutSummary: null, layoutQuestionsByPage: null }
+      }
+    })()
+    : null
 
   const runBatch = async (pages, phase, current, total) => {
     onProgress?.({ phase, current, total })
@@ -1507,16 +1525,31 @@ export async function runVisionImport({
     const unreadSet = new Set(unread)
     pages.forEach(p => { if (!unreadSet.has(p.pageNumber)) readOkPages.add(p.pageNumber) })
   }
-  for (let i = 0; i < batches.length; i += 1) {
-    const { results, failedPages: unread, errors } = await readBatchResilient(
-      batches[i],
-      pages => runBatch(pages, 'reading', i + 1, batches.length),
-    )
-    batchResults.push(...results)
-    failedPages.push(...unread)
-    markRead(batches[i], unread)
-    if (errors.length) batchErrors.push({ batch: i + 1, message: errors[0]?.message || '' })
-  }
+  // Read the batches with BOUNDED CONCURRENCY instead of strictly one-at-a-time.
+  // Each batch still reads resiliently (a transient failure degrades to per-page
+  // reads with a retry), so a slow batch never loses its pages. Progress reports
+  // COMPLETED batches (order-independent) so the bar still advances honestly.
+  let readDone = 0
+  const perBatch = await mapWithConcurrency(batches, SCANNED_BATCH_CONCURRENCY, async (batch) => {
+    const out = await readBatchResilient(batch, pages => callVision({
+      fileName: file?.name || '',
+      pages,
+      subjectHint,
+      gradeHint,
+    }))
+    readDone += 1
+    onProgress?.({ phase: 'reading', current: readDone, total: batches.length })
+    return out
+  })
+  // Fold the per-batch outputs in batch order, so batchErrors[0] stays the
+  // lowest-index failing batch (its message is the reason surfaced on a total
+  // failure and in the partial-import warning).
+  perBatch.forEach((out, i) => {
+    batchResults.push(...out.results)
+    failedPages.push(...out.failedPages)
+    markRead(batches[i], out.failedPages)
+    if (out.errors.length) batchErrors.push({ batch: i + 1, message: out.errors[0]?.message || '' })
+  })
 
   if (!batchResults.length) {
     // Nothing to build from. Bubble up the first batch's real error (daily
@@ -1531,6 +1564,15 @@ export async function runVisionImport({
   }
 
   let merged = mergeSectionBatches(batchResults)
+
+  // Resolve the layout pass now (it ran concurrently with extraction above). By
+  // the time the batches are read it is usually already done, so this rarely
+  // waits — the point was to overlap its latency, not add to it.
+  if (layoutPromise) {
+    const resolved = await layoutPromise
+    layoutSummary = resolved?.layoutSummary ?? null
+    layoutQuestionsByPage = resolved?.layoutQuestionsByPage ?? null
+  }
 
   // Pages the zero-yield pass targeted (for the honest warning below).
   let zeroYieldTargets = []
