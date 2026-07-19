@@ -27,6 +27,11 @@
  *     in functions/firestoreBackup.test.js) so the request shape can't drift
  *     from the backup.
  *
+ * The decision logic (parseArgs/planRestore) and the client-driven step
+ * (executeRestore, with an injectable admin loader) are exported so
+ * scripts/test-restore-firestore.mjs can drive every path — dry run, scratch
+ * request, default-db refusal, live client init, failed startup — with no GCP.
+ *
  * USAGE:
  *   node scripts/restore-firestore.mjs --date=2026-07-18                 # dry run
  *   node scripts/restore-firestore.mjs --date=2026-07-18 \
@@ -40,92 +45,143 @@
  */
 
 import { createRequire } from 'module'
+import { fileURLToPath, pathToFileURL } from 'url'
+import { dirname, join } from 'path'
 
 const require = createRequire(import.meta.url)
 const { resolveBackupBucket, buildImportRequest } =
   require('../functions/firestoreBackupCore.js')
 
-function arg(name, fallback = '') {
-  const hit = process.argv.find((a) => a.startsWith(`--${name}=`))
-  return hit ? hit.split('=').slice(1).join('=') : fallback
-}
-const has = (name) => process.argv.includes(`--${name}`)
+const HERE = dirname(fileURLToPath(import.meta.url))
 
-const LIVE = has('live')
-const DATE = arg('date')
-const DATABASE = arg('database', '(default)')
-const PROJECT =
-  arg('project') ||
-  process.env.GOOGLE_CLOUD_PROJECT ||
-  process.env.GCLOUD_PROJECT ||
-  ''
-const BUCKET_RAW = arg('bucket') || process.env.FIRESTORE_BACKUP_BUCKET || ''
-const ACK_PROD = has('i-understand-this-overwrites-production')
-
-function fail(msg) {
-  console.error(`\n✗ ${msg}\n`)
-  process.exit(1)
-}
-
-const bucketUri = resolveBackupBucket(BUCKET_RAW)
-if (!bucketUri) {
-  fail(
-    'No backup bucket. Pass --bucket=gs://<name> or set FIRESTORE_BACKUP_BUCKET.'
+// `@google-cloud/firestore` (the Admin client used for the actual import) is a
+// `functions/` dependency, NOT a repo-root one, so a bare import from this
+// script's location fails with ERR_MODULE_NOT_FOUND. Resolve it against
+// functions/node_modules via a require anchored at the functions package.
+// Exported + injectable so the test never needs the real package or GCP.
+export function loadFirestoreAdmin() {
+  const functionsRequire = createRequire(
+    join(HERE, '..', 'functions', 'package.json'),
   )
-}
-if (!PROJECT) {
-  fail('No project id. Pass --project=<id> or set GOOGLE_CLOUD_PROJECT.')
-}
-if (!/^\d{4}-\d{2}-\d{2}$/.test(DATE)) {
-  fail('Pass --date=YYYY-MM-DD naming the export folder to restore from.')
-}
-
-let request
-try {
-  request = buildImportRequest({
-    projectId: PROJECT,
-    bucketUri,
-    dateKey: DATE,
-    databaseId: DATABASE,
-  })
-} catch (err) {
-  fail(`Could not build import request: ${err.message}`)
+  try {
+    return functionsRequire('@google-cloud/firestore')
+  } catch (err) {
+    throw new Error(
+      'Could not load @google-cloud/firestore (a functions/ dependency). ' +
+      'Run `npm --prefix functions ci` first, then re-run. ' +
+      `Underlying error: ${err && err.message}`,
+    )
+  }
 }
 
-console.log('\nFirestore restore (importDocuments)')
-console.log('  project      :', PROJECT)
-console.log('  target db    :', DATABASE)
-console.log('  reading from :', request.inputUriPrefix)
-console.log('  collections  : ALL')
-console.log('  mode         :', LIVE ? 'LIVE (will start the import)' : 'DRY RUN')
-
-if (!LIVE) {
-  console.log(
-    '\nDry run only — no import started. Re-run with --live to execute.\n'
-  )
-  process.exit(0)
+/** Parse the CLI argv into a plain options object. Pure. */
+export function parseArgs(argv = [], env = {}) {
+  const arg = (name, fallback = '') => {
+    const hit = argv.find((a) => a.startsWith(`--${name}=`))
+    return hit ? hit.split('=').slice(1).join('=') : fallback
+  }
+  const has = (name) => argv.includes(`--${name}`)
+  return {
+    live: has('live'),
+    date: arg('date'),
+    database: arg('database', '(default)'),
+    project:
+      arg('project') || env.GOOGLE_CLOUD_PROJECT || env.GCLOUD_PROJECT || '',
+    bucketRaw: arg('bucket') || env.FIRESTORE_BACKUP_BUCKET || '',
+    ackProd: has('i-understand-this-overwrites-production'),
+  }
 }
 
-if (DATABASE === '(default)' && !ACK_PROD) {
-  fail(
-    'Refusing to import into the "(default)" database without ' +
-      '--i-understand-this-overwrites-production. Restore into a scratch ' +
-      'database first: --database=restore-YYYYMMDD'
-  )
+/**
+ * Decide what the run should do, WITHOUT any I/O. Returns one of:
+ *   {action:'error',  error}                     — bad/missing inputs
+ *   {action:'dry-run', request, meta}            — default; caller prints + exits 0
+ *   {action:'refuse-default', error}             — live into (default) without ack
+ *   {action:'proceed', request, meta}            — live into a safe target
+ * Pure — the whole decision tree is unit-testable.
+ */
+export function planRestore(opts) {
+  const {live, date, database, project, bucketRaw, ackProd} = opts
+  const bucketUri = resolveBackupBucket(bucketRaw)
+  if (!bucketUri) {
+    return {action: 'error',
+      error: 'No backup bucket. Pass --bucket=gs://<name> or set FIRESTORE_BACKUP_BUCKET.'}
+  }
+  if (!project) {
+    return {action: 'error',
+      error: 'No project id. Pass --project=<id> or set GOOGLE_CLOUD_PROJECT.'}
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return {action: 'error',
+      error: 'Pass --date=YYYY-MM-DD naming the export folder to restore from.'}
+  }
+  let request
+  try {
+    request = buildImportRequest({projectId: project, bucketUri, dateKey: date, databaseId: database})
+  } catch (err) {
+    return {action: 'error', error: `Could not build import request: ${err.message}`}
+  }
+  const meta = {project, database, inputUriPrefix: request.inputUriPrefix, live}
+  if (!live) return {action: 'dry-run', request, meta}
+  if (database === '(default)' && !ackProd) {
+    return {action: 'refuse-default',
+      error: 'Refusing to import into the "(default)" database without ' +
+        '--i-understand-this-overwrites-production. Restore into a scratch ' +
+        'database first: --database=restore-YYYYMMDD'}
+  }
+  return {action: 'proceed', request, meta}
 }
 
-const run = async () => {
-  const { v1 } = await import('@google-cloud/firestore')
+/**
+ * Start the import operation. Constructs the Admin client via the injected
+ * loader (default: the real functions/ dependency) and calls importDocuments.
+ * Returns {operationName}. Injectable so tests exercise client construction +
+ * failure without GCP.
+ */
+export async function executeRestore(request, {load = loadFirestoreAdmin, log = console.log} = {}) {
+  const {v1} = load()
+  if (!v1 || typeof v1.FirestoreAdminClient !== 'function') {
+    throw new Error('@google-cloud/firestore did not expose v1.FirestoreAdminClient')
+  }
   const client = new v1.FirestoreAdminClient()
-  console.log('\nStarting import operation…')
+  log('\nStarting import operation…')
   const [operation] = await client.importDocuments(request)
-  console.log('✓ Import operation accepted:', operation?.name || '(no name)')
-  console.log(
-    '  It continues server-side. Track it with:\n' +
-      `  gcloud firestore operations list --project=${PROJECT}\n`
-  )
+  const operationName = (operation && operation.name) || '(no name)'
+  log('✓ Import operation accepted:', operationName)
+  return {operationName}
 }
 
-run().catch((err) => {
-  fail(`Import failed to start: ${err?.message || err}`)
-})
+async function main() {
+  const fail = (msg) => { console.error(`\n✗ ${msg}\n`); process.exit(1) }
+  const opts = parseArgs(process.argv.slice(2), process.env)
+  const plan = planRestore(opts)
+
+  if (plan.action === 'error' || plan.action === 'refuse-default') fail(plan.error)
+
+  console.log('\nFirestore restore (importDocuments)')
+  console.log('  project      :', plan.meta.project)
+  console.log('  target db    :', plan.meta.database)
+  console.log('  reading from :', plan.meta.inputUriPrefix)
+  console.log('  collections  : ALL')
+  console.log('  mode         :', plan.meta.live ? 'LIVE (will start the import)' : 'DRY RUN')
+
+  if (plan.action === 'dry-run') {
+    console.log('\nDry run only — no import started. Re-run with --live to execute.\n')
+    process.exit(0)
+  }
+
+  try {
+    await executeRestore(plan.request)
+    console.log(
+      '  It continues server-side. Track it with:\n' +
+      `  gcloud firestore operations list --project=${plan.meta.project}\n`,
+    )
+  } catch (err) {
+    fail(`Import failed to start: ${(err && err.message) || err}`)
+  }
+}
+
+// Only run the CLI when invoked directly (not when imported by the test).
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main()
+}

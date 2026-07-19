@@ -19,10 +19,12 @@
   selector (`selectExportsToDelete`, never deletes the newest/incomplete) + a dry-run `runBackupRetention`,
   a tested `buildImportRequest`, a guarded `scripts/restore-firestore.mjs`, and a full setup/restore
   **runbook** (`runbooks/firestore-restore.md`) now exist. Tests: `firestoreBackup.test.js` (46).
-- **Pending (operator, no GCP creds here — cannot be done in code):** create the cross-region bucket +
-  least-privilege IAM, set `FIRESTORE_BACKUP_BUCKET`, enable PITR + deletion protection, and **rehearse a
-  restore into a scratch DB** (runbook Part 1–2). **Not closed until a successful export + restore drill
-  is evidenced.** Until then backups do not run — but a misconfigured prod runtime now **alerts daily**.
+- **Operator infra now provisioned (2026-07-19):** bucket `gs://zedexams-backups` (africa-south1,
+  versioning), IAM (via existing `roles/editor` + `firestore.serviceAgent`), DB deletion protection +
+  7-day PITR — see [`remediation/dr-001-infrastructure-readiness.md`](./remediation/dr-001-infrastructure-readiness.md).
+  `FIRESTORE_BACKUP_BUCKET` committed to the env; restore script import bug fixed + **16 tests**.
+- **Still pending (not code): deploy + a first real export + a restore drill.** **Not closed until a
+  successful export + restore drill is evidenced.** A misconfigured prod runtime now **alerts daily**.
 - **Runtime check:** read `opsBackups/{today}.status` in prod.
 
 ### B2 · SEC-007 — `adm-zip` DoS + critical `websocket-driver` — **Status: Implemented, pending runtime verification**
@@ -39,8 +41,11 @@
   duplicate entries — assessed on **central-directory metadata before any decompression**. Wired into
   `stageDocxImages` (best-effort skip + structured security log, workflow preserved) with a per-user
   **rate limit** (6/min). Tests: `docxArchiveGuard.test.js` (25 synthetic-archive cases).
-- **Pending:** end-to-end confirmation that a **valid** DOCX still stages images at runtime (post-deploy);
-  the change is additive to a best-effort path and unit-tested, but not runtime-verified here.
+- **Follow-up (2026-07-19):** the guard now runs **before every DOCX decompression path** (shared
+  `docxArchiveInspect.js` → `mammoth` text path + `adm-zip` image path), not just image staging; tests
+  prove the guard runs before the parser (14 checks).
+- **Pending:** end-to-end confirmation that a **valid** DOCX still extracts text + stages images at
+  runtime (post-deploy); the change is unit-tested but not runtime-verified here.
 
 ## Tier 1 — Blockers for a *public / marketed* launch (safe for a closed pilot)
 

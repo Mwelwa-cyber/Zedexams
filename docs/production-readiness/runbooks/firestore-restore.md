@@ -9,6 +9,33 @@ rehearsable restore**. Nothing here should be run against production data
 without the explicit go/no-go step called out below. **Do not perform a
 destructive production restore as part of a drill.**
 
+### ⚠️ Deployed resource regions (read first — commands depend on these)
+The backup **function and its Scheduler job run in `us-central1`**, while the
+**Firestore database and backup bucket are in `africa-south1`**. This split is
+intentional and matches the repo convention (only Firestore *triggers* pin to
+`africa-south1`; HTTP/callable/scheduled functions stay in `us-central1`).
+
+| Resource | Region |
+|---|---|
+| `dailyFirestoreBackup` function | **us-central1** |
+| `extractAssessmentFormat` function | **us-central1** |
+| Scheduler job `firebase-schedule-dailyFirestoreBackup-us-central1` | **us-central1** |
+| Firestore `(default)` database | **africa-south1** |
+| Backup bucket `gs://zedexams-backups` | **africa-south1** |
+
+- Use `--location=us-central1` for **function and Scheduler** `gcloud`/log
+  commands; use `--location=africa-south1` when **creating a scratch database**
+  (it must match the source DB's location).
+- **Moving the functions to `africa-south1` is a separate architecture task**
+  and is explicitly out of scope here — do not change the deployed region as
+  part of this runbook.
+- **UTC date-key caveat:** the export folder + `opsBackups/{date}` doc id use
+  the **UTC** date (`dateKeyUtc`). The cron fires at **01:30 Africa/Lusaka
+  (UTC+2) = 23:30 UTC the *previous* calendar day**, so a run "on the morning
+  of the 20th" writes to the **`YYYY-MM-19`** export folder. Always confirm the
+  actual folder with `gsutil ls` (Part 1.6) before choosing a `--date=` to
+  restore.
+
 ---
 
 ## Part 1 — Turn backups on (one-time setup)
@@ -54,16 +81,24 @@ gsutil iam ch "serviceAccount:${RUNTIME_SA}:roles/storage.objectAdmin" \
 ```
 
 ### 1.4 Configure the destination (no secrets committed)
-`FIRESTORE_BACKUP_BUCKET` is **non-secret config** — it belongs in the
-committed per-project env file, not Secret Manager:
+`FIRESTORE_BACKUP_BUCKET` is **non-secret config** — it is committed in the
+per-project env file (already present in the repo), not Secret Manager:
 
 ```
-# functions/.env.examsprepzambia
+# functions/.env.examsprepzambia  (tracked; auto-loaded by `firebase deploy`)
 FIRESTORE_BACKUP_BUCKET=gs://zedexams-backups
 ```
 
-Deploy functions via the normal CI path (`deploy-firebase.yml`). Do **not**
-commit any service-account key.
+Deploy functions via the normal CI path (`deploy-firebase.yml` runs
+`firebase deploy --only functions`, which auto-loads `.env.<project>` and
+passes the value to the deployed `us-central1` function). Do **not** commit any
+service-account key. Confirm the deployed function received it:
+```bash
+gcloud functions describe dailyFirestoreBackup \
+  --region=us-central1 --gen2 \
+  --format='value(serviceConfig.environmentVariables.FIRESTORE_BACKUP_BUCKET)'
+# → gs://zedexams-backups
+```
 
 ### 1.5 Enable PITR + deletion protection
 ```bash
@@ -72,8 +107,18 @@ gcloud firestore databases update --database='(default)' --delete-protection
 ```
 
 ### 1.6 Verify backups are running
-After the next 01:30 Africa/Lusaka run (or trigger manually), confirm:
-- Firestore `opsBackups/{today}`.`status` == **`started`** (not
+Trigger the backup on demand (it runs in **us-central1**) or wait for the
+01:30 Africa/Lusaka schedule:
+```bash
+# Manually run the scheduled backup now (us-central1):
+gcloud scheduler jobs run firebase-schedule-dailyFirestoreBackup-us-central1 \
+  --location=us-central1
+# Inspect the run log (us-central1):
+gcloud functions logs read dailyFirestoreBackup --region=us-central1 --gen2 --limit=20
+```
+Then confirm (remember the **UTC date-key** caveat above — a 01:30 Lusaka run
+writes to the *previous* UTC day's folder):
+- Firestore `opsBackups/{dateKeyUtc}`.`status` == **`started`** (not
   `misconfigured` / `skipped-non-production`), with `exportPath`,
   `operationName`, `correlationId`, `completed: false`.
 - The export operation reached completion:
