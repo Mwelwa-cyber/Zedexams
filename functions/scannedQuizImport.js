@@ -59,6 +59,16 @@ const VISION_MODEL =
   process.env.ANTHROPIC_MODEL ||
   "claude-sonnet-4-5";
 
+// The OpenAI model used ONLY for the FALLBACK recall assist (list the printed
+// question numbers off the page images) when Gemini is unavailable. A small
+// vision-capable model is plenty for counting — defaults to the shared
+// OPENAI_MODEL (gpt-4o-mini), overridable without a code change.
+const OPENAI_ASSIST_MODEL =
+  process.env.SCANNED_IMPORT_ASSIST_MODEL ||
+  process.env.OPENAI_VISION_MODEL ||
+  process.env.OPENAI_MODEL ||
+  "gpt-4o-mini";
+
 // Engine version stamp. Returned on every import result and surfaced in the
 // editor so a STALE DEPLOY is observable: if the version the live importer
 // reports doesn't match this string, the Cloud Function did not actually ship
@@ -1105,6 +1115,27 @@ function buildGeminiImages(pages) {
   return pages.map((page) => ({mimeType: page.mediaType, data: page.data}));
 }
 
+// OpenAI vision message content for the fallback recall assist: one text part
+// asking for the printed question numbers as JSON, then one image_url part per
+// page (base64 data URI — OpenAI's chat vision format). Mirrors the Gemini
+// assist so both providers answer the same "which numbers are on these pages?"
+// question and parse identically.
+function buildOpenAiAssistContent(pages) {
+  const content = [{
+    type: "text",
+    text:
+      "List every printed question number across these page images as " +
+      '{"questionNumbers":[...]}. JSON only, no prose.',
+  }];
+  pages.forEach((page) => {
+    content.push({
+      type: "image_url",
+      image_url: {url: `data:${page.mediaType};base64,${page.data}`},
+    });
+  });
+  return content;
+}
+
 // Targeted re-ask: the first pass missed these printed question numbers, so we
 // send the same page images back and ask ONLY for those questions. Re-asking
 // for a short, explicit list is far more reliable than the model
@@ -1138,15 +1169,18 @@ function buildReaskMessages(pages, hints, missingNumbers) {
 // ─── Orchestrator ─────────────────────────────────────────────────────────────
 
 async function runScannedQuizImport(
-  {pages: rawPages, fileName, subjectHint, gradeHint, anthropicKey, geminiKey, uid},
+  {pages: rawPages, fileName, subjectHint, gradeHint, anthropicKey, geminiKey, openaiKey, uid},
   deps = {},
 ) {
   // Lazy-require the real model clients only when not injected (tests inject
-  // both, so they never load firebase-functions-dependent code).
+  // them, so they never load firebase-functions-dependent code).
   const callClaude = deps.callClaude ||
     require("./teacherTools/anthropicClient").callClaude;
   const callGemini = deps.callGemini ||
     require("./geminiClient").callGemini;
+  // callOpenAI is resolved lazily INSIDE the fallback branch (only when an
+  // OpenAI key is present), so the no-firebase CI test env never loads
+  // aiService's firebase-functions dependency unless a test injects it.
   const now = deps.now || Date.now;
   const startedAt = now();
 
@@ -1158,11 +1192,34 @@ async function runScannedQuizImport(
     warnings.push(`${dropped} page${dropped === 1 ? "" : "s"} were skipped (unreadable or too large).`);
   }
 
-  // Assist pass (Gemini) — cheap recall. Best-effort: a failure here only
-  // costs us the count cross-check, never the import itself.
-  let geminiCount = 0;
-  let geminiNumbers = [];
-  let geminiDraft = "";
+  // Assist pass — a cheap, fast "recall" read that just lists the printed
+  // question numbers, so the primary Claude pass can be told which numbers it
+  // must not miss and the server can re-ask for any it drops. Best-effort: a
+  // failure here only costs the count cross-check, never the import itself.
+  //
+  // Provider order: GEMINI first (cheapest for this recall job), then OPENAI
+  // vision as an automatic FALLBACK when the Gemini key is unset OR the Gemini
+  // call fails/returns nothing. Before this, a broken/unset Gemini silently
+  // disabled the recall safety net — the exact net that catches a dropped
+  // contiguous block (e.g. "questions 26–30 missing") — so extraction leaned on
+  // Claude alone with no cross-check. The fallback keeps that net alive as long
+  // as EITHER provider is configured.
+  let assistCount = 0;
+  let assistNumbers = [];
+  let assistDraft = "";
+  let assistProvider = "";
+  const applyAssistText = (text, provider) => {
+    const numbers = parseGeminiNumbers(text);
+    const count = numbers.length || parseGeminiCount(text);
+    if (numbers.length || count > 0) {
+      assistNumbers = numbers;
+      assistCount = count;
+      assistDraft = clampString(text, 600);
+      assistProvider = provider;
+      return true;
+    }
+    return false;
+  };
   if (geminiKey) {
     try {
       const text = await callGemini(geminiKey, {
@@ -1176,11 +1233,33 @@ async function runScannedQuizImport(
         maxTokens: 1200,
         temperature: 0,
       });
-      geminiNumbers = parseGeminiNumbers(text);
-      geminiCount = geminiNumbers.length || parseGeminiCount(text);
-      geminiDraft = clampString(text, 600);
+      applyAssistText(text, "gemini");
     } catch (err) {
       console.warn("[scannedQuizImport] Gemini assist failed", {
+        message: err?.message?.slice(0, 200),
+      });
+    }
+  }
+  // Fall back to OpenAI vision when Gemini gave us no usable numbers (no key,
+  // it threw, or it returned an empty/garbled list) and an OpenAI key exists.
+  if (!assistNumbers.length && openaiKey) {
+    try {
+      const callOpenAI = deps.callOpenAI ||
+        require("./aiService").callOpenAI;
+      const text = await callOpenAI(openaiKey, {
+        track: {tool: "scannedQuizImport"},
+        model: OPENAI_ASSIST_MODEL,
+        json: true,
+        maxTokens: 1200,
+        temperature: 0,
+        messages: [
+          {role: "system", content: GEMINI_SYSTEM_PROMPT},
+          {role: "user", content: buildOpenAiAssistContent(pages)},
+        ],
+      });
+      applyAssistText(text, "openai");
+    } catch (err) {
+      console.warn("[scannedQuizImport] OpenAI assist fallback failed", {
         message: err?.message?.slice(0, 200),
       });
     }
@@ -1194,7 +1273,7 @@ async function runScannedQuizImport(
   const result = await callClaude(anthropicKey, {
     track: {tool: "scannedQuizImport"},
     systemPrompt: CLAUDE_SYSTEM_PROMPT,
-    messages: buildClaudeMessages(pages, hints, geminiDraft),
+    messages: buildClaudeMessages(pages, hints, assistDraft),
     model: VISION_MODEL,
     maxTokens: 16000,
     temperature: 0.1,
@@ -1238,7 +1317,7 @@ async function runScannedQuizImport(
   let recovered = 0;
   {
     const extracted = extractedNumberSet(sections);
-    const expected = expectedBatchNumbers(geminiNumbers, extracted);
+    const expected = expectedBatchNumbers(assistNumbers, extracted);
     let missing = computeMissingNumbers(expected, extracted);
     let round = 0;
     while (missing.length && round < MAX_REASK_ROUNDS) {
@@ -1304,13 +1383,13 @@ async function runScannedQuizImport(
 
   const extractedCount = countSectionQuestions(sections);
 
-  const countWarning = reconcileCounts(extractedCount, geminiCount);
+  const countWarning = reconcileCounts(extractedCount, assistCount);
   if (countWarning) warnings.push(countWarning);
 
   // Calibration guard: when the assist model saw more questions than we
   // extracted, don't trust a high per-question confidence — scale it down so the
   // batch lands on the review desk instead of being silently auto-approved.
-  const disagreement = countDisagreementPenalty(extractedCount, geminiCount);
+  const disagreement = countDisagreementPenalty(extractedCount, assistCount);
   if (disagreement > 0) penaliseSectionConfidence(sections, disagreement);
 
   return {
@@ -1318,7 +1397,7 @@ async function runScannedQuizImport(
     parts,
     warnings,
     pageNumbers,
-    detectedCount: geminiCount,
+    detectedCount: assistCount,
     extractedCount,
     recovered,
     engineVersion: SCANNED_IMPORT_ENGINE_VERSION,

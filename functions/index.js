@@ -2005,7 +2005,9 @@ exports.structureImportedQuiz = onCall(
 // than structureImportedQuiz because page images are large and vision is slow.
 exports.structureScannedQuiz = onCall(
   {
-    secrets: [anthropicApiKey, geminiApiKey],
+    // openaiApiKey is bound so the recall assist can fall back to OpenAI vision
+    // when the Gemini key is unset or the Gemini call fails.
+    secrets: [anthropicApiKey, geminiApiKey, openaiApiKey],
     region: "us-central1",
     // 300s: a dense page batch (big vision call + Gemini assist + re-ask
     // rounds) can run long. The orchestrator also time-budgets its re-ask
@@ -2052,6 +2054,7 @@ exports.structureScannedQuiz = onCall(
       gradeHint: cleanAiString(request.data?.gradeHint, 20),
       anthropicKey: getAnthropicApiKey(anthropicApiKey),
       geminiKey: geminiApiKey.value() || process.env.GEMINI_API_KEY || "",
+      openaiKey: openaiApiKey.value() || process.env.OPENAI_API_KEY || "",
       uid: request.auth.uid,
     });
   },
