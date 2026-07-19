@@ -178,6 +178,12 @@ jobs:
         run: npm ci
       - name: Firestore rules tests
         run: npm run test:rules-emulator
+      - name: School-membership RBAC rules tests
+        # Multi-school access-control model (schools/{id}/members/{uid}):
+        # membership is tamper-proof, cross-school isolation holds, and the
+        # platformAdmin custom claim folds into isAdmin(). See
+        # scripts/test-school-membership-rules-emulator.mjs.
+        run: npm run test:school-membership-rules
       - name: Quiz-editor save replay (full real payloads vs rules)
         # Replays the editor's exact autosave payloads (built by the real
         # importer + serializer + normalizeQuestionPayload) through the rules.
