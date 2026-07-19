@@ -23,8 +23,12 @@
   versioning), IAM (via existing `roles/editor` + `firestore.serviceAgent`), DB deletion protection +
   7-day PITR — see [`remediation/dr-001-infrastructure-readiness.md`](./remediation/dr-001-infrastructure-readiness.md).
   `FIRESTORE_BACKUP_BUCKET` committed to the env; restore script import bug fixed + **16 tests**.
-- **Still pending (not code): deploy + a first real export + a restore drill.** **Not closed until a
-  successful export + restore drill is evidenced.** A misconfigured prod runtime now **alerts daily**.
+- **Export runtime-verified (2026-07-19):** a managed export reached `done:true` with a
+  `.overall_export_metadata` object at `gs://zedexams-backups/firestore-exports/2026-07-19`
+  (evidence in [`remediation/dr-001-infrastructure-readiness.md`](./remediation/dr-001-infrastructure-readiness.md) §12).
+  Interim status: **"Backup export runtime-verified; restore drill pending."**
+- **Still pending: the non-production restore drill** (+ Auth/Storage DR gaps + DR-007 same-UTC-date
+  collision). **Not closed until the restore drill is evidenced.**
 - **Runtime check:** read `opsBackups/{today}.status` in prod.
 
 ### B2 · SEC-007 — `adm-zip` DoS + critical `websocket-driver` — **Status: Implemented, pending runtime verification**
