@@ -4,19 +4,25 @@
  */
 
 const assert = require("node:assert");
-// These renderers need functions-only deps (docx / pdfkit). The root CI "Tests"
-// job installs only root deps, so skip cleanly there; the deploy-firebase
-// workflow (and local runs with functions deps) exercise it fully.
+// These renderers need functions-only deps (docx / pdfkit). CI jobs that install
+// only root deps can't load them, so require the modules under test through a
+// guard and skip cleanly on MODULE_NOT_FOUND; local + deploy-firebase runs
+// exercise it fully.
+let renderModel; let renderDocx; let renderPdf;
 try {
-  require.resolve("docx");
-  require.resolve("pdfkit");
-} catch {
-  console.log("renderers: skipped (functions deps not installed)");
-  process.exit(0);
+  renderModel = require("./renderModel");
+  renderDocx = require("./renderDocx");
+  renderPdf = require("./renderPdf");
+} catch (err) {
+  if (err && err.code === "MODULE_NOT_FOUND") {
+    console.log("renderers: skipped (functions deps not installed)");
+    process.exit(0);
+  }
+  throw err;
 }
-const {buildServerPaperModel, canonType, schemeAnswer} = require("./renderModel");
-const {buildAssessmentDocxBuffer} = require("./renderDocx");
-const {buildAssessmentPdfBuffer} = require("./renderPdf");
+const {buildServerPaperModel, canonType, schemeAnswer} = renderModel;
+const {buildAssessmentDocxBuffer} = renderDocx;
+const {buildAssessmentPdfBuffer} = renderPdf;
 
 const assessment = {
   createdBy: "t1", title: "End of Term Test", grade: "4", subject: "Mathematics",

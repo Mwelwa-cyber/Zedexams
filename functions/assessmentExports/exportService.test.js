@@ -7,17 +7,23 @@
  */
 
 const assert = require("node:assert");
-// ensureExport pulls in firebase-admin + docx/pdfkit. The root CI "Tests" job
-// installs only root deps, so skip cleanly there; deploy-firebase + local runs
-// with functions deps exercise it fully.
+// ensureExport pulls in functions-only deps (firebase-functions, firebase-admin,
+// docx/pdfkit). CI jobs that install only root deps can't load them, so require
+// the module under test through a guard and skip cleanly on MODULE_NOT_FOUND —
+// checking the real import chain, not a proxy dep (an earlier guard checked
+// firebase-admin/docx, which resolve from the root install, and still crashed
+// on the missing firebase-functions). Local + deploy-firebase runs exercise it.
+let svc;
 try {
-  require.resolve("firebase-admin");
-  require.resolve("docx");
-} catch {
-  console.log("exportService: skipped (functions deps not installed)");
-  process.exit(0);
+  svc = require("./exportService");
+} catch (err) {
+  if (err && err.code === "MODULE_NOT_FOUND") {
+    console.log("exportService: skipped (functions deps not installed)");
+    process.exit(0);
+  }
+  throw err;
 }
-const {ensureExport, parseDownloadPath, extractIdToken} = require("./exportService");
+const {ensureExport, parseDownloadPath, extractIdToken} = svc;
 const {resolveExportType} = require("./exportsCore");
 const {computeSourceHash} = require("./sourceHash");
 
