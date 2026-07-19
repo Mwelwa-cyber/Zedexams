@@ -37,6 +37,7 @@ import {
   hydrateQuizSections,
   collectSectionFirestoreIds,
   serializeQuizSections,
+  patchSectionsWithAssignedIds,
   orderPaperGroups,
 } from '../../utils/quizSections.js'
 import { richTextHasContent } from '../../utils/quizRichText.js'
@@ -1930,6 +1931,15 @@ export default function AssessmentStudio() {
     return { passages, uploadedById }
   }
 
+  // After a save assigns Firestore ids to questions that had none, fold those
+  // ids back into `sections` (keyed by the stable in-memory localId) so the
+  // next autosave UPDATES them in place instead of re-creating them. Only fills
+  // a missing `_id`; a no-op returns the same ref and skips the re-render.
+  function applyAssignedIds(idMap) {
+    if (!idMap || idMap.length === 0) return
+    setSections(current => patchSectionsWithAssignedIds(current, idMap))
+  }
+
   // Persist the current paper to the teacher's durable library (create or
   // update). Shared by the explicit Save button and the auto-save-on-download
   // path. Does NOT gate on validation, toast, or navigate — callers decide.
@@ -2010,16 +2020,26 @@ export default function AssessmentStudio() {
     if (targetId) {
       // updateAssessmentWithQuestions upserts changed questions and deletes
       // the ones removed since load — atomic doc + subcollection update.
-      await updateAssessmentWithQuestions(
+      const idMap = await updateAssessmentWithQuestions(
         targetId,
         { ...assessmentPayload, updatedBy: currentUser.uid },
         questionsForSave,
         deletedIds,
       )
       setDeletedIds([])
+      // Fold the freshly-assigned Firestore ids back into state so newly-added
+      // (never-yet-saved) questions carry a stable `_id`. Without this the next
+      // autosave re-creates them, growing the subcollection by N every save —
+      // the "30 → 90" duplication. See patchSectionsWithAssignedIds.
+      applyAssignedIds(idMap)
     } else {
       const newAssessmentId = await createAssessment({ ...assessmentPayload, createdBy: currentUser.uid })
-      await saveAssessmentQuestions(newAssessmentId, questionsForSave)
+      const idMap = await saveAssessmentQuestions(newAssessmentId, questionsForSave)
+      // The Studio keeps editing THIS paper in place after the create, so the
+      // create path must patch ids back too — otherwise the first post-create
+      // autosave takes the update branch with every question still `_id:null`
+      // and re-inserts all 30. This is the exact origin of the reported bug.
+      applyAssignedIds(idMap)
       // Remember the id so later saves/downloads in this session update the
       // same doc instead of creating duplicates while still on /new. Entry is
       // single-flight (callers gate on the saving/exporting flags), so this

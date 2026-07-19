@@ -1356,3 +1356,69 @@ export function getPassageQuestionFirestoreId(sections, sectionIndex, questionIn
   const id = question?._id
   return typeof id === 'string' && id.length > 0 ? id : null
 }
+
+/**
+ * Patch the Firestore `_id` a save just assigned back into the sections state.
+ *
+ * After a create/update save, questions that started with `_id:null` (freshly
+ * generated, imported, or hand-added) have real Firestore doc ids — returned by
+ * saveAssessmentQuestions / updateAssessmentWithQuestions as an
+ * `idMap` of `{ localId, id }`. Without folding those ids back into state, the
+ * next autosave sees `_id:null` again and RE-CREATES every question, so the
+ * subcollection grows by N on every save (the "30 → 60 → 90" duplication).
+ *
+ * Matches by the stable in-memory `localId` (never persisted to Firestore) and
+ * only ever fills a MISSING `_id` — it never overwrites an existing one, so a
+ * stale idMap can't repoint a question at the wrong doc.
+ *
+ * Pure: returns a NEW sections array only when something actually changed;
+ * otherwise it returns the SAME reference so callers can skip a needless
+ * re-render (and the extra autosave a new reference would trigger).
+ *
+ * @param {object[]} sections — current sections state
+ * @param {{localId?: string, id?: string}[]} idMap — assigned ids from the save
+ * @returns {object[]} sections (same ref if unchanged)
+ */
+export function patchSectionsWithAssignedIds(sections = [], idMap = []) {
+  if (!Array.isArray(sections) || !Array.isArray(idMap) || idMap.length === 0) {
+    return sections
+  }
+  const byLocalId = new Map(
+    idMap
+      .filter(entry => entry && entry.localId && entry.id)
+      .map(({ localId, id }) => [localId, id]),
+  )
+  if (byLocalId.size === 0) return sections
+
+  const patchQuestion = (question) => {
+    if (question?.localId && !question._id && byLocalId.has(question.localId)) {
+      return { ...question, _id: byLocalId.get(question.localId) }
+    }
+    return question
+  }
+
+  let changed = false
+  const next = sections.map(section => {
+    if (section?.kind === 'passage') {
+      const questions = section.passage?.questions || []
+      let sectionChanged = false
+      const patched = questions.map(question => {
+        const nextQuestion = patchQuestion(question)
+        if (nextQuestion !== question) sectionChanged = true
+        return nextQuestion
+      })
+      if (!sectionChanged) return section
+      changed = true
+      return { ...section, passage: { ...section.passage, questions: patched } }
+    }
+    if (section?.kind === 'standalone') {
+      const nextQuestion = patchQuestion(section.question)
+      if (nextQuestion === section.question) return section
+      changed = true
+      return { ...section, question: nextQuestion }
+    }
+    return section
+  })
+
+  return changed ? next : sections
+}
