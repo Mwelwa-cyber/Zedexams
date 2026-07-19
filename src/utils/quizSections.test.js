@@ -5,6 +5,7 @@ import {
   insertStandaloneSection,
   serializeQuizSections,
   hydrateQuizSections,
+  patchSectionsWithAssignedIds,
 } from './quizSections.js'
 
 // ── Insert a question at any position (between two cards / top of a Part) ──
@@ -414,3 +415,108 @@ function runPassageImageDiagramRoundTripTest() {
 }
 
 runPassageImageDiagramRoundTripTest()
+
+// ── Data-integrity regression: repeated autosave must NOT duplicate questions ──
+// Root cause of the "30 → 90" assessment duplication: a save that CREATED a
+// question doc (because the in-memory question had no `_id` yet) never folded
+// the assigned Firestore id back into state. So every subsequent autosave saw
+// `_id:null` again and re-inserted all N questions — the subcollection grew by
+// N per save (30 → 60 → 90). patchSectionsWithAssignedIds is the write-back
+// that closes the loop. This test drives the full lifecycle against a fake
+// Firestore that mirrors updateAssessmentWithQuestions' insert-vs-update rule.
+function runNoDuplicateOnRepeatedSaveTest() {
+  // A fake questions subcollection keyed by doc id. `saveRound` mirrors the
+  // server: a question WITH `_id` updates in place; one WITHOUT gets a brand
+  // new doc id. It returns the { localId, id } idMap the real hook returns.
+  const store = new Map()
+  let autoIdSeq = 0
+  const saveRound = (questions) => {
+    const idMap = []
+    for (const q of questions) {
+      if (q._id) {
+        store.set(q._id, { ...q }) // update in place
+        idMap.push({ localId: q.localId, id: q._id })
+      } else {
+        const id = `auto_${String(autoIdSeq++).padStart(4, '0')}`
+        store.set(id, { ...q, _id: id }) // brand-new doc
+        idMap.push({ localId: q.localId, id })
+      }
+    }
+    return idMap
+  }
+
+  // Build a 30-question paper the way the AI-create / import path does: fresh
+  // standalone sections, every question `_id:null` but carrying a stable localId.
+  let sections = Array.from({ length: 30 }, (_, i) =>
+    createStandaloneSection({ text: `<p>Question ${i + 1}</p>`, correctAnswer: i % 4 }))
+  const parts = []
+
+  assert.equal(serializeQuizSections(sections, parts).questionCount, 30, 'builder shows 30 to start')
+
+  // First save (the create path): every question is inserted once.
+  let idMap = saveRound(serializeQuizSections(sections, parts).questions)
+  assert.equal(store.size, 30, 'first save inserts exactly 30 docs')
+  // Write the assigned ids back into state — the fix.
+  sections = patchSectionsWithAssignedIds(sections, idMap)
+  assert(
+    serializeQuizSections(sections, parts).questions.every(q => typeof q._id === 'string' && q._id),
+    'after write-back every in-memory question carries a stable _id',
+  )
+
+  // Simulate FIVE more autosaves (edits, image-URL reconcile, refresh retries).
+  // With the write-back in place these must all be in-place updates: the doc
+  // count stays 30, never grows.
+  for (let round = 0; round < 5; round++) {
+    idMap = saveRound(serializeQuizSections(sections, parts).questions)
+    sections = patchSectionsWithAssignedIds(sections, idMap)
+    assert.equal(store.size, 30, `autosave round ${round + 1} keeps exactly 30 docs (no duplication)`)
+  }
+
+  // And a reload reads back exactly 30, in order.
+  const reloaded = hydrateQuizSections([...store.values()], [], [], [])
+  assert.equal(
+    serializeQuizSections(reloaded.sections, reloaded.parts).questionCount, 30,
+    'reload → Preview reports 30 questions',
+  )
+
+  console.log('runNoDuplicateOnRepeatedSaveTest passed (repeated autosave stays at 30, no duplication)')
+}
+
+runNoDuplicateOnRepeatedSaveTest()
+
+// ── Proof the bug reproduces WITHOUT the write-back ──
+// Guards against a future refactor that drops patchSectionsWithAssignedIds:
+// skipping the write-back must still explode the count, so this test would
+// start failing if someone silently removed the fix and expected 30.
+function runWriteBackIsLoadBearingTest() {
+  const store = new Map()
+  let seq = 0
+  const saveRound = (questions) => {
+    for (const q of questions) {
+      if (q._id) { store.set(q._id, { ...q }) } else {
+        const id = `x_${seq++}`
+        store.set(id, { ...q, _id: id })
+      }
+    }
+  }
+  const parts = []
+  const sections = Array.from({ length: 30 }, (_, i) =>
+    createStandaloneSection({ text: `<p>Q${i + 1}</p>` }))
+
+  // Save three times but NEVER patch ids back — the pre-fix behaviour.
+  for (let i = 0; i < 3; i++) saveRound(serializeQuizSections(sections, parts).questions)
+  assert.equal(store.size, 90, 'without the write-back, three saves duplicate 30 → 90 (bug reproduced)')
+
+  // patchSectionsWithAssignedIds must never OVERWRITE an existing _id (a stale
+  // idMap can't repoint a question at the wrong doc).
+  const withId = [createStandaloneSection({ text: 'Q' })]
+  withId[0].question._id = 'real-id'
+  const patched = patchSectionsWithAssignedIds(withId, [{ localId: withId[0].question.localId, id: 'other-id' }])
+  assert.equal(patched[0].question._id, 'real-id', 'existing _id is never overwritten by a stale idMap')
+  // A no-op patch returns the SAME array reference (skips a needless re-render).
+  assert.equal(patchSectionsWithAssignedIds(withId, []), withId, 'empty idMap returns the same sections ref')
+
+  console.log('runWriteBackIsLoadBearingTest passed (bug reproduces without write-back; _id never clobbered)')
+}
+
+runWriteBackIsLoadBearingTest()

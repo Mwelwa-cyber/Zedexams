@@ -302,6 +302,13 @@ export function useFirestore() {
   }
 
   async function saveAssessmentQuestions(assessmentId, questions) {
+    // Return the Firestore ID assigned to every freshly-created question so the
+    // caller can patch `_id` back into React state. The Assessment Studio keeps
+    // editing the same paper in place (via createdIdRef) after this first
+    // create, so without the write-back every question would still carry
+    // `_id:null` and the NEXT autosave (which takes the update branch) would
+    // re-create all of them — the "30 → 90" duplication reported for papers.
+    const idMap = []
     const chunkSize = 490
     for (let i = 0; i < questions.length; i += chunkSize) {
       const chunk = questions.slice(i, i + chunkSize)
@@ -309,9 +316,11 @@ export function useFirestore() {
       for (const [offset, q] of chunk.entries()) {
         const ref = doc(collection(db, 'assessments', assessmentId, 'questions'))
         batch.set(ref, await normalizeQuestionPayload(q, i + offset + 1))
+        idMap.push({ localId: q.localId, id: ref.id })
       }
       await batch.commit()
     }
+    return idMap
   }
 
   /**
@@ -334,6 +343,13 @@ export function useFirestore() {
       await delBatch.commit()
     }
 
+    // Return the assigned Firestore ID for every question so callers can patch
+    // `_id` back into React state. Without this, questions that start with
+    // `_id:null` (freshly generated / imported / hand-added) get re-created as
+    // new docs on every subsequent autosave — the "30 → 90" question-count
+    // explosion. This mirrors updateQuizWithQuestions, whose identical fix
+    // (PR #674) stopped the same growth on the quiz side.
+    const idMap = []
     const chunkSize = 490
     for (let i = 0; i < questions.length; i += chunkSize) {
       const chunk = questions.slice(i, i + chunkSize)
@@ -342,12 +358,16 @@ export function useFirestore() {
         const cleanQ = await normalizeQuestionPayload(q, i + offset + 1)
         if (q._id) {
           upsertBatch.update(doc(db, 'assessments', assessmentId, 'questions', q._id), cleanQ)
+          idMap.push({ localId: q.localId, id: q._id })
         } else {
-          upsertBatch.set(doc(collection(db, 'assessments', assessmentId, 'questions')), cleanQ)
+          const newRef = doc(collection(db, 'assessments', assessmentId, 'questions'))
+          upsertBatch.set(newRef, cleanQ)
+          idMap.push({ localId: q.localId, id: newRef.id })
         }
       }
       await upsertBatch.commit()
     }
+    return idMap
   }
 
   // ── Results ──────────────────────────────────────────────────
