@@ -7,7 +7,7 @@
  * inverse of the backup: it kicks off a Firestore Admin `importDocuments`
  * long-running operation reading the SAME `gs://<bucket>/firestore-exports/
  * <YYYY-MM-DD>/` folder the export wrote. See
- * docs/production-readiness/14-backup-and-disaster-recovery.md for the full
+ * docs/production-readiness/runbooks/firestore-restore.md for the full
  * disaster-recovery runbook.
  *
  * ⚠️  RESTORE IS A MERGE-BY-OVERWRITE, NOT A CLEAN REPLACE.

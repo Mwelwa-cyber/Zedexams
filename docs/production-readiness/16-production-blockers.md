@@ -10,28 +10,37 @@
 
 ## Tier 0 — Hard blockers (fix immediately)
 
-### B1 · DR-001 — No working database backup / restore (permanent data loss) — ⚠️ code-side fixed, operator config owed
+### B1 · DR-001 — Backup / restore — **Status: Implemented, pending runtime verification**
 - **Why a blocker:** "inability to restore the database" + "permanent data loss." The daily export is
-  gated on `FIRESTORE_BACKUP_BUCKET`, which is absent from committed config — runs record
-  `skipped-unconfigured` and export nothing.
-- **Addressed in this PR:** the skip path now **alerts** (no longer silent); a tested
-  `buildImportRequest` + guarded `scripts/restore-firestore.mjs` + a setup/restore **runbook**
-  (doc 14) now exist. **Still owed by the operator (code can't do it):** create the cross-region
-  bucket + IAM, set `FIRESTORE_BACKUP_BUCKET`, enable PITR/deletion-protection, and **rehearse a
-  restore**. Until then, backups still do not run.
-- **Failure scenario:** a bad migration, compromised admin, or accidental bulk delete → unrecoverable;
-  amplified by hard deletes (DATA-004) and un-re-authed account deletion (LEGAL-003).
-- **Runtime check:** read `opsBackups/{today}.status` in prod (now also emails a warning if skipped).
+  gated on `FIRESTORE_BACKUP_BUCKET`, which is absent from committed config.
+- **Implemented (this PR):** the runner now distinguishes **`misconfigured`** (production, no bucket →
+  **error alert**) from **`skipped-non-production`** (dev/emulator, no alert), emits **structured logs
+  with a correlationId**, and records `started`/`failed` with error category. A tested pure retention
+  selector (`selectExportsToDelete`, never deletes the newest/incomplete) + a dry-run `runBackupRetention`,
+  a tested `buildImportRequest`, a guarded `scripts/restore-firestore.mjs`, and a full setup/restore
+  **runbook** (`runbooks/firestore-restore.md`) now exist. Tests: `firestoreBackup.test.js` (46).
+- **Pending (operator, no GCP creds here — cannot be done in code):** create the cross-region bucket +
+  least-privilege IAM, set `FIRESTORE_BACKUP_BUCKET`, enable PITR + deletion protection, and **rehearse a
+  restore into a scratch DB** (runbook Part 1–2). **Not closed until a successful export + restore drill
+  is evidenced.** Until then backups do not run — but a misconfigured prod runtime now **alerts daily**.
+- **Runtime check:** read `opsBackups/{today}.status` in prod.
 
-### B2 · SEC-007 — `adm-zip` DoS + critical `websocket-driver` — ✅ fixed in this PR
+### B2 · SEC-007 — `adm-zip` DoS + critical `websocket-driver` — **Status: Implemented, pending runtime verification**
 - **Why it was a blocker:** "repeatable system-wide failure." `adm-zip <0.6.0` (HIGH) parses uploaded
   DOCX in `extractAssessmentFormat.js`; a crafted ZIP triggers a 4 GB allocation. `websocket-driver`
   was a live CRITICAL advisory (transitive).
-- **Reachability correction:** `extractAssessmentFormat` is **admin-only** (`extractAssessmentFormat.js:263-265`),
-  so the DOCX path is reachable only by a platform admin — lower real severity than "any teacher."
-- **Fixed:** `adm-zip`→`^0.6.0` + `websocket-driver` override `^0.7.5` (lockfile regenerated;
-  `npm audit --omit=dev` → **0**), plus defence-in-depth size caps before parse/extract with a unit
-  test. **Effort spent:** Low–Medium.
+- **Reachability correction:** `extractAssessmentFormat` is **admin-only**
+  (`extractAssessmentFormat.js:298`), so the path is reachable only by a platform admin — lower real
+  severity than "any teacher."
+- **Implemented (this PR):** `adm-zip`→`^0.6.0` + `websocket-driver` override `^0.7.5` (lockfile
+  regenerated; `functions/ npm audit --omit=dev` **1 critical + 1 high → 0**). New pure
+  `docxArchiveGuard.js` enforces magic-byte + DOCX-signature validation, entry-count / per-entry /
+  total-uncompressed / compression-ratio caps, and rejects traversal / absolute-path / encrypted /
+  duplicate entries — assessed on **central-directory metadata before any decompression**. Wired into
+  `stageDocxImages` (best-effort skip + structured security log, workflow preserved) with a per-user
+  **rate limit** (6/min). Tests: `docxArchiveGuard.test.js` (25 synthetic-archive cases).
+- **Pending:** end-to-end confirmation that a **valid** DOCX still stages images at runtime (post-deploy);
+  the change is additive to a best-effort path and unit-tested, but not runtime-verified here.
 
 ## Tier 1 — Blockers for a *public / marketed* launch (safe for a closed pilot)
 

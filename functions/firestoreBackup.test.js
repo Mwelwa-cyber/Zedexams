@@ -31,9 +31,12 @@ Module._load = function (request, ...rest) {
   }
   return origLoad.call(this, request, ...rest);
 };
-const {resolveBackupBucket, buildExportRequest, buildImportRequest} =
-  require("./firestoreBackupCore");
-const {runFirestoreExport, dateKeyUtc} = require("./firestoreBackup");
+const {
+  resolveBackupBucket, buildExportRequest, buildImportRequest,
+  isProductionRuntime, classifyExportError, selectExportsToDelete,
+} = require("./firestoreBackupCore");
+const {runFirestoreExport, runBackupRetention, dateKeyUtc, BACKUP_STATUS} =
+  require("./firestoreBackup");
 Module._load = origLoad;
 
 let passed = 0;
@@ -114,24 +117,91 @@ ok("import malformed dateKey throws", true);
 ok("dateKeyUtc is YYYY-MM-DD",
   dateKeyUtc(new Date("2030-01-02T03:04:05Z")) === "2030-01-02");
 
+// ── isProductionRuntime ────────────────────────────────────────────────────
+ok("bare prod-like env → production", isProductionRuntime({}) === true);
+ok("FUNCTIONS_EMULATOR=true → non-production",
+  isProductionRuntime({FUNCTIONS_EMULATOR: "true"}) === false);
+ok("FIRESTORE_EMULATOR_HOST → non-production",
+  isProductionRuntime({FIRESTORE_EMULATOR_HOST: "localhost:8080"}) === false);
+ok("NODE_ENV=development → non-production",
+  isProductionRuntime({NODE_ENV: "development"}) === false);
+
+// ── classifyExportError ────────────────────────────────────────────────────
+ok("permission errors categorised",
+  classifyExportError("PERMISSION_DENIED: missing IAM").category === "permission");
+ok("timeout errors categorised",
+  classifyExportError(new Error("DEADLINE_EXCEEDED")).category === "timeout");
+ok("bucket errors categorised",
+  classifyExportError("NOT_FOUND: no such bucket").category === "destination");
+ok("quota errors categorised",
+  classifyExportError("RESOURCE_EXHAUSTED: quota").category === "quota");
+ok("unknown errors fall through",
+  classifyExportError("weird failure").category === "unknown");
+
+// ── selectExportsToDelete (retention safety) ───────────────────────────────
+{
+  const day = 24 * 60 * 60 * 1000;
+  const now = 100 * day;
+  const mk = (n, completed = true) =>
+    ({path: `p${n}`, dateKey: `d${n}`, createdAtMs: n * day, completed});
+  // 10 completed exports spanning 90 days; retentionDays=30, keepMinimum=7.
+  const exports = Array.from({length: 10}, (_, i) => mk(90 - i * 9));
+  const {toDelete, kept} = selectExportsToDelete(exports, {
+    retentionDays: 30, keepMinimum: 7, nowMs: now,
+  });
+  const newest = exports.slice().sort((a, b) => b.createdAtMs - a.createdAtMs)[0];
+  ok("retention never deletes the newest completed export",
+    !toDelete.some((e) => e.path === newest.path));
+  ok("retention keeps at least keepMinimum completed exports",
+    kept.filter((e) => e.completed).length >= 7);
+  ok("retention only ages out completed exports older than the window",
+    toDelete.every((e) => e.createdAtMs < now - 30 * day));
+
+  // Incomplete / in-progress exports are NEVER deleted (fail-safe).
+  const withIncomplete = [mk(90), mk(1, false), mk(2, false)];
+  const r2 = selectExportsToDelete(withIncomplete, {
+    retentionDays: 1, keepMinimum: 1, nowMs: now,
+  });
+  ok("incomplete exports are never deleted",
+    !r2.toDelete.some((e) => e.completed === false) &&
+    r2.toDelete.every((e) => e.completed === true));
+}
+
 (async () => {
   console.log("\nfirestoreBackup (runFirestoreExport)");
   const NOW = new Date("2030-01-02T03:04:05Z");
 
-  // ── unconfigured → skip, warn, status doc, ALERT, no throw ───────────────
+  // ── PRODUCTION unconfigured → misconfigured + ERROR alert (loud) ─────────
   {
     const db = fakeDb();
     const alerts = [];
     const res = await runFirestoreExport({
       db, env: {}, now: NOW, alert: async (a) => alerts.push(a),
     });
-    ok("no bucket configured → skipped-unconfigured", res.status === "skipped-unconfigured");
+    ok("prod + no bucket → misconfigured", res.status === BACKUP_STATUS.MISCONFIGURED);
     const w = db.writes.find((x) => x.path === "opsBackups/2030-01-02");
-    ok("skip is recorded on opsBackups/{date}",
-      w && w.data.status === "skipped-unconfigured" && w.opts.merge === true);
-    ok("unconfigured backup raises a warning-severity ops alert (not silent)",
-      alerts.length === 1 && alerts[0].severity === "warning" &&
-      /NOT CONFIGURED/.test(alerts[0].title));
+    ok("misconfigured recorded on opsBackups/{date} with correlationId",
+      w && w.data.status === "misconfigured" && w.opts.merge === true &&
+      typeof w.data.correlationId === "string" && w.data.production === true);
+    ok("misconfigured backup raises an ERROR-severity ops alert (not silent)",
+      alerts.length === 1 && alerts[0].severity === "error" &&
+      /MISCONFIGURED/.test(alerts[0].title));
+  }
+
+  // ── NON-PRODUCTION unconfigured → explicit skip, NO alert ────────────────
+  {
+    const db = fakeDb();
+    const alerts = [];
+    const res = await runFirestoreExport({
+      db, env: {FUNCTIONS_EMULATOR: "true"}, now: NOW,
+      alert: async (a) => alerts.push(a),
+    });
+    ok("emulator + no bucket → skipped-non-production",
+      res.status === BACKUP_STATUS.SKIPPED_NON_PROD);
+    ok("non-production skip does NOT alert", alerts.length === 0);
+    const w = db.writes.find((x) => x.path === "opsBackups/2030-01-02");
+    ok("non-production skip still records a status doc",
+      w && w.data.status === "skipped-non-production");
   }
 
   // ── configured → export kicked off, status 'started' ─────────────────────
@@ -148,15 +218,18 @@ ok("dateKeyUtc is YYYY-MM-DD",
       db, adminClient, now: NOW, alert: async () => {},
       env: {FIRESTORE_BACKUP_BUCKET: "zedexams-backups", GCLOUD_PROJECT: "examsprepzambia"},
     });
-    ok("export started", res.status === "started");
+    ok("export started", res.status === BACKUP_STATUS.STARTED);
     ok("Admin API called with the dated all-collections request",
       calls.length === 1 &&
       calls[0].name === "projects/examsprepzambia/databases/(default)" &&
       calls[0].outputUriPrefix === "gs://zedexams-backups/firestore-exports/2030-01-02" &&
       calls[0].collectionIds.length === 0);
     const w = db.writes.find((x) => x.path === "opsBackups/2030-01-02");
-    ok("start recorded with the operation name",
-      w && w.data.status === "started" && w.data.operation === "operations/op-123");
+    ok("start recorded with the operation name + completed:false (not success)",
+      w && w.data.status === "started" &&
+      w.data.operationName === "operations/op-123" &&
+      w.data.completed === false && w.data.exportPath &&
+      typeof w.data.correlationId === "string");
   }
 
   // ── failure → status 'failed' + ops alert, still no throw ────────────────
@@ -171,12 +244,39 @@ ok("dateKeyUtc is YYYY-MM-DD",
       alert: async (a) => alerts.push(a),
       env: {FIRESTORE_BACKUP_BUCKET: "gs://zedexams-backups", GCLOUD_PROJECT: "examsprepzambia"},
     });
-    ok("failure reported, not thrown", res.status === "failed" && /PERMISSION_DENIED/.test(res.error));
+    ok("failure reported, not thrown", res.status === BACKUP_STATUS.FAILED && /PERMISSION_DENIED/.test(res.error));
     const w = db.writes.find((x) => x.path === "opsBackups/2030-01-02");
-    ok("failure recorded on opsBackups/{date}", w && w.data.status === "failed");
+    ok("failure recorded on opsBackups/{date} with error category",
+      w && w.data.status === "failed" && w.data.errorCategory === "permission");
     ok("failure raises an error-severity ops alert",
       alerts.length === 1 && alerts[0].severity === "error" &&
       /FAILED/.test(alerts[0].title));
+  }
+
+  // ── retention runner: dry-run plans, apply deletes, never the newest ─────
+  {
+    const day = 24 * 60 * 60 * 1000;
+    const now = 100 * day;
+    const exps = Array.from({length: 10}, (_, i) =>
+      ({path: `p${i}`, dateKey: `d${i}`, createdAtMs: (90 - i * 9) * day, completed: true}));
+    const deleted = [];
+    const listExports = async () => exps;
+    const deleteExport = async (p) => { deleted.push(p); };
+
+    const dry = await runBackupRetention({
+      listExports, deleteExport, apply: false, nowMs: now,
+    });
+    ok("dry-run plans deletions but deletes nothing",
+      dry.planned > 0 && dry.deleted === 0 && deleted.length === 0);
+
+    const live = await runBackupRetention({
+      listExports, deleteExport, apply: true, nowMs: now,
+    });
+    ok("apply deletes exactly the planned set",
+      live.deleted === live.planned && deleted.length === live.planned);
+    const newest = exps.slice().sort((a, b) => b.createdAtMs - a.createdAtMs)[0];
+    ok("retention runner never deletes the newest export",
+      !deleted.includes(newest.path));
   }
 
   console.log(`\n─── ${passed} assertions · all passed ───`);

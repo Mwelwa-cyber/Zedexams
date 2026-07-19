@@ -87,6 +87,8 @@
 
 ## CI/CD
 - [x] 7-job PR gate; post-merge re-verify; deploy-order handled; source-maps stripped
+- [x] `functions/` critical/high dependency vulns cleared (adm-zip, websocket-driver → `npm audit` 0; SEC-007)
+- [x] DOCX archive hardened (magic bytes, size/ratio/entry caps, traversal/encrypted rejection; SEC-007)
 - [?] Rules-emulator/build as *required* checks (CICD-001)
 - [ ] Dependency scanning / Dependabot (CICD-002); secret scanning/push protection (CICD-003)
 - [ ] Staging/prod project separation (CICD-004)
@@ -94,11 +96,12 @@
 - [~] Third-party actions pinned to mutable tags/@main (CICD-007)
 
 ## Backups
-- [?] Daily Firestore export **configured & running** (`FIRESTORE_BACKUP_BUCKET` unset in repo; DR-001)
-- [ ] Restore script/runbook/test (DR-002)
-- [ ] Storage backup (DR-003)
-- [ ] Deletion protection (DR-004); PITR (DR-006)
-- [~] Backup skip/failure monitored (email only, not Marshal; DR-005)
+- [?] Daily Firestore export **configured & running** (code implemented; `FIRESTORE_BACKUP_BUCKET` still unset — operator step; DR-001)
+- [~] Restore script + runbook exist and are tested; **restore drill not yet rehearsed** (DR-002)
+- [x] Misconfigured prod backup alerts (was silent); prod/dev skip distinguished; structured logs (DR-005 code)
+- [x] Retention selector can never delete newest/incomplete backup (tested); bucket lifecycle documented
+- [ ] Storage backup (DR-003); Firebase Auth export (DR-002 gap)
+- [ ] Deletion protection (DR-004); PITR (DR-006) — operator step in runbook
 
 ## Privacy
 - [x] Privacy Policy + Terms, data export, cookie/analytics consent, AI + processor disclosure

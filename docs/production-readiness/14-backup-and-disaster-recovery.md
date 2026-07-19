@@ -2,14 +2,19 @@
 
 > Snapshot as of 2026-07-19. Layer 16. Finding IDs: `DR-*`.
 
-> **Remediation status (this PR):** the *code-side* gaps are now fixed —
-> the unconfigured-backup path **alerts** instead of silently skipping (DR-005),
-> a **tested restore-request builder** (`buildImportRequest`) + a guarded
-> **restore script** (`scripts/restore-firestore.mjs`) + the **runbook** below
-> now exist (DR-002). The remaining work is **operator config that code cannot
-> do**: create the cross-region bucket + IAM, set `FIRESTORE_BACKUP_BUCKET`,
-> enable PITR/deletion-protection, and **rehearse a restore**. Until those land,
-> DR-001 is still open — but a misconfigured backup is now loud, not silent.
+> **Remediation status (this PR) — Implemented, pending runtime verification:**
+> the *code-side* gaps are fixed. The runner now distinguishes **`misconfigured`**
+> (production, no bucket → **error alert**) from **`skipped-non-production`**
+> (dev/emulator → silent), emits **structured logs with a correlationId**, and
+> records `started`/`failed` with an error category (DR-005). A tested retention
+> selector (`selectExportsToDelete`, never deletes the newest/incomplete) + dry-run
+> runner, a tested `buildImportRequest`, a guarded `scripts/restore-firestore.mjs`,
+> and the canonical [`runbooks/firestore-restore.md`](./runbooks/firestore-restore.md)
+> now exist (DR-002). The remaining work is **operator config that code cannot do**:
+> bucket + IAM, `FIRESTORE_BACKUP_BUCKET`, PITR/deletion-protection, and a
+> **restore drill**. Until then, DR-001 is **not closed** — but a misconfigured
+> production backup is now loud, not silent. See
+> [`remediation/tier-0-remediation-report.md`](./remediation/tier-0-remediation-report.md).
 
 ## Verdict
 
@@ -92,6 +97,11 @@ undefined.
   RTO still undefined until DR-002 (restore rehearsal) sets it.
 
 ## Runbook
+
+> The full, canonical setup + restore runbook now lives at
+> [`runbooks/firestore-restore.md`](./runbooks/firestore-restore.md) (referenced by
+> the code and `scripts/restore-firestore.mjs`). The condensed steps below are a
+> quick reference; the runbook is authoritative.
 
 ### A. One-time setup (operator — turns backups ON)
 1. **Create a backup bucket in a different region** from the `africa-south1`

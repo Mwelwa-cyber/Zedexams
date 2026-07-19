@@ -5,24 +5,29 @@
 
 ## Phase 0 — Emergency blockers (before *safe* continued production)
 
-### P0-1 · Configure & verify Firestore backup + restore
-- **Priority:** P0 · **Findings:** DR-001, DR-002, DR-003, DR-005 · **Systems:** GCS, IAM, `firestoreBackup.js`, Marshal
-- **Approach:** create a cross-region backup bucket + retention lifecycle; grant the function SA
-  `datastore.importExportAdmin` + `storage.objectAdmin`; set `FIRESTORE_BACKUP_BUCKET` in
-  `functions/.env.examsprepzambia`; enable Firestore PITR; enable Storage bucket versioning; have
-  Marshal assert `opsBackups/{today}.status==="started"`.
-- **Dependencies:** none (do first). **Acceptance:** a real run stamps `status:"started"`; a rehearsed
-  restore into a scratch project matches row counts; a skipped/failed backup raises a company-health
-  alert. **Tests:** `firestoreBackup.test.js` + new "alert-on-skip" test. **Rollback:** n/a (additive).
+### P0-1 · Configure & verify Firestore backup + restore — **code Implemented; runtime pending**
+- **Priority:** P0 · **Findings:** DR-001, DR-002, DR-005 · **Systems:** GCS, IAM, `firestoreBackup.js`
+- **Done (code):** status taxonomy (`misconfigured` alerts in prod / `skipped-non-production` is silent),
+  structured logging + correlationId, tested retention selector + dry-run runner, `buildImportRequest`,
+  `scripts/restore-firestore.mjs`, and the `runbooks/firestore-restore.md` setup+restore runbook.
+  `firestoreBackup.test.js` = 46 assertions.
+- **Pending (operator):** run runbook Part 1 (bucket + IAM + `FIRESTORE_BACKUP_BUCKET` + PITR +
+  deletion protection) and Part 2 (restore drill into a scratch DB). Follow-ups: a `completed:true`
+  op-status checker; Marshal `opsBackups` freshness; Storage + Auth backup (DR-003).
+- **Acceptance:** `opsBackups/{today}.status==="started"` + export operation `done:true`; a rehearsed
+  restore matches row counts with a recorded RTO. **Rollback:** additive; unset the env var to revert.
 
-### P0-2 · Patch `functions/` critical/high dependencies + guard the upload path
-- **Priority:** P0 · **Findings:** SEC-007, STOR-003 · **Files:** `functions/package.json`,
-  `teacherTools/extractAssessmentFormat.js`
-- **Approach:** `npm audit fix` (websocket-driver); bump `adm-zip@^0.6.0`; before `AdmZip`, reject
-  DOCX over a size + entry-count + uncompressed-size threshold; add magic-byte check.
-- **Dependencies:** none. **Acceptance:** `functions/ npm audit --omit=dev` → 0 critical/high; a
-  ZIP-bomb sample is rejected before allocation. **Tests:** `extractAssessmentFormat` regression +
-  ZIP-bomb guard. **Rollback:** revert the dep bump if `extractAssessmentFormat` breaks (test first).
+### P0-2 · Patch `functions/` deps + harden DOCX archive path — **Implemented; runtime-verify valid DOCX**
+- **Priority:** P0 · **Findings:** SEC-007, websocket-driver · **Files:** `functions/package*.json`,
+  `teacherTools/docxArchiveGuard.js`, `teacherTools/extractAssessmentFormat.js`
+- **Done:** `adm-zip@^0.6.0` + `websocket-driver@^0.7.5` override (audit `1 critical + 1 high → 0`);
+  pure `docxArchiveGuard` (magic bytes, DOCX signature, entry-count/per-entry/total/ratio caps,
+  traversal/absolute/encrypted/duplicate rejection) assessed on metadata **before decompression**;
+  wired into `stageDocxImages` (best-effort skip + security log); per-user rate limit (6/min).
+  `docxArchiveGuard.test.js` = 25 cases.
+- **Acceptance met:** vulnerable adm-zip absent from all trees; archive limits + traversal + malformed
+  rejection tested; audit confirms absent. **Pending:** post-deploy confirmation a valid DOCX still
+  stages images. **Rollback:** revert `functions/package*.json` + reinstall.
 
 ### P0-3 · Arm AI cost ceiling + stage App Check + burst-limit generators
 - **Priority:** P0 (public launch) · **Findings:** AI-001, SEC-001, OBS-005
