@@ -2,6 +2,15 @@
 
 > Snapshot as of 2026-07-19. Layer 16. Finding IDs: `DR-*`.
 
+> **Remediation status (this PR):** the *code-side* gaps are now fixed —
+> the unconfigured-backup path **alerts** instead of silently skipping (DR-005),
+> a **tested restore-request builder** (`buildImportRequest`) + a guarded
+> **restore script** (`scripts/restore-firestore.mjs`) + the **runbook** below
+> now exist (DR-002). The remaining work is **operator config that code cannot
+> do**: create the cross-region bucket + IAM, set `FIRESTORE_BACKUP_BUCKET`,
+> enable PITR/deletion-protection, and **rehearse a restore**. Until those land,
+> DR-001 is still open — but a misconfigured backup is now loud, not silent.
+
 ## Verdict
 
 **This is the weakest layer and the source of the single most dangerous finding.** A daily
@@ -36,14 +45,16 @@ undefined.
 - **Launch blocker:** Yes. **Complexity:** Low (config + IAM). **Dependencies:** none.
 - **Tests:** `firestoreBackup.test.js` covers configured/skip paths; add an alert on `skipped`.
 
-### DR-002 — No restore script, runbook, or restore test
-- **Severity:** High · **Confidence:** High confidence
-- **Affected:** `scripts/` has no `restore-*`; no runbook.
-- **Current:** Even once exports run, there is no documented/tested path to import them back. An
-  untested restore is not a proven backup.
-- **Correction:** Write + rehearse a restore runbook (import to a scratch project, validate row
-  counts, then to prod). Record RTO from the drill. **Launch blocker:** Yes (a backup you can't
-  restore is not a backup). **Complexity:** Medium.
+### DR-002 — Restore script + runbook ✅ added in this PR (rehearsal still owed)
+- **Severity:** High → Medium (residual) · **Confidence:** High confidence
+- **Fixed here:** `scripts/restore-firestore.mjs` (dry-run by default, `--live` guarded, refuses
+  a blind `(default)` overwrite) drives `importDocuments` via the tested
+  `buildImportRequest` (`firestoreBackupCore.js`, covered by `firestoreBackup.test.js`); the
+  step-by-step **Runbook** below documents setup + restore-to-scratch.
+- **Residual:** a real **restore rehearsal** into a scratch database (which measures RTO) has not
+  been performed — an untested restore is not yet a proven one. **Correction:** run the Runbook §B
+  drill once and record RTO. **Launch blocker:** the *rehearsal* (with DR-001 config) before broad
+  launch. **Complexity:** Medium (operator drill).
 
 ### DR-003 — No Firebase Storage backup
 - **Severity:** Medium–High · **Confidence:** High confidence
@@ -59,13 +70,14 @@ undefined.
 - **Correction:** Enable deletion protection on the `(default)` database; restrict who holds
   `datastore.owner`. **Launch blocker:** No. **Complexity:** Trivial.
 
-### DR-005 — Backup skip/failure not monitored by Marshal
-- **Severity:** Medium · **Confidence:** High confidence
-- **Affected:** `grep opsBackups` hits only `index.js` + `firestoreBackup.*`, not `marshal.js`. A
-  `skipped-unconfigured` (or `failed`) run does not surface in the `/admin/company` health verdict;
-  failures alert only via best-effort email (OBS-004).
-- **Correction:** Have Marshal assert a fresh `opsBackups/{today}.status==="started"` and raise a
-  company-health alert otherwise. **Launch blocker:** No, but pairs with DR-001. **Complexity:** Low.
+### DR-005 — Backup skip/failure alerting ✅ partially fixed in this PR
+- **Severity:** Medium → Low (residual) · **Confidence:** High confidence
+- **Fixed here:** `firestoreBackup.js` now raises a **warning-severity ops alert** on the
+  `skipped-unconfigured` path (previously it only wrote a status doc nobody read), so a
+  misconfigured backup is loud every day until fixed. The `failed` path already alerted.
+- **Residual:** Marshal still doesn't fold `opsBackups` freshness into the `/admin/company`
+  health verdict — a second, dashboard-level check. **Correction:** have Marshal assert a fresh
+  `opsBackups/{today}.status==="started"`. **Launch blocker:** No. **Complexity:** Low.
 
 ### DR-006 — Secrets recovery / escrow undocumented; PITR only suggested
 - **Severity:** Low–Medium · **Confidence:** Moderate confidence
@@ -78,6 +90,42 @@ undefined.
 - **As configured today:** RPO ≈ ∞ / total loss (no export running); RTO undefined (no restore path).
 - **Once DR-001 is fixed:** RPO ≤ 24h (daily export) + PITR (≤ minutes within 7 days if enabled);
   RTO still undefined until DR-002 (restore rehearsal) sets it.
+
+## Runbook
+
+### A. One-time setup (operator — turns backups ON)
+1. **Create a backup bucket in a different region** from the `africa-south1`
+   database (e.g. `europe-west1`):
+   `gsutil mb -l europe-west1 gs://zedexams-backups`
+2. **Lifecycle rule** to expire old exports (e.g. 30 days) so cost is bounded.
+3. **Enable versioning** on the bucket (protects the exports themselves).
+4. **Grant the Functions runtime service account**
+   `roles/datastore.importExportAdmin` on the project and
+   `roles/storage.objectAdmin` on the bucket.
+5. **Set the env var** in `functions/.env.examsprepzambia`:
+   `FIRESTORE_BACKUP_BUCKET=gs://zedexams-backups` and deploy functions.
+6. **Enable PITR** (7-day fine-grained recovery):
+   `gcloud firestore databases update --database='(default)' --enable-pitr`
+7. **Enable deletion protection**:
+   `gcloud firestore databases update --database='(default)' --delete-protection`
+8. **Verify**: after 01:30 Lusaka, read `opsBackups/{today}` — `status` must be
+   `"started"` (not `"skipped-unconfigured"` — which now also emails an alert).
+
+### B. Restore (disaster recovery — code path is tested)
+> Restore is a **merge-by-overwrite**, not a clean replace. **Always restore
+> into a fresh scratch database first**, validate, then reconcile.
+1. Pick the export day (`YYYY-MM-DD`) from the backup bucket.
+2. Dry-run to see the exact request:
+   `node scripts/restore-firestore.mjs --date=2026-07-18`
+3. Create a scratch database and restore into it:
+   `gcloud firestore databases create --database=restore-20260718 --location=africa-south1`
+   `node scripts/restore-firestore.mjs --date=2026-07-18 --database=restore-20260718 --live`
+4. Track: `gcloud firestore operations list`. Validate row counts + spot-check
+   critical collections (`users`, `payments`, `results`).
+5. Only then decide how to promote/reconcile with production. Importing straight
+   into `(default)` requires the explicit
+   `--i-understand-this-overwrites-production` flag.
+6. **Record the measured RTO** from this drill (this closes the RTO gap).
 
 ## Cross-references
 - Hard deletes amplify this: [`05-data-and-firestore.md`](./05-data-and-firestore.md) DATA-004.

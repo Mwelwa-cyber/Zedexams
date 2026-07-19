@@ -57,4 +57,34 @@ function buildExportRequest({projectId, bucketUri, dateKey, databaseId = "(defau
   };
 }
 
-module.exports = {resolveBackupBucket, buildExportRequest};
+/**
+ * Build the Firestore Admin importDocuments request for a RESTORE. The
+ * inputUriPrefix must be the SAME folder buildExportRequest wrote to for a
+ * given day, so a restore is the exact inverse of a backup. Used by
+ * scripts/restore-firestore.mjs (see docs/production-readiness/
+ * 14-backup-and-disaster-recovery.md). Restoring is destructive-by-overwrite
+ * and MUST target a scratch database first — never blind-import into prod.
+ *
+ * @param {object} p
+ * @param {string} p.projectId    — GCP project id (required)
+ * @param {string} p.bucketUri    — canonical gs:// uri from resolveBackupBucket
+ * @param {string} p.dateKey      — YYYY-MM-DD folder the export landed in
+ * @param {string} [p.databaseId] — target database (default "(default)")
+ * @returns {{name: string, inputUriPrefix: string, collectionIds: string[]}}
+ */
+function buildImportRequest({projectId, bucketUri, dateKey, databaseId = "(default)"}) {
+  if (!projectId) throw new Error("projectId is required to build an import request");
+  if (!bucketUri || !bucketUri.startsWith("gs://")) {
+    throw new Error("bucketUri must be a canonical gs:// uri");
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateKey))) {
+    throw new Error("dateKey must be YYYY-MM-DD");
+  }
+  return {
+    name: `projects/${projectId}/databases/${databaseId}`,
+    inputUriPrefix: `${bucketUri}/firestore-exports/${dateKey}`,
+    collectionIds: [],
+  };
+}
+
+module.exports = {resolveBackupBucket, buildExportRequest, buildImportRequest};

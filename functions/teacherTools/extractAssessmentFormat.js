@@ -41,8 +41,10 @@ const {
   buildDraftFromExtraction,
   isLikelyContentImage,
   buildStagedPictureDoc,
+  capMediaByTotalBytes,
   extOf,
   MAX_IMAGES_PER_PAPER,
+  MAX_DOCX_BUFFER_BYTES,
 } = require("./assessmentFormatExtractHelpers");
 
 const EXTRACT_MODEL =
@@ -87,12 +89,20 @@ async function stageDocxImages({
     const AdmZip = require("adm-zip");
     const [buf] = await admin.storage().bucket()
       .file(source.path).download();
+    // Zip-bomb guard: never hand an implausibly large container to the
+    // parser (defence-in-depth alongside the adm-zip@^0.6.0 fix). Best
+    // effort — image staging never fails the format extraction.
+    if (buf.length > MAX_DOCX_BUFFER_BYTES) {
+      console.warn("[extractAssessmentFormat] DOCX over size cap, " +
+        "skipping image staging", {bytes: buf.length});
+      return 0;
+    }
     const zip = new AdmZip(buf);
-    const media = zip.getEntries()
+    const media = capMediaByTotalBytes(zip.getEntries()
       .filter((e) => e.entryName.startsWith("word/media/") && !e.isDirectory)
       .map((e) => ({name: e.entryName, byteLength: e.header.size, entry: e}))
       .filter(isLikelyContentImage)
-      .slice(0, MAX_IMAGES_PER_PAPER);
+      .slice(0, MAX_IMAGES_PER_PAPER));
     if (media.length === 0) return 0;
 
     const db = admin.firestore();

@@ -31,7 +31,8 @@ Module._load = function (request, ...rest) {
   }
   return origLoad.call(this, request, ...rest);
 };
-const {resolveBackupBucket, buildExportRequest} = require("./firestoreBackupCore");
+const {resolveBackupBucket, buildExportRequest, buildImportRequest} =
+  require("./firestoreBackupCore");
 const {runFirestoreExport, dateKeyUtc} = require("./firestoreBackup");
 Module._load = origLoad;
 
@@ -85,6 +86,31 @@ ok("missing projectId throws", true);
 assert.throws(() => buildExportRequest({projectId: "p", bucketUri: "gs://b", dateKey: "bad"}));
 ok("malformed dateKey throws", true);
 
+// ── buildImportRequest (restore is the inverse of backup) ──────────────────
+{
+  const req = buildImportRequest({
+    projectId: "examsprepzambia",
+    bucketUri: "gs://zedexams-backups",
+    dateKey: "2030-01-02",
+  });
+  ok("import targets the (default) database by default",
+    req.name === "projects/examsprepzambia/databases/(default)");
+  ok("import reads the SAME dated folder the export wrote",
+    req.inputUriPrefix === "gs://zedexams-backups/firestore-exports/2030-01-02");
+  ok("import restores ALL collections (empty collectionIds)",
+    Array.isArray(req.collectionIds) && req.collectionIds.length === 0);
+  const restoreReq = buildImportRequest({
+    projectId: "examsprepzambia", bucketUri: "gs://zedexams-backups",
+    dateKey: "2030-01-02", databaseId: "restore-scratch",
+  });
+  ok("import can target a scratch database",
+    restoreReq.name === "projects/examsprepzambia/databases/restore-scratch");
+}
+assert.throws(() => buildImportRequest({projectId: "", bucketUri: "gs://b", dateKey: "2030-01-02"}));
+ok("import missing projectId throws", true);
+assert.throws(() => buildImportRequest({projectId: "p", bucketUri: "gs://b", dateKey: "bad"}));
+ok("import malformed dateKey throws", true);
+
 ok("dateKeyUtc is YYYY-MM-DD",
   dateKeyUtc(new Date("2030-01-02T03:04:05Z")) === "2030-01-02");
 
@@ -92,14 +118,20 @@ ok("dateKeyUtc is YYYY-MM-DD",
   console.log("\nfirestoreBackup (runFirestoreExport)");
   const NOW = new Date("2030-01-02T03:04:05Z");
 
-  // ── unconfigured → skip, warn, status doc, no throw ──────────────────────
+  // ── unconfigured → skip, warn, status doc, ALERT, no throw ───────────────
   {
     const db = fakeDb();
-    const res = await runFirestoreExport({db, env: {}, now: NOW, alert: async () => {}});
+    const alerts = [];
+    const res = await runFirestoreExport({
+      db, env: {}, now: NOW, alert: async (a) => alerts.push(a),
+    });
     ok("no bucket configured → skipped-unconfigured", res.status === "skipped-unconfigured");
     const w = db.writes.find((x) => x.path === "opsBackups/2030-01-02");
     ok("skip is recorded on opsBackups/{date}",
       w && w.data.status === "skipped-unconfigured" && w.opts.merge === true);
+    ok("unconfigured backup raises a warning-severity ops alert (not silent)",
+      alerts.length === 1 && alerts[0].severity === "warning" &&
+      /NOT CONFIGURED/.test(alerts[0].title));
   }
 
   // ── configured → export kicked off, status 'started' ─────────────────────

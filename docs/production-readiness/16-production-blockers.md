@@ -10,23 +10,28 @@
 
 ## Tier 0 — Hard blockers (fix immediately)
 
-### B1 · DR-001 — No working database backup / restore (permanent data loss)
+### B1 · DR-001 — No working database backup / restore (permanent data loss) — ⚠️ code-side fixed, operator config owed
 - **Why a blocker:** "inability to restore the database" + "permanent data loss." The daily export is
   gated on `FIRESTORE_BACKUP_BUCKET`, which is absent from committed config — runs record
-  `skipped-unconfigured` and export nothing. No restore script/test. No Storage backup.
+  `skipped-unconfigured` and export nothing.
+- **Addressed in this PR:** the skip path now **alerts** (no longer silent); a tested
+  `buildImportRequest` + guarded `scripts/restore-firestore.mjs` + a setup/restore **runbook**
+  (doc 14) now exist. **Still owed by the operator (code can't do it):** create the cross-region
+  bucket + IAM, set `FIRESTORE_BACKUP_BUCKET`, enable PITR/deletion-protection, and **rehearse a
+  restore**. Until then, backups still do not run.
 - **Failure scenario:** a bad migration, compromised admin, or accidental bulk delete → unrecoverable;
   amplified by hard deletes (DATA-004) and un-re-authed account deletion (LEGAL-003).
-- **Runtime check:** read `opsBackups/{today}.status` in prod. **Fix:** configure bucket + IAM + PITR,
-  then rehearse a restore (DR-001, DR-002). **Effort:** Low config, Medium to rehearse restore.
+- **Runtime check:** read `opsBackups/{today}.status` in prod (now also emails a warning if skipped).
 
-### B2 · SEC-007 — `adm-zip` ZIP-bomb DoS reachable via teacher DOCX upload (+ critical `websocket-driver`)
-- **Why a blocker:** "repeatable system-wide failure." `adm-zip <0.6.0` (HIGH) parses uploaded DOCX in
-  `functions/teacherTools/extractAssessmentFormat.js:87-90`; a crafted ZIP triggers a 4 GB allocation
-  → function OOM/crash on demand. `websocket-driver` is a live CRITICAL advisory (transitive).
-- **Failure scenario:** any authenticated teacher uploads a malicious "assessment format sample" →
-  repeated function crashes / cost. **Fix:** `npm audit fix` (websocket-driver, non-breaking); bump
-  `adm-zip` to `^0.6.0` (test `extractAssessmentFormat`) + validate DOCX size/entry-count before unzip.
-- **Effort:** Low–Medium. **Blocker only if** teacher DOCX-sample upload is enabled at launch (it is).
+### B2 · SEC-007 — `adm-zip` DoS + critical `websocket-driver` — ✅ fixed in this PR
+- **Why it was a blocker:** "repeatable system-wide failure." `adm-zip <0.6.0` (HIGH) parses uploaded
+  DOCX in `extractAssessmentFormat.js`; a crafted ZIP triggers a 4 GB allocation. `websocket-driver`
+  was a live CRITICAL advisory (transitive).
+- **Reachability correction:** `extractAssessmentFormat` is **admin-only** (`extractAssessmentFormat.js:263-265`),
+  so the DOCX path is reachable only by a platform admin — lower real severity than "any teacher."
+- **Fixed:** `adm-zip`→`^0.6.0` + `websocket-driver` override `^0.7.5` (lockfile regenerated;
+  `npm audit --omit=dev` → **0**), plus defence-in-depth size caps before parse/extract with a unit
+  test. **Effort spent:** Low–Medium.
 
 ## Tier 1 — Blockers for a *public / marketed* launch (safe for a closed pilot)
 

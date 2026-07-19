@@ -73,6 +73,24 @@ async function runFirestoreExport({
     );
     const result = {status: "skipped-unconfigured"};
     await statusRef.set({...stamp, ...result}, {merge: true}).catch(() => {});
+    // An UNCONFIGURED backup is a silent total-data-loss risk — the exact
+    // failure mode this cron exists to remove. Make it loud (a daily
+    // warning until the bucket is set) rather than a status doc nobody reads.
+    await Promise.resolve(alert({
+      title: "Firestore backup NOT CONFIGURED — no backups are running",
+      severity: "warning",
+      lines: [
+        `Date: ${dateKey}`,
+        "FIRESTORE_BACKUP_BUCKET is not set on the Functions runtime, so the " +
+        "daily export is skipping. The database currently has NO disaster-" +
+        "recovery export.",
+        "Fix: create a cross-region GCS bucket, grant the runtime SA " +
+        "datastore.importExportAdmin + storage.objectAdmin, and set " +
+        "FIRESTORE_BACKUP_BUCKET (functions/.env.<project>). See " +
+        "functions/firestoreBackup.js and docs/production-readiness/" +
+        "14-backup-and-disaster-recovery.md.",
+      ],
+    })).catch(() => {});
     return result;
   }
 

@@ -231,6 +231,39 @@ const EXT_TO_CONTENT_TYPE = Object.freeze({
   webp: "image/webp",
 });
 
+// Defence-in-depth against a maliciously crafted DOCX/ZIP (a "zip bomb":
+// GHSA-xcpc-8h2w-3j85). The adm-zip@^0.6.0 bump fixes the parse-time 4GB
+// allocation itself; these caps bound what we then read into memory on the
+// 1GiB function. MAX_DOCX_BUFFER_BYTES caps the downloaded container we hand
+// to the parser (storage.rules already caps direct sample uploads at 25MB;
+// this also covers past-paper-sourced DOCX). MAX_TOTAL_MEDIA_BYTES caps the
+// sum of media we actually extract via getData(), on top of the per-entry
+// 10MB cap in isLikelyContentImage and the MAX_IMAGES_PER_PAPER slice.
+const MAX_DOCX_BUFFER_BYTES = 40 * 1024 * 1024;
+const MAX_TOTAL_MEDIA_BYTES = 64 * 1024 * 1024;
+
+/**
+ * Return the leading run of media entries whose cumulative declared size
+ * (byteLength) stays within maxTotalBytes. Entries are {name, byteLength,…};
+ * a single entry already over the cap yields an empty list. Pure, so the
+ * bound is unit-testable without adm-zip or a real DOCX.
+ *
+ * @param {Array<{byteLength?: number}>} entries
+ * @param {number} [maxTotalBytes]
+ * @returns {Array<object>}
+ */
+function capMediaByTotalBytes(entries, maxTotalBytes = MAX_TOTAL_MEDIA_BYTES) {
+  const out = [];
+  let total = 0;
+  for (const e of Array.isArray(entries) ? entries : []) {
+    const size = Number(e && e.byteLength) || 0;
+    if (total + size > maxTotalBytes) break;
+    total += size;
+    out.push(e);
+  }
+  return out;
+}
+
 /**
  * Decide whether a DOCX media entry looks like a teaching figure worth
  * staging. `entry` is {name, byteLength}. Pure, so the filter rules are
@@ -273,6 +306,9 @@ module.exports = {
   EXT_TO_KIND,
   EXT_TO_CONTENT_TYPE,
   MAX_IMAGES_PER_PAPER,
+  MAX_DOCX_BUFFER_BYTES,
+  MAX_TOTAL_MEDIA_BYTES,
+  capMediaByTotalBytes,
   extOf,
   sanitiseSamplePath,
   kindFromPath,

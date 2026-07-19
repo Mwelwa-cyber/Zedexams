@@ -84,20 +84,26 @@ pinned to mutable tags, and **two production dependency vulnerabilities in `func
 - **Risk:** A compromised/retagged action executes in a workflow with repo + secret access.
 - **Correction:** SHA-pin third-party actions (especially `@main`). **Launch blocker:** No. **Complexity:** Low.
 
-### SEC-007 — Two production dependency vulnerabilities in `functions/`
-- **Severity:** High · **Confidence:** Confirmed (verified via `npm audit --omit=dev` in `functions/`)
+### SEC-007 — Two production dependency vulnerabilities in `functions/` ✅ fixed in this PR
+- **Severity:** High → Resolved · **Confidence:** Confirmed (verified via `npm audit --omit=dev`
+  before **and after**: 1 critical + 1 high → **0 vulnerabilities**)
 - **Affected:** `functions/package.json` — **`websocket-driver` (CRITICAL:** resource-limit bypass /
-  message corruption) and **`adm-zip <0.6.0` (HIGH:** crafted ZIP triggers 4 GB allocation, DoS).
-  `adm-zip` is a **direct** dep used to parse uploaded DOCX in
-  `functions/teacherTools/extractAssessmentFormat.js:87-90` — **reachable via a teacher upload**.
-- **Risk:** A crafted DOCX/ZIP upload can OOM/crash the assessment-format function (denial-of-service,
-  cost). `websocket-driver` is transitive and its exploit path may not be reachable in the callable
-  model, but it is a live critical advisory.
-- **Correction:** `npm audit fix` resolves `websocket-driver` (non-breaking); bump `adm-zip` to
-  `^0.6.0` (breaking-major — test `extractAssessmentFormat` after) or replace with a streaming
-  unzip + size guard. Validate the DOCX size/entry-count before `AdmZip` (pairs with STOR-003).
-- **Launch blocker:** Yes for the `adm-zip` path if teacher DOCX upload is enabled at launch (DoS).
-  **Complexity:** Low–Medium. **Tests:** `extractAssessmentFormat` regression + a ZIP-bomb guard test.
+  message corruption, transitive) and **`adm-zip <0.6.0` (HIGH:** crafted ZIP triggers 4 GB
+  allocation, DoS). `adm-zip` parses uploaded DOCX in
+  `functions/teacherTools/extractAssessmentFormat.js`.
+- **Reachability correction (vs. earlier draft):** `extractAssessmentFormat` is **admin-only**
+  (`role !== "admin"` → `permission-denied`, `extractAssessmentFormat.js:263-265`), so the DOCX
+  path is reachable only by a platform admin, **not any teacher** — a materially lower real
+  severity than a public DoS. The dependency CVEs are still worth patching as hygiene.
+- **Fixed here:** bumped `adm-zip`→`^0.6.0` (fixes the parse-time allocation) and added a
+  `websocket-driver` override `^0.7.5` (both regenerated in `functions/package-lock.json`);
+  `npm audit --omit=dev` now reports **0**. Added **defence-in-depth caps** in
+  `assessmentFormatExtractHelpers.js` (`MAX_DOCX_BUFFER_BYTES` before parse,
+  `capMediaByTotalBytes` before extraction) wired into `extractAssessmentFormat.js`, with a
+  unit test for the total-size cap.
+- **Residual:** magic-byte verification on uploads remains a separate item (STOR-003).
+- **Launch blocker:** cleared. **Tests:** `assessmentFormatExtractHelpers.test.js` (guard cap) —
+  passing.
 
 ### SEC-008 — Committed non-secret env + public build vars (accepted)
 - **Severity:** Informational · **Confidence:** Confirmed
