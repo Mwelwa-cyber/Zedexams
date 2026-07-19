@@ -42,6 +42,13 @@ export class MemoryCache {
     this.store = new Map()
     /** @type {Map<string, Promise<any>>} */
     this.pending = new Map()
+    // Monotonic counter bumped by every explicit invalidation (delete /
+    // invalidatePrefix / clear). A fetch in flight captures the generation it
+    // started under and refuses to write its (now potentially stale) result
+    // once the generation has advanced — otherwise a read that began before an
+    // invalidation would repopulate the cache after it, and the pre-mutation
+    // value would be served for the full TTL (CLAUDE.md #13 / Prompt 16 §16).
+    this.generation = 0
     this.stats = {
       hits: 0, misses: 0, expired: 0, evictions: 0,
       dedup: 0, staleServed: 0, backgroundRefreshes: 0, invalidations: 0,
@@ -118,6 +125,10 @@ export class MemoryCache {
   delete(key) {
     const existed = this.store.delete(key)
     this.pending.delete(key)
+    // Always advance the generation, even on a store miss: a fetch for `key`
+    // may be in flight (its store entry doesn't exist yet), and it must not be
+    // allowed to write a stale value once this invalidation has run.
+    this.generation++
     if (existed) { this.stats.invalidations++; this._log('invalidate', key) }
     return existed
   }
@@ -131,6 +142,7 @@ export class MemoryCache {
     for (const key of Array.from(this.pending.keys())) {
       if (key.startsWith(prefix)) this.pending.delete(key)
     }
+    this.generation++
     if (removed) { this.stats.invalidations += removed; this._log('invalidatePrefix', prefix, { removed }) }
     return removed
   }
@@ -140,6 +152,7 @@ export class MemoryCache {
     const removed = this.store.size
     this.store.clear()
     this.pending.clear()
+    this.generation++
     if (removed) { this.stats.invalidations += removed; this._log('clear', '*', { removed }) }
     return removed
   }
@@ -200,10 +213,17 @@ export class MemoryCache {
       return this.pending.get(key)
     }
 
+    const startGen = this.generation
     const request = Promise.resolve()
       .then(() => fetcher())
-      .then((value) => { this.set(key, value, { ttlMs, staleAfterMs }); return value })
-      .finally(() => { this.pending.delete(key) })
+      .then((value) => {
+        // Drop the write if an invalidation ran while this read was in flight —
+        // the value predates the mutation and would otherwise be served stale
+        // for the full TTL. The caller still receives it; it just isn't cached.
+        if (this.generation === startGen) this.set(key, value, { ttlMs, staleAfterMs })
+        return value
+      })
+      .finally(() => { if (this.pending.get(key) === request) this.pending.delete(key) })
 
     this.pending.set(key, request)
     return request
@@ -213,11 +233,16 @@ export class MemoryCache {
     if (this.pending.has(key)) return // a refresh (or the original fetch) is already in flight
     this.stats.backgroundRefreshes++
     this._log('background-refresh', key)
+    const startGen = this.generation
     const request = Promise.resolve()
       .then(() => fetcher())
       .then((value) => {
-        this.set(key, value, { ttlMs, staleAfterMs })
-        if (typeof onFresh === 'function') onFresh(value)
+        // Same in-flight-invalidation guard as getOrSet: a refresh that started
+        // before an invalidation must not repopulate the cache after it.
+        if (this.generation === startGen) {
+          this.set(key, value, { ttlMs, staleAfterMs })
+          if (typeof onFresh === 'function') onFresh(value)
+        }
         return value
       })
       .catch((err) => {
@@ -225,7 +250,7 @@ export class MemoryCache {
         // entry — the caller keeps serving what it already has.
         if (typeof onBackgroundError === 'function') onBackgroundError(err)
       })
-      .finally(() => { this.pending.delete(key) })
+      .finally(() => { if (this.pending.get(key) === request) this.pending.delete(key) })
     this.pending.set(key, request)
   }
 }

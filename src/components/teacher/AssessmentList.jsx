@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { where } from 'firebase/firestore'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
@@ -229,6 +229,40 @@ export default function AssessmentList() {
     ? (pageError.message || 'Failed to load assessments.')
     : ''
 
+  // View filters narrow the ALREADY-LOADED rows only — they never re-query or
+  // split the `assessments` collection. Because a matching row could still be
+  // sitting on an unfetched page, a filter that currently shows nothing does
+  // NOT prove none exist. Compute the filtered views here (not inside the JSX)
+  // so the auto-continue effect below can react to them.
+  const byCategory = useMemo(
+    () => (categoryFilter === 'all'
+      ? assessments
+      : assessments.filter(a => assessmentCategory(a.assessmentType) === categoryFilter)),
+    [assessments, categoryFilter],
+  )
+  const needsReviewCount = useMemo(
+    () => byCategory.reduce((n, a) => (summarizeImportReview(a).needsReview ? n + 1 : n), 0),
+    [byCategory],
+  )
+  const visible = useMemo(
+    () => (needsReviewOnly ? byCategory.filter(a => summarizeImportReview(a).needsReview) : byCategory),
+    [byCategory, needsReviewOnly],
+  )
+  const filterActive = categoryFilter !== 'all' || needsReviewOnly
+  // True only once the whole library has been walked — the point at which an
+  // empty filtered view really does mean "none exist".
+  const fullyLoaded = !hasNextPage && !isLoadingNextPage && !isInitialLoading
+
+  // Apply-before-paginating: when a filter is active and has surfaced no matches
+  // in the loaded rows, keep pulling pages until a match appears or we hit the
+  // true end. Without this the list would falsely report "none" (and disable
+  // the Needs-review chip) for rows that simply hadn't loaded yet.
+  useEffect(() => {
+    if (filterActive && visible.length === 0 && hasNextPage && !isLoadingNextPage && !isInitialLoading) {
+      loadNextPage()
+    }
+  }, [filterActive, visible.length, hasNextPage, isLoadingNextPage, isInitialLoading, loadNextPage])
+
   async function confirmDelete() {
     const assessment = pendingDelete
     if (!assessment) return
@@ -378,24 +412,7 @@ export default function AssessmentList() {
             + Create {cfg.noun}
           </button>
         </div>
-      ) : (() => {
-        // Category (Test / Examination) narrows the VIEW only — it never
-        // re-queries or splits the underlying `assessments` collection.
-        const byCategory = categoryFilter === 'all'
-          ? assessments
-          : assessments.filter(a => assessmentCategory(a.assessmentType) === categoryFilter)
-        // Phase 8: filter the list down to imports flagged for review when
-        // the chip is on. Count is computed against the category-filtered
-        // list so the chip can show "(N)" even when needsReviewOnly is off.
-        const needsReviewCount = byCategory.reduce(
-          (n, a) => (summarizeImportReview(a).needsReview ? n + 1 : n),
-          0,
-        )
-        const visible = needsReviewOnly
-          ? byCategory.filter(a => summarizeImportReview(a).needsReview)
-          : byCategory
-
-        return (
+      ) : (
           <>
             <div className="flex items-center gap-2.5 mb-3" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#ff7a2e' }}>
               <span style={{ width: 32, height: 3, background: '#ff7a2e', borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
@@ -422,14 +439,17 @@ export default function AssessmentList() {
             <div className="flex flex-wrap items-baseline justify-between gap-3 mb-4">
               <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 24, color: '#0e2a32', margin: 0 }}>
                 {needsReviewOnly
-                  ? `${visible.length} of ${byCategory.length} need review`
-                  : `${byCategory.length} ${cfg.noun}${byCategory.length === 1 ? '' : 's'}`}
+                  ? `${visible.length} of ${byCategory.length}${hasNextPage ? '+' : ''} need review`
+                  : `${byCategory.length}${hasNextPage ? '+' : ''} ${cfg.noun}${byCategory.length === 1 && !hasNextPage ? '' : 's'}`}
               </h2>
               <button
                 type="button"
                 onClick={() => setNeedsReviewOnly(v => !v)}
                 aria-pressed={needsReviewOnly}
-                disabled={!needsReviewOnly && needsReviewCount === 0}
+                // Only disable once the whole library is loaded and still shows
+                // nothing to review — while more pages remain, a flagged import
+                // could be on one of them, so keep the chip enabled.
+                disabled={!needsReviewOnly && needsReviewCount === 0 && fullyLoaded}
                 className="rounded-full border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   borderColor: needsReviewOnly ? '#d97706' : '#e5e7eb',
@@ -439,8 +459,10 @@ export default function AssessmentList() {
                 title={needsReviewOnly
                   ? `Click to show all ${cfg.nounPlural}`
                   : needsReviewCount > 0
-                    ? `${needsReviewCount} imported ${cfg.noun}${needsReviewCount === 1 ? '' : 's'} flagged for review`
-                    : 'No imports currently need review'}
+                    ? `${needsReviewCount}${hasNextPage ? '+' : ''} imported ${cfg.noun}${needsReviewCount === 1 && !hasNextPage ? '' : 's'} flagged for review`
+                    : hasNextPage
+                      ? 'Load more to check the rest of your library for imports needing review'
+                      : 'No imports currently need review'}
               >
                 ⚠️ Needs review
                 {needsReviewCount > 0 && (
@@ -479,19 +501,25 @@ export default function AssessmentList() {
               noun={cfg.noun}
               nounPlural={cfg.nounPlural}
             />
-            {needsReviewOnly && visible.length === 0 && (
+            {/* While pages are still auto-loading to satisfy an active filter,
+                say so — never claim "none" for rows that just haven't loaded. */}
+            {filterActive && visible.length === 0 && !fullyLoaded && (
+              <p className="text-center text-sm font-bold mt-6" style={{ color: '#566f76' }}>
+                Searching the rest of your library…
+              </p>
+            )}
+            {needsReviewOnly && visible.length === 0 && fullyLoaded && (
               <p className="text-center text-sm font-bold mt-6" style={{ color: '#566f76' }}>
                 No {cfg.nounPlural} need review right now. Click the chip again to see all of them.
               </p>
             )}
-            {!needsReviewOnly && byCategory.length === 0 && (
+            {!needsReviewOnly && byCategory.length === 0 && fullyLoaded && (
               <p className="text-center text-sm font-bold mt-6" style={{ color: '#566f76' }}>
                 No {categoryFilter === 'test' ? 'tests' : 'examinations'} yet — try the "All" filter or create one.
               </p>
             )}
           </>
-        )
-      })()}
+      )}
 
       <ConfirmDialog
         open={Boolean(pendingDelete)}

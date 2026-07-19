@@ -70,8 +70,17 @@ function reducer(state, action) {
     case 'error':
       // Keep whatever we already have — a failed next page must not wipe the list (§37).
       return { ...state, isInitialLoading: false, isLoadingNextPage: false, isRefreshing: false, error: action.error }
-    case 'removeItem':
-      return { ...state, items: removeById(state.items, action.id, action.getId) }
+    case 'removeItem': {
+      // Drop the record from BOTH representations the hook exposes — the
+      // flattened `items` and the per-page `pages` — so a caller rendering
+      // pages (or computing page-level metadata) never keeps showing a record
+      // `items` already reports as gone (§19).
+      const pages = state.pages.map((p) => {
+        const filtered = removeById(p.items, action.id, action.getId)
+        return filtered.length === p.items.length ? p : { ...p, items: filtered }
+      })
+      return { ...state, items: removeById(state.items, action.id, action.getId), pages }
+    }
     default:
       return state
   }
@@ -116,6 +125,17 @@ export function usePaginatedQuery({
   const hasNextRef = useRef(true)
   // pageRequestKey -> in-flight promise, for request de-dup (§13).
   const inflightRef = useRef(new Map())
+  // Monotonic request generation. A refresh or a fresh first page opens a NEW
+  // generation; a next-page continues the current one. The stale-response guard
+  // checks this in ADDITION to the query key, because a refresh and an
+  // overlapping next-page share the same query key — key equality alone can't
+  // tell them apart, so without a generation an older next-page resolving after
+  // a refresh would append pre-refresh-cursor data over the refreshed
+  // cursor/hasNextPage state (and an A→B→A toggle could re-admit the original A
+  // response into the new A session). The generation is folded into the
+  // in-flight lock key so Strict Mode's double-invoke of the load effect still
+  // collapses to a single read (the second invoke sees the first's bump).
+  const generationRef = useRef(0)
 
   const loadPage = useCallback((mode) => {
     if (!enabled || typeof fetchPageRef.current !== 'function') return undefined
@@ -124,13 +144,26 @@ export function usePaginatedQuery({
 
     const requestKey = activeKeyRef.current
     const cursor = append ? cursorRef.current : null
-    const lockKey = pageRequestKey(requestKey, cursor)
+    const baseKey = pageRequestKey(requestKey, cursor)
+    const startsNewGeneration = mode !== 'next'
 
-    // Request de-dup: the same page already loading? join it, don't re-read.
-    const existing = inflightRef.current.get(lockKey)
+    // Dedup against the CURRENT generation first — a concurrent duplicate (a
+    // double-click, or Strict Mode's second effect-invoke) has already bumped
+    // the generation, so it lands on this same key and joins, never re-reads.
+    const existing = inflightRef.current.get(`${baseKey}::g${generationRef.current}`)
     if (existing) return existing
 
+    if (startsNewGeneration) generationRef.current += 1
+    const generation = generationRef.current
+    const lockKey = `${baseKey}::g${generation}`
+
     dispatch({ type: 'loading', mode })
+
+    // A response is applied only if the component is still mounted, the query key
+    // still matches, AND no newer generation has superseded this request.
+    const isCurrent = () => isMounted.current
+      && activeKeyRef.current === requestKey
+      && generationRef.current === generation
 
     const run = (async () => {
       try {
@@ -139,9 +172,9 @@ export function usePaginatedQuery({
           ? await fetchPageCached(scope, requestKey, cursor, call, { ttlMs: cacheTtlMs, bypass: mode === 'refresh' })
           : await call()
 
-        // Stale-response + unmount guards — a page from an abandoned query key
-        // (or a gone component) is dropped, never applied (§14).
-        if (!isMounted.current || activeKeyRef.current !== requestKey) return
+        // Stale-response + unmount guards — a page from an abandoned query key,
+        // a superseded generation, or a gone component is dropped (§14).
+        if (!isCurrent()) return
 
         cursorRef.current = result?.cursor ?? cursorRef.current
         hasNextRef.current = Boolean(result?.hasNextPage)
@@ -154,7 +187,7 @@ export function usePaginatedQuery({
           getId: getIdRef.current,
         })
       } catch (error) {
-        if (!isMounted.current || activeKeyRef.current !== requestKey) return
+        if (!isCurrent()) return
         dispatch({ type: 'error', error })
       } finally {
         inflightRef.current.delete(lockKey)

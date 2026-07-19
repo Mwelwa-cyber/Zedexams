@@ -84,6 +84,27 @@ async function main() {
     assert.equal(calls, 3)
   })
 
+  await test('a read in flight when its scope is invalidated does not repopulate the cache', async () => {
+    _resetPageCachesForTests()
+    let calls = 0
+    let resolveFirst
+    const gate = new Promise((r) => { resolveFirst = r })
+    const slowFetcher = async () => { calls += 1; await gate; return { items: [{ id: 'stale' }], hasNextPage: false } }
+
+    // Kick off a page read and, WHILE it is still in flight, invalidate the scope
+    // (as a create/update/delete would).
+    const inflight = fetchPageCached('scope-inflight', 'page:k', null, slowFetcher, { ttlMs: 60000 })
+    invalidatePageScope('scope-inflight')
+    resolveFirst()
+    await inflight // the in-flight caller still gets its value…
+
+    // …but the stale pre-invalidation page must NOT have been written to the
+    // cache, so the next read re-fetches instead of serving the stale row.
+    const fresh = await fetchPageCached('scope-inflight', 'page:k', null, slowFetcher, { ttlMs: 60000 })
+    assert.equal(calls, 2, 'the post-invalidation read must hit the fetcher, not a repopulated stale entry')
+    assert.deepEqual(fresh.items.map(x => x.id), ['stale']) // second call's value, freshly read
+  })
+
   await test('clearAllPageCaches empties every scope', async () => {
     _resetPageCachesForTests()
     const fetcher = async () => ({ items: [], hasNextPage: false })

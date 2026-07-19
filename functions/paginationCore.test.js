@@ -7,7 +7,7 @@ const assert = require("node:assert/strict");
 const {
   DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, DECODE_ERRORS,
   clampPageSize, fingerprintFilters, encodeCursorToken, decodeCursorToken,
-  resolveSort, resolvePageRequest,
+  resolveSort, resolvePageRequest, createFirestoreTimestampCodec,
 } = require("./paginationCore.js");
 
 let passed = 0;
@@ -35,6 +35,26 @@ test("fingerprintFilters is order-independent and drops empties", () => {
     fingerprintFilters({ b: "2", a: "1", c: null, d: "" }),
     fingerprintFilters({ a: "1", b: "2" }),
   );
+});
+test("fingerprintFilters has no delimiter collision between distinct filters", () => {
+  // Old key=value&… concatenation collapsed these two DIFFERENT filter sets to
+  // the same string ("q=x&status=y"); they must now be distinguishable.
+  assert.notEqual(
+    fingerprintFilters({ q: "x&status=y" }),
+    fingerprintFilters({ q: "x", status: "y" }),
+  );
+});
+test("fingerprintFilters preserves value types (1 vs '1')", () => {
+  assert.notEqual(
+    fingerprintFilters({ grade: 1 }),
+    fingerprintFilters({ grade: "1" }),
+  );
+});
+test("a cursor bound to a numeric filter is rejected for the string filter", () => {
+  const numeric = { scope: "s", sortField: "createdAt", sortDirection: "desc", filters: { grade: 1 } };
+  const stringy = { ...numeric, filters: { grade: "1" } };
+  const token = encodeCursorToken({ orderValues: [1, "d"], binding: numeric });
+  assert.equal(decodeCursorToken(token, stringy).error, DECODE_ERRORS.BINDING_MISMATCH);
 });
 
 // ── cursor round-trip ────────────────────────────────────────────────────
@@ -86,6 +106,53 @@ test("HMAC signing makes a tampered token fail", () => {
   const res = decodeCursorToken(tampered, binding, secret);
   assert.equal(res.ok, false);
   assert.ok(res.error === DECODE_ERRORS.BAD_SIGNATURE || res.error === DECODE_ERRORS.MALFORMED || res.error === DECODE_ERRORS.BINDING_MISMATCH);
+});
+
+test("a multibyte signature is rejected cleanly, not crashed on (no timingSafeEqual throw)", () => {
+  const secret = "s3cr3t";
+  const token = encodeCursorToken({ orderValues: [1, "d"], binding }, secret);
+  const b64 = token.slice(0, token.indexOf("."));
+  // A multibyte '€' is 1 JS char but 3 UTF-8 bytes: string length can match the
+  // expected 22-char signature while the byte length differs — the exact input
+  // that used to throw ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH.
+  const multibyteSig = "€".repeat(22);
+  let res;
+  assert.doesNotThrow(() => { res = decodeCursorToken(`${b64}.${multibyteSig}`, binding, secret); });
+  assert.equal(res.ok, false);
+  assert.equal(res.error, DECODE_ERRORS.BAD_SIGNATURE);
+});
+
+// ── typed value codec (Firestore Timestamp round-trip) ─────────────────────
+// A minimal stand-in for the Admin SDK Timestamp so the pure module is testable
+// without firebase-admin. Sorting by createdAt hands one of these as an order
+// value; it must survive the cursor round-trip as a real instance.
+class FakeTimestamp {
+  constructor(seconds, nanoseconds) { this._seconds = seconds; this._nanoseconds = nanoseconds; }
+  toMillis() { return this._seconds * 1000 + Math.floor(this._nanoseconds / 1e6); }
+}
+
+test("a Firestore Timestamp order value round-trips through the cursor", () => {
+  const codec = createFirestoreTimestampCodec(FakeTimestamp);
+  const ts = new FakeTimestamp(1_700_000_000, 500);
+  const token = encodeCursorToken({ orderValues: [ts, "doc9"], binding }, undefined, codec);
+  const decoded = decodeCursorToken(token, binding, undefined, codec);
+  assert.equal(decoded.ok, true);
+  const [revived, docId] = decoded.orderValues;
+  assert.ok(revived instanceof FakeTimestamp, "timestamp should be a real instance, not a plain map");
+  assert.equal(revived._seconds, 1_700_000_000);
+  assert.equal(revived._nanoseconds, 500);
+  assert.equal(docId, "doc9");
+});
+
+test("without JSON flattens a Timestamp to an unusable map (regression guard)", () => {
+  // Default identity codec: JSON.stringify turns the timestamp into a plain
+  // object — decode returns a map, NOT a Timestamp — which is exactly the
+  // startAfter() failure the typed codec exists to prevent.
+  const ts = new FakeTimestamp(123, 0);
+  const token = encodeCursorToken({ orderValues: [ts, "d"], binding });
+  const decoded = decodeCursorToken(token, binding);
+  assert.equal(decoded.ok, true);
+  assert.ok(!(decoded.orderValues[0] instanceof FakeTimestamp));
 });
 
 // ── resolveSort ──────────────────────────────────────────────────────────
