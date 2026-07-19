@@ -84,6 +84,7 @@ import { classifyForLibrary } from '../../utils/libraryClassification'
 // demand inside the export handler, so the Studio's initial route chunk
 // stays lean for teachers who are only editing, not exporting.
 import { buildAssessmentName } from '../../utils/downloadFilename'
+import { startBrandedDownload, prewarmExports } from '../../utils/assessmentExportClient'
 import { printAssessmentAsPdf, openPrintWindow } from '../../utils/assessmentToPdf'
 import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
 import { computePaperHealth } from '../../utils/paperHealth'
@@ -2109,6 +2110,10 @@ export default function AssessmentStudio() {
           'assessment_studio',
         )
       } catch { /* capture is best-effort */ }
+      // Warm the common export (paper Word) in the background so the teacher's
+      // first download after saving is already cached ("Preparing paper" only
+      // shows once). Fire-and-forget — never blocks or fails the save.
+      try { prewarmExports(editId || createdIdRef.current) } catch { /* best-effort */ }
       showToast(wasUpdate ? 'Changes saved.' : 'Saved to your library!')
       setTimeout(() => navigate(cfg.routeBase), 900)
     } catch (error) {
@@ -2199,6 +2204,49 @@ export default function AssessmentStudio() {
           await runLibraryPersist()
         } catch (saveErr) {
           console.error('Auto-save on download failed', saveErr)
+        }
+      }
+      // ── Branded, cached download (server pipeline) ──────────────────────
+      // For the three server-rendered export types (paper Word, marking-key
+      // Word, paper PDF) request the cached export and download it FROM
+      // zedexams.com via /downloads/assessments/... — no client generation, no
+      // firebasestorage.googleapis.com URL, and an unchanged paper streams its
+      // pre-generated file. Only when the paper is already saved (has an id) and
+      // valid; a brand-new/invalid paper, or any server failure, falls straight
+      // through to the existing in-browser download below so nothing regresses.
+      const savedId = editId || createdIdRef.current
+      const serverExportType = (kind === 'docx' && mode === 'paper') ? 'paper-docx'
+        : (kind === 'docx' && mode === 'scheme') ? 'scheme-docx'
+          : (kind === 'pdf' && mode === 'paper') ? 'paper-pdf'
+            : null
+      if (serverExportType && savedId && mode !== 'answersheet') {
+        try {
+          const res = await startBrandedDownload({
+            assessmentId: savedId,
+            exportType: serverExportType,
+            onStatus: (s) => {
+              if (s.status === 'preparing') {
+                showToast('Preparing paper… this happens once, then downloads are instant.')
+              }
+            },
+          })
+          showToast(res.cacheHit ? 'Download started.' : 'Download ready — starting now.')
+          return
+        } catch (brandedErr) {
+          // Fall through to the in-browser download. PDF has no in-browser blob
+          // path (it prints), so route a failed branded PDF to the print window.
+          console.warn('Branded export unavailable, using in-app download', brandedErr)
+          if (kind === 'pdf') {
+            const win = openPrintWindow()
+            if (win) {
+              printAssessmentAsPdf(assessmentDoc, serializedPreview.questions, {
+                mode: 'paper', win, attribution: isFreePlanTeacher({ userProfile, isAdmin }),
+              })
+            } else {
+              showToast('Could not prepare the PDF. Please allow pop-ups and use Print / Save as PDF.', true)
+            }
+            return
+          }
         }
       }
       // Auto-titles (e.g. "Grade 4 Mathematics - Fractions") read well as-is;

@@ -288,6 +288,15 @@ export default function AssessmentList() {
       }
       const variant = mode === 'paper' ? undefined : 'Marking Key'
       if (format === 'docx') {
+        // Branded, cached download first: stream the pre-generated Word file
+        // FROM zedexams.com (no client generation, no firebasestorage URL). Fall
+        // back to the in-browser build if the server path is unavailable.
+        try {
+          const { startBrandedDownload } = await import('../../utils/assessmentExportClient')
+          await startBrandedDownload({ assessmentId: assessment.id, exportType: mode === 'paper' ? 'paper-docx' : 'scheme-docx' })
+          toast.success(mode === 'paper' ? 'Paper download started.' : 'Marking scheme download started.')
+          return
+        } catch { /* fall through to the in-browser download */ }
         const { downloadAssessmentDocx } = await import('../../utils/assessmentToDocx')
         await downloadAssessmentDocx(assessment, questions, assessmentFileName(assessment, variant), { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
         toast.success(mode === 'paper' ? 'Paper download started.' : 'Marking scheme download started.')

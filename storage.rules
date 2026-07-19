@@ -199,6 +199,17 @@ service firebase.storage {
       allow delete: if ownsPath(ownerUid) && isTeacherOrAdmin();
     }
 
+    // Versioned, cached assessment EXPORTS (paper.docx / paper.pdf / scheme.docx)
+    // keyed by source hash. Written ONLY by Cloud Functions (admin SDK bypasses
+    // rules); no client may write. Direct client reads are also denied — bytes
+    // are served exclusively through the branded /downloads/... endpoint, which
+    // enforces ownership server-side and never leaks a Storage token. Keeping
+    // read closed here means even a leaked object path is useless to a client.
+    match /assessment-exports/{ownerUid}/{filePath=**} {
+      allow read: if false;
+      allow write: if false;
+    }
+
     // Visual Studio: a teacher's baked diagrams + uploaded source pictures.
     // Owner-scoped folder; any signed-in user can READ (a diagram sent into a
     // shared assessment/worksheet must remain loadable), only the owner/admin
