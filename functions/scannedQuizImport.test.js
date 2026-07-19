@@ -439,6 +439,87 @@ test("runScannedQuizImport works with no Gemini key (Claude-only)", async () => 
   assert.equal(result.extractedCount, 1);
 });
 
+// ── OpenAI recall-assist fallback (Gemini→OpenAI when Gemini is unavailable) ──
+
+test("runScannedQuizImport falls back to OpenAI when the Gemini call fails", async () => {
+  let openaiOpts = null;
+  const result = await runScannedQuizImport(
+    {pages: [{pageNumber: 1, dataUrl: dataUrl()}], anthropicKey: "k", geminiKey: "g", openaiKey: "o"},
+    {
+      callGemini: async () => {
+        throw new Error("gemini down");
+      },
+      callOpenAI: async (key, opts) => {
+        assert.equal(key, "o", "the OpenAI key is passed to the fallback");
+        openaiOpts = opts;
+        return '{"questionNumbers":[1,2,3,4,5]}';
+      },
+      callClaude: async () => ({parsed: {sections: [{kind: "standalone", question: mcq()}]}}),
+    },
+  );
+  assert.ok(openaiOpts, "OpenAI fallback was invoked after Gemini failed");
+  assert.ok(typeof openaiOpts.model === "string" && openaiOpts.model, "a vision model is set");
+  assert.equal(openaiOpts.json, true, "JSON mode is requested");
+  const userMsg = openaiOpts.messages.find((m) => m.role === "user");
+  assert.ok(userMsg.content.some((p) => p.type === "image_url"), "page images are attached as image_url parts");
+  // The recall net stays alive via OpenAI: its count feeds the mismatch check.
+  assert.equal(result.detectedCount, 5, "detectedCount comes from the OpenAI assist");
+  assert.ok(result.warnings.some((w) => /missing/i.test(w)), "the dropped-question warning still fires");
+});
+
+test("runScannedQuizImport uses OpenAI directly when no Gemini key is set", async () => {
+  let geminiCalled = false;
+  let openaiCalled = false;
+  const result = await runScannedQuizImport(
+    {pages: [{pageNumber: 1, dataUrl: dataUrl()}], anthropicKey: "k", geminiKey: "", openaiKey: "o"},
+    {
+      callGemini: async () => {
+        geminiCalled = true;
+        return "{}";
+      },
+      callOpenAI: async () => {
+        openaiCalled = true;
+        return '{"questionNumbers":[1,2,3]}';
+      },
+      callClaude: async () => ({parsed: {sections: [{kind: "standalone", question: mcq()}]}}),
+    },
+  );
+  assert.equal(geminiCalled, false, "Gemini is skipped without its key");
+  assert.equal(openaiCalled, true, "OpenAI provides the recall assist instead");
+  assert.equal(result.detectedCount, 3);
+});
+
+test("runScannedQuizImport does NOT hit OpenAI when Gemini succeeds", async () => {
+  let openaiCalled = false;
+  const result = await runScannedQuizImport(
+    {pages: [{pageNumber: 1, dataUrl: dataUrl()}], anthropicKey: "k", geminiKey: "g", openaiKey: "o"},
+    {
+      callGemini: async () => '{"questionNumbers":[1,2]}',
+      callOpenAI: async () => {
+        openaiCalled = true;
+        return '{"questionNumbers":[9,9,9,9,9]}';
+      },
+      callClaude: async () => ({parsed: {sections: [{kind: "standalone", question: mcq()}]}}),
+    },
+  );
+  assert.equal(openaiCalled, false, "healthy Gemini means no OpenAI fallback call (no double cost)");
+  assert.equal(result.detectedCount, 2, "the Gemini count is used");
+});
+
+test("runScannedQuizImport stays Claude-only when both assists are unavailable", async () => {
+  const result = await runScannedQuizImport(
+    {pages: [{pageNumber: 1, dataUrl: dataUrl()}], anthropicKey: "k", geminiKey: "g", openaiKey: ""},
+    {
+      callGemini: async () => {
+        throw new Error("gemini down");
+      },
+      callClaude: async () => ({parsed: {sections: [{kind: "standalone", question: mcq()}]}}),
+    },
+  );
+  assert.equal(result.extractedCount, 1, "import still succeeds on Claude alone");
+  assert.equal(result.detectedCount, 0, "no assist count available");
+});
+
 // ── output-token truncation (regression for English ECZ paper import) ──────────
 // When Claude hits max_tokens in tool mode the Anthropic API returns
 // stop_reason:"max_tokens" with a partial (or empty) tool input. callClaude
