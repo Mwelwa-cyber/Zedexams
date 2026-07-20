@@ -38,6 +38,7 @@
 const {onRequest} = require("firebase-functions/v2/https");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const admin = require("firebase-admin");
+const crypto = require("crypto");
 const {applyCors} = require("./cors");
 const {enforceRateLimit, standardBuckets, resolveClientIp} = require("./rateLimit");
 const {
@@ -47,6 +48,19 @@ const {
   parseUserAgent,
   normalizeBeacon,
 } = require("./visitorTrackingCore");
+
+// Structured, one-line-JSON telemetry for the beacon so ops can build alerts
+// and DISTINGUISH failure classes (a burst of `write_timeout` is a Firestore
+// contention signal; a burst of `rate_limited` is abuse; `validation` is a bad
+// client). Every log line carries the per-request `rid` so a single beacon can
+// be correlated end-to-end. We never log PII (path/referrer host are the only
+// request-derived fields, and only at debug level).
+function logVisit(level, event, fields = {}) {
+  const line = JSON.stringify({event: `track_visit_${event}`, ...fields});
+  if (level === "error") console.error("[apiTrackVisit]", line);
+  else if (level === "warn") console.warn("[apiTrackVisit]", line);
+  else console.log("[apiTrackVisit]", line);
+}
 
 // Edge/CDN country headers, in order of preference. Firebase Hosting and
 // the underlying Google front-end populate some of these; we read whichever
@@ -147,6 +161,13 @@ async function rollUpDay(db, dayKey) {
 // never do. Past this budget we abandon the write and still 204.
 const WRITE_BUDGET_MS = 9000;
 
+// The rate-limit check is a Firestore transaction and is fail-open, but it is
+// NOT inside the write budget below — a slow/contended limiter would otherwise
+// add unbounded latency ahead of the 9s budget. Cap it here so a hung limiter
+// degrades to "allowed" (the same fail-open posture the limiter already takes
+// on error) instead of stretching the request toward the function timeout.
+const RATE_LIMIT_BUDGET_MS = 2500;
+
 // Resolve after `ms`, so a hung/slow write can't outlast the budget. Clears its
 // own timer when the work settles first so we don't leak a handle per request.
 function withBudget(promise, ms) {
@@ -160,9 +181,27 @@ function withBudget(promise, ms) {
   ]);
 }
 
-exports.apiTrackVisit = onRequest(
-    {region: "us-central1", timeoutSeconds: 15, memory: "128MiB"},
-    async (req, res) => {
+// Core beacon handler, split out from the `onRequest` wrapper so it can be
+// unit-tested with fake req/res and injected Firestore + rate-limiter (the
+// firebase-functions runtime is otherwise required to invoke an onRequest).
+// `deps` lets tests substitute the DB, the limiter, and the logger; production
+// falls back to the real modules.
+async function handleVisit(req, res, deps = {}) {
+  const db = deps.db || admin.firestore();
+  const rateLimitFn = deps.enforceRateLimit || enforceRateLimit;
+  const log = deps.log || logVisit;
+  const genId = deps.genId || (() => crypto.randomUUID());
+  const cors = deps.applyCors || applyCors;
+  {
+      // Per-request correlation id, echoed on the response header and stamped
+      // into every structured log line so a single beacon (and any failure it
+      // hits) can be traced end-to-end. Prefer an upstream id if Hosting/GFE
+      // already set one so the whole hop shares an id.
+      const rid = (req.get("x-request-id") || genId()).slice(0, 64);
+      try {
+        res.set("x-request-id", rid);
+      } catch (_e) { /* headers already flushed — non-fatal */ }
+
       // Best-effort beacon: it must NEVER surface an error — or a 500 — to the
       // visitor (analytics is not worth a console error or a client retry). So
       // the WHOLE handler, including CORS + method handling, lives inside one
@@ -171,19 +210,25 @@ exports.apiTrackVisit = onRequest(
       try {
         // Same shared origin allow-list as the other /api/* endpoints. This
         // is an unauthenticated beacon, so CORS is the main browser guard.
-        applyCors(req, res);
+        cors(req, res);
 
         if (req.method === "OPTIONS") {
           res.status(204).send("");
           return;
         }
         if (req.method !== "POST") {
+          // The one non-204 success-path status: a wrong method is a caller
+          // bug, not a transient failure, so it must be visible (and must NOT
+          // be retried by the client). Categorised for the monitor.
+          log("warn", "rejected", {rid, category: "method_not_allowed", method: req.method});
           res.status(405).json({error: "Use POST."});
           return;
         }
 
         const beacon = normalizeBeacon(req.body || {});
         if (!beacon) {
+          // Malformed / empty payload — a validation drop, not a server fault.
+          log("warn", "rejected", {rid, category: "validation"});
           res.status(204).send("");
           return;
         }
@@ -194,13 +239,29 @@ exports.apiTrackVisit = onRequest(
         // and data-poisoning (spoofed pageviews) surface. A blocked beacon is
         // dropped SILENTLY with 204 to preserve the never-surface-an-error
         // contract — a real page emits far fewer hits than the cap. A school
-        // computer-lab NAT stays well under the generous per-IP limit.
+        // computer-lab NAT stays well under the generous per-IP limit. The
+        // limiter is itself fail-open, but time-box it too so a hung limiter
+        // txn can't stretch the request toward the function timeout.
         const ip = resolveClientIp(req);
-        const rl = await enforceRateLimit(
-            admin.firestore(),
-            standardBuckets({action: "track-visit", ip, ipPerMin: 300}),
+        const rl = await withBudget(
+            rateLimitFn(
+                db,
+                standardBuckets({action: "track-visit", ip, ipPerMin: 300}),
+            ).catch((err) => {
+              log("warn", "ratelimit_error", {
+                rid, category: "rate_limit", error: String((err && err.message) || err).slice(0, 200),
+              });
+              return {allowed: true, degraded: true};
+            }),
+            RATE_LIMIT_BUDGET_MS,
         );
-        if (!rl.allowed) {
+        // `withBudget` resolves to `undefined` if the limiter times out — treat
+        // that as fail-open (allowed), same posture as the limiter's own error
+        // path, and record it so a slow limiter is observable.
+        if (rl === undefined) {
+          log("warn", "ratelimit_timeout", {rid, category: "rate_limit"});
+        } else if (!rl.allowed) {
+          log("warn", "rejected", {rid, category: "rate_limited"});
           res.status(204).send("");
           return;
         }
@@ -208,7 +269,6 @@ exports.apiTrackVisit = onRequest(
         const ua = parseUserAgent(req.get("user-agent") || "");
         const now = new Date();
         const dayKey = dayKeyFor(now);
-        const db = admin.firestore();
 
         const visitDoc = {
           path: beacon.path,
@@ -225,9 +285,13 @@ exports.apiTrackVisit = onRequest(
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         };
 
-        // `.catch` on the work itself so that, if the budget wins the race and
-        // we move on, a later write rejection can't become an unhandled
-        // rejection that crashes the instance.
+        // Track whether the write settled (vs. timed out) so the two are
+        // logged as DISTINCT categories: `write_failed` is a Firestore fault,
+        // `write_timeout` is contention/slowness under the budget. `.catch` on
+        // the work itself so that, if the budget wins the race and we move on,
+        // a later write rejection can't become an unhandled rejection that
+        // crashes the instance.
+        let settled = false;
         const work = Promise.all([
           db.collection("visits").add(visitDoc),
           updateDailyRollup(db, {
@@ -236,23 +300,44 @@ exports.apiTrackVisit = onRequest(
             sessionId: beacon.sessionId,
             isBot: ua.bot,
           }),
-        ]).catch((err) => {
-          console.error("[apiTrackVisit] write failed", err);
+        ]).then(() => {
+          settled = true;
+        }).catch((err) => {
+          settled = true;
+          log("error", "write_failed", {
+            rid, category: "server", error: String((err && err.message) || err).slice(0, 200),
+          });
         });
 
         await withBudget(work, WRITE_BUDGET_MS);
+        if (!settled) {
+          log("warn", "write_timeout", {rid, category: "server_timeout", budgetMs: WRITE_BUDGET_MS});
+        }
 
         res.status(204).send("");
       } catch (err) {
-        console.error("[apiTrackVisit] failed", err);
+        log("error", "failed", {
+          rid, category: "server", error: String((err && err.message) || err).slice(0, 200),
+        });
         // Still 204 — the client doesn't retry and shouldn't see an error.
         // Guard against a double-send if a response already went out.
         try {
           if (!res.headersSent) res.status(204).send("");
         } catch (_e) { /* response already closed — nothing to do */ }
       }
-    },
+  }
+}
+
+exports.apiTrackVisit = onRequest(
+    {region: "us-central1", timeoutSeconds: 15, memory: "128MiB"},
+    (req, res) => handleVisit(req, res),
 );
+
+// Exported for unit tests (see visitorTrackingHandler.test.js). Not a public
+// function surface — the deployed entrypoint is apiTrackVisit above.
+exports.handleVisit = handleVisit;
+exports.WRITE_BUDGET_MS = WRITE_BUDGET_MS;
+exports.RATE_LIMIT_BUDGET_MS = RATE_LIMIT_BUDGET_MS;
 
 // Fold the sharded per-pageview counters into the day doc the dashboard reads.
 // Runs every few minutes over TODAY and YESTERDAY (Lusaka) so late writes near
