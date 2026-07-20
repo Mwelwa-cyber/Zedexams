@@ -55,6 +55,7 @@ const {runAnchor} = require("./runners/anchor");
 const {runMarshal} = require("./runners/marshal");
 const {refreshFxRate} = require("../fxRate");
 const {writeAgentRollup} = require("./rollups");
+const {buildPublicStatus} = require("./publicStatusCore");
 const {fetchSessionStatus, fetchBriefing, parseBriefing, isTerminalStatus} = require("./runners/dawn");
 const {shouldAuditGeneration} = require("./auditScope");
 
@@ -332,6 +333,23 @@ const hourlyMonitor = onSchedule(HOURLY_MONITOR_OPTS, async () => {
     createdBy: "system",
     runMs: Date.now() - start,
   });
+
+  // Publish the honest public status doc the /status page renders. Derived from
+  // THIS real Vigil report (not shallow client probes), with per-component
+  // streaks carried from the previous doc so recovery isn't declared on a
+  // single lucky check. Best-effort: a failure here must not fail the monitor.
+  try {
+    const statusRef = db.collection("publicStatus").doc("current");
+    const prevSnap = await statusRef.get();
+    const prev = prevSnap.exists ? prevSnap.data() : null;
+    const publicStatus = buildPublicStatus(report, prev, {nowMs: Date.now()});
+    // Stamp with the server timestamp too so a client can cross-check freshness
+    // even if the injected generatedAt is ever wrong.
+    publicStatus.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+    await statusRef.set(publicStatus, {merge: false});
+  } catch (err) {
+    console.error("[hourlyMonitor] publicStatus write failed", String(err && err.message || err).slice(0, 300));
+  }
 });
 
 // Till — hourly payment reconciliation. Cheap: most runs find no stale
