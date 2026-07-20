@@ -214,6 +214,7 @@
     "test:assessment-format-extract": "node functions/teacherTools/assessmentFormatExtractHelpers.test.js",
     "test:docx-archive-guard": "node functions/teacherTools/docxArchiveGuard.test.js",
     "test:docx-archive-inspect": "node functions/teacherTools/docxArchiveInspect.test.js",
+    "test:generator-rate-limit": "node functions/teacherTools/generatorRateLimitCore.test.js",
     "test:restore-firestore": "node scripts/test-restore-firestore.mjs",
     "test:assessment-docx": "node src/utils/assessmentToDocx.test.js",
     "test:lesson-plan-docx-client": "node src/utils/lessonPlanToDocx.test.js",

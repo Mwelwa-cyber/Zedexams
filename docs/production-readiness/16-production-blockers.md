@@ -53,16 +53,28 @@
 
 ## Tier 1 — Blockers for a *public / marketed* launch (safe for a closed pilot)
 
-### B3 · AI-001 + SEC-001 + OBS-005 — Unrestricted expensive AI calls (denial-of-wallet)
+### B3 · AI-001 + SEC-001 + OBS-005 — Denial-of-wallet — **largely resolved; verify + widen**
 - **Why a blocker:** "unrestricted expensive AI calls." The monthly cost ceiling fails open when
-  `AI_MONTHLY_BUDGET_USD`/`AI_BUDGET_MODE` are unset (`aiCostTracking.js:711-714`), App Check is
-  observe-only (`appCheckEnforcement.js`), and per-minute rate limiting covers only ~8 of ~180
-  callables. The only backstop is per-user daily caps.
-- **Failure scenario:** a leaked/scripted ID token (no attestation required) hammers a generator with
-  no monthly ceiling → runaway Anthropic/OpenAI spend.
-- **Runtime check:** confirm the budget env var + App Check enforcement labels are set in prod.
-- **Fix:** set the budget ceiling + alerting (AI-001), stage App Check enforcement (SEC-001), add a
-  per-user burst cap to generators (OBS-005). **Effort:** Low–Medium.
+  unset, App Check was observe-only, and per-minute rate limiting covered only ~8 of ~180 callables.
+- **AI-001 — budget ARMED (confirmed in repo):** `functions/.env.examsprepzambia` sets
+  `AI_MONTHLY_BUDGET_USD=100` **and** `AI_BUDGET_MODE=revenue_linked` (floor `$25`), so the treasury
+  governor is active and the reservation gate runs **before** every provider call
+  (`aiCostTracking.beginAiCall*`). The "fails open when unset" condition does not apply in prod.
+  Residual: it also fails open on internal errors (intentional availability trade-off) — monitor
+  `/admin/ai-costs`.
+- **SEC-001 — App Check canary ARMED:** `APPCHECK_ENFORCE_LABELS="aiChat,generateQuizQuestions"` is
+  set — two endpoints hard-enforce attestation; the rest stay observe-only. Widening is an **ops
+  decision** gated on the `/admin/app-check` dashboard (do not blind-widen); global `APPCHECK_ENFORCE`
+  still waits on Android Play Integrity registration.
+- **OBS-005 — generator burst caps ADDED (this work):** every teacher-tool generator (14) now calls
+  `assertGeneratorRateLimit(request, tool)` — a per-user, per-minute, per-tool cap (default 10/min,
+  `RATE_LIMIT_GENERATOR_PER_MIN`-tunable) via the shared fail-open Firestore limiter. Closes the
+  "burst hundreds/min up to the daily wall" gap on the highest-cost surface. Tests:
+  `generatorRateLimitCore.test.js` (10). (`extractAssessmentFormat` + past-paper import already had it.)
+- **Remaining (next tranche):** extend the same burst cap to the index.js-inline AI callables that
+  still lack it (`checkShortAnswer`, `verifyQuiz`, `structureImportedQuiz`/`structureScannedQuiz`,
+  `ocrNotePages`, `generateNoteInsights`/`Smart`, `generateStudyPlan`); confirm the budget env is live
+  in the deployed runtime; widen App Check per the dashboard. **Effort:** Low.
 
 ### B4 · CICD-001 — Untested security rules can merge & deploy
 - **Why a blocker:** "deployment of untested security rules." The behavioural rules-emulator and build

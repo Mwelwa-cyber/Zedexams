@@ -47,8 +47,12 @@ runtime), and the advertised `platformAdmin`/school-provisioning path is unwired
 
 ## Findings
 
-### SEC-001 — App Check enforcement is OFF by default (observe-only)
-- **Severity:** Medium–High · **Confidence:** Requires runtime verification
+### SEC-001 — App Check enforcement is OFF by default (observe-only) — **canary ARMED (2026-07-19)**
+- **Update:** `functions/.env.examsprepzambia` sets `APPCHECK_ENFORCE_LABELS="aiChat,generateQuizQuestions"`,
+  so those two endpoints now **hard-enforce** attestation; the rest remain observe-only. Widening is an
+  ops decision gated on `/admin/app-check` (do not blind-widen); global `APPCHECK_ENFORCE` still waits on
+  Android Play Integrity registration (`docs/B3-PLAY-INTEGRITY-SETUP.md`).
+- **Severity:** Medium–High → Medium (partial) · **Confidence:** Requires runtime verification
 - **Affected:** `functions/appCheckEnforcement.js:40-51`, `functions/index.js:470-491`,
   `docs/PRODUCTION_READINESS.md:30-37`
 - **Current behaviour:** `shouldEnforceAppCheck(label)` returns `false` unless

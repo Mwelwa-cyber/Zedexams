@@ -13,6 +13,7 @@
 const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
+const {assertGeneratorRateLimit} = require("./generatorRateLimit");
 
 const {
   getAnthropicApiKey,
@@ -243,6 +244,7 @@ function createGenerateRubric(anthropicApiKeySecret) {
     {secrets: [anthropicApiKeySecret], timeoutSeconds: 90, memory: "512MiB"},
     async (request) => {
       const uid = await assertVerifiedAuth(request, "Please sign in.");
+      await assertGeneratorRateLimit(request, "rubric");
       const role = await getUserRole(uid);
       if (!isStaffRole(role)) {
         throw new HttpsError(

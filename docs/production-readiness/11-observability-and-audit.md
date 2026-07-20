@@ -69,14 +69,19 @@ A production failure often cannot be traced UI → function → data cleanly.
 - **Correction:** Add a second channel (Slack/webhook) + a heartbeat that alerts if no
   daily-summary/backup ran. **Launch blocker:** No, but pairs with DR-005. **Complexity:** Low.
 
-### OBS-005 — Thin per-minute rate limiting (bot/abuse)
-- **Severity:** Medium · **Confidence:** High confidence
-- **Affected:** `rateLimit.js` applied to only ~8 surfaces (aiChat, streams, tts, imageProxy,
-  past-paper import, layout pass); ~180 callables have no burst cap (only per-user *daily* quota).
-  Fails open by design; per-IP is spoofable so per-uid is the real control.
-- **Risk:** Burst abuse / denial-of-wallet on unprotected generators, compounding AI-001 + SEC-001.
-- **Correction:** Add a per-user burst cap to the generator callables; enforce App Check (SEC-001).
-- **Launch blocker:** No, but High-value with AI-001. **Complexity:** Low (limiter exists).
+### OBS-005 — Thin per-minute rate limiting (bot/abuse) — **generators now covered (2026-07-19)**
+- **Severity:** Medium → Low (residual) · **Confidence:** High confidence
+- **Was:** `rateLimit.js` applied to only ~8 surfaces; ~180 callables had no burst cap (only per-user
+  *daily* quota). Fails open by design; per-uid is the real control.
+- **Done (this work):** all 14 teacher-tool AI generators now call `assertGeneratorRateLimit` — a
+  per-user, per-minute, per-tool cap (default 10/min, `RATE_LIMIT_GENERATOR_PER_MIN`-tunable) via the
+  shared limiter (`generatorRateLimit.js` + tested `generatorRateLimitCore.js`). Covers the
+  highest-cost surface (Anthropic/OpenAI generations), alongside the pre-existing coverage on aiChat /
+  streams / tts / imageProxy / import.
+- **Residual:** the index.js-inline AI callables (`checkShortAnswer`, `verifyQuiz`,
+  `structureImportedQuiz`/`structureScannedQuiz`, `ocrNotePages`, `generateNoteInsights`/`Smart`,
+  `generateStudyPlan`) still lack a burst cap — the documented next tranche.
+- **Complexity:** Low (limiter + helper exist).
 
 ### OBS-006 — No trigger retry / dead-letter handling
 - **Severity:** Low · **Confidence:** Moderate confidence
