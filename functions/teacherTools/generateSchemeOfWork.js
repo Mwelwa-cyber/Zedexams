@@ -12,6 +12,7 @@
 const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
+const {assertGeneratorRateLimit} = require("./generatorRateLimit");
 
 const {
   getAnthropicApiKey,
@@ -478,6 +479,7 @@ function createGenerateSchemeOfWork(anthropicApiKeySecret) {
     {secrets: [anthropicApiKeySecret], timeoutSeconds: 180, memory: "512MiB"},
     async (request) => {
       const uid = await assertVerifiedAuth(request, "Please sign in.");
+      await assertGeneratorRateLimit(request, "scheme_of_work");
       const role = await getUserRole(uid);
       if (!isStaffRole(role)) {
         throw new HttpsError(

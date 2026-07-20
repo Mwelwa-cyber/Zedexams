@@ -26,8 +26,13 @@ uploaded-document import prompts lack injection delimiting.
 
 ## Findings
 
-### AI-001 — Cost ceiling is opt-in and fails open when unconfigured
-- **Severity:** High · **Confidence:** High confidence (mechanism) / Requires runtime verification (prod env)
+### AI-001 — Cost ceiling is opt-in and fails open when unconfigured — **ARMED in repo (2026-07-19)**
+- **Update:** `functions/.env.examsprepzambia` sets `AI_MONTHLY_BUDGET_USD=100` **and**
+  `AI_BUDGET_MODE=revenue_linked` (floor `$25`), so the treasury governor is active and the reservation
+  gate runs before every provider call. The "fails open when unset" condition does **not** apply in the
+  committed prod config. Residual: it still fails open on internal errors (intentional availability
+  trade-off) — monitor `/admin/ai-costs`. Confirm the env is live in the deployed runtime.
+- **Severity:** High → Low (residual) · **Confidence:** High confidence (mechanism) / Requires runtime verification (deployed env)
 - **Affected:** `functions/aiCostTracking.js:711-714,743,752,763,773`, `functions/treasury.js:23-30,196-237`
 - **Current:** `reserveForCall` disables enforcement when `budgetUsd <= 0`; `budgetUsd` is 0 unless
   `AI_MONTHLY_BUDGET_USD` is set (static) or `AI_BUDGET_MODE=revenue_linked` arms the treasury

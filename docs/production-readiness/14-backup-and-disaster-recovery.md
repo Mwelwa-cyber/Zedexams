@@ -50,6 +50,14 @@ undefined.
 - **Launch blocker:** Yes. **Complexity:** Low (config + IAM). **Dependencies:** none.
 - **Tests:** `firestoreBackup.test.js` covers configured/skip paths; add an alert on `skipped`.
 
+> **Update 2026-07-19:** the daily export is now **runtime-verified** — a managed export reached
+> `done:true` with a `.overall_export_metadata` object at
+> `gs://zedexams-backups/firestore-exports/2026-07-19`
+> (evidence: [`remediation/dr-001-infrastructure-readiness.md`](./remediation/dr-001-infrastructure-readiness.md) §12).
+> A later same-UTC-date scheduled run overwrote `opsBackups/2026-07-19.status` to `failed` — a benign
+> duplicate-date artifact, tracked as **DR-007** (de-collide same-day exports). Interim finding status:
+> **"Backup export runtime-verified; restore drill pending."** The restore drill is the next gate.
+
 ### DR-002 — Restore script + runbook ✅ added in this PR (rehearsal still owed)
 - **Severity:** High → Medium (residual) · **Confidence:** High confidence
 - **Fixed here:** `scripts/restore-firestore.mjs` (dry-run by default, `--live` guarded, refuses

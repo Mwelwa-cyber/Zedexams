@@ -23,6 +23,7 @@ const crypto = require("crypto");
 const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
+const {assertGeneratorRateLimit} = require("./generatorRateLimit");
 
 const {getUserRole} = require("../aiService");
 const {callGeminiImage} = require("../geminiImageClient");
@@ -232,6 +233,7 @@ function createGenerateNotePictures(geminiApiKeySecret, openaiApiKeySecret) {
     },
     async (request) => {
       const uid = await assertVerifiedAuth(request, "Please sign in.");
+      await assertGeneratorRateLimit(request, "note_pictures");
 
       // Admin-only: this tool generates images for every note at once and
       // can be expensive. isStaffRole (teacher + admin) is intentionally
