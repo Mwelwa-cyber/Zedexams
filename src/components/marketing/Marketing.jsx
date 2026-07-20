@@ -8,7 +8,7 @@ import Icon from '../ui/Icon'
 import ContactDialog from './ContactDialog'
 import LiveStats from './LiveStats'
 import NewsletterSignup from './NewsletterSignup'
-import { listPapersWithQuiz } from '../../utils/pastPapers'
+import { listFeaturedPapersWithQuiz } from '../../utils/pastPapers'
 import { isNativePlatform } from '../../utils/runtime'
 import { SUBJECTS } from '../../config/curriculum'
 // Prices come from the same source-of-truth configs the /pricing page uses,
@@ -237,8 +237,11 @@ function PastPaperPreviewSection() {
   const [loading, setLoading] = useState(true)
   useEffect(() => {
     let cancelled = false
-    listPapersWithQuiz({ limit: 12 })
-      .then((rows) => { if (!cancelled) setPapers(rows.slice(0, 4)) })
+    // Subject-integrity-filtered: only surface featured cards whose linked quiz
+    // genuinely matches the paper's subject (fail closed against the
+    // cross-subject featured-quiz defect).
+    listFeaturedPapersWithQuiz({ count: 4 })
+      .then((rows) => { if (!cancelled) setPapers(rows) })
       .catch((err) => console.warn('[Marketing] past-paper preview load failed', err))
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
@@ -570,6 +573,7 @@ export default function Marketing() {
               className="w-full rounded-3xl shadow-elev-lg ring-1 ring-white/15"
               width="1536"
               height="1024"
+              fetchPriority="high"
               loading="eager"
               decoding="async"
             />
