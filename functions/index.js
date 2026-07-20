@@ -1567,6 +1567,7 @@ exports.generateNoteInsights = onCall(
   },
   async (request) => {
     await assertVerifiedAuth(request);
+    await assertCallableRateLimit(request, {action: "generateNoteInsights", userPerMin: 15});
     recordAppCheckCallable(request, "generateNoteInsights");
 
     const noteId = cleanAiString(request.data?.noteId, 80);
@@ -1599,6 +1600,7 @@ exports.generateNoteSmart = onCall(
   },
   async (request) => {
     await assertVerifiedAuth(request);
+    await assertCallableRateLimit(request, {action: "generateNoteSmart", userPerMin: 12});
     recordAppCheckCallable(request, "generateNoteSmart");
     const role = await getUserRole(request.auth.uid);
     if (!isStaffRole(role)) {
@@ -1784,6 +1786,7 @@ exports.verifyQuiz = onCall(
     memory: "512MiB"},
   async (request) => {
     await assertVerifiedAuth(request);
+    await assertCallableRateLimit(request, {action: "verifyQuiz", userPerMin: 15});
     const role = await getUserRole(request.auth.uid);
     if (!isStaffRole(role)) {
       throw new HttpsError(
@@ -1875,6 +1878,7 @@ exports.structureImportedQuiz = onCall(
   },
   async (request) => {
     await assertVerifiedAuth(request);
+    await assertCallableRateLimit(request, {action: "structureImportedQuiz", userPerMin: 8});
     recordAppCheckCallable(request, "structureImportedQuiz");
 
     const role = await getUserRole(request.auth.uid);
@@ -2020,6 +2024,7 @@ exports.structureScannedQuiz = onCall(
   },
   async (request) => {
     await assertVerifiedAuth(request);
+    await assertCallableRateLimit(request, {action: "structureScannedQuiz", userPerMin: 8});
     recordAppCheckCallable(request, "structureScannedQuiz");
 
     const role = await getUserRole(request.auth.uid);
@@ -2113,6 +2118,7 @@ exports.ocrNotePages = onCall(
   },
   async (request) => {
     await assertVerifiedAuth(request);
+    await assertCallableRateLimit(request, {action: "ocrNotePages", userPerMin: 8});
     recordAppCheckCallable(request, "ocrNotePages");
     const role = await getUserRole(request.auth.uid);
     if (!isStaffRole(role)) {
@@ -2192,6 +2198,7 @@ exports.checkShortAnswer = onCall(
   },
   async (request) => {
     await assertVerifiedAuth(request);
+    await assertCallableRateLimit(request, {action: "checkShortAnswer", userPerMin: 30});
     recordAppCheckCallable(request, "checkShortAnswer");
 
     const question = cleanString(request.data?.question, MAX_LEN.question);

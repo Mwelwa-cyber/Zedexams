@@ -66,15 +66,15 @@
   set — two endpoints hard-enforce attestation; the rest stay observe-only. Widening is an **ops
   decision** gated on the `/admin/app-check` dashboard (do not blind-widen); global `APPCHECK_ENFORCE`
   still waits on Android Play Integrity registration.
-- **OBS-005 — generator burst caps ADDED (this work):** every teacher-tool generator (14) now calls
-  `assertGeneratorRateLimit(request, tool)` — a per-user, per-minute, per-tool cap (default 10/min,
-  `RATE_LIMIT_GENERATOR_PER_MIN`-tunable) via the shared fail-open Firestore limiter. Closes the
-  "burst hundreds/min up to the daily wall" gap on the highest-cost surface. Tests:
-  `generatorRateLimitCore.test.js` (10). (`extractAssessmentFormat` + past-paper import already had it.)
-- **Remaining (next tranche):** extend the same burst cap to the index.js-inline AI callables that
-  still lack it (`checkShortAnswer`, `verifyQuiz`, `structureImportedQuiz`/`structureScannedQuiz`,
-  `ocrNotePages`, `generateNoteInsights`/`Smart`, `generateStudyPlan`); confirm the budget env is live
-  in the deployed runtime; widen App Check per the dashboard. **Effort:** Low.
+- **OBS-005 — burst caps ADDED across ALL AI callables (this work):** every teacher-tool generator
+  (14) calls `assertGeneratorRateLimit`, AND the remaining AI callables now carry a per-user cap —
+  `checkShortAnswer`/`verifyQuiz`/`generateNoteInsights`/`generateNoteSmart`/`structureImportedQuiz`/
+  `structureScannedQuiz`/`ocrNotePages` (index.js) + `generateStudyPlan` (studentAgents.js). Together
+  with the pre-existing aiChat/stream/tts/imageProxy coverage, **every provider-calling surface now has
+  a burst cap.** Closes the "burst up to the daily wall" gap. Tests: `generatorRateLimitCore.test.js`
+  (10) + the shared `rateLimitCore.test.js`.
+- **Remaining (verify/ops, not code):** confirm the budget env is live in the deployed runtime; widen
+  App Check labels per the `/admin/app-check` dashboard. **Effort:** Low.
 
 ### B4 · CICD-001 — Untested security rules can merge & deploy
 - **Why a blocker:** "deployment of untested security rules." The behavioural rules-emulator and build

@@ -73,14 +73,15 @@ A production failure often cannot be traced UI → function → data cleanly.
 - **Severity:** Medium → Low (residual) · **Confidence:** High confidence
 - **Was:** `rateLimit.js` applied to only ~8 surfaces; ~180 callables had no burst cap (only per-user
   *daily* quota). Fails open by design; per-uid is the real control.
-- **Done (this work):** all 14 teacher-tool AI generators now call `assertGeneratorRateLimit` — a
+- **Done (tranche 1):** all 14 teacher-tool AI generators now call `assertGeneratorRateLimit` — a
   per-user, per-minute, per-tool cap (default 10/min, `RATE_LIMIT_GENERATOR_PER_MIN`-tunable) via the
-  shared limiter (`generatorRateLimit.js` + tested `generatorRateLimitCore.js`). Covers the
-  highest-cost surface (Anthropic/OpenAI generations), alongside the pre-existing coverage on aiChat /
-  streams / tts / imageProxy / import.
-- **Residual:** the index.js-inline AI callables (`checkShortAnswer`, `verifyQuiz`,
-  `structureImportedQuiz`/`structureScannedQuiz`, `ocrNotePages`, `generateNoteInsights`/`Smart`,
-  `generateStudyPlan`) still lack a burst cap — the documented next tranche.
+  shared limiter (`generatorRateLimit.js` + tested `generatorRateLimitCore.js`).
+- **Done (tranche 2):** the remaining AI callables now carry a per-user burst cap via
+  `assertCallableRateLimit` — `checkShortAnswer` (30/min), `verifyQuiz` (15), `generateNoteInsights`
+  (15), `generateNoteSmart` (12), `structureImportedQuiz` (8), `structureScannedQuiz` (8),
+  `ocrNotePages` (8) in `index.js`, and `generateStudyPlan` (12) in `studentAgents.js`.
+- **Coverage now:** every Anthropic/OpenAI/Gemini-calling callable + the aiChat/stream/tts/imageProxy
+  HTTP surfaces have a burst cap. Remaining unthrottled callables are non-AI (cheap) CRUD.
 - **Complexity:** Low (limiter + helper exist).
 
 ### OBS-006 — No trigger retry / dead-letter handling
