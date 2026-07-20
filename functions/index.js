@@ -3238,7 +3238,7 @@ exports.initiateLencoPayment = onCall({
 }, async (request) => {
   const uid = await assertVerifiedAuth(request, "Please sign in first.");
 
-  const lenco = require("./lencoService");
+  const lenco = require("./paymentProvider").getPaymentProvider();
   const {getPlan} = require("./plans");
 
   const planId = cleanString(request.data?.planId, 60);
@@ -3483,7 +3483,7 @@ exports.submitLencoOtp = onCall({
   const apiKey = lencoApiKeyValue();
   if (!apiKey) throw new HttpsError("failed-precondition", "Payments are not configured.");
 
-  const lenco = require("./lencoService");
+  const lenco = require("./paymentProvider").getPaymentProvider();
   let resp;
   try {
     resp = await lenco.submitMobileMoneyOtp({apiKey, reference: paymentId, otp});
@@ -3538,7 +3538,7 @@ exports.getLencoPaymentStatus = onCall({
   const apiKey = lencoApiKeyValue();
   if (!apiKey) throw new HttpsError("failed-precondition", "Payments are not configured.");
 
-  const lenco = require("./lencoService");
+  const lenco = require("./paymentProvider").getPaymentProvider();
   let resp;
   try {
     resp = await lenco.getCollectionStatus({apiKey, reference: paymentId});
@@ -3584,7 +3584,7 @@ exports.recoverMyPendingPayments = onCall({
   const apiKey = lencoApiKeyValue();
   if (!apiKey) throw new HttpsError("failed-precondition", "Payments are not configured.");
 
-  const lenco = require("./lencoService");
+  const lenco = require("./paymentProvider").getPaymentProvider();
   const {activateSubscriptionFromPayment, markPaymentFailed} = require("./subscriptionActivation");
   const {reconcilePendingPayments} = require("./agents/runners/till");
 
@@ -3758,7 +3758,7 @@ exports.lencoWebhook = onRequest({
     return;
   }
 
-  const lenco = require("./lencoService");
+  const lenco = require("./paymentProvider").getPaymentProvider();
   const signature = req.get("x-lenco-signature") || req.get("X-Lenco-Signature");
   const ok = lenco.verifyWebhookSignature({
     rawBody: req.rawBody,
