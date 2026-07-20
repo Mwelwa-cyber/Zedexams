@@ -184,6 +184,70 @@ function selectExportsToDelete(exports, {retentionDays = 30, keepMinimum = 7, no
   return {toDelete, kept};
 }
 
+// ── Same-UTC-date collision hardening (DR-007) ─────────────────────────────
+// A manual export + the scheduled export on the SAME UTC date-key previously
+// collided: both wrote the same opsBackups/{date} doc, and the second (failing
+// against an already-populated destination) could DOWNGRADE a good "started"
+// summary to "failed". These pure helpers make the daily summary monotonic and
+// let only one run own a date.
+
+// Monotonic rank for the daily summary. A write only lands if it does NOT lower
+// the rank (so a later duplicate's "failed" can't clobber "started"/"completed").
+const DAILY_STATUS_RANK = Object.freeze({
+  "completed": 5,
+  "started": 4,
+  "in_progress": 3,
+  "failed": 2,
+  "duplicate-skipped": 1,
+  "misconfigured": 1,
+  "skipped-non-production": 1,
+});
+function dailyStatusRank(status) {
+  return DAILY_STATUS_RANK[String(status || "")] || 0;
+}
+/**
+ * May `incoming` overwrite `existing` on the daily summary doc?
+ * Monotonic by default (upgrades + equals allowed, downgrades blocked);
+ * `force` lets the authoritative completion checker record a genuine failure.
+ */
+function shouldWriteDailyStatus(existingStatus, incomingStatus, {force = false} = {}) {
+  if (force) return true;
+  return dailyStatusRank(incomingStatus) >= dailyStatusRank(existingStatus);
+}
+
+/**
+ * Decide whether this run may claim the date or must duplicate-skip. A date
+ * whose summary already shows a valid export (started/completed) is owned;
+ * a second run for that date is a no-op skip (NOT a failure).
+ * @param {object|null} existingDaily the opsBackups/{date} doc data (or null)
+ * @returns {{action: 'claim'|'duplicate-skip', reason?: string}}
+ */
+function decideBackupOwnership(existingDaily) {
+  const status = existingDaily && existingDaily.status;
+  if (status === "started" || status === "completed") {
+    return {action: "duplicate-skip", reason: `date already has a ${status} export`};
+  }
+  return {action: "claim"};
+}
+
+/**
+ * Interpret a Firestore Admin export operation for the completion checker.
+ * @param {object|null} operation an LRO ({done, error, metadata})
+ * @returns {{state: 'pending'|'completed'|'failed', error?: string,
+ *   outputUriPrefix?: string|null}}
+ */
+function decideCompletion(operation) {
+  if (!operation || operation.done !== true) return {state: "pending"};
+  if (operation.error) {
+    const msg = operation.error.message || JSON.stringify(operation.error);
+    return {state: "failed", error: String(msg).slice(0, 500)};
+  }
+  return {
+    state: "completed",
+    outputUriPrefix: (operation.metadata && operation.metadata.outputUriPrefix) || null,
+  };
+}
+
 module.exports = {
   resolveBackupBucket,
   buildExportRequest,
@@ -191,4 +255,8 @@ module.exports = {
   isProductionRuntime,
   classifyExportError,
   selectExportsToDelete,
+  dailyStatusRank,
+  shouldWriteDailyStatus,
+  decideBackupOwnership,
+  decideCompletion,
 };

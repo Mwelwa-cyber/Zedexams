@@ -27,8 +27,13 @@
   `.overall_export_metadata` object at `gs://zedexams-backups/firestore-exports/2026-07-19`
   (evidence in [`remediation/dr-001-infrastructure-readiness.md`](./remediation/dr-001-infrastructure-readiness.md) §12).
   Interim status: **"Backup export runtime-verified; restore drill pending."**
-- **Still pending: the non-production restore drill** (+ Auth/Storage DR gaps + DR-007 same-UTC-date
-  collision). **Not closed until the restore drill is evidenced.**
+- **DR-007 same-UTC-date collision — fixed in code (follow-up PR):** immutable `opsBackupRuns/{correlationId}`
+  record + transactional ownership lease (`duplicate-skipped`, never `failed`) + owner-guarded monotonic
+  daily summary + an async `backupCompletionCheck` (03:30 Lusaka) that stamps `completed:true`. Stale
+  `storage.objectAdmin` guidance corrected. 68 tests. Read-only unattended-operation confirmation owed
+  after the 2026-07-21 01:30 Lusaka cron (UTC key `2026-07-20`).
+- **Still pending: the non-production restore drill** (+ Auth/Storage DR gaps). **Not closed until the
+  restore drill is evidenced.**
 - **Runtime check:** read `opsBackups/{today}.status` in prod.
 
 ### B2 · SEC-007 — `adm-zip` DoS + critical `websocket-driver` — **Status: Implemented, pending runtime verification**

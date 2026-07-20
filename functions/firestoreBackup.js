@@ -12,18 +12,31 @@
  *   1. Create the destination bucket in a DIFFERENT region from the database
  *      (e.g. europe-west1) with a lifecycle rule expiring objects after ~30d.
  *   2. Grant the Functions runtime service account
- *      roles/datastore.importExportAdmin on the project and
- *      roles/storage.objectAdmin on the bucket.
+ *      roles/datastore.importExportAdmin on the project. The export's WRITE to
+ *      the bucket is performed by the Firestore service agent, which is granted
+ *      bucket access automatically when managed export/import is used — so a
+ *      broad roles/storage.objectAdmin grant on the runtime SA is usually NOT
+ *      required. Add roles/storage.objectAdmin on the bucket ONLY if a write is
+ *      actually denied (a 'destination'/permission failure in the alert).
  *   3. Set FIRESTORE_BACKUP_BUCKET (bucket name or gs:// uri) on the runtime
- *      (functions/.env.<project>). Until it's set the cron logs a warning and
- *      records status "skipped-unconfigured" — deploying first is safe.
+ *      (functions/.env.<project>). Until it's set the cron records status
+ *      "misconfigured" (prod) / "skipped-non-production" (dev) — deploying first
+ *      is safe.
  *   4. Consider enabling point-in-time recovery on the database as well
  *      (`gcloud firestore databases update --enable-pitr`) — PITR covers
  *      fat-finger deletes within 7 days; the export covers everything else.
  *
- * The exportDocuments call returns as soon as the operation is accepted —
- * the export itself continues server-side, so the function never waits on
- * (or times out with) a large database.
+ * The exportDocuments call returns as soon as the operation is accepted — the
+ * export itself continues server-side, so the daily run records "started"
+ * (acceptance) and a separate completion checker (backupCompletionCheck, ~2h
+ * later) flips the summary to "completed" once the long-running op finishes.
+ *
+ * Same-UTC-date collision hardening (DR-007): a manual export and the scheduled
+ * export can share a UTC date-key. Each run writes its OWN immutable record at
+ * opsBackupRuns/{correlationId}; a transactional LEASE lets only one run own a
+ * date (a second run is "duplicate-skipped", never "failed"); and the daily
+ * summary at opsBackups/{date} is owner-guarded + monotonic so a duplicate can
+ * never downgrade a good "started"/"completed" to "failed".
  */
 
 const crypto = require("node:crypto");
@@ -35,6 +48,9 @@ const {
   buildExportRequest,
   isProductionRuntime,
   classifyExportError,
+  decideBackupOwnership,
+  shouldWriteDailyStatus,
+  decideCompletion,
 } = require("./firestoreBackupCore");
 const {sendOpsAlert} = require("./opsAlert");
 
@@ -60,7 +76,10 @@ function dateKeyUtc(now = new Date()) {
 const BACKUP_STATUS = Object.freeze({
   MISCONFIGURED: "misconfigured",
   SKIPPED_NON_PROD: "skipped-non-production",
-  STARTED: "started",
+  IN_PROGRESS: "in_progress", // date claimed, export not yet accepted
+  STARTED: "started", // export operation accepted (completion is async)
+  COMPLETED: "completed", // operation finished OK (set by the completion check)
+  DUPLICATE_SKIPPED: "duplicate-skipped", // date already had a valid export
   FAILED: "failed",
 });
 
@@ -107,32 +126,63 @@ async function runFirestoreExport({
     correlationId, projectId, bucket: bucketUri || null,
     dateKey, startTime, production,
   };
-  // Persist the run outcome; opsBackups doc is the durable record the admin
-  // surfaces + a future Marshal freshness-check read. Emits exactly one
-  // structured log line and one status-doc write per run.
-  const record = async (fields) => {
+
+  // IMMUTABLE per-execution record — one doc per run, keyed by correlationId,
+  // so a duplicate run on the same UTC date writes its OWN record instead of
+  // clobbering another run's. This is the tamper-evident audit trail.
+  const runsRef = db.collection("opsBackupRuns").doc(correlationId);
+  const recordRun = async (fields) => {
     const completeTime = new Date().toISOString();
     logBackupEvent({...base, ...fields, completeTime});
-    await statusRef.set(
-        {...base, ...fields, ranAt: startTime, completeTime},
-        {merge: true},
-    ).catch(() => {});
+    await runsRef.set({...base, ...fields, completeTime}).catch(() => {});
+  };
+
+  // Owner-guarded write of the DAILY SUMMARY. Two distinct protections, NOT
+  // conflated (the earlier WIP conflated them and would have blocked an owner
+  // from recording its OWN acceptance failure, because 'failed' ranks below the
+  // transient 'in_progress' claim):
+  //   • requireOwner — a run that does NOT own this date's lease must never
+  //     touch the summary. The OWNER, however, is authoritative for its own run
+  //     lifecycle: in_progress → started (upgrade) OR in_progress → failed
+  //     (a real acceptance failure) both land. This is safe because a duplicate
+  //     run is already routed to duplicate-skip by the ownership lease and never
+  //     reaches here as the owner.
+  //   • monotonic (non-owner writes only) — protects a good summary from being
+  //     downgraded by a run with no ownership context (misconfigured / skip).
+  //     `force` lets the authoritative completion checker override it.
+  const writeDaily = async (fields, {requireOwner = false, force = false} = {}) => {
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(statusRef);
+      const existing = snap.exists ? snap.data() : null;
+      if (requireOwner) {
+        // A different run owns the lease → never clobber its summary.
+        if (existing && existing.owner && existing.owner !== correlationId) return;
+        // Owner (or first claim): authoritative for its own lifecycle.
+      } else if (existing &&
+          !shouldWriteDailyStatus(existing.status, fields.status, {force})) {
+        return;
+      }
+      tx.set(statusRef,
+          {...base, ...fields, ranAt: startTime, completeTime: new Date().toISOString()},
+          {merge: true});
+    }).catch(() => {});
   };
 
   // ── Unconfigured: distinguish a real MISCONFIGURATION from a dev SKIP ─────
   if (!bucketUri) {
     if (!production) {
       const result = {status: BACKUP_STATUS.SKIPPED_NON_PROD};
-      await record(result);
+      await recordRun(result);
+      await writeDaily(result);
       return result;
     }
-    // Production with no valid bucket = the DR floor is OFF. Alert loudly.
     const result = {
       status: BACKUP_STATUS.MISCONFIGURED,
       errorCategory: "config",
       errorCode: "FIRESTORE_BACKUP_BUCKET_UNSET",
     };
-    await record(result);
+    await recordRun(result);
+    await writeDaily(result);
     await Promise.resolve(alert({
       title: "Firestore backup MISCONFIGURED — no backups are running",
       severity: "error",
@@ -141,16 +191,51 @@ async function runFirestoreExport({
         "FIRESTORE_BACKUP_BUCKET is not set (or invalid) on the production " +
         "Functions runtime, so the daily export is NOT running. The database " +
         "currently has NO disaster-recovery export.",
-        "Fix: create a cross-region GCS bucket, grant the runtime SA " +
-        "datastore.importExportAdmin + storage.objectAdmin, and set " +
-        "FIRESTORE_BACKUP_BUCKET (functions/.env.<project>). See " +
-        "docs/production-readiness/runbooks/firestore-restore.md.",
+        "Fix: create a cross-region GCS bucket and set FIRESTORE_BACKUP_BUCKET " +
+        "(functions/.env.<project>). The runtime SA needs " +
+        "roles/datastore.importExportAdmin; it can usually already WRITE to the " +
+        "bucket via the Firestore service agent (roles/firestore.serviceAgent), " +
+        "so grant roles/storage.objectAdmin on the bucket ONLY if it cannot. " +
+        "See docs/production-readiness/runbooks/firestore-restore.md.",
       ],
     })).catch(() => {});
     return result;
   }
 
-  // ── Configured: kick off the export operation ────────────────────────────
+  // ── Configured: claim the date (lease), then export ──────────────────────
+  // Only ONE run may own a given UTC date. If the date already carries a valid
+  // (started/completed) export, this run is a no-op DUPLICATE-SKIP — NOT a
+  // failure — so the scheduled run after a manual export doesn't turn a good
+  // summary red.
+  let ownership;
+  try {
+    ownership = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(statusRef);
+      const existing = snap.exists ? snap.data() : null;
+      const decision = decideBackupOwnership(existing);
+      if (decision.action === "claim") {
+        tx.set(statusRef, {
+          ...base, status: BACKUP_STATUS.IN_PROGRESS,
+          owner: correlationId, claimedAt: startTime, ranAt: startTime,
+        }, {merge: true});
+      }
+      return decision;
+    });
+  } catch (err) {
+    // Lease transaction failed — fail-open and attempt the backup anyway (a
+    // missed backup is worse than a rare double-export into a dated folder).
+    ownership = {action: "claim"};
+  }
+
+  if (ownership.action === "duplicate-skip") {
+    const result = {
+      status: BACKUP_STATUS.DUPLICATE_SKIPPED,
+      reason: ownership.reason || "date already exported",
+    };
+    await recordRun(result); // own immutable record; daily summary untouched
+    return result;
+  }
+
   try {
     const request = buildExportRequest({projectId, bucketUri, dateKey});
     const client = adminClient ||
@@ -160,10 +245,10 @@ async function runFirestoreExport({
       status: BACKUP_STATUS.STARTED,
       operationName: (operation && operation.name) || null,
       exportPath: request.outputUriPrefix,
-      // Explicit: acceptance ≠ completion (long-running op finishes async).
-      completed: false,
+      completed: false, // acceptance ≠ completion; the checker stamps completed
     };
-    await record(result);
+    await recordRun(result);
+    await writeDaily({...result, owner: correlationId}, {requireOwner: true});
     return result;
   } catch (err) {
     const {code, category} = classifyExportError(err);
@@ -175,8 +260,10 @@ async function runFirestoreExport({
       errorCategory: category,
       exportPath: `${bucketUri}/firestore-exports/${dateKey}`,
     };
-    await record(result);
-    // A silently-failing backup is the whole risk this cron exists to remove.
+    await recordRun(result);
+    // Owner-guarded + monotonic: a failure only lands if it doesn't clobber a
+    // started/completed summary written by another (owning) run.
+    await writeDaily(result, {requireOwner: true});
     await Promise.resolve(alert({
       title: "Firestore backup export FAILED",
       severity: "error",
@@ -185,8 +272,10 @@ async function runFirestoreExport({
         `Category: ${category}  ·  Code: ${code}`,
         `Error: ${message}`,
         `Destination: ${bucketUri}/firestore-exports/${dateKey}`,
-        "Check IAM (datastore.importExportAdmin + storage.objectAdmin) " +
-        "and that the bucket exists. See " +
+        "Check the runtime SA has roles/datastore.importExportAdmin and can " +
+        "write to the bucket (usually already granted via the Firestore " +
+        "service agent; add roles/storage.objectAdmin on the bucket only if " +
+        "not) and that the bucket exists. See " +
         "docs/production-readiness/runbooks/firestore-restore.md.",
       ],
     })).catch(() => {});
@@ -210,6 +299,93 @@ const BACKUP_OPTS = {
 
 const dailyFirestoreBackup = onSchedule(BACKUP_OPTS, async () => {
   await runFirestoreExport();
+});
+
+/**
+ * ASYNCHRONOUS COMPLETION CHECKER. exportDocuments is a long-running operation,
+ * so the daily run only records "started" (acceptance). This reads back the
+ * recent "started" summaries and, via the injected getOperation, stamps
+ * `completed: true` (status "completed") when the operation is done — or records
+ * a real failure (force, so it overrides the monotonic guard: the operation is
+ * authoritative about its own outcome). Idempotent: a completed/failed summary
+ * is skipped. All I/O injected so it unit-tests without firebase or the LRO API.
+ *
+ * @param {object} deps
+ * @param {FirebaseFirestore.Firestore} deps.db
+ * @param {(operationName: string) => Promise<object>} deps.getOperation
+ * @param {string[]} deps.dateKeys — UTC dates to check (e.g. today + yesterday)
+ * @param {Function} [deps.alert]
+ */
+async function runBackupCompletionCheck({db, getOperation, dateKeys, alert = sendOpsAlert}) {
+  const out = {checked: 0, completed: 0, failed: 0, pending: 0};
+  for (const dateKey of (dateKeys || [])) {
+    const ref = db.collection("opsBackups").doc(dateKey);
+    let existing;
+    try {
+      const snap = await ref.get();
+      existing = snap.exists ? snap.data() : null;
+    } catch (_e) { continue; }
+    // Only chase a summary that is "started" with an operation and not settled.
+    if (!existing || existing.status !== BACKUP_STATUS.STARTED ||
+        existing.completed === true || !existing.operationName) continue;
+    out.checked += 1;
+    let operation;
+    try {
+      operation = await getOperation(existing.operationName);
+    } catch (_e) { out.pending += 1; continue; }
+    const verdict = decideCompletion(operation);
+    if (verdict.state === "pending") { out.pending += 1; continue; }
+    const nowIso = new Date().toISOString();
+    if (verdict.state === "completed") {
+      out.completed += 1;
+      logBackupEvent({event: "backup-completed", dateKey, operationName: existing.operationName});
+      await ref.set({status: BACKUP_STATUS.COMPLETED, completed: true, completedAt: nowIso}, {merge: true}).catch(() => {});
+    } else {
+      out.failed += 1;
+      logBackupEvent({event: "backup-operation-failed", dateKey, operationName: existing.operationName, error: verdict.error});
+      // Authoritative: the operation genuinely failed after acceptance.
+      await ref.set({status: BACKUP_STATUS.FAILED, completed: false, completionError: verdict.error, completedAt: nowIso}, {merge: true}).catch(() => {});
+      await Promise.resolve(alert({
+        title: "Firestore backup export operation FAILED (post-acceptance)",
+        severity: "error",
+        lines: [`Date: ${dateKey}`, `Operation: ${existing.operationName}`, `Error: ${verdict.error}`],
+      })).catch(() => {});
+    }
+  }
+  return out;
+}
+
+// Two recent UTC date-keys (today + yesterday) — a 01:30 Africa/Lusaka run
+// stamps the PREVIOUS UTC day, so the checker (03:30 Lusaka) must look back one.
+function recentUtcDateKeys(now = new Date()) {
+  const today = dateKeyUtc(now);
+  const yesterday = dateKeyUtc(new Date(now.getTime() - 24 * 60 * 60 * 1000));
+  return [today, yesterday];
+}
+
+// Poll the real Firestore Admin LRO for an export operation.
+async function getExportOperation(operationName) {
+  const {v1} = require("@google-cloud/firestore");
+  const client = new v1.FirestoreAdminClient();
+  const [operation] = await client.operationsClient.getOperation({name: operationName});
+  return operation;
+}
+
+// 03:30 Lusaka — ~2h after the 01:30 export, enough for a normal export to
+// finish, so the summary flips started → completed unattended.
+const backupCompletionCheck = onSchedule({
+  schedule: "every day 03:30",
+  timeZone: "Africa/Lusaka",
+  region: "us-central1",
+  timeoutSeconds: 120,
+  memory: "256MiB",
+  secrets: [emailSmtpUser, emailSmtpPassword],
+}, async () => {
+  await runBackupCompletionCheck({
+    db: admin.firestore(),
+    getOperation: getExportOperation,
+    dateKeys: recentUtcDateKeys(),
+  });
 });
 
 /**
@@ -262,6 +438,10 @@ module.exports = {
   dailyFirestoreBackup,
   runFirestoreExport,
   runBackupRetention,
+  runBackupCompletionCheck,
+  recentUtcDateKeys,
+  getExportOperation,
+  backupCompletionCheck,
   dateKeyUtc,
   BACKUP_STATUS,
 };
