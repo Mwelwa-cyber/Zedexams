@@ -500,13 +500,17 @@ describe('QuizRunnerV2 — exam short-answers are never lost to a dropped connec
     fireEvent.click(screen.getByRole('button', { name: /Save Answer/i }))
     expect(await screen.findByText(/Your answer is saved/i)).toBeInTheDocument()
 
-    // And it survives all the way into the submitted result.
+    // And it survives all the way into the submitted result — marked PENDING
+    // (marking was attempted and failed), never scored wrong, so the attempt
+    // persists as provisional rather than dragging the mark down.
     const payload = await submitExam()
-    expect(payload.answers.q1).toEqual({ text: 'Photosynthesis' })
+    expect(payload.answers.q1).toEqual({ text: 'Photosynthesis', pending: true })
+    expect(payload.gradingStatus).toBe('pending')
+    expect(payload.finalScore).toBeNull()
   })
 
   it('enriches the answer with the AI verdict when marking succeeds online', async () => {
-    mockCheckAnswerWithAI.mockResolvedValue({ correct: true, feedback: 'Correct' })
+    mockCheckAnswerWithAI.mockResolvedValue({ graded: true, correct: true, feedback: 'Correct' })
     const input = await startExamWithShortAnswer()
     fireEvent.change(input, { target: { value: 'Photosynthesis' } })
     fireEvent.click(screen.getByRole('button', { name: /Save Answer/i }))
@@ -514,5 +518,36 @@ describe('QuizRunnerV2 — exam short-answers are never lost to a dropped connec
     const payload = await submitExam()
     await waitFor(() => expect(mockCheckAnswerWithAI).toHaveBeenCalledTimes(1))
     expect(payload.answers.q1).toEqual({ text: 'Photosynthesis', correct: true })
+    // Everything graded → the persisted attempt is FINAL with an authoritative score.
+    expect(payload.gradingStatus).toBe('complete')
+    expect(payload.scoreStatus).toBe('final')
+    expect(payload.pendingQuestionIds).toEqual([])
+    expect(typeof payload.finalScore).toBe('number')
+  })
+
+  it('persists a PROVISIONAL attempt (finalScore null) when AI marking could not grade an answer', async () => {
+    // The grader returns an explicit un-graded/pending verdict (burst throttle /
+    // provider timeout / budget) rather than a fabricated correct:false.
+    mockCheckAnswerWithAI.mockResolvedValue({
+      graded: false,
+      pending: true,
+      correct: null,
+      feedback: 'Your answer is saved. We couldn’t mark it right now.',
+    })
+    const input = await startExamWithShortAnswer()
+    fireEvent.change(input, { target: { value: 'Photosynthesis' } })
+    fireEvent.click(screen.getByRole('button', { name: /Save Answer/i }))
+    expect(await screen.findByText(/couldn’t mark it right now/i)).toBeInTheDocument()
+
+    const payload = await submitExam()
+    // The answer is saved as pending — never as wrong.
+    expect(payload.answers.q1).toEqual({ text: 'Photosynthesis', pending: true })
+    // …and the whole attempt is persisted as PROVISIONAL so nothing downstream
+    // (pass/fail, badges, leaderboards, class analytics) treats a partial mark
+    // as settled. The durable Firestore doc — not just React state — carries it.
+    expect(payload.gradingStatus).toBe('pending')
+    expect(payload.scoreStatus).toBe('provisional')
+    expect(payload.pendingQuestionIds).toEqual(['q1'])
+    expect(payload.finalScore).toBeNull()
   })
 })

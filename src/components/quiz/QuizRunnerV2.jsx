@@ -28,6 +28,7 @@ import { optionsToReadAloudText, questionToReadAloudText } from '../../utils/rea
 import { saveQuizSession, loadQuizSession, clearQuizSession } from '../../hooks/useQuizPersistence'
 import {
   computeQuizScore,
+  buildResultGrading,
   isTextAnswerType,
   isNumericType,
   isHotspotType,
@@ -560,15 +561,33 @@ export default function QuizRunnerV2() {
         grade: quiz?.grade ?? '',
       })
       setAiResults(current => ({ ...current, [questionId]: result }))
-      setAnswers(current => ({ ...current, [questionId]: { text: typedAnswer, correct: result.correct } }))
-      if (mode === 'practice') {
-        setRevealed(current => ({ ...current, [questionId]: true }))
-        setFeedbackType(result.correct ? 'correct' : 'wrong')
-        setTimeout(() => setFeedbackType(null), 1300)
-        setPakoTip({ visible: true, text: result.feedback, isCorrect: result.correct, questionId })
+      if (result.graded === false) {
+        // The AI grader could not evaluate this answer (burst throttle /
+        // provider timeout / AI-budget). Save the response as PENDING — never
+        // as wrong — so scoring excludes it and a transient failure can't lower
+        // the learner's mark. Show the taxonomy message (a retryable throttle
+        // says "try again in Ns"; a daily limit says "tomorrow").
+        setAnswers(current => ({ ...current, [questionId]: { text: typedAnswer, pending: true } }))
+        setActionError(result.feedback ||
+          'Your answer is saved. We couldn’t mark it right now — that’s okay, keep going.')
+      } else {
+        setAnswers(current => ({ ...current, [questionId]: { text: typedAnswer, correct: result.correct } }))
+        if (mode === 'practice') {
+          setRevealed(current => ({ ...current, [questionId]: true }))
+          setFeedbackType(result.correct ? 'correct' : 'wrong')
+          setTimeout(() => setFeedbackType(null), 1300)
+          setPakoTip({ visible: true, text: result.feedback, isCorrect: result.correct, questionId })
+        }
       }
     } catch (error) {
       console.error('AI check failed:', error)
+      // Marking was ATTEMPTED and failed unexpectedly (checkAnswerWithAI threw
+      // instead of returning a pending verdict). Mark the answer PENDING — never
+      // leave it as a bare {text} that computeQuizScore would score WRONG. This
+      // is the same correctness guarantee as the graded:false branch above: a
+      // transient failure can never lower a learner's mark. The attempt is then
+      // persisted as provisional (finalScore null) at submit.
+      setAnswers(current => ({ ...current, [questionId]: { text: typedAnswer, pending: true } }))
       if (mode === 'exam') {
         // The raw answer was saved above, so nothing is lost. Don't block the
         // learner or show a scary failure — marking just didn't happen now.
@@ -591,7 +610,16 @@ export default function QuizRunnerV2() {
       // Server-authoritative scoring: computeQuizScore re-grades each question
       // from its persisted answer key (correctAnswer / tolerance / correctRegion)
       // rather than trusting any client-stored `correct` flag.
-      const { score, total, percentage, topicScores } = computeQuizScore(questions, answers)
+      const scoreResult = computeQuizScore(questions, answers)
+      const { score, total, percentage, topicScores } = scoreResult
+      // Gate 1: if any text answer is still awaiting AI marking (a burst
+      // throttle / provider timeout / budget rejection at submit), persist the
+      // attempt as PROVISIONAL — the partial percentage is recorded but
+      // finalScore is null and gradingStatus is 'pending', so nothing
+      // downstream (pass/fail, badges, leaderboards, class analytics) treats
+      // an inflated partial mark as settled. This state lives in the durable
+      // Firestore doc (not just React memory), and a later re-grade settles it.
+      const grading = buildResultGrading(scoreResult)
       const resultId = await saveResult({
         userId: currentUser.uid,
         quizId,
@@ -605,6 +633,7 @@ export default function QuizRunnerV2() {
         answers,
         topicScores,
         timeSpent,
+        ...grading,
       })
       // Clear saved session now that results are safely in Firestore
       clearQuizSession(quizId, currentUser.uid)

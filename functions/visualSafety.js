@@ -16,6 +16,7 @@
  */
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertCallableRateLimit} = require("./rateLimit");
 const {assertVerifiedAuth} = require("./authGuard");
 const {
   callAnthropic, getUserRole, isStaffRole, assertDailyLimit, getAnthropicApiKey,
@@ -85,6 +86,7 @@ function createCheckVisualSafety(anthropicApiKeySecret) {
     {secrets: [anthropicApiKeySecret], region: "us-central1", timeoutSeconds: 60, memory: "512MiB"},
     async (request) => {
       await assertVerifiedAuth(request);
+      await assertCallableRateLimit(request, {action: "checkVisualSafety", userPerMin: 15});
       const role = await getUserRole(request.auth.uid);
       if (!isStaffRole(role)) {
         throw new HttpsError("permission-denied", "Only teachers and admins can check images.");

@@ -23,6 +23,7 @@
 
 const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertCallableRateLimit} = require("../rateLimit");
 const {assertVerifiedAuth} = require("../authGuard");
 
 const {getAnthropicApiKey, getUserRole} = require("../aiService");
@@ -311,6 +312,7 @@ function createAnalyzeExamPaper(anthropicApiKeySecret) {
       if ((await getUserRole(uid)) !== "admin") {
         throw new HttpsError("permission-denied", "Admin only.");
       }
+      await assertCallableRateLimit(request, {action: "analyzeExamPaper", userPerMin: 6});
       const apiKey = getAnthropicApiKey(anthropicApiKeySecret);
       return runAnalyzeExamPaper({uid, data: request.data, apiKey});
     },
@@ -325,6 +327,7 @@ function createSynthesizeAssessmentFormat(anthropicApiKeySecret) {
       if ((await getUserRole(uid)) !== "admin") {
         throw new HttpsError("permission-denied", "Admin only.");
       }
+      await assertCallableRateLimit(request, {action: "synthesizeAssessmentFormat", userPerMin: 6});
       const apiKey = getAnthropicApiKey(anthropicApiKeySecret);
       return runSynthesizeAssessmentFormat({uid, data: request.data, apiKey});
     },

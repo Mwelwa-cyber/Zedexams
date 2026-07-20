@@ -24,6 +24,7 @@
 
 const admin = require("firebase-admin");
 const { HttpsError } = require("firebase-functions/v2/https");
+const { AI_ERROR_REASON } = require("./aiErrorReasons");
 const {
   sanitizeKeyPart,
   windowStartFor,
@@ -99,10 +100,17 @@ async function checkRateLimit(db, scope, { limit, windowMs = WINDOW_MS, now } = 
       return { ...base, allowed, remaining };
     });
   } catch (err) {
-    console.warn(
-      `[rateLimit] check failed for ${scope} (allowing)`,
-      (err && err.message) || err,
-    );
+    // FAIL-OPEN for availability, but LOUD + structured so ops can detect that
+    // burst protection is DEGRADED for this scope (build an alert on the
+    // `rate_limit_degraded` event). This never bypasses cost control: the
+    // per-user daily quota and the HARD monthly-budget reservation gate
+    // (aiCostTracking.beginAiCall) still bound spend downstream — a degraded
+    // limiter cannot exhaust the wallet on its own.
+    console.warn("[rateLimit] rate_limit_degraded", JSON.stringify({
+      event: "rate_limit_degraded",
+      scope,
+      error: String((err && err.message) || err).slice(0, 200),
+    }));
     return { ...base, allowed: true, remaining: 0, degraded: true };
   }
 }
@@ -160,8 +168,19 @@ function rateLimitMessage(result) {
   return `Too many requests. Please slow down and try again in about ${secs}s.`;
 }
 
+// The scope is `<action>:u:<uid>` / `<action>:ip:<ip>` — recover the action.
+function actionFromScope(scope) {
+  return String(scope || "").split(":")[0] || "unknown";
+}
+
 function rateLimitError(result) {
-  return new HttpsError("resource-exhausted", rateLimitMessage(result));
+  // Structured details so the client shows "try again in Ns" (a BURST throttle),
+  // NOT "try again tomorrow" (a daily quota), and treats it as RETRYABLE.
+  return new HttpsError("resource-exhausted", rateLimitMessage(result), {
+    reason: AI_ERROR_REASON.BURST_RATE_LIMIT,
+    retryAfterSec: (result && result.retryAfterSec) || 60,
+    action: actionFromScope(result && result.scope),
+  });
 }
 
 // Advisory rate-limit headers. Never throws (a set() after headers flushed

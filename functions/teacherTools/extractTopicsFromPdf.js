@@ -27,6 +27,7 @@
  */
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertCallableRateLimit} = require("../rateLimit");
 const {assertVerifiedAuth} = require("../authGuard");
 const admin = require("firebase-admin");
 const pdfParse = require("pdf-parse");
@@ -172,6 +173,7 @@ function createExtractTopicsFromPdf(anthropicApiKeySecret) {
     enforceAppCheck: shouldEnforceAppCheck("extractTopicsFromPdf"),
   }, async (request) => {
     const uid = await assertVerifiedAuth(request);
+    await assertCallableRateLimit(request, {action: "extractTopicsFromPdf", userPerMin: 6});
     const role = await getUserRole(uid);
     if (role !== "admin") {
       throw new HttpsError("permission-denied", "Admins only.");

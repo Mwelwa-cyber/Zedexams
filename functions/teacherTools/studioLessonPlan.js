@@ -31,6 +31,7 @@
 
 const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertCallableRateLimit} = require("../rateLimit");
 const {assertVerifiedAuth} = require("../authGuard");
 const {getAnthropicApiKey, getUserRole, isStaffRole} = require("../aiService");
 const {callClaude, DEFAULT_MODEL} = require("./anthropicClient");
@@ -223,6 +224,7 @@ function createStudioGenerateLessonPlan(anthropicApiKeySecret) {
     {secrets: [anthropicApiKeySecret], timeoutSeconds: 120, memory: "512MiB"},
     async (request) => {
       const uid = await assertVerifiedAuth(request, "Please sign in.");
+      await assertCallableRateLimit(request, {action: "studioGenerateLessonPlan", userPerMin: 8});
 
       const role = await getUserRole(uid);
       if (!isStaffRole(role)) {

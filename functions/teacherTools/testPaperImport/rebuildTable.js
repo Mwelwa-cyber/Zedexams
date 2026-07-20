@@ -26,6 +26,7 @@ const TABLE_CELL_MAX = 60;
 function httpsError(code, message) {
   try {
     const {HttpsError} = require("firebase-functions/v2/https");
+const {assertCallableRateLimit} = require("../../rateLimit");
     return new HttpsError(code, message);
   } catch {
     return Object.assign(new Error(message), {code});
@@ -185,6 +186,7 @@ function createRebuildTableFromImage(anthropicApiKeySecret) {
     {secrets: [anthropicApiKeySecret], timeoutSeconds: 120, memory: "512MiB"},
     async (request) => {
       const uid = await assertVerifiedAuth(request, "Please sign in.");
+      await assertCallableRateLimit(request, {action: "rebuildTableFromImage", userPerMin: 8});
 
       const data = request.data || {};
 

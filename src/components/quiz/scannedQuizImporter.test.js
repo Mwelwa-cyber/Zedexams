@@ -1099,12 +1099,27 @@ test('isRetryableImportError: timeouts/deadlines retry, hard failures do not', (
   assert.equal(isRetryableImportError(Object.assign(new Error('slow'), { code: 'timeout' })), true)
   assert.equal(isRetryableImportError(Object.assign(new Error('x'), { code: 'functions/deadline-exceeded' })), true)
   assert.equal(isRetryableImportError(Object.assign(new Error('x'), { code: 'functions/internal' })), true)
-  assert.equal(isRetryableImportError(Object.assign(new Error('x'), { code: 'functions/resource-exhausted' })), false)
   assert.equal(isRetryableImportError(Object.assign(new Error('x'), { code: 'functions/permission-denied' })), false)
   assert.equal(isRetryableImportError(Object.assign(new Error('x'), { code: 'functions/failed-precondition' })), false)
   // Message-only errors (the friendly-error wrapper strips codes on old paths):
   assert.equal(isRetryableImportError(new Error('Daily AI limit reached. Please try again tomorrow.')), false)
   assert.equal(isRetryableImportError(new Error('Reading the scanned pages is taking too long.')), true)
+})
+
+// B3/OBS-005 regression fix: a scanned import fires ~40 structureScannedQuiz
+// calls, so a resource-exhausted BURST throttle must be RETRYABLE (paced +
+// retried, never dropped) — but a DAILY-quota / MONTHLY-budget exhaustion must
+// stay terminal. The two are distinguished by the backend's structured reason.
+test('isRetryableImportError: burst throttle retries, daily/budget quota does not', () => {
+  const err = (details) => Object.assign(new Error('x'), { code: 'functions/resource-exhausted', details })
+  // Explicit burst throttle → retryable.
+  assert.equal(isRetryableImportError(err({ reason: 'burst_rate_limit', retryAfterSec: 30 })), true)
+  // Bare resource-exhausted (older backend / no details) → treated as burst → retryable.
+  assert.equal(isRetryableImportError(Object.assign(new Error('x'), { code: 'functions/resource-exhausted' })), true)
+  // Daily quota exhaustion → terminal, NOT retried.
+  assert.equal(isRetryableImportError(err({ reason: 'daily_quota_exhausted' })), false)
+  // Monthly budget exhaustion → terminal.
+  assert.equal(isRetryableImportError(err({ reason: 'monthly_budget_exhausted' })), false)
 })
 
 await testAsync('readBatchResilient splits a timed-out batch into per-page reads', async () => {
@@ -1145,13 +1160,47 @@ await testAsync('readBatchResilient does NOT split on a hard failure (daily limi
   let calls = 0
   const readPages = async () => {
     calls += 1
-    throw Object.assign(new Error('Daily AI limit reached.'), { code: 'functions/resource-exhausted' })
+    // Daily-quota exhaustion carries the structured reason → genuinely terminal
+    // (a bare burst throttle, by contrast, is now retryable and DOES split).
+    throw Object.assign(new Error('Daily AI limit reached.'),
+      { code: 'functions/resource-exhausted', details: { reason: 'daily_quota_exhausted' } })
   }
   const { results, failedPages, errors } = await readBatchResilient(pages, readPages)
   assert.equal(calls, 1, 'a non-retryable failure must not trigger per-page retries')
   assert.equal(results.length, 0)
   assert.deepEqual(failedPages, [1, 2, 3])
   assert.match(errors[0].message, /Daily AI limit/)
+})
+
+await testAsync('accounting invariant: every submitted page is either read or failed, never both/neither', async () => {
+  // The guard against the "import silently drops pages" class of bug: after the
+  // resilient reader runs, the submitted pages must PARTITION exactly into
+  // processed (produced a result) + failed (surfaced in failedPages). No page
+  // may vanish (counted as neither) and none may be double-counted (both).
+  const submitted = [1, 2, 3, 4, 5]
+  const pages = submitted.map(pageNumber => ({ pageNumber, dataUrl: 'd' }))
+  // Whole batch always times out → splits to per-page. Pages 3 and 5 never
+  // recover (terminal after the one retry); the rest read fine.
+  const readPages = async (batch) => {
+    if (batch.length > 1) throw Object.assign(new Error('slow'), { code: 'timeout' })
+    const n = batch[0].pageNumber
+    if (n === 3 || n === 5) throw Object.assign(new Error('slow'), { code: 'timeout' })
+    // Tag the result with the page it covers so we can reconstruct coverage.
+    return { _pages: [n], sections: [] }
+  }
+  const { results, failedPages } = await readBatchResilient(pages, readPages)
+
+  const readPageNumbers = results.flatMap(r => r._pages || [])
+  const readSet = new Set(readPageNumbers)
+  const failedSet = new Set(failedPages)
+
+  // Disjoint: no page is both read and failed.
+  for (const n of readSet) assert.ok(!failedSet.has(n), `page ${n} counted as both read and failed`)
+  // Complete: union covers every submitted page (submitted = processed + failed).
+  const union = new Set([...readSet, ...failedSet])
+  assert.equal(union.size, submitted.length, 'a submitted page is unaccounted for')
+  for (const n of submitted) assert.ok(union.has(n), `page ${n} vanished from the accounting`)
+  assert.deepEqual([...failedSet].sort(), [3, 5], 'only the genuinely unreadable pages are pending/failed')
 })
 
 test('formatPageList reads naturally', () => {

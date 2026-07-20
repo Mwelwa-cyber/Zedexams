@@ -92,6 +92,26 @@ export function coerceResult(raw) {
     ? raw.grade
     : ''
 
+  // Grading status (B3/OBS-005 Gate 1). An attempt saved while a text answer
+  // was still awaiting AI marking is PROVISIONAL — its `percentage` is a
+  // partial mark and must not be read as authoritative. Legacy docs predate
+  // these fields and were always fully graded, so they normalise to
+  // complete/final with `finalScore` = the recorded percentage.
+  const isPending = raw.gradingStatus === 'pending' || raw.scoreStatus === 'provisional'
+  const gradingStatus = isPending ? 'pending' : 'complete'
+  const scoreStatus = isPending ? 'provisional' : 'final'
+  const pendingQuestionIds = Array.isArray(raw.pendingQuestionIds)
+    ? raw.pendingQuestionIds.filter((v) => typeof v === 'string')
+    : []
+  // finalScore is authoritative only when settled; a provisional doc reports
+  // null even if a stale numeric value was written, so no consumer can mistake
+  // a partial mark for the final one.
+  const finalScore = isPending
+    ? null
+    : (typeof raw.finalScore === 'number' && Number.isFinite(raw.finalScore)
+        ? Math.max(0, Math.min(100, raw.finalScore))
+        : percentage)
+
   return {
     ...raw,
     percentage,
@@ -104,5 +124,9 @@ export function coerceResult(raw) {
     quizId: safeString(raw.quizId),
     userId: safeString(raw.userId),
     grade,
+    gradingStatus,
+    scoreStatus,
+    pendingQuestionIds,
+    finalScore,
   }
 }

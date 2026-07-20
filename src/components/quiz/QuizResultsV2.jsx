@@ -203,6 +203,10 @@ export default function QuizResultsV2() {
   }
 
   const percentage = result.percentage ?? 0
+  // Gate 1: a provisional result (a text answer was still awaiting AI marking
+  // at submit) shows its partial percentage with an honest "not final" caveat.
+  const isProvisional = result.gradingStatus === 'pending' || result.scoreStatus === 'provisional'
+  const pendingCount = Array.isArray(result.pendingQuestionIds) ? result.pendingQuestionIds.length : 0
   const message = percentage >= 80
     ? { emoji: '🏆', text: 'Excellent!', sub: 'You really know your stuff!' }
     : percentage >= 60
@@ -346,6 +350,21 @@ export default function QuizResultsV2() {
         <h1 className="text-display-xl theme-text">{message.text}</h1>
         <p className="theme-text-muted text-body mt-1">{message.sub}</p>
       </div>
+
+      {/* Gate 1: a provisional attempt still has answers awaiting AI marking.
+          Be honest that this percentage is not final rather than presenting an
+          inflated partial mark as the settled score. */}
+      {isProvisional && (
+        <div className="mb-4 rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 text-center text-amber-900">
+          <p className="text-body font-bold">⏳ This score isn’t final yet</p>
+          <p className="text-sm mt-1">
+            {pendingCount > 0
+              ? `${pendingCount} answer${pendingCount === 1 ? '' : 's'} couldn’t be marked just yet.`
+              : 'Some answers couldn’t be marked just yet.'}{' '}
+            Your percentage will update once they’re marked — it won’t go down because of this.
+          </p>
+        </div>
+      )}
 
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4 stagger">
         {[

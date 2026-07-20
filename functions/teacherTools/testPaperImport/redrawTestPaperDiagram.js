@@ -36,6 +36,7 @@ const {
 function httpsError(code, message) {
   try {
     const {HttpsError} = require("firebase-functions/v2/https");
+const {assertCallableRateLimit} = require("../../rateLimit");
     return new HttpsError(code, message);
   } catch {
     return Object.assign(new Error(message), {code});
@@ -175,6 +176,7 @@ function createRedrawTestPaperDiagram(openaiApiKeySecret) {
     {secrets, timeoutSeconds: 300, memory: "1GiB"},
     async (request) => {
       const uid = await assertVerifiedAuth(request, "Please sign in.");
+      await assertCallableRateLimit(request, {action: "redrawTestPaperDiagram", userPerMin: 6});
 
       const data = request.data || {};
       const handling = String(data.handling || "");
