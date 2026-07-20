@@ -55,8 +55,11 @@ undefined.
 > `gs://zedexams-backups/firestore-exports/2026-07-19`
 > (evidence: [`remediation/dr-001-infrastructure-readiness.md`](./remediation/dr-001-infrastructure-readiness.md) §12).
 > A later same-UTC-date scheduled run overwrote `opsBackups/2026-07-19.status` to `failed` — a benign
-> duplicate-date artifact, tracked as **DR-007** (de-collide same-day exports). Interim finding status:
-> **"Backup export runtime-verified; restore drill pending."** The restore drill is the next gate.
+> duplicate-date artifact, tracked as **DR-007** (de-collide same-day exports) and **now fixed in code**
+> (immutable per-run record + ownership lease + monotonic summary + async completion checker — see
+> [DR-007](#dr-007--same-utc-date-export-collision-could-downgrade-a-good-summary--fixed-in-this-pr)).
+> Interim finding status: **"Backup export runtime-verified; restore drill pending."** The restore
+> drill is the next gate.
 
 ### DR-002 — Restore script + runbook ✅ added in this PR (rehearsal still owed)
 - **Severity:** High → Medium (residual) · **Confidence:** High confidence
@@ -98,6 +101,34 @@ undefined.
   JSON, keystore) — no documented backup/escrow; PITR is only mentioned in a code comment.
 - **Correction:** Document secret sources + a recovery procedure; enable PITR (7-day window covers
   fat-finger deletes between daily exports). **Launch blocker:** No.
+
+### DR-007 — Same-UTC-date export collision could downgrade a good summary ✅ fixed in this PR
+- **Severity:** Low (integrity of the monitoring signal, not of the data) · **Confidence:** High confidence
+- **Was:** a manual export and the scheduled export can share a UTC date-key. Both wrote the single
+  `opsBackups/{date}` summary; the second run — failing against an already-populated destination —
+  could **downgrade a good `started` summary to `failed`**, making a healthy backup day read as broken
+  (observed on 2026-07-19). The underlying exports were fine; the *signal* was corrupted.
+- **Fixed here** (`firestoreBackup.js` + `firestoreBackupCore.js`, 68 tests):
+  1. **Immutable per-execution record** at `opsBackupRuns/{correlationId}` — one write-once doc per run,
+     so a duplicate never clobbers another run's record (tamper-evident audit trail).
+  2. **Transactional lease** — `decideBackupOwnership` lets only ONE run own a date; a second run for a
+     date that already shows a valid (`started`/`completed`) export is **`duplicate-skipped`**, a
+     distinct status, **never `failed`**, and it does not touch the daily summary.
+  3. **Owner-guarded + monotonic daily summary** — a non-owning run can't write the summary, and a
+     later duplicate's `failed` can never downgrade a `started`/`completed` (`shouldWriteDailyStatus`).
+     The owning run *can* still record its own acceptance failure (the monotonic guard is scoped to
+     non-owner writes, so it doesn't trap the owner behind the transient `in_progress` rank).
+  4. **Async completion checker** (`backupCompletionCheck`, scheduled 03:30 Africa/Lusaka) flips a
+     `started` summary to **`completed: true`** once the long-running export finishes, or records a real
+     post-acceptance failure (authoritatively, `force`) — so the DR floor is verified unattended.
+  5. **Stale IAM guidance corrected** — the file/alert no longer flatly tell operators to grant
+     `roles/storage.objectAdmin` to the runtime SA; the managed export's write goes through the
+     Firestore service agent, so that broad grant is requested only if a write is actually denied.
+- **Runtime confirmation still owed (read-only):** after the next clean unattended cron — **2026-07-21
+  01:30 Africa/Lusaka**, which stamps **UTC date-key `2026-07-20`** — read `opsBackups/2026-07-20`
+  (expect `status:"started"` then `completed:true` after 03:30) and confirm a matching
+  `opsBackupRuns/{correlationId}`. This is evidence of *unattended operation*; it does **not** replace
+  the successful-export evidence already recorded for 2026-07-19. **Launch blocker:** No.
 
 ## Computed RPO / RTO (from evidence)
 - **As configured today:** RPO ≈ ∞ / total loss (no export running); RTO undefined (no restore path).

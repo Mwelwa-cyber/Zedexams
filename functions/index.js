@@ -3018,6 +3018,11 @@ exports.dailyFxRefresh = dailyFxRefreshCron;
 // deploy before the bucket exists — unconfigured runs skip with a warning.
 // Setup (bucket, IAM, PITR) is documented in functions/firestoreBackup.js.
 exports.dailyFirestoreBackup = require("./firestoreBackup").dailyFirestoreBackup;
+// Async completion checker (Africa/Lusaka 03:30) — exportDocuments is a
+// long-running op, so the 01:30 run records "started"; this reads the recent
+// "started" summaries back and flips them to "completed" (or records a real
+// post-acceptance failure) so the DR floor is verified unattended (DR-007).
+exports.backupCompletionCheck = require("./firestoreBackup").backupCompletionCheck;
 
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 // Targets learners who practised yesterday but not today, sends a friendly

@@ -35,8 +35,13 @@ const {
   resolveBackupBucket, buildExportRequest, buildImportRequest,
   isProductionRuntime, classifyExportError, selectExportsToDelete,
 } = require("./firestoreBackupCore");
-const {runFirestoreExport, runBackupRetention, dateKeyUtc, BACKUP_STATUS} =
-  require("./firestoreBackup");
+const {
+  runFirestoreExport, runBackupRetention, runBackupCompletionCheck,
+  recentUtcDateKeys, dateKeyUtc, BACKUP_STATUS,
+} = require("./firestoreBackup");
+const {
+  dailyStatusRank, shouldWriteDailyStatus, decideBackupOwnership, decideCompletion,
+} = require("./firestoreBackupCore");
 Module._load = origLoad;
 
 let passed = 0;
@@ -46,15 +51,29 @@ function ok(name, cond) {
   console.log(`  ok  ${name}`);
 }
 
-// A minimal Firestore stub capturing opsBackups/{date} writes.
-function fakeDb() {
+// A Firestore stub that keeps per-doc STATE (so transactions can read prior
+// state) and captures every write. Supports doc.get/doc.set and runTransaction
+// with tx.get/tx.set — enough to drive the ownership lease + monotonic daily
+// summary + immutable per-run record paths.
+function fakeDb(seed = {}) {
+  const store = new Map(Object.entries(seed)); // path -> data object
   const writes = [];
+  const applySet = (path, data, opts) => {
+    const prev = opts && opts.merge ? (store.get(path) || {}) : {};
+    store.set(path, {...prev, ...data});
+    writes.push({path, data, opts});
+  };
+  const makeRef = (path) => ({
+    path,
+    get: async () => ({exists: store.has(path), data: () => store.get(path)}),
+    set: async (data, opts) => applySet(path, data, opts),
+  });
   return {
-    writes,
-    collection: (coll) => ({
-      doc: (id) => ({
-        set: async (data, opts) => writes.push({path: `${coll}/${id}`, data, opts}),
-      }),
+    store, writes,
+    collection: (coll) => ({doc: (id) => makeRef(`${coll}/${id}`)}),
+    runTransaction: async (fn) => fn({
+      get: async (ref) => ({exists: store.has(ref.path), data: () => store.get(ref.path)}),
+      set: (ref, data, opts) => applySet(ref.path, data, opts),
     }),
   };
 }
@@ -224,12 +243,19 @@ ok("unknown errors fall through",
       calls[0].name === "projects/examsprepzambia/databases/(default)" &&
       calls[0].outputUriPrefix === "gs://zedexams-backups/firestore-exports/2030-01-02" &&
       calls[0].collectionIds.length === 0);
-    const w = db.writes.find((x) => x.path === "opsBackups/2030-01-02");
+    // Final daily-summary state (the run claims in_progress, then writes started).
+    const doc = db.store.get("opsBackups/2030-01-02");
     ok("start recorded with the operation name + completed:false (not success)",
-      w && w.data.status === "started" &&
-      w.data.operationName === "operations/op-123" &&
-      w.data.completed === false && w.data.exportPath &&
-      typeof w.data.correlationId === "string");
+      doc && doc.status === "started" &&
+      doc.operationName === "operations/op-123" &&
+      doc.completed === false && doc.exportPath &&
+      typeof doc.correlationId === "string" && typeof doc.owner === "string");
+    // Immutable per-execution record written under opsBackupRuns/{correlationId}.
+    const runWrite = db.writes.find((x) => x.path.startsWith("opsBackupRuns/"));
+    ok("an immutable opsBackupRuns/{correlationId} record is written",
+      runWrite && runWrite.data.status === "started" &&
+      runWrite.path === `opsBackupRuns/${doc.owner}` &&
+      (!runWrite.opts || runWrite.opts.merge !== true));
   }
 
   // ── failure → status 'failed' + ops alert, still no throw ────────────────
@@ -245,9 +271,11 @@ ok("unknown errors fall through",
       env: {FIRESTORE_BACKUP_BUCKET: "gs://zedexams-backups", GCLOUD_PROJECT: "examsprepzambia"},
     });
     ok("failure reported, not thrown", res.status === BACKUP_STATUS.FAILED && /PERMISSION_DENIED/.test(res.error));
-    const w = db.writes.find((x) => x.path === "opsBackups/2030-01-02");
+    // The owner must be able to record its OWN acceptance failure even though it
+    // first claimed the date as 'in_progress' (the WIP monotonic-guard bug).
+    const doc = db.store.get("opsBackups/2030-01-02");
     ok("failure recorded on opsBackups/{date} with error category",
-      w && w.data.status === "failed" && w.data.errorCategory === "permission");
+      doc && doc.status === "failed" && doc.errorCategory === "permission");
     ok("failure raises an error-severity ops alert",
       alerts.length === 1 && alerts[0].severity === "error" &&
       /FAILED/.test(alerts[0].title));
@@ -277,6 +305,105 @@ ok("unknown errors fall through",
     const newest = exps.slice().sort((a, b) => b.createdAtMs - a.createdAtMs)[0];
     ok("retention runner never deletes the newest export",
       !deleted.includes(newest.path));
+  }
+
+  // ── DR-007 core helpers (pure) ───────────────────────────────────────────
+  console.log("\nfirestoreBackup (DR-007 same-UTC-date hardening)");
+
+  ok("daily status rank orders completed > started > in_progress > failed > skip",
+    dailyStatusRank("completed") > dailyStatusRank("started") &&
+    dailyStatusRank("started") > dailyStatusRank("in_progress") &&
+    dailyStatusRank("in_progress") > dailyStatusRank("failed") &&
+    dailyStatusRank("failed") > dailyStatusRank("duplicate-skipped"));
+  ok("monotonic guard blocks a duplicate 'failed' from downgrading 'started'",
+    shouldWriteDailyStatus("started", "failed") === false);
+  ok("monotonic guard allows an upgrade (started → completed)",
+    shouldWriteDailyStatus("started", "completed") === true);
+  ok("force overrides the monotonic guard (authoritative completion checker)",
+    shouldWriteDailyStatus("completed", "failed", {force: true}) === true);
+  ok("a date with a started export is OWNED → a second run duplicate-skips",
+    decideBackupOwnership({status: "started"}).action === "duplicate-skip");
+  ok("a date with a completed export is OWNED → duplicate-skip",
+    decideBackupOwnership({status: "completed"}).action === "duplicate-skip");
+  ok("a fresh/failed date can be CLAIMED",
+    decideBackupOwnership(null).action === "claim" &&
+    decideBackupOwnership({status: "failed"}).action === "claim");
+  ok("decideCompletion: undone op → pending",
+    decideCompletion({done: false}).state === "pending");
+  ok("decideCompletion: done+error → failed",
+    decideCompletion({done: true, error: {message: "boom"}}).state === "failed");
+  ok("decideCompletion: done, no error → completed",
+    decideCompletion({done: true, metadata: {outputUriPrefix: "gs://b/x"}}).state === "completed");
+
+  // ── Same-date collision: a duplicate run must NOT downgrade the summary ────
+  {
+    const NOW2 = new Date("2030-05-05T01:00:00Z");
+    const env = {FIRESTORE_BACKUP_BUCKET: "zedexams-backups", GCLOUD_PROJECT: "examsprepzambia"};
+    // Run A: a normal export that reaches 'started'.
+    const db = fakeDb();
+    await runFirestoreExport({
+      db, now: NOW2, alert: async () => {}, env,
+      adminClient: {exportDocuments: async () => [{name: "operations/opA"}]},
+    });
+    const afterA = db.store.get("opsBackups/2030-05-05");
+    ok("run A owns the date with a 'started' summary", afterA.status === "started");
+
+    // Run B: same UTC date, but the export would FAIL. It must be a
+    // duplicate-skip and must NOT downgrade A's 'started' summary to 'failed'.
+    const bAlerts = [];
+    const resB = await runFirestoreExport({
+      db, now: NOW2, alert: async (a) => bAlerts.push(a), env,
+      adminClient: {exportDocuments: async () => { throw new Error("PERMISSION_DENIED"); }},
+    });
+    ok("run B is a duplicate-skip, NOT a failure",
+      resB.status === BACKUP_STATUS.DUPLICATE_SKIPPED);
+    const afterB = db.store.get("opsBackups/2030-05-05");
+    ok("the daily summary is STILL 'started' (a duplicate can't downgrade it)",
+      afterB.status === "started");
+    ok("a duplicate-skip raises no failure alert", bAlerts.length === 0);
+    ok("run B still wrote its OWN immutable opsBackupRuns record",
+      db.writes.filter((x) => x.path.startsWith("opsBackupRuns/")).length === 2);
+  }
+
+  // ── Completion checker flips started → completed, and records real failures ─
+  {
+    const db = fakeDb({
+      "opsBackups/2030-06-06": {
+        status: "started", completed: false, operationName: "operations/opDone",
+      },
+      "opsBackups/2030-06-07": {
+        status: "started", completed: false, operationName: "operations/opFail",
+      },
+      "opsBackups/2030-06-08": {status: "completed", completed: true}, // already settled
+    });
+    const alerts = [];
+    const out = await runBackupCompletionCheck({
+      db,
+      dateKeys: ["2030-06-06", "2030-06-07", "2030-06-08"],
+      alert: async (a) => alerts.push(a),
+      getOperation: async (name) => name === "operations/opDone"
+        ? {done: true, metadata: {outputUriPrefix: "gs://b/x"}}
+        : {done: true, error: {message: "export op failed server-side"}},
+    });
+    ok("completion checker settles the two started summaries, skips the settled one",
+      out.checked === 2 && out.completed === 1 && out.failed === 1);
+    ok("a finished operation flips the summary to completed:true",
+      db.store.get("opsBackups/2030-06-06").status === "completed" &&
+      db.store.get("opsBackups/2030-06-06").completed === true);
+    ok("a genuinely failed operation is recorded as failed (post-acceptance)",
+      db.store.get("opsBackups/2030-06-07").status === "failed" &&
+      db.store.get("opsBackups/2030-06-07").completed === false);
+    ok("the post-acceptance failure alerts ops", alerts.length === 1);
+    ok("an already-completed summary is left untouched (idempotent)",
+      db.store.get("opsBackups/2030-06-08").status === "completed");
+  }
+
+  // ── recentUtcDateKeys covers today + yesterday (a 01:30 Lusaka run stamps
+  //    the previous UTC day, so the checker must look back one). ─────────────
+  {
+    const keys = recentUtcDateKeys(new Date("2030-07-01T02:00:00Z"));
+    ok("recentUtcDateKeys returns today + yesterday (UTC)",
+      keys.length === 2 && keys[0] === "2030-07-01" && keys[1] === "2030-06-30");
   }
 
   console.log(`\n─── ${passed} assertions · all passed ───`);
