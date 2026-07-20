@@ -89,12 +89,61 @@ export default function Terms() {
         <li>Unless required by law, we don't refund partially-used subscription periods. Get in touch if you think your situation is exceptional and we'll see what we can do.</li>
       </UL>
 
-      <H2>7. Intellectual property</H2>
+      <H2>7. Intellectual Property</H2>
       <P>
-        The ZedExams brand, the platform code, the curriculum knowledge base we maintain,
-        and the design of the site are owned by us. Our official curriculum content
-        ("CBC-aligned" lessons and exams) is provided for your personal or classroom use;
-        you may not redistribute it commercially without our written permission.
+        The ZedExams name, logo, platform software, website design, user interface,
+        database structure, curriculum mappings and original educational materials created
+        by Zed Technologies Ltd are owned by, or licensed to, us and are protected by
+        applicable intellectual-property laws.
+      </P>
+      <P>
+        ZedExams provides educational tools and materials designed to align with the
+        Zambian national curriculum and relevant examination and assessment requirements.
+        The underlying national curriculum, government syllabi, Ministry of Education
+        materials, Curriculum Development Centre documents, ECZ examination materials,
+        publisher content, trademarks and other third-party materials remain the property
+        of their respective owners.
+      </P>
+      <P>
+        References to the Ministry of Education, the Curriculum Development Centre, the
+        Examinations Council of Zambia, educational publishers or other organisations are
+        made only for identification, curriculum alignment and educational-reference
+        purposes. Such references do not imply official endorsement, accreditation,
+        partnership, sponsorship or affiliation unless confirmed through a written
+        agreement.
+      </P>
+      <P>
+        Subject to these Terms, we grant registered users a limited, personal,
+        non-exclusive, non-transferable and revocable licence to access and use ZedExams
+        proprietary materials for lawful personal, teaching, learning and classroom
+        purposes.
+      </P>
+      <P>Unless we provide written permission, users may not:</P>
+      <UL>
+        <li>Sell, sublicense or commercially redistribute ZedExams proprietary materials;</li>
+        <li>Copy, reproduce or republish substantial parts of the platform or its original content;</li>
+        <li>Remove copyright, attribution, trademark or ownership notices;</li>
+        <li>Reverse-engineer, scrape, extract or reproduce the platform's protected code, databases or curriculum mappings;</li>
+        <li>Present ZedExams materials as their own commercial products; or</li>
+        <li>Use ZedExams branding in a way that suggests endorsement, partnership or affiliation.</li>
+      </UL>
+      <P>
+        Teachers may download, print and share materials generated through their authorised
+        ZedExams account with their learners for legitimate classroom and educational use.
+        This permission does not allow the resale, public commercial distribution or
+        creation of a competing content service using ZedExams proprietary materials.
+      </P>
+      <P>
+        Where a user uploads documents, images, examination papers, textbook extracts or
+        other content, the user confirms that they have the necessary rights or lawful
+        permission to use that material. Users remain responsible for ensuring that uploaded
+        content does not infringe copyright, privacy, confidentiality or other third-party
+        rights.
+      </P>
+      <P>
+        If any material displayed through ZedExams belongs to a third party, ownership
+        remains with that third party. ZedExams may remove, restrict or disable access to
+        content where an intellectual-property concern is reported or reasonably identified.
       </P>
 
       <H2>8. Service availability</H2>
