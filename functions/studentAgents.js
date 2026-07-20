@@ -1,5 +1,6 @@
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("./authGuard");
+const {assertCallableRateLimit} = require("./rateLimit");
 const admin = require("firebase-admin");
 
 const {
@@ -373,6 +374,8 @@ function createGenerateStudyPlan(
     },
     async (request) => {
       await assertVerifiedAuth(request);
+      // B3 / OBS-005: per-user burst cap on this Anthropic study-plan call.
+      await assertCallableRateLimit(request, {action: "generateStudyPlan", userPerMin: 12});
       if (recordAppCheckCallable) {
         recordAppCheckCallable(request, "generateStudyPlan");
       }
