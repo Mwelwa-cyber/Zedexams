@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { metadataFromText, processImportedQuestionBlocks } from './documentQuizParserCore.js'
+import { metadataFromText, processImportedQuestionBlocks, isRunningHeaderFooterLine } from './documentQuizParserCore.js'
 import { richTextToPlainText } from '../../utils/quizRichText.js'
 
 const punctuationInstruction = 'For questions 26-30, each sentence has one punctuation error. Choose the sentence with the correct punctuation.'
@@ -1192,5 +1192,37 @@ function runDuplicateImportTest() {
 }
 
 runDuplicateImportTest()
+
+function runHeaderFooterNoiseTest() {
+  // Unit: the classifier catches page markers + exam-footer slash chains, and
+  // leaves real content (including a bare number-only stem) alone.
+  assert.equal(isRunningHeaderFooterLine('Page 6 of 14'), true)
+  assert.equal(isRunningHeaderFooterLine('Page 12'), true)
+  assert.equal(isRunningHeaderFooterLine('6 of 14'), true)
+  assert.equal(isRunningHeaderFooterLine('PSME/English Language/PRISCA/2026'), true)
+  assert.equal(isRunningHeaderFooterLine('PSLE/English/2025'), true)
+  assert.equal(isRunningHeaderFooterLine('©G7/Mathematics/2023'), true)
+  // Negatives — must NOT be treated as noise.
+  assert.equal(isRunningHeaderFooterLine('26.'), false, 'a number-only stem is not a page marker')
+  assert.equal(isRunningHeaderFooterLine('How many countries are there in Africa?'), false)
+  assert.equal(isRunningHeaderFooterLine('Which of these is a fraction: 1/2 or 3/4 in 2020 terms?'), false)
+
+  // Parse-level: page markers + the running footer must NOT spawn questions or
+  // attach as an explanation. Two real questions survive; the noise is dropped.
+  const blocks = [
+    block('Page 6 of 14'),
+    block('1. Which gas do plants absorb? A. Oxygen B. Carbon dioxide C. Nitrogen D. Helium'),
+    block('PSME/English Language/PRISCA/2026'),
+    block('2. What colour is the sky? A. Blue B. Green C. Red D. Yellow'),
+    block('Page 7 of 14'),
+  ]
+  const { sections, summary } = processImportedQuestionBlocks(blocks, [])
+  assert.equal(summary.questions, 2, `only the two real questions survive, got ${summary.questions}`)
+  const stems = allQuestionsFromSections(sections).map(q => plainRichText(q.text))
+  assert.ok(!stems.some(s => /page \d+ of \d+/i.test(s)), 'no "Page X of Y" question was created')
+  assert.ok(!stems.some(s => /PRISCA/i.test(s)), 'the running footer did not become a question')
+}
+
+runHeaderFooterNoiseTest()
 
 console.log('All documentQuizParserCore tests passed.')

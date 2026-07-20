@@ -118,6 +118,35 @@ test('reconcile snaps mis-read numbers to the declared sequence when counts matc
   assert.deepEqual(result.missing, [], 'nothing missing after a clean snap')
 })
 
+test('reconcile does NOT wipe a mid-paper excerpt the model renumbered from 1', () => {
+  // The real "imported 0 questions" bug: a teacher imports pages 9–12 of a PSLE
+  // paper — Section B "Questions 39–45" — but the vision model renumbered that
+  // excerpt 1..7. The declared range is 39–45, so EVERY question is "out of
+  // range". The old code dropped them all and returned an empty paper. It must
+  // instead keep them and (counts match: 7 read, 7 declared) snap to 39–45.
+  const ranges = [{ start: 39, end: 45 }]
+  const sections = [1, 2, 3, 4, 5, 6, 7].map(n => buildStandalone(n, { text: `ordering item ${n}` }))
+  const result = reconcilePaperNumbering(sections, ranges)
+  assert.equal(result.droppedOutOfRange, 0, 'nothing is dropped when NO number lines up with the range')
+  assert.equal(result.sections.length, 7, 'all seven questions survive (not zero)')
+  assert.equal(result.snapped, true, 'the count matches the declared total → snap realigns the numbers')
+  assert.deepEqual(
+    result.sections.map(s => s.question.sourceQuestionNumber),
+    [39, 40, 41, 42, 43, 44, 45],
+    'the excerpt is realigned to the declared 39–45 sequence',
+  )
+})
+
+test('reconcile still drops a genuine phantom when the numbering DOES line up', () => {
+  // Guard: the anti-wipe change must not weaken the normal case. Here most
+  // numbers are in-range (1–5), so a stray 61 is still a phantom and dropped.
+  const ranges = [{ start: 1, end: 5 }]
+  const sections = [1, 2, 3, 4, 5, 61].map(n => buildStandalone(n))
+  const result = reconcilePaperNumbering(sections, ranges)
+  assert.equal(result.droppedOutOfRange, 1, 'the out-of-range phantom is still removed')
+  assert.deepEqual(result.sections.map(s => s.question.sourceQuestionNumber), [1, 2, 3, 4, 5])
+})
+
 test('reconcile does NOT snap on a partial extraction; it reports the gap', () => {
   const ranges = [{ start: 1, end: 5 }]
   // Only four of five present (3 is missing).

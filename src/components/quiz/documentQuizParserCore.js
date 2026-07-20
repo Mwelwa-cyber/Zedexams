@@ -766,6 +766,29 @@ function looksLikeDocFooter(line) {
   return false
 }
 
+// Running page headers/footers that are NOT content and must never become a
+// question, option or explanation:
+//   • page markers — "Page 6 of 14", "Page 12", "6 of 14"
+//   • exam-footer slash chains ending in a year — "PSME/English Language/PRISCA/2026",
+//     "PSLE/English/2025", "©G7/Mathematics/2023"
+// The raw parser (used when the smart-import pass times out) otherwise turned
+// "Page 6 of 14" into a phantom question and the running footer into an
+// explanation — seen on a Grade-7 English PDF import. Kept deliberately narrow:
+// a bare integer is NOT matched (that is a valid number-only stem like "26."),
+// and the slash-chain rule needs two separators AND a trailing year on a short
+// line, so ordinary question text is never swallowed.
+const PAGE_MARKER_RE = /^page\s+\d{1,4}(?:\s+of\s+\d{1,4})?\.?$/i
+const PAGE_OF_RE = /^\d{1,4}\s+of\s+\d{1,4}$/i
+const FOOTER_SLASHCHAIN_RE = /^(?:©|\(c\)\s*)?[A-Za-z0-9][^?]*\/[^?]*\/[^?]*\b(?:19|20)\d{2}\b\.?$/
+export function isRunningHeaderFooterLine(line) {
+  const text = cleanImportedText(line)
+  if (!text) return false
+  if (PAGE_MARKER_RE.test(text)) return true
+  if (PAGE_OF_RE.test(text)) return true
+  if (text.length <= 60 && FOOTER_SLASHCHAIN_RE.test(text)) return true
+  return false
+}
+
 function isExampleStartLine(line) {
   const text = cleanImportedText(line)
   if (!text) return false
@@ -1366,6 +1389,15 @@ function parseQuestionsFromBlocks(blocks, warnings) {
 
     lines.forEach((line, lineIndex) => {
       const lineAssets = lineIndex === 0 ? (block.assets || []) : []
+      // Drop running page headers/footers outright ("Page 6 of 14", the
+      // "PSME/…/2026" running footer). They are neither questions, options nor
+      // instructions; without this the raw parser spawned a phantom "Page 6 of
+      // 14" question and treated the footer as an explanation. Any figure that
+      // shared the line is preserved via pendingAssets so a diagram is not lost.
+      if (isRunningHeaderFooterLine(line)) {
+        if (lineAssets.length) pendingAssets.push(...lineAssets)
+        return
+      }
       const exampleStart = isExampleStartLine(line)
       if (exampleStart) {
         if (compActive) finalizeSubQuestion()

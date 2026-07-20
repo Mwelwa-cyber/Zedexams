@@ -1081,31 +1081,64 @@ function rawTextFromExtracted(extracted) {
 // the structure the deterministic parser flattens to plain text. The callable
 // is daily-limited server-side, and any failure falls back to the local
 // parser, so the worst case is "no worse than before".
+// Is a smart-import failure worth one retry? Transient failures — the callable
+// riding into its deadline on a long paper, a dropped connection, a slow AI
+// response — usually succeed on a second try; hard failures (daily limit,
+// permission, bad request) fail identically, so retrying just wastes time.
+function isTransientSmartImportError(error) {
+  const code = String(error?.code || '').toLowerCase()
+  if (code) {
+    if (/resource-exhausted|permission-denied|unauthenticated|invalid-argument|failed-precondition|not-found/.test(code)) return false
+    if (/deadline|timeout|internal|unavailable|aborted|cancelled|unknown/.test(code)) return true
+  }
+  const message = String(error?.message || '').toLowerCase()
+  if (/daily limit|usage limit|limit reached|sign in|permission|not allowed/.test(message)) return false
+  // The friendly wrapper for a timed-out callable reads "taking longer than usual".
+  return /taking longer|timed out|timeout|deadline|temporarily|try again|network|connection|unavailable/.test(message)
+}
+
 async function trySmartImport(extracted, file) {
   const documentText = rawTextFromExtracted(extracted)
   if (documentText.length < 120) return null
-  try {
-    const localDraft = (extracted.blocks || [])
-      .slice(0, 60)
-      .map(b => b.text)
-      .filter(Boolean)
-      .join('\n')
-      .slice(0, 8000)
-    const ai = await structureImportedQuiz({
-      fileName: file.name,
-      documentText: documentText.slice(0, 60000),
-      localDraft,
-    })
-    const aiSections = Array.isArray(ai.sections) ? ai.sections : []
-    if (!aiSections.length) return null
-    const localSections = smartSectionsToLocal(aiSections)
-    if (!localSections.length) return null
-    return { sections: localSections, warnings: Array.isArray(ai.warnings) ? ai.warnings : [] }
-  } catch (error) {
-    // Swallow — the caller falls back to local parsing. The warning gets
-    // surfaced so teachers know smart import didn't apply.
-    return { error: error?.message || 'Smart import unavailable' }
+  const localDraft = (extracted.blocks || [])
+    .slice(0, 60)
+    .map(b => b.text)
+    .filter(Boolean)
+    .join('\n')
+    .slice(0, 8000)
+  const payload = {
+    fileName: file.name,
+    documentText: documentText.slice(0, 60000),
+    localDraft,
   }
+
+  // Two attempts. The smart-import callable can ride into its deadline on a long
+  // paper or a slow connection and throw; that used to drop STRAIGHT to the raw
+  // text parser, which mangles punctuation questions (reads option A as the
+  // stem) and turns "Page 6 of 14" into a question. A single retry after a short
+  // pause recovers the common transient timeout so the clean AI structuring
+  // actually applies instead of the ugly fallback.
+  let lastError = null
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const ai = await structureImportedQuiz(payload)
+      const aiSections = Array.isArray(ai.sections) ? ai.sections : []
+      if (!aiSections.length) return null
+      const localSections = smartSectionsToLocal(aiSections)
+      if (!localSections.length) return null
+      return { sections: localSections, warnings: Array.isArray(ai.warnings) ? ai.warnings : [] }
+    } catch (error) {
+      lastError = error
+      if (attempt === 0 && isTransientSmartImportError(error)) {
+        await new Promise(resolve => setTimeout(resolve, 1500))
+        continue
+      }
+      break
+    }
+  }
+  // Swallow — the caller falls back to local parsing. The warning gets surfaced
+  // so teachers know smart import didn't apply.
+  return { error: lastError?.message || 'Smart import unavailable' }
 }
 
 // Scanned (image-only) PDF import. Bypasses the text parser entirely and runs
