@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   computeQuizScore,
   isQuestionCorrect,
+  isAnswerPending,
   isTextAnswerType,
   isNumericType,
   isHotspotType,
@@ -151,8 +152,8 @@ describe('computeQuizScore', () => {
   })
 
   it('returns a zeroed result for an empty or missing question list', () => {
-    expect(computeQuizScore([], {})).toEqual({ score: 0, total: 0, percentage: 0, topicScores: {} })
-    expect(computeQuizScore(undefined, undefined)).toEqual({ score: 0, total: 0, percentage: 0, topicScores: {} })
+    expect(computeQuizScore([], {})).toEqual({ score: 0, total: 0, percentage: 0, topicScores: {}, pending: 0, pendingIds: [] })
+    expect(computeQuizScore(undefined, undefined)).toEqual({ score: 0, total: 0, percentage: 0, topicScores: {}, pending: 0, pendingIds: [] })
   })
 
   it('scores a mixed quiz spanning every supported type', () => {
@@ -187,5 +188,59 @@ describe('computeQuizScore', () => {
     expect(result.score).toBe(2)
     expect(result.total).toBe(2)
     expect(result.percentage).toBe(100)
+  })
+})
+
+// B3/OBS-005 correctness: a text answer the AI grader could not evaluate
+// (burst throttle / provider timeout / AI-budget rejection) is PENDING — it
+// must never be scored as wrong, and a transient failure must never lower the
+// learner's percentage.
+describe('pending (ungraded) text answers are never scored wrong', () => {
+  it('isAnswerPending recognises the pending/ungraded shapes', () => {
+    expect(isAnswerPending({ pending: true })).toBe(true)
+    expect(isAnswerPending({ graded: false })).toBe(true)
+    expect(isAnswerPending({ correct: true })).toBe(false)
+    expect(isAnswerPending({ correct: false })).toBe(false)
+    expect(isAnswerPending(undefined)).toBe(false)
+  })
+
+  it('a CORRECT answer that failed to grade (throttle) is pending, not wrong', () => {
+    const questions = [
+      { id: 'mcq', type: 'mcq', marks: 1, correctAnswer: 1 },
+      { id: 'ess', type: 'essay', marks: 3, topic: 'Writing' },
+    ]
+    // The essay was genuinely correct but the AI grader was throttled → pending.
+    const result = computeQuizScore(questions, { mcq: 1, ess: { text: 'a great essay', pending: true } })
+    // The essay is EXCLUDED from the denominator — not scored 0/3.
+    expect(result.score).toBe(1)
+    expect(result.total).toBe(1) // only the MCQ counts
+    expect(result.percentage).toBe(100) // NOT 25 (1/4) — the throttle can't lower it
+    expect(result.pending).toBe(1)
+    expect(result.pendingIds).toEqual(['ess'])
+    expect(result.topicScores.Writing).toBeUndefined() // pending topic not rolled up
+  })
+
+  it('graded:false (provider failure) is treated the same as pending', () => {
+    const questions = [{ id: 'sa', type: 'short_answer', marks: 2 }]
+    const result = computeQuizScore(questions, { sa: { text: 'ans', graded: false } })
+    expect(result.score).toBe(0)
+    expect(result.total).toBe(0) // excluded, not counted wrong
+    expect(result.pending).toBe(1)
+  })
+
+  it('a genuinely evaluated wrong answer still scores 0 (graded, not pending)', () => {
+    const questions = [{ id: 'sa', type: 'short_answer', marks: 2 }]
+    const result = computeQuizScore(questions, { sa: { text: 'wrong', correct: false } })
+    expect(result.score).toBe(0)
+    expect(result.total).toBe(2) // counted — it WAS evaluated
+    expect(result.pending).toBe(0)
+  })
+
+  it('a genuinely evaluated correct answer still scores full marks', () => {
+    const questions = [{ id: 'sa', type: 'short_answer', marks: 2 }]
+    const result = computeQuizScore(questions, { sa: { text: 'right', correct: true } })
+    expect(result.score).toBe(2)
+    expect(result.total).toBe(2)
+    expect(result.pending).toBe(0)
   })
 })

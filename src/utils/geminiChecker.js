@@ -1,5 +1,6 @@
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app from '../firebase/config'
+import { mapAiError } from './aiErrorTaxonomy.js'
 
 const functions = getFunctions(app, 'us-central1')
 const checkShortAnswer = httpsCallable(functions, 'checkShortAnswer')
@@ -84,7 +85,8 @@ export async function checkAnswerWithAI({ question, correctAnswer, studentAnswer
   const cleanStudentAnswer = String(studentAnswer ?? '').trim()
 
   if (!cleanStudentAnswer) {
-    return { correct: false, feedback: 'You did not enter an answer.' }
+    // A genuine evaluation: an empty response is wrong.
+    return { graded: true, correct: false, feedback: 'You did not enter an answer.' }
   }
 
   if (!cleanQuestion) {
@@ -92,7 +94,7 @@ export async function checkAnswerWithAI({ question, correctAnswer, studentAnswer
   }
 
   const quickResult = localMark({ correctAnswer: cleanAnswer, studentAnswer: cleanStudentAnswer })
-  if (quickResult) return quickResult
+  if (quickResult) return { graded: true, ...quickResult }
 
   let response
   try {
@@ -104,16 +106,28 @@ export async function checkAnswerWithAI({ question, correctAnswer, studentAnswer
       grade,
     }), AI_MARKING_TIMEOUT_MS)
   } catch (error) {
-    if (cleanAnswer) {
-      return { correct: false, feedback: `Review the expected answer: ${cleanAnswer}.` }
+    // The AI grader could NOT evaluate this answer (burst throttle, provider
+    // timeout, or AI-budget rejection). It was NEVER marked — so we return an
+    // explicit PENDING/ungraded verdict, NEVER a fabricated `correct: false`.
+    // Scoring excludes pending answers so a transient failure can't lower the
+    // learner's mark (see quizScoring.isAnswerPending / computeQuizScore). The
+    // taxonomy distinguishes a retryable burst throttle from a terminal daily/
+    // monthly limit for the message.
+    const mapped = mapAiError(error)
+    return {
+      graded: false,
+      pending: true,
+      correct: null,
+      errorReason: mapped.reason,
+      errorCategory: mapped.category,
+      retryable: mapped.retryable,
+      retryAfterSec: mapped.retryAfterSec,
+      feedback: mapped.userMessage,
     }
-    // No expected answer was provided AND the AI call failed. There is
-    // nothing we can compare against, so fail closed rather than crashing
-    // the quiz/exam runner.
-    return { correct: false, feedback: 'Could not check this answer right now. Please try again.' }
   }
 
   return {
+    graded: true,
     correct: Boolean(response.data?.correct),
     feedback: String(response.data?.feedback || 'Answer checked.'),
   }

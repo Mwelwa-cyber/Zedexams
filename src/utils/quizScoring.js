@@ -31,6 +31,18 @@ export function isTextAnswerType(type) {
   return type === 'short_answer' || type === 'diagram' || type === 'essay'
 }
 
+/**
+ * A text answer the AI grader could NOT evaluate (burst throttle, provider
+ * timeout, or AI-budget rejection) is PENDING — it was never marked. It must
+ * never be scored as wrong (B3/OBS-005 correctness fix): geminiChecker returns
+ * `{ graded: false, pending: true }` in that case instead of a fabricated
+ * `correct: false`. A genuine evaluation always carries `correct` (and, going
+ * forward, `graded: true`).
+ */
+export function isAnswerPending(answer) {
+  return answer?.pending === true || answer?.graded === false
+}
+
 export function isNumericType(type) {
   return type === 'numeric'
 }
@@ -119,10 +131,25 @@ export function isQuestionCorrect(question, answer) {
 export function computeQuizScore(questions, answers) {
   let score = 0
   let total = 0
+  let pending = 0
   const topicScores = {}
+  const pendingIds = []
 
   for (const question of questions || []) {
-    const correct = isQuestionCorrect(question, answers?.[question.id])
+    const answer = answers?.[question.id]
+
+    // A text answer the AI grader could not evaluate is PENDING — it was never
+    // marked, so it must NOT be scored as wrong (that would let a transient
+    // throttle/timeout lower the learner's percentage). Exclude it from the
+    // graded denominator entirely; the result carries `pending`/`pendingIds`
+    // so the UI can flag "awaiting marking" and a later re-grade can settle it.
+    if (isTextAnswerType(question.type) && isAnswerPending(answer)) {
+      pending += 1
+      pendingIds.push(question.id)
+      continue
+    }
+
+    const correct = isQuestionCorrect(question, answer)
     const marks = question.marks || 1
     total += marks
     if (correct) score += marks
@@ -134,5 +161,5 @@ export function computeQuizScore(questions, answers) {
   }
 
   const percentage = total > 0 ? Math.round((score / total) * 100) : 0
-  return { score, total, percentage, topicScores }
+  return { score, total, percentage, topicScores, pending, pendingIds }
 }

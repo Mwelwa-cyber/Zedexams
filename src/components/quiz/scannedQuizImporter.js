@@ -28,6 +28,7 @@ import { importMarkupToRichHtml, importMarkupToOptionHtml, hasImportMarkup } fro
 import { cleanDiagramSource, isDiagramCleanSupported } from '../../utils/diagramClean.js'
 import { enhanceCanvasInPlace } from '../../utils/imageEnhance.js'
 import { collectDeclaredRanges, reconcilePaperNumbering, assignPartsFromRanges } from './pastPaperParts.js'
+import { mapAiError } from '../../utils/aiErrorTaxonomy.js'
 
 // How detected diagrams are handled when converting a scanned paper. The
 // DEFAULT is 'keep' — many Zambian assessment questions depend on their figure,
@@ -172,8 +173,16 @@ export function chunkPages(pages = [], size = SCANNED_BATCH_SIZE, overlap = SCAN
  */
 export function isRetryableImportError(error) {
   const code = String(error?.code || '').toLowerCase()
+  // resource-exhausted is ambiguous: a SHORT-TERM burst throttle is retryable
+  // (the scanned import legitimately fires ~40 calls; the server cap is set for
+  // that, and a throttle should pace-and-retry, never drop pages), whereas a
+  // DAILY-quota / MONTHLY-budget exhaustion is terminal. The backend now attaches
+  // a structured reason (functions/aiErrorReasons.js) so we can tell them apart.
+  if (code.includes('resource-exhausted')) {
+    return mapAiError(error).retryable // burst → true; daily/budget → false
+  }
   if (code) {
-    if (/resource-exhausted|permission-denied|unauthenticated|invalid-argument|failed-precondition|not-found/.test(code)) {
+    if (/permission-denied|unauthenticated|invalid-argument|failed-precondition|not-found/.test(code)) {
       return false
     }
     if (/timeout|deadline|internal|unavailable|aborted|cancelled|unknown|network/.test(code)) {

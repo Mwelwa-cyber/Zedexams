@@ -1519,6 +1519,7 @@ exports.explainAnswer = onCall(
   },
   async (request) => {
     await assertVerifiedAuth(request);
+    await assertCallableRateLimit(request, {action: "explainAnswer", userPerMin: 15});
     recordAppCheckCallable(request, "explainAnswer");
 
     const question = cleanAiString(request.data?.question, LIMITS.question);
@@ -1639,6 +1640,7 @@ exports.editQuizQuestion = onCall(
   },
   async (request) => {
     await assertVerifiedAuth(request);
+    await assertCallableRateLimit(request, {action: "editQuizQuestion", userPerMin: 15});
     recordAppCheckCallable(request, "editQuizQuestion");
 
     const action = cleanAiString(request.data?.action, 30);
@@ -1705,6 +1707,7 @@ exports.generateQuizQuestions = onCall(
   },
   async (request) => {
     await assertVerifiedAuth(request);
+    await assertCallableRateLimit(request, {action: "generateQuizQuestions", userPerMin: 8});
     recordAppCheckCallable(request, "generateQuizQuestions");
 
     const role = await getUserRole(request.auth.uid);
@@ -2024,7 +2027,7 @@ exports.structureScannedQuiz = onCall(
   },
   async (request) => {
     await assertVerifiedAuth(request);
-    await assertCallableRateLimit(request, {action: "structureScannedQuiz", userPerMin: 8});
+    await assertCallableRateLimit(request, {action: "structureScannedQuiz", userPerMin: 40});
     recordAppCheckCallable(request, "structureScannedQuiz");
 
     const role = await getUserRole(request.auth.uid);
@@ -2076,6 +2079,7 @@ exports.structureImportedNote = onCall(
   },
   async (request) => {
     await assertVerifiedAuth(request);
+    await assertCallableRateLimit(request, {action: "structureImportedNote", userPerMin: 8});
     recordAppCheckCallable(request, "structureImportedNote");
     const role = await getUserRole(request.auth.uid);
     if (!isStaffRole(role)) {
@@ -2157,6 +2161,7 @@ exports.suggestQuizAnswers = onCall(
   },
   async (request) => {
     await assertVerifiedAuth(request);
+    await assertCallableRateLimit(request, {action: "suggestQuizAnswers", userPerMin: 6});
     recordAppCheckCallable(request, "suggestQuizAnswers");
 
     const role = await getUserRole(request.auth.uid);
@@ -2506,6 +2511,7 @@ exports.nameBankPictures = onCall(
     memory: "1GiB"},
   async (request) => {
     await assertVerifiedAuth(request);
+    await assertCallableRateLimit(request, {action: "nameBankPictures", userPerMin: 6});
     const role = await getUserRole(request.auth.uid);
     if (role !== "admin" && role !== "superAdmin") {
       throw new HttpsError(
@@ -2766,6 +2772,7 @@ exports.classifyQuestionGrades = onCall(
     {secrets: [anthropicApiKey], timeoutSeconds: 120, memory: "256MiB"},
     async (request) => {
       const uid = await assertVerifiedAuth(request, "Please sign in.");
+      await assertCallableRateLimit(request, {action: "classifyQuestionGrades", userPerMin: 6});
       const role = await getUserRole(uid);
       if (role !== "admin" && role !== "superAdmin") {
         throw new HttpsError("permission-denied", "Admin only.");
@@ -2849,6 +2856,7 @@ exports.retryAgentJob = onCall(
   },
   async (request) => {
     await assertVerifiedAuth(request);
+    await assertCallableRateLimit(request, {action: "retryAgentJob", userPerMin: 10});
     recordAppCheckCallable(request, "retryAgentJob");
 
     const role = await getUserRole(request.auth.uid);

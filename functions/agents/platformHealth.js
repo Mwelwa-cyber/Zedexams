@@ -13,6 +13,7 @@
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
+const {assertCallableRateLimit} = require("../rateLimit");
 const {defineSecret} = require("firebase-functions/params");
 const admin = require("firebase-admin");
 
@@ -194,6 +195,7 @@ function createGetPlatformHealth(anthropicApiKeySecret) {
     enforceAppCheck: shouldEnforceAppCheck("getPlatformHealth"),
   }, async (request) => {
     await requireAdmin(request);
+    await assertCallableRateLimit(request, {action: "getPlatformHealth", userPerMin: 30});
     const [anthropic, agentControl, kb, recentJobs] = await Promise.all([
       pingAnthropic(anthropicApiKeySecret),
       readAgentControl(),

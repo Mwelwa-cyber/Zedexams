@@ -66,15 +66,32 @@
   set — two endpoints hard-enforce attestation; the rest stay observe-only. Widening is an **ops
   decision** gated on the `/admin/app-check` dashboard (do not blind-widen); global `APPCHECK_ENFORCE`
   still waits on Android Play Integrity registration.
-- **OBS-005 — burst caps ADDED across ALL AI callables (this work):** every teacher-tool generator
-  (14) calls `assertGeneratorRateLimit`, AND the remaining AI callables now carry a per-user cap —
-  `checkShortAnswer`/`verifyQuiz`/`generateNoteInsights`/`generateNoteSmart`/`structureImportedQuiz`/
-  `structureScannedQuiz`/`ocrNotePages` (index.js) + `generateStudyPlan` (studentAgents.js). Together
-  with the pre-existing aiChat/stream/tts/imageProxy coverage, **every provider-calling surface now has
-  a burst cap.** Closes the "burst up to the daily wall" gap. Tests: `generatorRateLimitCore.test.js`
-  (10) + the shared `rateLimitCore.test.js`.
-- **Remaining (verify/ops, not code):** confirm the budget env is live in the deployed runtime; widen
-  App Check labels per the `/admin/app-check` dashboard. **Effort:** Low.
+- **OBS-005 — Implemented, pending runtime verification (corrective PR).** An earlier pass
+  over-claimed "complete coverage"; a repository-wide provider-call **inventory**
+  (`functions/aiProviderCallInventory.js`) found **21 provider-backed callables still uncapped**
+  (incl. `explainAnswer`, `editQuizQuestion`, `generateQuizQuestions`, `checkVisualSafety`,
+  `reviseQuestion`, `suggestAnswer`/`suggestQuizAnswers`, and more). All are now wired, and a **CI
+  coverage guard** (`aiProviderCallInventory.test.js`, 51 surfaces) fails if any provider-backed
+  endpoint loses its limiter. Plus:
+  - **Structured error taxonomy** (`functions/aiErrorReasons.js` + `src/utils/aiErrorTaxonomy.js`):
+    burst/daily/monthly now carry a `details.reason` so the client shows "try again in Ns" (retryable)
+    vs "try tomorrow" (terminal) — previously all bare `resource-exhausted`.
+  - **Learner-scoring correctness fix:** a throttle/timeout could mark a *correct* essay/short-answer
+    **wrong** (`geminiChecker` laundered the error into `correct:false`). Now the grader returns an
+    explicit **pending** state and `computeQuizScore` excludes it — a transient failure can never lower
+    a learner's mark. (`geminiChecker.js`, `quizScoring.js`, `QuizRunnerV2.jsx`.)
+  - **Scanned-import regression fix:** the 8/min cap dropped ~96 pages of a 120-page paper; raised to
+    40/min and the client now treats a burst throttle as **retryable** (daily/budget terminal) instead
+    of dropping pages.
+  - **Fail-open monitoring:** a degraded limiter emits a structured `rate_limit_degraded` log (ops
+    alertable); the hard monthly-budget reservation gate is never bypassed.
+  - Tests: `aiProviderCallInventory` (51), `aiErrorTaxonomy` (15), `rateLimit` taxonomy (7),
+    `aiErrorReasons` (6), `quizScoring.spec` pending cases, `scannedQuizImporter` (89), `generatorRateLimitCore` (10).
+- **B3 status: substantially implemented, not closed.** Code-complete for AI-001 (budget armed),
+  SEC-001 (canary armed), and OBS-005 (full burst coverage + inventory guard + the correctness fixes).
+  **Remaining (runtime/ops, not code):** confirm the budget env is live in the deployed runtime; widen
+  App Check labels per `/admin/app-check`; verify the scanned-import + short-answer flows on a real
+  deploy. **Effort:** Low.
 
 ### B4 · CICD-001 — Untested security rules can merge & deploy
 - **Why a blocker:** "deployment of untested security rules." The behavioural rules-emulator and build

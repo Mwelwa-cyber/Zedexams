@@ -24,6 +24,7 @@
  */
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertCallableRateLimit} = require("../rateLimit");
 const {assertVerifiedAuth} = require("../authGuard");
 
 const {
@@ -84,6 +85,7 @@ function createReviseQuestion(anthropicApiKeySecret) {
     {secrets: [anthropicApiKeySecret], timeoutSeconds: 45, memory: "256MiB"},
     async (request) => {
       const uid = await assertVerifiedAuth(request, "Please sign in.");
+      await assertCallableRateLimit(request, {action: "reviseQuestion", userPerMin: 15});
       const role = await getUserRole(uid);
       if (!isStaffRole(role)) {
         throw new HttpsError(

@@ -37,6 +37,7 @@
  */
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {assertCallableRateLimit} = require("../rateLimit");
 const {assertVerifiedAuth} = require("../authGuard");
 const admin = require("firebase-admin");
 
@@ -101,6 +102,7 @@ function createUploadCurriculumModule(openaiApiKeySecret) {
     enforceAppCheck: shouldEnforceAppCheck("uploadCurriculumModule"),
   }, async (request) => {
     const uid = await assertVerifiedAuth(request);
+    await assertCallableRateLimit(request, {action: "uploadCurriculumModule", userPerMin: 6});
     const role = await getUserRole(uid);
     if (role !== "admin") {
       throw new HttpsError("permission-denied", "Admins only.");

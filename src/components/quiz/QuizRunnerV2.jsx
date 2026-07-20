@@ -560,12 +560,23 @@ export default function QuizRunnerV2() {
         grade: quiz?.grade ?? '',
       })
       setAiResults(current => ({ ...current, [questionId]: result }))
-      setAnswers(current => ({ ...current, [questionId]: { text: typedAnswer, correct: result.correct } }))
-      if (mode === 'practice') {
-        setRevealed(current => ({ ...current, [questionId]: true }))
-        setFeedbackType(result.correct ? 'correct' : 'wrong')
-        setTimeout(() => setFeedbackType(null), 1300)
-        setPakoTip({ visible: true, text: result.feedback, isCorrect: result.correct, questionId })
+      if (result.graded === false) {
+        // The AI grader could not evaluate this answer (burst throttle /
+        // provider timeout / AI-budget). Save the response as PENDING — never
+        // as wrong — so scoring excludes it and a transient failure can't lower
+        // the learner's mark. Show the taxonomy message (a retryable throttle
+        // says "try again in Ns"; a daily limit says "tomorrow").
+        setAnswers(current => ({ ...current, [questionId]: { text: typedAnswer, pending: true } }))
+        setActionError(result.feedback ||
+          'Your answer is saved. We couldn’t mark it right now — that’s okay, keep going.')
+      } else {
+        setAnswers(current => ({ ...current, [questionId]: { text: typedAnswer, correct: result.correct } }))
+        if (mode === 'practice') {
+          setRevealed(current => ({ ...current, [questionId]: true }))
+          setFeedbackType(result.correct ? 'correct' : 'wrong')
+          setTimeout(() => setFeedbackType(null), 1300)
+          setPakoTip({ visible: true, text: result.feedback, isCorrect: result.correct, questionId })
+        }
       }
     } catch (error) {
       console.error('AI check failed:', error)

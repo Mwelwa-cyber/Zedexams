@@ -80,8 +80,15 @@ A production failure often cannot be traced UI → function → data cleanly.
   `assertCallableRateLimit` — `checkShortAnswer` (30/min), `verifyQuiz` (15), `generateNoteInsights`
   (15), `generateNoteSmart` (12), `structureImportedQuiz` (8), `structureScannedQuiz` (8),
   `ocrNotePages` (8) in `index.js`, and `generateStudyPlan` (12) in `studentAgents.js`.
-- **Coverage now:** every Anthropic/OpenAI/Gemini-calling callable + the aiChat/stream/tts/imageProxy
-  HTTP surfaces have a burst cap. Remaining unthrottled callables are non-AI (cheap) CRUD.
+- **Corrective follow-up (this PR):** an earlier "complete coverage" claim was unverified. A
+  repo-wide inventory (`functions/aiProviderCallInventory.js`) found **21 more provider-backed
+  callables uncapped** — all now wired, guarded by a **CI coverage test** (51 surfaces;
+  `aiProviderCallInventory.test.js`). Added a **structured error taxonomy** (burst vs daily vs
+  budget), fixed a **learner-scoring correctness bug** (a throttle could mark a correct answer wrong —
+  now pending, never wrong), fixed a **scanned-import regression** (cap raised 8→40; burst throttle
+  now retryable, never drops pages), and added **fail-open monitoring** (`rate_limit_degraded` log;
+  the hard budget gate is never bypassed).
+- **Coverage now:** every Anthropic/OpenAI/Gemini/TTS/vision surface has a burst cap, verified in CI.
 - **Complexity:** Low (limiter + helper exist).
 
 ### OBS-006 — No trigger retry / dead-letter handling

@@ -1,5 +1,6 @@
 const {HttpsError} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
+const {AI_ERROR_REASON} = require("./aiErrorReasons");
 const {resolveCustomSystemPrompt} = require("./aiPromptPolicy");
 const {anthropicFetch} = require("./anthropicFetch");
 
@@ -129,6 +130,7 @@ async function assertDailyLimit(uid, role, action) {
       throw new HttpsError(
         "resource-exhausted",
         "Daily AI limit reached. Please try again tomorrow.",
+        {reason: AI_ERROR_REASON.DAILY_QUOTA_EXHAUSTED},
       );
     }
     const actions = data.actions || {};
@@ -190,7 +192,8 @@ async function beginBudgetGate({model, maxTokens, provider, track}) {
     provider,
   });
   if (!gate.allowed) {
-    throw new HttpsError("resource-exhausted", MONTHLY_BUDGET_MESSAGE);
+    throw new HttpsError("resource-exhausted", MONTHLY_BUDGET_MESSAGE,
+        {reason: AI_ERROR_REASON.MONTHLY_BUDGET_EXHAUSTED});
   }
   return gate;
 }

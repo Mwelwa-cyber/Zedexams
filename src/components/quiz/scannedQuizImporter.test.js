@@ -1099,12 +1099,27 @@ test('isRetryableImportError: timeouts/deadlines retry, hard failures do not', (
   assert.equal(isRetryableImportError(Object.assign(new Error('slow'), { code: 'timeout' })), true)
   assert.equal(isRetryableImportError(Object.assign(new Error('x'), { code: 'functions/deadline-exceeded' })), true)
   assert.equal(isRetryableImportError(Object.assign(new Error('x'), { code: 'functions/internal' })), true)
-  assert.equal(isRetryableImportError(Object.assign(new Error('x'), { code: 'functions/resource-exhausted' })), false)
   assert.equal(isRetryableImportError(Object.assign(new Error('x'), { code: 'functions/permission-denied' })), false)
   assert.equal(isRetryableImportError(Object.assign(new Error('x'), { code: 'functions/failed-precondition' })), false)
   // Message-only errors (the friendly-error wrapper strips codes on old paths):
   assert.equal(isRetryableImportError(new Error('Daily AI limit reached. Please try again tomorrow.')), false)
   assert.equal(isRetryableImportError(new Error('Reading the scanned pages is taking too long.')), true)
+})
+
+// B3/OBS-005 regression fix: a scanned import fires ~40 structureScannedQuiz
+// calls, so a resource-exhausted BURST throttle must be RETRYABLE (paced +
+// retried, never dropped) — but a DAILY-quota / MONTHLY-budget exhaustion must
+// stay terminal. The two are distinguished by the backend's structured reason.
+test('isRetryableImportError: burst throttle retries, daily/budget quota does not', () => {
+  const err = (details) => Object.assign(new Error('x'), { code: 'functions/resource-exhausted', details })
+  // Explicit burst throttle → retryable.
+  assert.equal(isRetryableImportError(err({ reason: 'burst_rate_limit', retryAfterSec: 30 })), true)
+  // Bare resource-exhausted (older backend / no details) → treated as burst → retryable.
+  assert.equal(isRetryableImportError(Object.assign(new Error('x'), { code: 'functions/resource-exhausted' })), true)
+  // Daily quota exhaustion → terminal, NOT retried.
+  assert.equal(isRetryableImportError(err({ reason: 'daily_quota_exhausted' })), false)
+  // Monthly budget exhaustion → terminal.
+  assert.equal(isRetryableImportError(err({ reason: 'monthly_budget_exhausted' })), false)
 })
 
 await testAsync('readBatchResilient splits a timed-out batch into per-page reads', async () => {
@@ -1145,7 +1160,10 @@ await testAsync('readBatchResilient does NOT split on a hard failure (daily limi
   let calls = 0
   const readPages = async () => {
     calls += 1
-    throw Object.assign(new Error('Daily AI limit reached.'), { code: 'functions/resource-exhausted' })
+    // Daily-quota exhaustion carries the structured reason → genuinely terminal
+    // (a bare burst throttle, by contrast, is now retryable and DOES split).
+    throw Object.assign(new Error('Daily AI limit reached.'),
+      { code: 'functions/resource-exhausted', details: { reason: 'daily_quota_exhausted' } })
   }
   const { results, failedPages, errors } = await readBatchResilient(pages, readPages)
   assert.equal(calls, 1, 'a non-retryable failure must not trigger per-page retries')
