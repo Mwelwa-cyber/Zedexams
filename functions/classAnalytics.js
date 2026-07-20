@@ -120,6 +120,7 @@ const getClassStats = onCall({
       : [];
 
   let totalAttempts = 0;
+  let provisionalAttempts = 0;
   let percentageSum = 0;
   let percentageCount = 0;
   const subjectBuckets = new Map(); // subject → { count, sum }
@@ -131,6 +132,24 @@ const getClassStats = onCall({
     const completedAtMs = r.completedAt?.toMillis ? r.completedAt.toMillis() : 0;
     if (completedAtMs >= sinceActiveMs) activeLearners.add(r.userId);
 
+    // The learner DID complete the quiz, so a provisional attempt still counts
+    // toward attempt/active/assignment-completion totals.
+    if (r.quizId && learnerSet.has(r.userId)) {
+      const set = learnersByQuizId.get(r.quizId) || new Set();
+      set.add(r.userId);
+      learnersByQuizId.set(r.quizId, set);
+    }
+
+    // B3/OBS-005 Gate 1: a PROVISIONAL result (a text answer still awaiting AI
+    // marking at submit) carries a partial `percentage` that is not the
+    // learner's real mark — 8/8 graded with 2 pending reads as 100%. It must
+    // NOT feed the class average or subject breakdown; a later re-grade settles
+    // it to final and it counts then. Attempt/completion above still count it.
+    if (r.gradingStatus === "pending" || r.scoreStatus === "provisional") {
+      provisionalAttempts += 1;
+      continue;
+    }
+
     if (typeof r.percentage === "number" && Number.isFinite(r.percentage)) {
       percentageSum += r.percentage;
       percentageCount += 1;
@@ -141,12 +160,6 @@ const getClassStats = onCall({
       b.count += 1;
       if (typeof r.percentage === "number") b.sum += r.percentage;
       subjectBuckets.set(r.subject, b);
-    }
-
-    if (r.quizId && learnerSet.has(r.userId)) {
-      const set = learnersByQuizId.get(r.quizId) || new Set();
-      set.add(r.userId);
-      learnersByQuizId.set(r.quizId, set);
     }
   }
 
@@ -184,6 +197,9 @@ const getClassStats = onCall({
     totalLearners: learners.length,
     summary: {
       totalAttempts,
+      // Attempts still awaiting AI marking — counted as attempts but excluded
+      // from averagePercentage so a partial mark can't skew the class average.
+      provisionalAttempts,
       activeLearners7d: activeLearners.size,
       averagePercentage: percentageCount > 0
           ? Math.round(percentageSum / percentageCount)

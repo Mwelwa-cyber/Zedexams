@@ -82,13 +82,22 @@ A production failure often cannot be traced UI → function → data cleanly.
   `ocrNotePages` (8) in `index.js`, and `generateStudyPlan` (12) in `studentAgents.js`.
 - **Corrective follow-up (this PR):** an earlier "complete coverage" claim was unverified. A
   repo-wide inventory (`functions/aiProviderCallInventory.js`) found **21 more provider-backed
-  callables uncapped** — all now wired, guarded by a **CI coverage test** (51 surfaces;
-  `aiProviderCallInventory.test.js`). Added a **structured error taxonomy** (burst vs daily vs
-  budget), fixed a **learner-scoring correctness bug** (a throttle could mark a correct answer wrong —
-  now pending, never wrong), fixed a **scanned-import regression** (cap raised 8→40; burst throttle
-  now retryable, never drops pages), and added **fail-open monitoring** (`rate_limit_degraded` log;
-  the hard budget gate is never bypassed).
-- **Coverage now:** every Anthropic/OpenAI/Gemini/TTS/vision surface has a burst cap, verified in CI.
+  callables uncapped** — all now wired. The coverage test now **auto-discovers** the deployed surface
+  (`functions/aiEndpointDiscovery.js`: parses every `exports.*` in `index.js`, tags kind + provider
+  secret) and **fails on any unclassified provider-backed callable/HTTP endpoint or stale inventory
+  row** — a substring check over a hand-listed set alone was insufficient. Auto-discovery immediately
+  caught **2 surfaces the manual list missed** (`runDawnBriefing` → now rate-limited; `apiWhatsAppWebhook`
+  → documented exempt). Also: a **structured error taxonomy** (burst vs daily vs budget); a
+  **learner-scoring correctness + provisional-persistence fix** (a throttle could mark a correct answer
+  wrong — now **pending**, the attempt persists as **provisional** with a null `finalScore`, durably,
+  so it never counts as settled downstream); a **scanned-import regression fix** (cap 8→40 with safety
+  from the bounded retry pipeline + a `submitted = processed + failed` page-accounting invariant).
+- **Degraded-limit telemetry implemented; operational alert verification pending.** A jammed limiter
+  emits a structured `rate_limit_degraded` log (scope-tagged) that an ops alert **can** be built on —
+  wiring that alert channel is a runtime/ops follow-up (pairs with OBS-004), not code done here. The
+  hard monthly-budget reservation gate is never bypassed, so a degraded limiter can't exhaust the wallet.
+- **Coverage now:** every Anthropic/OpenAI/Gemini/TTS/vision callable/HTTP surface has a burst cap,
+  verified in CI by auto-discovery (173 exports scanned; 50 provider-backed callable/HTTP classified).
 - **Complexity:** Low (limiter + helper exist).
 
 ### OBS-006 — No trigger retry / dead-letter handling

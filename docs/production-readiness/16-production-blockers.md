@@ -79,14 +79,38 @@
   - **Learner-scoring correctness fix:** a throttle/timeout could mark a *correct* essay/short-answer
     **wrong** (`geminiChecker` laundered the error into `correct:false`). Now the grader returns an
     explicit **pending** state and `computeQuizScore` excludes it — a transient failure can never lower
-    a learner's mark. (`geminiChecker.js`, `quizScoring.js`, `QuizRunnerV2.jsx`.)
+    a learner's mark. **The attempt is then persisted as PROVISIONAL** (`gradingStatus: 'pending'`,
+    `scoreStatus: 'provisional'`, `pendingQuestionIds`, `finalScore: null`) so a partial percentage
+    (8/8 graded with 2 pending reads as 100%) is never mistaken for the settled mark by any downstream
+    consumer — class analytics excludes it, and the results screen shows an honest "not final yet"
+    banner. The pending state is **durable** (localStorage session pre-submit + the Firestore result
+    doc post-submit), never trapped in React memory, so it survives refresh / close / another device;
+    the `catch` path in `QuizRunnerV2` also marks an attempted-but-failed marking pending, closing the
+    last "unmarked → scored wrong" hole. (`geminiChecker.js`, `quizScoring.js`, `schemas/result.js`,
+    `classAnalytics.js`, `QuizRunnerV2.jsx`, `QuizResultsV2.jsx`.)
   - **Scanned-import regression fix:** the 8/min cap dropped ~96 pages of a 120-page paper; raised to
     40/min and the client now treats a burst throttle as **retryable** (daily/budget terminal) instead
-    of dropping pages.
-  - **Fail-open monitoring:** a degraded limiter emits a structured `rate_limit_degraded` log (ops
-    alertable); the hard monthly-budget reservation gate is never bypassed.
-  - Tests: `aiProviderCallInventory` (51), `aiErrorTaxonomy` (15), `rateLimit` taxonomy (7),
-    `aiErrorReasons` (6), `quizScoring.spec` pending cases, `scannedQuizImporter` (89), `generatorRateLimitCore` (10).
+    of dropping pages. Safety comes from the **retry pipeline**, not the number 40: bounded recovery
+    rounds (`SCANNED_RECOVERY_ROUNDS`), stable page-number keys, per-page split-and-retry, dedupe on
+    merge, and a `readOkPages`/`unreadPages` **partition** so failed pages surface as an explicit
+    named-page warning — the import can never report clean success with pages missing, and a daily/budget
+    cap mid-run keeps the partial result rather than discarding it. Invariant asserted:
+    `submitted = processed + failed` (`scannedQuizImporter.test.js`).
+  - **Degraded-limit telemetry implemented; operational alert verification pending.** A degraded limiter
+    (Firestore contention / outage) emits a structured `rate_limit_degraded` log carrying the scope — an
+    ops alert can be built on it, but wiring that alert channel is a runtime/ops follow-up, not done here.
+    The hard monthly-budget reservation gate is never bypassed, so a degraded limiter cannot exhaust the
+    wallet on its own.
+  - **Inventory guard now AUTO-DISCOVERS the surface** (Gate 3): `aiEndpointDiscovery.js` parses every
+    `exports.*` in `functions/index.js`, tags each with its Cloud Function kind + whether it binds a
+    provider secret, and the guard **fails on any provider-backed callable/HTTP endpoint that is not
+    classified** (LIMITED or EXEMPT-with-reason) — not just on a missing token from a hand-listed row.
+    Running it found **2 endpoints the manual list missed** (`runDawnBriefing`, now rate-limited;
+    `apiWhatsAppWebhook`, documented-exempt). 173 deployed exports discovered; 50 provider-backed
+    callable/HTTP surfaces all classified.
+  - Tests: `aiProviderCallInventory` (auto-discovery, 57 checks), `aiEndpointDiscovery` (9),
+    `aiErrorTaxonomy` (15), `rateLimit` taxonomy (7), `aiErrorReasons` (6), `quizGradingStatus` (12),
+    `quizScoring.spec` provisional cases, `scannedQuizImporter` (90), `generatorRateLimitCore` (10).
 - **B3 status: substantially implemented, not closed.** Code-complete for AI-001 (budget armed),
   SEC-001 (canary armed), and OBS-005 (full burst coverage + inventory guard + the correctness fixes).
   **Remaining (runtime/ops, not code):** confirm the budget env is live in the deployed runtime; widen

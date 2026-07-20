@@ -28,6 +28,7 @@ import { optionsToReadAloudText, questionToReadAloudText } from '../../utils/rea
 import { saveQuizSession, loadQuizSession, clearQuizSession } from '../../hooks/useQuizPersistence'
 import {
   computeQuizScore,
+  buildResultGrading,
   isTextAnswerType,
   isNumericType,
   isHotspotType,
@@ -580,6 +581,13 @@ export default function QuizRunnerV2() {
       }
     } catch (error) {
       console.error('AI check failed:', error)
+      // Marking was ATTEMPTED and failed unexpectedly (checkAnswerWithAI threw
+      // instead of returning a pending verdict). Mark the answer PENDING — never
+      // leave it as a bare {text} that computeQuizScore would score WRONG. This
+      // is the same correctness guarantee as the graded:false branch above: a
+      // transient failure can never lower a learner's mark. The attempt is then
+      // persisted as provisional (finalScore null) at submit.
+      setAnswers(current => ({ ...current, [questionId]: { text: typedAnswer, pending: true } }))
       if (mode === 'exam') {
         // The raw answer was saved above, so nothing is lost. Don't block the
         // learner or show a scary failure — marking just didn't happen now.
@@ -602,7 +610,16 @@ export default function QuizRunnerV2() {
       // Server-authoritative scoring: computeQuizScore re-grades each question
       // from its persisted answer key (correctAnswer / tolerance / correctRegion)
       // rather than trusting any client-stored `correct` flag.
-      const { score, total, percentage, topicScores } = computeQuizScore(questions, answers)
+      const scoreResult = computeQuizScore(questions, answers)
+      const { score, total, percentage, topicScores } = scoreResult
+      // Gate 1: if any text answer is still awaiting AI marking (a burst
+      // throttle / provider timeout / budget rejection at submit), persist the
+      // attempt as PROVISIONAL — the partial percentage is recorded but
+      // finalScore is null and gradingStatus is 'pending', so nothing
+      // downstream (pass/fail, badges, leaderboards, class analytics) treats
+      // an inflated partial mark as settled. This state lives in the durable
+      // Firestore doc (not just React memory), and a later re-grade settles it.
+      const grading = buildResultGrading(scoreResult)
       const resultId = await saveResult({
         userId: currentUser.uid,
         quizId,
@@ -616,6 +633,7 @@ export default function QuizRunnerV2() {
         answers,
         topicScores,
         timeSpent,
+        ...grading,
       })
       // Clear saved session now that results are safely in Firestore
       clearQuizSession(quizId, currentUser.uid)

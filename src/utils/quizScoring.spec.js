@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   computeQuizScore,
+  buildResultGrading,
+  isProvisionalResult,
   isQuestionCorrect,
   isAnswerPending,
   isTextAnswerType,
@@ -242,5 +244,42 @@ describe('pending (ungraded) text answers are never scored wrong', () => {
     expect(result.score).toBe(2)
     expect(result.total).toBe(2)
     expect(result.pending).toBe(0)
+  })
+})
+
+describe('buildResultGrading — a pending attempt is persisted as provisional', () => {
+  it('marks an attempt with pending answers provisional with a null finalScore', () => {
+    const questions = [
+      { id: 'mcq', type: 'mcq', correctAnswer: 1, marks: 1 },
+      { id: 'ess', type: 'essay', marks: 1 },
+    ]
+    // The MCQ is correct and the essay could not be graded → partial 100%.
+    const score = computeQuizScore(questions, { mcq: 1, ess: { text: 'x', pending: true } })
+    expect(score.percentage).toBe(100)
+    const grading = buildResultGrading(score)
+    expect(grading).toEqual({
+      gradingStatus: 'pending',
+      scoreStatus: 'provisional',
+      pendingQuestionIds: ['ess'],
+      finalScore: null, // the inflated partial mark never becomes authoritative
+    })
+    expect(isProvisionalResult(grading)).toBe(true)
+  })
+
+  it('marks a fully graded attempt final with an authoritative finalScore', () => {
+    const questions = [{ id: 'mcq', type: 'mcq', correctAnswer: 1, marks: 1 }]
+    const grading = buildResultGrading(computeQuizScore(questions, { mcq: 1 }))
+    expect(grading).toEqual({
+      gradingStatus: 'complete',
+      scoreStatus: 'final',
+      pendingQuestionIds: [],
+      finalScore: 100,
+    })
+    expect(isProvisionalResult(grading)).toBe(false)
+  })
+
+  it('treats legacy results (no status fields) as final, not provisional', () => {
+    expect(isProvisionalResult({ percentage: 80 })).toBe(false)
+    expect(isProvisionalResult(null)).toBe(false)
   })
 })

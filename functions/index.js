@@ -1340,6 +1340,10 @@ exports.runDawnBriefing = onCall({
   secrets: [anthropicApiKey],
 }, async (request) => {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
+  // Per-user burst cap on a provider-backed (Anthropic managed-agent) call.
+  // The single-in-flight guard below stops concurrent duplicates; this stops
+  // rapid sequential "Run Dawn now" taps from spraying agent runs.
+  await assertCallableRateLimit(request, {action: "runDawnBriefing", userPerMin: 6});
 
   const db = admin.firestore();
   const callerSnap = await db.collection("users").doc(uid).get();

@@ -1172,6 +1172,37 @@ await testAsync('readBatchResilient does NOT split on a hard failure (daily limi
   assert.match(errors[0].message, /Daily AI limit/)
 })
 
+await testAsync('accounting invariant: every submitted page is either read or failed, never both/neither', async () => {
+  // The guard against the "import silently drops pages" class of bug: after the
+  // resilient reader runs, the submitted pages must PARTITION exactly into
+  // processed (produced a result) + failed (surfaced in failedPages). No page
+  // may vanish (counted as neither) and none may be double-counted (both).
+  const submitted = [1, 2, 3, 4, 5]
+  const pages = submitted.map(pageNumber => ({ pageNumber, dataUrl: 'd' }))
+  // Whole batch always times out → splits to per-page. Pages 3 and 5 never
+  // recover (terminal after the one retry); the rest read fine.
+  const readPages = async (batch) => {
+    if (batch.length > 1) throw Object.assign(new Error('slow'), { code: 'timeout' })
+    const n = batch[0].pageNumber
+    if (n === 3 || n === 5) throw Object.assign(new Error('slow'), { code: 'timeout' })
+    // Tag the result with the page it covers so we can reconstruct coverage.
+    return { _pages: [n], sections: [] }
+  }
+  const { results, failedPages } = await readBatchResilient(pages, readPages)
+
+  const readPageNumbers = results.flatMap(r => r._pages || [])
+  const readSet = new Set(readPageNumbers)
+  const failedSet = new Set(failedPages)
+
+  // Disjoint: no page is both read and failed.
+  for (const n of readSet) assert.ok(!failedSet.has(n), `page ${n} counted as both read and failed`)
+  // Complete: union covers every submitted page (submitted = processed + failed).
+  const union = new Set([...readSet, ...failedSet])
+  assert.equal(union.size, submitted.length, 'a submitted page is unaccounted for')
+  for (const n of submitted) assert.ok(union.has(n), `page ${n} vanished from the accounting`)
+  assert.deepEqual([...failedSet].sort(), [3, 5], 'only the genuinely unreadable pages are pending/failed')
+})
+
 test('formatPageList reads naturally', () => {
   assert.equal(formatPageList([]), '')
   assert.equal(formatPageList([5]), 'page 5')

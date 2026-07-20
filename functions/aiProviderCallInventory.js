@@ -52,6 +52,7 @@ const LIMITED = [
   {name: "classifyQuestionGrades", file: "index.js", check: 'action: "classifyQuestionGrades"'},
   {name: "nameBankPictures", file: "index.js", check: 'action: "nameBankPictures"'},
   {name: "retryAgentJob", file: "index.js", check: 'action: "retryAgentJob"'},
+  {name: "runDawnBriefing", file: "index.js", check: 'action: "runDawnBriefing"'},
   {name: "generateStudyPlan", file: "studentAgents.js", check: 'action: "generateStudyPlan"'},
   {name: "extractAssessmentFormat", file: "teacherTools/extractAssessmentFormat.js", check: 'action: "extractAssessmentFormat"'},
   {name: "importPastPaperQuestions", file: "teacherTools/pastPaperImport.js", check: 'action: "past-paper-import"'},
@@ -77,13 +78,28 @@ const LIMITED = [
   {name: "apiTextToSpeech", file: "tts.js", check: "action: 'tts'"},
 ];
 
-// Provider-backed but NOT directly user-burstable — documented exemptions.
+// Provider-backed endpoints that intentionally carry NO per-user burst limiter.
+// The auto-discovery guard (aiEndpointDiscovery.js) excludes crons/triggers by
+// KIND, but any provider-backed CALLABLE/HTTP surface that is deliberately not
+// rate-limited must be listed here BY ITS EXACT EXPORT NAME with a reason —
+// otherwise the guard fails it as unclassified. `name` is matched against the
+// discovered export name; the extra descriptive rows document trigger/cron
+// families for humans (matched by name is not required for those — kind already
+// exempts them).
 const EXEMPT = [
-  {name: "agentJobsOnCreate/Approved (dispatcher)", reason: "Firestore trigger, not a client call"},
-  {name: "questionReviewOnWrite (Qix)", reason: "Firestore trigger on questionBank writes"},
+  // The one provider-backed HTTP surface with no per-user limiter: it is not an
+  // authenticated user endpoint. Its own controls are the X-Hub-Signature-256
+  // HMAC (fail-closed once the secret is set), per-message-id dedupe, and the
+  // agentControl/bonga.paused kill-switch.
+  {name: "apiWhatsAppWebhook", reason: "Meta webhook (HMAC-verified), not an authenticated user surface; Meta msg-id dedupe + kill-switch"},
+
+  // Provider-backed Firestore triggers / cron families — excluded from the
+  // user-burstable requirement by KIND (onDocument*/onSchedule have no client
+  // entry point). Listed for documentation only.
+  {name: "questionReviewOnWrite", reason: "Firestore trigger (Qix) on questionBank writes"},
   {name: "lessonPlanTemplateOnWrite", reason: "Firestore trigger"},
+  {name: "agentJobsOnCreate", reason: "Firestore trigger (agent dispatcher)"},
   {name: "scheduled agents (Vigil/Marshal/Echo/Gate/Dawn/…)", reason: "cron; no user entry point"},
-  {name: "apiWhatsAppWebhook (Bonga)", reason: "Meta webhook (HMAC), not an authenticated user surface; Meta msg-id dedupe + kill-switch"},
 ];
 
 module.exports = {LIMITED, EXEMPT};

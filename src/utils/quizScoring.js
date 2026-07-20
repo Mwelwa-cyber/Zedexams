@@ -163,3 +163,59 @@ export function computeQuizScore(questions, answers) {
   const percentage = total > 0 ? Math.round((score / total) * 100) : 0
   return { score, total, percentage, topicScores, pending, pendingIds }
 }
+
+/**
+ * Grading-status metadata for a persisted attempt.
+ *
+ * B3/OBS-005 Gate 1: an attempt that still has text answers the AI grader
+ * could not evaluate (a burst throttle / provider timeout / AI-budget
+ * rejection at submit time) must NOT be persisted as a *final* score. If it
+ * were, the partial percentage — computed over only the graded questions, so
+ * 8/8 correct with 2 pending reads as 100% — would be treated as the learner's
+ * real mark by downstream consumers (pass/fail, badges/certificates,
+ * leaderboards, class analytics). Instead the attempt is saved as
+ * **provisional**: the partial `percentage`/`score` are still recorded (so the
+ * results screen can show "awaiting marking"), but `finalScore` is null and the
+ * status fields mark it pending so nothing downstream mistakes it for settled.
+ *
+ * A later re-grade (when the pending answers resolve) recomputes and flips the
+ * record to final — this metadata is additive and never locks that out.
+ *
+ * Legacy/normal attempts (nothing pending) are `complete`/`final` with
+ * `finalScore` = the authoritative percentage and an empty `pendingQuestionIds`.
+ *
+ * @param {{percentage: number, pending?: number, pendingIds?: string[]}} scoreResult
+ *   the output of computeQuizScore
+ * @returns {{
+ *   gradingStatus: 'pending'|'complete',
+ *   scoreStatus: 'provisional'|'final',
+ *   pendingQuestionIds: string[],
+ *   finalScore: number|null,
+ * }}
+ */
+export function buildResultGrading(scoreResult) {
+  const pending = Number(scoreResult?.pending) || 0
+  const pendingIds = Array.isArray(scoreResult?.pendingIds) ? scoreResult.pendingIds : []
+  const hasPending = pending > 0 || pendingIds.length > 0
+  return {
+    gradingStatus: hasPending ? 'pending' : 'complete',
+    scoreStatus: hasPending ? 'provisional' : 'final',
+    pendingQuestionIds: hasPending ? [...pendingIds] : [],
+    // The authoritative mark exists ONLY once every question is graded.
+    finalScore: hasPending ? null : (Number(scoreResult?.percentage) || 0),
+  }
+}
+
+/**
+ * Is a persisted/normalised result still awaiting marking? A single, shared
+ * predicate so every consumer (class analytics, dashboards, a future re-grade)
+ * agrees on what "not final" means. Legacy docs — written before grading-status
+ * existed and therefore carrying neither field — are treated as FINAL (they
+ * predate the pending path and were always fully graded).
+ *
+ * @param {{gradingStatus?: string, scoreStatus?: string}} result
+ * @returns {boolean}
+ */
+export function isProvisionalResult(result) {
+  return result?.gradingStatus === 'pending' || result?.scoreStatus === 'provisional'
+}
