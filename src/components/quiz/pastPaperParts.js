@@ -238,14 +238,32 @@ export function reconcilePaperNumbering(sections = [], ranges = []) {
   walkQuestions(sections, (q, ctx) => refs.push({ q: { ...q }, ctx, drop: false }))
 
   // 1. Drop out-of-range phantoms (numbered, but outside every declared range).
-  let droppedOutOfRange = 0
-  refs.forEach(ref => {
+  //
+  // GUARD: only trust the printed numbers as a filter when the extraction's
+  // numbering actually LINES UP with the declared range — i.e. at least one
+  // extracted question already falls inside it. When NONE do, the model
+  // numbered on a different basis than the paper's printed numbers: the classic
+  // case is importing a mid-paper slice that declares "Questions 39–45" while
+  // the vision model renumbered that excerpt from 1. Dropping "out of range"
+  // there deletes EVERY question and returns an empty paper — the real
+  // "imported 0 questions" failure on a PSLE Section B ordering page. In that
+  // case we drop nothing on number and let the count-based snap (step 3)
+  // realign the questions to the declared 39–45 sequence instead.
+  const numberedRefs = refs.filter(ref => {
     const n = Number(ref.q.sourceQuestionNumber)
-    if (Number.isInteger(n) && n > 0 && !declaredSet.has(n)) {
-      ref.drop = true
-      droppedOutOfRange += 1
-    }
+    return Number.isInteger(n) && n > 0
   })
+  const anyInRange = numberedRefs.some(ref => declaredSet.has(Number(ref.q.sourceQuestionNumber)))
+  let droppedOutOfRange = 0
+  if (anyInRange) {
+    refs.forEach(ref => {
+      const n = Number(ref.q.sourceQuestionNumber)
+      if (Number.isInteger(n) && n > 0 && !declaredSet.has(n)) {
+        ref.drop = true
+        droppedOutOfRange += 1
+      }
+    })
+  }
 
   // 2. Dedupe same-number reads — keep the most complete, drop the rest.
   const bestByNumber = new Map()
