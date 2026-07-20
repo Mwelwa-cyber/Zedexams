@@ -321,3 +321,62 @@ describe('Login — refresh/session-restoration behaviour', () => {
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/quiz/123', { replace: true }))
   })
 })
+
+// ── Verification resilience (App Check / reCAPTCHA remediation) ───────────────
+// Guards the launch-blocker fixes: an in-flight sign-in must not be double-
+// submitted, and a recoverable verification failure must let the user retry
+// WITHOUT losing what they typed — and never leave a floating rejection.
+describe('Login — verification resilience (duplicate submit + retry)', () => {
+  it('does not double-submit while a sign-in is in flight', async () => {
+    // login() stays pending so the button is disabled for the second click.
+    let resolveLogin
+    mockLogin.mockImplementation(() => new Promise((res) => { resolveLogin = res }))
+    mockEnsureUserProfile.mockResolvedValue({ id: 'u', role: 'learner' })
+    setAuth()
+
+    renderLogin()
+    fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'teacher@school.com' } })
+    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: 'pass123' } })
+
+    const btn = screen.getByRole('button', { name: /sign in/i })
+    fireEvent.click(btn)
+    await waitFor(() => expect(btn).toBeDisabled())
+    // Second click on the now-disabled button must be a no-op.
+    fireEvent.click(btn)
+    expect(mockLogin).toHaveBeenCalledTimes(1)
+
+    // Settle so no unhandled-rejection warning leaks out of the test.
+    resolveLogin({ user: { uid: 'u', emailVerified: true } })
+    await waitFor(() => expect(mockEnsureUserProfile).toHaveBeenCalled())
+  })
+
+  it('preserves credentials and allows a retry after a recoverable failure', async () => {
+    const recoverable = Object.assign(new Error('network'), { code: 'auth/network-request-failed' })
+    mockLogin
+      .mockRejectedValueOnce(recoverable)
+      .mockResolvedValueOnce({ user: { uid: 'u', emailVerified: true } })
+    mockEnsureUserProfile.mockResolvedValue({ id: 'u', role: 'learner' })
+    setAuth()
+
+    renderLogin()
+    const email = screen.getByLabelText(/email address/i)
+    const password = screen.getByLabelText(/^password$/i)
+    fireEvent.change(email, { target: { value: 'teacher@school.com' } })
+    fireEvent.change(password, { target: { value: 'pass123' } })
+
+    const btn = screen.getByRole('button', { name: /sign in/i })
+    fireEvent.click(btn)
+
+    // After the recoverable failure the button re-enables for a retry…
+    await waitFor(() => expect(btn).not.toBeDisabled())
+    // …and the entered credentials are still there (never wiped on error).
+    expect(email.value).toBe('teacher@school.com')
+    expect(password.value).toBe('pass123')
+    expect(mockNavigate).not.toHaveBeenCalled()
+
+    // Retrying without re-typing succeeds.
+    fireEvent.click(btn)
+    await waitFor(() => expect(mockLogin).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalled())
+  })
+})
