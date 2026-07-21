@@ -37,7 +37,7 @@ import {
 // exact failure mode of the 2026-07-21 "still not working" report: the fix
 // was deployed but the browser kept running the old cached parser. Bump when
 // the document parser's behaviour changes materially.
-export const DOC_IMPORTER_VERSION = '2026.07.21-answer-key-tabs'
+export const DOC_IMPORTER_VERSION = '2026.07.21c-ppr-tabstop'
 
 export const QUIZ_DOCUMENT_ACCEPT = [
   '.doc',
@@ -208,6 +208,14 @@ function paragraphText(paragraph) {
   ;(function walk(node, formats) {
     Array.from(node?.childNodes || []).forEach(child => {
       if (child.nodeType !== 1) return
+      // Property containers hold METADATA, not content. Critically,
+      // <w:pPr><w:tabs><w:tab w:pos="…"/></w:tabs></w:pPr> defines a
+      // tab-STOP position — descending into it made the 'tab' branch below
+      // emit a phantom leading "\t" on every paragraph that declares tab
+      // stops, which pushed the real "1\t…" / "A\t…" prefixes off line
+      // start and silently broke question/option/answer detection for the
+      // whole document.
+      if (child.localName === 'pPr' || child.localName === 'rPr') return
       if (child.localName === 't') {
         if (child.textContent) pieces.push({ text: child.textContent, formats })
         return
