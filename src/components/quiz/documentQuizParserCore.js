@@ -1392,6 +1392,18 @@ function parseQuestionsFromBlocks(blocks, warnings) {
     target.optionAssets[optionIndex] = asset
   }
 
+  // A freshly DECLARED range is authoritative about where numbering stands:
+  // if lastQuestionNumber sits at or past the range's start, whatever pushed
+  // it there was not part of this run (e.g. a cover-page list that slipped
+  // through the guards as phantom questions). Resync so the range's real
+  // first question ("1 …" under "Part 1: Questions 1 – 20") still matches —
+  // without this, poisoned numbering silently blocked the whole part.
+  function syncNumberingToRange() {
+    if (currentQuestionRange && lastQuestionNumber >= currentQuestionRange.start) {
+      lastQuestionNumber = currentQuestionRange.start - 1
+    }
+  }
+
   function finalizeSubQuestion() {
     if (!current) return
     const q = questionFromCurrent(current, answerKey)
@@ -1654,6 +1666,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
           finalizeSubQuestion()
           compInstructions.push(cleanImportedText(line).replace(/\s*[.:;]\s*$/, ''))
           currentQuestionRange = questionRangeFromLine(line) || currentQuestionRange
+          syncNumberingToRange()
           return
         }
 
@@ -1690,6 +1703,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
           finalizeComprehension()
           currentPartTitle = cleanImportedText(line)
           currentQuestionRange = questionRangeFromLine(line)
+          syncNumberingToRange()
           questionsInCurrentPart = 0
           // Same section-boundary asset + caption hygiene as the standalone path.
           pendingAssets = []
@@ -1787,6 +1801,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         if (lineAssets.length) pendingAssets.push(...lineAssets)
         currentPartTitle = 'Reading Comprehension'
         currentQuestionRange = questionRangeFromLine(line)
+        syncNumberingToRange()
         questionsInCurrentPart = 0
         return
       }
@@ -1825,6 +1840,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         if (isSectionBreak) {
           currentPartTitle = cleanImportedText(line)
           currentQuestionRange = questionRangeFromLine(line)
+          syncNumberingToRange()
           questionsInCurrentPart = 0
           return
         }
@@ -1870,6 +1886,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
           questionsInCurrentPart = 0
         }
         currentQuestionRange = incomingRange || currentQuestionRange
+        syncNumberingToRange()
         return
       }
 
