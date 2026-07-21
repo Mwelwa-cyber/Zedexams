@@ -1327,4 +1327,64 @@ function runQuickAnswerKeyTest() {
 
 runQuickAnswerKeyTest()
 
+// ── SPACE-separated numbering ("51 Why did…" / "A hated marriage.") ──────
+// Some generated/re-exported papers put a plain space after the question
+// number and option letter — no tab, no punctuation. QUESTION_RE and
+// QUESTION_NO_PUNCT_RE both miss that, so whole sections used to flow into
+// the passage text as prose ("the questions are coming in like a story").
+// bareNumberStemMatch accepts these only when the number is corroborated by
+// sequence or the Part heading's declared range, so prose starting with a
+// number can't spawn phantom questions.
+function runSpaceSeparatedNumberingTest() {
+  const blocks = [
+    block('Part 1: Questions 1–2 — Choose the word that makes the sentence correct.'),
+    block('1 … people have died of COVID 19 in the world.'),
+    block('A Small'),
+    block('B Plenty'),
+    block('C Many'),
+    block('D Little'),
+    block('Answer: C — Many ‘Many’ is used with plural countable nouns.'),
+    block('2 The girl can sing … she cannot dance.'),
+    block('A and'),
+    block('B but'),
+    block('C nor'),
+    block('D or'),
+    block('Answer: B — but Shows a contrast between two ideas.'),
+    block('Part 2: Questions 46–47 — Comprehension'),
+    block(comprehensionInstruction),
+    block('Story 1'),
+    block('Mary walked to school every day. It took 14 minutes each way. One day she found 20 kwacha on the road and handed it to her teacher.'),
+    block('46 How long did Mary take to walk to school?'),
+    block('A 20 minutes'),
+    block('B 14 minutes'),
+    block('C 40 minutes'),
+    block('D 4 minutes'),
+    block('Answer: B — 14 minutes The text says it took 14 minutes each way.'),
+    block('47 What did Mary find on the road?'),
+    block('A A book'),
+    block('B A pencil'),
+    block('C Money'),
+    block('D A phone'),
+    block('Answer: C — Money She found 20 kwacha.'),
+  ]
+  const { sections, summary } = processImportedQuestionBlocks(blocks, [])
+  assert.equal(summary.questions, 4, `expected 4 questions, got ${summary.questions}`)
+  const questions = allQuestionsFromSections(sections)
+  assert.equal(String(questions[0].sourceQuestionNumber), '1')
+  assert.equal(questions[0].options.length, 4, 'Q1 kept its four space-separated options')
+  assert.equal(questions[0].correctAnswer, 2, 'Q1 answer resolves to option C')
+  assert.equal(questions[1].correctAnswer, 1, 'Q2 answer resolves to option B')
+  const passage = sections.find(s => s.kind === 'passage')
+  assert.ok(passage, 'the story became a passage section')
+  assert.equal(passage.passage.questions.length, 2, 'both comprehension questions attached to the passage')
+  const passageText = plainRichText(passage.passage.passageText)
+  assert.ok(!/46 How long/.test(passageText), 'Q46 did not leak into the passage text')
+  // Prose starting with a number ("14 minutes each way…" style) must NOT
+  // become a phantom question — only 1, 2, 46, 47 exist.
+  const nums = questions.map(q => String(q.sourceQuestionNumber))
+  assert.deepEqual(nums, ['1', '2', '46', '47'], `unexpected question numbers: ${nums}`)
+}
+
+runSpaceSeparatedNumberingTest()
+
 console.log('All documentQuizParserCore tests passed.')
