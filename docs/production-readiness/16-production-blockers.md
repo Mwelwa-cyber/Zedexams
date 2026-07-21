@@ -32,8 +32,13 @@
   daily summary + an async `backupCompletionCheck` (03:30 Lusaka) that stamps `completed:true`. Stale
   `storage.objectAdmin` guidance corrected. 68 tests. Read-only unattended-operation confirmation owed
   after the 2026-07-21 01:30 Lusaka cron (UTC key `2026-07-20`).
-- **Still pending: the non-production restore drill** (+ Auth/Storage DR gaps). **Not closed until the
-  restore drill is evidenced.**
+- **DR-003 Storage backup — monitor + runbook added (follow-up):** a daily `storageBackupCheck`
+  (04:00 Lusaka) verifies the operator's cross-region Storage Transfer Service mirror ran, recording
+  `opsStorageBackups/{date}` and alerting on `misconfigured`/`empty`/`stale`. 31 tests. The mirror
+  itself (versioning + STS job + backup bucket + `STORAGE_BACKUP_BUCKET`) is still operator-provisioned
+  (Runbook §D).
+- **Still pending: the non-production restore drill** (+ Auth DR gap; DR-003 mirror provisioning).
+  **Not closed until the restore drill is evidenced.**
 - **Runtime check:** read `opsBackups/{today}.status` in prod.
 
 ### B2 · SEC-007 — `adm-zip` DoS + critical `websocket-driver` — **Status: Implemented, pending runtime verification**
