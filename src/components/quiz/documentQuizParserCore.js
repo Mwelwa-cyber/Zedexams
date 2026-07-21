@@ -32,7 +32,10 @@ const SECTION_HEADING_RE = /^(?:spelling bee\b|elimination round\b|category\b|wo
 const PARA_ORDER_INSTRUCTION_RE = /each question has four paragraphs|sentences in the best order|choose the paragraph which has the sentences/i
 const PARA_ORDER_DO_Q_RE = /\bnow\s+do\s+questions?\s+(\d{1,3})/i
 const PARA_ORDER_QUESTION_ONLY_RE = /^\d{1,3}$/
-const QUESTION_RANGE_HEADING_RE = /^(?:(?:comprehension\s+)?questions?\s+\d{1,3}\s*[–-]\s*\d{1,3}|now\s+do\s+questions?\s+\d{1,3}\s*[–-]\s*\d{1,3}|look\s+at\s+questions?\s+\d{1,3}(?:\s*[–-]\s*\d{1,3})?)$/i
+// Trailing punctuation is tolerated ("Now do questions 31 - 38.") — PRISCA
+// papers end some of these with a period, and missing the boundary left the
+// worked-example skipper running straight through questions 31–35.
+const QUESTION_RANGE_HEADING_RE = /^(?:(?:comprehension\s+)?questions?\s+\d{1,3}\s*[–-]\s*\d{1,3}|now\s+do\s+questions?\s+\d{1,3}\s*[–-]\s*\d{1,3}|look\s+at\s+questions?\s+\d{1,3}(?:\s*[–-]\s*\d{1,3})?)\s*[.:;]?\s*$/i
 // A shared "now do questions N – M" / "answer questions N to M" instruction that
 // introduces a run of comprehension questions. Unlike QUESTION_RANGE_HEADING_RE
 // this tolerates trailing punctuation ("Now do questions 46 – 60.") and the
@@ -282,7 +285,13 @@ function bareNumberStemMatch(line, lastNumber, range) {
   // people have died"). A lowercase continuation ("14 years later they…")
   // is prose, not a stem.
   if (!/^[A-Z"“”'‘([…]/.test(text)) return null
-  const sequential = number === (lastNumber || 0) + 1
+  // Sequential acceptance requires questions to ALREADY be flowing
+  // (lastNumber >= 1). A cold start at "1 …" with no declared range is how
+  // an exam COVER PAGE reads — "1 Read these instructions carefully." /
+  // "2 Do not turn this page…" — and those instruction lists must never
+  // become questions. Papers that genuinely start at "1 …" declare a range
+  // first ("Part 1: Questions 1 – 20"), which the range gate accepts.
+  const sequential = (lastNumber || 0) >= 1 && number === lastNumber + 1
   const inDeclaredRange = Boolean(
     range && number >= range.start && number <= range.end && number > (lastNumber || 0),
   )
@@ -1539,7 +1548,14 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         const optionSegmentsForExample = extractOptionSegments(line)
         const hasTerminalOption = optionSegmentsForExample.some(opt => opt.index >= 3)
         const canResumeOnQuestion = skippingExample.sawTerminalOption || skippingExample.skippedLines >= 8
-        if (isExampleBoundaryLine(line) || (canResumeOnQuestion && questionMatch(line))) {
+        // Space-separated papers ("31 The word postponed means …") need the
+        // gated bare-number matcher to resume too — the punctuated matcher
+        // alone let the skipper run through whole question runs.
+        const resumesOnQuestion = canResumeOnQuestion && (
+          questionMatch(line)
+          || bareNumberStemMatch(line, lastQuestionNumber, currentQuestionRange)
+        )
+        if (isExampleBoundaryLine(line) || resumesOnQuestion) {
           skippingExample = null
           // Fall through and process this boundary / first real question.
         } else {
@@ -1635,6 +1651,8 @@ function parseQuestionsFromBlocks(blocks, warnings) {
           finalizeComprehension()
           currentPartTitle = cleanImportedText(line)
           currentQuestionRange = questionRangeFromLine(line)
+          // Same section-boundary asset hygiene as the standalone path.
+          pendingAssets = []
           if (lineAssets.length) pendingAssets.push(...lineAssets)
           return
         }
@@ -1742,6 +1760,12 @@ function parseQuestionsFromBlocks(blocks, warnings) {
       }
 
       if (isSectionBreak || isPassLabel) {
+        // A figure buffered BEFORE a SECTION/PART boundary belongs to the
+        // previous part — usually a cover-page graphic (the answer-shading
+        // illustration). Carrying it across used to stamp the cover figure
+        // onto the first real question of the paper. Dropped here, it still
+        // survives in the top-level imageAssets list, just unattached.
+        if (isSectionBreak) pendingAssets = []
         if (lineAssets.length) pendingAssets.push(...lineAssets)
         finalizeStandaloneQuestion()
         sharedInstruction = ''
@@ -1780,8 +1804,21 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         sharedInstruction = ''
         numberStemInstruction = ''
         if (lineAssets.length) pendingAssets.push(...lineAssets)
-        currentPartTitle = cleanImportedText(line)
-        currentQuestionRange = questionRangeFromLine(line)
+        // PRISCA papers print BOTH "Part 2: Questions 21 – 25" (with the
+        // part's instruction) and, after the worked example, a bare
+        // "Now do questions 21 – 25" marker. When the ranges agree, the
+        // second line is a continuation of the SAME part — overwriting the
+        // title here split every part in two and left the descriptive
+        // "Part N:" title behind.
+        const incomingRange = questionRangeFromLine(line)
+        const existingRange = questionRangeFromLine(currentPartTitle)
+        const samePart = Boolean(
+          incomingRange && existingRange
+          && incomingRange.start === existingRange.start
+          && incomingRange.end === existingRange.end,
+        )
+        if (!samePart) currentPartTitle = cleanImportedText(line)
+        currentQuestionRange = incomingRange || currentQuestionRange
         return
       }
 

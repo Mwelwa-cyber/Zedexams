@@ -37,7 +37,7 @@ import {
 // exact failure mode of the 2026-07-21 "still not working" report: the fix
 // was deployed but the browser kept running the old cached parser. Bump when
 // the document parser's behaviour changes materially.
-export const DOC_IMPORTER_VERSION = '2026.07.21c-ppr-tabstop'
+export const DOC_IMPORTER_VERSION = '2026.07.21d-prisca-pdf'
 
 export const QUIZ_DOCUMENT_ACCEPT = [
   '.doc',

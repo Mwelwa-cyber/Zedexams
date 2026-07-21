@@ -1387,4 +1387,67 @@ function runSpaceSeparatedNumberingTest() {
 
 runSpaceSeparatedNumberingTest()
 
+// ── Cover page + worked example + period-terminated range heading ────────
+// PRISCA/ECZ text-PDF layout. Three regressions in one fixture:
+//  1. The COVER PAGE is a numbered instruction list ("1 Read these
+//     instructions carefully.") — space-separated numbering must NOT
+//     cold-start questions from it.
+//  2. "Now do questions 31 - 38." ends with a period — it must still act as
+//     a worked-example boundary + part-range marker (the example skipper
+//     used to run straight through the following questions).
+//  3. A duplicate range marker after the "Part N:" heading must not split
+//     the part or overwrite its descriptive title.
+function runCoverPageAndExampleBoundaryTest() {
+  const blocks = [
+    block('MINISTRY OF EDUCATION'),
+    block('PRIMARY SCHOOL MOCK EXAMINATION – 2026'),
+    block('1 Read these instructions carefully.'),
+    block('2 Do not turn this page before you are told. Your teacher will tell you.'),
+    block('3 This paper is divided into 2 sections: A and B. There are 60 questions.'),
+    block('4 For each question, four answers are given, but only one is right.'),
+    block('SECTION A'),
+    block('Part 4: Questions 31 – 32'),
+    block('Each question contains an underlined word. Choose the correct meaning.'),
+    block('Example:'),
+    block('The chief received homage from his subjects. The word homage means …'),
+    block('A honor.'),
+    block('B explore.'),
+    block('C preach.'),
+    block('D lodge.'),
+    block('The answer A – honor – is the only answer that gives the right meaning.'),
+    block('Now do questions 31 - 32.'),
+    block('31 The meeting has been postponed to next week. The word postponed means …'),
+    block('A committed.'),
+    block('B concluded.'),
+    block('C moved.'),
+    block('D abolished.'),
+    block('32 Brandina was embarrassed by her sister. The word embarrassed means …'),
+    block('A feel anxious.'),
+    block('B waiting for something.'),
+    block('C get angry.'),
+    block('D feel silly in front of others.'),
+  ]
+  const { sections, summary, parts } = processImportedQuestionBlocks(blocks, [])
+  const questions = allQuestionsFromSections(sections)
+  const nums = questions.map(q => String(q.sourceQuestionNumber))
+  assert.deepEqual(nums, ['31', '32'], `cover instructions must not become questions: ${nums}`)
+  assert.equal(questions[0].options.length, 4, 'Q31 kept its options after the worked example')
+  assert.ok(
+    !questions.some(q => /read these instructions|do not turn/i.test(plainRichText(q.text))),
+    'no cover-page instruction leaked into a question stem',
+  )
+  const partTitles = (parts || []).map(p => p.title).filter(Boolean)
+  assert.ok(
+    partTitles.some(t => /part 4: questions 31/i.test(t)),
+    `the descriptive Part title survived the duplicate range marker: ${partTitles}`,
+  )
+  assert.ok(
+    !partTitles.some(t => /^now do questions/i.test(t)),
+    `"Now do questions" must not become its own part: ${partTitles}`,
+  )
+  assert.equal(summary.questions, 2)
+}
+
+runCoverPageAndExampleBoundaryTest()
+
 console.log('All documentQuizParserCore tests passed.')
