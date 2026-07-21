@@ -1558,4 +1558,59 @@ function runUnusualCoverWordingTest() {
 
 runUnusualCoverWordingTest()
 
+// 5. Sequential imperative stems in an UNHEADED paper are real questions —
+//    the cover guards must not reject "2 Calculate the area…" just because
+//    it starts with an instruction verb.
+function runUnheadedImperativeStemTest() {
+  const blocks = [
+    block('1 What is 2 + 3?'),
+    block('A 4'),
+    block('B 5'),
+    block('C 6'),
+    block('D 7'),
+    block('Answer: B — 5'),
+    block('2 Calculate the area of a rectangle with sides 4 m and 3 m.'),
+    block('A 7 square metres'),
+    block('B 12 square metres'),
+    block('C 14 square metres'),
+    block('D 24 square metres'),
+    block('Answer: B — 12 square metres'),
+  ]
+  const { summary, sections } = processImportedQuestionBlocks(blocks, [])
+  assert.equal(summary.questions, 2, `imperative sequential stem imported, got ${summary.questions}`)
+  const questions = allQuestionsFromSections(sections)
+  assert.equal(String(questions[1].sourceQuestionNumber), '2')
+  assert.equal(questions[1].options.length, 4)
+}
+
+runUnheadedImperativeStemTest()
+
+// 6. A bare "1 <text>" appearing while a NON-1-based range is active (e.g. a
+//    worked example whose "Example" label was lost) must not become a
+//    phantom Q1.
+function runNoColdStartInsideRangeTest() {
+  const blocks = [
+    block('Part 2: Questions 21 – 22'),
+    block('1 The chief received homage from his subjects.'),
+    block('21 The word postponed means …'),
+    block('A committed.'),
+    block('B concluded.'),
+    block('C moved.'),
+    block('D abolished.'),
+    block('Answer: C — moved'),
+    block('22 The word embarrassed means …'),
+    block('A feel anxious.'),
+    block('B waiting.'),
+    block('C get angry.'),
+    block('D feel silly.'),
+    block('Answer: A — feel anxious'),
+  ]
+  const { summary, sections } = processImportedQuestionBlocks(blocks, [])
+  const nums = allQuestionsFromSections(sections).map(q => String(q.sourceQuestionNumber))
+  assert.deepEqual(nums, ['21', '22'], `no phantom Q1 inside the 21–22 range: ${nums}`)
+  assert.equal(summary.questions, 2)
+}
+
+runNoColdStartInsideRangeTest()
+
 console.log('All documentQuizParserCore tests passed.')
