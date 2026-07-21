@@ -494,12 +494,30 @@ export default function PdfJsViewer({ url, blob, title, fill = false, storageKey
         ref={containerRef}
         tabIndex={0}
         onKeyDown={handleKey}
-        className={`w-full overflow-auto theme-bg flex p-3 ${fill ? 'flex-1 min-h-0' : ''}`}
+        className={`w-full theme-bg flex p-3 ${
+          fill
+            ? 'flex-1 min-h-0 overflow-auto'
+            : dock
+              // Embedded past-paper mode: only horizontal (zoomed-wide) panning
+              // stays inside; vertical scroll belongs to the document/body.
+              ? 'overflow-x-auto'
+              : 'overflow-auto'
+        }`}
         style={{
-          touchAction: 'pinch-zoom',
-          ...(fill ? {} : { minHeight: '60vh', maxHeight: '85vh' }),
+          // `pan-y` is ESSENTIAL: `touch-action: pinch-zoom` on its own blocks
+          // single-finger vertical scrolling, so a swipe that starts on the
+          // canvas freezes the page on touch. Keeping `pinch-zoom` preserves
+          // pinch-to-zoom. (Same rationale as the sibling PdfScrollViewer.)
+          touchAction: 'pan-y pinch-zoom',
+          overscrollBehaviorY: fill ? 'contain' : 'auto',
+          // Embedded (`dock`, not fullscreen) renders in normal document flow
+          // so the browser/body owns vertical scrolling — no nested vertical
+          // scrollbar competing with the page. Fullscreen + classic previews
+          // keep their own bounded, self-scrolling box.
+          ...(dock && !fill ? { overflowY: 'visible' } : {}),
+          ...(fill || dock ? {} : { minHeight: '60vh', maxHeight: '85vh' }),
           // Keep the fixed glass dock from covering the bottom of the page:
-          // the canvas can always scroll fully clear of it.
+          // reserve space so the content can clear it.
           ...(dock ? { paddingBottom: 'calc(112px + env(safe-area-inset-bottom))' } : {}),
         }}
       >
