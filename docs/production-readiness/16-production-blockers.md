@@ -106,11 +106,12 @@
     named-page warning — the import can never report clean success with pages missing, and a daily/budget
     cap mid-run keeps the partial result rather than discarding it. Invariant asserted:
     `submitted = processed + failed` (`scannedQuizImporter.test.js`).
-  - **Degraded-limit telemetry implemented; operational alert verification pending.** A degraded limiter
-    (Firestore contention / outage) emits a structured `rate_limit_degraded` log carrying the scope — an
-    ops alert can be built on it, but wiring that alert channel is a runtime/ops follow-up, not done here.
-    The hard monthly-budget reservation gate is never bypassed, so a degraded limiter cannot exhaust the
-    wallet on its own.
+  - **Degraded-limit alert wired (code); runtime email verification pending.** A degraded limiter
+    (Firestore contention / outage) emits a structured `rate_limit_degraded` log, AND a scheduled
+    synthetic canary (`rateLimitHealthCheck`, hourly) now probes the limiter and raises an edge-triggered
+    email ops alert when it is degraded (kill-switch aware). What remains is the runtime check that the
+    alert email actually arrives on the deploy. The hard monthly-budget reservation gate is never
+    bypassed, so a degraded limiter cannot exhaust the wallet on its own.
   - **Inventory guard now AUTO-DISCOVERS the surface** (Gate 3): `aiEndpointDiscovery.js` parses every
     `exports.*` in `functions/index.js`, tags each with its Cloud Function kind + whether it binds a
     provider secret, and the guard **fails on any provider-backed callable/HTTP endpoint that is not
@@ -125,7 +126,7 @@
   SEC-001 (canary armed), and OBS-005 (full burst coverage + inventory guard + the correctness fixes).
   **Remaining (runtime/ops, not code):** confirm the budget env is live in the deployed runtime; widen
   App Check labels per `/admin/app-check`; verify the scanned-import + short-answer flows on a real
-  deploy. **Effort:** Low.
+  deploy; confirm the degraded-limiter canary's alert email arrives. **Effort:** Low.
 
 ### B4 · CICD-001 — Untested security rules can merge & deploy
 - **Why a blocker:** "deployment of untested security rules." The behavioural rules-emulator and build
