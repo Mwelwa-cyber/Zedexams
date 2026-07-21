@@ -285,17 +285,23 @@ function bareNumberStemMatch(line, lastNumber, range) {
   // people have died"). A lowercase continuation ("14 years later they…")
   // is prose, not a stem.
   if (!/^[A-Z"“”'‘([…]/.test(text)) return null
-  // Sequential acceptance requires questions to ALREADY be flowing
-  // (lastNumber >= 1). A cold start at "1 …" with no declared range is how
-  // an exam COVER PAGE reads — "1 Read these instructions carefully." /
-  // "2 Do not turn this page…" — and those instruction lists must never
-  // become questions. Papers that genuinely start at "1 …" declare a range
-  // first ("Part 1: Questions 1 – 20"), which the range gate accepts.
+  // Sequential acceptance normally requires questions to ALREADY be flowing
+  // (lastNumber >= 1): an exam COVER PAGE reads exactly like a cold
+  // sequential list — "1 Read these instructions carefully." / "2 Do not
+  // turn this page…" — and must never become questions. Papers with Part
+  // headings ("Part 1: Questions 1 – 20") come in via the range gate. For
+  // UNHEADED papers that open directly with "1 <stem>", a narrow cold start
+  // is still allowed: exactly number 1, with text that does not read like a
+  // teacher instruction (cover item 1 is virtually always "Read these
+  // instructions…", which is instruction-shaped; once it is rejected the
+  // rest of the cover list fails the sequence gate on its own).
   const sequential = (lastNumber || 0) >= 1 && number === lastNumber + 1
+  const coldStart = (lastNumber || 0) === 0 && !range && number === 1
+    && !looksLikeInstructionLine(text)
   const inDeclaredRange = Boolean(
     range && number >= range.start && number <= range.end && number > (lastNumber || 0),
   )
-  if (!sequential && !inDeclaredRange) return null
+  if (!sequential && !coldStart && !inDeclaredRange) return null
   return { number: String(number), text }
 }
 
@@ -1339,6 +1345,12 @@ function parseQuestionsFromBlocks(blocks, warnings) {
   // Part heading / comprehension instruction declared ("Questions 46–60").
   let lastQuestionNumber = 0
   let currentQuestionRange = null
+  // Questions started since the current Part title was set. A range marker
+  // ("Now do questions 31 – 38.") that arrives while this is still 0 is a
+  // continuation of the SAME part (heading → instructions → example →
+  // marker), so the descriptive title must be kept — even when the heading
+  // itself carried no range ("Part 4" on its own line).
+  let questionsInCurrentPart = 0
 
   // Phase 3: when a DOCX table cell carries "A. <img>" / "B. <img>" / …,
   // buildDocxTableBlocks stamps the cell's first asset onto
@@ -1447,6 +1459,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
       const numeric = Number(sourceNumber)
       if (Number.isInteger(numeric) && numeric > 0) lastQuestionNumber = numeric
     }
+    questionsInCurrentPart += 1
 
     const inline = splitInlineOptionsFromQuestion(text, !isSubQuestion ? sharedInstruction : '')
     current = {
@@ -1576,6 +1589,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         numberStemInstruction = ''
         currentPartTitle = ''
         currentQuestionRange = null
+        questionsInCurrentPart = 0
         return
       }
 
@@ -1651,8 +1665,10 @@ function parseQuestionsFromBlocks(blocks, warnings) {
           finalizeComprehension()
           currentPartTitle = cleanImportedText(line)
           currentQuestionRange = questionRangeFromLine(line)
-          // Same section-boundary asset hygiene as the standalone path.
+          questionsInCurrentPart = 0
+          // Same section-boundary asset + caption hygiene as the standalone path.
           pendingAssets = []
+          pendingDiagramCaptions = []
           if (lineAssets.length) pendingAssets.push(...lineAssets)
           return
         }
@@ -1746,6 +1762,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         if (lineAssets.length) pendingAssets.push(...lineAssets)
         currentPartTitle = 'Reading Comprehension'
         currentQuestionRange = questionRangeFromLine(line)
+        questionsInCurrentPart = 0
         return
       }
 
@@ -1765,7 +1782,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         // illustration). Carrying it across used to stamp the cover figure
         // onto the first real question of the paper. Dropped here, it still
         // survives in the top-level imageAssets list, just unattached.
-        if (isSectionBreak) pendingAssets = []
+        if (isSectionBreak) { pendingAssets = []; pendingDiagramCaptions = [] }
         if (lineAssets.length) pendingAssets.push(...lineAssets)
         finalizeStandaloneQuestion()
         sharedInstruction = ''
@@ -1783,6 +1800,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         if (isSectionBreak) {
           currentPartTitle = cleanImportedText(line)
           currentQuestionRange = questionRangeFromLine(line)
+          questionsInCurrentPart = 0
           return
         }
         compActive = true
@@ -1804,20 +1822,28 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         sharedInstruction = ''
         numberStemInstruction = ''
         if (lineAssets.length) pendingAssets.push(...lineAssets)
-        // PRISCA papers print BOTH "Part 2: Questions 21 – 25" (with the
-        // part's instruction) and, after the worked example, a bare
-        // "Now do questions 21 – 25" marker. When the ranges agree, the
-        // second line is a continuation of the SAME part — overwriting the
-        // title here split every part in two and left the descriptive
-        // "Part N:" title behind.
+        // PRISCA papers print BOTH a descriptive Part heading ("Part 2:
+        // Questions 21 – 25", or just "Part 4") and, after the worked
+        // example, a bare "Now do questions 21 – 25" marker. A marker that
+        // arrives while the current part has produced NO questions yet is a
+        // continuation of that same part — overwriting the title here split
+        // every part in two and replaced the descriptive "Part N:" title
+        // with the marker text. Matching ranges are treated the same way
+        // even mid-part.
         const incomingRange = questionRangeFromLine(line)
         const existingRange = questionRangeFromLine(currentPartTitle)
-        const samePart = Boolean(
-          incomingRange && existingRange
-          && incomingRange.start === existingRange.start
-          && incomingRange.end === existingRange.end,
+        const samePart = Boolean(currentPartTitle) && (
+          questionsInCurrentPart === 0
+          || Boolean(
+            incomingRange && existingRange
+            && incomingRange.start === existingRange.start
+            && incomingRange.end === existingRange.end,
+          )
         )
-        if (!samePart) currentPartTitle = cleanImportedText(line)
+        if (!samePart) {
+          currentPartTitle = cleanImportedText(line)
+          questionsInCurrentPart = 0
+        }
         currentQuestionRange = incomingRange || currentQuestionRange
         return
       }

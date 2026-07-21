@@ -1450,4 +1450,82 @@ function runCoverPageAndExampleBoundaryTest() {
 
 runCoverPageAndExampleBoundaryTest()
 
+// ── Review follow-ups (#1817): cold start, bare Part titles, captions ─────
+// 1. An UNHEADED paper that opens directly with space-separated "1 <stem>"
+//    (no Part heading, no range) must still import — the cover-page gate
+//    only rejects instruction-shaped openers.
+function runUnheadedColdStartTest() {
+  const blocks = [
+    block('1 … people have died of COVID 19 in the world.'),
+    block('A Small'),
+    block('B Plenty'),
+    block('C Many'),
+    block('D Little'),
+    block('Answer: C — Many'),
+    block('2 The girl can sing … she cannot dance.'),
+    block('A and'),
+    block('B but'),
+    block('C nor'),
+    block('D or'),
+    block('Answer: B — but'),
+  ]
+  const { sections, summary } = processImportedQuestionBlocks(blocks, [])
+  const questions = allQuestionsFromSections(sections)
+  assert.equal(summary.questions, 2, `unheaded cold start imports both questions, got ${summary.questions}`)
+  assert.equal(questions[0].correctAnswer, 2)
+  assert.equal(questions[1].correctAnswer, 1)
+}
+
+runUnheadedColdStartTest()
+
+// 2. A bare descriptive heading ("Part 4" — no range in the title) followed
+//    by the period-terminated range marker keeps the descriptive title.
+function runBarePartTitlePreservedTest() {
+  const blocks = [
+    block('Part 4'),
+    block('Each question contains an underlined word. Choose the correct meaning.'),
+    block('Now do questions 31 - 32.'),
+    block('31 The meeting has been postponed. The word postponed means …'),
+    block('A committed.'),
+    block('B concluded.'),
+    block('C moved.'),
+    block('D abolished.'),
+    block('32 Brandina was embarrassed. The word embarrassed means …'),
+    block('A feel anxious.'),
+    block('B waiting.'),
+    block('C get angry.'),
+    block('D feel silly.'),
+  ]
+  const { parts, summary } = processImportedQuestionBlocks(blocks, [])
+  assert.equal(summary.questions, 2)
+  const titles = (parts || []).map(p => p.title).filter(Boolean)
+  assert.ok(titles.some(t => /^part 4$/i.test(t)), `bare "Part 4" title survived: ${titles}`)
+  assert.ok(!titles.some(t => /^now do questions/i.test(t)), `marker did not become a part: ${titles}`)
+}
+
+runBarePartTitlePreservedTest()
+
+// 3. A bracketed cover diagram caption buffered before a SECTION heading is
+//    cleared with the cover assets — it must not land on the first question.
+function runCoverCaptionClearedTest() {
+  const blocks = [
+    block('1 Read these instructions carefully.'),
+    block('[Diagram: Example showing how to shade the answer sheet]'),
+    block('SECTION A'),
+    block('Part 1: Questions 1 – 1'),
+    block('1 … people have died of COVID 19 in the world.'),
+    block('A Small'),
+    block('B Plenty'),
+    block('C Many'),
+    block('D Little'),
+    block('Answer: C — Many'),
+  ]
+  const { sections } = processImportedQuestionBlocks(blocks, [])
+  const [q1] = allQuestionsFromSections(sections)
+  assert.ok(!/shade the answer sheet/i.test(String(q1.diagramText || '')),
+    'the cover caption did not attach to Q1')
+}
+
+runCoverCaptionClearedTest()
+
 console.log('All documentQuizParserCore tests passed.')
