@@ -23,6 +23,9 @@
 // Pure, dependency-free SSRF allow-list (shared with Qix). Safe to require at
 // top level — it pulls in no firebase runtime, so the node-only tests still load.
 const {isTrustedImageUrl} = require("../trustedImageHost");
+// Case- and mark-preserving MCQ option key, shared with Vigil (monitor.js) so
+// both agree on what a "duplicate option" is. Pure, dependency-free.
+const {optionDedupeKey} = require("./optionDedupeKey");
 
 const MODEL = "claude-haiku-4-5-20251001";
 
@@ -332,11 +335,13 @@ function runStructuralChecks(questions) {
 
     const seen = new Map();
     options.forEach((o, idx) => {
-      // Options can be rich-text (TipTap doc objects / JSON-encoded docs), not
-      // just plain strings. Compare their flattened text — a raw String(o) on a
-      // doc object yields "[object Object]" for every option, which would block
-      // publishing by reporting every distinct option as a duplicate.
-      const key = extractPlainText(o).trim().toLowerCase();
+      // Compare a CASE- and MARK-preserving key (optionDedupeKey), not the
+      // learner-facing flattened text: an English capitalisation question
+      // ("My" vs "my") or an underline/bold question has options that are
+      // distinct answers but flatten+lowercase to the same string, which would
+      // wrongly BLOCK publishing as a duplicate. Two options collide only when
+      // their text, case, and formatting marks all match.
+      const key = optionDedupeKey(o);
       if (!key) return;
       if (seen.has(key)) {
         blockers.push({

@@ -350,6 +350,7 @@
     "test:pubo": "node functions/agents/runners/pubo.test.js",
     "test:monitor": "node functions/agents/runners/monitor.test.js",
     "test:vex": "node functions/agents/runners/vex.test.js",
+    "test:option-dedupe-key": "node scripts/test-option-dedupe-key.mjs",
     "test:till": "node functions/agents/runners/till.test.js",
     "test:echo": "node functions/agents/runners/echo.test.js",
     "test:gate": "node functions/agents/runners/gate.test.js",

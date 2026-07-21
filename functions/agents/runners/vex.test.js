@@ -53,9 +53,24 @@ test("distinct rich-text (TipTap) options do NOT block publishing", () => {
 
 test("genuinely duplicate rich-text options are still blocked", () => {
   const blockers = runStructuralChecks([
-    {type: "mcq", text: richText("Q"), options: [richText("Lusaka"), richText("lusaka")], correctAnswer: 0},
+    {type: "mcq", text: richText("Q"), options: [richText("Lusaka"), richText("Lusaka")], correctAnswer: 0},
   ]);
   assert.ok(blockers.some((b) => /duplicate/i.test(b.message)));
+});
+
+test("options differing only in case do NOT block publishing", () => {
+  // Regression for the Grade 7 English Language Mock (quiz q2WGapKWzsxvTklaw7mG):
+  // capitalisation-question options ("My"/"my") are distinct answers but the old
+  // lowercased key wrongly blocked them as duplicates before publish.
+  const blockers = runStructuralChecks([
+    {type: "mcq", text: richText("Choose the correctly capitalised sentence."), options: [
+      richText("my name is john."),
+      richText("My name is John."),
+      richText("My Name Is John."),
+      richText("my name is John."),
+    ], correctAnswer: 1},
+  ]);
+  assert.ok(!blockers.some((b) => /duplicate/i.test(b.message)), JSON.stringify(blockers));
 });
 
 test("an empty rich-text option is still blocked", () => {
