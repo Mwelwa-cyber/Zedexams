@@ -118,11 +118,26 @@ test("empty option is flagged", () => {
   assert.ok(problems.some((p) => p.field === "options" && /empty option/i.test(p.message)));
 });
 
-test("duplicate options are flagged (case-insensitive)", () => {
+test("genuinely duplicate options are flagged", () => {
   const problems = runStructuralChecks([
-    {type: "mcq", text: "Q", options: ["Lusaka", "lusaka", "Ndola"], correctAnswer: 0},
+    {type: "mcq", text: "Q", options: ["Lusaka", "Lusaka", "Ndola"], correctAnswer: 0},
   ]);
   assert.ok(problems.some((p) => /duplicate/i.test(p.message)));
+});
+
+test("options differing only in case are NOT flagged as duplicate", () => {
+  // Regression for the Grade 7 English Language Mock (quiz q2WGapKWzsxvTklaw7mG):
+  // a capitalisation question's options ("My"/"my") read differently but the old
+  // lowercased key collapsed them into a false "duplicate options" warning.
+  const problems = runStructuralChecks([
+    {type: "mcq", text: "Choose the correctly capitalised sentence.", options: [
+      "my name is john.",
+      "My name is John.",
+      "My Name Is John.",
+      "my name is John.",
+    ], correctAnswer: 1},
+  ]);
+  assert.ok(!problems.some((p) => /duplicate/i.test(p.message)), JSON.stringify(problems));
 });
 
 test("distinct rich-text (TipTap) options are NOT flagged as duplicates", () => {
@@ -156,7 +171,7 @@ test("genuinely duplicate rich-text options are still flagged", () => {
     content: [{type: "paragraph", content: [{type: "text", text: label}]}],
   });
   const problems = runStructuralChecks([
-    {type: "mcq", text: richOption("Q"), options: [richOption("Lusaka"), richOption("lusaka")], correctAnswer: 0},
+    {type: "mcq", text: richOption("Q"), options: [richOption("Lusaka"), richOption("Lusaka")], correctAnswer: 0},
   ]);
   assert.ok(problems.some((p) => /duplicate/i.test(p.message)));
 });

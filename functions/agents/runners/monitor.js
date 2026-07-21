@@ -35,6 +35,7 @@
 
 const admin = require("firebase-admin");
 const {lusakaDayString, lusakaNowParts} = require("../../lusakaTime");
+const {optionDedupeKey} = require("./optionDedupeKey");
 
 const HAIKU_MODEL = "claude-haiku-4-5-20251001";
 const ORIGIN = "https://zedexams.com";
@@ -173,11 +174,13 @@ function runStructuralChecks(questions) {
     }
     const seen = new Map();
     options.forEach((o, idx) => {
-      // Options can be rich-text (TipTap doc objects / JSON-encoded docs), not
-      // just plain strings. Compare their flattened text — a raw String(o) on a
-      // doc object yields "[object Object]" for every option, which collapses
-      // distinct options into false "duplicate" reports.
-      const key = extractPlainText(o).trim().toLowerCase();
+      // Compare a CASE- and MARK-preserving key (optionDedupeKey), not the
+      // learner-facing flattened text: an English capitalisation question
+      // ("My" vs "my") or an underline/bold question has options that are
+      // distinct answers but flatten+lowercase to the same string, producing
+      // false "duplicate options" reports. Two options collide only when their
+      // text, case, and formatting marks all match.
+      const key = optionDedupeKey(o);
       if (!key) return;
       if (seen.has(key)) {
         problems.push({questionIndex: i, field: "options", message: `Question ${i + 1} has duplicate options (${seen.get(key) + 1} and ${idx + 1}).`});
