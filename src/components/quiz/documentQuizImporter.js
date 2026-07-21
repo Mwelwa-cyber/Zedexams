@@ -1108,18 +1108,23 @@ async function trySmartImport(extracted, file) {
     .slice(0, 8000)
   const payload = {
     fileName: file.name,
-    documentText: documentText.slice(0, 60000),
+    // Must match the server-side LIMITS.importDocumentText cap. A full
+    // 60-question paper extracts to ~80K chars; slicing shorter silently
+    // dropped the back half of the paper before the AI ever saw it.
+    documentText: documentText.slice(0, 90000),
     localDraft,
   }
 
-  // Two attempts. The smart-import callable can ride into its deadline on a long
-  // paper or a slow connection and throw; that used to drop STRAIGHT to the raw
-  // text parser, which mangles punctuation questions (reads option A as the
-  // stem) and turns "Page 6 of 14" into a question. A single retry after a short
-  // pause recovers the common transient timeout so the clean AI structuring
-  // actually applies instead of the ugly fallback.
+  // Two attempts, but only when the first failed FAST. The smart-import
+  // callable can fail transiently (cold start, dropped connection) and a
+  // quick retry recovers that. A failure that arrives after a long ride —
+  // the callable's own deadline — will fail identically on a second try,
+  // so retrying it just doubles the wait AND the provider spend for zero
+  // benefit ("it keeps losing credits and nothing imports").
+  const QUICK_FAILURE_MS = 30000
   let lastError = null
   for (let attempt = 0; attempt < 2; attempt += 1) {
+    const startedAt = Date.now()
     try {
       const ai = await structureImportedQuiz(payload)
       const aiSections = Array.isArray(ai.sections) ? ai.sections : []
@@ -1129,7 +1134,8 @@ async function trySmartImport(extracted, file) {
       return { sections: localSections, warnings: Array.isArray(ai.warnings) ? ai.warnings : [] }
     } catch (error) {
       lastError = error
-      if (attempt === 0 && isTransientSmartImportError(error)) {
+      const failedFast = Date.now() - startedAt < QUICK_FAILURE_MS
+      if (attempt === 0 && failedFast && isTransientSmartImportError(error)) {
         await new Promise(resolve => setTimeout(resolve, 1500))
         continue
       }

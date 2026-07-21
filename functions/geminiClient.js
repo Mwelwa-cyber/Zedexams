@@ -32,7 +32,10 @@ async function callGemini(apiKey, opts = {}) {
     );
   }
   const model = opts.model || DEFAULT_MODEL;
-  const maxOutputTokens = Math.min(8000, Math.max(200, Number(opts.maxTokens) || 4000));
+  // 16000 clamp: the document-import pipeline legitimately asks for large
+  // outputs (rough candidates for a full 60-question past paper). Gemini 2.5
+  // Flash supports far more; this is a cost guard, not a model limit.
+  const maxOutputTokens = Math.min(16000, Math.max(200, Number(opts.maxTokens) || 4000));
   // Monthly spend ceiling — reservation-based hard gate (same as
   // anthropicClient): reserve a conservative max cost up front so concurrent
   // callers can't collectively overspend a stale month-to-date read, settle

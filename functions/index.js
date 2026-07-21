@@ -1880,7 +1880,14 @@ exports.structureImportedQuiz = onCall(
   {
     secrets: [anthropicApiKey, geminiApiKey],
     region: "us-central1",
-    timeoutSeconds: 90, // pipeline calls two models; allow extra headroom
+    // The pipeline calls two models sequentially, and a full 60-question
+    // past paper needs a long Claude generation (~12K+ output tokens). The
+    // old 90s deadline was routinely blown on real papers: the function
+    // died mid-generation, the client retried, and the same thing happened
+    // again — two rounds of provider spend, zero imported questions.
+    // Budget: Gemini pre-pass (≤ ~40s) + Claude (bounded at ~300s by
+    // undici's default headersTimeout on the non-streaming fetch).
+    timeoutSeconds: 360,
     enforceAppCheck: shouldEnforceAppCheck("structureImportedQuiz"),
   },
   async (request) => {
@@ -1966,7 +1973,9 @@ exports.structureImportedQuiz = onCall(
             "   \"passageText\":\"\"}",
             "]}",
           ].filter(Boolean).join("\n"),
-          maxTokens: 6000,
+          // Sized for a full 60-question paper of rough candidates. The
+          // geminiClient clamp allows up to 16000.
+          maxTokens: 16000,
           temperature: 0.1,
           responseJson: true,
         });
@@ -1995,11 +2004,13 @@ exports.structureImportedQuiz = onCall(
     const raw = await callAnthropic(getAnthropicApiKey(anthropicApiKey), {
       systemPrompt,
       messages,
-      // 8000 tokens (~30K chars) comfortably fits a 16-question past paper
-      // with options, passages, and per-question explanations. 4000 used to
-      // truncate the JSON mid-array, which is why parseStructuredImport
-      // failed with "The smart import response could not be read."
-      maxTokens: 8000,
+      // 24000 tokens (~90K chars) fits a full 60-question past paper with
+      // options, passages, and per-question explanations. The earlier 4000
+      // and 8000 caps truncated the JSON mid-array on real ECZ/PSLE papers,
+      // which is why parseStructuredImport failed with "The smart import
+      // response could not be read" — provider tokens billed, nothing usable
+      // returned.
+      maxTokens: 24000,
       temperature: 0.2,
       json: true,
       track: {uid: request.auth.uid, tool: "structureImportedQuiz"},

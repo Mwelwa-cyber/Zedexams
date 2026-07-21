@@ -137,12 +137,24 @@ export function wrapFormattedPieces(pieces) {
 const LEADING_OPENS_RE = /^((?:\[\[(?:b|u|i|hl|sup|sub)\]\])+)/
 const LEADING_CLOSES_RE = /^((?:\[\[\/(?:b|u|i|hl|sup|sub)\]\])+)/
 // The number/letter core of a question ("1." / "12)") or option ("A." / "b)")
-// prefix. The punctuation may sit inside or outside the formatted run; the
-// PRISCA tab form ("1\t…") always has the tab OUTSIDE (a w:tab is its own
-// element, so it is never inside a formatted piece).
+// prefix. The punctuation may sit inside or outside the formatted run. A tab
+// can appear either OUTSIDE the tokens (a w:tab is its own element — the
+// PRISCA "1\t…" form) or INSIDE them (some generators put a literal tab
+// character inside the same bold <w:t> as the number — "[[b]]1\t[[/b]]…"),
+// so PREFIX_PUNCT_RE accepts a bare tab as a separator too.
 const PREFIX_CORE_RE = /^(\d{1,3}|[A-Da-d])/
-const PREFIX_PUNCT_RE = /^([.)\]:][\t ]?)/
+const PREFIX_PUNCT_RE = /^([.)\]:][\t ]?|\t)/
 const PREFIX_SEPARATOR_RE = /^([.)\]:][\t ]?|\t| )/
+
+// A structural marker line the parser matches with line-anchored regexes on
+// PLAIN text: "Answer: C — …", "Ans: B", "Key: D", "Explanation: …",
+// "Reason: …". When the source document formats the marker itself (a bold
+// "Answer:" run), the leading [[b]] token stops the parser's ANSWER_RE /
+// EXPLANATION_RE from ever matching, so the answer leaks into passage or
+// question text. Formatting carries no learner-facing value on these
+// metadata lines, so they are returned token-free. Mirrors ANSWER_RE /
+// EXPLANATION_RE in documentQuizParserCore.js.
+const MARKER_LINE_RE = /^\s*(?:answer|correct answer|ans|key|explanation|reason|because)\s*[:-]/i
 
 function countTokens(s) {
   return (String(s).match(TOKEN_PATTERN_G) || []).length
@@ -162,6 +174,11 @@ export function fixLeadingStructuralTokens(text) {
   return String(text ?? '')
     .split('\n')
     .map((line) => {
+      // Answer/explanation marker lines are parser metadata, not content —
+      // strip every token so ANSWER_RE / EXPLANATION_RE match at line start.
+      if (hasFormatTokens(line) && MARKER_LINE_RE.test(stripFormatTokens(line))) {
+        return stripFormatTokens(line)
+      }
       const opens = line.match(LEADING_OPENS_RE)
       if (!opens) return line
       const afterOpens = line.slice(opens[1].length)
