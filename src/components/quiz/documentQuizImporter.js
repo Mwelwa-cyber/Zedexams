@@ -32,6 +32,13 @@ import {
   DEFAULT_DIAGRAM_HANDLING,
 } from './scannedQuizImporter.js'
 
+// Version stamp surfaced in the import summary panel ("importer 2026.07.21…")
+// so a stale service-worker bundle is observable rather than silent — the
+// exact failure mode of the 2026-07-21 "still not working" report: the fix
+// was deployed but the browser kept running the old cached parser. Bump when
+// the document parser's behaviour changes materially.
+export const DOC_IMPORTER_VERSION = '2026.07.21-answer-key-tabs'
+
 export const QUIZ_DOCUMENT_ACCEPT = [
   '.doc',
   '.docx',
@@ -1412,6 +1419,10 @@ export async function importQuizDocument(input, options = {}) {
   const importStatus = summary.needsReview > 0 || warnings.length
     ? 'needs_review'
     : 'success'
+
+  // Stamp the parser version so the summary panel shows which importer
+  // actually ran in this browser (scanned/image paths stamp their own).
+  summary = { ...summary, importerVersion: DOC_IMPORTER_VERSION }
 
   const output = {
     quiz: {
