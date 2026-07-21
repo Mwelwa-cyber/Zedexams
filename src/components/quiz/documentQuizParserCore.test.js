@@ -1613,4 +1613,39 @@ function runNoColdStartInsideRangeTest() {
 
 runNoColdStartInsideRangeTest()
 
+// 7. Even if unusually-worded cover items slip past the shape guards and
+//    become phantom questions, they must not POISON the numbering: the
+//    "Part 1: Questions 1 – 2" heading resyncs lastQuestionNumber to the
+//    declared range, so the real Q1/Q2 still import with their options.
+function runNumberingResyncAfterCoverLeakTest() {
+  const blocks = [
+    // Deliberately worded to evade both shape guards (digits defeat the
+    // short-imperative rule; no instruction verb at line start; no cover
+    // vocabulary from COVER_INSTRUCTION_HINT_RE).
+    block('1 Candidates get 90 minutes in total today'),
+    block('2 Extra sheets are available at the front desk'),
+    block('Part 1: Questions 1 – 2'),
+    block('1 … people have died of COVID 19 in the world.'),
+    block('A Small'),
+    block('B Plenty'),
+    block('C Many'),
+    block('D Little'),
+    block('Answer: C — Many'),
+    block('2 The girl can sing … she cannot dance.'),
+    block('A and'),
+    block('B but'),
+    block('C nor'),
+    block('D or'),
+    block('Answer: B — but'),
+  ]
+  const { sections } = processImportedQuestionBlocks(blocks, [])
+  const questions = allQuestionsFromSections(sections)
+  const withOptions = questions.filter(q => (q.options || []).length === 4)
+  assert.equal(withOptions.length, 2, `both real questions kept their options, got ${withOptions.length}`)
+  assert.equal(withOptions[0].correctAnswer, 2, 'real Q1 resolves its answer despite the cover leak')
+  assert.equal(withOptions[1].correctAnswer, 1, 'real Q2 resolves its answer despite the cover leak')
+}
+
+runNumberingResyncAfterCoverLeakTest()
+
 console.log('All documentQuizParserCore tests passed.')
