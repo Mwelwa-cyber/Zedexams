@@ -312,18 +312,21 @@ function bareNumberStemMatch(line, lastNumber, range) {
   // instruction/cover shape check below, so one unusually-worded cover item
   // slipping through cannot drag the rest of the cover list in after it.
   const sequential = (lastNumber || 0) >= 1 && number === lastNumber + 1
-  const coldStart = (lastNumber || 0) === 0 && number === 1
+  // Cold start is the choke point for cover pages: it fires only when NO
+  // question range was ever declared (an active "Questions 21 – 40" range
+  // means a bare "1 …" is a worked example or stray line, never Q1), only
+  // for number 1, and only when the text passes BOTH shape guards. Once a
+  // genuine Q1 is flowing, sequential stems are trusted further: imperative
+  // stems ("Calculate the area of the rectangle.") are legitimate questions,
+  // so only the narrow cover vocabulary is rejected there.
+  const coldStart = (lastNumber || 0) === 0 && !range && number === 1
+    && !looksLikeInstructionLine(text)
+    && !COVER_INSTRUCTION_HINT_RE.test(text)
   const inDeclaredRange = Boolean(
     range && number >= range.start && number <= range.end && number > (lastNumber || 0),
   )
-  if (!inDeclaredRange) {
-    if (!sequential && !coldStart) return null
-    // Cover-page shape guards, applied only when no question range has been
-    // declared (a declared range is the strong signal that real questions,
-    // not cover instructions, are flowing).
-    if (looksLikeInstructionLine(text)) return null
-    if (COVER_INSTRUCTION_HINT_RE.test(text)) return null
-  }
+  if (!sequential && !coldStart && !inDeclaredRange) return null
+  if (!inDeclaredRange && sequential && COVER_INSTRUCTION_HINT_RE.test(text)) return null
   return { number: String(number), text }
 }
 
