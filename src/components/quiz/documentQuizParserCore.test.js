@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict'
-import { metadataFromText, processImportedQuestionBlocks, isRunningHeaderFooterLine } from './documentQuizParserCore.js'
+import {
+  expandFlattenedQuestionRuns,
+  isRunningHeaderFooterLine,
+  metadataFromText,
+  processImportedQuestionBlocks,
+} from './documentQuizParserCore.js'
 import { richTextToPlainText } from '../../utils/quizRichText.js'
 
 const punctuationInstruction = 'For questions 26-30, each sentence has one punctuation error. Choose the sentence with the correct punctuation.'
@@ -1647,5 +1652,110 @@ function runNumberingResyncAfterCoverLeakTest() {
 }
 
 runNumberingResyncAfterCoverLeakTest()
+
+// ── Flattened multi-question Word table recovery ───────────────────────────
+// Reproduces the phone report where an English DOCX imported as only two huge
+// cards: Word had flattened several numbered MCQs into each table row, so the
+// parser saw only the first number and swallowed Q27-Q30 (and Q46-Q60) into it.
+function flattenedMcqRun(first, last) {
+  return Array.from({ length: last - first + 1 }, (_, index) => {
+    const number = first + index
+    return [
+      number,
+      `Which answer is correct for item ${number}?`,
+      'A choice alpha',
+      'B choice beta',
+      'C choice gamma',
+      'D choice delta',
+      'Answer: B — choice beta',
+    ].join(' ')
+  }).join(' ')
+}
+
+function flattenedOptionOnlyRun(first, last) {
+  return Array.from({ length: last - first + 1 }, (_, index) => {
+    const number = first + index
+    return [
+      number,
+      `A sentence-alpha-item-${number}`,
+      `B sentence-beta-item-${number}`,
+      `C sentence-gamma-item-${number}`,
+      `D sentence-delta-item-${number}`,
+      'Answer: C',
+    ].join(' ')
+  }).join(' ')
+}
+
+function runFlattenedWordTableRecoveryTest() {
+  const blocks = [
+    block('GRADE SEVEN ENGLISH EXAMINATION'),
+    block('Part 1: Questions 1 – 20 — Choose the best answer.'),
+    block(flattenedMcqRun(1, 20), { source: 'docx-table' }),
+    block('Part 2: Questions 21 – 25 — Choose the word that is correctly spelt.'),
+    block(flattenedMcqRun(21, 25), { source: 'docx-table' }),
+    block('Part 3: Questions 26 – 30 — Choose the sentence which is correctly punctuated.'),
+    block(flattenedOptionOnlyRun(26, 30), { source: 'docx-table' }),
+    block('Part 4: Questions 31 – 45 — Choose the best answer.'),
+    block(flattenedMcqRun(31, 45), { source: 'docx-table' }),
+    block('Reading Comprehension — Questions 46 – 60'),
+    block('Story 1'),
+    block('The notice is dated 20th October 2025. The meeting runs from 14:00 to 15:30 hours.'),
+    block(flattenedMcqRun(46, 50), { source: 'docx-table' }),
+    block('Story 2'),
+    block('A second passage contains ordinary prose and no hidden questions.'),
+    block(flattenedMcqRun(51, 55), { source: 'docx-table' }),
+    block('Story 3'),
+    block('A third passage completes the reading section.'),
+    block(flattenedMcqRun(56, 60), { source: 'docx-table' }),
+  ]
+  const warnings = []
+  const { sections, summary, processedBlocks } = processImportedQuestionBlocks(blocks, warnings)
+  const questions = allQuestionsFromSections(sections)
+
+  assert.equal(summary.questions, 60, `flattened paper must recover all 60 questions, got ${summary.questions}`)
+  assert.equal(summary.passages, 3, 'all three reading passages must survive')
+  assert.equal(summary.needsReview, 0, 'confidently recovered questions must not be review-only cards')
+  assert.deepEqual(
+    questions.map(question => Number(question.sourceQuestionNumber)),
+    Array.from({ length: 60 }, (_, index) => index + 1),
+    'source numbering must remain unique and ordered from 1 to 60',
+  )
+  assert.ok(questions.every(question => question.options.length === 4),
+    'every recovered MCQ must keep all four options')
+  assert.ok(questions.filter(question => Number(question.sourceQuestionNumber) < 26 || Number(question.sourceQuestionNumber) > 30)
+    .every(question => question.correctAnswer === 1),
+  'inline Answer: B markers must remain attached to their questions')
+  assert.ok(questions.filter(question => Number(question.sourceQuestionNumber) >= 26 && Number(question.sourceQuestionNumber) <= 30)
+    .every(question => question.correctAnswer === 2),
+  'option-only punctuation items must keep their Answer: C markers')
+  assert.match(plainRichText(findQuestion(sections, 26).text), /correctly punctuated/i,
+    'the range instruction must supply the stem for number-only option runs')
+  assert.ok(!warnings.some(warning => /question number was not found/i.test(warning)),
+    'the recovered run must not emit missing-number warnings')
+  assert.ok(processedBlocks.some(item => item.recoveredFromFlattenedTable),
+    'the recovery marker should remain available for diagnostics')
+
+  const passages = sections.filter(section => section.kind === 'passage')
+  assert.deepEqual(passages.map(section => section.passage.questions.length), [5, 5, 5],
+    'Q46-Q60 must be distributed five per passage')
+  assert.match(plainRichText(passages[0].passage.passageText), /20th October 2025/i)
+  assert.match(plainRichText(passages[0].passage.passageText), /14:00 to 15:30/i)
+
+  // A declared range followed only by date/time prose must remain untouched;
+  // at least two sequential question numbers plus complete A-D choices are
+  // required before the normalizer changes a block.
+  const dateBlock = block(
+    'The notice is dated 20 October 2025 and the event runs from 14:00 to 15:30.',
+    { source: 'docx-table' },
+  )
+  const untouched = expandFlattenedQuestionRuns([
+    block('Questions 14 – 20'),
+    dateBlock,
+  ])
+  assert.equal(untouched.length, 2)
+  assert.equal(untouched[1], dateBlock, 'dates and times must not become question boundaries')
+}
+
+runFlattenedWordTableRecoveryTest()
 
 console.log('All documentQuizParserCore tests passed.')

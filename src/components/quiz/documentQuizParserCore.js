@@ -145,6 +145,212 @@ function splitLines(text) {
     .filter(Boolean)
 }
 
+// Word exports sometimes collapse an entire question table row into one text
+// run, for example:
+//   26 A first choice B second choice C third choice D fourth choice
+//   27 Choose ... A ... B ... C ... D ...
+// The normal parser intentionally only recognises a question number at the
+// start of a line, so without this recovery pass Q27+ are swallowed by Q26.
+//
+// Keep the recovery conservative: it only runs inside a declared
+// "Questions N-M" range, requires at least two consecutive question numbers,
+// and requires every recovered item to contain an ordered A-D option run.
+// Those three signals prevent dates, years, marks and times in passage prose
+// from being interpreted as question boundaries.
+const INLINE_QUESTION_RANGE_RE = /\bquestions?\s+(\d{1,3})\s*(?:[–—-]|to)\s*(\d{1,3})\b/i
+const INLINE_ANSWER_RE = /(?:^|\s)(?:answer|correct answer|ans|key)\s*[:-]\s*/i
+const INLINE_OPTION_TOKEN_RE = /(^|\s)(\(?([A-D])\)?(?:[.):-])?)(?=\s+\S)/g
+
+function flattenedRangeContext(text) {
+  const value = String(text || '')
+  const match = INLINE_QUESTION_RANGE_RE.exec(value)
+  if (!match) return null
+  const start = Number(match[1])
+  const end = Number(match[2])
+  if (!Number.isInteger(start) || !Number.isInteger(end) || end < start || end - start > 100) {
+    return null
+  }
+  const afterRange = value.slice(match.index + match[0].length)
+  const instruction = cleanImportedText(
+    afterRange.replace(/^\s*[.:;—–-]+\s*/, '').split(/\r?\n/, 1)[0] || '',
+  )
+  return {
+    start,
+    end,
+    instruction,
+    // If the heading and the questions share one block, do not mistake the
+    // range's first number for the first question.
+    searchFrom: match.index + match[0].length,
+  }
+}
+
+function questionNumberOccurrences(text, range, searchFrom = 0) {
+  const occurrences = []
+  for (let number = range.start; number <= range.end; number += 1) {
+    const pattern = new RegExp(`(^|\\s)${number}(?=\\s*(?:[.):-]\\s*|\\s+))`, 'g')
+    pattern.lastIndex = searchFrom
+    let match
+    while ((match = pattern.exec(text)) !== null) {
+      occurrences.push({
+        number,
+        index: match.index + (match[1] ? match[1].length : 0),
+      })
+      if (pattern.lastIndex === match.index) pattern.lastIndex += 1
+    }
+  }
+  occurrences.sort((a, b) => a.index - b.index || a.number - b.number)
+  return occurrences
+}
+
+function longestSequentialOccurrenceRun(occurrences) {
+  let best = []
+  occurrences.forEach((first, firstIndex) => {
+    const run = [first]
+    let lastIndex = first.index
+    let nextNumber = first.number + 1
+    for (let i = firstIndex + 1; i < occurrences.length; i += 1) {
+      const candidate = occurrences[i]
+      if (candidate.index <= lastIndex) continue
+      if (candidate.number === nextNumber) {
+        run.push(candidate)
+        lastIndex = candidate.index
+        nextNumber += 1
+      }
+    }
+    if (run.length > best.length) best = run
+  })
+  return best
+}
+
+function orderedInlineOptions(text) {
+  const candidates = []
+  INLINE_OPTION_TOKEN_RE.lastIndex = 0
+  let match
+  while ((match = INLINE_OPTION_TOKEN_RE.exec(text)) !== null) {
+    candidates.push({
+      label: match[3],
+      index: match.index + (match[1] ? match[1].length : 0),
+      valueStart: INLINE_OPTION_TOKEN_RE.lastIndex,
+    })
+  }
+
+  for (let a = 0; a < candidates.length; a += 1) {
+    if (candidates[a].label !== 'A') continue
+    const chosen = [candidates[a]]
+    let cursor = a + 1
+    for (const label of ['B', 'C', 'D']) {
+      const next = candidates.slice(cursor).findIndex(candidate => candidate.label === label)
+      if (next < 0) break
+      cursor += next
+      chosen.push(candidates[cursor])
+      cursor += 1
+    }
+    if (chosen.length !== 4) continue
+
+    const options = chosen.map((item, index) => {
+      const next = chosen[index + 1]
+      return cleanImportedText(text.slice(item.valueStart, next ? next.index : text.length))
+    })
+    if (options.every(option => option.length >= 1)) {
+      return {
+        stem: cleanImportedText(text.slice(0, chosen[0].index)),
+        options,
+      }
+    }
+  }
+  return null
+}
+
+function rebuildFlattenedQuestion(segment, number, instruction, block, assets) {
+  const withoutNumber = cleanImportedText(
+    String(segment || '').replace(new RegExp(`^${number}\\s*[.):-]?\\s*`), ''),
+  )
+  const answerMatch = INLINE_ANSWER_RE.exec(withoutNumber)
+  const questionAndOptions = answerMatch
+    ? cleanImportedText(withoutNumber.slice(0, answerMatch.index))
+    : withoutNumber
+  const answer = answerMatch
+    ? cleanImportedText(withoutNumber.slice(answerMatch.index).replace(/^\s+/, ''))
+    : ''
+  const parsed = orderedInlineOptions(questionAndOptions)
+  if (!parsed) return null
+
+  const stem = parsed.stem || instruction || 'Choose the correct answer.'
+  const lines = [`${number}. ${stem}`]
+  parsed.options.forEach((option, index) => {
+    lines.push(`${String.fromCharCode(65 + index)}. ${option}`)
+  })
+  if (answer) lines.push(answer)
+
+  return {
+    ...block,
+    text: lines.join('\n'),
+    assets,
+    source: 'docx',
+    recoveredFromFlattenedTable: true,
+    sharedInstruction: parsed.stem ? block.sharedInstruction : (instruction || block.sharedInstruction),
+  }
+}
+
+export function expandFlattenedQuestionRuns(blocks = []) {
+  const output = []
+  let activeRange = null
+
+  blocks.forEach(block => {
+    const rawText = String(block?.text || '')
+    const detectedRange = flattenedRangeContext(rawText)
+    if (detectedRange) {
+      activeRange = detectedRange
+    }
+
+    if (!activeRange || !/^docx(?:-table)?$/i.test(String(block?.source || ''))) {
+      output.push(block)
+      return
+    }
+
+    const searchFrom = detectedRange?.searchFrom || 0
+    const occurrences = questionNumberOccurrences(rawText, activeRange, searchFrom)
+    const run = longestSequentialOccurrenceRun(occurrences)
+    if (run.length < 2) {
+      output.push(block)
+      return
+    }
+
+    const rebuilt = run.map((item, index) => {
+      const next = run[index + 1]
+      const segment = rawText.slice(item.index, next ? next.index : rawText.length)
+      return rebuildFlattenedQuestion(
+        segment,
+        item.number,
+        activeRange.instruction,
+        block,
+        index === 0 ? (block.assets || []) : [],
+      )
+    })
+
+    // All-or-nothing keeps a partially ambiguous row exactly as Word supplied
+    // it, allowing the existing review/AI fallback path to handle it.
+    if (rebuilt.some(item => !item)) {
+      output.push(block)
+      return
+    }
+
+    const prefix = cleanImportedText(rawText.slice(0, run[0].index))
+    if (prefix) {
+      output.push({
+        ...block,
+        text: prefix,
+        assets: [],
+        source: 'docx',
+        recoveredFromFlattenedTable: true,
+      })
+    }
+    output.push(...rebuilt)
+  })
+
+  return output
+}
+
 function titleFromFileName(name = '') {
   const cleaned = String(name || 'Imported Quiz')
     .replace(/\.(docx?|pdf)$/i, '')
@@ -2446,7 +2652,7 @@ export function processImportedQuestionBlocks(blocks = [], warnings = [], option
   // that lay vertical arithmetic out as separate paragraphs were dropping
   // every such question on the floor.
   const processedBlocks = preprocessStandaloneInstructions(
-    preprocessParaOrdering(mergeOrphanQuestionNumbers(blocks)),
+    preprocessParaOrdering(mergeOrphanQuestionNumbers(expandFlattenedQuestionRuns(blocks))),
   )
   // Capture the leading "Answer ALL N questions"-style instruction before
   // any numbered question, so we can hoist it to parts[0].instructions
