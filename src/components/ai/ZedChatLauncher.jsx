@@ -96,7 +96,7 @@ export default function ZedChatLauncher() {
         aria-label="Open Zed AI study chat"
         aria-expanded={open}
         style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom))' }}
-        className={`fixed lg:!bottom-4 right-4 z-40 rounded-full theme-accent-fill theme-on-accent shadow-elev-md hover:shadow-elev-lg flex items-center justify-center border-4 border-white transition-all duration-300 ease-out ${
+        className={`zx-chat-fab fixed lg:!bottom-4 right-4 z-40 rounded-full theme-accent-fill theme-on-accent shadow-elev-md hover:shadow-elev-lg flex items-center justify-center border-4 border-white transition-all duration-300 ease-out ${
           shrink ? 'w-11 h-11 opacity-70' : 'w-14 h-14 opacity-100'
         }`}
       >
