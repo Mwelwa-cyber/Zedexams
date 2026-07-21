@@ -72,13 +72,29 @@ undefined.
   drill once and record RTO. **Launch blocker:** the *rehearsal* (with DR-001 config) before broad
   launch. **Complexity:** Medium (operator drill).
 
-### DR-003 — No Firebase Storage backup
-- **Severity:** Medium–High · **Confidence:** High confidence
-- **Affected:** the export (even when configured) covers Firestore only; generated images, uploads,
-  exports, past papers have no backup.
+### DR-003 — No Firebase Storage backup ✅ monitor + runbook added in this PR (mirror still operator-provisioned)
+- **Severity:** Medium–High → Medium (residual) · **Confidence:** High confidence
+- **Affected:** the Firestore export covers Firestore only; generated images, uploads, exports and past
+  papers in the Storage bucket had no backup and no verification.
 - **Risk:** Storage loss (accidental/malicious) is unrecoverable.
-- **Correction:** Enable bucket versioning + a cross-region/cross-project copy (or Object Lifecycle
-  with a mirror). **Launch blocker:** No (but High). **Complexity:** Low–Medium.
+- **Architecture:** the cross-region **copy** belongs in **Storage Transfer Service (STS)** — a managed,
+  scheduled bucket-to-bucket mirror — not a Cloud Function copying the whole bucket daily (cost /
+  timeouts / scale). Like DR-001's bucket + IAM, the mirror is **operator-provisioned once**; what code
+  adds is what closes the real risk — making the mirror **verifiable**.
+- **Added here** (`functions/storageBackup.js` + `storageBackupCore.js`, 31 tests): a daily
+  **health check** `storageBackupCheck` (04:00 Africa/Lusaka) that reads the newest object in the backup
+  bucket and records `opsStorageBackups/{date}` with status **`fresh` / `stale` / `empty` /
+  `misconfigured` / `error`**, raising an **ops alert** when the mirror is absent, has never run, or has
+  **stopped** (newest object older than `STORAGE_BACKUP_MAX_AGE_HOURS`, default 26h). A silently-broken
+  Storage backup now surfaces the next morning instead of at disaster time. Deploy-safe before the
+  mirror exists (records `misconfigured` in prod / `skipped-non-production` in dev).
+- **Operator setup still owed** (see Runbook §D): (1) enable **Object Versioning** on the primary
+  bucket `gs://examsprepzambia.firebasestorage.app`; (2) create a **cross-region backup bucket**
+  (versioning + retention lifecycle); (3) create the **STS job** (primary → backup, daily) and grant its
+  service account `storage.objectViewer` on the source + `storage.objectAdmin` on the destination;
+  (4) set `STORAGE_BACKUP_BUCKET` (and optionally `STORAGE_BACKUP_PREFIX` to scope the freshness scan,
+  `STORAGE_BACKUP_MAX_AGE_HOURS`) in `functions/.env.examsprepzambia`.
+- **Launch blocker:** No (but High until the mirror is provisioned). **Complexity:** Low–Medium.
 
 ### DR-004 — No database deletion protection
 - **Severity:** Medium · **Confidence:** Moderate confidence
@@ -175,6 +191,33 @@ undefined.
    into `(default)` requires the explicit
    `--i-understand-this-overwrites-production` flag.
 6. **Record the measured RTO** from this drill (this closes the RTO gap).
+
+### D. Storage backup mirror (operator — turns the Storage half ON) — DR-003
+> Backs up the Storage bucket (generated images, uploads, exports, past papers).
+> The daily `storageBackupCheck` (04:00 Lusaka) only VERIFIES this mirror — it
+> does not create it. Until these steps are done it records `misconfigured` and
+> emails an alert every morning.
+1. **Enable Object Versioning** on the primary bucket (protects individual objects
+   from overwrite/delete): `gsutil versioning set on gs://examsprepzambia.firebasestorage.app`
+2. **Create a cross-region backup bucket** (different region from the primary),
+   uniform bucket-level access, versioning + a retention lifecycle rule:
+   `gsutil mb -l europe-west1 gs://zedexams-storage-backup`
+3. **Create a Storage Transfer Service job** (source = primary, destination =
+   backup, **daily** schedule) in the console or via `gcloud transfer jobs create`.
+   Grant its service account `roles/storage.objectViewer` on the source and
+   `roles/storage.objectAdmin` on the destination. Schedule it to finish before
+   04:00 Lusaka so the health check sees a fresh object.
+4. **Set the env** in `functions/.env.examsprepzambia` and deploy functions:
+   `STORAGE_BACKUP_BUCKET=gs://zedexams-storage-backup` (optionally
+   `STORAGE_BACKUP_PREFIX=` to scope the freshness scan to the mirror path on a
+   very large bucket, and `STORAGE_BACKUP_MAX_AGE_HOURS=26`).
+5. **Verify**: after 04:00 Lusaka read `opsStorageBackups/{today}` — `status` must
+   be `"fresh"` (not `misconfigured` / `empty` / `stale`). `latestObjectAt` shows
+   the newest backed-up object's time.
+6. **Restore from the mirror** (disaster): copy objects back with
+   `gsutil -m rsync -r gs://zedexams-storage-backup gs://examsprepzambia.firebasestorage.app`
+   (or restore selected prefixes). Versioning on the primary lets you recover an
+   individual overwritten/deleted object without the mirror.
 
 ## Cross-references
 - Hard deletes amplify this: [`05-data-and-firestore.md`](./05-data-and-firestore.md) DATA-004.

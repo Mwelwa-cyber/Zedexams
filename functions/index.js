@@ -3023,6 +3023,12 @@ exports.dailyFirestoreBackup = require("./firestoreBackup").dailyFirestoreBackup
 // "started" summaries back and flips them to "completed" (or records a real
 // post-acceptance failure) so the DR floor is verified unattended (DR-007).
 exports.backupCompletionCheck = require("./firestoreBackup").backupCompletionCheck;
+// Storage-backup health check (Africa/Lusaka 04:00) — verifies the operator's
+// cross-region Storage Transfer Service mirror actually ran (a recent object in
+// the backup bucket), recording opsStorageBackups/{date} and alerting ops when
+// the mirror is misconfigured / empty / stale. Closes DR-003 (Storage had no
+// verified backup). Safe to deploy before STORAGE_BACKUP_BUCKET is set.
+exports.storageBackupCheck = require("./storageBackup").storageBackupCheck;
 
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 // Targets learners who practised yesterday but not today, sends a friendly
