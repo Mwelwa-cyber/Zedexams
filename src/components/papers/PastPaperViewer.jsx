@@ -13,6 +13,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useDataSaver } from '../../contexts/DataSaverContext'
+import useHideOnScroll from '../../hooks/useHideOnScroll'
 import {
   getPaper,
   getLinkedQuizMeta,
@@ -540,8 +541,22 @@ export default function PastPaperViewer() {
   const canDownloadPaper = previewSource?.kind === 'pdf'
     || (previewSource?.kind === 'images' && (previewSource.assets?.length || 0) > 0)
 
+  // Whether the floating glass page-navigation dock is on screen — true
+  // whenever the visible tab is showing a page-by-page PDF viewer. Image
+  // papers scroll vertically and never get the dock (or PDF arrows).
+  const dockActive = Boolean(currentUser) && (
+    (activeTab === 'questionPaper' && previewSource?.kind === 'pdf')
+    || (activeTab === 'answers' && markSchemeSource?.kind === 'pdf')
+  )
+
   return (
-    <div className="min-h-screen theme-bg flex flex-col overflow-x-clip">
+    <div
+      className="min-h-screen theme-bg flex flex-col overflow-x-clip"
+      // Reserve space under the content so the fixed dock never permanently
+      // covers the panels / footer at the end of the page.
+      style={dockActive ? { paddingBottom: 'calc(112px + env(safe-area-inset-bottom))' } : undefined}
+    >
+      <ViewerDockBodyFlag active={dockActive} />
       <SeoHelmet
         title={paper.title}
         description={`${paper.examBoard || 'ECZ'} Grade ${paper.grade} ${subjectLabel} ${paper.year} past paper${paper.paperNumber ? `, Paper ${paper.paperNumber}` : ''}.`}
@@ -580,12 +595,13 @@ export default function PastPaperViewer() {
               <ChevronRight size={12} strokeWidth={2.8} className="flex-shrink-0" />
               <Link to={subjectsBackTo} className="hover:theme-text whitespace-nowrap">{paper.year}</Link>
               <ChevronRight size={12} strokeWidth={2.8} className="flex-shrink-0" />
-              <span className="theme-text truncate">{subjectLabel}</span>
+              <span className="theme-text font-black truncate" aria-current="page">{subjectLabel}</span>
             </nav>
           </div>
 
-          {/* Sticky action bar — stays visible while scrolling */}
-          <div className="flex items-center gap-2 pb-2 overflow-x-auto no-scrollbar">
+          {/* Sticky action bar — horizontally scrollable pills, full-bleed
+              with padded ends so the last action is never cropped */}
+          <div className="flex items-center gap-2 pb-2 overflow-x-auto no-scrollbar -mx-3 px-3 sm:-mx-4 sm:px-4">
             {quizAvailable ? (
               <Link
                 to={`/papers/${paperId}/quiz`}
@@ -765,8 +781,9 @@ export default function PastPaperViewer() {
 
                 {previewSource?.kind === 'pdf' && (
                   paperUrlLoading || !paperUrl ? (
-                    <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex items-center justify-center theme-text-muted text-sm">
-                      Loading paper…
+                    <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex flex-col items-center justify-center gap-3 theme-text-muted text-sm">
+                      <Skeleton className="w-40 h-56 rounded-radius-md" />
+                      <span className="font-bold">Preparing your paper…</span>
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -793,7 +810,7 @@ export default function PastPaperViewer() {
                             Loading paper…
                           </div>
                         }>
-                          <PdfJsViewer url={paperUrl} title={paper.title} storageKey={`paper-pdf-page:${paperId}`} />
+                          <PdfJsViewer url={paperUrl} title={paper.title} storageKey={`paper-pdf-page:${paperId}`} dock />
                         </Suspense>
                       </FullBleed>
                     </div>
@@ -884,8 +901,10 @@ export default function PastPaperViewer() {
         <SubjectNav prev={prevSibling} next={nextSibling} backTo={subjectsBackTo} />
       </div>
 
-      <MobileQuizFab paperId={paperId} available={quizAvailable} />
-      <BackToTopFab />
+      <MobileQuizFab paperId={paperId} available={quizAvailable} aboveDock={dockActive} />
+      {/* The dock owns the bottom edge in PDF mode; back-to-top is only
+          needed for the long vertical scroll of image papers. */}
+      {!dockActive && <BackToTopFab />}
 
       {/* Immersive reading mode — a CSS overlay (not the native Fullscreen
           API) so it scrolls + exits reliably on iOS and the Capacitor app.
@@ -901,7 +920,7 @@ export default function PastPaperViewer() {
             {previewSource.kind === 'pdf' && (
               paperUrl ? (
                 <div className="h-full p-2 sm:p-3">
-                  <PdfJsViewer url={paperUrl} title={paper.title} fill storageKey={`paper-pdf-page:${paperId}`} />
+                  <PdfJsViewer url={paperUrl} title={paper.title} fill storageKey={`paper-pdf-page:${paperId}`} dock />
                 </div>
               ) : (
                 <p className="theme-text-muted text-sm py-12 text-center">Loading paper…</p>
@@ -1108,15 +1127,45 @@ function SubjectNav({ prev, next, backTo }) {
   )
 }
 
-/** Floating "Take Quiz" pill on phones (desktop uses the sticky bar + rail). */
-function MobileQuizFab({ paperId, available }) {
+/**
+ * Flags the <body> while the glass dock is on screen so global floating
+ * chrome (the Zed chat bubble) can lift itself clear of it via CSS —
+ * see `body[data-viewer-dock] .zx-chat-fab` in index.css.
+ */
+function ViewerDockBodyFlag({ active }) {
+  useEffect(() => {
+    if (!active) return undefined
+    document.body.setAttribute('data-viewer-dock', '1')
+    return () => document.body.removeAttribute('data-viewer-dock')
+  }, [active])
+  return null
+}
+
+/**
+ * Floating "Take Quiz" action on phones (desktop uses the sticky bar +
+ * rail). Sits on the left, above the glass dock in PDF mode, and never
+ * over the Zed chat bubble (which docks right). While the learner scrolls
+ * down it collapses to a small circular icon so it doesn't sit over exam
+ * content; scrolling up expands it back to the full label.
+ */
+function MobileQuizFab({ paperId, available, aboveDock = false }) {
+  const collapsed = useHideOnScroll({ threshold: 120 })
   if (!available) return null
   return (
     <Link
       to={`/papers/${paperId}/quiz`}
-      className="lg:hidden fixed bottom-5 left-5 z-20 inline-flex items-center gap-2 rounded-full theme-accent-fill theme-on-accent px-5 py-3 text-sm font-black shadow-elev-lg active:scale-95 transition"
+      aria-label="Take the quiz for this paper"
+      style={{
+        bottom: aboveDock
+          ? 'calc(100px + env(safe-area-inset-bottom))'
+          : 'calc(20px + env(safe-area-inset-bottom))',
+      }}
+      className={`lg:hidden fixed left-4 z-30 inline-flex items-center justify-center gap-2 rounded-full theme-accent-fill theme-on-accent min-h-[52px] text-sm font-black shadow-elev-lg active:scale-95 transition-all duration-300 ease-out ${
+        collapsed ? 'w-[52px] px-0' : 'px-5 py-3'
+      }`}
     >
-      <PencilLine size={17} strokeWidth={2.4} /> Take Quiz
+      <PencilLine size={collapsed ? 22 : 17} strokeWidth={2.4} />
+      {!collapsed && 'Take Quiz'}
     </Link>
   )
 }
@@ -1576,7 +1625,7 @@ function AnswersPanel({ source, paperTitle, onDownload, downloading = false }) {
               Loading viewer…
             </div>
           }>
-            <PdfJsViewer url={url} title={`${paperTitle} — answers`} />
+            <PdfJsViewer url={url} title={`${paperTitle} — answers`} dock />
           </Suspense>
         </FullBleed>
       </div>

@@ -4929,6 +4929,26 @@ select option {
     );
   }
 
+  /* Floating glass page-navigation dock (past-paper PDF viewer).
+   * A free-floating pill rather than an edge strip, so it gets a full
+   * border + all-corner radius instead of the top-only treatment above. */
+  .zx-glass-dock {
+    background: rgba(255, 255, 255, 0.78);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 24px;
+    box-shadow: 0 12px 32px rgba(31, 41, 55, 0.16),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  }
+
+  /* While the paper viewer's fixed dock is on screen, lift the global Zed
+   * chat bubble clear of it (dock top edge ≈ 84px + safe-area; ≥12px gap).
+   * !important outranks the launcher's inline `bottom` style. */
+  body[data-viewer-dock='1'] .zx-chat-fab {
+    bottom: calc(7.5rem + env(safe-area-inset-bottom)) !important;
+  }
+
   /* LinkedIn-style auto-hide chrome.
    * The glass header slides up and the bottom nav slides down on scroll-down,
    * then reveal again on scroll-up — driven by useHideOnScroll. Mobile only:
@@ -4987,6 +5007,13 @@ select option {
     background: transparent;
     color: #0F1B2D;
     transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+
+  body.theme-midnight .zx-glass-dock {
+    background: color-mix(in srgb, var(--card) 80%, transparent);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
   /* Midnight theme — keep navy stroke, lift alpha so strips stay legible */

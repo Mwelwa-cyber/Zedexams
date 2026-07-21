@@ -106,6 +106,9 @@ import {
   ScaleIcon,
   ArrowsRightLeftIcon,
   InformationCircleIcon,
+  MagnifyingGlassPlusIcon,
+  MagnifyingGlassMinusIcon,
+  EllipsisHorizontalIcon,
 } from '@heroicons/react/24/outline'
 
 // Size-token map matches components/ui/Icon.jsx so tokens (xs/sm/md/lg/xl)
@@ -295,6 +298,10 @@ const Scissors = /*#__PURE__*/ withSize(ScissorsIcon)
 const Scale = /*#__PURE__*/ withSize(ScaleIcon)
 const ArrowLeftRight = /*#__PURE__*/ withSize(ArrowsRightLeftIcon)
 const Info = /*#__PURE__*/ withSize(InformationCircleIcon)
+const ZoomIn = /*#__PURE__*/ withSize(MagnifyingGlassPlusIcon)
+const ZoomOut = /*#__PURE__*/ withSize(MagnifyingGlassMinusIcon)
+const MoreHorizontal = /*#__PURE__*/ withSize(EllipsisHorizontalIcon)
+const RotateCw = /*#__PURE__*/ withSize(ArrowPathIcon)
 
 export {
   GraduationCap,
@@ -427,4 +434,8 @@ export {
   Scale,
   ArrowLeftRight,
   Info,
+  ZoomIn,
+  ZoomOut,
+  MoreHorizontal,
+  RotateCw,
 }
