@@ -250,6 +250,46 @@ function questionMatch(line) {
   return { number: numbered[1], text }
 }
 
+// "Questions 46 – 60" range declared by a Part/section heading or a
+// comprehension instruction. Used to gate bareNumberStemMatch below.
+function questionRangeFromLine(line) {
+  const m = cleanImportedText(line).match(/questions?\s+(\d{1,3})\s*(?:[–—-]|to)\s*(\d{1,3})/i)
+  if (!m) return null
+  const start = Number(m[1])
+  const end = Number(m[2])
+  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end < start) return null
+  return { start, end }
+}
+
+// SPACE-separated question numbering: "51 Why did Chipo refuse …", with
+// options as "A hated marriage." — no tab, no punctuation after the number.
+// Some generated/re-exported papers use this layout; QUESTION_RE (needs
+// punctuation) and QUESTION_NO_PUNCT_RE (needs a trailing "?") both miss it,
+// so every question flowed into the passage text as prose. A bare
+// "number + space" match is far too loose on its own (any sentence starting
+// with a number would become a phantom question), so it only fires when the
+// number is CORROBORATED by parser context: it is the next expected question
+// number, or it falls inside the question range the current Part heading /
+// comprehension instruction declared ("Part 2: Questions 46–60 …").
+function bareNumberStemMatch(line, lastNumber, range) {
+  const m = String(line || '').match(/^(\d{1,3})\s+(\S.*)$/)
+  if (!m) return null
+  const number = Number(m[1])
+  const text = cleanImportedText(m[2])
+  if (!Number.isInteger(number) || number < 1 || number > 200) return null
+  if (!text || ANSWER_KEY_HEADING_RE.test(text)) return null
+  // Stems start with a capital, opening quote/bracket, or ellipsis ("…
+  // people have died"). A lowercase continuation ("14 years later they…")
+  // is prose, not a stem.
+  if (!/^[A-Z"“”'‘([…]/.test(text)) return null
+  const sequential = number === (lastNumber || 0) + 1
+  const inDeclaredRange = Boolean(
+    range && number >= range.start && number <= range.end && number > (lastNumber || 0),
+  )
+  if (!sequential && !inDeclaredRange) return null
+  return { number: String(number), text }
+}
+
 function extractOptionSegments(line) {
   const text = String(line || '')
   const matches = []
@@ -940,11 +980,14 @@ function preprocessParaOrdering(blocks) {
 
     const explicitInstruction = text.replace(/^instruction\s*:\s*/i, '')
     // A NUMBERED line that echoes the instruction ("39. Choose the paragraph
-    // with the sentences in the best order:") is a question start, not a new
-    // instruction — treating it as one used to consume the question number
-    // and silently drop the whole Part (options flushed with no qNum).
+    // with the sentences in the best order:" — or the space-separated
+    // "39 Choose …" form) is a question start, not a new instruction —
+    // treating it as one used to consume the question number and silently
+    // drop the whole Part (options flushed with no qNum).
+    const firstLine = splitLines(text)[0] || text
     const startsParaOrdering = PARA_ORDER_INSTRUCTION_RE.test(explicitInstruction)
-      && !questionMatch(splitLines(text)[0] || text)
+      && !questionMatch(firstLine)
+      && !/^\d{1,3}[\s.):]/.test(firstLine)
     const endsParaOrdering = collecting && (
       isComprehensionInstruction(text) ||
       isPassageLabel(text) ||
@@ -1058,7 +1101,12 @@ function buildParaOrderBlocks(lineObjects, instruction) {
       continue
     }
 
-    const inlineQuestionOption = text.match(/^(\d{1,3})\s*([A-D])(?:[).:-]\s*|\s+)?(.*)$/)
+    // Glued/spaced ECZ inline form ("39A First sentence…" / "39 A First…").
+    // The option letter must be followed by a separator (punctuation,
+    // whitespace, or end of line) — a letter running straight into lowercase
+    // text ("39 Choose…" → 'C' + "hoose") is a word in a repeated stem, not
+    // an option label, and used to corrupt the question into option C.
+    const inlineQuestionOption = text.match(/^(\d{1,3})\s*([A-D])(?:[).:-]\s*|\s+|$)(.*)$/)
     if (inlineQuestionOption) {
       startQuestion(inlineQuestionOption[1], block)
       currentOpt = inlineQuestionOption[2]
@@ -1068,13 +1116,14 @@ function buildParaOrderBlocks(lineObjects, instruction) {
     }
 
     // A fully-formed numbered stem line — "39. Choose the paragraph with the
-    // sentences in the best order:" — occurs in typed-up papers that repeat
-    // the shared instruction as every question's stem (the ECZ raw forms
-    // above only cover number-only `39.` and glued `39A…` lines). Without
-    // this, no question ever starts and the whole Part is silently dropped.
-    // The stem is rebuilt from the shared instruction in flushQuestion, so
-    // the repeated wording on this line carries no extra information.
-    const numberedStem = text.match(/^(\d{1,3})\s*[).:-]\s+\S/)
+    // sentences in the best order:" (or space-separated "39 Choose …") —
+    // occurs in typed-up papers that repeat the shared instruction as every
+    // question's stem (the ECZ raw forms above only cover number-only `39.`
+    // and glued `39A…` lines). Without this, no question ever starts and the
+    // whole Part is silently dropped. The stem is rebuilt from the shared
+    // instruction in flushQuestion, so the repeated wording on this line
+    // carries no extra information.
+    const numberedStem = text.match(/^(\d{1,3})(?:\s*[).:-]\s+|\s+)\S/)
     if (numberedStem) {
       startQuestion(numberedStem[1], block)
       continue
@@ -1276,6 +1325,11 @@ function parseQuestionsFromBlocks(blocks, warnings) {
   // questions follow) but not by passage labels (a passage can live inside
   // a Part).
   let currentPartTitle = ''
+  // Context for bareNumberStemMatch (space-separated "51 Why did…" stems):
+  // the last question number started, and the question range the active
+  // Part heading / comprehension instruction declared ("Questions 46–60").
+  let lastQuestionNumber = 0
+  let currentQuestionRange = null
 
   // Phase 3: when a DOCX table cell carries "A. <img>" / "B. <img>" / …,
   // buildDocxTableBlocks stamps the cell's first asset onto
@@ -1377,6 +1431,13 @@ function parseQuestionsFromBlocks(blocks, warnings) {
   function startQuestion(text, block, sourceNumber, isSubQuestion) {
     if (isSubQuestion) finalizeSubQuestion()
     else finalizeStandaloneQuestion()
+
+    // Track the last printed question number so bareNumberStemMatch can
+    // accept the NEXT space-separated number as a question start.
+    {
+      const numeric = Number(sourceNumber)
+      if (Number.isInteger(numeric) && numeric > 0) lastQuestionNumber = numeric
+    }
 
     const inline = splitInlineOptionsFromQuestion(text, !isSubQuestion ? sharedInstruction : '')
     current = {
@@ -1498,6 +1559,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         sharedInstruction = ''
         numberStemInstruction = ''
         currentPartTitle = ''
+        currentQuestionRange = null
         return
       }
 
@@ -1511,7 +1573,11 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         }
       }
 
+      // Primary detector first; the space-separated fallback ("51 Why did…")
+      // only fires when the number is corroborated by sequence or the
+      // declared Part range — see bareNumberStemMatch.
       const detectedQuestion = questionMatch(line)
+        || bareNumberStemMatch(line, lastQuestionNumber, currentQuestionRange)
       const answerMatch = line.match(ANSWER_RE)
       const explanationMatch = line.match(EXPLANATION_RE)
       const optionSegments = extractOptionSegments(line)
@@ -1532,6 +1598,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         if (isComprehensionRangeInstruction(line) && !detectedQuestion) {
           finalizeSubQuestion()
           compInstructions.push(cleanImportedText(line).replace(/\s*[.:;]\s*$/, ''))
+          currentQuestionRange = questionRangeFromLine(line) || currentQuestionRange
           return
         }
 
@@ -1567,6 +1634,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         if (isSectionBreak && !isInstruction) {
           finalizeComprehension()
           currentPartTitle = cleanImportedText(line)
+          currentQuestionRange = questionRangeFromLine(line)
           if (lineAssets.length) pendingAssets.push(...lineAssets)
           return
         }
@@ -1659,6 +1727,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         numberStemInstruction = ''
         if (lineAssets.length) pendingAssets.push(...lineAssets)
         currentPartTitle = 'Reading Comprehension'
+        currentQuestionRange = questionRangeFromLine(line)
         return
       }
 
@@ -1689,6 +1758,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         // open a Part group instead, since a passage can live inside a Part.
         if (isSectionBreak) {
           currentPartTitle = cleanImportedText(line)
+          currentQuestionRange = questionRangeFromLine(line)
           return
         }
         compActive = true
@@ -1711,6 +1781,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         numberStemInstruction = ''
         if (lineAssets.length) pendingAssets.push(...lineAssets)
         currentPartTitle = cleanImportedText(line)
+        currentQuestionRange = questionRangeFromLine(line)
         return
       }
 
