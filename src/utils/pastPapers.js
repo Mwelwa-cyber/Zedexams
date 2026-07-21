@@ -252,6 +252,12 @@ export async function getLinkedQuizMeta(quizId) {
       difficulty: data.difficulty || null,
       isPublished: Boolean(data.isPublished),
       publicAccess: Boolean(data.publicAccess),
+      // Needed by the featured-strip subject-integrity filter (see
+      // listFeaturedPapersWithQuiz) so a paper whose linked quiz belongs to a
+      // different subject is never surfaced as a featured card.
+      subject: data.subject ?? null,
+      grade: data.grade ?? null,
+      linkedPaperId: data.linkedPaperId || data.sourcePastPaperId || null,
     }
   } catch (err) {
     console.warn('[pastPapers] getLinkedQuizMeta failed', err)
@@ -267,6 +273,39 @@ export async function getLinkedQuizMeta(quizId) {
 export async function listPapersWithQuiz({ limit = 60 } = {}) {
   const all = await listPublishedPapers({ limit })
   return all.filter((p) => Boolean(p.quizId))
+}
+
+/**
+ * Featured-strip loader for the marketing page. Unlike listPapersWithQuiz this
+ * FAILS CLOSED on subject integrity: for each candidate it reads the linked
+ * quiz's lightweight metadata and only keeps the paper when the paper's subject
+ * matches the quiz's subject (normalised) AND the quiz is genuinely published +
+ * public-access. This stops the "featured Social Studies paper links to a Maths
+ * quiz" defect from ever reaching the landing page.
+ *
+ * Cost-aware: it validates candidates one page at a time and stops as soon as
+ * it has `count` good cards, so the landing page pays for ~count small quiz-meta
+ * reads, not the whole archive. A mismatched paper is skipped silently (the
+ * repair script + admin queue handle the remediation); the visitor just sees the
+ * next clean paper.
+ */
+export async function listFeaturedPapersWithQuiz({ count = 4, scanLimit = 24 } = {}) {
+  const { paperQuizSubjectMatches } = await import('./quizSubjectIntegrity.js')
+  const candidates = await listPapersWithQuiz({ limit: scanLimit })
+  const out = []
+  for (const paper of candidates) {
+    if (out.length >= count) break
+    let meta
+    try {
+      meta = await getLinkedQuizMeta(paper.quizId)
+    } catch {
+      continue
+    }
+    if (!meta || !meta.isPublished || !meta.publicAccess) continue
+    if (!paperQuizSubjectMatches(paper, meta)) continue
+    out.push(paper)
+  }
+  return out
 }
 
 /**

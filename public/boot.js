@@ -45,6 +45,27 @@
     }
   } catch (e) {}
 
+  // 2.5 LCP hero preload — ONLY on the public landing route ('/').
+  //     The marketing hero image is the LCP element, but it lives inside the
+  //     lazy Marketing chunk, so the browser can't discover its URL until the
+  //     eager JS bundle parses + React mounts + Marketing renders — which is
+  //     what pushed real-user mobile LCP to ~13s. Injecting a high-priority
+  //     preload here (boot.js runs during early body parse, before the JS
+  //     bundle) starts the image download in parallel with the JS. Gated to '/'
+  //     so we preload ONLY the true LCP resource and never waste bytes on
+  //     /login, /papers, etc. Idempotent + failure-safe.
+  try {
+    if (location.pathname === '/' && !document.getElementById('zed-hero-preload')) {
+      var heroLink = document.createElement('link');
+      heroLink.id = 'zed-hero-preload';
+      heroLink.rel = 'preload';
+      heroLink.as = 'image';
+      heroLink.href = '/images/characters/zed-hero-team.webp';
+      heroLink.setAttribute('fetchpriority', 'high');
+      document.head.appendChild(heroLink);
+    }
+  } catch (e) {}
+
   // 3. Boot watchdog (white-screen guard). If anything throws while the app is
   //    starting up — before React's <ErrorBoundary> has mounted — this replaces
   //    the blank #root with a recoverable message. main.jsx sets

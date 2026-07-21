@@ -30,6 +30,7 @@ import {
   resetCounter,
 } from '../../utils/pastPaperQuiz'
 import { paywall } from '../../utils/paywall'
+import { validateQuizSubjectIntegrity } from '../../utils/quizSubjectIntegrity'
 import { PAPER_SUBJECTS } from '../../config/curriculum'
 import SeoHelmet from '../seo/SeoHelmet'
 import Logo from '../ui/Logo'
@@ -234,6 +235,25 @@ export default function PublicQuizRunner() {
         if (cancelled) return
         if (!payload) {
           setError('The quiz for this paper is not available right now.')
+          return
+        }
+        // FAIL CLOSED on a subject/grade/curriculum identity mismatch between
+        // the paper and its linked quiz (the "Social Studies quiz shows a Maths
+        // question" defect). We must NEVER render a quiz from a different
+        // subject under this paper's heading — refuse and show a safe message
+        // rather than silently substituting mismatched content.
+        const integrity = validateQuizSubjectIntegrity({
+          paper: p,
+          quiz: payload.quiz,
+          questions: payload.questions,
+        })
+        if (!integrity.ok) {
+          console.error('[PublicQuizRunner] subject-integrity check failed — refusing to render', {
+            paperId,
+            quizId: p.quizId,
+            violations: integrity.violations.map((v) => v.code),
+          })
+          setError('This quiz is temporarily unavailable while we check its content. Please try another paper.')
           return
         }
         setQuiz(payload.quiz)

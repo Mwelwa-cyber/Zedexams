@@ -14,7 +14,6 @@ import {
   persistentMultipleTabManager,
 } from 'firebase/firestore'
 import { getMessaging, isSupported } from 'firebase/messaging'
-import { getPerformance } from 'firebase/performance'
 import { getStorage } from 'firebase/storage'
 import { isNativePlatform } from '../utils/runtime'
 import { resolveAuthDomain } from './authDomain'
@@ -68,9 +67,28 @@ export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
 })
 export const storage = getStorage(app)
-// Firebase Performance Monitoring. Guarded for non-window contexts (SSR /
-// service worker). Ships the perf SDK and starts collecting traces.
-export const perf = typeof window !== 'undefined' ? getPerformance(app) : null
+
+// Firebase Performance Monitoring — DEFERRED off the cold-start path.
+//
+// getPerformance(app) pulls the perf SDK into the eager bundle AND starts
+// auto-instrumentation (a PerformanceObserver + a network beacon) synchronously
+// at module load, competing with React's first mount on cold mobile loads — pure
+// overhead for the public landing page, which reports nothing actionable. Nothing
+// in the app imports `perf`, so we dynamic-import + init it on the first idle slot
+// after paint (mirroring the App Check deferral). This moves the perf SDK out of
+// the eager `firebase-vendor` chunk into its own lazy chunk and frees the main
+// thread during LCP. `perf` stays exported (null until init) for compatibility.
+export let perf = null
+if (typeof window !== 'undefined') {
+  // A plain 2s setTimeout (not requestIdleCallback): perf monitoring is entirely
+  // non-urgent, and this keeps the deferral independent of the App Check idle
+  // scheduling (which tests capture) so the two never interleave.
+  setTimeout(() => {
+    import('firebase/performance')
+      .then(({ getPerformance }) => { perf = getPerformance(app) })
+      .catch((err) => console.warn('[perf] deferred init failed:', err?.message || err))
+  }, 2000)
+}
 
 export const googleProvider = new GoogleAuthProvider()
 googleProvider.setCustomParameters({ prompt: 'select_account' })
@@ -150,6 +168,27 @@ let nativeAppCheck = null
 // initialised exactly once per page, even if initAppCheck() is ever reached
 // twice (bfcache restore, a stray re-import, future callers).
 let appCheckInitStarted = false
+
+// Explicit, awaitable App Check readiness signal.
+//
+// App Check init is deliberately deferred off the cold-start path (see
+// scheduleAppCheckInit), so at boot there is a window where protected requests
+// can race ahead of the first token — the documented cause of intermittent 403s
+// once enforcement is enabled. Callers that want to hold a protected request
+// until attestation has SETTLED can now `await whenAppCheckReady()` instead of
+// guessing. It resolves (never rejects) when init finishes — success OR a
+// handled failure — or after a bounded timeout so a caller never hangs (e.g. a
+// web build with no reCAPTCHA key never initialises). This does NOT change the
+// existing fail-open token path: getAppCheckToken() still returns '' when no
+// token is available; readiness is an opt-in gate, not a new hard dependency.
+let appCheckReadyResolve
+const appCheckReadyPromise = new Promise((resolve) => { appCheckReadyResolve = resolve })
+let appCheckReadySettled = false
+function markAppCheckReady() {
+  if (appCheckReadySettled) return
+  appCheckReadySettled = true
+  try { appCheckReadyResolve(getAppCheckClientState()) } catch { appCheckReadyResolve({ initialized: false }) }
+}
 
 async function initAppCheck() {
   if (typeof window === 'undefined') return
@@ -372,6 +411,26 @@ export function getAppCheckClientState() {
   }
 }
 
+/**
+ * Await App Check readiness. Resolves with getAppCheckClientState() once init
+ * has settled (success or handled failure), or after `timeoutMs` so a caller is
+ * never blocked indefinitely. Never rejects. Opt-in — use it before issuing a
+ * protected request where you'd rather wait a beat for a token than race ahead
+ * of the first mint and eat a 403.
+ *
+ * @param {number} [timeoutMs=3000]
+ * @returns {Promise<{initialized:boolean, native?:boolean, recaptchaKeyConfigured?:boolean}>}
+ */
+export function whenAppCheckReady(timeoutMs = 3000) {
+  return Promise.race([
+    appCheckReadyPromise,
+    new Promise((resolve) => {
+      const ms = Number.isFinite(timeoutMs) && timeoutMs >= 0 ? timeoutMs : 3000
+      setTimeout(() => resolve(getAppCheckClientState()), ms)
+    }),
+  ])
+}
+
 // Defer App Check off the cold-start critical path. On web, initAppCheck()
 // downloads + runs Google's reCAPTCHA Enterprise script (recaptcha/enterprise.js),
 // whose main-thread work was competing with React's first mount and inflating real-
@@ -389,11 +448,14 @@ export function getAppCheckClientState() {
 // requests aren't issued before the first token mints. Failures inside
 // initAppCheck never reject (every path is caught internally).
 function scheduleAppCheckInit() {
-  if (typeof window === 'undefined') { initAppCheck(); return }
+  // Resolve the readiness promise once init settles, whatever path it takes
+  // (initAppCheck never rejects — every failure is caught internally).
+  const run = () => Promise.resolve(initAppCheck()).finally(markAppCheckReady)
+  if (typeof window === 'undefined') { run(); return }
   if (typeof window.requestIdleCallback === 'function') {
-    window.requestIdleCallback(() => initAppCheck(), { timeout: 2500 })
+    window.requestIdleCallback(() => run(), { timeout: 2500 })
   } else {
-    setTimeout(() => initAppCheck(), 1000)
+    setTimeout(() => run(), 1000)
   }
 }
 scheduleAppCheckInit()

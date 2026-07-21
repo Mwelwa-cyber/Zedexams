@@ -122,6 +122,45 @@ describe('App Check re-entry guard (firebase/config.js)', () => {
 })
 
 /**
+ * Explicit App Check readiness gate (whenAppCheckReady) — added for the
+ * launch-blocker "App Check 403 race" remediation. Callers can now AWAIT
+ * attestation settling instead of racing the first token mint.
+ */
+describe('App Check readiness gate (whenAppCheckReady)', () => {
+  let idleCallbacks
+
+  beforeEach(() => {
+    vi.resetModules()
+    initializeAppCheck.mockClear()
+    stubFirebaseEnv()
+    idleCallbacks = []
+    window.requestIdleCallback = (cb) => { idleCallbacks.push(cb); return 1 }
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    delete window.requestIdleCallback
+  })
+
+  it('resolves as initialized once the deferred init settles', async () => {
+    const mod = await import('./config.js')
+    expect(idleCallbacks).toHaveLength(1)
+    await idleCallbacks[0]() // run() → initAppCheck() + markAppCheckReady()
+    const state = await mod.whenAppCheckReady(1000)
+    expect(state).toBeTruthy()
+    expect(state.initialized).toBe(true)
+  })
+
+  it('never hangs — resolves via the bounded timeout even if init never runs', async () => {
+    const mod = await import('./config.js')
+    // Do NOT fire the idle callback; readiness must still resolve promptly.
+    const state = await mod.whenAppCheckReady(0)
+    expect(state).toBeTruthy()
+    expect(typeof state.initialized).toBe('boolean')
+  })
+})
+
+/**
  * Regression tests for the stale-container cleanup + stuck-widget recovery in
  * the web App Check provider (the "reCAPTCHA placeholder element must be
  * empty" storm — 79% of production client errors, 2026-07).
