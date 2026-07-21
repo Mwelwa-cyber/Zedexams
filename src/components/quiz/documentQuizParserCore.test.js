@@ -1528,4 +1528,34 @@ function runCoverCaptionClearedTest() {
 
 runCoverCaptionClearedTest()
 
+// 4. A cover whose FIRST item is worded outside the instruction-verb
+//    vocabulary ("1 You have 60 minutes…") must still be rejected — and one
+//    slipping through must not drag the sequential items after it in,
+//    because the shape guards apply to every accepted line outside a
+//    declared range.
+function runUnusualCoverWordingTest() {
+  const blocks = [
+    block('PRIMARY SCHOOL MOCK EXAMINATION – 2026'),
+    block('1 You have 60 minutes to complete this paper.'),
+    block('2 Do not turn this page before you are told.'),
+    block('3 Shade your answers on your Answer Sheet using an HB pencil.'),
+    block('SECTION A'),
+    block('Part 1: Questions 1 – 1'),
+    block('1 … people have died of COVID 19 in the world.'),
+    block('A Small'),
+    block('B Plenty'),
+    block('C Many'),
+    block('D Little'),
+    block('Answer: C — Many'),
+  ]
+  const { sections, summary } = processImportedQuestionBlocks(blocks, [])
+  const questions = allQuestionsFromSections(sections)
+  assert.equal(summary.questions, 1, `only the real Q1 imports, got ${summary.questions}`)
+  assert.ok(!/60 minutes|answer sheet|turn this page/i.test(plainRichText(questions[0].text)),
+    'no cover wording leaked into the question stem')
+  assert.equal(questions[0].correctAnswer, 2)
+}
+
+runUnusualCoverWordingTest()
+
 console.log('All documentQuizParserCore tests passed.')
