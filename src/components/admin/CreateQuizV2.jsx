@@ -256,6 +256,15 @@ function ImportQuizPanel({ importing, importSummary, onImport }) {
             {importSummary.passages ? `${importSummary.passages} passage${importSummary.passages === 1 ? '' : 's'} detected · ` : ''}
             {importSummary.images} image-based question{importSummary.images === 1 ? '' : 's'} · {importSummary.needsReview} need review · Status: {importSummary.importStatus}
           </p>
+          {/* Parser version stamp — lets a stale cached bundle be spotted at a
+              glance (same diagnostic as ImportQuizPanel). Scanned imports also
+              report the server engine version; document imports are local-only. */}
+          {importSummary.importerVersion ? (
+            <p className="mt-1 font-mono text-[11px] font-bold leading-relaxed opacity-80">
+              importer {importSummary.importerVersion}
+              {importSummary.scanned && importSummary.engineVersion ? ` · engine ${importSummary.engineVersion}` : ''}
+            </p>
+          ) : null}
           {importSummary.warnings?.length ? (
             <ul className="mt-2 space-y-0.5">
               {importSummary.warnings.slice(0, 3).map((warning, index) => (
