@@ -197,6 +197,7 @@
     "test:daily-exam-picker": "node functions/dailyExamPicker.test.js",
     "test:exam-timetable": "node scripts/test-exam-timetable.mjs",
     "test:account-deletion": "node functions/accountDeletion.test.js",
+    "test:account-reauth": "node src/utils/accountReauth.test.js",
     "test:dead-provider-secrets": "node functions/deadProviderSecrets.test.js",
     "test:studio-lesson-plan": "node functions/teacherTools/studioLessonPlan.test.js",
     "test:grading": "node src/utils/grading.test.js",

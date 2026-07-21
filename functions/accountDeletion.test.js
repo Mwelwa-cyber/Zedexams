@@ -10,6 +10,7 @@ const {
   FIELD_QUERY_COLLECTIONS,
   ARRAY_MEMBERSHIP_COLLECTIONS,
   purgeUserData,
+  evaluateDeletionAuth,
 } = require("./accountDeletion");
 
 // ── Minimal in-memory Firestore double ──────────────────────────────────
@@ -213,5 +214,71 @@ function makeFakeDb(seed) {
   console.error(err);
   process.exit(1);
 });
+
+// ── evaluateDeletionAuth: recent-login (re-auth) step-up gate (LEGAL-003) ─
+(function reauthGate() {
+  const NOW = 1_700_000_000_000; // fixed clock (ms) — deterministic, no wall-clock
+  const nowSec = Math.floor(NOW / 1000);
+  const maxAge = 5 * 60;
+  const at = (secsAgo) => ({auth_time: nowSec - secsAgo});
+
+  // Fresh sign-in passes.
+  assert.strictEqual(
+    evaluateDeletionAuth(at(0), {maxAgeSeconds: maxAge, now: NOW}).ok,
+    true,
+    "a just-authenticated token must be allowed to delete",
+  );
+  assert.strictEqual(
+    evaluateDeletionAuth(at(60), {maxAgeSeconds: maxAge, now: NOW}).ok,
+    true,
+    "auth_time one minute old is still fresh",
+  );
+
+  // Exactly at the window boundary is allowed; one second past is not.
+  assert.strictEqual(
+    evaluateDeletionAuth(at(maxAge), {maxAgeSeconds: maxAge, now: NOW}).ok,
+    true,
+    "auth_time exactly at the window edge is allowed",
+  );
+  const justStale = evaluateDeletionAuth(at(maxAge + 1), {maxAgeSeconds: maxAge, now: NOW});
+  assert.strictEqual(justStale.ok, false, "auth_time one second past the window is rejected");
+  assert.strictEqual(justStale.reason, "requires-recent-login");
+
+  // A long-persisted / stolen session (old auth_time) is refused.
+  const stale = evaluateDeletionAuth(at(3600), {maxAgeSeconds: maxAge, now: NOW});
+  assert.strictEqual(stale.ok, false, "an hour-old session must re-authenticate");
+  assert.strictEqual(stale.reason, "requires-recent-login");
+
+  // Fail CLOSED: a token with no/invalid auth_time is treated as ancient.
+  for (const bad of [{}, {auth_time: 0}, {auth_time: "nope"}, {auth_time: -5}, {auth_time: NaN}]) {
+    const r = evaluateDeletionAuth(bad, {maxAgeSeconds: maxAge, now: NOW});
+    assert.strictEqual(r.ok, false, `missing/invalid auth_time must fail closed: ${JSON.stringify(bad)}`);
+    assert.strictEqual(r.reason, "requires-recent-login");
+    assert.strictEqual(r.ageSeconds, Infinity);
+  }
+
+  // No token at all → not authenticated.
+  for (const noTok of [null, undefined, "token", 42]) {
+    const r = evaluateDeletionAuth(noTok, {maxAgeSeconds: maxAge, now: NOW});
+    assert.strictEqual(r.ok, false, "a non-object token must be rejected");
+    assert.strictEqual(r.reason, "no-auth");
+  }
+
+  // A future auth_time (clock skew) clamps to age 0 rather than going negative.
+  assert.strictEqual(
+    evaluateDeletionAuth({auth_time: nowSec + 30}, {maxAgeSeconds: maxAge, now: NOW}).ok,
+    true,
+    "slight clock skew (auth_time in the near future) is treated as fresh",
+  );
+
+  // Default window is applied when no override is passed.
+  assert.strictEqual(
+    typeof evaluateDeletionAuth(at(0), {now: NOW}).maxAgeSeconds,
+    "number",
+    "a default max-age window is resolved when none is supplied",
+  );
+
+  console.log("✓ evaluateDeletionAuth enforces a recent re-auth and fails closed");
+})();
 
 console.log("All accountDeletion tests passed.");

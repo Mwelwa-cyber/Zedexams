@@ -8,7 +8,7 @@ const nodemailer = require("nodemailer");
 
 admin.initializeApp();
 
-const {purgeUserData} = require("./accountDeletion");
+const {purgeUserData, evaluateDeletionAuth} = require("./accountDeletion");
 const {createAssessment} = require("./recaptchaEnterprise");
 const {
   ANDROID_SITE_KEY,
@@ -786,10 +786,20 @@ exports.bootstrapUserProfile = onCall(
 // A signed-in user can permanently delete their own account and personal
 // data. This is the in-app half of the Play requirement; the Privacy
 // Policy hosts the web-facing deletion instructions Play's Data Safety
-// form links to. Uses the Admin SDK (no re-auth round-trip needed — the
-// callable already proves identity via request.auth), purges Firestore
-// first (functions/accountDeletion.js), then removes the Auth user so the
-// session can no longer sign in.
+// form links to. Purges Firestore first (functions/accountDeletion.js), then
+// removes the Auth user so the session can no longer sign in.
+//
+// Because the purge is IRREVERSIBLE (LEGAL-003), request.auth alone is not
+// enough — a stolen/persisted ID token could wipe an account with one call.
+// Two guards close that:
+//   • a short burst rate limit (assertCallableRateLimit), so a leaked token
+//     can't hammer the endpoint; and
+//   • a recent-login (re-auth) requirement: the client re-authenticates and
+//     force-refreshes its token immediately before calling, so the token's
+//     auth_time is fresh; a stale session is rejected with requires-recent-
+//     login and the client re-prompts for identity.
+// NOT gated on email verification (a user who mistyped their email must still
+// be able to delete the account they can never verify — see authGuard.js).
 exports.deleteMyAccount = onCall(
   {region: "us-central1", timeoutSeconds: 300},
   async (request) => {
@@ -797,6 +807,22 @@ exports.deleteMyAccount = onCall(
       throw new HttpsError("unauthenticated", "Please sign in first.");
     }
     const uid = request.auth.uid;
+
+    // Burst guard: deleting is a rare, deliberate action. A low per-user cap
+    // stops a scripted/leaked-token loop while never troubling a real user
+    // (fail-open — a degraded limiter must not block a legitimate deletion).
+    await assertCallableRateLimit(request, {action: "deleteMyAccount", userPerMin: 5});
+
+    // Step-up: require a recent re-authentication. Fails closed on a missing
+    // auth_time claim (evaluateDeletionAuth).
+    const authCheck = evaluateDeletionAuth(request.auth.token);
+    if (!authCheck.ok) {
+      throw new HttpsError(
+        "failed-precondition",
+        "For your security, please confirm your identity, then delete your account.",
+        {reason: authCheck.reason},
+      );
+    }
 
     let summary;
     try {

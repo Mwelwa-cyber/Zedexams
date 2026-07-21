@@ -8,7 +8,8 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSubscription } from '../../../hooks/useSubscription'
-import { deleteMyAccount } from '../../../utils/accountService'
+import { deleteMyAccount, pickReauthMethod } from '../../../utils/accountService'
+import { canSubmitDeletion, deletionErrorMessage } from '../../../utils/accountReauth'
 import InvoicesCard from '../../../components/dashboard/InvoicesCard'
 import PaymentHistoryCard from '../../../components/dashboard/PaymentHistoryCard'
 import { Panel, Section, Btn, Note, Field, TextInput } from '../components/ui'
@@ -52,6 +53,7 @@ export function AccountBody({ pushToast }) {
 
   const [confirming, setConfirming] = useState(false)
   const [confirmText, setConfirmText] = useState('')
+  const [password, setPassword] = useState('')
   const [deleting, setDeleting] = useState(false)
 
   // Rough storage figure from the one learner-controlled blob we store.
@@ -60,16 +62,20 @@ export function AccountBody({ pushToast }) {
     return Math.max(1, Math.round((photo.length * 0.75) / 1024))
   }, [userProfile?.avatarPhotoUrl])
 
-  const canDelete = confirmText.trim().toUpperCase() === 'DELETE'
+  // Deleting is irreversible, so the server requires a recent re-auth: password
+  // accounts confirm with their password, Google accounts via a popup.
+  const reauthMethod = pickReauthMethod(currentUser?.providerData)
+  const confirmed = confirmText.trim().toUpperCase() === 'DELETE'
+  const canDelete = canSubmitDeletion({ method: reauthMethod, password, confirmed })
   const handleDelete = async () => {
     if (!canDelete || deleting) return
     setDeleting(true)
     try {
-      await deleteMyAccount()
+      await deleteMyAccount({ password })
       pushToast?.('success', 'Your account and data have been permanently deleted.')
       navigate('/', { replace: true })
-    } catch {
-      pushToast?.('error', 'We could not delete your account. Please try again or contact support.')
+    } catch (err) {
+      pushToast?.('error', deletionErrorMessage(err))
       setDeleting(false)
     }
   }
@@ -114,9 +120,16 @@ export function AccountBody({ pushToast }) {
             <Field label="Type DELETE to confirm" htmlFor="lset-del">
               <TextInput id="lset-del" value={confirmText} onChange={setConfirmText} placeholder="DELETE" disabled={deleting} />
             </Field>
+            {reauthMethod === 'password' ? (
+              <Field label="Your password" htmlFor="lset-del-pw" hint="For your security, confirm it's really you before we permanently delete your account.">
+                <TextInput id="lset-del-pw" type="password" value={password} onChange={setPassword} placeholder="Enter your password" autoComplete="current-password" disabled={deleting} />
+              </Field>
+            ) : (
+              <Note>You'll be asked to confirm with Google before your account is deleted.</Note>
+            )}
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
               <Btn variant="danger" onClick={handleDelete} disabled={!canDelete} loading={deleting}>Permanently delete</Btn>
-              <Btn variant="ghost" onClick={() => { setConfirming(false); setConfirmText('') }} disabled={deleting}>Cancel</Btn>
+              <Btn variant="ghost" onClick={() => { setConfirming(false); setConfirmText(''); setPassword('') }} disabled={deleting}>Cancel</Btn>
             </div>
           </div>
         )}

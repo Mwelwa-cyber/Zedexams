@@ -8,7 +8,8 @@ import {
   getBrandingFromRecentPapers,
 } from '../../utils/schoolProfileService';
 import { isEmptySchoolProfile } from '../../utils/schoolProfile';
-import { deleteMyAccount } from '../../utils/accountService';
+import { deleteMyAccount, pickReauthMethod } from '../../utils/accountService';
+import { canSubmitDeletion, deletionErrorMessage } from '../../utils/accountReauth';
 import CharacterAvatar, {
   CHARACTERS,
   INTEREST_GROUPS,
@@ -877,22 +878,27 @@ function DeleteAccountPanel({ pushToast }) {
   const navigate = useNavigate();
   const [confirming, setConfirming] = useState(false);
   const [confirmText, setConfirmText] = useState('');
+  const [password, setPassword] = useState('');
   const [deleting, setDeleting] = useState(false);
 
-  const canDelete = confirmText.trim().toUpperCase() === 'DELETE';
+  // Deleting is irreversible, so the server requires a recent re-auth: password
+  // accounts confirm with their password, Google accounts via a popup.
+  const reauthMethod = pickReauthMethod(currentUser?.providerData);
+  const confirmed = confirmText.trim().toUpperCase() === 'DELETE';
+  const canDelete = canSubmitDeletion({ method: reauthMethod, password, confirmed });
 
   const handleDelete = async () => {
     if (!canDelete || deleting) return;
     setDeleting(true);
     try {
-      await deleteMyAccount();
+      await deleteMyAccount({ password });
       // Auth user is gone; the session is signed out. Drop to the public
       // home page (ProtectedRoute would otherwise bounce to /login).
       pushToast('success', 'Your account and data have been permanently deleted.');
       navigate('/', { replace: true });
     } catch (err) {
       console.error('deleteMyAccount failed', err);
-      pushToast('error', 'We could not delete your account. Please try again or contact support.');
+      pushToast('error', deletionErrorMessage(err));
       setDeleting(false);
     }
   };
@@ -941,6 +947,22 @@ function DeleteAccountPanel({ pushToast }) {
             autoComplete="off"
             disabled={deleting}
           />
+          {reauthMethod === 'password' ? (
+            <TextField
+              label={'Your password'}
+              type="password"
+              value={password}
+              onChange={setPassword}
+              placeholder="Enter your password"
+              autoComplete="current-password"
+              hint="For your security, confirm it's really you before we permanently delete your account."
+              disabled={deleting}
+            />
+          ) : (
+            <div style={{ marginBottom: 16, fontSize: 13, color: T.textSoft, lineHeight: 1.5 }}>
+              You'll be asked to confirm with Google before your account is deleted.
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <Button
               danger
@@ -952,7 +974,7 @@ function DeleteAccountPanel({ pushToast }) {
             </Button>
             <Button
               variant="ghost"
-              onClick={() => { setConfirming(false); setConfirmText(''); }}
+              onClick={() => { setConfirming(false); setConfirmText(''); setPassword(''); }}
               disabled={deleting}
             >
               Cancel
