@@ -264,6 +264,22 @@ function questionRangeFromLine(line) {
   return { start, end }
 }
 
+// Vocabulary that marks a numbered line as an exam-cover instruction rather
+// than a question stem — used by bareNumberStemMatch's cold-context guard.
+// "You have 60 minutes…", "Time allowed: 90 minutes", "…on your Answer
+// Sheet", "Use only an HB pencil", "Do not turn this page…".
+const COVER_INSTRUCTION_HINT_RE = new RegExp(
+  '(?:^you\\s+(?:must|have|will|should|are|may|can)\\b' +
+  '|\\banswer\\s+sheet\\b' +
+  '|\\bhb\\s+pencil\\b' +
+  '|\\btime\\s+allowed\\b' +
+  '|\\bdo\\s+not\\s+turn\\b' +
+  '|\\bthis\\s+(?:question\\s+)?paper\\b' +
+  '|\\binstructions?\\b' +
+  '|\\bexamination\\s+(?:year|number|has\\s+begun)\\b)',
+  'i',
+)
+
 // SPACE-separated question numbering: "51 Why did Chipo refuse …", with
 // options as "A hated marriage." — no tab, no punctuation after the number.
 // Some generated/re-exported papers use this layout; QUESTION_RE (needs
@@ -291,17 +307,23 @@ function bareNumberStemMatch(line, lastNumber, range) {
   // turn this page…" — and must never become questions. Papers with Part
   // headings ("Part 1: Questions 1 – 20") come in via the range gate. For
   // UNHEADED papers that open directly with "1 <stem>", a narrow cold start
-  // is still allowed: exactly number 1, with text that does not read like a
-  // teacher instruction (cover item 1 is virtually always "Read these
-  // instructions…", which is instruction-shaped; once it is rejected the
-  // rest of the cover list fails the sequence gate on its own).
+  // is still allowed: exactly number 1. Outside a declared range, EVERY
+  // accepted line (cold start and sequential alike) must also pass the
+  // instruction/cover shape check below, so one unusually-worded cover item
+  // slipping through cannot drag the rest of the cover list in after it.
   const sequential = (lastNumber || 0) >= 1 && number === lastNumber + 1
-  const coldStart = (lastNumber || 0) === 0 && !range && number === 1
-    && !looksLikeInstructionLine(text)
+  const coldStart = (lastNumber || 0) === 0 && number === 1
   const inDeclaredRange = Boolean(
     range && number >= range.start && number <= range.end && number > (lastNumber || 0),
   )
-  if (!sequential && !coldStart && !inDeclaredRange) return null
+  if (!inDeclaredRange) {
+    if (!sequential && !coldStart) return null
+    // Cover-page shape guards, applied only when no question range has been
+    // declared (a declared range is the strong signal that real questions,
+    // not cover instructions, are flowing).
+    if (looksLikeInstructionLine(text)) return null
+    if (COVER_INSTRUCTION_HINT_RE.test(text)) return null
+  }
   return { number: String(number), text }
 }
 
