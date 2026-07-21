@@ -140,4 +140,29 @@ function parse(blocks) {
   assert.equal(shouldRunSmartImport(localCleanMath, 'Add \\frac{1}{2} and \\frac{1}{3}.'), true)
 }
 
+// ─── 5. A recovered flattened Word-table run bypasses smart import ─────────
+// This is the production failure that previously waited 95 seconds for the
+// two-model fallback and then surfaced only two merged question cards.
+{
+  const flattenedQuestions = Array.from({ length: 5 }, (_, index) => {
+    const number = 26 + index
+    return `${number} Which sentence is correct for item ${number}? A first choice B second choice C third choice D fourth choice Answer: B`
+  }).join(' ')
+  const blocks = [
+    block('Part 3: Questions 26 – 30 — Choose the correctly punctuated sentence.'),
+    block(flattenedQuestions, { source: 'docx-table' }),
+  ]
+  const local = parse(blocks)
+  const rawText = rawTextFromBlocks(blocks)
+
+  assert.equal(local.summary.questions, 5, 'all flattened questions must be recovered locally')
+  assert.equal(local.summary.needsReview, 0, 'confident recovery must be clean')
+  assert.equal(documentHasRichStructure(rawText), false)
+  assert.equal(
+    shouldRunSmartImport(local, rawText),
+    false,
+    'a complete recovered prose paper must not wait for smart import',
+  )
+}
+
 console.log('✓ smart-import gate: clean prose papers bypass the LLM; math/flagged papers still use it')
