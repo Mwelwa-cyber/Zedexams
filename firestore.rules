@@ -59,6 +59,17 @@ service cloud.firestore {
     // is an equivalent, tamper-proof grant (checked first so it short-circuits
     // the callerRole() Firestore read).
     function isAdmin() { return isVerified() && (isPlatformAdmin() || callerRole() == 'admin' || callerRole() == 'superAdmin'); }
+    // Strict super-admin check for the most sensitive reads (security audit
+    // ledger). Accepts the boolean superAdmin custom claim (minted by
+    // adminSetUserRole / grant-superadmin), the platformAdmin break-glass claim,
+    // or the Firestore superAdmin role — all tamper-proof / blocklisted.
+    function isSuperAdmin() {
+      return isVerified() && (
+        isPlatformAdmin()
+        || callerRole() == 'superAdmin'
+        || ('superAdmin' in request.auth.token && request.auth.token.superAdmin == true)
+      );
+    }
     function isTeacherOrAbove() { return isVerified() && (callerRole() == 'teacher' || callerRole() == 'admin' || callerRole() == 'superAdmin'); }
 
     // ── canonical school-membership helpers (multi-school RBAC) ───────────
@@ -399,7 +410,14 @@ service cloud.firestore {
           // Verification grace window — migration script / admin SDK only.
           // A client that could write this would grant itself indefinite
           // access with an unverified email.
-          'verificationGraceUntil'
+          'verificationGraceUntil',
+          // Admin MFA status MIRROR — reporting/UI only, written ONLY by
+          // trusted backend (logAdminMfaEvent / resetAdminMfa, admin SDK).
+          // The real MFA source of truth is Firebase Auth enrolment + the
+          // token's sign_in_second_factor claim, NEVER this field — but a
+          // client must still not be able to forge it (it drives the admin
+          // security dashboard). See requireAdminMfa on the backend.
+          'mfaEnrolled', 'mfaEnrolledAt', 'mfaResetAt', 'mfaResetBy'
         ])
         // Mirror honesty: the display-only emailVerified/emailVerifiedAt
         // fields stay self-writable (the /verify-email page stamps them),
@@ -436,6 +454,17 @@ service cloud.firestore {
     // tamper-resistant source of truth.
     match /adminAuditLogs/{logId} {
       allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    // ── securityAuditLogs (MFA + admin-security ledger) ────────────
+    // Reads restricted to SUPER ADMINS (stricter than adminAuditLogs) —
+    // these records concern who can access privileged admin actions.
+    // Client writes are blocked entirely; only trusted Cloud Functions
+    // (admin SDK, which bypass rules) append to it, so it stays a
+    // tamper-resistant source of truth. See functions/security/securityAudit.js.
+    match /securityAuditLogs/{logId} {
+      allow read: if isSuperAdmin();
       allow create, update, delete: if false;
     }
 

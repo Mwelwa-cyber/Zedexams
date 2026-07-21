@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { fetchSignInMethodsForEmail } from 'firebase/auth'
+import { fetchSignInMethodsForEmail, signOut } from 'firebase/auth'
 import { ArrowLeft, EnvelopeIcon as Mail } from '../ui/icons'
 import { useAuth, SESSION_EXPIRED_KEY, hasAuthSessionHint } from '../../contexts/AuthContext'
 import { auth } from '../../firebase/config'
@@ -8,6 +8,9 @@ import { getRoleLandingPath } from '../../utils/navigation'
 import { isWithinVerificationGrace, needsEmailVerification as userNeedsVerification } from '../../utils/verification'
 import { friendlyAuthMessage } from '../../utils/friendlyErrors'
 import { assessAction, shouldBlock } from '../../utils/recaptcha'
+import { getResolver } from '../../services/adminMfa'
+import { isMfaRequiredError } from '../../utils/mfaErrors'
+import MfaChallenge from './MfaChallenge'
 import Logo from '../ui/Logo'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
@@ -100,6 +103,10 @@ export default function Login() {
   const [loading, setLoading]     = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError]         = useState('')
+  // Firebase multi-factor resolver, set when a first-factor sign-in throws
+  // auth/multi-factor-auth-required. Held in component state ONLY (never
+  // serialised) — a refresh clears it and drops the user back to the form.
+  const [mfaResolver, setMfaResolver] = useState(null)
   // True when AuthContext force-expired a stale/revoked session and bounced
   // the user here. Read-once breadcrumb so a normal visit to /login stays
   // clean. Cleared immediately so a refresh doesn't re-show it.
@@ -120,6 +127,26 @@ export default function Login() {
   const [resetSuccess, setResetSuccess]   = useState(false)
   const [resetError, setResetError]       = useState('')
 
+  // Shared post-first-factor tail: resolve the profile, honour the verification
+  // gate, then land the user. Used by the email/password flow, the Google flow,
+  // AND the MFA challenge's onSuccess so all three continue identically.
+  async function completePostLogin(cred) {
+    const profile = await ensureUserProfile(cred.user)
+    // Unverified email/password account (no grace window): continue at the
+    // verification gate. location.state.from rides along so verifying lands
+    // them on the page they originally asked for.
+    if (userNeedsVerification(cred.user) && !isWithinVerificationGrace(profile)) {
+      navigate('/verify-email', { replace: true, state: location.state })
+      return
+    }
+    // A null profile after a successful auth is almost always a transient
+    // read failure on a flaky network (Zambia), NOT a missing profile.
+    // AuthContext's onSnapshot listener runs concurrently and will populate the
+    // profile — or surface profileIssue — on its own. Navigate and let
+    // RootRedirect / MissingProfileRecovery handle any profileIssue state.
+    navigate(postLoginPath(profile), { replace: true })
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
@@ -133,25 +160,14 @@ export default function Login() {
         return
       }
       const cred = await login(email.trim(), password)
-      const profile = await ensureUserProfile(cred.user)
-      // Unverified email/password account (no grace window): continue at the
-      // verification gate. location.state.from rides along so verifying lands
-      // them on the page they originally asked for.
-      if (userNeedsVerification(cred.user) && !isWithinVerificationGrace(profile)) {
-        navigate('/verify-email', { replace: true, state: location.state })
+      await completePostLogin(cred)
+    } catch (err) {
+      // MFA-enrolled account: the first factor succeeded but Firebase needs the
+      // second factor. Switch to the challenge instead of showing an error.
+      if (isMfaRequiredError(err)) {
+        setMfaResolver(getResolver(err))
         return
       }
-      // A null profile after a successful auth is almost always a transient
-      // read failure on a flaky network (Zambia), NOT a missing profile.
-      // AuthContext's onSnapshot listener (subscribeProfile) runs concurrently
-      // and will populate the profile — or surface profileIssue — on its own.
-      // Calling logout() here would destroy a perfectly valid Firebase session.
-      // Navigate to "/" and let RootRedirect / MissingProfileRecovery handle
-      // the profileIssue state (they already do: 'unreadable' shows Repair,
-      // 'missing' shows Bootstrap + Sign Out). Only hard-fail if Firebase Auth
-      // itself threw (caught below).
-      navigate(postLoginPath(profile), { replace: true })
-    } catch (err) {
       let message = friendlyAuthMessage(err.code, { online: navigator.onLine })
       if (PASSWORD_FAILURE_CODES.has(err.code)) {
         const hint = await diagnosePasswordFailure(email)
@@ -166,20 +182,38 @@ export default function Login() {
     setGoogleLoading(true)
     try {
       const cred = await loginWithGoogle()
-      const profile = await ensureUserProfile(cred.user)
-      // Same reasoning as handleSubmit: a null profile is most likely a
-      // transient network read failure, not a genuinely missing profile.
-      // Do not call logout() — the Firebase session is valid. Navigate to "/"
-      // and let RootRedirect / MissingProfileRecovery handle the profileIssue.
-      navigate(postLoginPath(profile), { replace: true })
+      await completePostLogin(cred)
     } catch (err) {
       if (err.code === 'auth/cancelled-popup-request') return
+      // MFA-enrolled Google admin: show the second-factor challenge.
+      if (isMfaRequiredError(err)) {
+        setMfaResolver(getResolver(err))
+        return
+      }
       // Log the raw code+message so an unmapped failure (e.g. a native Google
       // Play Services error) is diagnosable from the device console / Sentry
       // rather than hidden behind the generic fallback copy.
       console.error('[Google sign-in]', err?.code, err?.message)
       setError(friendlyAuthMessage(err.code, { online: navigator.onLine, fallback: 'Google sign-in failed. Please try again.' }))
     } finally { setGoogleLoading(false) }
+  }
+
+  // MFA challenge completed → continue the normal role/route resolution.
+  async function handleMfaSuccess(cred) {
+    setMfaResolver(null)
+    try {
+      await completePostLogin(cred)
+    } catch {
+      // A profile read hiccup post-MFA is handled by RootRedirect; land there.
+      navigate('/', { replace: true })
+    }
+  }
+
+  // Cancel the challenge: abandon the half-completed sign-in and return to the
+  // form. signOut clears any partial state Firebase may hold.
+  async function handleMfaCancel() {
+    setMfaResolver(null)
+    try { await signOut(auth) } catch { /* already signed out */ }
   }
 
   async function handleResetPassword(e) {
@@ -201,6 +235,12 @@ export default function Login() {
           : 'Failed to send reset email. Please try again.',
       )
     } finally { setResetLoading(false) }
+  }
+
+  // A first factor completed but Firebase requires the authenticator code —
+  // show the second-factor challenge in place of the form.
+  if (mfaResolver) {
+    return <MfaChallenge resolver={mfaResolver} onSuccess={handleMfaSuccess} onCancel={handleMfaCancel} />
   }
 
   // This device has a known signed-in session that Firebase is still

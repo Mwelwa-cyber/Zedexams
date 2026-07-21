@@ -25,6 +25,16 @@ vi.mock('../../firebase/config', () => ({
 }))
 vi.mock('firebase/auth', () => ({
   fetchSignInMethodsForEmail: vi.fn(),
+  signOut: vi.fn(() => Promise.resolve()),
+}))
+
+// The MFA service loads firebase/functions at module init (getFunctions), which
+// needs a real app — stub it so Login's transitive import doesn't blow up.
+vi.mock('../../services/adminMfa', () => ({
+  getResolver: vi.fn(),
+  findTotpHint: vi.fn(),
+  completeTotpSignIn: vi.fn(),
+  recordMfaEnrollmentEvent: vi.fn(),
 }))
 
 // Mock AuthContext so we fully control what useAuth() returns.
@@ -42,6 +52,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
 })
 
 import { useAuth, hasAuthSessionHint } from '../../contexts/AuthContext'
+import { getResolver, findTotpHint } from '../../services/adminMfa'
 import Login from './Login'
 
 // Minimal auth mock helpers
@@ -75,6 +86,28 @@ beforeEach(() => {
   mockLogout.mockResolvedValue(undefined)
   mockResetPassword.mockResolvedValue(undefined)
   hasAuthSessionHint.mockReturnValue(false)
+})
+
+// ── MFA challenge ─────────────────────────────────────────────────────────────
+
+describe('Login — MFA-enrolled admin', () => {
+  it('shows the two-step verification challenge when the first factor needs a second factor', async () => {
+    const err = new Error('mfa required'); err.code = 'auth/multi-factor-auth-required'
+    mockLogin.mockRejectedValue(err)
+    getResolver.mockReturnValue({ hints: [{ factorId: 'totp', uid: 'h1' }], session: {} })
+    findTotpHint.mockReturnValue({ factorId: 'totp', uid: 'h1' })
+    setAuth()
+
+    renderLogin()
+
+    fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'admin@zedexams.com' } })
+    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: 'pass123' } })
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
+
+    await waitFor(() => expect(screen.getByText(/two-step verification/i)).toBeInTheDocument())
+    // The credential-preserving invariant still holds: no logout on the MFA hop.
+    expect(mockLogout).not.toHaveBeenCalled()
+  })
 })
 
 // ── Primary bug regression ────────────────────────────────────────────────────

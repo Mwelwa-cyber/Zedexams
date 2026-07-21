@@ -166,7 +166,18 @@ function seedUser(db, uid, role) {
 function seedReservation(db, month, id, data) {
   db._store.set(`aiBudgetBuckets/${month}/reservations/${id}`, data);
 }
-const authed = (uid) => ({auth: {uid, token: {email: `${uid}@test`, email_verified: true}}});
+// Admin callables now require an MFA-verified session (requireAdminMfa), so the
+// token carries the second-factor claim Firebase stamps after a TOTP challenge.
+const authed = (uid) => ({
+  auth: {
+    uid,
+    token: {
+      email: `${uid}@test`,
+      email_verified: true,
+      firebase: {sign_in_second_factor: "totp"},
+    },
+  },
+});
 
 console.log("aiBudgetEnforcement");
 
