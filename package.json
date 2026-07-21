@@ -263,6 +263,7 @@
     "test:ai-cost-providers": "node functions/aiCostProviders.test.js",
     "test:firestore-backup": "node functions/firestoreBackup.test.js",
     "test:storage-backup": "node functions/storageBackup.test.js",
+    "test:ratelimit-health": "node functions/rateLimitHealth.test.js",
     "test:treasury": "node functions/treasury.test.js",
     "test:budget-revenue-linked": "node functions/aiBudgetRevenueLinked.test.js",
     "test:marshal": "node functions/agents/runners/marshal.test.js",

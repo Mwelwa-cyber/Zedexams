@@ -68,6 +68,11 @@ A production failure often cannot be traced UI → function → data cleanly.
 - **Risk:** A critical alert (backup failed, budget exhausted, agent breaker tripped) can be missed.
 - **Correction:** Add a second channel (Slack/webhook) + a heartbeat that alerts if no
   daily-summary/backup ran. **Launch blocker:** No, but pairs with DR-005. **Complexity:** Low.
+- **Partial (2026-07):** the new synthetic **health canaries** (`storageBackupCheck`,
+  `rateLimitHealthCheck`) plus the `opsBackups` / `opsStorageBackups` / `opsRateLimitHealth` status docs
+  give an active, queryable heartbeat per subsystem (a stale/missing status doc is itself a signal a
+  scheduled job stopped). The **residual** is the second delivery CHANNEL (Slack/webhook) and a
+  cross-subsystem dead-man's-switch — still single-channel email today.
 
 ### OBS-005 — Thin per-minute rate limiting (bot/abuse) — **generators now covered (2026-07-19)**
 - **Severity:** Medium → Low (residual) · **Confidence:** High confidence
@@ -92,10 +97,16 @@ A production failure often cannot be traced UI → function → data cleanly.
   wrong — now **pending**, the attempt persists as **provisional** with a null `finalScore`, durably,
   so it never counts as settled downstream); a **scanned-import regression fix** (cap 8→40 with safety
   from the bounded retry pipeline + a `submitted = processed + failed` page-accounting invariant).
-- **Degraded-limit telemetry implemented; operational alert verification pending.** A jammed limiter
-  emits a structured `rate_limit_degraded` log (scope-tagged) that an ops alert **can** be built on —
-  wiring that alert channel is a runtime/ops follow-up (pairs with OBS-004), not code done here. The
-  hard monthly-budget reservation gate is never bypassed, so a degraded limiter can't exhaust the wallet.
+- **Degraded-limit alert now wired (code-level).** Beyond the structured `rate_limit_degraded` log, a
+  scheduled **synthetic canary** (`rateLimitHealthCheck`, hourly, `functions/rateLimitHealth.js` +
+  `rateLimitHealthCore.js`) probes the fail-open limiter and raises an **email ops alert** when it comes
+  back degraded — **edge-triggered** (one alert at onset, not one per hour of a sustained outage) and
+  **kill-switch aware** (`RATE_LIMIT_DISABLED` reads as `disabled`, never alerts). Verdicts persist to
+  `opsRateLimitHealth/status`. 18 tests. The `rate_limit_degraded` log remains for operators who prefer
+  a GCP **log-based metric + alert policy** (per-event granularity + custom threshold/window). The hard
+  monthly-budget reservation gate is never bypassed, so a degraded limiter can't exhaust the wallet.
+  **Runtime verification still owed:** trigger a degraded probe on the deploy and confirm the alert email
+  arrives (threshold/window/destination all exercised).
 - **Coverage now:** every Anthropic/OpenAI/Gemini/TTS/vision callable/HTTP surface has a burst cap,
   verified in CI by auto-discovery (173 exports scanned; 50 provider-backed callable/HTTP classified).
 - **Complexity:** Low (limiter + helper exist).
