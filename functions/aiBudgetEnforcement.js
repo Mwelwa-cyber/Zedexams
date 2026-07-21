@@ -26,7 +26,7 @@
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const {AggregateField} = require("firebase-admin/firestore");
-const {assertVerifiedAuth} = require("./authGuard");
+const {requireAdminMfa} = require("./security/requireAdminMfa");
 const {getBudgetStatus, monthKeyUtc} = require("./aiCostTracking");
 const {getReservedTotalUsd} = require("./aiBudgetReservation");
 
@@ -36,13 +36,11 @@ const ADMIN_ROLES = new Set(["admin", "superAdmin"]);
 // keep this list in sync when a new provider client is added.
 const ENFORCED_PROVIDERS = ["anthropic", "openai", "gemini", "embeddings"];
 
+// AI-budget/enforcement status is an admin-only financial report — require an
+// MFA-verified admin session (see functions/security/requireAdminMfa.js).
 async function assertCallerIsAdmin(request) {
-  await assertVerifiedAuth(request);
-  const snap = await admin.firestore().doc(`users/${request.auth.uid}`).get();
-  if (!snap.exists || !ADMIN_ROLES.has(snap.data()?.role)) {
-    throw new HttpsError("permission-denied", "Admin role required.");
-  }
-  return request.auth.uid;
+  const actor = await requireAdminMfa(request);
+  return actor.uid;
 }
 
 /**

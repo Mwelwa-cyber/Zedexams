@@ -1,23 +1,25 @@
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
-const {assertVerifiedAuth} = require("./authGuard");
 const admin = require("firebase-admin");
 const {writeAuditLog} = require("./auditLog");
+const {requireAdminMfa} = require("./security/requireAdminMfa");
+const {syncUserRoleClaims} = require("./security/adminClaims");
+const {
+  writeSecurityAudit,
+  SECURITY_EVENTS,
+  requestMetaFrom,
+} = require("./security/securityAudit");
 
 const ALLOWED_STATUS = new Set(["active", "suspended", "deleted"]);
 const ALLOWED_ROLE = new Set(["learner", "teacher", "admin", "superAdmin"]);
 const ADMIN_ROLES = new Set(["admin", "superAdmin"]);
 
+// Managing users (suspend/delete, role changes) is privileged: require a
+// signed-in, email-verified, non-suspended admin whose CURRENT session used a
+// second factor (TOTP MFA). requireAdminMfa also covers the legacy accounts
+// whose role claim hasn't been synced yet via its Firestore-role fallback.
 async function assertCallerIsAdmin(request) {
-  // Signed-in + email-verified (admin accounts must verify like everyone).
-  await assertVerifiedAuth(request);
-  const snap = await admin.firestore().doc(`users/${request.auth.uid}`).get();
-  if (!snap.exists || !ADMIN_ROLES.has(snap.data()?.role)) {
-    throw new HttpsError("permission-denied", "Admin role required.");
-  }
-  return {
-    uid: request.auth.uid,
-    email: snap.data()?.email || null,
-  };
+  const actor = await requireAdminMfa(request);
+  return {uid: actor.uid, email: actor.email, isSuperAdmin: actor.isSuperAdmin};
 }
 
 /**
@@ -113,6 +115,24 @@ exports.adminSetUserRole = onCall(
     const before = beforeSnap.data();
     await userRef.update({role});
 
+    // Keep the Auth custom claims in step with the role (fixes the long-standing
+    // AUTH-M4 drift where only the Firestore field was updated) and mint the
+    // boolean admin/superAdmin claims the MFA guard reads. Then revoke refresh
+    // tokens so the new claims take effect on the target's next token refresh
+    // rather than up to an hour later — critical when GRANTING admin (they must
+    // re-login → then be forced into MFA setup) and when REVOKING it (stale
+    // admin sessions must not linger).
+    let claimsSynced = false;
+    try {
+      await syncUserRoleClaims(uid, role);
+      await admin.auth().revokeRefreshTokens(uid);
+      claimsSynced = true;
+    } catch (err) {
+      // Auth user may not exist (Firestore-only record). Log; the Firestore
+      // role still changed and the fallback path keeps access consistent.
+      console.warn("[adminSetUserRole] claim sync / token revoke failed", err?.message);
+    }
+
     await writeAuditLog({
       actorUid: actor.uid,
       actorEmail: actor.email,
@@ -122,6 +142,25 @@ exports.adminSetUserRole = onCall(
       before: {role: before.role},
       after: {role},
     });
+
+    // Security ledger: a role change that adds/removes admin is a security
+    // event. ADMIN_ROLE_GRANTED when the target becomes admin/superAdmin,
+    // ADMIN_ROLE_REMOVED when it loses admin.
+    const wasAdmin = ADMIN_ROLES.has(before.role);
+    const nowAdmin = ADMIN_ROLES.has(role);
+    if (wasAdmin !== nowAdmin) {
+      await writeSecurityAudit({
+        eventType: nowAdmin ?
+          SECURITY_EVENTS.ADMIN_ROLE_GRANTED :
+          SECURITY_EVENTS.ADMIN_ROLE_REMOVED,
+        actorUid: actor.uid,
+        targetUid: uid,
+        actorRole: actor.isSuperAdmin ? "superAdmin" : "admin",
+        outcome: "success",
+        metadata: {fromRole: before.role || null, toRole: role, claimsSynced},
+        ...requestMetaFrom(request),
+      });
+    }
 
     return {ok: true, role};
   },

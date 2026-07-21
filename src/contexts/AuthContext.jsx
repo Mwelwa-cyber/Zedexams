@@ -9,6 +9,7 @@ import {
   signOut,
   onAuthStateChanged,
   updateProfile,
+  multiFactor,
 } from 'firebase/auth'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
@@ -65,6 +66,19 @@ export function useAuth() {
 
 function toUserProfile(uid, data) {
   return data ? { id: uid, ...data } : null
+}
+
+// Multi-factor enrolment read straight from the Firebase Auth user — the
+// tamper-proof source of truth for "does this admin have MFA" (never a
+// Firestore boolean). Guarded so a user object without MFA support degrades to
+// "not enrolled" rather than throwing.
+function readMfaEnrolled(user) {
+  if (!user) return false
+  try {
+    return (multiFactor(user).enrolledFactors || []).length > 0
+  } catch {
+    return false
+  }
 }
 
 // Defaults that satisfy the create-user firestore rule. Used by both the
@@ -452,6 +466,11 @@ export function AuthProvider({ children }) {
     return updateProfileFields({ grade: Number(newGrade) })
   }
 
+  // Whether this account has enrolled MFA (from Firebase Auth, not Firestore).
+  // Drives the mandatory-admin-MFA route guard. Derived from currentUser so it
+  // recomputes on every sign-in/out without a second listener.
+  const mfaEnrolled = readMfaEnrolled(currentUser)
+
   // Admin & superAdmin are equivalent everywhere — both get full access.
   const isSuperAdmin = isSuperAdminRole(userProfile)
   const isLearner  = userProfile?.role === ROLES.LEARNER
@@ -732,6 +751,7 @@ export function AuthProvider({ children }) {
       isLearner, isTeacher, isParent, isAdmin, isAdminOnly, isSuperAdmin, isPremium, isPaidTeacher, canAccessFullContent, canAccessLearnerPortal,
       permissions,
       userStatus, isSuspended,
+      mfaEnrolled,
     }}>
       {children}
     </AuthContext.Provider>

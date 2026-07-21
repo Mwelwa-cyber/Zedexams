@@ -140,7 +140,10 @@ async function main() {
     const val = v && typeof v.toDate === 'function' ? v.toDate().toISOString() : v
     console.log(`  ${k}: ${String(val)}`)
   }
-  console.log(`# planned Auth custom claim: { role: '${args.role}' }`)
+  const claimPreview = args.role === 'superAdmin'
+    ? `{ role: 'superAdmin', superAdmin: true, admin: true }`
+    : `{ role: 'admin', admin: true }`
+  console.log(`# planned Auth custom claims: ${claimPreview}`)
 
   if (!args.live) {
     console.log('— Dry run. Pass --live to write to Firestore + set the custom claim. —')
@@ -148,7 +151,16 @@ async function main() {
   }
 
   await ref.set(update, { merge: true })
-  await auth.setCustomUserClaims(uid, { ...(authUser.customClaims || {}), role: args.role })
+  // Mint role + boolean admin/superAdmin claims (the MFA guard reads the
+  // booleans). superAdmin → { role, superAdmin:true, admin:true }; admin →
+  // { role, admin:true }. Preserves any unrelated existing claims.
+  const nextClaims = { ...(authUser.customClaims || {}) }
+  delete nextClaims.admin
+  delete nextClaims.superAdmin
+  nextClaims.role = args.role
+  if (args.role === 'superAdmin') { nextClaims.superAdmin = true; nextClaims.admin = true }
+  else if (args.role === 'admin') { nextClaims.admin = true }
+  await auth.setCustomUserClaims(uid, nextClaims)
   await auth.revokeRefreshTokens(uid)
 
   const after = (await ref.get()).data() || {}

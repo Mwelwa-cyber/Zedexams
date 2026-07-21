@@ -21,10 +21,10 @@
  */
 
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
-const {assertVerifiedAuth} = require("./authGuard");
 const admin = require("firebase-admin");
 
 const {writeAuditLog} = require("./auditLog");
+const {requireAdminMfa} = require("./security/requireAdminMfa");
 const {getPlan} = require("./plans");
 const {
   resolveDurationDays,
@@ -33,16 +33,12 @@ const {
   buildRevokeFields,
 } = require("./adminPaymentsCore");
 
-const ADMIN_ROLES = new Set(["admin", "superAdmin"]);
-
+// Money actions (confirm/reject payments, grant/revoke premium) are privileged:
+// require an admin whose CURRENT session used a second factor (TOTP MFA). See
+// functions/security/requireAdminMfa.js.
 async function assertCallerIsAdmin(request) {
-  // Signed-in + email-verified (admin accounts must verify like everyone).
-  await assertVerifiedAuth(request);
-  const snap = await admin.firestore().doc(`users/${request.auth.uid}`).get();
-  if (!snap.exists || !ADMIN_ROLES.has(snap.data() && snap.data().role)) {
-    throw new HttpsError("permission-denied", "Admin role required.");
-  }
-  return {uid: request.auth.uid, email: (snap.data() && snap.data().email) || null};
+  const actor = await requireAdminMfa(request);
+  return {uid: actor.uid, email: actor.email};
 }
 
 /**

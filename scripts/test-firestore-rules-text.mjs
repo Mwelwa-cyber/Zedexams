@@ -847,6 +847,25 @@ test('validMembershipFields pins uid + schoolId and enum-checks role/status', ()
   assert(!roleFn[1].includes("'admin'") || roleFn[1].includes("'school_admin'"), 'membership role must not admit a bare platform admin term')
 })
 
+// ── Admin MFA: security audit ledger + MFA-status mirror lockdown ──
+test('securityAuditLogs is super-admin-read + client-write-denied', () => {
+  assertContains('function isSuperAdmin()', 'isSuperAdmin helper must exist for security-log reads')
+  assertContains('match /securityAuditLogs/{logId}', 'securityAuditLogs collection rules must exist')
+  const start = rules.indexOf('match /securityAuditLogs/{logId}')
+  assert(start >= 0, 'securityAuditLogs block not found')
+  const body = rules.slice(start, start + 250)
+  assert(body.includes('allow read: if isSuperAdmin()'), 'securityAuditLogs read must be super-admin only')
+  assert(body.includes('allow create, update, delete: if false'), 'securityAuditLogs must deny all client writes')
+})
+
+test('admin MFA status mirror fields are not client-writable', () => {
+  // The mirror is reporting-only; the real source of truth is Firebase Auth +
+  // the token second-factor claim. A client must still not forge it.
+  for (const field of ['mfaEnrolled', 'mfaEnrolledAt', 'mfaResetAt', 'mfaResetBy']) {
+    assertContains(`'${field}'`, `users self-update blocklist must include ${field}`)
+  }
+})
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log('')

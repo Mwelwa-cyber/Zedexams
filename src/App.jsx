@@ -8,6 +8,7 @@ import AnnouncementBanner from './components/banners/AnnouncementBanner'
 import AndroidUpdateBanner from './components/banners/AndroidUpdateBanner'
 import SubscriptionStatusBanner from './components/subscription/SubscriptionStatusBanner'
 import ProtectedRoute from './components/layout/ProtectedRoute'
+import AdminMfaGate from './components/layout/AdminMfaGate'
 import LearnerOnlyRoute from './components/auth/LearnerOnlyRoute'
 import MissingProfileRecovery from './components/auth/MissingProfileRecovery'
 import Navbar from './components/layout/Navbar'
@@ -143,6 +144,9 @@ const BlogPost = lazy(() => import('./components/blog/BlogPost'))
 // Admin section
 const AdminLayout = lazy(() => import('./components/admin/AdminLayout'))
 const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'))
+// Mandatory MFA enrolment page — admin-only, rendered full-screen (no admin
+// chrome) so a not-yet-enrolled admin gets one focused task.
+const MfaSetupPage = lazy(() => import('./components/admin/security/MfaSetupPage'))
 const CreateQuiz = lazy(() => import('./components/admin/CreateQuizV2'))
 const AdminCsvImport = lazy(() => import('./components/admin/AdminCsvImport'))
 const ManageContent = lazy(() => import('./components/admin/ManageContent'))
@@ -331,10 +335,16 @@ function SettingsPage() {
   )
 }
 
+// Every /admin/* route is admin-only AND now MFA-mandatory: ProtectedRoute
+// enforces the admin role + verification, AdminMfaGate then forces enrolment
+// before the AdminLayout (and any admin page) can render. The MFA setup page
+// itself is routed separately (below) so a not-yet-enrolled admin can reach it.
 function AdminRoute({ children }) {
   return (
     <ProtectedRoute requiredRole="admin">
-      <AdminLayout>{children}</AdminLayout>
+      <AdminMfaGate>
+        <AdminLayout>{children}</AdminLayout>
+      </AdminMfaGate>
     </ProtectedRoute>
   )
 }
@@ -587,6 +597,13 @@ export default function App() {
               floating launcher in App handles the in-context entry
               point but a direct /ask-zed URL is useful for shares. */}
           <Route path="/ask-zed"           element={<ProtectedRoute><ZedChatPage /></ProtectedRoute>} />
+
+          {/* Mandatory admin MFA enrolment. Admin-only (ProtectedRoute), but
+              deliberately NOT wrapped in AdminMfaGate/AdminLayout so a
+              not-yet-enrolled admin can actually reach it (AdminMfaGate would
+              otherwise redirect every admin page here — including this one —
+              creating a loop). Full-screen focused enrolment flow. */}
+          <Route path="/admin/security/mfa-setup"       element={<ProtectedRoute requiredRole="admin"><MfaSetupPage /></ProtectedRoute>} />
 
           {/* ── Admin routes (all wrapped in AdminLayout) ──────── */}
           <Route path="/admin"                          element={<AdminRoute><AdminDashboard /></AdminRoute>} />

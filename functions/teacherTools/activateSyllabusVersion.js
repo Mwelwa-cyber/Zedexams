@@ -43,6 +43,7 @@
 const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
+const {assertAdminSecondFactor} = require("../security/requireAdminMfa");
 
 const {getUserRole} = require("../aiService");
 const {
@@ -183,6 +184,8 @@ exports.activateSyllabusVersion = onCall(
     if (role !== "admin" && role !== "superAdmin") {
       throw new HttpsError("permission-denied", "Admin only.");
     }
+    // Publishing a curriculum version platform-wide is privileged — require MFA.
+    await assertAdminSecondFactor(request, {actorRole: role});
 
     const version = String(request.data && request.data.version || "").trim();
     if (!VERSION_REGEX.test(version)) {

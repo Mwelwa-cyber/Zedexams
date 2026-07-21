@@ -43,6 +43,9 @@ const {
 // Email-verification gate shared by callables + HTTP endpoints (see
 // authGuard.js for the exemption list).
 const {assertVerifiedAuth, assertDecodedVerified} = require("./authGuard");
+// MFA second-factor gate for admin callables that already confirm admin their
+// own way (bulk grants, global content publishing). See functions/security/.
+const {assertAdminSecondFactor} = require("./security/requireAdminMfa");
 // Gemini REST client — used by the structureImportedQuiz pipeline.
 const {callGemini} = require("./geminiClient");
 // Scanned-paper OCR import — dual-model (Claude vision + Gemini assist) used
@@ -736,7 +739,10 @@ function toDate(value) {
 exports.setUserRole = functions.auth.user().onCreate(async (user) => {
   const role = resolveInitialUserRole(user.email || "");
 
-  await admin.auth().setCustomUserClaims(user.uid, {role});
+  // Mint the role claim AND the boolean admin/superAdmin claims the MFA guard
+  // reads (buildRoleClaims sets admin:true only for admin/superAdmin roles).
+  const {buildRoleClaims} = require("./security/adminClaims");
+  await admin.auth().setCustomUserClaims(user.uid, buildRoleClaims({}, role));
 
   return null;
 });
@@ -2792,6 +2798,8 @@ exports.classifyQuestionGrades = onCall(
       if (role !== "admin" && role !== "superAdmin") {
         throw new HttpsError("permission-denied", "Admin only.");
       }
+      // Bulk question grade-classification is an admin content op — require MFA.
+      await assertAdminSecondFactor(request, {actorRole: role});
       const items = Array.isArray(request.data && request.data.questions) ?
         request.data.questions.slice(0, 25) : [];
       const {classifyGrade} = require("./teacherTools/gradeReclassifier");
@@ -2878,6 +2886,8 @@ exports.retryAgentJob = onCall(
     if (role !== "admin") {
       throw new HttpsError("permission-denied", "Admins only.");
     }
+    // Retrying a content-agent job is an admin content-pipeline op — require MFA.
+    await assertAdminSecondFactor(request, {actorRole: role});
 
     const jobId = typeof request.data?.jobId === "string" ?
       request.data.jobId.trim() : "";
@@ -4109,6 +4119,14 @@ exports.apiImageProxy = imageProxy.apiImageProxy;
 exports.adminSetUserStatus = require("./adminUsers").adminSetUserStatus;
 exports.adminSetUserRole = require("./adminUsers").adminSetUserRole;
 
+// Super-admin MFA recovery — remove a locked-out admin's TOTP factors, revoke
+// their sessions, force re-enrolment. See functions/security/resetAdminMfa.js.
+exports.resetAdminMfa = require("./security/resetAdminMfa").resetAdminMfa;
+
+// Client-called logger for admin MFA enrolment events (started/completed/
+// failed) → securityAuditLogs. See functions/security/logAdminMfaEvent.js.
+exports.logAdminMfaEvent = require("./security/logAdminMfaEvent").logAdminMfaEvent;
+
 // Admin payment/subscription callables — audited server-side confirm /
 // reject / grant / revoke. Mirror the client writes they replace (see
 // functions/adminPayments.js) so dashboards keep working, and land an
@@ -4138,6 +4156,8 @@ exports.bulkGrantDemoTrials = onCall({
   if (callerRole !== "admin" && callerRole !== "superAdmin") {
     throw new HttpsError("permission-denied", "Admin access required.");
   }
+  // Bulk account creation is a privileged admin op — require MFA evidence.
+  await assertAdminSecondFactor(request, {actorRole: callerRole});
 
   const data = request.data || {};
   const rawEntries = Array.isArray(data.entries) ? data.entries : [];
