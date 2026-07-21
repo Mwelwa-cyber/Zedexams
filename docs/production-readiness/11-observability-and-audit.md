@@ -61,18 +61,24 @@ A production failure often cannot be traced UI → function → data cleanly.
 - **Correction:** Adopt structured logging with a per-request id propagated from the client.
 - **Launch blocker:** No. **Complexity:** Medium.
 
-### OBS-004 — Single-channel email alerting that fails silently
-- **Severity:** Low–Medium · **Confidence:** High confidence
-- **Affected:** `opsAlert.js:83-84` — best-effort SMTP; no PagerDuty/Slack; no dead-man's-switch if
-  the alerter itself is down or SMTP unconfigured.
-- **Risk:** A critical alert (backup failed, budget exhausted, agent breaker tripped) can be missed.
-- **Correction:** Add a second channel (Slack/webhook) + a heartbeat that alerts if no
-  daily-summary/backup ran. **Launch blocker:** No, but pairs with DR-005. **Complexity:** Low.
-- **Partial (2026-07):** the new synthetic **health canaries** (`storageBackupCheck`,
-  `rateLimitHealthCheck`) plus the `opsBackups` / `opsStorageBackups` / `opsRateLimitHealth` status docs
-  give an active, queryable heartbeat per subsystem (a stale/missing status doc is itself a signal a
-  scheduled job stopped). The **residual** is the second delivery CHANNEL (Slack/webhook) and a
-  cross-subsystem dead-man's-switch — still single-channel email today.
+### OBS-004 — Single-channel email alerting that fails silently ✅ second channel added
+- **Severity:** Low–Medium → Low (residual) · **Confidence:** High confidence
+- **Was:** `opsAlert.js` was best-effort SMTP only — a bad SMTP cred or an unconfigured mailbox
+  silently dropped every critical alert (backup failed, budget exhausted, agent breaker tripped).
+- **Fixed here:** `sendOpsAlert` now delivers over **two independent channels in parallel** — the
+  existing email AND a **Slack-compatible incoming webhook** (`OPS_ALERT_WEBHOOK_URL`;
+  Slack/Discord/Mattermost/generic all accept the `{text}` payload from the pure
+  `buildOpsAlertWebhook`). The channels are fully independent (one failing/unconfigured never blocks the
+  other), and `delivered` is true if EITHER got the alert out — so a single-channel failure no longer
+  loses a critical alert. Best-effort, never throws. Tests: `opsAlert.test.js` (webhook build + POST
+  2xx/non-2xx/network-error + two-channel delivery incl. "webhook alone delivers when email is down").
+- **Heartbeat:** the synthetic canaries (`storageBackupCheck`, `rateLimitHealthCheck`,
+  `backupCompletionCheck`) + the `opsBackups` / `opsStorageBackups` / `opsRateLimitHealth` status docs
+  give an active, queryable per-subsystem heartbeat (a stale/missing status doc is itself a signal a
+  scheduled job stopped); Marshal already confirms scheduled agents ran.
+- **Residual:** set `OPS_ALERT_WEBHOOK_URL` on the deploy + confirm a test alert lands in the channel;
+  a single cross-subsystem dead-man's-switch (one check that ALL heartbeats are fresh) is still open.
+  **Launch blocker:** No. **Complexity:** Low.
 
 ### OBS-005 — Thin per-minute rate limiting (bot/abuse) — **generators now covered (2026-07-19)**
 - **Severity:** Medium → Low (residual) · **Confidence:** High confidence
