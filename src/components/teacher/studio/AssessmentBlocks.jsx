@@ -127,6 +127,14 @@ function ImportSummaryBanner({ summary, onDismiss }) {
           </ul>
         )
       )}
+      {/* Parser version stamp — same stale-bundle diagnostic as the quiz
+          editor's ImportQuizPanel; documents parse locally in the browser. */}
+      {summary.importerVersion ? (
+        <p style={{ margin: '4px 0 0', fontSize: 11, fontFamily: 'monospace', color: 'var(--sv-muted)' }}>
+          importer {summary.importerVersion}
+          {summary.scanned && summary.engineVersion ? ` · engine ${summary.engineVersion}` : ''}
+        </p>
+      ) : null}
     </div>
   )
 }
