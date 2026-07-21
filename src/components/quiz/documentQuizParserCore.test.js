@@ -1225,4 +1225,106 @@ function runHeaderFooterNoiseTest() {
 
 runHeaderFooterNoiseTest()
 
+// ── Answer-with-reasons paper (PSLE "Questions and Answers" DOCX layout) ──
+// Each question is followed by an inline "Answer: C — Many  <reason>" line.
+// The letter must resolve the correct option AND the reason must land in the
+// explanation field — it used to leak into passages or get dropped.
+function runAnswerWithReasonsTest() {
+  const blocks = [
+    block('Part 1: Questions 1–2 — Choose the word that makes the sentence correct.'),
+    block('1. … people have died of COVID 19 in the world.'),
+    block('A. Small'),
+    block('B. Plenty'),
+    block('C. Many'),
+    block('D. Little'),
+    block('Answer: C — Many ‘Many’ is used with plural countable nouns such as ‘people’.'),
+    block('2. The girl can sing … she cannot dance.'),
+    block('A. and'),
+    block('B. but'),
+    block('C. nor'),
+    block('D. or'),
+    block('Answer: B — but Shows a contrast between two ideas.'),
+  ]
+  const { sections, summary } = processImportedQuestionBlocks(blocks, [])
+  assert.equal(summary.questions, 2, `expected 2 questions, got ${summary.questions}`)
+  const questions = allQuestionsFromSections(sections)
+  assert.equal(questions[0].correctAnswer, 2, 'Q1 answer resolves to option C')
+  assert.match(plainRichText(questions[0].explanation), /plural countable nouns/,
+    'Q1 reason landed in the explanation')
+  assert.equal(questions[1].correctAnswer, 1, 'Q2 answer resolves to option B')
+  assert.match(plainRichText(questions[1].explanation), /contrast between two ideas/,
+    'Q2 reason landed in the explanation')
+  assert.equal(summary.needsReview, 0, 'nothing flagged for review')
+}
+
+runAnswerWithReasonsTest()
+
+// ── Para-order section with FULLY-FORMED numbered stems ──────────────────
+// Typed-up papers repeat the shared instruction as each question's stem
+// ("39. Choose the paragraph with the sentences in the best order:") instead
+// of the raw ECZ number-only markers. The whole Part used to be silently
+// dropped: the Part heading matched PARA_ORDER_INSTRUCTION_RE and each
+// numbered stem line restarted collection as a fresh "instruction".
+function runParaOrderFullStemTest() {
+  const blocks = [
+    block('Part 1: Questions 39–40 — Choose the paragraph which has the sentences in the best order.'),
+    block('39. Choose the paragraph with the sentences in the best order:'),
+    block('A. At the end of the rally, a lot of people joined the party. The audience clapped.'),
+    block('B. He then started giving his manifesto. The audience clapped to welcome him.'),
+    block('C. The politician arrived at the rally platform. At the end of the rally, people joined.'),
+    block('D. The politician arrived at the rally platform. The audience clapped to welcome him.'),
+    block('Answer: D — Option D Logical order: arrived, clapped, manifesto, joined.'),
+    block('40. Choose the paragraph with the sentences in the best order:'),
+    block('A. Kokoliko is a famous primary school in Luapula province. It is well known.'),
+    block('B. Kokoliko is a famous primary school in Luapula province. For five years it passed.'),
+    block('C. It is well known for producing good results. Kokoliko is a famous primary school.'),
+    block('D. For five years it passed. Kokoliko is a famous primary school in Luapula.'),
+    block('Answer: A — Option A Introduces the school first.'),
+  ]
+  const { sections, summary } = processImportedQuestionBlocks(blocks, [])
+  assert.equal(summary.questions, 2, `expected 2 para-order questions, got ${summary.questions}`)
+  const questions = allQuestionsFromSections(sections)
+  assert.equal(String(questions[0].sourceQuestionNumber), '39')
+  assert.equal(questions[0].options.length, 4, 'Q39 kept all four paragraph options')
+  assert.equal(questions[0].correctAnswer, 3, 'Q39 answer resolves to option D')
+  assert.ok(!/^part\s/i.test(plainRichText(questions[0].text)),
+    'the Part heading prefix was stripped from the rebuilt stem')
+  assert.equal(questions[1].correctAnswer, 0, 'Q40 answer resolves to option A')
+  assert.match(plainRichText(questions[1].explanation), /Introduces the school first/,
+    'para-order reason landed in the explanation (without the "Option A" echo)')
+}
+
+runParaOrderFullStemTest()
+
+// ── "Quick Answer Key" heading opens the answer-key block ────────────────
+// The heading variant with a leading word ("Quick Answer Key") used to slip
+// past ANSWER_KEY_HEADING_RE, so the key dump ("1: C 2: B …") became a
+// phantom question flagged by the structure check.
+function runQuickAnswerKeyTest() {
+  const blocks = [
+    block('1. Which gas do plants absorb?'),
+    block('A. Oxygen'),
+    block('B. Carbon dioxide'),
+    block('C. Nitrogen'),
+    block('D. Helium'),
+    block('2. What colour is the sky?'),
+    block('A. Blue'),
+    block('B. Green'),
+    block('C. Red'),
+    block('D. Yellow'),
+    block('Quick Answer Key'),
+    block('1: B 2: A'),
+  ]
+  const { sections, summary } = processImportedQuestionBlocks(blocks, [])
+  assert.equal(summary.questions, 2, `the key dump must not become a question, got ${summary.questions}`)
+  const questions = allQuestionsFromSections(sections)
+  assert.equal(questions[0].correctAnswer, 1, 'the quick answer key resolves Q1’s answer')
+  // Regression: the LAST question before the key heading used to be routed
+  // into (inactive) comprehension state and silently dropped.
+  assert.equal(String(questions[1].sourceQuestionNumber), '2', 'the question just before the key survives')
+  assert.equal(questions[1].correctAnswer, 0, 'the quick answer key resolves Q2’s answer')
+}
+
+runQuickAnswerKeyTest()
+
 console.log('All documentQuizParserCore tests passed.')

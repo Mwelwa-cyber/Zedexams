@@ -26,7 +26,7 @@ const OPTION_LABEL_RE = /(^|\s)(?:\(([A-Da-d])\)|([A-Da-d])\s*[).:-])\s*/g
 const ANSWER_RE = /^(?:answer|correct answer|ans|key)\s*[:-]\s*(.+)$/i
 const EXPLANATION_RE = /^(?:explanation|reason|because)\s*[:-]\s*(.+)$/i
 const IMAGE_HINT_RE = /\b(diagram|figure|picture|image|graph|chart|map|shown|label|observe|study the|look at)\b/i
-const ANSWER_KEY_HEADING_RE = /^(answers\b|answer\s+key|memorandum|marking scheme)\b/i
+const ANSWER_KEY_HEADING_RE = /^(answers\b|(?:quick\s+)?answer\s+key|memorandum|marking scheme)\b/i
 const ANSWER_KEY_PAIR_RE = /(?:^|\s)(\d{1,3})\s*[).:-]?\s*(?:answer\s*)?([A-D]|true|false)\b/gi
 const SECTION_HEADING_RE = /^(?:spelling bee\b|elimination round\b|category\b|words\b|easy round\b|average level\b|round\s+\d+\b|tie[-\s]?breakers?\b|extra words?\b|oral recitation\b)/i
 const PARA_ORDER_INSTRUCTION_RE = /each question has four paragraphs|sentences in the best order|choose the paragraph which has the sentences/i
@@ -183,7 +183,10 @@ function deriveParaOrderQuestionText(instruction) {
   return cleanImportedText(
     bestSentence
       .replace(/^you must\s+/i, '')
-      .replace(/^for each question,?\s*/i, ''),
+      .replace(/^for each question,?\s*/i, '')
+      // When the instruction came from a Part heading ("Part 1: Questions
+      // 39–45 — Choose the paragraph …"), keep only the imperative half.
+      .replace(/^(?:part|section|unit)\s+[A-Z0-9]+\s*[:.-]?\s*(?:questions?\s+\d{1,3}\s*[–—-]\s*\d{1,3})?\s*[–—:-]*\s*/i, ''),
   ) || 'Choose the paragraph with the sentences in the best order.'
 }
 
@@ -548,6 +551,32 @@ function parseAnswerIndex(rawAnswer, options, sourceOptions = options) {
   return containedIndex >= 0 ? containedIndex : null
 }
 
+// "Answer: C — Many  'Many' is used with plural countable nouns." arrives as a
+// single answerRaw string on answer-with-reasons documents (a paper typed up
+// WITH its key inline, one Answer line per question). The leading letter
+// resolves the correct option; the echoed option text after the dash is
+// redundant; whatever remains is the marker's reason and belongs in the
+// explanation field. Only used when no explicit "Explanation:" line exists.
+function explanationFromAnswerRaw(rawAnswer, sourceOptions = []) {
+  const answer = cleanImportedText(rawAnswer)
+  // Require a lone leading letter (not a word like "Dangerous").
+  const letterMatch = answer.match(/^([A-Da-d])(?![A-Za-z])/)
+  if (!letterMatch) return ''
+  let rest = answer.slice(1).replace(/^[\s).:–—-]+/, '')
+  const origIndex = letterMatch[1].toUpperCase().charCodeAt(0) - 65
+  const optText = origIndex >= 0 && origIndex < sourceOptions.length
+    ? cleanImportedText(sourceOptions[origIndex])
+    : ''
+  if (optText && rest.toLowerCase().startsWith(optText.toLowerCase())) {
+    rest = rest.slice(optText.length).replace(/^[\s.,;:–—-]+/, '')
+  }
+  // Para-order answers echo "Option D" instead of the (paragraph-long) text.
+  rest = rest.replace(/^option\s+[A-D](?![A-Za-z])\s*[.,;:–—-]*\s*/i, '')
+  rest = rest.trim()
+  // A short leftover is usually just punctuation/echo noise, not a reason.
+  return rest.length >= 8 ? rest : ''
+}
+
 // Phase 3: assets that the parser attributed to a specific option (e.g. via
 // block.optionAssetsByLetter from a DOCX table) live on current.optionAssets[i].
 // They surface on the question's optionMedia[] array and must NOT also be
@@ -605,6 +634,7 @@ function questionFromCurrent(current, answerKey = new Map()) {
     type = 'diagram'
   }
 
+  let derivedExplanation = ''
   if (type === 'mcq' || type === 'truefalse') {
     // True/False persists a fixed ['True','False'] list, so the answer must
     // be resolved against that exact array — not the raw source order,
@@ -614,6 +644,15 @@ function questionFromCurrent(current, answerKey = new Map()) {
       : parseAnswerIndex(answerRaw, options, cleanedOptions)
     correctAnswer = index ?? 0
     if (index === null) reviewNotes.push('Correct option was not clear.')
+    // Answer-with-reasons documents put the reason on the Answer line itself
+    // ("Answer: C — Many  'Many' is used with plural countable nouns."). Keep
+    // it as the explanation when no explicit Explanation: line was given.
+    if (index !== null && current.explanationParts.length === 0) {
+      derivedExplanation = explanationFromAnswerRaw(
+        answerRaw,
+        isTrueFalse ? ['True', 'False'] : cleanedOptions,
+      )
+    }
   } else if (!correctAnswer) {
     reviewNotes.push(type === 'diagram'
       ? 'Expected answer for this diagram question was not clear.'
@@ -656,7 +695,7 @@ function questionFromCurrent(current, answerKey = new Map()) {
         ? ['True', 'False']
         : options,
     correctAnswer,
-    explanation: cleanImportedText(current.explanationParts.join(' ')),
+    explanation: cleanImportedText(current.explanationParts.join(' ')) || derivedExplanation,
     topic: '',
     // Shared marks policy (normalizeMarks / MARKS_BOUNDS.quiz): clamp to the
     // per-question schema cap. An ECZ section header like "[15 marks]" matching
@@ -900,7 +939,12 @@ function preprocessParaOrdering(blocks) {
     }
 
     const explicitInstruction = text.replace(/^instruction\s*:\s*/i, '')
+    // A NUMBERED line that echoes the instruction ("39. Choose the paragraph
+    // with the sentences in the best order:") is a question start, not a new
+    // instruction — treating it as one used to consume the question number
+    // and silently drop the whole Part (options flushed with no qNum).
     const startsParaOrdering = PARA_ORDER_INSTRUCTION_RE.test(explicitInstruction)
+      && !questionMatch(splitLines(text)[0] || text)
     const endsParaOrdering = collecting && (
       isComprehensionInstruction(text) ||
       isPassageLabel(text) ||
@@ -1020,6 +1064,19 @@ function buildParaOrderBlocks(lineObjects, instruction) {
       currentOpt = inlineQuestionOption[2]
       const optionText = cleanImportedText(inlineQuestionOption[3])
       if (optionText) optTexts[currentOpt].push(optionText)
+      continue
+    }
+
+    // A fully-formed numbered stem line — "39. Choose the paragraph with the
+    // sentences in the best order:" — occurs in typed-up papers that repeat
+    // the shared instruction as every question's stem (the ECZ raw forms
+    // above only cover number-only `39.` and glued `39A…` lines). Without
+    // this, no question ever starts and the whole Part is silently dropped.
+    // The stem is rebuilt from the shared instruction in flushQuestion, so
+    // the repeated wording on this line carries no extra information.
+    const numberedStem = text.match(/^(\d{1,3})\s*[).:-]\s+\S/)
+    if (numberedStem) {
+      startQuestion(numberedStem[1], block)
       continue
     }
 
@@ -1287,8 +1344,16 @@ function parseQuestionsFromBlocks(blocks, warnings) {
   }
 
   function finalizeComprehension() {
+    // When comprehension mode is NOT active, the open question is a
+    // standalone one. finalizeSubQuestion() used to push it into
+    // compSubQuestions, which the early return below then discarded — so
+    // the LAST question before an answer-key heading (or any other
+    // finalizeComprehension trigger) silently vanished from the import.
+    if (!compActive) {
+      finalizeStandaloneQuestion()
+      return
+    }
     finalizeSubQuestion()
-    if (!compActive) return
     if (!compTitle && compSubQuestions.length === 0) {
       compActive = false
       compInstructions = []

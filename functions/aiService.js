@@ -25,7 +25,13 @@ const LIMITS = {
   // callable's maxTokens is sized for the top of this range.
   quizCount: 25,
   importFileName: 180,
-  importDocumentText: 26000,
+  // Must cover a FULL past paper. A 60-question PSLE English paper extracts
+  // to ~80K chars; the old 26K cap silently truncated it to the first ~20
+  // questions, so smart import could never return the whole paper (and the
+  // client-side count reconciliation then rejected the partial result —
+  // credits spent, nothing imported). Keep in sync with the client-side
+  // slice in documentQuizImporter.trySmartImport.
+  importDocumentText: 90000,
   importLocalDraft: 12000,
 };
 
@@ -536,12 +542,13 @@ async function callAnthropic(apiKey, {
   // Anthropic has no native JSON mode — if the model still wrapped output
   // in prose, try to extract the first JSON object as a last resort.
   //
-  // The 60K cap (vs. the previous 10K) is needed for callers like
-  // structureImportedQuiz that can legitimately return ~14K-30K of JSON for
-  // a 16+ question past paper. Cutting at 10K used to truncate the response
-  // mid-array, which is why parseStructuredImport then failed with
-  // "The smart import response could not be read."
-  const cap = json ? 60000 : 10000;
+  // The 150K cap (raised from 10K → 60K → 150K) is needed for callers like
+  // structureImportedQuiz that can legitimately return ~30K-90K of JSON for
+  // a full 60-question past paper with passages and explanations. Cutting
+  // too early truncates the response mid-array, which is why
+  // parseStructuredImport then failed with "The smart import response could
+  // not be read."
+  const cap = json ? 150000 : 10000;
   if (json && cleaned && !cleaned.startsWith("{") && !cleaned.startsWith("[")) {
     const objMatch = cleaned.match(/\{[\s\S]*\}/);
     if (objMatch) return cleanString(objMatch[0], cap);

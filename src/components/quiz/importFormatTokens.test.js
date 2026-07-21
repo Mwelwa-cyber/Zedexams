@@ -188,6 +188,50 @@ test('conversion is idempotent-safe (converted HTML has no tokens left)', () => 
   assert.equal(formatTokensToHtml(once), once)
 })
 
+/* ── tab-inside-token prefixes (PSLE answer-key DOCX layout) ───────────── */
+
+test('frees "[[b]]1\\t[[/b]]stem" — tab INSIDE the bold run', () => {
+  assert.equal(
+    fixLeadingStructuralTokens('[[b]]1\t[[/b]]… people have died of COVID 19.'),
+    '1\t… people have died of COVID 19.'
+  )
+})
+
+test('frees "[[b]]A\\t[[/b]]option" — bold option label with inner tab', () => {
+  assert.equal(
+    fixLeadingStructuralTokens('[[b]]A\t[[/b]]Small'),
+    'A\tSmall'
+  )
+})
+
+test('moves opens past "[[b]]A\\tword[[/b]]" (bold spans past the label)', () => {
+  assert.equal(
+    fixLeadingStructuralTokens('[[b]]A\tSmall[[/b]]'),
+    'A\t[[b]]Small[[/b]]'
+  )
+})
+
+/* ── answer / explanation marker lines ─────────────────────────────────── */
+
+test('answer-marker line is fully unwrapped so ANSWER_RE can match', () => {
+  assert.equal(
+    fixLeadingStructuralTokens('[[b]]Answer: C — Many[[/b]][[i]] ‘Many’ goes with plural nouns.[[/i]]'),
+    'Answer: C — Many ‘Many’ goes with plural nouns.'
+  )
+})
+
+test('explanation-marker line is fully unwrapped', () => {
+  assert.equal(
+    fixLeadingStructuralTokens('[[b]]Explanation:[[/b]] [[i]]shows contrast.[[/i]]'),
+    'Explanation: shows contrast.'
+  )
+})
+
+test('a passage sentence starting with "Because" (no colon) keeps its tokens', () => {
+  const line = 'Because the [[u]]chief[[/u]] was furious, he ordered an arrest.'
+  assert.equal(fixLeadingStructuralTokens(line), line)
+})
+
 /* ── formatTokensToInlineHtml ──────────────────────────────────────────── */
 
 test('inline option conversion (no paragraph wrap)', () => {
