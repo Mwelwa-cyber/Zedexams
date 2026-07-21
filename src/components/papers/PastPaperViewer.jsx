@@ -1337,7 +1337,15 @@ function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, r
   }
 
   return (
-    <div className="flex flex-col gap-5 relative">
+    <div
+      className="flex flex-col gap-5 relative"
+      // The page stack is a normal-flow surface: the document/body owns
+      // vertical scrolling (no inner scroll container). `pan-y pinch-zoom`
+      // guarantees a swipe anywhere on the paper scrolls the page and still
+      // allows pinch-zoom; `overscroll-behavior-y: auto` keeps native rubber-
+      // band scrolling at the ends.
+      style={{ touchAction: 'pan-y pinch-zoom', overscrollBehaviorY: 'auto' }}
+    >
       <p className="text-center text-xs font-black theme-text-muted uppercase tracking-widest">
         {totalPages} {totalPages === 1 ? 'page' : 'pages'}
       </p>
@@ -1491,13 +1499,22 @@ function PaperPageImage({ pageKey, src, alt, eager, width, height, hasLoaded, on
       height={height}
       onLoad={() => onLoad(pageKey)}
       onError={onError}
-      className="block w-full h-auto"
-      // Fallback aspect ratio reserves layout space for old uploads
-      // that don't have stored dimensions yet. Drop once loaded so the
-      // intrinsic ratio takes over and the rendered page isn't squashed.
-      style={!hasLoaded && !(width && height)
-        ? { aspectRatio: '1 / 1.41' }
-        : undefined}
+      className="block w-full h-auto select-none"
+      style={{
+        // `pan-y pinch-zoom` keeps single-finger vertical scrolling AND
+        // pinch-to-zoom available when a swipe starts on the page image —
+        // never `touch-action: none`, which would freeze the scroll. The
+        // drag/select hints stop a long-press from starting an image drag
+        // that swallows the scroll gesture instead.
+        touchAction: 'pan-y pinch-zoom',
+        userSelect: 'none',
+        WebkitUserDrag: 'none',
+        // Fallback aspect ratio reserves layout space for old uploads that
+        // don't have stored dimensions yet, reducing load-time layout jumps.
+        // Drop it once loaded so the intrinsic ratio takes over and the
+        // rendered page isn't squashed.
+        ...(!hasLoaded && !(width && height) ? { aspectRatio: '1 / 1.41' } : {}),
+      }}
     />
   )
 }

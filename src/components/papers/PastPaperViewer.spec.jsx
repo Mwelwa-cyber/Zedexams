@@ -17,6 +17,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { resolvePaperUrl } from '../../utils/pastPapers'
+
+// jsdom ships neither observer; the image page list wires an
+// IntersectionObserver (visible-page tracking) on mount.
+if (!globalThis.IntersectionObserver) {
+  globalThis.IntersectionObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+    takeRecords() { return [] }
+  }
+}
 
 vi.mock('../../firebase/config', () => ({ default: {}, auth: {}, db: {}, storage: {} }))
 
@@ -96,5 +108,36 @@ describe('PastPaperViewer — publish/visibility gate', () => {
     renderViewer()
     expect(await screen.findByText(/Past Paper/)).toBeInTheDocument()
     expect(screen.queryByText('Paper not found')).not.toBeInTheDocument()
+  })
+})
+
+describe('PastPaperViewer — mobile scrolling / touch behaviour', () => {
+  function imagePaper() {
+    return publishedPaper({
+      assets: [{ path: 'papers/paper-1/page-1.jpg', contentType: 'image/jpeg' }],
+    })
+  }
+
+  it('renders page images with pan-y touch-action (vertical swipe stays scrollable, never frozen)', async () => {
+    vi.mocked(resolvePaperUrl).mockResolvedValue('https://cdn.test/page-1.jpg')
+    mockGetPaper.mockResolvedValue(imagePaper())
+    renderViewer()
+    const img = await screen.findByAltText(/Question paper page 1 of 1/)
+    // pan-y keeps single-finger vertical scroll; never `none` (would freeze it).
+    expect(img.style.touchAction).toBe('pan-y pinch-zoom')
+    expect(img.style.touchAction).not.toBe('none')
+    // A long-press must not start an image drag that swallows the scroll.
+    expect(img.style.userSelect).toBe('none')
+  })
+
+  it('keeps the "loading page" overlay non-interactive so it cannot swallow touches', async () => {
+    vi.mocked(resolvePaperUrl).mockResolvedValue('https://cdn.test/page-1.jpg')
+    mockGetPaper.mockResolvedValue(imagePaper())
+    renderViewer()
+    // In jsdom the <img> onLoad never fires, so the overlay is still shown —
+    // exactly the "invisible overlay over rendered content" risk. It must be
+    // pointer-events-none so scroll/tap pass straight through to the page.
+    const overlay = await screen.findByText(/Loading page 1/)
+    expect(overlay.className).toMatch(/pointer-events-none/)
   })
 })
