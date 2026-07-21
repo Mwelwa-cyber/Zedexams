@@ -72,13 +72,15 @@ A production failure often cannot be traced UI → function → data cleanly.
   other), and `delivered` is true if EITHER got the alert out — so a single-channel failure no longer
   loses a critical alert. Best-effort, never throws. Tests: `opsAlert.test.js` (webhook build + POST
   2xx/non-2xx/network-error + two-channel delivery incl. "webhook alone delivers when email is down").
-- **Heartbeat:** the synthetic canaries (`storageBackupCheck`, `rateLimitHealthCheck`,
-  `backupCompletionCheck`) + the `opsBackups` / `opsStorageBackups` / `opsRateLimitHealth` status docs
-  give an active, queryable per-subsystem heartbeat (a stale/missing status doc is itself a signal a
-  scheduled job stopped); Marshal already confirms scheduled agents ran.
-- **Residual:** set `OPS_ALERT_WEBHOOK_URL` on the deploy + confirm a test alert lands in the channel;
-  a single cross-subsystem dead-man's-switch (one check that ALL heartbeats are fresh) is still open.
-  **Launch blocker:** No. **Complexity:** Low.
+- **Heartbeat + dead-man's-switch:** the synthetic canaries (`storageBackupCheck`, `rateLimitHealthCheck`,
+  `backupCompletionCheck`) write per-subsystem heartbeats to `opsBackups` / `opsStorageBackups` /
+  `opsRateLimitHealth`. A new **cross-subsystem dead-man's-switch** (`opsHeartbeatCheck`, every 6h,
+  `functions/opsHeartbeat.js` + `opsHeartbeatCore.js`) reads all three and raises ONE edge-triggered
+  alert if any is **stale or missing** — i.e. that monitor's OWN scheduled trigger stopped firing, the
+  one failure a subsystem can't self-report. 22 tests. Verdict persists to `opsHeartbeat/status`.
+  Marshal already confirms scheduled agents ran.
+- **Residual:** set `OPS_ALERT_WEBHOOK_URL` on the deploy + confirm a test alert lands in the channel
+  (runtime). **Launch blocker:** No. **Complexity:** Low.
 
 ### OBS-005 — Thin per-minute rate limiting (bot/abuse) — **generators now covered (2026-07-19)**
 - **Severity:** Medium → Low (residual) · **Confidence:** High confidence
