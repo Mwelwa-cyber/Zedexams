@@ -10,7 +10,7 @@ import {
 import { useNotifications } from '../../../contexts/NotificationContext'
 import NotificationCenter from '../../notifications/NotificationCenter'
 
-export default function TopHeader({ teacher, termChip }) {
+export default function TopHeader({ termChip }) {
   // Real notification feed (notifications/{uid}/feed) — same source as the
   // learner/admin shells; unread count is 0 when signed out (preview route).
   const { unreadCount, open: notifOpen, setOpen: setNotifOpen } = useNotifications()
@@ -74,11 +74,9 @@ export default function TopHeader({ teacher, termChip }) {
         <Link to="/teacher/help" className="tdv2-iconbtn" aria-label="Help and support">
           <MessageSquare size={19} strokeWidth={1.75} aria-hidden="true" />
         </Link>
-        <Link to="/settings/profile" className="tdv2-userchip" aria-label={`Account: ${teacher.shortName}`}>
-          <span className="tdv2-avatar" aria-hidden="true">{teacher.initials}</span>
-          <span className="tdv2-user-name">{teacher.shortName}</span>
-          <ChevronDown size={16} strokeWidth={2} aria-hidden="true" />
-        </Link>
+        {/* No user chip here — the teacher's name already appears in the
+            hero greeting and on the sidebar profile card (the account
+            control); a third copy was pure noise. */}
         {termChip ? (
           <Link to="/teacher/calendar" className="tdv2-datechip" aria-label={`School calendar: ${termChip}`}>
             <CalendarDays size={17} strokeWidth={1.75} aria-hidden="true" />

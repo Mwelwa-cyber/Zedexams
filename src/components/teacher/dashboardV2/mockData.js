@@ -21,6 +21,7 @@ export const LAST_OPENED = {
   subject: 'Integrated Science',
   grade: 'Grade 4',
   ago: '5d ago',
+  agoDays: 5,
   to: '/teacher/library',
 }
 

@@ -68,7 +68,13 @@ const last = lastOpenedFromResources(resources, NOW)
 assert.equal(last.subject, 'integrated science')
 assert.equal(last.grade, 'Grade 4')
 assert.equal(last.ago, '5d ago')
+assert.equal(last.agoDays, 5)
 assert.equal(lastOpenedFromResources([], NOW), null)
+// Touched two hours ago → 0 whole days ("today" in the hero subline)
+assert.equal(
+  lastOpenedFromResources([{ ...resources[0], createdAt: NOW - 2 * 60 * 60 * 1000 }], NOW).agoDays,
+  0,
+)
 
 // ── saved counts ─────────────────────────────────────────────────────
 assert.deepEqual(

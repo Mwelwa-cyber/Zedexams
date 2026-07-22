@@ -1,4 +1,4 @@
-import { BookOpen, Moon, Sun, Sunset } from 'lucide-react'
+import { ChartNoAxesColumnIncreasing, Moon, Sun, Sunset } from 'lucide-react'
 import CopperButton from './CopperButton'
 // Same 3D study-desk illustration the legacy hero used — brand teal, so it
 // blends straight into this hero's gradient.
@@ -6,8 +6,18 @@ import heroDesk from '../../../assets/teacher/hero-desk.webp'
 
 const PART_ICON = { morning: Sun, afternoon: Sun, evening: Moon }
 
+/* Context-aware subline, matching the legacy hero: name the last-opened
+   subject and how stale it is, falling back to the generic line. */
+function sublineFor(lastOpened) {
+  if (!lastOpened?.subject) return 'Here’s what’s happening with your teaching.'
+  const days = lastOpened.agoDays
+  if (!Number.isFinite(days)) return 'Here’s what’s happening with your teaching.'
+  if (days <= 0) return `You worked on ${lastOpened.subject} today. Keep it up!`
+  return `${lastOpened.subject} hasn’t been updated for ${days} day${days === 1 ? '' : 's'}.`
+}
+
 /**
- * lastOpened: { subject, grade, ago, to } | null — null renders a
+ * lastOpened: { subject, grade, ago, agoDays?, to } | null — null renders a
  * start-your-first-document inset instead of LAST OPENED.
  */
 export default function GreetingHero({ greeting, lastOpened, ctaState = 'default', onContinue }) {
@@ -18,16 +28,21 @@ export default function GreetingHero({ greeting, lastOpened, ctaState = 'default
       <img className="tdv2-hero-art" src={heroDesk} alt="" aria-hidden="true" />
       <div>
         <span className="tdv2-hero-eyebrow">
-          <PartIcon size={17} strokeWidth={2} aria-hidden="true" />
+          <span className="tdv2-hero-sun" aria-hidden="true">
+            <PartIcon size={17} strokeWidth={2} />
+          </span>
           {greeting.label},
         </span>
-        <h1>{greeting.name}</h1>
-        <p className="tdv2-hero-sub">Here’s what’s happening with your teaching.</p>
+        <h1>
+          {greeting.name}
+          <span className="tdv2-hero-wave" aria-hidden="true">👋</span>
+        </h1>
+        <p className="tdv2-hero-sub">{sublineFor(lastOpened)}</p>
       </div>
 
       <div className="tdv2-hero-inset">
         <span className="tdv2-hero-inset-icon" aria-hidden="true">
-          <BookOpen size={22} strokeWidth={1.75} />
+          <ChartNoAxesColumnIncreasing size={22} strokeWidth={2} />
         </span>
         {lastOpened ? (
           <>
@@ -36,10 +51,9 @@ export default function GreetingHero({ greeting, lastOpened, ctaState = 'default
               <br />
               <span className="tdv2-hero-inset-title">{lastOpened.subject}</span>
               <br />
-              <span className="tdv2-hero-inset-meta">
-                {[lastOpened.grade, lastOpened.ago].filter(Boolean).join(' · ')}
-              </span>
+              <span className="tdv2-hero-inset-meta">{lastOpened.grade}</span>
             </span>
+            <span className="tdv2-hero-inset-ago">{lastOpened.ago}</span>
             <CopperButton state={ctaState} onClick={onContinue}>
               Continue plan
             </CopperButton>

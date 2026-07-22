@@ -75,7 +75,7 @@ export default function DashboardView({
       />
 
       <div className="tdv2-main">
-        <TopHeader teacher={teacher} termChip={termChip} />
+        <TopHeader termChip={termChip} />
         <main className="tdv2-content">
           {banner}
           <GreetingHero
