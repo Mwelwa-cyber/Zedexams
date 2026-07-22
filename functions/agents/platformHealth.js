@@ -17,7 +17,7 @@ const {assertCallableRateLimit} = require("../rateLimit");
 const {defineSecret} = require("firebase-functions/params");
 const admin = require("firebase-admin");
 
-const {getUserRole} = require("../aiService");
+const {getUserRole, isAdminRole} = require("../aiService");
 const {anthropicFetch} = require("../anthropicFetch");
 const {
   getActiveKbState,
@@ -54,7 +54,7 @@ const SAMPLE_BRIEF = {
 async function requireAdmin(request) {
   await assertVerifiedAuth(request);
   const role = await getUserRole(request.auth.uid);
-  if (role !== "admin") {
+  if (!isAdminRole(role)) {
     throw new HttpsError("permission-denied", "Admins only.");
   }
   return request.auth.uid;

@@ -52,7 +52,7 @@ const {
   buildIngestTagsFor,
 } = require("./privateCurriculum");
 
-const {getUserRole, assertDailyLimit} = require("../aiService");
+const {getUserRole, assertDailyLimit, isAdminRole} = require("../aiService");
 
 // Pure helpers live in a sibling file so the test suite can `require`
 // them without pulling firebase-functions/v2 (a functions-only dep that
@@ -104,7 +104,7 @@ function createUploadCurriculumModule(openaiApiKeySecret) {
     const uid = await assertVerifiedAuth(request);
     await assertCallableRateLimit(request, {action: "uploadCurriculumModule", userPerMin: 6});
     const role = await getUserRole(uid);
-    if (role !== "admin") {
+    if (!isAdminRole(role)) {
       throw new HttpsError("permission-denied", "Admins only.");
     }
 
@@ -285,7 +285,7 @@ function createDeleteCurriculumUpload() {
   }, async (request) => {
     const uid = await assertVerifiedAuth(request);
     const role = await getUserRole(uid);
-    if (role !== "admin") {
+    if (!isAdminRole(role)) {
       throw new HttpsError("permission-denied", "Admins only.");
     }
     const idRaw = String(request.data?.id || "").trim();

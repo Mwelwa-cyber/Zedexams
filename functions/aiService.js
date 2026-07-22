@@ -104,6 +104,13 @@ function isStaffRole(role) {
   return role === "teacher" || role === "admin" || role === "superAdmin";
 }
 
+function isAdminRole(role) {
+  // superAdmin is a strict superset of admin everywhere in the app; any
+  // "admin only" gate that checks role === "admin" alone locks out the
+  // project owner. Use this helper instead of comparing the string.
+  return role === "admin" || role === "superAdmin";
+}
+
 function cleanChatHistory(history = []) {
   if (!Array.isArray(history)) return [];
   return history.slice(-LIMITS.historyItems).map((item) => {
@@ -1713,6 +1720,7 @@ module.exports = {
   getAnthropicApiKey,
   getApiKey,
   getUserRole,
+  isAdminRole,
   isEditQuestionAction,
   isStaffRole,
   parseEditedQuestion,

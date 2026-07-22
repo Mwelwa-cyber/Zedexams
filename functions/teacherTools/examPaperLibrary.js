@@ -26,7 +26,7 @@ const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertCallableRateLimit} = require("../rateLimit");
 const {assertVerifiedAuth} = require("../authGuard");
 
-const {getAnthropicApiKey, getUserRole} = require("../aiService");
+const {getAnthropicApiKey, getUserRole, isAdminRole} = require("../aiService");
 const {callClaude} = require("./anthropicClient");
 const {getActiveKbVersion} = require("./cbcKnowledge");
 const {
@@ -309,7 +309,7 @@ function createAnalyzeExamPaper(anthropicApiKeySecret) {
     {secrets: [anthropicApiKeySecret], timeoutSeconds: 300, memory: "1GiB"},
     async (request) => {
       const uid = await assertAdmin(request);
-      if ((await getUserRole(uid)) !== "admin") {
+      if (!isAdminRole(await getUserRole(uid))) {
         throw new HttpsError("permission-denied", "Admin only.");
       }
       await assertCallableRateLimit(request, {action: "analyzeExamPaper", userPerMin: 6});
@@ -324,7 +324,7 @@ function createSynthesizeAssessmentFormat(anthropicApiKeySecret) {
     {secrets: [anthropicApiKeySecret], timeoutSeconds: 300, memory: "512MiB"},
     async (request) => {
       const uid = await assertAdmin(request);
-      if ((await getUserRole(uid)) !== "admin") {
+      if (!isAdminRole(await getUserRole(uid))) {
         throw new HttpsError("permission-denied", "Admin only.");
       }
       await assertCallableRateLimit(request, {action: "synthesizeAssessmentFormat", userPerMin: 6});

@@ -33,6 +33,7 @@
 const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("./authGuard");
+const {isAdminRole} = require("./aiService");
 
 const REGION = "us-central1";
 const BATCH_SIZE = 100;
@@ -79,7 +80,7 @@ const backfillReferralCodes = onCall({
   const db = admin.firestore();
   const callerSnap = await db.collection("users").doc(uid).get();
   const role = callerSnap.exists ? (callerSnap.data()?.role || "") : "";
-  if (role !== "admin") {
+  if (!isAdminRole(role)) {
     throw new HttpsError("permission-denied", "Admin only.");
   }
 

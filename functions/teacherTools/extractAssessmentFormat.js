@@ -26,7 +26,7 @@ const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 
-const {getAnthropicApiKey, getUserRole} = require("../aiService");
+const {getAnthropicApiKey, getUserRole, isAdminRole} = require("../aiService");
 const {callClaude} = require("./anthropicClient");
 const {getActiveKbVersion} = require("./cbcKnowledge");
 const {
@@ -276,7 +276,7 @@ function createExtractAssessmentFormat(anthropicApiKeySecret) {
     async (request) => {
       const uid = await assertVerifiedAuth(request, "Please sign in.");
       const role = await getUserRole(uid);
-      if (role !== "admin") {
+      if (!isAdminRole(role)) {
         throw new HttpsError("permission-denied", "Admin only.");
       }
       // Per-user burst cap on this expensive (AI + archive-parsing) admin
