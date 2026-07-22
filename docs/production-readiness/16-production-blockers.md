@@ -1,6 +1,7 @@
 # 16 — Production Blockers
 
-> Snapshot as of 2026-07-19. A "blocker" here meets the audit's definition: it can reasonably
+> Snapshot as of 2026-07-19; verification status reconciled 2026-07-22 (see the next section).
+> A "blocker" here meets the audit's definition: it can reasonably
 > cause permanent data loss, inability to restore, unrestricted expensive AI spend, a repeatable
 > system-wide failure, deployment of untested security rules, payment fraud, privilege escalation,
 > cross-school/learner-data exposure, or public access to private files.
@@ -8,9 +9,50 @@
 > ZedExams is **already live**, so these are framed as "must-fix to be *safely* in production,"
 > not "must-fix before first deploy." Cosmetic issues are deliberately excluded.
 
+## Verification status (reconciled 2026-07-22)
+
+A finding is **not "closed" just because its code PR merged.** Each carries one of four labels:
+
+- **Runtime-verified** — evidenced working on the real deploy.
+- **Impl · operator config pending** — code shipped; needs an env var / bucket / setting the operator owns.
+- **Impl · staged verification pending** — code shipped + deployed; needs a runtime check to confirm behaviour.
+- **Open residual** — a distinct sub-gap still needs code or a decision.
+
+**Release checkpoint (verifiable from the repo, 2026-07-22):** `main` contains all eight remediation PRs
+(#1805, #1806, #1811, #1823, #1825, #1829, #1833, #1834); the four new scheduled functions
+(`backupCompletionCheck`, `storageBackupCheck`, `rateLimitHealthCheck`, `opsHeartbeatCheck`) are registered
+in `functions/index.js`; and **`deploy-firebase` completed `success`** for the cron-adding commits and the
+latest `main`, so the functions deployed cleanly. *Not verifiable from here (operator/console):* Cloud
+Scheduler job active-state, runtime missing-secret/env warnings.
+
+| Finding | Label | Outstanding (owner) |
+|---|---|---|
+| **DR-001** backup/restore | Runtime-verified (Firestore loop) | Auth DR, Storage mirror, provider reconciliation, PITR — *operator* |
+| **DR-002** restore rehearsal | **Runtime-verified** (27,192 docs, RTO 25m50s) | none for the Firestore restore |
+| **DR-003** Storage backup | Impl · operator config pending | provision STS mirror + `STORAGE_BACKUP_BUCKET`; confirm `opsStorageBackups=fresh` — *operator* |
+| **DR-006** secrets recovery | Impl · operator config pending | populate escrow vault; confirm Play App Signing; run recovery drill — *operator* |
+| **DR-007** same-date collision | Impl · staged verification pending | read-only confirm the unattended cron (immutable run record + `completed:true`) — *operator* |
+| **SEC-007** adm-zip/websocket | Impl · staged verification pending | valid-DOCX runtime extraction test on the deploy — *operator* |
+| **OBS-002** audit ledger | Impl · staged verification pending | confirm a failed audit write raises an alert; server-only rules = *open residual (emulator PR)* |
+| **OBS-004** alerting | Impl · operator config pending | set `OPS_ALERT_WEBHOOK_URL`; send one test alert; confirm email + webhook — *operator* |
+| **OBS-005 / B3** budget+limits | Impl · staged verification pending | confirm budget env; short-answer→provisional→regrade; large throttled import; limiter-health alert — *operator* |
+| **B4** branch protection | Open residual | require CI/build/coverage/rules-emulator checks — *operator (GitHub settings)* |
+
+**Operator runtime/governance checklist — do in this order** (protects every future PR, incl. REL-001):
+1. **B4 branch protection** — require the `Lint`, `Tests (importer+sanitize+schema)`, `Build + mobile smoke`,
+   `Tests (Functions coverage)`, and both rules-emulator checks on `main`.
+2. **DR-007** — read `opsBackups/{recent}`: `started`→`completed:true`, matching `opsBackupRuns/{correlationId}`.
+3. **OBS-004** — set `OPS_ALERT_WEBHOOK_URL`; trigger one controlled alert; confirm BOTH email + webhook arrive.
+4. **OBS-005/B3** — confirm `AI_MONTHLY_BUDGET_USD`/`AI_BUDGET_MODE` live; short-answer throttle → pending →
+   regrade recomputes once; large scanned import throttles with no missing/duplicate pages; limiter-health alert fires.
+5. **DR-003** — provision the cross-region Storage mirror; set `STORAGE_BACKUP_BUCKET`; confirm `opsStorageBackups=fresh`.
+6. **OBS-002** — confirm a failed audit write alerts (server-only-rules is the separate emulator follow-up).
+7. **DR-006** — populate the escrow vault; confirm Play App Signing; run the non-prod recovery drill.
+8. **SEC-007** — run a valid DOCX through the deployed admin-only import; confirm text + images extract.
+
 ## Tier 0 — Hard blockers (fix immediately)
 
-### B1 · DR-001 — Backup / restore — **Status: Implemented, pending runtime verification**
+### B1 · DR-001 — Backup / restore — **Status: Verified in staging (restore drill PASSED); cross-DR residuals open**
 - **Why a blocker:** "inability to restore the database" + "permanent data loss." The daily export is
   gated on `FIRESTORE_BACKUP_BUCKET`, which is absent from committed config.
 - **Implemented (this PR):** the runner now distinguishes **`misconfigured`** (production, no bucket →
@@ -37,8 +79,11 @@
   `opsStorageBackups/{date}` and alerting on `misconfigured`/`empty`/`stale`. 31 tests. The mirror
   itself (versioning + STS job + backup bucket + `STORAGE_BACKUP_BUCKET`) is still operator-provisioned
   (Runbook §D).
-- **Still pending: the non-production restore drill** (+ Auth DR gap; DR-003 mirror provisioning).
-  **Not closed until the restore drill is evidenced.**
+- **Restore drill — PASSED (operator, 2026-07-22):** 27,192 documents restored, **RTO 25m50s**, scratch
+  DB deleted, nothing imported into `(default)` (evidence: `remediation/dr-001-infrastructure-readiness.md`
+  §13). The Firestore restore path is proven and does **not** need re-running.
+- **Open residuals (NOT the Firestore drill):** Firebase **Auth** DR gap; **Storage** mirror provisioning
+  (DR-003 monitor exists, #1811); **provider (Lenco/Play) reconciliation** after a restore; enable PITR.
 - **Runtime check:** read `opsBackups/{today}.status` in prod.
 
 ### B2 · SEC-007 — `adm-zip` DoS + critical `websocket-driver` — **Status: Implemented, pending runtime verification**

@@ -61,16 +61,18 @@ undefined.
 > Interim finding status: **"Backup export runtime-verified; restore drill pending."** The restore
 > drill is the next gate.
 
-### DR-002 — Restore script + runbook ✅ added in this PR (rehearsal still owed)
-- **Severity:** High → Medium (residual) · **Confidence:** High confidence
+### DR-002 — Restore script + runbook ✅ rehearsal PASSED (2026-07-22)
+- **Severity:** High → Low (residual) · **Confidence:** High confidence
 - **Fixed here:** `scripts/restore-firestore.mjs` (dry-run by default, `--live` guarded, refuses
   a blind `(default)` overwrite) drives `importDocuments` via the tested
   `buildImportRequest` (`firestoreBackupCore.js`, covered by `firestoreBackup.test.js`); the
   step-by-step **Runbook** below documents setup + restore-to-scratch.
-- **Residual:** a real **restore rehearsal** into a scratch database (which measures RTO) has not
-  been performed — an untested restore is not yet a proven one. **Correction:** run the Runbook §B
-  drill once and record RTO. **Launch blocker:** the *rehearsal* (with DR-001 config) before broad
-  launch. **Complexity:** Medium (operator drill).
+- **Rehearsal — PASSED (operator, 2026-07-22):** a real restore into a non-production scratch
+  database restored **27,192 documents** with a measured **RTO of 25m50s**; no data was imported into
+  `(default)`, and the scratch DB was deleted afterwards. Evidence:
+  [`remediation/dr-001-infrastructure-readiness.md`](./remediation/dr-001-infrastructure-readiness.md) §13.
+  The restore path is now proven and does **not** need re-running. **Residual:** none for the Firestore
+  restore itself; cross-DR gaps (Auth/Storage/provider reconciliation) are tracked under DR-001/DR-003.
 
 ### DR-003 — No Firebase Storage backup ✅ monitor + runbook added in this PR (mirror still operator-provisioned)
 - **Severity:** Medium–High → Medium (residual) · **Confidence:** High confidence
@@ -155,9 +157,10 @@ undefined.
   the successful-export evidence already recorded for 2026-07-19. **Launch blocker:** No.
 
 ## Computed RPO / RTO (from evidence)
-- **As configured today:** RPO ≈ ∞ / total loss (no export running); RTO undefined (no restore path).
-- **Once DR-001 is fixed:** RPO ≤ 24h (daily export) + PITR (≤ minutes within 7 days if enabled);
-  RTO still undefined until DR-002 (restore rehearsal) sets it.
+- **Measured (2026-07-22):** **RPO ≤ 24h** (daily export; ≤ minutes with PITR once enabled) and
+  **RTO ≈ 26m** (the restore drill restored 27,192 docs in **25m50s** — DR-002/§13). These are now
+  evidence-backed, not projected. RTO will scale with database size; re-measure after major growth.
+- **Historical (pre-remediation):** RPO ≈ ∞ / total loss (no export ran); RTO undefined (no restore path).
 
 ## Runbook
 
