@@ -847,6 +847,46 @@ test('validMembershipFields pins uid + schoolId and enum-checks role/status', ()
   assert(!roleFn[1].includes("'admin'") || roleFn[1].includes("'school_admin'"), 'membership role must not admit a bare platform admin term')
 })
 
+// ── Passkey (WebAuthn) collections stay server-only ─────────────
+
+console.log('\npasskey (WebAuthn) — credentials, challenges and audit stay server-only')
+
+test('passkeyCredentials is fully closed to clients', () => {
+  // A client-writable credential doc would let an attacker forge a
+  // credential, reassign one to another uid, tamper with the signature
+  // counter, or clear a revocation — every one of those mints a session for
+  // someone else's account. Read is closed too: the safe metadata comes only
+  // from the listUserPasskeys callable.
+  const block = rules.match(/match \/passkeyCredentials\/\{[^}]+\}\s*\{([^}]+)\}/s)
+  assert(block, 'passkeyCredentials match block not found')
+  assert(/allow read, write:\s*if false/.test(block[1]), 'passkeyCredentials is no longer closed to clients')
+})
+
+test('webauthnChallenges is fully closed to clients', () => {
+  // Challenges are single-use anti-replay state. If a client could read one
+  // it could pre-play it; if it could write one it could forge/reset expiry
+  // or consumption. Server-only, always.
+  const block = rules.match(/match \/webauthnChallenges\/\{[^}]+\}\s*\{([^}]+)\}/s)
+  assert(block, 'webauthnChallenges match block not found')
+  assert(/allow read, write:\s*if false/.test(block[1]), 'webauthnChallenges is no longer closed to clients')
+})
+
+test('passkeyUserHandles is fully closed to clients', () => {
+  const block = rules.match(/match \/passkeyUserHandles\/\{[^}]+\}\s*\{([^}]+)\}/s)
+  assert(block, 'passkeyUserHandles match block not found')
+  assert(/allow read, write:\s*if false/.test(block[1]), 'passkeyUserHandles is no longer closed to clients')
+})
+
+test('passkeyAuditLog is admin-read, append-only via server', () => {
+  const block = rules.match(/match \/passkeyAuditLog\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
+  assert(block, 'passkeyAuditLog match block not found')
+  assert(/allow read:\s*if isAdmin\(\)/.test(block[1]), 'passkeyAuditLog read must be admin-only (abuse monitoring)')
+  assert(
+    /allow create, update, delete:\s*if false/.test(block[1]),
+    'passkeyAuditLog must deny all client writes (append-only via admin SDK)',
+  )
+})
+
 // ── Admin MFA: security audit ledger + MFA-status mirror lockdown ──
 test('securityAuditLogs is super-admin-read + client-write-denied', () => {
   assertContains('function isSuperAdmin()', 'isSuperAdmin helper must exist for security-log reads')

@@ -15,6 +15,9 @@ import Logo from '../ui/Logo'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import GoogleSignInButton from './GoogleSignInButton'
+import PasskeySignInButton from './PasskeySignInButton'
+import { usePlatformSettings } from '../../contexts/PlatformSettingsContext'
+import { isPasskeySupported, signInWithPasskey, mapPasskeyError } from '../../services/passkeyService'
 import SeoHelmet from '../seo/SeoHelmet'
 import FullScreenLoader from '../ui/FullScreenLoader'
 
@@ -102,7 +105,16 @@ export default function Login() {
   const [showPw, setShowPw]       = useState(false)
   const [loading, setLoading]     = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [passkeyLoading, setPasskeyLoading] = useState(false)
   const [error, setError]         = useState('')
+  // Neutral (non-error) notice — e.g. the user dismissed the passkey prompt.
+  const [notice, setNotice]       = useState('')
+  // Staged rollout: the passkey option only renders when the platform flag
+  // is on. Support detection keeps the page working on browsers without
+  // WebAuthn — they see a short pointer to the other methods instead.
+  const { settings: platformSettings } = usePlatformSettings()
+  const passkeysEnabled = platformSettings?.featureFlags?.passkeyAuthenticationEnabled === true
+  const passkeySupported = isPasskeySupported()
   // Firebase multi-factor resolver, set when a first-factor sign-in throws
   // auth/multi-factor-auth-required. Held in component state ONLY (never
   // serialised) — a refresh clears it and drops the user back to the form.
@@ -196,6 +208,25 @@ export default function Login() {
       console.error('[Google sign-in]', err?.code, err?.message)
       setError(friendlyAuthMessage(err.code, { online: navigator.onLine, fallback: 'Google sign-in failed. Please try again.' }))
     } finally { setGoogleLoading(false) }
+  }
+
+  async function handlePasskeySignIn() {
+    setError('')
+    setNotice('')
+    setPasskeyLoading(true)
+    try {
+      const cred = await signInWithPasskey()
+      await completePostLogin(cred)
+    } catch (err) {
+      const mapped = mapPasskeyError(err)
+      if (mapped.cancelled) {
+        // Dismissing the OS prompt is a normal outcome, not a system error.
+        setNotice(mapped.message)
+      } else {
+        console.error('[Passkey sign-in]', mapped.code)
+        setError(mapped.message)
+      }
+    } finally { setPasskeyLoading(false) }
   }
 
   // MFA challenge completed → continue the normal role/route resolution.
@@ -372,13 +403,30 @@ export default function Login() {
               </p>
             )}
 
-            <div className="animate-slide-up">
+            <div className="animate-slide-up space-y-3">
+              {passkeysEnabled && passkeySupported && (
+                <PasskeySignInButton
+                  onClick={handlePasskeySignIn}
+                  loading={passkeyLoading}
+                  disabled={loading || googleLoading}
+                />
+              )}
+              {passkeysEnabled && !passkeySupported && (
+                <p className="text-[12px] text-[#888] text-center">
+                  Passkeys are not supported on this browser. Use Google or your password to sign in.
+                </p>
+              )}
+              {notice && (
+                <p aria-live="polite" className="text-[13px] text-center rounded-xl px-4 py-2.5 bg-[#F7F7FA] text-[#556] border border-[#E4E9F0]">
+                  {notice}
+                </p>
+              )}
               <GoogleSignInButton
                 onClick={handleGoogleSignIn}
                 loading={googleLoading}
-                disabled={loading}
+                disabled={loading || passkeyLoading}
               />
-              <div className="flex items-center gap-3 my-4" aria-hidden="true">
+              <div className="flex items-center gap-3 !my-4" aria-hidden="true">
                 <span className="h-px flex-1 bg-[#E4E9F0]" />
                 <span className="text-[11px] uppercase tracking-[1px] text-[#aaa] font-medium">or</span>
                 <span className="h-px flex-1 bg-[#E4E9F0]" />

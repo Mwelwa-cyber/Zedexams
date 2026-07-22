@@ -4394,3 +4394,93 @@ exports.bulkGrantDemoTrials = onCall({
     results,
   };
 });
+
+// ── Passkey (WebAuthn) sign-in ───────────────────────────────────────────
+// Users authenticate with the biometric / device-lock method already on
+// their device; ZedExams only ever stores the public key. Verification is
+// @simplewebauthn/server (no custom crypto), the uid is resolved from the
+// server-held credential record (never the client), and a Firebase custom
+// token restores the SAME account — role, claims, subscription untouched.
+// Feature-flagged via settings/global.featureFlags.passkeyAuthenticationEnabled
+// (fail-closed). See functions/passkeys/ and docs/PASSKEYS.md.
+const {
+  runGeneratePasskeyRegistrationOptions,
+  runVerifyPasskeyRegistration,
+  runGeneratePasskeyAuthenticationOptions,
+  runVerifyPasskeyAuthentication,
+  runListUserPasskeys,
+  runRenameUserPasskey,
+  runRemoveUserPasskey,
+} = require("./passkeys/passkeyService");
+
+exports.generatePasskeyRegistrationOptions = onCall({
+  region: "us-central1",
+  timeoutSeconds: 30,
+  memory: "256MiB",
+  enforceAppCheck: shouldEnforceAppCheck("generatePasskeyRegistrationOptions"),
+}, async (request) => {
+  await recordAppCheckCallable(request, "generatePasskeyRegistrationOptions");
+  return runGeneratePasskeyRegistrationOptions(request);
+});
+
+exports.verifyPasskeyRegistration = onCall({
+  region: "us-central1",
+  timeoutSeconds: 30,
+  memory: "256MiB",
+  enforceAppCheck: shouldEnforceAppCheck("verifyPasskeyRegistration"),
+}, async (request) => {
+  await recordAppCheckCallable(request, "verifyPasskeyRegistration");
+  return runVerifyPasskeyRegistration(request);
+});
+
+// Pre-auth (no Firebase session yet): App Check observed/enforced per the
+// graduated APPCHECK_ENFORCE rollout + per-IP burst rate limiting inside.
+exports.generatePasskeyAuthenticationOptions = onCall({
+  region: "us-central1",
+  timeoutSeconds: 30,
+  memory: "256MiB",
+  enforceAppCheck: shouldEnforceAppCheck("generatePasskeyAuthenticationOptions"),
+}, async (request) => {
+  await recordAppCheckCallable(request, "generatePasskeyAuthenticationOptions");
+  return runGeneratePasskeyAuthenticationOptions(request);
+});
+
+exports.verifyPasskeyAuthentication = onCall({
+  region: "us-central1",
+  timeoutSeconds: 30,
+  memory: "256MiB",
+  enforceAppCheck: shouldEnforceAppCheck("verifyPasskeyAuthentication"),
+}, async (request) => {
+  await recordAppCheckCallable(request, "verifyPasskeyAuthentication");
+  return runVerifyPasskeyAuthentication(request);
+});
+
+exports.listUserPasskeys = onCall({
+  region: "us-central1",
+  timeoutSeconds: 30,
+  memory: "256MiB",
+  enforceAppCheck: shouldEnforceAppCheck("listUserPasskeys"),
+}, async (request) => {
+  await recordAppCheckCallable(request, "listUserPasskeys");
+  return runListUserPasskeys(request);
+});
+
+exports.renameUserPasskey = onCall({
+  region: "us-central1",
+  timeoutSeconds: 30,
+  memory: "256MiB",
+  enforceAppCheck: shouldEnforceAppCheck("renameUserPasskey"),
+}, async (request) => {
+  await recordAppCheckCallable(request, "renameUserPasskey");
+  return runRenameUserPasskey(request);
+});
+
+exports.removeUserPasskey = onCall({
+  region: "us-central1",
+  timeoutSeconds: 30,
+  memory: "256MiB",
+  enforceAppCheck: shouldEnforceAppCheck("removeUserPasskey"),
+}, async (request) => {
+  await recordAppCheckCallable(request, "removeUserPasskey");
+  return runRemoveUserPasskey(request);
+});

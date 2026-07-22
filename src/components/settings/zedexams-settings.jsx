@@ -10,6 +10,7 @@ import {
 import { isEmptySchoolProfile } from '../../utils/schoolProfile';
 import { deleteMyAccount, pickReauthMethod } from '../../utils/accountService';
 import { canSubmitDeletion, deletionErrorMessage } from '../../utils/accountReauth';
+import PasskeySection from '../auth/passkeys/PasskeySection';
 import CharacterAvatar, {
   CHARACTERS,
   INTEREST_GROUPS,
@@ -853,6 +854,10 @@ function LearnerSecurityPanel({ pushToast }) {
       description="Keep your account safe. ZedExams sends password resets through email so a parent or guardian can help if needed."
       footer={<Button onClick={handleResetEmail} loading={sending}>Send password reset email</Button>}
     >
+      {/* Passkeys (WebAuthn) — renders only while the platform flag is on. */}
+      <div style={{ marginBottom: 12 }}>
+        <PasskeySection />
+      </div>
       <div style={{
         padding: 12,
         background: T.surface,
