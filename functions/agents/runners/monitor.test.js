@@ -443,7 +443,7 @@ test("checkDailyExams re-runs the picker when today's pick is a past-paper publi
   let pickedFor = null;
   const db = stubDb(1, [{
     id: "quiz-bad",
-    data: () => ({questionCount: 60, quizType: "daily_exam", publicAccess: true, linkedPaperId: "paper-1"}),
+    data: () => ({questionCount: 60, quizType: "daily_exam", publicAccess: true, linkedPaperId: "paper-1", grade: "7"}),
   }]);
   const res = await checkDailyExams(db, {
     now: new Date("2026-07-01T08:00:00Z"),
@@ -455,8 +455,34 @@ test("checkDailyExams re-runs the picker when today's pick is a past-paper publi
   assert.strictEqual(pickedFor, "2026-07-01");
   assert.strictEqual(res.ok, false);
   assert.strictEqual(res.healed, 1);
+  assert.strictEqual(res.failures.length, 1);
   assert.strictEqual(res.failures[0].severity, "warning");
   assert.ok(res.failures[0].message.includes("quiz-bad"));
+});
+
+test("checkDailyExams escalates a demoted bad pick that could NOT be replaced", async () => {
+  // runAutoPick catches failures per grade: a demote-only outcome
+  // (no_candidates / error) leaves that grade with no daily exam, and the
+  // next hourly snapshot is non-empty thanks to the other grades — so a
+  // discarded summary would report the gap healed forever. It must be
+  // critical, not a "healed" warning.
+  const db = stubDb(1, [{
+    id: "quiz-bad",
+    data: () => ({questionCount: 60, quizType: "daily_exam", publicAccess: true, linkedPaperId: "paper-1", grade: "7"}),
+  }]);
+  const res = await checkDailyExams(db, {
+    now: new Date("2026-07-01T08:00:00Z"),
+    runPick: async ({today}) => ({date: today, grades: [
+      {grade: "4", status: "already_pinned", quizId: "quiz-4"},
+      {grade: "7", status: "no_candidates", demotedBadPick: "quiz-bad"},
+    ]}),
+  });
+  assert.strictEqual(res.ok, false);
+  assert.strictEqual(res.healed, 0);
+  assert.strictEqual(res.failures.length, 2);
+  assert.strictEqual(res.failures[1].severity, "critical");
+  assert.ok(res.failures[1].message.includes("quiz-bad"));
+  assert.ok(res.failures[1].message.includes("no_candidates"));
 });
 
 test("checkDailyExams leaves clean picks alone (picker NOT re-run)", async () => {

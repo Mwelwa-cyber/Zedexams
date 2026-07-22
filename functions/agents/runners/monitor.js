@@ -406,18 +406,40 @@ async function checkDailyExams(db, {now = new Date(), runPick} = {}) {
         return {ok: true, skipped: false, today, scheduled: snap.size, failures: []};
       }
       const pick = runPick || require("../../dailyExamPicker").runAutoPick;
-      await pick({today});
-      return {
-        ok: false, skipped: false, today, scheduled: snap.size, healed: badPicks.length,
-        failures: [{
+      const summary = await pick({today});
+      const grades = Array.isArray(summary?.grades) ? summary.grades : [];
+      const replacedGrades = new Set(grades
+          .filter((g) => g.status === "promoted" || g.status === "already_pinned")
+          .map((g) => String(g.grade)));
+      // A demote-only outcome (no eligible replacement in the pool, or a
+      // per-grade picker error — runAutoPick catches those per grade)
+      // leaves that grade with NO daily exam, and the next hourly
+      // snapshot is non-empty thanks to the other grades, so the gap
+      // would never resurface. Escalate it as critical now.
+      const unreplaced = badPicks.filter((d) => !replacedGrades.has(String(d.data().grade)));
+      const failures = [{
+        check: "dailyExams",
+        id: `${today}:pastPaperPick`,
+        severity: "warning",
+        message: `Daily-exam pick(s) for ${today} were past-paper public quizzes ` +
+          `(${badPicks.map((d) => d.id).join(", ")}) — their public /papers quiz pages were ` +
+          `blocked by the daily-exam question-read rule. Vigil re-ran the picker to demote ` +
+          `them and pin real exam papers.`,
+      }];
+      if (unreplaced.length > 0) {
+        failures.push({
           check: "dailyExams",
-          id: `${today}:pastPaperPick`,
-          severity: "warning",
-          message: `Daily-exam pick(s) for ${today} were past-paper public quizzes ` +
-            `(${badPicks.map((d) => d.id).join(", ")}) — their public /papers quiz pages were ` +
-            `blocked by the daily-exam question-read rule. Vigil re-ran the picker to demote ` +
-            `them and pin real exam papers.`,
-        }],
+          id: `${today}:pastPaperPickUnreplaced`,
+          severity: "critical",
+          message: `Demoted past-paper daily-exam pick(s) ${unreplaced.map((d) => d.id).join(", ")} ` +
+            `could not be replaced (${grades.map((g) => `grade ${g.grade}: ${g.status}`).join("; ") || "no grades processed"}) — ` +
+            `the affected grade(s) have no daily exam for ${today} until an admin pins one.`,
+        });
+      }
+      return {
+        ok: false, skipped: false, today, scheduled: snap.size,
+        healed: badPicks.length - unreplaced.length,
+        failures,
       };
     }
 
