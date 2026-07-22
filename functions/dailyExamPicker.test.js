@@ -16,6 +16,7 @@
 const assert = require("node:assert");
 const {
   EXAM_QUESTION_THRESHOLD,
+  DAILY_EXAM_GRADES,
   isExamPaper,
   isPastPaperPublicQuiz,
   isEligibleDailyExamCandidate,
@@ -33,6 +34,10 @@ function test(name, fn) {
 test("threshold matches the client's classification rule (50)", () => {
   // Must stay in sync with src/utils/quizClassification.js
   assert.strictEqual(EXAM_QUESTION_THRESHOLD, 50);
+});
+
+test("the daily-exam rotation serves grades 4–7 (shared with Vigil's coverage check)", () => {
+  assert.deepStrictEqual(DAILY_EXAM_GRADES, ["4", "5", "6", "7"]);
 });
 
 test("a 50+-question quiz is an exam paper (legacy doc, no flag)", () => {

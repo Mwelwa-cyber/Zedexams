@@ -15,6 +15,11 @@
 
 const EXAM_QUESTION_THRESHOLD = 50;
 
+// The grades the daily-exam rotation serves. Shared with Vigil's hourly
+// per-grade coverage check (monitor.js) so "every grade has a pick today"
+// means the same thing in both places.
+const DAILY_EXAM_GRADES = ["4", "5", "6", "7"];
+
 /**
  * Whether a quiz doc is an exam paper. An explicit boolean `examOnly` flag
  * is authoritative (an admin can declassify a long quiz or classify a short
@@ -73,6 +78,7 @@ function demotionPatch(data) {
 
 module.exports = {
   EXAM_QUESTION_THRESHOLD,
+  DAILY_EXAM_GRADES,
   isExamPaper,
   isPastPaperPublicQuiz,
   isEligibleDailyExamCandidate,
