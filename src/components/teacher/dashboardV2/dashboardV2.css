@@ -946,6 +946,60 @@
   padding: 2px 9px;
 }
 
+.tdv2-badge-draft {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #92600a;
+  background: #fdf3dd;
+  border: 1px solid #f0dcae;
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+/* Quiet empty/loading state used across cards */
+.tdv2-empty {
+  padding: 18px 6px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+
+/* Per-row actions menu (Recent Documents) */
+.tdv2-rowmenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 170px;
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 14px 36px rgba(16, 36, 62, 0.16);
+  animation: tdv2-menu-in 180ms var(--ease);
+  transform-origin: top right;
+}
+
+.tdv2-rowmenu-item {
+  display: block;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+  text-align: left;
+  transition: background 140ms var(--ease);
+}
+
+.tdv2-rowmenu-item:hover {
+  background: var(--copper-tint);
+  color: var(--copper-pressed);
+}
+
 .tdv2-doc-more {
   width: 30px;
   height: 30px;
@@ -1124,7 +1178,14 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 9px 0;
+  padding: 9px 6px;
+  margin: 0 -6px;
+  border-radius: 10px;
+  transition: background 160ms var(--ease);
+}
+
+a.tdv2-check-row:hover {
+  background: #fbf6ee;
 }
 
 .tdv2-check-row + .tdv2-check-row {
@@ -1758,6 +1819,31 @@
   .tdv2-userchip .tdv2-user-name { display: none; }
   .tdv2-search { max-width: none; }
   .tdv2-preview-banner { left: 96px; }
+}
+
+/* ── Below 768px: phones aren't this surface's target, but the live
+      dashboard must stay usable there — single column, slimmer rail. ──── */
+
+@media (max-width: 767px) {
+  .tdv2 { grid-template-columns: 64px minmax(0, 1fr); }
+  .tdv2-sidebar { padding: 12px 8px 8px; }
+  .tdv2-logo-chip { width: 40px; height: 40px; }
+  .tdv2-logo-chip img { width: 32px; height: 32px; }
+  .tdv2-header,
+  .tdv2-content { padding-left: 12px; padding-right: 12px; }
+  .tdv2-header { flex-wrap: wrap; gap: 10px; }
+  .tdv2-row-3 { grid-template-columns: minmax(0, 1fr); }
+  .tdv2-tile-grid,
+  .tdv2-ws-grid,
+  .tdv2-ws-sublist { grid-template-columns: minmax(0, 1fr); }
+  .tdv2-hero { padding: 22px 20px; min-height: 0; }
+  .tdv2-hero h1 { font-size: 28px; }
+  .tdv2-hero-inset { flex-wrap: wrap; }
+  .tdv2-kbd { display: none; }
+  .tdv2-userchip { display: none; }
+  .tdv2-doc-date { display: none; }
+  .tdv2-preview-banner { left: 76px; right: 12px; }
+  .tdv2-menu { width: min(254px, calc(100vw - 90px)); }
 }
 
 /* ── Reduced motion ──────────────────────────────────────────────────── */

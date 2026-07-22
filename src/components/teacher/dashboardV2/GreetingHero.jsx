@@ -1,13 +1,16 @@
 import { BookOpen, Moon, Sun, Sunset } from 'lucide-react'
 import CopperButton from './CopperButton'
-import { LAST_OPENED } from './mockData'
-// Same 3D study-desk illustration the live dashboard hero uses — brand teal,
-// so it blends into this hero's gradient too.
+// Same 3D study-desk illustration the legacy hero used — brand teal, so it
+// blends straight into this hero's gradient.
 import heroDesk from '../../../assets/teacher/hero-desk.webp'
 
 const PART_ICON = { morning: Sun, afternoon: Sun, evening: Moon }
 
-export default function GreetingHero({ greeting, ctaState = 'default', onContinue }) {
+/**
+ * lastOpened: { subject, grade, ago, to } | null — null renders a
+ * start-your-first-document inset instead of LAST OPENED.
+ */
+export default function GreetingHero({ greeting, lastOpened, ctaState = 'default', onContinue }) {
   const PartIcon = PART_ICON[greeting.part] || Sunset
 
   return (
@@ -26,18 +29,35 @@ export default function GreetingHero({ greeting, ctaState = 'default', onContinu
         <span className="tdv2-hero-inset-icon" aria-hidden="true">
           <BookOpen size={22} strokeWidth={1.75} />
         </span>
-        <span style={{ minWidth: 0, flex: 1 }}>
-          <span className="tdv2-hero-inset-label">Last opened</span>
-          <br />
-          <span className="tdv2-hero-inset-title">{LAST_OPENED.subject}</span>
-          <br />
-          <span className="tdv2-hero-inset-meta">
-            {LAST_OPENED.grade} · {LAST_OPENED.ago}
-          </span>
-        </span>
-        <CopperButton state={ctaState} onClick={onContinue}>
-          Continue plan
-        </CopperButton>
+        {lastOpened ? (
+          <>
+            <span style={{ minWidth: 0, flex: 1 }}>
+              <span className="tdv2-hero-inset-label">Last opened</span>
+              <br />
+              <span className="tdv2-hero-inset-title">{lastOpened.subject}</span>
+              <br />
+              <span className="tdv2-hero-inset-meta">
+                {[lastOpened.grade, lastOpened.ago].filter(Boolean).join(' · ')}
+              </span>
+            </span>
+            <CopperButton state={ctaState} onClick={onContinue}>
+              Continue plan
+            </CopperButton>
+          </>
+        ) : (
+          <>
+            <span style={{ minWidth: 0, flex: 1 }}>
+              <span className="tdv2-hero-inset-label">Get started</span>
+              <br />
+              <span className="tdv2-hero-inset-title">Create your first document</span>
+              <br />
+              <span className="tdv2-hero-inset-meta">Plan a lesson in a few minutes</span>
+            </span>
+            <CopperButton state={ctaState} onClick={onContinue}>
+              Start planning
+            </CopperButton>
+          </>
+        )}
       </div>
     </section>
   )

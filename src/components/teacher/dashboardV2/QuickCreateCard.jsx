@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, ClipboardList } from 'lucide-react'
-import { QUICK_CREATE_TILES } from './mockData'
+import { QUICK_CREATE_TILES } from './dashboardV2Config'
 
 export default function QuickCreateCard() {
   return (
