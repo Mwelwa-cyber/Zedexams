@@ -94,7 +94,8 @@ const ERROR_MESSAGES = {
     'This passkey is no longer linked to a ZedExams account. Use another sign-in method.',
   [PASSKEY_ERRORS.CREDENTIAL_REVOKED]:
     'This passkey is no longer linked to a ZedExams account. Use another sign-in method.',
-  [PASSKEY_ERRORS.CREDENTIAL_DUPLICATE]: 'This passkey is already registered.',
+  [PASSKEY_ERRORS.CREDENTIAL_DUPLICATE]:
+    'A passkey for this account already exists on this device or password manager.',
   [PASSKEY_ERRORS.VERIFICATION_FAILED]:
     'We could not verify this passkey. Try again or use another sign-in method.',
   [PASSKEY_ERRORS.LIMIT_REACHED]:
