@@ -27,9 +27,12 @@ const AGENT_LABELS = {
   vex: 'Vex',
 }
 
-function StatusDot({ ok, busy }) {
+function StatusDot({ ok, busy, unknown }) {
   if (busy) {
     return <span className="inline-block h-2 w-2 rounded-full bg-slate-400 text-slate-400 animate-live-dot" aria-hidden />
+  }
+  if (unknown) {
+    return <span className="inline-block h-2 w-2 rounded-full bg-slate-500" aria-hidden />
   }
   return (
     <span
@@ -39,18 +42,18 @@ function StatusDot({ ok, busy }) {
   )
 }
 
-function Row({ label, ok, value, hint, busy }) {
+function Row({ label, ok, value, hint, busy, unknown }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-700/50 bg-slate-800/30 px-3 py-2">
       <div className="flex min-w-0 items-center gap-2">
-        <StatusDot ok={ok} busy={busy} />
+        <StatusDot ok={ok} busy={busy} unknown={unknown} />
         <div className="min-w-0">
           <p className="truncate text-xs font-black text-slate-100">{label}</p>
           {hint && <p className="truncate text-[10px] text-slate-400">{hint}</p>}
         </div>
       </div>
       {value !== undefined && (
-        <span className={`text-xs font-bold ${ok ? 'text-emerald-300' : 'text-rose-300'}`}>
+        <span className={`text-xs font-bold ${unknown ? 'text-slate-400' : ok ? 'text-emerald-300' : 'text-rose-300'}`}>
           {value}
         </span>
       )}
@@ -76,6 +79,9 @@ export default function PlatformHealthPanel() {
       setHealth(res.data || null)
     } catch (e) {
       setError(e?.message || 'Failed to load health snapshot.')
+      // Drop any earlier snapshot — keeping it would leave the panel
+      // showing a stale "Ready" next to the error message.
+      setHealth(null)
     } finally {
       setLoading(false)
     }
@@ -142,6 +148,12 @@ export default function PlatformHealthPanel() {
   const kb = health?.kb
   const recent = health?.recentJobs
 
+  // The snapshot call itself failed (auth error, network, timeout). Without a
+  // snapshot, every signal is UNKNOWN — rendering the red failure defaults
+  // ("Down", "0/6 present", "No jobs yet") would falsely report a healthy
+  // pipeline as broken.
+  const snapshotUnavailable = !loading && !health
+
   const overallReady =
     !!anthropic?.ok &&
     missingControl.length === 0 &&
@@ -157,7 +169,11 @@ export default function PlatformHealthPanel() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {overallReady ? (
+          {snapshotUnavailable ? (
+            <span className="rounded-full bg-slate-500/15 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-slate-300 ring-1 ring-slate-500/30">
+              Unavailable
+            </span>
+          ) : overallReady ? (
             <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-300 ring-1 ring-emerald-500/30">
               <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 text-emerald-400 animate-live-dot" />
               Ready
@@ -225,50 +241,64 @@ export default function PlatformHealthPanel() {
           label="Anthropic API"
           ok={!!anthropic?.ok}
           busy={loading && !health}
-          value={anthropic?.ok ? 'Alive' : 'Down'}
-          hint={anthropic?.ok
-            ? `Model ${anthropic.model || 'default'}`
-            : (anthropic?.error || 'Add ANTHROPIC_API_KEY as a Functions secret')}
+          unknown={snapshotUnavailable}
+          value={snapshotUnavailable ? '—' : anthropic?.ok ? 'Alive' : 'Down'}
+          hint={snapshotUnavailable
+            ? 'Snapshot unavailable'
+            : anthropic?.ok
+              ? `Model ${anthropic.model || 'default'}`
+              : (anthropic?.error || 'Add ANTHROPIC_API_KEY as a Functions secret')}
         />
         <Row
           label="Agent control docs"
           ok={missingControl.length === 0 && Object.keys(agentControl).length > 0}
           busy={loading && !health}
+          unknown={snapshotUnavailable}
           value={
-            missingControl.length === 0
-              ? `${Object.keys(agentControl).length}/6 present`
-              : `${missingControl.length} missing`
+            snapshotUnavailable
+              ? '—'
+              : missingControl.length === 0
+                ? `${Object.keys(agentControl).length}/6 present`
+                : `${missingControl.length} missing`
           }
           hint={
-            missingControl.length === 0
-              ? 'Dispatcher can route to every agent'
-              : `Missing: ${missingControl.map(id => AGENT_LABELS[id] || id).join(', ')}`
+            snapshotUnavailable
+              ? 'Snapshot unavailable'
+              : missingControl.length === 0
+                ? 'Dispatcher can route to every agent'
+                : `Missing: ${missingControl.map(id => AGENT_LABELS[id] || id).join(', ')}`
           }
         />
         <Row
           label="CBC knowledge base"
           ok={(kb?.totalTopics || 0) > 0}
           busy={loading && !health}
+          unknown={snapshotUnavailable}
           value={kb ? `${kb.totalTopics} topics` : '—'}
           hint={
-            kb
-              ? `Version ${kb.activeVersion || 'seed'} · grades ${
-                  Object.keys(kb.byGrade || {}).sort().join(', ') || '—'
-                }`
-              : 'Loading KB…'
+            snapshotUnavailable
+              ? 'Snapshot unavailable'
+              : kb
+                ? `Version ${kb.activeVersion || 'seed'} · grades ${
+                    Object.keys(kb.byGrade || {}).sort().join(', ') || '—'
+                  }`
+                : 'Loading KB…'
           }
         />
         <Row
           label="Agent jobs (last 50)"
           ok={(recent?.total || 0) > 0}
           busy={loading && !health}
+          unknown={snapshotUnavailable}
           value={recent ? `${recent.total} jobs` : '—'}
           hint={
-            recent && Object.keys(recent.byStatus || {}).length
-              ? Object.entries(recent.byStatus)
-                  .map(([s, n]) => `${n} ${s}`)
-                  .join(' · ')
-              : 'No jobs yet — try a sample run'
+            snapshotUnavailable
+              ? 'Snapshot unavailable'
+              : recent && Object.keys(recent.byStatus || {}).length
+                ? Object.entries(recent.byStatus)
+                    .map(([s, n]) => `${n} ${s}`)
+                    .join(' · ')
+                : 'No jobs yet — try a sample run'
           }
         />
       </div>
@@ -306,12 +336,18 @@ export default function PlatformHealthPanel() {
         <button
           type="button"
           onClick={handleInitialize}
-          disabled={initBusy || missingControl.length === 0}
+          disabled={initBusy || snapshotUnavailable || missingControl.length === 0}
           className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-black text-white hover:bg-emerald-700 disabled:opacity-50"
         >
-          {initBusy ? 'Initializing…' : missingControl.length === 0 ? 'Initialized' : `Initialize (${missingControl.length})`}
+          {initBusy
+            ? 'Initializing…'
+            : snapshotUnavailable
+              ? 'Initialize'
+              : missingControl.length === 0
+                ? 'Initialized'
+                : `Initialize (${missingControl.length})`}
         </button>
-        {(kb?.totalTopics || 0) === 0 && (
+        {!snapshotUnavailable && (kb?.totalTopics || 0) === 0 && (
           <button
             type="button"
             onClick={handleSeedTopics}

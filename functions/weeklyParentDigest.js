@@ -41,6 +41,7 @@ const admin = require("firebase-admin");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("./authGuard");
+const {isAdminRole} = require("./aiService");
 const {defineSecret} = require("firebase-functions/params");
 const nodemailer = require("nodemailer");
 const crypto = require("node:crypto");
@@ -616,7 +617,7 @@ const triggerWeeklyParentDigest = onCall({
   const db = admin.firestore();
   const userSnap = await db.collection("users").doc(uid).get();
   const role = userSnap.exists ? (userSnap.data()?.role || "") : "";
-  if (role !== "admin") {
+  if (!isAdminRole(role)) {
     throw new HttpsError("permission-denied", "Admin only.");
   }
 

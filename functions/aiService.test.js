@@ -84,6 +84,7 @@ Module._load = function (request, ...rest) {
 };
 
 const {
+  isAdminRole,
   isStaffRole,
   cleanString,
   cleanContext,
@@ -108,6 +109,17 @@ async function caught(promise) {
   ok("isStaffRole: parent is NOT staff", isStaffRole("parent") === false);
   ok("isStaffRole: undefined is NOT staff", isStaffRole(undefined) === false);
   ok("isStaffRole: is case-sensitive", isStaffRole("Teacher") === false);
+
+  // ── isAdminRole ──────────────────────────────────────────────────────────
+  // superAdmin must pass every admin gate — a strict role === "admin" check
+  // locks the project owner out of admin-only callables (the /admin/agents
+  // Platform health panel bug).
+  ok("isAdminRole: admin is admin", isAdminRole("admin") === true);
+  ok("isAdminRole: superAdmin is admin", isAdminRole("superAdmin") === true);
+  ok("isAdminRole: teacher is NOT admin", isAdminRole("teacher") === false);
+  ok("isAdminRole: learner is NOT admin", isAdminRole("learner") === false);
+  ok("isAdminRole: undefined is NOT admin", isAdminRole(undefined) === false);
+  ok("isAdminRole: is case-sensitive", isAdminRole("Admin") === false);
 
   // ── cleanString ──────────────────────────────────────────────────────────
   ok("cleanString: null -> empty string", cleanString(null) === "");

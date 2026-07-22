@@ -37,6 +37,7 @@ const {
   getAnthropicApiKey,
   getUserRole,
   assertDailyLimit,
+  isAdminRole,
   isStaffRole,
 } = require("../aiService");
 
@@ -175,7 +176,7 @@ function createExtractTopicsFromPdf(anthropicApiKeySecret) {
     const uid = await assertVerifiedAuth(request);
     await assertCallableRateLimit(request, {action: "extractTopicsFromPdf", userPerMin: 6});
     const role = await getUserRole(uid);
-    if (role !== "admin") {
+    if (!isAdminRole(role)) {
       throw new HttpsError("permission-denied", "Admins only.");
     }
 

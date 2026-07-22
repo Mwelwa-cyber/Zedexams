@@ -32,6 +32,7 @@ const {
   getAnthropicApiKey,
   getApiKey,
   getUserRole,
+  isAdminRole,
   isEditQuestionAction,
   isStaffRole,
   parseEditedQuestion,
@@ -2909,7 +2910,7 @@ exports.retryAgentJob = onCall(
     recordAppCheckCallable(request, "retryAgentJob");
 
     const role = await getUserRole(request.auth.uid);
-    if (role !== "admin") {
+    if (!isAdminRole(role)) {
       throw new HttpsError("permission-denied", "Admins only.");
     }
     // Retrying a content-agent job is an admin content-pipeline op — require MFA.

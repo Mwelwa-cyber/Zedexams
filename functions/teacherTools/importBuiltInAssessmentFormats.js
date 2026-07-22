@@ -15,7 +15,7 @@ const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("../authGuard");
 
-const {getUserRole} = require("../aiService");
+const {getUserRole, isAdminRole} = require("../aiService");
 const {FORMAT_PROFILES} = require("./assessmentFormatSeeds");
 const {
   validateFormatProfile,
@@ -28,7 +28,7 @@ exports.importBuiltInAssessmentFormats = onCall(
   async (request) => {
     const uid = await assertVerifiedAuth(request, "Please sign in.");
     const role = await getUserRole(uid);
-    if (role !== "admin") {
+    if (!isAdminRole(role)) {
       throw new HttpsError("permission-denied", "Admin only.");
     }
 
