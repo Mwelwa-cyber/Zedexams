@@ -265,6 +265,7 @@
     "test:storage-backup": "node functions/storageBackup.test.js",
     "test:ratelimit-health": "node functions/rateLimitHealth.test.js",
     "test:ops-heartbeat": "node functions/opsHeartbeat.test.js",
+    "test:audit-log": "node functions/auditLog.test.js",
     "test:treasury": "node functions/treasury.test.js",
     "test:budget-revenue-linked": "node functions/aiBudgetRevenueLinked.test.js",
     "test:marshal": "node functions/agents/runners/marshal.test.js",
