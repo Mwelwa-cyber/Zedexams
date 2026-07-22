@@ -315,6 +315,7 @@ export const SETTINGS_CATEGORIES = [
         description: 'Live switches read by every connected client via settings/global.',
         fields: [
           { key: 'featureFlags.universalDrafts', label: 'Universal studio drafts', type: 'toggle', default: true, help: 'Auto-saves teacher studio inputs as drafts. Turning this off disables draft restore everywhere.', keywords: ['drafts', 'autosave', 'studios'] },
+          { key: 'featureFlags.passkeyAuthenticationEnabled', label: 'Passkey sign-in', type: 'toggle', default: false, help: 'Shows "Sign in with a passkey" on the login page and the Passkeys section under Settings → Security. The Cloud Functions check the same flag (fail-closed). Staged rollout: featureFlags.passkeyRolloutRoles / passkeyRolloutUids (arrays, edited via config JSON) narrow who can REGISTER while testing.', keywords: ['passkey', 'webauthn', 'fingerprint', 'biometric', 'sign in'] },
         ],
       },
     ],

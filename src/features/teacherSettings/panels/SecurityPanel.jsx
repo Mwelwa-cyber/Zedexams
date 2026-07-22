@@ -6,6 +6,7 @@ import {
 } from 'firebase/auth'
 import { useAuth } from '../../../contexts/AuthContext'
 import { deleteMyAccount } from '../../../utils/accountService'
+import PasskeySection from '../../../components/auth/passkeys/PasskeySection'
 import SettingsDetailShell from '../components/SettingsDetailShell'
 import FieldRow from '../components/fields/FieldRow'
 import Icon from '../../../components/ui/Icon'
@@ -191,6 +192,9 @@ export default function SecurityPanel() {
   return (
     <SettingsDetailShell rowId="security">
       <ChangePasswordCard />
+
+      {/* Passkeys (WebAuthn) — renders only while the platform flag is on. */}
+      <PasskeySection />
 
       <section className="tset-section">
         <h2 className="tset-section__title">This session</h2>

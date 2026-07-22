@@ -109,6 +109,8 @@ import {
   MagnifyingGlassPlusIcon,
   MagnifyingGlassMinusIcon,
   EllipsisHorizontalIcon,
+  EllipsisVerticalIcon,
+  DevicePhoneMobileIcon,
 } from '@heroicons/react/24/outline'
 
 // Size-token map matches components/ui/Icon.jsx so tokens (xs/sm/md/lg/xl)
@@ -168,6 +170,38 @@ function RobotIconRaw({ size, width, height, ...props }, ref) {
   )
 }
 export const RobotIcon = forwardRef(RobotIconRaw)
+
+// Hand-rolled fingerprint (Heroicons has no equivalent; used by the passkey
+// sign-in + management surfaces). Same size-prop semantics as above.
+function FingerprintIconRaw({ size, width, height, ...props }, ref) {
+  const px = typeof size === 'number' ? size : (size && SIZE_PX[size]) || undefined
+  return createElement(
+    'svg',
+    {
+      ref,
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: 1.5,
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+      ...(px !== undefined ? { width: px, height: px } : {}),
+      ...(width !== undefined && px === undefined ? { width } : {}),
+      ...(height !== undefined && px === undefined ? { height } : {}),
+      ...props,
+    },
+    createElement('path', { key: 'p1', d: 'M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4' }),
+    createElement('path', { key: 'p2', d: 'M14 13.12c0 2.38 0 6.38-1 8.88' }),
+    createElement('path', { key: 'p3', d: 'M17.29 21.02c.12-.6.43-2.3.5-3.02' }),
+    createElement('path', { key: 'p4', d: 'M2 12a10 10 0 0 1 18-6' }),
+    createElement('path', { key: 'p5', d: 'M2 16h.01' }),
+    createElement('path', { key: 'p6', d: 'M21.8 16c.2-2 .131-5.354 0-6' }),
+    createElement('path', { key: 'p7', d: 'M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2' }),
+    createElement('path', { key: 'p8', d: 'M8.65 22c.21-.66.45-1.32.57-2' }),
+    createElement('path', { key: 'p9', d: 'M9 6.8a6 6 0 0 1 9 5.2v2' }),
+  )
+}
+export const Fingerprint = forwardRef(FingerprintIconRaw)
 
 // Wrap each heroicon once; re-export under the original name AND any
 // lucide-style aliases the callers expect.
@@ -302,6 +336,10 @@ const ZoomIn = /*#__PURE__*/ withSize(MagnifyingGlassPlusIcon)
 const ZoomOut = /*#__PURE__*/ withSize(MagnifyingGlassMinusIcon)
 const MoreHorizontal = /*#__PURE__*/ withSize(EllipsisHorizontalIcon)
 const RotateCw = /*#__PURE__*/ withSize(ArrowPathIcon)
+const MoreVertical = /*#__PURE__*/ withSize(EllipsisVerticalIcon)
+const Smartphone = /*#__PURE__*/ withSize(DevicePhoneMobileIcon)
+const KeyRound = /*#__PURE__*/ withSize(KeyIcon)
+const Laptop = /*#__PURE__*/ withSize(ComputerDesktopIcon)
 
 export {
   GraduationCap,
@@ -438,4 +476,8 @@ export {
   ZoomOut,
   MoreHorizontal,
   RotateCw,
+  MoreVertical,
+  Smartphone,
+  KeyRound,
+  Laptop,
 }
