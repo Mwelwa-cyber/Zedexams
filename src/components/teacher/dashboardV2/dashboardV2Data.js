@@ -41,6 +41,18 @@ export function firstNameOf(displayName) {
   return parts[0]
 }
 
+/** Teacher identity for the V2 chrome (sidebar/header), from auth data. */
+export function teacherFromAuth({ displayName, email } = {}) {
+  return {
+    name: String(displayName || '').trim() || 'Teacher',
+    firstName: firstNameOf(displayName),
+    shortName: firstNameOf(displayName),
+    initials: initialsOf(displayName),
+    role: 'Teacher',
+    email: String(email || ''),
+  }
+}
+
 export function initialsOf(displayName) {
   const parts = String(displayName || '').trim().split(/\s+/).filter(Boolean)
   if (!parts.length) return 'T'

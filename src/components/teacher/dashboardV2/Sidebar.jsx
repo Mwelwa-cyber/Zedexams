@@ -26,7 +26,7 @@ const ACCOUNT_MENU_ITEMS = [
   { id: 'switch-role', label: 'Switch class or role', icon: UsersRound, to: '/settings/teaching-profile' },
   { id: 'notifications', label: 'Notification preferences', icon: Bell, to: '/settings/notifications' },
   { id: 'theme', label: 'Theme', icon: Moon, to: '/settings/appearance' },
-  { id: 'help', label: 'Help & support', icon: CircleHelp, href: 'mailto:support@zedexams.com' },
+  { id: 'help', label: 'Help & support', icon: CircleHelp, to: '/teacher/help' },
 ]
 
 function AccountMenu({ teacher, onSelect, onClose, onLogout, menuRef }) {

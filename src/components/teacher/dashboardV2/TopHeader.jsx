@@ -61,10 +61,9 @@ export default function TopHeader({ teacher, termChip, notificationCount = 0 }) 
             <span className="tdv2-badge-dot" aria-hidden="true">{notificationCount}</span>
           ) : null}
         </Link>
-        {/* No in-app help route yet — support goes through email */}
-        <a href="mailto:support@zedexams.com" className="tdv2-iconbtn" aria-label="Contact support">
+        <Link to="/teacher/help" className="tdv2-iconbtn" aria-label="Help and support">
           <MessageSquare size={19} strokeWidth={1.75} aria-hidden="true" />
-        </a>
+        </Link>
         <Link to="/settings/profile" className="tdv2-userchip" aria-label={`Account: ${teacher.shortName}`}>
           <span className="tdv2-avatar" aria-hidden="true">{teacher.initials}</span>
           <span className="tdv2-user-name">{teacher.shortName}</span>

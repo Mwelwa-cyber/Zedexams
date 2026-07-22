@@ -218,6 +218,10 @@ const TeacherDashboardLive = lazy(() => import('./components/teacher/dashboardV2
 // client-side). Public on purpose so the design can be reviewed without a
 // session; the preview control panel is compiled out of production builds.
 const TeacherDashboardV2 = lazy(() => import('./components/teacher/dashboardV2/TeacherDashboardV2'))
+// Teacher Help & Support — contact/report forms (contactMessages, triaged by
+// Echo), suggestions (feedback inbox), WhatsApp/email channels, FAQs. Same
+// V2 chrome as the dashboard, so it's also outside TeacherLayout.
+const TeacherHelpSupport = lazy(() => import('./components/teacher/dashboardV2/HelpSupportPage'))
 const SchoolCalendar = lazy(() => import('./components/teacher/SchoolCalendar'))
 const WelcomeToPro = lazy(() => import('./components/teacher/WelcomeToPro'))
 const SyllabiLibrary = lazy(() => import('./components/teacher/SyllabiLibrary'))
@@ -686,6 +690,7 @@ export default function App() {
           <Route path="/teacher"                         element={<ProtectedRoute requiredRole="teacher"><TeacherDashboardLive /></ProtectedRoute>} />
           {/* Legacy dashboard kept reachable during the V2 transition */}
           <Route path="/teacher/classic"                 element={<TeacherRoute><TeacherDashboard /></TeacherRoute>} />
+          <Route path="/teacher/help"                    element={<ProtectedRoute requiredRole="teacher"><TeacherHelpSupport /></ProtectedRoute>} />
           {/* Dashboard V2 preview — mock data only, intentionally unguarded (see lazy import note) */}
           <Route path="/teacher/dashboard-preview"       element={<TeacherDashboardV2 />} />
           {/* Assessment Paper Studio — teacher-only, private. One studio for
