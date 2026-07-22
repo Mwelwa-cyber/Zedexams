@@ -111,12 +111,20 @@ undefined.
   health verdict — a second, dashboard-level check. **Correction:** have Marshal assert a fresh
   `opsBackups/{today}.status==="started"`. **Launch blocker:** No. **Complexity:** Low.
 
-### DR-006 — Secrets recovery / escrow undocumented; PITR only suggested
-- **Severity:** Low–Medium · **Confidence:** Moderate confidence
-- **Affected:** secrets live only in Functions secrets (`ANTHROPIC_API_KEY`, `LENCO_API_KEY`, SA
-  JSON, keystore) — no documented backup/escrow; PITR is only mentioned in a code comment.
-- **Correction:** Document secret sources + a recovery procedure; enable PITR (7-day window covers
-  fat-finger deletes between daily exports). **Launch blocker:** No.
+### DR-006 — Secrets recovery / escrow undocumented; PITR only suggested ✅ recovery runbook added
+- **Severity:** Low–Medium → Low (residual) · **Confidence:** Moderate confidence
+- **Was:** secrets lived only in Functions secrets / GitHub Actions secrets / the Android keystore —
+  no documented inventory, source-of-truth, escrow, or recovery procedure. PITR only in a code comment.
+- **Added here:** [`runbooks/secrets-recovery.md`](./runbooks/secrets-recovery.md) — a full inventory
+  of all 13 Functions secrets + the GitHub Actions/deploy secrets + the Android keystore, each with its
+  source-of-truth console, blast radius, and a no-downtime rotate/recover procedure. Key points: Firebase
+  Functions secrets are backed by **GCP Secret Manager** (versioned — the runtime values aren't lost
+  unless the project is), so the real work is **escrow** of the provider-side credentials in the team
+  password manager; and the **Android signing keystore is the one irreplaceable secret** — the runbook's
+  top action is confirming **Play App Signing is enabled** (which makes a lost upload key recoverable via
+  Play support) and escrowing the keystore + fingerprint offline.
+- **Residual (operator, not code):** enable PITR (`gcloud firestore databases update --enable-pitr`);
+  populate the password-manager escrow vault; run the recovery drill once. **Launch blocker:** No.
 
 ### DR-007 — Same-UTC-date export collision could downgrade a good summary ✅ fixed in this PR
 - **Severity:** Low (integrity of the monitoring signal, not of the data) · **Confidence:** High confidence
