@@ -1,21 +1,24 @@
 // Outlined "Continue with Google" button used on both the Login and Register
-// surfaces. Sized to sit next to the email/password CTA.
+// surfaces. Keeps the official multicolour Google glyph — never a generic icon.
 export default function GoogleSignInButton({ onClick, loading, disabled, label = 'Continue with Google' }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled || loading}
+      aria-busy={loading || undefined}
       className={
-        'w-full h-[46px] flex items-center justify-center gap-2.5 ' +
-        'rounded-[10px] border-[1.5px] border-[#2A2A3C] bg-white text-[#1A1F2E] ' +
-        'text-[14px] font-semibold font-body ' +
-        'transition-all hover:bg-[#F7F7FA] hover:-translate-y-px hover:shadow-sm ' +
-        'active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0'
+        'w-full min-h-[56px] flex items-center justify-center gap-3 ' +
+        'rounded-[14px] border border-[#D1D5DB] bg-white text-[#111827] ' +
+        'text-[16px] font-semibold font-body ' +
+        'transition-all hover:bg-[#FAFAFA] hover:border-[#B9BEC7] ' +
+        'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--accent)]/30 focus-visible:border-[var(--accent)] ' +
+        'active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed ' +
+        'motion-reduce:transition-none'
       }
     >
       {loading ? (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="animate-spin" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="animate-spin motion-reduce:animate-none" aria-hidden="true">
           <path d="M21 12a9 9 0 11-6.219-8.56" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
         </svg>
       ) : (
@@ -28,7 +31,7 @@ export default function GoogleSignInButton({ onClick, loading, disabled, label =
 
 function GoogleGlyph() {
   return (
-    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+    <svg width="20" height="20" viewBox="0 0 18 18" aria-hidden="true">
       <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" />
       <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" />
       <path fill="#FBBC05" d="M3.964 10.706A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.997 8.997 0 000 9c0 1.452.348 2.827.957 4.038l3.007-2.332z" />

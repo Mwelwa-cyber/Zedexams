@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { fetchSignInMethodsForEmail, signOut } from 'firebase/auth'
-import { ArrowLeft, EnvelopeIcon as Mail } from '../ui/icons'
+import { Mail, Eye, EyeOff } from 'lucide-react'
+import { ArrowLeft } from '../ui/icons'
 import { useAuth, SESSION_EXPIRED_KEY, hasAuthSessionHint } from '../../contexts/AuthContext'
 import { auth } from '../../firebase/config'
 import { getRoleLandingPath } from '../../utils/navigation'
@@ -16,6 +17,8 @@ import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import GoogleSignInButton from './GoogleSignInButton'
 import PasskeySignInButton from './PasskeySignInButton'
+import AuthDivider from './AuthDivider'
+import SecurityReassurance from './SecurityReassurance'
 import { usePlatformSettings } from '../../contexts/PlatformSettingsContext'
 import { isPasskeySupported, signInWithPasskey, mapPasskeyError } from '../../services/passkeyService'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -55,10 +58,12 @@ async function diagnosePasswordFailure(email) {
 }
 
 const INPUT_CLASS =
-  'w-full h-[46px] rounded-[10px] border-[1.5px] border-[#2A2A3C] bg-white ' +
-  'text-[#1A1F2E] text-sm font-body px-3.5 outline-none transition-colors ' +
-  'placeholder:text-[#B0AEBB] focus:border-[var(--accent)] ' +
-  'focus:ring-[3px] focus:ring-black/5'
+  'w-full h-14 rounded-[14px] border border-[#D1D5DB] bg-white ' +
+  'text-[#111827] text-[16px] font-body px-4 outline-none transition-colors ' +
+  'placeholder:text-[#9CA3AF] focus:border-[var(--accent)] ' +
+  'focus:ring-[3px] focus:ring-[var(--accent)]/20'
+
+const LABEL_CLASS = 'block text-[15px] font-medium text-[#111827] mb-1.5'
 
 export default function Login() {
   const {
@@ -109,6 +114,12 @@ export default function Login() {
   const [error, setError]         = useState('')
   // Neutral (non-error) notice — e.g. the user dismissed the passkey prompt.
   const [notice, setNotice]       = useState('')
+  // Move keyboard/screen-reader focus to the alert when an error lands so
+  // assistive tech announces it and a keyboard user isn't left hunting.
+  const errorRef = useRef(null)
+  useEffect(() => {
+    if (error) errorRef.current?.focus()
+  }, [error])
   // Staged rollout: the passkey option only renders when the platform flag
   // is on. Support detection keeps the page working on browsers without
   // WebAuthn — they see a short pointer to the other methods instead.
@@ -284,11 +295,12 @@ export default function Login() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-y-auto"
+      className="min-h-screen flex items-start sm:items-center justify-center px-4 py-6 sm:p-8 overflow-y-auto"
       style={{
-        backgroundColor: '#FDF6EC',
-        '--accent': '#EA580C',
-        '--accent-bg': '#FFEDD5',
+        backgroundColor: '#FFF8F1',
+        '--accent': '#F45A0A',
+        '--accent-text': '#FFFFFF',
+        '--accent-bg': '#FFF3EA',
         '--accent-fg': '#9A3412',
       }}
     >
@@ -298,24 +310,17 @@ export default function Login() {
         path="/login"
         noIndex
       />
-      {/* Subtle background decoration */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full opacity-10"
-          style={{ background: 'radial-gradient(circle, var(--accent) 0%, transparent 70%)' }} />
-        <div className="absolute -bottom-16 -left-16 w-56 h-56 rounded-full opacity-10"
-          style={{ background: 'radial-gradient(circle, var(--accent) 0%, transparent 70%)' }} />
-      </div>
 
-      <div className="bg-white rounded-[18px] shadow-xl w-full max-w-[calc(100vw-2rem)] sm:max-w-[520px] px-5 sm:px-8 pt-9 pb-8 animate-scale-in relative z-10">
-        {/* Logo */}
-        <div className="flex flex-col items-center mb-2.5 gap-1">
-          <Logo variant="full" size="md" />
-          <p className="text-[12px] text-[#999] font-body">Practise smart.</p>
+      <div className="bg-white rounded-[24px] sm:rounded-[28px] shadow-[0_8px_30px_rgba(17,24,39,0.07)] w-full max-w-[480px] px-6 sm:px-8 pt-8 pb-7 animate-scale-in motion-reduce:animate-none">
+        {/* Logo — the asset itself carries the "Practise smart." tagline, so
+            it must never be repeated as separate text below. */}
+        <div className="flex justify-center">
+          <Logo variant="full" size="lg" />
         </div>
 
         {forgotMode ? (
           /* ── Forgot Password Flow ── */
-          <div className="animate-slide-up">
+          <div className="animate-slide-up motion-reduce:animate-none mt-4">
             <Button
               variant="ghost"
               size="sm"
@@ -327,8 +332,8 @@ export default function Login() {
             </Button>
 
             <div className="text-center mb-6">
-              <h2 className="text-[20px] font-bold text-[#1A1F2E]">Reset password</h2>
-              <p className="text-[13px] text-[#888] mt-1">Enter your email and we'll send you a reset link.</p>
+              <h2 className="text-[24px] font-bold text-[#111827]">Reset password</h2>
+              <p className="text-[15px] text-[#8B8F9C] mt-1">Enter your email and we'll send you a reset link.</p>
             </div>
 
             {resetSuccess ? (
@@ -348,9 +353,9 @@ export default function Login() {
                 </Button>
               </div>
             ) : (
-              <form onSubmit={handleResetPassword} className="space-y-4">
+              <form onSubmit={handleResetPassword} className="space-y-4" aria-busy={resetLoading}>
                 <div>
-                  <label htmlFor="reset-email" className="block text-[13px] font-medium text-[#1A1F2E] mb-1.5">Email address</label>
+                  <label htmlFor="reset-email" className={LABEL_CLASS}>Email address</label>
                   <div className="relative">
                     <input
                       id="reset-email"
@@ -359,18 +364,18 @@ export default function Login() {
                       value={resetEmail}
                       onChange={e => setResetEmail(e.target.value)}
                       required
-                      placeholder="your@email.com"
+                      placeholder="you@email.com"
                       autoComplete="email"
                       inputMode="email"
                       spellCheck={false}
                       autoCapitalize="none"
-                      className={`${INPUT_CLASS} pr-11`}
+                      className={`${INPUT_CLASS} pr-12`}
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#aaa] text-[15px] leading-none pointer-events-none" aria-hidden="true">✉</span>
+                    <Mail size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] pointer-events-none" aria-hidden="true" />
                   </div>
                 </div>
                 {resetError && (
-                  <p aria-live="polite" className="text-danger bg-danger-subtle border rounded-xl px-4 py-3 text-body-sm" style={{ borderColor: 'var(--danger-fg)' }}>
+                  <p role="alert" tabIndex={-1} className="text-danger bg-danger-subtle border rounded-xl px-4 py-3 text-body-sm outline-none" style={{ borderColor: 'var(--danger-fg)' }}>
                     {resetError}
                   </p>
                 )}
@@ -380,6 +385,7 @@ export default function Login() {
                   size="lg"
                   fullWidth
                   loading={resetLoading}
+                  className="min-h-[58px] rounded-[16px] text-[17px]"
                 >
                   {resetLoading ? 'Sending…' : 'Send reset link'}
                 </Button>
@@ -389,21 +395,21 @@ export default function Login() {
         ) : (
           /* ── Login Form ── */
           <>
-            <div className="text-center mb-6">
-              <h2 className="text-[20px] font-bold text-[#1A1F2E]">Welcome back</h2>
-              <p className="text-[13px] text-[#888] mt-1">Sign in to your account</p>
+            <div className="text-center mt-3 mb-6">
+              <h1 className="text-[30px] sm:text-[32px] font-bold text-[#111827] tracking-tight">Welcome back</h1>
+              <p className="text-[17px] sm:text-[18px] text-[#8B8F9C] mt-1">Sign in to your account</p>
             </div>
 
             {sessionExpired && (
               <p
                 aria-live="polite"
-                className="text-[13px] text-center rounded-xl px-4 py-2.5 mb-4 bg-amber-50 text-amber-800 border border-amber-200"
+                className="text-[14px] text-center rounded-xl px-4 py-2.5 mb-4 bg-amber-50 text-amber-800 border border-amber-200"
               >
                 Your session ended for security. Please sign in again to continue.
               </p>
             )}
 
-            <div className="animate-slide-up space-y-3">
+            <div className="animate-slide-up motion-reduce:animate-none space-y-3.5">
               {passkeysEnabled && passkeySupported && (
                 <PasskeySignInButton
                   onClick={handlePasskeySignIn}
@@ -412,12 +418,12 @@ export default function Login() {
                 />
               )}
               {passkeysEnabled && !passkeySupported && (
-                <p className="text-[12px] text-[#888] text-center">
+                <p className="text-[13px] text-[#8B8F9C] text-center">
                   Passkeys are not supported on this browser. Use Google or your password to sign in.
                 </p>
               )}
               {notice && (
-                <p aria-live="polite" className="text-[13px] text-center rounded-xl px-4 py-2.5 bg-[#F7F7FA] text-[#556] border border-[#E4E9F0]">
+                <p aria-live="polite" className="text-[14px] text-center rounded-xl px-4 py-2.5 bg-[#F7F7FA] text-[#4B5563] border border-[#E5E7EB]">
                   {notice}
                 </p>
               )}
@@ -426,16 +432,13 @@ export default function Login() {
                 loading={googleLoading}
                 disabled={loading || passkeyLoading}
               />
-              <div className="flex items-center gap-3 !my-4" aria-hidden="true">
-                <span className="h-px flex-1 bg-[#E4E9F0]" />
-                <span className="text-[11px] uppercase tracking-[1px] text-[#aaa] font-medium">or</span>
-                <span className="h-px flex-1 bg-[#E4E9F0]" />
-              </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4 animate-slide-up">
+            <AuthDivider />
+
+            <form onSubmit={handleSubmit} className="space-y-4 animate-slide-up motion-reduce:animate-none" aria-busy={loading}>
               <div>
-                <label htmlFor="login-email" className="block text-[13px] font-medium text-[#1A1F2E] mb-1.5">Email address</label>
+                <label htmlFor="login-email" className={LABEL_CLASS}>Email address</label>
                 <div className="relative">
                   <input
                     id="login-email"
@@ -444,24 +447,24 @@ export default function Login() {
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     required
-                    placeholder="your@email.com"
-                    autoComplete="username"
+                    placeholder="you@email.com"
+                    autoComplete="email"
                     inputMode="email"
                     spellCheck={false}
                     autoCapitalize="none"
-                    className={`${INPUT_CLASS} pr-11`}
+                    className={`${INPUT_CLASS} pr-12`}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#aaa] text-[15px] leading-none pointer-events-none" aria-hidden="true">✉</span>
+                  <Mail size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9CA3AF] pointer-events-none" aria-hidden="true" />
                 </div>
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label htmlFor="login-password" className="block text-[13px] font-medium text-[#1A1F2E]">Password</label>
+                  <label htmlFor="login-password" className={`${LABEL_CLASS} mb-0`}>Password</label>
                   <button
                     type="button"
                     onClick={() => { setForgotMode(true); setResetEmail(email) }}
-                    className="text-[12.5px] font-medium text-[var(--accent)] hover:opacity-75 bg-transparent shadow-none p-0 min-h-0"
+                    className="text-[14px] font-medium text-[var(--accent)] hover:opacity-75 bg-transparent shadow-none px-1 py-2 min-h-[44px] inline-flex items-center rounded-lg"
                   >
                     Forgot password?
                   </button>
@@ -476,23 +479,31 @@ export default function Login() {
                     required
                     placeholder="••••••••"
                     autoComplete="current-password"
-                    className={`${INPUT_CLASS} pr-11`}
+                    className={`${INPUT_CLASS} pr-14`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPw(v => !v)}
                     onMouseDown={e => e.preventDefault()}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-9 h-9 rounded-lg text-[15px] leading-none select-none text-[#aaa] hover:text-[#1A1F2E] transition-transform active:scale-90 bg-transparent shadow-none p-0 min-h-0"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-11 h-11 rounded-xl text-[#8B8F9C] hover:text-[#111827] transition-colors bg-transparent shadow-none p-0 min-h-0"
                     aria-label={showPw ? 'Hide password' : 'Show password'}
                     aria-pressed={showPw}
                   >
-                    <span aria-hidden="true">{showPw ? '🙈' : '👁'}</span>
+                    {showPw
+                      ? <EyeOff size={20} aria-hidden="true" />
+                      : <Eye size={20} aria-hidden="true" />}
                   </button>
                 </div>
               </div>
 
               {error && (
-                <p aria-live="polite" className="text-danger bg-danger-subtle border rounded-xl px-4 py-3 text-body-sm" style={{ borderColor: 'var(--danger-fg)' }}>
+                <p
+                  ref={errorRef}
+                  role="alert"
+                  tabIndex={-1}
+                  className="text-danger bg-danger-subtle border rounded-xl px-4 py-3 text-body-sm outline-none"
+                  style={{ borderColor: 'var(--danger-fg)' }}
+                >
                   {error}
                 </p>
               )}
@@ -503,6 +514,7 @@ export default function Login() {
                 size="lg"
                 fullWidth
                 loading={loading}
+                className="min-h-[58px] rounded-[16px] text-[17px]"
               >
                 {loading ? 'Signing in…' : 'Sign In'}
               </Button>
@@ -510,12 +522,17 @@ export default function Login() {
           </>
         )}
 
-        <p className="text-center text-[13px] text-[#888] mt-5">
-          No account?{' '}
-          <Link to="/register" className="text-[var(--accent)] font-semibold hover:underline">
-            Create one free
+        <p className="text-center text-[15px] text-[#8B8F9C] mt-6">
+          New to ZedExams?{' '}
+          <Link
+            to="/register"
+            className="text-[var(--accent)] font-semibold hover:underline rounded-md focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--accent)]/30 inline-flex min-h-[44px] items-center px-1"
+          >
+            Create a free account
           </Link>
         </p>
+
+        <SecurityReassurance />
       </div>
     </div>
   )
