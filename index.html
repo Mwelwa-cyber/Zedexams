@@ -202,18 +202,58 @@
     <div id="root">
       <!--
         Inline boot skeleton — paints in the first frame with no JS/CSS bundle,
-        so a cold mobile load shows the brand + spinner instantly instead of a
+        so a cold mobile load shows the brand loader instantly instead of a
         blank screen for several seconds (real-user FCP p75 was ~4.5s on
         mobile). React's createRoot() clears #root when it mounts, so this is
         removed automatically; the boot watchdog's appMounted() ignores it so a
         genuine hang still surfaces the recovery UI.
+
+        The animation is the brand ring loader (glow + two counter-rotating
+        blue/orange arcs around the app-icon badge + indeterminate bar) and
+        MUST stay markup/keyframes-identical to <FullScreenLoader /> so the
+        skeleton → React hand-off is seamless — the ring keeps turning.
       -->
-      <div id="zed-boot-skeleton" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:#FDF6EC;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;">
-        <div style="font-size:2rem;font-weight:800;letter-spacing:-0.02em;color:#1A1F2E;">Zed<span style="color:#EA580C;">Exams</span></div>
-        <div class="zed-boot-spinner" style="width:34px;height:34px;border:3px solid #EBD9C2;border-top-color:#EA580C;border-radius:50%;animation:zed-boot-spin 0.8s linear infinite;"></div>
+      <div id="zed-boot-skeleton" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:20px;box-sizing:border-box;background:#FDF6EC;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;">
+        <div class="zed-boot-loader" aria-hidden="true">
+          <div class="zed-boot-glow"></div>
+          <svg class="zed-boot-ring" viewBox="0 0 160 160" role="presentation">
+            <circle class="zed-boot-track" cx="80" cy="80" r="72"></circle>
+            <g class="zed-boot-arc zed-boot-arc--blue">
+              <circle class="zed-boot-stroke zed-boot-stroke--blue" cx="80" cy="80" r="72"></circle>
+              <circle class="zed-boot-dot--blue" cx="80" cy="8" r="6"></circle>
+            </g>
+            <g class="zed-boot-arc zed-boot-arc--orange">
+              <circle class="zed-boot-stroke zed-boot-stroke--orange" cx="80" cy="80" r="72"></circle>
+              <circle class="zed-boot-dot--orange" cx="80" cy="152" r="6"></circle>
+            </g>
+          </svg>
+          <img class="zed-boot-badge" src="/zedexams-app-icon.jpg?v=1" alt="" width="64" height="64" draggable="false" />
+        </div>
+        <div style="font-size:1.6rem;font-weight:800;letter-spacing:-0.02em;color:#1A1F2E;">Zed<span style="color:#EA580C;">Exams</span></div>
+        <div class="zed-boot-bar"><div class="zed-boot-bar-fill"></div></div>
         <style>
+          .zed-boot-loader { position: relative; width: 140px; height: 140px; display: grid; place-items: center; }
+          .zed-boot-glow { position: absolute; inset: -18%; border-radius: 50%; background: radial-gradient(circle, rgba(234, 88, 12, 0.22) 0%, rgba(234, 88, 12, 0) 68%); filter: blur(6px); animation: zed-boot-glow 2.8s ease-in-out infinite; }
+          .zed-boot-ring { position: absolute; inset: 0; width: 100%; height: 100%; }
+          .zed-boot-track { fill: none; stroke: #EBD9C2; stroke-width: 5; opacity: 0.5; }
+          .zed-boot-arc { transform-origin: 50% 50%; animation: zed-boot-spin 1.5s linear infinite; }
+          .zed-boot-arc--orange { animation-duration: 1.9s; animation-direction: reverse; }
+          .zed-boot-stroke { fill: none; stroke-width: 5; stroke-linecap: round; stroke-dasharray: 135 320; }
+          .zed-boot-stroke--blue { stroke: #2563EB; }
+          .zed-boot-stroke--orange { stroke: #EA580C; }
+          .zed-boot-dot--blue { fill: #2563EB; }
+          .zed-boot-dot--orange { fill: #EA580C; }
+          .zed-boot-badge { position: relative; z-index: 1; width: 64px; height: 64px; border-radius: 16px; object-fit: cover; box-shadow: 0 6px 16px rgba(26, 31, 46, 0.28); user-select: none; -webkit-user-drag: none; }
+          .zed-boot-bar { position: relative; width: min(78vw, 320px); height: 4px; border-radius: 999px; background: #EBD9C2; overflow: hidden; }
+          .zed-boot-bar-fill { position: absolute; top: 0; left: 0; height: 100%; width: 40%; border-radius: 999px; background: linear-gradient(90deg, #2563EB, #EA580C); animation: zed-boot-bar 1.5s cubic-bezier(0.65, 0, 0.35, 1) infinite; }
+          @media (max-width: 767px) { .zed-boot-loader { width: 112px; height: 112px; } }
           @keyframes zed-boot-spin { to { transform: rotate(360deg); } }
-          @media (prefers-reduced-motion: reduce) { .zed-boot-spinner { animation: none; } }
+          @keyframes zed-boot-glow { 0%, 100% { opacity: 0.55; transform: scale(0.96); } 50% { opacity: 1; transform: scale(1.04); } }
+          @keyframes zed-boot-bar { 0% { left: -40%; width: 40%; } 50% { left: 25%; width: 55%; } 100% { left: 100%; width: 40%; } }
+          @media (prefers-reduced-motion: reduce) {
+            .zed-boot-arc, .zed-boot-glow { animation: none; }
+            .zed-boot-bar-fill { animation: none; left: 0; width: 100%; opacity: 0.8; }
+          }
         </style>
       </div>
     </div>
