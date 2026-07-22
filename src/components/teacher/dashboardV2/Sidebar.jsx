@@ -1,35 +1,33 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   Bell,
   ChevronDown,
   CircleHelp,
   CreditCard,
-  Keyboard,
   LogOut,
   Moon,
   Settings,
   UserRound,
   UsersRound,
 } from 'lucide-react'
-import { NAV_GROUPS, TEACHER } from './mockData'
+import { NAV_GROUPS } from './dashboardV2Config'
 
 const LOGO_WEBP = '/zedexams-logo.webp?v=2'
 const LOGO_PNG = '/zedexams-logo.png?v=5'
 
+/* Every entry navigates somewhere real — no dead menu items. */
 const ACCOUNT_MENU_ITEMS = [
-  { id: 'view-profile', label: 'View profile', icon: UserRound },
-  { id: 'account-settings', label: 'Account settings', icon: Settings },
-  { id: 'subscription', label: 'Subscription & billing', icon: CreditCard },
-  { id: 'switch-role', label: 'Switch class or role', icon: UsersRound },
-  { id: 'notifications', label: 'Notification preferences', icon: Bell },
-  { id: 'shortcuts', label: 'Keyboard shortcuts', icon: Keyboard },
-  { id: 'theme', label: 'Theme', icon: Moon },
-  { id: 'help', label: 'Help & support', icon: CircleHelp },
+  { id: 'view-profile', label: 'View profile', icon: UserRound, to: '/teacher/settings' },
+  { id: 'account-settings', label: 'Account settings', icon: Settings, to: '/teacher/settings' },
+  { id: 'subscription', label: 'Subscription & billing', icon: CreditCard, to: '/pricing' },
+  { id: 'switch-role', label: 'Switch class or role', icon: UsersRound, to: '/teacher/settings' },
+  { id: 'notifications', label: 'Notification preferences', icon: Bell, to: '/teacher/settings' },
+  { id: 'theme', label: 'Theme', icon: Moon, to: '/preferences' },
+  { id: 'help', label: 'Help & support', icon: CircleHelp, to: '/preferences' },
 ]
 
-function AccountMenu({ onClose, onLogout, menuRef }) {
-  // Focus the first item on open; arrow keys walk the items (menu pattern).
+function AccountMenu({ teacher, onSelect, onClose, onLogout, menuRef }) {
   useEffect(() => {
     const first = menuRef.current?.querySelector('[role="menuitem"]')
     first?.focus()
@@ -62,19 +60,22 @@ function AccountMenu({ onClose, onLogout, menuRef }) {
       onKeyDown={onKeyDown}
     >
       <div className="tdv2-menu-header">
-        <span className="tdv2-avatar" aria-hidden="true">{TEACHER.initials}</span>
+        <span className="tdv2-avatar" aria-hidden="true">{teacher.initials}</span>
         <span style={{ minWidth: 0 }}>
-          <span className="tdv2-profile-name">{TEACHER.name}</span>
-          <span className="tdv2-menu-email">{TEACHER.email}</span>
+          <span className="tdv2-profile-name">{teacher.name}</span>
+          <span className="tdv2-menu-email">{teacher.email}</span>
         </span>
       </div>
-      {ACCOUNT_MENU_ITEMS.map(({ id, label, icon: ItemIcon }) => (
+      {ACCOUNT_MENU_ITEMS.map(({ id, label, icon: ItemIcon, to }) => (
         <button
           key={id}
           type="button"
           role="menuitem"
           className="tdv2-menu-item"
-          onClick={onClose}
+          onClick={() => {
+            onClose()
+            onSelect(to)
+          }}
         >
           <ItemIcon size={17} strokeWidth={1.75} aria-hidden="true" />
           {label}
@@ -94,18 +95,29 @@ function AccountMenu({ onClose, onLogout, menuRef }) {
   )
 }
 
-export default function Sidebar({ onRequestLogout }) {
+/* '/teacher' only matches exactly (it's the dashboard); the preview route
+   also lights the Dashboard item so the sidebar never looks unanchored. */
+function isNavActive(pathname, to) {
+  const path = to.split('?')[0]
+  if (path === '/teacher') {
+    return pathname === '/teacher' || pathname === '/teacher/dashboard-preview'
+  }
+  return pathname === path || pathname.startsWith(`${path}/`)
+}
+
+export default function Sidebar({ teacher, onRequestLogout }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const wrapRef = useRef(null)
   const menuRef = useRef(null)
   const triggerRef = useRef(null)
+  const { pathname } = useLocation()
+  const navigate = useNavigate()
 
   const closeMenu = useCallback((refocus = true) => {
     setMenuOpen(false)
     if (refocus) triggerRef.current?.focus()
   }, [])
 
-  // Escape closes; click outside closes (without stealing focus back).
   useEffect(() => {
     if (!menuOpen) return
     const onKey = (e) => {
@@ -144,17 +156,20 @@ export default function Sidebar({ onRequestLogout }) {
             {group.label ? (
               <div className="tdv2-nav-label" aria-hidden="true">{group.label}</div>
             ) : null}
-            {group.items.map(({ id, label, icon: ItemIcon, to, active }) => (
-              <Link
-                key={id}
-                to={to}
-                className={`tdv2-nav-item ${active ? 'is-active' : ''}`}
-                aria-current={active ? 'page' : undefined}
-              >
-                <ItemIcon size={20} strokeWidth={1.75} aria-hidden="true" />
-                <span className="tdv2-nav-text">{label}</span>
-              </Link>
-            ))}
+            {group.items.map(({ id, label, icon: ItemIcon, to }) => {
+              const active = isNavActive(pathname, to)
+              return (
+                <Link
+                  key={id}
+                  to={to}
+                  className={`tdv2-nav-item ${active ? 'is-active' : ''}`}
+                  aria-current={active ? 'page' : undefined}
+                >
+                  <ItemIcon size={20} strokeWidth={1.75} aria-hidden="true" />
+                  <span className="tdv2-nav-text">{label}</span>
+                </Link>
+              )
+            })}
           </div>
         ))}
       </nav>
@@ -162,7 +177,9 @@ export default function Sidebar({ onRequestLogout }) {
       <div className="tdv2-profile-wrap" ref={wrapRef}>
         {menuOpen ? (
           <AccountMenu
+            teacher={teacher}
             menuRef={menuRef}
+            onSelect={(to) => navigate(to)}
             onClose={() => closeMenu()}
             onLogout={() => {
               closeMenu(false)
@@ -178,11 +195,11 @@ export default function Sidebar({ onRequestLogout }) {
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((v) => !v)}
         >
-          <span className="tdv2-avatar" aria-hidden="true">{TEACHER.initials}</span>
+          <span className="tdv2-avatar" aria-hidden="true">{teacher.initials}</span>
           <span className="tdv2-profile-text" style={{ minWidth: 0 }}>
-            <span className="tdv2-profile-name">{TEACHER.name}</span>
+            <span className="tdv2-profile-name">{teacher.name}</span>
             <br />
-            <span className="tdv2-profile-role">{TEACHER.role}</span>
+            <span className="tdv2-profile-role">{teacher.role}</span>
           </span>
           <ChevronDown
             size={17}

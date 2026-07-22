@@ -2,11 +2,14 @@ import { Link } from 'react-router-dom'
 import {
   Activity,
   ArrowRight,
+  CircleCheck,
+  CircleX,
   ClipboardCheck,
   ListChecks,
   RotateCcw,
+  TriangleAlert,
 } from 'lucide-react'
-import { ACTIVITY_ITEMS, CHECKLIST_ITEMS, FEED_ITEMS } from './mockData'
+import { iconForTool } from './dashboardV2Config'
 import { progressFraction } from './dashboardV2Core'
 
 function ProgressRing({ fraction }) {
@@ -38,7 +41,8 @@ function ProgressRing({ fraction }) {
   )
 }
 
-export function ChecklistCard() {
+/** items: [{ id, label, done, total, to }] */
+export function ChecklistCard({ items = [], loading = false }) {
   return (
     <section className="tdv2-card" aria-labelledby="tdv2-check-h">
       <div className="tdv2-card-head">
@@ -47,21 +51,34 @@ export function ChecklistCard() {
           Checklist Completion
         </h2>
       </div>
-      {CHECKLIST_ITEMS.map(({ id, label, done, total }) => {
-        const fraction = progressFraction(done, total)
-        return (
-          <div key={id} className="tdv2-check-row">
-            <ProgressRing fraction={fraction} />
-            <span className="tdv2-check-label">
-              {label}
-              <span className="tdv2-check-bar" aria-hidden="true">
-                <span style={{ width: `${fraction * 100}%` }} />
+      {loading ? (
+        <div className="tdv2-empty">Working out your week…</div>
+      ) : items.length === 0 ? (
+        <div className="tdv2-empty">
+          No weekly plan yet — set up your week from a Scheme of Work.
+        </div>
+      ) : (
+        items.map(({ id, label, done, total, to }) => {
+          const fraction = progressFraction(done, total)
+          const inner = (
+            <>
+              <ProgressRing fraction={fraction} />
+              <span className="tdv2-check-label">
+                {label}
+                <span className="tdv2-check-bar" aria-hidden="true">
+                  <span style={{ width: `${fraction * 100}%` }} />
+                </span>
               </span>
-            </span>
-            <span className="tdv2-check-count">{done}/{total}</span>
-          </div>
-        )
-      })}
+              <span className="tdv2-check-count">{done}/{total}</span>
+            </>
+          )
+          return to ? (
+            <Link key={id} to={to} className="tdv2-check-row">{inner}</Link>
+          ) : (
+            <div key={id} className="tdv2-check-row">{inner}</div>
+          )
+        })
+      )}
       <Link className="tdv2-footer-action" to="/teacher/generate/weekly-forecast">
         <ClipboardCheck size={16} strokeWidth={1.75} aria-hidden="true" />
         View full checklist
@@ -70,7 +87,10 @@ export function ChecklistCard() {
   )
 }
 
-export function FeedStatusCard({ onRetry }) {
+const FEED_ICONS = { success: CircleCheck, warning: TriangleAlert, error: CircleX }
+
+/** items: [{ id, kind, title, body, retry?, to? }] */
+export function FeedStatusCard({ items = [], onRetry }) {
   return (
     <section className="tdv2-card" aria-labelledby="tdv2-feed-h">
       <div className="tdv2-card-head">
@@ -79,27 +99,35 @@ export function FeedStatusCard({ onRetry }) {
           Feed &amp; Status
         </h2>
       </div>
-      {FEED_ITEMS.map(({ id, kind, title, body, icon: FeedIcon, retry }) => (
-        <div key={id} className={`tdv2-feed-item is-${kind}`}>
-          <FeedIcon size={18} strokeWidth={2} className="tdv2-feed-icon" aria-hidden="true" />
-          <div>
-            {/* kind is also conveyed by the icon + title, not colour alone */}
-            <div className="tdv2-feed-title">{title}</div>
-            <div className="tdv2-feed-body">{body}</div>
-            {retry ? (
-              <button type="button" className="tdv2-retry" onClick={onRetry}>
-                <RotateCcw size={13} strokeWidth={2.25} aria-hidden="true" />
-                Retry
-              </button>
-            ) : null}
-          </div>
-        </div>
-      ))}
+      {items.length === 0 ? (
+        <div className="tdv2-empty">You’re all caught up.</div>
+      ) : (
+        items.map(({ id, kind, title, body, retry }) => {
+          const FeedIcon = FEED_ICONS[kind] || CircleCheck
+          return (
+            <div key={id} className={`tdv2-feed-item is-${kind}`}>
+              <FeedIcon size={18} strokeWidth={2} className="tdv2-feed-icon" aria-hidden="true" />
+              <div>
+                {/* kind is conveyed by icon + wording, never colour alone */}
+                <div className="tdv2-feed-title">{title}</div>
+                <div className="tdv2-feed-body">{body}</div>
+                {retry ? (
+                  <button type="button" className="tdv2-retry" onClick={onRetry}>
+                    <RotateCcw size={13} strokeWidth={2.25} aria-hidden="true" />
+                    Retry
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          )
+        })
+      )}
     </section>
   )
 }
 
-export function RecentActivityCard() {
+/** items: [{ id, title, meta, time, tool, to }] */
+export function RecentActivityCard({ items = [] }) {
   return (
     <section className="tdv2-card" aria-labelledby="tdv2-activity-h">
       <div className="tdv2-card-head">
@@ -112,18 +140,25 @@ export function RecentActivityCard() {
           <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
         </Link>
       </div>
-      {ACTIVITY_ITEMS.map(({ id, title, meta, time, icon: RowIcon }) => (
-        <Link key={id} to="/teacher/library" className="tdv2-activity-row">
-          <span className="tdv2-activity-icon" aria-hidden="true">
-            <RowIcon size={17} strokeWidth={1.75} />
-          </span>
-          <span style={{ minWidth: 0 }}>
-            <span className="tdv2-activity-title" style={{ display: 'block' }}>{title}</span>
-            <span className="tdv2-activity-meta" style={{ display: 'block' }}>{meta}</span>
-          </span>
-          <span className="tdv2-activity-time">{time}</span>
-        </Link>
-      ))}
+      {items.length === 0 ? (
+        <div className="tdv2-empty">Your recent work will show up here.</div>
+      ) : (
+        items.map(({ id, title, meta, time, tool, to }) => {
+          const RowIcon = iconForTool(tool)
+          return (
+            <Link key={id} to={to || '/teacher/library'} className="tdv2-activity-row">
+              <span className="tdv2-activity-icon" aria-hidden="true">
+                <RowIcon size={17} strokeWidth={1.75} />
+              </span>
+              <span style={{ minWidth: 0 }}>
+                <span className="tdv2-activity-title" style={{ display: 'block' }}>{title}</span>
+                <span className="tdv2-activity-meta" style={{ display: 'block' }}>{meta}</span>
+              </span>
+              <span className="tdv2-activity-time">{time}</span>
+            </Link>
+          )
+        })
+      )}
     </section>
   )
 }

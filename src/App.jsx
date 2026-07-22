@@ -209,9 +209,14 @@ const ChildProgressPage = lazy(() => import('./components/parent/ChildProgressPa
 // Teacher section
 const TeacherLayout = lazy(() => import('./components/teacher/TeacherLayout'))
 const TeacherDashboard = lazy(() => import('./components/teacher/TeacherDashboard'))
-// Dashboard V2 redesign — mock-data PREVIEW surface (no Firestore reads, all
-// interactions client-side). Public on purpose so the design can be reviewed
-// without a session; it replaces /teacher only after explicit approval.
+// Dashboard V2 — the LIVE /teacher dashboard (owner-approved 2026-07-22). It
+// ships its own chrome (V2 sidebar/header), so it is NOT wrapped in
+// TeacherLayout; auth still comes from ProtectedRoute. The legacy dashboard
+// stays reachable at /teacher/classic during the transition.
+const TeacherDashboardLive = lazy(() => import('./components/teacher/dashboardV2/TeacherDashboardLive'))
+// Mock-data PREVIEW of the same view (no Firestore reads, all interactions
+// client-side). Public on purpose so the design can be reviewed without a
+// session; the preview control panel is compiled out of production builds.
 const TeacherDashboardV2 = lazy(() => import('./components/teacher/dashboardV2/TeacherDashboardV2'))
 const SchoolCalendar = lazy(() => import('./components/teacher/SchoolCalendar'))
 const WelcomeToPro = lazy(() => import('./components/teacher/WelcomeToPro'))
@@ -678,7 +683,9 @@ export default function App() {
           {/* ── Teacher routes (all wrapped in TeacherLayout) ─── */}
           {/* Post-upgrade celebration page — full-bleed, outside TeacherLayout chrome */}
           <Route path="/teacher/welcome-to-pro"          element={<ProtectedRoute requiredRole="teacher"><WelcomeToPro /></ProtectedRoute>} />
-          <Route path="/teacher"                         element={<TeacherRoute><TeacherDashboard /></TeacherRoute>} />
+          <Route path="/teacher"                         element={<ProtectedRoute requiredRole="teacher"><TeacherDashboardLive /></ProtectedRoute>} />
+          {/* Legacy dashboard kept reachable during the V2 transition */}
+          <Route path="/teacher/classic"                 element={<TeacherRoute><TeacherDashboard /></TeacherRoute>} />
           {/* Dashboard V2 preview — mock data only, intentionally unguarded (see lazy import note) */}
           <Route path="/teacher/dashboard-preview"       element={<TeacherDashboardV2 />} />
           {/* Assessment Paper Studio — teacher-only, private. One studio for

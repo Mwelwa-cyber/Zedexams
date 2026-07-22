@@ -147,6 +147,7 @@
     "test:lesson-memory": "node scripts/test-lesson-memory.mjs",
     "test:dashboard-intel": "node src/utils/teacherDashboardIntel.test.js",
     "test:dashboard-v2": "node src/components/teacher/dashboardV2/dashboardV2Core.test.js",
+    "test:dashboard-v2-data": "node src/components/teacher/dashboardV2/dashboardV2Data.test.js",
     "test:prepare-week": "node src/utils/prepareThisWeek.test.js",
     "test:recommendations": "node src/utils/teacherRecommendations.test.js",
     "test:document-actions": "node src/utils/documentActions.test.js",

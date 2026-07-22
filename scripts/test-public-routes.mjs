@@ -162,7 +162,11 @@ const PROTECTED_ROUTES = [
   ['/quizzes', 'ProtectedRoute'],
   ['/admin', 'AdminRoute'],
   ['/admin/users', 'AdminRoute'],
-  ['/teacher', 'TeacherRoute'],
+  // Dashboard V2 brings its own chrome, so /teacher is gated by
+  // ProtectedRoute requiredRole="teacher" directly instead of TeacherRoute
+  // (which would add TeacherLayout's duplicate sidebar around it).
+  ['/teacher', 'ProtectedRoute'],
+  ['/teacher/classic', 'TeacherRoute'],
   ['/teacher/library', 'TeacherRoute'],
 ]
 for (const [p, guard] of PROTECTED_ROUTES) {

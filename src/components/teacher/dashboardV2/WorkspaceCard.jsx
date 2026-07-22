@@ -7,9 +7,14 @@ import {
   ClipboardList,
   Layers,
 } from 'lucide-react'
-import { WORKSPACE_EXPANDABLE, WORKSPACE_TILES } from './mockData'
+import { WORKSPACE_EXPANDABLE, WORKSPACE_TILES } from './dashboardV2Config'
 
-export default function WorkspaceCard() {
+/**
+ * savedCounts: { scheme_of_work, weekly_forecast, lesson_plan,
+ * record_of_work } | null — null (fetch failed / loading) hides the badges
+ * rather than showing wrong zeros.
+ */
+export default function WorkspaceCard({ savedCounts = null }) {
   const [expanded, setExpanded] = useState(() => new Set())
 
   const toggle = (id) => {
@@ -42,19 +47,24 @@ export default function WorkspaceCard() {
         Planning
       </div>
       <div className="tdv2-ws-grid">
-        {WORKSPACE_TILES.map(({ id, title, description, saved, icon: TileIcon, to }) => (
-          <Link key={id} to={to} className="tdv2-ws-tile">
-            <span className="tdv2-ws-top">
-              <span className="tdv2-ws-icon" aria-hidden="true">
-                <TileIcon size={20} strokeWidth={1.75} />
+        {WORKSPACE_TILES.map(({ id, title, description, countKey, icon: TileIcon, to }) => {
+          const count = savedCounts ? savedCounts[countKey] : null
+          return (
+            <Link key={id} to={to} className="tdv2-ws-tile">
+              <span className="tdv2-ws-top">
+                <span className="tdv2-ws-icon" aria-hidden="true">
+                  <TileIcon size={20} strokeWidth={1.75} />
+                </span>
+                {count != null ? (
+                  <span className="tdv2-saved-badge">{count} SAVED</span>
+                ) : null}
               </span>
-              <span className="tdv2-saved-badge">{saved} SAVED</span>
-            </span>
-            <span className="tdv2-ws-title">{title}</span>
-            <span className="tdv2-ws-desc">{description}</span>
-            <ArrowRight size={16} strokeWidth={2} className="tdv2-ws-arrow" aria-hidden="true" />
-          </Link>
-        ))}
+              <span className="tdv2-ws-title">{title}</span>
+              <span className="tdv2-ws-desc">{description}</span>
+              <ArrowRight size={16} strokeWidth={2} className="tdv2-ws-arrow" aria-hidden="true" />
+            </Link>
+          )
+        })}
       </div>
 
       {WORKSPACE_EXPANDABLE.map(({ id, title, icon: RowIcon, items }) => {
