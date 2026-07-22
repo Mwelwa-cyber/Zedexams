@@ -259,10 +259,28 @@ jobs:
               | sort -u
           }
 
+          # Scheduled functions whose Cloud Scheduler TRIGGER failed to upsert.
+          # firebase-tools reports these as "Failed to upsert schedule function
+          # <name> in region ...". This is CATEGORICALLY different from the
+          # cosmetic 409 races above: the function CODE deploys but its trigger
+          # is never created, so it silently never fires — and the "no changes
+          # detected" retry masks it as success (the body is unchanged on retry).
+          # This is how the backup completion-checker + observability canaries
+          # shipped green-but-dead when the deploy SA lacked cloudscheduler perms.
+          # NEVER cosmetic — always fail.
+          parse_scheduler_failed() {
+            grep -oiE "Failed to upsert schedule function [A-Za-z0-9_-]+" \
+              | sed -E 's/.*schedule function //I' \
+              | sort -u
+          }
+
           max=2            # one full deploy + one quick retry of the failed set
           attempt=0
           code=0
           out=""
+          all_out=""       # accumulated across attempts — a first-attempt
+                           # scheduler-trigger failure must survive the retry's
+                           # "no changes detected" masking (see the fatal check).
           while : ; do
             attempt=$((attempt + 1))
             echo "::group::Firebase deploy attempt ${attempt}/${max} (--only ${only})"
@@ -276,6 +294,7 @@ jobs:
             set -e
             echo "${out}"
             echo "::endgroup::"
+            all_out=$(printf '%s\n%s' "${all_out}" "${out}")
 
             failed=$(printf '%s\n' "${out}" | parse_failed) || true
             # Stop once the deploy is clean, or after the final attempt.
@@ -292,6 +311,23 @@ jobs:
             echo "Deploy reported failure(s); retrying [--only ${only}] in 30s…"
             sleep 30
           done
+
+          # ---- Cloud Scheduler trigger failures are FATAL (never cosmetic) --
+          # Scanned across ALL attempts, because the "no changes detected" retry
+          # (the function body is unchanged) would otherwise mask a first-attempt
+          # scheduler-upsert failure as a clean deploy. A scheduled function whose
+          # trigger fails to upsert deploys its CODE but never fires — exactly how
+          # backupCompletionCheck / storageBackupCheck / rateLimitHealthCheck /
+          # opsHeartbeatCheck shipped green-but-dead. Fail loudly instead.
+          sched_failed=$(printf '%s\n' "${all_out}" | parse_scheduler_failed) || true
+          if [ -n "${sched_failed}" ]; then
+            echo "::error::Firebase deploy FAILED to create/update Cloud Scheduler triggers — the scheduled function(s) below deployed their CODE but have NO trigger and will NEVER fire:"
+            printf '%s\n' "${sched_failed}" | sed 's/^/::error::  no-trigger: /'
+            if printf '%s\n' "${all_out}" | grep -qiE "cloudscheduler\.jobs\.(create|update|delete)"; then
+              echo "::error::Root cause: the Firebase deploy service account lacks Cloud Scheduler permission (HTTP 403 on cloudscheduler.jobs.*). Grant it roles/cloudscheduler.admin on the project, then re-run this deploy."
+            fi
+            exit 1
+          fi
 
           # ---- Classify the final attempt's result -------------------------
           failed=$(printf '%s\n' "${out}" | parse_failed) || true
