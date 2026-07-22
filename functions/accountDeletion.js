@@ -90,6 +90,60 @@ const ARRAY_MEMBERSHIP_COLLECTIONS = [
   {collection: "assignments", field: "learnerUids"},
 ];
 
+// ── Re-authentication (step-up) gate for the destructive delete ──────────
+//
+// LEGAL-003: purging an account is IRREVERSIBLE, yet `deleteMyAccount` used
+// to accept any live session — a stolen or long-persisted ID token could wipe
+// an account with one call. Firebase stamps `auth_time` (seconds since epoch)
+// on the ID token with the moment the first factor completed for the current
+// session; a client re-authenticates immediately before deleting and
+// force-refreshes its token, so a genuine request carries a FRESH auth_time
+// while a stale hijacked session does not. This mirrors the recent-login
+// step-up already used by the admin MFA reset (resetAdminMfaCore).
+//
+// The window is deliberately short (default 5 min) and env-tunable. Kept in
+// this domain module — with its own decision + tests — rather than shared with
+// the admin-MFA window (30 min) because the two have independent semantics.
+
+// How recently the caller must have authenticated to delete their account.
+function reauthMaxAgeSeconds() {
+  const raw = parseInt(process.env.ACCOUNT_DELETE_REAUTH_MAX_AGE_SECONDS, 10);
+  return Number.isFinite(raw) && raw > 0 ? raw : 5 * 60;
+}
+
+// Seconds since the token's first-factor auth completed. Infinity when the
+// claim is absent or malformed, so a token with no auth_time FAILS CLOSED
+// (treated as ancient → re-auth required) rather than slipping through.
+function authTimeAgeSeconds(token, now = Date.now()) {
+  const authTime = token && Number(token.auth_time);
+  if (!Number.isFinite(authTime) || authTime <= 0) return Infinity;
+  return Math.max(0, Math.floor(now / 1000) - authTime);
+}
+
+/**
+ * Decide whether a caller's token proves a recent enough sign-in to delete
+ * their account. Pure (no I/O) so it unit-tests under plain `node`.
+ *
+ * @param {object} token  Decoded ID token (request.auth.token).
+ * @param {object} [opts]
+ * @param {number} [opts.maxAgeSeconds]  Override the freshness window.
+ * @param {number} [opts.now]            Injected clock (ms) for tests.
+ * @return {{ok: boolean, reason?: string, ageSeconds: number, maxAgeSeconds: number}}
+ */
+function evaluateDeletionAuth(token, {maxAgeSeconds, now = Date.now()} = {}) {
+  const maxAge = Number.isFinite(maxAgeSeconds) && maxAgeSeconds > 0 ?
+    maxAgeSeconds :
+    reauthMaxAgeSeconds();
+  if (!token || typeof token !== "object") {
+    return {ok: false, reason: "no-auth", ageSeconds: Infinity, maxAgeSeconds: maxAge};
+  }
+  const ageSeconds = authTimeAgeSeconds(token, now);
+  if (ageSeconds > maxAge) {
+    return {ok: false, reason: "requires-recent-login", ageSeconds, maxAgeSeconds: maxAge};
+  }
+  return {ok: true, ageSeconds, maxAgeSeconds: maxAge};
+}
+
 // Delete every doc matching a query, paging so we never hold an unbounded
 // result set in memory. Returns the number of docs deleted.
 async function deleteByQuery(db, baseQuery, {recursive = false, pageSize = 300} = {}) {
@@ -173,4 +227,7 @@ module.exports = {
   ARRAY_MEMBERSHIP_COLLECTIONS,
   deleteByQuery,
   purgeUserData,
+  reauthMaxAgeSeconds,
+  authTimeAgeSeconds,
+  evaluateDeletionAuth,
 };
