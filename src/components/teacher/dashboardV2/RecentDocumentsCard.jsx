@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { iconForTool } from './dashboardV2Config'
 
-function RowMenu({ doc, onClose }) {
+export function RowMenu({ doc, onClose }) {
   const ref = useRef(null)
   const navigate = useNavigate()
 

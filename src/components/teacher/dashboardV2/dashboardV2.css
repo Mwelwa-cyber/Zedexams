@@ -783,7 +783,8 @@
 /* On the dark inset the button goes bright, solid orange (legacy hero
    style): vivid surface, white bold label, plain inline arrow, warm
    shadow — unmistakably clickable. */
-.tdv2-hero .tdv2-btn-copper {
+.tdv2-hero .tdv2-btn-copper,
+.tdv2m-hero .tdv2-btn-copper {
   background: linear-gradient(180deg, #fb8a3c 0%, #f97316 60%, #ea580c 100%);
   border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 14px;
@@ -792,16 +793,19 @@
   box-shadow: 0 8px 20px rgba(234, 88, 12, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
-.tdv2-hero .tdv2-btn-copper::after {
+.tdv2-hero .tdv2-btn-copper::after,
+.tdv2m-hero .tdv2-btn-copper::after {
   display: none;
 }
 
-.tdv2-hero .tdv2-btn-copper:hover:not(:disabled) {
+.tdv2-hero .tdv2-btn-copper:hover:not(:disabled),
+.tdv2m-hero .tdv2-btn-copper:hover:not(:disabled) {
   filter: brightness(1.05);
   box-shadow: 0 11px 26px rgba(234, 88, 12, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
-.tdv2-hero .tdv2-btn-copper .tdv2-btn-arrow {
+.tdv2-hero .tdv2-btn-copper .tdv2-btn-arrow,
+.tdv2m-hero .tdv2-btn-copper .tdv2-btn-arrow {
   width: auto;
   height: auto;
   background: transparent;
@@ -2179,8 +2183,9 @@ a.tdv2-check-row:hover {
   .tdv2-logo { justify-content: center; padding: 2px 0 12px; }
   .tdv2-logo-text { display: none; }
   /* On the icon rail, group labels become thin dividers — the uppercase
-     text can't fit 76px without clipping. */
-  .tdv2-nav-label {
+     text can't fit 76px without clipping. Scoped to the DESKTOP sidebar:
+     the mobile drawer reuses these classes and must keep full labels. */
+  .tdv2-sidebar .tdv2-nav-label {
     height: 1px;
     padding: 0;
     margin: 14px 10px 10px;
@@ -2189,18 +2194,18 @@ a.tdv2-check-row:hover {
     font-size: 0;
     color: transparent;
   }
-  .tdv2-nav-item {
+  .tdv2-sidebar .tdv2-nav-item {
     justify-content: center;
     padding: 10px;
   }
-  .tdv2-nav-item .tdv2-nav-text { display: none; }
-  .tdv2-nav-item.is-active::before { left: -10px; }
+  .tdv2-sidebar .tdv2-nav-item .tdv2-nav-text { display: none; }
+  .tdv2-sidebar .tdv2-nav-item.is-active::before { left: -10px; }
 
-  .tdv2-profile { justify-content: center; padding: 8px; }
-  .tdv2-profile-text,
-  .tdv2-profile-chevron { display: none; }
+  .tdv2-sidebar .tdv2-profile { justify-content: center; padding: 8px; }
+  .tdv2-sidebar .tdv2-profile-text,
+  .tdv2-sidebar .tdv2-profile-chevron { display: none; }
   /* Menu escapes the rail to the right; sidebar keeps overflow visible for it */
-  .tdv2-menu {
+  .tdv2-sidebar .tdv2-menu {
     left: calc(100% + 10px);
     bottom: 0;
     transform-origin: bottom left;
@@ -2219,8 +2224,8 @@ a.tdv2-check-row:hover {
 @media (max-width: 767px) {
   .tdv2 { grid-template-columns: 64px minmax(0, 1fr); }
   .tdv2-sidebar { padding: 12px 8px 8px; }
-  .tdv2-logo-chip { width: 40px; height: 40px; }
-  .tdv2-logo-chip img { width: 32px; height: 32px; }
+  .tdv2-sidebar .tdv2-logo-chip { width: 40px; height: 40px; }
+  .tdv2-sidebar .tdv2-logo-chip img { width: 32px; height: 32px; }
   .tdv2-header,
   .tdv2-content { padding-left: 12px; padding-right: 12px; }
   .tdv2-header { flex-wrap: wrap; gap: 10px; }
@@ -2235,6 +2240,474 @@ a.tdv2-check-row:hover {
   .tdv2-doc-date { display: none; }
   .tdv2-preview-banner { left: 76px; right: 12px; }
   .tdv2-menu { width: min(254px, calc(100vw - 90px)); }
+}
+
+/* ── MOBILE dashboard (< 768px) ──────────────────────────────────────
+   A dedicated information architecture, not the desktop squeezed down:
+   compact sticky header, slide-out drawer, single-column sections,
+   two-column Quick Create, fixed bottom navigation. Classes are tdv2m-*;
+   shared tokens/components (buttons, badges, cards) come from the tdv2
+   system above. */
+
+.tdv2.tdv2-is-mobile {
+  display: block;
+  grid-template-columns: none;
+}
+
+.tdv2m {
+  min-height: 100dvh;
+  /* Content must never hide behind the fixed bottom navigation */
+  padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Header ─ compact, sticky, safe-area aware */
+.tdv2m-header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 72px;
+  padding: calc(8px + env(safe-area-inset-top, 0px)) 16px 8px;
+  background: color-mix(in srgb, var(--cream) 88%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+
+.tdv2m-iconbtn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 13px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(16, 36, 62, 0.05);
+  color: var(--ink-2);
+  transition: transform 120ms var(--ease), background 160ms var(--ease);
+}
+
+.tdv2m-iconbtn:active {
+  transform: translateY(1px) scale(0.96);
+  background: var(--copper-tint);
+}
+
+.tdv2m-logo {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+}
+
+.tdv2m-logo img {
+  width: 34px;
+  height: 34px;
+}
+
+.tdv2m-title {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.tdv2m-title-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tdv2m-title-sub {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+/* Content column */
+.tdv2m-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 14px 16px 0;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.tdv2m-search {
+  min-height: 50px;
+  border-radius: 16px;
+  max-width: none;
+}
+
+.tdv2m-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+/* Hero */
+.tdv2m-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  padding: 22px 18px 18px;
+  color: #f2f7f7;
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(6, 42, 55, 0.9) 0%, rgba(6, 42, 55, 0) 60%),
+    radial-gradient(90% 140% at 92% -20%, rgba(31, 122, 122, 0.5) 0%, rgba(11, 48, 56, 0) 55%),
+    linear-gradient(135deg, #0a2b33 0%, #0e3a42 55%, #0b3a42 100%);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 14px 34px rgba(6, 28, 74, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.tdv2m-hero-art {
+  position: absolute;
+  top: -6px;
+  right: -14px;
+  width: 150px;
+  opacity: 0.9;
+  -webkit-mask-image: radial-gradient(80% 82% at 50% 50%, #000 55%, transparent 85%);
+  mask-image: radial-gradient(80% 82% at 50% 50%, #000 55%, transparent 85%);
+  pointer-events: none;
+  user-select: none;
+}
+
+.tdv2m-hero-name {
+  margin: 10px 0 8px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 30px;
+  line-height: 36px;
+  color: #ffffff;
+  /* keep clear of the illustration */
+  max-width: calc(100% - 110px);
+  overflow-wrap: anywhere;
+}
+
+.tdv2m-hero-sub {
+  margin: 0 0 16px;
+  font-size: 15px;
+  line-height: 22px;
+  color: rgba(255, 255, 255, 0.75);
+  max-width: calc(100% - 90px);
+}
+
+/* Last-opened inset: content row, then a full-width button underneath —
+   nothing floats over the text. */
+.tdv2m-inset {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(4, 18, 26, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.tdv2m-inset-row {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-width: 0;
+}
+
+.tdv2m-cta {
+  width: 100%;
+  min-height: 48px;
+  justify-content: center;
+}
+
+/* Quick Create — two columns at every supported width */
+.tdv2m-qc-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.tdv2m-tile {
+  min-height: 205px;
+  padding: 14px;
+}
+
+.tdv2m-tile .tdv2-tile-desc {
+  padding-right: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+}
+
+.tdv2m-tile .tdv2-tile-arrow {
+  width: 34px;
+  height: 34px;
+  right: 12px;
+  bottom: 12px;
+}
+
+/* Recent documents — two-line titles, footer row for date + badge,
+   44px menu button that can never be pushed off-screen. */
+.tdv2m-doc-card {
+  padding: 8px 12px;
+}
+
+.tdv2m-doc-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 2px;
+}
+
+.tdv2m-doc-row + .tdv2m-doc-row {
+  border-top: 1px solid #f2ebdf;
+}
+
+.tdv2.is-dark .tdv2m-doc-row + .tdv2m-doc-row {
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+.tdv2m-doc-row .tdv2-doc-icon {
+  margin-top: 2px;
+}
+
+.tdv2m-doc-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tdv2m-doc-title {
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.tdv2m-doc-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 3px;
+}
+
+.tdv2m-doc-more {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 11px;
+  color: var(--grey);
+  transition: background 140ms var(--ease);
+}
+
+.tdv2m-doc-more:active {
+  background: var(--copper-tint);
+  color: var(--ink);
+}
+
+/* Bottom navigation */
+.tdv2m-bottomnav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 70;
+  display: flex;
+  align-items: stretch;
+  height: calc(72px + env(safe-area-inset-bottom, 0px));
+  padding: 6px max(8px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px)
+    max(8px, env(safe-area-inset-left, 0px));
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -6px 20px rgba(16, 36, 62, 0.08);
+}
+
+.tdv2m-bn-item {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border-radius: 12px;
+  font-size: 11px;
+  line-height: 15px;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+  color: var(--ink-2);
+  transition: color 140ms var(--ease), transform 120ms var(--ease);
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+}
+
+.tdv2m-bn-item:active {
+  transform: scale(0.95);
+}
+
+.tdv2m-bn-label {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tdv2m-bn-item.is-active {
+  color: var(--copper);
+  font-weight: 650;
+}
+
+/* Drawer */
+.tdv2m-drawer-root {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.tdv2m-drawer-root.is-open {
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.tdv2m-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 14, 24, 0.55);
+  opacity: 0;
+  transition: opacity 240ms var(--ease);
+}
+
+.tdv2m-drawer-root.is-open .tdv2m-backdrop {
+  opacity: 1;
+}
+
+.tdv2m-drawer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(86vw, 360px);
+  display: flex;
+  flex-direction: column;
+  padding: calc(14px + env(safe-area-inset-top, 0px)) 14px
+    calc(14px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, #071d33 0%, #0b3038 100%);
+  color: rgba(255, 255, 255, 0.78);
+  box-shadow: 12px 0 40px rgba(0, 0, 0, 0.4);
+  transform: translateX(-104%);
+  transition: transform 250ms var(--ease);
+}
+
+.tdv2m-drawer-root.is-open .tdv2m-drawer {
+  transform: translateX(0);
+}
+
+.tdv2m-drawer-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 2px 4px 14px;
+}
+
+.tdv2m-drawer-close {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.75);
+  transition: background 140ms var(--ease);
+}
+
+.tdv2m-drawer-close:active {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.tdv2m-drawer-nav {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 2px 12px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+/* Account panel opens above the drawer's profile card */
+.tdv2m-account {
+  width: 100%;
+  max-height: min(70dvh, 520px);
+  overflow-y: auto;
+}
+
+/* Preview chrome repositioned above the bottom nav on mobile */
+@media (max-width: 767px) {
+  .tdv2-preview-banner {
+    left: 12px;
+    right: auto;
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    max-width: calc(100vw - 24px);
+  }
+  .tdv2-panel {
+    right: 12px;
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Narrow phones (≤ 350px): tighter padding, no hero art */
+@media (max-width: 350px) {
+  .tdv2m-content {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .tdv2m-header {
+    padding-left: 12px;
+    padding-right: 12px;
+    gap: 8px;
+  }
+  .tdv2m-title-sub {
+    display: none;
+  }
+  /* Give the wordmark room on very narrow phones; Help stays reachable
+     from the drawer and bottom sheet */
+  .tdv2m-help-btn {
+    display: none;
+  }
+  .tdv2m-hero-art {
+    display: none;
+  }
+  .tdv2m-hero-name,
+  .tdv2m-hero-sub {
+    max-width: 100%;
+  }
+  .tdv2m-tile {
+    min-height: 0;
+  }
 }
 
 /* ── Reduced motion ──────────────────────────────────────────────────── */
