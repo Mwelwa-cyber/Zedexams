@@ -11,36 +11,155 @@
 //     sent to the server.
 //   - The custom token from verifyPasskeyAuthentication goes straight into
 //     signInWithCustomToken and is never logged or persisted.
-//   - Nothing passkey-related is written to localStorage.
+//   - No credential, challenge, or token material is ever written to
+//     localStorage. The ONLY passkey-adjacent localStorage entry is the
+//     region routing hint (a bare region name — see passkeyRegionCore.js).
+//
+// Regional routing (staged us-central1 → africa-south1 migration): the flow
+// callables (registration + sign-in) can be served from africa-south1 twins
+// colocated with Firestore. Which region to use is decided HERE and nowhere
+// else, from settings/global.featureFlags.passkeyFunctionsRegion (live
+// snapshot, so a flag flip is an instant no-redeploy rollback) via the pure
+// resolver in passkeyRegionCore.js. Management callables always stay on
+// us-central1 — they have no regional twin.
 
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { signInWithCustomToken } from 'firebase/auth'
+import { doc, onSnapshot } from 'firebase/firestore'
 import {
   browserSupportsWebAuthn,
   startRegistration,
   startAuthentication,
 } from '@simplewebauthn/browser'
-import app, { auth } from '../firebase/config'
+import app, { auth, db } from '../firebase/config'
 import { capture } from '../utils/analytics'
+import {
+  PASSKEY_PRIMARY_REGION,
+  PASSKEY_REGIONAL_REGION,
+  PASSKEY_REGION_HINT_KEY,
+  regionalCallableName,
+  sanitizeRegionHint,
+  resolvePasskeyFunctionsRegion,
+  regionHintAfterAuth,
+  shouldFallbackToPrimary,
+} from './passkeyRegionCore'
 
 // Callables are created lazily on first use (not at module import) so pages
 // that merely import this service — and jsdom specs that mock the Firebase
 // config — never pay for or depend on Functions initialisation.
-let callableCache = null
-function callables() {
-  if (!callableCache) {
-    const functions = getFunctions(app, 'us-central1')
-    callableCache = {
-      generateRegistrationOptions: httpsCallable(functions, 'generatePasskeyRegistrationOptions'),
-      verifyRegistration: httpsCallable(functions, 'verifyPasskeyRegistration'),
-      generateAuthenticationOptions: httpsCallable(functions, 'generatePasskeyAuthenticationOptions'),
-      verifyAuthentication: httpsCallable(functions, 'verifyPasskeyAuthentication'),
+// Management callables exist only in us-central1; flow callables have one
+// instance per region (the africa-south1 twins use the `...Africa` names).
+let managementCache = null
+function managementCallables() {
+  if (!managementCache) {
+    const functions = getFunctions(app, PASSKEY_PRIMARY_REGION)
+    managementCache = {
       listUserPasskeys: httpsCallable(functions, 'listUserPasskeys'),
       renameUserPasskey: httpsCallable(functions, 'renameUserPasskey'),
       removeUserPasskey: httpsCallable(functions, 'removeUserPasskey'),
     }
   }
-  return callableCache
+  return managementCache
+}
+
+const flowCaches = {}
+function flowCallables(region) {
+  if (!flowCaches[region]) {
+    const functions = getFunctions(app, region)
+    const name = (base) =>
+      region === PASSKEY_REGIONAL_REGION ? regionalCallableName(base) : base
+    flowCaches[region] = {
+      generateRegistrationOptions: httpsCallable(functions, name('generatePasskeyRegistrationOptions')),
+      verifyRegistration: httpsCallable(functions, name('verifyPasskeyRegistration')),
+      generateAuthenticationOptions: httpsCallable(functions, name('generatePasskeyAuthenticationOptions')),
+      verifyAuthentication: httpsCallable(functions, name('verifyPasskeyAuthentication')),
+    }
+  }
+  return flowCaches[region]
+}
+
+// ── Region routing state ─────────────────────────────────────────────────
+// A live snapshot of settings/global.featureFlags, started lazily on the
+// first flow call and kept open so a rollback flag flip re-routes the very
+// next attempt. The Login page already subscribes to the same doc through
+// PlatformSettingsProvider, so the SDK shares the underlying watch — this
+// adds no extra reads and (once mounted) no extra latency. Fail-safe: any
+// read error resolves to {} → us-central1.
+let regionFlags = null
+let regionFlagsReady = null
+function ensureRegionFlags() {
+  if (!regionFlagsReady) {
+    regionFlagsReady = new Promise((resolve) => {
+      try {
+        onSnapshot(
+          doc(db, 'settings', 'global'),
+          (snap) => {
+            regionFlags = (snap.exists() && snap.data()?.featureFlags) || {}
+            resolve()
+          },
+          () => {
+            regionFlags = regionFlags || {}
+            resolve()
+          },
+        )
+      } catch {
+        regionFlags = {}
+        resolve()
+      }
+    })
+  }
+  return regionFlagsReady
+}
+
+function readRegionHint() {
+  try {
+    return sanitizeRegionHint(window.localStorage.getItem(PASSKEY_REGION_HINT_KEY))
+  } catch {
+    return null
+  }
+}
+
+// hint === null clears the entry — a rollback flag flip scrubs pilot devices
+// on their next successful sign-in.
+function persistRegionHint(hint) {
+  try {
+    if (hint) window.localStorage.setItem(PASSKEY_REGION_HINT_KEY, hint)
+    else window.localStorage.removeItem(PASSKEY_REGION_HINT_KEY)
+  } catch {
+    // Storage unavailable (private mode/quota) — routing just stays default.
+  }
+}
+
+async function resolveFlowRegion() {
+  await ensureRegionFlags()
+  return resolvePasskeyFunctionsRegion({
+    featureFlags: regionFlags,
+    uid: auth.currentUser?.uid || null,
+    deviceHint: readRegionHint(),
+  }).region
+}
+
+/**
+ * Call one flow callable in `region`, with a narrow one-shot fallback to
+ * us-central1 (see shouldFallbackToPrimary for exactly when that is safe).
+ * Returns { data, regionUsed } so a flow that fell back completes its later
+ * steps on the same region. Cross-region completion is safe regardless —
+ * challenges live in the one shared Firestore database and are single-use.
+ */
+async function callFlow(region, callableName, payload, phase) {
+  try {
+    const { data } = await flowCallables(region)[callableName](payload)
+    return { data, regionUsed: region }
+  } catch (err) {
+    if (
+      region !== PASSKEY_PRIMARY_REGION &&
+      shouldFallbackToPrimary({ code: err?.code, phase })
+    ) {
+      const { data } = await flowCallables(PASSKEY_PRIMARY_REGION)[callableName](payload)
+      return { data, regionUsed: PASSKEY_PRIMARY_REGION }
+    }
+    throw err
+  }
 }
 
 // Mirror of the server-side cap in functions/passkeys/passkeyCore.js —
@@ -197,13 +316,20 @@ export async function registerPasskey(name) {
   }
   capture('passkey_setup_started')
   try {
-    const { data } = await callables().generateRegistrationOptions({})
-    const attestation = await startRegistration({ optionsJSON: data.options })
-    const { data: verified } = await callables().verifyRegistration({
-      challengeId: data.challengeId,
+    const region = await resolveFlowRegion()
+    const opts = await callFlow(region, 'generateRegistrationOptions', {}, 'options')
+    const attestation = await startRegistration({ optionsJSON: opts.data.options })
+    const { data: verified } = await callFlow(opts.regionUsed, 'verifyRegistration', {
+      challengeId: opts.data.challengeId,
       response: attestation,
       name: name || '',
-    })
+    }, 'verify')
+    // Registration is authenticated, so the uid is known here — prime (or
+    // clear) this device's pre-auth sign-in routing hint.
+    persistRegionHint(regionHintAfterAuth({
+      featureFlags: regionFlags,
+      uid: auth.currentUser?.uid || null,
+    }))
     capture('passkey_setup_completed')
     return verified.passkey
   } catch (err) {
@@ -228,13 +354,20 @@ export async function signInWithPasskey() {
   }
   capture('passkey_signin_started')
   try {
-    const { data } = await callables().generateAuthenticationOptions({})
-    const assertion = await startAuthentication({ optionsJSON: data.options })
-    const { data: verified } = await callables().verifyAuthentication({
-      challengeId: data.challengeId,
+    const region = await resolveFlowRegion()
+    const opts = await callFlow(region, 'generateAuthenticationOptions', {}, 'options')
+    const assertion = await startAuthentication({ optionsJSON: opts.data.options })
+    const { data: verified } = await callFlow(opts.regionUsed, 'verifyAuthentication', {
+      challengeId: opts.data.challengeId,
       response: assertion,
-    })
+    }, 'verify')
     const cred = await signInWithCustomToken(auth, verified.token)
+    // Now that the uid is known, refresh (or clear) this device's pre-auth
+    // routing hint against the live flag.
+    persistRegionHint(regionHintAfterAuth({
+      featureFlags: regionFlags,
+      uid: cred.user?.uid || null,
+    }))
     capture('passkey_signin_completed')
     return cred
   } catch (err) {
@@ -246,20 +379,20 @@ export async function signInWithPasskey() {
 
 /** List the signed-in user's passkeys (safe metadata only). */
 export async function listPasskeys() {
-  const { data } = await callables().listUserPasskeys({})
+  const { data } = await managementCallables().listUserPasskeys({})
   return data
 }
 
 /** Rename one of the signed-in user's passkeys. */
 export async function renamePasskey(credentialId, name) {
-  const { data } = await callables().renameUserPasskey({ credentialId, name })
+  const { data } = await managementCallables().renameUserPasskey({ credentialId, name })
   return data
 }
 
 /** Remove one of the signed-in user's passkeys — it stops working
  * immediately. The same device can be re-registered later. */
 export async function removePasskey(credentialId) {
-  const { data } = await callables().removeUserPasskey({ credentialId })
+  const { data } = await managementCallables().removeUserPasskey({ credentialId })
   capture('passkey_removed')
   return data
 }

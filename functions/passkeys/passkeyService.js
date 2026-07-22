@@ -121,6 +121,29 @@ async function writeAudit(type, {uid = null, credentialId = null, result, reques
   }
 }
 
+// ── Latency telemetry (regional migration) ───────────────────────────────
+// Per-stage timings for the sign-in path so the us-central1 → africa-south1
+// move is measured, not guessed. The line carries ONLY stage names,
+// millisecond durations, the serving region and an outcome word — never
+// uids, challenges, credential ids, tokens, assertions, or any payload
+// fragment — so it is always safe in Cloud Logging. Best-effort: telemetry
+// must never break the auth flow.
+function logAuthTimings(op, region, timer, outcome = "success") {
+  try {
+    const {stages, totalMs} = timer.snapshot();
+    console.info("[passkeys] PASSKEY_AUTH_TIMINGS", JSON.stringify({
+      event: "PASSKEY_AUTH_TIMINGS",
+      op,
+      region: region || "unspecified",
+      outcome,
+      stages,
+      totalMs,
+    }));
+  } catch {
+    // Swallow — a telemetry failure must never fail authentication.
+  }
+}
+
 // ── Challenge storage ────────────────────────────────────────────────────
 // Only the SHA-256 of the challenge is stored (the raw value goes to the
 // client once and is compared back via SimpleWebAuthn's expectedChallenge
@@ -388,27 +411,37 @@ async function runVerifyPasskeyRegistration(request) {
 }
 
 // Authentication step 1 — pre-auth: rate-limited per IP, App Check observed.
-async function runGeneratePasskeyAuthenticationOptions(request) {
+// `meta.region` is the serving region stamped by the onCall wrapper in
+// functions/index.js — telemetry only, never a behaviour switch.
+async function runGeneratePasskeyAuthenticationOptions(request, meta = {}) {
+  const timer = core.createStageTimer();
   await assertCallableRateLimit(request, {action: "passkeyAuth", ipPerMin: 30});
   const flags = await getPasskeyFlags();
   if (!flags.enabled) throw disabledError();
+  timer.mark("preChecks");
 
   const options = await generateAuthenticationOptions({
     rpID: rpId(),
     userVerification: "required",
     allowCredentials: [], // discoverable credentials — the authenticator picks
   });
+  timer.mark("optionsGenerate");
   const challengeId = await storeChallenge({
     challenge: options.challenge,
     operation: "authentication",
     uid: null,
   });
+  timer.mark("challengeStore");
+  logAuthTimings("generateAuthenticationOptions", meta.region, timer);
   return {options, challengeId};
 }
 
 // Authentication step 2 — verify the assertion, resolve the uid from the
 // stored credential (NEVER from the client), mint a custom token.
-async function runVerifyPasskeyAuthentication(request) {
+// `meta.region` is the serving region stamped by the onCall wrapper in
+// functions/index.js — telemetry only, never a behaviour switch.
+async function runVerifyPasskeyAuthentication(request, meta = {}) {
+  const timer = core.createStageTimer();
   await assertCallableRateLimit(request, {action: "passkeyAuth", ipPerMin: 30});
   const flags = await getPasskeyFlags();
   if (!flags.enabled) throw disabledError();
@@ -419,12 +452,15 @@ async function runVerifyPasskeyAuthentication(request) {
         {code: CODES.VERIFICATION_FAILED});
   }
   const credentialId = credentialIdFromResponse(response);
+  timer.mark("preChecks");
   const {challengeHash} = await consumeChallenge({
     challengeId, operation: "authentication", expectedUid: null, request,
   });
+  timer.mark("challengeConsume");
 
   const credSnap = await db().collection(CREDENTIALS).doc(credentialId).get();
   const credData = credSnap.exists ? credSnap.data() : null;
+  timer.mark("credentialLookup");
   // Duplicate-chooser diagnostics (docs/PASSKEYS.md → "Seeing the account
   // twice"): logs ONLY the SHA-256 of the credential id — comparing this
   // hash across two chooser rows distinguishes a stale device-side
@@ -477,6 +513,7 @@ async function runVerifyPasskeyAuthentication(request) {
         "We could not verify this passkey. Try again or use another sign-in method.",
         {code: CODES.VERIFICATION_FAILED});
   }
+  timer.mark("webauthnVerify");
 
   // Clone detection (WebAuthn §6.1.1): a rolled-back or repeated non-zero
   // counter means two authenticators hold "the same" credential. The check
@@ -513,6 +550,7 @@ async function runVerifyPasskeyAuthentication(request) {
         "We could not verify this passkey. Try again or use another sign-in method.",
         {code: CODES.VERIFICATION_FAILED});
   }
+  timer.mark("counterTxn");
 
   // Suspended/deleted accounts must not mint a session (throws HttpsError),
   // and admin accounts never mint passkey sessions at all — their mandatory
@@ -523,9 +561,13 @@ async function runVerifyPasskeyAuthentication(request) {
     await writeAudit(EVENTS.AUTH_FAILED, {uid, credentialId, result: "admin-mfa-required", request});
     throw adminMfaError();
   }
+  timer.mark("profileLookup");
 
   const customToken = await admin.auth().createCustomToken(uid);
+  timer.mark("customToken");
   await writeAudit(EVENTS.AUTH_SUCCEEDED, {uid, credentialId, result: "success", request});
+  timer.mark("auditWrite");
+  logAuthTimings("verifyAuthentication", meta.region, timer);
   // The token is returned once over TLS and never logged or stored.
   return {token: customToken};
 }

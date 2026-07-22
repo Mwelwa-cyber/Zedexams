@@ -34,23 +34,120 @@ I/O lives in `functions/passkeys/passkeyService.js`; the `onCall` wrappers
 (region, App Check telemetry) are in `functions/index.js`. The one client
 entry point is `src/services/passkeyService.js`.
 
-## Cloud Functions (all `us-central1` callables)
+## Cloud Functions (v2 callables)
 
-| Function | Auth | Purpose |
-|---|---|---|
-| `generatePasskeyRegistrationOptions` | signed-in + recent auth | mint registration options + challenge |
-| `verifyPasskeyRegistration` | signed-in | verify attestation, persist credential |
-| `generatePasskeyAuthenticationOptions` | none (rate-limited per IP) | mint auth options + challenge |
-| `verifyPasskeyAuthentication` | none (rate-limited per IP) | verify assertion → custom token |
-| `listUserPasskeys` | signed-in | safe metadata for own passkeys |
-| `renameUserPasskey` | signed-in owner | rename |
-| `removeUserPasskey` | signed-in owner + recent auth | delete credential (immediate) |
+| Function | Region(s) | Auth | Purpose |
+|---|---|---|---|
+| `generatePasskeyRegistrationOptions` | `us-central1` (+ `africa-south1` twin `…Africa`) | signed-in + recent auth | mint registration options + challenge |
+| `verifyPasskeyRegistration` | `us-central1` (+ `africa-south1` twin `…Africa`) | signed-in | verify attestation, persist credential |
+| `generatePasskeyAuthenticationOptions` | `us-central1` (+ `africa-south1` twin `…Africa`) | none (rate-limited per IP) | mint auth options + challenge |
+| `verifyPasskeyAuthentication` | `us-central1` (+ `africa-south1` twin `…Africa`) | none (rate-limited per IP) | verify assertion → custom token |
+| `listUserPasskeys` | `us-central1` only | signed-in | safe metadata for own passkeys |
+| `renameUserPasskey` | `us-central1` only | signed-in owner | rename |
+| `removeUserPasskey` | `us-central1` only | signed-in owner + recent auth | delete credential (immediate) |
 
 All follow the repo conventions: `assertVerifiedAuth` (authGuard),
 `assertCallableRateLimit` (rateLimit.js — per-IP buckets cover the pre-auth
 endpoints), `enforceAppCheck: shouldEnforceAppCheck(label)` under the graduated
 `APPCHECK_ENFORCE` rollout, `HttpsError` with a machine-readable
 `details.code` (`PASSKEY_*`).
+
+## Regional deployment (staged us-central1 → africa-south1 migration)
+
+> Snapshot as of 2026-07-22 — the migration is mid-flight; verify the flag
+> state and deployed twins before acting.
+
+**Why.** The `(default)` Firestore database lives in `africa-south1`; the
+passkey callables were born in `us-central1`. A sign-in performs ~6 sequential
+Firestore operations (challenge-consume transaction, credential get, counter
+transaction, active-account check, profile get, audit write), each paying a
+US↔ZA round trip (~180–250 ms). Measured before the migration: warm sign-in
+≈ 2.9 s, cold ≈ 4.5 s, while the WebAuthn cryptography itself is ~4 ms —
+the latency is overwhelmingly cross-region Firestore, which colocating the
+functions removes.
+
+**What.** The four FLOW callables have `africa-south1` twins exported as
+`<baseName>Africa` (temporary migration names), deployed ALONGSIDE — never
+replacing — the `us-central1` originals. Twins are built by
+`passkeyRegionalCallable()` in `functions/index.js` from the registry in
+`functions/passkeys/passkeyRegions.js`: the SAME handler, runtime options
+(30 s / 256 MiB), and App Check enforcement key (the base name), so request/
+response schemas, challenge/replay/counter/origin/RP-ID checks, rate limits
+and error codes are identical by construction (pinned by
+`passkeyRegions.test.js`). Both regions share the one Firestore database, so
+challenges/credentials/audit rows are region-agnostic — a flow can even
+complete cross-region. The three management callables stay `us-central1`
+only: they are not on the sign-in path.
+
+**Routing + rollback flag** (`settings/global.featureFlags.passkeyFunctionsRegion`):
+
+```jsonc
+{ "mode": "off" }                                  // default: everyone on us-central1
+{ "mode": "pilot", "pilotUids": ["<testTeacherUid>"] }  // phase 1: only the approved test teacher
+{ "mode": "all" }                                  // full regional rollout
+```
+
+Resolved in ONE place — `src/services/passkeyService.js` via the pure
+`src/services/passkeyRegionCore.js` (mirrors the server registry; guarded by
+`scripts/test-passkey-region-routing.mjs`). The service keeps a live snapshot
+of `settings/global`, so **rollback is a flag flip, no redeploy**: set
+`mode: "off"` (or delete the field) and the very next attempt routes to
+`us-central1`. Fail-safe: missing/invalid config, flag read errors, and
+storage errors all resolve to `us-central1`.
+
+- **Authenticated flows** (registration): the uid is checked against
+  `pilotUids`.
+- **Pre-auth sign-in**: no uid exists yet, so pilot devices are primed with a
+  hint — after a successful authenticated passkey operation by a pilot uid,
+  the service stores the bare region name under
+  `zedexams.passkeyRegionHint` in localStorage (routing metadata only; never
+  credential/challenge/token material). The hint is re-validated against the
+  live flag on every use and cleared post-sign-in whenever the resolved uid
+  no longer routes regionally — so a rollback also scrubs pilot devices.
+- **Fallback**: a regional call that fails `functions/not-found` (twin absent;
+  plus `functions/unavailable` for the options step only) is retried once on
+  `us-central1`. The verify step is never retried on ambiguous failures —
+  and even a double-submit fails closed on the single-use challenge
+  (`PASSKEY_CHALLENGE_REUSED`), never replays.
+
+**Latency telemetry.** Both sign-in-path handlers log a
+`PASSKEY_AUTH_TIMINGS` line (stage names + ms + serving region + outcome —
+never uids/challenges/ids/tokens): stages `preChecks`, `challengeConsume`,
+`credentialLookup`, `webauthnVerify`, `counterTxn`, `profileLookup`,
+`customToken`, `auditWrite`, plus `totalMs` (canonical list:
+`PASSKEY_AUTH_TIMING_STAGES` in `passkeyCore.js`). Query Cloud Logging for
+`PASSKEY_AUTH_TIMINGS` and compare `region:"us-central1"` vs
+`region:"africa-south1"` samples. Validation bar before widening the rollout:
+≥30 warm + ≥5 cold successful regional sign-ins, the negative suite (expired/
+reused challenge, bad assertion, counter rollback, unknown credential, App
+Check rejection) behaving identically, no failure-rate increase, no duplicate
+`passkeyAuditLog` rows, p50/p95/max reported per stage. Target: warm
+server-side verify < 1 s.
+
+**Deployment sequence** (functions normally ship via `deploy-firebase.yml`
+on merge; the scoped commands below are for a controlled manual rollout —
+functions deploys are otherwise CI-only per CLAUDE.md):
+
+```bash
+# 1. deploy ONLY the new twins (existing functions untouched):
+npx firebase deploy --only functions:generatePasskeyRegistrationOptionsAfrica,functions:verifyPasskeyRegistrationAfrica,functions:generatePasskeyAuthenticationOptionsAfrica,functions:verifyPasskeyAuthenticationAfrica
+# 2. confirm the originals still exist and serve:
+npx firebase functions:list | grep -i passkey
+# 3. flip the flag to pilot for the test teacher; test register + sign-in +
+#    all negative paths; watch PASSKEY_AUTH_TIMINGS + passkeyAuditLog.
+# 4. rollback drill: set mode:"off", confirm the next sign-in uses us-central1.
+# 5. widen (mode:"all") only after the validation bar above is met.
+```
+
+**Old-function removal** is a separate, explicitly-approved step after the
+observation window closes (originals kept throughout; nothing in this
+migration deletes them). Sequenced after removal approval: fold the twins
+back to the base names in one region, update the client, then delete. A
+`minInstances: 1` evaluation for `verifyPasskeyAuthenticationAfrica` (cold
+starts only; idle-cost trade-off) and any Firestore-operation
+reduction/parallelisation (audit-write placement, transaction return values)
+are ALSO separate follow-ups — do not bundle them with the region move, and
+never parallelise challenge consumption or the counter transaction.
 
 ## Relying-party configuration (environment-managed)
 
@@ -91,7 +188,9 @@ authenticator.
   Never biometrics, assertions, tokens, or raw ids.
 
 Clients get passkey metadata exclusively through `listUserPasskeys` (never the
-public key or counter). Nothing passkey-related touches localStorage.
+public key or counter). No credential, challenge, or token material ever
+touches localStorage — the only passkey-adjacent entry is the region routing
+hint (a bare region name; see "Regional deployment" above).
 
 ## Rollout / feature flag
 
@@ -175,10 +274,20 @@ blocker.
   `functions/passkeys/passkeyService.test.js` (handler flows against the
   in-memory Firestore stub: signed-out/duplicate/wrong-challenge/wrong-origin/
   expired/replayed/revoked/unknown/suspended rejections, uid resolution,
-  token minting, cross-user management denial, limit).
+  token minting, cross-user management denial, limit, timing-log hygiene —
+  every canonical stage present, nothing sensitive in the line) +
+  `functions/passkeys/passkeyRegions.test.js` (region registry + index.js
+  parity: twins wrap the same handlers under the same App Check labels, the
+  originals remain deployed, management has no twins).
+- `npm run test:passkey-region-routing` — pure client routing
+  (`passkeyRegionCore.js`): default/rollback to `us-central1`, pilot
+  allow-listing, device-hint lifecycle + tamper rejection, fallback policy,
+  and the client⇄server registry mirror.
 - `npm run test:rules-text` — pins the four passkey collections server-only.
 - `npm run test:unit` — `PasskeySignInButton.spec.jsx` (label, supporting
-  copy, loading/disabled behaviour).
+  copy, loading/disabled behaviour) + `passkeyService.spec.js` (which region
+  instance/callable each flow actually uses, narrow fallback, live rollback
+  via the settings snapshot, management pinned to `us-central1`).
 
 ## Deployment
 
