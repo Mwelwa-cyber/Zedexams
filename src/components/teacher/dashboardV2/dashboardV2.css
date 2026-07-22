@@ -263,7 +263,7 @@
 }
 
 .tdv2-nav-label {
-  font-size: 11px;
+  font-size: 11.5px;
   line-height: 16px;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -302,8 +302,8 @@
 
 .tdv2-nav-item.is-active {
   position: relative;
-  background: linear-gradient(180deg, rgba(216, 107, 50, 0.96) 0%, rgba(157, 58, 18, 0.98) 100%);
-  border-color: rgba(232, 120, 50, 0.65);
+  background: linear-gradient(180deg, #d06a32 0%, #a94419 100%);
+  border-color: rgba(232, 120, 50, 0.55);
   color: #ffffff;
   font-weight: 600;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.36);
@@ -339,8 +339,8 @@
   width: 100%;
   padding: 10px 12px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
   text-align: left;
   transition: background 180ms var(--ease), border-color 180ms var(--ease),
@@ -348,8 +348,8 @@
 }
 
 .tdv2-profile:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(232, 120, 50, 0.55);
+  background: rgba(255, 255, 255, 0.13);
+  border-color: rgba(232, 120, 50, 0.7);
   transform: translateY(-2px);
 }
 
@@ -754,6 +754,18 @@
   color: rgba(255, 255, 255, 0.6);
 }
 
+/* On the dark inset the default copper button reads too muted — brighten
+   the surface, add a visible warm border, and drop the heavy dark shadow. */
+.tdv2-hero .tdv2-btn-copper {
+  background: linear-gradient(180deg, #ef8340 0%, #d06a32 55%, #b34a1c 100%);
+  border: 1.5px solid rgba(255, 214, 180, 0.55);
+  box-shadow: 0 6px 16px rgba(178, 74, 28, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.tdv2-hero .tdv2-btn-copper:hover:not(:disabled) {
+  box-shadow: 0 9px 22px rgba(178, 74, 28, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
 /* ── Cards, headings ─────────────────────────────────────────────────── */
 
 .tdv2-card {
@@ -908,7 +920,7 @@
 }
 
 .tdv2-tile-desc {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.45;
   color: var(--ink-2);
   /* keep copy clear of the circular arrow pinned bottom-right */
@@ -919,14 +931,14 @@
   position: absolute;
   right: 16px;
   bottom: 16px;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
   border-radius: 50%;
   background: var(--copper-tint);
   color: var(--copper);
-  border: 1px solid rgba(198, 90, 36, 0.25);
+  border: 1.5px solid rgba(198, 90, 36, 0.5);
   transition: transform 200ms var(--ease), background 200ms var(--ease), color 200ms var(--ease);
 }
 
@@ -941,6 +953,9 @@
 .tdv2-ai-card {
   display: flex;
   flex-direction: column;
+  /* Hug the content instead of stretching to Quick Create's height — the
+     recommendation panel was mostly empty space below its copy. */
+  align-self: start;
   background: linear-gradient(180deg, #f4f8ff 0%, #e9f1fe 100%);
   border-color: #d5e3f8;
 }
@@ -950,7 +965,6 @@
 }
 
 .tdv2-ai-body {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -959,6 +973,29 @@
   background: rgba(255, 255, 255, 0.85);
   border: 1px solid #dde8f9;
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.06);
+}
+
+/* Context chips: which class/subject the recommendation is about */
+.tdv2-ai-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tdv2-ai-chip {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1d4fbe;
+  background: rgba(37, 99, 235, 0.09);
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.tdv2.is-dark .tdv2-ai-chip {
+  color: #9dbdf7;
+  background: rgba(37, 99, 235, 0.16);
+  border-color: rgba(37, 99, 235, 0.4);
 }
 
 .tdv2-ai-icon {
@@ -1062,7 +1099,7 @@
 }
 
 .tdv2-doc-title {
-  font-size: 13.5px;
+  font-size: 14.5px;
   font-weight: 600;
   color: var(--ink);
   white-space: nowrap;
@@ -1071,7 +1108,7 @@
 }
 
 .tdv2-doc-meta {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--ink-2);
   white-space: nowrap;
   overflow: hidden;
@@ -1243,7 +1280,7 @@
 }
 
 .tdv2-ws-desc {
-  font-size: 12.5px;
+  font-size: 13.5px;
   line-height: 1.45;
   color: var(--ink-2);
   padding-right: 26px;
@@ -1359,7 +1396,7 @@ a.tdv2-check-row:hover {
 .tdv2-check-label {
   flex: 1;
   min-width: 0;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--ink);
 }
@@ -1480,7 +1517,7 @@ a.tdv2-check-row:hover {
 }
 
 .tdv2-activity-meta {
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--ink-2);
 }
 

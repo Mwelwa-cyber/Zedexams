@@ -25,8 +25,14 @@ export default function AiRecommendationsCard({ recommendations = [] }) {
               <BookOpen size={22} strokeWidth={1.75} />
             </span>
             <h3 className="tdv2-ai-title">{primary.title}</h3>
+            {primary.context ? (
+              <div className="tdv2-ai-context">
+                {primary.context.grade ? <span className="tdv2-ai-chip">{primary.context.grade}</span> : null}
+                {primary.context.subject ? <span className="tdv2-ai-chip">{primary.context.subject}</span> : null}
+              </div>
+            ) : null}
             <p className="tdv2-ai-text">{primary.text}</p>
-            <Link to={primary.to} className="tdv2-btn-outline" style={{ marginTop: 'auto' }}>
+            <Link to={primary.to} className="tdv2-btn-outline" style={{ marginTop: 4 }}>
               {primary.actionLabel || 'Open'}
               <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
             </Link>
@@ -51,7 +57,7 @@ export default function AiRecommendationsCard({ recommendations = [] }) {
             Nothing needs planning right now. New recommendations appear here as
             your term progresses.
           </p>
-          <Link to="/teacher/library" className="tdv2-btn-outline" style={{ marginTop: 'auto' }}>
+          <Link to="/teacher/library" className="tdv2-btn-outline" style={{ marginTop: 4 }}>
             Open My Library
             <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
           </Link>
