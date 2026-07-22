@@ -52,7 +52,7 @@ export default function TopHeader({ teacher, termChip, notificationCount = 0 }) 
 
       <div className="tdv2-header-right">
         <Link
-          to="/teacher/settings"
+          to="/settings/notifications"
           className="tdv2-iconbtn"
           aria-label={notificationCount > 0 ? `Notifications (${notificationCount} unread)` : 'Notification settings'}
         >
@@ -61,10 +61,11 @@ export default function TopHeader({ teacher, termChip, notificationCount = 0 }) 
             <span className="tdv2-badge-dot" aria-hidden="true">{notificationCount}</span>
           ) : null}
         </Link>
-        <Link to="/preferences" className="tdv2-iconbtn" aria-label="Help and support">
+        {/* No in-app help route yet — support goes through email */}
+        <a href="mailto:support@zedexams.com" className="tdv2-iconbtn" aria-label="Contact support">
           <MessageSquare size={19} strokeWidth={1.75} aria-hidden="true" />
-        </Link>
-        <Link to="/teacher/settings" className="tdv2-userchip" aria-label={`Account: ${teacher.shortName}`}>
+        </a>
+        <Link to="/settings/profile" className="tdv2-userchip" aria-label={`Account: ${teacher.shortName}`}>
           <span className="tdv2-avatar" aria-hidden="true">{teacher.initials}</span>
           <span className="tdv2-user-name">{teacher.shortName}</span>
           <ChevronDown size={16} strokeWidth={2} aria-hidden="true" />

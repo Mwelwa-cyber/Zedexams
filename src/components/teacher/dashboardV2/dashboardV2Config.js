@@ -57,10 +57,11 @@ export const NAV_GROUPS = [
     id: 'settings',
     label: 'Settings',
     items: [
-      { id: 'subscription', label: 'Subscription', icon: CreditCard, to: '/pricing' },
-      { id: 'profile', label: 'Profile', icon: UserRound, to: '/teacher/settings' },
-      { id: 'settings', label: 'Settings', icon: Settings, to: '/teacher/settings' },
-      { id: 'help', label: 'Help & Support', icon: CircleHelp, to: '/preferences' },
+      { id: 'subscription', label: 'Subscription', icon: CreditCard, to: '/my-subscription' },
+      { id: 'profile', label: 'Profile', icon: UserRound, to: '/settings/profile' },
+      { id: 'settings', label: 'Settings', icon: Settings, to: '/settings' },
+      // No in-app help route exists yet — support goes through email.
+      { id: 'help', label: 'Help & Support', icon: CircleHelp, href: 'mailto:support@zedexams.com' },
     ],
   },
 ]

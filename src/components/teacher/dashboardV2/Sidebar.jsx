@@ -16,15 +16,17 @@ import { NAV_GROUPS } from './dashboardV2Config'
 const LOGO_WEBP = '/zedexams-logo.webp?v=2'
 const LOGO_PNG = '/zedexams-logo.png?v=5'
 
-/* Every entry navigates somewhere real — no dead menu items. */
+/* Every entry navigates somewhere real — no dead menu items. Targets are
+   the Teacher Settings panels under /settings/* (SettingsPage routes the
+   subpath per role); help goes through support email (no in-app route). */
 const ACCOUNT_MENU_ITEMS = [
-  { id: 'view-profile', label: 'View profile', icon: UserRound, to: '/teacher/settings' },
-  { id: 'account-settings', label: 'Account settings', icon: Settings, to: '/teacher/settings' },
-  { id: 'subscription', label: 'Subscription & billing', icon: CreditCard, to: '/pricing' },
-  { id: 'switch-role', label: 'Switch class or role', icon: UsersRound, to: '/teacher/settings' },
-  { id: 'notifications', label: 'Notification preferences', icon: Bell, to: '/teacher/settings' },
-  { id: 'theme', label: 'Theme', icon: Moon, to: '/preferences' },
-  { id: 'help', label: 'Help & support', icon: CircleHelp, to: '/preferences' },
+  { id: 'view-profile', label: 'View profile', icon: UserRound, to: '/settings/profile' },
+  { id: 'account-settings', label: 'Account settings', icon: Settings, to: '/settings' },
+  { id: 'subscription', label: 'Subscription & billing', icon: CreditCard, to: '/my-subscription' },
+  { id: 'switch-role', label: 'Switch class or role', icon: UsersRound, to: '/settings/teaching-profile' },
+  { id: 'notifications', label: 'Notification preferences', icon: Bell, to: '/settings/notifications' },
+  { id: 'theme', label: 'Theme', icon: Moon, to: '/settings/appearance' },
+  { id: 'help', label: 'Help & support', icon: CircleHelp, href: 'mailto:support@zedexams.com' },
 ]
 
 function AccountMenu({ teacher, onSelect, onClose, onLogout, menuRef }) {
@@ -66,7 +68,7 @@ function AccountMenu({ teacher, onSelect, onClose, onLogout, menuRef }) {
           <span className="tdv2-menu-email">{teacher.email}</span>
         </span>
       </div>
-      {ACCOUNT_MENU_ITEMS.map(({ id, label, icon: ItemIcon, to }) => (
+      {ACCOUNT_MENU_ITEMS.map(({ id, label, icon: ItemIcon, to, href }) => (
         <button
           key={id}
           type="button"
@@ -74,7 +76,8 @@ function AccountMenu({ teacher, onSelect, onClose, onLogout, menuRef }) {
           className="tdv2-menu-item"
           onClick={() => {
             onClose()
-            onSelect(to)
+            if (href) window.location.href = href
+            else onSelect(to)
           }}
         >
           <ItemIcon size={17} strokeWidth={1.75} aria-hidden="true" />
@@ -96,12 +99,16 @@ function AccountMenu({ teacher, onSelect, onClose, onLogout, menuRef }) {
 }
 
 /* '/teacher' only matches exactly (it's the dashboard); the preview route
-   also lights the Dashboard item so the sidebar never looks unanchored. */
+   also lights the Dashboard item so the sidebar never looks unanchored.
+   '/settings' is exact too so the Profile item ('/settings/profile') doesn't
+   light both entries at once. */
 function isNavActive(pathname, to) {
+  if (!to) return false
   const path = to.split('?')[0]
   if (path === '/teacher') {
     return pathname === '/teacher' || pathname === '/teacher/dashboard-preview'
   }
+  if (path === '/settings') return pathname === '/settings'
   return pathname === path || pathname.startsWith(`${path}/`)
 }
 
@@ -156,17 +163,26 @@ export default function Sidebar({ teacher, onRequestLogout }) {
             {group.label ? (
               <div className="tdv2-nav-label" aria-hidden="true">{group.label}</div>
             ) : null}
-            {group.items.map(({ id, label, icon: ItemIcon, to }) => {
+            {group.items.map(({ id, label, icon: ItemIcon, to, href }) => {
               const active = isNavActive(pathname, to)
-              return (
+              const inner = (
+                <>
+                  <ItemIcon size={20} strokeWidth={1.75} aria-hidden="true" />
+                  <span className="tdv2-nav-text">{label}</span>
+                </>
+              )
+              return href ? (
+                <a key={id} href={href} className="tdv2-nav-item">
+                  {inner}
+                </a>
+              ) : (
                 <Link
                   key={id}
                   to={to}
                   className={`tdv2-nav-item ${active ? 'is-active' : ''}`}
                   aria-current={active ? 'page' : undefined}
                 >
-                  <ItemIcon size={20} strokeWidth={1.75} aria-hidden="true" />
-                  <span className="tdv2-nav-text">{label}</span>
+                  {inner}
                 </Link>
               )
             })}
