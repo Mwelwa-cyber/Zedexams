@@ -342,12 +342,19 @@ test("resolveGithubToken returns null when nothing is configured", async () => {
 
 // Minimal Firestore query stub: every builder method chains, get() returns a
 // snapshot whose emptiness is fixed up-front. `docs` defaults to clean
-// daily-exam picks; pass explicit docs to model a bad (past-paper) pick.
+// daily-exam picks covering grades 4–7 (the per-grade coverage check needs
+// every grade represented for a healthy day); pass explicit docs to model a
+// bad (past-paper) pick or a grade gap.
+function cleanPick(grade) {
+  return {
+    id: `quiz-clean-${grade}`,
+    data: () => ({questionCount: 60, quizType: "daily_exam", grade}),
+  };
+}
+
 function stubDb(scheduledCount, docs) {
-  const snapDocs = docs || Array.from({length: scheduledCount}, (_, i) => ({
-    id: `quiz-${i}`,
-    data: () => ({questionCount: 60, quizType: "daily_exam"}),
-  }));
+  const snapDocs = docs ||
+    Array.from({length: scheduledCount}, (_, i) => cleanPick(String(4 + i)));
   const chain = {
     where() { return chain; },
     limit() { return chain; },
@@ -435,21 +442,28 @@ test("checkDailyExams is critical when the re-run promotes nothing", async () =>
   assert.ok(res.failures[0].message.includes("no_candidates"));
 });
 
+const badPick = {
+  id: "quiz-bad",
+  data: () => ({questionCount: 60, quizType: "daily_exam", publicAccess: true, linkedPaperId: "paper-1", grade: "7"}),
+};
+
 test("checkDailyExams re-runs the picker when today's pick is a past-paper public quiz", async () => {
   // The regression behind "Quiz not available" on /papers/:id/quiz: the
   // picker pinned a paper-linked public quiz as the daily exam, and the
   // daily_exam question-read block 403'd the public page all day. Vigil
   // must spot the bad pick and re-run the (now demote-and-repick) picker.
   let pickedFor = null;
-  const db = stubDb(1, [{
-    id: "quiz-bad",
-    data: () => ({questionCount: 60, quizType: "daily_exam", publicAccess: true, linkedPaperId: "paper-1", grade: "7"}),
-  }]);
+  const db = stubDb(4, [cleanPick("4"), cleanPick("5"), cleanPick("6"), badPick]);
   const res = await checkDailyExams(db, {
     now: new Date("2026-07-01T08:00:00Z"),
     runPick: async ({today}) => {
       pickedFor = today;
-      return {date: today, grades: [{grade: "7", status: "promoted", quizId: "quiz-good", demotedBadPick: "quiz-bad"}]};
+      return {date: today, grades: [
+        {grade: "4", status: "already_pinned", quizId: "quiz-clean-4"},
+        {grade: "5", status: "already_pinned", quizId: "quiz-clean-5"},
+        {grade: "6", status: "already_pinned", quizId: "quiz-clean-6"},
+        {grade: "7", status: "promoted", quizId: "quiz-good", demotedBadPicks: ["quiz-bad"]},
+      ]};
     },
   });
   assert.strictEqual(pickedFor, "2026-07-01");
@@ -460,34 +474,96 @@ test("checkDailyExams re-runs the picker when today's pick is a past-paper publi
   assert.ok(res.failures[0].message.includes("quiz-bad"));
 });
 
-test("checkDailyExams escalates a demoted bad pick that could NOT be replaced", async () => {
-  // runAutoPick catches failures per grade: a demote-only outcome
-  // (no_candidates / error) leaves that grade with no daily exam, and the
-  // next hourly snapshot is non-empty thanks to the other grades — so a
-  // discarded summary would report the gap healed forever. It must be
-  // critical, not a "healed" warning.
-  const db = stubDb(1, [{
-    id: "quiz-bad",
-    data: () => ({questionCount: 60, quizType: "daily_exam", publicAccess: true, linkedPaperId: "paper-1", grade: "7"}),
-  }]);
+test("checkDailyExams heals a grade holding BOTH a legitimate and a past-paper pick", async () => {
+  // setAsDailyExam pins without demoting, so a grade can carry two picks
+  // for the same day. already_pinned from the demote-all picker means the
+  // bad one was demoted and the legitimate one kept the slot — a heal,
+  // not a suppressed gap.
+  const db = stubDb(5, [cleanPick("4"), cleanPick("5"), cleanPick("6"), cleanPick("7"), badPick]);
   const res = await checkDailyExams(db, {
     now: new Date("2026-07-01T08:00:00Z"),
     runPick: async ({today}) => ({date: today, grades: [
-      {grade: "4", status: "already_pinned", quizId: "quiz-4"},
-      {grade: "7", status: "no_candidates", demotedBadPick: "quiz-bad"},
+      {grade: "4", status: "already_pinned", quizId: "quiz-clean-4"},
+      {grade: "5", status: "already_pinned", quizId: "quiz-clean-5"},
+      {grade: "6", status: "already_pinned", quizId: "quiz-clean-6"},
+      {grade: "7", status: "already_pinned", quizId: "quiz-clean-7", demotedBadPicks: ["quiz-bad"]},
+    ]}),
+  });
+  assert.strictEqual(res.ok, false);
+  assert.strictEqual(res.healed, 1);
+  assert.strictEqual(res.failures.length, 1);
+  assert.strictEqual(res.failures[0].severity, "warning");
+  assert.ok(res.failures[0].message.includes("quiz-bad"));
+});
+
+test("checkDailyExams escalates a demoted bad pick that could NOT be replaced", async () => {
+  // runAutoPick catches failures per grade: a demote-only outcome
+  // (no_candidates / error) leaves that grade with no daily exam. It must
+  // be critical, not a "healed" warning.
+  const db = stubDb(4, [cleanPick("4"), cleanPick("5"), cleanPick("6"), badPick]);
+  const res = await checkDailyExams(db, {
+    now: new Date("2026-07-01T08:00:00Z"),
+    runPick: async ({today}) => ({date: today, grades: [
+      {grade: "4", status: "already_pinned", quizId: "quiz-clean-4"},
+      {grade: "5", status: "already_pinned", quizId: "quiz-clean-5"},
+      {grade: "6", status: "already_pinned", quizId: "quiz-clean-6"},
+      {grade: "7", status: "no_candidates", demotedBadPicks: ["quiz-bad"]},
     ]}),
   });
   assert.strictEqual(res.ok, false);
   assert.strictEqual(res.healed, 0);
   assert.strictEqual(res.failures.length, 2);
   assert.strictEqual(res.failures[1].severity, "critical");
-  assert.ok(res.failures[1].message.includes("quiz-bad"));
+  assert.strictEqual(failureKey(res.failures[1]), "dailyExams:2026-07-01:gradeGap");
+  assert.ok(res.failures[1].message.includes("7"));
   assert.ok(res.failures[1].message.includes("no_candidates"));
 });
 
-test("checkDailyExams leaves clean picks alone (picker NOT re-run)", async () => {
+test("checkDailyExams keeps flagging a gradeless day on LATER runs (no bad pick in sight)", async () => {
+  // The hour after a demote-only heal, the bad pick is gone from the
+  // snapshot and the other grades' picks make it non-empty. The per-grade
+  // coverage check must still surface the hole every run until an exam is
+  // pinned — this is the failure that previously vanished after one run.
+  const db = stubDb(3, [cleanPick("4"), cleanPick("5"), cleanPick("6")]);
+  const res = await checkDailyExams(db, {
+    now: new Date("2026-07-01T09:00:00Z"),
+    runPick: async ({today}) => ({date: today, grades: [
+      {grade: "4", status: "already_pinned", quizId: "quiz-clean-4"},
+      {grade: "5", status: "already_pinned", quizId: "quiz-clean-5"},
+      {grade: "6", status: "already_pinned", quizId: "quiz-clean-6"},
+      {grade: "7", status: "no_candidates"},
+    ]}),
+  });
+  assert.strictEqual(res.ok, false);
+  assert.strictEqual(res.healed, 0);
+  assert.strictEqual(res.failures.length, 1);
+  assert.strictEqual(res.failures[0].severity, "critical");
+  assert.strictEqual(failureKey(res.failures[0]), "dailyExams:2026-07-01:gradeGap");
+  assert.ok(res.failures[0].message.includes("7"));
+});
+
+test("checkDailyExams restores a missing grade and reports a warning", async () => {
+  const db = stubDb(3, [cleanPick("4"), cleanPick("5"), cleanPick("6")]);
+  const res = await checkDailyExams(db, {
+    now: new Date("2026-07-01T09:00:00Z"),
+    runPick: async ({today}) => ({date: today, grades: [
+      {grade: "4", status: "already_pinned", quizId: "quiz-clean-4"},
+      {grade: "5", status: "already_pinned", quizId: "quiz-clean-5"},
+      {grade: "6", status: "already_pinned", quizId: "quiz-clean-6"},
+      {grade: "7", status: "promoted", quizId: "quiz-new-7"},
+    ]}),
+  });
+  assert.strictEqual(res.ok, false);
+  assert.strictEqual(res.healed, 1);
+  assert.strictEqual(res.failures.length, 1);
+  assert.strictEqual(res.failures[0].severity, "warning");
+  assert.strictEqual(failureKey(res.failures[0]), "dailyExams:2026-07-01:gradeGapHealed");
+  assert.ok(res.failures[0].message.includes("7"));
+});
+
+test("checkDailyExams leaves clean full-coverage picks alone (picker NOT re-run)", async () => {
   let pickerRan = false;
-  const res = await checkDailyExams(stubDb(2), {
+  const res = await checkDailyExams(stubDb(4), {
     now: new Date("2026-07-01T08:00:00Z"),
     runPick: async () => { pickerRan = true; },
   });

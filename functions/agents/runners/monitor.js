@@ -391,54 +391,82 @@ async function checkDailyExams(db, {now = new Date(), runPick} = {}) {
         .where("quizType", "==", "daily_exam")
         .where("isDailyExam", "==", true)
         .where("dailyExamDate", "==", today)
-        .limit(5)
+        .limit(20)
         .get();
     if (!snap.empty) {
+      const {isPastPaperPublicQuiz, DAILY_EXAM_GRADES} = require("../../dailyExamPickerCore");
+      const docs = Array.isArray(snap.docs) ? snap.docs : [];
       // A past paper's public quiz in the daily slot is a BAD pick: the
       // daily-exam rules arm blocks all client question reads, so the
       // paper's public /papers/:id/quiz page 403s for the whole day.
-      // Re-run the picker — promotePickForGrade demotes the bad pick
-      // (restoring the public page) and pins a legitimate exam paper.
-      const {isPastPaperPublicQuiz} = require("../../dailyExamPickerCore");
-      const badPicks = (Array.isArray(snap.docs) ? snap.docs : [])
-          .filter((d) => isPastPaperPublicQuiz(d.data()));
-      if (badPicks.length === 0) {
+      const badPicks = docs.filter((d) => isPastPaperPublicQuiz(d.data()));
+      // Per-grade coverage EVERY run, not just on the run that demoted a
+      // bad pick: a grade whose pick was demoted without a replacement
+      // (or never picked) must keep failing hourly until it is restored,
+      // otherwise the other grades' picks make the snapshot look healthy
+      // and the gap silently drops out of the rollup. A grade whose only
+      // pick is a bad one is NOT "missing" here — the badPicks path
+      // already reports it (and folds it into problemGrades below).
+      const gradesWithAnyPick = new Set(docs.map((d) => String(d.data().grade)));
+      const missingGrades = DAILY_EXAM_GRADES.filter((g) => !gradesWithAnyPick.has(g));
+      if (badPicks.length === 0 && missingGrades.length === 0) {
         return {ok: true, skipped: false, today, scheduled: snap.size, failures: []};
       }
+
+      // Re-run the picker — promotePickForGrade demotes every bad pick
+      // (restoring the public pages) and pins a legitimate exam paper
+      // into each uncovered grade.
       const pick = runPick || require("../../dailyExamPicker").runAutoPick;
       const summary = await pick({today});
       const grades = Array.isArray(summary?.grades) ? summary.grades : [];
+      // With the demote-all picker, promoted/already_pinned both mean the
+      // grade now holds ONLY a legitimate pick.
       const replacedGrades = new Set(grades
           .filter((g) => g.status === "promoted" || g.status === "already_pinned")
           .map((g) => String(g.grade)));
-      // A demote-only outcome (no eligible replacement in the pool, or a
-      // per-grade picker error — runAutoPick catches those per grade)
-      // leaves that grade with NO daily exam, and the next hourly
-      // snapshot is non-empty thanks to the other grades, so the gap
-      // would never resurface. Escalate it as critical now.
-      const unreplaced = badPicks.filter((d) => !replacedGrades.has(String(d.data().grade)));
-      const failures = [{
-        check: "dailyExams",
-        id: `${today}:pastPaperPick`,
-        severity: "warning",
-        message: `Daily-exam pick(s) for ${today} were past-paper public quizzes ` +
-          `(${badPicks.map((d) => d.id).join(", ")}) — their public /papers quiz pages were ` +
-          `blocked by the daily-exam question-read rule. Vigil re-ran the picker to demote ` +
-          `them and pin real exam papers.`,
-      }];
-      if (unreplaced.length > 0) {
+      const problemGrades = [...new Set([
+        ...badPicks.map((d) => String(d.data().grade)),
+        ...missingGrades,
+      ])];
+      const unresolved = problemGrades.filter((g) => !replacedGrades.has(g));
+
+      const failures = [];
+      if (badPicks.length > 0) {
         failures.push({
           check: "dailyExams",
-          id: `${today}:pastPaperPickUnreplaced`,
+          id: `${today}:pastPaperPick`,
+          severity: "warning",
+          message: `Daily-exam pick(s) for ${today} were past-paper public quizzes ` +
+            `(${badPicks.map((d) => d.id).join(", ")}) — their public /papers quiz pages were ` +
+            `blocked by the daily-exam question-read rule. Vigil re-ran the picker to demote ` +
+            `them and pin real exam papers.`,
+        });
+      }
+      if (missingGrades.length > 0 && missingGrades.some((g) => replacedGrades.has(g))) {
+        const restored = missingGrades.filter((g) => replacedGrades.has(g));
+        failures.push({
+          check: "dailyExams",
+          id: `${today}:gradeGapHealed`,
+          severity: "warning",
+          message: `Grade(s) ${restored.join(", ")} had no daily exam for ${today} after 05:15. ` +
+            `Vigil re-ran the picker and restored them; check why the morning pick left them empty.`,
+        });
+      }
+      if (unresolved.length > 0) {
+        failures.push({
+          check: "dailyExams",
+          // Stable id (no grade list): recurs every hourly run while the
+          // gap persists, and the notification state doc de-dups it.
+          id: `${today}:gradeGap`,
           severity: "critical",
-          message: `Demoted past-paper daily-exam pick(s) ${unreplaced.map((d) => d.id).join(", ")} ` +
-            `could not be replaced (${grades.map((g) => `grade ${g.grade}: ${g.status}`).join("; ") || "no grades processed"}) — ` +
-            `the affected grade(s) have no daily exam for ${today} until an admin pins one.`,
+          message: `Grade(s) ${unresolved.join(", ")} have no daily exam for ${today} even after ` +
+            `re-running the picker (${grades.map((g) => `grade ${g.grade}: ${g.status}`).join("; ") || "no grades processed"}) — ` +
+            `learners there see "No exam scheduled today" until an admin pins one.`,
         });
       }
       return {
         ok: false, skipped: false, today, scheduled: snap.size,
-        healed: badPicks.length - unreplaced.length,
+        healed: problemGrades.length - unresolved.length,
         failures,
       };
     }
