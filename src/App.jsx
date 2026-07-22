@@ -41,6 +41,9 @@ const PUBLIC_THEME_PATHS = new Set([
   '/login', '/register', '/auth/action', '/verify-email',
   '/pricing', '/teachers', '/privacy', '/terms', '/preferences', '/status',
   '/papers', '/company',
+  // Dashboard V2 preview ships its own scoped design system; pin it to the
+  // brand default so a saved learner theme can't bleed into the review.
+  '/teacher/dashboard-preview',
 ])
 function isPublicThemePath(pathname) {
   if (PUBLIC_THEME_PATHS.has(pathname)) return true
@@ -206,6 +209,10 @@ const ChildProgressPage = lazy(() => import('./components/parent/ChildProgressPa
 // Teacher section
 const TeacherLayout = lazy(() => import('./components/teacher/TeacherLayout'))
 const TeacherDashboard = lazy(() => import('./components/teacher/TeacherDashboard'))
+// Dashboard V2 redesign — mock-data PREVIEW surface (no Firestore reads, all
+// interactions client-side). Public on purpose so the design can be reviewed
+// without a session; it replaces /teacher only after explicit approval.
+const TeacherDashboardV2 = lazy(() => import('./components/teacher/dashboardV2/TeacherDashboardV2'))
 const SchoolCalendar = lazy(() => import('./components/teacher/SchoolCalendar'))
 const WelcomeToPro = lazy(() => import('./components/teacher/WelcomeToPro'))
 const SyllabiLibrary = lazy(() => import('./components/teacher/SyllabiLibrary'))
@@ -672,6 +679,8 @@ export default function App() {
           {/* Post-upgrade celebration page — full-bleed, outside TeacherLayout chrome */}
           <Route path="/teacher/welcome-to-pro"          element={<ProtectedRoute requiredRole="teacher"><WelcomeToPro /></ProtectedRoute>} />
           <Route path="/teacher"                         element={<TeacherRoute><TeacherDashboard /></TeacherRoute>} />
+          {/* Dashboard V2 preview — mock data only, intentionally unguarded (see lazy import note) */}
+          <Route path="/teacher/dashboard-preview"       element={<TeacherDashboardV2 />} />
           {/* Assessment Paper Studio — teacher-only, private. One studio for
               every assessment type: topic/weekly/mid-term/end-of-term tests
               AND mock/examination/final examinations — which type a paper is
