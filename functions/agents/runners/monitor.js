@@ -387,11 +387,14 @@ async function checkDailyExams(db, {now = new Date(), runPick} = {}) {
     return {ok: true, skipped: true, today, scheduled: 0, failures: []};
   }
   try {
+    // No limit: the verdict below inspects EVERY pick (bad-pick scan +
+    // per-grade coverage), and a cap could hide a past-paper pick behind
+    // enough manual pins — setAsDailyExam doesn't demote, so the same-day
+    // doc count is unbounded. In practice this is ~4 docs, hourly.
     const snap = await db.collection("quizzes")
         .where("quizType", "==", "daily_exam")
         .where("isDailyExam", "==", true)
         .where("dailyExamDate", "==", today)
-        .limit(20)
         .get();
     if (!snap.empty) {
       const {isPastPaperPublicQuiz, DAILY_EXAM_GRADES} = require("../../dailyExamPickerCore");
