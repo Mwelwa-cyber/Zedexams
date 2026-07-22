@@ -4443,7 +4443,7 @@ exports.generatePasskeyAuthenticationOptions = onCall({
   enforceAppCheck: shouldEnforceAppCheck("generatePasskeyAuthenticationOptions"),
 }, async (request) => {
   await recordAppCheckCallable(request, "generatePasskeyAuthenticationOptions");
-  return runGeneratePasskeyAuthenticationOptions(request);
+  return runGeneratePasskeyAuthenticationOptions(request, {region: "us-central1"});
 });
 
 exports.verifyPasskeyAuthentication = onCall({
@@ -4453,7 +4453,7 @@ exports.verifyPasskeyAuthentication = onCall({
   enforceAppCheck: shouldEnforceAppCheck("verifyPasskeyAuthentication"),
 }, async (request) => {
   await recordAppCheckCallable(request, "verifyPasskeyAuthentication");
-  return runVerifyPasskeyAuthentication(request);
+  return runVerifyPasskeyAuthentication(request, {region: "us-central1"});
 });
 
 exports.listUserPasskeys = onCall({
@@ -4485,3 +4485,44 @@ exports.removeUserPasskey = onCall({
   await recordAppCheckCallable(request, "removeUserPasskey");
   return runRemoveUserPasskey(request);
 });
+
+// ── Passkey regional twins (staged us-central1 → africa-south1 migration) ─
+// The (default) Firestore database lives in africa-south1, so the sequential
+// Firestore operations on the sign-in path each pay a cross-region round
+// trip from us-central1. These four exports are parallel africa-south1
+// deployments of the FLOW callables, shipped ALONGSIDE — never replacing —
+// the us-central1 originals above. Same handlers, same runtime options, and
+// the same App Check enforcement key (the base name), so request/response
+// schemas, security checks and error codes are identical by construction;
+// only the serving region differs. Management callables (list/rename/remove)
+// intentionally have no twin — they are not on the sign-in path.
+//
+// Client routing + instant no-redeploy rollback:
+// settings/global.featureFlags.passkeyFunctionsRegion, resolved in
+// src/services/passkeyRegionCore.js (mirrors functions/passkeys/
+// passkeyRegions.js). Deleting the us-central1 originals is a separate,
+// explicitly-approved step AFTER the observation window — never automatic.
+const {
+  PASSKEY_REGIONAL_REGION,
+  PASSKEY_CALLABLE_RUNTIME,
+} = require("./passkeys/passkeyRegions");
+
+function passkeyRegionalCallable(baseName, handler) {
+  return onCall({
+    region: PASSKEY_REGIONAL_REGION,
+    ...PASSKEY_CALLABLE_RUNTIME,
+    enforceAppCheck: shouldEnforceAppCheck(baseName),
+  }, async (request) => {
+    await recordAppCheckCallable(request, baseName);
+    return handler(request, {region: PASSKEY_REGIONAL_REGION});
+  });
+}
+
+exports.generatePasskeyRegistrationOptionsAfrica = passkeyRegionalCallable(
+    "generatePasskeyRegistrationOptions", runGeneratePasskeyRegistrationOptions);
+exports.verifyPasskeyRegistrationAfrica = passkeyRegionalCallable(
+    "verifyPasskeyRegistration", runVerifyPasskeyRegistration);
+exports.generatePasskeyAuthenticationOptionsAfrica = passkeyRegionalCallable(
+    "generatePasskeyAuthenticationOptions", runGeneratePasskeyAuthenticationOptions);
+exports.verifyPasskeyAuthenticationAfrica = passkeyRegionalCallable(
+    "verifyPasskeyAuthentication", runVerifyPasskeyAuthentication);

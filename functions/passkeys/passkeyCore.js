@@ -309,6 +309,44 @@ function resolveExpectedOrigins(rawList, productionOrigins = PRODUCTION_ORIGINS)
   return valid;
 }
 
+// ── Stage timing (regional-migration latency telemetry) ──────────────────
+// Canonical stage names for the authentication path — the log line in
+// passkeyService.js and the latency runbook in docs/PASSKEYS.md both key on
+// these, so keep the list stable.
+const PASSKEY_AUTH_TIMING_STAGES = Object.freeze([
+  "preChecks",
+  "challengeConsume",
+  "credentialLookup",
+  "webauthnVerify",
+  "counterTxn",
+  "profileLookup",
+  "customToken",
+  "auditWrite",
+]);
+
+/**
+ * Millisecond stage timer for per-request latency telemetry. `mark(stage)`
+ * records the time since the previous mark (or start); `snapshot()` returns
+ * `{ stages, totalMs }`. Carries ONLY stage names and durations — nothing
+ * request-derived — so its output is always safe to log. `now` is injectable
+ * for tests.
+ */
+function createStageTimer(now = () => Date.now()) {
+  const start = now();
+  let last = start;
+  const stages = {};
+  return {
+    mark(stage) {
+      const t = now();
+      stages[stage] = (stages[stage] || 0) + (t - last);
+      last = t;
+    },
+    snapshot() {
+      return {stages: {...stages}, totalMs: now() - start};
+    },
+  };
+}
+
 module.exports = {
   MAX_PASSKEYS_PER_USER,
   CHALLENGE_TTL_MS,
@@ -331,4 +369,6 @@ module.exports = {
   isAdminRole,
   PASSKEY_DUPLICATE_DIAGNOSES,
   classifyPasskeyDuplicateReport,
+  PASSKEY_AUTH_TIMING_STAGES,
+  createStageTimer,
 };
