@@ -21,6 +21,7 @@ export const LAST_OPENED = {
   subject: 'Integrated Science',
   grade: 'Grade 4',
   ago: '5d ago',
+  agoDays: 5,
   to: '/teacher/library',
 }
 
@@ -30,6 +31,7 @@ export const AI_RECOMMENDATION = {
   text: 'Create a Scheme of Work using the Grade 4 syllabus and current school calendar.',
   actionLabel: 'Create Scheme',
   to: '/teacher/generate/scheme-of-work',
+  context: { grade: 'Grade 4', subject: 'Mathematics' },
 }
 
 export const RECENT_DOCUMENTS = [

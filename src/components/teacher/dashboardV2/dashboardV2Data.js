@@ -114,11 +114,15 @@ export function documentsFromResources(resources = [], { limit = 5, now = Date.n
 export function lastOpenedFromResources(resources = [], now = Date.now()) {
   const r = resources[0]
   if (!r) return null
+  const ts = r.modifiedAt || r.createdAt
   return {
     title: r.title || 'Untitled document',
     subject: String(r.subject || r.title || '').replace(/_/g, ' '),
     grade: String(r.grade || '').trim(),
-    ago: relTime(r.modifiedAt || r.createdAt, now),
+    ago: relTime(ts, now),
+    // Whole days since last touch — drives the hero's context subline
+    // ("X hasn't been updated for N days").
+    agoDays: Number.isFinite(ts) && ts > 0 ? Math.max(0, Math.floor((now - ts) / DAY_MS)) : null,
     to: r.to,
   }
 }

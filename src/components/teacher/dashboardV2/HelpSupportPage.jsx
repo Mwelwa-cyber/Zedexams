@@ -177,7 +177,7 @@ export default function HelpSupportPage() {
       />
 
       <div className="tdv2-main">
-        <TopHeader teacher={teacher} termChip="" />
+        <TopHeader termChip="" />
         <main className="tdv2-content">
           <section className="tdv2-card" aria-labelledby="tdv2-help-h">
             <h1 className="tdv2-help-title" id="tdv2-help-h">

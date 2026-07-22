@@ -263,7 +263,7 @@
 }
 
 .tdv2-nav-label {
-  font-size: 11px;
+  font-size: 11.5px;
   line-height: 16px;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -302,8 +302,8 @@
 
 .tdv2-nav-item.is-active {
   position: relative;
-  background: linear-gradient(180deg, rgba(216, 107, 50, 0.96) 0%, rgba(157, 58, 18, 0.98) 100%);
-  border-color: rgba(232, 120, 50, 0.65);
+  background: linear-gradient(180deg, #d06a32 0%, #a94419 100%);
+  border-color: rgba(232, 120, 50, 0.55);
   color: #ffffff;
   font-weight: 600;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.36);
@@ -339,8 +339,8 @@
   width: 100%;
   padding: 10px 12px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
   text-align: left;
   transition: background 180ms var(--ease), border-color 180ms var(--ease),
@@ -348,8 +348,8 @@
 }
 
 .tdv2-profile:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(232, 120, 50, 0.55);
+  background: rgba(255, 255, 255, 0.13);
+  border-color: rgba(232, 120, 50, 0.7);
   transform: translateY(-2px);
 }
 
@@ -614,7 +614,6 @@
   border: 2px solid var(--cream);
 }
 
-.tdv2-userchip,
 .tdv2-datechip {
   display: flex;
   align-items: center;
@@ -632,18 +631,12 @@
     box-shadow 180ms var(--ease);
 }
 
-.tdv2-userchip:hover,
 .tdv2-datechip:hover {
   border-color: rgba(198, 90, 36, 0.45);
   transform: translateY(-1px);
   box-shadow: 0 4px 10px rgba(16, 36, 62, 0.1);
 }
 
-.tdv2-userchip .tdv2-avatar {
-  width: 30px;
-  height: 30px;
-  font-size: 11px;
-}
 
 .tdv2-datechip {
   color: var(--copper);
@@ -660,6 +653,7 @@
   padding: 30px 34px 26px;
   color: #f2f7f7;
   background:
+    radial-gradient(48% 95% at 84% 48%, rgba(6, 42, 55, 0.95) 0%, rgba(6, 42, 55, 0) 72%),
     radial-gradient(90% 140% at 92% -20%, rgba(31, 122, 122, 0.55) 0%, rgba(11, 48, 56, 0) 55%),
     radial-gradient(70% 120% at 8% 115%, rgba(6, 28, 74, 0.6) 0%, rgba(11, 48, 56, 0) 60%),
     linear-gradient(135deg, #0a2b33 0%, #0e3a42 55%, #0b3038 100%);
@@ -674,13 +668,18 @@
 
 .tdv2-hero-art {
   position: absolute;
-  right: 18px;
+  right: 4px;
   top: 50%;
-  transform: translateY(-58%);
-  width: 300px;
-  max-width: 38%;
-  opacity: 0.92;
-  filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.35));
+  transform: translateY(-54%);
+  width: 360px;
+  max-width: 42%;
+  opacity: 0.95;
+  /* Feather the illustration's own dark-teal backdrop into the hero
+     gradient so the notebook floats instead of sitting in a visible
+     rectangle (a matching glow sits behind it in .tdv2-hero's first
+     background layer). */
+  -webkit-mask-image: radial-gradient(80% 82% at 50% 50%, #000 58%, transparent 86%);
+  mask-image: radial-gradient(80% 82% at 50% 50%, #000 58%, transparent 86%);
   pointer-events: none;
   user-select: none;
 }
@@ -688,10 +687,27 @@
 .tdv2-hero-eyebrow {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  gap: 10px;
+  font-size: 15px;
   font-weight: 600;
-  color: rgba(255, 235, 210, 0.85);
+  color: rgba(255, 244, 228, 0.92);
+}
+
+/* Sunrise/moon chip beside the greeting, like the legacy hero */
+.tdv2-hero-sun {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(160deg, rgba(255, 200, 120, 0.35), rgba(255, 140, 60, 0.22));
+  border: 1px solid rgba(255, 210, 150, 0.35);
+  color: #ffd9a0;
+}
+
+.tdv2-hero-wave {
+  margin-left: 12px;
+  font-size: 0.8em;
 }
 
 .tdv2-hero h1 {
@@ -725,14 +741,14 @@
 }
 
 .tdv2-hero-inset-icon {
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffd9b8;
+  border-radius: 13px;
+  background: linear-gradient(160deg, #f2eafc, #ddcdf2);
+  color: #2b2140;
 }
 
 .tdv2-hero-inset-label {
@@ -740,18 +756,55 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 196, 130, 0.85);
 }
 
 .tdv2-hero-inset-title {
-  font-size: 16px;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
   color: #ffffff;
+  letter-spacing: 0.01em;
+}
+
+.tdv2-hero-inset-ago {
+  flex-shrink: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+  margin-right: 4px;
 }
 
 .tdv2-hero-inset-meta {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.6);
+}
+
+/* On the dark inset the button goes bright, solid orange (legacy hero
+   style): vivid surface, white bold label, plain inline arrow, warm
+   shadow — unmistakably clickable. */
+.tdv2-hero .tdv2-btn-copper {
+  background: linear-gradient(180deg, #fb8a3c 0%, #f97316 60%, #ea580c 100%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 14px;
+  padding: 12px 22px;
+  font-size: 15.5px;
+  box-shadow: 0 8px 20px rgba(234, 88, 12, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.tdv2-hero .tdv2-btn-copper::after {
+  display: none;
+}
+
+.tdv2-hero .tdv2-btn-copper:hover:not(:disabled) {
+  filter: brightness(1.05);
+  box-shadow: 0 11px 26px rgba(234, 88, 12, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.tdv2-hero .tdv2-btn-copper .tdv2-btn-arrow {
+  width: auto;
+  height: auto;
+  background: transparent;
 }
 
 /* ── Cards, headings ─────────────────────────────────────────────────── */
@@ -908,7 +961,7 @@
 }
 
 .tdv2-tile-desc {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.45;
   color: var(--ink-2);
   /* keep copy clear of the circular arrow pinned bottom-right */
@@ -919,14 +972,14 @@
   position: absolute;
   right: 16px;
   bottom: 16px;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
   border-radius: 50%;
   background: var(--copper-tint);
   color: var(--copper);
-  border: 1px solid rgba(198, 90, 36, 0.25);
+  border: 1.5px solid rgba(198, 90, 36, 0.5);
   transition: transform 200ms var(--ease), background 200ms var(--ease), color 200ms var(--ease);
 }
 
@@ -941,6 +994,9 @@
 .tdv2-ai-card {
   display: flex;
   flex-direction: column;
+  /* Hug the content instead of stretching to Quick Create's height — the
+     recommendation panel was mostly empty space below its copy. */
+  align-self: start;
   background: linear-gradient(180deg, #f4f8ff 0%, #e9f1fe 100%);
   border-color: #d5e3f8;
 }
@@ -950,7 +1006,6 @@
 }
 
 .tdv2-ai-body {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -959,6 +1014,29 @@
   background: rgba(255, 255, 255, 0.85);
   border: 1px solid #dde8f9;
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.06);
+}
+
+/* Context chips: which class/subject the recommendation is about */
+.tdv2-ai-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tdv2-ai-chip {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1d4fbe;
+  background: rgba(37, 99, 235, 0.09);
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.tdv2.is-dark .tdv2-ai-chip {
+  color: #9dbdf7;
+  background: rgba(37, 99, 235, 0.16);
+  border-color: rgba(37, 99, 235, 0.4);
 }
 
 .tdv2-ai-icon {
@@ -1062,7 +1140,7 @@
 }
 
 .tdv2-doc-title {
-  font-size: 13.5px;
+  font-size: 14.5px;
   font-weight: 600;
   color: var(--ink);
   white-space: nowrap;
@@ -1071,7 +1149,7 @@
 }
 
 .tdv2-doc-meta {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--ink-2);
   white-space: nowrap;
   overflow: hidden;
@@ -1243,7 +1321,7 @@
 }
 
 .tdv2-ws-desc {
-  font-size: 12.5px;
+  font-size: 13.5px;
   line-height: 1.45;
   color: var(--ink-2);
   padding-right: 26px;
@@ -1359,7 +1437,7 @@ a.tdv2-check-row:hover {
 .tdv2-check-label {
   flex: 1;
   min-width: 0;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--ink);
 }
@@ -1480,7 +1558,7 @@ a.tdv2-check-row:hover {
 }
 
 .tdv2-activity-meta {
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--ink-2);
 }
 
@@ -2131,7 +2209,6 @@ a.tdv2-check-row:hover {
   .tdv2-row-1,
   .tdv2-row-2 { grid-template-columns: minmax(0, 1fr); }
   .tdv2-hero-art { display: none; }
-  .tdv2-userchip .tdv2-user-name { display: none; }
   .tdv2-search { max-width: none; }
   .tdv2-preview-banner { left: 96px; }
 }
@@ -2155,7 +2232,6 @@ a.tdv2-check-row:hover {
   .tdv2-hero h1 { font-size: 28px; }
   .tdv2-hero-inset { flex-wrap: wrap; }
   .tdv2-kbd { display: none; }
-  .tdv2-userchip { display: none; }
   .tdv2-doc-date { display: none; }
   .tdv2-preview-banner { left: 76px; right: 12px; }
   .tdv2-menu { width: min(254px, calc(100vw - 90px)); }

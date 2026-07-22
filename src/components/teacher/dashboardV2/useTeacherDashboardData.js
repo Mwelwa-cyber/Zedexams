@@ -177,12 +177,18 @@ export default function useTeacherDashboardData() {
   }), [displayName, userProfile?.email, currentUser?.email])
 
   const now = Date.now()
-  const recommendationCards = recommendations.slice(0, 3).map((r) => ({
+  // Chips showing which teaching context the recommendations were built for.
+  const recContext = {
+    grade: String(profileGrade || '').trim() || null,
+    subject: String(profileSubject || '').replace(/_/g, ' ').trim() || null,
+  }
+  const recommendationCards = recommendations.slice(0, 3).map((r, i) => ({
     id: r.id,
     title: r.title,
     text: r.text,
     actionLabel: r.actionLabel,
     to: r.to,
+    context: i === 0 && (recContext.grade || recContext.subject) ? recContext : null,
   }))
 
   return {
