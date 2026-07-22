@@ -77,6 +77,7 @@ export const PASSKEY_ERRORS = Object.freeze({
   NETWORK_ERROR: 'PASSKEY_NETWORK_ERROR',
   RATE_LIMITED: 'PASSKEY_RATE_LIMITED',
   DISABLED: 'PASSKEY_DISABLED',
+  ADMIN_MFA_REQUIRED: 'PASSKEY_ADMIN_MFA_REQUIRED',
 })
 
 // Safe user-facing copy per code — no stack traces or verification
@@ -105,6 +106,27 @@ const ERROR_MESSAGES = {
   [PASSKEY_ERRORS.RATE_LIMITED]:
     'Too many attempts. Please wait a moment and try again.',
   [PASSKEY_ERRORS.DISABLED]: 'Passkey sign-in is not available yet.',
+  [PASSKEY_ERRORS.ADMIN_MFA_REQUIRED]:
+    'Administrator accounts sign in with email, password and an authenticator code.',
+}
+
+/**
+ * Client-side mirror of the server's registration eligibility (server still
+ * enforces): admins are excluded (their mandatory TOTP MFA cannot ride a
+ * custom-token session), and the optional rollout lists narrow who can
+ * register during the staged launch. Used to hide/disable "Add a passkey"
+ * so users outside the rollout never hit a dead-end OS prompt.
+ */
+export function canRegisterPasskeys({ featureFlags, role, uid }) {
+  const flags = featureFlags || {}
+  if (flags.passkeyAuthenticationEnabled !== true) return false
+  if (role === 'admin' || role === 'superAdmin') return false
+  const roles = Array.isArray(flags.passkeyRolloutRoles) ? flags.passkeyRolloutRoles : []
+  const uids = Array.isArray(flags.passkeyRolloutUids) ? flags.passkeyRolloutUids : []
+  if (roles.length === 0 && uids.length === 0) return true
+  if (uid && uids.includes(uid)) return true
+  if (role && roles.includes(role)) return true
+  return false
 }
 
 const GENERIC_MESSAGE =

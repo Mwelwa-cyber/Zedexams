@@ -57,7 +57,7 @@ endpoints), `enforceAppCheck: shouldEnforceAppCheck(label)` under the graduated
 | Env var (functions runtime) | Default | Notes |
 |---|---|---|
 | `PASSKEY_RP_ID` | `zedexams.com` | NEVER the Firebase project domain in production |
-| `PASSKEY_ALLOWED_ORIGINS` | `https://zedexams.com` | comma-separated; wildcards are refused (fail-closed); the production origin is always appended |
+| `PASSKEY_ALLOWED_ORIGINS` | `https://zedexams.com` + `https://www.zedexams.com` | comma-separated; wildcards are refused (fail-closed); both production origins are always appended (mirrors `functions/cors.js`) |
 | `PASSKEY_REAUTH_WINDOW_MIN` | `60` | how recent the first-factor sign-in must be to add/remove a passkey |
 
 Local development: run the functions emulator with `PASSKEY_RP_ID=localhost`
@@ -99,9 +99,10 @@ public key or counter). Nothing passkey-related touches localStorage.
 fail-closed on read errors) gates the login button, the settings section, and
 all four registration/authentication functions server-side. Staged rollout:
 
-1. **Internal admin testing** — flag on + `featureFlags.passkeyRolloutRoles:
-   ['admin']` (or `passkeyRolloutUids: [...]` for specific accounts).
-2. **Staff beta** — add `'teacher'` to `passkeyRolloutRoles`.
+1. **Internal testing** — flag on + `featureFlags.passkeyRolloutUids: [...]`
+   listing designated staff **test accounts** (teacher/learner roles — see the
+   administrator note below).
+2. **Staff beta** — `featureFlags.passkeyRolloutRoles: ['teacher']`.
 3. **Optional public enrolment** — clear both rollout lists (empty = everyone).
 4. **Broader promotion** — only after recovery, revocation, analytics and
    cross-device testing are verified.
@@ -109,7 +110,18 @@ all four registration/authentication functions server-side. Staged rollout:
 The rollout lists narrow who may **register**; sign-in only needs the master
 flag (only enrolled users can authenticate anyway). Management
 (list/rename/remove) is never gated, so users can clean up even mid-rollback.
+The client hides "Add a passkey" for users outside the rollout
+(`canRegisterPasskeys` in `src/services/passkeyService.js`) and the server
+enforces the same decision (`isPasskeyRolloutAllowed` in `passkeyCore.js`).
 The toggle is exposed in `/admin/settings` → Developer → Feature flags.
+
+**Administrator accounts are excluded** (registration AND sign-in both refuse
+with `PASSKEY_ADMIN_MFA_REQUIRED`): admins are under mandatory TOTP MFA, and
+`functions/security/requireAdminMfaCore.js` deliberately never accepts a
+custom-token session as second-factor proof — a passkey session would strand
+an admin outside every privileged callable. Revisit only together with that
+guard's semantics (e.g. minting a recognised second-factor claim), never by
+weakening it from the passkey side.
 
 **Rollback**: turn the flag off. Sign-in and registration stop immediately
 (server-side); existing sessions are unaffected; Google/password sign-in is
@@ -133,6 +145,11 @@ unchanged. Lost device: sign in with another method → Settings → Security �
 Passkeys → remove the lost passkey (it stops working on the next sign-in
 attempt) → optionally register the replacement device. The UI blocks removing
 the last passkey only if the account somehow has no password/Google fallback.
+
+Account deletion purges all passkey data: `passkeyUserHandles/{uid}` and every
+`passkeyCredentials` / `passkeyAuditLog` row carrying the uid are in
+`functions/accountDeletion.js`'s purge lists, so `deleteMyAccount` removes
+them with the rest of the account.
 
 ## Client error codes → copy
 

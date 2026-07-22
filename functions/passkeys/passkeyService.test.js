@@ -287,6 +287,11 @@ async function main() {
           callerRequest("u1", {}, NOW_SEC - 48 * 3600)),
       (e) => e.details && e.details.code === "PASSKEY_REAUTH_REQUIRED");
 
+  store["users/adm1"] = {role: "admin"};
+  await rejects("admin accounts cannot register a passkey (mandatory TOTP MFA)",
+      () => svc.runGeneratePasskeyRegistrationOptions(callerRequest("adm1")),
+      (e) => e.details && e.details.code === "PASSKEY_ADMIN_MFA_REQUIRED");
+
   const reg = await registerFor("u1", CRED_A, "My phone");
   ok("authenticated user registers a passkey", reg.passkey && reg.passkey.id === CRED_A);
   ok("registered passkey stores the caller's uid server-side",
@@ -424,6 +429,16 @@ async function main() {
         (e) => e.details && e.details.code === "PASSKEY_VERIFICATION_FAILED");
     store[`passkeyCredentials/${CRED_A}`].counter = 0;
   }
+
+  await rejects("a credential whose owner became an admin cannot mint a session", async () => {
+    store["users/u1"].role = "admin";
+    const opts = await svc.runGeneratePasskeyAuthenticationOptions(callerRequest(null));
+    await svc.runVerifyPasskeyAuthentication(callerRequest(null, {
+      challengeId: opts.challengeId,
+      response: {id: CRED_A, __challenge: opts.options.challenge, __newCounter: 0},
+    }));
+  }, (e) => e.details && e.details.code === "PASSKEY_ADMIN_MFA_REQUIRED");
+  store["users/u1"].role = "teacher";
 
   await rejects("suspended account cannot mint a session via passkey", async () => {
     store["users/u1"].status = "suspended";

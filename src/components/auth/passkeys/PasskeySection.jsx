@@ -24,14 +24,24 @@ import {
   isPasskeySupported,
   listPasskeys,
   mapPasskeyError,
+  canRegisterPasskeys,
   MAX_PASSKEYS_PER_USER,
 } from '../../../services/passkeyService'
 
 export default function PasskeySection() {
-  const { currentUser } = useAuth()
+  const { currentUser, userProfile } = useAuth()
   const { settings } = usePlatformSettings()
   const enabled = settings?.featureFlags?.passkeyAuthenticationEnabled === true
   const supported = isPasskeySupported()
+  const role = userProfile?.role
+  const isAdminAccount = role === 'admin' || role === 'superAdmin'
+  // Server-enforced too — this only decides what UI to show, so users outside
+  // the staged rollout never reach a dead-end OS prompt.
+  const canRegister = canRegisterPasskeys({
+    featureFlags: settings?.featureFlags,
+    role,
+    uid: currentUser?.uid,
+  })
 
   const [passkeys, setPasskeys] = useState([])
   const [loading, setLoading] = useState(true)
@@ -115,22 +125,30 @@ export default function PasskeySection() {
             </p>
           )}
 
-          <div className="mt-4">
-            <Button
-              variant="primary"
-              size="md"
-              onClick={() => { setError(''); setDialog({ kind: 'add' }) }}
-              disabled={loading || atLimit}
-              leadingIcon={<Icon as={Plus} size="sm" aria-hidden="true" />}
-            >
-              Add a passkey
-            </Button>
-            {atLimit && (
-              <p className="mt-1.5 text-[12px] text-gray-500">
-                You&apos;ve reached the limit of {MAX_PASSKEYS_PER_USER} passkeys. Remove one to add another.
-              </p>
-            )}
-          </div>
+          {canRegister ? (
+            <div className="mt-4">
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => { setError(''); setDialog({ kind: 'add' }) }}
+                disabled={loading || atLimit}
+                leadingIcon={<Icon as={Plus} size="sm" aria-hidden="true" />}
+              >
+                Add a passkey
+              </Button>
+              {atLimit && (
+                <p className="mt-1.5 text-[12px] text-gray-500">
+                  You&apos;ve reached the limit of {MAX_PASSKEYS_PER_USER} passkeys. Remove one to add another.
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="mt-4 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-[13px] text-gray-600">
+              {isAdminAccount
+                ? 'Administrator accounts sign in with email, password and an authenticator code, so passkeys are not available for admins.'
+                : 'Adding new passkeys is not available for your account yet.'}
+            </p>
+          )}
         </>
       )}
 
