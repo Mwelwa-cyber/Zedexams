@@ -121,6 +121,29 @@ describe('TeacherDashboardV2', () => {
     expect(screen.getByText(/Preview Mode — Changes are not live\./)).toBeInTheDocument()
   })
 
+  it('Theme menu item toggles dark mode in place and persists it', async () => {
+    localStorage.removeItem('zedexams:tdv2-theme')
+    const u = user()
+    const { container } = renderDashboard()
+    expect(container.querySelector('.tdv2')).not.toHaveClass('is-dark')
+
+    await u.click(screen.getByRole('button', { name: /Mahenga Mwelwa/ }))
+    const themeItem = screen.getByRole('menuitemcheckbox', { name: /switch to dark/ })
+    expect(themeItem).toHaveAttribute('aria-checked', 'false')
+
+    await u.click(themeItem)
+    expect(container.querySelector('.tdv2')).toHaveClass('is-dark')
+    expect(localStorage.getItem('zedexams:tdv2-theme')).toBe('dark')
+    // Menu stays open so the switch is reversible in place
+    const backItem = screen.getByRole('menuitemcheckbox', { name: /switch to light/ })
+    expect(backItem).toHaveAttribute('aria-checked', 'true')
+
+    await u.click(backItem)
+    expect(container.querySelector('.tdv2')).not.toHaveClass('is-dark')
+    expect(localStorage.getItem('zedexams:tdv2-theme')).toBe('light')
+    localStorage.removeItem('zedexams:tdv2-theme')
+  })
+
   it('View all teacher tools expands the full tool grid in place', async () => {
     const u = user()
     renderDashboard()

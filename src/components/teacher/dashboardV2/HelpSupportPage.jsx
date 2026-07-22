@@ -26,6 +26,7 @@ import Sidebar from './Sidebar'
 import TopHeader from './TopHeader'
 import LogoutDialog from './LogoutDialog'
 import { teacherFromAuth } from './dashboardV2Data'
+import useDashboardTheme from './useDashboardTheme'
 import './dashboardV2.css'
 
 // Same public support line the marketing page uses (Bonga answers inbound
@@ -115,6 +116,7 @@ export default function HelpSupportPage() {
   const [contactSource, setContactSource] = useState(null) // null | source string
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [logoutOpen, setLogoutOpen] = useState(false)
+  const { dark, toggleTheme } = useDashboardTheme()
 
   const confirmLogout = useCallback(async () => {
     setLogoutOpen(false)
@@ -161,13 +163,18 @@ export default function HelpSupportPage() {
   ]
 
   return (
-    <div className="tdv2">
+    <div className={`tdv2 ${dark ? 'is-dark' : ''}`}>
       <SeoHelmet
         title="Help & Support | ZedExams Teachers"
         description="Get help with ZedExams teacher tools — contact support, report a problem, or browse FAQs."
         noIndex
       />
-      <Sidebar teacher={teacher} onRequestLogout={() => setLogoutOpen(true)} />
+      <Sidebar
+        teacher={teacher}
+        onRequestLogout={() => setLogoutOpen(true)}
+        dark={dark}
+        onToggleTheme={toggleTheme}
+      />
 
       <div className="tdv2-main">
         <TopHeader teacher={teacher} termChip="" />

@@ -19,8 +19,12 @@ const COPPER = '#c65a24'
  *
  * series: [{ date, created }]
  */
-export default function PerformanceSnapshotCard({ series = [] }) {
+export default function PerformanceSnapshotCard({ series = [], dark = false }) {
   const max = Math.max(4, ...series.map((p) => p.created || 0))
+  // recharts writes these as SVG attributes, which can't resolve CSS vars —
+  // switch the literals with the dashboard theme instead.
+  const gridStroke = dark ? 'rgba(255,255,255,0.09)' : '#efe7d9'
+  const tickFill = dark ? '#8aa0b5' : '#98a2ad'
   return (
     <section className="tdv2-card" aria-labelledby="tdv2-perf-h">
       <div className="tdv2-card-head" style={{ flexWrap: 'wrap' }}>
@@ -39,12 +43,12 @@ export default function PerformanceSnapshotCard({ series = [] }) {
         <div className="tdv2-chart-wrap">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={series} margin={{ top: 6, right: 8, left: -26, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke="#efe7d9" />
+              <CartesianGrid vertical={false} stroke={gridStroke} />
               <XAxis
                 dataKey="date"
                 tickLine={false}
                 axisLine={false}
-                tick={{ fill: '#98a2ad', fontSize: 11 }}
+                tick={{ fill: tickFill, fontSize: 11 }}
                 interval="preserveStartEnd"
               />
               <YAxis
@@ -52,14 +56,16 @@ export default function PerformanceSnapshotCard({ series = [] }) {
                 allowDecimals={false}
                 tickLine={false}
                 axisLine={false}
-                tick={{ fill: '#98a2ad', fontSize: 11 }}
+                tick={{ fill: tickFill, fontSize: 11 }}
               />
               <Tooltip
                 formatter={(value) => [`${value}`, 'Documents created']}
                 contentStyle={{
                   borderRadius: 12,
-                  border: '1px solid #e8ded4',
-                  boxShadow: '0 8px 24px rgba(16,36,62,.12)',
+                  border: '1px solid var(--border)',
+                  background: 'var(--surface)',
+                  color: 'var(--ink)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,.18)',
                   fontSize: 12,
                 }}
               />

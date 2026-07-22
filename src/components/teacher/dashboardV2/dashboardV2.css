@@ -77,6 +77,127 @@
   border-radius: 10px;
 }
 
+/* ── Dark theme ───────────────────────────────────────────────────────
+   Toggled from the account menu (useDashboardTheme, persisted per device).
+   The variables carry most of the switch; the overrides below catch the
+   handful of literal light-surface colours. The sidebar, hero, account
+   menu, toasts and preview chrome are already dark in both themes. */
+
+.tdv2.is-dark {
+  --cream: #0c1a2b;
+  --surface: #14263c;
+  --border: rgba(255, 255, 255, 0.11);
+  --ink: #e9eff6;
+  --ink-2: #a3b3c2;
+  --grey: #7b8b9b;
+  --copper-tint: rgba(232, 120, 50, 0.16);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 18px rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.3), 0 14px 32px rgba(0, 0, 0, 0.45);
+  --ring-track: rgba(255, 255, 255, 0.12);
+  color-scheme: dark;
+}
+
+.tdv2.is-dark .tdv2-doc-row:hover,
+.tdv2.is-dark .tdv2-activity-row:hover,
+.tdv2.is-dark a.tdv2-check-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tdv2.is-dark .tdv2-doc-row + .tdv2-doc-row,
+.tdv2.is-dark .tdv2-check-row + .tdv2-check-row,
+.tdv2.is-dark .tdv2-activity-row + .tdv2-activity-row,
+.tdv2.is-dark .tdv2-faq + .tdv2-faq,
+.tdv2.is-dark .tdv2-ws-footer {
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+.tdv2.is-dark .tdv2-ws-expand,
+.tdv2.is-dark .tdv2-footer-action {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tdv2.is-dark .tdv2-ws-expand:hover,
+.tdv2.is-dark .tdv2-footer-action:hover {
+  background: rgba(232, 120, 50, 0.14);
+}
+
+.tdv2.is-dark .tdv2-tile:hover {
+  background: linear-gradient(180deg, var(--surface) 55%, rgba(232, 120, 50, 0.12) 160%);
+}
+
+.tdv2.is-dark .tdv2-check-bar {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.tdv2.is-dark .tdv2-badge-ready {
+  color: #4fd48d;
+  background: rgba(31, 161, 91, 0.14);
+  border-color: rgba(31, 161, 91, 0.4);
+}
+
+.tdv2.is-dark .tdv2-badge-draft {
+  color: #f5c469;
+  background: rgba(245, 158, 11, 0.13);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.tdv2.is-dark .tdv2-ai-card {
+  background: linear-gradient(180deg, #10233c 0%, #0d1d33 100%);
+  border-color: rgba(37, 99, 235, 0.35);
+}
+
+.tdv2.is-dark .tdv2-ai-body,
+.tdv2.is-dark .tdv2-ai-more {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(37, 99, 235, 0.3);
+}
+
+.tdv2.is-dark .tdv2-ai-more:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.tdv2.is-dark .tdv2-btn-outline {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tdv2.is-dark .tdv2-btn-outline:hover {
+  background: rgba(232, 120, 50, 0.16);
+}
+
+.tdv2.is-dark .tdv2-btn-quiet {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.tdv2.is-dark .tdv2-btn-quiet:hover {
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.tdv2.is-dark .tdv2-feed-item.is-success {
+  background: rgba(31, 161, 91, 0.12);
+  border-color: rgba(31, 161, 91, 0.35);
+}
+
+.tdv2.is-dark .tdv2-feed-item.is-warning {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.tdv2.is-dark .tdv2-feed-item.is-error {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.tdv2.is-dark .tdv2-retry {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #ff9184;
+}
+
+.tdv2.is-dark .tdv2-retry:hover {
+  background: rgba(239, 68, 68, 0.15);
+}
+
 /* ── Sidebar ─────────────────────────────────────────────────────────── */
 
 .tdv2-sidebar {

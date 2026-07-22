@@ -10,6 +10,7 @@ import { ChecklistCard, FeedStatusCard, RecentActivityCard } from './InsightCard
 import PerformanceSnapshotCard from './PerformanceSnapshotCard'
 import LogoutDialog from './LogoutDialog'
 import { Toast } from './PreviewChrome'
+import useDashboardTheme from './useDashboardTheme'
 import './dashboardV2.css'
 
 /**
@@ -46,6 +47,7 @@ export default function DashboardView({
   const toastTimer = useRef(null)
   const [allToolsOpen, setAllToolsOpen] = useState(false)
   const workspaceRef = useRef(null)
+  const { dark, toggleTheme } = useDashboardTheme()
 
   // Quick Create's "View all teacher tools" expands the workspace grid and
   // brings it into view — the tools live on this page, not behind a route.
@@ -64,8 +66,13 @@ export default function DashboardView({
   const openLogout = useCallback(() => setLogoutOpen(true), [])
 
   return (
-    <div className="tdv2">
-      <Sidebar teacher={teacher} onRequestLogout={openLogout} />
+    <div className={`tdv2 ${dark ? 'is-dark' : ''}`}>
+      <Sidebar
+        teacher={teacher}
+        onRequestLogout={openLogout}
+        dark={dark}
+        onToggleTheme={toggleTheme}
+      />
 
       <div className="tdv2-main">
         <TopHeader teacher={teacher} termChip={termChip} />
@@ -96,7 +103,7 @@ export default function DashboardView({
             <ChecklistCard items={checklist} loading={loading} />
             <FeedStatusCard items={feed} onRetry={() => onRetryFeed?.({ showToast })} />
             <RecentActivityCard items={activity} />
-            <PerformanceSnapshotCard series={series} />
+            <PerformanceSnapshotCard series={series} dark={dark} />
           </div>
         </main>
       </div>

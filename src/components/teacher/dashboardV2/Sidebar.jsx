@@ -8,6 +8,7 @@ import {
   LogOut,
   Moon,
   Settings,
+  Sun,
   UserRound,
   UsersRound,
 } from 'lucide-react'
@@ -25,11 +26,13 @@ const ACCOUNT_MENU_ITEMS = [
   { id: 'subscription', label: 'Subscription & billing', icon: CreditCard, to: '/my-subscription' },
   { id: 'switch-role', label: 'Switch class or role', icon: UsersRound, to: '/settings/teaching-profile' },
   { id: 'notifications', label: 'Notification preferences', icon: Bell, to: '/settings/notifications' },
-  { id: 'theme', label: 'Theme', icon: Moon, to: '/settings/appearance' },
+  // 'theme' is rendered specially below: it toggles the dashboard theme in
+  // place (menu stays open so the switch is instantly visible/reversible).
+  { id: 'theme' },
   { id: 'help', label: 'Help & support', icon: CircleHelp, to: '/teacher/help' },
 ]
 
-function AccountMenu({ teacher, onSelect, onClose, onLogout, menuRef }) {
+function AccountMenu({ teacher, onSelect, onClose, onLogout, menuRef, dark, onToggleTheme }) {
   useEffect(() => {
     const first = menuRef.current?.querySelector('[role="menuitem"]')
     first?.focus()
@@ -68,22 +71,43 @@ function AccountMenu({ teacher, onSelect, onClose, onLogout, menuRef }) {
           <span className="tdv2-menu-email">{teacher.email}</span>
         </span>
       </div>
-      {ACCOUNT_MENU_ITEMS.map(({ id, label, icon: ItemIcon, to, href }) => (
-        <button
-          key={id}
-          type="button"
-          role="menuitem"
-          className="tdv2-menu-item"
-          onClick={() => {
-            onClose()
-            if (href) window.location.href = href
-            else onSelect(to)
-          }}
-        >
-          <ItemIcon size={17} strokeWidth={1.75} aria-hidden="true" />
-          {label}
-        </button>
-      ))}
+      {ACCOUNT_MENU_ITEMS.map(({ id, label, icon: ItemIcon, to, href }) => {
+        if (id === 'theme') {
+          return (
+            <button
+              key={id}
+              type="button"
+              role="menuitemcheckbox"
+              aria-checked={dark}
+              className="tdv2-menu-item"
+              onClick={onToggleTheme}
+            >
+              {dark ? (
+                <Sun size={17} strokeWidth={1.75} aria-hidden="true" />
+              ) : (
+                <Moon size={17} strokeWidth={1.75} aria-hidden="true" />
+              )}
+              {dark ? 'Theme: Dark — switch to light' : 'Theme: Light — switch to dark'}
+            </button>
+          )
+        }
+        return (
+          <button
+            key={id}
+            type="button"
+            role="menuitem"
+            className="tdv2-menu-item"
+            onClick={() => {
+              onClose()
+              if (href) window.location.href = href
+              else onSelect(to)
+            }}
+          >
+            <ItemIcon size={17} strokeWidth={1.75} aria-hidden="true" />
+            {label}
+          </button>
+        )
+      })}
       <div className="tdv2-menu-divider" role="separator" />
       <button
         type="button"
@@ -112,7 +136,7 @@ function isNavActive(pathname, to) {
   return pathname === path || pathname.startsWith(`${path}/`)
 }
 
-export default function Sidebar({ teacher, onRequestLogout }) {
+export default function Sidebar({ teacher, onRequestLogout, dark = false, onToggleTheme }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const wrapRef = useRef(null)
   const menuRef = useRef(null)
@@ -195,6 +219,8 @@ export default function Sidebar({ teacher, onRequestLogout }) {
           <AccountMenu
             teacher={teacher}
             menuRef={menuRef}
+            dark={dark}
+            onToggleTheme={onToggleTheme}
             onSelect={(to) => navigate(to)}
             onClose={() => closeMenu()}
             onLogout={() => {

@@ -24,7 +24,14 @@ function ProgressRing({ fraction }) {
       role="img"
       aria-label={`${Math.round(fraction * 100)}% complete`}
     >
-      <circle cx="15" cy="15" r={r} fill="none" stroke="#efe7d9" strokeWidth="3.5" />
+      <circle
+        cx="15"
+        cy="15"
+        r={r}
+        fill="none"
+        style={{ stroke: 'var(--ring-track, #efe7d9)' }}
+        strokeWidth="3.5"
+      />
       <circle
         cx="15"
         cy="15"
