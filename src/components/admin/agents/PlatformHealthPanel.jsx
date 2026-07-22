@@ -79,6 +79,9 @@ export default function PlatformHealthPanel() {
       setHealth(res.data || null)
     } catch (e) {
       setError(e?.message || 'Failed to load health snapshot.')
+      // Drop any earlier snapshot — keeping it would leave the panel
+      // showing a stale "Ready" next to the error message.
+      setHealth(null)
     } finally {
       setLoading(false)
     }

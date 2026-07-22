@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import PlatformHealthPanel from './PlatformHealthPanel.jsx'
 
 // What getPlatformHealth does for the current test. The panel builds its
@@ -60,6 +60,19 @@ describe('PlatformHealthPanel', () => {
     expect(screen.queryByText('0/6 present')).not.toBeInTheDocument()
     expect(screen.queryByText('No jobs yet — try a sample run')).not.toBeInTheDocument()
     expect(screen.queryByText('Needs attention')).not.toBeInTheDocument()
+  })
+
+  it('drops a stale snapshot when a later Refresh fails', async () => {
+    render(<PlatformHealthPanel />)
+    await waitFor(() => expect(screen.getByText('Ready')).toBeInTheDocument())
+
+    healthImpl = () => Promise.reject(new Error('deadline-exceeded'))
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    await waitFor(() => expect(screen.getByText('deadline-exceeded')).toBeInTheDocument())
+
+    expect(screen.getByText('Unavailable')).toBeInTheDocument()
+    expect(screen.queryByText('Ready')).not.toBeInTheDocument()
+    expect(screen.queryByText('Alive')).not.toBeInTheDocument()
   })
 
   it('still surfaces real failures when the snapshot itself reports them', async () => {
