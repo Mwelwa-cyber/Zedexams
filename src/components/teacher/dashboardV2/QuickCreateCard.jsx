@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, ClipboardList } from 'lucide-react'
 import { QUICK_CREATE_TILES } from './dashboardV2Config'
 
-export default function QuickCreateCard() {
+export default function QuickCreateCard({ onViewAllTools }) {
   return (
     <section className="tdv2-card" aria-labelledby="tdv2-quick-create-h">
       <div className="tdv2-card-head">
@@ -10,10 +10,17 @@ export default function QuickCreateCard() {
           <ClipboardList size={17} strokeWidth={2} aria-hidden="true" />
           Quick Create
         </h2>
-        <Link className="tdv2-link-action" to="/teacher/library">
-          View all teacher tools
-          <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
-        </Link>
+        {onViewAllTools ? (
+          <button type="button" className="tdv2-link-action" onClick={onViewAllTools}>
+            View all teacher tools
+            <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
+          </button>
+        ) : (
+          <Link className="tdv2-link-action" to="/teacher/library">
+            View all teacher tools
+            <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
+          </Link>
+        )}
       </div>
       <div className="tdv2-tile-grid">
         {QUICK_CREATE_TILES.map(({ id, title, description, icon: TileIcon, to, tone }) => (

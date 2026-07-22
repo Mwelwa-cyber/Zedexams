@@ -7,8 +7,13 @@ import {
   MessageSquare,
   Search,
 } from 'lucide-react'
+import { useNotifications } from '../../../contexts/NotificationContext'
+import NotificationCenter from '../../notifications/NotificationCenter'
 
-export default function TopHeader({ teacher, termChip, notificationCount = 0 }) {
+export default function TopHeader({ teacher, termChip }) {
+  // Real notification feed (notifications/{uid}/feed) — same source as the
+  // learner/admin shells; unread count is 0 when signed out (preview route).
+  const { unreadCount, open: notifOpen, setOpen: setNotifOpen } = useNotifications()
   const [isMac, setIsMac] = useState(false)
   const [query, setQuery] = useState('')
   const navigate = useNavigate()
@@ -51,20 +56,25 @@ export default function TopHeader({ teacher, termChip, notificationCount = 0 }) 
       </form>
 
       <div className="tdv2-header-right">
-        <Link
-          to="/teacher/settings"
+        <button
+          type="button"
           className="tdv2-iconbtn"
-          aria-label={notificationCount > 0 ? `Notifications (${notificationCount} unread)` : 'Notification settings'}
+          aria-haspopup="dialog"
+          aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+          onClick={() => setNotifOpen(true)}
         >
           <Bell size={19} strokeWidth={1.75} aria-hidden="true" />
-          {notificationCount > 0 ? (
-            <span className="tdv2-badge-dot" aria-hidden="true">{notificationCount}</span>
+          {unreadCount > 0 ? (
+            <span className="tdv2-badge-dot" aria-hidden="true">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
           ) : null}
-        </Link>
-        <Link to="/preferences" className="tdv2-iconbtn" aria-label="Help and support">
+        </button>
+        {notifOpen ? <NotificationCenter /> : null}
+        <Link to="/teacher/help" className="tdv2-iconbtn" aria-label="Help and support">
           <MessageSquare size={19} strokeWidth={1.75} aria-hidden="true" />
         </Link>
-        <Link to="/teacher/settings" className="tdv2-userchip" aria-label={`Account: ${teacher.shortName}`}>
+        <Link to="/settings/profile" className="tdv2-userchip" aria-label={`Account: ${teacher.shortName}`}>
           <span className="tdv2-avatar" aria-hidden="true">{teacher.initials}</span>
           <span className="tdv2-user-name">{teacher.shortName}</span>
           <ChevronDown size={16} strokeWidth={2} aria-hidden="true" />

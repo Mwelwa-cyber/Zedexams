@@ -57,10 +57,10 @@ export const NAV_GROUPS = [
     id: 'settings',
     label: 'Settings',
     items: [
-      { id: 'subscription', label: 'Subscription', icon: CreditCard, to: '/pricing' },
-      { id: 'profile', label: 'Profile', icon: UserRound, to: '/teacher/settings' },
-      { id: 'settings', label: 'Settings', icon: Settings, to: '/teacher/settings' },
-      { id: 'help', label: 'Help & Support', icon: CircleHelp, to: '/preferences' },
+      { id: 'subscription', label: 'Subscription', icon: CreditCard, to: '/my-subscription' },
+      { id: 'profile', label: 'Profile', icon: UserRound, to: '/settings/profile' },
+      { id: 'settings', label: 'Settings', icon: Settings, to: '/settings' },
+      { id: 'help', label: 'Help & Support', icon: CircleHelp, to: '/teacher/help' },
     ],
   },
 ]
@@ -159,6 +159,40 @@ export const WORKSPACE_EXPANDABLE = [
       { id: 'mark-schedule', label: 'Mark Schedule', to: '/teacher/generate/mark-schedule' },
     ],
   },
+]
+
+/**
+ * The complete teacher tool directory — powers the "View all teacher tools"
+ * expansion on the Workspace card. Every route is real; keep this list in
+ * sync with the /teacher routes in App.jsx (guarded by
+ * scripts/test-dashboard-v2-links.mjs).
+ */
+export const ALL_TOOLS = [
+  { id: 'lesson-plan', label: 'Lesson Plan Studio', icon: NotebookPen, to: '/teacher/generate/lesson-plan' },
+  { id: 'scheme-of-work', label: 'Schemes of Work', icon: CalendarRange, to: '/teacher/generate/scheme-of-work' },
+  { id: 'weekly-focus', label: 'Weekly Focus', icon: ClipboardList, to: '/teacher/generate/weekly-forecast' },
+  { id: 'record-of-work', label: 'Record of Work', icon: ChartNoAxesColumnIncreasing, to: '/teacher/generate/record-of-work' },
+  { id: 'worksheet', label: 'Worksheet Studio', icon: Files, to: '/teacher/generate/worksheet' },
+  { id: 'homework', label: 'Homework Studio', icon: BookOpenCheck, to: '/teacher/generate/homework' },
+  { id: 'notes', label: 'Teacher Notes', icon: BookOpen, to: '/teacher/generate/notes' },
+  { id: 'flashcards', label: 'Flashcards', icon: Files, to: '/teacher/generate/flashcards' },
+  { id: 'assessment-papers', label: 'Assessment Papers', icon: FileText, to: '/teacher/assessment-papers' },
+  { id: 'rubric', label: 'Rubric Studio', icon: ClipboardCheck, to: '/teacher/generate/rubric' },
+  { id: 'mark-schedule', label: 'Mark Schedule', icon: ListChecks, to: '/teacher/generate/mark-schedule' },
+  { id: 'sba', label: 'SBA Tasks', icon: ClipboardCheck, to: '/teacher/generate/sba' },
+  { id: 'sba-planner', label: 'SBA Year Plan', icon: CalendarRange, to: '/teacher/generate/sba-planner' },
+  { id: 'sba-tracker', label: 'SBA Mark Tracker', icon: ChartNoAxesColumnIncreasing, to: '/teacher/generate/sba-tracker' },
+  { id: 'class-timetable', label: 'Class Timetable', icon: CalendarRange, to: '/teacher/generate/class-timetable' },
+  { id: 'question-bank', label: 'Question Bank', icon: ListChecks, to: '/teacher/question-bank' },
+  { id: 'register', label: 'Class List', icon: Users, to: '/teacher/register' },
+  { id: 'attendance', label: 'Class Register', icon: ClipboardCheck, to: '/teacher/attendance' },
+  { id: 'calendar', label: 'School Calendar', icon: CalendarRange, to: '/teacher/calendar' },
+  { id: 'syllabi', label: 'Syllabi Studio', icon: FolderOpen, to: '/teacher/syllabi' },
+  { id: 'curriculum', label: 'Curriculum', icon: BookOpen, to: '/teacher/curriculum' },
+  { id: 'templates', label: 'Paper Templates', icon: Files, to: '/teacher/templates' },
+  { id: 'drafts', label: 'Drafts', icon: FileText, to: '/teacher/drafts' },
+  { id: 'library', label: 'My Library', icon: FolderOpen, to: '/teacher/library' },
+  { id: 'classes', label: 'My Classes', icon: Users, to: '/teacher/classes' },
 ]
 
 /* Document/activity row icon per tool id (defaults to FileText). */

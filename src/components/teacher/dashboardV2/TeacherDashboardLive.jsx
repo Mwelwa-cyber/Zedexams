@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { capture } from '../../../utils/analytics'
 import SeoHelmet from '../../seo/SeoHelmet'
+import UsageReminderBanner from '../../subscription/UsageReminderBanner'
 import { resolveGreeting } from './dashboardV2Core'
 import useTeacherDashboardData from './useTeacherDashboardData'
 import DashboardView from './DashboardView'
@@ -58,7 +59,8 @@ export default function TeacherDashboardLive() {
         greeting={greeting}
         lastOpened={data.lastOpened}
         onContinue={handleContinue}
-        recommendation={data.recommendation}
+        recommendations={data.recommendations}
+        banner={<UsageReminderBanner />}
         documents={data.documents}
         savedCounts={data.savedCounts}
         checklist={data.checklist}

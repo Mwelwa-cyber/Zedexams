@@ -1,0 +1,82 @@
+#!/usr/bin/env node
+/**
+ * Dashboard V2 link integrity — every hard-coded navigation target in
+ * src/components/teacher/dashboardV2/ must resolve to a route declared in
+ * App.jsx.
+ *
+ * Why: the V2 dashboard shipped with links to /teacher/settings, a route
+ * that does not exist (teacher settings live under /settings/*), so half
+ * the Settings surface 404'd in production. Like test-public-routes.mjs,
+ * this is a text-level parse of App.jsx — cheap, deterministic, and enough
+ * to catch a dead link before deploy.
+ */
+import { readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
+
+const ROOT = new URL('..', import.meta.url).pathname
+const appSrc = readFileSync(join(ROOT, 'src/App.jsx'), 'utf8')
+
+// ── Declared routes → matchers ──────────────────────────────────────
+const routePaths = [...appSrc.matchAll(/<Route\s+path="([^"]+)"/g)].map((m) => m[1])
+if (routePaths.length < 50) {
+  throw new Error(`Parsed only ${routePaths.length} routes from App.jsx — parser drifted?`)
+}
+
+const matchers = routePaths.map((p) => {
+  if (p === '*') return () => false // catch-all 404 never legitimises a link
+  const pattern = p
+    .replace(/\/\*$/, '(/.*)?') // trailing wildcard: /settings/* also serves /settings
+    .replace(/:[A-Za-z0-9_]+/g, '[^/]+')
+  const re = new RegExp(`^${pattern}$`)
+  return (path) => re.test(path)
+})
+const routeExists = (path) => matchers.some((m) => m(path))
+
+// ── Link targets used by the dashboard ──────────────────────────────
+const DIR = join(ROOT, 'src/components/teacher/dashboardV2')
+const files = readdirSync(DIR).filter((f) =>
+  (f.endsWith('.js') || f.endsWith('.jsx')) && !f.includes('.test.') && !f.includes('.spec.'),
+)
+
+const links = new Map() // path -> Set of files
+for (const file of files) {
+  const src = readFileSync(join(DIR, file), 'utf8')
+  // to: '/x' | to="/x" | to={'/x'} | href="/x" | navigate('/x'
+  const patterns = [
+    /\bto:\s*['"`](\/[^'"`\s]*)/g,
+    /\bto=["'{]+["'`]?(\/[^'"`}\s]*)/g,
+    /\bhref=["'](\/[^'"\s]*)/g,
+    /navigate\(\s*['"`](\/[^'"`\s]*)/g,
+  ]
+  for (const re of patterns) {
+    for (const m of src.matchAll(re)) {
+      const path = m[1].split('?')[0].replace(/\/$/, '') || '/'
+      if (!links.has(path)) links.set(path, new Set())
+      links.get(path).add(file)
+    }
+  }
+}
+
+if (links.size < 10) {
+  throw new Error(`Extracted only ${links.size} link targets from dashboardV2 — extractor drifted?`)
+}
+
+// ── Assert every target resolves ────────────────────────────────────
+let failed = 0
+for (const [path, sources] of [...links.entries()].sort()) {
+  if (routeExists(path)) {
+    console.log(`  ok  ${path}`)
+  } else {
+    failed++
+    console.error(`FAIL  ${path} — no <Route> in App.jsx matches (used in ${[...sources].join(', ')})`)
+  }
+}
+
+// The known-bad path from the production 404 must never come back.
+if (links.has('/teacher/settings')) {
+  failed++
+  console.error('FAIL  /teacher/settings is back — teacher settings live under /settings/*')
+}
+
+console.log(`\ndashboard-v2 links: ${links.size} targets checked, ${failed} broken`)
+if (failed > 0) process.exit(1)

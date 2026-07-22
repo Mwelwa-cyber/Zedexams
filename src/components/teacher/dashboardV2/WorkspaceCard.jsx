@@ -4,17 +4,26 @@ import {
   ArrowRight,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   ClipboardList,
   Layers,
 } from 'lucide-react'
-import { WORKSPACE_EXPANDABLE, WORKSPACE_TILES } from './dashboardV2Config'
+import { ALL_TOOLS, WORKSPACE_EXPANDABLE, WORKSPACE_TILES } from './dashboardV2Config'
+
+// Tools already visible on the card (planning tiles + expandable rows) are
+// excluded from the "more" grid so the count stays honest.
+const VISIBLE_ROUTES = new Set([
+  ...WORKSPACE_TILES.map((t) => t.to),
+  ...WORKSPACE_EXPANDABLE.flatMap((g) => g.items.map((i) => i.to)),
+])
+const MORE_TOOLS = ALL_TOOLS.filter((t) => !VISIBLE_ROUTES.has(t.to))
 
 /**
  * savedCounts: { scheme_of_work, weekly_forecast, lesson_plan,
  * record_of_work } | null — null (fetch failed / loading) hides the badges
  * rather than showing wrong zeros.
  */
-export default function WorkspaceCard({ savedCounts = null }) {
+export default function WorkspaceCard({ savedCounts = null, allToolsOpen = false, onToggleAllTools }) {
   const [expanded, setExpanded] = useState(() => new Set())
 
   const toggle = (id) => {
@@ -100,11 +109,32 @@ export default function WorkspaceCard({ savedCounts = null }) {
         )
       })}
 
+      {allToolsOpen ? (
+        <div className="tdv2-ws-sublist" id="tdv2-all-tools" style={{ paddingTop: 14 }}>
+          {MORE_TOOLS.map(({ id, label, icon: ToolIcon, to }) => (
+            <Link key={id} to={to} className="tdv2-ws-subitem">
+              <ToolIcon size={15} strokeWidth={1.75} aria-hidden="true" />
+              {label}
+            </Link>
+          ))}
+        </div>
+      ) : null}
+
       <div className="tdv2-ws-footer">
-        <Link className="tdv2-link-action" to="/teacher/library">
-          View all teacher tools (13 more)
-          <ChevronDown size={15} strokeWidth={2} aria-hidden="true" />
-        </Link>
+        <button
+          type="button"
+          className="tdv2-link-action"
+          aria-expanded={allToolsOpen}
+          aria-controls="tdv2-all-tools"
+          onClick={() => onToggleAllTools?.(!allToolsOpen)}
+        >
+          {allToolsOpen ? 'Hide extra tools' : `View all teacher tools (${MORE_TOOLS.length} more)`}
+          {allToolsOpen ? (
+            <ChevronUp size={15} strokeWidth={2} aria-hidden="true" />
+          ) : (
+            <ChevronDown size={15} strokeWidth={2} aria-hidden="true" />
+          )}
+        </button>
       </div>
     </section>
   )

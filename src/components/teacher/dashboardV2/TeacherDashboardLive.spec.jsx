@@ -10,6 +10,11 @@ vi.mock('./PerformanceSnapshotCard', () => ({
   default: () => <section aria-label="Activity Snapshot (stub)" />,
 }))
 vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
+vi.mock('../../../contexts/NotificationContext', () => ({
+  useNotifications: () => ({ unreadCount: 2, open: false, setOpen: () => {} }),
+}))
+// Pulls useTeacherUsage → firebase; plan reminders have their own tests.
+vi.mock('../../subscription/UsageReminderBanner', () => ({ default: () => null }))
 
 const logout = vi.fn().mockResolvedValue()
 vi.mock('../../../contexts/AuthContext', () => ({
@@ -36,7 +41,10 @@ const hookData = {
   feed: [{ id: 'feed-error', kind: 'error', title: 'Couldn’t load your library', body: 'Check your connection and try again.', retry: true }],
   activity: [{ id: 'g1', title: 'Lesson Plan created', meta: 'Lesson Plan • Grade 4', time: '2d ago', tool: 'lesson_plan', to: '/teacher/library/g1' }],
   series: [{ date: '8 Jul', created: 2 }],
-  recommendation: { title: 'Mathematics is not planned yet', text: 'Create a Scheme of Work.', actionLabel: 'Create Scheme', to: '/teacher/generate/scheme-of-work' },
+  recommendations: [
+    { id: 'r1', title: 'Mathematics is not planned yet', text: 'Create a Scheme of Work.', actionLabel: 'Create Scheme', to: '/teacher/generate/scheme-of-work' },
+    { id: 'r2', title: 'Record of Work needs updating', text: 'Log this week.', actionLabel: 'Update record', to: '/teacher/generate/record-of-work' },
+  ],
   reload: vi.fn(),
 }
 vi.mock('./useTeacherDashboardData', () => ({
@@ -69,6 +77,8 @@ describe('TeacherDashboardLive', () => {
     expect(screen.getByText('4 SAVED')).toBeInTheDocument()
     expect(screen.getByText('15 Jul — Term 2 • Week 10')).toBeInTheDocument()
     expect(screen.getByText('Mathematics is not planned yet')).toBeInTheDocument()
+    // Second recommendation renders as a compact row below the primary card
+    expect(screen.getByText('Record of Work needs updating')).toBeInTheDocument()
     expect(screen.getByText('Weekly Focus: 2 of 5 days prepared')).toBeInTheDocument()
     // No preview chrome on the live dashboard
     expect(screen.queryByText(/Preview Mode/)).not.toBeInTheDocument()
