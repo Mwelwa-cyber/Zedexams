@@ -10,9 +10,10 @@ The **technical** privacy surface is well-built: an in-app Privacy Policy + Term
 server-side account-deletion purge, a data-export path, cookie/analytics consent, and explicit
 AI + third-party-processor disclosure. The **legal** exposure is real and needs counsel: the
 platform serves children (Grade 4–7, ages ~9–12) but has **no verifiable parental-consent
-mechanism**, and it ingests/serves ECZ past papers with **no visible licensing basis**. Two
-technical gaps (account-deletion has no re-auth; purge is best-effort with hand-maintained lists)
-raise the stakes given the weak backup posture.
+mechanism**, and it ingests/serves ECZ past papers with **no visible licensing basis**. The
+account-deletion re-auth/rate-limit gap (LEGAL-003) is now closed; the remaining technical gap
+(purge is best-effort with hand-maintained lists, LEGAL-004) still raises the stakes given the weak
+backup posture.
 
 ## Present (technical) — evidence
 
@@ -27,15 +28,21 @@ raise the stakes given the weak backup posture.
 
 ## Findings — technical (fixable in code)
 
-### LEGAL-003 — `deleteMyAccount` has no re-authentication and no rate limit
+### LEGAL-003 — `deleteMyAccount` has no re-authentication and no rate limit — RESOLVED (2026-07-21)
 - **Severity:** Medium–High · **Confidence:** High confidence
-- **Affected:** `functions/index.js:787-800` — checks only `request.auth.uid`.
-- **Current:** A stolen/persisted session can **irreversibly** purge an account with one call. No
+- **Affected:** `functions/index.js` (`deleteMyAccount`) — previously checked only `request.auth.uid`.
+- **Was:** A stolen/persisted session could **irreversibly** purge an account with one call. No
   recent-login re-auth, no confirmation token, no rate limit.
-- **Risk:** Account-destruction via session theft — irreversible given DR-001 (no backup).
-- **Correction:** Require recent re-authentication (or an emailed confirmation token) + rate limit;
-  consider a soft-delete grace window before hard purge. **Launch blocker:** Recommended before
-  broad launch. **Complexity:** Low–Medium.
+- **Fix:** The callable now (1) enforces a short per-user burst rate limit
+  (`assertCallableRateLimit`, `deleteMyAccount` action) and (2) requires a recent re-authentication —
+  a fresh `auth_time` on the ID token (`accountDeletion.evaluateDeletionAuth`, default 5-min window,
+  fails closed on a missing claim). The client (`src/utils/accountService.js`) re-authenticates
+  immediately before calling — password accounts re-enter their password, Google accounts via a
+  provider popup — and force-refreshes the token. Guarded by `test:account-deletion`,
+  `test:account-reauth`, and `AccountPanel.spec.jsx`. A stale/hijacked session is now rejected with
+  `requires-recent-login`.
+- **Still open (optional hardening):** a soft-delete grace window before the hard purge is not
+  implemented; deletion irreversibility still depends on the weak backup posture (DR-001).
 
 ### LEGAL-004 — `purgeUserData` is best-effort with hand-maintained collection lists
 - **Severity:** Medium · **Confidence:** High confidence

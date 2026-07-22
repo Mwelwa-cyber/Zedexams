@@ -12,8 +12,9 @@
   "reports-dir": "coverage-functions",
   "clean": true,
   "check-coverage": true,
-  "lines": 38,
-  "statements": 38,
-  "functions": 70,
-  "branches": 72
+  "//baseline": "Measured baseline 2026-07-21: lines/statements 47.6%, branches 77.59%, functions 76.77% (154 backend test files). Thresholds sit a small buffer under that so the gate can only ratchet up; bump them again the next time coverage rises.",
+  "lines": 47,
+  "statements": 47,
+  "functions": 76,
+  "branches": 77
 }

@@ -5,7 +5,8 @@ import {
   updatePassword,
 } from 'firebase/auth'
 import { useAuth } from '../../../contexts/AuthContext'
-import { deleteMyAccount } from '../../../utils/accountService'
+import { deleteMyAccount, pickReauthMethod } from '../../../utils/accountService'
+import { canSubmitDeletion, deletionErrorMessage } from '../../../utils/accountReauth'
 import PasskeySection from '../../../components/auth/passkeys/PasskeySection'
 import SettingsDetailShell from '../components/SettingsDetailShell'
 import FieldRow from '../components/fields/FieldRow'
@@ -160,12 +161,22 @@ export default function SecurityPanel() {
   const { currentUser, resetPassword, logout } = useAuth()
   const [resetSent, setResetSent] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [deleteError, setDeleteError] = useState('')
 
   const lastSignIn = currentUser?.metadata?.lastSignInTime
     ? new Date(currentUser.metadata.lastSignInTime).toLocaleString()
     : null
+
+  // Deleting is irreversible, so the server requires a recent re-auth: password
+  // accounts confirm with their password, Google accounts via a popup.
+  const reauthMethod = pickReauthMethod(currentUser?.providerData)
+  const canDelete = canSubmitDeletion({
+    method: reauthMethod,
+    password: deletePassword,
+    confirmed: confirmingDelete,
+  })
 
   const sendReset = async () => {
     try {
@@ -176,15 +187,22 @@ export default function SecurityPanel() {
     }
   }
 
+  const cancelDelete = () => {
+    setConfirmingDelete(false)
+    setDeletePassword('')
+    setDeleteError('')
+  }
+
   const onDelete = async () => {
+    if (!canDelete || deleteBusy) return
     setDeleteBusy(true)
     setDeleteError('')
     try {
-      await deleteMyAccount()
+      await deleteMyAccount({ password: deletePassword })
       await logout()
     } catch (err) {
       console.error('Account deletion failed:', err)
-      setDeleteError('Could not delete your account — please try again or contact support.')
+      setDeleteError(deletionErrorMessage(err))
       setDeleteBusy(false)
     }
   }
@@ -251,18 +269,38 @@ export default function SecurityPanel() {
             Delete my account
           </button>
         ) : (
-          <div className="tset-upload__actions">
-            <button type="button" className="tset-btn tset-btn--danger" disabled={deleteBusy} onClick={onDelete}>
-              {deleteBusy ? 'Deleting…' : 'Yes, permanently delete'}
-            </button>
-            <button
-              type="button"
-              className="tset-btn tset-btn--ghost"
-              disabled={deleteBusy}
-              onClick={() => setConfirmingDelete(false)}
-            >
-              Cancel
-            </button>
+          <div>
+            {reauthMethod === 'password' ? (
+              <label className="tset-help" style={{ display: 'block', marginBottom: 12 }}>
+                Enter your password to confirm
+                <input
+                  type="password"
+                  className="studio-input"
+                  autoComplete="current-password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  disabled={deleteBusy}
+                  style={{ marginTop: 6, display: 'block', width: '100%', maxWidth: 320 }}
+                />
+              </label>
+            ) : (
+              <p className="tset-help" style={{ marginBottom: 12 }}>
+                You'll be asked to confirm with Google before your account is deleted.
+              </p>
+            )}
+            <div className="tset-upload__actions">
+              <button type="button" className="tset-btn tset-btn--danger" disabled={deleteBusy || !canDelete} onClick={onDelete}>
+                {deleteBusy ? 'Deleting…' : 'Yes, permanently delete'}
+              </button>
+              <button
+                type="button"
+                className="tset-btn tset-btn--ghost"
+                disabled={deleteBusy}
+                onClick={cancelDelete}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         )}
       </section>

@@ -38,19 +38,20 @@ A production failure often cannot be traced UI → function → data cleanly.
 - **Correction:** Confirm `VITE_SENTRY_DSN` is set in the prod build; wire Firebase Performance or
   Sentry performance. **Launch blocker:** No, but confirm at runtime. **Complexity:** Low.
 
-### OBS-002 — Admin direct-write fallback bypasses the audit ledger; audit write failures swallowed
-- **Severity:** Medium · **Confidence:** High confidence
-- **Affected:** `src/utils/adminPaymentsService.js:19-28` (`withFallback` → direct client Firestore
-  write on `functions/not-found`); `firestore.rules:410-411` still allows admin direct writes;
-  `auditLog.js:36-39` swallows audit-write failures (best-effort).
-- **Current:** An admin can mutate roles/subscriptions/payments via a direct SDK path that skips
-  `writeAuditLog`; and even on the callable path, an audit-write failure is logged-and-ignored, so an
-  action can succeed with no ledger entry and no alert. Attendance uses a **separate** `attendanceAudit`
-  ledger — two disjoint audit systems.
-- **Risk:** The audit ledger cannot be relied on as *complete* — a forensic gap for a platform
-  handling money + child data.
-- **Correction:** Tighten admin-mutation rules to server-only (remove the client fallback), or make
-  the fallback also write audit; alert on audit-write failure; unify the ledgers. **Blocker:** No.
+### OBS-002 — Admin direct-write fallback bypasses the audit ledger; audit write failures swallowed ✅ both made loud in this PR
+- **Severity:** Medium → Low (residual) · **Confidence:** High confidence
+- **Was:** `auditLog.js` **swallowed** audit-write failures (an action could succeed with no ledger
+  entry and no alert), and `adminPaymentsService.js`'s `withFallback` did a **silent** direct client
+  write when the audited callable was `functions/not-found` (deploy skew), skipping the ledger entirely.
+- **Fixed here:**
+  - `writeAuditLog` now **raises an ops alert** on a failed ledger write (naming action/actor/target for
+    reconciliation) and returns `{written: false}` — the underlying action still succeeds, but the gap
+    is no longer silent. Pure `buildAuditEntry` + injectable `{db, alert}`; tests: `auditLog.test.js` (9).
+  - The client fallback path now **reports a forced client error** (`adminPayments.auditBypass`) every
+    time it fires, so a ledger-bypassing direct write during deploy skew is visible and reconcilable.
+- **Residual:** tighten `firestore.rules` admin-mutation to server-only (remove the client-write path
+  altogether) and **unify** the disjoint `adminAuditLogs` + `attendanceAudit` ledgers — both are
+  behavioural/rules changes best done with the rules emulator, tracked separately. **Blocker:** No.
   **Complexity:** Medium.
 
 ### OBS-003 — No structured logging / request-correlation IDs
@@ -72,13 +73,15 @@ A production failure often cannot be traced UI → function → data cleanly.
   other), and `delivered` is true if EITHER got the alert out — so a single-channel failure no longer
   loses a critical alert. Best-effort, never throws. Tests: `opsAlert.test.js` (webhook build + POST
   2xx/non-2xx/network-error + two-channel delivery incl. "webhook alone delivers when email is down").
-- **Heartbeat:** the synthetic canaries (`storageBackupCheck`, `rateLimitHealthCheck`,
-  `backupCompletionCheck`) + the `opsBackups` / `opsStorageBackups` / `opsRateLimitHealth` status docs
-  give an active, queryable per-subsystem heartbeat (a stale/missing status doc is itself a signal a
-  scheduled job stopped); Marshal already confirms scheduled agents ran.
-- **Residual:** set `OPS_ALERT_WEBHOOK_URL` on the deploy + confirm a test alert lands in the channel;
-  a single cross-subsystem dead-man's-switch (one check that ALL heartbeats are fresh) is still open.
-  **Launch blocker:** No. **Complexity:** Low.
+- **Heartbeat + dead-man's-switch:** the synthetic canaries (`storageBackupCheck`, `rateLimitHealthCheck`,
+  `backupCompletionCheck`) write per-subsystem heartbeats to `opsBackups` / `opsStorageBackups` /
+  `opsRateLimitHealth`. A new **cross-subsystem dead-man's-switch** (`opsHeartbeatCheck`, every 6h,
+  `functions/opsHeartbeat.js` + `opsHeartbeatCore.js`) reads all three and raises ONE edge-triggered
+  alert if any is **stale or missing** — i.e. that monitor's OWN scheduled trigger stopped firing, the
+  one failure a subsystem can't self-report. 22 tests. Verdict persists to `opsHeartbeat/status`.
+  Marshal already confirms scheduled agents ran.
+- **Residual:** set `OPS_ALERT_WEBHOOK_URL` on the deploy + confirm a test alert lands in the channel
+  (runtime). **Launch blocker:** No. **Complexity:** Low.
 
 ### OBS-005 — Thin per-minute rate limiting (bot/abuse) — **generators now covered (2026-07-19)**
 - **Severity:** Medium → Low (residual) · **Confidence:** High confidence
