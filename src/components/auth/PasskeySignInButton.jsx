@@ -13,25 +13,27 @@ export default function PasskeySignInButton({ onClick, loading, disabled }) {
         onClick={onClick}
         disabled={disabled || loading}
         aria-label="Sign in with a passkey"
+        aria-busy={loading || undefined}
         className={
-          'w-full h-[46px] flex items-center justify-center gap-2.5 ' +
-          'rounded-[10px] border-[1.5px] border-[#2A2A3C] bg-white text-[#1A1F2E] ' +
-          'text-[14px] font-semibold font-body ' +
-          'transition-all hover:bg-[#F7F7FA] hover:-translate-y-px hover:shadow-sm ' +
-          'active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 ' +
-          'motion-reduce:transition-none motion-reduce:hover:translate-y-0'
+          'w-full min-h-[56px] flex items-center justify-center gap-3 ' +
+          'rounded-[14px] border border-[#D1D5DB] bg-white text-[#111827] ' +
+          'text-[16px] font-semibold font-body ' +
+          'transition-all hover:bg-[#FAFAFA] hover:border-[#B9BEC7] ' +
+          'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--accent)]/30 focus-visible:border-[var(--accent)] ' +
+          'active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed ' +
+          'motion-reduce:transition-none'
         }
       >
         {loading ? (
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="animate-spin motion-reduce:animate-none" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="animate-spin motion-reduce:animate-none" aria-hidden="true">
             <path d="M21 12a9 9 0 11-6.219-8.56" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
           </svg>
         ) : (
-          <Icon as={Fingerprint} size={18} className="text-[var(--accent)]" aria-hidden="true" />
+          <Icon as={Fingerprint} size={20} className="text-[var(--accent)]" aria-hidden="true" />
         )}
         <span>{loading ? 'Waiting for your device…' : 'Sign in with a passkey'}</span>
       </button>
-      <p className="text-[12px] text-[#888] text-center mt-1.5">
+      <p className="text-[14px] text-[#8B8F9C] text-center mt-2">
         Use your fingerprint, face, PIN, or device screen lock.
       </p>
     </div>

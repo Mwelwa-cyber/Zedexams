@@ -51,6 +51,28 @@ vi.mock('react-router-dom', async (importOriginal) => {
   return { ...actual, useNavigate: () => mockNavigate }
 })
 
+// Passkey rollout flag + WebAuthn support are both controlled per-test so we
+// can exercise every branch of the passkey section (hidden / shown /
+// unsupported fallback) without touching real platform settings or WebAuthn.
+const mockPasskeyFlag = { enabled: false }
+vi.mock('../../contexts/PlatformSettingsContext', () => ({
+  usePlatformSettings: () => ({
+    settings: { featureFlags: { passkeyAuthenticationEnabled: mockPasskeyFlag.enabled } },
+    loaded: true,
+  }),
+}))
+
+const mockPasskeySupport = { supported: false }
+const mockSignInWithPasskey = vi.fn()
+vi.mock('../../services/passkeyService', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    isPasskeySupported: () => mockPasskeySupport.supported,
+    signInWithPasskey: (...args) => mockSignInWithPasskey(...args),
+  }
+})
+
 import { useAuth, hasAuthSessionHint } from '../../contexts/AuthContext'
 import { getResolver, findTotpHint } from '../../services/adminMfa'
 import Login from './Login'
@@ -86,6 +108,8 @@ beforeEach(() => {
   mockLogout.mockResolvedValue(undefined)
   mockResetPassword.mockResolvedValue(undefined)
   hasAuthSessionHint.mockReturnValue(false)
+  mockPasskeyFlag.enabled = false
+  mockPasskeySupport.supported = false
 })
 
 // ── MFA challenge ─────────────────────────────────────────────────────────────
@@ -352,6 +376,151 @@ describe('Login — refresh/session-restoration behaviour', () => {
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/quiz/123', { replace: true }))
+  })
+})
+
+// ── Passkey section (redesigned login) ────────────────────────────────────────
+// The passkey option is feature-flagged and support-detected. Cancelling the
+// OS prompt is a NEUTRAL outcome (grey notice), never an error banner.
+describe('Login — passkey sign-in states', () => {
+  it('hides the passkey button entirely while the feature flag is off', () => {
+    mockPasskeyFlag.enabled = false
+    mockPasskeySupport.supported = true
+    setAuth()
+
+    renderLogin()
+
+    expect(screen.queryByRole('button', { name: 'Sign in with a passkey' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/passkeys are not supported/i)).not.toBeInTheDocument()
+  })
+
+  it('shows the passkey button + inclusive helper copy when flagged on and supported', () => {
+    mockPasskeyFlag.enabled = true
+    mockPasskeySupport.supported = true
+    setAuth()
+
+    renderLogin()
+
+    expect(screen.getByRole('button', { name: 'Sign in with a passkey' })).toBeInTheDocument()
+    expect(screen.getByText('Use your fingerprint, face, PIN, or device screen lock.')).toBeInTheDocument()
+  })
+
+  it('shows the compact unsupported-browser fallback when flagged on but WebAuthn is missing', () => {
+    mockPasskeyFlag.enabled = true
+    mockPasskeySupport.supported = false
+    setAuth()
+
+    renderLogin()
+
+    expect(screen.queryByRole('button', { name: 'Sign in with a passkey' })).not.toBeInTheDocument()
+    expect(
+      screen.getByText('Passkeys are not supported on this browser. Use Google or your password to sign in.'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows a neutral notice (not an error alert) when the user dismisses the OS prompt', async () => {
+    mockPasskeyFlag.enabled = true
+    mockPasskeySupport.supported = true
+    // NotAllowedError is what WebAuthn throws when the user closes the sheet.
+    mockSignInWithPasskey.mockRejectedValue(Object.assign(new Error('dismissed'), { name: 'NotAllowedError' }))
+    setAuth()
+
+    renderLogin()
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in with a passkey' }))
+
+    await waitFor(() =>
+      expect(screen.getByText('Passkey sign-in was cancelled.')).toBeInTheDocument(),
+    )
+    // A cancellation must never render as an error alert or navigate anywhere.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+
+  it('shows the safe generic error for a real passkey verification failure', async () => {
+    mockPasskeyFlag.enabled = true
+    mockPasskeySupport.supported = true
+    mockSignInWithPasskey.mockRejectedValue(new Error('server verification blew up'))
+    setAuth()
+
+    renderLogin()
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in with a passkey' }))
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
+    // Safe copy only — never the raw internal message.
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'We could not verify this passkey. Try again or use another sign-in method.',
+    )
+    expect(screen.queryByText(/blew up/)).not.toBeInTheDocument()
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+
+  it('signs in through the normal post-login tail on passkey success (same routing as other methods)', async () => {
+    mockPasskeyFlag.enabled = true
+    mockPasskeySupport.supported = true
+    mockSignInWithPasskey.mockResolvedValue({ user: { uid: 'uid-pk', emailVerified: true } })
+    mockEnsureUserProfile.mockResolvedValue({ id: 'uid-pk', role: 'teacher' })
+    setAuth()
+
+    renderLogin()
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in with a passkey' }))
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/teacher', { replace: true }))
+  })
+})
+
+// ── Redesign copy + structure ─────────────────────────────────────────────────
+describe('Login — redesigned page content', () => {
+  it('renders the create-account prompt with the required wording', () => {
+    setAuth()
+    renderLogin()
+
+    expect(screen.getByText(/new to zedexams\?/i)).toBeInTheDocument()
+    const link = screen.getByRole('link', { name: 'Create a free account' })
+    expect(link).toHaveAttribute('href', '/register')
+  })
+
+  it('renders the security reassurance strip with accurate wording', () => {
+    setAuth()
+    renderLogin()
+
+    expect(screen.getByText('Secure')).toBeInTheDocument()
+    expect(screen.getByText('Private')).toBeInTheDocument()
+    expect(screen.getByText('Trusted')).toBeInTheDocument()
+    expect(screen.getByText('We never store your biometrics')).toBeInTheDocument()
+  })
+
+  it('never duplicates the tagline — it is baked into the logo asset', () => {
+    setAuth()
+    renderLogin()
+
+    // The logo image itself carries "Practise smart." — rendering it again as
+    // text would show the tagline twice on the page.
+    expect(screen.queryByText('Practise smart.')).not.toBeInTheDocument()
+    expect(screen.getByAltText('ZedExams')).toBeInTheDocument()
+  })
+
+  it('exposes a password visibility toggle with accessible labels (no emoji)', () => {
+    setAuth()
+    renderLogin()
+
+    const toggle = screen.getByRole('button', { name: 'Show password' })
+    fireEvent.click(toggle)
+    expect(screen.getByRole('button', { name: 'Hide password' })).toBeInTheDocument()
+    expect(screen.getByLabelText(/^password$/i)).toHaveAttribute('type', 'text')
+  })
+
+  it('moves focus to the error alert when a sign-in error lands', async () => {
+    const authErr = Object.assign(new Error('bad'), { code: 'auth/invalid-credential' })
+    mockLogin.mockRejectedValue(authErr)
+    setAuth()
+
+    renderLogin()
+    fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'a@b.zm' } })
+    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: 'x' } })
+    fireEvent.click(screen.getByRole('button', { name: /^sign in$/i }))
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
+    expect(screen.getByRole('alert')).toHaveFocus()
   })
 })
 
