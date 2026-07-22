@@ -10,6 +10,11 @@ import TeacherDashboardV2 from './TeacherDashboardV2'
 vi.mock('./PerformanceSnapshotCard', () => ({
   default: () => <section aria-label="Performance Snapshot (stub)" />,
 }))
+// The header bell reads the app-wide NotificationProvider (main.jsx); specs
+// mount without it, so stub the hook.
+vi.mock('../../../contexts/NotificationContext', () => ({
+  useNotifications: () => ({ unreadCount: 0, open: false, setOpen: () => {} }),
+}))
 
 function renderDashboard() {
   return render(
@@ -114,6 +119,19 @@ describe('TeacherDashboardV2', () => {
     expect(screen.getByText('Feed & Status')).toBeInTheDocument()
     expect(screen.getByText('Recent Activity')).toBeInTheDocument()
     expect(screen.getByText(/Preview Mode — Changes are not live\./)).toBeInTheDocument()
+  })
+
+  it('View all teacher tools expands the full tool grid in place', async () => {
+    const u = user()
+    renderDashboard()
+    const toggle = screen.getByRole('button', { name: /View all teacher tools \(\d+ more\)/ })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('link', { name: /Question Bank/ })).not.toBeInTheDocument()
+
+    await u.click(toggle)
+    expect(screen.getByRole('link', { name: /Question Bank/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Class Timetable/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Hide extra tools/ })).toBeInTheDocument()
   })
 
   it('sidebar puts Dashboard above the CREATE group', () => {

@@ -28,6 +28,9 @@ vi.mock('../../../contexts/AuthContext', () => ({
 vi.mock('../../../contexts/PlatformSettingsContext', () => ({
   usePlatformSettings: () => ({ settings: { supportEmail: 'support@zedexams.com' } }),
 }))
+vi.mock('../../../contexts/NotificationContext', () => ({
+  useNotifications: () => ({ unreadCount: 0, open: false, setOpen: () => {} }),
+}))
 
 function renderPage() {
   return render(

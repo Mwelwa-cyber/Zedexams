@@ -25,11 +25,10 @@ export default function DashboardView({
   teacher,
   termChip,
   greeting,
-  notificationCount = 0,
   lastOpened,
   ctaState = 'default',
   onContinue,
-  recommendation,
+  recommendations,
   documents,
   savedCounts,
   checklist,
@@ -39,11 +38,21 @@ export default function DashboardView({
   loading = false,
   onRetryFeed,
   onConfirmLogout,
+  banner = null,
   renderExtras,
 }) {
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [toast, setToast] = useState(null)
   const toastTimer = useRef(null)
+  const [allToolsOpen, setAllToolsOpen] = useState(false)
+  const workspaceRef = useRef(null)
+
+  // Quick Create's "View all teacher tools" expands the workspace grid and
+  // brings it into view — the tools live on this page, not behind a route.
+  const viewAllTools = useCallback(() => {
+    setAllToolsOpen(true)
+    workspaceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
 
   const showToast = useCallback((kind, message) => {
     clearTimeout(toastTimer.current)
@@ -59,8 +68,9 @@ export default function DashboardView({
       <Sidebar teacher={teacher} onRequestLogout={openLogout} />
 
       <div className="tdv2-main">
-        <TopHeader teacher={teacher} termChip={termChip} notificationCount={notificationCount} />
+        <TopHeader teacher={teacher} termChip={termChip} />
         <main className="tdv2-content">
+          {banner}
           <GreetingHero
             greeting={greeting}
             lastOpened={lastOpened}
@@ -69,13 +79,17 @@ export default function DashboardView({
           />
 
           <div className="tdv2-row-1">
-            <QuickCreateCard />
-            <AiRecommendationsCard recommendation={recommendation} />
+            <QuickCreateCard onViewAllTools={viewAllTools} />
+            <AiRecommendationsCard recommendations={recommendations} />
           </div>
 
-          <div className="tdv2-row-2">
+          <div className="tdv2-row-2" ref={workspaceRef}>
             <RecentDocumentsCard documents={documents} loading={loading} />
-            <WorkspaceCard savedCounts={savedCounts} />
+            <WorkspaceCard
+              savedCounts={savedCounts}
+              allToolsOpen={allToolsOpen}
+              onToggleAllTools={setAllToolsOpen}
+            />
           </div>
 
           <div className="tdv2-row-3">

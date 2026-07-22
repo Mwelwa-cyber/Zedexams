@@ -63,11 +63,10 @@ export default function TeacherDashboardV2() {
         teacher={TEACHER}
         termChip={TERM_CHIP}
         greeting={greeting}
-        notificationCount={3}
         lastOpened={LAST_OPENED}
         ctaState={ctaState}
         onContinue={handleContinue}
-        recommendation={AI_RECOMMENDATION}
+        recommendations={[AI_RECOMMENDATION]}
         documents={RECENT_DOCUMENTS}
         savedCounts={SAVED_COUNTS}
         checklist={CHECKLIST_ITEMS}

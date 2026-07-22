@@ -177,14 +177,13 @@ export default function useTeacherDashboardData() {
   }), [displayName, userProfile?.email, currentUser?.email])
 
   const now = Date.now()
-  const topRecommendation = recommendations[0]
-    ? {
-        title: recommendations[0].title,
-        text: recommendations[0].text,
-        actionLabel: recommendations[0].actionLabel,
-        to: recommendations[0].to,
-      }
-    : null
+  const recommendationCards = recommendations.slice(0, 3).map((r) => ({
+    id: r.id,
+    title: r.title,
+    text: r.text,
+    actionLabel: r.actionLabel,
+    to: r.to,
+  }))
 
   return {
     teacher,
@@ -197,7 +196,7 @@ export default function useTeacherDashboardData() {
     feed: feedFromState({ resources, gensError, now }),
     activity: activityFromResources(resources, { limit: 3, now }),
     series: activitySeriesFromResources(resources, { now, weeks: 5 }),
-    recommendation: topRecommendation,
+    recommendations: recommendationCards,
     reload,
   }
 }
