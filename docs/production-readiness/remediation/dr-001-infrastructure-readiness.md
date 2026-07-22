@@ -1,12 +1,13 @@
 # DR-001 — Firestore Backup & Disaster Recovery — Infrastructure-Readiness Record
 
-> **Status (interim): Backup export runtime-verified; restore drill pending.**
-> (A successful managed export is now evidenced — see §12. This is still NOT
-> "Verified in staging" — that requires a completed non-production restore
-> drill — and NOT "Closed" — which additionally requires the Firebase Auth +
-> Cloud Storage DR gaps resolved or formally accepted.)
+> **Status: Backup export runtime-verified AND restore drill PASSED (operator,
+> 2026-07-22 — see §13). → "Verified in staging".** Not yet "Closed": closure
+> additionally requires the Firebase Auth + Cloud Storage DR gaps and the
+> provider-reconciliation gap resolved or formally accepted. The Firestore
+> restore path itself is proven and does NOT need re-running.
 >
-> Session date: 2026-07-19 · Environment: Google Cloud Console / Cloud Shell ·
+> Session date: 2026-07-19 (infra + export) · 2026-07-22 (restore drill) ·
+> Environment: Google Cloud Console / Cloud Shell ·
 > **Authenticated operator: authorised ZedExams project administrator.**
 >
 > This record captures the operator-side GCP infrastructure provisioned for
@@ -104,15 +105,19 @@ those noted; no APIs enabled; no production data changed; no production restore.
 1. ✅ Functions deployed; `FIRESTORE_BACKUP_BUCKET` received by the runtime.
 2. ✅ Real managed export observed → `done: true` (§12).
 3. ✅ Bucket contains the `.overall_export_metadata` object (§12).
-4. ⏳ **Restore drill into a non-production scratch database** (next — see the
-   template below; requires GCP access, which this repo session does not have).
-5. ⏳ Validate restored collections, Auth references, Storage references, and
-   record the measured RTO.
+4. ✅ **Restore drill into a non-production scratch database** — PASSED
+   2026-07-22 (§13): 27,192 documents restored, measured **RTO 25m50s**, scratch
+   database deleted afterwards, no data imported into `(default)`.
+5. ✅ Measured RTO recorded (§13). Restored collections validated during the
+   drill. **Auth + Storage reference validation** is folded into item 8 (the Auth
+   + Storage DR gaps) — the Firestore restore itself is proven.
 6. ⏳ Run a valid DOCX through the deployed admin-only workflow (SEC-007 runtime).
 7. ⏳ Replace the default runtime SA with a dedicated least-privileged backup SA.
-8. ⏳ Separately document/remediate the **Firebase Auth** and **Cloud Storage**
-   DR gaps (not covered by the Firestore export).
-9. ⏳ DR-007 (§12): de-collide same-UTC-date exports.
+8. ⏳ Separately document/remediate the **Firebase Auth** + **Cloud Storage** DR
+   gaps and the **provider (Lenco/Play) reconciliation** gap — not covered by the
+   Firestore export. (Storage now has a verified backup MONITOR — DR-003 / #1811 —
+   pending the operator provisioning the mirror.)
+9. ✅ DR-007 (§12): de-collide same-UTC-date exports — fixed in #1806.
 
 ### Restore-drill evidence template (operator fills on completion)
 Run the exact sequence in
@@ -176,3 +181,30 @@ and treat a failure caused by an already-present metadata object as
   non-production restore drill are evidenced.
 - May be **"Closed"** only after that evidence is reviewed AND the Auth + Storage
   DR gaps are separately documented or remediated.
+
+## 13. Runtime verification — RESTORE DRILL (2026-07-22) ✅ PASSED
+The non-production restore drill has been performed (operator-run; recorded here,
+not executed from this repo session). This moves DR-001 from "Implemented,
+pending runtime verification" to **"Verified in staging"** — the restore path is
+proven end-to-end and does **not** need re-running.
+
+```text
+Restore target:           non-production scratch database (deleted after the drill)
+Documents restored:       27,192
+Measured RTO:             25m50s  (25 minutes 50 seconds)
+No data imported into (default): confirmed
+Scratch DB after drill:   deleted
+Result:                   PASS
+```
+
+**What this closes:** the Firestore backup→restore loop is now evidenced
+end-to-end (export §12 + restore §13) with a measured RTO. **What remains for
+DR-001 closure is NOT the Firestore drill** but the separate, still-open gaps:
+1. **Merge this evidence** into the register (this PR).
+2. **Firebase Auth DR** — Auth users/claims are not covered by the Firestore
+   export; document/remediate separately.
+3. **Cloud Storage DR** — a verified backup MONITOR now exists (DR-003 / #1811);
+   the operator still provisions the cross-region mirror + sets `STORAGE_BACKUP_BUCKET`.
+4. **Provider reconciliation** — Lenco / Google Play entitlement state after a
+   restore (a restored `results`/`subscriptions` snapshot may lag live provider
+   state); define the post-restore reconciliation step.
