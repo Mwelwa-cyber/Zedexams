@@ -185,20 +185,28 @@ async function consumeChallenge({challengeId, operation, expectedUid, request}) 
 }
 
 // Stable opaque WebAuthn user handle (never the Firebase UID, which would be
-// readable by anything enumerating the authenticator's credential store).
-// Server-only collection; created on first registration.
+// readable by anything enumerating the authenticator's credential store, and
+// never the email — the handle must survive an email change unchanged).
+// Server-only collection, keyed by uid; minted ONCE inside a transaction so
+// two concurrent options calls can never race each other into two different
+// handles. Handle stability matters beyond privacy: authenticators overwrite
+// a discoverable credential with the same (rpId, userHandle), so an unstable
+// handle would leave duplicate same-email entries in the device's password
+// manager on every re-registration.
 async function getOrCreateUserHandle(uid) {
   const ref = db().collection(USER_HANDLES).doc(uid);
-  const snap = await ref.get();
-  if (snap.exists && typeof snap.data()?.handle === "string") {
-    return snap.data().handle;
-  }
-  const handle = core.randomBase64Url(32);
-  await ref.set({
-    handle,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-  }, {merge: true});
-  return handle;
+  return db().runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.exists && typeof snap.data()?.handle === "string") {
+      return snap.data().handle;
+    }
+    const handle = core.randomBase64Url(32);
+    tx.set(ref, {
+      handle,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return handle;
+  });
 }
 
 async function listActiveCredentials(uid) {
@@ -417,6 +425,16 @@ async function runVerifyPasskeyAuthentication(request) {
 
   const credSnap = await db().collection(CREDENTIALS).doc(credentialId).get();
   const credData = credSnap.exists ? credSnap.data() : null;
+  // Duplicate-chooser diagnostics (docs/PASSKEYS.md → "Seeing the account
+  // twice"): logs ONLY the SHA-256 of the credential id — comparing this
+  // hash across two chooser rows distinguishes a stale device-side
+  // credential from a provider display duplicate. Never raw ids/assertions.
+  console.info("[passkeys] PASSKEY_CREDENTIAL_SELECTED", JSON.stringify({
+    event: "PASSKEY_CREDENTIAL_SELECTED",
+    credentialIdHash: core.sha256Hex(credentialId),
+    credentialFound: Boolean(credData),
+    credentialStatus: credData ? (credData.revokedAt ? "revoked" : "active") : "unknown",
+  }));
   const credVerdict = core.validateCredentialForAuth(credData);
   if (!credVerdict.ok) {
     await writeAudit(EVENTS.AUTH_FAILED, {

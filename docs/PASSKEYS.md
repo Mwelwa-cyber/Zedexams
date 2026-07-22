@@ -187,6 +187,59 @@ deploys functions + rules). Post-deploy checklist: set the Firestore TTL
 policy on `webauthnChallenges.expiresAt` (one-off), flip the feature flag for
 phase 1, and watch `passkeyAuditLog` + `/admin/app-check` for the new labels.
 
+## Duplicate account rows in the device's passkey chooser
+
+Symptom: Android (or another OS) shows the same email twice in the system
+passkey chooser while Settings → Security → Passkeys shows one credential.
+
+Storage model facts (verified — the Settings list cannot silently drop
+credentials): `passkeyCredentials/{credentialId}` is the ONLY authoritative
+store; registration (`tx.create`), authentication (doc get by id), the
+Settings list, and removal all use it. There is no index/mirror collection,
+the list query has no `limit()`, it filters only `revokedAt`, and the client
+keys rows by credential id (never deduplicates by name or email). Removal
+hard-deletes the doc. But a website **cannot** delete the copy a device's
+password manager keeps, so a credential removed from ZedExams (or orphaned by
+deleting a test account) lives on in Google Password Manager and shows as an
+extra identical row.
+
+**Manual diagnosis** (each sign-in attempt writes a `credentialIdHash` to a
+`passkeyAuditLog` row, and the function logs a `PASSKEY_CREDENTIAL_SELECTED`
+event with the same hash — raw ids are never logged):
+
+1. On the affected phone, tap "Sign in with a passkey", pick the FIRST row,
+   complete it (success or failure both log).
+2. Sign out; repeat with the SECOND row.
+3. Compare the two hashes (Firestore console → `passkeyAuditLog`, newest
+   rows, or the function logs) and count the account's docs in
+   `passkeyCredentials`.
+
+Interpretation (`classifyPasskeyDuplicateReport` in `passkeyCore.js` encodes
+this triage):
+
+| Observation | Diagnosis | Action |
+|---|---|---|
+| Two different hashes, both sign in | `SERVER_HAS_TWO_ACTIVE_CREDENTIALS` | Both genuine — Settings shows both; rename/remove the unwanted one |
+| Two different hashes, one says "no longer linked" | `STALE_DEVICE_CREDENTIAL` | The failing row is a leftover in the password manager — remove it there (Google Password Manager → search zedexams.com) |
+| Same hash from both rows | `ANDROID_PROVIDER_DUPLICATE_DISPLAY` / `MULTIPLE_CREDENTIAL_PROVIDERS` | Presentation issue in Android or between credential providers — no ZedExams data change can fix it; do NOT delete server records |
+| Server has 2 active but Settings shows 1 | `SETTINGS_LIST_QUERY_BUG` | Our bug — file it (structurally ruled out today, guarded by tests) |
+
+Never merge or delete credentials just because they share an email — one
+account legitimately holds several passkeys, each identified by its unique
+credential id.
+
+**Prevention (implemented):** the WebAuthn user handle is minted once per
+uid inside a transaction and never changes (not on email change either), so
+re-registration on the same device OVERWRITES the password-manager entry
+instead of adding a second one; `excludeCredentials` carries every active
+credential so the same authenticator can't enrol twice (the OS's
+`InvalidStateError` surfaces as the neutral "A passkey for this account
+already exists on this device or password manager."); registration writes
+are `tx.create` on the credential-id doc so a duplicate or a concurrent
+double-submit loses. After a removal the UI says the passkey "may still
+appear in your phone's password manager until you delete it there", and the
+list has an opt-in "Why do I see my account twice?" help note.
+
 ## Troubleshooting
 
 - "Passkey sign-in is not available yet" — feature flag off (or Firestore read

@@ -46,6 +46,9 @@ export default function PasskeySection() {
   const [passkeys, setPasskeys] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  // Neutral informational message (e.g. post-removal device-side cleanup).
+  const [notice, setNotice] = useState('')
+  const [showDuplicateHelp, setShowDuplicateHelp] = useState(false)
   const [dialog, setDialog] = useState(null) // { kind: 'add' | 'rename' | 'remove', passkey? }
 
   const refresh = useCallback(async () => {
@@ -119,18 +122,49 @@ export default function PasskeySection() {
             )}
           </div>
 
+          {notice && (
+            <p aria-live="polite" className="mt-3 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-[13px] text-gray-700">
+              {notice}
+            </p>
+          )}
+
           {error && (
             <p aria-live="polite" className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-[13px] font-medium text-red-700">
               {error}
             </p>
           )}
 
+          {/* Device password managers keep their own copy of a passkey; a
+              removed or superseded one can linger there and show as a second
+              identical account row in the OS chooser. Help is opt-in via the
+              link — not a permanent warning. */}
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={() => setShowDuplicateHelp((v) => !v)}
+              aria-expanded={showDuplicateHelp}
+              className="text-[13px] font-medium text-orange-700 hover:underline bg-transparent shadow-none p-0 min-h-0"
+            >
+              Why do I see my account twice?
+            </button>
+            {showDuplicateHelp && (
+              <p className="mt-2 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-[13px] leading-snug text-gray-600">
+                One entry may be an older passkey saved in your phone&apos;s
+                password manager — websites cannot remove those remotely. Test
+                each entry before removing anything: the stale one will say it
+                is no longer linked to a ZedExams account. To clean it up, open
+                Google Password Manager, search for zedexams.com, and remove
+                the old passkey that no longer works.
+              </p>
+            )}
+          </div>
+
           {canRegister ? (
             <div className="mt-4">
               <Button
                 variant="primary"
                 size="md"
-                onClick={() => { setError(''); setDialog({ kind: 'add' }) }}
+                onClick={() => { setError(''); setNotice(''); setDialog({ kind: 'add' }) }}
                 disabled={loading || atLimit}
                 leadingIcon={<Icon as={Plus} size="sm" aria-hidden="true" />}
               >
@@ -174,6 +208,9 @@ export default function PasskeySection() {
           onClose={() => setDialog(null)}
           onRemoved={(removed) => {
             setPasskeys((list) => list.filter((p) => p.id !== removed.id))
+            setNotice(
+              'The passkey has been removed from ZedExams. It may still appear in your phone’s password manager until you delete it there.',
+            )
             setDialog(null)
           }}
           onError={(message) => { setError(message); setDialog(null) }}

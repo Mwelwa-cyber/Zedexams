@@ -221,7 +221,9 @@ function defaultPasskeyNameFromUa(ua) {
 }
 
 /** The only credential fields the client may ever see. Never the public key,
- * counter internals, or hashes. */
+ * counter internals, or hashes. The `id` (the WebAuthn credential id / doc
+ * id) is the ONLY valid list key — deduplicating by name, email, or device
+ * type would hide genuine sibling credentials. */
 function credentialDocToSafeMetadata(id, doc) {
   return {
     id,
@@ -231,7 +233,53 @@ function credentialDocToSafeMetadata(id, doc) {
     transports: Array.isArray(doc.transports) ? doc.transports : [],
     createdAtMs: typeof doc.createdAtMs === "number" ? doc.createdAtMs : null,
     lastUsedAtMs: typeof doc.lastUsedAtMs === "number" ? doc.lastUsedAtMs : null,
+    status: doc.revokedAt ? "revoked" : "active",
   };
+}
+
+// Outcomes for the duplicate-chooser-row investigation (docs/PASSKEYS.md).
+// Admin/dev diagnostics only — never shown to ordinary users.
+const PASSKEY_DUPLICATE_DIAGNOSES = Object.freeze({
+  SERVER_HAS_TWO_ACTIVE_CREDENTIALS: "SERVER_HAS_TWO_ACTIVE_CREDENTIALS",
+  SERVER_HAS_ONE_ACTIVE_AND_ONE_REVOKED: "SERVER_HAS_ONE_ACTIVE_AND_ONE_REVOKED",
+  SERVER_HAS_ONE_CREDENTIAL: "SERVER_HAS_ONE_CREDENTIAL",
+  ANDROID_PROVIDER_DUPLICATE_DISPLAY: "ANDROID_PROVIDER_DUPLICATE_DISPLAY",
+  STALE_DEVICE_CREDENTIAL: "STALE_DEVICE_CREDENTIAL",
+  MULTIPLE_CREDENTIAL_PROVIDERS: "MULTIPLE_CREDENTIAL_PROVIDERS",
+  SETTINGS_LIST_QUERY_BUG: "SETTINGS_LIST_QUERY_BUG",
+});
+
+/**
+ * Classify the duplicate-chooser observation gathered by the manual
+ * procedure in docs/PASSKEYS.md: sign in once per chooser row and compare
+ * the PASSKEY_CREDENTIAL_SELECTED hashes (also stored on passkeyAuditLog
+ * rows) against the server's credential counts.
+ *
+ * Inputs: counts from Firestore for the uid, what Settings actually
+ * renders, and the two observed hashes' relationship. `bothRowsSameHash`
+ * and `secondRowUnknown` may be null when a row wasn't tested yet.
+ */
+function classifyPasskeyDuplicateReport({
+  serverActiveCount,
+  serverRevokedCount = 0,
+  settingsShownCount,
+  bothRowsSameHash = null,
+  secondRowUnknown = null,
+}) {
+  const D = PASSKEY_DUPLICATE_DIAGNOSES;
+  // A Settings list showing fewer than the server holds is OUR bug and
+  // outranks every device-side explanation.
+  if (Number(settingsShownCount) < Number(serverActiveCount)) {
+    return D.SETTINGS_LIST_QUERY_BUG;
+  }
+  if (Number(serverActiveCount) >= 2) return D.SERVER_HAS_TWO_ACTIVE_CREDENTIALS;
+  if (Number(serverActiveCount) === 1 && Number(serverRevokedCount) >= 1) {
+    return D.SERVER_HAS_ONE_ACTIVE_AND_ONE_REVOKED;
+  }
+  if (bothRowsSameHash === true) return D.ANDROID_PROVIDER_DUPLICATE_DISPLAY;
+  if (secondRowUnknown === true) return D.STALE_DEVICE_CREDENTIAL;
+  if (bothRowsSameHash === false) return D.MULTIPLE_CREDENTIAL_PROVIDERS;
+  return D.SERVER_HAS_ONE_CREDENTIAL;
 }
 
 // Both deployed production hostnames (mirrors functions/cors.js +
@@ -281,4 +329,6 @@ module.exports = {
   PRODUCTION_ORIGINS,
   isPasskeyRolloutAllowed,
   isAdminRole,
+  PASSKEY_DUPLICATE_DIAGNOSES,
+  classifyPasskeyDuplicateReport,
 };

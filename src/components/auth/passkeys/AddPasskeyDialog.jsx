@@ -8,7 +8,7 @@ import Button from '../../ui/Button'
 import Icon from '../../ui/Icon'
 import { Fingerprint, CheckCircleIcon as CheckCircle } from '../../ui/icons'
 import PasskeySecurityExplanation from './PasskeySecurityExplanation'
-import { registerPasskey, renamePasskey, mapPasskeyError } from '../../../services/passkeyService'
+import { registerPasskey, renamePasskey, mapPasskeyError, PASSKEY_ERRORS } from '../../../services/passkeyService'
 
 export default function AddPasskeyDialog({ onClose, onAdded }) {
   // 'confirm' → 'registering' (OS prompt is up) → 'name' (registered)
@@ -19,8 +19,15 @@ export default function AddPasskeyDialog({ onClose, onAdded }) {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const nameInputRef = useRef(null)
+  // Synchronous in-flight lock: React state alone updates too late to stop a
+  // double-tap in the same tick, and two parallel create() flows would mint
+  // two REAL credentials (excludeCredentials can't block a credential that
+  // doesn't exist yet). The ref refuses the second call before any await.
+  const inFlightRef = useRef(false)
 
   async function handleContinue() {
+    if (inFlightRef.current) return
+    inFlightRef.current = true
     setError('')
     setNotice('')
     setStep('registering')
@@ -33,10 +40,16 @@ export default function AddPasskeyDialog({ onClose, onAdded }) {
       const mapped = mapPasskeyError(err)
       if (mapped.cancelled) {
         setNotice('Passkey setup was cancelled. Nothing was added.')
+      } else if (mapped.code === PASSKEY_ERRORS.CREDENTIAL_DUPLICATE) {
+        // The authenticator already holds an equivalent passkey
+        // (excludeCredentials matched) — a normal outcome, not a failure.
+        setNotice(mapped.message)
       } else {
         setError(mapped.message)
       }
       setStep('confirm')
+    } finally {
+      inFlightRef.current = false
     }
   }
 
