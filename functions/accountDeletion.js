@@ -46,6 +46,7 @@ const UID_DOC_COLLECTIONS = [
   "learner_profiles",
   "learnerStats",
   "studyPlanProgress",
+  "passkeyUserHandles", // opaque WebAuthn user handle (server-only)
 ];
 
 // A field on the doc holds the uid. `recursive: true` for collections whose
@@ -81,6 +82,10 @@ const FIELD_QUERY_COLLECTIONS = [
   {collection: "classes", field: "teacherUid"},
   {collection: "classRegisters", field: "teacherUid", recursive: true}, // + roster, records
   {collection: "assignments", field: "teacherUid"},
+  // Passkey (WebAuthn) sign-in: credentials stop authenticating the moment
+  // their doc is gone, and the uid-bearing audit rows go with them.
+  {collection: "passkeyCredentials", field: "uid"},
+  {collection: "passkeyAuditLog", field: "uid"},
 ];
 
 // uid lives inside an array on a doc owned by another user.

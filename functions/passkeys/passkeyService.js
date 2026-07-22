@@ -35,15 +35,13 @@ const {PASSKEY_ERROR_CODES: CODES, PASSKEY_AUDIT_EVENTS: EVENTS} = core;
 // PASSKEY_ALLOWED_ORIGINS=http://localhost:5173. Wildcards are refused by
 // resolveExpectedOrigins (fail-closed to the production origin).
 const RP_NAME = "ZedExams";
-const PRODUCTION_ORIGIN = "https://zedexams.com";
 function rpId() {
   return process.env.PASSKEY_RP_ID || "zedexams.com";
 }
 function expectedOrigins() {
-  return core.resolveExpectedOrigins(
-      process.env.PASSKEY_ALLOWED_ORIGINS,
-      PRODUCTION_ORIGIN,
-  );
+  // Defaults include both deployed hostnames (apex + www) via
+  // core.PRODUCTION_ORIGINS; env adds dev origins, never wildcards.
+  return core.resolveExpectedOrigins(process.env.PASSKEY_ALLOWED_ORIGINS);
 }
 // Sensitive changes (add/remove a passkey) require a recent first-factor
 // sign-in; older sessions get PASSKEY_REAUTH_REQUIRED and the UI asks the
@@ -86,6 +84,16 @@ async function getPasskeyFlags() {
 function disabledError() {
   return new HttpsError("failed-precondition",
       "Passkey sign-in is not available yet.", {code: CODES.DISABLED});
+}
+
+// Administrator accounts are under mandatory TOTP MFA, and the MFA guard
+// deliberately never accepts a custom-token session as second-factor proof —
+// so a passkey session would lock an admin out of every privileged callable.
+// Refused at registration AND sign-in.
+function adminMfaError() {
+  return new HttpsError("failed-precondition",
+      "Administrator accounts sign in with email, password and an authenticator code.",
+      {code: CODES.ADMIN_MFA_REQUIRED});
 }
 
 // ── Audit log ────────────────────────────────────────────────────────────
@@ -227,6 +235,7 @@ async function runGeneratePasskeyRegistrationOptions(request) {
   const flags = await getPasskeyFlags();
   const profileSnap = await db().doc(`users/${uid}`).get();
   const role = profileSnap.exists ? profileSnap.data()?.role : null;
+  if (core.isAdminRole(role)) throw adminMfaError();
   if (!core.isPasskeyRolloutAllowed({flags, role, uid})) throw disabledError();
   requireRecentAuth(request);
 
@@ -452,26 +461,50 @@ async function runVerifyPasskeyAuthentication(request) {
   }
 
   // Clone detection (WebAuthn §6.1.1): a rolled-back or repeated non-zero
-  // counter means two authenticators hold "the same" credential. Reject.
-  const counterVerdict = core.evaluateCounter({
-    storedCounter: credData.counter,
-    newCounter: verification.authenticationInfo.newCounter,
+  // counter means two authenticators hold "the same" credential. The check
+  // and the counter bump happen in ONE transaction against a fresh read so
+  // two concurrent assertions can never both pass on the same stored value
+  // (the second sees the first's committed counter and is rejected), and a
+  // just-revoked/removed credential is re-checked at the same moment.
+  const counterVerdict = await db().runTransaction(async (tx) => {
+    const fresh = await tx.get(credSnap.ref);
+    const freshData = fresh.exists ? fresh.data() : null;
+    const stillValid = core.validateCredentialForAuth(freshData);
+    if (!stillValid.ok) return stillValid;
+    const verdict = core.evaluateCounter({
+      storedCounter: freshData.counter,
+      newCounter: verification.authenticationInfo.newCounter,
+    });
+    if (verdict.ok) {
+      tx.update(credSnap.ref, {
+        counter: verdict.updatedCounter,
+        lastUsedAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastUsedAtMs: Date.now(),
+      });
+    }
+    return verdict;
   });
   if (!counterVerdict.ok) {
-    await writeAudit(EVENTS.REPLAY_REJECTED, {uid, credentialId, result: "counter-rollback", request});
+    await writeAudit(EVENTS.REPLAY_REJECTED, {
+      uid, credentialId,
+      result: counterVerdict.code === CODES.COUNTER_ROLLBACK ?
+        "counter-rollback" : "credential-invalidated-mid-auth",
+      request,
+    });
     throw new HttpsError("failed-precondition",
         "We could not verify this passkey. Try again or use another sign-in method.",
         {code: CODES.VERIFICATION_FAILED});
   }
 
-  // Suspended/deleted accounts must not mint a session (throws HttpsError).
+  // Suspended/deleted accounts must not mint a session (throws HttpsError),
+  // and admin accounts never mint passkey sessions at all — their mandatory
+  // TOTP MFA cannot be satisfied by a custom token (requireAdminMfaCore).
   await assertActiveAccount(uid);
-
-  await credSnap.ref.update({
-    counter: counterVerdict.updatedCounter,
-    lastUsedAt: admin.firestore.FieldValue.serverTimestamp(),
-    lastUsedAtMs: Date.now(),
-  });
+  const profileSnap = await db().doc(`users/${uid}`).get();
+  if (core.isAdminRole(profileSnap.exists ? profileSnap.data()?.role : null)) {
+    await writeAudit(EVENTS.AUTH_FAILED, {uid, credentialId, result: "admin-mfa-required", request});
+    throw adminMfaError();
+  }
 
   const customToken = await admin.auth().createCustomToken(uid);
   await writeAudit(EVENTS.AUTH_SUCCEEDED, {uid, credentialId, result: "success", request});

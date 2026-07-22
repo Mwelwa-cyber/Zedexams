@@ -29,6 +29,7 @@ const PASSKEY_ERROR_CODES = Object.freeze({
   NETWORK_ERROR: "PASSKEY_NETWORK_ERROR",
   RATE_LIMITED: "PASSKEY_RATE_LIMITED",
   DISABLED: "PASSKEY_DISABLED",
+  ADMIN_MFA_REQUIRED: "PASSKEY_ADMIN_MFA_REQUIRED",
 });
 
 // Audit event types (passkeyAuditLog collection).
@@ -149,6 +150,18 @@ function sanitizePasskeyName(raw, fallback = "My passkey") {
 }
 
 /**
+ * Administrator accounts are excluded from passkey auth entirely: mandatory
+ * TOTP MFA (security/requireAdminMfaCore.js) deliberately never treats a
+ * custom-token session as MFA-satisfied, so a passkey session would strand an
+ * admin outside every privileged callable. Enforced at registration AND at
+ * sign-in (defence in depth — a role change after enrolment must not slip
+ * through).
+ */
+function isAdminRole(role) {
+  return role === "admin" || role === "superAdmin";
+}
+
+/**
  * Staged-rollout gate. The master flag must be on; when either rollout list
  * is non-empty the caller must match one of them (uid allowlist OR role
  * allowlist). Empty lists with the flag on == everyone.
@@ -221,12 +234,20 @@ function credentialDocToSafeMetadata(id, doc) {
   };
 }
 
+// Both deployed production hostnames (mirrors functions/cors.js +
+// src/firebase/authDomain.js — www is a real supported origin, and the RP ID
+// zedexams.com covers both).
+const PRODUCTION_ORIGINS = Object.freeze([
+  "https://zedexams.com",
+  "https://www.zedexams.com",
+]);
+
 /**
  * Parse the PASSKEY_ALLOWED_ORIGINS config (comma-separated) into a strict
  * origin allowlist. Wildcards are refused outright — a misconfigured value
- * fails closed to the production origin only.
+ * fails closed to the production origins only.
  */
-function resolveExpectedOrigins(rawList, productionOrigin = "https://zedexams.com") {
+function resolveExpectedOrigins(rawList, productionOrigins = PRODUCTION_ORIGINS) {
   const entries = String(rawList || "")
     .split(",")
     .map((s) => s.trim())
@@ -234,7 +255,9 @@ function resolveExpectedOrigins(rawList, productionOrigin = "https://zedexams.co
   const valid = entries.filter(
     (o) => /^https?:\/\/[a-z0-9.-]+(:\d+)?$/i.test(o) && !o.includes("*"),
   );
-  if (!valid.includes(productionOrigin)) valid.push(productionOrigin);
+  for (const origin of productionOrigins) {
+    if (!valid.includes(origin)) valid.push(origin);
+  }
   return valid;
 }
 
@@ -255,5 +278,7 @@ module.exports = {
   defaultPasskeyNameFromUa,
   credentialDocToSafeMetadata,
   resolveExpectedOrigins,
+  PRODUCTION_ORIGINS,
   isPasskeyRolloutAllowed,
+  isAdminRole,
 };
