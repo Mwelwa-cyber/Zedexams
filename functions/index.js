@@ -3054,6 +3054,10 @@ exports.storageBackupCheck = require("./storageBackup").storageBackupCheck;
 // raises an ops alert (edge-triggered) when it is degraded, turning the
 // `rate_limit_degraded` telemetry into an actual notification (OBS-005/OBS-004).
 exports.rateLimitHealthCheck = require("./rateLimitHealth").rateLimitHealthCheck;
+// Cross-subsystem dead-man's-switch (every 6h) — alerts if any ops heartbeat
+// (opsBackups / opsStorageBackups / opsRateLimitHealth) goes stale/missing,
+// i.e. a scheduled monitor's OWN trigger stopped firing (OBS-004).
+exports.opsHeartbeatCheck = require("./opsHeartbeat").opsHeartbeatCheck;
 
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 // Targets learners who practised yesterday but not today, sends a friendly
