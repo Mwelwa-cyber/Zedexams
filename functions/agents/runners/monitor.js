@@ -394,7 +394,31 @@ async function checkDailyExams(db, {now = new Date(), runPick} = {}) {
         .limit(5)
         .get();
     if (!snap.empty) {
-      return {ok: true, skipped: false, today, scheduled: snap.size, failures: []};
+      // A past paper's public quiz in the daily slot is a BAD pick: the
+      // daily-exam rules arm blocks all client question reads, so the
+      // paper's public /papers/:id/quiz page 403s for the whole day.
+      // Re-run the picker — promotePickForGrade demotes the bad pick
+      // (restoring the public page) and pins a legitimate exam paper.
+      const {isPastPaperPublicQuiz} = require("../../dailyExamPickerCore");
+      const badPicks = (Array.isArray(snap.docs) ? snap.docs : [])
+          .filter((d) => isPastPaperPublicQuiz(d.data()));
+      if (badPicks.length === 0) {
+        return {ok: true, skipped: false, today, scheduled: snap.size, failures: []};
+      }
+      const pick = runPick || require("../../dailyExamPicker").runAutoPick;
+      await pick({today});
+      return {
+        ok: false, skipped: false, today, scheduled: snap.size, healed: badPicks.length,
+        failures: [{
+          check: "dailyExams",
+          id: `${today}:pastPaperPick`,
+          severity: "warning",
+          message: `Daily-exam pick(s) for ${today} were past-paper public quizzes ` +
+            `(${badPicks.map((d) => d.id).join(", ")}) — their public /papers quiz pages were ` +
+            `blocked by the daily-exam question-read rule. Vigil re-ran the picker to demote ` +
+            `them and pin real exam papers.`,
+        }],
+      };
     }
 
     // Pass `today` explicitly: the picker's own default is also the Lusaka

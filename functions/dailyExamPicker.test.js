@@ -17,6 +17,7 @@ const assert = require("node:assert");
 const {
   EXAM_QUESTION_THRESHOLD,
   isExamPaper,
+  isPastPaperPublicQuiz,
   isEligibleDailyExamCandidate,
   demotionPatch,
 } = require("./dailyExamPickerCore");
@@ -73,6 +74,37 @@ test("a visibly empty quiz is never promoted, even if flagged examOnly", () => {
 test("nullish data is not eligible", () => {
   assert.strictEqual(isEligibleDailyExamCandidate(null), false);
   assert.strictEqual(isEligibleDailyExamCandidate(undefined), false);
+});
+
+// ── isPastPaperPublicQuiz ────────────────────────────────────────────
+// The regression: autoPickDailyExams promoted a 60-question past-paper
+// quiz (publicAccess + linkedPaperId) into the daily slot, and the
+// daily_exam question-read block in firestore.rules then 403'd the
+// paper's public /papers/:id/quiz page for the whole day.
+test("a paper-linked or public-access quiz is recognised as a past-paper quiz", () => {
+  assert.strictEqual(isPastPaperPublicQuiz({linkedPaperId: "abc"}), true);
+  assert.strictEqual(isPastPaperPublicQuiz({sourcePastPaperId: "abc"}), true);
+  assert.strictEqual(isPastPaperPublicQuiz({publicAccess: true}), true);
+  assert.strictEqual(isPastPaperPublicQuiz({questionCount: 60}), false);
+  assert.strictEqual(isPastPaperPublicQuiz({publicAccess: false, linkedPaperId: null}), false);
+  assert.strictEqual(isPastPaperPublicQuiz(null), false);
+});
+
+test("a past paper's public quiz is NEVER auto-picked, even as a 50+-question exam paper", () => {
+  assert.strictEqual(
+      isEligibleDailyExamCandidate({questionCount: 60, publicAccess: true, linkedPaperId: "p1"}),
+      false,
+  );
+  assert.strictEqual(
+      isEligibleDailyExamCandidate({questionCount: 60, publicAccess: true}),
+      false,
+  );
+  assert.strictEqual(
+      isEligibleDailyExamCandidate({questionCount: 60, sourcePastPaperId: "p1"}),
+      false,
+  );
+  // …while the same paper without the public linkage stays eligible.
+  assert.strictEqual(isEligibleDailyExamCandidate({questionCount: 60}), true);
 });
 
 // ── demotionPatch ────────────────────────────────────────────────────

@@ -341,12 +341,17 @@ test("resolveGithubToken returns null when nothing is configured", async () => {
 // ── daily-exam self-heal check ───────────────────────────────────────
 
 // Minimal Firestore query stub: every builder method chains, get() returns a
-// snapshot whose emptiness is fixed up-front.
-function stubDb(scheduledCount) {
+// snapshot whose emptiness is fixed up-front. `docs` defaults to clean
+// daily-exam picks; pass explicit docs to model a bad (past-paper) pick.
+function stubDb(scheduledCount, docs) {
+  const snapDocs = docs || Array.from({length: scheduledCount}, (_, i) => ({
+    id: `quiz-${i}`,
+    data: () => ({questionCount: 60, quizType: "daily_exam"}),
+  }));
   const chain = {
     where() { return chain; },
     limit() { return chain; },
-    async get() { return {empty: scheduledCount === 0, size: scheduledCount}; },
+    async get() { return {empty: scheduledCount === 0, size: scheduledCount, docs: snapDocs}; },
   };
   return {collection: () => chain};
 }
@@ -428,6 +433,40 @@ test("checkDailyExams is critical when the re-run promotes nothing", async () =>
   assert.strictEqual(res.healed, 0);
   assert.strictEqual(res.failures[0].severity, "critical");
   assert.ok(res.failures[0].message.includes("no_candidates"));
+});
+
+test("checkDailyExams re-runs the picker when today's pick is a past-paper public quiz", async () => {
+  // The regression behind "Quiz not available" on /papers/:id/quiz: the
+  // picker pinned a paper-linked public quiz as the daily exam, and the
+  // daily_exam question-read block 403'd the public page all day. Vigil
+  // must spot the bad pick and re-run the (now demote-and-repick) picker.
+  let pickedFor = null;
+  const db = stubDb(1, [{
+    id: "quiz-bad",
+    data: () => ({questionCount: 60, quizType: "daily_exam", publicAccess: true, linkedPaperId: "paper-1"}),
+  }]);
+  const res = await checkDailyExams(db, {
+    now: new Date("2026-07-01T08:00:00Z"),
+    runPick: async ({today}) => {
+      pickedFor = today;
+      return {date: today, grades: [{grade: "7", status: "promoted", quizId: "quiz-good", demotedBadPick: "quiz-bad"}]};
+    },
+  });
+  assert.strictEqual(pickedFor, "2026-07-01");
+  assert.strictEqual(res.ok, false);
+  assert.strictEqual(res.healed, 1);
+  assert.strictEqual(res.failures[0].severity, "warning");
+  assert.ok(res.failures[0].message.includes("quiz-bad"));
+});
+
+test("checkDailyExams leaves clean picks alone (picker NOT re-run)", async () => {
+  let pickerRan = false;
+  const res = await checkDailyExams(stubDb(2), {
+    now: new Date("2026-07-01T08:00:00Z"),
+    runPick: async () => { pickerRan = true; },
+  });
+  assert.strictEqual(res.ok, true);
+  assert.strictEqual(pickerRan, false);
 });
 
 test("checkDailyExams never throws — a query error becomes a critical failure", async () => {

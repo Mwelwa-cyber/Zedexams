@@ -27,12 +27,28 @@ function isExamPaper(data) {
 }
 
 /**
+ * Whether a quiz is the public quiz of a past paper: linked to a
+ * pastPapers doc, or opted into anonymous public access. Firestore rules
+ * block ALL client reads of a daily exam's questions (the answer-key
+ * leak closure), so promoting one of these into the daily slot kills its
+ * public /papers/:id/quiz page with a permission error for the whole
+ * day. They must never enter the daily-exam rotation.
+ */
+function isPastPaperPublicQuiz(data) {
+  if (!data) return false;
+  return Boolean(data.linkedPaperId || data.sourcePastPaperId) ||
+    data.publicAccess === true;
+}
+
+/**
  * Whether a published quiz may be auto-promoted into today's Daily Exam
- * slot: an exam paper that isn't already pinned and isn't visibly empty.
+ * slot: an exam paper that isn't already pinned, isn't visibly empty,
+ * and isn't serving a past paper's public quiz page.
  */
 function isEligibleDailyExamCandidate(data) {
   if (!data) return false;
   if (data.quizType === "daily_exam") return false; // already pinned
+  if (isPastPaperPublicQuiz(data)) return false;
   // Never promote a quiz that is known to have no questions, whatever its
   // flags say — learners would open an empty exam.
   const count = Number(data.questionCount);
@@ -58,6 +74,7 @@ function demotionPatch(data) {
 module.exports = {
   EXAM_QUESTION_THRESHOLD,
   isExamPaper,
+  isPastPaperPublicQuiz,
   isEligibleDailyExamCandidate,
   demotionPatch,
 };

@@ -39,6 +39,7 @@ const {lusakaDayString} = require("./lusakaTime");
 const {
   EXAM_QUESTION_THRESHOLD,
   isEligibleDailyExamCandidate,
+  isPastPaperPublicQuiz,
   demotionPatch,
 } = require("./dailyExamPickerCore");
 
@@ -97,12 +98,22 @@ async function findCandidatePool(db, grade) {
 async function promotePickForGrade(db, grade, today) {
   const existing = await findExistingPickForToday(db, grade, today);
   if (existing) {
-    return {grade, status: "already_pinned", quizId: existing.id};
+    // A past paper's public quiz must never hold the daily slot: while
+    // quizType == "daily_exam" the rules block every client read of its
+    // questions, so the paper's public /papers/:id/quiz page dies with a
+    // permission error. Undo the bad pick (restoring the public page)
+    // and fall through to promote a legitimate exam paper instead.
+    if (isPastPaperPublicQuiz(existing.data())) {
+      await existing.ref.update(demotionPatch(existing.data()));
+    } else {
+      return {grade, status: "already_pinned", quizId: existing.id};
+    }
   }
+  const demotedBadPick = existing ? existing.id : null;
 
   const candidates = await findCandidatePool(db, grade);
   if (candidates.length === 0) {
-    return {grade, status: "no_candidates"};
+    return {grade, status: "no_candidates", demotedBadPick};
   }
 
   candidates.sort(compareForRotation);
@@ -115,7 +126,7 @@ async function promotePickForGrade(db, grade, today) {
     lastDailyExamDate: today,
   });
 
-  return {grade, status: "promoted", quizId: pick.id, title: pick.data().title};
+  return {grade, status: "promoted", quizId: pick.id, title: pick.data().title, demotedBadPick};
 }
 
 async function runAutoPick({today = lusakaDayString()} = {}) {
