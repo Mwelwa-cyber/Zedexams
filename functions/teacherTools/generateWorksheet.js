@@ -31,7 +31,10 @@ const {resolveCbcContext} = require("./cbcKnowledge");
 const {validateWorksheet} = require("./worksheetSchema");
 const {PROMPT_VERSION, pickSystemPrompt, buildUserPrompt} =
   require("./worksheetPrompt");
-const {assertAndIncrement} = require("./usageMeter");
+const {assertAndIncrement, refundGeneration} = require("./usageMeter");
+const {reserveAiOperation, completeAiOperation, failAiOperation} =
+  require("../aiOperations");
+const {isValidIdempotencyKey} = require("../aiOperationsCore");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
 
 // Worksheet-specific model. Haiku is ~5× cheaper and plenty capable for
@@ -219,15 +222,73 @@ function validateInputs(inputs) {
 }
 
 /**
+ * Reconstruct the client-facing response for an idempotency key that already
+ * completed (§7 — a duplicate/retried request must return the existing result,
+ * never call the provider again). Reads the persisted aiGenerations doc rather
+ * than re-deriving anything. Mirrors generateHomework's resume path.
+ */
+async function buildResumedWorksheetResponse(operation) {
+  const genId = operation.resultDocumentId;
+  const genSnap = genId ?
+    await admin.firestore().collection("aiGenerations").doc(genId).get() : null;
+  const genData = genSnap && genSnap.exists ? genSnap.data() : null;
+  return {
+    generationId: genId,
+    worksheet: genData ? genData.output : null,
+    usage: null,
+    warning: genData && genData.status === "flagged" ?
+      "Some fields were incomplete — please review carefully." : null,
+    kbGrounded: Boolean(genData && genData.kbVersion),
+    resumed: true,
+  };
+}
+
+/**
  * Core worksheet generation. Used by both `createGenerateWorksheet` and
  * the SSE-streaming HTTP endpoint. See generateLessonPlan.js for the
  * onProgress contract.
  */
-async function runWorksheet({uid, rawInputs, apiKey, onProgress}) {
+async function runWorksheet({uid, rawInputs, apiKey, onProgress, idempotencyKey}) {
   const inputs = sanitizeInputs(rawInputs || {});
   const inputErrors = validateInputs(inputs);
   if (inputErrors.length > 0) {
     throw new HttpsError("invalid-argument", inputErrors.join(" "));
+  }
+
+  // Idempotency reservation (§6/§7/§8). Only engaged when the client sends a
+  // valid key — the studio frontend does so via useAiOperationLock. Without a
+  // key the flow is byte-for-byte the old behaviour (random doc id, no
+  // reservation), so this is a safe, no-frontend-breakage rollout: a
+  // double-click / rapid tap / retried timeout from a key-sending client can
+  // never reach the provider or the usage meter twice; a legacy caller is
+  // unaffected. `inputs` is the canonical fingerprint (every teacher-changeable
+  // field is already in there).
+  const idemActive = isValidIdempotencyKey(idempotencyKey);
+  if (idemActive) {
+    const reservation = await reserveAiOperation({
+      uid,
+      idempotencyKey,
+      operationType: "generate_worksheet",
+      fingerprintInput: inputs,
+    });
+    if (reservation.status === "completed") {
+      return buildResumedWorksheetResponse(reservation.operation);
+    }
+    if (reservation.status === "processing") {
+      return {status: "processing", operationId: idempotencyKey};
+    }
+    if (reservation.status === "failed") {
+      throw new HttpsError(
+          "failed-precondition",
+          reservation.operation.errorMessage ||
+            "This request already failed and cannot be retried automatically.",
+          {code: reservation.operation.errorCode, retryable: false, operationId: idempotencyKey},
+      );
+    }
+    if (reservation.status === "cancelled") {
+      throw new HttpsError("cancelled", "This request was cancelled.");
+    }
+    // "created" or "retrying" — exactly one provider call happens below.
   }
 
   const [{contextBlock, kbMatch, kbWarning, kbVersion}, usage] = await Promise.all([
@@ -248,7 +309,13 @@ async function runWorksheet({uid, rawInputs, apiKey, onProgress}) {
 
   if (onProgress) onProgress({phase: "queued"});
 
-  const genRef = admin.firestore().collection("aiGenerations").doc();
+  // Deterministic doc id (= the idempotency key) when idempotency is active, so
+  // a retry of the SAME logical request re-set()s this exact doc instead of
+  // creating a sibling, and the resumed-completed path reads it straight back
+  // by id. Random id otherwise (legacy behaviour).
+  const genRef = idemActive ?
+    admin.firestore().collection("aiGenerations").doc(idempotencyKey) :
+    admin.firestore().collection("aiGenerations").doc();
   const reservePromise = genRef.set({
     ownerUid: uid,
     tool: "worksheet",
@@ -318,6 +385,23 @@ async function runWorksheet({uid, rawInputs, apiKey, onProgress}) {
       status: "failed",
       errorMessage: String(err && err.message || err).slice(0, 500),
     }, {merge: true}).catch(() => {});
+    // Hard throw from the AI call — no usable worksheet was returned. Refund the
+    // credit / roll back the counter so the teacher is not charged for a
+    // transient failure (AI-006). Best-effort: must not mask the original error.
+    try {
+      await refundGeneration(uid, usage, "worksheet");
+    } catch (refundErr) {
+      console.error("[generateWorksheet] refund failed after generation error",
+          {uid, generationId: genRef.id, usage}, refundErr);
+    }
+    if (idemActive) {
+      try {
+        await failAiOperation({idempotencyKey, err, usageCharged: 0});
+      } catch (opErr) {
+        console.error("[generateWorksheet] failAiOperation failed after generation error",
+            {uid, generationId: genRef.id}, opErr);
+      }
+    }
     throw err;
   }
 
@@ -336,6 +420,16 @@ async function runWorksheet({uid, rawInputs, apiKey, onProgress}) {
       tokensOut: Number(usageInfo.outputTokens || 0),
       modelUsed,
     }, {merge: true});
+    // A "flagged" worksheet is still a real result the teacher already got and
+    // was billed for — a completion for idempotency purposes, not a failure.
+    if (idemActive) {
+      try {
+        await completeAiOperation({idempotencyKey, resultDocumentId: genRef.id, usageCharged: 1});
+      } catch (opErr) {
+        console.error("[generateWorksheet] completeAiOperation failed (flagged)",
+            {uid, generationId: genRef.id}, opErr);
+      }
+    }
     return {
       generationId: genRef.id,
       worksheet,
@@ -364,6 +458,14 @@ async function runWorksheet({uid, rawInputs, apiKey, onProgress}) {
     modelUsed,
     completedAt: admin.firestore.FieldValue.serverTimestamp(),
   }, {merge: true});
+  if (idemActive) {
+    try {
+      await completeAiOperation({idempotencyKey, resultDocumentId: genRef.id, usageCharged: 1});
+    } catch (opErr) {
+      console.error("[generateWorksheet] completeAiOperation failed",
+          {uid, generationId: genRef.id}, opErr);
+    }
+  }
 
   return {
     generationId: genRef.id,
@@ -404,7 +506,8 @@ function createGenerateWorksheet(anthropicApiKeySecret) {
         );
       }
       const apiKey = getAnthropicApiKey(anthropicApiKeySecret);
-      return runWorksheet({uid, rawInputs: request.data, apiKey});
+      const idempotencyKey = request.data && request.data.idempotencyKey;
+      return runWorksheet({uid, rawInputs: request.data, apiKey, idempotencyKey});
     },
   );
 }
