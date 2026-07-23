@@ -97,6 +97,10 @@ export const lessonPlanInputDescriptor = makeInputDescriptor({
     'lessonSeries',
     'lessonBreakdown',
     'formatOptions',
+    // Wizard position — restores the teacher to the step they were on.
+    // Additive + optional, so schemaVersion stays 1 (old drafts simply
+    // restore to step 0 via the wizard's clamp).
+    'wizardStep',
   ],
   isNonEmpty: (p) =>
     Boolean(

@@ -281,6 +281,7 @@
     "test:revise-lesson-section": "node functions/teacherTools/reviseLessonSection.test.js",
     "test:lesson-plan-shape": "node src/components/teacher/studio/utils/planShape.test.js",
     "test:lesson-reveal-steps": "node src/components/teacher/studio/utils/lessonRevealSteps.test.js",
+    "test:lesson-wizard-steps": "node src/components/teacher/studio/wizard/wizardSteps.test.js",
     "test:ai-image-blocks": "node functions/aiImageBlocks.test.js",
     "test:curriculum-upload": "node functions/teacherTools/uploadCurriculumModule.test.js",
     "test:template-bank": "node functions/teacherTools/lessonPlanTemplateBank.test.js",

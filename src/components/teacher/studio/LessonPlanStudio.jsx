@@ -9,7 +9,7 @@ import { CurriculumContext } from './CurriculumContext'
 import { useStudioState } from './hooks/useStudioState'
 import { useLessonSeries } from './hooks/useLessonSeries'
 import { StudioShell } from './StudioShell'
-import { StudioSidebar } from './StudioSidebar'
+import { LessonPlanWizard } from './wizard/LessonPlanWizard.jsx'
 import { StudioCanvas } from './StudioCanvas'
 import { renderPlanHtml } from './utils/renderPlanHtml'
 import { normalizePlanShape } from './utils/planShape'
@@ -61,7 +61,6 @@ import { lessonPlanInputDescriptor } from '../../../hooks/draft/descriptors'
 import { applyLessonPlanRestore } from '../../../hooks/draft/restoreLessonPlan'
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
 import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
-import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
 
 const functions = getFunctions(app, 'us-central1')
 const generateCallable = httpsCallable(functions, 'studioGenerateLessonPlan', { timeout: 120_000 })
@@ -165,7 +164,7 @@ function computeIsValid(studioState) {
  *   - useStudioState() for all form state
  *   - CurriculumContext.Provider
  *   - handleGenerate() — calls studioGenerateLessonPlan Cloud Function
- *   - StudioShell with StudioSidebar + StudioCanvas
+ *   - StudioShell with LessonPlanWizard (five-step flow) + StudioCanvas
  */
 export default function LessonPlanStudio() {
   const studioState = useStudioState()
@@ -272,6 +271,13 @@ export default function LessonPlanStudio() {
   // Canvas view mode: 'preview' (formatted document) | 'edit' (manual + AI
   // section editor). Session-only, resets to preview on each new generation.
   const [viewMode, setViewMode] = useState('preview')
+
+  // Which surface fills the page: the five-step creation wizard ('form') or
+  // the document canvas ('canvas'). The canvas is never rendered while the
+  // teacher is entering information — it takes over when a generation starts
+  // and hands back via the shell's "Back to form" control (the generated plan
+  // is kept, so the teacher can hop between the two freely).
+  const [studioView, setStudioView] = useState('form')
 
   // Save-to-library state. `savedSignature` is a content fingerprint of the
   // last plan saved, so the button knows when the (possibly edited) plan has
@@ -505,6 +511,7 @@ export default function LessonPlanStudio() {
     lessonSeries:         studioState.lessonSeries,
     lessonBreakdown:      studioState.lessonBreakdown,
     formatOptions:        studioState.formatOptions,
+    wizardStep:           studioState.wizardStep,
   }), [
     studioState.curriculumMode,
     studioState.lessonDetails,
@@ -514,6 +521,7 @@ export default function LessonPlanStudio() {
     studioState.lessonSeries,
     studioState.lessonBreakdown,
     studioState.formatOptions,
+    studioState.wizardStep,
   ])
   const { featureFlags } = usePlatformSettings().settings
   const draft = useDraftManager({
@@ -524,6 +532,9 @@ export default function LessonPlanStudio() {
     state: draftState,
     enabled: Boolean(uid && featureFlags?.universalDrafts !== false),
     onRestore: restoreDraft,
+    // Wizard autosave: settle writes ~0.9s after the teacher stops typing so a
+    // mid-step exit loses at most a moment of input (was the 2.5s default).
+    debounceMs: 900,
   })
   // Ref-mirror so handleGenerate can clear the draft without `draft` (a new
   // object each render) entering its dependency array — same pattern as
@@ -551,6 +562,9 @@ export default function LessonPlanStudio() {
     if (!gateRef.current('lesson_plan')) return
 
     const run = ++runRef.current
+    // Hand the page over to the canvas so the teacher watches the plan being
+    // written; "Back to form" returns to the wizard at any time.
+    setStudioView('canvas')
     current.setGenerationStatus('loading')
     setGenerationError(null)
     setViewMode('preview')
@@ -1298,12 +1312,10 @@ export default function LessonPlanStudio() {
         <DraftRecoveryPrompt {...draft} label="lesson plan" />
       </div>
       <StudioShell
+        view={studioView}
+        onBackToForm={() => setStudioView('form')}
         sidebar={
-          <>
-          <div className="flex justify-end px-3 pt-2">
-            <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
-          </div>
-          <StudioSidebar
+          <LessonPlanWizard
             studioState={studioState}
             aiState={aiState}
             seriesState={seriesState}
@@ -1319,6 +1331,10 @@ export default function LessonPlanStudio() {
             dateHint={dateHint}
             dateWarning={dateWarning}
             coverageState={coverageState}
+            draftStatus={{ status: draft.status, savedAt: draft.savedAt, online: draft.online }}
+            onSaveExit={() => navigate('/teacher')}
+            hasPlan={Boolean(studioState.generatedPlan)}
+            onViewPlan={() => setStudioView('canvas')}
             lessonMemory={{
               subtopicName: stripCode(memSubtopic || ''),
               subtopicCode: extractCode(memSubtopic || ''),
@@ -1331,14 +1347,13 @@ export default function LessonPlanStudio() {
               onOpenLesson: handleOpenLesson,
             }}
           />
-          </>
         }
         canvas={
           <StudioCanvas
             generatedPlan={studioState.generatedPlan}
             generationStatus={studioState.generationStatus}
             generationError={generationError}
-            onStop={() => { runRef.current += 1; studioState.setGenerationStatus('idle') }}
+            onStop={() => { runRef.current += 1; studioState.setGenerationStatus('idle'); setStudioView('form') }}
             onExportWord={handleExportWord}
             illustrationMode={studioState.formatOptions.illustrations}
             illustrationStatus={illustrationStatus}
@@ -1364,7 +1379,7 @@ export default function LessonPlanStudio() {
           />
         }
       />
-      {kit && (
+      {kit && studioView === 'canvas' && (
         <div className="lps-game fixed inset-x-0 bottom-0 z-50 border-t-2 border-[#0F1B2D] bg-white/95 px-3 py-2.5 shadow-[0_-6px_24px_-12px_rgba(15,27,45,0.35)] backdrop-blur sm:px-5">
           <div className="mx-auto flex max-w-5xl items-center gap-3">
             <div className="hidden shrink-0 sm:block">

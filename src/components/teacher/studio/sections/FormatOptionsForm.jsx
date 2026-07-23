@@ -157,8 +157,9 @@ function SubLabel({ children }) {
  *   onUpdateMedium: (value: string) => void
  *   lessonMedium: string
  *   curriculumMode: 'cbc' | 'previous'
+ *   embedded: boolean — wizard mode: body only, no collapsible section chrome
  */
-export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvanced, onUpdateMedium, lessonMedium, curriculumMode = 'cbc' }) {
+export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvanced, onUpdateMedium, lessonMedium, curriculumMode = 'cbc', embedded = false }) {
   const [open, setOpen] = useState(true)
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [previewFormat, setPreviewFormat] = useState(null)
@@ -166,8 +167,9 @@ export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvan
   const localLanguageEnabled = LOCAL_LANGUAGES.has(lessonMedium)
 
   return (
-    <div className="border-b border-[#e5ddd0]">
-      {/* ── Section header ── */}
+    <div className={embedded ? '' : 'border-b border-[#e5ddd0]'}>
+      {/* ── Section header (hidden in embedded wizard mode) ── */}
+      {!embedded && (
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -199,10 +201,11 @@ export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvan
           <polyline points="6 9 12 15 18 9" />
         </svg>
       </button>
+      )}
 
       {/* ── Collapsible body ── */}
-      {open && (
-        <div className="lps-section-enter px-4 pb-4 space-y-5">
+      {(open || embedded) && (
+        <div className={embedded ? 'space-y-5' : 'lps-section-enter px-4 pb-4 space-y-5'}>
 
           {/* 1. Lesson Plan Detail */}
           <div>
@@ -246,6 +249,16 @@ export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvan
                         {opt.description}
                       </span>
                     </span>
+                    {selected && (
+                      <span
+                        className="ml-auto grid h-5 w-5 flex-shrink-0 place-items-center self-center rounded-full bg-blue-600 text-white"
+                        aria-hidden="true"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      </span>
+                    )}
                   </button>
                 )
               })}

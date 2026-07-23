@@ -75,9 +75,9 @@ function CurriculumCard({ mode, emoji, title, description, recommended, selected
   )
 }
 
-export function CurriculumPicker({ curriculumMode, onSelect }) {
+export function CurriculumPicker({ curriculumMode, onSelect, embedded = false }) {
   return (
-    <div className="sticky top-0 z-10 border-b border-[#e5ddd0] bg-[#f5efe1]/95 px-4 pb-3.5 pt-3.5 backdrop-blur">
+    <div className={embedded ? '' : 'sticky top-0 z-10 border-b border-[#e5ddd0] bg-[#f5efe1]/95 px-4 pb-3.5 pt-3.5 backdrop-blur'}>
       <p className="mb-2.5">
         <span className="lps-eyebrow">Curriculum</span>
       </p>

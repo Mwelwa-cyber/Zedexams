@@ -1,72 +1,62 @@
-import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { StudioShell } from './StudioShell'
 
-describe('StudioShell — layout', () => {
-  it('renders the sidebar slot', () => {
-    render(<StudioShell sidebar={<div data-testid="sidebar" />} canvas={<div />} />)
+describe('StudioShell — form view (default)', () => {
+  it('renders the wizard slot', () => {
+    render(<StudioShell sidebar={<div data-testid="sidebar" />} canvas={<div data-testid="canvas" />} />)
     expect(screen.getByTestId('sidebar')).toBeInTheDocument()
   })
 
-  it('renders the canvas slot', () => {
-    render(<StudioShell sidebar={<div />} canvas={<div data-testid="canvas" />} />)
-    expect(screen.getByTestId('canvas')).toBeInTheDocument()
+  it('does NOT render the canvas while the teacher is filling in the form', () => {
+    render(<StudioShell sidebar={<div data-testid="sidebar" />} canvas={<div data-testid="canvas" />} />)
+    expect(screen.queryByTestId('canvas')).not.toBeInTheDocument()
   })
 
-  it('renders both slots together', () => {
+  it('does not show a Back to form control in the form view', () => {
+    render(<StudioShell sidebar={<div />} canvas={<div />} />)
+    expect(screen.queryByRole('button', { name: /back to form/i })).not.toBeInTheDocument()
+  })
+
+  it('does not lock viewport height on the scrolling form view', () => {
+    const { container } = render(<StudioShell sidebar={<div />} canvas={<div />} />)
+    const wrapper = container.firstChild
+    expect(wrapper.className).not.toMatch(/(^|\s)h-screen(\s|$)/)
+    expect(wrapper.className).not.toMatch(/overflow-hidden/)
+  })
+})
+
+describe('StudioShell — canvas view', () => {
+  it('renders the canvas slot and hides the wizard', () => {
     render(
       <StudioShell
-        sidebar={<div data-testid="sidebar">Sidebar content</div>}
-        canvas={<div data-testid="canvas">Canvas content</div>}
+        view="canvas"
+        sidebar={<div data-testid="sidebar" />}
+        canvas={<div data-testid="canvas" />}
       />,
     )
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument()
     expect(screen.getByTestId('canvas')).toBeInTheDocument()
+    expect(screen.queryByTestId('sidebar')).not.toBeInTheDocument()
   })
 
-  it('applies the flex wrapper class', () => {
-    const { container } = render(
-      <StudioShell sidebar={<div />} canvas={<div />} />,
-    )
-    const wrapper = container.firstChild
-    expect(wrapper.className).toMatch(/flex/)
+  it('calls onBackToForm when Back to form is clicked', () => {
+    const onBack = vi.fn()
+    render(<StudioShell view="canvas" sidebar={<div />} canvas={<div />} onBackToForm={onBack} />)
+    fireEvent.click(screen.getByRole('button', { name: /back to form/i }))
+    expect(onBack).toHaveBeenCalledTimes(1)
   })
 
-  // Regression guard for the "lesson plan hidden on the right on mobile" bug.
-  // The shell used to be a row-only `flex h-screen overflow-hidden`, which on a
-  // phone kept the sidebar at its min-width and pushed the canvas (the
-  // generated plan) off the right edge — the plan rendered but was invisible.
-  // The shell must stack vertically by default and only become a side-by-side
-  // row at md+, with the locked viewport height + clipping also gated to md+.
-  it('stacks vertically on mobile and switches to a row at md+', () => {
-    const { container } = render(
-      <StudioShell sidebar={<div />} canvas={<div />} />,
-    )
+  // Regression guard for the "lesson plan hidden on the right on mobile" bug:
+  // the canvas view must stack vertically on phones and only lock the viewport
+  // height + clipping at md+.
+  it('stacks vertically on mobile and gates h-screen/overflow to md+', () => {
+    const { container } = render(<StudioShell view="canvas" sidebar={<div />} canvas={<div />} />)
     const wrapper = container.firstChild
     expect(wrapper.className).toContain('flex-col')
     expect(wrapper.className).toContain('md:flex-row')
-  })
-
-  it('does not lock viewport height or hide overflow on mobile (only at md+)', () => {
-    const { container } = render(
-      <StudioShell sidebar={<div />} canvas={<div />} />,
-    )
-    const wrapper = container.firstChild
-    // No unconditional h-screen / overflow-hidden — those clip the stacked
-    // canvas on a phone. Height + clipping are gated behind the md: breakpoint.
     expect(wrapper.className).not.toMatch(/(^|\s)h-screen(\s|$)/)
     expect(wrapper.className).not.toMatch(/(^|\s)overflow-hidden(\s|$)/)
     expect(wrapper.className).toContain('md:h-screen')
     expect(wrapper.className).toContain('md:overflow-hidden')
-  })
-
-  it('renders sidebar text content', () => {
-    render(<StudioShell sidebar={<span>Left panel</span>} canvas={<div />} />)
-    expect(screen.getByText('Left panel')).toBeInTheDocument()
-  })
-
-  it('renders canvas text content', () => {
-    render(<StudioShell sidebar={<div />} canvas={<span>Right panel</span>} />)
-    expect(screen.getByText('Right panel')).toBeInTheDocument()
   })
 })

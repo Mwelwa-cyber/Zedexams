@@ -12,8 +12,9 @@ import { Target } from '../../../ui/icons'
  *   selectedOutcomes: string[]           — currently selected outcomes
  *   onToggleOutcome: (outcome: string) => void  — add if not in list, remove if already in
  *   disabled: boolean
+ *   embedded: boolean — wizard mode: body only, no collapsible section chrome
  */
-export function SpecificOutcomeForm({ subtopicRow, selectedOutcomes, onToggleOutcome, disabled }) {
+export function SpecificOutcomeForm({ subtopicRow, selectedOutcomes, onToggleOutcome, disabled, embedded = false }) {
   const [open, setOpen] = useState(true)
 
   const outcomes = subtopicRow?.specificOutcomes ?? []
@@ -23,11 +24,12 @@ export function SpecificOutcomeForm({ subtopicRow, selectedOutcomes, onToggleOut
   return (
     <div
       className={[
-        'border-b border-[#e5ddd0]',
+        embedded ? '' : 'border-b border-[#e5ddd0]',
         disabled ? 'pointer-events-none opacity-50' : '',
       ].join(' ')}
     >
-      {/* Section header — always visible */}
+      {/* Section header — always visible (hidden in embedded wizard mode) */}
+      {!embedded && (
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -67,10 +69,11 @@ export function SpecificOutcomeForm({ subtopicRow, selectedOutcomes, onToggleOut
           <polyline points="6 9 12 15 18 9" />
         </svg>
       </button>
+      )}
 
       {/* Collapsible body */}
-      {open && (
-        <div className="px-4 pb-4 space-y-2">
+      {(open || embedded) && (
+        <div className={embedded ? 'space-y-2' : 'px-4 pb-4 space-y-2'} id="sof-outcomes">
           {!hasOutcomes ? (
             <p className="text-[12px] text-[#a39d8e] italic">
               Select a subtopic to see specific outcomes.

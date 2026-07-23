@@ -39,4 +39,9 @@ export function applyLessonPlanRestore(s, payload) {
   if (payload.lessonSeries) s.setLessonSeries(payload.lessonSeries)
   if (payload.lessonBreakdown) s.setLessonBreakdown(payload.lessonBreakdown)
   if (payload.formatOptions) s.setFormatOptions(payload.formatOptions)
+  // Wizard position last, after every slice it depends on is in place.
+  // Optional (pre-wizard drafts have no wizardStep) and clamped by the setter.
+  if (typeof s.setWizardStep === 'function' && payload.wizardStep !== undefined) {
+    s.setWizardStep(payload.wizardStep)
+  }
 }

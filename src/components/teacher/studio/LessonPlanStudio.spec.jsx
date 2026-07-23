@@ -78,8 +78,8 @@ vi.mock('./StudioShell', () => ({
   ),
 }))
 
-vi.mock('./StudioSidebar', () => ({
-  StudioSidebar: ({ studioState, isValid, onGenerate, onContinue, onViewCompleted, aiState, seriesState }) => (
+vi.mock('./wizard/LessonPlanWizard', () => ({
+  LessonPlanWizard: ({ studioState, isValid, onGenerate, onContinue, onViewCompleted, aiState, seriesState }) => (
     <div data-testid="studio-sidebar">
       <span data-testid="is-valid">{String(isValid)}</span>
       <span data-testid="curriculum-mode">{studioState.curriculumMode ?? 'null'}</span>
@@ -214,6 +214,8 @@ function makeStudioState(overrides = {}) {
     setGenerationStatus: vi.fn(),
     generatedPlan: null,
     setGeneratedPlan: vi.fn(),
+    wizardStep: 0,
+    setWizardStep: vi.fn(),
     ...overrides,
   }
 }
