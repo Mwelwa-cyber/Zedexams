@@ -54,7 +54,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           # Capacitor CLI requires Node >= 22 (cap sync aborts on 20).
           node-version: "22"
