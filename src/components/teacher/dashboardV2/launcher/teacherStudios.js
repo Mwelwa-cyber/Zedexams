@@ -59,6 +59,7 @@ import imgSyllabus from '../../../../assets/teacher/studio-icons/syllabus.webp'
 import imgSchoolCalendar from '../../../../assets/teacher/studio-icons/school-calendar.webp'
 import imgClassList from '../../../../assets/teacher/studio-icons/class-list.webp'
 import imgClassRegister from '../../../../assets/teacher/studio-icons/class-register.webp'
+import imgTemplateBank from '../../../../assets/teacher/studio-icons/template-bank.webp'
 
 /** Ordered category definitions — drives the launcher's section order. */
 export const STUDIO_CATEGORIES = [
@@ -228,6 +229,7 @@ export const TEACHER_STUDIOS = [
     route: '/teacher/templates',
     category: 'materials',
     icon: LayoutTemplate,
+    image: imgTemplateBank,
     tint: 'rose',
     countKey: null,
     badge: null,
