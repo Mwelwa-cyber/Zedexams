@@ -34,6 +34,8 @@ import { Download, Key } from '../../ui/icons'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import StudioOutputBoundary from '../StudioOutputBoundary'
 import HomeworkView from '../views/HomeworkView'
+import { useAiOperationLock } from '../../../hooks/useAiOperationLock'
+import { stableFingerprint } from '../../../hooks/aiOperationLockCore'
 import { useStudioInputDraft } from '../../../hooks/draft/useStudioInputDraft'
 import { homeworkInputDescriptor } from '../../../hooks/draft/descriptors'
 import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
@@ -94,6 +96,15 @@ export default function HomeworkStudio() {
   // clicked before the response landed.
   const runRef = useRef(0)
 
+  // Idempotency lock: one logical generation → one provider call + one saved
+  // doc + one usage charge, even across a double-click / rapid tap / refresh /
+  // a second tab. generateHomework.js's server-side reservation enforces this;
+  // this is the client-side belt (mints + persists the key). Separate lock keys
+  // for the full generate vs a per-section regenerate so they never collide.
+  // See CreatePaperModal for the reference wiring.
+  const { run: runGenerateLocked } = useAiOperationLock('homework-studio:generate')
+  const { run: runRegenerateLocked } = useAiOperationLock('homework-studio:regenerate')
+
   // Universal Draft Manager: auto-save the homework inputs.
   const draft = useStudioInputDraft({
     descriptor: homeworkInputDescriptor,
@@ -132,7 +143,23 @@ export default function HomeworkStudio() {
 
   async function regenerateSection(sectionId) {
     if (!ensureCanGenerate('homework')) return null
-    const res = await generateHomework(buildPayload())
+    const payload = buildPayload()
+    const lockResult = await runRegenerateLocked({
+      // Section-scoped fingerprint so a regenerate mints its own key rather
+      // than resuming the full-generate result.
+      fingerprint: stableFingerprint({ ...payload, __regenerateSection: sectionId }),
+      action: async (idempotencyKey) => {
+        const outcome = await generateHomework({ ...payload, idempotencyKey })
+        if (!outcome.ok) {
+          const err = new Error(outcome.error || 'Generation failed')
+          err.response = outcome
+          throw err
+        }
+        return outcome
+      },
+    })
+    if (lockResult.reason === 'locked') return null
+    const res = lockResult.ok ? lockResult.data : (lockResult.error?.response || { ok: false })
     if (res.ok && res.data?.homework) {
       const fresh = res.data.homework
       setHomework((prev) => (prev ? { ...prev, [sectionId]: fresh[sectionId] } : fresh))
@@ -178,9 +205,34 @@ export default function HomeworkStudio() {
     setHomework(null)
     // Teacher Settings → My AI → homework difficulty rides along inside
     // buildPayload() as an extra instruction line (server caps at 500 chars).
-    const res = await generateHomework(buildPayload())
+    const payload = buildPayload()
+    const lockResult = await runGenerateLocked({
+      fingerprint: stableFingerprint(payload),
+      action: async (idempotencyKey) => {
+        const outcome = await generateHomework({ ...payload, idempotencyKey })
+        if (!outcome.ok) {
+          // generateHomework() resolves rather than throws; a genuine failure
+          // must be THROWN so the lock keeps the key reserved for a same-input
+          // retry (never re-billed) instead of minting a fresh key.
+          const err = new Error(outcome.error || 'Generation failed')
+          err.response = outcome
+          throw err
+        }
+        return outcome
+      },
+    })
     if (run !== runRef.current) return
     if (!isMounted.current) return
+    if (lockResult.reason === 'locked') return // a duplicate click slipped past the disabled button
+    const res = lockResult.ok ? lockResult.data : (lockResult.error?.response || {
+      ok: false, error: lockResult.error?.message || 'Generation failed. Please try again.',
+    })
+    if (res.ok && res.data?.status === 'processing') {
+      // The server already has this exact request in flight (a retried network
+      // call or another tab) — leave "Generating…" showing; the owning call
+      // completes it.
+      return
+    }
     if (!res.ok) {
       setStatus('error')
       setErrorMessage(res.error || 'Generation failed.')

@@ -28,6 +28,8 @@ import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { LIBRARY_TYPES } from '../../../config/library'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
+import { useAiOperationLock } from '../../../hooks/useAiOperationLock'
+import { stableFingerprint } from '../../../hooks/aiOperationLockCore'
 import { useStudioInputDraft } from '../../../hooks/draft/useStudioInputDraft'
 import { worksheetInputDescriptor } from '../../../hooks/draft/descriptors'
 import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
@@ -105,6 +107,14 @@ export default function WorksheetGenerator() {
   // full editable/exportable view below.
   const [handedOff, setHandedOff] = useState(false)
   const cancelRef = useRef(null)
+
+  // Idempotency lock for the per-section regenerate, which goes through the
+  // `generateWorksheet` CALLABLE (server-side reservation applies). The MAIN
+  // generate uses the streaming `generateWorksheetStream` SSE endpoint instead
+  // — a different backend with no reservation — so it isn't lock-wrapped here;
+  // it already cancels any in-flight stream and disables the button while
+  // generating. See CreatePaperModal for the callable lock pattern.
+  const { run: runRegenerateLocked } = useAiOperationLock('worksheet-studio:regenerate')
 
   // Universal Draft Manager: auto-save the worksheet inputs so a refresh /
   // crash / offline drop never loses a half-filled form.
@@ -213,7 +223,23 @@ export default function WorksheetGenerator() {
   // and the exported file stay in sync).
   async function regenerateSection(sectionId) {
     if (!ensureCanGenerate('worksheet')) return null
-    const res = await generateWorksheet(buildInputs())
+    const inputs = buildInputs()
+    const lockResult = await runRegenerateLocked({
+      // Section-scoped fingerprint so a regenerate mints its own key rather
+      // than resuming a prior result.
+      fingerprint: stableFingerprint({ ...inputs, __regenerateSection: sectionId }),
+      action: async (idempotencyKey) => {
+        const outcome = await generateWorksheet({ ...inputs, idempotencyKey })
+        if (!outcome.ok) {
+          const err = new Error(outcome.error || 'Generation failed')
+          err.response = outcome
+          throw err
+        }
+        return outcome
+      },
+    })
+    if (lockResult.reason === 'locked') return null
+    const res = lockResult.ok ? lockResult.data : (lockResult.error?.response || { ok: false })
     if (res.ok && res.data?.worksheet) {
       const fresh = res.data.worksheet
       setWorksheet((prev) => (prev ? { ...prev, [sectionId]: fresh[sectionId] } : fresh))

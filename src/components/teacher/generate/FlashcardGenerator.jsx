@@ -37,6 +37,8 @@ import { useStudioInputDraft } from '../../../hooks/draft/useStudioInputDraft'
 import { flashcardsInputDescriptor } from '../../../hooks/draft/descriptors'
 import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
 import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
+import { useAiOperationLock } from '../../../hooks/useAiOperationLock'
+import { stableFingerprint } from '../../../hooks/aiOperationLockCore'
 
 /**
  * Flashcard Generator — grid preview + keyboard-driven study mode + DOCX
@@ -85,6 +87,14 @@ export default function FlashcardGenerator() {
   // clicked before the response landed. Bump in onStop + capture before await.
   const runRef = useRef(0)
 
+  // Idempotency lock: one logical generation → one provider call + one saved
+  // doc + one usage charge, even across a double-click / rapid tap / refresh /
+  // a second tab. The server-side reservation enforces this; this is the
+  // client-side belt (mints + persists the key). Separate lock keys for the
+  // full generate vs a per-section regenerate so they never collide.
+  const { run: runGenerateLocked } = useAiOperationLock('flashcards-studio:generate')
+  const { run: runRegenerateLocked } = useAiOperationLock('flashcards-studio:regenerate')
+
   // Universal Draft Manager: auto-save the flashcard inputs.
   const draft = useStudioInputDraft({
     descriptor: flashcardsInputDescriptor,
@@ -111,7 +121,23 @@ export default function FlashcardGenerator() {
 
   async function regenerateSection(sectionId) {
     if (!ensureCanGenerate('flashcards')) return null
-    const res = await generateFlashcards(buildInputs())
+    const inputs = buildInputs()
+    const lockResult = await runRegenerateLocked({
+      // Section-scoped fingerprint so a regenerate mints its own key rather
+      // than resuming the full-generate result.
+      fingerprint: stableFingerprint({ ...inputs, __regenerateSection: sectionId }),
+      action: async (idempotencyKey) => {
+        const outcome = await generateFlashcards({ ...inputs, idempotencyKey })
+        if (!outcome.ok) {
+          const err = new Error(outcome.error || 'Generation failed')
+          err.response = outcome
+          throw err
+        }
+        return outcome
+      },
+    })
+    if (lockResult.reason === 'locked') return null
+    const res = lockResult.ok ? lockResult.data : (lockResult.error?.response || { ok: false })
     if (res.ok && res.data?.flashcards) {
       const fresh = res.data.flashcards
       setFlashcards((prev) => (prev ? { ...prev, [sectionId]: fresh[sectionId] } : fresh))
@@ -157,9 +183,34 @@ export default function FlashcardGenerator() {
     setStudyIndex(0)
     setIsFlipped(false)
 
-    const res = await generateFlashcards(buildInputs())
+    const inputs = buildInputs()
+    const lockResult = await runGenerateLocked({
+      fingerprint: stableFingerprint(inputs),
+      action: async (idempotencyKey) => {
+        const outcome = await generateFlashcards({ ...inputs, idempotencyKey })
+        if (!outcome.ok) {
+          // generateFlashcards() resolves rather than throws; a genuine failure
+          // must be THROWN so the lock keeps the key reserved for a same-input
+          // retry (never re-billed) instead of minting a fresh key.
+          const err = new Error(outcome.error || 'Generation failed')
+          err.response = outcome
+          throw err
+        }
+        return outcome
+      },
+    })
     if (run !== runRef.current) return
     if (!isMounted.current) return
+    if (lockResult.reason === 'locked') return // a duplicate click slipped past the disabled button
+    const res = lockResult.ok ? lockResult.data : (lockResult.error?.response || {
+      ok: false, error: lockResult.error?.message || 'Generation failed. Please try again.',
+    })
+    if (res.ok && res.data?.status === 'processing') {
+      // The server already has this exact request in flight (a retried network
+      // call or another tab) — leave "Generating…" showing; the owning call
+      // completes it.
+      return
+    }
     if (!res.ok) {
       setStatus('error')
       setErrorMessage(res.error)
