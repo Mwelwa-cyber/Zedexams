@@ -29,7 +29,7 @@ const FEATURES = [
 // teacher on the dashboard wondering why paying "did nothing". Mirrors the
 // dashboard tiles in TeacherDashboard.jsx.
 const FEATURE_ROUTE = {
-  plans: '/teacher/generate/lesson-plan',
+  plans: '/teacher/lesson-plans/new',
   worksheets: '/teacher/generate/worksheet',
   flashcards: '/teacher/generate/flashcards',
   notes: '/teacher/generate/notes',

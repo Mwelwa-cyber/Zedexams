@@ -14,7 +14,7 @@ describe('QuickCreate', () => {
       </MemoryRouter>,
     )
     expect(screen.getByRole('link', { name: /lesson plan/i }))
-      .toHaveAttribute('href', '/teacher/generate/lesson-plan')
+      .toHaveAttribute('href', '/teacher/lesson-plans/new')
     expect(screen.getByRole('link', { name: /weekly focus/i }))
       .toHaveAttribute('href', '/teacher/generate/weekly-forecast')
     expect(screen.getByRole('link', { name: /worksheet/i }))

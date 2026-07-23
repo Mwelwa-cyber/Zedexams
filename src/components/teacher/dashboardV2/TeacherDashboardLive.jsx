@@ -34,7 +34,7 @@ export default function TeacherDashboardLive() {
   const greeting = resolveGreeting({ hour, firstName: data.teacher.firstName })
 
   const handleContinue = () => {
-    navigate(data.lastOpened ? data.lastOpened.to : '/teacher/generate/lesson-plan')
+    navigate(data.lastOpened ? data.lastOpened.to : '/teacher/lesson-plans/new')
   }
 
   const handleConfirmLogout = async ({ showToast }) => {

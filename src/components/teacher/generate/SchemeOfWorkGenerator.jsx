@@ -785,7 +785,7 @@ export default function SchemeOfWorkGenerator() {
                       // assignment seed it already consumes.
                       key: 'lesson',
                       label: 'Prepare Week 1 lessons',
-                      to: '/teacher/generate/lesson-plan',
+                      to: '/teacher/lesson-plans/new',
                     },
                     { key: 'later', label: 'Save and return later', to: '/teacher' },
                   ]}

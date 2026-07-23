@@ -158,7 +158,7 @@ export default function WelcomeToPro() {
           </div>
 
           <div className="zwp-ctas">
-            <Link to="/teacher/generate/lesson-plan" className="zwp-cta zwp-cta-primary">▶ Plan your first lesson</Link>
+            <Link to="/teacher/lesson-plans/new" className="zwp-cta zwp-cta-primary">▶ Plan your first lesson</Link>
             <Link to="/teacher" className="zwp-cta zwp-cta-secondary">Back to dashboard</Link>
           </div>
 

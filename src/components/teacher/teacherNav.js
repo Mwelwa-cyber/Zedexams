@@ -26,7 +26,7 @@ import {
  */
 export const ROUTES = {
   dashboard:      '/teacher',
-  lessonPlans:    '/teacher/generate/lesson-plan',
+  lessonPlans:    '/teacher/lesson-plans/new',
   schemesOfWork:  '/teacher/generate/scheme-of-work',
   weeklyForecast: '/teacher/generate/weekly-forecast',
   recordOfWork:   '/teacher/generate/record-of-work',

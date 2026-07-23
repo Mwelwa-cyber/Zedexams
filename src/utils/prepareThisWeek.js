@@ -106,7 +106,7 @@ function newestFirst(list) {
 export const PREP_ROUTES = {
   scheme: '/teacher/generate/scheme-of-work',
   focus: '/teacher/generate/weekly-forecast',
-  lessons: '/teacher/generate/lesson-plan',
+  lessons: '/teacher/lesson-plans/new',
   worksheet: '/teacher/generate/worksheet',
   record: '/teacher/generate/record-of-work',
   library: (id) => `/teacher/library/${id}`,

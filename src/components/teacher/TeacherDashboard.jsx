@@ -608,7 +608,7 @@ export default function TeacherDashboard() {
               </span>
             </Link>
           ) : (
-            <Link to="/teacher/generate/lesson-plan" className="teacher-hero__continue teacher-hero__continue--empty">
+            <Link to="/teacher/lesson-plans/new" className="teacher-hero__continue teacher-hero__continue--empty">
               <div className="teacher-hero__continue-info">
                 <span className="teacher-hero__continue-label">Get started</span>
                 <p className="teacher-hero__continue-title">Create your first lesson</p>

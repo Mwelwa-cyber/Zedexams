@@ -28,7 +28,7 @@ const READY_PREP = {
   rows: [
     { key: 'scheme', label: 'Scheme of Work selected', detail: 'Integrated Science · Term 2', status: 'done', done: 1, target: 1, to: '/teacher/library/abc', meta: '✓' },
     { key: 'focus', label: 'Weekly Focus: 3 of 5 days prepared', detail: 'Day-by-day plan', status: 'progress', done: 3, target: 5, to: '/teacher/library/def', meta: '3 / 5' },
-    { key: 'lessons', label: 'Lesson plans: 2 of 5 completed', detail: 'CBC lessons', status: 'progress', done: 2, target: 5, to: '/teacher/generate/lesson-plan', meta: '2 / 5' },
+    { key: 'lessons', label: 'Lesson plans: 2 of 5 completed', detail: 'CBC lessons', status: 'progress', done: 2, target: 5, to: '/teacher/lesson-plans/new', meta: '2 / 5' },
     { key: 'worksheet', label: 'Worksheet: 1 created', detail: 'Ready to assign or print', status: 'done', done: 1, target: 1, to: '/teacher/generate/worksheet', meta: '1 created' },
     { key: 'record', label: 'Record of Work: not updated', detail: 'Log your teaching', status: 'alert', done: 0, target: 1, to: '/teacher/generate/record-of-work', meta: 'Not updated' },
   ],
@@ -138,7 +138,7 @@ describe('PrepareThisWeek', () => {
     expect(screen.getByRole('link', { name: /weekly focus: 3 of 5/i }))
       .toHaveAttribute('href', '/teacher/library/def')
     expect(screen.getByRole('link', { name: /lesson plans: 2 of 5/i }))
-      .toHaveAttribute('href', '/teacher/generate/lesson-plan')
+      .toHaveAttribute('href', '/teacher/lesson-plans/new')
     expect(screen.getByRole('link', { name: /record of work: not updated/i }))
       .toHaveAttribute('href', '/teacher/generate/record-of-work')
 

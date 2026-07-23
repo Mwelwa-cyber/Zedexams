@@ -2,7 +2,8 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import './lessonStudio.css'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Sparkles } from '../../ui/icons'
 import app, { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
 import { CurriculumContext } from './CurriculumContext'
@@ -28,7 +29,7 @@ import { useCoverageAnalysis } from './hooks/useCoverageAnalysis'
 import { buildAlignmentInstructions } from './utils/teacherPlanContext'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
-import { saveLessonPlanGeneration } from '../../../utils/teacherLibraryService'
+import { saveLessonPlanGeneration, getGeneration } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
 import { generateDiagram } from '../../../utils/generateDiagram'
 import { buildLessonDiagramPrompt } from '../../../utils/lessonDiagramPrompt'
@@ -530,6 +531,52 @@ export default function LessonPlanStudio() {
   // studioStateRef / gateRef above.
   const draftRef = useRef(draft)
   draftRef.current = draft
+
+  // ── Edit mode: /teacher/lesson-plans/:lessonPlanId/edit ────────────────────
+  // Reopens a SAVED plan in the full studio: the aiGenerations doc's plan JSON,
+  // meta and pre-rendered HTML hydrate the canvas exactly as they were saved,
+  // the Save state starts at "saved" (no duplicate on open), and the editor tab
+  // is preselected. The form inputs are untouched — the draft manager and
+  // auto-fill effects own those — so editing a plan never clobbers a half-built
+  // new one. One-shot per id; fail-soft to an error panel line via
+  // generationError so a deleted/foreign id never blanks the studio.
+  const { lessonPlanId } = useParams()
+  const editLoadedRef = useRef(null)
+  useEffect(() => {
+    if (!lessonPlanId || editLoadedRef.current === lessonPlanId) return
+    editLoadedRef.current = lessonPlanId
+    let cancelled = false
+    getGeneration(lessonPlanId).then((gen) => {
+      if (cancelled) return
+      const planData = gen && (gen.data || gen.output)
+      if (!gen || gen.tool !== 'lesson_plan' || !planData || typeof planData !== 'object') {
+        setGenerationError('We could not open that saved lesson plan. It may have been deleted — pick it from your library instead.')
+        return
+      }
+      const planJson = normalizePlanShape(planData)
+      const meta = gen.meta || {}
+      const genDiagrams = Array.isArray(planJson?.diagrams) ? planJson.diagrams : []
+      // The library classification remembers which syllabus family the plan
+      // was authored against (OBC ↔ the Previous curriculum).
+      const mode = gen.library?.syllabus === 'OBC' ? 'previous' : 'cbc'
+      const s = studioStateRef.current
+      if (!s.curriculumMode) s.setCurriculumMode(mode)
+      setLastPlanJson(planJson)
+      setLastMeta(meta)
+      setLiveMeta(meta)
+      setDiagrams(genDiagrams)
+      setSavedPlanId(gen.id)
+      setSavedSignature(JSON.stringify({ plan: planJson, diagrams: genDiagrams }))
+      setSaveStatus('saved')
+      s.setGeneratedPlan(gen.html || renderPlanHtml(planJson, meta, mode))
+      s.setGenerationStatus('done')
+      setViewMode('edit')
+    }).catch(() => {
+      if (cancelled) return
+      setGenerationError('We could not open that saved lesson plan. Check your connection and try again from your library.')
+    })
+    return () => { cancelled = true }
+  }, [lessonPlanId])
 
   // ── Generate handler ──────────────────────────────────────────────────────
 
@@ -1179,11 +1226,12 @@ export default function LessonPlanStudio() {
   // ── Persistent-memory actions (Saved Lessons panel + adaptive Generate) ─────
 
   // Open an existing saved lesson to continue editing. If it was saved to the
-  // library (has a generationId), jump straight to that document; otherwise it
-  // was generated but never saved — regenerate that lesson number.
+  // library (has a generationId), reopen it in the studio's edit mode (client-
+  // side routed, inside the dashboard shell); otherwise it was generated but
+  // never saved — regenerate that lesson number.
   const handleOpenLesson = useCallback((lesson) => {
     if (lesson?.generationId) {
-      navigate(`/teacher/library/${lesson.generationId}`)
+      navigate(`/teacher/lesson-plans/${lesson.generationId}/edit`)
       return
     }
     handleGenerate(0, { lessonNumber: Number(lesson?.lessonNumber) || 1 })
@@ -1298,12 +1346,39 @@ export default function LessonPlanStudio() {
         <DraftRecoveryPrompt {...draft} label="lesson plan" />
       </div>
       <StudioShell
-        sidebar={
-          <>
-          <div className="flex justify-end px-3 pt-2">
-            <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
+        header={
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <span
+                className="lps-tile h-11 w-11 flex-shrink-0 rounded-[12px] text-white lps-brand-gradient"
+                aria-hidden="true"
+              >
+                <Sparkles size={20} />
+              </span>
+              <div className="min-w-0">
+                <span className="lps-eyebrow">Teacher Studio</span>
+                <h1 className="font-display text-[19px] font-extrabold leading-tight tracking-tight text-[#0F1B2D]">
+                  Lesson Plan Studio
+                </h1>
+                <p className="text-[12px] font-semibold leading-tight text-[#4A5A6E]">
+                  Create smart lesson plans in minutes — build step by step, preview live.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-none items-center gap-2.5">
+              <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
+              <Link
+                to="/teacher/lesson-plans"
+                className="lps-btn-ghost inline-flex min-h-[44px] items-center gap-1.5 px-3 text-[12.5px]"
+              >
+                <span aria-hidden="true">←</span> Back to Lesson Plans
+              </Link>
+            </div>
           </div>
+        }
+        sidebar={
           <StudioSidebar
+            onSaveDraft={() => draftRef.current.flush?.()}
             studioState={studioState}
             aiState={aiState}
             seriesState={seriesState}
@@ -1331,7 +1406,6 @@ export default function LessonPlanStudio() {
               onOpenLesson: handleOpenLesson,
             }}
           />
-          </>
         }
         canvas={
           <StudioCanvas
@@ -1365,7 +1439,7 @@ export default function LessonPlanStudio() {
         }
       />
       {kit && (
-        <div className="lps-game fixed inset-x-0 bottom-0 z-50 border-t-2 border-[#0F1B2D] bg-white/95 px-3 py-2.5 shadow-[0_-6px_24px_-12px_rgba(15,27,45,0.35)] backdrop-blur sm:px-5">
+        <div className="lps-game fixed inset-x-0 bottom-[calc(72px+env(safe-area-inset-bottom,0px))] z-50 border-t-2 border-[#0F1B2D] bg-white/95 px-3 py-2.5 shadow-[0_-6px_24px_-12px_rgba(15,27,45,0.35)] backdrop-blur sm:px-5 lg:bottom-0">
           <div className="mx-auto flex max-w-5xl items-center gap-3">
             <div className="hidden shrink-0 sm:block">
               <p className="flex items-center gap-1.5 text-[12px] font-extrabold text-[#0F1B2D]">

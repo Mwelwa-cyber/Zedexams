@@ -22,7 +22,7 @@ export function buildReminders({ generations = [], quizzes = [] }) {
       tone: 'warn',
       title: 'It has been a while',
       body: `Your last plan was ${daysSinceLastGen} day${daysSinceLastGen === 1 ? '' : 's'} ago. Block 10 minutes today to draft the next one.`,
-      to: '/teacher/generate/lesson-plan',
+      to: '/teacher/lesson-plans/new',
       cta: 'Plan a lesson',
     })
   }
@@ -33,7 +33,7 @@ export function buildReminders({ generations = [], quizzes = [] }) {
       tone: 'info',
       title: 'Get started',
       body: 'Generate your first CBC-aligned lesson plan in under a minute.',
-      to: '/teacher/generate/lesson-plan',
+      to: '/teacher/lesson-plans/new',
       cta: 'Start',
     })
   }
