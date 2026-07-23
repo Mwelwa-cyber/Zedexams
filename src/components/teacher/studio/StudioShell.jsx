@@ -40,7 +40,7 @@ export function StudioShell({ view = 'form', header = null, sidebar, canvas, onB
               <button
                 type="button"
                 onClick={onBackToForm}
-                className="lps-btn-ghost min-h-[40px] px-3 py-1.5 text-[12.5px]"
+                className="lps-btn-ghost min-h-[44px] px-3 py-1.5 text-[12.5px]"
               >
                 <ChevronLeft size={16} aria-hidden="true" />
                 Back to form

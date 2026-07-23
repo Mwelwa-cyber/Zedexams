@@ -122,7 +122,9 @@ function pickIllustrationStage(planJson, curriculumMode) {
 // kept editing while the request was in flight, the current inputs no longer
 // match and the newer draft must survive. seriesId is excluded — the generate
 // handler itself mints it mid-run, which would otherwise always mismatch in
-// series mode.
+// series mode. (Overwriting seriesId on the spread keeps its key POSITION, so
+// the serialized shape — and therefore the fingerprint — is stable whether or
+// not the id has been minted yet.)
 function draftInputFingerprint(s) {
   return JSON.stringify({
     curriculumMode: s.curriculumMode,
@@ -1412,7 +1414,7 @@ export default function LessonPlanStudio() {
                   Lesson Plan Studio
                 </h1>
                 <p className="text-[12px] font-semibold leading-tight text-[#4A5A6E]">
-                  Create smart lesson plans in minutes — one step at a time.
+                  Create smart lesson plans in minutes — one step at a time, preview live.
                 </p>
               </div>
             </div>
