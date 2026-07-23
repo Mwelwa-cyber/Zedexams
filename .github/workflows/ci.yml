@@ -154,6 +154,8 @@ jobs:
         run: npm run smoke:build
       - name: Mobile smoke (public routes)
         run: npm run smoke:mobile
+      - name: Dashboard responsive navigation (viewport matrix)
+        run: npm run smoke:dashboard
 
   rules-emulator:
     # Behavioural Firestore-rules tests. Kept as a separate job because

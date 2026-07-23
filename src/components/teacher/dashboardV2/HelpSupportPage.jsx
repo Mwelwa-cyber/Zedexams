@@ -30,7 +30,10 @@ import { MobileHeader, MobileBottomNav, NavDrawer } from './MobileDashboardView'
 import { teacherFromAuth } from './dashboardV2Data'
 import useDashboardTheme from './useDashboardTheme'
 import useIsMobile from './useIsMobile'
+import ensureDashboardFonts from './dashboardFonts'
 import './dashboardV2.css'
+
+ensureDashboardFonts()
 
 // Same public support line the marketing page uses (Bonga answers inbound
 // WhatsApp) — keep in sync with CONTACT_WHATSAPP_HREF in Marketing.jsx.

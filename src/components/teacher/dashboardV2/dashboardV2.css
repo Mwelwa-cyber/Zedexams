@@ -1,10 +1,16 @@
 /* ────────────────────────────────────────────────────────────────────────
    Teacher Dashboard V2 (preview) — self-contained design system.
    Every rule is scoped under .tdv2 so nothing leaks into the rest of the
-   app. Loaded only with the lazy /teacher/dashboard-preview chunk, so the
-   font @import below is paid only by visitors to this surface.
+   app. Loaded only with the lazy dashboard chunk.
+
+   NOTE: no font @import here on purpose. A CSS @import to
+   fonts.googleapis.com makes the whole chunk's stylesheet fail when that
+   host is unreachable (common on restrictive/flaky networks), and Vite's
+   CSS preload then rejects — the entire /teacher route crashed to the
+   ErrorBoundary. The Inter/Playfair web fonts are injected as a soft-
+   failing <link> by dashboardFonts.js instead; the font-family stacks
+   below always have local fallbacks.
    ──────────────────────────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
 
 .tdv2 {
   /* Brand palette */
@@ -2388,16 +2394,34 @@ a.tdv2-check-row:hover {
   .tdv2-preview-banner { left: 96px; }
 }
 
-/* ── Below 768px: phones aren't this surface's target, but the live
-      dashboard must stay usable there — single column, slimmer rail. ──── */
+/* ── Below 768px: the desktop sidebar is REMOVED from layout entirely.
+      The JS swap (useIsMobile → MobileDashboardView) is the primary path;
+      these rules are the CSS guarantee — even if the desktop DOM is still
+      mounted (stale JS state, first paint, mid-rotate), the shell collapses
+      to a single full-width column and no rail ever squeezes the content.
+      Never replace `display: none` here with opacity/visibility/transform
+      tricks: the sidebar must leave the layout flow, not just the paint. ── */
 
 @media (max-width: 767px) {
-  .tdv2 { grid-template-columns: 64px minmax(0, 1fr); }
-  .tdv2-sidebar { padding: 12px 8px 8px; }
-  .tdv2-sidebar .tdv2-logo-chip { width: 40px; height: 40px; }
-  .tdv2-sidebar .tdv2-logo-chip img { width: 32px; height: 32px; }
+  .tdv2 {
+    display: block;
+    grid-template-columns: none;
+  }
+  .tdv2-sidebar { display: none; }
+  .tdv2-main {
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+    padding-left: 0;
+    min-width: 0;
+  }
   .tdv2-header,
-  .tdv2-content { padding-left: 12px; padding-right: 12px; }
+  .tdv2-content { padding-left: 16px; padding-right: 16px; }
+  .tdv2-content {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+  }
   .tdv2-header { flex-wrap: wrap; gap: 10px; }
   .tdv2-row-3 { grid-template-columns: minmax(0, 1fr); }
   .tdv2-tile-grid,
@@ -2407,9 +2431,11 @@ a.tdv2-check-row:hover {
   .tdv2-hero h1 { font-size: 28px; }
   .tdv2-hero-inset { flex-wrap: wrap; }
   .tdv2-kbd { display: none; }
-  .tdv2-doc-date { display: none; }
-  .tdv2-preview-banner { left: 76px; right: 12px; }
-  .tdv2-menu { width: min(254px, calc(100vw - 90px)); }
+  /* Desktop doc rows only — the mobile doc card keeps its date in the
+     footer row (.tdv2m-doc-foot). */
+  .tdv2-row-2 .tdv2-doc-date { display: none; }
+  .tdv2-preview-banner { left: 16px; right: 16px; }
+  .tdv2-menu { width: min(254px, calc(100vw - 32px)); }
 }
 
 /* ── MOBILE dashboard (< 768px) ──────────────────────────────────────
@@ -2425,9 +2451,13 @@ a.tdv2-check-row:hover {
 }
 
 .tdv2m {
+  /* Single source of truth for the fixed bottom navigation's height —
+     the nav itself and the page's bottom clearance both derive from it. */
+  --mobile-nav-height: 72px;
   min-height: 100dvh;
+  overflow-x: clip;
   /* Content must never hide behind the fixed bottom navigation */
-  padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px) + 16px);
 }
 
 /* Header ─ compact, sticky, safe-area aware */
@@ -2703,7 +2733,7 @@ a.tdv2-check-row:hover {
   z-index: 70;
   display: flex;
   align-items: stretch;
-  height: calc(72px + env(safe-area-inset-bottom, 0px));
+  height: calc(var(--mobile-nav-height, 72px) + env(safe-area-inset-bottom, 0px));
   padding: 6px max(8px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px)
     max(8px, env(safe-area-inset-left, 0px));
   background: color-mix(in srgb, var(--surface) 94%, transparent);
@@ -2877,6 +2907,23 @@ a.tdv2-check-row:hover {
   }
   .tdv2m-tile {
     min-height: 0;
+  }
+  /* Two columns can't keep each tile ≥150px wide this narrow — stack. */
+  .tdv2m-qc-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ── ≥768px: the mobile chrome can never appear ──────────────────────
+   Belt-and-braces mirror of the sidebar rule above: if a rotate/resize
+   leaves the mobile DOM mounted for a frame, the sticky header, bottom
+   navigation and drawer leave layout entirely — desktop never shows two
+   navigation systems at once. */
+@media (min-width: 768px) {
+  .tdv2m-header,
+  .tdv2m-bottomnav,
+  .tdv2m-drawer-root {
+    display: none;
   }
 }
 

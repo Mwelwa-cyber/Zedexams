@@ -1,0 +1,202 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, act } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { HelmetProvider } from 'react-helmet-async'
+import TeacherDashboardV2 from './TeacherDashboardV2'
+import { TOUR_STORAGE_KEY } from './onboardingTourCore'
+
+// These specs exercise the responsive DOM swap — suppress the first-run tour
+// (its own behaviour is covered in OnboardingTour.spec.jsx).
+beforeEach(() => {
+  localStorage.setItem(TOUR_STORAGE_KEY, 'done')
+})
+
+// recharts' ResponsiveContainer needs real layout measurements jsdom can't
+// provide; stub the chart card so the rest of the dashboard renders.
+vi.mock('./PerformanceSnapshotCard', () => ({
+  default: () => <section aria-label="Performance Snapshot (stub)" />,
+}))
+// The mobile header bell reads the app-wide NotificationProvider (main.jsx);
+// specs mount without it, so stub the hook.
+vi.mock('../../../contexts/NotificationContext', () => ({
+  useNotifications: () => ({ unreadCount: 0, open: false, setOpen: () => {} }),
+}))
+
+/**
+ * Controllable window.matchMedia: evaluates (max-width)/(min-width) queries
+ * against a mutable viewport width and fires registered change listeners
+ * when setViewportWidth crosses a breakpoint — jsdom has no real layout, so
+ * this is how a phone rotation / window resize is simulated.
+ */
+let viewportWidth = 1440
+const listeners = new Set()
+const realMatchMedia = window.matchMedia
+
+function evaluate(query) {
+  const max = query.match(/max-width:\s*([\d.]+)px/)
+  const min = query.match(/min-width:\s*([\d.]+)px/)
+  if (!max && !min) return false
+  if (max && viewportWidth > parseFloat(max[1])) return false
+  if (min && viewportWidth < parseFloat(min[1])) return false
+  return true
+}
+
+function installMatchMedia({ legacyListenersOnly = false } = {}) {
+  window.matchMedia = (query) => {
+    const entry = (cb) => ({ query, cb })
+    const remove = (cb) => {
+      for (const l of listeners) if (l.cb === cb) listeners.delete(l)
+    }
+    const mql = {
+      media: query,
+      get matches() {
+        return evaluate(query)
+      },
+      onchange: null,
+      addListener: (cb) => listeners.add(entry(cb)),
+      removeListener: remove,
+      dispatchEvent: () => false,
+    }
+    if (!legacyListenersOnly) {
+      // Modern API. When legacyListenersOnly is set these stay undefined,
+      // mimicking Safari < 14 — the hook must fall back, not throw.
+      mql.addEventListener = (_type, cb) => listeners.add(entry(cb))
+      mql.removeEventListener = (_type, cb) => remove(cb)
+    }
+    return mql
+  }
+}
+
+function setViewportWidth(width) {
+  viewportWidth = width
+  for (const { query, cb } of listeners) {
+    cb({ matches: evaluate(query), media: query })
+  }
+}
+
+afterEach(() => {
+  listeners.clear()
+  window.matchMedia = realMatchMedia
+})
+
+function renderDashboard() {
+  return render(
+    <HelmetProvider>
+      <MemoryRouter initialEntries={['/teacher/dashboard-preview']}>
+        <TeacherDashboardV2 />
+      </MemoryRouter>
+    </HelmetProvider>,
+  )
+}
+
+const desktopSidebar = () => document.querySelector('.tdv2-sidebar')
+const bottomNav = () => document.querySelector('.tdv2m-bottomnav')
+const mobileHeader = () => document.querySelector('.tdv2m-header')
+
+// The task's regression matrix: portrait phones, small landscape/tablet,
+// tablet landscape, desktop.
+const MOBILE_VIEWPORTS = [
+  [320, 568],
+  [360, 800],
+  [390, 844],
+  [412, 915],
+]
+const DESKTOP_VIEWPORTS = [
+  [768, 1024],
+  [1024, 768],
+  [1440, 900],
+]
+
+describe('responsive navigation — one nav system at a time', () => {
+  it.each(MOBILE_VIEWPORTS)(
+    '%ix%i: no desktop sidebar, mobile bottom nav + header render',
+    (width) => {
+      installMatchMedia()
+      viewportWidth = width
+      renderDashboard()
+
+      // The desktop sidebar must be absent from the DOM — not hidden,
+      // not translated off-screen, absent.
+      expect(desktopSidebar()).toBeNull()
+      expect(screen.queryByLabelText('Teacher navigation')).not.toBeInTheDocument()
+
+      // Mobile chrome: bottom nav with its five destinations + compact header.
+      expect(mobileHeader()).not.toBeNull()
+      const nav = screen.getByRole('navigation', { name: 'Quick navigation' })
+      for (const label of ['Home', 'My Class', 'Library', 'Assessments', 'More']) {
+        expect(nav.textContent).toContain(label)
+      }
+
+      // The shell drops the desktop grid so no sidebar column can reserve
+      // space even before CSS media queries apply.
+      expect(document.querySelector('.tdv2')).toHaveClass('tdv2-is-mobile')
+    },
+  )
+
+  it.each(DESKTOP_VIEWPORTS)(
+    '%ix%i: desktop sidebar renders, mobile chrome absent',
+    (width) => {
+      installMatchMedia()
+      viewportWidth = width
+      renderDashboard()
+
+      expect(screen.getByLabelText('Teacher navigation')).toBeInTheDocument()
+      expect(bottomNav()).toBeNull()
+      expect(mobileHeader()).toBeNull()
+      expect(document.querySelector('.tdv2')).not.toHaveClass('tdv2-is-mobile')
+    },
+  )
+
+  it('active bottom-nav item is marked with aria-current, not colour alone', () => {
+    installMatchMedia()
+    viewportWidth = 390
+    renderDashboard()
+    const nav = screen.getByRole('navigation', { name: 'Quick navigation' })
+    const active = nav.querySelector('[aria-current="page"]')
+    expect(active).not.toBeNull()
+    expect(active.textContent).toContain('Home')
+  })
+
+  it('rotating phone → landscape/desktop swaps to the sidebar with no stale mobile chrome', () => {
+    installMatchMedia()
+    viewportWidth = 390
+    renderDashboard()
+    expect(desktopSidebar()).toBeNull()
+    expect(bottomNav()).not.toBeNull()
+
+    act(() => setViewportWidth(1024))
+
+    expect(screen.getByLabelText('Teacher navigation')).toBeInTheDocument()
+    expect(bottomNav()).toBeNull()
+    expect(mobileHeader()).toBeNull()
+  })
+
+  it('resizing desktop → phone removes the sidebar and mounts the mobile chrome', () => {
+    installMatchMedia()
+    viewportWidth = 1440
+    renderDashboard()
+    expect(desktopSidebar()).not.toBeNull()
+
+    act(() => setViewportWidth(390))
+
+    expect(desktopSidebar()).toBeNull()
+    expect(screen.queryByLabelText('Teacher navigation')).not.toBeInTheDocument()
+    expect(bottomNav()).not.toBeNull()
+    expect(document.querySelector('.tdv2')).toHaveClass('tdv2-is-mobile')
+  })
+
+  it('legacy MediaQueryList (no addEventListener, Safari < 14) still gets the mobile IA and live updates', () => {
+    // Regression guard for the crash path that left phones on the desktop
+    // layout: mql.addEventListener was called unconditionally and threw.
+    installMatchMedia({ legacyListenersOnly: true })
+    viewportWidth = 390
+    renderDashboard()
+
+    expect(desktopSidebar()).toBeNull()
+    expect(bottomNav()).not.toBeNull()
+
+    act(() => setViewportWidth(1024))
+    expect(screen.getByLabelText('Teacher navigation')).toBeInTheDocument()
+    expect(bottomNav()).toBeNull()
+  })
+})
