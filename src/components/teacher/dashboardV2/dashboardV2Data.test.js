@@ -8,7 +8,9 @@ import {
   toolLabel,
   documentsFromResources,
   lastOpenedFromResources,
+  launcherWarningsFromResources,
   savedCountsFromSummary,
+  studioSavedCounts,
   checklistFromWeekPrep,
   feedFromState,
   activityFromResources,
@@ -81,6 +83,26 @@ assert.deepEqual(
   savedCountsFromSummary({ scheme_of_work: 2, lesson_plan: 11, worksheet: 3 }),
   { scheme_of_work: 2, weekly_forecast: 0, lesson_plan: 11, record_of_work: 0 },
 )
+
+// studioSavedCounts: full byTool map (positive only) + assessment total
+assert.deepEqual(
+  studioSavedCounts({ scheme_of_work: 2, lesson_plan: 11, worksheet: 0 }, 5),
+  { scheme_of_work: 2, lesson_plan: 11, assessment: 5 },
+)
+// zero assessment total is omitted so no "0 saved" badge ever shows
+assert.deepEqual(studioSavedCounts({ notes: 1 }, 0), { notes: 1 })
+assert.deepEqual(studioSavedCounts({}, 0), {})
+
+// launcher warnings: draft papers flag the Assessment Paper Studio
+assert.deepEqual(
+  launcherWarningsFromResources([
+    { tool: 'assessment', status: 'draft' },
+    { tool: 'lesson_plan', status: 'ready' },
+  ]),
+  ['assessment-papers'],
+)
+assert.deepEqual(launcherWarningsFromResources([{ tool: 'assessment', status: 'ready' }]), [])
+assert.deepEqual(launcherWarningsFromResources([]), [])
 
 // ── checklist from buildWeekPrep rows ────────────────────────────────
 const weekPrep = {

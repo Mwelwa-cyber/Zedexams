@@ -137,6 +137,36 @@ export function savedCountsFromSummary(byTool = {}) {
   }
 }
 
+/**
+ * Full saved-count map keyed by Firestore tool id for the app launcher —
+ * every generation tool from the library summary, plus the assessment-paper
+ * total (a separate collection). Purely a re-shape of counts the dashboard
+ * already fetched; it never triggers a new query. Returns a plain number
+ * map so `counts[countKey]` is safe for any studio.
+ */
+export function studioSavedCounts(byTool = {}, assessmentCount = 0) {
+  const out = {}
+  for (const [tool, n] of Object.entries(byTool || {})) {
+    if (typeof n === 'number' && n > 0) out[tool] = n
+  }
+  if (typeof assessmentCount === 'number' && assessmentCount > 0) {
+    // Assessment papers live in their own collection, not `byTool`.
+    out.assessment = assessmentCount
+  }
+  return out
+}
+
+/**
+ * Studios that currently need the teacher's attention, for the launcher's
+ * warning-dot badge — derived ONLY from data the dashboard already fetched.
+ * Today: draft assessment papers (no questions yet) flag the Assessment
+ * Paper Studio. Returns an array of studio ids.
+ */
+export function launcherWarningsFromResources(resources = []) {
+  const hasDraftPapers = resources.some((r) => r.tool === 'assessment' && r.status === 'draft')
+  return hasDraftPapers ? ['assessment-papers'] : []
+}
+
 /** Checklist rows from buildWeekPrep()'s output (rows with a real target). */
 export function checklistFromWeekPrep(weekPrep) {
   if (!weekPrep || weekPrep.empty || !Array.isArray(weekPrep.rows)) return []

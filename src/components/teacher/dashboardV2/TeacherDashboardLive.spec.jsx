@@ -75,8 +75,10 @@ describe('TeacherDashboardLive', () => {
   it('renders real data from the hook: greeting name, docs, counts, chip', () => {
     renderLive()
     expect(screen.getByRole('heading', { level: 1, name: 'Bwalya' })).toBeInTheDocument()
-    expect(screen.getByText('Living Things Lesson')).toBeInTheDocument()
-    expect(screen.getByText('4 SAVED')).toBeInTheDocument()
+    // The app launcher surfaces studios with live saved-count badges
+    expect(screen.getByRole('region', { name: 'Teacher Workspace' })).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Lesson Plans.*Open studio$/)).toBeInTheDocument()
+    expect(screen.getByText('4 saved')).toBeInTheDocument()
     expect(screen.getByText('15 Jul — Term 2 • Week 10')).toBeInTheDocument()
     expect(screen.getByText('Mathematics is not planned yet')).toBeInTheDocument()
     // Second recommendation renders as a compact row below the primary card

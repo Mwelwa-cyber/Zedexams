@@ -17,6 +17,9 @@ vi.mock('./useIsMobile', () => ({ default: () => true }))
 vi.mock('./PerformanceSnapshotCard', () => ({
   default: () => <section aria-label="Activity Snapshot (stub)" />,
 }))
+vi.mock('../../../contexts/AuthContext', () => ({
+  useAuth: () => ({ isTeacher: true, currentUser: null, userProfile: null }),
+}))
 vi.mock('../../../contexts/NotificationContext', () => ({
   useNotifications: () => ({ unreadCount: 3, open: false, setOpen: () => {} }),
 }))
@@ -45,10 +48,9 @@ describe('MobileDashboardView (via preview page)', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Mahenga' })).toBeInTheDocument()
     expect(screen.getByText('Quick Create')).toBeInTheDocument()
     expect(screen.getByText('AI Recommendations')).toBeInTheDocument()
-    expect(screen.getByText('Recent Documents')).toBeInTheDocument()
-    // Mobile shows 4 documents, not 5
-    expect(screen.getByText('GRADE FOUR END OF TERM 2 TEST - 2026')).toBeInTheDocument()
-    expect(screen.queryByText('G5 Integrated Science — Term 1 Scheme of Work')).not.toBeInTheDocument()
+    // The app launcher replaces the old Recent Documents list on mobile
+    expect(screen.getByRole('region', { name: 'Teacher Workspace' })).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Lesson Plans.*Open studio$/)).toBeInTheDocument()
     // Notification badge from the real feed hook
     expect(screen.getByRole('button', { name: 'Notifications, 3 unread' })).toBeInTheDocument()
   })

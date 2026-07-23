@@ -18,6 +18,9 @@ vi.mock('./PerformanceSnapshotCard', () => ({
 }))
 // The mobile header bell reads the app-wide NotificationProvider (main.jsx);
 // specs mount without it, so stub the hook.
+vi.mock('../../../contexts/AuthContext', () => ({
+  useAuth: () => ({ isTeacher: true, currentUser: null, userProfile: null }),
+}))
 vi.mock('../../../contexts/NotificationContext', () => ({
   useNotifications: () => ({ unreadCount: 0, open: false, setOpen: () => {} }),
 }))

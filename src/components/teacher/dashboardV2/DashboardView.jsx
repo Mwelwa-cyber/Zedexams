@@ -4,8 +4,7 @@ import TopHeader from './TopHeader'
 import GreetingHero from './GreetingHero'
 import QuickCreateCard from './QuickCreateCard'
 import AiRecommendationsCard from './AiRecommendationsCard'
-import RecentDocumentsCard from './RecentDocumentsCard'
-import WorkspaceCard from './WorkspaceCard'
+import TeacherAppLauncher from './launcher/TeacherAppLauncher'
 import { ChecklistCard, FeedStatusCard, RecentActivityCard } from './InsightCards'
 import PerformanceSnapshotCard from './PerformanceSnapshotCard'
 import LogoutDialog from './LogoutDialog'
@@ -36,8 +35,8 @@ export default function DashboardView({
   ctaState = 'default',
   onContinue,
   recommendations,
-  documents,
   savedCounts,
+  launcherWarnings = [],
   checklist,
   feed,
   activity,
@@ -52,14 +51,12 @@ export default function DashboardView({
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [toast, setToast] = useState(null)
   const toastTimer = useRef(null)
-  const [allToolsOpen, setAllToolsOpen] = useState(false)
   const workspaceRef = useRef(null)
   const { dark, toggleTheme } = useDashboardTheme()
 
-  // Quick Create's "View all teacher tools" expands the workspace grid and
-  // brings it into view — the tools live on this page, not behind a route.
+  // Quick Create's "View all teacher tools" brings the app launcher into
+  // view — every tool lives there, on this page, not behind a route.
   const viewAllTools = useCallback(() => {
-    setAllToolsOpen(true)
     workspaceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [])
 
@@ -87,7 +84,8 @@ export default function DashboardView({
           ctaState={ctaState}
           onContinue={onContinue}
           recommendations={recommendations}
-          documents={documents}
+          savedCounts={savedCounts}
+          launcherWarnings={launcherWarnings}
           checklist={checklist}
           feed={feed}
           activity={activity}
@@ -142,13 +140,8 @@ export default function DashboardView({
             <AiRecommendationsCard recommendations={recommendations} />
           </div>
 
-          <div className="tdv2-row-2" ref={workspaceRef}>
-            <RecentDocumentsCard documents={documents} loading={loading} />
-            <WorkspaceCard
-              savedCounts={savedCounts}
-              allToolsOpen={allToolsOpen}
-              onToggleAllTools={setAllToolsOpen}
-            />
+          <div className="tdv2-launcher-block" ref={workspaceRef}>
+            <TeacherAppLauncher savedCounts={savedCounts} warnings={launcherWarnings} loading={loading} />
           </div>
 
           <div className="tdv2-row-3">
