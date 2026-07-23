@@ -71,7 +71,17 @@ function sublineFor(lastOpened) {
  * Closes on X, backdrop tap, Escape, or selecting any destination; the page
  * behind cannot scroll while it is open.
  */
-export function NavDrawer({ open, onClose, teacher, dark, onToggleTheme, onLogout }) {
+export function NavDrawer({
+  open,
+  onClose,
+  teacher,
+  dark,
+  onToggleTheme,
+  onLogout,
+  // Dashboard/help use the curated groups; the studio shell (TeacherLayout)
+  // passes STUDIO_NAV_GROUPS for the full teacher map.
+  groups = NAV_GROUPS,
+}) {
   const [accountOpen, setAccountOpen] = useState(false)
   const panelRef = useRef(null)
   const accountRef = useRef(null)
@@ -155,7 +165,7 @@ export function NavDrawer({ open, onClose, teacher, dark, onToggleTheme, onLogou
         </div>
 
         <nav className="tdv2m-drawer-nav" aria-label="Primary">
-          {NAV_GROUPS.map((group) => (
+          {groups.map((group) => (
             <div key={group.id}>
               {group.label ? (
                 <div className="tdv2-nav-label" aria-hidden="true">{group.label}</div>
