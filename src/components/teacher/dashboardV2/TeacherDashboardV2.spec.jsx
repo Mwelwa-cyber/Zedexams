@@ -19,6 +19,9 @@ vi.mock('./PerformanceSnapshotCard', () => ({
 }))
 // The header bell reads the app-wide NotificationProvider (main.jsx); specs
 // mount without it, so stub the hook.
+vi.mock('../../../contexts/AuthContext', () => ({
+  useAuth: () => ({ isTeacher: true, currentUser: null, userProfile: null }),
+}))
 vi.mock('../../../contexts/NotificationContext', () => ({
   useNotifications: () => ({ unreadCount: 0, open: false, setOpen: () => {} }),
 }))
@@ -119,9 +122,9 @@ describe('TeacherDashboardV2', () => {
     expect(screen.getByText('Quick Create')).toBeInTheDocument()
     expect(screen.getByText('AI Recommendations')).toBeInTheDocument()
     expect(screen.getByText('Mathematics is not planned yet')).toBeInTheDocument()
-    expect(screen.getByText('Recent Documents')).toBeInTheDocument()
-    expect(screen.getByText('GRADE FOUR END OF TERM 2 TEST - 2026')).toBeInTheDocument()
-    expect(screen.getByText('Teacher Workspace')).toBeInTheDocument()
+    // The app launcher is the workspace surface
+    expect(screen.getByRole('region', { name: 'Teacher Workspace' })).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Lesson Plans.*Open studio$/)).toBeInTheDocument()
     expect(screen.getByText('Checklist Completion')).toBeInTheDocument()
     expect(screen.getByText('Feed & Status')).toBeInTheDocument()
     expect(screen.getByText('Recent Activity')).toBeInTheDocument()
@@ -151,17 +154,17 @@ describe('TeacherDashboardV2', () => {
     localStorage.removeItem('zedexams:tdv2-theme')
   })
 
-  it('View all teacher tools expands the full tool grid in place', async () => {
+  it('the launcher exposes every teacher tool as an app icon and search narrows them', async () => {
     const u = user()
     renderDashboard()
-    const toggle = screen.getByRole('button', { name: /View all teacher tools \(\d+ more\)/ })
-    expect(toggle).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByRole('link', { name: /Question Bank/ })).not.toBeInTheDocument()
+    // All tools are visible up-front — no "view all" expansion needed.
+    expect(screen.getByLabelText(/^Question Bank.*Open studio$/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Class Timetable.*Open studio$/)).toBeInTheDocument()
 
-    await u.click(toggle)
-    expect(screen.getByRole('link', { name: /Question Bank/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Class Timetable/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Hide extra tools/ })).toBeInTheDocument()
+    const box = screen.getByRole('searchbox', { name: 'Search teacher tools' })
+    await u.type(box, 'question')
+    expect(screen.getByLabelText(/^Question Bank.*Open studio$/)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/^Class Timetable.*Open studio$/)).not.toBeInTheDocument()
   })
 
   it('sidebar puts Dashboard above the CREATE group', () => {

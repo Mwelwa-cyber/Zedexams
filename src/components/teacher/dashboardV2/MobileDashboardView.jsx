@@ -15,7 +15,6 @@ import {
   MessageSquare,
   Moon,
   MoreHorizontal,
-  MoreVertical,
   Search,
   Settings,
   Sun,
@@ -29,10 +28,10 @@ import { useNotifications } from '../../../contexts/NotificationContext'
 import NotificationCenter from '../../notifications/NotificationCenter'
 import CopperButton from './CopperButton'
 import AiRecommendationsCard from './AiRecommendationsCard'
+import TeacherAppLauncher from './launcher/TeacherAppLauncher'
 import { ChecklistCard, FeedStatusCard, RecentActivityCard } from './InsightCards'
 import PerformanceSnapshotCard from './PerformanceSnapshotCard'
-import { RowMenu } from './RecentDocumentsCard'
-import { NAV_GROUPS, QUICK_CREATE_TILES, iconForTool } from './dashboardV2Config'
+import { NAV_GROUPS, QUICK_CREATE_TILES } from './dashboardV2Config'
 // Small notebook illustration, upper-right of the hero (hidden < 350px)
 import heroDesk from '../../../assets/teacher/hero-desk.webp'
 
@@ -380,7 +379,7 @@ export default function MobileDashboardView({
   ctaState = 'default',
   onContinue,
   recommendations,
-  documents = [],
+  savedCounts = null,
   checklist,
   feed,
   activity,
@@ -395,7 +394,6 @@ export default function MobileDashboardView({
   banner = null,
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [menuFor, setMenuFor] = useState(null)
   const [query, setQuery] = useState('')
   const navigate = useNavigate()
   const PartIcon = PART_ICON[greeting.part] || Sunset
@@ -407,7 +405,6 @@ export default function MobileDashboardView({
   }
 
   const closeDrawer = useCallback(() => setDrawerOpen(false), [])
-  const mobileDocs = documents.slice(0, 4)
 
   return (
     <div className="tdv2m">
@@ -495,58 +492,7 @@ export default function MobileDashboardView({
 
         <AiRecommendationsCard recommendations={recommendations} />
 
-        <section aria-labelledby="tdv2m-docs-h">
-          <div className="tdv2m-section-head">
-            <h2 className="tdv2-eyebrow" id="tdv2m-docs-h">Recent Documents</h2>
-            <Link className="tdv2-link-action" to="/teacher/library">
-              View all
-              <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
-            </Link>
-          </div>
-          <div className="tdv2-card tdv2m-doc-card">
-            {loading ? (
-              <div className="tdv2-empty">Loading your documents…</div>
-            ) : mobileDocs.length === 0 ? (
-              <div className="tdv2-empty">Nothing here yet — documents you create appear here.</div>
-            ) : (
-              mobileDocs.map((doc) => {
-                const DocIcon = iconForTool(doc.tool)
-                return (
-                  <div key={doc.id} className="tdv2m-doc-row">
-                    <span className="tdv2-doc-icon" aria-hidden="true">
-                      <DocIcon size={19} strokeWidth={1.75} />
-                    </span>
-                    <Link to={doc.to} className="tdv2m-doc-main" aria-label={`Open ${doc.title}`}>
-                      <span className="tdv2m-doc-title">{doc.title}</span>
-                      <span className="tdv2-doc-meta">{doc.meta}</span>
-                      <span className="tdv2m-doc-foot">
-                        <span className="tdv2-doc-date">{doc.date}</span>
-                        <span className={doc.status !== 'Draft' ? 'tdv2-badge-ready' : 'tdv2-badge-draft'}>
-                          {doc.status}
-                        </span>
-                      </span>
-                    </Link>
-                    <span style={{ position: 'relative' }}>
-                      <button
-                        type="button"
-                        className="tdv2m-doc-more"
-                        aria-label={`More actions for ${doc.title}`}
-                        aria-haspopup="menu"
-                        aria-expanded={menuFor === doc.id}
-                        onClick={() => setMenuFor((v) => (v === doc.id ? null : doc.id))}
-                      >
-                        <MoreVertical size={18} strokeWidth={2} aria-hidden="true" />
-                      </button>
-                      {menuFor === doc.id ? (
-                        <RowMenu doc={doc} onClose={() => setMenuFor(null)} />
-                      ) : null}
-                    </span>
-                  </div>
-                )
-              })
-            )}
-          </div>
-        </section>
+        <TeacherAppLauncher savedCounts={savedCounts} loading={loading} />
 
         <ChecklistCard items={checklist} loading={loading} />
         <FeedStatusCard items={feed} onRetry={() => onRetryFeed?.({ showToast })} />

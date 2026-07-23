@@ -34,25 +34,39 @@ const routeExists = (path) => matchers.some((m) => m(path))
 
 // ── Link targets used by the dashboard ──────────────────────────────
 const DIR = join(ROOT, 'src/components/teacher/dashboardV2')
-const files = readdirSync(DIR).filter((f) =>
-  (f.endsWith('.js') || f.endsWith('.jsx')) && !f.includes('.test.') && !f.includes('.spec.'),
-)
+
+// Collect .js/.jsx recursively (the launcher/ subfolder holds the studio
+// registry), skipping tests.
+function collect(dir) {
+  const out = []
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name)
+    if (entry.isDirectory()) { out.push(...collect(full)); continue }
+    if (!(entry.name.endsWith('.js') || entry.name.endsWith('.jsx'))) continue
+    if (entry.name.includes('.test.') || entry.name.includes('.spec.')) continue
+    out.push(full)
+  }
+  return out
+}
+const files = collect(DIR)
 
 const links = new Map() // path -> Set of files
 for (const file of files) {
-  const src = readFileSync(join(DIR, file), 'utf8')
-  // to: '/x' | to="/x" | to={'/x'} | href="/x" | navigate('/x'
+  const src = readFileSync(file, 'utf8')
+  const rel = file.slice(DIR.length + 1)
+  // to: '/x' | to="/x" | to={'/x'} | href="/x" | route: '/x' | navigate('/x'
   const patterns = [
     /\bto:\s*['"`](\/[^'"`\s]*)/g,
     /\bto=["'{]+["'`]?(\/[^'"`}\s]*)/g,
     /\bhref=["'](\/[^'"\s]*)/g,
+    /\broute:\s*['"`](\/[^'"`\s]*)/g,
     /navigate\(\s*['"`](\/[^'"`\s]*)/g,
   ]
   for (const re of patterns) {
     for (const m of src.matchAll(re)) {
       const path = m[1].split('?')[0].replace(/\/$/, '') || '/'
       if (!links.has(path)) links.set(path, new Set())
-      links.get(path).add(file)
+      links.get(path).add(rel)
     }
   }
 }

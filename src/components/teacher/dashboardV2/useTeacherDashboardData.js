@@ -28,7 +28,7 @@ import {
   firstNameOf,
   initialsOf,
   lastOpenedFromResources,
-  savedCountsFromSummary,
+  studioSavedCounts,
   termChipLabel,
 } from './dashboardV2Data'
 
@@ -214,7 +214,7 @@ export default function useTeacherDashboardData() {
     termChip: termChipLabel(prepCalendar, now),
     lastOpened: lastOpenedFromResources(resources, now),
     documents: documentsFromResources(resources, { limit: 5, now }),
-    savedCounts: gensError ? null : savedCountsFromSummary(librarySummary.byTool),
+    savedCounts: gensError ? null : studioSavedCounts(librarySummary.byTool, assessments.length),
     checklist: checklistFromWeekPrep(weekPrep),
     feed: feedFromState({ resources, gensError, now }),
     activity: activityFromResources(resources, { limit: 3, now }),

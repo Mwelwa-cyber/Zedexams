@@ -149,6 +149,7 @@
     "test:dashboard-intel": "node src/utils/teacherDashboardIntel.test.js",
     "test:dashboard-v2": "node src/components/teacher/dashboardV2/dashboardV2Core.test.js",
     "test:dashboard-v2-data": "node src/components/teacher/dashboardV2/dashboardV2Data.test.js",
+    "test:launcher-core": "node src/components/teacher/dashboardV2/launcher/teacherLauncherCore.test.js",
     "test:dashboard-v2-links": "node scripts/test-dashboard-v2-links.mjs",
     "test:dashboard-v2-tour": "node src/components/teacher/dashboardV2/onboardingTourCore.test.js",
     "test:class-performance": "node functions/classPerformanceCore.test.js",
