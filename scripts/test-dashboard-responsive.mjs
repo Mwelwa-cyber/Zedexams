@@ -188,15 +188,111 @@ function checkSnapshot(snap, { width, kind }, problems) {
   }
 }
 
-async function waitForPaint(page) {
+/**
+ * Semantic readiness gate for a dashboard page. Replaces the old "text +
+ * fixed 300ms" wait, which sampled the sidebar before the lazily-loaded
+ * dashboardV2 stylesheet was applied and the CSS grid had laid the sidebar
+ * out. The sidebar's width comes entirely from the grid track in
+ * `.tdv2 { display: grid; grid-template-columns: 248px minmax(0,1fr) }`
+ * (dashboardV2.css, imported by the lazy /teacher/dashboard-preview chunk),
+ * so in the brief window after the JSX renders text but before that
+ * stylesheet is live and the grid has run, `.tdv2-sidebar` measures 0px.
+ * Under CI load that window sometimes outlasts the fixed 300ms — the
+ * intermittent "desktop sidebar missing / 0px wide" failure.
+ *
+ * Instead we wait for the exact conditions the assertions depend on, each
+ * bounded by NAV_TIMEOUT_MS and resolving as soon as it holds (no sleep):
+ *   1. the shell rendered real content (not a crash/empty shell);
+ *   2. the dashboardV2 stylesheet is live — the `.tdv2` root exposes its
+ *      design-system custom property (`--ease`), proving the rule block
+ *      (and thus the grid) has applied;
+ *   3. the viewport's primary nav has a settled, correctly-sized box.
+ */
+async function waitForDashboardReady(page, vp) {
   await page.waitForFunction(
     () => {
       const root = document.getElementById('root')
       return !!root && (root.innerText || '').trim().length >= 120
     },
-    { timeout: NAV_TIMEOUT_MS },
+    { timeout: NAV_TIMEOUT_MS, polling: 'raf' },
   )
-  await new Promise((r) => setTimeout(r, 300))
+  await page.waitForFunction(
+    () => {
+      const el = document.querySelector('.tdv2')
+      if (!el) return false
+      // --ease is defined on the .tdv2 rule block; a non-empty computed value
+      // means dashboardV2.css has been applied (grid layout is in effect).
+      return getComputedStyle(el).getPropertyValue('--ease').trim() !== ''
+    },
+    { timeout: NAV_TIMEOUT_MS, polling: 'raf' },
+  )
+  await waitForNavSettled(page, vp)
+}
+
+/**
+ * Wait until the viewport's primary nav element has a stable, correctly-sized
+ * box, so a measurement never races an un-laid-out 0px box or an in-flight
+ * transition. "Settled" = the same width across two consecutive animation
+ * frames.
+ *   • desktop → the full sidebar, width >= 120px (matches the assertion floor)
+ *   • tablet  → the compact sidebar rail, just needs to be laid out (>1px)
+ *   • mobile  → the bottom nav (the desktop sidebar is display:none here)
+ */
+async function waitForNavSettled(page, vp) {
+  const selector = vp.kind === 'mobile' ? '.tdv2m-bottomnav' : '.tdv2-sidebar'
+  const minWidth = vp.kind === 'desktop' ? 120 : 1
+  // Reset the cross-call stability marker so we always require two FRESH frames.
+  await page.evaluate((sel) => {
+    try { delete window['__tdv2_settle_' + sel] } catch {}
+  }, selector)
+  await page.waitForFunction(
+    (sel, minW) => {
+      const el = document.querySelector(sel)
+      if (!el) return false
+      const cs = getComputedStyle(el)
+      if (cs.display === 'none' || cs.visibility === 'hidden') return false
+      const w = el.getBoundingClientRect().width
+      const h = el.getBoundingClientRect().height
+      const key = '__tdv2_settle_' + sel
+      const prev = window[key]
+      window[key] = w
+      return w > minW && h > 0 && prev !== undefined && Math.abs(prev - w) < 0.5
+    },
+    { timeout: NAV_TIMEOUT_MS, polling: 'raf' },
+    selector,
+    minWidth,
+  )
+}
+
+/**
+ * In-page diagnostics captured only when a viewport fails, so an intermittent
+ * failure is debuggable from the CI log instead of a bare "0px" line.
+ */
+function diagnosePage() {
+  const rectOf = (el) => {
+    if (!el) return null
+    const r = el.getBoundingClientRect()
+    return { left: Math.round(r.left), top: Math.round(r.top), width: r.width, height: r.height }
+  }
+  const sidebar = document.querySelector('.tdv2-sidebar')
+  const cs = sidebar ? getComputedStyle(sidebar) : null
+  const tdv2 = document.querySelector('.tdv2')
+  const persisted = {}
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k) persisted[k] = localStorage.getItem(k)
+    }
+  } catch {}
+  return {
+    sidebarClass: sidebar ? sidebar.className : '(no .tdv2-sidebar element)',
+    sidebarComputed: cs ? { display: cs.display, visibility: cs.visibility, width: cs.width } : null,
+    sidebarRect: rectOf(sidebar),
+    tdv2Display: tdv2 ? getComputedStyle(tdv2).display : '(no .tdv2 element)',
+    tdv2EaseVar: tdv2 ? getComputedStyle(tdv2).getPropertyValue('--ease').trim() || '(unset)' : null,
+    rootTextLen: (document.getElementById('root')?.innerText || '').trim().length,
+    persisted,
+  }
 }
 
 async function main() {
@@ -231,10 +327,15 @@ async function main() {
         if (hostname === '127.0.0.1' || hostname === 'localhost') req.continue()
         else req.abort()
       })
-      // The first-run onboarding tour overlays the dashboard; mark it done so
-      // layout assertions see the real chrome.
+      // Hermetic per-page state. Pages in one browser share this origin's
+      // localStorage, so a persisted value from a previous viewport (theme,
+      // launcher-group collapse `zedexams:tsl-collapsed`, tour) could skew the
+      // next viewport's layout. Clear everything at document start, then mark
+      // the first-run onboarding tour done so layout assertions see the real
+      // chrome instead of the overlay.
       await page.evaluateOnNewDocument(() => {
         try {
+          localStorage.clear()
           localStorage.setItem('zedexams:tdv2-tour', 'done')
         } catch {}
       })
@@ -243,21 +344,25 @@ async function main() {
         userAgent: vp.kind === 'desktop' ? undefined : MOBILE_UA,
       })
       const problems = []
+      let diag = null
       try {
         await page.goto(`${base}${ROUTE}`, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT_MS })
-        await waitForPaint(page)
+        await waitForDashboardReady(page, vp)
         const snap = await page.evaluate(snapshotPage)
         checkSnapshot(snap, vp, problems)
 
         // Rotation pass on the reference phone: portrait → landscape → back.
+        // After each viewport change wait for the new primary nav to settle
+        // (semantic, no fixed sleep) before re-measuring.
         if (vp.width === 390) {
-          await page.setViewport(viewportFor({ width: 844, height: 390, kind: 'tablet' }))
-          await new Promise((r) => setTimeout(r, 350))
+          const landVp = { width: 844, height: 390, kind: 'tablet' }
+          await page.setViewport(viewportFor(landVp))
+          await waitForNavSettled(page, landVp)
           const land = await page.evaluate(snapshotPage)
           checkSnapshot(land, { width: 844, kind: 'tablet' }, problems)
 
           await page.setViewport(viewportFor(vp))
-          await new Promise((r) => setTimeout(r, 350))
+          await waitForNavSettled(page, vp)
           const back = await page.evaluate(snapshotPage)
           checkSnapshot(back, vp, problems)
           if (back.mobileContentRect && back.mobileContentRect.left > 24) {
@@ -269,6 +374,15 @@ async function main() {
       } catch (err) {
         problems.push(err?.message || String(err))
       } finally {
+        // Capture diagnostics on failure BEFORE closing the page, so an
+        // intermittent flake leaves the viewport size, sidebar classes,
+        // computed display/visibility/width, bounding rect and persisted
+        // state in the CI log.
+        if (problems.length > 0) {
+          try {
+            diag = await page.evaluate(diagnosePage)
+          } catch {}
+        }
         await page.close()
       }
 
@@ -278,6 +392,15 @@ async function main() {
         failed += 1
         console.log(`  FAIL ${vp.width}x${vp.height} (${vp.kind})`)
         for (const p of problems) console.log(`         ✗ ${p}`)
+        if (diag) {
+          console.log(`         ── diagnostics (${vp.width}x${vp.height} ${vp.kind}) ──`)
+          console.log(`            sidebar class:    ${diag.sidebarClass}`)
+          console.log(`            sidebar computed: ${JSON.stringify(diag.sidebarComputed)}`)
+          console.log(`            sidebar rect:     ${JSON.stringify(diag.sidebarRect)}`)
+          console.log(`            .tdv2 display:    ${diag.tdv2Display}  --ease: ${diag.tdv2EaseVar}`)
+          console.log(`            root text length: ${diag.rootTextLen}`)
+          console.log(`            persisted state:  ${JSON.stringify(diag.persisted)}`)
+        }
       }
     }
   } finally {
