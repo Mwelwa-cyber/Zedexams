@@ -25,8 +25,10 @@ import SeoHelmet from '../../seo/SeoHelmet'
 import Sidebar from './Sidebar'
 import TopHeader from './TopHeader'
 import LogoutDialog from './LogoutDialog'
+import { MobileHeader, MobileBottomNav, NavDrawer } from './MobileDashboardView'
 import { teacherFromAuth } from './dashboardV2Data'
 import useDashboardTheme from './useDashboardTheme'
+import useIsMobile from './useIsMobile'
 import './dashboardV2.css'
 
 // Same public support line the marketing page uses (Bonga answers inbound
@@ -116,7 +118,9 @@ export default function HelpSupportPage() {
   const [contactSource, setContactSource] = useState(null) // null | source string
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [logoutOpen, setLogoutOpen] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const { dark, toggleTheme } = useDashboardTheme()
+  const isMobile = useIsMobile()
 
   const confirmLogout = useCallback(async () => {
     setLogoutOpen(false)
@@ -163,22 +167,37 @@ export default function HelpSupportPage() {
   ]
 
   return (
-    <div className={`tdv2 ${dark ? 'is-dark' : ''}`}>
+    <div className={`tdv2 ${isMobile ? 'tdv2-is-mobile tdv2m' : ''} ${dark ? 'is-dark' : ''}`}>
       <SeoHelmet
         title="Help & Support | ZedExams Teachers"
         description="Get help with ZedExams teacher tools — contact support, report a problem, or browse FAQs."
         noIndex
       />
-      <Sidebar
-        teacher={teacher}
-        onRequestLogout={() => setLogoutOpen(true)}
-        dark={dark}
-        onToggleTheme={toggleTheme}
-      />
+      {isMobile ? (
+        <>
+          <MobileHeader drawerOpen={drawerOpen} onOpenMenu={() => setDrawerOpen(true)} />
+          <NavDrawer
+            open={drawerOpen}
+            onClose={() => setDrawerOpen(false)}
+            teacher={teacher}
+            dark={dark}
+            onToggleTheme={toggleTheme}
+            onLogout={() => setLogoutOpen(true)}
+          />
+          <MobileBottomNav drawerOpen={drawerOpen} onMore={() => setDrawerOpen(true)} />
+        </>
+      ) : (
+        <Sidebar
+          teacher={teacher}
+          onRequestLogout={() => setLogoutOpen(true)}
+          dark={dark}
+          onToggleTheme={toggleTheme}
+        />
+      )}
 
       <div className="tdv2-main">
-        <TopHeader termChip="" />
-        <main className="tdv2-content">
+        {!isMobile && <TopHeader termChip="" />}
+        <main className={isMobile ? 'tdv2m-content' : 'tdv2-content'}>
           <section className="tdv2-card" aria-labelledby="tdv2-help-h">
             <h1 className="tdv2-help-title" id="tdv2-help-h">
               <CircleHelp size={26} strokeWidth={1.75} aria-hidden="true" />
