@@ -147,7 +147,7 @@ jobs:
           echo "Built $(du -h "$apk" | cut -f1) debug APK."
 
       - name: Upload debug APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: zedexams-debug-apk-${{ github.sha }}
           path: ${{ steps.apk.outputs.path }}

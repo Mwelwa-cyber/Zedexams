@@ -309,7 +309,7 @@ jobs:
           unzip -p "$aab" 'META-INF/*.RSA' | keytool -printcert | grep -iE 'Owner:|SHA256:' || true
 
       - name: Upload AAB as workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: app-release-aab-run${{ github.run_number }}
           path: android/app/build/outputs/bundle/release/app-release.aab
