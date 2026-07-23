@@ -48,10 +48,29 @@ for (const rel of found) {
   assert.ok(!rel.startsWith('src/'), `${rel} should not be a src/ test`);
 }
 
-// Discovery == every functions/…test.js referenced by a curated test:* script.
+// An emulator-wrapped test:* script mentions a functions/…test.js path but is
+// NOT a plain `node` command, so it can't run under this coverage runner (it
+// needs the emulator/JVM and guard-exits without it). It must be excluded from
+// discovery, mirroring how test:all skips the emulator suites.
+const emulatorWrapped = Object.entries(scripts).find(([name, cmd]) =>
+  name.startsWith('test:') &&
+  !/^node\b/.test(String(cmd).trim()) &&
+  /functions\/[^\s&|'"]+\.test\.js/.test(String(cmd)));
+if (emulatorWrapped) {
+  const [, cmd] = emulatorWrapped;
+  const ref = String(cmd).match(/functions\/[^\s&|'"]+\.test\.js/)[0];
+  assert.ok(
+    !found.includes(ref),
+    `${ref} is emulator-wrapped and must not be discovered by the coverage runner`,
+  );
+}
+
+// Discovery == every functions/…test.js referenced by a curated plain-`node`
+// test:* script (emulator-wrapped commands excluded, as above).
 const expected = new Set();
 for (const [name, cmd] of Object.entries(scripts)) {
   if (!name.startsWith('test:') || name === 'test:all') continue;
+  if (!/^node\b/.test(String(cmd).trim())) continue;
   for (const m of String(cmd).match(/functions\/[^\s&|'"]+\.test\.js/g) || []) {
     expected.add(m);
   }
