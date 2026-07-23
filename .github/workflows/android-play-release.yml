@@ -73,7 +73,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           # Full history so build.gradle can derive versionCode from
           # `git rev-list --count HEAD`.
@@ -133,7 +133,7 @@ jobs:
           fi
 
       - name: Set up Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           # Capacitor CLI requires Node >= 22 (cap sync aborts on 20).
           node-version: "22"
@@ -146,7 +146,7 @@ jobs:
           java-version: "21"
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           # Must match android/variables.gradle (compileSdk/targetSdk = 36).
           packages: "platform-tools platforms;android-36 build-tools;36.0.0"
@@ -309,7 +309,7 @@ jobs:
           unzip -p "$aab" 'META-INF/*.RSA' | keytool -printcert | grep -iE 'Owner:|SHA256:' || true
 
       - name: Upload AAB as workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: app-release-aab-run${{ github.run_number }}
           path: android/app/build/outputs/bundle/release/app-release.aab
