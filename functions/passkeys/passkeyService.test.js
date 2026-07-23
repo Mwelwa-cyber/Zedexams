@@ -523,17 +523,20 @@ async function main() {
   }
 
   // Duplicate-chooser diagnostics: the assertion path logs ONLY a SHA-256
-  // of the credential id.
+  // of the credential id. The same captured run also proves the regional-
+  // migration timing telemetry: every required stage is present and NOTHING
+  // sensitive (challenge, credential id, token, uid) reaches the log line.
   {
     const logged = [];
     const origInfo = console.info;
     console.info = (...args) => logged.push(args.join(" "));
     try {
-      const opts = await svc.runGeneratePasskeyAuthenticationOptions(callerRequest(null));
+      const opts = await svc.runGeneratePasskeyAuthenticationOptions(
+          callerRequest(null), {region: "africa-south1"});
       await svc.runVerifyPasskeyAuthentication(callerRequest(null, {
         challengeId: opts.challengeId,
         response: {id: CRED_A, __challenge: opts.options.challenge, __newCounter: 0},
-      }));
+      }), {region: "africa-south1"});
     } finally {
       console.info = origInfo;
     }
@@ -545,6 +548,39 @@ async function main() {
     ok("credential selection log records found/active status",
         line.includes("\"credentialFound\":true") &&
         line.includes("\"credentialStatus\":\"active\""));
+
+    const timingLines = logged.filter((l) => l.includes("PASSKEY_AUTH_TIMINGS"));
+    ok("both sign-in-path handlers log stage timings", timingLines.length === 2);
+    const verifyLine = timingLines.find((l) => l.includes("\"op\":\"verifyAuthentication\""));
+    const parsed = JSON.parse(verifyLine.slice(verifyLine.indexOf("{")));
+    const core = require("./passkeyCore");
+    const requiredStages = core.PASSKEY_AUTH_TIMING_STAGES;
+    ok("verify timing log carries every canonical stage",
+        requiredStages.every((s) => typeof parsed.stages[s] === "number"));
+    ok("timing log records the serving region", parsed.region === "africa-south1");
+    ok("timing log carries ONLY the whitelisted top-level keys",
+        JSON.stringify(Object.keys(parsed).sort()) ===
+        JSON.stringify(["event", "op", "outcome", "region", "stages", "totalMs"]));
+    ok("timing log stage values are plain durations",
+        Object.values(parsed.stages).every((v) => typeof v === "number") &&
+        typeof parsed.totalMs === "number");
+    ok("timing log never contains challenge, credential id, token, or uid",
+        !verifyLine.includes(CRED_A) &&
+        !verifyLine.includes("challenge-") &&
+        !verifyLine.includes("custom-token") &&
+        !("uid" in parsed));
+    const optionsLine = timingLines.find((l) =>
+      l.includes("\"op\":\"generateAuthenticationOptions\""));
+    const parsedOpts = JSON.parse(optionsLine.slice(optionsLine.indexOf("{")));
+    ok("options timing log never contains the raw challenge",
+        !optionsLine.includes("auth-challenge-") &&
+        typeof parsedOpts.stages.challengeStore === "number");
+
+    // Handlers invoked WITHOUT region meta (the original us-central1 call
+    // sites pass it explicitly; a missing meta must never throw).
+    const opts2 = await svc.runGeneratePasskeyAuthenticationOptions(callerRequest(null));
+    ok("handlers still work without region meta (backwards compatible)",
+        Boolean(opts2.challengeId));
   }
 
   await rejects("user cannot rename another user's credential",
