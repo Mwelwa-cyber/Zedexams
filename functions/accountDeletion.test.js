@@ -140,6 +140,19 @@ function makeFakeDb(seed) {
       c2: {teacherUid: "u1", learners: ["u3"]},
     },
     assignments: {a1: {teacherUid: "u2", learnerUids: ["u1", "u3"]}},
+    // LEGAL-004 newly-covered user-owned collections.
+    teacherProfiles: {u1: {schoolLevel: "primary"}, u2: {schoolLevel: "secondary"}},
+    drafts: {u1: {}, u2: {}},
+    parentLinks: {
+      pl1: {parentUid: "u1", learnerUid: "u3"}, // u1 is the parent
+      pl2: {parentUid: "u4", learnerUid: "u1"}, // u1 is the learner
+      pl3: {parentUid: "u4", learnerUid: "u5"}, // unrelated
+    },
+    familyInviteCodes: {fc1: {learnerUid: "u1", createdBy: "u1"}, fc2: {learnerUid: "u2"}},
+    classInvites: {ci1: {createdBy: "u1"}, ci2: {createdBy: "u2"}},
+    assessmentExports: {ae1: {ownerUid: "u1"}, ae2: {ownerUid: "u2"}},
+    visualProjects: {vp1: {ownerId: "u1"}, vp2: {ownerId: "u2"}},
+    schoolLicences: {sl1: {memberUids: ["u1", "u2"]}, sl2: {memberUids: ["u3"]}},
   });
 
   const summary = await purgeUserData(db, uid, {FieldValue: db.FieldValue});
@@ -168,6 +181,28 @@ function makeFakeDb(seed) {
   assert.deepStrictEqual(db.store.classes.c1.learners, ["u3"], "u1 not removed from learners");
   assert.deepStrictEqual(db.store.classes.c1.pendingLearners, [], "u1 not removed from pendingLearners");
   assert.deepStrictEqual(db.store.assignments.a1.learnerUids, ["u3"], "u1 not removed from learnerUids");
+
+  // LEGAL-004 newly-covered collections: user's rows gone, others kept.
+  assert.strictEqual(db.store.teacherProfiles.u1, undefined, "teacherProfiles/u1 not deleted");
+  assert.ok(db.store.teacherProfiles.u2, "other teacherProfile wrongly deleted");
+  assert.ok(db.recursiveDeleted.includes("teacherProfiles/u1"), "teacherProfiles/u1 cascaded");
+  assert.strictEqual(db.store.drafts.u1, undefined, "drafts/u1 not deleted");
+  assert.ok(db.recursiveDeleted.includes("drafts/u1"), "drafts/u1 cascaded");
+  // parentLinks: rows where EITHER side is u1 are removed; the unrelated one stays.
+  assert.strictEqual(db.store.parentLinks.pl1, undefined, "parentLink (u1 as parent) not deleted");
+  assert.strictEqual(db.store.parentLinks.pl2, undefined, "parentLink (u1 as learner) not deleted");
+  assert.ok(db.store.parentLinks.pl3, "unrelated parentLink wrongly deleted");
+  assert.strictEqual(db.store.familyInviteCodes.fc1, undefined, "u1 invite code not deleted");
+  assert.ok(db.store.familyInviteCodes.fc2, "other invite code wrongly deleted");
+  assert.strictEqual(db.store.classInvites.ci1, undefined, "u1 class invite not deleted");
+  assert.ok(db.store.classInvites.ci2);
+  assert.strictEqual(db.store.assessmentExports.ae1, undefined, "u1 export cache not deleted");
+  assert.ok(db.store.assessmentExports.ae2);
+  assert.strictEqual(db.store.visualProjects.vp1, undefined, "u1 visual project not deleted");
+  assert.ok(db.store.visualProjects.vp2);
+  // schoolLicences: uid pulled from the shared roster, the licence itself kept.
+  assert.deepStrictEqual(db.store.schoolLicences.sl1.memberUids, ["u2"], "u1 not removed from licence roster");
+  assert.ok(db.store.schoolLicences.sl2, "other licence wrongly touched");
 
   assert.ok(summary.uidDocs >= 3);
   assert.ok(summary.fieldDocs >= 4);

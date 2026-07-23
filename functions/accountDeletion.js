@@ -35,8 +35,10 @@
 const UID_DOC_COLLECTIONS = [
   "users", // profile + all PII (email, name, phone, fcmTokens)
   "teacherLibraries", // + items, folders subcollections
+  "teacherProfiles", // Teaching Profile (school level, calendar) + teachingAssignments subcollection (LEGAL-004)
   "lessonSeries", // + nested progress subcollections
   "assessmentDrafts",
+  "drafts", // Universal Draft Manager — drafts/{uid}/items private in-progress docs (LEGAL-004)
   "schoolProfiles",
   "usageMeters", // + periods subcollection
   "notifications", // + feed subcollection
@@ -86,6 +88,17 @@ const FIELD_QUERY_COLLECTIONS = [
   // their doc is gone, and the uid-bearing audit rows go with them.
   {collection: "passkeyCredentials", field: "uid"},
   {collection: "passkeyAuditLog", field: "uid"},
+  // Teacher-authored / user-owned records the earlier lists missed (LEGAL-004
+  // purge-completeness audit). All are server-only-write, so the admin-SDK
+  // delete here is the only path that clears them.
+  {collection: "visualProjects", field: "ownerId"}, // Visual Studio editable canvas projects
+  {collection: "assessmentExports", field: "ownerUid"}, // export cache for the teacher's assessments (also purged)
+  {collection: "classInvites", field: "createdBy"}, // orphaned class invite codes minted by the teacher
+  {collection: "familyInviteCodes", field: "learnerUid"}, // parent-invite codes minted by the learner
+  // Parent↔child link doc (id `${parentUid}_${learnerUid}`): either party's
+  // deletion must clear it, so BOTH owner fields are queried.
+  {collection: "parentLinks", field: "parentUid"},
+  {collection: "parentLinks", field: "learnerUid"},
 ];
 
 // uid lives inside an array on a doc owned by another user.
@@ -93,6 +106,9 @@ const ARRAY_MEMBERSHIP_COLLECTIONS = [
   {collection: "classes", field: "learners"},
   {collection: "classes", field: "pendingLearners"},
   {collection: "assignments", field: "learnerUids"},
+  // Shared school licence roster: remove the departing user's uid rather than
+  // deleting the licence, which belongs to the school (LEGAL-004).
+  {collection: "schoolLicences", field: "memberUids"},
 ];
 
 // ── Re-authentication (step-up) gate for the destructive delete ──────────

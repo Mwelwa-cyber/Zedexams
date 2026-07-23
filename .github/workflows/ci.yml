@@ -193,6 +193,45 @@ jobs:
         # past-paper import — see scripts/test-quiz-autosave-rules-emulator.mjs.
         run: npm run test:quiz-autosave-rules
 
+  dependency-audit:
+    # Dependency vulnerability gate (CICD-002). Audits only PRODUCTION
+    # dependencies (`--omit=dev`) of the two deployed trees — the root Vite
+    # bundle and functions/ — because dev-only tooling vulns never ship to a
+    # user. `npm audit` reads the committed lockfile against the advisory DB
+    # (no install needed), so this is fast.
+    #
+    # Threshold policy:
+    #   • BLOCKING at `critical` — a newly introduced critical prod dep fails
+    #     the merge (the P1-5 acceptance criterion). Both trees are clean at
+    #     this level today.
+    #   • REPORTING at `high` — highs are surfaced in the log (never blocking)
+    #     so a freshly disclosed transitive high can't red-wall every unrelated
+    #     PR while Dependabot's bump PR is in flight; the fix lands through
+    #     Dependabot (.github/dependabot.yml), not by wedging the queue.
+    name: Dependency audit (prod deps)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: "npm"
+      - name: Audit root production dependencies (block on critical)
+        run: npm audit --omit=dev --audit-level=critical
+      - name: Report root high-severity advisories (non-blocking)
+        if: ${{ always() }}
+        run: npm audit --omit=dev --audit-level=high || echo "::warning::root has high-severity prod advisories — see Dependabot PRs"
+      - name: Audit functions production dependencies (block on critical)
+        working-directory: functions
+        run: npm audit --omit=dev --audit-level=critical
+      - name: Report functions high-severity advisories (non-blocking)
+        if: ${{ always() }}
+        working-directory: functions
+        run: npm audit --omit=dev --audit-level=high || echo "::warning::functions has high-severity prod advisories — see Dependabot PRs"
+
   storage-rules-emulator:
     # Behavioural Storage-rules tests. Like the Firestore job above, these
     # need the emulator (JVM) so they can't sit inside `test:all`. The suite

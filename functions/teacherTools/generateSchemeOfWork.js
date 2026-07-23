@@ -31,7 +31,10 @@ const {validateSchemeOfWork} = require("./schemeOfWorkSchema");
 const {buildSchemeQualityChecks} = require("./schemeQualityCheck");
 const {PROMPT_VERSION, pickSystemPrompt, buildUserPrompt} =
   require("./schemeOfWorkPrompt");
-const {assertAndIncrement} = require("./usageMeter");
+const {assertAndIncrement, refundGeneration} = require("./usageMeter");
+const {reserveAiOperation, completeAiOperation, failAiOperation} =
+  require("../aiOperations");
+const {isValidIdempotencyKey} = require("../aiOperationsCore");
 const {FREE_PREVIEW_LIMITS} = require("./teacherPlans");
 const {clampSchemePreview} = require("./freePreview");
 const {resolveSchemeOutline} = require("./schemeCurriculumOutline");
@@ -202,11 +205,71 @@ function validateInputs(inputs) {
   return errs;
 }
 
-async function runSchemeOfWork({uid, rawInputs, apiKey}) {
+/**
+ * Reconstruct the client-facing response for an idempotency key that already
+ * completed (a duplicate/retried request must return the existing result, never
+ * call the provider again). Reads the persisted aiGenerations doc rather than
+ * re-deriving anything. Mirrors generateHomework's resume path.
+ */
+async function buildResumedSchemeResponse(operation) {
+  const genId = operation.resultDocumentId;
+  const genSnap = genId ?
+    await admin.firestore().collection("aiGenerations").doc(genId).get() : null;
+  const genData = genSnap && genSnap.exists ? genSnap.data() : null;
+  return {
+    generationId: genId,
+    schemeOfWork: genData ? genData.output : null,
+    usage: null,
+    advisories: genData && genData.advisories ? genData.advisories : [],
+    curriculumSource: genData ? genData.curriculumSource : null,
+    qualityChecks: genData && genData.qualityChecks ? genData.qualityChecks : null,
+    warning: genData && genData.status === "flagged" ?
+      "Some fields were incomplete — please review." : null,
+    kbGrounded: Boolean(genData && genData.kbVersion),
+    preview: null,
+    resumed: true,
+  };
+}
+
+async function runSchemeOfWork({uid, rawInputs, apiKey, idempotencyKey}) {
   const inputs = sanitizeInputs(rawInputs || {});
   const inputErrors = validateInputs(inputs);
   if (inputErrors.length > 0) {
     throw new HttpsError("invalid-argument", inputErrors.join(" "));
+  }
+
+  // Idempotency reservation. Only engaged when the client sends a valid key —
+  // without one the flow is byte-for-byte the old behaviour (random doc id, no
+  // reservation), so this is a safe, no-frontend-breakage rollout: a
+  // double-click / rapid tap / retried timeout from a key-sending client can
+  // never reach the provider or the usage meter twice; a legacy caller is
+  // unaffected. `inputs` is the canonical fingerprint.
+  const idemActive = isValidIdempotencyKey(idempotencyKey);
+  if (idemActive) {
+    const reservation = await reserveAiOperation({
+      uid,
+      idempotencyKey,
+      operationType: "generate_scheme_of_work",
+      fingerprintInput: inputs,
+    });
+    if (reservation.status === "completed") {
+      return buildResumedSchemeResponse(reservation.operation);
+    }
+    if (reservation.status === "processing") {
+      return {status: "processing", operationId: idempotencyKey};
+    }
+    if (reservation.status === "failed") {
+      throw new HttpsError(
+          "failed-precondition",
+          reservation.operation.errorMessage ||
+            "This request already failed and cannot be retried automatically.",
+          {code: reservation.operation.errorCode, retryable: false, operationId: idempotencyKey},
+      );
+    }
+    if (reservation.status === "cancelled") {
+      throw new HttpsError("cancelled", "This request was cancelled.");
+    }
+    // "created" or "retrying" — exactly one provider call happens below.
   }
 
   // CBC context — scheme-of-work uses the broad grade+subject context,
@@ -305,7 +368,13 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
     }
   }
 
-  const genRef = admin.firestore().collection("aiGenerations").doc();
+  // Deterministic doc id (= the idempotency key) when idempotency is active, so
+  // a retry of the SAME logical request re-set()s this exact doc instead of
+  // creating a sibling, and the resumed-completed path reads it straight back
+  // by id. Random id otherwise (legacy behaviour).
+  const genRef = idemActive ?
+    admin.firestore().collection("aiGenerations").doc(idempotencyKey) :
+    admin.firestore().collection("aiGenerations").doc();
   await genRef.set({
     ownerUid: uid,
     tool: "scheme_of_work",
@@ -365,6 +434,23 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
       status: "failed",
       errorMessage: String(err && err.message || err).slice(0, 500),
     });
+    // Hard throw from the AI call — no usable scheme was returned. Refund the
+    // credit / roll back the counter so the teacher is not charged for a
+    // transient failure. Best-effort: must not mask the original error.
+    try {
+      await refundGeneration(uid, usage, "scheme_of_work");
+    } catch (refundErr) {
+      console.error("[generateSchemeOfWork] refund failed after generation error",
+          {uid, generationId: genRef.id, usage}, refundErr);
+    }
+    if (idemActive) {
+      try {
+        await failAiOperation({idempotencyKey, err, usageCharged: 0});
+      } catch (opErr) {
+        console.error("[generateSchemeOfWork] failAiOperation failed after generation error",
+            {uid, generationId: genRef.id}, opErr);
+      }
+    }
     throw err;
   }
 
@@ -420,6 +506,16 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
       modelUsed,
       qualityChecks,
     });
+    // A "flagged" scheme is still a real result the teacher already got and was
+    // billed for — a completion for idempotency purposes, not a failure.
+    if (idemActive) {
+      try {
+        await completeAiOperation({idempotencyKey, resultDocumentId: genRef.id, usageCharged: 1});
+      } catch (opErr) {
+        console.error("[generateSchemeOfWork] completeAiOperation failed (flagged)",
+            {uid, generationId: genRef.id}, opErr);
+      }
+    }
     return {
       generationId: genRef.id,
       schemeOfWork: scheme,
@@ -455,6 +551,14 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
     completedAt: admin.firestore.FieldValue.serverTimestamp(),
     qualityChecks,
   });
+  if (idemActive) {
+    try {
+      await completeAiOperation({idempotencyKey, resultDocumentId: genRef.id, usageCharged: 1});
+    } catch (opErr) {
+      console.error("[generateSchemeOfWork] completeAiOperation failed",
+          {uid, generationId: genRef.id}, opErr);
+    }
+  }
 
   return {
     generationId: genRef.id,
@@ -488,7 +592,8 @@ function createGenerateSchemeOfWork(anthropicApiKeySecret) {
         );
       }
       const apiKey = getAnthropicApiKey(anthropicApiKeySecret);
-      return runSchemeOfWork({uid, rawInputs: request.data, apiKey});
+      const idempotencyKey = request.data && request.data.idempotencyKey;
+      return runSchemeOfWork({uid, rawInputs: request.data, apiKey, idempotencyKey});
     },
   );
 }
