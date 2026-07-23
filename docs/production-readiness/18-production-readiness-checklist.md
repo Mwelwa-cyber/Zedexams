@@ -49,6 +49,7 @@
 - [x] Lenco webhook HMAC fail-closed; idempotent activation; reconcile cron
 - [x] Play token verified server-side; cross-account replay blocked; restore handled
 - [x] No client self-grant of premium (rules)
+- [x] Full payment lifecycle run end-to-end on the emulator (mock provider → real activation + webhook dispatch → real Firestore/Storage), CI-gated
 - [~] Play account-binding observe-only by default (PAY-001)
 - [~] Collected-amount check skipped when provider omits amount (PAY-003)
 - [~] No sandbox/prod separation (shares single project; CICD-004)
@@ -83,7 +84,7 @@
 - [x] ~450 node logic scripts + Vitest + **behavioural** rules & storage emulator suites
 - [x] Idempotency/duplicate-request tested end-to-end
 - [ ] Authenticated end-to-end journeys (TEST-001)
-- [~] Payment flows mock-only (no provider sandbox; TEST-003); short-answer marking untested (TEST-002)
+- [~] Payment lifecycle run **end-to-end on the Firestore + Storage emulators** over the real activation + webhook dispatch (`functions/paymentLifecycleEmulator.test.js`, CI-gated); real provider (Lenco) sandbox charge still outstanding (TEST-003); short-answer marking untested (TEST-002)
 
 ## CI/CD
 - [x] 7-job PR gate; post-merge re-verify; deploy-order handled; source-maps stripped

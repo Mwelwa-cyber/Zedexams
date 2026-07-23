@@ -132,9 +132,13 @@ verification → escalation owner.
 - **Safe testing:** never use real customer money. Use the mock provider:
   set `PAYMENTS_PROVIDER=mock` in the **emulator** (or a test env) — it is
   hard-blocked in production. `functions/paymentProviderContract.test.js`
-  exercises the full lifecycle.
+  exercises the full lifecycle over the pure decision logic, and
+  `functions/paymentLifecycleEmulator.test.js` (`npm run
+  test:payment-lifecycle-emulator`) runs it end-to-end over the **real**
+  activation + webhook dispatch against the Firestore + Storage emulators.
 - **Rollback:** revert `functions/paymentProvider.js`; the callables fall back
   to the real Lenco client.
-- **Verification:** the contract test (28 assertions) + one Lenco sandbox / low-
-  value live transaction before launch.
+- **Verification:** the contract test (28 assertions) + the emulator end-to-end
+  run (35 assertions, CI-gated) both green; remaining before launch is one Lenco
+  sandbox / low-value live transaction with real credentials.
 - **Owner:** Payments / backend.
