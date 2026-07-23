@@ -92,9 +92,14 @@ const reserveImpl = async ({uid, idempotencyKey, operationType, fingerprintInput
   }
   if (existing.status === "completed") return {status: "completed", operation: existing};
   if (existing.status === "failed") return {status: "failed", operation: existing};
+  if (existing.status === "cancelled") return {status: "cancelled", operation: existing};
   return {status: "processing", operation: existing};
 };
+// Toggled by the settle-failure case to prove completeAiOperation errors are
+// swallowed (best-effort) without breaking the teacher's result.
+let completeThrows = false;
 const completeImpl = async ({idempotencyKey, resultDocumentId, usageCharged}) => {
+  if (completeThrows) throw new Error("settle write failed");
   calls.complete.push({idempotencyKey, resultDocumentId, usageCharged});
   const rec = opStore.get(idempotencyKey);
   if (rec) {
@@ -102,7 +107,11 @@ const completeImpl = async ({idempotencyKey, resultDocumentId, usageCharged}) =>
     rec.resultDocumentId = resultDocumentId;
   }
 };
+// Toggled to prove the failAiOperation best-effort catch swallows a settle
+// write error without masking the original provider failure.
+let failThrows = false;
 const failImpl = async ({idempotencyKey, err, usageCharged}) => {
+  if (failThrows) throw new Error("fail-op write failed");
   calls.fail.push({idempotencyKey, err, usageCharged});
   const rec = opStore.get(idempotencyKey);
   if (rec) {
@@ -113,6 +122,8 @@ const failImpl = async ({idempotencyKey, err, usageCharged}) => {
 };
 
 const USAGE = {plan: "max", used: 1, period: "202607"};
+// Toggled by the onCall-wrapper cases to exercise the staff/non-staff branch.
+let isStaff = true;
 
 const origLoad = Module._load;
 Module._load = function (request, ...rest) {
@@ -126,7 +137,7 @@ Module._load = function (request, ...rest) {
     return {
       getAnthropicApiKey: () => "test-key",
       getUserRole: async () => "teacher",
-      isStaffRole: () => true,
+      isStaffRole: () => isStaff,
     };
   }
   if (request === "./anthropicClient") {
@@ -185,7 +196,7 @@ Module._load = function (request, ...rest) {
   return origLoad.call(this, request, ...rest);
 };
 
-const {runFlashcards} = require("./generateFlashcards");
+const {runFlashcards, createGenerateFlashcards} = require("./generateFlashcards");
 
 const INPUTS = {grade: "G7", subject: "mathematics", topic: "Fractions", count: 15};
 const IDK = "11111111-1111-4111-8111-111111111111";
@@ -201,6 +212,9 @@ function reset() {
   calls.fail.length = 0;
   opStore = new Map();
   refundImpl = async () => {};
+  completeThrows = false;
+  failThrows = false;
+  isStaff = true;
   claudeImpl = async () => ({parsed: {__valid: true}, text: "raw", usage: {inputTokens: 10, outputTokens: 20}, model: "m"});
 }
 
@@ -283,6 +297,149 @@ function reset() {
     ok("flagged: review warning returned", /review/i.test(res.warning || ""));
     ok("flagged: settled as completion", calls.complete.length === 1);
     ok("flagged: no refund (teacher got a deck)", calls.refund.length === 0);
+  }
+
+  // 6. Invalid inputs → invalid-argument before any provider/reservation work.
+  reset();
+  {
+    let threw = null;
+    try {
+      await runFlashcards({uid: "u1", rawInputs: {grade: "", subject: "", topic: ""}, apiKey: "k", idempotencyKey: IDK});
+    } catch (e) {
+      threw = e;
+    }
+    ok("invalid: throws invalid-argument", threw && threw.code === "invalid-argument");
+    ok("invalid: never reserved", calls.reserve.length === 0);
+    ok("invalid: never called provider", calls.claude.length === 0);
+  }
+
+  // 7. Reservation already 'processing' (another tab/retry) → no second provider call.
+  reset();
+  {
+    opStore.set(IDK, {userId: "u1", status: "processing", resultDocumentId: null});
+    const res = await runFlashcards({uid: "u1", rawInputs: INPUTS, apiKey: "k", idempotencyKey: IDK});
+    ok("processing: returns processing status", res.status === "processing" && res.operationId === IDK);
+    ok("processing: provider not called", calls.claude.length === 0);
+    ok("processing: usage not charged", calls.meter.length === 0);
+  }
+
+  // 8. Reservation terminally 'failed' → refuse to retry.
+  reset();
+  {
+    opStore.set(IDK, {userId: "u1", status: "failed", errorMessage: "nope", errorCode: "X"});
+    let threw = null;
+    try {
+      await runFlashcards({uid: "u1", rawInputs: INPUTS, apiKey: "k", idempotencyKey: IDK});
+    } catch (e) {
+      threw = e;
+    }
+    ok("failed-reservation: throws failed-precondition", threw && threw.code === "failed-precondition");
+    ok("failed-reservation: provider not called", calls.claude.length === 0);
+  }
+
+  // 9. Reservation 'cancelled' → cancelled error.
+  reset();
+  {
+    opStore.set(IDK, {userId: "u1", status: "cancelled"});
+    let threw = null;
+    try {
+      await runFlashcards({uid: "u1", rawInputs: INPUTS, apiKey: "k", idempotencyKey: IDK});
+    } catch (e) {
+      threw = e;
+    }
+    ok("cancelled-reservation: throws cancelled", threw && threw.code === "cancelled");
+    ok("cancelled-reservation: provider not called", calls.claude.length === 0);
+  }
+
+  // 10. completeAiOperation throwing is swallowed — the teacher still gets a result.
+  reset();
+  {
+    completeThrows = true;
+    const res = await runFlashcards({uid: "u1", rawInputs: INPUTS, apiKey: "k", idempotencyKey: IDK});
+    ok("settle-failure: still returns the flashcards", !!(res.generationId && res.flashcards));
+    ok("settle-failure: doc still marked complete", genDocs[IDK].status === "complete");
+  }
+
+  // 11. refundGeneration throwing on a provider failure is swallowed — original error still surfaces.
+  reset();
+  {
+    claudeImpl = async () => {
+      throw new Error("provider down");
+    };
+    refundImpl = async () => {
+      throw new Error("refund failed");
+    };
+    let threw = null;
+    try {
+      await runFlashcards({uid: "u1", rawInputs: INPUTS, apiKey: "k", idempotencyKey: IDK});
+    } catch (e) {
+      threw = e;
+    }
+    ok("refund-failure: original provider error still rethrown", threw && /provider down/.test(threw.message));
+    ok("refund-failure: refund was attempted", calls.refund.length === 1);
+  }
+
+  // 12. onCall wrapper: authenticates, checks role, extracts the key, delegates.
+  reset();
+  {
+    const handler = createGenerateFlashcards("secret");
+    const res = await handler({auth: {uid: "u1", token: {}}, data: {...INPUTS, idempotencyKey: IDK}});
+    ok("wrapper: staff user gets a result", !!(res && res.generationId));
+    ok("wrapper: provider called once via the wrapper", calls.claude.length === 1);
+    ok("wrapper: idempotency key threaded through (doc id is the key)", res.generationId === IDK);
+  }
+
+  // 13. onCall wrapper: a non-staff user is refused before any generation.
+  reset();
+  {
+    isStaff = false;
+    const handler = createGenerateFlashcards("secret");
+    let threw = null;
+    try {
+      await handler({auth: {uid: "u1", token: {}}, data: INPUTS});
+    } catch (e) {
+      threw = e;
+    }
+    ok("wrapper: non-staff refused with permission-denied", threw && threw.code === "permission-denied");
+    ok("wrapper: non-staff never reached the provider", calls.claude.length === 0);
+  }
+
+  // 14. Provider throws AND failAiOperation also throws → both swallowed, original error surfaces.
+  reset();
+  {
+    claudeImpl = async () => {
+      throw new Error("provider down");
+    };
+    failThrows = true;
+    let threw = null;
+    try {
+      await runFlashcards({uid: "u1", rawInputs: INPUTS, apiKey: "k", idempotencyKey: IDK});
+    } catch (e) {
+      threw = e;
+    }
+    ok("failop-failure: original provider error still surfaces", threw && /provider down/.test(threw.message));
+    ok("failop-failure: doc still marked failed", genDocs[IDK].status === "failed");
+  }
+
+  // 15. Flagged output while completeAiOperation throws → still returns the flagged result.
+  reset();
+  {
+    claudeImpl = async () => ({parsed: {__valid: false}, text: "raw", usage: {inputTokens: 1, outputTokens: 1}, model: "m"});
+    completeThrows = true;
+    const res = await runFlashcards({uid: "u1", rawInputs: INPUTS, apiKey: "k", idempotencyKey: IDK});
+    ok("flagged+settle-failure: still returns a result", !!(res && res.generationId));
+    ok("flagged+settle-failure: doc marked flagged", genDocs[IDK].status === "flagged");
+  }
+
+  // 16. Resume a key whose saved doc is FLAGGED → resumes with the review warning.
+  reset();
+  {
+    claudeImpl = async () => ({parsed: {__valid: false}, text: "raw", usage: {inputTokens: 1, outputTokens: 1}, model: "m"});
+    await runFlashcards({uid: "u1", rawInputs: INPUTS, apiKey: "k", idempotencyKey: IDK});
+    const claudeAfterFirst = calls.claude.length;
+    const res2 = await runFlashcards({uid: "u1", rawInputs: INPUTS, apiKey: "k", idempotencyKey: IDK});
+    ok("resume-flagged: no second provider call", calls.claude.length === claudeAfterFirst);
+    ok("resume-flagged: carries the review warning", res2.resumed === true && /review/i.test(res2.warning || ""));
   }
 
   Module._load = origLoad;
