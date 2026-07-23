@@ -65,6 +65,58 @@ export const NAV_GROUPS = [
   },
 ]
 
+/**
+ * Grouped navigation for the studio shell (TeacherLayout) — the V2-styled
+ * replacement for the old "Teacher Panel" sidebar. Unlike NAV_GROUPS (the
+ * dashboard's curated list), this keeps the FULL teacher map the old panel
+ * offered — planning studios, registers, syllabi, calendar — so swapping the
+ * chrome loses no destination. Rendered by the same Sidebar component via
+ * its `groups` prop.
+ */
+export const STUDIO_NAV_GROUPS = [
+  {
+    id: 'root',
+    label: null,
+    items: [
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, to: '/teacher' },
+    ],
+  },
+  {
+    id: 'create',
+    label: 'Create',
+    items: [
+      { id: 'lesson-plan', label: 'Lesson Plans', icon: NotebookPen, to: '/teacher/generate/lesson-plan' },
+      { id: 'schemes', label: 'Schemes of Work', icon: CalendarRange, to: '/teacher/generate/scheme-of-work' },
+      { id: 'weekly-focus', label: 'Weekly Focus', icon: ClipboardList, to: '/teacher/generate/weekly-forecast' },
+      { id: 'record-of-work', label: 'Record of Work', icon: ChartNoAxesColumnIncreasing, to: '/teacher/generate/record-of-work' },
+    ],
+  },
+  {
+    id: 'manage',
+    label: 'Manage',
+    items: [
+      { id: 'library', label: 'My Library', icon: FolderOpen, to: '/teacher/library' },
+      { id: 'assessments', label: 'Assessments', icon: FileText, to: '/teacher/assessment-papers' },
+      { id: 'classes', label: 'My Classes', icon: Users, to: '/teacher/classes' },
+      { id: 'register', label: 'Class List', icon: ListChecks, to: '/teacher/register' },
+      { id: 'attendance', label: 'Class Register', icon: ClipboardCheck, to: '/teacher/attendance' },
+      { id: 'syllabi', label: 'Syllabi Studio', icon: Files, to: '/teacher/syllabi' },
+      { id: 'curriculum', label: 'Curriculum', icon: BookOpen, to: '/teacher/curriculum' },
+      { id: 'calendar', label: 'School Calendar', icon: CalendarRange, to: '/teacher/calendar' },
+    ],
+  },
+  {
+    id: 'settings',
+    label: 'Settings',
+    items: [
+      { id: 'subscription', label: 'Subscription', icon: CreditCard, to: '/my-subscription' },
+      { id: 'profile', label: 'Profile', icon: UserRound, to: '/settings/profile' },
+      { id: 'settings', label: 'Settings', icon: Settings, to: '/settings' },
+      { id: 'help', label: 'Help & Support', icon: CircleHelp, to: '/teacher/help' },
+    ],
+  },
+]
+
 export const QUICK_CREATE_TILES = [
   {
     id: 'lesson-plan',

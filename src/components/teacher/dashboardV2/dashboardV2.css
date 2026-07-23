@@ -56,6 +56,35 @@
   box-sizing: border-box;
 }
 
+/* ── Shell-only scope (TeacherLayout) ─────────────────────────────────
+   Studio pages reuse the V2 sidebar without adopting the whole dashboard
+   grid: .tdv2-shell turns the .tdv2 root into a plain sticky column that
+   carries the design-system variables for the sidebar (and its logout
+   dialog) only. Hidden below the lg breakpoint — the studio shell keeps
+   its own mobile chrome (glass header + bottom nav). */
+.tdv2.tdv2-shell {
+  display: none;
+  grid-template-columns: none;
+  min-height: 0;
+  height: 100dvh;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  flex-shrink: 0;
+  background: transparent;
+}
+
+@media (min-width: 1024px) {
+  .tdv2.tdv2-shell {
+    display: block;
+  }
+}
+
+.tdv2-shell .tdv2-sidebar {
+  width: 248px;
+  height: 100%;
+}
+
 .tdv2 a {
   color: inherit;
   text-decoration: none;
