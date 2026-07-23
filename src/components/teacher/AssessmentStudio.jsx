@@ -49,6 +49,7 @@ import { applySchoolProfileDefaults, brandingForAiPaper } from '../../utils/scho
 import { collectQuizIssues } from '../../utils/quizValidation.js'
 import { assertNoBlobImageUrls, applyUploadedImageUrls } from '../../utils/importedQuizAssets.js'
 import { shouldAutosaveToLibrary, shouldAutosaveOnDownload } from './assessmentAutosave.js'
+import { isAssessmentDeleted, subscribeAssessmentDeletion } from '../../utils/assessmentDeletion'
 import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
 import ConfirmDialog from '../ui/ConfirmDialog'
@@ -461,6 +462,11 @@ export default function AssessmentStudio() {
   // undefined), so we track the created id here to update — rather than
   // duplicate — that same doc on later saves/downloads in this session.
   const createdIdRef = useRef(null)
+  // Flips true once THIS paper has been deleted (from the library list, in this
+  // tab or another). A deleted paper must never be re-persisted by a pending or
+  // in-flight autosave — the resurrection guard. Read synchronously by
+  // persistAssessment and the autosave gate.
+  const deletedRef = useRef(false)
   // The in-flight library write (autosave or manual). Held so an explicit
   // Save / Export can await a running autosave before persisting, which keeps
   // a brand-new paper's create single-flight — two concurrent persists could
@@ -847,6 +853,8 @@ export default function AssessmentStudio() {
       editLoading,
       importing: importingDocument,
       generating: aiGenerating,
+      // Never autosave a paper that's been deleted (here or in another tab).
+      deleted: deletedRef.current || isAssessmentDeleted(editId || createdIdRef.current),
     })
     if (!ok) return undefined
     const timer = setTimeout(() => {
@@ -867,6 +875,18 @@ export default function AssessmentStudio() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form, sections, parts, libraryDirty, questionCount, saving, exporting,
     editLoading, importingDocument, aiGenerating, currentUser?.uid])
+
+  // ── Deletion guard: stop autosaving a paper the teacher just deleted ──
+  // If THIS paper is deleted from the library (in this tab or another), latch it
+  // so no pending/in-flight autosave can re-create it, and tell the teacher.
+  useEffect(() => subscribeAssessmentDeletion((id, deleted) => {
+    if (!deleted) return
+    if (id && (id === editId || id === createdIdRef.current)) {
+      deletedRef.current = true
+      showToast('This paper was deleted from your library.', true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [editId])
 
   // ── Edit mode: load the existing assessment + its questions ──────────
   // Hydrates the same in-memory shape the builder already uses, so every
@@ -1947,6 +1967,16 @@ export default function AssessmentStudio() {
   // Returns the assessment id. Uses editId (edit route) or the in-session
   // createdIdRef so repeated saves update one doc instead of duplicating.
   async function persistAssessment() {
+    // Resurrection guard: if this paper was deleted (from the library list, in
+    // this tab or another), never write it back. Returns the id without touching
+    // Firestore so callers that await this resolve cleanly. Checked here — the
+    // single choke-point every save path (autosave, explicit, on-download) funnels
+    // through — so no code path can slip a write past it.
+    const existingId = editId || createdIdRef.current
+    if (existingId && (deletedRef.current || isAssessmentDeleted(existingId))) {
+      deletedRef.current = true
+      return existingId
+    }
     const serialized = serializeQuizSections(sections, parts)
     const { questions: questionsForSave, uploadedById: questionUploads } =
       await uploadImportedQuestionImages(serialized.questions)

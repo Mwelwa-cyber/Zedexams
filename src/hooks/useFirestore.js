@@ -60,6 +60,7 @@ import { db } from '../firebase/config'
 import { capture as captureAnalytics } from '../utils/analytics.js'
 import { reportClientError } from '../utils/clientErrorReporting.js'
 import { deleteQuizWithQuestions } from '../utils/deleteQuizWithQuestions.js'
+import { isAssessmentDeleted } from '../utils/assessmentDeletion.js'
 import { coerceQuestion } from '../editor/schema/question.js'
 import { quizWriteSchema, quizUpdateSchema, coerceQuiz } from '../schemas/quiz.js'
 import { coerceResult } from '../schemas/result.js'
@@ -238,7 +239,11 @@ export function useFirestore() {
         orderBy('createdAt', 'desc'),
         limit(limitCount),
       ))
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      // Exclude any paper tombstoned this session — Firestore's offline cache
+      // can briefly still return a just-deleted doc; the registry filter stops
+      // it resurfacing in the studio's recent-papers list (and anywhere else
+      // this read feeds).
+      return snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(a => !isAssessmentDeleted(a.id))
     } catch (e) { reportRead('getMyAssessments', e); return [] }
   }
 

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { where } from 'firebase/firestore'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
@@ -12,6 +12,13 @@ import { buildAssessmentName } from '../../utils/downloadFilename'
 import { isFreePlanTeacher } from '../../utils/teacherLibraryService'
 import { printAssessmentAsPdf, openPrintWindow } from '../../utils/assessmentToPdf'
 import { summarizeImportReview } from '../../utils/importReviewSummary.js'
+import {
+  markAssessmentDeleted,
+  unmarkAssessmentDeleted,
+  subscribeAssessmentDeletion,
+  logAssessmentDeletion,
+  filterDeleted,
+} from '../../utils/assessmentDeletion'
 import ImportReviewBadge from '../quiz/ImportReviewBadge'
 import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
@@ -180,6 +187,10 @@ export default function AssessmentList() {
   const [needsReviewOnly, setNeedsReviewOnly] = useState(false)
   // Assessment queued for deletion — drives the ConfirmDialog.
   const [pendingDelete, setPendingDelete] = useState(null)
+  // Bumped whenever the deletion registry changes (a local delete, or another
+  // tab's) so the filtered views below recompute and drop tombstoned rows even
+  // if a page loaded after the delete re-introduced one from a stale cache.
+  const [deletionVersion, setDeletionVersion] = useState(0)
 
   // Cursor-based pagination over the teacher's own assessments (newest first).
   // Replaces the old "read up to 300 in one shot" load: a prolific author now
@@ -235,10 +246,18 @@ export default function AssessmentList() {
   // NOT prove none exist. Compute the filtered views here (not inside the JSX)
   // so the auto-continue effect below can react to them.
   const byCategory = useMemo(
-    () => (categoryFilter === 'all'
-      ? assessments
-      : assessments.filter(a => assessmentCategory(a.assessmentType) === categoryFilter)),
-    [assessments, categoryFilter],
+    () => {
+      const scoped = categoryFilter === 'all'
+        ? assessments
+        : assessments.filter(a => assessmentCategory(a.assessmentType) === categoryFilter)
+      // Defensive last line against resurrection: never render a paper whose id
+      // is tombstoned this session, even if a page loaded after the delete
+      // returned it from Firestore's offline cache. deletionVersion re-runs this
+      // whenever the registry changes.
+      return filterDeleted(scoped)
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [assessments, categoryFilter, deletionVersion],
   )
   const needsReviewCount = useMemo(
     () => byCategory.reduce((n, a) => (summarizeImportReview(a).needsReview ? n + 1 : n), 0),
@@ -263,17 +282,68 @@ export default function AssessmentList() {
     }
   }, [filterActive, visible.length, hasNextPage, isLoadingNextPage, isInitialLoading, loadNextPage])
 
+  // Ids whose delete this component is currently driving. A local delete is
+  // finalised by confirmDelete itself (removeItem on success, restore-by-filter
+  // on failure), so the registry listener must NOT also drop those rows — only
+  // the ones deleted elsewhere.
+  const deletingLocallyRef = useRef(new Set())
+
+  // Registry changes — a delete from another tab / surface, or the tombstone
+  // being lifted after a failed delete here. Recompute the filtered view every
+  // time; permanently drop only rows deleted elsewhere.
+  useEffect(() => subscribeAssessmentDeletion((id, deleted) => {
+    setDeletionVersion(v => v + 1)
+    if (deleted && !deletingLocallyRef.current.has(id)) removeItem(id)
+  }), [removeItem])
+
   async function confirmDelete() {
     const assessment = pendingDelete
     if (!assessment) return
+    const startedAt = Date.now()
     setBusyId(assessment.id)
+    deletingLocallyRef.current.add(assessment.id)
+    // Tombstone BEFORE the network round-trip: this instantly hides the row
+    // (via the tombstone filter below), blocks any concurrent editor autosave
+    // (this tab or another) from re-persisting the paper mid-delete, and —
+    // because the tombstone is persisted to sessionStorage and survives a
+    // refresh — stops a stale offline-cache read from resurfacing it. The row
+    // is only truly dropped on success; on failure the tombstone is lifted and
+    // the row reappears (no un-rollbackable optimistic removal).
+    markAssessmentDeleted(assessment.id)
     try {
       await deleteAssessment(assessment.id)
-      // Optimistically drop it from the loaded pages — no full refetch (§19).
+      // Drop it from the loaded pages — no full refetch (§19). The server delete
+      // has been awaited, so this is a confirmed removal, not an optimistic one.
       removeItem(assessment.id)
+      toast.success('Assessment deleted.')
+      logAssessmentDeletion({
+        event: 'assessment_delete',
+        assessmentId: assessment.id,
+        userId: uid,
+        deletionMode: 'permanent',
+        source: 'assessment-studio',
+        startedAt,
+        completedAt: Date.now(),
+        success: true,
+      })
     } catch (err) {
+      // The delete failed — the paper still exists, so lift the tombstone
+      // (which makes the row reappear via the filter) and show a clear error.
+      unmarkAssessmentDeleted(assessment.id)
       toast.error(`Delete failed: ${err.message || 'unexpected error'}`)
+      logAssessmentDeletion({
+        event: 'assessment_delete',
+        assessmentId: assessment.id,
+        userId: uid,
+        deletionMode: 'permanent',
+        source: 'assessment-studio',
+        startedAt,
+        completedAt: Date.now(),
+        success: false,
+        errorCode: err?.code || err?.message || 'unknown',
+      })
     } finally {
+      deletingLocallyRef.current.delete(assessment.id)
       setBusyId(null)
       setPendingDelete(null)
     }
