@@ -60,7 +60,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           # Full history so the "Detect Firebase deploy dependency" step can
           # `git diff` against github.event.before — a shallow (depth-1)

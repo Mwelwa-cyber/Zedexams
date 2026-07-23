@@ -73,7 +73,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           # Full history so build.gradle can derive versionCode from
           # `git rev-list --count HEAD`.
