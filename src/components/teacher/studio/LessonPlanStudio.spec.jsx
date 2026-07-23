@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { StrictMode, useState } from 'react'
 import LessonPlanStudio from './LessonPlanStudio'
@@ -28,6 +28,9 @@ vi.mock('firebase/firestore', () => ({
 
 vi.mock('react-router-dom', () => ({
   useNavigate: vi.fn(() => vi.fn()),
+  // New-plan route by default; the edit-mode tests override this.
+  useParams: vi.fn(() => ({})),
+  Link: ({ to, children, ...rest }) => <a href={to} {...rest}>{children}</a>,
 }))
 
 vi.mock('../../../contexts/AuthContext', () => ({
@@ -140,11 +143,15 @@ vi.mock('../../../utils/generateDiagram', () => ({
 // Auto-save: a successful generation persists the plan to the library via
 // saveLessonPlanGeneration. Mock it so the studio's auto-save resolves (and so
 // we can assert it ran) instead of hitting the real Firestore writer.
-const { mockSaveLessonPlanGeneration } = vi.hoisted(() => ({
+const { mockSaveLessonPlanGeneration, mockGetGeneration } = vi.hoisted(() => ({
   mockSaveLessonPlanGeneration: vi.fn(() => Promise.resolve('gen-id-123')),
+  // Edit mode (/teacher/lesson-plans/:id/edit) fetches the saved generation;
+  // resolves null by default (no edit id → never called).
+  mockGetGeneration: vi.fn(() => Promise.resolve(null)),
 }))
 vi.mock('../../../utils/teacherLibraryService', () => ({
   saveLessonPlanGeneration: mockSaveLessonPlanGeneration,
+  getGeneration: mockGetGeneration,
 }))
 
 vi.mock('./utils/studioSystemPrompt', () => ({
@@ -1108,5 +1115,58 @@ describe('LessonPlanStudio — Teacher Settings seeding', () => {
     expect(userPrompt).toMatch(/American English/)
     expect(userPrompt).toMatch(/Do not include homework/)
     expect(userPrompt).not.toMatch(/teaching\/learning aids/)
+  })
+})
+
+// ── Edit mode (/teacher/lesson-plans/:lessonPlanId/edit) ─────────────────────
+
+describe('LessonPlanStudio — edit mode', () => {
+  let useParamsMock
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    useParamsMock = (await import('react-router-dom')).useParams
+  })
+  afterEach(() => {
+    useParamsMock.mockReturnValue({})
+  })
+
+  it('hydrates the canvas from the saved generation and marks it saved', async () => {
+    useParamsMock.mockReturnValue({ lessonPlanId: 'gen-edit-1' })
+    mockGetGeneration.mockResolvedValue({
+      id: 'gen-edit-1',
+      tool: 'lesson_plan',
+      data: { lessonTitle: 'Saved plan', stages: [] },
+      html: '<p>saved html</p>',
+      meta: { grade: 'Grade 4' },
+      library: { syllabus: 'CBC' },
+    })
+    renderStudioWithGeneration()
+
+    await waitFor(() => expect(screen.getByTestId('canvas-status').textContent).toBe('done'))
+    expect(mockGetGeneration).toHaveBeenCalledWith('gen-edit-1')
+    // The saved pre-rendered HTML is what the canvas shows — no regeneration.
+    expect(screen.getByTestId('canvas-plan').textContent).toBe('<p>saved html</p>')
+    expect(innerCallable).not.toHaveBeenCalled()
+  })
+
+  it('shows a friendly error (not a blank studio) when the plan cannot be loaded', async () => {
+    useParamsMock.mockReturnValue({ lessonPlanId: 'gen-gone' })
+    mockGetGeneration.mockResolvedValue(null)
+    renderStudioWithGeneration()
+
+    await waitFor(() =>
+      expect(screen.getByTestId('canvas-error').textContent).toMatch(/could not open that saved lesson plan/i),
+    )
+    // The canvas flips to its error state so the message is actually VISIBLE
+    // (the error panel is gated on status === 'error'); the wizard's Back to
+    // form control still lets the teacher build a new plan.
+    expect(screen.getByTestId('canvas-status').textContent).toBe('error')
+  })
+
+  it('does not fetch anything on the new-plan route (no :lessonPlanId)', async () => {
+    useParamsMock.mockReturnValue({})
+    renderStudio()
+    await waitFor(() => expect(screen.getByTestId('studio-canvas')).toBeInTheDocument())
+    expect(mockGetGeneration).not.toHaveBeenCalled()
   })
 })

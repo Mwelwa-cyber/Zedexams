@@ -71,7 +71,17 @@ function sublineFor(lastOpened) {
  * Closes on X, backdrop tap, Escape, or selecting any destination; the page
  * behind cannot scroll while it is open.
  */
-export function NavDrawer({ open, onClose, teacher, dark, onToggleTheme, onLogout }) {
+export function NavDrawer({
+  open,
+  onClose,
+  teacher,
+  dark,
+  onToggleTheme,
+  onLogout,
+  // Dashboard/help use the curated groups; the studio shell (TeacherLayout)
+  // passes STUDIO_NAV_GROUPS for the full teacher map.
+  groups = NAV_GROUPS,
+}) {
   const [accountOpen, setAccountOpen] = useState(false)
   const panelRef = useRef(null)
   const accountRef = useRef(null)
@@ -118,7 +128,12 @@ export function NavDrawer({ open, onClose, teacher, dark, onToggleTheme, onLogou
     navigate(to)
   }
 
-  const isActive = (to) => {
+  // `activePrefix` widens matching for items pointing at one page of a route
+  // family (mirrors isNavActive in Sidebar.jsx).
+  const isActive = (to, activePrefix) => {
+    if (activePrefix && (pathname === activePrefix || pathname.startsWith(`${activePrefix}/`))) {
+      return true
+    }
     const path = to.split('?')[0]
     if (path === '/teacher') {
       return pathname === '/teacher' || pathname === '/teacher/dashboard-preview'
@@ -155,12 +170,12 @@ export function NavDrawer({ open, onClose, teacher, dark, onToggleTheme, onLogou
         </div>
 
         <nav className="tdv2m-drawer-nav" aria-label="Primary">
-          {NAV_GROUPS.map((group) => (
+          {groups.map((group) => (
             <div key={group.id}>
               {group.label ? (
                 <div className="tdv2-nav-label" aria-hidden="true">{group.label}</div>
               ) : null}
-              {group.items.map(({ id, label, icon: ItemIcon, to, href }) => {
+              {group.items.map(({ id, label, icon: ItemIcon, to, href, activePrefix }) => {
                 if (href) {
                   return (
                     <a key={id} href={href} className="tdv2-nav-item" onClick={onClose}>
@@ -169,7 +184,7 @@ export function NavDrawer({ open, onClose, teacher, dark, onToggleTheme, onLogou
                     </a>
                   )
                 }
-                const active = isActive(to)
+                const active = isActive(to, activePrefix)
                 return (
                   <Link
                     key={id}

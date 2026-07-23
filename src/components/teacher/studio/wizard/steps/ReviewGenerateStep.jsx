@@ -62,10 +62,11 @@ function Section({ title, stepIndex, onEditStep, children }) {
  * Props:
  *   studioState : full useStudioState() value (read-only here)
  *   onEditStep  : (stepIndex) => void
- *   hasPlan     : boolean — a plan was already generated this session
- *   onViewPlan  : () => void — reopen the generated plan view
+ *   hasPlan     : boolean — a plan exists OR a generation is in flight/failed
+ *   onViewPlan  : () => void — reopen the document canvas view
  */
 export function ReviewGenerateStep({ studioState, onEditStep, hasPlan = false, onViewPlan }) {
+  const generating = studioState.generationStatus === 'loading'
   const {
     curriculumMode,
     lessonDetails,
@@ -91,7 +92,7 @@ export function ReviewGenerateStep({ studioState, onEditStep, hasPlan = false, o
           className="lps-btn-ghost w-full min-h-[48px] px-4 text-[13px]"
         >
           <Eye size={18} aria-hidden="true" />
-          View the plan you already generated
+          {generating ? 'View generation progress' : 'View the plan you already generated'}
         </button>
       )}
 

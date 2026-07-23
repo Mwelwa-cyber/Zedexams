@@ -69,7 +69,7 @@ describe('TeacherWorkspace', () => {
     renderWs({ librarySummary: { total: 0, byTool: {} } })
     expect(screen.queryByText(/\d+ saved/)).not.toBeInTheDocument()
     expect(screen.getByText('Lesson Plans').closest('a'))
-      .toHaveAttribute('href', '/teacher/generate/lesson-plan')
+      .toHaveAttribute('href', '/teacher/lesson-plans/new')
   })
 
   it('tracks tool selections with their area and collapse events', () => {
@@ -95,7 +95,7 @@ describe('TeacherWorkspace', () => {
     const all = [...PRIMARY_GROUPS, ...MORE_GROUPS].flatMap((g) => g.items.map((i) => i.to))
     for (const route of [
       '/teacher/generate/scheme-of-work', '/teacher/generate/weekly-forecast',
-      '/teacher/generate/lesson-plan', '/teacher/generate/record-of-work',
+      '/teacher/lesson-plans/new', '/teacher/generate/record-of-work',
       '/teacher/generate/worksheet', '/teacher/generate/notes', '/teacher/generate/homework',
       '/teacher/visual-studio', '/teacher/assessment-papers',
       '/teacher/question-bank', '/teacher/generate/mark-schedule',

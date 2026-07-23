@@ -80,7 +80,6 @@ function Harness({ onGenerate = vi.fn(), isValid = true, extra = {} }) {
       onViewCompleted={vi.fn()}
       isValid={isValid}
       onSaveExit={extra.onSaveExit ?? vi.fn()}
-      draftStatus={{ status: 'idle', savedAt: null, online: true }}
       {...extra}
     />
   )
@@ -264,20 +263,35 @@ describe('LessonPlanWizard — per-step validation', () => {
 // ── Dependent-field clearing across steps ─────────────────────────────────────
 
 describe('LessonPlanWizard — changing class clears incompatible topic', () => {
-  it('clears subject on grade change, then clears the stale topic with an explanation', () => {
+  it('clears the dependent topic/subtopic synchronously on grade change', () => {
     renderWizard()
     completeStep1(); next()
     completeStep2()
     // Back to setup, switch to Grade 3 — its catalogue has different subjects.
     fireEvent.click(screen.getByRole('button', { name: /^back$/i }))
     fireEvent.change(document.getElementById('ldf-grade'), { target: { value: 'Grade 3' } })
-    // Subject was cleared (Grade4 Math is not offered for Grade 3).
+    // Subject cleared (Grade4 Math is not offered for Grade 3) AND the old
+    // topic/subtopic cleared SYNCHRONOUSLY — no stale combination survives
+    // even though the topic step is unmounted right now.
     expect(document.getElementById('ldf-subject').value).toBe('')
+    expect(studioStateRef.topicData.topic).toBe('')
+    expect(studioStateRef.topicData.subtopic).toBe('')
     fireEvent.change(document.getElementById('ldf-subject'), { target: { value: 'Grade3 Math' } })
     next()
-    // The old topic (4.1 Numbers) is not in the Grade 3 catalogue → cleared + explained.
     expect(document.getElementById('tsf-topic').value).toBe('')
-    expect(screen.getByRole('status')).toHaveTextContent(/topic was reset/i)
+  })
+
+  it('withdraws the Back to Review shortcut after a setup edit invalidates later steps', () => {
+    renderWizard()
+    walkToReview()
+    // Review → Edit Lesson Setup, then change the class.
+    fireEvent.click(screen.getByRole('button', { name: /edit lesson setup/i }))
+    expect(screen.getByRole('heading', { name: 'Lesson Setup' })).toBeInTheDocument()
+    fireEvent.change(document.getElementById('ldf-grade'), { target: { value: 'Grade 3' } })
+    // Topic state was reset, so the fast path back to Review must be gone —
+    // the teacher walks forward through the (now invalid) steps instead.
+    expect(screen.queryByRole('button', { name: /back to review/i })).not.toBeInTheDocument()
+    expect(studioStateRef.topicData.topic).toBe('')
   })
 })
 

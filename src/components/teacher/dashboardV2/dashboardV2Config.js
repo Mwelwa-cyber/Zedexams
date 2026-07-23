@@ -36,7 +36,7 @@ export const NAV_GROUPS = [
     id: 'create',
     label: 'Create',
     items: [
-      { id: 'lesson-plan', label: 'Lesson Plan Studio', icon: NotebookPen, to: '/teacher/generate/lesson-plan' },
+      { id: 'lesson-plan', label: 'Lesson Plan Studio', icon: NotebookPen, to: '/teacher/lesson-plans/new', activePrefix: '/teacher/lesson-plans' },
       { id: 'test-paper', label: 'Test Paper Studio', icon: FileText, to: '/teacher/assessment-papers/new' },
       { id: 'exam', label: 'Exam Studio', icon: ClipboardCheck, to: '/teacher/assessment-papers/new' },
       { id: 'worksheet', label: 'Worksheet Studio', icon: Files, to: '/teacher/generate/worksheet' },
@@ -85,7 +85,7 @@ export const STUDIO_NAV_GROUPS = [
     id: 'create',
     label: 'Create',
     items: [
-      { id: 'lesson-plan', label: 'Lesson Plans', icon: NotebookPen, to: '/teacher/generate/lesson-plan' },
+      { id: 'lesson-plan', label: 'Lesson Plans', icon: NotebookPen, to: '/teacher/lesson-plans/new', activePrefix: '/teacher/lesson-plans' },
       { id: 'schemes', label: 'Schemes of Work', icon: CalendarRange, to: '/teacher/generate/scheme-of-work' },
       { id: 'weekly-focus', label: 'Weekly Focus', icon: ClipboardList, to: '/teacher/generate/weekly-forecast' },
       { id: 'record-of-work', label: 'Record of Work', icon: ChartNoAxesColumnIncreasing, to: '/teacher/generate/record-of-work' },
@@ -123,7 +123,7 @@ export const QUICK_CREATE_TILES = [
     title: 'Lesson Plan',
     description: 'Plan lessons with stages, resources and assessment.',
     icon: NotebookPen,
-    to: '/teacher/generate/lesson-plan',
+    to: '/teacher/lesson-plans/new',
     tone: 'copper',
   },
   {
@@ -176,7 +176,7 @@ export const WORKSPACE_TILES = [
     description: 'Prepare CBC lessons with stages, resources and assessment.',
     countKey: 'lesson_plan',
     icon: NotebookPen,
-    to: '/teacher/generate/lesson-plan',
+    to: '/teacher/lesson-plans/new',
   },
   {
     id: 'record-of-work',
@@ -220,7 +220,7 @@ export const WORKSPACE_EXPANDABLE = [
  * scripts/test-dashboard-v2-links.mjs).
  */
 export const ALL_TOOLS = [
-  { id: 'lesson-plan', label: 'Lesson Plan Studio', icon: NotebookPen, to: '/teacher/generate/lesson-plan' },
+  { id: 'lesson-plan', label: 'Lesson Plan Studio', icon: NotebookPen, to: '/teacher/lesson-plans/new' },
   { id: 'scheme-of-work', label: 'Schemes of Work', icon: CalendarRange, to: '/teacher/generate/scheme-of-work' },
   { id: 'weekly-focus', label: 'Weekly Focus', icon: ClipboardList, to: '/teacher/generate/weekly-forecast' },
   { id: 'record-of-work', label: 'Record of Work', icon: ChartNoAxesColumnIncreasing, to: '/teacher/generate/record-of-work' },

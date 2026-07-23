@@ -34,7 +34,12 @@ export function studioLabel(studioId) {
 }
 
 // Studios whose route path isn't the plain `_`→`-` transform of the studioId.
-const ROUTE_OVERRIDES = { sba_task: '/teacher/generate/sba' }
+const ROUTE_OVERRIDES = {
+  sba_task: '/teacher/generate/sba',
+  // The Lesson Plan Studio moved into the dashboard shell at the canonical
+  // /teacher/lesson-plans routes (the legacy generate path is a redirect).
+  lesson_plan: '/teacher/lesson-plans/new',
+}
 // The two studios that key a draft per (subject, grade) via a composite draftId.
 const SBA_COMBO_STUDIOS = new Set(['sba_tracker', 'sba_planner'])
 

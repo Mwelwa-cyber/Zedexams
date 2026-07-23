@@ -30,7 +30,7 @@ console.log('\nresumeRoute — path derivation + SBA deep-link')
 {
   assert(resumeRoute('worksheet', 'worksheet-current') === '/teacher/generate/worksheet', 'plain studio route')
   assert(resumeRoute('scheme_of_work', 'scheme_of_work-current') === '/teacher/generate/scheme-of-work', 'underscores become hyphens')
-  assert(resumeRoute('lesson_plan', 'lesson_plan-current') === '/teacher/generate/lesson-plan', 'lesson plan route')
+  assert(resumeRoute('lesson_plan', 'lesson_plan-current') === '/teacher/lesson-plans/new', 'lesson plan route')
   assert(resumeRoute('sba_task', 'sba_task-current') === '/teacher/generate/sba', 'sba_task route override (…/sba)')
   assert(
     resumeRoute('sba_tracker', 'sba_tracker-mathematics-G5') === '/teacher/generate/sba-tracker?subject=mathematics&grade=G5',

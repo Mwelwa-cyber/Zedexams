@@ -563,7 +563,7 @@ export const TOOL_META = {
   lesson_plan: {
     label: 'Lesson Plan',
     icon: '✨',
-    route: '/teacher/generate/lesson-plan',
+    route: '/teacher/lesson-plans/new',
     colour: 'emerald',
   },
   scheme_of_work: {
@@ -631,7 +631,7 @@ export const TOOL_META = {
     icon: '🧩',
     // Generated from inside the Lesson Plan Studio's "Assessment Activities"
     // section, so "Generate similar" sends the teacher back there.
-    route: '/teacher/generate/lesson-plan',
+    route: '/teacher/lesson-plans/new',
     colour: 'orange',
   },
   // AI-generated test/exam papers (generateAssessment — plus legacy docs from

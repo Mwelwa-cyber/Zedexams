@@ -326,21 +326,34 @@
    subtle step transitions, and the Progress overlay (bottom sheet on phones,
    side panel at md+). Pure presentation — step logic lives in wizardSteps.js. */
 
-/* Sticky bottom navigation. Fixed above the OS safe area; the wizard body
-   reserves matching bottom padding (see .lpw-body) so it never covers fields. */
+/* Sticky bottom navigation. The studio renders inside TeacherLayout, whose
+   mobile chrome pins its own bottom nav (~72px) below lg — the wizard bar
+   sits ABOVE it there (mirrors the Teaching Kit bar's offset) and drops to
+   the true bottom at lg+ where the dashboard sidebar replaces the bottom
+   nav. The wizard body reserves matching padding (see .lpw-body) so the bar
+   never covers fields. */
 .lpw-nav {
   position: fixed;
   inset-inline: 0;
-  bottom: 0;
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   z-index: 40;
   border-top: 2px solid #0f1b2d;
   background: rgba(245, 239, 225, 0.96);
   backdrop-filter: blur(6px);
-  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+  padding: 10px 16px;
 }
-/* Room for the sticky nav + a little breathing space. */
+/* Room for the sticky nav + the dashboard bottom nav + breathing space. */
 .lpw-body {
-  padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(184px + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 1024px) {
+  .lpw-nav {
+    bottom: 0;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+  .lpw-body {
+    padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 /* Gentle slide/fade when the active step changes. */

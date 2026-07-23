@@ -5,10 +5,12 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import TeacherLayout from './TeacherLayout'
 
 // The shell's page-level chrome is exercised elsewhere; stub it so the spec
-// focuses on the sidebar swap (old Teacher Panel → shared V2 Sidebar).
+// focuses on the chrome swap (old Teacher Panel → shared V2 Sidebar/mobile).
 vi.mock('./TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
-vi.mock('./TeacherGlassHeader', () => ({ default: () => <div data-testid="glass" /> }))
-vi.mock('./TeacherBottomNav', () => ({ default: () => <div data-testid="bottomnav" /> }))
+// MobileHeader's bell reads the app-wide NotificationProvider (main.jsx).
+vi.mock('../../contexts/NotificationContext', () => ({
+  useNotifications: () => ({ unreadCount: 0, open: false, setOpen: () => {} }),
+}))
 
 const logout = vi.fn().mockResolvedValue()
 const auth = {
@@ -81,5 +83,22 @@ describe('TeacherLayout (V2 shell sidebar)', () => {
     renderLayout()
     const sidebar = screen.getByLabelText('Teacher navigation')
     expect(within(sidebar).getByText('Admin Panel')).toBeInTheDocument()
+  })
+
+  it('renders the V2 mobile chrome: header, bottom nav, and a drawer with the full map', async () => {
+    const user = userEvent.setup()
+    renderLayout()
+    // V2 mobile header + bottom nav replace the old glass header + tab bar
+    expect(screen.getByRole('button', { name: 'Open menu' })).toBeInTheDocument()
+    const bottom = screen.getByRole('navigation', { name: 'Quick navigation' })
+    expect(within(bottom).getByText('Home')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Open menu' }))
+    const drawerRoot = document.querySelector('.tdv2m-drawer-root')
+    expect(drawerRoot).toHaveClass('is-open')
+    // The drawer carries the same full teacher map as the desktop panel
+    const drawer = within(screen.getByRole('dialog', { name: 'Navigation' }))
+    expect(drawer.getByText('School Calendar')).toBeInTheDocument()
+    expect(drawer.getByText('Class Register')).toBeInTheDocument()
   })
 })

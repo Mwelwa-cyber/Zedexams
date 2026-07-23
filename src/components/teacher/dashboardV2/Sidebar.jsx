@@ -125,9 +125,15 @@ function AccountMenu({ teacher, onSelect, onClose, onLogout, menuRef, dark, onTo
 /* '/teacher' only matches exactly (it's the dashboard); the preview route
    also lights the Dashboard item so the sidebar never looks unanchored.
    '/settings' is exact too so the Profile item ('/settings/profile') doesn't
-   light both entries at once. */
-function isNavActive(pathname, to) {
+   light both entries at once. `activePrefix` widens matching for items whose
+   destination is one page of a route family (e.g. the Lesson Plan Studio item
+   points at /teacher/lesson-plans/new but must stay lit on
+   /teacher/lesson-plans/:id/edit too). */
+function isNavActive(pathname, to, activePrefix) {
   if (!to) return false
+  if (activePrefix && (pathname === activePrefix || pathname.startsWith(`${activePrefix}/`))) {
+    return true
+  }
   const path = to.split('?')[0]
   if (path === '/teacher') {
     return pathname === '/teacher' || pathname === '/teacher/dashboard-preview'
@@ -195,8 +201,8 @@ export default function Sidebar({
             {group.label ? (
               <div className="tdv2-nav-label" aria-hidden="true">{group.label}</div>
             ) : null}
-            {group.items.map(({ id, label, icon: ItemIcon, to, href }) => {
-              const active = isNavActive(pathname, to)
+            {group.items.map(({ id, label, icon: ItemIcon, to, href, activePrefix }) => {
+              const active = isNavActive(pathname, to, activePrefix)
               const inner = (
                 <>
                   <ItemIcon size={20} strokeWidth={1.75} aria-hidden="true" />

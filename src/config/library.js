@@ -94,7 +94,7 @@ export const LIBRARY_SECTIONS = [
     accent:    '#fde2c4',
     hasTerm:   true,
     hasAssessmentType: false,
-    createTo:  '/teacher/generate/lesson-plan',
+    createTo:  '/teacher/lesson-plans/new',
     emptyHint: 'Generate your first lesson plan to see it here.',
   },
   {

@@ -81,7 +81,7 @@ export const PRIMARY_GROUPS = [
         libraryKey: 'lesson-plan',
         title: 'Lesson Plans',
         tagline: 'Prepare CBC lessons with stages, resources, and assessment.',
-        to: '/teacher/generate/lesson-plan',
+        to: '/teacher/lesson-plans/new',
       },
       {
         img: iconRecordOfWork,

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, ChartNoAxesColumnIncreasing } from 'lucide-react'
+import { ChartNoAxesColumnIncreasing } from 'lucide-react'
 import { WIZARD_STEPS, REVIEW_STEP, clampStep, validateStep, firstInvalidStep, maxReachableStep } from './wizardSteps'
 import { WizardProgress } from './WizardProgress.jsx'
 import { StickyWizardNav } from './StickyWizardNav.jsx'
@@ -10,7 +10,6 @@ import { TopicCurriculumStep } from './steps/TopicCurriculumStep.jsx'
 import { LessonContextStep } from './steps/LessonContextStep.jsx'
 import { FormatOptionsStep } from './steps/FormatOptionsStep.jsx'
 import { ReviewGenerateStep } from './steps/ReviewGenerateStep.jsx'
-import DraftStatusIndicator from '../../../draft/DraftStatusIndicator'
 
 /**
  * LessonPlanWizard — the guided five-step creation flow of the Lesson Plan
@@ -41,7 +40,6 @@ export function LessonPlanWizard({
   dateWarning = '',
   coverageState = {},
   lessonMemory = {},
-  draftStatus = null,
   onSaveExit,
   hasPlan = false,
   onViewPlan,
@@ -49,6 +47,7 @@ export function LessonPlanWizard({
   const {
     curriculumMode, setCurriculumMode,
     lessonDetails, setLessonDetail,
+    resetTopicData,
     topicData, setTopicField,
     selectedOutcomes, toggleSelectedOutcome,
     learningEnvironments, toggleLearningEnvironment,
@@ -150,6 +149,29 @@ export function LessonPlanWizard({
     goToStep(index, { fromReview: true })
   }, [goToStep])
 
+  // Setup-field changes clear dependent topic state SYNCHRONOUSLY. The
+  // TopicSubtopicForm's own stale-selection guard only runs while step 2 is
+  // mounted — without this, editing the class/subject/curriculum from Review
+  // and shortcutting back would keep the old (now incompatible) topic and
+  // validateStep would happily pass it to generation.
+  const handleSelectCurriculum = useCallback((mode) => {
+    if (mode !== curriculumMode && (topicData.topic || topicData.subtopic)) {
+      resetTopicData()
+    }
+    setCurriculumMode(mode)
+  }, [curriculumMode, topicData.topic, topicData.subtopic, resetTopicData, setCurriculumMode])
+
+  const handleChangeDetail = useCallback((field, value) => {
+    if (
+      (field === 'grade' || field === 'subject') &&
+      lessonDetails[field] !== value &&
+      (topicData.topic || topicData.subtopic)
+    ) {
+      resetTopicData()
+    }
+    setLessonDetail(field, value)
+  }, [lessonDetails, topicData.topic, topicData.subtopic, resetTopicData, setLessonDetail])
+
   const step = WIZARD_STEPS[currentStep]
 
   // Series teaching progress belongs in the Progress overlay (CBC only).
@@ -165,46 +187,7 @@ export function LessonPlanWizard({
     : null
 
   return (
-    <div className="lpw-body mx-auto w-full max-w-3xl px-4 pt-3 lg:max-w-5xl">
-      {/* ── Studio header ── */}
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <span className="lps-tile h-10 w-10 flex-shrink-0 rounded-[12px] text-white lps-brand-gradient" aria-hidden="true">
-            <BookOpen size={18} />
-          </span>
-          <div className="min-w-0">
-            <h1 className="font-display text-[17px] font-extrabold leading-tight tracking-tight text-[#0F1B2D]">
-              Lesson Plan Studio
-            </h1>
-            <p className="text-[11.5px] font-semibold leading-tight text-[#4A5A6E]">
-              Create smart lesson plans in minutes.
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-shrink-0 items-center gap-2">
-          {draftStatus && (
-            <span className="hidden sm:block">
-              <DraftStatusIndicator status={draftStatus.status} savedAt={draftStatus.savedAt} online={draftStatus.online} />
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={() => setProgressOpen(true)}
-            className="lps-btn-ghost min-h-[44px] px-3 py-2 text-[12px]"
-          >
-            <ChartNoAxesColumnIncreasing size={16} aria-hidden="true" />
-            Progress
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile-only draft status line (kept out of the tight header row). */}
-      {draftStatus && (
-        <div className="mb-2 sm:hidden">
-          <DraftStatusIndicator status={draftStatus.status} savedAt={draftStatus.savedAt} online={draftStatus.online} />
-        </div>
-      )}
-
+    <div className="lpw-body mx-auto w-full max-w-3xl pt-1 lg:max-w-5xl">
       <div className="lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-8">
         {/* ── Desktop step rail ── */}
         <div className="hidden lg:block">
@@ -218,7 +201,7 @@ export function LessonPlanWizard({
             />
             {hasPlan && (
               <button type="button" onClick={onViewPlan} className="lps-btn-ghost w-full px-3 py-2 text-[12px]">
-                View generated plan
+                {isGenerating ? 'View generation progress' : 'View generated plan'}
               </button>
             )}
           </div>
@@ -228,17 +211,29 @@ export function LessonPlanWizard({
         <div className="min-w-0">
           {/* Compact step header + five-point progress (mobile/tablet). */}
           <div className="mb-4">
-            <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#c2410c]">
-              Step {currentStep + 1} of {WIZARD_STEPS.length}
-            </p>
-            <h2
-              ref={headingRef}
-              tabIndex={-1}
-              className="font-display mt-0.5 text-[19px] font-extrabold leading-tight text-[#0F1B2D] outline-none"
-            >
-              {step.title}
-            </h2>
-            <p className="mt-0.5 text-[12.5px] font-semibold text-[#4A5A6E]">{step.description}</p>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#c2410c]">
+                  Step {currentStep + 1} of {WIZARD_STEPS.length}
+                </p>
+                <h2
+                  ref={headingRef}
+                  tabIndex={-1}
+                  className="font-display mt-0.5 text-[19px] font-extrabold leading-tight text-[#0F1B2D] outline-none"
+                >
+                  {step.title}
+                </h2>
+                <p className="mt-0.5 text-[12.5px] font-semibold text-[#4A5A6E]">{step.description}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setProgressOpen(true)}
+                className="lps-btn-ghost min-h-[44px] flex-shrink-0 px-3 py-2 text-[12px]"
+              >
+                <ChartNoAxesColumnIncreasing size={16} aria-hidden="true" />
+                Progress
+              </button>
+            </div>
             <div className="mt-2.5 lg:hidden">
               <WizardProgress
                 currentStep={currentStep}
@@ -300,9 +295,9 @@ export function LessonPlanWizard({
             {currentStep === 0 && (
               <LessonSetupStep
                 curriculumMode={curriculumMode}
-                onSelectCurriculum={setCurriculumMode}
+                onSelectCurriculum={handleSelectCurriculum}
                 lessonDetails={lessonDetails}
-                onChangeDetail={setLessonDetail}
+                onChangeDetail={handleChangeDetail}
                 dateHint={dateHint}
                 dateWarning={dateWarning}
               />
@@ -360,7 +355,11 @@ export function LessonPlanWizard({
         stepError={shownError}
         nextDisabledReason={currentCheck.valid ? null : currentCheck.reason}
         canProceed={currentCheck.valid}
-        returnToReview={returnToReview && currentStep < REVIEW_STEP}
+        // The fast path back to Review is only offered while EVERY step is
+        // still valid — an edit that invalidated a later step (e.g. changing
+        // the class cleared the topic) sends the teacher forward through the
+        // normal Next flow instead of skipping over the now-broken steps.
+        returnToReview={returnToReview && currentStep < REVIEW_STEP && maxReachable === REVIEW_STEP}
         isGenerating={isGenerating}
         generateLabel={generateLabel}
         onBack={handleBack}

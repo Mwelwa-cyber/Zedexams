@@ -13,29 +13,47 @@ describe('StudioShell — form view (default)', () => {
     expect(screen.queryByTestId('canvas')).not.toBeInTheDocument()
   })
 
+  it('renders the header slot above the wizard', () => {
+    render(
+      <StudioShell
+        header={<div data-testid="header" />}
+        sidebar={<div data-testid="sidebar" />}
+        canvas={<div />}
+      />,
+    )
+    const header = screen.getByTestId('header')
+    const sidebar = screen.getByTestId('sidebar')
+    // Header precedes the wizard in document order.
+    expect(header.compareDocumentPosition(sidebar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('does not show a Back to form control in the form view', () => {
     render(<StudioShell sidebar={<div />} canvas={<div />} />)
     expect(screen.queryByRole('button', { name: /back to form/i })).not.toBeInTheDocument()
   })
 
-  it('does not lock viewport height on the scrolling form view', () => {
+  // The studio renders INSIDE the TeacherLayout dashboard shell — it must
+  // never lock the whole viewport like the old standalone page.
+  it('brings no full-viewport chrome on the scrolling form view', () => {
     const { container } = render(<StudioShell sidebar={<div />} canvas={<div />} />)
     const wrapper = container.firstChild
-    expect(wrapper.className).not.toMatch(/(^|\s)h-screen(\s|$)/)
+    expect(wrapper.className).not.toMatch(/h-screen/)
     expect(wrapper.className).not.toMatch(/overflow-hidden/)
   })
 })
 
 describe('StudioShell — canvas view', () => {
-  it('renders the canvas slot and hides the wizard', () => {
+  it('renders the canvas slot (and the header) and hides the wizard', () => {
     render(
       <StudioShell
         view="canvas"
+        header={<div data-testid="header" />}
         sidebar={<div data-testid="sidebar" />}
         canvas={<div data-testid="canvas" />}
       />,
     )
     expect(screen.getByTestId('canvas')).toBeInTheDocument()
+    expect(screen.getByTestId('header')).toBeInTheDocument()
     expect(screen.queryByTestId('sidebar')).not.toBeInTheDocument()
   })
 
@@ -47,16 +65,24 @@ describe('StudioShell — canvas view', () => {
   })
 
   // Regression guard for the "lesson plan hidden on the right on mobile" bug:
-  // the canvas view must stack vertically on phones and only lock the viewport
-  // height + clipping at md+.
-  it('stacks vertically on mobile and gates h-screen/overflow to md+', () => {
+  // the pane row must stack vertically on phones and switch to a row at md+.
+  it('stacks vertically on mobile and switches to a row at md+', () => {
     const { container } = render(<StudioShell view="canvas" sidebar={<div />} canvas={<div />} />)
-    const wrapper = container.firstChild
-    expect(wrapper.className).toContain('flex-col')
-    expect(wrapper.className).toContain('md:flex-row')
-    expect(wrapper.className).not.toMatch(/(^|\s)h-screen(\s|$)/)
-    expect(wrapper.className).not.toMatch(/(^|\s)overflow-hidden(\s|$)/)
-    expect(wrapper.className).toContain('md:h-screen')
-    expect(wrapper.className).toContain('md:overflow-hidden')
+    const row = container.querySelector('.lps-shell-row')
+    expect(row).not.toBeNull()
+    expect(row.className).toContain('flex-col')
+    expect(row.className).toContain('md:flex-row')
+  })
+
+  // Bounded to the space under the dashboard top bar — never h-screen, and
+  // clipping (internal pane scroll) gated behind md.
+  it('bounds height below the dashboard chrome instead of locking the viewport', () => {
+    const { container } = render(<StudioShell view="canvas" sidebar={<div />} canvas={<div />} />)
+    const row = container.querySelector('.lps-shell-row')
+    expect(row.className).not.toMatch(/(^|\s)h-screen(\s|$)/)
+    expect(row.className).not.toMatch(/md:h-screen/)
+    expect(row.className).not.toMatch(/(^|\s)overflow-hidden(\s|$)/)
+    expect(row.className).toContain('md:overflow-hidden')
+    expect(row.className).toMatch(/md:h-\[calc\(100dvh/)
   })
 })

@@ -40,7 +40,7 @@ describe('StudioNextSteps', () => {
   it('tracks the selected next step', () => {
     renderPanel({
       context: 'weekly-focus',
-      actions: [{ key: 'lesson', label: 'Create this week’s lessons', to: '/teacher/generate/lesson-plan' }],
+      actions: [{ key: 'lesson', label: 'Create this week’s lessons', to: '/teacher/lesson-plans/new' }],
     })
     fireEvent.click(screen.getByRole('link', { name: /create this week’s lessons/i }))
     expect(capture).toHaveBeenCalledWith('studio_next_step_selected', { context: 'weekly-focus', action: 'lesson' })
