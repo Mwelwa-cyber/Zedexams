@@ -1,6 +1,6 @@
 # ZedExams — Launch-Blocker Remediation Report
 
-> Snapshot as of 2026-07-20 — verify before acting.
+> Snapshot as of 2026-07-23 — verify before acting.
 
 Repository-backed remediation of the seven NO-GO launch blockers. Every fix is
 code-level, tested, and lint-clean; this document records the evidence, the root
@@ -26,9 +26,15 @@ container and therefore keep the verdict at NO-GO until a preview deploy is run:
    the *measurement* must be taken on a preview channel.
 2. **Complete authenticated payment lifecycle** — a **safe test path now exists**
    (mock provider adapter + full-lifecycle contract test, all green), which is
-   exactly what blocker #7 asked us to *establish*. Running it end-to-end
-   through the deployed callables (emulator with `PAYMENTS_PROVIDER=mock`, or a
-   Lenco sandbox) is the remaining verification step.
+   exactly what blocker #7 asked us to *establish*. The **emulator** end-to-end
+   run is now **done and CI-gated** (2026-07-23, PR #1860): the full lifecycle
+   is driven with `PAYMENTS_PROVIDER=mock` through the **real** activation
+   (`subscriptionActivation.js`) and webhook dispatch (`lencoWebhookProcessor.js`)
+   against a **real (emulated) Firestore + Storage** — see
+   `functions/paymentLifecycleEmulator.test.js` (35 assertions) and the
+   `Tests (Payment lifecycle emulator)` CI job. The only step now outstanding is
+   one **real Lenco sandbox / low-value live transaction** (needs real Lenco
+   credentials + a real charge, so it can't be run from a CI container).
 
 Everything else (featured-quiz integrity, `/api/track/visit`, App Check /
 reCAPTCHA resilience, truthful status page, telemetry-can't-break-navigation) is
@@ -67,7 +73,7 @@ here (real chunk sizes below).
 | 4 | App Check intermittent 403 | App Check init is deferred off the boot path (correct), but there was **no awaitable readiness signal**, so a protected request could race ahead of the first token | P1 | `whenAppCheckReady()` — resolves when init settles or after a bounded timeout, never rejects; init still exactly-once + fail-open | `src/firebase/config.js` | `src/firebase/config.spec.js` (+2) | Readiness resolves on init-settle and via timeout | Done; prod-enforcement behaviour needs preview confirmation |
 | 5 | Invalid-login reCAPTCHA timeout uncaught | Token-mint already fail-open + global `unhandledrejection` guard exists; gap was **test coverage** of duplicate-submit / retry / preserved form | P1 | Regression tests proving no double-submit, credentials preserved, retry works after a recoverable failure | `src/components/auth/Login.spec.jsx` (+2) | Login spec (16 total) | Duplicate click ignored while in-flight; retry succeeds | Done |
 | 6 | Status page says "all operational" during outages | The page ran three shallow **client** probes (logo HEAD, one `scores` read, no-cors Auth ping) disconnected from Vigil, the real monitor | P0 | Vigil now writes a public `publicStatus/current` doc (rich states + streaks); page renders it; **stale → unknown**; independent CDN probe as a second signal | `functions/agents/publicStatusCore.js`, `functions/agents/cron.js`, `src/utils/systemStatus.js`, `src/components/marketing/StatusPage.jsx`, `firestore.rules` | `functions/agents/publicStatusCore.test.js` (20), `scripts/test-system-status.mjs` (16) | Stale/missing doc → unknown (never operational); recovery needs 2 clean runs | Done |
-| 7 | Payment flow unverifiable (no safe test path) | Server path is already idempotent + signature-verified + server-authoritative, but there was **no sandbox/mock** to exercise it | P1 | Mock provider adapter implementing the exact Lenco contract + a factory hard-guarded from production; full-lifecycle contract test over the **real** server decision logic | `functions/mockPaymentProvider.js`, `functions/paymentProvider.js`, `functions/paymentProviderContract.test.js`, `functions/index.js` (5 call sites) | `functions/paymentProviderContract.test.js` (28) | Duplicate-press reuse, timeout, declined, OTP, delayed+duplicate callback, exactly-once fulfilment, bad-signature reject | Safe test path **established**; live/sandbox run is the remaining step |
+| 7 | Payment flow unverifiable (no safe test path) | Server path is already idempotent + signature-verified + server-authoritative, but there was **no sandbox/mock** to exercise it | P1 | Mock provider adapter implementing the exact Lenco contract + a factory hard-guarded from production; full-lifecycle contract test over the **real** server decision logic; **emulator end-to-end run** over the **real** activation + webhook dispatch against a real (emulated) Firestore + Storage | `functions/mockPaymentProvider.js`, `functions/paymentProvider.js`, `functions/paymentProviderContract.test.js`, `functions/paymentLifecycleEmulator.test.js`, `functions/index.js` (5 call sites) | `functions/paymentProviderContract.test.js` (28) + `functions/paymentLifecycleEmulator.test.js` (35, emulator, CI-gated) | Duplicate-press reuse, timeout, declined, OTP, delayed+duplicate callback, exactly-once fulfilment, amount-mismatch parking, renewal stacking, top-up credits, bad-signature reject | Safe test path **established** + **emulator end-to-end run done & CI-gated** (PR #1860); only a real Lenco sandbox / low-value live charge remains |
 
 ---
 
@@ -180,8 +186,19 @@ activation spy:
 | Unknown reference webhook | ✅ ignored, no grant |
 | No entitlement from client-only success state | ✅ (grant only via server activation) |
 
-**Not done:** a run against a real Lenco sandbox or a controlled live
-transaction. The safe path to do so is now in place (see §J).
+**Now also done (2026-07-23, PR #1860):** an **emulator** end-to-end run.
+`functions/paymentLifecycleEmulator.test.js` (35 assertions, wired into the
+`Tests (Payment lifecycle emulator)` CI job) drives the same mock provider
+through the **real** activation (`subscriptionActivation.js`) and webhook
+dispatch (`lencoWebhookProcessor.js`) against a **real (emulated) Firestore +
+Storage** — verifying, on committed documents, premium activation, exactly-once
+idempotency on duplicate/delayed callbacks, declined + amount-mismatch parking,
+OTP, early-renewal stacking, top-up credits, unknown-reference ignore, and
+signature verify/fail-closed.
+
+**Still not done:** a run against a **real Lenco sandbox** or a controlled
+low-value **live** transaction (needs real Lenco credentials + a real charge —
+not possible from a CI container). The safe path to do so is in place (see §J).
 
 ---
 
@@ -210,7 +227,7 @@ No security control was weakened to make any test pass:
 | Risk | Owner | Severity | Follow-up |
 |---|---|---|---|
 | Mobile Perf gate unverified (no preview Lighthouse here) | Web perf | P1 | Deploy branch to a Firebase Hosting preview channel; run 3× mobile Lighthouse; if < 75, defer Firestore persistence for signed-out `/` and split `vendor` |
-| Live payment lifecycle not run against sandbox/live | Payments | P1 | Run the contract via emulator (`PAYMENTS_PROVIDER=mock`) end-to-end through the callables, then one Lenco sandbox/low-value live transaction |
+| Live payment lifecycle not run against a real provider sandbox/live | Payments | P1 | Emulator end-to-end run **done & CI-gated** (PR #1860, `functions/paymentLifecycleEmulator.test.js`); remaining: one Lenco sandbox / low-value live transaction with real credentials |
 | `/api/track/visit` platform cold-start 503 (no warm instance) | Infra | P2 | Decide on `minInstances: 1` for `apiTrackVisit` (cost trade-off) or accept rare cold-start 503s; telemetry now distinguishes them |
 | Production featured-quiz mismatches unquantified | Content | P1 | Run `scripts/repair-quiz-subject-integrity.mjs` (dry-run) against prod; review the report before `--apply` |
 | Eager bundle still ~417 kB gz | Web perf | P2 | `rollup-plugin-visualizer` + chunk-splitting follow-up PR |
@@ -255,7 +272,10 @@ additive fields; the repair script never deletes).
   degraded/outage, and stale after > 135 min.
 - `curl -XPOST /api/track/visit` with a bad body → 204 + a `track_visit_rejected`
   `category:"validation"` log line with an `x-request-id`.
-- Run the payment contract through the emulator with `PAYMENTS_PROVIDER=mock`.
+- Run the payment lifecycle end-to-end on the emulator:
+  `npm run test:payment-lifecycle-emulator` (drives the mock provider through
+  the real activation + webhook dispatch against the Firestore + Storage
+  emulators; also runs as the `Tests (Payment lifecycle emulator)` CI job).
 
 ---
 
