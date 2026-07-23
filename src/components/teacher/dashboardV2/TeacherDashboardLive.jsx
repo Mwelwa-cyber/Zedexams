@@ -63,6 +63,7 @@ export default function TeacherDashboardLive() {
         banner={<UsageReminderBanner />}
         documents={data.documents}
         savedCounts={data.savedCounts}
+        launcherWarnings={data.launcherWarnings}
         checklist={data.checklist}
         feed={data.feed}
         activity={data.activity}
