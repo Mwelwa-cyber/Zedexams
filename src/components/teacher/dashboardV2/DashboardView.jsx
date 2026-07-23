@@ -11,6 +11,8 @@ import PerformanceSnapshotCard from './PerformanceSnapshotCard'
 import LogoutDialog from './LogoutDialog'
 import { Toast } from './PreviewChrome'
 import useDashboardTheme from './useDashboardTheme'
+import useIsMobile from './useIsMobile'
+import MobileDashboardView from './MobileDashboardView'
 import './dashboardV2.css'
 
 /**
@@ -36,6 +38,7 @@ export default function DashboardView({
   feed,
   activity,
   series,
+  classPerformance = null,
   loading = false,
   onRetryFeed,
   onConfirmLogout,
@@ -64,6 +67,50 @@ export default function DashboardView({
   useEffect(() => () => clearTimeout(toastTimer.current), [])
 
   const openLogout = useCallback(() => setLogoutOpen(true), [])
+  const isMobile = useIsMobile()
+
+  // Below 768px the dashboard swaps to its dedicated mobile information
+  // architecture — own header, drawer, bottom nav — never the desktop
+  // sidebar squeezed down. Page-level chrome (logout dialog, toast,
+  // preview extras) is shared between the two layouts.
+  if (isMobile) {
+    return (
+      <div className={`tdv2 tdv2-is-mobile ${dark ? 'is-dark' : ''}`}>
+        <MobileDashboardView
+          teacher={teacher}
+          greeting={greeting}
+          lastOpened={lastOpened}
+          ctaState={ctaState}
+          onContinue={onContinue}
+          recommendations={recommendations}
+          documents={documents}
+          checklist={checklist}
+          feed={feed}
+          activity={activity}
+          series={series}
+          classPerformance={classPerformance}
+          loading={loading}
+          onRetryFeed={onRetryFeed}
+          dark={dark}
+          onToggleTheme={toggleTheme}
+          onRequestLogout={openLogout}
+          showToast={showToast}
+          banner={banner}
+        />
+        {logoutOpen ? (
+          <LogoutDialog
+            onCancel={() => setLogoutOpen(false)}
+            onConfirm={() => {
+              setLogoutOpen(false)
+              onConfirmLogout({ showToast })
+            }}
+          />
+        ) : null}
+        <Toast toast={toast} />
+        {renderExtras ? renderExtras({ openLogout, showToast }) : null}
+      </div>
+    )
+  }
 
   return (
     <div className={`tdv2 ${dark ? 'is-dark' : ''}`}>
@@ -103,7 +150,7 @@ export default function DashboardView({
             <ChecklistCard items={checklist} loading={loading} />
             <FeedStatusCard items={feed} onRetry={() => onRetryFeed?.({ showToast })} />
             <RecentActivityCard items={activity} />
-            <PerformanceSnapshotCard series={series} dark={dark} />
+            <PerformanceSnapshotCard series={series} classPerformance={classPerformance} dark={dark} />
           </div>
         </main>
       </div>

@@ -8,6 +8,7 @@ import {
   ACTIVITY_ITEMS,
   AI_RECOMMENDATION,
   CHECKLIST_ITEMS,
+  CLASS_PERFORMANCE,
   FEED_ITEMS,
   LAST_OPENED,
   PERFORMANCE_SERIES,
@@ -73,6 +74,7 @@ export default function TeacherDashboardV2() {
         feed={FEED_ITEMS}
         activity={ACTIVITY_ITEMS}
         series={PERFORMANCE_SERIES}
+        classPerformance={CLASS_PERFORMANCE}
         onRetryFeed={({ showToast }) => showToast('error', 'Still couldn’t save — check your connection.')}
         onConfirmLogout={({ showToast }) => {
           showToast('success', 'Signed out (preview only — no real session ended).')

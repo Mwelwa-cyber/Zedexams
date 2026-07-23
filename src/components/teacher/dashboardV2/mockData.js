@@ -151,3 +151,21 @@ export const PERFORMANCE_SERIES = [
   { date: 'Jul 06', created: 3 },
   { date: 'Jul 13', created: 6 },
 ]
+
+// Class-performance mode (what the live dashboard shows once a teacher's
+// classes have scored attempts) — endMs values are fixed display dates.
+const WK = 7 * 24 * 60 * 60 * 1000
+const W0 = Date.UTC(2026, 5, 8, 12)
+export const CLASS_PERFORMANCE = {
+  hasData: true,
+  classCount: 1,
+  learnerCount: 34,
+  series: [
+    { endMs: W0 + 0 * WK, yourClass: 38, classAverage: 46 },
+    { endMs: W0 + 1 * WK, yourClass: 44, classAverage: 52 },
+    { endMs: W0 + 2 * WK, yourClass: 41, classAverage: 58 },
+    { endMs: W0 + 3 * WK, yourClass: 52, classAverage: 55 },
+    { endMs: W0 + 4 * WK, yourClass: 57, classAverage: 61 },
+    { endMs: W0 + 5 * WK, yourClass: 72, classAverage: 64 },
+  ],
+}

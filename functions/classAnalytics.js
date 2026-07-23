@@ -33,8 +33,15 @@
  */
 
 const admin = require("firebase-admin");
+const {AggregateField} = require("firebase-admin/firestore");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("./authGuard");
+const {
+  weeklyWindows,
+  toResultRow,
+  buildPerformanceSeries,
+  hasChartableData,
+} = require("./classPerformanceCore");
 
 const REGION = "us-central1";
 const WINDOW_DAYS = 30;
@@ -218,4 +225,92 @@ const getClassStats = onCall({
   };
 });
 
-module.exports = {getClassStats};
+/**
+ * Weekly class-performance time series for the teacher dashboard's
+ * Performance Snapshot: "Your Class" (average final score of the caller's
+ * class members, per week) vs "Class Average" (platform-wide weekly
+ * average of the same window, via cheap aggregate queries).
+ *
+ * Read budget, deliberately bounded like getClassStats:
+ *   - ≤10 classes owned by the caller, ≤200 learners total
+ *   - one 6-week results window per learner-chunk (reuses the same
+ *     composite index as getClassStats)
+ *   - 6 aggregation queries for the platform baseline (count+avg each);
+ *     baseline degrades to null (line hidden) if aggregation fails
+ */
+const SERIES_WEEKS = 6;
+const MAX_CLASSES_TO_SCAN = 10;
+
+const getClassPerformanceSeries = onCall({
+  region: REGION,
+  timeoutSeconds: 60,
+  memory: "512MiB",
+}, async (request) => {
+  const uid = await assertVerifiedAuth(request, "Sign in required.");
+  const db = admin.firestore();
+
+  // The caller's classes → union of learner uids (bounded).
+  const classesSnap = await db.collection("classes")
+      .where("teacherUid", "==", uid)
+      .limit(MAX_CLASSES_TO_SCAN)
+      .get();
+  const learnerSet = new Set();
+  classesSnap.docs.forEach((d) => {
+    const learners = Array.isArray(d.data()?.learners) ? d.data().learners : [];
+    for (const l of learners) {
+      if (learnerSet.size >= MAX_LEARNERS_TO_SCAN) break;
+      learnerSet.add(l);
+    }
+  });
+
+  const now = Date.now();
+  const windows = weeklyWindows(now, SERIES_WEEKS);
+  const sinceTs = admin.firestore.Timestamp.fromMillis(windows[0].startMs);
+
+  const classRows = learnerSet.size > 0 ?
+      (await fetchResultsForLearners(db, [...learnerSet], sinceTs)).map(toResultRow) :
+      [];
+
+  // Platform baseline: average `percentage` across ALL results per week.
+  // Aggregations scan index entries, not documents, so this stays cheap at
+  // any volume. Provisional partial marks are a small minority and settle
+  // on re-grade; filtering them here would need a composite index for
+  // little accuracy gain. Any failure → null (the chart hides the line).
+  const platformWeekly = await Promise.all(windows.map(async ({startMs, endMs}) => {
+    try {
+      const snap = await db.collection("results")
+          .where("completedAt", ">=", admin.firestore.Timestamp.fromMillis(startMs))
+          .where("completedAt", "<", admin.firestore.Timestamp.fromMillis(endMs))
+          .aggregate({
+            avgPercentage: AggregateField.average("percentage"),
+            attempts: AggregateField.count(),
+          })
+          .get();
+      const data = snap.data();
+      return data.attempts > 0 && Number.isFinite(data.avgPercentage) ?
+          data.avgPercentage :
+          null;
+    } catch (err) {
+      console.warn("[classPerformance] platform aggregate failed", err);
+      return null;
+    }
+  }));
+
+  const series = buildPerformanceSeries({
+    classRows,
+    platformWeekly,
+    now,
+    weeks: SERIES_WEEKS,
+  });
+
+  return {
+    series,
+    hasData: hasChartableData(series),
+    classCount: classesSnap.size,
+    learnerCount: learnerSet.size,
+    windowWeeks: SERIES_WEEKS,
+    generatedAtMs: now,
+  };
+});
+
+module.exports = {getClassStats, getClassPerformanceSeries};

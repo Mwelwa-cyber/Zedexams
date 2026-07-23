@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useFirestore } from '../../../hooks/useFirestore'
+import { getClassPerformanceSeries } from '../../../utils/classPerformance'
 import {
   listMyGenerations,
   summarizeGenerations,
@@ -55,6 +56,22 @@ export default function useTeacherDashboardData() {
   const [reloadKey, setReloadKey] = useState(0)
 
   const reload = useCallback(() => setReloadKey((k) => k + 1), [])
+
+  // Real class-performance series (Your Class vs platform average) — the
+  // chart's preferred data. Fetched once (session-cached client-side);
+  // null until it arrives or when the teacher has no chartable class data,
+  // in which case the chart falls back to the documents-created trend.
+  const [classPerformance, setClassPerformance] = useState(null)
+  useEffect(() => {
+    if (!currentUser) return
+    let cancelled = false
+    getClassPerformanceSeries()
+        .then((data) => {
+          if (!cancelled && data?.hasData) setClassPerformance(data)
+        })
+        .catch(() => { /* baseline chart still renders from activity */ })
+    return () => { cancelled = true }
+  }, [currentUser])
 
   useEffect(() => {
     if (!currentUser) return
@@ -202,6 +219,7 @@ export default function useTeacherDashboardData() {
     feed: feedFromState({ resources, gensError, now }),
     activity: activityFromResources(resources, { limit: 3, now }),
     series: activitySeriesFromResources(resources, { now, weeks: 5 }),
+    classPerformance,
     recommendations: recommendationCards,
     reload,
   }
