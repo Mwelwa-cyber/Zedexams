@@ -37,7 +37,12 @@ export function useStudioState() {
   // Learning environments selected by teacher
   const [learningEnvironments, setLearningEnvironments] = useState([])
 
-  // Lesson series (multi-lesson planning, CBC only)
+  // Lesson series (multi-lesson planning, CBC only).
+  // User-typed keys: planningMode, totalLessons, lessonNumber, lessonFocus.
+  // Machine-stamped keys: seriesId (minted by handleGenerate), aiSuggestedReason.
+  // Adding a new USER-TYPED key? Also add it to draftInputFingerprint in
+  // LessonPlanStudio.jsx so an in-flight generation can't clear a draft the
+  // teacher has since edited through that key.
   const [lessonSeries, setLessonSeries] = useState({
     seriesId: null,
     planningMode: 'single', // 'single' | 'series'

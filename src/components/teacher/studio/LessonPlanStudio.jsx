@@ -561,7 +561,7 @@ export default function LessonPlanStudio() {
     state: draftState,
     enabled: Boolean(uid && featureFlags?.universalDrafts !== false),
     onRestore: restoreDraft,
-    // Wizard autosave: settle writes ~0.9s after the teacher stops typing so a
+    // Wizard autosave: settle writes 0.9s after the teacher stops typing so a
     // mid-step exit loses at most a moment of input (was the 2.5s default).
     debounceMs: 900,
   })
@@ -1458,7 +1458,11 @@ export default function LessonPlanStudio() {
               // a flush error still exits; the on-device copy is best-effort.
               try {
                 await draftRef.current.flush?.()
-              } catch { /* exit anyway */ }
+              } catch (err) {
+                // Exit anyway — the debounced on-device copy is the recovery
+                // path — but leave a trace so failing flushes are visible.
+                console.warn('[zedexams] draft flush failed on exit', err)
+              }
               navigate('/teacher/lesson-plans')
             }}
             // Also true while a generation is in flight or failed, so the
