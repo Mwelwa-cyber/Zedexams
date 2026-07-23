@@ -71,7 +71,7 @@ function sublineFor(lastOpened) {
  * Closes on X, backdrop tap, Escape, or selecting any destination; the page
  * behind cannot scroll while it is open.
  */
-function NavDrawer({ open, onClose, teacher, dark, onToggleTheme, onLogout }) {
+export function NavDrawer({ open, onClose, teacher, dark, onToggleTheme, onLogout }) {
   const [accountOpen, setAccountOpen] = useState(false)
   const panelRef = useRef(null)
   const accountRef = useRef(null)
@@ -266,53 +266,11 @@ function NavDrawer({ open, onClose, teacher, dark, onToggleTheme, onLogout }) {
   )
 }
 
-/**
- * Dedicated MOBILE information architecture for Dashboard V2 (< 768px) —
- * its own header, drawer, single-column sections, and fixed bottom nav.
- * Never renders the desktop sidebar. Same props contract as the desktop
- * layout inside DashboardView, so live data and the mock preview both flow
- * through unchanged.
- */
-export default function MobileDashboardView({
-  teacher,
-  greeting,
-  lastOpened,
-  ctaState = 'default',
-  onContinue,
-  recommendations,
-  documents = [],
-  checklist,
-  feed,
-  activity,
-  series,
-  classPerformance = null,
-  loading = false,
-  onRetryFeed,
-  dark = false,
-  onToggleTheme,
-  onRequestLogout,
-  showToast,
-  banner = null,
-}) {
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const [menuFor, setMenuFor] = useState(null)
-  const [query, setQuery] = useState('')
-  const navigate = useNavigate()
-  const { pathname } = useLocation()
+/** Compact mobile header — shared by the dashboard and Help & Support. */
+export function MobileHeader({ drawerOpen, onOpenMenu }) {
   const { unreadCount, open: notifOpen, setOpen: setNotifOpen } = useNotifications()
-  const PartIcon = PART_ICON[greeting.part] || Sunset
-
-  const submitSearch = (e) => {
-    e.preventDefault()
-    const q = query.trim()
-    navigate(q ? `/teacher/library?q=${encodeURIComponent(q)}` : '/teacher/library')
-  }
-
-  const closeDrawer = useCallback(() => setDrawerOpen(false), [])
-  const mobileDocs = documents.slice(0, 4)
-
   return (
-    <div className="tdv2m">
+    <>
       <header className="tdv2m-header">
         <button
           type="button"
@@ -320,7 +278,7 @@ export default function MobileDashboardView({
           aria-label="Open menu"
           aria-haspopup="dialog"
           aria-expanded={drawerOpen}
-          onClick={() => setDrawerOpen(true)}
+          onClick={onOpenMenu}
         >
           <Menu size={22} strokeWidth={2} aria-hidden="true" />
         </button>
@@ -353,6 +311,92 @@ export default function MobileDashboardView({
         </Link>
       </header>
       {notifOpen ? <NotificationCenter /> : null}
+    </>
+  )
+}
+
+/** Fixed bottom navigation — shared by the dashboard and Help & Support. */
+export function MobileBottomNav({ drawerOpen, onMore }) {
+  const { pathname } = useLocation()
+  return (
+    <nav className="tdv2m-bottomnav" aria-label="Quick navigation">
+      {BOTTOM_NAV.map(({ id, label, icon: NavIcon, to }) => {
+        const active =
+          to === '/teacher'
+            ? pathname === '/teacher' || pathname === '/teacher/dashboard-preview'
+            : pathname === to || pathname.startsWith(`${to}/`)
+        return (
+          <Link
+            key={id}
+            to={to}
+            className={`tdv2m-bn-item ${active ? 'is-active' : ''}`}
+            aria-current={active ? 'page' : undefined}
+          >
+            <NavIcon size={22} strokeWidth={1.75} aria-hidden="true" />
+            <span className="tdv2m-bn-label">{label}</span>
+          </Link>
+        )
+      })}
+      <button
+        type="button"
+        className="tdv2m-bn-item"
+        aria-haspopup="dialog"
+        aria-expanded={drawerOpen}
+        onClick={onMore}
+      >
+        <MoreHorizontal size={22} strokeWidth={1.75} aria-hidden="true" />
+        <span className="tdv2m-bn-label">More</span>
+      </button>
+    </nav>
+  )
+}
+
+/**
+ * Dedicated MOBILE information architecture for Dashboard V2 (< 768px) —
+ * its own header, drawer, single-column sections, and fixed bottom nav.
+ * Never renders the desktop sidebar. Same props contract as the desktop
+ * layout inside DashboardView, so live data and the mock preview both flow
+ * through unchanged.
+ */
+export default function MobileDashboardView({
+  teacher,
+  greeting,
+  lastOpened,
+  ctaState = 'default',
+  onContinue,
+  recommendations,
+  documents = [],
+  checklist,
+  feed,
+  activity,
+  series,
+  classPerformance = null,
+  loading = false,
+  onRetryFeed,
+  dark = false,
+  onToggleTheme,
+  onRequestLogout,
+  showToast,
+  banner = null,
+}) {
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [menuFor, setMenuFor] = useState(null)
+  const [query, setQuery] = useState('')
+  const navigate = useNavigate()
+  const PartIcon = PART_ICON[greeting.part] || Sunset
+
+  const submitSearch = (e) => {
+    e.preventDefault()
+    const q = query.trim()
+    navigate(q ? `/teacher/library?q=${encodeURIComponent(q)}` : '/teacher/library')
+  }
+
+  const closeDrawer = useCallback(() => setDrawerOpen(false), [])
+  const mobileDocs = documents.slice(0, 4)
+
+  return (
+    <div className="tdv2m">
+      <MobileHeader drawerOpen={drawerOpen} onOpenMenu={() => setDrawerOpen(true)} />
 
       <main className="tdv2m-content">
         {banner}
@@ -495,35 +539,7 @@ export default function MobileDashboardView({
         <PerformanceSnapshotCard series={series} classPerformance={classPerformance} dark={dark} />
       </main>
 
-      <nav className="tdv2m-bottomnav" aria-label="Quick navigation">
-        {BOTTOM_NAV.map(({ id, label, icon: NavIcon, to }) => {
-          const active =
-            to === '/teacher'
-              ? pathname === '/teacher' || pathname === '/teacher/dashboard-preview'
-              : pathname === to || pathname.startsWith(`${to}/`)
-          return (
-            <Link
-              key={id}
-              to={to}
-              className={`tdv2m-bn-item ${active ? 'is-active' : ''}`}
-              aria-current={active ? 'page' : undefined}
-            >
-              <NavIcon size={22} strokeWidth={1.75} aria-hidden="true" />
-              <span className="tdv2m-bn-label">{label}</span>
-            </Link>
-          )
-        })}
-        <button
-          type="button"
-          className="tdv2m-bn-item"
-          aria-haspopup="dialog"
-          aria-expanded={drawerOpen}
-          onClick={() => setDrawerOpen(true)}
-        >
-          <MoreHorizontal size={22} strokeWidth={1.75} aria-hidden="true" />
-          <span className="tdv2m-bn-label">More</span>
-        </button>
-      </nav>
+      <MobileBottomNav drawerOpen={drawerOpen} onMore={() => setDrawerOpen(true)} />
 
       <NavDrawer
         open={drawerOpen}
