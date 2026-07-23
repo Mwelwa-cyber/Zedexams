@@ -156,6 +156,17 @@ export function studioSavedCounts(byTool = {}, assessmentCount = 0) {
   return out
 }
 
+/**
+ * Studios that currently need the teacher's attention, for the launcher's
+ * warning-dot badge — derived ONLY from data the dashboard already fetched.
+ * Today: draft assessment papers (no questions yet) flag the Assessment
+ * Paper Studio. Returns an array of studio ids.
+ */
+export function launcherWarningsFromResources(resources = []) {
+  const hasDraftPapers = resources.some((r) => r.tool === 'assessment' && r.status === 'draft')
+  return hasDraftPapers ? ['assessment-papers'] : []
+}
+
 /** Checklist rows from buildWeekPrep()'s output (rows with a real target). */
 export function checklistFromWeekPrep(weekPrep) {
   if (!weekPrep || weekPrep.empty || !Array.isArray(weekPrep.rows)) return []

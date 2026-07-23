@@ -12,6 +12,7 @@ import {
   applyChip,
   badgeIsPending,
   columnsForWidth,
+  favouriteStudios as pickFavouriteStudios,
   filterStudiosByPermission,
   lastOpenedLabel,
   recentLimitForWidth,
@@ -25,6 +26,7 @@ import useRecentStudios from './useRecentStudios'
 import StudioAppIcon from './StudioAppIcon'
 import StudioCategory from './StudioCategory'
 import RecentStudios from './RecentStudios'
+import FavouriteStudios from './FavouriteStudios'
 import StudioInfoPopover from './StudioInfoPopover'
 import StudioInfoBottomSheet from './StudioInfoBottomSheet'
 import ToolSearch from './ToolSearch'
@@ -74,14 +76,18 @@ function useLauncherBreakpoint() {
  * teacherStudios.js. Saved counts come in via the `savedCounts` prop (the
  * dashboard's existing aggregate); this component never queries per-icon.
  */
-export default function TeacherAppLauncher({ savedCounts = null, loading = false }) {
+export default function TeacherAppLauncher({ savedCounts = null, loading = false, warnings = [] }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { isTeacher = true } = useAuth() || {}
   const { columns, recentLimit } = useLauncherBreakpoint()
 
-  const { favouriteSet, toggle: toggleFavourite } = useStudioFavourites()
+  const { favourites, favouriteSet, toggle: toggleFavourite } = useStudioFavourites()
   const { recents, openedAt, record } = useRecentStudios()
+
+  // Studios needing attention (e.g. draft papers) — drives the warning-dot
+  // badge; derived upstream from data the dashboard already fetched.
+  const warningSet = useMemo(() => new Set(warnings), [warnings])
 
   const [query, setQuery] = useState('')
   const [chip, setChip] = useState('all')
@@ -148,6 +154,13 @@ export default function TeacherAppLauncher({ savedCounts = null, loading = false
     () => pickRecentStudios(recents, STUDIO_BY_ID, recentLimit)
       .filter((s) => permitted.some((p) => p.id === s.id)),
     [recents, recentLimit, permitted],
+  )
+
+  // Pinned favourites row (default view) — the teacher's own pin order.
+  const favouriteList = useMemo(
+    () => pickFavouriteStudios(favourites, STUDIO_BY_ID)
+      .filter((s) => permitted.some((p) => p.id === s.id)),
+    [favourites, permitted],
   )
 
   // ── Popover open/close (hover intent + travel grace) ─────────────────
@@ -279,7 +292,7 @@ export default function TeacherAppLauncher({ savedCounts = null, loading = false
   const handleIconOpen = useCallback((studio) => record(studio.id), [record])
 
   const renderIcon = useCallback((studio) => {
-    const badge = resolveBadge(studio, savedCounts)
+    const badge = resolveBadge(studio, savedCounts, { warnings: warningSet })
     return (
       <StudioAppIcon
         studio={studio}
@@ -292,10 +305,10 @@ export default function TeacherAppLauncher({ savedCounts = null, loading = false
         onLongPress={openSheet}
       />
     )
-  }, [savedCounts, loading, favouriteSet, handleIconOpen, showInfo, scheduleHide, openSheet])
+  }, [savedCounts, loading, favouriteSet, warningSet, handleIconOpen, showInfo, scheduleHide, openSheet])
 
-  const infoBadge = info ? resolveBadge(info.studio, savedCounts) : null
-  const sheetBadge = sheetStudio ? resolveBadge(sheetStudio, savedCounts) : null
+  const infoBadge = info ? resolveBadge(info.studio, savedCounts, { warnings: warningSet }) : null
+  const sheetBadge = sheetStudio ? resolveBadge(sheetStudio, savedCounts, { warnings: warningSet }) : null
   const infoCount = info?.studio?.countKey && savedCounts ? savedCounts[info.studio.countKey] : null
   const sheetCount = sheetStudio?.countKey && savedCounts ? savedCounts[sheetStudio.countKey] : null
 
@@ -409,7 +422,10 @@ export default function TeacherAppLauncher({ savedCounts = null, loading = false
         </div>
       ) : null}
 
-      {/* ── Recently used ──────────────────────────────────────────── */}
+      {/* ── Favourites + Recently used (default view only) ─────────── */}
+      {!filtered ? (
+        <FavouriteStudios studios={favouriteList} columns={columns} renderIcon={renderIcon} />
+      ) : null}
       {!filtered ? (
         <RecentStudios studios={recentList} columns={columns} renderIcon={renderIcon} />
       ) : null}

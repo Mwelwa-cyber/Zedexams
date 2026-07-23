@@ -57,14 +57,22 @@ export function searchStudios(studios = [], query = '') {
 
 /**
  * Resolve the single badge to render on a studio icon. Priority:
- *   1. a live saved count > 0        → { type: 'saved', label: 'N saved', count }
- *   2. a static 'new' flag           → { type: 'new', label: 'New' }
- *   3. an explicit setup/warning flag
- * `counts` is a { countKey: number } map (or null while loading).
+ *   1. a LIVE warning (opts.warnings has the studio id) — actionable beats
+ *      informational → { type: 'warning', label: 'Needs attention' }
+ *   2. a live saved count > 0        → { type: 'saved', label: 'N saved', count }
+ *   3. a static 'new' flag           → { type: 'new', label: 'New' }
+ *   4. an explicit setup/warning flag
+ * `counts` is a { countKey: number } map (or null while loading);
+ * `opts.warnings` is a Set/array of studio ids that currently need action
+ * (derived from data the dashboard already fetched — e.g. draft papers).
  * Returns null when there is nothing to show.
  */
-export function resolveBadge(studio, counts) {
+export function resolveBadge(studio, counts, { warnings } = {}) {
   if (!studio) return null
+  const warned = warnings
+    ? (typeof warnings.has === 'function' ? warnings.has(studio.id) : warnings.includes(studio.id))
+    : false
+  if (warned) return { type: 'warning', label: 'Needs attention' }
   if (studio.countKey && counts && typeof counts[studio.countKey] === 'number') {
     const n = counts[studio.countKey]
     if (n > 0) return { type: 'saved', label: `${n} saved`, count: n }
@@ -208,6 +216,36 @@ export function resolvePopoverPlacement(anchor, viewport, size, gap = 10) {
   }
 
   return { side, top: Math.round(top), left: Math.round(left) }
+}
+
+/* ── Route → studio matching ─────────────────────────────────────────── */
+
+/**
+ * Resolve which studio a pathname belongs to, so ANY entry into a studio
+ * (sidebar, bottom nav, deep link — not just a launcher tap) records as
+ * "recently used".
+ *
+ * Matching: each studio's route (minus a trailing '/new') plus its optional
+ * `routeAliases` become prefixes; the LONGEST prefix that matches on a
+ * clean path-segment boundary wins ('/teacher/generate/sba' must not
+ * swallow '/teacher/generate/sba-tracker'). Non-studio pages (library,
+ * drafts, help, …) return null.
+ */
+export function studioIdForPath(pathname, studios = []) {
+  const path = String(pathname || '').split('?')[0].split('#')[0].replace(/\/+$/, '') || '/'
+  const candidates = []
+  for (const s of studios) {
+    const base = s.route.endsWith('/new') ? s.route.slice(0, -'/new'.length) : s.route
+    candidates.push({ id: s.id, prefix: base })
+    for (const alias of s.routeAliases || []) {
+      candidates.push({ id: s.id, prefix: alias })
+    }
+  }
+  candidates.sort((a, b) => b.prefix.length - a.prefix.length)
+  for (const { id, prefix } of candidates) {
+    if (path === prefix || path.startsWith(`${prefix}/`)) return id
+  }
+  return null
 }
 
 /** Human "Last opened" phrase from a timestamp (ms), or null. */

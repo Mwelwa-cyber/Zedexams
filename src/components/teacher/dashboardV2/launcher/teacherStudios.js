@@ -317,6 +317,7 @@ export const TEACHER_STUDIOS = [
     title: 'School-Based Assessment',
     description: 'Plan SBA tasks, year plans and mark tracking.',
     route: '/teacher/sba',
+    routeAliases: ['/teacher/generate/sba', '/teacher/generate/sba-planner', '/teacher/generate/sba-tracker'],
     savedWorkTo: '/teacher/library?type=sba_tasks',
     category: 'assessment',
     icon: GraduationCap,

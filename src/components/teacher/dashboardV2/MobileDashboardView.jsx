@@ -380,6 +380,7 @@ export default function MobileDashboardView({
   onContinue,
   recommendations,
   savedCounts = null,
+  launcherWarnings = [],
   checklist,
   feed,
   activity,
@@ -492,7 +493,7 @@ export default function MobileDashboardView({
 
         <AiRecommendationsCard recommendations={recommendations} />
 
-        <TeacherAppLauncher savedCounts={savedCounts} loading={loading} />
+        <TeacherAppLauncher savedCounts={savedCounts} warnings={launcherWarnings} loading={loading} />
 
         <ChecklistCard items={checklist} loading={loading} />
         <FeedStatusCard items={feed} onRetry={() => onRetryFeed?.({ showToast })} />

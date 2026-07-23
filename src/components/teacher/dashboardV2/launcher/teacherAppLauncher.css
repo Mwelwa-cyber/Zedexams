@@ -133,7 +133,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 38px;
+  min-height: 44px;
   padding: 0 14px;
   border-radius: 999px;
   border: 1px solid var(--border);
@@ -146,8 +146,9 @@
 }
 .tsl-chip:hover { border-color: var(--grey); color: var(--ink); }
 .tsl-chip.is-active {
-  background: var(--copper);
-  border-color: var(--copper);
+  /* copper-hover, not copper: white 13px text needs ≥4.5:1 (AA) */
+  background: var(--copper-hover);
+  border-color: var(--copper-hover);
   color: #fff;
   box-shadow: var(--shadow-copper);
 }
@@ -167,7 +168,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  min-height: 38px;
+  min-height: 44px;
   padding: 0 14px;
   border-radius: 999px;
   border: 1px solid var(--border);
@@ -178,7 +179,7 @@
   cursor: pointer;
 }
 .tsl-catfilter-btn:hover { border-color: var(--grey); }
-.tsl-catfilter-btn.is-active { border-color: var(--copper); color: var(--copper); }
+.tsl-catfilter-btn.is-active { border-color: var(--copper); color: var(--copper-pressed); }
 
 .tsl-catmenu {
   position: absolute;
@@ -196,17 +197,20 @@
   gap: 2px;
 }
 .tsl-catmenu-item {
+  display: flex;
+  align-items: center;
   text-align: left;
   border: 0;
   background: transparent;
   border-radius: 8px;
-  padding: 9px 10px;
+  min-height: 44px;
+  padding: 6px 10px;
   font-size: 13.5px;
   color: var(--ink);
   cursor: pointer;
 }
 .tsl-catmenu-item:hover { background: var(--cream); }
-.tsl-catmenu-item[aria-checked='true'] { color: var(--copper); font-weight: 600; }
+.tsl-catmenu-item[aria-checked='true'] { color: var(--copper-pressed); font-weight: 600; }
 
 /* ── Sections ────────────────────────────────────────────────────────── */
 .tsl-recent-head,
@@ -425,7 +429,7 @@
   box-shadow: 0 1px 2px rgba(16, 36, 62, 0.14);
 }
 .tsl-app-badge.kind-saved { background: #e4f1ef; color: #0f766e; }
-.tsl-app-badge.kind-new { background: var(--copper); color: #fff; }
+.tsl-app-badge.kind-new { background: var(--copper-hover); color: #fff; }
 .tsl-app-badge.kind-setup { background: #fef3c7; color: #b45309; }
 .tsl-app-badge.kind-warning {
   top: 8px;
@@ -495,7 +499,7 @@
   letter-spacing: 0.03em;
   text-transform: uppercase;
   color: #fff;
-  background: var(--copper);
+  background: var(--copper-hover);
   padding: 2px 6px;
   border-radius: 999px;
 }
@@ -520,7 +524,7 @@
   margin-top: 14px;
   border: 0;
   border-radius: 12px;
-  background: var(--copper);
+  background: var(--copper-hover);
   color: #fff;
   font-size: 14px;
   font-weight: 700;
@@ -528,7 +532,7 @@
   box-shadow: var(--shadow-copper);
   transition: background 140ms var(--ease);
 }
-.tsl-pop-primary:hover { background: var(--copper-hover); }
+.tsl-pop-primary:hover { background: var(--copper-pressed); }
 .tsl-pop-primary:focus-visible { outline: 3px solid rgba(198, 90, 36, 0.55); outline-offset: 2px; }
 
 .tsl-pop-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
@@ -552,7 +556,7 @@
 }
 .tsl-pop-secondary:hover,
 .tsl-pop-fav:hover { background: var(--cream); border-color: var(--grey); }
-.tsl-pop-fav.is-on { color: var(--copper); border-color: rgba(198, 90, 36, 0.5); background: var(--copper-tint); }
+.tsl-pop-fav.is-on { color: var(--copper-pressed); border-color: rgba(198, 90, 36, 0.5); background: var(--copper-tint); }
 .tsl-pop-secondary:focus-visible,
 .tsl-pop-fav:focus-visible { outline: 3px solid rgba(198, 90, 36, 0.5); outline-offset: 2px; }
 
@@ -647,6 +651,14 @@
    the content padding just enough to keep the 4-column grid comfortable at
    the smallest widths without ever causing horizontal page scroll. */
 .tdv2m-content .tsl { margin-inline: -4px; }
+
+/* Coarse pointers: the small icon buttons grow to the 44px target the
+   brief requires (visual size unchanged on desktop mice). */
+@media (pointer: coarse) {
+  .tsl-search-clear { width: 40px; height: 40px; }
+  .tsl-hint-close,
+  .tsl-sheet-close { width: 44px; height: 44px; }
+}
 
 /* ── Reduced motion ──────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {

@@ -243,4 +243,21 @@ describe('TeacherAppLauncher', () => {
       expect(s.savedWorkTo === null || typeof s.savedWorkTo === 'string').toBe(true)
     }
   })
+
+  it('pinned favourites surface as a row on the default view', () => {
+    localStorage.setItem('zedexams:teacher-favourites:u1', JSON.stringify(['notes', 'rubrics']))
+    const { container } = renderLauncher()
+    const favRow = container.querySelector('.tsl-favs')
+    expect(favRow).toBeTruthy()
+    const ids = within(favRow).getAllByLabelText(/Open studio$/).map((n) => n.getAttribute('data-studio'))
+    expect(ids).toEqual(['notes', 'rubrics'])
+  })
+
+  it('warning dot renders from the warnings prop and outranks the saved count', () => {
+    renderLauncher({ savedCounts: { assessment: 3 }, warnings: ['assessment-papers'] })
+    // aria-label carries the state — never colour-only
+    const icons = screen.getAllByLabelText(/^Assessment Paper Studio, Needs attention/)
+    expect(icons.length).toBeGreaterThan(0)
+    expect(icons[0].querySelector('.tsl-badge-dot')).toBeTruthy()
+  })
 })

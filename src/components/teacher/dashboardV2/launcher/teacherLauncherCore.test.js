@@ -17,6 +17,7 @@ import {
   resolvePopoverPlacement,
   sanitizeIds,
   searchStudios,
+  studioIdForPath,
   toggleFavourite,
 } from './teacherLauncherCore.js'
 
@@ -85,6 +86,37 @@ test('badgeIsPending only while a count-bearing studio has null counts', () => {
   assert.equal(badgeIsPending(STUDIO_BY_ID['schemes'], null), true)
   assert.equal(badgeIsPending(STUDIO_BY_ID['schemes'], {}), false)
   assert.equal(badgeIsPending(STUDIO_BY_ID['curriculum'], null), false)
+})
+
+test('a live warning outranks saved count and New', () => {
+  const s = STUDIO_BY_ID['assessment-papers']
+  const warned = resolveBadge(s, { assessment: 3 }, { warnings: new Set(['assessment-papers']) })
+  assert.deepEqual(warned, { type: 'warning', label: 'Needs attention' })
+  // arrays work too; other studios unaffected
+  assert.equal(resolveBadge(STUDIO_BY_ID['schemes'], {}, { warnings: ['assessment-papers'] }), null)
+})
+
+// ── Route → studio matching ─────────────────────────────────────────────
+test('studioIdForPath maps studio routes, subpages and aliases', () => {
+  const studios = [
+    ...TEACHER_STUDIOS,
+    { id: 'sba', title: 'SBA', description: 'School based assessment.', route: '/teacher/sba', routeAliases: ['/teacher/generate/sba', '/teacher/generate/sba-tracker'], category: 'assessment', countKey: null, badge: null, permission: 'teacher', keywords: [] },
+  ]
+  // exact route + '/new' stripped
+  assert.equal(studioIdForPath('/teacher/lesson-plans/new', studios), 'lesson-plans')
+  // subpages of the same studio
+  assert.equal(studioIdForPath('/teacher/lesson-plans/abc123/edit', studios), 'lesson-plans')
+  assert.equal(studioIdForPath('/teacher/assessment-papers/xyz/edit', studios), 'assessment-papers')
+  // query strings and trailing slashes ignored
+  assert.equal(studioIdForPath('/teacher/generate/worksheet/?from=nav', studios), 'worksheets')
+  // aliases count as the studio
+  assert.equal(studioIdForPath('/teacher/generate/sba', studios), 'sba')
+  assert.equal(studioIdForPath('/teacher/generate/sba-tracker', studios), 'sba')
+  // boundary: '/teacher/generate/sba' must NOT swallow unlisted siblings
+  assert.equal(studioIdForPath('/teacher/generate/sba-planner', studios), null)
+  // non-studio pages record nothing
+  assert.equal(studioIdForPath('/teacher/library', studios), null)
+  assert.equal(studioIdForPath('/teacher', studios), null)
 })
 
 // ── Favourites ──────────────────────────────────────────────────────────

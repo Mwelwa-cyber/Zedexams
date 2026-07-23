@@ -11,6 +11,7 @@ import { MobileHeader, MobileBottomNav, NavDrawer } from './dashboardV2/MobileDa
 import { STUDIO_NAV_GROUPS } from './dashboardV2/dashboardV2Config'
 import { teacherFromAuth } from './dashboardV2/dashboardV2Data'
 import useDashboardTheme from './dashboardV2/useDashboardTheme'
+import useRecordStudioVisit from './dashboardV2/launcher/useRecordStudioVisit'
 import './dashboardV2/dashboardV2.css'
 
 export default function TeacherLayout({ children }) {
@@ -20,6 +21,10 @@ export default function TeacherLayout({ children }) {
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const { dark, toggleTheme } = useDashboardTheme()
+
+  // Every route into a studio (sidebar, bottom nav, deep link) counts as a
+  // "recently used" visit — not only taps on the dashboard launcher.
+  useRecordStudioVisit()
 
   const teacher = teacherFromAuth({
     displayName: userProfile?.displayName || currentUser?.displayName,

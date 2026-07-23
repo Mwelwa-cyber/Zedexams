@@ -36,6 +36,7 @@ export default function DashboardView({
   onContinue,
   recommendations,
   savedCounts,
+  launcherWarnings = [],
   checklist,
   feed,
   activity,
@@ -84,6 +85,7 @@ export default function DashboardView({
           onContinue={onContinue}
           recommendations={recommendations}
           savedCounts={savedCounts}
+          launcherWarnings={launcherWarnings}
           checklist={checklist}
           feed={feed}
           activity={activity}
@@ -139,7 +141,7 @@ export default function DashboardView({
           </div>
 
           <div className="tdv2-launcher-block" ref={workspaceRef}>
-            <TeacherAppLauncher savedCounts={savedCounts} loading={loading} />
+            <TeacherAppLauncher savedCounts={savedCounts} warnings={launcherWarnings} loading={loading} />
           </div>
 
           <div className="tdv2-row-3">
