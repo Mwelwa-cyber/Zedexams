@@ -1,0 +1,70 @@
+# Dependabot — automated dependency + GitHub-Actions update PRs.
+# Addresses production-readiness findings CICD-002 (dependency scanning) and
+# CICD-007 (mutable action tags): Dependabot opens grouped update PRs weekly,
+# and the `github-actions` ecosystem below keeps our third-party actions
+# current (and, once any are SHA-pinned, bumps the pin deliberately).
+#
+# Scanning that *blocks* a merge on a newly-introduced critical prod vuln lives
+# in ci.yml's `dependency-audit` job; Dependabot is the remediation half — it
+# raises the PR that clears whatever the audit (or a new advisory) surfaces.
+version: 2
+updates:
+  # Frontend / root package.json (the Vite SPA + all repo-level tooling).
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    groups:
+      # Batch low-risk patch/minor bumps into one PR so the review queue
+      # isn't flooded; majors come as their own PRs to be assessed individually.
+      root-minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # Firebase SDK majors are coordinated, breaking migrations (auth
+      # persistence, App Check, Firestore cache) — never take them automatically.
+      - dependency-name: "firebase"
+        update-types: ["version-update:semver-major"]
+
+  # Cloud Functions (functions/ has its own package.json + lockfile).
+  - package-ecosystem: "npm"
+    directory: "/functions"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "functions"
+    groups:
+      functions-minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # firebase-functions / firebase-admin majors change the runtime contract
+      # (v2 triggers, region pinning) — take them deliberately, not automatically.
+      - dependency-name: "firebase-functions"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "firebase-admin"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions used across .github/workflows/ (CICD-007). Keeps third-party
+  # actions (android-actions/setup-android, r0adkll/upload-google-play,
+  # anthropics/*) current and surfaces upstream changes as reviewable PRs.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "ci"
+      - "github-actions"
