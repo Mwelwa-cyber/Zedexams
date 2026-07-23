@@ -56,8 +56,15 @@ export default function StudioInfoBottomSheet({
         </button>
 
         <div className="tsl-sheet-head">
-          <span className={`tsl-app-tile tint-${studio.tint || 'teal'}`} aria-hidden="true">
-            <Icon size={26} strokeWidth={1.9} />
+          <span
+            className={`tsl-app-tile ${studio.image ? 'is-img' : `tint-${studio.tint || 'teal'}`}`}
+            aria-hidden="true"
+          >
+            {studio.image ? (
+              <img className="tsl-app-img" src={studio.image} alt="" loading="lazy" />
+            ) : (
+              <Icon size={26} strokeWidth={1.9} />
+            )}
           </span>
           <div className="tsl-sheet-heading">
             <span className="tsl-sheet-title">{studio.title}</span>

@@ -309,6 +309,24 @@
 .tsl-app-tile.tint-purple { background: #efe9fb; color: #7c3aed; }
 .tsl-app-tile.tint-rose   { background: #fceaef; color: #d61f5c; }
 
+/* Bespoke 3D artwork tiles: the image is its own rounded, tinted app icon —
+   no extra tint background or inset ring, just a soft grounding shadow. */
+.tsl-app-tile.is-img {
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+.tsl-app-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 3px 5px rgba(16, 36, 62, 0.16));
+  -webkit-user-drag: none;
+  user-select: none;
+}
+.tsl-app:active .tsl-app-tile.is-img { transform: none; }
+
 .tsl-app-fav {
   position: absolute;
   right: -3px;
@@ -595,5 +613,6 @@
 
 /* ── Dark theme touch-ups (tokens already flip; tints need softening) ── */
 .tdv2.is-dark .tsl-app-tile { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06); }
+.tdv2.is-dark .tsl-app-tile.is-img { box-shadow: none; }
 .tdv2.is-dark .tsl-app:hover { background: rgba(255, 255, 255, 0.03); }
 .tdv2.is-dark .tsl-app-badge.kind-saved { background: rgba(15, 118, 110, 0.24); color: #6ee7d4; }

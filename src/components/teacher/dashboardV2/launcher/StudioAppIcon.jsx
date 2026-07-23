@@ -100,8 +100,15 @@ export default function StudioAppIcon({
         }
       }}
     >
-      <span className={`tsl-app-tile tint-${studio.tint || 'teal'}`} aria-hidden="true">
-        <Icon size={24} strokeWidth={1.9} />
+      <span
+        className={`tsl-app-tile ${studio.image ? 'is-img' : `tint-${studio.tint || 'teal'}`}`}
+        aria-hidden="true"
+      >
+        {studio.image ? (
+          <img className="tsl-app-img" src={studio.image} alt="" loading="lazy" draggable="false" />
+        ) : (
+          <Icon size={24} strokeWidth={1.9} />
+        )}
         {isFavourite ? (
           <span className="tsl-app-fav" aria-hidden="true">
             <Star size={11} strokeWidth={0} fill="currentColor" />

@@ -35,6 +35,21 @@ import {
   Users,
 } from 'lucide-react'
 
+// Bespoke 3D app-icon artwork (rounded, self-tinted). Where a studio has an
+// `image`, the launcher renders it in place of the Lucide glyph + tint tile;
+// studios without one fall back to their Lucide icon on a tinted tile. Drop a
+// new webp in ../../../assets/teacher/studio-icons and add its `image` here.
+import imgLessonPlans from '../../../../assets/teacher/studio-icons/lesson-plans.webp'
+import imgNotes from '../../../../assets/teacher/studio-icons/notes.webp'
+import imgWeeklyFocus from '../../../../assets/teacher/studio-icons/weekly-focus.webp'
+import imgHomework from '../../../../assets/teacher/studio-icons/homework.webp'
+import imgRecordOfWork from '../../../../assets/teacher/studio-icons/record-of-work.webp'
+import imgWorksheets from '../../../../assets/teacher/studio-icons/worksheets.webp'
+import imgVisualStudio from '../../../../assets/teacher/studio-icons/visual-studio.webp'
+import imgFlashcards from '../../../../assets/teacher/studio-icons/flashcards.webp'
+import imgCurriculum from '../../../../assets/teacher/studio-icons/curriculum.webp'
+import imgClassTimetable from '../../../../assets/teacher/studio-icons/class-timetable.webp'
+
 /** Ordered category definitions — drives the launcher's section order. */
 export const STUDIO_CATEGORIES = [
   { id: 'planning', label: 'Planning' },
@@ -74,6 +89,7 @@ export const TEACHER_STUDIOS = [
     route: '/teacher/generate/weekly-forecast',
     category: 'planning',
     icon: ClipboardList,
+    image: imgWeeklyFocus,
     tint: 'purple',
     countKey: 'weekly_forecast',
     badge: null,
@@ -87,6 +103,7 @@ export const TEACHER_STUDIOS = [
     route: '/teacher/lesson-plans/new',
     category: 'planning',
     icon: NotebookPen,
+    image: imgLessonPlans,
     tint: 'orange',
     countKey: 'lesson_plan',
     badge: null,
@@ -100,6 +117,7 @@ export const TEACHER_STUDIOS = [
     route: '/teacher/generate/record-of-work',
     category: 'planning',
     icon: BarChart3,
+    image: imgRecordOfWork,
     tint: 'rose',
     countKey: 'record_of_work',
     badge: null,
@@ -113,6 +131,7 @@ export const TEACHER_STUDIOS = [
     route: '/teacher/generate/class-timetable',
     category: 'planning',
     icon: CalendarClock,
+    image: imgClassTimetable,
     tint: 'blue',
     countKey: 'class_timetable',
     badge: null,
@@ -128,6 +147,7 @@ export const TEACHER_STUDIOS = [
     route: '/teacher/generate/worksheet',
     category: 'materials',
     icon: Files,
+    image: imgWorksheets,
     tint: 'green',
     countKey: 'worksheet',
     badge: null,
@@ -141,6 +161,7 @@ export const TEACHER_STUDIOS = [
     route: '/teacher/generate/notes',
     category: 'materials',
     icon: BookOpen,
+    image: imgNotes,
     tint: 'teal',
     countKey: 'notes',
     badge: null,
@@ -154,6 +175,7 @@ export const TEACHER_STUDIOS = [
     route: '/teacher/generate/homework',
     category: 'materials',
     icon: BookOpenCheck,
+    image: imgHomework,
     tint: 'orange',
     countKey: 'homework',
     badge: null,
@@ -167,6 +189,7 @@ export const TEACHER_STUDIOS = [
     route: '/teacher/visual-studio',
     category: 'materials',
     icon: Image,
+    image: imgVisualStudio,
     tint: 'purple',
     countKey: null,
     badge: 'new',
@@ -180,6 +203,7 @@ export const TEACHER_STUDIOS = [
     route: '/teacher/generate/flashcards',
     category: 'materials',
     icon: Layers,
+    image: imgFlashcards,
     tint: 'blue',
     countKey: 'flashcards',
     badge: null,
@@ -288,6 +312,7 @@ export const TEACHER_STUDIOS = [
     route: '/teacher/curriculum',
     category: 'setup',
     icon: Compass,
+    image: imgCurriculum,
     tint: 'orange',
     countKey: null,
     badge: null,

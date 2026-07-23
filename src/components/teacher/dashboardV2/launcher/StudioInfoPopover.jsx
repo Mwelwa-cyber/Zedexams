@@ -38,8 +38,15 @@ export default function StudioInfoPopover({
       onMouseLeave={onMouseLeave}
     >
       <div className="tsl-pop-head">
-        <span className={`tsl-app-tile tint-${studio.tint || 'teal'}`} aria-hidden="true">
-          <Icon size={22} strokeWidth={1.9} />
+        <span
+          className={`tsl-app-tile ${studio.image ? 'is-img' : `tint-${studio.tint || 'teal'}`}`}
+          aria-hidden="true"
+        >
+          {studio.image ? (
+            <img className="tsl-app-img" src={studio.image} alt="" loading="lazy" />
+          ) : (
+            <Icon size={22} strokeWidth={1.9} />
+          )}
         </span>
         <div className="tsl-pop-heading">
           <span className="tsl-pop-title">{studio.title}</span>
