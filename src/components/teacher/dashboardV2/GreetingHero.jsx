@@ -24,7 +24,7 @@ export default function GreetingHero({ greeting, lastOpened, ctaState = 'default
   const PartIcon = PART_ICON[greeting.part] || Sunset
 
   return (
-    <section className="tdv2-hero" aria-label="Greeting">
+    <section className="tdv2-hero" aria-label="Greeting" data-tour="hero">
       <img className="tdv2-hero-art" src={heroDesk} alt="" aria-hidden="true" />
       <div>
         <span className="tdv2-hero-eyebrow">

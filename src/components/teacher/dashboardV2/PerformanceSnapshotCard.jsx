@@ -53,7 +53,7 @@ export default function PerformanceSnapshotCard({ series = [], classPerformance 
   const activityMax = Math.max(4, ...series.map((p) => p.created || 0))
 
   return (
-    <section className="tdv2-card" aria-labelledby="tdv2-perf-h">
+    <section className="tdv2-card" aria-labelledby="tdv2-perf-h" data-tour="performance">
       <div className="tdv2-card-head" style={{ flexWrap: 'wrap' }}>
         <h2 className="tdv2-eyebrow" id="tdv2-perf-h">
           <ChartLine size={17} strokeWidth={2} aria-hidden="true" />

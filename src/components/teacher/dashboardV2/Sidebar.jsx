@@ -181,7 +181,7 @@ export default function Sidebar({ teacher, onRequestLogout, dark = false, onTogg
         </span>
       </div>
 
-      <nav className="tdv2-nav" aria-label="Primary">
+      <nav className="tdv2-nav" aria-label="Primary" data-tour="nav">
         {NAV_GROUPS.map((group) => (
           <div className="tdv2-nav-group" key={group.id}>
             {group.label ? (

@@ -9,6 +9,7 @@ import WorkspaceCard from './WorkspaceCard'
 import { ChecklistCard, FeedStatusCard, RecentActivityCard } from './InsightCards'
 import PerformanceSnapshotCard from './PerformanceSnapshotCard'
 import LogoutDialog from './LogoutDialog'
+import OnboardingTour from './OnboardingTour'
 import { Toast } from './PreviewChrome'
 import useDashboardTheme from './useDashboardTheme'
 import useIsMobile from './useIsMobile'
@@ -107,6 +108,7 @@ export default function DashboardView({
           />
         ) : null}
         <Toast toast={toast} />
+        <OnboardingTour isMobile loading={loading} />
         {renderExtras ? renderExtras({ openLogout, showToast }) : null}
       </div>
     )
@@ -166,6 +168,7 @@ export default function DashboardView({
       ) : null}
 
       <Toast toast={toast} />
+      <OnboardingTour loading={loading} />
       {renderExtras ? renderExtras({ openLogout, showToast }) : null}
     </div>
   )
