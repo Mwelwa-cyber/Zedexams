@@ -19,10 +19,112 @@ updates:
     labels:
       - "dependencies"
     groups:
-      # Batch low-risk patch/minor bumps into one PR so the review queue
-      # isn't flooded; majors come as their own PRs to be assessed individually.
-      root-minor-and-patch:
+      # Split low-risk patch/minor bumps into small, logically-related groups
+      # so each PR is reviewable on its own — a single all-in-one group produced
+      # a 38-package batch (closed #1870) that couldn't be reviewed or bisected.
+      # A dependency lands in the FIRST group whose patterns match; the trailing
+      # misc-minor-and-patch catch-all keeps everything else from splintering
+      # into dozens of single-package PRs. Majors are never grouped here — they
+      # come as their own PRs to be assessed individually.
+      react:
         applies-to: version-updates
+        patterns:
+          - "react"
+          - "react-dom"
+          - "react-router"
+          - "react-router-dom"
+          - "scheduler"
+          - "@types/react"
+          - "@types/react-dom"
+        update-types:
+          - "minor"
+          - "patch"
+      firebase-sdk:
+        applies-to: version-updates
+        patterns:
+          - "firebase"
+          - "@firebase/*"
+        update-types:
+          - "minor"
+          - "patch"
+      build-tooling:
+        applies-to: version-updates
+        patterns:
+          - "vite"
+          - "vite-plugin-*"
+          - "@vitejs/*"
+          - "rollup"
+          - "@rollup/*"
+          - "rolldown"
+          - "esbuild"
+          - "@esbuild/*"
+          - "postcss"
+          - "autoprefixer"
+          - "tailwindcss"
+          - "@tailwindcss/*"
+          - "workbox-*"
+        update-types:
+          - "minor"
+          - "patch"
+      testing:
+        applies-to: version-updates
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+          - "@testing-library/*"
+          - "jsdom"
+          - "happy-dom"
+          - "puppeteer"
+        update-types:
+          - "minor"
+          - "patch"
+      linting:
+        applies-to: version-updates
+        patterns:
+          - "eslint"
+          - "@eslint/*"
+          - "eslint-plugin-*"
+          - "eslint-config-*"
+          - "globals"
+          - "lint-staged"
+          - "husky"
+          - "prettier"
+        update-types:
+          - "minor"
+          - "patch"
+      editor:
+        applies-to: version-updates
+        patterns:
+          - "@tiptap/*"
+          - "prosemirror-*"
+          - "katex"
+          - "marked"
+          - "dompurify"
+        update-types:
+          - "minor"
+          - "patch"
+      i18n:
+        applies-to: version-updates
+        patterns:
+          - "i18next"
+          - "i18next-*"
+          - "react-i18next"
+        update-types:
+          - "minor"
+          - "patch"
+      observability:
+        applies-to: version-updates
+        patterns:
+          - "@sentry/*"
+          - "@sentry-internal/*"
+          - "posthog-js"
+        update-types:
+          - "minor"
+          - "patch"
+      misc-minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
         update-types:
           - "minor"
           - "patch"
