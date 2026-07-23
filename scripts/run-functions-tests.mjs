@@ -44,6 +44,13 @@ export function discoverFunctionTests(scripts = {}) {
   const files = [];
   for (const [name, cmd] of Object.entries(scripts)) {
     if (!name.startsWith('test:') || name === 'test:all') continue;
+    // Only plain `node …` commands belong to this coverage suite. An
+    // emulator-wrapped script (e.g. `npx firebase-tools emulators:exec …
+    // "node functions/x.test.js"`) also mentions a functions test path, but it
+    // MUST NOT be run under plain `node` here — it needs the emulator/JVM and
+    // guard-exits without it. Same `node`-prefix filter run-all-tests.mjs uses
+    // to keep the emulator suites out of test:all.
+    if (!/^node\b/.test(String(cmd).trim())) continue;
     const matches = String(cmd).match(/functions\/[^\s&|'"]+\.test\.js/g) || [];
     for (const m of matches) {
       if (seen.has(m)) continue;

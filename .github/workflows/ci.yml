@@ -219,3 +219,36 @@ jobs:
         run: npm ci
       - name: Storage rules tests
         run: npm run test:storage-rules-emulator
+
+  payment-lifecycle-emulator:
+    # End-to-end payment lifecycle against the Firestore + Storage emulators.
+    # Drives the REAL subscriptionActivation.js + lencoWebhookProcessor.js
+    # transactions with the mock provider adapter standing in for the Lenco
+    # sandbox — the emulator half of the payment-lifecycle launch blocker.
+    # Unlike the rules-emulator jobs (client SDK only) this one requires
+    # firebase-admin, a functions/ dependency, so it installs functions/ deps
+    # too; it needs the JVM for the emulator. Storage emulator is booted so the
+    # best-effort invoice-PDF side effect exercises end-to-end instead of
+    # failing on a missing bucket.
+    name: Tests (Payment lifecycle emulator)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: "npm"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Install dependencies
+        run: npm ci
+      - name: Install functions dependencies
+        run: npm ci
+        working-directory: functions
+      - name: Payment lifecycle tests
+        run: npm run test:payment-lifecycle-emulator
