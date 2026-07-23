@@ -81,8 +81,8 @@ vi.mock('./StudioShell', () => ({
   ),
 }))
 
-vi.mock('./StudioSidebar', () => ({
-  StudioSidebar: ({ studioState, isValid, onGenerate, onContinue, onViewCompleted, aiState, seriesState }) => (
+vi.mock('./wizard/LessonPlanWizard', () => ({
+  LessonPlanWizard: ({ studioState, isValid, onGenerate, onContinue, onViewCompleted, aiState, seriesState }) => (
     <div data-testid="studio-sidebar">
       <span data-testid="is-valid">{String(isValid)}</span>
       <span data-testid="curriculum-mode">{studioState.curriculumMode ?? 'null'}</span>
@@ -221,6 +221,8 @@ function makeStudioState(overrides = {}) {
     setGenerationStatus: vi.fn(),
     generatedPlan: null,
     setGeneratedPlan: vi.fn(),
+    wizardStep: 0,
+    setWizardStep: vi.fn(),
     ...overrides,
   }
 }
@@ -1155,8 +1157,10 @@ describe('LessonPlanStudio — edit mode', () => {
     await waitFor(() =>
       expect(screen.getByTestId('canvas-error').textContent).toMatch(/could not open that saved lesson plan/i),
     )
-    // Still the idle studio — the teacher can build a new plan.
-    expect(screen.getByTestId('canvas-status').textContent).toBe('idle')
+    // The canvas flips to its error state so the message is actually VISIBLE
+    // (the error panel is gated on status === 'error'); the wizard's Back to
+    // form control still lets the teacher build a new plan.
+    expect(screen.getByTestId('canvas-status').textContent).toBe('error')
   })
 
   it('does not fetch anything on the new-plan route (no :lessonPlanId)', async () => {

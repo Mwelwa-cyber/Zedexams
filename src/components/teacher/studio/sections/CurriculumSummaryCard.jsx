@@ -13,11 +13,11 @@ const SECTION_VALUE_CLS = 'text-[13px] text-[#3d3529] leading-snug'
  *   curriculumMode: 'cbc' | 'previous' | null
  *   selectedOutcomes: string[] — outcomes to highlight (Previous mode only)
  */
-export function CurriculumSummaryCard({ subtopicRow, curriculumMode, selectedOutcomes = [] }) {
+export function CurriculumSummaryCard({ subtopicRow, curriculumMode, selectedOutcomes = [], embedded = false }) {
   if (!subtopicRow) return null
 
   return (
-    <div className="mx-4 mb-4 rounded-2xl bg-[#FFF4E8] p-4 lps-soft-shadow lps-section-enter">
+    <div className={[embedded ? '' : 'mx-4 mb-4', 'rounded-2xl bg-[#FFF4E8] p-4 lps-soft-shadow lps-section-enter'].join(' ')}>
       {/* Card header */}
       <div className="mb-3 flex items-center gap-2">
         <span className="grid h-6 w-6 flex-shrink-0 place-items-center rounded-lg border border-[#0F1B2D] bg-[#FF7A1A] text-white" aria-hidden="true">

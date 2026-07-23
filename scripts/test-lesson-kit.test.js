@@ -68,8 +68,10 @@ for (const route of [
 check(/lessonPlanId/.test(studio), 'LessonPlanStudio grounds Notes on the saved plan via lessonPlanId')
 check(/buildAlignmentInstructions\(/.test(studio), 'LessonPlanStudio aligns kit tools with the plan\'s CBC anchors')
 
-// 4. The kit only shows once a plan exists (gated on kit state).
-check(/\{kit && \(/.test(studio), 'LessonPlanStudio only shows the kit bar after a plan is generated')
+// 4. The kit only shows once a plan exists (gated on kit state) AND while the
+//    generated document is on screen — never over the creation wizard, whose
+//    sticky step navigation owns the bottom edge (wizard redesign 2026-07).
+check(/\{kit && studioView === 'canvas' && \(/.test(studio), 'LessonPlanStudio only shows the kit bar after a plan is generated (canvas view)')
 
 // 5. AssessmentStudio consumes the deep-link params (the others read them via
 //    useFormDefaultsFromUrl; AssessmentStudio uses the dedicated converter).

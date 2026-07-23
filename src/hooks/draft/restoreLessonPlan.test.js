@@ -28,6 +28,7 @@ function makeSetters() {
     setLessonSeries: rec('setLessonSeries'),
     setLessonBreakdown: rec('setLessonBreakdown'),
     setFormatOptions: rec('setFormatOptions'),
+    setWizardStep: rec('setWizardStep'),
     // Present but must NEVER be used by the restore (would trigger the cascade).
     setTopicField: rec('setTopicField'),
     updateTopic: rec('updateTopic'),
@@ -86,6 +87,27 @@ console.log('\napplyLessonPlanRestore — formatOptions restored whole (nested a
   applyLessonPlanRestore(s, cbcPayload)
   const fo = s.calls.find((c) => c.name === 'setFormatOptions')
   assert(fo && fo.arg.advanced?.includeAttendance === true, 'nested advanced block restored in one shot')
+}
+
+console.log('\napplyLessonPlanRestore — wizard step restored last (optional)')
+{
+  const s = makeSetters()
+  applyLessonPlanRestore(s, { ...cbcPayload, wizardStep: 3 })
+  const names = s.calls.map((c) => c.name)
+  const stepCall = s.calls.find((c) => c.name === 'setWizardStep')
+  assert(stepCall && stepCall.arg === 3, 'wizardStep restored when present')
+  assert(names[names.length - 1] === 'setWizardStep', 'wizardStep restored AFTER every data slice')
+
+  const noStep = makeSetters()
+  applyLessonPlanRestore(noStep, cbcPayload)
+  assert(!noStep.calls.some((c) => c.name === 'setWizardStep'),
+    'pre-wizard drafts (no wizardStep) do not call setWizardStep')
+
+  // A studio without the setter (older harness/stub) must not throw.
+  const legacy = makeSetters()
+  delete legacy.setWizardStep
+  applyLessonPlanRestore(legacy, { ...cbcPayload, wizardStep: 2 })
+  assert(true, 'missing setWizardStep setter is tolerated')
 }
 
 console.log('\napplyLessonPlanRestore — no-ops safely')

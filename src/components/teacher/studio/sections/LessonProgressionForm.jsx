@@ -195,6 +195,7 @@ function RecommendationPanel({ recommendation, loading, error, onFetchRecommenda
  *   loading:              boolean
  *   error:                string | null
  *   onFetchRecommendation:() => void
+ *   embedded:             boolean — wizard mode: body only, no section chrome
  */
 export function LessonProgressionForm({
   lessonSeries,
@@ -206,6 +207,7 @@ export function LessonProgressionForm({
   loading,
   error,
   onFetchRecommendation,
+  embedded = false,
 }) {
   const [open, setOpen] = useState(true)
 
@@ -256,8 +258,9 @@ export function LessonProgressionForm({
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="border-b border-[#e5ddd0]">
-      {/* Section header */}
+    <div className={embedded ? '' : 'border-b border-[#e5ddd0]'}>
+      {/* Section header (hidden in embedded wizard mode) */}
+      {!embedded && (
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -291,10 +294,11 @@ export function LessonProgressionForm({
           <polyline points="6 9 12 15 18 9" />
         </svg>
       </button>
+      )}
 
       {/* Collapsible body */}
-      {open && (
-        <div className="px-4 pb-4 space-y-3">
+      {(open || embedded) && (
+        <div className={embedded ? 'space-y-3' : 'px-4 pb-4 space-y-3'}>
           {/* Planning mode toggle */}
           <div>
             <span className={LABEL_CLS}>Planning Mode</span>

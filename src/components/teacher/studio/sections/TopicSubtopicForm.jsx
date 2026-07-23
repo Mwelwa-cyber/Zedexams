@@ -33,6 +33,7 @@ function isDone(topicData) {
  *   onSubtopicChange: (subtopic: string) => void
  *   onSubtopicRowLoaded: (row: object|null) => void — called when curriculum row is fetched
  *   disabled: boolean — true when grade+subject are not yet filled
+ *   embedded: boolean — wizard mode: fields only, no collapsible section chrome
  */
 export function TopicSubtopicForm({
   topicData,
@@ -42,14 +43,42 @@ export function TopicSubtopicForm({
   onSubtopicChange,
   onSubtopicRowLoaded,
   disabled,
+  embedded = false,
 }) {
   const [open, setOpen] = useState(true)
+  // Explains an automatic reset (stale topic/subtopic cleared after a
+  // class/subject/curriculum change) so values never vanish silently.
+  const [clearedNotice, setClearedNotice] = useState('')
 
   const { topics, loading, error } = useSubjectTopics(
     lessonDetails.subject,
     lessonDetails.grade,
     curriculumMode,
   )
+
+  // Clear a stale topic/subtopic once the topic list for the CURRENT
+  // grade + subject + curriculum resolves and the stored selection is not in
+  // it (the teacher changed class/subject/curriculum, or restored an old
+  // draft). Mirrors LessonDetailsForm's "clear unknown subject" guard: only
+  // the invalid dependent values are cleared, never valid ones, and a notice
+  // explains what happened. No-ops while loading / on error so a transient
+  // fetch failure never wipes a valid selection.
+  useEffect(() => {
+    if (loading || error || topics.length === 0) return
+    if (topicData.topic && !topics.some((t) => t.label === topicData.topic)) {
+      onTopicChange('')
+      onSubtopicChange('')
+      setClearedNotice('The topic was reset because it is not available for the selected class and subject. Pick a topic from the updated list.')
+      return
+    }
+    if (topicData.topic && topicData.subtopic) {
+      const obj = topics.find((t) => t.label === topicData.topic)
+      if (obj && !obj.subtopics.includes(topicData.subtopic)) {
+        onSubtopicChange('')
+        setClearedNotice('The subtopic was reset because it is not available under the selected topic. Pick a subtopic from the updated list.')
+      }
+    }
+  }, [loading, error, topics, topicData.topic, topicData.subtopic, onTopicChange, onSubtopicChange])
 
   // Fetch the full curriculum row for the selected subtopic
   const { subtopicRow } = useSubtopicDetail(
@@ -72,6 +101,7 @@ export function TopicSubtopicForm({
   const selectedTopicObj = topics.find((t) => t.label === topicData.topic) ?? null
 
   function handleTopicChange(e) {
+    setClearedNotice('')
     onTopicChange(e.target.value)
     onSubtopicChange('')
   }
@@ -90,11 +120,12 @@ export function TopicSubtopicForm({
   return (
     <div
       className={[
-        'border-b border-[#e5ddd0]',
+        embedded ? '' : 'border-b border-[#e5ddd0]',
         disabled ? 'pointer-events-none opacity-50' : '',
       ].join(' ')}
     >
-      {/* Section header — always visible */}
+      {/* Section header — always visible (hidden in embedded wizard mode) */}
+      {!embedded && (
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -134,11 +165,17 @@ export function TopicSubtopicForm({
           <polyline points="6 9 12 15 18 9" />
         </svg>
       </button>
+      )}
 
       {/* Collapsible body */}
-      {open && (
-        <div className="lps-section-enter px-4 pb-4">
-          <div className="space-y-3.5 rounded-2xl border border-[#ece4d6] bg-white/60 p-3.5 lps-soft-shadow">
+      {(open || embedded) && (
+        <div className={embedded ? '' : 'lps-section-enter px-4 pb-4'}>
+          <div className={embedded ? 'space-y-3.5' : 'space-y-3.5 rounded-2xl border border-[#ece4d6] bg-white/60 p-3.5 lps-soft-shadow'}>
+            {clearedNotice && (
+              <p role="status" className="rounded-xl bg-[#FFF4E8] px-3 py-2 text-[11.5px] font-semibold leading-snug text-[#b45309]">
+                {clearedNotice}
+              </p>
+            )}
             {/* Topic */}
             <div>
               <label htmlFor="tsf-topic" className={LABEL_CLS}>

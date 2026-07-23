@@ -10,7 +10,7 @@ import { CurriculumContext } from './CurriculumContext'
 import { useStudioState } from './hooks/useStudioState'
 import { useLessonSeries } from './hooks/useLessonSeries'
 import { StudioShell } from './StudioShell'
-import { StudioSidebar } from './StudioSidebar'
+import { LessonPlanWizard } from './wizard/LessonPlanWizard.jsx'
 import { StudioCanvas } from './StudioCanvas'
 import { renderPlanHtml } from './utils/renderPlanHtml'
 import { normalizePlanShape } from './utils/planShape'
@@ -117,6 +117,33 @@ function pickIllustrationStage(planJson, curriculumMode) {
   return curriculumMode === 'previous' ? 'DEVELOPMENT' : 'LESSON DEVELOPMENT'
 }
 
+// Fingerprint of the INPUT slices a generation was started from. Compared
+// before the post-save draft.clear(): if the teacher went "Back to form" and
+// kept editing while the request was in flight, the current inputs no longer
+// match and the newer draft must survive. From lessonSeries only the
+// teacher-typed keys are picked — seriesId is minted by the generate handler
+// itself mid-run and any future machine-stamped key must not spuriously
+// block the clear either.
+function draftInputFingerprint(s) {
+  const series = s.lessonSeries || {}
+  return JSON.stringify({
+    curriculumMode: s.curriculumMode,
+    lessonDetails: s.lessonDetails,
+    topic: s.topicData?.topic ?? '',
+    subtopic: s.topicData?.subtopic ?? '',
+    selectedOutcomes: s.selectedOutcomes,
+    learningEnvironments: s.learningEnvironments,
+    lessonSeries: {
+      planningMode: series.planningMode ?? 'single',
+      totalLessons: series.totalLessons ?? 1,
+      lessonNumber: series.lessonNumber ?? 1,
+      lessonFocus: series.lessonFocus ?? '',
+    },
+    lessonBreakdown: s.lessonBreakdown,
+    formatOptions: s.formatOptions,
+  })
+}
+
 // ── Validation ────────────────────────────────────────────────────────────────
 
 /**
@@ -166,7 +193,7 @@ function computeIsValid(studioState) {
  *   - useStudioState() for all form state
  *   - CurriculumContext.Provider
  *   - handleGenerate() — calls studioGenerateLessonPlan Cloud Function
- *   - StudioShell with StudioSidebar + StudioCanvas
+ *   - StudioShell with LessonPlanWizard (five-step flow) + StudioCanvas
  */
 export default function LessonPlanStudio() {
   const studioState = useStudioState()
@@ -273,6 +300,13 @@ export default function LessonPlanStudio() {
   // Canvas view mode: 'preview' (formatted document) | 'edit' (manual + AI
   // section editor). Session-only, resets to preview on each new generation.
   const [viewMode, setViewMode] = useState('preview')
+
+  // Which surface fills the page: the five-step creation wizard ('form') or
+  // the document canvas ('canvas'). The canvas is never rendered while the
+  // teacher is entering information — it takes over when a generation starts
+  // and hands back via the shell's "Back to form" control (the generated plan
+  // is kept, so the teacher can hop between the two freely).
+  const [studioView, setStudioView] = useState('form')
 
   // Save-to-library state. `savedSignature` is a content fingerprint of the
   // last plan saved, so the button knows when the (possibly edited) plan has
@@ -506,6 +540,7 @@ export default function LessonPlanStudio() {
     lessonSeries:         studioState.lessonSeries,
     lessonBreakdown:      studioState.lessonBreakdown,
     formatOptions:        studioState.formatOptions,
+    wizardStep:           studioState.wizardStep,
   }), [
     studioState.curriculumMode,
     studioState.lessonDetails,
@@ -515,6 +550,7 @@ export default function LessonPlanStudio() {
     studioState.lessonSeries,
     studioState.lessonBreakdown,
     studioState.formatOptions,
+    studioState.wizardStep,
   ])
   const { featureFlags } = usePlatformSettings().settings
   const draft = useDraftManager({
@@ -525,6 +561,9 @@ export default function LessonPlanStudio() {
     state: draftState,
     enabled: Boolean(uid && featureFlags?.universalDrafts !== false),
     onRestore: restoreDraft,
+    // Wizard autosave: settle writes 0.9s after the teacher stops typing so a
+    // mid-step exit loses at most a moment of input (was the 2.5s default).
+    debounceMs: 900,
   })
   // Ref-mirror so handleGenerate can clear the draft without `draft` (a new
   // object each render) entering its dependency array — same pattern as
@@ -551,6 +590,8 @@ export default function LessonPlanStudio() {
       const planData = gen && (gen.data || gen.output)
       if (!gen || gen.tool !== 'lesson_plan' || !planData || typeof planData !== 'object') {
         setGenerationError('We could not open that saved lesson plan. It may have been deleted — pick it from your library instead.')
+        studioStateRef.current.setGenerationStatus('error')
+        setStudioView('canvas')
         return
       }
       const planJson = normalizePlanShape(planData)
@@ -571,9 +612,14 @@ export default function LessonPlanStudio() {
       s.setGeneratedPlan(gen.html || renderPlanHtml(planJson, meta, mode))
       s.setGenerationStatus('done')
       setViewMode('edit')
+      // The wizard is for building a plan; a reopened plan lands straight on
+      // the document canvas (Back to form remains available).
+      setStudioView('canvas')
     }).catch(() => {
       if (cancelled) return
       setGenerationError('We could not open that saved lesson plan. Check your connection and try again from your library.')
+      studioStateRef.current.setGenerationStatus('error')
+      setStudioView('canvas')
     })
     return () => { cancelled = true }
   }, [lessonPlanId])
@@ -598,6 +644,12 @@ export default function LessonPlanStudio() {
     if (!gateRef.current('lesson_plan')) return
 
     const run = ++runRef.current
+    // Hand the page over to the canvas so the teacher watches the plan being
+    // written; "Back to form" returns to the wizard at any time.
+    setStudioView('canvas')
+    // What the teacher's inputs looked like when THIS run started — guards the
+    // post-save draft.clear() against wiping edits made during the run.
+    const inputsAtStart = draftInputFingerprint(current)
     current.setGenerationStatus('loading')
     setGenerationError(null)
     setViewMode('preview')
@@ -873,8 +925,12 @@ export default function LessonPlanStudio() {
           setSaveStatus('saved')
           // Plan is now persisted to the library — drop the input draft so it
           // doesn't resurface as a stale recovery prompt. (Only on the success
-          // branch: a save failure keeps the draft for a retry.)
-          draftRef.current.clear().catch(() => {})
+          // branch: a save failure keeps the draft for a retry.) Skipped when
+          // the inputs changed while this run was in flight — the teacher went
+          // "Back to form" and kept editing, and that newer draft must survive.
+          if (draftInputFingerprint(studioStateRef.current) === inputsAtStart) {
+            draftRef.current.clear().catch(() => {})
+          }
         } catch (saveErr) {
           console.warn('[zedexams] lesson-plan auto-save failed', saveErr)
           setSaveError(
@@ -1346,6 +1402,8 @@ export default function LessonPlanStudio() {
         <DraftRecoveryPrompt {...draft} label="lesson plan" />
       </div>
       <StudioShell
+        view={studioView}
+        onBackToForm={() => setStudioView('form')}
         header={
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
@@ -1361,7 +1419,7 @@ export default function LessonPlanStudio() {
                   Lesson Plan Studio
                 </h1>
                 <p className="text-[12px] font-semibold leading-tight text-[#4A5A6E]">
-                  Create smart lesson plans in minutes — build step by step, preview live.
+                  Create smart lesson plans in minutes — one step at a time, preview live.
                 </p>
               </div>
             </div>
@@ -1377,8 +1435,7 @@ export default function LessonPlanStudio() {
           </div>
         }
         sidebar={
-          <StudioSidebar
-            onSaveDraft={() => draftRef.current.flush?.()}
+          <LessonPlanWizard
             studioState={studioState}
             aiState={aiState}
             seriesState={seriesState}
@@ -1394,6 +1451,25 @@ export default function LessonPlanStudio() {
             dateHint={dateHint}
             dateWarning={dateWarning}
             coverageState={coverageState}
+            onSaveExit={async () => {
+              // Flush the pending input draft (don't wait out the debounce —
+              // unmount would cancel it) BEFORE navigating, so "Save & exit"
+              // never discards an edit made in the last second. Fail-soft:
+              // a flush error still exits; the on-device copy is best-effort.
+              try {
+                await draftRef.current.flush?.()
+              } catch (err) {
+                // Exit anyway — the debounced on-device copy is the recovery
+                // path — but leave a trace so failing flushes are visible.
+                console.warn('[zedexams] draft flush failed on exit', err)
+              }
+              navigate('/teacher/lesson-plans')
+            }}
+            // Also true while a generation is in flight or failed, so the
+            // canvas (progress view / Stop / the error panel) stays reachable
+            // after "Back to form" — not only once a plan exists.
+            hasPlan={Boolean(studioState.generatedPlan) || studioState.generationStatus !== 'idle'}
+            onViewPlan={() => setStudioView('canvas')}
             lessonMemory={{
               subtopicName: stripCode(memSubtopic || ''),
               subtopicCode: extractCode(memSubtopic || ''),
@@ -1412,7 +1488,7 @@ export default function LessonPlanStudio() {
             generatedPlan={studioState.generatedPlan}
             generationStatus={studioState.generationStatus}
             generationError={generationError}
-            onStop={() => { runRef.current += 1; studioState.setGenerationStatus('idle') }}
+            onStop={() => { runRef.current += 1; studioState.setGenerationStatus('idle'); setStudioView('form') }}
             onExportWord={handleExportWord}
             illustrationMode={studioState.formatOptions.illustrations}
             illustrationStatus={illustrationStatus}
@@ -1438,7 +1514,7 @@ export default function LessonPlanStudio() {
           />
         }
       />
-      {kit && (
+      {kit && studioView === 'canvas' && (
         <div className="lps-game fixed inset-x-0 bottom-[calc(72px+env(safe-area-inset-bottom,0px))] z-50 border-t-2 border-[#0F1B2D] bg-white/95 px-3 py-2.5 shadow-[0_-6px_24px_-12px_rgba(15,27,45,0.35)] backdrop-blur sm:px-5 lg:bottom-0">
           <div className="mx-auto flex max-w-5xl items-center gap-3">
             <div className="hidden shrink-0 sm:block">
