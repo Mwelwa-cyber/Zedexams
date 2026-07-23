@@ -34,9 +34,15 @@ concurrency:
 
 jobs:
   security:
+    # Skip Dependabot PRs: GitHub withholds repo/Actions secrets from
+    # dependabot-authored pull_request runs, so claude-api-key resolves empty
+    # and the reviewer action fails on every dependency bump. Skipping renders
+    # the check "skipped" (non-failing) instead of a spurious red X. Dependency
+    # bumps carry no application diff for a security scan to reason about.
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 2
