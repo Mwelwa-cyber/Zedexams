@@ -32,8 +32,12 @@ export function shouldAutosaveToLibrary({
   editLoading,
   importing,
   generating,
+  deleted,
 }) {
   if (!uid) return false
+  // The paper was deleted (here or in another tab). Never re-persist a deleted
+  // assessment — that is exactly the resurrection bug this guard exists to stop.
+  if (deleted) return false
   // Edit-mode hydration is still loading the saved paper — don't write a
   // half-loaded shape back over it.
   if (editLoading) return false
