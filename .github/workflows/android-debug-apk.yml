@@ -47,14 +47,14 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           # Full history so android/app/build.gradle can derive versionCode
           # from `git rev-list --count HEAD`.
           fetch-depth: 0
 
       - name: Set up Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           # Capacitor CLI requires Node >= 22 (cap sync aborts on 20).
           node-version: "22"
@@ -67,7 +67,7 @@ jobs:
           java-version: "21"
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           # Must match android/variables.gradle (compileSdk/targetSdk = 36).
           packages: "platform-tools platforms;android-36 build-tools;36.0.0"
@@ -147,7 +147,7 @@ jobs:
           echo "Built $(du -h "$apk" | cut -f1) debug APK."
 
       - name: Upload debug APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: zedexams-debug-apk-${{ github.sha }}
           path: ${{ steps.apk.outputs.path }}

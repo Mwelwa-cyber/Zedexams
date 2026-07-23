@@ -25,12 +25,19 @@ concurrency:
 
 jobs:
   review:
-    if: github.event.pull_request.draft == false && !contains(github.event.pull_request.title, '[skip rex]')
+    # Skip Dependabot PRs: GitHub withholds repo/Actions secrets from
+    # dependabot-authored pull_request runs, so ANTHROPIC_AGENTS_KEY resolves
+    # empty and Rex fails with an auth error on every dependency bump. Skipping
+    # renders the check "skipped" (non-failing) instead of a spurious red X.
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.actor != 'dependabot[bot]' &&
+      !contains(github.event.pull_request.title, '[skip rex]')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
 
