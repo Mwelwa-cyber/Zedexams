@@ -26,7 +26,7 @@ const ACTIONS = [
     tone: 'orange',
     title: 'Lesson Plan',
     text: 'Plan a lesson with teaching stages, resources and assessment.',
-    to: '/teacher/generate/lesson-plan',
+    to: '/teacher/lesson-plans/new',
   },
   {
     key: 'weekly_focus',

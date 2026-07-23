@@ -1069,7 +1069,7 @@ export default function WeeklyForecastStudio() {
                 <StudioNextSteps
                   context="weekly-focus"
                   actions={[
-                    { key: 'lesson', label: 'Create this week’s lessons', to: '/teacher/generate/lesson-plan' },
+                    { key: 'lesson', label: 'Create this week’s lessons', to: '/teacher/lesson-plans/new' },
                     { key: 'worksheet', label: 'Create weekly worksheet', to: `/teacher/generate/worksheet${buildGeneratorQueryString(ctx)}` },
                     { key: 'short-test', label: 'Create a short test', to: `/teacher/assessment-papers/new${buildGeneratorQueryString(ctx)}` },
                     { key: 'record', label: 'Update Record of Work', to: '/teacher/generate/record-of-work' },

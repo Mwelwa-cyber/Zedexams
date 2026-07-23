@@ -128,7 +128,12 @@ export function NavDrawer({
     navigate(to)
   }
 
-  const isActive = (to) => {
+  // `activePrefix` widens matching for items pointing at one page of a route
+  // family (mirrors isNavActive in Sidebar.jsx).
+  const isActive = (to, activePrefix) => {
+    if (activePrefix && (pathname === activePrefix || pathname.startsWith(`${activePrefix}/`))) {
+      return true
+    }
     const path = to.split('?')[0]
     if (path === '/teacher') {
       return pathname === '/teacher' || pathname === '/teacher/dashboard-preview'
@@ -170,7 +175,7 @@ export function NavDrawer({
               {group.label ? (
                 <div className="tdv2-nav-label" aria-hidden="true">{group.label}</div>
               ) : null}
-              {group.items.map(({ id, label, icon: ItemIcon, to, href }) => {
+              {group.items.map(({ id, label, icon: ItemIcon, to, href, activePrefix }) => {
                 if (href) {
                   return (
                     <a key={id} href={href} className="tdv2-nav-item" onClick={onClose}>
@@ -179,7 +184,7 @@ export function NavDrawer({
                     </a>
                   )
                 }
-                const active = isActive(to)
+                const active = isActive(to, activePrefix)
                 return (
                   <Link
                     key={id}

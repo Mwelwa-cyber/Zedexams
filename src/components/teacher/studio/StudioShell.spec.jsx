@@ -24,40 +24,56 @@ describe('StudioShell — layout', () => {
     expect(screen.getByTestId('canvas')).toBeInTheDocument()
   })
 
-  it('applies the flex wrapper class', () => {
+  it('renders the header slot above the panes', () => {
+    render(
+      <StudioShell
+        header={<div data-testid="header" />}
+        sidebar={<div data-testid="sidebar" />}
+        canvas={<div />}
+      />,
+    )
+    const header = screen.getByTestId('header')
+    const sidebar = screen.getByTestId('sidebar')
+    // Header precedes the pane row in document order.
+    expect(header.compareDocumentPosition(sidebar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('applies the flex classes to the pane row', () => {
     const { container } = render(
       <StudioShell sidebar={<div />} canvas={<div />} />,
     )
-    const wrapper = container.firstChild
-    expect(wrapper.className).toMatch(/flex/)
+    const row = container.querySelector('.lps-shell-row')
+    expect(row).not.toBeNull()
+    expect(row.className).toMatch(/flex/)
   })
 
   // Regression guard for the "lesson plan hidden on the right on mobile" bug.
-  // The shell used to be a row-only `flex h-screen overflow-hidden`, which on a
-  // phone kept the sidebar at its min-width and pushed the canvas (the
-  // generated plan) off the right edge — the plan rendered but was invisible.
-  // The shell must stack vertically by default and only become a side-by-side
-  // row at md+, with the locked viewport height + clipping also gated to md+.
+  // The pane row must stack vertically by default and only become a
+  // side-by-side row at md+, with the bounded height + clipping also gated to
+  // md+ — otherwise the canvas is pushed off the right edge of a phone.
   it('stacks vertically on mobile and switches to a row at md+', () => {
     const { container } = render(
       <StudioShell sidebar={<div />} canvas={<div />} />,
     )
-    const wrapper = container.firstChild
-    expect(wrapper.className).toContain('flex-col')
-    expect(wrapper.className).toContain('md:flex-row')
+    const row = container.querySelector('.lps-shell-row')
+    expect(row.className).toContain('flex-col')
+    expect(row.className).toContain('md:flex-row')
   })
 
-  it('does not lock viewport height or hide overflow on mobile (only at md+)', () => {
+  // The studio renders INSIDE the TeacherLayout dashboard shell now — it must
+  // never lock the whole viewport (h-screen) like the old standalone page: the
+  // md+ height is bounded to the space under the dashboard top bar, and
+  // clipping (each pane scrolls internally) is gated behind md too.
+  it('bounds height below the dashboard chrome instead of locking the viewport', () => {
     const { container } = render(
       <StudioShell sidebar={<div />} canvas={<div />} />,
     )
-    const wrapper = container.firstChild
-    // No unconditional h-screen / overflow-hidden — those clip the stacked
-    // canvas on a phone. Height + clipping are gated behind the md: breakpoint.
-    expect(wrapper.className).not.toMatch(/(^|\s)h-screen(\s|$)/)
-    expect(wrapper.className).not.toMatch(/(^|\s)overflow-hidden(\s|$)/)
-    expect(wrapper.className).toContain('md:h-screen')
-    expect(wrapper.className).toContain('md:overflow-hidden')
+    const row = container.querySelector('.lps-shell-row')
+    expect(row.className).not.toMatch(/(^|\s)h-screen(\s|$)/)
+    expect(row.className).not.toMatch(/md:h-screen/)
+    expect(row.className).not.toMatch(/(^|\s)overflow-hidden(\s|$)/)
+    expect(row.className).toContain('md:overflow-hidden')
+    expect(row.className).toMatch(/md:h-\[calc\(100dvh/)
   })
 
   it('renders sidebar text content', () => {

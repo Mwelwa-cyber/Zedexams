@@ -387,6 +387,15 @@ function LegacyAssessmentPaperRedirect({ suffix = '' }) {
   return <Navigate to={target} replace />
 }
 
+// Legacy Lesson Plan Studio path → the canonical /teacher/lesson-plans/new
+// route (now inside the TeacherLayout dashboard shell). The query string is
+// preserved so Teaching-Kit prefills, dashboard deep-links and saved
+// bookmarks keep landing on the same pre-filled studio.
+function LegacyLessonPlanStudioRedirect() {
+  const { search } = useLocation()
+  return <Navigate to={`/teacher/lesson-plans/new${search}`} replace />
+}
+
 // Parent portal gate. The role levels in ProtectedRoute can't distinguish a
 // parent from a learner (both sit at level 1), so this checks the role
 // explicitly: only a parent (or an admin, for support) reaches the family
@@ -720,8 +729,17 @@ export default function App() {
           <Route path="/teacher/lessons"                 element={<TeacherRoute><LessonDashboard /></TeacherRoute>} />
           <Route path="/teacher/lessons/new"             element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
           <Route path="/teacher/lessons/:lessonId/edit"  element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
-          {/* Lesson Plan studios stay open on Free — the one studio every plan can use. */}
-          <Route path="/teacher/generate/lesson-plan"    element={<ProtectedRoute requiredRole="teacher"><LessonPlanStudio /></ProtectedRoute>} />
+          {/* Lesson Plan Studio — stays open on Free (the one studio every
+              plan can use) and renders INSIDE the TeacherLayout dashboard
+              shell (V2 sidebar + top bar), same as the Assessment Paper
+              Studio. Canonical routes: list (library filtered to lesson
+              plans), create, edit-by-id. */}
+          <Route path="/teacher/lesson-plans"                        element={<Navigate to="/teacher/library?type=lesson_plans" replace />} />
+          <Route path="/teacher/lesson-plans/new"                    element={<TeacherRoute><LessonPlanStudio /></TeacherRoute>} />
+          <Route path="/teacher/lesson-plans/:lessonPlanId/edit"     element={<TeacherRoute><LessonPlanStudio /></TeacherRoute>} />
+          {/* Legacy standalone studio path — redirect (query preserved) so old
+              bookmarks and prefill links keep working. */}
+          <Route path="/teacher/generate/lesson-plan"    element={<LegacyLessonPlanStudioRedirect />} />
           {/* All other generator studios are Pro/Max — Free sees a read-only sample. */}
           <Route path="/teacher/generate/homework"       element={<TeacherRoute><StudioGate tool="homework"><HomeworkStudio /></StudioGate></TeacherRoute>} />
           {/* The old exam generator was upgraded to the block-based
