@@ -49,6 +49,16 @@ import imgVisualStudio from '../../../../assets/teacher/studio-icons/visual-stud
 import imgFlashcards from '../../../../assets/teacher/studio-icons/flashcards.webp'
 import imgCurriculum from '../../../../assets/teacher/studio-icons/curriculum.webp'
 import imgClassTimetable from '../../../../assets/teacher/studio-icons/class-timetable.webp'
+import imgSchemes from '../../../../assets/teacher/studio-icons/schemes.webp'
+import imgAssessmentPapers from '../../../../assets/teacher/studio-icons/assessment-papers.webp'
+import imgQuestionBank from '../../../../assets/teacher/studio-icons/question-bank.webp'
+import imgMarkSchedule from '../../../../assets/teacher/studio-icons/mark-schedule.webp'
+import imgRubrics from '../../../../assets/teacher/studio-icons/rubrics.webp'
+import imgSba from '../../../../assets/teacher/studio-icons/sba.webp'
+import imgSyllabus from '../../../../assets/teacher/studio-icons/syllabus.webp'
+import imgSchoolCalendar from '../../../../assets/teacher/studio-icons/school-calendar.webp'
+import imgClassList from '../../../../assets/teacher/studio-icons/class-list.webp'
+import imgClassRegister from '../../../../assets/teacher/studio-icons/class-register.webp'
 
 /** Ordered category definitions — drives the launcher's section order. */
 export const STUDIO_CATEGORIES = [
@@ -76,6 +86,7 @@ export const TEACHER_STUDIOS = [
     route: '/teacher/generate/scheme-of-work',
     category: 'planning',
     icon: CalendarRange,
+    image: imgSchemes,
     tint: 'teal',
     countKey: 'scheme_of_work',
     badge: null,
@@ -232,6 +243,7 @@ export const TEACHER_STUDIOS = [
     route: '/teacher/assessment-papers/new',
     category: 'assessment',
     icon: FileText,
+    image: imgAssessmentPapers,
     tint: 'orange',
     countKey: 'assessment',
     badge: 'new',
@@ -245,6 +257,7 @@ export const TEACHER_STUDIOS = [
     route: '/teacher/question-bank',
     category: 'assessment',
     icon: ListChecks,
+    image: imgQuestionBank,
     tint: 'teal',
     countKey: null,
     badge: 'new',
@@ -258,6 +271,7 @@ export const TEACHER_STUDIOS = [
     route: '/teacher/generate/mark-schedule',
     category: 'assessment',
     icon: Calculator,
+    image: imgMarkSchedule,
     tint: 'green',
     countKey: 'mark_schedule',
     badge: null,
@@ -271,6 +285,7 @@ export const TEACHER_STUDIOS = [
     route: '/teacher/generate/rubric',
     category: 'assessment',
     icon: SlidersHorizontal,
+    image: imgRubrics,
     tint: 'blue',
     countKey: 'rubric',
     badge: null,
@@ -284,6 +299,7 @@ export const TEACHER_STUDIOS = [
     route: '/teacher/sba',
     category: 'assessment',
     icon: GraduationCap,
+    image: imgSba,
     tint: 'purple',
     countKey: null,
     badge: null,
@@ -299,6 +315,7 @@ export const TEACHER_STUDIOS = [
     route: '/teacher/syllabi',
     category: 'setup',
     icon: FolderOpen,
+    image: imgSyllabus,
     tint: 'teal',
     countKey: null,
     badge: null,
@@ -326,6 +343,7 @@ export const TEACHER_STUDIOS = [
     route: '/teacher/calendar',
     category: 'setup',
     icon: CalendarDays,
+    image: imgSchoolCalendar,
     tint: 'blue',
     countKey: null,
     badge: null,
@@ -339,6 +357,7 @@ export const TEACHER_STUDIOS = [
     route: '/teacher/register',
     category: 'setup',
     icon: Users,
+    image: imgClassList,
     tint: 'green',
     countKey: null,
     badge: 'new',
@@ -352,6 +371,7 @@ export const TEACHER_STUDIOS = [
     route: '/teacher/attendance',
     category: 'setup',
     icon: ClipboardCheck,
+    image: imgClassRegister,
     tint: 'rose',
     countKey: null,
     badge: null,
