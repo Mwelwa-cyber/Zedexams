@@ -136,7 +136,15 @@ function isNavActive(pathname, to) {
   return pathname === path || pathname.startsWith(`${path}/`)
 }
 
-export default function Sidebar({ teacher, onRequestLogout, dark = false, onToggleTheme }) {
+export default function Sidebar({
+  teacher,
+  onRequestLogout,
+  dark = false,
+  onToggleTheme,
+  // The dashboard renders its curated groups; the studio shell
+  // (TeacherLayout) passes STUDIO_NAV_GROUPS for the full teacher map.
+  groups = NAV_GROUPS,
+}) {
   const [menuOpen, setMenuOpen] = useState(false)
   const wrapRef = useRef(null)
   const menuRef = useRef(null)
@@ -182,7 +190,7 @@ export default function Sidebar({ teacher, onRequestLogout, dark = false, onTogg
       </div>
 
       <nav className="tdv2-nav" aria-label="Primary" data-tour="nav">
-        {NAV_GROUPS.map((group) => (
+        {groups.map((group) => (
           <div className="tdv2-nav-group" key={group.id}>
             {group.label ? (
               <div className="tdv2-nav-label" aria-hidden="true">{group.label}</div>

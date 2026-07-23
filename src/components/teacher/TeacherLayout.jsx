@@ -1,118 +1,72 @@
-import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { LogOut, Settings } from '../ui/icons'
+import { useMemo, useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { ShieldCheck } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import Logo from '../ui/Logo'
-import Icon from '../ui/Icon'
 import TeacherTopBar from './TeacherTopBar'
 import ErrorBoundary from '../ui/ErrorBoundary'
 import TeacherGlassHeader from './TeacherGlassHeader'
 import TeacherBottomNav from './TeacherBottomNav'
 import { isImmersiveStudioPath } from './immersiveStudioRoutes'
-import { SIDEBAR_NAV } from './teacherNav'
+import Sidebar from './dashboardV2/Sidebar'
+import LogoutDialog from './dashboardV2/LogoutDialog'
+import { STUDIO_NAV_GROUPS } from './dashboardV2/dashboardV2Config'
+import { teacherFromAuth } from './dashboardV2/dashboardV2Data'
+import useDashboardTheme from './dashboardV2/useDashboardTheme'
+import './dashboardV2/dashboardV2.css'
 
 export default function TeacherLayout({ children }) {
-  const { logout, userProfile, isAdmin } = useAuth()
+  const { logout, currentUser, userProfile, isAdmin } = useAuth()
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const [logoutOpen, setLogoutOpen] = useState(false)
+  const { dark, toggleTheme } = useDashboardTheme()
 
-  async function handleLogout() {
+  const teacher = teacherFromAuth({
+    displayName: userProfile?.displayName || currentUser?.displayName,
+    email: userProfile?.email || currentUser?.email,
+  })
+
+  // Same full teacher map for everyone; admins get an extra jump back to the
+  // admin panel at the top (the old Teacher Panel had the same shortcut).
+  const groups = useMemo(() => {
+    if (!isAdmin) return STUDIO_NAV_GROUPS
+    const [root, ...rest] = STUDIO_NAV_GROUPS
+    return [
+      {
+        ...root,
+        items: [
+          { id: 'admin', label: 'Admin Panel', icon: ShieldCheck, to: '/admin' },
+          ...root.items,
+        ],
+      },
+      ...rest,
+    ]
+  }, [isAdmin])
+
+  async function confirmLogout() {
+    setLogoutOpen(false)
     await logout()
     navigate('/login')
   }
 
-  const navClass = ({ isActive }) =>
-    `relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all duration-fast ease-out ${
-      isActive
-        ? 'theme-accent-bg theme-accent-text shadow-elev-inner-hl pl-4'
-        : 'theme-text-muted hover:theme-bg-subtle hover:theme-text'
-    }`
-  const ActiveBar = () => (
-    <span
-      aria-hidden
-      className="absolute left-1 top-2 bottom-2 w-1 rounded-full theme-accent-fill"
-    />
-  )
-
   return (
     <div className="studio-theme theme-bg theme-text min-h-screen flex">
-      {/* ── Desktop Sidebar (lg+) ─────────────────────────── */}
-      <aside
-        className="theme-border shadow-elev-md hidden w-60 flex-shrink-0 flex-col border-r lg:flex lg:sticky lg:top-0 lg:h-screen lg:self-start"
-        style={{ backgroundColor: '#ffffff' }}
-      >
-        <div
-          className="theme-border px-4 py-5 border-b"
-          style={{ backgroundColor: '#fffaf0' }}
-        >
-          <Link to="/teacher" className="inline-flex items-center gap-2.5 no-underline" style={{ color: '#0e2a32' }}>
-            <Logo variant="icon" size="md" />
-            <div className="leading-tight">
-              <p className="studio-display" style={{ fontSize: 16, margin: 0 }}>
-                ZedExams <span style={{ color: '#ff7a2e' }}>•</span>
-              </p>
-              <p style={{ fontSize: 11.5, color: '#566f76', margin: 0, fontWeight: 600 }}>
-                Lesson Plan Studio
-              </p>
-            </div>
-          </Link>
-          <div className="mt-3 pl-1">
-            <span className="studio-eyebrow">Teacher Panel</span>
-          </div>
-        </div>
-
-        <nav className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1">
-          {isAdmin && (
-            <>
-              <Link
-                to="/admin"
-                className="theme-bg-subtle theme-text hover:theme-accent-bg hover:theme-accent-text flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition-all duration-fast ease-out"
-              >
-                <Icon as={Settings} size="sm" />
-                Admin Panel
-              </Link>
-              <div className="theme-border my-2 border-t" />
-            </>
-          )}
-          {SIDEBAR_NAV.map(item => (
-            <NavLink key={item.to} to={item.to} end={item.end} className={navClass}>
-              {({ isActive }) => (
-                <>
-                  {isActive && <ActiveBar />}
-                  <Icon as={item.icon} size="sm" />
-                  <span className="flex-1">{item.label}</span>
-                  {item.badge && (
-                    <span
-                      className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded"
-                      style={{ background: '#ff7a2e', color: '#fff', letterSpacing: '0.08em' }}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
-                </>
-              )}
-            </NavLink>
-          ))}
-        </nav>
-
-        <div className="theme-border p-3 border-t">
-          <div className="flex items-center gap-2 px-3 py-2 mb-1">
-            <div className="theme-accent-fill theme-on-accent flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-black shadow-elev-inner-hl">
-              {(userProfile?.displayName || 'T')[0].toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <p className="theme-text truncate text-xs font-black">{userProfile?.displayName || 'Teacher'}</p>
-              <p className="theme-text-muted truncate text-xs">{userProfile?.email}</p>
-            </div>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-bold text-danger hover:bg-danger-subtle transition-colors min-h-0"
-          >
-            <Icon as={LogOut} size="sm" />
-            Sign Out
-          </button>
-        </div>
-      </aside>
+      {/* ── Desktop Sidebar (lg+) — the same V2 panel as /teacher, carrying
+             the full teacher map (STUDIO_NAV_GROUPS). Scoped under .tdv2 so
+             the dashboard design system styles the panel without leaking
+             into the page content. ─────────────────────────── */}
+      <div className={`tdv2 tdv2-shell ${dark ? 'is-dark' : ''}`}>
+        <Sidebar
+          teacher={teacher}
+          groups={groups}
+          onRequestLogout={() => setLogoutOpen(true)}
+          dark={dark}
+          onToggleTheme={toggleTheme}
+        />
+        {logoutOpen ? (
+          <LogoutDialog onCancel={() => setLogoutOpen(false)} onConfirm={confirmLogout} />
+        ) : null}
+      </div>
 
       {/* ── Glass header (mobile + tablet) ─────────────────── */}
       <TeacherGlassHeader />
