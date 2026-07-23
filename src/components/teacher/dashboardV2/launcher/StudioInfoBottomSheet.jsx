@@ -4,8 +4,14 @@ import { ArrowRight, Clock, FolderOpen, Star, X } from 'lucide-react'
 /**
  * Mobile / touch information sheet, shown on press-and-hold of a studio icon
  * (tap still opens the studio directly — the sheet is never on the critical
- * path into a studio). Slides up from the bottom, dims the page, and closes
- * on the close button, backdrop tap, Escape or selecting an action.
+ * path into a studio). Keyboard users reach it via Shift+F10 / the
+ * ContextMenu key on a focused icon, so it is also the keyboard route to
+ * favourites and saved work. Slides up from the bottom, dims the page, and
+ * closes on the close button, backdrop tap, Escape or selecting an action.
+ *
+ * Focus management: focus moves into the sheet on open, Tab cycles within
+ * it (simple first/last trap — the sheet is aria-modal), and the launcher
+ * restores focus to the triggering icon on close.
  */
 export default function StudioInfoBottomSheet({
   studio,
@@ -22,7 +28,27 @@ export default function StudioInfoBottomSheet({
 
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape') onClose?.()
+      if (e.key === 'Escape') {
+        onClose?.()
+        return
+      }
+      if (e.key !== 'Tab') return
+      // Keep Tab inside the sheet while it is open.
+      const focusables = sheetRef.current?.querySelectorAll('button, [href]')
+      if (!focusables?.length) return
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+      const active = document.activeElement
+      if (e.shiftKey && (active === first || active === sheetRef.current)) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault()
+        first.focus()
+      } else if (!sheetRef.current?.contains(active)) {
+        e.preventDefault()
+        first.focus()
+      }
     }
     document.addEventListener('keydown', onKey)
     const prev = document.body.style.overflow
@@ -93,11 +119,13 @@ export default function StudioInfoBottomSheet({
           <ArrowRight size={16} strokeWidth={2.2} aria-hidden="true" />
         </button>
 
-        <button type="button" className="tsl-sheet-row" onClick={() => onViewSaved?.(studio)}>
-          <FolderOpen size={18} strokeWidth={1.9} aria-hidden="true" />
-          View saved work
-          <ArrowRight size={15} strokeWidth={2} className="tsl-sheet-row-arrow" aria-hidden="true" />
-        </button>
+        {studio.savedWorkTo ? (
+          <button type="button" className="tsl-sheet-row" onClick={() => onViewSaved?.(studio)}>
+            <FolderOpen size={18} strokeWidth={1.9} aria-hidden="true" />
+            View saved work
+            <ArrowRight size={15} strokeWidth={2} className="tsl-sheet-row-arrow" aria-hidden="true" />
+          </button>
+        ) : null}
 
         <button
           type="button"

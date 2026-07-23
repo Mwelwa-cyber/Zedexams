@@ -137,9 +137,9 @@ test('applyChip: all / favourites / recent', () => {
   )
 })
 
-test('applyChip recent falls back to all when no history', () => {
+test('applyChip recent stays empty when no history (UI shows empty state)', () => {
   const res = applyChip(TEACHER_STUDIOS, { chip: 'recent', recents: [], byId: STUDIO_BY_ID })
-  assert.equal(res.length, TEACHER_STUDIOS.length)
+  assert.equal(res.length, 0)
 })
 
 // ── Responsive ──────────────────────────────────────────────────────────

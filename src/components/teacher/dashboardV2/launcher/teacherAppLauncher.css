@@ -151,6 +151,16 @@
   color: #fff;
   box-shadow: var(--shadow-copper);
 }
+.tsl-chip:focus-visible,
+.tsl-catfilter-btn:focus-visible,
+.tsl-catmenu-item:focus-visible,
+.tsl-search-clear:focus-visible,
+.tsl-hint-close:focus-visible,
+.tsl-sheet-close:focus-visible,
+.tsl-sheet-row:focus-visible {
+  outline: 3px solid rgba(198, 90, 36, 0.5);
+  outline-offset: 2px;
+}
 
 .tsl-catfilter { position: relative; }
 .tsl-catfilter-btn {
@@ -250,6 +260,40 @@
   transition: transform 180ms var(--ease);
 }
 .tsl-cat-chev.is-collapsed { transform: rotate(-90deg); }
+.tsl-cat-head.is-static { cursor: default; }
+.tsl-cat-head:focus-visible {
+  outline: 3px solid rgba(198, 90, 36, 0.5);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* ── One-time touch hint ─────────────────────────────────────────────── */
+.tsl-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px 10px 14px;
+  border-radius: 12px;
+  background: var(--copper-tint);
+  border: 1px solid rgba(198, 90, 36, 0.28);
+  color: var(--ink);
+  font-size: 13px;
+}
+.tsl-hint > svg { color: var(--copper); flex-shrink: 0; }
+.tsl-hint span { flex: 1; min-width: 0; }
+.tsl-hint-close {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.tsl-hint-close:hover { background: rgba(198, 90, 36, 0.12); color: var(--ink); }
 
 /* ── App-icon grid ───────────────────────────────────────────────────── */
 .tsl-grid {
@@ -275,6 +319,13 @@
   cursor: pointer;
   transition: background 140ms var(--ease), border-color 140ms var(--ease), transform 140ms var(--ease);
   -webkit-tap-highlight-color: transparent;
+  /* Long-press is OUR gesture: suppress the iOS link callout + text
+     selection so press-and-hold reliably opens the info sheet; kill the
+     300ms double-tap zoom delay on touch. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
 }
 .tsl-app:hover {
   background: rgba(16, 36, 62, 0.035);
@@ -325,7 +376,8 @@
   -webkit-user-drag: none;
   user-select: none;
 }
-.tsl-app:active .tsl-app-tile.is-img { transform: none; }
+.tsl-app:hover .tsl-app-tile.is-img { transform: translateY(-1px) scale(1.03); }
+.tsl-app:active .tsl-app-tile.is-img { transform: scale(0.97); }
 
 .tsl-app-fav {
   position: absolute;

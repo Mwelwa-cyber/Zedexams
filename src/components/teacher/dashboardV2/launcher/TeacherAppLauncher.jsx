@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { BarChart3, Bell, LayoutGrid, ListFilter, Star } from 'lucide-react'
+import { Clock, Hand, LayoutGrid, ListFilter, SearchX, Star, X } from 'lucide-react'
 import { useAuth } from '../../../../contexts/AuthContext'
 import {
   LAUNCHER_CHIPS,
@@ -30,17 +30,36 @@ import StudioInfoBottomSheet from './StudioInfoBottomSheet'
 import ToolSearch from './ToolSearch'
 import './teacherAppLauncher.css'
 
-const POPOVER_SIZE = { width: 304, height: 240 }
-const HIDE_DELAY = 140
+const POPOVER_SIZE = { width: 304, height: 280 }
+const HOVER_INTENT_MS = 160 // hover pause before the popover opens
+const HIDE_DELAY = 140      // grace period to travel icon → popover
+const HINT_KEY = 'zedexams:tsl-hint-dismissed'
+const COLLAPSE_KEY = 'zedexams:tsl-collapsed'
 
-function useViewportWidth() {
-  const [width, setWidth] = useState(() => (typeof window !== 'undefined' ? window.innerWidth : 1280))
+const CHIP_ICONS = { recent: Clock, favourites: Star, all: LayoutGrid }
+
+/**
+ * Viewport → { columns, recentLimit }, updating ONLY when a breakpoint is
+ * crossed — dragging a desktop window edge re-renders the grid a handful of
+ * times instead of once per pixel.
+ */
+function useLauncherBreakpoint() {
+  const compute = () => {
+    const w = typeof window !== 'undefined' ? window.innerWidth : 1280
+    return { columns: columnsForWidth(w), recentLimit: recentLimitForWidth(w) }
+  }
+  const [bp, setBp] = useState(compute)
   useEffect(() => {
-    const onResize = () => setWidth(window.innerWidth)
+    const onResize = () => {
+      const next = compute()
+      setBp((cur) => (
+        cur.columns === next.columns && cur.recentLimit === next.recentLimit ? cur : next
+      ))
+    }
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [])
-  return width
+  return bp
 }
 
 /**
@@ -59,7 +78,7 @@ export default function TeacherAppLauncher({ savedCounts = null, loading = false
   const navigate = useNavigate()
   const location = useLocation()
   const { isTeacher = true } = useAuth() || {}
-  const width = useViewportWidth()
+  const { columns, recentLimit } = useLauncherBreakpoint()
 
   const { favouriteSet, toggle: toggleFavourite } = useStudioFavourites()
   const { recents, openedAt, record } = useRecentStudios()
@@ -68,14 +87,45 @@ export default function TeacherAppLauncher({ savedCounts = null, loading = false
   const [chip, setChip] = useState('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [catMenuOpen, setCatMenuOpen] = useState(false)
-  const [collapsed, setCollapsed] = useState(() => new Set())
-  const [info, setInfo] = useState(null) // { studio, placement }
+  const [info, setInfo] = useState(null) // { studio, placement, anchor }
   const [sheetStudio, setSheetStudio] = useState(null)
-  const hideTimer = useRef(null)
   const catMenuRef = useRef(null)
 
-  const columns = columnsForWidth(width)
-  const recentLimit = recentLimitForWidth(width)
+  // Collapsed categories persist per device (real category ids only — the
+  // transient search/filter results section is never collapsible).
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      const raw = localStorage.getItem(COLLAPSE_KEY)
+      const ids = raw ? JSON.parse(raw) : []
+      return new Set(ids.filter((id) => STUDIO_CATEGORIES.some((c) => c.id === id)))
+    } catch {
+      return new Set()
+    }
+  })
+  const toggleCategory = useCallback((id) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...next])) } catch { /* non-fatal */ }
+      return next
+    })
+  }, [])
+
+  // One-time touch hint: press-and-hold is invisible until taught. Shown
+  // only on coarse pointers, dismissed by hand or by the first sheet open.
+  const [hintVisible, setHintVisible] = useState(() => {
+    try {
+      if (localStorage.getItem(HINT_KEY)) return false
+    } catch { /* ignore */ }
+    return typeof window !== 'undefined'
+      && typeof window.matchMedia === 'function'
+      && window.matchMedia('(pointer: coarse)').matches
+  })
+  const dismissHint = useCallback(() => {
+    setHintVisible(false)
+    try { localStorage.setItem(HINT_KEY, '1') } catch { /* non-fatal */ }
+  }, [])
 
   // Studios this teacher may see (permission-filtered) — memoised.
   const permitted = useMemo(
@@ -100,31 +150,69 @@ export default function TeacherAppLauncher({ savedCounts = null, loading = false
     [recents, recentLimit, permitted],
   )
 
-  // ── Popover open/close ────────────────────────────────────────────────
-  const cancelHide = () => {
-    if (hideTimer.current) {
-      clearTimeout(hideTimer.current)
-      hideTimer.current = null
+  // ── Popover open/close (hover intent + travel grace) ─────────────────
+  const openTimer = useRef(null)
+  const hideTimer = useRef(null)
+  const measuredSize = useRef(POPOVER_SIZE)
+  const cancelOpen = () => { clearTimeout(openTimer.current); openTimer.current = null }
+  const cancelHide = () => { clearTimeout(hideTimer.current); hideTimer.current = null }
+
+  const openInfoNow = useCallback((studio, el) => {
+    const rect = el.getBoundingClientRect()
+    const anchor = {
+      top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom,
+      width: rect.width, height: rect.height,
     }
-  }
-  const showInfo = useCallback((studio, el) => {
+    const placement = resolvePopoverPlacement(
+      anchor,
+      { width: window.innerWidth, height: window.innerHeight },
+      measuredSize.current,
+    )
+    setInfo({ studio, placement, anchor })
+  }, [])
+
+  // Focus opens immediately (keyboard users shouldn't wait); hover waits a
+  // beat so sweeping the cursor across the grid doesn't strobe popovers.
+  const showInfo = useCallback((studio, el, { immediate = false } = {}) => {
     if (!el) return
     cancelHide()
-    const rect = el.getBoundingClientRect()
-    const placement = resolvePopoverPlacement(
-      { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height },
-      { width: window.innerWidth, height: window.innerHeight },
-      POPOVER_SIZE,
-    )
-    setInfo({ studio, placement })
-  }, [])
+    cancelOpen()
+    if (immediate) {
+      openInfoNow(studio, el)
+      return
+    }
+    openTimer.current = setTimeout(() => openInfoNow(studio, el), HOVER_INTENT_MS)
+  }, [openInfoNow])
+
   const scheduleHide = useCallback(() => {
+    cancelOpen()
     cancelHide()
     hideTimer.current = setTimeout(() => setInfo(null), HIDE_DELAY)
   }, [])
-  useEffect(() => () => cancelHide(), [])
+  useEffect(() => () => { cancelOpen(); cancelHide() }, [])
 
-  // Close popover on route change, Escape, or outside click.
+  // The estimate can undershoot the real card height; re-clamp once the
+  // popover reports its rendered size (also remembered for future opens).
+  const handlePopMeasure = useCallback((size) => {
+    measuredSize.current = size
+    setInfo((cur) => {
+      if (!cur?.anchor) return cur
+      const placement = resolvePopoverPlacement(
+        cur.anchor,
+        { width: window.innerWidth, height: window.innerHeight },
+        size,
+      )
+      if (
+        placement.top === cur.placement.top
+        && placement.left === cur.placement.left
+        && placement.side === cur.placement.side
+      ) return cur
+      return { ...cur, placement }
+    })
+  }, [])
+
+  // Close popover on route change, Escape, outside click, scroll or resize
+  // (fixed-position coords go stale the moment the page moves).
   useEffect(() => { setInfo(null); setSheetStudio(null); setCatMenuOpen(false) }, [location.pathname])
   useEffect(() => {
     if (!info) return undefined
@@ -132,11 +220,16 @@ export default function TeacherAppLauncher({ savedCounts = null, loading = false
     const onDown = (e) => {
       if (!e.target.closest?.('.tsl-pop') && !e.target.closest?.('.tsl-app')) setInfo(null)
     }
+    const onMove = () => setInfo(null)
     document.addEventListener('keydown', onKey)
     document.addEventListener('pointerdown', onDown)
+    window.addEventListener('scroll', onMove, { capture: true, passive: true })
+    window.addEventListener('resize', onMove)
     return () => {
       document.removeEventListener('keydown', onKey)
       document.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('scroll', onMove, { capture: true })
+      window.removeEventListener('resize', onMove)
     }
   }, [info])
 
@@ -148,6 +241,21 @@ export default function TeacherAppLauncher({ savedCounts = null, loading = false
     return () => document.removeEventListener('pointerdown', onDown)
   }, [catMenuOpen])
 
+  // ── Sheet open/close with focus restore ───────────────────────────────
+  const sheetReturnFocus = useRef(null)
+  const openSheet = useCallback((studio) => {
+    sheetReturnFocus.current = document.activeElement
+    cancelOpen()
+    setInfo(null)
+    setSheetStudio(studio)
+    dismissHint()
+  }, [dismissHint])
+  const closeSheet = useCallback(() => {
+    setSheetStudio(null)
+    const el = sheetReturnFocus.current
+    if (el && typeof el.focus === 'function' && document.contains(el)) el.focus()
+  }, [])
+
   // ── Actions ───────────────────────────────────────────────────────────
   const openStudio = useCallback((studio) => {
     record(studio.id)
@@ -157,23 +265,19 @@ export default function TeacherAppLauncher({ savedCounts = null, loading = false
   }, [navigate, record])
 
   const viewSaved = useCallback((studio) => {
+    if (!studio.savedWorkTo) return
     setInfo(null)
     setSheetStudio(null)
-    // The library is the saved-work destination; the assessment studio keeps
-    // its own list. Never a per-icon query.
-    navigate(studio.id === 'assessment-papers' ? '/teacher/assessment-papers' : '/teacher/library')
+    navigate(studio.savedWorkTo)
   }, [navigate])
 
-  const toggleCategory = useCallback((id) => {
-    setCollapsed((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }, [])
+  const openFirstResult = useCallback(() => {
+    if (searching && visible.length > 0) openStudio(visible[0])
+  }, [searching, visible, openStudio])
 
-  // Shared icon renderer — resolves badge/favourite + wires handlers once.
+  // Stable per-icon handlers so memo(StudioAppIcon) actually skips.
+  const handleIconOpen = useCallback((studio) => record(studio.id), [record])
+
   const renderIcon = useCallback((studio) => {
     const badge = resolveBadge(studio, savedCounts)
     return (
@@ -182,26 +286,41 @@ export default function TeacherAppLauncher({ savedCounts = null, loading = false
         badge={badge}
         pending={loading && badgeIsPending(studio, savedCounts)}
         isFavourite={favouriteSet.has(studio.id)}
-        onOpen={() => record(studio.id)}
+        onOpen={handleIconOpen}
         onShowInfo={showInfo}
         onHideInfo={scheduleHide}
-        onLongPress={setSheetStudio}
+        onLongPress={openSheet}
       />
     )
-  }, [savedCounts, loading, favouriteSet, record, showInfo, scheduleHide])
+  }, [savedCounts, loading, favouriteSet, handleIconOpen, showInfo, scheduleHide, openSheet])
 
   const infoBadge = info ? resolveBadge(info.studio, savedCounts) : null
   const sheetBadge = sheetStudio ? resolveBadge(sheetStudio, savedCounts) : null
   const infoCount = info?.studio?.countKey && savedCounts ? savedCounts[info.studio.countKey] : null
   const sheetCount = sheetStudio?.countKey && savedCounts ? savedCounts[sheetStudio.countKey] : null
 
-  const categoriesToShow = searching || categoryFilter !== 'all' || chip !== 'all'
-    ? [{ id: 'results', label: searching ? 'Search results' : chip === 'favourites' ? 'Favourites' : chip === 'recent' ? 'Recent' : 'Tools', studios: visible }]
+  const filtered = searching || chip !== 'all' || categoryFilter !== 'all'
+  const categoriesToShow = filtered
+    ? [{
+      id: 'results',
+      label: searching ? 'Search results' : chip === 'favourites' ? 'Favourites' : chip === 'recent' ? 'Recently used' : 'Tools',
+      studios: visible,
+    }]
     : STUDIO_CATEGORIES.map((c) => ({ ...c, studios: visible.filter((s) => s.category === c.id) }))
 
   const catFilterLabel = categoryFilter === 'all'
     ? 'Categories'
     : STUDIO_CATEGORIES.find((c) => c.id === categoryFilter)?.label || 'Categories'
+
+  // Context-specific empty state — never a filter that silently un-filters.
+  const emptyState = searching
+    ? { icon: SearchX, body: <p>No tools match “{query.trim()}”. Try another word.</p> }
+    : chip === 'favourites'
+      ? { icon: Star, body: <p>No favourites yet. Press and hold a tool (or open its info card) and choose <strong>Add to favourites</strong>.</p> }
+      : chip === 'recent'
+        ? { icon: Clock, body: <p>No recently used tools yet — tools you open appear here.</p> }
+        : { icon: LayoutGrid, body: <p>Nothing to show here yet.</p> }
+  const EmptyIcon = emptyState.icon
 
   return (
     <section className="tsl" aria-label="Teacher Workspace">
@@ -211,27 +330,33 @@ export default function TeacherAppLauncher({ savedCounts = null, loading = false
           <h2 className="tsl-title">Teacher Workspace</h2>
           <p className="tsl-subtitle">Everything you need to plan, teach, assess and record</p>
         </div>
-        <ToolSearch value={query} onChange={setQuery} resultCount={visible.length} />
+        <ToolSearch
+          value={query}
+          onChange={setQuery}
+          onSubmit={openFirstResult}
+          resultCount={visible.length}
+        />
       </header>
 
       {/* ── Controls: chips + category filter ──────────────────────── */}
       <div className="tsl-controls">
         <div className="tsl-chips" role="tablist" aria-label="Filter tools">
-          {LAUNCHER_CHIPS.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              role="tab"
-              aria-selected={chip === c.id && !searching}
-              className={`tsl-chip ${chip === c.id && !searching ? 'is-active' : ''}`}
-              onClick={() => { setChip(c.id); setQuery('') }}
-            >
-              {c.id === 'recent' ? <BarChart3 size={14} strokeWidth={2} aria-hidden="true" /> : null}
-              {c.id === 'favourites' ? <Star size={14} strokeWidth={2} aria-hidden="true" /> : null}
-              {c.id === 'all' ? <LayoutGrid size={14} strokeWidth={2} aria-hidden="true" /> : null}
-              {c.label}
-            </button>
-          ))}
+          {LAUNCHER_CHIPS.map((c) => {
+            const ChipIcon = CHIP_ICONS[c.id]
+            return (
+              <button
+                key={c.id}
+                type="button"
+                role="tab"
+                aria-selected={chip === c.id && !searching}
+                className={`tsl-chip ${chip === c.id && !searching ? 'is-active' : ''}`}
+                onClick={() => { setChip(c.id); setQuery('') }}
+              >
+                {ChipIcon ? <ChipIcon size={14} strokeWidth={2} aria-hidden="true" /> : null}
+                {c.label}
+              </button>
+            )
+          })}
         </div>
 
         <div className="tsl-catfilter" ref={catMenuRef}>
@@ -273,20 +398,27 @@ export default function TeacherAppLauncher({ savedCounts = null, loading = false
         </div>
       </div>
 
+      {/* ── One-time touch hint ────────────────────────────────────── */}
+      {hintVisible ? (
+        <div className="tsl-hint" role="note">
+          <Hand size={15} strokeWidth={2} aria-hidden="true" />
+          <span>Tap a tool to open it. Press and hold for details and favourites.</span>
+          <button type="button" className="tsl-hint-close" aria-label="Dismiss tip" onClick={dismissHint}>
+            <X size={14} strokeWidth={2.2} aria-hidden="true" />
+          </button>
+        </div>
+      ) : null}
+
       {/* ── Recently used ──────────────────────────────────────────── */}
-      {!searching && chip === 'all' && categoryFilter === 'all' ? (
+      {!filtered ? (
         <RecentStudios studios={recentList} columns={columns} renderIcon={renderIcon} />
       ) : null}
 
       {/* ── Category sections ──────────────────────────────────────── */}
       {visible.length === 0 ? (
         <div className="tsl-empty">
-          <Bell size={22} strokeWidth={1.75} aria-hidden="true" />
-          {searching
-            ? <p>No tools match “{query.trim()}”. Try another word.</p>
-            : chip === 'favourites'
-              ? <p>No favourites yet. Open a tool’s info card and choose <strong>Add to favourites</strong>.</p>
-              : <p>Nothing to show here yet.</p>}
+          <EmptyIcon size={22} strokeWidth={1.75} aria-hidden="true" />
+          {emptyState.body}
         </div>
       ) : (
         categoriesToShow.map((c) => (
@@ -296,7 +428,8 @@ export default function TeacherAppLauncher({ savedCounts = null, loading = false
             label={c.label}
             studios={c.studios}
             columns={columns}
-            collapsed={collapsed.has(c.id)}
+            collapsible={!filtered}
+            collapsed={!filtered && collapsed.has(c.id)}
             onToggle={toggleCategory}
             renderIcon={renderIcon}
           />
@@ -312,6 +445,7 @@ export default function TeacherAppLauncher({ savedCounts = null, loading = false
           lastOpened={lastOpenedLabel(openedAt[info.studio.id])}
           isFavourite={favouriteSet.has(info.studio.id)}
           placement={info.placement}
+          onMeasure={handlePopMeasure}
           onOpenStudio={openStudio}
           onViewSaved={viewSaved}
           onToggleFavourite={(s) => toggleFavourite(s.id)}
@@ -331,7 +465,7 @@ export default function TeacherAppLauncher({ savedCounts = null, loading = false
           onOpenStudio={openStudio}
           onViewSaved={viewSaved}
           onToggleFavourite={(s) => toggleFavourite(s.id)}
-          onClose={() => setSheetStudio(null)}
+          onClose={closeSheet}
         />
       ) : null}
     </section>

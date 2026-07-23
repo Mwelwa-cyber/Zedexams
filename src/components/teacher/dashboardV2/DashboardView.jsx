@@ -35,7 +35,6 @@ export default function DashboardView({
   ctaState = 'default',
   onContinue,
   recommendations,
-  documents,
   savedCounts,
   checklist,
   feed,
@@ -84,7 +83,6 @@ export default function DashboardView({
           ctaState={ctaState}
           onContinue={onContinue}
           recommendations={recommendations}
-          documents={documents}
           savedCounts={savedCounts}
           checklist={checklist}
           feed={feed}

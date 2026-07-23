@@ -54,12 +54,14 @@ const links = new Map() // path -> Set of files
 for (const file of files) {
   const src = readFileSync(file, 'utf8')
   const rel = file.slice(DIR.length + 1)
-  // to: '/x' | to="/x" | to={'/x'} | href="/x" | route: '/x' | navigate('/x'
+  // to: '/x' | to="/x" | to={'/x'} | href="/x" | route: '/x' |
+  // savedWorkTo: '/x' | navigate('/x'
   const patterns = [
     /\bto:\s*['"`](\/[^'"`\s]*)/g,
     /\bto=["'{]+["'`]?(\/[^'"`}\s]*)/g,
     /\bhref=["'](\/[^'"\s]*)/g,
     /\broute:\s*['"`](\/[^'"`\s]*)/g,
+    /\bsavedWorkTo:\s*['"`](\/[^'"`\s]*)/g,
     /navigate\(\s*['"`](\/[^'"`\s]*)/g,
   ]
   for (const re of patterns) {

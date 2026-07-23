@@ -128,7 +128,8 @@ export function recentStudios(recents = [], byId = {}, limit = 8) {
 
 /**
  * Apply the active chip to the studio list.
- *   recent     → recent studios (falls back to all when no history yet)
+ *   recent     → recent studios (may be empty — the UI shows an honest
+ *                empty state instead of silently un-filtering)
  *   favourites → favourite studios (empty allowed — the UI shows a prompt)
  *   all        → the list unchanged
  */
@@ -137,8 +138,7 @@ export function applyChip(studios = [], { chip = 'all', favourites = [], recents
     return favouriteStudios(favourites, byId).filter((s) => studios.some((x) => x.id === s.id))
   }
   if (chip === 'recent') {
-    const list = recentStudios(recents, byId, studios.length).filter((s) => studios.some((x) => x.id === s.id))
-    return list.length ? list : studios
+    return recentStudios(recents, byId, studios.length).filter((s) => studios.some((x) => x.id === s.id))
   }
   return studios
 }

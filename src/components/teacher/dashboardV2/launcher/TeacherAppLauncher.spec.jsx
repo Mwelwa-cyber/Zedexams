@@ -187,4 +187,60 @@ describe('TeacherAppLauncher', () => {
     // minmax(0,1fr)) so tracks can shrink to 0 → never a horizontal scroll.
     expect(grid.style.getPropertyValue('--tsl-cols')).toBe('4')
   })
+
+  it('Enter in search opens the top result directly', async () => {
+    const user = userEvent.setup()
+    renderLauncher()
+    const box = screen.getByRole('searchbox', { name: 'Search teacher tools' })
+    await user.type(box, 'scheme{Enter}')
+    expect(screen.getByText('Scheme Page')).toBeInTheDocument()
+  })
+
+  it('Shift+F10 opens the info sheet for keyboard users (favourites path)', async () => {
+    renderLauncher()
+    const icon = lessonIcon()
+    icon.focus()
+    fireEvent.keyDown(icon, { key: 'F10', shiftKey: true })
+    const sheet = screen.getByRole('dialog', { name: /Lesson Plans — details/ })
+    expect(within(sheet).getByRole('button', { name: /Add to favourites/ })).toBeInTheDocument()
+  })
+
+  it('mouse right-click keeps the native context menu (no info sheet)', () => {
+    renderLauncher()
+    const icon = lessonIcon()
+    fireEvent.pointerDown(icon, { pointerType: 'mouse', button: 2 })
+    fireEvent.contextMenu(icon)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('Recent chip with no history shows an honest empty state, not all tools', async () => {
+    const user = userEvent.setup()
+    renderLauncher()
+    await user.click(screen.getByRole('tab', { name: 'Recent' }))
+    expect(screen.getByText(/No recently used tools yet/)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/^Lesson Plans.*Open studio$/)).not.toBeInTheDocument()
+  })
+
+  it('View saved work deep-links to the library from the popover', async () => {
+    const user = userEvent.setup()
+    renderLauncher()
+    fireEvent.focus(lessonIcon())
+    const pop = await screen.findByRole('dialog', { name: /Lesson Plans/ })
+    await user.click(within(pop).getByRole('button', { name: /View saved work/ }))
+    expect(screen.getByText('Library Page')).toBeInTheDocument()
+  })
+
+  it('hub studios (route IS the list) hide View saved work', async () => {
+    renderLauncher()
+    fireEvent.focus(screen.getByLabelText(/^Question Bank.*Open studio$/))
+    const pop = await screen.findByRole('dialog', { name: /Question Bank — details/ })
+    expect(within(pop).queryByRole('button', { name: /View saved work/ })).not.toBeInTheDocument()
+    expect(within(pop).getByRole('button', { name: /Add to favourites/ })).toBeInTheDocument()
+  })
+
+  it('every studio declares savedWorkTo explicitly (string or null)', () => {
+    for (const s of TEACHER_STUDIOS) {
+      expect(s.savedWorkTo === null || typeof s.savedWorkTo === 'string').toBe(true)
+    }
+  })
 })
