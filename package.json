@@ -203,6 +203,7 @@
     "test:gamification-core": "node scripts/test-gamification-core.mjs",
     "test:daily-exam-picker": "node functions/dailyExamPicker.test.js",
     "test:exam-timetable": "node scripts/test-exam-timetable.mjs",
+    "test:injection-guard": "node functions/promptInjectionGuard.test.js",
     "test:account-deletion": "node functions/accountDeletion.test.js",
     "test:account-deletion-drift": "node functions/accountDeletionDrift.test.js",
     "test:account-reauth": "node src/utils/accountReauth.test.js",
