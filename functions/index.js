@@ -291,7 +291,7 @@ const {
 // denied by rules; everything goes through this callable.
 const {saveClassAttendance} = require("./attendance/saveClassAttendance");
 // Audit A10 PR 4 + PR 5 — per-class analytics + per-assignment drill-down.
-const {getClassStats, getAssignmentCompletion} = require("./classAnalytics");
+const {getClassStats, getClassPerformanceSeries, getAssignmentCompletion} = require("./classAnalytics");
 // Audit A3 PR 1 — parent portal share-link infrastructure.
 const {
   createProgressShare,
@@ -3160,6 +3160,7 @@ exports.removeClassAssignment = removeClassAssignment;
 // (30-day window, first 200 learners, 25 most-recent assignments) with
 // graceful index-fallback so the first deploy still renders something.
 exports.getClassStats = getClassStats;
+exports.getClassPerformanceSeries = getClassPerformanceSeries;
 
 // B4 follow-up — daily AI cost summary. Runs 02:00 Africa/Lusaka,
 // summarises yesterday's spend, and emails ADMIN_EMAILS when

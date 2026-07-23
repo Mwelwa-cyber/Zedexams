@@ -285,6 +285,7 @@ export default function MobileDashboardView({
   feed,
   activity,
   series,
+  classPerformance = null,
   loading = false,
   onRetryFeed,
   dark = false,
@@ -491,7 +492,7 @@ export default function MobileDashboardView({
         <ChecklistCard items={checklist} loading={loading} />
         <FeedStatusCard items={feed} onRetry={() => onRetryFeed?.({ showToast })} />
         <RecentActivityCard items={activity} />
-        <PerformanceSnapshotCard series={series} dark={dark} />
+        <PerformanceSnapshotCard series={series} classPerformance={classPerformance} dark={dark} />
       </main>
 
       <nav className="tdv2m-bottomnav" aria-label="Quick navigation">

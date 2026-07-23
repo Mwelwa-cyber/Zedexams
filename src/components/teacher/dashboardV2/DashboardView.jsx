@@ -38,6 +38,7 @@ export default function DashboardView({
   feed,
   activity,
   series,
+  classPerformance = null,
   loading = false,
   onRetryFeed,
   onConfirmLogout,
@@ -87,6 +88,7 @@ export default function DashboardView({
           feed={feed}
           activity={activity}
           series={series}
+          classPerformance={classPerformance}
           loading={loading}
           onRetryFeed={onRetryFeed}
           dark={dark}
@@ -148,7 +150,7 @@ export default function DashboardView({
             <ChecklistCard items={checklist} loading={loading} />
             <FeedStatusCard items={feed} onRetry={() => onRetryFeed?.({ showToast })} />
             <RecentActivityCard items={activity} />
-            <PerformanceSnapshotCard series={series} dark={dark} />
+            <PerformanceSnapshotCard series={series} classPerformance={classPerformance} dark={dark} />
           </div>
         </main>
       </div>
