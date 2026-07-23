@@ -120,12 +120,12 @@ function pickIllustrationStage(planJson, curriculumMode) {
 // Fingerprint of the INPUT slices a generation was started from. Compared
 // before the post-save draft.clear(): if the teacher went "Back to form" and
 // kept editing while the request was in flight, the current inputs no longer
-// match and the newer draft must survive. seriesId is excluded — the generate
-// handler itself mints it mid-run, which would otherwise always mismatch in
-// series mode. (Overwriting seriesId on the spread keeps its key POSITION, so
-// the serialized shape — and therefore the fingerprint — is stable whether or
-// not the id has been minted yet.)
+// match and the newer draft must survive. From lessonSeries only the
+// teacher-typed keys are picked — seriesId is minted by the generate handler
+// itself mid-run and any future machine-stamped key must not spuriously
+// block the clear either.
 function draftInputFingerprint(s) {
+  const series = s.lessonSeries || {}
   return JSON.stringify({
     curriculumMode: s.curriculumMode,
     lessonDetails: s.lessonDetails,
@@ -133,7 +133,12 @@ function draftInputFingerprint(s) {
     subtopic: s.topicData?.subtopic ?? '',
     selectedOutcomes: s.selectedOutcomes,
     learningEnvironments: s.learningEnvironments,
-    lessonSeries: { ...(s.lessonSeries || {}), seriesId: null },
+    lessonSeries: {
+      planningMode: series.planningMode ?? 'single',
+      totalLessons: series.totalLessons ?? 1,
+      lessonNumber: series.lessonNumber ?? 1,
+      lessonFocus: series.lessonFocus ?? '',
+    },
     lessonBreakdown: s.lessonBreakdown,
     formatOptions: s.formatOptions,
   })
