@@ -66,6 +66,8 @@ import { stampEditHistory } from '../../../utils/schemeEditHistory'
 import { useSubjectTopics } from '../studio/hooks/useSubjectTopics'
 import SchemeTermPreview from './SchemeTermPreview'
 import { toTopicSelectionPayload } from '../../../utils/schemeTermDivision'
+import { useAiOperationLock } from '../../../hooks/useAiOperationLock'
+import { stableFingerprint } from '../../../hooks/aiOperationLockCore'
 
 const CALENDAR_YEARS = getCalendarYears()
 
@@ -137,6 +139,16 @@ export default function SchemeOfWorkGenerator() {
   // Per-run token: stops a resolved callable from hijacking the UI if Stop was
   // clicked before the response landed.
   const runRef = useRef(0)
+
+  // Idempotency lock: one logical generation → one provider call + one saved
+  // doc + one usage charge, even across a double-click / rapid tap / refresh /
+  // a second tab. generateSchemeOfWork.js's server-side reservation enforces
+  // this; this is the client-side belt (mints + persists the key). Separate
+  // lock keys for the full generate vs a per-section regenerate so they never
+  // collide. See CreatePaperModal for the reference wiring.
+  const { run: runGenerateLocked } = useAiOperationLock('scheme-studio:generate')
+  const { run: runRegenerateLocked } = useAiOperationLock('scheme-studio:regenerate')
+
   const toast = useToast()
   const [savingEdit, setSavingEdit] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
@@ -330,7 +342,23 @@ export default function SchemeOfWorkGenerator() {
 
   async function regenerateSection(sectionId) {
     if (!ensureCanGenerate('scheme_of_work')) return null
-    const res = await generateSchemeOfWork(buildInputs(genOverrides))
+    const inputs = buildInputs(genOverrides)
+    const lockResult = await runRegenerateLocked({
+      // Section-scoped fingerprint so a regenerate mints its own key rather
+      // than resuming the full-generate result.
+      fingerprint: stableFingerprint({ ...inputs, __regenerateSection: sectionId }),
+      action: async (idempotencyKey) => {
+        const outcome = await generateSchemeOfWork({ ...inputs, idempotencyKey })
+        if (!outcome.ok) {
+          const err = new Error(outcome.error || 'Generation failed')
+          err.response = outcome
+          throw err
+        }
+        return outcome
+      },
+    })
+    if (lockResult.reason === 'locked') return null
+    const res = lockResult.ok ? lockResult.data : (lockResult.error?.response || { ok: false })
     if (res.ok && res.data?.schemeOfWork) {
       const fresh = res.data.schemeOfWork
       setScheme((prev) => (prev ? { ...prev, [sectionId]: fresh[sectionId] } : fresh))
@@ -418,9 +446,34 @@ export default function SchemeOfWorkGenerator() {
     setStep('form')
 
     const genTerm = overrides.term || form.term
-    const res = await generateSchemeOfWork(buildInputs(overrides))
+    const inputs = buildInputs(overrides)
+    const lockResult = await runGenerateLocked({
+      fingerprint: stableFingerprint(inputs),
+      action: async (idempotencyKey) => {
+        const outcome = await generateSchemeOfWork({ ...inputs, idempotencyKey })
+        if (!outcome.ok) {
+          // generateSchemeOfWork() resolves rather than throws; a genuine
+          // failure must be THROWN so the lock keeps the key reserved for a
+          // same-input retry (never re-billed) instead of minting a fresh key.
+          const err = new Error(outcome.error || 'Generation failed')
+          err.response = outcome
+          throw err
+        }
+        return outcome
+      },
+    })
     if (run !== runRef.current) return
     if (!isMounted.current) return
+    if (lockResult.reason === 'locked') return // a duplicate click slipped past the disabled button
+    const res = lockResult.ok ? lockResult.data : (lockResult.error?.response || {
+      ok: false, error: lockResult.error?.message || 'Generation failed. Please try again.',
+    })
+    if (res.ok && res.data?.status === 'processing') {
+      // The server already has this exact request in flight (a retried network
+      // call or another tab) — leave "Generating…" showing; the owning call
+      // completes it.
+      return
+    }
     if (!res.ok) {
       setStatus('error')
       setErrorMessage(res.error)
