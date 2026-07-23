@@ -14,7 +14,10 @@ import { Toast } from './PreviewChrome'
 import useDashboardTheme from './useDashboardTheme'
 import useIsMobile from './useIsMobile'
 import MobileDashboardView from './MobileDashboardView'
+import ensureDashboardFonts from './dashboardFonts'
 import './dashboardV2.css'
+
+ensureDashboardFonts()
 
 /**
  * Presentational shell for Teacher Dashboard V2 — shared by the live
