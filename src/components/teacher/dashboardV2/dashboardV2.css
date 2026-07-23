@@ -85,6 +85,33 @@
   height: 100%;
 }
 
+/* Bare scope: a .tdv2 root that only carries the design-system variables
+   for overlay/fixed children (mobile chrome, logout dialog) without the
+   dashboard's grid, background or min-height. Zero-size in flow. */
+.tdv2.tdv2-bare {
+  display: block;
+  grid-template-columns: none;
+  min-height: 0;
+  background: transparent;
+}
+
+/* Studio-shell mobile chrome (< lg): the shared V2 header/drawer/bottom nav
+   over the same breakpoint range the old glass header + tab bar covered.
+   The header is sticky inside the dashboard's own scroll column; here the
+   scope wrapper has no height, so pin it to the viewport instead. */
+@media (min-width: 1024px) {
+  .tdv2.tdv2-mchrome {
+    display: none;
+  }
+}
+
+.tdv2-mchrome .tdv2m-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
 .tdv2 a {
   color: inherit;
   text-decoration: none;

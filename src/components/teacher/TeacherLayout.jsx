@@ -4,11 +4,10 @@ import { ShieldCheck } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import TeacherTopBar from './TeacherTopBar'
 import ErrorBoundary from '../ui/ErrorBoundary'
-import TeacherGlassHeader from './TeacherGlassHeader'
-import TeacherBottomNav from './TeacherBottomNav'
 import { isImmersiveStudioPath } from './immersiveStudioRoutes'
 import Sidebar from './dashboardV2/Sidebar'
 import LogoutDialog from './dashboardV2/LogoutDialog'
+import { MobileHeader, MobileBottomNav, NavDrawer } from './dashboardV2/MobileDashboardView'
 import { STUDIO_NAV_GROUPS } from './dashboardV2/dashboardV2Config'
 import { teacherFromAuth } from './dashboardV2/dashboardV2Data'
 import useDashboardTheme from './dashboardV2/useDashboardTheme'
@@ -19,6 +18,7 @@ export default function TeacherLayout({ children }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [logoutOpen, setLogoutOpen] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const { dark, toggleTheme } = useDashboardTheme()
 
   const teacher = teacherFromAuth({
@@ -63,13 +63,28 @@ export default function TeacherLayout({ children }) {
           dark={dark}
           onToggleTheme={toggleTheme}
         />
-        {logoutOpen ? (
-          <LogoutDialog onCancel={() => setLogoutOpen(false)} onConfirm={confirmLogout} />
-        ) : null}
       </div>
 
-      {/* ── Glass header (mobile + tablet) ─────────────────── */}
-      <TeacherGlassHeader />
+      {/* ── Mobile + tablet chrome (< lg) — same V2 header, slide-out drawer
+             and bottom nav as the dashboard, over the same breakpoint range
+             the old glass header + tab bar covered. ─────────────────── */}
+      <div className={`tdv2 tdv2-bare tdv2-mchrome ${dark ? 'is-dark' : ''}`}>
+        <MobileHeader drawerOpen={drawerOpen} onOpenMenu={() => setDrawerOpen(true)} />
+        <NavDrawer
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          teacher={teacher}
+          groups={groups}
+          dark={dark}
+          onToggleTheme={toggleTheme}
+          onLogout={() => setLogoutOpen(true)}
+        />
+        {/* Suppressed inside the full-screen assessment studio, which renders
+            its own fixed bottom dock (.sv-dock) — two stacked bars collide. */}
+        {!isImmersiveStudioPath(pathname) && (
+          <MobileBottomNav drawerOpen={drawerOpen} onMore={() => setDrawerOpen(true)} />
+        )}
+      </div>
 
       {/* ── Main Content ────────────────────────────────── */}
       <main className="flex-1 min-w-0 pt-[calc(5rem+env(safe-area-inset-top))] lg:pt-0">
@@ -84,11 +99,14 @@ export default function TeacherLayout({ children }) {
         </div>
       </main>
 
-      {/* ── Bottom shortcut nav (mobile + tablet) ──────────── */}
-      {/* Suppressed inside the full-screen assessment/exam-paper studio, which
-          renders its own fixed bottom dock (.sv-dock). Showing both stacks two
-          fixed bars and the dark dock covers the global nav's labels. */}
-      {!isImmersiveStudioPath(pathname) && <TeacherBottomNav />}
+      {/* Logout confirmation lives in its own always-mounted scope: the shell
+          and mobile-chrome scopes are display:none at the opposite breakpoint,
+          which would hide the fixed overlay with them. */}
+      {logoutOpen ? (
+        <div className={`tdv2 tdv2-bare ${dark ? 'is-dark' : ''}`}>
+          <LogoutDialog onCancel={() => setLogoutOpen(false)} onConfirm={confirmLogout} />
+        </div>
+      ) : null}
     </div>
   )
 }
