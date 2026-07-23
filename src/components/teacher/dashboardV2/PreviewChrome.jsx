@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { CircleCheck, CircleX, Eye, SlidersHorizontal, X } from 'lucide-react'
+import { TOUR_REPLAY_EVENT, TOUR_STORAGE_KEY } from './onboardingTourCore'
 
 /**
  * Preview-only chrome: the "Preview Mode" banner and (outside production
@@ -103,6 +104,16 @@ export function PreviewControlPanel({
               </button>
               <button type="button" className="tdv2-chip" onClick={onShowErrorToast}>
                 Error toast
+              </button>
+              <button
+                type="button"
+                className="tdv2-chip"
+                onClick={() => {
+                  try { localStorage.removeItem(TOUR_STORAGE_KEY) } catch { /* ignore */ }
+                  window.dispatchEvent(new Event(TOUR_REPLAY_EVENT))
+                }}
+              >
+                Replay tour
               </button>
             </div>
           </div>

@@ -11,7 +11,7 @@ export default function AiRecommendationsCard({ recommendations = [] }) {
   const [primary, ...rest] = items
 
   return (
-    <section className="tdv2-card tdv2-ai-card" aria-labelledby="tdv2-ai-h">
+    <section className="tdv2-card tdv2-ai-card" aria-labelledby="tdv2-ai-h" data-tour="ai-recs">
       <div className="tdv2-card-head">
         <h2 className="tdv2-eyebrow" id="tdv2-ai-h">
           <Sparkles size={17} strokeWidth={2} aria-hidden="true" />

@@ -4,7 +4,7 @@ import { QUICK_CREATE_TILES } from './dashboardV2Config'
 
 export default function QuickCreateCard({ onViewAllTools }) {
   return (
-    <section className="tdv2-card" aria-labelledby="tdv2-quick-create-h">
+    <section className="tdv2-card" aria-labelledby="tdv2-quick-create-h" data-tour="quick-create">
       <div className="tdv2-card-head">
         <h2 className="tdv2-eyebrow" id="tdv2-quick-create-h">
           <ClipboardList size={17} strokeWidth={2} aria-hidden="true" />

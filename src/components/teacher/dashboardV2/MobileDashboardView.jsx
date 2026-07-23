@@ -319,7 +319,7 @@ export function MobileHeader({ drawerOpen, onOpenMenu }) {
 export function MobileBottomNav({ drawerOpen, onMore }) {
   const { pathname } = useLocation()
   return (
-    <nav className="tdv2m-bottomnav" aria-label="Quick navigation">
+    <nav className="tdv2m-bottomnav" aria-label="Quick navigation" data-tour="nav">
       {BOTTOM_NAV.map(({ id, label, icon: NavIcon, to }) => {
         const active =
           to === '/teacher'
@@ -412,7 +412,7 @@ export default function MobileDashboardView({
           />
         </form>
 
-        <section className="tdv2m-hero" aria-label="Greeting">
+        <section className="tdv2m-hero" aria-label="Greeting" data-tour="hero">
           <img className="tdv2m-hero-art" src={heroDesk} alt="" aria-hidden="true" loading="lazy" />
           <span className="tdv2-hero-eyebrow">
             <span className="tdv2-hero-sun" aria-hidden="true">
@@ -454,7 +454,7 @@ export default function MobileDashboardView({
           </div>
         </section>
 
-        <section aria-labelledby="tdv2m-qc-h">
+        <section aria-labelledby="tdv2m-qc-h" data-tour="quick-create">
           <div className="tdv2m-section-head">
             <h2 className="tdv2-eyebrow" id="tdv2m-qc-h">Quick Create</h2>
             <Link className="tdv2-link-action" to="/teacher/library">

@@ -1,9 +1,16 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
 import TeacherDashboardV2 from './TeacherDashboardV2'
+import { TOUR_STORAGE_KEY } from './onboardingTourCore'
+
+// These specs exercise the drawer/menu chrome — suppress the first-run tour
+// (its own behaviour is covered in OnboardingTour.spec.jsx).
+beforeEach(() => {
+  localStorage.setItem(TOUR_STORAGE_KEY, 'done')
+})
 
 // Force the mobile information architecture regardless of jsdom viewport.
 vi.mock('./useIsMobile', () => ({ default: () => true }))

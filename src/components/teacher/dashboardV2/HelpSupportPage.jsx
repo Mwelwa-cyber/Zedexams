@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronRight,
   CircleHelp,
+  Compass,
   FileText,
   Lightbulb,
   Mail,
@@ -253,6 +254,10 @@ export default function HelpSupportPage() {
                 </h2>
               </div>
               <div className="tdv2-help-links">
+                <Link className="tdv2-help-link" to="/teacher?tour=1">
+                  <Compass size={17} strokeWidth={1.75} aria-hidden="true" />
+                  Replay the dashboard tour
+                </Link>
                 <Link className="tdv2-help-link" to="/status">
                   <Activity size={17} strokeWidth={1.75} aria-hidden="true" />
                   System status

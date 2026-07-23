@@ -68,6 +68,8 @@ describe('TeacherDashboardLive', () => {
   beforeEach(() => {
     logout.mockClear()
     hookData.reload.mockClear()
+    // Suppress the first-run tour — covered in OnboardingTour.spec.jsx.
+    localStorage.setItem('zedexams:tdv2-tour', 'done')
   })
 
   it('renders real data from the hook: greeting name, docs, counts, chip', () => {

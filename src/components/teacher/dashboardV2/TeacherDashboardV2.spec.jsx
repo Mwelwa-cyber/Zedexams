@@ -4,6 +4,13 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
 import TeacherDashboardV2 from './TeacherDashboardV2'
+import { TOUR_STORAGE_KEY } from './onboardingTourCore'
+
+// These specs exercise the dashboard chrome — suppress the first-run tour
+// (its own behaviour is covered in OnboardingTour.spec.jsx).
+beforeEach(() => {
+  localStorage.setItem(TOUR_STORAGE_KEY, 'done')
+})
 
 // recharts' ResponsiveContainer needs real layout measurements jsdom can't
 // provide; stub the chart card so the rest of the dashboard renders.
