@@ -81,8 +81,37 @@ console.log('matchFrameworkSubject — OBC lower primary (Grades 1–4, 30-min)'
   assert(m !== null && m.periodMinutes === 30, 'OBC Grade 3 uses 30-min periods')
   assert(m.periodsPerWeek === 5, 'OBC lower primary Integrated Science = 5')
   assert(matchFrameworkSubject('G1', 'mathematics', 'obc').periodsPerWeek === 10, 'OBC lower primary Mathematics = 10')
-  // OBC secondary is not catalogued.
-  assert(matchFrameworkSubject('G9', 'mathematics', 'obc') === null, 'OBC secondary → null (manual entry)')
+  // OBC Junior Secondary (Grades 8–9) is not catalogued.
+  assert(matchFrameworkSubject('G9', 'mathematics', 'obc') === null, 'OBC junior secondary → null (manual entry)')
+}
+
+console.log('matchFrameworkSubject — OBC Senior Secondary (Grades 10–12, per-subject lookup)')
+{
+  // Core academic subjects — consistent across pathways.
+  const maths = matchFrameworkSubject('G11', 'mathematics', 'obc')
+  assert(maths !== null && maths.periodsPerWeek === 6, 'OBC G11 Mathematics = 6')
+  assert(maths.periodMinutes === 40 && maths.timeAllocation === '4 h 00 min', 'senior secondary = 40-min · 4 h for a 6-period subject')
+  assert(maths.band === 'obc_senior_secondary', 'tagged as the senior-secondary band')
+  assert(matchFrameworkSubject('G12', 'chemistry', 'obc').periodsPerWeek === 6, 'OBC G12 Chemistry = 6')
+  assert(matchFrameworkSubject('G10', 'civic_education', 'obc').periodsPerWeek === 5, 'OBC G10 Civic Education = 5')
+  assert(matchFrameworkSubject('G11', 'geography', 'obc').periodsPerWeek === 5, 'OBC G11 Geography = 5')
+  assert(matchFrameworkSubject('G11', 'religious_education', 'obc').periodsPerWeek === 5, 'OBC G11 Religious Education = 5')
+  // Pathway "majors" run as a 12-period (8 h) double.
+  const agric = matchFrameworkSubject('G10', 'agricultural_science', 'obc')
+  assert(agric.periodsPerWeek === 12 && agric.timeAllocation === '8 h 00 min', 'OBC G10 Agricultural Science = 12 (8 h)')
+  assert(matchFrameworkSubject('G12', 'art_and_design', 'obc').periodsPerWeek === 12, 'OBC G12 Art & Design = 12')
+  assert(matchFrameworkSubject('G11', 'physical_education', 'obc').periodsPerWeek === 12, 'OBC G11 Physical Education = 12')
+  assert(matchFrameworkSubject('G11', 'food_nutrition', 'obc').periodsPerWeek === 12, 'OBC G11 Food & Nutrition = 12')
+  assert(matchFrameworkSubject('G10', 'home_management', 'obc').periodsPerWeek === 12, 'OBC G10 Home Management = 12')
+  // Biology is the one pathway-dependent subject — we take the majority 5.
+  assert(matchFrameworkSubject('G11', 'biology', 'obc').periodsPerWeek === 5, 'OBC G11 Biology = 5 (majority; overridable)')
+  // CBC senior secondary has no catalogued table → null (unchanged).
+  assert(matchFrameworkSubject('G11', 'biology', 'cbc') === null, 'CBC G11 Biology → null')
+  assert(matchFrameworkSubject('G11', 'mathematics') === null, 'default (CBC) G11 → null')
+  // A subject with no 2013 secondary syllabus (not selectable) → null.
+  assert(matchFrameworkSubject('G11', 'physics', 'obc') === null, 'uncatalogued senior subject → null (manual entry)')
+  // Boundaries: Grade 9 is junior secondary, Grade 13 is out of range.
+  assert(matchFrameworkSubject('G9', 'biology', 'obc') === null, 'G9 (junior secondary) → null')
 }
 
 console.log('periodsPerWeekLabel')
@@ -91,6 +120,7 @@ console.log('periodsPerWeekLabel')
   assert(periodsPerWeekLabel('G9', 'mathematics') === '', 'empty when unmatched')
   assert(periodsPerWeekLabel('G7', 'integrated_science', 'obc') === '6 periods × 40 minutes', 'OBC G7 formats correctly')
   assert(periodsPerWeekLabel('G7', 'integrated_science', 'cbc') === '', 'CBC G7 stays empty (manual path)')
+  assert(periodsPerWeekLabel('G10', 'agricultural_science', 'obc') === '12 periods × 40 minutes', 'OBC senior major formats correctly')
 }
 
 if (failures > 0) {
