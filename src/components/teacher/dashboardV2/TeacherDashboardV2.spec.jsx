@@ -117,7 +117,7 @@ describe('TeacherDashboardV2', () => {
     expect(screen.getByText('Quick Create')).toBeInTheDocument()
     expect(screen.getByText('AI Recommendations')).toBeInTheDocument()
     expect(screen.getByText('Mathematics is not planned yet')).toBeInTheDocument()
-    // The app launcher is the workspace surface
+    // The classic card workspace is the desktop surface
     expect(screen.getByRole('region', { name: 'Teacher Workspace' })).toBeInTheDocument()
     expect(screen.getByLabelText(/^Lesson Plans.*Open studio$/)).toBeInTheDocument()
     expect(screen.getByText('Checklist Completion')).toBeInTheDocument()
@@ -149,17 +149,19 @@ describe('TeacherDashboardV2', () => {
     localStorage.removeItem('zedexams:tdv2-theme')
   })
 
-  it('the launcher exposes every teacher tool as an app icon and search narrows them', async () => {
+  it('View all teacher tools expands the extra studios in place', async () => {
     const u = user()
     renderDashboard()
-    // All tools are visible up-front — no "view all" expansion needed.
-    expect(screen.getByLabelText(/^Question Bank.*Open studio$/)).toBeInTheDocument()
-    expect(screen.getByLabelText(/^Class Timetable.*Open studio$/)).toBeInTheDocument()
-
-    const box = screen.getByRole('searchbox', { name: 'Search teacher tools' })
-    await u.type(box, 'question')
+    // Featured cards render up-front; the rest sit behind the expander.
     expect(screen.getByLabelText(/^Question Bank.*Open studio$/)).toBeInTheDocument()
     expect(screen.queryByLabelText(/^Class Timetable.*Open studio$/)).not.toBeInTheDocument()
+
+    const toggle = screen.getByRole('button', { name: /View all teacher tools \(\d+ more\)/ })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await u.click(toggle)
+    expect(screen.getByLabelText(/^Class Timetable.*Open studio$/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Class Register.*Open studio$/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Hide extra tools/ })).toBeInTheDocument()
   })
 
   it('sidebar puts Dashboard above the CREATE group', () => {

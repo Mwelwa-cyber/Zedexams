@@ -4,7 +4,8 @@ import TopHeader from './TopHeader'
 import GreetingHero from './GreetingHero'
 import QuickCreateCard from './QuickCreateCard'
 import AiRecommendationsCard from './AiRecommendationsCard'
-import TeacherAppLauncher from './launcher/TeacherAppLauncher'
+import RecentDocumentsCard from './RecentDocumentsCard'
+import TeacherWorkspaceSection from './TeacherWorkspaceSection'
 import { ChecklistCard, FeedStatusCard, RecentActivityCard } from './InsightCards'
 import LogoutDialog from './LogoutDialog'
 import OnboardingTour from './OnboardingTour'
@@ -35,6 +36,7 @@ export default function DashboardView({
   ctaState = 'default',
   onContinue,
   recommendations,
+  documents,
   savedCounts,
   launcherWarnings = [],
   checklist,
@@ -50,11 +52,14 @@ export default function DashboardView({
   const [toast, setToast] = useState(null)
   const toastTimer = useRef(null)
   const workspaceRef = useRef(null)
+  const [allToolsOpen, setAllToolsOpen] = useState(false)
   const { dark, toggleTheme } = useDashboardTheme()
 
-  // Quick Create's "View all teacher tools" brings the app launcher into
-  // view — every tool lives there, on this page, not behind a route.
+  // Quick Create's "View all teacher tools" expands the workspace's extra
+  // tools and brings the section into view — the tools live on this page,
+  // not behind a route.
   const viewAllTools = useCallback(() => {
+    setAllToolsOpen(true)
     workspaceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [])
 
@@ -130,8 +135,16 @@ export default function DashboardView({
             <AiRecommendationsCard recommendations={recommendations} />
           </div>
 
-          <div className="tdv2-launcher-block" ref={workspaceRef}>
-            <TeacherAppLauncher savedCounts={savedCounts} warnings={launcherWarnings} loading={loading} />
+          <RecentDocumentsCard documents={documents} loading={loading} />
+
+          <div ref={workspaceRef}>
+            <TeacherWorkspaceSection
+              savedCounts={savedCounts}
+              warnings={launcherWarnings}
+              loading={loading}
+              allToolsOpen={allToolsOpen}
+              onToggleAllTools={setAllToolsOpen}
+            />
           </div>
 
           <div className="tdv2-row-3">
