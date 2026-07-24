@@ -17,7 +17,9 @@ import {
   getActiveTerm,
   getCurrentForecastWeek,
   getNextTerm,
+  getTermWeeks,
 } from '../../../utils/moeCalendar'
+import { getSchoolProfile } from '../../../utils/schoolProfileService'
 import {
   activityFromResources,
   checklistFromWeekPrep,
@@ -28,6 +30,7 @@ import {
   initialsOf,
   lastOpenedFromResources,
   studioSavedCounts,
+  teachingDaysLeft,
   termChipLabel,
 } from './dashboardV2Data'
 
@@ -50,6 +53,7 @@ export default function useTeacherDashboardData() {
 
   const [generations, setGenerations] = useState([])
   const [assessments, setAssessments] = useState([])
+  const [schoolName, setSchoolName] = useState('')
   const [loading, setLoading] = useState(true)
   const [gensError, setGensError] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
@@ -61,13 +65,17 @@ export default function useTeacherDashboardData() {
     let cancelled = false
     async function load() {
       let gensFailed = false
-      const [gens, papers] = await Promise.all([
+      const [gens, papers, school] = await Promise.all([
         listMyGenerations({ uid: currentUser.uid }).catch(() => { gensFailed = true; return [] }),
         getMyAssessments(currentUser.uid).catch(() => []),
+        // Mobile hero branding only — a missing/failed profile just hides
+        // the school row, never blocks the dashboard.
+        getSchoolProfile(currentUser.uid).catch(() => null),
       ])
       if (cancelled) return
       setGenerations(gens)
       setAssessments(papers)
+      setSchoolName(school?.schoolName || '')
       setGensError(gensFailed)
       setLoading(false)
     }
@@ -164,6 +172,23 @@ export default function useTeacherDashboardData() {
     [generations, assessments, prepCalendar, activeAssignments, profileSubject, profileGrade],
   )
 
+  // Mobile hero term context: "Term 2 · Week 10 of 14", a progress fraction,
+  // and Mon–Fri teaching days left (holiday-aware). Null during holidays —
+  // the hero then falls back to the next term's opening date via the
+  // prepCalendar fields above.
+  const heroTerm = useMemo(() => {
+    const active = getActiveTerm()
+    if (!active) return null
+    const totalWeeks = getTermWeeks(active.year, active.term.number).length
+    const weekNumber = Number.isFinite(prepCalendar?.weekNumber) ? prepCalendar.weekNumber : null
+    return {
+      termNumber: active.term.number,
+      weekNumber,
+      totalWeeks,
+      daysLeft: teachingDaysLeft(active.term),
+    }
+  }, [prepCalendar])
+
   const librarySummary = useMemo(() => summarizeGenerations(generations), [generations])
 
   const displayName = userProfile?.displayName || currentUser?.displayName || ''
@@ -195,6 +220,14 @@ export default function useTeacherDashboardData() {
     teacher,
     loading,
     termChip: termChipLabel(prepCalendar, now),
+    hero: {
+      schoolName,
+      term: heroTerm,
+      // During holidays the mobile hero shows when the next term opens.
+      nextTermOpens: !prepCalendar?.isActiveTermNow && prepCalendar?.openLabel
+        ? prepCalendar.openLabel
+        : null,
+    },
     lastOpened: lastOpenedFromResources(resources, now),
     documents: documentsFromResources(resources, { limit: 5, now }),
     savedCounts: gensError ? null : studioSavedCounts(librarySummary.byTool, assessments.length),

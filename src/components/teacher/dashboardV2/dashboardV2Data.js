@@ -233,6 +233,41 @@ export function activityFromResources(resources = [], { limit = 3, now = Date.no
   }))
 }
 
+/** Local-midnight Date from a "YYYY-MM-DD" string (never UTC-shifted). */
+function parseLocalDay(iso) {
+  const [y, m, d] = String(iso || '').split('-').map(Number)
+  if (!y || !m || !d) return null
+  return new Date(y, m - 1, d)
+}
+
+/**
+ * Mon–Fri teaching days remaining in a MoE term — from today (inclusive,
+ * when today is a teaching day) through the term's closing date, minus any
+ * listed holidays that fall on weekdays. Drives the mobile hero's
+ * "N teaching days left" line. Returns null without a usable term, 0 once
+ * the term has closed.
+ */
+export function teachingDaysLeft(term, now = Date.now()) {
+  const open = parseLocalDay(term?.open)
+  const close = parseLocalDay(term?.close)
+  if (!open || !close) return null
+  const today = new Date(now)
+  today.setHours(0, 0, 0, 0)
+  if (today > close) return 0
+  const holidays = new Set((term.holidays || []).map((h) => h?.date).filter(Boolean))
+  const cursor = today < open ? new Date(open) : new Date(today)
+  let count = 0
+  while (cursor <= close) {
+    const dow = cursor.getDay()
+    if (dow !== 0 && dow !== 6) {
+      const iso = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`
+      if (!holidays.has(iso)) count += 1
+    }
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return count
+}
+
 /** "15 Jul — Term 2 • Week 10" from the MoE forecast-week calendar. */
 export function termChipLabel(calendar, now = Date.now()) {
   if (!calendar) return ''

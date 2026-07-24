@@ -16,6 +16,14 @@ export const TEACHER = {
 
 export const TERM_CHIP = '15 Jul — Term 2 • Week 10'
 
+/** Mobile hero context — school, term progress, plan badge. */
+export const HERO = {
+  schoolName: 'Jemareen Academy',
+  term: { termNumber: 2, weekNumber: 10, totalWeeks: 14, daysLeft: 18 },
+  nextTermOpens: null,
+  plan: { tier: 'max', label: 'Max Plan' },
+}
+
 export const LAST_OPENED = {
   title: 'Integrated Science',
   subject: 'Integrated Science',

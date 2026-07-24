@@ -916,7 +916,7 @@
   font-weight: 400;
 }
 
-.tdv2-link-action {
+.tdv2 .tdv2-link-action {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -928,16 +928,16 @@
   transition: color 160ms var(--ease), background 160ms var(--ease), gap 160ms var(--ease);
 }
 
-.tdv2-link-action:hover {
+.tdv2 .tdv2-link-action:hover {
   color: var(--copper-hover);
   background: var(--copper-tint);
 }
 
-.tdv2-link-action:hover svg {
+.tdv2 .tdv2-link-action:hover svg {
   transform: translateX(4px);
 }
 
-.tdv2-link-action svg {
+.tdv2 .tdv2-link-action svg {
   transition: transform 180ms var(--ease);
 }
 
@@ -2467,10 +2467,12 @@ a.tdv2-check-row:hover {
 
 /* ── MOBILE dashboard (< 768px) ──────────────────────────────────────
    A dedicated information architecture, not the desktop squeezed down:
-   compact sticky header, slide-out drawer, single-column sections,
-   two-column Quick Create, fixed bottom navigation. Classes are tdv2m-*;
-   shared tokens/components (buttons, badges, cards) come from the tdv2
-   system above. */
+   opaque sticky header, deep-teal hero with term progress, compact weekly
+   checklist, one collapsed AI recommendation, recently used tools, the
+   full-screen All Teacher Tools launcher, bottom sheets, and a floating
+   dock navigation with a separate Quick Create button. Classes are
+   tdv2m-*; shared tokens/components (buttons, badges, cards) come from
+   the tdv2 system above. */
 
 .tdv2.tdv2-is-mobile {
   display: block;
@@ -2478,16 +2480,16 @@ a.tdv2-check-row:hover {
 }
 
 .tdv2m {
-  /* Single source of truth for the fixed bottom navigation's height —
-     the nav itself and the page's bottom clearance both derive from it. */
-  --mobile-nav-height: 72px;
+  --mobile-orange: #e8641f;
+  --mobile-orange-bright: #f97316;
   min-height: 100dvh;
   overflow-x: clip;
-  /* Content must never hide behind the fixed bottom navigation */
-  padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px) + 16px);
+  /* Content must never hide behind the floating dock */
+  padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px) + 16px);
 }
 
-/* Header ─ compact, sticky, safe-area aware */
+/* Header ─ compact, sticky, FULLY OPAQUE. Content begins below it; the
+   page never bleeds through. */
 .tdv2m-header {
   position: sticky;
   top: 0;
@@ -2495,22 +2497,17 @@ a.tdv2-check-row:hover {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 72px;
+  min-height: 64px;
   padding: calc(8px + env(safe-area-inset-top, 0px)) 16px 8px;
-  /* Frosted glass — translucent enough to read the content sliding beneath,
-     with a heavy blur + saturation lift (mirrors the learner chrome's
-     .zx-glass-nav). The inset highlight gives the sheen. */
-  background: color-mix(in srgb, var(--cream) 60%, transparent);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
-  border-bottom-left-radius: 20px;
-  border-bottom-right-radius: 20px;
-  box-shadow: 0 10px 30px -14px rgba(16, 36, 62, 0.16),
-              inset 0 -1px 0 color-mix(in srgb, #ffffff 35%, transparent);
+  background: var(--cream);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
 }
 
-.tdv2m-iconbtn {
+.tdv2.is-dark .tdv2m-header {
+  background: var(--cream);
+}
+
+.tdv2 .tdv2m-iconbtn {
   position: relative;
   display: grid;
   place-items: center;
@@ -2525,7 +2522,7 @@ a.tdv2-check-row:hover {
   transition: transform 120ms var(--ease), background 160ms var(--ease);
 }
 
-.tdv2m-iconbtn:active {
+.tdv2 .tdv2m-iconbtn:active {
   transform: translateY(1px) scale(0.96);
   background: var(--copper-tint);
 }
@@ -2563,20 +2560,14 @@ a.tdv2-check-row:hover {
   color: var(--ink-2);
 }
 
-/* Content column */
+/* Content column — 16px page padding, 20px section rhythm */
 .tdv2m-content {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
   padding: 14px 16px 0;
   max-width: 560px;
   margin: 0 auto;
-}
-
-.tdv2m-search {
-  min-height: 50px;
-  border-radius: 16px;
-  max-width: none;
 }
 
 .tdv2m-section-head {
@@ -2584,15 +2575,25 @@ a.tdv2-check-row:hover {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
-/* Hero */
+/* Kept for Help & Support's mobile search field */
+.tdv2m-search {
+  min-height: 50px;
+  border-radius: 16px;
+  max-width: none;
+}
+
+/* ── Hero — compact deep teal with term progress ────────────────────── */
 .tdv2m-hero {
   position: relative;
   overflow: hidden;
   border-radius: 22px;
-  padding: 22px 18px 18px;
+  padding: 20px;
+  min-height: 220px;
+  display: flex;
+  align-items: stretch;
   color: #f2f7f7;
   background:
     radial-gradient(120% 90% at 100% 0%, rgba(6, 42, 55, 0.9) 0%, rgba(6, 42, 55, 0) 60%),
@@ -2602,132 +2603,422 @@ a.tdv2-check-row:hover {
   box-shadow: 0 14px 34px rgba(6, 28, 74, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
-.tdv2m-hero-art {
+.tdv2m-hero-main {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 9px;
+}
+
+/* Rows overlapped by the book keep clear of it; the progress bar and the
+   days-left line run underneath its bottom edge at full width. */
+.tdv2m-hero-name,
+.tdv2m-hero-school,
+.tdv2m-hero-term {
+  padding-right: 104px;
+}
+
+.tdv2m-hero-name {
+  margin: 0 0 2px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 34px;
+  color: #ffffff;
+  overflow-wrap: anywhere;
+}
+
+.tdv2m-hero-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+}
+
+.tdv2m-hero-row svg {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.tdv2m-hero-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tdv2m-hero-school {
+  font-size: 15px;
+  font-weight: 650;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.tdv2m-hero-term {
+  font-size: 14px;
+  font-weight: 550;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Thin term-progress bar */
+.tdv2m-hero-bar {
+  height: 6px;
+  max-width: 230px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  overflow: hidden;
+}
+
+.tdv2m-hero-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--mobile-orange-bright), #fb923c);
+}
+
+/* Supporting line — intentionally smaller than the term line */
+.tdv2m-hero-days {
+  font-size: 12.5px;
+  font-weight: 550;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* Book illustration column */
+.tdv2m-hero-side {
   position: absolute;
-  top: -6px;
-  right: -14px;
-  width: 150px;
-  opacity: 0.9;
-  -webkit-mask-image: radial-gradient(80% 82% at 50% 50%, #000 55%, transparent 85%);
-  mask-image: radial-gradient(80% 82% at 50% 50%, #000 55%, transparent 85%);
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 120px;
   pointer-events: none;
   user-select: none;
 }
 
-.tdv2m-hero-name {
-  margin: 10px 0 8px;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 30px;
-  line-height: 36px;
+.tdv2m-hero-book {
+  position: absolute;
+  top: 46%;
+  right: 4px;
+  transform: translateY(-58%);
+  width: 110px;
+  opacity: 0.94;
+  -webkit-mask-image: radial-gradient(85% 85% at 50% 50%, #000 58%, transparent 88%);
+  mask-image: radial-gradient(85% 85% at 50% 50%, #000 58%, transparent 88%);
+}
+
+/* Subscription pill — near the book's lower-right corner */
+.tdv2m-plan-pill {
+  position: absolute;
+  z-index: 2;
+  right: 14px;
+  bottom: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 13px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--mobile-orange-bright), var(--mobile-orange));
   color: #ffffff;
-  /* keep clear of the illustration */
-  max-width: calc(100% - 110px);
-  overflow-wrap: anywhere;
+  font-size: 12.5px;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
 
-.tdv2m-hero-sub {
-  margin: 0 0 16px;
-  font-size: 15px;
-  line-height: 22px;
-  color: rgba(255, 255, 255, 0.75);
-  max-width: calc(100% - 90px);
+/* ── Weekly checklist (compact) ─────────────────────────────────────── */
+.tdv2m-check {
+  padding: 16px;
 }
 
-/* Last-opened inset: content row, then a full-width button underneath —
-   nothing floats over the text. */
-.tdv2m-inset {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 14px;
-  border-radius: 16px;
-  background: rgba(4, 18, 26, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-}
-
-.tdv2m-inset-row {
+.tdv2m-check-head {
   display: flex;
   align-items: center;
-  gap: 13px;
-  min-width: 0;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
-.tdv2m-cta {
-  width: 100%;
-  min-height: 48px;
-  justify-content: center;
+.tdv2m-check-head .tdv2-eyebrow {
+  color: var(--copper);
 }
 
-/* Quick Create — two columns at every supported width */
-.tdv2m-qc-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+.tdv2m-check-count {
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--ink-2);
+  white-space: nowrap;
 }
 
-.tdv2m-tile {
-  min-height: 205px;
-  padding: 14px;
+/* Segmented progress — one segment per checklist item */
+.tdv2m-check-segments {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
 }
 
-.tdv2m-tile .tdv2-tile-desc {
-  padding-right: 0;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
+.tdv2m-check-seg {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--mobile-orange-bright) 16%, var(--cream));
   overflow: hidden;
 }
 
-.tdv2m-tile .tdv2-tile-arrow {
-  width: 34px;
-  height: 34px;
-  right: 12px;
-  bottom: 12px;
+.tdv2.is-dark .tdv2m-check-seg {
+  background: rgba(249, 115, 22, 0.18);
 }
 
-/* Recent documents — two-line titles, footer row for date + badge,
-   44px menu button that can never be pushed off-screen. */
-.tdv2m-doc-card {
-  padding: 8px 12px;
+.tdv2m-check-seg > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--mobile-orange-bright);
 }
 
-.tdv2m-doc-row {
+.tdv2m-check-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
-  padding: 12px 2px;
+  min-height: 48px;
+  padding: 6px 2px;
+  color: var(--ink);
 }
 
-.tdv2m-doc-row + .tdv2m-doc-row {
-  border-top: 1px solid #f2ebdf;
+.tdv2m-check-row + .tdv2m-check-row {
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
 }
 
-.tdv2.is-dark .tdv2m-doc-row + .tdv2m-doc-row {
-  border-color: rgba(255, 255, 255, 0.09);
+.tdv2m-check-circle {
+  color: var(--mobile-orange-bright);
+  flex-shrink: 0;
 }
 
-.tdv2m-doc-row .tdv2-doc-icon {
-  margin-top: 2px;
+.tdv2m-check-done,
+.tdv2m-check-row.is-done svg {
+  color: var(--green);
+  flex-shrink: 0;
 }
 
-.tdv2m-doc-main {
+.tdv2m-check-label {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.tdv2m-doc-title {
-  font-size: 14.5px;
+  font-size: 15px;
   font-weight: 600;
   line-height: 1.35;
+}
+
+.tdv2m-check-meta {
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.tdv2 .tdv2m-check-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 46px;
+  margin-top: 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 14.5px;
+  font-weight: 650;
   color: var(--ink);
+  transition: background 140ms var(--ease), transform 120ms var(--ease);
+}
+
+.tdv2 .tdv2m-check-more:active {
+  transform: translateY(1px);
+  background: var(--copper-tint);
+}
+
+.tdv2 .tdv2m-check-link {
+  color: var(--copper);
+  font-weight: 650;
+  text-decoration: underline;
+}
+
+/* ── AI recommendation (collapsed) ──────────────────────────────────── */
+.tdv2m-ai {
+  padding: 0;
+  overflow: hidden;
+}
+
+.tdv2m-ai > .tdv2m-ai-top,
+.tdv2m-ai > .tdv2m-ai-title,
+.tdv2m-ai > .tdv2m-ai-meta {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.tdv2m-ai > .tdv2m-ai-top { padding-top: 16px; }
+.tdv2m-ai > .tdv2m-ai-meta { padding-bottom: 16px; }
+
+.tdv2 .tdv2m-ai-open {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 16px;
+  transition: background 140ms var(--ease);
+}
+
+.tdv2 .tdv2m-ai-open:active {
+  background: var(--copper-tint);
+}
+
+.tdv2m-ai-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tdv2m-ai-eyebrow {
+  color: var(--blue);
+  flex: 1;
+  min-width: 0;
+}
+
+.tdv2m-ai-count {
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--mobile-orange-bright);
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 750;
+}
+
+.tdv2m-ai-chev {
+  color: var(--mobile-orange);
+  flex-shrink: 0;
+}
+
+.tdv2m-ai-title {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+.tdv2m-ai-title.is-quiet {
+  font-size: 16px;
+}
+
+.tdv2m-ai-meta {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 550;
+  color: var(--ink-2);
+}
+
+/* Recommendation detail (bottom sheet) */
+.tdv2m-rec-title {
+  margin: 0 0 10px;
+  font-size: 19px;
+  font-weight: 750;
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+.tdv2m-rec-text {
+  margin: 10px 0 16px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+.tdv2m-rec-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* The primary action is a Link so the copper visual survives the
+   .tdv2 button reset; the anchor colour reset still needs overriding. */
+.tdv2 .tdv2m-rec-primary {
+  width: 100%;
+  min-height: 48px;
+  justify-content: center;
+  color: #ffffff;
+}
+
+.tdv2m-rec-secondary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.tdv2m-rec-secondary button,
+.tdv2m-rec-nav button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 46px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--ink);
+  transition: background 140ms var(--ease);
+}
+
+.tdv2m-rec-secondary button:active,
+.tdv2m-rec-nav button:active {
+  background: var(--copper-tint);
+}
+
+.tdv2m-rec-nav {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.tdv2 .tdv2m-recall-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 12px 4px;
+  text-align: left;
+  color: var(--ink);
+}
+
+.tdv2 .tdv2m-recall-row + .tdv2m-recall-row {
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.tdv2m-recall-row > span:first-child {
+  flex: 1;
+}
+
+.tdv2m-recall-title {
+  display: block;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.tdv2m-recall-text {
+  display: block;
+  font-size: 13px;
+  color: var(--ink-2);
+  margin-top: 2px;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -2735,115 +3026,562 @@ a.tdv2-check-row:hover {
   overflow: hidden;
 }
 
-.tdv2m-doc-foot {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 3px;
+/* ── Recently used tools — four large app-style icons ───────────────── */
+.tdv2m-recent-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px 10px;
 }
 
-.tdv2m-doc-more {
+.tdv2m-recent-tool {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 44px;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tdv2m-recent-tool:active .tdv2m-recent-tile {
+  transform: scale(0.94);
+}
+
+.tdv2m-recent-tile {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
-  flex-shrink: 0;
-  border-radius: 11px;
-  color: var(--grey);
-  transition: background 140ms var(--ease);
+  width: 100%;
+  max-width: 84px;
+  aspect-ratio: 1;
+  border-radius: 22px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+  transition: transform 130ms var(--ease);
 }
 
-.tdv2m-doc-more:active {
+.tdv2m-recent-tile.is-img {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.tdv2m-recent-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 22px;
+}
+
+.tdv2m-recent-tile.tint-teal { color: #0e7490; background: #e0f2f7; }
+.tdv2m-recent-tile.tint-orange { color: var(--copper); background: var(--copper-tint); }
+.tdv2m-recent-tile.tint-purple { color: #7c3aed; background: #f1e9fe; }
+.tdv2m-recent-tile.tint-green { color: #15803d; background: #e3f5e9; }
+.tdv2m-recent-tile.tint-blue { color: #1d4ed8; background: #e5edfd; }
+.tdv2m-recent-tile.tint-rose { color: #be123c; background: #fde8ec; }
+
+.tdv2m-recent-name {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: break-word;
+}
+
+/* Small NEW badge — upper-right of the tile, clear of the artwork */
+.tdv2m-tool-new {
+  position: absolute;
+  top: -5px;
+  right: -3px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--mobile-orange-bright);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+
+.tdv2m-tool-saved {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--green) 14%, var(--surface));
+  color: #14683c;
+  font-size: 10.5px;
+  font-weight: 750;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tdv2.is-dark .tdv2m-tool-saved {
+  background: rgba(31, 161, 91, 0.2);
+  color: #4fd48d;
+}
+
+/* ── All Teacher Tools shortcut card ────────────────────────────────── */
+.tdv2 .tdv2m-alltools {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px;
+  text-align: left;
+  color: var(--ink);
+  /* Re-assert the .tdv2-card visual — as a <button> it would otherwise
+     lose background/border to the .tdv2 button reset */
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+  transition: background 140ms var(--ease), transform 120ms var(--ease);
+}
+
+.tdv2 .tdv2m-alltools:active {
+  transform: translateY(1px);
   background: var(--copper-tint);
+}
+
+.tdv2m-alltools-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  background: var(--copper-tint);
+  color: var(--copper);
+}
+
+.tdv2m-alltools-title {
+  display: block;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.tdv2m-alltools-sub {
+  display: block;
+  font-size: 13.5px;
+  color: var(--ink-2);
+  margin-top: 1px;
+}
+
+/* ── All Teacher Tools screen (full-screen launcher) ────────────────── */
+.tdv2m-tools {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  background: var(--cream);
   color: var(--ink);
 }
 
-/* Bottom navigation */
-.tdv2m-bottomnav {
+.tdv2m-tools-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px;
+  background: var(--cream);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+.tdv2m-tools-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.tdv2m-tools-sub {
+  margin: 1px 0 0;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+.tdv2m-tools-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px 4px;
+}
+
+.tdv2m-tools-search {
+  min-height: 48px;
+  max-width: none;
+  border-radius: 15px;
+}
+
+.tdv2m-tools-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: none;
+}
+
+.tdv2m-tools-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.tdv2 .tdv2m-tools-chip {
+  flex-shrink: 0;
+  min-height: 38px;
+  padding: 0 15px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--ink-2);
+  transition: background 140ms var(--ease), color 140ms var(--ease);
+}
+
+.tdv2 .tdv2m-tools-chip.is-active {
+  background: var(--copper);
+  border-color: var(--copper);
+  color: #ffffff;
+}
+
+.tdv2m-tools-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 16px calc(28px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.tdv2m-tools-group {
+  margin: 0 0 12px;
+}
+
+.tdv2m-tools-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+/* Four icons per row — 72–76px tiles, two-line 13px labels */
+.tdv2m-tool-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px 16px;
+}
+
+.tdv2m-tool {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 44px;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tdv2m-tool:active .tdv2m-tool-tile {
+  transform: scale(0.94);
+}
+
+.tdv2m-tool-tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: 74px;
+  aspect-ratio: 1;
+  border-radius: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+  transition: transform 130ms var(--ease);
+}
+
+.tdv2m-tool-tile.is-img {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.tdv2m-tool-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 20px;
+}
+
+.tdv2m-tool-tile.tint-teal { color: #0e7490; background: #e0f2f7; }
+.tdv2m-tool-tile.tint-orange { color: var(--copper); background: var(--copper-tint); }
+.tdv2m-tool-tile.tint-purple { color: #7c3aed; background: #f1e9fe; }
+.tdv2m-tool-tile.tint-green { color: #15803d; background: #e3f5e9; }
+.tdv2m-tool-tile.tint-blue { color: #1d4ed8; background: #e5edfd; }
+.tdv2m-tool-tile.tint-rose { color: #be123c; background: #fde8ec; }
+
+.tdv2m-tool-name {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: break-word;
+}
+
+/* ── Floating dock navigation + Quick Create button ─────────────────── */
+.tdv2m-dockbar {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 16px;
+  right: 16px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   z-index: 70;
   display: flex;
-  align-items: stretch;
-  height: calc(var(--mobile-nav-height, 72px) + env(safe-area-inset-bottom, 0px));
-  padding: 6px max(8px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px)
-    max(8px, env(safe-area-inset-left, 0px));
-  /* Same frosted-glass treatment as the header (mirrors .zx-glass-bottom). */
-  background: color-mix(in srgb, var(--surface) 60%, transparent);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-top: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
-  border-top-left-radius: 20px;
-  border-top-right-radius: 20px;
-  box-shadow: 0 -10px 30px -14px rgba(16, 36, 62, 0.16),
-              inset 0 1px 0 color-mix(in srgb, #ffffff 35%, transparent);
+  align-items: center;
+  gap: 12px;
 }
 
-/* ── LinkedIn-style auto-hide chrome (mobile teacher header + bottom nav) ──
-   Driven by useHideOnScroll: header slides up and bottom nav slides down on
-   scroll-down, then both reveal on scroll-up. Transform + opacity only, so
-   the content underneath is never blocked by a solid background. */
-.tdv2m-autohide {
-  transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
-              opacity 0.28s ease;
-  will-change: transform;
-}
-.tdv2m-header.is-hidden-top {
-  transform: translateY(-115%);
-  opacity: 0;
-  pointer-events: none;
-}
-.tdv2m-bottomnav.is-hidden-bottom {
-  transform: translateY(115%);
-  opacity: 0;
-  pointer-events: none;
-}
-@media (prefers-reduced-motion: reduce) {
-  .tdv2m-autohide {
-    transition: none;
-  }
-}
-
-.tdv2m-bn-item {
+.tdv2m-dock {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+  height: 68px;
+  padding: 7px;
+  border-radius: 999px;
+  /* Dark teal, lightly translucent with a subtle blur */
+  background: color-mix(in srgb, #0b3038 90%, transparent);
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 30px rgba(4, 18, 26, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.tdv2 .tdv2m-dock-item {
+  /* auto basis: longer labels (Assessments) get proportionally more room
+     on narrow phones instead of clipping */
+  flex: 1 1 auto;
   min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 3px;
-  border-radius: 12px;
+  border-radius: 999px;
   font-size: 11px;
-  line-height: 15px;
-  font-weight: 550;
+  line-height: 14px;
+  font-weight: 600;
   letter-spacing: -0.01em;
-  color: var(--ink-2);
-  transition: color 140ms var(--ease), transform 120ms var(--ease);
+  color: rgba(255, 255, 255, 0.86);
   white-space: nowrap;
   overflow: hidden;
-  max-width: 100%;
-  text-overflow: ellipsis;
+  transition: color 140ms var(--ease), background 140ms var(--ease), transform 120ms var(--ease);
+  -webkit-tap-highlight-color: transparent;
 }
 
-.tdv2m-bn-item:active {
+.tdv2 .tdv2m-dock-item:active {
   transform: scale(0.95);
 }
 
-.tdv2m-bn-label {
+/* Active destination: a slightly lighter capsule + orange accent —
+   aria-current carries the state for assistive tech, never colour alone. */
+.tdv2 .tdv2m-dock-item.is-active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffb27d;
+  font-weight: 700;
+}
+
+.tdv2m-dock-label {
   display: block;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.tdv2m-bn-item.is-active {
-  color: var(--copper);
-  font-weight: 650;
+.tdv2 .tdv2m-dock-plus {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--mobile-orange-bright), var(--mobile-orange));
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 10px 26px rgba(232, 100, 31, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  transition: transform 130ms var(--ease);
 }
 
-/* Drawer */
+.tdv2 .tdv2m-dock-plus:active {
+  transform: scale(0.93);
+}
+
+/* ── Bottom sheets ───────────────────────────────────────────────────── */
+.tdv2m-sheet-root {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+}
+
+.tdv2m-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 14, 24, 0.55);
+  animation: tdv2m-fade-in 200ms var(--ease);
+}
+
+.tdv2m-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: min(84dvh, 640px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 24px 24px 0 0;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 -18px 50px rgba(4, 18, 26, 0.35);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  animation: tdv2m-sheet-up 260ms var(--ease);
+  transition: transform 180ms var(--ease);
+  touch-action: none;
+}
+
+@keyframes tdv2m-sheet-up {
+  from { transform: translateY(40%); opacity: 0.6; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes tdv2m-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.tdv2m-sheet-grip {
+  flex-shrink: 0;
+  cursor: grab;
+}
+
+.tdv2m-sheet-handle {
+  display: block;
+  width: 44px;
+  height: 5px;
+  margin: 10px auto 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink-2) 35%, transparent);
+}
+
+.tdv2m-sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 16px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.tdv2m-sheet-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 17px;
+  font-weight: 750;
+}
+
+.tdv2 .tdv2m-sheet-close {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  color: var(--ink-2);
+  transition: background 140ms var(--ease);
+}
+
+.tdv2 .tdv2m-sheet-close:active {
+  background: var(--copper-tint);
+}
+
+.tdv2m-sheet-body {
+  overflow-y: auto;
+  padding: 14px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+  touch-action: pan-y;
+}
+
+.tdv2m-sheet-sub {
+  margin: 0 0 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.tdv2m-sheet-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Quick Create sheet — large app-style tiles, two per row */
+.tdv2m-qcsheet-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.tdv2m-qcsheet-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 10px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--cream);
+  text-align: center;
+  color: var(--ink);
+  transition: background 140ms var(--ease), transform 120ms var(--ease);
+}
+
+.tdv2m-qcsheet-item:active {
+  transform: scale(0.97);
+  background: var(--copper-tint);
+}
+
+.tdv2m-qcsheet-tile {
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  border-radius: 18px;
+  color: var(--copper);
+}
+
+.tdv2m-qcsheet-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 18px;
+}
+
+.tdv2m-qcsheet-label {
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+/* ── Drawer ──────────────────────────────────────────────────────────── */
 .tdv2m-drawer-root {
   position: fixed;
   inset: 0;
@@ -2897,7 +3635,7 @@ a.tdv2-check-row:hover {
   padding: 2px 4px 14px;
 }
 
-.tdv2m-drawer-close {
+.tdv2 .tdv2m-drawer-close {
   display: grid;
   place-items: center;
   width: 44px;
@@ -2908,7 +3646,7 @@ a.tdv2-check-row:hover {
   transition: background 140ms var(--ease);
 }
 
-.tdv2m-drawer-close:active {
+.tdv2 .tdv2m-drawer-close:active {
   background: rgba(255, 255, 255, 0.1);
 }
 
@@ -2928,17 +3666,17 @@ a.tdv2-check-row:hover {
   overflow-y: auto;
 }
 
-/* Preview chrome repositioned above the bottom nav on mobile */
+/* Preview chrome repositioned above the floating dock on mobile */
 @media (max-width: 767px) {
   .tdv2-preview-banner {
     left: 12px;
     right: auto;
-    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(96px + env(safe-area-inset-bottom, 0px));
     max-width: calc(100vw - 24px);
   }
   .tdv2-panel {
     right: 12px;
-    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(96px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -2957,35 +3695,54 @@ a.tdv2-check-row:hover {
     display: none;
   }
   /* Give the wordmark room on very narrow phones; Help stays reachable
-     from the drawer and bottom sheet */
+     from the drawer */
   .tdv2m-help-btn {
     display: none;
   }
-  .tdv2m-hero-art {
+  .tdv2m-hero-side {
     display: none;
   }
   .tdv2m-hero-name,
-  .tdv2m-hero-sub {
-    max-width: 100%;
+  .tdv2m-hero-school,
+  .tdv2m-hero-term {
+    padding-right: 0;
   }
-  .tdv2m-tile {
+  .tdv2m-hero {
     min-height: 0;
+    /* Without the book, give the plan pill its own strip so it never
+       overlaps the days-left line */
+    padding-bottom: 56px;
   }
-  /* Two columns can't keep each tile ≥150px wide this narrow — stack. */
-  .tdv2m-qc-grid {
-    grid-template-columns: minmax(0, 1fr);
+  .tdv2m-dock-label {
+    font-size: 10px;
+  }
+  /* The plan pill keeps its lower-right anchor even without the book */
+  .tdv2m-dockbar {
+    left: 10px;
+    right: 10px;
+    gap: 8px;
+  }
+  .tdv2m-dock-plus {
+    width: 56px;
+    height: 56px;
+  }
+  .tdv2m-recent-grid,
+  .tdv2m-tool-grid {
+    gap: 12px 8px;
   }
 }
 
 /* ── ≥768px: the mobile chrome can never appear ──────────────────────
    Belt-and-braces mirror of the sidebar rule above: if a rotate/resize
-   leaves the mobile DOM mounted for a frame, the sticky header, bottom
-   navigation and drawer leave layout entirely — desktop never shows two
-   navigation systems at once. */
+   leaves the mobile DOM mounted for a frame, the sticky header, floating
+   dock, drawer, sheets and tools screen leave layout entirely — desktop
+   and tablet never see the phone chrome. */
 @media (min-width: 768px) {
   .tdv2m-header,
-  .tdv2m-bottomnav,
-  .tdv2m-drawer-root {
+  .tdv2m-dockbar,
+  .tdv2m-drawer-root,
+  .tdv2m-sheet-root,
+  .tdv2m-tools {
     display: none;
   }
 }

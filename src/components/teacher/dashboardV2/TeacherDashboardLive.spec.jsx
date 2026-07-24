@@ -11,6 +11,10 @@ vi.mock('../../../contexts/NotificationContext', () => ({
 }))
 // Pulls useTeacherUsage → firebase; plan reminders have their own tests.
 vi.mock('../../subscription/UsageReminderBanner', () => ({ default: () => null }))
+// Pulls useFirestore → firebase; only the display tier is read here.
+vi.mock('../../../hooks/useSubscription', () => ({
+  useSubscription: () => ({ planTier: 'pro', tierLabel: 'Pro' }),
+}))
 
 const logout = vi.fn().mockResolvedValue()
 vi.mock('../../../contexts/AuthContext', () => ({
