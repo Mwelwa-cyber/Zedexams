@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, Sparkles, LogOut } from 'lucide-react'
 import { WIZARD_STEPS, REVIEW_STEP } from './wizardSteps'
+import useHideOnScroll from '../../../../hooks/useHideOnScroll'
 
 /**
  * StickyWizardNav — the fixed bottom action bar of the wizard.
@@ -42,8 +43,17 @@ export function StickyWizardNav({
   const nextTitle = WIZARD_STEPS[currentStep + 1]?.short ?? ''
   const hint = stepError || (!canProceed ? nextDisabledReason : null)
 
+  // Floating-bar behaviour: the bar shrinks to a compact strip while the
+  // teacher scrolls DOWN through the form (getting out of the way) and grows
+  // back to full size when they scroll UP or reach the top — mirroring the
+  // app chrome's LinkedIn-style auto-hide, but shrinking instead of hiding so
+  // the Save / Next actions are never out of reach. A visible validation hint
+  // pins the bar open (never shrink while telling the teacher what to fix).
+  const scrolledDown = useHideOnScroll()
+  const compact = scrolledDown && !hint
+
   return (
-    <div className="lpw-nav">
+    <div className={`lpw-nav${compact ? ' lpw-nav--compact' : ''}`}>
       <div className="mx-auto w-full max-w-3xl">
         {hint && (
           <p
