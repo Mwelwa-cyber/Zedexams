@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
-import { useSubscription } from '../../../hooks/useSubscription'
+import { resolveTeacherPlan, PLAN_LABELS } from '../../../utils/teacherPlans'
 import { capture } from '../../../utils/analytics'
 import SeoHelmet from '../../seo/SeoHelmet'
 import UsageReminderBanner from '../../subscription/UsageReminderBanner'
@@ -16,12 +16,17 @@ import DashboardView from './DashboardView'
  * wrapped in TeacherLayout.
  */
 export default function TeacherDashboardLive() {
-  const { logout } = useAuth()
+  const { logout, userProfile } = useAuth()
   const navigate = useNavigate()
   const data = useTeacherDashboardData()
   // Display-only plan badge for the mobile hero ('Free' | 'Pro' | 'Max') —
-  // read from the existing subscription state, never gating anything here.
-  const { planTier, tierLabel } = useSubscription()
+  // resolved from the SAME authoritative teacher-plan entitlement that
+  // StudioGate and useTeacherUsage gate on (users.teacherPlan via
+  // resolveTeacherPlan), not the learner-oriented subscriptionPlan. Otherwise
+  // a teacher on Pro/Max studio quotas could see "Free Plan" here. Purely
+  // presentational — it gates nothing.
+  const teacherPlan = resolveTeacherPlan(userProfile)
+  const planLabel = PLAN_LABELS[teacherPlan] || PLAN_LABELS.free
 
   useEffect(() => {
     capture('teacher_dashboard_viewed', { version: 'v2' })
@@ -60,7 +65,7 @@ export default function TeacherDashboardLive() {
       <DashboardView
         teacher={data.teacher}
         termChip={data.termChip}
-        hero={{ ...data.hero, plan: { tier: planTier, label: `${tierLabel} Plan` } }}
+        hero={{ ...data.hero, plan: { tier: teacherPlan, label: `${planLabel} Plan` } }}
         greeting={greeting}
         lastOpened={data.lastOpened}
         onContinue={handleContinue}

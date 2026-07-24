@@ -11,14 +11,13 @@ vi.mock('../../../contexts/NotificationContext', () => ({
 }))
 // Pulls useTeacherUsage → firebase; plan reminders have their own tests.
 vi.mock('../../subscription/UsageReminderBanner', () => ({ default: () => null }))
-// Pulls useFirestore → firebase; only the display tier is read here.
-vi.mock('../../../hooks/useSubscription', () => ({
-  useSubscription: () => ({ planTier: 'pro', tierLabel: 'Pro' }),
-}))
 
 const logout = vi.fn().mockResolvedValue()
+// The mobile hero's plan badge is resolved from users.teacherPlan via the
+// authoritative resolveTeacherPlan (the same entitlement StudioGate uses), so
+// the profile carries a teacherPlan here.
 vi.mock('../../../contexts/AuthContext', () => ({
-  useAuth: () => ({ logout }),
+  useAuth: () => ({ logout, userProfile: { teacherPlan: 'pro' } }),
 }))
 
 const hookData = {

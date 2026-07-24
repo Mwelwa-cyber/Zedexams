@@ -24,6 +24,12 @@
   --copper-pressed: #963a12;
   --copper-bright: #e87832;
   --copper-tint: #fff1e8;
+  /* Mobile chrome accent — defined on the shared .tdv2 scope (not .tdv2m) so
+     it resolves for the dashboard mobile view (.tdv2m) AND the studio-shell
+     mobile chrome (.tdv2-mchrome / .tdv2-bare), which mounts the dock, header
+     and drawer directly under .tdv2 with no .tdv2m wrapper. */
+  --mobile-orange: #e8641f;
+  --mobile-orange-bright: #f97316;
   --cream: #f8f2e6;
   --surface: #ffffff;
   --border: #e8ded4;
@@ -2480,8 +2486,6 @@ a.tdv2-check-row:hover {
 }
 
 .tdv2m {
-  --mobile-orange: #e8641f;
-  --mobile-orange-bright: #f97316;
   min-height: 100dvh;
   overflow-x: clip;
   /* Content must never hide behind the floating dock */
@@ -3446,10 +3450,7 @@ a.tdv2-check-row:hover {
   width: 62px;
   height: 62px;
   border-radius: 999px;
-  /* Fallback literals: the studio shell (TeacherLayout) mounts this dock under
-     .tdv2 without the .tdv2m scope where --mobile-orange* live, so without a
-     fallback the gradient is invalid and the button renders with no fill. */
-  background: linear-gradient(180deg, var(--mobile-orange-bright, #f97316), var(--mobile-orange, #e8641f));
+  background: linear-gradient(180deg, var(--mobile-orange-bright), var(--mobile-orange));
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.25);
   box-shadow: 0 10px 26px rgba(232, 100, 31, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.32);
@@ -3764,17 +3765,25 @@ a.tdv2-check-row:hover {
   }
 }
 
-/* ── ≥768px: the mobile chrome can never appear ──────────────────────
-   Belt-and-braces mirror of the sidebar rule above: if a rotate/resize
-   leaves the mobile DOM mounted for a frame, the sticky header, floating
-   dock, drawer, sheets and tools screen leave layout entirely — desktop
-   and tablet never see the phone chrome. */
+/* ── ≥768px: the DASHBOARD mobile chrome can never appear ─────────────
+   Belt-and-braces mirror of the sidebar rule above, but scoped to the
+   dashboard mobile view (.tdv2-is-mobile): the dashboard swaps to its
+   desktop layout at ≥768px (useIsMobile), so if a rotate/resize leaves the
+   mobile DOM mounted for a frame, the sticky header, floating dock, drawer,
+   sheets and tools screen leave layout entirely.
+
+   This must NOT hide the studio-shell mobile chrome (TeacherLayout →
+   .tdv2-mchrome): that shell shows its desktop sidebar only at ≥1024px, so
+   its header/dock/drawer must remain visible across 768–1023px (tablets),
+   where they are governed instead by the .tdv2-mchrome { display:none } rule
+   at ≥1024px above. Scoping this hide to .tdv2-is-mobile keeps tablet studio
+   pages from losing their only navigation. */
 @media (min-width: 768px) {
-  .tdv2m-header,
-  .tdv2m-dockbar,
-  .tdv2m-drawer-root,
-  .tdv2m-sheet-root,
-  .tdv2m-tools {
+  .tdv2-is-mobile .tdv2m-header,
+  .tdv2-is-mobile .tdv2m-dockbar,
+  .tdv2-is-mobile .tdv2m-drawer-root,
+  .tdv2-is-mobile .tdv2m-sheet-root,
+  .tdv2-is-mobile .tdv2m-tools {
     display: none;
   }
 }

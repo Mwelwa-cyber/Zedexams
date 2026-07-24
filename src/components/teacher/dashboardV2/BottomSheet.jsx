@@ -14,13 +14,24 @@ export default function BottomSheet({ open, onClose, title, children }) {
   const drag = useRef(null)
   const [dragY, setDragY] = useState(0)
 
-  // Scroll-lock + Escape + initial focus while open.
+  // Keep the latest onClose in a ref so the Escape handler stays current
+  // WITHOUT making onClose a dependency of the open/close effect below.
+  const onCloseRef = useRef(onClose)
+  useEffect(() => { onCloseRef.current = onClose }, [onClose])
+
+  // Scroll-lock + Escape + initial focus, and focus restore on close. Keyed on
+  // `open` ONLY: every caller passes an inline onClose, so including it here
+  // would re-run this effect on any in-sheet state change (Next recommendation,
+  // View all…). The cleanup would then restore focus prematurely and re-capture
+  // the sheet's own close button as the opener, so focus could never return to
+  // the element that opened the sheet. Running only on the open transition
+  // captures the true opener once and restores it once, on close.
   useEffect(() => {
     if (!open) return undefined
     returnFocus.current = document.activeElement
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    const onKey = (e) => { if (e.key === 'Escape') onCloseRef.current() }
     document.addEventListener('keydown', onKey)
     closeRef.current?.focus()
     return () => {
@@ -29,7 +40,7 @@ export default function BottomSheet({ open, onClose, title, children }) {
       const el = returnFocus.current
       if (el && typeof el.focus === 'function' && document.contains(el)) el.focus()
     }
-  }, [open, onClose])
+  }, [open])
 
   useEffect(() => {
     if (!open) setDragY(0)
