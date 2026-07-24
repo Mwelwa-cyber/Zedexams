@@ -2488,8 +2488,8 @@ a.tdv2-check-row:hover {
   padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px) + 16px);
 }
 
-/* Header ─ compact, sticky, FULLY OPAQUE. Content begins below it; the
-   page never bleeds through. */
+/* Header ─ compact, sticky. Frosted glass but kept high-opacity so it reads
+   as opaque, not see-through, while content softly blurs beneath it. */
 .tdv2m-header {
   position: sticky;
   top: 0;
@@ -2499,12 +2499,39 @@ a.tdv2-check-row:hover {
   gap: 10px;
   min-height: 64px;
   padding: calc(8px + env(safe-area-inset-top, 0px)) 16px 8px;
-  background: var(--cream);
+  background: color-mix(in srgb, var(--cream) 92%, transparent);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
   border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
 }
 
 .tdv2.is-dark .tdv2m-header {
-  background: var(--cream);
+  background: color-mix(in srgb, var(--cream) 92%, transparent);
+}
+
+/* ── Auto-hide chrome (mobile teacher header + floating dock) ────────────
+   Driven by useHideOnScroll — same behaviour as the learner/runner nav:
+   header slides up and dock slides down on scroll-down, both reveal on
+   scroll-up. Transform + opacity only, so nothing under them is blocked. */
+.tdv2m-autohide {
+  transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.28s ease;
+  will-change: transform;
+}
+.tdv2m-header.is-hidden-top {
+  transform: translateY(-115%);
+  opacity: 0;
+  pointer-events: none;
+}
+.tdv2m-dockbar.is-hidden-bottom {
+  transform: translateY(160%);
+  opacity: 0;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tdv2m-autohide {
+    transition: none;
+  }
 }
 
 .tdv2 .tdv2m-iconbtn {
@@ -3346,7 +3373,8 @@ a.tdv2-check-row:hover {
   position: fixed;
   left: 16px;
   right: 16px;
-  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  /* Sit lower — closer to the screen edge so it rides less over content. */
+  bottom: calc(6px + env(safe-area-inset-bottom, 0px));
   z-index: 70;
   display: flex;
   align-items: center;
@@ -3361,10 +3389,11 @@ a.tdv2-check-row:hover {
   height: 68px;
   padding: 7px;
   border-radius: 999px;
-  /* Dark teal, lightly translucent with a subtle blur */
-  background: color-mix(in srgb, #0b3038 90%, transparent);
-  backdrop-filter: blur(12px) saturate(160%);
-  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  /* Dark teal frosted glass — opaque enough to stay solid over any content,
+     with a blur for the glass feel. */
+  background: color-mix(in srgb, #0b3038 94%, transparent);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 12px 30px rgba(4, 18, 26, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
@@ -3417,7 +3446,10 @@ a.tdv2-check-row:hover {
   width: 62px;
   height: 62px;
   border-radius: 999px;
-  background: linear-gradient(180deg, var(--mobile-orange-bright), var(--mobile-orange));
+  /* Fallback literals: the studio shell (TeacherLayout) mounts this dock under
+     .tdv2 without the .tdv2m scope where --mobile-orange* live, so without a
+     fallback the gradient is invalid and the button renders with no fill. */
+  background: linear-gradient(180deg, var(--mobile-orange-bright, #f97316), var(--mobile-orange, #e8641f));
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.25);
   box-shadow: 0 10px 26px rgba(232, 100, 31, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.32);
