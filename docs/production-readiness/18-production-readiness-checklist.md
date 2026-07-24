@@ -93,7 +93,7 @@
 - [?] Rules-emulator/build as *required* checks (CICD-001)
 - [ ] Dependency scanning / Dependabot (CICD-002); secret scanning/push protection (CICD-003)
 - [ ] Staging/prod project separation (CICD-004)
-- [ ] Rollback runbook (CICD-005)
+- [x] Rollback runbook (CICD-005 — `runbooks/deploy-rollback.md`; rehearsal drill is the operator step)
 - [~] Third-party actions pinned to mutable tags/@main (CICD-007)
 
 ## Backups
