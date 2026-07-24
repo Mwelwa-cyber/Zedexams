@@ -231,14 +231,16 @@ export default function SchemeOfWorkGenerator() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [termPlan, form.examWeeks, form.revisionWeeks, form.term, effectiveWeeks])
 
-  // Curriculum Framework 2013/2023 → official periods + time per week.
+  // Curriculum Framework 2013/2023 → official periods + time per week. Curriculum
+  // aware: a Grade 7 resolves to the OBC Upper-Primary table but stays
+  // unallocated under CBC (where Grade 7 has no prescribed allocation).
   const frameworkMatch = useMemo(
-    () => (curr.grade && curr.subject ? matchFrameworkSubject(curr.grade, curr.subject) : null),
-    [curr.grade, curr.subject],
+    () => (curr.grade && curr.subject ? matchFrameworkSubject(curr.grade, curr.subject, curriculum) : null),
+    [curr.grade, curr.subject, curriculum],
   )
   const periodsCount = frameworkMatch?.periodsPerWeek || (Number(form.manualPeriods) || 0)
   const periodsPerWeekStr = frameworkMatch
-    ? periodsPerWeekLabel(curr.grade, curr.subject)
+    ? periodsPerWeekLabel(curr.grade, curr.subject, curriculum)
     : (form.manualPeriods ? `${form.manualPeriods} periods per week` : '')
   const timePerWeekStr = frameworkMatch?.timeAllocation || ''
 

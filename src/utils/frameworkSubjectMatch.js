@@ -4,15 +4,29 @@
  * weekly allocation in the 2023 Curriculum Framework (curriculumFramework.js).
  *
  * This is how the studio auto-fills "periods per week" + "time per week"
- * without a Class Timetable. The framework only catalogues Primary (Grades
- * 1–7); for secondary — or a subject the framework doesn't list — this returns
- * null and the studio shows the "time allocation missing → enter manually"
- * path.
+ * without a Class Timetable. The framework only catalogues Primary; for
+ * secondary — or a subject the framework doesn't list — this returns null and
+ * the studio shows the "time allocation missing → enter manually" path.
+ *
+ * The lookup is curriculum-AWARE: pass the scheme's curriculum ('cbc'/'obc',
+ * or the selector's 'previous'/framework year) so a Grade 7 resolves to the
+ * right table. Grade 7 is Upper Primary under the 2013 OBC (real allocation)
+ * but has NO prescribed allocation under the 2023 CBC — so the same grade
+ * legitimately resolves one way for OBC and returns null for CBC. Defaults to
+ * CBC when no curriculum is given (backward compatible).
  *
  * Pure + dependency-light so `node` can exercise it.
  */
 
 import { getFrameworkForGrade } from './curriculumFramework.js'
+import { normalizeCurriculum } from './schemeFormat.js'
+
+// Normalised curriculum ('cbc'|'obc') → the framework id its allocations live
+// under in curriculumFramework.js.
+const FRAMEWORK_ID_BY_CURRICULUM = {
+  cbc: 'cbc-2023',
+  obc: 'obc-2013',
+}
 
 // KB subject slug → substrings to look for in a framework subject label.
 // First matching framework subject (in framework order) wins.
@@ -42,14 +56,20 @@ function tokensFor(subjectSlug) {
 }
 
 /**
- * The official allocation for a grade + subject, or null when the framework
- * doesn't cover it (secondary, or an unmatched subject).
+ * The official allocation for a grade + subject in a given curriculum, or null
+ * when the framework doesn't cover it (secondary, an unmatched subject, or a
+ * curriculum with no catalogued table for that grade).
  *
+ * @param {string} grade       KB grade code / label (e.g. 'G7', 'Grade 7')
+ * @param {string} subjectSlug KB subject slug (e.g. 'integrated_science')
+ * @param {string} [curriculum] 'cbc'|'obc'|'previous'|'2013'|'2023' — defaults
+ *   to CBC when omitted, preserving the historical behaviour.
  * @returns {{ label:string, periodsPerWeek:number, timeAllocation:string,
  *             band:string, periodMinutes:number }|null}
  */
-export function matchFrameworkSubject(grade, subjectSlug) {
-  const framework = getFrameworkForGrade(grade)
+export function matchFrameworkSubject(grade, subjectSlug, curriculum) {
+  const curriculumId = FRAMEWORK_ID_BY_CURRICULUM[normalizeCurriculum(curriculum)]
+  const framework = getFrameworkForGrade(grade, curriculumId)
   if (!framework) return null
   const tokens = tokensFor(subjectSlug)
   const subjects = framework.subjects || []
@@ -89,8 +109,8 @@ export function matchFrameworkSubject(grade, subjectSlug) {
  * A ready-to-print "periods per week" string in the CDC register the scheme
  * header expects, e.g. "6 periods × 40 minutes". Returns '' when unmatched.
  */
-export function periodsPerWeekLabel(grade, subjectSlug) {
-  const m = matchFrameworkSubject(grade, subjectSlug)
+export function periodsPerWeekLabel(grade, subjectSlug, curriculum) {
+  const m = matchFrameworkSubject(grade, subjectSlug, curriculum)
   if (!m || !m.periodsPerWeek) return ''
   return `${m.periodsPerWeek} period${m.periodsPerWeek === 1 ? '' : 's'} × ${m.periodMinutes} minutes`
 }

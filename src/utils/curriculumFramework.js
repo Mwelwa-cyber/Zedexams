@@ -20,8 +20,18 @@
  *   - adapted-2023  The adapted baseline for learners with intellectual
  *                disabilities (14 h 40 min · 22 periods · 40-min periods).
  *                Level-based, not grade-based; offered for any grade.
- *   - obc-2013   2013 Outcome-Based Curriculum — no allocation table is
- *                catalogued yet; the studio uses the manual subject list.
+ *   - obc-2013   2013 Outcome-Based Curriculum. The PRIMARY allocations
+ *                (Grades 1–7) ARE catalogued, straight from the 2013
+ *                Curriculum Framework's contact-time tables: Lower Primary
+ *                (Grades 1–4 · 30-min periods · 21 h · 42/wk) and Upper Primary
+ *                (Grades 5–7 · 40-min periods · 28 h · 42/wk, its Table 5).
+ *                Secondary (Grades 8–12) has no catalogued table, so the studio
+ *                falls back to the manual subject list there. The curriculum's
+ *                `hasAllocations` flag stays false on purpose: the Class
+ *                Timetable Studio keys its allocation-driven mode off that flag,
+ *                and OBC's uncatalogued secondary years must keep the manual
+ *                fallback — the Scheme of Work reads the resolver directly, so
+ *                it still benefits from the primary tables.
  *   - custom     A school's own structure; fully manual.
  *
  * Option groups model the framework's one-of choices (a class takes
@@ -48,6 +58,11 @@ export const CURRICULA = [
     id: 'obc-2013',
     name: '2013 Outcome-Based Curriculum',
     shortName: 'OBC 2013',
+    // Primary (Grades 1–7) IS catalogued (see the OBC bands below), but this
+    // flag stays false: the Class Timetable Studio uses it to decide whether to
+    // enforce a complete official allocation, and OBC's uncatalogued secondary
+    // grades must keep the manual subject-list fallback. The Scheme of Work
+    // reads the resolver directly, so it gets the primary tables regardless.
     hasAllocations: false,
   },
   {
@@ -139,6 +154,23 @@ const BAND_META = {
     totalPeriods: 22,
     weeklyContactMinutes: 880, // 14 h 40 min
     contactLabel: '14 h 40 min',
+  },
+  // ── 2013 OBC primary bands (from the 2013 Curriculum Framework) ──
+  obc_lower_primary: {
+    label: 'Lower Primary (Grades 1–4)',
+    stageId: 'obc-lower-primary',
+    periodMinutes: 30,
+    totalPeriods: 42,
+    weeklyContactMinutes: 1260, // 21 hours
+    contactLabel: '21 hours',
+  },
+  obc_upper_primary: {
+    label: 'Upper Primary (Grades 5–7)',
+    stageId: 'obc-upper-primary',
+    periodMinutes: 40,
+    totalPeriods: 42,
+    weeklyContactMinutes: 1680, // 28 hours
+    contactLabel: '28 hours',
   },
 }
 
@@ -353,6 +385,113 @@ const ADAPTED_SUBJECTS = [
   },
 ]
 
+/* ── 2013 OBC primary allocations ─────────────────────────────────
+ * Transcribed verbatim from the 2013 Curriculum Framework (Curriculum
+ * Development Centre, Zambia) contact-time tables. Every subject is
+ * compulsory and there are NO option groups at primary — the eight (Upper)
+ * / five (Lower) learning areas sum exactly to the official 42 periods.
+ *
+ * Lower Primary (Grades 1–4): 30-min periods · 21 h · 42/wk.
+ */
+const OBC_LOWER_PRIMARY_SUBJECTS = [
+  {
+    id: 'obc-lp-literacy-languages', canonicalName: 'Literacy and Languages', shortName: 'Literacy & Lang',
+    aliases: ['literacy', 'literacy and languages', 'literacy & languages', 'languages', 'english', 'zambian language', 'zambian languages', 'local language'],
+    weeklyPeriods: 13, weeklyMinutes: 390, timeAllocation: '6 h 30 min',
+    compulsory: true, optionGroupId: null, subjectType: 'language',
+    blockPreference: SINGLES(13),
+  },
+  {
+    id: 'obc-lp-mathematics', canonicalName: 'Mathematics', shortName: 'Maths',
+    aliases: ['maths', 'math', 'numeracy'],
+    weeklyPeriods: 10, weeklyMinutes: 300, timeAllocation: '5 h 00 min',
+    compulsory: true, optionGroupId: null, subjectType: 'academic',
+    blockPreference: SINGLES(10),
+  },
+  {
+    id: 'obc-lp-social-studies', canonicalName: 'Social Studies', shortName: 'Soc Studies',
+    aliases: ['ss', 'social', 'social studies'],
+    weeklyPeriods: 5, weeklyMinutes: 150, timeAllocation: '2 h 30 min',
+    compulsory: true, optionGroupId: null, subjectType: 'academic',
+    blockPreference: SINGLES(5),
+  },
+  {
+    id: 'obc-lp-integrated-science', canonicalName: 'Integrated Science', shortName: 'Int Science',
+    aliases: ['integrated science', 'science', 'sci', 'environmental science'],
+    weeklyPeriods: 5, weeklyMinutes: 150, timeAllocation: '2 h 30 min',
+    compulsory: true, optionGroupId: null, subjectType: 'academic',
+    blockPreference: SINGLES(5),
+  },
+  {
+    id: 'obc-lp-creative-technology', canonicalName: 'Creative and Technology Studies', shortName: 'CTS',
+    aliases: ['cts', 'creative and technology studies', 'creative & technology studies', 'creative and technology'],
+    weeklyPeriods: 9, weeklyMinutes: 270, timeAllocation: '4 h 30 min',
+    compulsory: true, optionGroupId: null, subjectType: 'integrated',
+    blockPreference: BLOCKS([2, 2, 2, 1, 1, 1]),
+  },
+]
+
+/* Upper Primary (Grades 5–7): 40-min periods · 28 h · 42/wk — the framework's
+ * Table 5 (Grades 5 to 7 Time Allocations per Week). */
+const OBC_UPPER_PRIMARY_SUBJECTS = [
+  {
+    id: 'obc-up-english', canonicalName: 'English Language', shortName: 'English',
+    aliases: ['english', 'eng'],
+    weeklyPeriods: 6, weeklyMinutes: 240, timeAllocation: '4 h 00 min',
+    compulsory: true, optionGroupId: null, subjectType: 'language',
+    blockPreference: SINGLES(6),
+  },
+  {
+    id: 'obc-up-mathematics', canonicalName: 'Mathematics', shortName: 'Maths',
+    aliases: ['maths', 'math', 'numeracy'],
+    weeklyPeriods: 7, weeklyMinutes: 280, timeAllocation: '4 h 40 min',
+    compulsory: true, optionGroupId: null, subjectType: 'academic',
+    blockPreference: SINGLES(7),
+  },
+  {
+    id: 'obc-up-integrated-science', canonicalName: 'Integrated Science', shortName: 'Int Science',
+    aliases: ['integrated science', 'science', 'sci', 'environmental science'],
+    weeklyPeriods: 6, weeklyMinutes: 240, timeAllocation: '4 h 00 min',
+    compulsory: true, optionGroupId: null, subjectType: 'academic',
+    blockPreference: BLOCKS([2, 1, 1, 1, 1]), // one double for practical work
+  },
+  {
+    id: 'obc-up-zambian-languages', canonicalName: 'Zambian Languages', shortName: 'Zambian Lang',
+    aliases: ['zambian', 'zambian language', 'zambian languages', 'zambian lang', 'local language', 'bemba', 'nyanja', 'tonga', 'lozi', 'kaonde', 'lunda', 'luvale'],
+    weeklyPeriods: 6, weeklyMinutes: 240, timeAllocation: '4 h 00 min',
+    compulsory: true, optionGroupId: null, subjectType: 'language',
+    blockPreference: SINGLES(6),
+  },
+  {
+    id: 'obc-up-expressive-arts', canonicalName: 'Expressive Arts', shortName: 'Expr Arts',
+    aliases: ['ea', 'art', 'arts', 'pe', 'physical education', 'music'],
+    weeklyPeriods: 4, weeklyMinutes: 160, timeAllocation: '2 h 40 min',
+    compulsory: true, optionGroupId: null, subjectType: 'practical',
+    blockPreference: BLOCKS([2, 1, 1]),
+  },
+  {
+    id: 'obc-up-social-studies', canonicalName: 'Social Studies', shortName: 'Soc Studies',
+    aliases: ['ss', 'social', 'social studies'],
+    weeklyPeriods: 5, weeklyMinutes: 200, timeAllocation: '3 h 20 min',
+    compulsory: true, optionGroupId: null, subjectType: 'academic',
+    blockPreference: SINGLES(5),
+  },
+  {
+    id: 'obc-up-technology-studies', canonicalName: 'Technology Studies', shortName: 'Tech Studies',
+    aliases: ['tech studies', 'tech', 'ict', 'computers', 'computer studies'],
+    weeklyPeriods: 4, weeklyMinutes: 160, timeAllocation: '2 h 40 min',
+    compulsory: true, optionGroupId: null, subjectType: 'practical',
+    blockPreference: BLOCKS([2, 2]),
+  },
+  {
+    id: 'obc-up-home-economics', canonicalName: 'Home Economics', shortName: 'Home Econ',
+    aliases: ['home ec', 'homeec', 'h/econ', 'home management'],
+    weeklyPeriods: 4, weeklyMinutes: 160, timeAllocation: '2 h 40 min',
+    compulsory: true, optionGroupId: null, subjectType: 'practical',
+    blockPreference: BLOCKS([2, 2]),
+  },
+]
+
 /* ── Option groups (one-of choices) ───────────────────────────── */
 
 const OPTION_GROUPS = {
@@ -381,12 +520,32 @@ const BAND_SUBJECTS = {
   lower_primary: LOWER_PRIMARY_SUBJECTS,
   upper_primary: UPPER_PRIMARY_SUBJECTS,
   adapted: ADAPTED_SUBJECTS,
+  obc_lower_primary: OBC_LOWER_PRIMARY_SUBJECTS,
+  obc_upper_primary: OBC_UPPER_PRIMARY_SUBJECTS,
+}
+
+/* ── OBC grade → band ─────────────────────────────────────────────
+ * The 2013 OBC splits primary differently from the 2023 CBC: Lower Primary is
+ * Grades 1–4 and Upper Primary is Grades 5–7 (the framework's own headings).
+ * Grade 7 is therefore a PRIMARY grade under OBC and gets Table 5's allocation
+ * — the opposite of CBC, where Grade 7 has no prescribed allocation. Secondary
+ * (Grades 8–12) is not catalogued and returns null (manual fallback).
+ */
+function obcBandForGrade(grade) {
+  const raw = String(grade ?? '').trim()
+  const m = raw.match(/(\d{1,2})/)
+  if (!m) return null
+  const n = Number(m[1])
+  if (n >= 1 && n <= 4) return 'obc_lower_primary'
+  if (n >= 5 && n <= 7) return 'obc_upper_primary'
+  return null
 }
 
 /* ── Resolution ─────────────────────────────────────────────────── */
 
 function bandForCurriculum(curriculumId, grade) {
   if (curriculumId === 'adapted-2023') return 'adapted'
+  if (curriculumId === 'obc-2013') return obcBandForGrade(grade)
   if (curriculumId && curriculumId !== 'cbc-2023' && curriculumId !== DEFAULT_CURRICULUM_ID) return null
   return bandForGrade(grade)
 }
