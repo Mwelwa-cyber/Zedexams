@@ -25,6 +25,7 @@ import {
   X,
 } from 'lucide-react'
 import { useNotifications } from '../../../contexts/NotificationContext'
+import useHideOnScroll from '../../../hooks/useHideOnScroll'
 import NotificationCenter from '../../notifications/NotificationCenter'
 import CopperButton from './CopperButton'
 import AiRecommendationsCard from './AiRecommendationsCard'
@@ -282,9 +283,13 @@ export function NavDrawer({
 /** Compact mobile header — shared by the dashboard and Help & Support. */
 export function MobileHeader({ drawerOpen, onOpenMenu }) {
   const { unreadCount, open: notifOpen, setOpen: setNotifOpen } = useNotifications()
+  // LinkedIn-style auto-hide on scroll (same hook the learner chrome uses):
+  // slides up on scroll-down, reveals on scroll-up. Stays pinned while the
+  // drawer is open so the menu chrome never slides out from under the user.
+  const hidden = useHideOnScroll()
   return (
     <>
-      <header className="tdv2m-header">
+      <header className={`tdv2m-header tdv2m-autohide ${hidden && !drawerOpen ? 'is-hidden-top' : ''}`}>
         <button
           type="button"
           className="tdv2m-iconbtn"
@@ -331,8 +336,14 @@ export function MobileHeader({ drawerOpen, onOpenMenu }) {
 /** Fixed bottom navigation — shared by the dashboard and Help & Support. */
 export function MobileBottomNav({ drawerOpen, onMore }) {
   const { pathname } = useLocation()
+  // Matches the header: slides down on scroll-down, reveals on scroll-up.
+  const hidden = useHideOnScroll()
   return (
-    <nav className="tdv2m-bottomnav" aria-label="Quick navigation" data-tour="nav">
+    <nav
+      className={`tdv2m-bottomnav tdv2m-autohide ${hidden && !drawerOpen ? 'is-hidden-bottom' : ''}`}
+      aria-label="Quick navigation"
+      data-tour="nav"
+    >
       {BOTTOM_NAV.map(({ id, label, icon: NavIcon, to }) => {
         const active =
           to === '/teacher'
