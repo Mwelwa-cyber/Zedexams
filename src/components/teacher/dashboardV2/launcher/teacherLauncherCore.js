@@ -154,22 +154,26 @@ export function applyChip(studios = [], { chip = 'all', favourites = [], recents
 /* ── Responsive ──────────────────────────────────────────────────────── */
 
 /**
- * App-icon columns for a viewport width, per the design brief:
- *   < 480  → 4  |  480–639 → 5  |  640–1023 → 6  |  1024–1439 → 7  |  ≥1440 → 8
+ * App-icon columns for a viewport width. Fewer, wider columns than the
+ * original ladder — paired with the larger --tsl-tile so desktop icons
+ * read as real app icons, not miniatures:
+ *   < 640 → 4  |  640–1023 → 5  |  1024–1439 → 6  |  ≥1440 → 7
  */
 export function columnsForWidth(width = 1024) {
   if (width < 480) return 4
-  if (width < 640) return 5
-  if (width < 1024) return 6
-  if (width < 1440) return 7
-  return 8
+  if (width < 640) return 4
+  if (width < 1024) return 5
+  if (width < 1440) return 6
+  return 7
 }
 
-/** How many recent studios to surface at a viewport width (4/6/8). */
+/**
+ * How many recent studios to surface at a viewport width. Always exactly
+ * one grid row — mirrors columnsForWidth, so the Recently Used strip never
+ * wraps into an orphaned second row.
+ */
 export function recentLimitForWidth(width = 1024) {
-  if (width < 768) return 4
-  if (width < 1024) return 6
-  return 8
+  return columnsForWidth(width)
 }
 
 /* ── Popover placement ───────────────────────────────────────────────── */

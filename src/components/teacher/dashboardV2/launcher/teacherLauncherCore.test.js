@@ -178,17 +178,18 @@ test('applyChip recent stays empty when no history (UI shows empty state)', () =
 test('columnsForWidth follows the breakpoint ladder', () => {
   assert.equal(columnsForWidth(320), 4)
   assert.equal(columnsForWidth(479), 4)
-  assert.equal(columnsForWidth(480), 5)
-  assert.equal(columnsForWidth(639), 5)
-  assert.equal(columnsForWidth(768), 6)
-  assert.equal(columnsForWidth(1024), 7)
-  assert.equal(columnsForWidth(1440), 8)
+  assert.equal(columnsForWidth(480), 4)
+  assert.equal(columnsForWidth(639), 4)
+  assert.equal(columnsForWidth(768), 5)
+  assert.equal(columnsForWidth(1024), 6)
+  assert.equal(columnsForWidth(1440), 7)
 })
 
-test('recentLimitForWidth: 4 mobile / 6 tablet / 8 desktop', () => {
+test('recentLimitForWidth always fills exactly one grid row', () => {
   assert.equal(recentLimitForWidth(360), 4)
-  assert.equal(recentLimitForWidth(800), 6)
-  assert.equal(recentLimitForWidth(1440), 8)
+  assert.equal(recentLimitForWidth(800), 5)
+  assert.equal(recentLimitForWidth(1100), 6)
+  assert.equal(recentLimitForWidth(1440), 7)
 })
 
 // ── Popover placement ────────────────────────────────────────────────────

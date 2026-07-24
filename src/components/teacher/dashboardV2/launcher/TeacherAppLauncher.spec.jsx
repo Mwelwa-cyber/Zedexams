@@ -161,10 +161,19 @@ describe('TeacherAppLauncher', () => {
     expect(screen.getByText(/No tools match/)).toBeInTheDocument()
   })
 
-  it('permission-filters tools for non-teachers', () => {
-    authValue = { isTeacher: false, currentUser: null, userProfile: null, updateProfileFields }
+  it('permission-filters tools for signed-in non-teachers', () => {
+    // A real signed-in account without the teacher role sees nothing;
+    // signed-OUT (currentUser: null) is the mock-data preview page, which
+    // intentionally shows the full registry instead.
+    authValue = { isTeacher: false, currentUser: { uid: 'u-1' }, userProfile: null, updateProfileFields }
     renderLauncher()
     expect(screen.queryByLabelText(/Open studio$/)).not.toBeInTheDocument()
+  })
+
+  it('shows the full registry on the signed-out preview page', () => {
+    authValue = { isTeacher: false, currentUser: null, userProfile: null, updateProfileFields }
+    renderLauncher()
+    expect(screen.getByLabelText(/^Lesson Plans.*Open studio$/)).toBeInTheDocument()
   })
 
   it('collapses and expands a category section', async () => {

@@ -22,7 +22,10 @@
 }
 
 .tsl {
-  --tsl-tile: 56px;
+  /* Desktop-first tile size — large enough to read the bespoke artwork as a
+     real app icon (the mobile launcher uses 74–84px; 56px here made the
+     studios look like toys on a laptop). Narrow widths step down below. */
+  --tsl-tile: 84px;
   --tsl-cols: 6;
   width: 100%;
   max-width: 100%;
@@ -303,7 +306,7 @@
 .tsl-grid {
   display: grid;
   grid-template-columns: repeat(var(--tsl-cols), minmax(0, 1fr));
-  gap: 8px 6px;
+  gap: 16px 10px;
 }
 .tsl-grid-cell { min-width: 0; }
 
@@ -312,11 +315,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-width: 72px;
-  min-height: 88px;
-  padding: 12px 6px 10px;
-  border-radius: 16px;
+  min-height: 128px;
+  padding: 14px 8px 12px;
+  border-radius: 18px;
   border: 1px solid transparent;
   text-decoration: none;
   color: var(--ink);
@@ -348,7 +351,8 @@
   place-items: center;
   width: var(--tsl-tile);
   height: var(--tsl-tile);
-  border-radius: 15px;
+  /* ~26% of the tile — tracks the size bump so corners keep the same look */
+  border-radius: calc(var(--tsl-tile) * 0.26);
   background: #e6f2f1;
   color: #0f766e;
   box-shadow: inset 0 0 0 1px rgba(16, 36, 62, 0.04);
@@ -389,8 +393,8 @@
   bottom: -3px;
   display: grid;
   place-items: center;
-  width: 16px;
-  height: 16px;
+  width: 19px;
+  height: 19px;
   border-radius: 999px;
   background: var(--copper);
   color: #fff;
@@ -399,16 +403,19 @@
 
 .tsl-app-name {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  /* Three lines: full studio names ("Assessment Paper Studio") must never
+     truncate at the 6-column widths */
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-align: center;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.28;
   color: var(--ink);
   max-width: 100%;
+  overflow-wrap: break-word;
 }
 
 /* Badges */
@@ -418,10 +425,10 @@
   right: 8px;
   display: inline-flex;
   align-items: center;
-  height: 17px;
-  padding: 0 6px;
+  height: 19px;
+  padding: 0 7px;
   border-radius: 999px;
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 800;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -490,7 +497,7 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 .tsl-pop-head { display: flex; align-items: center; gap: 12px; }
-.tsl-pop-head .tsl-app-tile { width: 44px; height: 44px; border-radius: 13px; }
+.tsl-pop-head .tsl-app-tile { width: 52px; height: 52px; border-radius: 14px; }
 .tsl-pop-heading { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
 .tsl-pop-title { font-size: 15.5px; font-weight: 700; color: var(--ink); }
 .tsl-pop-tag {
@@ -604,7 +611,7 @@
   cursor: pointer;
 }
 .tsl-sheet-head { display: flex; align-items: center; gap: 14px; }
-.tsl-sheet-head .tsl-app-tile { width: 52px; height: 52px; border-radius: 15px; }
+.tsl-sheet-head .tsl-app-tile { width: 58px; height: 58px; border-radius: 16px; }
 .tsl-sheet-heading { min-width: 0; }
 .tsl-sheet-title { display: block; font-size: 17px; font-weight: 700; color: var(--ink); }
 .tsl-sheet-meta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; }
@@ -631,20 +638,23 @@
 .tsl-sheet-row-arrow { margin-left: auto; color: var(--grey); }
 
 /* ── Responsive paddings ─────────────────────────────────────────────── */
+@media (max-width: 1200px) {
+  .tsl { --tsl-tile: 76px; }
+}
 @media (max-width: 900px) {
-  .tsl { gap: 18px; }
+  .tsl { gap: 18px; --tsl-tile: 68px; }
   .tsl-head { align-items: flex-start; }
   .tsl-search { max-width: none; order: 3; }
 }
 @media (max-width: 640px) {
-  .tsl { --tsl-tile: 50px; }
-  .tsl-app { min-width: 66px; padding: 10px 4px 8px; }
-  .tsl-app-name { font-size: 11.5px; }
+  .tsl { --tsl-tile: 56px; }
+  .tsl-app { min-width: 66px; min-height: 100px; padding: 10px 4px 8px; }
+  .tsl-app-name { font-size: 12px; }
 }
 @media (max-width: 400px) {
-  .tsl { --tsl-tile: 46px; }
-  .tsl-grid { gap: 6px 4px; }
-  .tsl-app { min-width: 60px; padding: 9px 2px 8px; border-radius: 14px; }
+  .tsl { --tsl-tile: 50px; }
+  .tsl-grid { gap: 8px 6px; }
+  .tsl-app { min-width: 60px; min-height: 92px; padding: 9px 2px 8px; border-radius: 14px; }
 }
 
 /* When the launcher sits inside the mobile dashboard chrome, break out of
@@ -679,4 +689,10 @@
 .tdv2.is-dark .tsl-app-tile { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06); }
 .tdv2.is-dark .tsl-app-tile.is-img { box-shadow: none; }
 .tdv2.is-dark .tsl-app:hover { background: rgba(255, 255, 255, 0.03); }
-.tdv2.is-dark .tsl-app-badge.kind-saved { background: rgba(15, 118, 110, 0.24); color: #6ee7d4; }
+/* Solid, not translucent — the badge overlaps the light artwork of the
+   larger tiles, and a see-through teal washed out against it. */
+.tdv2.is-dark .tsl-app-badge.kind-saved {
+  background: #0c3f39;
+  color: #7deed9;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
