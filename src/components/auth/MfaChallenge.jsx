@@ -62,6 +62,7 @@ export default function MfaChallenge({ resolver, onSuccess, onCancel }) {
       setError(mfaErrorMessage(err))
       setCode('')
     } finally {
+      // eslint-disable-next-line require-atomic-updates -- unconditional release of the in-flight lock ref
       submitLockRef.current = false
       setSubmitting(false)
     }

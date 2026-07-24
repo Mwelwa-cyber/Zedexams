@@ -49,6 +49,7 @@ export default function AddPasskeyDialog({ onClose, onAdded }) {
       }
       setStep('confirm')
     } finally {
+      // eslint-disable-next-line require-atomic-updates -- unconditional release of the in-flight lock ref
       inFlightRef.current = false
     }
   }
