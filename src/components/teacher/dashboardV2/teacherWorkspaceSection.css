@@ -1,0 +1,224 @@
+/* ────────────────────────────────────────────────────────────────────────
+   Teacher Workspace — classic DESKTOP card layout (tws- scope).
+   Restored per the owner (2026-07-23): large descriptive studio cards
+   grouped by category, saved-count pills, "View all teacher tools"
+   expander. Inherits the Dashboard V2 tokens from the enclosing .tdv2.
+   Mobile (< 768px) never renders this — it keeps the app-icon launcher.
+   ──────────────────────────────────────────────────────────────────────── */
+
+.tws {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+.tws *,
+.tws *::before,
+.tws *::after { box-sizing: border-box; }
+
+/* ── Section header ──────────────────────────────────────────────────── */
+.tws-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.tws-head-chip {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  background: var(--copper-tint);
+  color: var(--copper);
+  flex-shrink: 0;
+}
+.tws-title {
+  margin: 0;
+  font-family: var(--font-display, Georgia, serif);
+  font-size: clamp(24px, 2.6vw, 32px);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink);
+  line-height: 1.12;
+}
+.tws-sub {
+  margin: 3px 0 0;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+/* ── Category sections ───────────────────────────────────────────────── */
+.tws-sec { display: flex; flex-direction: column; gap: 14px; }
+.tws-sec-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tws-sec-chip {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--copper-tint);
+  color: var(--copper);
+  flex-shrink: 0;
+}
+.tws-sec-title {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.tws-sec-viewall { margin-left: auto; }
+
+/* ── Card grid ───────────────────────────────────────────────────────── */
+.tws-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.tws-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 172px;
+  padding: 18px 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+  text-decoration: none;
+  color: var(--ink);
+  transition: transform 150ms var(--ease), box-shadow 150ms var(--ease), border-color 150ms var(--ease);
+}
+.tws-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: rgba(198, 90, 36, 0.35);
+}
+.tws-card:focus-visible {
+  outline: 3px solid rgba(198, 90, 36, 0.55);
+  outline-offset: 2px;
+}
+
+.tws-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.tws-card-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 13px;
+  flex-shrink: 0;
+}
+.tws-card-icon.is-img { background: transparent; }
+.tws-card-icon.is-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 3px 5px rgba(16, 36, 62, 0.15));
+  -webkit-user-drag: none;
+}
+.tws-card-icon.tint-teal   { background: #e4f1ef; color: #0f766e; }
+.tws-card-icon.tint-orange { background: var(--copper-tint); color: var(--copper); }
+.tws-card-icon.tint-green  { background: #e7f6ee; color: #1a8f52; }
+.tws-card-icon.tint-blue   { background: #e8eefc; color: #2563eb; }
+.tws-card-icon.tint-purple { background: #efe9fb; color: #7c3aed; }
+.tws-card-icon.tint-rose   { background: #fceaef; color: #d61f5c; }
+
+.tws-card-title {
+  font-family: var(--font-display, Georgia, serif);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink);
+}
+.tws-card-desc {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+.tws-card-arrow {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  color: var(--grey);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 150ms var(--ease), transform 150ms var(--ease);
+}
+.tws-card:hover .tws-card-arrow { opacity: 1; transform: translateX(0); color: var(--copper); }
+
+/* ── Pills ───────────────────────────────────────────────────────────── */
+.tws-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.tws-pill.kind-saved { background: var(--navy); color: #fff; }
+.tws-pill.kind-new { background: var(--copper-hover); color: #fff; }
+.tws-pill.is-skeleton {
+  width: 58px;
+  background: var(--border);
+  animation: tws-pulse 1.2s ease-in-out infinite;
+}
+@keyframes tws-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.9; } }
+.tws-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--red);
+  box-shadow: 0 0 0 2px var(--surface);
+  margin-top: 4px;
+}
+
+/* ── Expander ────────────────────────────────────────────────────────── */
+.tws-expand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 50px;
+  border: 1px dashed rgba(198, 90, 36, 0.45);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--copper-pressed);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease);
+}
+.tws-expand:hover { background: var(--copper-tint); border-color: var(--copper); }
+.tws-expand:focus-visible {
+  outline: 3px solid rgba(198, 90, 36, 0.55);
+  outline-offset: 2px;
+}
+
+/* ── Dark theme ──────────────────────────────────────────────────────── */
+.tdv2.is-dark .tws-pill.kind-saved { background: #1d3557; }
+.tdv2.is-dark .tws-card:hover { border-color: rgba(232, 120, 50, 0.4); }
+
+/* ── Reduced motion ──────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .tws-card,
+  .tws-card-arrow,
+  .tws-pill.is-skeleton { transition: none !important; animation: none !important; }
+  .tws-card:hover { transform: none; }
+}
