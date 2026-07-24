@@ -9,6 +9,7 @@ import { isMuted, toggleMute } from '../../utils/gameSounds'
 import { useAuth } from '../../contexts/AuthContext'
 import { NAV_ICON_MAP } from './gamesUi'
 import GameStickerStyles from './GameStickerStyles'
+import MobileBottomNav from '../layout/MobileBottomNav'
 
 /**
  * Shared chrome for every /games page. Keeps the Games experience cohesive
@@ -17,8 +18,9 @@ import GameStickerStyles from './GameStickerStyles'
  * `crumbs` is an array of { label, to? } — the last one is unlinked.
  */
 export default function GamesShell({ crumbs = [], children, maxW = 'max-w-6xl' }) {
-  const { currentUser, userProfile } = useAuth()
+  const { currentUser, userProfile, isAdmin, isTeacher } = useAuth()
   const firstName = userProfile?.displayName?.split(' ')[0] ?? null
+  const isLearner = Boolean(currentUser) && !isAdmin && !isTeacher
   const TrophyIcon = NAV_ICON_MAP.leaderboard
   const HomeIcon = NAV_ICON_MAP.dashboard
   const GamesIcon = NAV_ICON_MAP.games
@@ -96,10 +98,13 @@ export default function GamesShell({ crumbs = [], children, maxW = 'max-w-6xl' }
           </div>
         )}
 
-        <main className={`${maxW} mx-auto px-4 py-8 sm:px-6 sm:py-10`}>
+        <main className={`${maxW} mx-auto px-4 py-8 sm:px-6 sm:py-10 ${isLearner ? 'pb-28 lg:pb-10' : ''}`}>
           {children}
         </main>
       </div>
+      {/* Signed-in learners keep the persistent app navigation here so
+          Games matches the rest of the learner surfaces (2026-07 IA). */}
+      {isLearner && <MobileBottomNav />}
     </div>
   )
 }

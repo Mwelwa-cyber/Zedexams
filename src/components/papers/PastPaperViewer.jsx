@@ -23,6 +23,7 @@ import {
   resolvePaperUrl,
 } from '../../utils/pastPapers'
 import { saveBlob } from '../../utils/saveBlob'
+import usePaperResumeSync from '../../features/learnerHome/lib/paperResumeSync'
 import { buildDownloadName } from '../../utils/downloadFilename'
 import { siblingPapers, viewPath } from './paperNav'
 import { subjectMeta } from './paperVisuals'
@@ -96,6 +97,9 @@ export default function PastPaperViewer() {
   const [paper, setPaper] = useState(null)
   const [loading, setLoading] = useState(true)
   const [errored, setErrored] = useState(false)
+  // Dashboard "Continue Reading" resume: local mirror + debounced
+  // cross-device sync (writes only on leave, never per scroll).
+  usePaperResumeSync({ paperId, paper, uid: currentUser?.uid || null })
   const [paperUrl, setPaperUrl] = useState(null)
   const [paperUrlLoading, setPaperUrlLoading] = useState(false)
   const [downloadError, setDownloadError] = useState('')

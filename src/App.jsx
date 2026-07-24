@@ -73,6 +73,13 @@ const AuthAction = lazy(() => import('./components/auth/AuthAction'))
 const VerifyEmail = lazy(() => import('./components/auth/VerifyEmail'))
 const StudentDashboard = lazy(() => import('./components/dashboard/StudentDashboard'))
 const GradeHub = lazy(() => import('./components/dashboard/GradeHub'))
+// New learner home experience (2026-07 rebuild): mobile-first dashboard +
+// Learn / Practice hubs + term-organised subject pages. GradeHub stays
+// reachable at /dashboard/classic as the transition fallback.
+const LearnerHomePage = lazy(() => import('./features/learnerHome/pages/LearnerHomePage'))
+const LearnPage = lazy(() => import('./features/learnerHome/pages/LearnPage'))
+const PracticePage = lazy(() => import('./features/learnerHome/pages/PracticePage'))
+const LearnerSubjectPage = lazy(() => import('./features/learnerHome/pages/LearnerSubjectPage'))
 const StudyPlanPage = lazy(() => import('./components/dashboard/StudyPlanPage'))
 const LearnerCalendar = lazy(() => import('./components/dashboard/LearnerCalendar'))
 // Exam timetable hub: /timetable is the interactive per-grade exam schedule
@@ -568,9 +575,22 @@ export default function App() {
           <Route path="/games/play/:gameId"            element={<PlayGame />} />
 
           {/* ── Learner routes ─────────────────────────────────── */}
-          {/* GradeHub is the new CBC-aligned primary dashboard */}
-          <Route path="/dashboard"         element={<ProtectedRoute><LearnerOnlyRoute><GradeHub /></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/dashboard-preview" element={<ProtectedRoute><LearnerOnlyRoute><GradeHub /></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* The rebuilt learner home (2026-07). The previous GradeHub
+              dashboard stays at /dashboard/classic during the transition. */}
+          <Route path="/dashboard"         element={<ProtectedRoute><LearnerOnlyRoute><LearnerHomePage /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/dashboard/classic" element={<ProtectedRoute><LearnerOnlyRoute><GradeHub /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/dashboard-preview" element={<ProtectedRoute><LearnerOnlyRoute><LearnerHomePage /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/learn"             element={<ProtectedRoute><LearnerOnlyRoute><LearnPage /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/practice"          element={<ProtectedRoute><LearnerOnlyRoute><PracticePage /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/practice/daily-exams" element={<Navigate to="/exams" replace />} />
+          <Route path="/subjects/:subjectId" element={<ProtectedRoute><LearnerOnlyRoute><LearnerSubjectPage /></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* /learner/* aliases from the redesign spec → canonical routes */}
+          <Route path="/learner" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/learner/learn" element={<Navigate to="/learn" replace />} />
+          <Route path="/learner/papers" element={<Navigate to="/papers" replace />} />
+          <Route path="/learner/practice" element={<Navigate to="/practice" replace />} />
+          <Route path="/learner/games" element={<Navigate to="/games" replace />} />
+          <Route path="/learner/profile" element={<Navigate to="/profile" replace />} />
           {/* Legacy stats page (kept for admin/teacher reference) */}
           <Route path="/my-stats"          element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><StudentDashboard /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/study-plan"        element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><StudyPlanPage /></LearnerOnlyRoute></ProtectedRoute>} />

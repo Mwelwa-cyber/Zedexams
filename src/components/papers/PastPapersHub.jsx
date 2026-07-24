@@ -57,7 +57,6 @@ import Logo from '../ui/Logo'
 import Skeleton from '../ui/Skeleton'
 import {
   ArrowRight,
-  BookOpen,
   BookmarkSquareIcon,
   CalendarDays,
   Check,
@@ -65,6 +64,7 @@ import {
   ChevronRight,
   Clock,
   FileText,
+  Gamepad2,
   GraduationCap,
   Home,
   PencilLine,
@@ -72,7 +72,6 @@ import {
   SlidersHorizontal,
   Sparkles,
   StarIcon,
-  User,
   X,
 } from '../ui/icons'
 
@@ -394,12 +393,14 @@ function GradeToggle({ grade, onChange }) {
 
 // ── Floating glassmorphism bottom navigation ────────────────────────
 function BottomNav() {
+  // Matches the learner-home bottom-nav IA (Home · Learn · Papers ·
+  // Practice · Games). Profile moved to the header avatar (2026-07).
   const items = [
     { to: '/dashboard', label: 'Home', Icon: Home },
-    { to: '/lessons', label: 'Library', Icon: BookOpen },
+    { to: '/learn', label: 'Learn', Icon: GraduationCap },
     { to: '/papers', label: 'Papers', Icon: FileText, active: true },
-    { to: '/quizzes', label: 'Quizzes', Icon: PencilLine },
-    { to: '/profile', label: 'Profile', Icon: User },
+    { to: '/practice', label: 'Practice', Icon: PencilLine },
+    { to: '/games', label: 'Games', Icon: Gamepad2 },
   ]
   return (
     <nav

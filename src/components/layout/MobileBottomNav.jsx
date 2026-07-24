@@ -1,17 +1,18 @@
 import { NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { CalendarDays, FileText, Files, Home, PencilLine } from '../ui/icons'
+import { Files, Gamepad2, GraduationCap, Home, PencilLine } from '../ui/icons'
 import Icon from '../ui/Icon'
 import useHideOnScroll from '../../hooks/useHideOnScroll'
 
-// 5 items at 20% width each. Labels resolve via i18n (audit A7) — `nav.*`
-// keys, English fallback.
+// 5 items at 20% width each, matching the learner-home bottom nav IA
+// (Home · Learn · Papers · Practice · Games — 2026-07 learner redesign).
+// Labels resolve via i18n (audit A7) — `nav.*` keys, English fallback.
 const MOBILE_NAV_ITEMS = [
-  { to: '/dashboard',  icon: Home,         labelKey: 'nav.dashboard', end: true },
-  { to: '/study-plan', icon: CalendarDays, labelKey: 'nav.studyPlan', end: false },
-  { to: '/notes',      icon: FileText,     labelKey: 'nav.notes',     end: false },
-  { to: '/quizzes',    icon: PencilLine,   labelKey: 'nav.quizzes',   end: false },
-  { to: '/papers',     icon: Files,        labelKey: 'nav.papers',    end: false },
+  { to: '/dashboard', icon: Home,          labelKey: 'nav.dashboard', end: true },
+  { to: '/learn',     icon: GraduationCap, labelKey: 'nav.learn',     end: false },
+  { to: '/papers',    icon: Files,         labelKey: 'nav.papers',    end: false },
+  { to: '/practice',  icon: PencilLine,    labelKey: 'nav.practice',  end: false },
+  { to: '/games',     icon: Gamepad2,      labelKey: 'nav.games',     end: false },
 ]
 
 export default function MobileBottomNav({ mode = 'fixed', className = '' }) {

@@ -25,6 +25,9 @@
   "nav": {
     "dashboard": "Home",
     "studyPlan": "Plan",
+    "learn": "Learn",
+    "practice": "Practice",
+    "games": "Games",
     "lessons": "Lessons",
     "notes": "Notes",
     "quizzes": "Quizzes",
