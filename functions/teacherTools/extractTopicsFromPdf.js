@@ -30,7 +30,7 @@ const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertCallableRateLimit} = require("../rateLimit");
 const {assertVerifiedAuth} = require("../authGuard");
 const admin = require("firebase-admin");
-const pdfParse = require("pdf-parse");
+const {extractPdfText} = require("../pdfTextExtractor");
 
 const {
   callAnthropic,
@@ -229,8 +229,15 @@ function createExtractTopicsFromPdf(anthropicApiKeySecret) {
       const [buf] = await admin.storage().bucket()
         .file(storagePath)
         .download();
-      const parsed = await pdfParse(buf);
-      pdfText = String(parsed?.text || "").trim();
+      // pdf-parse v2 via the shared extractor (issue #1884). It returns a
+      // discriminated result rather than throwing; surface a hard read
+      // failure as an error so the outer catch records it and the caller
+      // gets the same invalid-argument response as before.
+      const parsed = await extractPdfText(buf);
+      if (parsed.error || parsed.unsupported) {
+        throw new Error(parsed.error || parsed.reason || "pdf_parse_failed");
+      }
+      pdfText = String(parsed.text || "").trim();
     } catch (err) {
       const message = String(err && err.message || err).slice(0, 500);
       await statusRef.set({

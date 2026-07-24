@@ -181,35 +181,33 @@ async function parsePdf(buffer) {
   if (!buffer || !Buffer.isBuffer(buffer)) {
     return {text: "", headings: []};
   }
-  // Lazy require so unit tests that mock out the runtime don't need
-  // pdf-parse on disk.
-  let pdfParse;
-  try {
-    pdfParse = require("pdf-parse");
-  } catch (err) {
-    return {text: "", headings: [], unsupported: true,
-      reason: `pdf-parse_missing:${(err && err.message || "").slice(0, 80)}`};
+  // pdf-parse v2 (PDFParse class) is wrapped in ../../../pdfTextExtractor,
+  // which lazily requires pdf-parse and never throws — it returns
+  // {unsupported}/{error} so this function keeps its existing
+  // graceful-degradation contract (see issue #1884). The 200-page cap that
+  // v1 expressed as `{max: 200}` maps to the v2 `{first: 200}` page range.
+  const {extractPdfText} = require("../../../pdfTextExtractor");
+  const parsed = await extractPdfText(buffer, {maxPages: 200});
+  if (parsed.unsupported) {
+    return {text: "", headings: [], unsupported: true, reason: parsed.reason};
   }
-  try {
-    const result = await pdfParse(buffer, {max: 200});
-    const text = String(result && result.text || "")
-        .replace(/^@/g, "")
-        .replace(/\r\n/g, "\n")
-        .trim();
-    // Treat short ALL-CAPS or Title-Case lines as headings.
-    const headings = text
-        .split(/\n+/)
-        .map((l) => l.trim())
-        .filter((l) =>
-          l.length > 3 && l.length < 120 &&
-          /^[A-Z0-9][A-Z0-9 :,\-/&()]{2,}$/.test(l),
-        )
-        .slice(0, 200);
-    return {text, headings};
-  } catch (err) {
-    return {text: "", headings: [],
-      error: `pdf_parse_failed:${(err && err.message || "").slice(0, 120)}`};
+  if (parsed.error) {
+    return {text: "", headings: [], error: parsed.error};
   }
+  const text = String(parsed.text || "")
+      .replace(/^@/g, "")
+      .replace(/\r\n/g, "\n")
+      .trim();
+  // Treat short ALL-CAPS or Title-Case lines as headings.
+  const headings = text
+      .split(/\n+/)
+      .map((l) => l.trim())
+      .filter((l) =>
+        l.length > 3 && l.length < 120 &&
+        /^[A-Z0-9][A-Z0-9 :,\-/&()]{2,}$/.test(l),
+      )
+      .slice(0, 200);
+  return {text, headings};
 }
 
 async function parseDocx(buffer) {
