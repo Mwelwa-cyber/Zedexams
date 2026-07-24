@@ -135,6 +135,7 @@ export default function MfaSetupPage() {
     try {
       await completeTotpEnrollment(currentUser, secretRef.current, code, 'Authenticator app')
       // Enrolment confirmed by Firebase — wipe the secret and audit success.
+      // eslint-disable-next-line require-atomic-updates -- unconditional wipe of the secret ref, not a stale read-modify-write
       secretRef.current = null
       setSecretKey('')
       setQrDataUrl('')
@@ -145,6 +146,7 @@ export default function MfaSetupPage() {
       setError(mfaErrorMessage(err))
       setCode('')
     } finally {
+      // eslint-disable-next-line require-atomic-updates -- unconditional release of the in-flight lock ref
       submitLockRef.current = false
       setBusy(false)
     }
