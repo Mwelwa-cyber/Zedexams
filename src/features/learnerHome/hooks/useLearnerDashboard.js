@@ -203,24 +203,27 @@ export default function useLearnerDashboard() {
           })
         }
       }
-      const noteById = new Map(notes.map((n) => [n.id, n]))
+      // noteProgress carries both notes and slide lessons (the lesson
+      // player writes resourceType: 'lesson' into the same collection).
+      const materialById = new Map(materials.map((m) => [m.id, m]))
       for (const np of noteProgress) {
         if (!np.noteId) continue
-        const note = noteById.get(np.noteId)
+        const material = materialById.get(np.noteId)
+        const isLesson = np.resourceType === 'lesson'
         candidates.push({
-          kind: 'note',
+          kind: isLesson ? 'lesson' : 'note',
           id: np.noteId,
-          title: np.title || note?.title || 'Notes',
-          subject: subjectIdOf(np.subject || note?.subject),
-          subjectLabel: normalizeSubject(np.subject || note?.subject),
+          title: np.title || material?.title || (isLesson ? 'Lesson' : 'Notes'),
+          subject: subjectIdOf(np.subject || material?.subject),
+          subjectLabel: normalizeSubject(np.subject || material?.subject),
           grade: np.grade != null ? String(np.grade) : grade,
-          term: normalizeTerm(note?.term),
+          term: normalizeTerm(material?.term),
           percent: Number(np.percent) || 0,
           status: np.status === 'completed' ? 'completed' : 'in-progress',
           openedAt: tsToMs(np.lastOpenedAt || np.updatedAt),
-          // If the grade's materials loaded and this note isn't among
+          // If the grade's materials loaded and this doc isn't among
           // them, it was unpublished/removed — never resume into it.
-          unpublished: materialsSnap != null && !note,
+          unpublished: materialsSnap != null && !material,
         })
       }
       const learningResume = pickLearningResume(candidates, { grade })
@@ -286,15 +289,19 @@ export default function useLearnerDashboard() {
       for (const np of noteProgress) {
         const when = tsToMs(np.completedAt || np.lastOpenedAt || np.updatedAt)
         if (!when) continue
+        const isLesson = np.resourceType === 'lesson'
+        const done = np.status === 'completed'
         activityItems.push({
-          type: np.status === 'completed' ? 'notes_completed' : 'notes_opened',
+          type: isLesson
+            ? (done ? 'lesson_completed' : 'lesson_opened')
+            : (done ? 'notes_completed' : 'notes_opened'),
           sourceId: np.noteId,
           completedAt: when,
-          title: np.title || 'Notes',
+          title: np.title || (isLesson ? 'Lesson' : 'Notes'),
           subjectLabel: normalizeSubject(np.subject),
           score: null,
-          href: `/notes/${np.noteId}`,
-          icon: 'notes',
+          href: isLesson ? `/lessons/${np.noteId}` : `/notes/${np.noteId}`,
+          icon: isLesson ? 'lessons' : 'notes',
         })
       }
       if (paperResume && (localResume?.updatedAt || remoteResume?.updatedAt)) {

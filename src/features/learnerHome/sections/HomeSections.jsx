@@ -114,6 +114,8 @@ export function RecommendationsSection({ recommendations, loading }) {
       navigate(rec.subject ? `/practice?subject=${rec.subject}${rec.topic ? `&topic=${encodeURIComponent(rec.topic)}` : ''}` : '/practice')
     } else if (rec.kind === 'note') {
       navigate(`/notes/${rec.targetId}`)
+    } else if (rec.kind === 'lesson') {
+      navigate(`/lessons/${rec.targetId}`)
     } else if (rec.kind === 'quiz') {
       navigate(`/quiz/${rec.targetId}`)
     } else {
@@ -196,6 +198,8 @@ const ACTIVITY_TINTS = {
   daily_exam_completed: 'lhx-tint-green',
   notes_opened: 'lhx-tint-purple',
   notes_completed: 'lhx-tint-purple',
+  lesson_opened: 'lhx-tint-purple',
+  lesson_completed: 'lhx-tint-green',
   paper_opened: 'lhx-tint-orange',
 }
 

@@ -71,6 +71,15 @@ test('normalizeTerm handles Firestore string variants', () => {
 })
 
 // ── Resume selection ────────────────────────────────────────────────
+test('resume picks by priority: in-progress lesson beats quiz and notes', () => {
+  const picked = pickLearningResume([
+    { kind: 'note', id: 'n1', grade: '7', percent: 40, openedAt: 900 },
+    { kind: 'quiz', id: 'q1', grade: '7', percent: 10, openedAt: 800 },
+    { kind: 'lesson', id: 'l1', grade: '7', percent: 30, openedAt: 100 },
+  ], { grade: '7' })
+  assert.equal(picked.id, 'l1')
+})
+
 test('resume picks by priority: quiz session over notes', () => {
   const picked = pickLearningResume([
     { kind: 'note', id: 'n1', title: 'Notes', grade: '7', percent: 40, openedAt: 200 },

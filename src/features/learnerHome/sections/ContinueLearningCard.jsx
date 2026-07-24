@@ -35,7 +35,11 @@ export default function ContinueLearningCard({ resume, activeTerm, loading }) {
     )
   }
 
-  const target = resume.kind === 'quiz' ? `/quiz/${resume.id}` : `/notes/${resume.id}`
+  const target = resume.kind === 'quiz'
+    ? `/quiz/${resume.id}`
+    : resume.kind === 'lesson'
+      ? `/lessons/${resume.id}`
+      : `/notes/${resume.id}`
   const go = () => {
     capture('lesson_resumed', { kind: resume.kind, id: resume.id })
     navigate(target)
@@ -58,7 +62,7 @@ export default function ContinueLearningCard({ resume, activeTerm, loading }) {
           {resume.detail && <p className="lhx-continue-meta">{resume.detail}</p>}
         </div>
         <span className="lhx-quick-icon lhx-tint-green" aria-hidden="true">
-          <LearnerIcon name={resume.kind === 'quiz' ? 'quiz' : 'notes'} size={22} />
+          <LearnerIcon name={resume.kind === 'quiz' ? 'quiz' : resume.kind === 'lesson' ? 'lessons' : 'notes'} size={22} />
         </span>
       </div>
       {percent > 0 && (
@@ -70,7 +74,7 @@ export default function ContinueLearningCard({ resume, activeTerm, loading }) {
       <div className="lhx-continue-actions">
         <button type="button" className="lhx-btn lhx-btn-green" onClick={go}>
           <Play size={18} aria-hidden="true" />
-          {resume.kind === 'quiz' ? 'Continue Quiz' : 'Continue Notes'}
+          {resume.kind === 'quiz' ? 'Continue Quiz' : resume.kind === 'lesson' ? 'Continue Lesson' : 'Continue Notes'}
         </button>
         <button type="button" className="lhx-btn lhx-btn-ghost" style={{ color: 'var(--lhx-green-deep)' }} onClick={openNotes}>
           <LearnerIcon name="notes" size={18} />
