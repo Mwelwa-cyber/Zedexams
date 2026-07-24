@@ -16,22 +16,49 @@
    * a tinted canvas (never plain white), ink dark enough for crisp
    * contrast, and accent tones deep enough to pass AA as text on their
    * own soft backgrounds.
+   *
+   * THEMED. Neutrals and the brand accent derive from the app-wide theme
+   * custom properties that ThemeContext applies via `body.theme-<id>`
+   * (src/index.css) — the same variables the classic learner dashboard
+   * used, so a learner's chosen theme tints this surface the way it
+   * always did. The literals are fallbacks for any context where the
+   * body class is absent (tests, isolated previews).
+   *
+   * The accent pairs are taken as a SET (--accent-bg with --accent-fg on
+   * it) because each theme designs that pair to pass contrast together;
+   * splitting them across themes is what breaks legibility.
    */
-  --lhx-bg: #eaeef8;
-  --lhx-bg-deep: #dfe5f4;
-  --lhx-card: #ffffff;
-  --lhx-card-edge: #fbfcff;
-  --lhx-border: #dbe1f0;
-  --lhx-border-strong: #c8d1e6;
-  --lhx-ink: #0f1629;
-  --lhx-ink-soft: #29324a;
-  --lhx-muted: #525d76;
-  --lhx-faint: #808ca7;
+  --lhx-bg: var(--bg, #eaeef8);
+  --lhx-bg-deep: var(--bg-subtle, #dfe5f4);
+  --lhx-card: var(--card, #ffffff);
+  --lhx-card-edge: var(--card-hover, #fbfcff);
+  --lhx-border: var(--border, #dbe1f0);
+  --lhx-border-strong: var(--border, #c8d1e6);
+  --lhx-ink: var(--text, #0f1629);
+  --lhx-ink-soft: var(--text, #29324a);
+  --lhx-muted: var(--text-muted, #525d76);
+  --lhx-faint: var(--text-muted, #808ca7);
+  /* White overlays (rings, hairline borders on chips and avatars) have to
+     flip on dark themes or they draw bright lines across dark surfaces. */
+  --lhx-hi: rgba(255, 255, 255, 0.9);
+  --lhx-hi-soft: rgba(255, 255, 255, 0.22);
 
-  --lhx-purple: #5b3ceb;
-  --lhx-purple-deep: #4423c6;
-  --lhx-purple-soft: #e6ddfd;
-  --lhx-purple-wash: #f2edff;
+  /* The "purple" family is the BRAND ACCENT slot. It is named for the
+     default palette but follows the active theme. */
+  --lhx-purple: var(--accent, #5b3ceb);
+  --lhx-purple-deep: var(--accent-fg, #4423c6);
+  --lhx-purple-soft: var(--accent-bg, #e6ddfd);
+  --lhx-purple-wash: var(--bg-subtle, #f2edff);
+  --lhx-hero-gradient: var(--hero-gradient, linear-gradient(135deg, #6f45f7 0%, #5324e2 52%, #3a17ac 100%));
+  /* Ambient shadow tint. Per-theme blocks below re-cast it so cards sit on
+     the themed canvas instead of dropping a violet haze onto an amber page. */
+  --lhx-shade: rgba(45, 32, 108, 0.28);
+  --lhx-shade-soft: rgba(38, 28, 92, 0.12);
+
+  /* Subject and status hues stay FIXED across the light themes. The classic
+     dashboard did the same — under Warm Oatmeal its study-plan card stayed
+     mint and its timetable card stayed pink — because these encode meaning
+     (subject identity, "exam open", "overdue"), not brand chrome. */
   --lhx-green: #0d9152;
   --lhx-green-deep: #06693b;
   --lhx-green-soft: #cdefdd;
@@ -55,17 +82,19 @@
   --lhx-radius-lg: 20px;
   --lhx-radius-md: 16px;
   --lhx-radius-sm: 13px;
-  --lhx-shadow-sm: 0 1px 2px rgba(15, 22, 41, 0.06), 0 2px 6px -3px rgba(38, 28, 92, 0.12);
+  --lhx-shadow-sm: 0 1px 2px rgba(15, 22, 41, 0.06), 0 2px 6px -3px var(--lhx-shade-soft);
   --lhx-shadow: 0 1px 2px rgba(15, 22, 41, 0.05), 0 4px 12px -5px rgba(15, 22, 41, 0.1),
-    0 14px 30px -16px rgba(45, 32, 108, 0.28);
-  --lhx-shadow-float: 0 10px 32px -10px rgba(32, 22, 84, 0.32), 0 2px 8px -3px rgba(15, 22, 41, 0.12);
-  --lhx-ring: inset 0 0 0 1px rgba(255, 255, 255, 0.9);
+    0 14px 30px -16px var(--lhx-shade);
+  --lhx-shadow-float: 0 10px 32px -10px var(--lhx-shade), 0 2px 8px -3px rgba(15, 22, 41, 0.12);
+  --lhx-ring: inset 0 0 0 1px var(--lhx-hi);
   --lhx-nav-h: 76px;
   --lhx-ease: cubic-bezier(0.22, 0.8, 0.32, 1);
 
   background-color: var(--lhx-bg);
   /* Two soft light sources at the top of the canvas. Purely decorative,
-     no extra requests, and it keeps the page from reading as flat white. */
+     no extra requests, and it keeps the page from reading as flat white.
+     Per-theme blocks at the foot of this file re-cast the hues, mirroring
+     the classic dashboard's `body.theme-* .learner-game-theme` recipes. */
   background-image:
     radial-gradient(1200px 560px at 50% -220px, rgba(91, 60, 235, 0.22), transparent 68%),
     radial-gradient(760px 420px at 108% 4%, rgba(13, 145, 82, 0.12), transparent 66%),
@@ -164,11 +193,15 @@
 .lhx-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 .lhx-btn-sm { min-height: 44px; font-size: 13.5px; padding: 0 14px; }
 .lhx-btn-primary {
-  background: linear-gradient(180deg, #6a4bf5 0%, #5227e0 100%);
-  color: #fff;
-  box-shadow: 0 6px 16px -7px rgba(68, 35, 198, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  /* Hue-agnostic depth: one accent fill plus an inset highlight and an
+     inset floor. A two-stop hue gradient would break on themes whose
+     accent and accent-fg are far apart (Solar's amber → brown). */
+  background: var(--lhx-purple);
+  color: var(--accent-text, #fff);
+  box-shadow: 0 6px 16px -7px var(--lhx-shade), inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    inset 0 -2px 7px rgba(0, 0, 0, 0.16);
 }
-.lhx-btn-primary:hover { background: linear-gradient(180deg, #5c3bef 0%, #4520cc 100%); }
+.lhx-btn-primary:hover { filter: brightness(0.94); }
 .lhx-btn-green {
   background: linear-gradient(180deg, #13a660 0%, #068046 100%);
   color: #fff;
@@ -178,7 +211,7 @@
 .lhx-btn-ghost { background: transparent; border: 1.5px solid currentColor; }
 .lhx-btn-soft { background: var(--lhx-purple-soft); color: var(--lhx-purple-deep); }
 .lhx-btn-white {
-  background: #fff; color: var(--lhx-purple-deep);
+  background: var(--lhx-card); color: var(--lhx-purple-deep);
   box-shadow: 0 6px 16px -8px rgba(20, 8, 70, 0.6);
 }
 .lhx-btn-outline-white { background: rgba(255, 255, 255, 0.1); color: #fff; border: 1.5px solid rgba(255, 255, 255, 0.55); }
@@ -197,15 +230,15 @@
 /* ── Header ────────────────────────────────────────────────────── */
 
 .lhx-header { display: flex; flex-direction: column; gap: 10px; }
-.lhx-header-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.lhx-logo { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.lhx-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.lhx-logo { display: flex; align-items: center; gap: 8px; min-height: 44px; min-width: 0; }
 .lhx-logo img { height: 30px; width: auto; }
-.lhx-header-actions { display: flex; align-items: center; gap: 10px; }
+.lhx-header-actions { display: flex; align-items: flex-start; gap: 10px; }
 .lhx-iconbtn {
   position: relative;
   display: inline-flex; align-items: center; justify-content: center;
   width: 44px; height: 44px; border-radius: 14px;
-  background: linear-gradient(180deg, #fff, var(--lhx-card-edge));
+  background: linear-gradient(180deg, var(--lhx-card), var(--lhx-card-edge));
   border: 1px solid var(--lhx-border);
   color: var(--lhx-ink); box-shadow: var(--lhx-shadow-sm);
 }
@@ -213,16 +246,112 @@
 .lhx-badge-dot {
   position: absolute; top: 8px; right: 8px;
   min-width: 10px; height: 10px; border-radius: 999px;
-  background: var(--lhx-red); border: 2px solid #fff;
+  background: var(--lhx-red); border: 2px solid var(--lhx-card);
   box-shadow: 0 0 0 3px rgba(208, 28, 28, 0.16);
 }
 .lhx-avatar-btn {
   width: 44px; height: 44px; border-radius: 999px; overflow: hidden;
-  border: 2px solid #fff;
-  box-shadow: 0 4px 14px -5px rgba(45, 32, 108, 0.55), 0 0 0 1px rgba(91, 60, 235, 0.16);
+  border: 2px solid var(--lhx-card);
+  box-shadow: 0 4px 14px -5px var(--lhx-shade), 0 0 0 1px var(--lhx-purple-soft);
   background: linear-gradient(160deg, var(--lhx-purple-wash), var(--lhx-purple-soft));
   color: var(--lhx-purple-deep);
 }
+
+/* ── Header chrome bar (Progress · Theme · Alerts · Account) ─────
+ *
+ * The labelled icon tiles the classic learner dashboard carried beside
+ * the logo. Each is an icon tile with its label beneath, so the target
+ * is the whole stack (44px+ tall tile plus the caption).
+ */
+.lhx-chrome { display: flex; align-items: flex-start; gap: 6px; flex-shrink: 0; }
+.lhx-chrome-btn {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  width: 52px; padding: 0; border-radius: 14px;
+  color: var(--lhx-purple-deep);
+}
+.lhx-chrome-tile {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border-radius: 13px;
+  background: linear-gradient(180deg, var(--lhx-card), var(--lhx-card-edge));
+  border: 1px solid var(--lhx-border);
+  box-shadow: var(--lhx-shadow-sm);
+  transition: transform 0.15s var(--lhx-ease), box-shadow 0.2s var(--lhx-ease);
+}
+.lhx-chrome-btn:active .lhx-chrome-tile { transform: scale(0.94); }
+@media (hover: hover) {
+  .lhx-chrome-btn:hover .lhx-chrome-tile {
+    background: linear-gradient(160deg, var(--lhx-purple-wash), var(--lhx-purple-soft));
+    box-shadow: var(--lhx-shadow);
+  }
+}
+.lhx-chrome-btn[aria-expanded='true'] .lhx-chrome-tile {
+  background: linear-gradient(160deg, var(--lhx-purple-wash), var(--lhx-purple-soft));
+  border-color: var(--lhx-purple-soft);
+}
+.lhx-chrome-label {
+  font-size: 10px; font-weight: 800; letter-spacing: -0.01em; line-height: 1;
+  text-align: center;
+}
+/* The avatar rides inside the Account tile so Profile keeps an avatar
+   entry point (there is no Profile item in the bottom navigation). */
+.lhx-chrome-avatar {
+  width: 26px; height: 26px; border-radius: 999px; overflow: hidden;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(160deg, var(--lhx-purple-wash), var(--lhx-purple-soft));
+  color: var(--lhx-purple-deep);
+  font-weight: 800; font-size: 13px;
+}
+.lhx-chrome-count {
+  position: absolute; top: -4px; right: 2px;
+  min-width: 17px; height: 17px; padding: 0 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px; background: var(--lhx-red); color: #fff;
+  font-size: 10px; font-weight: 800; line-height: 1;
+  border: 2px solid var(--lhx-card);
+}
+/* Tighten on the narrowest phones so the logo keeps its room. */
+@media (max-width: 359px) {
+  .lhx-chrome { gap: 2px; }
+  .lhx-chrome-btn { width: 46px; }
+  .lhx-chrome-tile { width: 36px; height: 36px; border-radius: 11px; }
+  .lhx-chrome-label { font-size: 9px; }
+}
+
+/* ── Theme menu ─────────────────────────────────────────────────── */
+
+.lhx-menu {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
+  min-width: 194px; padding: 6px;
+  background: var(--lhx-card);
+  border: 1px solid var(--lhx-border);
+  border-radius: var(--lhx-radius-md);
+  box-shadow: var(--lhx-shadow-float);
+}
+.lhx-menu-title {
+  padding: 6px 10px 4px;
+  font-size: 10.5px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--lhx-muted);
+}
+.lhx-menu-item {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  min-height: 44px; padding: 0 10px; border-radius: 10px;
+  font-size: 13.5px; font-weight: 700; color: var(--lhx-ink);
+  text-align: left;
+}
+@media (hover: hover) {
+  .lhx-menu-item:hover { background: var(--lhx-purple-wash); }
+}
+.lhx-menu-item[aria-checked='true'] {
+  background: var(--lhx-purple-soft); color: var(--lhx-purple-deep);
+}
+.lhx-menu-swatch {
+  width: 18px; height: 18px; border-radius: 999px; flex-shrink: 0;
+  border: 2px solid var(--lhx-card);
+  box-shadow: 0 0 0 1px var(--lhx-border-strong);
+}
+.lhx-menu-check { margin-left: auto; display: inline-flex; }
 .lhx-greeting { font-size: 24px; font-weight: 800; letter-spacing: -0.025em; line-height: 1.18; }
 .lhx-header-meta { font-size: 13.5px; font-weight: 600; color: var(--lhx-muted); margin-top: 3px; }
 .lhx-header-meta .lhx-dot { margin: 0 5px; color: var(--lhx-faint); }
@@ -235,11 +364,14 @@
   padding: 20px;
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.16);
+  /* The base layer is the theme's own hero gradient (the same one the
+     classic dashboard's welcome banner used); the two radials are the
+     depth treatment layered over whatever hue the theme supplies. */
   background:
     radial-gradient(120% 110% at 86% -14%, rgba(255, 255, 255, 0.3), transparent 56%),
-    radial-gradient(96% 90% at -8% 112%, rgba(255, 96, 178, 0.34), transparent 62%),
-    linear-gradient(135deg, #6f45f7 0%, #5324e2 52%, #3a17ac 100%);
-  box-shadow: 0 20px 44px -18px rgba(46, 18, 140, 0.72), 0 3px 10px -4px rgba(31, 12, 96, 0.4);
+    radial-gradient(96% 90% at -8% 112%, rgba(255, 96, 178, 0.28), transparent 62%),
+    var(--lhx-hero-gradient);
+  box-shadow: 0 20px 44px -18px var(--lhx-shade), 0 3px 10px -4px rgba(31, 12, 96, 0.4);
   display: flex; flex-direction: column; gap: 14px;
 }
 /* A single specular sweep across the top edge — the "glass" cue that
@@ -314,13 +446,13 @@
   border: 1px solid rgba(6, 105, 59, 0.24);
   background:
     radial-gradient(140% 100% at 0% 0%, rgba(13, 145, 82, 0.16), transparent 58%),
-    linear-gradient(170deg, var(--lhx-green-wash) 0%, #f7fdfa 52%, #ffffff 100%);
+    linear-gradient(170deg, var(--lhx-green-wash) 0%, var(--lhx-card-edge) 52%, var(--lhx-card) 100%);
   box-shadow: 0 1px 2px rgba(15, 22, 41, 0.05), 0 14px 30px -18px rgba(6, 105, 59, 0.55);
 }
 .lhx-exams-count { font-size: 13px; font-weight: 700; color: var(--lhx-green-deep); }
 .lhx-exams-next {
   display: flex; align-items: center; gap: 12px; padding: 12px;
-  border-radius: var(--lhx-radius-md); background: #fff;
+  border-radius: var(--lhx-radius-md); background: var(--lhx-card);
   border: 1px solid rgba(6, 105, 59, 0.16);
   box-shadow: 0 2px 8px -4px rgba(6, 105, 59, 0.3);
   margin-top: 10px;
@@ -384,7 +516,7 @@
   border: 1px solid rgba(179, 96, 12, 0.24);
   background:
     radial-gradient(140% 100% at 0% 0%, rgba(216, 132, 30, 0.16), transparent 58%),
-    linear-gradient(170deg, var(--lhx-orange-wash) 0%, #fffaf3 55%, #ffffff 100%);
+    linear-gradient(170deg, var(--lhx-orange-wash) 0%, var(--lhx-card-edge) 55%, var(--lhx-card) 100%);
   box-shadow: 0 1px 2px rgba(15, 22, 41, 0.05), 0 14px 30px -18px rgba(140, 71, 8, 0.5);
 }
 .lhx-countdown-next { font-size: 15px; font-weight: 800; margin-top: 2px; }
@@ -392,7 +524,7 @@
 .lhx-count-grid { display: flex; gap: 8px; margin-top: 12px; }
 .lhx-count-cell {
   flex: 1; text-align: center;
-  background: linear-gradient(180deg, #fff, #fffaf2);
+  background: linear-gradient(180deg, var(--lhx-card), var(--lhx-card-edge));
   border: 1px solid rgba(179, 96, 12, 0.18);
   border-radius: var(--lhx-radius-sm); padding: 8px 2px;
   box-shadow: 0 2px 8px -5px rgba(140, 71, 8, 0.45);
@@ -424,7 +556,7 @@
   border-color: rgba(91, 60, 235, 0.2);
   background:
     radial-gradient(130% 110% at 100% 0%, rgba(200, 30, 99, 0.12), transparent 58%),
-    linear-gradient(170deg, var(--lhx-purple-wash) 0%, #fbfaff 60%, #ffffff 100%);
+    linear-gradient(170deg, var(--lhx-purple-wash) 0%, var(--lhx-card-edge) 60%, var(--lhx-card) 100%);
   box-shadow: 0 1px 2px rgba(15, 22, 41, 0.05), 0 14px 30px -18px rgba(68, 35, 198, 0.5);
 }
 .lhx-game-art { width: 72px; height: 72px; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 6px 12px rgba(45, 32, 108, 0.28)); }
@@ -457,7 +589,7 @@
 
 .lhx-nav {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 40;
-  background: rgba(255, 255, 255, 0.86);
+  background: var(--lhx-nav-bg, rgba(255, 255, 255, 0.86));
   backdrop-filter: blur(18px) saturate(180%);
   -webkit-backdrop-filter: blur(18px) saturate(180%);
   border-top: 1px solid rgba(15, 22, 41, 0.08);
@@ -476,12 +608,13 @@
 .lhx-nav-center-btn {
   width: 56px; height: 56px; border-radius: 999px;
   display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(180deg, #6f4bf8 0%, #4a26d4 100%); color: #fff;
-  box-shadow: 0 10px 22px -6px rgba(68, 35, 198, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.28);
-  margin-top: -22px; border: 4px solid #fff;
+  background: var(--lhx-purple); color: var(--accent-text, #fff);
+  box-shadow: 0 10px 22px -6px var(--lhx-shade), inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -2px 8px rgba(0, 0, 0, 0.18);
+  margin-top: -22px; border: 4px solid var(--lhx-card);
   transition: transform 0.15s var(--lhx-ease);
 }
-.lhx-nav-center.is-active .lhx-nav-center-btn { background: linear-gradient(180deg, #5c37ef 0%, #3d1cb4 100%); }
+.lhx-nav-center.is-active .lhx-nav-center-btn { filter: brightness(0.92); }
 .lhx-nav-center-btn:active { transform: scale(0.94); }
 
 /* Desktop: nav becomes a centered floating pill so parity is kept
@@ -491,11 +624,11 @@
   .lhx-nav-inner {
     pointer-events: auto;
     max-width: 480px; height: 64px;
-    background: rgba(255, 255, 255, 0.92);
+    background: var(--lhx-nav-bg, rgba(255, 255, 255, 0.92));
     backdrop-filter: blur(18px) saturate(180%);
     -webkit-backdrop-filter: blur(18px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.9); border-radius: 999px;
-    box-shadow: var(--lhx-shadow-float), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--lhx-hi); border-radius: 999px;
+    box-shadow: var(--lhx-shadow-float), inset 0 1px 0 var(--lhx-hi);
   }
   .lhx-nav-center-btn { margin-top: -14px; }
 }
@@ -512,7 +645,7 @@
 .lhx-sheet {
   position: fixed; z-index: 61; left: 0; right: 0; bottom: 0;
   max-height: 84vh; overflow-y: auto;
-  background: linear-gradient(180deg, #fff 0%, var(--lhx-card-edge) 100%);
+  background: linear-gradient(180deg, var(--lhx-card) 0%, var(--lhx-card-edge) 100%);
   box-shadow: 0 -20px 50px -22px rgba(15, 22, 41, 0.5);
   border-radius: 22px 22px 0 0;
   padding: 10px 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
@@ -542,7 +675,7 @@
 
 .lhx-terms {
   display: flex; border-radius: 999px; padding: 4px;
-  background: linear-gradient(180deg, var(--lhx-bg-deep), #e7ecf8);
+  background: linear-gradient(180deg, var(--lhx-bg-deep), var(--lhx-bg));
   box-shadow: inset 0 1px 3px rgba(15, 22, 41, 0.1);
 }
 .lhx-term-tab {
@@ -611,7 +744,7 @@
   box-shadow: inset 0 1px 3px rgba(15, 22, 41, 0.1);
 }
 .lhx-seg-btn { flex: 1; min-height: 44px; border-radius: 999px; font-size: 14px; font-weight: 700; color: var(--lhx-muted); }
-.lhx-seg-btn[aria-selected='true'] { background: #fff; color: var(--lhx-ink); box-shadow: var(--lhx-shadow-sm); }
+.lhx-seg-btn[aria-selected='true'] { background: var(--lhx-card); color: var(--lhx-ink); box-shadow: var(--lhx-shadow-sm); }
 
 .lhx-list-row {
   display: flex; align-items: center; gap: 12px;
@@ -623,3 +756,113 @@
 .lhx-list-rows { display: flex; flex-direction: column; gap: 8px; }
 .lhx-page-title { font-size: 22px; font-weight: 800; letter-spacing: -0.025em; }
 .lhx-page-sub { font-size: 13.5px; font-weight: 600; color: var(--lhx-muted); margin-top: 3px; }
+
+/* ══ Themes ═══════════════════════════════════════════════════════
+ *
+ * ThemeContext puts `theme-<id>` on <body>; the token block at the top
+ * of this file already picks up that theme's neutrals, accent and hero
+ * gradient. What is left is the canvas treatment — each theme gets the
+ * SAME recipe the classic learner dashboard used in src/index.css
+ * (`body.theme-* .learner-game-theme`), so switching themes moves this
+ * surface exactly as far as it used to move.
+ *
+ * Keep in sync with the theme variable blocks at the top of
+ * src/index.css and the THEMES list in src/contexts/ThemeContext.jsx.
+ */
+
+body.theme-sky .lhx {
+  --lhx-shade: rgba(12, 74, 110, 0.3);
+  --lhx-shade-soft: rgba(12, 74, 110, 0.13);
+  background-image:
+    radial-gradient(1200px 560px at 50% -220px, rgba(14, 165, 233, 0.2), transparent 68%),
+    radial-gradient(760px 420px at 108% 4%, rgba(59, 130, 246, 0.16), transparent 66%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 220px);
+}
+
+body.theme-lavender .lhx {
+  --lhx-shade: rgba(45, 32, 108, 0.28);
+  --lhx-shade-soft: rgba(38, 28, 92, 0.12);
+  background-image:
+    radial-gradient(1200px 560px at 50% -220px, rgba(139, 92, 246, 0.22), transparent 68%),
+    radial-gradient(760px 420px at 108% 4%, rgba(168, 85, 247, 0.14), transparent 66%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 220px);
+}
+
+body.theme-oatmeal .lhx {
+  --lhx-shade: rgba(120, 53, 15, 0.3);
+  --lhx-shade-soft: rgba(120, 70, 20, 0.14);
+  background-image:
+    radial-gradient(1200px 560px at 50% -220px, rgba(217, 119, 6, 0.22), transparent 68%),
+    radial-gradient(760px 420px at 108% 4%, rgba(245, 158, 11, 0.16), transparent 66%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 220px);
+}
+
+body.theme-solar .lhx {
+  --lhx-shade: rgba(146, 64, 14, 0.28);
+  --lhx-shade-soft: rgba(161, 98, 7, 0.13);
+  background-image:
+    radial-gradient(1200px 560px at 50% -220px, rgba(245, 158, 11, 0.22), transparent 68%),
+    radial-gradient(760px 420px at 108% 4%, rgba(251, 191, 36, 0.16), transparent 66%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 220px);
+}
+
+/*
+ * Vivid's raw --bg is a deep violet meant for its marketing surfaces. The
+ * classic dashboard did NOT put the learner on it — `theme-vivid
+ * .learner-game-theme` used a light pink canvas so the white cards and
+ * dark body text stayed legible. Same call here.
+ */
+body.theme-vivid .lhx {
+  --lhx-bg: #fdf2f8;
+  --lhx-bg-deep: #fce7f3;
+  /* --bg-subtle is Vivid's deep violet; the wash sits under dark text on
+     light cards here, so it follows the light canvas instead. */
+  --lhx-purple-wash: #fce7f3;
+  --lhx-shade: rgba(124, 58, 237, 0.3);
+  --lhx-shade-soft: rgba(236, 72, 153, 0.16);
+  background-image:
+    radial-gradient(1200px 560px at 50% -220px, rgba(236, 72, 153, 0.22), transparent 68%),
+    radial-gradient(760px 420px at 108% 4%, rgba(124, 58, 237, 0.16), transparent 66%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 220px);
+}
+
+/*
+ * Midnight — the one dark palette. Neutrals already invert through the
+ * theme variables; what does not invert on its own are (a) the white
+ * highlight overlays, (b) the fixed subject/status washes, which were
+ * mixed for white cards, and (c) the recessed tracks, which read as
+ * light-on-light here. Each gets a dark-surface equivalent rather than
+ * being dropped, so a card still says "science" or "exam open".
+ */
+body.theme-midnight .lhx {
+  --lhx-hi: rgba(255, 255, 255, 0.08);
+  --lhx-hi-soft: rgba(255, 255, 255, 0.06);
+  --lhx-shade: rgba(0, 0, 0, 0.62);
+  --lhx-shade-soft: rgba(0, 0, 0, 0.4);
+  --lhx-nav-bg: rgba(15, 23, 42, 0.86);
+
+  --lhx-green-soft: rgba(34, 197, 94, 0.22);
+  --lhx-green-wash: rgba(34, 197, 94, 0.1);
+  --lhx-green-deep: #4ade80;
+  --lhx-blue-soft: rgba(59, 130, 246, 0.24);
+  --lhx-blue-wash: rgba(59, 130, 246, 0.11);
+  --lhx-blue-deep: #93c5fd;
+  --lhx-orange-soft: rgba(245, 158, 11, 0.24);
+  --lhx-orange-wash: rgba(245, 158, 11, 0.11);
+  --lhx-orange-deep: #fbbf24;
+  --lhx-pink-soft: rgba(236, 72, 153, 0.24);
+  --lhx-pink-wash: rgba(236, 72, 153, 0.11);
+  --lhx-pink-deep: #f9a8d4;
+  --lhx-red: #f87171;
+
+  background-image:
+    radial-gradient(1200px 560px at 50% -220px, rgba(56, 189, 248, 0.16), transparent 68%),
+    radial-gradient(760px 420px at 108% 4%, rgba(14, 165, 233, 0.12), transparent 66%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0) 220px);
+}
+/* Recessed tracks and inset floors are cut with black on light themes;
+   on Midnight they have to be cut with light or they vanish. */
+body.theme-midnight .lhx .lhx-track { background: rgba(255, 255, 255, 0.12); box-shadow: none; }
+body.theme-midnight .lhx .lhx-seg,
+body.theme-midnight .lhx .lhx-terms { box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5); }
+body.theme-midnight .lhx .lhx-nav { border-top-color: rgba(255, 255, 255, 0.1); }

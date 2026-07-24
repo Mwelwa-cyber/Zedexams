@@ -10,7 +10,7 @@ import LearnerHeader from './LearnerHeader'
 import { OfflineBadge } from './LearnerPrimitives'
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus'
 
-export default function LearnerShell({ children, header = true, greeting = true, activeTerm = null, hasNotifications = false }) {
+export default function LearnerShell({ children, header = true, greeting = true, activeTerm = null }) {
   const online = useNetworkStatus()
   const offline = online === false
 
@@ -19,7 +19,7 @@ export default function LearnerShell({ children, header = true, greeting = true,
       <div className="lhx-page">
         {offline && <OfflineBadge />}
         {header && (
-          <LearnerHeader activeTerm={activeTerm} showGreeting={greeting} hasNotifications={hasNotifications} />
+          <LearnerHeader activeTerm={activeTerm} showGreeting={greeting} />
         )}
         {children}
       </div>

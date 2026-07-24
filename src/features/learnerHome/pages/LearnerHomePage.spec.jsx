@@ -24,6 +24,21 @@ vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
 vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
 vi.mock('../../../hooks/useNetworkStatus', () => ({ useNetworkStatus: () => true }))
 
+// The header chrome bar reads the app-wide notification feed and the theme.
+// Both hooks throw without their provider by design, so stub them here the
+// same way AuthContext is stubbed above.
+const mockNotifications = { unreadCount: 3, open: false, setOpen: vi.fn() }
+vi.mock('../../../contexts/NotificationContext', () => ({
+  useNotifications: () => mockNotifications,
+}))
+vi.mock('../../../contexts/ThemeContext', () => ({
+  useTheme: () => ({ theme: 'oatmeal', setTheme: vi.fn() }),
+  THEMES: [
+    { id: 'sky', label: 'Sky Blue', swatch: '#0EA5E9' },
+    { id: 'oatmeal', label: 'Warm Oatmeal', swatch: '#D97706' },
+  ],
+}))
+
 let mockDashboard
 vi.mock('../hooks/useLearnerDashboard', () => ({
   default: () => mockDashboard,
@@ -180,9 +195,22 @@ describe('LearnerHomePage', () => {
     expect(active.textContent).toBe('Home')
   })
 
-  it('profile opens from the header avatar button', () => {
+  it('header chrome bar carries Progress, Theme, Alerts and Account', () => {
     renderHome()
-    expect(screen.getByRole('button', { name: 'Open profile menu' })).toBeInTheDocument()
+    const chrome = screen.getByRole('navigation', { name: /account and settings/i })
+    expect(within(chrome).getByRole('link', { name: /progress/i })).toHaveAttribute('href', '/my-results')
+    expect(within(chrome).getByRole('button', { name: /change theme/i })).toBeInTheDocument()
+    // Unread count is surfaced to assistive tech, not just as a dot.
+    expect(within(chrome).getByRole('button', { name: 'Alerts, 3 unread' })).toBeInTheDocument()
+  })
+
+  it('profile opens from the header Account tile, which carries the avatar', () => {
+    renderHome()
+    const account = screen.getByRole('button', { name: /account menu for Lydia Mwansa/i })
+    expect(account).toBeInTheDocument()
+    // Profile is absent from the bottom navigation by design, so the
+    // avatar affordance has to live here.
+    expect(account.querySelector('.lhx-chrome-avatar')).not.toBeNull()
   })
 
   it('shows a retryable error state when the dashboard load fails', () => {
