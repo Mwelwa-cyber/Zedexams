@@ -326,34 +326,26 @@
    subtle step transitions, and the Progress overlay (bottom sheet on phones,
    side panel at md+). Pure presentation — step logic lives in wizardSteps.js. */
 
-/* Sticky bottom navigation. The studio renders inside TeacherLayout, whose
-   mobile chrome pins its own bottom nav (~72px) below lg — the wizard bar
-   sits ABOVE it there (mirrors the Teaching Kit bar's offset) and drops to
-   the true bottom at lg+ where the dashboard sidebar replaces the bottom
-   nav. The wizard body reserves matching padding (see .lpw-body) so the bar
-   never covers fields. */
+/* Sticky bottom navigation. The wizard is an immersive studio route (see
+   immersiveStudioRoutes.js): TeacherLayout suppresses the dashboard's floating
+   dock while it's open, so this bar is the SOLE fixed bottom bar and sits flush
+   to the true bottom on every breakpoint — no dock to clear. Safe-area padding
+   keeps the buttons above the phone's home indicator. The wizard body reserves
+   matching padding (see .lpw-body) so the bar never covers fields. */
 .lpw-nav {
   position: fixed;
   inset-inline: 0;
-  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  bottom: 0;
   z-index: 40;
   border-top: 2px solid #0f1b2d;
   background: rgba(245, 239, 225, 0.96);
   backdrop-filter: blur(6px);
   padding: 10px 16px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
 }
-/* Room for the sticky nav + the dashboard bottom nav + breathing space. */
+/* Room for the sticky nav + breathing space so the last field clears it. */
 .lpw-body {
-  padding-bottom: calc(184px + env(safe-area-inset-bottom, 0px));
-}
-@media (min-width: 1024px) {
-  .lpw-nav {
-    bottom: 0;
-    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-  }
-  .lpw-body {
-    padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px));
-  }
+  padding-bottom: calc(128px + env(safe-area-inset-bottom, 0px));
 }
 
 /* Floating-bar shrink-on-scroll. While the teacher scrolls DOWN the bar
@@ -378,12 +370,7 @@
 }
 .lpw-nav--compact {
   padding-top: 5px;
-  padding-bottom: 5px;
-}
-@media (min-width: 1024px) {
-  .lpw-nav--compact {
-    padding-bottom: calc(5px + env(safe-area-inset-bottom, 0px));
-  }
+  padding-bottom: calc(5px + env(safe-area-inset-bottom, 0px));
 }
 .lpw-nav--compact .lps-btn-primary,
 .lpw-nav--compact .lps-btn-ghost {

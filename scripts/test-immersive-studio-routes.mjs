@@ -1,7 +1,8 @@
 /**
  * Guards isImmersiveStudioPath — the predicate TeacherLayout uses to suppress
- * the global TeacherBottomNav on full-screen studio routes (where the studio's
- * own .sv-dock would otherwise be overlapped by the global nav).
+ * the global dashboard dock on full-screen studio routes that render their own
+ * fixed bottom bar (the assessment studio's .sv-dock, the lesson-plan wizard's
+ * .lpw-nav), where two stacked bottom bars would otherwise collide.
  *
  * Run: node scripts/test-immersive-studio-routes.mjs   (npm run test:immersive-routes)
  */
@@ -26,11 +27,14 @@ check('/teacher/assessments/paper-42/edit', true)
 check('/teacher/exam-papers/new', true)
 check('/teacher/exam-papers/xY9/edit', true)
 check('/teacher/test-papers/new/', true) // trailing slash tolerated
+check('/teacher/lesson-plans/new', true) // lesson-plan wizard (own .lpw-nav bar)
+check('/teacher/lesson-plans/lp-77/edit', true)
 
 // Non-immersive routes → global nav stays.
 check('/teacher/test-papers', false) // the list route (AssessmentList)
 check('/teacher/assessments', false)
 check('/teacher/exam-papers', false)
+check('/teacher/lesson-plans', false) // redirects to the library, keeps the dock
 check('/teacher', false)
 check('/teacher/library', false)
 check('/teacher/register', false)
