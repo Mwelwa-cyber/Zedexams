@@ -10,11 +10,12 @@
  * the live /teacher dashboard, sharing DashboardView + dashboardV2.css — over
  * the full viewport matrix, asserting at each size:
  *
- *   < 768px   mobile IA only: NO desktop sidebar in layout, bottom nav +
- *             compact header visible, content starts at the 16px page
- *             padding (not after a sidebar offset), key surfaces (search,
- *             hero, CTA, Quick Create tiles) fully inside the viewport,
- *             content clears the fixed bottom nav, no horizontal overflow.
+ *   < 768px   mobile IA only: NO desktop sidebar in layout, floating dock +
+ *             Quick Create button + compact header visible, content starts
+ *             at the 16px page padding (not after a sidebar offset), key
+ *             surfaces (hero, checklist, recently-used tiles, All Teacher
+ *             Tools card) fully inside the viewport, content clears the
+ *             floating dock, no horizontal overflow.
  *   768–1023  desktop DOM with the compact icon rail only (≤100px), main
  *             content ≥620px, no mobile bottom nav.
  *   ≥ 1024px  full desktop sidebar, no mobile chrome.
@@ -85,30 +86,35 @@ function snapshotPage() {
   }
   const doc = document.documentElement
   const sidebar = document.querySelector('.tdv2-sidebar')
-  const bottomNav = document.querySelector('.tdv2m-bottomnav')
+  const dockBar = document.querySelector('.tdv2m-dockbar')
+  const dockPlus = document.querySelector('.tdv2m-dock-plus')
   const header = document.querySelector('.tdv2m-header')
   const mobileContent = document.querySelector('.tdv2m-content')
   const desktopMain = document.querySelector('.tdv2-main')
-  const search = document.querySelector('.tdv2m-search') || document.querySelector('.tdv2-search')
   const hero = document.querySelector('.tdv2m-hero') || document.querySelector('.tdv2-hero')
-  const cta = document.querySelector('.tdv2m-cta')
-  const tiles = [...document.querySelectorAll('.tdv2m-tile')]
+  const planPill = document.querySelector('.tdv2m-plan-pill')
+  const checklist = document.querySelector('.tdv2m-check')
+  const allTools = document.querySelector('.tdv2m-alltools')
+  const tiles = [...document.querySelectorAll('.tdv2m-recent-tool')]
   return {
     viewportWidth: doc.clientWidth,
     overflowPx: doc.scrollWidth - doc.clientWidth,
     sidebarInLayout: inLayout(sidebar),
     sidebarWidth: sidebar ? sidebar.getBoundingClientRect().width : 0,
-    bottomNavInLayout: inLayout(bottomNav),
-    bottomNavHeight: bottomNav ? bottomNav.getBoundingClientRect().height : null,
+    bottomNavInLayout: inLayout(dockBar),
+    bottomNavHeight: dockBar ? dockBar.getBoundingClientRect().height : null,
+    dockPlusRect: rect(dockPlus),
     headerInLayout: inLayout(header),
     mobileContentRect: rect(mobileContent),
     mobileContentPadBottom: mobileContent?.parentElement
       ? parseFloat(getComputedStyle(mobileContent.parentElement).paddingBottom)
       : null,
     desktopMainRect: rect(desktopMain),
-    searchRect: rect(search),
     heroRect: rect(hero),
-    ctaRect: rect(cta),
+    heroHeight: hero ? hero.getBoundingClientRect().height : null,
+    planPillRect: rect(planPill),
+    checklistRect: rect(checklist),
+    allToolsRect: rect(allTools),
     tileRects: tiles.map((t) => {
       const r = t.getBoundingClientRect()
       return { left: r.left, right: r.right, width: r.width }
@@ -131,7 +137,7 @@ function checkSnapshot(snap, { width, kind }, problems) {
     if (snap.sidebarInLayout) {
       problems.push(`desktop sidebar in layout at ${width}px (width ${snap.sidebarWidth}px)`)
     }
-    if (!snap.bottomNavInLayout) problems.push('mobile bottom nav missing')
+    if (!snap.bottomNavInLayout) problems.push('floating dock missing')
     if (!snap.headerInLayout) problems.push('mobile top bar missing')
     const c = snap.mobileContentRect
     if (!c) {
@@ -145,35 +151,43 @@ function checkSnapshot(snap, { width, kind }, problems) {
       if (c.right > vw + 1) problems.push(`content right edge ${Math.round(c.right)}px past viewport`)
     }
     for (const [name, r] of [
-      ['search field', snap.searchRect],
       ['greeting hero', snap.heroRect],
-      ['Continue-plan CTA', snap.ctaRect],
+      ['plan pill', snap.planPillRect],
+      ['weekly checklist', snap.checklistRect],
+      ['All Teacher Tools card', snap.allToolsRect],
+      ['Quick Create button', snap.dockPlusRect],
     ]) {
       if (!r) problems.push(`${name} not found`)
       else if (r.right > vw + 1 || r.left < -1) {
         problems.push(`${name} clipped (left ${Math.round(r.left)}, right ${Math.round(r.right)}, viewport ${vw})`)
       }
     }
-    if (snap.tileRects.length === 0) problems.push('Quick Create tiles not found')
-    for (const r of snap.tileRects) {
-      if (r.right > vw + 1) problems.push(`Quick Create tile clipped at ${Math.round(r.right)}px`)
-      // Two-up tiles must keep ≥150px; below that the grid must stack.
-      if (r.width < 150 && snap.tileRects.some((o) => Math.abs(o.left - r.left) > 8)) {
-        problems.push(`Quick Create tile only ${Math.round(r.width)}px wide in a multi-column grid`)
-      }
+    // Hero stays compact — the design targets ~220–260px.
+    if (snap.heroHeight != null && snap.heroHeight > 300) {
+      problems.push(`hero ${Math.round(snap.heroHeight)}px tall — expected a compact (~220–260px) hero`)
     }
-    // Content must clear the fixed bottom nav: the page's bottom padding
-    // covers the nav's on-screen height plus 16px breathing room.
+    // The Quick Create button must be a real touch target.
+    if (snap.dockPlusRect && snap.dockPlusRect.width < 44) {
+      problems.push(`Quick Create button only ${Math.round(snap.dockPlusRect.width)}px wide (<44px)`)
+    }
+    // Recently-used tools: up to four tiles, four per row, none clipped.
+    if (snap.tileRects.length === 0) problems.push('recently-used tool tiles not found')
+    if (snap.tileRects.length > 4) problems.push(`${snap.tileRects.length} recently-used tiles — max is 4`)
+    for (const r of snap.tileRects) {
+      if (r.right > vw + 1) problems.push(`recently-used tile clipped at ${Math.round(r.right)}px`)
+    }
+    // Content must clear the floating dock: the page's bottom padding
+    // covers the dock's on-screen height plus 16px breathing room.
     if (snap.bottomNavHeight != null && snap.mobileContentPadBottom != null) {
       if (snap.mobileContentPadBottom < snap.bottomNavHeight + 16 - 1) {
         problems.push(
-          `bottom padding ${Math.round(snap.mobileContentPadBottom)}px < nav ${Math.round(snap.bottomNavHeight)}px + 16px — content can sit under the bottom nav`,
+          `bottom padding ${Math.round(snap.mobileContentPadBottom)}px < dock ${Math.round(snap.bottomNavHeight)}px + 16px — content can sit under the dock`,
         )
       }
     }
   } else {
     if (!snap.sidebarInLayout) problems.push('desktop sidebar missing')
-    if (snap.bottomNavInLayout) problems.push('mobile bottom nav visible on a ≥768px viewport')
+    if (snap.bottomNavInLayout) problems.push('floating dock visible on a ≥768px viewport')
     if (snap.headerInLayout) problems.push('mobile top bar visible on a ≥768px viewport')
     if (kind === 'tablet') {
       if (snap.sidebarWidth > 100) {
@@ -236,10 +250,10 @@ async function waitForDashboardReady(page, vp) {
  * frames.
  *   • desktop → the full sidebar, width >= 120px (matches the assertion floor)
  *   • tablet  → the compact sidebar rail, just needs to be laid out (>1px)
- *   • mobile  → the bottom nav (the desktop sidebar is display:none here)
+ *   • mobile  → the floating dock (the desktop sidebar is display:none here)
  */
 async function waitForNavSettled(page, vp) {
-  const selector = vp.kind === 'mobile' ? '.tdv2m-bottomnav' : '.tdv2-sidebar'
+  const selector = vp.kind === 'mobile' ? '.tdv2m-dockbar' : '.tdv2-sidebar'
   const minWidth = vp.kind === 'desktop' ? 120 : 1
   // Reset the cross-call stability marker so we always require two FRESH frames.
   await page.evaluate((sel) => {
