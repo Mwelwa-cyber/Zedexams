@@ -474,10 +474,28 @@ test('the adapted curriculum baseline is 22 periods / 14 h 40 min with a languag
   assert(langGroup && langGroup.options.length === 2, 'English Language OR Sign Language')
 })
 
-test('curricula without catalogued allocations fall back to the manual path', () => {
+test('OBC primary (Grades 1–7) resolves its official 2013 allocation', () => {
   assert(CURRICULA.some((c) => c.id === 'obc-2013'), '2013 OBC is offered')
-  assert(resolveTimetableCurriculum({ curriculumId: 'obc-2013', grade: 'G5' }) === null,
-    'OBC has no prescribed table → manual subject list')
+  // Upper Primary (Grades 5–7): Table 5 — 42/wk · 40-min periods · 28 h.
+  const up = resolveTimetableCurriculum({ curriculumId: 'obc-2013', grade: 'G7' })
+  assert(up && up.band === 'obc_upper_primary', 'G7 is OBC Upper Primary (unlike CBC, where G7 has no table)')
+  assert(up.totalPeriods === 42 && up.periodMinutes === 40 && up.weeklyContactMinutes === 1680,
+    `OBC upper primary = 42/wk · 40-min · 28 h, got ${up.totalPeriods}/${up.periodMinutes}/${up.weeklyContactMinutes}`)
+  assert(up.subjects.reduce((n, s) => n + s.periodsPerWeek, 0) === 42, 'upper-primary areas sum to 42')
+  const sci = up.subjects.find((s) => s.label === 'Integrated Science')
+  assert(sci && sci.periodsPerWeek === 6, 'Integrated Science = 6 periods/week under OBC Grade 7')
+  // Lower Primary (Grades 1–4): Table 4 — 42/wk · 30-min periods · 21 h.
+  const lp = resolveTimetableCurriculum({ curriculumId: 'obc-2013', grade: 'G2' })
+  assert(lp && lp.band === 'obc_lower_primary', 'G2 is OBC Lower Primary')
+  assert(lp.totalPeriods === 42 && lp.periodMinutes === 30 && lp.weeklyContactMinutes === 1260,
+    `OBC lower primary = 42/wk · 30-min · 21 h, got ${lp.totalPeriods}/${lp.periodMinutes}/${lp.weeklyContactMinutes}`)
+  assert(lp.subjects.reduce((n, s) => n + s.periodsPerWeek, 0) === 42, 'lower-primary areas sum to 42')
+})
+
+test('curricula without a catalogued table fall back to the manual path', () => {
+  // OBC secondary (Grades 8–12) is not catalogued → manual subject list.
+  assert(resolveTimetableCurriculum({ curriculumId: 'obc-2013', grade: 'G9' }) === null,
+    'OBC secondary has no prescribed table → manual subject list')
   assert(resolveTimetableCurriculum({ curriculumId: 'custom', grade: 'G5' }) === null,
     'custom school curriculum is fully manual')
 })
