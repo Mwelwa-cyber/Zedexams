@@ -30,6 +30,7 @@ import {
   UsersRound,
   X,
 } from 'lucide-react'
+import { useAuth } from '../../../contexts/AuthContext'
 import { useNotifications } from '../../../contexts/NotificationContext'
 import useHideOnScroll from '../../../hooks/useHideOnScroll'
 import NotificationCenter from '../../notifications/NotificationCenter'
@@ -603,20 +604,26 @@ function WeeklyChecklistCard({ items = [], loading = false }) {
 // stable recommendation ids + timestamps (no content) — same pattern as the
 // launcher's recents. Dismissed = forever (until the rec itself changes id);
 // snoozed = hidden for 24h.
-const REC_HIDDEN_KEY = 'zedexams:tdv2m-recs-hidden'
+//
+// Keyed per signed-in teacher (…:uid), mirroring useRecentStudios: on a shared
+// device recommendation ids (record-behind, worksheet-missing, per-subject
+// scheme ids…) repeat across accounts, so a global key would leak one teacher's
+// dismissals to another. Falls back to :anon before sign-in.
+const REC_HIDDEN_KEY_BASE = 'zedexams:tdv2m-recs-hidden'
+const recHiddenKey = (uid) => `${REC_HIDDEN_KEY_BASE}:${uid || 'anon'}`
 const SNOOZE_MS = 24 * 60 * 60 * 1000
 
-function loadHiddenRecs() {
+function loadHiddenRecs(storageKey) {
   try {
-    const parsed = JSON.parse(localStorage.getItem(REC_HIDDEN_KEY) || '{}')
+    const parsed = JSON.parse(localStorage.getItem(storageKey) || '{}')
     return parsed && typeof parsed === 'object' ? parsed : {}
   } catch {
     return {}
   }
 }
 
-function saveHiddenRecs(map) {
-  try { localStorage.setItem(REC_HIDDEN_KEY, JSON.stringify(map)) } catch { /* non-fatal */ }
+function saveHiddenRecs(storageKey, map) {
+  try { localStorage.setItem(storageKey, JSON.stringify(map)) } catch { /* non-fatal */ }
 }
 
 /**
@@ -626,9 +633,18 @@ function saveHiddenRecs(map) {
  * buildProfileRecommendations output — this only changes presentation.
  */
 function MobileAiRecommendation({ recommendations = [] }) {
-  const [hidden, setHidden] = useState(loadHiddenRecs)
+  const { currentUser } = useAuth() || {}
+  const storageKey = recHiddenKey(currentUser?.uid)
+  const [hidden, setHidden] = useState(() => loadHiddenRecs(storageKey))
   const [index, setIndex] = useState(0)
   const [view, setView] = useState(null) // null | 'detail' | 'all'
+
+  // Re-read from storage when the signed-in teacher changes (sign-in/out on a
+  // shared device swaps to that account's dismissals).
+  useEffect(() => {
+    setHidden(loadHiddenRecs(storageKey))
+    setIndex(0)
+  }, [storageKey])
 
   const visible = useMemo(() => {
     const now = Date.now()
@@ -644,7 +660,7 @@ function MobileAiRecommendation({ recommendations = [] }) {
 
   const hide = (id, value) => {
     const next = { ...hidden, [id]: value }
-    saveHiddenRecs(next)
+    saveHiddenRecs(storageKey, next)
     setHidden(next)
     setIndex(0)
     if (visible.length <= 1) setView(null)
@@ -773,8 +789,11 @@ function RecentlyUsedTools({ savedCounts, warnings = [], onViewAll }) {
   const { recents } = useRecentStudios()
   const warningSet = useMemo(() => new Set(warnings), [warnings])
   const studios = useMemo(() => {
-    const ids = [...recents]
-    for (const id of DEFAULT_RECENT_IDS) if (!ids.includes(id)) ids.push(id)
+    // Real recents are the activity signal. Only fall back to the curated
+    // defaults when this device has no visits yet — otherwise a teacher with
+    // one or two genuine visits would see unopened studios padded in under
+    // "Recently Used", which misreports what they've actually used.
+    const ids = recents.length ? recents : DEFAULT_RECENT_IDS
     return ids.map((id) => STUDIO_BY_ID[id]).filter(Boolean).slice(0, 4)
   }, [recents])
 

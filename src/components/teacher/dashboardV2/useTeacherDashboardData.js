@@ -65,23 +65,33 @@ export default function useTeacherDashboardData() {
     let cancelled = false
     async function load() {
       let gensFailed = false
-      const [gens, papers, school] = await Promise.all([
+      const [gens, papers] = await Promise.all([
         listMyGenerations({ uid: currentUser.uid }).catch(() => { gensFailed = true; return [] }),
         getMyAssessments(currentUser.uid).catch(() => []),
-        // Mobile hero branding only — a missing/failed profile just hides
-        // the school row, never blocks the dashboard.
-        getSchoolProfile(currentUser.uid).catch(() => null),
       ])
       if (cancelled) return
       setGenerations(gens)
       setAssessments(papers)
-      setSchoolName(school?.schoolName || '')
       setGensError(gensFailed)
       setLoading(false)
     }
     load()
     return () => { cancelled = true }
   }, [currentUser, getMyAssessments, reloadKey])
+
+  // School name is mobile-hero branding only — loaded independently of the
+  // primary reads above. A slow/failed schoolProfiles read must never hold the
+  // already-fetched generations/assessments in the loading state, and it must
+  // not delay desktop, which never renders the school name. A miss just leaves
+  // the row hidden.
+  useEffect(() => {
+    if (!currentUser) return undefined
+    let cancelled = false
+    getSchoolProfile(currentUser.uid)
+      .then((school) => { if (!cancelled) setSchoolName(school?.schoolName || '') })
+      .catch(() => { if (!cancelled) setSchoolName('') })
+    return () => { cancelled = true }
+  }, [currentUser, reloadKey])
 
   // Same normalized resource shape the legacy dashboard used — newest first.
   const resources = useMemo(() => {

@@ -8,9 +8,14 @@ import { TOUR_STORAGE_KEY } from './onboardingTourCore'
 
 // These specs exercise the mobile IA chrome — suppress the first-run tour
 // (its own behaviour is covered in OnboardingTour.spec.jsx).
+// The AI-recommendation dismiss store is keyed per signed-in teacher; the auth
+// mock below has no current user, so the effective key is the :anon scope.
+const REC_HIDDEN_KEY = 'zedexams:tdv2m-recs-hidden:anon'
+
 beforeEach(() => {
   localStorage.setItem(TOUR_STORAGE_KEY, 'done')
-  localStorage.removeItem('zedexams:tdv2m-recs-hidden')
+  localStorage.removeItem(REC_HIDDEN_KEY)
+  localStorage.removeItem('zedexams:teacher-recents:anon')
 })
 
 // Force the mobile information architecture regardless of jsdom viewport.
@@ -114,7 +119,7 @@ describe('MobileDashboardView (via preview page)', () => {
     await user.click(within(sheet).getByRole('button', { name: /Dismiss/ }))
     expect(screen.queryByText('Mathematics is not planned yet')).not.toBeInTheDocument()
     expect(screen.getByText('You’re all caught up')).toBeInTheDocument()
-    const stored = JSON.parse(localStorage.getItem('zedexams:tdv2m-recs-hidden'))
+    const stored = JSON.parse(localStorage.getItem(REC_HIDDEN_KEY))
     expect(stored['scheme-mathematics']).toBe('dismissed')
   })
 
@@ -165,6 +170,22 @@ describe('MobileDashboardView (via preview page)', () => {
     renderMobile()
     const region = screen.getByRole('region', { name: /Recently Used/i })
     expect(region.querySelectorAll('.tdv2m-recent-tool').length).toBeLessThanOrEqual(4)
+  })
+
+  it('with real recent visits, shows only those — never padded with defaults', () => {
+    // Two genuine visits on this device (anon recents store). "Recently Used"
+    // must reflect exactly the activity signal, not top up to four with
+    // studios the teacher has never opened.
+    localStorage.setItem(
+      'zedexams:teacher-recents:anon',
+      JSON.stringify({ ids: ['rubrics', 'homework'], at: { rubrics: 2, homework: 1 } }),
+    )
+    renderMobile()
+    const region = screen.getByRole('region', { name: /Recently Used/i })
+    expect(region.querySelectorAll('.tdv2m-recent-tool').length).toBe(2)
+    // A default like the Assessment Paper Studio must NOT appear when real
+    // recents exist.
+    expect(within(region).queryByRole('link', { name: /Assessment Paper Studio/ })).not.toBeInTheDocument()
   })
 
   it('drawer opens from the hamburger, keeps Dashboard above CREATE, closes on Escape', async () => {
