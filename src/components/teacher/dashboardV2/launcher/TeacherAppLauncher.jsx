@@ -79,7 +79,12 @@ function useLauncherBreakpoint() {
 export default function TeacherAppLauncher({ savedCounts = null, loading = false, warnings = [] }) {
   const navigate = useNavigate()
   const location = useLocation()
-  const { isTeacher = true } = useAuth() || {}
+  // The live dashboard sits behind ProtectedRoute(requiredRole="teacher");
+  // the only signed-out visitor is the mock-data preview page, which should
+  // still show the full registry (mirrors MobileToolsScreen). Signed-in
+  // non-teachers keep the permission filter.
+  const auth = useAuth() || {}
+  const isTeacher = auth.currentUser ? auth.isTeacher : true
   const { columns, recentLimit } = useLauncherBreakpoint()
 
   const { favourites, favouriteSet, toggle: toggleFavourite } = useStudioFavourites()
