@@ -528,8 +528,12 @@ const BAND_SUBJECTS = {
  * The 2013 OBC splits primary differently from the 2023 CBC: Lower Primary is
  * Grades 1–4 and Upper Primary is Grades 5–7 (the framework's own headings).
  * Grade 7 is therefore a PRIMARY grade under OBC and gets Table 5's allocation
- * — the opposite of CBC, where Grade 7 has no prescribed allocation. Secondary
- * (Grades 8–12) is not catalogued and returns null (manual fallback).
+ * — the opposite of CBC, where Grade 7 has no prescribed allocation. Only the
+ * two PRIMARY bands are real resolveTimetableCurriculum bands. Senior Secondary
+ * (Grades 10–12) is catalogued too, but as a flat per-subject lookup (see
+ * obcSeniorSecondaryAllocation) rather than a band, because it is pathway-based
+ * and has no single fixed weekly list. Junior Secondary (Grades 8–9) has no
+ * catalogued table → null (manual fallback).
  */
 function obcBandForGrade(grade) {
   const raw = String(grade ?? '').trim()
@@ -539,6 +543,73 @@ function obcBandForGrade(grade) {
   if (n >= 1 && n <= 4) return 'obc_lower_primary'
   if (n >= 5 && n <= 7) return 'obc_upper_primary'
   return null
+}
+
+/* ── 2013 OBC Senior Secondary (Grades 10–12) subject allocations ──
+ * Senior Secondary is organised by career PATHWAY (Social Sciences, Business,
+ * Natural Sciences, Agriculture, Technology, Art & Design, Physical Education,
+ * Home Economics) — a learner takes ONE compulsory+optional combination
+ * totalling 44–45 periods, so there is no single fixed weekly list to model as
+ * a band. What the Scheme of Work needs is only the per-SUBJECT weekly
+ * allocation, and across the framework's Tables 8–16 (all 40-min periods) each
+ * subject carries a stable count. Values transcribed verbatim from those
+ * tables; the map is limited to the subjects that actually have a 2013
+ * secondary syllabus (so it never asserts a number for a subject a teacher
+ * cannot pick in the studio). Each pathway's "major" runs as a 12-period (8 h)
+ * double.
+ *
+ * Biology is the one genuinely pathway-dependent subject: 5 periods as a
+ * science-pathway subject (Natural Sciences / Technology / PE / Home Economics
+ * tables) and 6 as the token science in Social Sciences / Business. We take the
+ * majority 5; the teacher can override the periods by hand.
+ *
+ * Kept as a flat lookup, NOT a resolveTimetableCurriculum band, so it never
+ * pollutes the Class Timetable Studio's OBC-secondary manual fallback.
+ */
+export const OBC_SENIOR_PERIOD_MINUTES = 40
+
+const OBC_SENIOR_SUBJECT_PERIODS = {
+  mathematics: 6,
+  chemistry: 6,
+  biology: 5, // pathway-dependent (5 or 6) — majority 5, overridable
+  civic_education: 5,
+  geography: 5,
+  religious_education: 5,
+  agricultural_science: 12,
+  art_and_design: 12,
+  food_nutrition: 12,
+  home_management: 12,
+  physical_education: 12,
+}
+
+/** Format a whole-week minute count as the framework's "H h MM min" label. */
+function minutesToAllocationLabel(minutes) {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  return `${h} h ${String(m).padStart(2, '0')} min`
+}
+
+/**
+ * The official 2013 OBC Senior Secondary (Grades 10–12) allocation for a
+ * subject, or null when the grade isn't senior secondary or the subject isn't
+ * catalogued. A flat per-subject lookup by KB slug (e.g. 'agricultural_science')
+ * — deliberately NOT a resolveTimetableCurriculum band.
+ *
+ * @param {string} grade       KB grade code / label ('G11', 'Grade 11')
+ * @param {string} subjectSlug KB subject slug ('biology', 'mathematics', …)
+ * @returns {{ periodsPerWeek:number, periodMinutes:number, timeAllocation:string }|null}
+ */
+export function obcSeniorSecondaryAllocation(grade, subjectSlug) {
+  const m = String(grade ?? '').match(/(\d{1,2})/)
+  const n = m ? Number(m[1]) : NaN
+  if (!(n >= 10 && n <= 12)) return null
+  const periods = OBC_SENIOR_SUBJECT_PERIODS[String(subjectSlug || '').trim().toLowerCase()]
+  if (!periods) return null
+  return {
+    periodsPerWeek: periods,
+    periodMinutes: OBC_SENIOR_PERIOD_MINUTES,
+    timeAllocation: minutesToAllocationLabel(periods * OBC_SENIOR_PERIOD_MINUTES),
+  }
 }
 
 /* ── Resolution ─────────────────────────────────────────────────── */

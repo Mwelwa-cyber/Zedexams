@@ -4,8 +4,10 @@
  * weekly allocation in the 2023 Curriculum Framework (curriculumFramework.js).
  *
  * This is how the studio auto-fills "periods per week" + "time per week"
- * without a Class Timetable. The framework only catalogues Primary; for
- * secondary — or a subject the framework doesn't list — this returns null and
+ * without a Class Timetable. Coverage: CBC Primary bands, the 2013 OBC Primary
+ * bands (Grades 1–7), and 2013 OBC Senior Secondary (Grades 10–12, via the flat
+ * per-subject lookup). For anything else — CBC secondary, OBC Junior Secondary
+ * (Grades 8–9), or a subject the framework doesn't list — this returns null and
  * the studio shows the "time allocation missing → enter manually" path.
  *
  * The lookup is curriculum-AWARE: pass the scheme's curriculum ('cbc'/'obc',
@@ -18,7 +20,7 @@
  * Pure + dependency-light so `node` can exercise it.
  */
 
-import { getFrameworkForGrade } from './curriculumFramework.js'
+import { getFrameworkForGrade, obcSeniorSecondaryAllocation } from './curriculumFramework.js'
 import { normalizeCurriculum } from './schemeFormat.js'
 
 // Normalised curriculum ('cbc'|'obc') → the framework id its allocations live
@@ -55,6 +57,14 @@ function tokensFor(subjectSlug) {
   return [slug.replace(/_/g, ' ')]
 }
 
+/** 'agricultural_science' → 'Agricultural Science' (display label only). */
+function prettifySlug(subjectSlug) {
+  return String(subjectSlug || '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim()
+}
+
 /**
  * The official allocation for a grade + subject in a given curriculum, or null
  * when the framework doesn't cover it (secondary, an unmatched subject, or a
@@ -68,9 +78,26 @@ function tokensFor(subjectSlug) {
  *             band:string, periodMinutes:number }|null}
  */
 export function matchFrameworkSubject(grade, subjectSlug, curriculum) {
-  const curriculumId = FRAMEWORK_ID_BY_CURRICULUM[normalizeCurriculum(curriculum)]
+  const normalized = normalizeCurriculum(curriculum)
+  const curriculumId = FRAMEWORK_ID_BY_CURRICULUM[normalized]
   const framework = getFrameworkForGrade(grade, curriculumId)
-  if (!framework) return null
+  if (!framework) {
+    // OBC Senior Secondary (Grades 10–12) is pathway-based, so it has no
+    // resolveTimetableCurriculum band — consult its flat per-subject table.
+    if (normalized === 'obc') {
+      const senior = obcSeniorSecondaryAllocation(grade, subjectSlug)
+      if (senior) {
+        return {
+          label: prettifySlug(subjectSlug),
+          periodsPerWeek: senior.periodsPerWeek,
+          timeAllocation: senior.timeAllocation,
+          band: 'obc_senior_secondary',
+          periodMinutes: senior.periodMinutes,
+        }
+      }
+    }
+    return null
+  }
   const tokens = tokensFor(subjectSlug)
   const subjects = framework.subjects || []
 
