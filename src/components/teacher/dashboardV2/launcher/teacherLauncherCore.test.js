@@ -185,10 +185,11 @@ test('columnsForWidth follows the breakpoint ladder', () => {
   assert.equal(columnsForWidth(1440), 7)
 })
 
-test('recentLimitForWidth: 4 mobile / 6 tablet / 8 desktop', () => {
+test('recentLimitForWidth always fills exactly one grid row', () => {
   assert.equal(recentLimitForWidth(360), 4)
-  assert.equal(recentLimitForWidth(800), 6)
-  assert.equal(recentLimitForWidth(1440), 8)
+  assert.equal(recentLimitForWidth(800), 5)
+  assert.equal(recentLimitForWidth(1100), 6)
+  assert.equal(recentLimitForWidth(1440), 7)
 })
 
 // ── Popover placement ────────────────────────────────────────────────────

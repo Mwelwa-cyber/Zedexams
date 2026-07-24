@@ -167,11 +167,13 @@ export function columnsForWidth(width = 1024) {
   return 7
 }
 
-/** How many recent studios to surface at a viewport width (4/6/8). */
+/**
+ * How many recent studios to surface at a viewport width. Always exactly
+ * one grid row — mirrors columnsForWidth, so the Recently Used strip never
+ * wraps into an orphaned second row.
+ */
 export function recentLimitForWidth(width = 1024) {
-  if (width < 768) return 4
-  if (width < 1024) return 6
-  return 8
+  return columnsForWidth(width)
 }
 
 /* ── Popover placement ───────────────────────────────────────────────── */

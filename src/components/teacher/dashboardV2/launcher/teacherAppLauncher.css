@@ -497,7 +497,7 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 .tsl-pop-head { display: flex; align-items: center; gap: 12px; }
-.tsl-pop-head .tsl-app-tile { width: 44px; height: 44px; border-radius: 13px; }
+.tsl-pop-head .tsl-app-tile { width: 52px; height: 52px; border-radius: 14px; }
 .tsl-pop-heading { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
 .tsl-pop-title { font-size: 15.5px; font-weight: 700; color: var(--ink); }
 .tsl-pop-tag {
@@ -611,7 +611,7 @@
   cursor: pointer;
 }
 .tsl-sheet-head { display: flex; align-items: center; gap: 14px; }
-.tsl-sheet-head .tsl-app-tile { width: 52px; height: 52px; border-radius: 15px; }
+.tsl-sheet-head .tsl-app-tile { width: 58px; height: 58px; border-radius: 16px; }
 .tsl-sheet-heading { min-width: 0; }
 .tsl-sheet-title { display: block; font-size: 17px; font-weight: 700; color: var(--ink); }
 .tsl-sheet-meta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; }
@@ -689,4 +689,10 @@
 .tdv2.is-dark .tsl-app-tile { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06); }
 .tdv2.is-dark .tsl-app-tile.is-img { box-shadow: none; }
 .tdv2.is-dark .tsl-app:hover { background: rgba(255, 255, 255, 0.03); }
-.tdv2.is-dark .tsl-app-badge.kind-saved { background: rgba(15, 118, 110, 0.24); color: #6ee7d4; }
+/* Solid, not translucent — the badge overlaps the light artwork of the
+   larger tiles, and a see-through teal washed out against it. */
+.tdv2.is-dark .tsl-app-badge.kind-saved {
+  background: #0c3f39;
+  color: #7deed9;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
