@@ -28,35 +28,45 @@ const ROOT = join(__dirname, "..", "..");
 
 function loadPdfParse() {
   try {
-    return require(join(ROOT, "functions", "node_modules", "pdf-parse"));
-  } catch {
+    // pdf-parse v2 (issue #1884) is an ESM rewrite that exposes a `PDFParse`
+    // class instead of the old callable default; its CJS build re-exports the
+    // class via `require`. It's resolved from functions/node_modules (the only
+    // place it's a dependency).
+    const { PDFParse } = require(join(ROOT, "functions", "node_modules", "pdf-parse"));
+    if (typeof PDFParse !== "function") throw new Error("PDFParse export missing");
+    return PDFParse;
+  } catch (err) {
     console.error(
-      "pdf-parse not found. Run `cd functions && npm install` first " +
-      "(it's a Cloud Functions dependency).");
+      "pdf-parse (v2) not found or not loadable. Run " +
+      "`cd functions && npm install` first (it's a Cloud Functions " +
+      `dependency). ${err && err.message || err}`);
     process.exit(2);
   }
 }
 const { validateCurriculumModule } =
   require(join(ROOT, "functions", "teacherTools", "curriculumModuleSchema.js"));
 
-// Re-insert spaces/line-breaks the default extractor drops, using glyph
-// positions. Without this CDC PDFs come out as "CivicEducationrefersto…".
-function pageRender(pageData) {
-  return pageData.getTextContent().then((tc) => {
-    let last = null;
-    let out = "";
-    for (const it of tc.items) {
-      if (last) {
-        const dy = Math.abs(it.transform[5] - last.transform[5]);
-        const gap = it.transform[4] - (last.transform[4] + (last.width || 0));
-        if (dy > (last.height ? last.height * 0.5 : 4)) out += "\n";
-        else if (gap > (last.height ? last.height * 0.18 : 1.2)) out += " ";
-      }
-      out += it.str;
-      last = it;
+// Extract space-corrected text from a CDC PDF. pdf-parse v1 dropped the
+// spaces/line-breaks between glyphs (CDC PDFs came out as
+// "CivicEducationrefersto…"), which is why this CLI used to pass a custom
+// `pagerender` that rebuilt them from glyph transforms. pdf-parse v2's
+// `getText` reconstructs word spacing and logical line breaks from glyph
+// positions natively (lineEnforce + item spacing), so the hand-rolled
+// renderer is no longer needed. `pageJoiner: ''` suppresses v2's default
+// "-- n of m --" per-page separator (the v1 output had none), keeping the
+// text shape the downstream cdcModuleParser + schema validation expect.
+async function extractText(PDFParse, buffer) {
+  const parser = new PDFParse({ data: buffer });
+  try {
+    const { text } = await parser.getText({ pageJoiner: "" });
+    return String(text || "");
+  } finally {
+    try {
+      await parser.destroy();
+    } catch {
+      // Handle already released / never fully loaded — nothing to free.
     }
-    return out;
-  });
+  }
 }
 
 // Order matters — first match wins, so the more specific / lower-grade names
@@ -145,10 +155,10 @@ async function main() {
     console.error("Usage: parse-cdc-module <module.pdf> [--grade] [--subject] [--term] [--out]");
     process.exit(2);
   }
-  const pdf = loadPdfParse();
-  const data = await pdf(fs.readFileSync(pdfPath), { pagerender: pageRender });
+  const PDFParse = loadPdfParse();
+  const text = await extractText(PDFParse, fs.readFileSync(pdfPath));
 
-  const detected = detectMeta(data.text);
+  const detected = detectMeta(text);
   const meta = {
     grade: (args.grade || detected.grade || "").toUpperCase(),
     subject: (args.subject || detected.subject || "").toLowerCase(),
@@ -159,7 +169,7 @@ async function main() {
     process.exit(2);
   }
 
-  const { modules, warnings } = parseCdcModule(data.text, meta);
+  const { modules, warnings } = parseCdcModule(text, meta);
 
   // Validate each against the authoritative schema; keep only valid rows.
   const valid = [];
