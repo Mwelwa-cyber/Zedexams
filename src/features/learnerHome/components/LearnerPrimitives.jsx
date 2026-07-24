@@ -37,7 +37,7 @@ export function ProgressRing({ percent, size = 56, stroke = 5, tone = 'var(--lhx
       style={{ width: size, height: size }}
     >
       <svg width={size} height={size} aria-hidden="true">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(23,32,58,0.08)" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(15,22,41,0.1)" strokeWidth={stroke} />
         <circle
           cx={size / 2}
           cy={size / 2}
