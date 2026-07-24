@@ -48,21 +48,22 @@ describe('SchemeTermPreview', () => {
 
   it('does NOT restart Term 2 at the first topic', () => {
     renderPreview({ focusTerm: 2 })
-    // Term 2 must continue the syllabus, so "Human Body" is absent from it.
-    expect(screen.queryByText('Human Body')).not.toBeInTheDocument()
+    // Term 2 must continue the syllabus, so "Human Body" is not one of its
+    // topic CARDS (it may still appear in the syllabus dropdown — scope to span).
+    expect(screen.queryByText('Human Body', { selector: 'span' })).not.toBeInTheDocument()
   })
 
   it('lets the teacher remove a topic and restore it', () => {
     renderPreview({ focusTerm: 1 })
-    expect(screen.getByText('Human Body')).toBeInTheDocument()
+    expect(screen.getByText('Human Body', { selector: 'span' })).toBeInTheDocument()
     const removeBtns = screen.getAllByRole('button', { name: 'Remove topic' })
     fireEvent.click(removeBtns[0])
-    // Removed from the plan…
-    expect(screen.queryByText(/^Human Body$/)).not.toBeInTheDocument()
+    // Removed from the plan (the card is gone — the dropdown option is a <option>)…
+    expect(screen.queryByText(/^Human Body$/, { selector: 'span' })).not.toBeInTheDocument()
     // …and offered in the removed bin for restore.
     const restore = screen.getByRole('button', { name: /↩ Human Body/ })
     fireEvent.click(restore)
-    expect(screen.getByText('Human Body')).toBeInTheDocument()
+    expect(screen.getByText('Human Body', { selector: 'span' })).toBeInTheDocument()
   })
 
   it('approves with the edited ordered topic selection', () => {
@@ -86,6 +87,31 @@ describe('SchemeTermPreview', () => {
     fireEvent.click(screen.getByRole('button', { name: /Approve & Generate Term 1/ }))
     const items = onApprove.mock.calls[0][1]
     expect(items.some((i) => i.topic === 'Local Case Study' && i.source === 'teacher')).toBe(true)
+  })
+
+  it('offers every subject topic in the syllabus dropdown', () => {
+    renderPreview({ focusTerm: 2 })
+    const dropdown = screen.getAllByLabelText('Add a topic from the syllabus')[0]
+    // Even a topic that lives in another term (e.g. Term 1's "Human Body") is
+    // selectable, so the dropdown lists the WHOLE subject syllabus.
+    const optionLabels = within(dropdown).getAllByRole('option').map((o) => o.textContent)
+    for (const t of TOPICS) {
+      expect(optionLabels.some((l) => l.startsWith(t.label))).toBe(true)
+    }
+  })
+
+  it('adds a topic (with its sub-topics) chosen from the syllabus dropdown', () => {
+    const onApprove = vi.fn()
+    renderPreview({ focusTerm: 2, onApprove })
+    const dropdown = screen.getAllByLabelText('Add a topic from the syllabus')[0]
+    // "Human Body" is index 0 in the ordered outline and normally sits in Term 1.
+    fireEvent.change(dropdown, { target: { value: '0' } })
+    expect(screen.getByText('Human Body', { selector: 'span' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Approve & Generate Term 2/ }))
+    const items = onApprove.mock.calls[0][1]
+    const added = items.find((i) => i.topic === 'Human Body')
+    expect(added).toBeTruthy()
+    expect(added.subtopics).toEqual(['Parts', 'Senses', 'Hygiene'])
   })
 
   it('shows all three terms in all-terms scope', () => {
