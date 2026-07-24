@@ -6,10 +6,11 @@ import { HelmetProvider } from 'react-helmet-async'
 import TeacherDashboardV2 from './TeacherDashboardV2'
 import { TOUR_STORAGE_KEY } from './onboardingTourCore'
 
-// These specs exercise the drawer/menu chrome — suppress the first-run tour
+// These specs exercise the mobile IA chrome — suppress the first-run tour
 // (its own behaviour is covered in OnboardingTour.spec.jsx).
 beforeEach(() => {
   localStorage.setItem(TOUR_STORAGE_KEY, 'done')
+  localStorage.removeItem('zedexams:tdv2m-recs-hidden')
 })
 
 // Force the mobile information architecture regardless of jsdom viewport.
@@ -32,24 +33,138 @@ function renderMobile() {
 }
 
 describe('MobileDashboardView (via preview page)', () => {
-  it('renders the mobile IA: no desktop sidebar, bottom nav, mobile sections', () => {
+  it('renders the mobile IA: opaque header, hero, checklist, AI rec, recent tools, dock', () => {
     renderMobile()
     // Desktop sidebar must never render on mobile
     expect(screen.queryByLabelText('Teacher navigation')).not.toBeInTheDocument()
-    // Bottom navigation
-    const bottom = screen.getByRole('navigation', { name: 'Quick navigation' })
-    for (const label of ['Home', 'My Class', 'Library', 'Assessments', 'More']) {
-      expect(within(bottom).getByText(label)).toBeInTheDocument()
+
+    // Floating dock: Home, Register, Library, Assessments — plus the
+    // separate Quick Create button. No "More" tab in the dock.
+    const dock = screen.getByRole('navigation', { name: 'Quick navigation' })
+    for (const label of ['Home', 'Register', 'Library', 'Assessments']) {
+      expect(within(dock).getByText(label)).toBeInTheDocument()
     }
-    // Core sections in order-of-existence
-    expect(screen.getByRole('heading', { level: 1, name: 'Mahenga' })).toBeInTheDocument()
-    expect(screen.getByText('Quick Create')).toBeInTheDocument()
-    expect(screen.getByText('AI Recommendations')).toBeInTheDocument()
-    // The app launcher replaces the old Recent Documents list on mobile
-    expect(screen.getByRole('region', { name: 'Teacher Workspace' })).toBeInTheDocument()
-    expect(screen.getByLabelText(/^Lesson Plans.*Open studio$/)).toBeInTheDocument()
+    expect(within(dock).queryByText('More')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Quick create' })).toBeInTheDocument()
+
+    // Hero: greeting + school + term progress + teaching days + plan badge
+    expect(screen.getByRole('heading', { level: 1, name: /Mahenga/ })).toBeInTheDocument()
+    expect(screen.getByText('Jemareen Academy')).toBeInTheDocument()
+    expect(screen.getByText(/Term 2 · Week 10 of 14/)).toBeInTheDocument()
+    expect(screen.getByText('18 teaching days left')).toBeInTheDocument()
+    expect(screen.getByText('Max Plan')).toBeInTheDocument()
+
+    // Compact checklist + collapsed AI recommendation + recent tools
+    expect(screen.getByText('This Week’s Checklist')).toBeInTheDocument()
+    expect(screen.getByText('AI Recommendation')).toBeInTheDocument()
+    expect(screen.getByText('Recently Used')).toBeInTheDocument()
+    expect(screen.getByText('All Teacher Tools')).toBeInTheDocument()
+
     // Notification badge from the real feed hook
     expect(screen.getByRole('button', { name: 'Notifications, 3 unread' })).toBeInTheDocument()
+  })
+
+  it('Register dock tab links to the Class Register (/teacher/attendance)', () => {
+    renderMobile()
+    const dock = screen.getByRole('navigation', { name: 'Quick navigation' })
+    const register = within(dock).getByText('Register').closest('a')
+    expect(register).toHaveAttribute('href', '/teacher/attendance')
+  })
+
+  it('checklist shows at most two incomplete items; the full list opens in a sheet', async () => {
+    const user = userEvent.setup()
+    renderMobile()
+    // Mock data: 4 items, 0 fully complete → overall count + first two only
+    const card = screen.getByRole('region', { name: 'This Week’s Checklist' })
+    expect(within(card).getByText('0 of 4 complete')).toBeInTheDocument()
+    expect(within(card).getByText('Weekly Focus: 2 of 5 days')).toBeInTheDocument()
+    expect(within(card).getByText('Lesson Plans')).toBeInTheDocument()
+    expect(within(card).queryByText('Record of Work')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /View full checklist/ }))
+    const sheet = screen.getByRole('dialog', { name: 'This Week’s Checklist' })
+    expect(within(sheet).getByText('Record of Work')).toBeInTheDocument()
+    expect(within(sheet).getByText('Worksheets')).toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: 'This Week’s Checklist' })).not.toBeInTheDocument()
+  })
+
+  it('AI recommendation is collapsed; tapping opens the detail sheet with actions', async () => {
+    const user = userEvent.setup()
+    renderMobile()
+    // Collapsed: title + count badge visible, full text NOT rendered
+    expect(screen.getByText('Mathematics is not planned yet')).toBeInTheDocument()
+    expect(screen.queryByText(/Create a Scheme of Work using the Grade 4 syllabus/)).not.toBeInTheDocument()
+
+    await user.click(screen.getByText('Mathematics is not planned yet'))
+    const sheet = screen.getByRole('dialog', { name: 'AI Recommendation' })
+    expect(within(sheet).getByText(/Create a Scheme of Work using the Grade 4 syllabus/)).toBeInTheDocument()
+    const create = within(sheet).getByRole('link', { name: /Create Scheme/ })
+    expect(create).toHaveAttribute('href', '/teacher/generate/scheme-of-work')
+    expect(within(sheet).getByRole('button', { name: /Remind me later/ })).toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: /Dismiss/ })).toBeInTheDocument()
+  })
+
+  it('dismissing the recommendation hides it and remembers per device', async () => {
+    const user = userEvent.setup()
+    renderMobile()
+    await user.click(screen.getByText('Mathematics is not planned yet'))
+    const sheet = screen.getByRole('dialog', { name: 'AI Recommendation' })
+    await user.click(within(sheet).getByRole('button', { name: /Dismiss/ }))
+    expect(screen.queryByText('Mathematics is not planned yet')).not.toBeInTheDocument()
+    expect(screen.getByText('You’re all caught up')).toBeInTheDocument()
+    const stored = JSON.parse(localStorage.getItem('zedexams:tdv2m-recs-hidden'))
+    expect(stored['scheme-mathematics']).toBe('dismissed')
+  })
+
+  it('the plus button opens the Quick Create sheet with the four creation flows', async () => {
+    const user = userEvent.setup()
+    renderMobile()
+    await user.click(screen.getByRole('button', { name: 'Quick create' }))
+    const sheet = screen.getByRole('dialog', { name: 'Quick Create' })
+    const expected = [
+      ['Lesson Plan', '/teacher/lesson-plans/new'],
+      ['Worksheet', '/teacher/generate/worksheet'],
+      ['Test Paper', '/teacher/assessment-papers/new'],
+      ['Weekly Focus', '/teacher/generate/weekly-forecast'],
+    ]
+    for (const [label, href] of expected) {
+      const link = within(sheet).getByText(label).closest('a')
+      expect(link).toHaveAttribute('href', href)
+    }
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: 'Quick Create' })).not.toBeInTheDocument()
+  })
+
+  it('All Teacher Tools opens the full-screen launcher with categories and search', async () => {
+    const user = userEvent.setup()
+    renderMobile()
+    await user.click(screen.getByText('Explore all studios and resources'))
+    const toolsScreen = screen.getByRole('dialog', { name: 'All Teacher Tools' })
+    // Grouped categories from the canonical registry
+    for (const cat of ['Planning', 'Teaching Materials', 'Assessment', 'Planning & Setup']) {
+      expect(within(toolsScreen).getByRole('tab', { name: cat })).toBeInTheDocument()
+    }
+    expect(within(toolsScreen).getByLabelText('Search teacher tools')).toBeInTheDocument()
+    // Routes preserved — e.g. Class Register still points at /teacher/attendance
+    const register = within(toolsScreen).getByRole('link', { name: /Class Register/ })
+    expect(register).toHaveAttribute('href', '/teacher/attendance')
+
+    // Search narrows the grid
+    await user.type(within(toolsScreen).getByLabelText('Search teacher tools'), 'rubric')
+    expect(within(toolsScreen).getByRole('link', { name: /Rubrics/ })).toBeInTheDocument()
+    expect(within(toolsScreen).queryByRole('link', { name: /Class Register/ })).not.toBeInTheDocument()
+
+    // Back button returns to the dashboard
+    await user.click(within(toolsScreen).getByRole('button', { name: 'Back to dashboard' }))
+    expect(screen.queryByRole('dialog', { name: 'All Teacher Tools' })).not.toBeInTheDocument()
+  })
+
+  it('shows at most four recently used tools', () => {
+    renderMobile()
+    const region = screen.getByRole('region', { name: /Recently Used/i })
+    expect(region.querySelectorAll('.tdv2m-recent-tool').length).toBeLessThanOrEqual(4)
   })
 
   it('drawer opens from the hamburger, keeps Dashboard above CREATE, closes on Escape', async () => {
@@ -104,6 +219,6 @@ describe('MobileDashboardView (via preview page)', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     // Still on the dashboard — no logout happened without confirmation
-    expect(screen.getByRole('heading', { level: 1, name: 'Mahenga' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: /Mahenga/ })).toBeInTheDocument()
   })
 })

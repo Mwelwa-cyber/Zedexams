@@ -14,6 +14,7 @@ import {
   checklistFromWeekPrep,
   feedFromState,
   activityFromResources,
+  teachingDaysLeft,
   termChipLabel,
 } from './dashboardV2Data.js'
 
@@ -137,6 +138,31 @@ const activity = activityFromResources(resources, { limit: 3, now: NOW })
 assert.equal(activity[0].title, 'Test Paper created')
 assert.equal(activity[1].title, 'Lesson Plan created')
 assert.equal(toolLabel('nonexistent_tool'), 'Document')
+
+// ── teaching days left (mobile hero) ─────────────────────────────────
+// Term open/close parse as LOCAL dates; use local-midnight clocks too.
+const TERM = { open: '2026-05-11', close: '2026-08-07', holidays: [] }
+const WED_JUL_15 = new Date(2026, 6, 15).getTime()
+// Wed 15 Jul → Fri 7 Aug: 3 + 5 + 5 + 5 weekdays
+assert.equal(teachingDaysLeft(TERM, WED_JUL_15), 18)
+// A weekday holiday inside the window is not a teaching day
+assert.equal(
+  teachingDaysLeft({ ...TERM, holidays: [{ date: '2026-07-20', name: 'Holiday' }] }, WED_JUL_15),
+  17,
+)
+// A weekend holiday changes nothing
+assert.equal(
+  teachingDaysLeft({ ...TERM, holidays: [{ date: '2026-07-18', name: 'Sat' }] }, WED_JUL_15),
+  18,
+)
+// From a Saturday, counting starts the following Monday
+assert.equal(teachingDaysLeft(TERM, new Date(2026, 6, 18).getTime()), 15)
+// Term over → 0; unusable term → null
+assert.equal(teachingDaysLeft(TERM, new Date(2026, 7, 10).getTime()), 0)
+assert.equal(teachingDaysLeft(null, WED_JUL_15), null)
+assert.equal(teachingDaysLeft({}, WED_JUL_15), null)
+// Before the term opens, the whole term counts (13 Mon–Fri weeks = 65 days)
+assert.equal(teachingDaysLeft(TERM, new Date(2026, 4, 1).getTime()), 65)
 
 // ── term chip ────────────────────────────────────────────────────────
 assert.equal(termChipLabel({ termNumber: 2, weekNumber: 10 }, NOW), `${shortDate(NOW)} — Term 2 • Week 10`)

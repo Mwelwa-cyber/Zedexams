@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useSubscription } from '../../../hooks/useSubscription'
 import { capture } from '../../../utils/analytics'
 import SeoHelmet from '../../seo/SeoHelmet'
 import UsageReminderBanner from '../../subscription/UsageReminderBanner'
@@ -18,6 +19,9 @@ export default function TeacherDashboardLive() {
   const { logout } = useAuth()
   const navigate = useNavigate()
   const data = useTeacherDashboardData()
+  // Display-only plan badge for the mobile hero ('Free' | 'Pro' | 'Max') —
+  // read from the existing subscription state, never gating anything here.
+  const { planTier, tierLabel } = useSubscription()
 
   useEffect(() => {
     capture('teacher_dashboard_viewed', { version: 'v2' })
@@ -56,6 +60,7 @@ export default function TeacherDashboardLive() {
       <DashboardView
         teacher={data.teacher}
         termChip={data.termChip}
+        hero={{ ...data.hero, plan: { tier: planTier, label: `${tierLabel} Plan` } }}
         greeting={greeting}
         lastOpened={data.lastOpened}
         onContinue={handleContinue}

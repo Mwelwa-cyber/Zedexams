@@ -45,6 +45,9 @@ const STEPS = [
     target: 'hero',
     title: 'Pick up where you left off',
     body: 'Your last-opened document stays one tap away up here — press Continue and you’re straight back into it.',
+    titleMobile: 'Your week at a glance',
+    bodyMobile:
+      'Your school, term progress and the teaching days left in the term live up here — so you always know where the term stands.',
   },
   {
     id: 'quick-create',
@@ -52,6 +55,8 @@ const STEPS = [
     target: 'quick-create',
     title: 'Create in one tap',
     body: 'Lesson plans, assessment papers, worksheets, notes and more — every studio starts here, and every document exports to PDF or Word.',
+    bodyMobile:
+      'Tap the orange plus button any time to start a lesson plan, worksheet, test paper or weekly focus.',
   },
   {
     id: 'ai-recs',
@@ -74,7 +79,7 @@ const STEPS = [
     title: 'Find everything else',
     body: 'The sidebar holds the rest — your classes, library, calendar and settings. Help & Support is always one click away.',
     bodyMobile:
-      'The bottom bar jumps between Home, My Class, Library and Assessments. Settings, help and your profile live behind More.',
+      'The dock jumps between Home, your Class Register, Library and Assessments. Settings, help and your profile live behind the menu, top-left.',
   },
 ]
 
@@ -199,6 +204,7 @@ export default function OnboardingTour({ isMobile = false, loading = false }) {
   const StepIcon = def.icon
   const last = step === STEPS.length - 1
   const body = isMobile && def.bodyMobile ? def.bodyMobile : def.body
+  const title = isMobile && def.titleMobile ? def.titleMobile : def.title
 
   return (
     <div className="tdv2-tour" role="presentation">
@@ -225,7 +231,7 @@ export default function OnboardingTour({ isMobile = false, loading = false }) {
           </span>
           <span className="tdv2-tour-count">Step {step + 1} of {STEPS.length}</span>
         </div>
-        <h2 id="tdv2-tour-title">{def.title}</h2>
+        <h2 id="tdv2-tour-title">{title}</h2>
         <p id="tdv2-tour-body">{body}</p>
         <div className="tdv2-tour-dots" aria-hidden="true">
           {STEPS.map((s, i) => (

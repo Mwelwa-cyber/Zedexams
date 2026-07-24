@@ -1,51 +1,69 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
   Bell,
-  BookOpen,
+  BellOff,
+  CalendarCheck,
+  CalendarDays,
+  CheckCircle2,
+  ChevronRight,
   ChevronUp,
+  Circle,
   CircleHelp,
   CreditCard,
+  Crown,
   FolderOpen,
   Home,
+  LayoutGrid,
   ListChecks,
   LogOut,
   Menu,
   MessageSquare,
   Moon,
-  MoreHorizontal,
-  Search,
+  Plus,
+  School,
   Settings,
+  Sparkles,
   Sun,
-  Sunset,
-  Users,
   UserRound,
   UsersRound,
   X,
 } from 'lucide-react'
 import { useNotifications } from '../../../contexts/NotificationContext'
-import useHideOnScroll from '../../../hooks/useHideOnScroll'
 import NotificationCenter from '../../notifications/NotificationCenter'
-import CopperButton from './CopperButton'
-import AiRecommendationsCard from './AiRecommendationsCard'
-import TeacherAppLauncher from './launcher/TeacherAppLauncher'
-import { ChecklistCard, FeedStatusCard, RecentActivityCard } from './InsightCards'
-import { NAV_GROUPS, QUICK_CREATE_TILES } from './dashboardV2Config'
-// Small notebook illustration, upper-right of the hero (hidden < 350px)
+import BottomSheet from './BottomSheet'
+import MobileToolsScreen from './MobileToolsScreen'
+import { NAV_GROUPS } from './dashboardV2Config'
+import { STUDIO_BY_ID } from './launcher/teacherStudios'
+import { resolveBadge } from './launcher/teacherLauncherCore'
+import useRecentStudios from './launcher/useRecentStudios'
+import { progressFraction } from './dashboardV2Core'
+// Decorative open-book illustration on the hero's right side
 import heroDesk from '../../../assets/teacher/hero-desk.webp'
 
 const LOGO_WEBP = '/zedexams-logo.webp?v=2'
 const LOGO_PNG = '/zedexams-logo.png?v=5'
 
-const PART_ICON = { morning: Sun, afternoon: Sun, evening: Moon }
-
 const BOTTOM_NAV = [
   { id: 'home', label: 'Home', icon: Home, to: '/teacher' },
-  { id: 'classes', label: 'My Class', icon: Users, to: '/teacher/classes' },
+  // Register opens the Class Register (daily attendance). The studio itself
+  // restores the teacher's class — one class opens today's marking directly.
+  { id: 'register', label: 'Register', icon: UsersRound, to: '/teacher/attendance' },
   { id: 'library', label: 'Library', icon: FolderOpen, to: '/teacher/library' },
   { id: 'assessments', label: 'Assessments', icon: ListChecks, to: '/teacher/assessment-papers' },
 ]
+
+/** Quick Create — the four fastest studios; routes are the canonical ones. */
+const QUICK_CREATE = [
+  { id: 'lesson-plans', label: 'Lesson Plan', to: '/teacher/lesson-plans/new' },
+  { id: 'worksheets', label: 'Worksheet', to: '/teacher/generate/worksheet' },
+  { id: 'assessment-papers', label: 'Test Paper', to: '/teacher/assessment-papers/new' },
+  { id: 'weekly-focus', label: 'Weekly Focus', to: '/teacher/generate/weekly-forecast' },
+]
+
+/** Default "recently used" row until this device has real visits. */
+const DEFAULT_RECENT_IDS = ['assessment-papers', 'lesson-plans', 'question-bank', 'weekly-focus']
 
 const ACCOUNT_ITEMS = [
   { id: 'view-profile', label: 'View profile', icon: UserRound, to: '/settings/profile' },
@@ -55,14 +73,6 @@ const ACCOUNT_ITEMS = [
   { id: 'notifications', label: 'Notification preferences', icon: Bell, to: '/settings/notifications' },
   { id: 'help', label: 'Help & Support', icon: CircleHelp, to: '/teacher/help' },
 ]
-
-function sublineFor(lastOpened) {
-  if (!lastOpened?.subject) return 'Here’s what’s happening with your teaching.'
-  const days = lastOpened.agoDays
-  if (!Number.isFinite(days)) return 'Here’s what’s happening with your teaching.'
-  if (days <= 0) return `You worked on ${lastOpened.subject} today. Keep it up!`
-  return `${lastOpened.subject} hasn’t been updated for ${days} day${days === 1 ? '' : 's'}.`
-}
 
 /**
  * Slide-out navigation drawer: nav groups, then a profile card whose tap
@@ -280,16 +290,17 @@ export function NavDrawer({
   )
 }
 
-/** Compact mobile header — shared by the dashboard and Help & Support. */
+/**
+ * Compact mobile header — shared by the dashboard, Help & Support and the
+ * studio shell. Fully opaque and always visible (sticky): hamburger, logo +
+ * wordmark, alerts bell with unread badge, messages shortcut. Content starts
+ * below it — it never floats over the page.
+ */
 export function MobileHeader({ drawerOpen, onOpenMenu }) {
   const { unreadCount, open: notifOpen, setOpen: setNotifOpen } = useNotifications()
-  // LinkedIn-style auto-hide on scroll (same hook the learner chrome uses):
-  // slides up on scroll-down, reveals on scroll-up. Stays pinned while the
-  // drawer is open so the menu chrome never slides out from under the user.
-  const hidden = useHideOnScroll()
   return (
     <>
-      <header className={`tdv2m-header tdv2m-autohide ${hidden && !drawerOpen ? 'is-hidden-top' : ''}`}>
+      <header className="tdv2m-header">
         <button
           type="button"
           className="tdv2m-iconbtn"
@@ -324,7 +335,7 @@ export function MobileHeader({ drawerOpen, onOpenMenu }) {
             </span>
           ) : null}
         </button>
-        <Link to="/teacher/help" className="tdv2m-iconbtn tdv2m-help-btn" aria-label="Help and support">
+        <Link to="/teacher/help" className="tdv2m-iconbtn tdv2m-help-btn" aria-label="Messages and support">
           <MessageSquare size={21} strokeWidth={1.75} aria-hidden="true" />
         </Link>
       </header>
@@ -333,87 +344,503 @@ export function MobileHeader({ drawerOpen, onOpenMenu }) {
   )
 }
 
-/** Fixed bottom navigation — shared by the dashboard and Help & Support. */
-export function MobileBottomNav({ drawerOpen, onMore }) {
-  const { pathname } = useLocation()
-  // Matches the header: slides down on scroll-down, reveals on scroll-up.
-  const hidden = useHideOnScroll()
+/** Quick Create bottom sheet — the four fastest creation flows. */
+function QuickCreateSheet({ open, onClose }) {
   return (
-    <nav
-      className={`tdv2m-bottomnav tdv2m-autohide ${hidden && !drawerOpen ? 'is-hidden-bottom' : ''}`}
-      aria-label="Quick navigation"
-      data-tour="nav"
-    >
-      {BOTTOM_NAV.map(({ id, label, icon: NavIcon, to }) => {
-        const active =
-          to === '/teacher'
-            ? pathname === '/teacher' || pathname === '/teacher/dashboard-preview'
-            : pathname === to || pathname.startsWith(`${to}/`)
-        return (
-          <Link
-            key={id}
-            to={to}
-            className={`tdv2m-bn-item ${active ? 'is-active' : ''}`}
-            aria-current={active ? 'page' : undefined}
-          >
-            <NavIcon size={22} strokeWidth={1.75} aria-hidden="true" />
-            <span className="tdv2m-bn-label">{label}</span>
-          </Link>
-        )
-      })}
-      <button
-        type="button"
-        className="tdv2m-bn-item"
-        aria-haspopup="dialog"
-        aria-expanded={drawerOpen}
-        onClick={onMore}
+    <BottomSheet open={open} onClose={onClose} title="Quick Create">
+      <div className="tdv2m-qcsheet-grid">
+        {QUICK_CREATE.map(({ id, label, to }) => {
+          const studio = STUDIO_BY_ID[id]
+          const TileIcon = studio?.icon
+          return (
+            <Link key={id} to={to} className="tdv2m-qcsheet-item" onClick={onClose}>
+              <span className="tdv2m-qcsheet-tile" aria-hidden="true">
+                {studio?.image ? (
+                  <img src={studio.image} alt="" loading="lazy" draggable="false" />
+                ) : TileIcon ? (
+                  <TileIcon size={26} strokeWidth={1.9} />
+                ) : null}
+              </span>
+              <span className="tdv2m-qcsheet-label">{label}</span>
+            </Link>
+          )
+        })}
+      </div>
+    </BottomSheet>
+  )
+}
+
+/**
+ * Floating dock navigation — a dark-teal rounded pill (Home, Register,
+ * Library, Assessments) plus a separate circular orange Quick Create
+ * button. Shared by the dashboard, Help & Support and the studio shell;
+ * < 768px only (the ≥768px CSS rule removes it from layout entirely).
+ */
+export function MobileBottomNav() {
+  const { pathname } = useLocation()
+  const [createOpen, setCreateOpen] = useState(false)
+  return (
+    <>
+      <div className="tdv2m-dockbar" data-tour="nav">
+        <nav className="tdv2m-dock" aria-label="Quick navigation">
+          {BOTTOM_NAV.map(({ id, label, icon: NavIcon, to }) => {
+            const active =
+              to === '/teacher'
+                ? pathname === '/teacher' || pathname === '/teacher/dashboard-preview'
+                : pathname === to || pathname.startsWith(`${to}/`)
+            return (
+              <Link
+                key={id}
+                to={to}
+                className={`tdv2m-dock-item ${active ? 'is-active' : ''}`}
+                aria-current={active ? 'page' : undefined}
+              >
+                <NavIcon size={22} strokeWidth={1.75} aria-hidden="true" />
+                <span className="tdv2m-dock-label">{label}</span>
+              </Link>
+            )
+          })}
+        </nav>
+        <button
+          type="button"
+          className="tdv2m-dock-plus"
+          aria-label="Quick create"
+          aria-haspopup="dialog"
+          aria-expanded={createOpen}
+          data-tour="quick-create"
+          onClick={() => setCreateOpen(true)}
+        >
+          <Plus size={28} strokeWidth={2.4} aria-hidden="true" />
+        </button>
+      </div>
+      <QuickCreateSheet open={createOpen} onClose={() => setCreateOpen(false)} />
+    </>
+  )
+}
+
+/**
+ * Deep-teal hero: greeting, school, term progress and teaching days left,
+ * with the open-book illustration and the subscription badge pinned near
+ * its lower-right corner.
+ */
+function MobileHeroCard({ greeting, hero }) {
+  const term = hero?.term
+  const plan = hero?.plan
+  const weekKnown = Number.isFinite(term?.weekNumber) && Number.isFinite(term?.totalWeeks)
+  const fraction = weekKnown ? progressFraction(term.weekNumber, term.totalWeeks) : 0
+  return (
+    <section className="tdv2m-hero" aria-label="Greeting" data-tour="hero">
+      <div className="tdv2m-hero-main">
+        <h1 className="tdv2m-hero-name">
+          {greeting.label}, {greeting.name}{' '}
+          <span aria-hidden="true">👋</span>
+        </h1>
+        {hero?.schoolName ? (
+          <p className="tdv2m-hero-row tdv2m-hero-school">
+            <School size={17} strokeWidth={1.9} aria-hidden="true" />
+            <span>{hero.schoolName}</span>
+          </p>
+        ) : null}
+        {term ? (
+          <>
+            <p className="tdv2m-hero-row tdv2m-hero-term">
+              <CalendarCheck size={17} strokeWidth={1.9} aria-hidden="true" />
+              <span>
+                Term {term.termNumber}
+                {weekKnown ? <> · Week {term.weekNumber} of {term.totalWeeks}</> : null}
+              </span>
+            </p>
+            {weekKnown ? (
+              <div
+                className="tdv2m-hero-bar"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={term.totalWeeks}
+                aria-valuenow={term.weekNumber}
+                aria-label={`Week ${term.weekNumber} of ${term.totalWeeks}`}
+              >
+                <span style={{ width: `${Math.round(fraction * 100)}%` }} />
+              </div>
+            ) : null}
+            {Number.isFinite(term.daysLeft) ? (
+              <p className="tdv2m-hero-row tdv2m-hero-days">
+                <CalendarDays size={14} strokeWidth={1.9} aria-hidden="true" />
+                <span>{term.daysLeft} teaching day{term.daysLeft === 1 ? '' : 's'} left</span>
+              </p>
+            ) : null}
+          </>
+        ) : hero?.nextTermOpens ? (
+          <p className="tdv2m-hero-row tdv2m-hero-term">
+            <CalendarCheck size={17} strokeWidth={1.9} aria-hidden="true" />
+            <span>School holiday · next term opens {hero.nextTermOpens}</span>
+          </p>
+        ) : null}
+      </div>
+      <div className="tdv2m-hero-side" aria-hidden="true">
+        <img className="tdv2m-hero-book" src={heroDesk} alt="" loading="lazy" draggable="false" />
+      </div>
+      {plan?.label ? (
+        <span className={`tdv2m-plan-pill tier-${plan.tier || 'free'}`}>
+          {plan.tier === 'max' ? <Crown size={13} strokeWidth={2.2} aria-hidden="true" /> : null}
+          {plan.label}
+        </span>
+      ) : null}
+    </section>
+  )
+}
+
+/**
+ * Compact weekly checklist: overall count, a segmented progress indicator,
+ * only the first two incomplete items, and a full-checklist bottom sheet.
+ */
+function WeeklyChecklistCard({ items = [], loading = false }) {
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const complete = items.filter((i) => (i.done || 0) >= i.total).length
+  const incomplete = items.filter((i) => (i.done || 0) < i.total).slice(0, 2)
+  return (
+    <section className="tdv2-card tdv2m-check" aria-labelledby="tdv2m-check-h">
+      <div className="tdv2m-check-head">
+        <h2 className="tdv2-eyebrow" id="tdv2m-check-h">
+          <ListChecks size={16} strokeWidth={2} aria-hidden="true" />
+          This Week’s Checklist
+        </h2>
+        {items.length > 0 ? (
+          <span className="tdv2m-check-count">{complete} of {items.length} complete</span>
+        ) : null}
+      </div>
+
+      {loading ? (
+        <div className="tdv2-empty">Working out your week…</div>
+      ) : items.length === 0 ? (
+        <div className="tdv2-empty">
+          No weekly plan yet — set up your week from a{' '}
+          <Link to="/teacher/generate/scheme-of-work" className="tdv2m-check-link">Scheme of Work</Link>.
+        </div>
+      ) : (
+        <>
+          <div className="tdv2m-check-segments" aria-hidden="true">
+            {items.map((item) => (
+              <span key={item.id} className="tdv2m-check-seg">
+                <span style={{ width: `${progressFraction(item.done, item.total) * 100}%` }} />
+              </span>
+            ))}
+          </div>
+
+          {incomplete.length === 0 ? (
+            <div className="tdv2m-check-row is-done">
+              <CheckCircle2 size={20} strokeWidth={2} aria-hidden="true" />
+              <span className="tdv2m-check-label">Everything is prepared for this week</span>
+            </div>
+          ) : (
+            incomplete.map((item) => {
+              const inner = (
+                <>
+                  <Circle size={20} strokeWidth={2} className="tdv2m-check-circle" aria-hidden="true" />
+                  <span className="tdv2m-check-label">{item.label}</span>
+                  <span className="tdv2m-check-meta">{item.done || 0}/{item.total}</span>
+                </>
+              )
+              return item.to ? (
+                <Link key={item.id} to={item.to} className="tdv2m-check-row">{inner}</Link>
+              ) : (
+                <div key={item.id} className="tdv2m-check-row">{inner}</div>
+              )
+            })
+          )}
+
+          <button type="button" className="tdv2m-check-more" onClick={() => setSheetOpen(true)}>
+            View full checklist
+            <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+          </button>
+        </>
+      )}
+
+      <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="This Week’s Checklist">
+        <p className="tdv2m-sheet-sub">{complete} of {items.length} complete</p>
+        <div className="tdv2m-sheet-list">
+          {items.map((item) => {
+            const done = (item.done || 0) >= item.total
+            const inner = (
+              <>
+                {done ? (
+                  <CheckCircle2 size={20} strokeWidth={2} className="tdv2m-check-done" aria-hidden="true" />
+                ) : (
+                  <Circle size={20} strokeWidth={2} className="tdv2m-check-circle" aria-hidden="true" />
+                )}
+                <span className="tdv2m-check-label">{item.label}</span>
+                <span className="tdv2m-check-meta">{item.done || 0}/{item.total}</span>
+              </>
+            )
+            return item.to ? (
+              <Link
+                key={item.id}
+                to={item.to}
+                className="tdv2m-check-row"
+                onClick={() => setSheetOpen(false)}
+              >
+                {inner}
+              </Link>
+            ) : (
+              <div key={item.id} className="tdv2m-check-row">{inner}</div>
+            )
+          })}
+        </div>
+      </BottomSheet>
+    </section>
+  )
+}
+
+// Device-local dismiss/snooze state for AI recommendations. Stores only
+// stable recommendation ids + timestamps (no content) — same pattern as the
+// launcher's recents. Dismissed = forever (until the rec itself changes id);
+// snoozed = hidden for 24h.
+const REC_HIDDEN_KEY = 'zedexams:tdv2m-recs-hidden'
+const SNOOZE_MS = 24 * 60 * 60 * 1000
+
+function loadHiddenRecs() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(REC_HIDDEN_KEY) || '{}')
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveHiddenRecs(map) {
+  try { localStorage.setItem(REC_HIDDEN_KEY, JSON.stringify(map)) } catch { /* non-fatal */ }
+}
+
+/**
+ * One collapsed AI recommendation. Tapping opens a bottom sheet with the
+ * full text and actions (create, dismiss, remind later, next, view all).
+ * All recommendations still come from the existing
+ * buildProfileRecommendations output — this only changes presentation.
+ */
+function MobileAiRecommendation({ recommendations = [] }) {
+  const [hidden, setHidden] = useState(loadHiddenRecs)
+  const [index, setIndex] = useState(0)
+  const [view, setView] = useState(null) // null | 'detail' | 'all'
+
+  const visible = useMemo(() => {
+    const now = Date.now()
+    return recommendations.filter((r) => {
+      const until = hidden[r.id]
+      if (until === 'dismissed') return false
+      if (typeof until === 'number' && until > now) return false
+      return true
+    })
+  }, [recommendations, hidden])
+
+  const rec = visible.length ? visible[index % visible.length] : null
+
+  const hide = (id, value) => {
+    const next = { ...hidden, [id]: value }
+    saveHiddenRecs(next)
+    setHidden(next)
+    setIndex(0)
+    if (visible.length <= 1) setView(null)
+  }
+
+  if (!rec) {
+    return (
+      <section className="tdv2-card tdv2m-ai" aria-labelledby="tdv2m-ai-h" data-tour="ai-recs">
+        <div className="tdv2m-ai-top">
+          <h2 className="tdv2-eyebrow tdv2m-ai-eyebrow" id="tdv2m-ai-h">
+            <Sparkles size={16} strokeWidth={2} aria-hidden="true" />
+            AI Recommendation
+          </h2>
+        </div>
+        <p className="tdv2m-ai-title is-quiet">You’re all caught up</p>
+        <p className="tdv2m-ai-meta">New suggestions appear as your term progresses.</p>
+      </section>
+    )
+  }
+
+  const metaBits = [rec.context?.grade, rec.context?.subject].filter(Boolean)
+
+  return (
+    <>
+      <section className="tdv2-card tdv2m-ai" aria-labelledby="tdv2m-ai-h" data-tour="ai-recs">
+        <button
+          type="button"
+          className="tdv2m-ai-open"
+          aria-haspopup="dialog"
+          onClick={() => setView('detail')}
+        >
+          <div className="tdv2m-ai-top">
+            <h2 className="tdv2-eyebrow tdv2m-ai-eyebrow" id="tdv2m-ai-h">
+              <Sparkles size={16} strokeWidth={2} aria-hidden="true" />
+              AI Recommendation
+            </h2>
+            <span className="tdv2m-ai-count" aria-label={`${visible.length} recommendations`}>
+              {visible.length}
+            </span>
+            <ChevronRight size={18} strokeWidth={2} className="tdv2m-ai-chev" aria-hidden="true" />
+          </div>
+          <p className="tdv2m-ai-title">{rec.title}</p>
+          {metaBits.length ? (
+            <p className="tdv2m-ai-meta">{metaBits.join(' · ')}</p>
+          ) : null}
+        </button>
+      </section>
+
+      <BottomSheet
+        open={view !== null}
+        onClose={() => setView(null)}
+        title={view === 'all' ? 'All Recommendations' : 'AI Recommendation'}
       >
-        <MoreHorizontal size={22} strokeWidth={1.75} aria-hidden="true" />
-        <span className="tdv2m-bn-label">More</span>
-      </button>
-    </nav>
+        {view === 'all' ? (
+          <div className="tdv2m-sheet-list">
+            {visible.map((r) => (
+              <button
+                key={r.id}
+                type="button"
+                className="tdv2m-recall-row"
+                onClick={() => {
+                  setIndex(visible.indexOf(r))
+                  setView('detail')
+                }}
+              >
+                <span style={{ minWidth: 0 }}>
+                  <span className="tdv2m-recall-title">{r.title}</span>
+                  <span className="tdv2m-recall-text">{r.text}</span>
+                </span>
+                <ChevronRight size={17} strokeWidth={2} aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="tdv2m-rec-detail">
+            <h3 className="tdv2m-rec-title">{rec.title}</h3>
+            {metaBits.length ? (
+              <div className="tdv2-ai-context">
+                {metaBits.map((bit) => (
+                  <span key={bit} className="tdv2-ai-chip">{bit}</span>
+                ))}
+              </div>
+            ) : null}
+            <p className="tdv2m-rec-text">{rec.text}</p>
+            <div className="tdv2m-rec-actions">
+              {/* Link, not button — the copper visual survives the .tdv2
+                  button reset only on anchors */}
+              <Link
+                to={rec.to}
+                className="tdv2-btn-copper tdv2m-rec-primary"
+                onClick={() => setView(null)}
+              >
+                {rec.actionLabel || 'Open'}
+                <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+              </Link>
+              <div className="tdv2m-rec-secondary">
+                <button type="button" onClick={() => hide(rec.id, Date.now() + SNOOZE_MS)}>
+                  <BellOff size={15} strokeWidth={1.9} aria-hidden="true" />
+                  Remind me later
+                </button>
+                <button type="button" onClick={() => hide(rec.id, 'dismissed')}>
+                  <X size={15} strokeWidth={2} aria-hidden="true" />
+                  Dismiss
+                </button>
+              </div>
+              {visible.length > 1 ? (
+                <div className="tdv2m-rec-nav">
+                  <button type="button" onClick={() => setIndex((i) => (i + 1) % visible.length)}>
+                    Next recommendation
+                  </button>
+                  <button type="button" onClick={() => setView('all')}>
+                    View all ({visible.length})
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        )}
+      </BottomSheet>
+    </>
+  )
+}
+
+/** Up to four recently used tools as large app-style icons. */
+function RecentlyUsedTools({ savedCounts, warnings = [], onViewAll }) {
+  const { recents } = useRecentStudios()
+  const warningSet = useMemo(() => new Set(warnings), [warnings])
+  const studios = useMemo(() => {
+    const ids = [...recents]
+    for (const id of DEFAULT_RECENT_IDS) if (!ids.includes(id)) ids.push(id)
+    return ids.map((id) => STUDIO_BY_ID[id]).filter(Boolean).slice(0, 4)
+  }, [recents])
+
+  return (
+    <section aria-labelledby="tdv2m-recent-h">
+      <div className="tdv2m-section-head">
+        <h2 className="tdv2-eyebrow" id="tdv2m-recent-h">Recently Used</h2>
+        <button type="button" className="tdv2-link-action" onClick={onViewAll}>
+          View all
+          <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
+        </button>
+      </div>
+      <div className="tdv2m-recent-grid">
+        {studios.map((studio) => {
+          const badge = resolveBadge(studio, savedCounts, { warnings: warningSet })
+          const StudioIcon = studio.icon
+          return (
+            <Link
+              key={studio.id}
+              to={studio.route}
+              className="tdv2m-recent-tool"
+              aria-label={`${studio.title}${badge ? `, ${badge.label}` : ''}`}
+            >
+              <span
+                className={`tdv2m-recent-tile ${studio.image ? 'is-img' : `tint-${studio.tint || 'teal'}`}`}
+                aria-hidden="true"
+              >
+                {studio.image ? (
+                  <img src={studio.image} alt="" loading="lazy" draggable="false" />
+                ) : (
+                  <StudioIcon size={30} strokeWidth={1.8} />
+                )}
+                {badge?.type === 'new' ? (
+                  <span className="tdv2m-tool-new" aria-hidden="true">New</span>
+                ) : null}
+              </span>
+              <span className="tdv2m-recent-name">{studio.title}</span>
+              {badge?.type === 'saved' ? (
+                <span className="tdv2m-tool-saved" aria-hidden="true">{badge.count} saved</span>
+              ) : null}
+            </Link>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 
 /**
  * Dedicated MOBILE information architecture for Dashboard V2 (< 768px) —
- * its own header, drawer, single-column sections, and fixed bottom nav.
- * Never renders the desktop sidebar. Same props contract as the desktop
- * layout inside DashboardView, so live data and the mock preview both flow
- * through unchanged.
+ * opaque sticky header, deep-teal hero with term progress, compact weekly
+ * checklist, one collapsed AI recommendation, four recently used tools, an
+ * All Teacher Tools launcher, and a floating dock with a Quick Create
+ * button. Same props contract as the desktop layout inside DashboardView,
+ * so live data and the mock preview both flow through unchanged.
  */
 export default function MobileDashboardView({
   teacher,
   greeting,
-  lastOpened,
-  ctaState = 'default',
-  onContinue,
+  hero = null,
   recommendations,
   savedCounts = null,
   launcherWarnings = [],
   checklist,
-  feed,
-  activity,
   loading = false,
-  onRetryFeed,
   dark = false,
   onToggleTheme,
   onRequestLogout,
-  showToast,
   banner = null,
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [query, setQuery] = useState('')
-  const navigate = useNavigate()
-  const PartIcon = PART_ICON[greeting.part] || Sunset
-
-  const submitSearch = (e) => {
-    e.preventDefault()
-    const q = query.trim()
-    navigate(q ? `/teacher/library?q=${encodeURIComponent(q)}` : '/teacher/library')
-  }
+  const [toolsOpen, setToolsOpen] = useState(false)
 
   const closeDrawer = useCallback(() => setDrawerOpen(false), [])
+  const closeTools = useCallback(() => setToolsOpen(false), [])
 
   return (
     <div className="tdv2m">
@@ -422,93 +849,31 @@ export default function MobileDashboardView({
       <main className="tdv2m-content">
         {banner}
 
-        <form className="tdv2-search tdv2m-search" onSubmit={submitSearch}>
-          <Search size={19} strokeWidth={2} aria-hidden="true" />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search lessons, notes, tests…"
-            aria-label="Search your library"
-          />
-        </form>
+        <MobileHeroCard greeting={greeting} hero={hero} />
 
-        <section className="tdv2m-hero" aria-label="Greeting" data-tour="hero">
-          <img className="tdv2m-hero-art" src={heroDesk} alt="" aria-hidden="true" loading="lazy" />
-          <span className="tdv2-hero-eyebrow">
-            <span className="tdv2-hero-sun" aria-hidden="true">
-              <PartIcon size={16} strokeWidth={2} />
-            </span>
-            {greeting.label},
+        <WeeklyChecklistCard items={checklist} loading={loading} />
+
+        <MobileAiRecommendation recommendations={recommendations} />
+
+        <RecentlyUsedTools
+          savedCounts={savedCounts}
+          warnings={launcherWarnings}
+          onViewAll={() => setToolsOpen(true)}
+        />
+
+        <button type="button" className="tdv2-card tdv2m-alltools" onClick={() => setToolsOpen(true)}>
+          <span className="tdv2m-alltools-icon" aria-hidden="true">
+            <LayoutGrid size={22} strokeWidth={1.9} />
           </span>
-          <h1 className="tdv2m-hero-name">{greeting.name}</h1>
-          <p className="tdv2m-hero-sub">{sublineFor(lastOpened)}</p>
-
-          <div className="tdv2m-inset">
-            <div className="tdv2m-inset-row">
-              <span className="tdv2-hero-inset-icon" aria-hidden="true">
-                <BookOpen size={22} strokeWidth={1.75} />
-              </span>
-              {lastOpened ? (
-                <span style={{ minWidth: 0 }}>
-                  <span className="tdv2-hero-inset-label">Last opened</span>
-                  <br />
-                  <span className="tdv2-hero-inset-title">{lastOpened.subject}</span>
-                  <br />
-                  <span className="tdv2-hero-inset-meta">
-                    {[lastOpened.grade, lastOpened.ago].filter(Boolean).join(' • ')}
-                  </span>
-                </span>
-              ) : (
-                <span style={{ minWidth: 0 }}>
-                  <span className="tdv2-hero-inset-label">Get started</span>
-                  <br />
-                  <span className="tdv2-hero-inset-title">Create your first document</span>
-                  <br />
-                  <span className="tdv2-hero-inset-meta">Plan a lesson in a few minutes</span>
-                </span>
-              )}
-            </div>
-            <CopperButton state={ctaState} onClick={onContinue} className="tdv2m-cta">
-              {lastOpened ? 'Continue plan' : 'Start planning'}
-            </CopperButton>
-          </div>
-        </section>
-
-        <section aria-labelledby="tdv2m-qc-h" data-tour="quick-create">
-          <div className="tdv2m-section-head">
-            <h2 className="tdv2-eyebrow" id="tdv2m-qc-h">Quick Create</h2>
-            <Link className="tdv2-link-action" to="/teacher/library">
-              View all
-              <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
-            </Link>
-          </div>
-          <div className="tdv2m-qc-grid">
-            {QUICK_CREATE_TILES.map(({ id, title, description, icon: TileIcon, to, tone }) => (
-              <Link key={id} to={to} className="tdv2-tile tdv2m-tile">
-                <span className={`tdv2-tile-icon tone-${tone}`} aria-hidden="true">
-                  <TileIcon size={22} strokeWidth={1.75} />
-                </span>
-                <span className="tdv2-tile-title">{title}</span>
-                <span className="tdv2-tile-desc">{description}</span>
-                <span className="tdv2-tile-arrow" aria-hidden="true">
-                  <ArrowRight size={15} strokeWidth={2} />
-                </span>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <AiRecommendationsCard recommendations={recommendations} />
-
-        <TeacherAppLauncher savedCounts={savedCounts} warnings={launcherWarnings} loading={loading} />
-
-        <ChecklistCard items={checklist} loading={loading} />
-        <FeedStatusCard items={feed} onRetry={() => onRetryFeed?.({ showToast })} />
-        <RecentActivityCard items={activity} />
+          <span style={{ minWidth: 0, flex: 1 }}>
+            <span className="tdv2m-alltools-title">All Teacher Tools</span>
+            <span className="tdv2m-alltools-sub">Explore all studios and resources</span>
+          </span>
+          <ChevronRight size={19} strokeWidth={2} aria-hidden="true" />
+        </button>
       </main>
 
-      <MobileBottomNav drawerOpen={drawerOpen} onMore={() => setDrawerOpen(true)} />
+      <MobileBottomNav />
 
       <NavDrawer
         open={drawerOpen}
@@ -518,6 +883,14 @@ export default function MobileDashboardView({
         onToggleTheme={onToggleTheme}
         onLogout={onRequestLogout}
       />
+
+      {toolsOpen ? (
+        <MobileToolsScreen
+          onClose={closeTools}
+          savedCounts={savedCounts}
+          warnings={launcherWarnings}
+        />
+      ) : null}
     </div>
   )
 }

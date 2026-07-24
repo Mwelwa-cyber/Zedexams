@@ -88,7 +88,7 @@ function renderDashboard() {
 }
 
 const desktopSidebar = () => document.querySelector('.tdv2-sidebar')
-const bottomNav = () => document.querySelector('.tdv2m-bottomnav')
+const bottomNav = () => document.querySelector('.tdv2m-dockbar')
 const mobileHeader = () => document.querySelector('.tdv2m-header')
 
 // The task's regression matrix: portrait phones, small landscape/tablet,
@@ -118,12 +118,14 @@ describe('responsive navigation — one nav system at a time', () => {
       expect(desktopSidebar()).toBeNull()
       expect(screen.queryByLabelText('Teacher navigation')).not.toBeInTheDocument()
 
-      // Mobile chrome: bottom nav with its five destinations + compact header.
+      // Mobile chrome: the floating dock's four destinations + the separate
+      // Quick Create button + compact header.
       expect(mobileHeader()).not.toBeNull()
       const nav = screen.getByRole('navigation', { name: 'Quick navigation' })
-      for (const label of ['Home', 'My Class', 'Library', 'Assessments', 'More']) {
+      for (const label of ['Home', 'Register', 'Library', 'Assessments']) {
         expect(nav.textContent).toContain(label)
       }
+      expect(screen.getByRole('button', { name: 'Quick create' })).toBeInTheDocument()
 
       // The shell drops the desktop grid so no sidebar column can reserve
       // space even before CSS media queries apply.

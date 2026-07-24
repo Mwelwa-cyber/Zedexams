@@ -29,6 +29,7 @@ ensureDashboardFonts()
 export default function DashboardView({
   teacher,
   termChip,
+  hero = null,
   greeting,
   lastOpened,
   ctaState = 'default',
@@ -77,21 +78,15 @@ export default function DashboardView({
         <MobileDashboardView
           teacher={teacher}
           greeting={greeting}
-          lastOpened={lastOpened}
-          ctaState={ctaState}
-          onContinue={onContinue}
+          hero={hero}
           recommendations={recommendations}
           savedCounts={savedCounts}
           launcherWarnings={launcherWarnings}
           checklist={checklist}
-          feed={feed}
-          activity={activity}
           loading={loading}
-          onRetryFeed={onRetryFeed}
           dark={dark}
           onToggleTheme={toggleTheme}
           onRequestLogout={openLogout}
-          showToast={showToast}
           banner={banner}
         />
         {logoutOpen ? (

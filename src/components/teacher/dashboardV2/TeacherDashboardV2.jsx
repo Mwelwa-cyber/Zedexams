@@ -9,6 +9,7 @@ import {
   AI_RECOMMENDATION,
   CHECKLIST_ITEMS,
   FEED_ITEMS,
+  HERO,
   LAST_OPENED,
   RECENT_DOCUMENTS,
   SAVED_COUNTS,
@@ -61,6 +62,7 @@ export default function TeacherDashboardV2() {
       <DashboardView
         teacher={TEACHER}
         termChip={TERM_CHIP}
+        hero={HERO}
         greeting={greeting}
         lastOpened={LAST_OPENED}
         ctaState={ctaState}
