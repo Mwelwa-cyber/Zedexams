@@ -233,23 +233,6 @@ export function activityFromResources(resources = [], { limit = 3, now = Date.no
   }))
 }
 
-/**
- * Documents-created-per-week series for the snapshot chart — an honest
- * activity trend (the platform has no per-class performance series to show
- * here yet). Buckets the last `weeks` calendar weeks, oldest first.
- */
-export function activitySeriesFromResources(resources = [], { now = Date.now(), weeks = 5 } = {}) {
-  const WEEK_MS = 7 * DAY_MS
-  const buckets = []
-  for (let i = weeks - 1; i >= 0; i--) {
-    const end = now - i * WEEK_MS
-    const start = end - WEEK_MS
-    const count = resources.filter((r) => r.createdAt > start && r.createdAt <= end).length
-    buckets.push({ date: shortDate(start), created: count })
-  }
-  return buckets
-}
-
 /** "15 Jul — Term 2 • Week 10" from the MoE forecast-week calendar. */
 export function termChipLabel(calendar, now = Date.now()) {
   if (!calendar) return ''

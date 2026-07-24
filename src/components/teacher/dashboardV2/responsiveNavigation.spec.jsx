@@ -11,11 +11,6 @@ beforeEach(() => {
   localStorage.setItem(TOUR_STORAGE_KEY, 'done')
 })
 
-// recharts' ResponsiveContainer needs real layout measurements jsdom can't
-// provide; stub the chart card so the rest of the dashboard renders.
-vi.mock('./PerformanceSnapshotCard', () => ({
-  default: () => <section aria-label="Performance Snapshot (stub)" />,
-}))
 // The mobile header bell reads the app-wide NotificationProvider (main.jsx);
 // specs mount without it, so stub the hook.
 vi.mock('../../../contexts/AuthContext', () => ({

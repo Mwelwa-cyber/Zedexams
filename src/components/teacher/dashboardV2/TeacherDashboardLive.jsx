@@ -67,8 +67,6 @@ export default function TeacherDashboardLive() {
         checklist={data.checklist}
         feed={data.feed}
         activity={data.activity}
-        series={data.series}
-        classPerformance={data.classPerformance}
         loading={data.loading}
         onRetryFeed={data.reload}
         onConfirmLogout={handleConfirmLogout}

@@ -14,7 +14,6 @@ import {
   checklistFromWeekPrep,
   feedFromState,
   activityFromResources,
-  activitySeriesFromResources,
   termChipLabel,
 } from './dashboardV2Data.js'
 
@@ -133,18 +132,11 @@ assert.equal(feed[2].kind, 'error')
 assert.equal(feed[2].retry, true)
 assert.deepEqual(feedFromState({ resources: [], gensError: false, now: NOW }), [])
 
-// ── activity rows + weekly series ────────────────────────────────────
+// ── activity rows ────────────────────────────────────────────────────
 const activity = activityFromResources(resources, { limit: 3, now: NOW })
 assert.equal(activity[0].title, 'Test Paper created')
 assert.equal(activity[1].title, 'Lesson Plan created')
 assert.equal(toolLabel('nonexistent_tool'), 'Document')
-
-const series = activitySeriesFromResources(resources, { now: NOW, weeks: 3 })
-assert.equal(series.length, 3)
-// createdAt 5d/6d ago land in the newest week bucket; 8d ago in the previous.
-assert.equal(series[2].created, 2)
-assert.equal(series[1].created, 1)
-assert.equal(series[0].created, 0)
 
 // ── term chip ────────────────────────────────────────────────────────
 assert.equal(termChipLabel({ termNumber: 2, weekNumber: 10 }, NOW), `${shortDate(NOW)} — Term 2 • Week 10`)
