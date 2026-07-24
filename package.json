@@ -11,6 +11,7 @@
     "test:unit:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:importer": "node src/components/quiz/documentQuizParserCore.test.js && node src/components/quiz/documentQuizTableBlocks.test.js && node src/components/quiz/documentQuizParagraphRuns.test.js",
+    "test:learner-home": "node scripts/test-learner-home-core.mjs",
     "test:scanned-import": "node functions/scannedQuizImport.test.js && node functions/scannedQuizReask.test.js && node src/components/quiz/scannedQuizImporter.test.js && node src/components/quiz/scannedQuizImporter.math.test.js",
     "test:quiz-grading-status": "node scripts/test-quiz-grading-status.mjs",
     "test:past-paper-parts": "node src/components/quiz/pastPaperParts.test.js",

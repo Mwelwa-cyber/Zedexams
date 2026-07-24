@@ -9,6 +9,7 @@ import PowerPointViewerPlayer from './PowerPointViewerPlayer'
 import { convertQuickLessonToSlides } from './quickLessonConverter'
 import { ensureEndSlide, getSlideAnswers } from './lessonConstants'
 import { slideToSpeechText } from './slideSpeech'
+import useLessonResume from '../../features/learnerHome/lib/lessonResume'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
@@ -87,6 +88,16 @@ export default function LessonPlayer() {
   }, [lesson])
 
   const answers = useMemo(() => lesson?.answers?.length ? lesson.answers : getSlideAnswers(slides), [lesson, slides])
+  // Dashboard "Continue Lesson" resume: records opened / position /
+  // completed into noteProgress (resourceType 'lesson') — at most three
+  // writes per viewing session, never per slide tap.
+  useLessonResume({
+    uid: currentUser?.uid || null,
+    lesson,
+    index,
+    slideCount: slides.length,
+    complete,
+  })
   const activeSlide = slides[index]
   const progress = complete ? 100 : slides.length ? Math.round(((index + 1) / slides.length) * 100) : 0
 
