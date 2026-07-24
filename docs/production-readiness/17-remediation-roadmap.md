@@ -78,6 +78,12 @@
   write + rehearse a hosting/functions/rules rollback runbook.
 - **Acceptance:** every admin mutation appears in `adminAuditLogs`; a missed backup/summary alerts;
   a rollback drill succeeds.
+- **Status (2026-07-24):** OBS-002 (audit-write-failure alert + loud client-fallback) and OBS-004
+  (second Slack-webhook alert channel + `opsHeartbeat` dead-man's-switch) are **done in code**;
+  CICD-005 rollback runbook is **written** (`runbooks/deploy-rollback.md`). Remaining are operator/
+  runtime steps: confirm `VITE_SENTRY_DSN` is live (OBS-001), run the rollback rehearsal drill, and
+  set `OPS_ALERT_WEBHOOK_URL`. The OBS-002 residual (rules server-only + ledger unification) is
+  tracked as a separate rules-emulator change.
 
 ### P1-5 · Staging environment + dependency/secret scanning in CI
 - **Priority:** P1 · **Findings:** CICD-002, CICD-003, CICD-004, CICD-007

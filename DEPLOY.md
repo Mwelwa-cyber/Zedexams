@@ -166,6 +166,11 @@ and merge; `deploy-firebase.yml` re-deploys the previous state. For a rules
 emergency, you can also edit them directly in the Firebase Console as a hotfix,
 then reconcile in git afterward.
 
+**Full runbook:** the per-surface decision tree, the emergency console
+fast-paths, the feature-flag/kill-switch options for functions, and a rehearsal
+drill live in
+[`docs/production-readiness/runbooks/deploy-rollback.md`](docs/production-readiness/runbooks/deploy-rollback.md).
+
 ---
 
 ## Smoke test after a user-facing deploy

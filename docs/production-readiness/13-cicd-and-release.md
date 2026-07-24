@@ -61,13 +61,18 @@ pinned to mutable tags, and **two production dependency vulnerabilities in `func
   emulator, then promote. **Launch blocker:** No (already live) but High-priority for safe iteration.
   **Complexity:** Medium.
 
-### CICD-005 — No documented rollback runbook for hosting/functions
-- **Severity:** Medium · **Confidence:** High confidence
-- **Affected:** `grep restore/rollback` finds only migration + syllabus-version rollbacks. Firebase
-  Hosting keeps prior releases (console rollback possible) but it is undocumented; functions/rules
-  rollback path is not written down.
-- **Correction:** Write a rollback runbook (hosting release rollback, functions redeploy of prior
-  tag, rules revert) and rehearse once. **Launch blocker:** No, but Phase 1. **Complexity:** Low.
+### CICD-005 — No documented rollback runbook for hosting/functions ✅ runbook written
+- **Severity:** Medium → Low (residual) · **Confidence:** High confidence
+- **Was:** `grep restore/rollback` found only migration + syllabus-version rollbacks. Firebase
+  Hosting keeps prior releases (console rollback possible) but it was undocumented; the
+  functions/rules rollback path was not written down.
+- **Fixed here:** [`runbooks/deploy-rollback.md`](./runbooks/deploy-rollback.md) — a per-surface
+  decision tree (hosting / functions / rules / indexes), the audit-trailed `git revert → PR → CI`
+  primary path, the emergency console fast-paths (Hosting release rollback, Firestore/Storage rules
+  history publish), the feature-flag/kill-switch options for functions, post-rollback verification,
+  and a safe rehearsal drill. `DEPLOY.md`'s "Rolling back" section links to it.
+- **Residual:** run the rehearsal drill once and record the measured hosting RTO (operator step).
+  **Launch blocker:** No.
 
 ### CICD-006 — New composite index async-build ordering risk
 - **Severity:** Medium · **Confidence:** High confidence
