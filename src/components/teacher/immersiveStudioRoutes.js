@@ -1,22 +1,25 @@
 /**
  * Immersive teacher-studio routes.
  *
- * The assessment / exam-paper studio (AssessmentStudio) is a full-screen editor
- * that renders its own fixed bottom dock (`.sv-dock` — Home / Build / Preview /
- * Key / AI). The global TeacherBottomNav is also `fixed` at the bottom, so on
- * these routes the two bars stack and the higher-z-index dark dock covers the
- * global nav's "Library" / "Assessments" labels (the classic "two bottom bars"
- * overlap bug). On the studio routes we suppress the global nav — the studio's
- * dock plus the top-bar back button are the navigation surface there.
+ * These are full-screen studios that render their OWN fixed bottom bar, so the
+ * global dashboard dock (Home / Register / Library / Assessments) must be
+ * suppressed — otherwise two `fixed` bottom bars stack and collide (the classic
+ * "two bottom bars" overlap bug). The studio's own bar plus the top-bar / mobile
+ * header back button are the navigation surface there.
  *
- * This matches the studio (`.../new` and `.../:id/edit`) but NOT the plain list
+ *   • Assessment / exam-paper studio (AssessmentStudio) → its own `.sv-dock`
+ *     (Home / Build / Preview / Key / AI).
+ *   • Lesson Plan Studio wizard (LessonPlanWizard) → its own `.lpw-nav`
+ *     (Back / Save & exit / Next / Generate).
+ *
+ * This matches each studio (`.../new` and `.../:id/edit`) but NOT the plain list
  * route (`/teacher/assessment-papers`), which keeps the global nav. Includes
  * the legacy test-papers/exam-papers/assessments paths too — they redirect
  * to the canonical route, but matching here avoids a one-frame nav flash
  * before the redirect commits.
  */
 const IMMERSIVE_STUDIO_PATH =
-  /^\/teacher\/(assessment-papers|test-papers|assessments|exam-papers)\/(new|[^/]+\/edit)\/?$/
+  /^\/teacher\/(assessment-papers|test-papers|assessments|exam-papers|lesson-plans)\/(new|[^/]+\/edit)\/?$/
 
 export function isImmersiveStudioPath(pathname = '') {
   return IMMERSIVE_STUDIO_PATH.test(pathname)
