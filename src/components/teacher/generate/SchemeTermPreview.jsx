@@ -23,6 +23,7 @@
 import { useMemo, useState } from 'react'
 import {
   divideTopicsByTerm,
+  toDivisionItems,
   validateTermSelection,
   crossTermDuplicates,
   weeksNeeded,
@@ -124,7 +125,7 @@ function TopicCard({ item, index, count, onRemove, onMove, onWeeks }) {
 /** One term's editable panel. */
 function TermPanel({
   term, items, removed, deliveryWeeks, totalWeeks, hasRevision, hasExam,
-  crossDup, onChange, onApprove, busy, focused,
+  crossDup, allTopics = [], onChange, onApprove, busy, focused,
 }) {
   const [manual, setManual] = useState('')
 
@@ -159,6 +160,22 @@ function TermPanel({
     setItems([...items, { id: nextId(), topic: name, subtopics: [], weeks: 1, source: 'teacher' }])
     setManual('')
   }
+  /** Add a topic chosen from the subject's syllabus dropdown, keeping its real
+   * sub-topics, estimated weeks and source so it looks/paces like a syllabus
+   * topic (not a bare "You added" one). */
+  function addFromSyllabus(indexStr) {
+    const idx = Number(indexStr)
+    if (!Number.isFinite(idx)) return
+    const t = allTopics.find((x) => x.index === idx)
+    if (!t) return
+    setItems([...items, {
+      id: nextId(),
+      topic: t.topic,
+      subtopics: Array.isArray(t.subtopics) ? t.subtopics : [],
+      weeks: t.weeks || 1,
+      source: t.source || 'syllabi_studio',
+    }])
+  }
   function addRevision() {
     setItems([...items, { id: nextId(), topic: 'Revision', subtopics: [], weeks: 1, source: 'teacher', isRevision: true }])
   }
@@ -168,6 +185,13 @@ function TermPanel({
     [items, deliveryWeeks, hasRevision, hasExam],
   )
   const used = weeksNeeded(items)
+
+  // Topic names already in THIS term, so the dropdown can mark them as added
+  // (a topic is normally taught in one term only).
+  const usedKeys = useMemo(
+    () => new Set(items.map((it) => String(it.topic || '').toLowerCase())),
+    [items],
+  )
 
   return (
     <div className={`rounded-2xl border p-4 sm:p-5 ${focused ? '' : 'opacity-95'}`} style={{ background: '#fdfbf4', borderColor: '#e6dcc0' }}>
@@ -209,19 +233,45 @@ function TermPanel({
       </div>
 
       {/* Add / revision controls */}
-      <div className="mt-3 flex flex-col sm:flex-row gap-2">
-        <input
-          type="text"
-          value={manual}
-          onChange={(e) => setManual(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addManual() } }}
-          placeholder="Add a topic manually…"
-          maxLength={140}
-          className="studio-input flex-1 text-sm"
-        />
-        <div className="flex gap-2">
-          <button type="button" onClick={addManual} className="studio-btn-ghost text-sm whitespace-nowrap">➕ Add topic</button>
-          <button type="button" onClick={addRevision} className="studio-btn-ghost text-sm whitespace-nowrap">📖 Add revision</button>
+      <div className="mt-3 space-y-2">
+        {/* Pick from the subject's syllabus — the full topic list for this
+            grade+subject, so the teacher can choose an exact topic instead of
+            typing it. */}
+        {allTopics.length > 0 && (
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wide" style={{ color: '#8a7a55' }}>
+              Add a topic from the syllabus
+            </label>
+            <select
+              value=""
+              onChange={(e) => { addFromSyllabus(e.target.value); e.target.value = '' }}
+              aria-label="Add a topic from the syllabus"
+              className="studio-input w-full text-sm mt-1"
+            >
+              <option value="">Choose a topic…</option>
+              {allTopics.map((t) => (
+                <option key={t.index} value={String(t.index)}>
+                  {t.topic}{usedKeys.has(String(t.topic).toLowerCase()) ? ' — already added' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {/* Or type your own topic that isn't in the syllabus. */}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            type="text"
+            value={manual}
+            onChange={(e) => setManual(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addManual() } }}
+            placeholder="Add a topic manually…"
+            maxLength={140}
+            className="studio-input flex-1 text-sm"
+          />
+          <div className="flex gap-2">
+            <button type="button" onClick={addManual} className="studio-btn-ghost text-sm whitespace-nowrap">➕ Add topic</button>
+            <button type="button" onClick={addRevision} className="studio-btn-ghost text-sm whitespace-nowrap">📖 Add revision</button>
+          </div>
         </div>
       </div>
 
@@ -272,6 +322,10 @@ export default function SchemeTermPreview({
     () => divideTopicsByTerm(topics, { weeksByTerm }),
     [topics, weeksByTerm],
   )
+
+  // The full grade+subject syllabus, normalised once, so each term's "Add a
+  // topic from the syllabus" dropdown can offer every topic of the subject.
+  const allTopics = useMemo(() => toDivisionItems(topics), [topics])
 
   // Editable per-term plan: { term: { items, removed } }. Seeded from the
   // division; re-seeded whenever the underlying division changes (new subject).
@@ -363,6 +417,7 @@ export default function SchemeTermPreview({
           hasRevision={termMeta[t]?.hasRevision || false}
           hasExam={termMeta[t]?.hasExam || false}
           crossDup={crossDup.length ? crossDup : []}
+          allTopics={allTopics}
           onChange={(next) => updateTerm(t, next)}
           onApprove={onApprove}
           busy={busy}
