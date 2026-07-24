@@ -31,6 +31,7 @@ import {
   X,
 } from 'lucide-react'
 import { useNotifications } from '../../../contexts/NotificationContext'
+import useHideOnScroll from '../../../hooks/useHideOnScroll'
 import NotificationCenter from '../../notifications/NotificationCenter'
 import BottomSheet from './BottomSheet'
 import MobileToolsScreen from './MobileToolsScreen'
@@ -298,9 +299,12 @@ export function NavDrawer({
  */
 export function MobileHeader({ drawerOpen, onOpenMenu }) {
   const { unreadCount, open: notifOpen, setOpen: setNotifOpen } = useNotifications()
+  // Auto-hide on scroll, like the learner/runner chrome: slides up on
+  // scroll-down, reveals on scroll-up. Stays pinned while the drawer is open.
+  const hidden = useHideOnScroll()
   return (
     <>
-      <header className="tdv2m-header">
+      <header className={`tdv2m-header tdv2m-autohide ${hidden && !drawerOpen ? 'is-hidden-top' : ''}`}>
         <button
           type="button"
           className="tdv2m-iconbtn"
@@ -379,9 +383,14 @@ function QuickCreateSheet({ open, onClose }) {
 export function MobileBottomNav() {
   const { pathname } = useLocation()
   const [createOpen, setCreateOpen] = useState(false)
+  // Matches the header: slides down on scroll-down, reveals on scroll-up.
+  const hidden = useHideOnScroll()
   return (
     <>
-      <div className="tdv2m-dockbar" data-tour="nav">
+      <div
+        className={`tdv2m-dockbar tdv2m-autohide ${hidden && !createOpen ? 'is-hidden-bottom' : ''}`}
+        data-tour="nav"
+      >
         <nav className="tdv2m-dock" aria-label="Quick navigation">
           {BOTTOM_NAV.map(({ id, label, icon: NavIcon, to }) => {
             const active =
