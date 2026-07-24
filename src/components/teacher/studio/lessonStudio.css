@@ -356,6 +356,52 @@
   }
 }
 
+/* Floating-bar shrink-on-scroll. While the teacher scrolls DOWN the bar
+   collapses to a compact strip (buttons get shorter + smaller type) so the
+   form has more room; scrolling UP or reaching the top grows it back to full
+   size. Driven by the `.lpw-nav--compact` class (useHideOnScroll). The size
+   props animate; transform/box-shadow keep their own fast press timing so the
+   sticker "press down" feedback stays snappy. */
+.lpw-nav {
+  transition: padding 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lpw-nav .lps-btn-primary,
+.lpw-nav .lps-btn-ghost {
+  transition:
+    transform 80ms ease,
+    box-shadow 80ms ease,
+    background 0.15s ease,
+    min-height 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    padding 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    font-size 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    gap 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lpw-nav--compact {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+@media (min-width: 1024px) {
+  .lpw-nav--compact {
+    padding-bottom: calc(5px + env(safe-area-inset-bottom, 0px));
+  }
+}
+.lpw-nav--compact .lps-btn-primary,
+.lpw-nav--compact .lps-btn-ghost {
+  min-height: 38px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  font-size: 12px;
+  gap: 5px;
+  box-shadow: 0 2px 0 #0f1b2d;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lpw-nav,
+  .lpw-nav .lps-btn-primary,
+  .lpw-nav .lps-btn-ghost {
+    transition: none;
+  }
+}
+
 /* Gentle slide/fade when the active step changes. */
 @keyframes lpwStepEnter {
   from {
