@@ -5,10 +5,6 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
 import TeacherDashboardLive from './TeacherDashboardLive'
 
-// recharts needs real layout measurement; stub the chart card.
-vi.mock('./PerformanceSnapshotCard', () => ({
-  default: () => <section aria-label="Activity Snapshot (stub)" />,
-}))
 vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
 vi.mock('../../../contexts/NotificationContext', () => ({
   useNotifications: () => ({ unreadCount: 2, open: false, setOpen: () => {} }),
@@ -40,7 +36,6 @@ const hookData = {
   checklist: [{ id: 'focus', label: 'Weekly Focus: 2 of 5 days prepared', done: 2, total: 5, to: '/x' }],
   feed: [{ id: 'feed-error', kind: 'error', title: 'Couldn’t load your library', body: 'Check your connection and try again.', retry: true }],
   activity: [{ id: 'g1', title: 'Lesson Plan created', meta: 'Lesson Plan • Grade 4', time: '2d ago', tool: 'lesson_plan', to: '/teacher/library/g1' }],
-  series: [{ date: '8 Jul', created: 2 }],
   recommendations: [
     { id: 'r1', title: 'Mathematics is not planned yet', text: 'Create a Scheme of Work.', actionLabel: 'Create Scheme', to: '/teacher/generate/scheme-of-work' },
     { id: 'r2', title: 'Record of Work needs updating', text: 'Log this week.', actionLabel: 'Update record', to: '/teacher/generate/record-of-work' },

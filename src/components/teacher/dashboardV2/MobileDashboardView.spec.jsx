@@ -14,9 +14,6 @@ beforeEach(() => {
 
 // Force the mobile information architecture regardless of jsdom viewport.
 vi.mock('./useIsMobile', () => ({ default: () => true }))
-vi.mock('./PerformanceSnapshotCard', () => ({
-  default: () => <section aria-label="Activity Snapshot (stub)" />,
-}))
 vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ isTeacher: true, currentUser: null, userProfile: null }),
 }))

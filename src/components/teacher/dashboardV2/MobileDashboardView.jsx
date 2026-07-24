@@ -30,7 +30,6 @@ import CopperButton from './CopperButton'
 import AiRecommendationsCard from './AiRecommendationsCard'
 import TeacherAppLauncher from './launcher/TeacherAppLauncher'
 import { ChecklistCard, FeedStatusCard, RecentActivityCard } from './InsightCards'
-import PerformanceSnapshotCard from './PerformanceSnapshotCard'
 import { NAV_GROUPS, QUICK_CREATE_TILES } from './dashboardV2Config'
 // Small notebook illustration, upper-right of the hero (hidden < 350px)
 import heroDesk from '../../../assets/teacher/hero-desk.webp'
@@ -384,8 +383,6 @@ export default function MobileDashboardView({
   checklist,
   feed,
   activity,
-  series,
-  classPerformance = null,
   loading = false,
   onRetryFeed,
   dark = false,
@@ -498,7 +495,6 @@ export default function MobileDashboardView({
         <ChecklistCard items={checklist} loading={loading} />
         <FeedStatusCard items={feed} onRetry={() => onRetryFeed?.({ showToast })} />
         <RecentActivityCard items={activity} />
-        <PerformanceSnapshotCard series={series} classPerformance={classPerformance} dark={dark} />
       </main>
 
       <MobileBottomNav drawerOpen={drawerOpen} onMore={() => setDrawerOpen(true)} />
