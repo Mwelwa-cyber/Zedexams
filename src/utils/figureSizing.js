@@ -148,6 +148,36 @@ export function figureBox({
 }
 
 /**
+ * The size a decoded image is actually embedded at.
+ *
+ * Two rules meet here, and the order matters:
+ *
+ *  - Never upscale past the source's natural size. An enlarged small picture is
+ *    a blurry one, and the studio preview scales with `max-width`, so a figure
+ *    blown up in the download would not match what the teacher saw.
+ *  - Unless the level's floor requires it. At Early Childhood a legible-but-soft
+ *    picture beats a crisp one a child cannot make out — the floor is a
+ *    pedagogical requirement, not a preference, so it outranks sharpness.
+ *
+ * `box` is the output of `figureBox` computed against the image's REAL aspect
+ * ratio. Sizing against an assumed ratio and re-fitting afterwards silently
+ * undoes the floor for every figure that is not that shape.
+ */
+export function embedBox(box, naturalWidth, naturalHeight) {
+  const nw = Number(naturalWidth)
+  const nh = Number(naturalHeight)
+  if (!box) return { width: 0, height: 0 }
+  const fallback = { width: box.width, height: box.height }
+  if (box.raisedToFloor) return fallback
+  if (!Number.isFinite(nw) || !Number.isFinite(nh) || nw <= 0 || nh <= 0) return fallback
+  const scale = Math.min(box.width / nw, box.height / nh, 1)
+  return {
+    width: Math.max(1, Math.round(nw * scale)),
+    height: Math.max(1, Math.round(nh * scale)),
+  }
+}
+
+/**
  * Does this box still fall short of the level's requirement?
  *
  * True only when the page could not accommodate the floor — the one case

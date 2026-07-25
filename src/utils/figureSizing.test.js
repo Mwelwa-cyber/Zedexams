@@ -17,7 +17,7 @@
 import assert from 'node:assert/strict'
 import {
   figureBox, minFigureMm, mmToPt, mmToPx, ptToMm, pxToMm,
-  isBelowBandMinimum, figureSizeWarning, FIGURE_RASTER_SCALE,
+  isBelowBandMinimum, figureSizeWarning, embedBox, FIGURE_RASTER_SCALE,
 } from './figureSizing.js'
 import { ASSESSMENT_BAND_SEED } from '../config/assessmentBands.js'
 
@@ -175,6 +175,41 @@ test('no band means nothing to warn about', () => {
   const box = figureBox({ maxWidth: 20, maxHeight: 20 })
   assert.equal(isBelowBandMinimum(box, null), false)
   assert.equal(figureSizeWarning(box, null), '')
+})
+
+/* ── what is actually embedded ──────────────────────────────────────────── */
+
+console.log('\n— natural size vs the floor —')
+
+test('a picture is never blown up past its own resolution', () => {
+  // The studio preview scales with max-width, so an upscaled download would
+  // stop matching what the teacher saw — and look blurry doing it.
+  const box = figureBox({ maxWidth: 360, maxHeight: 400 })
+  const embedded = embedBox(box, 80, 60)
+  assert.equal(embedded.width, 80)
+  assert.equal(embedded.height, 60)
+})
+
+test('…unless the level requires it, and then legibility wins', () => {
+  const box = figureBox({ maxWidth: 360, maxHeight: 400, widthPercent: 25, band: EARLY })
+  assert.equal(box.raisedToFloor, true, 'precondition: the floor engaged')
+  const embedded = embedBox(box, 80, 60)
+  assert.equal(embedded.width, box.width, 'the floor beats the no-upscale rule')
+  assert.ok(embedded.width > 80, 'so a small source is enlarged rather than left illegible')
+})
+
+test('a big picture is fitted down to the box, keeping its shape', () => {
+  const box = figureBox({ maxWidth: 360, maxHeight: 400, aspect: 2 })
+  const embedded = embedBox(box, 4000, 2000)
+  assert.ok(embedded.width <= box.width && embedded.height <= box.height)
+  assert.ok(Math.abs(embedded.width / embedded.height - 2) < 0.05, 'aspect ratio preserved')
+})
+
+test('unknown natural dimensions fall back to the box, not to nothing', () => {
+  const box = figureBox({ maxWidth: 360, maxHeight: 400 })
+  for (const [w, h] of [[0, 0], [null, 100], ['wide', 'tall'], [undefined, undefined]]) {
+    assert.deepEqual(embedBox(box, w, h), { width: box.width, height: box.height }, `${w}×${h}`)
+  }
 })
 
 /* ── the raster ─────────────────────────────────────────────────────────── */

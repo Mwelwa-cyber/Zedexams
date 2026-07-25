@@ -41,7 +41,7 @@ import {
 import { attributionSection, attributionFooter, attributionWatermarkParagraph } from './docxAttribution.js'
 import { buildPaperLayout, DEFAULT_ANSWER_LINES } from './assessmentPaperLayout.js'
 import { resolveImageWidthPercent } from './imageWidth.js'
-import { figureBox } from './figureSizing.js'
+import { figureBox, embedBox } from './figureSizing.js'
 import { resolveFigureLabels } from './figureLabelLayout.js'
 import { seedBandForLevel } from './assessmentBandService.js'
 import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
@@ -436,16 +436,6 @@ function imageRun(bytes, transformation, alt = '') {
   })
 }
 
-// Fit (w,h) inside a box, preserving aspect ratio (never upscaling). The
-// studio preview scales pictures with `max-width`, so a fixed width×height
-// here would stretch them; this keeps the downloaded paper matching the
-// preview. Falls back to the box when natural dimensions are unknown.
-function fitWithin(width, height, maxWidth, maxHeight) {
-  if (!width || !height) return { width: maxWidth, height: maxHeight }
-  const scale = Math.min(maxWidth / width, maxHeight / height, 1)
-  return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) }
-}
-
 // Decode image bytes in the browser to read natural dimensions and, for
 // formats Word can't embed (WEBP — which the picture bank stores as-is),
 // transcode to PNG. An object URL keeps the canvas same-origin so it is
@@ -508,13 +498,7 @@ async function loadImageRun(url, { width = 360, height = 220, widthPercent = 100
     widthPercent,
     band: currentBand,
   })
-  // Never upscale past the source's natural size — an enlarged small picture is
-  // a blurry one — UNLESS the level's floor requires it. At Early Childhood a
-  // legible-but-soft picture beats a crisp one a child cannot make out.
-  const fit = box.raisedToFloor
-    ? { width: box.width, height: box.height }
-    : fitWithin(decoded.width, decoded.height, box.width, box.height)
-  return imageRun(decoded.bytes, fit, alt)
+  return imageRun(decoded.bytes, embedBox(box, decoded.width, decoded.height), alt)
 }
 
 // Read the intrinsic aspect ratio from an SVG's viewBox so the rasterized PNG
@@ -522,13 +506,40 @@ async function loadImageRun(url, { width = 360, height = 220, widthPercent = 100
 /**
  * The band governing the paper currently being built (§4.2).
  *
- * Set once per document and read by the figure sizing below, which needs the
- * level's minimum figure size. Resolved from the PUBLISHED DEFAULTS rather than
- * Firestore: the exporter runs synchronously per figure, an export must not
- * block on a config read, and a stale-by-one-edit minimum is far better than
- * none — which is what every figure had until now.
+ * Read by every figure below, which needs the level's minimum size. Published
+ * defaults only — a figure is sized synchronously and an export must not block
+ * on a Firestore read; a stale-by-one-edit minimum beats none, which is what
+ * every figure had until Phase 4.
+ *
+ * It is module state because the figure sizing sits a dozen frames below the
+ * entry point and threading a band through every renderer would be a wide
+ * change for one value. `withBand` is therefore the ONLY way it is written:
+ * it restores the previous value on the way out, so one document can never
+ * inherit another's floor — the bug the SBA export had, calling
+ * `renderPaperBlocksToDocx` directly and picking up whatever an earlier
+ * assessment download left behind.
+ *
+ * Save-and-restore makes sequential exports safe. It does NOT make overlapping
+ * ones safe: two `await`ed builds running at once would still interleave. Every
+ * caller today awaits a single user-initiated download, and there is no batch
+ * path — if one is ever added, the band has to be threaded properly.
  */
 let currentBand = null
+
+/** Run `fn` with `band` in force, restoring whatever was there before. */
+async function withBand(band, fn) {
+  const previous = currentBand
+  currentBand = band || null
+  try {
+    return await fn()
+  } finally {
+    // Restoring across an await is the point: it scopes the band to one
+    // document. The rule below is flagging the concurrency limitation
+    // documented above — real, and accepted: no caller runs two exports at once.
+    // eslint-disable-next-line require-atomic-updates
+    currentBand = previous
+  }
+}
 
 function svgAspect(svg) {
   const m = /viewBox="[\d.]+ [\d.]+ ([\d.]+) ([\d.]+)"/.exec(svg || '')
@@ -742,14 +753,16 @@ function imageFallbackBlock(alt = '') {
  * label onto `stats.failedImages`, so callers can warn the teacher instead of
  * shipping a silently-degraded paper.
  */
-export async function renderPaperBlocksToDocx(blocks = [], stats = null) {
-  const children = []
-  for (const block of blocks) {
-    const rendered = await renderBlock(block, stats)
-    if (Array.isArray(rendered)) children.push(...rendered)
-    else if (rendered) children.push(rendered)
-  }
-  return children
+export async function renderPaperBlocksToDocx(blocks = [], stats = null, { band = null } = {}) {
+  return withBand(band, async () => {
+    const children = []
+    for (const block of blocks) {
+      const rendered = await renderBlock(block, stats)
+      if (Array.isArray(rendered)) children.push(...rendered)
+      else if (rendered) children.push(rendered)
+    }
+    return children
+  })
 }
 
 function recordImageFailure(stats, label) {
@@ -1465,11 +1478,15 @@ async function renderQuestion(b, stats = null) {
 }
 
 export async function buildAssessmentDocument(assessment, questions, { mode = 'paper', attribution = false, stats = null } = {}) {
-  // Resolve the level's band ONCE for this document — every figure below reads
-  // its minimum size from it (§4.2). Published defaults only; see `currentBand`.
-  currentBand = seedBandForLevel(assessment && assessment.grade) || null
+  // The level's band governs the figures in the PAPER (§4.2). Scoping it to the
+  // block render rather than the whole function also keeps it off the school
+  // logo below — a logo is a mark on the letterhead, not a figure a learner has
+  // to read, and floor-raising it to 45mm on a Nursery paper would swamp the
+  // header. Published defaults only; see `currentBand`.
   const blocks = buildPaperLayout(assessment, questions, { mode })
-  const children = await renderPaperBlocksToDocx(blocks, stats)
+  const children = await renderPaperBlocksToDocx(blocks, stats, {
+    band: seedBandForLevel(assessment && assessment.grade) || null,
+  })
 
   // Pre-fetch the school logo for the Word header. The PDF reads b.logoUrl ||
   // b.schoolLogoUrl; mirror that lookup so both exports stay in step.

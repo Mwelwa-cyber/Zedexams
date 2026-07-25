@@ -444,6 +444,38 @@ console.log('\nLabelled-diagram markers composite onto the Word image (buildDiag
   assert(svg.includes('H2O &lt;gas&gt; &amp; air'), 'label text is XML-escaped in the pill')
 }
 
+console.log('\nThe level\'s band is scoped to one document, not the process (§4.2)')
+{
+  // The band is module state — the figure sizing sits a dozen frames below the
+  // entry point. That made it leak: the SBA export called the shared block
+  // renderer directly and never set a band, so its figures were sized against
+  // whatever an earlier assessment download happened to leave behind. Every
+  // entry point now scopes it and restores the previous value on the way out.
+  globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => PNG_1x1.buffer.slice(0) })
+  const figureQ = [{
+    id: 'q1', order: 1, type: 'diagram', marks: 1, text: 'Look at the picture.',
+    imageUrl: 'https://example/pic.png', imageWidth: 'small',
+  }]
+  const emu = async (grade) => {
+    const doc = await buildAssessmentDocument(
+      { subject: 'Science', grade, showNameField: false, showDateField: false, showMarksField: false },
+      figureQ, { mode: 'paper' },
+    )
+    const xml = strFromU8(unzipSync(new Uint8Array(await Packer.toBuffer(doc)))['word/document.xml'])
+    const m = /<wp:extent cx="(\d+)"/.exec(xml)
+    return m ? Number(m[1]) : 0
+  }
+  const nurseryFirst = await emu('ECE_N')
+  const formFour = await emu('11')
+  const nurseryAgain = await emu('ECE_N')
+  assert(nurseryFirst > formFour, `Nursery figures are bigger than Form 4 ones (${nurseryFirst} vs ${formFour})`)
+  assert(nurseryFirst === nurseryAgain, 'and a Nursery paper renders the same after a Form 4 one (no leak)')
+  // The Form 4 paper must not have inherited the Nursery floor from the run
+  // before it either — that is the same bug in the other direction.
+  const formFourAgain = await emu('11')
+  assert(formFour === formFourAgain, 'a Form 4 paper renders the same after a Nursery one')
+}
+
 console.log('\nThe Word overlay places labels through the shared resolver (§4.2)')
 {
   // A leader line must LEAVE the pill. It used to start at the label's centre,
