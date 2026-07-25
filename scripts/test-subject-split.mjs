@@ -668,6 +668,121 @@ test('an English record moves only when its topics say Literature in English', (
   }
 })
 
+test('RE 2044 and RE 2046 are separate scopes, each owning its own 10.1-10.4', () => {
+  // The collision that motivated the split: both syllabi open at 10.1 and run to
+  // 10.4, so under one key those four codes each had two different topics. Under
+  // two keys each code resolves to exactly one subject.
+  const pairs = [
+    ['10.1 Work in a changing society.', 'religious_education_2044'],
+    ['10.2 Leisure in a changing society', 'religious_education_2044'],
+    ['10.3 Justice in Society', 'religious_education_2044'],
+    ['10.4 Service in Society', 'religious_education_2044'],
+    ['10.1 BIRTH AND INFANCY OF JOHN THE BAPTIST AND JESUS', 'religious_education_2046'],
+    ['10.2 Ministry and Death of John the Baptist', 'religious_education_2046'],
+    ['10.3 BAPTISM', 'religious_education_2046'],
+    ['10.4 TEMPTATION', 'religious_education_2046'],
+  ]
+  for (const [topic, subject] of pairs) {
+    assert.equal(
+      topicIndex.get(`previous|G10|${topicMatchKey(topic)}`), subject,
+      `${topic} must be owned by ${subject} alone`,
+    )
+  }
+  // And the plain key owns nothing in the 2013 senior set any more — if it did,
+  // the codes would still be contested.
+  for (const grade of ['G10', 'G11', 'G12']) {
+    assert.ok(
+      !presence.has(`previous|${grade}|religious_education`),
+      `religious_education must have no 2013 rows at ${grade}`,
+    )
+    for (const key of ['religious_education_2044', 'religious_education_2046']) {
+      assert.ok(presence.has(`previous|${grade}|${key}`), `${key} missing at ${grade}`)
+    }
+  }
+})
+
+test('a Religious Education record moves only in the 2013 senior set', () => {
+  // 2044 topics → reassigned.
+  const thematic = classifyRecord({
+    subject: 'religious_education', grade: 'G10', curriculum: '2013',
+    topics: ['10.1 Work in a changing society.', '10.3 Justice in Society'],
+  }, ctx)
+  assert.equal(thematic.outcome, OUTCOMES.CLASSIFIED)
+  assert.equal(thematic.subject, 'religious_education_2044')
+
+  // 2046 topics → reassigned the other way.
+  const biblical = classifyRecord({
+    subject: 'religious_education', grade: 'G10', curriculum: '2013',
+    topics: ['10.3 BAPTISM', '10.4 TEMPTATION'],
+  }, ctx)
+  assert.equal(biblical.outcome, OUTCOMES.CLASSIFIED)
+  assert.equal(biblical.subject, 'religious_education_2046')
+
+  // A paper drawing on both is reported, never assigned to the first.
+  const spanning = classifyRecord({
+    subject: 'religious_education', grade: 'G10', curriculum: '2013',
+    topics: ['10.1 Work in a changing society.', '10.4 TEMPTATION'],
+  }, ctx)
+  assert.equal(spanning.outcome, OUTCOMES.AMBIGUOUS)
+  assert.equal(spanning.subject, 'religious_education', 'the stored key is left alone')
+  assert.match(spanning.evidence, /span religious_education_2044 and religious_education_2046/)
+
+  // At 2013 senior the plain key IS retired, so no evidence is a real ambiguity.
+  const stranded = classifyRecord({
+    subject: 'religious_education', grade: 'G12', curriculum: '2013',
+    topics: ['Revision of the whole syllabus'],
+  }, ctx)
+  assert.equal(stranded.outcome, OUTCOMES.AMBIGUOUS)
+
+  // The CBC never divides RE, so a CBC record is confirmed where it is at every
+  // grade — including the senior grades the 2013 split applies to.
+  for (const grade of ['ECE_N', 'G1', 'G7', 'G9', 'G10', 'G12']) {
+    const v = classifyRecord({
+      subject: 'religious_education', grade, curriculum: '2023', topics: [],
+    }, ctx)
+    assert.equal(v.outcome, OUTCOMES.UNCHANGED, `CBC RE at ${grade} must be left alone`)
+    assert.equal(v.subject, 'religious_education')
+  }
+
+  // The source-syllabus field decides on its own, in both directions.
+  for (const [doc, expected, outcome] of [
+    ['Religious Education 2044 Syllabus (Grades 10-12, 2013)', 'religious_education_2044', OUTCOMES.CLASSIFIED],
+    ['Religious Education 2046 Syllabus (Grades 10-12, 2013)', 'religious_education_2046', OUTCOMES.CLASSIFIED],
+    ['Religious Education Syllabus (Forms 1-4)', 'religious_education', OUTCOMES.UNCHANGED],
+  ]) {
+    const v = classifyRecord({
+      subject: 'religious_education', grade: 'G11', curriculum: '2013', sourceSyllabus: doc, topics: [],
+    }, ctx)
+    assert.equal(v.outcome, outcome, doc)
+    assert.equal(v.subject, expected, doc)
+  }
+})
+
+test('a grade with no digitised rows for any candidate is left alone, not stranded', () => {
+  // The 2013 set is only digitised in parts: it carries no Religious Education
+  // sheet below Grade 10 at all. Narrowing by presence therefore yields NOTHING
+  // for an OBC junior record — which says the catalogue is missing, not that the
+  // record is on a dead key. Reading it as evidence would flag every such record
+  // and bury the senior ones that genuinely need a human.
+  assert.ok(!presence.has('previous|G8|religious_education'), 'precondition: no rows')
+  for (const key of ['religious_education_2044', 'religious_education_2046']) {
+    assert.ok(!presence.has(`previous|G8|${key}`), 'precondition: no rows for either half')
+  }
+  const junior = classifyRecord({
+    subject: 'religious_education', grade: 'G8', curriculum: '2013',
+    topics: ['Creation stories'],
+  }, ctx)
+  assert.equal(junior.outcome, OUTCOMES.UNCHANGED)
+  assert.equal(junior.subject, 'religious_education')
+
+  // But a RETIRED combined key is never among its own candidates, so the same
+  // empty narrowing still sends it to the review pile.
+  const retired = classifyRecord({
+    subject: 'commerce_and_principles_of_accounts', grade: 'G3', curriculum: '2013', topics: [],
+  }, ctx)
+  assert.equal(retired.outcome, OUTCOMES.AMBIGUOUS)
+})
+
 test('a topic label claimed by two candidate subjects is not used as evidence', () => {
   // Both syllabi contain a topic called "Entrepreneurship" at some grade. Where a
   // label is contested inside one curriculum+grade it is dropped from the index,

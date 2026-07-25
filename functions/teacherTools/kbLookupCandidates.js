@@ -92,8 +92,10 @@ const STUDIO_SUBJECT_TO_KB_2013 = {
   "Home Management Syllabus (Grades 10-12, 2013)": "home_management",
   "Mathematics Syllabus (Grades 10-12, 2013)": "mathematics",
   "Physical Education Syllabus (Grades 10-12, 2013)": "physical_education",
-  "Religious Education 2044 Syllabus (Grades 10-12, 2013)": "religious_education",
-  "Religious Education 2046 Syllabus (Grades 10-12, 2013)": "religious_education",
+  // Two distinct ECZ examinable syllabi, each numbered from 10.1 — see the
+  // mirror in src/utils/syllabus2013Topics.js.
+  "Religious Education 2044 Syllabus (Grades 10-12, 2013)": "religious_education_2044",
+  "Religious Education 2046 Syllabus (Grades 10-12, 2013)": "religious_education_2046",
 };
 
 // Sheet-name prefix ("form 1") → KB grade code. Used by

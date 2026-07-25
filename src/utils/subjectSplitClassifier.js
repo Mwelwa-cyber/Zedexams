@@ -69,6 +69,17 @@ export const SPLIT_SOURCES = Object.freeze({
   // English language syllabus everywhere, with Literature in English folded into
   // it. Only records authored against Literature topics move.
   english: ['english', 'literature_in_english'],
+  // `religious_education` divides only in the 2013 senior-secondary set, where
+  // RE 2044 and RE 2046 are separately examined syllabi both numbered from 10.1.
+  // Everywhere else — the whole CBC, and the OBC below senior secondary — it is
+  // still the one correct key, so it stays among its own candidates and the
+  // curriculum+grade narrowing below is what confines the split to G10-G12 of
+  // the 2013 curriculum.
+  religious_education: [
+    'religious_education',
+    'religious_education_2044',
+    'religious_education_2046',
+  ],
 })
 
 /** Outcome codes. `unchanged` means "correctly on this key already". */
@@ -93,6 +104,9 @@ const SOURCE_DOCUMENT_SUBJECTS = Object.freeze({
   'English Syllabus (Forms 1-4)': 'english',
   'English Language Syllabus (Grades 4-6)': 'english',
   'English Language Syllabus (Grades 2-7, 2013)': 'english',
+  'Religious Education 2044 Syllabus (Grades 10-12, 2013)': 'religious_education_2044',
+  'Religious Education 2046 Syllabus (Grades 10-12, 2013)': 'religious_education_2046',
+  'Religious Education Syllabus (Forms 1-4)': 'religious_education',
 })
 
 function clean(value) {
@@ -271,9 +285,20 @@ export function classifyRecord(record, {
   const topics = recordTopics(record)
 
   // Narrow to the candidates that exist at all at this curriculum + grade.
-  const possible = subjectPresence && grade
+  const narrowed = subjectPresence && grade
     ? candidates.filter((c) => subjectPresence.has(`${curriculum}|${grade}|${c}`))
     : candidates
+
+  // Narrowing to NOTHING is the one result that must not be read as an answer.
+  // It means this curriculum+grade has no digitised rows for any candidate — a
+  // missing catalogue, not evidence that the record is stranded. The 2013 set
+  // is only digitised in parts, so reading absence as evidence would report
+  // every OBC junior-secondary Religious Education record as needing a human,
+  // and bury the senior records that genuinely do. Fall back to the unnarrowed
+  // list and let the incumbent's own validity decide: a live key stays, a
+  // retired combined key (which is never among its own candidates) still goes
+  // to the review pile.
+  const possible = narrowed.length ? narrowed : candidates
 
   // Already correct: no other candidate subject is even taught here.
   if (possible.length === 1 && possible[0] === from) {

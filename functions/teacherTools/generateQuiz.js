@@ -67,6 +67,8 @@ const ALLOWED_SUBJECTS = new Set([
   "commerce", "principles_of_accounts",
   "food_and_nutrition", "fashion_and_fabrics", "mathematics_ii",
   "literature_in_english",
+  // The 2013 senior RE split: two separately examined ECZ syllabi.
+  "religious_education_2044", "religious_education_2046",
   // Not previously listed here, so this generator rejected the pick outright.
   "hospitality_management",
 ]);
