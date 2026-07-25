@@ -47,6 +47,11 @@ const generateAssessmentCallable = httpsCallable(functions, 'generateAssessment'
 const planAssessmentCallable = httpsCallable(functions, 'planAssessment', {
   timeout: 45_000, // server: 60s
 })
+// One question, bound to its slot in the paper's plan (§3.6). Haiku + a single
+// item, so this is fast; a long wait means something is wrong.
+const regenerateAssessmentQuestionCallable = httpsCallable(
+  functions, 'regenerateAssessmentQuestion', { timeout: 60_000 }, // server: 60s
+)
 const generateSbaTaskCallable = httpsCallable(functions, 'generateSbaTask', {
   timeout: 120_000, // server: 120s — single SBA task with its marking scheme
 })
@@ -772,6 +777,37 @@ export async function planAssessment(inputs) {
     return { ok: true, data: result.data }
   } catch (error) {
     console.error('[zedexams] planAssessment ← FAILED after',
+      Date.now() - startedAt, 'ms', { code: error?.code, message: error?.message })
+    return {
+      ok: false,
+      error: messageFromError(error),
+      code: error?.code || 'unknown',
+      rawMessage: error?.message || '',
+      details: error?.details || null,
+    }
+  }
+}
+
+/**
+ * Rewrite ONE question of an assessment, bound to the slot it occupies in the
+ * paper's plan — same marks, same topic, same outcome, same thinking level, same
+ * structure — so the paper stays balanced and every other question is untouched.
+ *
+ * Metered on the cheap per-question allowance, not the paper allowance: fixing
+ * one question must not cost a whole paper.
+ */
+export async function regenerateAssessmentQuestion(inputs) {
+  const startedAt = Date.now()
+  try {
+    const result = await withTimeout(
+      regenerateAssessmentQuestionCallable(inputs), 60_000,
+      'regenerateAssessmentQuestion',
+    )
+    console.info('[zedexams] regenerateAssessmentQuestion ← ok in',
+      Date.now() - startedAt, 'ms')
+    return { ok: true, data: result.data }
+  } catch (error) {
+    console.error('[zedexams] regenerateAssessmentQuestion ← FAILED after',
       Date.now() - startedAt, 'ms', { code: error?.code, message: error?.message })
     return {
       ok: false,

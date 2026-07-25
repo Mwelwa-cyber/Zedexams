@@ -124,6 +124,8 @@ const {
   createGenerateAssessment,
 } = require("./teacherTools/generateAssessment");
 const {createPlanAssessment} = require("./teacherTools/planAssessment");
+const {createRegenerateAssessmentQuestion} =
+  require("./teacherTools/regenerateAssessmentQuestion");
 // Teacher Tools — SBA Studio (ECZ School Based Assessment task generator).
 const {
   createGenerateSbaTask,
@@ -2572,6 +2574,13 @@ exports.generateAssessment = createGenerateAssessment(anthropicApiKey);
 // no usage charge: Firestore reads and arithmetic. The plan the teacher confirms
 // is sent back with the generate call and re-checked there.
 exports.planAssessment = createPlanAssessment();
+
+// Teacher Tools — rewrite ONE question of a paper (§3.6), bound to the slot that
+// question occupies in the paper's plan so the paper stays balanced. Cheap (Haiku,
+// one item) and metered on revise_question, not the paper allowance: fixing one
+// question must not cost a whole paper.
+exports.regenerateAssessmentQuestion =
+  createRegenerateAssessmentQuestion(anthropicApiKey);
 
 // Teacher Tools — SBA Studio (ECZ School Based Assessment task, Grades 5–7).
 exports.generateSbaTask = createGenerateSbaTask(anthropicApiKey);

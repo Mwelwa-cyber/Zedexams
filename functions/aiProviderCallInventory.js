@@ -59,6 +59,7 @@ const LIMITED = [
   {name: "analyzePaperLayout", file: "teacherTools/testPaperImport/layoutPass.js", check: 'action: "paper-layout"'},
   {name: "suggestAnswer", file: "teacherTools/suggestAnswer.js", check: 'action: "suggestAnswer"'},
   {name: "reviseQuestion", file: "teacherTools/reviseQuestion.js", check: 'action: "reviseQuestion"'},
+  {name: "regenerateAssessmentQuestion", file: "teacherTools/regenerateAssessmentQuestion.js", check: 'action: "regenerateAssessmentQuestion"'},
   {name: "aiLessonCount", file: "teacherTools/lessonCount.js", check: 'action: "aiLessonCount"'},
   {name: "reviseLessonSection", file: "teacherTools/reviseLessonSection.js", check: 'action: "reviseLessonSection"'},
   {name: "studioGenerateLessonPlan", file: "teacherTools/studioLessonPlan.js", check: 'action: "studioGenerateLessonPlan"'},

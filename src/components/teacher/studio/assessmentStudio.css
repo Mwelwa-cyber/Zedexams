@@ -838,6 +838,31 @@
   border-left-color: var(--sv-gold);
   background: #FFFBF3;
 }
+/* "This one is finished." A locked question is never rewritten by a
+   single-question regeneration, and no validation pass or migration may
+   overwrite it. Deliberately quieter than the "Not finished" tag — a lock is
+   the teacher's own decision, not a problem to fix. */
+.studio-v2 .sv-q-locked-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: var(--sv-s2);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--sv-soft);
+  color: var(--sv-muted);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* A toggled-on card tool (today: the lock). */
+.studio-v2 .sv-tool.active {
+  background: var(--sv-tinted);
+  color: var(--sv-primary);
+  box-shadow: inset 0 0 0 1.5px var(--sv-primary);
+}
+
 .studio-v2 .sv-q-incomplete-tag {
   display: inline-flex;
   align-items: center;

@@ -177,7 +177,7 @@ function ReviseQuestionPopover({
   )
 }
 
-export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, questionIssues, paperMeta, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onSaveToBank, onUpdateQuestion, onUploadImage, onRemoveImage, onUploadOptionImage, onRemoveOptionImage, onAssignSectionToPart }) {
+export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, questionIssues, paperMeta, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onSaveToBank, onUpdateQuestion, onUploadImage, onRemoveImage, onUploadOptionImage, onRemoveOptionImage, onAssignSectionToPart, onToggleLock, onRewriteQuestion, rewriting = false }) {
   const question = section.question
   // What still stops this question printing correctly (empty text, no options,
   // no correct answer chosen, an image mid-upload). Flagged on the card itself
@@ -438,10 +438,41 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
             <Icon name="warn" size={12} /> Not finished
           </span>
         )}
+        {question.locked && (
+          <span className="sv-q-locked-tag" title="Locked — nothing rewrites this question">
+            <Icon name="lock" size={12} /> Locked
+          </span>
+        )}
         <span className="sv-tools">
           <button className="sv-tool" title="Move up" onClick={() => onMoveSection(sectionIndex, -1)}><Icon name="moveUp" size={14} /></button>
           <button className="sv-tool" title="Move down" onClick={() => onMoveSection(sectionIndex, 1)}><Icon name="moveDown" size={14} /></button>
           <button className="sv-tool" title="Edit in detail" onClick={() => onEditQuestion(question.localId)}><Icon name="edit" size={14} /></button>
+          {/* Rewrite THIS question only. Every other question on the paper —
+              including the teacher's edits to them — is left exactly as it is.
+              Refused outright on a locked question. */}
+          {onRewriteQuestion && (
+            <button className="sv-tool" type="button"
+              disabled={rewriting || question.locked}
+              title={question.locked
+                ? 'Unlock this question first if you want it rewritten'
+                : 'Rewrite just this question — the rest of the paper is untouched'}
+              onClick={() => onRewriteQuestion(question.localId)}>
+              <Icon name={rewriting ? 'spinner' : 'rewrite'} size={14} />
+            </button>
+          )}
+          {/* The teacher's own "this one is finished" marker. Nothing — not a
+              rewrite, not a validation pass, not a future migration — may
+              overwrite a locked question. */}
+          {onToggleLock && (
+            <button className={`sv-tool${question.locked ? ' active' : ''}`} type="button"
+              aria-pressed={Boolean(question.locked)}
+              title={question.locked
+                ? 'Unlock this question'
+                : 'Lock this question so nothing rewrites it'}
+              onClick={() => onToggleLock(question.localId, !question.locked)}>
+              <Icon name="lock" size={14} />
+            </button>
+          )}
           <button className="sv-tool" title="Duplicate" onClick={() => onDuplicateSection(sectionIndex)}><Icon name="duplicate" size={14} /></button>
           {onSaveToBank && (
             <button className="sv-tool" title="Save to your question bank" onClick={() => onSaveToBank(question)}><Icon name="bank" size={14} /></button>

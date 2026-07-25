@@ -59,6 +59,8 @@
     "test:blueprint-drift": "node src/utils/blueprintDrift.test.js",
     "test:assessment-planning": "node functions/teacherTools/assessmentPlanning.test.js",
     "test:blueprint-summary": "node src/utils/blueprintSummary.test.js",
+    "test:question-regeneration": "node src/utils/questionRegeneration.test.js",
+    "test:regenerate-question": "node functions/teacherTools/regenerateQuestionCore.test.js",
     "sync:assessment-bands": "node scripts/sync-assessment-bands.mjs",
     "coverage:curriculum": "node scripts/curriculum-coverage-report.mjs",
     "seed:assessment-bands": "node scripts/seed-assessment-bands.mjs",

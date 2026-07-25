@@ -222,6 +222,42 @@ export function replaceQuestionInSections(sections, questionKey, rewrite) {
 }
 
 /**
+ * The fields a HUMAN types. Editing one of these marks the question as the
+ * teacher's work, which is what makes a later rewrite ask before replacing it.
+ *
+ * Deliberately not "every field": an image finishing its upload, a review flag
+ * clearing, a Part reassignment or a renumber are all the studio's own doing, and
+ * treating them as teacher edits would put a confirmation dialog in front of
+ * every rewrite whether the teacher had touched the question or not — which
+ * trains people to click through it.
+ */
+export const AUTHORED_FIELDS = new Set([
+  'text', 'options', 'correctAnswer', 'explanation', 'marks', 'topic',
+  'subtopic', 'sharedInstruction', 'diagramText', 'competency',
+  'specificOutcome', 'numericTolerance', 'numericUnit', 'matchingPairs',
+  'matchingAnswer', 'sequenceItems', 'sequenceAnswer', 'subParts',
+  'statements', 'wordBank', 'type',
+])
+
+/** Did a human just change something they would not want overwritten? */
+export function isAuthoredEdit(field) {
+  return AUTHORED_FIELDS.has(String(field))
+}
+
+/**
+ * A question's stem as plain text — markup stripped, whitespace collapsed,
+ * truncated. Used for anything that has to be READ rather than rendered: the
+ * "avoid these" list, and telling the model what it is replacing.
+ */
+export function plainStem(value, max = 1200) {
+  return String(value == null ? '' : value)
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, max)
+}
+
+/**
  * The other questions on the paper, as short stems, so a regeneration can be told
  * what NOT to write again. Capped — this goes into a prompt, and the point is to
  * avoid a near-duplicate, not to resend the whole paper.
@@ -230,10 +266,9 @@ export function avoidList(sections, questionKey, { limit = 20, stemLength = 160 
   const out = []
   for (const question of flattenQuestions(sections)) {
     if (getQuestionKey(question) === questionKey) continue
-    const text = String(question.text || '').replace(/<[^>]*>/g, ' ')
-      .replace(/\s+/g, ' ').trim()
+    const text = plainStem(question.text, stemLength)
     if (!text) continue
-    out.push(text.slice(0, stemLength))
+    out.push(text)
     if (out.length >= limit) break
   }
   return out
