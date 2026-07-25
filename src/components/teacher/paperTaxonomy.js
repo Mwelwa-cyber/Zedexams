@@ -385,6 +385,9 @@ const SUBJECT_LABELS = {
   // The second Forms 1-4 mathematics syllabus, numbered from 1.1 like the first.
   // It used to fold into `mathematics`, which collided 29 of their codes.
   mathematics_ii: 'Mathematics II',
+  // Its own Forms 1-4 syllabus, numbered from 1.1.1 like the English language
+  // one. It used to fold into `english`, which collided 4 of their codes.
+  literature_in_english: 'Literature in English',
   // Own examinable subjects, own numbering. home_economics stays a real subject
   // (CBC Grades 4-6, 2013 Grades 5-7) — it just no longer swallows these four.
   food_and_nutrition: 'Food & Nutrition',

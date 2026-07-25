@@ -71,6 +71,7 @@ const ALLOWED_SUBJECTS = new Set([
   // pre-split spellings above are kept so a saved pick still passes.
   "commerce", "principles_of_accounts",
   "food_and_nutrition", "fashion_and_fabrics", "mathematics_ii",
+  "literature_in_english",
   // Not previously listed here, so this generator rejected the pick outright.
   "hospitality_management",
 ]);

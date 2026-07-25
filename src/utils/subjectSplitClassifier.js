@@ -8,6 +8,7 @@
  *                                       | fashion_and_fabrics
  *                                       | hospitality_management
  *   mathematics (Forms 1-4 second book) → mathematics_ii
+ *   english (Forms 1-4 literature)      → literature_in_english
  *
  * Records written before the split still carry the shared key. Reassigning them
  * matters — the subject decides which syllabus grounds a regeneration and which
@@ -64,6 +65,10 @@ export const SPLIT_SOURCES = Object.freeze({
   // record here is therefore only moved when its topics say Mathematics II; with
   // no such evidence the existing key is already right and is left alone.
   mathematics: ['mathematics', 'mathematics_ii'],
+  // `english` is the same shape as `mathematics`: still the correct key for the
+  // English language syllabus everywhere, with Literature in English folded into
+  // it. Only records authored against Literature topics move.
+  english: ['english', 'literature_in_english'],
 })
 
 /** Outcome codes. `unchanged` means "correctly on this key already". */
@@ -84,6 +89,10 @@ const SOURCE_DOCUMENT_SUBJECTS = Object.freeze({
   'Home Management Syllabus (Grades 10-12, 2013)': 'home_management',
   'Home Economics Syllabus (Grades 5-7, 2013)': 'home_economics',
   'Home Economics & Hospitality Syllabus (Grades 4-6)': 'home_economics',
+  'Literature in English Syllabus (Forms 1-4)': 'literature_in_english',
+  'English Syllabus (Forms 1-4)': 'english',
+  'English Language Syllabus (Grades 4-6)': 'english',
+  'English Language Syllabus (Grades 2-7, 2013)': 'english',
 })
 
 function clean(value) {

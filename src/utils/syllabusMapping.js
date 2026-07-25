@@ -62,7 +62,12 @@ export const STUDIO_SUBJECT_TO_KB = {
   'History Syllabus (Forms 1-4)':                  'history',
   'Geography Syllabus (Forms 1-4)':                'geography',
   'ICT Syllabus (Forms 1-4)':                      'technology_studies',
-  'Literature in English Syllabus (Forms 1-4)':    'english',
+  // Literature in English is its own examinable subject with its own numbering
+  // (1.1.1 LITERATURE, 2.2.1 PROSE, …). Filing it under `english` put it in the
+  // same bucket as the English language syllabus, whose codes start at 1.1.1
+  // too, so 4 of them collided at G8-G9. `english` itself is untouched — it stays
+  // correct at every grade in both curricula; only Literature moved out.
+  'Literature in English Syllabus (Forms 1-4)':    'literature_in_english',
   'Religious Education Syllabus (Forms 1-4)':      'religious_education',
   'Physical Education Syllabus (Forms 1-4)':       'physical_education',
   // The three CBC Forms 1-4 home-economics pathways are three separate

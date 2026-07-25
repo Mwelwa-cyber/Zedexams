@@ -206,6 +206,78 @@ test('Mathematics 1.1 and Mathematics II 1.1 remain independent topics', () => {
   )
 })
 
+test('English and Literature in English are separate scopes at Forms 1-4', () => {
+  const topics = syllabiToKbTopics(raw2023)
+  // The Literature workbook ships Form 1, Form 2 and a combined "Form 3 - 4"
+  // sheet, which the grade map resolves to G10 — so G8-G10, not G8-G11.
+  for (const grade of ['G8', 'G9', 'G10']) {
+    const english = topics.filter((t) => t.subject === 'english' && t.grade === grade)
+    const lit = topics.filter((t) => t.subject === 'literature_in_english' && t.grade === grade)
+    assert.ok(english.length > 0, `${grade} English must have topics`)
+    assert.ok(lit.length > 0, `${grade} Literature in English must have topics`)
+    // Both number from <form>.1.1 and are supposed to. Neither may hold the
+    // other's headings — that collision is what this split removes.
+    const englishTopics = new Set(english.map((t) => t.topic))
+    for (const t of lit) {
+      assert.ok(!englishTopics.has(t.topic), `${grade}: ${t.topic} leaked into English`)
+    }
+    // Concretely: no Literature heading is offered under English any more.
+    for (const t of english) {
+      assert.ok(
+        !/^\d[\d.]*\.\s*(ORAL |WRITTEN )?LITERATURE\b/i.test(t.topic),
+        `${grade}: English still carries the Literature heading ${t.topic}`,
+      )
+    }
+  }
+  // English stays a real subject at every grade it was already taught at.
+  for (const grade of ['ECE_N', 'G1', 'G4', 'G11']) {
+    assert.ok(
+      topics.some((t) => t.subject === 'english' && t.grade === grade),
+      `English must survive at ${grade}`,
+    )
+  }
+})
+
+test('English 1.1.1 and Literature in English 1.1.1 remain independent topics', () => {
+  const topics = syllabiToKbTopics(raw2023)
+  const at = (subject, grade) => topics.filter((t) => t.subject === subject && t.grade === grade)
+  assert.ok(at('english', 'G8').some((t) => t.topic === '1.1.1 Greetings'), 'English owns 1.1.1 Greetings')
+  assert.ok(
+    at('literature_in_english', 'G8').some((t) => /^1\.1\.1\.?\s*LITERATURE$/i.test(t.topic)),
+    'Literature in English owns 1.1.1 LITERATURE',
+  )
+  // Each claims the code exactly once, in its own scope, so a 1.1.1.x sub-topic
+  // has exactly one candidate parent. (\D guards the boundary: 1.1.10 is not
+  // 1.1.1 — English G8 has both.)
+  for (const subject of ['english', 'literature_in_english']) {
+    const ones = at(subject, 'G8').filter((t) => /^1\.1\.1(\D|$)/.test(t.topic))
+    assert.equal(ones.length, 1, `${subject} G8 must claim 1.1.1 once, saw ${ones.length}`)
+  }
+  // The same visible code, two internal identities.
+  assert.notEqual(
+    topicIdentity({ curriculumId: 'cbc', gradeId: 'G8', subjectKey: 'english', topicCode: '1.1.1' }),
+    topicIdentity({ curriculumId: 'cbc', gradeId: 'G8', subjectKey: 'literature_in_english', topicCode: '1.1.1' }),
+  )
+  // And the G9 pair the validation report named: 2.2.1 Comprehension vs 2.2.1 PROSE.
+  assert.ok(at('english', 'G9').some((t) => t.topic === '2.2.1 Comprehension'))
+  assert.ok(at('literature_in_english', 'G9').some((t) => /^2\.2\.1\.?\s*PROSE$/i.test(t.topic)))
+})
+
+test('the Form 3-4 Literature heading survives the split', () => {
+  // "3-4.1.1. SELECTED PRESCRIBED TEXT" carries a code the parser cannot read
+  // (the leading "3-4"), so it is the entry most at risk of being folded away as
+  // a fragment. It is a real heading and the ONLY Literature topic at G10.
+  const topics = syllabiToKbTopics(raw2023)
+  const g10 = topics.filter((t) => t.subject === 'literature_in_english' && t.grade === 'G10')
+  assert.ok(
+    g10.some((t) => /SELECTED PRESCRIBED TEXT/i.test(t.topic)),
+    `expected the prescribed-text heading, saw ${JSON.stringify(g10.map((t) => t.topic))}`,
+  )
+  // Alone in its scope it must not collapse into anything.
+  const { topics: tree } = normalizeTopicTree(new Map([['3-4.1.1. SELECTED PRESCRIBED TEXT', new Set(['a'])]]))
+  assert.ok(tree.has('3-4.1.1. SELECTED PRESCRIBED TEXT'))
+})
+
 test('Food & Nutrition 10.1 cannot become the parent of a Home Management 10.1.x', () => {
   // The hierarchy repair only ever sees ONE curriculum + grade + subject, so the
   // Home Management sub-topic is not even in the same call as the Food &
@@ -543,6 +615,57 @@ test('a topic both mathematics syllabi share is not evidence for either', () => 
   }, ctx)
   assert.equal(v.topicsResolved, 0, 'a shared topic must resolve to no subject')
   assert.equal(v.outcome, OUTCOMES.UNCHANGED, 'and so leaves the record where it is')
+})
+
+test('an English record moves only when its topics say Literature in English', () => {
+  // Literature topics → reassigned.
+  const lit = classifyRecord({
+    subject: 'english', grade: 'G9', curriculum: '2023',
+    topics: ['2.2.1. PROSE', '2.2.3. POETRY'],
+  }, ctx)
+  assert.equal(lit.outcome, OUTCOMES.CLASSIFIED)
+  assert.equal(lit.subject, 'literature_in_english')
+
+  // English-language topics → confirmed where it is.
+  const eng = classifyRecord({
+    subject: 'english', grade: 'G9', curriculum: '2023', topics: ['2.2.1 Comprehension'],
+  }, ctx)
+  assert.equal(eng.outcome, OUTCOMES.UNCHANGED)
+  assert.equal(eng.subject, 'english')
+
+  // A paper spanning both is reported, never assigned to the first.
+  const spanning = classifyRecord({
+    subject: 'english', grade: 'G9', curriculum: '2023',
+    topics: ['2.2.1 Comprehension', '2.2.1. PROSE'],
+  }, ctx)
+  assert.equal(spanning.outcome, OUTCOMES.AMBIGUOUS)
+  assert.equal(spanning.subject, 'english', 'the stored key is left alone')
+  assert.match(spanning.evidence, /span english and literature_in_english/)
+
+  // `english` is not retired, so no evidence means no reason to move it — the
+  // same rule Mathematics gets, and the reason primary English is never flagged.
+  for (const extra of [{ topics: [] }, { topics: ['End of term revision'] }, { grade: '' }]) {
+    const v = classifyRecord({
+      subject: 'english', grade: 'G9', curriculum: '2023', topics: ['x'], ...extra,
+    }, ctx)
+    assert.equal(v.outcome, OUTCOMES.UNCHANGED, JSON.stringify(extra))
+    assert.equal(v.subject, 'english')
+  }
+  for (const grade of ['ECE_N', 'G1', 'G4', 'G11']) {
+    const v = classifyRecord({ subject: 'english', grade, curriculum: '2023', topics: [] }, ctx)
+    assert.equal(v.outcome, OUTCOMES.UNCHANGED, `English at ${grade} must be left alone`)
+  }
+  // And the source-syllabus field decides on its own either way.
+  for (const [doc, expected, outcome] of [
+    ['Literature in English Syllabus (Forms 1-4)', 'literature_in_english', OUTCOMES.CLASSIFIED],
+    ['English Syllabus (Forms 1-4)', 'english', OUTCOMES.UNCHANGED],
+  ]) {
+    const v = classifyRecord({
+      subject: 'english', grade: 'G8', curriculum: '2023', sourceSyllabus: doc, topics: [],
+    }, ctx)
+    assert.equal(v.outcome, outcome, doc)
+    assert.equal(v.subject, expected)
+  }
 })
 
 test('a topic label claimed by two candidate subjects is not used as evidence', () => {
