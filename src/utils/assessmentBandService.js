@@ -20,8 +20,8 @@
 
 import {
   ASSESSMENT_BAND_SEED, BAND_IDS, validateBand,
-} from '../config/assessmentBands'
-import { resolveLevel } from '../config/educationLevels'
+} from '../config/assessmentBands.js'
+import { resolveLevel } from '../config/educationLevels.js'
 
 // Firestore is imported lazily, inside the read. Importing `db` at module scope
 // would initialise the Firebase app the moment anything touches this file —

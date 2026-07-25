@@ -41,6 +41,8 @@ import {
 import { attributionSection, attributionFooter, attributionWatermarkParagraph } from './docxAttribution.js'
 import { buildPaperLayout, DEFAULT_ANSWER_LINES } from './assessmentPaperLayout.js'
 import { resolveImageWidthPercent } from './imageWidth.js'
+import { figureBox } from './figureSizing.js'
+import { seedBandForLevel } from './assessmentBandService.js'
 import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 import { svgToPngBytes } from './svgRasterizer.js'
 import { hydrateTableData } from './tableData.js'
@@ -498,6 +500,17 @@ async function loadImageRun(url, { width = 360, height = 220, alt = '' } = {}) {
 
 // Read the intrinsic aspect ratio from an SVG's viewBox so the rasterized PNG
 // isn't squashed. Falls back to 4:3.
+/**
+ * The band governing the paper currently being built (§4.2).
+ *
+ * Set once per document and read by the figure sizing below, which needs the
+ * level's minimum figure size. Resolved from the PUBLISHED DEFAULTS rather than
+ * Firestore: the exporter runs synchronously per figure, an export must not
+ * block on a config read, and a stale-by-one-edit minimum is far better than
+ * none — which is what every figure had until now.
+ */
+let currentBand = null
+
 function svgAspect(svg) {
   const m = /viewBox="[\d.]+ [\d.]+ ([\d.]+) ([\d.]+)"/.exec(svg || '')
   const w = m ? parseFloat(m[1]) : 0
@@ -508,18 +521,24 @@ function svgAspect(svg) {
 // Render a deterministic library diagram ({libraryKey, params}) to an embedded
 // ImageRun by rasterizing its SVG to PNG. Browser-only (canvas); returns null
 // in a DOM-less context (node tests) so the caller falls back to alt text.
-async function diagramImageRun(diagram, { maxWidth = 360, maxHeight = 220 } = {}) {
+async function diagramImageRun(diagram, { maxWidth = 360, maxHeight = 220, widthPreset } = {}) {
   if (!diagram || !diagram.libraryKey) return null
+  // Black ink on white: most Zambian schools print monochrome, so a library
+  // figure is drawn in a single dark tone rather than relying on colour.
   const svg = renderDiagramSvg(diagram.libraryKey, diagram.params || {}, '#1c1612')
   if (!svg) return null
-  const aspect = svgAspect(svg)
-  // Rasterize at ~2× the embed size for a crisp print, fitting the box.
-  let width = maxWidth
-  let height = Math.round(maxWidth / aspect)
-  if (height > maxHeight) { height = maxHeight; width = Math.round(maxHeight * aspect) }
+  const box = figureBox({
+    maxWidth,
+    maxHeight,
+    aspect: svgAspect(svg),
+    widthPercent: widthPreset ? resolveImageWidthPercent(widthPreset) : 100,
+    band: currentBand,
+  })
   try {
-    const bytes = await svgToPngBytes(svg, width * 2, height * 2)
-    return imageRun(bytes, { width, height })
+    // High-DPI raster (§4.2) — the embed box is in points, so FIGURE_RASTER_SCALE
+    // puts real detail behind every printed dot.
+    const bytes = await svgToPngBytes(svg, box.rasterWidth, box.rasterHeight)
+    return imageRun(bytes, { width: box.width, height: box.height })
   } catch {
     return null
   }
@@ -528,13 +547,22 @@ async function diagramImageRun(diagram, { maxWidth = 360, maxHeight = 220 } = {}
 async function imageParagraph(url, opts = {}) {
   if (!url) return null
   // A width preset scales the fit-box down from the full-width default so a
-  // teacher's "Small/Medium/Large" choice carries into the Word download.
+  // teacher's "Small/Medium/Large" choice carries into the Word download — but
+  // the level's minimum figure size is a floor it cannot go under (§4.2). See
+  // figureSizing.js: at Early Childhood the size is a pedagogical requirement,
+  // not a layout preference.
   const baseWidth = opts.width || 360
   const baseHeight = opts.height || 220
-  const pct = opts.widthPreset ? resolveImageWidthPercent(opts.widthPreset) / 100 : 1
+  const box = figureBox({
+    maxWidth: baseWidth,
+    maxHeight: baseHeight,
+    aspect: baseWidth / baseHeight,
+    widthPercent: opts.widthPreset ? resolveImageWidthPercent(opts.widthPreset) : 100,
+    band: currentBand,
+  })
   const run = await loadImageRun(url, {
-    width: Math.round(baseWidth * pct),
-    height: Math.round(baseHeight * pct),
+    width: box.width,
+    height: box.height,
     alt: opts.alt || '',
   })
   // A figure belongs to the question above it and to the options below it — it
@@ -1416,6 +1444,9 @@ async function renderQuestion(b, stats = null) {
 }
 
 export async function buildAssessmentDocument(assessment, questions, { mode = 'paper', attribution = false, stats = null } = {}) {
+  // Resolve the level's band ONCE for this document — every figure below reads
+  // its minimum size from it (§4.2). Published defaults only; see `currentBand`.
+  currentBand = seedBandForLevel(assessment && assessment.grade) || null
   const blocks = buildPaperLayout(assessment, questions, { mode })
   const children = await renderPaperBlocksToDocx(blocks, stats)
 

@@ -41,6 +41,7 @@ const { Packer } = await import('docx')
 const { unzipSync, strFromU8 } = await import('fflate')
 const { buildAssessmentDocument } = await import('./assessmentToDocx.js')
 const { richTextToPaperHtml } = await import('../editor/utils/safeRender.js')
+const { clearImageBytesCache } = await import('./fetchImageBytes.js')
 
 let failures = 0
 let passed = 0
@@ -332,7 +333,78 @@ console.log('\nGOLDEN — the keep flags are applied narrowly, not to everything
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
- * 6. Word export uses real WordprocessingML, not an MHTML blob (§4.4)
+ * 6. Figures are big enough for the level (§4.2)
+ * ════════════════════════════════════════════════════════════════════════ */
+
+console.log('\nGOLDEN — a figure is never smaller than the level allows')
+{
+  // Phase 2 gave every band a minFigureSizeMm and nothing applied it. A Nursery
+  // picture-matching question could print at whatever size a width preset gave,
+  // and a five-year-old cannot answer a question about a picture they cannot
+  // make out.
+  //
+  // An UPLOADED image is used rather than a library diagram: the diagram path
+  // rasterises through a canvas, which jsdom does not have, so it would fall
+  // back to alt text and prove nothing about the size.
+  const PNG = new Uint8Array([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+    0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+    0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4, 0x89, 0x00, 0x00, 0x00,
+    0x0a, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
+    0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00, 0x00, 0x00, 0x00, 0x49,
+    0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+  ])
+  const realFetch = globalThis.fetch
+  globalThis.fetch = async () => ({
+    ok: true,
+    headers: { get: (h) => (h.toLowerCase() === 'content-type' ? 'image/png' : null) },
+    arrayBuffer: async () => PNG.buffer.slice(PNG.byteOffset, PNG.byteOffset + PNG.byteLength),
+  })
+
+  // docx writes the embed size in EMUs on <wp:extent cx=".." cy="..">.
+  const extentOf = (xml) => {
+    const m = /<wp:extent cx="(\d+)" cy="(\d+)"/.exec(xml)
+    return m ? { cx: Number(m[1]), cy: Number(m[2]) } : null
+  }
+  const paper = (grade) => ([
+    { title: 'Figures', subject: 'Integrated Science', grade },
+    [{
+      id: 'q1', order: 1, type: 'short_answer', marks: 1,
+      text: 'Look at the picture.',
+      // The same deliberately SMALL preset at both levels.
+      imageUrl: 'https://example.test/pic.png', imageWidth: 'small',
+    }],
+  ])
+
+  try {
+    clearImageBytesCache()
+    const nursery = extentOf(await renderDocx(...paper('ECE_N')))
+    clearImageBytesCache()
+    const formFour = extentOf(await renderDocx(...paper('11')))
+
+    assert(Boolean(nursery), 'the Nursery figure was embedded with a size')
+    assert(Boolean(formFour), 'so was the Form 4 one')
+    if (nursery && formFour) {
+      assert(
+        Math.min(nursery.cx, nursery.cy) > Math.min(formFour.cx, formFour.cy),
+        `the same "small" preset prints BIGGER at Nursery than at Form 4 ` +
+        `(${Math.min(nursery.cx, nursery.cy)} vs ${Math.min(formFour.cx, formFour.cy)} EMU)`,
+      )
+      // 914400 EMU per inch; the Early Childhood floor is 45mm ≈ 1.77in.
+      const nurseryMm = (Math.min(nursery.cx, nursery.cy) / 914400) * 25.4
+      assert(
+        nurseryMm >= 44,
+        `the Nursery figure reaches its level's minimum (${nurseryMm.toFixed(1)}mm)`,
+      )
+    }
+  } finally {
+    globalThis.fetch = realFetch
+    clearImageBytesCache()
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 7. Word export uses real WordprocessingML, not an MHTML blob (§4.4)
  * ════════════════════════════════════════════════════════════════════════ */
 
 console.log('\nGOLDEN — the Word download is a real .docx (§4.4)')
