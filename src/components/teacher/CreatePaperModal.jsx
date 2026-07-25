@@ -615,6 +615,8 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
       // Server-stamped free-preview marker (5-question short test) — drives
       // the post-generation upgrade prompt below.
       preview: res.data?.preview || null,
+      // What the generator planned before writing — see blueprintDrift.js.
+      blueprint: res.data?.blueprint || null,
     })
     if (res.data?.preview) capture('free_preview_generated', { tool: 'assessment' })
     setStatus('done')
@@ -622,7 +624,14 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
 
   function apply(mode) {
     if (!result) return
-    onApply({ blocks: result.blocks, assessment: result.assessment, form, mode })
+    // The blueprint the paper was generated against travels with it, so the
+    // studio can verify the paper against its own stated intent.
+    onApply({
+      blocks: result.blocks,
+      assessment: result.assessment,
+      form: { ...form, blueprint: result.blueprint || null },
+      mode,
+    })
   }
 
   const showAddAll = topicMode === 'pick' && cumulative &&

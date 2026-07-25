@@ -22,10 +22,38 @@ export const BLOOM_LABELS = {
 // The first three are "lower-order" thinking; the last three "higher-order".
 export const BLOOM_HIGHER_ORDER = ['analyze', 'evaluate', 'create']
 
-/** The valid level on a question, or '' when untagged / invalid. */
+// Both spellings of the one level. The studio's canonical key is 'analyze' but
+// the generator, the curriculum and British-English teachers all write
+// 'analyse' — so a paper tagged by the AI would read as untagged here, which is
+// half of why the panel said "no cognitive levels tagged yet" on a paper the
+// model had tagged throughout. Fold the spellings rather than pick a side.
+const BLOOM_ALIASES = {
+  analyse: 'analyze',
+  analysing: 'analyze',
+  analyzing: 'analyze',
+  evaluating: 'evaluate',
+  remembering: 'remember',
+  understanding: 'understand',
+  applying: 'apply',
+  creating: 'create',
+}
+
+/** Canonical Bloom key for any accepted spelling, or '' when unrecognised. */
+export function normalizeBloomLevel(value) {
+  const raw = String(value || '').trim().toLowerCase()
+  if (!raw) return ''
+  const folded = BLOOM_ALIASES[raw] || raw
+  return BLOOM_LEVELS.includes(folded) ? folded : ''
+}
+
+/**
+ * The valid level on a question, or '' when untagged / invalid.
+ * Reads `bloom` (the persisted field) and falls back to `bloomLevel`, which is
+ * the spelling the generator emits.
+ */
 export function bloomLevel(question) {
-  const level = String(question?.bloom || '').toLowerCase()
-  return BLOOM_LEVELS.includes(level) ? level : ''
+  return normalizeBloomLevel(question?.bloom) ||
+    normalizeBloomLevel(question?.bloomLevel)
 }
 
 /**

@@ -75,12 +75,17 @@ export function DifficultySelect({ question, onUpdateQuestion }) {
   )
 }
 
-export function BalanceDifficultyAction({ questions, questionNumbers }) {
+export function BalanceDifficultyAction({ questions, questionNumbers, drift }) {
   const [open, setOpen] = useState(false)
   const stats = useMemo(() => analyzeDifficulty(questions || []), [questions])
+  // "1 easy · 0 medium · 0 hard" told a teacher nothing about whether that was
+  // right. With a blueprint the header reports drift from the mix the paper was
+  // planned with instead.
+  const planned = drift?.hasBlueprint ? driftSummary(drift, drift.difficulty) : ''
   const summary = stats.total === 0
     ? 'Add questions to see the distribution'
-    : `${stats.buckets.easy} easy · ${stats.buckets.medium} medium · ${stats.buckets.hard} hard — ${stats.verdict}`
+    : planned ||
+      `${stats.buckets.easy} easy · ${stats.buckets.medium} medium · ${stats.buckets.hard} hard — ${stats.verdict}`
   return (
     <div className={`sv-ai-action ${open ? 'expanded' : ''}`} style={{ display: 'block', padding: 'var(--sv-s3)' }}>
       <button
@@ -97,6 +102,7 @@ export function BalanceDifficultyAction({ questions, questionNumbers }) {
       </button>
       {open && stats.total > 0 && (
         <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {drift?.hasBlueprint && <DriftRows rows={drift.difficulty} />}
           <DifficultyBar stats={stats} />
           <div style={{ fontSize: 12, color: 'var(--sv-muted)', lineHeight: 1.5 }}>
             Target mix is roughly 40% easy · 40% medium · 20% hard.{' '}
@@ -162,20 +168,72 @@ function DifficultyBucketList({ bucket, items, questionNumbers }) {
   )
 }
 
+/**
+ * The planned-vs-actual strip shown at the top of an analysis action when the
+ * paper HAS a blueprint (§3.4).
+ *
+ * This is the whole point of the inversion: "Analysis: planned 4, got 2" is
+ * something a teacher can act on, where the old "2 analysis questions" was not,
+ * because nothing had ever said how many there should be. With no blueprint the
+ * strip renders nothing and the action's own discovery view is all there is —
+ * which is the correct behaviour for a hand-built or imported paper.
+ */
+function DriftRows({ rows, emptyNote }) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return emptyNote ? (
+      <div style={{ fontSize: 12, color: 'var(--sv-muted)' }}>{emptyNote}</div>
+    ) : null
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      {rows.map((row) => (
+        <div key={row.key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+          <span style={{ flex: 1, minWidth: 0, color: 'var(--sv-text)' }}>{row.label}</span>
+          <span className="mono" style={{ color: 'var(--sv-muted)' }}>
+            planned {row.planned}
+          </span>
+          <span className="mono" style={{
+            fontWeight: 800,
+            color: row.status === 'met' ? '#2C5A41'
+              : row.status === 'unplanned' ? '#7A5A1F' : '#8A3D0F',
+          }}>
+            got {row.actual}
+          </span>
+          {row.status === 'unplanned' && (
+            <span style={{ fontSize: 11, color: '#7A5A1F' }}>not in the plan</span>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** One-line verdict for an action's collapsed header, when a blueprint exists. */
+function driftSummary(drift, rows) {
+  if (!drift?.hasBlueprint) return ''
+  const off = rows.filter((r) => r.status !== 'met').length
+  if (off === 0) return 'Matches the plan'
+  return `${off} ${off === 1 ? 'row' : 'rows'} off the plan`
+}
+
 // Bloom's-taxonomy ramp, lower-order → higher-order.
 const BLOOM_COLORS = {
   remember: '#bfdbfe', understand: '#93c5fd', apply: '#86efac',
   analyze: '#fcd34d', evaluate: '#fdba74', create: '#fca5a5',
 }
 
-export function BloomBalanceAction({ questions, questionNumbers }) {
+export function BloomBalanceAction({ questions, questionNumbers, drift }) {
   const [open, setOpen] = useState(false)
   const stats = useMemo(() => analyzeBloom(questions || []), [questions])
+  // With a blueprint the header reports DRIFT from the planned mix. Without one
+  // it keeps the old discovery wording — a hand-built paper genuinely has no
+  // stated intent to compare against.
+  const planned = drift?.hasBlueprint ? driftSummary(drift, drift.bloom) : ''
   const summary = stats.total === 0
     ? 'Add questions to map thinking skills'
-    : stats.tagged === 0
+    : planned || (stats.tagged === 0
       ? 'No cognitive levels tagged yet'
-      : `${stats.tagged}/${stats.total} tagged · ${stats.lowerOrder} lower · ${stats.higherOrder} higher — ${stats.verdict}`
+      : `${stats.tagged}/${stats.total} tagged · ${stats.lowerOrder} lower · ${stats.higherOrder} higher — ${stats.verdict}`)
   return (
     <div className={`sv-ai-action ${open ? 'expanded' : ''}`} style={{ display: 'block', padding: 'var(--sv-s3)' }}>
       <button
@@ -192,9 +250,12 @@ export function BloomBalanceAction({ questions, questionNumbers }) {
       </button>
       {open && stats.total > 0 && (
         <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {drift?.hasBlueprint && <DriftRows rows={drift.bloom} />}
           <BloomBar stats={stats} />
           <div style={{ fontSize: 12, color: 'var(--sv-muted)', lineHeight: 1.5 }}>
-            Tag each question&apos;s Bloom&apos;s level in its detailed editor (✏). Aim for a mix of lower-order (remember / understand / apply) and higher-order (analyse / evaluate / create) thinking.
+            {drift?.hasBlueprint
+              ? 'This paper was planned with a set mix of thinking levels. The rows above show what was planned against what the paper now has — edit a question’s level in its detailed editor (✏) to bring it back on plan.'
+              : 'Tag each question’s Bloom’s level in its detailed editor (✏). Aim for a mix of lower-order (remember / understand / apply) and higher-order (analyse / evaluate / create) thinking.'}
             {stats.untagged > 0 ? ` ${stats.untagged} not yet tagged.` : ''}
           </div>
           {BLOOM_LEVELS.map(level => (
@@ -352,7 +413,7 @@ function mapQuestionToCompetency(question, subjectId) {
   return bestScore > 0 ? best : null
 }
 
-export function MapCompetenciesAction({ questions, questionNumbers, subjectLabel }) {
+export function MapCompetenciesAction({ questions, questionNumbers, subjectLabel, drift }) {
   const [open, setOpen] = useState(false)
   const subjectId = useMemo(() => subjectIdFromLabel(subjectLabel), [subjectLabel])
   const competencies = useMemo(() => (subjectId ? (COMPETENCIES[subjectId] || []) : []), [subjectId])
@@ -372,11 +433,29 @@ export function MapCompetenciesAction({ questions, questionNumbers, subjectLabel
     return map
   }, [mappings, competencies])
   const coverageCount = competencies.filter(c => (grouped.get(c) || []).length > 0).length
-  const summary = !subjectId
+  // With a blueprint, curriculum COVERAGE is reported against what the paper set
+  // out to assess — the planned topics and the syllabus outcomes it named —
+  // rather than against a generic strand taxonomy the paper never referenced.
+  // "0/5 strands covered · 1 unmapped" was technically true and useless.
+  const plannedCoverage = drift?.hasBlueprint
+    ? (() => {
+        const off = drift.topics.filter(r => r.status !== 'met').length
+        const outcomes = drift.outcomes
+        const bits = []
+        bits.push(off === 0
+          ? `all ${drift.topics.length} planned topics covered`
+          : `${off} of ${drift.topics.length} topics off the plan`)
+        if (outcomes.planned > 0) {
+          bits.push(`${outcomes.covered}/${outcomes.planned} syllabus outcomes assessed`)
+        }
+        return bits.join(' · ')
+      })()
+    : ''
+  const summary = plannedCoverage || (!subjectId
     ? `No competency taxonomy for "${subjectLabel || 'this subject'}"`
     : (questions || []).length === 0
       ? 'Add questions to see mappings'
-      : `${coverageCount}/${competencies.length} strands covered · ${(grouped.get('__unmapped__') || []).length} unmapped`
+      : `${coverageCount}/${competencies.length} strands covered · ${(grouped.get('__unmapped__') || []).length} unmapped`)
   return (
     <div className={`sv-ai-action ${open ? 'expanded' : ''}`} style={{ display: 'block', padding: 'var(--sv-s3)' }}>
       <button
@@ -393,6 +472,25 @@ export function MapCompetenciesAction({ questions, questionNumbers, subjectLabel
       </button>
       {open && (
         <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {drift?.hasBlueprint && (
+            <>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--sv-text)' }}>
+                Topics this paper set out to cover
+              </div>
+              <DriftRows rows={drift.topics} />
+              {drift.outcomes.missing.length > 0 && (
+                <div style={{ fontSize: 12, color: '#8A3D0F', lineHeight: 1.5 }}>
+                  No longer assessed: {drift.outcomes.missing.join('; ')}
+                </div>
+              )}
+              {drift.outcomes.planned === 0 && (
+                <div style={{ fontSize: 12, color: 'var(--sv-muted)', lineHeight: 1.5 }}>
+                  The syllabus has no specific outcomes on file for these topics, so
+                  the paper was planned by topic only. Nothing here is invented.
+                </div>
+              )}
+            </>
+          )}
           {!subjectId && (
             <div style={{ fontSize: 12, color: 'var(--sv-muted)' }}>
               Pick a CBC subject in the paper details to enable competency mapping.

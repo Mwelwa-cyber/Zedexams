@@ -167,6 +167,10 @@ export const questionSchema = z
     // so a typo cannot invent an activity, and optional so every existing
     // question stays valid under .strict().
     activityType: z.enum(QUESTION_ACTIVITY_IDS).optional(),
+    // The syllabus outcome the question targets. Free text because it is quoted
+    // from the curriculum module, not chosen from an enum — but bounded, and
+    // optional so every existing question stays valid under .strict().
+    learningOutcome: z.string().max(300).optional(),
     // ── CBC curriculum tagging + import provenance ──
     // These sit alongside `topic` (already above) so an imported past-paper
     // question can carry its full CBC placement, and the shared Document

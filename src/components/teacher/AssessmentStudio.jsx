@@ -90,6 +90,7 @@ import { printAssessmentAsPdf, openPrintWindow } from '../../utils/assessmentToP
 import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
 import { computePaperHealth } from '../../utils/paperHealth'
 import { describeExportBlock, blockingIssuesByLocalId } from '../../utils/assessmentExportGate'
+import { compareToBlueprint } from '../../utils/blueprintDrift'
 import { instantiateTemplate } from '../../utils/paperTemplates'
 import Icon from './studio/studioIcons'
 import { TopBar, BottomBar } from './studio/AssessmentBars'
@@ -241,6 +242,9 @@ function mapAssessmentToForm(a = {}) {
   // papers open under their original level, flagged Legacy in the picker.
   copy('grade', (g) => paperLevel(g)?.value ?? String(g))
   copy('term', String)
+  // The blueprint the paper was generated against, so reopening it keeps the
+  // planned-vs-actual view rather than falling back to discovery.
+  copy('blueprint')
   copy('year')
   copy('duration')
   copy('topic')
@@ -361,6 +365,9 @@ function makeDefaultForm() {
     ungroupedOrder: 0,
     endOfPaperText: '— END OF PAPER —',
     mode: '',
+    // The blueprint a generated paper was planned against; null for a
+    // hand-built paper, which simply has no stated intent to verify against.
+    blueprint: null,
     importStatus: '',
     sourceFileName: '',
     sourceContentType: '',
@@ -651,6 +658,20 @@ export default function AssessmentStudio() {
   const questionIssues = useMemo(
     () => blockingIssuesByLocalId(validationIssues),
     [validationIssues],
+  )
+
+  // How far the paper has drifted from the blueprint it was generated against
+  // (§3.4). The analysis tools use this to report planned-vs-actual instead of
+  // reporting absence; a paper with no blueprint (hand-built, imported, or made
+  // before blueprints existed) reports hasBlueprint:false and they fall back to
+  // their own discovery view.
+  const paperBlueprint = form.blueprint || null
+  const blueprintDrift = useMemo(
+    () => compareToBlueprint({
+      blueprint: paperBlueprint,
+      questions: serializedPreview.questions,
+    }),
+    [paperBlueprint, serializedPreview.questions],
   )
 
   // The single "paper health" verdict — folds the blocking validation issues,
@@ -1475,6 +1496,9 @@ export default function AssessmentStudio() {
         term: f.term || aiPaperForm.term,
         duration: f.duration || String(aiPaperForm.durationMinutes),
         assessmentType: aiPaperForm.assessmentType || f.assessmentType,
+        // Carry the generated paper's blueprint onto the studio form so the
+        // analysis tools can verify against it and the save persists it.
+        blueprint: aiPaperForm.blueprint || f.blueprint || null,
         coverInstructions: f.coverInstructions ||
           String(assessment?.header?.instructions || ''),
         // brandingForAiPaper already implements per-field form-wins, so all
@@ -2065,6 +2089,10 @@ export default function AssessmentStudio() {
       sourceFileName: form.sourceFileName,
       sourceContentType: form.sourceContentType,
       importWarnings: form.importWarnings,
+      // The blueprint the paper was generated against — saved so reopening the
+      // paper can still verify it against what it set out to be, and so a later
+      // single-question regeneration knows which slot it must refill.
+      ...(form.blueprint ? { blueprint: form.blueprint } : {}),
       library,
     }
 
@@ -2955,6 +2983,7 @@ export default function AssessmentStudio() {
         diagramsNeeded={countDiagramsNeeded(sections)}
         onOpenDiagramFix={() => { closeSlide(); setDiagramFixOpen(true) }}
         onVerifyPaper={() => { closeSlide(); setVerifyOpen(true) }}
+        drift={blueprintDrift}
       />
       {createPaperOpen && (
         <CreatePaperModal

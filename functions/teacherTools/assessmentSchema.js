@@ -15,6 +15,22 @@ const ACTIVITY_IDS = new Set(ACTIVITIES.map((a) => a.id));
  * activity genuinely is. Never throws and never drops the question — an
  * unrecognised label must not make a paper unopenable.
  */
+/** The four blueprint difficulty tiers; anything else becomes null. */
+const DIFFICULTY_TIER_SET = new Set([
+  "recall", "understanding", "analysis", "challenge",
+]);
+
+function normalizeTier(value) {
+  const raw = String(value == null ? "" : value).trim().toLowerCase();
+  if (DIFFICULTY_TIER_SET.has(raw)) return raw;
+  // The studio's own easy/medium/hard vocabulary, folded onto the tiers so a
+  // hand-tagged question and a generated one compare.
+  if (raw === "easy") return "recall";
+  if (raw === "medium") return "understanding";
+  if (raw === "hard") return "analysis";
+  return null;
+}
+
 function normalizeActivityType(value, renderType) {
   const raw = String(value == null ? "" : value).trim().toLowerCase();
   if (ACTIVITY_IDS.has(raw)) return raw;
@@ -69,6 +85,22 @@ function normalizeShape(raw) {
 function isNonEmptyString(v) {
   return typeof v === "string" && v.trim().length > 0;
 }
+/**
+ * A bounded list of trimmed strings. Used for the per-item marking points and
+ * distractor rationales — capped so a runaway model response cannot bloat a
+ * saved paper, and silently empty rather than throwing when absent.
+ */
+function strList(value, maxItems, maxLen) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const entry of value) {
+    const clean = String(entry == null ? "" : entry).trim().slice(0, maxLen);
+    if (clean) out.push(clean);
+    if (out.length >= maxItems) break;
+  }
+  return out;
+}
+
 function str(v, max) {
   return isNonEmptyString(v) ? String(v).trim().slice(0, max) : "";
 }
@@ -397,6 +429,22 @@ function validateAssessment(input) {
                     // Unknown values fall back to the render type rather than
                     // failing the paper.
                     activityType: normalizeActivityType(q.activityType, type),
+                    // The rest of the blueprint slot the item filled (v1.7).
+                    // Returned per item so the paper arrives ALREADY tagged and
+                    // the checkers verify against a stated intent instead of
+                    // reporting that nothing was tagged.
+                    difficulty: normalizeTier(q.difficulty),
+                    // Quoted from the verified curriculum module by the
+                    // blueprint, never invented — an empty string when the
+                    // syllabus has no outcome for the topic.
+                    learningOutcome: str(q.learningOutcome, 300) || null,
+                    // Why each wrong option is wrong. This is what makes an MCQ
+                    // teachable rather than merely markable, and it is the raw
+                    // material of the per-topic misconception store.
+                    distractorRationale: strList(q.distractorRationale, 8, 240),
+                    // The separate things that earn the marks, so a marking
+                    // scheme can be checked against the marks awarded.
+                    markingPoints: strList(q.markingPoints, 12, 240),
                     // [] for single-answer questions; populated for "(a)(b)(c)".
                     parts,
                   };
