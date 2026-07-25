@@ -938,6 +938,22 @@ service cloud.firestore {
       allow write:  if isAdmin();
     }
 
+    // ── topicMisconceptions (what learners actually get wrong) ────────
+    // One document per curriculum + grade + subject + topic, holding the learner
+    // misconceptions the generator has recorded from earlier papers' distractor
+    // rationales, with a count of how often each recurs. Read back into the
+    // prompt so a multiple-choice question's wrong options are mistakes a real
+    // learner would make rather than filler values (§3.3).
+    //
+    // SERVER-ONLY, both directions. Nothing client-side needs it: it is written
+    // by generateAssessment after a paper completes and read by the generator
+    // and the single-question rewrite, all via the admin SDK. Keeping reads
+    // closed also means a learner can never fetch the list of wrong answers the
+    // generator is drawing distractors from.
+    match /topicMisconceptions/{docId} {
+      allow read, write: if false;
+    }
+
     // ── Dawn (on-demand morning briefing) ─────────────────────
     // dawnConfig/default holds the non-secret launch ids (agent /
     // environment / vault) + recipient email an admin sets from the

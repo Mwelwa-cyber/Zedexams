@@ -32,6 +32,7 @@ const {validateAssessment} = require("./assessmentSchema");
 const {SYSTEM_PROMPT} = require("./assessmentPromptV10");
 const {bandForGrade, bandPermitsActivity} = require("./assessmentBands");
 const {gradeLabelFor, subjectLabelFor} = require("./assessmentLabels");
+const {buildMisconceptionContext} = require("./misconceptions");
 const {
   sanitizeRegenerateInputs, validateRegenerateInputs, buildRegeneratePrompt,
   extractSingleQuestion, QUESTION_TOOL_SCHEMA,
@@ -74,6 +75,16 @@ async function runRegenerateQuestion({uid, rawInputs, apiKey}) {
     ownerUid: uid,
   });
 
+  // What learners actually get wrong on this topic (§3.3), so a rewritten
+  // multiple-choice question's wrong options are real mistakes rather than filler.
+  // Best-effort — nothing known means nothing said.
+  const misconceptionDirective = slot.topic ? await buildMisconceptionContext({
+    framework: inputs.framework,
+    grade: inputs.grade,
+    subject: inputs.subject,
+    topics: [slot.topic],
+  }) : "";
+
   const usage = await assertAndIncrement(uid, "revise_question");
 
   let parsed = null;
@@ -88,7 +99,7 @@ async function runRegenerateQuestion({uid, rawInputs, apiKey}) {
       messages: [{role: "user", content: buildRegeneratePrompt(inputs, {
         gradeLabel: gradeLabelFor(inputs.grade),
         subjectLabel: subjectLabelFor(inputs.subject),
-      })}],
+      }) + (misconceptionDirective ? `\n\n${misconceptionDirective}` : "")}],
       // One question with options, answer and marking guide: ~120 tokens per
       // mark plus a floor for the wording, capped well below a paper's budget.
       maxTokens: Math.min(2000, 600 + slot.marks * 120),

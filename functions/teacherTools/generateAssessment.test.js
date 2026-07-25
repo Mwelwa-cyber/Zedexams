@@ -54,13 +54,44 @@ const COVERED = {
 };
 let coverageResult = COVERED;
 
+// Every topicMisconceptions document the harvest wrote (§3.3), by doc id. The
+// store starts empty, which is the realistic first-paper-on-a-topic state and
+// exercises the "nothing known, say nothing in the prompt" path.
+let misconceptionDocs = {};
+
 const firestoreFn = () => ({
+  // getAll is how the misconception store reads several topics at once. Nothing
+  // is seeded, so every snapshot is a miss.
+  getAll: async (...refs) => refs.map((ref) => ({
+    exists: ref.id in misconceptionDocs,
+    id: ref.id,
+    data: () => misconceptionDocs[ref.id],
+  })),
+  // The harvest runs in a transaction per topic. The fake just executes the body
+  // against the same in-memory store — real transaction semantics are not what
+  // this test is about.
+  runTransaction: async (fn) => fn({
+    get: async (ref) => ({
+      exists: ref.id in misconceptionDocs,
+      data: () => misconceptionDocs[ref.id],
+    }),
+    set: (ref, data) => {
+      misconceptionDocs[ref.id] = {...(misconceptionDocs[ref.id] || {}), ...data};
+    },
+  }),
   collection: (name) => {
     // assessmentBands is READ (never written) to resolve the band governing the
     // paper's level. An empty collection is the realistic pre-seed state, and
     // exercises the fallback to the published defaults.
     if (name === "assessmentBands") {
       return {get: async () => ({forEach: () => {}})};
+    }
+    // topicMisconceptions is read before generating and written after, so the
+    // NEXT paper on these topics has real learner errors to build distractors
+    // from. Doc refs only need an id here; reads/writes go through getAll and
+    // runTransaction above.
+    if (name === "topicMisconceptions") {
+      return {doc: (id) => ({id})};
     }
     assert.strictEqual(name, "aiGenerations", "only aiGenerations is written");
     return {
@@ -286,6 +317,7 @@ const IDK = "11111111-1111-4111-8111-111111111111";
 
 function reset() {
   coverageResult = COVERED;
+  misconceptionDocs = {};
   genDocs = {};
   genSeq = 0;
   calls.claude.length = 0;
@@ -789,6 +821,68 @@ async function caught(promise) {
   ok("a teacher difficulty override is honoured in the plan",
       genDocs[IDK].blueprint.coverage.difficulty.recall ===
     genDocs[IDK].blueprint.itemCount);
+
+  // ── Distractor quality: the misconception store (§3.3) ─────────────────
+  // A paper's distractor rationales are recorded per topic, and the NEXT paper on
+  // that topic is told about them. Nothing is invented: a topic nothing is known
+  // about contributes nothing to the prompt.
+  reset();
+  claudeImpl = async () => ({parsed: {
+    ...validPaper(),
+    sections: [{
+      title: "Multiple choice",
+      questions: [{
+        type: "multiple_choice",
+        prompt: "What is 1/2 + 1/4?",
+        options: ["3/4", "1/2", "2/6", "1/8"],
+        marks: 4,
+        answer: "3/4",
+        markingGuide: "4 marks for 3/4.",
+        topic: "Fractions",
+        distractorRationale: [
+          "", "1/2: learners take the larger fraction and ignore the other",
+          "2/6: learners add the numerators and the denominators",
+          "1/8: learners multiply instead of adding",
+        ],
+      }],
+    }],
+  }});
+  await runAssessment({
+    uid: "t1", rawInputs: {...INPUTS, totalMarks: 20}, apiKey: "k", idempotencyKey: IDK,
+  });
+  {
+    const firstPrompt = calls.claude[0].opts.messages[0].content;
+    ok("a topic nothing is known about adds no misconceptions to the prompt",
+        !firstPrompt.includes("KNOWN LEARNER MISCONCEPTIONS"));
+    const stored = Object.values(misconceptionDocs);
+    ok("the paper's distractor rationales are recorded for next time",
+        stored.length >= 1 &&
+      stored.some((d) => (d.misconceptions || [])
+          .some((m) => /add the numerators and the denominators/.test(m.text))));
+    ok("…filed under the question's own topic",
+        stored.every((d) => d.topic === "Fractions"));
+    ok("…with the wrong answer it explains",
+        stored.some((d) => (d.misconceptions || []).some((m) => m.wrongAnswer === "2/6")));
+    ok("…and nothing recorded for the CORRECT option's empty rationale",
+        stored.every((d) => (d.misconceptions || []).every((m) => m.text)));
+  }
+
+  // The next paper on the same topic is told what learners get wrong.
+  {
+    const kept = misconceptionDocs;
+    reset();
+    misconceptionDocs = kept;
+    claudeImpl = async () => ({parsed: validPaper()});
+    await runAssessment({
+      uid: "t1", rawInputs: {...INPUTS, totalMarks: 20}, apiKey: "k", idempotencyKey: `${IDK}-2`,
+    });
+    const secondPrompt = calls.claude[0].opts.messages[0].content;
+    ok("the NEXT paper on that topic is told what learners get wrong",
+        secondPrompt.includes("KNOWN LEARNER MISCONCEPTIONS") &&
+      /add the numerators and the denominators/.test(secondPrompt));
+    ok("…as material to draw on, not a requirement",
+        /Do not force one in where it does not fit/.test(secondPrompt));
+  }
 
   Module._load = origLoad;
   console.log(`\n${passed} passed`);

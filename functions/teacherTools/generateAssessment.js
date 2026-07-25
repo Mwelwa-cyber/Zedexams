@@ -31,6 +31,8 @@ const {
 const {
   gradeLabelFor, subjectLabelFor, curriculumRefusalMessage,
 } = require("./assessmentLabels");
+const {buildMisconceptionContext, recordMisconceptions} =
+  require("./misconceptions");
 const {
   ASSESSMENT_TYPES,
   resolveAssessmentFormatContext,
@@ -67,14 +69,11 @@ const ASSESSMENT_MODEL =
   process.env.ASSESSMENT_MODEL || "claude-sonnet-4-6";
 const LE_VALUES = new Set(LEARNING_ENVIRONMENT_VALUES);
 
-const ASSESSMENT_TOOL_SCHEMA = {
-  type: "object",
-  description: "A formal graded Zambian CBC assessment.",
-  additionalProperties: true,
-  properties: {
-    header: {type: "object", additionalProperties: true},
-  },
-};
+// The structured contract the paper is emitted through (§3.2). Every item's
+// metadata — topic, thinking level, difficulty, marks, outcome — is REQUIRED by
+// the schema rather than requested in prose, so a paper cannot arrive untagged.
+// See assessmentToolSchema.js for what is and is not constrained, and why.
+const {ASSESSMENT_TOOL_SCHEMA} = require("./assessmentToolSchema");
 
 const {ALLOWED_GRADES, ALLOWED_SUBJECTS} =
   require("./assessmentAllowlists");
@@ -500,11 +499,24 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
   }
   const blueprintDirective = renderBlueprintDirective(blueprint);
 
+  // ── Distractor quality (§3.3) ───────────────────────────────────────────
+  // Mistakes learners at this level have actually made on these topics, recorded
+  // from earlier papers' distractor rationales. Best-effort: an unreadable or
+  // empty store contributes nothing and the paper generates as before, so a brand
+  // new topic is never handed invented misconceptions.
+  const misconceptionDirective = await buildMisconceptionContext({
+    framework: inputs.framework,
+    grade: inputs.grade,
+    subject: inputs.subject,
+    topics: blueprint ? blueprint.topics : splitTopicList(inputs.topic),
+  });
+
   const userPrompt = buildUserPrompt({
     ...inputs, totalMarks: gapMarks, questionTypes: effectiveTypes,
   }) +
     (bandDirective ? `\n\n${bandDirective}` : "") +
     (blueprintDirective ? `\n\n${blueprintDirective}` : "") +
+    (misconceptionDirective ? `\n\n${misconceptionDirective}` : "") +
     buildAvoidNote(sourced.questions);
 
   let parsed = null;
@@ -740,6 +752,22 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
     // stuck, not that anything gets double-billed.
     console.error("[generateAssessment] completeAiOperation failed",
         {uid, generationId: genRef.id}, opErr);
+  }
+
+  // Record what this paper articulated about learner errors, so the NEXT paper on
+  // these topics has real misconceptions to build distractors from (§3.3). Awaited
+  // (the function must not be killed mid-write) but never allowed to fail the
+  // request — the teacher's paper is already complete and saved.
+  try {
+    await recordMisconceptions({
+      framework: inputs.framework,
+      grade: inputs.grade,
+      subject: inputs.subject,
+      assessment,
+    });
+  } catch (harvestErr) {
+    console.warn("[generateAssessment] misconception harvest failed",
+        {uid, generationId: genRef.id}, harvestErr);
   }
 
   return {
