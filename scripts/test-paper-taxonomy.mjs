@@ -4,7 +4,8 @@
 // Guards the regressions behind the reported bugs:
 //   - lower-primary / ECE subjects must resolve to the keys the syllabus
 //     actually stores them under (numeracy, zambian_language, …),
-//   - ECE Nursery/Reception must be selectable grades,
+//   - the full Nursery → Form 5 ladder must be selectable, with every level
+//     resolving through ONE declaration (src/config/educationLevels.js),
 //   - topic caps must scale by assessment type (cumulative tests cover many),
 //   - the Assessment Paper Studio exposes exactly 7 assessment types
 //     (4 tests + 3 examinations) from ONE canonical registry, and every one
@@ -73,17 +74,35 @@ for (const k of FALLBACK_SUBJECT_KEYS) {
 }
 
 // ── Grades ───────────────────────────────────────────────────────────────
-ok(PAPER_GRADE_OPTIONS.some((g) => g.value === 'ECE_N'), 'ECE Nursery selectable')
-ok(PAPER_GRADE_OPTIONS.some((g) => g.value === 'ECE_R'), 'ECE Reception selectable')
+// Early Childhood is exactly Nursery then Reception, one per published age
+// band. 'Baby Class' / 'Middle Class' are legacy spellings: still resolvable so
+// saved papers keep working, never offered or displayed.
+ok(PAPER_GRADE_OPTIONS.some((g) => g.value === 'ECE_N'), 'Nursery selectable')
+ok(PAPER_GRADE_OPTIONS.some((g) => g.value === 'ECE_R'), 'Reception selectable')
+// Early Childhood is exactly two levels; the retired names are never offered.
+ok(!PAPER_GRADE_OPTIONS.some((g) => /Baby|Middle/.test(g.label)),
+  'Baby Class / Middle Class are never offered as levels')
 ok(PAPER_GRADE_OPTIONS.some((g) => g.value === '1'), 'Grade 1 selectable')
+ok(PAPER_GRADE_OPTIONS.some((g) => g.value === '7'), 'Grade 7 selectable')
+ok(PAPER_GRADE_OPTIONS.some((g) => g.value === 'G12'), 'Form 5 selectable')
 ok(isPaperGrade('ECE_N') && isPaperGrade('1') && !isPaperGrade('99'), 'isPaperGrade')
-// Secondary is now surfaced as forms whose VALUE is the KB grade code.
+// Secondary is surfaced as forms whose VALUE is the KB grade code.
 ok(isPaperGrade('G8') && isPaperGrade('G12'), 'form grade codes are valid values')
 ok(!isPaperGrade('8'), 'bare secondary numbers are no longer option values')
-eq(studioGradeToKbGrade('ECE_N'), 'ECE_N', 'ECE_N passes through')
+// A level's syllabus code is DECLARED, not derived. Nursery and Reception take
+// one published age band each.
+eq(studioGradeToKbGrade('ECE_N'), 'ECE_N', 'Nursery grounds on the 3-4 syllabus')
+eq(studioGradeToKbGrade('ECE_R'), 'ECE_R', 'Reception grounds on the 4-5 syllabus')
+// Legacy spellings still land on real syllabus content.
+eq(studioGradeToKbGrade('Baby Class'), 'ECE_N', 'legacy Baby Class → the 3-4 syllabus')
+eq(studioGradeToKbGrade('Middle Class'), 'ECE_N', 'legacy Middle Class → the 3-4 syllabus')
 eq(studioGradeToKbGrade('4'), 'G4', 'bare number → G-prefixed')
 eq(studioGradeToKbGrade('G8'), 'G8', 'form value (G8) passes through')
 eq(studioGradeToKbGrade('g7'), 'G7', 'already-prefixed normalised to upper')
+// "Form 3" and "Grade 10" are the SAME curriculum year under two namings, so
+// they must resolve to one level and one syllabus — never to two.
+eq(studioGradeToKbGrade('Form 3'), 'G10', 'Form 3 → G10')
+eq(studioGradeToKbGrade('Grade 10'), 'G10', 'Grade 10 alias → the same G10')
 
 // Curriculum-aware grade + form lists. CBC uses ECE + Grade 1–6 + Form 1–4;
 // the previous syllabus uses Grade 1–7 + Form 1–5. The two must differ so the
@@ -99,8 +118,11 @@ const labels2013 = grades2013.map((g) => g.label)
 ok(!values2023.includes('7'), '2023 framework drops Grade 7')
 ok(values2013.includes('7'), '2013 framework keeps Grade 7')
 ok(values2023.includes('6') && values2023.includes('1'), '2023 keeps G1–G6')
-ok(values2023.includes('ECE_N') && values2023.includes('ECE_R'), '2023 keeps ECE bands')
-ok(!values2013.includes('ECE_N') && !values2013.includes('ECE_R'),
+ok(['ECE_N', 'ECE_R'].every((v) => values2023.includes(v)),
+  '2023 offers both ECE years')
+ok(!values2023.includes('ECE_B') && !values2023.includes('ECE_M'),
+  'the retired ECE codes are never options')
+ok(!values2013.some((v) => String(v).startsWith('ECE')),
   '2013 has no ECE bands (the previous syllabus has none)')
 
 // CBC secondary = Form 1–4 (values G8–G11, no Form 5).
@@ -129,6 +151,13 @@ eq(normalizePaperGrade('Grade 10'), 'G10', 'label "Grade 10" → G10')
 eq(normalizePaperGrade('G10'), 'G10', 'KB code passes through')
 eq(normalizePaperGrade('Form 2'), 'G9', 'form label → G-code')
 eq(normalizePaperGrade('ECE_N'), 'ECE_N', 'ECE band passes through')
+eq(normalizePaperGrade('Nursery'), 'ECE_N', 'label Nursery → ECE_N')
+eq(normalizePaperGrade('Reception'), 'ECE_R', 'label Reception → ECE_R')
+// Retired spellings normalise onto Nursery rather than stranding a saved paper
+// on a value no picker offers.
+eq(normalizePaperGrade('Baby Class'), 'ECE_N', 'legacy Baby Class → Nursery')
+eq(normalizePaperGrade('Middle Class'), 'ECE_N', 'legacy Middle Class → Nursery')
+eq(normalizePaperGrade('ECE'), 'ECE_N', 'ambiguous legacy ECE → Nursery')
 eq(normalizePaperGrade(''), '', 'empty → empty')
 
 // ── Canonical assessment-type registry ───────────────────────────────────
@@ -225,6 +254,9 @@ eq(paperLevel('ECE_N').id, 'nursery', 'ECE_N id = nursery')
 eq(paperLevel('ECE_N').label, 'Nursery', 'ECE_N label = Nursery')
 eq(paperLevel('ECE_N').stage, 'ece', 'ECE_N stage = ece')
 eq(paperLevel('ECE_R').label, 'Reception', 'ECE_R label = Reception')
+// A record saved under a retired name opens showing a current level.
+eq(paperLevel('Baby Class').label, 'Nursery', 'legacy Baby Class displays as Nursery')
+eq(paperLevel('Middle Class').label, 'Nursery', 'legacy Middle Class displays as Nursery')
 eq(paperLevel('4').id, 'grade-4', 'grade 4 id')
 eq(paperLevel('4').label, 'Grade 4', 'grade 4 label')
 eq(paperLevel('4').stage, 'primary', 'grade 4 stage')
@@ -235,10 +267,14 @@ eq(paperLevel('G12').label, 'Form 5', 'G12 label = Form 5')
 eq(paperLevel('G8').stage, 'secondary', 'G8 stage = secondary')
 // Human labels + KB codes normalise to the same canonical value.
 eq(paperLevel('Nursery').value, 'ECE_N', 'label Nursery → ECE_N')
+// The Grade naming of a Form year resolves to the SAME level, not a new one.
+eq(paperLevel('Grade 10').id, 'form-3', 'alias Grade 10 → Form 3')
+eq(paperLevel('Grade 10').label, 'Form 3', 'alias Grade 10 displays as Form 3')
 eq(paperLevel('Form 1').value, 'G8', 'label Form 1 → G8')
 eq(paperLevel('Grade 4').value, '4', 'label Grade 4 → 4')
 eq(paperGradeLabel('G10'), 'Form 3', 'paperGradeLabel(G10) = Form 3')
 eq(paperGradeLabel('ECE_N'), 'Nursery', 'paperGradeLabel(ECE_N) = Nursery')
+eq(paperGradeLabel('ECE_R'), 'Reception', 'paperGradeLabel(ECE_R) = Reception')
 eq(paperGradeLabel('5'), 'Grade 5', 'paperGradeLabel(5) = Grade 5')
 
 // ── Legacy secondary grades (backward compatibility) ─────────────────────
@@ -277,7 +313,7 @@ ok(!cbcAll.includes('G12'), 'CBC has no Form 5')
 const prevAll = getAvailableLevels({ curriculumId: 'previous', gradeCodes: null }).map((l) => l.value)
 ok(prevAll.includes('7'), 'previous curriculum keeps Grade 7')
 ok(prevAll.includes('G12'), 'previous curriculum has Form 5')
-ok(!prevAll.includes('ECE_N'), 'previous curriculum has no ECE bands')
+ok(!prevAll.some((v) => String(v).startsWith('ECE')), 'previous curriculum has no ECE bands')
 // CBC and OBC return DIFFERENT lists (the reported bug: identical grade sets).
 ok(JSON.stringify(cbcAll) !== JSON.stringify(prevAll), 'CBC and OBC level lists differ')
 
@@ -292,11 +328,11 @@ ok(!cbcPresent.includes('G10'), 'Grade 10 (G10) not shown when absent from the s
 // NOT a silent fall-back to Grade 1–12.
 eq(getAvailableLevels({ curriculumId: 'cbc', gradeCodes: new Set() }).length, 0,
   'no syllabus levels → empty (explicit empty state, no 1–12 fallback)')
-// Nursery + Reception surface correctly when their age-band sheets are present.
+// Both ECE years surface from their own published age-band sheets.
 const ece = getAvailableLevels({
   curriculumId: 'cbc', gradeCodes: new Set(['ECE_N', 'ECE_R']),
 }).map((l) => l.label)
-eq(ece.join(','), 'Nursery,Reception', 'Nursery + Reception display correctly')
+eq(ece.join(','), 'Nursery,Reception', 'both ECE years display correctly')
 // Form 1–5 surface (previous curriculum) with correct labels + order.
 const forms = getAvailableLevels({
   curriculumId: 'previous', gradeCodes: new Set(['G8', 'G9', 'G10', 'G11', 'G12']),

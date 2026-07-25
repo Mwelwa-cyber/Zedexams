@@ -223,6 +223,11 @@ export async function normalizeQuestionPayload(q, order) {
     detectedType:  q.detectedType || type,
     difficulty:    q.difficulty || undefined,
     bloom:         q.bloom || undefined,
+    // The ACTIVITY the question is (tracing / picture_matching / …), distinct
+    // from `type`, which is only how it is laid out. Persisted so a mapped
+    // activity keeps its identity for the picker, analytics, reopening the paper
+    // and the migration that will give it a real layout.
+    activityType:  q.activityType || undefined,
     imageUrl:      q.imageUrl || null,
     imageAlt:      String(q.imageAlt ?? '').trim(),
     imageDiagram,

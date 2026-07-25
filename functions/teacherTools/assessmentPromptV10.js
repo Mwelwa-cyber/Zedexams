@@ -338,7 +338,8 @@ function buildUserPrompt(inputs) {
     '          "answer": string,           // for option_images, the correct option LETTER (A-D)',
     '          "markingGuide": string,',
     '          "topic": string,            // the topic this question assesses (use the exact names from the coverage plan / request)',
-    '          "bloomLevel": "remember"|"understand"|"apply"|"analyse"|"evaluate"|"create"  // its cognitive level',
+    '          "bloomLevel": "remember"|"understand"|"apply"|"analyse"|"evaluate"|"create",  // its cognitive level',
+    '          "activityType": string   // the TASK this item is, from the permitted tasks listed above (e.g. "tracing", "picture_matching"). Use the plain type name when the item is just that type.',
     "        }",
     "      ]",
     "    }",
@@ -362,6 +363,10 @@ function buildUserPrompt(inputs) {
       "- Tag every question with its \"topic\".",
     "- Vary the \"bloomLevel\": the paper must not be all recall. Tag every " +
       "question with its bloomLevel and stay within the grade's cognitive mix.",
+    "- Tag every question with its \"activityType\" — the TASK it is, taken from " +
+      "the permitted tasks for this level. This is what the teacher asked for and " +
+      "is kept with the question; \"type\" is only how it is laid out. A tracing " +
+      "task is activityType \"tracing\" with type \"structured\".",
     "- Do NOT repeat a question: never re-ask one fact with a different " +
       "command word. Every question assesses something different.",
     allowedTypes.length > 0 ?

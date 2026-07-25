@@ -5,6 +5,21 @@
  */
 
 const {normalizeBloom} = require("./bloomTaxonomy");
+const {ACTIVITIES} = require("./assessmentBands");
+
+const ACTIVITY_IDS = new Set(ACTIVITIES.map((a) => a.id));
+
+/**
+ * Keep a question's ACTIVITY identity when it is one the registry knows;
+ * otherwise fall back to the render type, which is what a plain question's
+ * activity genuinely is. Never throws and never drops the question — an
+ * unrecognised label must not make a paper unopenable.
+ */
+function normalizeActivityType(value, renderType) {
+  const raw = String(value == null ? "" : value).trim().toLowerCase();
+  if (ACTIVITY_IDS.has(raw)) return raw;
+  return String(renderType || "") || null;
+}
 
 // v1.4 → v1.5: each question carries two OPTIONAL tags — `topic` (the
 // curriculum topic it assesses) and `bloomLevel` (its cognitive demand). They
@@ -372,6 +387,16 @@ function validateAssessment(input) {
                     // interleave re-order; null when the model omits them.
                     topic: str(q.topic, 120) || null,
                     bloomLevel: normalizeBloom(q.bloomLevel),
+                    // The ACTIVITY the item is (v1.7) — "tracing",
+                    // "picture_matching" — as distinct from `type`, the render
+                    // structure that carries it. Kept because a tracing task
+                    // stored only as `structured` is indistinguishable from a
+                    // generic multi-part question forever: the picker cannot show
+                    // what it was, analytics cannot count it, and the migration
+                    // that adds real tracing layouts has nothing to migrate.
+                    // Unknown values fall back to the render type rather than
+                    // failing the paper.
+                    activityType: normalizeActivityType(q.activityType, type),
                     // [] for single-answer questions; populated for "(a)(b)(c)".
                     parts,
                   };

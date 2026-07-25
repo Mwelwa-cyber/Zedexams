@@ -10,7 +10,7 @@ import { syllabiToKbTopics } from '../../utils/syllabusMapping'
 import { extract2013TopicLookup } from '../../utils/syllabus2013Topics'
 import { normalizeTopicLookup } from '../../utils/syllabusTopicTree'
 import {
-  studioGradeToKbGrade, toKbSubjectKey, subjectLabel, getAvailableLevels, paperLevel,
+  studioGradeToKbGrade, toKbSubjectKey, subjectLabel, getLevelCatalogue, paperLevel,
 } from './paperTaxonomy'
 
 // Curriculum frameworks the pickers can suggest from. Values match the
@@ -179,11 +179,11 @@ export function useSyllabusSubjectOptions(grade, framework = '2023') {
  * identical hard-coded set), Forms stay labelled as Forms, and ordering is the
  * fixed Nursery → Reception → Grade → Form sequence — never alphabetical.
  *
- * While the syllabus index is still loading `loading` is true and `levels`
- * carries the full curriculum list (so the picker is usable immediately and
- * never momentarily empty); once resolved it narrows to the levels actually on
- * file. `currentValue` is always kept selectable so an existing paper never
- * loses its saved grade — even a legacy one absent from the current data.
+ * While the syllabus index is still loading `loading` is true and every level
+ * reads as available (so the picker is usable immediately and never momentarily
+ * empty); once resolved each carries its real `availability` + `message`.
+ * `currentValue` is always kept selectable so an existing paper never loses its
+ * saved grade — even a legacy one absent from the current data.
  */
 export function useSyllabusLevelOptions(framework = '2023', currentValue = '') {
   const fw = normalizeStudioFramework(framework)
@@ -200,7 +200,12 @@ export function useSyllabusLevelOptions(framework = '2023', currentValue = '') {
     }
   }
 
-  const levels = getAvailableLevels({ curriculumId, gradeCodes })
+  // EVERY level of the curriculum, annotated with whether its syllabus is
+  // actually on file. Unavailable levels are kept in the list and marked, so the
+  // picker can say "Grade 5 is recognised, but CBC syllabus content has not yet
+  // been loaded" rather than silently omitting it — and so a teacher is never
+  // quietly moved onto the other curriculum's content.
+  const levels = getLevelCatalogue({ curriculumId, gradeCodes })
 
   // Guarantee the paper's own saved level stays pickable (legacy or narrowed
   // out) so switching curriculum/loading never drops a valid current value.
@@ -216,6 +221,12 @@ export function useSyllabusLevelOptions(framework = '2023', currentValue = '') {
         order: meta.order,
         group: meta.legacy ? 'Legacy' : 'Other',
         legacy: !!meta.legacy,
+        // A paper's own saved level stays selectable whatever the catalogue
+        // says — refusing to reopen it would be worse than generating against
+        // thin data, and the teacher can change it.
+        availability: 'available',
+        message: '',
+        unavailable: false,
       })
       levels.sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
     }

@@ -5,6 +5,7 @@ import {
   ASSESSMENT_QUESTION_TYPES,
   canonicalizeAssessmentType,
 } from '../../utils/questionType.js'
+import { ALL_QUESTION_TYPES } from '../../config/assessmentBands.js'
 
 // Topics/sub-topics the mocked syllabus hook serves up. The modal's "From
 // syllabus" mode now renders these as checkboxes so a teacher can tick several
@@ -39,7 +40,8 @@ vi.mock('./syllabusTopicOptions', () => ({
       ? [{ value: '1', label: 'Grade 1' }, { value: '4', label: 'Grade 4' },
          { value: '7', label: 'Grade 7' }, { value: 'G8', label: 'Form 1' },
          { value: 'G12', label: 'Form 5' }]
-      : [{ value: 'ECE_N', label: 'Nursery' }, { value: '1', label: 'Grade 1' },
+      : [{ value: 'ECE_N', label: 'Nursery' }, { value: 'ECE_R', label: 'Reception' },
+         { value: '1', label: 'Grade 1' },
          { value: '4', label: 'Grade 4' }, { value: '6', label: 'Grade 6' },
          { value: 'G8', label: 'Form 1' }, { value: 'G11', label: 'Form 4' }],
     loading: false,
@@ -185,10 +187,12 @@ describe('CreatePaperModal — question types', () => {
     // A topic is required before generation runs.
     fireEvent.click(screen.getByRole('checkbox', { name: 'Numbers' }))
 
-    // Default selection is MCQ + short answer + structured — turn the studio
-    // into the bug's exact selection: Multiple choice + Fill in the blank only.
+    // The default grade is 4, whose band (Grades 1-4) does not permit
+    // Structured — so that chip is not offered at all here, and the seeded
+    // selection has already dropped it. Narrow the rest down to the bug's exact
+    // selection: Multiple choice + Fill in the blank only.
+    expect(screen.queryByRole('button', { name: 'Structured' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Short answer' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Structured' }))
     fireEvent.click(screen.getByRole('button', { name: 'Fill in the blank' }))
 
     fireEvent.click(screen.getByRole('button', { name: /Generate paper/i }))
@@ -205,7 +209,7 @@ describe('CreatePaperModal — question types', () => {
     expect(payload.questionTypes).not.toContain('short_answer')
     // The human phrasing is also echoed in the instructions so the prompt
     // renders fill-in-the-blank as blanks.
-    expect(payload.instructions).toMatch(/fill-in-the-blank/i)
+    expect(payload.instructions).toMatch(/fill in the blank/i)
   })
 })
 
@@ -328,9 +332,22 @@ describe('CreatePaperModal — stop-generation race', () => {
 // that could silently drift from ASSESSMENT_QUESTION_TYPES. This guard fails the
 // moment a chip is added with a canonical the normalizer doesn't recognise.
 describe('CreatePaperModal — assessment-type chip map parity', () => {
-  it('every chip canonical is a member of the shared ASSESSMENT_QUESTION_TYPES', () => {
+  it('every chip canonical is a recognised type — schema or band vocabulary', () => {
+    // The eight ASSESSMENT_QUESTION_TYPES are what the output schema validates.
+    // The band vocabulary adds the stage-specific TASK names (early-years and
+    // upper-band), which the server maps onto a schema type before generating.
+    // A chip outside both sets is a spelling nothing downstream recognises.
+    const recognised = new Set([...ASSESSMENT_QUESTION_TYPES, ...ALL_QUESTION_TYPES])
     for (const opt of QUESTION_TYPE_OPTIONS) {
-      expect(ASSESSMENT_QUESTION_TYPES).toContain(opt.canonical)
+      expect(recognised).toContain(opt.canonical)
+    }
+  })
+
+  it('every band-vocabulary chip has a chip, so a band can never offer nothing', () => {
+    // A band listing a type with no chip would silently narrow the picker.
+    const chipCanonicals = new Set(QUESTION_TYPE_OPTIONS.map((o) => o.canonical))
+    for (const type of ALL_QUESTION_TYPES) {
+      expect(chipCanonicals).toContain(type)
     }
   })
 
@@ -424,5 +441,92 @@ describe('CreatePaperModal — duplicate-click protection', () => {
     const secondKey = generateAssessment.mock.calls[1][0].idempotencyKey
 
     expect(secondKey).not.toBe(firstKey)
+  })
+})
+
+// ── Assessment bands (Phase 2) ────────────────────────────────────────────
+// The acceptance criterion: "changing the grade visibly changes which question
+// types are offered". Selecting Baby Class must not offer Essay / Composition;
+// selecting Form 4 must not offer Colouring.
+describe('CreatePaperModal — question types follow the band', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  async function selectGrade(value) {
+    const select = screen.getByLabelText(/Grade \/ level/i)
+    // The band resolves asynchronously (Firestore read, falling back to the
+    // published defaults), so let the re-render settle before asserting.
+    await act(async () => {
+      fireEvent.change(select, { target: { value } })
+    })
+  }
+
+  // Find a question-type chip by its ACTIVITY NAME. Chips for limited-support
+  // activities append a "· basic" marker, and that marker is part of the point —
+  // so strip it before comparing rather than matching the whole label.
+  const chip = (label) => screen.getAllByRole('button').find((b) => (
+    b.className.includes('sv-cpm-pill') &&
+    b.textContent.replace(/·\s*basic\s*$/i, '').trim() === label
+  )) || null
+
+  it('Nursery offers early-years tasks and no writing tasks', () => {
+    renderModal({ paperMeta: { grade: 'ECE_N', subject: 'numeracy', term: '1' } })
+    for (const early of ['Match pictures', 'Counting', 'Tracing', 'Colouring', 'Sorting']) {
+      expect(chip(early)).not.toBeNull()
+    }
+    // A child who cannot read cannot be set an essay, a comprehension or a
+    // structured multi-part question.
+    for (const tooHard of ['Essay / Composition', 'Structured', 'Comprehension']) {
+      expect(chip(tooHard)).toBeNull()
+    }
+    // …nor a reading passage.
+    expect(chip('Comprehension passage')).toBeNull()
+  })
+
+  it('Form 4 offers examination tasks and no early-years tasks', () => {
+    renderModal({ paperMeta: { grade: 'G11', subject: 'mathematics', term: '1' } })
+    for (const senior of ['Essay / Composition', 'Case study', 'Practical', 'Extended response']) {
+      expect(chip(senior)).not.toBeNull()
+    }
+    for (const tooEasy of ['Colouring', 'Tracing', 'Counting', 'Match pictures']) {
+      expect(chip(tooEasy)).toBeNull()
+    }
+  })
+
+  it('changing the grade visibly changes the offered types', async () => {
+    renderModal({ paperMeta: { grade: 'G11', subject: 'mathematics', term: '1' } })
+    expect(chip('Essay / Composition')).not.toBeNull()
+    expect(chip('Colouring')).toBeNull()
+
+    await selectGrade('ECE_N')
+
+    expect(chip('Essay / Composition')).toBeNull()
+    expect(chip('Colouring')).not.toBeNull()
+  })
+
+  it('drops a selected type the new band forbids rather than carrying it over', async () => {
+    const { generateAssessment } = await import('../../utils/teacherTools')
+    generateAssessment.mockResolvedValue({ ok: false, error: 'stop here' })
+
+    renderModal({ paperMeta: { grade: 'G11', subject: 'mathematics', term: '1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Essay / Composition' }))
+    // Switching down to Baby Class must not smuggle "essay" through to the
+    // generator via a chip that is no longer on screen.
+    await selectGrade('ECE_N')
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Numbers' }))
+    fireEvent.click(screen.getByRole('button', { name: /Generate paper/i }))
+
+    expect(generateAssessment).toHaveBeenCalledTimes(1)
+    expect(generateAssessment.mock.calls[0][0].questionTypes).not.toContain('essay')
+  })
+
+  it('never leaves the teacher with no type selected', () => {
+    // Every seeded default is forbidden at Baby Class, so the band's own first
+    // types are selected instead of leaving an empty, un-generatable form.
+    renderModal({ paperMeta: { grade: 'ECE_N', subject: 'numeracy', term: '1' } })
+    const active = screen.getAllByRole('button')
+      .filter((b) => b.className.includes('sv-cpm-pill') && b.className.includes('active'))
+    expect(active.length).toBeGreaterThan(0)
   })
 })

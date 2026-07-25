@@ -9,7 +9,8 @@ describe('assessmentDefaultsFromParams', () => {
     expect(assessmentDefaultsFromParams(params('grade=G5')).grade).toBe('5')
     // Secondary → its form code (G8 = Form 1), never collapsed to "Grade 8".
     expect(assessmentDefaultsFromParams(params('grade=G8')).grade).toBe('G8')
-    // ECE seeds the Nursery band rather than being dropped.
+    // A bare ECE is ambiguous (it predates the age bands) and seeds the
+    // youngest ECE year rather than being dropped.
     expect(assessmentDefaultsFromParams(params('grade=ECE')).grade).toBe('ECE_N')
     expect(assessmentDefaultsFromParams(params('grade=ECE_R')).grade).toBe('ECE_R')
     // Out-of-range grades have no level equivalent → omitted (caller keeps default).

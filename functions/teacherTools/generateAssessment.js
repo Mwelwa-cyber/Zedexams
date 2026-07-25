@@ -38,6 +38,11 @@ const {sourceAssessmentFromBank} = require("./masterBankSourcing");
 const {buildAvoidNote, mergeSourcedIntoSections} = require("./masterBankSourcingCore");
 const {checkAssessmentQuality, interleaveSections} =
   require("./assessmentQualityCheck");
+const {
+  bandForGrade, buildBandDirective, allowedQuestionTypes, toSchemaTypes,
+  bandPermitsActivity,
+  ALL_QUESTION_TYPES: BAND_QUESTION_TYPES,
+} = require("./assessmentBands");
 const {buildProvenance} = require("../aiValidation/operationRegistry");
 const {validateCurriculumContext} = require("../aiValidation/curriculumGuard");
 const {deriveAcceptanceState} = require("../aiValidation/validationResult");
@@ -100,6 +105,15 @@ function sanitizeInputs(raw = {}) {
         Math.round(num(raw.durationMinutes, 40)))),
     language: ALLOWED_LANGUAGES.has(language) ? language : "english",
     questionTypes: normalizeQuestionTypes(raw.questionTypes),
+    // The teacher's selection in the BAND's vocabulary — the early-years and
+    // upper-band task names, which normalizeQuestionTypes drops because it only
+    // knows the eight schema types. Kept so the band ceiling is applied to what
+    // was actually asked for, then converted to schema types for the prompt.
+    // The vocabulary itself is the band's (assessmentBands.js); this only
+    // filters against it. Nothing outside it survives.
+    requestedBandTypes: (Array.isArray(raw.questionTypes) ? raw.questionTypes : [])
+        .map((v) => String(v || "").trim().toLowerCase())
+        .filter((v) => BAND_QUESTION_TYPES.includes(v)),
     instructions: str(raw.instructions, 500),
     // Omitted → the safe default (topic_test), same as before. An explicit
     // but unrecognised value is kept as-is here (NOT silently coerced) so
@@ -117,13 +131,20 @@ function sanitizeInputs(raw = {}) {
   };
 }
 
-// Human-readable grade label for the combination error. Mirrors the client
-// level catalogue: G1–G7 → "Grade N", G8–G12 → the forms "Form 1"…"Form 5",
-// ECE bands → Nursery / Reception. A Form is never relabelled a Grade.
+// Human-readable grade label. Mirrors the client level ladder
+// (src/config/educationLevels.js): G1–G7 → "Grade N", G8–G12 → the forms
+// "Form 1"…"Form 5", and the two ECE age bands → Nursery and Reception. A Form
+// is never relabelled a Grade.
+//
+// "Baby Class" and "Middle Class" are NOT levels; their codes are legacy
+// spellings that resolve to Nursery so an old record still opens. A bare "ECE"
+// predates the age bands, covers both years, and resolves to the youngest.
 function gradeLabelFor(code) {
   const g = String(code || "").toUpperCase();
-  if (g === "ECE_N") return "Nursery";
-  if (g === "ECE_R" || g === "ECE") return "Reception";
+  if (g === "ECE_N" || g === "ECE_B" || g === "ECE" || g === "ECE_M") {
+    return "Nursery";
+  }
+  if (g === "ECE_R") return "Reception";
   const m = g.match(/^G(\d{1,2})$/);
   if (m) {
     const n = Number(m[1]);
@@ -343,13 +364,34 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
     visibility: "private",
   });
 
+  // The band governing this level — reading requirement, permitted question
+  // types, structural rules, cognitive spread. Resolved BEFORE sourcing so the
+  // band's ceiling applies to bank questions as well as authored ones: a Baby
+  // Class paper must not be handed an essay from the Master Bank either.
+  //
+  // The client already filters its chips to the band, but a client is not a
+  // guard — the ceiling is enforced here, where it cannot be bypassed.
+  const band = await bandForGrade(inputs.grade);
+  // Intersect what was asked for with what the band permits, in the band's own
+  // vocabulary, then convert to the schema types the generator can emit.
+  const requested = inputs.requestedBandTypes.length > 0 ?
+    inputs.requestedBandTypes : inputs.questionTypes;
+  const bandTypes = allowedQuestionTypes(band, requested);
+  // The ceiling only ever NARROWS. When the intersection is empty — a stale
+  // client asking Baby Class for an essay — fall back to the BAND's own list,
+  // never to the client's: falling back to the request would hand back exactly
+  // the types the band just refused.
+  const permitted = bandTypes.length > 0 ?
+    bandTypes : (band ? band.questionTypes : requested);
+  const effectiveTypes = toSchemaTypes(permitted);
+
   // Smart Paper Generation — fill up to ~half the marks from the Master Bank,
   // then ask the AI to author only the remainder. Best-effort: an empty/
   // unmatched bank sources nothing and the flow is identical to before.
   let sourced = {questions: [], fromBank: 0, marks: 0, scanned: 0};
   if (inputs.useQuestionBank) {
-    const allowedTypes = inputs.questionTypes && inputs.questionTypes.length ?
-      inputs.questionTypes : BANK_ASSESSMENT_TYPES;
+    const allowedTypes = effectiveTypes && effectiveTypes.length ?
+      effectiveTypes : BANK_ASSESSMENT_TYPES;
     sourced = await sourceAssessmentFromBank({
       grade: inputs.grade,
       subject: inputs.subject,
@@ -358,11 +400,46 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
       allowedTypes,
     });
   }
+  // A bank question whose activity the band forbids is REJECTED, not adapted.
+  // sourceAssessmentFromBank is filtered by type, but the bank is shared across
+  // grades and a stored question can carry an activity that is wrong for this
+  // level — reusing it would put an essay on a Nursery paper by the back door.
+  if (band && sourced.questions.length > 0) {
+    const keptQuestions = sourced.questions.filter((q) => bandPermitsActivity(
+        band, q.activityType || q.type,
+    ));
+    const rejected = sourced.questions.length - keptQuestions.length;
+    if (rejected > 0) {
+      const keptMarks = keptQuestions
+          .reduce((sum, q) => sum + (Number(q.marks) || 0), 0);
+      console.warn(
+          `generateAssessment: rejected ${rejected} Master Bank question(s) ` +
+        `whose activity is not permitted for band ${band.id}.`,
+      );
+      sourced = {
+        ...sourced,
+        questions: keptQuestions,
+        fromBank: keptQuestions.length,
+        marks: keptMarks,
+      };
+    }
+  }
+
   // Marks the AI still needs to author. >= ~half by construction, so the model
   // is always called and always produces a coherent paper.
   const gapMarks = Math.max(1, inputs.totalMarks - sourced.marks);
 
-  const userPrompt = buildUserPrompt({...inputs, totalMarks: gapMarks}) +
+  // The band's rules are rendered into the prompt from the resolved document
+  // rather than written into the prompt file, so correcting a band in Firestore
+  // changes what the model is told with no deploy and no prompt version bump. A
+  // level with no band (an unrecognised grade token) contributes nothing and
+  // the paper generates exactly as it did before.
+  const bandDirective = buildBandDirective(band, gradeLabelFor(inputs.grade));
+
+  const userPrompt = buildUserPrompt({
+    ...inputs, totalMarks: gapMarks, questionTypes: effectiveTypes,
+  }) +
+    (bandDirective ? `\n\n${bandDirective}` : "") +
     buildAvoidNote(sourced.questions);
 
   let parsed = null;

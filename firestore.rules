@@ -920,6 +920,24 @@ service cloud.firestore {
       allow write:  if isAdmin();
     }
 
+    // ── assessmentBands (pedagogical rules per stage of the ladder) ──
+    // One document per band (early_childhood … senior_secondary) holding the
+    // reading requirement, permitted question types, structural rules, default
+    // durations and mark ranges, instruction formality, minimum figure size and
+    // Bloom's spread for that stage. The Assessment Paper Studio reads these to
+    // decide which question types a level may even offer, and the generator
+    // renders them into its prompt — so they are configuration every signed-in
+    // teacher must be able to read, and only an admin may change.
+    //
+    // Seeded by scripts/seed-assessment-bands.mjs (admin SDK). Both readers
+    // validate a document before trusting it and fall back to the published
+    // defaults if it fails, so a bad edit degrades to the shipped rules rather
+    // than widening what a Baby Class paper may contain.
+    match /assessmentBands/{bandId} {
+      allow read:   if isVerified();
+      allow write:  if isAdmin();
+    }
+
     // ── Dawn (on-demand morning briefing) ─────────────────────
     // dawnConfig/default holds the non-secret launch ids (agent /
     // environment / vault) + recipient email an admin sets from the

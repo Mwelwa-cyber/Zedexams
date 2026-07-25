@@ -24,56 +24,63 @@ import {
   paperGradeOptions, normalizePaperGrade, maxTopicsFor,
   isCumulativeType, toKbSubjectKey, studioGradeToKbGrade,
 } from './paperTaxonomy'
+import { useAssessmentBand } from '../../hooks/useAssessmentBand'
 import LiveGenerationCanvas from '../ui/LiveGenerationCanvas'
 import FreePreviewUpsell from './FreePreviewUpsell'
 import { capture } from '../../utils/analytics'
 import { resolveTeacherPlan, FREE_PREVIEW_LIMITS } from '../../utils/teacherPlans'
-import { canonicalizeAssessmentType } from '../../utils/questionType'
+import { QUESTION_ACTIVITIES, isLimitedSupport } from '../../config/questionActivities'
 
-// Each chip maps to a canonical schema question type (`canonical`) sent to the
-// generator so the paper contains ONLY the selected types, while `key` is the
-// human phrasing folded into the prompt text. Fill-in-the-blank is a
-// first-class schema type (fill_blanks, v1.6) with its own structured
-// statements[] + wordBank[] shape — distinct from short_answer.
+// The chips are DERIVED from the activity registry (src/config/questionActivities.js)
+// so the picker can never offer an activity the bands and the server do not both
+// know, and so the label a teacher sees is always the educational activity name
+// — "Tracing", "Circle the answer" — and never the internal fallback renderer
+// ("Structured", "Multiple choice").
 //
-// The `canonical` values are the ASSESSMENT namespace (multiple_choice /
-// true_false / structured / calculation / fill_blanks / …), the vocabulary the
-// generator + assessmentSchema speak — NOT the editor enum (mcq / tf / …).
-// They are the single source of truth in src/utils/questionType.js
-// (ASSESSMENT_QUESTION_TYPES, guarded against this map by
-// CreatePaperModal.spec.jsx); canonicalTypesFor() folds each through
-// canonicalizeAssessmentType so the modal can never emit a spelling the shared
-// normalizer doesn't recognise.
-export const QUESTION_TYPE_OPTIONS = [
-  { key: 'multiple choice', canonical: 'multiple_choice', label: 'Multiple choice' },
-  { key: 'true/false', canonical: 'true_false', label: 'True / False' },
-  { key: 'short answer', canonical: 'short_answer', label: 'Short answer' },
-  { key: 'fill-in-the-blank', canonical: 'fill_blanks', label: 'Fill in the blank' },
-  { key: 'matching (match Column A with Column B)', canonical: 'matching', label: 'Matching' },
-  { key: 'structured (multi-part)', canonical: 'structured', label: 'Structured' },
-  { key: 'calculation (show working)', canonical: 'calculation', label: 'Calculation' },
-  { key: 'essay/composition', canonical: 'essay', label: 'Essay / Composition' },
-]
+// `canonical` is the activity id sent to the generator; the server maps it to
+// the render structure the schema validates. `key` is the human phrasing folded
+// into the prompt text.
+export const QUESTION_TYPE_OPTIONS = QUESTION_ACTIVITIES.map((a) => ({
+  key: a.label.toLowerCase(),
+  canonical: a.id,
+  label: a.label,
+  support: a.support,
+  note: a.note || '',
+}))
 
-// The canonical schema types for the currently-selected chips, deduped
-// (multiple chips with the same canonical are merged, e.g. two short-answer
-// chips, but fill-in-the-blank now maps to fill_blanks — a distinct type).
+// The activity ids for the currently-selected chips, deduped. Sent as the
+// teacher's request; the band narrows it server-side and the registry converts
+// it to render types, so nothing here has to know either mapping.
 function canonicalTypesFor(selectedKeys) {
   const out = []
   for (const k of selectedKeys) {
     const opt = QUESTION_TYPE_OPTIONS.find((o) => o.key === k)
     if (!opt) continue
-    // Fold through the shared assessment-namespace canonicalizer (a no-op for
-    // the already-canonical chip values) so the deduped whitelist always uses
-    // the same spelling the generator + assessmentSchema validate against.
-    const canonical = canonicalizeAssessmentType(opt.canonical)
-    if (!out.includes(canonical)) out.push(canonical)
+    if (!out.includes(opt.canonical)) out.push(opt.canonical)
   }
   return out
 }
 
-const MARKS_OPTIONS = [20, 30, 40, 50, 60, 80, 100]
-const DURATION_OPTIONS = [30, 40, 60, 90, 120, 150, 180]
+// The opening selection for a fresh paper — a plain mixed test. Resolved from
+// the chip list so it is always a set of real chip keys.
+const DEFAULT_ACTIVITY_KEYS = ['multiple_choice', 'short_answer', 'structured']
+  .map((id) => QUESTION_TYPE_OPTIONS.find((o) => o.canonical === id)?.key)
+  .filter(Boolean)
+
+const MARKS_OPTIONS = [5, 10, 15, 20, 30, 40, 50, 60, 80, 100]
+const DURATION_OPTIONS = [15, 20, 30, 40, 60, 90, 120, 150, 180]
+
+/**
+ * The chips a band permits, in the declared order. The band is the ceiling: a
+ * type it does not list is not offered at all, which is what stops Baby Class
+ * being asked for an essay and Form 4 being offered colouring. No rule about
+ * WHICH types belong to a level lives here — that is the band document.
+ */
+function chipsForBand(band) {
+  if (!band || !Array.isArray(band.questionTypes)) return QUESTION_TYPE_OPTIONS
+  const permitted = new Set(band.questionTypes)
+  return QUESTION_TYPE_OPTIONS.filter((o) => permitted.has(o.canonical))
+}
 
 // Modal form styling lives in studio/assessmentStudio.css under `.sv-cpm-*`
 // (scoped to .studio-v2, using the design tokens directly — no inline objects).
@@ -184,7 +191,10 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
       subtopics: [],
       totalMarks: 40,
       durationMinutes: 60,
-      questionTypes: ['multiple choice', 'short answer', 'structured (multi-part)'],
+      // Seeded from the chip vocabulary itself so a renamed activity can never
+      // leave the default selection pointing at a chip that no longer exists.
+      // The band effect below narrows this to what the level actually permits.
+      questionTypes: DEFAULT_ACTIVITY_KEYS,
       comprehension: false,
       autoDiagrams: true,
       extra: '',
@@ -209,6 +219,54 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
     ...f, [k]: v, topics: [], topicInput: '', subtopics: [], subtopicInput: '',
   }))
 
+  // The pedagogical rules for the selected level, from the assessmentBands
+  // collection. Everything stage-specific — which question types may be
+  // offered, how long the paper runs, how many marks it carries — comes from
+  // here rather than from a constant in this file.
+  const { band } = useAssessmentBand(form.grade)
+  const typeChips = useMemo(() => chipsForBand(band), [band])
+
+  // A type the new band does not permit is dropped the moment the level
+  // changes, so switching Form 4 → Baby Class cannot silently carry "Essay"
+  // through to the generator via a chip that is no longer on screen.
+  useEffect(() => {
+    const permitted = new Set(typeChips.map((c) => c.key))
+    setForm((f) => {
+      const kept = f.questionTypes.filter((k) => permitted.has(k))
+      if (kept.length === f.questionTypes.length) return f
+      // Never leave the teacher with nothing selected: fall back to the band's
+      // first two types, which are the ones it leads with.
+      const next = kept.length > 0 ? kept : typeChips.slice(0, 2).map((c) => c.key)
+      return { ...f, questionTypes: next }
+    })
+  }, [typeChips])
+
+  // Duration and total marks follow the band's defaults for the chosen
+  // assessment type — a Baby Class topic test is 15 minutes for 5-10 marks, a
+  // Form 4 final examination is 180 minutes for 75-100. Re-applied whenever the
+  // level or the type changes, which is exactly when the previous numbers stop
+  // making sense; the teacher can still override either afterwards.
+  const bandId = band?.id
+  useEffect(() => {
+    if (!band) return
+    const duration = band.defaultDurations?.[form.assessmentType]
+    const range = band.markRanges?.[form.assessmentType]
+    setForm((f) => {
+      const next = { ...f }
+      if (Number.isFinite(Number(duration))) next.durationMinutes = Number(duration)
+      if (Array.isArray(range) && Number.isFinite(Number(range[0]))) {
+        // Land on the closest offered value inside the band's range rather than
+        // the raw bound, so the <select> always has the value it is showing.
+        const [lo, hi] = range.map(Number)
+        const inRange = MARKS_OPTIONS.filter((m) => m >= lo && m <= hi)
+        next.totalMarks = inRange.length > 0 ? inRange[inRange.length - 1] : lo
+      }
+      return next
+    })
+    // `bandId` rather than `band`: the object identity changes when the
+    // Firestore read swaps in, but the defaults only matter per band.
+  }, [bandId, band, form.assessmentType])
+
   const maxTopics = maxTopicsFor(form.assessmentType)
   const cumulative = isCumulativeType(form.assessmentType)
   // Copy reacts to whichever type is CURRENTLY selected in the grouped
@@ -221,6 +279,11 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
   const { levels: gradeOptions, loading: levelsLoading } =
     useSyllabusLevelOptions(form.framework, form.grade)
   const noLevels = !levelsLoading && gradeOptions.length === 0
+  // The level currently chosen, with its availability. A level whose syllabus
+  // is not on file is still shown and still selected if it was already set —
+  // we explain it and refuse to generate, rather than quietly swapping the
+  // teacher onto another curriculum's content.
+  const selectedLevel = gradeOptions.find((g) => g.value === form.grade) || null
 
   // Keep the selected grade valid for the curriculum — e.g. Grade 7 doesn't
   // exist under CBC, so switching curriculum snaps back to the first available
@@ -229,8 +292,11 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
   useEffect(() => {
     if (levelsLoading || gradeOptions.length === 0) return
     if (!gradeOptions.some((g) => g.value === form.grade)) {
+      // Snap to the first level that is actually usable, not merely the first
+      // listed — the list now includes recognised-but-unavailable levels.
+      const firstUsable = gradeOptions.find((g) => !g.unavailable) || gradeOptions[0]
       setForm((f) => ({
-        ...f, grade: gradeOptions[0].value,
+        ...f, grade: firstUsable.value,
         topics: [], topicInput: '', subtopics: [], subtopicInput: '',
       }))
     }
@@ -410,6 +476,14 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
   }
 
   async function onGenerate() {
+    // A recognised level with no syllabus content on file cannot be generated
+    // for: the paper would be invented rather than grounded. Say which level and
+    // what to do, and never fall back to the other curriculum's content.
+    if (selectedLevel?.unavailable) {
+      setError(selectedLevel.message)
+      setStatus('error')
+      return
+    }
     if (noSubjects || !form.subject) {
       setError('This grade has no subjects in the chosen syllabus — pick another grade or curriculum.')
       setStatus('error')
@@ -581,18 +655,27 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="sv-cpm-grid2">
               <div>
-                <label className="sv-cpm-label">Grade / level</label>
-                <select className="sv-cpm-input" value={form.grade}
+                <label className="sv-cpm-label" htmlFor="cpm-grade">Grade / level</label>
+                <select id="cpm-grade" className="sv-cpm-input" value={form.grade}
                   disabled={levelsLoading || noLevels}
                   onChange={(e) => setMeta('grade', e.target.value)}>
                   {levelsLoading && <option value={form.grade}>Loading education levels…</option>}
                   {noLevels && <option value="">No syllabus levels for this curriculum</option>}
                   {!levelsLoading && !noLevels && gradeOptions.map((g) => (
-                    <option key={g.value} value={g.value}>{g.label}</option>
+                    // A recognised level whose syllabus is not loaded stays
+                    // VISIBLE but unselectable, so the teacher sees that the
+                    // level exists and why it cannot be used — rather than a gap
+                    // in the list with no explanation.
+                    <option key={g.value} value={g.value} disabled={g.unavailable}>
+                      {g.label}{g.unavailable ? ' — not available yet' : ''}
+                    </option>
                   ))}
                 </select>
                 {noLevels && (
                   <p className="sv-cpm-hint">No syllabus levels are available for this curriculum.</p>
+                )}
+                {selectedLevel?.unavailable && (
+                  <p className="sv-cpm-warn" role="status">{selectedLevel.message}</p>
                 )}
               </div>
               <div>
@@ -811,21 +894,46 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
 
             <div>
               <label className="sv-cpm-label">Question types</label>
+              {band?.reading?.requirement === 'none' && (
+                <p className="sv-cpm-hint" style={{ marginTop: 0 }}>
+                  Children at this level are not expected to read, so every question
+                  is answered by looking at a picture or listening to you. A sheet of
+                  what to read aloud is made along with the worksheet.
+                </p>
+              )}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {QUESTION_TYPE_OPTIONS.map((t) => {
+                {typeChips.map((t) => {
                   const on = form.questionTypes.includes(t.key)
+                  // An activity with no faithful layout yet is marked, so the UI
+                  // never implies a finished worksheet experience it cannot
+                  // deliver. It is still offered — it generates and prints, just
+                  // as a figure plus a work area.
+                  const limited = isLimitedSupport(t.canonical)
                   return (
                     <button key={t.key} type="button" onClick={() => toggleType(t.key)}
-                      className={`sv-cpm-pill ${on ? 'active' : ''}`}>
+                      className={`sv-cpm-pill ${on ? 'active' : ''}`}
+                      title={t.note || undefined}>
                       {t.label}
+                      {limited && <span className="sv-cpm-pill-basic"> · basic</span>}
                     </button>
                   )
                 })}
-                <button type="button" onClick={() => set('comprehension', !form.comprehension)}
-                  className={`sv-cpm-pill ${form.comprehension ? 'active' : ''}`}>
-                  Comprehension passage
-                </button>
+                {/* A reading passage only makes sense once learners can read it. */}
+                {band?.reading?.requirement !== 'none' && (
+                  <button type="button" onClick={() => set('comprehension', !form.comprehension)}
+                    className={`sv-cpm-pill ${form.comprehension ? 'active' : ''}`}>
+                    Comprehension passage
+                  </button>
+                )}
               </div>
+              {typeChips.some((t) => isLimitedSupport(t.canonical)) && (
+                <p className="sv-cpm-hint">
+                  Activities marked <strong>· basic</strong> print as a picture with
+                  space to work — the specially drawn versions (dotted letters to
+                  trace, shapes made for colouring, labelled sorting boxes) are
+                  still being built.
+                </p>
+              )}
             </div>
 
             <div>
