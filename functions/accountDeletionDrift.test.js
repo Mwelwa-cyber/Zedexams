@@ -64,6 +64,7 @@ const RETAINED = new Map([
   ["aiAgentControls", "learner-AI agent toggles; ops config"],
   ["aiAgentLogs", "append-only agent audit log"],
   ["aiAutomationSettings", "global learner-AI policy doc"],
+  ["assessmentBands", "global pedagogical rules per stage of the education ladder; admin-authored config, no learner or teacher data"],
   ["aiDailyLimits", "per-day AI-call rate-limit counters; no PII"],
   ["aiGeneratedContent", "grade-scoped published agent content; not user-owned"],
   ["aiGeneratedContentVersions", "append-only agent-content version history"],
