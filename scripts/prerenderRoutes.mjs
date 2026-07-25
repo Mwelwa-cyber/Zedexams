@@ -16,20 +16,34 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
 const BLOG_DIR = join(ROOT, 'content', 'blog')
 
-/** Discover blog post slugs from the markdown source (mirrors blogPosts.js). */
-export function discoverBlogSlugs() {
+/**
+ * Discover blog posts from the markdown source (mirrors blogPosts.js).
+ * Returns `{ slug, publishedAt, updatedAt }` per post — the dates feed the
+ * sitemap generator's <lastmod> (scripts/generateSitemap.mjs); prerendering
+ * itself only needs the slug.
+ */
+export function discoverBlogPosts() {
   if (!existsSync(BLOG_DIR)) return []
   return readdirSync(BLOG_DIR)
     .filter((f) => f.endsWith('.md'))
     .map((file) => {
       const raw = readFileSync(join(BLOG_DIR, file), 'utf8')
       const m = raw.match(/^---\s*\n([\s\S]*?)\n---/)
-      const slugLine = m && m[1].split('\n').find((l) => l.trim().startsWith('slug:'))
-      const slug = slugLine
-        ? slugLine.split(':')[1].trim().replace(/^['"]|['"]$/g, '')
-        : file.replace(/\.md$/, '')
-      return slug
+      const fmValue = (key) => {
+        const line = m && m[1].split('\n').find((l) => l.trim().startsWith(`${key}:`))
+        return line ? line.slice(line.indexOf(':') + 1).trim().replace(/^['"]|['"]$/g, '') : null
+      }
+      return {
+        slug: fmValue('slug') || file.replace(/\.md$/, ''),
+        publishedAt: fmValue('publishedAt'),
+        updatedAt: fmValue('updatedAt'),
+      }
     })
+}
+
+/** Discover blog post slugs from the markdown source (mirrors blogPosts.js). */
+export function discoverBlogSlugs() {
+  return discoverBlogPosts().map((p) => p.slug)
 }
 
 /**
