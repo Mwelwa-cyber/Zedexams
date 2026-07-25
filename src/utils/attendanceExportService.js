@@ -6,6 +6,11 @@
  * CSV, Excel and Word — and all totals in it come from attendanceCalculator,
  * so a printed percentage can never disagree with the screen.
  *
+ * The on-screen PAPER PREVIEW (buildPaperPreview) is not a second renderer:
+ * it emits the very same page markup and the same BASE_PRINT_CSS the printer
+ * gets, on a sheet sized to A4 instead of a `@page` box. A preview and its
+ * printout cannot drift because there is only one builder per document.
+ *
  * The model + HTML builders are pure string/JSON functions (tested under
  * plain node by scripts/test-attendance-export.mjs); the download/print
  * helpers at the bottom are browser-only and lazy-load their heavy deps.
@@ -169,43 +174,47 @@ function totalsCells(totals) {
     <td>${formatPercent(totals.attendancePercentage)}</td>`
 }
 
+const EMPTY_MONTH = { key: null, label: 'No register days', weeks: [], days: [] }
+
+/** Wraps page sections in a document. `pageCss` sets the sheet geometry. */
+function documentHtml({ title, pageCss, extraCss = '', body }) {
+  return `<!doctype html><html><head><meta charset="utf-8" /><title>${esc(title)}</title>
+    <style>${pageCss} ${BASE_PRINT_CSS}${extraCss}</style></head><body>${body}</body></html>`
+}
+
 /**
- * Official class register — A4 landscape, ONE PAGE PER MONTH so a long term
- * stays readable; learner-identification columns and date headers repeat on
- * every page. Month pages show the month's marks + whole-term totals.
+ * ONE month page of the official register — the single source of that page's
+ * markup, used by both the printed document and the on-screen preview.
  */
-export function buildOfficialRegisterHtml(model) {
-  const pages = model.months.length || 1
-  const body = (model.months.length ? model.months : [{ label: 'No register days', weeks: [], days: [] }])
-    .map((month, mi) => {
-      const weekHead = month.weeks.map((w) =>
-        `<th colspan="${w.days.length}">Week ${w.weekNumber}</th>`).join('')
-      const dayHead = month.weeks.flatMap((w) => w.days).map((d) =>
-        `<th title="${esc(d.holidayName || '')}">${Number(d.date.slice(8, 10))}</th>`).join('')
-      const monthDays = month.weeks.flatMap((w) => w.days)
-      const rows = model.learners.map(({ learner, position, totals }) => {
-        const cells = monthDays.map((day) => {
-          const eligible = isEligible(learner, day.date, model.termWindow)
-          const { text, color } = symbolCell(day.records?.[learner.id], eligible)
-          return `<td style="color:${color}">${text}</td>`
-        }).join('')
-        return `<tr>
+function registerMonthPageHtml(model, month, { page, pages, signatures }) {
+  const monthDays = month.weeks.flatMap((w) => w.days)
+  const weekHead = month.weeks.map((w) =>
+    `<th colspan="${w.days.length}">Week ${w.weekNumber}</th>`).join('')
+  const dayHead = monthDays.map((d) =>
+    `<th title="${esc(d.holidayName || '')}">${Number(d.date.slice(8, 10))}</th>`).join('')
+  const rows = model.learners.map(({ learner, position, totals }) => {
+    const cells = monthDays.map((day) => {
+      const eligible = isEligible(learner, day.date, model.termWindow)
+      const { text, color } = symbolCell(day.records?.[learner.id], eligible)
+      return `<td style="color:${color}">${text}</td>`
+    }).join('')
+    return `<tr>
           <td>${position}</td>
           <td>${esc(learner.learnerNumber)}</td>
           <td class="name">${esc(learner.fullName)}</td>
           ${cells}
           ${totalsCells(totals)}
         </tr>`
-      }).join('')
-      const classTotals = monthDays.map((day) => {
-        let attended = 0
-        for (const { learner } of model.learners) {
-          const s = day.records?.[learner.id]?.status
-          if (s === 'present' || s === 'late') attended += 1
-        }
-        return `<td><b>${attended}</b></td>`
-      }).join('')
-      return `<section class="page">
+  }).join('')
+  const classTotals = monthDays.map((day) => {
+    let attended = 0
+    for (const { learner } of model.learners) {
+      const s = day.records?.[learner.id]?.status
+      if (s === 'present' || s === 'late') attended += 1
+    }
+    return `<td><b>${attended}</b></td>`
+  }).join('')
+  return `<section class="page">
         ${headerHtml(model, `CLASS REGISTER — ${month.label}`)}
         <table class="reg">
           <thead>
@@ -218,16 +227,13 @@ export function buildOfficialRegisterHtml(model) {
           </tbody>
         </table>
         ${legendHtml()}
-        ${mi === pages - 1 ? signaturesHtml(model) : ''}
-        ${pageFootHtml(model, mi + 1, pages)}
+        ${signatures ? signaturesHtml(model) : ''}
+        ${pageFootHtml(model, page, pages)}
       </section>`
-    }).join('')
-  return `<!doctype html><html><head><meta charset="utf-8" /><title>Class register — ${esc(model.className)}</title>
-    <style>@page { size: A4 landscape; margin: 8mm; } ${BASE_PRINT_CSS}</style></head><body>${body}</body></html>`
 }
 
-/** Term attendance summary — A4 landscape, one learner per row, all totals. */
-export function buildTermSummaryHtml(model) {
+/** The single page of the term attendance summary. */
+function termSummaryPageHtml(model) {
   const rows = model.learners.map(({ learner, position, totals }) => `<tr>
     <td>${position}</td>
     <td>${esc(learner.learnerNumber)}</td>
@@ -243,10 +249,7 @@ export function buildTermSummaryHtml(model) {
     <td><b>${formatPercent(totals.attendancePercentage)}</b></td>
   </tr>`).join('')
   const s = model.summary
-  return `<!doctype html><html><head><meta charset="utf-8" /><title>Term attendance summary — ${esc(model.className)}</title>
-    <style>@page { size: A4 landscape; margin: 10mm; } ${BASE_PRINT_CSS}
-      table.reg th, table.reg td { font-size: 11px; padding: 3px 6px; }
-    </style></head><body><section class="page">
+  return `<section class="page">
     ${headerHtml(model, 'TERM ATTENDANCE SUMMARY')}
     <table class="reg">
       <thead><tr>
@@ -263,7 +266,139 @@ export function buildTermSummaryHtml(model) {
     ${legendHtml()}
     ${signaturesHtml(model)}
     ${pageFootHtml(model, 1, 1)}
-  </section></body></html>`
+  </section>`
+}
+
+const SUMMARY_CSS = `
+      table.reg th, table.reg td { font-size: 11px; padding: 3px 6px; }
+    `
+
+/**
+ * Official class register — A4 landscape, ONE PAGE PER MONTH so a long term
+ * stays readable; learner-identification columns and date headers repeat on
+ * every page. Month pages show the month's marks + whole-term totals.
+ */
+export function buildOfficialRegisterHtml(model) {
+  const months = model.months.length ? model.months : [EMPTY_MONTH]
+  const body = months
+    .map((month, mi) => registerMonthPageHtml(model, month, {
+      page: mi + 1,
+      pages: months.length,
+      signatures: mi === months.length - 1,
+    }))
+    .join('')
+  return documentHtml({
+    title: `Class register — ${model.className}`,
+    pageCss: '@page { size: A4 landscape; margin: 8mm; }',
+    body,
+  })
+}
+
+/** Term attendance summary — A4 landscape, one learner per row, all totals. */
+export function buildTermSummaryHtml(model) {
+  return documentHtml({
+    title: `Term attendance summary — ${model.className}`,
+    pageCss: '@page { size: A4 landscape; margin: 10mm; }',
+    extraCss: SUMMARY_CSS,
+    body: termSummaryPageHtml(model),
+  })
+}
+
+// ── on-screen paper preview ─────────────────────────────────────
+
+const MM_TO_PX = 96 / 25.4
+const A4_LONG_MM = 297
+const A4_SHORT_MM = 210
+
+/** A4 sheet dimensions in mm and CSS px (96dpi) for a given orientation. */
+export function paperGeometry(orientation = 'landscape') {
+  const widthMm = orientation === 'portrait' ? A4_SHORT_MM : A4_LONG_MM
+  const heightMm = orientation === 'portrait' ? A4_LONG_MM : A4_SHORT_MM
+  return {
+    orientation,
+    widthMm,
+    heightMm,
+    widthPx: Math.round(widthMm * MM_TO_PX),
+    heightPx: Math.round(heightMm * MM_TO_PX),
+  }
+}
+
+/**
+ * Sheet CSS for the preview. A `@page` box means nothing on screen, so its
+ * margin is folded into the sheet padding (and the footer offsets) to
+ * reproduce the printed content box exactly. The sheet keeps its A4 width and
+ * grows downwards; a guide line is drawn every sheet-height so a class that
+ * spills onto a second physical page shows where the break falls instead of
+ * silently hiding the learners past the fold.
+ */
+function previewSheetCss(geo, marginMm) {
+  return `
+  html { background: transparent; }
+  body { width: ${geo.widthMm}mm; }
+  .page {
+    width: ${geo.widthMm}mm;
+    min-height: ${geo.heightMm}mm;
+    padding: calc(${marginMm}mm + 24px) calc(${marginMm}mm + 28px);
+    background-color: #fff;
+    background-image: repeating-linear-gradient(to bottom, transparent 0, transparent calc(${geo.heightMm}mm - 2px), #94a3b8 calc(${geo.heightMm}mm - 2px), #94a3b8 ${geo.heightMm}mm);
+    page-break-after: auto;
+  }
+  .pagefoot { bottom: calc(${marginMm}mm + 10px); left: calc(${marginMm}mm + 28px); right: calc(${marginMm}mm + 28px); }
+`
+}
+
+export const PREVIEW_DOCUMENTS = [
+  { key: 'register', label: 'Class register' },
+  { key: 'summary', label: 'Term attendance summary' },
+]
+
+/**
+ * One sheet of a register document, laid out for the screen.
+ *
+ * `doc` picks the document ('register' | 'summary'); for the register,
+ * `monthKey` picks which month's page to show (defaults to the first).
+ * Returns the page's own geometry and its position in the full document so
+ * the caller can scale the sheet and say "Page 2 of 3" without re-deriving
+ * anything the builder already knows.
+ */
+export function buildPaperPreview(model, { doc = 'register', monthKey = null } = {}) {
+  const geo = paperGeometry('landscape')
+  if (doc === 'summary') {
+    return {
+      doc,
+      html: documentHtml({
+        title: `Term attendance summary — ${model.className}`,
+        pageCss: previewSheetCss(geo, 10),
+        extraCss: SUMMARY_CSS,
+        body: termSummaryPageHtml(model),
+      }),
+      geometry: geo,
+      page: 1,
+      pages: 1,
+      monthKey: null,
+      label: 'Term attendance summary',
+    }
+  }
+  const months = model.months.length ? model.months : [EMPTY_MONTH]
+  const index = Math.max(0, months.findIndex((m) => m.key === monthKey))
+  const month = months[index]
+  return {
+    doc: 'register',
+    html: documentHtml({
+      title: `Class register — ${model.className}`,
+      pageCss: previewSheetCss(geo, 8),
+      body: registerMonthPageHtml(model, month, {
+        page: index + 1,
+        pages: months.length,
+        signatures: index === months.length - 1,
+      }),
+    }),
+    geometry: geo,
+    page: index + 1,
+    pages: months.length,
+    monthKey: month.key,
+    label: month.label,
+  }
 }
 
 /** Individual learner report — A4 portrait: info, monthly breakdown, trend, comment. */

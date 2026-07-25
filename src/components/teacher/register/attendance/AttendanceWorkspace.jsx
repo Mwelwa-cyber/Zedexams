@@ -25,6 +25,7 @@ import AttendanceGridView from './AttendanceGridView'
 import AttendanceSummaryPanel from './AttendanceSummaryPanel'
 import RegisterRosterManager from './RegisterRosterManager'
 import RegisterPrintView from './RegisterPrintView'
+import RegisterPaperPreview from './RegisterPaperPreview'
 
 const SECTIONS = [
   { key: 'daily', label: 'Daily' },
@@ -219,6 +220,18 @@ export default function AttendanceWorkspace({ register, termSelection }) {
       )}
       {hydrated && section === 'grid' && (
         <AttendanceGridView registerHook={registerHook} canEdit={canEdit} policy={policy} />
+      )}
+      {/* Marking surfaces carry the paper preview: the register being filled
+          in and the sheet it prints on, side by side. */}
+      {hydrated && (section === 'daily' || section === 'grid') && (
+        <RegisterPaperPreview
+          registerHook={registerHook}
+          register={register}
+          uid={uid}
+          teacherName={userProfile?.displayName || ''}
+          policy={policy}
+          focusDate={selectedDate}
+        />
       )}
       {hydrated && section === 'summary' && (
         <AttendanceSummaryPanel registerHook={registerHook} policy={policy} uid={uid} canEdit={canEdit} />

@@ -8,6 +8,8 @@ import {
   buildOfficialRegisterHtml,
   buildTermSummaryHtml,
   buildLearnerReportHtml,
+  buildPaperPreview,
+  paperGeometry,
   registerMatrixRows,
   termSummaryRows,
 } from '../src/utils/attendanceExportService.js';
@@ -158,6 +160,80 @@ assert.equal(registerMatrixRows(emptyModel).length, 0);
 // ── print documents never inherit the grid's sticky positioning ─────────────
 for (const html of [registerHtml, summaryHtml, reportHtml]) {
   assert.ok(!/position:\s*sticky|\bsticky\b/i.test(html), 'print HTML must not contain sticky positioning');
+}
+
+// ── paper preview IS the printed page (18) ─────────────────────────────────
+// The preview's claim is that it shows what will print. That only holds if the
+// sheet carries the printed page's own markup — so every month's preview page
+// must appear VERBATIM inside the printed document, and the print stylesheet
+// must be the same one.
+{
+  const geo = paperGeometry('landscape');
+  assert.equal(geo.widthMm, 297);
+  assert.equal(geo.heightMm, 210);
+  assert.ok(geo.widthPx > geo.heightPx, 'landscape sheet is wider than it is tall');
+  assert.equal(paperGeometry('portrait').widthMm, 210);
+
+  assert.ok(model.months.length >= 2, 'fixture term should span several months');
+  for (const [i, month] of model.months.entries()) {
+    const preview = buildPaperPreview(model, { monthKey: month.key });
+    assert.equal(preview.page, i + 1);
+    assert.equal(preview.pages, model.months.length);
+    assert.equal(preview.monthKey, month.key);
+    assert.equal(preview.label, month.label);
+    const section = preview.html.slice(
+      preview.html.indexOf('<section class="page">'),
+      preview.html.indexOf('</section>') + '</section>'.length,
+    );
+    assert.ok(section.includes(`CLASS REGISTER — ${month.label}`));
+    assert.ok(
+      registerHtml.includes(section),
+      `preview page for ${month.label} must be the same markup the printer gets`,
+    );
+  }
+
+  // Signatures belong on the last page only — in the preview exactly as in print.
+  const first = buildPaperPreview(model, { monthKey: model.months[0].key });
+  const last = buildPaperPreview(model, { monthKey: model.months[model.months.length - 1].key });
+  assert.ok(!first.html.includes('Headteacher signature'));
+  assert.ok(last.html.includes('Headteacher signature'));
+
+  // An unknown / missing month key falls back to page 1 rather than a blank sheet.
+  for (const key of [null, undefined, '1999-01']) {
+    const fallback = buildPaperPreview(model, { monthKey: key });
+    assert.equal(fallback.page, 1);
+    assert.equal(fallback.monthKey, model.months[0].key);
+  }
+
+  // The summary preview is the summary document's page.
+  const summaryPreview = buildPaperPreview(model, { doc: 'summary' });
+  assert.equal(summaryPreview.pages, 1);
+  assert.equal(summaryPreview.doc, 'summary');
+  const summarySection = summaryPreview.html.slice(
+    summaryPreview.html.indexOf('<section class="page">'),
+    summaryPreview.html.indexOf('</section>') + '</section>'.length,
+  );
+  assert.ok(summaryHtml.includes(summarySection), 'summary preview must be the printed summary page');
+
+  // Screen sheet, not a print box: A4 geometry replaces @page, and the printed
+  // margin is folded into the sheet so the content box matches the paper.
+  for (const p of [first, summaryPreview]) {
+    assert.ok(!p.html.includes('@page'), 'a screen sheet has no @page rule');
+    assert.ok(p.html.includes('width: 297mm'));
+    assert.ok(p.html.includes('min-height: 210mm'));
+    assert.ok(!/position:\s*sticky/i.test(p.html));
+  }
+  assert.ok(first.html.includes('calc(8mm + 24px)'), 'register preview folds in the 8mm print margin');
+  assert.ok(summaryPreview.html.includes('calc(10mm + 24px)'), 'summary preview folds in the 10mm print margin');
+
+  // A class with no register days still renders a sheet.
+  const emptyPreview = buildPaperPreview(emptyModel);
+  assert.equal(emptyPreview.pages, emptyModel.months.length || 1);
+  assert.ok(emptyPreview.html.includes('CLASS REGISTER'));
+
+  // Preview and print read the SAME marks, including a learner's absences.
+  const fridayAbsent = buildPaperPreview(model, { monthKey: model.months[0].key });
+  assert.ok(fridayAbsent.html.includes('Learner 2'));
 }
 
 console.log('test-attendance-export: all assertions passed');

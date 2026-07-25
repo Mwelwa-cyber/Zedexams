@@ -6,10 +6,9 @@
  * totals always equal the on-screen totals.
  */
 
-import { useEffect, useMemo, useState } from 'react'
-import { getSchoolProfile } from '../../../../utils/schoolProfileService'
+import { useMemo, useState } from 'react'
+import useRegisterExportModel from '../../../../hooks/useRegisterExportModel'
 import {
-  buildRegisterExportModel,
   buildOfficialRegisterHtml,
   buildTermSummaryHtml,
   printAttendanceHtml,
@@ -25,22 +24,13 @@ import Button from '../../../ui/Button'
 import LearnerAttendanceReport from './LearnerAttendanceReport'
 
 export default function RegisterPrintView({ registerHook, register, uid, teacherName, policy }) {
-  const { roster, termInfo, daysWithRecords, todayIso } = registerHook
+  const { roster, daysWithRecords, termInfo } = registerHook
   const toast = useToast()
-  const [school, setSchool] = useState(null)
   const [rangeMode, setRangeMode] = useState('term') // 'term' | month key | 'custom'
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
   const [busy, setBusy] = useState(null)
   const [reportOpen, setReportOpen] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-    getSchoolProfile(uid)
-      .then((p) => { if (!cancelled) setSchool(p) })
-      .catch(() => {}) // no school profile → exports fall back to the register's school label
-    return () => { cancelled = true }
-  }, [uid])
 
   const months = useMemo(() => groupDaysByMonth(daysWithRecords), [daysWithRecords])
 
@@ -54,17 +44,9 @@ export default function RegisterPrintView({ registerHook, register, uid, teacher
     return { from: month.days[0].date, to: month.days[month.days.length - 1].date }
   }, [rangeMode, customFrom, customTo, months])
 
-  const model = useMemo(() => buildRegisterExportModel({
-    register,
-    school,
-    teacherName,
-    termInfo,
-    daysWithRecords,
-    roster,
-    policy,
-    range,
-    printedOn: todayIso,
-  }), [register, school, teacherName, termInfo, daysWithRecords, roster, policy, range, todayIso])
+  const { model } = useRegisterExportModel({
+    registerHook, register, uid, teacherName, policy, range,
+  })
 
   const baseName = `${(register.className || 'class').replace(/\s+/g, '-').toLowerCase()}-${termInfo?.termId || 'term'}`
   const noData = model.days.length === 0
