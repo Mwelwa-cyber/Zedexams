@@ -177,10 +177,13 @@ describe('GradeHub — recent activity', () => {
       { id: 'r1', subject: 'Mathematics', percentage: 82, completedAt: Date.now() },
     ])
     renderHub()
-    await waitFor(() =>
-      expect(screen.queryByText('No quizzes yet!')).not.toBeInTheDocument(),
-    )
-    expect(screen.getByText(/Mathematics/)).toBeInTheDocument()
+    // Wait for the ROW, not for the empty state to disappear. While the panel
+    // is loading it renders skeletons — neither "No quizzes yet!" nor the
+    // subject — so waiting on the empty state's absence was satisfied by the
+    // loading state, and the assertion below then ran before the results
+    // arrived. It passed on a fast machine and failed on a busy CI runner.
+    expect(await screen.findByText(/Mathematics/)).toBeInTheDocument()
+    expect(screen.queryByText('No quizzes yet!')).not.toBeInTheDocument()
   })
 })
 
