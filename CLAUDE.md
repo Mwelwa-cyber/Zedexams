@@ -207,6 +207,38 @@ than absence of one.
   step AND in the generator, with one shared message (`assessmentLabels.js`). A read
   FAILURE is never reported as an empty catalogue.
 
+### Four renderers, one paper — and formulas without JavaScript
+
+`assessmentPaperLayout.buildPaperLayout()` returns typed, rendering-agnostic
+blocks that the in-studio preview, the PDF print window and the DOCX export all
+walk, so the three cannot drift. Two things about that pipeline are easy to get
+wrong:
+
+- **The preview and the exports render maths differently, on purpose.** The
+  preview draws KaTeX live (with `mhchem`, so `\ce{}` works). The print window
+  and Word run no JavaScript, so `safeRender.flattenMathNodes` replaces every math
+  node before those two ever see the paper. Whatever it leaves behind IS the
+  formula on the printed page — it emits text plus real `<sub>`/`<sup>` elements,
+  which the print window draws natively and `assessmentToDocx`'s walker turns into
+  Word superscript/subscript runs.
+- **`src/utils/latexToUnicode.js` is the only LaTeX→text converter.** It parses
+  (brace-aware `\frac`/`\sqrt`, mhchem's coefficient-vs-subscript rule) rather
+  than pattern-matching; the regex version it replaced silently dropped the bar of
+  any fraction with a braced numerator and had no `\ce{}` handling at all.
+  `latexToReadableText` in `quizRichText.js` now delegates to it.
+- **`src/utils/paperGolden.test.js`** (`test:paper-golden`) renders reference
+  papers all the way to a real `.docx`, unzips it and asserts against
+  `word/document.xml`. It is the net for "looks right in Preview, breaks in Word",
+  and also pins that a learner copy never carries the marking explanation and that
+  the download is a ZIP/WordprocessingML file rather than an MHTML blob.
+- **Keep-together** (`KEEP_WITH_NEXT` in `assessmentToDocx.js`) is applied only to
+  headings, question stems and figures. `keepNext` on every paragraph chains the
+  paper into one unbreakable block and Word pushes it to a fresh page.
+
+NOTE: `quizRichText.js` also carries a SECOND, CDN-loaded KaTeX (jsdelivr, no
+mhchem) used by the quiz editor's `QuizRichText.jsx` — not by the assessment
+paper path. It is a runtime external dependency and a known gap.
+
 ### AI request locking + idempotency (rollout in progress)
 
 The shared service that stops one intentional AI generation from becoming two provider calls, two saved documents, or two usage charges (double-click, rapid tap, rerender, refresh, timeout retry, or a second tab). Two layers:

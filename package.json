@@ -63,6 +63,8 @@
     "test:regenerate-question": "node functions/teacherTools/regenerateQuestionCore.test.js",
     "test:misconceptions": "node functions/teacherTools/misconceptionsCore.test.js",
     "test:assessment-tool-schema": "node functions/teacherTools/assessmentToolSchema.test.js",
+    "test:latex-unicode": "node src/utils/latexToUnicode.test.js",
+    "test:paper-golden": "node src/utils/paperGolden.test.js",
     "sync:assessment-bands": "node scripts/sync-assessment-bands.mjs",
     "coverage:curriculum": "node scripts/curriculum-coverage-report.mjs",
     "seed:assessment-bands": "node scripts/seed-assessment-bands.mjs",

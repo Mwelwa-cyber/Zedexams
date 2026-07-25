@@ -56,6 +56,22 @@ function runText(str, opts = {}) {
   return new TextRun({ text: sanitizeXmlText(str), ...opts })
 }
 
+/**
+ * Word's keep-together flags (§4.5).
+ *
+ * `keepNext` binds a paragraph to the one after it; `keepLines` stops a single
+ * paragraph splitting mid-way. Together they prevent the three layout failures
+ * the brief names: a section heading stranded alone at the foot of a page, a
+ * figure detached from the question it belongs to, and a question stem broken
+ * across a page break.
+ *
+ * Applied deliberately narrowly — to headings, question stems and figures, never
+ * to answer lines. `keepNext` on everything would chain the whole paper into one
+ * unbreakable block and Word would push it onto a fresh page, leaving exactly the
+ * big gaps this is meant to avoid.
+ */
+const KEEP_WITH_NEXT = { keepNext: true, keepLines: true }
+
 function para(runs, opts = {}) {
   return new Paragraph({
     children: Array.isArray(runs) ? runs : [runs],
@@ -211,12 +227,13 @@ function optionRuns(html, baseOpts = { size: 20 }, fallback = '') {
 }
 
 function richHtmlToDocxParagraphs(html, baseOpts = { size: 22 }, opts = {}) {
-  const { prefixRuns = [], suffixRuns = [], firstParaSpacing } = opts
+  const { prefixRuns = [], suffixRuns = [], firstParaSpacing, paragraphOpts = {} } = opts
   if (!html || typeof DOMParser === 'undefined') {
     const text = html ? String(html).replace(/<[^>]+>/g, ' ') : ''
     return [new Paragraph({
       children: [...prefixRuns, runText(text, baseOpts), ...suffixRuns],
       spacing: firstParaSpacing || { after: 80 },
+      ...paragraphOpts,
     })]
   }
   const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html')
@@ -241,7 +258,7 @@ function richHtmlToDocxParagraphs(html, baseOpts = { size: 22 }, opts = {}) {
     const spacing = isFirstParagraph && firstParaSpacing
       ? firstParaSpacing
       : { after: 80 }
-    out.push(new Paragraph({ children, spacing }))
+    out.push(new Paragraph({ children, spacing, ...paragraphOpts }))
     lastEmitted = { children, spacing, index: out.length - 1 }
     currentRuns = []
     isFirstParagraph = false
@@ -344,6 +361,9 @@ function richHtmlToDocxParagraphs(html, baseOpts = { size: 22 }, opts = {}) {
     out[lastEmitted.index] = new Paragraph({
       children: [...lastEmitted.children, ...suffixRuns],
       spacing: lastEmitted.spacing,
+      // Rebuilt paragraph — carry the keep-together flags across, or a question
+      // stem would silently lose them the moment it gained a marks tag.
+      ...paragraphOpts,
     })
   } else {
     if (suffixRuns.length) currentRuns.push(...suffixRuns)
@@ -501,7 +521,9 @@ async function imageParagraph(url, opts = {}) {
     height: Math.round(baseHeight * pct),
     alt: opts.alt || '',
   })
-  return run ? centeredPara([run]) : null
+  // A figure belongs to the question above it and to the options below it — it
+  // must never float onto a page of its own (§4.5).
+  return run ? centeredPara([run], KEEP_WITH_NEXT) : null
 }
 
 // Base64-encode raw bytes for an inline data URL. Browser-only (uses btoa);
@@ -843,10 +865,16 @@ function renderSectionHeader(b) {
       border: {
         bottom: { color: '000000', size: 6, style: BorderStyle.SINGLE, space: 1 },
       },
+      // A section heading alone at the bottom of a page is one of the layout
+      // failures §4.5 names explicitly.
+      ...KEEP_WITH_NEXT,
     }),
   ]
   if (b.instructions) {
-    out.push(para(runText(b.instructions, { italics: true, size: 22, color: '4b5563' })))
+    out.push(para(
+      runText(b.instructions, { italics: true, size: 22, color: '4b5563' }),
+      KEEP_WITH_NEXT,
+    ))
   }
   return out
 }
@@ -960,6 +988,8 @@ async function renderQuestion(b, stats = null) {
         ? [runText(marksTag, { size: 20, color: '6b7280', italics: true })]
         : [],
       firstParaSpacing: { before: 160, after: 80 },
+      // The stem stays with its figure and its options (§4.5).
+      paragraphOpts: KEEP_WITH_NEXT,
     })
     out.push(...richParas)
   } else {
@@ -970,6 +1000,7 @@ async function renderQuestion(b, stats = null) {
         runText(marksTag, { size: 20, color: '6b7280', italics: true }),
       ],
       spacing: { before: 160, after: 80 },
+      ...KEEP_WITH_NEXT,
     }))
   }
 

@@ -32,6 +32,7 @@ import { renderExtensions } from '../extensions/buildExtensions.js'
 import { sanitizeHTML } from './sanitize.js'
 import { isTiptapJSON } from './migration.js'
 import { latexToReadableText } from '../../utils/quizRichText.js'
+import { latexToSegments } from '../../utils/latexToUnicode.js'
 // KaTeX stylesheet — only pulled in inside a browser. Vite intercepts the
 // dynamic CSS import at build time and inlines the styles; under a plain
 // `node` test runner there's no window, the import never fires, and the
@@ -184,12 +185,46 @@ export function hydrateNumberBases(container) {
  * as text content). Flattening here means every paper export shows "18",
  * "4 ÷ 2 × 3", "(1)/(3)" etc. instead of an empty span.
  */
+/**
+ * Replace every KaTeX math node with markup the JavaScript-free renderers can
+ * actually draw.
+ *
+ * The print window and the Word export never run KaTeX, so whatever this leaves
+ * behind IS the formula on the teacher's paper. It used to leave a single flat
+ * text node, which meant a subscript had to be a Unicode character — fine for
+ * digits, missing from many fonts for letters, and invisible if the reader's font
+ * lacks the glyph.
+ *
+ * Now the parse (latexToUnicode.js) is emitted as text plus real `<sub>` / `<sup>`
+ * elements. Both non-JS renderers already understand those: the print window
+ * draws them natively, and assessmentToDocx's walker turns SUP/SUB into Word
+ * superscript/subscript runs. So H₂SO₄ is genuine subscript in Word rather than a
+ * glyph that may not exist, and no renderer needed a new code path to gain it.
+ *
+ * The node's own text is still the Unicode form, so anything reading
+ * `textContent` (search, plain-text export, the AI verifiers) is unaffected.
+ */
 function flattenMathNodes(container) {
   if (!container) return
+  const doc = container.ownerDocument
   const nodes = container.querySelectorAll('span.mnode, span[data-latex], span[data-math-latex]')
   nodes.forEach((el) => {
     const latex = el.getAttribute('data-latex') || el.getAttribute('data-math-latex') || el.textContent || ''
-    el.textContent = latexToReadableText(latex)
+    const segments = latexToSegments(latex)
+    el.textContent = ''
+    if (segments.length === 0) {
+      el.textContent = latexToReadableText(latex)
+    } else {
+      for (const segment of segments) {
+        if (!segment.script) {
+          el.appendChild(doc.createTextNode(segment.text))
+          continue
+        }
+        const wrapper = doc.createElement(segment.script === 'sub' ? 'sub' : 'sup')
+        wrapper.textContent = segment.text
+        el.appendChild(wrapper)
+      }
+    }
     el.classList.remove('mnode')
     el.removeAttribute('data-latex')
     el.removeAttribute('data-math-latex')
