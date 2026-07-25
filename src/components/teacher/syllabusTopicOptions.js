@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react'
 import { getMergedSyllabi } from '../../utils/syllabusKbService'
 import { syllabiToKbTopics } from '../../utils/syllabusMapping'
 import { extract2013TopicLookup } from '../../utils/syllabus2013Topics'
+import { normalizeTopicLookup } from '../../utils/syllabusTopicTree'
 import {
   studioGradeToKbGrade, toKbSubjectKey, subjectLabel, getAvailableLevels, paperLevel,
 } from './paperTaxonomy'
@@ -61,8 +62,12 @@ async function loadLookup() {
           if (String(name).trim()) subs.add(String(name).trim())
         }
       }
-      _lookupCache = byKey
-      return byKey
+      // Re-derive the real TOPIC → SUB-TOPIC tree from the syllabus numbering
+      // before anything reads it, so a sub-topic that lost its parent at a PDF
+      // page break can never surface as a sibling topic. A well-formed
+      // catalogue passes through unchanged (see syllabusTopicTree.js).
+      _lookupCache = normalizeTopicLookup(byKey)
+      return _lookupCache
     } catch {
       _lookupCache = new Map()
       return _lookupCache
