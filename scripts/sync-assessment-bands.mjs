@@ -16,7 +16,7 @@ import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  ASSESSMENT_BAND_SEED, BAND_IDS, ALL_QUESTION_TYPES, validateBand,
+  ASSESSMENT_BAND_SEED, BAND_IDS, ALL_QUESTION_TYPES, DIFFICULTY_TIERS, validateBand,
 } from '../src/config/assessmentBands.js'
 import { QUESTION_ACTIVITIES } from '../src/config/questionActivities.js'
 
@@ -28,6 +28,7 @@ export function renderBandsJson() {
     _generated: 'npm run sync:assessment-bands — edit src/config/assessmentBands.js, not this file',
     bandIds: BAND_IDS,
     allQuestionTypes: ALL_QUESTION_TYPES,
+    difficultyTiers: DIFFICULTY_TIERS,
     // The activity registry travels with the bands: a band lists activities, so
     // the server needs the same activity → render-type + support mapping to
     // clamp a request and to keep a question's activity identity.

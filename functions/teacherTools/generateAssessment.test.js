@@ -44,6 +44,15 @@ let genDocs = {}; // id -> merged doc data
 let genSeq = 0;
 // Controls the stubbed classifySubjectForGrade (combination validation).
 let classifyResult = "unknown";
+// Curriculum coverage for the grade+subject under test. `count: 0` is what
+// triggers the refusal to generate.
+const COVERED = {
+  topics: ["Fractions", "Decimals"],
+  outcomesByTopic: {Fractions: ["Add fractions with the same denominator"]},
+  competencies: ["Number sense"],
+  count: 2,
+};
+let coverageResult = COVERED;
 
 const firestoreFn = () => ({
   collection: (name) => {
@@ -170,6 +179,11 @@ Module._load = function (request, ...rest) {
       // Controllable per assertion via `classifyResult`; defaults to the
       // fail-open "unknown" so the existing valid-input runs are untouched.
       classifySubjectForGrade: () => classifyResult,
+      // What the verified curriculum carries for this grade+subject. Controlled
+      // per assertion via `coverageResult` so the "no approved syllabus content"
+      // refusal (§3.5) can be exercised; defaults to a covered subject so the
+      // existing runs are untouched.
+      resolveGradeSubjectCoverage: async () => coverageResult,
     };
   }
   if (request === "./usageMeter") {
@@ -271,6 +285,7 @@ function validPaper() {
 const IDK = "11111111-1111-4111-8111-111111111111";
 
 function reset() {
+  coverageResult = COVERED;
   genDocs = {};
   genSeq = 0;
   calls.claude.length = 0;
@@ -709,6 +724,71 @@ async function caught(promise) {
     ok("an unrecognised activity falls back to the render type, never dropping the question",
         qs[1].activityType === "short_answer");
   }
+
+  // ── Never invent syllabus content (§3.5) ───────────────────────────────
+  // A grade+subject the verified curriculum has no approved topics for must be
+  // REFUSED, not filled in from the model's general knowledge.
+  reset();
+  coverageResult = {topics: [], outcomesByTopic: {}, competencies: [], count: 0};
+  claudeImpl = async () => ({parsed: validPaper()});
+  const eNoCurriculum = await caught(runAssessment({
+    uid: "t1", rawInputs: {...INPUTS}, apiKey: "k", idempotencyKey: IDK,
+  }));
+  ok("no approved syllabus content throws failed-precondition",
+      eNoCurriculum instanceof HttpsError &&
+    eNoCurriculum.code === "failed-precondition");
+  ok("the refusal names the subject and level",
+      /Integrated Science|Mathematics/.test(String(eNoCurriculum.message)) &&
+    /Grade 7/.test(String(eNoCurriculum.message)));
+  ok("the refusal tells the teacher what to do",
+      /administrator|another curriculum/i.test(String(eNoCurriculum.message)));
+  ok("the model is NEVER called when there is no curriculum",
+      calls.claude.length === 0);
+  ok("the teacher is refunded when the curriculum refuses",
+      calls.refund.length === 1);
+  coverageResult = COVERED;
+
+  // ── The blueprint constrains the model (§3.1/§3.2) ─────────────────────
+  reset();
+  claudeImpl = async () => ({parsed: validPaper()});
+  await runAssessment({
+    uid: "t1", rawInputs: {...INPUTS, totalMarks: 40}, apiKey: "k", idempotencyKey: IDK,
+  });
+  const bpPrompt = calls.claude[0].opts.messages[0].content;
+  ok("the blueprint reaches the prompt as a hard constraint",
+      bpPrompt.includes("PAPER BLUEPRINT") && bpPrompt.includes("Fill EVERY slot"));
+  ok("every slot names its marks and thinking level",
+      /Q1 · \[\d+ marks?\]/.test(bpPrompt) && /thinking: /.test(bpPrompt));
+  ok("the blueprint quotes a real learning outcome from the curriculum",
+      bpPrompt.includes("Add fractions with the same denominator"));
+  {
+    const saved = genDocs[IDK];
+    ok("the blueprint is saved WITH the paper",
+        saved.blueprint && saved.blueprint.version === "blueprint.v1");
+    // Marks reconcile by construction — this is the acceptance criterion
+    // "marks in the header always equal the sum of question marks".
+    const items = saved.blueprint.sections.flatMap((sec) => sec.items);
+    ok("the blueprint's item marks sum to its total",
+        items.reduce((n, i) => n + i.marks, 0) === saved.blueprint.totalMarks);
+    ok("every planned item carries a topic and a thinking level",
+        items.every((i) => i.topic && i.bloomLevel && i.difficulty));
+  }
+
+  // A teacher's difficulty-mix override reaches the plan.
+  reset();
+  claudeImpl = async () => ({parsed: validPaper()});
+  await runAssessment({
+    uid: "t1",
+    rawInputs: {
+      ...INPUTS, totalMarks: 20,
+      difficultyMix: {recall: 1, understanding: 0, analysis: 0, challenge: 0},
+    },
+    apiKey: "k",
+    idempotencyKey: IDK,
+  });
+  ok("a teacher difficulty override is honoured in the plan",
+      genDocs[IDK].blueprint.coverage.difficulty.recall ===
+    genDocs[IDK].blueprint.itemCount);
 
   Module._load = origLoad;
   console.log(`\n${passed} passed`);

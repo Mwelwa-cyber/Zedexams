@@ -609,6 +609,11 @@ async function resolveAssessmentFormatContext({
     formatBlock: renderFormatContextBlock(profile, {grade, allowedTypes}),
     formatProfileId: profile.id,
     formatSource: match ? (match._source || "seed") : "default",
+    // The section plan itself, so the blueprint builder can allocate marks and
+    // item counts across the SAME sections the format block describes. Without
+    // this the blueprint and the format block would each invent a structure and
+    // the model would be told two different things.
+    paperStructure: filterProfileToTypes(profile, allowedTypes).paperStructure || [],
   };
 }
 

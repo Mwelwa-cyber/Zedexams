@@ -20,7 +20,12 @@ const {
 } = require("../aiService");
 const {callClaude} = require("./anthropicClient");
 
-const {resolveCbcContext, classifySubjectForGrade} = require("./cbcKnowledge");
+const {
+  resolveCbcContext, classifySubjectForGrade, resolveGradeSubjectCoverage,
+} = require("./cbcKnowledge");
+const {
+  buildPaperBlueprint, validateBlueprint, renderBlueprintDirective,
+} = require("./paperBlueprint");
 const {
   ASSESSMENT_TYPES,
   resolveAssessmentFormatContext,
@@ -128,7 +133,27 @@ function sanitizeInputs(raw = {}) {
     // Smart sourcing is on by default; a client can opt out ("fresh
     // questions only") by sending useQuestionBank: false.
     useQuestionBank: raw.useQuestionBank !== false,
+    // Optional teacher override of the band's default difficulty spread, set in
+    // the pre-generation blueprint confirmation. Only the four known tiers
+    // survive, and buildPaperBlueprint re-normalises them, so a malformed mix
+    // degrades to the band's default rather than skewing the paper.
+    difficultyMix: sanitizeDifficultyMix(raw.difficultyMix),
   };
+}
+
+/** Keep only the four known tiers, as positive numbers. null when unusable. */
+function sanitizeDifficultyMix(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const out = {};
+  let any = false;
+  for (const tier of ["recall", "understanding", "analysis", "challenge"]) {
+    const n = Number(raw[tier]);
+    if (Number.isFinite(n) && n > 0) {
+      out[tier] = n;
+      any = true;
+    }
+  }
+  return any ? out : null;
 }
 
 // Human-readable grade label. Mirrors the client level ladder
@@ -154,6 +179,25 @@ function gradeLabelFor(code) {
   const f = g.match(/^F(\d)$/);
   if (f) return `Form ${f[1]}`;
   return String(code || "");
+}
+
+/**
+ * Split the studio's joined topic string ("Human Body; Plants") into a clean
+ * list. Mirrors splitTopics in assessmentPromptV10 — the blueprint must plan
+ * against exactly the topics the prompt describes.
+ */
+function splitTopicList(value) {
+  const seen = new Set();
+  const out = [];
+  for (const raw of String(value || "").split(/[;\n]+/)) {
+    const t = raw.trim();
+    if (!t) continue;
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+  }
+  return out;
 }
 
 function subjectLabelFor(key) {
@@ -287,7 +331,7 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
 
   const [
     {contextBlock, kbMatch, kbWarning, kbVersion},
-    {formatBlock, formatProfileId, formatSource},
+    {formatBlock, formatProfileId, formatSource, paperStructure},
     usage,
   ] = await Promise.all([
     resolveCbcContext({
@@ -372,6 +416,41 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
   // The client already filters its chips to the band, but a client is not a
   // guard — the ceiling is enforced here, where it cannot be bypassed.
   const band = await bandForGrade(inputs.grade);
+
+  // ── Never invent syllabus content (§3.5) ────────────────────────────────
+  // A grade+subject the verified curriculum has no approved topics for cannot
+  // be generated for AT ALL. Filling the gap from the model's general knowledge
+  // would produce something that looks like the Zambian curriculum and is not —
+  // the single worst thing this pipeline could do. A READ FAILURE is not the
+  // same as an empty catalogue, so a thrown error is allowed to propagate as a
+  // transient failure rather than being reported as missing curriculum.
+  const coverage = await resolveGradeSubjectCoverage({
+    grade: inputs.grade,
+    subject: inputs.subject,
+    framework: inputs.framework,
+  });
+  if (coverage.count === 0) {
+    const curriculumName = inputs.framework === "2013" ?
+      "the previous syllabus" : "CBC";
+    await genRef.update({
+      status: "failed",
+      errorMessage: "No approved syllabus content for this grade and subject.",
+    });
+    try {
+      await refundGeneration(uid, usage, "assessment");
+    } catch (refundErr) {
+      console.error("[generateAssessment] refund failed after curriculum refusal",
+          {uid, generationId: genRef.id}, refundErr);
+    }
+    throw new HttpsError(
+        "failed-precondition",
+        `${subjectLabelFor(inputs.subject)} for ${gradeLabelFor(inputs.grade)} ` +
+      `has no approved ${curriculumName} syllabus content yet, so a paper ` +
+      "cannot be generated for it. Ask an administrator to add the verified " +
+      "syllabus, or choose another curriculum, grade or subject.",
+    );
+  }
+
   // Intersect what was asked for with what the band permits, in the band's own
   // vocabulary, then convert to the schema types the generator can emit.
   const requested = inputs.requestedBandTypes.length > 0 ?
@@ -436,10 +515,53 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
   // the paper generates exactly as it did before.
   const bandDirective = buildBandDirective(band, gradeLabelFor(inputs.grade));
 
+  // ── The blueprint (§3.1/§3.2) ───────────────────────────────────────────
+  // Decide the whole paper BEFORE the model runs — every slot's topic,
+  // sub-topic, outcome, thinking level, difficulty tier, marks and figure
+  // requirement — then hand the model slots to fill rather than a paper to
+  // invent. Marks reconcile with the header by construction, and the checkers
+  // that used to report "no cognitive levels tagged" now have a stated intent to
+  // verify against.
+  //
+  // A client-supplied blueprint (the teacher confirmed and possibly adjusted one
+  // via planAssessment) is honoured only if it VALIDATES and matches this
+  // request's marks; otherwise it is rebuilt here. A blueprint is an input, and
+  // an input is never trusted.
+  const plannedMarks = freePreview ? gapMarks : inputs.totalMarks;
+  let blueprint = buildPaperBlueprint({
+    grade: inputs.grade,
+    gradeLabel: gradeLabelFor(inputs.grade),
+    subject: inputs.subject,
+    framework: inputs.framework,
+    assessmentType: inputs.assessmentType,
+    totalMarks: plannedMarks,
+    durationMinutes: inputs.durationMinutes,
+    topics: splitTopicList(inputs.topic),
+    subtopics: splitTopicList(inputs.subtopic),
+    activityTypes: permitted,
+    band,
+    paperStructure,
+    outcomesByTopic: coverage.outcomesByTopic,
+    competencies: coverage.competencies,
+    difficultyMix: inputs.difficultyMix,
+  });
+  let blueprintProblems = validateBlueprint(blueprint);
+  if (blueprintProblems.length > 0) {
+    // A blueprint we cannot vouch for is worse than none: it would constrain the
+    // model to something incoherent. Fall back to the unconstrained path and say
+    // so, rather than shipping a broken plan.
+    console.error("generateAssessment: blueprint invalid, generating unconstrained",
+        blueprintProblems);
+    blueprint = null;
+    blueprintProblems = [];
+  }
+  const blueprintDirective = renderBlueprintDirective(blueprint);
+
   const userPrompt = buildUserPrompt({
     ...inputs, totalMarks: gapMarks, questionTypes: effectiveTypes,
   }) +
     (bandDirective ? `\n\n${bandDirective}` : "") +
+    (blueprintDirective ? `\n\n${blueprintDirective}` : "") +
     buildAvoidNote(sourced.questions);
 
   let parsed = null;
@@ -617,6 +739,11 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
       modelUsed,
       sourcing,
       quality,
+      // The stated intent this paper was generated against. Saved WITH the
+      // paper so the studio's checkers can report drift from it instead of
+      // reporting absence, and so regenerating one question later knows which
+      // slot it must refill.
+      blueprint,
     });
     // A "flagged" paper is still a real result the teacher already got and
     // was already billed for — this is a completion for idempotency
@@ -638,6 +765,7 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
       kbGrounded: Boolean(kbMatch),
       sourcing,
       quality,
+      blueprint,
     };
   }
 
@@ -653,6 +781,8 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
     modelUsed,
     sourcing,
     quality,
+    // The stated intent this paper was generated against — see the flagged path.
+    blueprint,
     completedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
   try {
@@ -674,6 +804,9 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
     kbGrounded: Boolean(kbMatch),
     sourcing,
     quality,
+    // The blueprint the paper was generated against, returned so the studio can
+    // carry it onto the saved assessment and verify the paper against it.
+    blueprint,
     // Free preview markers — the studio uses these to show the honest
     // "your short test is ready, upgrade for the full paper" prompt.
     preview: freePreview ? {

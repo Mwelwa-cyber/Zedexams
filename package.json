@@ -55,6 +55,7 @@
     "test:export-gate": "node scripts/test-assessment-export-gate.mjs",
     "test:education-levels": "node scripts/test-education-levels.mjs",
     "test:assessment-bands": "node scripts/test-assessment-bands.mjs",
+    "test:paper-blueprint": "node functions/teacherTools/paperBlueprint.test.js",
     "sync:assessment-bands": "node scripts/sync-assessment-bands.mjs",
     "coverage:curriculum": "node scripts/curriculum-coverage-report.mjs",
     "seed:assessment-bands": "node scripts/seed-assessment-bands.mjs",

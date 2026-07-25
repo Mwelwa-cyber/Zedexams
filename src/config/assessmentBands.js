@@ -38,6 +38,14 @@ export const BAND_IDS = [
 export const ALL_QUESTION_TYPES = ACTIVITY_IDS
 
 /**
+ * Difficulty tiers a blueprint allocates items across. Distinct from Bloom's
+ * levels: Bloom's names the KIND of thinking, a tier names how demanding the
+ * item is. A paper needs both — all-recall questions can still be hard, and an
+ * analysis question can still be gentle.
+ */
+export const DIFFICULTY_TIERS = ['recall', 'understanding', 'analysis', 'challenge']
+
+/**
  * The five bands.
  *
  * `readingRequirement` is the governing constraint, not a note: 'none' means a
@@ -77,6 +85,11 @@ export const ASSESSMENT_BAND_SEED = {
     },
     instructionFormality: 'spoken',
     minFigureSizeMm: 45,
+    // The brief's difficulty tiers. Defaults to a mixed paper (~30% recall,
+    // ~40% understanding/application, ~20% analysis, ~10% challenge) and is
+    // tuned per stage — a Nursery paper carries no analysis tier at all. A
+    // teacher may override the mix per paper before generating.
+    difficultyMix: { recall: 0.6, understanding: 0.4, analysis: 0, challenge: 0 },
     bloomDistribution: { remember: 0.6, understand: 0.4 },
     defaultDurations: {
       topic_test: 15, weekly_test: 15, mid_term: 20, end_of_term: 20,
@@ -119,6 +132,11 @@ export const ASSESSMENT_BAND_SEED = {
     },
     instructionFormality: 'simple',
     minFigureSizeMm: 40,
+    // The brief's difficulty tiers. Defaults to a mixed paper (~30% recall,
+    // ~40% understanding/application, ~20% analysis, ~10% challenge) and is
+    // tuned per stage — a Nursery paper carries no analysis tier at all. A
+    // teacher may override the mix per paper before generating.
+    difficultyMix: { recall: 0.4, understanding: 0.4, analysis: 0.15, challenge: 0.05 },
     bloomDistribution: { remember: 0.45, understand: 0.35, apply: 0.2 },
     defaultDurations: {
       topic_test: 30, weekly_test: 30, mid_term: 40, end_of_term: 60,
@@ -160,6 +178,11 @@ export const ASSESSMENT_BAND_SEED = {
     },
     instructionFormality: 'standard',
     minFigureSizeMm: 35,
+    // The brief's difficulty tiers. Defaults to a mixed paper (~30% recall,
+    // ~40% understanding/application, ~20% analysis, ~10% challenge) and is
+    // tuned per stage — a Nursery paper carries no analysis tier at all. A
+    // teacher may override the mix per paper before generating.
+    difficultyMix: { recall: 0.3, understanding: 0.4, analysis: 0.2, challenge: 0.1 },
     bloomDistribution: { remember: 0.3, understand: 0.3, apply: 0.25, analyse: 0.15 },
     defaultDurations: {
       topic_test: 40, weekly_test: 30, mid_term: 60, end_of_term: 90,
@@ -202,6 +225,11 @@ export const ASSESSMENT_BAND_SEED = {
     },
     instructionFormality: 'formal',
     minFigureSizeMm: 30,
+    // The brief's difficulty tiers. Defaults to a mixed paper (~30% recall,
+    // ~40% understanding/application, ~20% analysis, ~10% challenge) and is
+    // tuned per stage — a Nursery paper carries no analysis tier at all. A
+    // teacher may override the mix per paper before generating.
+    difficultyMix: { recall: 0.25, understanding: 0.4, analysis: 0.25, challenge: 0.1 },
     bloomDistribution: { remember: 0.25, understand: 0.3, apply: 0.25, analyse: 0.2 },
     defaultDurations: {
       topic_test: 40, weekly_test: 40, mid_term: 60, end_of_term: 120,
@@ -247,6 +275,11 @@ export const ASSESSMENT_BAND_SEED = {
     },
     instructionFormality: 'examination',
     minFigureSizeMm: 30,
+    // The brief's difficulty tiers. Defaults to a mixed paper (~30% recall,
+    // ~40% understanding/application, ~20% analysis, ~10% challenge) and is
+    // tuned per stage — a Nursery paper carries no analysis tier at all. A
+    // teacher may override the mix per paper before generating.
+    difficultyMix: { recall: 0.2, understanding: 0.35, analysis: 0.3, challenge: 0.15 },
     bloomDistribution: {
       remember: 0.2, understand: 0.25, apply: 0.25, analyse: 0.2, evaluate: 0.1,
     },
@@ -291,6 +324,16 @@ export function validateBand(band) {
     const sum = Object.values(dist).reduce((n, v) => n + (Number(v) || 0), 0)
     // Floating-point tolerance, not a licence to be approximately right.
     if (Math.abs(sum - 1) > 0.001) problems.push(`bloomDistribution must sum to 1 (got ${sum})`)
+  }
+  const mix = band.difficultyMix
+  if (!mix || typeof mix !== 'object') {
+    problems.push('difficultyMix is required')
+  } else {
+    const sum = Object.values(mix).reduce((n, v) => n + (Number(v) || 0), 0)
+    if (Math.abs(sum - 1) > 0.001) problems.push(`difficultyMix must sum to 1 (got ${sum})`)
+    for (const tier of Object.keys(mix)) {
+      if (!DIFFICULTY_TIERS.includes(tier)) problems.push(`unknown difficulty tier "${tier}"`)
+    }
   }
   if (!Number.isFinite(Number(band.minFigureSizeMm))) {
     problems.push('minFigureSizeMm must be a number')
