@@ -27,6 +27,8 @@ import {
   isSubjectValidForGrade,
   isGradeInCurriculum,
   subjectExistsInCurriculum,
+  canonicalSubjectValue,
+  SPLIT_LEGACY_SUBJECTS,
 } from '../config/teacherTaxonomy.js'
 
 // ── value spaces ─────────────────────────────────────────────────────────────
@@ -146,7 +148,10 @@ export function normalizeAssignment(data = {}) {
   const d = obj(data)
   return {
     grade: str(d.grade, 12),
-    subject: str(d.subject, 40),
+    // Fold a pre-split subject spelling ('accounts', 'food_nutrition') onto its
+    // canonical key on read, so an assignment saved before the split keeps
+    // resolving without waiting for the migration to run.
+    subject: canonicalSubjectValue(str(d.subject, 40)),
     className: str(d.className, 40),
     curriculumType: normalizeCurriculumType(d.curriculumType),
     periodsPerWeek: intInRange(d.periodsPerWeek, 0, MAX_PERIODS_PER_WEEK),
@@ -161,7 +166,7 @@ export function normalizeAssignmentPartial(data = {}) {
   const d = obj(data)
   const out = {}
   if ('grade' in d) out.grade = str(d.grade, 12)
-  if ('subject' in d) out.subject = str(d.subject, 40)
+  if ('subject' in d) out.subject = canonicalSubjectValue(str(d.subject, 40))
   if ('className' in d) out.className = str(d.className, 40)
   if ('curriculumType' in d) out.curriculumType = normalizeCurriculumType(d.curriculumType)
   if ('periodsPerWeek' in d) out.periodsPerWeek = intInRange(d.periodsPerWeek, 0, MAX_PERIODS_PER_WEEK)
@@ -213,6 +218,13 @@ export function validateAssignment(data = {}) {
     errors.push(`${gradeLabel(n.grade)} is not offered in the ${curriculumTypeLabel(n.curriculumType)}. Choose a grade or form from that curriculum.`)
   }
   if (!n.subject) errors.push('Choose a subject.')
+  // A subject that used to bundle two subjects can't be silently reinterpreted —
+  // ask the teacher which one this assignment is. A hard error so
+  // assignmentNeedsReview() surfaces it instead of it passing quietly.
+  else if (SPLIT_LEGACY_SUBJECTS[n.subject]) {
+    const options = SPLIT_LEGACY_SUBJECTS[n.subject].map((k) => subjectLabel(k)).join(' or ')
+    errors.push(`${subjectLabel(n.subject)} is now two separate subjects. Choose ${options}.`)
+  }
   else if (!VALID_SUBJECT_VALUES.has(n.subject)) warnings.push(`Unrecognised subject "${n.subject}".`)
   else if (!subjectExistsInCurriculum(n.subject, n.curriculumType)) {
     errors.push('The selected subject does not belong to the selected curriculum and grade.')

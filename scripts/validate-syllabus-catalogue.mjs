@@ -21,7 +21,11 @@
  *   1. malformed titles          — a word split across a space ("ANIMA LS")
  *   2. suspicious spacing        — doubled spaces, spaced codes ("11. 10"),
  *                                  space before punctuation
- *   3. duplicate codes           — one code used by two topics in a subject
+ *   3. duplicate / conflicting   — one code used twice INSIDE one grade+subject:
+ *                                  identical content (a double ingest) vs two
+ *                                  different topics (needs a human). Codes
+ *                                  shared across SEPARATE subjects are correct
+ *                                  and are listed apart, as confirmation.
  *   4. orphaned nodes            — a sub-topic code whose parent topic is gone
  *   5. thin coverage             — a grade+subject with implausibly few topics
  *   6. page-break damage         — what the topic-tree repair had to fix, so
@@ -34,6 +38,7 @@ import path from 'node:path'
 import { extract2013TopicLookupRaw } from '../src/utils/syllabus2013Topics.js'
 import { syllabiToKbTopics } from '../src/utils/syllabusMapping.js'
 import { parseTopicCode, looksLikeTopicFragment, normalizeTopicTree } from '../src/utils/syllabusTopicTree.js'
+import { parseLookupKey } from '../src/utils/curriculumTopicIdentity.js'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const args = new Set(process.argv.slice(2))
@@ -98,9 +103,11 @@ function findSpacingIssues(title) {
 // ingestion failure rather than a genuinely short syllabus.
 const THIN_COVERAGE_TOPICS = 3
 
-function auditLookup(framework, lookup) {
+function auditLookup(framework, lookup, sourceIndex = new Map()) {
   const findings = {
-    splitWords: [], spacing: [], duplicateCodes: [], orphans: [],
+    splitWords: [], spacing: [],
+    duplicateRecords: [], conflictingRecords: [], ambiguousParents: [],
+    sharedCodesAcrossSubjects: [], orphans: [],
     thinCoverage: [], pageBreakDamage: [],
   }
 
@@ -151,10 +158,58 @@ function auditLookup(framework, lookup) {
       void subs
     }
 
+    // A code used twice INSIDE one grade+subject is a real problem, but there
+    // are two very different kinds and they need different actions:
+    //
+    //   • duplicate   — same code, same title. The row was ingested twice; one
+    //                   copy can be deleted without losing anything.
+    //   • conflicting — same code, DIFFERENT titles. Two distinct topics are
+    //                   claiming one number, so the syllabus itself has to be
+    //                   read to decide which is right. Never auto-resolvable,
+    //                   and it makes any sub-topic of that code ambiguous.
+    //
+    // Codes repeated across SEPARATE subjects are not counted here at all —
+    // that is correct numbering, and it is reported separately below.
     for (const [code, owners] of codeOwners) {
-      if (owners.length > 1) {
-        findings.duplicateCodes.push({ key, topic: owners.join(' | '), detail: `code ${code} used ${owners.length}×` })
+      if (owners.length < 2) continue
+      const titles = new Set(owners.map((t) => {
+        const parsed = parseTopicCode(t)
+        return (parsed ? parsed.title : t).trim().toLowerCase().replace(/\s+/g, ' ')
+      }))
+      if (titles.size === 1) {
+        findings.duplicateRecords.push({
+          key, topic: owners[0], detail: `code ${code} ingested ${owners.length}× with identical content`,
+        })
+      } else {
+        // Attribute each side to its source document. When they differ, this is
+        // not one broken syllabus — it is two syllabi sharing a subject key.
+        const docs = new Set()
+        for (const owner of owners) {
+          const from = sourceIndex.get(`${key}|${String(owner).trim().toLowerCase()}`)
+          for (const d of (from || [])) docs.add(shortDoc(d))
+        }
+        const cause = docs.size > 1
+          ? `two syllabi share this subject key (${Array.from(docs).sort().join(' + ')}) — a subject-mapping decision, like the Commerce / Principles of Accounts split`
+          : 'within one syllabus — the source document has to be read'
+        findings.conflictingRecords.push({
+          key, topic: owners.join(' | '),
+          detail: `code ${code} claimed by ${owners.length} different topics; ${cause}`,
+          sharedSubjectKey: docs.size > 1,
+          documents: Array.from(docs).sort(),
+        })
       }
+    }
+
+    // A sub-topic whose parent code is claimed by more than one topic. The
+    // hierarchy repair deliberately refuses to pick one, so the node stays at
+    // the top level until a human resolves the conflicting parent above.
+    const { ambiguous } = normalizeTopicTree(inner)
+    for (const a of ambiguous) {
+      findings.ambiguousParents.push({
+        key, topic: a.topic,
+        detail: `parent code ${a.parentKey} is claimed by ${a.owners.length} topics ` +
+          `(${a.owners.join(' | ')}) — left unparented rather than guessed`,
+      })
     }
 
     const { demoted } = normalizeTopicTree(inner)
@@ -170,19 +225,58 @@ function auditLookup(framework, lookup) {
     }
   }
 
+  // ── Legitimate identical codes across SEPARATE subjects ─────────────────
+  // "1.1" appearing in both Commerce and Principles of Accounts is correct: a
+  // code is only ever unique within one curriculum + grade + subject. This used
+  // to be counted as 124 duplicate-code findings because the two syllabi shared
+  // a subject key. It is now reported as what it is — confirmation the split
+  // holds — and is NOT a problem to fix.
+  const codesByGradeCode = new Map() // "GRADE|code" → Set<subject>
+  for (const [key, inner] of lookup) {
+    const { gradeId, subjectKey } = parseLookupKey(key)
+    for (const topic of inner.keys()) {
+      const parsed = parseTopicCode(topic)
+      if (!parsed) continue
+      const k = `${gradeId}|${parsed.code}`
+      if (!codesByGradeCode.has(k)) codesByGradeCode.set(k, new Set())
+      codesByGradeCode.get(k).add(subjectKey)
+    }
+  }
+  for (const [k, subjects] of codesByGradeCode) {
+    if (subjects.size < 2) continue
+    const [gradeId, code] = k.split('|')
+    findings.sharedCodesAcrossSubjects.push({
+      key: gradeId, topic: '',
+      detail: `code ${code} used by ${subjects.size} separate subjects ` +
+        `(${Array.from(subjects).sort().join(', ')}) — correct, each numbers from scratch`,
+    })
+  }
+
   return { framework, findings }
 }
 
 /* ── reporting ───────────────────────────────────────────────────────────── */
 
+// Ordered worst-first. The last entry is deliberately NOT a problem — see
+// PROBLEM_SECTIONS below, which is what --strict and the totals count.
 const SECTIONS = [
+  ['conflictingRecords', 'CONFLICTING records — one code, different topics (needs the syllabus read)'],
+  ['duplicateRecords', 'Duplicate records — one code, identical content (a double ingest)'],
+  ['ambiguousParents', 'Unparented sub-topics — their parent code is claimed twice'],
   ['splitWords', 'Malformed titles — a word split across a space'],
   ['spacing', 'Suspicious internal spacing'],
-  ['duplicateCodes', 'Duplicate topic codes within one grade+subject'],
   ['orphans', 'Orphaned nodes — a sub-topic whose parent topic is missing'],
   ['thinCoverage', 'Implausibly few topics for a grade+subject'],
   ['pageBreakDamage', 'Page-break damage the topic-tree repair absorbs'],
+  ['sharedCodesAcrossSubjects', 'Identical codes across SEPARATE subjects — legitimate, no action'],
 ]
+
+// Everything except the legitimate-sharing section. A code shared by two
+// different subjects is correct numbering, so counting it as a finding would
+// make the report permanently red for no reason.
+const PROBLEM_SECTIONS = SECTIONS
+    .map(([id]) => id)
+    .filter((id) => id !== 'sharedCodesAcrossSubjects')
 
 function printReport(report) {
   console.log(`\n══ ${report.framework} curriculum ══`)
@@ -194,6 +288,44 @@ function printReport(report) {
       console.log(`    ${r.key.padEnd(30)} ${r.topic ? `“${r.topic}” ` : ''}— ${r.detail}`)
     }
   }
+}
+
+/**
+ * "GRADE|subject|topic" → the syllabus DOCUMENTS that topic came from.
+ *
+ * Without this, a conflicting code reads as a flaw in one syllabus when it is
+ * often two syllabi sharing a subject key — the same fault the Commerce /
+ * Principles of Accounts split fixed. Naming the documents is the difference
+ * between "someone must read the syllabus" and "someone must decide a subject
+ * mapping", which are very different jobs.
+ */
+function buildSourceIndex() {
+  const index = new Map()
+  const add = (grade, subject, topic, doc) => {
+    const key = `${String(grade).toUpperCase()}|${String(subject).toLowerCase()}|${String(topic).trim().toLowerCase()}`
+    if (!index.has(key)) index.set(key, new Set())
+    index.get(key).add(doc)
+  }
+
+  const raw2023 = JSON.parse(readFileSync(path.join(ROOT, 'public/syllabi/curriculum-data.json'), 'utf8'))
+  for (const [docTitle, sheets] of Object.entries(raw2023)) {
+    for (const topic of syllabiToKbTopics({ [docTitle]: sheets })) {
+      add(topic.grade, topic.subject, topic.topic, docTitle)
+    }
+  }
+  const raw2013 = JSON.parse(readFileSync(path.join(ROOT, 'public/syllabi/curriculum-data-2013.json'), 'utf8'))
+  for (const [docTitle, sheets] of Object.entries(raw2013)) {
+    for (const [key, inner] of extract2013TopicLookupRaw({ [docTitle]: sheets })) {
+      const [grade, subject] = String(key).split('|')
+      for (const topic of inner.keys()) add(grade, subject, topic, docTitle)
+    }
+  }
+  return index
+}
+
+/** Short document label for a report line ("Mathematics II"). */
+function shortDoc(title) {
+  return String(title).replace(/\s*Syllab(?:us|i)\s*\([^)]*\)\s*$/i, '').trim()
 }
 
 function build2013Lookup() {
@@ -221,18 +353,26 @@ function build2023Lookup() {
   return byKey
 }
 
+const sourceIndex = buildSourceIndex()
 const reports = [
-  auditLookup('2023 CBC', build2023Lookup()),
-  auditLookup('2013 previous', build2013Lookup()),
+  auditLookup('2023 CBC', build2023Lookup(), sourceIndex),
+  auditLookup('2013 previous', build2013Lookup(), sourceIndex),
 ]
 
 console.log('Syllabus catalogue validation — report only, nothing is modified.')
 for (const report of reports) printReport(report)
 
 const total = reports.reduce(
-  (sum, r) => sum + SECTIONS.reduce((n, [id]) => n + r.findings[id].length, 0), 0,
+  (sum, r) => sum + PROBLEM_SECTIONS.reduce((n, id) => n + r.findings[id].length, 0), 0,
+)
+const legitimate = reports.reduce(
+  (sum, r) => sum + r.findings.sharedCodesAcrossSubjects.length, 0,
 )
 console.log(`\nTotal findings: ${total}`)
+console.log(
+  `Plus ${legitimate} identical-code groups across separate subjects, which are ` +
+  'correct numbering and counted as findings by neither the total nor --strict.',
+)
 console.log(
   'Nothing here has been changed. Topic-hierarchy damage is repaired at read ' +
   'time by src/utils/syllabusTopicTree.js; the rest needs a human to correct ' +

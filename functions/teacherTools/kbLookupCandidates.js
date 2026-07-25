@@ -4,8 +4,8 @@
  *
  * WHY: the KB stores Forms-syllabus topics under grade codes G8–G12
  * (FORM_TO_GRADE below) and folds the vocational syllabi into core subject
- * keys (Fashion & Fabrics / Food & Nutrition / Hospitality Management /
- * Home Management → home_economics, Travel & Tourism → social_studies,
+ * keys (Fashion & Fabrics / Hospitality Management → home_economics,
+ * Travel & Tourism → social_studies,
  * Literature in English → english, …). The standardized studio curriculum
  * selector, however, sends the teacher's literal pick: grade "F1"–"F4" and
  * subject slugs like "fashion_fabrics". Exact-equality matching in
@@ -29,6 +29,9 @@ const STUDIO_SUBJECT_TO_KB = {
   "Art & Design Syllabus (Forms 1-4)": "art_and_design",
   "Biology Syllabus (Forms 1-4)": "biology",
   "English Syllabus (Forms 1-4)": "english",
+  // Fallback only: this ONE document carries two independently-numbered
+  // syllabi, split per row into commerce / principles_of_accounts by
+  // syllabusSubjectSplit.js. Reached only when a sheet's sections don't resolve.
   "Commerce & Principles of Accounts Syllabus (Forms 1-4)":
     "commerce_and_principles_of_accounts",
   "Design & Technology Studies Syllabus (Forms 1-4)":
@@ -50,7 +53,10 @@ const STUDIO_SUBJECT_TO_KB = {
   "Literature in English Syllabus (Forms 1-4)": "english",
   "Religious Education Syllabus (Forms 1-4)": "religious_education",
   "Physical Education Syllabus (Forms 1-4)": "physical_education",
-  "Food & Nutrition Syllabus (Forms 1-4)": "home_economics",
+  // Own examinable subject, own numbering — see src/utils/syllabusMapping.js.
+  // Fashion & Fabrics + Hospitality Management still share home_economics and
+  // still collide with each other; that is a separate mapping decision.
+  "Food & Nutrition Syllabus (Forms 1-4)": "food_and_nutrition",
   "Fashion & Fabrics Syllabus (Forms 1-4)": "home_economics",
   "Hospitality Management Syllabus (Forms 1-4)": "home_economics",
   "Music & Creative Arts Syllabus (Forms 1-4)": "music_and_creative_arts",
@@ -78,10 +84,10 @@ const STUDIO_SUBJECT_TO_KB_2013 = {
   "Biology Syllabus (Grades 10-12, 2013)": "biology",
   "Chemistry Syllabus (Grades 10-12, 2013)": "chemistry",
   "Civic Education Syllabus (Grades 10-12, 2013)": "civic_education",
-  "Food & Nutrition Syllabus (Grades 10-12, 2013)": "home_economics",
+  "Food & Nutrition Syllabus (Grades 10-12, 2013)": "food_and_nutrition",
   "Geography Syllabus (Grades 10-12, 2013)": "geography",
   "History Syllabus (Senior Secondary, 2013)": "history",
-  "Home Management Syllabus (Grades 10-12, 2013)": "home_economics",
+  "Home Management Syllabus (Grades 10-12, 2013)": "home_management",
   "Mathematics Syllabus (Grades 10-12, 2013)": "mathematics",
   "Physical Education Syllabus (Grades 10-12, 2013)": "physical_education",
   "Religious Education 2044 Syllabus (Grades 10-12, 2013)": "religious_education",
@@ -134,8 +140,20 @@ const BUNDLE_STUDIO_KEYS = new Set([
 // the KB key), so a syllabus rename or a new vocational subject updates the
 // fold automatically. e.g. fashion_fabrics → home_economics,
 // travel_tourism → social_studies, art_design → art_and_design.
+// Subject spellings that predate the 2026-07 subject split and fold onto
+// exactly one canonical key. Mirrors LEGACY_SUBJECT_ALIASES in
+// src/config/teacherTaxonomy.js. A saved 'accounts' pick must still reach the
+// Principles of Accounts rows, which now live under their own key.
+//
+// 'commerce_and_principles_of_accounts' is NOT here: it names two subjects, so
+// no single fold is correct. The KB simply no longer stores anything under it.
+const LEGACY_SUBJECT_ALIASES = Object.freeze({
+  accounts: "principles_of_accounts",
+  food_nutrition: "food_and_nutrition",
+});
+
 const SUBJECT_SLUG_TO_KB = (() => {
-  const out = {};
+  const out = Object.assign({}, LEGACY_SUBJECT_ALIASES);
   for (const table of [STUDIO_SUBJECT_TO_KB, STUDIO_SUBJECT_TO_KB_2013]) {
     for (const [studioKey, kbKey] of Object.entries(table)) {
       if (BUNDLE_STUDIO_KEYS.has(studioKey)) continue;
@@ -188,6 +206,7 @@ module.exports = {
   FORM_TO_GRADE,
   FORM_CODE_TO_GRADE,
   SUBJECT_SLUG_TO_KB,
+  LEGACY_SUBJECT_ALIASES,
   slugifySubject,
   gradeCandidates,
   subjectCandidates,

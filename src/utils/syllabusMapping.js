@@ -22,6 +22,10 @@ import { joinCellText, splitSpecificOutcomes } from './curriculum2013Parser.js'
 // so EVERY picker + coverage consumer of this normaliser gets the corrected
 // hierarchy even if a future re-import reintroduces the concatenation.
 import { splitConcatenatedTopicCell } from './curriculumTopicCell.js'
+// Documents that carry two independently-numbered syllabi under one title
+// (Commerce & Principles of Accounts) are cut into their sections here so each
+// half gets its own canonical subject key.
+import { resolveSplitSubjects } from './syllabusSubjectSplit.js'
 
 // ── Subject-key mapping ──────────────────────────────────────────────────
 // The Syllabi Studio uses long human-readable subject names (e.g.
@@ -34,6 +38,10 @@ export const STUDIO_SUBJECT_TO_KB = {
   'Art & Design Syllabus (Forms 1-4)':             'art_and_design',
   'Biology Syllabus (Forms 1-4)':                  'biology',
   'English Syllabus (Forms 1-4)':                  'english',
+  // This ONE document carries two independently-numbered syllabi. The value
+  // here is only the fallback for a sheet whose sections can't be resolved —
+  // syllabiToKbTopics splits the rows into 'commerce' and
+  // 'principles_of_accounts' per syllabusSubjectSplit.js.
   'Commerce & Principles of Accounts Syllabus (Forms 1-4)': 'commerce_and_principles_of_accounts',
   'Design & Technology Studies Syllabus (Forms 1-4)': 'design_and_technology_studies',
   'Early Childhood Education Syllabi (3-5 Years)': 'expressive_arts',
@@ -53,7 +61,12 @@ export const STUDIO_SUBJECT_TO_KB = {
   'Literature in English Syllabus (Forms 1-4)':    'english',
   'Religious Education Syllabus (Forms 1-4)':      'religious_education',
   'Physical Education Syllabus (Forms 1-4)':       'physical_education',
-  'Food & Nutrition Syllabus (Forms 1-4)':         'home_economics',
+  // Food & Nutrition is its own examinable subject with its own numbering —
+  // filing it under home_economics collided it with Fashion & Fabrics and
+  // Hospitality Management at Forms 1-4. Those two remain a separate mapping
+  // question (they still share home_economics and still collide with each
+  // other); the validation report names them.
+  'Food & Nutrition Syllabus (Forms 1-4)':         'food_and_nutrition',
   'Fashion & Fabrics Syllabus (Forms 1-4)':        'home_economics',
   'Hospitality Management Syllabus (Forms 1-4)':   'home_economics',
   'Music & Creative Arts Syllabus (Forms 1-4)':    'music_and_creative_arts',
@@ -109,7 +122,11 @@ export function sheetNameToGrade(sheetName) {
   return ''
 }
 
-export function studioSubjectToKbSubject(studioSubject, sheetName) {
+export function studioSubjectToKbSubject(studioSubject, sheetName, subjectOverride = '') {
+  // A split document (Commerce & Principles of Accounts) resolves per topic
+  // row, not per sheet — syllabiToKbTopics works out which section a row is in
+  // and passes the answer down. Everything else ignores this argument.
+  if (subjectOverride) return subjectOverride
   // ECE + Lower Primary have ONE top-level syllabus that bundles every
   // strand (English, Zambian Languages, Maths & Science, Creative). The
   // canonical CBC subject lives in the sheet name, not the top-level
@@ -261,9 +278,9 @@ export function rowKey(studioSubject, sheetName, topic, subtopic) {
  * the same {grade, subject, topic} so each KB entry carries every
  * sub-topic for that topic at that grade level.
  */
-export function rowToTopicFragment({ row, studioSubject, sheetName }) {
+export function rowToTopicFragment({ row, studioSubject, sheetName, subjectOverride = '' }) {
   const grade = sheetNameToGrade(sheetName)
-  const subject = studioSubjectToKbSubject(studioSubject, sheetName)
+  const subject = studioSubjectToKbSubject(studioSubject, sheetName, subjectOverride)
   if (!grade || !subject || !row.topic) return null
   return {
     grade,
@@ -338,17 +355,44 @@ function slug(s) {
  * the client admin page (so the merge happens once) and the server-side
  * `curriculumDataLoader.js`.
  */
-export function syllabiToKbTopics(rawData) {
+export function syllabiToKbTopics(rawData, options = {}) {
   if (!rawData || typeof rawData !== 'object') return []
+  const onSplitIssue = typeof options.onSplitIssue === 'function' ? options.onSplitIssue : null
   const fragments = []
   for (const [studioSubject, sheets] of Object.entries(rawData)) {
     for (const [sheetName, sheet] of Object.entries(sheets || {})) {
       const rows = rowsWithPropagatedTopic(sheet?.rows || [])
+      // A document that bundles two independently-numbered syllabi is cut into
+      // its sections here — once per sheet, before any row is converted, so
+      // every row of a section gets the same canonical subject. An ambiguous
+      // sheet reassigns nothing and is reported instead.
+      const split = resolveSplitSubjects(studioSubject, distinctTopicsInOrder(rows))
+      if (split?.ambiguous && onSplitIssue) {
+        onSplitIssue({ studioSubject, sheetName, reason: split.reason })
+      }
       for (const row of rows) {
-        const frag = rowToTopicFragment({ row, studioSubject, sheetName })
+        const frag = rowToTopicFragment({
+          row,
+          studioSubject,
+          sheetName,
+          subjectOverride: split?.byTopic.get(row.topic) || '',
+        })
         if (frag) fragments.push(frag)
       }
     }
   }
   return fragmentsToTopics(fragments)
+}
+
+/** Topic labels in first-appearance order — what the section split reads. */
+function distinctTopicsInOrder(rows) {
+  const seen = new Set()
+  const out = []
+  for (const row of rows) {
+    const topic = String(row?.topic || '').trim()
+    if (!topic || seen.has(topic)) continue
+    seen.add(topic)
+    out.push(topic)
+  }
+  return out
 }

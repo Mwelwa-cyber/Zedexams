@@ -455,16 +455,21 @@ test("Real data: no ingestion-artifact topics leak into the KB", async () => {
 });
 
 test("Real data: the Forms 1-4 additions produce topics at G8-G11", () => {
-  // The five CBC secondary syllabi ingested from the CDC workbooks (Art &
-  // Design, Zambian Languages, Commerce & Principles of Accounts, Design &
-  // Technology Studies, Music & Creative Arts) must resolve through
-  // STUDIO_SUBJECT_TO_KB and surface topics for every form.
+  // The CBC secondary syllabi ingested from the CDC workbooks (Art & Design,
+  // Zambian Languages, Commerce & Principles of Accounts, Design & Technology
+  // Studies, Music & Creative Arts) must resolve through STUDIO_SUBJECT_TO_KB
+  // and surface topics for every form.
+  //
+  // The Commerce & Principles of Accounts workbook holds TWO syllabi, so it
+  // surfaces under two keys, not the combined one — and the combined key must
+  // produce nothing at all (asserted below).
   const raw = loadRawData();
   const topics = syllabiToKbTopics(raw);
   const subjects = [
     "art_and_design",
     "zambian_language",
-    "commerce_and_principles_of_accounts",
+    "commerce",
+    "principles_of_accounts",
     "design_and_technology_studies",
     "music_and_creative_arts",
     "biology",
@@ -478,6 +483,39 @@ test("Real data: the Forms 1-4 additions produce topics at G8-G11", () => {
         `expected ${subject} topics at ${grade}`,
       );
     }
+  }
+  // The combined key is retired: nothing may still be filed under it, or the
+  // split silently only half-happened.
+  ok(
+    !topics.some((t) => t.subject === "commerce_and_principles_of_accounts"),
+    "no topic may remain under the retired combined key",
+  );
+  // Food & Nutrition likewise no longer arrives as home_economics at Forms 1-4.
+  ok(
+    topics.some((t) => t.subject === "food_and_nutrition" && t.grade === "G8"),
+    "expected food_and_nutrition topics at G8",
+  );
+});
+
+test("Real data: Commerce 1.1 and Principles of Accounts 1.1 stay independent", () => {
+  // The reason for the split: both syllabi number from 1.1 and are supposed to.
+  // Each code must resolve to exactly ONE topic within its own subject.
+  const topics = syllabiToKbTopics(loadRawData());
+  const at = (subject, grade) => topics.filter((t) => t.subject === subject && t.grade === grade);
+
+  const commerce = at("commerce", "G8");
+  const accounts = at("principles_of_accounts", "G8");
+  ok(commerce.some((t) => t.topic === "1.1 Commerce"), "Commerce owns 1.1 Commerce");
+  ok(accounts.some((t) => t.topic === "1.1 Principles of Accounts"), "PoA owns 1.1 Principles of Accounts");
+  // Neither subject may contain the other's 1.1 — that is the collision itself.
+  ok(!commerce.some((t) => t.topic === "1.1 Principles of Accounts"), "Commerce must not hold PoA's 1.1");
+  ok(!accounts.some((t) => t.topic === "1.1 Commerce"), "PoA must not hold Commerce's 1.1");
+
+  // And within each subject the code 1.1 is claimed exactly once, so a 1.1.x
+  // sub-topic has a single unambiguous parent.
+  for (const [label, rows] of [["commerce", commerce], ["principles_of_accounts", accounts]]) {
+    const ones = rows.filter((t) => /^1\.1(\s|$)/.test(t.topic));
+    ok(ones.length === 1, `${label} G8 must claim code 1.1 exactly once, saw ${ones.length}`);
   }
 });
 

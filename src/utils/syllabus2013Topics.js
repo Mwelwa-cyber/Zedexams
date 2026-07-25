@@ -27,10 +27,15 @@ export const STUDIO_SUBJECT_TO_KB_2013 = {
   'Biology Syllabus (Grades 10-12, 2013)': 'biology',
   'Chemistry Syllabus (Grades 10-12, 2013)': 'chemistry',
   'Civic Education Syllabus (Grades 10-12, 2013)': 'civic_education',
-  'Food & Nutrition Syllabus (Grades 10-12, 2013)': 'home_economics',
+  // Food & Nutrition and Home Management are two separate examinable subjects,
+  // each numbered from 10.1. Filing both under home_economics made every one of
+  // their codes collide at G10-G12 and made hierarchy repair pick a parent by
+  // document order. The G5-7 "Home Economics" syllabus below is a genuinely
+  // different subject at different grades and keeps the home_economics key.
+  'Food & Nutrition Syllabus (Grades 10-12, 2013)': 'food_and_nutrition',
   'Geography Syllabus (Grades 10-12, 2013)': 'geography',
   'History Syllabus (Senior Secondary, 2013)': 'history',
-  'Home Management Syllabus (Grades 10-12, 2013)': 'home_economics',
+  'Home Management Syllabus (Grades 10-12, 2013)': 'home_management',
   'Mathematics Syllabus (Grades 10-12, 2013)': 'mathematics',
   'Physical Education Syllabus (Grades 10-12, 2013)': 'physical_education',
   'Religious Education 2044 Syllabus (Grades 10-12, 2013)': 'religious_education',

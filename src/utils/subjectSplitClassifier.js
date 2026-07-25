@@ -1,0 +1,296 @@
+/**
+ * Classify a record saved under a pre-split subject key.
+ *
+ * Four canonical subjects were carved out of two shared keys:
+ *
+ *   commerce_and_principles_of_accounts → commerce | principles_of_accounts
+ *   home_economics (senior only)        → food_and_nutrition | home_management
+ *
+ * Records written before the split still carry the shared key. Reassigning them
+ * matters — the subject decides which syllabus grounds a regeneration and which
+ * topic tree a picker offers — but assigning the WRONG subject is worse than
+ * leaving the old key in place, because it silently moves a teacher's paper into
+ * a syllabus it was never written against.
+ *
+ * So this classifier is deliberately conservative and refuses rather than
+ * guesses. The evidence it will act on, strongest first:
+ *
+ *   1. An explicit source-syllabus field naming the document it came from.
+ *   2. Its topics matching the real catalogue. Every topic is looked up in the
+ *      split catalogue for the record's own curriculum + grade; the record is
+ *      classified only when every topic that resolves resolves to the SAME
+ *      subject. This is evidence from the Ministry's own data, not a keyword
+ *      guess, and it is the path almost every record takes.
+ *   3. Nothing else. A record whose topics resolve to both subjects (a paper
+ *      that genuinely spans them), or to neither (free-text topics, no topics at
+ *      all, a grade with no catalogue rows), is reported AMBIGUOUS for a human
+ *      to decide. It is never assigned to "the first match".
+ *
+ * Every outcome carries the evidence that produced it so the migration report
+ * can be audited rather than trusted.
+ *
+ * Pure (no React, no Firebase, no I/O).
+ */
+
+import { normalizeCurriculumId } from './curriculumTopicIdentity.js'
+import { SPLIT_DOCUMENTS } from './syllabusSubjectSplit.js'
+
+/**
+ * Shared keys that need per-record classification, and the candidates each can
+ * resolve to.
+ *
+ * home_economics is a special case: it is STILL a real subject (CBC Grades 4-6,
+ * 2013 Grades 5-7). Only records whose topics actually belong to Food & Nutrition
+ * or Home Management should move; a genuine Home Economics record stays put. So
+ * its candidate list includes home_economics itself.
+ */
+export const SPLIT_SOURCES = Object.freeze({
+  commerce_and_principles_of_accounts: ['commerce', 'principles_of_accounts'],
+  home_economics: ['food_and_nutrition', 'home_management', 'home_economics'],
+})
+
+/** Outcome codes. `unchanged` means "correctly on this key already". */
+export const OUTCOMES = Object.freeze({
+  CLASSIFIED: 'classified',
+  AMBIGUOUS: 'ambiguous',
+  UNCHANGED: 'unchanged',
+  NOT_APPLICABLE: 'not_applicable',
+})
+
+/** Document title → the canonical subject a source-syllabus field implies. */
+const SOURCE_DOCUMENT_SUBJECTS = Object.freeze({
+  'Commerce & Principles of Accounts Syllabus (Forms 1-4)': null, // two subjects — no answer
+  'Food & Nutrition Syllabus (Forms 1-4)': 'food_and_nutrition',
+  'Food & Nutrition Syllabus (Grades 10-12, 2013)': 'food_and_nutrition',
+  'Home Management Syllabus (Grades 10-12, 2013)': 'home_management',
+  'Home Economics Syllabus (Grades 5-7, 2013)': 'home_economics',
+  'Home Economics & Hospitality Syllabus (Grades 4-6)': 'home_economics',
+})
+
+function clean(value) {
+  return String(value ?? '').trim()
+}
+
+// Records store grades every way a form has ever offered them: "G8", "F1",
+// "Form 1", "Grade 10", "8". The catalogue is keyed on G-codes, so a grade is
+// normalised before anything is looked up. An unrecognisable grade yields ''
+// and the record is reported ambiguous rather than looked up under a guess.
+const FORM_TO_GRADE = { 1: 'G8', 2: 'G9', 3: 'G10', 4: 'G11', 5: 'G12' }
+
+export function resolveGradeCode(raw) {
+  const s = clean(raw)
+  if (!s) return ''
+  const upper = s.toUpperCase().replace(/\s+/g, '')
+  if (/^G\d{1,2}$/.test(upper)) return upper
+  if (/^ECE(_[NR])?$/.test(upper)) return upper
+  const form = upper.match(/^F(?:ORM)?(\d)$/)
+  if (form) return FORM_TO_GRADE[form[1]] || ''
+  const grade = s.match(/grade\s*(\d{1,2})/i)
+  if (grade) return `G${Number(grade[1])}`
+  if (/^\d{1,2}$/.test(upper)) return `G${Number(upper)}`
+  return ''
+}
+
+/** Normalise a topic label for comparison: case and whitespace only. */
+export function topicMatchKey(label) {
+  return clean(label).toLowerCase().replace(/\s+/g, ' ')
+}
+
+/**
+ * Build the lookup the classifier reads: every catalogue topic, keyed by
+ * curriculum + grade + topic label → the canonical subject that owns it.
+ *
+ * A label claimed by two candidate subjects in the same curriculum+grade is
+ * dropped from the index entirely — it cannot be evidence for either.
+ *
+ * @param {Array<{grade:string, subject:string, topic:string}>} topics
+ * @param {string} curriculumId  the curriculum these topics came from
+ * @param {Map} [into]  an existing index to add to (so both catalogues share one)
+ */
+export function buildTopicSubjectIndex(topics, curriculumId, into = new Map()) {
+  const curriculum = normalizeCurriculumId(curriculumId)
+  const contested = new Set()
+  for (const t of topics || []) {
+    const grade = clean(t?.grade).toUpperCase()
+    const subject = clean(t?.subject).toLowerCase()
+    const topic = topicMatchKey(t?.topic)
+    if (!grade || !subject || !topic) continue
+    const key = `${curriculum}|${grade}|${topic}`
+    const existing = into.get(key)
+    if (existing && existing !== subject) {
+      contested.add(key)
+      continue
+    }
+    if (!contested.has(key)) into.set(key, subject)
+  }
+  for (const key of contested) into.delete(key)
+  return into
+}
+
+/**
+ * Which subjects actually have catalogue rows at a given curriculum + grade.
+ *
+ * Used to narrow the candidate list before anything is decided. A Grade 6 Home
+ * Economics record cannot be Food & Nutrition or Home Management, because
+ * neither subject exists below senior secondary — so it is simply correct as it
+ * stands, not ambiguous. Without this, every legitimate primary Home Economics
+ * record would be dumped into the review pile and the real cases would be lost
+ * in the noise.
+ *
+ * Presence NARROWS; it never classifies. "The only candidate at this grade is X"
+ * is enough to confirm a record already on X, but not enough to move a record
+ * onto X — for that we still require the record's own topics to say so.
+ */
+export function buildSubjectPresence(topics, curriculumId, into = new Set()) {
+  const curriculum = normalizeCurriculumId(curriculumId)
+  for (const t of topics || []) {
+    const grade = clean(t?.grade).toUpperCase()
+    const subject = clean(t?.subject).toLowerCase()
+    if (grade && subject) into.add(`${curriculum}|${grade}|${subject}`)
+  }
+  return into
+}
+
+/** Collect the topic-ish strings a record carries, from any of the usual shapes. */
+export function recordTopics(record) {
+  const out = []
+  const push = (value) => {
+    if (typeof value === 'string' && clean(value)) out.push(clean(value))
+  }
+  const walk = (value, depth) => {
+    if (depth > 3 || value == null) return
+    if (typeof value === 'string') return push(value)
+    if (Array.isArray(value)) {
+      for (const v of value) walk(v, depth + 1)
+      return
+    }
+    if (typeof value === 'object') {
+      // Only the fields that genuinely name a topic — never a free-text body.
+      for (const field of ['topic', 'topics', 'topicName', 'subtopic', 'subTopic', 'name']) {
+        if (field in value) walk(value[field], depth + 1)
+      }
+    }
+  }
+  walk(record?.topic, 0)
+  walk(record?.topics, 0)
+  walk(record?.inputs?.topic, 0)
+  walk(record?.inputs?.topics, 0)
+  walk(record?.meta?.topic, 0)
+  return Array.from(new Set(out))
+}
+
+/**
+ * Classify ONE record.
+ *
+ * @param {object} record        the stored record (any of the shapes above)
+ * @param {object} context
+ * @param {Map} context.topicIndex   from buildTopicSubjectIndex
+ * @param {string} record.subject    the stored subject key
+ * @param {string} record.grade      grade/form code (G8, F1, "Grade 10", …)
+ * @param {string} record.curriculum '2023' | '2013' | 'cbc' | 'previous'
+ * @returns {{outcome:string, subject:string, from:string, evidence:string,
+ *            candidates:string[], topicsSeen:number, topicsResolved:number}}
+ */
+export function classifyRecord(record, {
+  topicIndex = new Map(), subjectPresence = null, gradeResolver = null,
+} = {}) {
+  const from = clean(record?.subject).toLowerCase()
+  const candidates = SPLIT_SOURCES[from]
+  const base = {
+    outcome: OUTCOMES.NOT_APPLICABLE,
+    subject: from,
+    from,
+    evidence: '',
+    candidates: candidates || [],
+    topicsSeen: 0,
+    topicsResolved: 0,
+  }
+  if (!candidates) return { ...base, evidence: 'not a pre-split subject key' }
+
+  // ── Evidence 1: an explicit source-syllabus field ────────────────────────
+  const sourceDoc = clean(record?.sourceSyllabus || record?.syllabusDocument || record?.inputs?.sourceSyllabus)
+  if (sourceDoc && Object.prototype.hasOwnProperty.call(SOURCE_DOCUMENT_SUBJECTS, sourceDoc)) {
+    const implied = SOURCE_DOCUMENT_SUBJECTS[sourceDoc]
+    if (implied && candidates.includes(implied)) {
+      return {
+        ...base,
+        outcome: implied === from ? OUTCOMES.UNCHANGED : OUTCOMES.CLASSIFIED,
+        subject: implied,
+        evidence: `source syllabus "${sourceDoc}"`,
+      }
+    }
+    // The Commerce & PoA document names both subjects — no answer from here.
+  }
+
+  // ── Evidence 2: the record's topics, against the real catalogue ──────────
+  const curriculum = normalizeCurriculumId(record?.curriculum ?? record?.framework ?? record?.inputs?.framework)
+  const rawGrade = clean(record?.grade || record?.inputs?.grade || record?.meta?.grade)
+  const grade = (gradeResolver ? gradeResolver(rawGrade) : rawGrade).toUpperCase()
+  const topics = recordTopics(record)
+
+  // Narrow to the candidates that exist at all at this curriculum + grade.
+  const possible = subjectPresence && grade
+    ? candidates.filter((c) => subjectPresence.has(`${curriculum}|${grade}|${c}`))
+    : candidates
+
+  // Already correct: no other candidate subject is even taught here.
+  if (possible.length === 1 && possible[0] === from) {
+    return {
+      ...base,
+      outcome: OUTCOMES.UNCHANGED,
+      subject: from,
+      candidates: possible,
+      evidence: `${from} is the only candidate subject with ${curriculum} rows at ${grade}`,
+    }
+  }
+
+  const resolved = new Set()
+  let matched = 0
+  if (grade) {
+    for (const topic of topics) {
+      const owner = topicIndex.get(`${curriculum}|${grade}|${topicMatchKey(topic)}`)
+      if (owner && possible.includes(owner)) {
+        resolved.add(owner)
+        matched += 1
+      }
+    }
+  }
+
+  const withCounts = {
+    ...base, candidates: possible, topicsSeen: topics.length, topicsResolved: matched,
+  }
+
+  if (resolved.size === 1) {
+    const subject = Array.from(resolved)[0]
+    return {
+      ...withCounts,
+      outcome: subject === from ? OUTCOMES.UNCHANGED : OUTCOMES.CLASSIFIED,
+      subject,
+      evidence: `${matched} of ${topics.length} topic(s) matched ${subject} in the ${curriculum} catalogue at ${grade}`,
+    }
+  }
+
+  if (resolved.size > 1) {
+    return {
+      ...withCounts,
+      outcome: OUTCOMES.AMBIGUOUS,
+      evidence: `topics span ${Array.from(resolved).sort().join(' and ')} — a human must split or pick`,
+    }
+  }
+
+  return {
+    ...withCounts,
+    outcome: OUTCOMES.AMBIGUOUS,
+    evidence: !grade
+      ? 'no grade on the record, so its topics cannot be looked up'
+      : topics.length === 0
+        ? 'no topics on the record'
+        : `none of its ${topics.length} topic(s) match the ${curriculum} catalogue at ${grade}`,
+  }
+}
+
+/** True when the split documents/keys this classifier knows are still current. */
+export function knownSplitKeys() {
+  const fromDocs = Object.values(SPLIT_DOCUMENTS).map((s) => s.legacyKey)
+  return Array.from(new Set([...fromDocs, ...Object.keys(SPLIT_SOURCES)]))
+}

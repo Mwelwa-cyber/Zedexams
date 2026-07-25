@@ -141,18 +141,39 @@ check('Lower-primary Mathematics: OBC from Grade 1, CBC from Grade 3', () => {
   assert.equal(isSubjectValidForGrade('mathematics', 'G3', 'cbc'), true)
 })
 
-check('Business: OBC Principles of Accounts ⇄ CBC Commerce & Principles of Accounts', () => {
-  // Senior secondary Principles of Accounts is OBC-only.
+check('Business: Commerce and Principles of Accounts are two separate subjects', () => {
+  // They ship as ONE CDC workbook but are two subjects, each numbering its
+  // topics from 1.1 — so each has its own canonical key. Both are CBC Forms 1-4.
+  for (const subject of ['commerce', 'principles_of_accounts']) {
+    assert.equal(isSubjectValidForGrade(subject, 'G10', 'cbc'), true, `${subject} at G10 CBC`)
+  }
+  // Principles of Accounts also ran at 2013 senior secondary (the old 'accounts'
+  // key); there is no 2013 Commerce syllabus on file, so Commerce claims none.
+  assert.equal(isSubjectValidForGrade('principles_of_accounts', 'G12', 'previous'), true)
+  assert.equal(isSubjectValidForGrade('commerce', 'G12', 'previous'), false)
+  // The pre-split spelling still resolves to the canonical key's ranges, so an
+  // assignment saved as 'accounts' behaves exactly as it did before the split.
   assert.equal(isSubjectValidForGrade('accounts', 'G12', 'previous'), true)
   assert.equal(isSubjectValidForGrade('accounts', 'G12', 'cbc'), false)
-  // The combined Commerce & Principles of Accounts is CBC-only.
-  assert.equal(isSubjectValidForGrade('commerce_and_principles_of_accounts', 'G10', 'cbc'), true)
-  assert.equal(isSubjectValidForGrade('commerce_and_principles_of_accounts', 'G10', 'previous'), false)
-  // At Grade 10 the two curricula surface different business subjects.
+  // Grade 10 offers both under the CBC; the 2013 set offers only Accounts.
   const cbc = valuesOf(getSubjectsForGrade('G10', 'cbc'))
   const obc = valuesOf(getSubjectsForGrade('G10', 'previous'))
-  assert.ok(cbc.includes('commerce_and_principles_of_accounts') && !cbc.includes('accounts'))
-  assert.ok(obc.includes('accounts') && !obc.includes('commerce_and_principles_of_accounts'))
+  assert.ok(cbc.includes('commerce') && cbc.includes('principles_of_accounts'))
+  assert.ok(obc.includes('principles_of_accounts') && !obc.includes('commerce'))
+  // The combined key is retired: never offered for new work in either curriculum.
+  assert.ok(!cbc.includes('commerce_and_principles_of_accounts'))
+  assert.ok(!obc.includes('commerce_and_principles_of_accounts'))
+})
+
+check('Home Economics no longer swallows Food & Nutrition or Home Management', () => {
+  // Each is its own examinable subject with its own numbering.
+  assert.equal(isSubjectValidForGrade('food_and_nutrition', 'G10', 'cbc'), true)
+  assert.equal(isSubjectValidForGrade('home_management', 'G10', 'previous'), true)
+  // Home Economics remains real where it genuinely is one: CBC upper primary
+  // and 2013 Grades 5-7 upward.
+  assert.equal(isSubjectValidForGrade('home_economics', 'G4', 'cbc'), true)
+  // The pre-split 'food_nutrition' spelling still resolves.
+  assert.equal(isSubjectValidForGrade('food_nutrition', 'G10', 'cbc'), true)
 })
 
 check('CBC-only Forms 1-4 electives (Design & Tech, Music & Creative Arts) hidden under OBC', () => {
@@ -174,8 +195,8 @@ check('curriculum-agnostic calls (no curriculum arg) return the union — unchan
   // A subject taught in EITHER curriculum still appears when no curriculum is
   // passed, so existing single-arg callers keep seeing every subject.
   const g10 = valuesOf(getSubjectsForGrade('G10'))
-  assert.ok(g10.includes('accounts'), 'union includes OBC-only accounts')
-  assert.ok(g10.includes('commerce_and_principles_of_accounts'), 'union includes CBC-only commerce')
+  assert.ok(g10.includes('principles_of_accounts'), 'union includes Principles of Accounts (both eras)')
+  assert.ok(g10.includes('commerce'), 'union includes CBC-only Commerce')
   const g4 = valuesOf(getSubjectsForGrade('G4'))
   assert.ok(g4.includes('numeracy') && g4.includes('mathematics'))
   // ECE stays available on curriculum-agnostic and CBC calls.
@@ -200,7 +221,7 @@ check('a curriculum-scoped call never falls back to the full subject list', () =
 
 check('CBC secondary carries the digitised Forms 1-4 subjects; the 2013 set does not', () => {
   const cbcG9 = valuesOf(getSubjectsForGrade('G9', 'cbc'))
-  for (const s of ['literature_in_english', 'food_nutrition', 'fashion_fabrics', 'hospitality_management', 'travel_tourism']) {
+  for (const s of ['literature_in_english', 'food_and_nutrition', 'fashion_fabrics', 'hospitality_management', 'travel_tourism']) {
     assert.ok(cbcG9.includes(s), `CBC Form 2 offers ${s}`)
   }
   const obcG9 = valuesOf(getSubjectsForGrade('G9', 'previous'))

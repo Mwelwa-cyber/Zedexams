@@ -13,7 +13,15 @@ vi.mock('../../../../components/teacher/studio/hooks/useSubjectsForGrade.js', ()
   useSubjectsForGrade: (grade, mode) => {
     const catalog = {
       'cbc|Grade 4': ['Mathematics Syllabus (Grades 4-6)', 'Home Economics Syllabus (Grades 4-6)'],
-      'cbc|Form 3': ['Commerce & Principles of Accounts Syllabus (Forms 1-4)'],
+      // The Commerce & PoA workbook holds two independently-numbered syllabi, so
+      // getSubjectsForGrade offers one entry per subject rather than the
+      // combined document (which would mean "one of these two" and could not be
+      // saved). The '::' suffix is the same section-scoping the ECE/Lower-Primary
+      // strand bundles use.
+      'cbc|Form 3': [
+        'Commerce & Principles of Accounts Syllabus (Forms 1-4)::Commerce',
+        'Commerce & Principles of Accounts Syllabus (Forms 1-4)::Principles of Accounts',
+      ],
       'previous|Grade 4': ['Mathematics Syllabus (Grades 1-7, 2013)', 'English Language Syllabus (Grades 2-7, 2013)'],
       'previous|Grade 12': ['Mathematics Syllabus (Grades 10-12, 2013)'],
       // 'cbc|Grade 6' intentionally absent → exercises the configured-empty state.
@@ -165,14 +173,48 @@ describe('AssignmentFormModal — save validation', () => {
     const { onSubmit } = openModal()
     pickCbc()
     fireEvent.change(gradeSelect(), { target: { value: 'Form 3' } })
-    fireEvent.change(subjectSelect(), { target: { value: 'Commerce & Principles of Accounts Syllabus (Forms 1-4)' } })
+    fireEvent.change(subjectSelect(), {
+      target: { value: 'Commerce & Principles of Accounts Syllabus (Forms 1-4)::Commerce' },
+    })
     fireEvent.click(screen.getByRole('button', { name: /save assignment/i }))
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
       curriculumType: 'cbc',
       grade: 'G10',
-      subject: 'commerce_and_principles_of_accounts',
+      // One of the two subjects the workbook contains — never the combined key.
+      subject: 'commerce',
     }))
+  })
+
+  it('offers Commerce and Principles of Accounts as separate, saveable subjects', async () => {
+    const { onSubmit } = openModal()
+    pickCbc()
+    fireEvent.change(gradeSelect(), { target: { value: 'Form 3' } })
+    // Both appear under their own names, not as one combined workbook entry.
+    const labels = [...subjectSelect().querySelectorAll('option')].map((o) => o.textContent)
+    expect(labels).toContain('Commerce')
+    expect(labels).toContain('Principles of Accounts')
+    expect(labels.join('|')).not.toMatch(/Commerce & Principles of Accounts/)
+
+    fireEvent.change(subjectSelect(), {
+      target: { value: 'Commerce & Principles of Accounts Syllabus (Forms 1-4)::Principles of Accounts' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /save assignment/i }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ subject: 'principles_of_accounts' }))
+  })
+
+  it('a saved assignment still on the retired combined key is forced to be re-picked', () => {
+    const { onSubmit } = openModal({
+      mode: 'edit',
+      initial: {
+        id: 'a2', grade: 'G10', subject: 'commerce_and_principles_of_accounts', curriculumType: 'cbc',
+      },
+    })
+    expect(screen.getByText(/needs review/i)).toBeInTheDocument()
+    // Saving without choosing one of the two is refused — never auto-assigned.
+    fireEvent.click(screen.getByRole('button', { name: /save assignment/i }))
+    expect(onSubmit).not.toHaveBeenCalled()
   })
 
   it('flags a stale invalid saved combination for review and forces a re-selection', () => {

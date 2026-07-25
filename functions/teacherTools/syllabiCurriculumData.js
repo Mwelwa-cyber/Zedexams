@@ -27,6 +27,10 @@ const {
   FORM_TO_GRADE,
 } = require("./kbLookupCandidates");
 const {normalizeTopicTree} = require("./syllabusTopicTree");
+// Documents carrying two independently-numbered syllabi under one title
+// (Commerce & Principles of Accounts) are cut into their sections so each half
+// grounds generation under its own canonical subject key.
+const {resolveSplitSubjects} = require("./syllabusSubjectSplit");
 
 // Filenames for each curriculum framework — used by locateDataFile().
 const FRAMEWORK_FILES = {
@@ -739,6 +743,19 @@ function foldLeakedSubtopics(entries) {
  * its own schema parser. Every topic returned carries a `framework` field
  * so downstream filters can pick the right era cleanly.
  */
+/** Topic labels in first-appearance order — what the section split reads. */
+function distinctTopicsInOrder(rows) {
+  const seen = new Set();
+  const out = [];
+  for (const row of rows || []) {
+    const topic = String((row && row.topic) || "").trim();
+    if (!topic || seen.has(topic)) continue;
+    seen.add(topic);
+    out.push(topic);
+  }
+  return out;
+}
+
 async function getCurriculumDataTopics(version, opts = {}) {
   const framework = normalizeFramework(opts.framework);
   if (framework === "2013") return get2013CurriculumDataTopics();
@@ -750,11 +767,17 @@ async function getCurriculumDataTopics(version, opts = {}) {
   for (const [studioSubject, sheets] of Object.entries(merged || {})) {
     for (const [sheetName, sheet] of Object.entries(sheets || {})) {
       const grade = sheetNameToGrade(sheetName);
-      const subject = resolveKbSubject(studioSubject, sheetName);
-      if (!grade || !subject) continue;
+      const sheetSubject = resolveKbSubject(studioSubject, sheetName);
+      if (!grade || !sheetSubject) continue;
       const rows = rowsWithPropagatedTopic(sheet?.rows || []);
+      // Per-sheet, before any row is read, so every row of a section lands on
+      // the same subject. An ambiguous sheet reassigns nothing.
+      const split = resolveSplitSubjects(
+          studioSubject, distinctTopicsInOrder(rows),
+      );
       for (const r of rows) {
         if (!r.topic) continue;
+        const subject = (split && split.byTopic.get(r.topic)) || sheetSubject;
         const key = `${grade}|${subject}|${r.topic.toLowerCase()}`;
         let entry = byKey.get(key);
         if (!entry) {

@@ -399,6 +399,16 @@ const SUBJECT_LABELS = {
   cinyanja: 'Cinyanja',
   agricultural_science: 'Agricultural Science',
   art_and_design: 'Art & Design',
+  // Two independently-numbered syllabi that used to share one key. Their topic
+  // codes both start at 1.1 and are supposed to — see syllabusSubjectSplit.js.
+  commerce: 'Commerce',
+  principles_of_accounts: 'Principles of Accounts',
+  // Own examinable subjects, own numbering. home_economics stays a real subject
+  // (CBC Grades 4-6, 2013 Grades 5-7) — it just no longer swallows these two.
+  food_and_nutrition: 'Food & Nutrition',
+  home_management: 'Home Management',
+  // Retained so a record saved before the split still renders a sensible label.
+  // Never assigned to new content; the migration classifies these per record.
   commerce_and_principles_of_accounts: 'Commerce & Principles of Accounts',
   design_and_technology_studies: 'Design & Technology Studies',
   music_and_creative_arts: 'Music & Creative Arts',
@@ -451,9 +461,23 @@ const SUBJECT_FIXES = {
   // CBC 2023 Forms 1-4 subjects whose "&" display names slug without the
   // "and" ("Commerce & Principles of Accounts" → commerce_principles_of_
   // accounts) — fold back to the canonical KB keys.
-  commerce_principles_of_accounts: 'commerce_and_principles_of_accounts',
   design_technology_studies: 'design_and_technology_studies',
   music_creative_arts: 'music_and_creative_arts',
+  // ── The subject split ──────────────────────────────────────────────────
+  // One canonical identity per subject, so a topic code is unique within it.
+  // 'accounts' and 'food_nutrition' were the teacher-picker spellings of
+  // subjects the KB knows under fuller names; folding them keeps a saved pick
+  // resolving to the same syllabus rows it always did.
+  accounts: 'principles_of_accounts',
+  principles_accounts: 'principles_of_accounts',
+  food_nutrition: 'food_and_nutrition',
+  //
+  // 'commerce_and_principles_of_accounts' is deliberately NOT folded. It names
+  // two subjects at once, so there is no single key to fold it to — that is the
+  // whole reason for the split. It stays recognised (a label exists for it) and
+  // scripts/migrate-subject-split.mjs classifies each saved record individually
+  // from its own metadata rather than picking one here for all of them.
+  commerce_principles_of_accounts: 'commerce_and_principles_of_accounts',
 }
 
 export function toKbSubjectKey(subject) {
