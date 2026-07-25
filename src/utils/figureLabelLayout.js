@@ -52,8 +52,10 @@ const PILL_PAD_X = 6
 
 /**
  * Average advance width of Arial as a fraction of the font size, for mixed-case
- * text. An estimate — measuring would need a DOM — but a consistent one, and it
- * only has to be good enough to know whether two pills overlap.
+ * text. An estimate rather than a measurement: this module stays pure so the
+ * Word exporter and the plain-node tests can call it, and the three renderers
+ * draw pills at three different sizes anyway — what they have to agree on is
+ * placement. It only has to be good enough to know whether two pills overlap.
  */
 const CHAR_WIDTH_RATIO = 0.58
 
