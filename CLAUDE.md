@@ -123,7 +123,7 @@ src/
   config/curriculum.js          — SUBJECTS / GRADES; single source of truth for CBC dropdowns
 
 functions/                      — Cloud Functions v2, Node 22, codebase=default. Separate package.json.
-  index.js                      — every function export lives here (~156 exports): aiChat, generateQuiz, verifyQuiz, checkShortAnswer, apiAiChat SSE, apiGenerateLessonPlan / Worksheet SSE, the generate* teacher tools (Assessment/SbaTask/Homework/Notes/Flashcards/SchemeOfWork/Rubric/Diagram/NotePictures/VisualNotes/SlideNotes; the generateExamPaper callable was retired 2026-07 — every assessment type, test AND examination, now generates through the one generateAssessment (the merged Assessment Paper Studio; `assessmentType` is one of the 7 canonical values in `functions/teacherTools/assessmentFormats.js`'s `ASSESSMENT_TYPES`, reaching the backend exactly as the teacher picked it — `examination`/`final_exam` are real recognised types, never collapsed to `mock_exam`), and the library still renders legacy `tool:'exam_paper'` docs via `src/utils/aiPaperToSections.js`), scanned-quiz + note OCR (structureScannedQuiz, ocrNotePages), class management (createClassAssignment, joinClassByCode, getClassStats), parent portal + weeklyParentDigest, newsletter (subscribeToNewsletter), invoices, referrals, syllabus versioning (parseSyllabusUpload, activateSyllabusVersion, rollbackSyllabusVersion), Lenco (lencoWebhook + payment recovery) + Google Play Billing (verifyGooglePlayPurchase), Central Question Bank (questionReviewOnWrite=Qix, importPastPaperQuestions, classifyQuestionGrades, reviseQuestion), agentJobsOnCreate/Approved, storageCleanup triggers, and the scheduled crons (nightlyQaSmoke, hourlyMonitor, hourlyAgentSupervisor=Marshal, hourlyRevenueReconcile, supportTriage, contentAutoPublish, weeklyProductSignal, weeklyRetentionScan, deliverDawnBriefings, weeklyCbcAlignmentAudit, autoPickDailyExams, daily/weekly learner reminders, dailyFxRefresh, aiCostDailySummary, reclaimAiBudgetReservations, rebuildPastPapersIndexCron)
+  index.js                      — every function export lives here (~156 exports): aiChat, generateQuiz, verifyQuiz, checkShortAnswer, apiAiChat SSE, apiGenerateLessonPlan / Worksheet SSE, the generate* teacher tools (Assessment/SbaTask/Homework/Notes/Flashcards/SchemeOfWork/Rubric/Diagram/NotePictures/VisualNotes/SlideNotes; the generateExamPaper callable was retired 2026-07 — every assessment type, test AND examination, now generates through the one generateAssessment (the merged Assessment Paper Studio; `assessmentType` is one of the 7 canonical values in `functions/teacherTools/assessmentFormats.js`'s `ASSESSMENT_TYPES`, reaching the backend exactly as the teacher picked it — `examination`/`final_exam` are real recognised types, never collapsed to `mock_exam`), and the library still renders legacy `tool:'exam_paper'` docs via `src/utils/aiPaperToSections.js`; `planAssessment` derives the same paper plan with NO model call so the teacher confirms it before generating, and `regenerateAssessmentQuestion` rewrites ONE question against its plan slot), scanned-quiz + note OCR (structureScannedQuiz, ocrNotePages), class management (createClassAssignment, joinClassByCode, getClassStats), parent portal + weeklyParentDigest, newsletter (subscribeToNewsletter), invoices, referrals, syllabus versioning (parseSyllabusUpload, activateSyllabusVersion, rollbackSyllabusVersion), Lenco (lencoWebhook + payment recovery) + Google Play Billing (verifyGooglePlayPurchase), Central Question Bank (questionReviewOnWrite=Qix, importPastPaperQuestions, classifyQuestionGrades, reviseQuestion), agentJobsOnCreate/Approved, storageCleanup triggers, and the scheduled crons (nightlyQaSmoke, hourlyMonitor, hourlyAgentSupervisor=Marshal, hourlyRevenueReconcile, supportTriage, contentAutoPublish, weeklyProductSignal, weeklyRetentionScan, deliverDawnBriefings, weeklyCbcAlignmentAudit, autoPickDailyExams, daily/weekly learner reminders, dailyFxRefresh, aiCostDailySummary, reclaimAiBudgetReservations, rebuildPastPapersIndexCron)
   aiService.js                  — Anthropic client (streaming + non-streaming + prompt-caching), assertDailyLimit, role helpers, parsers
   anthropicFetch.js             — low-level fetch around Anthropic API
   geminiClient.js + geminiImageClient.js — Gemini REST client (structureImportedQuiz) + Gemini image generation
@@ -165,6 +165,47 @@ capacitor.config.json           — appId com.zedexams.android; android/ holds t
 ### Live Generation Canvas (teacher studios)
 
 Every teacher generate-studio output panel is `src/components/ui/LiveGenerationCanvas.jsx` — instead of a spinner-then-dump it shows a friendly progress timeline with checkmarks (prep steps → one step per content section → "formatting") and reveals the document **section by section**, then offers Stop / Continue editing / Save to library / Regenerate (whole + per-section). The generators still return the whole document at once (or stream token counts), so the reveal is an honest, client-paced unveiling of the real result, not fabricated streaming. Pure sectioning/timeline logic is `src/components/ui/liveGenerationSections.js` (`buildSections`/`buildTimeline`/`computeTimelineStatus`, tested by `scripts/test-live-generation-sections.mjs` → `npm run test:live-canvas`); the reveal-timing state machine is `src/hooks/useLiveReveal.js`; the generic value renderer is `LiveGenerationSectionValue.jsx`. Wiring a studio = swap `AiGenerationProgress` for `LiveGenerationCanvas`, add a `handedOff` flag (its existing success View + export buttons render once the teacher clicks "Continue editing"), and add a `regenerateSection`/`saveToLibrary` closure. Add a `TOOL_SECTION_CONFIG` entry (order/labels/icons) for a new tool. `variant="embedded"` drops the panel chrome for use inside a modal (see `CreatePaperModal`); the Lesson Plan does **not** use it — `studio/StudioCanvas.jsx` has its own bespoke `LiveLessonPlanPreview` implementing the same watch-it-build idea. On mobile the panel variant opens full-screen once Generate is clicked. It supersedes the older `AiGenerationProgress` tracker for document-output studios. `AiGenerationProgress` intentionally remains on the three generate-and-append flows that have no output panel to reveal (results land in an existing editor, not a document view): the Assessment studio's AI slide-over (`AssessmentSlideOvers.jsx`), admin `CreateQuizV2.jsx`, and `AdminVisualNotesGenerator.jsx` (bespoke `SlideNotesReader` preview) — migrating those is a UX redesign, not a component swap.
+
+### Blueprint-driven assessment generation
+
+The Assessment Paper Studio plans a paper BEFORE the model writes it, rather than
+generating a paper and auditing it afterwards. The plan (`paperBlueprint.js`,
+`blueprint.v1`) fixes every slot's topic, sub-topic, syllabus outcome, Bloom level,
+difficulty tier, marks and figure requirement, so marks reconcile with the header
+by construction and the analysis tools report DRIFT from a stated intent rather
+than absence of one.
+
+- **One plan, two callers.** `assessmentPlanning.planPaper()` is the only thing that
+  builds a plan. `planAssessment` (callable, no model call, no usage charge) shows
+  it to the teacher for confirmation; `generateAssessment` builds the same object to
+  constrain the model. A test compares the two — if they could diverge the teacher
+  would confirm one paper and get another. The confirmed plan travels back with the
+  generate call and is re-checked by `acceptClientBlueprint` (version, marks,
+  grade/subject/curriculum/type, and every slot's activity against the band's
+  ceiling); anything refused is rebuilt server-side and logged.
+- **Plain-language summary.** `src/utils/blueprintSummary.js` is the only place tiers
+  and Bloom levels become words; `PaperPlanPanel.jsx` renders them. Its tests fail if
+  machine vocabulary reaches the screen.
+- **Drift, not discovery.** `src/utils/blueprintDrift.js` compares the saved paper to
+  its blueprint. Two vocabularies are folded here: the studio's easy/medium/hard onto
+  the four tiers, and `analyze`/`analyse` onto one Bloom key.
+- **Structured item contract.** `assessmentToolSchema.js` makes each item's metadata
+  `required` in the tool schema instead of requested in prose. Its enums are tested
+  against `assessmentSchema.js`'s own vocabularies.
+- **Targeted regeneration.** `regenerateAssessmentQuestion` returns ONE question bound
+  to its slot (the slot, not the model, owns marks/topic/outcome/level).
+  `src/utils/questionRegeneration.js` splices it in with every other question object
+  reference-identical — its tests assert `===`, because "byte-identical" is a claim
+  about identity. A question can be `locked` (refused outright, survives save/reload)
+  and a teacher-authored edit is confirmed before it is replaced.
+- **Distractor quality.** `topicMisconceptions/{cbc|obc}_{GRADE}_{subject}_{topic-slug}`
+  records the learner misconceptions the generator articulated in earlier papers'
+  `distractorRationale`, counted when they recur, and feeds them back into the prompt
+  as material to draw on. Server-only in rules, both directions. Descriptive only —
+  a topic nothing is known about adds nothing to the prompt.
+- **§3.5, twice.** A grade+subject with no approved syllabus is refused at the plan
+  step AND in the generator, with one shared message (`assessmentLabels.js`). A read
+  FAILURE is never reported as an empty catalogue.
 
 ### AI request locking + idempotency (rollout in progress)
 

@@ -33,6 +33,12 @@
     "graph_interpretation",
     "practical"
   ],
+  "difficultyTiers": [
+    "recall",
+    "understanding",
+    "analysis",
+    "challenge"
+  ],
   "activities": [
     {
       "id": "multiple_choice",
@@ -233,6 +239,12 @@
       },
       "instructionFormality": "spoken",
       "minFigureSizeMm": 45,
+      "difficultyMix": {
+        "recall": 0.6,
+        "understanding": 0.4,
+        "analysis": 0,
+        "challenge": 0
+      },
       "bloomDistribution": {
         "remember": 0.6,
         "understand": 0.4
@@ -317,6 +329,12 @@
       },
       "instructionFormality": "simple",
       "minFigureSizeMm": 40,
+      "difficultyMix": {
+        "recall": 0.4,
+        "understanding": 0.4,
+        "analysis": 0.15,
+        "challenge": 0.05
+      },
       "bloomDistribution": {
         "remember": 0.45,
         "understand": 0.35,
@@ -402,6 +420,12 @@
       },
       "instructionFormality": "standard",
       "minFigureSizeMm": 35,
+      "difficultyMix": {
+        "recall": 0.3,
+        "understanding": 0.4,
+        "analysis": 0.2,
+        "challenge": 0.1
+      },
       "bloomDistribution": {
         "remember": 0.3,
         "understand": 0.3,
@@ -491,6 +515,12 @@
       },
       "instructionFormality": "formal",
       "minFigureSizeMm": 30,
+      "difficultyMix": {
+        "recall": 0.25,
+        "understanding": 0.4,
+        "analysis": 0.25,
+        "challenge": 0.1
+      },
       "bloomDistribution": {
         "remember": 0.25,
         "understand": 0.3,
@@ -584,6 +614,12 @@
       },
       "instructionFormality": "examination",
       "minFigureSizeMm": 30,
+      "difficultyMix": {
+        "recall": 0.2,
+        "understanding": 0.35,
+        "analysis": 0.3,
+        "challenge": 0.15
+      },
       "bloomDistribution": {
         "remember": 0.2,
         "understand": 0.25,

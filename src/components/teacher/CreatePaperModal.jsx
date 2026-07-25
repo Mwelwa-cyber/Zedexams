@@ -6,7 +6,7 @@
 // — nothing is auto-saved.
 
 import { useEffect, useMemo, useState, useRef } from 'react'
-import { generateAssessment } from '../../utils/teacherTools'
+import { generateAssessment, planAssessment } from '../../utils/teacherTools'
 import { paywall } from '../../utils/paywall'
 import { useAuth } from '../../contexts/AuthContext'
 import { useGenerationGate } from '../../hooks/useGenerationGate'
@@ -30,6 +30,8 @@ import FreePreviewUpsell from './FreePreviewUpsell'
 import { capture } from '../../utils/analytics'
 import { resolveTeacherPlan, FREE_PREVIEW_LIMITS } from '../../utils/teacherPlans'
 import { QUESTION_ACTIVITIES, isLimitedSupport } from '../../config/questionActivities'
+import PaperPlanPanel from './PaperPlanPanel'
+import { presetById } from '../../utils/blueprintSummary'
 
 // The chips are DERIVED from the activity registry (src/config/questionActivities.js)
 // so the picker can never offer an activity the bands and the server do not both
@@ -200,9 +202,18 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
       extra: '',
     }
   })
-  const [status, setStatus] = useState('idle') // idle | generating | done | error
+  // idle → planning → plan (the teacher confirms) → generating → done | error.
+  // The plan step is deliberately on the way IN: a teacher who can see the paper
+  // before it is written stops paying for papers they were never going to use.
+  const [status, setStatus] = useState('idle')
   const [error, setError] = useState('')
   const [result, setResult] = useState(null) // { assessment, blocks, warning }
+  // The plan for the CURRENT settings — the same object the generator will be
+  // constrained by. Cleared whenever a setting changes, so a stale plan can
+  // never be the one confirmed.
+  const [plan, setPlan] = useState(null) // { blueprint, problems, topicsOnFile }
+  const [presetId, setPresetId] = useState('band')
+  const [replanning, setReplanning] = useState(false)
   // Per-run token: stops a resolved callable from hijacking the UI if Stop was
   // clicked before the response landed (or a second run started).
   const runRef = useRef(0)
@@ -475,45 +486,22 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
     return bits.join(' ').slice(0, 500)
   }
 
-  async function onGenerate() {
-    // A recognised level with no syllabus content on file cannot be generated
-    // for: the paper would be invented rather than grounded. Say which level and
-    // what to do, and never fall back to the other curriculum's content.
-    if (selectedLevel?.unavailable) {
-      setError(selectedLevel.message)
-      setStatus('error')
-      return
-    }
-    if (noSubjects || !form.subject) {
-      setError('This grade has no subjects in the chosen syllabus — pick another grade or curriculum.')
-      setStatus('error')
-      return
-    }
-    if (topicList.length === 0) {
-      setError('Add at least one topic.')
-      setStatus('error')
-      return
-    }
-    if (form.questionTypes.length === 0) {
-      setError('Pick at least one question type.')
-      setStatus('error')
-      return
-    }
-    // Fail fast: assessments are a Max studio — a capped Free/Pro teacher gets
-    // the pay/upgrade prompt now, not after a wasted generation round-trip.
-    if (!ensureCanGenerate('assessment')) return
-
-    // The teacher's chosen type reaches the backend UNCHANGED — every
-    // canonical value (topic_test/weekly_test/mid_term/end_of_term/
-    // mock_exam/examination/final_exam) is a real server-recognised
-    // ASSESSMENT_TYPE (functions/teacherTools/assessmentFormats.js).
-    // Previously every examination type was collapsed to the literal
-    // 'mock_exam' here, so choosing "Examination" silently generated and
-    // saved as a Mock Examination — fixed: the format profile a type has
-    // no dedicated seeds for (examination/final_exam) still borrows the
-    // mock_exam paper STRUCTURE server-side via FORMAT_TYPE_ALIASES, but
-    // the type/title/label stay the one the teacher actually picked.
-    const payload = {
+  // Everything the form is asking for, in the shape both the plan step and the
+  // generator take. One builder, so the paper that is planned and the paper that
+  // is written can never be described differently.
+  //
+  // The teacher's chosen type reaches the backend UNCHANGED — every
+  // canonical value (topic_test/weekly_test/mid_term/end_of_term/
+  // mock_exam/examination/final_exam) is a real server-recognised
+  // ASSESSMENT_TYPE (functions/teacherTools/assessmentFormats.js).
+  // Previously every examination type was collapsed to the literal
+  // 'mock_exam' here, so choosing "Examination" silently generated and
+  // saved as a Mock Examination — fixed: the format profile a type has
+  // no dedicated seeds for (examination/final_exam) still borrows the
+  // mock_exam paper STRUCTURE server-side via FORMAT_TYPE_ALIASES, but
+  // the type/title/label stay the one the teacher actually picked.
+  function buildPayload() {
+    return {
       grade: studioGradeToKbGrade(form.grade),
       subject: toKbSubjectKey(form.subject),
       framework: form.framework,
@@ -529,7 +517,86 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
       // phrases fill-in-the-blank as blanks rather than open short answers.
       questionTypes: canonicalTypesFor(form.questionTypes),
       instructions: buildInstructions(),
+      // The teacher's chosen difficulty spread, as weights. null = whatever this
+      // level normally does, which is what the band already says.
+      difficultyMix: presetById(presetId).weights,
     }
+  }
+
+  // The checks that must pass before either planning or generating. Returns true
+  // when the request is worth sending.
+  function readyToSend() {
+    // A recognised level with no syllabus content on file cannot be generated
+    // for: the paper would be invented rather than grounded. Say which level and
+    // what to do, and never fall back to the other curriculum's content.
+    if (selectedLevel?.unavailable) {
+      setError(selectedLevel.message)
+      setStatus('error')
+      return false
+    }
+    if (noSubjects || !form.subject) {
+      setError('This grade has no subjects in the chosen syllabus — pick another grade or curriculum.')
+      setStatus('error')
+      return false
+    }
+    if (topicList.length === 0) {
+      setError('Add at least one topic.')
+      setStatus('error')
+      return false
+    }
+    if (form.questionTypes.length === 0) {
+      setError('Pick at least one question type.')
+      setStatus('error')
+      return false
+    }
+    return true
+  }
+
+  /**
+   * Work out the paper before writing it (§3.1) and show it to the teacher.
+   *
+   * Costs nothing — no model call — so the quota gate stays where it belongs, on
+   * generation. A level+subject with no syllabus on file is refused HERE, before
+   * the teacher waits for anything.
+   */
+  async function onPlan(preset = presetId) {
+    if (!readyToSend()) return
+    const run = ++runRef.current
+    setError('')
+    if (plan) setReplanning(true)
+    else setStatus('planning')
+    const res = await planAssessment({ ...buildPayload(), difficultyMix: presetById(preset).weights })
+    if (run !== runRef.current) return
+    setReplanning(false)
+    if (!res.ok) {
+      setStatus('error')
+      setError(res.error || 'Could not work out a plan for this paper. Please try again.')
+      return
+    }
+    setPlan({
+      blueprint: res.data?.blueprint || null,
+      problems: res.data?.problems || [],
+      topicsOnFile: res.data?.topicsOnFile || 0,
+    })
+    setStatus('plan')
+  }
+
+  function changePreset(id) {
+    setPresetId(id)
+    onPlan(id)
+  }
+
+  async function onGenerate() {
+    if (!readyToSend()) return
+    // Fail fast: assessments are a Max studio — a capped Free/Pro teacher gets
+    // the pay/upgrade prompt now, not after a wasted generation round-trip.
+    if (!ensureCanGenerate('assessment')) return
+
+    // The plan the teacher just confirmed travels with the request, so the paper
+    // they were shown is the paper the model is bound by. The server re-checks it
+    // (acceptClientBlueprint) and rebuilds it if anything is off — a blueprint
+    // from a browser is still an input.
+    const payload = { ...buildPayload(), blueprint: plan?.blueprint || null }
 
     const run = ++runRef.current
     setStatus('generating')
@@ -595,7 +662,11 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
         setStatus('idle')
         return
       }
-      setStatus('error')
+      // Stay on the confirmed plan rather than throwing the teacher back to the
+      // form: the plan is still good, the write failed. Re-pressing "Write this
+      // paper" retries with the SAME idempotency key, which is what resumes a
+      // request the server may already have in flight.
+      setStatus(plan ? 'plan' : 'error')
       setError(res.error || 'Generation failed. Please try again.')
       return
     }
@@ -615,6 +686,8 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
       // Server-stamped free-preview marker (5-question short test) — drives
       // the post-generation upgrade prompt below.
       preview: res.data?.preview || null,
+      // What the generator planned before writing — see blueprintDrift.js.
+      blueprint: res.data?.blueprint || null,
     })
     if (res.data?.preview) capture('free_preview_generated', { tool: 'assessment' })
     setStatus('done')
@@ -622,8 +695,38 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
 
   function apply(mode) {
     if (!result) return
-    onApply({ blocks: result.blocks, assessment: result.assessment, form, mode })
+    // The blueprint the paper was generated against travels with it, so the
+    // studio can verify the paper against its own stated intent.
+    onApply({
+      blocks: result.blocks,
+      assessment: result.assessment,
+      form: { ...form, blueprint: result.blueprint || null },
+      mode,
+    })
   }
+
+  // Any change to what is being asked for invalidates the plan on screen. A
+  // teacher must never be able to confirm a plan for 3 topics and generate a
+  // paper for 5 — so the plan is dropped the moment its inputs move, and they
+  // are taken back to the form to plan again.
+  const planKey = JSON.stringify([
+    form.grade, form.subject, form.framework, form.assessmentType, form.term,
+    topicList, subtopicList, form.totalMarks, form.durationMinutes,
+    form.questionTypes, form.comprehension, form.extra,
+  ])
+  const lastPlanKey = useRef(planKey)
+  useEffect(() => {
+    if (lastPlanKey.current === planKey) return
+    lastPlanKey.current = planKey
+    setPlan((current) => {
+      if (!current) return current
+      // Cancel any in-flight plan/generate for the previous settings.
+      runRef.current += 1
+      setStatus('idle')
+      setReplanning(false)
+      return null
+    })
+  }, [planKey])
 
   const showAddAll = topicMode === 'pick' && cumulative &&
     topicOptions.some((t) => !form.topics.includes(t)) &&
@@ -651,7 +754,7 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
             aria-label="Close">×</button>
         </div>
 
-        {status !== 'done' && (
+        {(status === 'idle' || status === 'error' || status === 'planning') && (
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="sv-cpm-grid2">
               <div>
@@ -969,20 +1072,42 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
             )}
 
             <button type="button" className="sv-btn sv-btn-primary sv-btn-full"
-              onClick={onGenerate} disabled={status === 'generating'}>
-              {status === 'generating' ? '✦ Writing the paper… (about a minute)' : '✦ Generate paper'}
+              onClick={() => onPlan()} disabled={status === 'planning'}>
+              {status === 'planning' ? 'Working out the plan…' : '✦ Plan the paper'}
             </button>
+            <p className="sv-cpm-hint" style={{ textAlign: 'center', margin: 0 }}>
+              You’ll see what the paper will cover before it’s written — nothing is
+              generated yet.
+            </p>
+          </div>
+        )}
 
-            {status === 'generating' && (
-              <div style={{ marginTop: 14 }}>
-                <LiveGenerationCanvas
-                  variant="embedded"
-                  tool="assessment"
-                  status="generating"
-                  title={isExam ? 'Writing your exam…' : 'Writing your paper…'}
-                  onStop={() => { runRef.current += 1; setStatus('idle'); }}
-                />
+        {(status === 'plan' || status === 'generating') && (
+          <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {error && (
+              <div style={{ borderRadius: 10, border: '1px solid #fca5a5', background: '#fef2f2', color: '#991b1b', padding: '8px 12px', fontSize: 13 }}>
+                ⚠️ {error}
               </div>
+            )}
+            <PaperPlanPanel
+              blueprint={plan?.blueprint || null}
+              problems={plan?.problems || []}
+              topicsOnFile={plan?.topicsOnFile || 0}
+              presetId={presetId}
+              onPresetChange={changePreset}
+              onGenerate={onGenerate}
+              onBack={() => { runRef.current += 1; setPlan(null); setStatus('idle') }}
+              replanning={replanning}
+              generating={status === 'generating'}
+            />
+            {status === 'generating' && (
+              <LiveGenerationCanvas
+                variant="embedded"
+                tool="assessment"
+                status="generating"
+                title={isExam ? 'Writing your exam…' : 'Writing your paper…'}
+                onStop={() => { runRef.current += 1; setStatus('plan'); }}
+              />
             )}
           </div>
         )}

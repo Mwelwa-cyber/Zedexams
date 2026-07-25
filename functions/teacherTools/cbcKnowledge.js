@@ -422,6 +422,57 @@ async function suggestTopics({grade, subject, framework}) {
 }
 
 /**
+ * What the verified curriculum actually carries for a grade+subject.
+ *
+ * Two jobs. First, the REFUSAL check: a grade+subject with no approved topics
+ * cannot be generated for at all — a paper built on nothing would be the model's
+ * general knowledge dressed as the Zambian curriculum, which is the one thing
+ * this pipeline must never produce. Second, it supplies the blueprint's real
+ * learning outcomes and competency strands, so an item's outcome is quoted from
+ * the syllabus rather than invented to look plausible.
+ *
+ * @returns {Promise<{topics: string[], outcomesByTopic: object,
+ *   competencies: string[], count: number}>}
+ */
+async function resolveGradeSubjectCoverage({grade, subject, framework} = {}) {
+  const gradeNorm = normalizeGrade(grade);
+  const subjectNorm = String(subject || "").toLowerCase().replace(/[^a-z]/g, "_");
+  let candidates = [];
+  try {
+    const allTopics = await getAllTopics({framework});
+    candidates = filterGradeSubjectCandidates(allTopics, gradeNorm, subjectNorm);
+  } catch (err) {
+    // A read failure is NOT "no curriculum" — refusing to generate because
+    // Firestore blinked would be wrong. Report zero topics only when the
+    // catalogue genuinely has none; here we rethrow so the caller can tell the
+    // difference.
+    console.error("resolveGradeSubjectCoverage failed", err);
+    throw err;
+  }
+  const outcomesByTopic = {};
+  const competencies = new Set();
+  for (const entry of candidates) {
+    const topic = topicKey(entry);
+    if (!topic) continue;
+    const outcomes = (entry.specificOutcomes || [])
+        .map((o) => String(o || "").trim())
+        .filter(Boolean)
+        .slice(0, 6);
+    if (outcomes.length > 0) outcomesByTopic[topic] = outcomes;
+    for (const c of (entry.keyCompetencies || [])) {
+      const clean = String(c || "").trim();
+      if (clean) competencies.add(clean.slice(0, 120));
+    }
+  }
+  return {
+    topics: candidates.map((t) => topicKey(t)).filter(Boolean),
+    outcomesByTopic,
+    competencies: Array.from(competencies).slice(0, 8),
+    count: candidates.length,
+  };
+}
+
+/**
  * Render a topic entry as the `<cbc_context>` block we inject into the prompt.
  */
 function renderContextBlock(entry) {
@@ -1185,6 +1236,7 @@ module.exports = {
   classifySubjectForGrade,
   lookupTopic,
   suggestTopics,
+  resolveGradeSubjectCoverage,
   renderContextBlock,
   renderFallbackContext,
   resolveCbcContext,

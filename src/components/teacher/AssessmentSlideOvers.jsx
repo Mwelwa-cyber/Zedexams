@@ -517,7 +517,7 @@ function AiTopicSubtopicPicker({ grade, subject, framework, topics, subtopics, o
   )
 }
 
-export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNumbers, generating, onGenerate, review, onConfirmReview, onDiscardReview, onImport, onScan, importing, onGenerateDiagram, generatingDiagram, onOpenDiagramScanner, onOpenMarkingKey, onCreatePaper, onUpdatePaperMeta, diagramsNeeded = 0, onOpenDiagramFix, onVerifyPaper }) {
+export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNumbers, generating, onGenerate, review, onConfirmReview, onDiscardReview, onImport, onScan, importing, onGenerateDiagram, generatingDiagram, onOpenDiagramScanner, onOpenMarkingKey, onCreatePaper, onUpdatePaperMeta, diagramsNeeded = 0, onOpenDiagramFix, onVerifyPaper, drift }) {
   const docInputRef = useRef(null)
   const [customCount, setCustomCount] = useState(false)
   // The paper's curriculum framework drives both pickers below — one choice
@@ -754,9 +754,9 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
             disabled={generatingDiagram}
             onGenerate={onGenerateDiagram}
           />
-          <BalanceDifficultyAction questions={questions} questionNumbers={questionNumbers} />
-          <BloomBalanceAction questions={questions} questionNumbers={questionNumbers} />
-          <MapCompetenciesAction questions={questions} questionNumbers={questionNumbers} subjectLabel={form.subject} />
+          <BalanceDifficultyAction questions={questions} questionNumbers={questionNumbers} drift={drift} />
+          <BloomBalanceAction questions={questions} questionNumbers={questionNumbers} drift={drift} />
+          <MapCompetenciesAction questions={questions} questionNumbers={questionNumbers} subjectLabel={form.subject} drift={drift} />
           <DetectDuplicatesAction questions={questions} questionNumbers={questionNumbers} />
         </div>
       </div>

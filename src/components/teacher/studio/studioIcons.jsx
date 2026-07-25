@@ -22,7 +22,7 @@ import {
   BookOpen, BeakerIcon, Globe, DocumentTextIcon, ListChecks, ListOrdered, Table,
   Calculator, ArrowLeftRight, Maximize2, PaintBrushIcon, Target, Lightbulb,
   Camera, Scale, Files, AlignLeft, Download, Printer, User, Users, Calendar,
-  Info, Layout,
+  Info, Layout, Lock,
 } from '../../ui/icons'
 
 // Semantic name → icon component. Names describe ROLE, not glyph, so the
@@ -119,6 +119,10 @@ const ICONS = {
   difficulty: Scale,
   target: Target,
   ruler: AlignLeft,
+  // A question the teacher has finished with. No regeneration, validation pass
+  // or migration may rewrite it — see src/utils/questionRegeneration.js.
+  lock: Lock,
+  rewrite: RefreshCw,
 }
 
 export function hasIcon(name) {

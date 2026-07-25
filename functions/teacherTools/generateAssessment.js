@@ -20,7 +20,19 @@ const {
 } = require("../aiService");
 const {callClaude} = require("./anthropicClient");
 
-const {resolveCbcContext, classifySubjectForGrade} = require("./cbcKnowledge");
+const {
+  resolveCbcContext, classifySubjectForGrade, resolveGradeSubjectCoverage,
+} = require("./cbcKnowledge");
+const {validateBlueprint, renderBlueprintDirective} = require("./paperBlueprint");
+const {
+  buildBlueprintForRequest, acceptClientBlueprint, splitTopicList,
+  resolvePermittedActivities,
+} = require("./assessmentPlanning");
+const {
+  gradeLabelFor, subjectLabelFor, curriculumRefusalMessage,
+} = require("./assessmentLabels");
+const {buildMisconceptionContext, recordMisconceptions} =
+  require("./misconceptions");
 const {
   ASSESSMENT_TYPES,
   resolveAssessmentFormatContext,
@@ -39,8 +51,7 @@ const {buildAvoidNote, mergeSourcedIntoSections} = require("./masterBankSourcing
 const {checkAssessmentQuality, interleaveSections} =
   require("./assessmentQualityCheck");
 const {
-  bandForGrade, buildBandDirective, allowedQuestionTypes, toSchemaTypes,
-  bandPermitsActivity,
+  bandForGrade, buildBandDirective, bandPermitsActivity,
   ALL_QUESTION_TYPES: BAND_QUESTION_TYPES,
 } = require("./assessmentBands");
 const {buildProvenance} = require("../aiValidation/operationRegistry");
@@ -58,14 +69,11 @@ const ASSESSMENT_MODEL =
   process.env.ASSESSMENT_MODEL || "claude-sonnet-4-6";
 const LE_VALUES = new Set(LEARNING_ENVIRONMENT_VALUES);
 
-const ASSESSMENT_TOOL_SCHEMA = {
-  type: "object",
-  description: "A formal graded Zambian CBC assessment.",
-  additionalProperties: true,
-  properties: {
-    header: {type: "object", additionalProperties: true},
-  },
-};
+// The structured contract the paper is emitted through (§3.2). Every item's
+// metadata — topic, thinking level, difficulty, marks, outcome — is REQUIRED by
+// the schema rather than requested in prose, so a paper cannot arrive untagged.
+// See assessmentToolSchema.js for what is and is not constrained, and why.
+const {ASSESSMENT_TOOL_SCHEMA} = require("./assessmentToolSchema");
 
 const {ALLOWED_GRADES, ALLOWED_SUBJECTS} =
   require("./assessmentAllowlists");
@@ -128,50 +136,27 @@ function sanitizeInputs(raw = {}) {
     // Smart sourcing is on by default; a client can opt out ("fresh
     // questions only") by sending useQuestionBank: false.
     useQuestionBank: raw.useQuestionBank !== false,
+    // Optional teacher override of the band's default difficulty spread, set in
+    // the pre-generation blueprint confirmation. Only the four known tiers
+    // survive, and buildPaperBlueprint re-normalises them, so a malformed mix
+    // degrades to the band's default rather than skewing the paper.
+    difficultyMix: sanitizeDifficultyMix(raw.difficultyMix),
   };
 }
 
-// Human-readable grade label. Mirrors the client level ladder
-// (src/config/educationLevels.js): G1–G7 → "Grade N", G8–G12 → the forms
-// "Form 1"…"Form 5", and the two ECE age bands → Nursery and Reception. A Form
-// is never relabelled a Grade.
-//
-// "Baby Class" and "Middle Class" are NOT levels; their codes are legacy
-// spellings that resolve to Nursery so an old record still opens. A bare "ECE"
-// predates the age bands, covers both years, and resolves to the youngest.
-function gradeLabelFor(code) {
-  const g = String(code || "").toUpperCase();
-  if (g === "ECE_N" || g === "ECE_B" || g === "ECE" || g === "ECE_M") {
-    return "Nursery";
+/** Keep only the four known tiers, as positive numbers. null when unusable. */
+function sanitizeDifficultyMix(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const out = {};
+  let any = false;
+  for (const tier of ["recall", "understanding", "analysis", "challenge"]) {
+    const n = Number(raw[tier]);
+    if (Number.isFinite(n) && n > 0) {
+      out[tier] = n;
+      any = true;
+    }
   }
-  if (g === "ECE_R") return "Reception";
-  const m = g.match(/^G(\d{1,2})$/);
-  if (m) {
-    const n = Number(m[1]);
-    if (n >= 8 && n <= 12) return `Form ${n - 7}`;
-    return `Grade ${n}`;
-  }
-  const f = g.match(/^F(\d)$/);
-  if (f) return `Form ${f[1]}`;
-  return String(code || "");
-}
-
-function subjectLabelFor(key) {
-  const known = {
-    integrated_science: "Integrated Science",
-    social_studies: "Social Studies",
-    expressive_arts: "Expressive Arts",
-    technology_studies: "Technology Studies",
-    home_economics: "Home Economics",
-    zambian_language: "Zambian Language",
-    creative_and_technology_studies: "Creative & Technology Studies",
-    religious_education: "Religious Education",
-    civic_education: "Civic Education",
-    physical_education: "Physical Education",
-    environmental_science: "Environmental Science",
-  };
-  const k = String(key || "").trim();
-  return known[k] || k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return any ? out : null;
 }
 
 function validateInputs(inputs) {
@@ -243,6 +228,12 @@ async function buildResumedAssessmentResponse(operation) {
 
 async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
   const inputs = sanitizeInputs(rawInputs || {});
+  // The plan the teacher confirmed on the pre-generation screen (§3.1), if they
+  // came that way. Deliberately kept OUT of `inputs`: `inputs` is the
+  // idempotency fingerprint and the persisted request record, and the blueprint
+  // is derived from it (plus difficultyMix, which IS in there), so folding it in
+  // would bloat both without changing what makes two requests different.
+  const clientBlueprint = rawInputs && rawInputs.blueprint;
   const inputErrors = validateInputs(inputs);
   if (inputErrors.length > 0) {
     throw new HttpsError("invalid-argument", inputErrors.join(" "));
@@ -287,7 +278,7 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
 
   const [
     {contextBlock, kbMatch, kbWarning, kbVersion},
-    {formatBlock, formatProfileId, formatSource},
+    {formatBlock, formatProfileId, formatSource, paperStructure},
     usage,
   ] = await Promise.all([
     resolveCbcContext({
@@ -372,18 +363,38 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
   // The client already filters its chips to the band, but a client is not a
   // guard — the ceiling is enforced here, where it cannot be bypassed.
   const band = await bandForGrade(inputs.grade);
+
+  // ── Never invent syllabus content (§3.5) ────────────────────────────────
+  // A grade+subject the verified curriculum has no approved topics for cannot
+  // be generated for AT ALL. Filling the gap from the model's general knowledge
+  // would produce something that looks like the Zambian curriculum and is not —
+  // the single worst thing this pipeline could do. A READ FAILURE is not the
+  // same as an empty catalogue, so a thrown error is allowed to propagate as a
+  // transient failure rather than being reported as missing curriculum.
+  const coverage = await resolveGradeSubjectCoverage({
+    grade: inputs.grade,
+    subject: inputs.subject,
+    framework: inputs.framework,
+  });
+  if (coverage.count === 0) {
+    await genRef.update({
+      status: "failed",
+      errorMessage: "No approved syllabus content for this grade and subject.",
+    });
+    try {
+      await refundGeneration(uid, usage, "assessment");
+    } catch (refundErr) {
+      console.error("[generateAssessment] refund failed after curriculum refusal",
+          {uid, generationId: genRef.id}, refundErr);
+    }
+    throw new HttpsError("failed-precondition", curriculumRefusalMessage(inputs));
+  }
+
   // Intersect what was asked for with what the band permits, in the band's own
-  // vocabulary, then convert to the schema types the generator can emit.
-  const requested = inputs.requestedBandTypes.length > 0 ?
-    inputs.requestedBandTypes : inputs.questionTypes;
-  const bandTypes = allowedQuestionTypes(band, requested);
-  // The ceiling only ever NARROWS. When the intersection is empty — a stale
-  // client asking Baby Class for an essay — fall back to the BAND's own list,
-  // never to the client's: falling back to the request would hand back exactly
-  // the types the band just refused.
-  const permitted = bandTypes.length > 0 ?
-    bandTypes : (band ? band.questionTypes : requested);
-  const effectiveTypes = toSchemaTypes(permitted);
+  // vocabulary, then convert to the schema types the generator can emit. Shared
+  // with the plan step (assessmentPlanning.js) so the activities the teacher was
+  // shown are exactly the activities the model is allowed to use.
+  const {permitted, effectiveTypes} = resolvePermittedActivities({band, ...inputs});
 
   // Smart Paper Generation — fill up to ~half the marks from the Master Bank,
   // then ask the AI to author only the remainder. Best-effort: an empty/
@@ -436,10 +447,76 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
   // the paper generates exactly as it did before.
   const bandDirective = buildBandDirective(band, gradeLabelFor(inputs.grade));
 
+  // ── The blueprint (§3.1/§3.2) ───────────────────────────────────────────
+  // Decide the whole paper BEFORE the model runs — every slot's topic,
+  // sub-topic, outcome, thinking level, difficulty tier, marks and figure
+  // requirement — then hand the model slots to fill rather than a paper to
+  // invent. Marks reconcile with the header by construction, and the checkers
+  // that used to report "no cognitive levels tagged" now have a stated intent to
+  // verify against.
+  //
+  // A client-supplied blueprint (the teacher confirmed and possibly adjusted one
+  // via planAssessment) is honoured only if it VALIDATES and matches this
+  // request's marks; otherwise it is rebuilt here. A blueprint is an input, and
+  // an input is never trusted.
+  const plannedMarks = freePreview ? gapMarks : inputs.totalMarks;
+  const confirmed = acceptClientBlueprint({
+    candidate: clientBlueprint,
+    inputs,
+    band,
+    expectedMarks: plannedMarks,
+  });
+  let blueprintSource = "derived";
+  let blueprint;
+  if (confirmed.accepted) {
+    // The teacher saw this plan and pressed generate on it. Use it verbatim.
+    blueprint = clientBlueprint;
+    blueprintSource = "teacher";
+  } else {
+    if (clientBlueprint && confirmed.reason !== "absent") {
+      // A plan arrived and was refused. That is worth a log line: it means the
+      // confirmation screen and the server disagreed about this request, which
+      // is a bug, not a teacher error — and the teacher still gets a paper.
+      console.warn("generateAssessment: rejected client blueprint",
+          {reason: confirmed.reason, uid});
+      blueprintSource = "derived-after-reject";
+    }
+    blueprint = buildBlueprintForRequest({
+      inputs, band, paperStructure, coverage,
+      totalMarks: plannedMarks,
+      gradeLabel: gradeLabelFor(inputs.grade),
+    });
+    const problems = validateBlueprint(blueprint);
+    if (problems.length > 0) {
+      // A blueprint we cannot vouch for is worse than none: it would constrain
+      // the model to something incoherent. Fall back to the unconstrained path
+      // and say so, rather than shipping a broken plan.
+      console.error("generateAssessment: blueprint invalid, generating unconstrained",
+          problems);
+      blueprint = null;
+      blueprintSource = "none";
+    }
+  }
+  const blueprintDirective = renderBlueprintDirective(blueprint);
+
+  // ── Distractor quality (§3.3) ───────────────────────────────────────────
+  // Mistakes learners at this level have actually made on these topics, recorded
+  // from earlier papers' distractor rationales. Best-effort: an unreadable or
+  // empty store contributes nothing and the paper generates as before, so a brand
+  // new topic is never handed invented misconceptions.
+  const misconceptionDirective = await buildMisconceptionContext({
+    framework: inputs.framework,
+    grade: inputs.grade,
+    subject: inputs.subject,
+    topics: blueprint ? blueprint.topics : splitTopicList(inputs.topic),
+  });
+
   const userPrompt = buildUserPrompt({
     ...inputs, totalMarks: gapMarks, questionTypes: effectiveTypes,
   }) +
     (bandDirective ? `\n\n${bandDirective}` : "") +
+    (blueprintDirective ? `\n\n${blueprintDirective}` : "") +
+    (misconceptionDirective ? `\n\n${misconceptionDirective}` : "") +
     buildAvoidNote(sourced.questions);
 
   let parsed = null;
@@ -518,8 +595,7 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
   // re-order them so topics rotate through the paper — BEFORE validation, so
   // validateAssessment renumbers the mixed sequence cleanly. Advisory only:
   // the remaining findings surface as non-blocking warnings, never a block.
-  const requestedTopics = String(inputs.topic || "")
-      .split(/[;\n]+/).map((t) => t.trim()).filter(Boolean);
+  const requestedTopics = splitTopicList(inputs.topic);
   const preCheck = checkAssessmentQuality(mergedParsed,
       {grade: inputs.grade, topics: requestedTopics});
   let didReorder = false;
@@ -617,6 +693,13 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
       modelUsed,
       sourcing,
       quality,
+      // The stated intent this paper was generated against. Saved WITH the
+      // paper so the studio's checkers can report drift from it instead of
+      // reporting absence, and so regenerating one question later knows which
+      // slot it must refill.
+      blueprint,
+      // Whether the teacher confirmed this plan or the server derived it.
+      blueprintSource,
     });
     // A "flagged" paper is still a real result the teacher already got and
     // was already billed for — this is a completion for idempotency
@@ -638,6 +721,8 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
       kbGrounded: Boolean(kbMatch),
       sourcing,
       quality,
+      blueprint,
+      blueprintSource,
     };
   }
 
@@ -653,6 +738,9 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
     modelUsed,
     sourcing,
     quality,
+    // The stated intent this paper was generated against — see the flagged path.
+    blueprint,
+    blueprintSource,
     completedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
   try {
@@ -666,6 +754,22 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
         {uid, generationId: genRef.id}, opErr);
   }
 
+  // Record what this paper articulated about learner errors, so the NEXT paper on
+  // these topics has real misconceptions to build distractors from (§3.3). Awaited
+  // (the function must not be killed mid-write) but never allowed to fail the
+  // request — the teacher's paper is already complete and saved.
+  try {
+    await recordMisconceptions({
+      framework: inputs.framework,
+      grade: inputs.grade,
+      subject: inputs.subject,
+      assessment,
+    });
+  } catch (harvestErr) {
+    console.warn("[generateAssessment] misconception harvest failed",
+        {uid, generationId: genRef.id}, harvestErr);
+  }
+
   return {
     generationId: genRef.id,
     assessment,
@@ -674,6 +778,10 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
     kbGrounded: Boolean(kbMatch),
     sourcing,
     quality,
+    // The blueprint the paper was generated against, returned so the studio can
+    // carry it onto the saved assessment and verify the paper against it.
+    blueprint,
+    blueprintSource,
     // Free preview markers — the studio uses these to show the honest
     // "your short test is ready, upgrade for the full paper" prompt.
     preview: freePreview ? {
@@ -707,6 +815,9 @@ function createGenerateAssessment(anthropicApiKeySecret) {
 module.exports = {
   createGenerateAssessment, runAssessment, sanitizeInputs,
   normalizeQuestionTypes,
-  validateInputs, gradeLabelFor, subjectLabelFor,
+  validateInputs,
+  // Re-exported from assessmentLabels.js, which both the plan step and the
+  // generator read, so existing importers keep working.
+  gradeLabelFor, subjectLabelFor,
   ALLOWED_SUBJECTS, ALLOWED_GRADES,
 };

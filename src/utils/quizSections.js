@@ -57,6 +57,13 @@ export function emptyQuestion(overrides = {}) {
     // Printed source-paper question number (importer-set; null when
     // hand-authored). Distinct from sourcePage — see the question schema.
     sourceQuestionNumber: null,
+    // "This one is finished." A locked question is never rewritten by a
+    // single-question regeneration, and no validation pass or migration may
+    // overwrite it — see src/utils/questionRegeneration.js.
+    locked: false,
+    // Set the moment a human types into this question, so a rewrite can warn
+    // before it replaces their work rather than discarding it silently.
+    teacherEdited: false,
     // questionBank doc id when this question was inserted from the Central
     // Question Bank; null for hand-authored / imported / AI questions.
     sourceBankId: null,
@@ -822,6 +829,11 @@ function hydrateCbcMeta(question = {}) {
     sourceQuestionNumber: Number.isInteger(srcNum) && srcNum >= 1 && srcNum <= 9999
       ? srcNum
       : null,
+    // A lock is the teacher saying "leave this one alone", so it has to survive
+    // a reload — otherwise reopening the paper quietly re-exposes every locked
+    // question to the next rewrite.
+    locked: Boolean(question.locked),
+    teacherEdited: Boolean(question.teacherEdited),
   }
 }
 

@@ -42,6 +42,16 @@ const generateHomeworkCallable = httpsCallable(functions, 'generateHomework', {
 const generateAssessmentCallable = httpsCallable(functions, 'generateAssessment', {
   timeout: 250_000, // server: 240s — big mocks stream for several minutes
 })
+// The plan step (§3.1) — no model call, so a short budget is right; if it is
+// slow something is wrong with Firestore, not with a generation.
+const planAssessmentCallable = httpsCallable(functions, 'planAssessment', {
+  timeout: 45_000, // server: 60s
+})
+// One question, bound to its slot in the paper's plan (§3.6). Haiku + a single
+// item, so this is fast; a long wait means something is wrong.
+const regenerateAssessmentQuestionCallable = httpsCallable(
+  functions, 'regenerateAssessmentQuestion', { timeout: 60_000 }, // server: 60s
+)
 const generateSbaTaskCallable = httpsCallable(functions, 'generateSbaTask', {
   timeout: 120_000, // server: 120s — single SBA task with its marking scheme
 })
@@ -741,6 +751,69 @@ export async function generateAssessment(inputs) {
       rawMessage: error?.message || '',
       // Structured quota context (e.g. { reason: 'max-only' }) so studios can
       // route the right paywall — see functions/teacherTools/usageMeter.js.
+      details: error?.details || null,
+    }
+  }
+}
+
+/**
+ * Work out the plan for an assessment WITHOUT generating it: the sections, and
+ * for each question its topic, syllabus outcome, thinking level, difficulty,
+ * marks and whether it needs a figure.
+ *
+ * Cheap and side-effect free — no model call, no credit spent — so the studio can
+ * show the teacher what it is about to write and let them adjust it first. The
+ * plan that comes back is sent along with generateAssessment(), which re-checks
+ * it server-side before it is allowed to constrain anything.
+ */
+export async function planAssessment(inputs) {
+  const startedAt = Date.now()
+  try {
+    const result = await withTimeout(
+      planAssessmentCallable(inputs), 45_000, 'planAssessment',
+    )
+    console.info('[zedexams] planAssessment ← ok in', Date.now() - startedAt, 'ms',
+      { questions: result?.data?.blueprint?.itemCount })
+    return { ok: true, data: result.data }
+  } catch (error) {
+    console.error('[zedexams] planAssessment ← FAILED after',
+      Date.now() - startedAt, 'ms', { code: error?.code, message: error?.message })
+    return {
+      ok: false,
+      error: messageFromError(error),
+      code: error?.code || 'unknown',
+      rawMessage: error?.message || '',
+      details: error?.details || null,
+    }
+  }
+}
+
+/**
+ * Rewrite ONE question of an assessment, bound to the slot it occupies in the
+ * paper's plan — same marks, same topic, same outcome, same thinking level, same
+ * structure — so the paper stays balanced and every other question is untouched.
+ *
+ * Metered on the cheap per-question allowance, not the paper allowance: fixing
+ * one question must not cost a whole paper.
+ */
+export async function regenerateAssessmentQuestion(inputs) {
+  const startedAt = Date.now()
+  try {
+    const result = await withTimeout(
+      regenerateAssessmentQuestionCallable(inputs), 60_000,
+      'regenerateAssessmentQuestion',
+    )
+    console.info('[zedexams] regenerateAssessmentQuestion ← ok in',
+      Date.now() - startedAt, 'ms')
+    return { ok: true, data: result.data }
+  } catch (error) {
+    console.error('[zedexams] regenerateAssessmentQuestion ← FAILED after',
+      Date.now() - startedAt, 'ms', { code: error?.code, message: error?.message })
+    return {
+      ok: false,
+      error: messageFromError(error),
+      code: error?.code || 'unknown',
+      rawMessage: error?.message || '',
       details: error?.details || null,
     }
   }

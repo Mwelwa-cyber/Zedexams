@@ -90,6 +90,14 @@ import { printAssessmentAsPdf, openPrintWindow } from '../../utils/assessmentToP
 import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
 import { computePaperHealth } from '../../utils/paperHealth'
 import { describeExportBlock, blockingIssuesByLocalId } from '../../utils/assessmentExportGate'
+import { compareToBlueprint } from '../../utils/blueprintDrift'
+import {
+  canRegenerateQuestion, slotForQuestionNumber, replaceQuestionInSections,
+  mergeRegeneratedQuestion, setQuestionLock, flattenQuestions, avoidList,
+  plainStem, isAuthoredEdit,
+} from '../../utils/questionRegeneration'
+import { regenerateAssessmentQuestion } from '../../utils/teacherTools'
+import { mapAiQuestion } from '../../utils/aiPaperToSections'
 import { instantiateTemplate } from '../../utils/paperTemplates'
 import Icon from './studio/studioIcons'
 import { TopBar, BottomBar } from './studio/AssessmentBars'
@@ -241,6 +249,9 @@ function mapAssessmentToForm(a = {}) {
   // papers open under their original level, flagged Legacy in the picker.
   copy('grade', (g) => paperLevel(g)?.value ?? String(g))
   copy('term', String)
+  // The blueprint the paper was generated against, so reopening it keeps the
+  // planned-vs-actual view rather than falling back to discovery.
+  copy('blueprint')
   copy('year')
   copy('duration')
   copy('topic')
@@ -361,6 +372,9 @@ function makeDefaultForm() {
     ungroupedOrder: 0,
     endOfPaperText: '— END OF PAPER —',
     mode: '',
+    // The blueprint a generated paper was planned against; null for a
+    // hand-built paper, which simply has no stated intent to verify against.
+    blueprint: null,
     importStatus: '',
     sourceFileName: '',
     sourceContentType: '',
@@ -652,6 +666,100 @@ export default function AssessmentStudio() {
     () => blockingIssuesByLocalId(validationIssues),
     [validationIssues],
   )
+
+  // How far the paper has drifted from the blueprint it was generated against
+  // (§3.4). The analysis tools use this to report planned-vs-actual instead of
+  // reporting absence; a paper with no blueprint (hand-built, imported, or made
+  // before blueprints existed) reports hasBlueprint:false and they fall back to
+  // their own discovery view.
+  const paperBlueprint = form.blueprint || null
+  const blueprintDrift = useMemo(
+    () => compareToBlueprint({
+      blueprint: paperBlueprint,
+      questions: serializedPreview.questions,
+    }),
+    [paperBlueprint, serializedPreview.questions],
+  )
+
+  // ── Rewrite ONE question (§3.6) ─────────────────────────────────────────
+  // "I don't like question 4" used to mean regenerating the whole paper, which
+  // threw away every question the teacher was happy with and every edit they had
+  // made. Now one question is rewritten against the slot it occupies in the
+  // paper's plan — same marks, same topic, same outcome, same thinking level —
+  // and every other question object is left untouched
+  // (src/utils/questionRegeneration.js holds that guarantee).
+  const [rewritingKey, setRewritingKey] = useState(null)
+  // A question the teacher has edited is confirmed before it is overwritten;
+  // this holds the pending request while the confirm dialog is open.
+  const [rewriteConfirm, setRewriteConfirm] = useState(null)
+
+  function toggleQuestionLock(questionKey, locked) {
+    setSections((prev) => setQuestionLock(prev, questionKey, locked).sections)
+    showToast(locked
+      ? 'Question locked — nothing will rewrite it.'
+      : 'Question unlocked.')
+  }
+
+  async function rewriteQuestion(questionKey, { confirmed = false } = {}) {
+    if (rewritingKey) return
+    const question = flattenQuestions(sections)
+      .find((q) => getQuestionKey(q) === questionKey)
+    const verdict = canRegenerateQuestion(question)
+    if (!verdict.allowed) {
+      showToast(verdict.message, true)
+      return
+    }
+    // Teacher edits are sacred: ask before replacing work they did by hand.
+    if (verdict.confirm && !confirmed) {
+      setRewriteConfirm({ questionKey, message: verdict.message })
+      return
+    }
+
+    const number = questionNumbers[questionKey] || 0
+    const slot = slotForQuestionNumber(paperBlueprint, number)
+    if (!slot) {
+      showToast(
+        'This paper has no plan for that position, so a single question cannot ' +
+        'be rewritten on its own. Use the AI panel to change the paper instead.',
+        true,
+      )
+      return
+    }
+
+    setRewritingKey(questionKey)
+    try {
+      const res = await regenerateAssessmentQuestion({
+        grade: studioGradeToKbGrade(form.grade),
+        subject: studioSubjectToKey(form.subject),
+        framework: form.framework,
+        assessmentType: form.assessmentType,
+        slot,
+        currentText: plainStem(question.text),
+        avoid: avoidList(sections, questionKey),
+      })
+      if (!res.ok) {
+        showToast(res.error || 'Could not rewrite that question. Please try again.', true)
+        return
+      }
+      const incoming = res.data?.question
+      if (!incoming) {
+        showToast('The rewrite came back empty — your question is unchanged.', true)
+        return
+      }
+      // Splice in ONE question. Every other question object comes back
+      // reference-identical, which is what keeps the rest of the paper — and
+      // every teacher edit on it — exactly as it was.
+      setSections((prev) => replaceQuestionInSections(prev, questionKey,
+        // mapAiQuestion is the SAME converter the full-paper path uses, so a
+        // rewritten question lands in exactly the shape a generated one does.
+        (existing) => mergeRegeneratedQuestion(
+          existing, mapAiQuestion(incoming).overrides, { slot },
+        )).sections)
+      showToast(`Question ${number} rewritten — the rest of the paper is unchanged.`)
+    } finally {
+      setRewritingKey(null)
+    }
+  }
 
   // The single "paper health" verdict — folds the blocking validation issues,
   // the advisory smart warnings, and the live paper stats into one object the
@@ -1064,7 +1172,14 @@ export default function AssessmentStudio() {
   function updateStandaloneQuestion(sectionIndex, field, value) {
     updateSection(sectionIndex, section => ({
       ...section,
-      question: { ...section.question, [field]: value },
+      question: {
+        ...section.question,
+        [field]: value,
+        // A human typing in a question makes it their work: a later rewrite asks
+        // before replacing it (§3.6). Only fields a person actually authors count
+        // — an upload finishing or a renumber is the studio's doing, not theirs.
+        ...(isAuthoredEdit(field) ? { teacherEdited: true } : null),
+      },
     }))
   }
   // Apply a partial patch from the import review screen to a single item,
@@ -1273,9 +1388,17 @@ export default function AssessmentStudio() {
       ...section,
       passage: {
         ...section.passage,
-        questions: section.passage.questions.map((question, index) =>
-          index === questionIndex ? { ...question, [field]: value } : question,
-        ),
+        questions: section.passage.questions.map((question, index) => (
+          index === questionIndex
+            // Same rule as a standalone question: a human's edit is marked so a
+            // rewrite asks before replacing it.
+            ? {
+              ...question,
+              [field]: value,
+              ...(isAuthoredEdit(field) ? { teacherEdited: true } : null),
+            }
+            : question
+        )),
       },
     }))
   }
@@ -1475,6 +1598,9 @@ export default function AssessmentStudio() {
         term: f.term || aiPaperForm.term,
         duration: f.duration || String(aiPaperForm.durationMinutes),
         assessmentType: aiPaperForm.assessmentType || f.assessmentType,
+        // Carry the generated paper's blueprint onto the studio form so the
+        // analysis tools can verify against it and the save persists it.
+        blueprint: aiPaperForm.blueprint || f.blueprint || null,
         coverInstructions: f.coverInstructions ||
           String(assessment?.header?.instructions || ''),
         // brandingForAiPaper already implements per-field form-wins, so all
@@ -2065,6 +2191,10 @@ export default function AssessmentStudio() {
       sourceFileName: form.sourceFileName,
       sourceContentType: form.sourceContentType,
       importWarnings: form.importWarnings,
+      // The blueprint the paper was generated against — saved so reopening the
+      // paper can still verify it against what it set out to be, and so a later
+      // single-question regeneration knows which slot it must refill.
+      ...(form.blueprint ? { blueprint: form.blueprint } : {}),
       library,
     }
 
@@ -2840,6 +2970,9 @@ export default function AssessmentStudio() {
           onRemoveSection={removeSectionAt}
           onDuplicateSection={duplicateSectionAt}
           onSaveToBank={handleSaveToBank}
+          onToggleLock={toggleQuestionLock}
+          onRewriteQuestion={rewriteQuestion}
+          rewritingKey={rewritingKey}
           onUpdateStandaloneQuestion={updateStandaloneQuestion}
           onUploadStandaloneImage={uploadStandaloneQuestionImage}
           onRemoveStandaloneImage={removeStandaloneQuestionImage}
@@ -2955,6 +3088,7 @@ export default function AssessmentStudio() {
         diagramsNeeded={countDiagramsNeeded(sections)}
         onOpenDiagramFix={() => { closeSlide(); setDiagramFixOpen(true) }}
         onVerifyPaper={() => { closeSlide(); setVerifyOpen(true) }}
+        drift={blueprintDrift}
       />
       {createPaperOpen && (
         <CreatePaperModal
@@ -3075,6 +3209,24 @@ export default function AssessmentStudio() {
           if (pending) runImportDocument(pending.files, pending.importOptions)
         }}
         onCancel={() => setPendingImportDoc(null)}
+      />
+
+      {/* Teacher edits are sacred (§3.6): a question the teacher changed by hand
+          is never silently overwritten by a rewrite — they are told what they
+          will lose and asked. Locking a question skips this entirely by
+          refusing the rewrite outright. */}
+      <ConfirmDialog
+        open={Boolean(rewriteConfirm)}
+        title="Replace your edits to this question?"
+        message={`${rewriteConfirm?.message || ''} Lock a question instead if you want it left exactly as it is.`}
+        confirmLabel="Rewrite it anyway"
+        variant="danger"
+        onConfirm={() => {
+          const pending = rewriteConfirm
+          setRewriteConfirm(null)
+          if (pending) rewriteQuestion(pending.questionKey, { confirmed: true })
+        }}
+        onCancel={() => setRewriteConfirm(null)}
       />
 
       <ConfirmDialog

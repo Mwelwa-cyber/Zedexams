@@ -19,6 +19,7 @@ export function BuilderView(props) {
     form, setF, sections, parts, questionNumbers, questionIssues, questionCount, totalMarks,
     estimatedPages, estimatedMinutes, footerCode, changeView, warnings = [],
     onAddBlock, onOpenBank, onEditQuestion, onMoveSection, onMoveGroup, onRemoveSection, onDuplicateSection, onSaveToBank,
+    onToggleLock, onRewriteQuestion, rewritingKey,
     onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage,
     onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage,
     onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion,
@@ -185,6 +186,9 @@ export function BuilderView(props) {
             onRemoveSection={onRemoveSection}
             onDuplicateSection={onDuplicateSection}
             onSaveToBank={onSaveToBank}
+            onToggleLock={onToggleLock}
+            onRewriteQuestion={onRewriteQuestion}
+            rewritingKey={rewritingKey}
             onUpdateStandaloneQuestion={onUpdateStandaloneQuestion}
             onUploadStandaloneImage={onUploadStandaloneImage}
             onRemoveStandaloneImage={onRemoveStandaloneImage}
@@ -247,7 +251,7 @@ export function SmartWarningsBanner({ warnings }) {
   )
 }
 
-export function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, questionNumbers, questionIssues, paperMeta, onAddBlock, onEditQuestion, onMoveSection, onMoveGroup, onRemoveSection, onDuplicateSection, onSaveToBank, onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage, onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage, onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onUpdatePart, onRemovePart, onAssignSectionToPart }) {
+export function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, questionNumbers, questionIssues, paperMeta, onAddBlock, onEditQuestion, onMoveSection, onMoveGroup, onRemoveSection, onDuplicateSection, onSaveToBank, onToggleLock, onRewriteQuestion, rewritingKey, onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage, onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage, onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onUpdatePart, onRemovePart, onAssignSectionToPart }) {
   const partIndex = allParts.findIndex(p => p.id === group.part?.id)
   const letter = partIndex >= 0 ? SECTION_LETTERS[partIndex] || '·' : null
 
@@ -322,6 +326,9 @@ export function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, 
           onRemoveSection={onRemoveSection}
           onDuplicateSection={onDuplicateSection}
           onSaveToBank={onSaveToBank}
+          onToggleLock={onToggleLock}
+          onRewriteQuestion={onRewriteQuestion}
+          rewritingKey={rewritingKey}
           onUpdateStandaloneQuestion={onUpdateStandaloneQuestion}
           onUploadStandaloneImage={onUploadStandaloneImage}
           onRemoveStandaloneImage={onRemoveStandaloneImage}

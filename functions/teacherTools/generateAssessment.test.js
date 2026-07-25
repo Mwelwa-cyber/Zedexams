@@ -44,14 +44,54 @@ let genDocs = {}; // id -> merged doc data
 let genSeq = 0;
 // Controls the stubbed classifySubjectForGrade (combination validation).
 let classifyResult = "unknown";
+// Curriculum coverage for the grade+subject under test. `count: 0` is what
+// triggers the refusal to generate.
+const COVERED = {
+  topics: ["Fractions", "Decimals"],
+  outcomesByTopic: {Fractions: ["Add fractions with the same denominator"]},
+  competencies: ["Number sense"],
+  count: 2,
+};
+let coverageResult = COVERED;
+
+// Every topicMisconceptions document the harvest wrote (§3.3), by doc id. The
+// store starts empty, which is the realistic first-paper-on-a-topic state and
+// exercises the "nothing known, say nothing in the prompt" path.
+let misconceptionDocs = {};
 
 const firestoreFn = () => ({
+  // getAll is how the misconception store reads several topics at once. Nothing
+  // is seeded, so every snapshot is a miss.
+  getAll: async (...refs) => refs.map((ref) => ({
+    exists: ref.id in misconceptionDocs,
+    id: ref.id,
+    data: () => misconceptionDocs[ref.id],
+  })),
+  // The harvest runs in a transaction per topic. The fake just executes the body
+  // against the same in-memory store — real transaction semantics are not what
+  // this test is about.
+  runTransaction: async (fn) => fn({
+    get: async (ref) => ({
+      exists: ref.id in misconceptionDocs,
+      data: () => misconceptionDocs[ref.id],
+    }),
+    set: (ref, data) => {
+      misconceptionDocs[ref.id] = {...(misconceptionDocs[ref.id] || {}), ...data};
+    },
+  }),
   collection: (name) => {
     // assessmentBands is READ (never written) to resolve the band governing the
     // paper's level. An empty collection is the realistic pre-seed state, and
     // exercises the fallback to the published defaults.
     if (name === "assessmentBands") {
       return {get: async () => ({forEach: () => {}})};
+    }
+    // topicMisconceptions is read before generating and written after, so the
+    // NEXT paper on these topics has real learner errors to build distractors
+    // from. Doc refs only need an id here; reads/writes go through getAll and
+    // runTransaction above.
+    if (name === "topicMisconceptions") {
+      return {doc: (id) => ({id})};
     }
     assert.strictEqual(name, "aiGenerations", "only aiGenerations is written");
     return {
@@ -170,6 +210,11 @@ Module._load = function (request, ...rest) {
       // Controllable per assertion via `classifyResult`; defaults to the
       // fail-open "unknown" so the existing valid-input runs are untouched.
       classifySubjectForGrade: () => classifyResult,
+      // What the verified curriculum carries for this grade+subject. Controlled
+      // per assertion via `coverageResult` so the "no approved syllabus content"
+      // refusal (§3.5) can be exercised; defaults to a covered subject so the
+      // existing runs are untouched.
+      resolveGradeSubjectCoverage: async () => coverageResult,
     };
   }
   if (request === "./usageMeter") {
@@ -271,6 +316,8 @@ function validPaper() {
 const IDK = "11111111-1111-4111-8111-111111111111";
 
 function reset() {
+  coverageResult = COVERED;
+  misconceptionDocs = {};
   genDocs = {};
   genSeq = 0;
   calls.claude.length = 0;
@@ -708,6 +755,133 @@ async function caught(promise) {
         qs[0].activityType === "tracing");
     ok("an unrecognised activity falls back to the render type, never dropping the question",
         qs[1].activityType === "short_answer");
+  }
+
+  // ── Never invent syllabus content (§3.5) ───────────────────────────────
+  // A grade+subject the verified curriculum has no approved topics for must be
+  // REFUSED, not filled in from the model's general knowledge.
+  reset();
+  coverageResult = {topics: [], outcomesByTopic: {}, competencies: [], count: 0};
+  claudeImpl = async () => ({parsed: validPaper()});
+  const eNoCurriculum = await caught(runAssessment({
+    uid: "t1", rawInputs: {...INPUTS}, apiKey: "k", idempotencyKey: IDK,
+  }));
+  ok("no approved syllabus content throws failed-precondition",
+      eNoCurriculum instanceof HttpsError &&
+    eNoCurriculum.code === "failed-precondition");
+  ok("the refusal names the subject and level",
+      /Integrated Science|Mathematics/.test(String(eNoCurriculum.message)) &&
+    /Grade 7/.test(String(eNoCurriculum.message)));
+  ok("the refusal tells the teacher what to do",
+      /administrator|another curriculum/i.test(String(eNoCurriculum.message)));
+  ok("the model is NEVER called when there is no curriculum",
+      calls.claude.length === 0);
+  ok("the teacher is refunded when the curriculum refuses",
+      calls.refund.length === 1);
+  coverageResult = COVERED;
+
+  // ── The blueprint constrains the model (§3.1/§3.2) ─────────────────────
+  reset();
+  claudeImpl = async () => ({parsed: validPaper()});
+  await runAssessment({
+    uid: "t1", rawInputs: {...INPUTS, totalMarks: 40}, apiKey: "k", idempotencyKey: IDK,
+  });
+  const bpPrompt = calls.claude[0].opts.messages[0].content;
+  ok("the blueprint reaches the prompt as a hard constraint",
+      bpPrompt.includes("PAPER BLUEPRINT") && bpPrompt.includes("Fill EVERY slot"));
+  ok("every slot names its marks and thinking level",
+      /Q1 · \[\d+ marks?\]/.test(bpPrompt) && /thinking: /.test(bpPrompt));
+  ok("the blueprint quotes a real learning outcome from the curriculum",
+      bpPrompt.includes("Add fractions with the same denominator"));
+  {
+    const saved = genDocs[IDK];
+    ok("the blueprint is saved WITH the paper",
+        saved.blueprint && saved.blueprint.version === "blueprint.v1");
+    // Marks reconcile by construction — this is the acceptance criterion
+    // "marks in the header always equal the sum of question marks".
+    const items = saved.blueprint.sections.flatMap((sec) => sec.items);
+    ok("the blueprint's item marks sum to its total",
+        items.reduce((n, i) => n + i.marks, 0) === saved.blueprint.totalMarks);
+    ok("every planned item carries a topic and a thinking level",
+        items.every((i) => i.topic && i.bloomLevel && i.difficulty));
+  }
+
+  // A teacher's difficulty-mix override reaches the plan.
+  reset();
+  claudeImpl = async () => ({parsed: validPaper()});
+  await runAssessment({
+    uid: "t1",
+    rawInputs: {
+      ...INPUTS, totalMarks: 20,
+      difficultyMix: {recall: 1, understanding: 0, analysis: 0, challenge: 0},
+    },
+    apiKey: "k",
+    idempotencyKey: IDK,
+  });
+  ok("a teacher difficulty override is honoured in the plan",
+      genDocs[IDK].blueprint.coverage.difficulty.recall ===
+    genDocs[IDK].blueprint.itemCount);
+
+  // ── Distractor quality: the misconception store (§3.3) ─────────────────
+  // A paper's distractor rationales are recorded per topic, and the NEXT paper on
+  // that topic is told about them. Nothing is invented: a topic nothing is known
+  // about contributes nothing to the prompt.
+  reset();
+  claudeImpl = async () => ({parsed: {
+    ...validPaper(),
+    sections: [{
+      title: "Multiple choice",
+      questions: [{
+        type: "multiple_choice",
+        prompt: "What is 1/2 + 1/4?",
+        options: ["3/4", "1/2", "2/6", "1/8"],
+        marks: 4,
+        answer: "3/4",
+        markingGuide: "4 marks for 3/4.",
+        topic: "Fractions",
+        distractorRationale: [
+          "", "1/2: learners take the larger fraction and ignore the other",
+          "2/6: learners add the numerators and the denominators",
+          "1/8: learners multiply instead of adding",
+        ],
+      }],
+    }],
+  }});
+  await runAssessment({
+    uid: "t1", rawInputs: {...INPUTS, totalMarks: 20}, apiKey: "k", idempotencyKey: IDK,
+  });
+  {
+    const firstPrompt = calls.claude[0].opts.messages[0].content;
+    ok("a topic nothing is known about adds no misconceptions to the prompt",
+        !firstPrompt.includes("KNOWN LEARNER MISCONCEPTIONS"));
+    const stored = Object.values(misconceptionDocs);
+    ok("the paper's distractor rationales are recorded for next time",
+        stored.length >= 1 &&
+      stored.some((d) => (d.misconceptions || [])
+          .some((m) => /add the numerators and the denominators/.test(m.text))));
+    ok("…filed under the question's own topic",
+        stored.every((d) => d.topic === "Fractions"));
+    ok("…with the wrong answer it explains",
+        stored.some((d) => (d.misconceptions || []).some((m) => m.wrongAnswer === "2/6")));
+    ok("…and nothing recorded for the CORRECT option's empty rationale",
+        stored.every((d) => (d.misconceptions || []).every((m) => m.text)));
+  }
+
+  // The next paper on the same topic is told what learners get wrong.
+  {
+    const kept = misconceptionDocs;
+    reset();
+    misconceptionDocs = kept;
+    claudeImpl = async () => ({parsed: validPaper()});
+    await runAssessment({
+      uid: "t1", rawInputs: {...INPUTS, totalMarks: 20}, apiKey: "k", idempotencyKey: `${IDK}-2`,
+    });
+    const secondPrompt = calls.claude[0].opts.messages[0].content;
+    ok("the NEXT paper on that topic is told what learners get wrong",
+        secondPrompt.includes("KNOWN LEARNER MISCONCEPTIONS") &&
+      /add the numerators and the denominators/.test(secondPrompt));
+    ok("…as material to draw on, not a requirement",
+        /Do not force one in where it does not fit/.test(secondPrompt));
   }
 
   Module._load = origLoad;

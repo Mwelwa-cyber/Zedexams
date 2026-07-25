@@ -339,7 +339,11 @@ function buildUserPrompt(inputs) {
     '          "markingGuide": string,',
     '          "topic": string,            // the topic this question assesses (use the exact names from the coverage plan / request)',
     '          "bloomLevel": "remember"|"understand"|"apply"|"analyse"|"evaluate"|"create",  // its cognitive level',
-    '          "activityType": string   // the TASK this item is, from the permitted tasks listed above (e.g. "tracing", "picture_matching"). Use the plain type name when the item is just that type.',
+    '          "activityType": string,  // the TASK this item is, from the permitted tasks listed above (e.g. "tracing", "picture_matching"). Use the plain type name when the item is just that type.',
+    '          "difficulty": "recall"|"understanding"|"analysis"|"challenge",  // how demanding the item is — its blueprint slot states which',
+    '          "learningOutcome": string,   // the syllabus outcome it targets — COPY the one its blueprint slot gives, or "" when the slot gives none. Never write an outcome the syllabus does not contain.',
+    '          "distractorRationale": [string, ...],  // multiple_choice only: one line per WRONG option saying which real learner error it represents',
+    '          "markingPoints": [string, ...]  // the separate things that earn the marks, one per mark where that makes sense',
     "        }",
     "      ]",
     "    }",
@@ -367,6 +371,16 @@ function buildUserPrompt(inputs) {
       "the permitted tasks for this level. This is what the teacher asked for and " +
       "is kept with the question; \"type\" is only how it is laid out. A tracing " +
       "task is activityType \"tracing\" with type \"structured\".",
+    "- Tag every question with its \"difficulty\" and its \"learningOutcome\" " +
+      "from its blueprint slot. Copy the slot's outcome verbatim; if the slot " +
+      "gives none, use \"\" — never invent an outcome.",
+    "- \"markingPoints\" lists the separate things that earn the marks, so a " +
+      "2-mark question names two. This is what makes the marking scheme " +
+      "checkable against the marks awarded.",
+    "- MULTIPLE CHOICE: every wrong option must be a real learner error, and " +
+      "\"distractorRationale\" must say which one — \"Root: learners confuse " +
+      "anchorage with reproduction\". An option nobody would pick teaches " +
+      "nothing and tests nothing. Never pad with an obviously silly choice.",
     "- Do NOT repeat a question: never re-ask one fact with a different " +
       "command word. Every question assesses something different.",
     allowedTypes.length > 0 ?

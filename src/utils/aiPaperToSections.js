@@ -127,6 +127,16 @@ function mapType(aiType) {
   }
 }
 
+// Blueprint difficulty tier → the studio's own easy/medium/hard difficulty tag.
+// Analysis and challenge both read as "hard" to the existing meter; the tier
+// itself is not lost, it stays on the paper's blueprint.
+const TIER_TO_STUDIO_DIFFICULTY = {
+  recall: 'easy',
+  understanding: 'medium',
+  analysis: 'hard',
+  challenge: 'hard',
+}
+
 /**
  * Map one AI question into the studio's editor question shape (the
  * overrides handed to createStandaloneSection). Returns
@@ -356,6 +366,15 @@ export function mapAiQuestion(q, { partId = null } = {}) {
   // tracing task never becomes indistinguishable from a generic structured one.
   const activityTag = String(q?.activityType || '').trim()
   if (activityTag) overrides.activityType = activityTag
+  // The rest of the blueprint slot the item filled. The studio's own difficulty
+  // meter speaks easy/medium/hard, so the blueprint's tier is mapped onto it —
+  // the tier is the authoritative value and stays on the blueprint.
+  const tier = String(q?.difficulty || '').trim().toLowerCase()
+  if (TIER_TO_STUDIO_DIFFICULTY[tier]) {
+    overrides.difficulty = TIER_TO_STUDIO_DIFFICULTY[tier]
+  }
+  const outcome = String(q?.learningOutcome || '').trim()
+  if (outcome) overrides.learningOutcome = outcome.slice(0, 300)
 
   return { overrides, warnings }
 }

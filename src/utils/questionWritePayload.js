@@ -228,6 +228,10 @@ export async function normalizeQuestionPayload(q, order) {
     // activity keeps its identity for the picker, analytics, reopening the paper
     // and the migration that will give it a real layout.
     activityType:  q.activityType || undefined,
+    // The syllabus outcome the question targets, quoted from the verified
+    // curriculum by the blueprint. Persisted so a saved paper can be checked
+    // against what it set out to assess.
+    learningOutcome: q.learningOutcome || undefined,
     imageUrl:      q.imageUrl || null,
     imageAlt:      String(q.imageAlt ?? '').trim(),
     imageDiagram,

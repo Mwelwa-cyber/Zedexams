@@ -551,6 +551,7 @@ export function SectionBlock(props) {
   const {
     section, sectionIndex, parts, questionNumbers, questionIssues, paperMeta,
     onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onSaveToBank,
+    onToggleLock, onRewriteQuestion, rewritingKey,
     onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage,
     onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage,
     onUpdateSection, onUploadPassageImage, onRemovePassageImage,
@@ -602,6 +603,9 @@ export function SectionBlock(props) {
       onRemoveSection={onRemoveSection}
       onDuplicateSection={onDuplicateSection}
       onSaveToBank={onSaveToBank}
+      onToggleLock={onToggleLock}
+      onRewriteQuestion={onRewriteQuestion}
+      rewriting={rewritingKey === section.question?.localId}
       onUpdateQuestion={(field, value) => onUpdateStandaloneQuestion(sectionIndex, field, value)}
       onUploadImage={file => onUploadStandaloneImage(sectionIndex, file)}
       onRemoveImage={() => onRemoveStandaloneImage(sectionIndex)}
