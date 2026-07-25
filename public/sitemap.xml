@@ -1,76 +1,53 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- GENERATED FILE — do not edit by hand. Regenerate with `npm run sitemap`
+     (scripts/generateSitemap.mjs). URL list comes from
+     scripts/prerenderRoutes.mjs, so every advertised page is prerendered
+     with a self-canonical by construction. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-
-  <!-- Homepage -->
   <url>
     <loc>https://zedexams.com/</loc>
+    <lastmod>2026-06-30</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
-
-  <!-- Marketing. /welcome and /plans were legacy aliases; they now 301
-       to / and /pricing at the hosting layer (firebase.json), so only
-       the canonical URLs appear here. -->
   <url>
     <loc>https://zedexams.com/pricing</loc>
+    <lastmod>2026-06-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://zedexams.com/teachers</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-  </url>
-
-  <!-- Grade-pack landing pages — high-intent marketing URLs shared in
-       WhatsApp posts. ECZ exam grades are Grade 7 (live) and Grade 12
-       (coming soon). Grade 9 was phased out, so it isn't listed. -->
-  <url>
-    <loc>https://zedexams.com/grade-7</loc>
+    <lastmod>2026-06-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://zedexams.com/grade-12</loc>
-    <changefreq>monthly</changefreq>
+    <loc>https://zedexams.com/privacy</loc>
+    <lastmod>2026-06-21</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://zedexams.com/terms</loc>
+    <lastmod>2026-06-21</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://zedexams.com/blog</loc>
+    <lastmod>2026-07-25</lastmod>
+    <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
-
-  <!-- ECZ past-paper archive (audit A2). The list is publicly browsable;
-       individual paper PDFs require sign-in to download. -->
   <url>
     <loc>https://zedexams.com/papers</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
-
-  <!-- Revision blog (audit C5). Per-post URLs are indexable; we list
-       the index here. Individual posts get added as the catalogue
-       grows — generate dynamically at build time when scale demands. -->
-  <url>
-    <loc>https://zedexams.com/blog</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://zedexams.com/blog/grade-7-ecz-maths-revision-guide</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://zedexams.com/blog/how-to-revise-week-by-week</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://zedexams.com/blog/top-mistakes-grade-9-english</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-
-  <!-- Public games hub (no auth required) -->
   <url>
     <loc>https://zedexams.com/games</loc>
+    <lastmod>2026-06-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -79,49 +56,75 @@
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
   </url>
-
-  <!-- Per-grade game pickers (CBC Grades 4-6 only — Grades 1-3 still
-       redirect to /games and 7+ have no game pool yet). High-search-
-       intent landing pages for queries like "Grade 5 Maths games Zambia". -->
-  <url>
-    <loc>https://zedexams.com/games/g/4</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://zedexams.com/games/g/5</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://zedexams.com/games/g/6</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-
-  <!-- /register and /login are intentionally Disallow'd in robots.txt
-       (alongside /dashboard, /admin, /teacher etc.) so they're omitted
-       from the sitemap to match. Brand searches reach signup via the
-       homepage CTA. -->
-
-  <!-- Legal -->
-  <url>
-    <loc>https://zedexams.com/privacy</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://zedexams.com/terms</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
-  </url>
-
-  <!-- Public service-status board (live up/down probes) — useful for B2B
-       buyers checking how outages are handled. -->
   <url>
     <loc>https://zedexams.com/status</loc>
     <changefreq>daily</changefreq>
     <priority>0.3</priority>
   </url>
-
+  <url>
+    <loc>https://zedexams.com/blog/cbc-curriculum-zambia-parents-guide</loc>
+    <lastmod>2026-07-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://zedexams.com/blog/ecz-grade-7-past-papers-guide</loc>
+    <lastmod>2026-07-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://zedexams.com/blog/grade-7-ecz-english-revision-guide</loc>
+    <lastmod>2026-07-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://zedexams.com/blog/grade-7-ecz-maths-revision-guide</loc>
+    <lastmod>2026-04-12</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://zedexams.com/blog/how-to-revise-week-by-week</loc>
+    <lastmod>2026-03-29</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://zedexams.com/blog/top-mistakes-grade-9-english</loc>
+    <lastmod>2026-03-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://zedexams.com/grade-7</loc>
+    <lastmod>2026-06-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://zedexams.com/grade-12</loc>
+    <lastmod>2026-06-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://zedexams.com/games/g/4</loc>
+    <lastmod>2026-06-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://zedexams.com/games/g/5</loc>
+    <lastmod>2026-06-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://zedexams.com/games/g/6</loc>
+    <lastmod>2026-06-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
 </urlset>
