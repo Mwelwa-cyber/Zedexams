@@ -576,13 +576,13 @@ function PaperMcqOptions({ block }) {
           const media = block.optionMedia?.[i]
           const isCorrect = block.showAnswer && correct === i
           return (
-            <div key={i} style={{ border: `${isCorrect ? '2px solid #047857' : '1px solid #999'}`, borderRadius: 3, padding: 4, textAlign: 'center', background: '#fafafa' }}>
+            <div key={i} style={{ border: `${isCorrect ? '2px solid #047857' : '1px solid #888'}`, borderRadius: 3, padding: 4, textAlign: 'center', background: '#fafafa' }}>
               <div style={{ aspectRatio: '1', display: 'grid', placeItems: 'center', background: 'white', borderRadius: 2, marginBottom: 2 }}>
                 {media?.diagram?.libraryKey
                   ? <DiagramSvg libraryKey={media.diagram.libraryKey} params={media.diagram.params} color="#1c1612" alt={media.alt || ''} />
                   : media?.imageUrl
                     ? <img src={media.imageUrl} alt={media.alt || ''} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                    : <span style={{ fontSize: 24, color: '#999' }}>?</span>}
+                    : <span style={{ fontSize: 24, color: '#888' }}>?</span>}
               </div>
               <div style={{ fontSize: 12, fontWeight: 700, color: isCorrect ? '#047857' : undefined }}>
                 {SECTION_LETTERS[i]}.{optText(i) ? ` ${optText(i)}` : ''}{isCorrect ? ' ✓' : ''}
@@ -600,7 +600,7 @@ function PaperMcqOptions({ block }) {
           const media = block.optionMedia?.[i]
           const isCorrect = block.showAnswer && correct === i
           return (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: 'auto auto 1fr', gap: 6, alignItems: 'center', padding: '4px 6px', border: '1px solid #ccc', borderRadius: 3 }}>
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: 'auto auto 1fr', gap: 6, alignItems: 'center', padding: '4px 6px', border: '1px solid #888', borderRadius: 3 }}>
               <strong style={{ color: isCorrect ? '#047857' : undefined }}>{SECTION_LETTERS[i]}.</strong>
               {media?.diagram?.libraryKey
                 ? <span style={{ width: 40, height: 40, display: 'inline-block' }}><DiagramSvg libraryKey={media.diagram.libraryKey} params={media.diagram.params} color="#1c1612" alt={media.alt || ''} /></span>
@@ -683,7 +683,7 @@ function PaperSequence({ block }) {
   return (
     <div style={{ margin: '8px 0' }}>
       {items.map((it, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', borderBottom: '1px dotted #999' }}>
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', borderBottom: '1px dotted #888' }}>
           <span style={{ display: 'inline-block', width: 32, borderBottom: '1px solid #000', height: 16 }} />
           <span>{it || ''}</span>
         </div>
@@ -703,14 +703,14 @@ function PaperMatching({ block }) {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 48, margin: '8px 0' }}>
       <div>
         {Array.from({ length: rows }).map((_, i) => (
-          <div key={i} style={{ padding: '4px 0', borderBottom: '1px dotted #999' }}>
+          <div key={i} style={{ padding: '4px 0', borderBottom: '1px dotted #888' }}>
             <strong>{i + 1}.</strong> {left[i] || ''}
           </div>
         ))}
       </div>
       <div>
         {Array.from({ length: rows }).map((_, i) => (
-          <div key={i} style={{ padding: '4px 0', borderBottom: '1px dotted #999' }}>
+          <div key={i} style={{ padding: '4px 0', borderBottom: '1px dotted #888' }}>
             <strong>{SECTION_LETTERS[i] || '?'}.</strong> {right[i] || ''}
           </div>
         ))}

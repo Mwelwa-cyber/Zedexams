@@ -276,6 +276,16 @@ wrong:
   names as immovable `anchors` — a name can never shove a number off its part.
   Every renderer gates this on `block.showAnswer`, and each has a test that the
   learner copy carries no answer text.
+- **`src/utils/monochrome.js` + `test:monochrome` keep the paper printable in
+  black and white.** Most Zambian schools print monochrome and photocopy the
+  master, so luminance — not just colour — decides whether a learner can read
+  the sheet. The test SCANS the three renderers for every hex they print in and
+  checks each against a declared role (`text` 4.5:1, `largeText`/`line` 3:1,
+  `background` checked from the other side). An **undeclared** colour fails the
+  test, so adding one means saying what it is for and CI answers whether it
+  survives the printer — a hand-kept list would have drifted immediately. This
+  caught `#ccc` borders printing at 1.6:1 (invisible once photocopied) and
+  `#999` rules at 2.85:1; all rules are now the one declared `#888888`.
 - **`src/utils/paperGolden.test.js`** (`test:paper-golden`) renders reference
   papers all the way to a real `.docx`, unzips it and asserts against
   `word/document.xml`. It is the net for "looks right in Preview, breaks in Word",

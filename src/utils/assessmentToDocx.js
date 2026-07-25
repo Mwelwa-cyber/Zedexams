@@ -1592,7 +1592,7 @@ export async function buildAnswerSheetDocument(assessment, questions, { attribut
   if (rows.length) {
     children.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows }))
   } else {
-    children.push(para(runText('No questions to answer yet.', { italics: true, size: 20, color: '777777' })))
+    children.push(para(runText('No questions to answer yet.', { italics: true, size: 20, color: '6b7280' })))
   }
 
   return new Document({

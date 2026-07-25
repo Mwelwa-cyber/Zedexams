@@ -187,7 +187,7 @@ body {
   gap: 12pt;
   margin-top: 10pt;
   padding-bottom: 8pt;
-  border-bottom: 1pt solid #777;
+  border-bottom: 1pt solid #888;
 }
 .banner-code {
   font-family: Arial, Helvetica, sans-serif;
@@ -261,7 +261,7 @@ body {
 
 .passage {
   background: #fafafa;
-  border: 1px solid #ccc;
+  border: 1px solid #888;
   padding: 10pt 14pt;
   margin: 8pt 0 14pt;
   font-size: 11pt;
@@ -366,7 +366,7 @@ body {
 }
 .options-image .item {
   text-align: center;
-  border: 1px solid #999;
+  border: 1px solid #888;
   border-radius: 3pt;
   padding: 4pt;
   background: #fafafa;
@@ -395,7 +395,7 @@ body {
   gap: 4pt;
   align-items: center;
   padding: 4pt 6pt;
-  border: 1px solid #ccc;
+  border: 1px solid #888;
   border-radius: 3pt;
 }
 .options-mixed .item .img { width: 40pt; height: 40pt; object-fit: contain; }
@@ -407,9 +407,9 @@ body {
 .numeric-line .answer-line.numeric { display: inline-block; flex: 0 0 160pt; margin-bottom: 0; }
 .numeric-unit { font-size: 11pt; }
 .match-columns { display: grid; grid-template-columns: 1fr 1fr; column-gap: 36pt; margin: 6pt 0 12pt; }
-.match-row { padding: 3pt 0; border-bottom: 1px dotted #999; }
+.match-row { padding: 3pt 0; border-bottom: 1px dotted #888; }
 .seq-list { margin: 6pt 0 12pt; }
-.seq-row { display: flex; align-items: center; gap: 10pt; padding: 3pt 0; border-bottom: 1px dotted #999; }
+.seq-row { display: flex; align-items: center; gap: 10pt; padding: 3pt 0; border-bottom: 1px dotted #888; }
 .seq-blank { display: inline-block; width: 30pt; border-bottom: 1px solid #000; height: 12pt; }
 .pagebreak { page-break-after: always; break-after: page; height: 0; }
 
@@ -541,13 +541,13 @@ body {
 }
 
 .diagram-box {
-  border: 1px dashed #999;
+  border: 1px dashed #888;
   background: #fafafa;
   padding: 8pt;
   text-align: center;
   font-style: italic;
   font-size: 10pt;
-  color: #777;
+  color: #6b7280;
   margin: 6pt 0;
   min-height: 80pt;
   display: grid; place-items: center;
