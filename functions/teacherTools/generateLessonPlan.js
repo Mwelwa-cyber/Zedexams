@@ -129,6 +129,14 @@ const ALLOWED_SUBJECTS = new Set([
   "agricultural_science", "art_and_design",
   "commerce_and_principles_of_accounts",
   "design_and_technology_studies", "music_and_creative_arts",
+  // ── The 2026-07 subject split ──────────────────────────────────────────
+  // Canonical keys carved out of shared ones, each its own examinable subject
+  // with its own numbering (see src/utils/subjectSplitClassifier.js). The
+  // pre-split spellings above are kept so a saved pick still passes.
+  "commerce", "principles_of_accounts",
+  "food_and_nutrition", "fashion_and_fabrics", "mathematics_ii",
+  // Not previously listed here, so this generator rejected the pick outright.
+  "hospitality_management",
 ]);
 const ALLOWED_LANGUAGES = new Set([
   "english", "bemba", "nyanja", "tonga", "lozi", "kaonde", "lunda", "luvale",

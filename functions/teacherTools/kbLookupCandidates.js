@@ -3,9 +3,8 @@
  * lookups, plus the studio-subject → KB-subject tables it derives from.
  *
  * WHY: the KB stores Forms-syllabus topics under grade codes G8–G12
- * (FORM_TO_GRADE below) and folds the vocational syllabi into core subject
- * keys (Fashion & Fabrics / Hospitality Management → home_economics,
- * Travel & Tourism → social_studies,
+ * (FORM_TO_GRADE below) and folds some syllabi into core subject
+ * keys (Travel & Tourism → social_studies,
  * Literature in English → english, …). The standardized studio curriculum
  * selector, however, sends the teacher's literal pick: grade "F1"–"F4" and
  * subject slugs like "fashion_fabrics". Exact-equality matching in
@@ -55,12 +54,12 @@ const STUDIO_SUBJECT_TO_KB = {
   "Literature in English Syllabus (Forms 1-4)": "english",
   "Religious Education Syllabus (Forms 1-4)": "religious_education",
   "Physical Education Syllabus (Forms 1-4)": "physical_education",
-  // Own examinable subject, own numbering — see src/utils/syllabusMapping.js.
-  // Fashion & Fabrics + Hospitality Management still share home_economics and
-  // still collide with each other; that is a separate mapping decision.
+  // Three separate examinable subjects, three documents, each numbered from 1.1
+  // — see src/utils/syllabusMapping.js. home_economics stays the key only for
+  // the "(Grades 4-6)" document, where it genuinely is one subject.
   "Food & Nutrition Syllabus (Forms 1-4)": "food_and_nutrition",
-  "Fashion & Fabrics Syllabus (Forms 1-4)": "home_economics",
-  "Hospitality Management Syllabus (Forms 1-4)": "home_economics",
+  "Fashion & Fabrics Syllabus (Forms 1-4)": "fashion_and_fabrics",
+  "Hospitality Management Syllabus (Forms 1-4)": "hospitality_management",
   "Music & Creative Arts Syllabus (Forms 1-4)": "music_and_creative_arts",
   "Travel & Tourism Syllabus (Forms 1-4)": "social_studies",
   "Zambian Languages Syllabus (Forms 1-4)": "zambian_language",
@@ -140,8 +139,8 @@ const BUNDLE_STUDIO_KEYS = new Set([
 // Built from the studio tables above (strip the " Syllabus (…)" suffix,
 // slugify the subject name, keep only entries where the slug differs from
 // the KB key), so a syllabus rename or a new vocational subject updates the
-// fold automatically. e.g. fashion_fabrics → home_economics,
-// travel_tourism → social_studies, art_design → art_and_design.
+// fold automatically. e.g. travel_tourism → social_studies,
+// art_design → art_and_design, fashion_fabrics → fashion_and_fabrics.
 // Subject spellings that predate the 2026-07 subject split and fold onto
 // exactly one canonical key. Mirrors LEGACY_SUBJECT_ALIASES in
 // src/config/teacherTaxonomy.js. A saved 'accounts' pick must still reach the
@@ -152,6 +151,7 @@ const BUNDLE_STUDIO_KEYS = new Set([
 const LEGACY_SUBJECT_ALIASES = Object.freeze({
   accounts: "principles_of_accounts",
   food_nutrition: "food_and_nutrition",
+  fashion_fabrics: "fashion_and_fabrics",
 });
 
 const SUBJECT_SLUG_TO_KB = (() => {
@@ -189,8 +189,8 @@ function gradeCandidates(grade) {
 /**
  * Subject keys a requested subject may be stored under in the KB, requested
  * (slugified) key first:
- *   subjectCandidates("fashion_fabrics") → ["fashion_fabrics", "home_economics"]
- *   subjectCandidates("mathematics")     → ["mathematics"]
+ *   subjectCandidates("travel_tourism") → ["travel_tourism", "social_studies"]
+ *   subjectCandidates("mathematics")    → ["mathematics"]
  *   subjectCandidates("")                → []
  * Pure; accepts slugs, display labels ("Fashion & Fabrics") and the
  * underscore-heavy normalizeSubject() output ("fashion___fabrics").

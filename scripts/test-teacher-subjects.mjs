@@ -16,6 +16,8 @@ import {
   getSubjectsForGrade,
   defaultSubjectForGrade,
   isSubjectValidForGrade,
+  canonicalSubjectValue,
+  splitSubjectsAtGrade,
 } from '../src/config/teacherTaxonomy.js'
 
 let passed = 0
@@ -176,6 +178,28 @@ check('Home Economics no longer swallows Food & Nutrition or Home Management', (
   assert.equal(isSubjectValidForGrade('food_nutrition', 'G10', 'cbc'), true)
 })
 
+check('Home Economics names THREE subjects at CBC Forms 1-4 and one below', () => {
+  // The Ministry ships three separate examinable syllabi at Forms 1-4, so the
+  // shared key cannot be silently reinterpreted there.
+  for (const grade of ['G8', 'G9', 'G10', 'G11']) {
+    assert.deepEqual(
+      splitSubjectsAtGrade('home_economics', grade, 'cbc'),
+      ['food_and_nutrition', 'fashion_and_fabrics', 'hospitality_management'],
+      `${grade} CBC Home Economics must be reported as three subjects`,
+    )
+  }
+  // Where it genuinely is one integrated subject, it is not a split at all.
+  assert.equal(splitSubjectsAtGrade('home_economics', 'G4', 'cbc'), null)
+  assert.equal(splitSubjectsAtGrade('home_economics', 'G6', 'cbc'), null)
+  for (const grade of ['G7', 'G9', 'G11']) {
+    assert.equal(splitSubjectsAtGrade('home_economics', grade, 'previous'), null,
+      `${grade} in the 2013 set is one Home Economics subject`)
+  }
+  // Every other subject is unaffected.
+  assert.equal(splitSubjectsAtGrade('mathematics', 'G9', 'cbc'), null)
+  assert.equal(splitSubjectsAtGrade('food_and_nutrition', 'G9', 'cbc'), null)
+})
+
 check('CBC-only Forms 1-4 electives (Design & Tech, Music & Creative Arts) hidden under OBC', () => {
   for (const subject of ['design_and_technology_studies', 'music_and_creative_arts']) {
     assert.equal(isSubjectValidForGrade(subject, 'G9', 'cbc'), true, `${subject} shows in CBC`)
@@ -221,9 +245,15 @@ check('a curriculum-scoped call never falls back to the full subject list', () =
 
 check('CBC secondary carries the digitised Forms 1-4 subjects; the 2013 set does not', () => {
   const cbcG9 = valuesOf(getSubjectsForGrade('G9', 'cbc'))
-  for (const s of ['literature_in_english', 'food_and_nutrition', 'fashion_fabrics', 'hospitality_management', 'travel_tourism']) {
+  for (const s of ['literature_in_english', 'food_and_nutrition', 'fashion_and_fabrics', 'hospitality_management', 'travel_tourism']) {
     assert.ok(cbcG9.includes(s), `CBC Form 2 offers ${s}`)
   }
+  // The pre-split spelling is gone from the menu but still folds on read, so a
+  // Fashion & Fabrics assignment saved before the split keeps resolving.
+  assert.ok(!cbcG9.includes('fashion_fabrics'), 'the pre-split spelling is not offered')
+  assert.equal(canonicalSubjectValue('fashion_fabrics'), 'fashion_and_fabrics')
+  assert.ok(isSubjectValidForGrade('fashion_fabrics', 'G9', 'cbc'))
+  assert.ok(!isSubjectValidForGrade('fashion_fabrics', 'G4', 'cbc'))
   const obcG9 = valuesOf(getSubjectsForGrade('G9', 'previous'))
   for (const s of ['hospitality_management', 'travel_tourism', 'home_management']) {
     assert.ok(!obcG9.includes(s), `OBC Grade 9 must not offer ${s}`)

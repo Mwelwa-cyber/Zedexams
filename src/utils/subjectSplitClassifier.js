@@ -1,10 +1,13 @@
 /**
  * Classify a record saved under a pre-split subject key.
  *
- * Four canonical subjects were carved out of two shared keys:
+ * Canonical subjects were carved out of shared keys:
  *
  *   commerce_and_principles_of_accounts → commerce | principles_of_accounts
  *   home_economics (senior only)        → food_and_nutrition | home_management
+ *                                       | fashion_and_fabrics
+ *                                       | hospitality_management
+ *   mathematics (Forms 1-4 second book) → mathematics_ii
  *
  * Records written before the split still carry the shared key. Reassigning them
  * matters — the subject decides which syllabus grounds a regeneration and which
@@ -41,13 +44,19 @@ import { parseTopicCode } from './syllabusTopicTree.js'
  * resolve to.
  *
  * home_economics is a special case: it is STILL a real subject (CBC Grades 4-6,
- * 2013 Grades 5-7). Only records whose topics actually belong to Food & Nutrition
- * or Home Management should move; a genuine Home Economics record stays put. So
- * its candidate list includes home_economics itself.
+ * 2013 Grades 5-7). Only records whose topics actually belong to one of the
+ * senior-secondary pathways should move; a genuine Home Economics record stays
+ * put. So its candidate list includes home_economics itself.
  */
 export const SPLIT_SOURCES = Object.freeze({
   commerce_and_principles_of_accounts: ['commerce', 'principles_of_accounts'],
-  home_economics: ['food_and_nutrition', 'home_management', 'home_economics'],
+  home_economics: [
+    'food_and_nutrition',
+    'home_management',
+    'fashion_and_fabrics',
+    'hospitality_management',
+    'home_economics',
+  ],
   // `mathematics` is different again, and the difference matters. Unlike the
   // retired combined key, it stays the CORRECT key for the Mathematics syllabus
   // at every grade in both curricula — Mathematics II was folded INTO it, so the
@@ -70,6 +79,8 @@ const SOURCE_DOCUMENT_SUBJECTS = Object.freeze({
   'Commerce & Principles of Accounts Syllabus (Forms 1-4)': null, // two subjects — no answer
   'Food & Nutrition Syllabus (Forms 1-4)': 'food_and_nutrition',
   'Food & Nutrition Syllabus (Grades 10-12, 2013)': 'food_and_nutrition',
+  'Fashion & Fabrics Syllabus (Forms 1-4)': 'fashion_and_fabrics',
+  'Hospitality Management Syllabus (Forms 1-4)': 'hospitality_management',
   'Home Management Syllabus (Grades 10-12, 2013)': 'home_management',
   'Home Economics Syllabus (Grades 5-7, 2013)': 'home_economics',
   'Home Economics & Hospitality Syllabus (Grades 4-6)': 'home_economics',

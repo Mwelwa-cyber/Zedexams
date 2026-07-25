@@ -3,6 +3,9 @@
  *
  *   commerce_and_principles_of_accounts → commerce | principles_of_accounts
  *   home_economics (senior secondary)   → food_and_nutrition | home_management
+ *                                       | fashion_and_fabrics
+ *                                       | hospitality_management
+ *   mathematics (Forms 1-4)             → mathematics_ii, when its topics say so
  *
  *   node scripts/migrate-subject-split.mjs              # DRY RUN (default)
  *   node scripts/migrate-subject-split.mjs --apply      # write the changes
@@ -294,8 +297,9 @@ if (AS_JSON) {
     console.log(
       `\n  Note: teacher assignments and syllabus selections carry no topics, so a\n` +
       `  script has nothing to classify them from. They resolve where they were made:\n` +
-      `  the studio now rejects the retired combined key and asks the teacher which\n` +
-      `  subject the assignment is (see validateAssignment). They are listed below as\n` +
+      `  the studio now rejects a key that names several subjects — the retired\n` +
+      `  Commerce workbook everywhere, Home Economics at CBC Forms 1-4 — and asks the\n` +
+      `  teacher which subject it is (see validateAssignment). They are listed below as\n` +
       `  ambiguous because that is what they are — not because the run failed.`,
     )
   }

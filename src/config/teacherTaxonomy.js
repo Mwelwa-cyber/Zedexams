@@ -199,6 +199,7 @@ export function isGradeInCurriculum(grade, curriculum) {
 export const LEGACY_SUBJECT_ALIASES = Object.freeze({
   accounts: 'principles_of_accounts',
   food_nutrition: 'food_and_nutrition',
+  fashion_fabrics: 'fashion_and_fabrics',
 })
 
 /**
@@ -211,6 +212,35 @@ export const LEGACY_SUBJECT_ALIASES = Object.freeze({
 export const SPLIT_LEGACY_SUBJECTS = Object.freeze({
   commerce_and_principles_of_accounts: ['commerce', 'principles_of_accounts'],
 })
+
+/**
+ * Subjects that are still perfectly real at some grades but name SEVERAL
+ * subjects at others, so there is no fold that is correct everywhere.
+ *
+ * `home_economics` is the case. It is ONE integrated subject at CBC Grades 4-6
+ * and across the 2013 set — and at CBC Forms 1-4 it is not a subject at all: the
+ * Ministry ships three separate examinable syllabi there, each numbering its
+ * topics from 1.1. An assignment carrying the shared key at those grades has to
+ * be re-picked; nothing can infer which pathway it meant.
+ */
+export const SPLIT_LEGACY_SUBJECTS_AT_GRADE = Object.freeze({
+  home_economics: Object.freeze({
+    curriculum: 'cbc',
+    grades: Object.freeze(['G8', 'G9', 'G10', 'G11']),
+    options: Object.freeze(['food_and_nutrition', 'fashion_and_fabrics', 'hospitality_management']),
+  }),
+})
+
+/**
+ * The subjects a value splits into at this grade + curriculum, or null when the
+ * value is unambiguous there. Pure lookup — it decides nothing about a record.
+ */
+export function splitSubjectsAtGrade(subject, grade, curriculum) {
+  const spec = SPLIT_LEGACY_SUBJECTS_AT_GRADE[canonicalSubjectValue(subject)]
+  if (!spec) return null
+  if (spec.curriculum && normalizeCurriculum(curriculum) !== spec.curriculum) return null
+  return spec.grades.includes(String(grade || '').toUpperCase()) ? spec.options : null
+}
 
 /** Fold a legacy subject value onto its canonical key. Idempotent. */
 export function canonicalSubjectValue(value) {
@@ -261,10 +291,13 @@ export const TEACHER_SUBJECTS = [
   { value: 'design_and_technology_studies',   label: 'Design & Technology Studies' },
   { value: 'art_and_design',   label: 'Art & Design' },
   { value: 'music_and_creative_arts', label: 'Music & Creative Arts' },
+  // Home Economics is one integrated subject at CBC Grades 4-6 and across the
+  // 2013 primary/secondary set. At CBC Forms 1-4 it is not a subject at all —
+  // the three pathways below are, each with its own syllabus numbered from 1.1.
   { value: 'home_economics',   label: 'Home Economics' },
   { value: 'home_management',  label: 'Home Management' },
   { value: 'food_and_nutrition', label: 'Food & Nutrition' },
-  { value: 'fashion_fabrics',  label: 'Fashion & Fabrics' },
+  { value: 'fashion_and_fabrics', label: 'Fashion & Fabrics' },
   { value: 'hospitality_management', label: 'Hospitality Management' },
   { value: 'travel_tourism',   label: 'Travel & Tourism' },
   { value: 'expressive_arts',  label: 'Expressive Arts' },
@@ -410,14 +443,17 @@ const SUBJECT_GRADE_MAP = {
     previous: [],
   },
   // Home Economics: the CBC upper-primary "(Grades 4-6)" sheets carry it from
-  // Grade 4 (secondary CBC splits it into Food & Nutrition / Fashion & Fabrics /
-  // Hospitality below); the 2013 set runs Grade 5 through senior secondary.
+  // Grade 4 as ONE integrated subject; the 2013 set runs Grade 5 through senior
+  // secondary the same way. It stops at Grade 6 under the CBC because the
+  // Ministry ships three separate examinable syllabi at Forms 1-4 instead —
+  // Food & Nutrition, Fashion & Fabrics and Hospitality Management below, each
+  // numbering its topics from 1.1. See SPLIT_LEGACY_SUBJECTS_AT_GRADE.
   home_economics: {
     cbc:      ['G4','G5','G6'],
     previous: ['G5','G6','G7','G8','G9','G10','G11','G12'],
   },
   // 2013 senior-secondary home-economics strands; the CBC replaces Home
-  // Management with the vocational subjects below.
+  // Management with the pathways below.
   home_management: {
     cbc:      [],
     previous: ['G10','G11','G12'],
@@ -426,11 +462,11 @@ const SUBJECT_GRADE_MAP = {
     cbc:      ['G8','G9','G10','G11'],
     previous: ['G10','G11','G12'],
   },
-  fashion_fabrics: {
+  fashion_and_fabrics: {
     cbc:      ['G8','G9','G10','G11'],
     previous: ['G10','G11','G12'],
   },
-  // CBC Forms 1-4 vocational pathways with no 2013 equivalent.
+  // CBC Forms 1-4 pathways with no 2013 equivalent.
   hospitality_management: {
     cbc:      ['G8','G9','G10','G11'],
     previous: [],

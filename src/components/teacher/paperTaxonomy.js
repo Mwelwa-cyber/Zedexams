@@ -407,9 +407,11 @@ const SUBJECT_LABELS = {
   // It used to fold into `mathematics`, which collided 29 of their codes.
   mathematics_ii: 'Mathematics II',
   // Own examinable subjects, own numbering. home_economics stays a real subject
-  // (CBC Grades 4-6, 2013 Grades 5-7) — it just no longer swallows these two.
+  // (CBC Grades 4-6, 2013 Grades 5-7) — it just no longer swallows these four.
   food_and_nutrition: 'Food & Nutrition',
   home_management: 'Home Management',
+  fashion_and_fabrics: 'Fashion & Fabrics',
+  hospitality_management: 'Hospitality Management',
   // Retained so a record saved before the split still renders a sensible label.
   // Never assigned to new content; the migration classifies these per record.
   commerce_and_principles_of_accounts: 'Commerce & Principles of Accounts',
@@ -439,8 +441,9 @@ export const FALLBACK_SUBJECT_KEYS = [
 // canonical slug a subject genuinely IS (same subject, different label), so the
 // selector never dead-ends on a real syllabus subject. Distinct senior/
 // vocational subjects that have no core equivalent (Fashion & Fabrics, Food &
-// Nutrition, Hospitality, Travel & Tourism, Literature in English) keep their
-// own slug and are accepted by the generators' allowlists instead of folded.
+// Nutrition, Hospitality Management, Travel & Tourism, Literature in English)
+// keep their own slug and are accepted by the generators' allowlists instead of
+// folded.
 const SUBJECT_FIXES = {
   expressive_art: 'expressive_arts',
   science: 'integrated_science',
@@ -473,6 +476,7 @@ const SUBJECT_FIXES = {
   accounts: 'principles_of_accounts',
   principles_accounts: 'principles_of_accounts',
   food_nutrition: 'food_and_nutrition',
+  fashion_fabrics: 'fashion_and_fabrics',
   //
   // 'commerce_and_principles_of_accounts' is deliberately NOT folded. It names
   // two subjects at once, so there is no single key to fold it to — that is the

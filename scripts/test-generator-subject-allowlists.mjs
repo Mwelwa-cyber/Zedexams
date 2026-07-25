@@ -36,6 +36,15 @@ const REQUIRED_KEYS = [
   "commerce_and_principles_of_accounts",
   "design_and_technology_studies",
   "music_and_creative_arts",
+  // The 2026-07 subject split: canonical keys carved out of shared ones. The
+  // studio picker sends these verbatim, so a generator that does not list one
+  // answers a legitimate pick with "Please select a supported subject".
+  "commerce",
+  "principles_of_accounts",
+  "food_and_nutrition",
+  "fashion_and_fabrics",
+  "hospitality_management",
+  "mathematics_ii",
 ];
 
 // assessmentAllowlists.js + the ten generate*.js copies as of this writing.

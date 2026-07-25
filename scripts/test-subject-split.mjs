@@ -229,6 +229,73 @@ test('Food & Nutrition 10.1 cannot become the parent of a Home Management 10.1.x
   )
 })
 
+test('the three CBC Forms 1-4 home-economics pathways are separate scopes', () => {
+  const topics = syllabiToKbTopics(raw2023)
+  const pathways = ['food_and_nutrition', 'fashion_and_fabrics', 'hospitality_management']
+  for (const grade of ['G8', 'G9', 'G10', 'G11']) {
+    const byPathway = new Map(pathways.map((s) => [s, topics.filter((t) => t.subject === s && t.grade === grade)]))
+    for (const [subject, rows] of byPathway) {
+      assert.ok(rows.length > 0, `${grade} ${subject} must have topics`)
+    }
+    // All three number from <form>.1 and are supposed to. No pathway may hold
+    // another's headings — that three-way collision is what this split removes.
+    for (const [subject, rows] of byPathway) {
+      const own = new Set(rows.map((t) => t.topic))
+      for (const [other, otherRows] of byPathway) {
+        if (other === subject) continue
+        for (const t of otherRows) {
+          assert.ok(!own.has(t.topic), `${grade}: ${t.topic} leaked from ${other} into ${subject}`)
+        }
+      }
+    }
+    // And none of them is filed as home_economics any more.
+    assert.equal(
+      topics.filter((t) => t.subject === 'home_economics' && t.grade === grade).length, 0,
+      `${grade} must have no home_economics rows — it is not a Forms 1-4 subject`,
+    )
+  }
+  // home_economics survives where it genuinely is one integrated subject.
+  assert.ok(topics.some((t) => t.subject === 'home_economics' && t.grade === 'G4'))
+})
+
+test('the same code in all three pathways is three independent topics', () => {
+  const topics = syllabiToKbTopics(raw2023)
+  const PATHWAYS = ['food_and_nutrition', 'fashion_and_fabrics', 'hospitality_management']
+  const at = (subject, grade) => topics.filter((t) => t.subject === subject && t.grade === grade)
+  assert.ok(at('fashion_and_fabrics', 'G9').some((t) => t.topic === '2.1 SAFETY'))
+  assert.ok(at('hospitality_management', 'G9').some((t) => /^2\.1\.?\s+INTRODUCTION TO HOSPITALITY/i.test(t.topic)))
+  assert.ok(at('food_and_nutrition', 'G9').some((t) => t.topic === '2.1 PRACTICAL PLANNING'))
+  // Each claims its <form>.1 code exactly once, so a <form>.1.x sub-topic has
+  // exactly one candidate parent. (\D guards the boundary: 1.10 is not 1.1.)
+  for (const [grade, form] of [['G8', 1], ['G9', 2], ['G10', 3], ['G11', 4]]) {
+    const at1 = new RegExp(`^${form}\\.1(\\D|$)`)
+    for (const subject of PATHWAYS) {
+      const ones = at(subject, grade).filter((t) => at1.test(t.topic))
+      assert.equal(ones.length, 1, `${subject} ${grade} must claim ${form}.1 once, saw ${ones.length}`)
+    }
+  }
+  // Three distinct internal identities for the same visible code.
+  const identities = new Set(PATHWAYS.map((subjectKey) =>
+    topicIdentity({ curriculumId: 'cbc', gradeId: 'G8', subjectKey, topicCode: '1.1' })))
+  assert.equal(identities.size, 3, 'the same code in three subjects must be three identities')
+})
+
+test('a Hospitality Management 2.1.x cannot become a child of Fashion & Fabrics 2.1', () => {
+  // Each pathway's hierarchy is repaired in its own call, so the shared code is
+  // never resolved across subjects.
+  const fashion = normalizeTopicTree(new Map([['2.1 SAFETY', new Set()]]))
+  const hospitality = normalizeTopicTree(new Map([
+    ['2.1. INTRODUCTION TO HOSPITALITY', new Set()],
+    ['2.1.1 Hospitality industry', new Set()],
+  ]))
+  assert.ok(hospitality.topics.get('2.1. INTRODUCTION TO HOSPITALITY')?.has('2.1.1 Hospitality industry'))
+  assert.ok(!fashion.topics.get('2.1 SAFETY').has('2.1.1 Hospitality industry'))
+  assert.notEqual(
+    topicScopeKey({ curriculumId: 'cbc', gradeId: 'G9', subjectKey: 'fashion_and_fabrics' }),
+    topicScopeKey({ curriculumId: 'cbc', gradeId: 'G9', subjectKey: 'hospitality_management' }),
+  )
+})
+
 test('Grades 5-7 Home Economics stays ONE integrated subject — never split', () => {
   // Owner decision, 2026-07-25, confirmed against the CDC source: the Grade 5-7
   // Home Economics syllabus carries ONE set of general outcomes and key
@@ -260,21 +327,23 @@ test('Grades 5-7 Home Economics stays ONE integrated subject — never split', (
 })
 
 test('a code claimed twice inside ONE scope is never given a parent by guessing', () => {
-  // The residual case: two subjects still sharing a key (Fashion & Fabrics and
-  // Hospitality Management both remain home_economics). A sub-topic of the
-  // contested code has two candidate parents, so it must be left as a topic
-  // rather than folded under whichever appears first.
+  // A code can still be claimed twice inside one legitimate scope — that is
+  // exactly what an integrated subject's components produce (Grades 5-7 Home
+  // Economics), and it is also what a still-shared key looks like (English +
+  // Literature in English). Either way a sub-topic of the contested code has two
+  // candidate parents, so it must be left as a topic rather than folded under
+  // whichever appears first.
   const { topics, ambiguous } = normalizeTopicTree(new Map([
-    ['1.1 Fashion topic', new Set(['a'])],
-    ['1.1 Hospitality topic', new Set(['b'])],
+    ['1.1 First component topic', new Set(['a'])],
+    ['1.1 Second component topic', new Set(['b'])],
     ['1.1.1 Whose child is this?', new Set(['c'])],
   ]))
   assert.ok(topics.has('1.1.1 Whose child is this?'), 'the contested child stays a top-level topic')
-  assert.ok(!topics.get('1.1 Fashion topic').has('1.1.1 Whose child is this?'))
-  assert.ok(!topics.get('1.1 Hospitality topic').has('1.1.1 Whose child is this?'))
+  assert.ok(!topics.get('1.1 First component topic').has('1.1.1 Whose child is this?'))
+  assert.ok(!topics.get('1.1 Second component topic').has('1.1.1 Whose child is this?'))
   assert.equal(ambiguous.length, 1)
   assert.equal(ambiguous[0].code, '1.1.1')
-  assert.deepEqual(ambiguous[0].owners, ['1.1 Fashion topic', '1.1 Hospitality topic'])
+  assert.deepEqual(ambiguous[0].owners, ['1.1 First component topic', '1.1 Second component topic'])
 })
 
 console.log('\nclassifier\n')
@@ -365,6 +434,52 @@ test('a genuine primary Home Economics record is unchanged, not flagged', () => 
   }, ctx)
   assert.equal(v.outcome, OUTCOMES.UNCHANGED)
   assert.equal(v.subject, 'home_economics')
+})
+
+test('a senior home_economics record is classified across all four pathways', () => {
+  // Forms 1-4: home_economics is not a subject at all, so the record is stranded
+  // and its topics decide which of the three CBC pathways owns it.
+  const cases = [
+    ['1.2 FASHION AND FABRICS WORKROOM', 'fashion_and_fabrics'],
+    ['1.2. FRONT OFFICE OPERATIONS', 'hospitality_management'],
+    ['1.2 NUTRITION', 'food_and_nutrition'],
+  ]
+  for (const [topic, expected] of cases) {
+    const v = classifyRecord({
+      subject: 'home_economics', grade: 'F1', curriculum: '2023', topics: [topic],
+    }, ctx)
+    assert.equal(v.outcome, OUTCOMES.CLASSIFIED, `${topic} → ${expected}`)
+    assert.equal(v.subject, expected)
+  }
+  // A paper spanning two pathways is reported, never assigned to the first.
+  const spanning = classifyRecord({
+    subject: 'home_economics', grade: 'F1', curriculum: '2023',
+    topics: ['1.2 FASHION AND FABRICS WORKROOM', '1.2. FRONT OFFICE OPERATIONS'],
+  }, ctx)
+  assert.equal(spanning.outcome, OUTCOMES.AMBIGUOUS)
+  assert.equal(spanning.subject, 'home_economics', 'the stored key is left alone')
+  assert.match(spanning.evidence, /span fashion_and_fabrics and hospitality_management/)
+  // And with no usable topics it is ambiguous, not guessed — unlike `mathematics`
+  // below, nothing at this level still owns the key it carries.
+  const blind = classifyRecord({
+    subject: 'home_economics', grade: 'F1', curriculum: '2023', topics: [],
+  }, ctx)
+  assert.equal(blind.outcome, OUTCOMES.AMBIGUOUS)
+  assert.equal(blind.subject, 'home_economics')
+})
+
+test('the Fashion & Fabrics / Hospitality Management documents decide on their own', () => {
+  for (const [doc, expected] of [
+    ['Fashion & Fabrics Syllabus (Forms 1-4)', 'fashion_and_fabrics'],
+    ['Hospitality Management Syllabus (Forms 1-4)', 'hospitality_management'],
+  ]) {
+    const v = classifyRecord({
+      subject: 'home_economics', grade: 'G9', curriculum: '2023', sourceSyllabus: doc, topics: [],
+    }, ctx)
+    assert.equal(v.outcome, OUTCOMES.CLASSIFIED, doc)
+    assert.equal(v.subject, expected)
+    assert.match(v.evidence, /source syllabus/)
+  }
 })
 
 test('a subject that was never split is not touched', () => {

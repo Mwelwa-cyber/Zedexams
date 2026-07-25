@@ -29,6 +29,7 @@ import {
   subjectExistsInCurriculum,
   canonicalSubjectValue,
   SPLIT_LEGACY_SUBJECTS,
+  splitSubjectsAtGrade,
 } from '../config/teacherTaxonomy.js'
 
 // ── value spaces ─────────────────────────────────────────────────────────────
@@ -224,6 +225,14 @@ export function validateAssignment(data = {}) {
   else if (SPLIT_LEGACY_SUBJECTS[n.subject]) {
     const options = SPLIT_LEGACY_SUBJECTS[n.subject].map((k) => subjectLabel(k)).join(' or ')
     errors.push(`${subjectLabel(n.subject)} is now two separate subjects. Choose ${options}.`)
+  }
+  // Still a real subject elsewhere, but not at this grade — Home Economics is
+  // three separate syllabi at CBC Forms 1-4. Same hard error for the same reason:
+  // nothing can infer which one the assignment meant.
+  else if (splitSubjectsAtGrade(n.subject, n.grade, n.curriculumType)) {
+    const options = splitSubjectsAtGrade(n.subject, n.grade, n.curriculumType).map((k) => subjectLabel(k))
+    const list = `${options.slice(0, -1).join(', ')} or ${options[options.length - 1]}`
+    errors.push(`${subjectLabel(n.subject)} is not one subject at ${gradeLabel(n.grade)} in the ${curriculumTypeLabel(n.curriculumType)}. Choose ${list}.`)
   }
   else if (!VALID_SUBJECT_VALUES.has(n.subject)) warnings.push(`Unrecognised subject "${n.subject}".`)
   else if (!subjectExistsInCurriculum(n.subject, n.curriculumType)) {

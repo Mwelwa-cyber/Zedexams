@@ -71,6 +71,51 @@
       ]
     },
     {
+      "id": "a-fashion",
+      "subject": "home_economics",
+      "grade": "Form 1",
+      "framework": "2023",
+      "topics": [
+        "1.2 FASHION AND FABRICS WORKROOM",
+        "1.4 CLOTHING"
+      ]
+    },
+    {
+      "id": "a-hospitality",
+      "subject": "home_economics",
+      "grade": "G9",
+      "framework": "2023",
+      "topics": [
+        "2.2. Front office",
+        "2.3. HOUSEKEEPING"
+      ]
+    },
+    {
+      "id": "a-he-sourcedoc",
+      "subject": "home_economics",
+      "grade": "G10",
+      "framework": "2023",
+      "sourceSyllabus": "Fashion & Fabrics Syllabus (Forms 1-4)",
+      "topics": []
+    },
+    {
+      "id": "a-he-spanning",
+      "subject": "home_economics",
+      "grade": "G9",
+      "framework": "2023",
+      "topics": [
+        "2.2 GROOMING",
+        "2.2. Front office"
+      ]
+    },
+    {
+      "id": "a-he-forms-notopics",
+      "subject": "home_economics",
+      "grade": "G11",
+      "framework": "2023",
+      "topics": []
+    },
+    {
       "id": "a-other",
       "subject": "mathematics",
       "grade": "G8",
@@ -165,6 +210,12 @@
       "id": "t-1",
       "subject": "commerce_and_principles_of_accounts",
       "grade": "G8",
+      "curriculumType": "cbc"
+    },
+    {
+      "id": "t-2",
+      "subject": "home_economics",
+      "grade": "G9",
       "curriculumType": "cbc"
     }
   ],

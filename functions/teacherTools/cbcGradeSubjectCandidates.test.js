@@ -3,7 +3,7 @@
  * candidate expansion cbcKnowledge.lookupTopic / suggestTopics use so the
  * standardized selector's F-codes ("F1"–"F4") and vocational subject slugs
  * ("fashion_fabrics", "home_management", …) still ground against a KB that
- * stores Forms topics under G8–G12 and vocational syllabi under core
+ * stores Forms topics under G8–G12 and folds some syllabi onto core
  * subject keys. Run directly:
  *
  *   node functions/teacherTools/cbcGradeSubjectCandidates.test.js
@@ -70,14 +70,18 @@ const {SPLIT_DOCUMENTS} = require("./syllabusSubjectSplit");
 
 // ── subjectCandidates: vocational / legacy slugs fold to their KB key ────
 {
-  // Forms 1-4 vocational syllabi (2023 data file).
+  // Forms 1-4 vocational syllabi (2023 data file). All three home-economics
+  // pathways are their own canonical subjects now — filing them together under
+  // home_economics collided their codes with each other. The pre-split slugs
+  // still fold onto them so a saved pick keeps resolving.
   assert.deepStrictEqual(
     subjectCandidates("fashion_fabrics"),
-    ["fashion_fabrics", "home_economics"],
+    ["fashion_fabrics", "fashion_and_fabrics"],
   );
-  // Food & Nutrition is its own canonical subject now (it was folded into
-  // home_economics, which collided its codes with Fashion & Fabrics). The
-  // pre-split slug still folds onto it so a saved pick keeps resolving.
+  assert.deepStrictEqual(
+    subjectCandidates("fashion_and_fabrics"),
+    ["fashion_and_fabrics"],
+  );
   assert.deepStrictEqual(
     subjectCandidates("food_nutrition"),
     ["food_nutrition", "food_and_nutrition"],
@@ -99,7 +103,7 @@ const {SPLIT_DOCUMENTS} = require("./syllabusSubjectSplit");
   );
   assert.deepStrictEqual(
     subjectCandidates("hospitality_management"),
-    ["hospitality_management", "home_economics"],
+    ["hospitality_management"],
   );
   assert.deepStrictEqual(
     subjectCandidates("travel_tourism"),
@@ -190,13 +194,13 @@ const {SPLIT_DOCUMENTS} = require("./syllabusSubjectSplit");
   // Display label.
   assert.deepStrictEqual(
     subjectCandidates("Fashion & Fabrics"),
-    ["fashion_fabrics", "home_economics"],
+    ["fashion_fabrics", "fashion_and_fabrics"],
   );
   // cbcKnowledge.normalizeSubject turns every non-letter into "_" without
   // collapsing runs — the candidates helper must still resolve that shape.
   assert.deepStrictEqual(
     subjectCandidates("fashion___fabrics"),
-    ["fashion_fabrics", "home_economics"],
+    ["fashion_fabrics", "fashion_and_fabrics"],
   );
   assert.deepStrictEqual(
     subjectCandidates("Travel & Tourism"),
@@ -232,8 +236,25 @@ const {SPLIT_DOCUMENTS} = require("./syllabusSubjectSplit");
 {
   assert.strictEqual(
     STUDIO_SUBJECT_TO_KB["Fashion & Fabrics Syllabus (Forms 1-4)"],
+    "fashion_and_fabrics",
+  );
+  assert.strictEqual(
+    STUDIO_SUBJECT_TO_KB["Hospitality Management Syllabus (Forms 1-4)"],
+    "hospitality_management",
+  );
+  // The one 2023 document home_economics still owns: the integrated
+  // upper-primary subject. Nothing at Forms 1-4 maps to it any more.
+  assert.strictEqual(
+    STUDIO_SUBJECT_TO_KB["Home Economics & Hospitality Syllabus (Grades 4-6)"],
     "home_economics",
   );
+  for (const [doc, kbKey] of Object.entries(STUDIO_SUBJECT_TO_KB)) {
+    if (kbKey !== "home_economics") continue;
+    assert.ok(
+        !/Forms\s*1-4/i.test(doc),
+        `Forms 1-4 document still filed under home_economics: ${doc}`,
+    );
+  }
   // Home Management and Food & Nutrition each own their key — filing both under
   // home_economics made every one of their G10-G12 codes collide.
   assert.strictEqual(

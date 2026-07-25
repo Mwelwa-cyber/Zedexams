@@ -161,6 +161,35 @@ check('the pre-split combined subject asks the teacher to choose, never guesses'
   assert.ok(combined.errors.some((e) => e.includes('Commerce') && e.includes('Principles of Accounts')))
 })
 
+check('Home Economics at CBC Forms 1-4 asks which pathway, and only there', () => {
+  // Three separate examinable syllabi at Forms 1-4, so the shared key cannot be
+  // saved there — but it is a perfectly good subject at upper primary and across
+  // the 2013 set, where it must save without complaint.
+  const forms = validateAssignment({ grade: 'G9', subject: 'home_economics', curriculumType: 'cbc' })
+  assert.equal(forms.valid, false)
+  assert.ok(
+    forms.errors.some((e) => /Home Economics is not one subject at .*Form 2/.test(e)),
+    `expected a "choose a pathway" error, got: ${forms.errors.join('; ')}`,
+  )
+  // All three pathways are named so the teacher can act on the message.
+  assert.ok(forms.errors.some((e) =>
+    e.includes('Food & Nutrition') && e.includes('Fashion & Fabrics') && e.includes('Hospitality Management')))
+
+  const primary = validateAssignment({ grade: 'G4', subject: 'home_economics', curriculumType: 'cbc' })
+  assert.equal(primary.valid, true, primary.errors.join('; '))
+  const obc = validateAssignment({ grade: 'G9', subject: 'home_economics', curriculumType: 'previous' })
+  assert.equal(obc.valid, true, obc.errors.join('; '))
+
+  // And each pathway saves cleanly on its own.
+  for (const subject of ['food_and_nutrition', 'fashion_and_fabrics', 'hospitality_management']) {
+    const v = validateAssignment({ grade: 'G9', subject, curriculumType: 'cbc' })
+    assert.equal(v.valid, true, `${subject}: ${v.errors.join('; ')}`)
+  }
+  // The pre-split 'fashion_fabrics' spelling folds on read rather than erroring.
+  const legacy = validateAssignment({ grade: 'G9', subject: 'fashion_fabrics', curriculumType: 'cbc' })
+  assert.equal(legacy.valid, true, legacy.errors.join('; '))
+})
+
 check('a grade the curriculum does not offer is a hard save error', () => {
   const g7 = validateAssignment({ grade: 'G7', subject: 'english', curriculumType: 'cbc' })
   assert.equal(g7.valid, false)

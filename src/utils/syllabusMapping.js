@@ -65,14 +65,14 @@ export const STUDIO_SUBJECT_TO_KB = {
   'Literature in English Syllabus (Forms 1-4)':    'english',
   'Religious Education Syllabus (Forms 1-4)':      'religious_education',
   'Physical Education Syllabus (Forms 1-4)':       'physical_education',
-  // Food & Nutrition is its own examinable subject with its own numbering —
-  // filing it under home_economics collided it with Fashion & Fabrics and
-  // Hospitality Management at Forms 1-4. Those two remain a separate mapping
-  // question (they still share home_economics and still collide with each
-  // other); the validation report names them.
+  // The three CBC Forms 1-4 home-economics pathways are three separate
+  // examinable subjects, each shipped as its own document and each numbering its
+  // topics from 1.1. Filing all three under home_economics collided their codes
+  // with each other at G8-G11. home_economics stays the key for the ONE place it
+  // genuinely is one subject — the "(Grades 4-6)" document above.
   'Food & Nutrition Syllabus (Forms 1-4)':         'food_and_nutrition',
-  'Fashion & Fabrics Syllabus (Forms 1-4)':        'home_economics',
-  'Hospitality Management Syllabus (Forms 1-4)':   'home_economics',
+  'Fashion & Fabrics Syllabus (Forms 1-4)':        'fashion_and_fabrics',
+  'Hospitality Management Syllabus (Forms 1-4)':   'hospitality_management',
   'Music & Creative Arts Syllabus (Forms 1-4)':    'music_and_creative_arts',
   'Travel & Tourism Syllabus (Forms 1-4)':         'social_studies',
   'Zambian Languages Syllabus (Forms 1-4)':        'zambian_language',
