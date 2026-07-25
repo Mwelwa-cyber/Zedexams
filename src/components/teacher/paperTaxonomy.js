@@ -14,55 +14,37 @@
 // label/key plumbing those hooks lean on.
 
 import { normalizeSubject } from '../../config/curriculum.js'
+import {
+  EDUCATION_LEVELS, LEVEL_STAGE_LABELS as LADDER_STAGE_LABELS,
+  levelsForFramework, resolveLevel, levelKbGrade,
+} from '../../config/educationLevels.js'
 
 // ── Grades ─────────────────────────────────────────────────────────────────
-// The studio's own grade picker stays 1–12 (assessmentStudioMeta.js); the AI
-// paper modal offers a CURRICULUM-AWARE grade + form list so CBC and the
-// previous syllabus no longer show an identical set of grades/subjects:
+// Every level, its label, its syllabus code, its aliases and which curriculum
+// defines it now come from ONE declaration: src/config/educationLevels.js.
+// This file used to carry its own copies of those lists, which is how the ECE
+// naming and the Form/Grade mapping ended up stated in several places at once.
 //
-//   • CBC (2023): ECE Nursery/Reception, Grade 1–6 (primary) and Form 1–4
-//     (secondary). Grade 7 was abolished from primary in the 3-6-4-2
-//     restructure. Secondary is labelled with FORMS — the CBC syllabus keys
-//     Form 1–4 as G8–G11 (see syllabusMapping.sheetNameToGrade), so a form
-//     option carries its G-code as the VALUE while it DISPLAYS "Form N".
+// What the ladder encodes, so it is not re-derived here:
+//   • Early Childhood is Baby Class / Middle Class / Reception. Middle Class
+//     and Reception share the 4-5 year syllabus — two school years, one
+//     published syllabus, which is an alias rather than a duplicated copy.
+//   • Secondary VALUES stay the KB grade codes (G8…G12) and DISPLAY as Form
+//     1–5, with "Grade 8"…"Grade 12" declared as aliases of the same level, so
+//     a school using either naming lands on one curriculum year.
+//   • CBC (2023) abolished Grade 7 and stops at Form 4; the previous (2013)
+//     syllabus runs Grade 1–7 and Form 1–5 and has no ECE bands.
 //
-//   • Previous (2013): Grade 1–7 (primary) + Form 1–5 (secondary). The 2013
-//     syllabus keys secondary by Grade 8–12; those are surfaced as Form 1–5
-//     (the historical labelling Zambian teachers know), mapping Form N →
-//     G(N+7). No ECE bands — the 2013 data has none.
-//
-// Keeping the form VALUE as the KB grade code (G8…G12) means the syllabus
-// subject/topic lookups and the server grounding both resolve; only the label
-// changes. Values match functions/teacherTools/assessmentAllowlists.js.
-const ECE_GRADE_OPTIONS = [
-  { value: 'ECE_N', label: 'ECE — Nursery (3–4 yrs)' },
-  { value: 'ECE_R', label: 'ECE — Reception (4–5 yrs)' },
-]
+// Being OFFERED additionally requires syllabus rows on file — see
+// getAvailableLevels below.
+const optionOf = (level) => ({ value: level.value, label: level.label })
 
-const gradeOpt = (n) => ({ value: String(n), label: `Grade ${n}` })
-// Form N → Grade (N+7); the value keeps the G-code the syllabus is keyed by.
-const formOpt = (n) => ({ value: `G${n + 7}`, label: `Form ${n}` })
-
-// CBC (2023): ECE + Grade 1–6 + Form 1–4.
-const CBC_GRADE_OPTIONS = [
-  ...ECE_GRADE_OPTIONS,
-  ...[1, 2, 3, 4, 5, 6].map(gradeOpt),
-  ...[1, 2, 3, 4].map(formOpt),
-]
-
-// Previous (2013): Grade 1–7 + Form 1–5.
-const PREVIOUS_GRADE_OPTIONS = [
-  ...[1, 2, 3, 4, 5, 6, 7].map(gradeOpt),
-  ...[1, 2, 3, 4, 5].map(formOpt),
-]
+const CBC_GRADE_OPTIONS = levelsForFramework('2023').map(optionOf)
+const PREVIOUS_GRADE_OPTIONS = levelsForFramework('2013').map(optionOf)
 
 // The full universe of selectable grade values across both frameworks. Still
 // exported for callers/tests that want the superset rather than one framework.
-export const PAPER_GRADE_OPTIONS = [
-  ...ECE_GRADE_OPTIONS,
-  ...[1, 2, 3, 4, 5, 6, 7].map(gradeOpt),
-  ...[1, 2, 3, 4, 5].map(formOpt),
-]
+export const PAPER_GRADE_OPTIONS = EDUCATION_LEVELS.map(optionOf)
 
 const PAPER_GRADE_VALUES = new Set(
   [...CBC_GRADE_OPTIONS, ...PREVIOUS_GRADE_OPTIONS].map((g) => g.value),
@@ -79,41 +61,19 @@ export function paperGradeOptions(framework = '2023') {
   return String(framework) === '2013' ? PREVIOUS_GRADE_OPTIONS : CBC_GRADE_OPTIONS
 }
 
-// ── Level identity + ordering (normalized IDs) ───────────────────────────────
-// Every selectable level carries a STABLE id, its OFFICIAL label, an education
-// stage and an EXPLICIT sort order so pickers never sort alphabetically (which
-// interleaves "Grade 10" between "Grade 1" and "Grade 2", or lists Form 1
-// before Grade 1). The `value` stays the KB-pipeline token the syllabus lookups
-// + generators already speak — a bare number for primary grades, 'G8'..'G12'
-// for the forms displayed as Form 1..5, and 'ECE_N'/'ECE_R' for the two ECE
-// bands — so nothing downstream has to change to gain proper Form/Nursery
-// labels. A Form is NEVER relabelled as a Grade: G8 is "Form 1", not "Grade 8".
-export const LEVEL_STAGE_LABELS = {
-  ece: 'Early Childhood',
-  primary: 'Primary',
-  secondary: 'Secondary',
-}
+// ── Level identity + ordering ───────────────────────────────────────────────
+// Resolution, labels, stages and ordering all come from the ladder. Pickers
+// sort on the ladder's explicit `order` so they never sort alphabetically
+// (which interleaves "Grade 10" between "Grade 1" and "Grade 2", or lists Form
+// 1 before Grade 1).
+export const LEVEL_STAGE_LABELS = LADDER_STAGE_LABELS
 
-const LEVEL_META = (() => {
-  const m = {
-    ECE_N: { id: 'nursery', label: 'Nursery', stage: 'ece', order: 10 },
-    ECE_R: { id: 'reception', label: 'Reception', stage: 'ece', order: 20 },
-  }
-  // Primary grades 1–7 → bare-number values, order 40..100.
-  for (let n = 1; n <= 7; n++) {
-    m[String(n)] = { id: `grade-${n}`, label: `Grade ${n}`, stage: 'primary', order: 30 + n * 10 }
-  }
-  // Forms 1–5 → KB codes G8..G12, order 110..150 (always AFTER every grade).
-  for (let n = 1; n <= 5; n++) {
-    m[`G${n + 7}`] = { id: `form-${n}`, label: `Form ${n}`, stage: 'secondary', order: 100 + n * 10 }
-  }
-  return m
-})()
-
-// A legacy paper saved before secondary was surfaced as forms carries a bare
-// secondary grade token ('8'..'12') that literally meant "Grade 8"…"Grade 12".
-// Per the backward-compatibility rule we must NOT silently convert those to
-// forms — keep the historical "Grade N" label and flag them as legacy.
+// A paper saved before secondary was surfaced as forms carries a bare secondary
+// token ('8'..'12') that literally meant "Grade 8"…"Grade 12". Those ARE the
+// Form years under their alternative naming — the ladder declares "Grade 8" as
+// an alias of Form 1 — but the historical label is kept and the descriptor
+// flagged `legacy`, so an old paper still prints the words it was saved with
+// and no display silently rewrites itself.
 export function isLegacySecondaryGrade(value) {
   const n = Number(String(value ?? '').trim())
   return Number.isInteger(n) && n >= 8 && n <= 12
@@ -121,41 +81,34 @@ export function isLegacySecondaryGrade(value) {
 
 /**
  * Normalized level descriptor for a picker/stored value:
- *   { id, label, stage, order }
- * Recognises the canonical option values, human labels ('Grade 4', 'Form 1',
- * 'Nursery') and legacy bare secondary numbers. Unknown values degrade to a
- * best-effort label so a paper never crashes on an unexpected grade token.
+ *   { value, id, label, stage, order }
+ * Resolves canonical values, official labels, display aliases ('Grade 10' →
+ * Form 3) and the retired ECE spellings ('ECE_N' / 'Nursery' → Baby Class).
+ * Unknown values degrade to a best-effort label so a paper never crashes on an
+ * unexpected grade token.
  */
 export function paperLevel(value) {
   const raw = String(value ?? '').trim()
   if (!raw) return null
-  if (LEVEL_META[raw]) return { value: raw, ...LEVEL_META[raw] }
-  // Legacy bare secondary number → keep "Grade N", flag it.
+  // Legacy bare secondary number → keep the historical "Grade N" wording.
   if (isLegacySecondaryGrade(raw)) {
     const n = Number(raw)
-    return { value: raw, id: `grade-${n}`, label: `Grade ${n}`, stage: 'secondary', order: 100 + (n - 7) * 10, legacy: true }
+    return {
+      value: raw, id: `grade-${n}`, label: `Grade ${n}`,
+      stage: 'secondary', order: 100 + (n - 7) * 10, legacy: true,
+    }
   }
-  // Human labels the studio sometimes stores ('Grade 4', 'Form 1', 'Nursery').
-  const lower = raw.toLowerCase()
-  if (lower === 'nursery') return { value: 'ECE_N', ...LEVEL_META.ECE_N }
-  if (lower === 'reception') return { value: 'ECE_R', ...LEVEL_META.ECE_R }
-  const form = lower.match(/^form\s*(\d)$/)
-  if (form) {
-    const code = `G${Number(form[1]) + 7}`
-    if (LEVEL_META[code]) return { value: code, ...LEVEL_META[code] }
-  }
-  const grade = lower.match(/^grade\s*(\d{1,2})$/)
-  if (grade) {
-    const n = Number(grade[1])
-    if (LEVEL_META[String(n)]) return { value: String(n), ...LEVEL_META[String(n)] }
-    if (n >= 8 && n <= 12) {
-      return { value: String(n), id: `grade-${n}`, label: `Grade ${n}`, stage: 'secondary', order: 100 + (n - 7) * 10, legacy: true }
+  const level = resolveLevel(raw)
+  if (level) {
+    return {
+      value: level.value, id: level.id, label: level.label,
+      stage: level.stage, order: level.order,
     }
   }
   return { value: raw, id: raw, label: raw, stage: 'unknown', order: 999 }
 }
 
-/** Official display label for a grade/level value ('Grade 4' / 'Form 1' / 'Nursery'). */
+/** Official display label for a grade/level value ('Grade 4' / 'Form 1' / 'Baby Class'). */
 export function paperGradeLabel(value) {
   return paperLevel(value)?.label || String(value ?? '')
 }
@@ -171,17 +124,15 @@ export function orderLevels(levels) {
  */
 export function paperLevelOptions(framework = '2023') {
   return orderLevels(
-    paperGradeOptions(framework).map((o) => {
-      const meta = LEVEL_META[o.value] || paperLevel(o.value)
-      return {
-        value: o.value,
-        label: meta?.label || o.label,
-        id: meta?.id,
-        stage: meta?.stage,
-        order: meta?.order,
-        group: LEVEL_STAGE_LABELS[meta?.stage] || 'Other',
-      }
-    }),
+    levelsForFramework(framework).map((level) => ({
+      value: level.value,
+      label: level.label,
+      id: level.id,
+      stage: level.stage,
+      order: level.order,
+      band: level.band,
+      group: LEVEL_STAGE_LABELS[level.stage] || 'Other',
+    })),
   )
 }
 
@@ -216,27 +167,28 @@ export function normalizePaperGrade(grade) {
   const raw = String(grade || '').trim()
   if (!raw) return ''
   if (isPaperGrade(raw)) return raw
-  const upper = raw.toUpperCase()
-  if (upper === 'ECE') return 'ECE_N'
-  if (upper === 'ECE_N' || upper === 'ECE_R') return upper
-  const form = upper.match(/^F(?:ORM)?\s*(\d)$/)
-  if (form) {
-    const n = Number(form[1])
-    if (n >= 1 && n <= 5) return `G${n + 7}`
-  }
-  const num = upper.match(/^(?:GRADE\s*|G)?(\d{1,2})$/)
-  if (num) {
-    const n = Number(num[1])
-    if (n >= 1 && n <= 7) return String(n)
-    if (n >= 8 && n <= 12) return `G${n}`
-  }
+  // The ladder resolves every declared spelling — official label, display alias
+  // ("Grade 10" → Form 3), retired ECE code ("ECE_N"/"Nursery" → Baby Class).
+  const level = resolveLevel(raw)
+  if (level) return level.value
+  // A bare "ECE" predates the age bands and spans all three ECE years, so it is
+  // genuinely ambiguous. It has always resolved to the YOUNGEST here, and that
+  // stays true: pitching content down is harmless to an older child, pitching
+  // it up is not.
+  if (raw.toUpperCase() === 'ECE') return 'ECE_B'
   return raw
 }
 
-// Studio grade value ('4', 'ECE_N') → KB grade code ('G4', 'ECE_N'). The ECE
-// family + already-prefixed G/F codes pass through unchanged; bare numbers
-// get the G-prefix.
+// Studio grade value ('4', 'ECE_B', 'Form 3') → the KB grade code its syllabus
+// is filed under ('G4', 'ECE_N', 'G10'). This is the one place the mapping is
+// applied: Baby Class stores ECE_B but grounds on the 3-4 year syllabus, and
+// Middle Class and Reception both ground on the 4-5 year one, so the code
+// cannot be derived from the value by string surgery. Unknown values fall back
+// to the historical prefix rule so an unexpected token still resolves to
+// something the lookups can reject cleanly.
 export function studioGradeToKbGrade(grade) {
+  const mapped = levelKbGrade(grade)
+  if (mapped) return mapped
   const g = String(grade || '').trim().toUpperCase()
   if (!g) return ''
   return g.startsWith('G') || g.startsWith('F') || g.startsWith('ECE') ? g : `G${g}`
