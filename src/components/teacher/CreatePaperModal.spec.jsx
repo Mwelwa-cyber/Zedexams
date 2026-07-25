@@ -50,6 +50,7 @@ vi.mock('./syllabusTopicOptions', () => ({
 
 vi.mock('../../utils/teacherTools', () => ({
   generateAssessment: vi.fn(),
+  planAssessment: vi.fn(),
 }))
 
 // The fail-fast generation gate is covered by its own suite
@@ -91,6 +92,59 @@ function renderModal(props = {}) {
   )
 }
 
+// A minimal but VALID plan, in the shape planAssessment returns. The plan step
+// runs before every generation now, so almost every test here walks through it.
+function fakePlan(over = {}) {
+  return {
+    blueprint: {
+      version: 'blueprint.v1',
+      grade: 'G4', subject: 'mathematics', framework: '2023',
+      assessmentType: 'end_of_term',
+      totalMarks: 4, requestedMarks: 4, durationMinutes: 60, estimatedMinutes: 5,
+      itemCount: 2, topics: ['Numbers'], warnings: [],
+      sections: [{
+        name: '', heading: '', instructions: '', marks: 4, itemCount: 2,
+        items: [
+          {
+            id: 'q1', number: 1, topic: 'Numbers', marks: 2, bloomLevel: 'remember',
+            difficulty: 'recall', learningOutcome: 'Count to 100',
+            activityType: 'multiple_choice', activityLabel: 'Multiple choice',
+            activitySupport: 'native', renderType: 'multiple_choice',
+            figureRequired: false,
+          },
+          {
+            id: 'q2', number: 2, topic: 'Numbers', marks: 2, bloomLevel: 'understand',
+            difficulty: 'understanding', learningOutcome: '',
+            activityType: 'short_answer', activityLabel: 'Short answer',
+            activitySupport: 'native', renderType: 'short_answer',
+            figureRequired: false,
+          },
+        ],
+      }],
+    },
+    problems: [], topicsOnFile: 4, preview: null,
+    ...over,
+  }
+}
+
+// Generation is a two-step flow: "Plan the paper" costs nothing and shows the
+// teacher what is about to be written; "Write this paper" generates it. These
+// helpers walk that path so each test stays about the thing it is testing.
+async function reachPlanStep(plan) {
+  const { planAssessment } = await import('../../utils/teacherTools')
+  planAssessment.mockResolvedValue({ ok: true, data: plan || fakePlan() })
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: /Plan the paper/i }))
+  })
+}
+function writeButton() {
+  return screen.getByRole('button', { name: /Write this paper/i })
+}
+async function planAndWrite() {
+  await reachPlanStep()
+  await act(async () => { fireEvent.click(writeButton()) })
+}
+
 // The topic block is the one labelled "Topics from the syllabus".
 function topicGroup() {
   const label = screen.getByText(/Topics from the syllabus/i)
@@ -121,7 +175,7 @@ describe('CreatePaperModal — topic checkboxes', () => {
     expect(screen.queryByRole('option', { name: 'English' })).not.toBeInTheDocument()
     expect(screen.queryByRole('option', { name: 'Social Studies' })).not.toBeInTheDocument()
     // Generating is blocked with a clear message rather than sending a stale subject.
-    fireEvent.click(screen.getByRole('button', { name: /Generate/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Plan the paper/i }))
     expect(screen.getByText(/no subjects in the chosen syllabus/i)).toBeInTheDocument()
   })
 
@@ -195,7 +249,7 @@ describe('CreatePaperModal — question types', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Short answer' }))
     fireEvent.click(screen.getByRole('button', { name: 'Fill in the blank' }))
 
-    fireEvent.click(screen.getByRole('button', { name: /Generate paper/i }))
+    await planAndWrite()
 
     expect(generateAssessment).toHaveBeenCalledTimes(1)
     const payload = generateAssessment.mock.calls[0][0]
@@ -248,7 +302,7 @@ describe('CreatePaperModal — assessment type picker', () => {
     renderModal()
     fireEvent.change(screen.getByLabelText('Assessment type'), { target: { value } })
     fireEvent.click(screen.getByRole('checkbox', { name: 'Numbers' }))
-    fireEvent.click(screen.getByRole('button', { name: /Generate paper/i }))
+    await planAndWrite()
 
     expect(generateAssessment).toHaveBeenCalledTimes(1)
     const payload = generateAssessment.mock.calls[0][0]
@@ -265,7 +319,7 @@ describe('CreatePaperModal — assessment type picker', () => {
     renderModal()
     fireEvent.change(screen.getByLabelText('Assessment type'), { target: { value: 'topic_test' } })
     fireEvent.click(screen.getByRole('checkbox', { name: 'Numbers' }))
-    fireEvent.click(screen.getByRole('button', { name: /Generate paper/i }))
+    await planAndWrite()
 
     const payload = generateAssessment.mock.calls[0][0]
     expect(payload.assessmentType).toBe('topic_test')
@@ -296,13 +350,16 @@ describe('CreatePaperModal — stop-generation race', () => {
     renderModal()
     fireEvent.click(screen.getByRole('checkbox', { name: 'Numbers' }))
 
-    // Click Generate — async handler runs to the first await; status → 'generating'
-    // LiveGenerationCanvas renders and canvasCapture.onStop is populated
-    fireEvent.click(screen.getByRole('button', { name: /Generate paper/i }))
+    // Confirm the plan, then click Write — the async handler runs to the first
+    // await; status → 'generating', LiveGenerationCanvas renders and
+    // canvasCapture.onStop is populated.
+    await reachPlanStep()
+    fireEvent.click(writeButton())
 
     expect(canvasCapture.onStop).toBeInstanceOf(Function)
 
-    // Simulate teacher clicking Stop — bumps runRef, status → 'idle'
+    // Simulate teacher clicking Stop — bumps runRef and drops back to the
+    // confirmed plan, so the teacher can write it again without re-planning.
     act(() => { canvasCapture.onStop() })
 
     // Now the callable resolves with a valid result
@@ -318,11 +375,11 @@ describe('CreatePaperModal — stop-generation race', () => {
 
     // The bail check (run !== runRef.current) must have fired:
     //   • aiAssessmentToStudioBlocks was never reached
-    //   • status is still 'idle', not 'done' — no Apply buttons appear
+    //   • status is back on the plan, not 'done' — no Apply buttons appear
     expect(aiAssessmentToStudioBlocks).not.toHaveBeenCalled()
-    const generateBtn = screen.getByRole('button', { name: /Generate paper/i })
-    expect(generateBtn).toBeInTheDocument()
-    expect(generateBtn).not.toBeDisabled()
+    const writeBtn = writeButton()
+    expect(writeBtn).toBeInTheDocument()
+    expect(writeBtn).not.toBeDisabled()
   })
 })
 
@@ -380,7 +437,8 @@ describe('CreatePaperModal — duplicate-click protection', () => {
     renderModal()
     fireEvent.click(screen.getByRole('checkbox', { name: 'Numbers' }))
 
-    const btn = screen.getByRole('button', { name: /Generate paper/i })
+    await reachPlanStep()
+    const btn = writeButton()
     // Two rapid clicks in the same synchronous burst, like a real double-click
     // firing before React re-renders the disabled state.
     fireEvent.click(btn)
@@ -399,9 +457,7 @@ describe('CreatePaperModal — duplicate-click protection', () => {
 
     renderModal()
     fireEvent.click(screen.getByRole('checkbox', { name: 'Numbers' }))
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /Generate paper/i }))
-    })
+    await planAndWrite()
 
     const payload = generateAssessment.mock.calls[0][0]
     expect(payload.idempotencyKey).toMatch(UUID_RE)
@@ -413,7 +469,8 @@ describe('CreatePaperModal — duplicate-click protection', () => {
 
     renderModal()
     fireEvent.click(screen.getByRole('checkbox', { name: 'Numbers' }))
-    const btn = screen.getByRole('button', { name: /Generate paper/i })
+    await reachPlanStep()
+    const btn = writeButton()
 
     await act(async () => { fireEvent.click(btn) })
     const firstKey = generateAssessment.mock.calls[0][0].idempotencyKey
@@ -430,14 +487,15 @@ describe('CreatePaperModal — duplicate-click protection', () => {
 
     renderModal()
     fireEvent.click(screen.getByRole('checkbox', { name: 'Numbers' }))
-    const btn = screen.getByRole('button', { name: /Generate paper/i })
-
-    await act(async () => { fireEvent.click(btn) })
+    await planAndWrite()
     const firstKey = generateAssessment.mock.calls[0][0].idempotencyKey
 
-    // A genuinely different request — different topic selection.
+    // A genuinely different request — different topic selection. The teacher
+    // goes back to the settings, changes the topic, and plans again; a changed
+    // request must not reuse the previous request's key.
+    fireEvent.click(screen.getByRole('button', { name: /Change settings/i }))
     fireEvent.click(screen.getByRole('checkbox', { name: 'Fractions' }))
-    await act(async () => { fireEvent.click(btn) })
+    await planAndWrite()
     const secondKey = generateAssessment.mock.calls[1][0].idempotencyKey
 
     expect(secondKey).not.toBe(firstKey)
@@ -515,7 +573,7 @@ describe('CreatePaperModal — question types follow the band', () => {
     // generator via a chip that is no longer on screen.
     await selectGrade('ECE_N')
     fireEvent.click(screen.getByRole('checkbox', { name: 'Numbers' }))
-    fireEvent.click(screen.getByRole('button', { name: /Generate paper/i }))
+    await planAndWrite()
 
     expect(generateAssessment).toHaveBeenCalledTimes(1)
     expect(generateAssessment.mock.calls[0][0].questionTypes).not.toContain('essay')

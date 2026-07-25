@@ -123,6 +123,7 @@ const {
 const {
   createGenerateAssessment,
 } = require("./teacherTools/generateAssessment");
+const {createPlanAssessment} = require("./teacherTools/planAssessment");
 // Teacher Tools — SBA Studio (ECZ School Based Assessment task generator).
 const {
   createGenerateSbaTask,
@@ -2564,6 +2565,13 @@ exports.generateLessonActivities =
 
 // Teacher Tools — Assessment (formal curriculum-grounded graded test).
 exports.generateAssessment = createGenerateAssessment(anthropicApiKey);
+
+// Teacher Tools — Assessment plan (§3.1). Derives the paper's plan — sections,
+// per-question topic/outcome/thinking level/difficulty/marks — and returns it for
+// the teacher to confirm BEFORE anything is generated. No model call, no secret,
+// no usage charge: Firestore reads and arithmetic. The plan the teacher confirms
+// is sent back with the generate call and re-checked there.
+exports.planAssessment = createPlanAssessment();
 
 // Teacher Tools — SBA Studio (ECZ School Based Assessment task, Grades 5–7).
 exports.generateSbaTask = createGenerateSbaTask(anthropicApiKey);
