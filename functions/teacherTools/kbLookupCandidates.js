@@ -3,9 +3,8 @@
  * lookups, plus the studio-subject → KB-subject tables it derives from.
  *
  * WHY: the KB stores Forms-syllabus topics under grade codes G8–G12
- * (FORM_TO_GRADE below) and folds the vocational syllabi into core subject
- * keys (Fashion & Fabrics / Food & Nutrition / Hospitality Management /
- * Home Management → home_economics, Travel & Tourism → social_studies,
+ * (FORM_TO_GRADE below) and folds some syllabi into core subject
+ * keys (Travel & Tourism → social_studies,
  * Literature in English → english, …). The standardized studio curriculum
  * selector, however, sends the teacher's literal pick: grade "F1"–"F4" and
  * subject slugs like "fashion_fabrics". Exact-equality matching in
@@ -29,6 +28,9 @@ const STUDIO_SUBJECT_TO_KB = {
   "Art & Design Syllabus (Forms 1-4)": "art_and_design",
   "Biology Syllabus (Forms 1-4)": "biology",
   "English Syllabus (Forms 1-4)": "english",
+  // Fallback only: this ONE document carries two independently-numbered
+  // syllabi, split per row into commerce / principles_of_accounts by
+  // syllabusSubjectSplit.js. Reached only when a sheet's sections don't resolve.
   "Commerce & Principles of Accounts Syllabus (Forms 1-4)":
     "commerce_and_principles_of_accounts",
   "Design & Technology Studies Syllabus (Forms 1-4)":
@@ -42,7 +44,9 @@ const STUDIO_SUBJECT_TO_KB = {
   "Home Economics & Hospitality Syllabus (Grades 4-6)": "home_economics",
   "Technology Studies Syllabus (Grades 4-6)": "technology_studies",
   "Mathematics Syllabus (Forms 1-4)": "mathematics",
-  "Mathematics II Syllabus (Forms 1-4)": "mathematics",
+  // Own Forms 1-4 syllabus, numbered from 1.1 like Mathematics is — see
+  // src/utils/syllabusMapping.js.
+  "Mathematics II Syllabus (Forms 1-4)": "mathematics_ii",
   "Physics Syllabus (Forms 1-4)": "physics",
   "History Syllabus (Forms 1-4)": "history",
   "Geography Syllabus (Forms 1-4)": "geography",
@@ -50,9 +54,12 @@ const STUDIO_SUBJECT_TO_KB = {
   "Literature in English Syllabus (Forms 1-4)": "english",
   "Religious Education Syllabus (Forms 1-4)": "religious_education",
   "Physical Education Syllabus (Forms 1-4)": "physical_education",
-  "Food & Nutrition Syllabus (Forms 1-4)": "home_economics",
-  "Fashion & Fabrics Syllabus (Forms 1-4)": "home_economics",
-  "Hospitality Management Syllabus (Forms 1-4)": "home_economics",
+  // Three separate examinable subjects, three documents, each numbered from 1.1
+  // — see src/utils/syllabusMapping.js. home_economics stays the key only for
+  // the "(Grades 4-6)" document, where it genuinely is one subject.
+  "Food & Nutrition Syllabus (Forms 1-4)": "food_and_nutrition",
+  "Fashion & Fabrics Syllabus (Forms 1-4)": "fashion_and_fabrics",
+  "Hospitality Management Syllabus (Forms 1-4)": "hospitality_management",
   "Music & Creative Arts Syllabus (Forms 1-4)": "music_and_creative_arts",
   "Travel & Tourism Syllabus (Forms 1-4)": "social_studies",
   "Zambian Languages Syllabus (Forms 1-4)": "zambian_language",
@@ -78,10 +85,10 @@ const STUDIO_SUBJECT_TO_KB_2013 = {
   "Biology Syllabus (Grades 10-12, 2013)": "biology",
   "Chemistry Syllabus (Grades 10-12, 2013)": "chemistry",
   "Civic Education Syllabus (Grades 10-12, 2013)": "civic_education",
-  "Food & Nutrition Syllabus (Grades 10-12, 2013)": "home_economics",
+  "Food & Nutrition Syllabus (Grades 10-12, 2013)": "food_and_nutrition",
   "Geography Syllabus (Grades 10-12, 2013)": "geography",
   "History Syllabus (Senior Secondary, 2013)": "history",
-  "Home Management Syllabus (Grades 10-12, 2013)": "home_economics",
+  "Home Management Syllabus (Grades 10-12, 2013)": "home_management",
   "Mathematics Syllabus (Grades 10-12, 2013)": "mathematics",
   "Physical Education Syllabus (Grades 10-12, 2013)": "physical_education",
   "Religious Education 2044 Syllabus (Grades 10-12, 2013)": "religious_education",
@@ -132,10 +139,23 @@ const BUNDLE_STUDIO_KEYS = new Set([
 // Built from the studio tables above (strip the " Syllabus (…)" suffix,
 // slugify the subject name, keep only entries where the slug differs from
 // the KB key), so a syllabus rename or a new vocational subject updates the
-// fold automatically. e.g. fashion_fabrics → home_economics,
-// travel_tourism → social_studies, art_design → art_and_design.
+// fold automatically. e.g. travel_tourism → social_studies,
+// art_design → art_and_design, fashion_fabrics → fashion_and_fabrics.
+// Subject spellings that predate the 2026-07 subject split and fold onto
+// exactly one canonical key. Mirrors LEGACY_SUBJECT_ALIASES in
+// src/config/teacherTaxonomy.js. A saved 'accounts' pick must still reach the
+// Principles of Accounts rows, which now live under their own key.
+//
+// 'commerce_and_principles_of_accounts' is NOT here: it names two subjects, so
+// no single fold is correct. The KB simply no longer stores anything under it.
+const LEGACY_SUBJECT_ALIASES = Object.freeze({
+  accounts: "principles_of_accounts",
+  food_nutrition: "food_and_nutrition",
+  fashion_fabrics: "fashion_and_fabrics",
+});
+
 const SUBJECT_SLUG_TO_KB = (() => {
-  const out = {};
+  const out = Object.assign({}, LEGACY_SUBJECT_ALIASES);
   for (const table of [STUDIO_SUBJECT_TO_KB, STUDIO_SUBJECT_TO_KB_2013]) {
     for (const [studioKey, kbKey] of Object.entries(table)) {
       if (BUNDLE_STUDIO_KEYS.has(studioKey)) continue;
@@ -169,8 +189,8 @@ function gradeCandidates(grade) {
 /**
  * Subject keys a requested subject may be stored under in the KB, requested
  * (slugified) key first:
- *   subjectCandidates("fashion_fabrics") → ["fashion_fabrics", "home_economics"]
- *   subjectCandidates("mathematics")     → ["mathematics"]
+ *   subjectCandidates("travel_tourism") → ["travel_tourism", "social_studies"]
+ *   subjectCandidates("mathematics")    → ["mathematics"]
  *   subjectCandidates("")                → []
  * Pure; accepts slugs, display labels ("Fashion & Fabrics") and the
  * underscore-heavy normalizeSubject() output ("fashion___fabrics").
@@ -188,6 +208,7 @@ module.exports = {
   FORM_TO_GRADE,
   FORM_CODE_TO_GRADE,
   SUBJECT_SLUG_TO_KB,
+  LEGACY_SUBJECT_ALIASES,
   slugifySubject,
   gradeCandidates,
   subjectCandidates,

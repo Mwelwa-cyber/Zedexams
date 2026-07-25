@@ -127,16 +127,67 @@ check('assignmentGradeToStudioLabel maps per curriculum (CBC Forms vs 2013 Grade
 console.log('assignment combination validation')
 
 check('a subject exclusive to the OTHER curriculum is a hard save error', () => {
-  // Principles of Accounts is 2013-only — invalid under the CBC…
-  const cbc = validateAssignment({ grade: 'G10', subject: 'accounts', curriculumType: 'cbc' })
+  // Home Management is 2013-only — the CBC replaced it with the vocational
+  // subjects — so it is invalid under the CBC…
+  const cbc = validateAssignment({ grade: 'G10', subject: 'home_management', curriculumType: 'cbc' })
   assert.equal(cbc.valid, false)
   assert.ok(cbc.errors.some((e) => e.includes('does not belong to the selected curriculum')))
   // …but fine under the 2013 set.
-  const obc = validateAssignment({ grade: 'G10', subject: 'accounts', curriculumType: 'previous' })
+  const obc = validateAssignment({ grade: 'G10', subject: 'home_management', curriculumType: 'previous' })
   assert.equal(obc.valid, true, obc.errors.join('; '))
   // And symmetrically for the CBC-only combined Mathematics and Science area.
   const numObc = validateAssignment({ grade: 'G4', subject: 'numeracy', curriculumType: 'previous' })
   assert.equal(numObc.valid, false)
+  // Principles of Accounts is deliberately NOT the example any more: it exists
+  // in BOTH eras (2013 G10-12 under the old 'accounts' key, and CBC Forms 1-4
+  // inside the Commerce & Principles of Accounts workbook), so it is valid under
+  // either curriculum. The legacy spelling still resolves to it.
+  for (const curriculumType of ['cbc', 'previous']) {
+    const poa = validateAssignment({ grade: 'G10', subject: 'accounts', curriculumType })
+    assert.equal(poa.valid, true, `accounts/${curriculumType}: ${poa.errors.join('; ')}`)
+  }
+})
+
+check('the pre-split combined subject asks the teacher to choose, never guesses', () => {
+  const combined = validateAssignment({
+    grade: 'G10', subject: 'commerce_and_principles_of_accounts', curriculumType: 'cbc',
+  })
+  assert.equal(combined.valid, false)
+  assert.ok(
+    combined.errors.some((e) => /now two separate subjects/.test(e)),
+    `expected a "choose one" error, got: ${combined.errors.join('; ')}`,
+  )
+  // Both halves are offered by name so the teacher can act on the message.
+  assert.ok(combined.errors.some((e) => e.includes('Commerce') && e.includes('Principles of Accounts')))
+})
+
+check('Home Economics at CBC Forms 1-4 asks which pathway, and only there', () => {
+  // Three separate examinable syllabi at Forms 1-4, so the shared key cannot be
+  // saved there — but it is a perfectly good subject at upper primary and across
+  // the 2013 set, where it must save without complaint.
+  const forms = validateAssignment({ grade: 'G9', subject: 'home_economics', curriculumType: 'cbc' })
+  assert.equal(forms.valid, false)
+  assert.ok(
+    forms.errors.some((e) => /Home Economics is not one subject at .*Form 2/.test(e)),
+    `expected a "choose a pathway" error, got: ${forms.errors.join('; ')}`,
+  )
+  // All three pathways are named so the teacher can act on the message.
+  assert.ok(forms.errors.some((e) =>
+    e.includes('Food & Nutrition') && e.includes('Fashion & Fabrics') && e.includes('Hospitality Management')))
+
+  const primary = validateAssignment({ grade: 'G4', subject: 'home_economics', curriculumType: 'cbc' })
+  assert.equal(primary.valid, true, primary.errors.join('; '))
+  const obc = validateAssignment({ grade: 'G9', subject: 'home_economics', curriculumType: 'previous' })
+  assert.equal(obc.valid, true, obc.errors.join('; '))
+
+  // And each pathway saves cleanly on its own.
+  for (const subject of ['food_and_nutrition', 'fashion_and_fabrics', 'hospitality_management']) {
+    const v = validateAssignment({ grade: 'G9', subject, curriculumType: 'cbc' })
+    assert.equal(v.valid, true, `${subject}: ${v.errors.join('; ')}`)
+  }
+  // The pre-split 'fashion_fabrics' spelling folds on read rather than erroring.
+  const legacy = validateAssignment({ grade: 'G9', subject: 'fashion_fabrics', curriculumType: 'cbc' })
+  assert.equal(legacy.valid, true, legacy.errors.join('; '))
 })
 
 check('a grade the curriculum does not offer is a hard save error', () => {

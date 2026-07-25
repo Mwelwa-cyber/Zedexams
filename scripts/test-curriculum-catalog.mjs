@@ -116,9 +116,13 @@ check('OBC has no ECE bands (Nursery scoped to OBC is empty, not the CBC set)', 
 check('a CBC-only subject never appears under OBC and vice-versa', () => {
   const cbcG10 = idsOf(getSubjectsForGrade('cbc', 'G10'))
   const obcG10 = idsOf(getSubjectsForGrade('obc', 'G10'))
-  // Commerce & PoA is CBC-only; standalone Accounts is OBC-only.
-  assert.ok(cbcG10.includes('commerce_and_principles_of_accounts') && !cbcG10.includes('accounts'))
-  assert.ok(obcG10.includes('accounts') && !obcG10.includes('commerce_and_principles_of_accounts'))
+  // Commerce is CBC-only. Principles of Accounts runs in both eras, so it is not
+  // the discriminator any more — Home Management (OBC-only) is.
+  assert.ok(cbcG10.includes('commerce') && !cbcG10.includes('home_management'))
+  assert.ok(obcG10.includes('home_management') && !obcG10.includes('commerce'))
+  // The retired combined key is offered by neither.
+  assert.ok(!cbcG10.includes('commerce_and_principles_of_accounts'))
+  assert.ok(!obcG10.includes('commerce_and_principles_of_accounts'))
   // The two id sets must genuinely differ.
   assert.notDeepEqual(cbcG10.slice().sort(), obcG10.slice().sort())
 })

@@ -101,12 +101,26 @@ function normalizeTopicTree(inner) {
   const foldFragments = entries.length > 0 &&
     numbered / entries.length >= NUMBERED_SHARE_FOR_FRAGMENT_FOLDING;
 
-  const keys = new Set();
-  for (const e of entries) if (e.parsed) keys.add(e.parsed.key);
+  // Every key a numbered entry occupies → the entries occupying it. Two owners
+  // means two topics in this one scope share a code, so a child of that code has
+  // two candidate parents and the hierarchy is undecidable. Callers must pass
+  // ONE curriculum + grade + subject (see src/utils/curriculumTopicIdentity.js).
+  const keyOwners = new Map();
+  for (const e of entries) {
+    if (!e.parsed) continue;
+    const owners = keyOwners.get(e.parsed.key);
+    if (owners) owners.push(e.topic);
+    else keyOwners.set(e.parsed.key, [e.topic]);
+  }
+  const claimedOnce = (key) => {
+    const owners = keyOwners.get(key);
+    return !!owners && owners.length === 1;
+  };
 
   const topics = new Map();
   const demoted = [];
   const folded = [];
+  const ambiguous = [];
   let lastKeptKey = null;
 
   const addSub = (topicName, value) => {
@@ -116,12 +130,15 @@ function normalizeTopicTree(inner) {
     if (clean) set.add(clean);
   };
 
+  // null when no ancestor is a topic — and also when the ancestor code is
+  // claimed by more than one topic, because then there is no single right answer.
   const nearestTopicName = (parsed) => {
     let parent = parsed.parentKey;
     while (parent) {
-      const owner = entries.find((e) => e.parsed &&
-        e.parsed.key === parent && topics.has(e.topic));
-      if (owner) return owner.topic;
+      const owners = (keyOwners.get(parent) || [])
+          .filter((t) => topics.has(t));
+      if (owners.length === 1) return owners[0];
+      if (owners.length > 1) return null;
       parent = parent.split(".").slice(0, -1).join(".");
     }
     return null;
@@ -129,7 +146,17 @@ function normalizeTopicTree(inner) {
 
   // Pass 1 — keep the genuine topics, in their original order.
   for (const e of entries) {
-    if (e.parsed && e.parsed.parentKey && keys.has(e.parsed.parentKey)) continue;
+    if (e.parsed && e.parsed.parentKey &&
+        claimedOnce(e.parsed.parentKey)) continue;
+    if (e.parsed && e.parsed.parentKey &&
+        keyOwners.has(e.parsed.parentKey)) {
+      ambiguous.push({
+        topic: e.topic,
+        code: e.parsed.code,
+        parentKey: e.parsed.parentKey,
+        owners: keyOwners.get(e.parsed.parentKey).slice(),
+      });
+    }
     if (!e.parsed && foldFragments && looksLikeTopicFragment(e.topic)) continue;
     topics.set(e.topic, new Set(
         e.subs.map((s) => String(s == null ? "" : s).trim()).filter(Boolean),
@@ -159,7 +186,7 @@ function normalizeTopicTree(inner) {
     }
   }
 
-  return {topics, demoted, folded};
+  return {topics, demoted, folded, ambiguous};
 }
 
 /**

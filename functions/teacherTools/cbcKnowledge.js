@@ -328,9 +328,9 @@ const TOPICS = SEED_TOPICS;
 /**
  * Filter the merged topic set to entries matching the requested
  * grade+subject, including their folded equivalents: the KB stores
- * Forms-syllabus topics under G-codes (F1 → G8 … F4 → G11) and vocational
- * syllabi under core subject keys (fashion_fabrics → home_economics,
- * travel_tourism → social_studies, …) — see kbLookupCandidates.js. Exact
+ * Forms-syllabus topics under G-codes (F1 → G8 … F4 → G11) and some
+ * syllabi under core subject keys (travel_tourism → social_studies,
+ * literature_in_english → english, …) — see kbLookupCandidates.js. Exact
  * grade+subject matches come FIRST in the returned list, so at every match
  * tier below an exact match wins over a folded one.
  */

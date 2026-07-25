@@ -25,6 +25,12 @@
 
 import { getMergedSyllabi } from '../../../../utils/syllabusKbService.js'
 import { rowsWithPropagatedTopic } from '../../../../utils/syllabusMapping.js'
+// A document that carries two independently-numbered syllabi (Commerce &
+// Principles of Accounts) must offer ONE dropdown entry per subject, and a pick
+// must scope its topics to that subject's half of the sheet.
+import {
+  SPLIT_DOCUMENTS, resolveSplitSubjects, sectionSubjectForLabel,
+} from '../../../../utils/syllabusSubjectSplit.js'
 import { sortByCurriculumCode } from '../../../../utils/curriculumTopicCell.js'
 import { splitSpecificOutcomes } from './splitSpecificOutcomes.js'
 import {
@@ -285,12 +291,25 @@ function makeStrandKey(topLevel, sheetName) {
   return `${topLevel}${SUBJECT_KEY_SEP}${sheetName}`
 }
 
-/** Split a (possibly strand-scoped) subject key into its parts. */
+/**
+ * Split a (possibly scoped) subject key into its parts.
+ *
+ * The suffix after '::' is a STRAND SHEET for the ECE / Lower-Primary bundles
+ * ("Lower Primary Syllabi (Grades 1-3)::Grade 1 - English Language"), and a
+ * SECTION SUBJECT for a split document ("Commerce & Principles of Accounts
+ * Syllabus (Forms 1-4)::Commerce"). They are told apart by the split registry,
+ * not by guessing at the text, and only one of the two is ever set.
+ */
 export function parseSubjectKey(subject) {
   const s = String(subject || '')
   const i = s.indexOf(SUBJECT_KEY_SEP)
-  if (i === -1) return { topLevel: s, sheet: null }
-  return { topLevel: s.slice(0, i), sheet: s.slice(i + SUBJECT_KEY_SEP.length) }
+  if (i === -1) return { topLevel: s, sheet: null, section: '' }
+  const topLevel = s.slice(0, i)
+  const suffix = s.slice(i + SUBJECT_KEY_SEP.length)
+  const section = sectionSubjectForLabel(topLevel, suffix)
+  return section
+    ? { topLevel, sheet: null, section }
+    : { topLevel, sheet: suffix, section: '' }
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -313,7 +332,13 @@ export async function getSubjectsForGrade(grade, curriculumMode = 'cbc') {
   for (const [subject, sheets] of Object.entries(data || {})) {
     const matched = matchingSheets(sheets, grade)
     if (matched.length === 0) continue
-    if (matched.length === 1) {
+    if (SPLIT_DOCUMENTS[subject]) {
+      // Two syllabi under one title: offer each as its own subject so the pick
+      // is unambiguous. The grade already chose the sheet.
+      for (const label of SPLIT_DOCUMENTS[subject].sectionLabels) {
+        out.push(makeStrandKey(subject, label))
+      }
+    } else if (matched.length === 1) {
       out.push(subject)
     } else {
       // Bundle: one selectable subject per strand sheet.
@@ -359,7 +384,7 @@ export async function getGradesWithSubjects(candidateGrades, curriculumMode = 'c
  */
 export async function getTopicsForSubject(subject, grade, curriculumMode = 'cbc') {
   const data = await loadData(curriculumMode)
-  const { topLevel, sheet: strandSheet } = parseSubjectKey(subject)
+  const { topLevel, sheet: strandSheet, section } = parseSubjectKey(subject)
   const sheets = data?.[topLevel]
   if (!sheets) return []
 
@@ -379,8 +404,22 @@ export async function getTopicsForSubject(subject, grade, curriculumMode = 'cbc'
       ? propagatePreviousRows(sheet)
       : rowsWithPropagatedTopic(sheet?.rows || [])
 
+    // Scope to the picked subject's half of a split document. An ambiguous
+    // sheet yields no assignment, so `keep` stays null and every topic is shown
+    // rather than an arbitrary half being hidden.
+    let keep = null
+    if (section) {
+      const seen = []
+      for (const row of rows) {
+        if (row.topic && !seen.includes(row.topic)) seen.push(row.topic)
+      }
+      const split = resolveSplitSubjects(topLevel, seen)
+      if (split && !split.ambiguous) keep = split.byTopic
+    }
+
     for (const row of rows) {
       if (!row.topic) continue
+      if (keep && keep.get(row.topic) !== section) continue
       const existing = topicMap.get(row.topic)
       if (!existing) {
         topicMap.set(row.topic, {

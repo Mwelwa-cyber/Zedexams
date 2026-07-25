@@ -3,7 +3,7 @@
  * candidate expansion cbcKnowledge.lookupTopic / suggestTopics use so the
  * standardized selector's F-codes ("F1"–"F4") and vocational subject slugs
  * ("fashion_fabrics", "home_management", …) still ground against a KB that
- * stores Forms topics under G8–G12 and vocational syllabi under core
+ * stores Forms topics under G8–G12 and folds some syllabi onto core
  * subject keys. Run directly:
  *
  *   node functions/teacherTools/cbcGradeSubjectCandidates.test.js
@@ -21,6 +21,7 @@ const {
   gradeCandidates,
   subjectCandidates,
 } = require("./kbLookupCandidates");
+const {SPLIT_DOCUMENTS} = require("./syllabusSubjectSplit");
 
 // ── gradeCandidates: F-codes fold to the G-code the KB stores ─────────────
 {
@@ -69,18 +70,40 @@ const {
 
 // ── subjectCandidates: vocational / legacy slugs fold to their KB key ────
 {
-  // Forms 1-4 vocational syllabi (2023 data file).
+  // Forms 1-4 vocational syllabi (2023 data file). All three home-economics
+  // pathways are their own canonical subjects now — filing them together under
+  // home_economics collided their codes with each other. The pre-split slugs
+  // still fold onto them so a saved pick keeps resolving.
   assert.deepStrictEqual(
     subjectCandidates("fashion_fabrics"),
-    ["fashion_fabrics", "home_economics"],
+    ["fashion_fabrics", "fashion_and_fabrics"],
+  );
+  assert.deepStrictEqual(
+    subjectCandidates("fashion_and_fabrics"),
+    ["fashion_and_fabrics"],
   );
   assert.deepStrictEqual(
     subjectCandidates("food_nutrition"),
-    ["food_nutrition", "home_economics"],
+    ["food_nutrition", "food_and_nutrition"],
+  );
+  assert.deepStrictEqual(
+    subjectCandidates("food_and_nutrition"),
+    ["food_and_nutrition"],
+  );
+  // Commerce and Principles of Accounts each stand alone; the old 'accounts'
+  // spelling reaches the latter.
+  assert.deepStrictEqual(subjectCandidates("commerce"), ["commerce"]);
+  assert.deepStrictEqual(
+      subjectCandidates("accounts"),
+      ["accounts", "principles_of_accounts"],
+  );
+  assert.deepStrictEqual(
+      subjectCandidates("home_management"),
+      ["home_management"],
   );
   assert.deepStrictEqual(
     subjectCandidates("hospitality_management"),
-    ["hospitality_management", "home_economics"],
+    ["hospitality_management"],
   );
   assert.deepStrictEqual(
     subjectCandidates("travel_tourism"),
@@ -92,10 +115,8 @@ const {
   );
 
   // 2013-framework subjects (Grades 10-12 / 1-4).
-  assert.deepStrictEqual(
-    subjectCandidates("home_management"),
-    ["home_management", "home_economics"],
-  );
+  // Home Management is its own canonical key now — its slug IS the KB key, so
+  // there is nothing to fold. It is asserted alongside the split block above.
   assert.deepStrictEqual(
     subjectCandidates("art_design"),
     ["art_design", "art_and_design"],
@@ -128,8 +149,18 @@ const {
   assert.deepStrictEqual(
     subjectCandidates("english_language"), ["english_language", "english"],
   );
+  // Mathematics II is its own KB subject now — its slug IS the key, so there is
+  // nothing to fold. Folding it into `mathematics` is what collided their codes.
   assert.deepStrictEqual(
-    subjectCandidates("mathematics_ii"), ["mathematics_ii", "mathematics"],
+    subjectCandidates("mathematics_ii"), ["mathematics_ii"],
+  );
+  assert.strictEqual(
+    STUDIO_SUBJECT_TO_KB["Mathematics II Syllabus (Forms 1-4)"],
+    "mathematics_ii",
+  );
+  assert.strictEqual(
+    STUDIO_SUBJECT_TO_KB["Mathematics Syllabus (Forms 1-4)"],
+    "mathematics",
   );
   assert.deepStrictEqual(
     subjectCandidates("ict"), ["ict", "technology_studies"],
@@ -163,13 +194,13 @@ const {
   // Display label.
   assert.deepStrictEqual(
     subjectCandidates("Fashion & Fabrics"),
-    ["fashion_fabrics", "home_economics"],
+    ["fashion_fabrics", "fashion_and_fabrics"],
   );
   // cbcKnowledge.normalizeSubject turns every non-letter into "_" without
   // collapsing runs — the candidates helper must still resolve that shape.
   assert.deepStrictEqual(
     subjectCandidates("fashion___fabrics"),
-    ["fashion_fabrics", "home_economics"],
+    ["fashion_fabrics", "fashion_and_fabrics"],
   );
   assert.deepStrictEqual(
     subjectCandidates("Travel & Tourism"),
@@ -186,10 +217,15 @@ const {
   for (const [slug, kbKey] of Object.entries(SUBJECT_SLUG_TO_KB)) {
     assert.notStrictEqual(slug, kbKey, `identity fold entry: ${slug}`);
   }
-  // Every fold target is a real KB subject key from the source tables.
+  // Every fold target is a real KB subject key: either a value in the source
+  // tables, or one of the section subjects a split document produces. The
+  // Commerce & Principles of Accounts workbook maps to its combined key in the
+  // table and is divided per row, so 'commerce' / 'principles_of_accounts' are
+  // real KB keys that the table alone never names.
   const kbKeys = new Set([
     ...Object.values(STUDIO_SUBJECT_TO_KB),
     ...Object.values(STUDIO_SUBJECT_TO_KB_2013),
+    ...Object.values(SPLIT_DOCUMENTS).flatMap((spec) => spec.sections),
   ]);
   for (const kbKey of Object.values(SUBJECT_SLUG_TO_KB)) {
     assert.ok(kbKeys.has(kbKey), `fold target not a KB key: ${kbKey}`);
@@ -200,10 +236,43 @@ const {
 {
   assert.strictEqual(
     STUDIO_SUBJECT_TO_KB["Fashion & Fabrics Syllabus (Forms 1-4)"],
-    "home_economics",
+    "fashion_and_fabrics",
   );
   assert.strictEqual(
+    STUDIO_SUBJECT_TO_KB["Hospitality Management Syllabus (Forms 1-4)"],
+    "hospitality_management",
+  );
+  // The one 2023 document home_economics still owns: the integrated
+  // upper-primary subject. Nothing at Forms 1-4 maps to it any more.
+  assert.strictEqual(
+    STUDIO_SUBJECT_TO_KB["Home Economics & Hospitality Syllabus (Grades 4-6)"],
+    "home_economics",
+  );
+  for (const [doc, kbKey] of Object.entries(STUDIO_SUBJECT_TO_KB)) {
+    if (kbKey !== "home_economics") continue;
+    assert.ok(
+        !/Forms\s*1-4/i.test(doc),
+        `Forms 1-4 document still filed under home_economics: ${doc}`,
+    );
+  }
+  // Home Management and Food & Nutrition each own their key — filing both under
+  // home_economics made every one of their G10-G12 codes collide.
+  assert.strictEqual(
     STUDIO_SUBJECT_TO_KB_2013["Home Management Syllabus (Grades 10-12, 2013)"],
+    "home_management",
+  );
+  assert.strictEqual(
+    STUDIO_SUBJECT_TO_KB_2013["Food & Nutrition Syllabus (Grades 10-12, 2013)"],
+    "food_and_nutrition",
+  );
+  assert.strictEqual(
+    STUDIO_SUBJECT_TO_KB["Food & Nutrition Syllabus (Forms 1-4)"],
+    "food_and_nutrition",
+  );
+  // The G5-7 Home Economics syllabus is a genuinely different subject and keeps
+  // the home_economics key.
+  assert.strictEqual(
+    STUDIO_SUBJECT_TO_KB_2013["Home Economics Syllabus (Grades 5-7, 2013)"],
     "home_economics",
   );
   assert.strictEqual(

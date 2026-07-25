@@ -119,10 +119,17 @@ const NUMBERED_SHARE_FOR_FRAGMENT_FOLDING = 0.6
  * Restore the topic → sub-topic tree for ONE grade+subject.
  *
  * @param {Map<string, Set<string>|string[]>} inner  topic → its sub-topics
- * @returns {{topics: Map<string, Set<string>>, demoted: Array, folded: Array}}
+ * MUST be called with a single curriculum + grade + subject. That is the scope a
+ * topic code is unique within; see curriculumTopicIdentity.js.
+ *
+ * @param {Map<string, Set<string>|string[]>} inner  topic → its sub-topics
+ * @returns {{topics: Map<string, Set<string>>, demoted: Array, folded: Array,
+ *            ambiguous: Array}}
  *   `topics` is a fresh Map in the original topic order. `demoted` lists the
- *   sub-topics that had been masquerading as topics and `folded` the fragments
- *   that were re-absorbed — both purely so the validation report can name them.
+ *   sub-topics that had been masquerading as topics, `folded` the fragments that
+ *   were re-absorbed, and `ambiguous` the entries whose parent code is claimed
+ *   by more than one topic and were therefore left exactly as they are — all
+ *   three purely so the validation report can name them.
  */
 export function normalizeTopicTree(inner) {
   const entries = []
@@ -138,14 +145,34 @@ export function normalizeTopicTree(inner) {
   const foldFragments = entries.length > 0 &&
     numbered / entries.length >= NUMBERED_SHARE_FOR_FRAGMENT_FOLDING
 
-  // Every key that a numbered entry occupies — the set a parent lookup resolves
-  // against. Built up front so ordering within the sheet never matters.
-  const keys = new Set()
-  for (const e of entries) if (e.parsed) keys.add(e.parsed.key)
+  // Every key a numbered entry occupies → the entries occupying it. A key with
+  // TWO owners means two topics in this one scope share a code, so a child of
+  // that code has two candidate parents and the hierarchy is genuinely
+  // undecidable. Recording all owners (rather than a Set of keys) is what lets
+  // us refuse to pick one instead of silently taking the first.
+  //
+  // A caller must only ever hand us ONE curriculum + grade + subject — the
+  // scope a topic code is unique within (see curriculumTopicIdentity.js).
+  // Commerce "1.1" and Principles of Accounts "1.1" reach this function in two
+  // separate calls; before they were split they arrived in one, which is
+  // exactly how a sub-topic ended up under the wrong subject's topic.
+  const keyOwners = new Map()
+  for (const e of entries) {
+    if (!e.parsed) continue
+    const owners = keyOwners.get(e.parsed.key)
+    if (owners) owners.push(e.topic)
+    else keyOwners.set(e.parsed.key, [e.topic])
+  }
+  /** True only when exactly one entry claims this code. */
+  const claimedOnce = (key) => keyOwners.get(key)?.length === 1
 
   const topics = new Map()
   const demoted = []
   const folded = []
+  // Codes that more than one topic in this scope claims. Left alone entirely
+  // (never demoted, never re-parented) and surfaced so the validation report can
+  // tell a real in-subject duplicate from a subject-mapping problem.
+  const ambiguous = []
   // The most recent entry kept as a topic — where a fragment's sub-topics and a
   // demoted entry's sub-topics get re-attached when their own parent is gone.
   let lastKeptKey = null
@@ -160,11 +187,15 @@ export function normalizeTopicTree(inner) {
   // Resolve a demoted entry to the nearest ANCESTOR that is itself a topic, so
   // a three-deep leak ("7.4.3.1" under "7.4.3" under "7.4.0") lands on the real
   // topic rather than on another demoted node.
+  // Returns null when no ancestor is a topic — and ALSO when the ancestor code
+  // is claimed by more than one topic, because then there is no single right
+  // answer and guessing would move curriculum content under the wrong heading.
   const nearestTopicName = (parsed) => {
     let parent = parsed.parentKey
     while (parent) {
-      const owner = entries.find((e) => e.parsed && e.parsed.key === parent && topics.has(e.topic))
-      if (owner) return owner.topic
+      const owners = (keyOwners.get(parent) || []).filter((t) => topics.has(t))
+      if (owners.length === 1) return owners[0]
+      if (owners.length > 1) return null
       parent = parent.split('.').slice(0, -1).join('.')
     }
     return null
@@ -172,7 +203,14 @@ export function normalizeTopicTree(inner) {
 
   // Pass 1 — keep the genuine topics, in their original order.
   for (const e of entries) {
-    if (e.parsed && e.parsed.parentKey && keys.has(e.parsed.parentKey)) continue // a child
+    // A child — but only when its parent code is claimed by exactly one topic.
+    // An ambiguous parent leaves the entry standing as a topic of its own, which
+    // is the honest outcome: better a heading at the top level than a heading
+    // filed under the wrong subject's topic.
+    if (e.parsed && e.parsed.parentKey && claimedOnce(e.parsed.parentKey)) continue
+    if (e.parsed && e.parsed.parentKey && keyOwners.has(e.parsed.parentKey)) {
+      ambiguous.push({ topic: e.topic, code: e.parsed.code, parentKey: e.parsed.parentKey, owners: keyOwners.get(e.parsed.parentKey).slice() })
+    }
     if (!e.parsed && foldFragments && looksLikeTopicFragment(e.topic)) continue  // a fragment
     topics.set(e.topic, new Set(e.subs.map((s) => String(s ?? '').trim()).filter(Boolean)))
   }
@@ -196,7 +234,7 @@ export function normalizeTopicTree(inner) {
     }
   }
 
-  return { topics, demoted, folded }
+  return { topics, demoted, folded, ambiguous }
 }
 
 /**

@@ -188,6 +188,66 @@ export function isGradeInCurriculum(grade, curriculum) {
 }
 
 // Subjects grouped by curriculum area across all CBC phases.
+/**
+ * Subject values that existed before the 2026-07 subject split and fold cleanly
+ * onto exactly one canonical key. Applied on READ so an assignment, paper or
+ * generation saved under the old spelling keeps working with no migration run.
+ *
+ * A fold belongs here only when it is unambiguous — the same subject under a
+ * different name. See SPLIT_LEGACY_SUBJECTS for the ones that are not.
+ */
+export const LEGACY_SUBJECT_ALIASES = Object.freeze({
+  accounts: 'principles_of_accounts',
+  food_nutrition: 'food_and_nutrition',
+  fashion_fabrics: 'fashion_and_fabrics',
+})
+
+/**
+ * Legacy values that named TWO subjects at once. There is no correct fold: a
+ * record on this key has to be classified from its own topics/metadata (see
+ * scripts/migrate-subject-split.mjs) or re-picked by the teacher. Recognised so
+ * the UI can say what happened instead of showing "unrecognised subject", and
+ * never offered for new work.
+ */
+export const SPLIT_LEGACY_SUBJECTS = Object.freeze({
+  commerce_and_principles_of_accounts: ['commerce', 'principles_of_accounts'],
+})
+
+/**
+ * Subjects that are still perfectly real at some grades but name SEVERAL
+ * subjects at others, so there is no fold that is correct everywhere.
+ *
+ * `home_economics` is the case. It is ONE integrated subject at CBC Grades 4-6
+ * and across the 2013 set — and at CBC Forms 1-4 it is not a subject at all: the
+ * Ministry ships three separate examinable syllabi there, each numbering its
+ * topics from 1.1. An assignment carrying the shared key at those grades has to
+ * be re-picked; nothing can infer which pathway it meant.
+ */
+export const SPLIT_LEGACY_SUBJECTS_AT_GRADE = Object.freeze({
+  home_economics: Object.freeze({
+    curriculum: 'cbc',
+    grades: Object.freeze(['G8', 'G9', 'G10', 'G11']),
+    options: Object.freeze(['food_and_nutrition', 'fashion_and_fabrics', 'hospitality_management']),
+  }),
+})
+
+/**
+ * The subjects a value splits into at this grade + curriculum, or null when the
+ * value is unambiguous there. Pure lookup — it decides nothing about a record.
+ */
+export function splitSubjectsAtGrade(subject, grade, curriculum) {
+  const spec = SPLIT_LEGACY_SUBJECTS_AT_GRADE[canonicalSubjectValue(subject)]
+  if (!spec) return null
+  if (spec.curriculum && normalizeCurriculum(curriculum) !== spec.curriculum) return null
+  return spec.grades.includes(String(grade || '').toUpperCase()) ? spec.options : null
+}
+
+/** Fold a legacy subject value onto its canonical key. Idempotent. */
+export function canonicalSubjectValue(value) {
+  const raw = String(value || '').trim().toLowerCase()
+  return LEGACY_SUBJECT_ALIASES[raw] || raw
+}
+
 export const TEACHER_SUBJECTS = [
   { group: 'Languages' },
   { value: 'english',          label: 'English' },
@@ -197,6 +257,10 @@ export const TEACHER_SUBJECTS = [
   { value: 'zambian_language', label: 'Zambian Language (other)' },
   { group: 'STEM' },
   { value: 'mathematics',          label: 'Mathematics' },
+  // The second Forms 1-4 mathematics syllabus — 13 topics at Form 1 against
+  // Mathematics' 9, plus Earth Geometry and Calculus at Form 4. Its own subject,
+  // numbered from 1.1; it used to fold into `mathematics` and collide 29 codes.
+  { value: 'mathematics_ii',       label: 'Mathematics II' },
   // Lower Primary (Grades 1–3) carries one combined "Maths & Science" syllabus
   // sheet, stored under the `numeracy` slug. Teachers expect the real learning-
   // area name, "Mathematics and Science" — "Numeracy" isn't a 2023-curriculum
@@ -216,18 +280,24 @@ export const TEACHER_SUBJECTS = [
   { value: 'civic_education',  label: 'Civic Education' },
   { value: 'religious_education', label: 'Religious Education' },
   { group: 'Business' },
-  { value: 'accounts',         label: 'Principles of Accounts' },
-  { value: 'commerce_and_principles_of_accounts', label: 'Commerce & Principles of Accounts' },
+  // Commerce and Principles of Accounts are two subjects, taught and examined
+  // separately, each numbering its topics from 1.1. They ship as one CDC
+  // workbook, which is why they used to appear here as one combined entry.
+  { value: 'commerce',              label: 'Commerce' },
+  { value: 'principles_of_accounts', label: 'Principles of Accounts' },
   { group: 'Technical & Creative' },
   { value: 'technology_studies',              label: 'Technology Studies' },
   { value: 'creative_and_technology_studies', label: 'Creative & Technology Studies' },
   { value: 'design_and_technology_studies',   label: 'Design & Technology Studies' },
   { value: 'art_and_design',   label: 'Art & Design' },
   { value: 'music_and_creative_arts', label: 'Music & Creative Arts' },
+  // Home Economics is one integrated subject at CBC Grades 4-6 and across the
+  // 2013 primary/secondary set. At CBC Forms 1-4 it is not a subject at all —
+  // the three pathways below are, each with its own syllabus numbered from 1.1.
   { value: 'home_economics',   label: 'Home Economics' },
   { value: 'home_management',  label: 'Home Management' },
-  { value: 'food_nutrition',   label: 'Food & Nutrition' },
-  { value: 'fashion_fabrics',  label: 'Fashion & Fabrics' },
+  { value: 'food_and_nutrition', label: 'Food & Nutrition' },
+  { value: 'fashion_and_fabrics', label: 'Fashion & Fabrics' },
   { value: 'hospitality_management', label: 'Hospitality Management' },
   { value: 'travel_tourism',   label: 'Travel & Tourism' },
   { value: 'expressive_arts',  label: 'Expressive Arts' },
@@ -331,11 +401,20 @@ const SUBJECT_GRADE_MAP = {
   // secondary; the CBC (2023) replaced it with the combined Commerce &
   // Principles of Accounts across Forms 1-4 (G8-G11). Each exists in exactly one
   // curriculum, so switching the Curriculum selector swaps one for the other.
-  accounts: {
-    cbc:      [],
+  // Both come from the same CBC workbook (Forms 1-4). Principles of Accounts
+  // was also a 2013 senior-secondary subject — it carried the 'accounts' key
+  // then, which now folds into this one, so its G10-G12 era is preserved. There
+  // is no 2013 Commerce syllabus on file, so nothing is claimed for it there.
+  principles_of_accounts: {
+    cbc:      ['G8','G9','G10','G11'],
     previous: ['G10','G11','G12'],
   },
-  commerce_and_principles_of_accounts: {
+  commerce: {
+    cbc:      ['G8','G9','G10','G11'],
+    previous: [],
+  },
+  // A CBC Forms 1-4 syllabus with no 2013 equivalent on file.
+  mathematics_ii: {
     cbc:      ['G8','G9','G10','G11'],
     previous: [],
   },
@@ -364,27 +443,30 @@ const SUBJECT_GRADE_MAP = {
     previous: [],
   },
   // Home Economics: the CBC upper-primary "(Grades 4-6)" sheets carry it from
-  // Grade 4 (secondary CBC splits it into Food & Nutrition / Fashion & Fabrics /
-  // Hospitality below); the 2013 set runs Grade 5 through senior secondary.
+  // Grade 4 as ONE integrated subject; the 2013 set runs Grade 5 through senior
+  // secondary the same way. It stops at Grade 6 under the CBC because the
+  // Ministry ships three separate examinable syllabi at Forms 1-4 instead —
+  // Food & Nutrition, Fashion & Fabrics and Hospitality Management below, each
+  // numbering its topics from 1.1. See SPLIT_LEGACY_SUBJECTS_AT_GRADE.
   home_economics: {
     cbc:      ['G4','G5','G6'],
     previous: ['G5','G6','G7','G8','G9','G10','G11','G12'],
   },
   // 2013 senior-secondary home-economics strands; the CBC replaces Home
-  // Management with the vocational subjects below.
+  // Management with the pathways below.
   home_management: {
     cbc:      [],
     previous: ['G10','G11','G12'],
   },
-  food_nutrition: {
+  food_and_nutrition: {
     cbc:      ['G8','G9','G10','G11'],
     previous: ['G10','G11','G12'],
   },
-  fashion_fabrics: {
+  fashion_and_fabrics: {
     cbc:      ['G8','G9','G10','G11'],
     previous: ['G10','G11','G12'],
   },
-  // CBC Forms 1-4 vocational pathways with no 2013 equivalent.
+  // CBC Forms 1-4 pathways with no 2013 equivalent.
   hospitality_management: {
     cbc:      ['G8','G9','G10','G11'],
     previous: [],
@@ -416,7 +498,10 @@ function normalizeCurriculum(v) {
  * unmapped subject (no grade restriction — forward-compatible).
  */
 function gradesForSubject(subject, curriculum) {
-  const spec = SUBJECT_GRADE_MAP[subject]
+  // Fold a pre-split spelling first, so a saved 'accounts' / 'food_nutrition'
+  // resolves to the same grade range its canonical key declares instead of
+  // falling through to the "unknown subject → allow anything" branch below.
+  const spec = SUBJECT_GRADE_MAP[canonicalSubjectValue(subject)]
   if (spec === undefined) return null
   if (Array.isArray(spec)) return spec
   const cbc = spec.cbc || []
