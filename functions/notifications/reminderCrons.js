@@ -144,7 +144,7 @@ const subscriptionExpiryReminders = onSchedule(
               body: `Your plan ends in ${days} day${days === 1 ? "" : "s"}. Renew to keep full access.`,
               priority: "high",
               icon: "credit-card",
-              action: {label: "Renew now", url: "/subscription"},
+              action: {label: "Renew now", url: "/my-subscription"},
               dedupeKey: `expiry-${dateKey(0)}`,
               source: "subscription-expiry-reminder",
               userData: data,

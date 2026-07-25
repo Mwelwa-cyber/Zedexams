@@ -634,6 +634,12 @@ export default function App() {
           {/* My Subscription — shared learner/teacher plan, benefits, payment
               status, and upgrade/renew. Audience-aware copy inside. */}
           <Route path="/my-subscription"   element={<ProtectedRoute><MySubscriptionPage /></ProtectedRoute>} />
+          {/* Payment notifications written before 2026-07-25 carry an action
+              url of /subscription, which never existed — the bell 404'd on
+              "Renew now" / "View account". The senders are fixed, but those
+              notifications are already in learners' inboxes, so keep the
+              alias for the ones still sitting there. */}
+          <Route path="/subscription"      element={<Navigate to="/my-subscription" replace />} />
           {/* Nested paths (/settings/profile, /settings/school, …) are the
               Teacher Settings detail panels; SettingsPage renders the right
               chrome per role and TeacherSettings routes the subpath. */}
