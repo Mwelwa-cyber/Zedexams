@@ -42,7 +42,7 @@ import { attributionSection, attributionFooter, attributionWatermarkParagraph } 
 import { buildPaperLayout, DEFAULT_ANSWER_LINES } from './assessmentPaperLayout.js'
 import { resolveImageWidthPercent } from './imageWidth.js'
 import { figureBox, embedBox } from './figureSizing.js'
-import { resolveFigureLabels } from './figureLabelLayout.js'
+import { resolveFigureLabels, resolveAnswerKeyLabels } from './figureLabelLayout.js'
 import { seedBandForLevel } from './assessmentBandService.js'
 import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 import { svgToPngBytes } from './svgRasterizer.js'
@@ -631,7 +631,7 @@ function escapeSvgText(s) {
 // `labels` carry x/y (0..1 ratios of the image) for the marker and optional
 // tx/ty for the leader-tip. Pure string builder so the geometry is unit-tested;
 // the raster step (svgToPngBytes) is the only browser-only part.
-export function buildDiagramIdentifySvg({ href, width, height, labels = [], mode = 'identify' }) {
+export function buildDiagramIdentifySvg({ href, width, height, labels = [], mode = 'identify', answerKey = false }) {
   const W = Math.max(1, Math.round(width))
   const H = Math.max(1, Math.round(height))
   const clamp01 = n => Math.max(0, Math.min(1, Number(n) || 0))
@@ -677,6 +677,24 @@ export function buildDiagramIdentifySvg({ href, width, height, labels = [], mode
     parts.push(`<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r}" fill="#000" stroke="#fff" stroke-width="${sw}"/>`)
     parts.push(`<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" fill="#fff" font-size="${fs}" font-weight="700" font-family="Arial, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="central">${i + 1}</text>`)
   })
+  // The marking key names the parts ON the figure (§4.3), in green so a marker
+  // can see at a glance what the learner's copy withheld. The numbered markers
+  // above are untouched — that is what makes the two copies correspond.
+  if (answerKey && mode === 'identify') {
+    for (const l of resolveAnswerKeyLabels(labels).names) {
+      const cx = clamp01(l.x) * W
+      const cy = clamp01(l.y) * H
+      if (l.leader) {
+        parts.push(`<line x1="${(l.leader.x1 * W).toFixed(1)}" y1="${(l.leader.y1 * H).toFixed(1)}" x2="${(l.leader.x2 * W).toFixed(1)}" y2="${(l.leader.y2 * H).toFixed(1)}" stroke="#047857" stroke-width="${sw}"/>`)
+      }
+      const padX = Math.max(4, Math.round(fs * 0.5))
+      const boxW = Math.round(l.text.length * fs * 0.6 + padX * 2)
+      const boxH = Math.round(fs * 1.7)
+      const rad = Math.max(2, Math.round(boxH * 0.18))
+      parts.push(`<rect x="${(cx - boxW / 2).toFixed(1)}" y="${(cy - boxH / 2).toFixed(1)}" width="${boxW}" height="${boxH}" rx="${rad}" ry="${rad}" fill="#fff" stroke="#047857" stroke-width="${sw}"/>`)
+      parts.push(`<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" fill="#047857" font-size="${fs}" font-weight="600" font-family="Arial, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="central">${escapeSvgText(l.text)}</text>`)
+    }
+  }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${parts.join('')}</svg>`
 }
 
@@ -696,7 +714,11 @@ async function diagramLabelImageParagraph(url, labels, opts = {}) {
     // decodeImage transcodes WEBP→PNG; everything else keeps its original mime.
     const mime = type === 'webp' ? 'image/png' : (MIME_BY_TYPE[type] || 'image/png')
     const href = `data:${mime};base64,${bytesToBase64(decoded.bytes)}`
-    const svg = buildDiagramIdentifySvg({ href, width: decoded.width, height: decoded.height, labels, mode: opts.mode || 'identify' })
+    const svg = buildDiagramIdentifySvg({
+      href, width: decoded.width, height: decoded.height, labels,
+      mode: opts.mode || 'identify',
+      answerKey: Boolean(opts.answerKey),
+    })
     // The level's minimum figure size applies here too. Slice 4 wired it into
     // the plain-image path only, which left the labelled diagrams — exactly the
     // figures an Early Childhood paper is made of — printing at whatever the
@@ -1107,6 +1129,8 @@ async function renderQuestion(b, stats = null) {
         mode: isIdentify ? 'identify' : 'labeled',
         alt: b.imageAlt || '',
         widthPreset: b.imageWidth,
+        // The marking key gets the named twin of the learner's figure (§4.3).
+        answerKey: Boolean(b.showAnswer),
       })
       composited = Boolean(img)
     }

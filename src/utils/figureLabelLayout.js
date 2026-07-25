@@ -139,6 +139,10 @@ function overlaps(a, b) {
  * @param {number} [opts.height]  figure box height in CSS pixels
  * @param {'labeled'|'identify'} [opts.mode]
  * @param {number} [opts.fontSize]
+ * @param {Array} [opts.anchors] boxes that push these labels around but never
+ *   move themselves: `{x, y, widthPx, heightPx}` in 0–1 plus pixel sizes. Used
+ *   by the marking key, where the numbered markers must stay exactly where the
+ *   learner's copy put them while the answer names arrange themselves around.
  * @returns {{labels: Array, movedCount: number, unresolvedOverlaps: number}}
  *   each entry: {index, text, x, y, originX, originY, moved,
  *                widthPx, heightPx, leader: {x1,y1,x2,y2}|null,
@@ -172,7 +176,18 @@ export function resolveFigureLabels(labels = [], opts = {}) {
     }
   })
 
+  // Immovable obstacles. They take part in every overlap test and are never
+  // displaced, so the movable labels flow around them.
+  const anchors = (Array.isArray(opts.anchors) ? opts.anchors : []).map(a => ({
+    fixed: true,
+    cx: clamp01(a?.x) * W,
+    cy: clamp01(a?.y) * H,
+    w: Math.min(Number(a?.widthPx) > 0 ? Number(a.widthPx) : 0, W),
+    h: Math.min(Number(a?.heightPx) > 0 ? Number(a.heightPx) : 0, H),
+  })).filter(a => a.w > 0 && a.h > 0)
+
   const clampIntoFigure = (b) => {
+    if (b.fixed) return
     b.cx = Math.max(b.w / 2, Math.min(W - b.w / 2, b.cx))
     b.cy = Math.max(b.h / 2, Math.min(H - b.h / 2, b.cy))
   }
@@ -181,12 +196,14 @@ export function resolveFigureLabels(labels = [], opts = {}) {
   // least penetration and re-clamps into the figure; clamping can reintroduce
   // an overlap, so the loop is bounded and the result is best-effort rather
   // than guaranteed. What is guaranteed is that it is the same every time.
+  const all = boxes.concat(anchors)
   for (let pass = 0; pass < MAX_PASSES; pass += 1) {
     let moved = false
-    for (let i = 0; i < boxes.length; i += 1) {
-      for (let j = i + 1; j < boxes.length; j += 1) {
-        const a = boxes[i]
-        const b = boxes[j]
+    for (let i = 0; i < all.length; i += 1) {
+      for (let j = i + 1; j < all.length; j += 1) {
+        const a = all[i]
+        const b = all[j]
+        if (a.fixed && b.fixed) continue
         if (!overlaps(a, b)) continue
         const overlapX = (a.w + b.w) / 2 - Math.abs(a.cx - b.cx)
         const overlapY = (a.h + b.h) / 2 - Math.abs(a.cy - b.cy)
@@ -194,14 +211,18 @@ export function resolveFigureLabels(labels = [], opts = {}) {
         // separate along; break the tie by index so the result is stable.
         const dx = a.cx === b.cx ? (i < j ? -1 : 1) : Math.sign(a.cx - b.cx)
         const dy = a.cy === b.cy ? (i < j ? -1 : 1) : Math.sign(a.cy - b.cy)
+        // A fixed box does not give ground, so the movable one absorbs the
+        // whole separation rather than half of it.
+        const aShare = a.fixed ? 0 : (b.fixed ? 1 : 0.5)
+        const bShare = b.fixed ? 0 : (a.fixed ? 1 : 0.5)
         if (overlapX < overlapY) {
-          const shift = overlapX / 2 + 0.5
-          a.cx += dx * shift
-          b.cx -= dx * shift
+          const shift = overlapX + 1
+          a.cx += dx * shift * aShare
+          b.cx -= dx * shift * bShare
         } else {
-          const shift = overlapY / 2 + 0.5
-          a.cy += dy * shift
-          b.cy -= dy * shift
+          const shift = overlapY + 1
+          a.cy += dy * shift * aShare
+          b.cy -= dy * shift * bShare
         }
         clampIntoFigure(a)
         clampIntoFigure(b)
@@ -213,9 +234,9 @@ export function resolveFigureLabels(labels = [], opts = {}) {
   boxes.forEach(clampIntoFigure)
 
   let unresolvedOverlaps = 0
-  for (let i = 0; i < boxes.length; i += 1) {
-    for (let j = i + 1; j < boxes.length; j += 1) {
-      if (overlaps(boxes[i], boxes[j])) unresolvedOverlaps += 1
+  for (let i = 0; i < all.length; i += 1) {
+    for (let j = i + 1; j < all.length; j += 1) {
+      if (!(all[i].fixed && all[j].fixed) && overlaps(all[i], all[j])) unresolvedOverlaps += 1
     }
   }
 
@@ -246,6 +267,53 @@ export function resolveFigureLabels(labels = [], opts = {}) {
   })
 
   return { labels: resolved, movedCount, unresolvedOverlaps }
+}
+
+/**
+ * The marking key's version of an identify diagram (§4.3).
+ *
+ * The brief asks for "one source producing an unlabelled learner version and a
+ * labelled marking-scheme version, with corresponding letters". Only the first
+ * half existed: both copies carried the SAME numbered figure, and the answers
+ * appeared under it as "1. Aorta  2. Vena cava". A teacher marking forty
+ * scripts had to cross-reference number → name → position on the picture, for
+ * every question, on every script — the list told them what the answers were
+ * but never where.
+ *
+ * So the key now names the parts on the figure itself. The numbers are what
+ * make the two copies correspond, and correspondence is only real if the
+ * numbers do not move: the markers are resolved EXACTLY as the learner's copy
+ * resolves them, then passed to the name pills as immovable anchors. A name
+ * cannot shove a marker off its part, and each name carries a leader line back
+ * to the marker it belongs to.
+ *
+ * @returns {{markers: Array, names: Array, unresolvedOverlaps: number}}
+ *   `markers` is identical to `resolveFigureLabels(labels, {mode:'identify'})`.
+ */
+export function resolveAnswerKeyLabels(labels = [], opts = {}) {
+  const markers = resolveFigureLabels(labels, { ...opts, mode: 'identify' })
+  const list = Array.isArray(labels) ? labels : []
+  // Each name starts life on its marker and is pushed off it by the anchor,
+  // which is what grows the leader line back — the same rule that stops
+  // de-collision from silently relabelling a diagram.
+  const named = markers.labels.map(m => ({
+    x: m.x,
+    y: m.y,
+    tx: m.x,
+    ty: m.y,
+    text: String(list[m.index]?.text == null ? '' : list[m.index].text).trim(),
+  }))
+  const anchors = markers.labels.map(m => ({
+    x: m.x, y: m.y, widthPx: m.widthPx, heightPx: m.heightPx,
+  }))
+  const names = resolveFigureLabels(named, { ...opts, mode: 'labeled', anchors })
+  return {
+    markers: markers.labels,
+    // A blank answer is a marker the teacher hand-marks; it gets no pill rather
+    // than an empty box floating beside a number.
+    names: names.labels.filter(n => n.text.length > 0),
+    unresolvedOverlaps: markers.unresolvedOverlaps + names.unresolvedOverlaps,
+  }
 }
 
 /**

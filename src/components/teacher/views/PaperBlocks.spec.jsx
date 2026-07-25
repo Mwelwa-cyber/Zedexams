@@ -131,3 +131,55 @@ describe('PaperBlocks — figure labels', () => {
     expect(labelPills(container).map((p) => p.textContent)).toEqual(['1', '2'])
   })
 })
+
+// The marking key's twin figure (§4.3). One source, two renderings: the learner
+// gets numbers, the teacher gets the same numbers plus the names. The first
+// test is the one that matters — an answer must never reach the learner.
+
+const identifyBlock = (showAnswer) => ({
+  kind: 'question',
+  type: 'diagram',
+  number: 4,
+  marks: 2,
+  text: 'Name the parts of the heart.',
+  imageUrl: 'https://example.test/heart.png',
+  diagramMode: 'identify',
+  showAnswer,
+  diagramLabels: [
+    { x: 0.25, y: 0.3, text: 'Aorta' },
+    { x: 0.6, y: 0.55, text: 'Left ventricle' },
+  ],
+})
+
+describe('PaperBlocks — marking-key figure', () => {
+  afterEach(cleanup)
+
+  it('never shows an answer on the learner copy', () => {
+    const { container } = render(<PaperBlock block={identifyBlock(false)} />)
+    expect(container.textContent).not.toContain('Aorta')
+    expect(container.textContent).not.toContain('Left ventricle')
+    expect(labelPills(container).map((p) => p.textContent)).toEqual(['1', '2'])
+  })
+
+  it('names the parts on the marking key', () => {
+    const { container } = render(<PaperBlock block={identifyBlock(true)} />)
+    expect(container.textContent).toContain('Aorta')
+    expect(container.textContent).toContain('Left ventricle')
+    // The numbers are still there — they are what makes the copies correspond.
+    const texts = labelPills(container).map((p) => p.textContent)
+    expect(texts).toContain('1')
+    expect(texts).toContain('2')
+  })
+
+  it('puts the numbers in identical places on both copies', () => {
+    const at = (showAnswer) => {
+      const { container } = render(<PaperBlock block={identifyBlock(showAnswer)} />)
+      const spots = labelPills(container)
+        .filter((p) => /^\d+$/.test(p.textContent))
+        .map((p) => `${p.style.left},${p.style.top}`)
+      cleanup()
+      return spots
+    }
+    expect(at(false)).toEqual(at(true))
+  })
+})

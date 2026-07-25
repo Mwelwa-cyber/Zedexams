@@ -444,6 +444,43 @@ console.log('\nLabelled-diagram markers composite onto the Word image (buildDiag
   assert(svg.includes('H2O &lt;gas&gt; &amp; air'), 'label text is XML-escaped in the pill')
 }
 
+console.log('\nThe Word marking key names the parts on the figure (§4.3)')
+{
+  const labels = [
+    { x: 0.25, y: 0.3, text: 'Aorta' },
+    { x: 0.6, y: 0.55, text: 'Left ventricle' },
+  ]
+  const learner = buildDiagramIdentifySvg({
+    href: 'data:image/png;base64,AAAA', width: 400, height: 300, labels, mode: 'identify',
+  })
+  const key = buildDiagramIdentifySvg({
+    href: 'data:image/png;base64,AAAA', width: 400, height: 300, labels,
+    mode: 'identify', answerKey: true,
+  })
+  // The assertion that matters most: an answer must never reach the learner.
+  assert(!learner.includes('Aorta') && !learner.includes('Left ventricle'),
+    'the learner overlay carries no answer text')
+  assert(key.includes('>Aorta</text>') && key.includes('>Left ventricle</text>'),
+    'the marking key names the parts on the picture')
+  // Correspondence: the numbered markers must be in identical positions, or the
+  // learner's "2" and the marker's "2" would be different parts.
+  const circles = (svg) => (svg.match(/<circle cx="[\d.]+" cy="[\d.]+" r="\d+" fill="#000"/g) || [])
+  assert(circles(learner).length === 2, 'the learner copy has both numbered markers')
+  assert(circles(learner).join('|') === circles(key).join('|'),
+    'and the key puts them in exactly the same places')
+  assert(key.includes('#047857'), 'the answers are drawn in the marking-key green')
+}
+{
+  // answerKey is meaningless for a labelled (annotation) diagram — "5 cm" is
+  // part of the question, not an answer to withhold.
+  const svg = buildDiagramIdentifySvg({
+    href: 'data:image/png;base64,AAAA', width: 200, height: 200, mode: 'labeled',
+    answerKey: true, labels: [{ x: 0.5, y: 0.9, text: '5 cm' }],
+  })
+  assert((svg.match(/>5 cm</g) || []).length === 1, 'an annotation is drawn once, not duplicated')
+  assert(!svg.includes('#047857'), 'and never restyled as an answer')
+}
+
 console.log('\nThe level\'s band is scoped to one document, not the process (§4.2)')
 {
   // The band is module state — the figure sizing sits a dozen frames below the

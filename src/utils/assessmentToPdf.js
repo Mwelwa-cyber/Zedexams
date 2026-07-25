@@ -16,7 +16,7 @@ import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 import { splitStatementSegments, statementLabel } from './fillBlanks.js'
 import { subPartLabel, splitPartBlanks } from './questionParts.js'
 import { hydrateTableData } from './tableData.js'
-import { resolveFigureLabels } from './figureLabelLayout.js'
+import { resolveFigureLabels, resolveAnswerKeyLabels } from './figureLabelLayout.js'
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
@@ -323,6 +323,11 @@ body {
   font-size: 9pt;
   white-space: nowrap;
   line-height: 1.1;
+}
+.diagram-label-answer {
+  color: #047857;
+  border-color: #047857;
+  font-weight: 600;
 }
 .diagram-label-num {
   background: #000;
@@ -775,13 +780,22 @@ function renderQuestion(b) {
     // this the print window drew the pills and silently DROPPED the leader
     // lines, leaving labels floating with nothing pointing at the part.
     const placed = resolveFigureLabels(labels, { mode: b.diagramMode }).labels
+    // On the marking key an identify diagram is NAMED on the picture (§4.3).
+    // The markers resolve identically on both copies, so the numbers still
+    // correspond — the key adds names, it does not move anything.
+    const answerNames = (b.showAnswer && isIdentify)
+      ? resolveAnswerKeyLabels(labels).names
+      : []
     const labelHtml = placed.map((l) => {
       const inner = isIdentify ? String(l.index + 1) : escapeHtml(l.text)
       const cls = isIdentify ? 'diagram-label diagram-label-num' : 'diagram-label'
       return `<span class="${cls}" style="left:${(l.x * 100).toFixed(2)}%;top:${(l.y * 100).toFixed(2)}%">${inner}</span>`
-    }).join('')
-    const leaderHtml = placed.some(l => l.leader)
-      ? `<svg class="diagram-leaders" aria-hidden="true">${placed.map(l => (l.leader
+    }).join('') + answerNames.map((l) => (
+      `<span class="diagram-label diagram-label-answer" style="left:${(l.x * 100).toFixed(2)}%;top:${(l.y * 100).toFixed(2)}%">${escapeHtml(l.text)}</span>`
+    )).join('')
+    const withLeaders = [...placed, ...answerNames]
+    const leaderHtml = withLeaders.some(l => l.leader)
+      ? `<svg class="diagram-leaders" aria-hidden="true">${withLeaders.map(l => (l.leader
         ? `<line x1="${(l.leader.x1 * 100).toFixed(2)}%" y1="${(l.leader.y1 * 100).toFixed(2)}%"` +
           ` x2="${(l.leader.x2 * 100).toFixed(2)}%" y2="${(l.leader.y2 * 100).toFixed(2)}%"` +
           ' stroke="#000" stroke-width="1"/>' +

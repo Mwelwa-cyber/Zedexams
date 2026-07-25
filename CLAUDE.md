@@ -269,6 +269,13 @@ wrong:
   de-collision silently relabels the diagram. Positions come back normalised
   0–1, resolved against a nominal A4-column figure box, because each renderer
   draws its own pill size but they must all agree on placement.
+  `resolveAnswerKeyLabels` builds §4.3's twin figure from the same source: the
+  learner gets numbered markers, the marking key gets those same markers plus
+  the part names in green. Correspondence is the point, so the markers are
+  resolved exactly as the learner's copy resolves them and then passed to the
+  names as immovable `anchors` — a name can never shove a number off its part.
+  Every renderer gates this on `block.showAnswer`, and each has a test that the
+  learner copy carries no answer text.
 - **`src/utils/paperGolden.test.js`** (`test:paper-golden`) renders reference
   papers all the way to a real `.docx`, unzips it and asserts against
   `word/document.xml`. It is the net for "looks right in Preview, breaks in Word",

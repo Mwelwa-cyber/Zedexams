@@ -318,6 +318,68 @@ console.log('\nB4 — figure labels')
   ok(out.includes('>Aorta<') && out.includes('>Apex<'), 'the labels still print')
 }
 
+// ─── B5: the marking key's twin figure (§4.3) ────────────────────────────────
+//
+// The brief asks for one source producing an unlabelled learner version and a
+// labelled marking-scheme version with corresponding numbers. Only the first
+// half existed: BOTH copies carried the same numbered figure and the answers
+// appeared as a list underneath, so a teacher marking forty scripts had to
+// cross-reference number → name → position for every question.
+//
+// The first assertion here is the one that matters most: the learner's copy
+// must never carry an answer.
+
+console.log('\nB5 — the marking key names the parts on the figure')
+
+const HEART_Q = makeQ({
+  id: 'q1', order: 0, type: 'diagram', text: 'Name the parts of the heart.',
+  imageUrl: 'https://example.test/heart.png',
+  diagramMode: 'identify',
+  diagramLabels: [
+    { x: 0.25, y: 0.3, text: 'Aorta' },
+    { x: 0.6, y: 0.55, text: 'Left ventricle' },
+  ],
+})
+
+{
+  const paper = html({}, [HEART_Q], 'paper')
+  ok(!paper.includes('Aorta'), 'the learner copy never prints an answer')
+  ok(!paper.includes('Left ventricle'), 'not even the second one')
+  // (the stylesheet always carries the rule — look for the markup)
+  ok(!paper.includes('diagram-label diagram-label-answer'), 'and carries no answer pills')
+  ok(paper.includes('diagram-label-num'), 'it still gets its numbered markers')
+}
+{
+  const scheme = html({}, [HEART_Q], 'scheme')
+  ok(scheme.includes('diagram-label diagram-label-answer'), 'the key names the parts on the picture')
+  const names = [...scheme.matchAll(/class="diagram-label diagram-label-answer"/g)]
+  ok(names.length === 2, `one pill per answered marker (${names.length})`)
+  ok(scheme.includes('diagram-label-num'), 'and keeps the numbers so the two copies correspond')
+}
+{
+  // Correspondence is only real if the numbers do not move between copies.
+  const positions = (out) => [...out.matchAll(
+    /class="diagram-label diagram-label-num" style="left:([\d.]+)%;top:([\d.]+)%"/g,
+  )].map(m => `${m[1]},${m[2]}`)
+  const learner = positions(html({}, [HEART_Q], 'paper'))
+  const key = positions(html({}, [HEART_Q], 'scheme'))
+  ok(learner.length === 2 && key.length === 2, 'both copies show both markers')
+  ok(learner.join('|') === key.join('|'),
+    `the numbers sit in the same places on both copies (${learner.join(' ')} vs ${key.join(' ')})`)
+}
+{
+  // A labelled (annotation) diagram is NOT an answer key — "5 cm" on a maths
+  // figure belongs on the learner's paper. This must not start hiding it.
+  const annotated = html({}, [makeQ({
+    id: 'q1', order: 0, type: 'diagram', text: 'Find the area.',
+    imageUrl: 'https://example.test/rect.png',
+    diagramMode: 'labeled',
+    diagramLabels: [{ x: 0.5, y: 0.9, text: '5 cm' }],
+  })], 'paper')
+  ok(annotated.includes('5 cm'), 'an annotation still prints on the learner copy')
+  ok(!annotated.includes('diagram-label diagram-label-answer'), 'and is not treated as an answer')
+}
+
 // ─── Result ───────────────────────────────────────────────────────────────────
 
 if (failures > 0) {
