@@ -41,6 +41,11 @@ const MM_PER_INCH = 25.4
  * 4× lands at ~384dpi of source detail behind the embedded box, which survives
  * printing without the fuzzy edges 2× gave on a laser printer. Higher would only
  * grow the .docx for detail no printer resolves.
+ *
+ * One constant for the whole app: every figure in every export rasterises at
+ * this scale. It is not a band setting and not a teacher preference — print
+ * resolution is a property of paper, not of the learner's age, so there is
+ * deliberately no per-band or per-question path.
  */
 export const FIGURE_RASTER_SCALE = 4
 

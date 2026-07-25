@@ -483,9 +483,9 @@ async function loadImageRun(url, { width = 360, height = 220, widthPercent = 100
   if (!decoded) {
     // No DOM (tests): embed jpg/png/gif/bmp as-is; WEBP can't be transcoded
     // without a canvas, so skip it rather than write a broken media part.
-    // The band's floor still applies — without the decoded dimensions the box
-    // falls back to the default aspect, but a figure whose real shape we cannot
-    // read is not a reason to drop the level's minimum size.
+    // The band's floor is applied here too. What is missing without a decode is
+    // the image's real aspect ratio, so the box falls back to the default
+    // 360×220 shape — the floor itself is never conditional.
     if (type === 'webp') return null
     const box = figureBox({ maxWidth: width, maxHeight: height, widthPercent, band: currentBand })
     return imageRun(bytes, { width: box.width, height: box.height }, alt)

@@ -52,7 +52,11 @@ const PILL_PAD_X = 6
 
 /**
  * Average advance width of Arial as a fraction of the font size, for mixed-case
- * text. An estimate rather than a measurement: this module stays pure so the
+ * text. Taken from Arial's published metrics, not measured at runtime and not
+ * eyeballed — a nominal figure that is deliberately a little generous, since
+ * over-estimating a pill's width separates two labels that would have just
+ * touched, while under-estimating leaves them overlapping. It is an estimate
+ * rather than a measurement because this module stays pure so the
  * Word exporter and the plain-node tests can call it, and the three renderers
  * draw pills at three different sizes anyway — what they have to agree on is
  * placement. It only has to be good enough to know whether two pills overlap.
