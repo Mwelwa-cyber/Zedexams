@@ -16,6 +16,7 @@ import { analyzeTiming } from './assessmentTiming.js'
 import { canonicalizeQuestionType } from '../editor/schema/question.js'
 import { normalizeSubParts, sumSubPartMarks } from './questionParts.js'
 import { hydrateTableData } from './tableData.js'
+import { parsePaperContent } from './paperContentModel.js'
 import { orderPaperGroups } from './quizSections.js'
 import { assessmentTypeLabel } from '../components/teacher/paperTaxonomy.js'
 
@@ -153,6 +154,27 @@ function richHtml(value) {
   }
 }
 
+/**
+ * The same rich value as the shared CONTENT MODEL (§4.1).
+ *
+ * The exporters used to be handed an HTML string and each parse it back — the
+ * Word export carried a full DOM walker of its own. Parsing here, once, means a
+ * renderer receives typed nodes and only has to map them.
+ *
+ * `textHtml` is still produced alongside, unchanged, because the print window is
+ * an HTML renderer and the print stylesheet is tuned to exactly the markup
+ * `richTextToPaperHtml` emits. Making that HTML a serialisation of the model too
+ * is the remaining half of §4.1 and needs the print CSS reviewed with it.
+ */
+function richNodes(value) {
+  if (value == null || value === '') return []
+  try {
+    return parsePaperContent(richHtml(value))
+  } catch {
+    return []
+  }
+}
+
 // Bounded memo for option-level rich + plain conversions. `buildPaperLayout`
 // runs inside an editor `useMemo` whose deps churn on every keystroke —
 // before this cache, a 50-question quiz re-parsed 200 (4×50) option
@@ -166,6 +188,10 @@ function richHtml(value) {
 // for a 50-question paper).
 const RICH_HTML_OPTION_CACHE = new Map()
 const PLAIN_OPTION_CACHE = new Map()
+// The content model for an option, cached beside its HTML for the same reason:
+// re-parsing every option on every keystroke is exactly the cost this cache
+// exists to avoid, and adding a second parse would have reintroduced it.
+const OPTION_NODES_CACHE = new Map()
 const OPTION_CACHE_LIMIT = 1000
 
 function cachedOptionRichHtml(value) {
@@ -179,6 +205,19 @@ function cachedOptionRichHtml(value) {
     RICH_HTML_OPTION_CACHE.delete(firstKey)
   }
   RICH_HTML_OPTION_CACHE.set(value, out)
+  return out
+}
+
+function cachedOptionNodes(value) {
+  if (value == null || value === '') return []
+  if (typeof value !== 'string') return richNodes(value)
+  const hit = OPTION_NODES_CACHE.get(value)
+  if (hit !== undefined) return hit
+  const out = parsePaperContent(cachedOptionRichHtml(value))
+  if (OPTION_NODES_CACHE.size >= OPTION_CACHE_LIMIT) {
+    OPTION_NODES_CACHE.delete(OPTION_NODES_CACHE.keys().next().value)
+  }
+  OPTION_NODES_CACHE.set(value, out)
   return out
 }
 
@@ -596,6 +635,7 @@ function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}) {
   // editor re-render doesn't re-parse 200 unchanged options. Skip the
   // map entirely for non-MCQ question types where `options` is [].
   const optionsHtml = options.length ? options.map(cachedOptionRichHtml) : []
+  const optionsNodes = options.length ? options.map(cachedOptionNodes) : []
   const optionsPlain = options.length ? options.map(cachedOptionPlain) : []
 
   // Short-answer sub-parts: "(a) … (b) … (c) …" under the question's instruction
@@ -620,7 +660,11 @@ function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}) {
     // Grade-7 math blocks (vertical sums, fractions, number bases)
     // come out exactly as they appear in the editor.
     textHtml: richHtml(q.text),
+    // The same content as typed nodes (§4.1) — parsed once here so the Word
+    // export can map rather than parse. See richNodes().
+    textNodes: richNodes(q.text),
     optionsHtml,
+    optionsNodes,
     optionsPlain,
     marks: subParts.length ? sumSubPartMarks(subParts) : (q.marks ?? 1),
     type,

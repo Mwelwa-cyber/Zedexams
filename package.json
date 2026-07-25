@@ -65,6 +65,7 @@
     "test:assessment-tool-schema": "node functions/teacherTools/assessmentToolSchema.test.js",
     "test:latex-unicode": "node src/utils/latexToUnicode.test.js",
     "test:paper-golden": "node src/utils/paperGolden.test.js",
+    "test:paper-content-model": "node src/utils/paperContentModel.test.js",
     "sync:assessment-bands": "node scripts/sync-assessment-bands.mjs",
     "coverage:curriculum": "node scripts/curriculum-coverage-report.mjs",
     "seed:assessment-bands": "node scripts/seed-assessment-bands.mjs",

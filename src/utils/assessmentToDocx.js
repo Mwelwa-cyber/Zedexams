@@ -38,6 +38,9 @@ import { resolveImageWidthPercent } from './imageWidth.js'
 import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 import { svgToPngBytes } from './svgRasterizer.js'
 import { hydrateTableData } from './tableData.js'
+import {
+  parsePaperContent, contentToPlainText, columnWidth,
+} from './paperContentModel.js'
 import { buildAnswerSheet } from './assessmentAnswerSheet.js'
 import { splitStatementSegments, statementLabel } from './fillBlanks.js'
 import { subPartLabel, splitPartBlanks, countPartBlanks } from './questionParts.js'
@@ -125,251 +128,179 @@ function instructionParagraphs(text) {
 }
 
 /**
- * Convert paper HTML (post-hydration, see safeRender.richTextToPaperHtml)
- * into a list of docx Paragraphs.
+ * Turn the shared content model into Word runs and paragraphs (§4.1).
  *
- * The conversion is best-effort:
- *   - Plain text + bold/italic/underline marks  → run-level formatting
- *   - <sup>/<sub>                                → run-level super/subscript
- *   - <p>                                        → new Paragraph
- *   - Fraction span (.math-frac)                 → "whole num/den" with the
- *                                                  numerator on a stacked
- *                                                  visual via two runs
- *                                                  (Word lacks a native
- *                                                  inline frac without
- *                                                  using OMML field codes,
- *                                                  so we fall back to a
- *                                                  legible "a/b" form)
- *   - Number-base span (.num-base)               → number followed by a
- *                                                  subscript base
- *   - Vertical arithmetic div (.vert-arith)      → a monospace block of
- *                                                  paragraphs, one row per
- *                                                  line, with the
- *                                                  operator + numbers
- *                                                  right-aligned by
- *                                                  padding
+ * This file used to carry its own DOM walker over the paper HTML — marks,
+ * sup/sub, stacked fractions, number bases, vertical arithmetic, line breaks —
+ * duplicating the parse the print window was doing separately over the same
+ * string. Two parsers over one format is the drift the shared block model exists
+ * to prevent: a fix to one silently left the other behind.
  *
- * Returns an array of Paragraph objects.
+ * The parse now happens once, in paperContentModel.js, and everything below is a
+ * MAPPING from typed nodes onto docx objects. No tag names, no attributes, no
+ * classList checks — if a construct is missing here it is missing from the model,
+ * which is one place to look instead of three.
  */
-/**
- * Walk an option's pre-hydrated rich HTML and return a flat array of
- * docx TextRun / ImageRun-equivalent runs (no paragraph wrappers).
- *
- * Used by MCQ option rendering — each option is one row, so we want runs
- * that fit inside the existing single-paragraph layouts (text, image,
- * mixed). Falls back to a single plain-text run for legacy options.
- *
- * Supports the same marks as richHtmlToDocxParagraphs: bold / italic /
- * underline / strike / sup / sub, plus the Grade-7 math nodes.
- */
-function optionRuns(html, baseOpts = { size: 20 }, fallback = '') {
-  if (!html || typeof DOMParser === 'undefined') {
-    return [runText(fallback ? String(fallback) : (html ? String(html).replace(/<[^>]+>/g, ' ') : ''), baseOpts)]
-  }
-  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html')
-  const runs = []
-  const walk = (node, marks = {}) => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent || ''
-      if (text) runs.push(runText(text, { ...baseOpts, ...marks }))
-      return
-    }
-    if (node.nodeType !== Node.ELEMENT_NODE) return
-    const el = node
-    const tag = el.tagName.toUpperCase()
 
-    if (el.classList?.contains('math-frac')) {
-      const whole = el.getAttribute('data-whole') || ''
-      const num = el.getAttribute('data-num') || ''
-      const den = el.getAttribute('data-den') || ''
-      if (whole) runs.push(runText(`${whole} `, { ...baseOpts, ...marks }))
-      runs.push(runText(num, { ...baseOpts, ...marks, superScript: true }))
-      runs.push(runText('⁄', { ...baseOpts, ...marks }))
-      runs.push(runText(den, { ...baseOpts, ...marks, subScript: true }))
-      return
-    }
-    if (el.classList?.contains('num-base')) {
-      const number = el.getAttribute('data-number') || ''
-      const base = el.getAttribute('data-base') || ''
-      runs.push(runText(number, { ...baseOpts, ...marks }))
-      if (base) runs.push(runText(base, { ...baseOpts, ...marks, subScript: true }))
-      return
-    }
-    if (el.classList?.contains('vert-arith')) {
-      // Vertical sums don't fit inside an option row (a stacked column
-      // would break the layout). Emit a one-line text summary instead.
-      const operator = el.getAttribute('data-operator') || '+'
-      const lines = (el.getAttribute('data-lines') || '').split('|')
-      const answer = el.getAttribute('data-answer') || ''
-      runs.push(runText(
-        `${lines.join(` ${operator} `)} = ${answer || '___'}`,
-        { ...baseOpts, ...marks, font: 'Consolas' },
-      ))
-      return
-    }
-
-    const next = { ...marks }
-    if (tag === 'STRONG' || tag === 'B') next.bold = true
-    if (tag === 'EM' || tag === 'I') next.italics = true
-    if (tag === 'U') next.underline = {}
-    if (tag === 'S' || tag === 'STRIKE') next.strike = true
-    if (tag === 'SUP') next.superScript = true
-    if (tag === 'SUB') next.subScript = true
-    if (tag === 'BR') {
-      runs.push(runText('\n', { ...baseOpts, ...marks, break: 1 }))
-      return
-    }
-    Array.from(el.childNodes).forEach((child) => walk(child, next))
-  }
-  Array.from(doc.body.childNodes).forEach((node) => walk(node, {}))
-  if (!runs.length) return [runText(fallback ? String(fallback) : '', baseOpts)]
-  return runs
+/** The content-model marks, as docx run properties. */
+function runMarks(marks = {}) {
+  const out = {}
+  if (marks.bold) out.bold = true
+  if (marks.italic) out.italics = true
+  if (marks.underline) out.underline = {}
+  if (marks.strike) out.strike = true
+  if (marks.sup) out.superScript = true
+  if (marks.sub) out.subScript = true
+  return out
 }
 
-function richHtmlToDocxParagraphs(html, baseOpts = { size: 22 }, opts = {}) {
+/**
+ * One inline node as docx runs.
+ *
+ * A fraction is drawn as superscript-numerator / solidus / subscript-denominator:
+ * Word has no native inline fraction short of an OMML equation object, and this
+ * form is unambiguous and legible in every Word version. (Real OMML is the
+ * remaining §4.2 work.)
+ */
+function inlineRuns(node, baseOpts) {
+  const marks = runMarks(node.marks)
+  if (node.type === 'text') return [runText(node.value, { ...baseOpts, ...marks })]
+  if (node.type === 'break') return [runText('\n', { ...baseOpts, break: 1 })]
+  if (node.type === 'fraction') {
+    const runs = []
+    if (node.whole) runs.push(runText(`${node.whole} `, { ...baseOpts, ...marks }))
+    runs.push(runText(node.numerator, { ...baseOpts, ...marks, superScript: true }))
+    runs.push(runText('⁄', { ...baseOpts, ...marks }))
+    runs.push(runText(node.denominator, { ...baseOpts, ...marks, subScript: true }))
+    return runs
+  }
+  if (node.type === 'numberBase') {
+    const runs = [runText(node.number, { ...baseOpts, ...marks })]
+    if (node.base) runs.push(runText(node.base, { ...baseOpts, ...marks, subScript: true }))
+    return runs
+  }
+  return []
+}
+
+/** Every inline node of a paragraph, flattened to runs. */
+function paragraphRuns(block, baseOpts) {
+  return (block.children || []).flatMap((node) => inlineRuns(node, baseOpts))
+}
+
+/**
+ * A vertical sum as a monospace column stack. The padding matches
+ * paperContentModel's own HTML rendering (both call columnWidth), so the printed
+ * paper and the Word download line up digit for digit.
+ */
+function verticalArithmeticParagraphs(block, baseOpts) {
+  const width = columnWidth(block)
+  const pad = (v) => String(v ?? '').padStart(width, ' ')
+  const mono = { ...baseOpts, font: 'Consolas' }
+  const out = block.lines.map((line, i) => new Paragraph({
+    children: [runText(`${i === block.lines.length - 1 ? block.operator : ' '}  ${pad(line)}`, mono)],
+    spacing: { after: 0 },
+  }))
+  out.push(new Paragraph({
+    children: [runText(`   ${'─'.repeat(width)}`, mono)],
+    spacing: { after: 0 },
+  }))
+  out.push(new Paragraph({
+    children: [runText(`   ${pad(block.answer)}`, mono)],
+    spacing: { after: 120 },
+  }))
+  return out
+}
+
+/**
+ * Content model → docx Paragraphs.
+ *
+ * @param {object[]} nodes  content-model blocks
+ * @param {object} baseOpts run options every run inherits (size, font)
+ * @param {object} [opts]   prefixRuns / suffixRuns / firstParaSpacing /
+ *   paragraphOpts, as the old HTML entry point took
+ */
+function contentToDocxParagraphs(nodes, baseOpts = { size: 22 }, opts = {}) {
   const { prefixRuns = [], suffixRuns = [], firstParaSpacing, paragraphOpts = {} } = opts
-  if (!html || typeof DOMParser === 'undefined') {
-    const text = html ? String(html).replace(/<[^>]+>/g, ' ') : ''
-    return [new Paragraph({
-      children: [...prefixRuns, runText(text, baseOpts), ...suffixRuns],
-      spacing: firstParaSpacing || { after: 80 },
-      ...paragraphOpts,
-    })]
-  }
-  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html')
-
-  /** Accumulate runs into the current paragraph; spill into `out` on block. */
+  const blocks = Array.isArray(nodes) ? nodes : []
   const out = []
-  // The prefix (e.g. the "12. " question number) is held separately and
-  // prepended to the FIRST paragraph that actually has content. Block-level
-  // wrappers flush on entry, so preloading the prefix into currentRuns put a
-  // leading `<p>` question stem on its own line ("12." then "Work out:" below).
   let pendingPrefix = [...prefixRuns]
-  let currentRuns = []
-  let isFirstParagraph = true
-  // Track the last emitted paragraph's runs so a trailing suffix (the marks
-  // tag) can be re-attached to it inline instead of dropping onto its own line.
-  let lastEmitted = null
+  let isFirst = true
+  let lastParagraphIndex = -1
+  let lastChildren = null
+  let lastSpacing = null
 
-  const flush = () => {
-    if (!currentRuns.length) return
-    const children = [...pendingPrefix, ...currentRuns]
+  for (const block of blocks) {
+    if (block.type === 'verticalArithmetic') {
+      out.push(...verticalArithmeticParagraphs(block, baseOpts))
+      lastParagraphIndex = -1
+      continue
+    }
+    const runs = paragraphRuns(block, baseOpts)
+    if (!runs.length) continue
+    // The prefix (the "12. " question number) attaches to the first paragraph
+    // that actually has content, so a leading empty block cannot strand the
+    // number on a line of its own.
+    const children = [...pendingPrefix, ...runs]
     pendingPrefix = []
-    const spacing = isFirstParagraph && firstParaSpacing
-      ? firstParaSpacing
-      : { after: 80 }
+    const spacing = isFirst && firstParaSpacing ? firstParaSpacing : { after: 80 }
     out.push(new Paragraph({ children, spacing, ...paragraphOpts }))
-    lastEmitted = { children, spacing, index: out.length - 1 }
-    currentRuns = []
-    isFirstParagraph = false
+    lastParagraphIndex = out.length - 1
+    lastChildren = children
+    lastSpacing = spacing
+    isFirst = false
   }
 
-  const walk = (node, marks = {}) => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent || ''
-      if (!text) return
-      currentRuns.push(runText(text, { ...baseOpts, ...marks }))
-      return
-    }
-    if (node.nodeType !== Node.ELEMENT_NODE) return
-
-    const el = node
-    const tag = el.tagName.toUpperCase()
-
-    // Special-case our Grade-7 math blocks.
-    if (el.classList?.contains('vert-arith')) {
-      flush()
-      const operator = el.getAttribute('data-operator') || '+'
-      const lines = (el.getAttribute('data-lines') || '').split('|')
-      const answer = el.getAttribute('data-answer') || ''
-      const width = Math.max(
-        ...lines.map((l) => String(l ?? '').length),
-        String(answer ?? '').length,
-        1
-      )
-      const pad = (s) => String(s ?? '').padStart(width, ' ')
-      lines.forEach((line, idx) => {
-        const isOp = idx === lines.length - 1
-        const opCol = isOp ? operator : ' '
-        out.push(new Paragraph({
-          children: [runText(`${opCol}  ${pad(line)}`, { ...baseOpts, font: 'Consolas' })],
-          spacing: { after: 0 },
-        }))
+  // The suffix (the marks tag) belongs inline at the end of the last paragraph,
+  // not on a line of its own.
+  if (suffixRuns.length) {
+    if (lastParagraphIndex >= 0) {
+      out[lastParagraphIndex] = new Paragraph({
+        children: [...lastChildren, ...suffixRuns],
+        spacing: lastSpacing,
+        ...paragraphOpts,
       })
+    } else {
       out.push(new Paragraph({
-        children: [runText(`   ${'─'.repeat(width)}`, { ...baseOpts, font: 'Consolas' })],
-        spacing: { after: 0 },
+        children: [...pendingPrefix, ...suffixRuns],
+        spacing: firstParaSpacing || { after: 80 },
+        ...paragraphOpts,
       }))
-      out.push(new Paragraph({
-        children: [runText(`   ${pad(answer)}`, { ...baseOpts, font: 'Consolas' })],
-        spacing: { after: 120 },
-      }))
-      return
+      pendingPrefix = []
     }
-
-    if (el.classList?.contains('math-frac')) {
-      const whole = el.getAttribute('data-whole') || ''
-      const num = el.getAttribute('data-num') || ''
-      const den = el.getAttribute('data-den') || ''
-      if (whole) currentRuns.push(runText(`${whole} `, { ...baseOpts, ...marks }))
-      currentRuns.push(runText(num, { ...baseOpts, ...marks, superScript: true }))
-      currentRuns.push(runText('⁄', { ...baseOpts, ...marks }))
-      currentRuns.push(runText(den, { ...baseOpts, ...marks, subScript: true }))
-      return
-    }
-
-    if (el.classList?.contains('num-base')) {
-      const number = el.getAttribute('data-number') || ''
-      const base = el.getAttribute('data-base') || ''
-      currentRuns.push(runText(number, { ...baseOpts, ...marks }))
-      if (base) currentRuns.push(runText(base, { ...baseOpts, ...marks, subScript: true }))
-      return
-    }
-
-    // Block-level wrappers: flush and recurse.
-    if (tag === 'P' || tag === 'DIV' || tag === 'BLOCKQUOTE' ||
-        tag === 'H1' || tag === 'H2' || tag === 'H3' ||
-        tag === 'UL' || tag === 'OL' || tag === 'LI') {
-      flush()
-      Array.from(el.childNodes).forEach((child) => walk(child, marks))
-      flush()
-      return
-    }
-
-    if (tag === 'BR') {
-      // Hard line break inside the current paragraph.
-      currentRuns.push(runText('\n', { ...baseOpts, ...marks, break: 1 }))
-      return
-    }
-
-    const next = { ...marks }
-    if (tag === 'STRONG' || tag === 'B') next.bold = true
-    if (tag === 'EM' || tag === 'I') next.italics = true
-    if (tag === 'U') next.underline = {}
-    if (tag === 'S' || tag === 'STRIKE') next.strike = true
-    if (tag === 'SUP') next.superScript = true
-    if (tag === 'SUB') next.subScript = true
-
-    Array.from(el.childNodes).forEach((child) => walk(child, next))
   }
 
-  Array.from(doc.body.childNodes).forEach((node) => walk(node, {}))
-  // Append suffix runs (the marks tag) to the last line of content. If the
-  // content ended on a block boundary, re-open the last emitted paragraph so
-  // the tag stays inline rather than starting a new paragraph.
-  if (suffixRuns.length && !currentRuns.length && lastEmitted) {
-    out[lastEmitted.index] = new Paragraph({
-      children: [...lastEmitted.children, ...suffixRuns],
-      spacing: lastEmitted.spacing,
-      // Rebuilt paragraph — carry the keep-together flags across, or a question
-      // stem would silently lose them the moment it gained a marks tag.
-      ...paragraphOpts,
-    })
-  } else {
-    if (suffixRuns.length) currentRuns.push(...suffixRuns)
-    flush()
+  if (!out.length) {
+    // An empty question still needs its number and marks tag on the page, or the
+    // paper would silently skip a numbered item.
+    return [para([...pendingPrefix, runText('', baseOpts)], firstParaSpacing || {})]
   }
-  return out.length ? out : [para([...prefixRuns, runText('', baseOpts), ...suffixRuns], firstParaSpacing || {})]
+  return out
+}
+
+/**
+ * An option's content as a flat run list (no paragraph wrappers) — each MCQ
+ * option is one row, so its runs sit inside an existing single-paragraph layout.
+ *
+ * A vertical sum cannot be stacked inside an option row, so it collapses to its
+ * one-line equation form; that is what `contentToPlainText` already produces for
+ * it, and reusing that keeps the wording identical to every other consumer.
+ */
+function optionRuns(source, baseOpts = { size: 20 }, fallback = '') {
+  // The layout hands over pre-parsed nodes (§4.1); a raw HTML string is still
+  // accepted for hand-assembled blocks and older callers.
+  const nodes = Array.isArray(source) ? source : parsePaperContent(source)
+  const runs = []
+  for (const block of nodes) {
+    if (block.type === 'verticalArithmetic') {
+      runs.push(runText(contentToPlainText([block]), { ...baseOpts, font: 'Consolas' }))
+      continue
+    }
+    runs.push(...paragraphRuns(block, baseOpts))
+  }
+  if (!runs.length) {
+    return [runText(fallback ? String(fallback) : '', baseOpts)]
+  }
+  return runs
 }
 
 /**
@@ -981,8 +912,14 @@ async function renderQuestion(b, stats = null) {
   // Grade-7 math blocks (vertical sums, fractions, number bases) come
   // out with the right Word formatting instead of being flattened to
   // plain text. Otherwise fall back to the simple single-line render.
-  if (b.textHtml && b.textHtml.trim()) {
-    const richParas = richHtmlToDocxParagraphs(b.textHtml, { size: 22 }, {
+  // Prefer the content model the layout already parsed (§4.1) — no parsing in a
+  // renderer. `textHtml` remains the fallback for a caller that built blocks
+  // before textNodes existed, or hand-assembled them in a test.
+  const stemNodes = Array.isArray(b.textNodes) && b.textNodes.length
+    ? b.textNodes
+    : parsePaperContent(b.textHtml)
+  if (stemNodes.length) {
+    const richParas = contentToDocxParagraphs(stemNodes, { size: 22 }, {
       prefixRuns: [runText(`${b.number}. `, { bold: true, size: 22 })],
       suffixRuns: marksTag
         ? [runText(marksTag, { size: 20, color: '6b7280', italics: true })]
@@ -1134,6 +1071,9 @@ async function renderQuestion(b, stats = null) {
     // defaults its options to ['True','False'] and keeps correctAnswer as the
     // index, so the same option-row + marking-key code handles both.
     const optsHtml = b.optionsHtml || []
+    // Pre-parsed option content from the layout (§4.1). Empty for a block built
+    // before it existed, in which case the HTML fallback above still applies.
+    const optNodes = b.optionsNodes || []
     const optsPlain = b.optionsPlain || []
     if (b.optionsMode === 'image') {
       const opts = b.options || []
@@ -1154,7 +1094,7 @@ async function renderQuestion(b, stats = null) {
           const isCorrect = b.showAnswer && Number(b.correctAnswer) === i
           const labelOpts = { bold: true, size: 20, color: isCorrect ? '047857' : undefined }
           const runOpts = { size: 20, color: isCorrect ? '047857' : undefined, bold: isCorrect }
-          const optRunsList = optionRuns(optsHtml[i], runOpts, optsPlain[i] || opts[i] || '')
+          const optRunsList = optionRuns(optNodes[i] || optsHtml[i], runOpts, optsPlain[i] || opts[i] || '')
           cellChildren.push(centeredPara([
             runText(`${SECTION_LETTERS[i]}.`, labelOpts),
             ...(optsPlain[i] || opts[i] ? [runText(' ', runOpts), ...optRunsList] : []),
@@ -1193,7 +1133,7 @@ async function renderQuestion(b, stats = null) {
             runs.push(runText('  ', { size: 20 }))
           }
         }
-        runs.push(...optionRuns(optsHtml[i], runOpts, optsPlain[i] ?? b.options[i] ?? ''))
+        runs.push(...optionRuns(optNodes[i] || optsHtml[i], runOpts, optsPlain[i] ?? b.options[i] ?? ''))
         if (isCorrect) runs.push(runText(' ✓', { bold: true, color: '047857', size: 20 }))
         out.push(para(runs))
       }
@@ -1205,7 +1145,7 @@ async function renderQuestion(b, stats = null) {
         const labelOpts = { bold: true, size: 20, color: isCorrect ? '047857' : undefined }
         const runOpts = { size: 20, color: isCorrect ? '047857' : undefined, bold: isCorrect }
         runs.push(runText(`${i === 0 ? '   ' : '      '}${SECTION_LETTERS[i]}. `, labelOpts))
-        runs.push(...optionRuns(optsHtml[i], runOpts, optsPlain[i] ?? opt ?? ''))
+        runs.push(...optionRuns(optNodes[i] || optsHtml[i], runOpts, optsPlain[i] ?? opt ?? ''))
         if (isCorrect) runs.push(runText(' ✓', { bold: true, color: '047857', size: 20 }))
       })
       out.push(new Paragraph({ children: runs, spacing: { after: 40 } }))
@@ -1217,7 +1157,7 @@ async function renderQuestion(b, stats = null) {
         out.push(new Paragraph({
           children: [
             runText(`   ${SECTION_LETTERS[i]}. `, labelOpts),
-            ...optionRuns(optsHtml[i], runOpts, optsPlain[i] ?? opt ?? ''),
+            ...optionRuns(optNodes[i] || optsHtml[i], runOpts, optsPlain[i] ?? opt ?? ''),
             isCorrect ? runText('  ✓', { bold: true, color: '047857', size: 20 }) : runText(''),
           ],
           spacing: { after: 40 },
