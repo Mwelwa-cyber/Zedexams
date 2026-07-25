@@ -1,0 +1,298 @@
+/**
+ * Golden-file tests — a reference paper per subject family, rendered all the way
+ * to the artefacts a teacher actually receives (§4.6).
+ *
+ * The brief's reasoning, which is exactly right: *"Without these, 'works for all
+ * subjects' silently regresses on every layout change."* And the failure mode it
+ * names — *"A paper that looks correct in Preview and breaks in Word is a failed
+ * paper"* — is invisible to every test that stops at the block model.
+ *
+ * So these go the whole way: rich text → paper HTML (the KaTeX-free form the
+ * non-JS renderers consume) → a real .docx built by the `docx` library → unzip →
+ * assert against `word/document.xml`. If a formula loses its subscript, an answer
+ * leaks onto the learner's copy, or a table degrades to a paragraph, that is a
+ * failing assertion here rather than a teacher's discovery.
+ *
+ * These are STRUCTURAL golden files, not pixel diffs. They catch the class of
+ * regression that actually happens (content lost or mangled in translation)
+ * without a browser screenshot pipeline in CI. Visual diffing of the four
+ * renderings is the remaining half of §4.6.
+ *
+ * A DOM is required — the exporters walk paper HTML with DOMParser, as they do in
+ * the browser — so this installs jsdom globals before importing them.
+ *
+ * Run: node src/utils/paperGolden.test.js
+ */
+
+import { JSDOM } from 'jsdom'
+
+// Must be installed BEFORE the exporters load: assessmentToDocx and safeRender
+// both branch on `typeof DOMParser === 'undefined'` at call time, and the whole
+// point of this suite is to exercise the branch a browser takes.
+const dom = new JSDOM('<!doctype html><html><body></body></html>')
+globalThis.window = dom.window
+globalThis.document = dom.window.document
+globalThis.DOMParser = dom.window.DOMParser
+globalThis.Node = dom.window.Node
+// `navigator` is a getter-only global on modern Node, and nothing in the export
+// path reads it — so it is deliberately not stubbed.
+
+const { Packer } = await import('docx')
+const { unzipSync, strFromU8 } = await import('fflate')
+const { buildAssessmentDocument } = await import('./assessmentToDocx.js')
+const { richTextToPaperHtml } = await import('../editor/utils/safeRender.js')
+
+let failures = 0
+let passed = 0
+function assert(cond, msg) {
+  if (cond) {
+    passed += 1
+    console.log(`  ok  ${msg}`)
+  } else {
+    failures += 1
+    console.error(`  ✗   ${msg}`)
+  }
+}
+
+/** Build a paper and return its word/document.xml. */
+async function renderDocx(meta, questions, opts = { mode: 'paper' }) {
+  const doc = await buildAssessmentDocument(meta, questions, opts)
+  const zip = unzipSync(new Uint8Array(await Packer.toBuffer(doc)))
+  return strFromU8(zip['word/document.xml'])
+}
+
+/** A KaTeX math node, as the editor stores one. */
+function math(latex) {
+  return `<span class="mnode" data-latex="${latex.replace(/"/g, '&quot;')}"></span>`
+}
+
+/** Does the Word XML carry a real subscript run containing this text? */
+function hasScriptRun(xml, text, kind) {
+  const val = kind === 'sub' ? 'subscript' : 'superscript'
+  // docx emits <w:rPr>…<w:vertAlign w:val="subscript"/></w:rPr><w:t>2</w:t>
+  const re = new RegExp(
+    `<w:vertAlign w:val="${val}"\\s*/>[\\s\\S]{0,200}?<w:t[^>]*>${text}</w:t>`,
+  )
+  return re.test(xml)
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 1. Integrated Science — a chemical equation
+ * ════════════════════════════════════════════════════════════════════════ */
+
+console.log('\nGOLDEN — Integrated Science: a chemical equation reaches Word intact')
+{
+  const equation = String.raw`\ce{2H2 + O2 -> 2H2O}`
+  const paperHtml = richTextToPaperHtml(`<p>Balance: ${math(equation)}</p>`)
+
+  // The KaTeX-free form the print window and Word both consume.
+  assert(!paperHtml.includes('\\ce'), 'the raw LaTeX command never reaches the paper')
+  assert(paperHtml.includes('→'), 'the reaction arrow is a real arrow, not "->"')
+  assert(/<sub>2<\/sub>/.test(paperHtml), 'the subscript is real markup, not a Unicode guess')
+  assert(!/>2H2 \+ O2/.test(paperHtml), 'no un-subscripted formula survives')
+
+  const xml = await renderDocx(
+    { title: 'Chemistry Test', subject: 'Integrated Science', grade: '11' },
+    [{ id: 'q1', order: 1, type: 'short_answer', text: paperHtml, marks: 2 }],
+  )
+  assert(hasScriptRun(xml, '2', 'sub'), 'Word receives a genuine subscript run')
+  assert(xml.includes('→'), 'the arrow survives into the Word file')
+  assert(!xml.includes('\\ce'), 'no LaTeX leaks into the Word file')
+  assert(!xml.includes('-&gt;'), 'no ASCII arrow leaks into the Word file')
+}
+
+console.log('\nGOLDEN — Integrated Science: an ion charge and a precipitate')
+{
+  const paperHtml = richTextToPaperHtml(
+    `<p>${math(String.raw`\ce{CO3^2-}`)} and ${math(String.raw`\ce{AgCl v}`)}</p>`,
+  )
+  assert(/<sup>2−<\/sup>/.test(paperHtml), 'the charge is a superscript')
+  assert(paperHtml.includes('↓'), 'the precipitate marker is an arrow…')
+  assert(!/AgCl\s*v/.test(paperHtml), '…and never the letter "v" beside a formula')
+
+  const xml = await renderDocx(
+    { title: 'Ions', subject: 'Integrated Science', grade: '11' },
+    [{ id: 'q1', order: 1, type: 'short_answer', text: paperHtml, marks: 2 }],
+  )
+  assert(hasScriptRun(xml, '2−', 'super'), 'Word receives a genuine superscript charge')
+  assert(xml.includes('↓'), 'the precipitate marker survives into Word')
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 2. Mathematics — an equation with a nested fraction
+ * ════════════════════════════════════════════════════════════════════════ */
+
+console.log('\nGOLDEN — Mathematics: the quadratic formula keeps its fraction bar')
+{
+  const paperHtml = richTextToPaperHtml(
+    `<p>Solve using ${math(String.raw`x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}`)}</p>`,
+  )
+  // The regression this whole slice exists for: the bar used to vanish, leaving
+  // "-b ± √(b²-4ac)2a" — a product, not a quotient, and a wrong formula.
+  assert(paperHtml.includes('/'), 'the fraction bar is present')
+  assert(paperHtml.includes('(2a)'), 'the denominator is bracketed so it binds correctly')
+  assert(paperHtml.includes('±'), 'plus-or-minus survives')
+  // Inside a root or a fraction the formula is laid out linearly, so a nested
+  // power becomes the Unicode character rather than a <sup> element. That is the
+  // right trade for DIGITS — ⁰-⁹ are near-universal in fonts — and it keeps the
+  // bracketing readable. Letters, where glyph coverage is patchy, are never
+  // nested this way at the top level (see the chemistry cases above, which do get
+  // real markup).
+  assert(paperHtml.includes('b²'), 'b squared is rendered, inside the root')
+  assert(!/√\(b²-4ac\)2a/.test(paperHtml), 'the formula is NOT a product')
+
+  const xml = await renderDocx(
+    { title: 'Quadratics', subject: 'Mathematics', grade: '11' },
+    [{ id: 'q1', order: 1, type: 'short_answer', text: paperHtml, marks: 3 }],
+  )
+  assert(xml.includes('(2a)'), 'the bracketed denominator reaches Word')
+  assert(xml.includes('b²'), 'the squared term reaches Word')
+  assert(!xml.includes('\\frac'), 'no LaTeX leaks into the Word file')
+  assert(!xml.includes('\\sqrt'), 'and neither does the root command')
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 3. Learner copy vs teacher copy (§4.3)
+ * ════════════════════════════════════════════════════════════════════════ */
+
+console.log('\nGOLDEN — a learner never receives the answer')
+{
+  const meta = { title: 'Marking', subject: 'Integrated Science', grade: '11' }
+  const questions = [{
+    id: 'q1', order: 1, type: 'mcq',
+    text: 'Which gas do plants take in?',
+    options: ['Carbon dioxide', 'Oxygen', 'Nitrogen', 'Hydrogen'],
+    correctAnswer: 0,
+    explanation: 'THE-MARKING-EXPLANATION',
+    marks: 1,
+  }]
+  const paperXml = await renderDocx(meta, questions, { mode: 'paper' })
+  const schemeXml = await renderDocx(meta, questions, { mode: 'scheme' })
+
+  assert(
+    !paperXml.includes('THE-MARKING-EXPLANATION'),
+    'the marking explanation is absent from the learner paper',
+  )
+  assert(
+    schemeXml.includes('THE-MARKING-EXPLANATION'),
+    '…and present on the teacher marking scheme',
+  )
+  assert(paperXml.includes('Carbon dioxide'), 'the options still print for the learner')
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 4. English — a comprehension passage stays with its questions
+ * ════════════════════════════════════════════════════════════════════════ */
+
+console.log('\nGOLDEN — English: a passage and its questions both reach Word')
+{
+  const xml = await renderDocx(
+    {
+      title: 'Comprehension', subject: 'English', grade: '8',
+      // Passages are stored on the assessment document alongside its questions,
+      // which is how the studio saves them and how buildPaperLayout reads them.
+      passages: [{
+        id: 'p1', title: 'The Journey',
+        passageText: '<p>Chanda walked to the river before dawn.</p>',
+        order: 1,
+      }],
+    },
+    [{
+      id: 'q1', order: 1, type: 'short_answer',
+      text: 'What did Chanda decide?',
+      passageId: 'p1', marks: 2,
+    }],
+  )
+  assert(xml.includes('Chanda walked to the river'), 'the passage text is in the Word file')
+  assert(xml.includes('What did Chanda decide'), 'its question is too')
+  // Both indices must be real — a missing passage would give -1, which is "less
+  // than" any real index and would pass a naive ordering check.
+  const passageAt = xml.indexOf('Chanda walked to the river')
+  const questionAt = xml.indexOf('What did Chanda decide')
+  assert(
+    passageAt >= 0 && questionAt >= 0 && passageAt < questionAt,
+    'and the passage comes before the question that depends on it',
+  )
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 5. Layout guarantees (§4.5)
+ * ════════════════════════════════════════════════════════════════════════ */
+
+console.log('\nGOLDEN — a heading, a stem and a figure hold together across a page break')
+{
+  const xml = await renderDocx(
+    { title: 'Layout', subject: 'Mathematics', grade: '11' },
+    [{
+      id: 'q1', order: 1, type: 'short_answer',
+      text: 'Work out the area of the shape.',
+      marks: 3,
+    }],
+    { mode: 'paper' },
+  )
+  // Word's own mechanism: <w:keepNext/> binds a paragraph to the next one,
+  // <w:keepLines/> stops one splitting mid-way. Without these, a question stem
+  // can be orphaned at the foot of a page from its own answer space, and a
+  // section heading can sit alone at the bottom — both named in §4.5.
+  assert(xml.includes('<w:keepNext/>'), 'the paper carries keep-with-next paragraphs')
+  assert(xml.includes('<w:keepLines/>'), 'and keep-lines-together paragraphs')
+}
+
+console.log('\nGOLDEN — the keep flags are applied narrowly, not to everything')
+{
+  // keepNext on every paragraph would chain the whole paper into one
+  // unbreakable block, and Word would push it to a fresh page — producing
+  // exactly the big gaps §4.5 is trying to prevent. So the answer lines a
+  // learner writes on must remain breakable.
+  const xml = await renderDocx(
+    { title: 'Spread', subject: 'English', grade: '8' },
+    Array.from({ length: 12 }, (_, i) => ({
+      id: `q${i + 1}`, order: i + 1, type: 'essay',
+      text: `Question ${i + 1}`, marks: 10,
+    })),
+    { mode: 'paper' },
+  )
+  const paragraphs = (xml.match(/<w:p>|<w:p [^>]*>/g) || []).length
+  const keeps = (xml.match(/<w:keepNext\/>/g) || []).length
+  assert(paragraphs > 0, 'the paper has paragraphs to reason about')
+  assert(
+    keeps < paragraphs / 2,
+    `fewer than half the paragraphs are kept with the next (${keeps} of ${paragraphs})`,
+  )
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * 6. Word export uses real WordprocessingML, not an MHTML blob (§4.4)
+ * ════════════════════════════════════════════════════════════════════════ */
+
+console.log('\nGOLDEN — the Word download is a real .docx (§4.4)')
+{
+  const doc = await buildAssessmentDocument(
+    { title: 'Format check', subject: 'Mathematics', grade: '8' },
+    [{ id: 'q1', order: 1, type: 'short_answer', text: 'A question.', marks: 1 }],
+    { mode: 'paper' },
+  )
+  const bytes = new Uint8Array(await Packer.toBuffer(doc))
+  // A .docx is a ZIP: "PK\x03\x04". An MHTML blob starts with MIME headers, opens
+  // in desktop Word by luck and fails on mobile Word — which is what many
+  // Zambian teachers use.
+  assert(
+    bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04,
+    'the file is a ZIP container, not an MHTML blob',
+  )
+  const zip = unzipSync(bytes)
+  assert('word/document.xml' in zip, 'it contains word/document.xml')
+  assert('[Content_Types].xml' in zip, 'it contains the OPC content types part')
+  const xml = strFromU8(zip['word/document.xml'])
+  assert(
+    xml.includes('http://schemas.openxmlformats.org/wordprocessingml/2006/main'),
+    'the document declares the WordprocessingML namespace',
+  )
+}
+
+console.log(
+  failures === 0
+    ? `\n✓ paper golden files — ${passed} assertions passed`
+    : `\n✗ paper golden files — ${failures} of ${passed + failures} assertions FAILED`,
+)
+if (failures > 0) process.exit(1)

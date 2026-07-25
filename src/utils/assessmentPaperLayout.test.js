@@ -343,11 +343,48 @@ console.log('\nbuildPaperLayout — section placement relative to loose question
 console.log('\nlatexToReadableText — readable maths for non-JS exports')
 assert(latexToReadableText('18') === '18', 'plain number unchanged')
 assert(latexToReadableText('4 \\div 2 \\times 3') === '4 ÷ 2 × 3', 'div/times → ÷/×')
-assert(latexToReadableText('\\frac{1}{3}') === '(1)/(3)', 'fraction → (1)/(3)')
+// A simple fraction no longer carries brackets it does not need — "1/3" reads
+// better than "(1)/(3)" and means the same thing. Brackets now appear only where
+// leaving them out would change the meaning (see the next two assertions).
+assert(latexToReadableText('\\frac{1}{3}') === '1/3', 'simple fraction → 1/3')
+// The regression that motivated replacing the regex converter: a numerator with
+// nested braces used to lose the fraction bar entirely, so the quadratic formula
+// printed as a product in every PDF and Word export.
+assert(
+  latexToReadableText('x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}') === 'x = (-b ± √(b²-4ac))/(2a)',
+  'nested fraction keeps its bar and brackets both sides',
+)
+// A denominator of more than one token binds to everything after the slash.
+assert(latexToReadableText('\\frac{1}{2a}') === '1/(2a)', 'multi-token denominator is bracketed')
 assert(latexToReadableText('x^2') === 'x²', 'power → superscript')
 assert(latexToReadableText('H_2O') === 'H₂O', 'subscript → ₂')
 assert(latexToReadableText('5 \\geq 3') === '5 ≥ 3', 'geq → ≥')
 assert(latexToReadableText('') === '', 'empty stays empty')
+
+// ── Chemistry (mhchem) ──────────────────────────────────────────────────────
+// The preview renders \ce{} through KaTeX + mhchem; the print window and the
+// Word export do not run JavaScript, so this text form is the ONLY chemistry a
+// printed paper carries. Before latexToUnicode.js it had no \ce{} handling at
+// all: subscripts vanished, arrows stayed ASCII, and the precipitate marker
+// printed as the letter "v" next to a formula — where it reads as an element.
+console.log('\nlatexToReadableText — chemistry survives a paper with no JavaScript')
+assert(latexToReadableText('\\ce{H2SO4}') === 'H₂SO₄', 'mhchem auto-subscripts after an element')
+assert(latexToReadableText('\\ce{Ca(OH)2}') === 'Ca(OH)₂', 'a group subscript follows the bracket')
+assert(latexToReadableText('\\ce{CO3^2-}') === 'CO₃²⁻', 'a charge is superscript')
+assert(latexToReadableText('\\ce{Na+}') === 'Na⁺', 'a single-sign charge is superscript')
+assert(
+  latexToReadableText('\\ce{2H2 + O2 -> 2H2O}') === '2H₂ + O₂ → 2H₂O',
+  'a leading digit is a coefficient, a following digit is a subscript',
+)
+assert(
+  latexToReadableText('\\ce{N2(g) + 3H2(g) <=> 2NH3(g)}') === 'N₂(g) + 3H₂(g) ⇌ 2NH₃(g)',
+  'state symbols survive and <=> is a reversible arrow',
+)
+assert(
+  latexToReadableText('\\ce{AgNO3 + NaCl -> AgCl v + NaNO3}') === 'AgNO₃ + NaCl → AgCl↓ + NaNO₃',
+  'the precipitate marker is an arrow, not the letter v',
+)
+assert(latexToReadableText('\\pu{22.4 L/mol}') === '22.4 L/mol', 'units pass through')
 
 if (failures > 0) {
   console.error(`\n${failures} assertion(s) failed.`)
