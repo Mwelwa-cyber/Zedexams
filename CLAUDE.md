@@ -221,6 +221,19 @@ wrong:
   formula on the printed page — it emits text plus real `<sub>`/`<sup>` elements,
   which the print window draws natively and `assessmentToDocx`'s walker turns into
   Word superscript/subscript runs.
+- **`src/utils/paperContentModel.js` is the only parser of paper rich text.** The
+  blocks were already shared, but the CONTENT inside a block travelled as an HTML
+  string that each renderer parsed back — `assessmentToDocx` carried a full DOM
+  walker of its own. The layout now parses once (`textNodes` / `optionsNodes` on
+  each block) and the exporters MAP typed nodes. Node vocabulary: `paragraph`,
+  `verticalArithmetic`; inline `text` (with bold/italic/underline/strike/sup/sub
+  marks), `fraction`, `numberBase`, `break`. `contentToHtml` round-trips (its
+  output re-parses to the same model) and `contentToPlainText` feeds search/alt
+  text. A test in `paperContentModel.test.js` fails if `assessmentToDocx.js`
+  starts reading `tagName`/`classList`/`data-*` again. `textHtml` is still emitted
+  unchanged for the print window, whose stylesheet is tuned to
+  `richTextToPaperHtml`'s exact markup — making that a serialisation of the model
+  too is the remaining half of §4.1.
 - **`src/utils/latexToUnicode.js` is the only LaTeX→text converter.** It parses
   (brace-aware `\frac`/`\sqrt`, mhchem's coefficient-vs-subscript rule) rather
   than pattern-matching; the regex version it replaced silently dropped the bar of
