@@ -165,7 +165,13 @@ function buildWeeklyPlan({ weakTopics = [], grade, aiNotesOn = false, weekKey })
         weak: false,
       }]
 
-  const notePath = aiNotesOn ? '/ai-notes' : '/lessons'
+  // AI notes live on the learner Notes reader at /notes — there has never been
+  // an /ai-notes route, so the flagged-on arm used to land the learner on the
+  // 404 page. StudentDashboard's AI banner links to /notes for the same flag.
+  // Same trap it already documents for the deleted /ai-practice route (PR
+  // #713): a feature flag must not be able to surface a dead link. Both arms
+  // are pinned by scripts/test-route-targets.mjs.
+  const notePath = aiNotesOn ? '/notes' : '/lessons'
   const steps = [
     {
       day: 'Today',
@@ -446,7 +452,8 @@ export default function TodayStudyPlan({
         : 'A short reading session makes the next quiz feel easier.',
       badge: '10 min',
       action: 'Read',
-      to: aiNotesOn ? '/ai-notes' : '/lessons',
+      // /notes, never /ai-notes — see the note in buildWeeklyPlan above.
+      to: aiNotesOn ? '/notes' : '/lessons',
       done: false,
     },
   ], [
