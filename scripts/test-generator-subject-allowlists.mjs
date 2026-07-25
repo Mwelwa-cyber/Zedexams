@@ -45,6 +45,7 @@ const REQUIRED_KEYS = [
   "fashion_and_fabrics",
   "hospitality_management",
   "mathematics_ii",
+  "literature_in_english",
 ];
 
 // assessmentAllowlists.js + the ten generate*.js copies as of this writing.

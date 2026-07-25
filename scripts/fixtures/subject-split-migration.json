@@ -167,6 +167,51 @@
       "grade": "G4",
       "framework": "2023",
       "topics": []
+    },
+    {
+      "id": "l-literature",
+      "subject": "english",
+      "grade": "G9",
+      "framework": "2023",
+      "topics": [
+        "2.2.1. PROSE",
+        "2.2.3. POETRY"
+      ]
+    },
+    {
+      "id": "l-english",
+      "subject": "english",
+      "grade": "G9",
+      "framework": "2023",
+      "topics": [
+        "2.2.1 Comprehension"
+      ]
+    },
+    {
+      "id": "l-spanning",
+      "subject": "english",
+      "grade": "G9",
+      "framework": "2023",
+      "topics": [
+        "2.2.1 Comprehension",
+        "2.2.1. PROSE"
+      ]
+    },
+    {
+      "id": "l-primary",
+      "subject": "english",
+      "grade": "G4",
+      "framework": "2023",
+      "topics": []
+    },
+    {
+      "id": "l-freetext",
+      "subject": "english",
+      "grade": "G8",
+      "framework": "2023",
+      "topics": [
+        "Comprehension revision"
+      ]
     }
   ],
   "aiGenerations": [

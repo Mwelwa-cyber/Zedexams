@@ -4,8 +4,8 @@
  *
  * WHY: the KB stores Forms-syllabus topics under grade codes G8–G12
  * (FORM_TO_GRADE below) and folds some syllabi into core subject
- * keys (Travel & Tourism → social_studies,
- * Literature in English → english, …). The standardized studio curriculum
+ * keys (Travel & Tourism → social_studies, ICT → technology_studies, …).
+ * The standardized studio curriculum
  * selector, however, sends the teacher's literal pick: grade "F1"–"F4" and
  * subject slugs like "fashion_fabrics". Exact-equality matching in
  * cbcKnowledge.lookupTopic / suggestTopics therefore missed every Forms
@@ -51,7 +51,8 @@ const STUDIO_SUBJECT_TO_KB = {
   "History Syllabus (Forms 1-4)": "history",
   "Geography Syllabus (Forms 1-4)": "geography",
   "ICT Syllabus (Forms 1-4)": "technology_studies",
-  "Literature in English Syllabus (Forms 1-4)": "english",
+  // Own examinable subject, own numbering — see src/utils/syllabusMapping.js.
+  "Literature in English Syllabus (Forms 1-4)": "literature_in_english",
   "Religious Education Syllabus (Forms 1-4)": "religious_education",
   "Physical Education Syllabus (Forms 1-4)": "physical_education",
   // Three separate examinable subjects, three documents, each numbered from 1.1

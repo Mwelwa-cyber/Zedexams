@@ -109,9 +109,20 @@ const {SPLIT_DOCUMENTS} = require("./syllabusSubjectSplit");
     subjectCandidates("travel_tourism"),
     ["travel_tourism", "social_studies"],
   );
+  // Literature in English is its own KB subject now — its slug IS the key, so
+  // there is nothing to fold. Folding it into `english` is what collided their
+  // 1.1.1 / 2.x codes at G8-G9.
   assert.deepStrictEqual(
     subjectCandidates("literature_in_english"),
-    ["literature_in_english", "english"],
+    ["literature_in_english"],
+  );
+  assert.strictEqual(
+    STUDIO_SUBJECT_TO_KB["Literature in English Syllabus (Forms 1-4)"],
+    "literature_in_english",
+  );
+  assert.strictEqual(
+    STUDIO_SUBJECT_TO_KB["English Syllabus (Forms 1-4)"],
+    "english",
   );
 
   // 2013-framework subjects (Grades 10-12 / 1-4).
