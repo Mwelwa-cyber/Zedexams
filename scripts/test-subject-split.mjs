@@ -1,14 +1,20 @@
 /**
- * The subject split: Commerce / Principles of Accounts and Food & Nutrition /
- * Home Management are four separate canonical subjects.
+ * The subject split. Five canonical subjects carved out of three shared keys:
+ *
+ *   commerce_and_principles_of_accounts → commerce | principles_of_accounts
+ *   home_economics (senior secondary)   → food_and_nutrition | home_management
+ *   mathematics (Forms 1-4)             → mathematics | mathematics_ii
  *
  * A topic code is only unique within one curriculum + grade + subject. These
- * tests pin the two consequences of getting that wrong:
+ * tests pin the consequences of getting that wrong:
  *
- *   1. Two subjects that legitimately share a code must stay independent —
- *      Commerce "1.1" and Principles of Accounts "1.1" are different topics.
- *   2. A sub-topic must never be adopted across a subject boundary — Food &
- *      Nutrition "10.1" must not become the parent of a Home Management "10.1.x".
+ *   1. Two subjects that legitimately share a code stay independent — Commerce
+ *      "1.1", Principles of Accounts "1.1" and Mathematics II "1.1" are three
+ *      different topics from Mathematics "1.1".
+ *   2. A sub-topic is never adopted across a subject boundary — Food & Nutrition
+ *      "10.1" must not become the parent of a Home Management "10.1.x".
+ *   3. Nothing is ever moved on a guess, and a record on a key that is STILL
+ *      valid (a Mathematics paper) is left alone rather than flagged.
  *
  * Run: npm run test:subject-split
  */
@@ -26,7 +32,8 @@ import { normalizeTopicTree } from '../src/utils/syllabusTopicTree.js'
 import { syllabiToKbTopics } from '../src/utils/syllabusMapping.js'
 import { extract2013TopicLookup } from '../src/utils/syllabus2013Topics.js'
 import {
-  classifyRecord, buildTopicSubjectIndex, buildSubjectPresence, resolveGradeCode, OUTCOMES,
+  classifyRecord, buildTopicSubjectIndex, buildSubjectPresence, resolveGradeCode,
+  topicMatchKey, OUTCOMES,
 } from '../src/utils/subjectSplitClassifier.js'
 import { topicIdentity, topicScopeKey } from '../src/utils/curriculumTopicIdentity.js'
 
@@ -166,6 +173,39 @@ test('Food & Nutrition and Home Management are separate scopes at G10-G12', () =
   assert.ok(lookup.get('G7|home_economics')?.size > 0, 'G7 Home Economics must survive')
 })
 
+test('Mathematics and Mathematics II are separate scopes at Forms 1-4', () => {
+  const topics = syllabiToKbTopics(raw2023)
+  for (const grade of ['G8', 'G9', 'G10', 'G11']) {
+    const maths = topics.filter((t) => t.subject === 'mathematics' && t.grade === grade)
+    const mathsII = topics.filter((t) => t.subject === 'mathematics_ii' && t.grade === grade)
+    assert.ok(maths.length > 0, `${grade} Mathematics must have topics`)
+    assert.ok(mathsII.length > 0, `${grade} Mathematics II must have topics`)
+    // Both number from <form>.1 and are supposed to. Neither may hold the
+    // other's headings — that collision is what this split removes.
+    const mathsTopics = new Set(maths.map((t) => t.topic))
+    for (const t of mathsII) assert.ok(!mathsTopics.has(t.topic), `${grade}: ${t.topic} leaked into Mathematics`)
+  }
+  // Mathematics stays a real subject everywhere else, unchanged.
+  assert.ok(topics.some((t) => t.subject === 'mathematics' && t.grade === 'G4'))
+})
+
+test('Mathematics 1.1 and Mathematics II 1.1 remain independent topics', () => {
+  const topics = syllabiToKbTopics(raw2023)
+  const maths = topics.filter((t) => t.subject === 'mathematics' && t.grade === 'G8')
+  const mathsII = topics.filter((t) => t.subject === 'mathematics_ii' && t.grade === 'G8')
+  assert.ok(maths.some((t) => t.topic === '1.1 NUMBERS'), 'Mathematics owns 1.1 NUMBERS')
+  assert.ok(mathsII.some((t) => /^1\.1\.?\s+REAL NUMBERS/.test(t.topic)), 'Mathematics II owns 1.1 REAL NUMBERS')
+  // Each claims the code exactly once, so a 1.1.x sub-topic has one parent.
+  for (const [label, rows] of [['mathematics', maths], ['mathematics_ii', mathsII]]) {
+    const ones = rows.filter((t) => /^1\.1\.?(\s|$)/.test(t.topic))
+    assert.equal(ones.length, 1, `${label} G8 must claim 1.1 exactly once, saw ${ones.length}`)
+  }
+  assert.notEqual(
+    topicIdentity({ curriculumId: 'cbc', gradeId: 'G8', subjectKey: 'mathematics', topicCode: '1.1' }),
+    topicIdentity({ curriculumId: 'cbc', gradeId: 'G8', subjectKey: 'mathematics_ii', topicCode: '1.1' }),
+  )
+})
+
 test('Food & Nutrition 10.1 cannot become the parent of a Home Management 10.1.x', () => {
   // The hierarchy repair only ever sees ONE curriculum + grade + subject, so the
   // Home Management sub-topic is not even in the same call as the Food &
@@ -298,8 +338,66 @@ test('a genuine primary Home Economics record is unchanged, not flagged', () => 
 })
 
 test('a subject that was never split is not touched', () => {
-  const v = classifyRecord({ subject: 'mathematics', grade: 'G8', curriculum: '2023' }, ctx)
+  const v = classifyRecord({ subject: 'biology', grade: 'G8', curriculum: '2023' }, ctx)
   assert.equal(v.outcome, OUTCOMES.NOT_APPLICABLE)
+})
+
+test('a Mathematics record moves only when its topics say Mathematics II', () => {
+  // Mathematics II topics → reassigned.
+  const two = classifyRecord({
+    subject: 'mathematics', grade: 'G8', curriculum: '2023',
+    topics: ['1.10. DIRECTIONS AND BEARINGS'],
+  }, ctx)
+  assert.equal(two.outcome, OUTCOMES.CLASSIFIED)
+  assert.equal(two.subject, 'mathematics_ii')
+
+  // Mathematics topics → confirmed where it is.
+  const one = classifyRecord({
+    subject: 'mathematics', grade: 'G8', curriculum: '2023', topics: ['1.6 MATRICES'],
+  }, ctx)
+  assert.equal(one.outcome, OUTCOMES.UNCHANGED)
+  assert.equal(one.subject, 'mathematics')
+})
+
+test('a Mathematics record with no usable topics is LEFT ALONE, not flagged', () => {
+  // `mathematics` is still the correct key for the Mathematics syllabus, so the
+  // absence of evidence is not ambiguity — there is simply no reason to move it.
+  // Contrast the retired combined key below, where nothing owns the record.
+  for (const extra of [{ topics: [] }, { topics: ['Revision of everything'] }, { grade: '' }]) {
+    const v = classifyRecord({
+      subject: 'mathematics', grade: 'G8', curriculum: '2023', topics: ['x'], ...extra,
+    }, ctx)
+    assert.equal(v.outcome, OUTCOMES.UNCHANGED, JSON.stringify(extra))
+    assert.equal(v.subject, 'mathematics')
+  }
+  // A Grade 4 Mathematics record cannot be Mathematics II at all (Forms only).
+  const primary = classifyRecord({
+    subject: 'mathematics', grade: 'G4', curriculum: '2023', topics: [],
+  }, ctx)
+  assert.equal(primary.outcome, OUTCOMES.UNCHANGED)
+
+  // The retired key has no incumbent, so the same absence of evidence is a
+  // genuine ambiguity a human has to resolve.
+  const retired = classifyRecord({
+    subject: 'commerce_and_principles_of_accounts', grade: 'G8', curriculum: '2023', topics: [],
+  }, ctx)
+  assert.equal(retired.outcome, OUTCOMES.AMBIGUOUS)
+})
+
+test('a topic both mathematics syllabi share is not evidence for either', () => {
+  // Form 4 carries "GEOMETRICAL TRANSFORMATIONS" as 4.5 in both, punctuated
+  // differently ("4.5" vs "4.5."). The match key normalises the code, so the two
+  // collide, are seen as contested, and decide nothing.
+  assert.equal(
+    topicMatchKey('4.5 GEOMETRICAL TRANSFORMATIONS'),
+    topicMatchKey('4.5. GEOMETRICAL TRANSFORMATIONS'),
+  )
+  const v = classifyRecord({
+    subject: 'mathematics', grade: 'G11', curriculum: '2023',
+    topics: ['4.5 GEOMETRICAL TRANSFORMATIONS'],
+  }, ctx)
+  assert.equal(v.topicsResolved, 0, 'a shared topic must resolve to no subject')
+  assert.equal(v.outcome, OUTCOMES.UNCHANGED, 'and so leaves the record where it is')
 })
 
 test('a topic label claimed by two candidate subjects is not used as evidence', () => {

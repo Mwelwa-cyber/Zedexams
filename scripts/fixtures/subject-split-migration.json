@@ -1,38 +1,179 @@
 {
   "assessments": [
-    { "id": "a-commerce",  "subject": "commerce_and_principles_of_accounts", "grade": "G8", "framework": "2023",
-      "topics": ["1.2 Production", "1.3 Home Trade"] },
-    { "id": "a-poa",       "subject": "commerce_and_principles_of_accounts", "grade": "Form 1", "framework": "2023",
-      "topics": ["1.4 The Ledger"] },
-    { "id": "a-spanning",  "subject": "commerce_and_principles_of_accounts", "grade": "G8", "framework": "2023",
-      "topics": ["1.2 Production", "1.4 The Ledger"] },
-    { "id": "a-freetext",  "subject": "commerce_and_principles_of_accounts", "grade": "G8", "framework": "2023",
-      "topics": ["Revision: everything we did this term"] },
-    { "id": "a-notopics",  "subject": "commerce_and_principles_of_accounts", "grade": "G9", "framework": "2023",
-      "topics": [] },
-    { "id": "a-nograde",   "subject": "commerce_and_principles_of_accounts", "framework": "2023",
-      "topics": ["1.2 Production"] },
-    { "id": "a-sourcedoc", "subject": "home_economics", "grade": "G10", "framework": "2013",
-      "sourceSyllabus": "Home Management Syllabus (Grades 10-12, 2013)", "topics": [] },
-    { "id": "a-realhe",    "subject": "home_economics", "grade": "G6", "framework": "2013",
-      "topics": ["6.1 FOOD AND NUTRITION"] },
-    { "id": "a-other",     "subject": "mathematics", "grade": "G8", "framework": "2023", "topics": ["1.1 Sets"] }
+    {
+      "id": "a-commerce",
+      "subject": "commerce_and_principles_of_accounts",
+      "grade": "G8",
+      "framework": "2023",
+      "topics": [
+        "1.2 Production",
+        "1.3 Home Trade"
+      ]
+    },
+    {
+      "id": "a-poa",
+      "subject": "commerce_and_principles_of_accounts",
+      "grade": "Form 1",
+      "framework": "2023",
+      "topics": [
+        "1.4 The Ledger"
+      ]
+    },
+    {
+      "id": "a-spanning",
+      "subject": "commerce_and_principles_of_accounts",
+      "grade": "G8",
+      "framework": "2023",
+      "topics": [
+        "1.2 Production",
+        "1.4 The Ledger"
+      ]
+    },
+    {
+      "id": "a-freetext",
+      "subject": "commerce_and_principles_of_accounts",
+      "grade": "G8",
+      "framework": "2023",
+      "topics": [
+        "Revision: everything we did this term"
+      ]
+    },
+    {
+      "id": "a-notopics",
+      "subject": "commerce_and_principles_of_accounts",
+      "grade": "G9",
+      "framework": "2023",
+      "topics": []
+    },
+    {
+      "id": "a-nograde",
+      "subject": "commerce_and_principles_of_accounts",
+      "framework": "2023",
+      "topics": [
+        "1.2 Production"
+      ]
+    },
+    {
+      "id": "a-sourcedoc",
+      "subject": "home_economics",
+      "grade": "G10",
+      "framework": "2013",
+      "sourceSyllabus": "Home Management Syllabus (Grades 10-12, 2013)",
+      "topics": []
+    },
+    {
+      "id": "a-realhe",
+      "subject": "home_economics",
+      "grade": "G6",
+      "framework": "2013",
+      "topics": [
+        "6.1 FOOD AND NUTRITION"
+      ]
+    },
+    {
+      "id": "a-other",
+      "subject": "mathematics",
+      "grade": "G8",
+      "framework": "2023",
+      "topics": [
+        "1.1 Sets"
+      ]
+    },
+    {
+      "id": "m-mathsII",
+      "subject": "mathematics",
+      "grade": "G8",
+      "framework": "2023",
+      "topics": [
+        "1.10. DIRECTIONS AND BEARINGS",
+        "1.13. MENSURATION"
+      ]
+    },
+    {
+      "id": "m-maths",
+      "subject": "mathematics",
+      "grade": "G8",
+      "framework": "2023",
+      "topics": [
+        "1.6 MATRICES"
+      ]
+    },
+    {
+      "id": "m-shared",
+      "subject": "mathematics",
+      "grade": "G11",
+      "framework": "2023",
+      "topics": [
+        "4.5 GEOMETRICAL TRANSFORMATIONS"
+      ]
+    },
+    {
+      "id": "m-freetext",
+      "subject": "mathematics",
+      "grade": "G8",
+      "framework": "2023",
+      "topics": [
+        "End of term revision"
+      ]
+    },
+    {
+      "id": "m-primary",
+      "subject": "mathematics",
+      "grade": "G4",
+      "framework": "2023",
+      "topics": []
+    }
   ],
   "aiGenerations": [
-    { "id": "g-scheme", "tool": "scheme_of_work",
-      "inputs": { "subject": "commerce_and_principles_of_accounts", "grade": "G10", "framework": "2023",
-                  "topics": ["3.2 Bank Reconciliation"] } },
-    { "id": "g-plan", "tool": "lesson_plan",
-      "inputs": { "subject": "commerce_and_principles_of_accounts", "grade": "G10", "framework": "2023",
-                  "topic": "3.2 Capital Markets" } },
-    { "id": "g-weekly", "tool": "weekly_forecast",
-      "inputs": { "subject": "home_economics", "grade": "G11", "framework": "2013",
-                  "topics": ["4.2 CONSUMER EDUCATION"] } }
+    {
+      "id": "g-scheme",
+      "tool": "scheme_of_work",
+      "inputs": {
+        "subject": "commerce_and_principles_of_accounts",
+        "grade": "G10",
+        "framework": "2023",
+        "topics": [
+          "3.2 Bank Reconciliation"
+        ]
+      }
+    },
+    {
+      "id": "g-plan",
+      "tool": "lesson_plan",
+      "inputs": {
+        "subject": "commerce_and_principles_of_accounts",
+        "grade": "G10",
+        "framework": "2023",
+        "topic": "3.2 Capital Markets"
+      }
+    },
+    {
+      "id": "g-weekly",
+      "tool": "weekly_forecast",
+      "inputs": {
+        "subject": "home_economics",
+        "grade": "G11",
+        "framework": "2013",
+        "topics": [
+          "4.2 CONSUMER EDUCATION"
+        ]
+      }
+    }
   ],
   "teachingAssignments": [
-    { "id": "t-1", "subject": "commerce_and_principles_of_accounts", "grade": "G8", "curriculumType": "cbc" }
+    {
+      "id": "t-1",
+      "subject": "commerce_and_principles_of_accounts",
+      "grade": "G8",
+      "curriculumType": "cbc"
+    }
   ],
   "syllabusSelections": [
-    { "id": "p-1", "defaultSubject": "commerce_and_principles_of_accounts", "grade": "G9", "curriculum": "cbc" }
+    {
+      "id": "p-1",
+      "defaultSubject": "commerce_and_principles_of_accounts",
+      "grade": "G9",
+      "curriculum": "cbc"
+    }
   ]
 }

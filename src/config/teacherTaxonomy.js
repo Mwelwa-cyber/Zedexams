@@ -227,6 +227,10 @@ export const TEACHER_SUBJECTS = [
   { value: 'zambian_language', label: 'Zambian Language (other)' },
   { group: 'STEM' },
   { value: 'mathematics',          label: 'Mathematics' },
+  // The second Forms 1-4 mathematics syllabus — 13 topics at Form 1 against
+  // Mathematics' 9, plus Earth Geometry and Calculus at Form 4. Its own subject,
+  // numbered from 1.1; it used to fold into `mathematics` and collide 29 codes.
+  { value: 'mathematics_ii',       label: 'Mathematics II' },
   // Lower Primary (Grades 1–3) carries one combined "Maths & Science" syllabus
   // sheet, stored under the `numeracy` slug. Teachers expect the real learning-
   // area name, "Mathematics and Science" — "Numeracy" isn't a 2023-curriculum
@@ -373,6 +377,11 @@ const SUBJECT_GRADE_MAP = {
     previous: ['G10','G11','G12'],
   },
   commerce: {
+    cbc:      ['G8','G9','G10','G11'],
+    previous: [],
+  },
+  // A CBC Forms 1-4 syllabus with no 2013 equivalent on file.
+  mathematics_ii: {
     cbc:      ['G8','G9','G10','G11'],
     previous: [],
   },

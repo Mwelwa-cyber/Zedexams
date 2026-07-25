@@ -34,6 +34,7 @@
 
 import { normalizeCurriculumId } from './curriculumTopicIdentity.js'
 import { SPLIT_DOCUMENTS } from './syllabusSubjectSplit.js'
+import { parseTopicCode } from './syllabusTopicTree.js'
 
 /**
  * Shared keys that need per-record classification, and the candidates each can
@@ -47,6 +48,13 @@ import { SPLIT_DOCUMENTS } from './syllabusSubjectSplit.js'
 export const SPLIT_SOURCES = Object.freeze({
   commerce_and_principles_of_accounts: ['commerce', 'principles_of_accounts'],
   home_economics: ['food_and_nutrition', 'home_management', 'home_economics'],
+  // `mathematics` is different again, and the difference matters. Unlike the
+  // retired combined key, it stays the CORRECT key for the Mathematics syllabus
+  // at every grade in both curricula — Mathematics II was folded INTO it, so the
+  // misfiled records are the ones authored against Mathematics II topics. A
+  // record here is therefore only moved when its topics say Mathematics II; with
+  // no such evidence the existing key is already right and is left alone.
+  mathematics: ['mathematics', 'mathematics_ii'],
 })
 
 /** Outcome codes. `unchanged` means "correctly on this key already". */
@@ -91,9 +99,23 @@ export function resolveGradeCode(raw) {
   return ''
 }
 
-/** Normalise a topic label for comparison: case and whitespace only. */
+/**
+ * Normalise a topic label for comparison.
+ *
+ * Keyed on the parsed code plus the title rather than the raw string, because
+ * the same topic is punctuated differently in different workbooks: Mathematics
+ * has "4.5 GEOMETRICAL TRANSFORMATIONS" where Mathematics II has "4.5.
+ * GEOMETRICAL TRANSFORMATIONS". Those are the same topic in two syllabi — so
+ * they must collide here, be recognised as contested, and count as evidence for
+ * neither. Comparing raw strings would treat them as distinct and let a shared
+ * topic decide a subject.
+ */
 export function topicMatchKey(label) {
-  return clean(label).toLowerCase().replace(/\s+/g, ' ')
+  const raw = clean(label)
+  if (!raw) return ''
+  const parsed = parseTopicCode(raw)
+  const base = parsed ? `${parsed.code}|${parsed.title}` : raw
+  return base.toLowerCase().replace(/\s+/g, ' ').trim()
 }
 
 /**
@@ -278,15 +300,31 @@ export function classifyRecord(record, {
     }
   }
 
-  return {
-    ...withCounts,
-    outcome: OUTCOMES.AMBIGUOUS,
-    evidence: !grade
-      ? 'no grade on the record, so its topics cannot be looked up'
-      : topics.length === 0
-        ? 'no topics on the record'
-        : `none of its ${topics.length} topic(s) match the ${curriculum} catalogue at ${grade}`,
+  // No evidence for any candidate. What that MEANS depends on whether the key
+  // the record already carries is still a real subject here.
+  //
+  //   • Still valid (a `mathematics` paper at Form 1, a Grade 6 Home Economics
+  //     record) → it is already filed correctly. Leaving it is not a guess; it
+  //     is the absence of any reason to move it.
+  //   • Retired (the combined Commerce key, senior `home_economics`) → the
+  //     record is stranded on a key nothing owns and a human must pick.
+  const incumbentStillValid = possible.includes(from)
+  const why = !grade
+    ? 'no grade on the record, so its topics cannot be looked up'
+    : topics.length === 0
+      ? 'no topics on the record'
+      : `none of its ${topics.length} topic(s) match the ${curriculum} catalogue at ${grade}`
+
+  if (incumbentStillValid) {
+    return {
+      ...withCounts,
+      outcome: OUTCOMES.UNCHANGED,
+      subject: from,
+      evidence: `${why} — nothing indicates another subject, and ${from} is still valid at ${grade || 'this level'}`,
+    }
   }
+
+  return { ...withCounts, outcome: OUTCOMES.AMBIGUOUS, evidence: why }
 }
 
 /** True when the split documents/keys this classifier knows are still current. */

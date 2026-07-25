@@ -145,8 +145,18 @@ const {SPLIT_DOCUMENTS} = require("./syllabusSubjectSplit");
   assert.deepStrictEqual(
     subjectCandidates("english_language"), ["english_language", "english"],
   );
+  // Mathematics II is its own KB subject now — its slug IS the key, so there is
+  // nothing to fold. Folding it into `mathematics` is what collided their codes.
   assert.deepStrictEqual(
-    subjectCandidates("mathematics_ii"), ["mathematics_ii", "mathematics"],
+    subjectCandidates("mathematics_ii"), ["mathematics_ii"],
+  );
+  assert.strictEqual(
+    STUDIO_SUBJECT_TO_KB["Mathematics II Syllabus (Forms 1-4)"],
+    "mathematics_ii",
+  );
+  assert.strictEqual(
+    STUDIO_SUBJECT_TO_KB["Mathematics Syllabus (Forms 1-4)"],
+    "mathematics",
   );
   assert.deepStrictEqual(
     subjectCandidates("ict"), ["ict", "technology_studies"],

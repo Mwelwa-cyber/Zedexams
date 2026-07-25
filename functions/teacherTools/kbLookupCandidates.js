@@ -45,7 +45,9 @@ const STUDIO_SUBJECT_TO_KB = {
   "Home Economics & Hospitality Syllabus (Grades 4-6)": "home_economics",
   "Technology Studies Syllabus (Grades 4-6)": "technology_studies",
   "Mathematics Syllabus (Forms 1-4)": "mathematics",
-  "Mathematics II Syllabus (Forms 1-4)": "mathematics",
+  // Own Forms 1-4 syllabus, numbered from 1.1 like Mathematics is — see
+  // src/utils/syllabusMapping.js.
+  "Mathematics II Syllabus (Forms 1-4)": "mathematics_ii",
   "Physics Syllabus (Forms 1-4)": "physics",
   "History Syllabus (Forms 1-4)": "history",
   "Geography Syllabus (Forms 1-4)": "geography",

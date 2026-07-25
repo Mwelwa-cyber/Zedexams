@@ -403,6 +403,9 @@ const SUBJECT_LABELS = {
   // codes both start at 1.1 and are supposed to — see syllabusSubjectSplit.js.
   commerce: 'Commerce',
   principles_of_accounts: 'Principles of Accounts',
+  // The second Forms 1-4 mathematics syllabus, numbered from 1.1 like the first.
+  // It used to fold into `mathematics`, which collided 29 of their codes.
+  mathematics_ii: 'Mathematics II',
   // Own examinable subjects, own numbering. home_economics stays a real subject
   // (CBC Grades 4-6, 2013 Grades 5-7) — it just no longer swallows these two.
   food_and_nutrition: 'Food & Nutrition',
@@ -444,7 +447,6 @@ const SUBJECT_FIXES = {
   cinyanja: 'zambian_language',
   // Verbose grade-4-6 / forms-1-4 subject-key variants → canonical slug.
   english_language: 'english',
-  mathematics_ii: 'mathematics',
   home_economics_hospitality: 'home_economics',
   ict: 'technology_studies',
   // ECE + Lower-Primary strand names (post cleanSubjectName) → canonical slug.

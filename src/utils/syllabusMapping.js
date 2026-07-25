@@ -53,7 +53,11 @@ export const STUDIO_SUBJECT_TO_KB = {
   'Home Economics & Hospitality Syllabus (Grades 4-6)': 'home_economics',
   'Technology Studies Syllabus (Grades 4-6)':      'technology_studies',
   'Mathematics Syllabus (Forms 1-4)':              'mathematics',
-  'Mathematics II Syllabus (Forms 1-4)':           'mathematics',
+  // Mathematics II is its own Forms 1-4 syllabus, numbered from 1.1 like
+  // Mathematics is — Form 1 alone has 13 topics against Mathematics' 9, and
+  // Form 4 adds Earth Geometry and Calculus. Filing both under `mathematics`
+  // made 29 of their codes collide at G8-G11.
+  'Mathematics II Syllabus (Forms 1-4)':           'mathematics_ii',
   'Physics Syllabus (Forms 1-4)':                  'physics',
   'History Syllabus (Forms 1-4)':                  'history',
   'Geography Syllabus (Forms 1-4)':                'geography',
