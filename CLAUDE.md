@@ -239,6 +239,15 @@ wrong:
   than pattern-matching; the regex version it replaced silently dropped the bar of
   any fraction with a braced numerator and had no `\ce{}` handling at all.
   `latexToReadableText` in `quizRichText.js` now delegates to it.
+- **Word gets real equations for stacked maths (§4.2).** `flattenMathNodes` keeps
+  the source LaTeX on the element as `data-tex`; the content model carries it as a
+  `math` node alongside the already-flattened printable fallback; and
+  `assessmentToDocx` builds genuine OMML (`<m:oMath>`/`<m:f>`/`<m:rad>`/`<m:sSup>`)
+  via `latexToMathTree`. Only two-dimensional constructs qualify —
+  `needsEquation()` keeps chemistry and inline powers as ordinary runs with real
+  sub/superscript, because Word renders those perfectly and a teacher can still
+  edit them as text. Any construct the tree does not model, or that throws while
+  building, falls back to the linear text form: never a silently dropped formula.
 - **`src/utils/paperGolden.test.js`** (`test:paper-golden`) renders reference
   papers all the way to a real `.docx`, unzips it and asserts against
   `word/document.xml`. It is the net for "looks right in Preview, breaks in Word",

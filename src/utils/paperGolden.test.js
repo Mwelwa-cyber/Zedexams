@@ -66,6 +66,20 @@ function math(latex) {
   return `<span class="mnode" data-latex="${latex.replace(/"/g, '&quot;')}"></span>`
 }
 
+/**
+ * The text a reader actually SEES in a fragment of paper HTML.
+ *
+ * Attribute values do not count. `data-tex` deliberately carries the source
+ * LaTeX so the Word export can build a real equation from it (§4.2), so a naive
+ * substring check over the raw HTML would find "\\ce" and conclude the paper had
+ * leaked LaTeX onto the page when it had not.
+ */
+function visibleText(html) {
+  const el = dom.window.document.createElement('div')
+  el.innerHTML = html
+  return el.textContent || ''
+}
+
 /** Does the Word XML carry a real subscript run containing this text? */
 function hasScriptRun(xml, text, kind) {
   const val = kind === 'sub' ? 'subscript' : 'superscript'
@@ -86,7 +100,8 @@ console.log('\nGOLDEN — Integrated Science: a chemical equation reaches Word i
   const paperHtml = richTextToPaperHtml(`<p>Balance: ${math(equation)}</p>`)
 
   // The KaTeX-free form the print window and Word both consume.
-  assert(!paperHtml.includes('\\ce'), 'the raw LaTeX command never reaches the paper')
+  assert(!visibleText(paperHtml).includes('\\ce'),
+    'the raw LaTeX command is never VISIBLE on the paper')
   assert(paperHtml.includes('→'), 'the reaction arrow is a real arrow, not "->"')
   assert(/<sub>2<\/sub>/.test(paperHtml), 'the subscript is real markup, not a Unicode guess')
   assert(!/>2H2 \+ O2/.test(paperHtml), 'no un-subscripted formula survives')
@@ -108,7 +123,8 @@ console.log('\nGOLDEN — Integrated Science: an ion charge and a precipitate')
   )
   assert(/<sup>2−<\/sup>/.test(paperHtml), 'the charge is a superscript')
   assert(paperHtml.includes('↓'), 'the precipitate marker is an arrow…')
-  assert(!/AgCl\s*v/.test(paperHtml), '…and never the letter "v" beside a formula')
+  assert(!/AgCl\s*v/.test(visibleText(paperHtml)),
+    '…and never the letter "v" beside a formula')
 
   const xml = await renderDocx(
     { title: 'Ions', subject: 'Integrated Science', grade: '11' },
@@ -145,10 +161,64 @@ console.log('\nGOLDEN — Mathematics: the quadratic formula keeps its fraction 
     { title: 'Quadratics', subject: 'Mathematics', grade: '11' },
     [{ id: 'q1', order: 1, type: 'short_answer', text: paperHtml, marks: 3 }],
   )
-  assert(xml.includes('(2a)'), 'the bracketed denominator reaches Word')
-  assert(xml.includes('b²'), 'the squared term reaches Word')
+  // Word now receives a REAL equation rather than this linear text, so the flat
+  // "(2a)" and "b²" forms are deliberately absent from the .docx — the parts are
+  // there as equation structure instead. The next golden asserts that directly.
+  assert(xml.includes('<m:oMath>'), 'Word receives the formula as an equation')
+  assert(xml.includes('2a'), 'the denominator is in the equation')
   assert(!xml.includes('\\frac'), 'no LaTeX leaks into the Word file')
   assert(!xml.includes('\\sqrt'), 'and neither does the root command')
+}
+
+console.log('\nGOLDEN — Mathematics: Word receives a REAL equation, not a picture of one')
+{
+  // §4.2: "For DOCX, emit real OMML equations — Word mangles anything else."
+  const xml = await renderDocx(
+    { title: 'Quadratics', subject: 'Mathematics', grade: '11' },
+    [{
+      id: 'q1', order: 1, type: 'short_answer', marks: 3,
+      text: richTextToPaperHtml(
+        `<p>Solve using ${math(String.raw`x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}`)}</p>`,
+      ),
+    }],
+  )
+  assert(xml.includes('<m:oMath>'), 'the paper carries a Word equation object')
+  assert(xml.includes('<m:f>'), 'the fraction is a real stacked fraction')
+  assert(xml.includes('<m:rad>'), 'the square root is a real radical')
+  assert(xml.includes('<m:sSup>'), 'b squared is a real superscript inside it')
+  // Not a raster: the brief allows a vector fallback but never a low-resolution
+  // image, and an equation should not have become one at all.
+  assert(!/media\/[^"']*\.(png|jpg)/.test(xml), 'the equation is not an embedded picture')
+}
+
+console.log('\nGOLDEN — a formula that does NOT need an equation stays editable text')
+{
+  // Chemistry and inline powers render perfectly as runs with real
+  // superscript/subscript, and a teacher can still edit them as text. Wrapping
+  // them in an equation object would be a worse artefact, not a better one.
+  const xml = await renderDocx(
+    { title: 'Formulae', subject: 'Integrated Science', grade: '11' },
+    [{
+      id: 'q1', order: 1, type: 'short_answer', marks: 2,
+      text: richTextToPaperHtml(`<p>${math(String.raw`\ce{H2SO4}`)}</p>`),
+    }],
+  )
+  assert(!xml.includes('<m:oMath>'), 'chemistry is not wrapped in an equation object')
+  assert(hasScriptRun(xml, '2', 'sub'), '…and keeps its genuine subscript run')
+}
+
+console.log('\nGOLDEN — an unmodelled construct still prints, as text')
+{
+  // The brief's fallback rule, read strictly: never silently drop a formula.
+  const xml = await renderDocx(
+    { title: 'Fallback', subject: 'Mathematics', grade: '11' },
+    [{
+      id: 'q1', order: 1, type: 'short_answer', marks: 1,
+      text: richTextToPaperHtml(`<p>${math(String.raw`5 \times 3 = 15`)}</p>`),
+    }],
+  )
+  assert(xml.includes('×'), 'the formula is on the page')
+  assert(!xml.includes('<m:oMath>'), 'and did not need an equation object to get there')
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

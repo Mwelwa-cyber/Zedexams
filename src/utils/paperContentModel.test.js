@@ -169,6 +169,31 @@ test('a line break is kept as a break, not swallowed', () => {
   assert.deepEqual(children.map((c) => c.type), ['text', 'break', 'text'])
 })
 
+test('a formula keeps its source LaTeX beside its printable fallback', () => {
+  // The fallback is what the print window draws; the LaTeX is what lets the Word
+  // export build a real equation (§4.2). Losing either would cost a renderer.
+  const node = parse(
+    '<p><span data-tex="\\frac{1}{2}">1<sup>1</sup>&frasl;<sub>2</sub></span></p>',
+  )[0].children[0]
+  assert.equal(node.type, 'math')
+  assert.equal(node.tex, '\\frac{1}{2}')
+  assert.ok(node.fallback.length > 0, 'the printable fallback is kept')
+  // The fallback is the flattened "1 ¹⁄₂" form, fraction slash and all.
+  assert.equal(contentToPlainText([{ type: 'paragraph', children: [node] }]), '11⁄2')
+})
+
+test('a formula\'s fallback keeps its own sup/sub marks', () => {
+  const node = parse('<p><span data-tex="x^2">x<sup>2</sup></span></p>')[0].children[0]
+  const scripted = node.fallback.find((n) => n.marks && n.marks.sup)
+  assert.ok(scripted, 'the superscript survived into the fallback')
+  assert.equal(scripted.value, '2')
+})
+
+test('a formula round-trips through HTML with its LaTeX intact', () => {
+  const once = parse('<p><span data-tex="\\sqrt{2}">√(2)</span></p>')
+  assert.deepEqual(parse(contentToHtml(once)), once)
+})
+
 /* ── HTML output ────────────────────────────────────────────────────────── */
 
 console.log('\n— HTML output —')
