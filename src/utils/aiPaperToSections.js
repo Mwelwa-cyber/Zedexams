@@ -347,7 +347,15 @@ export function mapAiQuestion(q, { partId = null } = {}) {
   const topicTag = String(q?.topic || '').trim()
   if (topicTag) overrides.topic = topicTag.slice(0, 120)
   const bloomTag = String(q?.bloomLevel || '').trim()
-  if (bloomTag) overrides.bloomLevel = bloomTag
+  // The studio question schema stores the cognitive level as `bloom`; the
+  // generator emits `bloomLevel`. Writing the generator's spelling meant every
+  // AI-tagged level was invisible to the analysis panel AND dropped on save,
+  // because questionWritePayload only whitelists `bloom`.
+  if (bloomTag) overrides.bloom = bloomTag
+  // The ACTIVITY the teacher asked for, kept alongside the render type so a
+  // tracing task never becomes indistinguishable from a generic structured one.
+  const activityTag = String(q?.activityType || '').trim()
+  if (activityTag) overrides.activityType = activityTag
 
   return { overrides, warnings }
 }

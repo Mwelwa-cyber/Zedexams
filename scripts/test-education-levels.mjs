@@ -7,8 +7,9 @@
  *
  *   1. "Form 3" and "Grade 10" are the same curriculum year — one level, one
  *      syllabus, never a duplicated copy behind a second name.
- *   2. A level's syllabus code is declared, not derived from its value, because
- *      Baby Class stores ECE_B while grounding on the 3-4 year syllabus.
+ *   2. Early Childhood is exactly Nursery and Reception. "Baby Class" and
+ *      "Middle Class" are legacy spellings only — never displayed as levels,
+ *      but still resolvable so an old record opens.
  *
  * Run: node scripts/test-education-levels.mjs
  */
@@ -17,6 +18,7 @@ import assert from 'node:assert/strict'
 import {
   EDUCATION_LEVELS, LEVEL_STAGES, LEVEL_STAGE_LABELS, resolveLevel,
   levelsForFramework, levelKbGrade, levelBandId, levelLabel, isSameLevel,
+  levelResolution, levelAvailability, LEVEL_AVAILABILITY,
 } from '../src/config/educationLevels.js'
 import { BAND_IDS, ASSESSMENT_BAND_SEED } from '../src/config/assessmentBands.js'
 
@@ -33,16 +35,36 @@ function test(name, fn) {
 
 /* ── the ladder is complete ─────────────────────────────────────────────── */
 
-test('covers Baby Class through Form 5', () => {
+test('covers Nursery through Form 5', () => {
   const labels = EDUCATION_LEVELS.map((l) => l.label)
   for (const expected of [
-    'Baby Class', 'Middle Class', 'Reception',
+    'Nursery', 'Reception',
     'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7',
     'Form 1', 'Form 2', 'Form 3', 'Form 4', 'Form 5',
   ]) {
     assert.ok(labels.includes(expected), `${expected} missing from the ladder`)
   }
-  assert.equal(EDUCATION_LEVELS.length, 15)
+  assert.equal(EDUCATION_LEVELS.length, 14)
+})
+
+test('Early Childhood is exactly Nursery and Reception', () => {
+  const ece = EDUCATION_LEVELS.filter((l) => l.stage === 'ece')
+  assert.deepEqual(ece.map((l) => l.label), ['Nursery', 'Reception'])
+  assert.deepEqual(ece.map((l) => l.value), ['ECE_N', 'ECE_R'])
+})
+
+test('Baby Class and Middle Class are never levels', () => {
+  // They are legacy spellings only. Displaying either as a current level is the
+  // regression this guards.
+  for (const retired of ['Baby Class', 'Middle Class']) {
+    assert.ok(!EDUCATION_LEVELS.some((l) => l.label === retired),
+      `${retired} must not be a level`)
+    assert.ok(!EDUCATION_LEVELS.some((l) => l.aliases.includes(retired)),
+      `${retired} must not be a declared alias of a level`)
+  }
+  for (const code of ['ECE_B', 'ECE_M']) {
+    assert.ok(!EDUCATION_LEVELS.some((l) => l.value === code), `${code} must not be a level value`)
+  }
 })
 
 test('is in educational order, never alphabetical', () => {
@@ -101,11 +123,35 @@ test('Form 3 and Grade 3 are NOT the same level', () => {
   assert.equal(isSameLevel('Form 3', 'Grade 3'), false)
 })
 
-test('the retired ECE spellings still resolve', () => {
-  // A paper saved before the ECE rename must keep opening.
-  assert.equal(resolveLevel('ECE_N').id, 'baby-class')
-  assert.equal(resolveLevel('Nursery').id, 'baby-class')
-  assert.equal(resolveLevel('ECE_B').id, 'baby-class')
+test('the canonical ECE codes resolve to their own levels', () => {
+  assert.equal(resolveLevel('ECE_N').id, 'nursery')
+  assert.equal(resolveLevel('Nursery').id, 'nursery')
+  assert.equal(resolveLevel('ECE_R').id, 'reception')
+  assert.equal(resolveLevel('Reception').id, 'reception')
+})
+
+test('retired Baby/Middle Class records still open, under Nursery', () => {
+  // Legacy, so they resolve — but onto Nursery, not onto a level of their own.
+  for (const retired of ['Baby Class', 'baby class', 'ECE_B', 'Middle Class', 'ECE_M']) {
+    const res = levelResolution(retired)
+    assert.equal(res.level?.id, 'nursery', retired)
+    assert.equal(res.legacy, true, `${retired} must be reported as legacy`)
+  }
+})
+
+test('a bare ECE resolves consistently and is reported as ambiguous', () => {
+  const res = levelResolution('ECE')
+  assert.equal(res.level.id, 'nursery')
+  assert.equal(res.ambiguous, true)
+  assert.equal(res.legacy, true)
+})
+
+test('a canonical value is not reported as legacy', () => {
+  for (const value of ['ECE_N', 'ECE_R', '4', 'G10']) {
+    const res = levelResolution(value)
+    assert.equal(res.legacy, false, value)
+    assert.equal(res.ambiguous, false, value)
+  }
 })
 
 test('unknown values resolve to nothing rather than guessing', () => {
@@ -117,12 +163,14 @@ test('unknown values resolve to nothing rather than guessing', () => {
 
 /* ── syllabus codes are declared, not derived ───────────────────────────── */
 
-test('the ECE years map onto the two published age bands', () => {
-  // The syllabus publishes 3-4 and 4-5. Baby Class takes 3-4; Middle Class and
-  // Reception are two school years sharing 4-5 — an alias, not a duplication.
-  assert.equal(levelKbGrade('ECE_B'), 'ECE_N')
-  assert.equal(levelKbGrade('ECE_M'), 'ECE_R')
+test('the ECE years map one-to-one onto the published age bands', () => {
+  // The syllabus publishes 3-4 and 4-5; Nursery and Reception take one each, so
+  // neither is an alias of the other and each has its own content.
+  assert.equal(levelKbGrade('ECE_N'), 'ECE_N')
   assert.equal(levelKbGrade('ECE_R'), 'ECE_R')
+  // A legacy record still lands on real syllabus content.
+  assert.equal(levelKbGrade('Baby Class'), 'ECE_N')
+  assert.equal(levelKbGrade('Middle Class'), 'ECE_N')
 })
 
 test('no ECE level grounds on a syllabus code that does not exist', () => {
@@ -147,9 +195,9 @@ test('CBC drops Grade 7 and Form 5; the previous syllabus has no ECE', () => {
   const prev = levelsForFramework('2013').map((l) => l.id)
   assert.ok(!cbc.includes('grade-7'), 'CBC abolished Grade 7')
   assert.ok(!cbc.includes('form-5'), 'CBC stops at Form 4')
-  assert.ok(cbc.includes('baby-class') && cbc.includes('reception'))
+  assert.ok(cbc.includes('nursery') && cbc.includes('reception'))
   assert.ok(prev.includes('grade-7') && prev.includes('form-5'))
-  assert.ok(!prev.some((id) => ['baby-class', 'middle-class', 'reception'].includes(id)))
+  assert.ok(!prev.some((id) => ['nursery', 'reception'].includes(id)))
 })
 
 test('an unknown framework falls back to CBC rather than an empty ladder', () => {
@@ -162,7 +210,8 @@ test('an unknown framework falls back to CBC rather than an empty ladder', () =>
 /* ── band lookup ────────────────────────────────────────────────────────── */
 
 test('levels map onto the expected bands', () => {
-  assert.equal(levelBandId('ECE_B'), 'early_childhood')
+  assert.equal(levelBandId('ECE_N'), 'early_childhood')
+  assert.equal(levelBandId('ECE_R'), 'early_childhood')
   assert.equal(levelBandId('2'), 'lower_primary')
   assert.equal(levelBandId('4'), 'lower_primary')
   assert.equal(levelBandId('5'), 'upper_primary')
@@ -173,6 +222,42 @@ test('levels map onto the expected bands', () => {
   assert.equal(levelBandId('G12'), 'senior_secondary')
   // …and via the alias, so a school using Grade naming gets the same rules.
   assert.equal(levelBandId('Grade 10'), 'senior_secondary')
+})
+
+/* ── availability: four distinguishable states ───────────────────────────── */
+
+test('a level with syllabus content is available', () => {
+  const res = levelAvailability('4', { framework: '2023', gradeCodes: new Set(['G4']) })
+  assert.equal(res.availability, LEVEL_AVAILABILITY.AVAILABLE)
+  assert.equal(res.message, '')
+})
+
+test('a recognised level with no catalogue data says so, by name', () => {
+  const res = levelAvailability('5', { framework: '2023', gradeCodes: new Set(['G4']) })
+  assert.equal(res.availability, LEVEL_AVAILABILITY.NO_CATALOGUE_DATA)
+  assert.match(res.message, /Grade 5 is recognised/)
+  assert.match(res.message, /CBC syllabus content has not yet been loaded/)
+  assert.match(res.message, /administrator/)
+})
+
+test('a level the other curriculum defines is named as such', () => {
+  // Grade 7 exists under the previous syllabus, not CBC. It must not silently
+  // borrow content from the other curriculum.
+  const res = levelAvailability('7', { framework: '2023', gradeCodes: new Set(['G7']) })
+  assert.equal(res.availability, LEVEL_AVAILABILITY.OTHER_CURRICULUM_ONLY)
+  assert.match(res.message, /not part of CBC/)
+  assert.match(res.message, /switch curriculum/)
+})
+
+test('an unrecognised level is distinguished from an unavailable one', () => {
+  const res = levelAvailability('Grade 99', { framework: '2023', gradeCodes: new Set() })
+  assert.equal(res.availability, LEVEL_AVAILABILITY.UNKNOWN)
+  assert.match(res.message, /not a level ZedExams recognises/)
+})
+
+test('an unresolved catalogue reads as available, never as an empty picker', () => {
+  const res = levelAvailability('4', { framework: '2023', gradeCodes: null })
+  assert.equal(res.availability, LEVEL_AVAILABILITY.AVAILABLE)
 })
 
 console.log(`✓ education levels — ${passed} tests passed`)

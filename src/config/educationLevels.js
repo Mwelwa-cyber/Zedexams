@@ -42,38 +42,27 @@ export const LEVEL_STAGE_LABELS = {
 const BOTH = ['2023', '2013']
 
 /**
- * Early Childhood. Zambian schools run three ECE years — Baby Class, Middle
- * Class and Reception — while the CBC ECE syllabus is written in two age bands
- * (3-4 and 4-5 years). Middle Class and Reception therefore ground on the same
- * 4-5 band: they are two school years sharing one published syllabus, which is
- * an alias, not a duplication. `ECE_R` keeps its long-standing meaning of
- * Reception so every paper already saved under it is untouched.
+ * Early Childhood — exactly two levels: Nursery then Reception. They line up
+ * one-to-one with the two age bands the CBC ECE syllabus actually publishes
+ * (3-4 and 4-5 years), so each has its own content and neither is an alias of
+ * the other.
+ *
+ * "Baby Class" and "Middle Class" are NOT levels here and are never displayed.
+ * They are accepted only as LEGACY aliases, so a record saved under either name
+ * still opens — normalised onto Nursery rather than left pointing at a level no
+ * picker offers. See LEGACY_LEVEL_ALIASES.
  */
 const ECE_LEVELS = [
   {
-    id: 'baby-class',
-    value: 'ECE_B',
-    label: 'Baby Class',
+    id: 'nursery',
+    value: 'ECE_N',
+    label: 'Nursery',
     stage: 'ece',
     order: 10,
     kbGrade: 'ECE_N',
     band: 'early_childhood',
-    // ECE_N / "Nursery" is what this level was called before; a paper saved
-    // under either must keep working and simply show the current name.
-    aliases: ['ECE_N', 'Nursery', 'Baby Class', 'Baby'],
+    aliases: ['ECE_N', 'Nursery'],
     ageLabel: '3–4 yrs',
-    frameworks: ['2023'],
-  },
-  {
-    id: 'middle-class',
-    value: 'ECE_M',
-    label: 'Middle Class',
-    stage: 'ece',
-    order: 20,
-    kbGrade: 'ECE_R',
-    band: 'early_childhood',
-    aliases: ['Middle Class', 'Middle'],
-    ageLabel: '4–5 yrs',
     frameworks: ['2023'],
   },
   {
@@ -81,11 +70,11 @@ const ECE_LEVELS = [
     value: 'ECE_R',
     label: 'Reception',
     stage: 'ece',
-    order: 30,
+    order: 20,
     kbGrade: 'ECE_R',
     band: 'early_childhood',
-    aliases: ['Reception'],
-    ageLabel: '5–6 yrs',
+    aliases: ['ECE_R', 'Reception'],
+    ageLabel: '4–5 yrs',
     frameworks: ['2023'],
   },
 ]
@@ -137,6 +126,31 @@ export const EDUCATION_LEVELS = Object.freeze(
 
 const BY_VALUE = new Map(EDUCATION_LEVELS.map((l) => [l.value, l]))
 
+/**
+ * Retired spellings that must keep resolving so old records stay reachable, but
+ * that are NEVER offered or displayed as levels.
+ *
+ * `ambiguous: true` marks a value that does not identify one level on its own —
+ * a bare "ECE" spans both ECE years. It resolves to the youngest, because
+ * pitching content down is harmless to an older child while pitching it up is
+ * not, and levelResolution() reports it so the caller can log the fallback
+ * rather than let it pass silently.
+ */
+export const LEGACY_LEVEL_ALIASES = Object.freeze({
+  // Never levels in ZedExams. Accepted so a record written elsewhere (an import,
+  // a hand-edited doc, an earlier build) still opens.
+  'baby class': { levelId: 'nursery' },
+  baby: { levelId: 'nursery' },
+  ece_b: { levelId: 'nursery' },
+  'middle class': { levelId: 'nursery' },
+  middle: { levelId: 'nursery' },
+  ece_m: { levelId: 'nursery' },
+  // Pre-dates the age bands and covers both ECE years.
+  ece: { levelId: 'nursery', ambiguous: true },
+})
+
+const BY_ID = new Map(EDUCATION_LEVELS.map((l) => [l.id, l]))
+
 /** Every alias spelling → its level. Lower-cased, whitespace-collapsed. */
 const BY_ALIAS = (() => {
   const map = new Map()
@@ -166,10 +180,40 @@ function normalizeKey(value) {
  * whether to reject it or pass it through.
  */
 export function resolveLevel(value) {
+  return levelResolution(value).level
+}
+
+/**
+ * resolveLevel with the provenance of the match, so a caller can log a legacy
+ * or ambiguous value instead of silently accepting it.
+ *
+ * @param {string} value
+ * @returns {{level: object|null, matchedBy: 'canonical'|'alias'|'grade-number'|'legacy'|'none',
+ *            legacy: boolean, ambiguous: boolean, input: string}}
+ */
+export function levelResolution(value) {
   const raw = String(value ?? '').trim()
-  if (!raw) return null
-  const direct = BY_VALUE.get(raw) || BY_ALIAS.get(normalizeKey(raw))
-  if (direct) return direct
+  const none = { level: null, matchedBy: 'none', legacy: false, ambiguous: false, input: raw }
+  if (!raw) return none
+
+  if (BY_VALUE.has(raw)) {
+    return { level: BY_VALUE.get(raw), matchedBy: 'canonical', legacy: false, ambiguous: false, input: raw }
+  }
+  const key = normalizeKey(raw)
+  if (BY_ALIAS.has(key)) {
+    return { level: BY_ALIAS.get(key), matchedBy: 'alias', legacy: false, ambiguous: false, input: raw }
+  }
+  // Retired spellings — resolved so old records open, never offered as levels.
+  const legacy = LEGACY_LEVEL_ALIASES[key]
+  if (legacy) {
+    return {
+      level: BY_ID.get(legacy.levelId) || null,
+      matchedBy: 'legacy',
+      legacy: true,
+      ambiguous: Boolean(legacy.ambiguous),
+      input: raw,
+    }
+  }
   // A bare secondary number is the Form year under its Grade naming — "8" means
   // Grade 8 means Form 1. (Primary bare numbers are already values, so they hit
   // BY_VALUE above.) Callers that must preserve the historical "Grade 8"
@@ -177,9 +221,37 @@ export function resolveLevel(value) {
   const bare = raw.match(/^(\d{1,2})$/)
   if (bare) {
     const n = Number(bare[1])
-    if (n >= 8 && n <= 12) return BY_VALUE.get(`G${n}`) || null
+    if (n >= 8 && n <= 12 && BY_VALUE.has(`G${n}`)) {
+      return {
+        level: BY_VALUE.get(`G${n}`), matchedBy: 'grade-number',
+        legacy: false, ambiguous: false, input: raw,
+      }
+    }
   }
-  return null
+  return none
+}
+
+/**
+ * Log a legacy or ambiguous level value once per distinct input, so the
+ * fallback is recorded without flooding the console on every render.
+ * Returns the resolution so it can be used inline.
+ */
+const _reportedLegacy = new Set()
+export function reportLevelResolution(value, where = '') {
+  const res = levelResolution(value)
+  if ((res.legacy || res.ambiguous) && res.level) {
+    const key = `${where}|${res.input}`
+    if (!_reportedLegacy.has(key)) {
+      _reportedLegacy.add(key)
+      const kind = res.ambiguous ? 'ambiguous legacy' : 'legacy'
+      console.warn(
+        `[educationLevels] ${kind} level value "${res.input}"` +
+        `${where ? ` (${where})` : ''} resolved to ${res.level.label}. ` +
+        'It is not an offered level; normalise the record on its next save.',
+      )
+    }
+  }
+  return res
 }
 
 /** The levels a curriculum framework defines, in ladder order. */
@@ -201,6 +273,74 @@ export function levelBandId(value) {
 /** Official display label ('Form 3', 'Baby Class'). */
 export function levelLabel(value) {
   return resolveLevel(value)?.label || String(value ?? '')
+}
+
+/**
+ * Why a level is or is not usable for the selected curriculum. A picker must be
+ * able to tell these four apart, because they need different words: a level we
+ * have never heard of is a different problem from a real level whose syllabus
+ * has not been loaded yet, and neither should look like an empty dropdown.
+ */
+export const LEVEL_AVAILABILITY = {
+  /** Declared by this curriculum AND syllabus rows are on file. */
+  AVAILABLE: 'available',
+  /** Declared by this curriculum, but no syllabus content has been loaded. */
+  NO_CATALOGUE_DATA: 'no-catalogue-data',
+  /** A real level, but the OTHER curriculum is the one that defines it. */
+  OTHER_CURRICULUM_ONLY: 'other-curriculum-only',
+  /** Not a level in the ladder at all. */
+  UNKNOWN: 'unknown',
+}
+
+/**
+ * Classify a level against a curriculum + the KB grade codes that actually have
+ * syllabus rows. The message is teacher-facing and says what to do next; a
+ * level is never silently swapped for one from another curriculum.
+ *
+ * @param {string} value level value/label/alias
+ * @param {object} args
+ * @param {'2023'|'2013'} args.framework
+ * @param {Iterable<string>|null} args.gradeCodes KB codes present in the
+ *   syllabus. null means "not resolved yet" — treated as available so a picker
+ *   is never briefly empty.
+ * @returns {{availability: string, level: object|null, message: string}}
+ */
+export function levelAvailability(value, { framework = '2023', gradeCodes = null } = {}) {
+  const level = resolveLevel(value)
+  if (!level) {
+    return {
+      availability: LEVEL_AVAILABILITY.UNKNOWN,
+      level: null,
+      message: `“${String(value ?? '').trim()}” is not a level ZedExams recognises.`,
+    }
+  }
+  const fw = String(framework) === '2013' ? '2013' : '2023'
+  const curriculumName = fw === '2013' ? 'the previous syllabus' : 'CBC'
+  const otherName = fw === '2013' ? 'CBC' : 'the previous syllabus'
+
+  if (!level.frameworks.includes(fw)) {
+    return {
+      availability: LEVEL_AVAILABILITY.OTHER_CURRICULUM_ONLY,
+      level,
+      message:
+        `${level.label} is not part of ${curriculumName}. It is taught under ` +
+        `${otherName} — switch curriculum to use it.`,
+    }
+  }
+  if (gradeCodes) {
+    const present = gradeCodes instanceof Set ? gradeCodes : new Set(gradeCodes)
+    if (!present.has(level.kbGrade)) {
+      return {
+        availability: LEVEL_AVAILABILITY.NO_CATALOGUE_DATA,
+        level,
+        message:
+          `${level.label} is recognised, but ${curriculumName} syllabus content ` +
+          'has not yet been loaded for this level. Select an available curriculum ' +
+          'or ask an administrator to add the verified syllabus.',
+      }
+    }
+  }
+  return { availability: LEVEL_AVAILABILITY.AVAILABLE, level, message: '' }
 }
 
 /**

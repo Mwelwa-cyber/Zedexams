@@ -21,6 +21,8 @@
  * Pure — no React, no Firebase.
  */
 
+import { ACTIVITY_IDS } from './questionActivities.js'
+
 /** Band ids, in ladder order. Mirrored by educationLevels.js `band`. */
 export const BAND_IDS = [
   'early_childhood', 'lower_primary', 'upper_primary',
@@ -28,22 +30,12 @@ export const BAND_IDS = [
 ]
 
 /**
- * Every question type the studio knows about. A band's `questionTypes` is a
- * subset of these; the picker offers exactly that subset and nothing else.
- * Values are the canonical assessment-namespace types the generator and
- * assessmentSchema speak (see src/utils/questionType.js).
+ * The vocabulary a band's `questionTypes` draws from: every ACTIVITY the studio
+ * can ask for (src/config/questionActivities.js). A band lists activities — what
+ * the task is — not render structures; the registry owns the mapping from an
+ * activity to the structure that carries it, and how honestly it does so.
  */
-export const ALL_QUESTION_TYPES = [
-  'multiple_choice', 'true_false', 'short_answer', 'fill_blanks', 'matching',
-  'structured', 'calculation', 'essay',
-  // Early-years types: answered by marking a page, not by writing prose.
-  'picture_identification', 'circling', 'picture_matching', 'counting',
-  'tracing', 'colouring', 'sorting',
-  // Upper-band types.
-  'diagram_labelling', 'table_completion', 'comprehension',
-  'multi_step_calculation', 'data_interpretation', 'extended_response',
-  'case_study', 'graph_interpretation', 'practical',
-]
+export const ALL_QUESTION_TYPES = ACTIVITY_IDS
 
 /**
  * The five bands.
@@ -59,7 +51,7 @@ export const ASSESSMENT_BAND_SEED = {
   early_childhood: {
     id: 'early_childhood',
     label: 'Early Childhood',
-    levels: ['baby-class', 'middle-class', 'reception'],
+    levels: ['nursery', 'reception'],
     reading: {
       requirement: 'none',
       note: 'The learner is not expected to read anything. Every item carries a figure the learner responds to, or a script the teacher reads aloud.',

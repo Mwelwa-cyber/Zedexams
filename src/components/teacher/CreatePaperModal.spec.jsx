@@ -40,8 +40,8 @@ vi.mock('./syllabusTopicOptions', () => ({
       ? [{ value: '1', label: 'Grade 1' }, { value: '4', label: 'Grade 4' },
          { value: '7', label: 'Grade 7' }, { value: 'G8', label: 'Form 1' },
          { value: 'G12', label: 'Form 5' }]
-      : [{ value: 'ECE_B', label: 'Baby Class' }, { value: 'ECE_M', label: 'Middle Class' },
-         { value: 'ECE_R', label: 'Reception' }, { value: '1', label: 'Grade 1' },
+      : [{ value: 'ECE_N', label: 'Nursery' }, { value: 'ECE_R', label: 'Reception' },
+         { value: '1', label: 'Grade 1' },
          { value: '4', label: 'Grade 4' }, { value: '6', label: 'Grade 6' },
          { value: 'G8', label: 'Form 1' }, { value: 'G11', label: 'Form 4' }],
     loading: false,
@@ -209,7 +209,7 @@ describe('CreatePaperModal — question types', () => {
     expect(payload.questionTypes).not.toContain('short_answer')
     // The human phrasing is also echoed in the instructions so the prompt
     // renders fill-in-the-blank as blanks.
-    expect(payload.instructions).toMatch(/fill-in-the-blank/i)
+    expect(payload.instructions).toMatch(/fill in the blank/i)
   })
 })
 
@@ -462,10 +462,16 @@ describe('CreatePaperModal — question types follow the band', () => {
     })
   }
 
-  const chip = (name) => screen.queryByRole('button', { name })
+  // Find a question-type chip by its ACTIVITY NAME. Chips for limited-support
+  // activities append a "· basic" marker, and that marker is part of the point —
+  // so strip it before comparing rather than matching the whole label.
+  const chip = (label) => screen.getAllByRole('button').find((b) => (
+    b.className.includes('sv-cpm-pill') &&
+    b.textContent.replace(/·\s*basic\s*$/i, '').trim() === label
+  )) || null
 
-  it('Baby Class offers early-years tasks and no writing tasks', () => {
-    renderModal({ paperMeta: { grade: 'ECE_B', subject: 'numeracy', term: '1' } })
+  it('Nursery offers early-years tasks and no writing tasks', () => {
+    renderModal({ paperMeta: { grade: 'ECE_N', subject: 'numeracy', term: '1' } })
     for (const early of ['Match pictures', 'Counting', 'Tracing', 'Colouring', 'Sorting']) {
       expect(chip(early)).not.toBeNull()
     }
@@ -475,7 +481,7 @@ describe('CreatePaperModal — question types follow the band', () => {
       expect(chip(tooHard)).toBeNull()
     }
     // …nor a reading passage.
-    expect(chip(/Comprehension passage/)).toBeNull()
+    expect(chip('Comprehension passage')).toBeNull()
   })
 
   it('Form 4 offers examination tasks and no early-years tasks', () => {
@@ -493,7 +499,7 @@ describe('CreatePaperModal — question types follow the band', () => {
     expect(chip('Essay / Composition')).not.toBeNull()
     expect(chip('Colouring')).toBeNull()
 
-    await selectGrade('ECE_B')
+    await selectGrade('ECE_N')
 
     expect(chip('Essay / Composition')).toBeNull()
     expect(chip('Colouring')).not.toBeNull()
@@ -507,7 +513,7 @@ describe('CreatePaperModal — question types follow the band', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Essay / Composition' }))
     // Switching down to Baby Class must not smuggle "essay" through to the
     // generator via a chip that is no longer on screen.
-    await selectGrade('ECE_B')
+    await selectGrade('ECE_N')
     fireEvent.click(screen.getByRole('checkbox', { name: 'Numbers' }))
     fireEvent.click(screen.getByRole('button', { name: /Generate paper/i }))
 
@@ -518,7 +524,7 @@ describe('CreatePaperModal — question types follow the band', () => {
   it('never leaves the teacher with no type selected', () => {
     // Every seeded default is forbidden at Baby Class, so the band's own first
     // types are selected instead of leaving an empty, un-generatable form.
-    renderModal({ paperMeta: { grade: 'ECE_B', subject: 'numeracy', term: '1' } })
+    renderModal({ paperMeta: { grade: 'ECE_N', subject: 'numeracy', term: '1' } })
     const active = screen.getAllByRole('button')
       .filter((b) => b.className.includes('sv-cpm-pill') && b.className.includes('active'))
     expect(active.length).toBeGreaterThan(0)

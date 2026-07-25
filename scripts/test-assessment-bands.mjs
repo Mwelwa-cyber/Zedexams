@@ -10,18 +10,19 @@
  *   2. the generated server copy is not stale, so the picker and the generator
  *      cannot disagree about what a level permits;
  *   3. the ceiling only ever NARROWS — a client cannot widen it, which is what
- *      stops a Baby Class paper containing an essay.
+ *      stops a Nursery paper containing an essay.
  *
  * Run: node scripts/test-assessment-bands.mjs
  */
 
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { execSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import {
   ASSESSMENT_BAND_SEED, BAND_IDS, ALL_QUESTION_TYPES, validateBand,
 } from '../src/config/assessmentBands.js'
-import { EDUCATION_LEVELS } from '../src/config/educationLevels.js'
+import { EDUCATION_LEVELS, resolveLevel } from '../src/config/educationLevels.js'
 import { renderBandsJson, BANDS_JSON_PATH } from './sync-assessment-bands.mjs'
 
 const require = createRequire(import.meta.url)
@@ -94,6 +95,10 @@ test('Early Childhood requires no reading at all', () => {
   assert.equal(band.structure.teacherScript, true)
   assert.equal(band.structure.oneTaskPerInstruction, true)
   assert.equal(band.structure.answerSpace, 'oversized')
+})
+
+test('Early Childhood covers exactly Nursery and Reception', () => {
+  assert.deepEqual(ASSESSMENT_BAND_SEED.early_childhood.levels, ['nursery', 'reception'])
 })
 
 test('Early Childhood offers only types a non-reader can answer', () => {
@@ -193,17 +198,51 @@ test('the server validator agrees with the client validator', () => {
 
 test('server grade → level matches the ladder', () => {
   const expected = {
-    ECE_N: 'baby-class', ECE_B: 'baby-class', ECE_M: 'middle-class',
-    ECE_R: 'reception', G1: 'grade-1', G7: 'grade-7',
+    ECE_N: 'nursery', ECE_R: 'reception', G1: 'grade-1', G7: 'grade-7',
     G8: 'form-1', G10: 'form-3', G12: 'form-5',
     // Alternative namings a client may still send.
     4: 'grade-4', 10: 'form-3', 'Form 3': 'form-3', 'Grade 10': 'form-3',
+    // Retired ECE spellings still resolve, onto Nursery.
+    ECE_B: 'nursery', ECE_M: 'nursery', 'Baby Class': 'nursery',
+    'Middle Class': 'nursery', ECE: 'nursery',
   }
   for (const [grade, levelId] of Object.entries(expected)) {
     assert.equal(server.levelIdForGrade(grade), levelId, grade)
   }
   assert.equal(server.levelIdForGrade('nonsense'), '')
   assert.equal(server.levelIdForGrade(''), '')
+})
+
+test('client and server resolve every alias to the SAME level', () => {
+  // Divergence here means a teacher picks one level and the generator grounds on
+  // another — the single worst failure this whole ladder exists to prevent.
+  const spellings = [
+    'ECE_N', 'ECE_R', 'Nursery', 'Reception', 'Baby Class', 'Middle Class',
+    'ECE_B', 'ECE_M', 'ECE', '1', '4', '7', 'G4', 'G8', 'G12',
+    'Form 1', 'Form 3', 'Form 5', 'Grade 4', 'Grade 10', 'Grade 12', '10', '12',
+  ]
+  for (const spelling of spellings) {
+    const client = resolveLevel(spelling)
+    const serverLevelId = server.levelIdForGrade(spelling)
+    assert.equal(serverLevelId, client ? client.id : '',
+      `client/server disagree on "${spelling}"`)
+  }
+})
+
+test('the server reports legacy and ambiguous values rather than hiding them', () => {
+  assert.deepEqual(server.levelResolutionForGrade('ECE'),
+    {levelId: 'nursery', legacy: true, ambiguous: true})
+  assert.deepEqual(server.levelResolutionForGrade('Baby Class'),
+    {levelId: 'nursery', legacy: true, ambiguous: false})
+  assert.deepEqual(server.levelResolutionForGrade('ECE_N'),
+    {levelId: 'nursery', legacy: false, ambiguous: false})
+})
+
+test('Baby Class and Middle Class are not level codes on the server either', () => {
+  for (const retired of ['ECE_B', 'ECE_M', 'BABYCLASS', 'MIDDLECLASS']) {
+    assert.ok(!Object.keys(server.KB_GRADE_TO_LEVEL).includes(retired),
+      `${retired} must be legacy-only, not a canonical grade code`)
+  }
 })
 
 /* ── the ceiling only narrows ───────────────────────────────────────────── */
@@ -268,35 +307,52 @@ test('bandDefaults reads the band’s duration and mark range', () => {
 // Firestore cannot be read), so what this guards is the thing that actually
 // goes wrong — someone restating a band's rules in a component or, worse, in a
 // prompt string, where it would then silently disagree with the band.
-import { execSync } from 'node:child_process'
 
-// Where band content is legitimately allowed to appear.
+// Where the activity → render-type mapping and the per-band type lists may be
+// DEFINED. Everything else may reference an activity id (that is the point of a
+// shared vocabulary); what must not spread is a second definition of what an
+// activity IS or which activities a level may use.
 const BAND_RULE_HOMES = [
-  'src/config/assessmentBands.js',           // the definitions
-  'functions/data/assessmentBands.json',     // their generated server copy
-  'functions/teacherTools/assessmentBands.js', // the reader + directive renderer
-  'src/utils/assessmentBandService.js',      // the client reader
-  'src/components/teacher/CreatePaperModal.jsx', // chip labels only, no rules
+  'src/config/questionActivities.js',         // the activity registry
+  'src/config/assessmentBands.js',            // the band definitions
+  'functions/data/assessmentBands.json',      // their generated server copy
 ]
 
-function filesMentioning(pattern) {
-  try {
-    const out = execSync(`grep -rlE ${JSON.stringify(pattern)} src functions scripts --include=*.js --include=*.jsx --include=*.json 2>/dev/null || true`)
-    return out.toString().trim().split('\n').filter(Boolean)
-      .filter((f) => !/\.(test|spec)\.|scripts\//.test(f))
-  } catch {
-    return []
-  }
+/** File contents with line comments stripped, so a comment naming an example
+ * activity is never mistaken for a restated rule. */
+function codeOf(file) {
+  return readFileSync(file, 'utf8')
+    .split('\n')
+    .filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line))
+    .join('\n')
 }
 
-test('the band-only question types are not restated outside the band files', () => {
-  // Matched on the canonical snake_case identifiers, NOT on the English words:
-  // "colouring" and "counting" are ordinary curriculum content that appears
-  // legitimately all over the syllabus data. What must not spread is the type
-  // vocabulary a band grants, because that is the rule that would then drift.
-  const offenders = filesMentioning('picture_identification|picture_matching|multi_step_calculation')
+function filesDefining(pattern) {
+  const listed = execSync(
+    'grep -rlE ' + JSON.stringify(pattern) +
+    ' src functions --include=*.js --include=*.jsx --include=*.json 2>/dev/null || true',
+  ).toString().trim().split('\n').filter(Boolean)
+  return listed
+    .filter((f) => !/\.(test|spec)\./.test(f))
     .filter((f) => !BAND_RULE_HOMES.includes(f))
-  assert.deepEqual(offenders, [], `band rules leaked into: ${offenders.join(', ')}`)
+    .filter((f) => new RegExp(pattern).test(codeOf(f)))
+}
+
+test('only the registry declares what an activity renders as', () => {
+  // A second activity → renderType mapping anywhere else would silently
+  // disagree with this one about how a tracing task is laid out.
+  const offenders = filesDefining('renderType:\\s*["\']')
+  assert.deepEqual(offenders, [], `a second activity mapping lives in: ${offenders.join(', ')}`)
+})
+
+test('only the band definitions declare a band document', () => {
+  // `bloomDistribution` is unique to a band document, so a second one anywhere
+  // else is a restated band — the drift this guards. (`questionTypes` alone is
+  // too weak a signal: the paper FORMAT profiles in assessmentFormats.js use the
+  // same field name for a section's declared types, which is a different thing
+  // that predates bands.)
+  const offenders = filesDefining('bloomDistribution:\\s*\\{')
+  assert.deepEqual(offenders, [], `a second band document lives in: ${offenders.join(', ')}`)
 })
 
 test('no prompt file carries a band’s rules', () => {

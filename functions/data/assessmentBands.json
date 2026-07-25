@@ -33,13 +33,174 @@
     "graph_interpretation",
     "practical"
   ],
+  "activities": [
+    {
+      "id": "multiple_choice",
+      "label": "Multiple choice",
+      "renderType": "multiple_choice",
+      "support": "native"
+    },
+    {
+      "id": "true_false",
+      "label": "True / False",
+      "renderType": "true_false",
+      "support": "native"
+    },
+    {
+      "id": "short_answer",
+      "label": "Short answer",
+      "renderType": "short_answer",
+      "support": "native"
+    },
+    {
+      "id": "fill_blanks",
+      "label": "Fill in the blank",
+      "renderType": "fill_blanks",
+      "support": "native"
+    },
+    {
+      "id": "matching",
+      "label": "Matching",
+      "renderType": "matching",
+      "support": "native"
+    },
+    {
+      "id": "structured",
+      "label": "Structured",
+      "renderType": "structured",
+      "support": "native"
+    },
+    {
+      "id": "calculation",
+      "label": "Calculation",
+      "renderType": "calculation",
+      "support": "native"
+    },
+    {
+      "id": "essay",
+      "label": "Essay / Composition",
+      "renderType": "essay",
+      "support": "native"
+    },
+    {
+      "id": "picture_identification",
+      "label": "Name the picture",
+      "renderType": "short_answer",
+      "support": "mapped",
+      "note": "A figure with a short written or spoken answer."
+    },
+    {
+      "id": "circling",
+      "label": "Circle the answer",
+      "renderType": "multiple_choice",
+      "support": "mapped",
+      "note": "Really is a multiple-choice question — the learner rings the right option instead of writing a letter. Picture options where the task calls for them."
+    },
+    {
+      "id": "picture_matching",
+      "label": "Match pictures",
+      "renderType": "matching",
+      "support": "mapped",
+      "note": "Really is a matching question, with pictures in both columns."
+    },
+    {
+      "id": "counting",
+      "label": "Counting",
+      "renderType": "short_answer",
+      "support": "mapped",
+      "note": "A group of objects to count and a space for the number. Longer counting tasks render as structured work."
+    },
+    {
+      "id": "tracing",
+      "label": "Tracing",
+      "renderType": "structured",
+      "support": "unsupported",
+      "note": "Prints as a figure with a work area. Dotted stroke guides are not drawn yet."
+    },
+    {
+      "id": "colouring",
+      "label": "Colouring",
+      "renderType": "structured",
+      "support": "unsupported",
+      "note": "Prints as a figure with a work area. Closed-shape artwork made for colouring is not drawn yet."
+    },
+    {
+      "id": "sorting",
+      "label": "Sorting",
+      "renderType": "structured",
+      "support": "unsupported",
+      "note": "Prints as a figure with a work area. Labelled group boxes to sort into are not drawn yet."
+    },
+    {
+      "id": "diagram_labelling",
+      "label": "Label a diagram",
+      "renderType": "structured",
+      "support": "mapped",
+      "note": "A figure with numbered or lettered parts to name."
+    },
+    {
+      "id": "table_completion",
+      "label": "Complete a table",
+      "renderType": "structured",
+      "support": "mapped",
+      "note": "A table with cells left blank."
+    },
+    {
+      "id": "comprehension",
+      "label": "Comprehension",
+      "renderType": "short_answer",
+      "support": "mapped",
+      "note": "Questions answered from a passage in the same section."
+    },
+    {
+      "id": "multi_step_calculation",
+      "label": "Multi-step calculation",
+      "renderType": "calculation",
+      "support": "mapped",
+      "note": "A calculation with marks split across method and answer."
+    },
+    {
+      "id": "data_interpretation",
+      "label": "Interpret data",
+      "renderType": "structured",
+      "support": "mapped",
+      "note": "A table or chart with questions on it."
+    },
+    {
+      "id": "extended_response",
+      "label": "Extended response",
+      "renderType": "essay",
+      "support": "mapped",
+      "note": "A long written answer marked against stated criteria."
+    },
+    {
+      "id": "case_study",
+      "label": "Case study",
+      "renderType": "structured",
+      "support": "mapped",
+      "note": "A scenario with several questions on it."
+    },
+    {
+      "id": "graph_interpretation",
+      "label": "Interpret a graph",
+      "renderType": "structured",
+      "support": "mapped",
+      "note": "A graph to read values from."
+    },
+    {
+      "id": "practical",
+      "label": "Practical",
+      "renderType": "structured",
+      "support": "mapped",
+      "note": "A practical procedure marked against criteria."
+    }
+  ],
   "bands": {
     "early_childhood": {
       "id": "early_childhood",
       "label": "Early Childhood",
       "levels": [
-        "baby-class",
-        "middle-class",
+        "nursery",
         "reception"
       ],
       "reading": {

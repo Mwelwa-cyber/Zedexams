@@ -16,7 +16,8 @@
 import { normalizeSubject } from '../../config/curriculum.js'
 import {
   EDUCATION_LEVELS, LEVEL_STAGE_LABELS as LADDER_STAGE_LABELS,
-  levelsForFramework, resolveLevel, levelKbGrade,
+  levelsForFramework, resolveLevel, levelKbGrade, reportLevelResolution,
+  levelAvailability, LEVEL_AVAILABILITY,
 } from '../../config/educationLevels.js'
 
 // ── Grades ─────────────────────────────────────────────────────────────────
@@ -26,9 +27,10 @@ import {
 // naming and the Form/Grade mapping ended up stated in several places at once.
 //
 // What the ladder encodes, so it is not re-derived here:
-//   • Early Childhood is Baby Class / Middle Class / Reception. Middle Class
-//     and Reception share the 4-5 year syllabus — two school years, one
-//     published syllabus, which is an alias rather than a duplicated copy.
+//   • Early Childhood is exactly Nursery then Reception, one per published ECE
+//     age band. "Baby Class" and "Middle Class" are NOT levels and are never
+//     displayed — they are legacy spellings that normalise onto Nursery so an
+//     old record still opens.
 //   • Secondary VALUES stay the KB grade codes (G8…G12) and DISPLAY as Form
 //     1–5, with "Grade 8"…"Grade 12" declared as aliases of the same level, so
 //     a school using either naming lands on one curriculum year.
@@ -83,9 +85,9 @@ export function isLegacySecondaryGrade(value) {
  * Normalized level descriptor for a picker/stored value:
  *   { value, id, label, stage, order }
  * Resolves canonical values, official labels, display aliases ('Grade 10' →
- * Form 3) and the retired ECE spellings ('ECE_N' / 'Nursery' → Baby Class).
- * Unknown values degrade to a best-effort label so a paper never crashes on an
- * unexpected grade token.
+ * Form 3) and the retired ECE spellings ('Baby Class' / 'Middle Class' →
+ * Nursery). Unknown values degrade to a best-effort label so a paper never
+ * crashes on an unexpected grade token.
  */
 export function paperLevel(value) {
   const raw = String(value ?? '').trim()
@@ -108,7 +110,7 @@ export function paperLevel(value) {
   return { value: raw, id: raw, label: raw, stage: 'unknown', order: 999 }
 }
 
-/** Official display label for a grade/level value ('Grade 4' / 'Form 1' / 'Baby Class'). */
+/** Official display label for a grade/level value ('Grade 4' / 'Form 1' / 'Nursery'). */
 export function paperGradeLabel(value) {
   return paperLevel(value)?.label || String(value ?? '')
 }
@@ -150,12 +152,32 @@ export function paperLevelOptions(framework = '2023') {
  * @returns enriched, ordered level options
  */
 export function getAvailableLevels({ curriculumId = 'cbc', gradeCodes = null } = {}) {
+  return getLevelCatalogue({ curriculumId, gradeCodes })
+    .filter((o) => o.availability === LEVEL_AVAILABILITY.AVAILABLE)
+}
+
+/**
+ * EVERY level of a curriculum, each annotated with whether it can actually be
+ * used and why not — so a picker can show a recognised level whose syllabus has
+ * not been loaded, with words explaining that, instead of just omitting it and
+ * leaving the teacher staring at a gap.
+ *
+ * A level is never silently replaced by one from the other curriculum: an
+ * unavailable level stays unselectable and says which curriculum defines it.
+ *
+ * @returns {Array<{value,label,id,stage,order,band,group,availability,message,unavailable}>}
+ */
+export function getLevelCatalogue({ curriculumId = 'cbc', gradeCodes = null } = {}) {
   const framework = curriculumId === 'previous' || curriculumId === '2013' ? '2013' : '2023'
-  const all = paperLevelOptions(framework)
-  if (!gradeCodes) return all
-  const present = gradeCodes instanceof Set ? gradeCodes : new Set(gradeCodes)
-  if (present.size === 0) return []
-  return all.filter((o) => present.has(studioGradeToKbGrade(o.value)))
+  return paperLevelOptions(framework).map((option) => {
+    const { availability, message } = levelAvailability(option.value, { framework, gradeCodes })
+    return {
+      ...option,
+      availability,
+      message,
+      unavailable: availability !== LEVEL_AVAILABILITY.AVAILABLE,
+    }
+  })
 }
 
 // Coerce a grade arriving from the studio header (bare '4'…'12', 'Grade 8'),
@@ -168,16 +190,21 @@ export function normalizePaperGrade(grade) {
   if (!raw) return ''
   if (isPaperGrade(raw)) return raw
   // The ladder resolves every declared spelling — official label, display alias
-  // ("Grade 10" → Form 3), retired ECE code ("ECE_N"/"Nursery" → Baby Class).
-  const level = resolveLevel(raw)
+  // ("Grade 10" → Form 3) — and the retired ones ("Baby Class", "Middle Class",
+  // a bare "ECE"), which normalise onto Nursery rather than leaving a record
+  // pointing at a level no picker offers. A legacy or ambiguous match is logged
+  // so it can be noticed and normalised, not silently carried forever.
+  const level = reportLevelResolution(raw, 'normalizePaperGrade').level
   if (level) return level.value
-  // A bare "ECE" predates the age bands and spans all three ECE years, so it is
-  // genuinely ambiguous. It has always resolved to the YOUNGEST here, and that
-  // stays true: pitching content down is harmless to an older child, pitching
-  // it up is not.
-  if (raw.toUpperCase() === 'ECE') return 'ECE_B'
   return raw
 }
+
+// ── Level availability (curriculum × syllabus coverage) ─────────────────────
+// Re-exported so the studio pickers can tell the four cases apart — a level we
+// do not know, a real level whose syllabus has not been loaded, a level the
+// OTHER curriculum defines, and one that is genuinely ready — and say the right
+// thing for each instead of showing an unexplained empty dropdown.
+export { levelAvailability, LEVEL_AVAILABILITY }
 
 // Studio grade value ('4', 'ECE_B', 'Form 3') → the KB grade code its syllabus
 // is filed under ('G4', 'ECE_N', 'G10'). This is the one place the mapping is

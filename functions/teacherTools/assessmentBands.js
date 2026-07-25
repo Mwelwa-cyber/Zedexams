@@ -39,74 +39,98 @@ const LEVEL_TO_BAND = (() => {
 })();
 
 /**
- * KB grade code → level id. Mirrors src/config/educationLevels.js. ECE_R serves
- * both Middle Class and Reception (two school years, one published syllabus),
- * so a bare ECE_R resolves to Reception — what it has always meant. A bare
- * "ECE" predates the age bands and spans all three years; it resolves to the
- * youngest, matching normalizePaperGrade on the client, because pitching
- * content down is harmless to an older child and pitching it up is not.
+ * Grade token → level id. Mirrors src/config/educationLevels.js, and the mirror
+ * is asserted by scripts/test-assessment-bands.mjs so the two cannot drift.
+ *
+ * Early Childhood is exactly Nursery and Reception. "Baby Class", "Middle
+ * Class" and their codes are NOT levels — they are legacy spellings kept only
+ * so an old record still resolves, normalised onto Nursery. A bare "ECE"
+ * predates the age bands and covers both years, so it is AMBIGUOUS: it resolves
+ * to the youngest and is reported by levelResolutionForGrade() so the fallback
+ * is logged rather than silently taken.
  */
 const KB_GRADE_TO_LEVEL = {
-  ECE_N: "baby-class",
-  ECE_B: "baby-class",
-  ECE_M: "middle-class",
+  ECE_N: "nursery",
   ECE_R: "reception",
-  ECE: "baby-class",
   G1: "grade-1", G2: "grade-2", G3: "grade-3", G4: "grade-4",
   G5: "grade-5", G6: "grade-6", G7: "grade-7",
   G8: "form-1", G9: "form-2", G10: "form-3", G11: "form-4", G12: "form-5",
 };
 
-/**
- * Band vocabulary → the question type the OUTPUT SCHEMA can validate and the
- * renderers can draw.
- *
- * A band names the task pedagogically ("tracing", "circling", "counting")
- * because that is what a teacher and a curriculum call it. The generator's
- * output schema (assessmentSchema.js) accepts eight structural types, and the
- * four renderers know how to lay those out. Emitting "tracing" as a question
- * type would fail schema validation and, if it somehow passed, would reach an
- * exporter with no idea how to draw it.
- *
- * So the band's word is what the MODEL is told to produce (via the directive,
- * which spells the task out), and this map is what the paper is STRUCTURED as.
- * A "circle the correct picture" item really is a multiple-choice question
- * whose options are images; "match the pictures" really is a matching question.
- *
- * The three that map to `structured` — tracing, colouring, sorting — are honest
- * but thin: they render as a figure plus a work area today. Giving them their
- * own layout is the rendering-contract work, not something to fake here.
- */
-const BAND_TYPE_TO_SCHEMA_TYPE = {
-  picture_identification: "short_answer",
-  circling: "multiple_choice",
-  picture_matching: "matching",
-  counting: "short_answer",
-  tracing: "structured",
-  colouring: "structured",
-  sorting: "structured",
-  diagram_labelling: "structured",
-  table_completion: "structured",
-  comprehension: "short_answer",
-  multi_step_calculation: "calculation",
-  data_interpretation: "structured",
-  extended_response: "essay",
-  case_study: "structured",
-  graph_interpretation: "structured",
-  practical: "structured",
+/** Retired spellings — resolved so old records open, never offered as levels. */
+const LEGACY_GRADE_TO_LEVEL = {
+  ECE_B: {levelId: "nursery"},
+  BABYCLASS: {levelId: "nursery"},
+  BABY: {levelId: "nursery"},
+  ECE_M: {levelId: "nursery"},
+  MIDDLECLASS: {levelId: "nursery"},
+  MIDDLE: {levelId: "nursery"},
+  NURSERY: {levelId: "nursery"},
+  RECEPTION: {levelId: "reception"},
+  ECE: {levelId: "nursery", ambiguous: true},
 };
 
 /**
- * Convert band vocabulary into the deduped schema types the generator emits.
- * Types that are already schema types pass through unchanged.
+ * The ACTIVITY registry, generated alongside the bands from
+ * src/config/questionActivities.js. A band lists ACTIVITIES — what the task is
+ * ("tracing", "picture matching") — and each activity declares the render
+ * structure that currently carries it plus how honestly it does so
+ * ('native' | 'mapped' | 'unsupported').
+ *
+ * The two must stay separate on the saved question. Emitting "tracing" as a
+ * question type would fail schema validation and reach an exporter with no idea
+ * how to draw it; but storing it ONLY as `structured` loses what the teacher
+ * asked for, permanently. So the paper is STRUCTURED as the render type and
+ * TAGGED with the activity.
+ */
+const ACTIVITIES = seed.activities;
+const ACTIVITY_BY_ID = new Map(ACTIVITIES.map((a) => [a.id, a]));
+
+/** The render structure an activity is carried by ('tracing' → 'structured'). */
+function renderTypeFor(id) {
+  const found = ACTIVITY_BY_ID.get(String(id || ""));
+  return found ? found.renderType : String(id || "");
+}
+
+/** 'native' | 'mapped' | 'unsupported'; unknown ids report 'unsupported'. */
+function supportFor(id) {
+  const found = ACTIVITY_BY_ID.get(String(id || ""));
+  return found ? found.support : "unsupported";
+}
+
+/** Teacher-facing activity name — never the fallback renderer's name. */
+function activityLabel(id) {
+  const found = ACTIVITY_BY_ID.get(String(id || ""));
+  return found ? found.label : String(id || "");
+}
+
+/**
+ * Convert activity ids into the deduped render types the generator may emit.
+ * Anything already a render type passes through unchanged.
  */
 function toSchemaTypes(types) {
   const out = [];
   for (const t of (Array.isArray(types) ? types : [])) {
-    const mapped = BAND_TYPE_TO_SCHEMA_TYPE[t] || t;
-    if (!out.includes(mapped)) out.push(mapped);
+    const mapped = renderTypeFor(t);
+    if (mapped && !out.includes(mapped)) out.push(mapped);
   }
   return out;
+}
+
+/**
+ * Is this activity permitted for the band? Used to REJECT rather than silently
+ * accept — a Master Bank question or a model output whose activity the band
+ * forbids must not reach the paper.
+ */
+function bandPermitsActivity(band, activityId) {
+  const permitted = Array.isArray(band && band.questionTypes) ? band.questionTypes : [];
+  if (permitted.length === 0) return true;
+  const id = String(activityId || "");
+  if (permitted.includes(id)) return true;
+  // A question tagged only with its render type is permitted when SOME allowed
+  // activity is carried by that structure — that is what a plain structured or
+  // multiple-choice question is.
+  return permitted.some((p) => renderTypeFor(p) === id);
 }
 
 /** Validate a band document — mirror of validateBand in src/config/assessmentBands.js. */
@@ -141,22 +165,56 @@ function validateBand(band) {
   return problems;
 }
 
-/** Resolve a grade token ('G4', '4', 'ECE_B', 'Form 3') to a ladder level id. */
-function levelIdForGrade(grade) {
+/**
+ * Resolve a grade token to a ladder level id, reporting how it matched so a
+ * legacy or ambiguous value can be logged instead of silently accepted.
+ *
+ * @returns {{levelId: string, legacy: boolean, ambiguous: boolean}}
+ */
+function levelResolutionForGrade(grade) {
+  const none = {levelId: "", legacy: false, ambiguous: false};
   const raw = String(grade == null ? "" : grade).trim();
-  if (!raw) return "";
+  if (!raw) return none;
   const upper = raw.toUpperCase().replace(/\s+/g, "");
-  if (KB_GRADE_TO_LEVEL[upper]) return KB_GRADE_TO_LEVEL[upper];
+  if (KB_GRADE_TO_LEVEL[upper]) {
+    return {levelId: KB_GRADE_TO_LEVEL[upper], legacy: false, ambiguous: false};
+  }
+  const legacy = LEGACY_GRADE_TO_LEVEL[upper];
+  if (legacy) {
+    return {
+      levelId: legacy.levelId,
+      legacy: true,
+      ambiguous: Boolean(legacy.ambiguous),
+    };
+  }
   const form = upper.match(/^F(?:ORM)?(\d)$/);
-  if (form) return `form-${form[1]}`;
+  if (form) return {levelId: `form-${form[1]}`, legacy: false, ambiguous: false};
   const num = upper.match(/^(?:GRADE)?(\d{1,2})$/);
   if (num) {
     const n = Number(num[1]);
-    if (n >= 1 && n <= 7) return `grade-${n}`;
+    if (n >= 1 && n <= 7) {
+      return {levelId: `grade-${n}`, legacy: false, ambiguous: false};
+    }
     // 8-12 are the Form years under their alternative Grade naming.
-    if (n >= 8 && n <= 12) return `form-${n - 7}`;
+    if (n >= 8 && n <= 12) {
+      return {levelId: `form-${n - 7}`, legacy: false, ambiguous: false};
+    }
   }
-  return "";
+  return none;
+}
+
+/** Resolve a grade token ('G4', '4', 'ECE_N', 'Form 3') to a ladder level id. */
+function levelIdForGrade(grade) {
+  const res = levelResolutionForGrade(grade);
+  if (res.levelId && (res.legacy || res.ambiguous)) {
+    // Recorded, not silent: the diagnostics are how a stale value gets noticed
+    // and normalised rather than living on forever.
+    console.warn(
+        `assessmentBands: ${res.ambiguous ? "ambiguous legacy" : "legacy"} ` +
+      `grade value "${grade}" resolved to ${res.levelId}.`,
+    );
+  }
+  return res.levelId;
 }
 
 let _cache = null;
@@ -308,13 +366,20 @@ function bandDefaults(band, assessmentType) {
 module.exports = {
   BAND_IDS,
   ALL_QUESTION_TYPES,
-  BAND_TYPE_TO_SCHEMA_TYPE,
+  ACTIVITIES,
+  renderTypeFor,
+  supportFor,
+  activityLabel,
+  bandPermitsActivity,
   toSchemaTypes,
   ASSESSMENT_BAND_SEED,
   LEVEL_TO_BAND,
   KB_GRADE_TO_LEVEL,
   validateBand,
   levelIdForGrade,
+  levelResolutionForGrade,
+  LEGACY_GRADE_TO_LEVEL,
+  KB_GRADE_TO_LEVEL,
   loadAssessmentBands,
   bandForGrade,
   allowedQuestionTypes,

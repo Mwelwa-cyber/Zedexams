@@ -40,6 +40,7 @@ const {checkAssessmentQuality, interleaveSections} =
   require("./assessmentQualityCheck");
 const {
   bandForGrade, buildBandDirective, allowedQuestionTypes, toSchemaTypes,
+  bandPermitsActivity,
   ALL_QUESTION_TYPES: BAND_QUESTION_TYPES,
 } = require("./assessmentBands");
 const {buildProvenance} = require("../aiValidation/operationRegistry");
@@ -130,17 +131,19 @@ function sanitizeInputs(raw = {}) {
   };
 }
 
-// Human-readable grade label for the combination error. Mirrors the client
-// level ladder (src/config/educationLevels.js): G1–G7 → "Grade N", G8–G12 →
-// the forms "Form 1"…"Form 5", ECE age bands → the school years they serve.
-// A Form is never relabelled a Grade. The 3-4 year band is Baby Class; the 4-5
-// band serves both Middle Class and Reception, and a bare code cannot tell them
-// apart, so ECE_R reports Reception — what it has always meant. A bare "ECE"
-// spans all three years and resolves to the youngest.
+// Human-readable grade label. Mirrors the client level ladder
+// (src/config/educationLevels.js): G1–G7 → "Grade N", G8–G12 → the forms
+// "Form 1"…"Form 5", and the two ECE age bands → Nursery and Reception. A Form
+// is never relabelled a Grade.
+//
+// "Baby Class" and "Middle Class" are NOT levels; their codes are legacy
+// spellings that resolve to Nursery so an old record still opens. A bare "ECE"
+// predates the age bands, covers both years, and resolves to the youngest.
 function gradeLabelFor(code) {
   const g = String(code || "").toUpperCase();
-  if (g === "ECE_N" || g === "ECE_B" || g === "ECE") return "Baby Class";
-  if (g === "ECE_M") return "Middle Class";
+  if (g === "ECE_N" || g === "ECE_B" || g === "ECE" || g === "ECE_M") {
+    return "Nursery";
+  }
   if (g === "ECE_R") return "Reception";
   const m = g.match(/^G(\d{1,2})$/);
   if (m) {
@@ -397,6 +400,31 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
       allowedTypes,
     });
   }
+  // A bank question whose activity the band forbids is REJECTED, not adapted.
+  // sourceAssessmentFromBank is filtered by type, but the bank is shared across
+  // grades and a stored question can carry an activity that is wrong for this
+  // level — reusing it would put an essay on a Nursery paper by the back door.
+  if (band && sourced.questions.length > 0) {
+    const keptQuestions = sourced.questions.filter((q) => bandPermitsActivity(
+        band, q.activityType || q.type,
+    ));
+    const rejected = sourced.questions.length - keptQuestions.length;
+    if (rejected > 0) {
+      const keptMarks = keptQuestions
+          .reduce((sum, q) => sum + (Number(q.marks) || 0), 0);
+      console.warn(
+          `generateAssessment: rejected ${rejected} Master Bank question(s) ` +
+        `whose activity is not permitted for band ${band.id}.`,
+      );
+      sourced = {
+        ...sourced,
+        questions: keptQuestions,
+        fromBank: keptQuestions.length,
+        marks: keptMarks,
+      };
+    }
+  }
+
   // Marks the AI still needs to author. >= ~half by construction, so the model
   // is always called and always produces a coherent paper.
   const gapMarks = Math.max(1, inputs.totalMarks - sourced.marks);

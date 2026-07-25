@@ -38,6 +38,7 @@ import {
   MARKS_BOUNDS,
 } from '../../utils/questionType.js'
 import { hydrateTableData } from '../../utils/tableData.js'
+import { ACTIVITY_IDS as QUESTION_ACTIVITY_IDS } from '../../config/questionActivities.js'
 
 // The canonical question-type helpers now live in src/utils/questionType.js
 // (the single source of truth shared by the editor, importers, scorer, and
@@ -160,6 +161,12 @@ export const questionSchema = z
     // Optional Bloom's cognitive level the teacher tags (no inference — a
     // question is only counted as a level once explicitly set).
     bloom: z.enum(BLOOM_LEVELS).optional(),
+    // The ACTIVITY the question is — "tracing", "picture_matching", or simply
+    // its own type for a plain question. Distinct from `type`, which is only the
+    // render structure that carries it. Validated against the activity registry
+    // so a typo cannot invent an activity, and optional so every existing
+    // question stays valid under .strict().
+    activityType: z.enum(QUESTION_ACTIVITY_IDS).optional(),
     // ── CBC curriculum tagging + import provenance ──
     // These sit alongside `topic` (already above) so an imported past-paper
     // question can carry its full CBC placement, and the shared Document

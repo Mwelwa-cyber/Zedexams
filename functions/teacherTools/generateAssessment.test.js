@@ -593,11 +593,14 @@ async function caught(promise) {
   // Label helpers: a Form is never relabelled a Grade.
   ok("gradeLabelFor keeps forms as forms",
       gradeLabelFor("G8") === "Form 1" && gradeLabelFor("G4") === "Grade 4");
-  // The ECE age bands report the school years they serve (the ladder in
-  // src/config/educationLevels.js): 3-4 is Baby Class, 4-5 is Reception.
+  // The two ECE age bands are Nursery and Reception (the ladder in
+  // src/config/educationLevels.js). Retired spellings still label as Nursery so
+  // an old record reads sensibly rather than showing a raw code.
   ok("gradeLabelFor maps ECE bands",
-      gradeLabelFor("ECE_N") === "Baby Class" &&
-      gradeLabelFor("ECE_R") === "Reception");
+      gradeLabelFor("ECE_N") === "Nursery" &&
+      gradeLabelFor("ECE_R") === "Reception" &&
+      gradeLabelFor("ECE_B") === "Nursery" &&
+      gradeLabelFor("ECE") === "Nursery");
   ok("subjectLabelFor humanises keys",
       subjectLabelFor("integrated_science") === "Integrated Science");
   classifyResult = "unknown";
@@ -616,7 +619,7 @@ async function caught(promise) {
   });
   const ecePrompt = calls.claude[0].opts.messages[0].content;
   ok("the band's rules reach the prompt",
-      ecePrompt.includes("BAND RULES") && ecePrompt.includes("Baby Class"));
+      ecePrompt.includes("BAND RULES") && ecePrompt.includes("Nursery"));
   ok("Early Childhood is told the learner cannot be assumed to read",
       ecePrompt.includes("CANNOT be assumed to read"));
   ok("a type the band forbids is dropped before the model sees it",
@@ -647,6 +650,65 @@ async function caught(promise) {
       /ALLOWED QUESTION TYPES[^\n]*essay/.test(seniorPrompt));
   ok("the early-years reading rule is NOT applied to a senior paper",
       !seniorPrompt.includes("CANNOT be assumed to read"));
+
+  // A Master Bank question whose activity the band forbids must be REJECTED,
+  // not adapted. The bank is shared across grades, so a stored essay could
+  // otherwise reach a Nursery paper by the back door.
+  {
+    const {bandPermitsActivity, ASSESSMENT_BAND_SEED} = require("./assessmentBands");
+    const ece = ASSESSMENT_BAND_SEED.early_childhood;
+    ok("a bank essay is refused for Early Childhood",
+        bandPermitsActivity(ece, "essay") === false);
+    ok("a bank question tagged with its activity is refused when forbidden",
+        bandPermitsActivity(ece, "extended_response") === false);
+    ok("a bank question the band permits is kept",
+        bandPermitsActivity(ece, "picture_matching") === true);
+    // A stored question carrying only its render type is permitted when some
+    // allowed activity is carried by that structure — that is what a plain
+    // multiple-choice question is.
+    ok("a plain multiple_choice question is permitted via its structure",
+        bandPermitsActivity(ece, "multiple_choice") === true);
+    ok("no band means no opinion", bandPermitsActivity(null, "essay") === true);
+  }
+
+  // The activity identity must survive onto the SAVED paper: a mapped activity
+  // must not become indistinguishable from the structure that carries it.
+  reset();
+  claudeImpl = async () => {
+    const paper = validPaper();
+    // "Circle the correct picture" really IS a multiple-choice question — the
+    // structure is faithful, but which activity the teacher asked for is not
+    // recoverable from the structure alone.
+    paper.sections[0].questions[0].activityType = "circling";
+    return {parsed: paper};
+  };
+  await runAssessment({
+    uid: "t1",
+    rawInputs: {...INPUTS, grade: "ECE_N", subject: "numeracy"},
+    apiKey: "k",
+    idempotencyKey: IDK,
+  });
+  {
+    const q = genDocs[IDK].output.sections[0].questions[0];
+    ok("the saved question keeps its activity identity", q.activityType === "circling");
+    ok("…while still being multiple_choice for the renderers",
+        q.type === "multiple_choice");
+  }
+
+  // The schema itself is what guarantees this, including for the activities with
+  // no faithful layout yet.
+  {
+    const {validateAssessment} = require("./assessmentSchema");
+    const paper = validPaper();
+    paper.sections[0].questions[0].activityType = "tracing";
+    paper.sections[0].questions[1].activityType = "not_a_real_activity";
+    const res = validateAssessment(paper);
+    const qs = res.value.sections[0].questions;
+    ok("a limited-support activity is preserved verbatim",
+        qs[0].activityType === "tracing");
+    ok("an unrecognised activity falls back to the render type, never dropping the question",
+        qs[1].activityType === "short_answer");
+  }
 
   Module._load = origLoad;
   console.log(`\n${passed} passed`);
