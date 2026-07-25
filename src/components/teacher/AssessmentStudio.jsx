@@ -89,6 +89,7 @@ import { startBrandedDownload, prewarmExports } from '../../utils/assessmentExpo
 import { printAssessmentAsPdf, openPrintWindow } from '../../utils/assessmentToPdf'
 import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
 import { computePaperHealth } from '../../utils/paperHealth'
+import { describeExportBlock, blockingIssuesByLocalId } from '../../utils/assessmentExportGate'
 import { instantiateTemplate } from '../../utils/paperTemplates'
 import Icon from './studio/studioIcons'
 import { TopBar, BottomBar } from './studio/AssessmentBars'
@@ -631,6 +632,26 @@ export default function AssessmentStudio() {
   )
   const validationIssues = validationResult.issues
   const errorCount = validationIssues.filter((i) => i.severity !== 'warn').length
+
+  // Can this paper be downloaded / printed right now? Save was already gated on
+  // these same blocking issues; the export buttons were not, which is how an
+  // untouched starter block reached Word/PDF/Print as "1. (no question text)".
+  // One decision drives both the buttons' disabled state and the click handler.
+  const exportGate = useMemo(
+    () => describeExportBlock({
+      issues: validationIssues,
+      questionNumbers,
+      questionCount,
+      emptyStarter: hasOnlyEmptyStarterSection(sections),
+    }),
+    [validationIssues, questionNumbers, questionCount, sections],
+  )
+  // Which question cards to flag in the builder, so an unfinished question is
+  // visible where it is fixed rather than only in the pre-export message.
+  const questionIssues = useMemo(
+    () => blockingIssuesByLocalId(validationIssues),
+    [validationIssues],
+  )
 
   // The single "paper health" verdict — folds the blocking validation issues,
   // the advisory smart warnings, and the live paper stats into one object the
@@ -2198,8 +2219,13 @@ export default function AssessmentStudio() {
   // same buildPaperLayout print window the library list uses), so the printed
   // paper matches the studio preview and the marking key prints with answers.
   async function handleExport(kind, mode = 'paper') {
-    if (questionCount === 0) {
-      showToast('Add at least one question to export.', true)
+    // An unfinished paper must not reach Word, PDF, Print or the answer sheet —
+    // a blank question prints as a blank numbered line with empty options, and
+    // a teacher only discovers it after running off 40 copies. The message
+    // names the offending question numbers; the health panel lists everything.
+    if (exportGate.blocked) {
+      showToast(exportGate.message, true)
+      if (exportGate.reason !== 'empty') setHealthOpen(true)
       return
     }
     // For Print: open the window NOW, synchronously in the click handler —
@@ -2797,6 +2823,7 @@ export default function AssessmentStudio() {
           sections={sections}
           parts={parts}
           questionNumbers={questionNumbers}
+          questionIssues={questionIssues}
           questionCount={questionCount}
           totalMarks={totalMarks}
           estimatedPages={estimatedPages}
@@ -2857,6 +2884,7 @@ export default function AssessmentStudio() {
             changeView={changeView}
             onExport={(kind) => handleExport(kind, 'paper')}
             onExportAnswerSheet={(kind) => handleExport(kind, 'answersheet')}
+            exportGate={exportGate}
             onSave={handleSave}
             saving={saving}
             exporting={exporting}
@@ -2873,6 +2901,7 @@ export default function AssessmentStudio() {
             assessment={assessmentDoc}
             changeView={changeView}
             onExport={(kind) => handleExport(kind, 'scheme')}
+            exportGate={exportGate}
             onSave={handleSave}
             saving={saving}
             exporting={exporting}

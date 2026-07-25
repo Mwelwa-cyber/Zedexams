@@ -549,7 +549,7 @@ Choose and circle the correct answer from the given options A, B, C, and D."
  * ================================================================== */
 export function SectionBlock(props) {
   const {
-    section, sectionIndex, parts, questionNumbers, paperMeta,
+    section, sectionIndex, parts, questionNumbers, questionIssues, paperMeta,
     onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onSaveToBank,
     onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage,
     onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage,
@@ -574,6 +574,7 @@ export function SectionBlock(props) {
         sectionIndex={sectionIndex}
         parts={parts}
         questionNumbers={questionNumbers}
+        questionIssues={questionIssues}
         paperMeta={paperMeta}
         onEditQuestion={onEditQuestion}
         onMoveSection={onMoveSection}
@@ -594,6 +595,7 @@ export function SectionBlock(props) {
       sectionIndex={sectionIndex}
       parts={parts}
       questionNumbers={questionNumbers}
+      questionIssues={questionIssues}
       paperMeta={paperMeta}
       onEditQuestion={onEditQuestion}
       onMoveSection={onMoveSection}
@@ -610,7 +612,7 @@ export function SectionBlock(props) {
   )
 }
 
-export function PassageBlock({ section, sectionIndex, parts, questionNumbers, paperMeta, onEditQuestion, onMoveSection, onRemoveSection, onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onAssignSectionToPart }) {
+export function PassageBlock({ section, sectionIndex, parts, questionNumbers, questionIssues, paperMeta, onEditQuestion, onMoveSection, onRemoveSection, onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onAssignSectionToPart }) {
   const passage = section.passage
   const kind = passage.passageKind || 'comprehension'
   const isMap = kind === 'map'
@@ -674,11 +676,25 @@ export function PassageBlock({ section, sectionIndex, parts, questionNumbers, pa
     }))
   }
 
+  // Blocking issues on the passage itself (no passage text, no map image, no
+  // linked questions) AND on any of its sub-questions — a comprehension section
+  // is only finished when everything under it is. Same source as the export
+  // gate and the Save check, so the three never disagree.
+  const passageBlockers = [
+    ...(questionIssues?.get?.(passage.localId) || []),
+    ...(passage.questions || []).flatMap(q => questionIssues?.get?.(q.localId) || []),
+  ]
+
   return (
     <>
-      <div className={`sv-block b-passage${isImageLed ? ' b-passage-map' : ''}`}>
+      <div className={`sv-block b-passage${isImageLed ? ' b-passage-map' : ''}${passageBlockers.length ? ' is-incomplete' : ''}`}>
         <div className="sv-block-head">
           <span className="sv-ic"><Icon name={meta.icon} size={15} /></span> {meta.label}
+          {passageBlockers.length > 0 && (
+            <span className="sv-q-incomplete-tag" title={passageBlockers.join(' ')}>
+              <Icon name="warn" size={12} /> Not finished
+            </span>
+          )}
           <select
             value={kind}
             onChange={e => setKind(e.target.value)}

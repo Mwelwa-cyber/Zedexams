@@ -47,8 +47,15 @@ import './studio/lessonStudio.css'
  * matches the PDF and DOCX exports pixel-for-pixel. The `mode` prop
  * switches between the printable paper and the marking key.
  * ================================================================== */
-export function PaperRenderView({ mode, blocks, assessment, changeView, onExport, onExportAnswerSheet, onSave, saving, exporting, showSave }) {
+export function PaperRenderView({ mode, blocks, assessment, changeView, onExport, onExportAnswerSheet, onSave, saving, exporting, showSave, exportGate }) {
   const isKey = mode === 'scheme'
+  // An unfinished paper prints blank questions, so every download route is held
+  // shut until it is complete. The buttons stay visible (a hidden button reads
+  // as a broken studio) but are disabled and explain themselves, and the notice
+  // below names what to fix. handleExport re-checks the same gate, so this is
+  // the signpost rather than the lock.
+  const blocked = Boolean(exportGate?.blocked)
+  const blockTitle = blocked ? exportGate.message : undefined
   return (
     <section className="sv-view">
       <div className="sv-builder-bar">
@@ -69,24 +76,31 @@ export function PaperRenderView({ mode, blocks, assessment, changeView, onExport
           {blocks.map((block, i) => <PaperBlock key={i} block={block} />)}
         </div>
 
+        {blocked && (
+          <div className="sv-export-block" role="status">
+            <Icon name="warn" size={15} />
+            <span>{exportGate.message}</span>
+          </div>
+        )}
+
         <div className="sv-export-actions">
-          <button className="sv-btn sv-btn-primary" onClick={() => onExport('docx')} disabled={exporting}>
+          <button className="sv-btn sv-btn-primary" onClick={() => onExport('docx')} disabled={exporting || blocked} title={blockTitle}>
             <Icon name={exporting ? 'spinner' : 'download'} size={15} spin={exporting} /> {exporting ? 'Working…' : (isKey ? 'Download key (Word)' : 'Download Word')}
           </button>
           {!isKey && (
-            <button className="sv-btn sv-btn-outline" onClick={() => onExport('pdf')} disabled={exporting} title="Download a PDF from zedexams.com — cached, so repeat downloads are instant">
+            <button className="sv-btn sv-btn-outline" onClick={() => onExport('pdf')} disabled={exporting || blocked} title={blockTitle || 'Download a PDF from zedexams.com — cached, so repeat downloads are instant'}>
               <Icon name={exporting ? 'spinner' : 'download'} size={15} spin={exporting} /> Download PDF
             </button>
           )}
-          <button className="sv-btn sv-btn-outline" onClick={() => onExport('print')} title="Use your browser's Print dialog — pick “Save as PDF” there if you need a PDF">
+          <button className="sv-btn sv-btn-outline" onClick={() => onExport('print')} disabled={blocked} title={blockTitle || "Use your browser's Print dialog — pick “Save as PDF” there if you need a PDF"}>
             <Icon name="print" size={15} /> Print / Save as PDF
           </button>
           {onExportAnswerSheet && (
             <button
               className="sv-btn sv-btn-outline"
               onClick={() => onExportAnswerSheet('docx')}
-              disabled={exporting}
-              title="A bubble answer sheet (Word) students fill in instead of writing on the paper"
+              disabled={exporting || blocked}
+              title={blockTitle || 'A bubble answer sheet (Word) students fill in instead of writing on the paper'}
             >
               <Icon name="answerSheet" size={15} /> Answer sheet
             </button>

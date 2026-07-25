@@ -16,7 +16,7 @@ import {
  * ================================================================== */
 export function BuilderView(props) {
   const {
-    form, setF, sections, parts, questionNumbers, questionCount, totalMarks,
+    form, setF, sections, parts, questionNumbers, questionIssues, questionCount, totalMarks,
     estimatedPages, estimatedMinutes, footerCode, changeView, warnings = [],
     onAddBlock, onOpenBank, onEditQuestion, onMoveSection, onMoveGroup, onRemoveSection, onDuplicateSection, onSaveToBank,
     onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage,
@@ -176,6 +176,7 @@ export function BuilderView(props) {
             groupCount={grouped.length}
             allParts={parts}
             questionNumbers={questionNumbers}
+            questionIssues={questionIssues}
             paperMeta={{ grade: form.grade, subject: form.subject, language: form.language, mcqAnswerChoiceCount: form.mcqAnswerChoiceCount }}
             onAddBlock={onAddBlock}
             onEditQuestion={onEditQuestion}
@@ -246,7 +247,7 @@ export function SmartWarningsBanner({ warnings }) {
   )
 }
 
-export function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, questionNumbers, paperMeta, onAddBlock, onEditQuestion, onMoveSection, onMoveGroup, onRemoveSection, onDuplicateSection, onSaveToBank, onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage, onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage, onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onUpdatePart, onRemovePart, onAssignSectionToPart }) {
+export function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, questionNumbers, questionIssues, paperMeta, onAddBlock, onEditQuestion, onMoveSection, onMoveGroup, onRemoveSection, onDuplicateSection, onSaveToBank, onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage, onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage, onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onUpdatePart, onRemovePart, onAssignSectionToPart }) {
   const partIndex = allParts.findIndex(p => p.id === group.part?.id)
   const letter = partIndex >= 0 ? SECTION_LETTERS[partIndex] || '·' : null
 
@@ -314,6 +315,7 @@ export function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, 
           sectionIndex={index}
           parts={allParts}
           questionNumbers={questionNumbers}
+          questionIssues={questionIssues}
           paperMeta={paperMeta}
           onEditQuestion={onEditQuestion}
           onMoveSection={onMoveSection}
