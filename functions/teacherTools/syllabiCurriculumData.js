@@ -26,6 +26,7 @@ const {
   STUDIO_SUBJECT_TO_KB_2013,
   FORM_TO_GRADE,
 } = require("./kbLookupCandidates");
+const {normalizeTopicTree} = require("./syllabusTopicTree");
 
 // Filenames for each curriculum framework — used by locateDataFile().
 const FRAMEWORK_FILES = {
@@ -654,7 +655,80 @@ function get2013CurriculumDataTopics() {
       }
     }
   }
-  return Array.from(byKey.values());
+  return foldLeakedSubtopics(Array.from(byKey.values()));
+}
+
+/**
+ * Re-derive the real TOPIC → SUB-TOPIC hierarchy across a list of KB-topic
+ * entries, in place of the flat list the row walk can produce.
+ *
+ * The walk above can only propagate whatever the TOPIC column holds, and at a
+ * PDF page break that is often a SUB-topic code ("7.4.3 Fruits and seeds") or a
+ * scrap of the previous row's prose. Those surface as sibling topics, so the
+ * generator gets grounded on a curriculum module that is missing most of its
+ * content while a separate, near-empty module claims the rest.
+ *
+ * A demoted entry is never discarded: its heading becomes a sub-topic of its
+ * parent and all its sub-topics, outcomes, competences, values and materials
+ * are merged up. This is the server half of the fix — the picker half lives in
+ * src/utils/syllabusTopicTree.js and the two share one normaliser so a teacher
+ * can never pick a topic the AI's curriculum module has never heard of.
+ *
+ * @param {Array<object>} entries KB-topic entries (grade, subject, topic, …)
+ * @returns {Array<object>} the same entries with leaked sub-topics folded in
+ */
+function foldLeakedSubtopics(entries) {
+  const byGradeSubject = new Map();
+  for (const entry of entries) {
+    const key = `${entry.grade}|${entry.subject}`;
+    if (!byGradeSubject.has(key)) byGradeSubject.set(key, []);
+    byGradeSubject.get(key).push(entry);
+  }
+
+  const dropped = new Set();
+  for (const group of byGradeSubject.values()) {
+    const byTopic = new Map(group.map((e) => [e.topic, e]));
+    const inner = new Map(group.map((e) => [
+      e.topic,
+      new Set((e.subtopics || []).map((s) => s.name).filter(Boolean)),
+    ]));
+    const {demoted, folded} = normalizeTopicTree(inner);
+
+    const mergeInto = (parentTopic, child, keepHeading) => {
+      const parent = byTopic.get(parentTopic);
+      if (!parent || parent === child) return;
+      const names = new Set((parent.subtopics || []).map((s) => s.name));
+      // The demoted heading itself becomes a sub-topic of its parent; a prose
+      // fragment has no heading worth keeping, only its content.
+      if (keepHeading && !names.has(child.topic)) {
+        parent.subtopics.push({
+          name: child.topic,
+          specificCompetence: "",
+          learningActivities: "",
+          expectedStandard: "",
+        });
+        names.add(child.topic);
+      }
+      for (const sub of (child.subtopics || [])) {
+        if (sub && sub.name && !names.has(sub.name)) {
+          parent.subtopics.push(sub);
+          names.add(sub.name);
+        }
+      }
+      for (const field of
+        ["specificOutcomes", "keyCompetencies", "values", "suggestedMaterials"]) {
+        for (const value of (child[field] || [])) {
+          if (!parent[field].includes(value)) parent[field].push(value);
+        }
+      }
+      dropped.add(child);
+    };
+
+    for (const d of demoted) mergeInto(d.parent, byTopic.get(d.topic), true);
+    for (const f of folded) mergeInto(f.parent, byTopic.get(f.fragment), false);
+  }
+
+  return entries.filter((e) => !dropped.has(e));
 }
 
 /**
@@ -717,7 +791,7 @@ async function getCurriculumDataTopics(version, opts = {}) {
       }
     }
   }
-  return Array.from(byKey.values());
+  return foldLeakedSubtopics(Array.from(byKey.values()));
 }
 
 /**

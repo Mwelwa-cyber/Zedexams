@@ -829,6 +829,29 @@
 .studio-v2 .sv-block.b-diagram { border-left: 3px solid var(--sv-plum); }
 .studio-v2 .sv-block.b-footer { border-left: 3px solid var(--sv-ink); }
 
+/* A question that would print blank — empty text, missing options, no correct
+ * answer chosen, an image still uploading. Flagged on the card so it is fixed
+ * where it lives, rather than only surfacing when a download is refused. The
+ * amber accent replaces the block's own colour so the card reads as unfinished
+ * at a glance while scrolling a long paper. */
+.studio-v2 .sv-block.is-incomplete {
+  border-left-color: var(--sv-gold);
+  background: #FFFBF3;
+}
+.studio-v2 .sv-q-incomplete-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: var(--sv-s2);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--sv-gold-soft);
+  color: #7A5A1F;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .studio-v2 .sv-add-here {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -2455,6 +2478,24 @@
   flex-wrap: wrap;
 }
 .studio-v2 .sv-export-actions .sv-export-save { margin-left: auto; }
+
+/* Why the download buttons are greyed out. Sits directly above them so the
+ * teacher reads the reason before reaching for a disabled button. */
+.studio-v2 .sv-export-block {
+  max-width: 720px;
+  margin: var(--sv-s4) auto 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sv-s2);
+  padding: 10px 12px;
+  border: 1px solid rgba(200, 146, 61, 0.30);
+  border-radius: var(--sv-r-md);
+  background: var(--sv-gold-soft);
+  color: #7A5A1F;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
 
 /* Auto-diagram progress pill (was a fixed inline-styled div). */
 .studio-v2 .sv-autodiagram-toast {

@@ -177,8 +177,14 @@ function ReviseQuestionPopover({
   )
 }
 
-export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMeta, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onSaveToBank, onUpdateQuestion, onUploadImage, onRemoveImage, onUploadOptionImage, onRemoveOptionImage, onAssignSectionToPart }) {
+export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, questionIssues, paperMeta, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onSaveToBank, onUpdateQuestion, onUploadImage, onRemoveImage, onUploadOptionImage, onRemoveOptionImage, onAssignSectionToPart }) {
   const question = section.question
+  // What still stops this question printing correctly (empty text, no options,
+  // no correct answer chosen, an image mid-upload). Flagged on the card itself
+  // so the teacher fixes it where they are, instead of meeting the list only
+  // when a download is refused. Same source as the export gate and the Save
+  // check — collectQuizIssues — so the three never disagree.
+  const blockers = questionIssues?.get?.(question.localId) || []
   const type = question.type || 'mcq'
   const isMcq = type === 'mcq'
   const isEssay = type === 'essay'
@@ -424,9 +430,14 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, p
   const meta = typeMeta[type] || typeMeta.mcq
 
   return (
-    <div className="sv-block b-question nested">
+    <div className={`sv-block b-question nested${blockers.length ? ' is-incomplete' : ''}`}>
       <div className="sv-block-head">
         <span className="sv-ic"><Icon name={meta.icon} size={15} /></span> {meta.label}
+        {blockers.length > 0 && (
+          <span className="sv-q-incomplete-tag" title={blockers.join(' ')}>
+            <Icon name="warn" size={12} /> Not finished
+          </span>
+        )}
         <span className="sv-tools">
           <button className="sv-tool" title="Move up" onClick={() => onMoveSection(sectionIndex, -1)}><Icon name="moveUp" size={14} /></button>
           <button className="sv-tool" title="Move down" onClick={() => onMoveSection(sectionIndex, 1)}><Icon name="moveDown" size={14} /></button>

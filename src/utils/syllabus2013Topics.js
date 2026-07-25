@@ -9,6 +9,7 @@
 
 import { sheetNameToGrade } from './syllabusMapping.js'
 import { resolveColumnRoles, isHeaderEchoRow, repairColumnShiftedRow } from './curriculum2013Parser.js'
+import { normalizeTopicLookup } from './syllabusTopicTree.js'
 
 export const STUDIO_SUBJECT_TO_KB_2013 = {
   'Integrated Science Syllabus (Grades 1-7, 2013)': 'integrated_science',
@@ -68,8 +69,24 @@ function splitBullets(s) {
  * KNOWLEDGE bullets are only used as a fallback for sheets that genuinely have
  * no sub-topic column (schema E, e.g. primary Mathematics) — they are content
  * points, not sub-topics, and must not displace the real hierarchy.
+ *
+ * The raw walk below can only propagate whatever the TOPIC column holds, and at
+ * a PDF page break that is often a SUB-topic code or a scrap of the previous
+ * row. normalizeTopicLookup re-derives the real two-level tree from the dotted
+ * numbering before the lookup is handed out, so the picker shows topics and
+ * their sub-topics rather than one flat list of both.
  */
 export function extract2013TopicLookup(raw) {
+  return normalizeTopicLookup(extract2013TopicLookupRaw(raw))
+}
+
+/**
+ * The unrepaired walk — whatever the TOPIC column literally held, page-break
+ * damage and all. Only the syllabus validation report
+ * (scripts/validate-syllabus-catalogue.mjs) should use this: it needs to
+ * describe the SOURCE data, not the repaired view every other caller gets.
+ */
+export function extract2013TopicLookupRaw(raw) {
   const byKey = new Map()
   for (const [studioSubject, sheets] of Object.entries(raw || {})) {
     const subject = STUDIO_SUBJECT_TO_KB_2013[studioSubject]

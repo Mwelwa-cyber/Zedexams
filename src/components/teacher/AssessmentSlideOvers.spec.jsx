@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { BlockPickerSlide, EditorSlide } from './AssessmentSlideOvers.jsx'
+import { BlockPickerSlide, EditorSlide, PaperRenderView } from './AssessmentSlideOvers.jsx'
 
 // The block picker is a static tile grid — mount it directly with an onPick
 // spy and assert every tile fires the key handleBlockPick expects. Guards the
@@ -230,5 +230,56 @@ describe('EditorSlide — marks input never stores 0 while displaying 1 (F23)', 
     fireEvent.change(marksInput, { target: { value: '7' } })
     const marksCalls = onUpdateStandalone.mock.calls.filter(([, field]) => field === 'marks')
     expect(marksCalls[0][2]).toBe(7)
+  })
+})
+
+// ── PaperRenderView — the export gate (Phase 1.1) ─────────────────────────
+// A paper with an unfinished question used to download and print as
+// "1. (no question text) … TOTAL MARKS: ___ / 1". Save was already gated on
+// the same blocking issues; the four export buttons were not. These pin the
+// buttons to the gate so the wiring cannot quietly come loose again.
+describe('PaperRenderView — export gate', () => {
+  const EXPORT_BUTTONS = [/Download Word/, /Download PDF/, /Print \/ Save as PDF/, /Answer sheet/]
+
+  function renderPreview(exportGate) {
+    return render(
+      <PaperRenderView
+        mode="paper"
+        blocks={[]}
+        assessment={{ totalMarks: 10 }}
+        changeView={() => {}}
+        onExport={vi.fn()}
+        onExportAnswerSheet={vi.fn()}
+        onSave={vi.fn()}
+        exportGate={exportGate}
+      />,
+    )
+  }
+
+  it('disables every download route while the paper is unfinished', () => {
+    renderPreview({ blocked: true, reason: 'incomplete-questions', message: 'Question 3 is not finished yet.' })
+    for (const name of EXPORT_BUTTONS) {
+      expect(screen.getByRole('button', { name })).toBeDisabled()
+    }
+  })
+
+  it('names what to fix instead of failing silently', () => {
+    renderPreview({ blocked: true, reason: 'incomplete-questions', message: 'Question 3 is not finished yet.' })
+    expect(screen.getByRole('status')).toHaveTextContent('Question 3 is not finished yet.')
+  })
+
+  it('leaves every download route open once the paper is complete', () => {
+    renderPreview({ blocked: false, message: '' })
+    for (const name of EXPORT_BUTTONS) {
+      expect(screen.getByRole('button', { name })).toBeEnabled()
+    }
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('stays usable when no gate is supplied at all', () => {
+    // Defensive: an older caller that has not been updated must not lock a
+    // teacher out of their own downloads.
+    renderPreview(undefined)
+    expect(screen.getByRole('button', { name: /Download Word/ })).toBeEnabled()
   })
 })
