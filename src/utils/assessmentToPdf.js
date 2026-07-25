@@ -16,6 +16,7 @@ import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 import { splitStatementSegments, statementLabel } from './fillBlanks.js'
 import { subPartLabel, splitPartBlanks } from './questionParts.js'
 import { hydrateTableData } from './tableData.js'
+import { resolveFigureLabels } from './figureLabelLayout.js'
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
@@ -308,6 +309,10 @@ body {
 .question .q-image { margin: 6pt 0; text-align: center; }
 .question .q-image .q-image-frame { position: relative; display: inline-block; max-width: 80%; }
 .question .q-image .q-image-frame img { max-width: 100%; max-height: 240pt; display: block; }
+.diagram-leaders {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  overflow: visible; pointer-events: none;
+}
 .diagram-label {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -765,12 +770,25 @@ function renderQuestion(b) {
     const isIdentify = b.diagramMode === 'identify'
     // Identify mode prints numbered hotspots (1, 2, …) instead of the
     // label text — the text goes into the marking key, not the paper.
-    const labelHtml = labels.map((l, i) => {
-      const inner = isIdentify ? String(i + 1) : escapeHtml(l.text)
+    // Positions, targets and leader endpoints come from the shared resolver, so
+    // a label separated in the studio preview is separated here too. Before
+    // this the print window drew the pills and silently DROPPED the leader
+    // lines, leaving labels floating with nothing pointing at the part.
+    const placed = resolveFigureLabels(labels, { mode: b.diagramMode }).labels
+    const labelHtml = placed.map((l) => {
+      const inner = isIdentify ? String(l.index + 1) : escapeHtml(l.text)
       const cls = isIdentify ? 'diagram-label diagram-label-num' : 'diagram-label'
       return `<span class="${cls}" style="left:${(l.x * 100).toFixed(2)}%;top:${(l.y * 100).toFixed(2)}%">${inner}</span>`
     }).join('')
-    body += `<div class="q-image"><div class="q-image-frame"><img src="${escapeHtml(b.imageUrl)}" alt="">${labelHtml}</div></div>`
+    const leaderHtml = placed.some(l => l.leader)
+      ? `<svg class="diagram-leaders" aria-hidden="true">${placed.map(l => (l.leader
+        ? `<line x1="${(l.leader.x1 * 100).toFixed(2)}%" y1="${(l.leader.y1 * 100).toFixed(2)}%"` +
+          ` x2="${(l.leader.x2 * 100).toFixed(2)}%" y2="${(l.leader.y2 * 100).toFixed(2)}%"` +
+          ' stroke="#000" stroke-width="1"/>' +
+          `<circle cx="${(l.leader.x2 * 100).toFixed(2)}%" cy="${(l.leader.y2 * 100).toFixed(2)}%" r="2.5" fill="#000"/>`
+        : '')).join('')}</svg>`
+      : ''
+    body += `<div class="q-image"><div class="q-image-frame"><img src="${escapeHtml(b.imageUrl)}" alt="">${leaderHtml}${labelHtml}</div></div>`
     if (isIdentify && labels.length) {
       const blanks = labels.map(() => `<li><span class="identify-blank"></span></li>`).join('')
       body += `<ol class="identify-list">${blanks}</ol>`

@@ -13,8 +13,10 @@
  * (e.g. the SBA studio card, the library detail page) still get the styling.
  */
 
+import { useMemo } from 'react'
 import DiagramSvg from '../../diagrams/DiagramSvg'
 import { resolveImageWidthPercent } from '../../../utils/imageWidth'
+import { resolveFigureLabels } from '../../../utils/figureLabelLayout'
 import { splitStatementSegments, statementLabel } from '../../../utils/fillBlanks'
 import { subPartLabel, splitPartBlanks, countPartBlanks } from '../../../utils/questionParts'
 import { DEFAULT_ANSWER_LINES } from '../../../utils/assessmentPaperLayout'
@@ -219,6 +221,14 @@ function PaperQuestionBlock({ block }) {
   const qClass = ['sv-paper-q', hasTable && 'has-table', isLong && 'is-long']
     .filter(Boolean)
     .join(' ')
+  // Resolved once per question: separated positions plus each label's leader
+  // line. The same call runs in the PDF and Word exports, so a label that moved
+  // here moved there — the whole point of §4.1's one-model rule applied to
+  // geometry rather than text.
+  const placedLabels = useMemo(
+    () => resolveFigureLabels(block.diagramLabels || [], { mode: block.diagramMode }).labels,
+    [block.diagramLabels, block.diagramMode],
+  )
   return (
     <div className={qClass}>
       <div className="sv-qline">
@@ -233,30 +243,33 @@ function PaperQuestionBlock({ block }) {
           >
             <img src={block.imageUrl} alt={block.imageAlt || ''} style={{ width: '100%' }} />
             {/* Leader lines: a thin line from each label to the part it points
-                at (tx,ty), ending in a small dot ON the part — so the diagram is
+                at, ending in a small dot ON the part — so the diagram is
                 labelled with a line, never a marker sitting on top of the part.
-                Drawn only for labels that carry a target; legacy/maths labels
-                without one keep sitting in place. */}
-            {(block.diagramLabels || []).some((l) => Number.isFinite(l?.tx) && Number.isFinite(l?.ty)) && (
+                Positions, targets and line endpoints all come from
+                resolveFigureLabels so the preview, the print window and Word
+                place them identically; it also separates labels that would
+                otherwise print on top of each other, and gives a label it had
+                to move a line back to the part it was dropped on. */}
+            {placedLabels.some((l) => l.leader) && (
               <svg
                 style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none' }}
                 aria-hidden="true"
               >
-                {(block.diagramLabels || []).map((label, i) => (
-                  Number.isFinite(label?.tx) && Number.isFinite(label?.ty) ? (
+                {placedLabels.map((label, i) => (
+                  label.leader ? (
                     <g key={i}>
                       <line
-                        x1={`${label.x * 100}%`} y1={`${label.y * 100}%`}
-                        x2={`${label.tx * 100}%`} y2={`${label.ty * 100}%`}
+                        x1={`${label.leader.x1 * 100}%`} y1={`${label.leader.y1 * 100}%`}
+                        x2={`${label.leader.x2 * 100}%`} y2={`${label.leader.y2 * 100}%`}
                         stroke="#000" strokeWidth="1"
                       />
-                      <circle cx={`${label.tx * 100}%`} cy={`${label.ty * 100}%`} r="2.5" fill="#000" />
+                      <circle cx={`${label.leader.x2 * 100}%`} cy={`${label.leader.y2 * 100}%`} r="2.5" fill="#000" />
                     </g>
                   ) : null
                 ))}
               </svg>
             )}
-            {(block.diagramLabels || []).map((label, i) => (
+            {placedLabels.map((label, i) => (
               <span
                 key={i}
                 style={{
@@ -278,7 +291,7 @@ function PaperQuestionBlock({ block }) {
                   whiteSpace: 'nowrap',
                 }}
               >
-                {block.diagramMode === 'identify' ? (i + 1) : label.text}
+                {block.diagramMode === 'identify' ? (label.index + 1) : label.text}
               </span>
             ))}
           </div>

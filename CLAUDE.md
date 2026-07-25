@@ -258,6 +258,17 @@ wrong:
   overflowing. Everything is in CSS pixels because that is what BOTH consumers
   take — the rasteriser and `docx`'s ImageRun (9525 EMU/px). Using points there
   under-applies the floor by a third.
+- **`src/utils/figureLabelLayout.js` decides where a figure's labels sit** — the
+  preview, the print window and the Word overlay all call `resolveFigureLabels`,
+  so a label separated in one is separated in all three. It de-collides labels
+  that would print on top of each other, and anchors each leader line on the
+  pill's EDGE facing the part rather than its centre (the line used to run out
+  from under the label and strike through the text). The rule that makes moving
+  a label safe: a label with no leader names the part it SITS ON, so one the
+  resolver had to move grows a leader back to where it was authored — otherwise
+  de-collision silently relabels the diagram. Positions come back normalised
+  0–1, resolved against a nominal A4-column figure box, because each renderer
+  draws its own pill size but they must all agree on placement.
 - **`src/utils/paperGolden.test.js`** (`test:paper-golden`) renders reference
   papers all the way to a real `.docx`, unzips it and asserts against
   `word/document.xml`. It is the net for "looks right in Preview, breaks in Word",

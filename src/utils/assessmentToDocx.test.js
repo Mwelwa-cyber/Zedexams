@@ -444,6 +444,33 @@ console.log('\nLabelled-diagram markers composite onto the Word image (buildDiag
   assert(svg.includes('H2O &lt;gas&gt; &amp; air'), 'label text is XML-escaped in the pill')
 }
 
+console.log('\nThe Word overlay places labels through the shared resolver (§4.2)')
+{
+  // A leader line must LEAVE the pill. It used to start at the label's centre,
+  // so its first third ran underneath the box and struck through the text.
+  const svg = buildDiagramIdentifySvg({
+    href: 'data:image/png;base64,AAAA', width: 400, height: 300, mode: 'labeled',
+    labels: [{ x: 0.25, y: 0.5, tx: 0.85, ty: 0.5, text: 'Aorta' }],
+  })
+  const line = /<line x1="([\d.]+)" y1="[\d.]+" x2="([\d.]+)"/.exec(svg)
+  assert(line, 'a leader line is drawn')
+  const centre = 0.25 * 400
+  assert(Number(line[1]) > centre + 8, `the line starts outside the pill (x1=${line[1]}, centre=${centre})`)
+  assert(Math.abs(Number(line[2]) - 0.85 * 400) < 0.5, 'and ends exactly on the part')
+}
+{
+  // Two labels dropped on the same point printed on top of each other in every
+  // renderer. They are separated now — and the resolver is shared, so the Word
+  // file and the studio preview separate them the same way.
+  const svg = buildDiagramIdentifySvg({
+    href: 'data:image/png;base64,AAAA', width: 400, height: 300, mode: 'labeled',
+    labels: [{ x: 0.5, y: 0.5, text: 'Atrium' }, { x: 0.5, y: 0.5, text: 'Ventricle' }],
+  })
+  const ys = [...svg.matchAll(/<rect x="[\d.]+" y="([\d.]+)"/g)].map(m => Number(m[1]))
+  assert(ys.length === 2, 'both pills are drawn')
+  assert(Math.abs(ys[0] - ys[1]) > 1, `and they no longer sit at the same spot (${ys.join(' vs ')})`)
+}
+
 console.log('\nLabelled diagram keeps its labels as a text list when the composite is unavailable')
 {
   // No canvas in this node harness, so the on-image composite can't render; the

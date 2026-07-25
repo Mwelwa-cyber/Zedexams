@@ -42,6 +42,7 @@ import { attributionSection, attributionFooter, attributionWatermarkParagraph } 
 import { buildPaperLayout, DEFAULT_ANSWER_LINES } from './assessmentPaperLayout.js'
 import { resolveImageWidthPercent } from './imageWidth.js'
 import { figureBox } from './figureSizing.js'
+import { resolveFigureLabels } from './figureLabelLayout.js'
 import { seedBandForLevel } from './assessmentBandService.js'
 import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 import { svgToPngBytes } from './svgRasterizer.js'
@@ -484,7 +485,7 @@ async function decodeImage(bytes, type) {
 // Fetch, transcode (WEBP→PNG), and aspect-fit an image, returning a ready
 // ImageRun or null. Centralising this guarantees WEBP is always transcoded
 // before it reaches imageRun — docx would otherwise reject the format.
-async function loadImageRun(url, { width = 360, height = 220, alt = '' } = {}) {
+async function loadImageRun(url, { width = 360, height = 220, widthPercent = 100, alt = '' } = {}) {
   const bytes = await fetchImageBytes(url)
   if (!bytes) return null
   const type = detectImageType(bytes)
@@ -493,9 +494,27 @@ async function loadImageRun(url, { width = 360, height = 220, alt = '' } = {}) {
     // No DOM (tests): embed jpg/png/gif/bmp as-is; WEBP can't be transcoded
     // without a canvas, so skip it rather than write a broken media part.
     if (type === 'webp') return null
-    return imageRun(bytes, { width, height }, alt)
+    const box = figureBox({ maxWidth: width, maxHeight: height, widthPercent, band: currentBand })
+    return imageRun(bytes, { width: box.width, height: box.height }, alt)
   }
-  return imageRun(decoded.bytes, fitWithin(decoded.width, decoded.height, width, height), alt)
+  // The box has to be computed from the image's REAL aspect ratio, not an
+  // assumed one. Sizing against 360×220 and then re-fitting to the true shape
+  // silently undid the band's floor for every figure that wasn't that shape —
+  // a 4:1 strip fitted into a floor-raised box came out well under it again.
+  const box = figureBox({
+    maxWidth: width,
+    maxHeight: height,
+    aspect: decoded.width / decoded.height,
+    widthPercent,
+    band: currentBand,
+  })
+  // Never upscale past the source's natural size — an enlarged small picture is
+  // a blurry one — UNLESS the level's floor requires it. At Early Childhood a
+  // legible-but-soft picture beats a crisp one a child cannot make out.
+  const fit = box.raisedToFloor
+    ? { width: box.width, height: box.height }
+    : fitWithin(decoded.width, decoded.height, box.width, box.height)
+  return imageRun(decoded.bytes, fit, alt)
 }
 
 // Read the intrinsic aspect ratio from an SVG's viewBox so the rasterized PNG
@@ -535,8 +554,8 @@ async function diagramImageRun(diagram, { maxWidth = 360, maxHeight = 220, width
     band: currentBand,
   })
   try {
-    // High-DPI raster (§4.2) — the embed box is in points, so FIGURE_RASTER_SCALE
-    // puts real detail behind every printed dot.
+    // High-DPI raster (§4.2) — the embed box is in 96dpi CSS pixels, so
+    // FIGURE_RASTER_SCALE puts real detail behind every printed dot.
     const bytes = await svgToPngBytes(svg, box.rasterWidth, box.rasterHeight)
     return imageRun(bytes, { width: box.width, height: box.height })
   } catch {
@@ -551,18 +570,10 @@ async function imageParagraph(url, opts = {}) {
   // the level's minimum figure size is a floor it cannot go under (§4.2). See
   // figureSizing.js: at Early Childhood the size is a pedagogical requirement,
   // not a layout preference.
-  const baseWidth = opts.width || 360
-  const baseHeight = opts.height || 220
-  const box = figureBox({
-    maxWidth: baseWidth,
-    maxHeight: baseHeight,
-    aspect: baseWidth / baseHeight,
-    widthPercent: opts.widthPreset ? resolveImageWidthPercent(opts.widthPreset) : 100,
-    band: currentBand,
-  })
   const run = await loadImageRun(url, {
-    width: box.width,
-    height: box.height,
+    width: opts.width || 360,
+    height: opts.height || 220,
+    widthPercent: opts.widthPreset ? resolveImageWidthPercent(opts.widthPreset) : 100,
     alt: opts.alt || '',
   })
   // A figure belongs to the question above it and to the options below it — it
@@ -618,15 +629,19 @@ export function buildDiagramIdentifySvg({ href, width, height, labels = [], mode
   const dot = Math.max(2, Math.round(minEdge * 0.012))
   const sw = Math.max(1, Math.round(minEdge * 0.006))
   const parts = [`<image href="${href}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="none"/>`]
-  labels.forEach((l, i) => {
+  // Positions and leader endpoints come from the shared resolver — the same
+  // call the preview and the print window make — so a label separated on screen
+  // is separated in Word, and the line leaves the pill's edge rather than
+  // running out from under it.
+  const placed = resolveFigureLabels(labels, { mode }).labels
+  placed.forEach((l) => {
+    const i = l.index
     const cx = clamp01(l.x) * W
     const cy = clamp01(l.y) * H
     // Leader line + tip dot on the part the label points at (both modes).
-    if (Number.isFinite(Number(l.tx)) && Number.isFinite(Number(l.ty))) {
-      const tx = clamp01(l.tx) * W
-      const ty = clamp01(l.ty) * H
-      parts.push(`<line x1="${cx.toFixed(1)}" y1="${cy.toFixed(1)}" x2="${tx.toFixed(1)}" y2="${ty.toFixed(1)}" stroke="#000" stroke-width="${sw}"/>`)
-      parts.push(`<circle cx="${tx.toFixed(1)}" cy="${ty.toFixed(1)}" r="${dot}" fill="#000"/>`)
+    if (l.leader) {
+      parts.push(`<line x1="${(l.leader.x1 * W).toFixed(1)}" y1="${(l.leader.y1 * H).toFixed(1)}" x2="${(l.leader.x2 * W).toFixed(1)}" y2="${(l.leader.y2 * H).toFixed(1)}" stroke="#000" stroke-width="${sw}"/>`)
+      parts.push(`<circle cx="${(l.leader.x2 * W).toFixed(1)}" cy="${(l.leader.y2 * H).toFixed(1)}" r="${dot}" fill="#000"/>`)
     }
     if (mode === 'labeled') {
       // A white text pill carrying the label, mirroring the preview's
@@ -668,12 +683,18 @@ async function diagramLabelImageParagraph(url, labels, opts = {}) {
     const mime = type === 'webp' ? 'image/png' : (MIME_BY_TYPE[type] || 'image/png')
     const href = `data:${mime};base64,${bytesToBase64(decoded.bytes)}`
     const svg = buildDiagramIdentifySvg({ href, width: decoded.width, height: decoded.height, labels, mode: opts.mode || 'identify' })
-    const baseWidth = opts.width || 360
-    const baseHeight = opts.height || 220
-    const pct = opts.widthPreset ? resolveImageWidthPercent(opts.widthPreset) / 100 : 1
-    const fit = fitWithin(decoded.width, decoded.height, Math.round(baseWidth * pct), Math.round(baseHeight * pct))
-    // Rasterize at ~2× the embed size for a crisp print.
-    const pngBytes = await svgToPngBytes(svg, fit.width * 2, fit.height * 2)
+    // The level's minimum figure size applies here too. Slice 4 wired it into
+    // the plain-image path only, which left the labelled diagrams — exactly the
+    // figures an Early Childhood paper is made of — printing at whatever the
+    // width preset produced.
+    const fit = figureBox({
+      maxWidth: opts.width || 360,
+      maxHeight: opts.height || 220,
+      aspect: decoded.width / decoded.height,
+      widthPercent: opts.widthPreset ? resolveImageWidthPercent(opts.widthPreset) : 100,
+      band: currentBand,
+    })
+    const pngBytes = await svgToPngBytes(svg, fit.rasterWidth, fit.rasterHeight)
     const run = imageRun(pngBytes, fit, opts.alt || '')
     return run ? centeredPara([run]) : null
   } catch {
