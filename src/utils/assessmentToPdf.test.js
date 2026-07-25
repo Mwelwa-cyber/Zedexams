@@ -267,6 +267,57 @@ console.log('\nSmoke — other question types')
   ok(!out.includes('[object Object]'), 'no "[object Object]" leaked into output')
 }
 
+// ─── B4: figure labels — leader lines and collisions (§4.2) ──────────────────
+//
+// The print window drew the label pills and SILENTLY DROPPED the leader lines
+// the preview and the Word export both draw, so a labelled diagram printed with
+// labels floating and nothing pointing at the part. Nothing anywhere separated
+// two labels dropped on the same spot either — they printed on top of each
+// other. Both now come from the shared resolver, so all three renderers agree.
+
+console.log('\nB4 — figure labels')
+{
+  const out = html({}, [makeQ({
+    id: 'q1', order: 0, type: 'diagram', text: 'Name the parts.',
+    imageUrl: 'https://example.test/heart.png',
+    diagramMode: 'labeled',
+    diagramLabels: [{ x: 0.25, y: 0.5, tx: 0.85, ty: 0.5, text: 'Aorta' }],
+  })])
+  ok(out.includes('<svg class="diagram-leaders"'), 'a leader-line layer is emitted at all')
+  const line = /<line x1="([\d.]+)%" y1="[\d.]+%" x2="([\d.]+)%"/.exec(out)
+  ok(Boolean(line), 'the leader line is drawn')
+  if (line) {
+    ok(Number(line[1]) > 25, `it starts outside the pill, toward the part (x1=${line[1]}%)`)
+    ok(Math.abs(Number(line[2]) - 85) < 0.1, 'and ends exactly on the part')
+  }
+  ok(out.includes('<circle'), 'with a tip dot on the part')
+}
+{
+  const out = html({}, [makeQ({
+    id: 'q1', order: 0, type: 'diagram', text: 'Name the parts.',
+    imageUrl: 'https://example.test/heart.png',
+    diagramMode: 'labeled',
+    diagramLabels: [{ x: 0.5, y: 0.5, text: 'Atrium' }, { x: 0.5, y: 0.5, text: 'Ventricle' }],
+  })])
+  const tops = [...out.matchAll(/class="diagram-label" style="left:([\d.]+)%;top:([\d.]+)%"/g)]
+    .map(m => `${m[1]},${m[2]}`)
+  ok(tops.length === 2, 'both pills are printed')
+  ok(tops[0] !== tops[1], `and they no longer print at the same spot (${tops.join(' / ')})`)
+}
+{
+  // A diagram whose labels carry no target keeps printing exactly as before —
+  // this change must not start drawing lines on papers that never had them.
+  const out = html({}, [makeQ({
+    id: 'q1', order: 0, type: 'diagram', text: 'Name the parts.',
+    imageUrl: 'https://example.test/heart.png',
+    diagramMode: 'labeled',
+    diagramLabels: [{ x: 0.2, y: 0.2, text: 'Aorta' }, { x: 0.8, y: 0.8, text: 'Apex' }],
+  })])
+  // (the stylesheet always carries the .diagram-leaders rule — look for the markup)
+  ok(!out.includes('<svg class="diagram-leaders"'), 'no targets and no collisions → no leader layer')
+  ok(out.includes('>Aorta<') && out.includes('>Apex<'), 'the labels still print')
+}
+
 // ─── Result ───────────────────────────────────────────────────────────────────
 
 if (failures > 0) {

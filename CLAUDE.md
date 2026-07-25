@@ -248,6 +248,27 @@ wrong:
   sub/superscript, because Word renders those perfectly and a teacher can still
   edit them as text. Any construct the tree does not model, or that throws while
   building, falls back to the linear text form: never a silently dropped formula.
+- **The band's minimum figure size is enforced, not just declared (§4.2).**
+  Phase 2 gave every band a `minFigureSizeMm` (45mm at Early Childhood → 30mm at
+  senior secondary) and only the generator PROMPT read it. `src/utils/figureSizing.js`
+  now makes it a floor the teacher's width preset cannot go under, resolved per
+  document from `seedBandForLevel` (published defaults — an export must not block
+  on a config read). The page always wins over the floor; a figure the column
+  cannot fit reports the shortfall via `figureSizeWarning` rather than
+  overflowing. Everything is in CSS pixels because that is what BOTH consumers
+  take — the rasteriser and `docx`'s ImageRun (9525 EMU/px). Using points there
+  under-applies the floor by a third.
+- **`src/utils/figureLabelLayout.js` decides where a figure's labels sit** — the
+  preview, the print window and the Word overlay all call `resolveFigureLabels`,
+  so a label separated in one is separated in all three. It de-collides labels
+  that would print on top of each other, and anchors each leader line on the
+  pill's EDGE facing the part rather than its centre (the line used to run out
+  from under the label and strike through the text). The rule that makes moving
+  a label safe: a label with no leader names the part it SITS ON, so one the
+  resolver had to move grows a leader back to where it was authored — otherwise
+  de-collision silently relabels the diagram. Positions come back normalised
+  0–1, resolved against a nominal A4-column figure box, because each renderer
+  draws its own pill size but they must all agree on placement.
 - **`src/utils/paperGolden.test.js`** (`test:paper-golden`) renders reference
   papers all the way to a real `.docx`, unzips it and asserts against
   `word/document.xml`. It is the net for "looks right in Preview, breaks in Word",

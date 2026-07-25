@@ -41,6 +41,9 @@ import {
 import { attributionSection, attributionFooter, attributionWatermarkParagraph } from './docxAttribution.js'
 import { buildPaperLayout, DEFAULT_ANSWER_LINES } from './assessmentPaperLayout.js'
 import { resolveImageWidthPercent } from './imageWidth.js'
+import { figureBox, embedBox } from './figureSizing.js'
+import { resolveFigureLabels } from './figureLabelLayout.js'
+import { seedBandForLevel } from './assessmentBandService.js'
 import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 import { svgToPngBytes } from './svgRasterizer.js'
 import { hydrateTableData } from './tableData.js'
@@ -433,16 +436,6 @@ function imageRun(bytes, transformation, alt = '') {
   })
 }
 
-// Fit (w,h) inside a box, preserving aspect ratio (never upscaling). The
-// studio preview scales pictures with `max-width`, so a fixed width×height
-// here would stretch them; this keeps the downloaded paper matching the
-// preview. Falls back to the box when natural dimensions are unknown.
-function fitWithin(width, height, maxWidth, maxHeight) {
-  if (!width || !height) return { width: maxWidth, height: maxHeight }
-  const scale = Math.min(maxWidth / width, maxHeight / height, 1)
-  return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) }
-}
-
 // Decode image bytes in the browser to read natural dimensions and, for
 // formats Word can't embed (WEBP — which the picture bank stores as-is),
 // transcode to PNG. An object URL keeps the canvas same-origin so it is
@@ -482,7 +475,7 @@ async function decodeImage(bytes, type) {
 // Fetch, transcode (WEBP→PNG), and aspect-fit an image, returning a ready
 // ImageRun or null. Centralising this guarantees WEBP is always transcoded
 // before it reaches imageRun — docx would otherwise reject the format.
-async function loadImageRun(url, { width = 360, height = 220, alt = '' } = {}) {
+async function loadImageRun(url, { width = 360, height = 220, widthPercent = 100, alt = '' } = {}) {
   const bytes = await fetchImageBytes(url)
   if (!bytes) return null
   const type = detectImageType(bytes)
@@ -490,14 +483,67 @@ async function loadImageRun(url, { width = 360, height = 220, alt = '' } = {}) {
   if (!decoded) {
     // No DOM (tests): embed jpg/png/gif/bmp as-is; WEBP can't be transcoded
     // without a canvas, so skip it rather than write a broken media part.
+    // The band's floor is applied here too. What is missing without a decode is
+    // the image's real aspect ratio, so the box falls back to the default
+    // 360×220 shape — the floor itself is never conditional.
     if (type === 'webp') return null
-    return imageRun(bytes, { width, height }, alt)
+    const box = figureBox({ maxWidth: width, maxHeight: height, widthPercent, band: currentBand })
+    return imageRun(bytes, { width: box.width, height: box.height }, alt)
   }
-  return imageRun(decoded.bytes, fitWithin(decoded.width, decoded.height, width, height), alt)
+  // The box has to be computed from the image's REAL aspect ratio, not an
+  // assumed one. Sizing against 360×220 and then re-fitting to the true shape
+  // silently undid the band's floor for every figure that wasn't that shape —
+  // a 4:1 strip fitted into a floor-raised box came out well under it again.
+  const box = figureBox({
+    maxWidth: width,
+    maxHeight: height,
+    aspect: decoded.width / decoded.height,
+    widthPercent,
+    band: currentBand,
+  })
+  return imageRun(decoded.bytes, embedBox(box, decoded.width, decoded.height), alt)
 }
 
 // Read the intrinsic aspect ratio from an SVG's viewBox so the rasterized PNG
 // isn't squashed. Falls back to 4:3.
+/**
+ * The band governing the paper currently being built (§4.2).
+ *
+ * Read by every figure below, which needs the level's minimum size. Published
+ * defaults only — a figure is sized synchronously and an export must not block
+ * on a Firestore read; a stale-by-one-edit minimum beats none, which is what
+ * every figure had until Phase 4.
+ *
+ * It is module state because the figure sizing sits a dozen frames below the
+ * entry point and threading a band through every renderer would be a wide
+ * change for one value. `withBand` is therefore the ONLY way it is written:
+ * it restores the previous value on the way out, so one document can never
+ * inherit another's floor — the bug the SBA export had, calling
+ * `renderPaperBlocksToDocx` directly and picking up whatever an earlier
+ * assessment download left behind.
+ *
+ * Save-and-restore makes sequential exports safe. It does NOT make overlapping
+ * ones safe: two `await`ed builds running at once would still interleave. Every
+ * caller today awaits a single user-initiated download, and there is no batch
+ * path — if one is ever added, the band has to be threaded properly.
+ */
+let currentBand = null
+
+/** Run `fn` with `band` in force, restoring whatever was there before. */
+async function withBand(band, fn) {
+  const previous = currentBand
+  currentBand = band || null
+  try {
+    return await fn()
+  } finally {
+    // Restoring across an await is the point: it scopes the band to one
+    // document. The rule below is flagging the concurrency limitation
+    // documented above — real, and accepted: no caller runs two exports at once.
+    // eslint-disable-next-line require-atomic-updates
+    currentBand = previous
+  }
+}
+
 function svgAspect(svg) {
   const m = /viewBox="[\d.]+ [\d.]+ ([\d.]+) ([\d.]+)"/.exec(svg || '')
   const w = m ? parseFloat(m[1]) : 0
@@ -508,18 +554,24 @@ function svgAspect(svg) {
 // Render a deterministic library diagram ({libraryKey, params}) to an embedded
 // ImageRun by rasterizing its SVG to PNG. Browser-only (canvas); returns null
 // in a DOM-less context (node tests) so the caller falls back to alt text.
-async function diagramImageRun(diagram, { maxWidth = 360, maxHeight = 220 } = {}) {
+async function diagramImageRun(diagram, { maxWidth = 360, maxHeight = 220, widthPreset } = {}) {
   if (!diagram || !diagram.libraryKey) return null
+  // Black ink on white: most Zambian schools print monochrome, so a library
+  // figure is drawn in a single dark tone rather than relying on colour.
   const svg = renderDiagramSvg(diagram.libraryKey, diagram.params || {}, '#1c1612')
   if (!svg) return null
-  const aspect = svgAspect(svg)
-  // Rasterize at ~2× the embed size for a crisp print, fitting the box.
-  let width = maxWidth
-  let height = Math.round(maxWidth / aspect)
-  if (height > maxHeight) { height = maxHeight; width = Math.round(maxHeight * aspect) }
+  const box = figureBox({
+    maxWidth,
+    maxHeight,
+    aspect: svgAspect(svg),
+    widthPercent: widthPreset ? resolveImageWidthPercent(widthPreset) : 100,
+    band: currentBand,
+  })
   try {
-    const bytes = await svgToPngBytes(svg, width * 2, height * 2)
-    return imageRun(bytes, { width, height })
+    // High-DPI raster (§4.2) — the embed box is in 96dpi CSS pixels, so
+    // FIGURE_RASTER_SCALE puts real detail behind every printed dot.
+    const bytes = await svgToPngBytes(svg, box.rasterWidth, box.rasterHeight)
+    return imageRun(bytes, { width: box.width, height: box.height })
   } catch {
     return null
   }
@@ -528,13 +580,14 @@ async function diagramImageRun(diagram, { maxWidth = 360, maxHeight = 220 } = {}
 async function imageParagraph(url, opts = {}) {
   if (!url) return null
   // A width preset scales the fit-box down from the full-width default so a
-  // teacher's "Small/Medium/Large" choice carries into the Word download.
-  const baseWidth = opts.width || 360
-  const baseHeight = opts.height || 220
-  const pct = opts.widthPreset ? resolveImageWidthPercent(opts.widthPreset) / 100 : 1
+  // teacher's "Small/Medium/Large" choice carries into the Word download — but
+  // the level's minimum figure size is a floor it cannot go under (§4.2). See
+  // figureSizing.js: at Early Childhood the size is a pedagogical requirement,
+  // not a layout preference.
   const run = await loadImageRun(url, {
-    width: Math.round(baseWidth * pct),
-    height: Math.round(baseHeight * pct),
+    width: opts.width || 360,
+    height: opts.height || 220,
+    widthPercent: opts.widthPreset ? resolveImageWidthPercent(opts.widthPreset) : 100,
     alt: opts.alt || '',
   })
   // A figure belongs to the question above it and to the options below it — it
@@ -590,15 +643,19 @@ export function buildDiagramIdentifySvg({ href, width, height, labels = [], mode
   const dot = Math.max(2, Math.round(minEdge * 0.012))
   const sw = Math.max(1, Math.round(minEdge * 0.006))
   const parts = [`<image href="${href}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="none"/>`]
-  labels.forEach((l, i) => {
+  // Positions and leader endpoints come from the shared resolver — the same
+  // call the preview and the print window make — so a label separated on screen
+  // is separated in Word, and the line leaves the pill's edge rather than
+  // running out from under it.
+  const placed = resolveFigureLabels(labels, { mode }).labels
+  placed.forEach((l) => {
+    const i = l.index
     const cx = clamp01(l.x) * W
     const cy = clamp01(l.y) * H
     // Leader line + tip dot on the part the label points at (both modes).
-    if (Number.isFinite(Number(l.tx)) && Number.isFinite(Number(l.ty))) {
-      const tx = clamp01(l.tx) * W
-      const ty = clamp01(l.ty) * H
-      parts.push(`<line x1="${cx.toFixed(1)}" y1="${cy.toFixed(1)}" x2="${tx.toFixed(1)}" y2="${ty.toFixed(1)}" stroke="#000" stroke-width="${sw}"/>`)
-      parts.push(`<circle cx="${tx.toFixed(1)}" cy="${ty.toFixed(1)}" r="${dot}" fill="#000"/>`)
+    if (l.leader) {
+      parts.push(`<line x1="${(l.leader.x1 * W).toFixed(1)}" y1="${(l.leader.y1 * H).toFixed(1)}" x2="${(l.leader.x2 * W).toFixed(1)}" y2="${(l.leader.y2 * H).toFixed(1)}" stroke="#000" stroke-width="${sw}"/>`)
+      parts.push(`<circle cx="${(l.leader.x2 * W).toFixed(1)}" cy="${(l.leader.y2 * H).toFixed(1)}" r="${dot}" fill="#000"/>`)
     }
     if (mode === 'labeled') {
       // A white text pill carrying the label, mirroring the preview's
@@ -640,12 +697,18 @@ async function diagramLabelImageParagraph(url, labels, opts = {}) {
     const mime = type === 'webp' ? 'image/png' : (MIME_BY_TYPE[type] || 'image/png')
     const href = `data:${mime};base64,${bytesToBase64(decoded.bytes)}`
     const svg = buildDiagramIdentifySvg({ href, width: decoded.width, height: decoded.height, labels, mode: opts.mode || 'identify' })
-    const baseWidth = opts.width || 360
-    const baseHeight = opts.height || 220
-    const pct = opts.widthPreset ? resolveImageWidthPercent(opts.widthPreset) / 100 : 1
-    const fit = fitWithin(decoded.width, decoded.height, Math.round(baseWidth * pct), Math.round(baseHeight * pct))
-    // Rasterize at ~2× the embed size for a crisp print.
-    const pngBytes = await svgToPngBytes(svg, fit.width * 2, fit.height * 2)
+    // The level's minimum figure size applies here too. Slice 4 wired it into
+    // the plain-image path only, which left the labelled diagrams — exactly the
+    // figures an Early Childhood paper is made of — printing at whatever the
+    // width preset produced.
+    const fit = figureBox({
+      maxWidth: opts.width || 360,
+      maxHeight: opts.height || 220,
+      aspect: decoded.width / decoded.height,
+      widthPercent: opts.widthPreset ? resolveImageWidthPercent(opts.widthPreset) : 100,
+      band: currentBand,
+    })
+    const pngBytes = await svgToPngBytes(svg, fit.rasterWidth, fit.rasterHeight)
     const run = imageRun(pngBytes, fit, opts.alt || '')
     return run ? centeredPara([run]) : null
   } catch {
@@ -693,14 +756,16 @@ function imageFallbackBlock(alt = '') {
  * label onto `stats.failedImages`, so callers can warn the teacher instead of
  * shipping a silently-degraded paper.
  */
-export async function renderPaperBlocksToDocx(blocks = [], stats = null) {
-  const children = []
-  for (const block of blocks) {
-    const rendered = await renderBlock(block, stats)
-    if (Array.isArray(rendered)) children.push(...rendered)
-    else if (rendered) children.push(rendered)
-  }
-  return children
+export async function renderPaperBlocksToDocx(blocks = [], stats = null, { band = null } = {}) {
+  return withBand(band, async () => {
+    const children = []
+    for (const block of blocks) {
+      const rendered = await renderBlock(block, stats)
+      if (Array.isArray(rendered)) children.push(...rendered)
+      else if (rendered) children.push(rendered)
+    }
+    return children
+  })
 }
 
 function recordImageFailure(stats, label) {
@@ -1416,8 +1481,15 @@ async function renderQuestion(b, stats = null) {
 }
 
 export async function buildAssessmentDocument(assessment, questions, { mode = 'paper', attribution = false, stats = null } = {}) {
+  // The level's band governs the figures in the PAPER (§4.2). Scoping it to the
+  // block render rather than the whole function also keeps it off the school
+  // logo below — a logo is a mark on the letterhead, not a figure a learner has
+  // to read, and floor-raising it to 45mm on a Nursery paper would swamp the
+  // header. Published defaults only; see `currentBand`.
   const blocks = buildPaperLayout(assessment, questions, { mode })
-  const children = await renderPaperBlocksToDocx(blocks, stats)
+  const children = await renderPaperBlocksToDocx(blocks, stats, {
+    band: seedBandForLevel(assessment && assessment.grade) || null,
+  })
 
   // Pre-fetch the school logo for the Word header. The PDF reads b.logoUrl ||
   // b.schoolLogoUrl; mirror that lookup so both exports stay in step.

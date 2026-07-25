@@ -28,6 +28,7 @@ import {
 } from 'docx'
 import { buildSbaPaperBlocks } from './sbaTaskToPaper.js'
 import { renderPaperBlocksToDocx, paperSectionShell, sanitizeXmlText } from './assessmentToDocx.js'
+import { seedBandForLevel } from './assessmentBandService.js'
 
 const STYLE_LABELS = {
   answer_key: 'Answer key',
@@ -229,7 +230,13 @@ function markingSchemeChildren(task) {
  */
 export async function buildSbaTaskChildren(task, { includeAnswers = true, schoolName, blocks } = {}) {
   const paperBlocks = blocks || buildSbaPaperBlocks(task, { schoolName: schoolName || task?.header?.schoolName || '' })
-  const children = await renderPaperBlocksToDocx(paperBlocks)
+  // An SBA task's figures answer to the same minimum size as an exam paper's
+  // (§4.2). Passing the band explicitly is what makes that true: the shared
+  // renderer reads a module-scoped band, so before this the SBA export sized
+  // its figures against whatever an earlier download happened to leave behind.
+  const children = await renderPaperBlocksToDocx(paperBlocks, null, {
+    band: seedBandForLevel(task?.header?.grade) || null,
+  })
   if (includeAnswers) children.push(...markingSchemeChildren(task))
   return children
 }
