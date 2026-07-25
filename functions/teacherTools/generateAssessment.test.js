@@ -47,6 +47,12 @@ let classifyResult = "unknown";
 
 const firestoreFn = () => ({
   collection: (name) => {
+    // assessmentBands is READ (never written) to resolve the band governing the
+    // paper's level. An empty collection is the realistic pre-seed state, and
+    // exercises the fallback to the published defaults.
+    if (name === "assessmentBands") {
+      return {get: async () => ({forEach: () => {}})};
+    }
     assert.strictEqual(name, "aiGenerations", "only aiGenerations is written");
     return {
       doc: (suppliedId) => {
@@ -587,10 +593,60 @@ async function caught(promise) {
   // Label helpers: a Form is never relabelled a Grade.
   ok("gradeLabelFor keeps forms as forms",
       gradeLabelFor("G8") === "Form 1" && gradeLabelFor("G4") === "Grade 4");
-  ok("gradeLabelFor maps ECE bands", gradeLabelFor("ECE_N") === "Nursery");
+  // The ECE age bands report the school years they serve (the ladder in
+  // src/config/educationLevels.js): 3-4 is Baby Class, 4-5 is Reception.
+  ok("gradeLabelFor maps ECE bands",
+      gradeLabelFor("ECE_N") === "Baby Class" &&
+      gradeLabelFor("ECE_R") === "Reception");
   ok("subjectLabelFor humanises keys",
       subjectLabelFor("integrated_science") === "Integrated Science");
   classifyResult = "unknown";
+
+  // ── Assessment bands (Phase 2) ─────────────────────────────────────────
+  // The band governing the paper's level must reach the model, and must be a
+  // CEILING the client cannot lift: the picker already filters its chips, but
+  // a stale or hostile client asking Baby Class for an essay must not get one.
+  reset();
+  claudeImpl = async () => validPaper();
+  await runAssessment({
+    uid: "t1",
+    rawInputs: {...INPUTS, grade: "ECE_N", subject: "numeracy", questionTypes: ["essay", "counting"]},
+    apiKey: "k",
+    idempotencyKey: IDK,
+  });
+  const ecePrompt = calls.claude[0].opts.messages[0].content;
+  ok("the band's rules reach the prompt",
+      ecePrompt.includes("BAND RULES") && ecePrompt.includes("Baby Class"));
+  ok("Early Childhood is told the learner cannot be assumed to read",
+      ecePrompt.includes("CANNOT be assumed to read"));
+  ok("a type the band forbids is dropped before the model sees it",
+      !/ALLOWED QUESTION TYPES[^\n]*essay/.test(ecePrompt));
+  // "counting" is a TASK; structurally it is a short-answer question. The
+  // directive names the task, the schema line names the structure — the model
+  // needs both to write a counting item rather than a sentence to read.
+  ok("a task the band permits is named in its own words",
+      /PERMITTED TASKS[^\n]*counting/.test(ecePrompt));
+  ok("the task is structured as something the schema can validate",
+      /ALLOWED QUESTION TYPES[^\n]*short answer/.test(ecePrompt));
+  ok("no early-years task leaks out as a raw schema type",
+      !/"type"\s*:\s*"counting"/.test(ecePrompt));
+
+  // A senior paper gets its own band, not the early-years one.
+  reset();
+  claudeImpl = async () => validPaper();
+  await runAssessment({
+    uid: "t1",
+    rawInputs: {...INPUTS, grade: "G11", subject: "mathematics", questionTypes: ["essay"]},
+    apiKey: "k",
+    idempotencyKey: IDK,
+  });
+  const seniorPrompt = calls.claude[0].opts.messages[0].content;
+  ok("Forms 3-5 get the examination register",
+      seniorPrompt.includes("BAND RULES") && seniorPrompt.includes("Form 4"));
+  ok("essay survives where the band permits it",
+      /ALLOWED QUESTION TYPES[^\n]*essay/.test(seniorPrompt));
+  ok("the early-years reading rule is NOT applied to a senior paper",
+      !seniorPrompt.includes("CANNOT be assumed to read"));
 
   Module._load = origLoad;
   console.log(`\n${passed} passed`);

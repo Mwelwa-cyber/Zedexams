@@ -24,6 +24,7 @@ import {
   paperGradeOptions, normalizePaperGrade, maxTopicsFor,
   isCumulativeType, toKbSubjectKey, studioGradeToKbGrade,
 } from './paperTaxonomy'
+import { useAssessmentBand } from '../../hooks/useAssessmentBand'
 import LiveGenerationCanvas from '../ui/LiveGenerationCanvas'
 import FreePreviewUpsell from './FreePreviewUpsell'
 import { capture } from '../../utils/analytics'
@@ -53,6 +54,26 @@ export const QUESTION_TYPE_OPTIONS = [
   { key: 'structured (multi-part)', canonical: 'structured', label: 'Structured' },
   { key: 'calculation (show working)', canonical: 'calculation', label: 'Calculation' },
   { key: 'essay/composition', canonical: 'essay', label: 'Essay / Composition' },
+  // Early-years types — answered by marking the page, not by writing prose.
+  // Offered only where the band permits them, which is why Baby Class shows
+  // these and Form 4 does not.
+  { key: 'picture identification', canonical: 'picture_identification', label: 'Name the picture' },
+  { key: 'circling the right answer', canonical: 'circling', label: 'Circle the answer' },
+  { key: 'matching pictures to pictures', canonical: 'picture_matching', label: 'Match pictures' },
+  { key: 'counting', canonical: 'counting', label: 'Counting' },
+  { key: 'tracing', canonical: 'tracing', label: 'Tracing' },
+  { key: 'colouring', canonical: 'colouring', label: 'Colouring' },
+  { key: 'sorting into groups', canonical: 'sorting', label: 'Sorting' },
+  // Upper-band types.
+  { key: 'diagram labelling', canonical: 'diagram_labelling', label: 'Label a diagram' },
+  { key: 'table completion', canonical: 'table_completion', label: 'Complete a table' },
+  { key: 'comprehension', canonical: 'comprehension', label: 'Comprehension' },
+  { key: 'multi-step calculation', canonical: 'multi_step_calculation', label: 'Multi-step calculation' },
+  { key: 'data interpretation', canonical: 'data_interpretation', label: 'Interpret data' },
+  { key: 'extended response', canonical: 'extended_response', label: 'Extended response' },
+  { key: 'case study', canonical: 'case_study', label: 'Case study' },
+  { key: 'graph interpretation', canonical: 'graph_interpretation', label: 'Interpret a graph' },
+  { key: 'practical task', canonical: 'practical', label: 'Practical' },
 ]
 
 // The canonical schema types for the currently-selected chips, deduped
@@ -72,8 +93,20 @@ function canonicalTypesFor(selectedKeys) {
   return out
 }
 
-const MARKS_OPTIONS = [20, 30, 40, 50, 60, 80, 100]
-const DURATION_OPTIONS = [30, 40, 60, 90, 120, 150, 180]
+const MARKS_OPTIONS = [5, 10, 15, 20, 30, 40, 50, 60, 80, 100]
+const DURATION_OPTIONS = [15, 20, 30, 40, 60, 90, 120, 150, 180]
+
+/**
+ * The chips a band permits, in the declared order. The band is the ceiling: a
+ * type it does not list is not offered at all, which is what stops Baby Class
+ * being asked for an essay and Form 4 being offered colouring. No rule about
+ * WHICH types belong to a level lives here — that is the band document.
+ */
+function chipsForBand(band) {
+  if (!band || !Array.isArray(band.questionTypes)) return QUESTION_TYPE_OPTIONS
+  const permitted = new Set(band.questionTypes)
+  return QUESTION_TYPE_OPTIONS.filter((o) => permitted.has(o.canonical))
+}
 
 // Modal form styling lives in studio/assessmentStudio.css under `.sv-cpm-*`
 // (scoped to .studio-v2, using the design tokens directly — no inline objects).
@@ -208,6 +241,54 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
   const setMeta = (k, v) => setForm((f) => ({
     ...f, [k]: v, topics: [], topicInput: '', subtopics: [], subtopicInput: '',
   }))
+
+  // The pedagogical rules for the selected level, from the assessmentBands
+  // collection. Everything stage-specific — which question types may be
+  // offered, how long the paper runs, how many marks it carries — comes from
+  // here rather than from a constant in this file.
+  const { band } = useAssessmentBand(form.grade)
+  const typeChips = useMemo(() => chipsForBand(band), [band])
+
+  // A type the new band does not permit is dropped the moment the level
+  // changes, so switching Form 4 → Baby Class cannot silently carry "Essay"
+  // through to the generator via a chip that is no longer on screen.
+  useEffect(() => {
+    const permitted = new Set(typeChips.map((c) => c.key))
+    setForm((f) => {
+      const kept = f.questionTypes.filter((k) => permitted.has(k))
+      if (kept.length === f.questionTypes.length) return f
+      // Never leave the teacher with nothing selected: fall back to the band's
+      // first two types, which are the ones it leads with.
+      const next = kept.length > 0 ? kept : typeChips.slice(0, 2).map((c) => c.key)
+      return { ...f, questionTypes: next }
+    })
+  }, [typeChips])
+
+  // Duration and total marks follow the band's defaults for the chosen
+  // assessment type — a Baby Class topic test is 15 minutes for 5-10 marks, a
+  // Form 4 final examination is 180 minutes for 75-100. Re-applied whenever the
+  // level or the type changes, which is exactly when the previous numbers stop
+  // making sense; the teacher can still override either afterwards.
+  const bandId = band?.id
+  useEffect(() => {
+    if (!band) return
+    const duration = band.defaultDurations?.[form.assessmentType]
+    const range = band.markRanges?.[form.assessmentType]
+    setForm((f) => {
+      const next = { ...f }
+      if (Number.isFinite(Number(duration))) next.durationMinutes = Number(duration)
+      if (Array.isArray(range) && Number.isFinite(Number(range[0]))) {
+        // Land on the closest offered value inside the band's range rather than
+        // the raw bound, so the <select> always has the value it is showing.
+        const [lo, hi] = range.map(Number)
+        const inRange = MARKS_OPTIONS.filter((m) => m >= lo && m <= hi)
+        next.totalMarks = inRange.length > 0 ? inRange[inRange.length - 1] : lo
+      }
+      return next
+    })
+    // `bandId` rather than `band`: the object identity changes when the
+    // Firestore read swaps in, but the defaults only matter per band.
+  }, [bandId, band, form.assessmentType])
 
   const maxTopics = maxTopicsFor(form.assessmentType)
   const cumulative = isCumulativeType(form.assessmentType)
@@ -581,8 +662,8 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="sv-cpm-grid2">
               <div>
-                <label className="sv-cpm-label">Grade / level</label>
-                <select className="sv-cpm-input" value={form.grade}
+                <label className="sv-cpm-label" htmlFor="cpm-grade">Grade / level</label>
+                <select id="cpm-grade" className="sv-cpm-input" value={form.grade}
                   disabled={levelsLoading || noLevels}
                   onChange={(e) => setMeta('grade', e.target.value)}>
                   {levelsLoading && <option value={form.grade}>Loading education levels…</option>}
@@ -811,8 +892,15 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
 
             <div>
               <label className="sv-cpm-label">Question types</label>
+              {band?.reading?.requirement === 'none' && (
+                <p className="sv-cpm-hint" style={{ marginTop: 0 }}>
+                  Children at this level are not expected to read, so every question
+                  is answered by looking at a picture or listening to you. A sheet of
+                  what to read aloud is made along with the worksheet.
+                </p>
+              )}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {QUESTION_TYPE_OPTIONS.map((t) => {
+                {typeChips.map((t) => {
                   const on = form.questionTypes.includes(t.key)
                   return (
                     <button key={t.key} type="button" onClick={() => toggleType(t.key)}
@@ -821,10 +909,13 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
                     </button>
                   )
                 })}
-                <button type="button" onClick={() => set('comprehension', !form.comprehension)}
-                  className={`sv-cpm-pill ${form.comprehension ? 'active' : ''}`}>
-                  Comprehension passage
-                </button>
+                {/* A reading passage only makes sense once learners can read it. */}
+                {band?.reading?.requirement !== 'none' && (
+                  <button type="button" onClick={() => set('comprehension', !form.comprehension)}
+                    className={`sv-cpm-pill ${form.comprehension ? 'active' : ''}`}>
+                    Comprehension passage
+                  </button>
+                )}
               </div>
             </div>
 
