@@ -61,6 +61,8 @@ const ALLOWED_SUBJECTS = new Set([
   // standardized curriculum selector never dead-ends on a real syllabus subject.
   "fashion_fabrics", "food_nutrition", "hospitality_management",
   "travel_tourism", "literature_in_english",
+  // The 2013 senior RE split: two separately examined ECZ syllabi.
+  "religious_education_2044", "religious_education_2046",
   // 2013-framework subjects exposed by curriculum-data-2013.json
   // (Agricultural Science / Art & Design / Home Management, Grades 10-12).
   "agricultural_science", "art_and_design", "home_management",

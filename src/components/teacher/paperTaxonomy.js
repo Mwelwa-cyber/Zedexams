@@ -366,6 +366,8 @@ const SUBJECT_LABELS = {
   literacy: 'Literacy',
   creative_and_technology_studies: 'Creative & Technology Studies',
   religious_education: 'Religious Education',
+  religious_education_2044: 'Religious Education 2044',
+  religious_education_2046: 'Religious Education 2046',
   civic_education: 'Civic Education',
   physical_education: 'Physical Education',
   environmental_science: 'Environmental Science',

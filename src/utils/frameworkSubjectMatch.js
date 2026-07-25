@@ -48,6 +48,12 @@ const SLUG_ALIASES = {
   home_economics: ['home economics'],
   physical_education: ['expressive', 'physical'],
   religious_education: ['religious'],
+  // The 2013 senior RE syllabi are two subjects but one line on the timetable —
+  // the framework tables say "Religious Education", not a syllabus number, so
+  // both must match it. Without these the slug fallback would look for the
+  // literal token "religious education 2044" and find no allocation at all.
+  religious_education_2044: ['religious'],
+  religious_education_2046: ['religious'],
 }
 
 function tokensFor(subjectSlug) {

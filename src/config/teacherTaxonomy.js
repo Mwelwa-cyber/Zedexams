@@ -279,6 +279,12 @@ export const TEACHER_SUBJECTS = [
   { value: 'geography',        label: 'Geography' },
   { value: 'civic_education',  label: 'Civic Education' },
   { value: 'religious_education', label: 'Religious Education' },
+  // The 2013 senior-secondary set examines RE as two separate ECZ syllabi, and
+  // a candidate sits one or the other: 2044 works through life issues (work,
+  // leisure, justice, family life), 2046 through the Biblical narrative. Both
+  // number from 10.1, so they only stopped colliding once each got its own key.
+  { value: 'religious_education_2044', label: 'Religious Education 2044' },
+  { value: 'religious_education_2046', label: 'Religious Education 2046' },
   { group: 'Business' },
   // Commerce and Principles of Accounts are two subjects, taught and examined
   // separately, each numbering its topics from 1.1. They ship as one CDC
@@ -395,7 +401,17 @@ const SUBJECT_GRADE_MAP = {
   history:           ['G8','G9','G10','G11','G12'],
   geography:         ['G8','G9','G10','G11','G12'],
   civic_education:   ['G5','G6','G7','G8','G9','G10','G11','G12'],
-  religious_education:['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
+  // Religious Education runs the whole way up the CBC. In the 2013 (OBC) set
+  // senior secondary is where it divides: a Grade 10-12 candidate is entered
+  // for RE 2044 or RE 2046, never a generic "Religious Education", so the plain
+  // key stops at G9 there and the two numbered syllabi take over. Below senior
+  // secondary the OBC teaches the one undivided subject, as the CBC does.
+  religious_education: {
+    cbc:      ['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
+    previous: ['ECE_N','ECE_R','G1','G2','G3','G4','G5','G6','G7','G8','G9'],
+  },
+  religious_education_2044: { cbc: [], previous: ['G10','G11','G12'] },
+  religious_education_2046: { cbc: [], previous: ['G10','G11','G12'] },
 
   // Business — the 2013 (OBC) taught standalone Principles of Accounts at senior
   // secondary; the CBC (2023) replaced it with the combined Commerce &

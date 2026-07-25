@@ -46,6 +46,10 @@ const REQUIRED_KEYS = [
   "hospitality_management",
   "mathematics_ii",
   "literature_in_english",
+  // RE 2044 / RE 2046 — the 2013 senior-secondary split. Both are pickable in
+  // the studio under the previous curriculum at G10-G12.
+  "religious_education_2044",
+  "religious_education_2046",
 ];
 
 // assessmentAllowlists.js + the ten generate*.js copies as of this writing.

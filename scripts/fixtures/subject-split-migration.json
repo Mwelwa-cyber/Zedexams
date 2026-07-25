@@ -212,6 +212,71 @@
       "topics": [
         "Comprehension revision"
       ]
+    },
+    {
+      "id": "re-2044",
+      "subject": "religious_education",
+      "grade": "G10",
+      "framework": "2013",
+      "topics": [
+        "10.1 Work in a changing society.",
+        "10.3 Justice in Society"
+      ]
+    },
+    {
+      "id": "re-2046",
+      "subject": "religious_education",
+      "grade": "G10",
+      "framework": "2013",
+      "topics": [
+        "10.3 BAPTISM",
+        "10.4 TEMPTATION"
+      ]
+    },
+    {
+      "id": "re-spanning",
+      "subject": "religious_education",
+      "grade": "G10",
+      "framework": "2013",
+      "topics": [
+        "10.1 Work in a changing society.",
+        "10.4 TEMPTATION"
+      ]
+    },
+    {
+      "id": "re-sourcedoc",
+      "subject": "religious_education",
+      "grade": "G11",
+      "framework": "2013",
+      "sourceSyllabus": "Religious Education 2046 Syllabus (Grades 10-12, 2013)",
+      "topics": []
+    },
+    {
+      "id": "re-senior-freetext",
+      "subject": "religious_education",
+      "grade": "G12",
+      "framework": "2013",
+      "topics": [
+        "Revision of the whole syllabus"
+      ]
+    },
+    {
+      "id": "re-obc-junior",
+      "subject": "religious_education",
+      "grade": "G8",
+      "framework": "2013",
+      "topics": [
+        "Creation stories"
+      ]
+    },
+    {
+      "id": "re-cbc-senior",
+      "subject": "religious_education",
+      "grade": "G10",
+      "framework": "2023",
+      "topics": [
+        "3.1 Christian living"
+      ]
     }
   ],
   "aiGenerations": [

@@ -124,6 +124,8 @@ const SUBJECT_LABEL_MAP = {
   geography:                        'Geography',
   civic_education:                  'Social Studies',
   religious_education:              'Religious Education',
+  religious_education_2044:         'Religious Education',
+  religious_education_2046:         'Religious Education',
   technology_studies:               'Technology Studies',
   creative_and_technology_studies:  'Creative and Technology Studies',
   home_economics:                   'Home Economics',

@@ -575,6 +575,10 @@ const OBC_SENIOR_SUBJECT_PERIODS = {
   civic_education: 5,
   geography: 5,
   religious_education: 5,
+  // A senior candidate sits RE 2044 or RE 2046; either way the framework
+  // allocates the one Religious Education line of 5 periods.
+  religious_education_2044: 5,
+  religious_education_2046: 5,
   agricultural_science: 12,
   art_and_design: 12,
   food_nutrition: 12,

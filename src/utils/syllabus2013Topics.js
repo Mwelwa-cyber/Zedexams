@@ -38,8 +38,15 @@ export const STUDIO_SUBJECT_TO_KB_2013 = {
   'Home Management Syllabus (Grades 10-12, 2013)': 'home_management',
   'Mathematics Syllabus (Grades 10-12, 2013)': 'mathematics',
   'Physical Education Syllabus (Grades 10-12, 2013)': 'physical_education',
-  'Religious Education 2044 Syllabus (Grades 10-12, 2013)': 'religious_education',
-  'Religious Education 2046 Syllabus (Grades 10-12, 2013)': 'religious_education',
+  // RE 2044 and RE 2046 are two distinct ECZ examinable syllabi, sat by
+  // different candidates, and each numbers its topics from 10.1. Filing both
+  // under `religious_education` made 10.1-10.4 collide at G10 (2044's "Work in
+  // a changing society" against 2046's "Birth and infancy of John the Baptist
+  // and Jesus") and left hierarchy repair picking a parent by document order.
+  // 2044 is the thematic/life-issues syllabus, 2046 the Biblical Studies one;
+  // the junior + primary RE syllabi keep the plain religious_education key.
+  'Religious Education 2044 Syllabus (Grades 10-12, 2013)': 'religious_education_2044',
+  'Religious Education 2046 Syllabus (Grades 10-12, 2013)': 'religious_education_2046',
 }
 
 // The 2013 workbooks have mangled headers — the topic column carries a
