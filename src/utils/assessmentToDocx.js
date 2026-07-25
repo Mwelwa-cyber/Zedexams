@@ -31,6 +31,12 @@ import {
   TabStopType,
   TextRun,
   WidthType,
+  Math as OMath,
+  MathRun,
+  MathFraction,
+  MathRadical,
+  MathSuperScript,
+  MathSubScript,
 } from 'docx'
 import { attributionSection, attributionFooter, attributionWatermarkParagraph } from './docxAttribution.js'
 import { buildPaperLayout, DEFAULT_ANSWER_LINES } from './assessmentPaperLayout.js'
@@ -41,6 +47,7 @@ import { hydrateTableData } from './tableData.js'
 import {
   parsePaperContent, contentToPlainText, columnWidth,
 } from './paperContentModel.js'
+import { latexToMathTree, needsEquation } from './latexToUnicode.js'
 import { buildAnswerSheet } from './assessmentAnswerSheet.js'
 import { splitStatementSegments, statementLabel } from './fillBlanks.js'
 import { subPartLabel, splitPartBlanks, countPartBlanks } from './questionParts.js'
@@ -179,7 +186,85 @@ function inlineRuns(node, baseOpts) {
     if (node.base) runs.push(runText(node.base, { ...baseOpts, ...marks, subScript: true }))
     return runs
   }
+  if (node.type === 'math') return mathNodeRuns(node, baseOpts)
   return []
+}
+
+/**
+ * A math tree as OMML — a real Word equation object (§4.2).
+ *
+ * "For DOCX, emit real OMML equations — Word mangles anything else." A stacked
+ * fraction, a radical with its vinculum and a properly-set exponent are what
+ * make a maths paper look typeset rather than transcribed, and Word can only
+ * draw them from its own equation markup.
+ *
+ * Only genuinely two-dimensional formulas come through here (see
+ * `needsEquation`). An inline power or a chemical formula stays as ordinary text
+ * runs with real superscript/subscript: Word renders those perfectly, a teacher
+ * can still edit them as text, and wrapping "H₂SO₄" in an equation object makes
+ * a worse artefact than the text it replaced.
+ */
+function mathTreeToOmml(nodes) {
+  const out = []
+  for (const node of nodes || []) {
+    if (node.type === 'run') {
+      out.push(new MathRun(sanitizeXmlText(node.text)))
+      continue
+    }
+    if (node.type === 'frac') {
+      out.push(new MathFraction({
+        numerator: mathTreeToOmml(node.numerator),
+        denominator: mathTreeToOmml(node.denominator),
+      }))
+      continue
+    }
+    if (node.type === 'radical') {
+      out.push(new MathRadical({
+        children: mathTreeToOmml(node.radicand),
+        ...(node.degree ? { degree: mathTreeToOmml(node.degree) } : {}),
+      }))
+      continue
+    }
+    if (node.type === 'sup') {
+      out.push(new MathSuperScript({
+        children: mathTreeToOmml(node.base),
+        superScript: mathTreeToOmml(node.script),
+      }))
+      continue
+    }
+    if (node.type === 'sub') {
+      out.push(new MathSubScript({
+        children: mathTreeToOmml(node.base),
+        subScript: mathTreeToOmml(node.script),
+      }))
+      continue
+    }
+  }
+  return out
+}
+
+/**
+ * A formula as either a Word equation or the pre-flattened text runs.
+ *
+ * The brief's fallback rule read strictly: never silently drop a formula. If the
+ * tree cannot be built, or OMML construction throws on some construct this does
+ * not model, the linear rendering the content model already carries is used —
+ * which is exactly what the paper printed before OMML existed, so the worst case
+ * is no worse than the status quo.
+ */
+function mathNodeRuns(node, baseOpts) {
+  const fallback = () => (node.fallback || []).flatMap((n) => inlineRuns(n, baseOpts))
+  if (!node.tex) return fallback()
+  try {
+    const tree = latexToMathTree(node.tex)
+    if (!tree.length || !needsEquation(tree)) return fallback()
+    const children = mathTreeToOmml(tree)
+    if (!children.length) return fallback()
+    return [new OMath({ children })]
+  } catch (err) {
+    console.warn('[assessmentToDocx] OMML build failed, using the text form', err)
+    return fallback()
+  }
 }
 
 /** Every inline node of a paragraph, flattened to runs. */

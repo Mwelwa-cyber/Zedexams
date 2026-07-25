@@ -428,6 +428,174 @@ export function chemToSegments(body, segments = []) {
   return segments;
 }
 
+/* ── The structural form, for Word equations ─────────────────────────────── */
+
+/**
+ * Parse LaTeX into a small structural tree — the two-dimensional shape that the
+ * linear text form necessarily throws away.
+ *
+ * `latexToSegments` flattens `\frac{a}{b}` to "a/b" because a print window has
+ * one line to work with. Word does not: it has real equation objects, and §4.2
+ * asks for them ("emit real OMML equations — Word mangles anything else"). A
+ * stacked fraction, a radical with its vinculum and a properly-set exponent are
+ * the difference between a maths paper that looks typeset and one that looks
+ * like a text message.
+ *
+ * The node vocabulary is what OMML gives us and what school maths needs:
+ *
+ *   {type:'run', text}
+ *   {type:'frac', numerator:[…], denominator:[…]}
+ *   {type:'radical', degree:[…]|null, radicand:[…]}
+ *   {type:'sup', base:[…], script:[…]}
+ *   {type:'sub', base:[…], script:[…]}
+ *
+ * Anything not in that list degrades to a `run` carrying its readable text, so a
+ * construct this does not model still prints correctly — just linearly. That is
+ * the brief's fallback rule applied honestly: never silently drop a formula.
+ */
+export function latexToMathTree(tex) {
+  const src = String(tex ?? '').trim();
+  const out = [];
+  if (!src) return out;
+
+  let i = 0;
+  /** Attach a script to whatever preceded it, as OMML requires a base. */
+  const takeBase = () => {
+    const last = out[out.length - 1];
+    if (!last) return [];
+    out.pop();
+    // A run base is usually a single symbol ("x^2" bases on "x", not on
+    // "3x + x"), so split the trailing token off rather than raising the whole
+    // run into the exponent's base.
+    if (last.type === 'run' && last.text.length > 1) {
+      const head = last.text.slice(0, -1);
+      const tail = last.text.slice(-1);
+      if (head) out.push({type: 'run', text: head});
+      return [{type: 'run', text: tail}];
+    }
+    return [last];
+  };
+
+  while (i < src.length) {
+    const ch = src[i];
+
+    if (ch === '\\') {
+      const m = /^\\([a-zA-Z]+|.)/.exec(src.slice(i));
+      if (!m) { i += 1; continue; }
+      const name = m[1];
+      i += m[0].length;
+
+      if (name === 'frac' || name === 'dfrac' || name === 'tfrac' || name === 'cfrac') {
+        const a = readArg(src, i);
+        const b = readArg(src, a.next);
+        i = b.next;
+        out.push({
+          type: 'frac',
+          numerator: latexToMathTree(a.value),
+          denominator: latexToMathTree(b.value),
+        });
+        continue;
+      }
+      if (name === 'sqrt') {
+        let degree = null;
+        if (src[i] === '[') {
+          const close = src.indexOf(']', i);
+          if (close !== -1) {
+            degree = latexToMathTree(src.slice(i + 1, close));
+            i = close + 1;
+          }
+        }
+        const a = readArg(src, i);
+        i = a.next;
+        out.push({type: 'radical', degree, radicand: latexToMathTree(a.value)});
+        continue;
+      }
+      if (name === 'ce' || name === 'pu') {
+        // Chemistry is not two-dimensional — it is runs with scripts, which read
+        // better in Word as ordinary text runs than wrapped in an equation
+        // object a teacher then cannot edit as text. Emit its linear form.
+        const {value, next} = readArg(src, i);
+        i = next;
+        out.push({type: 'run', text: latexToUnicode(`\\${name}{${value}}`)});
+        continue;
+      }
+      if (TRANSPARENT.has(name)) {
+        const a = readArg(src, i);
+        i = a.next;
+        out.push(...latexToMathTree(a.value));
+        continue;
+      }
+      if (SPACERS.has(name)) { out.push({type: 'run', text: ' '}); continue; }
+      if (name === 'left' || name === 'right') continue;
+      if (SYMBOLS[name] !== undefined) {
+        const glyph = SYMBOLS[name];
+        out.push({type: 'run', text: OPERATOR_GLYPHS.has(glyph) ? ` ${glyph} ` : glyph});
+        if (!OPERATOR_GLYPHS.has(glyph) && name.length > 1) {
+          while (i < src.length && /\s/.test(src[i])) i += 1;
+        }
+        continue;
+      }
+      if (name.length === 1 && !/[a-zA-Z]/.test(name)) {
+        out.push({type: 'run', text: name});
+        continue;
+      }
+      continue;
+    }
+
+    if (ch === '^' || ch === '_') {
+      const a = readArg(src, i + 1);
+      i = a.next;
+      out.push({
+        type: ch === '^' ? 'sup' : 'sub',
+        base: takeBase(),
+        script: latexToMathTree(a.value),
+      });
+      continue;
+    }
+
+    if (ch === '{' || ch === '}' || ch === '$') { i += 1; continue; }
+
+    // Plain characters accumulate into the current run.
+    const last = out[out.length - 1];
+    if (last && last.type === 'run') last.text += ch;
+    else out.push({type: 'run', text: ch});
+    i += 1;
+  }
+
+  // Merge neighbouring runs and collapse the doubled spaces that operator
+  // padding leaves behind — Word shows every one of them.
+  const merged = [];
+  for (const node of out) {
+    const last = merged[merged.length - 1];
+    if (node.type === 'run' && last && last.type === 'run') {
+      last.text += node.text;
+      continue;
+    }
+    merged.push(node);
+  }
+  return merged
+      .map((n) => (n.type === 'run' ? {...n, text: n.text.replace(/ {2,}/g, ' ')} : n))
+      .filter((n) => n.type !== 'run' || n.text !== '');
+}
+
+/**
+ * Is this formula two-dimensional — does it actually need a Word equation?
+ *
+ * An inline power or a chemical formula is better left as ordinary text runs
+ * with real superscript/subscript: Word renders those perfectly, a teacher can
+ * still edit them as text, and an equation object around "H₂SO₄" is a worse
+ * artefact than the text is. Only a stacked construct earns the OMML.
+ */
+export function needsEquation(nodes) {
+  return (nodes || []).some((node) => {
+    if (node.type === 'frac' || node.type === 'radical') return true;
+    if (node.type === 'sup' || node.type === 'sub') {
+      return needsEquation(node.base) || needsEquation(node.script);
+    }
+    return false;
+  });
+}
+
 /* ── The public string form ──────────────────────────────────────────────── */
 
 /**

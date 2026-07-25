@@ -228,6 +228,12 @@ function flattenMathNodes(container) {
     el.classList.remove('mnode')
     el.removeAttribute('data-latex')
     el.removeAttribute('data-math-latex')
+    // Keep the source LaTeX on the element (§4.2). The visible content above is
+    // the linear form the print window needs — but Word can do better than
+    // linear, and it can only do so if the structure survives this step. The
+    // content model reads this back and the Word export builds a real OMML
+    // equation from it; anything that cannot read it still renders the text.
+    if (latex) el.setAttribute('data-tex', latex)
   })
 }
 

@@ -20,6 +20,7 @@
 import assert from 'node:assert/strict'
 import {
   latexToUnicode, latexToSegments, segmentsToUnicode, chemToSegments, isChemistry,
+  latexToMathTree, needsEquation,
 } from './latexToUnicode.js'
 
 let passed = 0
@@ -178,6 +179,85 @@ test('empty and rubbish input produce no segments rather than throwing', () => {
   assert.deepEqual(latexToSegments(null), [])
   assert.deepEqual(latexToSegments(undefined), [])
   assert.doesNotThrow(() => latexToSegments('\\'))
+})
+
+/* ── the structural form, for Word equations (§4.2) ─────────────────────── */
+
+console.log('\n— the math tree —')
+
+test('a fraction keeps its two dimensions instead of collapsing to a slash', () => {
+  // The linear form has one line to work with; Word does not, and §4.2 asks for
+  // the real equation.
+  const tree = latexToMathTree(String.raw`\frac{1}{2}`)
+  assert.equal(tree.length, 1)
+  assert.equal(tree[0].type, 'frac')
+  assert.deepEqual(tree[0].numerator, [{ type: 'run', text: '1' }])
+  assert.deepEqual(tree[0].denominator, [{ type: 'run', text: '2' }])
+})
+
+test('a radical carries its radicand, and its degree when it has one', () => {
+  assert.equal(latexToMathTree(String.raw`\sqrt{16}`)[0].type, 'radical')
+  assert.equal(latexToMathTree(String.raw`\sqrt{16}`)[0].degree, null)
+  const cube = latexToMathTree(String.raw`\sqrt[3]{27}`)[0]
+  assert.deepEqual(cube.degree, [{ type: 'run', text: '3' }])
+})
+
+test('a power bases on the symbol before it, not the whole expression', () => {
+  // "3x + x^2" squares the last x, not "3x + x".
+  const tree = latexToMathTree('3x + x^2')
+  const sup = tree.find((n) => n.type === 'sup')
+  assert.deepEqual(sup.base, [{ type: 'run', text: 'x' }])
+  assert.deepEqual(sup.script, [{ type: 'run', text: '2' }])
+  assert.equal(tree[0].text, '3x + ')
+})
+
+test('the quadratic formula nests correctly all the way down', () => {
+  const [, frac] = latexToMathTree(String.raw`x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}`)
+  assert.equal(frac.type, 'frac')
+  const radical = frac.numerator.find((n) => n.type === 'radical')
+  assert.ok(radical, 'the root is inside the numerator')
+  assert.ok(radical.radicand.some((n) => n.type === 'sup'), 'b² is inside the root')
+  assert.deepEqual(frac.denominator, [{ type: 'run', text: '2a' }])
+})
+
+test('adjacent runs merge and doubled spaces collapse', () => {
+  // Operator padding leaves them behind, and Word shows every one.
+  for (const node of latexToMathTree(String.raw`a \times b \div c`)) {
+    if (node.type === 'run') assert.ok(!/ {2}/.test(node.text), node.text)
+  }
+})
+
+test('rubbish input produces an empty tree rather than throwing', () => {
+  assert.deepEqual(latexToMathTree(''), [])
+  assert.deepEqual(latexToMathTree(null), [])
+  assert.doesNotThrow(() => latexToMathTree(String.raw`\frac{1`))
+  assert.doesNotThrow(() => latexToMathTree('^'))
+})
+
+console.log('\n— which formulas earn a Word equation —')
+
+test('a stacked construct needs a real equation', () => {
+  assert.equal(needsEquation(latexToMathTree(String.raw`\frac{1}{2}`)), true)
+  assert.equal(needsEquation(latexToMathTree(String.raw`\sqrt{2}`)), true)
+})
+
+test('an inline power does NOT — it is better as a superscript run', () => {
+  // Word renders a superscript run perfectly and a teacher can still edit it as
+  // text; an equation object around "x²" is a worse artefact than the text.
+  assert.equal(needsEquation(latexToMathTree('x^2')), false)
+  assert.equal(needsEquation(latexToMathTree('H_2O')), false)
+})
+
+test('chemistry never becomes an equation object', () => {
+  // \ce{} is runs with scripts, not two-dimensional. Wrapping H₂SO₄ in an
+  // equation makes it uneditable as text for no gain.
+  const tree = latexToMathTree(String.raw`\ce{H2SO4}`)
+  assert.equal(needsEquation(tree), false)
+  assert.equal(tree[0].text, 'H₂SO₄')
+})
+
+test('plain arithmetic does not become an equation either', () => {
+  assert.equal(needsEquation(latexToMathTree('2 + 2 = 4')), false)
 })
 
 console.log(`\n✓ latex → unicode — ${passed} tests passed`)

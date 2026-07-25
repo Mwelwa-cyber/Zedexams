@@ -131,6 +131,31 @@ export function parsePaperContent(html, { DOMParserImpl } = {}) {
       })
       return
     }
+    // A formula, carrying BOTH the source LaTeX (so Word can set it as a real
+    // equation) and the already-flattened inline fallback (so every other
+    // renderer, and Word itself for constructs OMML cannot express, still has
+    // something correct to print). See safeRender.flattenMathNodes.
+    if (el.hasAttribute && el.hasAttribute('data-tex')) {
+      const fallback = []
+      const collect = (n, m) => {
+        if (n.nodeType === 3) {
+          if (n.textContent) fallback.push({ type: 'text', value: n.textContent, marks: { ...m } })
+          return
+        }
+        if (n.nodeType !== 1) return
+        const childMark = TAG_MARKS[String(n.tagName || '').toUpperCase()]
+        const nextMarks = childMark ? { ...m, [childMark]: true } : m
+        for (const c of Array.from(n.childNodes)) collect(c, nextMarks)
+      }
+      for (const child of Array.from(el.childNodes)) collect(child, marks)
+      inline.push({
+        type: 'math',
+        tex: el.getAttribute('data-tex') || '',
+        fallback: mergeRuns(fallback),
+        marks: { ...marks },
+      })
+      return
+    }
     if (classes && classes.contains('num-base')) {
       inline.push({
         type: 'numberBase',
@@ -252,6 +277,10 @@ function inlineToHtml(node) {
       node.marks,
     )
   }
+  if (node.type === 'math') {
+    const inner = (node.fallback || []).map(inlineToHtml).join('')
+    return wrapMarks(`<span data-tex="${escapeHtml(node.tex)}">${inner}</span>`, node.marks)
+  }
   return ''
 }
 
@@ -310,6 +339,7 @@ export function contentToPlainText(nodes) {
       else if (node.type === 'fraction') {
         line += `${node.whole ? `${node.whole} ` : ''}${node.numerator}/${node.denominator}`
       } else if (node.type === 'numberBase') line += `${node.number}${node.base}`
+      else if (node.type === 'math') line += contentToPlainText([{ type: 'paragraph', children: node.fallback || [] }])
     }
     if (line.trim()) parts.push(line.trim())
   }
