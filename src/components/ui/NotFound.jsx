@@ -5,13 +5,29 @@
  * hid typos and broken links. This page gives users a clear message and a
  * way back to their role's home.
  */
-import { Link } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { getRoleLandingPath } from '../../utils/navigation'
+import { capture } from '../../utils/analytics'
 import SeoHelmet from '../seo/SeoHelmet'
 
 export default function NotFound() {
   const { userProfile } = useAuth()
+  const location = useLocation()
+
+  // Record WHICH url missed, and what sent the user there. A 404 reached from
+  // inside the app is a broken link we shipped, not a mistyped address — but
+  // the page itself gives no clue which, so the report "a Page not found
+  // appears during the create flow" has nowhere to start. Every hard-coded
+  // /teacher/* link in the studio surfaces was checked against App.jsx's routes
+  // and all of them resolve, so the next occurrence needs to identify itself.
+  useEffect(() => {
+    const path = `${location.pathname}${location.search}`
+    const from = typeof document !== 'undefined' ? document.referrer : ''
+    console.warn('[404] no route matched', { path, from, role: userProfile?.role || 'anonymous' })
+    capture('route_not_found', { path, from, role: userProfile?.role || 'anonymous' })
+  }, [location.pathname, location.search, userProfile?.role])
 
   const homePath = getRoleLandingPath(userProfile, '/login')
   const homeLabel = userProfile?.role === 'admin'
