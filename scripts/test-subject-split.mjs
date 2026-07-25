@@ -229,6 +229,36 @@ test('Food & Nutrition 10.1 cannot become the parent of a Home Management 10.1.x
   )
 })
 
+test('Grades 5-7 Home Economics stays ONE integrated subject — never split', () => {
+  // Owner decision, 2026-07-25, confirmed against the CDC source: the Grade 5-7
+  // Home Economics syllabus carries ONE set of general outcomes and key
+  // competences for the whole subject, then presents FOOD AND NUTRITION, HOME
+  // MANAGEMENT and NEEDLE WORK AND CRAFTS as components of it. Each component
+  // restarts its numbering at <grade>.1, which is why the codes repeat — that is
+  // the Ministry's layout, not two syllabi sharing a key. It is taught and
+  // examined as one subject, so splitting it would be wrong.
+  assert.ok(
+    !Object.keys(SPLIT_DOCUMENTS).includes('Home Economics Syllabus (Grades 5-7, 2013)'),
+    'the G5-7 Home Economics syllabus must never be registered as a split document',
+  )
+
+  const lookup = extract2013TopicLookup(raw2013)
+  for (const grade of ['G5', 'G6', 'G7']) {
+    const inner = lookup.get(`${grade}|home_economics`)
+    assert.ok(inner && inner.size > 0, `${grade} Home Economics must exist as one subject`)
+    // Its components all live under that ONE key — none broke out into its own.
+    for (const key of ['food_and_nutrition', 'home_management', 'needlework', 'crafts']) {
+      assert.ok(!lookup.has(`${grade}|${key}`), `${grade}|${key} must not exist — it is a component, not a subject`)
+    }
+  }
+
+  // The repeated codes are real and expected: Grade 5 has several topics at 5.1,
+  // one per component. That must stay true — collapsing them would lose content.
+  const g5 = [...lookup.get('G5|home_economics').keys()]
+  const atFiveOne = g5.filter((t) => /^5\.1(\s|$)/.test(t))
+  assert.ok(atFiveOne.length > 1, `expected several 5.1 topics across components, saw ${atFiveOne.length}`)
+})
+
 test('a code claimed twice inside ONE scope is never given a parent by guessing', () => {
   // The residual case: two subjects still sharing a key (Fashion & Fabrics and
   // Hospitality Management both remain home_economics). A sub-topic of the

@@ -39,6 +39,10 @@ import { extract2013TopicLookupRaw } from '../src/utils/syllabus2013Topics.js'
 import { syllabiToKbTopics } from '../src/utils/syllabusMapping.js'
 import { parseTopicCode, looksLikeTopicFragment, normalizeTopicTree } from '../src/utils/syllabusTopicTree.js'
 import { parseLookupKey } from '../src/utils/curriculumTopicIdentity.js'
+// The same ascending-run detection the Commerce split uses. Here it tells apart
+// "two syllabi share a subject key" from "one syllabus is laid out in numbered
+// components" — see the componentSections check below.
+import { sectionsByCodeReset } from '../src/utils/syllabusSubjectSplit.js'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const args = new Set(process.argv.slice(2))
@@ -103,10 +107,37 @@ function findSpacingIssues(title) {
 // ingestion failure rather than a genuinely short syllabus.
 const THIN_COVERAGE_TOPICS = 3
 
+/**
+ * Are these two titles the SAME topic spelled differently?
+ *
+ * "4.3.7 SPELLINGS" / "4.3.7 SPELLING" and "LANGUAGE USE IN SOCIAL SETTING" /
+ * "LANGUAGE IN A SOCIAL SETTING" are one topic ingested twice with a typo, not
+ * two components of an integrated subject. Without this they look like a
+ * component boundary (two ascending runs) and get waved through as legitimate.
+ *
+ * Word-overlap rather than string distance, because the differences are dropped
+ * or reordered WORDS. Trailing "s" is folded so a plural is not a new word.
+ */
+function sameTopicDifferentSpelling(a, b) {
+  const tokens = (t) => new Set(
+      String(t).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/)
+          .filter(Boolean)
+          .map((w) => w.replace(/s$/, '')),
+  )
+  const left = tokens(a)
+  const right = tokens(b)
+  if (left.size === 0 || right.size === 0) return false
+  let shared = 0
+  for (const w of left) if (right.has(w)) shared += 1
+  const union = new Set([...left, ...right]).size
+  return shared / union >= 0.6
+}
+
 function auditLookup(framework, lookup, sourceIndex = new Map()) {
   const findings = {
     splitWords: [], spacing: [],
     duplicateRecords: [], conflictingRecords: [], ambiguousParents: [],
+    componentSections: [],
     sharedCodesAcrossSubjects: [], orphans: [],
     thinCoverage: [], pageBreakDamage: [],
   }
@@ -126,6 +157,17 @@ function auditLookup(framework, lookup, sourceIndex = new Map()) {
       presentKeys.add(parsed.key)
       presentDepths.add(parsed.key.split('.').length)
     }
+
+    // Which numbered run each topic sits in. A syllabus laid out in components
+    // (Grade 5 Home Economics presents Food & Nutrition, Home Management and
+    // Needle Work & Crafts one after another, each starting again at 5.1) makes
+    // several ascending runs inside ONE subject. That repetition is the
+    // Ministry's own layout, not damage — see the componentSections check below.
+    const sectionOfTopic = new Map()
+    const runs = sectionsByCodeReset([...inner.keys()])
+    runs.sections.forEach((labels, index) => {
+      for (const label of labels) if (!sectionOfTopic.has(label)) sectionOfTopic.set(label, index)
+    })
 
     for (const [topic, subs] of inner) {
       const parsed = parseTopicCode(topic)
@@ -188,6 +230,46 @@ function auditLookup(framework, lookup, sourceIndex = new Map()) {
           const from = sourceIndex.get(`${key}|${String(owner).trim().toLowerCase()}`)
           for (const d of (from || [])) docs.add(shortDoc(d))
         }
+        // ONE document whose owners each sit in a different numbered run: these
+        // are the components of an integrated subject, each numbering from
+        // <grade>.1. Confirmed against the CDC source for Grade 5-7 Home
+        // Economics, which carries one set of general outcomes for the whole
+        // subject and then presents FOOD AND NUTRITION, HOME MANAGEMENT and
+        // NEEDLE WORK AND CRAFTS as sections of it. Splitting that into separate
+        // subjects would be wrong — it is one subject, taught and examined as one.
+        // …unless the titles are the same topic spelled two ways, which is a
+        // typo pair rather than a component boundary.
+        const titleList = owners.map((t) => {
+          const parsed = parseTopicCode(t)
+          return parsed ? parsed.title : t
+        })
+        const nearDuplicate = titleList.length === 2 &&
+          sameTopicDifferentSpelling(titleList[0], titleList[1])
+
+        const runIndexes = new Set(owners.map((o) => sectionOfTopic.get(o)))
+        const isComponentLayout = !nearDuplicate &&
+          docs.size === 1 &&
+          runs.sections.length > 1 &&
+          runIndexes.size === owners.length &&
+          !runIndexes.has(undefined)
+
+        if (nearDuplicate) {
+          findings.duplicateRecords.push({
+            key, topic: owners.join(' | '),
+            detail: `code ${code} carries the same topic spelled two ways — likely one row ingested twice`,
+          })
+          continue
+        }
+
+        if (isComponentLayout) {
+          findings.componentSections.push({
+            key, topic: owners.join(' | '),
+            detail: `code ${code} repeats across ${owners.length} components of ` +
+              `${Array.from(docs)[0]} — integrated subject, each component numbers from scratch`,
+          })
+          continue
+        }
+
         const cause = docs.size > 1
           ? `two syllabi share this subject key (${Array.from(docs).sort().join(' + ')}) — a subject-mapping decision, like the Commerce / Principles of Accounts split`
           : 'within one syllabus — the source document has to be read'
@@ -269,6 +351,7 @@ const SECTIONS = [
   ['thinCoverage', 'Implausibly few topics for a grade+subject'],
   ['pageBreakDamage', 'Page-break damage the topic-tree repair absorbs'],
   ['sharedCodesAcrossSubjects', 'Identical codes across SEPARATE subjects — legitimate, no action'],
+  ['componentSections', 'Repeated codes across COMPONENTS of one integrated subject — legitimate, no action'],
 ]
 
 // Everything except the legitimate-sharing section. A code shared by two
@@ -276,7 +359,7 @@ const SECTIONS = [
 // make the report permanently red for no reason.
 const PROBLEM_SECTIONS = SECTIONS
     .map(([id]) => id)
-    .filter((id) => id !== 'sharedCodesAcrossSubjects')
+    .filter((id) => id !== 'sharedCodesAcrossSubjects' && id !== 'componentSections')
 
 function printReport(report) {
   console.log(`\n══ ${report.framework} curriculum ══`)
@@ -368,10 +451,14 @@ const total = reports.reduce(
 const legitimate = reports.reduce(
   (sum, r) => sum + r.findings.sharedCodesAcrossSubjects.length, 0,
 )
+const components = reports.reduce(
+  (sum, r) => sum + r.findings.componentSections.length, 0,
+)
 console.log(`\nTotal findings: ${total}`)
 console.log(
-  `Plus ${legitimate} identical-code groups across separate subjects, which are ` +
-  'correct numbering and counted as findings by neither the total nor --strict.',
+  `Plus ${legitimate} identical-code groups across separate subjects and ` +
+  `${components} across components of one integrated subject — both correct ` +
+  'numbering, counted as findings by neither the total nor --strict.',
 )
 console.log(
   'Nothing here has been changed. Topic-hierarchy damage is repaired at read ' +
