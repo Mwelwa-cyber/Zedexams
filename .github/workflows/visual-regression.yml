@@ -112,14 +112,17 @@ jobs:
           # changed-file set without granting this read-only job API write access.
           fetch-depth: 2
 
-      - name: Resolve full or targeted comparison scope
-        id: scope
-        run: node scripts/visual/resolveVisualPrScope.mjs
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+
+      - name: Prove baseline PR scope rules
+        run: node scripts/visual/baselinePrScope.test.js
+
+      - name: Resolve full or targeted comparison scope
+        id: scope
+        run: node scripts/visual/resolveVisualPrScope.mjs
 
       # Explicit, because ci.yml skips the puppeteer browser download globally and
       # a copied-in default would silently leave this job with no browser. The gate
