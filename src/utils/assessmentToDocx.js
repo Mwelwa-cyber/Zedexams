@@ -48,7 +48,7 @@ import {
 import { resolveFigureLabels, resolveAnswerKeyLabels } from './figureLabelLayout.js'
 import { seedBandForLevel } from './assessmentBandService.js'
 import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
-import { svgToPngBytes } from './svgRasterizer.js'
+import { svgToPngBytes, decodeImageBytes } from './svgRasterizer.js'
 import { hydrateTableData } from './tableData.js'
 import {
   parsePaperContent, contentToPlainText, columnWidth,
@@ -501,6 +501,12 @@ export function svgImageRun(svg, pngBytes, transformation, alt = '') {
 // never CORS-tainted. Returns { bytes, width, height } or null when there is
 // no DOM (e.g. the node test harness).
 async function decodeImage(bytes, type) {
+  // An injected decoder answers first. Without this the harness reached the
+  // jsdom path below, `Image.onload` never fired (jsdom does not decode image
+  // data), and every labelled diagram lost its label layer while still
+  // embedding the plain figure — silently.
+  const injected = await decodeImageBytes(bytes, MIME_BY_TYPE[type] || 'application/octet-stream')
+  if (injected !== undefined) return injected
   if (typeof document === 'undefined' || typeof Image === 'undefined' || !globalThis.URL?.createObjectURL) {
     return null
   }
@@ -865,11 +871,6 @@ async function diagramLabelImageParagraph(url, labels, opts = {}) {
     // decodeImage transcodes WEBP→PNG; everything else keeps its original mime.
     const mime = type === 'webp' ? 'image/png' : (MIME_BY_TYPE[type] || 'image/png')
     const href = `data:${mime};base64,${bytesToBase64(decoded.bytes)}`
-    const svg = buildDiagramIdentifySvg({
-      href, width: decoded.width, height: decoded.height, labels,
-      mode: opts.mode || 'identify',
-      answerKey: Boolean(opts.answerKey),
-    })
     // The level's minimum figure size applies here too. Slice 4 wired it into
     // the plain-image path only, which left the labelled diagrams — exactly the
     // figures an Early Childhood paper is made of — printing at whatever the
@@ -880,6 +881,21 @@ async function diagramLabelImageParagraph(url, labels, opts = {}) {
       aspect: decoded.width / decoded.height,
       widthPercent: opts.widthPreset ? resolveImageWidthPercent(opts.widthPreset) : 100,
       band: currentBand,
+    })
+    // Drawn at the size it will PRINT at, not at the source image's size.
+    //
+    // The marker radius and font size are proportions of the canvas with an
+    // absolute floor (`max(9, …)`, `max(10, …)`) so they stay legible on a small
+    // figure. Built against a 96px source those floors ARE the size — a
+    // radius-9 disc is a fifth of a 96px canvas — and rasterising to the print
+    // box then magnified them: four numbers that buried the diagram they point
+    // at, and a marking key whose "Right atrium" pill was wider than the figure.
+    // Building at the print size lets the proportions govern and leaves the
+    // floors doing what they were written for, protecting a genuinely tiny one.
+    const svg = buildDiagramIdentifySvg({
+      href, width: fit.rasterWidth, height: fit.rasterHeight, labels,
+      mode: opts.mode || 'identify',
+      answerKey: Boolean(opts.answerKey),
     })
     const pngBytes = await svgToPngBytes(svg, fit.rasterWidth, fit.rasterHeight)
     const run = imageRun(pngBytes, fit, opts.alt || '')
@@ -1326,6 +1342,22 @@ async function renderQuestion(b, stats = null) {
         answerKey: Boolean(b.showAnswer),
       })
       composited = Boolean(img)
+      // A figure that lost its LABEL layer is not a healthy figure, and until
+      // this line it was reported as one: the plain image still embedded, so
+      // `failedImages` stayed empty and `unresolvedFigures` stayed at zero
+      // while a §4.3 marking key came out byte-identical to the learner's copy.
+      // A paper that asks a learner to name parts nothing points at is a worse
+      // failure than a missing picture, because it looks fine.
+      if (!composited) {
+        recordUnresolvedFigure(stats, {
+          kind: 'diagram_labels',
+          questionNumber: b.number ?? null,
+          stage: 'composite',
+          reason: 'the label layer could not be composited onto the figure, so the '
+            + 'figure was embedded without its markers',
+          label: b.imageAlt || '',
+        })
+      }
     }
     if (!img) img = await imageParagraph(b.imageUrl, { alt: b.imageAlt || '', widthPreset: b.imageWidth })
     if (!img) recordImageFailure(stats, b.imageAlt || (b.number != null ? `question ${b.number}` : ''))

@@ -21,6 +21,7 @@
 import assert from 'node:assert/strict'
 import {
   setSvgRasterizer, resetSvgRasterizer, hasInjectedRasterizer, svgToPngBytes,
+  setImageDecoder, resetImageDecoder, hasInjectedDecoder, decodeImageBytes,
 } from './svgRasterizer.js'
 
 let passed = 0
@@ -126,6 +127,75 @@ test('resetting restores the browser path', () => {
   assert.equal(hasInjectedRasterizer(), true)
   resetSvgRasterizer()
   assert.equal(hasInjectedRasterizer(), false)
+})
+
+/* ── the decoder seam ────────────────────────────────────────────────────── */
+
+console.log('\n— the decoder seam —')
+
+await asyncTest('nothing injected means "take the browser path", not "failed"', async () => {
+  // undefined and null are different answers on purpose. undefined = no decoder
+  // installed; null = a decoder saying these bytes are not a readable image.
+  // Collapsing them would make the exporter retry a browser that is not there.
+  assert.equal(hasInjectedDecoder(), false)
+  assert.equal(await decodeImageBytes(PNG, 'image/png'), undefined)
+})
+
+await asyncTest('an injected decoder answers instead of the browser', async () => {
+  setImageDecoder(async () => ({ bytes: PNG, width: 96, height: 48 }))
+  try {
+    assert.deepEqual(await decodeImageBytes(PNG, 'image/png'), { bytes: PNG, width: 96, height: 48 })
+  } finally {
+    resetImageDecoder()
+  }
+})
+
+await asyncTest('a decoder may say "not an image" and that is a real verdict', async () => {
+  setImageDecoder(async () => null)
+  try {
+    assert.equal(await decodeImageBytes(PNG, 'image/png'), null, 'null, not undefined')
+  } finally {
+    resetImageDecoder()
+  }
+})
+
+await asyncTest('a decoder returning no usable size is rejected, not embedded', async () => {
+  // A zero-sized composite is a blank box in Word. Checked rather than trusted,
+  // for the same reason the rasteriser's output is.
+  for (const bad of [{ bytes: PNG, width: 0, height: 10 }, { bytes: PNG, width: 10, height: NaN }]) {
+    setImageDecoder(async () => bad)
+    try {
+      await assert.rejects(() => decodeImageBytes(PNG, 'image/png'), /no usable size/)
+    } finally {
+      resetImageDecoder()
+    }
+  }
+})
+
+await asyncTest('a decoder returning something that is not bytes is rejected', async () => {
+  setImageDecoder(async () => ({ bytes: 'a png, honestly', width: 10, height: 10 }))
+  try {
+    await assert.rejects(() => decodeImageBytes(PNG, 'image/png'), /did not return image bytes/)
+  } finally {
+    resetImageDecoder()
+  }
+})
+
+test('the decoder seam cannot be filled with nonsense either', () => {
+  assert.throws(() => setImageDecoder('a decoder, honestly'), TypeError)
+  assert.equal(hasInjectedDecoder(), false, 'and nothing is left installed')
+})
+
+test('the two seams are independent', () => {
+  // They failed together in the harness and were fixed one at a time; a shared
+  // flag would have made installing one silently satisfy the other's assertion.
+  setSvgRasterizer(async () => PNG)
+  try {
+    assert.equal(hasInjectedRasterizer(), true)
+    assert.equal(hasInjectedDecoder(), false)
+  } finally {
+    resetSvgRasterizer()
+  }
 })
 
 console.log(`\n✓ svg rasteriser seam — ${passed} tests passed`)

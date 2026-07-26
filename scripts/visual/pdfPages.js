@@ -363,6 +363,51 @@ export async function rasteriseSvgToPng(svg, width, height, opts = {}) {
   }
 }
 
+/**
+ * Decode image bytes the way a browser would, and report their real size.
+ *
+ * The twin of `rasteriseSvgToPng`, and it exists for the same reason: the
+ * shipping exporter needs a browser here, jsdom is not one, and without this
+ * the exporter quietly embedded every labelled diagram WITHOUT its labels.
+ *
+ * Returns null — not a throw — when the bytes are not a decodable image, so the
+ * exporter's existing "this is not a picture" path still runs. A throw is
+ * reserved for the browser itself failing, which is an infrastructure problem
+ * and must not be mistaken for a bad image.
+ */
+export async function decodeImageInBrowser(bytes, mime, opts = {}) {
+  const { browser, close } = await resolveBrowser(opts)
+  const page = await browser.newPage()
+  try {
+    await page.setRequestInterception(true)
+    page.on('request', (req) => {
+      if (req.url().startsWith('data:') || req.url() === 'about:blank') return req.continue()
+      return req.abort()
+    })
+    const base64 = Buffer.from(bytes).toString('base64')
+    const size = await page.evaluate(async (b64, type) => {
+      const img = new Image()
+      img.decoding = 'sync'
+      const ok = await new Promise((resolve) => {
+        img.onload = () => resolve(true)
+        img.onerror = () => resolve(false)
+        img.src = `data:${type};base64,${b64}`
+      })
+      if (!ok) return null
+      return { width: img.naturalWidth || img.width || 0, height: img.naturalHeight || img.height || 0 }
+    }, base64, mime || 'image/png')
+    if (!size || !size.width || !size.height) return null
+    // The bytes are returned unchanged. The browser path only transcodes WEBP,
+    // and the fixtures carry PNG — transcoding here would make the harness
+    // embed different bytes from the ones a teacher's browser embeds, which is
+    // the fidelity this seam exists to preserve.
+    return { bytes, width: size.width, height: size.height }
+  } finally {
+    await page.close().catch(() => {})
+    if (close) await close()
+  }
+}
+
 /** Open a browser if the caller did not supply one, and say who must close it. */
 async function resolveBrowser(opts) {
   if (opts.browser) return { browser: opts.browser, close: null }
