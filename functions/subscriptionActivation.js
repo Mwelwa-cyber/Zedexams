@@ -350,7 +350,7 @@ async function activateSubscriptionFromPayment({
         : "Your subscription is now active. Enjoy full access to ZedExams.",
       priority: "medium",
       icon: "credit-card",
-      action: {label: "View account", url: "/subscription"},
+      action: {label: "View account", url: "/my-subscription"},
       dedupeKey: `payment-success-${paymentId}`,
       source: "subscription-activation",
     });
