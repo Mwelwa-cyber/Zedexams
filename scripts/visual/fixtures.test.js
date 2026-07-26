@@ -108,7 +108,7 @@ test('exactly one fixture is grayscale, and it is the photocopy one', () => {
 
 test('the multi-page fixture really expects more than one page', () => {
   const multi = fixtureById('vr-006')
-  assert.ok(multi.expectedPageCount > 1)
+  assert.ok(multi.minPages > 1)
   assert.ok(Object.keys(multi.expectedAnchorPages).length >= 2, 'with declared page membership')
 })
 
@@ -170,7 +170,7 @@ test('the contract requires each declaration, not just the data', () => {
   const base = fixtureById('vr-001')
   const cases = {
     'permanent vr-NNN': { id: 'fractions' },
-    'no expected page count': { expectedPageCount: 0 },
+    'no minimum page count': { minPages: 0 },
     'trailing blank page': { forbidTrailingBlankPage: undefined },
     'grayscale mode': { grayscale: undefined },
     'no printed feature': { protects: [] },

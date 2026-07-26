@@ -15,10 +15,12 @@
  */
 
 import assert from 'node:assert/strict'
+import { existsSync, readFileSync } from 'node:fs'
 import {
   RenderEnvironmentError, RENDER_SETTINGS, CHROMIUM_FLAGS, LIBREOFFICE_ARGS,
   captureRenderEnvironment, baselineIdentity, assertComparableEnvironment,
   assertToolchain, chromiumVersion, libreOfficeVersion, fontDigest,
+  resolveRenderChromium,
 } from './renderEnvironment.js'
 
 let passed = 0
@@ -228,5 +230,92 @@ test('the probes return a version or an empty string, never throw', () => {
   // A probe of a real path that is not a browser must also not throw.
   assert.equal(typeof libreOfficeVersion('/bin/true'), 'string')
 })
+
+console.log('\n— the sandbox flag is added where the sandbox cannot work —')
+
+const { chromiumLaunchFlags, sandboxUnavailable } = await import('./pdfPages.js')
+
+test('the pinned flag list never disables the sandbox on its own', () => {
+  // A machine that CAN isolate the browser keeps doing so. The flag is a
+  // concession to an environment, not part of the render identity.
+  assert.ok(!CHROMIUM_FLAGS.some((f) => /no-sandbox/.test(f)))
+})
+
+test('a root process gets the flag, because Chromium will not sandbox as root', () => {
+  const before = process.env.VISUAL_CHROMIUM_SANDBOX
+  process.env.VISUAL_CHROMIUM_SANDBOX = 'off'
+  try {
+    assert.ok(sandboxUnavailable())
+    assert.ok(chromiumLaunchFlags().includes('--no-sandbox'))
+  } finally {
+    if (before === undefined) delete process.env.VISUAL_CHROMIUM_SANDBOX
+    else process.env.VISUAL_CHROMIUM_SANDBOX = before
+  }
+})
+
+test('a usable sandbox keeps it', () => {
+  const before = process.env.VISUAL_CHROMIUM_SANDBOX
+  process.env.VISUAL_CHROMIUM_SANDBOX = 'on'
+  try {
+    assert.ok(!sandboxUnavailable())
+    assert.ok(!chromiumLaunchFlags().includes('--no-sandbox'))
+  } finally {
+    if (before === undefined) delete process.env.VISUAL_CHROMIUM_SANDBOX
+    else process.env.VISUAL_CHROMIUM_SANDBOX = before
+  }
+})
+
+test('an AppArmor userns restriction counts as no sandbox, uid aside', () => {
+  // The case that crashed CI: a NON-root process on Ubuntu 23.10+ where
+  // unprivileged user namespaces are restricted. Checking only for root passed
+  // in the container and aborted on the runner — so the answer is asserted
+  // against BOTH signals on whatever machine this runs on.
+  const file = '/proc/sys/kernel/apparmor_restrict_unprivileged_userns'
+  const restricted = existsSync(file) && readFileSync(file, 'utf8').trim() === '1'
+  const asRoot = typeof process.getuid === 'function' && process.getuid() === 0
+  assert.equal(
+    sandboxUnavailable(),
+    asRoot || restricted,
+    `root=${asRoot} apparmor-restricted=${restricted}`,
+  )
+})
+
+console.log('\n— the browser that renders is the browser that is recorded —')
+
+await (async () => {
+  // The bug this pins cost a red CI run and, worse, produced local baselines
+  // stamped with a version that drew none of the pages. `executablePath()` is
+  // ASYNC; calling it synchronously yields a pending Promise, which then failed a
+  // path check silently and fell back to an unrelated browser on disk. So the
+  // resolver must hand back a string, and a non-empty one must be a real file.
+  const resolved = await resolveRenderChromium()
+  test('the resolver returns a string, not a promise', () => {
+    assert.equal(typeof resolved, 'string')
+  })
+  test('a resolved path exists on disk', () => {
+    if (resolved) assert.ok(existsSync(resolved), `${resolved} does not exist`)
+  })
+  test('the recorded version comes from that same binary', () => {
+    const environment = captureRenderEnvironment({ chromiumPath: resolved })
+    if (!resolved) {
+      // No browser is a legitimate state, and it must read as absent rather than
+      // as some other browser's version.
+      assert.equal(environment.chromium, '')
+      return
+    }
+    assert.equal(environment.chromiumPath, resolved)
+    assert.equal(environment.chromium, chromiumVersion(resolved))
+    assert.ok(environment.chromium, 'a resolved browser must report a version')
+  })
+  test('an unresolved browser is refused rather than guessed at', () => {
+    const environment = captureRenderEnvironment({ chromiumPath: '/definitely/not/here' })
+    assert.equal(environment.chromium, '')
+    assert.throws(
+      () => assertToolchain(['browser-print'], environment),
+      /Chromium/,
+      'a missing browser is an infrastructure failure',
+    )
+  })
+})()
 
 console.log(`\n✓ render environment — ${passed} tests passed`)

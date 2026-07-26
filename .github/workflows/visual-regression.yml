@@ -1,0 +1,150 @@
+name: Visual regression
+
+# The §4.6 rendering gate. READ-ONLY with respect to committed baselines — this
+# workflow can fail a pull request and can never change what it is comparing
+# against. Updating a baseline is a separate, privileged, reviewed action
+# (visual-baseline-update.yml).
+#
+# ## Why it does not run on every push
+#
+# Rendering eight papers through Chromium and LibreOffice is expensive next to a
+# unit test, and most pull requests cannot possibly change what a paper looks
+# like. So the paths below are an OPTIMISATION: they name everything that can
+# affect printed output, directly or as a shared dependency.
+#
+# An optimisation is not a guarantee. An indirect dependency can always be
+# missed, so `force` on workflow_dispatch runs the identical job regardless of
+# what changed — for a reviewer who suspects rendering is affected by something
+# not on the list.
+#
+# ## The workflow watches itself
+#
+# `.github/workflows/visual-regression.yml` and the baseline metadata are in the
+# path list on purpose. Without that, a pull request could weaken this gate —
+# widen a tolerance, drop a fixture, remove a path — WITHOUT running the gate
+# that proves it is still safe. Editing the gate must exercise the gate.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      # ── The renderers themselves ──────────────────────────────────────────
+      - 'src/utils/assessmentToDocx.js'
+      - 'src/utils/assessmentToPdf.js'
+      - 'src/utils/assessmentPaperLayout.js'
+      - 'src/utils/assessmentAnswerSheet.js'
+      - 'src/utils/sbaTaskToDocx.js'
+      - 'src/utils/sbaTaskToPdf.js'
+      - 'src/utils/htmlToPdf.js'
+      - 'src/components/teacher/views/PaperBlocks.jsx'
+      - 'src/components/teacher/views/AssessmentPaperView.jsx'
+      # ── Paper content, maths typesetting and print styling ────────────────
+      - 'src/utils/paperContentModel.js'
+      - 'src/utils/latexToUnicode.js'
+      - 'src/utils/quizRichText.js'
+      - 'src/editor/utils/safeRender.js'
+      - 'src/editor/extensions/MathFraction.js'
+      - 'src/editor/extensions/NumberBase.js'
+      - 'src/editor/extensions/VerticalArithmetic.js'
+      - 'src/components/teacher/studio/assessmentStudio.css'
+      - 'src/**/*print*.css'
+      # ── Diagrams, figures and the ink they use ────────────────────────────
+      - 'src/components/diagrams/**'
+      - 'src/utils/figureSizing.js'
+      - 'src/utils/figureLabelLayout.js'
+      - 'src/utils/figureContrast.js'
+      - 'src/utils/monochrome.js'
+      - 'src/utils/imageWidth.js'
+      - 'src/utils/svgRasterizer.js'
+      # ── Terminology that changes printed wording ──────────────────────────
+      - 'src/config/paperTerminology.js'
+      - 'src/config/paperTaxonomy.js'
+      - 'src/config/assessmentBands.js'
+      - 'src/config/educationLevels.js'
+      # ── Fonts and print assets ───────────────────────────────────────────
+      - 'public/fonts/**'
+      - 'src/assets/print/**'
+      # ── The gate itself: fixtures, comparison modules, baselines, workflow ─
+      - 'scripts/visual/**'
+      - 'tests/visual/baselines/**'
+      - '.github/workflows/visual-regression.yml'
+      - '.github/workflows/visual-baseline-update.yml'
+      # ── Dependency changes can move a renderer under us ──────────────────
+      - 'package-lock.json'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Run the full visual suite regardless of which paths changed'
+        type: boolean
+        default: true
+
+concurrency:
+  group: visual-${{ github.ref }}
+  cancel-in-progress: true
+
+# Read-only. This workflow needs to read the repository and write a check
+# result; it has no business writing to the repository, and the baseline update
+# path deliberately lives in another workflow with its own permissions.
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: Visual regression (Chromium + LibreOffice)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Explicit, because ci.yml skips the puppeteer browser download globally and
+      # a copied-in default would silently leave this job with no browser. The gate
+      # renders with the browser puppeteer downloads here, and records ITS version.
+      - name: Install dependencies
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "false"
+        run: npm ci
+
+      # The renderers. Pinned via the runner image plus the recorded version in
+      # every comparison summary — a version change is an environment error
+      # rather than several hundred unexplained page failures.
+      - name: Install LibreOffice
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libreoffice-writer fonts-liberation
+
+      - name: Record the rendering environment
+        run: node scripts/visual/reportEnvironment.mjs
+
+      # Fixtures validate their own contents BEFORE anything renders: a fixture
+      # whose subject was deleted must fail here, not render a consistent paper
+      # with nothing in it and report green.
+      - name: Validate fixtures
+        run: node scripts/visual/validateFixtures.mjs
+
+      # ONE implementation, whichever way the job was triggered. `force` changes
+      # nothing about what runs — the path filter decided whether we got here,
+      # not what happens now.
+      - name: Compare against baselines
+        id: compare
+        run: node scripts/visual/runVisualGate.mjs --mode=compare
+
+      # Uploaded even on failure — especially on failure. A reviewer must be able
+      # to see the whole candidate document and the complete page set, not only
+      # the pages that changed, because surrounding pagination is what explains
+      # a move.
+      - name: Upload comparison artefacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-regression-${{ github.run_id }}
+          path: |
+            tests/visual/output/**
+          retention-days: 14
+          if-no-files-found: warn

@@ -33,6 +33,8 @@
  * key on the ID, so a fixture can be retitled without orphaning its baselines.
  */
 
+import { getDiagram, renderDiagramSvg } from '../../src/components/diagrams/diagramCatalog.js'
+
 /** Every rendering target a fixture can declare. */
 export const RENDER_TARGETS = ['browser-print', 'docx']
 
@@ -54,26 +56,59 @@ const LOGO_DATA_URI = 'data:image/png;base64,'
   + '/3AtYUBzVwEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgD8dLwADAV0/EwAAAABJ'
   + 'RU5ErkJggg=='
 
-/** A deterministic enlarged SVG: fine diagonals, curves, arrowheads, labels. */
-const ENLARGED_SVG = {
-  libraryKey: 'vr-enlarged-vector',
-  params: {},
-  // Committed inline so the fixture cannot depend on the catalog changing.
-  svg: [
-    '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80">',
-    // Fine diagonals — the case that exposes raster fallback and resampling.
-    '<path d="M4 76 L116 4" stroke="#1c1612" stroke-width="0.4" fill="none"/>',
-    '<path d="M4 4 L116 76" stroke="#1c1612" stroke-width="0.4" fill="none"/>',
-    // A curve.
-    '<path d="M10 60 Q60 10 110 60" stroke="#1c1612" stroke-width="0.6" fill="none"/>',
-    // An arrowhead: three thin strokes meeting, which blurs first under raster.
-    '<path d="M100 40 L110 40 M110 40 L106 36 M110 40 L106 44"'
-    + ' stroke="#1c1612" stroke-width="0.5" fill="none"/>',
-    // Small text — 3px, deliberately at the edge of legibility.
-    '<text x="12" y="20" font-size="3" font-family="Arial" fill="#1c1612">axis</text>',
-    '<text x="90" y="70" font-size="3" font-family="Arial" fill="#1c1612">50 mm</text>',
-    '</svg>',
-  ].join(''),
+/**
+ * A committed, inked diagram. A data URI, for the same reason as the logo.
+ *
+ * It replaced the logo, which the diagram fixtures were reusing as their figure
+ * — and the logo is a 16×16 near-blank PNG, so the "labelled diagram" fixtures
+ * rendered a figure with no visible ink at all. Their own `requires` predicates
+ * passed, because those check the fixture DATA: labels present, leader
+ * coordinates finite, identify mode set. Every one of those was true of a paper
+ * whose diagram printed nothing.
+ *
+ * So this one is drawn: an outline with a chamfered corner, internal divisions,
+ * two vessels leaving the top and a hatched region — thin strokes and small
+ * detail, which is what the fixtures exist to watch, and enough distinct parts
+ * for four leader lines to point at different places.
+ */
+const DIAGRAM_DATA_URI = 'data:image/png;base64,'
+  + 'iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAAB6UlEQVR4Ae3BMW4jUQxEweeG'
+  + 'bsCAEe9/sB8x+GfwOhlgQlszBmVtV318fsHGCBslhlQGr6QymCBslLBRwkYJGyVslLBRwkZ9'
+  + 'fH7hCZXB/2b15m4PLli9eRWVwerNb6oMVm/uJOzbVm8qgzsJGyXsR1ZvKoO7CPux1ZvK4A7C'
+  + 'nrJ6UxlcJWyUsKet3lQGVwi7ZPWmMniWsMtWbyqDZwgbJewWqzeVwU8Ju83qTWXwE8JutXpT'
+  + 'GXyXsFHCbrd6Uxl8h7BRwkYJGyVslLBRwkYJGyVslLBRwkYJGyVslLBRwkYJGyVslLBRwkYJ'
+  + 'G/XggsrArnlwwerNq6gM/iJho4SNEjZK2KgHb6Qy+GsevJHVm1dRGXyHsFHCRgkbJWyUsFHC'
+  + 'RombVQZnlcFZZXBWGZxVBmeVwVll8E6EjRI2StgocbPVm8rgsHpTGRxWbyqDw+pNZXBYvakM'
+  + 'Dqs3lcFh9aYyeBfCRgkbJWyUsFHCRgkbJX7B6k1lcFi9qQwOqzeVwWH1pjI4rN5UBofVm8rg'
+  + 'sHpTGbwDYaOEjRI2SvyS1Zuz1Zuz1Zuz1Zuz1Zuz1Zuz1Zt3IGyUsFHCRgkbJWyUsFEPLqgM'
+  + 'Xkll8Nc8eNLqjV0nbJSwUcJGCRslbJSwUcJGCRslbJSwUcJGCRv1Dx1HfuGpJcxiAAAAAElF'
+  + 'TkSuQmCC'
+
+/**
+ * The enlarged vector figure — a REAL catalog entry.
+ *
+ * This was an invented `libraryKey` with a hand-written SVG committed beside it,
+ * on the reasoning that a literal cannot drift when the catalog changes. It could
+ * not drift because it was never drawn: every exporter resolves `imageDiagram`
+ * through `libraryKey` and the catalog, so an unknown key renders nothing at all
+ * and the sibling `svg` field is dead data. Both fixtures using it printed no
+ * figure, in both renderer families — while four `requires` predicates went on
+ * passing, because they tested that dead string.
+ *
+ * `protractor` is the catalog's finest-detailed entry: sub-pixel radial ticks, an
+ * arc, and 10px numerals in a 300×184 viewBox — exactly the raster-fallback and
+ * resampling case this fixture exists to watch. The predicates below now assert
+ * against what the catalog RENDERS, so they are claims about the printed page.
+ */
+const ENLARGED_SVG = { libraryKey: 'protractor', params: {} }
+
+/** The geometry figure for the tables-and-graphs fixture: a marked angle. */
+const ANGLE_DIAGRAM = { libraryKey: 'triangleangle', params: {} }
+
+/** What the catalog actually draws for a fixture's figure. */
+const renderedFigure = (fixture) => {
+  const q = (fixture.questions || []).find((question) => question.imageDiagram?.libraryKey)
+  return q ? (renderDiagramSvg(q.imageDiagram.libraryKey, q.imageDiagram.params) || '') : ''
 }
 
 const vertical = (operator, lines, answer, working = false) =>
@@ -98,7 +133,7 @@ export const VISUAL_FIXTURES = [
       'small denominators',
       'marks printed beside a glyph',
     ],
-    expectedPageCount: 1,
+    minPages: 1,
     forbidTrailingBlankPage: true,
     grayscale: false,
     regions: [{ type: 'maths', anchor: 'question_1' }, { type: 'maths', anchor: 'question_2' }],
@@ -152,7 +187,7 @@ export const VISUAL_FIXTURES = [
       'the remainder',
       'an empty learner-working version',
     ],
-    expectedPageCount: 1,
+    minPages: 1,
     forbidTrailingBlankPage: true,
     grayscale: false,
     regions: [{ type: 'maths', anchor: 'question_1' }, { type: 'maths', anchor: 'question_2' }],
@@ -201,7 +236,7 @@ export const VISUAL_FIXTURES = [
       'aligned decimal points',
       'multiplication partial products',
     ],
-    expectedPageCount: 1,
+    minPages: 1,
     forbidTrailingBlankPage: true,
     grayscale: false,
     regions: [
@@ -264,7 +299,7 @@ export const VISUAL_FIXTURES = [
       'the labelled marking-scheme figure',
       'question-answer identity across both copies',
     ],
-    expectedPageCount: 1,
+    minPages: 1,
     forbidTrailingBlankPage: true,
     grayscale: false,
     regions: [
@@ -287,7 +322,7 @@ export const VISUAL_FIXTURES = [
       {
         id: 'q1', order: 1, type: 'diagram', marks: 4,
         text: '<p>Name the parts of the heart.</p>',
-        imageUrl: LOGO_DATA_URI,
+        imageUrl: DIAGRAM_DATA_URI,
         imageAlt: 'A diagram of the heart',
         diagramMode: 'identify',
         diagramLabels: [
@@ -319,7 +354,7 @@ export const VISUAL_FIXTURES = [
       'angle marks',
       'geometric shapes',
     ],
-    expectedPageCount: 1,
+    minPages: 1,
     forbidTrailingBlankPage: true,
     grayscale: false,
     regions: [
@@ -351,13 +386,15 @@ export const VISUAL_FIXTURES = [
       {
         id: 'q2', order: 2, type: 'short_answer', marks: 3,
         text: '<p>Find the size of the marked angle.</p>',
-        imageDiagram: ENLARGED_SVG,
+        imageDiagram: ANGLE_DIAGRAM,
       },
     ],
     requires: [
       ['a table with rules', (f) => f.questions.some((q) => (q.tableData?.rows || []).length >= 2)],
       ['a geometric figure', (f) => f.questions.some((q) => q.imageDiagram)],
-      ['axis or dimension labels', (f) => f.questions.some((q) => /text/.test(q.imageDiagram?.svg || ''))],
+      // Against the RENDERED figure, not a sibling field the exporters ignore.
+      ['axis or dimension labels', (f) => /<text[\s>]/.test(renderedFigure(f))],
+      ['an angle mark on the figure', (f) => /[ ]?[QAC]\s?\d/.test(renderedFigure(f))],
     ],
   },
 
@@ -372,7 +409,7 @@ export const VISUAL_FIXTURES = [
       'explicit page placement',
       'page numbering across pages',
     ],
-    expectedPageCount: 3,
+    minPages: 2,
     forbidTrailingBlankPage: true,
     grayscale: false,
     regions: [],
@@ -405,7 +442,7 @@ export const VISUAL_FIXTURES = [
     requires: [
       ['enough questions to span pages', (f) => f.questions.length >= 12],
       ['answer space on every question', (f) => f.questions.every((q) => Number(q.answerLines) > 0)],
-      ['more than one expected page', (f) => Number(f.expectedPageCount) > 1],
+      ['a paper that must span pages', (f) => Number(f.minPages) > 1],
       ['declared page membership', (f) => Object.keys(f.expectedAnchorPages || {}).length >= 2],
     ],
   },
@@ -422,7 +459,7 @@ export const VISUAL_FIXTURES = [
       'page numbering',
       'the school footer',
     ],
-    expectedPageCount: 1,
+    minPages: 1,
     forbidTrailingBlankPage: true,
     grayscale: false,
     regions: [{ type: 'header', anchor: 'header' }],
@@ -474,7 +511,7 @@ export const VISUAL_FIXTURES = [
       'small text inside a figure',
       'an enlarged SVG that must stay vector',
     ],
-    expectedPageCount: 1,
+    minPages: 1,
     forbidTrailingBlankPage: true,
     // The one fixture rendered in grayscale, because that is the sheet a Zambian
     // learner actually receives.
@@ -506,10 +543,20 @@ export const VISUAL_FIXTURES = [
     requires: [
       ['grayscale rendering', (f) => f.grayscale === true],
       ['an enlarged vector figure', (f) => f.questions.some((q) => q.imageDiagram && q.imageWidth === 'large')],
-      ['fine diagonals', (f) => /stroke-width="0\.[0-9]/.test(f.questions[0]?.imageDiagram?.svg || '')],
-      ['a curve', (f) => / Q\d/.test(f.questions[0]?.imageDiagram?.svg || '')],
-      ['small text in the figure', (f) => /font-size="[1-4]"/.test(f.questions[0]?.imageDiagram?.svg || '')],
-      ['a known viewBox', (f) => /viewBox="0 0 \d+ \d+"/.test(f.questions[0]?.imageDiagram?.svg || '')],
+      // Asserted against what the CATALOG DRAWS, not against a literal beside
+      // the key. The literal version of these four passed while the figure
+      // rendered as nothing.
+      ['fine strokes', (f) => /stroke-width="0?\.[0-9]/.test(renderedFigure(f))],
+      ['a curve', (f) => /[ ]?[QAC]\s?\d/.test(renderedFigure(f))],
+      ['text small relative to the figure', (f) => {
+        const svg = renderedFigure(f)
+        const box = /viewBox="0 0 [\d.]+ ([\d.]+)"/.exec(svg)
+        const size = /font-size="([\d.]+)"/.exec(svg)
+        // Small means small ON THE PAGE: a fixed pixel size means nothing without
+        // the viewBox it is scaled from.
+        return Boolean(box && size) && Number(size[1]) / Number(box[1]) < 0.1
+      }],
+      ['a known viewBox', (f) => /viewBox="0 0 [\d.]+ [\d.]+"/.test(renderedFigure(f))],
     ],
   },
 ]
@@ -537,7 +584,20 @@ export function validateFixture(fixture) {
   for (const t of targets) {
     if (!RENDER_TARGETS.includes(t)) problems.push(`unknown rendering target "${t}"`)
   }
-  if (!(Number(fixture.expectedPageCount) > 0)) problems.push('no expected page count')
+  // A FLOOR, not an exact count.
+  //
+  // It was an exact count, hand-written, and both things wrong with that showed
+  // up at once: the number was a guess that the renderer disagreed with, and the
+  // two renderer families legitimately disagreed with EACH OTHER — one fixture
+  // fitted in 3 pages through LibreOffice and needed 5 through Chromium. A single
+  // number cannot be right for both, and an exact count per family would be an
+  // un-measurable claim on any machine missing one of them.
+  //
+  // The exact count is owned by the BASELINE, where it is measured rather than
+  // asserted, and `comparePagination` reports a change to it separately and
+  // loudly. What the fixture states here is the structural intent the baseline
+  // cannot express: this paper is meant to span pages, or to fit on one.
+  if (!(Number(fixture.minPages) > 0)) problems.push('no minimum page count')
   if (typeof fixture.forbidTrailingBlankPage !== 'boolean') {
     problems.push('must state whether a trailing blank page is forbidden')
   }
@@ -573,6 +633,29 @@ export function validateFixture(fixture) {
   const withoutNamespaces = serialised.replace(/xmlns(:\w+)?=\\?"[^"\\]*\\?"/g, '')
   for (const url of withoutNamespaces.match(/https?:\/\/[^"'\\ )]+/g) || []) {
     problems.push(`fixture data reaches the network: ${url}`)
+  }
+
+  // A figure must name a diagram the catalog can actually draw.
+  //
+  // The exporters resolve `imageDiagram` through `libraryKey` and the catalog and
+  // ignore anything else on the object, so an unknown key prints NO FIGURE — on a
+  // fixture whose whole purpose is a figure, in both renderer families, with every
+  // `requires` predicate still passing because they tested a sibling field the
+  // renderer never reads. Checked here, before rendering, because that is the last
+  // point at which the answer is cheap.
+  for (const question of fixture.questions || []) {
+    const key = question?.imageDiagram?.libraryKey
+    if (!key) continue
+    if (!getDiagram(key)) {
+      problems.push(
+        `question ${question.id || '?'} names diagram "${key}", which is not in the `
+        + 'catalog — it would print no figure at all',
+      )
+      continue
+    }
+    if (!renderDiagramSvg(key, question.imageDiagram.params)) {
+      problems.push(`diagram "${key}" is in the catalog but rendered nothing`)
+    }
   }
 
   // The part that matters: is the fixture's purpose still in its data?

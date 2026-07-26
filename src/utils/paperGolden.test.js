@@ -39,7 +39,7 @@ globalThis.Node = dom.window.Node
 
 const { Packer, Document, Paragraph } = await import('docx')
 const { unzipSync, strFromU8 } = await import('fflate')
-const { buildAssessmentDocument, svgImageRun } = await import('./assessmentToDocx.js')
+const { buildAssessmentDocument, svgImageRun, unresolvedFigureMessage } = await import('./assessmentToDocx.js')
 const { richTextToPaperHtml } = await import('../editor/utils/safeRender.js')
 const { clearImageBytesCache } = await import('./fetchImageBytes.js')
 const { findForbiddenTerms } = await import('../config/paperTerminology.js')
@@ -617,6 +617,100 @@ console.log('\nGOLDEN — the Word download is a real .docx (§4.4)')
     xml.includes('http://schemas.openxmlformats.org/wordprocessingml/2006/main'),
     'the document declares the WordprocessingML namespace',
   )
+}
+
+console.log('\nGOLDEN — a library diagram: failure is visible, success is real')
+{
+  // The defect these two halves pin: a library diagram that could not be
+  // rasterised was dropped from the Word file with no trace. A teacher
+  // downloaded a paper whose question referred to a figure that was not there,
+  // and nothing said so — not the file, not the studio, not a log line. The
+  // fetched-image path had a dashed-red placeholder for exactly this; the
+  // library-diagram path silently omitted.
+  const { setSvgRasterizer, resetSvgRasterizer } = await import('./svgRasterizer.js')
+  const meta = { title: 'Shape Test', subject: 'Mathematics', grade: '8', date: '2026-01-15' }
+  const questions = [{
+    id: 'q1', order: 1, type: 'short_answer', marks: 3,
+    text: '<p>Find the size of the marked angle.</p>',
+    imageDiagram: { libraryKey: 'triangleangle', params: {} },
+  }]
+
+  // ── half one: no rasteriser (jsdom has no canvas) ──────────────────────
+  resetSvgRasterizer()
+  const failStats = { failedImages: [], unresolvedFigures: [] }
+  const failedZip = unzipSync(new Uint8Array(await Packer.toBuffer(
+    await buildAssessmentDocument(meta, questions, { mode: 'paper', stats: failStats }),
+  )))
+  const failedXml = strFromU8(failedZip['word/document.xml'])
+  assert(
+    failedXml.includes('Figure could not be embedded'),
+    'a diagram that cannot be rasterised prints the dashed-red placeholder',
+  )
+  assert(
+    !/<w:drawing>/.test(failedXml),
+    'and no drawing is embedded — the placeholder is not a diagram',
+  )
+  assert(failStats.unresolvedFigures.length === 1, 'the failure is recorded once')
+  const entry = failStats.unresolvedFigures[0]
+  assert(entry.diagramKey === 'triangleangle', 'the diagnostic names the diagram key')
+  assert(entry.stage === 'rasterise', `the diagnostic names the failure stage — got "${entry.stage}"`)
+  assert(entry.questionNumber === 1, 'the diagnostic names the question')
+  assert(
+    unresolvedFigureMessage(entry).startsWith('Question 1 requires a diagram'),
+    'the message a teacher reads names the question',
+  )
+  assert(failStats.failedImages.length === 1, 'the existing failure counter still counts it')
+
+  // A diagram key the catalog does not have fails at a DIFFERENT stage, because
+  // "the catalog has no such shape" and "the browser could not draw it" call for
+  // different fixes.
+  const unknownStats = { failedImages: [], unresolvedFigures: [] }
+  await Packer.toBuffer(await buildAssessmentDocument(
+    meta,
+    [{ ...questions[0], imageDiagram: { libraryKey: 'no-such-diagram', params: {} } }],
+    { mode: 'paper', stats: unknownStats },
+  ))
+  assert(
+    unknownStats.unresolvedFigures[0]?.stage === 'catalog',
+    'an unknown diagram key is reported at the catalog stage',
+  )
+
+  // ── half two: a working rasteriser ─────────────────────────────────────
+  // The placeholder proves failure is visible; this proves the success path
+  // actually embeds a figure. Injected rather than mocked away: the exporter's
+  // own code runs, and only the pixels a browser would have drawn are supplied.
+  setSvgRasterizer(async () => PNG_1x1)
+  try {
+    const okStats = { failedImages: [], unresolvedFigures: [] }
+    const okZip = unzipSync(new Uint8Array(await Packer.toBuffer(
+      await buildAssessmentDocument(meta, questions, { mode: 'paper', stats: okStats }),
+    )))
+    const okXml = strFromU8(okZip['word/document.xml'])
+    const media = Object.keys(okZip).filter((n) => /^word\/media\//.test(n))
+    assert(okStats.unresolvedFigures.length === 0, 'nothing is unresolved when rasterisation works')
+    assert(!okXml.includes('Figure could not be embedded'), 'and no placeholder is printed')
+    assert(/<w:drawing>/.test(okXml), 'the Word file contains a drawing')
+    assert(okXml.includes('svgBlip'), 'the SVG representation is declared (§4.2)')
+    assert(media.some((n) => /\.svg$/i.test(n)), 'the SVG part is embedded')
+    assert(media.some((n) => /\.png$/i.test(n)), 'the PNG fallback is embedded alongside it')
+    assert(
+      /Target="media\/[^"]+"/.test(strFromU8(okZip['word/_rels/document.xml.rels'] || new Uint8Array())),
+      'the image relationship is declared, so the drawing is not a blank box',
+    )
+
+    // A rasteriser that answers with something that is not PNG bytes must fail
+    // rather than embed a corrupt image — which in Word is an empty frame, the
+    // exact silent failure this change exists to end.
+    setSvgRasterizer(async () => 'not bytes')
+    const badStats = { failedImages: [], unresolvedFigures: [] }
+    await Packer.toBuffer(await buildAssessmentDocument(meta, questions, { mode: 'paper', stats: badStats }))
+    assert(
+      badStats.unresolvedFigures[0]?.stage === 'rasterise',
+      'a rasteriser returning non-PNG data is reported, not embedded',
+    )
+  } finally {
+    resetSvgRasterizer()
+  }
 }
 
 console.log(
