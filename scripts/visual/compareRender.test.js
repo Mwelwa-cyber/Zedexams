@@ -135,7 +135,7 @@ test('a lost decimal point DOES fail, though it moves almost no percentage', () 
   const r = comparePages(a, b)
   assert.equal(r.changed, true)
   assert.ok(
-    r.reasons.some((m) => /connected pixels changed together/.test(m)),
+    r.reasons.some((m) => /connected ink pixels changed together/.test(m)),
     `failed for the right reason: ${r.reasons.join('; ')}`,
   )
   assert.equal(r.largestCluster, 9)
@@ -148,7 +148,7 @@ test('…and it fails on the CLUSTER, not on the page fraction', () => {
   const r = comparePages(a, page(400, 400))
   assert.ok(r.significantFraction < 0.0001, `fraction is negligible (${r.significantFraction})`)
   assert.equal(r.changed, true, 'and it still fails')
-  assert.ok(r.reasons.some((m) => /connected pixels/.test(m)))
+  assert.ok(r.reasons.some((m) => /connected ink pixels/.test(m)))
 })
 
 test('an isolated speck is left to the noise budget', () => {
@@ -225,6 +225,65 @@ test('a changed symbol is caught even at the same ink volume', () => {
   const minus = paint(page(), 20, 16, 9, 1)
   const r = comparePages(plus, minus, { strictRegions: strict })
   assert.equal(r.changed, true, r.reasons.join('; '))
+})
+
+/* ── the connectivity traps ─────────────────────────────────────────────── */
+
+console.log('\n— connectivity —')
+
+test('a diagonal stroke is ONE defect, not a row of harmless pixels', () => {
+  // Four-connectivity would fragment the slash of a fraction or the leg of an
+  // arrowhead into single pixels, each below every limit.
+  const a = page()
+  for (let i = 0; i < 9; i += 1) paint(a, 20 + i, 30 - i, 1, 1)
+  const r = comparePages(a, page())
+  assert.equal(r.largestCluster, 9, 'the whole stroke is one cluster')
+  assert.equal(r.changed, true, r.reasons.join('; '))
+})
+
+test('a tapered missing line stays whole instead of fragmenting', () => {
+  // A real anti-aliased hairline has a full-amplitude centre and faint ends. If
+  // only significant pixels could connect, the faint pixels would cut it into
+  // pieces below the limit — the defect present but unreported.
+  const a = page()
+  // 245/235 differ from white by 10/20 — under the ink threshold, so they are
+  // the taper. The dark middle is the ink. Levels chosen so the classification
+  // is checked rather than assumed.
+  const line = [245, 235, 60, 20, 20, 20, 20, 60, 235, 245]
+  for (let i = 0; i < line.length; i += 1) {
+    const level = line[i]
+    const px = ((30 * a.width) + (15 + i)) * 4
+    a.data[px] = level
+    a.data[px + 1] = level
+    a.data[px + 2] = level
+  }
+  const r = comparePages(a, page())
+  // Only the dark middle pixels cross the ink threshold; the faint ends do not.
+  assert.ok(r.significantPixels < line.length, 'the ends really are below the ink threshold')
+  assert.ok(r.significantPixels >= CLUSTER_LIMIT, `and the centre is enough ink (${r.significantPixels})`)
+  assert.equal(r.largestCluster, r.significantPixels, 'the taper did not split the line')
+  assert.equal(r.changed, true, r.reasons.join('; '))
+})
+
+test('two nearby defects are NOT merged into one finding', () => {
+  // The other half of the same rule. Growing through adjacent difference must
+  // stop short of dilation, or two separate small defects would be reported as
+  // one larger one — and the count used to judge them would be wrong.
+  const a = page()
+  paint(a, 10, 10, 2, 2)
+  paint(a, 20, 10, 2, 2)   // ten pixels of untouched white between them
+  const r = comparePages(a, page())
+  assert.equal(r.significantPixels, 8, 'both defects are seen')
+  assert.equal(r.largestCluster, 4, 'but the largest cluster is one of them, not both')
+})
+
+test('a one-pixel-thick line across a distance fails in a maths region', () => {
+  // The owner's case: a fraction bar is thin but long. Thinness must not make it
+  // forgivable — a bar one pixel tall and twelve long is a whole symbol.
+  const a = paint(page(), 8, 20, 12, 1)
+  const r = comparePages(a, page(), { strictRegions: [{ x: 0, y: 0, width: 40, height: 40 }] })
+  assert.equal(r.changed, true, r.reasons.join('; '))
+  assert.ok(r.reasons.some((m) => /maths or label region/.test(m)), r.reasons.join('; '))
 })
 
 /* ── page size is never resampled away ──────────────────────────────────── */

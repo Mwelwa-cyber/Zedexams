@@ -30,6 +30,25 @@
  * ordinary paragraph text, because the ink that matters there is smaller. A
  * fixture declares those regions; anything undeclared uses the ordinary bar.
  *
+ * ## Connectivity, and why it bridges through noise
+ *
+ * Components use EIGHT-neighbour connectivity, because a diagonal stroke — the
+ * slash of a fraction, the leg of an arrowhead — is diagonally connected and
+ * four-connectivity would fragment it into a row of individually harmless
+ * pixels.
+ *
+ * A component is grown over EVERY differing pixel and then judged on how many
+ * SIGNIFICANT ones it contains. That is what stops a real defect being
+ * fragmented: a missing anti-aliased line has a full-amplitude centre and
+ * tapered ends, so the taper is minor and would cut the centre into pieces if
+ * only significant pixels could connect. Growing through adjacent difference
+ * keeps it whole.
+ *
+ * It is deliberately NOT dilation. Two defects a few pixels apart stay separate
+ * unless there is a continuous trail of differing pixels between them — and such
+ * a trail would itself be a change worth reporting. Dilation would merge them and
+ * report one finding where there are two.
+ *
  * Pure: takes decoded pixel buffers, returns a verdict. No file system, no
  * browser. That is what makes the decision testable with a handful of synthetic
  * pixels instead of a screenshot corpus.
@@ -175,47 +194,64 @@ export function comparePages(baseline, candidate, opts = {}) {
   result.minorFraction = result.minorPixels / total
   result.significantFraction = result.significantPixels / total
 
-  // Connected components over the significant pixels only. Iterative flood fill
-  // with an explicit stack — a recursive one blows the call stack on a full-page
-  // change, which is exactly when the suite must still produce a report.
+  // Connected components over EVERY differing pixel, scored on the SIGNIFICANT
+  // ones they contain. See the header: growing through adjacent difference keeps
+  // a tapered missing line whole, while staying short of dilation so two nearby
+  // defects are not merged into one finding.
+  //
+  // Iterative flood fill with an explicit stack — a recursive one blows the call
+  // stack on a full-page change, which is exactly when the suite must still
+  // produce a report.
   const seen = new Uint8Array(total)
   const stack = []
   let largest = 0
   let largestStrict = 0
   for (let i = 0; i < total; i += 1) {
-    if (classes[i] !== 2 || seen[i]) continue
-    let size = 0
-    let touchesStrict = false
+    if (classes[i] === 0 || seen[i]) continue
+    let significant = 0
+    let strictSignificant = 0
     stack.length = 0
     stack.push(i)
     seen[i] = 1
     while (stack.length) {
       const idx = stack.pop()
-      size += 1
       const x = idx % width
       const y = (idx - x) / width
-      if (!touchesStrict && inStrictRegion(x, y, strictRegions)) touchesStrict = true
-      // 4-connectivity: diagonal-only touching is the shape of noise, not ink.
-      if (x > 0 && classes[idx - 1] === 2 && !seen[idx - 1]) { seen[idx - 1] = 1; stack.push(idx - 1) }
-      if (x < width - 1 && classes[idx + 1] === 2 && !seen[idx + 1]) { seen[idx + 1] = 1; stack.push(idx + 1) }
-      if (y > 0 && classes[idx - width] === 2 && !seen[idx - width]) { seen[idx - width] = 1; stack.push(idx - width) }
-      if (y < height - 1 && classes[idx + width] === 2 && !seen[idx + width]) { seen[idx + width] = 1; stack.push(idx + width) }
+      if (classes[idx] === 2) {
+        significant += 1
+        if (inStrictRegion(x, y, strictRegions)) strictSignificant += 1
+      }
+      // Eight-neighbour: a diagonal stroke is diagonally connected, and
+      // four-connectivity would fragment it into harmless-looking pixels.
+      for (let dy = -1; dy <= 1; dy += 1) {
+        const ny = y + dy
+        if (ny < 0 || ny >= height) continue
+        for (let dx = -1; dx <= 1; dx += 1) {
+          if (dx === 0 && dy === 0) continue
+          const nx = x + dx
+          if (nx < 0 || nx >= width) continue
+          const n = ny * width + nx
+          if (classes[n] === 0 || seen[n]) continue
+          seen[n] = 1
+          stack.push(n)
+        }
+      }
     }
-    if (size > largest) largest = size
-    if (touchesStrict && size > largestStrict) largestStrict = size
+    if (significant > largest) largest = significant
+    if (strictSignificant > largestStrict) largestStrict = strictSignificant
   }
   result.largestCluster = largest
 
   if (largestStrict >= STRICT_CLUSTER_LIMIT) {
     result.changed = true
     result.reasons.push(
-      `${largestStrict} connected pixels changed inside a maths or label region `
+      `${largestStrict} connected ink pixels changed inside a maths or label region `
       + `(limit ${STRICT_CLUSTER_LIMIT}) — a symbol or label may have changed`,
     )
   } else if (largest >= CLUSTER_LIMIT) {
     result.changed = true
     result.reasons.push(
-      `${largest} connected pixels changed together (limit ${CLUSTER_LIMIT}) — `
+      `${largest} connected ink pixels changed together (limit ${CLUSTER_LIMIT}) — `
       + 'this is the shape of content appearing or disappearing, not rasterisation noise',
     )
   }
