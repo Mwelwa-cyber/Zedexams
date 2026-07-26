@@ -74,7 +74,7 @@ const DURATION_OPTIONS = [15, 20, 30, 40, 60, 90, 120, 150, 180]
 
 /**
  * The chips a band permits, in the declared order. The band is the ceiling: a
- * type it does not list is not offered at all, which is what stops Baby Class
+ * type it does not list is not offered at all, which is what stops Nursery
  * being asked for an essay and Form 4 being offered colouring. No rule about
  * WHICH types belong to a level lives here — that is the band document.
  */

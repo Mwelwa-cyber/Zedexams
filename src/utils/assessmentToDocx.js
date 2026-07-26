@@ -452,6 +452,49 @@ function imageRun(bytes, transformation, alt = '') {
   })
 }
 
+/**
+ * A library diagram embedded as VECTOR, with a raster fallback (§4.2: "SVG as
+ * the source of truth").
+ *
+ * The catalog diagrams are drawn as SVG and the preview and the print window
+ * both use them as SVG. Word was the only renderer that got a flattened
+ * bitmap — so the one figure on the paper that IS vector all the way down was
+ * the one that printed with resampled edges, and enlarging it in Word made it
+ * worse rather than better.
+ *
+ * `docx` supports an SVG image part with a required raster `fallback`, which is
+ * exactly the right contract: Word 2016+ and current LibreOffice draw the
+ * vector, anything older draws the PNG we were already producing. So this can
+ * only improve on the status quo — the worst case IS the status quo.
+ *
+ * Only the deterministic catalog diagrams qualify. The labelled-photo composite
+ * stays raster: its SVG inlines the photo as a base64 data URI, and an SVG
+ * carrying an embedded bitmap is exactly where Word's SVG support is least
+ * dependable. A sharper outline is not worth risking a blank figure.
+ */
+export function svgImageRun(svg, pngBytes, transformation, alt = '') {
+  const altText = String(alt || '').trim()
+  const altOpts = altText
+    ? { altText: { name: altText, title: altText, description: altText } }
+    : {}
+  try {
+    return new ImageRun({
+      type: 'svg',
+      // BYTES, not the string. `docx` treats a string `data` as base64 and
+      // throws on markup — which the catch below would have swallowed, leaving
+      // a feature that silently embedded the raster and looked like it worked.
+      data: new TextEncoder().encode(String(svg)),
+      transformation,
+      fallback: { type: 'png', data: pngBytes, transformation },
+      ...altOpts,
+    })
+  } catch {
+    // Never lose the figure over a sharper one: fall back to the raster that
+    // was being embedded before this existed.
+    return imageRun(pngBytes, transformation, alt)
+  }
+}
+
 // Decode image bytes in the browser to read natural dimensions and, for
 // formats Word can't embed (WEBP — which the picture bank stores as-is),
 // transcode to PNG. An object URL keeps the canvas same-origin so it is
@@ -649,9 +692,10 @@ async function diagramImageRun(diagram, { maxWidth = 360, maxHeight = 220, width
   })
   try {
     // High-DPI raster (§4.2) — the embed box is in 96dpi CSS pixels, so
-    // FIGURE_RASTER_SCALE puts real detail behind every printed dot.
+    // FIGURE_RASTER_SCALE puts real detail behind every printed dot. It is the
+    // FALLBACK now: modern Word draws the vector instead and ignores it.
     const bytes = await svgToPngBytes(svg, box.rasterWidth, box.rasterHeight)
-    return imageRun(bytes, { width: box.width, height: box.height })
+    return svgImageRun(svg, bytes, { width: box.width, height: box.height })
   } catch {
     return null
   }

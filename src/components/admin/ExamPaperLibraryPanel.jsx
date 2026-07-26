@@ -197,7 +197,7 @@ export default function ExamPaperLibraryPanel({
             {total > 0 && <span className="ss-custom-count">{total}</span>}
           </h2>
           <p className="ss-custom-blurb">
-            Upload real assessment papers (Baby Class → Grade 7 and beyond).
+            Upload real assessment papers (Nursery → Grade 7 and beyond).
             Claude analyses each one — format, wording, question arrangement,
             picture use, answer spaces and grade-level difficulty — and stores
             it here. Synthesise a bucket into a format profile and the

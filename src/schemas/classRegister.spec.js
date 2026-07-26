@@ -25,11 +25,16 @@ const baseWrite = {
 describe('Class Register grade options', () => {
   it('spans early-childhood, primary and lower-secondary', () => {
     const values = CLASS_REGISTER_GRADE_OPTIONS.map((o) => o.value)
+    // Zambian early childhood has TWO levels on a printed register — Nursery
+    // and Reception. The retired 'baby'/'middle' values are legacy only and
+    // must never be OFFERED (see the normalisation tests below).
     expect(values).toEqual([
-      'baby', 'middle', 'reception',
+      'nursery', 'reception',
       '1', '2', '3', '4', '5', '6', '7',
       'form-1', 'form-2', 'form-3', 'form-4',
     ])
+    expect(values).not.toContain('baby')
+    expect(values).not.toContain('middle')
     // The legacy CBC band stays valid and unchanged.
     expect(values).toEqual(expect.arrayContaining(['4', '5', '6', '7']))
     expect(CLASS_REGISTER_GRADES).toEqual(values)
@@ -44,11 +49,22 @@ describe('Class Register grade options', () => {
 })
 
 describe('classRegisterWriteSchema grade validation', () => {
-  it.each(['baby', 'middle', 'reception', '4', '7', 'form-1', 'form-4'])(
+  it.each(['nursery', 'reception', '4', '7', 'form-1', 'form-4'])(
     'accepts grade %s',
     (grade) => {
       const parsed = classRegisterWriteSchema.parse({ ...baseWrite, grade })
       expect(parsed.grade).toBe(grade)
+    },
+  )
+
+  it.each(['baby', 'middle'])(
+    'still accepts the retired %s value, normalised to nursery',
+    (grade) => {
+      // A register saved before the rename must remain SAVEABLE — refusing the
+      // write would strand a teacher on a register they cannot edit. Saving it
+      // quietly upgrades the stored value; no migration touches their data.
+      const parsed = classRegisterWriteSchema.parse({ ...baseWrite, grade })
+      expect(parsed.grade).toBe('nursery')
     },
   )
 
@@ -66,7 +82,14 @@ describe('classRegisterWriteSchema grade validation', () => {
 describe('coerceClassRegister', () => {
   it('keeps a supported nursery/secondary grade on read', () => {
     expect(coerceClassRegister({ grade: 'form-2' }).grade).toBe('form-2')
-    expect(coerceClassRegister({ grade: 'baby' }).grade).toBe('baby')
+    expect(coerceClassRegister({ grade: 'nursery' }).grade).toBe('nursery')
+  })
+
+  it('opens a register stored under a retired value, as Nursery', () => {
+    // Read-permissive: nulling the grade instead would lose the level from an
+    // existing register and print it with no class on the official sheet.
+    expect(coerceClassRegister({ grade: 'baby' }).grade).toBe('nursery')
+    expect(coerceClassRegister({ grade: 'middle' }).grade).toBe('nursery')
   })
 
   it('nulls an unrecognised grade rather than displaying garbage', () => {
@@ -78,7 +101,11 @@ describe('grade label formatters', () => {
   it('formatClassGrade gives a full UI label', () => {
     expect(formatClassGrade('4')).toBe('Grade 4')
     expect(formatClassGrade('form-1')).toBe('Form 1')
-    expect(formatClassGrade('baby')).toBe('Baby Class')
+    expect(formatClassGrade('nursery')).toBe('Nursery')
+    // A retired value displays as the level it is now, never as a raw 'baby'
+    // and never as the name no picker offers.
+    expect(formatClassGrade('baby')).toBe('Nursery')
+    expect(formatClassGrade('middle')).toBe('Nursery')
   })
 
   it('formatClassGrade falls back for unknown values', () => {
@@ -89,5 +116,34 @@ describe('grade label formatters', () => {
     expect(classGradeShortLabel('4')).toBe('4')
     expect(classGradeShortLabel('form-1')).toBe('Form 1')
     expect(classGradeShortLabel('reception')).toBe('Reception')
+  })
+})
+
+describe('the retired early-childhood names are not vocabulary any more', () => {
+  it('no option label, short label or formatter output mentions them', () => {
+    // Zambian early childhood is Nursery and Reception. "Baby Class" and
+    // "Middle Class" were briefly offered and are now legacy stored values
+    // only — they must not reach a picker, a report card or a printed register.
+    // Asserted over everything that produces a visible string, so adding a new
+    // option in the old vocabulary fails here rather than on a printed sheet.
+    const visible = [
+      ...CLASS_REGISTER_GRADE_OPTIONS.map((o) => o.label),
+      ...CLASS_REGISTER_GRADE_OPTIONS.map((o) => o.short),
+      ...CLASS_REGISTER_GRADES.map((g) => formatClassGrade(g)),
+      ...CLASS_REGISTER_GRADES.map((g) => classGradeShortLabel(g)),
+      // Including what a legacy register displays as.
+      formatClassGrade('baby'), formatClassGrade('middle'),
+      classGradeShortLabel('baby'), classGradeShortLabel('middle'),
+    ]
+    for (const label of visible) {
+      expect(label).not.toMatch(/baby|middle/i)
+    }
+  })
+
+  it('offers exactly the two early-childhood levels', () => {
+    const ece = CLASS_REGISTER_GRADE_OPTIONS
+      .filter((o) => !/^\d+$/.test(o.value) && !o.value.startsWith('form-'))
+      .map((o) => o.label)
+    expect(ece).toEqual(['Nursery', 'Reception'])
   })
 })

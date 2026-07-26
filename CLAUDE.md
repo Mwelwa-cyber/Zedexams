@@ -257,6 +257,17 @@ wrong:
   sub/superscript, because Word renders those perfectly and a teacher can still
   edit them as text. Any construct the tree does not model, or that throws while
   building, falls back to the linear text form: never a silently dropped formula.
+- **Library diagrams reach Word as VECTOR (§4.2).** The catalog shapes are drawn
+  as SVG and the preview and print window both use them as SVG; Word was the one
+  renderer getting a flattened bitmap, so the only figure on the paper that is
+  vector all the way down was the one printing with resampled edges.
+  `svgImageRun` embeds an SVG part with the high-DPI PNG as `docx`'s required
+  `fallback` — Word 2016+/LibreOffice draw the vector, older builds draw the
+  raster we already produced, so the worst case IS the status quo. **Pass the SVG
+  as BYTES**: `docx` treats a string `data` as base64 and throws on markup, which
+  the fallback would swallow. The labelled-photo composite deliberately stays
+  raster — its SVG inlines the photo as a data URI, which is where Word's SVG
+  support is least dependable.
 - **The band's minimum figure size is enforced, not just declared (§4.2).**
   Phase 2 gave every band a `minFigureSizeMm` (45mm at Early Childhood → 30mm at
   senior secondary) and only the generator PROMPT read it. `src/utils/figureSizing.js`

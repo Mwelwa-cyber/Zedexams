@@ -1,7 +1,7 @@
 /**
  * The Zambian education ladder — ONE declaration, as data.
  *
- * Every level a paper can target, from Baby Class to Form 5, with the four
+ * Every level a paper can target, from Nursery to Form 5, with the four
  * things the rest of the app kept re-deriving in different places:
  *
  *   value      what a saved paper stores and a picker selects
@@ -117,7 +117,7 @@ const SECONDARY_LEVELS = [1, 2, 3, 4, 5].map((n) => {
   }
 })
 
-/** The complete ladder, Baby Class → Form 5, in educational order. */
+/** The complete ladder, Nursery → Form 5, in educational order. */
 export const EDUCATION_LEVELS = Object.freeze(
   [...ECE_LEVELS, ...PRIMARY_LEVELS, ...SECONDARY_LEVELS]
     .sort((a, b) => a.order - b.order)
@@ -270,7 +270,7 @@ export function levelBandId(value) {
   return resolveLevel(value)?.band || ''
 }
 
-/** Official display label ('Form 3', 'Baby Class'). */
+/** Official display label ('Form 3', 'Nursery'). */
 export function levelLabel(value) {
   return resolveLevel(value)?.label || String(value ?? '')
 }
