@@ -1,0 +1,161 @@
+name: Visual baseline update (reviewed)
+
+# The ONLY way a committed visual baseline changes.
+#
+# Deliberately a separate workflow from visual-regression.yml rather than a flag
+# on it. The comparison workflow runs on pull requests, which means it can run
+# code from a fork; it must therefore never hold credentials capable of writing
+# to the repository. This workflow can write, and so it is manual-only and never
+# triggered by pull_request.
+#
+# ## A legitimate change still fails first
+#
+# That is the point of the design. A reviewer sees the visual gate fail, looks at
+# the diff artefacts, decides the new appearance is correct, and then runs THIS
+# workflow naming the fixture and the reason. The failure is the review
+# prompt — it is not an obstacle to route around.
+#
+# ## What it will not do
+#
+#  - update more than the one fixture and one renderer family named
+#  - update anything without a written reason and a source reference
+#  - update a baseline whose fixture no longer validates
+#  - update from an incomplete render
+#  - push to main
+#
+# The result is a branch and a pull request, so a baseline change is reviewed
+# like any other change. A baseline committed without review is indistinguishable
+# from a regression that nobody noticed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      fixture:
+        description: 'Fixture ID to update (e.g. vr-003). One only.'
+        required: true
+        type: string
+      family:
+        description: 'Renderer family whose baseline is being replaced'
+        required: true
+        type: choice
+        options:
+          - browser-print
+          - docx
+      reason:
+        description: 'Why is the new appearance correct? Recorded in the commit.'
+        required: true
+        type: string
+      source:
+        description: 'PR number or commit that produced the change'
+        required: true
+        type: string
+
+concurrency:
+  group: visual-baseline-update
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    name: Re-record one baseline
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # Writing is scoped to this job, which only a maintainer can start.
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # A branch, never main. Branch protection applies to the result.
+          ref: ${{ github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install LibreOffice
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libreoffice-writer fonts-liberation
+
+      - name: Validate the fixture before re-recording it
+        run: node scripts/visual/validateFixtures.mjs --fixture="${{ inputs.fixture }}"
+
+      # Compare BEFORE replacing, so the audit record can state what changed
+      # rather than only that something was replaced.
+      #
+      # Allowed to fail, for two reasons: a difference is the normal case here
+      # (that is why the run was started), and the FIRST recording of a fixture
+      # has nothing to compare against — the comparison refuses to invent a
+      # baseline, which is correct and must not stop the recording.
+      - name: Record what is changing
+        continue-on-error: true
+        run: |
+          node scripts/visual/runVisualGate.mjs \
+            --mode=compare \
+            --fixture="${{ inputs.fixture }}" \
+            --family="${{ inputs.family }}" \
+            --allow-failure
+
+      - name: Re-record the selected baseline only
+        run: |
+          node scripts/visual/runVisualGate.mjs \
+            --mode=update \
+            --fixture="${{ inputs.fixture }}" \
+            --family="${{ inputs.family }}" \
+            --reason="${{ inputs.reason }}" \
+            --source="${{ inputs.source }}"
+
+      - name: Upload the before/after evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baseline-update-${{ inputs.fixture }}-${{ inputs.family }}-${{ github.run_id }}
+          path: tests/visual/output/**
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Open a pull request for the baseline change
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BRANCH="baseline/${{ inputs.fixture }}-${{ inputs.family }}-${{ github.run_id }}"
+          git config user.email "noreply@anthropic.com"
+          git config user.name "Claude"
+          git checkout -b "$BRANCH"
+          git add tests/visual/baselines
+          # Nothing to commit is a legitimate outcome: the appearance already
+          # matched. Reported rather than forced into an empty commit.
+          if git diff --cached --quiet; then
+            echo "The baseline already matches this render — nothing to update."
+            exit 0
+          fi
+          git commit -m "Visual baseline: ${{ inputs.fixture }} (${{ inputs.family }})
+
+          Reason: ${{ inputs.reason }}
+          Source: ${{ inputs.source }}
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          Only this fixture and this renderer family were re-recorded."
+          git push -u origin "$BRANCH"
+          gh pr create \
+            --title "Visual baseline: ${{ inputs.fixture }} (${{ inputs.family }})" \
+            --body "Re-recorded **${{ inputs.fixture }}** for **${{ inputs.family }}**.
+
+          **Reason:** ${{ inputs.reason }}
+          **Source:** ${{ inputs.source }}
+          **Audit:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          The before/after pages and the comparison summary are attached to that run.
+          Only this fixture and family were touched; every other baseline is unchanged." \
+            --base main \
+            --head "$BRANCH" \
+            --draft
