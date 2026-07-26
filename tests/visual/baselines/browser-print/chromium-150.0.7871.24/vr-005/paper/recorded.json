@@ -1,0 +1,101 @@
+{
+  "fixtureId": "vr-005",
+  "family": "browser-print",
+  "copy": "paper",
+  "identity": "browser-print/chromium-150.0.7871.24",
+  "sourceCommit": "f68400a4daa6b603427e379fae1e7c9dd4146f50",
+  "source": "#1934",
+  "reason": "First recording of the §4.6 visual baselines. No baseline has ever existed, so the gate has been red since the harness landed and could not create one from a comparison run by design.",
+  "environment": {
+    "chromium": "150.0.7871.24",
+    "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
+    "libreoffice": "24.2.7.2",
+    "os": "Linux 6.17.0-1020-azure",
+    "platform": "linux-x64",
+    "node": "v22.23.1",
+    "fonts": {
+      "count": 54,
+      "digest": "20b5398451fb9a3a"
+    },
+    "pageSize": "A4",
+    "pageWidthMm": 210,
+    "pageHeightMm": 297,
+    "marginsMm": {
+      "top": 20,
+      "right": 18,
+      "bottom": 16,
+      "left": 18
+    },
+    "dpi": 150,
+    "deviceScaleFactor": 1,
+    "locale": "en-GB",
+    "timeZone": "Africa/Lusaka",
+    "fixedDate": "2026-01-15",
+    "chromiumFlags": "--headless=new --disable-gpu --force-device-scale-factor=1 --font-render-hinting=none --disable-lcd-text --hide-scrollbars --no-first-run --disable-extensions --disable-features=NetworkService",
+    "libreOfficeArgs": "--headless --norestore --nolockcheck --nodefault --nofirststartwizard"
+  },
+  "settings": {
+    "pageSize": "A4",
+    "pageWidthMm": 210,
+    "pageHeightMm": 297,
+    "marginsMm": {
+      "top": 20,
+      "right": 18,
+      "bottom": 16,
+      "left": 18
+    },
+    "dpi": 150,
+    "deviceScaleFactor": 1,
+    "locale": "en-GB",
+    "timeZone": "Africa/Lusaka",
+    "fixedDate": "2026-01-15"
+  },
+  "command": "chromium page.pdf (preferCSSPageSize)",
+  "pageCount": 2,
+  "anchors": {
+    "question_1": 1,
+    "question_2": 1,
+    "header": 1,
+    "diagram_1": 1,
+    "diagram_2": 1
+  },
+  "inkByPage": {
+    "1": 0.04485170756936986,
+    "2": 0.0005618427337307185
+  },
+  "figures": {
+    "unresolvedFigureCount": 0,
+    "unresolvedFigures": [],
+    "placeholders": 0,
+    "docx": null,
+    "detected": {
+      "1": [
+        {
+          "x": 104,
+          "y": 696,
+          "width": 1032,
+          "height": 208,
+          "cells": 874,
+          "source": "ink",
+          "anchor": "diagram_1"
+        },
+        {
+          "x": 456,
+          "y": 1200,
+          "width": 328,
+          "height": 264,
+          "cells": 689,
+          "source": "ink",
+          "anchor": "diagram_2"
+        }
+      ],
+      "2": []
+    }
+  },
+  "hashes": {
+    "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
+    "layout.json": "af75c1cffa42055e71cb147946098d03780b4d9733a0b9b3e45e91e340d5ff0a",
+    "page-01.png": "2411edb6850e06adaf4de6c590964c8286804fa4cd1dc0c34ff685a7dc2ae8f0",
+    "page-02.png": "ba1664f910aa9bcdc78354c8ddd843e30761b24d4d2b1edaf8993201a48896a1"
+  }
+}

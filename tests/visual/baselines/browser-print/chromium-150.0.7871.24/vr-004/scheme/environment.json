@@ -1,0 +1,28 @@
+{
+  "chromium": "150.0.7871.24",
+  "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
+  "libreoffice": "24.2.7.2",
+  "os": "Linux 6.17.0-1020-azure",
+  "platform": "linux-x64",
+  "node": "v22.23.1",
+  "fonts": {
+    "count": 54,
+    "digest": "20b5398451fb9a3a"
+  },
+  "pageSize": "A4",
+  "pageWidthMm": 210,
+  "pageHeightMm": 297,
+  "marginsMm": {
+    "top": 20,
+    "right": 18,
+    "bottom": 16,
+    "left": 18
+  },
+  "dpi": 150,
+  "deviceScaleFactor": 1,
+  "locale": "en-GB",
+  "timeZone": "Africa/Lusaka",
+  "fixedDate": "2026-01-15",
+  "chromiumFlags": "--headless=new --disable-gpu --force-device-scale-factor=1 --font-render-hinting=none --disable-lcd-text --hide-scrollbars --no-first-run --disable-extensions --disable-features=NetworkService",
+  "libreOfficeArgs": "--headless --norestore --nolockcheck --nodefault --nofirststartwizard"
+}
