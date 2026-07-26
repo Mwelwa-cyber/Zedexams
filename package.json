@@ -74,6 +74,7 @@
     "test:paper-terminology-mirror": "node scripts/test-paper-terminology.mjs",
     "test:visual-compare": "node scripts/visual/compareRender.test.js",
     "test:visual-environment": "node scripts/visual/renderEnvironment.test.js",
+    "test:visual-fixtures": "node scripts/visual/fixtures.test.js",
     "sync:assessment-bands": "node scripts/sync-assessment-bands.mjs",
     "sync:paper-terminology": "node scripts/sync-paper-terminology.mjs",
     "coverage:curriculum": "node scripts/curriculum-coverage-report.mjs",
