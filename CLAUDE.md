@@ -295,6 +295,15 @@ wrong:
   survives the printer — a hand-kept list would have drifted immediately. This
   caught `#ccc` borders printing at 1.6:1 (invisible once photocopied) and
   `#999` rules at 2.85:1; all rules are now the one declared `#888888`.
+  Its companion **`src/utils/figureContrast.js` checks the ink we DON'T choose** —
+  the pixels of a generated or uploaded figure. The failure it looks for is
+  narrow on purpose: not "is this colourful" (a colourful figure whose colours
+  differ in lightness prints fine) but two prominent regions that differ in HUE
+  and not in luminance — a red artery beside a blue vein — which the printer
+  merges into one grey. The Word export samples each figure on a 64px canvas and
+  the studio warns the teacher before they run forty copies; the figure is still
+  embedded, so this is advisory. Verdicts are `ok` / `colour_dependent` / `flat`
+  / **`unknown`** — a sampling failure is never reported as a pass.
 - **`src/utils/paperGolden.test.js`** (`test:paper-golden`) renders reference
   papers all the way to a real `.docx`, unzips it and asserts against
   `word/document.xml`. It is the net for "looks right in Preview, breaks in Word",

@@ -444,6 +444,31 @@ console.log('\nLabelled-diagram markers composite onto the Word image (buildDiag
   assert(svg.includes('H2O &lt;gas&gt; &amp; air'), 'label text is XML-escaped in the pill')
 }
 
+console.log('\nThe printability check never reports a false clean bill (§4.2)')
+{
+  // The sampler needs a canvas, which this node harness has not got. What must
+  // hold in that case is that nothing is claimed: an unsampled figure is
+  // reported as neither printable nor unprintable, so a teacher is never told
+  // a paper is fine when it was never checked.
+  clearImageBytesCache()
+  globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => PNG_1x1.buffer.slice(0) })
+  try {
+    const stats = { failedImages: [], unprintableFigures: [] }
+    await buildAssessmentDocument(
+      { subject: 'Science', grade: '7', showNameField: false, showDateField: false, showMarksField: false },
+      [{
+        id: 'q1', order: 1, type: 'diagram', marks: 1, text: 'Name the parts.',
+        imageUrl: 'https://example/heart.png',
+      }],
+      { mode: 'paper', stats },
+    )
+    assert(stats.unprintableFigures.length === 0,
+      'no DOM to sample with → no printability claim either way')
+  } finally {
+    globalThis.fetch = realFetch
+  }
+}
+
 console.log('\nThe Word marking key names the parts on the figure (§4.3)')
 {
   const labels = [
