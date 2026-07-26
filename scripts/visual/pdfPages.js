@@ -314,6 +314,55 @@ export async function printHtmlToPdf(html, opts = {}) {
   }
 }
 
+/**
+ * Rasterise an SVG to PNG bytes using the real browser.
+ *
+ * This is what the harness injects into `svgRasterizer`'s seam so the shipping
+ * DOCX exporter can embed library diagrams outside a browser. It draws the SVG
+ * the same way the application does — an image decoded from a data URI, painted
+ * onto a canvas over white — in an actual Chromium, so what lands in the Word
+ * file is what a teacher's browser would have produced.
+ *
+ * Offline by construction: the SVG travels as a data URI and every other request
+ * the page could make is refused, so a figure can never be assembled out of
+ * something fetched.
+ */
+export async function rasteriseSvgToPng(svg, width, height, opts = {}) {
+  const { browser, close } = await resolveBrowser(opts)
+  const page = await browser.newPage()
+  try {
+    await page.setRequestInterception(true)
+    page.on('request', (req) => {
+      if (req.url().startsWith('data:') || req.url() === 'about:blank') return req.continue()
+      return req.abort()
+    })
+    const dataUrl = await page.evaluate(async (markup, w, h) => {
+      const encoded = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(markup)))}`
+      const img = new Image()
+      img.decoding = 'sync'
+      await new Promise((resolve, reject) => {
+        img.onload = () => resolve()
+        img.onerror = () => reject(new Error('the browser could not decode the SVG'))
+        img.src = encoded
+      })
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.max(1, Math.round(w))
+      canvas.height = Math.max(1, Math.round(h))
+      const ctx = canvas.getContext('2d')
+      // White, like the application's rasteriser: a transparent figure printed
+      // over a coloured page would look nothing like the paper.
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      return canvas.toDataURL('image/png')
+    }, svg, width, height)
+    return new Uint8Array(Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64'))
+  } finally {
+    await page.close().catch(() => {})
+    if (close) await close()
+  }
+}
+
 /** Open a browser if the caller did not supply one, and say who must close it. */
 async function resolveBrowser(opts) {
   if (opts.browser) return { browser: opts.browser, close: null }

@@ -2459,7 +2459,7 @@ export default function AssessmentStudio() {
       }
       // Loaded on demand so the docx assembler stays out of the Studio's
       // initial chunk — it only arrives when a teacher actually exports.
-      const { downloadAssessmentDocx, downloadAnswerSheetDocx } = await import('../../utils/assessmentToDocx')
+      const { downloadAssessmentDocx, downloadAnswerSheetDocx, unresolvedFigureMessage } = await import('../../utils/assessmentToDocx')
       // Standalone answer sheet (bubble grid) — its own builder, not the
       // full-paper layout.
       if (mode === 'answersheet') {
@@ -2480,7 +2480,23 @@ export default function AssessmentStudio() {
         const unprintable = Array.isArray(result?.unprintableFigures)
           ? result.unprintableFigures
           : []
-        if (failed > 0) {
+        // A figure the paper REQUIRED and did not get is named, not counted: the
+        // teacher needs to know which question to fix, and "1 figure could not
+        // be embedded" on a twelve-question paper does not tell them.
+        const unresolved = Array.isArray(result?.unresolvedFigures) ? result.unresolvedFigures : []
+        if (unresolved.length === 1) {
+          showToast(unresolvedFigureMessage(unresolved[0]), true)
+        } else if (unresolved.length > 1) {
+          const numbered = unresolved
+            .map((u) => u.questionNumber)
+            .filter((n) => n != null)
+          showToast(
+            `Download started, but ${unresolved.length} diagrams could not be rendered`
+            + `${numbered.length ? ` (question${numbered.length === 1 ? '' : 's'} ${numbered.join(', ')})` : ''}. `
+            + 'Replace, regenerate or repair them before exporting.',
+            true,
+          )
+        } else if (failed > 0) {
           showToast(`Download started, but ${failed} figure${failed === 1 ? '' : 's'} could not be embedded — marked in the paper.`, true)
         } else if (unprintable.length === 1) {
           showToast(unprintable[0].warning, true)

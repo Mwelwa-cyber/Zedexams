@@ -28,6 +28,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { PNG } from 'pngjs'
+import { unzipSync, strFromU8 } from 'fflate'
 import { RENDER_SETTINGS, LIBREOFFICE_ARGS } from './renderEnvironment.js'
 import { RenderIncompleteError } from './renderGuards.js'
 import { printHtmlToPdf, rasterisePdf, isPlausiblePageSize } from './pdfPages.js'
@@ -41,7 +42,7 @@ let exporters = null
  * Order matters: `assessmentToDocx` and `safeRender` both decide at call time
  * whether a DOM exists, so the globals must be installed before the import.
  */
-export async function loadExporters() {
+export async function loadExporters(opts = {}) {
   if (exporters) return exporters
   const { JSDOM } = await import('jsdom')
   const dom = new JSDOM('<!doctype html><html><body></body></html>')
@@ -52,6 +53,25 @@ export async function loadExporters() {
   const { Packer } = await import('docx')
   const { buildAssessmentDocument } = await import('../../src/utils/assessmentToDocx.js')
   const { buildPrintableHtml } = await import('../../src/utils/assessmentToPdf.js')
+
+  // Give the shipping exporter a real rasteriser.
+  //
+  // jsdom has no canvas, so `svgToPngBytes` threw, the exporter caught it, and
+  // every library diagram was silently left out of the Word file — which meant
+  // the docx stage was comparing papers missing their figures. Chromium is
+  // already running for the browser stage, so it draws them: the exporter's own
+  // code embeds the figure, and the harness supplies only the pixels a browser
+  // would have supplied anyway.
+  const { setSvgRasterizer, hasInjectedRasterizer } = await import('../../src/utils/svgRasterizer.js')
+  const { rasteriseSvgToPng } = await import('./pdfPages.js')
+  setSvgRasterizer((svg, width, height) => rasteriseSvgToPng(svg, width, height, opts))
+  if (!hasInjectedRasterizer()) {
+    throw new RenderIncompleteError(
+      'the SVG rasteriser was not installed, so every library diagram would be '
+      + 'quietly omitted from the Word file',
+    )
+  }
+
   exporters = { Packer, buildAssessmentDocument, buildPrintableHtml }
   return exporters
 }
@@ -132,7 +152,7 @@ export function convertWithLibreOffice(inputPath, outDir, soffice = process.env.
  * a stage from quietly excusing its own incomplete output.
  */
 export async function renderFixture(fixture, stage, opts = {}) {
-  const { Packer, buildAssessmentDocument, buildPrintableHtml } = await loadExporters()
+  const { Packer, buildAssessmentDocument, buildPrintableHtml } = await loadExporters(opts)
   const workDir = opts.workDir || fs.mkdtempSync(path.join(os.tmpdir(), `visual-${fixture.id}-`))
   fs.mkdirSync(workDir, { recursive: true })
 
@@ -141,6 +161,7 @@ export async function renderFixture(fixture, stage, opts = {}) {
   let pdfBytes = null
   let assetFailures = []
   let command = ''
+  let stats = null
 
   if (stage === 'browser-print') {
     const html = buildPrintableHtml(fixture.assessment, fixture.questions, opts.mode || 'paper')
@@ -153,8 +174,13 @@ export async function renderFixture(fixture, stage, opts = {}) {
     command = 'chromium page.pdf (preferCSSPageSize)'
     fs.writeFileSync(path.join(workDir, `${fixture.id}.pdf`), pdfBytes)
   } else if (stage === 'docx') {
+    // `stats` is not optional here. Every figure the exporter could not embed
+    // lands in `unresolvedFigures`, and a render carrying one must never become a
+    // baseline: that is how a paper missing its diagram becomes the reference.
+    stats = { failedImages: [], unresolvedFigures: [], unprintableFigures: [] }
     const doc = await buildAssessmentDocument(fixture.assessment, fixture.questions, {
       mode: opts.mode || 'paper',
+      stats,
     })
     const buffer = await Packer.toBuffer(doc)
     documentPath = path.join(workDir, `${fixture.id}.docx`)
@@ -198,9 +224,45 @@ export async function renderFixture(fixture, stage, opts = {}) {
     anchors: Object.keys(layout.anchors).map((id) => ({ id, page: layout.anchors[id] })),
     assetFailures,
     layout,
+    stats,
+    docxFigures: stage === 'docx' ? inspectDocxFigures(fs.readFileSync(documentPath)) : null,
     pdfBytes,
     workDir,
     command,
+  }
+}
+
+/**
+ * What is actually inside a generated `.docx`, figure-wise.
+ *
+ * The pixel comparison answers "does the page look right"; this answers "is the
+ * figure really in the file", and the two are not the same question. A paper can
+ * render a plausible page while the Word file carries no drawing at all — that is
+ * exactly what happened — and a reviewer looking at a rendered page has no way to
+ * tell. Read from the OPC parts rather than inferred.
+ */
+export function inspectDocxFigures(docxBytes) {
+  const zip = unzipSync(new Uint8Array(docxBytes))
+  const names = Object.keys(zip)
+  const document = zip['word/document.xml'] ? strFromU8(zip['word/document.xml']) : ''
+  const media = names.filter((n) => /^word\/media\//.test(n))
+  return {
+    drawings: (document.match(/<w:drawing>/g) || []).length,
+    blips: (document.match(/<a:blip/g) || []).length,
+    // §4.2's vector path: the SVG extension plus the raster the older builds use.
+    svgBlips: (document.match(/svgBlip/g) || []).length,
+    svgParts: media.filter((n) => /\.svg$/i.test(n)),
+    pngParts: media.filter((n) => /\.png$/i.test(n)),
+    // A drawing whose relationship is missing renders as a blank box in Word, so
+    // the relationship file is part of the proof rather than an implementation
+    // detail.
+    imageRelationships: (
+      (zip['word/_rels/document.xml.rels'] ? strFromU8(zip['word/_rels/document.xml.rels']) : '')
+        .match(/Target="media\/[^"]+"/g) || []
+    ).length,
+    // The placeholder's own words. Its presence means a figure was asked for and
+    // not produced, which must never be recorded as a correct appearance.
+    placeholders: (document.match(/Figure could not be embedded/g) || []).length,
   }
 }
 

@@ -674,15 +674,31 @@ function svgAspect(svg) {
   return w > 0 && h > 0 ? w / h : 4 / 3
 }
 
-// Render a deterministic library diagram ({libraryKey, params}) to an embedded
-// ImageRun by rasterizing its SVG to PNG. Browser-only (canvas); returns null
-// in a DOM-less context (node tests) so the caller falls back to alt text.
+/**
+ * Render a library diagram ({libraryKey, params}) to an embedded ImageRun.
+ *
+ * Returns `{run, unresolved}`, and the second half is the point. This used to
+ * return the run or a bare `null`, and a `null` was indistinguishable from "this
+ * block had no diagram" — so a figure that failed to rasterise was simply left
+ * off the page. The teacher downloaded a paper with a question referring to a
+ * figure that is not there, and nothing anywhere said so: not the download, not
+ * the studio, not a log line. The fetched-image path already had a dashed-red
+ * placeholder for exactly this; the library-diagram path silently omitted.
+ *
+ * `unresolved` names the failure — which question, which diagram, which STAGE —
+ * so the caller can print the placeholder, the studio can warn before the
+ * teacher photocopies forty of them, and the pre-export validation gate can
+ * refuse the export outright. A placeholder is never a rendered diagram.
+ */
 async function diagramImageRun(diagram, { maxWidth = 360, maxHeight = 220, widthPreset } = {}) {
-  if (!diagram || !diagram.libraryKey) return null
+  if (!diagram || !diagram.libraryKey) return { run: null, unresolved: null }
+  const key = diagram.libraryKey
   // Black ink on white: most Zambian schools print monochrome, so a library
   // figure is drawn in a single dark tone rather than relying on colour.
-  const svg = renderDiagramSvg(diagram.libraryKey, diagram.params || {}, '#1c1612')
-  if (!svg) return null
+  const svg = renderDiagramSvg(key, diagram.params || {}, '#1c1612')
+  if (!svg) {
+    return { run: null, unresolved: { diagramKey: key, stage: 'catalog', reason: 'the diagram is not in the catalog, or it rendered nothing' } }
+  }
   const box = figureBox({
     maxWidth,
     maxHeight,
@@ -690,14 +706,25 @@ async function diagramImageRun(diagram, { maxWidth = 360, maxHeight = 220, width
     widthPercent: widthPreset ? resolveImageWidthPercent(widthPreset) : 100,
     band: currentBand,
   })
+  let bytes
   try {
     // High-DPI raster (§4.2) — the embed box is in 96dpi CSS pixels, so
     // FIGURE_RASTER_SCALE puts real detail behind every printed dot. It is the
     // FALLBACK now: modern Word draws the vector instead and ignores it.
-    const bytes = await svgToPngBytes(svg, box.rasterWidth, box.rasterHeight)
-    return svgImageRun(svg, bytes, { width: box.width, height: box.height })
-  } catch {
-    return null
+    bytes = await svgToPngBytes(svg, box.rasterWidth, box.rasterHeight)
+  } catch (err) {
+    return {
+      run: null,
+      unresolved: { diagramKey: key, stage: 'rasterise', reason: err?.message || 'the diagram could not be rasterised' },
+    }
+  }
+  try {
+    return { run: svgImageRun(svg, bytes, { width: box.width, height: box.height }), unresolved: null }
+  } catch (err) {
+    return {
+      run: null,
+      unresolved: { diagramKey: key, stage: 'embed', reason: err?.message || 'the diagram could not be embedded' },
+    }
   }
 }
 
@@ -920,6 +947,40 @@ function recordImageFailure(stats, label) {
   }
 }
 
+/**
+ * Record a figure the paper asked for and did not get.
+ *
+ * Deliberately separate from `failedImages`, which is a count for a toast. This
+ * is the structured record the pre-export validation gate reads: an unresolved
+ * REQUIRED figure is a blocking correctness error, not a quality warning, and a
+ * gate cannot make that call from a number. Always accumulated onto `stats` when
+ * one is supplied, so no caller has to opt in to being told.
+ */
+export function recordUnresolvedFigure(stats, detail) {
+  if (!stats) return
+  if (!Array.isArray(stats.unresolvedFigures)) stats.unresolvedFigures = []
+  stats.unresolvedFigures.push({
+    kind: detail.kind || 'library_diagram',
+    questionNumber: detail.questionNumber ?? null,
+    questionId: detail.questionId ?? null,
+    diagramKey: detail.diagramKey ?? null,
+    stage: detail.stage || 'unknown',
+    reason: detail.reason || '',
+    // Kept alongside the identifiers because the placeholder prints it, and a
+    // reviewer matching a diagnostic to a page needs the same words.
+    label: detail.label || '',
+  })
+}
+
+/** The one sentence the studio and the validation gate both show a teacher. */
+export function unresolvedFigureMessage(entry) {
+  const which = entry?.questionNumber != null
+    ? `Question ${entry.questionNumber} requires a diagram`
+    : 'A question on this paper requires a diagram'
+  return `${which}, but the figure could not be rendered. `
+    + 'Replace, regenerate or repair the diagram before exporting.'
+}
+
 async function renderBlock(block, stats = null) {
   switch (block.kind) {
     // The paper banner (school / title / subject / paper) is NOT body content —
@@ -1122,8 +1183,16 @@ async function renderPassage(b, stats = null) {
     out.push(img || imageFallbackBlock(b.imageAlt || b.title || ''))
   }
   if (b.imageDiagram?.libraryKey) {
-    const run = await diagramImageRun(b.imageDiagram, { maxWidth: 360, maxHeight: 240 })
+    const { run, unresolved } = await diagramImageRun(b.imageDiagram, { maxWidth: 360, maxHeight: 240 })
     if (run) out.push(new Paragraph({ children: [run], alignment: AlignmentType.CENTER, spacing: { after: 80 } }))
+    else {
+      // The placeholder, not silence. A passage whose figure vanished reads as a
+      // passage that never had one.
+      const label = b.imageAlt || b.title || ''
+      recordImageFailure(stats, label || 'passage diagram')
+      recordUnresolvedFigure(stats, { ...unresolved, kind: 'library_diagram', label })
+      out.push(imageFallbackBlock(label))
+    }
   }
   out.push(new Paragraph({ children: [runText('')], spacing: { after: 100 } }))
   return out
@@ -1307,8 +1376,20 @@ async function renderQuestion(b, stats = null) {
     }
   }
   if (b.imageDiagram?.libraryKey) {
-    const run = await diagramImageRun(b.imageDiagram, { maxWidth: 360, maxHeight: 240 })
+    const { run, unresolved } = await diagramImageRun(b.imageDiagram, { maxWidth: 360, maxHeight: 240 })
     if (run) out.push(centeredPara([run]))
+    else {
+      const label = b.imageAlt || (b.number != null ? `question ${b.number}` : '')
+      recordImageFailure(stats, label || 'diagram')
+      recordUnresolvedFigure(stats, {
+        ...unresolved,
+        kind: 'library_diagram',
+        questionNumber: b.number ?? null,
+        questionId: b.id ?? null,
+        label,
+      })
+      out.push(imageFallbackBlock(label))
+    }
   }
   if (b.tableData) {
     // Unfold the persisted { cells } row shape when the block came straight
@@ -1389,8 +1470,22 @@ async function renderQuestion(b, stats = null) {
           const media = b.optionMedia?.[i]
           const cellChildren = []
           if (media?.diagram?.libraryKey) {
-            const run = await diagramImageRun(media.diagram, { maxWidth: 150, maxHeight: 150 })
+            const { run, unresolved } = await diagramImageRun(media.diagram, { maxWidth: 150, maxHeight: 150 })
             if (run) cellChildren.push(centeredPara([run]))
+            else {
+              // An option's figure IS the option. Losing it leaves a lettered
+              // choice with nothing to choose between.
+              const label = `option ${SECTION_LETTERS[i]}${b.number != null ? ` of question ${b.number}` : ''}`
+              recordImageFailure(stats, label)
+              recordUnresolvedFigure(stats, {
+                ...unresolved,
+                kind: 'option_diagram',
+                questionNumber: b.number ?? null,
+                questionId: b.id ?? null,
+                label,
+              })
+              cellChildren.push(imageFallbackBlock(label))
+            }
           } else if (media?.imageUrl) {
             const run = await loadImageRun(media.imageUrl, { width: 140, height: 140, alt: media.alt || '' })
             if (run) cellChildren.push(centeredPara([run]))
@@ -1425,10 +1520,23 @@ async function renderQuestion(b, stats = null) {
         const runOpts = { size: 20, color: isCorrect ? '047857' : undefined, bold: isCorrect }
         const runs = [runText(`   ${SECTION_LETTERS[i]}. `, labelOpts)]
         if (media?.diagram?.libraryKey) {
-          const run = await diagramImageRun(media.diagram, { maxWidth: 60, maxHeight: 60 })
+          const { run, unresolved } = await diagramImageRun(media.diagram, { maxWidth: 60, maxHeight: 60 })
           if (run) {
             runs.push(run)
             runs.push(runText('  ', { size: 20 }))
+          } else {
+            // Inline with the option text, so the marker is a run rather than a
+            // table: the same fact, said where it fits.
+            const label = `option ${SECTION_LETTERS[i]}${b.number != null ? ` of question ${b.number}` : ''}`
+            recordImageFailure(stats, label)
+            recordUnresolvedFigure(stats, {
+              ...unresolved,
+              kind: 'option_diagram',
+              questionNumber: b.number ?? null,
+              questionId: b.id ?? null,
+              label,
+            })
+            runs.push(runText('⚠ figure missing ', { bold: true, size: 18, color: 'B91C1C' }))
           }
         } else if (media?.imageUrl) {
           const run = await loadImageRun(media.imageUrl, { width: 50, height: 50, alt: media.alt || '' })
@@ -1744,12 +1852,15 @@ export async function downloadAssessmentDocx(assessment, questions, filename = '
   // Collect figure-embed failures during the build so the studio can warn the
   // teacher — the paper still downloads (placeholders mark the gaps), but the
   // loss must not be silent.
-  const stats = { failedImages: [], unprintableFigures: [] }
+  const stats = { failedImages: [], unresolvedFigures: [], unprintableFigures: [] }
   const doc = await buildAssessmentDocument(assessment, questions, { ...opts, stats })
   const blob = await Packer.toBlob(doc)
   await saveBlob(blob, filename)
   return {
     failedImages: stats.failedImages.length,
+    // Returned in full, not as a count: the pre-export validation gate has to
+    // name the question a teacher must fix, and a number cannot.
+    unresolvedFigures: stats.unresolvedFigures,
     unprintableFigures: stats.unprintableFigures,
   }
 }

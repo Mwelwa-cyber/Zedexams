@@ -261,6 +261,7 @@ async function runOne(fixture, stage, copy, sharedBrowser) {
     // otherwise pass the togetherness check by having nothing to check.
     expectedAnchorPages: expectedAnchorsFor(fixture, copy),
   })
+  assertFiguresReallyEmbedded(fixture, stage, label, render)
 
   // The fixture knows how many questions it has, so a mis-read of the printed
   // page is caught rather than absorbed. Without this, an extractor that lost
@@ -379,6 +380,76 @@ async function runOne(fixture, stage, copy, sharedBrowser) {
   verdict.copy = copy
   console.log(`      ${verdict.failed ? 'CHANGED' : 'ok'}`)
   return verdict
+}
+
+/**
+ * A figure the fixture requires must be REALLY in the file, not merely plausible.
+ *
+ * The reason this is a separate check from everything else: a `.docx` carrying no
+ * drawing at all still converts to a page that looks like a paper, and the pixel
+ * comparison would have recorded it happily. So the first baseline must be proved
+ * correct by construction rather than by appearance — otherwise the broken output
+ * becomes the trusted reference and every later comparison certifies it.
+ *
+ * Every condition here is one the owner named, and each fails loudly on its own:
+ * the diagram exists in the paper, the Word file has a drawing, the SVG part is
+ * embedded, the PNG fallback is embedded, its relationship is declared, the
+ * renderer drew it visibly, no unresolved-figure diagnostic survived, and no
+ * placeholder stands where a real figure belongs.
+ */
+function assertFiguresReallyEmbedded(fixture, stage, label, render) {
+  const fail = (message, detail = {}) => {
+    throw new RenderIncompleteError(`${label}: ${message}`, { fixtureId: fixture.id, stage, ...detail })
+  }
+
+  // Applies to every render: a diagnostic means the exporter asked for a figure
+  // and did not get one, whatever the page looks like.
+  const unresolved = render.stats?.unresolvedFigures || []
+  if (unresolved.length) {
+    fail(
+      `${unresolved.length} figure(s) could not be rendered — `
+      + unresolved.map((u) => `${u.label || u.diagramKey || 'figure'} failed at the ${u.stage} stage`
+        + `${u.reason ? ` (${u.reason})` : ''}`).join('; ')
+      + '. A placeholder is not a diagram, so this render must not become a baseline',
+      { unresolvedFigures: unresolved },
+    )
+  }
+
+  const requiresFigure = (fixture.questions || []).some((q) => q?.imageDiagram?.libraryKey)
+  if (!requiresFigure || stage !== 'docx') return
+
+  const figures = render.docxFigures
+  if (!figures) fail('the Word file was not inspected, so nothing about its figures is known')
+  if (figures.placeholders) {
+    fail(
+      `the Word file contains ${figures.placeholders} "figure could not be embedded" `
+      + 'placeholder(s) where the fixture requires a real figure',
+    )
+  }
+  if (!figures.drawings) {
+    fail(
+      'the Word file contains no drawing at all — the exporter never embedded the '
+      + 'figure, so LibreOffice is not what lost it',
+      { figures },
+    )
+  }
+  if (!figures.svgParts.length || !figures.svgBlips) {
+    fail(
+      'the Word file has no SVG part for the figure, so Word would draw the raster '
+      + 'fallback instead of the vector (§4.2)',
+      { figures },
+    )
+  }
+  if (!figures.pngParts.length) {
+    fail(
+      'the Word file has an SVG with no PNG fallback — older Word builds and '
+      + 'LibreOffice would show nothing at all',
+      { figures },
+    )
+  }
+  if (!figures.imageRelationships) {
+    fail('the Word file declares no image relationship, so the drawing is a blank box', { figures })
+  }
 }
 
 function pageName(n) {

@@ -63,6 +63,21 @@ export const MIN_FIGURE_EXTENT_CELLS = 12
 /** Text bounding boxes are padded by this many pixels before being subtracted. */
 export const TEXT_PAD = 2
 
+/**
+ * Ink clusters this close together are one figure, in cells.
+ *
+ * A line drawing is mostly white. LibreOffice draws a vector figure as paths, and
+ * a protractor came back as TWO figures — its arc and its inner scale — because
+ * eight-connectivity cannot join strokes separated by the figure's own white
+ * space. That produced a `diagram_1.2` anchor for a paper with one figure, which
+ * reads as an added anchor rather than as one drawing.
+ *
+ * 3 cells (24px ≈ 4mm) closes the gaps inside a figure and not the gap between
+ * two figures: papers stack figures with question text between them, which is far
+ * wider than this and is also text, so it is subtracted either way.
+ */
+export const FIGURE_MERGE_GAP_CELLS = 3
+
 /** Lines within this many pixels vertically are the same line. */
 export const LINE_TOLERANCE = 4
 
@@ -279,7 +294,7 @@ export function detectFigures({ data, width, height, textItems = [], images = []
   }
 
   const seen = new Uint8Array(cols * rows)
-  const boxes = []
+  const clusters = []
   for (let start = 0; start < cells.length; start += 1) {
     if (!cells[start] || seen[start]) continue
     seen[start] = 1
@@ -309,20 +324,68 @@ export function detectFigures({ data, width, height, textItems = [], images = []
         }
       }
     }
-    if (count < MIN_FIGURE_CELLS) continue
-    const across = maxC - minC + 1
-    const down = maxR - minR + 1
+    // Kept even when small: a fragment of a figure is merged below, and only the
+    // MERGED cluster is measured against the floors. Filtering here would discard
+    // the very pieces that make one figure whole.
+    clusters.push({ minC, maxC, minR, maxR, count })
+  }
+
+  // Merge clusters that are near each other, then measure. A figure's own white
+  // space fragments it, so the floors have to apply to the drawing rather than to
+  // whichever piece of it happened to be walked first.
+  const merged = mergeNearbyClusters(clusters)
+  const boxes = []
+  for (const cluster of merged) {
+    if (cluster.count < MIN_FIGURE_CELLS) continue
+    const across = cluster.maxC - cluster.minC + 1
+    const down = cluster.maxR - cluster.minR + 1
     if (across < MIN_FIGURE_EXTENT_CELLS || down < MIN_FIGURE_EXTENT_CELLS) continue
     boxes.push({
-      x: minC * FIGURE_CELL,
-      y: minR * FIGURE_CELL,
+      x: cluster.minC * FIGURE_CELL,
+      y: cluster.minR * FIGURE_CELL,
       width: across * FIGURE_CELL,
       height: down * FIGURE_CELL,
-      cells: count,
+      cells: cluster.count,
       source: 'ink',
     })
   }
   return boxes.sort((a, b) => (a.y - b.y) || (a.x - b.x))
+}
+
+/**
+ * Merge clusters whose bounding boxes are within the merge gap of each other.
+ *
+ * Repeated until nothing changes, because merging two clusters can bring a third
+ * within range — a chain of strokes across a figure is exactly that case, and one
+ * pass would leave it in pieces.
+ */
+export function mergeNearbyClusters(clusters, gap = FIGURE_MERGE_GAP_CELLS) {
+  const out = clusters.map((c) => ({ ...c }))
+  let changed = true
+  while (changed) {
+    changed = false
+    for (let i = 0; i < out.length && !changed; i += 1) {
+      for (let j = i + 1; j < out.length && !changed; j += 1) {
+        const a = out[i]
+        const b = out[j]
+        const near = a.minC - gap <= b.maxC && b.minC - gap <= a.maxC
+          && a.minR - gap <= b.maxR && b.minR - gap <= a.maxR
+        if (!near) continue
+        out[i] = {
+          minC: Math.min(a.minC, b.minC),
+          maxC: Math.max(a.maxC, b.maxC),
+          minR: Math.min(a.minR, b.minR),
+          maxR: Math.max(a.maxR, b.maxR),
+          // Summed, not recomputed: the ink quantity of the whole drawing is the
+          // ink of its parts, and the white space between them is not ink.
+          count: a.count + b.count,
+        }
+        out.splice(j, 1)
+        changed = true
+      }
+    }
+  }
+  return out
 }
 
 /**

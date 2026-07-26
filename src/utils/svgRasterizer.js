@@ -49,11 +49,60 @@ export async function svgToPngBlob(svg, width, height) {
   }
 }
 
+// ── the rasteriser seam ───────────────────────────────────────────────────
+//
+// One narrow injection point, and it exists for a specific reason: the DOCX
+// exporter is the code worth testing, and it could not be tested end to end
+// because this module needs a canvas. Under Node the raster threw, the exporter
+// caught it, and every library diagram was left out of the Word file — so the
+// only test that could reach the real export path was testing a paper with no
+// figures in it.
+//
+// The alternative was a native canvas dependency, which would put a compiled
+// module in CI to satisfy a test rather than to serve the app. Instead the
+// visual harness supplies a Chromium-backed rasteriser (it already runs a real
+// browser) and the SHIPPING exporter stays the thing under test, unmodified.
+//
+// The application never touches this: with nothing injected, `svgToPngBytes`
+// takes the ordinary browser path. That is what keeps the seam honest — a passing
+// harness proves the exporter's real code works, not that a stub works.
+let injectedRasterizer = null
+
+/**
+ * Install a rasteriser for a non-browser context. Test/harness use only.
+ * @param {(svg: string, width: number, height: number) => Promise<Uint8Array>} fn
+ */
+export function setSvgRasterizer(fn) {
+  if (fn != null && typeof fn !== 'function') throw new TypeError('a rasteriser must be a function')
+  injectedRasterizer = fn || null
+}
+
+/** Restore the browser path. */
+export function resetSvgRasterizer() {
+  injectedRasterizer = null
+}
+
+/** Is a rasteriser injected? Used by the harness to assert its own wiring. */
+export function hasInjectedRasterizer() {
+  return Boolean(injectedRasterizer)
+}
+
 /**
  * Rasterize an SVG string to PNG bytes (Uint8Array) — convenience for the DOCX
  * `ImageRun`, which takes raw bytes rather than a Blob.
  */
 export async function svgToPngBytes(svg, width, height) {
+  if (injectedRasterizer) {
+    const bytes = await injectedRasterizer(svg, width, height)
+    // Checked rather than trusted: an injected rasteriser returning something
+    // that is not PNG bytes would embed a corrupt image, and a corrupt image in
+    // Word is a blank box — the failure this whole change exists to stop being
+    // silent.
+    if (!(bytes instanceof Uint8Array) || bytes.length === 0) {
+      throw new Error('the injected rasteriser did not return PNG bytes')
+    }
+    return bytes
+  }
   const blob = await svgToPngBlob(svg, width, height)
   const buf = await blob.arrayBuffer()
   return new Uint8Array(buf)
