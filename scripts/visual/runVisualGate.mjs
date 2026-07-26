@@ -168,6 +168,10 @@ console.log(`  ${fixtures.length} fixture(s), stages: ${stages.join(', ')}\n`)
 
 const verdicts = []
 const infrastructure = []
+// Every baseline this run wrote, in the order it wrote them. The review sheet is
+// rebuilt from the whole list after each one, so a run that dies partway still
+// leaves a sheet describing exactly what it managed to record.
+const baselineRecords = []
 let browser = null
 
 try {
@@ -612,7 +616,12 @@ function writeBaseline(fixture, identity, copy, render, layoutJson) {
   }
   guard('recorded.json')
   fs.writeFileSync(path.join(dir, 'recorded.json'), JSON.stringify(record, null, 2))
-  writeBaselineSummary(fixture, record)
+  // Collected rather than written here. A bootstrap records many baselines and
+  // this file is the pull request's whole body: written per-record it would
+  // describe only the LAST one, and a reviewer would approve eighteen baselines
+  // from evidence about one.
+  baselineRecords.push({ fixture, record })
+  writeBaselineSummary(baselineRecords)
 }
 
 /**
@@ -621,8 +630,25 @@ function writeBaseline(fixture, identity, copy, render, layoutJson) {
  * Written as a file rather than assembled in YAML because a reviewer approving
  * the FIRST appearance of a paper needs every one of these facts in front of
  * them, and a shell heredoc is where such a list quietly loses an item.
+ *
+ * Takes every record written so far, not one, because a bootstrap run records
+ * many. The count leads the sheet: a reviewer must be able to see at a glance
+ * that the number of baselines in the diff is the number described below it.
  */
-function writeBaselineSummary(fixture, record) {
+function writeBaselineSummary(records) {
+  const sections = records.map(({ fixture, record }) => baselineSummarySection(fixture, record))
+  const head = records.length === 1 ? '' : `# ${records.length} baselines recorded\n\n`
+    + '| Fixture | Family | Copy | Pages |\n|---|---|---|---|\n'
+    + records.map(({ record: r }) => `| ${r.fixtureId} | ${r.family} | ${r.copy} | ${r.pageCount} |`).join('\n')
+    + '\n\nEvery one is described in full below. Approving this pull request '
+    + 'approves all of them as the reference each later comparison is measured '
+    + 'against.\n\n---\n\n'
+  fs.mkdirSync(OUTPUT_DIR, { recursive: true })
+  fs.writeFileSync(path.join(OUTPUT_DIR, 'baseline-summary.md'), head + sections.join('\n\n---\n\n'))
+}
+
+/** One baseline's section of the review sheet. */
+function baselineSummarySection(fixture, record) {
   const anchorRows = Object.entries(record.anchors)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([id, page]) => `| \`${id}\` | ${page} |`)
@@ -638,7 +664,7 @@ function writeBaselineSummary(fixture, record) {
     ].join('\n')
     : '- (browser-print: figures are drawn by the print path, not embedded as parts)'
 
-  const body = `Re-recorded **${record.fixtureId}** — ${fixture.title} — for **${record.family}** (${record.copy} copy).
+  return `Recorded **${record.fixtureId}** — ${fixture.title} — for **${record.family}** (${record.copy} copy).
 
 **Reason:** ${record.reason}
 **Source:** ${record.source}${record.sourceCommit ? ` (commit \`${record.sourceCommit}\`)` : ''}
@@ -686,6 +712,4 @@ ${hashRows}
 The candidate pages, the full generated document and the comparison summary are
 attached to the workflow run.
 `
-  fs.mkdirSync(OUTPUT_DIR, { recursive: true })
-  fs.writeFileSync(path.join(OUTPUT_DIR, 'baseline-summary.md'), body)
 }

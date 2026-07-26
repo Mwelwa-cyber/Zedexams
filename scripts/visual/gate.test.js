@@ -495,6 +495,20 @@ test('the bootstrap run passes the flag that makes it non-destructive', () => {
   assert.ok(!step['continue-on-error'], 'an incomplete recording fails the job')
 })
 
+test('every writer takes its review sheet from the recorder, not from YAML', () => {
+  // The sheet lists the environment, page count, anchors, figure proof and file
+  // hashes. A shell heredoc is where such a list quietly loses an item — and on
+  // the bootstrap path it must describe EVERY baseline recorded, not the last.
+  for (const [name, workflow] of Object.entries(WRITERS)) {
+    const step = Object.values(workflow.jobs)[0].steps.find((s) => /gh pr create/.test(s.run || ''))
+    assert.match(step.run, /--body-file/, `${name} uses the recorder's sheet`)
+    assert.ok(!/--body ["']/.test(step.run), `${name} does not assemble a body inline`)
+    assert.match(step.run, /baseline-summary\.md/, `${name} reads the file the recorder writes`)
+    // A missing sheet is a hard stop, not a pull request with an empty body.
+    assert.match(step.run, /exit 1/, `${name} refuses to open an unreviewable pull request`)
+  }
+})
+
 test('editing a writer workflow runs the gate that proves it is still safe', () => {
   const paths = compareWorkflow.on.pull_request.paths
   for (const name of Object.keys(WRITERS)) {

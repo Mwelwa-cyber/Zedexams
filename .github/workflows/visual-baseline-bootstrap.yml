@@ -157,20 +157,26 @@ jobs:
           Only baselines that did not exist were recorded. No existing baseline
           was replaced — that is the reviewed update workflow."
           git push -u origin "$BRANCH"
+
+          # The review sheet is BUILT BY THE RECORDER, not assembled here — the
+          # same rule the update workflow follows, and it matters more on this
+          # path: a bootstrap records many baselines, and the sheet describes
+          # every one of them. See writeBaselineSummary in runVisualGate.mjs.
+          BODY=tests/visual/output/baseline-summary.md
+          if [ ! -f "$BODY" ]; then
+            echo "The recorder produced no review sheet, so these baselines cannot be reviewed."
+            exit 1
+          fi
+          {
+            echo ""
+            echo "**Audit:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo ""
+            echo "No existing baseline was replaced. Replacing an approved appearance is"
+            echo "\`visual-baseline-update.yml\`, which names its fixture and states why."
+          } >> "$BODY"
           gh pr create \
             --title "Visual baselines: first recording" \
-            --body "First recording of the §4.6 visual baselines.
-
-          **Reason:** ${{ inputs.reason }}
-          **Source:** ${{ inputs.source }}
-          **Audit:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-          Every page committed here is attached to that run, and each one becomes
-          the reference the gate compares against — so read them as the paper a
-          teacher would print, not as a diff.
-
-          No existing baseline was replaced. Replacing an approved appearance is
-          \`visual-baseline-update.yml\`, which names its fixture and states why." \
+            --body-file "$BODY" \
             --base main \
             --head "$BRANCH" \
             --draft
