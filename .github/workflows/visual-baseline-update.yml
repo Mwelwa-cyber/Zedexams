@@ -51,7 +51,10 @@ on:
         type: string
 
 concurrency:
-  group: visual-baseline-update
+  # Shared with visual-baseline-bootstrap.yml: two runs writing to
+  # tests/visual/baselines at once would each branch from a tree the other was
+  # changing, and the loser's pull request would quietly drop the winner's pages.
+  group: visual-baseline-write
   cancel-in-progress: false
 
 permissions:

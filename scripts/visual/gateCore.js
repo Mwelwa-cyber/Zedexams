@@ -10,7 +10,8 @@
  *  - whether a run is allowed to write a baseline at all;
  *  - which baselines a reviewed update may touch (exactly one fixture, exactly
  *    one renderer family);
- *  - what an update must supply before it is permitted;
+ *  - which baselines a bootstrap may CREATE (only ones that do not exist);
+ *  - what an update or a bootstrap must supply before it is permitted;
  *  - how a structural failure survives a permissive pixel tolerance;
  *  - which artefacts must be published for a failure to be reviewable.
  *
@@ -98,6 +99,82 @@ export function validateUpdateRequest(request = {}, knownFixtureIds = []) {
     problems.push('no source commit or pull request given, so the change cannot be traced')
   }
   return problems
+}
+
+/**
+ * Validate a BOOTSTRAP request — the first recording of baselines that do not
+ * exist yet.
+ *
+ * Bootstrapping is a different act from re-recording, and the difference is what
+ * makes the relaxed fixture rule safe. A re-record REPLACES an approved
+ * appearance, so it must name the one thing it replaces. A bootstrap creates
+ * only what is absent; there is no approved appearance to lose, and naming eight
+ * fixtures one at a time buys nothing while making the gate unreachable in
+ * practice (eight fixtures times two renderer families is sixteen dispatches and
+ * sixteen pull requests, which is how a gate ends up permanently red).
+ *
+ * So `fixture` and `family` become optional and NARROWING — they shrink what is
+ * recorded, they never authorise a replacement. `reason` and `source` stay
+ * required, because a baseline whose origin is unrecorded is exactly as
+ * untraceable whether it was the first one or the fifth.
+ */
+export function validateBootstrapRequest(request = {}, knownFixtureIds = []) {
+  const problems = []
+  const { fixture, family, reason, source } = request
+
+  // Given but wrong is an error; absent is the documented default. A silently
+  // ignored typo would record every fixture while the operator believed one was
+  // selected — the failure mode a narrowing option exists to avoid.
+  if (fixture) {
+    if (!/^vr-\d{3}$/.test(String(fixture))) {
+      problems.push(`"${fixture}" is not a fixture ID (expected vr-NNN)`)
+    } else if (knownFixtureIds.length && !knownFixtureIds.includes(String(fixture))) {
+      problems.push(`fixture "${fixture}" does not exist`)
+    }
+  }
+  if (family && !RENDERER_FAMILIES.includes(String(family))) {
+    problems.push(`"${family}" is not a renderer family (${RENDERER_FAMILIES.join(' or ')})`)
+  }
+
+  const why = String(reason || '').trim()
+  if (!why) problems.push('no reason given — a baseline change must say why the new appearance is correct')
+  else if (why.length < 10) problems.push(`the reason "${why}" is too short to be a reason`)
+
+  if (!String(source || '').trim()) {
+    problems.push('no source commit or pull request given, so the change cannot be traced')
+  }
+  return problems
+}
+
+/**
+ * Decide which targets a bootstrap may record.
+ *
+ * The rule that keeps a bootstrap from becoming an unreviewed mass update: a
+ * target that ALREADY has a baseline is never recorded, whatever the narrowing
+ * options say. Replacing an approved appearance stays the reviewed update path,
+ * which names its one fixture and states why.
+ *
+ * Returns {record, skipped} rather than a filtered list, so a caller — and a
+ * test — can assert what was left alone instead of trusting that it was, and so
+ * the run can report "kept 3, recorded 13" rather than silently doing less than
+ * the operator expected.
+ */
+export function planBaselineBootstrap(targets = [], { fixture, family } = {}) {
+  const record = []
+  const skipped = []
+  for (const target of targets) {
+    if (fixture && target.fixture !== fixture) {
+      skipped.push({ ...target, why: 'outside the fixture this run names' })
+    } else if (family && target.family !== family) {
+      skipped.push({ ...target, why: 'outside the renderer family this run names' })
+    } else if (target.hasBaseline) {
+      // The whole point. Stated as its own branch so the reason is reportable.
+      skipped.push({ ...target, why: 'a baseline already exists — replacing one is a reviewed update' })
+    } else {
+      record.push(target)
+    }
+  }
+  return { record, skipped }
 }
 
 /**

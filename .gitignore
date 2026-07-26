@@ -228,6 +228,8 @@ public/syllabi/_backups/
 
 # Visual regression run output (§4.6). Rendered pages, diffs and summaries from
 # `npm run visual:gate` — published as CI artefacts, never committed. The
-# BASELINES under tests/visual/baselines/ are committed, and only ever by the
-# reviewed baseline-update workflow.
+# BASELINES under tests/visual/baselines/ are committed, and only ever by a
+# reviewed workflow — baseline-bootstrap.yml records ones that do not exist,
+# baseline-update.yml replaces one that does. Never by hand: a baseline carries
+# the environment that drew it, so a locally recorded one is un-comparable in CI.
 tests/visual/output/

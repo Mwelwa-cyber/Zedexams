@@ -2,8 +2,10 @@ name: Visual regression
 
 # The §4.6 rendering gate. READ-ONLY with respect to committed baselines — this
 # workflow can fail a pull request and can never change what it is comparing
-# against. Updating a baseline is a separate, privileged, reviewed action
-# (visual-baseline-update.yml).
+# against. Writing a baseline is a separate, privileged, reviewed action:
+# visual-baseline-update.yml replaces an approved appearance, and
+# visual-baseline-bootstrap.yml records ones that do not exist yet. Neither can
+# be reached from a pull request.
 #
 # ## Why it does not run on every push
 #
@@ -69,6 +71,7 @@ on:
       - 'tests/visual/baselines/**'
       - '.github/workflows/visual-regression.yml'
       - '.github/workflows/visual-baseline-update.yml'
+      - '.github/workflows/visual-baseline-bootstrap.yml'
       # ── Dependency changes can move a renderer under us ──────────────────
       - 'package-lock.json'
   workflow_dispatch:
