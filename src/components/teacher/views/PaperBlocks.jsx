@@ -249,7 +249,23 @@ function PaperQuestionBlock({ block }) {
         <>
           <div
             className="sv-paper-diagram"
-            style={{ position: 'relative', display: 'inline-block', maxWidth: `${resolveImageWidthPercent(block.imageWidth)}%` }}
+            // `width`, not `maxWidth` on an inline-block.
+            //
+            // Shrink-to-fit sized the figure by the SOURCE image's intrinsic
+            // pixels: a 96px diagram printed at 96px however wide the teacher's
+            // preset said, so the band's minimum (§4.2) never applied here and
+            // the same figure came out at 25.4mm in the browser against 93mm in
+            // Word. `minWidth` is the floor the preset cannot go under, and
+            // `maxWidth: 100%` keeps the page winning over the floor — a figure
+            // the column cannot fit is reported, never overflowed.
+            style={{
+              position: 'relative',
+              display: 'block',
+              width: `${resolveImageWidthPercent(block.imageWidth)}%`,
+              minWidth: block.figureMinWidthPx ? `${block.figureMinWidthPx}px` : undefined,
+              maxWidth: '100%',
+              marginInline: 'auto',
+            }}
           >
             <img src={block.imageUrl} alt={block.imageAlt || ''} style={{ width: '100%' }} />
             {/* Leader lines: a thin line from each label to the part it points

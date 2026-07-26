@@ -17,6 +17,7 @@ import { splitStatementSegments, statementLabel } from './fillBlanks.js'
 import { subPartLabel, splitPartBlanks } from './questionParts.js'
 import { hydrateTableData } from './tableData.js'
 import { resolveFigureLabels, resolveAnswerKeyLabels } from './figureLabelLayout.js'
+import { resolveImageWidthPercent } from './imageWidth.js'
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
@@ -307,8 +308,8 @@ body {
 }
 .question .word-bank strong { margin-right: 4pt; }
 .question .q-image { margin: 6pt 0; text-align: center; }
-.question .q-image .q-image-frame { position: relative; display: inline-block; max-width: 80%; }
-.question .q-image .q-image-frame img { max-width: 100%; max-height: 240pt; display: block; }
+.question .q-image .q-image-frame { position: relative; display: block; max-width: 100%; margin-inline: auto; }
+.question .q-image .q-image-frame img { width: 100%; max-height: 240pt; display: block; }
 .diagram-leaders {
   position: absolute; inset: 0; width: 100%; height: 100%;
   overflow: visible; pointer-events: none;
@@ -763,6 +764,24 @@ function renderPassage(b) {
   </div>`
 }
 
+/**
+ * The width a figure's frame prints at, and the floor it may not go under (§4.2).
+ *
+ * The print window used to shrink-wrap the frame around the source image
+ * (`display:inline-block; max-width:80%`), so a 96px diagram printed at 96px no
+ * matter what the teacher's preset said and the band's minimum never applied —
+ * the same figure came out at 25.4mm here and 93mm in Word. It also ignored the
+ * width preset entirely, hard-coding 80%.
+ *
+ * `max-width:100%` in the stylesheet keeps the page winning over the floor, so a
+ * figure the column cannot fit is narrowed rather than pushed off the sheet.
+ */
+function figureFrameStyle(block, widthPreset) {
+  const percent = resolveImageWidthPercent(widthPreset ?? block?.imageWidth)
+  const floorPx = Number(block?.figureMinWidthPx) || 0
+  return `width:${percent}%;${floorPx > 0 ? `min-width:${floorPx}px;` : ''}`
+}
+
 function renderQuestion(b) {
   const marks = b.marks ?? 1
   const qmark = marks > 1
@@ -802,7 +821,7 @@ function renderQuestion(b) {
           `<circle cx="${(l.leader.x2 * 100).toFixed(2)}%" cy="${(l.leader.y2 * 100).toFixed(2)}%" r="2.5" fill="#000"/>`
         : '')).join('')}</svg>`
       : ''
-    body += `<div class="q-image"><div class="q-image-frame"><img src="${escapeHtml(b.imageUrl)}" alt="">${leaderHtml}${labelHtml}</div></div>`
+    body += `<div class="q-image"><div class="q-image-frame" style="${figureFrameStyle(b)}"><img src="${escapeHtml(b.imageUrl)}" alt="">${leaderHtml}${labelHtml}</div></div>`
     if (isIdentify && labels.length) {
       const blanks = labels.map(() => `<li><span class="identify-blank"></span></li>`).join('')
       body += `<ol class="identify-list">${blanks}</ol>`
@@ -812,7 +831,7 @@ function renderQuestion(b) {
   if (Array.isArray(b.images)) {
     for (const img of b.images) {
       if (img && img.url) {
-        body += `<div class="q-image"><div class="q-image-frame"><img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.alt || '')}"></div></div>`
+        body += `<div class="q-image"><div class="q-image-frame" style="${figureFrameStyle(b, img.width)}"><img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.alt || '')}"></div></div>`
       }
     }
   }

@@ -18,6 +18,8 @@ import { normalizeSubParts, sumSubPartMarks } from './questionParts.js'
 import { hydrateTableData } from './tableData.js'
 import { parsePaperContent } from './paperContentModel.js'
 import { orderPaperGroups } from './quizSections.js'
+import { seedBandForLevel } from './assessmentBandService.js'
+import { minFigureMm, mmToPx } from './figureSizing.js'
 import { assessmentTypeLabel } from '../components/teacher/paperTaxonomy.js'
 
 const GRADE_WORDS = {
@@ -386,6 +388,14 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
     mcqCount: [2, 3, 4].includes(Number(assessment.mcqAnswerChoiceCount))
       ? Number(assessment.mcqAnswerChoiceCount)
       : null,
+    // The band's minimum figure size, resolved ONCE and carried on the block
+    // (§4.2). It was previously read only by `assessmentToDocx`, which is why
+    // the same figure printed at 93mm in Word and 25.4mm in the browser — the
+    // preview and the print window size a figure by its intrinsic pixels and
+    // never consulted the floor at all. Resolving it here makes it the layout's
+    // decision, like every other thing the three renderers must agree on.
+    // Published defaults only: an export must not block on a config read.
+    figureMinWidthPx: Math.round(mmToPx(minFigureMm(seedBandForLevel(assessment.grade)))),
   }
 
   const blocks = []
@@ -593,7 +603,7 @@ function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}) {
   // on one spelling. Without this a legacy 'truefalse' doc slipped past every
   // `=== 'tf'` check and printed a true/false question with no options.
   const type = canonicalizeQuestionType(q.type) || 'mcq'
-  const { mcqLayout = null, mcqCount = null } = mcqOpts
+  const { mcqLayout = null, mcqCount = null, figureMinWidthPx = 0 } = mcqOpts
   // True/False is a 2-choice MCQ — same options/correctAnswer model — so it
   // flows through the MCQ option pipeline below.
   const isChoice = type === 'mcq' || type === 'tf'
@@ -684,6 +694,9 @@ function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}) {
       : null,
     imageAlt: plain(q.imageAlt) || '',
     imageWidth: q.imageWidth || 'full',
+    // The floor the width preset above cannot go under (§4.2). Carried on the
+    // block so the preview, the print window and Word read one number.
+    figureMinWidthPx,
     // Additional figures, rendered stacked below the primary by the preview,
     // PDF and DOCX renderers (multi-figure scanned questions).
     images: Array.isArray(q.images)
