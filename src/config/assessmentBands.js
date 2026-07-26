@@ -299,7 +299,7 @@ export const ASSESSMENT_BAND_SEED = {
  * Validate a band document — used by the seed script before it writes, and by
  * the readers before they trust a document someone has edited in Firestore. A
  * band that fails validation is refused rather than half-applied, so a typo in
- * the console cannot quietly widen what a Baby Class paper may contain.
+ * the console cannot quietly widen what a Nursery paper may contain.
  *
  * @returns {string[]} problems; empty means valid
  */

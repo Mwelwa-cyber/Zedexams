@@ -33,8 +33,7 @@ const CLASS_STATUSES = ['active', 'archived']
  *           already print their own "GRADE:" caption (the report cards).
  */
 export const CLASS_REGISTER_GRADE_OPTIONS = [
-  { value: 'baby',      label: 'Baby Class',    short: 'Baby Class' },
-  { value: 'middle',    label: 'Middle Class',  short: 'Middle Class' },
+  { value: 'nursery',   label: 'Nursery',       short: 'Nursery' },
   { value: 'reception', label: 'Reception',     short: 'Reception' },
   { value: '1', label: 'Grade 1', short: '1' },
   { value: '2', label: 'Grade 2', short: '2' },
@@ -50,6 +49,26 @@ export const CLASS_REGISTER_GRADE_OPTIONS = [
 ]
 
 const GRADES = CLASS_REGISTER_GRADE_OPTIONS.map((o) => o.value)
+
+/**
+ * Early-childhood values this register used to store, and the level they are
+ * now. Zambian early childhood has TWO levels on a printed register — Nursery
+ * and Reception — and the picker offers only those.
+ *
+ * They are still accepted, in both directions, because registers exist that
+ * were saved under them: a teacher opening one must see a level the picker
+ * offers rather than a raw `baby`, and saving it must not be refused. So a read
+ * displays Nursery and a write normalises to `nursery`, which quietly retires
+ * the old value the next time the register is touched. No migration, no
+ * in-place rewrite of anyone's data.
+ */
+const LEGACY_ECE_GRADES = { baby: 'nursery', middle: 'nursery' }
+
+/** The canonical stored value for a grade, accepting the retired spellings. */
+export function normalizeClassGrade(grade) {
+  const key = grade == null ? '' : String(grade)
+  return LEGACY_ECE_GRADES[key] || key
+}
 const GRADE_LABELS = Object.fromEntries(
   CLASS_REGISTER_GRADE_OPTIONS.map((o) => [o.value, o.label]),
 )
@@ -63,16 +82,16 @@ const GRADE_SHORT = Object.fromEntries(
  * legacy/odd value still renders something sensible.
  */
 export function formatClassGrade(grade) {
-  const key = grade == null ? '' : String(grade)
+  const key = normalizeClassGrade(grade)
   return GRADE_LABELS[key] ?? `Grade ${key}`
 }
 
 /**
  * Grade label without the "Grade " prefix, for report headers that already
- * caption the field themselves ("4", "Form 1", "Baby Class").
+ * caption the field themselves ("4", "Form 1", "Nursery").
  */
 export function classGradeShortLabel(grade) {
-  const key = grade == null ? '' : String(grade)
+  const key = normalizeClassGrade(grade)
   return GRADE_SHORT[key] ?? key
 }
 
@@ -81,7 +100,7 @@ export const classRegisterWriteSchema = z
     className: z.string().min(1).max(120),
     // Grade arrives as '5' or 5 depending on the form; coerce to string.
     grade: z.preprocess(
-      (v) => (v == null ? v : String(v)),
+      (v) => (v == null ? v : normalizeClassGrade(v)),
       z.enum(GRADES),
     ),
     term: z.string().max(40).default(''),
@@ -124,7 +143,10 @@ function safeNumber(v, fallback = 0) {
 
 export function coerceClassRegister(raw) {
   if (!isPlainObject(raw)) return null
-  const grade = GRADES.includes(String(raw.grade)) ? String(raw.grade) : null
+  // Read-permissive: a register stored under a retired early-childhood value
+  // must still open, as Nursery, rather than coming back with no grade at all.
+  const canonical = normalizeClassGrade(raw.grade)
+  const grade = GRADES.includes(canonical) ? canonical : null
   const status = CLASS_STATUSES.includes(raw.status) ? raw.status : 'active'
   return {
     ...raw,
