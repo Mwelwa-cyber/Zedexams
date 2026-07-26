@@ -3,9 +3,9 @@
   "family": "docx",
   "copy": "paper",
   "identity": "docx/libreoffice-24.2.7.2",
-  "sourceCommit": "f68400a4daa6b603427e379fae1e7c9dd4146f50",
-  "source": "#1934",
-  "reason": "First recording of the §4.6 visual baselines. No baseline has ever existed, so the gate has been red since the harness landed and could not create one from a comparison run by design.",
+  "sourceCommit": "b5862eeae3eaa14170eb1466a0cc4263a3fffc4d",
+  "source": "PR #1938",
+  "reason": "The marking key is no longer byte-identical to the learner copy. #1938 fixed the image decoder seam, so the label layer is composited again: the learner copy carries numbered markers and the key carries those same markers plus the green part names. Both copies (paper and scheme) are recorded by this run.",
   "environment": {
     "chromium": "150.0.7871.24",
     "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
@@ -50,7 +50,7 @@
     "timeZone": "Africa/Lusaka",
     "fixedDate": "2026-01-15"
   },
-  "command": "soffice --headless --norestore --nolockcheck --nodefault --nofirststartwizard -env:UserInstallation=file:///tmp/visual-vr-004-VNLBMD/.loprofile --convert-to pdf:writer_pdf_Export --outdir /tmp/visual-vr-004-VNLBMD /tmp/visual-vr-004-VNLBMD/vr-004.docx",
+  "command": "soffice --headless --norestore --nolockcheck --nodefault --nofirststartwizard -env:UserInstallation=file:///tmp/visual-vr-004-8Pam1g/.loprofile --convert-to pdf:writer_pdf_Export --outdir /tmp/visual-vr-004-8Pam1g /tmp/visual-vr-004-8Pam1g/vr-004.docx",
   "pageCount": 1,
   "anchors": {
     "question_1": 1,
@@ -58,7 +58,7 @@
     "diagram_1": 1
   },
   "inkByPage": {
-    "1": 0.020157612094015523
+    "1": 0.021975576562327584
   },
   "figures": {
     "unresolvedFigureCount": 0,
@@ -70,7 +70,7 @@
       "svgBlips": 0,
       "svgParts": [],
       "pngParts": [
-        "word/media/0098495b3821bfb406118410ceee81d7107fd3d3.png"
+        "word/media/75536aa7e81ee4acd0822d0731f788b71689b365.png"
       ],
       "imageRelationships": 1,
       "placeholders": 0
@@ -78,11 +78,11 @@
     "detected": {
       "1": [
         {
-          "x": 345,
+          "x": 448,
           "y": 404,
-          "width": 550,
+          "width": 344,
           "height": 344,
-          "cells": 2954,
+          "cells": 1846,
           "source": "placement",
           "anchor": "diagram_1"
         }
@@ -91,7 +91,7 @@
   },
   "hashes": {
     "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
-    "layout.json": "80072d3e4ea9c46ec1f2e6197e1da564f1273deadbd80d80c096206605a9b172",
-    "page-01.png": "43ef30d1ae3d264b16efca6fc31c23d3f55d6b8ddf7ceb9c0a0c663334b43c92"
+    "layout.json": "7ecd63d71e5aba81b55a030e9ee45c70dee4f96771425f8db4a542f1d709849d",
+    "page-01.png": "99cd4de5ec89e702d34504e19b5146ca30362bbc4dfa83a2f59075840f480352"
   }
 }
