@@ -62,13 +62,32 @@ export async function loadExporters(opts = {}) {
   // already running for the browser stage, so it draws them: the exporter's own
   // code embeds the figure, and the harness supplies only the pixels a browser
   // would have supplied anyway.
-  const { setSvgRasterizer, hasInjectedRasterizer } = await import('../../src/utils/svgRasterizer.js')
-  const { rasteriseSvgToPng } = await import('./pdfPages.js')
+  const {
+    setSvgRasterizer, hasInjectedRasterizer,
+    setImageDecoder, hasInjectedDecoder,
+  } = await import('../../src/utils/svgRasterizer.js')
+  const { rasteriseSvgToPng, decodeImageInBrowser } = await import('./pdfPages.js')
   setSvgRasterizer((svg, width, height) => rasteriseSvgToPng(svg, width, height, opts))
   if (!hasInjectedRasterizer()) {
     throw new RenderIncompleteError(
       'the SVG rasteriser was not installed, so every library diagram would be '
       + 'quietly omitted from the Word file',
+    )
+  }
+
+  // And a real decoder, for the same reason one step earlier in the pipeline.
+  //
+  // jsdom has an `Image` that never fires `onload`, so the exporter's
+  // `decodeImage` returned null and the LABEL layer was dropped from every
+  // labelled diagram — the figure still embedded, so the docx stage was
+  // comparing marking keys byte-identical to the learner's copy while
+  // reporting zero unresolved figures.
+  setImageDecoder((bytes, mime) => decodeImageInBrowser(bytes, mime, opts))
+  if (!hasInjectedDecoder()) {
+    throw new RenderIncompleteError(
+      'the image decoder was not installed, so every labelled diagram would be '
+      + 'embedded without its labels and the marking key would not correspond '
+      + 'to the learner copy (§4.3)',
     )
   }
 
