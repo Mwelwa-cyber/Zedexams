@@ -3,9 +3,9 @@
   "family": "docx",
   "copy": "paper",
   "identity": "docx/libreoffice-24.2.7.2",
-  "sourceCommit": "f68400a4daa6b603427e379fae1e7c9dd4146f50",
-  "source": "#1934",
-  "reason": "First recording of the §4.6 visual baselines. No baseline has ever existed, so the gate has been red since the harness landed and could not create one from a comparison run by design.",
+  "sourceCommit": "f9381c56ce987528f7294d6657c23ca6ebbdc16f",
+  "source": "PR #1937",
+  "reason": "The long-division working layout now prints in the Word render too. The previous baseline recorded a paper showing only the prompts, because the block sat in richContent — a field no exporter reads (#1937).",
   "environment": {
     "chromium": "150.0.7871.24",
     "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
@@ -50,7 +50,7 @@
     "timeZone": "Africa/Lusaka",
     "fixedDate": "2026-01-15"
   },
-  "command": "soffice --headless --norestore --nolockcheck --nodefault --nofirststartwizard -env:UserInstallation=file:///tmp/visual-vr-002-G1MngL/.loprofile --convert-to pdf:writer_pdf_Export --outdir /tmp/visual-vr-002-G1MngL /tmp/visual-vr-002-G1MngL/vr-002.docx",
+  "command": "soffice --headless --norestore --nolockcheck --nodefault --nofirststartwizard -env:UserInstallation=file:///tmp/visual-vr-002-nUm1nM/.loprofile --convert-to pdf:writer_pdf_Export --outdir /tmp/visual-vr-002-nUm1nM /tmp/visual-vr-002-nUm1nM/vr-002.docx",
   "pageCount": 1,
   "anchors": {
     "question_1": 1,
@@ -58,7 +58,7 @@
     "header": 1
   },
   "inkByPage": {
-    "1": 0.011682053922830764
+    "1": 0.013489903262588736
   },
   "figures": {
     "unresolvedFigureCount": 0,
@@ -79,7 +79,7 @@
   },
   "hashes": {
     "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
-    "layout.json": "cdbfbf2ed4713558193adf5d2269dcb9cd9cb75830ed9b412079b7c15d74a702",
-    "page-01.png": "12e44aabae0b888bf9ab191cfaf2ddb955c12be1f309774954830a60385c9886"
+    "layout.json": "8e90c456946fe3c5fa2f47305177b80fdda1063d023b257f23cc3412c038f895",
+    "page-01.png": "1f3165a1c2cd9f0062b41435b602b03e026fc31a2949cc45a05803eb3af6d4d3"
   }
 }
