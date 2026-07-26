@@ -51,6 +51,21 @@ const ROOT = path.resolve(HERE, '..', '..')
 const BASELINE_DIR = path.join(ROOT, 'tests', 'visual', 'baselines')
 const OUTPUT_DIR = path.join(ROOT, 'tests', 'visual', 'output')
 
+/**
+ * Sections of the review sheet, one per baseline this run records.
+ *
+ * A run records one fixture and one family — but a fixture with
+ * `renderBothModes` is TWO documents, so vr-004 writes the learner copy and the
+ * marking key in the same run and its pull request contains both. Written as a
+ * single overwritten file, the body described whichever copy happened to be last
+ * and the other went into the branch undocumented — on the one fixture whose
+ * entire purpose is that the two copies correspond.
+ */
+// Declared up here rather than beside its writer: the recording runs during
+// top-level await, and a `const` further down the file is still in its temporal
+// dead zone at that point.
+const reviewSections = []
+
 const EXIT_OK = 0
 const EXIT_DIFFERENT = 1
 const EXIT_INFRASTRUCTURE = 2
@@ -639,6 +654,18 @@ ${hashRows}
 The candidate pages, the full generated document and the comparison summary are
 attached to the workflow run.
 `
+  reviewSections.push(body)
   fs.mkdirSync(OUTPUT_DIR, { recursive: true })
-  fs.writeFileSync(path.join(OUTPUT_DIR, 'baseline-summary.md'), body)
+  // Every copy recorded in this run, in the order they were recorded. The
+  // heading says how many, so a reviewer knows to look for the second one rather
+  // than assuming the page they can see is the whole change.
+  const header = reviewSections.length > 1
+    ? `This run recorded **${reviewSections.length} baselines** — both copies of `
+      + `${record.fixtureId} for ${record.family}. Both are in this branch and both `
+      + 'are described below.\n\n---\n\n'
+    : ''
+  fs.writeFileSync(
+    path.join(OUTPUT_DIR, 'baseline-summary.md'),
+    header + reviewSections.join('\n\n---\n\n'),
+  )
 }
