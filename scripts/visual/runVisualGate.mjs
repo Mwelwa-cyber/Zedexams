@@ -264,12 +264,15 @@ async function runOne(fixture, stage, copy, sharedBrowser) {
     )
   }
 
-  if (fixture.expectedPageCount && render.layout.pageCount !== fixture.expectedPageCount) {
-    // The fixture's own statement of how long the paper is. Checked before the
-    // baseline, because a fixture and its baseline can agree and both be wrong.
+  // The fixture's own floor, checked before the baseline because a fixture and
+  // its baseline can agree and both be wrong. A floor rather than an exact count:
+  // the exact count is the baseline's job, and the two renderer families
+  // legitimately paginate the same content differently.
+  if (fixture.minPages && render.layout.pageCount < fixture.minPages) {
     throw new RenderIncompleteError(
-      `${label}: the fixture says ${fixture.expectedPageCount} page(s) and the render `
-      + `produced ${render.layout.pageCount}`,
+      `${label}: the fixture is meant to span at least ${fixture.minPages} page(s) and `
+      + `the render produced ${render.layout.pageCount} — it is no longer the paper the `
+      + 'fixture describes',
       { fixtureId: fixture.id, stage },
     )
   }
