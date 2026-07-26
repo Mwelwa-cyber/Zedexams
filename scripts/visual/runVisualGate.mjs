@@ -221,14 +221,14 @@ async function runOne(fixture, stage, copy, sharedBrowser) {
   process.stdout.write(`  ${label} … `)
 
   const render = await renderFixture(fixture, stage, { browser: sharedBrowser, mode: copy })
-  assertRenderComplete(render, {
-    requiresAnchors: true,
-    // The fixture's own declarations, not a list kept beside them: a fixture that
-    // says a diagram must stay with its question and produces no diagram would
-    // otherwise pass the togetherness check by having nothing to check.
-    expectedAnchorPages: expectedAnchorsFor(fixture, copy),
-  })
 
+  // Everything is published BEFORE anything is asserted.
+  //
+  // This was the other way round, and an incomplete render therefore published
+  // nothing at all: the one failure whose cause is hardest to guess from a log
+  // line was also the one with no document, no pages and no anchor map to look
+  // at. "The render produced no diagram" is not diagnosable without the page it
+  // failed to draw the diagram on.
   const candidateDir = path.join(OUTPUT_DIR, identity, fixture.id, copy, 'candidate')
   fs.mkdirSync(candidateDir, { recursive: true })
   // The whole document, not just the pages: a reviewer distinguishing a generator
@@ -247,6 +247,20 @@ async function runOne(fixture, stage, copy, sharedBrowser) {
   }
   fs.writeFileSync(path.join(candidateDir, 'layout.json'), JSON.stringify(layoutJson, null, 2))
   fs.writeFileSync(path.join(candidateDir, 'identity.txt'), `${identity}\n${render.command}\n`)
+  // The figure boxes and their source (a placed image, or ink no text explained),
+  // because "no diagram was found" is answered by what WAS found.
+  fs.writeFileSync(
+    path.join(candidateDir, 'figures.json'),
+    JSON.stringify(render.layout.figureBoxes, null, 2),
+  )
+
+  assertRenderComplete(render, {
+    requiresAnchors: true,
+    // The fixture's own declarations, not a list kept beside them: a fixture that
+    // says a diagram must stay with its question and produces no diagram would
+    // otherwise pass the togetherness check by having nothing to check.
+    expectedAnchorPages: expectedAnchorsFor(fixture, copy),
+  })
 
   // The fixture knows how many questions it has, so a mis-read of the printed
   // page is caught rather than absorbed. Without this, an extractor that lost
