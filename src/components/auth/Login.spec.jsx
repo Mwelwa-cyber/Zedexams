@@ -519,8 +519,12 @@ describe('Login — redesigned page content', () => {
     fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: 'x' } })
     fireEvent.click(screen.getByRole('button', { name: /^sign in$/i }))
 
-    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
-    expect(screen.getByRole('alert')).toHaveFocus()
+    // Wait for the FOCUS, not for the alert. Focus is moved by an effect that
+    // runs after the alert mounts (Login.jsx's `if (error) errorRef.current
+    // ?.focus()`), so waiting only for the element to exist leaves a window
+    // where it is present and not yet focused — which is the window a busy CI
+    // runner lands in.
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveFocus())
   })
 })
 
