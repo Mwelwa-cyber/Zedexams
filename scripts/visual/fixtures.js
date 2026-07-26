@@ -50,11 +50,29 @@ const SCHOOL = {
   motto: 'Knowledge is light',
 }
 
-/** The one committed logo. A data URI so no request can be made for it. */
+/**
+ * The one committed logo. A data URI so no request can be made for it.
+ *
+ * INKED, and that took a second telling. It was a 16×16 near-blank PNG — the
+ * same one the diagram fixtures were reusing as their figure, which printed a
+ * diagram with no visible ink. Replacing it there left the branded-header
+ * fixture protecting "the school logo" with a logo that emits into the HTML,
+ * occupies its box, and draws nothing: the header rendered wordmark-only while
+ * the fixture certified it.
+ *
+ * A shield with a chevron and two rules: solid enough to read at header size,
+ * thin enough to still exercise the raster path.
+ */
 const LOGO_DATA_URI = 'data:image/png;base64,'
-  + 'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAOUlEQVR42u3NMQEAAAgDoJnc'
-  + '/3AtYUBzVwEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgD8dLwADAV0/EwAAAABJ'
-  + 'RU5ErkJggg=='
+  + 'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABnklEQVR4AeXBsY0cMRBE0a8G'
+  + 'M6BBi/kHVlYbFYMkugIO0sySs3vq9378/I3CguKC4oLiguKC4oLiguIaF83R+XRK868aNyjN'
+  + 'p5qjc0VQXFBcUFxQXFBcUFxQXFBcsMkcnSfN0dmhsYnSzNFZlOaUOTqL0uzQ2Ehpljk6i9Ls'
+  + 'MkdnUZqdGgcozTJHZ1Gau+boLEpzQuMgpVnm6CjNVXN0lOakxgOUZo7OojR/M0dnUZrTGg9R'
+  + 'mmWOzqI0f5qjsyjNUxoPU5pljs6iNHN0FqV5WuNNlGaZo6M07xK8mdK8U1BcUFxjszk6pynN'
+  + 'Lo3NlOY7CYoLimtsNkfnNKXZpbGZ0nwnQXFBcY0b5uj8L4KLlOaTKc0VwQ1K84mU5qqguOAm'
+  + 'pfkkSnNH8AKl+QRKc1dQXPAipXknpXlFsIHSvIPSvCrYRGmepDQ7BBspzROUZpeguGAzpTlJ'
+  + 'aXYKDlCaE5Rmt+AQpdlJaU4IDlKaHZTmlMZhSrPM0blKaU4LHqI0VyjNExoPUppljs5XlOZJ'
+  + 'jTdQmk8RFBcUFxQXFBcUFxT3C744sV3fkT52AAAAAElFTkSuQmCC'
 
 /**
  * A committed, inked diagram. A data URI, for the same reason as the logo.
