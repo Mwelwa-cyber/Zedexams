@@ -54,6 +54,34 @@ const LOGO_DATA_URI = 'data:image/png;base64,'
   + '/3AtYUBzVwEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgD8dLwADAV0/EwAAAABJ'
   + 'RU5ErkJggg=='
 
+/**
+ * A committed, inked diagram. A data URI, for the same reason as the logo.
+ *
+ * It replaced the logo, which the diagram fixtures were reusing as their figure
+ * — and the logo is a 16×16 near-blank PNG, so the "labelled diagram" fixtures
+ * rendered a figure with no visible ink at all. Their own `requires` predicates
+ * passed, because those check the fixture DATA: labels present, leader
+ * coordinates finite, identify mode set. Every one of those was true of a paper
+ * whose diagram printed nothing.
+ *
+ * So this one is drawn: an outline with a chamfered corner, internal divisions,
+ * two vessels leaving the top and a hatched region — thin strokes and small
+ * detail, which is what the fixtures exist to watch, and enough distinct parts
+ * for four leader lines to point at different places.
+ */
+const DIAGRAM_DATA_URI = 'data:image/png;base64,'
+  + 'iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAAB6UlEQVR4Ae3BMW4jUQxEweeG'
+  + 'bsCAEe9/sB8x+GfwOhlgQlszBmVtV318fsHGCBslhlQGr6QymCBslLBRwkYJGyVslLBRwkZ9'
+  + 'fH7hCZXB/2b15m4PLli9eRWVwerNb6oMVm/uJOzbVm8qgzsJGyXsR1ZvKoO7CPux1ZvK4A7C'
+  + 'nrJ6UxlcJWyUsKet3lQGVwi7ZPWmMniWsMtWbyqDZwgbJewWqzeVwU8Ju83qTWXwE8JutXpT'
+  + 'GXyXsFHCbrd6Uxl8h7BRwkYJGyVslLBRwkYJGyVslLBRwkYJGyVslLBRwkYJGyVslLBRwkYJ'
+  + 'G/XggsrArnlwwerNq6gM/iJho4SNEjZK2KgHb6Qy+GsevJHVm1dRGXyHsFHCRgkbJWyUsFHC'
+  + 'RombVQZnlcFZZXBWGZxVBmeVwVll8E6EjRI2StgocbPVm8rgsHpTGRxWbyqDw+pNZXBYvakM'
+  + 'Dqs3lcFh9aYyeBfCRgkbJWyUsFHCRgkbJX7B6k1lcFi9qQwOqzeVwWH1pjI4rN5UBofVm8rg'
+  + 'sHpTGbwDYaOEjRI2SvyS1Zuz1Zuz1Zuz1Zuz1Zuz1Zuz1Zt3IGyUsFHCRgkbJWyUsFEPLqgM'
+  + 'Xkll8Nc8eNLqjV0nbJSwUcJGCRslbJSwUcJGCRslbJSwUcJGCRv1Dx1HfuGpJcxiAAAAAElF'
+  + 'TkSuQmCC'
+
 /** A deterministic enlarged SVG: fine diagonals, curves, arrowheads, labels. */
 const ENLARGED_SVG = {
   libraryKey: 'vr-enlarged-vector',
@@ -287,7 +315,7 @@ export const VISUAL_FIXTURES = [
       {
         id: 'q1', order: 1, type: 'diagram', marks: 4,
         text: '<p>Name the parts of the heart.</p>',
-        imageUrl: LOGO_DATA_URI,
+        imageUrl: DIAGRAM_DATA_URI,
         imageAlt: 'A diagram of the heart',
         diagramMode: 'identify',
         diagramLabels: [

@@ -1,0 +1,294 @@
+/**
+ * pdfPages — one rasteriser for both renderer families (§4.6).
+ *
+ * Every stage in this suite ends as a PDF: Chromium prints one, LibreOffice
+ * converts the `.docx` into one. That is deliberate, because it leaves exactly
+ * one place where pages become pixels — and if the browser stage rasterised one
+ * way and the Word stage another, a difference in the rasteriser would be
+ * indistinguishable from a difference in the paper.
+ *
+ * ## Why pdf.js inside Chromium
+ *
+ * The obvious alternative is a system tool (`pdftoppm`), which would make the
+ * suite depend on a poppler build we do not pin and cannot reproduce from
+ * `package-lock.json`. pdf.js is a locked dependency, so the rasteriser moves
+ * only when the lockfile moves — and the lockfile is on the workflow's path list.
+ * It needs a canvas, so it runs in the browser we already have.
+ *
+ * ## Nothing is fetched
+ *
+ * pdf.js is served to the page by INTERCEPTING a synthetic origin and answering
+ * from disk. No request leaves the machine, which matters for the same reason the
+ * fixtures are offline: a baseline produced from a failed external request looks
+ * exactly like a baseline.
+ */
+
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { RENDER_SETTINGS, CHROMIUM_FLAGS } from './renderEnvironment.js'
+import { RenderIncompleteError } from './renderGuards.js'
+
+const HERE = path.dirname(fileURLToPath(import.meta.url))
+const ROOT = path.resolve(HERE, '..', '..')
+const PDFJS = path.join(ROOT, 'node_modules', 'pdfjs-dist')
+
+/** The synthetic origin. Never resolved by DNS — every request to it is answered. */
+const ORIGIN = 'https://visual.invalid'
+
+/**
+ * Chromium refuses to sandbox itself when run as root, which is how containers
+ * usually run. Added only in that case: the flag changes process isolation, not
+ * a single rendered pixel, so it cannot make a baseline non-reproducible.
+ */
+export function chromiumLaunchFlags() {
+  const flags = [...CHROMIUM_FLAGS]
+  const asRoot = typeof process.getuid === 'function' && process.getuid() === 0
+  if (asRoot) flags.push('--no-sandbox', '--disable-setuid-sandbox')
+  return flags
+}
+
+/** A4 at the suite's dpi, used only to reject a wildly wrong page size. */
+export function nominalPageSize({ dpi = RENDER_SETTINGS.dpi } = {}) {
+  return {
+    width: (RENDER_SETTINGS.pageWidthMm / 25.4) * dpi,
+    height: (RENDER_SETTINGS.pageHeightMm / 25.4) * dpi,
+  }
+}
+
+/**
+ * Is this page the size a sheet of A4 should be?
+ *
+ * Tolerant of a pixel or two — the two renderers write slightly different media
+ * boxes and pdf.js rounds — and intolerant of anything else. Letter paper is 6%
+ * short, which this catches; sub-pixel rounding is 0.1%, which it allows. The
+ * page size is NOT corrected, because a changed page size may be the regression.
+ */
+export function isPlausiblePageSize({ width, height }, opts = {}) {
+  const nominal = nominalPageSize(opts)
+  const near = (a, b) => Math.abs(a - b) / b <= 0.01
+  return near(width, nominal.width) && near(height, nominal.height)
+}
+
+const MIME = { '.mjs': 'text/javascript', '.js': 'text/javascript', '.bcmap': 'application/octet-stream' }
+
+/**
+ * Rasterise a PDF and read its text positions.
+ *
+ * @param {Buffer|Uint8Array} pdfBytes
+ * @param {object} [opts]
+ * @param {import('puppeteer').Browser} [opts.browser] an already-open browser
+ * @param {number} [opts.dpi]
+ * @returns {Promise<{pageCount, pages: Array<{pageNumber, width, height, png, textItems}>}>}
+ *   `png` is PNG bytes; `textItems` are `{text, x, y, width, height}` in page
+ *   pixels with y measured from the top, so anchors.js needs no PDF knowledge.
+ */
+export async function rasterisePdf(pdfBytes, opts = {}) {
+  const dpi = opts.dpi || RENDER_SETTINGS.dpi
+  const { browser, close } = await resolveBrowser(opts)
+  const page = await browser.newPage()
+  const assetFailures = []
+  try {
+    await page.setRequestInterception(true)
+    page.on('request', (req) => {
+      let url
+      try { url = new URL(req.url()) } catch { return req.abort() }
+      if (url.origin !== ORIGIN) {
+        // Anything reaching outward is a fault, not something to allow quietly.
+        assetFailures.push(req.url())
+        return req.abort()
+      }
+      // The browser asks for a favicon unprompted. It is not part of the render,
+      // so it is refused without being recorded as a missing asset — the asset
+      // list must stay a list of things the PAGE asked for.
+      if (url.pathname === '/favicon.ico') return req.respond({ status: 404, body: '' })
+      if (url.pathname === '/index.html') {
+        return req.respond({ status: 200, contentType: 'text/html', body: '<!doctype html><meta charset="utf-8"><body>' })
+      }
+      if (url.pathname === '/doc.pdf') {
+        return req.respond({ status: 200, contentType: 'application/pdf', body: Buffer.from(pdfBytes) })
+      }
+      const onDisk = path.join(PDFJS, url.pathname.replace(/^\/+/, ''))
+      if (onDisk.startsWith(PDFJS) && fs.existsSync(onDisk) && fs.statSync(onDisk).isFile()) {
+        return req.respond({
+          status: 200,
+          contentType: MIME[path.extname(onDisk)] || 'application/octet-stream',
+          body: fs.readFileSync(onDisk),
+        })
+      }
+      assetFailures.push(url.pathname)
+      return req.abort()
+    })
+    await page.goto(`${ORIGIN}/index.html`)
+
+    const result = await page.evaluate(async (origin, scale) => {
+      const pdfjs = await import(`${origin}/build/pdf.min.mjs`)
+      pdfjs.GlobalWorkerOptions.workerSrc = `${origin}/build/pdf.worker.min.mjs`
+      const doc = await pdfjs.getDocument({
+        url: `${origin}/doc.pdf`,
+        // Served from disk rather than fetched, but pdf.js still needs to be
+        // told where: without these it silently draws standard-font text with a
+        // substitute, which is a rendering difference we would then baseline.
+        standardFontDataUrl: `${origin}/standard_fonts/`,
+        cMapUrl: `${origin}/cmaps/`,
+        cMapPacked: true,
+      }).promise
+      const pages = []
+      for (let n = 1; n <= doc.numPages; n += 1) {
+        const p = await doc.getPage(n)
+        const viewport = p.getViewport({ scale })
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.round(viewport.width)
+        canvas.height = Math.round(viewport.height)
+        const ctx = canvas.getContext('2d')
+        // Paper is white. Without this the canvas is transparent wherever
+        // nothing was drawn, and every page would compare as solid difference
+        // against a baseline that had a background.
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        await p.render({ canvasContext: ctx, viewport }).promise
+
+        // Where the page places IMAGES, read from the drawing operations.
+        //
+        // The ink-minus-text heuristic in anchors.js finds a figure on a learner
+        // copy and loses it on the marking key, because the answer-key labels sit
+        // on top of the figure and break it into fragments too small to be one.
+        // An image placement does not have that problem: it is where the renderer
+        // put the picture, labels or no labels. Both families emit one for an
+        // embedded raster, so the signal is comparable — and vector art, which
+        // arrives as paths rather than an image, still falls back to ink.
+        const images = []
+        try {
+          const ops = await p.getOperatorList()
+          const OPS = pdfjs.OPS
+          const kinds = new Set([
+            OPS.paintImageXObject, OPS.paintInlineImageXObject,
+            OPS.paintImageMaskXObject, OPS.paintJpegXObject,
+          ].filter((v) => v !== undefined))
+          // The transform in force when an image is painted is its placement, so
+          // the CTM has to be tracked through save/restore/transform.
+          let ctm = viewport.transform
+          const stack = []
+          for (let i = 0; i < ops.fnArray.length; i += 1) {
+            const fn = ops.fnArray[i]
+            if (fn === OPS.save) stack.push(ctm)
+            else if (fn === OPS.restore) ctm = stack.pop() || viewport.transform
+            else if (fn === OPS.transform) ctm = pdfjs.Util.transform(ctm, ops.argsArray[i])
+            else if (kinds.has(fn)) {
+              // A unit square in image space maps to the placed rectangle.
+              const corners = [[0, 0], [1, 0], [0, 1], [1, 1]].map(([ux, uy]) => ({
+                x: ctm[0] * ux + ctm[2] * uy + ctm[4],
+                y: ctm[1] * ux + ctm[3] * uy + ctm[5],
+              }))
+              const xs = corners.map((c) => c.x)
+              const ys = corners.map((c) => c.y)
+              images.push({
+                x: Math.min(...xs),
+                y: Math.min(...ys),
+                width: Math.max(...xs) - Math.min(...xs),
+                height: Math.max(...ys) - Math.min(...ys),
+              })
+            }
+          }
+        } catch {
+          // An operator list we cannot read is not a reason to fail the render:
+          // the ink fallback still finds the figure, and a fixture that needs an
+          // anchor it did not get fails loudly in the guard either way.
+        }
+
+        const content = await p.getTextContent()
+        const textItems = content.items
+          .filter((i) => typeof i.str === 'string')
+          .map((i) => {
+            const t = pdfjs.Util.transform(viewport.transform, i.transform)
+            return {
+              text: i.str,
+              x: t[4],
+              // pdf.js reports the text baseline; y from the top is what the
+              // pixel work uses, and the transform has already flipped it.
+              y: t[5],
+              width: (i.width || 0) * scale,
+              height: Math.abs(t[3]) || (i.height || 0) * scale,
+            }
+          })
+          .filter((i) => i.text.trim())
+        pages.push({
+          pageNumber: n,
+          width: canvas.width,
+          height: canvas.height,
+          dataUrl: canvas.toDataURL('image/png'),
+          textItems,
+          images,
+        })
+      }
+      return { pageCount: doc.numPages, pages }
+    }, ORIGIN, dpi / 72)
+
+    if (assetFailures.length) {
+      throw new RenderIncompleteError(
+        `the rasteriser tried to load ${assetFailures.length} resource(s) it could not serve `
+        + `(${assetFailures.slice(0, 4).join(', ')}) — pages may be missing fonts or glyphs`,
+        { assetFailures },
+      )
+    }
+    return {
+      pageCount: result.pageCount,
+      pages: result.pages.map((p) => ({
+        pageNumber: p.pageNumber,
+        width: p.width,
+        height: p.height,
+        textItems: p.textItems,
+        images: p.images || [],
+        png: Buffer.from(p.dataUrl.slice(p.dataUrl.indexOf(',') + 1), 'base64'),
+      })),
+    }
+  } finally {
+    await page.close().catch(() => {})
+    if (close) await close()
+  }
+}
+
+/**
+ * Print an HTML document exactly as the browser print path would.
+ *
+ * `preferCSSPageSize` is not a nicety: the paper's own `@page` rule is what a
+ * teacher's printer obeys, and overriding it here would test a page geometry the
+ * studio never produces.
+ */
+export async function printHtmlToPdf(html, opts = {}) {
+  const { browser, close } = await resolveBrowser(opts)
+  const page = await browser.newPage()
+  const assetFailures = []
+  try {
+    page.on('requestfailed', (req) => {
+      if (req.url().startsWith('data:')) return
+      assetFailures.push(req.url())
+    })
+    page.on('response', (res) => {
+      if (res.status() >= 400) assetFailures.push(`${res.status()} ${res.url()}`)
+    })
+    await page.emulateTimezone(RENDER_SETTINGS.timeZone)
+    await page.setContent(html, { waitUntil: 'load' })
+    // Web fonts and inline SVG rasterisation both settle after `load`; without
+    // this the first page can print with a fallback face.
+    await page.evaluateHandle('document.fonts.ready')
+    const pdf = await page.pdf({
+      printBackground: true,
+      preferCSSPageSize: true,
+      format: 'A4',
+      margin: { top: 0, right: 0, bottom: 0, left: 0 },
+    })
+    return { pdf: Buffer.from(pdf), assetFailures }
+  } finally {
+    await page.close().catch(() => {})
+    if (close) await close()
+  }
+}
+
+/** Open a browser if the caller did not supply one, and say who must close it. */
+async function resolveBrowser(opts) {
+  if (opts.browser) return { browser: opts.browser, close: null }
+  const puppeteer = (await import('puppeteer')).default
+  const browser = await puppeteer.launch({ args: chromiumLaunchFlags() })
+  return { browser, close: () => browser.close().catch(() => {}) }
+}

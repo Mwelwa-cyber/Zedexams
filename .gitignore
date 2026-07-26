@@ -225,3 +225,9 @@ public/syllabi/migration-2013-report.json
 public/syllabi/curriculum-2013-normalized.json
 functions/data/curriculum-2013-normalized.json
 public/syllabi/_backups/
+
+# Visual regression run output (§4.6). Rendered pages, diffs and summaries from
+# `npm run visual:gate` — published as CI artefacts, never committed. The
+# BASELINES under tests/visual/baselines/ are committed, and only ever by the
+# reviewed baseline-update workflow.
+tests/visual/output/
