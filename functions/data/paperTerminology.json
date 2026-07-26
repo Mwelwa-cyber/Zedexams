@@ -1,0 +1,242 @@
+{
+  "_generated": "npm run sync:paper-terminology — edit src/config/paperTerminology.js, not this file",
+  "curricula": [
+    "cbc",
+    "obc"
+  ],
+  "curriculumAliases": {
+    "2013": "obc",
+    "2023": "cbc",
+    "previous": "obc",
+    "cbc": "cbc",
+    "obc": "obc"
+  },
+  "defaultCurriculum": "cbc",
+  "terms": {
+    "fractions": {
+      "numerator": {
+        "term": "numerator",
+        "technical": true
+      },
+      "denominator": {
+        "term": "denominator",
+        "technical": true
+      },
+      "fraction": {
+        "term": "fraction"
+      },
+      "mixedNumber": {
+        "term": "mixed number",
+        "technical": true
+      },
+      "improperFraction": {
+        "term": "improper fraction",
+        "technical": true
+      },
+      "equivalentFraction": {
+        "term": "equivalent fraction",
+        "technical": true
+      },
+      "simplify": {
+        "term": "simplify",
+        "technical": true
+      },
+      "lowestTerms": {
+        "term": "lowest terms",
+        "technical": true
+      }
+    },
+    "division": {
+      "divide": {
+        "term": "divide"
+      },
+      "dividend": {
+        "term": "dividend",
+        "technical": true
+      },
+      "divisor": {
+        "term": "divisor",
+        "technical": true
+      },
+      "quotient": {
+        "term": "quotient",
+        "technical": true
+      },
+      "remainder": {
+        "term": "remainder",
+        "technical": true
+      }
+    },
+    "columnArithmetic": {
+      "working": {
+        "term": "working"
+      },
+      "carry": {
+        "term": "carry"
+      },
+      "regroup": {
+        "byCurriculum": {
+          "cbc": "regroup",
+          "obc": "borrow"
+        },
+        "technical": "cbc"
+      }
+    },
+    "placeValue": {
+      "placeValue": {
+        "term": "place value",
+        "technical": true
+      },
+      "ones": {
+        "term": "ones"
+      },
+      "tens": {
+        "term": "tens"
+      },
+      "hundreds": {
+        "term": "hundreds"
+      },
+      "thousands": {
+        "term": "thousands"
+      },
+      "decimalPoint": {
+        "term": "decimal point",
+        "technical": true
+      }
+    },
+    "answering": {
+      "answer": {
+        "term": "answer"
+      },
+      "showWorking": {
+        "term": "Show your working"
+      }
+    }
+  },
+  "instructionRegister": {
+    "spoken": {
+      "label": "spoken aloud by the teacher",
+      "verbs": [
+        "Work out",
+        "Share equally",
+        "Match",
+        "Circle",
+        "Colour",
+        "Count",
+        "Draw"
+      ],
+      "phrases": [
+        "Work out the answer",
+        "Share the sweets equally",
+        "Circle the right picture"
+      ],
+      "topics": [
+        "answering"
+      ]
+    },
+    "simple": {
+      "label": "short and plain",
+      "verbs": [
+        "Work out",
+        "Share equally",
+        "Write",
+        "Complete",
+        "Fill in",
+        "Match",
+        "Circle"
+      ],
+      "phrases": [
+        "Work out the answer",
+        "Show your working",
+        "Write your answer in the box"
+      ],
+      "topics": [
+        "placeValue",
+        "columnArithmetic",
+        "answering"
+      ]
+    },
+    "standard": {
+      "label": "ordinary classroom English",
+      "verbs": [
+        "Work out",
+        "Calculate",
+        "Simplify",
+        "Write",
+        "Complete",
+        "Explain",
+        "Name"
+      ],
+      "phrases": [
+        "Show your working",
+        "Give your answer in its lowest terms",
+        "Explain your answer"
+      ],
+      "topics": [
+        "fractions",
+        "division",
+        "columnArithmetic",
+        "placeValue",
+        "answering"
+      ]
+    },
+    "formal": {
+      "label": "subject register",
+      "verbs": [
+        "Calculate",
+        "Simplify",
+        "Determine",
+        "Express",
+        "Explain",
+        "Describe",
+        "State"
+      ],
+      "phrases": [
+        "Show your working",
+        "Express your answer in its lowest terms",
+        "Give your answer correct to two decimal places"
+      ],
+      "topics": [
+        "fractions",
+        "division",
+        "columnArithmetic",
+        "placeValue",
+        "answering"
+      ]
+    },
+    "examination": {
+      "label": "examination register",
+      "verbs": [
+        "Calculate",
+        "Simplify",
+        "Determine",
+        "Express",
+        "Evaluate",
+        "Justify",
+        "Prove"
+      ],
+      "phrases": [
+        "Show your working",
+        "Express your answer in its lowest terms",
+        "Give your answer to three significant figures"
+      ],
+      "topics": [
+        "fractions",
+        "division",
+        "columnArithmetic",
+        "placeValue",
+        "answering"
+      ]
+    }
+  },
+  "forbiddenOnPaper": [
+    "MathML",
+    "LaTeX",
+    "SVG",
+    "raster fallback",
+    "render node",
+    "model output",
+    "validation schema",
+    "question payload"
+  ]
+}

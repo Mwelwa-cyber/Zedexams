@@ -42,6 +42,8 @@ const { unzipSync, strFromU8 } = await import('fflate')
 const { buildAssessmentDocument, svgImageRun } = await import('./assessmentToDocx.js')
 const { richTextToPaperHtml } = await import('../editor/utils/safeRender.js')
 const { clearImageBytesCache } = await import('./fetchImageBytes.js')
+const { findForbiddenTerms } = await import('../config/paperTerminology.js')
+const realFetchForTerms = globalThis.fetch
 
 /** Minimal valid PNG (1x1 transparent), for the raster fallback assertions. */
 const PNG_1x1 = new Uint8Array([
@@ -378,6 +380,62 @@ console.log('\nGOLDEN — a figure is never lost to make it sharper')
     new Document({ sections: [{ children: [new Paragraph({ children: [good] })] }] }),
   )))['word/document.xml'])
   assert(goodXml.includes('svgBlip'), 'and valid markup really does take the vector path')
+}
+
+console.log('\nGOLDEN — our own machinery is never printed on a paper (§4.1)')
+{
+  // The owner's decision names the internal terms that must never reach a
+  // learner: MathML, LaTeX, SVG, raster fallback, render node, model output,
+  // validation schema, question payload.
+  //
+  // Checked against the RENDERED .docx, not the source — every one of those
+  // words appears legitimately in the exporters' identifiers and comments, so a
+  // source scan would be all false positives and would be switched off. What
+  // matters is the page.
+  //
+  // The paper deliberately exercises the paths where a leak would come from: a
+  // formula (which carries its LaTeX as data), a library diagram (embedded as
+  // SVG with a raster fallback), and a figure that cannot be fetched (whose
+  // placeholder is written by us).
+  clearImageBytesCache()
+  globalThis.fetch = async () => { throw new TypeError('Failed to fetch (CORS)') }
+  try {
+    const meta = { title: 'Mixed', subject: 'Mathematics', grade: '7' }
+    const questions = [
+      {
+        id: 'q1', order: 1, type: 'short_answer', marks: 2,
+        text: richTextToPaperHtml(`<p>Simplify ${math(String.raw`\frac{6}{8}`)}.</p>`),
+      },
+      {
+        id: 'q2', order: 2, type: 'short_answer', marks: 1,
+        text: '<p>Name this shape.</p>',
+        imageDiagram: { libraryKey: 'rectangle', params: {} },
+      },
+      {
+        id: 'q3', order: 3, type: 'short_answer', marks: 1,
+        text: '<p>Study the picture.</p>', imageUrl: 'https://example/missing.png',
+      },
+    ]
+    for (const mode of ['paper', 'scheme']) {
+      const xml = await renderDocx(meta, questions, { mode })
+      const leaked = findForbiddenTerms(xml)
+      assert(leaked.length === 0, `${mode}: no internal term is printed (found ${leaked.join(', ')})`)
+    }
+
+    // And the check has teeth. A guard that cannot fail is decoration, and this
+    // one is not hypothetical: decision 3 asks us to RECORD when a raster
+    // fallback was used, which is precisely the kind of note that ends up on the
+    // page instead of on the teacher's screen.
+    const leaky = await renderDocx(meta, [{
+      id: 'q1', order: 1, type: 'short_answer', marks: 1,
+      text: '<p>The raster fallback for this LaTeX diagram failed.</p>',
+    }])
+    const caught = findForbiddenTerms(leaky)
+    assert(caught.includes('LaTeX'), 'a leaked internal term IS detected in a real .docx')
+    assert(caught.includes('raster fallback'), 'including the multi-word ones')
+  } finally {
+    globalThis.fetch = realFetchForTerms
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

@@ -56,6 +56,7 @@ const {
 } = require("./assessmentBands");
 const {buildProvenance} = require("../aiValidation/operationRegistry");
 const {validateCurriculumContext} = require("../aiValidation/curriculumGuard");
+const {buildTerminologyDirective} = require("./paperTerminology");
 const {deriveAcceptanceState} = require("../aiValidation/validationResult");
 
 // The assessment types the Master Bank can supply (the rest — structured,
@@ -447,6 +448,19 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
   // the paper generates exactly as it did before.
   const bandDirective = buildBandDirective(band, gradeLabelFor(inputs.grade));
 
+  // The words the paper may use, rendered from the terminology config the same
+  // way (§4.1). Graded twice over: the instruction register by the band's
+  // formality, and the mathematical vocabulary by level AND subject — offering a
+  // term to the model is how it reaches the page, so a Nursery paper is never
+  // told what a denominator is. The curriculum picks its own word where CBC and
+  // OBC differ ("regroup" vs "borrow"), and the directive always names our
+  // internal terms as forbidden.
+  const terminologyDirective = buildTerminologyDirective({
+    formality: band && band.instructionFormality,
+    curriculum: inputs.framework,
+    subject: inputs.subject,
+  });
+
   // ── The blueprint (§3.1/§3.2) ───────────────────────────────────────────
   // Decide the whole paper BEFORE the model runs — every slot's topic,
   // sub-topic, outcome, thinking level, difficulty tier, marks and figure
@@ -515,6 +529,7 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
     ...inputs, totalMarks: gapMarks, questionTypes: effectiveTypes,
   }) +
     (bandDirective ? `\n\n${bandDirective}` : "") +
+    (terminologyDirective ? `\n\n${terminologyDirective}` : "") +
     (blueprintDirective ? `\n\n${blueprintDirective}` : "") +
     (misconceptionDirective ? `\n\n${misconceptionDirective}` : "") +
     buildAvoidNote(sourced.questions);

@@ -207,6 +207,38 @@ than absence of one.
   step AND in the generator, with one shared message (`assessmentLabels.js`). A read
   FAILURE is never reported as an empty catalogue.
 
+### The words a paper is allowed to use (§4.1)
+
+`src/config/paperTerminology.js` is the single declaration of the Zambian
+classroom vocabulary a paper may print — numerator/denominator/lowest terms,
+dividend/divisor/quotient/remainder, place value, "Show your working" — so a
+generator prompt, a validation message and a printed instruction all draw the
+same word for the same idea. Three rules make it more than a word list:
+
+- **Graded by level, twice.** Keyed to the band's existing `instructionFormality`
+  (`spoken` → `examination`), so the ladder is declared once in
+  `assessmentBands.js`. Both the instruction verbs AND the vocabulary topics are
+  graded: a Nursery paper gets "Work out"/"Share equally" and is never told what
+  a denominator is, because offering a term to the model is how it reaches the
+  page. A Form 4 paper gets "Express your answer in its lowest terms".
+- **The curriculum picks its own word.** CBC teaches `regroup`, OBC's materials
+  say `borrow`; neither is hard-coded. `normalizeCurriculum` accepts every
+  spelling already in the repo (`cbc`/`obc`/`previous`/`2023`/`2013`) so no
+  caller needs to know which its neighbour uses.
+- **Our machinery is never printed.** `FORBIDDEN_ON_PAPER` (MathML, LaTeX, SVG,
+  raster fallback, render node, model output, validation schema, question
+  payload) is both a prompt instruction and a post-render check — being told not
+  to do something isn't the same as not having done it. Checked against the
+  RENDERED `.docx`, not source, because every one of those words appears
+  legitimately in the exporters' own identifiers; `test:paper-golden` also proves
+  the check catches a real leak, so it can't be decoration.
+
+`functions/` gets the DATA as generated JSON (`npm run sync:paper-terminology`,
+staleness + directive-parity guarded by `test:paper-terminology-mirror`); the
+directive builder lives server-side, following `buildBandDirective`.
+`generateAssessment` renders it at call time, so correcting a word is a config
+edit rather than a prompt-version bump.
+
 ### Four renderers, one paper — and formulas without JavaScript
 
 `assessmentPaperLayout.buildPaperLayout()` returns typed, rendering-agnostic
