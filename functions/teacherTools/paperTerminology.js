@@ -31,9 +31,21 @@ const FALLBACK_FORMALITY = "standard";
  */
 const CURRICULUM_ALIASES = DATA.curriculumAliases || {};
 
+const DEFAULT_CURRICULUM = DATA.defaultCurriculum || "cbc";
+
 function normalizeCurriculum(curriculum) {
   const key = String(curriculum == null ? "" : curriculum).toLowerCase().trim();
-  return CURRICULUM_ALIASES[key] || (CURRICULA.includes(key) ? key : "cbc");
+  return CURRICULUM_ALIASES[key] || DEFAULT_CURRICULUM;
+}
+
+/**
+ * Was this value recognised, or did it take the default? The default is safe but
+ * not necessarily correct — CBC wording is wrong for an OBC class — so a caller
+ * can report the fallback instead of it being invisible.
+ */
+function isKnownCurriculum(curriculum) {
+  const key = String(curriculum == null ? "" : curriculum).toLowerCase().trim();
+  return Object.prototype.hasOwnProperty.call(CURRICULUM_ALIASES, key);
 }
 
 /** The instruction register for a band's formality, never undefined. */
@@ -184,6 +196,8 @@ function findForbiddenTerms(rendered) {
 
 module.exports = {
   CURRICULA,
+  DEFAULT_CURRICULUM,
+  isKnownCurriculum,
   advancedTermsForLevel,
   findAdvancedTerms,
   FORBIDDEN_ON_PAPER: FORBIDDEN,

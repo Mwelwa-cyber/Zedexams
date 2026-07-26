@@ -11,6 +11,7 @@
     "cbc": "cbc",
     "obc": "obc"
   },
+  "defaultCurriculum": "cbc",
   "terms": {
     "fractions": {
       "numerator": {

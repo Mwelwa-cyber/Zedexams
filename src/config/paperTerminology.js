@@ -201,10 +201,31 @@ export function instructionRegisterFor(formality) {
   return INSTRUCTION_REGISTER[String(formality || '')] || INSTRUCTION_REGISTER[FORMALITY_FALLBACK]
 }
 
+/**
+ * The curriculum an unrecognised value falls back to. Declared rather than
+ * inlined so the default is a stated decision, not an accident of a `||`.
+ */
+export const DEFAULT_CURRICULUM = 'cbc'
+
 /** The curriculum key, defaulting to CBC — the current national curriculum. */
 export function normalizeCurriculum(curriculum) {
   const key = String(curriculum == null ? '' : curriculum).toLowerCase().trim()
-  return CURRICULUM_ALIASES[key] || 'cbc'
+  return CURRICULUM_ALIASES[key] || DEFAULT_CURRICULUM
+}
+
+/**
+ * Was this value actually recognised, or did it take the default?
+ *
+ * The default is deliberate and safe — CBC is the current national curriculum,
+ * so an unrecognised value produces a usable paper rather than no paper. But
+ * "usable" is not "correct": a paper that silently drifted to CBC wording is
+ * wrong for an OBC class, and the drift is invisible from the output. This lets a
+ * caller REPORT the fallback (generation-time validation, an admin log) instead
+ * of the default being the whole story.
+ */
+export function isKnownCurriculum(curriculum) {
+  const key = String(curriculum == null ? '' : curriculum).toLowerCase().trim()
+  return Object.prototype.hasOwnProperty.call(CURRICULUM_ALIASES, key)
 }
 
 /**

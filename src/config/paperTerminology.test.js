@@ -23,6 +23,7 @@ import {
   termFor, termsForTopic, allTerms, instructionRegisterFor, normalizeCurriculum,
   buildTerminologyDirective, findForbiddenTerms,
   advancedTermsForLevel, findAdvancedTerms,
+  isKnownCurriculum, DEFAULT_CURRICULUM,
 } from './paperTerminology.js'
 import { ASSESSMENT_BAND_SEED } from './assessmentBands.js'
 
@@ -87,6 +88,57 @@ test('every spelling the repo already uses resolves to the same curriculum', () 
   // And the word each one picks follows.
   assert.equal(termFor('columnArithmetic', 'regroup', '2013'), 'borrow')
   assert.equal(termFor('columnArithmetic', 'regroup', '2023'), 'regroup')
+})
+
+/*
+ * Permanent regression pins for the framework-year bug (§4.1).
+ *
+ * The generator passes `inputs.framework` — a YEAR, not a curriculum key. The
+ * server's normaliser did not know the aliases, so a 2013 paper was told to say
+ * "regroup" to a teacher who marks with "borrow", and the parity test missed it
+ * because it only exercised the canonical values. These cases stay for good:
+ * they are the caller's actual representation, not ours.
+ */
+test('REGRESSION: framework "2013" resolves to OBC terminology', () => {
+  assert.equal(normalizeCurriculum('2013'), 'obc')
+  assert.equal(termFor('columnArithmetic', 'regroup', '2013'), 'borrow')
+})
+
+test('REGRESSION: NUMERIC 2013 resolves the same way', () => {
+  // A number can cross the boundary — a callable payload, a JSON round trip, or
+  // a form that did not stringify. Coercing to a string is what makes that safe,
+  // and it is worth pinning rather than trusting.
+  assert.equal(normalizeCurriculum(2013), 'obc')
+  assert.equal(termFor('columnArithmetic', 'regroup', 2013), 'borrow')
+  assert.equal(normalizeCurriculum(2023), 'cbc')
+  assert.equal(termFor('columnArithmetic', 'regroup', 2023), 'regroup')
+})
+
+test('REGRESSION: framework "2023" resolves to CBC terminology', () => {
+  assert.equal(normalizeCurriculum('2023'), 'cbc')
+  assert.equal(termFor('columnArithmetic', 'regroup', '2023'), 'regroup')
+})
+
+test('REGRESSION: the canonical keys keep working', () => {
+  assert.equal(normalizeCurriculum('cbc'), 'cbc')
+  assert.equal(normalizeCurriculum('obc'), 'obc')
+  assert.equal(termFor('columnArithmetic', 'regroup', 'cbc'), 'regroup')
+  assert.equal(termFor('columnArithmetic', 'regroup', 'obc'), 'borrow')
+})
+
+test('REGRESSION: an unknown value is DETECTABLE, not silently CBC', () => {
+  // The default is deliberate — CBC is the current national curriculum, so an
+  // unrecognised value still produces a usable paper. But "usable" is not
+  // "correct": CBC wording is wrong for an OBC class, and the drift is invisible
+  // from the output. So the fallback is reportable rather than the whole story.
+  assert.equal(DEFAULT_CURRICULUM, 'cbc')
+  for (const known of ['cbc', 'obc', '2013', '2023', 'previous', 2013]) {
+    assert.equal(isKnownCurriculum(known), true, String(known))
+  }
+  for (const unknown of ['nonsense', '', null, undefined, '2019', 'martian']) {
+    assert.equal(isKnownCurriculum(unknown), false, String(unknown))
+    assert.equal(normalizeCurriculum(unknown), DEFAULT_CURRICULUM, String(unknown))
+  }
 })
 
 test('a term we do not have resolves to nothing, never to its key', () => {

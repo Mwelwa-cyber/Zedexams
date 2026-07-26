@@ -24,7 +24,7 @@ import { createRequire } from 'node:module'
 import {
   PAPER_TERMS, INSTRUCTION_REGISTER, FORBIDDEN_ON_PAPER, CURRICULA,
   buildTerminologyDirective, findForbiddenTerms, termFor, normalizeCurriculum,
-  advancedTermsForLevel, findAdvancedTerms,
+  advancedTermsForLevel, findAdvancedTerms, isKnownCurriculum, DEFAULT_CURRICULUM,
 } from '../src/config/paperTerminology.js'
 import { renderTerminologyJson, TERMINOLOGY_JSON_PATH } from './sync-paper-terminology.mjs'
 
@@ -102,7 +102,11 @@ test('EVERY spelling resolves identically — including the one the caller passe
   // the CBC default and was told to say "regroup" to a teacher who marks with
   // "borrow". Covering only the canonical values tested the boundary we control
   // instead of the one the caller uses.
-  for (const spelling of ['cbc', 'obc', 'CBC', 'OBC', 'previous', '2013', '2023', '', null, 'martian']) {
+  // Numeric values included: a callable payload or a JSON round trip can deliver
+  // the framework year as a number, and only one side coercing would diverge.
+  for (const spelling of [
+    'cbc', 'obc', 'CBC', 'OBC', 'previous', '2013', '2023', 2013, 2023, '', null, 'martian',
+  ]) {
     assert.equal(
       server.normalizeCurriculum(spelling), normalizeCurriculum(spelling),
       `normalizeCurriculum(${JSON.stringify(spelling)})`,
@@ -115,7 +119,20 @@ test('EVERY spelling resolves identically — including the one the caller passe
   }
   // And the consequence, stated directly: the framework year picks the word.
   assert.match(server.buildTerminologyDirective({ formality: 'standard', curriculum: '2013', subject: 'Mathematics' }), /borrow/)
+  assert.match(server.buildTerminologyDirective({ formality: 'standard', curriculum: 2013, subject: 'Mathematics' }), /borrow/)
   assert.match(server.buildTerminologyDirective({ formality: 'standard', curriculum: '2023', subject: 'Mathematics' }), /regroup/)
+})
+
+test('both sides agree on which values were RECOGNISED, not just what they became', () => {
+  // Two normalisers that agree on the output but disagree on whether it was a
+  // fallback would report a drifted paper as a correct one.
+  assert.equal(server.DEFAULT_CURRICULUM, DEFAULT_CURRICULUM)
+  for (const v of ['cbc', 'obc', '2013', '2023', 2013, 'previous', 'nonsense', '', null]) {
+    assert.equal(
+      server.isKnownCurriculum(v), isKnownCurriculum(v),
+      `isKnownCurriculum(${JSON.stringify(v)})`,
+    )
+  }
 })
 
 test('the leak detector agrees on both sides', () => {
