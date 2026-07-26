@@ -18,6 +18,7 @@ import { subPartLabel, splitPartBlanks } from './questionParts.js'
 import { hydrateTableData } from './tableData.js'
 import { resolveFigureLabels, resolveAnswerKeyLabels } from './figureLabelLayout.js'
 import { resolveImageWidthPercent } from './imageWidth.js'
+import { pageMarginRule, FOOTER_MM } from '../config/paperPageGeometry.js'
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
@@ -115,7 +116,7 @@ ${blocks.map(renderBlock).join('\n')}
 }
 
 const PRINT_CSS = `
-@page { size: A4; margin: 20mm 18mm 16mm; }
+@page { size: A4; margin: ${pageMarginRule()}; }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; background: white; }
 body {
@@ -630,6 +631,39 @@ body {
   margin-top: 18pt;
   font-size: 9.5pt;
   color: #333;
+}
+
+/*
+ * In PRINT the paper code leaves the flow entirely.
+ *
+ * In flow it was an ordinary block with an 18pt top margin, so on a paper that
+ * filled the page it — and nothing else — was pushed onto a second sheet. Out of
+ * flow it cannot lengthen the document, so no content length can make it create
+ * a page; and because a fixed element repeats in paged media it prints on
+ * EVERY sheet, which is what a paper code is for: a loose page stays
+ * identifiable.
+ *
+ * The band it sits in is reserved by the @page bottom margin above, computed
+ * from these same numbers. It anchors to the bottom of the PAGE AREA — a fixed
+ * element is positioned against that box, not the sheet, and reaching past it
+ * with a negative offset was measured to make Chromium grow the document by a
+ * page, which is the defect this fix removes.
+ */
+@media print {
+  .footer-code {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 0;
+    padding: 0;
+    height: ${FOOTER_MM.lineHeight}mm;
+    line-height: ${FOOTER_MM.lineHeight}mm;
+    text-align: center;
+    /* Monochrome and quiet: it identifies the sheet, it does not compete with
+       the paper. #555 survives a photocopier at this size (see monochrome.js). */
+    color: #555;
+  }
 }
 
 @media print {
