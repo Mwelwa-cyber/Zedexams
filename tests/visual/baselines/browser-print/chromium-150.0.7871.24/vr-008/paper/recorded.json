@@ -3,9 +3,9 @@
   "family": "browser-print",
   "copy": "paper",
   "identity": "browser-print/chromium-150.0.7871.24",
-  "sourceCommit": "f68400a4daa6b603427e379fae1e7c9dd4146f50",
-  "source": "#1934",
-  "reason": "First recording of the §4.6 visual baselines. No baseline has ever existed, so the gate has been red since the harness landed and could not create one from a comparison run by design.",
+  "sourceCommit": "b5862eeae3eaa14170eb1466a0cc4263a3fffc4d",
+  "source": "PR #1946",
+  "reason": "The footer code moved into the reserved bottom band. Browser-print only; the Word render of this fixture is unchanged and its baseline is untouched (#1946).",
   "environment": {
     "chromium": "150.0.7871.24",
     "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
@@ -58,7 +58,7 @@
     "diagram_1": 1
   },
   "inkByPage": {
-    "1": 0.018850490933671266
+    "1": 0.018846349586739593
   },
   "figures": {
     "unresolvedFigureCount": 0,
@@ -81,7 +81,7 @@
   },
   "hashes": {
     "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
-    "layout.json": "c4a89181d50da7c04ae15c0dda69720d270fc5053aa0a4bcd0ccf28a4bebd37b",
-    "page-01.png": "fb9507df07ed0c2dcbfce14a46ab78ef739be0e8bce8fab6ae79bb68d00c2250"
+    "layout.json": "6be64a3d9c50ad0823c4c8abf10dcfe1837f954223275290dbdd2e8334ec7aa1",
+    "page-01.png": "2d2b40600f18e0daccec74c842a201f1460706f4b02caeb7e6ae184fd97ce288"
   }
 }
