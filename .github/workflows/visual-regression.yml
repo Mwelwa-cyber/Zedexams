@@ -7,6 +7,13 @@ name: Visual regression
 # visual-baseline-bootstrap.yml records ones that do not exist yet. Neither can
 # be reached from a pull request.
 #
+# A normal product PR runs every fixture. A reviewed baseline-update PR is a
+# special case: it changes exactly one fixture/family and therefore validates
+# exactly that target. Running all 18 targets on six serial baseline PRs creates
+# a deadlock where each correct PR fails because the other five replacements are
+# not merged yet. The scope resolver refuses application-code changes, multiple
+# targets, mismatched branch names and renderer-identity drift before narrowing.
+#
 # ## Why it does not run on every push
 #
 # Rendering eight papers through Chromium and LibreOffice is expensive next to a
@@ -100,11 +107,22 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The PR merge commit and its first parent are needed to derive the exact
+          # changed-file set without granting this read-only job API write access.
+          fetch-depth: 2
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+
+      - name: Prove baseline PR scope rules
+        run: node scripts/visual/baselinePrScope.test.js
+
+      - name: Resolve full or targeted comparison scope
+        id: scope
+        run: node scripts/visual/resolveVisualPrScope.mjs
 
       # Explicit, because ci.yml skips the puppeteer browser download globally and
       # a copied-in default would silently leave this job with no browser. The gate
@@ -129,14 +147,28 @@ jobs:
       # whose subject was deleted must fail here, not render a consistent paper
       # with nothing in it and report green.
       - name: Validate fixtures
-        run: node scripts/visual/validateFixtures.mjs
+        run: |
+          ARGS=()
+          if [ -n "${{ steps.scope.outputs.fixture }}" ]; then
+            ARGS+=(--fixture="${{ steps.scope.outputs.fixture }}")
+          fi
+          node scripts/visual/validateFixtures.mjs "${ARGS[@]}"
 
-      # ONE implementation, whichever way the job was triggered. `force` changes
-      # nothing about what runs — the path filter decided whether we got here,
-      # not what happens now.
+      # ONE implementation, whichever way the job was triggered. Ordinary PRs and
+      # manual runs leave the arguments empty and execute the complete suite. A
+      # reviewed baseline-only PR receives the exact fixture/family proved by the
+      # scope resolver; no second comparison implementation exists.
       - name: Compare against baselines
         id: compare
-        run: node scripts/visual/runVisualGate.mjs --mode=compare
+        run: |
+          ARGS=(--mode=compare)
+          if [ -n "${{ steps.scope.outputs.fixture }}" ]; then
+            ARGS+=(--fixture="${{ steps.scope.outputs.fixture }}")
+          fi
+          if [ -n "${{ steps.scope.outputs.family }}" ]; then
+            ARGS+=(--family="${{ steps.scope.outputs.family }}")
+          fi
+          node scripts/visual/runVisualGate.mjs "${ARGS[@]}"
 
       # Uploaded even on failure — especially on failure. A reviewer must be able
       # to see the whole candidate document and the complete page set, not only
