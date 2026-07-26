@@ -3,9 +3,9 @@
   "family": "browser-print",
   "copy": "paper",
   "identity": "browser-print/chromium-150.0.7871.24",
-  "sourceCommit": "f68400a4daa6b603427e379fae1e7c9dd4146f50",
-  "source": "#1934",
-  "reason": "First recording of the §4.6 visual baselines. No baseline has ever existed, so the gate has been red since the harness landed and could not create one from a comparison run by design.",
+  "sourceCommit": "f9381c56ce987528f7294d6657c23ca6ebbdc16f",
+  "source": "PR #1937",
+  "reason": "The long-division working layout now prints. The previous baseline recorded a paper showing only the prompts, because the block sat in richContent — a field no exporter reads (#1937).",
   "environment": {
     "chromium": "150.0.7871.24",
     "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
@@ -58,7 +58,7 @@
     "header": 1
   },
   "inkByPage": {
-    "1": 0.014435354954845514
+    "1": 0.01674944759033428
   },
   "figures": {
     "unresolvedFigureCount": 0,
@@ -71,7 +71,7 @@
   },
   "hashes": {
     "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
-    "layout.json": "7304423412dfff8502785e6738911807e9a08d2d6180f23444365325393a66c9",
-    "page-01.png": "a7a03082f4d6be6cb8faf38fc07c6732eb063907d4444a0e8a5b6b2205717b2f"
+    "layout.json": "d90224b6be64c6c6aed3c26de07fc576fb8b96fd4bf202b56ac8534c15d9149f",
+    "page-01.png": "118e28cfa53a30a4b125f84b77beade38b102513168ab972f5dabf1e2f9c792c"
   }
 }
