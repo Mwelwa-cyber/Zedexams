@@ -23,7 +23,8 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import {
   PAPER_TERMS, INSTRUCTION_REGISTER, FORBIDDEN_ON_PAPER, CURRICULA,
-  buildTerminologyDirective, findForbiddenTerms, termFor,
+  buildTerminologyDirective, findForbiddenTerms, termFor, normalizeCurriculum,
+  advancedTermsForLevel, findAdvancedTerms,
 } from '../src/config/paperTerminology.js'
 import { renderTerminologyJson, TERMINOLOGY_JSON_PATH } from './sync-paper-terminology.mjs'
 
@@ -94,6 +95,29 @@ test('an unknown level and curriculum fall back the same way on both sides', () 
   assert.equal(server.normalizeCurriculum('martian'), 'cbc')
 })
 
+test('EVERY spelling resolves identically — including the one the caller passes', () => {
+  // This test is here because its absence hid a live bug. The parity checks only
+  // exercised 'cbc'/'obc', while generateAssessment passes inputs.framework — the
+  // YEAR. The server did not know the aliases, so a '2013' paper fell through to
+  // the CBC default and was told to say "regroup" to a teacher who marks with
+  // "borrow". Covering only the canonical values tested the boundary we control
+  // instead of the one the caller uses.
+  for (const spelling of ['cbc', 'obc', 'CBC', 'OBC', 'previous', '2013', '2023', '', null, 'martian']) {
+    assert.equal(
+      server.normalizeCurriculum(spelling), normalizeCurriculum(spelling),
+      `normalizeCurriculum(${JSON.stringify(spelling)})`,
+    )
+    const args = { formality: 'standard', curriculum: spelling, subject: 'Mathematics' }
+    assert.equal(
+      server.buildTerminologyDirective(args), buildTerminologyDirective(args),
+      `directive for ${JSON.stringify(spelling)}`,
+    )
+  }
+  // And the consequence, stated directly: the framework year picks the word.
+  assert.match(server.buildTerminologyDirective({ formality: 'standard', curriculum: '2013', subject: 'Mathematics' }), /borrow/)
+  assert.match(server.buildTerminologyDirective({ formality: 'standard', curriculum: '2023', subject: 'Mathematics' }), /regroup/)
+})
+
 test('the leak detector agrees on both sides', () => {
   const samples = [
     'Simplify 6/8 and show your working.',
@@ -107,6 +131,38 @@ test('the leak detector agrees on both sides', () => {
       server.findForbiddenTerms(sample), findForbiddenTerms(sample),
       JSON.stringify(sample),
     )
+  }
+})
+
+test('both sides agree on what wording is too advanced for a level', () => {
+  // The safeguard has to hold on the server, because that is where generated
+  // text is checked. A client/server disagreement here would mean the studio
+  // showing a paper as clean that the generator flagged, or the reverse.
+  for (const formality of Object.keys(INSTRUCTION_REGISTER)) {
+    for (const curriculum of CURRICULA) {
+      assert.deepEqual(
+        server.advancedTermsForLevel(formality, curriculum),
+        advancedTermsForLevel(formality, curriculum),
+        `${formality} / ${curriculum}`,
+      )
+    }
+  }
+  const samples = [
+    'Add fractions with the same denominator',
+    'Circle the red ones.',
+    'You may borrow a pencil.',
+    'Regroup the tens.',
+  ]
+  for (const sample of samples) {
+    for (const formality of ['spoken', 'simple', 'standard']) {
+      for (const curriculum of CURRICULA) {
+        assert.deepEqual(
+          server.findAdvancedTerms(sample, formality, curriculum),
+          findAdvancedTerms(sample, formality, curriculum),
+          `${JSON.stringify(sample)} @ ${formality}/${curriculum}`,
+        )
+      }
+    }
   }
 })
 

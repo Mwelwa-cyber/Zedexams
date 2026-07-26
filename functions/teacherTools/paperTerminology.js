@@ -21,10 +21,19 @@ const FORBIDDEN = DATA.forbiddenOnPaper || [];
 const CURRICULA = DATA.curricula || ["cbc"];
 const FALLBACK_FORMALITY = "standard";
 
-/** The curriculum key, defaulting to CBC — the current national curriculum. */
+/**
+ * The curriculum key, defaulting to CBC — the current national curriculum.
+ *
+ * Accepts every spelling in the repo, and it MATTERS here: generateAssessment
+ * passes `inputs.framework`, which is the year '2023'/'2013'. Without the aliases
+ * a '2013' paper fell through to the CBC default and was told to say "regroup"
+ * when its teacher marks with "borrow".
+ */
+const CURRICULUM_ALIASES = DATA.curriculumAliases || {};
+
 function normalizeCurriculum(curriculum) {
-  const key = String(curriculum || "").toLowerCase();
-  return CURRICULA.includes(key) ? key : "cbc";
+  const key = String(curriculum == null ? "" : curriculum).toLowerCase().trim();
+  return CURRICULUM_ALIASES[key] || (CURRICULA.includes(key) ? key : "cbc");
 }
 
 /** The instruction register for a band's formality, never undefined. */
@@ -111,6 +120,54 @@ function buildTerminologyDirective({ formality, curriculum = "cbc", subject = ""
 }
 
 /**
+ * The technical terms a level is NOT allowed to use, resolved for a curriculum.
+ *
+ * A quoted syllabus outcome may legitimately contain advanced terminology, and
+ * that outcome travels into the prompt as planning context — the application has
+ * no business rewriting an approved curriculum statement. What must not happen is
+ * the model copying that wording straight into a Nursery question. So the same
+ * grading that decides what a level is TOLD becomes a check on what it PRODUCED.
+ *
+ * Only UNAMBIGUOUS technical terms count. "ones", "carry", "divide", "working"
+ * and "answer" are ordinary English; a paper saying "Circle the red ones" is not
+ * using place-value vocabulary, and a checker that said so would be ignored.
+ */
+function advancedTermsForLevel(formality, curriculum = "cbc") {
+  const register = instructionRegisterFor(formality);
+  const permitted = new Set(register.topics || []);
+  const curr = normalizeCurriculum(curriculum);
+  const out = [];
+  for (const topic of Object.keys(TERMS)) {
+    if (permitted.has(topic)) continue;
+    for (const key of Object.keys(TERMS[topic])) {
+      const entry = TERMS[topic][key];
+      const technical = entry.technical === true || entry.technical === curr;
+      if (!technical) continue;
+      const term = termFor(topic, key, curr);
+      if (term) out.push(term);
+    }
+  }
+  return out;
+}
+
+/**
+ * Advanced terminology found in text a LEARNER will read, for their level.
+ * [] is the pass.
+ *
+ * Run against GENERATED question and instruction text, never against the prompt
+ * — the prompt is allowed to carry a syllabus outcome verbatim. This is the
+ * boundary between planning context and learner-facing wording.
+ */
+function findAdvancedTerms(text, formality, curriculum = "cbc") {
+  const body = String(text == null ? "" : text);
+  if (!body) return [];
+  return advancedTermsForLevel(formality, curriculum).filter((term) => {
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`\\b${escaped}\\b`, "i").test(body);
+  });
+}
+
+/**
  * Any forbidden internal term found in generated text. [] is the pass.
  *
  * Used as a post-generation check as well as a prompt instruction: the model
@@ -127,6 +184,8 @@ function findForbiddenTerms(rendered) {
 
 module.exports = {
   CURRICULA,
+  advancedTermsForLevel,
+  findAdvancedTerms,
   FORBIDDEN_ON_PAPER: FORBIDDEN,
   buildTerminologyDirective,
   findForbiddenTerms,

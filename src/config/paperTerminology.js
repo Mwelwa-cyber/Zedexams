@@ -48,7 +48,7 @@
 export const CURRICULA = ['cbc', 'obc']
 
 /** Every other spelling of the same two curricula, in use across the repo. */
-const CURRICULUM_ALIASES = {
+export const CURRICULUM_ALIASES = {
   previous: 'obc',
   2013: 'obc',
   2023: 'cbc',
@@ -63,38 +63,49 @@ const CURRICULUM_ALIASES = {
  *
  * A term with a `byCurriculum` map is chosen by the selected curriculum; every
  * other term is shared.
+ *
+ * `technical: true` marks a term whose appearance on a paper is UNAMBIGUOUS
+ * evidence of advanced vocabulary. The distinction carries weight: "denominator"
+ * has no other meaning, but "ones", "carry", "divide", "working" and "answer" are
+ * ordinary English, and a Nursery paper saying "Circle the red ones" is not using
+ * place-value vocabulary. A checker that flagged those would be noise, and a
+ * noisy checker is one a teacher learns to ignore — so only the unambiguous
+ * terms are used to detect advanced wording leaking down a level.
+ * `technical: 'cbc'` marks a term technical in one curriculum only.
  */
 export const PAPER_TERMS = {
   fractions: {
-    numerator: { term: 'numerator' },
-    denominator: { term: 'denominator' },
+    numerator: { term: 'numerator', technical: true },
+    denominator: { term: 'denominator', technical: true },
     fraction: { term: 'fraction' },
-    mixedNumber: { term: 'mixed number' },
-    improperFraction: { term: 'improper fraction' },
-    equivalentFraction: { term: 'equivalent fraction' },
-    simplify: { term: 'simplify' },
-    lowestTerms: { term: 'lowest terms' },
+    mixedNumber: { term: 'mixed number', technical: true },
+    improperFraction: { term: 'improper fraction', technical: true },
+    equivalentFraction: { term: 'equivalent fraction', technical: true },
+    simplify: { term: 'simplify', technical: true },
+    lowestTerms: { term: 'lowest terms', technical: true },
   },
   division: {
     divide: { term: 'divide' },
-    dividend: { term: 'dividend' },
-    divisor: { term: 'divisor' },
-    quotient: { term: 'quotient' },
-    remainder: { term: 'remainder' },
+    dividend: { term: 'dividend', technical: true },
+    divisor: { term: 'divisor', technical: true },
+    quotient: { term: 'quotient', technical: true },
+    remainder: { term: 'remainder', technical: true },
   },
   columnArithmetic: {
     working: { term: 'working' },
     carry: { term: 'carry' },
-    // The one term the curriculum decides. See the file header.
-    regroup: { byCurriculum: { cbc: 'regroup', obc: 'borrow' } },
+    // The one term the curriculum decides. See the file header. Only CBC's word
+    // is technical — "borrow" is ordinary English ("borrow a pencil"), so
+    // flagging it would report a problem a paper does not have.
+    regroup: { byCurriculum: { cbc: 'regroup', obc: 'borrow' }, technical: 'cbc' },
   },
   placeValue: {
-    placeValue: { term: 'place value' },
+    placeValue: { term: 'place value', technical: true },
     ones: { term: 'ones' },
     tens: { term: 'tens' },
     hundreds: { term: 'hundreds' },
     thousands: { term: 'thousands' },
-    decimalPoint: { term: 'decimal point' },
+    decimalPoint: { term: 'decimal point', technical: true },
   },
   answering: {
     answer: { term: 'answer' },
@@ -261,6 +272,53 @@ export function buildTerminologyDirective({ formality, curriculum = 'cbc', subje
     + `${FORBIDDEN_ON_PAPER.join(', ')}.`,
   )
   return lines.join('\n')
+}
+
+/**
+ * The technical terms a level is NOT allowed to use, resolved for a curriculum.
+ *
+ * A quoted syllabus outcome may legitimately contain advanced terminology — the
+ * outcome is what the curriculum wrote, and the application has no business
+ * rewriting an approved statement because its wording is ahead of the level.
+ * That outcome travels into the generation prompt as PLANNING CONTEXT.
+ *
+ * What must not happen is the model copying that wording straight through into a
+ * Nursery question. So the same vocabulary grading that decides what a level is
+ * TOLD becomes a check on what it PRODUCED: any technical term from a topic this
+ * level does not carry is advanced wording that has leaked down.
+ */
+export function advancedTermsForLevel(formality, curriculum = 'cbc') {
+  const register = instructionRegisterFor(formality)
+  const permitted = new Set(register.topics || [])
+  const curr = normalizeCurriculum(curriculum)
+  const out = []
+  for (const [topic, group] of Object.entries(PAPER_TERMS)) {
+    if (permitted.has(topic)) continue
+    for (const [key, entry] of Object.entries(group)) {
+      const technical = entry.technical === true || entry.technical === curr
+      if (!technical) continue
+      const term = termFor(topic, key, curr)
+      if (term) out.push(term)
+    }
+  }
+  return out
+}
+
+/**
+ * Advanced terminology found in text a LEARNER will read, for their level.
+ * [] is the pass.
+ *
+ * Run against generated question and instruction text, not against the prompt —
+ * the prompt is allowed to carry a syllabus outcome verbatim. This is the
+ * boundary between planning context and learner-facing wording.
+ */
+export function findAdvancedTerms(text, formality, curriculum = 'cbc') {
+  const body = String(text == null ? '' : text)
+  if (!body) return []
+  return advancedTermsForLevel(formality, curriculum).filter((term) => {
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    return new RegExp(`\\b${escaped}\\b`, 'i').test(body)
+  })
 }
 
 /**

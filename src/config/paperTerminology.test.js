@@ -22,6 +22,7 @@ import {
   PAPER_TERMS, INSTRUCTION_REGISTER, FORBIDDEN_ON_PAPER, CURRICULA,
   termFor, termsForTopic, allTerms, instructionRegisterFor, normalizeCurriculum,
   buildTerminologyDirective, findForbiddenTerms,
+  advancedTermsForLevel, findAdvancedTerms,
 } from './paperTerminology.js'
 import { ASSESSMENT_BAND_SEED } from './assessmentBands.js'
 
@@ -182,6 +183,68 @@ test('the directive always forbids our own machinery by name', () => {
       assert.ok(directive.includes(term), `${formality}: forbids "${term}"`)
     }
   }
+})
+
+/* ── syllabus wording must not walk down a level ────────────────────────── */
+
+console.log('\n— advanced terminology stays where it belongs —')
+
+test('a syllabus outcome may say "denominator"; a Nursery question may not', () => {
+  // The loophole this closes. An approved outcome — "Add fractions with the same
+  // denominator" — is what the curriculum wrote, and the application has no
+  // business rewriting it. It travels into the prompt as planning context. What
+  // must not happen is the model copying that wording into the question.
+  const outcome = 'Add fractions with the same denominator'
+  assert.deepEqual(findAdvancedTerms(outcome, 'spoken'), ['denominator'])
+  // …and at a level that carries fraction vocabulary, the same wording is fine.
+  assert.deepEqual(findAdvancedTerms(outcome, 'standard'), [])
+})
+
+test('the check is precise enough to be worth having', () => {
+  // "ones", "carry", "divide", "working" and "answer" are ordinary English. A
+  // Nursery paper saying "Circle the red ones" is not using place-value
+  // vocabulary, and a checker that said so would be switched off.
+  const ordinary = [
+    'Circle the red ones.',
+    'Carry the box to the table.',
+    'Divide the sweets between the two children.',
+    'Write your answer in the box.',
+    'Show your working.',
+  ]
+  for (const text of ordinary) {
+    assert.deepEqual(findAdvancedTerms(text, 'spoken'), [], text)
+  }
+})
+
+test('a term technical in one curriculum only is judged per curriculum', () => {
+  // CBC's "regroup" has no other meaning. OBC's "borrow" is what you do with a
+  // pencil, so flagging it would report a problem the paper does not have.
+  assert.ok(advancedTermsForLevel('spoken', 'cbc').includes('regroup'))
+  assert.ok(!advancedTermsForLevel('spoken', 'obc').includes('borrow'))
+  assert.deepEqual(findAdvancedTerms('You may borrow a pencil.', 'spoken', 'obc'), [])
+  assert.deepEqual(findAdvancedTerms('Regroup the tens.', 'spoken', 'cbc'), ['regroup'])
+})
+
+test('the top of the ladder has nothing left to leak', () => {
+  // Upper primary and above carry every topic, so there is no advanced wording
+  // to detect — the check is level-relative, not a global banned list.
+  for (const formality of ['standard', 'formal', 'examination']) {
+    assert.deepEqual(advancedTermsForLevel(formality), [], formality)
+  }
+  assert.ok(advancedTermsForLevel('spoken').length > 0, 'and plenty at Nursery')
+})
+
+test('lower primary carries place value but not fractions', () => {
+  const simple = advancedTermsForLevel('simple')
+  assert.ok(!simple.includes('place value'), 'place value is taught here')
+  assert.ok(simple.includes('denominator'), 'fraction vocabulary is not')
+})
+
+test('nothing in, nothing flagged', () => {
+  assert.deepEqual(findAdvancedTerms('', 'spoken'), [])
+  assert.deepEqual(findAdvancedTerms(null, 'spoken'), [])
+  assert.deepEqual(findAdvancedTerms('Anything', 'made-up'), [],
+    'an unknown level falls back to standard, which permits everything')
 })
 
 /* ── the leak detector ──────────────────────────────────────────────────── */

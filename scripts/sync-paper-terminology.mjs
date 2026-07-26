@@ -18,7 +18,7 @@ import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  PAPER_TERMS, INSTRUCTION_REGISTER, FORBIDDEN_ON_PAPER, CURRICULA,
+  PAPER_TERMS, INSTRUCTION_REGISTER, FORBIDDEN_ON_PAPER, CURRICULA, CURRICULUM_ALIASES,
 } from '../src/config/paperTerminology.js'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -28,6 +28,9 @@ export function renderTerminologyJson() {
   return `${JSON.stringify({
     _generated: 'npm run sync:paper-terminology — edit src/config/paperTerminology.js, not this file',
     curricula: CURRICULA,
+    // The aliases travel too: the generator passes a framework YEAR, so a server
+    // that did not know '2013' means OBC would give an OBC paper CBC's wording.
+    curriculumAliases: CURRICULUM_ALIASES,
     terms: PAPER_TERMS,
     instructionRegister: INSTRUCTION_REGISTER,
     forbiddenOnPaper: FORBIDDEN_ON_PAPER,

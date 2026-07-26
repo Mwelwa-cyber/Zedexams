@@ -725,6 +725,21 @@ async function caught(promise) {
   ok("CBC's word for crossing a place value is the one it is given",
       /call it "regroup"/.test(seniorPrompt) && !/call it "borrow"/.test(seniorPrompt));
 
+  // The OTHER curriculum gets the other word. The generator passes a framework
+  // YEAR, so this is the assertion that proves the year actually reaches the
+  // wording rather than falling through to the CBC default.
+  reset();
+  claudeImpl = async () => validPaper();
+  await runAssessment({
+    uid: "t1",
+    rawInputs: {...INPUTS, grade: "G11", subject: "mathematics", framework: "2013"},
+    apiKey: "k",
+    idempotencyKey: IDK,
+  });
+  const obcPrompt = calls.claude[0].opts.messages[0].content;
+  ok("an OBC paper is told to say \"borrow\", not \"regroup\"",
+      /call it "borrow"/.test(obcPrompt) && !/call it "regroup"/.test(obcPrompt));
+
   // A Master Bank question whose activity the band forbids must be REJECTED,
   // not adapted. The bank is shared across grades, so a stored essay could
   // otherwise reach a Nursery paper by the back door.

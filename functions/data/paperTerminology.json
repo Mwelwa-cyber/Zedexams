@@ -4,31 +4,45 @@
     "cbc",
     "obc"
   ],
+  "curriculumAliases": {
+    "2013": "obc",
+    "2023": "cbc",
+    "previous": "obc",
+    "cbc": "cbc",
+    "obc": "obc"
+  },
   "terms": {
     "fractions": {
       "numerator": {
-        "term": "numerator"
+        "term": "numerator",
+        "technical": true
       },
       "denominator": {
-        "term": "denominator"
+        "term": "denominator",
+        "technical": true
       },
       "fraction": {
         "term": "fraction"
       },
       "mixedNumber": {
-        "term": "mixed number"
+        "term": "mixed number",
+        "technical": true
       },
       "improperFraction": {
-        "term": "improper fraction"
+        "term": "improper fraction",
+        "technical": true
       },
       "equivalentFraction": {
-        "term": "equivalent fraction"
+        "term": "equivalent fraction",
+        "technical": true
       },
       "simplify": {
-        "term": "simplify"
+        "term": "simplify",
+        "technical": true
       },
       "lowestTerms": {
-        "term": "lowest terms"
+        "term": "lowest terms",
+        "technical": true
       }
     },
     "division": {
@@ -36,16 +50,20 @@
         "term": "divide"
       },
       "dividend": {
-        "term": "dividend"
+        "term": "dividend",
+        "technical": true
       },
       "divisor": {
-        "term": "divisor"
+        "term": "divisor",
+        "technical": true
       },
       "quotient": {
-        "term": "quotient"
+        "term": "quotient",
+        "technical": true
       },
       "remainder": {
-        "term": "remainder"
+        "term": "remainder",
+        "technical": true
       }
     },
     "columnArithmetic": {
@@ -59,12 +77,14 @@
         "byCurriculum": {
           "cbc": "regroup",
           "obc": "borrow"
-        }
+        },
+        "technical": "cbc"
       }
     },
     "placeValue": {
       "placeValue": {
-        "term": "place value"
+        "term": "place value",
+        "technical": true
       },
       "ones": {
         "term": "ones"
@@ -79,7 +99,8 @@
         "term": "thousands"
       },
       "decimalPoint": {
-        "term": "decimal point"
+        "term": "decimal point",
+        "technical": true
       }
     },
     "answering": {
