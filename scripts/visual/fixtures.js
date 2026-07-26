@@ -120,6 +120,65 @@ const fraction = (whole, num, den) =>
   `<span class="math-frac" data-math-fraction="1" data-whole="${whole}"`
   + ` data-num="${num}" data-den="${den}"></span>`
 
+/**
+ * What must be VISIBLE on the printed page, derived from the fixture's own data.
+ *
+ * The rule this exists to enforce, learned three times the hard way: a fixture
+ * must be checked against the RENDERED PAGE, not against its own fields. Every
+ * `requires` predicate below reads the fixture object, and each time a field the
+ * exporters do not read crept in, the predicates went on passing while the paper
+ * contained nothing they described —
+ *
+ *   - a 16×16 near-blank logo used as a diagram: labels present, no ink;
+ *   - an invented `libraryKey` with a hand-written `svg` beside it: the key was
+ *     unresolvable and the sibling field was never read;
+ *   - `richContent`, a field name the paper layout has never read, carrying the
+ *     entire long-division and vertical-arithmetic content of two fixtures.
+ *
+ * All three passed validation. All three printed prompts and nothing else.
+ *
+ * So this DERIVES its expectations from the fixture rather than restating them:
+ * a hand-written list of "must appear" strings would be one more place to drift
+ * out of step. Whatever the fixture says the paper contains, the paper has to
+ * show.
+ */
+export function printedExpectations(fixture, { copy = 'paper' } = {}) {
+  const out = []
+  const add = (what, needle) => {
+    const text = String(needle || '').trim()
+    if (text) out.push({ what, needle: text })
+  }
+  for (const q of fixture.questions || []) {
+    const where = `question ${q.order ?? q.id}`
+    const source = String(q.text || '')
+
+    // The operands of a working layout. These are the whole subject of the
+    // long-division and vertical-arithmetic fixtures, and the case where the
+    // paper printed the prompt and omitted the sum.
+    for (const m of source.matchAll(/data-lines="([^"]+)"/g)) {
+      for (const operand of m[1].split('|')) add(`the working operand ${operand} in ${where}`, operand)
+    }
+    // A fraction's own numbers, which is what "the fraction printed" means to a
+    // learner regardless of how the bar is drawn.
+    for (const m of source.matchAll(/data-num="([^"]*)"\s+data-den="([^"]*)"/g)) {
+      add(`the numerator ${m[1]} in ${where}`, m[1])
+      add(`the denominator ${m[2]} in ${where}`, m[2])
+    }
+    // Table cells: a table that renders as an empty frame is a table with no data.
+    for (const row of q.tableData?.rows || []) for (const cell of row) add(`the table cell "${cell}"`, cell)
+    for (const header of q.tableData?.headers || []) add(`the table heading "${header}"`, header)
+    // The marking key's part names. On the learner's copy they must be ABSENT,
+    // which is checked separately — here we require them where they belong.
+    if (copy === 'scheme') {
+      for (const label of q.diagramLabels || []) add(`the answer "${label.text}"`, label.text)
+    }
+  }
+  if (fixture.assessment?.schoolName) {
+    add('the school name in the header', fixture.assessment.schoolName)
+  }
+  return out
+}
+
 /* ── the eight ──────────────────────────────────────────────────────────── */
 
 export const VISUAL_FIXTURES = [
@@ -206,22 +265,20 @@ export const VISUAL_FIXTURES = [
     questions: [
       {
         id: 'q1', order: 1, type: 'structured', marks: 4,
-        text: '<p>Divide 852 by 4. Show your working.</p>',
         // The learner's version: the frame with nothing filled in.
-        richContent: `<p>${vertical('÷', ['852', '4'], '', true)}</p>`,
+        text: `<p>Divide 852 by 4. Show your working.</p><p>${vertical('÷', ['852', '4'], '', true)}</p>`,
         answerLines: 6,
       },
       {
         id: 'q2', order: 2, type: 'structured', marks: 4,
-        text: '<p>Divide 947 by 5 and state the remainder.</p>',
-        richContent: `<p>${vertical('÷', ['947', '5'], '', true)}</p>`,
+        text: `<p>Divide 947 by 5 and state the remainder.</p><p>${vertical('÷', ['947', '5'], '', true)}</p>`,
         answerLines: 6,
       },
     ],
     requires: [
-      ['a division layout', (f) => f.questions.some((q) => /data-operator="÷"/.test(q.richContent || ''))],
-      ['learner working space', (f) => f.questions.some((q) => /data-working="true"/.test(q.richContent || ''))],
-      ['an unfilled answer', (f) => f.questions.some((q) => /data-answer=""/.test(q.richContent || ''))],
+      ['a division layout', (f) => f.questions.some((q) => /data-operator="÷"/.test(q.text || ''))],
+      ['learner working space', (f) => f.questions.some((q) => /data-working="true"/.test(q.text || ''))],
+      ['an unfilled answer', (f) => f.questions.some((q) => /data-answer=""/.test(q.text || ''))],
       ['a remainder question', (f) => f.questions.some((q) => /remainder/i.test(q.text || ''))],
     ],
   },
@@ -258,30 +315,26 @@ export const VISUAL_FIXTURES = [
     questions: [
       {
         id: 'q1', order: 1, type: 'structured', marks: 2,
-        text: '<p>Work out the addition. Carry where you need to.</p>',
-        richContent: `<p>${vertical('+', ['478', '265'], '', true)}</p>`,
+        text: `<p>Work out the addition. Carry where you need to.</p><p>${vertical('+', ['478', '265'], '', true)}</p>`,
       },
       {
         id: 'q2', order: 2, type: 'structured', marks: 2,
-        text: '<p>Work out the subtraction. Regroup where you need to.</p>',
-        richContent: `<p>${vertical('−', ['802', '347'], '', true)}</p>`,
+        text: `<p>Work out the subtraction. Regroup where you need to.</p><p>${vertical('−', ['802', '347'], '', true)}</p>`,
       },
       {
         id: 'q3', order: 3, type: 'structured', marks: 2,
-        text: '<p>Add these amounts. Keep the decimal points in line.</p>',
-        richContent: `<p>${vertical('+', ['12.75', '3.40'], '', true)}</p>`,
+        text: `<p>Add these amounts. Keep the decimal points in line.</p><p>${vertical('+', ['12.75', '3.40'], '', true)}</p>`,
       },
       {
         id: 'q4', order: 4, type: 'structured', marks: 2,
-        text: '<p>Multiply. Show each partial product.</p>',
-        richContent: `<p>${vertical('×', ['346', '24'], '', true)}</p>`,
+        text: `<p>Multiply. Show each partial product.</p><p>${vertical('×', ['346', '24'], '', true)}</p>`,
       },
     ],
     requires: [
-      ['an addition with carrying', (f) => f.questions.some((q) => /data-operator="\+"/.test(q.richContent || ''))],
-      ['a subtraction needing regrouping', (f) => f.questions.some((q) => /data-operator="−"/.test(q.richContent || ''))],
-      ['a multiplication', (f) => f.questions.some((q) => /data-operator="×"/.test(q.richContent || ''))],
-      ['aligned decimals', (f) => f.questions.some((q) => /data-lines="[^"]*\d+\.\d+/.test(q.richContent || ''))],
+      ['an addition with carrying', (f) => f.questions.some((q) => /data-operator="\+"/.test(q.text || ''))],
+      ['a subtraction needing regrouping', (f) => f.questions.some((q) => /data-operator="−"/.test(q.text || ''))],
+      ['a multiplication', (f) => f.questions.some((q) => /data-operator="×"/.test(q.text || ''))],
+      ['aligned decimals', (f) => f.questions.some((q) => /data-lines="[^"]*\d+\.\d+/.test(q.text || ''))],
     ],
   },
 

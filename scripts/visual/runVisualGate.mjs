@@ -37,7 +37,7 @@ import fs from 'node:fs'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { VISUAL_FIXTURES, fixtureById, validateFixture } from './fixtures.js'
+import { VISUAL_FIXTURES, fixtureById, validateFixture, printedExpectations } from './fixtures.js'
 import {
   captureRenderEnvironment, assertComparableEnvironment, assertToolchain,
   baselineIdentity, resolveRenderChromium, RENDER_SETTINGS,
@@ -47,7 +47,9 @@ import {
 } from './renderGuards.js'
 import { comparePages, summarisePageComparison } from './compareRender.js'
 import { comparePagination } from './comparePagination.js'
-import { resolveStrictRegions, expectedAnchorsFor, declaredPageMismatches } from './anchors.js'
+import {
+  resolveStrictRegions, expectedAnchorsFor, declaredPageMismatches, labelDocumentLines,
+} from './anchors.js'
 import { renderFixture, decodePng, encodePng, assertLibreOfficeCanConvert } from './renderStages.js'
 import {
   GATE_MODES, RENDERER_FAMILIES, mayWriteBaseline, validateUpdateRequest,
@@ -314,6 +316,7 @@ async function runOne(fixture, stage, copy, sharedBrowser) {
     expectedAnchorPages: expectedAnchorsFor(fixture, copy),
   })
   assertFiguresReallyEmbedded(fixture, stage, label, render)
+  assertPagePrintsItsContent(fixture, copy, label, render)
 
   // The fixture knows how many questions it has, so a mis-read of the printed
   // page is caught rather than absorbed. Without this, an extractor that lost
@@ -520,6 +523,43 @@ function assertFiguresReallyEmbedded(fixture, stage, label, render) {
   if (!figures.imageRelationships) {
     fail('the Word file declares no image relationship, so the drawing is a blank box', { figures })
   }
+}
+
+/**
+ * Everything the fixture says the paper contains must be ON the paper.
+ *
+ * Checked against the rendered text rather than the fixture's own fields,
+ * because the fixture's fields are exactly what kept passing while the page was
+ * empty. Three separate times a fixture certified a paper containing none of
+ * what it protects — a diagram with no ink, a figure whose catalog key did not
+ * exist, and two fixtures whose entire maths content sat in a field the
+ * exporters have never read. Each was invisible to `requires` and obvious on the
+ * page.
+ *
+ * Loud, and before any baseline: recording a paper that is missing its content
+ * makes the omission the reference, and every later comparison then certifies it.
+ */
+function assertPagePrintsItsContent(fixture, copy, label, render) {
+  const printed = labelDocumentLines(render.pages)
+    .flatMap((page) => page.lines.map((line) => line.text))
+    .join(' \u0020')
+    // The page breaks text into runs wherever it likes, so a needle can be split
+    // across two of them. Comparing without spaces asks whether the CHARACTERS
+    // are on the page, which is the question being asked. Case-folded too: the
+    // header prints the school name in capitals, and a case-sensitive check
+    // reported every one of the eight fixtures as missing its own school.
+    .replace(/\s+/g, '')
+    .toLowerCase()
+  const missing = printedExpectations(fixture, { copy })
+    .filter(({ needle }) => !printed.includes(needle.replace(/\s+/g, '').toLowerCase()))
+  if (!missing.length) return
+  throw new RenderIncompleteError(
+    `${label}: the paper does not print ${missing.length} thing(s) the fixture says it contains — `
+    + `${missing.slice(0, 6).map((m) => m.what).join('; ')}`
+    + `${missing.length > 6 ? `; and ${missing.length - 6} more` : ''}. `
+    + 'A baseline of a paper missing its own content makes the omission the reference',
+    { fixtureId: fixture.id, missing: missing.map((m) => m.what) },
+  )
 }
 
 function pageName(n) {
