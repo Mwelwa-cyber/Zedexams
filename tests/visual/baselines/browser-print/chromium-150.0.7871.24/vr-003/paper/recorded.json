@@ -3,9 +3,9 @@
   "family": "browser-print",
   "copy": "paper",
   "identity": "browser-print/chromium-150.0.7871.24",
-  "sourceCommit": "f68400a4daa6b603427e379fae1e7c9dd4146f50",
-  "source": "#1934",
-  "reason": "First recording of the §4.6 visual baselines. No baseline has ever existed, so the gate has been red since the harness landed and could not create one from a comparison run by design.",
+  "sourceCommit": "b5862eeae3eaa14170eb1466a0cc4263a3fffc4d",
+  "source": "PR #1946",
+  "reason": "The footer code moved into the reserved bottom band. Browser-print only; the Word render is unchanged and its baseline is untouched (#1946).",
   "environment": {
     "chromium": "150.0.7871.24",
     "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
@@ -51,16 +51,17 @@
     "fixedDate": "2026-01-15"
   },
   "command": "chromium page.pdf (preferCSSPageSize)",
-  "pageCount": 1,
+  "pageCount": 2,
   "anchors": {
-    "question_1": 1,
-    "question_2": 1,
-    "question_3": 1,
-    "question_4": 1,
+    "question_1": 2,
+    "question_2": 2,
+    "question_3": 2,
+    "question_4": 2,
     "header": 1
   },
   "inkByPage": {
-    "1": 0.01785288647279641
+    "1": 0.012086290945267038,
+    "2": 0.010889441682012658
   },
   "figures": {
     "unresolvedFigureCount": 0,
@@ -68,12 +69,14 @@
     "placeholders": 0,
     "docx": null,
     "detected": {
-      "1": []
+      "1": [],
+      "2": []
     }
   },
   "hashes": {
     "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
-    "layout.json": "fa312828089b03ba74d05b2a6330f1d14f533d965310ff5d0b2807b67a085b33",
-    "page-01.png": "c3b43fd765c345a9bac958dfdae5d765a92ca66ccc7696d439011d7a64849452"
+    "layout.json": "d45fbbe379de8b10329ee7a43614e613ceb8800be59694794a1fffa8b1e2f3d5",
+    "page-01.png": "fd81084a0e293cdb2d8fe10d83797131e89f34f1b5fa697f9761d8200bbfcee0",
+    "page-02.png": "73de1950572e50b9d3ec1d573793c17b7ed0de3dbc34d7604796f92837468af2"
   }
 }
