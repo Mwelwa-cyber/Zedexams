@@ -655,7 +655,7 @@ async function caught(promise) {
   // ── Assessment bands (Phase 2) ─────────────────────────────────────────
   // The band governing the paper's level must reach the model, and must be a
   // CEILING the client cannot lift: the picker already filters its chips, but
-  // a stale or hostile client asking Baby Class for an essay must not get one.
+  // a stale or hostile client asking Nursery for an essay must not get one.
   reset();
   claudeImpl = async () => validPaper();
   await runAssessment({
@@ -681,6 +681,24 @@ async function caught(promise) {
   ok("no early-years task leaks out as a raw schema type",
       !/"type"\s*:\s*"counting"/.test(ecePrompt));
 
+  // ── Paper terminology (§4.1) ────────────────────────────────────────────
+  // The words the paper may use are graded by level, and offering a term to the
+  // model is how it reaches the page. So a Nursery paper is told to speak, and
+  // is NOT told what a denominator is.
+  ok("the level's instruction register reaches the prompt",
+      ecePrompt.includes("INSTRUCTION REGISTER") && ecePrompt.includes("Share equally"));
+  // Scoped to the block the terminology config controls. A quoted SYLLABUS
+  // OUTCOME may legitimately say "denominator" even at a level whose paper must
+  // not use the word — the outcome is what the syllabus wrote, and asserting
+  // over the whole prompt would be asserting against the curriculum.
+  ok("a Nursery paper is never taught fraction vocabulary",
+      !ecePrompt.includes("MATHEMATICAL VOCABULARY"));
+  ok("and never given examination phrasing",
+      !/significant figures|Justify/i.test(ecePrompt));
+  ok("our own internal terms are forbidden by name",
+      ecePrompt.includes("Never write any of our internal terms")
+      && ecePrompt.includes("LaTeX") && ecePrompt.includes("raster fallback"));
+
   // A senior paper gets its own band, not the early-years one.
   reset();
   claudeImpl = async () => validPaper();
@@ -697,6 +715,15 @@ async function caught(promise) {
       /ALLOWED QUESTION TYPES[^\n]*essay/.test(seniorPrompt));
   ok("the early-years reading rule is NOT applied to a senior paper",
       !seniorPrompt.includes("CANNOT be assumed to read"));
+  // The other end of the terminology ladder: a senior maths paper gets the full
+  // vocabulary and the examination register.
+  ok("a senior maths paper gets the fraction vocabulary",
+      /MATHEMATICAL VOCABULARY[^\n]*numerator[^\n]*denominator/i.test(seniorPrompt));
+  ok("…and the examination register, not the spoken one",
+      /INSTRUCTION REGISTER: examination register/.test(seniorPrompt)
+      && !/Share equally/.test(seniorPrompt));
+  ok("CBC's word for crossing a place value is the one it is given",
+      /call it "regroup"/.test(seniorPrompt) && !/call it "borrow"/.test(seniorPrompt));
 
   // A Master Bank question whose activity the band forbids must be REJECTED,
   // not adapted. The bank is shared across grades, so a stored essay could
