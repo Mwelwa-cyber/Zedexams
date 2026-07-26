@@ -3,9 +3,9 @@
   "family": "browser-print",
   "copy": "scheme",
   "identity": "browser-print/chromium-150.0.7871.24",
-  "sourceCommit": "f68400a4daa6b603427e379fae1e7c9dd4146f50",
-  "source": "#1934",
-  "reason": "First recording of the §4.6 visual baselines. No baseline has ever existed, so the gate has been red since the harness landed and could not create one from a comparison run by design.",
+  "sourceCommit": "b5862eeae3eaa14170eb1466a0cc4263a3fffc4d",
+  "source": "PR #1938 (with #1946)",
+  "reason": "The print path now honours the band minimum figure size, so the diagram is column-sized instead of shrink-wrapped to its 96px source (#1938); the footer code also moved into the reserved bottom band (#1946). Both copies (paper and scheme) are recorded by this run.",
   "environment": {
     "chromium": "150.0.7871.24",
     "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
@@ -59,7 +59,7 @@
     "diagram_1": 1
   },
   "inkByPage": {
-    "1": 0.02504042414754975
+    "1": 0.040485807604065144
   },
   "figures": {
     "unresolvedFigureCount": 0,
@@ -69,11 +69,11 @@
     "detected": {
       "1": [
         {
-          "x": 545,
+          "x": 106,
           "y": 697,
-          "width": 150,
-          "height": 150,
-          "cells": 352,
+          "width": 1028,
+          "height": 500,
+          "cells": 8032,
           "source": "placement",
           "anchor": "diagram_1"
         }
@@ -82,7 +82,7 @@
   },
   "hashes": {
     "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
-    "layout.json": "83bbcd3b3197c53a24a0287cc874046d5719d4c13c3a0748bfc057a789d9ff04",
-    "page-01.png": "afe090f5295d163834ec1552b7ef08fec94d1cee2740423ff3c30bb8e209ebda"
+    "layout.json": "86d610226ab7cccd18a161aa9509d6d7560721472f60fbb6abafd9cd709f0997",
+    "page-01.png": "e67019662e52f98eb9b4734f1075addc63fe4c128ca670d2d0c2aa30ec930e15"
   }
 }
