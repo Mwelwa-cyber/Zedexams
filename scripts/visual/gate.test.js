@@ -20,6 +20,7 @@ import yaml from 'js-yaml'
 import {
   GATE_MODES, RENDERER_FAMILIES, REQUIRED_ARTEFACTS, FAILURE_ARTEFACTS,
   mayWriteBaseline, validateUpdateRequest, baselineWriteFilter, planBaselineUpdate,
+  validateBootstrapRequest, planBaselineBootstrap,
   gateVerdict, summariseGateVerdict, requiredArtefacts, shouldProceedToComparison,
 } from './gateCore.js'
 import { VISUAL_FIXTURES } from './fixtures.js'
@@ -38,6 +39,12 @@ function test(name, fn) {
 const wf = (name) => yaml.load(readFileSync(new URL(`../../.github/workflows/${name}`, import.meta.url), 'utf8'))
 const compareWorkflow = wf('visual-regression.yml')
 const updateWorkflow = wf('visual-baseline-update.yml')
+const bootstrapWorkflow = wf('visual-baseline-bootstrap.yml')
+// Every workflow that can write a baseline. Asserted as a set rather than one at
+// a time: the claim that matters is about ALL writers, so a third one added
+// later is covered by these tests on the day it appears, not the day somebody
+// remembers to extend them.
+const WRITERS = { 'visual-baseline-update.yml': updateWorkflow, 'visual-baseline-bootstrap.yml': bootstrapWorkflow }
 const FIXTURE_IDS = VISUAL_FIXTURES.map((f) => f.id)
 
 /* ── 1. a changed fixture fails, with artefacts ─────────────────────────── */
@@ -238,20 +245,38 @@ test('a pull_request event can never reach the update path', () => {
   assert.equal(mayWriteBaseline({ mode: 'update', event: 'workflow_dispatch' }), true)
 })
 
-test('the two workflows are separate, and only one can write', () => {
+test('the writers are separate from the comparison, and it can never write', () => {
   // The security boundary: the workflow that runs untrusted PR code holds no
-  // credentials that could update a baseline or push a branch.
-  assert.ok(!updateWorkflow.on.pull_request, 'the writer never triggers on a pull request')
-  assert.deepEqual(Object.keys(updateWorkflow.on), ['workflow_dispatch'], 'manual only')
-  assert.equal(updateWorkflow.jobs.update.permissions.contents, 'write')
+  // credentials that could write a baseline or push a branch.
   assert.equal(compareWorkflow.jobs.compare.permissions.contents, 'read')
+  for (const [name, workflow] of Object.entries(WRITERS)) {
+    assert.ok(!workflow.on.pull_request, `${name} never triggers on a pull request`)
+    assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch'], `${name} is manual only`)
+    const job = Object.values(workflow.jobs)[0]
+    assert.equal(job.permissions.contents, 'write', `${name} writes from the job, not the workflow`)
+    // Scoped to the job: the workflow-level default stays read, so a step added
+    // outside that job cannot inherit the ability to write.
+    assert.deepEqual(workflow.permissions, { contents: 'read' }, `${name} defaults to read`)
+  }
 })
 
-test('the update never pushes to the protected default branch', () => {
-  const runs = JSON.stringify(updateWorkflow.jobs.update.steps)
-  assert.ok(/checkout -b/.test(runs), 'it works on a branch')
-  assert.ok(/gh pr create/.test(runs), 'and opens a pull request for review')
-  assert.ok(!/push origin main|push -u origin main/.test(runs), 'never straight to main')
+test('no writer pushes to the protected default branch', () => {
+  for (const [name, workflow] of Object.entries(WRITERS)) {
+    const runs = JSON.stringify(Object.values(workflow.jobs)[0].steps)
+    assert.ok(/checkout -b/.test(runs), `${name} works on a branch`)
+    assert.ok(/gh pr create/.test(runs), `${name} opens a pull request for review`)
+    assert.ok(/--draft/.test(runs), `${name} opens it as a draft`)
+    assert.ok(!/push origin main|push -u origin main/.test(runs), `${name} never goes straight to main`)
+  }
+})
+
+test('the writers cannot run at the same time', () => {
+  // Both commit to tests/visual/baselines. Concurrent runs would each branch
+  // from a tree the other was changing, and the loser's pull request would
+  // quietly drop the winner's pages.
+  const groups = Object.values(WRITERS).map((w) => w.concurrency?.group)
+  assert.ok(groups.every(Boolean), 'every writer declares a concurrency group')
+  assert.equal(new Set(groups).size, 1, 'and they all share one, so the writes serialise')
 })
 
 /* ── 6. a reviewed update changes only one fixture ──────────────────────── */
@@ -348,6 +373,147 @@ test('the update passes the fixture and family through to the writer', () => {
   assert.match(step.run, /--family=/)
   assert.match(step.run, /--reason=/)
   assert.match(step.run, /--source=/)
+})
+
+/* ── 7. a bootstrap creates, and never replaces ─────────────────────────── */
+
+console.log('\n— 7. the first recording —')
+
+// Two families × two fixtures, one of which is already recorded. Shaped like the
+// runner's own targets so the planner is tested on what it actually receives.
+const BOOTSTRAP_TARGETS = [
+  { fixture: 'vr-001', family: 'browser-print', copy: 'paper', hasBaseline: false },
+  { fixture: 'vr-001', family: 'docx', copy: 'paper', hasBaseline: false },
+  { fixture: 'vr-004', family: 'browser-print', copy: 'paper', hasBaseline: true },
+  { fixture: 'vr-004', family: 'browser-print', copy: 'scheme', hasBaseline: false },
+  { fixture: 'vr-004', family: 'docx', copy: 'paper', hasBaseline: true },
+]
+
+test('a bootstrap records only what has no baseline', () => {
+  const { record, skipped } = planBaselineBootstrap(BOOTSTRAP_TARGETS)
+  assert.equal(record.length, 3)
+  assert.ok(record.every((t) => !t.hasBaseline))
+  // The complement, because "these were recorded" and "every existing baseline
+  // survived" are different claims and the second is the one that matters.
+  assert.equal(skipped.length, 2)
+  assert.ok(skipped.every((t) => t.hasBaseline))
+})
+
+test('an existing baseline is never replaced, whatever the narrowing says', () => {
+  // Naming the fixture is the strongest possible request to touch it, and it
+  // still does not authorise a replacement — that is the update path's job.
+  const { record, skipped } = planBaselineBootstrap(
+    BOOTSTRAP_TARGETS, { fixture: 'vr-004', family: 'browser-print' },
+  )
+  assert.deepEqual(record.map((t) => t.copy), ['scheme'], 'only the copy with no baseline')
+  const kept = skipped.find((t) => t.fixture === 'vr-004' && t.copy === 'paper' && t.family === 'browser-print')
+  assert.match(kept.why, /a baseline already exists/)
+})
+
+test('the narrowing options shrink the run and say why each target was left', () => {
+  const { record, skipped } = planBaselineBootstrap(BOOTSTRAP_TARGETS, { family: 'docx' })
+  assert.deepEqual(record.map((t) => t.fixture), ['vr-001'])
+  assert.ok(
+    skipped.filter((t) => t.family !== 'docx').every((t) => /outside the renderer family/.test(t.why)),
+    'a target outside the family says so, rather than being silently absent',
+  )
+  const byFixture = planBaselineBootstrap(BOOTSTRAP_TARGETS, { fixture: 'vr-001' })
+  assert.equal(byFixture.record.length, 2)
+  assert.ok(byFixture.skipped.every((t) => t.fixture !== 'vr-001'))
+})
+
+test('a bootstrap still requires a reason and a source', () => {
+  const good = { reason: 'First recording of the §4.6 baselines', source: '#1933' }
+  assert.deepEqual(validateBootstrapRequest(good, FIXTURE_IDS), [])
+  // Unlike an update, the fixture and family are optional — they narrow, they do
+  // not authorise. Everything else is as strict.
+  assert.deepEqual(validateBootstrapRequest({ ...good, fixture: '', family: '' }, FIXTURE_IDS), [])
+  for (const [expected, request] of Object.entries({
+    'no reason': { ...good, reason: '' },
+    'too short to be a reason': { ...good, reason: 'ok' },
+    'no source': { ...good, source: '' },
+  })) {
+    const problems = validateBootstrapRequest(request, FIXTURE_IDS)
+    assert.ok(problems.some((p) => p.includes(expected)), `${expected}: got ${problems.join('; ')}`)
+  }
+})
+
+test('a narrowing option that is given but wrong is an error, not an ignored typo', () => {
+  // The failure this prevents: a mistyped fixture silently records all eight
+  // while the operator believes one was selected.
+  const good = { reason: 'First recording of the §4.6 baselines', source: '#1933' }
+  for (const [expected, request] of Object.entries({
+    'not a fixture ID': { ...good, fixture: 'fractions' },
+    'does not exist': { ...good, fixture: 'vr-999' },
+    'not a renderer family': { ...good, family: 'word' },
+  })) {
+    const problems = validateBootstrapRequest(request, FIXTURE_IDS)
+    assert.ok(problems.some((p) => p.includes(expected)), `${expected}: got ${problems.join('; ')}`)
+  }
+})
+
+test('a bootstrap is governed by the same writer permission as an update', () => {
+  // It is --mode=update, so it inherits mayWriteBaseline rather than opening a
+  // second door. A pull_request event can no more bootstrap than re-record.
+  assert.equal(mayWriteBaseline({ mode: 'update', event: 'workflow_dispatch' }), true)
+  assert.equal(mayWriteBaseline({ mode: 'update', event: 'pull_request' }), false)
+  assert.ok(!GATE_MODES.includes('bootstrap'), 'bootstrap is a scope, not a mode that bypasses the rules')
+})
+
+test('the bootstrap workflow requires a reason and a source, and nothing else', () => {
+  const inputs = bootstrapWorkflow.on.workflow_dispatch.inputs
+  for (const name of ['reason', 'source']) {
+    assert.ok(inputs[name], `${name} is an input`)
+    assert.equal(inputs[name].required, true, `${name} is required`)
+  }
+  for (const name of ['fixture', 'family']) {
+    assert.equal(inputs[name].required, false, `${name} narrows, so it is optional`)
+  }
+  // `all` is the default and every real family is offered, so narrowing cannot
+  // silently target nothing through a typo.
+  assert.deepEqual(inputs.family.options, ['all', ...RENDERER_FAMILIES])
+  assert.equal(inputs.family.default, 'all')
+})
+
+test('the bootstrap validates fixtures BEFORE recording them', () => {
+  const steps = bootstrapWorkflow.jobs.bootstrap.steps
+  const order = steps.map((s) => String(s.name || ''))
+  const validate = order.findIndex((n) => /Validate the fixtures/.test(n))
+  const record = order.findIndex((n) => /Record the missing baselines/.test(n))
+  assert.ok(validate >= 0 && record >= 0, 'both steps exist')
+  assert.ok(validate < record, 'a fixture that no longer validates is not recorded')
+})
+
+test('the bootstrap run passes the flag that makes it non-destructive', () => {
+  const step = bootstrapWorkflow.jobs.bootstrap.steps.find((s) => /--mode=update/.test(s.run || ''))
+  assert.ok(step, 'it runs through the shared entry point, not a second harness')
+  assert.match(step.run, /--bootstrap-missing/)
+  assert.match(step.run, /--reason=/)
+  assert.match(step.run, /--source=/)
+  // Not continue-on-error: a run that could not render must stop before the
+  // pull-request step, so nothing is committed from an incomplete recording.
+  assert.ok(!step['continue-on-error'], 'an incomplete recording fails the job')
+})
+
+test('every writer takes its review sheet from the recorder, not from YAML', () => {
+  // The sheet lists the environment, page count, anchors, figure proof and file
+  // hashes. A shell heredoc is where such a list quietly loses an item — and on
+  // the bootstrap path it must describe EVERY baseline recorded, not the last.
+  for (const [name, workflow] of Object.entries(WRITERS)) {
+    const step = Object.values(workflow.jobs)[0].steps.find((s) => /gh pr create/.test(s.run || ''))
+    assert.match(step.run, /--body-file/, `${name} uses the recorder's sheet`)
+    assert.ok(!/--body ["']/.test(step.run), `${name} does not assemble a body inline`)
+    assert.match(step.run, /baseline-summary\.md/, `${name} reads the file the recorder writes`)
+    // A missing sheet is a hard stop, not a pull request with an empty body.
+    assert.match(step.run, /exit 1/, `${name} refuses to open an unreviewable pull request`)
+  }
+})
+
+test('editing a writer workflow runs the gate that proves it is still safe', () => {
+  const paths = compareWorkflow.on.pull_request.paths
+  for (const name of Object.keys(WRITERS)) {
+    assert.ok(paths.includes(`.github/workflows/${name}`), `${name} is watched`)
+  }
 })
 
 console.log(`\n✓ visual gate — ${passed} tests passed`)

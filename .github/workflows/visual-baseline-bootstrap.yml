@@ -1,0 +1,182 @@
+name: Visual baseline bootstrap (first recording)
+
+# The FIRST recording of baselines that do not exist yet.
+#
+# ## Why this is not a flag on visual-baseline-update.yml
+#
+# Because it is not the same act. That workflow REPLACES an appearance somebody
+# already approved, so it names the one fixture and one family it replaces and
+# states why the new appearance is correct. Nothing is lost if it is wrong in a
+# way review catches, and everything is lost if it is wrong silently — hence one
+# at a time.
+#
+# A bootstrap has no approved appearance to lose. Requiring it to name one
+# fixture at a time buys no safety and costs sixteen dispatches and sixteen pull
+# requests for eight fixtures across two renderer families, which is how a gate
+# ends up permanently red and therefore ignored. Keeping the two workflows
+# separate is what lets the update path stay strict without making the first
+# recording impossible.
+#
+# ## What it will not do
+#
+#  - replace a baseline that already exists (that is the update workflow's job,
+#    and the refusal is enforced in `planBaselineBootstrap`, not here)
+#  - run on a pull_request event, or hold write credentials on one
+#  - record anything without a written reason and a source reference
+#  - record from a fixture that no longer validates, or an incomplete render
+#  - push to main
+#
+# The result is a branch and a draft pull request, so the pages that become the
+# reference are reviewed as a diff like anything else. A baseline committed
+# without review is indistinguishable from a regression nobody noticed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Why is this appearance correct? Recorded in the commit.'
+        required: true
+        type: string
+      source:
+        description: 'PR number or commit that produced these renders'
+        required: true
+        type: string
+      fixture:
+        description: 'Optional: narrow to one fixture (e.g. vr-003). Blank records every missing one.'
+        required: false
+        type: string
+        default: ''
+      family:
+        description: 'Optional: narrow to one renderer family'
+        required: false
+        type: choice
+        default: all
+        options:
+          - all
+          - browser-print
+          - docx
+
+concurrency:
+  group: visual-baseline-write
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    name: Record every missing baseline
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    # Writing is scoped to this job, which only a maintainer can start.
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # A branch, never main. Branch protection applies to the result.
+          ref: ${{ github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Explicit, because ci.yml skips the puppeteer browser download globally and
+      # a copied-in default would silently leave this job with no browser. The gate
+      # renders with the browser puppeteer downloads here, and records ITS version.
+      - name: Install dependencies
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "false"
+        run: npm ci
+
+      - name: Install LibreOffice
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libreoffice-writer fonts-liberation
+
+      # Fixtures validate their own contents BEFORE anything renders. A fixture
+      # whose subject was deleted must fail here rather than have its empty paper
+      # recorded as the reference every later comparison trusts.
+      - name: Validate the fixtures before recording them
+        run: |
+          if [ -n "${{ inputs.fixture }}" ]; then
+            node scripts/visual/validateFixtures.mjs --fixture="${{ inputs.fixture }}"
+          else
+            node scripts/visual/validateFixtures.mjs
+          fi
+
+      # Not `continue-on-error`. A bootstrap run that cannot render a fixture must
+      # stop before the pull-request step, so nothing is committed from a run that
+      # did not complete — the gate's own rule, applied to its first recording.
+      - name: Record the missing baselines
+        run: |
+          set -euo pipefail
+          ARGS=(--mode=update --bootstrap-missing)
+          ARGS+=(--reason="${{ inputs.reason }}")
+          ARGS+=(--source="${{ inputs.source }}")
+          if [ -n "${{ inputs.fixture }}" ]; then ARGS+=(--fixture="${{ inputs.fixture }}"); fi
+          if [ "${{ inputs.family }}" != "all" ]; then ARGS+=(--family="${{ inputs.family }}"); fi
+          node scripts/visual/runVisualGate.mjs "${ARGS[@]}"
+
+      # The pages that are about to become the reference, published whatever
+      # happened — a bootstrap that failed halfway is exactly when a reviewer
+      # needs to see what it did render.
+      - name: Upload the recorded pages as evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baseline-bootstrap-${{ github.run_id }}
+          path: tests/visual/output/**
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Open a pull request for the new baselines
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BRANCH="baseline/bootstrap-${{ github.run_id }}"
+          git config user.email "noreply@anthropic.com"
+          git config user.name "Claude"
+          git checkout -b "$BRANCH"
+          git add tests/visual/baselines
+          # Nothing to commit is a legitimate outcome: every baseline already
+          # existed. Reported rather than forced into an empty commit.
+          if git diff --cached --quiet; then
+            echo "Every baseline already exists — nothing was recorded."
+            exit 0
+          fi
+          git commit -m "Visual baselines: first recording
+
+          Reason: ${{ inputs.reason }}
+          Source: ${{ inputs.source }}
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          Only baselines that did not exist were recorded. No existing baseline
+          was replaced — that is the reviewed update workflow."
+          git push -u origin "$BRANCH"
+
+          # The review sheet is BUILT BY THE RECORDER, not assembled here — the
+          # same rule the update workflow follows, and it matters more on this
+          # path: a bootstrap records many baselines, and the sheet describes
+          # every one of them. See writeBaselineSummary in runVisualGate.mjs.
+          BODY=tests/visual/output/baseline-summary.md
+          if [ ! -f "$BODY" ]; then
+            echo "The recorder produced no review sheet, so these baselines cannot be reviewed."
+            exit 1
+          fi
+          {
+            echo ""
+            echo "**Audit:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo ""
+            echo "No existing baseline was replaced. Replacing an approved appearance is"
+            echo "\`visual-baseline-update.yml\`, which names its fixture and states why."
+          } >> "$BODY"
+          gh pr create \
+            --title "Visual baselines: first recording" \
+            --body-file "$BODY" \
+            --base main \
+            --head "$BRANCH" \
+            --draft

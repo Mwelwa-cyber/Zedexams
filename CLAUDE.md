@@ -360,6 +360,28 @@ NOTE: `quizRichText.js` also carries a SECOND, CDN-loaded KaTeX (jsdelivr, no
 mhchem) used by the quiz editor's `QuizRichText.jsx` — not by the assessment
 paper path. It is a runtime external dependency and a known gap.
 
+### The visual gate's baselines are recorded by CI, never by hand (§4.6)
+
+`scripts/visual/` renders the fixture papers through Chromium and LibreOffice and
+compares them to committed baselines under `tests/visual/baselines/`. Three
+things about operating it:
+
+- **Never record a baseline locally.** `baselineIdentity` keys each one to the
+  renderer versions and font digest that drew it, and `assertComparableEnvironment`
+  rejects a baseline recorded anywhere else — so a hand-committed one is dead
+  weight CI will never match. Both writers are `workflow_dispatch`-only and both
+  open a draft PR: `visual-baseline-bootstrap.yml` records baselines that do not
+  exist, `visual-baseline-update.yml` replaces one that does (naming its fixture,
+  its family and why). The refusal to overwrite from a bootstrap is a rule in
+  `gateCore.planBaselineBootstrap`, not a convention.
+- **The gate reports red until the baselines exist**, and that is correct rather
+  than broken — `runVisualGate.mjs` never creates a baseline from a comparison
+  run, so it cannot approve its own first render. It is deliberately not a
+  required check.
+- **`workflow_dispatch` only resolves on the default branch**, so neither writer
+  can be dispatched from a feature branch. A PR that adds or changes fixtures
+  merges first (red), then the bootstrap runs from `main`.
+
 ### AI request locking + idempotency (rollout in progress)
 
 The shared service that stops one intentional AI generation from becoming two provider calls, two saved documents, or two usage charges (double-click, rapid tap, rerender, refresh, timeout retry, or a second tab). Two layers:

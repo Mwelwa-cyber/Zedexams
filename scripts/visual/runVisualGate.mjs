@@ -5,6 +5,8 @@
  *   node scripts/visual/runVisualGate.mjs --mode=compare --fixture=vr-003 --family=docx
  *   node scripts/visual/runVisualGate.mjs --mode=update  --fixture=vr-003 --family=docx \
  *        --reason="..." --source="#1934"
+ *   node scripts/visual/runVisualGate.mjs --mode=update  --bootstrap-missing \
+ *        --reason="..." --source="#1933"
  *
  * ONE implementation for both. The comparison workflow and the baseline-update
  * workflow differ in what they are ALLOWED to do — and that permission is
@@ -16,8 +18,14 @@
  *
  *  - write a baseline in compare mode, including when one is missing
  *  - touch a baseline outside the single fixture and family an update names
+ *  - replace an existing baseline from a bootstrap run, at all
  *  - compare anything when the render was incomplete
  *  - report success for a fixture it could not render
+ *
+ * `--bootstrap-missing` exists because the FIRST recording is not the same act
+ * as replacing an approved appearance. It is still `--mode=update`, so the same
+ * writer permission governs it; it creates only what is absent, and a target
+ * that already has a baseline is kept and reported, never overwritten.
  *
  * Exit codes: 0 = the gate passed (or an update completed), 1 = a visual or
  * structural difference, 2 = an infrastructure or generation failure. The last is
@@ -43,6 +51,7 @@ import { resolveStrictRegions, expectedAnchorsFor, declaredPageMismatches } from
 import { renderFixture, decodePng, encodePng, assertLibreOfficeCanConvert } from './renderStages.js'
 import {
   GATE_MODES, RENDERER_FAMILIES, mayWriteBaseline, validateUpdateRequest,
+  validateBootstrapRequest, planBaselineBootstrap,
   baselineWriteFilter, gateVerdict, summariseGateVerdict,
 } from './gateCore.js'
 
@@ -65,6 +74,11 @@ const gateMode = arg('mode', 'compare')
 const onlyFixture = arg('fixture')
 const onlyFamily = arg('family')
 const allowFailure = flag('allow-failure')
+// The first recording. Still `--mode=update`, so it is governed by exactly the
+// same writer rules — a comparison run and a pull_request event can no more
+// bootstrap than they can re-record. What it changes is the SCOPE: it creates
+// baselines that are absent and refuses to touch one that exists.
+const bootstrapping = flag('bootstrap-missing')
 
 if (!GATE_MODES.includes(gateMode)) {
   console.error(`✗ --mode must be one of ${GATE_MODES.join(', ')}`)
@@ -94,12 +108,13 @@ if (gateMode === 'update') {
     )
     process.exit(EXIT_INFRASTRUCTURE)
   }
-  const problems = validateUpdateRequest(
-    { fixture: onlyFixture, family: onlyFamily, reason: arg('reason'), source: arg('source') },
-    VISUAL_FIXTURES.map((f) => f.id),
-  )
+  const request = { fixture: onlyFixture, family: onlyFamily, reason: arg('reason'), source: arg('source') }
+  const knownIds = VISUAL_FIXTURES.map((f) => f.id)
+  const problems = bootstrapping
+    ? validateBootstrapRequest(request, knownIds)
+    : validateUpdateRequest(request, knownIds)
   if (problems.length) {
-    console.error('✗ this baseline update is not permitted:')
+    console.error(`✗ this baseline ${bootstrapping ? 'bootstrap' : 'update'} is not permitted:`)
     for (const p of problems) console.error(`    ${p}`)
     process.exit(EXIT_INFRASTRUCTURE)
   }
@@ -153,6 +168,10 @@ console.log(`  ${fixtures.length} fixture(s), stages: ${stages.join(', ')}\n`)
 
 const verdicts = []
 const infrastructure = []
+// Every baseline this run wrote, in the order it wrote them. The review sheet is
+// rebuilt from the whole list after each one, so a run that dies partway still
+// leaves a sheet describing exactly what it managed to record.
+const baselineRecords = []
 let browser = null
 
 try {
@@ -220,7 +239,21 @@ if (infrastructure.length) {
 }
 const failed = verdicts.some((v) => v.failed)
 if (gateMode === 'update') {
-  console.log('\n✓ baseline re-recorded for the named fixture and family only.')
+  if (!bootstrapping) {
+    console.log('\n✓ baseline re-recorded for the named fixture and family only.')
+    process.exit(EXIT_OK)
+  }
+  // Counted rather than assumed. A bootstrap that recorded nothing is a
+  // legitimate outcome (every baseline already existed) and a silent one would
+  // be indistinguishable from a bootstrap that silently did nothing wrong.
+  const recorded = verdicts.filter((v) => v.updated)
+  const kept = verdicts.filter((v) => !v.updated)
+  console.log(`\n✓ ${recorded.length} first baseline(s) recorded; ${kept.length} left untouched.`)
+  for (const v of kept) console.log(`    kept ${v.fixtureId} [${v.family}/${v.copy}] — ${v.keptReason}`)
+  if (!recorded.length) {
+    console.log('\nNothing was missing, so nothing was recorded. Replacing an existing '
+      + 'baseline is the reviewed update path, which names its fixture and states why.')
+  }
   process.exit(EXIT_OK)
 }
 if (failed && !allowFailure) {
@@ -316,8 +349,26 @@ async function runOne(fixture, stage, copy, sharedBrowser) {
   const hasBaseline = fs.existsSync(baselineLayoutPath)
 
   if (gateMode === 'update') {
+    // The decision is made by the pure planner, not here, so "a bootstrap never
+    // replaces an approved appearance" is a rule a test can call rather than a
+    // branch a test has to reach through a render.
+    const { record, skipped } = bootstrapping
+      ? planBaselineBootstrap(
+        [{ fixture: fixture.id, family: stage, copy, hasBaseline }],
+        { fixture: onlyFixture, family: onlyFamily },
+      )
+      : { record: [{ fixture: fixture.id, family: stage, copy, hasBaseline }], skipped: [] }
+
+    if (!record.length) {
+      console.log(`kept (${skipped[0].why})`)
+      return {
+        fixtureId: fixture.id, family: stage, copy, identity, failed: false,
+        structural: [], visual: [], pageCountChanged: false, structurallyFailed: false,
+        updated: false, keptReason: skipped[0].why,
+      }
+    }
     writeBaseline(fixture, identity, copy, render, layoutJson)
-    console.log('re-recorded')
+    console.log(bootstrapping ? 'recorded (first baseline)' : 're-recorded')
     return {
       fixtureId: fixture.id, family: stage, copy, identity, failed: false,
       structural: [], visual: [], pageCountChanged: false, structurallyFailed: false,
@@ -565,7 +616,12 @@ function writeBaseline(fixture, identity, copy, render, layoutJson) {
   }
   guard('recorded.json')
   fs.writeFileSync(path.join(dir, 'recorded.json'), JSON.stringify(record, null, 2))
-  writeBaselineSummary(fixture, record)
+  // Collected rather than written here. A bootstrap records many baselines and
+  // this file is the pull request's whole body: written per-record it would
+  // describe only the LAST one, and a reviewer would approve eighteen baselines
+  // from evidence about one.
+  baselineRecords.push({ fixture, record })
+  writeBaselineSummary(baselineRecords)
 }
 
 /**
@@ -574,8 +630,25 @@ function writeBaseline(fixture, identity, copy, render, layoutJson) {
  * Written as a file rather than assembled in YAML because a reviewer approving
  * the FIRST appearance of a paper needs every one of these facts in front of
  * them, and a shell heredoc is where such a list quietly loses an item.
+ *
+ * Takes every record written so far, not one, because a bootstrap run records
+ * many. The count leads the sheet: a reviewer must be able to see at a glance
+ * that the number of baselines in the diff is the number described below it.
  */
-function writeBaselineSummary(fixture, record) {
+function writeBaselineSummary(records) {
+  const sections = records.map(({ fixture, record }) => baselineSummarySection(fixture, record))
+  const head = records.length === 1 ? '' : `# ${records.length} baselines recorded\n\n`
+    + '| Fixture | Family | Copy | Pages |\n|---|---|---|---|\n'
+    + records.map(({ record: r }) => `| ${r.fixtureId} | ${r.family} | ${r.copy} | ${r.pageCount} |`).join('\n')
+    + '\n\nEvery one is described in full below. Approving this pull request '
+    + 'approves all of them as the reference each later comparison is measured '
+    + 'against.\n\n---\n\n'
+  fs.mkdirSync(OUTPUT_DIR, { recursive: true })
+  fs.writeFileSync(path.join(OUTPUT_DIR, 'baseline-summary.md'), head + sections.join('\n\n---\n\n'))
+}
+
+/** One baseline's section of the review sheet. */
+function baselineSummarySection(fixture, record) {
   const anchorRows = Object.entries(record.anchors)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([id, page]) => `| \`${id}\` | ${page} |`)
@@ -591,7 +664,7 @@ function writeBaselineSummary(fixture, record) {
     ].join('\n')
     : '- (browser-print: figures are drawn by the print path, not embedded as parts)'
 
-  const body = `Re-recorded **${record.fixtureId}** — ${fixture.title} — for **${record.family}** (${record.copy} copy).
+  return `Recorded **${record.fixtureId}** — ${fixture.title} — for **${record.family}** (${record.copy} copy).
 
 **Reason:** ${record.reason}
 **Source:** ${record.source}${record.sourceCommit ? ` (commit \`${record.sourceCommit}\`)` : ''}
@@ -639,6 +712,4 @@ ${hashRows}
 The candidate pages, the full generated document and the comparison summary are
 attached to the workflow run.
 `
-  fs.mkdirSync(OUTPUT_DIR, { recursive: true })
-  fs.writeFileSync(path.join(OUTPUT_DIR, 'baseline-summary.md'), body)
 }
