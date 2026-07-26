@@ -32,6 +32,32 @@ function escapeHtml(str) {
  * safeRender hydrator. CSS handles the stacking (.math-frac-num /
  * .math-frac-den), so the resulting DOM is plain and printable.
  */
+/**
+ * How a fraction is recognised in stored HTML, and what its attributes are
+ * called. Exported because THREE readers need to agree: this extension, the
+ * print hydrator in safeRender.js, and the content model in
+ * paperContentModel.js. They disagreed until 2026-07 — the hydrator accepted
+ * both the class and the data-attribute spelling while the content model
+ * matched only the class, so a fraction in the other spelling reached Word as
+ * the bare digits "12" instead of one half. A shared selector is the fix that
+ * keeps them from drifting apart again.
+ *
+ * Deliberately not tag-qualified. What identifies a fraction is the marker it
+ * carries, not the element it happens to be on — a reader that ignored one
+ * because it arrived on a different tag would be the same silent-miss bug in a
+ * new disguise.
+ */
+export const FRACTION_SELECTOR = '[data-math-fraction], .math-frac'
+
+/** Read a fraction's parts from either attribute spelling. */
+export function readFractionAttrs(el) {
+  return {
+    whole: el.getAttribute('data-whole') || '',
+    num: el.getAttribute('data-num') || el.getAttribute('data-numerator') || '',
+    den: el.getAttribute('data-den') || el.getAttribute('data-denominator') || '',
+  }
+}
+
 export function buildFractionInner({ whole, num, den }) {
   const w = String(whole ?? '').trim()
   const n = String(num ?? '').trim()

@@ -42,6 +42,9 @@ import { attributionSection, attributionFooter, attributionWatermarkParagraph } 
 import { buildPaperLayout, DEFAULT_ANSWER_LINES } from './assessmentPaperLayout.js'
 import { resolveImageWidthPercent } from './imageWidth.js'
 import { figureBox, embedBox } from './figureSizing.js'
+import {
+  censusFromPixels, summariseColours, assessFigurePrintability, figurePrintWarning,
+} from './figureContrast.js'
 import { resolveFigureLabels, resolveAnswerKeyLabels } from './figureLabelLayout.js'
 import { seedBandForLevel } from './assessmentBandService.js'
 import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
@@ -294,8 +297,21 @@ function verticalArithmeticParagraphs(block, baseOpts) {
   }))
   out.push(new Paragraph({
     children: [runText(`   ${pad(block.answer)}`, mono)],
-    spacing: { after: 120 },
+    spacing: { after: block.working ? 0 : 120 },
   }))
+  // Ruled space for a learner to show their method. The editor offers it per
+  // sum and the preview draws it; Word dropped it, because the flag never got
+  // as far as the content model. Two underlined blank lines is the same
+  // affordance the answer-lines elsewhere on the paper use.
+  if (block.working) {
+    for (let i = 0; i < 2; i += 1) {
+      out.push(new Paragraph({
+        children: [runText('   ' + ' '.repeat(Math.max(width, 4)), mono)],
+        border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: '888888' } },
+        spacing: { after: i === 1 ? 120 : 60 },
+      }))
+    }
+  }
   return out
 }
 
@@ -470,6 +486,70 @@ async function decodeImage(bytes, type) {
   } finally {
     URL.revokeObjectURL(objectUrl)
   }
+}
+
+/**
+ * Sample a decoded image's colours so the export can tell a teacher when a
+ * figure will not survive a monochrome printer (§4.2).
+ *
+ * Downsampled to a small canvas first: the verdict is about which REGIONS merge,
+ * and 64px on the long side keeps every region a learner is asked to identify
+ * while making the pixel walk trivial next to the fetch and the rasterisation
+ * already happening per figure.
+ *
+ * Browser-only. Returns null with no DOM or on any failure — and a null census
+ * is reported as `unknown`, never as a clean bill of health.
+ */
+async function sampleImageCensus(bytes, type) {
+  if (typeof document === 'undefined' || typeof Image === 'undefined'
+    || !globalThis.URL?.createObjectURL) return null
+  const objectUrl = URL.createObjectURL(
+    new Blob([bytes], { type: MIME_BY_TYPE[type] || 'image/png' }),
+  )
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image()
+      el.onload = () => resolve(el)
+      el.onerror = () => reject(new Error('decode failed'))
+      el.src = objectUrl
+    })
+    const w = img.naturalWidth || img.width || 0
+    const h = img.naturalHeight || img.height || 0
+    if (!w || !h) return null
+    const scale = Math.min(1, 64 / Math.max(w, h))
+    const cw = Math.max(1, Math.round(w * scale))
+    const ch = Math.max(1, Math.round(h * scale))
+    const canvas = document.createElement('canvas')
+    canvas.width = cw
+    canvas.height = ch
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    ctx.drawImage(img, 0, 0, cw, ch)
+    return censusFromPixels(ctx.getImageData(0, 0, cw, ch).data)
+  } catch {
+    return null
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
+}
+
+/**
+ * Check a figure against the printer and record a warning on `stats`.
+ *
+ * Advisory only: a figure that will print badly is still embedded. The teacher
+ * is told before they run forty copies, and decides.
+ */
+async function recordFigurePrintability(stats, url, label) {
+  if (!stats || !Array.isArray(stats.unprintableFigures) || !url) return
+  // fetchImageBytes caches per URL for the session, so this is the same bytes
+  // the embed already pulled rather than a second download.
+  const bytes = await fetchImageBytes(url)
+  if (!bytes) return
+  const census = await sampleImageCensus(bytes, detectImageType(bytes))
+  if (!census) return
+  const assessment = assessFigurePrintability(summariseColours(census))
+  const warning = figurePrintWarning(assessment, label)
+  if (warning) stats.unprintableFigures.push({ label, verdict: assessment.verdict, warning })
 }
 
 // Fetch, transcode (WEBP→PNG), and aspect-fit an image, returning a ready
@@ -1136,6 +1216,12 @@ async function renderQuestion(b, stats = null) {
     }
     if (!img) img = await imageParagraph(b.imageUrl, { alt: b.imageAlt || '', widthPreset: b.imageWidth })
     if (!img) recordImageFailure(stats, b.imageAlt || (b.number != null ? `question ${b.number}` : ''))
+    // Advisory: will this figure still say anything once the paper is
+    // photocopied in black and white? (§4.2) The figure is embedded either way.
+    await recordFigurePrintability(
+      stats, b.imageUrl,
+      b.number != null ? `The picture in question ${b.number}` : 'A picture on this paper',
+    )
     out.push(img || imageFallbackBlock(b.imageAlt || ''))
     if (labels.length) {
       if (isIdentify && b.type !== 'mcq') {
@@ -1614,9 +1700,12 @@ export async function downloadAssessmentDocx(assessment, questions, filename = '
   // Collect figure-embed failures during the build so the studio can warn the
   // teacher — the paper still downloads (placeholders mark the gaps), but the
   // loss must not be silent.
-  const stats = { failedImages: [] }
+  const stats = { failedImages: [], unprintableFigures: [] }
   const doc = await buildAssessmentDocument(assessment, questions, { ...opts, stats })
   const blob = await Packer.toBlob(doc)
   await saveBlob(blob, filename)
-  return { failedImages: stats.failedImages.length }
+  return {
+    failedImages: stats.failedImages.length,
+    unprintableFigures: stats.unprintableFigures,
+  }
 }

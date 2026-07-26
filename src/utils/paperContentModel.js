@@ -38,6 +38,12 @@
 /** The marks a run can carry. Kept as a list so callers can iterate them. */
 export const MARK_NAMES = ['bold', 'italic', 'underline', 'strike', 'sup', 'sub']
 
+import { FRACTION_SELECTOR, readFractionAttrs } from '../editor/extensions/MathFraction.js'
+import { NUMBER_BASE_SELECTOR, readNumberBaseAttrs } from '../editor/extensions/NumberBase.js'
+import {
+  VERTICAL_ARITHMETIC_SELECTOR, readVerticalArithmeticAttrs,
+} from '../editor/extensions/VerticalArithmetic.js'
+
 /** HTML tag → the mark it applies. */
 const TAG_MARKS = {
   STRONG: 'bold', B: 'bold',
@@ -106,27 +112,37 @@ export function parsePaperContent(html, { DOMParserImpl } = {}) {
 
     const el = node
     const tag = String(el.tagName || '').toUpperCase()
-    const classes = el.classList
 
     // ── The editor's structured maths nodes ──────────────────────────────
     // These are elements carrying their meaning in data-* attributes, which is
     // why they can be read structurally rather than scraped from their text.
-    if (classes && classes.contains('vert-arith')) {
+    // Recognised with the SAME selectors and attribute readers the editor and
+    // the print hydrator use (see MathFraction.js's FRACTION_SELECTOR). Matching
+    // on the class alone was a silent divergence: the hydrator has always
+    // accepted the `data-math-fraction` spelling too, so a fraction stored that
+    // way was hydrated correctly for print and read here as the bare characters
+    // "12" — a half printing as twelve, in Word, with nothing to indicate it.
+    if (el.matches && el.matches(VERTICAL_ARITHMETIC_SELECTOR)) {
       flush()
+      const attrs = readVerticalArithmeticAttrs(el)
       blocks.push({
         type: 'verticalArithmetic',
-        operator: el.getAttribute('data-operator') || '+',
-        lines: String(el.getAttribute('data-lines') || '').split('|').filter((l) => l !== ''),
-        answer: el.getAttribute('data-answer') || '',
+        operator: attrs.operator,
+        lines: attrs.lines,
+        answer: attrs.answer,
+        // Ruled space for a learner to show their method. Dropping it silently
+        // removed the room the question gave them.
+        working: attrs.working,
       })
       return
     }
-    if (classes && classes.contains('math-frac')) {
+    if (el.matches && el.matches(FRACTION_SELECTOR)) {
+      const attrs = readFractionAttrs(el)
       inline.push({
         type: 'fraction',
-        whole: el.getAttribute('data-whole') || '',
-        numerator: el.getAttribute('data-num') || '',
-        denominator: el.getAttribute('data-den') || '',
+        whole: attrs.whole,
+        numerator: attrs.num,
+        denominator: attrs.den,
         marks: { ...marks },
       })
       return
@@ -156,11 +172,12 @@ export function parsePaperContent(html, { DOMParserImpl } = {}) {
       })
       return
     }
-    if (classes && classes.contains('num-base')) {
+    if (el.matches && el.matches(NUMBER_BASE_SELECTOR)) {
+      const attrs = readNumberBaseAttrs(el)
       inline.push({
         type: 'numberBase',
-        number: el.getAttribute('data-number') || '',
-        base: el.getAttribute('data-base') || '',
+        number: attrs.number,
+        base: attrs.base,
         marks: { ...marks },
       })
       return
@@ -300,10 +317,19 @@ function verticalArithmeticHtml(block) {
   rows.push(escapeHtml(`   ${pad(block.answer)}`))
   // Same contract as the inline structured nodes: the data travels with the
   // rendering, so parsing this output returns the block it came from.
+  if (block.working) {
+    // Ruled working space, kept as underscores so a JavaScript-free renderer
+    // still shows the learner where to write. The flag round-trips too, or a
+    // second parse would quietly drop the space again.
+    rows.push('')
+    rows.push(escapeHtml(`   ${'_'.repeat(Math.max(width, 4))}`))
+    rows.push(escapeHtml(`   ${'_'.repeat(Math.max(width, 4))}`))
+  }
   return (
     `<pre class="vert-arith vert-arith-print" data-operator="${escapeHtml(block.operator)}" ` +
     `data-lines="${escapeHtml((block.lines || []).join('|'))}" ` +
-    `data-answer="${escapeHtml(block.answer)}">${rows.join('\n')}</pre>`
+    `data-answer="${escapeHtml(block.answer)}"` +
+    `${block.working ? ' data-working="true"' : ''}>${rows.join('\n')}</pre>`
   )
 }
 

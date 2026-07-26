@@ -2473,8 +2473,23 @@ export default function AssessmentStudio() {
         // placeholder in the paper — downloading still succeeds, but the
         // teacher must hear about it BEFORE printing 40 copies.
         const failed = Number(result?.failedImages || 0)
+        // A figure that WILL embed but relies on colour to tell its parts apart
+        // is a different warning: the paper is fine on screen and unanswerable
+        // once photocopied in black and white (§4.2). Reported after the
+        // embed-failure toast, which is the more serious of the two.
+        const unprintable = Array.isArray(result?.unprintableFigures)
+          ? result.unprintableFigures
+          : []
         if (failed > 0) {
           showToast(`Download started, but ${failed} figure${failed === 1 ? '' : 's'} could not be embedded — marked in the paper.`, true)
+        } else if (unprintable.length === 1) {
+          showToast(unprintable[0].warning, true)
+        } else if (unprintable.length > 1) {
+          showToast(
+            `Download started. ${unprintable.length} pictures use colour to tell their `
+            + 'parts apart and will lose that detail if you print in black and white.',
+            true,
+          )
         } else {
           showToast('Word download started.')
         }

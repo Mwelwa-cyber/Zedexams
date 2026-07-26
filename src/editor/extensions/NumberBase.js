@@ -27,6 +27,17 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
 }
 
+/** How a number-base node is recognised in stored HTML. See FRACTION_SELECTOR. */
+export const NUMBER_BASE_SELECTOR = '[data-number-base], .num-base'
+
+/** Read a number-base node's parts. */
+export function readNumberBaseAttrs(el) {
+  return {
+    number: el.getAttribute('data-number') || '',
+    base: el.getAttribute('data-base') || '',
+  }
+}
+
 export function buildNumberBaseInner({ number, base }) {
   const n = String(number ?? '').trim()
   const b = String(base ?? '').trim()

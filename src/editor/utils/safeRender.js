@@ -19,9 +19,12 @@
 
 import { generateHTML } from '@tiptap/core'
 import katex from 'katex'
-import { buildVerticalArithmeticInner, decodeLines } from '../extensions/VerticalArithmetic.js'
-import { buildFractionInner } from '../extensions/MathFraction.js'
-import { buildNumberBaseInner } from '../extensions/NumberBase.js'
+import {
+  buildVerticalArithmeticInner,
+  VERTICAL_ARITHMETIC_SELECTOR, readVerticalArithmeticAttrs,
+} from '../extensions/VerticalArithmetic.js'
+import { buildFractionInner, FRACTION_SELECTOR, readFractionAttrs } from '../extensions/MathFraction.js'
+import { buildNumberBaseInner, NUMBER_BASE_SELECTOR, readNumberBaseAttrs } from '../extensions/NumberBase.js'
 // mhchem — chemistry formula extension for KaTeX. Side-effect import:
 // registers \ce{} / \pu{} commands on the global katex instance so a
 // Chemistry question with `\ce{H_2SO_4}` or `\ce{2H_2 + O_2 -> 2H_2O}`
@@ -129,49 +132,28 @@ export function hydrateKatex(container) {
 
 export function hydrateVerticalArithmetic(container) {
   if (!container) return
-  const blocks = container.querySelectorAll(
-    'div[data-vertical-arithmetic], div.vert-arith'
-  )
+  const blocks = container.querySelectorAll(VERTICAL_ARITHMETIC_SELECTOR)
   blocks.forEach((el) => {
     if (el.querySelector('.va-row')) return
-    const attrs = {
-      operator: el.getAttribute('data-operator') || '+',
-      lines: decodeLines(el.getAttribute('data-lines')),
-      answer: el.getAttribute('data-answer') || '',
-      working: el.getAttribute('data-working') === 'true',
-    }
-    el.innerHTML = buildVerticalArithmeticInner(attrs)
+    el.innerHTML = buildVerticalArithmeticInner(readVerticalArithmeticAttrs(el))
   })
 }
 
 export function hydrateFractions(container) {
   if (!container) return
-  const fracs = container.querySelectorAll(
-    'span[data-math-fraction], span.math-frac'
-  )
+  const fracs = container.querySelectorAll(FRACTION_SELECTOR)
   fracs.forEach((el) => {
     if (el.querySelector('.math-frac-stack')) return
-    const attrs = {
-      whole: el.getAttribute('data-whole') || '',
-      num: el.getAttribute('data-num') || el.getAttribute('data-numerator') || '',
-      den: el.getAttribute('data-den') || el.getAttribute('data-denominator') || '',
-    }
-    el.innerHTML = buildFractionInner(attrs)
+    el.innerHTML = buildFractionInner(readFractionAttrs(el))
   })
 }
 
 export function hydrateNumberBases(container) {
   if (!container) return
-  const items = container.querySelectorAll(
-    'span[data-number-base], span.num-base'
-  )
+  const items = container.querySelectorAll(NUMBER_BASE_SELECTOR)
   items.forEach((el) => {
     if (el.querySelector('.num-base-sub')) return
-    const attrs = {
-      number: el.getAttribute('data-number') || '',
-      base: el.getAttribute('data-base') || '',
-    }
-    el.innerHTML = buildNumberBaseInner(attrs)
+    el.innerHTML = buildNumberBaseInner(readNumberBaseAttrs(el))
   })
 }
 
