@@ -1,0 +1,107 @@
+{
+  "fixtureId": "vr-006",
+  "family": "docx",
+  "copy": "paper",
+  "identity": "docx/libreoffice-24.2.7.2",
+  "sourceCommit": "f68400a4daa6b603427e379fae1e7c9dd4146f50",
+  "source": "#1934",
+  "reason": "First recording of the §4.6 visual baselines. No baseline has ever existed, so the gate has been red since the harness landed and could not create one from a comparison run by design.",
+  "environment": {
+    "chromium": "150.0.7871.24",
+    "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
+    "libreoffice": "24.2.7.2",
+    "os": "Linux 6.17.0-1020-azure",
+    "platform": "linux-x64",
+    "node": "v22.23.1",
+    "fonts": {
+      "count": 54,
+      "digest": "20b5398451fb9a3a"
+    },
+    "pageSize": "A4",
+    "pageWidthMm": 210,
+    "pageHeightMm": 297,
+    "marginsMm": {
+      "top": 20,
+      "right": 18,
+      "bottom": 16,
+      "left": 18
+    },
+    "dpi": 150,
+    "deviceScaleFactor": 1,
+    "locale": "en-GB",
+    "timeZone": "Africa/Lusaka",
+    "fixedDate": "2026-01-15",
+    "chromiumFlags": "--headless=new --disable-gpu --force-device-scale-factor=1 --font-render-hinting=none --disable-lcd-text --hide-scrollbars --no-first-run --disable-extensions --disable-features=NetworkService",
+    "libreOfficeArgs": "--headless --norestore --nolockcheck --nodefault --nofirststartwizard"
+  },
+  "settings": {
+    "pageSize": "A4",
+    "pageWidthMm": 210,
+    "pageHeightMm": 297,
+    "marginsMm": {
+      "top": 20,
+      "right": 18,
+      "bottom": 16,
+      "left": 18
+    },
+    "dpi": 150,
+    "deviceScaleFactor": 1,
+    "locale": "en-GB",
+    "timeZone": "Africa/Lusaka",
+    "fixedDate": "2026-01-15"
+  },
+  "command": "soffice --headless --norestore --nolockcheck --nodefault --nofirststartwizard -env:UserInstallation=file:///tmp/visual-vr-006-xfKNVb/.loprofile --convert-to pdf:writer_pdf_Export --outdir /tmp/visual-vr-006-xfKNVb /tmp/visual-vr-006-xfKNVb/vr-006.docx",
+  "pageCount": 3,
+  "anchors": {
+    "question_1": 1,
+    "question_2": 1,
+    "question_3": 1,
+    "question_4": 1,
+    "question_5": 1,
+    "question_6": 1,
+    "question_7": 1,
+    "question_8": 2,
+    "question_9": 2,
+    "question_10": 2,
+    "question_11": 2,
+    "question_12": 2,
+    "question_13": 2,
+    "question_14": 2,
+    "question_15": 2,
+    "question_16": 3,
+    "question_17": 3,
+    "question_18": 3,
+    "header": 1
+  },
+  "inkByPage": {
+    "1": 0.034005223084562476,
+    "2": 0.03010032368411373,
+    "3": 0.013498179276860265
+  },
+  "figures": {
+    "unresolvedFigureCount": 0,
+    "unresolvedFigures": [],
+    "placeholders": 0,
+    "docx": {
+      "drawings": 0,
+      "blips": 0,
+      "svgBlips": 0,
+      "svgParts": [],
+      "pngParts": [],
+      "imageRelationships": 0,
+      "placeholders": 0
+    },
+    "detected": {
+      "1": [],
+      "2": [],
+      "3": []
+    }
+  },
+  "hashes": {
+    "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
+    "layout.json": "745f78aa8128c36e6df704aa49c8f6a3f4d8f72dfe0c1cc3e37cbe5bdf68703e",
+    "page-01.png": "02ef3e594da4f67bebe4beab3b6f5c5228230ac2e5380353a7ce347b8063e75d",
+    "page-02.png": "79a77f20d9d0438b2c0f3a19eab76e1069618b5cfb87680db7f45110288d48ef",
+    "page-03.png": "106d3509da091bbeb4b79b56726a9160f75715f5f9468c90a0c11381e83501f4"
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "fixtureId": "vr-006",
+  "family": "browser-print",
+  "copy": "paper",
+  "identity": "browser-print/chromium-150.0.7871.24",
+  "sourceCommit": "f68400a4daa6b603427e379fae1e7c9dd4146f50",
+  "source": "#1934",
+  "reason": "First recording of the §4.6 visual baselines. No baseline has ever existed, so the gate has been red since the harness landed and could not create one from a comparison run by design.",
+  "environment": {
+    "chromium": "150.0.7871.24",
+    "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
+    "libreoffice": "24.2.7.2",
+    "os": "Linux 6.17.0-1020-azure",
+    "platform": "linux-x64",
+    "node": "v22.23.1",
+    "fonts": {
+      "count": 54,
+      "digest": "20b5398451fb9a3a"
+    },
+    "pageSize": "A4",
+    "pageWidthMm": 210,
+    "pageHeightMm": 297,
+    "marginsMm": {
+      "top": 20,
+      "right": 18,
+      "bottom": 16,
+      "left": 18
+    },
+    "dpi": 150,
+    "deviceScaleFactor": 1,
+    "locale": "en-GB",
+    "timeZone": "Africa/Lusaka",
+    "fixedDate": "2026-01-15",
+    "chromiumFlags": "--headless=new --disable-gpu --force-device-scale-factor=1 --font-render-hinting=none --disable-lcd-text --hide-scrollbars --no-first-run --disable-extensions --disable-features=NetworkService",
+    "libreOfficeArgs": "--headless --norestore --nolockcheck --nodefault --nofirststartwizard"
+  },
+  "settings": {
+    "pageSize": "A4",
+    "pageWidthMm": 210,
+    "pageHeightMm": 297,
+    "marginsMm": {
+      "top": 20,
+      "right": 18,
+      "bottom": 16,
+      "left": 18
+    },
+    "dpi": 150,
+    "deviceScaleFactor": 1,
+    "locale": "en-GB",
+    "timeZone": "Africa/Lusaka",
+    "fixedDate": "2026-01-15"
+  },
+  "command": "chromium page.pdf (preferCSSPageSize)",
+  "pageCount": 5,
+  "anchors": {
+    "question_1": 1,
+    "question_2": 1,
+    "question_3": 1,
+    "question_4": 1,
+    "question_5": 2,
+    "question_6": 2,
+    "question_7": 2,
+    "question_8": 2,
+    "question_9": 3,
+    "question_10": 3,
+    "question_11": 3,
+    "question_12": 3,
+    "question_13": 3,
+    "question_14": 4,
+    "question_15": 4,
+    "question_16": 4,
+    "question_17": 4,
+    "question_18": 4,
+    "header": 1
+  },
+  "inkByPage": {
+    "1": 0.031257506191313664,
+    "2": 0.02833049420993684,
+    "3": 0.029378254983650882,
+    "4": 0.028973323283664778,
+    "5": 0.003294211409318767
+  },
+  "figures": {
+    "unresolvedFigureCount": 0,
+    "unresolvedFigures": [],
+    "placeholders": 0,
+    "docx": null,
+    "detected": {
+      "1": [],
+      "2": [],
+      "3": [],
+      "4": [],
+      "5": []
+    }
+  },
+  "hashes": {
+    "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
+    "layout.json": "0cea7f2f07bf0908aa63098b13938e51676506048fda7c119658f7d0ec5045d1",
+    "page-01.png": "2c80308b3f354dfc56732905b4974d4719c5777c3ab4d4ea12d289d75cb017dd",
+    "page-02.png": "78b3778aa67246983fc427dde71710872fa4924a21a6d686b02047a2307a8756",
+    "page-03.png": "28fede0840db25af8023933d87b02444411b9e939fe2a6138c466f349841f74b",
+    "page-04.png": "e01f137d78532833629ffcc88f28772b03902c789791df194a9ac5c81b22bb02",
+    "page-05.png": "3be70cd42119bf416cfe538c22e9e0b098f31de99d38ee69fc34be69e49d0e4c"
+  }
+}
