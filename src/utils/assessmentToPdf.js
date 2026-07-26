@@ -16,7 +16,7 @@ import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 import { splitStatementSegments, statementLabel } from './fillBlanks.js'
 import { subPartLabel, splitPartBlanks } from './questionParts.js'
 import { hydrateTableData } from './tableData.js'
-import { resolveFigureLabels } from './figureLabelLayout.js'
+import { resolveFigureLabels, resolveAnswerKeyLabels } from './figureLabelLayout.js'
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
@@ -187,7 +187,7 @@ body {
   gap: 12pt;
   margin-top: 10pt;
   padding-bottom: 8pt;
-  border-bottom: 1pt solid #777;
+  border-bottom: 1pt solid #888;
 }
 .banner-code {
   font-family: Arial, Helvetica, sans-serif;
@@ -261,7 +261,7 @@ body {
 
 .passage {
   background: #fafafa;
-  border: 1px solid #ccc;
+  border: 1px solid #888;
   padding: 10pt 14pt;
   margin: 8pt 0 14pt;
   font-size: 11pt;
@@ -324,6 +324,11 @@ body {
   white-space: nowrap;
   line-height: 1.1;
 }
+.diagram-label-answer {
+  color: #047857;
+  border-color: #047857;
+  font-weight: 600;
+}
 .diagram-label-num {
   background: #000;
   color: #fff;
@@ -361,7 +366,7 @@ body {
 }
 .options-image .item {
   text-align: center;
-  border: 1px solid #999;
+  border: 1px solid #888;
   border-radius: 3pt;
   padding: 4pt;
   background: #fafafa;
@@ -390,7 +395,7 @@ body {
   gap: 4pt;
   align-items: center;
   padding: 4pt 6pt;
-  border: 1px solid #ccc;
+  border: 1px solid #888;
   border-radius: 3pt;
 }
 .options-mixed .item .img { width: 40pt; height: 40pt; object-fit: contain; }
@@ -402,9 +407,9 @@ body {
 .numeric-line .answer-line.numeric { display: inline-block; flex: 0 0 160pt; margin-bottom: 0; }
 .numeric-unit { font-size: 11pt; }
 .match-columns { display: grid; grid-template-columns: 1fr 1fr; column-gap: 36pt; margin: 6pt 0 12pt; }
-.match-row { padding: 3pt 0; border-bottom: 1px dotted #999; }
+.match-row { padding: 3pt 0; border-bottom: 1px dotted #888; }
 .seq-list { margin: 6pt 0 12pt; }
-.seq-row { display: flex; align-items: center; gap: 10pt; padding: 3pt 0; border-bottom: 1px dotted #999; }
+.seq-row { display: flex; align-items: center; gap: 10pt; padding: 3pt 0; border-bottom: 1px dotted #888; }
 .seq-blank { display: inline-block; width: 30pt; border-bottom: 1px solid #000; height: 12pt; }
 .pagebreak { page-break-after: always; break-after: page; height: 0; }
 
@@ -536,13 +541,13 @@ body {
 }
 
 .diagram-box {
-  border: 1px dashed #999;
+  border: 1px dashed #888;
   background: #fafafa;
   padding: 8pt;
   text-align: center;
   font-style: italic;
   font-size: 10pt;
-  color: #777;
+  color: #6b7280;
   margin: 6pt 0;
   min-height: 80pt;
   display: grid; place-items: center;
@@ -775,13 +780,22 @@ function renderQuestion(b) {
     // this the print window drew the pills and silently DROPPED the leader
     // lines, leaving labels floating with nothing pointing at the part.
     const placed = resolveFigureLabels(labels, { mode: b.diagramMode }).labels
+    // On the marking key an identify diagram is NAMED on the picture (§4.3).
+    // The markers resolve identically on both copies, so the numbers still
+    // correspond — the key adds names, it does not move anything.
+    const answerNames = (b.showAnswer && isIdentify)
+      ? resolveAnswerKeyLabels(labels).names
+      : []
     const labelHtml = placed.map((l) => {
       const inner = isIdentify ? String(l.index + 1) : escapeHtml(l.text)
       const cls = isIdentify ? 'diagram-label diagram-label-num' : 'diagram-label'
       return `<span class="${cls}" style="left:${(l.x * 100).toFixed(2)}%;top:${(l.y * 100).toFixed(2)}%">${inner}</span>`
-    }).join('')
-    const leaderHtml = placed.some(l => l.leader)
-      ? `<svg class="diagram-leaders" aria-hidden="true">${placed.map(l => (l.leader
+    }).join('') + answerNames.map((l) => (
+      `<span class="diagram-label diagram-label-answer" style="left:${(l.x * 100).toFixed(2)}%;top:${(l.y * 100).toFixed(2)}%">${escapeHtml(l.text)}</span>`
+    )).join('')
+    const withLeaders = [...placed, ...answerNames]
+    const leaderHtml = withLeaders.some(l => l.leader)
+      ? `<svg class="diagram-leaders" aria-hidden="true">${withLeaders.map(l => (l.leader
         ? `<line x1="${(l.leader.x1 * 100).toFixed(2)}%" y1="${(l.leader.y1 * 100).toFixed(2)}%"` +
           ` x2="${(l.leader.x2 * 100).toFixed(2)}%" y2="${(l.leader.y2 * 100).toFixed(2)}%"` +
           ' stroke="#000" stroke-width="1"/>' +

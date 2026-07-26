@@ -251,6 +251,39 @@ console.log('\nGOLDEN — a learner never receives the answer')
   assert(paperXml.includes('Carbon dioxide'), 'the options still print for the learner')
 }
 
+console.log('\nGOLDEN — a labelled diagram\'s answers reach the key and not the learner')
+{
+  // §4.3's figure half. The composited overlay needs a canvas, so in this
+  // DOM-less harness the exporter falls back to the plain image plus a text
+  // list — which is exactly the path where a leak would be easiest to miss.
+  const meta = { title: 'Heart', subject: 'Integrated Science', grade: '11' }
+  const questions = [{
+    id: 'q1', order: 1, type: 'diagram', marks: 2,
+    text: 'Name the parts of the heart.',
+    imageUrl: 'https://example/heart.png',
+    diagramMode: 'identify',
+    diagramLabels: [
+      { x: 0.25, y: 0.3, text: 'AORTA-ANSWER' },
+      { x: 0.6, y: 0.55, text: 'VENTRICLE-ANSWER' },
+    ],
+  }]
+  const paperXml = await renderDocx(meta, questions, { mode: 'paper' })
+  const schemeXml = await renderDocx(meta, questions, { mode: 'scheme' })
+
+  assert(
+    !paperXml.includes('AORTA-ANSWER') && !paperXml.includes('VENTRICLE-ANSWER'),
+    'no part name reaches the learner copy',
+  )
+  assert(
+    schemeXml.includes('AORTA-ANSWER') && schemeXml.includes('VENTRICLE-ANSWER'),
+    '…and both reach the marking key',
+  )
+  assert(
+    paperXml.includes('Name the parts of the heart'),
+    'the learner still gets the question',
+  )
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
  * 4. English — a comprehension passage stays with its questions
  * ════════════════════════════════════════════════════════════════════════ */

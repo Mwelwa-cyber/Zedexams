@@ -16,7 +16,7 @@
 import { useMemo } from 'react'
 import DiagramSvg from '../../diagrams/DiagramSvg'
 import { resolveImageWidthPercent } from '../../../utils/imageWidth'
-import { resolveFigureLabels } from '../../../utils/figureLabelLayout'
+import { resolveFigureLabels, resolveAnswerKeyLabels } from '../../../utils/figureLabelLayout'
 import { splitStatementSegments, statementLabel } from '../../../utils/fillBlanks'
 import { subPartLabel, splitPartBlanks, countPartBlanks } from '../../../utils/questionParts'
 import { DEFAULT_ANSWER_LINES } from '../../../utils/assessmentPaperLayout'
@@ -225,9 +225,19 @@ function PaperQuestionBlock({ block }) {
   // line. The same call runs in the PDF and Word exports, so a label that moved
   // here moved there — the whole point of §4.1's one-model rule applied to
   // geometry rather than text.
+  // On the marking key an identify diagram is NAMED on the picture, not just
+  // numbered with a list underneath (§4.3) — the numbers still correspond
+  // because the markers resolve identically on both copies.
+  const isAnswerKeyFigure = block.showAnswer && block.diagramMode === 'identify'
   const placedLabels = useMemo(
     () => resolveFigureLabels(block.diagramLabels || [], { mode: block.diagramMode }).labels,
     [block.diagramLabels, block.diagramMode],
+  )
+  const answerNames = useMemo(
+    () => (isAnswerKeyFigure
+      ? resolveAnswerKeyLabels(block.diagramLabels || []).names
+      : []),
+    [isAnswerKeyFigure, block.diagramLabels],
   )
   return (
     <div className={qClass}>
@@ -250,12 +260,12 @@ function PaperQuestionBlock({ block }) {
                 place them identically; it also separates labels that would
                 otherwise print on top of each other, and gives a label it had
                 to move a line back to the part it was dropped on. */}
-            {placedLabels.some((l) => l.leader) && (
+            {[...placedLabels, ...answerNames].some((l) => l.leader) && (
               <svg
                 style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none' }}
                 aria-hidden="true"
               >
-                {placedLabels.map((label, i) => (
+                {[...placedLabels, ...answerNames].map((label, i) => (
                   label.leader ? (
                     <g key={i}>
                       <line
@@ -292,6 +302,29 @@ function PaperQuestionBlock({ block }) {
                 }}
               >
                 {block.diagramMode === 'identify' ? (label.index + 1) : label.text}
+              </span>
+            ))}
+            {/* The marking key's answer names, in the studio's answer green so a
+                marker can tell at a glance what the learner's copy did NOT show. */}
+            {answerNames.map((label, i) => (
+              <span
+                key={`ans-${i}`}
+                style={{
+                  position: 'absolute',
+                  left: `${label.x * 100}%`,
+                  top: `${label.y * 100}%`,
+                  transform: 'translate(-50%, -50%)',
+                  background: 'white',
+                  color: '#047857',
+                  border: '1px solid #047857',
+                  borderRadius: 3,
+                  padding: '1px 6px',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {label.text}
               </span>
             ))}
           </div>
@@ -543,13 +576,13 @@ function PaperMcqOptions({ block }) {
           const media = block.optionMedia?.[i]
           const isCorrect = block.showAnswer && correct === i
           return (
-            <div key={i} style={{ border: `${isCorrect ? '2px solid #047857' : '1px solid #999'}`, borderRadius: 3, padding: 4, textAlign: 'center', background: '#fafafa' }}>
+            <div key={i} style={{ border: `${isCorrect ? '2px solid #047857' : '1px solid #888'}`, borderRadius: 3, padding: 4, textAlign: 'center', background: '#fafafa' }}>
               <div style={{ aspectRatio: '1', display: 'grid', placeItems: 'center', background: 'white', borderRadius: 2, marginBottom: 2 }}>
                 {media?.diagram?.libraryKey
                   ? <DiagramSvg libraryKey={media.diagram.libraryKey} params={media.diagram.params} color="#1c1612" alt={media.alt || ''} />
                   : media?.imageUrl
                     ? <img src={media.imageUrl} alt={media.alt || ''} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                    : <span style={{ fontSize: 24, color: '#999' }}>?</span>}
+                    : <span style={{ fontSize: 24, color: '#888' }}>?</span>}
               </div>
               <div style={{ fontSize: 12, fontWeight: 700, color: isCorrect ? '#047857' : undefined }}>
                 {SECTION_LETTERS[i]}.{optText(i) ? ` ${optText(i)}` : ''}{isCorrect ? ' ✓' : ''}
@@ -567,7 +600,7 @@ function PaperMcqOptions({ block }) {
           const media = block.optionMedia?.[i]
           const isCorrect = block.showAnswer && correct === i
           return (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: 'auto auto 1fr', gap: 6, alignItems: 'center', padding: '4px 6px', border: '1px solid #ccc', borderRadius: 3 }}>
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: 'auto auto 1fr', gap: 6, alignItems: 'center', padding: '4px 6px', border: '1px solid #888', borderRadius: 3 }}>
               <strong style={{ color: isCorrect ? '#047857' : undefined }}>{SECTION_LETTERS[i]}.</strong>
               {media?.diagram?.libraryKey
                 ? <span style={{ width: 40, height: 40, display: 'inline-block' }}><DiagramSvg libraryKey={media.diagram.libraryKey} params={media.diagram.params} color="#1c1612" alt={media.alt || ''} /></span>
@@ -650,7 +683,7 @@ function PaperSequence({ block }) {
   return (
     <div style={{ margin: '8px 0' }}>
       {items.map((it, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', borderBottom: '1px dotted #999' }}>
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', borderBottom: '1px dotted #888' }}>
           <span style={{ display: 'inline-block', width: 32, borderBottom: '1px solid #000', height: 16 }} />
           <span>{it || ''}</span>
         </div>
@@ -670,14 +703,14 @@ function PaperMatching({ block }) {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 48, margin: '8px 0' }}>
       <div>
         {Array.from({ length: rows }).map((_, i) => (
-          <div key={i} style={{ padding: '4px 0', borderBottom: '1px dotted #999' }}>
+          <div key={i} style={{ padding: '4px 0', borderBottom: '1px dotted #888' }}>
             <strong>{i + 1}.</strong> {left[i] || ''}
           </div>
         ))}
       </div>
       <div>
         {Array.from({ length: rows }).map((_, i) => (
-          <div key={i} style={{ padding: '4px 0', borderBottom: '1px dotted #999' }}>
+          <div key={i} style={{ padding: '4px 0', borderBottom: '1px dotted #888' }}>
             <strong>{SECTION_LETTERS[i] || '?'}.</strong> {right[i] || ''}
           </div>
         ))}

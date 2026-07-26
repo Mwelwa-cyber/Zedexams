@@ -14,7 +14,8 @@
 
 import assert from 'node:assert/strict'
 import {
-  resolveFigureLabels, labelBoxSize, figureLabelWarning, NOMINAL_FIGURE_BOX,
+  resolveFigureLabels, resolveAnswerKeyLabels, labelBoxSize, figureLabelWarning,
+  NOMINAL_FIGURE_BOX,
 } from './figureLabelLayout.js'
 
 let passed = 0
@@ -220,6 +221,92 @@ test('an authored target survives de-collision — it is not replaced', () => {
   )
   assert.deepEqual(labels[0].target, { x: 0.1, y: 0.1 }, 'the teacher\'s target wins')
   assert.ok(Math.abs(labels[1].target.x - 0.5) < 1e-9, 'the other falls back to where it sat')
+})
+
+/* ── the marking key's twin figure (§4.3) ───────────────────────────────── */
+
+console.log('\n— the marking key names the parts —')
+
+const HEART = [
+  { x: 0.25, y: 0.3, text: 'Aorta' },
+  { x: 0.6, y: 0.55, text: 'Left ventricle' },
+]
+
+test('the numbers sit in exactly the same places on both copies', () => {
+  // Correspondence is the whole point: the learner writes against number 2 and
+  // the marker reads number 2. If a name could shove a marker, the two copies
+  // would be describing different parts.
+  const learner = resolveFigureLabels(HEART, { mode: 'identify' })
+  const key = resolveAnswerKeyLabels(HEART)
+  assert.deepEqual(key.markers, learner.labels)
+})
+
+test('every name is pushed clear of its marker and points back at it', () => {
+  const { names, markers } = resolveAnswerKeyLabels(HEART)
+  assert.equal(names.length, 2)
+  for (const n of names) {
+    assert.ok(n.leader, `${n.text} carries a line back to its number`)
+    const marker = markers.find(m => Math.abs(m.x - n.leader.x2) < 1e-9
+      && Math.abs(m.y - n.leader.y2) < 1e-9)
+    assert.ok(marker, `${n.text}'s line ends on a numbered marker`)
+    // Clear of it, or the number would be unreadable underneath the name.
+    const dx = Math.abs(n.x - marker.x) * 360
+    const dy = Math.abs(n.y - marker.y) * 240
+    assert.ok(
+      dx > (n.widthPx + marker.widthPx) / 2 - 1 || dy > (n.heightPx + marker.heightPx) / 2 - 1,
+      `${n.text} does not cover its number`,
+    )
+  }
+})
+
+test('a marker left blank on purpose gets no empty pill', () => {
+  // In identify mode a blank label is a real numbered hotspot the teacher marks
+  // by hand — it must keep its number and gain no floating empty box.
+  const { markers, names } = resolveAnswerKeyLabels([
+    { x: 0.3, y: 0.3, text: 'Aorta' },
+    { x: 0.7, y: 0.7, text: '' },
+  ])
+  assert.equal(markers.length, 2, 'both hotspots keep their numbers')
+  assert.equal(names.length, 1, 'only the answered one gets a name')
+  assert.equal(names[0].text, 'Aorta')
+})
+
+test('names de-collide with each other as well as with the numbers', () => {
+  const crowded = [
+    { x: 0.5, y: 0.5, text: 'Left atrium' },
+    { x: 0.53, y: 0.5, text: 'Right atrium' },
+  ]
+  const { names } = resolveAnswerKeyLabels(crowded)
+  const dx = Math.abs(names[0].x - names[1].x) * 360
+  const dy = Math.abs(names[0].y - names[1].y) * 240
+  assert.ok(
+    dx >= (names[0].widthPx + names[1].widthPx) / 2 - 1
+      || dy >= (names[0].heightPx + names[1].heightPx) / 2 - 1,
+    `the two names are separated (dx=${dx.toFixed(1)}, dy=${dy.toFixed(1)})`,
+  )
+})
+
+test('an anchor pushes a label and never moves itself', () => {
+  const { labels } = resolveFigureLabels(
+    [{ x: 0.5, y: 0.5, text: 'Aorta' }],
+    { anchors: [{ x: 0.5, y: 0.5, widthPx: 20, heightPx: 20 }] },
+  )
+  assert.equal(labels[0].moved, true, 'the label gave way')
+  const dx = Math.abs(labels[0].x - 0.5) * 360
+  const dy = Math.abs(labels[0].y - 0.5) * 240
+  assert.ok(
+    dx >= (labels[0].widthPx + 20) / 2 - 1 || dy >= (labels[0].heightPx + 20) / 2 - 1,
+    'and cleared the anchor',
+  )
+})
+
+test('an anchor with no size is ignored rather than trapping a label', () => {
+  const { labels, movedCount } = resolveFigureLabels(
+    [{ x: 0.5, y: 0.5, text: 'Aorta' }],
+    { anchors: [{ x: 0.5, y: 0.5 }, null, { x: 0.5, y: 0.5, widthPx: 0, heightPx: 0 }] },
+  )
+  assert.equal(movedCount, 0)
+  assert.equal(labels[0].x, 0.5)
 })
 
 /* ── defaults and rubbish ───────────────────────────────────────────────── */
