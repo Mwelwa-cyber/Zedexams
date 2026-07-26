@@ -55,6 +55,23 @@ function escapeHtml(str) {
  * The layout uses monospace digits, right-aligned, with the operator
  * column sitting on the left of the last operand row.
  */
+/** How a vertical sum is recognised in stored HTML. See FRACTION_SELECTOR. */
+export const VERTICAL_ARITHMETIC_SELECTOR = '[data-vertical-arithmetic], .vert-arith'
+
+/**
+ * Read a vertical sum's parts. `working` matters: it adds ruled working space
+ * below the answer, and a reader that drops it silently removes the room a
+ * learner was given to show their method.
+ */
+export function readVerticalArithmeticAttrs(el) {
+  return {
+    operator: el.getAttribute('data-operator') || '+',
+    lines: decodeLines(el.getAttribute('data-lines')),
+    answer: el.getAttribute('data-answer') || '',
+    working: el.getAttribute('data-working') === 'true',
+  }
+}
+
 export function buildVerticalArithmeticInner({ operator, lines, answer, working }) {
   const op = VERT_OP_SET.has(operator) ? operator : '+'
   const safeLines = Array.isArray(lines) && lines.length ? lines : ['', '']

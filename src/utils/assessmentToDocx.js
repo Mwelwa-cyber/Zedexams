@@ -294,8 +294,21 @@ function verticalArithmeticParagraphs(block, baseOpts) {
   }))
   out.push(new Paragraph({
     children: [runText(`   ${pad(block.answer)}`, mono)],
-    spacing: { after: 120 },
+    spacing: { after: block.working ? 0 : 120 },
   }))
+  // Ruled space for a learner to show their method. The editor offers it per
+  // sum and the preview draws it; Word dropped it, because the flag never got
+  // as far as the content model. Two underlined blank lines is the same
+  // affordance the answer-lines elsewhere on the paper use.
+  if (block.working) {
+    for (let i = 0; i < 2; i += 1) {
+      out.push(new Paragraph({
+        children: [runText('   ' + ' '.repeat(Math.max(width, 4)), mono)],
+        border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: '888888' } },
+        spacing: { after: i === 1 ? 120 : 60 },
+      }))
+    }
+  }
   return out
 }
 

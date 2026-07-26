@@ -284,6 +284,36 @@ console.log('\nGOLDEN — a labelled diagram\'s answers reach the key and not th
   )
 }
 
+console.log('\nGOLDEN — a vertical sum reaches Word with the space it asked for')
+{
+  // The editor offers ruled working space per sum and the preview draws it.
+  // Word dropped it, because the `working` flag stopped at the content model —
+  // so a question that gave a learner room to show their method printed without
+  // it. Asserted on the real .docx rather than on the block.
+  const sum = (working) => ({
+    id: 'q1', order: 1, type: 'short_answer', marks: 2,
+    text: richTextToPaperHtml(
+      `<div class="vert-arith" data-operator="+" data-lines="248|176" data-answer=""`
+      + `${working ? ' data-working="true"' : ''}></div>`,
+    ),
+  })
+  const meta = { title: 'Sums', subject: 'Mathematics', grade: '5' }
+  const withSpace = await renderDocx(meta, [sum(true)])
+  const without = await renderDocx(meta, [sum(false)])
+
+  assert(withSpace.includes('248') && withSpace.includes('176'), 'the addends reach Word')
+  // The ruled lines are paragraph bottom borders, so count those.
+  const rules = (xml) => (xml.match(/w:bottom w:val="single"/g) || []).length
+  assert(
+    rules(withSpace) > rules(without),
+    `the working space adds ruled lines (${rules(withSpace)} vs ${rules(without)})`,
+  )
+  assert(
+    !without.includes('w:bottom w:val="single"') || rules(without) < rules(withSpace),
+    'a sum that did not ask for working space does not get it',
+  )
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
  * 4. English — a comprehension passage stays with its questions
  * ════════════════════════════════════════════════════════════════════════ */
