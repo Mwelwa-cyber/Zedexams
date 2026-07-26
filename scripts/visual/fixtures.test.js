@@ -17,6 +17,9 @@
  */
 
 import assert from 'node:assert/strict'
+import { existsSync, readdirSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   VISUAL_FIXTURES, RENDER_TARGETS, fixtureById, validateFixture, validateAllFixtures,
 } from './fixtures.js'
@@ -25,6 +28,17 @@ import {
   isInfrastructureFailure, MIN_PDF_BYTES,
 } from './renderGuards.js'
 import { RenderEnvironmentError } from './renderEnvironment.js'
+
+const BASELINES_ROOT = fileURLToPath(new URL('../../tests/visual/baselines/', import.meta.url))
+
+function committedBaselinesFor(stage, fixtureId, copy) {
+  const familyDir = path.join(BASELINES_ROOT, stage)
+  if (!existsSync(familyDir)) return []
+  return readdirSync(familyDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => path.join(familyDir, entry.name, fixtureId, copy, 'layout.json'))
+    .filter((layoutPath) => existsSync(layoutPath))
+}
 
 /**
  * Clone a fixture for mutation, keeping its `requires` predicates.
@@ -90,6 +104,21 @@ test('one fixture carries the learner paper AND the marking scheme', () => {
     both.some((f) => (f.together || []).some(([a, b]) => /^answer_/.test(a) && /^question_/.test(b))),
     'an answer is tied to its question',
   )
+})
+
+test('every shipped fixture copy has a committed baseline in every renderer family', () => {
+  for (const fixture of VISUAL_FIXTURES) {
+    const copies = fixture.renderBothModes ? ['paper', 'scheme'] : ['paper']
+    for (const stage of fixture.targets) {
+      for (const copy of copies) {
+        const matches = committedBaselinesFor(stage, fixture.id, copy)
+        assert.ok(
+          matches.length > 0,
+          `${fixture.id} [${stage}/${copy}] has no committed baseline under tests/visual/baselines/${stage}/`,
+        )
+      }
+    }
+  }
 })
 
 test('every fixture declares a rendering target we can actually drive', () => {
@@ -217,7 +246,7 @@ const expectations = {
   pageWidthPx: 1240,
   pageHeightPx: 1754,
   requiresAnchors: true,
-  expectedAnchorPages: { question_1: 1, question_8: 2, question_14: 3 },
+  expectedAnchorPages: { question_1: 1, question_8: 2 },
 }
 
 test('a complete render passes', () => {

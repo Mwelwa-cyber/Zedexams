@@ -380,13 +380,14 @@ export const VISUAL_FIXTURES = [
         text: '<p>Study the table and answer the question.</p>',
         tableData: {
           headers: ['Crop', 'Hectares', 'Yield (t)'],
-          rows: [['Maize', '120', '480'], ['Groundnuts', '45', '90'], ['Cassava', '60', '300']],
+          rows: [['Maize', '120', '480'], ['Groundnuts', '45', '90']],
         },
       },
       {
         id: 'q2', order: 2, type: 'short_answer', marks: 3,
         text: '<p>Find the size of the marked angle.</p>',
         imageDiagram: ANGLE_DIAGRAM,
+        imageWidth: 'small',
       },
     ],
     requires: [
@@ -414,7 +415,7 @@ export const VISUAL_FIXTURES = [
     grayscale: false,
     regions: [],
     // Declared page membership, which is what makes a move reportable.
-    expectedAnchorPages: { question_1: 1, question_8: 2, question_14: 3 },
+    expectedAnchorPages: { question_1: 1, question_8: 2 },
     together: [],
     assessment: {
       ...SCHOOL,

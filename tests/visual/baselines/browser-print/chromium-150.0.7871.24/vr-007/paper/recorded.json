@@ -1,0 +1,85 @@
+{
+  "fixtureId": "vr-007",
+  "family": "browser-print",
+  "copy": "paper",
+  "identity": "browser-print/chromium-150.0.7871.24",
+  "sourceCommit": "4a6c810423d8559073bd0c79a4f444654eea0b03",
+  "source": "#1935",
+  "reason": "Initial committed baseline set for the visual regression gate",
+  "environment": {
+    "chromium": "150.0.7871.24",
+    "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
+    "libreoffice": "24.2.7.2",
+    "os": "Linux 6.17.0-1020-azure",
+    "platform": "linux-x64",
+    "node": "v24.18.0",
+    "fonts": {
+      "count": 54,
+      "digest": "20b5398451fb9a3a"
+    },
+    "pageSize": "A4",
+    "pageWidthMm": 210,
+    "pageHeightMm": 297,
+    "marginsMm": {
+      "top": 20,
+      "right": 18,
+      "bottom": 16,
+      "left": 18
+    },
+    "dpi": 150,
+    "deviceScaleFactor": 1,
+    "locale": "en-GB",
+    "timeZone": "Africa/Lusaka",
+    "fixedDate": "2026-01-15",
+    "chromiumFlags": "--headless=new --disable-gpu --force-device-scale-factor=1 --font-render-hinting=none --disable-lcd-text --hide-scrollbars --no-first-run --disable-extensions --disable-features=NetworkService",
+    "libreOfficeArgs": "--headless --norestore --nolockcheck --nodefault --nofirststartwizard"
+  },
+  "settings": {
+    "pageSize": "A4",
+    "pageWidthMm": 210,
+    "pageHeightMm": 297,
+    "marginsMm": {
+      "top": 20,
+      "right": 18,
+      "bottom": 16,
+      "left": 18
+    },
+    "dpi": 150,
+    "deviceScaleFactor": 1,
+    "locale": "en-GB",
+    "timeZone": "Africa/Lusaka",
+    "fixedDate": "2026-01-15"
+  },
+  "command": "chromium page.pdf (preferCSSPageSize)",
+  "pageCount": 1,
+  "anchors": {
+    "question_1": 1,
+    "header": 1
+  },
+  "inkByPage": {
+    "1": 0.0254352325550362
+  },
+  "figures": {
+    "unresolvedFigureCount": 0,
+    "unresolvedFigures": [],
+    "placeholders": 0,
+    "docx": null,
+    "detected": {
+      "1": [
+        {
+          "x": 106,
+          "y": 189,
+          "width": 145,
+          "height": 145,
+          "cells": 330,
+          "source": "placement"
+        }
+      ]
+    }
+  },
+  "hashes": {
+    "environment.json": "91d1426985f899c16832f24d5a7dc78ea9a4195d1cb84aca0a72d4369fa5a294",
+    "layout.json": "1deec30699570582f80455c6d03f0042f580182adc575c5a58f6a348252a8ad1",
+    "page-01.png": "159485a6d9750d90ab48a2c4bea2c8e9bbaa4b7781626a7db2d87f92879aa178"
+  }
+}

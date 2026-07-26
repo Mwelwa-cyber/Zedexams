@@ -1,0 +1,120 @@
+{
+  "fixtureId": "vr-005",
+  "family": "docx",
+  "copy": "paper",
+  "identity": "docx/libreoffice-24.2.7.2",
+  "sourceCommit": "4a6c810423d8559073bd0c79a4f444654eea0b03",
+  "source": "#1935",
+  "reason": "Align initial fixture with one-page deterministic render in both families",
+  "environment": {
+    "chromium": "150.0.7871.24",
+    "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
+    "libreoffice": "24.2.7.2",
+    "os": "Linux 6.17.0-1020-azure",
+    "platform": "linux-x64",
+    "node": "v24.18.0",
+    "fonts": {
+      "count": 54,
+      "digest": "20b5398451fb9a3a"
+    },
+    "pageSize": "A4",
+    "pageWidthMm": 210,
+    "pageHeightMm": 297,
+    "marginsMm": {
+      "top": 20,
+      "right": 18,
+      "bottom": 16,
+      "left": 18
+    },
+    "dpi": 150,
+    "deviceScaleFactor": 1,
+    "locale": "en-GB",
+    "timeZone": "Africa/Lusaka",
+    "fixedDate": "2026-01-15",
+    "chromiumFlags": "--headless=new --disable-gpu --force-device-scale-factor=1 --font-render-hinting=none --disable-lcd-text --hide-scrollbars --no-first-run --disable-extensions --disable-features=NetworkService",
+    "libreOfficeArgs": "--headless --norestore --nolockcheck --nodefault --nofirststartwizard"
+  },
+  "settings": {
+    "pageSize": "A4",
+    "pageWidthMm": 210,
+    "pageHeightMm": 297,
+    "marginsMm": {
+      "top": 20,
+      "right": 18,
+      "bottom": 16,
+      "left": 18
+    },
+    "dpi": 150,
+    "deviceScaleFactor": 1,
+    "locale": "en-GB",
+    "timeZone": "Africa/Lusaka",
+    "fixedDate": "2026-01-15"
+  },
+  "command": "soffice --headless --norestore --nolockcheck --nodefault --nofirststartwizard -env:UserInstallation=file:///tmp/visual-vr-005-SMYTux/.loprofile --convert-to pdf:writer_pdf_Export --outdir /tmp/visual-vr-005-SMYTux /tmp/visual-vr-005-SMYTux/vr-005.docx",
+  "pageCount": 1,
+  "anchors": {
+    "question_1": 1,
+    "question_2": 1,
+    "header": 1,
+    "diagram_1": 1,
+    "diagram_1.2": 1,
+    "diagram_2": 1
+  },
+  "inkByPage": {
+    "1": 0.03739287159304079
+  },
+  "figures": {
+    "unresolvedFigureCount": 0,
+    "unresolvedFigures": [],
+    "placeholders": 0,
+    "docx": {
+      "drawings": 1,
+      "blips": 1,
+      "svgBlips": 1,
+      "svgParts": [
+        "word/media/fbe238863d87dc483d1c8d6289621c8ff39f29c9.svg"
+      ],
+      "pngParts": [
+        "word/media/ef1d0e984fe307d2a7af5c37b3b962332c8d921a.png"
+      ],
+      "imageRelationships": 2,
+      "placeholders": 0
+    },
+    "detected": {
+      "1": [
+        {
+          "x": 216,
+          "y": 400,
+          "width": 256,
+          "height": 112,
+          "cells": 112,
+          "source": "ink",
+          "anchor": "diagram_1"
+        },
+        {
+          "x": 504,
+          "y": 400,
+          "width": 592,
+          "height": 120,
+          "cells": 263,
+          "source": "ink",
+          "anchor": "diagram_1.2"
+        },
+        {
+          "x": 456,
+          "y": 688,
+          "width": 328,
+          "height": 256,
+          "cells": 668,
+          "source": "ink",
+          "anchor": "diagram_2"
+        }
+      ]
+    }
+  },
+  "hashes": {
+    "environment.json": "91d1426985f899c16832f24d5a7dc78ea9a4195d1cb84aca0a72d4369fa5a294",
+    "layout.json": "e0f3406e666cad476bf5e3345ce3de30877cbcc45c9f2f3efb884f3bcd55e108",
+    "page-01.png": "db8e0d613dece9835908dac02497c1b12ca072d7b21ef080ad507a2e68ac37fd"
+  }
+}

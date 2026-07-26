@@ -1,0 +1,99 @@
+{
+  "fixtureId": "vr-008",
+  "family": "docx",
+  "copy": "paper",
+  "identity": "docx/libreoffice-24.2.7.2",
+  "sourceCommit": "4a6c810423d8559073bd0c79a4f444654eea0b03",
+  "source": "#1935",
+  "reason": "Initial committed baseline set for the visual regression gate",
+  "environment": {
+    "chromium": "150.0.7871.24",
+    "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
+    "libreoffice": "24.2.7.2",
+    "os": "Linux 6.17.0-1020-azure",
+    "platform": "linux-x64",
+    "node": "v24.18.0",
+    "fonts": {
+      "count": 54,
+      "digest": "20b5398451fb9a3a"
+    },
+    "pageSize": "A4",
+    "pageWidthMm": 210,
+    "pageHeightMm": 297,
+    "marginsMm": {
+      "top": 20,
+      "right": 18,
+      "bottom": 16,
+      "left": 18
+    },
+    "dpi": 150,
+    "deviceScaleFactor": 1,
+    "locale": "en-GB",
+    "timeZone": "Africa/Lusaka",
+    "fixedDate": "2026-01-15",
+    "chromiumFlags": "--headless=new --disable-gpu --force-device-scale-factor=1 --font-render-hinting=none --disable-lcd-text --hide-scrollbars --no-first-run --disable-extensions --disable-features=NetworkService",
+    "libreOfficeArgs": "--headless --norestore --nolockcheck --nodefault --nofirststartwizard"
+  },
+  "settings": {
+    "pageSize": "A4",
+    "pageWidthMm": 210,
+    "pageHeightMm": 297,
+    "marginsMm": {
+      "top": 20,
+      "right": 18,
+      "bottom": 16,
+      "left": 18
+    },
+    "dpi": 150,
+    "deviceScaleFactor": 1,
+    "locale": "en-GB",
+    "timeZone": "Africa/Lusaka",
+    "fixedDate": "2026-01-15"
+  },
+  "command": "soffice --headless --norestore --nolockcheck --nodefault --nofirststartwizard -env:UserInstallation=file:///tmp/visual-vr-008-NAmH2s/.loprofile --convert-to pdf:writer_pdf_Export --outdir /tmp/visual-vr-008-NAmH2s /tmp/visual-vr-008-NAmH2s/vr-008.docx",
+  "pageCount": 1,
+  "anchors": {
+    "question_1": 1,
+    "header": 1,
+    "diagram_1": 1
+  },
+  "inkByPage": {
+    "1": 0.016636627800051495
+  },
+  "figures": {
+    "unresolvedFigureCount": 0,
+    "unresolvedFigures": [],
+    "placeholders": 0,
+    "docx": {
+      "drawings": 1,
+      "blips": 1,
+      "svgBlips": 1,
+      "svgParts": [
+        "word/media/e959c15faf1e8726a869ae212e1d9f18bb72019d.svg"
+      ],
+      "pngParts": [
+        "word/media/19566790a32cd6628696b06f900dfd9b35638b34.png"
+      ],
+      "imageRelationships": 2,
+      "placeholders": 0
+    },
+    "detected": {
+      "1": [
+        {
+          "x": 400,
+          "y": 464,
+          "width": 440,
+          "height": 232,
+          "cells": 277,
+          "source": "ink",
+          "anchor": "diagram_1"
+        }
+      ]
+    }
+  },
+  "hashes": {
+    "environment.json": "91d1426985f899c16832f24d5a7dc78ea9a4195d1cb84aca0a72d4369fa5a294",
+    "layout.json": "5ddbcf290fcd91d2ae0bd53116243ae3105418b492a4dff50564664e030da1db",
+    "page-01.png": "989bec80ec5c56196d9862fed070aa50eb89d4fbcfbdfd91a963be55bc45da84"
+  }
+}
