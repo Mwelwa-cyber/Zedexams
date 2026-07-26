@@ -72,6 +72,7 @@
     "test:figure-contrast": "node src/utils/figureContrast.test.js",
     "test:paper-terminology": "node src/config/paperTerminology.test.js",
     "test:paper-terminology-mirror": "node scripts/test-paper-terminology.mjs",
+    "test:visual-compare": "node scripts/visual/compareRender.test.js",
     "sync:assessment-bands": "node scripts/sync-assessment-bands.mjs",
     "sync:paper-terminology": "node scripts/sync-paper-terminology.mjs",
     "coverage:curriculum": "node scripts/curriculum-coverage-report.mjs",
