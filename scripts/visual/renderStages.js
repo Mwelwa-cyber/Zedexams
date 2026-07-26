@@ -244,7 +244,15 @@ export async function renderFixture(fixture, stage, opts = {}) {
 export function inspectDocxFigures(docxBytes) {
   const zip = unzipSync(new Uint8Array(docxBytes))
   const names = Object.keys(zip)
-  const document = zip['word/document.xml'] ? strFromU8(zip['word/document.xml']) : ''
+  // The BODY and every header/footer part.
+  //
+  // Reading only `word/document.xml` made this blind to exactly the figure the
+  // branded-header fixture exists for: a school logo is drawn in the page header,
+  // so the inspector reported "0 drawings, 0 relationships" for a Word file that
+  // embeds one perfectly well.
+  const parts = names.filter((n) => /^word\/(document|header\d*|footer\d*)\.xml$/.test(n))
+  const document = parts.map((n) => strFromU8(zip[n])).join('')
+  const relParts = names.filter((n) => /^word\/_rels\/(document|header\d*|footer\d*)\.xml\.rels$/.test(n))
   const media = names.filter((n) => /^word\/media\//.test(n))
   return {
     drawings: (document.match(/<w:drawing>/g) || []).length,
@@ -256,10 +264,9 @@ export function inspectDocxFigures(docxBytes) {
     // A drawing whose relationship is missing renders as a blank box in Word, so
     // the relationship file is part of the proof rather than an implementation
     // detail.
-    imageRelationships: (
-      (zip['word/_rels/document.xml.rels'] ? strFromU8(zip['word/_rels/document.xml.rels']) : '')
-        .match(/Target="media\/[^"]+"/g) || []
-    ).length,
+    imageRelationships: relParts
+      .map((n) => (strFromU8(zip[n]).match(/Target="media\/[^"]+"/g) || []).length)
+      .reduce((a, b) => a + b, 0),
     // The placeholder's own words. Its presence means a figure was asked for and
     // not produced, which must never be recorded as a correct appearance.
     placeholders: (document.match(/Figure could not be embedded/g) || []).length,

@@ -37,7 +37,7 @@ import fs from 'node:fs'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { VISUAL_FIXTURES, fixtureById, validateFixture } from './fixtures.js'
+import { VISUAL_FIXTURES, fixtureById, validateFixture, printedExpectations } from './fixtures.js'
 import {
   captureRenderEnvironment, assertComparableEnvironment, assertToolchain,
   baselineIdentity, resolveRenderChromium, RENDER_SETTINGS,
@@ -47,7 +47,9 @@ import {
 } from './renderGuards.js'
 import { comparePages, summarisePageComparison } from './compareRender.js'
 import { comparePagination } from './comparePagination.js'
-import { resolveStrictRegions, expectedAnchorsFor, declaredPageMismatches } from './anchors.js'
+import {
+  resolveStrictRegions, expectedAnchorsFor, declaredPageMismatches, labelDocumentLines,
+} from './anchors.js'
 import { renderFixture, decodePng, encodePng, assertLibreOfficeCanConvert } from './renderStages.js'
 import {
   GATE_MODES, RENDERER_FAMILIES, mayWriteBaseline, validateUpdateRequest,
@@ -214,11 +216,42 @@ try {
 
 /* ── report ─────────────────────────────────────────────────────────────── */
 
+// "No baseline yet" and "the render is broken" are different situations with
+// different remedies, and filing them under one heading told people to fix a
+// renderer that was working perfectly. A first run reported eighteen
+// INFRASTRUCTURE / GENERATION FAILURES and instructed the reader to "fix the
+// render" — when every page had rendered correctly and the only thing missing
+// was the reviewed recording that has not happened yet.
+const missingBaselines = infrastructure.filter((err) => err.detail?.missingBaseline)
+const brokenRenders = infrastructure.filter((err) => !err.detail?.missingBaseline)
+
 const lines = []
 for (const verdict of verdicts) lines.push(summariseGateVerdict(verdict))
-if (infrastructure.length) {
+if (missingBaselines.length) {
+  lines.push(
+    '',
+    `NOT RECORDED YET — ${missingBaselines.length} of ${missingBaselines.length + verdicts.length} `
+    + 'target(s) have no baseline to compare against.',
+    '',
+    '  Nothing is broken: every page rendered. A comparison run never records a',
+    '  baseline for itself, because that would turn "nobody has reviewed this',
+    '  appearance" into "this appearance is correct" at exactly the moment a',
+    '  person should be looking.',
+    '',
+    '  Record them once, through the reviewed workflow:',
+    '      Actions → Visual baseline bootstrap → Run workflow',
+    '  It creates only what is missing, never replaces what exists, and opens a',
+    '  pull request for review.',
+    '',
+  )
+  for (const err of missingBaselines) {
+    // The long explanation is already above; the list only needs to say which.
+    lines.push(`      ${err.detail.fixtureId} [${err.detail.stage}]`)
+  }
+}
+if (brokenRenders.length) {
   lines.push('', 'INFRASTRUCTURE / GENERATION FAILURES — fix the render, do not accept a baseline:')
-  for (const err of infrastructure) lines.push(`  ${err.message}`)
+  for (const err of brokenRenders) lines.push(`  ${err.message}`)
 }
 const summary = lines.join('\n')
 fs.writeFileSync(path.join(OUTPUT_DIR, 'summary.txt'), `${summary}\n`)
@@ -227,14 +260,24 @@ fs.writeFileSync(path.join(OUTPUT_DIR, 'summary.json'), JSON.stringify({
   environment,
   identities: verdicts.map((v) => v.identity),
   verdicts,
-  infrastructure: infrastructure.map((e) => ({ message: e.message, detail: e.detail || null })),
+  missingBaselines: missingBaselines.map((e) => ({ ...e.detail })),
+  infrastructure: brokenRenders.map((e) => ({ message: e.message, detail: e.detail || null })),
 }, null, 2))
 console.log(`\n${summary}`)
 console.log(`\nArtefacts: ${path.relative(ROOT, OUTPUT_DIR)}`)
 
-if (infrastructure.length) {
+if (brokenRenders.length) {
   console.error('\n✗ the gate did not complete. No comparison result should be trusted, '
     + 'and no baseline may be updated from this run.')
+  process.exit(EXIT_INFRASTRUCTURE)
+}
+if (missingBaselines.length) {
+  // Still a failure — a gate that reported success while protecting nothing
+  // would be worse than a red check. But it says what to DO about it.
+  console.error(
+    `\n✗ ${missingBaselines.length} target(s) have no baseline, so the gate is not `
+    + 'protecting them yet. Run the Visual baseline bootstrap workflow to record them.',
+  )
   process.exit(EXIT_INFRASTRUCTURE)
 }
 const failed = verdicts.some((v) => v.failed)
@@ -314,6 +357,7 @@ async function runOne(fixture, stage, copy, sharedBrowser) {
     expectedAnchorPages: expectedAnchorsFor(fixture, copy),
   })
   assertFiguresReallyEmbedded(fixture, stage, label, render)
+  assertPagePrintsItsContent(fixture, copy, label, render)
 
   // The fixture knows how many questions it has, so a mis-read of the printed
   // page is caught rather than absorbed. Without this, an extractor that lost
@@ -520,6 +564,43 @@ function assertFiguresReallyEmbedded(fixture, stage, label, render) {
   if (!figures.imageRelationships) {
     fail('the Word file declares no image relationship, so the drawing is a blank box', { figures })
   }
+}
+
+/**
+ * Everything the fixture says the paper contains must be ON the paper.
+ *
+ * Checked against the rendered text rather than the fixture's own fields,
+ * because the fixture's fields are exactly what kept passing while the page was
+ * empty. Three separate times a fixture certified a paper containing none of
+ * what it protects — a diagram with no ink, a figure whose catalog key did not
+ * exist, and two fixtures whose entire maths content sat in a field the
+ * exporters have never read. Each was invisible to `requires` and obvious on the
+ * page.
+ *
+ * Loud, and before any baseline: recording a paper that is missing its content
+ * makes the omission the reference, and every later comparison then certifies it.
+ */
+function assertPagePrintsItsContent(fixture, copy, label, render) {
+  const printed = labelDocumentLines(render.pages)
+    .flatMap((page) => page.lines.map((line) => line.text))
+    .join(' \u0020')
+    // The page breaks text into runs wherever it likes, so a needle can be split
+    // across two of them. Comparing without spaces asks whether the CHARACTERS
+    // are on the page, which is the question being asked. Case-folded too: the
+    // header prints the school name in capitals, and a case-sensitive check
+    // reported every one of the eight fixtures as missing its own school.
+    .replace(/\s+/g, '')
+    .toLowerCase()
+  const missing = printedExpectations(fixture, { copy })
+    .filter(({ needle }) => !printed.includes(needle.replace(/\s+/g, '').toLowerCase()))
+  if (!missing.length) return
+  throw new RenderIncompleteError(
+    `${label}: the paper does not print ${missing.length} thing(s) the fixture says it contains — `
+    + `${missing.slice(0, 6).map((m) => m.what).join('; ')}`
+    + `${missing.length > 6 ? `; and ${missing.length - 6} more` : ''}. `
+    + 'A baseline of a paper missing its own content makes the omission the reference',
+    { fixtureId: fixture.id, missing: missing.map((m) => m.what) },
+  )
 }
 
 function pageName(n) {

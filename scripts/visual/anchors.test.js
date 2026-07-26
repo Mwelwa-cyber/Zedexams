@@ -96,6 +96,20 @@ group('2. Question numbers are the ascending run, sealed on the first break')
     'a genuine ascending run is all questions',
   )
 
+  // A decimal is a quantity, not a question number. The aligned-decimals fixture
+  // prints "12.75" at the start of a line; reading that as question 12 broke the
+  // ascending run and question 4 lost its anchor entirely.
+  const decimals = extractTextAnchors([{
+    pageNumber: 1,
+    textItems: [
+      run('1.', 60, 100), run('2.', 60, 200), run('3.', 60, 300),
+      run('12.75', 80, 320), run('+ 3.40', 80, 340),
+      run('4.', 60, 400),
+    ],
+  }])
+  assert(decimals.question_4 === 1, 'a decimal does not seal the run — question 4 survives')
+  assert(!('question_12' in decimals), 'and "12.75" is not read as question 12')
+
   // First sighting wins: a number repeated in a running header must not move the
   // anchor to the last page it appears on.
   const repeated = extractTextAnchors([

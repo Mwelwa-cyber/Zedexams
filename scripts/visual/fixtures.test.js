@@ -121,7 +121,11 @@ test('removing the long-division block FAILS validation', () => {
   // just as consistently as one with it, so without this the fixture would stay
   // green while watching nothing.
   const broken = cloneFixture(fixtureById('vr-002'))
-  broken.questions = broken.questions.map((q) => ({ ...q, richContent: '<p>Divide 852 by 4.</p>' }))
+  // Breaks `text`, which is the field the exporters read. It used to break
+  // `richContent` — and that was the bug in miniature: the test could "remove"
+  // the long division and validation still passed, because neither the test nor
+  // the fixture was touching anything the paper is built from.
+  broken.questions = broken.questions.map((q) => ({ ...q, text: '<p>Divide 852 by 4.</p>' }))
   const problems = validateFixture(broken)
   assert.ok(problems.length > 0, 'it fails')
   assert.ok(

@@ -114,7 +114,13 @@ export function groupIntoLines(textItems = []) {
 
 const MARKING_KEY = /\b(marking\s+key|marking\s+scheme|answer\s+key|marking\s+guide)\b/i
 const SECTION = /^section\s+([a-z])\b/i
-const NUMBERED = /^\(?(\d{1,2})\s*[.)]/
+// A question number, and NOT the whole part of a decimal.
+//
+// The aligned-decimals fixture prints "12.75" at the start of a line, which the
+// first version read as question 12 — that broke the ascending run and question
+// 4 lost its anchor. The negative lookahead is the whole difference: "4." is a
+// number, "12.75" is a quantity.
+const NUMBERED = /^\(?(\d{1,2})\s*[.)](?!\d)/
 /**
  * The marking key's answer label, as the exporters actually print it.
  *
