@@ -37,11 +37,21 @@ globalThis.Node = dom.window.Node
 // `navigator` is a getter-only global on modern Node, and nothing in the export
 // path reads it — so it is deliberately not stubbed.
 
-const { Packer } = await import('docx')
+const { Packer, Document, Paragraph } = await import('docx')
 const { unzipSync, strFromU8 } = await import('fflate')
-const { buildAssessmentDocument } = await import('./assessmentToDocx.js')
+const { buildAssessmentDocument, svgImageRun } = await import('./assessmentToDocx.js')
 const { richTextToPaperHtml } = await import('../editor/utils/safeRender.js')
 const { clearImageBytesCache } = await import('./fetchImageBytes.js')
+
+/** Minimal valid PNG (1x1 transparent), for the raster fallback assertions. */
+const PNG_1x1 = new Uint8Array([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+  0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+  0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4, 0x89, 0x00, 0x00, 0x00,
+  0x0a, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
+  0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00, 0x00, 0x00, 0x00, 0x49,
+  0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+])
 
 let failures = 0
 let passed = 0
@@ -312,6 +322,62 @@ console.log('\nGOLDEN — a vertical sum reaches Word with the space it asked fo
     !without.includes('w:bottom w:val="single"') || rules(without) < rules(withSpace),
     'a sum that did not ask for working space does not get it',
   )
+}
+
+console.log('\nGOLDEN — a library diagram reaches Word as vector, with a raster fallback')
+{
+  // §4.2's "SVG as the source of truth". The catalog diagrams are drawn as SVG
+  // and both the preview and the print window use them as SVG; Word was the one
+  // renderer getting a flattened bitmap, so the only figure on the paper that is
+  // vector all the way down was the one that printed with resampled edges.
+  //
+  // Asserted on the packed .docx because the whole claim is about what is inside
+  // the file: two media parts and the svgBlip extension that tells Word to
+  // prefer the vector.
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="60"'
+    + ' viewBox="0 0 120 60"><rect x="1" y="1" width="118" height="58" fill="none"'
+    + ' stroke="#1c1612"/></svg>'
+  const run = svgImageRun(svg, PNG_1x1, { width: 120, height: 60 }, 'A rectangle')
+  const doc = new Document({ sections: [{ children: [new Paragraph({ children: [run] })] }] })
+  const zip = unzipSync(new Uint8Array(await Packer.toBuffer(doc)))
+  const media = Object.keys(zip).filter((k) => k.startsWith('word/media/') && k.length > 'word/media/'.length)
+  const xml = strFromU8(zip['word/document.xml'])
+
+  assert(media.some((k) => k.endsWith('.svg')), 'the vector is embedded')
+  assert(media.some((k) => k.endsWith('.png')), 'and the raster fallback alongside it')
+  assert(xml.includes('svgBlip'), 'the svgBlip extension tells Word to prefer the vector')
+  assert(
+    strFromU8(zip['[Content_Types].xml']).includes('svg'),
+    'and the SVG content type is declared, or Word refuses the part',
+  )
+  assert(xml.includes('A rectangle'), 'alt text survives the vector path')
+}
+
+console.log('\nGOLDEN — a figure is never lost to make it sharper')
+{
+  // The vector path has a catch that falls back to the raster. That is right —
+  // a sharper outline is not worth a blank figure — but a silent fallback is
+  // also how a feature comes to look like it works while doing nothing: the
+  // first version of this passed the SVG as a string, `docx` read it as base64
+  // and threw, and every diagram quietly stayed a bitmap.
+  //
+  // So: rubbish markup must still produce an embedded figure, and valid markup
+  // must produce a vector. Both halves, or the catch proves nothing.
+  const t = { width: 60, height: 30 }
+  const broken = svgImageRun(null, PNG_1x1, t, 'Fallback')
+  const zip = unzipSync(new Uint8Array(await Packer.toBuffer(
+    new Document({ sections: [{ children: [new Paragraph({ children: [broken] })] }] }),
+  )))
+  const media = Object.keys(zip).filter((k) => k.startsWith('word/media/') && k.length > 'word/media/'.length)
+  assert(media.length > 0, 'a figure is still embedded when the vector cannot be')
+
+  const good = svgImageRun(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="30"></svg>', PNG_1x1, t,
+  )
+  const goodXml = strFromU8(unzipSync(new Uint8Array(await Packer.toBuffer(
+    new Document({ sections: [{ children: [new Paragraph({ children: [good] })] }] }),
+  )))['word/document.xml'])
+  assert(goodXml.includes('svgBlip'), 'and valid markup really does take the vector path')
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
