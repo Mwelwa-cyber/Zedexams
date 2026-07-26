@@ -31,7 +31,7 @@ import { fileURLToPath } from 'node:url'
 import { VISUAL_FIXTURES, fixtureById, validateFixture } from './fixtures.js'
 import {
   captureRenderEnvironment, assertComparableEnvironment, assertToolchain,
-  baselineIdentity, RENDER_SETTINGS,
+  baselineIdentity, resolveRenderChromium, RENDER_SETTINGS,
 } from './renderEnvironment.js'
 import {
   assertRenderComplete, assertBaselineExists, isInfrastructureFailure, RenderIncompleteError,
@@ -110,8 +110,10 @@ const stages = [...new Set(fixtures.flatMap((f) => f.targets))]
   .filter((s) => !onlyFamily || s === onlyFamily)
 
 let environment
+let chromiumPath = ''
 try {
-  environment = captureRenderEnvironment()
+  chromiumPath = await resolveRenderChromium()
+  environment = captureRenderEnvironment({ chromiumPath })
   assertToolchain(stages, environment)
   if (stages.includes('docx')) await assertLibreOfficeCanConvert()
 } catch (err) {
@@ -137,7 +139,9 @@ let browser = null
 try {
   const puppeteer = (await import('puppeteer')).default
   const { chromiumLaunchFlags } = await import('./pdfPages.js')
-  browser = await puppeteer.launch({ args: chromiumLaunchFlags() })
+  // Launched with the binary whose version was just recorded, so the identity on
+  // every baseline is the identity of the browser that drew it.
+  browser = await puppeteer.launch({ args: chromiumLaunchFlags(), executablePath: chromiumPath })
 
   for (const fixture of fixtures) {
     const problems = validateFixture(fixture)

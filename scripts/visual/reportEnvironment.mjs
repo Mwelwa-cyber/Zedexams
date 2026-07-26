@@ -7,9 +7,23 @@
  *   node scripts/visual/reportEnvironment.mjs
  */
 
-import { captureRenderEnvironment, assertToolchain, RenderEnvironmentError } from './renderEnvironment.js'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import {
+  captureRenderEnvironment, assertToolchain, resolveRenderChromium, RenderEnvironmentError,
+} from './renderEnvironment.js'
 
-const environment = captureRenderEnvironment()
+const chromiumPath = await resolveRenderChromium()
+const environment = captureRenderEnvironment({ chromiumPath })
+
+// Written before anything can fail. A toolchain failure happens BEFORE the gate
+// creates its output directory, so without this the artefact upload finds nothing
+// and the one piece of evidence a reviewer needs — what was and was not present —
+// is only in the log.
+const outputDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'tests', 'visual', 'output')
+fs.mkdirSync(outputDir, { recursive: true })
+fs.writeFileSync(path.join(outputDir, 'environment.json'), JSON.stringify(environment, null, 2))
 
 console.log('Rendering environment')
 for (const [key, value] of Object.entries(environment)) {

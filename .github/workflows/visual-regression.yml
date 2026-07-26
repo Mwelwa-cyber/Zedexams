@@ -103,7 +103,12 @@ jobs:
           node-version: 22
           cache: npm
 
+      # Explicit, because ci.yml skips the puppeteer browser download globally and
+      # a copied-in default would silently leave this job with no browser. The gate
+      # renders with the browser puppeteer downloads here, and records ITS version.
       - name: Install dependencies
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "false"
         run: npm ci
 
       # The renderers. Pinned via the runner image plus the recorded version in

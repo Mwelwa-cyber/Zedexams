@@ -110,8 +110,39 @@ export function fontDigest(dirs = ['/usr/share/fonts', '/usr/local/share/fonts']
 }
 
 /** Chromium's version, or '' when the binary is absent. */
-export function chromiumVersion(executable = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium') {
-  if (!existsSync(executable)) return ''
+/**
+ * The Chromium binary this suite renders with.
+ *
+ * ASYNC, because that is what puppeteer's `executablePath()` is — and getting
+ * that wrong is how this module recorded a version for a browser that drew none
+ * of the pages. The first attempt probed a fixed path (the container's Playwright
+ * install) while puppeteer launched its own bundled Chrome; the second called
+ * `executablePath()` synchronously, got a pending Promise, and silently fell back
+ * to the same wrong path. On a CI runner nothing was at that path at all, so the
+ * gate reported "Chromium not available" with a perfectly good browser sitting in
+ * puppeteer's cache.
+ *
+ * Asking the launcher — and then LAUNCHING with what it answered — makes the
+ * recorded version and the rendering binary the same one by construction.
+ *
+ * `CHROMIUM_PATH` wins, for pinning a build by hand. When neither resolves, this
+ * returns '' and `assertToolchain` reports infrastructure: a wrong version
+ * recorded against a baseline is worse than a refusal to run.
+ */
+export async function resolveRenderChromium() {
+  if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH
+  try {
+    const puppeteer = (await import('puppeteer')).default
+    const resolved = await puppeteer.executablePath()
+    if (resolved && existsSync(resolved)) return resolved
+  } catch {
+    // No puppeteer, or no downloaded browser.
+  }
+  return ''
+}
+
+export function chromiumVersion(executable = process.env.CHROMIUM_PATH || '') {
+  if (!executable || !existsSync(executable)) return ''
   // "Chromium 141.0.7390.37" → "141.0.7390.37"
   const raw = probe(executable, ['--version'])
   const m = /([\d.]+)/.exec(raw)
@@ -138,6 +169,9 @@ export function captureRenderEnvironment(opts = {}) {
   const fonts = fontDigest(opts.fontDirs)
   return {
     chromium,
+    // Recorded but NOT part of the comparable identity: which path the binary sits
+    // at differs between a runner and a workstation while the build is the same.
+    chromiumPath: opts.chromiumPath || '',
     libreoffice,
     os: `${os.type()} ${os.release()}`,
     platform: `${process.platform}-${process.arch}`,

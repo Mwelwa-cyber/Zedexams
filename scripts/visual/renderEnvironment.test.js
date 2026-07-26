@@ -15,10 +15,12 @@
  */
 
 import assert from 'node:assert/strict'
+import { existsSync } from 'node:fs'
 import {
   RenderEnvironmentError, RENDER_SETTINGS, CHROMIUM_FLAGS, LIBREOFFICE_ARGS,
   captureRenderEnvironment, baselineIdentity, assertComparableEnvironment,
   assertToolchain, chromiumVersion, libreOfficeVersion, fontDigest,
+  resolveRenderChromium,
 } from './renderEnvironment.js'
 
 let passed = 0
@@ -228,5 +230,43 @@ test('the probes return a version or an empty string, never throw', () => {
   // A probe of a real path that is not a browser must also not throw.
   assert.equal(typeof libreOfficeVersion('/bin/true'), 'string')
 })
+
+console.log('\n— the browser that renders is the browser that is recorded —')
+
+await (async () => {
+  // The bug this pins cost a red CI run and, worse, produced local baselines
+  // stamped with a version that drew none of the pages. `executablePath()` is
+  // ASYNC; calling it synchronously yields a pending Promise, which then failed a
+  // path check silently and fell back to an unrelated browser on disk. So the
+  // resolver must hand back a string, and a non-empty one must be a real file.
+  const resolved = await resolveRenderChromium()
+  test('the resolver returns a string, not a promise', () => {
+    assert.equal(typeof resolved, 'string')
+  })
+  test('a resolved path exists on disk', () => {
+    if (resolved) assert.ok(existsSync(resolved), `${resolved} does not exist`)
+  })
+  test('the recorded version comes from that same binary', () => {
+    const environment = captureRenderEnvironment({ chromiumPath: resolved })
+    if (!resolved) {
+      // No browser is a legitimate state, and it must read as absent rather than
+      // as some other browser's version.
+      assert.equal(environment.chromium, '')
+      return
+    }
+    assert.equal(environment.chromiumPath, resolved)
+    assert.equal(environment.chromium, chromiumVersion(resolved))
+    assert.ok(environment.chromium, 'a resolved browser must report a version')
+  })
+  test('an unresolved browser is refused rather than guessed at', () => {
+    const environment = captureRenderEnvironment({ chromiumPath: '/definitely/not/here' })
+    assert.equal(environment.chromium, '')
+    assert.throws(
+      () => assertToolchain(['browser-print'], environment),
+      /Chromium/,
+      'a missing browser is an infrastructure failure',
+    )
+  })
+})()
 
 console.log(`\n✓ render environment — ${passed} tests passed`)
