@@ -151,16 +151,26 @@ jobs:
 
           Only this fixture and this renderer family were re-recorded."
           git push -u origin "$BRANCH"
+
+          # The review sheet is BUILT BY THE RECORDER, not assembled here: a
+          # reviewer approving a paper's first appearance needs the environment,
+          # the page count, the anchor map, the figure proof and the file hashes
+          # in front of them, and a shell heredoc is where such a list quietly
+          # loses an item. See writeBaselineSummary in runVisualGate.mjs.
+          BODY=tests/visual/output/baseline-summary.md
+          if [ ! -f "$BODY" ]; then
+            echo "The recorder produced no review sheet, so this baseline cannot be reviewed."
+            exit 1
+          fi
+          {
+            echo ""
+            echo "**Audit:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo ""
+            echo "Only this fixture and family were touched; every other baseline is unchanged."
+          } >> "$BODY"
           gh pr create \
             --title "Visual baseline: ${{ inputs.fixture }} (${{ inputs.family }})" \
-            --body "Re-recorded **${{ inputs.fixture }}** for **${{ inputs.family }}**.
-
-          **Reason:** ${{ inputs.reason }}
-          **Source:** ${{ inputs.source }}
-          **Audit:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-          The before/after pages and the comparison summary are attached to that run.
-          Only this fixture and family were touched; every other baseline is unchanged." \
+            --body-file "$BODY" \
             --base main \
             --head "$BRANCH" \
             --draft

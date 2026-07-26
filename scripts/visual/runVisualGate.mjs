@@ -26,6 +26,7 @@
  */
 
 import fs from 'node:fs'
+import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { VISUAL_FIXTURES, fixtureById, validateFixture } from './fixtures.js'
@@ -121,7 +122,25 @@ try {
   process.exit(EXIT_INFRASTRUCTURE)
 }
 
-fs.rmSync(OUTPUT_DIR, { recursive: true, force: true })
+// A comparison run starts from a clean slate; an update run PRESERVES what is
+// already there.
+//
+// The baseline workflow compares before it replaces, precisely so the audit
+// record can say what changed rather than only that something was replaced — and
+// wiping the directory here deleted that comparison a second before the
+// replacement was written. The evidence moves aside instead, so a reviewer sees
+// the old appearance, the new one, and the difference between them.
+if (fs.existsSync(OUTPUT_DIR) && gateMode === 'update') {
+  const before = path.join(OUTPUT_DIR, 'before-update')
+  fs.rmSync(before, { recursive: true, force: true })
+  fs.mkdirSync(before, { recursive: true })
+  for (const entry of fs.readdirSync(OUTPUT_DIR)) {
+    if (entry === 'before-update') continue
+    fs.renameSync(path.join(OUTPUT_DIR, entry), path.join(before, entry))
+  }
+} else {
+  fs.rmSync(OUTPUT_DIR, { recursive: true, force: true })
+}
 fs.mkdirSync(OUTPUT_DIR, { recursive: true })
 fs.writeFileSync(path.join(OUTPUT_DIR, 'environment.json'), JSON.stringify(environment, null, 2))
 
@@ -502,15 +521,124 @@ function writeBaseline(fixture, identity, copy, render, layoutJson) {
   fs.writeFileSync(path.join(dir, 'layout.json'), JSON.stringify(layoutJson, null, 2))
   guard('environment.json')
   fs.writeFileSync(path.join(dir, 'environment.json'), JSON.stringify(environment, null, 2))
-  guard('recorded.json')
-  fs.writeFileSync(path.join(dir, 'recorded.json'), JSON.stringify({
+  // Hashes of everything just written.
+  //
+  // A baseline is a reference other work is measured against, so "which bytes
+  // were approved" has to be answerable from the review record rather than by
+  // re-downloading an artefact that expires in a fortnight. Computed AFTER the
+  // files land, so they hash what is on disk rather than what was intended.
+  const hashes = {}
+  for (const name of fs.readdirSync(dir).sort()) {
+    if (name === 'recorded.json') continue
+    hashes[name] = createHash('sha256').update(fs.readFileSync(path.join(dir, name))).digest('hex')
+  }
+
+  const record = {
     fixtureId: fixture.id,
     family: render.stage,
     copy,
     identity,
-    reason: arg('reason'),
+    // The commit whose appearance this approves. `GITHUB_SHA` is the runner's
+    // truth; `--source` is what a human typed, and both are kept because they
+    // answer different questions six months later.
+    sourceCommit: process.env.GITHUB_SHA || '',
     source: arg('source'),
+    reason: arg('reason'),
+    environment,
     settings: RENDER_SETTINGS,
     command: render.command,
-  }, null, 2))
+    pageCount: layoutJson.pageCount,
+    anchors: layoutJson.anchors,
+    inkByPage: layoutJson.inkByPage,
+    // Stated, not implied. `assertFiguresReallyEmbedded` has already refused to
+    // get here with either of these non-zero — recording them means the review
+    // record CLAIMS it rather than leaving a reviewer to trust that some check
+    // ran.
+    figures: {
+      unresolvedFigureCount: (render.stats?.unresolvedFigures || []).length,
+      unresolvedFigures: render.stats?.unresolvedFigures || [],
+      placeholders: render.docxFigures ? render.docxFigures.placeholders : 0,
+      docx: render.docxFigures || null,
+      detected: render.layout.figureBoxes,
+    },
+    hashes,
+  }
+  guard('recorded.json')
+  fs.writeFileSync(path.join(dir, 'recorded.json'), JSON.stringify(record, null, 2))
+  writeBaselineSummary(fixture, record)
+}
+
+/**
+ * The review sheet that becomes the baseline pull request's body.
+ *
+ * Written as a file rather than assembled in YAML because a reviewer approving
+ * the FIRST appearance of a paper needs every one of these facts in front of
+ * them, and a shell heredoc is where such a list quietly loses an item.
+ */
+function writeBaselineSummary(fixture, record) {
+  const anchorRows = Object.entries(record.anchors)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([id, page]) => `| \`${id}\` | ${page} |`)
+    .join('\n')
+  const hashRows = Object.entries(record.hashes)
+    .map(([name, sha]) => `| \`${name}\` | \`${sha}\` |`)
+    .join('\n')
+  const figureLines = record.figures.docx
+    ? [
+      `- Word drawings: **${record.figures.docx.drawings}**`,
+      `- SVG parts: **${record.figures.docx.svgParts.length}**, PNG fallbacks: **${record.figures.docx.pngParts.length}**`,
+      `- image relationships: **${record.figures.docx.imageRelationships}**`,
+    ].join('\n')
+    : '- (browser-print: figures are drawn by the print path, not embedded as parts)'
+
+  const body = `Re-recorded **${record.fixtureId}** — ${fixture.title} — for **${record.family}** (${record.copy} copy).
+
+**Reason:** ${record.reason}
+**Source:** ${record.source}${record.sourceCommit ? ` (commit \`${record.sourceCommit}\`)` : ''}
+**Baseline identity:** \`${record.identity}\`
+
+### Rendering environment
+
+| | |
+|---|---|
+| Chromium | ${record.environment.chromium || '—'} |
+| LibreOffice | ${record.environment.libreoffice || '—'} |
+| OS | ${record.environment.os} |
+| Fonts | ${record.environment.fonts.count} (digest \`${record.environment.fonts.digest}\`) |
+| Page | ${record.settings.pageSize} at ${record.settings.dpi}dpi, scale ${record.settings.deviceScaleFactor} |
+| Locale / zone | ${record.settings.locale} / ${record.settings.timeZone} |
+
+A baseline is only comparable against this environment; a later run in a
+different one is refused as an environment error rather than reported as
+hundreds of visual failures.
+
+### Structure
+
+**Page count: ${record.pageCount}**
+
+| Anchor | Page |
+|---|---|
+${anchorRows}
+
+### Figures
+
+- unresolved figures: **${record.figures.unresolvedFigureCount}**
+- "figure could not be embedded" placeholders: **${record.figures.placeholders}**
+${figureLines}
+
+${record.figures.unresolvedFigureCount === 0 && !record.figures.placeholders
+    ? 'No figure is missing and no placeholder stands where a real figure belongs, so this baseline records the paper as it should print.'
+    : '⚠ **This baseline contains a missing or placeholder figure and must NOT be approved.**'}
+
+### Baseline files
+
+| File | sha256 |
+|---|---|
+${hashRows}
+
+The candidate pages, the full generated document and the comparison summary are
+attached to the workflow run.
+`
+  fs.mkdirSync(OUTPUT_DIR, { recursive: true })
+  fs.writeFileSync(path.join(OUTPUT_DIR, 'baseline-summary.md'), body)
 }
