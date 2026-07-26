@@ -3,9 +3,9 @@
   "family": "docx",
   "copy": "paper",
   "identity": "docx/libreoffice-24.2.7.2",
-  "sourceCommit": "f68400a4daa6b603427e379fae1e7c9dd4146f50",
-  "source": "#1934",
-  "reason": "First recording of the §4.6 visual baselines. No baseline has ever existed, so the gate has been red since the harness landed and could not create one from a comparison run by design.",
+  "sourceCommit": "f9381c56ce987528f7294d6657c23ca6ebbdc16f",
+  "source": "PR #1937",
+  "reason": "The four vertical-arithmetic sums now print in the Word render too. The previous baseline recorded prompts with no sums, because the blocks sat in richContent — a field no exporter reads (#1937).",
   "environment": {
     "chromium": "150.0.7871.24",
     "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
@@ -50,7 +50,7 @@
     "timeZone": "Africa/Lusaka",
     "fixedDate": "2026-01-15"
   },
-  "command": "soffice --headless --norestore --nolockcheck --nodefault --nofirststartwizard -env:UserInstallation=file:///tmp/visual-vr-003-lC9y4L/.loprofile --convert-to pdf:writer_pdf_Export --outdir /tmp/visual-vr-003-lC9y4L /tmp/visual-vr-003-lC9y4L/vr-003.docx",
+  "command": "soffice --headless --norestore --nolockcheck --nodefault --nofirststartwizard -env:UserInstallation=file:///tmp/visual-vr-003-pEbhQn/.loprofile --convert-to pdf:writer_pdf_Export --outdir /tmp/visual-vr-003-pEbhQn /tmp/visual-vr-003-pEbhQn/vr-003.docx",
   "pageCount": 1,
   "anchors": {
     "question_1": 1,
@@ -60,7 +60,7 @@
     "header": 1
   },
   "inkByPage": {
-    "1": 0.014944642660094898
+    "1": 0.018925865303269944
   },
   "figures": {
     "unresolvedFigureCount": 0,
@@ -81,7 +81,7 @@
   },
   "hashes": {
     "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
-    "layout.json": "3e0b2166f326c777a2b81ccb961285bed8e672c12936c4ecff2374f0d572337e",
-    "page-01.png": "3923bd6daaa95412a7cb9eae6393697d605d2264d3c8cd09248d24cf28897119"
+    "layout.json": "6a3d2d6345be1b04b00a255d8149537c22d0b927e19ecd6e62f57091a53b3548",
+    "page-01.png": "fe9976f37adb7eaa0dc15064fa9693f45bcac20e1678b5a1bab495f2a11a193c"
   }
 }
