@@ -331,6 +331,10 @@ const {createGenerateStudyPlan} = require("./studentAgents");
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const emailSmtpUser = defineSecret("EMAIL_SMTP_USER");
 const emailSmtpPassword = defineSecret("EMAIL_SMTP_PASSWORD");
+// Wraps the `secrets: [...]` list of every function that raises an ops alert so
+// the Slack/Discord webhook URL is bound too — but only once it exists in Secret
+// Manager and OPS_ALERT_WEBHOOK_BOUND is set. See functions/opsAlertSecrets.js.
+const {opsAlertSecrets} = require("./opsAlertSecrets");
 // RECRAFT_API_KEY intentionally NOT declared/bound. Recraft was decommissioned
 // (2026-06) — every "recraft" request is now served by gpt-image-1, and the
 // secret + the direct HTTP integration in generateDiagram.js were removed. A
@@ -2869,9 +2873,9 @@ exports.recordTemplateInteraction = createRecordTemplateInteraction();
 // lands (Aria → Cala → Reva → awaiting_approval), and runs Pubo when an
 // admin flips status to "approved".
 exports.agentJobsOnCreate = createAgentJobsOnCreate(
-    anthropicApiKey, [emailSmtpUser, emailSmtpPassword]);
+    anthropicApiKey, opsAlertSecrets([emailSmtpUser, emailSmtpPassword]));
 exports.agentJobsOnApproved = createAgentJobsOnApproved(
-    [emailSmtpUser, emailSmtpPassword]);
+    opsAlertSecrets([emailSmtpUser, emailSmtpPassword]));
 
 // Central Question Bank — Qix reviews each captured question (questionBank/{id})
 // in the background and writes a verdict back onto the doc (africa-south1).
@@ -3787,7 +3791,7 @@ async function raisePlayConfigError({uid, reason, message}) {
 }
 
 exports.verifyGooglePlayPurchase = onCall({
-  secrets: [googlePlaySaJson, emailSmtpUser, emailSmtpPassword],
+  secrets: opsAlertSecrets([googlePlaySaJson, emailSmtpUser, emailSmtpPassword]),
   region: "us-central1",
   timeoutSeconds: 60,
   memory: "256MiB",
@@ -3878,7 +3882,7 @@ function shouldSendWebhookAlert(now) {
 // only then respond: a non-200 makes Lenco retry, and our activation is
 // idempotent, so a retry can never double-grant.
 exports.lencoWebhook = onRequest({
-  secrets: [lencoApiKey, emailSmtpUser, emailSmtpPassword],
+  secrets: opsAlertSecrets([lencoApiKey, emailSmtpUser, emailSmtpPassword]),
   region: "us-central1",
   timeoutSeconds: 60,
   memory: "256MiB",

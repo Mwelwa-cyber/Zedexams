@@ -112,9 +112,15 @@ already built — you just plug in the phone number.)
 
 **Do this:**
 1. Make a Slack (or Discord) **incoming webhook URL** for your ops channel.
-2. Set the env var **`OPS_ALERT_WEBHOOK_URL`** to that URL on the Cloud Functions.
-3. Make sure **`ADMIN_EMAILS`** is set too (the email channel).
-4. Trigger one **test alert** (e.g. cause a small, safe failure, or use an admin
+   *Slack: Apps → Incoming Webhooks → Add to a channel (e.g. `#zedexams-ops`).*
+2. Store it as a **secret**, not an env var — the URL is a credential:
+   `firebase functions:secrets:set OPS_ALERT_WEBHOOK_URL` and paste it.
+3. Uncomment **`OPS_ALERT_WEBHOOK_BOUND=1`** in `functions/.env.examsprepzambia`
+   and let CI deploy. (Two steps because binding a secret that doesn't exist yet
+   hard-fails *every* functions deploy — the flag is what turns the binding on
+   once the secret is really there. See `functions/opsAlertSecrets.js`.)
+4. Make sure **`ADMIN_EMAILS`** is set too (the email channel).
+5. Trigger one **test alert** (e.g. cause a small, safe failure, or use an admin
    tool that alerts).
 
 **✅ You did it when:** the test alert lands in **both** the chat channel **and**

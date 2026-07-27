@@ -44,6 +44,7 @@ const {
   resolveMaxAgeMs,
 } = require("./storageBackupCore");
 const {sendOpsAlert} = require("./opsAlert");
+const {opsAlertSecrets} = require("./opsAlertSecrets");
 
 const emailSmtpUser = defineSecret("EMAIL_SMTP_USER");
 const emailSmtpPassword = defineSecret("EMAIL_SMTP_PASSWORD");
@@ -232,7 +233,7 @@ const storageBackupCheck = onSchedule({
   region: "us-central1",
   timeoutSeconds: 120,
   memory: "256MiB",
-  secrets: [emailSmtpUser, emailSmtpPassword],
+  secrets: opsAlertSecrets([emailSmtpUser, emailSmtpPassword]),
 }, async () => {
   await runStorageBackupCheck();
 });

@@ -29,6 +29,7 @@ const admin = require("firebase-admin");
 const {checkRateLimit} = require("./rateLimit");
 const {classifyLimiterHealth, shouldAlertLimiterHealth} = require("./rateLimitHealthCore");
 const {sendOpsAlert} = require("./opsAlert");
+const {opsAlertSecrets} = require("./opsAlertSecrets");
 
 const emailSmtpUser = defineSecret("EMAIL_SMTP_USER");
 const emailSmtpPassword = defineSecret("EMAIL_SMTP_PASSWORD");
@@ -128,7 +129,7 @@ const rateLimitHealthCheck = onSchedule({
   region: "us-central1",
   timeoutSeconds: 60,
   memory: "256MiB",
-  secrets: [emailSmtpUser, emailSmtpPassword],
+  secrets: opsAlertSecrets([emailSmtpUser, emailSmtpPassword]),
 }, async () => {
   await runRateLimitHealthCheck();
 });
