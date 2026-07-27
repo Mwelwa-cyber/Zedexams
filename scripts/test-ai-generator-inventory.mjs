@@ -26,7 +26,9 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { existsSync } from 'node:fs'
-import { scanModelCallSites, scanFile } from './aiGenerators/scanModelCallSites.js'
+import {
+  scanModelCallSites, scanFile, readProviderExports, PROVIDER_CALLS, NOT_A_MODEL_CALL,
+} from './aiGenerators/scanModelCallSites.js'
 import { INVENTORY, GENERATORS, CLASSES, TIERS, byTier, stateCounts } from './aiGenerators/inventory.js'
 import { CLAUSES, checkContract, derivedState } from './aiGenerators/migrationContract.js'
 
@@ -67,6 +69,46 @@ test('every recorded file still exists and still calls a model', () => {
 
 test('no record is a duplicate', () => {
   assert.equal(recorded.size, INVENTORY.length, 'two records name the same file')
+})
+
+console.log('\n— the provider registry cannot silently miss a wrapper —')
+
+test('every export of every provider module is classified', () => {
+  // Completeness of the scan rests entirely on PROVIDER_CALLS being right, and
+  // it was not: `callClaude` — the wrapper EVERY teacher tool uses — had to be
+  // added by hand after the first scan reported the generators as making no
+  // model call. A registry maintained by memory will lose that race again.
+  //
+  // So every export of every provider module must be classified as one or the
+  // other. A new wrapper fails here until someone says which it is.
+  const unclassified = []
+  for (const [mod, names] of readProviderExports(ROOT)) {
+    for (const name of names) {
+      if (PROVIDER_CALLS.includes(name)) continue
+      if (Object.prototype.hasOwnProperty.call(NOT_A_MODEL_CALL, name)) continue
+      unclassified.push(`${mod} exports ${name}`)
+    }
+  }
+  assert.deepEqual(unclassified, [],
+    'these provider-module exports are neither a registered model call nor '
+    + `declared not-a-call:\n    ${unclassified.join('\n    ')}\n`
+    + '  Add to PROVIDER_CALLS, or to NOT_A_MODEL_CALL with a reason.')
+})
+
+test('no registered provider call is a phantom', () => {
+  // The other direction, and the one that actually bit. The registry listed
+  // `createEmbedding`, a name that appears nowhere in the repo, while the real
+  // export — embedText, used by Qix's semantic dedup — was unregistered. A
+  // phantom entry reads exactly like a working one and quietly covers nothing.
+  const exported = new Set([...readProviderExports(ROOT).values()].flat())
+  const phantom = PROVIDER_CALLS.filter((c) => !exported.has(c))
+  assert.deepEqual(phantom, [],
+    `these are registered as provider calls but no provider module exports them: ${phantom.join(', ')}`)
+})
+
+test('nothing is classified both ways', () => {
+  const both = PROVIDER_CALLS.filter((c) => Object.prototype.hasOwnProperty.call(NOT_A_MODEL_CALL, c))
+  assert.deepEqual(both, [], `classified as both a model call and not: ${both.join(', ')}`)
 })
 
 console.log('\n— every record says what it is for —')

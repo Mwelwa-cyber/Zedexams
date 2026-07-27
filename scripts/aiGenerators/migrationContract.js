@@ -13,9 +13,29 @@
  *
  * Each maps to a failure that has either already happened in this repo or is
  * one line of code away.
+ *
+ * ## What this proves, and what it does not
+ *
+ * Every clause below is decided by the PRESENCE of a marker in a file. That
+ * proves a name occurs in the module — not that the required sequence executes
+ * before the provider call. A generator could import `reserveAiOperation`, call
+ * it after the model, and satisfy `reservation` here.
+ *
+ * This is a deliberate stopping point rather than an oversight. The alternative
+ * — an AST analyser that proves ordering — is a large piece of machinery whose
+ * own correctness nothing checks, and it would still not prove the sequence
+ * holds at RUNTIME. The next slice removes the need for it instead: one
+ * canonical `requireAndReserveAiOperation()` helper that refuses a missing or
+ * malformed key and reserves before usage charging or provider access, so the
+ * scanner can key on that single call rather than inferring a sequence.
+ *
+ * Until then, and after: the behavioural callable tests are the authority. This
+ * contract is a completeness net over them, not a replacement — its job is to
+ * notice a generator nobody wrote a test for.
  */
 
 import { scanFile } from './scanModelCallSites.js'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 /**
@@ -67,6 +87,33 @@ export const CLAUSES = Object.freeze([
       + 'generation still costing the teacher a quota unit.',
     holds: (scan) => scan.meteredUsage && scan.refundsUsage,
   },
+  {
+    id: 'deterministic-result-identity',
+    title: 'The result document is derived from the operation, not auto-assigned',
+    defends: 'Two documents for one logical generation. A reservation that '
+      + 'settles onto an AUTO-ID document cannot resume: the retry has the key '
+      + 'but no way back to what the first attempt wrote. Note this needs the '
+      + 'auto-id branch to be ABSENT, not merely unused — the partial '
+      + 'generators carry both behind a ternary, and the auto-id side is '
+      + 'precisely the one a keyless request takes.',
+    holds: (scan) => scan.keyedResultDoc && !scan.autoIdResultDoc,
+  },
+  {
+    id: 'client-operation-lock',
+    title: 'The client surface holds an operation lock',
+    defends: 'A second provider call fired before the first request returns — '
+      + 'a double-click, a rapid tap, a rerender. The server refuses the '
+      + 'duplicate, but only if the client sends the SAME key; without '
+      + 'useAiOperationLock it mints a fresh one and the refusal never '
+      + 'triggers. Migrating only the backend leaves the user-visible half of '
+      + 'the problem exactly where it was.',
+    holds: (scan, record, root) => {
+      if (!record.clientModule) return false
+      const path = join(root, record.clientModule)
+      if (!existsSync(path)) return false
+      return readFileSync(path, 'utf8').includes('useAiOperationLock')
+    },
+  },
 ])
 
 /**
@@ -81,7 +128,7 @@ export function checkContract(record, root) {
     return [{ id: 'reachable', title: 'The file makes a model call',
       reason: `${record.file} makes no direct model call — the inventory is out of date.` }]
   }
-  return CLAUSES.filter((c) => !c.holds(scan))
+  return CLAUSES.filter((c) => !c.holds(scan, record, root))
     .map((c) => ({ id: c.id, title: c.title, defends: c.defends }))
 }
 

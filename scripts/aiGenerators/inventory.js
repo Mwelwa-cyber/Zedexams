@@ -26,9 +26,13 @@
  *
  * The headline finding. "Wired through aiOperations" is not one condition:
  *
- *   migrated    reserveAiOperation is called unconditionally. A request with no
- *               idempotency key is REFUSED. Duplicate protection cannot be
- *               opted out of. Today: generateAssessment, alone.
+ *   migrated    every clause of the migration contract holds. Centrally:
+ *               reserveAiOperation is called unconditionally, so a request with
+ *               no idempotency key is REFUSED; the result document is derived
+ *               from the key rather than auto-assigned; and the client surface
+ *               holds an operation lock, so the backend is not migrated in
+ *               isolation from the double-click that motivated it. Today:
+ *               generateAssessment, alone.
  *
  *   partial     the reservation sits behind an `isValidIdempotencyKey` guard.
  *               A request WITHOUT a key silently takes the old unprotected
@@ -73,7 +77,21 @@ export const TIERS = Object.freeze({
   6: 'Revision and recommendation paths',
 })
 
-const g = (file, fields) => ({ file, class: CLASSES.generator, ...fields })
+/**
+ * A generator record.
+ *
+ * `clientModule` is the UI surface that initiates the generation — the
+ * component holding the button, NOT the shared callable wrapper it goes
+ * through. `src/utils/teacherTools.js` fronts most of these callables, but a
+ * lock in a shared wrapper would be one lock for every tool at once; the lock
+ * has to sit where the user's intent is expressed.
+ *
+ * It defaults to `null`, which FAILS the client-operation-lock clause. That is
+ * the correct reading for an unmigrated generator: mapping the surface is part
+ * of migrating it, and a null here says "not yet traced" rather than pretending
+ * a lock might exist somewhere unexamined.
+ */
+const g = (file, fields) => ({ file, class: CLASSES.generator, clientModule: null, ...fields })
 
 /**
  * Every direct model call site under `functions/`.
@@ -125,6 +143,7 @@ export const INVENTORY = Object.freeze([
 
   // ── Tier 2 · papers, quizzes and question generation ──────────────────
   g('functions/teacherTools/generateAssessment.js', {
+    clientModule: 'src/components/teacher/CreatePaperModal.jsx',
     tier: 2,
     state: 'migrated',
     entryPoint: 'generateAssessment (callable)',
@@ -161,6 +180,7 @@ export const INVENTORY = Object.freeze([
       + 'duplicate here overwrites a teacher edit, which Phase 5 called sacred.',
   }),
   g('functions/teacherTools/generateWorksheet.js', {
+    clientModule: 'src/components/teacher/generate/WorksheetGenerator.jsx',
     tier: 2,
     state: 'partial',
     entryPoint: 'generateWorksheet (callable) + apiGenerateWorksheet (SSE)',
@@ -171,6 +191,7 @@ export const INVENTORY = Object.freeze([
       + 'not carry the key at all.',
   }),
   g('functions/teacherTools/generateHomework.js', {
+    clientModule: 'src/components/teacher/generate/HomeworkStudio.jsx',
     tier: 2,
     state: 'partial',
     entryPoint: 'generateHomework (callable)',
@@ -179,6 +200,7 @@ export const INVENTORY = Object.freeze([
     incompleteResultSaveable: true,
   }),
   g('functions/teacherTools/generateRubric.js', {
+    clientModule: 'src/components/teacher/generate/RubricGenerator.jsx',
     tier: 2,
     state: 'partial',
     entryPoint: 'generateRubric (callable)',
@@ -187,6 +209,7 @@ export const INVENTORY = Object.freeze([
     incompleteResultSaveable: true,
   }),
   g('functions/teacherTools/generateSchemeOfWork.js', {
+    clientModule: 'src/components/teacher/generate/SchemeOfWorkGenerator.jsx',
     tier: 2,
     state: 'partial',
     entryPoint: 'generateSchemeOfWork (callable)',
@@ -205,6 +228,7 @@ export const INVENTORY = Object.freeze([
     incompleteResultSaveable: true,
   }),
   g('functions/teacherTools/generateFlashcards.js', {
+    clientModule: 'src/components/teacher/generate/FlashcardGenerator.jsx',
     tier: 3,
     state: 'partial',
     entryPoint: 'generateFlashcards (callable)',
