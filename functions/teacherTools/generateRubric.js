@@ -27,9 +27,8 @@ const {validateRubric} = require("./rubricSchema");
 const {PROMPT_VERSION, pickSystemPrompt, buildUserPrompt} =
   require("./rubricPrompt");
 const {assertAndIncrement, refundGeneration} = require("./usageMeter");
-const {reserveAiOperation, completeAiOperation, failAiOperation} =
+const {requireAndReserveAiOperation, completeAiOperation, failAiOperation} =
   require("../aiOperations");
-const {isValidIdempotencyKey} = require("../aiOperationsCore");
 
 const RUBRIC_MODEL = process.env.RUBRIC_MODEL || "claude-haiku-4-5";
 
@@ -154,41 +153,27 @@ async function runRubric({uid, rawInputs, apiKey, idempotencyKey}) {
     throw new HttpsError("invalid-argument", inputErrors.join(" "));
   }
 
-  // Idempotency reservation (§6/§7/§8). Only engaged when the client sends a
-  // valid key — the studio frontend does so via useAiOperationLock. Without a
-  // key the flow is byte-for-byte the old behaviour (random doc id, no
-  // reservation), so this is a safe, no-frontend-breakage rollout: a
-  // double-click / rapid tap / retried timeout from a key-sending client can
-  // never reach the provider or the usage meter twice; a legacy caller is
-  // unaffected. `inputs` is the canonical fingerprint (every teacher-changeable
-  // field is already in there).
-  const idemActive = isValidIdempotencyKey(idempotencyKey);
-  if (idemActive) {
-    const reservation = await reserveAiOperation({
-      uid,
-      idempotencyKey,
-      operationType: "generate_rubric",
-      fingerprintInput: inputs,
-    });
-    if (reservation.status === "completed") {
-      return buildResumedRubricResponse(reservation.operation);
-    }
-    if (reservation.status === "processing") {
-      return {status: "processing", operationId: idempotencyKey};
-    }
-    if (reservation.status === "failed") {
-      throw new HttpsError(
-          "failed-precondition",
-          reservation.operation.errorMessage ||
-            "This request already failed and cannot be retried automatically.",
-          {code: reservation.operation.errorCode, retryable: false, operationId: idempotencyKey},
-      );
-    }
-    if (reservation.status === "cancelled") {
-      throw new HttpsError("cancelled", "This request was cancelled.");
-    }
-    // "created" or "retrying" — exactly one provider call happens below.
+  // Idempotency reservation (§6/§7/§8), UNCONDITIONAL. A request without a
+  // valid key is refused here — before the usage meter, before the provider,
+  // before any result document exists.
+  //
+  // This used to sit behind `isValidIdempotencyKey`, which made the protection
+  // a client courtesy: a caller that omitted the key silently got the old
+  // unprotected path with a random doc id, and nothing recorded that it had.
+  const reservation = await requireAndReserveAiOperation({
+    idempotencyKey,
+    userId: uid,
+    operationType: "generate_rubric",
+    inputFingerprint: inputs,
+  });
+  if (reservation.status === "completed") {
+    return buildResumedRubricResponse(reservation.operation);
   }
+  if (reservation.status === "processing") {
+    return {status: "processing", operationId: idempotencyKey};
+  }
+  // "created" or "retrying" — exactly one provider call happens below.
+  // "failed" and "cancelled" already threw inside the helper.
 
   // Rubrics don't need a curated-topic grounding (they're about assessment
   // not content), but we still provide grade+subject context for style.
@@ -202,13 +187,11 @@ async function runRubric({uid, rawInputs, apiKey, idempotencyKey}) {
 
   const usage = await assertAndIncrement(uid, "rubric");
 
-  // Deterministic doc id (= the idempotency key) when idempotency is active, so
-  // a retry of the SAME logical request re-set()s this exact doc instead of
-  // creating a sibling, and the resumed-completed path reads it straight back
-  // by id. Random id otherwise (legacy behaviour).
-  const genRef = idemActive ?
-    admin.firestore().collection("aiGenerations").doc(idempotencyKey) :
-    admin.firestore().collection("aiGenerations").doc();
+  // Deterministic doc id (= the idempotency key), always. The auto-id branch
+  // that used to sit here is deleted rather than bypassed: a reservation that
+  // settles onto an auto-id document cannot be resumed, because the retry
+  // carries the key but has no way back to what the first attempt wrote.
+  const genRef = admin.firestore().collection("aiGenerations").doc(idempotencyKey);
   await genRef.set({
     ownerUid: uid,
     tool: "rubric",
@@ -269,13 +252,11 @@ async function runRubric({uid, rawInputs, apiKey, idempotencyKey}) {
       console.error("[generateRubric] refund failed after generation error",
           {uid, generationId: genRef.id, usage}, refundErr);
     }
-    if (idemActive) {
-      try {
-        await failAiOperation({idempotencyKey, err, usageCharged: 0});
-      } catch (opErr) {
-        console.error("[generateRubric] failAiOperation failed after generation error",
-            {uid, generationId: genRef.id}, opErr);
-      }
+    try {
+      await failAiOperation({idempotencyKey, err, usageCharged: 0});
+    } catch (opErr) {
+      console.error("[generateRubric] failAiOperation failed after generation error",
+          {uid, generationId: genRef.id}, opErr);
     }
     throw err;
   }
@@ -295,13 +276,11 @@ async function runRubric({uid, rawInputs, apiKey, idempotencyKey}) {
     });
     // A "flagged" rubric is still a real result the teacher already got and was
     // billed for — a completion for idempotency purposes, not a failure.
-    if (idemActive) {
-      try {
-        await completeAiOperation({idempotencyKey, resultDocumentId: genRef.id, usageCharged: 1});
-      } catch (opErr) {
-        console.error("[generateRubric] completeAiOperation failed (flagged)",
-            {uid, generationId: genRef.id}, opErr);
-      }
+    try {
+      await completeAiOperation({idempotencyKey, resultDocumentId: genRef.id, usageCharged: 1});
+    } catch (opErr) {
+      console.error("[generateRubric] completeAiOperation failed (flagged)",
+          {uid, generationId: genRef.id}, opErr);
     }
     return {
       generationId: genRef.id,
@@ -331,13 +310,11 @@ async function runRubric({uid, rawInputs, apiKey, idempotencyKey}) {
     modelUsed,
     completedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
-  if (idemActive) {
-    try {
-      await completeAiOperation({idempotencyKey, resultDocumentId: genRef.id, usageCharged: 1});
-    } catch (opErr) {
-      console.error("[generateRubric] completeAiOperation failed",
-          {uid, generationId: genRef.id}, opErr);
-    }
+  try {
+    await completeAiOperation({idempotencyKey, resultDocumentId: genRef.id, usageCharged: 1});
+  } catch (opErr) {
+    console.error("[generateRubric] completeAiOperation failed",
+        {uid, generationId: genRef.id}, opErr);
   }
 
   return {

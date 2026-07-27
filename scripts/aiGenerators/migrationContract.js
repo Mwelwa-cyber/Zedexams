@@ -108,10 +108,17 @@ export const CLAUSES = Object.freeze([
       + 'triggers. Migrating only the backend leaves the user-visible half of '
       + 'the problem exactly where it was.',
     holds: (scan, record, root) => {
-      if (!record.clientModule) return false
+      if (!record.clientModule || !record.clientLockKey) return false
       const path = join(root, record.clientModule)
       if (!existsSync(path)) return false
-      return readFileSync(path, 'utf8').includes('useAiOperationLock')
+      // The NAMED lock key, not merely `useAiOperationLock` somewhere in the
+      // file. That weaker check passed WorksheetGenerator, whose only lock was
+      // on the per-section regenerate while its primary Generate went through
+      // an SSE endpoint that carried no key at all — the button teachers
+      // actually press was completely unprotected, and the clause said fine.
+      const text = readFileSync(path, 'utf8')
+      return text.includes(`useAiOperationLock('${record.clientLockKey}')`)
+        || text.includes(`useAiOperationLock("${record.clientLockKey}")`)
     },
   },
 ])

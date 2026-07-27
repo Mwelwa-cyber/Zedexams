@@ -108,13 +108,23 @@ export default function WorksheetGenerator() {
   const [handedOff, setHandedOff] = useState(false)
   const cancelRef = useRef(null)
 
-  // Idempotency lock for the per-section regenerate, which goes through the
-  // `generateWorksheet` CALLABLE (server-side reservation applies). The MAIN
-  // generate uses the streaming `generateWorksheetStream` SSE endpoint instead
-  // — a different backend with no reservation — so it isn't lock-wrapped here;
-  // it already cancels any in-flight stream and disables the button while
-  // generating. See CreatePaperModal for the callable lock pattern.
+  // Both actions on this screen are locked, and the MAIN generate is the one
+  // that needed it most.
+  //
+  // It goes through the streaming `generateWorksheetStream` SSE endpoint rather
+  // than the callable, and until Phase 6 that endpoint forwarded no idempotency
+  // key at all — so the button teachers actually press had no client lock, no
+  // server reservation and no deterministic result id, while the per-section
+  // regenerate beside it was fully protected. `runStreamingGenerator` forwards
+  // `inputs` verbatim to both the SSE body and the Capacitor/DEV callable
+  // fallback, so putting the key in `inputs` covers both doors at once.
+  const { run: runGenerateLocked } = useAiOperationLock('worksheet-studio:generate')
   const { run: runRegenerateLocked } = useAiOperationLock('worksheet-studio:regenerate')
+
+  // Lets onCancel settle the promise the lock is waiting on. Without it a
+  // cancelled stream would hold the lock until the page unloaded, and the
+  // teacher's next Generate would be silently refused as a duplicate.
+  const settleStreamRef = useRef(null)
 
   // Universal Draft Manager: auto-save the worksheet inputs so a refresh /
   // crash / offline drop never loses a half-filled form.
@@ -150,7 +160,7 @@ export default function WorksheetGenerator() {
     }
   }
 
-  function onGenerate(e) {
+  async function onGenerate(e) {
     e?.preventDefault?.()
     if (!curr.curriculumMode) {
       setErrorMessage('Please choose a curriculum.')
@@ -178,42 +188,65 @@ export default function WorksheetGenerator() {
     setWorksheet(null)
     setProgress({ phase: 'queued', elapsedMs: 0 })
 
-    cancelRef.current = generateWorksheetStream(buildInputs(), {
-      onProgress: (p) => setProgress(p),
-      onResult: (data) => {
-        setWorksheet(data.worksheet)
-        setGenerationId(data.generationId)
-        setUsage(data.usage)
-        setWarning(data.warning || '')
-        setStatus('success')
-        cancelRef.current = null
-        // The output is now persisted server-side (aiGenerations) — the input
-        // draft is no longer "unfinished", so clear it to avoid a stale
-        // recovery prompt on the next visit.
-        draft.clear().catch(() => {})
-        if (data.generationId) {
-          // Worksheets surface in the Assessments section of the library —
-          // they're the "Topic Test" of a teacher's day-to-day routine.
-          attachLibraryToGeneration(data.generationId, {
-            libraryType:    LIBRARY_TYPES.ASSESSMENTS,
-            syllabusHint:   curr.curriculum === 'previous' ? 'OBC' : 'CBC',
-            grade:          curr.grade,
-            subject:        curr.subject,
-            assessmentType: 'topic',
-          }).catch((err) => console.error('[library attach]', err))
-        }
-      },
-      onError: (err) => {
-        setStatus('error')
-        setErrorMessage(friendlyMessage(err, 'Generation failed. Please try again.'))
-        cancelRef.current = null
-      },
+    const inputs = buildInputs()
+    const lockResult = await runGenerateLocked({
+      fingerprint: stableFingerprint(inputs),
+      // The stream reports through callbacks and returns a cancel handle, so
+      // the lock is given a promise that settles when the stream does.
+      action: (idempotencyKey) => new Promise((resolve, reject) => {
+        settleStreamRef.current = { resolve, reject }
+        cancelRef.current = generateWorksheetStream({ ...inputs, idempotencyKey }, {
+          onProgress: (p) => setProgress(p),
+          onResult: (data) => {
+            settleStreamRef.current = null
+            setWorksheet(data.worksheet)
+            setGenerationId(data.generationId)
+            setUsage(data.usage)
+            setWarning(data.warning || '')
+            setStatus('success')
+            cancelRef.current = null
+            // The output is now persisted server-side (aiGenerations) — the
+            // input draft is no longer "unfinished", so clear it to avoid a
+            // stale recovery prompt on the next visit.
+            draft.clear().catch(() => {})
+            if (data.generationId) {
+              // Worksheets surface in the Assessments section of the library —
+              // they're the "Topic Test" of a teacher's day-to-day routine.
+              attachLibraryToGeneration(data.generationId, {
+                libraryType:    LIBRARY_TYPES.ASSESSMENTS,
+                syllabusHint:   curr.curriculum === 'previous' ? 'OBC' : 'CBC',
+                grade:          curr.grade,
+                subject:        curr.subject,
+                assessmentType: 'topic',
+              }).catch((err) => console.error('[library attach]', err))
+            }
+            resolve(data)
+          },
+          onError: (err) => {
+            settleStreamRef.current = null
+            setStatus('error')
+            setErrorMessage(friendlyMessage(err, 'Generation failed. Please try again.'))
+            cancelRef.current = null
+            reject(err)
+          },
+        })
+      }),
     })
+    // A refused duplicate is not an error the teacher caused — the in-flight
+    // generation is still running and will report through its own callbacks.
+    if (lockResult.reason === 'locked') return
+    if (!lockResult.ok && lockResult.error?.cancelled) return
   }
 
   function onCancel() {
     try { cancelRef.current?.() } catch { /* ignore */ }
     cancelRef.current = null
+    // Release the operation lock. Resolving rather than rejecting keeps this
+    // off the error path — onCancel has already put the UI back to idle, and a
+    // rejection here would overwrite that with a failure message.
+    const settle = settleStreamRef.current
+    settleStreamRef.current = null
+    settle?.resolve(null)
     setStatus('idle')
     setProgress(null)
   }

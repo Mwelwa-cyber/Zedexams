@@ -126,8 +126,10 @@ Module._load = function (request, ...rest) {
   return origLoad.call(this, request, ...rest);
 };
 
-const {reserveAiOperation, completeAiOperation, failAiOperation, cancelAiOperation, getAiOperation} =
-  require("./aiOperations");
+const {
+  reserveAiOperation, requireAndReserveAiOperation, completeAiOperation,
+  failAiOperation, cancelAiOperation, getAiOperation,
+} = require("./aiOperations");
 
 Module._load = origLoad;
 
@@ -273,6 +275,104 @@ async function main() {
   await rejects("cancelling another user's operation is rejected", () => cancelAiOperation({
     uid: OTHER_UID, idempotencyKey: KEY7,
   }), (e) => e.code === "permission-denied");
+
+  // ── requireAndReserveAiOperation — the canonical Phase 6 entry point ─────
+  //
+  // The five generators wired in #1861 each wrote this sequence by hand and
+  // each guarded it behind `isValidIdempotencyKey`, so a keyless request took
+  // the old unprotected path. There is now one way in, and no keyless branch to
+  // write. These assertions are the REAL helper — the generator tests stub a
+  // mirror of it, and a mirror proves routing, not behaviour.
+
+  console.log("\n— requireAndReserveAiOperation —");
+
+  for (const badKey of [undefined, null, "", "   ", "not-a-uuid", 12345, {},
+    "550e8400-e29b-41d4-a716", "550e8400e29b41d4a716446655440000"]) {
+    const label = JSON.stringify(badKey) || String(badKey);
+    await rejects(`a missing/malformed key is refused: ${label}`, () =>
+      requireAndReserveAiOperation({
+        idempotencyKey: badKey, userId: UID, operationType: "generate_worksheet",
+        inputFingerprint: {a: 1},
+      }), (e) => e.code === "invalid-argument" &&
+           e.details && e.details.code === "IDEMPOTENCY_KEY_REQUIRED");
+  }
+
+  {
+    // Refusal must happen BEFORE anything is written. If a refused request left
+    // an operation document behind, the retry that supplied a proper key would
+    // collide with a record of the attempt that never ran.
+    const before = Object.keys(store).length;
+    try {
+      await requireAndReserveAiOperation({
+        idempotencyKey: "nope", userId: UID, operationType: "generate_worksheet",
+      });
+    } catch { /* expected */ }
+    ok("a refused request writes no operation document",
+        Object.keys(store).length === before);
+  }
+
+  const HK1 = "aaaaaaaa-0000-4000-8000-000000000001";
+  {
+    const first = await requireAndReserveAiOperation({
+      idempotencyKey: HK1, userId: UID, operationType: "generate_worksheet",
+      inputFingerprint: {grade: "G5", topic: "Fractions"},
+    });
+    ok("a valid key reserves", first.status === "created");
+
+    const second = await requireAndReserveAiOperation({
+      idempotencyKey: HK1, userId: UID, operationType: "generate_worksheet",
+      inputFingerprint: {grade: "G5", topic: "Fractions"},
+    });
+    ok("the same key with the same input does not reserve twice",
+        second.status === "processing");
+
+    await rejects("the same key with DIFFERENT input is rejected", () =>
+      requireAndReserveAiOperation({
+        idempotencyKey: HK1, userId: UID, operationType: "generate_worksheet",
+        inputFingerprint: {grade: "G6", topic: "Fractions"},
+      }), (e) => /IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_INPUT/.test(e.message));
+
+    await rejects("another user cannot reuse the key", () =>
+      requireAndReserveAiOperation({
+        idempotencyKey: HK1, userId: OTHER_UID, operationType: "generate_worksheet",
+        inputFingerprint: {grade: "G5", topic: "Fractions"},
+      }), (e) => e.code === "permission-denied");
+  }
+
+  {
+    // The two terminal outcomes every caller handled identically now throw here
+    // instead of five times over. A caller that stopped handling them is not
+    // ignoring them — they cannot reach it.
+    const HK2 = "aaaaaaaa-0000-4000-8000-000000000002";
+    await requireAndReserveAiOperation({
+      idempotencyKey: HK2, userId: UID, operationType: "generate_worksheet",
+      inputFingerprint: {x: 1},
+    });
+    await failAiOperation({
+      idempotencyKey: HK2, err: Object.assign(new Error("bad input"),
+          {code: "invalid-argument"}), usageCharged: 0,
+    });
+    await rejects("a terminally-failed key throws rather than returning a status", () =>
+      requireAndReserveAiOperation({
+        idempotencyKey: HK2, userId: UID, operationType: "generate_worksheet",
+        inputFingerprint: {x: 1},
+      }), (e) => e.code === "failed-precondition" && e.details.retryable === false);
+
+    const HK3 = "aaaaaaaa-0000-4000-8000-000000000003";
+    await requireAndReserveAiOperation({
+      idempotencyKey: HK3, userId: UID, operationType: "generate_worksheet",
+      inputFingerprint: {x: 2},
+    });
+    await completeAiOperation({
+      idempotencyKey: HK3, resultDocumentId: HK3, usageCharged: 1,
+    });
+    const resumed = await requireAndReserveAiOperation({
+      idempotencyKey: HK3, userId: UID, operationType: "generate_worksheet",
+      inputFingerprint: {x: 2},
+    });
+    ok("a completed key comes back as completed for the caller to resume",
+        resumed.status === "completed" && resumed.operation.resultDocumentId === HK3);
+  }
 
   console.log(`\n✓ ${passed} aiOperations assertions passed.`);
 }

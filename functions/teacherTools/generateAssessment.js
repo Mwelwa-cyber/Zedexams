@@ -42,7 +42,7 @@ const {validateAssessment} = require("./assessmentSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./assessmentPromptV10");
 const {assertAndIncrement, refundGeneration} = require("./usageMeter");
-const {reserveAiOperation, completeAiOperation, failAiOperation} = require("../aiOperations");
+const {requireAndReserveAiOperation, completeAiOperation, failAiOperation} = require("../aiOperations");
 const {FREE_PREVIEW_LIMITS} = require("./teacherPlans");
 const {clampAssessmentPreview} = require("./freePreview");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
@@ -246,11 +246,11 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
   // the provider or the usage meter a second time for the same logical
   // generation. `inputs` doubles as the canonical fingerprint payload — any
   // field a teacher could change between two calls is already in there.
-  const reservation = await reserveAiOperation({
-    uid,
+  const reservation = await requireAndReserveAiOperation({
     idempotencyKey,
+    userId: uid,
     operationType: "generate_assessment",
-    fingerprintInput: inputs,
+    inputFingerprint: inputs,
   });
   if (reservation.status === "completed") {
     return buildResumedAssessmentResponse(reservation.operation);
@@ -263,17 +263,8 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
     // is the server-side backstop for everything else (§12/§13).
     return {status: "processing", operationId: idempotencyKey};
   }
-  if (reservation.status === "failed") {
-    throw new HttpsError(
-        "failed-precondition",
-        reservation.operation.errorMessage ||
-          "This request already failed and cannot be retried automatically.",
-        {code: reservation.operation.errorCode, retryable: false, operationId: idempotencyKey},
-    );
-  }
-  if (reservation.status === "cancelled") {
-    throw new HttpsError("cancelled", "This request was cancelled.");
-  }
+  // "failed" and "cancelled" already threw inside the helper — every caller
+  // handled them identically, so they live there now.
   // reservation.status is "created" or "retrying" — exactly one provider
   // call happens below.
 
