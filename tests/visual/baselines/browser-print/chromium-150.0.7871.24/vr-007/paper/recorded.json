@@ -3,9 +3,9 @@
   "family": "browser-print",
   "copy": "paper",
   "identity": "browser-print/chromium-150.0.7871.24",
-  "sourceCommit": "f9381c56ce987528f7294d6657c23ca6ebbdc16f",
-  "source": "PR #1937",
-  "reason": "The school logo now has ink. The previous baseline recorded a header with no logo at all: the image emitted into the markup and occupied its box, but the committed PNG was 16x16 and near-blank, so nothing was visible (#1937).",
+  "sourceCommit": "b5862eeae3eaa14170eb1466a0cc4263a3fffc4d",
+  "source": "PR #1946 (with #1937, #1938)",
+  "reason": "Three changes since this baseline was first recorded: the school logo has ink instead of being a near-blank 16x16 PNG (#1937), the print path honours the band minimum figure size (#1938), and the footer code moved into the reserved bottom band (#1946). The baseline predates all three.",
   "environment": {
     "chromium": "150.0.7871.24",
     "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
@@ -57,7 +57,7 @@
     "header": 1
   },
   "inkByPage": {
-    "1": 0.02704483606248096
+    "1": 0.02703195187202686
   },
   "figures": {
     "unresolvedFigureCount": 0,
@@ -79,7 +79,7 @@
   },
   "hashes": {
     "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
-    "layout.json": "3de9024c937e2e6cd38aa79d27f69125ea4180fafce09a1d2e7bbdce28f5e498",
-    "page-01.png": "2ea6c701fbbccf908cc2da86fdca0aba265d1c646b9332fbecedc6840dc6b061"
+    "layout.json": "e60d53fec830112940bbb2577c80e640f5ac982125df219045792ea5f8e7e36a",
+    "page-01.png": "1055ef8701df589b0b87d83d0736b0b8dcc96350e0ad64401dc8a757810d011c"
   }
 }
