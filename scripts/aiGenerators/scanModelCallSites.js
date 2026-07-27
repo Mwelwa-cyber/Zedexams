@@ -149,6 +149,7 @@ const SKIP_DIRS = new Set(['node_modules', '.git', 'lib', 'coverage'])
 
 /** Markers of the operation layer and its neighbouring guarantees. */
 const MARKERS = Object.freeze({
+  canonicalEntry: 'requireAndReserveAiOperation',
   reserve: 'reserveAiOperation',
   complete: 'completeAiOperation',
   fail: 'failAiOperation',
@@ -194,8 +195,19 @@ function stripComments(source) {
  *   'none'      no reservation at all.
  */
 export function idempotencyPosture(text) {
+  // `enforced` now means one specific thing: entry through the canonical
+  // `requireAndReserveAiOperation`, which refuses a missing or malformed key
+  // before usage charging, provider access or result creation.
+  //
+  // Keying on that single call is what lets a marker-based scan mean what it
+  // claims. The old rule — "reserves and has no isValidIdempotencyKey guard" —
+  // inferred a sequence it could not see, so a generator that reserved AFTER
+  // its provider call would have read as enforced.
+  if (text.includes(MARKERS.canonicalEntry)) return 'enforced'
   if (!text.includes(MARKERS.reserve)) return 'none'
-  return text.includes(MARKERS.idempotencyOptional) ? 'optional' : 'enforced'
+  // Reserves, but by hand. Whether the guard is present or not, this is a
+  // generator that wrote its own entry sequence and can drift from the others.
+  return 'optional'
 }
 
 /** Scan one file. Returns null when it makes no direct model call. */

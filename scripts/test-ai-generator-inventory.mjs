@@ -187,12 +187,31 @@ test('every partial generator fails the contract for a NAMED reason', () => {
   }
 })
 
-test('the reference implementation is the only fully migrated generator today', () => {
-  // Pinned deliberately. When a migration PR lands, this number changes and the
-  // author has to change it here — which is the moment to check the record and
-  // the contract agree, rather than discovering later that neither was updated.
-  const migrated = GENERATORS.filter((r) => r.state === 'migrated').map((r) => r.file)
-  assert.deepEqual(migrated, ['functions/teacherTools/generateAssessment.js'])
+test('exactly the generators believed migrated are migrated, named one by one', () => {
+  // Pinned as a LIST rather than a count. When a migration PR lands, the author
+  // has to write the new file in here — which is the moment to check that the
+  // record, the contract and the behavioural tests all agree, rather than
+  // discovering later that a count went up and nothing else did.
+  //
+  // Slice 2 closed the five `partial` generators from #1861. The completion
+  // condition for that slice was exact: 6 migrated, 0 partial, 20 unmigrated.
+  const migrated = GENERATORS.filter((r) => r.state === 'migrated').map((r) => r.file).sort()
+  assert.deepEqual(migrated, [
+    'functions/teacherTools/generateAssessment.js',
+    'functions/teacherTools/generateFlashcards.js',
+    'functions/teacherTools/generateHomework.js',
+    'functions/teacherTools/generateRubric.js',
+    'functions/teacherTools/generateSchemeOfWork.js',
+    'functions/teacherTools/generateWorksheet.js',
+  ])
+})
+
+test('no generator is left in the partial state', () => {
+  // The state that motivated Slice 2. It is allowed to exist as a CONCEPT — a
+  // future migration will pass through it — but a generator sitting there at
+  // rest means a server guarantee that disappears when the client omits a key.
+  const partial = GENERATORS.filter((r) => r.state === 'partial').map((r) => r.file)
+  assert.deepEqual(partial, [], `still partial: ${partial.join(', ')}`)
 })
 
 console.log('\n— what the phase is actually facing —')

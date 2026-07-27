@@ -263,9 +263,114 @@ async function getAiOperation({uid, idempotencyKey}) {
   return data;
 }
 
+/**
+ * The canonical way a generator enters the operation layer (Phase 6).
+ *
+ * ## Why this exists rather than each generator calling reserveAiOperation
+ *
+ * Every generator wired in #1861 wrote the same twenty lines by hand, and they
+ * did not come out the same. Five of them guarded the reservation behind
+ * `isValidIdempotencyKey`, so a request with no key skipped it entirely and ran
+ * the old unprotected path — auto-id document, no reservation, nothing
+ * recording that protection had been skipped. `generateAssessment` did not, so
+ * a keyless request was refused. Two behaviours, one intent, and from outside
+ * the two are indistinguishable: both reserve on the happy path, both pass
+ * their tests.
+ *
+ * A shared entry point removes the opportunity. There is no keyless branch to
+ * write, because there is no branch.
+ *
+ * ## What it guarantees, in order
+ *
+ * 1. A missing or malformed key is REFUSED — before usage charging, before the
+ *    provider, before any result document exists. The refusal is the first
+ *    thing that happens, so nothing has been spent when it fires.
+ * 2. The reservation is atomic (see `reserveAiOperation`), so a second caller
+ *    with the same key cannot also be told to proceed.
+ * 3. Terminal outcomes that every caller handles identically — a non-retryable
+ *    failure and a cancellation — are converted to HttpsErrors here rather
+ *    than five times over.
+ *
+ * What it deliberately does NOT do is decide what "resume" looks like. A
+ * completed operation returns to the caller as `{status:'completed'}` because
+ * each generator's saved response has its own shape, and a generic resume would
+ * have to guess at it.
+ *
+ * ## It is also the marker the inventory scanner keys on
+ *
+ * `scripts/aiGenerators/` cannot prove that a reservation happens BEFORE a
+ * provider call — it reads markers, not order. One canonical call that cannot
+ * be reached any other way makes the marker mean what the scan claims it means.
+ * Behavioural callable tests remain the authority; this makes the completeness
+ * net honest.
+ *
+ * @param {Object} args
+ * @param {string} args.idempotencyKey  Client-generated UUID. Required.
+ * @param {string} args.userId          Authenticated caller — derive it from
+ *                                      the request context, never from the
+ *                                      client payload.
+ * @param {string} args.operationType   e.g. "generate_worksheet".
+ * @param {Object} [args.inputFingerprint] Canonical operation-defining fields.
+ * @returns {Promise<{status:'created'|'retrying'|'completed'|'processing', operation:Object}>}
+ */
+async function requireAndReserveAiOperation({
+  idempotencyKey,
+  userId,
+  operationType,
+  inputFingerprint = {},
+  schoolId = null,
+  targetDocumentId = null,
+  targetSectionId = null,
+}) {
+  // First, and before anything is spent. `reserveAiOperation` validates the key
+  // too, but it does so after its own uid/operationType checks — stating it
+  // here makes the ordering a property of this function rather than an
+  // accident of another one's argument validation.
+  if (!isValidIdempotencyKey(idempotencyKey)) {
+    throw new HttpsError(
+        "invalid-argument",
+        "This request is missing a valid idempotency key. Please refresh the " +
+          "page and try again.",
+        {code: "IDEMPOTENCY_KEY_REQUIRED", retryable: false},
+    );
+  }
+
+  const reservation = await reserveAiOperation({
+    uid: userId,
+    idempotencyKey,
+    operationType,
+    fingerprintInput: inputFingerprint,
+    schoolId,
+    targetDocumentId,
+    targetSectionId,
+  });
+
+  if (reservation.status === "failed") {
+    throw new HttpsError(
+        "failed-precondition",
+        reservation.operation.errorMessage ||
+          "This request already failed and cannot be retried automatically.",
+        {
+          code: reservation.operation.errorCode,
+          retryable: false,
+          operationId: idempotencyKey,
+        },
+    );
+  }
+  if (reservation.status === "cancelled") {
+    throw new HttpsError("cancelled", "This request was cancelled.", {
+      code: "OPERATION_CANCELLED",
+      operationId: idempotencyKey,
+    });
+  }
+
+  return reservation;
+}
+
 module.exports = {
   COLLECTION,
   reserveAiOperation,
+  requireAndReserveAiOperation,
   completeAiOperation,
   failAiOperation,
   cancelAiOperation,

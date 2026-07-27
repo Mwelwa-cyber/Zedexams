@@ -2493,9 +2493,20 @@ function makeStreamingEndpoint({tool, runCore}) {
       });
 
       try {
+        // The idempotency key travels in the POST body, exactly as it travels
+        // in the callable's payload — the SSE endpoint is a SECOND DOOR into
+        // the same runner, and a door that does not carry the key is a door
+        // with no duplicate protection behind it.
+        //
+        // This is how generateWorksheet's primary "Generate" reached the
+        // provider with no reservation at all while its regenerate button was
+        // fully protected: the studio generates via this stream and only
+        // regenerates via the callable, so the migration that hardened the
+        // callable never touched the path teachers actually use.
         const result = await runCore({
           uid,
           rawInputs: req.body || {},
+          idempotencyKey: (req.body || {}).idempotencyKey,
           apiKey,
           onProgress: clientGone ? null : onProgress,
         });

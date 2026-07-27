@@ -9,7 +9,7 @@
  *      (the AI-006 gap this closed), the operation is failed, error rethrown.
  *   3. A duplicate request with the SAME completed idempotency key resumes the
  *      saved result WITHOUT calling Claude again and WITHOUT a second charge.
- *   4. No idempotency key (legacy caller) → still works end-to-end, the
+ *   4. No/malformed idempotency key → REFUSED before the provider, the
  *      reservation service is never touched, but a hard failure STILL refunds.
  *   5. Invalid model output → status 'flagged', settled as a completion (the
  *      teacher got a worksheet), no refund.
@@ -27,6 +27,7 @@
 
 const assert = require("node:assert");
 const Module = require("node:module");
+const {isValidIdempotencyKey} = require("../aiOperationsCore");
 
 let passed = 0;
 function ok(name, cond) {
@@ -194,6 +195,36 @@ Module._load = function (request, ...rest) {
   }
   if (request === "../aiOperations") {
     return {
+      // Mirrors the real requireAndReserveAiOperation's contract: refuse a
+      // missing/malformed key BEFORE reserving, then delegate. It is a mirror,
+      // not a proof — the real helper is proved directly in
+      // functions/aiOperations.test.js. What these tests prove is that the
+      // generator ROUTES through it, so a refusal reaches the caller with
+      // nothing spent.
+      requireAndReserveAiOperation: ({idempotencyKey, userId, operationType, inputFingerprint}) => {
+        if (!isValidIdempotencyKey(idempotencyKey)) {
+          throw new HttpsError("invalid-argument",
+              "This request is missing a valid idempotency key.",
+              {code: "IDEMPOTENCY_KEY_REQUIRED", retryable: false});
+        }
+        return reserveImpl({
+          uid: userId, idempotencyKey, operationType, fingerprintInput: inputFingerprint,
+        }).then((reservation) => {
+          // The real helper converts these two terminal outcomes to HttpsErrors
+          // so no caller has to; the mirror must do the same or the generators
+          // look like they stopped handling them.
+          if (reservation.status === "failed") {
+            throw new HttpsError("failed-precondition",
+                reservation.operation.errorMessage ||
+                  "This request already failed and cannot be retried automatically.",
+                {code: reservation.operation.errorCode, retryable: false});
+          }
+          if (reservation.status === "cancelled") {
+            throw new HttpsError("cancelled", "This request was cancelled.");
+          }
+          return reservation;
+        });
+      },
       reserveAiOperation: (args) => reserveImpl(args),
       completeAiOperation: (args) => completeImpl(args),
       failAiOperation: (args) => failImpl(args),
@@ -272,26 +303,48 @@ function reset() {
     ok("resume: returns the saved worksheet", res2.generationId === IDK && !!res2.worksheet);
   }
 
-  // 4. Legacy caller (no key) → works; reservation untouched; failure still refunds.
+  // 4. NO KEY / MALFORMED KEY → refused, with nothing spent.
+  //
+  // This case used to assert the opposite: that a keyless caller "still works
+  // end-to-end". That was the partial state — the protection was a client
+  // courtesy, and a stale cached client or a direct callable invocation got the
+  // old unprotected path with nothing recording that it had. Phase 6 deletes
+  // the branch, so the assertion inverts.
   reset();
   {
-    const res = await runWorksheet({uid: "u1", rawInputs: INPUTS, apiKey: "k"});
-    ok("legacy: succeeds without a key", res.generationId && res.worksheet);
-    ok("legacy: random doc id (not a key)", res.generationId.startsWith("gen_"));
-    ok("legacy: reservation never touched", calls.reserve.length === 0 && calls.complete.length === 0);
-
-    claudeImpl = async () => {
-      throw new Error("boom");
-    };
-    let threw = null;
-    try {
-      await runWorksheet({uid: "u1", rawInputs: INPUTS, apiKey: "k"});
-    } catch (e) {
-      threw = e;
+    for (const badKey of [undefined, null, "", "not-a-uuid", "   ", 12345,
+      "550e8400-e29b-41d4-a716"]) {
+      reset();
+      let threw = null;
+      try {
+        await runWorksheet({uid: "u1", rawInputs: INPUTS, apiKey: "k", idempotencyKey: badKey});
+      } catch (e) {
+        threw = e;
+      }
+      const label = JSON.stringify(badKey);
+      ok(`refused: ${label} rejected`, threw && threw.code === "invalid-argument");
+      ok(`refused: ${label} made no provider call`, calls.claude.length === 0);
+      ok(`refused: ${label} charged no usage`, calls.meter.length === 0);
+      ok(`refused: ${label} wrote no result document`,
+          Object.keys(genDocs).length === 0);
+      ok(`refused: ${label} reserved nothing`, calls.reserve.length === 0);
+      ok(`refused: ${label} refunded nothing`, calls.refund.length === 0);
     }
-    ok("legacy: hard failure still rethrows", threw && /boom/.test(threw.message));
-    ok("legacy: hard failure still refunds (AI-006)", calls.refund.length === 1);
-    ok("legacy: fail-op never touched without a key", calls.fail.length === 0);
+  }
+
+  // 4b. The fingerprint the generator reserves with is its own sanitized input,
+  // so replaying one key with different inputs is rejected by the real service
+  // rather than answered with the first result.
+  reset();
+  {
+    await runWorksheet({uid: "u1", rawInputs: INPUTS, apiKey: "k", idempotencyKey: IDK});
+    ok("fingerprint: reservation carried one", calls.reserve.length === 1 &&
+      calls.reserve[0].fingerprintInput &&
+      typeof calls.reserve[0].fingerprintInput === "object");
+    ok("fingerprint: reserved before the provider was called",
+        calls.claude.length === 1);
+    ok("deterministic identity: the result document IS the key",
+        Object.keys(genDocs).length === 1 && Object.keys(genDocs)[0] === IDK);
   }
 
   // 5. Invalid output → flagged, settled as a completion, no refund.

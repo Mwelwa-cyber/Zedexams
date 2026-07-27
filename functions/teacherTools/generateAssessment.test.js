@@ -30,6 +30,7 @@
 
 const assert = require("node:assert");
 const Module = require("node:module");
+const {isValidIdempotencyKey} = require("../aiOperationsCore");
 
 let passed = 0;
 function ok(name, cond) {
@@ -231,6 +232,29 @@ Module._load = function (request, ...rest) {
   }
   if (request === "../aiOperations") {
     return {
+      // Mirrors the real requireAndReserveAiOperation. It is a mirror, not a
+      // proof — the real helper is proved in functions/aiOperations.test.js.
+      requireAndReserveAiOperation: ({idempotencyKey, userId, operationType, inputFingerprint}) => {
+        if (!isValidIdempotencyKey(idempotencyKey)) {
+          throw new HttpsError("invalid-argument",
+              "This request is missing a valid idempotency key.",
+              {code: "IDEMPOTENCY_KEY_REQUIRED", retryable: false});
+        }
+        return Promise.resolve(reserveImpl({
+          uid: userId, idempotencyKey, operationType, fingerprintInput: inputFingerprint,
+        })).then((reservation) => {
+          if (reservation.status === "failed") {
+            throw new HttpsError("failed-precondition",
+                reservation.operation.errorMessage ||
+                  "This request already failed and cannot be retried automatically.",
+                {code: reservation.operation.errorCode, retryable: false});
+          }
+          if (reservation.status === "cancelled") {
+            throw new HttpsError("cancelled", "This request was cancelled.");
+          }
+          return reservation;
+        });
+      },
       reserveAiOperation: (args) => reserveImpl(args),
       completeAiOperation: (args) => completeImpl(args),
       failAiOperation: (args) => failImpl(args),
@@ -314,6 +338,10 @@ function validPaper() {
 // now uses `.doc(idempotencyKey)` — see the "deterministic result ids"
 // comment in generateAssessment.js).
 const IDK = "11111111-1111-4111-8111-111111111111";
+// A SECOND valid key, not a mutation of the first. `${IDK}-2` used to work
+// because the reservation stub never validated the key; the canonical helper
+// does, and a UUID with a suffix is not a UUID.
+const IDK2 = "33333333-3333-4333-8333-333333333333";
 
 function reset() {
   coverageResult = COVERED;
@@ -916,7 +944,7 @@ async function caught(promise) {
     misconceptionDocs = kept;
     claudeImpl = async () => ({parsed: validPaper()});
     await runAssessment({
-      uid: "t1", rawInputs: {...INPUTS, totalMarks: 20}, apiKey: "k", idempotencyKey: `${IDK}-2`,
+      uid: "t1", rawInputs: {...INPUTS, totalMarks: 20}, apiKey: "k", idempotencyKey: IDK2,
     });
     const secondPrompt = calls.claude[0].opts.messages[0].content;
     ok("the NEXT paper on that topic is told what learners get wrong",

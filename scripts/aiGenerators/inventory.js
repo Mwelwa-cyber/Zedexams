@@ -26,27 +26,30 @@
  *
  * The headline finding. "Wired through aiOperations" is not one condition:
  *
- *   migrated    every clause of the migration contract holds. Centrally:
- *               reserveAiOperation is called unconditionally, so a request with
- *               no idempotency key is REFUSED; the result document is derived
- *               from the key rather than auto-assigned; and the client surface
- *               holds an operation lock, so the backend is not migrated in
- *               isolation from the double-click that motivated it. Today:
- *               generateAssessment, alone.
+ *   migrated    every clause of the migration contract holds. Entry is through
+ *               `requireAndReserveAiOperation`, which refuses a missing or
+ *               malformed key before usage charging, provider access or result
+ *               creation; the result document IS the key; and the initiating
+ *               UI surface holds a named operation lock, so the backend is not
+ *               migrated in isolation from the double-click that motivated it.
  *
- *   partial     the reservation sits behind an `isValidIdempotencyKey` guard.
- *               A request WITHOUT a key silently takes the old unprotected
- *               path — auto-id document, no reservation, no record that
- *               protection was skipped. A stale cached client, a retry built
- *               before the key existed, or any direct callable invocation gets
- *               the pre-Phase-5 behaviour and nothing anywhere says so.
- *               Today: the five wired in #1861.
+ *   partial     the reservation is written by hand rather than entered through
+ *               the canonical helper. Where that guard was `isValidIdempotencyKey`,
+ *               a request WITHOUT a key silently took the old unprotected path —
+ *               auto-id document, no reservation, no record that protection was
+ *               skipped. A stale cached client, a retry built before the key
+ *               existed, or any direct callable invocation got the pre-Phase-5
+ *               behaviour and nothing anywhere said so.
  *
  *   unmigrated  no reservation at all.
  *
  * `partial` is the state worth naming, because from the outside it is
  * indistinguishable from `migrated` — the tests pass, the happy path reserves,
  * the dashboards look right. It is counted as NOT satisfying the contract.
+ *
+ * Slice 2 (this change) emptied it: the five generators from #1861 now enter
+ * through the canonical helper with their auto-id branches DELETED rather than
+ * bypassed. 6 migrated, 0 partial, 20 unmigrated.
  */
 
 /** How a call site is triggered and what it owes the user. */
@@ -91,7 +94,9 @@ export const TIERS = Object.freeze({
  * of migrating it, and a null here says "not yet traced" rather than pretending
  * a lock might exist somewhere unexamined.
  */
-const g = (file, fields) => ({ file, class: CLASSES.generator, clientModule: null, ...fields })
+const g = (file, fields) => ({
+  file, class: CLASSES.generator, clientModule: null, clientLockKey: null, ...fields,
+})
 
 /**
  * Every direct model call site under `functions/`.
@@ -144,6 +149,7 @@ export const INVENTORY = Object.freeze([
   // ── Tier 2 · papers, quizzes and question generation ──────────────────
   g('functions/teacherTools/generateAssessment.js', {
     clientModule: 'src/components/teacher/CreatePaperModal.jsx',
+    clientLockKey: 'assessment-studio:create-paper:generate-full',
     tier: 2,
     state: 'migrated',
     entryPoint: 'generateAssessment (callable)',
@@ -181,8 +187,9 @@ export const INVENTORY = Object.freeze([
   }),
   g('functions/teacherTools/generateWorksheet.js', {
     clientModule: 'src/components/teacher/generate/WorksheetGenerator.jsx',
+    clientLockKey: 'worksheet-studio:generate',
     tier: 2,
-    state: 'partial',
+    state: 'migrated',
     entryPoint: 'generateWorksheet (callable) + apiGenerateWorksheet (SSE)',
     clientSurface: '/teacher/worksheets — WorksheetGenerator.jsx',
     produces: 'A saved worksheet, exported to Word and PDF',
@@ -192,8 +199,9 @@ export const INVENTORY = Object.freeze([
   }),
   g('functions/teacherTools/generateHomework.js', {
     clientModule: 'src/components/teacher/generate/HomeworkStudio.jsx',
+    clientLockKey: 'homework-studio:generate',
     tier: 2,
-    state: 'partial',
+    state: 'migrated',
     entryPoint: 'generateHomework (callable)',
     clientSurface: '/teacher/homework — HomeworkStudio.jsx',
     produces: 'A saved homework document',
@@ -201,8 +209,9 @@ export const INVENTORY = Object.freeze([
   }),
   g('functions/teacherTools/generateRubric.js', {
     clientModule: 'src/components/teacher/generate/RubricGenerator.jsx',
+    clientLockKey: 'rubric-studio:generate',
     tier: 2,
-    state: 'partial',
+    state: 'migrated',
     entryPoint: 'generateRubric (callable)',
     clientSurface: '/teacher/rubrics — RubricGenerator.jsx',
     produces: 'A saved rubric',
@@ -210,8 +219,9 @@ export const INVENTORY = Object.freeze([
   }),
   g('functions/teacherTools/generateSchemeOfWork.js', {
     clientModule: 'src/components/teacher/generate/SchemeOfWorkGenerator.jsx',
+    clientLockKey: 'scheme-studio:generate',
     tier: 2,
-    state: 'partial',
+    state: 'migrated',
     entryPoint: 'generateSchemeOfWork (callable)',
     clientSurface: '/teacher/schemes-of-work — SchemeOfWorkGenerator.jsx',
     produces: 'A saved scheme of work, exported to Word and PDF',
@@ -229,8 +239,9 @@ export const INVENTORY = Object.freeze([
   }),
   g('functions/teacherTools/generateFlashcards.js', {
     clientModule: 'src/components/teacher/generate/FlashcardGenerator.jsx',
+    clientLockKey: 'flashcards-studio:generate',
     tier: 3,
-    state: 'partial',
+    state: 'migrated',
     entryPoint: 'generateFlashcards (callable)',
     clientSurface: '/teacher/flashcards — FlashcardGenerator.jsx',
     produces: 'A saved flashcard deck',
