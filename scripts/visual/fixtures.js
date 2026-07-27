@@ -34,6 +34,7 @@
  */
 
 import { getDiagram, renderDiagramSvg } from '../../src/components/diagrams/diagramCatalog.js'
+import { anchorContractProblems } from './anchors.js'
 
 /** Every rendering target a fixture can declare. */
 export const RENDER_TARGETS = ['browser-print', 'docx']
@@ -485,7 +486,28 @@ export const VISUAL_FIXTURES = [
     grayscale: false,
     regions: [],
     // Declared page membership, which is what makes a move reportable.
-    expectedAnchorPages: { question_1: 1, question_8: 2, question_14: 3 },
+    //
+    // Per TARGET, because the two engines paginate this paper differently and
+    // both are correct: eighteen short-answer questions with four ruled lines
+    // each fit in three pages through LibreOffice and need five through
+    // Chromium. A single number was wrong for at least one of them, and an
+    // allowed set would have passed while one drifted onto the other's page.
+    //
+    // question_1 is a bare number on purpose: the first question follows the
+    // header on page 1 in any renderer that produces a page at all, so there is
+    // nothing target-specific to say and saying it twice would invite the two
+    // halves to drift apart.
+    //
+    // question_8 is a map even though both targets currently say 2. The scalar
+    // form asserts that a renderer CANNOT put it elsewhere, and nothing about
+    // question 8 makes that true — the two agreeing today is a pagination
+    // outcome, and writing it as a scalar would turn a legitimate Chromium-only
+    // move into a contract violation rather than the reportable move it is.
+    expectedAnchorPages: {
+      question_1: 1,
+      question_8: { 'browser-print/paper': 2, 'docx/paper': 2 },
+      question_14: { 'browser-print/paper': 4, 'docx/paper': 2 },
+    },
     together: [],
     assessment: {
       ...SCHOOL,
@@ -680,6 +702,11 @@ export function validateFixture(fixture) {
   for (const pair of fixture.together || []) {
     if (!Array.isArray(pair) || pair.length !== 2) problems.push('a togetherness pair must be two anchor IDs')
   }
+  // Where an anchor belongs is a claim about one renderer, so it is checked
+  // against the renderers this fixture actually declares — here, before anything
+  // is rendered, because an expectation a target never received is invisible in
+  // a passing run.
+  problems.push(...anchorContractProblems(fixture))
   if (!Array.isArray(fixture.protects) || !fixture.protects.length) {
     problems.push('declares no printed feature that it protects')
   }
