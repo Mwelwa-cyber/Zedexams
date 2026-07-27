@@ -85,9 +85,19 @@ vi.mock('../../utils/teacherLibraryService', () => ({ isFreePlanTeacher: () => f
 // openPrintWindow must return a window-like object: the row aborts with a
 // "pop-ups blocked" toast on a falsy return, which would stop a print test
 // before it ever reached the export gate.
+//
+// That mock outran the real function for a while. `openPrintWindow` passed
+// `noopener` in its features string, and `window.open` with `noopener` opens
+// the window but returns `null` — so in a real browser every print from this
+// list died on "your browser blocked the print window" (which allowing pop-ups
+// does not fix) and left the blank tab standing. jsdom ignores the features
+// string, so nothing here could see it; a real-Chromium run of this same row
+// found it. The features string is now enforced by
+// scripts/test-pdf-export-window.test.js.
+const printWindow = vi.hoisted(() => ({ close: vi.fn() }))
 vi.mock('../../utils/assessmentToPdf', () => ({
   printAssessmentAsPdf: vi.fn(),
-  openPrintWindow: vi.fn(() => ({ close: vi.fn() })),
+  openPrintWindow: vi.fn(() => printWindow),
 }))
 vi.mock('../../utils/importReviewSummary.js', () => ({ summarizeImportReview: () => ({ needsReview: false }) }))
 vi.mock('../quiz/ImportReviewBadge', () => ({ default: () => null }))
@@ -240,6 +250,9 @@ describe('AssessmentList — export readiness', () => {
     await clickExport('📄 Paper (PDF)')
     await waitFor(() => expect(toast.error).toHaveBeenCalled())
     expect(printAssessmentAsPdf).not.toHaveBeenCalled()
+    // Opened before the gate ran, so blocked must also mean closed — otherwise
+    // the refusal leaves a blank tab the teacher has to clear by hand.
+    expect(printWindow.close).toHaveBeenCalled()
   })
 
   it('a valid paper exports exactly once, by the branded route', async () => {
