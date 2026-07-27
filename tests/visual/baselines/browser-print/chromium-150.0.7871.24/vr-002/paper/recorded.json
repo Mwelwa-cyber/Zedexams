@@ -3,9 +3,9 @@
   "family": "browser-print",
   "copy": "paper",
   "identity": "browser-print/chromium-150.0.7871.24",
-  "sourceCommit": "b5862eeae3eaa14170eb1466a0cc4263a3fffc4d",
-  "source": "PR #1946",
-  "reason": "The footer code moved into the reserved bottom band. Browser-print only; the Word render is unchanged and its baseline is untouched (#1946).",
+  "sourceCommit": "aa3151288f77a7087a0050d4d84a14fe1ca09234",
+  "source": "PR #1958 (commit 72a8fc7)",
+  "reason": "The paper code moved from 277-281mm down to 288-292mm: its strip is now RESERVED by a running tfoot rather than shared with the body (#1958). Page count (1) and anchors unchanged, 379 connected pixels - the code's own ink at its new position and gone from its old one. This fixture also confirmed the new anti-clipping check reads the page correctly: its structured long-division questions declare six answer lines each and draw a WORKING layout rather than twelve rules, and its committed baseline and the new render agree exactly - four wide rows in both. No DOCX baseline is affected.",
   "environment": {
     "chromium": "150.0.7871.24",
     "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
@@ -72,6 +72,6 @@
   "hashes": {
     "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
     "layout.json": "dd94f793499dae7f1ed04c08e2c237f0dbf70e4da3e9357c41210b497a285df2",
-    "page-01.png": "3ad8ae0fb8b85f7fa3459614502059defba1c9e376882b743aca1447d12ff7db"
+    "page-01.png": "2fdb39592d005eb3522b937b88e8ae1dc20df771ce8f1236f55aea0e5e5f6f43"
   }
 }
