@@ -125,3 +125,63 @@ describe('PaperHealthModal', () => {
     expect(screen.getByRole('button', { name: /Saving…/i })).toBeDisabled()
   })
 })
+
+describe('PaperHealthModal — printability', () => {
+  const layoutHealth = (over = {}) => ({
+    status: 'print-blocked',
+    blockers: [],
+    advisories: [],
+    checks: [],
+    printBlockers: [{ id: 'blank-page', label: 'Page 2 is blank — the paper ends with an empty sheet.' }],
+    printBlockerCount: 1,
+    layoutPending: false,
+    layoutUnverified: false,
+    blockerCount: 0,
+    advisoryCount: 0,
+    ready: true,
+    stats: {},
+    ...over,
+  })
+
+  it('lists the layout problem the export was refused for', () => {
+    // The gap this closes: a refused Print SENDS the teacher to this panel, and
+    // before Phase 5 the panel had never heard of pagination and told them
+    // everything was fine.
+    render(<PaperHealthModal open health={layoutHealth()} onClose={() => {}} />)
+    expect(screen.getByText(/Page 2 is blank/)).toBeInTheDocument()
+    expect(screen.getByText(/Fix before printing \(1\)/)).toBeInTheDocument()
+  })
+
+  it('says Word is unaffected, because that button is enabled beside it', () => {
+    render(<PaperHealthModal open health={layoutHealth()} onClose={() => {}} />)
+    expect(screen.getByText(/Word download is unaffected/i)).toBeInTheDocument()
+  })
+
+  it('does not present it as an unfinished paper', () => {
+    render(<PaperHealthModal open health={layoutHealth()} onClose={() => {}} />)
+    expect(screen.queryByText(/Fix before saving/)).not.toBeInTheDocument()
+  })
+
+  it('reports a measurement in progress as progress, not as a defect', () => {
+    render(<PaperHealthModal open onClose={() => {}} health={layoutHealth({
+      status: 'ready', printBlockers: [], printBlockerCount: 0, layoutPending: true,
+    })} />)
+    expect(screen.getByText(/Checking the page layout/)).toBeInTheDocument()
+    expect(screen.queryByText(/Fix before printing/)).not.toBeInTheDocument()
+  })
+
+  it('reports a failed measurement as unverified', () => {
+    render(<PaperHealthModal open onClose={() => {}} health={layoutHealth({
+      status: 'ready', printBlockers: [], printBlockerCount: 0, layoutUnverified: true,
+    })} />)
+    expect(screen.getByText(/could not be verified/)).toBeInTheDocument()
+  })
+
+  it('a clean paper still reads as clean', () => {
+    render(<PaperHealthModal open onClose={() => {}} health={layoutHealth({
+      status: 'ready', printBlockers: [], printBlockerCount: 0,
+    })} />)
+    expect(screen.queryByText(/Fix before printing/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Checking the page layout/)).not.toBeInTheDocument()
+  })
+})

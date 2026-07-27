@@ -12,15 +12,22 @@
  * module folds all of them into ONE structured "health" object that the
  * PaperHealthModal renders as a single pre-save/export gate.
  *
- * Pure + dependency-free so it unit-tests without React or Firebase. The
- * caller passes the already-computed validation result, smart-warnings list,
+ * Since Phase 5 there is a FOURTH: the measured page layout. It is classified
+ * separately rather than folded into the other two, because it blocks the
+ * browser routes and not Word — see printPdfReadiness.js.
+ *
+ * Pure so it unit-tests without React or Firebase. The caller passes the
+ * already-computed validation result, smart-warnings list, pagination result
  * and stats; this function only classifies and de-duplicates them.
  */
+
+import { blockingLayoutIssues } from './printPdfReadiness.js'
 
 // Status ranking, worst-first. `status` is the single field the Save / Export
 // buttons key off: 'blocked' must be resolved before the paper is filed.
 export const HEALTH_STATUS = {
-  BLOCKED: 'blocked',     // ≥1 blocking issue — cannot save/export cleanly
+  BLOCKED: 'blocked',     // ≥1 correctness blocker — no route out of the studio
+  PRINT_BLOCKED: 'print-blocked', // the paper is correct; the browser layout is not
   ATTENTION: 'attention', // no blockers, but advisories worth a look
   READY: 'ready',         // clean — safe to save/export/print
 }
@@ -55,7 +62,9 @@ function asArray(value) {
  *   stats: object,
  * }}
  */
-export function computePaperHealth({ validation = {}, smartWarnings = [], stats = {} } = {}) {
+export function computePaperHealth({
+  validation = {}, smartWarnings = [], stats = {}, pagination = null,
+} = {}) {
   const issues = asArray(validation.issues)
   const summary = asArray(validation.summary)
   const smart = asArray(smartWarnings)
@@ -81,6 +90,32 @@ export function computePaperHealth({ validation = {}, smartWarnings = [], stats 
       .map((w) => ({ id: w.key, label: w.message, severity: w.severity })),
   ]
 
+  // ── Printability, which is a THIRD classification and not a shade of the
+  //    other two ────────────────────────────────────────────────────────────
+  //
+  // A blank trailing sheet, a question split across a page turn or a table
+  // clipped at the right edge is not an advisory — a teacher meets it at the
+  // photocopier — and it is not a correctness blocker either, because the paper
+  // itself is finished and its Word export is very likely fine. It blocks the
+  // browser routes and only those.
+  //
+  // This panel is where a teacher is SENT when an export is refused, so a
+  // layout refusal that did not appear here left them looking at a page telling
+  // them everything was fine while the Print button stayed grey. That is the
+  // gap this closes: the reason is now listed where the teacher was already
+  // being sent to read it.
+  const printBlockers = blockingLayoutIssues(pagination)
+    .map((i) => ({ id: i.code, label: i.message }))
+
+  // "Not measured yet" is deliberately NOT a print blocker here. The gate still
+  // refuses the export — see printPdfReadiness — but a panel that listed
+  // "checking the page layout" as a problem to fix would be reporting our own
+  // progress as the teacher's defect, and it clears itself within a second.
+  const layoutPending = Boolean(pagination)
+    && pagination.status !== 'ready'
+    && pagination.status !== 'failed'
+  const layoutUnverified = pagination?.status === 'failed'
+
   // The green-tick readiness checklist is the validation summary verbatim.
   const checks = summary
     .filter(Boolean)
@@ -91,12 +126,21 @@ export function computePaperHealth({ validation = {}, smartWarnings = [], stats 
   const passedCount = checks.filter((c) => c.ok).length
 
   let status = HEALTH_STATUS.READY
+  // Ranked the way a teacher should read them: finish the paper, then fix how
+  // it prints, then consider the suggestions. A paper with both an unfinished
+  // question and a blank page is reported as unfinished, because finishing the
+  // question is about to move every page boundary anyway.
   if (blockerCount > 0) status = HEALTH_STATUS.BLOCKED
+  else if (printBlockers.length > 0) status = HEALTH_STATUS.PRINT_BLOCKED
   else if (advisoryCount > 0) status = HEALTH_STATUS.ATTENTION
 
   return {
     status,
     blockers,
+    printBlockers,
+    printBlockerCount: printBlockers.length,
+    layoutPending,
+    layoutUnverified,
     advisories,
     checks,
     blockerCount,
@@ -117,6 +161,14 @@ export function paperHealthHeadline(health) {
   const { status, blockerCount, advisoryCount } = health
   if (status === HEALTH_STATUS.BLOCKED) {
     return `${blockerCount} thing${blockerCount === 1 ? '' : 's'} to fix before this paper is ready.`
+  }
+  if (status === HEALTH_STATUS.PRINT_BLOCKED) {
+    const n = health.printBlockerCount
+    // Says which routes are shut, because the Word button beside it is still
+    // enabled and a teacher reading "cannot export" while Word works would
+    // reasonably conclude the panel is wrong.
+    return `The paper is finished, but ${n === 1 ? 'a layout problem stops' : `${n} layout problems stop`} `
+      + 'it printing correctly. Word is unaffected.'
   }
   if (status === HEALTH_STATUS.ATTENTION) {
     return `Ready to save — ${advisoryCount} suggestion${advisoryCount === 1 ? '' : 's'} worth a look first.`
