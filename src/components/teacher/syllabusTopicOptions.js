@@ -103,21 +103,43 @@ async function load2013Lookup() {
   return _lookup2013Promise
 }
 
-// Shared loader hook: returns the merged lookup Map for the chosen framework
-// plus a `loading` flag. Both the subject and topic hooks build on it.
+function cachedLookupFor(framework) {
+  return framework === '2013' ? _lookup2013Cache : _lookupCache
+}
+
+function loadLookupFor(framework) {
+  return framework === '2013' ? load2013Lookup() : loadLookup()
+}
+
+// Shared loader hook: returns the lookup Map for exactly the chosen framework
+// plus a `loading` flag. State is tagged with its framework so switching CBC ↔
+// previous curriculum can never expose the old curriculum's cached subjects or
+// topics for even one render while the new file is loading.
 function useSyllabusLookup(framework = '2023') {
-  const is2013 = framework === '2013'
-  const [lookup, setLookup] = useState(is2013 ? _lookup2013Cache : _lookupCache)
+  const fw = normalizeStudioFramework(framework)
+  const [state, setState] = useState(() => ({
+    framework: fw,
+    lookup: cachedLookupFor(fw),
+  }))
+  const cached = cachedLookupFor(fw)
+  const lookup = cached || (state.framework === fw ? state.lookup : null)
+
   useEffect(() => {
-    const cached = is2013 ? _lookup2013Cache : _lookupCache
-    if (cached) { setLookup(cached); return undefined }
+    const ready = cachedLookupFor(fw)
+    if (ready) {
+      setState({ framework: fw, lookup: ready })
+      return undefined
+    }
     let cancelled = false
-    setLookup(null)
-    ;(is2013 ? load2013Lookup() : loadLookup())
-      .then((l) => { if (!cancelled) setLookup(l) })
-      .catch(() => { if (!cancelled) setLookup(new Map()) })
+    // Immediately hide the previous framework's options. Without the framework
+    // tag React could render one stale CBC/OBC list before this effect settled.
+    setState({ framework: fw, lookup: null })
+    loadLookupFor(fw)
+      .then((l) => { if (!cancelled) setState({ framework: fw, lookup: l }) })
+      .catch(() => { if (!cancelled) setState({ framework: fw, lookup: new Map() }) })
     return () => { cancelled = true }
-  }, [is2013])
+  }, [fw])
+
   return { lookup, loading: lookup == null }
 }
 

@@ -64,6 +64,22 @@ export function detect2013TopicColumn(sheet) {
   return null
 }
 
+/**
+ * Reject a numbered topic whose leading grade does not match the sheet it was
+ * extracted from. The digitised 2013 PDFs occasionally carry the opening rows
+ * of the next grade at the end of the previous grade sheet (for example 5.1.0
+ * under Grade 4). Trusting those rows makes one grade's picker show another
+ * grade's topics. Unnumbered headings are retained because there is no safe
+ * numeric assertion to make for them.
+ */
+export function topicBelongsTo2013Grade(topic, grade) {
+  const gradeMatch = /^G(\d+)$/i.exec(String(grade || '').trim())
+  if (!gradeMatch) return true
+  const topicMatch = /^\s*(\d+)(?:\s*\.\s*\d+)+/.exec(String(topic || ''))
+  if (!topicMatch) return true
+  return Number(topicMatch[1]) === Number(gradeMatch[1])
+}
+
 function splitBullets(s) {
   const str = String(s || '').trim()
   if (!str) return []
@@ -125,6 +141,10 @@ export function extract2013TopicLookupRaw(raw) {
         const codeRaw = topicCol ? String(cells[topicCol] || '').trim() : ''
         if (codeRaw) topic = codeRaw
         if (!topic) continue
+        // Fail closed on a numbered topic from a different grade. Keep checking
+        // the propagated value on every continuation row, so the leaked block is
+        // excluded until the next valid topic heading resets the scope.
+        if (!topicBelongsTo2013Grade(topic, grade)) continue
         let subs = inner.get(topic)
         if (!subs) { subs = new Set(); inner.set(topic, subs) }
         if (subCol) {
