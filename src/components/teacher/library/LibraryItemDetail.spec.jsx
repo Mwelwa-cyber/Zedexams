@@ -64,7 +64,13 @@ vi.mock('../../../utils/sbaTrackerToDocx',    () => ({ downloadSbaTrackerDocx:  
 vi.mock('../../../utils/sbaPlannerToDocx',    () => ({ downloadSbaPlannerDocx:    vi.fn(async () => {}) }))
 vi.mock('../../../utils/sbaPlanner',          () => ({ buildSbaPlan:              vi.fn(() => null) }))
 vi.mock('../../../utils/downloadFilename',    () => ({ buildDownloadName:         vi.fn(() => 'test-file.docx') }))
-vi.mock('../../../utils/aiPaperToSections',   () => ({ aiPaperToStudioDoc:        vi.fn(() => ({ doc: {}, questions: [] })) }))
+// Controllable per test: the assessment branch runs this, then gates on the
+// result. The default deliberately returns a READY paper — the previous stub
+// returned no questions at all, which the export gate now (correctly) refuses.
+const mockPaperConversion = vi.hoisted(() => ({ current: null }))
+vi.mock('../../../utils/aiPaperToSections', () => ({
+  aiPaperToStudioDoc: vi.fn(() => mockPaperConversion.current),
+}))
 
 // ── Utility stubs ─────────────────────────────────────────────────────────────
 vi.mock('../../../utils/schemeEditHistory', () => ({
@@ -93,7 +99,7 @@ vi.mock('../../../contexts/AuthContext', () => ({
   }),
 }))
 vi.mock('../../ui/Toast', () => ({
-  useToast: () => ({ success: vi.fn(), error: vi.fn() }),
+  useToast: () => mockToast,
 }))
 
 // ── Library service — controls what getGeneration returns ─────────────────────
@@ -108,8 +114,12 @@ const TEST_ITEM = {
   status:   'ready',
 }
 
+const mockItem = vi.hoisted(() => ({ current: null }))
+// A stable toast so a test can read what the teacher was told; the previous
+// inline vi.fn() was recreated on every render and recorded nothing.
+const mockToast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
 vi.mock('../../../utils/teacherLibraryService', () => ({
-  getGeneration:          vi.fn(async () => TEST_ITEM),
+  getGeneration:          vi.fn(async () => mockItem.current),
   deleteGeneration:       vi.fn(async () => true),
   duplicateGeneration:    vi.fn(async () => 'new-id'),
   recordExport:           vi.fn(),
@@ -173,6 +183,13 @@ function renderDetail() {
   )
 }
 
+beforeEach(() => {
+  mockItem.current = TEST_ITEM
+  mockPaperConversion.current = { doc: {}, questions: [] }
+  mockToast.success.mockClear()
+  mockToast.error.mockClear()
+})
+
 describe('LibraryItemDetail — [21] Show-answers toggle for lesson_activities export', () => {
   beforeEach(() => {
     mockDownloadLessonActivitiesDocx.mockReset()
@@ -220,5 +237,135 @@ describe('LibraryItemDetail — [21] Show-answers toggle for lesson_activities e
         { includeAnswers: true, includeModelAnswers: true },
       )
     })
+  })
+})
+
+/* ── the export gate on the library detail view ──────────────────────────── */
+
+/**
+ * The second bypass. This surface exports AI-generated papers straight from the
+ * library with no readiness check at all, so every blocking rule the Assessment
+ * Studio enforces could be sidestepped by opening the generation instead of the
+ * paper.
+ *
+ * A generated paper is where an unrenderable diagram is MOST likely: the model
+ * chose the catalogue key, rather than a teacher picking one from a list.
+ */
+const ASSESSMENT_ITEM = {
+  ...TEST_ITEM,
+  tool: 'assessment',
+  title: 'Grade 7 Geography Topic Test',
+  output: { header: { grade: '7', subject: 'Geography', title: 'Topic Test' } },
+}
+
+const readyQuestion = (localId, over = {}) => ({
+  localId,
+  type: 'short_answer',
+  text: '<p>Name the largest river in Zambia.</p>',
+  marks: 2,
+  ...over,
+})
+
+/** What aiPaperToStudioDoc returns for a paper made of these questions. */
+const conversionOf = (questions, over = {}) => ({
+  doc: { title: 'Topic Test', subject: 'Geography', grade: '7', passages: [], parts: [], pagebreaks: [] },
+  questions,
+  questionCount: questions.length,
+  totalMarks: questions.length * 2,
+  warnings: [],
+  sections: questions.map((question) => ({ kind: 'standalone', question })),
+  editorParts: [],
+  ...over,
+})
+
+async function exportAssessment() {
+  renderDetail()
+  const btn = await screen.findByRole('button', { name: /export .docx/i })
+  fireEvent.click(btn)
+  return btn
+}
+
+describe('LibraryItemDetail — export readiness for generated papers', () => {
+  beforeEach(async () => {
+    mockItem.current = ASSESSMENT_ITEM
+    // Cleared per test: "nothing was delivered" is only a claim about THIS
+    // click, and a leaked call from the previous test would make it false for
+    // the wrong reason.
+    const { downloadAssessmentDocx } = await import('../../../utils/assessmentToDocx')
+    const { recordExport } = await import('../../../utils/teacherLibraryService')
+    downloadAssessmentDocx.mockClear()
+    recordExport.mockClear()
+  })
+
+  it('a paper with no questions cannot export', async () => {
+    mockPaperConversion.current = conversionOf([])
+    await exportAssessment()
+    const { downloadAssessmentDocx } = await import('../../../utils/assessmentToDocx')
+    await waitFor(() => expect(mockToast.error).toHaveBeenCalled())
+    expect(mockToast.error.mock.calls[0][0]).toMatch(/Add at least one question/)
+    expect(downloadAssessmentDocx).not.toHaveBeenCalled()
+  })
+
+  it('an unfinished question cannot export, and is named', async () => {
+    mockPaperConversion.current = conversionOf([readyQuestion('a'), readyQuestion('b', { text: '' })])
+    await exportAssessment()
+    const { downloadAssessmentDocx } = await import('../../../utils/assessmentToDocx')
+    await waitFor(() => expect(mockToast.error).toHaveBeenCalled())
+    expect(mockToast.error.mock.calls[0][0]).toMatch(/Question 2 is not finished/)
+    expect(downloadAssessmentDocx).not.toHaveBeenCalled()
+  })
+
+  it('a missing required figure cannot export, with the studio’s exact sentence', async () => {
+    mockPaperConversion.current = conversionOf([
+      readyQuestion('a', { imageDiagram: { libraryKey: 'not-in-the-catalog' } }),
+    ])
+    await exportAssessment()
+    const { downloadAssessmentDocx } = await import('../../../utils/assessmentToDocx')
+    await waitFor(() => expect(mockToast.error).toHaveBeenCalled())
+    expect(mockToast.error.mock.calls[0][0]).toBe(
+      'Question 1 requires a diagram, but the figure could not be rendered. '
+      + 'Replace, regenerate or repair the diagram before exporting.',
+    )
+    expect(downloadAssessmentDocx).not.toHaveBeenCalled()
+  })
+
+  it('a valid paper exports exactly once', async () => {
+    mockPaperConversion.current = conversionOf([readyQuestion('a'), readyQuestion('b')])
+    await exportAssessment()
+    const { downloadAssessmentDocx } = await import('../../../utils/assessmentToDocx')
+    await waitFor(() => expect(downloadAssessmentDocx).toHaveBeenCalledTimes(1))
+    expect(mockToast.error).not.toHaveBeenCalled()
+  })
+
+  it('a render-time unresolved figure still prevents delivery', async () => {
+    // The stage no static check can predict: the catalogue key is valid, the
+    // raster fails mid-build. The exporter throws and the view must report it
+    // rather than record an export that did not happen.
+    const { downloadAssessmentDocx } = await import('../../../utils/assessmentToDocx')
+    const { recordExport } = await import('../../../utils/teacherLibraryService')
+    downloadAssessmentDocx.mockRejectedValueOnce(Object.assign(
+      new Error('Question 1 requires a diagram, but the figure could not be rendered. '
+        + 'Replace, regenerate or repair the diagram before exporting.'),
+      { code: 'unresolved-figure' },
+    ))
+    mockPaperConversion.current = conversionOf([readyQuestion('a')])
+    await exportAssessment()
+    await waitFor(() => expect(mockToast.error).toHaveBeenCalled())
+    expect(mockToast.error.mock.calls[0][0]).toMatch(/Question 1 requires a diagram/)
+    expect(recordExport).not.toHaveBeenCalled()
+  })
+
+  it('fixing the paper makes it exportable again, with no reload', async () => {
+    mockPaperConversion.current = conversionOf([readyQuestion('a', { text: '' })])
+    const btn = await exportAssessment()
+    const { downloadAssessmentDocx } = await import('../../../utils/assessmentToDocx')
+    await waitFor(() => expect(mockToast.error).toHaveBeenCalled())
+    expect(downloadAssessmentDocx).not.toHaveBeenCalled()
+
+    // Same mounted view, same button: the repaired paper is read on the next
+    // click rather than a cached verdict.
+    mockPaperConversion.current = conversionOf([readyQuestion('a')])
+    fireEvent.click(btn)
+    await waitFor(() => expect(downloadAssessmentDocx).toHaveBeenCalledTimes(1))
   })
 })

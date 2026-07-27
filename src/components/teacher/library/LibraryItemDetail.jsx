@@ -31,6 +31,8 @@ import SbaTrackerView from '../views/SbaTrackerView'
 import SbaPlanView from '../views/SbaPlanView'
 import AssessmentPaperView from '../views/AssessmentPaperView'
 import { aiPaperToStudioDoc } from '../../../utils/aiPaperToSections'
+import { buildAssessmentExportReadiness } from '../../../utils/assessmentExportReadiness'
+import { renderDiagramSvg } from '../../diagrams/diagramCatalog'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
 import { downloadLibraryItemViaServer } from '../../../utils/serverLibraryDownload'
@@ -404,7 +406,28 @@ export default function LibraryItemDetail() {
       // same DOCX exporter the Assessment Studio uses, honouring the marking-key
       // toggle. assessmentToDocx (+ the heavy `docx` lib) is loaded on demand.
       const { downloadAssessmentDocx } = await import('../../../utils/assessmentToDocx')
-      const { doc, questions } = aiPaperToStudioDoc(item.output, item.tool)
+      const converted = aiPaperToStudioDoc(item.output, item.tool)
+      const { doc, questions } = converted
+      // The same readiness decision the studio makes. Exporting from the library
+      // used to bypass every blocking rule — and a generated paper is exactly
+      // where a diagram the catalog cannot draw turns up, because the model
+      // chose the key rather than a teacher picking one from a list.
+      const { gate } = buildAssessmentExportReadiness({
+        sections: converted.sections,
+        parts: converted.editorParts,
+        paperDetails: { title: doc.title, subject: doc.subject, grade: doc.grade },
+        serialized: {
+          questions,
+          passages: doc.passages,
+          questionCount: converted.questionCount,
+          totalMarks: converted.totalMarks,
+        },
+        diagramResolver: renderDiagramSvg,
+      })
+      if (gate.blocked) {
+        toast.error(gate.message)
+        return
+      }
       await downloadAssessmentDocx(doc, questions, name(), { mode: showAnswers ? 'scheme' : 'paper' })
       recordExport(item.id, 'docx')
     } else if (item.tool === 'sba_plan') {
@@ -423,7 +446,12 @@ export default function LibraryItemDetail() {
       // without this the user saw nothing at all. Surface it so they know to
       // retry / update the app, and so it lands in error reporting.
       console.error('[LibraryItemDetail] docx export failed', err)
-      toast.error('Could not create the Word file. Please try again, or update the app if this keeps happening.')
+      // A refused export already carries the sentence a teacher can act on:
+      // which question, and what to do about it. "Please try again" is worse
+      // than useless there — trying again produces the same refusal, and the
+      // one instruction that would fix it has been thrown away.
+      if (err?.code === 'unresolved-figure') toast.error(err.message)
+      else toast.error('Could not create the Word file. Please try again, or update the app if this keeps happening.')
     }
   }
 

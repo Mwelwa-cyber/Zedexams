@@ -89,8 +89,8 @@ import { startBrandedDownload, prewarmExports } from '../../utils/assessmentExpo
 import { printAssessmentAsPdf, openPrintWindow } from '../../utils/assessmentToPdf'
 import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
 import { computePaperHealth } from '../../utils/paperHealth'
-import { describeExportBlock, blockingIssuesByLocalId } from '../../utils/assessmentExportGate'
-import { unresolvedRequiredFigures } from '../../utils/unresolvedFigures'
+import { blockingIssuesByLocalId } from '../../utils/assessmentExportGate'
+import { buildAssessmentExportReadiness } from '../../utils/assessmentExportReadiness'
 import { renderDiagramSvg } from '../diagrams/diagramCatalog'
 import { compareToBlueprint } from '../../utils/blueprintDrift'
 import {
@@ -657,24 +657,24 @@ export default function AssessmentStudio() {
   // exporters make. This is the one figure failure knowable before a render, and
   // knowing it here is what turns "the Word file came out with a hole in it"
   // into a button the teacher cannot click yet.
-  // The whole serialized paper, not just its questions: a passage carries its
-  // own stimulus diagram in a separate array and both renderers draw it, so
-  // checking only the questions left every diagram/map/source passage
-  // unprotected.
-  const unresolvedFigures = useMemo(
-    () => unresolvedRequiredFigures(serializedPreview, renderDiagramSvg),
-    [serializedPreview],
-  )
-  const exportGate = useMemo(
-    () => describeExportBlock({
-      issues: validationIssues,
-      questionNumbers,
-      questionCount,
-      emptyStarter: hasOnlyEmptyStarterSection(sections),
-      unresolvedFigures,
+  // Assembled by the shared adapter, not here. The same six steps used to live
+  // in this component and nowhere else, which is exactly why exporting the same
+  // paper from the library list bypassed every one of them.
+  const exportReadiness = useMemo(
+    () => buildAssessmentExportReadiness({
+      sections,
+      parts,
+      paperDetails: { title: autoTitle, subject: form.subject, grade: form.grade },
+      serialized: serializedPreview,
+      // Already computed above for the error badges. Recomputing would be a
+      // second answer to "what is wrong with this paper", and the day the two
+      // disagree the badge and the banner tell a teacher different things.
+      validationIssues,
+      diagramResolver: renderDiagramSvg,
     }),
-    [validationIssues, questionNumbers, questionCount, sections, unresolvedFigures],
+    [sections, parts, autoTitle, form.subject, form.grade, serializedPreview, validationIssues],
   )
+  const exportGate = exportReadiness.gate
   // Which question cards to flag in the builder, so an unfinished question is
   // visible where it is fixed rather than only in the pre-export message.
   const questionIssues = useMemo(

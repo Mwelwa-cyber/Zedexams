@@ -27,6 +27,8 @@ import { useToast } from '../ui/Toast'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { ASSESSMENT_TYPE_LABELS } from './assessmentStudioMeta'
 import { assessmentCategory } from './paperTaxonomy'
+import { buildSavedAssessmentExportReadiness } from '../../utils/assessmentExportReadiness'
+import { renderDiagramSvg } from '../diagrams/diagramCatalog'
 
 function formatDate(ts) {
   if (!ts) return '—'
@@ -354,6 +356,24 @@ export default function AssessmentList() {
       const questions = await getAssessmentQuestions(assessment.id)
       if (!questions || questions.length === 0) {
         toast.error('This assessment has no questions to export yet.')
+        return
+      }
+      // The SAME readiness decision the studio makes, before any route to a
+      // file. Exporting from this list used to bypass every blocking rule the
+      // studio enforced — an unfinished question or a diagram the catalog
+      // cannot draw sailed straight through to Word, PDF and print.
+      //
+      // Checked BEFORE the branded server download below, not after: that path
+      // is the one a teacher actually gets, and the server's only content check
+      // is "does this paper have any questions at all". A gate placed after it
+      // would guard the fallback and leave the main road open.
+      const { gate } = buildSavedAssessmentExportReadiness(assessment, questions, renderDiagramSvg)
+      if (gate.blocked) {
+        toast.error(gate.message)
+        // A print window is opened before this handler runs so the browser does
+        // not treat it as a popup. Blocked means no export, so it must not be
+        // left standing empty.
+        try { win?.close() } catch { /* already gone */ }
         return
       }
       const variant = mode === 'paper' ? undefined : 'Marking Key'
