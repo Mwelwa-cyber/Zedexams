@@ -13,7 +13,7 @@
 import assert from 'node:assert/strict'
 import {
   unresolvedFigure, unresolvedFigureMessage, unresolvedFiguresMessage,
-  unresolvedRequiredFigures, affectedQuestionNumbers, listNumbers,
+  unresolvedRequiredFigures, affectedQuestionNumbers, listNumbers, UnresolvedFigureError,
   FIGURE_STAGES, STATIC_STAGE,
 } from './unresolvedFigures.js'
 
@@ -183,16 +183,50 @@ test('numbering is position, matching how the studio numbers questions', () => {
   assert.equal(unresolvedRequiredFigures(questions, resolve)[0].questionNumber, 1)
 })
 
-test('an option diagram counts too, and says which kind it was', () => {
-  // The exporter draws these; a check that only looked at the question stem
-  // would leave a whole class of missing figure unprotected.
+test('an option diagram is read from optionMedia[i].diagram, the shape the app uses', () => {
+  // The first version of this check looked at `options[i].imageDiagram`, a
+  // field nothing writes — so it found nothing and reported every paper clean,
+  // which is the worst outcome a check can have. The exporter reads
+  // `optionMedia[i].diagram`; so does this.
   const questions = [{
     id: 'a',
-    options: [{ imageDiagram: { libraryKey: 'triangle' } }, { imageDiagram: { libraryKey: 'gone' } }],
+    options: ['A', 'B'],
+    optionMedia: [{ diagram: { libraryKey: 'triangle' } }, { diagram: { libraryKey: 'gone' } }],
   }]
   const found = unresolvedRequiredFigures(questions, resolve)
   assert.equal(found.length, 1)
   assert.equal(found[0].kind, 'option_diagram')
+  assert.equal(found[0].diagramKey, 'gone')
+  assert.equal(found[0].questionNumber, 1)
+})
+
+test('a sparse optionMedia array does not throw', () => {
+  // Only some options carry media, so the array has holes.
+  const questions = [{ id: 'a', optionMedia: [null, undefined, { diagram: { libraryKey: 'gone' } }] }]
+  assert.equal(unresolvedRequiredFigures(questions, resolve).length, 1)
+})
+
+test('a passage stimulus diagram is checked, and named by its title', () => {
+  // Passages carry their own diagram in a separate array, and both renderers
+  // draw it. Checking only the questions left every diagram/map/source passage
+  // unprotected.
+  const paper = {
+    questions: [{ id: 'q1', imageDiagram: { libraryKey: 'triangle' } }],
+    passages: [{ id: 'p1', title: 'The water cycle', imageDiagram: { libraryKey: 'gone' } }],
+  }
+  const found = unresolvedRequiredFigures(paper, resolve)
+  assert.equal(found.length, 1)
+  assert.equal(found[0].questionId, 'p1')
+  assert.equal(found[0].label, 'The water cycle', 'the exporter labels it the same way')
+  assert.equal(found[0].questionNumber, null, 'a passage has no question number')
+  assert.match(unresolvedFigureMessage(found[0]), /^A question on this paper requires a diagram/)
+})
+
+test('a bare questions array is still accepted', () => {
+  // Callers with no passages should not have to wrap.
+  assert.equal(unresolvedRequiredFigures([{ id: 'a', imageDiagram: { libraryKey: 'gone' } }], resolve).length, 1)
+  assert.equal(unresolvedRequiredFigures({ questions: [], passages: [] }, resolve).length, 0)
+  assert.equal(unresolvedRequiredFigures({}, resolve).length, 0)
 })
 
 test('a question with no figure at all contributes nothing', () => {
@@ -225,6 +259,19 @@ test('the resolver receives the key AND the params the exporter would pass', () 
     (key, params) => { seen.push([key, params]); return '<svg/>' },
   )
   assert.deepEqual(seen, [['triangle', { sides: 3 }]])
+})
+
+console.log('\n— a refused export fails loudly —')
+
+test('UnresolvedFigureError carries the repair sentence and a code', () => {
+  // Returning `{delivered: false}` put the burden on every caller to look, and
+  // the library export routes did not — they toasted "download started" over a
+  // file that was never written. A caller that does nothing must now fail.
+  const err = new UnresolvedFigureError([{ questionNumber: 5 }])
+  assert.ok(err instanceof Error, 'a plain catch block sees it')
+  assert.equal(err.code, 'unresolved-figure', 'recognised without instanceof, which a dynamic import breaks')
+  assert.equal(err.message, unresolvedFigureMessage({ questionNumber: 5 }))
+  assert.equal(err.entries.length, 1, 'the records travel with it')
 })
 
 test('listNumbers reads as prose, and is the gate’s implementation too', () => {

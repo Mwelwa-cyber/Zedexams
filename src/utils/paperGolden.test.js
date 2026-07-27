@@ -744,10 +744,22 @@ console.log('\nGOLDEN — a paper missing a required figure is not delivered')
   globalThis.URL.revokeObjectURL = dom.window.URL.revokeObjectURL
 
   resetSvgRasterizer()                       // jsdom has no canvas → 'rasterise'
-  const refused = await downloadAssessmentDocx(meta, withFigure, 'paper.docx')
-  assert(refused.delivered === false, 'the export reports itself as not delivered')
-  assert(refused.blocked === 'unresolved-figure', 'and says why')
-  assert(refused.unresolvedFigures.length === 1, 'the diagnostic still names the figure')
+  let refusal = null
+  try {
+    await downloadAssessmentDocx(meta, withFigure, 'paper.docx')
+  } catch (err) {
+    refusal = err
+  }
+  // THROWN rather than returned: a returned flag put the burden on every caller
+  // to look, and the two library export routes did not — they awaited the
+  // download and toasted "Paper download started" over a file never written.
+  assert(refusal !== null, 'the export throws rather than returning quietly')
+  assert(refusal.code === 'unresolved-figure', 'with a code a caller can recognise')
+  assert(refusal.entries.length === 1, 'the diagnostic travels with it')
+  assert(
+    refusal.message.startsWith('Question 1 requires a diagram'),
+    `and its message is the repair instruction — got "${refusal.message}"`,
+  )
   assert(saved.length === 0, 'NO FILE reached the teacher')
 
   // The same paper with a working rasteriser downloads normally — the refusal

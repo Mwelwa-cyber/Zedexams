@@ -146,73 +146,96 @@ export function unresolvedFiguresMessage(entries = []) {
  * catalog, and so the caller passes the SAME resolver the exporter will use — a
  * check against a different drawing function would be a check of nothing.
  *
- * @param {Array} questions        the paper's questions, in display order
+ * Takes the whole serialized paper rather than just its questions, because a
+ * passage carries its own stimulus diagram in a separate array and the DOCX and
+ * print renderers both draw it. Checking only the questions left every
+ * diagram/map/source passage unprotected.
+ *
+ * @param {{questions: Array, passages: Array}|Array} paper  the serialized paper,
+ *        or just its questions (accepted so a caller with no passages stays
+ *        simple)
  * @param {(key: string, params: object) => any} resolve  returns falsy when the
  *        catalog cannot draw the diagram
  * @returns {Array} unresolved-figure records, stage 'catalog'
  */
-export function unresolvedRequiredFigures(questions = [], resolve) {
+export function unresolvedRequiredFigures(paper = [], resolve) {
   if (typeof resolve !== 'function') {
     throw new TypeError('unresolvedRequiredFigures needs the resolver the exporter uses')
   }
+  const questions = Array.isArray(paper) ? paper : (paper?.questions || [])
+  const passages = Array.isArray(paper) ? [] : (paper?.passages || [])
   const out = []
-  const list = Array.isArray(questions) ? questions : []
-  list.forEach((question, index) => {
+
+  const check = (diagram, record) => {
+    const key = diagram?.libraryKey
+    if (!key) return
+    let drawn = null
+    try {
+      drawn = resolve(key, diagram.params || {})
+    } catch (err) {
+      // A resolver that throws is a catalog that cannot draw it, which is the
+      // same answer as one that returns nothing — and never a reason to let the
+      // export through.
+      out.push(unresolvedFigure({
+        ...record, diagramKey: key, stage: STATIC_STAGE,
+        reason: err?.message || 'the diagram could not be drawn',
+      }))
+      return
+    }
+    if (drawn) return
+    out.push(unresolvedFigure({
+      ...record, diagramKey: key, stage: STATIC_STAGE,
+      reason: 'the diagram is not in the catalog, or it rendered nothing',
+    }))
+  }
+
+  ;(Array.isArray(questions) ? questions : []).forEach((question, index) => {
     if (!question) return
     // Position, because that is exactly how the studio numbers questions
     // (`buildQuestionNumberMap` is `index + 1` over this same serialized list).
     // Reading a field such as `order` instead would be a second numbering that
     // agrees with the printed page only until the two drift.
     const number = index + 1
-    for (const [kind, diagram] of declaredFigures(question)) {
-      const key = diagram?.libraryKey
-      if (!key) continue
-      let drawn = null
-      try {
-        drawn = resolve(key, diagram.params || {})
-      } catch (err) {
-        // A resolver that throws is a catalog that cannot draw it, which is the
-        // same answer as one that returns nothing — and never a reason to let
-        // the export through.
-        drawn = null
-        out.push(unresolvedFigure({
-          kind,
-          questionNumber: number,
-          questionId: question.id ?? null,
-          diagramKey: key,
-          stage: STATIC_STAGE,
-          reason: err?.message || 'the diagram could not be drawn',
-          label: diagram.label || '',
-        }))
-        continue
-      }
-      if (drawn) continue
-      out.push(unresolvedFigure({
-        kind,
-        questionNumber: number,
-        questionId: question.id ?? null,
-        diagramKey: key,
-        stage: STATIC_STAGE,
-        reason: 'the diagram is not in the catalog, or it rendered nothing',
-        label: diagram.label || '',
-      }))
+    const base = { questionNumber: number, questionId: question.id ?? null }
+    check(question.imageDiagram, { ...base, kind: 'library_diagram' })
+    // Option diagrams live in `optionMedia[i].diagram`, NOT on the option
+    // itself — that is the shape `assessmentToDocx` reads and the studio
+    // writes. Looking at `options[i].imageDiagram` found nothing at all, which
+    // is the worst possible outcome for a check: it reports every paper clean.
+    for (const media of question.optionMedia || []) {
+      check(media?.diagram, { ...base, kind: 'option_diagram' })
     }
   })
+
+  for (const passage of Array.isArray(passages) ? passages : []) {
+    if (!passage) continue
+    // A passage has no question number — the exporter records its diagram the
+    // same way, with the title as the label — so the sentence falls back to the
+    // generic form rather than naming a question that does not exist.
+    check(passage.imageDiagram, {
+      kind: 'library_diagram',
+      questionNumber: null,
+      questionId: passage.id ?? null,
+      label: passage.imageAlt || passage.title || '',
+    })
+  }
   return out
 }
 
 /**
- * The library diagrams one question declares, paired with the kind the exporter
- * records them as.
+ * A refused export, as an error rather than a return value.
  *
- * Kept beside the resolver because the two must agree: a figure the exporter
- * draws and this does not look for is a figure the gate cannot protect.
+ * Returning `{delivered: false}` put the burden on every caller to look, and the
+ * two library export routes did not: they awaited the download and toasted
+ * "Paper download started" over a file that was never written. A caller that
+ * does nothing must fail loudly, not quietly succeed — both of those routes
+ * already wrap the export in a try/catch that surfaces the message.
  */
-function declaredFigures(question) {
-  const found = []
-  if (question.imageDiagram?.libraryKey) found.push(['library_diagram', question.imageDiagram])
-  for (const option of question.options || []) {
-    if (option?.imageDiagram?.libraryKey) found.push(['option_diagram', option.imageDiagram])
+export class UnresolvedFigureError extends Error {
+  constructor(entries = []) {
+    super(unresolvedFiguresMessage(entries))
+    this.name = 'UnresolvedFigureError'
+    this.code = 'unresolved-figure'
+    this.entries = entries
   }
-  return found
 }

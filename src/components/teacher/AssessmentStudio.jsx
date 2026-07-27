@@ -657,9 +657,13 @@ export default function AssessmentStudio() {
   // exporters make. This is the one figure failure knowable before a render, and
   // knowing it here is what turns "the Word file came out with a hole in it"
   // into a button the teacher cannot click yet.
+  // The whole serialized paper, not just its questions: a passage carries its
+  // own stimulus diagram in a separate array and both renderers draw it, so
+  // checking only the questions left every diagram/map/source passage
+  // unprotected.
   const unresolvedFigures = useMemo(
-    () => unresolvedRequiredFigures(serializedPreview.questions, renderDiagramSvg),
-    [serializedPreview.questions],
+    () => unresolvedRequiredFigures(serializedPreview, renderDiagramSvg),
+    [serializedPreview],
   )
   const exportGate = useMemo(
     () => describeExportBlock({
@@ -2495,11 +2499,10 @@ export default function AssessmentStudio() {
         // teacher needs to know which question to fix, and "1 figure could not
         // be embedded" on a twelve-question paper does not tell them.
         //
-        // It also means NO FILE. The exporter refuses to deliver a paper missing
-        // a required diagram, so this is a failed export and not a caveat on a
-        // successful one — a learner cannot label a diagram that is not on the
-        // page. Only the rasterise/embed/composite stages reach here; the gate
-        // catches a missing catalog entry before the button is clickable.
+        // A required figure that did not render THROWS (UnresolvedFigureError,
+        // caught below) rather than returning, so nothing reaching here can
+        // carry one. The array is still read so a future stage that reports
+        // without refusing is not silently dropped.
         const unresolved = Array.isArray(result?.unresolvedFigures) ? result.unresolvedFigures : []
         if (unresolved.length > 0) {
           showToast(unresolvedFiguresMessage(unresolved), true)
@@ -2524,7 +2527,12 @@ export default function AssessmentStudio() {
       // Don't strand a blank pre-opened print window when the export dies
       // before writing into it.
       try { printWin?.close() } catch { /* window already gone */ }
-      showToast(`Export failed: ${getErrorMessage(error)}`, true)
+      // A refused export is not a crash: the teacher needs the repair
+      // instruction, not "Export failed:" in front of it. Recognised by its
+      // code rather than by instanceof, because the exporter is loaded through
+      // a dynamic import and a duplicated module would break the identity check.
+      if (error?.code === 'unresolved-figure') showToast(getErrorMessage(error), true)
+      else showToast(`Export failed: ${getErrorMessage(error)}`, true)
     } finally {
       setExporting(false)
     }

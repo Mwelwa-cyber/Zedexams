@@ -46,7 +46,9 @@ import {
   censusFromPixels, summariseColours, assessFigurePrintability, figurePrintWarning,
 } from './figureContrast.js'
 import { resolveFigureLabels, resolveAnswerKeyLabels } from './figureLabelLayout.js'
-import { unresolvedFigure, unresolvedFigureMessage } from './unresolvedFigures.js'
+import {
+  unresolvedFigure, unresolvedFigureMessage, UnresolvedFigureError,
+} from './unresolvedFigures.js'
 import { seedBandForLevel } from './assessmentBandService.js'
 import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 import { svgToPngBytes, decodeImageBytes } from './svgRasterizer.js'
@@ -984,7 +986,7 @@ export function recordUnresolvedFigure(stats, detail) {
   stats.unresolvedFigures.push(unresolvedFigure(detail))
 }
 
-export { unresolvedFigureMessage }
+export { unresolvedFigureMessage, UnresolvedFigureError }
 
 async function renderBlock(block, stats = null) {
   switch (block.kind) {
@@ -1899,8 +1901,14 @@ export async function downloadAssessmentDocx(assessment, questions, filename = '
     unprintableFigures: stats.unprintableFigures,
     delivered: true,
   }
+  // THROWN, not returned. A returned `delivered: false` put the burden on every
+  // caller to look, and the two library export routes did not — they awaited
+  // this and toasted "Paper download started" over a file that was never
+  // written, which is worse than the placeholder they used to get. Both already
+  // wrap the export in a try/catch that surfaces the message, so a caller that
+  // does nothing now fails loudly instead of quietly succeeding.
   if (stats.unresolvedFigures.length > 0 && !opts.allowUnresolvedFigures) {
-    return { ...result, delivered: false, blocked: 'unresolved-figure' }
+    throw new UnresolvedFigureError(stats.unresolvedFigures)
   }
   const blob = await Packer.toBlob(doc)
   await saveBlob(blob, filename)
