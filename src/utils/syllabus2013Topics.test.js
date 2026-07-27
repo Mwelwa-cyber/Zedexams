@@ -7,6 +7,7 @@ import fs from 'node:fs'
 import {
   extract2013TopicLookup,
   detect2013TopicColumn,
+  topicBelongsTo2013Grade,
   STUDIO_SUBJECT_TO_KB_2013,
 } from './syllabus2013Topics.js'
 
@@ -33,6 +34,16 @@ const raw = JSON.parse(
   ok('every mapped 2013 subject name exists in the data file', true)
 }
 
+// ── Grade-scope guard ─────────────────────────────────────────────────────
+{
+  ok('matching numbered topic stays in its grade',
+    topicBelongsTo2013Grade('4.1.0 The human body', 'G4'))
+  ok('next-grade numbered topic is rejected from the previous grade',
+    !topicBelongsTo2013Grade('5.1.0 The human body', 'G4'))
+  ok('unnumbered headings are retained rather than guessed',
+    topicBelongsTo2013Grade('READING', 'G4'))
+}
+
 // ── Extraction produces grade-keyed topics ────────────────────────────────
 {
   const lookup = extract2013TopicLookup(raw)
@@ -47,6 +58,18 @@ const raw = JSON.parse(
   assert.ok(g4topics.some((t) => /listening|speaking|reading|writing/i.test(t)),
     `G4 english topics look wrong: ${g4topics.slice(0, 3).join(' | ')}`)
   ok('G4 English topic names look like language strands', true)
+
+  const g4science = lookup.get('G4|integrated_science')
+  assert.ok(g4science && g4science.size > 0, 'expected G4 integrated science topics')
+  const leakedG5 = Array.from(g4science.keys()).filter((t) => /^\s*5\s*\./.test(t))
+  assert.deepStrictEqual(leakedG5, [],
+    `Grade 5 topics leaked into Grade 4 Integrated Science: ${leakedG5.join(' | ')}`)
+  ok('G4 Integrated Science excludes every 5.x topic', true)
+
+  const g5science = lookup.get('G5|integrated_science')
+  assert.ok(g5science && Array.from(g5science.keys()).some((t) => /^\s*5\s*\./.test(t)),
+    'expected the real Grade 5 sheet to retain its 5.x topics')
+  ok('G5 Integrated Science keeps its own 5.x topics', true)
 
   const g10maths = lookup.get('G10|mathematics')
   assert.ok(g10maths && g10maths.size >= 3, 'expected senior maths topics')
