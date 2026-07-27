@@ -1013,7 +1013,13 @@ function renderQuestion(b) {
     : escapeHtml(b.text || '(no question text)')
   const questionClasses = ['question']
   if (b.tableData) questionClasses.push('has-table')
-  return `<div class="${questionClasses.join(' ')}">
+  // Identity, for the pagination measurement. The printed sheet carries no
+  // visible change — these are attributes, not content — but without them a
+  // measured block cannot be traced back to the question it belongs to, and
+  // "question 4 is split across two sheets" is exactly the finding a page
+  // count is worth having for. The visual gate proves the render is unchanged.
+  const qid = b.localId ?? b.id ?? b.questionId ?? ''
+  return `<div class="${questionClasses.join(' ')}"${qid ? ` data-question-id="${escapeHtml(qid)}"` : ''} data-question-number="${escapeHtml(b.number)}">
     <div class="qline"><strong>${b.number}.</strong> <span class="qbody">${qBody}</span> ${qmark}</div>
     ${body}
   </div>`

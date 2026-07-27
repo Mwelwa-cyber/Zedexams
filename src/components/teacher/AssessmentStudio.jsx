@@ -88,6 +88,7 @@ import { buildAssessmentName } from '../../utils/downloadFilename'
 import { startBrandedDownload, prewarmExports } from '../../utils/assessmentExportClient'
 import { printAssessmentAsPdf, openPrintWindow } from '../../utils/assessmentToPdf'
 import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
+import { usePaperPagination } from '../../hooks/usePaperPagination'
 import { computePaperHealth } from '../../utils/paperHealth'
 import { blockingIssuesByLocalId } from '../../utils/assessmentExportGate'
 import { buildAssessmentExportReadiness } from '../../utils/assessmentExportReadiness'
@@ -573,7 +574,6 @@ export default function AssessmentStudio() {
   )
   const questionCount = serializedPreview.questionCount
   const totalMarks = serializedPreview.totalMarks
-  const estimatedPages = Math.max(1, Math.ceil((questionCount + totalMarks * 0.4) / 8))
   const estimatedMinutes = useMemo(
     () => estimatePaperMinutes(serializedPreview.questions),
     [serializedPreview.questions],
@@ -617,6 +617,23 @@ export default function AssessmentStudio() {
     totalMarks,
     questionCount,
   }), [form, footerCode, autoTitle, serializedPreview, totalMarks, questionCount])
+
+  // The REAL page count, measured by rendering the paper the print window's own
+  // way. It replaces `Math.ceil((questionCount + totalMarks * 0.4) / 8)`, which
+  // was shown to teachers as "Est. 3 pages · A4" and could not see a diagram, a
+  // passage, a table, an inserted page break or twenty ruled answer lines.
+  //
+  // It counts the BROWSER print/PDF pages and says so in its own label. Word
+  // paginates with its own engine and its own font metrics; a number from here
+  // would be wrong there in a way a teacher only discovers on opening the file.
+  const pagination = usePaperPagination({
+    assessment: assessmentDoc,
+    questions: serializedPreview.questions,
+    passages: serializedPreview.passages,
+    parts: serializedPreview.parts,
+    pagebreaks: serializedPreview.pagebreaks,
+    mode: 'paper',
+  })
 
   const paperBlocks = useMemo(
     () => buildPaperLayout(assessmentDoc, serializedPreview.questions, { mode: 'paper' }),
@@ -786,13 +803,16 @@ export default function AssessmentStudio() {
       stats: {
         questionCount,
         totalMarks,
-        estimatedPages,
+        // The measured count, or 0 while it is being measured. paperHealth
+        // renders a page stat only when it has one, so a paper mid-measurement
+        // shows no page number rather than a placeholder that reads as a fact.
+        estimatedPages: pagination.status === 'ready' ? pagination.pageCount : 0,
         estimatedMinutes,
         sectionCount: parts.length,
         duration: Number(form.duration) || 0,
       },
     }),
-    [validationResult, warnings, questionCount, totalMarks, estimatedPages, estimatedMinutes, parts.length, form.duration],
+    [validationResult, warnings, questionCount, totalMarks, pagination.status, pagination.pageCount, estimatedMinutes, parts.length, form.duration],
   )
 
   /* ------------ helpers ------------ */
@@ -2997,7 +3017,7 @@ export default function AssessmentStudio() {
           questionIssues={questionIssues}
           questionCount={questionCount}
           totalMarks={totalMarks}
-          estimatedPages={estimatedPages}
+          pagination={pagination}
           estimatedMinutes={estimatedMinutes}
           autoTitle={autoTitle}
           footerCode={footerCode}

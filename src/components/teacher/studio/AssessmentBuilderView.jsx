@@ -17,7 +17,7 @@ import {
 export function BuilderView(props) {
   const {
     form, setF, sections, parts, questionNumbers, questionIssues, questionCount, totalMarks,
-    estimatedPages, estimatedMinutes, footerCode, changeView, warnings = [],
+    pagination, estimatedMinutes, footerCode, changeView, warnings = [],
     onAddBlock, onOpenBank, onEditQuestion, onMoveSection, onMoveGroup, onRemoveSection, onDuplicateSection, onSaveToBank,
     onToggleLock, onRewriteQuestion, rewritingKey,
     onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage,
@@ -64,7 +64,9 @@ export function BuilderView(props) {
         <button className="sv-chip active"><Icon name="builder" size={14} /> Builder</button>
         <button className="sv-chip" onClick={() => changeView('preview')}><Icon name="preview" size={14} /> Preview</button>
         <button className="sv-chip" onClick={() => changeView('marking-key')}><Icon name="key" size={14} /> Marking key</button>
-        <span className="sv-pages mono"><Icon name="pages" size={13} /> Est. {estimatedPages} page{estimatedPages === 1 ? '' : 's'} · A4</span>
+        {/* Measured, not estimated — "Calculating pages…" until it is, because
+            a placeholder number reads as a fact. See usePaperPagination. */}
+        <span className="sv-pages mono"><Icon name="pages" size={13} /> {pagination?.label ?? 'Calculating pages…'} · A4</span>
       </div>
 
       {/* The teacher's main tools, always one tap away (they used to live
@@ -215,7 +217,7 @@ export function BuilderView(props) {
         <span><Icon name="questions" size={14} /> <strong>{questionCount}</strong> questions</span>
         <span><Icon name="marks" size={14} /> <strong>{totalMarks}</strong> marks</span>
         <span><Icon name="sections" size={14} /> <strong>{parts.length}</strong> sections</span>
-        <span><Icon name="pages" size={14} /> <strong>{estimatedPages}</strong> pages</span>
+        <span><Icon name="pages" size={14} /> <strong>{pagination?.status === 'ready' ? pagination.pageCount : '—'}</strong> Print/PDF pages</span>
         {estimatedMinutes > 0 && <span><Icon name="time" size={14} /> <strong>~{estimatedMinutes}</strong> min</span>}
       </div>
     </section>
