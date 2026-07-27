@@ -155,8 +155,9 @@ export function classifyPrintScope(changedFiles = []) {
     return {
       requiresVisual: false,
       reason: 'unaffected',
-      summary: `Printed output not affected — none of the ${files.length} changed `
-        + `file${files.length === 1 ? '' : 's'} can reach a rendered paper.`,
+      summary: files.length === 1
+        ? 'Printed output not affected — the one changed file cannot reach a rendered paper.'
+        : `Printed output not affected — none of the ${files.length} changed files can reach a rendered paper.`,
       matched: [],
     }
   }

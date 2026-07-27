@@ -122,7 +122,7 @@ test('an unrelated change does not, and says it looked', () => {
   assert.equal(scope.requiresVisual, false)
   assert.equal(scope.reason, 'unaffected')
   assert.match(scope.summary, /Printed output not affected/)
-  assert.match(scope.summary, /2 changed files/)
+  assert.match(scope.summary, /none of the 2 changed files/)
 })
 
 test('an EMPTY changed-file set renders rather than passing', () => {
@@ -137,8 +137,9 @@ test('an EMPTY changed-file set renders rather than passing', () => {
   }
 })
 
-test('one changed file reads as singular', () => {
-  assert.match(classifyPrintScope(['README.md']).summary, /1 changed file can/)
+test('one changed file reads as singular, on both sides of the verdict', () => {
+  assert.match(classifyPrintScope(['README.md']).summary, /the one changed file cannot/)
+  assert.match(classifyPrintScope(['src/utils/assessmentToPdf.js']).summary, /^1 changed file can affect/)
 })
 
 if (!process.exitCode) {
