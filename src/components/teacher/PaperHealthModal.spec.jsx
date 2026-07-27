@@ -11,7 +11,7 @@ function healthFrom({ issues = [], summary = [], smartWarnings = [], stats = {} 
 
 const readyHealth = healthFrom({
   summary: [{ id: 'title', label: 'Title set', ok: true }, { id: 'q', label: 'At least one question', ok: true }],
-  stats: { questionCount: 12, totalMarks: 30, estimatedPages: 2, sectionCount: 2 },
+  stats: { questionCount: 12, totalMarks: 30, printPdfPages: 2, sectionCount: 2 },
 })
 
 const blockedHealth = healthFrom({

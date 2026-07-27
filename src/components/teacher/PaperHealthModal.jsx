@@ -85,8 +85,8 @@ export default function PaperHealthModal({
             {stats.sectionCount > 0 && (
               <HealthStat icon="sections" value={stats.sectionCount} label={`section${stats.sectionCount === 1 ? '' : 's'}`} />
             )}
-            {stats.estimatedPages > 0 && (
-              <HealthStat icon="pages" value={stats.estimatedPages} label={`page${stats.estimatedPages === 1 ? '' : 's'}`} />
+            {stats.printPdfPages > 0 && (
+              <HealthStat icon="pages" value={stats.printPdfPages} label={`Print/PDF page${stats.printPdfPages === 1 ? '' : 's'}`} />
             )}
             {stats.estimatedMinutes > 0 && (
               <HealthStat icon="time" value={`~${stats.estimatedMinutes}`} label="min" />

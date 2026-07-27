@@ -88,9 +88,11 @@ import { buildAssessmentName } from '../../utils/downloadFilename'
 import { startBrandedDownload, prewarmExports } from '../../utils/assessmentExportClient'
 import { printAssessmentAsPdf, openPrintWindow } from '../../utils/assessmentToPdf'
 import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
+import { usePaperPagination } from '../../hooks/usePaperPagination'
 import { computePaperHealth } from '../../utils/paperHealth'
 import { blockingIssuesByLocalId } from '../../utils/assessmentExportGate'
 import { buildAssessmentExportReadiness } from '../../utils/assessmentExportReadiness'
+import { buildPrintPdfReadiness, buildWordReadiness } from '../../utils/printPdfReadiness'
 import { renderDiagramSvg } from '../diagrams/diagramCatalog'
 import { compareToBlueprint } from '../../utils/blueprintDrift'
 import {
@@ -573,7 +575,6 @@ export default function AssessmentStudio() {
   )
   const questionCount = serializedPreview.questionCount
   const totalMarks = serializedPreview.totalMarks
-  const estimatedPages = Math.max(1, Math.ceil((questionCount + totalMarks * 0.4) / 8))
   const estimatedMinutes = useMemo(
     () => estimatePaperMinutes(serializedPreview.questions),
     [serializedPreview.questions],
@@ -617,6 +618,23 @@ export default function AssessmentStudio() {
     totalMarks,
     questionCount,
   }), [form, footerCode, autoTitle, serializedPreview, totalMarks, questionCount])
+
+  // The REAL page count, measured by rendering the paper the print window's own
+  // way. It replaces `Math.ceil((questionCount + totalMarks * 0.4) / 8)`, which
+  // was shown to teachers as "Est. 3 pages · A4" and could not see a diagram, a
+  // passage, a table, an inserted page break or twenty ruled answer lines.
+  //
+  // It counts the BROWSER print/PDF pages and says so in its own label. Word
+  // paginates with its own engine and its own font metrics; a number from here
+  // would be wrong there in a way a teacher only discovers on opening the file.
+  const pagination = usePaperPagination({
+    assessment: assessmentDoc,
+    questions: serializedPreview.questions,
+    passages: serializedPreview.passages,
+    parts: serializedPreview.parts,
+    pagebreaks: serializedPreview.pagebreaks,
+    mode: 'paper',
+  })
 
   const paperBlocks = useMemo(
     () => buildPaperLayout(assessmentDoc, serializedPreview.questions, { mode: 'paper' }),
@@ -675,6 +693,18 @@ export default function AssessmentStudio() {
     [sections, parts, autoTitle, form.subject, form.grade, serializedPreview, validationIssues],
   )
   const exportGate = exportReadiness.gate
+  // Two layers. Word asks only whether the paper is finished; Print and PDF also
+  // ask whether it comes out of a browser correctly, which is what the measured
+  // pagination answers. Keeping Word out of it is deliberate — see
+  // printPdfReadiness.js.
+  const printGate = useMemo(
+    () => buildPrintPdfReadiness({ baseReadiness: exportReadiness, pagination }),
+    [exportReadiness, pagination],
+  )
+  const wordGate = useMemo(
+    () => buildWordReadiness({ baseReadiness: exportReadiness }),
+    [exportReadiness],
+  )
   // Which question cards to flag in the builder, so an unfinished question is
   // visible where it is fixed rather than only in the pre-export message.
   const questionIssues = useMemo(
@@ -786,13 +816,17 @@ export default function AssessmentStudio() {
       stats: {
         questionCount,
         totalMarks,
-        estimatedPages,
+        // Named for what it is. It was still arriving as `estimatedPages`,
+        // which is the name of the heuristic this replaced — a later reader
+        // would reasonably treat it as a guess and round it, or fall back to
+        // one when it is absent.
+        printPdfPages: pagination.status === 'ready' ? pagination.pageCount : 0,
         estimatedMinutes,
         sectionCount: parts.length,
         duration: Number(form.duration) || 0,
       },
     }),
-    [validationResult, warnings, questionCount, totalMarks, estimatedPages, estimatedMinutes, parts.length, form.duration],
+    [validationResult, warnings, questionCount, totalMarks, pagination.status, pagination.pageCount, estimatedMinutes, parts.length, form.duration],
   )
 
   /* ------------ helpers ------------ */
@@ -2368,9 +2402,14 @@ export default function AssessmentStudio() {
     // a blank question prints as a blank numbered line with empty options, and
     // a teacher only discovers it after running off 40 copies. The message
     // names the offending question numbers; the health panel lists everything.
-    if (exportGate.blocked) {
-      showToast(exportGate.message, true)
-      if (exportGate.reason !== 'empty') setHealthOpen(true)
+    // The route decides which gate applies. `print` and `pdf` render through
+    // the browser, so they answer to the measured layout as well; `docx` does
+    // not, because Word paginates with its own engine and a Chromium-measured
+    // layout says nothing about it.
+    const routeGate = (kind === 'print' || kind === 'pdf') ? printGate : wordGate
+    if (routeGate.blocked) {
+      showToast(routeGate.message, true)
+      if (routeGate.reason !== 'empty' && routeGate.reason !== 'layout-checking') setHealthOpen(true)
       return
     }
     // For Print: open the window NOW, synchronously in the click handler —
@@ -2997,7 +3036,7 @@ export default function AssessmentStudio() {
           questionIssues={questionIssues}
           questionCount={questionCount}
           totalMarks={totalMarks}
-          estimatedPages={estimatedPages}
+          pagination={pagination}
           estimatedMinutes={estimatedMinutes}
           autoTitle={autoTitle}
           footerCode={footerCode}
@@ -3059,6 +3098,7 @@ export default function AssessmentStudio() {
             onExport={(kind) => handleExport(kind, 'paper')}
             onExportAnswerSheet={(kind) => handleExport(kind, 'answersheet')}
             exportGate={exportGate}
+            printGate={printGate}
             onSave={handleSave}
             saving={saving}
             exporting={exporting}
@@ -3076,6 +3116,7 @@ export default function AssessmentStudio() {
             changeView={changeView}
             onExport={(kind) => handleExport(kind, 'scheme')}
             exportGate={exportGate}
+            printGate={printGate}
             onSave={handleSave}
             saving={saving}
             exporting={exporting}

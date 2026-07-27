@@ -39,7 +39,9 @@ function asArray(value) {
  *        Output of computeSmartWarnings(). `severity` is 'error' | 'warn' | 'info'.
  * @param {object} input.stats
  *        Live paper figures for the summary strip: { questionCount, totalMarks,
- *        estimatedPages, estimatedMinutes, duration, sectionCount }.
+ *        printPdfPages, estimatedMinutes, duration, sectionCount }.
+ *        printPdfPages is MEASURED (browser print/PDF), never estimated — 0 means
+ *        "not measured yet", not "no pages".
  * @returns {{
  *   status: 'blocked'|'attention'|'ready',
  *   blockers: Array<{id,label}>,

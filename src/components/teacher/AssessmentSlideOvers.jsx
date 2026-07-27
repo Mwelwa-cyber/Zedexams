@@ -47,7 +47,7 @@ import './studio/lessonStudio.css'
  * matches the PDF and DOCX exports pixel-for-pixel. The `mode` prop
  * switches between the printable paper and the marking key.
  * ================================================================== */
-export function PaperRenderView({ mode, blocks, assessment, changeView, onExport, onExportAnswerSheet, onSave, saving, exporting, showSave, exportGate }) {
+export function PaperRenderView({ mode, blocks, assessment, changeView, onExport, onExportAnswerSheet, onSave, saving, exporting, showSave, exportGate, printGate }) {
   const isKey = mode === 'scheme'
   // An unfinished paper prints blank questions, so every download route is held
   // shut until it is complete. The buttons stay visible (a hidden button reads
@@ -56,6 +56,18 @@ export function PaperRenderView({ mode, blocks, assessment, changeView, onExport
   // the signpost rather than the lock.
   const blocked = Boolean(exportGate?.blocked)
   const blockTitle = blocked ? exportGate.message : undefined
+  // Print and PDF answer a stricter question than Word: not only "is this paper
+  // finished" but "does it come out of a browser correctly". A blank trailing
+  // sheet, a question split across a page turn or a table clipped at the right
+  // edge is a real defect at the photocopier and is invisible to the base gate.
+  //
+  // Word is deliberately NOT held to it. Word paginates with its own engine and
+  // its own font metrics, so a Chromium-measured layout says nothing about it,
+  // and refusing a .docx on that basis would refuse a file that is very likely
+  // fine. When `printGate` is absent the two are the same, so a caller that has
+  // not wired pagination yet loses nothing.
+  const printBlocked = Boolean(printGate ? printGate.blocked : blocked)
+  const printTitle = printBlocked ? (printGate?.message || blockTitle) : undefined
   return (
     <section className="sv-view">
       <div className="sv-builder-bar">
@@ -83,16 +95,26 @@ export function PaperRenderView({ mode, blocks, assessment, changeView, onExport
           </div>
         )}
 
+        {/* Only shown when the paper itself is fine and the LAYOUT is not:
+            stacking both notices would tell a teacher to finish question 3 and
+            fix a page break that finishing question 3 is about to move. */}
+        {!blocked && printBlocked && (
+          <div className="sv-export-block" role="status">
+            <Icon name="warn" size={15} />
+            <span>{printGate.message}</span>
+          </div>
+        )}
+
         <div className="sv-export-actions">
           <button className="sv-btn sv-btn-primary" onClick={() => onExport('docx')} disabled={exporting || blocked} title={blockTitle}>
             <Icon name={exporting ? 'spinner' : 'download'} size={15} spin={exporting} /> {exporting ? 'Working…' : (isKey ? 'Download key (Word)' : 'Download Word')}
           </button>
           {!isKey && (
-            <button className="sv-btn sv-btn-outline" onClick={() => onExport('pdf')} disabled={exporting || blocked} title={blockTitle || 'Download a PDF from zedexams.com — cached, so repeat downloads are instant'}>
+            <button className="sv-btn sv-btn-outline" onClick={() => onExport('pdf')} disabled={exporting || printBlocked} title={printTitle || 'Download a PDF from zedexams.com — cached, so repeat downloads are instant'}>
               <Icon name={exporting ? 'spinner' : 'download'} size={15} spin={exporting} /> Download PDF
             </button>
           )}
-          <button className="sv-btn sv-btn-outline" onClick={() => onExport('print')} disabled={blocked} title={blockTitle || "Use your browser's Print dialog — pick “Save as PDF” there if you need a PDF"}>
+          <button className="sv-btn sv-btn-outline" onClick={() => onExport('print')} disabled={printBlocked} title={printTitle || "Use your browser's Print dialog — pick “Save as PDF” there if you need a PDF"}>
             <Icon name="print" size={15} /> Print / Save as PDF
           </button>
           {onExportAnswerSheet && (
