@@ -44,12 +44,26 @@ function renderInstructionsHtml(text) {
 
 // Render a catalog shape diagram (imageDiagram: {libraryKey, params}) as an
 // inline SVG. Mirrors the `diagramHtml` helper in sbaTaskToPdf.js — same
-// catalog, same default color.  Returns '' when the key is absent or unknown.
+// catalog, same default color.
+//
+// A key the catalog cannot draw prints the same dashed placeholder the Word
+// export uses, rather than nothing. Returning '' here was the quieter half of
+// the defect the DOCX path already fixed: the paper printed with a figure-shaped
+// hole and the question above it still said "label the diagram". The export gate
+// refuses this paper before the teacher gets here, so the placeholder is the
+// backstop for a paper that reached print another way — the library list, or a
+// catalog entry removed after the gate ran.
 function diagramHtml(imageDiagram) {
   if (!imageDiagram?.libraryKey) return ''
   const svg = renderDiagramSvg(imageDiagram.libraryKey, imageDiagram.params, '#1c1612')
-  if (!svg) return ''
+  if (!svg) return figurePlaceholderHtml(imageDiagram.label || '')
   return `<div class="q-diagram">${svg}</div>`
+}
+
+/** The printed marker for a figure that is not there. Never a rendered diagram. */
+function figurePlaceholderHtml(label) {
+  const caption = label ? `Figure could not be loaded — ${escapeHtml(label)}` : 'Figure could not be loaded'
+  return `<div class="q-diagram figure-missing">${caption}</div>`
 }
 
 export function openPrintWindow() {
@@ -578,6 +592,13 @@ body {
 /* ── catalog shape diagram SVGs (imageDiagram field) ── */
 .q-diagram { text-align: center; margin: 6pt 0; }
 .q-diagram svg { max-width: 100%; max-height: 280pt; height: auto; display: inline-block; }
+/* A figure that is not there. Dashed and named so a teacher proof-reading the
+   print preview sees the gap, rather than a question about a diagram above
+   blank paper. Matches the Word export's placeholder. */
+.figure-missing {
+  border: 1pt dashed #b91c1c; color: #b91c1c;
+  padding: 10pt; font-size: 9.5pt; font-style: italic;
+}
 /* SVG diagrams inside image-mode option boxes */
 .options-image .item .img-box svg { max-width: 100%; max-height: 100%; width: auto; height: auto; }
 /* SVG diagrams inside mixed-mode option boxes */

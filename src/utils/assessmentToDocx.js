@@ -46,6 +46,7 @@ import {
   censusFromPixels, summariseColours, assessFigurePrintability, figurePrintWarning,
 } from './figureContrast.js'
 import { resolveFigureLabels, resolveAnswerKeyLabels } from './figureLabelLayout.js'
+import { unresolvedFigure, unresolvedFigureMessage } from './unresolvedFigures.js'
 import { seedBandForLevel } from './assessmentBandService.js'
 import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 import { svgToPngBytes, decodeImageBytes } from './svgRasterizer.js'
@@ -971,31 +972,19 @@ function recordImageFailure(stats, label) {
  * REQUIRED figure is a blocking correctness error, not a quality warning, and a
  * gate cannot make that call from a number. Always accumulated onto `stats` when
  * one is supplied, so no caller has to opt in to being told.
+ *
+ * The record's SHAPE lives in `unresolvedFigures.js`, with the sentence, because
+ * the gate has to produce the same record from a static check before any of this
+ * runs. Two shapes would mean the gate and the exporter describing the same
+ * missing diagram differently.
  */
 export function recordUnresolvedFigure(stats, detail) {
   if (!stats) return
   if (!Array.isArray(stats.unresolvedFigures)) stats.unresolvedFigures = []
-  stats.unresolvedFigures.push({
-    kind: detail.kind || 'library_diagram',
-    questionNumber: detail.questionNumber ?? null,
-    questionId: detail.questionId ?? null,
-    diagramKey: detail.diagramKey ?? null,
-    stage: detail.stage || 'unknown',
-    reason: detail.reason || '',
-    // Kept alongside the identifiers because the placeholder prints it, and a
-    // reviewer matching a diagnostic to a page needs the same words.
-    label: detail.label || '',
-  })
+  stats.unresolvedFigures.push(unresolvedFigure(detail))
 }
 
-/** The one sentence the studio and the validation gate both show a teacher. */
-export function unresolvedFigureMessage(entry) {
-  const which = entry?.questionNumber != null
-    ? `Question ${entry.questionNumber} requires a diagram`
-    : 'A question on this paper requires a diagram'
-  return `${which}, but the figure could not be rendered. `
-    + 'Replace, regenerate or repair the diagram before exporting.'
-}
+export { unresolvedFigureMessage }
 
 async function renderBlock(block, stats = null) {
   switch (block.kind) {
@@ -1880,19 +1869,40 @@ export async function downloadAnswerSheetDocx(assessment, questions, filename = 
   await saveBlob(blob, filename)
 }
 
+/**
+ * Build the paper and hand it to the teacher — unless a required figure is
+ * missing from it.
+ *
+ * The build has to finish before the missing figure is known: `rasterise` and
+ * `embed` are properties of a render in progress, not of the paper. So the
+ * refusal happens between the build and the save, which is the last moment it
+ * still means anything. It used to sit AFTER the save: the caller learned that
+ * question 5's diagram was missing from a file the teacher already had, which
+ * makes the report a receipt rather than a gate.
+ *
+ * `allowUnresolvedFigures` exists for the callers that are not exporting a paper
+ * a learner will sit — the visual harness renders deliberately broken fixtures
+ * and needs the document to inspect. It is never set by the studio.
+ */
 export async function downloadAssessmentDocx(assessment, questions, filename = 'assessment.docx', opts = {}) {
-  // Collect figure-embed failures during the build so the studio can warn the
-  // teacher — the paper still downloads (placeholders mark the gaps), but the
-  // loss must not be silent.
+  // Collect figure-embed failures during the build. Fetched-image failures still
+  // download with a placeholder — a photo that would not load is a quality
+  // problem. A missing REQUIRED diagram is not: the learner is asked to label
+  // something that is not on the page.
   const stats = { failedImages: [], unresolvedFigures: [], unprintableFigures: [] }
   const doc = await buildAssessmentDocument(assessment, questions, { ...opts, stats })
-  const blob = await Packer.toBlob(doc)
-  await saveBlob(blob, filename)
-  return {
+  const result = {
     failedImages: stats.failedImages.length,
     // Returned in full, not as a count: the pre-export validation gate has to
     // name the question a teacher must fix, and a number cannot.
     unresolvedFigures: stats.unresolvedFigures,
     unprintableFigures: stats.unprintableFigures,
+    delivered: true,
   }
+  if (stats.unresolvedFigures.length > 0 && !opts.allowUnresolvedFigures) {
+    return { ...result, delivered: false, blocked: 'unresolved-figure' }
+  }
+  const blob = await Packer.toBlob(doc)
+  await saveBlob(blob, filename)
+  return result
 }

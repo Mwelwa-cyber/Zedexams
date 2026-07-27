@@ -191,4 +191,80 @@ test('listNumbers reads as prose', () => {
   assert.equal(listNumbers([3, 7, 9]), '3, 7 and 9')
 })
 
+/* ── an unresolved required figure ───────────────────────────────────────── */
+
+const missingFigure = (n) => ({
+  kind: 'library_diagram', questionNumber: n, questionId: `q${n}`,
+  diagramKey: 'gone', stage: 'catalog', reason: 'not in the catalog', label: '',
+})
+
+test('a finished paper missing a required figure is BLOCKED, not warned', () => {
+  // The classification this phase exists to make: a learner asked to label a
+  // diagram that is not on the page cannot answer the question, so this ranks
+  // with the unfinished questions and not with the printability advisories.
+  const gate = describeExportBlock({
+    issues: [], questionCount: 6, unresolvedFigures: [missingFigure(5)],
+  })
+  assert.equal(gate.blocked, true)
+  assert.equal(gate.reason, 'unresolved-figure')
+  assert.deepEqual(gate.numbers, [5])
+  assert.equal(
+    gate.message,
+    'Question 5 requires a diagram, but the figure could not be rendered. '
+    + 'Replace, regenerate or repair the diagram before exporting.',
+  )
+})
+
+test('several missing figures report every question number, ascending', () => {
+  const gate = describeExportBlock({
+    issues: [], questionCount: 9,
+    unresolvedFigures: [missingFigure(9), missingFigure(2), missingFigure(9)],
+  })
+  assert.deepEqual(gate.numbers, [2, 9], 'de-duplicated and sorted')
+  assert.match(gate.message, /^Question 9 requires a diagram/)
+})
+
+test('an unfinished question is reported BEFORE a missing figure', () => {
+  // Both at once is a paper still being written. "Finish question 3" is the more
+  // useful first instruction; the figure is the last thing between a finished
+  // paper and the photocopier.
+  const gate = describeExportBlock({
+    issues: [emptyText('c', 'Question 3')],
+    questionNumbers: { c: 3 },
+    questionCount: 6,
+    unresolvedFigures: [missingFigure(5)],
+  })
+  assert.equal(gate.reason, 'incomplete-questions')
+})
+
+test('an empty paper is still reported as empty, not as a figure problem', () => {
+  const gate = describeExportBlock({
+    issues: [], questionCount: 0, unresolvedFigures: [missingFigure(1)],
+  })
+  assert.equal(gate.reason, 'empty')
+})
+
+test('no unresolved figures leaves a clean paper ready', () => {
+  // The failure this pins: an empty list read as a block would make every paper
+  // in the studio un-exportable.
+  for (const empty of [undefined, [], null]) {
+    const gate = describeExportBlock({ issues: [], questionCount: 3, unresolvedFigures: empty })
+    assert.equal(gate.blocked, false, String(empty))
+    assert.equal(gate.reason, 'ready')
+  }
+})
+
+test('a figure with no question number still blocks', () => {
+  // Losing the number must never downgrade the verdict — the paper is just as
+  // un-exportable, the message just cannot point at a card.
+  const gate = describeExportBlock({
+    issues: [], questionCount: 3,
+    unresolvedFigures: [{ ...missingFigure(1), questionNumber: null }],
+  })
+  assert.equal(gate.blocked, true)
+  assert.equal(gate.reason, 'unresolved-figure')
+  assert.deepEqual(gate.numbers, [])
+  assert.match(gate.message, /^A question on this paper requires a diagram/)
+})
+
 console.log(`✓ assessment export gate — ${passed} tests passed`)

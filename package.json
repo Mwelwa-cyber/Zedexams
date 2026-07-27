@@ -53,6 +53,7 @@
     "test:sanitize": "node scripts/test-rich-text-sanitize.mjs",
     "test:live-canvas": "node scripts/test-live-generation-sections.mjs",
     "test:export-gate": "node scripts/test-assessment-export-gate.mjs",
+    "test:unresolved-figures": "node src/utils/unresolvedFigures.test.js",
     "test:education-levels": "node scripts/test-education-levels.mjs",
     "test:assessment-bands": "node scripts/test-assessment-bands.mjs",
     "test:paper-blueprint": "node functions/teacherTools/paperBlueprint.test.js",
