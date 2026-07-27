@@ -29,6 +29,8 @@ npm run lint:fix
 # Tests — two suites, kept separate by filename:
 #   • `*.test.js` / `test-*.mjs`  → plain `node` assertion scripts (the bulk of the suite)
 #   • `*.spec.{js,jsx}`           → Vitest (jsdom) component/hook/behaviour tests
+# There are ~500 `test:*` scripts. The sample below is the load-bearing ones —
+# `node -e "console.log(Object.keys(require('./package.json').scripts))"` for all.
 npm run test:all                  # what CI's "Tests" job runs (importer + sanitize + schema + …) — the node scripts
 npm run test:unit                 # Vitest run over src/**/*.spec.{js,jsx} (jsdom)
 npm run test:unit:watch           # Vitest watch mode
@@ -46,6 +48,12 @@ npm run test:ai-prompt-policy     # functions/aiPromptPolicy.test.js
 npm run test:cors                 # functions/cors.test.js
 npm run test:storage-cleanup      # functions/storageCleanup helpers
 npm run test:secret-hygiene       # release-safety: no committed credential/artifact + .gitignore policy guard
+npm run test:shim-guard           # fails if a src/utils shim grows a rule the server won't enforce
+npm run test:shared-assessment-neutral  # fails if functions/shared/ imports React/DOM/Firebase/docx
+npm run test:paper-pagination     # measured Print/PDF page flow (pure core)
+npm run test:paper-health         # the one Save/Export verdict
+npm run test:paper-golden         # renders reference papers to a real .docx and asserts on document.xml
+npm run test:visual-verdict       # the required visual-regression gate's pass/fail logic
 
 # Mobile smoke (release-safety) — NOT in test:all (needs a build + a real
 # Chromium). Builds with the fake public Firebase config in .env.smoke, then
@@ -118,12 +126,12 @@ src/
   features/lessons, features/notes, features/visualStudio — feature-folder pattern (pages/, components/, services/, lib/) for newer surfaces; visualStudio drives admin image authoring
   editor/                       — TipTap-based rich-content editor shared between quiz/notes/lessons
   hooks/                        — useFirestore, useSubscription, useTeacherUsage, useQuizPersistence, …
-  utils/                        — Firestore services + AI clients + DOCX/PDF exporters + Lenco payments + permissions + paywall + analytics (~210 modules; the catch-all bucket)
+  utils/                        — Firestore services + AI clients + DOCX/PDF exporters + Lenco payments + permissions + paywall + analytics (~325 non-test modules; the catch-all bucket). Several files here are now RE-EXPORT SHIMS onto functions/shared/assessment — see "One copy of the export rules" below before adding logic to one
   schemas/                      — Zod schemas for quiz, attempt, result
   config/curriculum.js          — SUBJECTS / GRADES; single source of truth for CBC dropdowns
 
 functions/                      — Cloud Functions v2, Node 22, codebase=default. Separate package.json.
-  index.js                      — every function export lives here (~156 exports): aiChat, generateQuiz, verifyQuiz, checkShortAnswer, apiAiChat SSE, apiGenerateLessonPlan / Worksheet SSE, the generate* teacher tools (Assessment/SbaTask/Homework/Notes/Flashcards/SchemeOfWork/Rubric/Diagram/NotePictures/VisualNotes/SlideNotes; the generateExamPaper callable was retired 2026-07 — every assessment type, test AND examination, now generates through the one generateAssessment (the merged Assessment Paper Studio; `assessmentType` is one of the 7 canonical values in `functions/teacherTools/assessmentFormats.js`'s `ASSESSMENT_TYPES`, reaching the backend exactly as the teacher picked it — `examination`/`final_exam` are real recognised types, never collapsed to `mock_exam`), and the library still renders legacy `tool:'exam_paper'` docs via `src/utils/aiPaperToSections.js`; `planAssessment` derives the same paper plan with NO model call so the teacher confirms it before generating, and `regenerateAssessmentQuestion` rewrites ONE question against its plan slot), scanned-quiz + note OCR (structureScannedQuiz, ocrNotePages), class management (createClassAssignment, joinClassByCode, getClassStats), parent portal + weeklyParentDigest, newsletter (subscribeToNewsletter), invoices, referrals, syllabus versioning (parseSyllabusUpload, activateSyllabusVersion, rollbackSyllabusVersion), Lenco (lencoWebhook + payment recovery) + Google Play Billing (verifyGooglePlayPurchase), Central Question Bank (questionReviewOnWrite=Qix, importPastPaperQuestions, classifyQuestionGrades, reviseQuestion), agentJobsOnCreate/Approved, storageCleanup triggers, and the scheduled crons (nightlyQaSmoke, hourlyMonitor, hourlyAgentSupervisor=Marshal, hourlyRevenueReconcile, supportTriage, contentAutoPublish, weeklyProductSignal, weeklyRetentionScan, deliverDawnBriefings, weeklyCbcAlignmentAudit, autoPickDailyExams, daily/weekly learner reminders, dailyFxRefresh, aiCostDailySummary, reclaimAiBudgetReservations, rebuildPastPapersIndexCron)
+  index.js                      — every function export lives here (~193 exports): aiChat, generateQuiz, verifyQuiz, checkShortAnswer, apiAiChat SSE, apiGenerateLessonPlan / Worksheet SSE, the generate* teacher tools (Assessment/SbaTask/Homework/Notes/Flashcards/SchemeOfWork/Rubric/Diagram/NotePictures/VisualNotes/SlideNotes; the generateExamPaper callable was retired 2026-07 — every assessment type, test AND examination, now generates through the one generateAssessment (the merged Assessment Paper Studio; `assessmentType` is one of the 7 canonical values in `functions/teacherTools/assessmentFormats.js`'s `ASSESSMENT_TYPES`, reaching the backend exactly as the teacher picked it — `examination`/`final_exam` are real recognised types, never collapsed to `mock_exam`), and the library still renders legacy `tool:'exam_paper'` docs via `src/utils/aiPaperToSections.js`; `planAssessment` derives the same paper plan with NO model call so the teacher confirms it before generating, and `regenerateAssessmentQuestion` rewrites ONE question against its plan slot), scanned-quiz + note OCR (structureScannedQuiz, ocrNotePages), class management (createClassAssignment, joinClassByCode, getClassStats), parent portal + weeklyParentDigest, newsletter (subscribeToNewsletter), invoices, referrals, syllabus versioning (parseSyllabusUpload, activateSyllabusVersion, rollbackSyllabusVersion), Lenco (lencoWebhook + payment recovery) + Google Play Billing (verifyGooglePlayPurchase), Central Question Bank (questionReviewOnWrite=Qix, importPastPaperQuestions, classifyQuestionGrades, reviseQuestion), agentJobsOnCreate/Approved, storageCleanup triggers, and the scheduled crons (nightlyQaSmoke, hourlyMonitor, hourlyAgentSupervisor=Marshal, hourlyRevenueReconcile, supportTriage, contentAutoPublish, weeklyProductSignal, weeklyRetentionScan, deliverDawnBriefings, weeklyCbcAlignmentAudit, autoPickDailyExams, daily/weekly learner reminders, dailyFxRefresh, aiCostDailySummary, reclaimAiBudgetReservations, rebuildPastPapersIndexCron)
   aiService.js                  — Anthropic client (streaming + non-streaming + prompt-caching), assertDailyLimit, role helpers, parsers
   anthropicFetch.js             — low-level fetch around Anthropic API
   geminiClient.js + geminiImageClient.js — Gemini REST client (structureImportedQuiz) + Gemini image generation
@@ -139,9 +147,13 @@ functions/                      — Cloud Functions v2, Node 22, codebase=defaul
   treasury.js                   — the "AI Company Treasury": a revenue-linked AI budget that caps monthly Anthropic/OpenAI/Gemini spend at a fixed reinvestment fraction of actually-earned ZMW subscription revenue (enforced by the budget gate in `aiCostTracking.js`)
   metaWhatsApp.js (+ metaWhatsAppCore.js, pure helpers) / newsletter.js / referralRedemption.js — WhatsApp (Meta) channel (outbound digests/reminders + the inbound Bonga reply webhook), newsletter signup, referral codes
   storageCleanup/               — Firestore triggers that cascade-delete Storage blobs when lessons/quiz/assessment questions change
+  shared/assessment/            — ⚠️ SHARED WITH THE FRONTEND. The rules deciding whether a paper may be exported, imported unchanged by BOTH src/ and the Cloud Functions export callable. Plain ESM (own package.json, "type":"module"), no React/DOM/Firebase/docx imports. See "One copy of the export rules" below — new readiness rules go HERE, never in src/utils/
+  assessmentExports/            — the server-side export callable (requestAssessmentExport) + exportReadiness.js, the server gate that runs the shared rules
+  opsAlert.js / opsAlertSecrets.js — ops alerting: email always, plus an OPT-IN Slack/Discord webhook channel (see "Ops alerts" below)
   scripts/                      — CBC ingestion utilities (cbc:verify, cbc:ingest, cbc:check)
 
-scripts/                        — top-level data-migration + integrity + test scripts (all plain `node`); also scripts/agents/ for agent-runner harnesses
+scripts/                        — top-level data-migration + integrity + test scripts (all plain `node`); also scripts/agents/ for agent-runner harnesses; scripts/visual/ drives the visual-regression gate
+docs/                           — the long-form reference set, far more detailed than this file. docs/architecture/ (26 numbered docs: system overview, repository map, route register, Firestore data model, Cloud Functions register, security review, duplication/dead-code/risk registers, target architecture + remediation plan) and docs/production-readiness/ (18 numbered audits + runbooks/ for deploy-rollback, firestore-restore, secrets-recovery, ci-supply-chain, launch-operator-guide). Also PASSKEYS.md, GOOGLE-PLAY-BILLING.md, ANDROID-RELEASE.md, visual-regression-gate.md, CHANGELOG.md, security/. Read the relevant numbered doc before a deep change — but treat every one as a snapshot, not as current truth
 firestore.rules                 — large, hand-written; the test:rules-text script is a text-level sanity check, not a behavioural test
 firestore.indexes.json          — composite indexes (leaderboard, results, attempts). Deploy these BEFORE shipping queries that need them.
 storage.rules                   — Storage security rules
@@ -360,6 +372,123 @@ NOTE: `quizRichText.js` also carries a SECOND, CDN-loaded KaTeX (jsdelivr, no
 mhchem) used by the quiz editor's `QuizRichText.jsx` — not by the assessment
 paper path. It is a runtime external dependency and a known gap.
 
+### One copy of the export rules — `functions/shared/assessment`
+
+The rules that decide whether a paper may leave the building live in ONE package
+that the React app and the Cloud Functions export callable both import — not two
+implementations kept in step by code review (#1977). Read
+[`functions/shared/README.md`](functions/shared/README.md) before touching it.
+
+- **Why it sits under `functions/` and not at the repo root.** `firebase.json`
+  sets the functions `source` to `functions`, and the CLI uploads only that
+  directory. A root package would exist on a developer's machine and be absent at
+  runtime; the usual fix — sync it in at deploy — buys the worst failure
+  available here, a stale copy with the server enforcing yesterday's rules while
+  the studio enforces today's, silently. `src/` reaches it by relative path.
+- **The files in `src/utils/` with these names are re-export shims and nothing
+  else** — `unresolvedFigures.js`, `assessmentExportGate.js`,
+  `comprehensionGrouping.js`, `fillBlanks.js`, `questionType.js`. Each carries one
+  instruction: **DO NOT ADD A RULE HERE.** `test:shim-guard` fails if one grows a
+  function body, a branch, or a constant with a rule in it — that is the quiet way
+  the fork comes back (someone opens the file the studio imports, adds a condition
+  where the bug appeared, and the server never sees it).
+- **If a change decides whether a paper may be downloaded, printed or exported**
+  — a new completeness check, a new blocking classification, a change to the words
+  a teacher reads, a new figure requirement — it goes in this directory. Not in
+  `src/utils/`, not in `functions/assessmentExports/`, not in a component. There
+  is **one** diagram catalogue (`diagramCatalogCore.js`) and it is here; do not
+  add a second one for the server.
+- **The import contract.** These modules must not import React, DOM APIs
+  (`document`/`window`/`canvas`/`DOMParser`), Firebase client or admin SDKs,
+  `docx`, KaTeX, any browser exporter, or anything from `src/`.
+  `test:shared-assessment-neutral` fails the build if they do. Cloud Functions is
+  CommonJS and this package is ESM, so the server reaches it with `await
+  import(...)` **inside the async handler** — never a top-level `require`.
+- **Identity comes from the adapter, never from the question.**
+  `assessmentValidationCore` is handed `{ question, identity, number }` and never
+  looks for `localId` itself, because the two callers know different things (live
+  studio: editor-minted `localId`; saved paper: the Firestore doc id or its
+  printed position). `number` is always display order, so a stored question with
+  no `localId` still yields *"Question 3 is not finished"* rather than a blocked
+  paper whose message names nothing.
+- **What deliberately stays out:** editor-only concerns in
+  `src/utils/quizValidation.js` — the pre-publish checklist summary, "image still
+  uploading" flags (live state a saved paper cannot have), and Part membership (an
+  authoring construct). `collectQuizIssues` calls into the package for everything
+  that blocks an export.
+
+**The server gate is not advisory.** `functions/assessmentExports/exportReadiness.js`
+runs the same modules on every export request and reads **nothing** the client
+asserts — not `ready`, not `allowUnresolvedFigures`, not a precomputed verdict.
+Before #1977 the only content check on the server was "has at least one question",
+while every other rule lived in the browser; the studio's own library autosave
+files incomplete papers to Firestore regardless of error count, so papers failing
+those rules demonstrably exist to be exported. Tests: `test:shared-rules`,
+`test:shim-guard`, `test:shared-assessment-validation`,
+`test:shared-assessment-neutral`, `test:server-export-readiness`,
+`test:export-blocking`, `test:export-gate`, `test:unresolved-figures`.
+
+### The page count is measured, not estimated (Print/PDF only)
+
+`Math.ceil((questionCount + totalMarks * 0.4) / 8)`, printed to teachers as
+"Est. 3 pages · A4", was arithmetic on the question count — blind to a diagram, a
+passage, a table, a teacher's page break, or twenty ruled answer lines. It is gone
+(#1978). The replacement measures.
+
+- **`paperPaginationMeasure.js`** (browser-only) renders `buildPrintableHtml` —
+  *the same function the print window is handed*, same stylesheet, same `@page`
+  rule, same flattened maths — into an iframe sized to the A4 **content box**, and
+  reads back real block heights. Two non-negotiables: the iframe is
+  `visibility: hidden` and off-screen, **never `display: none`** (a display:none
+  subtree has no layout, every height reads zero, and that paginates to one page
+  and looks like a working answer); and fonts must be ready before anything is
+  read, or the measurement is taken against fallback metrics and is wrong by a
+  line here and there — the kind of wrong that moves a page boundary without ever
+  looking broken.
+- **`paperPaginationCore.js`** (pure, no DOM) flows those measured heights into
+  real A4 page boxes under the stylesheet's declared fragmentation rules. There is
+  no browser API that reports where the engine fragmented a document, so the flow
+  is simulated from the same inputs the engine uses.
+- **Hard scope boundary: this is the BROWSER print/PDF page count and must never
+  be presented as the Word one.** Word paginates with its own engine, font metrics
+  and widow/orphan rules. `.docx` exports carry no page count from this module,
+  and `printPdfReadiness` is consulted by the Print and PDF routes only — the Word
+  route reads the base readiness and nothing else. There is a test for that,
+  because it is exactly the kind of thing a later refactor tidies into one gate.
+- **`printableModel.js` — one object, fingerprinted AND measured.** The hook used
+  to fingerprint passages/parts/pagebreaks while handing the measurement only the
+  assessment and questions, so editing a passage marked the count stale and then
+  re-measured a document without the edit — a "fresh" answer identical to the
+  stale one. Now one canonical object is both fingerprinted and rendered, and
+  `assertMeasurable` refuses a caller that measures something else. Identity is a
+  hash of the whole model, not a summary of lengths and counts: "IIII" and "WWWW"
+  are the same length and half a line apart.
+- **`usePaperPagination.js`** runs idle → measuring → ready, going **stale** on
+  edit rather than keeping the old number on screen (a count for a different
+  document is indistinguishable from a current one). The in-flight token is
+  cleared when the paper *changes*, not when the next measurement *starts* —
+  otherwise a measurement already in flight for the old paper resolves during the
+  debounce window and writes itself back as confidently `ready`.
+- **`printPdfReadiness.js`** is a second, stricter layer over
+  `buildAssessmentExportReadiness`. The base gate answers "is this paper
+  finished"; this answers "does it come out of a browser correctly" — a blank
+  trailing sheet, a question split across a page turn, a diagram printing away
+  from its stem, a table clipped at the right edge. **"Not yet measured" blocks
+  rather than allows** (a paper whose layout is unverified is one we know nothing
+  about; letting it through because no problem was *reported* is treating a failed
+  check as a pass), and clears itself within about a second.
+- **`paperHealth.js`** folds the studio's now-four quality surfaces into one
+  verdict the `PaperHealthModal` renders and the Save/Export buttons key off:
+  `blocked` (a correctness blocker — no route out of the studio) ▸ `print-blocked`
+  (the paper is correct, the browser layout is not — #1982 made printability its
+  own classification precisely because it blocks the browser routes and not Word)
+  ▸ `attention` ▸ `ready`.
+
+Tests: `test:paper-pagination`, `test:printable-model`, `test:print-pdf-readiness`,
+`test:paper-health`, `test:export-readiness`, plus `usePaperPagination.spec.jsx` /
+`paperPaginationMeasure.spec.jsx` / `PaperHealthModal.spec.jsx` under Vitest.
+Background: [`docs/architecture/pagination.md`](docs/architecture/pagination.md).
+
 ### The visual gate's baselines are recorded by CI, never by hand (§4.6)
 
 `scripts/visual/` renders the fixture papers through Chromium and LibreOffice and
@@ -376,11 +505,39 @@ things about operating it:
   `gateCore.planBaselineBootstrap`, not a convention.
 - **The gate reports red until the baselines exist**, and that is correct rather
   than broken — `runVisualGate.mjs` never creates a baseline from a comparison
-  run, so it cannot approve its own first render. It is deliberately not a
-  required check.
+  run, so it cannot approve its own first render.
 - **`workflow_dispatch` only resolves on the default branch**, so neither writer
   can be dispatched from a feature branch. A PR that adds or changes fixtures
   merges first (red), then the bootstrap runs from `main`.
+
+**Exactly one check from this workflow is required on `main`: `Visual regression
+gate`** (2026-07-27, #1979 — it was non-required while the baselines were being
+recorded). The other two jobs must NOT be required, and the reason is the whole
+design:
+
+- **A path filter cannot be a required check.** `visual-regression.yml` used to
+  be `paths:`-filtered, so it never started on an unrelated PR — and a check that
+  never runs is *missing*, not passed, so branch protection would hold every
+  README typo open forever. The classification therefore moved INSIDE the
+  workflow: it starts on every PR, decides whether printed output can be
+  affected, and reports one check either way. The expensive render still only
+  runs when it can matter.
+- **`scripts/visual/printAffectingPaths.js`** owns "can this file change a
+  printed paper". It errs WIDE on purpose — a false positive costs eight minutes
+  of CI, a false negative ships a changed paper behind a green gate — and it is
+  an optimisation, never a guarantee (an indirect dependency can always be
+  missed, which is what `force` on the manual dispatch is for).
+- **`scripts/visual/gateVerdict.js`** owns the pass/fail verdict, as a tested
+  module rather than an `if:` expression, because every way this can be wrong is
+  quiet. It passes only when the scope job resolved AND either the render
+  succeeded or it was skipped *because the scope proved printed output cannot be
+  affected*. A skip for any other reason — cancelled run, failed dependency, an
+  edited `if:` — is absence of evidence, and absence of evidence fails. The gate
+  job runs `if: always()` so it always reports under a stable name.
+
+Tests: `test:visual-paths` (`printAffectingPaths`), `test:visual-verdict`
+(`gateVerdict`), `test:visual-gate` — the scope job runs them before its own
+classification is trusted. See [`docs/visual-regression-gate.md`](docs/visual-regression-gate.md).
 
 ### AI request locking + idempotency (rollout in progress)
 
@@ -436,6 +593,36 @@ Beyond the content line, a fleet of **ops/growth agents** runs on schedules in `
 
 **Bonga** (`apiWhatsAppWebhook`, runner `functions/agents/runners/bonga.js`) is the one agent that talks to people directly. It's an `onRequest` webhook Meta calls on every inbound WhatsApp message: it classifies the message (study / support / sales), drafts a reply with Claude Haiku (`functions/agents/runners/bonga.js` is the pure, unit-testable brain; the model + Firestore I/O live in the webhook), and **auto-sends** the reply inside WhatsApp's 24-hour customer-service window via `metaWhatsApp.sendWhatsAppText`. Safety rails: the `X-Hub-Signature-256` HMAC is validated against `META_WHATSAPP_APP_SECRET` (fail-closed once set), `agentControl/bonga.paused` is an instant kill-switch, replies dedupe per Meta message id, and the system prompt forbids fabricating account/payment state. Conversations + reply status log to `whatsappConversations/{phone}`. New secrets: `META_WHATSAPP_VERIFY_TOKEN` (GET handshake) + `META_WHATSAPP_APP_SECRET` (payload HMAC), alongside the existing `META_WHATSAPP_TOKEN` / `META_WHATSAPP_PHONE_NUMBER_ID`. The pure webhook helpers (handshake match, signature check, payload parse) live in `functions/metaWhatsAppCore.js` so they test under plain `node` with no firebase-functions dep (the `*Core.js` split). Meta's webhook URL is `https://zedexams.com/api/whatsapp/webhook`.
 
+### Ops alerts — email always, Slack opt-in (and the deploy trap behind it)
+
+`functions/opsAlert.js`'s `sendOpsAlert` emails `ADMIN_EMAILS` and, since #1983,
+can also POST `{text}` to an incoming webhook (Slack / Discord / Mattermost /
+generic). The two channels are independent, so an unbound webhook only ever costs
+the chat copy — email keeps delivering. `sendOpsAlert` reads the URL from
+`process.env.OPS_ALERT_WEBHOOK_URL`, and Cloud Functions only puts it there for a
+secret **bound** to the function, which is what `functions/opsAlertSecrets.js`
+decides.
+
+The binding is opt-in rather than one more entry in every `secrets: [...]` array,
+and the reason generalises to every secret in this repo: **a `defineSecret()`
+bound to a function whose secret has no value in Secret Manager makes `firebase
+deploy` HARD-FAIL ("no value for the secret: X") and blocks EVERY functions
+deploy.** The same trap is documented for `RECRAFT_API_KEY` in `index.js` and
+worked around for the inbound WhatsApp secrets in `metaWhatsApp.js`. So the bind
+is gated on `OPS_ALERT_WEBHOOK_BOUND`, a non-secret flag that *does* belong in the
+committed `functions/.env.examsprepzambia`.
+
+**The channel is ON as of 2026-07-27** (#1986): `OPS_ALERT_WEBHOOK_URL` is stored
+in Secret Manager (version 1, a Slack incoming webhook for `#zedexams-ops`) and
+`OPS_ALERT_WEBHOOK_BOUND=1` is set, so nine functions carry the secret —
+`agentJobsOnCreate`, `agentJobsOnApproved`, `dailyFirestoreBackup`,
+`backupCompletionCheck`, `storageBackupCheck`, `rateLimitHealthCheck`,
+`opsHeartbeatCheck`, `verifyGooglePlayPurchase`, `lencoWebhook`. Backing out is
+re-commenting the flag and redeploying; email keeps delivering either way. If you
+ever need to re-enable it from scratch the order matters — set the secret value
+FIRST, then the flag, then deploy, or the deploy hard-fails as above. Tests:
+`test:ops-alert`, `test:ops-alert-secrets`.
+
 ### Hosting + Functions wiring
 
 `firebase.json` rewrites `/api/*` straight to specific `onRequest` Cloud Functions in `us-central1`. This is how SSE endpoints (Zed chat, lesson plan stream, worksheet stream) avoid CORS — the browser hits same-origin `/api/...`, Hosting proxies to the function. New API endpoints need both the function export in `functions/index.js` AND a rewrite entry here.
@@ -476,6 +663,7 @@ Quiz/attempt/result Zod schemas live in `src/schemas/`. There's also a parallel 
 - **`<NavLink>` / `Navigate` use `getRoleLandingPath`** (`src/utils/navigation.js`) to send each role to the right landing page after auth.
 - **Public theme paths** are pinned to the brand default theme in `App.jsx` (`PUBLIC_THEME_PATHS` + `isPublicThemePath`). Adding a new always-public route may need an entry here so it doesn't inherit a saved learner theme.
 - **CBC topic + grade lists are in `src/config/curriculum.js`** for the client. The server-side authoritative KB is `functions/teacherTools/cbcKnowledge.js` / `cbcTopics.js`. They have to stay in sync.
+- **Two curricula, and a picker must not mix them.** CBC and the 2013 ("previous"/OBC) syllabus are both live. Topic options are scoped strictly by curriculum AND grade (`src/components/teacher/syllabusTopicOptions.js` + `src/utils/syllabus2013Topics.js`, #1974) — a leak shows a teacher topics from a syllabus they aren't teaching. The two frameworks also *name their levels differently*, so grade labels come from `src/components/teacher/frameworkLevelLabels.js` (#1976) rather than being formatted at each call site. `normalizeCurriculum` accepts every spelling already in the repo (`cbc`/`obc`/`previous`/`2023`/`2013`) so no caller needs to know which its neighbour uses.
 - **Don't accrete one-off report docs.** Audit reports, debug runbooks, feasibility writeups, and launch/polish plans rot fast — by 2026-05 most root `*.md` reports were ~90% stale (cleaned up in #702). So: (1) don't commit a standalone report/plan `*.md` to the repo root unless asked — put findings in the conversation or the PR description; (2) any status/plan/audit doc that *is* committed gets a `> Snapshot as of YYYY-MM-DD — verify before acting` header from the start; (3) `BUG_REPORT.md` is the single curated "what's broken now" doc — prune resolved items there rather than spawning new snapshots; (4) when a branch merges, remove its worktree (`git worktree remove`) — merged worktrees linger and pile up.
 
 ## Repo notes
