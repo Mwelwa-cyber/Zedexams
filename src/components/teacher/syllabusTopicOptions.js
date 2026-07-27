@@ -12,6 +12,9 @@ import { normalizeTopicLookup } from '../../utils/syllabusTopicTree'
 import {
   studioGradeToKbGrade, toKbSubjectKey, subjectLabel, getLevelCatalogue, paperLevel,
 } from './paperTaxonomy'
+import {
+  applyFrameworkLevelLabel, levelLabelForFramework,
+} from './frameworkLevelLabels'
 
 // Curriculum frameworks the pickers can suggest from. Values match the
 // server's normalizeFramework whitelist (resolveCbcContext grounds the
@@ -191,15 +194,14 @@ export function useSyllabusSubjectOptions(grade, framework = '2023') {
 }
 
 /**
- * Hook: the education levels (Nursery / Reception / Grade N / Form N) that
- * genuinely have syllabus records for the chosen curriculum framework, as
- * enriched, EDUCATIONALLY-ORDERED options ({ value, label, stage, group, … }).
+ * Hook: the education levels that genuinely have syllabus records for the
+ * chosen curriculum framework, as enriched, EDUCATIONALLY-ORDERED options
+ * ({ value, label, stage, group, … }).
  *
- * This is what replaces the flat, curriculum-blind "Grade 1–12" list in the
- * paper studios: CBC and the previous syllabus each surface exactly the levels
- * their own Syllabi Studio data covers (so the two never collapse to an
- * identical hard-coded set), Forms stay labelled as Forms, and ordering is the
- * fixed Nursery → Reception → Grade → Form sequence — never alphabetical.
+ * The Syllabi Studio's KB grade code remains the identity. Only the displayed
+ * wording changes by framework: the 2013 curriculum shows Grade 1–Grade 12,
+ * while CBC shows Nursery, Reception, Grade 1–6 and Form 1–4. This prevents
+ * G8–G12 from being incorrectly relabelled as Forms in the 2013 picker.
  *
  * While the syllabus index is still loading `loading` is true and every level
  * reads as available (so the picker is usable immediately and never momentarily
@@ -223,11 +225,10 @@ export function useSyllabusLevelOptions(framework = '2023', currentValue = '') {
   }
 
   // EVERY level of the curriculum, annotated with whether its syllabus is
-  // actually on file. Unavailable levels are kept in the list and marked, so the
-  // picker can say "Grade 5 is recognised, but CBC syllabus content has not yet
-  // been loaded" rather than silently omitting it — and so a teacher is never
-  // quietly moved onto the other curriculum's content.
+  // actually on file. The labels are projected from the selected framework:
+  // G8 is "Grade 8" in 2013 and "Form 1" in CBC, while the stored value stays G8.
   const levels = getLevelCatalogue({ curriculumId, gradeCodes })
+    .map((level) => applyFrameworkLevelLabel(level, fw))
 
   // Guarantee the paper's own saved level stays pickable (legacy or narrowed
   // out) so switching curriculum/loading never drops a valid current value.
@@ -235,9 +236,10 @@ export function useSyllabusLevelOptions(framework = '2023', currentValue = '') {
   if (current && !levels.some((o) => o.value === current)) {
     const meta = paperLevel(current)
     if (meta) {
+      const displayLabel = levelLabelForFramework(meta, fw)
       levels.push({
         value: current,
-        label: meta.legacy ? `${meta.label} (Legacy)` : meta.label,
+        label: meta.legacy ? `${displayLabel} (Legacy)` : displayLabel,
         id: meta.id,
         stage: meta.stage,
         order: meta.order,
