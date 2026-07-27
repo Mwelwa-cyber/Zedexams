@@ -13,7 +13,8 @@
 import assert from 'node:assert/strict'
 import {
   unresolvedFigure, unresolvedFigureMessage, unresolvedFiguresMessage,
-  unresolvedRequiredFigures, FIGURE_STAGES, STATIC_STAGE,
+  unresolvedRequiredFigures, affectedQuestionNumbers, listNumbers,
+  FIGURE_STAGES, STATIC_STAGE,
 } from './unresolvedFigures.js'
 
 let passed = 0
@@ -55,12 +56,68 @@ test('one unresolved figure gets the exact single-figure sentence', () => {
   )
 })
 
-test('several still lead with a question number rather than a count', () => {
-  const msg = unresolvedFiguresMessage([{ questionNumber: 5 }, { questionNumber: 9 }])
-  assert.match(msg, /^Question 5 requires a diagram/)
-  assert.match(msg, /1 other figure on this paper has the same problem\.$/)
-  const three = unresolvedFiguresMessage([{ questionNumber: 2 }, { questionNumber: 5 }, { questionNumber: 9 }])
-  assert.match(three, /2 other figures on this paper have the same problem\.$/)
+test('several questions are named in ascending order, whatever order they arrived in', () => {
+  // The mismatch this pins: the gate sorted its badge numbers while the sentence
+  // led with array position, so a paper badging 2 and 9 opened "Question 9".
+  assert.equal(
+    unresolvedFiguresMessage([{ questionNumber: 9 }, { questionNumber: 2 }]),
+    'Questions 2 and 9 require diagrams, but the figures could not be rendered. '
+    + 'Replace, regenerate or repair the diagrams before exporting.',
+  )
+  assert.equal(
+    unresolvedFiguresMessage([{ questionNumber: 9 }, { questionNumber: 2 }, { questionNumber: 5 }]),
+    'Questions 2, 5 and 9 require diagrams, but the figures could not be rendered. '
+    + 'Replace, regenerate or repair the diagrams before exporting.',
+  )
+})
+
+test('the message and the badge numbers can never disagree', () => {
+  // Stated as a property rather than as three more examples: whatever the gate
+  // badges must appear in the sentence a teacher reads.
+  for (const entries of [
+    [{ questionNumber: 3 }],
+    [{ questionNumber: 9 }, { questionNumber: 2 }],
+    [{ questionNumber: 4 }, { questionNumber: 4 }, { questionNumber: 1 }],
+  ]) {
+    const msg = unresolvedFiguresMessage(entries)
+    for (const n of affectedQuestionNumbers(entries)) {
+      assert.ok(msg.includes(String(n)), `${msg} names ${n}`)
+    }
+  }
+})
+
+test('two broken figures on ONE question stay one question', () => {
+  // Counting figures rather than questions would send a teacher looking for a
+  // second problem that is not there.
+  assert.equal(
+    unresolvedFiguresMessage([{ questionNumber: 5 }, { questionNumber: 5 }]),
+    unresolvedFigureMessage({ questionNumber: 5 }),
+  )
+})
+
+test('a named question alongside an unplaceable one mentions both', () => {
+  // Naming only the one that has a number would quietly drop the other, and a
+  // teacher who fixed question 5 would meet the same block with no idea why.
+  assert.equal(
+    unresolvedFiguresMessage([{ questionNumber: 5 }, { questionNumber: null }]),
+    'Question 5 and another question on this paper require diagrams, but the figures '
+    + 'could not be rendered. Replace, regenerate or repair the diagrams before exporting.',
+  )
+})
+
+test('nothing numbered at all keeps the generic sentence', () => {
+  assert.equal(
+    unresolvedFiguresMessage([{ questionNumber: null }, { questionNumber: null }]),
+    unresolvedFigureMessage({ questionNumber: null }),
+  )
+})
+
+test('affectedQuestionNumbers never yields question 0', () => {
+  // Number(null) is 0 and finite. Uncaught, an unnumbered figure badges the
+  // first card on the paper.
+  assert.deepEqual(affectedQuestionNumbers([{ questionNumber: null }, { questionNumber: 4 }]), [4])
+  assert.deepEqual(affectedQuestionNumbers([{ questionNumber: undefined }]), [])
+  assert.deepEqual(affectedQuestionNumbers([]), [])
 })
 
 test('nothing unresolved says nothing at all', () => {
@@ -168,6 +225,13 @@ test('the resolver receives the key AND the params the exporter would pass', () 
     (key, params) => { seen.push([key, params]); return '<svg/>' },
   )
   assert.deepEqual(seen, [['triangle', { sides: 3 }]])
+})
+
+test('listNumbers reads as prose, and is the gate’s implementation too', () => {
+  assert.equal(listNumbers([]), '')
+  assert.equal(listNumbers([3]), '3')
+  assert.equal(listNumbers([3, 7]), '3 and 7')
+  assert.equal(listNumbers([3, 7, 9]), '3, 7 and 9')
 })
 
 console.log(`\n✓ unresolved figures — ${passed} tests passed`)

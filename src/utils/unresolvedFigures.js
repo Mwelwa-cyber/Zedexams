@@ -64,6 +64,20 @@ export function unresolvedFigure(detail = {}) {
   }
 }
 
+/**
+ * "3", "3 and 7", "3, 7 and 9" — plain prose, never "Q3, Q7".
+ *
+ * Lives here rather than in the export gate because the gate imports this
+ * module, so the other direction would be a cycle — and because the sentence
+ * that needs it is here. The gate re-exports it, so its own callers are
+ * unchanged and there is still exactly one implementation.
+ */
+export function listNumbers(numbers = []) {
+  if (numbers.length === 0) return ''
+  if (numbers.length === 1) return String(numbers[0])
+  return `${numbers.slice(0, -1).join(', ')} and ${numbers[numbers.length - 1]}`
+}
+
 /** The one sentence the studio, the gate and the toast all show a teacher. */
 export function unresolvedFigureMessage(entry) {
   const which = entry?.questionNumber != null
@@ -74,21 +88,55 @@ export function unresolvedFigureMessage(entry) {
 }
 
 /**
- * The sentence for a whole set, naming the first question and counting the rest.
+ * The affected question numbers: distinct, ascending, and never question 0.
  *
- * One unresolved figure gets the exact sentence above — a teacher fixing one
- * diagram should not have to parse a summary. More than one still leads with a
- * question number, because "3 figures could not be rendered" tells them nothing
- * about where to go.
+ * `questionNumber == null` is rejected BEFORE the cast, because Number(null) is
+ * 0 — a finite number, and question 0 does not exist. Uncaught, an unnumbered
+ * figure badges the first card on the paper.
+ */
+export function affectedQuestionNumbers(entries = []) {
+  const list = Array.isArray(entries) ? entries.filter(Boolean) : []
+  return [...new Set(
+    list
+      .filter((f) => f.questionNumber != null)
+      .map((f) => Number(f.questionNumber))
+      .filter((n) => Number.isFinite(n)),
+  )].sort((a, b) => a - b)
+}
+
+/**
+ * The sentence for a whole set, driven by the SAME numbers the gate badges.
+ *
+ * It used to lead with whichever entry happened to be first in the array while
+ * the gate sorted and de-duplicated its numbers, so a paper could badge
+ * questions 2 and 9 under a message that opened "Question 9 requires a
+ * diagram". Both now come from `affectedQuestionNumbers`, which is the only way
+ * they cannot disagree.
+ *
+ * Counting FIGURES would be the wrong unit: two broken diagrams on question 5
+ * are one question to go and fix, and "2 figures could not be rendered" sends a
+ * teacher looking for a second problem that is not there.
  */
 export function unresolvedFiguresMessage(entries = []) {
   const list = Array.isArray(entries) ? entries.filter(Boolean) : []
   if (list.length === 0) return ''
-  const first = unresolvedFigureMessage(list[0])
-  if (list.length === 1) return first
-  const others = list.length - 1
-  return `${first} ${others === 1 ? '1 other figure' : `${others} other figures`} `
-    + `on this paper ${others === 1 ? 'has' : 'have'} the same problem.`
+  const numbers = affectedQuestionNumbers(list)
+  const unnumbered = list.length - list.filter((f) => f.questionNumber != null).length
+
+  // Nothing is numbered: the generic form, unchanged.
+  if (numbers.length === 0) return unresolvedFigureMessage({ questionNumber: null })
+  // One question and nothing unaccounted for: the exact approved sentence.
+  if (numbers.length === 1 && unnumbered === 0) {
+    return unresolvedFigureMessage({ questionNumber: numbers[0] })
+  }
+  // One named question plus something this record cannot place. Naming only the
+  // one would quietly drop the other, and a teacher who fixes question 5 would
+  // meet the same block again with no idea why.
+  const subject = numbers.length === 1
+    ? `Question ${numbers[0]} and another question on this paper`
+    : `Questions ${listNumbers(numbers)}`
+  return `${subject} require diagrams, but the figures could not be rendered. `
+    + 'Replace, regenerate or repair the diagrams before exporting.'
 }
 
 /**

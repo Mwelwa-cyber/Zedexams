@@ -215,13 +215,37 @@ test('a finished paper missing a required figure is BLOCKED, not warned', () => 
   )
 })
 
-test('several missing figures report every question number, ascending', () => {
+test('the message names the same questions, in the same order, as the badges', () => {
+  // The mismatch this pins: the numbers were sorted and de-duplicated while the
+  // sentence led with whichever entry happened to be first in the array, so a
+  // paper badging questions 2 and 9 opened with "Question 9 requires a
+  // diagram". Both now come from one call.
   const gate = describeExportBlock({
     issues: [], questionCount: 9,
     unresolvedFigures: [missingFigure(9), missingFigure(2), missingFigure(9)],
   })
   assert.deepEqual(gate.numbers, [2, 9], 'de-duplicated and sorted')
-  assert.match(gate.message, /^Question 9 requires a diagram/)
+  assert.equal(
+    gate.message,
+    'Questions 2 and 9 require diagrams, but the figures could not be rendered. '
+    + 'Replace, regenerate or repair the diagrams before exporting.',
+  )
+  for (const n of gate.numbers) assert.ok(gate.message.includes(String(n)), `names ${n}`)
+})
+
+test('two broken figures on ONE question is still one question to go and fix', () => {
+  // Counting figures would send a teacher looking for a second problem that is
+  // not there.
+  const gate = describeExportBlock({
+    issues: [], questionCount: 6,
+    unresolvedFigures: [missingFigure(5), { ...missingFigure(5), kind: 'option_diagram' }],
+  })
+  assert.deepEqual(gate.numbers, [5])
+  assert.equal(
+    gate.message,
+    'Question 5 requires a diagram, but the figure could not be rendered. '
+    + 'Replace, regenerate or repair the diagram before exporting.',
+  )
 })
 
 test('an unfinished question is reported BEFORE a missing figure', () => {

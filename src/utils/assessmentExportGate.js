@@ -39,7 +39,13 @@
  * paper and the photocopier.
  */
 
-import { unresolvedFiguresMessage } from './unresolvedFigures.js'
+import {
+  unresolvedFiguresMessage, affectedQuestionNumbers, listNumbers,
+} from './unresolvedFigures.js'
+
+// Re-exported so this module's public surface is unchanged. There is one
+// implementation, next to the sentence that needs it — see unresolvedFigures.js.
+export { listNumbers }
 
 /** Issue ids that identify an unfinished QUESTION (as opposed to the paper). */
 const QUESTION_ISSUE_PREFIXES = [
@@ -89,12 +95,6 @@ export function incompleteQuestionNumbers(issues = [], questionNumbers = {}) {
   return [...numbers].sort((a, b) => a - b)
 }
 
-/** "3", "3 and 7", "3, 7 and 9" — plain prose, never "Q3, Q7". */
-export function listNumbers(numbers = []) {
-  if (numbers.length === 0) return ''
-  if (numbers.length === 1) return String(numbers[0])
-  return `${numbers.slice(0, -1).join(', ')} and ${numbers[numbers.length - 1]}`
-}
 
 /**
  * A required figure the renderer cannot produce, as a blocking decision.
@@ -105,18 +105,12 @@ export function listNumbers(numbers = []) {
 function figureBlock(unresolvedFigures = []) {
   const list = (Array.isArray(unresolvedFigures) ? unresolvedFigures : []).filter(Boolean)
   if (list.length === 0) return null
-  // `f.questionNumber == null` is checked before the Number() cast, because
-  // Number(null) is 0 — a finite number, and question 0 does not exist. Left
-  // uncaught, an unnumbered figure would badge the first card on the paper.
-  const numbers = [...new Set(
-    list
-      .filter((f) => f.questionNumber != null)
-      .map((f) => Number(f.questionNumber))
-      .filter((n) => Number.isFinite(n)),
-  )].sort((a, b) => a - b)
+  // The badged numbers and the sentence come from the same call, which is the
+  // only way they cannot disagree — they did, and a paper badging questions 2
+  // and 9 carried a message that opened "Question 9 requires a diagram".
   return {
     blocked: true,
-    numbers,
+    numbers: affectedQuestionNumbers(list),
     reason: 'unresolved-figure',
     message: unresolvedFiguresMessage(list),
   }
