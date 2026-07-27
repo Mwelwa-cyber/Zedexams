@@ -89,8 +89,18 @@ A production failure often cannot be traced UI → function → data cleanly.
   `backupCompletionCheck`, `storageBackupCheck`, `rateLimitHealthCheck`, `opsHeartbeatCheck`.
   Tests: `opsAlertSecrets.test.js` (`npm run test:ops-alert-secrets`) — incl. that `defineSecret` is
   never called while the flag is off, which is what keeps the deploy safe.
-- **Residual:** set the secret + flag on the deploy and confirm a test alert lands in the channel
-  (runtime). **Launch blocker:** No. **Complexity:** Low.
+- **Proving it on demand:** `sendTestOpsAlert` (admin-only callable, `functions/opsAlertTest.js`)
+  behind **/admin → Developer tools → Test the ops alarm** (`OpsAlertTester.jsx`) fires ONE real
+  alert through the ordinary `sendOpsAlert` path — severity `info`, titled so nobody mistakes it for
+  an incident — and reports each channel separately, including the reason a silent channel was
+  silent (`webhook-unconfigured` → "set the secret + flag", `webhook-http-404` → "the webhook was
+  deleted"). Three verdicts: `both` (the redundancy property holds), `one` (an alert still arrives,
+  but there is no backup channel), `none`. Throttled to one test per admin per 5 minutes via the
+  shared `rateLimit` helper. Pure logic + tests: `opsAlertTestCore.js` / `.test.js`
+  (`npm run test:ops-alert-test`), UI in `OpsAlertTester.spec.jsx`. This closes the "would I even
+  hear about it?" gap — an unconfigured channel and a quiet week used to look identical.
+- **Residual:** none pending in code; `OPS_ALERT_WEBHOOK_URL` + `OPS_ALERT_WEBHOOK_BOUND=1` are set
+  and deployed (2026-07-27). **Launch blocker:** No. **Complexity:** Low.
 
 ### OBS-005 — Thin per-minute rate limiting (bot/abuse) — **generators now covered (2026-07-19)**
 - **Severity:** Medium → Low (residual) · **Confidence:** High confidence

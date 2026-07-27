@@ -3287,6 +3287,14 @@ exports.weeklyParentDigest = weeklyParentDigest;
 // happened.
 exports.triggerWeeklyParentDigest = triggerWeeklyParentDigest;
 
+// Admin-only "does the alarm actually ring?" check — fires one real ops alert
+// (severity info) down both channels and reports per-channel delivery. Same
+// binding wrapper as every other alerting function, so it proves the webhook
+// binding rather than testing a path of its own. (lencoEmailSecrets is the
+// shared SMTP-secret reader despite the name — raisePlayConfigError uses it too.)
+exports.sendTestOpsAlert = require("./opsAlertTest").createSendTestOpsAlert(
+    lencoEmailSecrets, opsAlertSecrets([emailSmtpUser, emailSmtpPassword]));
+
 // C6 — public newsletter signup. Validated + deduped + rate-limited
 // + honeypot-protected. Public (no auth) so the marketing-page form
 // can call it; abuse vectors mitigated server-side.
