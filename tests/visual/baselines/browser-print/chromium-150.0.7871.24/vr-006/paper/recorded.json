@@ -3,9 +3,9 @@
   "family": "browser-print",
   "copy": "paper",
   "identity": "browser-print/chromium-150.0.7871.24",
-  "sourceCommit": "f68400a4daa6b603427e379fae1e7c9dd4146f50",
-  "source": "#1934",
-  "reason": "First recording of the §4.6 visual baselines. No baseline has ever existed, so the gate has been red since the harness landed and could not create one from a comparison run by design.",
+  "sourceCommit": "b5862eeae3eaa14170eb1466a0cc4263a3fffc4d",
+  "source": "PR #1946",
+  "reason": "The footer code moved into the reserved bottom band and now prints on all five pages instead of only the last. Out of flow it can no longer lengthen the paper (#1946).",
   "environment": {
     "chromium": "150.0.7871.24",
     "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
@@ -74,11 +74,11 @@
     "header": 1
   },
   "inkByPage": {
-    "1": 0.031257506191313664,
-    "2": 0.02833049420993684,
-    "3": 0.029378254983650882,
-    "4": 0.028973323283664778,
-    "5": 0.003294211409318767
+    "1": 0.03170707240823005,
+    "2": 0.02878006042685323,
+    "3": 0.02975925890136508,
+    "4": 0.029422889500581167,
+    "5": 0.003287769314091715
   },
   "figures": {
     "unresolvedFigureCount": 0,
@@ -95,11 +95,11 @@
   },
   "hashes": {
     "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
-    "layout.json": "0cea7f2f07bf0908aa63098b13938e51676506048fda7c119658f7d0ec5045d1",
-    "page-01.png": "2c80308b3f354dfc56732905b4974d4719c5777c3ab4d4ea12d289d75cb017dd",
-    "page-02.png": "78b3778aa67246983fc427dde71710872fa4924a21a6d686b02047a2307a8756",
-    "page-03.png": "28fede0840db25af8023933d87b02444411b9e939fe2a6138c466f349841f74b",
-    "page-04.png": "e01f137d78532833629ffcc88f28772b03902c789791df194a9ac5c81b22bb02",
-    "page-05.png": "3be70cd42119bf416cfe538c22e9e0b098f31de99d38ee69fc34be69e49d0e4c"
+    "layout.json": "bdb4957aed7c351002491ac4ec0496df5b7c6c552909324e81880a234d7c4898",
+    "page-01.png": "02968037e90d46582619a812802bb9afdae4fb4b232548b650e956e2bda8a92a",
+    "page-02.png": "488e9d36fdfa59b432806df286788e36370c9956255c74adcd8598b7d09ed5af",
+    "page-03.png": "a669c8d208e3612e22baac7b7ea730077df694bab4b100058c61667a0167c12b",
+    "page-04.png": "890b0c049a40a45dcebfecd16973c477a5f37d9467f8afcf31da4c4b22787fbd",
+    "page-05.png": "550cbfa3852b612902e7c830beee8731284c84ef3592e0148b6af9408f0526f3"
   }
 }
