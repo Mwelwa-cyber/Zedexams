@@ -3,9 +3,9 @@
   "family": "browser-print",
   "copy": "paper",
   "identity": "browser-print/chromium-150.0.7871.24",
-  "sourceCommit": "f68400a4daa6b603427e379fae1e7c9dd4146f50",
-  "source": "#1934",
-  "reason": "First recording of the §4.6 visual baselines. No baseline has ever existed, so the gate has been red since the harness landed and could not create one from a comparison run by design.",
+  "sourceCommit": "b5862eeae3eaa14170eb1466a0cc4263a3fffc4d",
+  "source": "PR #1946",
+  "reason": "The trailing blank page is gone: the paper is now one page instead of two. The footer code left the print flow, so it can no longer be pushed onto a sheet of its own (#1946).",
   "environment": {
     "chromium": "150.0.7871.24",
     "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
@@ -51,7 +51,7 @@
     "fixedDate": "2026-01-15"
   },
   "command": "chromium page.pdf (preferCSSPageSize)",
-  "pageCount": 2,
+  "pageCount": 1,
   "anchors": {
     "question_1": 1,
     "question_2": 1,
@@ -60,8 +60,7 @@
     "diagram_2": 1
   },
   "inkByPage": {
-    "1": 0.04485170756936986,
-    "2": 0.0005618427337307185
+    "1": 0.045409408956168906
   },
   "figures": {
     "unresolvedFigureCount": 0,
@@ -88,14 +87,12 @@
           "source": "ink",
           "anchor": "diagram_2"
         }
-      ],
-      "2": []
+      ]
     }
   },
   "hashes": {
     "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
-    "layout.json": "af75c1cffa42055e71cb147946098d03780b4d9733a0b9b3e45e91e340d5ff0a",
-    "page-01.png": "2411edb6850e06adaf4de6c590964c8286804fa4cd1dc0c34ff685a7dc2ae8f0",
-    "page-02.png": "ba1664f910aa9bcdc78354c8ddd843e30761b24d4d2b1edaf8993201a48896a1"
+    "layout.json": "5283e5216a09cc08791e9d14ec02c68dd13ed75df4b9bf9f56d31626806d952e",
+    "page-01.png": "765ac22ee5015212cd2226ea77a811576df42e89abd2386c3e1399f91571657d"
   }
 }
