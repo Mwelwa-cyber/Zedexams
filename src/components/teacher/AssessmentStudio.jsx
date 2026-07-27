@@ -90,7 +90,7 @@ import { printAssessmentAsPdf, openPrintWindow } from '../../utils/assessmentToP
 import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
 import { computePaperHealth } from '../../utils/paperHealth'
 import { describeExportBlock, blockingIssuesByLocalId } from '../../utils/assessmentExportGate'
-import { unresolvedRequiredFigures, unresolvedFiguresMessage } from '../../utils/unresolvedFigures'
+import { unresolvedRequiredFigures } from '../../utils/unresolvedFigures'
 import { renderDiagramSvg } from '../diagrams/diagramCatalog'
 import { compareToBlueprint } from '../../utils/blueprintDrift'
 import {
@@ -2495,19 +2495,12 @@ export default function AssessmentStudio() {
         const unprintable = Array.isArray(result?.unprintableFigures)
           ? result.unprintableFigures
           : []
-        // A figure the paper REQUIRED and did not get is named, not counted: the
-        // teacher needs to know which question to fix, and "1 figure could not
-        // be embedded" on a twelve-question paper does not tell them.
-        //
-        // A required figure that did not render THROWS (UnresolvedFigureError,
-        // caught below) rather than returning, so nothing reaching here can
-        // carry one. The array is still read so a future stage that reports
-        // without refusing is not silently dropped.
-        const unresolved = Array.isArray(result?.unresolvedFigures) ? result.unresolvedFigures : []
-        if (unresolved.length > 0) {
-          showToast(unresolvedFiguresMessage(unresolved), true)
-          return
-        }
+        // There is deliberately no unresolved-figure branch here. A required
+        // figure that did not render THROWS (UnresolvedFigureError, handled in
+        // the catch below), so a `result` reaching this line cannot carry one.
+        // A branch for it would be unreachable code with a story attached, and
+        // if a future stage ever reports without refusing, that change should
+        // arrive with its own handling rather than find a dormant one waiting.
         if (failed > 0) {
           showToast(`Download started, but ${failed} figure${failed === 1 ? '' : 's'} could not be embedded — marked in the paper.`, true)
         } else if (unprintable.length === 1) {

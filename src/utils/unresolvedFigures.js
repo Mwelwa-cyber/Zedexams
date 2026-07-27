@@ -93,6 +93,14 @@ export function unresolvedFigureMessage(entry) {
  * `questionNumber == null` is rejected BEFORE the cast, because Number(null) is
  * 0 — a finite number, and question 0 does not exist. Uncaught, an unnumbered
  * figure badges the first card on the paper.
+ *
+ * The LOOSE `== null` is deliberate and must stay loose: it is the one idiom
+ * that catches both null and undefined, and both occur — the static check
+ * writes `null` for a passage, while a record built without the field at all
+ * leaves it `undefined`. Tightening it to `!== null` would let undefined
+ * through to `Number(undefined)`, which is NaN, which `Number.isFinite`
+ * discards — so the number would vanish silently rather than badge question 0.
+ * Quieter, still wrong. There is a test for the undefined case.
  */
 export function affectedQuestionNumbers(entries = []) {
   const list = Array.isArray(entries) ? entries.filter(Boolean) : []
