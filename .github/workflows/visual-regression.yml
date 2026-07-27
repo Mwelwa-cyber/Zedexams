@@ -7,6 +7,33 @@ name: Visual regression
 # visual-baseline-bootstrap.yml records ones that do not exist yet. Neither can
 # be reached from a pull request.
 #
+# ## Why it starts on every pull request, and why that is the point
+#
+# It used to carry a `paths:` filter naming everything that can affect printed
+# output. That made it impossible to REQUIRE: a path-filtered workflow does not
+# run on a pull request that touches nothing on the list, and a check that never
+# runs is not passed, it is missing — branch protection would hold every such
+# pull request open forever, waiting for a result that will never arrive.
+#
+# So the classification moved inside. The workflow starts on every pull request;
+# the `scope` job decides whether printed output can be affected (the same list,
+# now in scripts/visual/printAffectingPaths.js where it can be tested); the
+# `visual` job renders only when it can matter; and `gate` reports ONE check
+# under a stable name whatever happened. The expensive part still only runs when
+# it can change a paper — the difference is that the answer is always reported.
+#
+# ## Which check to require in branch protection
+#
+#     Visual regression gate
+#
+# NOT "Visual regression (Chromium + LibreOffice)": that job is legitimately
+# skipped on most pull requests, and requiring a job that skips is the same
+# deadlock in a different place. The gate job runs `if: always()` and turns
+# every combination of outcomes into pass or fail — see gateVerdict.js, where
+# the rule is tested rather than expressed as an untestable `if:`.
+#
+# ## Scope narrowing for reviewed baseline pull requests
+#
 # A normal product PR runs every fixture. A reviewed baseline-update PR is a
 # special case: it changes exactly one fixture/family and therefore validates
 # exactly that target. Running all 18 targets on six serial baseline PRs creates
@@ -14,73 +41,17 @@ name: Visual regression
 # not merged yet. The scope resolver refuses application-code changes, multiple
 # targets, mismatched branch names and renderer-identity drift before narrowing.
 #
-# ## Why it does not run on every push
+# ## The gate watches itself
 #
-# Rendering eight papers through Chromium and LibreOffice is expensive next to a
-# unit test, and most pull requests cannot possibly change what a paper looks
-# like. So the paths below are an OPTIMISATION: they name everything that can
-# affect printed output, directly or as a shared dependency.
-#
-# An optimisation is not a guarantee. An indirect dependency can always be
-# missed, so `force` on workflow_dispatch runs the identical job regardless of
-# what changed — for a reviewer who suspects rendering is affected by something
-# not on the list.
-#
-# ## The workflow watches itself
-#
-# `.github/workflows/visual-regression.yml` and the baseline metadata are in the
-# path list on purpose. Without that, a pull request could weaken this gate —
-# widen a tolerance, drop a fixture, remove a path — WITHOUT running the gate
-# that proves it is still safe. Editing the gate must exercise the gate.
+# The workflows, the fixtures and the baselines are in
+# scripts/visual/printAffectingPaths.js on purpose. Without that, a pull request
+# could weaken this gate — widen a tolerance, drop a fixture, remove a path —
+# WITHOUT running the gate that proves it is still safe. Editing the gate must
+# exercise the gate.
 
 on:
   pull_request:
     branches: [main]
-    paths:
-      # ── The renderers themselves ──────────────────────────────────────────
-      - 'src/utils/assessmentToDocx.js'
-      - 'src/utils/assessmentToPdf.js'
-      - 'src/utils/assessmentPaperLayout.js'
-      - 'src/utils/assessmentAnswerSheet.js'
-      - 'src/utils/sbaTaskToDocx.js'
-      - 'src/utils/sbaTaskToPdf.js'
-      - 'src/utils/htmlToPdf.js'
-      - 'src/components/teacher/views/PaperBlocks.jsx'
-      - 'src/components/teacher/views/AssessmentPaperView.jsx'
-      # ── Paper content, maths typesetting and print styling ────────────────
-      - 'src/utils/paperContentModel.js'
-      - 'src/utils/latexToUnicode.js'
-      - 'src/utils/quizRichText.js'
-      - 'src/editor/utils/safeRender.js'
-      - 'src/editor/extensions/MathFraction.js'
-      - 'src/editor/extensions/NumberBase.js'
-      - 'src/editor/extensions/VerticalArithmetic.js'
-      - 'src/components/teacher/studio/assessmentStudio.css'
-      - 'src/**/*print*.css'
-      # ── Diagrams, figures and the ink they use ────────────────────────────
-      - 'src/components/diagrams/**'
-      - 'src/utils/figureSizing.js'
-      - 'src/utils/figureLabelLayout.js'
-      - 'src/utils/figureContrast.js'
-      - 'src/utils/monochrome.js'
-      - 'src/utils/imageWidth.js'
-      - 'src/utils/svgRasterizer.js'
-      # ── Terminology that changes printed wording ──────────────────────────
-      - 'src/config/paperTerminology.js'
-      - 'src/config/paperTaxonomy.js'
-      - 'src/config/assessmentBands.js'
-      - 'src/config/educationLevels.js'
-      # ── Fonts and print assets ───────────────────────────────────────────
-      - 'public/fonts/**'
-      - 'src/assets/print/**'
-      # ── The gate itself: fixtures, comparison modules, baselines, workflow ─
-      - 'scripts/visual/**'
-      - 'tests/visual/baselines/**'
-      - '.github/workflows/visual-regression.yml'
-      - '.github/workflows/visual-baseline-update.yml'
-      - '.github/workflows/visual-baseline-bootstrap.yml'
-      # ── Dependency changes can move a renderer under us ──────────────────
-      - 'package-lock.json'
   workflow_dispatch:
     inputs:
       force:
@@ -99,12 +70,19 @@ permissions:
   contents: read
 
 jobs:
-  compare:
-    name: Visual regression (Chromium + LibreOffice)
+  # ── Always runs. Classifies the pull request and narrows a baseline one. ──
+  scope:
+    name: Visual scope
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 5
     permissions:
       contents: read
+    outputs:
+      requires_visual: ${{ steps.scope.outputs.requires_visual }}
+      reason: ${{ steps.scope.outputs.reason }}
+      summary: ${{ steps.scope.outputs.summary }}
+      fixture: ${{ steps.scope.outputs.fixture }}
+      family: ${{ steps.scope.outputs.family }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -115,14 +93,40 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
-      - name: Prove baseline PR scope rules
-        run: node scripts/visual/baselinePrScope.test.js
+      # The scope rules are proved before they are used. Both suites run with no
+      # dependencies installed — they are plain node scripts over pure modules,
+      # which is why this job needs neither npm ci nor a browser.
+      - name: Prove the scope rules
+        run: |
+          node scripts/visual/baselinePrScope.test.js
+          node scripts/visual/printAffectingPaths.test.js
+          node scripts/visual/gateVerdict.test.js
 
-      - name: Resolve full or targeted comparison scope
+      - name: Resolve scope
         id: scope
-        run: node scripts/visual/resolveVisualPrScope.mjs
+        env:
+          VISUAL_FORCE: ${{ inputs.force }}
+        run: node scripts/visual/resolveGateScope.mjs
+
+  # ── The expensive part. Runs only when printed output can be affected. ────
+  visual:
+    name: Visual regression (Chromium + LibreOffice)
+    needs: scope
+    if: needs.scope.outputs.requires_visual == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
 
       # Explicit, because ci.yml skips the puppeteer browser download globally and
       # a copied-in default would silently leave this job with no browser. The gate
@@ -149,8 +153,8 @@ jobs:
       - name: Validate fixtures
         run: |
           ARGS=()
-          if [ -n "${{ steps.scope.outputs.fixture }}" ]; then
-            ARGS+=(--fixture="${{ steps.scope.outputs.fixture }}")
+          if [ -n "${{ needs.scope.outputs.fixture }}" ]; then
+            ARGS+=(--fixture="${{ needs.scope.outputs.fixture }}")
           fi
           node scripts/visual/validateFixtures.mjs "${ARGS[@]}"
 
@@ -168,7 +172,7 @@ jobs:
       # and cannot contain application code — the scope resolver refuses it — so
       # there is nothing there for this to protect.
       - name: Prove the footer band
-        if: steps.scope.outputs.fixture == ''
+        if: needs.scope.outputs.fixture == ''
         run: node scripts/visual/footerBand.test.js
 
       # ONE implementation, whichever way the job was triggered. Ordinary PRs and
@@ -179,11 +183,11 @@ jobs:
         id: compare
         run: |
           ARGS=(--mode=compare)
-          if [ -n "${{ steps.scope.outputs.fixture }}" ]; then
-            ARGS+=(--fixture="${{ steps.scope.outputs.fixture }}")
+          if [ -n "${{ needs.scope.outputs.fixture }}" ]; then
+            ARGS+=(--fixture="${{ needs.scope.outputs.fixture }}")
           fi
-          if [ -n "${{ steps.scope.outputs.family }}" ]; then
-            ARGS+=(--family="${{ steps.scope.outputs.family }}")
+          if [ -n "${{ needs.scope.outputs.family }}" ]; then
+            ARGS+=(--family="${{ needs.scope.outputs.family }}")
           fi
           node scripts/visual/runVisualGate.mjs "${ARGS[@]}"
 
@@ -198,5 +202,50 @@ jobs:
           name: visual-regression-${{ github.run_id }}
           path: |
             tests/visual/output/**
-          retention-days: 14
-          if-no-files-found: warn
+
+  # ── The one required check. Always runs, always reports, same name. ───────
+  gate:
+    name: Visual regression gate
+    needs: [scope, visual]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # The verdict is computed by a tested module rather than by an `if:`
+      # expression. Every way this can be wrong is silent — passing on a
+      # cancelled render, on a skip it should have refused, or when scope
+      # resolution failed and nothing ran at all — and a GitHub expression
+      # cannot be tested. See gateVerdict.test.js, which enumerates the whole
+      # matrix and pins the only four passing combinations.
+      - name: Decide
+        env:
+          SCOPE_RESULT: ${{ needs.scope.result }}
+          VISUAL_RESULT: ${{ needs.visual.result }}
+          REQUIRES_VISUAL: ${{ needs.scope.outputs.requires_visual }}
+          SCOPE_SUMMARY: ${{ needs.scope.outputs.summary }}
+        run: |
+          node --input-type=module -e '
+            import { gateVerdict } from "./scripts/visual/gateVerdict.js"
+            import fs from "node:fs"
+            const v = gateVerdict({
+              scopeResult: process.env.SCOPE_RESULT,
+              visualResult: process.env.VISUAL_RESULT,
+              requiresVisual: process.env.REQUIRES_VISUAL,
+              summary: process.env.SCOPE_SUMMARY,
+            })
+            const line = `${v.passed ? "✓" : "✗"} ${v.conclusion}: ${v.message}`
+            console.log(line)
+            if (process.env.GITHUB_STEP_SUMMARY) {
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+                `### Visual regression gate\n\n${line}\n`)
+            }
+            process.exit(v.passed ? 0 : 1)
+          '
