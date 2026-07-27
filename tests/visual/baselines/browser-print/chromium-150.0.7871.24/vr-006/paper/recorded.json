@@ -3,9 +3,9 @@
   "family": "browser-print",
   "copy": "paper",
   "identity": "browser-print/chromium-150.0.7871.24",
-  "sourceCommit": "b5862eeae3eaa14170eb1466a0cc4263a3fffc4d",
-  "source": "PR #1946",
-  "reason": "The footer code moved into the reserved bottom band and now prints on all five pages instead of only the last. Out of flow it can no longer lengthen the paper (#1946).",
+  "sourceCommit": "b8f8e144ed53f79671809b5e33021b0406218f17",
+  "source": "PR #1958 (commit 72a8fc7)",
+  "reason": "THE fixture this whole fix exists for. Its page 3 carried 0.09311 ink in the footer band against 0.03154 on every other page - a learner's answer line printed straight through the paper code. All five pages now measure 0.03154, the code's own ink and nothing else (#1958). Two changes are recorded here and both were measured rather than assumed. First, the code moved from 277-281mm down to 288-292mm (352 connected pixels on pages 1 and 3). Second, one ruled answer line moved from page 5 up to page 4 - 18,3 becomes 19,2 across the five pages - because page 4 now uses its full column, last body ink 281.08mm against the 281.0mm limit. Total ruled lines are 74 before and 74 after, the page count is still 5, every anchor page is unchanged and page 5 still carries body content: redistribution, not clipping. No DOCX baseline is affected - vr-006 docx measured 0px on all three pages.",
   "environment": {
     "chromium": "150.0.7871.24",
     "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
@@ -75,10 +75,10 @@
   },
   "inkByPage": {
     "1": 0.03170707240823005,
-    "2": 0.02878006042685323,
-    "3": 0.02975925890136508,
-    "4": 0.029422889500581167,
-    "5": 0.003287769314091715
+    "2": 0.029253094276382452,
+    "3": 0.029827821200567272,
+    "4": 0.030368957199639612,
+    "5": 0.0028147354645624944
   },
   "figures": {
     "unresolvedFigureCount": 0,
@@ -95,11 +95,11 @@
   },
   "hashes": {
     "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
-    "layout.json": "bdb4957aed7c351002491ac4ec0496df5b7c6c552909324e81880a234d7c4898",
-    "page-01.png": "02968037e90d46582619a812802bb9afdae4fb4b232548b650e956e2bda8a92a",
-    "page-02.png": "488e9d36fdfa59b432806df286788e36370c9956255c74adcd8598b7d09ed5af",
-    "page-03.png": "a669c8d208e3612e22baac7b7ea730077df694bab4b100058c61667a0167c12b",
-    "page-04.png": "890b0c049a40a45dcebfecd16973c477a5f37d9467f8afcf31da4c4b22787fbd",
-    "page-05.png": "550cbfa3852b612902e7c830beee8731284c84ef3592e0148b6af9408f0526f3"
+    "layout.json": "31856b25a12a3687719687222babb414dac01870367722fbfa1e4b5f9f19908a",
+    "page-01.png": "9e8808c36e648f16856306af65a885b6a1e2cbec02943ec7e0fb74d5a5b4dad0",
+    "page-02.png": "a34f493144fc2961aae70ced261c99ac94ffb4ea6b4d112d5e4c80d296081a0f",
+    "page-03.png": "a90f0ff01ebfb024304042a6d8ecc83d2a8783029d97bd189a9198d30faaa5cf",
+    "page-04.png": "5e31c482fb1c157c008bb2d7c8c4359cd6e2b835f56467c9db94fb2f107cd8d3",
+    "page-05.png": "58a548162517f0221d1d3eca7545ad70a30bfa471b11b532f01bc707d4350c35"
   }
 }
