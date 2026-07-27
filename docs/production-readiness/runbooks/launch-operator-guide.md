@@ -120,8 +120,9 @@ already built — you just plug in the phone number.)
    hard-fails *every* functions deploy — the flag is what turns the binding on
    once the secret is really there. See `functions/opsAlertSecrets.js`.)
 4. Make sure **`ADMIN_EMAILS`** is set too (the email channel).
-5. Trigger one **test alert** (e.g. cause a small, safe failure, or use an admin
-   tool that alerts).
+5. Open **/admin → Developer tools → Test the ops alarm** and press **Send test
+   alert**. It fires one real alert (marked *info*) down both channels and tells
+   you, per channel, whether it arrived — and if not, why.
 
 **✅ You did it when:** the test alert lands in **both** the chat channel **and**
 the admin email.

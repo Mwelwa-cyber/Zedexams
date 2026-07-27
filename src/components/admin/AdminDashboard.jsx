@@ -13,6 +13,7 @@ import ConfirmDialog from '../ui/ConfirmDialog'
 import EmptyState from '../ui/EmptyState'
 import SeoHelmet from '../seo/SeoHelmet'
 import ParentDigestTester from './ParentDigestTester'
+import OpsAlertTester from './OpsAlertTester'
 import AdminSetupBanner from './AdminSetupBanner'
 
 // Pastel mascot tones cycle through orange / blue / green / yellow / pink /
@@ -382,12 +383,15 @@ export default function AdminDashboard() {
             <span className="admin-game-eyebrow">Developer tools</span>
           </span>
           <span className="text-[11px] font-semibold normal-case tracking-normal" style={{ color: '#4A5A6E' }}>
-            Seed data &amp; digest tester
+            Seed data, digest &amp; alarm testers
           </span>
         </summary>
         <div className="px-5 pb-5 pt-1 space-y-4">
           {/* Audit A3 PR 3 — admin-only on-demand parent digest tester. */}
           <ParentDigestTester />
+
+          {/* OBS-004 — prove the two alert channels actually reach a human. */}
+          <OpsAlertTester />
 
           {/* Seed Data */}
           <div className="admin-game-card rounded-[18px] p-5" style={{ background: '#FFF7E6' }}>
