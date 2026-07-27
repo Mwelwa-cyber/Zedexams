@@ -11,6 +11,7 @@
  */
 
 import assert from 'node:assert/strict'
+import { execSync } from 'node:child_process'
 import {
   unresolvedFigure, unresolvedFigureMessage, unresolvedFiguresMessage,
   unresolvedRequiredFigures, affectedQuestionNumbers, listNumbers, UnresolvedFigureError,
@@ -272,6 +273,26 @@ test('UnresolvedFigureError carries the repair sentence and a code', () => {
   assert.equal(err.code, 'unresolved-figure', 'recognised without instanceof, which a dynamic import breaks')
   assert.equal(err.message, unresolvedFigureMessage({ questionNumber: 5 }))
   assert.equal(err.entries.length, 1, 'the records travel with it')
+})
+
+test('the harness escape hatch is never set by application code', () => {
+  // `allowUnresolvedFigures` lets a caller take delivery of a paper with a
+  // missing required figure. The docblock says it is for the visual harness;
+  // nothing enforced that, so a refactor could pass `true` and silently undo
+  // the whole gate. This is the enforcement: the flag may be DEFINED in the
+  // exporter and USED by tests, and must appear nowhere else under src/.
+  const root = new URL('../..', import.meta.url).pathname
+  const allowed = new Set([
+    'src/utils/assessmentToDocx.js',      // defines it
+    'src/utils/unresolvedFigures.test.js', // this guard
+    'src/utils/paperGolden.test.js',       // proves the opt-out still delivers
+  ])
+  const hits = execSync(
+    "grep -rl 'allowUnresolvedFigures' src || true",
+    { cwd: root, encoding: 'utf8' },
+  ).split('\n').filter(Boolean)
+  const unexpected = hits.filter((f) => !allowed.has(f))
+  assert.deepEqual(unexpected, [], `application code must not opt out: ${unexpected.join(', ')}`)
 })
 
 test('listNumbers reads as prose, and is the gate’s implementation too', () => {

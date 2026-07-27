@@ -202,16 +202,18 @@ test('a finished paper missing a required figure is BLOCKED, not warned', () => 
   // The classification this phase exists to make: a learner asked to label a
   // diagram that is not on the page cannot answer the question, so this ranks
   // with the unfinished questions and not with the printability advisories.
-  const gate = describeExportBlock({
-    issues: [], questionCount: 6, unresolvedFigures: [missingFigure(5)],
-  })
-  assert.equal(gate.blocked, true)
-  assert.equal(gate.reason, 'unresolved-figure')
-  assert.deepEqual(gate.numbers, [5])
-  assert.equal(
-    gate.message,
-    'Question 5 requires a diagram, but the figure could not be rendered. '
-    + 'Replace, regenerate or repair the diagram before exporting.',
+  // Asserted as one object rather than field by field: separate assertions pass
+  // for a gate that names the right reason and forgets to set `blocked`, which
+  // is the one combination that would leave the buttons live.
+  assert.deepEqual(
+    describeExportBlock({ issues: [], questionCount: 6, unresolvedFigures: [missingFigure(5)] }),
+    {
+      blocked: true,
+      reason: 'unresolved-figure',
+      numbers: [5],
+      message: 'Question 5 requires a diagram, but the figure could not be rendered. '
+        + 'Replace, regenerate or repair the diagram before exporting.',
+    },
   )
 })
 
