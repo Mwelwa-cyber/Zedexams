@@ -83,6 +83,28 @@ function printedText(render) {
   return render.pages.flatMap((p) => p.textItems.map((t) => t.text)).join(' ').replace(/\s+/g, '')
 }
 
+/**
+ * Ruled lines on a page: long, thin, near-continuous horizontal runs of ink.
+ *
+ * An answer rule is not an anchor and carries no text, so every structural check
+ * in this suite would pass while the reservation quietly shortened a paper by a
+ * line to make room for itself. Counting them is the only way to tell a rule
+ * that MOVED from one that was clipped.
+ */
+function countRules(page) {
+  let rules = 0
+  let previousWasWide = false
+  for (let y = 0; y < page.height; y += 1) {
+    let n = 0
+    for (let x = 0; x < page.width; x += 1) if (inked(page, x, y)) n += 1
+    // Wide enough to span the text column, which text never is.
+    const wide = n > page.width * 0.6
+    if (wide && !previousWasWide) rules += 1
+    previousWasWide = wide
+  }
+  return rules
+}
+
 console.log('\n— the geometry states its own relationship —')
 
 assert(
@@ -195,6 +217,37 @@ function assertNothingWasClipped(label, fixture, render) {
     questions.length === fixture.questions.length,
     `${label}: all ${fixture.questions.length} question(s) still print — found ${questions.length}`,
   )
+
+  // Every answer line the fixture declares is still ruled on the page.
+  //
+  // THE check that separates "a rule moved" from "a rule was clipped", and the
+  // one nothing else here can make: an answer rule is not an anchor and carries
+  // no text, so a paper one line shorter passes every other assertion in this
+  // file. Reserving the strip moved one of vr-006's rules from page 5 up to page
+  // 4 — that is redistribution and it is fine; losing it would not be, and the
+  // two look identical from a page count.
+  //
+  // A FLOOR, because a paper also rules its header fields and table rows, and
+  // counting those exactly would be a second layout model maintained here.
+  //
+  // `short_answer` only, and that is a measured restriction rather than a
+  // convenience: vr-002's `structured` questions declare six answer lines each
+  // and draw a long-division WORKING layout instead of twelve rules. Its
+  // committed baseline and the current render agree exactly — four wide rows in
+  // both — so a count of twelve there would have been this test misreading the
+  // page, not the page being wrong. Asserting it anyway would have made the
+  // suite's most load-bearing anti-clipping check the first one anyone
+  // switched off.
+  const declaredRules = (fixture.questions || [])
+    .filter((q) => q.type === 'short_answer')
+    .reduce((n, q) => n + (Number(q.answerLines) || 0), 0)
+  if (declaredRules) {
+    const drawn = render.pages.reduce((n, p) => n + countRules(p), 0)
+    assert(
+      drawn >= declaredRules,
+      `${label}: all ${declaredRules} declared answer line(s) are still ruled — counted ${drawn}`,
+    )
+  }
   const figures = fixture.questions.filter((q) => q.imageDiagram).length
   if (!figures) return
   const drawn = Object.keys(render.layout.anchors).filter((id) => /^diagram_/.test(id))
