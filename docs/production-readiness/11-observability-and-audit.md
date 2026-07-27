@@ -80,7 +80,16 @@ A production failure often cannot be traced UI → function → data cleanly.
   alert if any is **stale or missing** — i.e. that monitor's OWN scheduled trigger stopped firing, the
   one failure a subsystem can't self-report. 22 tests. Verdict persists to `opsHeartbeat/status`.
   Marshal already confirms scheduled agents ran.
-- **Residual:** set `OPS_ALERT_WEBHOOK_URL` on the deploy + confirm a test alert lands in the channel
+- **Binding the webhook:** `OPS_ALERT_WEBHOOK_URL` is a credential, so it is a Firebase secret rather
+  than a line in the committed `functions/.env.<project>`. Because a `defineSecret()` bound to an
+  empty secret hard-fails every functions deploy, the binding is opt-in: `functions/opsAlertSecrets.js`
+  appends the secret to the `secrets: [...]` list of each alert-raising function only when the
+  non-secret flag `OPS_ALERT_WEBHOOK_BOUND` is set. Bound functions: `agentJobsOnCreate`,
+  `agentJobsOnApproved`, `lencoWebhook`, `verifyGooglePlayPurchase`, `dailyFirestoreBackup`,
+  `backupCompletionCheck`, `storageBackupCheck`, `rateLimitHealthCheck`, `opsHeartbeatCheck`.
+  Tests: `opsAlertSecrets.test.js` (`npm run test:ops-alert-secrets`) — incl. that `defineSecret` is
+  never called while the flag is off, which is what keeps the deploy safe.
+- **Residual:** set the secret + flag on the deploy and confirm a test alert lands in the channel
   (runtime). **Launch blocker:** No. **Complexity:** Low.
 
 ### OBS-005 — Thin per-minute rate limiting (bot/abuse) — **generators now covered (2026-07-19)**

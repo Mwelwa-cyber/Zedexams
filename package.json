@@ -332,6 +332,7 @@
     "test:pdf-extractor": "node functions/pdfTextExtractor.test.js",
     "test:ai-service": "node functions/aiService.test.js",
     "test:ops-alert": "node functions/opsAlert.test.js",
+    "test:ops-alert-secrets": "node functions/opsAlertSecrets.test.js",
     "test:circuit-breaker": "node functions/agents/circuitBreaker.test.js",
     "test:agent-rollups": "node functions/agents/rollups.test.js",
     "test:ai-cost-budget": "node functions/aiCostBudget.test.js",

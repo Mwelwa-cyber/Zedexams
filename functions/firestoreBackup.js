@@ -53,6 +53,7 @@ const {
   decideCompletion,
 } = require("./firestoreBackupCore");
 const {sendOpsAlert} = require("./opsAlert");
+const {opsAlertSecrets} = require("./opsAlertSecrets");
 
 // Same SMTP secrets the other alerting crons bind (duplicate defineSecret of
 // one name across modules is the repo's established pattern).
@@ -294,7 +295,7 @@ const BACKUP_OPTS = {
   region: "us-central1",
   timeoutSeconds: 120,
   memory: "256MiB",
-  secrets: [emailSmtpUser, emailSmtpPassword],
+  secrets: opsAlertSecrets([emailSmtpUser, emailSmtpPassword]),
 };
 
 const dailyFirestoreBackup = onSchedule(BACKUP_OPTS, async () => {
@@ -379,7 +380,7 @@ const backupCompletionCheck = onSchedule({
   region: "us-central1",
   timeoutSeconds: 120,
   memory: "256MiB",
-  secrets: [emailSmtpUser, emailSmtpPassword],
+  secrets: opsAlertSecrets([emailSmtpUser, emailSmtpPassword]),
 }, async () => {
   await runBackupCompletionCheck({
     db: admin.firestore(),
