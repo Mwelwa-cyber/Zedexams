@@ -463,12 +463,18 @@ export function richTextToPlainText(value) {
     .trim()
 }
 
-export function richTextHasContent(value) {
-  const html = ensureRichTextHtml(value)
-  if (!html) return false
-  if (/\bdata-latex=/.test(html) || /<table\b/i.test(html)) return true
-  return Boolean(richTextToPlainText(html).replace(/\s+/g, '').trim())
-}
+/**
+ * Re-exported, not defined here.
+ *
+ * "This question is empty" is the most-hit blocking rule on a paper, and it was
+ * the last one the server could not run — this implementation reached for
+ * DOMParser. It now lives in the shared assessment package, DOM-free, so the
+ * studio and the export callable reach the same verdict about the same
+ * question. The swap is proven against this file's own DOM behaviour over a
+ * corpus, with every deliberate difference named: see
+ * src/utils/richTextContentParity.spec.js.
+ */
+export { richTextHasContent } from '../../functions/shared/assessment/richTextContentCore.js'
 
 // Tiptap node types that carry NO formatting on their own — a document built
 // only from these (with no marks) is "just plain text".

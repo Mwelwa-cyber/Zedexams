@@ -36,13 +36,13 @@ let cached = null;
 /** Load the shared rules once per instance. */
 async function rules() {
   if (cached) return cached;
-  const [figures, gate, numbering, catalog] = await Promise.all([
+  const [figures, gate, catalog, validation] = await Promise.all([
     import("../shared/assessment/unresolvedFiguresCore.js"),
     import("../shared/assessment/exportReadinessCore.js"),
-    import("../shared/assessment/questionNumberingCore.js"),
     import("../shared/assessment/diagramCatalogCore.js"),
+    import("../shared/assessment/assessmentValidationCore.js"),
   ]);
-  cached = {figures, gate, numbering, catalog};
+  cached = {figures, gate, catalog, validation};
   return cached;
 }
 
@@ -94,7 +94,7 @@ function canonicalizePassages(assessment) {
  * @returns {Promise<{blocked, reason, message, numbers, unresolvedFigures, questions}>}
  */
 async function assessExportReadiness(assessment, questions) {
-  const {figures, gate, numbering, catalog} = await rules();
+  const {figures, gate, catalog, validation} = await rules();
   const canonical = canonicalizeQuestions(questions);
   const paper = {questions: canonical, passages: canonicalizePassages(assessment)};
 
@@ -105,15 +105,20 @@ async function assessExportReadiness(assessment, questions) {
     (key, params) => catalog.renderDiagramSvg(key, params),
   );
 
+  // Identity comes from the adapter, not from the question: a stored question
+  // has no `localId`, and a collector that went looking for one would key every
+  // issue on `undefined` and produce a blocked paper naming no question at all.
+  const entries = validation.entriesFromStoredQuestions(canonical);
+  const {issues} = validation.collectAssessmentIssues({
+    paper: {title: assessment?.title, subject: assessment?.subject, grade: assessment?.grade},
+    entries,
+    passages: paper.passages,
+  });
+  const questionNumbers = Object.fromEntries(entries.map((e) => [e.identity, e.number]));
+
   const verdict = gate.describeExportBlock({
-    // Question-level completeness is not enforced here YET: `collectQuizIssues`
-    // still lives in src/ behind ~2,000 lines of editor machinery. Passing an
-    // empty list means this gate currently blocks on an empty paper and on an
-    // unrenderable required figure, and says nothing about an unfinished
-    // question. That is a smaller gate than the client's, and it is stated
-    // rather than implied — see functions/shared/README.md.
-    issues: [],
-    questionNumbers: numbering.buildQuestionNumberMap(canonical),
+    issues,
+    questionNumbers,
     questionCount: canonical.length,
     // Server-side there is no "untouched starter block": that is live editor
     // state. A saved paper with zero questions reaches `questionCount === 0` on
@@ -123,7 +128,7 @@ async function assessExportReadiness(assessment, questions) {
     unresolvedFigures,
   });
 
-  return {...verdict, unresolvedFigures, questions: canonical};
+  return {...verdict, issues, unresolvedFigures, questions: canonical};
 }
 
 module.exports = {

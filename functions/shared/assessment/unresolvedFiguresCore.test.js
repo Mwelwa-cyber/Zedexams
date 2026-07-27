@@ -292,6 +292,7 @@ test('the harness escape hatch is never set by application code', () => {
     'functions/shared/assessment/unresolvedFiguresCore.test.js', // this guard
     'src/utils/paperGolden.test.js',       // proves the opt-out still delivers
     'functions/assessmentExports/exportReadiness.test.js', // proves the server ignores it
+    'functions/assessmentExports/exportBlocking.test.js',  // sends it in a request and proves it changes nothing
   ])
   const hits = execSync(
     "grep -rl 'allowUnresolvedFigures' src functions --exclude-dir=node_modules || true",

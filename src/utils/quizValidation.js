@@ -9,6 +9,9 @@ import { richTextHasContent } from './quizRichText.js'
 import { findComprehensionGroupingIssues } from './comprehensionGrouping.js'
 import { canonicalizeQuestionType, questionTypeLabel } from '../editor/schema/question.js'
 import { countBlanks, fillBlanksAnswerKey } from './fillBlanks.js'
+import {
+  collectQuestionIssues as sharedQuestionIssues,
+} from '../../functions/shared/assessment/assessmentValidationCore.js'
 
 /**
  * Check whether an answer-option value carries any meaningful content.
@@ -392,6 +395,16 @@ export function collectQuizIssues({ form = {}, sections = [], parts = [], questi
   return { issues, summary }
 }
 
+/**
+ * The per-question issues, from the shared rules plus the two that are live
+ * editor state.
+ *
+ * The completeness rules moved to functions/shared/assessment so the export
+ * callable runs the same ones. What stays here is what only an open editor can
+ * know: an image mid-upload is not a property of a saved paper, and a server
+ * asked to reason about it would be reasoning about a state that cannot reach
+ * it.
+ */
 function collectQuestionIssues(question, label, push) {
   const localId = question?.localId || null
   if (question?.imageUploading) {
@@ -402,67 +415,7 @@ function collectQuestionIssues(question, label, push) {
     push(`opt-uploading-${question.localId}`,
       `${label}: option image is still uploading.`, { localId })
   }
-  if (!richTextHasContent(question?.text)) {
-    push(`question-text-${question.localId}`,
-      `${label}: question text is empty.`, { localId })
-  }
-  // Fold aliases onto the canonical type so true/false + fill-in-the-blanks
-  // questions get their real per-type check instead of the unknown-type blocker.
-  const qType = canonicalizeQuestionType(question?.type) || MCQ
-  const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
-  if (qType === MCQ || qType === TF) {
-    if (!Array.isArray(question.options) || question.options.length < 2) {
-      push(`opt-count-${question.localId}`, `${label}: needs at least two options.`, { localId })
-    } else {
-      const media = Array.isArray(question.optionMedia) ? question.optionMedia : []
-      for (let i = 0; i < question.options.length; i++) {
-        const hasText = optionHasContent(question.options[i])
-        const slot = media[i]
-        const hasImage = Boolean(slot && slot.imageUrl)
-        const hasDiagram = Boolean(slot && slot.diagram && slot.diagram.libraryKey)
-        const hasMedia = hasImage || hasDiagram
-        const hasAlt = hasMedia && String(slot.alt || '').trim().length > 0
-        if (!hasText && !hasMedia) {
-          push(`opt-empty-${question.localId}-${i}`,
-            `${label}: option ${OPTION_LETTERS[i] || i + 1} is empty.`, { localId })
-        }
-        if (hasMedia && !hasAlt) {
-          push(`opt-alt-${question.localId}-${i}`,
-            `${label}: option ${OPTION_LETTERS[i] || i + 1} needs alt text for its image.`, { localId })
-        }
-      }
-      const correctIdx = Number(question.correctAnswer)
-      if (!Number.isInteger(correctIdx) || correctIdx < 0 || correctIdx >= (question.options?.length || 0)) {
-        push(`correct-${question.localId}`,
-          `${label}: pick the correct answer.`, { localId })
-      }
-    }
-  } else if (qType === NUMERIC) {
-    const issue = numericIssue(question)
-    if (issue) push(`numeric-${question.localId}`, `${label}: ${issue}`, { localId })
-  } else if (qType === FILL_BLANKS) {
-    const issue = fillBlanksIssue(question)
-    if (issue) push(`fill-blanks-${question.localId}`, `${label}: ${issue}`, { localId })
-  } else if (qType === HOTSPOT) {
-    const issue = hotspotIssue(question)
-    if (issue) push(`hotspot-${question.localId}`, `${label}: ${issue}`, { localId })
-  } else if (qType === DIAGRAM_LABEL) {
-    const issue = diagramLabelIssue(question)
-    if (issue) push(`diagram-label-${question.localId}`, `${label}: ${issue}`, { localId })
-  } else if (qType === MATCHING) {
-    const issue = matchingIssue(question)
-    if (issue) push(`matching-${question.localId}`, `${label}: ${issue}`, { localId })
-  } else if (qType === SEQUENCE) {
-    const issue = sequenceIssue(question)
-    if (issue) push(`sequence-${question.localId}`, `${label}: ${issue}`, { localId })
-  } else if (!TEXT_ANSWER_TYPES.has(qType)) {
-    // An unknown type is a publish blocker, not a warning — the runner /
-    // grader / export paths only handle the recognised set (MCQ / TF /
-    // SHORT_ANSWER / SHORT / DIAGRAM / ESSAY / FILL / FILL_BLANKS / NUMERIC /
-    // HOTSPOT / MATCHING / SEQUENCE). Letting an unknown type through silently
-    // would surface a question the learner can't answer and the grader can't
-    // score. Show the friendly label, not the raw token.
-    push(`type-${question.localId}`,
-      `${label}: unrecognised question type "${questionTypeLabel(qType)}".`, { localId })
+  for (const issue of sharedQuestionIssues(question, { identity: localId, label })) {
+    push(issue.id, issue.label, { severity: issue.severity, localId: issue.localId })
   }
 }

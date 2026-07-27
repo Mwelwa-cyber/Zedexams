@@ -53,6 +53,8 @@
     "test:sanitize": "node scripts/test-rich-text-sanitize.mjs",
     "test:live-canvas": "node scripts/test-live-generation-sections.mjs",
     "test:export-gate": "node scripts/test-assessment-export-gate.mjs",
+    "test:export-blocking": "node functions/assessmentExports/exportBlocking.test.js",
+    "test:shim-guard": "node functions/shared/assessment/shimGuard.test.js",
     "test:server-export-readiness": "node functions/assessmentExports/exportReadiness.test.js",
     "test:shared-assessment-neutral": "node functions/shared/assessment/neutrality.test.js",
     "test:unresolved-figures": "node functions/shared/assessment/unresolvedFiguresCore.test.js",
