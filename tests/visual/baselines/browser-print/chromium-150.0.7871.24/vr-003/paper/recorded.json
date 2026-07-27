@@ -3,9 +3,9 @@
   "family": "browser-print",
   "copy": "paper",
   "identity": "browser-print/chromium-150.0.7871.24",
-  "sourceCommit": "f9381c56ce987528f7294d6657c23ca6ebbdc16f",
-  "source": "PR #1937",
-  "reason": "The four vertical-arithmetic sums now print (478/+265, 802/-347, 12.75/+3.40, 346/x24) and the paper legitimately runs to two pages as a result. The previous baseline recorded prompts with no sums, because the blocks sat in richContent — a field no exporter reads (#1937).",
+  "sourceCommit": "b5862eeae3eaa14170eb1466a0cc4263a3fffc4d",
+  "source": "PR #1946",
+  "reason": "The footer code moved into the reserved bottom band. Browser-print only; the Word render is unchanged and its baseline is untouched (#1946).",
   "environment": {
     "chromium": "150.0.7871.24",
     "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
@@ -60,8 +60,8 @@
     "header": 1
   },
   "inkByPage": {
-    "1": 0.011535491803354123,
-    "2": 0.010894963477921559
+    "1": 0.012086290945267038,
+    "2": 0.010889441682012658
   },
   "figures": {
     "unresolvedFigureCount": 0,
@@ -75,8 +75,8 @@
   },
   "hashes": {
     "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
-    "layout.json": "e5ae4c9759a57e6c02a3f23c91538655b9ff254bbca9a54a6f136d2fc8416f4c",
-    "page-01.png": "62bc71f58dba59ae53f257a0802b6a9fe77d37b2c313fd8511356a14215a66f0",
-    "page-02.png": "9b8645f8d36878f21f7f25de91d6a8b89fde77e0b3d60323c50fba796d1deba2"
+    "layout.json": "d45fbbe379de8b10329ee7a43614e613ceb8800be59694794a1fffa8b1e2f3d5",
+    "page-01.png": "fd81084a0e293cdb2d8fe10d83797131e89f34f1b5fa697f9761d8200bbfcee0",
+    "page-02.png": "73de1950572e50b9d3ec1d573793c17b7ed0de3dbc34d7604796f92837468af2"
   }
 }
