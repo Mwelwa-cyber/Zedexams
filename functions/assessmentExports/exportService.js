@@ -41,6 +41,7 @@ const {buildExportFilename} = require("./exportFilename");
 const core = require("./exportsCore");
 const {buildServerPaperModel} = require("./renderModel");
 const {fetchImages} = require("./imageFetch");
+const {assessExportReadiness} = require("./exportReadiness");
 
 const TICKET_TTL_MS = 5 * 60 * 1000;
 const EXPORT_STATE_COLLECTION = "assessmentExports";
@@ -231,6 +232,34 @@ async function ensureExport({db, bucket, uid, assessment, questions, typeCfg}) {
     downloadPath: `/downloads/assessments/${assessmentId}/${typeCfg.key}`, ticket, cacheHit: false};
 }
 
+/**
+ * Refuse an export the shared rules block, in the teacher's own words.
+ *
+ * The message is the one the studio shows for the same paper — same module,
+ * same sentence — so a teacher who hits this from a stale tab, a replayed
+ * request or a script reads the instruction that actually repairs the paper
+ * rather than a server error they cannot act on.
+ *
+ * `failed-precondition` rather than `invalid-argument`: the request is
+ * well-formed, the paper is not ready. The details give a caller enough to
+ * render its own UI without parsing the sentence.
+ */
+async function assertExportable(assessment, questions) {
+  const readiness = await assessExportReadiness(assessment, questions);
+  if (!readiness.blocked) return readiness;
+  logExport("export_blocked", {
+    assessmentId: assessment.id,
+    reason: readiness.reason,
+    questionCount: readiness.questions.length,
+    unresolvedFigures: readiness.unresolvedFigures.length,
+  });
+  throw new HttpsError("failed-precondition", readiness.message, {
+    code: "ASSESSMENT_EXPORT_BLOCKED",
+    reason: readiness.reason,
+    questionNumbers: readiness.numbers,
+  });
+}
+
 /** Shared authz preamble for the callables. Returns { db, uid, assessment, questions }. */
 async function authorizeAndLoad(request, {needQuestions = true} = {}) {
   const uid = await assertVerifiedAuth(request);
@@ -256,7 +285,13 @@ const requestAssessmentExport = onCall(
     const {db, uid, assessment, questions} = await authorizeAndLoad(request);
     const typeCfg = core.resolveExportType(request.data?.exportType);
     if (!typeCfg) throw new HttpsError("invalid-argument", "Unknown export type.");
-    if (!questions.length) throw new HttpsError("failed-precondition", "This paper has no questions to export.");
+    // BEFORE ensureExport, which is where the lease is taken, the document is
+    // rendered, the object is uploaded and the ticket is minted. A refusal from
+    // here therefore writes nothing, uploads nothing, mints no ticket and
+    // records no export — there is no half-finished state to clean up because
+    // none was started. Nothing the caller sent is consulted; the verdict comes
+    // from the paper Firestore holds.
+    await assertExportable(assessment, questions);
     const bucket = admin.storage().bucket();
     return ensureExport({db, bucket, uid, assessment, questions, typeCfg});
   },
@@ -268,6 +303,12 @@ const getAssessmentExportStatus = onCall(
     const {db, uid, assessment, questions} = await authorizeAndLoad(request);
     const typeCfg = core.resolveExportType(request.data?.exportType);
     if (!typeCfg) throw new HttpsError("invalid-argument", "Unknown export type.");
+    // Gated too, even though this callable generates nothing: it MINTS TICKETS
+    // for cached objects. Exports written before this gate existed are still
+    // sitting in Storage, and a paper that is blocked today may well have a
+    // cached file from when nothing checked. Serving it would be the bypass
+    // surviving its own fix, through the cache rather than the generator.
+    await assertExportable(assessment, questions);
     const sourceHash = computeSourceHash(assessment, questions);
     const stateSnap = await db.collection(EXPORT_STATE_COLLECTION).doc(assessment.id).get();
     const entry = (stateSnap.exists ? stateSnap.data() : {})[typeCfg.kind] || null;
@@ -292,6 +333,13 @@ const prewarmAssessmentExports = onCall(
   async (request) => {
     const {db, uid, assessment, questions} = await authorizeAndLoad(request);
     if (!questions.length) return {ok: true, warmed: []};
+    // Prewarm fires after a save, when a paper is most likely to still be
+    // half-written, so a block here is the normal case rather than an error —
+    // it returns empty instead of throwing. It must still not generate: a
+    // cached export of a blocked paper would be served straight out of the
+    // cache by a later request that the gate never gets to see.
+    const readiness = await assessExportReadiness(assessment, questions);
+    if (readiness.blocked) return {ok: true, warmed: [], blocked: readiness.reason};
     const bucket = admin.storage().bucket();
     const warmed = [];
     for (const key of core.PREWARM_EXPORT_TYPES) {

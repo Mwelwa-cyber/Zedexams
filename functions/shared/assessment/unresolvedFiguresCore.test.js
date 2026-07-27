@@ -11,6 +11,8 @@
  */
 
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { execSync } from 'node:child_process'
 import {
   unresolvedFigure, unresolvedFigureMessage, unresolvedFiguresMessage,
@@ -289,6 +291,7 @@ test('the harness escape hatch is never set by application code', () => {
     'src/utils/assessmentToDocx.js',      // defines it
     'functions/shared/assessment/unresolvedFiguresCore.test.js', // this guard
     'src/utils/paperGolden.test.js',       // proves the opt-out still delivers
+    'functions/assessmentExports/exportReadiness.test.js', // proves the server ignores it
   ])
   const hits = execSync(
     "grep -rl 'allowUnresolvedFigures' src functions --exclude-dir=node_modules || true",
@@ -302,7 +305,17 @@ test('the harness escape hatch is never set by application code', () => {
     hits.includes('src/utils/assessmentToDocx.js'),
     'the guard found nothing at all — it is searching the wrong root, not proving the tree is clean',
   )
-  const unexpected = hits.filter((f) => !allowed.has(f))
+  // A docblock explaining that the server reads no such flag names the flag.
+  // Failing on that would push the explanation out of the code, which is the
+  // opposite of what this guard is for: what matters is whether anything
+  // REACHES for the opt-out, not whether anything mentions it.
+  const setsIt = (file) => {
+    const code = readFileSync(join(root, file), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/(^|[^:])\/\/.*$/gm, '$1')
+    return /allowUnresolvedFigures/.test(code)
+  }
+  const unexpected = hits.filter((f) => !allowed.has(f) && setsIt(f))
   assert.deepEqual(unexpected, [], `application code must not opt out: ${unexpected.join(', ')}`)
 })
 
