@@ -146,6 +146,9 @@ export function inkSurvivesPrint({ color, on = PAPER_WHITE, role = 'text' } = {}
   }
 }
 
+// Note: printedGrey() models a printer, not a photocopier — a class set is one
+// printed master copied many times, so treat these results as optimistic.
+
 /**
  * A plain-language note for ink that will not survive the printer. '' when
  * there is nothing to say.
