@@ -713,6 +713,79 @@ console.log('\nGOLDEN — a library diagram: failure is visible, success is real
   }
 }
 
+console.log('\nGOLDEN — a paper missing a required figure is not delivered')
+{
+  // The half the earlier fix left open. The failure was RECORDED and the file
+  // was saved anyway, so the caller learned that question 1's diagram was
+  // missing from a document the teacher already had. A report that arrives
+  // after the download is a receipt, not a gate.
+  const { setSvgRasterizer, resetSvgRasterizer } = await import('./svgRasterizer.js')
+  const { downloadAssessmentDocx } = await import('./assessmentToDocx.js')
+  const meta = { title: 'Shape Test', subject: 'Mathematics', grade: '8', date: '2026-01-15' }
+  const withFigure = [{
+    id: 'q1', order: 1, type: 'short_answer', marks: 3,
+    text: '<p>Find the size of the marked angle.</p>',
+    imageDiagram: { libraryKey: 'triangleangle', params: {} },
+  }]
+
+  // Observe the real delivery path rather than stubbing the exporter: the claim
+  // is about what reaches the teacher's disk. Every route in `saveBlob` ends at
+  // an anchor click or an object URL, so counting those counts saves — and a
+  // stubbed `downloadAssessmentDocx` would have proved only that the stub works.
+  const saved = []
+  const realClick = dom.window.HTMLAnchorElement.prototype.click
+  dom.window.HTMLAnchorElement.prototype.click = function spyClick() {
+    if (this.hasAttribute('download')) saved.push(this.getAttribute('download'))
+  }
+  const realCreateObjectURL = dom.window.URL.createObjectURL
+  dom.window.URL.createObjectURL = () => 'blob:spy'
+  dom.window.URL.revokeObjectURL = () => {}
+  globalThis.URL.createObjectURL = dom.window.URL.createObjectURL
+  globalThis.URL.revokeObjectURL = dom.window.URL.revokeObjectURL
+
+  resetSvgRasterizer()                       // jsdom has no canvas → 'rasterise'
+  let refusal = null
+  try {
+    await downloadAssessmentDocx(meta, withFigure, 'paper.docx')
+  } catch (err) {
+    refusal = err
+  }
+  // THROWN rather than returned: a returned flag put the burden on every caller
+  // to look, and the two library export routes did not — they awaited the
+  // download and toasted "Paper download started" over a file never written.
+  assert(refusal !== null, 'the export throws rather than returning quietly')
+  assert(refusal.code === 'unresolved-figure', 'with a code a caller can recognise')
+  assert(refusal.entries.length === 1, 'the diagnostic travels with it')
+  assert(
+    refusal.message.startsWith('Question 1 requires a diagram'),
+    `and its message is the repair instruction — got "${refusal.message}"`,
+  )
+  assert(saved.length === 0, 'NO FILE reached the teacher')
+
+  // The same paper with a working rasteriser downloads normally — the refusal
+  // is about the missing figure, not about having figures at all.
+  setSvgRasterizer(async () => new Uint8Array([0x89, 0x50, 0x4e, 0x47, 13, 10, 26, 10, 1, 2, 3]))
+  try {
+    const ok = await downloadAssessmentDocx(meta, withFigure, 'paper.docx')
+    assert(ok.delivered === true, 'a paper whose figures rendered is delivered')
+    assert(ok.unresolvedFigures.length === 0, 'with nothing unresolved')
+    assert(saved.length === 1, 'and the file is saved exactly once')
+  } finally {
+    resetSvgRasterizer()
+  }
+
+  // The harness renders deliberately broken fixtures and needs the document to
+  // inspect; the studio never sets this.
+  resetSvgRasterizer()
+  const forced = await downloadAssessmentDocx(meta, withFigure, 'paper.docx', { allowUnresolvedFigures: true })
+  assert(forced.delivered === true, 'an explicit opt-out still delivers')
+  assert(forced.unresolvedFigures.length === 1, 'and still reports the figure')
+  assert(saved.length === 2, 'the opt-out saved a file')
+
+  dom.window.HTMLAnchorElement.prototype.click = realClick
+  dom.window.URL.createObjectURL = realCreateObjectURL
+}
+
 console.log(
   failures === 0
     ? `\n✓ paper golden files — ${passed} assertions passed`

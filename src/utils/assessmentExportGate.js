@@ -23,7 +23,29 @@
  * finished". All this adds is (a) recognising the untouched starter block as
  * "no questions yet" rather than "one broken question", and (b) turning issue
  * ids into a sentence naming the question numbers a teacher must go and fix.
+ *
+ * ## Unresolved figures
+ *
+ * The same principle: the records come from `unresolvedFigures.js` and the
+ * sentence is its, not this module's. What is decided here is the CLASSIFICATION
+ * — a required figure the renderer cannot produce is a blocking correctness
+ * error, ranked with the unfinished questions rather than with the printability
+ * advisories, because a learner asked to label a diagram that is not on the page
+ * cannot answer the question at all.
+ *
+ * It is ranked BELOW the unfinished-question check on purpose. A paper with both
+ * is a paper still being written, and "finish question 3" is the more useful
+ * first instruction; the figure is the last thing standing between a finished
+ * paper and the photocopier.
  */
+
+import {
+  unresolvedFiguresMessage, affectedQuestionNumbers, listNumbers,
+} from './unresolvedFigures.js'
+
+// Re-exported so this module's public surface is unchanged. There is one
+// implementation, next to the sentence that needs it — see unresolvedFigures.js.
+export { listNumbers }
 
 /** Issue ids that identify an unfinished QUESTION (as opposed to the paper). */
 const QUESTION_ISSUE_PREFIXES = [
@@ -73,11 +95,25 @@ export function incompleteQuestionNumbers(issues = [], questionNumbers = {}) {
   return [...numbers].sort((a, b) => a - b)
 }
 
-/** "3", "3 and 7", "3, 7 and 9" — plain prose, never "Q3, Q7". */
-export function listNumbers(numbers = []) {
-  if (numbers.length === 0) return ''
-  if (numbers.length === 1) return String(numbers[0])
-  return `${numbers.slice(0, -1).join(', ')} and ${numbers[numbers.length - 1]}`
+
+/**
+ * A required figure the renderer cannot produce, as a blocking decision.
+ *
+ * Returns null when there is nothing to say, so the caller can fall through to
+ * `ready` — an empty list must never read as a block.
+ */
+function figureBlock(unresolvedFigures = []) {
+  const list = (Array.isArray(unresolvedFigures) ? unresolvedFigures : []).filter(Boolean)
+  if (list.length === 0) return null
+  // The badged numbers and the sentence come from the same call, which is the
+  // only way they cannot disagree — they did, and a paper badging questions 2
+  // and 9 carried a message that opened "Question 9 requires a diagram".
+  return {
+    blocked: true,
+    numbers: affectedQuestionNumbers(list),
+    reason: 'unresolved-figure',
+    message: unresolvedFiguresMessage(list),
+  }
 }
 
 /**
@@ -90,11 +126,14 @@ export function listNumbers(numbers = []) {
  * @param {number} input.questionCount    questions currently on the paper
  * @param {boolean} input.emptyStarter    the paper is still just its untouched
  *                                        starter block (hasOnlyEmptyStarterSection)
+ * @param {Array} input.unresolvedFigures records from unresolvedRequiredFigures()
  * @returns {{blocked: boolean, message: string, numbers: number[], reason: string}}
  *   reason is 'ready' | 'empty' | 'incomplete-questions' | 'paper-details'
+ *   | 'unresolved-figure'
  */
 export function describeExportBlock({
   issues = [], questionNumbers = {}, questionCount = 0, emptyStarter = false,
+  unresolvedFigures = [],
 } = {}) {
   const ready = { blocked: false, message: '', numbers: [], reason: 'ready' }
 
@@ -111,7 +150,7 @@ export function describeExportBlock({
   }
 
   const blocking = blockingIssues(issues)
-  if (blocking.length === 0) return ready
+  if (blocking.length === 0) return figureBlock(unresolvedFigures) || ready
 
   const numbers = incompleteQuestionNumbers(issues, questionNumbers)
   if (numbers.length > 0) {

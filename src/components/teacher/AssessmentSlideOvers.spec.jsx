@@ -282,4 +282,24 @@ describe('PaperRenderView — export gate', () => {
     renderPreview(undefined)
     expect(screen.getByRole('button', { name: /Download Word/ })).toBeEnabled()
   })
+
+  it('closes every download route when a required figure cannot be rendered', () => {
+    // A missing required diagram is a correctness failure, not a quality
+    // warning: the learner is asked to label something that is not on the page.
+    // It must reach the teacher the same way an unfinished question does —
+    // through the buttons, not through a toast after the file has downloaded.
+    renderPreview({
+      blocked: true,
+      reason: 'unresolved-figure',
+      numbers: [5],
+      message: 'Question 5 requires a diagram, but the figure could not be rendered. '
+        + 'Replace, regenerate or repair the diagram before exporting.',
+    })
+    for (const name of EXPORT_BUTTONS) {
+      expect(screen.getByRole('button', { name })).toBeDisabled()
+    }
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Question 5 requires a diagram, but the figure could not be rendered.',
+    )
+  })
 })

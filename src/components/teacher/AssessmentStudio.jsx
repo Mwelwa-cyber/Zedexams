@@ -90,6 +90,8 @@ import { printAssessmentAsPdf, openPrintWindow } from '../../utils/assessmentToP
 import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
 import { computePaperHealth } from '../../utils/paperHealth'
 import { describeExportBlock, blockingIssuesByLocalId } from '../../utils/assessmentExportGate'
+import { unresolvedRequiredFigures } from '../../utils/unresolvedFigures'
+import { renderDiagramSvg } from '../diagrams/diagramCatalog'
 import { compareToBlueprint } from '../../utils/blueprintDrift'
 import {
   canRegenerateQuestion, slotForQuestionNumber, replaceQuestionInSections,
@@ -651,14 +653,27 @@ export default function AssessmentStudio() {
   // these same blocking issues; the export buttons were not, which is how an
   // untouched starter block reached Word/PDF/Print as "1. (no question text)".
   // One decision drives both the buttons' disabled state and the click handler.
+  // Required figures the catalog cannot draw, resolved with the SAME call the
+  // exporters make. This is the one figure failure knowable before a render, and
+  // knowing it here is what turns "the Word file came out with a hole in it"
+  // into a button the teacher cannot click yet.
+  // The whole serialized paper, not just its questions: a passage carries its
+  // own stimulus diagram in a separate array and both renderers draw it, so
+  // checking only the questions left every diagram/map/source passage
+  // unprotected.
+  const unresolvedFigures = useMemo(
+    () => unresolvedRequiredFigures(serializedPreview, renderDiagramSvg),
+    [serializedPreview],
+  )
   const exportGate = useMemo(
     () => describeExportBlock({
       issues: validationIssues,
       questionNumbers,
       questionCount,
       emptyStarter: hasOnlyEmptyStarterSection(sections),
+      unresolvedFigures,
     }),
-    [validationIssues, questionNumbers, questionCount, sections],
+    [validationIssues, questionNumbers, questionCount, sections, unresolvedFigures],
   )
   // Which question cards to flag in the builder, so an unfinished question is
   // visible where it is fixed rather than only in the pre-export message.
@@ -2459,7 +2474,7 @@ export default function AssessmentStudio() {
       }
       // Loaded on demand so the docx assembler stays out of the Studio's
       // initial chunk — it only arrives when a teacher actually exports.
-      const { downloadAssessmentDocx, downloadAnswerSheetDocx, unresolvedFigureMessage } = await import('../../utils/assessmentToDocx')
+      const { downloadAssessmentDocx, downloadAnswerSheetDocx } = await import('../../utils/assessmentToDocx')
       // Standalone answer sheet (bubble grid) — its own builder, not the
       // full-paper layout.
       if (mode === 'answersheet') {
@@ -2480,23 +2495,13 @@ export default function AssessmentStudio() {
         const unprintable = Array.isArray(result?.unprintableFigures)
           ? result.unprintableFigures
           : []
-        // A figure the paper REQUIRED and did not get is named, not counted: the
-        // teacher needs to know which question to fix, and "1 figure could not
-        // be embedded" on a twelve-question paper does not tell them.
-        const unresolved = Array.isArray(result?.unresolvedFigures) ? result.unresolvedFigures : []
-        if (unresolved.length === 1) {
-          showToast(unresolvedFigureMessage(unresolved[0]), true)
-        } else if (unresolved.length > 1) {
-          const numbered = unresolved
-            .map((u) => u.questionNumber)
-            .filter((n) => n != null)
-          showToast(
-            `Download started, but ${unresolved.length} diagrams could not be rendered`
-            + `${numbered.length ? ` (question${numbered.length === 1 ? '' : 's'} ${numbered.join(', ')})` : ''}. `
-            + 'Replace, regenerate or repair them before exporting.',
-            true,
-          )
-        } else if (failed > 0) {
+        // There is deliberately no unresolved-figure branch here. A required
+        // figure that did not render THROWS (UnresolvedFigureError, handled in
+        // the catch below), so a `result` reaching this line cannot carry one.
+        // A branch for it would be unreachable code with a story attached, and
+        // if a future stage ever reports without refusing, that change should
+        // arrive with its own handling rather than find a dormant one waiting.
+        if (failed > 0) {
           showToast(`Download started, but ${failed} figure${failed === 1 ? '' : 's'} could not be embedded — marked in the paper.`, true)
         } else if (unprintable.length === 1) {
           showToast(unprintable[0].warning, true)
@@ -2515,7 +2520,12 @@ export default function AssessmentStudio() {
       // Don't strand a blank pre-opened print window when the export dies
       // before writing into it.
       try { printWin?.close() } catch { /* window already gone */ }
-      showToast(`Export failed: ${getErrorMessage(error)}`, true)
+      // A refused export is not a crash: the teacher needs the repair
+      // instruction, not "Export failed:" in front of it. Recognised by its
+      // code rather than by instanceof, because the exporter is loaded through
+      // a dynamic import and a duplicated module would break the identity check.
+      if (error?.code === 'unresolved-figure') showToast(getErrorMessage(error), true)
+      else showToast(`Export failed: ${getErrorMessage(error)}`, true)
     } finally {
       setExporting(false)
     }
