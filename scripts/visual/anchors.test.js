@@ -14,6 +14,7 @@ import {
   groupIntoLines, labelDocumentLines, extractTextAnchors, extractHeaderAnchor,
   detectFigures, pageInk, buildLayoutMap, resolveStrictRegions, expectedAnchorsFor,
   declaredPageMismatches, FIGURE_CELL, MIN_FIGURE_EXTENT_CELLS, INK_LEVEL,
+  resolveDeclaredPage, anchorContractProblems, requiredTargets, fixtureCopies, renderTarget,
 } from './anchors.js'
 
 let failures = 0
@@ -285,24 +286,202 @@ group('7. Strict regions are resolved from this render, and never dropped')
 group('8. A fixture declares what its render must contain')
 {
   const fixture = {
+    targets: ['browser-print', 'docx'],
     regions: [{ type: 'diagram', anchor: 'diagram_1' }],
     together: [['diagram_1', 'question_1'], ['answer_1', 'question_1']],
-    expectedAnchorPages: { question_7: 2 },
+    expectedAnchorPages: {
+      question_7: { 'browser-print/paper': 2, 'docx/paper': 2 },
+    },
   }
-  const learner = expectedAnchorsFor(fixture, 'paper')
+  const learner = expectedAnchorsFor(fixture, 'paper', 'browser-print')
   assert(!('answer_1' in learner), 'the learner copy is not expected to carry an answer anchor')
   assert(learner.diagram_1 === true, 'but it is expected to carry the diagram')
   assert(learner.question_7 === 2, 'a declared page is kept as the page, not flattened to true')
 
-  const scheme = expectedAnchorsFor(fixture, 'scheme')
+  const bothCopies = { ...fixture, renderBothModes: true }
+  bothCopies.expectedAnchorPages = {
+    question_7: {
+      'browser-print/paper': 2, 'docx/paper': 2, 'browser-print/scheme': 2, 'docx/scheme': 2,
+    },
+  }
+  const scheme = expectedAnchorsFor(bothCopies, 'scheme', 'browser-print')
   assert(scheme.answer_1 === true, 'the marking key IS expected to carry the answer anchor')
 
-  const mismatches = declaredPageMismatches({ question_7: 2, question_1: true }, { question_7: 3, question_1: 1 })
+  const mismatches = declaredPageMismatches(
+    { question_7: 2, question_1: true }, { question_7: 3, question_1: 1 }, 'docx/paper',
+  )
   assert(mismatches.length === 1 && mismatches[0].id === 'question_7', 'a declared page that moved is reported')
+  assert(mismatches[0].target === 'docx/paper', 'and the finding names the target whose expectation was missed')
   assert(
     declaredPageMismatches({ question_9: 2 }, {}).length === 0,
     'an absent anchor is not a page mismatch — that is the render guard\'s finding',
   )
+}
+
+/* ── 8b. a page belongs to one renderer ─────────────────────────────────── */
+
+group('8b. An expected page is stated per rendering target')
+{
+  // vr-006 is the case: eighteen short-answer questions with ruled space fit in
+  // three pages through LibreOffice and need five through Chromium. Question 14
+  // is on page 2 of one and page 4 of the other, and BOTH are correct.
+  const VR006 = {
+    id: 'vr-006',
+    targets: ['browser-print', 'docx'],
+    expectedAnchorPages: {
+      question_1: 1,
+      question_14: { 'browser-print/paper': 4, 'docx/paper': 2 },
+    },
+  }
+
+  assert(
+    requiredTargets(VR006).join(' ') === 'browser-print/paper docx/paper',
+    'the targets an expectation is required for come from the fixture itself',
+  )
+  assert(
+    requiredTargets({ targets: ['docx'], renderBothModes: true }).join(' ') === 'docx/paper docx/scheme',
+    'and a fixture that renders a marking key needs an expectation for that copy too',
+  )
+  assert(
+    fixtureCopies({}).join() === 'paper' && renderTarget('docx', 'scheme') === 'docx/scheme',
+    'a target is a family and a copy',
+  )
+  assert(anchorContractProblems(VR006).length === 0, 'a complete per-target declaration validates')
+
+  // Each family gets its OWN page, never the other's.
+  assert(
+    expectedAnchorsFor(VR006, 'paper', 'browser-print').question_14 === 4,
+    'Chromium is given Chromium\'s page',
+  )
+  assert(
+    expectedAnchorsFor(VR006, 'paper', 'docx').question_14 === 2,
+    'LibreOffice is given LibreOffice\'s page',
+  )
+  // The scalar shorthand means "the same page everywhere", so both agree on it.
+  assert(
+    expectedAnchorsFor(VR006, 'paper', 'browser-print').question_1 === 1
+    && expectedAnchorsFor(VR006, 'paper', 'docx').question_1 === 1,
+    'a bare number is the same page in every target',
+  )
+
+  // THE test the owner asked for: swap the two values and BOTH renderers must
+  // fail, each naming its own target. A contract that accepted a SET of allowed
+  // pages would pass this silently, which is the whole reason it is not one.
+  {
+    const swapped = {
+      ...VR006,
+      expectedAnchorPages: {
+        ...VR006.expectedAnchorPages,
+        question_14: { 'browser-print/paper': 2, 'docx/paper': 4 },
+      },
+    }
+    // The pages a real render produces, unchanged — only the fixture lied.
+    const chromiumAnchors = { question_1: 1, question_14: 4 }
+    const writerAnchors = { question_1: 1, question_14: 2 }
+
+    const chromium = declaredPageMismatches(
+      expectedAnchorsFor(swapped, 'paper', 'browser-print'), chromiumAnchors, 'browser-print/paper',
+    )
+    const writer = declaredPageMismatches(
+      expectedAnchorsFor(swapped, 'paper', 'docx'), writerAnchors, 'docx/paper',
+    )
+    assert(chromium.length === 1 && chromium[0].id === 'question_14', 'the swap fails Chromium')
+    assert(
+      chromium[0].declared === 2 && chromium[0].actual === 4 && chromium[0].target === 'browser-print/paper',
+      'naming browser-print/paper: declared 2, produced 4',
+    )
+    assert(writer.length === 1 && writer[0].id === 'question_14', 'and the swap fails LibreOffice')
+    assert(
+      writer[0].declared === 4 && writer[0].actual === 2 && writer[0].target === 'docx/paper',
+      'naming docx/paper: declared 4, produced 2',
+    )
+    assert(
+      chromium[0].target !== writer[0].target,
+      'the two failures are distinguishable — one message per rendering target',
+    )
+  }
+
+  // A target with no expectation of its own is never handed another's.
+  {
+    const halfDeclared = {
+      ...VR006,
+      expectedAnchorPages: { question_14: { 'docx/paper': 2 } },
+    }
+    const problems = anchorContractProblems(halfDeclared)
+    assert(
+      problems.some((p) => /question_14 has no expectation for browser-print\/paper/.test(p)),
+      'a required target with no expectation is a fixture problem',
+    )
+    assert(problems.length === 1, 'and only the target that is missing one is reported')
+    let threw = null
+    try { expectedAnchorsFor(halfDeclared, 'paper', 'browser-print') } catch (err) { threw = err }
+    assert(threw != null, 'resolving it throws rather than falling back')
+    assert(
+      threw && !/^2$/.test(String(threw.message)) && /no expectation for browser-print\/paper/.test(threw.message),
+      'and says which target was left out',
+    )
+  }
+
+  // An unknown family or copy is a typo, not a target.
+  {
+    const typo = {
+      ...VR006,
+      expectedAnchorPages: {
+        question_14: { 'browser-print/paper': 4, 'docx/paper': 2, 'chrome/paper': 4 },
+      },
+    }
+    assert(
+      anchorContractProblems(typo).some((p) => /names "chrome\/paper"/.test(p)),
+      'a key naming a target the fixture never renders is reported',
+    )
+    const wrongCopy = {
+      ...VR006,
+      expectedAnchorPages: { question_14: { 'browser-print/scheme': 4, 'docx/paper': 2 } },
+    }
+    const wrongCopyProblems = anchorContractProblems(wrongCopy)
+    assert(
+      wrongCopyProblems.some((p) => /names "browser-print\/scheme"/.test(p)),
+      'so is a copy this fixture does not render',
+    )
+    assert(
+      wrongCopyProblems.some((p) => /question_14 has no expectation for browser-print\/paper/.test(p)),
+      'and the target it should have named is still reported missing',
+    )
+  }
+
+  // The repair that looks reasonable and is not.
+  {
+    const asSet = { ...VR006, expectedAnchorPages: { question_14: [2, 4] } }
+    assert(
+      anchorContractProblems(asSet).some((p) => /set of allowed pages/.test(p)),
+      'a set of allowed pages is refused — it would permit the two families to swap',
+    )
+  }
+
+  // Nonsense in the page slot is caught rather than compared.
+  {
+    for (const bad of [0, -1, 1.5, '2', null]) {
+      const broken = { ...VR006, expectedAnchorPages: { question_14: { 'browser-print/paper': bad, 'docx/paper': 2 } } }
+      assert(
+        anchorContractProblems(broken).some((p) => /not a page number/.test(p)),
+        `${JSON.stringify(bad)} is refused as a page number`,
+      )
+    }
+    assert(
+      resolveDeclaredPage(true, 'docx/paper').page === true,
+      'existence-only is still a valid declaration',
+    )
+  }
+
+  // A caller that forgets which renderer is asking fails loudly.
+  {
+    let threw = null
+    try { expectedAnchorsFor(VR006, 'paper') } catch (err) { threw = err }
+    assert(
+      threw && /needs the renderer family/.test(threw.message),
+      'resolving an expectation without a family is refused, not defaulted',
+    )
+  }
 }
 
 /* ── 9. one labelling, two readers ──────────────────────────────────────── */

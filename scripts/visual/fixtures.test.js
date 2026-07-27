@@ -25,6 +25,7 @@ import {
   isInfrastructureFailure, MIN_PDF_BYTES,
 } from './renderGuards.js'
 import { RenderEnvironmentError } from './renderEnvironment.js'
+import { anchorContractProblems } from './anchors.js'
 
 /**
  * Clone a fixture for mutation, keeping its `requires` predicates.
@@ -112,6 +113,31 @@ test('the multi-page fixture really expects more than one page', () => {
   assert.ok(Object.keys(multi.expectedAnchorPages).length >= 2, 'with declared page membership')
 })
 
+test('vr-006 states where its anchors belong PER RENDERER, and the two differ', () => {
+  // The correction this contract exists for. The fixture used to declare
+  // `question_14: 3` — a page neither renderer produced, because Chromium puts
+  // it on 4 and LibreOffice on 2. A single number cannot be right for both, and
+  // an allowed set would pass while one drifted onto the other's page.
+  const multi = fixtureById('vr-006')
+  const q14 = multi.expectedAnchorPages.question_14
+  assert.equal(typeof q14, 'object', 'question_14 is declared per target')
+  assert.equal(q14['browser-print/paper'], 4)
+  assert.equal(q14['docx/paper'], 2)
+  assert.notEqual(
+    q14['browser-print/paper'], q14['docx/paper'],
+    'and the two are genuinely different pages — otherwise this fixture is not exercising the contract',
+  )
+  // Every target the fixture renders to has an expectation for every declared
+  // anchor, checked by the fixture contract rather than by a passing run.
+  assert.deepEqual(anchorContractProblems(multi), [])
+})
+
+test('every fixture that declares an anchor page covers every target it renders', () => {
+  for (const fixture of VISUAL_FIXTURES) {
+    assert.deepEqual(anchorContractProblems(fixture), [], `${fixture.id} anchor contract`)
+  }
+})
+
 /* ── a fixture that stopped testing anything ────────────────────────────── */
 
 console.log('\n— a fixture whose purpose was deleted —')
@@ -133,6 +159,23 @@ test('removing the long-division block FAILS validation', () => {
     `and says which purpose went missing: ${problems.join('; ')}`,
   )
   assert.ok(problems.some((p) => /would render consistently while testing nothing/.test(p)))
+})
+
+test('dropping a renderer\'s page expectation FAILS validation, before anything renders', () => {
+  // A target left without an expectation is invisible in a passing run: the
+  // suite still compares its pixels, so it looks like coverage while the
+  // structural claim the fixture is making has quietly stopped applying to it.
+  const broken = cloneFixture(fixtureById('vr-006'))
+  broken.expectedAnchorPages = {
+    ...broken.expectedAnchorPages,
+    question_14: { 'docx/paper': 2 },
+  }
+  const problems = validateFixture(broken)
+  assert.ok(
+    problems.some((p) => /question_14 has no expectation for browser-print\/paper/.test(p)),
+    `the gate refuses to run it: ${problems.join('; ')}`,
+  )
+  assert.ok(problems.some((p) => /never given another target's page/.test(p)))
 })
 
 test('removing the fractions FAILS the fractions fixture', () => {

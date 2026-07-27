@@ -49,6 +49,7 @@ import { comparePages, summarisePageComparison } from './compareRender.js'
 import { comparePagination } from './comparePagination.js'
 import {
   resolveStrictRegions, expectedAnchorsFor, declaredPageMismatches, labelDocumentLines,
+  fixtureCopies, renderTarget,
 } from './anchors.js'
 import { renderFixture, decodePng, encodePng, assertLibreOfficeCanConvert } from './renderStages.js'
 import {
@@ -200,7 +201,10 @@ try {
       // copy and the marking key. Both are rendered and both are compared,
       // because §4.3's whole point is that the two correspond — and a suite that
       // only rendered the learner copy would never see the marking key drift.
-      for (const copy of fixture.renderBothModes ? ['paper', 'scheme'] : ['paper']) {
+      // The copy list comes from the same helper the anchor contract validates
+      // against, so a fixture cannot be rendered to a target no expectation was
+      // ever required for.
+      for (const copy of fixtureCopies(fixture)) {
         try {
           verdicts.push(await runOne(fixture, stage, copy, browser))
         } catch (err) {
@@ -354,7 +358,7 @@ async function runOne(fixture, stage, copy, sharedBrowser) {
     // The fixture's own declarations, not a list kept beside them: a fixture that
     // says a diagram must stay with its question and produces no diagram would
     // otherwise pass the togetherness check by having nothing to check.
-    expectedAnchorPages: expectedAnchorsFor(fixture, copy),
+    expectedAnchorPages: expectedAnchorsFor(fixture, copy, stage),
   })
   assertFiguresReallyEmbedded(fixture, stage, label, render)
   assertPagePrintsItsContent(fixture, copy, label, render)
@@ -473,12 +477,24 @@ async function runOne(fixture, stage, copy, sharedBrowser) {
   // A fixture's own statement of where an anchor belongs is a structural claim,
   // so a mismatch joins the structural findings rather than being reported as a
   // page of changed pixels.
-  for (const miss of declaredPageMismatches(expectedAnchorsFor(fixture, copy), render.layout.anchors)) {
+  const target = renderTarget(stage, copy)
+  const declaredMisses = declaredPageMismatches(
+    expectedAnchorsFor(fixture, copy, stage),
+    render.layout.anchors,
+    target,
+  )
+  for (const miss of declaredMisses) {
     pagination.changed = true
     pagination.findings.push({
       kind: 'anchor_moved',
-      message: `${miss.id} is on page ${miss.actual}; the fixture declares page ${miss.declared}`,
+      // The target is named because the same pair of numbers is a different
+      // verdict per renderer: page 2 for question 14 is correct through
+      // LibreOffice and a Chromium regression, and a message that did not say
+      // which engine produced it read as one fact.
+      message: `${miss.id} is on page ${miss.actual} of ${miss.target}; the fixture `
+        + `declares page ${miss.declared} for ${miss.target}`,
       id: miss.id,
+      target: miss.target,
       before: miss.declared,
       after: miss.actual,
     })

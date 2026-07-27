@@ -447,23 +447,164 @@ export function buildLayoutMap(pages = [], opts = {}) {
   return { pageCount: pages.length, anchors, inkByPage, figureBoxes, lineAnchors }
 }
 
+/* ── which page an anchor belongs on, per rendering target ───────────────── */
+//
+// A page number is a claim about ONE renderer. vr-006's question 14 is on page 4
+// through Chromium and page 2 through LibreOffice — the same paper, the same
+// content, two engines that break lines and pages differently. A single declared
+// number therefore cannot be true, and the first version of this contract wrote
+// one anyway: `question_14: 3`, which neither renderer produced.
+//
+// The obvious repair — accept a SET, `[2, 4]` — is worse than the bug. It would
+// pass while Chromium drifted to LibreOffice's pagination or the reverse, which
+// is precisely the regression a paged-media suite exists to catch. So an anchor
+// states an exact page per target, and a bare number is shorthand for "the same
+// page in every target" rather than for "whichever target is asking".
+
+/** The copies a fixture renders. The marking key is a second document, not a view. */
+export function fixtureCopies(fixture) {
+  return fixture?.renderBothModes ? ['paper', 'scheme'] : ['paper']
+}
+
+/** The name a family and a copy make together — the unit an expectation is keyed by. */
+export function renderTarget(family, copy) {
+  return `${family}/${copy}`
+}
+
+/** Every target a fixture will actually be rendered to. */
+export function requiredTargets(fixture) {
+  const out = []
+  for (const family of fixture?.targets || []) {
+    for (const copy of fixtureCopies(fixture)) out.push(renderTarget(family, copy))
+  }
+  return out
+}
+
 /**
- * The anchors a fixture's own declarations say this copy must contain.
+ * Resolve one anchor's declaration for one target.
+ *
+ * Returns `{page}` or `{problem}`. There is deliberately no third outcome: a
+ * target the declaration does not name gets a problem, never another target's
+ * page. A fallback here would read as coverage and behave as none.
+ */
+export function resolveDeclaredPage(declaration, target, { id = 'an anchor' } = {}) {
+  const isPage = (v) => Number.isInteger(v) && v >= 1
+  if (declaration === true) return { page: true }
+  if (typeof declaration === 'number') {
+    // Shorthand, and it says something stronger than the map does: this anchor
+    // must occupy the SAME page in every renderer. Only correct where the target
+    // genuinely cannot differ — the first page of a paper, say.
+    if (!isPage(declaration)) {
+      return { problem: `${id} declares page ${declaration}, which is not a page number` }
+    }
+    return { page: declaration }
+  }
+  if (declaration && typeof declaration === 'object' && !Array.isArray(declaration)) {
+    if (!Object.prototype.hasOwnProperty.call(declaration, target)) {
+      const named = Object.keys(declaration).sort().join(', ') || 'no target'
+      return {
+        problem: `${id} has no expectation for ${target} — it names ${named}. A target `
+          + 'with no expectation of its own is never given another target\'s page',
+      }
+    }
+    const page = declaration[target]
+    if (!isPage(page)) {
+      return { problem: `${id} declares page ${page} for ${target}, which is not a page number` }
+    }
+    return { page }
+  }
+  if (Array.isArray(declaration)) {
+    // Named, because it is the tempting repair and it is the one that silently
+    // permits the two families to swap paginations.
+    return {
+      problem: `${id} declares a set of allowed pages (${declaration.join(', ')}). A set would `
+        + 'pass while one renderer drifted onto another\'s page — declare the exact page per target',
+    }
+  }
+  return {
+    problem: `${id} declares ${JSON.stringify(declaration)}, which is neither a page `
+      + 'nor a per-target map',
+  }
+}
+
+/**
+ * Everything wrong with a fixture's page declarations, before anything renders.
+ *
+ * Static, so "this target was never given an expectation" is caught by reading
+ * the fixture rather than by a render that happens to run it.
+ */
+export function anchorContractProblems(fixture) {
+  const problems = []
+  const declared = fixture?.expectedAnchorPages || {}
+  const targets = requiredTargets(fixture)
+  if (!targets.length) {
+    if (Object.keys(declared).length) {
+      problems.push('declares expected anchor pages but renders to no target')
+    }
+    return problems
+  }
+  for (const [id, declaration] of Object.entries(declared)) {
+    if (declaration && typeof declaration === 'object' && !Array.isArray(declaration)) {
+      // A key naming a target this fixture never renders is a typo that would
+      // otherwise sit in the file looking like coverage.
+      for (const key of Object.keys(declaration)) {
+        if (!targets.includes(key)) {
+          problems.push(
+            `${id} names "${key}", which is not one of this fixture's rendering targets `
+            + `(${targets.join(', ')})`,
+          )
+        }
+      }
+    }
+    for (const target of targets) {
+      // An answer anchor exists only in the marking key, so the learner copy is
+      // not asked where one is.
+      if (id.startsWith('answer_') && !target.endsWith('/scheme')) continue
+      const { problem } = resolveDeclaredPage(declaration, target, { id })
+      if (problem) problems.push(problem)
+    }
+  }
+  return problems
+}
+
+/**
+ * The anchors a fixture's own declarations say this target must contain.
  *
  * Mode-aware, because the two copies of a paper legitimately differ: `answer_N`
  * exists only in the marking key, so expecting it on the learner copy would fail
  * a correct render — and NOT expecting it on the marking key would let the
  * togetherness check pass by having nothing to check.
+ *
+ * Family-aware for the same reason one level up: the page an anchor belongs on
+ * is a property of the renderer, so resolving one without knowing which renderer
+ * is asking is the fallback this contract forbids. `family` is therefore
+ * required rather than defaulted — a caller that forgets it fails loudly instead
+ * of quietly receiving one family's pagination for the other.
  */
-export function expectedAnchorsFor(fixture, mode) {
+export function expectedAnchorsFor(fixture, mode, family) {
+  if (!family) {
+    throw new Error(
+      'expectedAnchorsFor needs the renderer family: a declared page belongs to one '
+      + 'rendering target, and resolving it without one would hand a renderer another\'s page',
+    )
+  }
+  const target = renderTarget(family, mode)
+  const scheme = mode === 'scheme'
   const ids = new Map()
   for (const region of fixture.regions || []) if (region?.anchor) ids.set(region.anchor, true)
   for (const pair of fixture.together || []) for (const id of pair) ids.set(id, true)
   // A fixture may also state which page an anchor belongs on. That is a stronger
   // claim than existence and is kept as the declared page, so a fixture saying
-  // "question 7 is on page 2" is checked rather than merely counted.
-  for (const [id, page] of Object.entries(fixture.expectedAnchorPages || {})) ids.set(id, page)
-  const scheme = mode === 'scheme'
+  // "question 7 is on page 2 of the Word file" is checked rather than counted.
+  for (const [id, declaration] of Object.entries(fixture.expectedAnchorPages || {})) {
+    if (!scheme && id.startsWith('answer_')) continue
+    const { page, problem } = resolveDeclaredPage(declaration, target, { id })
+    // A backstop, not the gate: `validateFixture` rejects an unresolvable
+    // declaration before any renderer starts. Reaching here means a fixture got
+    // past that, and the one thing that must not happen then is a silent guess.
+    if (problem) throw new Error(problem)
+    ids.set(id, page)
+  }
   const out = {}
   for (const [id, value] of ids) {
     if (!scheme && id.startsWith('answer_')) continue
@@ -473,21 +614,26 @@ export function expectedAnchorsFor(fixture, mode) {
 }
 
 /**
- * Anchors whose page differs from the page the fixture declared.
+ * Anchors whose page differs from the page the fixture declared for this target.
  *
  * `assertRenderComplete` checks that a declared anchor EXISTS; this checks where
  * it landed, which is the claim a fixture with `expectedAnchorPages` is actually
  * making. Reported as findings rather than thrown, because a moved anchor is a
  * pagination result — the kind a reviewer looks at diffs for — and not a broken
  * render.
+ *
+ * `target` is carried into the finding so the message names the renderer whose
+ * expectation was missed. Without it, "question 14 is on page 2; the fixture
+ * declares page 4" reads as one fact when it is two different verdicts depending
+ * on which engine produced it.
  */
-export function declaredPageMismatches(expected = {}, anchors = {}) {
+export function declaredPageMismatches(expected = {}, anchors = {}, target = null) {
   const out = []
   for (const [id, page] of Object.entries(expected)) {
     if (page === true) continue
     const actual = anchors[id]
     if (actual != null && Number(actual) !== Number(page)) {
-      out.push({ id, declared: Number(page), actual: Number(actual) })
+      out.push({ id, declared: Number(page), actual: Number(actual), target })
     }
   }
   return out
