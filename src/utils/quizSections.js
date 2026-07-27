@@ -17,9 +17,10 @@ function nextLocalId(prefix) {
 
 export const QUESTION_LETTERS = ['A', 'B', 'C', 'D']
 
-export function getQuestionKey(question = {}) {
-  return question.localId || question._id || question.id || question.order || ''
-}
+// Re-exported, not defined here: a question's identity is what the export
+// gate's messages are keyed on, so the server has to agree with the studio
+// about it. The implementation moved to the shared assessment package.
+export { getQuestionKey } from '../../functions/shared/assessment/questionNumberingCore.js'
 
 export function emptyQuestion(overrides = {}) {
   const nextQuestion = {

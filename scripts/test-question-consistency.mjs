@@ -117,8 +117,24 @@ for (const [raw, want] of CANON) {
 // LOCKS: trim/lowercase only happen during ALIAS lookup. An already-canonical
 // value with surrounding whitespace is returned UNCHANGED (it isn't an alias
 // key), so callers must canonicalize trimmed input. A real quirk to preserve.
-test('canonical-but-untrimmed value passes through unchanged', () =>
-  eq(canonicalizeQuestionType('  tf  '), '  tf  '))
+// CHANGED 2026-07-27, deliberately. This asserted that '  tf  ' passed through
+// unchanged, on the principle that anything not exactly canonical should reach
+// the strict write schema and be rejected loudly at its source.
+//
+// That principle survives — '  wormhole  ' still comes back untouched — but it
+// stopped being free once the export gate started running these rules over
+// STORED questions: a recognised type in the wrong case or with stray
+// whitespace was reported as "unrecognised question type" and refused a paper
+// that renders perfectly. A false refusal a teacher cannot act on is worse than
+// a padded string reaching the schema, so a type already in QUESTION_TYPES now
+// folds to its canonical spelling and everything else is still passed through.
+test('a recognised type folds to its canonical spelling, whatever the case or padding', () => {
+  eq(canonicalizeQuestionType('  tf  '), 'tf')
+  eq(canonicalizeQuestionType('MCQ'), 'mcq')
+  eq(canonicalizeQuestionType('  Short_Answer '), 'short_answer')
+})
+test('an unrecognised type is still passed through untouched, padding and all', () =>
+  eq(canonicalizeQuestionType('  wormhole  '), '  wormhole  '))
 test('questionTypeLabel folds alias then labels (truefalse → "True / False")', () =>
   eq(questionTypeLabel('truefalse'), 'True / False'))
 test('questionTypeLabel humanises an unknown type', () =>

@@ -38,23 +38,20 @@
  */
 
 import { collectQuizIssues } from './quizValidation.js'
-import { hydrateQuizSections, hasOnlyEmptyStarterSection, getQuestionKey } from './quizSections.js'
+import { hydrateQuizSections, hasOnlyEmptyStarterSection } from './quizSections.js'
 import { describeExportBlock } from './assessmentExportGate.js'
 import { unresolvedRequiredFigures } from './unresolvedFigures.js'
+import { buildQuestionNumberMap } from '../../functions/shared/assessment/questionNumberingCore.js'
 
 /**
  * localId → the number printed on the paper.
  *
- * The studio, the quiz editor and the admin creator each had a private copy of
- * this. They agree today; the risk is the day one of them stops agreeing with
- * the numbers in the export gate's message.
+ * Re-exported, not defined: the numbering moved into the shared assessment
+ * package because every blocking message names questions by number, and a
+ * server that numbered differently would tell a teacher to go and fix a
+ * question that is not the broken one.
  */
-export function buildQuestionNumberMap(questions = []) {
-  return Object.fromEntries(
-    (Array.isArray(questions) ? questions : [])
-      .map((question, index) => [getQuestionKey(question), index + 1]),
-  )
-}
+export { buildQuestionNumberMap }
 
 /**
  * Decide whether this paper may be exported, from editor sections.

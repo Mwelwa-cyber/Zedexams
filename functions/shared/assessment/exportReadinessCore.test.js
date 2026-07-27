@@ -1,5 +1,5 @@
 /**
- * Export-gate tests — src/utils/assessmentExportGate.js.
+ * Export-gate tests — functions/shared/assessment/exportReadinessCore.js.
  *
  * The regression these pin: a Grade 4 paper downloaded while its only block was
  * the untouched starter, and printed as "1. (no question text) … TOTAL MARKS:
@@ -13,7 +13,7 @@ import assert from 'node:assert/strict'
 import {
   blockingIssues, blockingIssuesByLocalId, incompleteQuestionNumbers,
   listNumbers, describeExportBlock,
-} from '../src/utils/assessmentExportGate.js'
+} from './exportReadinessCore.js'
 
 let passed = 0
 function test(name, fn) {
