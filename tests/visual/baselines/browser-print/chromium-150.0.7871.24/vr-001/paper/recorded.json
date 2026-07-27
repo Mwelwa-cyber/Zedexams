@@ -3,9 +3,9 @@
   "family": "browser-print",
   "copy": "paper",
   "identity": "browser-print/chromium-150.0.7871.24",
-  "sourceCommit": "9f79a3424f8ea3f5aa2245aee69af5fa1dae09df",
-  "source": "PR #1946 (commit b5862eeae3eaa14170eb1466a0cc4263a3fffc4d)",
-  "reason": "The footer code moved into the reserved bottom band (#1946). This baseline is from the original bootstrap (#1936) and was missed in the browser-print re-recording batch. Measured: the committed baseline has ZERO ink in the footer band (0.9327-0.9461 of page height) with its lowest ink at 0.8387 — the paper code was still sitting in flow under the content; the current render has 1183 ink pixels in that band with lowest ink at 0.9418. For comparison vr-007/browser-print, already re-recorded from #1946, measures 580 ink pixels in the same band in BOTH its baseline and the current render, which is what a correctly captured footer looks like.",
+  "sourceCommit": "72a8fc74aa5ae503ce24d19002317bda4ac19195",
+  "source": "PR #1958 (commit 72a8fc7)",
+  "reason": "The paper code moved from 277-281mm down to 288-292mm: its strip is now RESERVED by a running tfoot rather than shared with the body, so body content can no longer print on top of it (#1958). Measured across all 18 targets before recording: every page count and every anchor page is unchanged, so nothing repaginated and no fixture declaration changed. Only the browser-print pixels move. No DOCX baseline is affected - the Word path does not use assessmentToPdf.js. The gate reported 379 connected pixels on this fixture, which is the size of the code's own ink appearing at its new position and vanishing from its old one.",
   "environment": {
     "chromium": "150.0.7871.24",
     "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
@@ -73,6 +73,6 @@
   "hashes": {
     "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
     "layout.json": "48f28ad7887627dfb9c47b7855d8df3060817fe274058828e7d4e4d0033b6de8",
-    "page-01.png": "062a5bd7dae3aba101ec165de43aa03bdc35809530bc21a1b8aac6076efd506f"
+    "page-01.png": "df4d0aae25adff231a1009afe0d3d84666a4d888228d6f78ad76de791b684304"
   }
 }
