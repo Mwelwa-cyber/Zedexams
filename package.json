@@ -54,6 +54,8 @@
     "test:sanitize": "node scripts/test-rich-text-sanitize.mjs",
     "test:live-canvas": "node scripts/test-live-generation-sections.mjs",
     "test:export-gate": "node functions/shared/assessment/exportReadinessCore.test.js",
+    "test:printable-model": "node src/utils/printableModel.test.js",
+    "test:print-pdf-readiness": "node src/utils/printPdfReadiness.test.js",
     "test:paper-pagination": "node src/utils/paperPaginationCore.test.js",
     "test:export-blocking": "node functions/assessmentExports/exportBlocking.test.js",
     "test:shared-assessment-validation": "node functions/shared/assessment/assessmentValidationCore.test.js",

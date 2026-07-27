@@ -105,9 +105,21 @@ test('a zero-height break element pushes what FOLLOWS it onto the next page', ()
   assert.deepEqual(r.pages[1].blockIds, ['b'])
 })
 
-test('a trailing break element does not add an empty page after it', () => {
+test('a trailing break element DOES add an empty page, and it is reported', () => {
+  // This asserted the opposite, on my assumption that a printer would not
+  // bother opening a sheet for a break with nothing after it. Chromium does:
+  // four questions with a break after the last one measured 1 page and printed
+  // 2. Only the printer could settle it, and it did.
+  //
+  // It is also the case that makes BLANK_PAGE reachable — an issue code that
+  // cannot fire is decoration — and it is the "why is my paper printing an
+  // extra sheet" complaint, so the Print/PDF gate refuses it.
   const r = paginateBlocks([block('a', 100), block('brk', 0, { breakAfter: true, structural: true })], BOX)
-  assert.equal(r.pageCount, 1)
+  assert.equal(r.pageCount, 2)
+  assert.equal(r.pages[1].hasBodyContent, false)
+  const blank = r.issues.find((i) => i.code === PAGINATION_ISSUES.BLANK_PAGE)
+  assert.ok(blank, JSON.stringify(codes(r)))
+  assert.equal(blank.trailing, true)
 })
 
 test('each page reports the questions printed on it', () => {

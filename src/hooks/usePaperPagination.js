@@ -7,35 +7,46 @@
  * typing a question should not trigger forty measurements, and should not be
  * looking at a page count for the paper they had a minute ago.
  *
+ * ## One printable model, fingerprinted AND measured
+ *
+ * The inputs are folded into a single canonical object (`buildPrintableModel`),
+ * that object is what the fingerprint identifies, and that same object is what
+ * the measurement renders. An earlier version fingerprinted passages, parts and
+ * pagebreaks while handing the measurement only the assessment and questions,
+ * so editing a passage marked the count stale and then re-measured a document
+ * that did not contain the edit — a "fresh" answer identical to the stale one.
+ *
  * ## Why STALE is a state rather than "just remeasure"
  *
- * The alternative is to keep showing the last number while a new one is
- * computed. That number is about a different document and is indistinguishable
- * on screen from a current one — a teacher checking whether their edit pushed
- * the paper onto a fourth sheet would read the answer to the question they
- * asked before the edit. So an edit invalidates the result immediately and the
- * label goes back to "Calculating pages…", even though a measurement is only
- * scheduled.
+ * Keeping the last number on screen while a new one is computed shows a count
+ * for a different document, indistinguishable from a current one. A teacher
+ * checking whether their edit pushed the paper onto a fourth sheet would read
+ * the answer to the question they asked before the edit.
  *
- * ## The scheduling effect depends on the FINGERPRINT and nothing else
+ * ## The in-flight token is cleared when the paper changes, not when the next
+ * ## measurement starts
  *
- * This is load-bearing, not a tidy-up. The studio rebuilds its questions array
- * on every render, so an effect keyed on that array — or on a callback closing
- * over it — re-runs every render, schedules another measurement, sets state
- * when it lands, and renders again: a measurement loop that never settles and
- * renders the whole paper into an iframe each time round. The first draft of
- * this hook did exactly that and hung the test run.
+ * This is the subtle one. Invalidating the RESULT immediately is not enough:
+ * during the debounce window there is no new measurement yet, so a measurement
+ * already in flight for the old paper still matches the token, resolves, and
+ * writes itself back as `ready` — replacing the stale state with a confident
+ * page count for a document the teacher has already changed. The token is
+ * therefore cleared in the same effect that notices the fingerprint moved.
  *
- * The fingerprint is the only correct key, because it is the only value that
- * changes when the PRINTED PAGE changes. The inputs travel in a ref so the
- * measurement always reads the latest ones without their identity being able to
- * trigger it.
+ * ## The scheduling effect is keyed on the fingerprint and nothing else
+ *
+ * The studio rebuilds its questions array on every render, so an effect keyed on
+ * that array — or on a callback closing over it — re-runs every render,
+ * schedules another measurement, sets state when it lands, and renders again: a
+ * loop that renders the whole paper into an iframe each time round. The first
+ * draft of this hook did exactly that and hung the test run.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  PAGINATION_STATES, emptyPagination, paperFingerprint, paginationLabel,
+  PAGINATION_STATES, emptyPagination, paginationLabel,
 } from '../utils/paperPaginationCore.js'
+import { buildPrintableModel, printableFingerprint } from '../utils/printableModel.js'
 
 /** Long enough to swallow typing, short enough to feel like it is keeping up. */
 const DEBOUNCE_MS = 700
@@ -53,54 +64,56 @@ export function usePaperPagination({
 } = {}) {
   const [result, setResult] = useState(() => emptyPagination(PAGINATION_STATES.IDLE))
   const timerRef = useRef(null)
-  // Every measurement carries the fingerprint it was started for. A slow one
-  // that lands after the paper moved on must not overwrite a newer answer —
-  // without this, a fast second edit can be overwritten by the first edit's
-  // reply and the teacher is shown a count for a paper that no longer exists.
   const inFlightRef = useRef(null)
 
-  const fingerprint = paperFingerprint({
-    questions,
-    passages,
-    parts,
-    pagebreaks,
-    details: { mode, title: assessment?.title, schoolName: assessment?.schoolName },
-  })
+  const model = buildPrintableModel({ assessment, questions, passages, parts, pagebreaks, mode })
+  const fingerprint = printableFingerprint(model)
 
-  // The latest inputs, reachable from the effect without being able to trigger
-  // it. Written on every render on purpose: the measurement must read what is
-  // on screen now, not what was on screen when the fingerprint last changed.
-  const inputsRef = useRef(null)
-  inputsRef.current = { assessment, questions, mode, measure }
+  // The latest model, reachable from the effect without its identity being able
+  // to trigger it. Written every render on purpose: the measurement must render
+  // what is on screen now, not what was on screen when the fingerprint last
+  // changed.
+  const modelRef = useRef(null)
+  modelRef.current = model
+  const measureRef = useRef(null)
+  measureRef.current = measure
 
   const run = useCallback(async (fp) => {
-    const { assessment: a, questions: q, mode: m, measure: fn } = inputsRef.current || {}
+    const target = modelRef.current
     inFlightRef.current = fp
     setResult((prev) => (
       prev.status === PAGINATION_STATES.MEASURING ? prev : { ...prev, status: PAGINATION_STATES.MEASURING }
     ))
     let next
     try {
-      const measureFn = fn || (await import('../utils/paperPaginationMeasure.js')).measurePagination
-      next = await measureFn(a, q, { mode: m })
+      const measureFn = measureRef.current
+        || (await import('../utils/paperPaginationMeasure.js')).measurePagination
+      next = await measureFn(target)
     } catch (err) {
       next = emptyPagination(PAGINATION_STATES.FAILED, {
         issues: [{ code: 'measure-failed', message: err?.message || 'Could not measure the pages.' }],
       })
     }
-    // A reply for a paper that has since changed is discarded, not displayed.
+    // A reply for a paper that has since changed is discarded, never displayed.
     if (inFlightRef.current !== fp) return
     setResult({ ...next, fingerprint: fp })
   }, [])
 
   useEffect(() => {
     if (!enabled) {
+      inFlightRef.current = null
       setResult((prev) => (prev.status === PAGINATION_STATES.IDLE ? prev : emptyPagination(PAGINATION_STATES.IDLE)))
       return undefined
     }
-    // Invalidate FIRST, schedule second. The label must stop claiming a number
-    // for the previous paper the moment the paper changes, not when the
-    // replacement arrives.
+    // Order matters, and this is the whole of the correctness argument:
+    //   1. abandon whatever is in flight — it is measuring the old paper,
+    //   2. invalidate the displayed result,
+    //   3. only then schedule the replacement.
+    // Doing (1) at the start of the next measurement instead leaves a window,
+    // the length of the debounce, in which the old measurement can land and
+    // overwrite `stale` with a `ready` count for a document that no longer
+    // exists.
+    inFlightRef.current = null
     setResult((prev) => (
       prev.status === PAGINATION_STATES.READY && prev.fingerprint !== fingerprint
         ? { ...prev, status: PAGINATION_STATES.STALE }
@@ -120,6 +133,7 @@ export function usePaperPagination({
 
   return {
     ...result,
+    fingerprint: result.fingerprint,
     label: paginationLabel(result),
     isMeasuring: result.status !== PAGINATION_STATES.READY && result.status !== PAGINATION_STATES.FAILED,
     remeasure,

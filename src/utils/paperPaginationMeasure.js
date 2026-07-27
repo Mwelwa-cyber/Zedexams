@@ -27,7 +27,8 @@
  */
 
 import { buildPrintableHtml } from './assessmentToPdf.js'
-import { pageContentBoxPx, paginateBlocks, PAGINATION_STATES, emptyPagination } from './paperPaginationCore.js'
+import { pageContentBoxPx, paginateBlocks, PAGINATION_STATES, PAGINATION_ISSUES, emptyPagination } from './paperPaginationCore.js'
+import { assertMeasurable, renderableAssessment } from './printableModel.js'
 
 /** How long to wait for the iframe document and its fonts before giving up. */
 const MEASURE_TIMEOUT_MS = 8000
@@ -115,7 +116,43 @@ export function measureBlocks(doc) {
   }).filter((b) => b.heightPx > 0 || b.rendered === false || b.structural)
 }
 
-/** Wait for the iframe's document, its fonts and one layout pass. */
+/**
+ * Wait for one image to reach its final size, or to fail.
+ *
+ * Returns whether it drew. A failed image still has to be waited for — an
+ * un-awaited broken image resolves to a zero-height box AFTER the measurement
+ * and moves every page boundary below it.
+ */
+async function settleImage(img) {
+  if (img.complete) return img.naturalWidth > 0
+  try {
+    if (typeof img.decode === 'function') {
+      await img.decode()
+      return img.naturalWidth > 0
+    }
+  } catch {
+    return false
+  }
+  return new Promise((resolve) => {
+    img.addEventListener('load', () => resolve(img.naturalWidth > 0), { once: true })
+    img.addEventListener('error', () => resolve(false), { once: true })
+  })
+}
+
+/**
+ * Wait for the iframe's document, its fonts, its IMAGES, and one layout pass.
+ *
+ * Images are the half that was missing and they are the half that moves pages.
+ * A photograph, an uploaded diagram or a school logo occupies zero height until
+ * it decodes; measure before that and every block below it is measured at the
+ * wrong offset, and the page count is confidently wrong. Fonts matter for the
+ * same reason at a smaller scale — a fallback face is wrong by a line here and
+ * there, which is exactly enough to move a break.
+ *
+ * Returns the document plus the images that never drew, so a paper with a
+ * broken figure reports it instead of returning a page count derived from a
+ * hole in the layout.
+ */
 function whenReady(frame, timeoutMs) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('pagination measurement timed out')), timeoutMs)
@@ -123,13 +160,15 @@ function whenReady(frame, timeoutMs) {
       try {
         const doc = frame.contentDocument
         if (!doc) throw new Error('no measurement document')
-        // Fonts first: a measurement taken against a fallback face is wrong by
-        // a line here and there, which is exactly enough to move a page break.
         if (doc.fonts?.ready) await doc.fonts.ready
-        // One frame, so the layout the heights are read from is the settled one.
+        const images = Array.from(doc.images || [])
+        const drew = await Promise.all(images.map(settleImage))
+        const brokenImages = images.filter((_, i) => !drew[i])
+        // One frame after everything has settled, so the layout the heights are
+        // read from is the final one rather than the one mid-reflow.
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
         clearTimeout(timer)
-        resolve(doc)
+        resolve({ doc, brokenImages })
       } catch (err) {
         clearTimeout(timer)
         reject(err)
@@ -142,12 +181,18 @@ function whenReady(frame, timeoutMs) {
 /**
  * Measure a paper and return where its pages fall.
  *
- * @param {object} assessment the paper details
- * @param {Array} questions   the serialized questions
- * @param {object} opts       {mode, attribution, timeoutMs}
+ * Takes the CANONICAL PRINTABLE MODEL — the same object the fingerprint
+ * identifies — rather than loose arguments. Passing the pieces separately is how
+ * the passages, parts and pagebreaks came to be fingerprinted but not rendered.
+ *
+ * @param {object} model  buildPrintableModel(...) output
+ * @param {object} opts   {timeoutMs}
  * @returns {Promise<{status, pageCount, pages, issues}>}
  */
-export async function measurePagination(assessment, questions, opts = {}) {
+export async function measurePagination(model, opts = {}) {
+  assertMeasurable(model)
+  const questions = model.questions
+  const assessment = renderableAssessment(model)
   if (!canMeasure()) {
     // Not an error: a server-rendered or test environment simply has no page
     // count to give, and saying so is better than returning 1.
@@ -168,15 +213,29 @@ export async function measurePagination(assessment, questions, opts = {}) {
 
   try {
     document.body.appendChild(frame)
-    const html = buildPrintableHtml(assessment, questions || [], opts.mode || 'paper', {
-      attribution: Boolean(opts.attribution),
+    const html = buildPrintableHtml(assessment, questions || [], model.mode, {
+      attribution: Boolean(model.attribution),
     })
     const ready = whenReady(frame, opts.timeoutMs || MEASURE_TIMEOUT_MS)
     frame.srcdoc = html
-    const doc = await ready
+    const { doc, brokenImages } = await ready
     const blocks = measureBlocks(doc)
     const result = paginateBlocks(blocks, box)
-    return { ...result, measuredBlocks: blocks.length }
+    // An image the paper asked for and did not get is a hole in the layout, and
+    // a page count measured around a hole is a confident wrong answer. Reported
+    // as a layout issue so the Print/PDF gate refuses it, in the same shape as
+    // every other pagination issue.
+    const imageIssues = brokenImages.map((img) => ({
+      code: PAGINATION_ISSUES.MISSING_BLOCK,
+      message: 'An image on this paper did not load, so the page layout could not be checked. '
+        + 'Replace or re-upload it before printing.',
+      src: img.getAttribute?.('src') || '',
+    }))
+    return {
+      ...result,
+      issues: [...result.issues, ...imageIssues],
+      measuredBlocks: blocks.length,
+    }
   } catch (err) {
     // A measurement that failed says so. Falling back to the old arithmetic
     // here would put a guess on screen wearing the new label, which is the one

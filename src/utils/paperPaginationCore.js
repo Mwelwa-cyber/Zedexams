@@ -148,7 +148,19 @@ export function paginateBlocks(blocks = [], box = pageContentBoxPx()) {
 
     const forcedBreak = (Boolean(block.breakBefore) || breakPending)
       && (used > 0 || current.hasBodyContent)
-    const overflows = used > 0 && used + height > box.height
+    // `page-break-inside: avoid` is the stylesheet's instruction to move a block
+    // whole rather than fragment it, and the printer obeys it. Recording the
+    // property and then flowing as if it were not there would make the
+    // measurement disagree with the printed sheet on exactly the papers the
+    // rule exists for — a question with a figure, where the alternative is the
+    // figure on one page and its stem on the previous one.
+    //
+    // A block that cannot fit an EMPTY page is unfittable, so moving it would
+    // only add a blank sheet before splitting it anyway; that case is reported
+    // as OVERSIZED_BLOCK above and flowed where it falls.
+    const wouldFragment = used > 0 && used + height > box.height
+    const keepsWhole = block.avoidBreakInside && height <= box.height
+    const overflows = wouldFragment && (!block.avoidBreakInside || keepsWhole)
 
     if (forcedBreak || overflows) {
       closePage()
@@ -164,6 +176,20 @@ export function paginateBlocks(blocks = [], box = pageContentBoxPx()) {
     if (qid != null && !current.questionIds.includes(qid)) current.questionIds.push(qid)
   }
   closePage()
+
+  // A break left pending at the end opens one more sheet, and nothing lands on
+  // it. This was modelled the other way round — "a trailing break adds no page"
+  // — on the assumption that a printer would not bother. Chromium does: a paper
+  // of four questions with a break after the last one measured 1 page and
+  // printed 2. The assumption was mine, the test encoded it, and only the
+  // printer could settle it.
+  //
+  // It is also what makes BLANK_PAGE reachable at all, which matters: an issue
+  // code that cannot fire is decoration. This is the "why is there an extra
+  // sheet" complaint, and now the gate refuses it.
+  if (breakPending) {
+    pages.push({ pageNumber: pages.length + 1, questionIds: [], blockIds: [], hasBodyContent: false, usedPx: 0 })
+  }
 
   return {
     status: PAGINATION_STATES.READY,

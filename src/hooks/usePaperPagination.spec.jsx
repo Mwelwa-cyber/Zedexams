@@ -85,6 +85,82 @@ describe('usePaperPagination', () => {
     expect(result.current.pageCount).toBe(9)
   })
 
+  it('a measurement in flight cannot restore READY during the debounce window', async () => {
+    // The race the token exists for, in the order it actually happens:
+    //   1. measurement A starts
+    //   2. the teacher edits
+    //   3. the result goes stale
+    //   4. A resolves — BEFORE the debounced measurement B has begun
+    //   5. A must be discarded
+    // Invalidating the token when B starts instead of when the edit lands
+    // leaves the whole debounce window open, and A writes a confident page
+    // count for a paper that no longer exists.
+    let resolveA
+    const measure = vi.fn()
+      .mockImplementationOnce(() => new Promise((r) => { resolveA = r }))
+      .mockImplementation(() => new Promise(() => {}))
+
+    const { result, rerender } = renderHook((props) => usePaperPagination(props), {
+      initialProps: { ...paper('first'), measure, debounceMs: 5 },
+    })
+    await waitFor(() => expect(measure).toHaveBeenCalledTimes(1))
+
+    // A long debounce, so B has definitely not started when A lands.
+    rerender({ ...paper('second'), measure, debounceMs: 10_000 })
+    expect(result.current.status).not.toBe(PAGINATION_STATES.READY)
+
+    await act(async () => { resolveA(ready(7)) })
+
+    expect(measure).toHaveBeenCalledTimes(1)
+    expect(result.current.status).not.toBe(PAGINATION_STATES.READY)
+    expect(result.current.pageCount).not.toBe(7)
+    expect(result.current.label).toBe('Calculating pages…')
+  })
+
+  it('a same-length edit still marks the count stale', async () => {
+    // Length-based identity would call these the same paper. "IIII" and "WWWW"
+    // are the same count of characters and about half a line apart on the page.
+    const measure = vi.fn().mockResolvedValue(ready(3))
+    const { result, rerender } = renderHook((props) => usePaperPagination(props), {
+      initialProps: { ...paper('Which river is longest?'), measure },
+    })
+    await waitFor(() => expect(result.current.status).toBe(PAGINATION_STATES.READY))
+
+    measure.mockImplementation(() => new Promise(() => {}))
+    rerender({ ...paper('Which river is WWWWWWW?'), measure })
+    expect(result.current.status).toBe(PAGINATION_STATES.STALE)
+    expect(result.current.label).toBe('Calculating pages…')
+  })
+
+  it('measures the SAME object it fingerprints', async () => {
+    // Fingerprinting passages while rendering only the questions is how an edit
+    // marked the count stale and then re-measured a document without the edit.
+    const measure = vi.fn().mockResolvedValue(ready(2))
+    renderHook(() => usePaperPagination({
+      ...paper(),
+      passages: [{ localId: 'p', passageText: '<p>A story.</p>' }],
+      parts: [{ id: 'P1', title: 'SECTION A' }],
+      pagebreaks: ['a'],
+      measure,
+    }))
+    await waitFor(() => expect(measure).toHaveBeenCalledTimes(1))
+    const model = measure.mock.calls[0][0]
+    expect(model.passages).toHaveLength(1)
+    expect(model.parts).toHaveLength(1)
+    expect(model.pagebreaks).toEqual(['a'])
+    expect(model.mode).toBe('paper')
+    expect(model.questions).toHaveLength(1)
+  })
+
+  it('a passage edit triggers a new measurement', async () => {
+    const measure = vi.fn().mockResolvedValue(ready(2))
+    const props = (text) => ({ ...paper(), passages: [{ localId: 'p', passageText: text }], measure })
+    const { rerender } = renderHook((p) => usePaperPagination(p), { initialProps: props('<p>One.</p>') })
+    await waitFor(() => expect(measure).toHaveBeenCalledTimes(1))
+    rerender(props('<p>Two.</p>'))
+    await waitFor(() => expect(measure).toHaveBeenCalledTimes(2))
+  })
+
   it('a failed measurement says so rather than falling back to a guess', async () => {
     const measure = vi.fn().mockRejectedValue(new Error('iframe blocked'))
     const { result } = renderHook(() => usePaperPagination({ ...paper(), measure }))
