@@ -3,9 +3,9 @@
   "family": "browser-print",
   "copy": "paper",
   "identity": "browser-print/chromium-150.0.7871.24",
-  "sourceCommit": "b5862eeae3eaa14170eb1466a0cc4263a3fffc4d",
-  "source": "PR #1946",
-  "reason": "The footer code moved into the reserved bottom band. Browser-print only; the Word render is unchanged and its baseline is untouched (#1946).",
+  "sourceCommit": "e03393e01d83ddbb38427adb7379ab14e0ba340f",
+  "source": "PR #1958 (commit 72a8fc7)",
+  "reason": "The paper code moved from 277-281mm down to 288-292mm: its strip is now RESERVED by a running tfoot rather than shared with the body (#1958). Page count (2) and anchors unchanged; 379 connected pixels on BOTH pages, which is the code's own ink at its new position on each - out of flow it repeats on every sheet, which is what a paper code is for. Last body ink is 91.4mm on page 1 and 258.4mm on page 2, both well clear of the 281.0mm limit. No DOCX baseline is affected.",
   "environment": {
     "chromium": "150.0.7871.24",
     "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
@@ -76,7 +76,7 @@
   "hashes": {
     "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
     "layout.json": "d45fbbe379de8b10329ee7a43614e613ceb8800be59694794a1fffa8b1e2f3d5",
-    "page-01.png": "fd81084a0e293cdb2d8fe10d83797131e89f34f1b5fa697f9761d8200bbfcee0",
-    "page-02.png": "73de1950572e50b9d3ec1d573793c17b7ed0de3dbc34d7604796f92837468af2"
+    "page-01.png": "9a045859219f8ab3a9eb0784de05bc0aa029d7381bae063fa01880049feab29b",
+    "page-02.png": "16f6abb0d29209cb5e9f8053c148dc7256e2272375f1799df63cae3d793a0fcd"
   }
 }
