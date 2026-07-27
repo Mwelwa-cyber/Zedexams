@@ -546,7 +546,17 @@ The shared service that stops one intentional AI generation from becoming two pr
 - **Frontend lock** — `src/hooks/useAiOperationLock.js` (pure decision logic in `aiOperationLockCore.js`). A synchronous `useRef` claims a module-level lock keyed by an operation-specific `lockKey` (e.g. `assessment-studio:create-paper:generate-full`) *before* any `await`, so a second click in the same tick is refused — React `status` state alone updates too late to catch this. It also mints a `crypto.randomUUID()` idempotency key per logical request, persisted in `sessionStorage` so a page refresh mid-request reuses the SAME key (never mint a fresh one just because the client timed out) while a genuinely different request (changed inputs → different fingerprint) gets a fresh one. Cross-tab awareness is advisory only (`BroadcastChannel`), never load-bearing.
 - **Backend service** — `functions/aiOperations.js` (pure decision logic in `aiOperationsCore.js`), modelled on `subscriptionActivation.js`'s status-guarded transaction and the `paymentLocks/{uid}` lock-doc pattern in `paymentInitiationCore.js`. `reserveAiOperation()` atomically `tx.create()`s `aiOperations/{idempotencyKey}` (userId server-derived, never client-supplied); a duplicate reservation resumes a `completed` result, refuses to restart a `processing` one, retries a `failed`+`retryable` one with backoff, and rejects the same key reused with a different input fingerprint (`IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_INPUT`). `completeAiOperation`/`failAiOperation` settle the record; usage (`usageMeter.assertAndIncrement`/`refundGeneration`) is called at most once per key because those early-return paths short-circuit before it's ever reached.
 
-**Rollout status**: `generateAssessment` (Assessment Paper Studio's "Create paper with AI", the highest-cost generator) is fully wired end-to-end — deterministic `aiGenerations/{idempotencyKey}` doc id, reservation/resume/retry, usage charged once — with tests proving duplicate-provider-call/duplicate-write/duplicate-charge prevention (`generateAssessment.test.js`, `aiOperations.test.js`, `aiOperationsCore.test.js`, `CreatePaperModal.spec.jsx`, `useAiOperationLock.spec.jsx`). The other teacher-tool generators (lesson plan, worksheet, homework, notes, flashcards, rubric, SBA task, scheme of work, quiz, past-paper import, document/OCR import) still only have the pre-existing `status === 'generating'` button-disable guard and are the documented next phase — wiring one is mechanical: frontend, swap the raw callable call for `useAiOperationLock`'s `run()` wrapping it (see `CreatePaperModal.jsx`); backend, call `reserveAiOperation` before the provider call and `completeAiOperation`/`failAiOperation` after (see `generateAssessment.js`), and switch the result doc to `.doc(idempotencyKey)`.
+**Rollout status** (2026-07-27). Three states, not two — the distinction matters because the middle one is invisible from outside:
+
+- **One generator is fully enforced end-to-end**: `generateAssessment` (via `CreatePaperModal.jsx`). `reserveAiOperation` is called unconditionally, so a request with no idempotency key is *refused*; the result document is `aiGenerations/{idempotencyKey}`.
+- **Five generators have `aiOperations` integration on the keyed happy path, but remain partial** because a request without a valid idempotency key can bypass reservation: `generateWorksheet`, `generateHomework`, `generateFlashcards`, `generateRubric`, `generateSchemeOfWork` (#1861). Each guards the reservation behind `isValidIdempotencyKey`, so a keyless request silently takes the old unprotected path — auto-id document, no reservation, and nothing recording that protection was skipped. A stale cached client or a direct callable invocation gets pre-Phase-5 behaviour.
+- **Twenty generators remain unmigrated.**
+
+Do not describe this as "six migrated" or "six wired end-to-end" — a server guarantee that disappears when the client omits a key is not a completed migration. The authoritative, machine-checked count is `npm run test:ai-generator-inventory`.
+
+Tests prove duplicate-provider-call/duplicate-write/duplicate-charge prevention on the keyed path (`generateAssessment.test.js`, `aiOperations.test.js`, `aiOperationsCore.test.js`, `CreatePaperModal.spec.jsx`, `HomeworkStudio.spec.jsx`, `useAiOperationLock.spec.jsx`).
+
+Still on the pre-existing `status === 'generating'` button-disable guard alone, and the documented next phase: `generateLessonPlan`, `generateNotes`, `generateSbaTask`, `generateQuiz`, `generateSlideNotes`, `generateLessonActivities`, the image generators (`generateDiagram`, `generateNotePictures`), and the import paths (past-paper import, document/OCR import). Wiring one is mechanical: frontend, swap the raw callable call for `useAiOperationLock`'s `run()` wrapping it (see `CreatePaperModal.jsx` or `WorksheetGenerator.jsx`); backend, call `reserveAiOperation` before the provider call and `completeAiOperation`/`failAiOperation` after (see `generateAssessment.js`), and switch the result doc to `.doc(idempotencyKey)`.
 
 ### Agent pipeline (the internal "AI company")
 
@@ -600,17 +610,18 @@ deploy` HARD-FAIL ("no value for the secret: X") and blocks EVERY functions
 deploy.** The same trap is documented for `RECRAFT_API_KEY` in `index.js` and
 worked around for the inbound WhatsApp secrets in `metaWhatsApp.js`. So the bind
 is gated on `OPS_ALERT_WEBHOOK_BOUND`, a non-secret flag that *does* belong in the
-committed `functions/.env.examsprepzambia`. Turning the channel on:
+committed `functions/.env.examsprepzambia`.
 
-1. `firebase functions:secrets:set OPS_ALERT_WEBHOOK_URL` (paste the webhook URL)
-2. set `OPS_ALERT_WEBHOOK_BOUND=1` in `functions/.env.examsprepzambia`
-3. deploy — the secret binds, mounts as an env var, and `sendOpsAlert` picks it up
-   with no call-site change
-
-Backing out is the same steps in reverse (blank the flag, redeploy). Callers
-already wired: `firestoreBackup`, `storageBackup`, `opsHeartbeat`,
-`rateLimitHealth`, the agent circuit breaker. Tests: `test:ops-alert`,
-`test:ops-alert-secrets`.
+**The channel is ON as of 2026-07-27** (#1986): `OPS_ALERT_WEBHOOK_URL` is stored
+in Secret Manager (version 1, a Slack incoming webhook for `#zedexams-ops`) and
+`OPS_ALERT_WEBHOOK_BOUND=1` is set, so nine functions carry the secret —
+`agentJobsOnCreate`, `agentJobsOnApproved`, `dailyFirestoreBackup`,
+`backupCompletionCheck`, `storageBackupCheck`, `rateLimitHealthCheck`,
+`opsHeartbeatCheck`, `verifyGooglePlayPurchase`, `lencoWebhook`. Backing out is
+re-commenting the flag and redeploying; email keeps delivering either way. If you
+ever need to re-enable it from scratch the order matters — set the secret value
+FIRST, then the flag, then deploy, or the deploy hard-fails as above. Tests:
+`test:ops-alert`, `test:ops-alert-secrets`.
 
 ### Hosting + Functions wiring
 
@@ -658,6 +669,9 @@ Quiz/attempt/result Zod schemas live in `src/schemas/`. There's also a parallel 
 ## Repo notes
 
 - Two identical remotes. `gh pr ...` needs `-R Mwelwa-cyber/Zedexams`. `gh api` uses URL paths.
-- `main` is branch-protected. Required checks: `Lint`, `Tests (importer + sanitize + schema)`, and `Visual regression gate` (from `visual-regression.yml`, required since #1979 — require *only* that job, never the scope or render jobs; see the §4.6 section above for why). `enforce_admins` is on. Use `gh pr merge --auto` rather than blocking on checks. `ci.yml` also runs `Tests (Vitest unit + coverage)`, `Tests (Functions coverage)`, `Build + mobile smoke` (the clean-build + public-route render gate), `Dependency audit (prod deps)`, and the emulator suites (`Tests (Firestore rules emulator)`, Storage rules, payment lifecycle); make the build job a required check too once it's settled.
+- `main` is branch-protected and `enforce_admins` is on. Use `gh pr merge --auto` rather than blocking on checks. **Nine required checks** as of 2026-07-27 — eight jobs in [`ci.yml`](.github/workflows/ci.yml) (`Lint`, `Tests (importer + sanitize + schema)`, `Tests (Vitest unit + coverage)`, `Tests (Firestore rules emulator)`, `Tests (Storage rules emulator)`, `Tests (Functions coverage)`, `Build + mobile smoke`, `Dependency audit (prod deps)`) plus `Visual regression gate` from [`visual-regression.yml`](.github/workflows/visual-regression.yml). `Tests (Payment lifecycle emulator)` runs but is deliberately not required.
+  - **A required job must report on EVERY pull request.** None of the nine may grow a `paths:` filter, a job-level `if:`, or `continue-on-error` — a job that is filtered out is not "passed", it is *missing*, and branch protection then holds every unrelated PR open forever waiting for a result that never arrives. This is why the visual gate requires `Visual regression gate` (the `always()` router that reports on every PR) and **not** `Visual regression (Chromium + LibreOffice)`, which legitimately skips when nothing print-affecting changed. Adding a `paths:` filter to a required job is the single easiest way to wedge the whole repo.
+  - A print-affecting PR now waits on the full Chromium + LibreOffice render (up to ~30 min) before it can merge. That is the intended cost of the §4.6 gate.
+  - Bot-authored PRs land in `action_required` until someone clicks "Approve and run workflows"; with nine required checks that state blocks everything rather than most things.
 - The dev server needs `.env` from the project owner. CI builds use repo secrets (`deploy-hosting.yml:60-83`).
 - Today's date and the user's email are surfaced in the session header. Don't hard-code either into code or tests.

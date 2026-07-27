@@ -23,7 +23,7 @@
     "test:crop-geometry": "node src/components/quiz/cropGeometry.test.js",
     "test:diagram-clean": "node src/utils/diagramClean.test.js",
     "test:shared-rules": "node functions/shared/assessment/sharedRules.test.js",
-    "test:diagram-catalog": "node scripts/test-diagram-catalog.mjs",
+    "test:diagram-catalog": "node functions/shared/assessment/diagramCatalogCore.test.js",
     "test:visual-prompt": "node scripts/test-visual-prompt.mjs",
     "test:visual-versions": "node scripts/test-visual-versions.mjs",
     "test:visual-asset": "node scripts/test-visual-asset-schema.mjs",
@@ -59,7 +59,6 @@
     "test:paper-pagination": "node src/utils/paperPaginationCore.test.js",
     "test:export-blocking": "node functions/assessmentExports/exportBlocking.test.js",
     "test:shared-assessment-validation": "node functions/shared/assessment/assessmentValidationCore.test.js",
-    "test:diagram-catalog": "node functions/shared/assessment/diagramCatalogCore.test.js",
     "test:shim-guard": "node functions/shared/assessment/shimGuard.test.js",
     "test:server-export-readiness": "node functions/assessmentExports/exportReadiness.test.js",
     "test:shared-assessment-neutral": "node functions/shared/assessment/neutrality.test.js",
@@ -564,7 +563,9 @@
     "test:pagination-cursors": "node src/utils/pagination/cursors.test.js",
     "test:pagination-keys": "node src/utils/pagination/queryKeys.test.js",
     "test:pagination-cache": "node src/utils/pagination/pageCache.test.js",
-    "test:pagination-server": "node functions/paginationCore.test.js"
+    "test:pagination-server": "node functions/paginationCore.test.js",
+    "test:ai-generator-inventory": "node scripts/test-ai-generator-inventory.mjs",
+    "test:diagram-catalog-svg": "node scripts/test-diagram-catalog.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
