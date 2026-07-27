@@ -154,6 +154,23 @@ jobs:
           fi
           node scripts/visual/validateFixtures.mjs "${ARGS[@]}"
 
+      # The print invariant the baselines cannot express: the paper code must
+      # never cost a sheet, and body content must never be printed on top of it.
+      # A baseline records how the paper LOOKS; it cannot say that the strip at
+      # the foot of the page is reserved, so a diff of a paper with an answer
+      # line through its paper code compares perfectly against a baseline of the
+      # same defect. This renders through the Chromium the job already has.
+      #
+      # Run BEFORE the comparison, deliberately: a violated print invariant must
+      # stop the run rather than produce a diff a reviewer might record.
+      #
+      # Full-suite runs only. A reviewed baseline PR is narrowed to one target
+      # and cannot contain application code — the scope resolver refuses it — so
+      # there is nothing there for this to protect.
+      - name: Prove the footer band
+        if: steps.scope.outputs.fixture == ''
+        run: node scripts/visual/footerBand.test.js
+
       # ONE implementation, whichever way the job was triggered. Ordinary PRs and
       # manual runs leave the arguments empty and execute the complete suite. A
       # reviewed baseline-only PR receives the exact fixture/family proved by the

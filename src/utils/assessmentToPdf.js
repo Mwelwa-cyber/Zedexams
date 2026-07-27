@@ -18,7 +18,7 @@ import { subPartLabel, splitPartBlanks } from './questionParts.js'
 import { hydrateTableData } from './tableData.js'
 import { resolveFigureLabels, resolveAnswerKeyLabels } from './figureLabelLayout.js'
 import { resolveImageWidthPercent } from './imageWidth.js'
-import { pageMarginRule, FOOTER_MM } from '../config/paperPageGeometry.js'
+import { pageMarginRule, FOOTER_MM, FOOTER_RESERVE_MM } from '../config/paperPageGeometry.js'
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
@@ -110,9 +110,28 @@ export function buildPrintableHtml(assessment, questions, mode, { attribution = 
 </head>
 <body>
 ${attribution ? attributionHtml() : ''}
-${blocks.map(renderBlock).join('\n')}
+<table class="paper-sheet"><tbody><tr><td>
+${blocks.filter(isPaperBody).map(renderBlock).join('\n')}
+</td></tr></tbody><tfoot><tr><td class="footer-reserve"></td></tr></tfoot></table>
+${blocks.filter((b) => !isPaperBody(b)).map(renderBlock).join('\n')}
 </body>
 </html>`
+}
+
+/**
+ * Is this block part of the paper's flowing body?
+ *
+ * The paper code is not. In print it is a fixed element that repeats on every
+ * sheet, so it contributes nothing to the flow — but while it sat inside the
+ * table cell it was still the cell's LAST CHILD, which put the real last block's
+ * trailing margin out of reach of the rule that zeroes it. That margin is
+ * invisible and it cost vr-004's marking key a whole sheet: content ended at
+ * 278.5mm, comfortably inside the 281mm limit, and the reservation was pushed
+ * past the page anyway, producing a second page carrying nothing but the code.
+ * Exactly the defect this whole change exists to end, one copy over.
+ */
+function isPaperBody(block) {
+  return block.kind !== 'footerCode'
 }
 
 const PRINT_CSS = `
@@ -620,8 +639,13 @@ body {
 }
 .attribution-footer {
   position: fixed;
-  bottom: 2pt; left: 0; right: 0;
-  text-align: center;
+  /* Anchored to the footer band, not to a constant of its own. It is a second
+     fixed line at the foot of the sheet, so if the band moves it must move with
+     it — left-aligned against the centred paper code so the two do not stack. */
+  bottom: 0; left: 0; right: 0;
+  height: ${FOOTER_MM.lineHeight}mm;
+  line-height: ${FOOTER_MM.lineHeight}mm;
+  text-align: left;
   font-family: Arial, Helvetica, sans-serif;
   font-size: 8.5pt;
   color: #888;
@@ -634,6 +658,42 @@ body {
 }
 
 /*
+ * The paper sheet is a table so the footer's space can be RESERVED.
+ *
+ * Nothing else in Chromium reserves space at the foot of every printed page. A
+ * fixed element is positioned against the page area, which is the same box the
+ * body flows through, so taking the paper code out of flow stopped it creating
+ * pages but did not stop the body printing on top of it — vr-006 page 3 ran an
+ * answer line straight through the code. Two alternatives were measured and
+ * rejected: a negative offset, which makes Chromium grow the document by a page
+ * (the original defect, back again), and a table-footer-group on the body
+ * element, which reserves on the last page only.
+ *
+ * A real tfoot on a real table repeats on every page AND reserves its height
+ * in the flow, so the body physically cannot reach the strip below it. The row
+ * prints nothing: it is a reservation, not a footer. The paper code is still the
+ * fixed element below, which is what keeps it off the flow and out of the page
+ * count.
+ *
+ * The cell is transparent to layout — no padding, no borders, full width — so
+ * the paper paginates exactly as it did; only the last usable line on each page
+ * moves up by the reserved height. A .pagebreak inside the cell still breaks
+ * the page (measured: a one-page paper becomes two).
+ */
+.paper-sheet { width: 100%; border-collapse: collapse; }
+.paper-sheet > tbody > tr > td,
+.paper-sheet > tfoot > tr > td { padding: 0; border: 0; vertical-align: top; }
+/* On screen the reservation costs nothing: there are no pages to reserve on. */
+.footer-reserve { height: 0; padding: 0; }
+/*
+ * A trailing margin below the last block is dead space that was never visible,
+ * and once the reservation sits under it, it is dead space that can cost a
+ * sheet: it pushes the reserved row past the page and Chromium answers with a
+ * page carrying nothing but the paper code.
+ */
+.paper-sheet > tbody > tr > td > *:last-child { margin-bottom: 0; }
+
+/*
  * In PRINT the paper code leaves the flow entirely.
  *
  * In flow it was an ordinary block with an 18pt top margin, so on a paper that
@@ -643,13 +703,13 @@ body {
  * EVERY sheet, which is what a paper code is for: a loose page stays
  * identifiable.
  *
- * The band it sits in is reserved by the @page bottom margin above, computed
- * from these same numbers. It anchors to the bottom of the PAGE AREA — a fixed
- * element is positioned against that box, not the sheet, and reaching past it
- * with a negative offset was measured to make Chromium grow the document by a
- * page, which is the defect this fix removes.
+ * It anchors to the bottom of the PAGE AREA, and the page's bottom margin is
+ * the footer's declared offset, so a zero bottom offset lands the code exactly
+ * where paperPageGeometry says it goes rather than wherever the margin happened
+ * to leave it. The clearance above it is the tfoot reservation.
  */
 @media print {
+  .footer-reserve { height: ${FOOTER_RESERVE_MM}mm; }
   .footer-code {
     position: fixed;
     left: 0;
