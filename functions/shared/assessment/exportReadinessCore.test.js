@@ -13,7 +13,7 @@ import assert from 'node:assert/strict'
 import {
   blockingIssues, blockingIssuesByLocalId, incompleteQuestionNumbers,
   listNumbers, describeExportBlock,
-} from '../functions/shared/assessment/exportReadinessCore.js'
+} from './exportReadinessCore.js'
 
 let passed = 0
 function test(name, fn) {

@@ -68,7 +68,20 @@ export const QUESTION_TYPE_ALIASES = {
  */
 export function canonicalizeQuestionType(type) {
   if (typeof type !== 'string') return type
-  return QUESTION_TYPE_ALIASES[type.trim().toLowerCase()] || type
+  const lowered = type.trim().toLowerCase()
+  if (QUESTION_TYPE_ALIASES[lowered]) return QUESTION_TYPE_ALIASES[lowered]
+  // A RECOGNISED type in the wrong case folds to its canonical spelling. It did
+  // not, and 'MCQ' came back as 'MCQ' — which the completeness rules compare
+  // against 'mcq', miss, and report as an unrecognised question type. Harmless
+  // while only the editor called this (it writes lowercase); a real refusal now
+  // that the rule runs over stored documents, where uppercase does occur —
+  // functions/assessmentExports/renderModel.js lowercases defensively for
+  // exactly that reason.
+  //
+  // Garbage is still returned unchanged, so the strict write schema keeps
+  // rejecting it loudly: only a type already in QUESTION_TYPES is folded.
+  if (QUESTION_TYPES.includes(lowered)) return lowered
+  return type
 }
 
 // Human-readable labels for each canonical question type. Single source of

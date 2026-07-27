@@ -30,6 +30,12 @@ export default [
       'functions/lib/**',
       '.firebase/**',
       '.playwright/**',
+      // Generated coverage reports. Both are gitignored, but a local
+      // `npm run test:coverage` / `functions:coverage` leaves the HTML
+      // reporter's own bundled scripts on disk, and linting those reports
+      // warnings about a third party's code on an otherwise clean tree.
+      'coverage/**',
+      'coverage-functions/**',
       'public/**',
       'postman/**',
       'qa-samples/**',

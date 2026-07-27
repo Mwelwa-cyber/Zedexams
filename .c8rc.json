@@ -12,9 +12,10 @@
   "reports-dir": "coverage-functions",
   "clean": true,
   "check-coverage": true,
-  "//baseline": "Measured baseline 2026-07-21: lines/statements 47.6%, branches 77.59%, functions 76.77% (154 backend test files). Thresholds sit a small buffer under that so the gate can only ratchet up; bump them again the next time coverage rises.",
-  "lines": 47,
-  "statements": 47,
-  "functions": 76,
+  "//baseline": "Measured baseline 2026-07-27: lines/statements 54.42%, branches 77.22%, functions 82.00% (184 backend test files). Thresholds sit a small buffer under that so the gate can only ratchet up; bump them again the next time coverage rises. Previously 2026-07-21: lines 47.6%, branches 77.59%, functions 76.77% (154 files).",
+  "//branches": "Branches is the one number that did not rise with the others, and the reason is worth knowing before someone 'fixes' it: functions/shared/assessment moved ~1,800 lines of rule code into this scope, and rule code is mostly branches. Its own tests brought the total back above the threshold rather than the threshold down to it — see functions/shared/README.md. Do not lower this to make a red build green.",
+  "lines": 54,
+  "statements": 54,
+  "functions": 81,
   "branches": 77
 }
