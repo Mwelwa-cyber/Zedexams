@@ -7,7 +7,7 @@
  * happen. Everything below is about keeping those two apart, and about the gate
  * and the exporter describing the same missing diagram in the same words.
  *
- * Run: node src/utils/unresolvedFigures.test.js
+ * Run: node functions/shared/assessment/unresolvedFiguresCore.test.js
  */
 
 import assert from 'node:assert/strict'
@@ -16,7 +16,7 @@ import {
   unresolvedFigure, unresolvedFigureMessage, unresolvedFiguresMessage,
   unresolvedRequiredFigures, affectedQuestionNumbers, listNumbers, UnresolvedFigureError,
   FIGURE_STAGES, STATIC_STAGE,
-} from './unresolvedFigures.js'
+} from './unresolvedFiguresCore.js'
 
 let passed = 0
 function test(name, fn) {
@@ -281,16 +281,27 @@ test('the harness escape hatch is never set by application code', () => {
   // nothing enforced that, so a refactor could pass `true` and silently undo
   // the whole gate. This is the enforcement: the flag may be DEFINED in the
   // exporter and USED by tests, and must appear nowhere else under src/.
-  const root = new URL('../..', import.meta.url).pathname
+  // Searched across BOTH sides now that the server enforces the same rule — an
+  // opt-out reintroduced in functions/ would be worse than one in src/, because
+  // the server is the entry point a client cannot talk its way past.
+  const root = new URL('../../..', import.meta.url).pathname
   const allowed = new Set([
     'src/utils/assessmentToDocx.js',      // defines it
-    'src/utils/unresolvedFigures.test.js', // this guard
+    'functions/shared/assessment/unresolvedFiguresCore.test.js', // this guard
     'src/utils/paperGolden.test.js',       // proves the opt-out still delivers
   ])
   const hits = execSync(
-    "grep -rl 'allowUnresolvedFigures' src || true",
+    "grep -rl 'allowUnresolvedFigures' src functions --exclude-dir=node_modules || true",
     { cwd: root, encoding: 'utf8' },
   ).split('\n').filter(Boolean)
+  // `|| true` swallows a grep that could not read its search roots, and an empty
+  // result then reads exactly like a clean tree. This guard moved directories
+  // once already and spent that move searching a path that did not exist,
+  // passing every time. The known-present hits are the proof it looked.
+  assert.ok(
+    hits.includes('src/utils/assessmentToDocx.js'),
+    'the guard found nothing at all — it is searching the wrong root, not proving the tree is clean',
+  )
   const unexpected = hits.filter((f) => !allowed.has(f))
   assert.deepEqual(unexpected, [], `application code must not opt out: ${unexpected.join(', ')}`)
 })
