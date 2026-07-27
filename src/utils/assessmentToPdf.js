@@ -66,14 +66,19 @@ function figurePlaceholderHtml(label) {
   return `<div class="q-diagram figure-missing">${caption}</div>`
 }
 
+// NOTE: must NOT pass `noopener`/`noreferrer` in the features string — when
+// either is present `window.open` opens the blank window but returns `null`,
+// severing the handle the document is written into. Every sibling exporter
+// (lessonPlanToPdf, classTimetableToPdf, worksheetToPdf, htmlPdfExport) carries
+// the same note, and scripts/test-pdf-export-window.test.js enforces it.
 export function openPrintWindow() {
-  return window.open('', '_blank', 'noopener,noreferrer,width=900,height=1100')
+  return window.open('', '_blank', 'width=900,height=1100')
 }
 
 export function printAssessmentAsPdf(assessment, questions, { mode = 'paper', win: preWin = null, attribution = false } = {}) {
   if (!assessment) throw new Error('No assessment to export.')
 
-  const win = preWin || window.open('', '_blank', 'noopener,noreferrer,width=900,height=1100')
+  const win = preWin || window.open('', '_blank', 'width=900,height=1100')
   if (!win) {
     throw new Error('Your browser blocked the print window. Please allow pop-ups and try again.')
   }

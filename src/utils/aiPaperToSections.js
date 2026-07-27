@@ -468,6 +468,14 @@ export function aiPaperToStudioDoc(output, tool = 'assessment') {
     questionCount: serialized.questions.length,
     totalMarks: serialized.totalMarks,
     warnings: blocks.warnings,
+    // The editor sections this was built from. Returned rather than discarded
+    // because `collectQuizIssues` reads sections, not serialized questions —
+    // without them the library detail view had no way to run the same export
+    // readiness check as the studio, and exported papers the studio refuses.
+    // Re-deriving them at the call site would be a second conversion of the
+    // same input, free to disagree with this one.
+    sections: blocks.sections,
+    editorParts: blocks.parts,
   }
 }
 

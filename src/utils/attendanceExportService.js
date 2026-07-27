@@ -508,9 +508,17 @@ export function termSummaryRows(model) {
 
 // ── browser-only download/print helpers ─────────────────────────
 
-/** Print via a dedicated window (never the app screen). */
+/**
+ * Print via a dedicated window (never the app screen).
+ *
+ * NOTE: must NOT pass `noopener`/`noreferrer` in the features string — either
+ * one makes `window.open` open the window but return `null`, severing the
+ * handle the register is written into, so the teacher gets a blank tab and a
+ * "pop-ups blocked" error they cannot fix by allowing pop-ups. Enforced by
+ * scripts/test-pdf-export-window.test.js.
+ */
 export function printAttendanceHtml(html) {
-  const win = window.open('', '_blank', 'noopener,width=1100,height=800')
+  const win = window.open('', '_blank', 'width=1100,height=800')
   if (!win) throw new Error('The print window was blocked. Allow pop-ups and try again.')
   win.document.open()
   win.document.write(html)
