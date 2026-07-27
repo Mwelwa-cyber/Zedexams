@@ -2315,6 +2315,15 @@
 .studio-v2 .sv-health-group.blocked h4 { color: var(--sv-primary-dark); }
 .studio-v2 .sv-health-group.attention h4 { color: #7A5A1F; }
 .studio-v2 .sv-health-group.checks h4 { color: var(--sv-muted); }
+/* The printability note, and the "still measuring" / "could not verify" lines.
+   Quieter than a list item on purpose: they explain a section or report our own
+   progress, and neither is a defect the teacher has to go and fix. */
+.studio-v2 .sv-health-note {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--sv-muted);
+  margin: 0 0 var(--sv-s2);
+}
 .studio-v2 .sv-health-group ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
 .studio-v2 .sv-health-group li {
   display: flex;

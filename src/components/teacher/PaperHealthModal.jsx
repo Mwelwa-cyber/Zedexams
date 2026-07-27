@@ -22,6 +22,11 @@ const STATUS_META = {
   [HEALTH_STATUS.READY]: { label: 'Ready', tone: 'ready', icon: 'checkCircle' },
   [HEALTH_STATUS.ATTENTION]: { label: 'Worth a look', tone: 'attention', icon: 'warn' },
   [HEALTH_STATUS.BLOCKED]: { label: 'Needs fixing', tone: 'blocked', icon: 'warn' },
+  // Its own tone, not 'blocked': the paper is finished and Word still works, so
+  // presenting it with the same red as an unfinished question would overstate
+  // it — and presenting it as an advisory would understate a defect the
+  // teacher meets at the photocopier.
+  [HEALTH_STATUS.PRINT_BLOCKED]: { label: 'Won’t print correctly', tone: 'attention', icon: 'warn' },
 }
 
 function HealthStat({ icon, value, label }) {
@@ -56,7 +61,10 @@ export default function PaperHealthModal({
 
   const meta = STATUS_META[health.status] || STATUS_META[HEALTH_STATUS.READY]
   const stats = health.stats || {}
-  const { blockers = [], advisories = [], checks = [] } = health
+  const {
+    blockers = [], advisories = [], checks = [],
+    printBlockers = [], layoutPending = false, layoutUnverified = false,
+  } = health
 
   return (
     <div
@@ -104,6 +112,36 @@ export default function PaperHealthModal({
             </section>
           )}
 
+          {/* Printability sits between the two on purpose: after "finish the
+              paper", before "consider these suggestions". */}
+          {printBlockers.length > 0 && (
+            <section className="sv-health-group attention">
+              <h4><Icon name="warn" size={14} /> Fix before printing ({printBlockers.length})</h4>
+              <p className="sv-health-note">
+                These stop Print and PDF. The Word download is unaffected — Word lays out pages
+                with its own engine.
+              </p>
+              <ul>
+                {printBlockers.map((b) => (
+                  <li key={b.id}><span className="sv-health-dot" aria-hidden="true" />{b.label}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {/* Progress, not a defect — so it is a note rather than a list item. */}
+          {printBlockers.length === 0 && layoutPending && (
+            <p className="sv-health-note" role="status">
+              Checking the page layout… Print and PDF unlock when it finishes.
+            </p>
+          )}
+          {layoutUnverified && (
+            <p className="sv-health-note" role="status">
+              The page layout could not be verified, so Print and PDF are held back. The Word
+              download is unaffected.
+            </p>
+          )}
+
           {advisories.length > 0 && (
             <section className="sv-health-group attention">
               <h4><Icon name="warn" size={14} /> Worth checking ({advisories.length})</h4>
@@ -129,7 +167,7 @@ export default function PaperHealthModal({
             </section>
           )}
 
-          {blockers.length === 0 && advisories.length === 0 && (
+          {blockers.length === 0 && printBlockers.length === 0 && advisories.length === 0 && (
             <div className="sv-health-allclear">
               <Icon name="checkCircle" size={18} />
               Everything checks out. This paper is ready to save and export.

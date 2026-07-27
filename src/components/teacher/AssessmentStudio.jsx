@@ -813,6 +813,10 @@ export default function AssessmentStudio() {
     () => computePaperHealth({
       validation: validationResult,
       smartWarnings: warnings,
+      // The measured layout, so the panel a teacher is SENT to when an export
+      // is refused actually lists the reason. Without it a layout refusal
+      // opened a page saying everything was fine.
+      pagination,
       stats: {
         questionCount,
         totalMarks,
@@ -826,7 +830,7 @@ export default function AssessmentStudio() {
         duration: Number(form.duration) || 0,
       },
     }),
-    [validationResult, warnings, questionCount, totalMarks, pagination.status, pagination.pageCount, estimatedMinutes, parts.length, form.duration],
+    [validationResult, warnings, pagination, questionCount, totalMarks, estimatedMinutes, parts.length, form.duration],
   )
 
   /* ------------ helpers ------------ */

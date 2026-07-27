@@ -106,6 +106,75 @@ console.log('\npaperHealthHeadline — phrasing')
   assert(/passes every check/.test(ready), 'ready headline is reassuring')
 }
 
+/* ── printability: the third classification ──────────────────────────────── */
+{
+  console.log('\n— printability —')
+  const layout = (issues, status = 'ready') => ({ status, issues })
+  const clean = { validation: { issues: [] }, smartWarnings: [] }
+
+  const blank = computePaperHealth({
+    ...clean,
+    pagination: layout([{ code: 'blank-page', message: 'Page 2 is blank — the paper ends with an empty sheet.' }]),
+  })
+  assert(blank.status === HEALTH_STATUS.PRINT_BLOCKED, 'a layout defect is its own status, not BLOCKED')
+  assert(blank.printBlockerCount === 1, 'it is counted separately from correctness blockers')
+  assert(blank.blockers.length === 0, 'and it is NOT a correctness blocker')
+  assert(blank.ready === true, '`ready` stays true — the paper is finished, and Word still works')
+  assert(/Page 2 is blank/.test(blank.printBlockers[0].label), 'the panel gets the sentence a teacher can act on')
+
+  // The gap this closes: an export refused for layout SENDS the teacher here,
+  // and before this the panel told them everything was fine.
+  const headline = paperHealthHeadline(blank)
+  assert(/layout problem stops it printing/.test(headline), `headline names the problem: ${headline}`)
+  assert(/Word is unaffected/.test(headline), 'and says Word still works, because that button is enabled beside it')
+
+  const many = computePaperHealth({
+    ...clean,
+    pagination: layout([
+      { code: 'blank-page', message: 'Page 4 is blank.' },
+      { code: 'question-split', message: 'Question 2 is split across pages 1 and 2.' },
+    ]),
+  })
+  assert(/2 layout problems stop/.test(paperHealthHeadline(many)), 'plural headline counts them')
+
+  // Ranking: finishing the question is about to move every page boundary, so a
+  // layout complaint about the current arrangement is advice about a document
+  // that is going to change.
+  const both = computePaperHealth({
+    validation: { issues: [{ id: 'question-text-a', label: 'Question 1: question text is empty.', severity: 'error' }] },
+    pagination: layout([{ code: 'blank-page', message: 'Page 4 is blank.' }]),
+  })
+  assert(both.status === HEALTH_STATUS.BLOCKED, 'an unfinished paper outranks its layout')
+
+  // An advisory must not outrank a printability failure.
+  const advisoryToo = computePaperHealth({
+    validation: { issues: [{ id: 'x', label: 'Something minor.', severity: 'warn' }] },
+    pagination: layout([{ code: 'clipped-content', message: 'A table is clipped.' }]),
+  })
+  assert(advisoryToo.status === HEALTH_STATUS.PRINT_BLOCKED, 'printability outranks advisories')
+
+  // Progress is not a defect.
+  for (const status of ['idle', 'measuring', 'stale']) {
+    const pending = computePaperHealth({ ...clean, pagination: layout([], status) })
+    assert(pending.printBlockerCount === 0, `${status} lists no defect`)
+    assert(pending.layoutPending === true, `${status} is reported as pending`)
+    assert(pending.status === HEALTH_STATUS.READY, `${status} does not colour the panel red`)
+  }
+  const failed = computePaperHealth({ ...clean, pagination: layout([{ code: 'measure-failed', message: 'x' }], 'failed') })
+  assert(failed.layoutUnverified === true, 'a failed measurement is reported as unverified')
+  assert(failed.printBlockerCount === 0, 'and not as a list of things to fix')
+
+  // A pagination issue that is not a declared printability failure changes nothing.
+  const advisoryCode = computePaperHealth({ ...clean, pagination: layout([{ code: 'some-future-advisory', message: 'FYI' }]) })
+  assert(advisoryCode.status === HEALTH_STATUS.READY, 'an undeclared code does not block')
+
+  // No pagination at all: the panel behaves exactly as it did before Phase 5,
+  // so every other caller is unaffected.
+  const none = computePaperHealth(clean)
+  assert(none.status === HEALTH_STATUS.READY && none.printBlockerCount === 0, 'no pagination, no change')
+  assert(none.layoutPending === false, 'and nothing is reported as pending')
+}
+
 if (failures > 0) {
   console.error(`\n${failures} assertion(s) failed.`)
   process.exit(1)
