@@ -24,6 +24,7 @@ import {
   gateVerdict, summariseGateVerdict, requiredArtefacts, shouldProceedToComparison,
 } from './gateCore.js'
 import { VISUAL_FIXTURES } from './fixtures.js'
+import { PRINT_AFFECTING_PATHS } from './printAffectingPaths.js'
 
 let passed = 0
 function test(name, fn) {
@@ -83,7 +84,7 @@ test('a generation failure additionally demands stderr and the command', () => {
 })
 
 test('artefacts are uploaded even when the comparison fails', () => {
-  const step = compareWorkflow.jobs.compare.steps.find((s) => /upload/i.test(s.name || ''))
+  const step = compareWorkflow.jobs.visual.steps.find((s) => /upload/i.test(s.name || ''))
   assert.ok(step, 'there is an upload step')
   assert.equal(step.if, 'always()', 'it runs on failure as well as success')
 })
@@ -98,38 +99,71 @@ test('workflow_dispatch exposes a force input', () => {
   assert.equal(inputs.force.default, true, 'and defaults to running the suite')
 })
 
-test('force runs the IDENTICAL job, not a reduced one', () => {
+test('force runs the IDENTICAL comparison, not a reduced one', () => {
   // The trap: a second, lighter code path for manual runs. Then the thing a
   // reviewer forces is not the thing that gates the merge.
-  const jobs = Object.keys(compareWorkflow.jobs)
-  assert.deepEqual(jobs, ['compare'], 'there is exactly one job to run')
-  const steps = compareWorkflow.jobs.compare.steps
-  // No step is conditional on the trigger or on the force input, so a dispatched
-  // run executes precisely what a path-triggered run executes.
+  //
+  // There are three jobs now (scope → visual → gate) because the gate has to
+  // report on EVERY pull request to be requirable, but only ONE of them
+  // renders, and `force` reaches it the same way a path-affecting change does:
+  // through the scope job's `requires_visual` output. No step inside the
+  // rendering job branches on the trigger.
+  const steps = compareWorkflow.jobs.visual.steps
   for (const step of steps) {
     const cond = String(step.if || '')
     assert.ok(
       !/inputs\.force|github\.event_name/.test(cond),
-      `no step branches on the trigger: ${step.name || step.run}`,
+      `no rendering step branches on the trigger: ${step.name || step.run}`,
     )
   }
   const compareStep = steps.find((s) => /runVisualGate/.test(s.run || ''))
   assert.ok(compareStep, 'the comparison runs through the shared entry point')
   assert.match(compareStep.run, /--mode=compare/)
+  // Force is honoured in exactly one place, and it is the scope decision.
+  const scopeStep = compareWorkflow.jobs.scope.steps.find((st) => /resolveGateScope/.test(st.run || ''))
+  assert.ok(scopeStep, 'the scope job resolves through the shared resolver')
+  assert.match(JSON.stringify(scopeStep.env || {}), /inputs\.force/)
+})
+
+test('the gate reports on every pull request, under one stable name', () => {
+  // The property that makes it requirable at all. A `paths:` filter would leave
+  // the check MISSING on an unrelated pull request, and branch protection holds
+  // a pull request open forever waiting for a result that never arrives.
+  assert.ok(!compareWorkflow.on.pull_request.paths,
+    'the workflow must start on every pull request, not on a path filter')
+  assert.equal(compareWorkflow.jobs.gate.name, 'Visual regression gate',
+    'the required check name is stable')
+  assert.equal(compareWorkflow.jobs.gate.if, 'always()',
+    'the gate reports whatever the other jobs did')
+  assert.deepEqual(compareWorkflow.jobs.gate.needs, ['scope', 'visual'])
+  // And the expensive job is NOT the one to require: it legitimately skips.
+  assert.equal(compareWorkflow.jobs.visual.if, "needs.scope.outputs.requires_visual == 'true'")
+})
+
+test('the gate\u2019s verdict is a tested module, not an untestable expression', () => {
+  // Every way this can be wrong is silent — passing on a cancelled render, on a
+  // skip it should have refused, or when scope resolution failed and nothing
+  // ran. A GitHub `if:` expression cannot be tested.
+  const decide = compareWorkflow.jobs.gate.steps.find((st) => /gateVerdict/.test(st.run || ''))
+  assert.ok(decide, 'the gate decides through gateVerdict.js')
+  for (const key of ['SCOPE_RESULT', 'VISUAL_RESULT', 'REQUIRES_VISUAL']) {
+    assert.ok(key in (decide.env || {}), `the verdict is given ${key}`)
+  }
 })
 
 test('editing the gate triggers the gate', () => {
   // Otherwise a pull request could widen a tolerance, drop a fixture or remove a
-  // path WITHOUT running the tests that prove the gate is still safe.
-  const paths = compareWorkflow.on.pull_request.paths
-  assert.ok(paths.includes('.github/workflows/visual-regression.yml'), 'its own workflow')
-  assert.ok(paths.includes('.github/workflows/visual-baseline-update.yml'), 'the update workflow')
-  assert.ok(paths.includes('scripts/visual/**'), 'the comparison modules and fixtures')
-  assert.ok(paths.some((p) => /baselines/.test(p)), 'the baseline metadata')
+  // path WITHOUT running the tests that prove the gate is still safe. The list
+  // moved out of the YAML into a module so it could be tested; the property it
+  // has to keep is unchanged.
+  assert.ok(PRINT_AFFECTING_PATHS.includes('.github/workflows/visual-regression.yml'), 'its own workflow')
+  assert.ok(PRINT_AFFECTING_PATHS.includes('.github/workflows/visual-baseline-update.yml'), 'the update workflow')
+  assert.ok(PRINT_AFFECTING_PATHS.includes('scripts/visual/**'), 'the comparison modules and fixtures')
+  assert.ok(PRINT_AFFECTING_PATHS.some((p) => /baselines/.test(p)), 'the baseline metadata')
 })
 
-test('the path filter covers every rendering dependency the owner listed', () => {
-  const paths = compareWorkflow.on.pull_request.paths.join('\n')
+test('the path list covers every rendering dependency the owner listed', () => {
+  const paths = PRINT_AFFECTING_PATHS.join('\n')
   const required = {
     'assessment renderers': /assessmentToDocx|assessmentPaperLayout/,
     'DOCX generation': /assessmentToDocx/,
@@ -223,7 +257,7 @@ test('a comparison run may never write a baseline, even a missing one', () => {
 })
 
 test('the comparison workflow never invokes the update mode', () => {
-  const runs = compareWorkflow.jobs.compare.steps.map((s) => String(s.run || '')).join('\n')
+  const runs = compareWorkflow.jobs.visual.steps.map((s) => String(s.run || '')).join('\n')
   assert.ok(/--mode=compare/.test(runs), 'it compares')
   assert.ok(!/--mode=update/.test(runs), 'and never updates')
 })
@@ -234,7 +268,9 @@ console.log('\n— 5. a pull request cannot write —')
 
 test('the comparison workflow has read-only repository permissions', () => {
   assert.deepEqual(compareWorkflow.permissions, { contents: 'read' })
-  assert.deepEqual(compareWorkflow.jobs.compare.permissions, { contents: 'read' })
+  for (const job of ['scope', 'visual', 'gate']) {
+    assert.deepEqual(compareWorkflow.jobs[job].permissions, { contents: 'read' }, job)
+  }
 })
 
 test('a pull_request event can never reach the update path', () => {
@@ -248,7 +284,7 @@ test('a pull_request event can never reach the update path', () => {
 test('the writers are separate from the comparison, and it can never write', () => {
   // The security boundary: the workflow that runs untrusted PR code holds no
   // credentials that could write a baseline or push a branch.
-  assert.equal(compareWorkflow.jobs.compare.permissions.contents, 'read')
+  assert.equal(compareWorkflow.jobs.visual.permissions.contents, 'read')
   for (const [name, workflow] of Object.entries(WRITERS)) {
     assert.ok(!workflow.on.pull_request, `${name} never triggers on a pull request`)
     assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch'], `${name} is manual only`)
@@ -510,9 +546,8 @@ test('every writer takes its review sheet from the recorder, not from YAML', () 
 })
 
 test('editing a writer workflow runs the gate that proves it is still safe', () => {
-  const paths = compareWorkflow.on.pull_request.paths
   for (const name of Object.keys(WRITERS)) {
-    assert.ok(paths.includes(`.github/workflows/${name}`), `${name} is watched`)
+    assert.ok(PRINT_AFFECTING_PATHS.includes(`.github/workflows/${name}`), `${name} is watched`)
   }
 })
 
