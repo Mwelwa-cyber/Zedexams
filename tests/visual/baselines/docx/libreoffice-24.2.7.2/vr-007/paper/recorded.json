@@ -3,9 +3,9 @@
   "family": "docx",
   "copy": "paper",
   "identity": "docx/libreoffice-24.2.7.2",
-  "sourceCommit": "f9381c56ce987528f7294d6657c23ca6ebbdc16f",
-  "source": "PR #1937",
-  "reason": "The school logo now has ink in the Word render too, drawn from the page header part. The previous baseline recorded a header with no visible logo, because the committed PNG was 16x16 and near-blank (#1937).",
+  "sourceCommit": "9f79a3424f8ea3f5aa2245aee69af5fa1dae09df",
+  "source": "PR #1938 (commit a20202a)",
+  "reason": "STALE ON ARRIVAL, and not caused by any later change: this baseline was recorded from f9381c5 (#1937) and #1938 landed after it. Measured directly from the generated Word file rather than inferred — the school logo in word/header1.xml has extent 60x38 px before #1938 and 60x60 px at HEAD, so the logo is 22px taller. That accounts for the 2924 connected pixels the gate reports inside vr-007's declared header region. #1946 cannot be the cause: it touches only assessmentToPdf.js, which the Word path does not use.",
   "environment": {
     "chromium": "150.0.7871.24",
     "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
@@ -50,14 +50,14 @@
     "timeZone": "Africa/Lusaka",
     "fixedDate": "2026-01-15"
   },
-  "command": "soffice --headless --norestore --nolockcheck --nodefault --nofirststartwizard -env:UserInstallation=file:///tmp/visual-vr-007-4DtpD3/.loprofile --convert-to pdf:writer_pdf_Export --outdir /tmp/visual-vr-007-4DtpD3 /tmp/visual-vr-007-4DtpD3/vr-007.docx",
+  "command": "soffice --headless --norestore --nolockcheck --nodefault --nofirststartwizard -env:UserInstallation=file:///tmp/visual-vr-007-8ALxnl/.loprofile --convert-to pdf:writer_pdf_Export --outdir /tmp/visual-vr-007-8ALxnl /tmp/visual-vr-007-8ALxnl/vr-007.docx",
   "pageCount": 1,
   "anchors": {
     "question_1": 1,
     "header": 1
   },
   "inkByPage": {
-    "1": 0.016276161400669436
+    "1": 0.016506970243130907
   },
   "figures": {
     "unresolvedFigureCount": 0,
@@ -80,7 +80,7 @@
   },
   "hashes": {
     "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
-    "layout.json": "beb8e33538fb7de579d08a96a083ea2e68cff45ed51c2fa1f6cefc3e5b872ce7",
-    "page-01.png": "1ae381942387cda08693d4182176e4cffe2d316f0df143ed59eef471c5f016a0"
+    "layout.json": "e494a3a21bc9b213619ad767c201e918c9b6508c1e9f097b410b9af89c2cd427",
+    "page-01.png": "791b6e8eba54592d39b6f0befcbc15648b100e9786d9ea914db99d29bac3d1a2"
   }
 }
