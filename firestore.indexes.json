@@ -420,6 +420,23 @@
       ]
     },
     {
+      "collectionGroup": "teacherLibraryItems",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ownerUid",  "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "teacherLibraryItems",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ownerUid",  "order": "ASCENDING" },
+        { "fieldPath": "tool",      "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "aiGenerations",
       "queryScope": "COLLECTION",
       "fields": [
