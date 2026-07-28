@@ -87,6 +87,7 @@ function inputs(over = {}) {
     subject: "mathematics",
     framework: "2023",
     assessmentType: "topic_test",
+    term: 2,
     totalMarks: 20,
     durationMinutes: 40,
     topic: "Fractions; Decimals",
@@ -110,7 +111,7 @@ ok("duplicates and blanks are dropped, case-insensitively",
 ok("nothing in, nothing out", splitTopicList("").length === 0 &&
     splitTopicList(null).length === 0);
 
-/* ── the band ceiling ───────────────────────────────────────────────────── */
+/* ── the band ceiling ──────────────────────────────────────────────────── */
 
 console.log("\n— the band is the ceiling —");
 {
@@ -136,7 +137,7 @@ ok("no band means no opinion — the request stands",
       band: null, requestedBandTypes: [], questionTypes: ["essay"],
     }).permitted.includes("essay"));
 
-/* ── one plan, not two ──────────────────────────────────────────────────── */
+/* ── one plan, not two ────────────────────────────────────────────────── */
 
 console.log("\n— the plan the teacher sees is the plan the model gets —");
 (async () => {
@@ -144,6 +145,8 @@ console.log("\n— the plan the teacher sees is the plan the model gets —");
   ok("planning a real request succeeds", planned.ok && planned.blueprint);
   ok("the plan's marks equal the marks asked for",
       planned.blueprint.totalMarks === 20);
+  ok("the selected term travels with the shared blueprint",
+      planned.blueprint.term === 2);
   ok("every slot is tagged with a topic and a thinking level",
       blueprintItems(planned.blueprint).every((i) => i.topic && i.bloomLevel));
   ok("the plan quotes a real outcome from the verified syllabus",
@@ -164,7 +167,7 @@ console.log("\n— the plan the teacher sees is the plan the model gets —");
   ok("the generator's blueprint is identical to the one the teacher confirmed",
       JSON.stringify(regenerated) === JSON.stringify(planned.blueprint));
 
-  /* ── §3.5 refusal, at the plan step ─────────────────────────────────── */
+  /* ── §3.5 refusal, at the plan step ───────────────────────────────── */
 
   console.log("\n— no syllabus, no plan —");
   coverageResult = {topics: [], outcomesByTopic: {}, competencies: [], count: 0};
@@ -175,7 +178,7 @@ console.log("\n— the plan the teacher sees is the plan the model gets —");
   ok("…and produces no blueprint at all", refused.blueprint === null);
   coverageResult = COVERED;
 
-  /* ── a blueprint from a browser is an input ─────────────────────────── */
+  /* ── a blueprint from a browser is an input ───────────────────────── */
 
   console.log("\n— a confirmed plan is re-checked, not trusted —");
   const good = await planPaper({inputs: inputs(), gradeLabel: "Grade 4"});
@@ -244,7 +247,7 @@ console.log("\n— the plan the teacher sees is the plan the model gets —");
         acceptClientBlueprint({...base, candidate: senior, band: SENIOR_SECONDARY}).accepted);
   }
 
-  /* ── the teacher's adjustment survives ──────────────────────────────── */
+  /* ── the teacher's adjustment survives ────────────────────────────── */
 
   console.log("\n— the teacher's adjustment is honoured —");
   const harder = await planPaper({
@@ -268,7 +271,7 @@ console.log("\n— the plan the teacher sees is the plan the model gets —");
         expectedMarks: 20,
       }).accepted);
 
-  /* ── the band still governs the plan ────────────────────────────────── */
+  /* ── the band still governs the plan ──────────────────────────────── */
 
   console.log("\n— a plan for the youngest learners —");
   const ece = await planPaper({
