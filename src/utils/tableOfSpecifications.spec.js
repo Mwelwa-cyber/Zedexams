@@ -151,7 +151,7 @@ describe('Table of Specifications', () => {
     expect(html).toContain('Jemareen &lt;Academy&gt;')
     expect(html).toContain('TABLE OF SPECIFICATIONS')
     expect(html).toContain('Fractions')
-    expect(html).toContain('KEEP IN THE TEACHER\'S ASSESSMENT FILE')
+    expect(html).toMatch(/keep in the teacher's assessment file/i)
   })
 
   it('opens the print copy synchronously and triggers printing', () => {
