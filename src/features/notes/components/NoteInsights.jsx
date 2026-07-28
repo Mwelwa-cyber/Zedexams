@@ -100,13 +100,13 @@ export function NoteInsights({ noteId, autoOpen = false }) {
               </div>
               {data.keyPoints?.length > 0 && (
                 <div>
-                  <h4 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#C2410C] mb-1.5">
+                  <h4 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#A3422E] mb-1.5">
                     <ListChecks size={12} /> Key points
                   </h4>
                   <ul className="space-y-1.5">
                     {data.keyPoints.map((pt, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm text-[#262626]">
-                        <span className="mt-2 w-1.5 h-1.5 rounded-full bg-[#FF7A1A] shrink-0" />
+                        <span className="mt-2 w-1.5 h-1.5 rounded-full bg-[#D97757] shrink-0" />
                         <span className="leading-relaxed">{pt}</span>
                       </li>
                     ))}

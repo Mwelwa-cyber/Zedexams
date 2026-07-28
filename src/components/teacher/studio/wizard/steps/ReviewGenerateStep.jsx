@@ -40,7 +40,7 @@ function Section({ title, stepIndex, onEditStep, children }) {
           type="button"
           onClick={() => onEditStep(stepIndex)}
           aria-label={`Edit ${title}`}
-          className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg px-2.5 py-1 text-[12px] font-bold text-[#c2410c] hover:bg-[#FFF4E8]"
+          className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg px-2.5 py-1 text-[12px] font-bold text-[#a3422e] hover:bg-[#FFF4E8]"
         >
           <Pencil size={14} aria-hidden="true" />
           Edit

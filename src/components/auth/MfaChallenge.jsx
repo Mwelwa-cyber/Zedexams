@@ -71,8 +71,8 @@ export default function MfaChallenge({ resolver, onSuccess, onCancel }) {
   return (
     <ChallengeShell>
       <div className="flex flex-col items-center text-center mb-5">
-        <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#FFEDD5]">
-          <Icon as={ShieldCheck} size="lg" className="text-[#EA580C]" label="" />
+        <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#F8EADF]">
+          <Icon as={ShieldCheck} size="lg" className="text-[#C5613F]" label="" />
         </span>
         <h2 className="text-[20px] font-bold text-[#1A1F2E]">Two-step verification</h2>
         <p className="text-[13px] text-[#888] mt-1 max-w-xs">
@@ -115,7 +115,7 @@ function ChallengeShell({ children }) {
   return (
     <div
       className="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-y-auto"
-      style={{ backgroundColor: '#FDF6EC', '--accent': '#EA580C', '--accent-bg': '#FFEDD5', '--accent-fg': '#9A3412' }}
+      style={{ backgroundColor: '#FDF6EC', '--accent': '#C5613F', '--accent-bg': '#F8EADF', '--accent-fg': '#83372C' }}
     >
       <div className="bg-white rounded-[18px] shadow-xl w-full max-w-[calc(100vw-2rem)] sm:max-w-[440px] px-5 sm:px-8 pt-9 pb-8 animate-scale-in relative z-10">
         <div className="flex flex-col items-center mb-5 gap-1">

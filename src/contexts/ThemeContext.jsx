@@ -6,7 +6,7 @@ export const THEMES = [
   { id: 'sky',      label: 'Sky Blue',      swatch: '#0EA5E9' },
   { id: 'lavender', label: 'Lavender',      swatch: '#8B5CF6' },
   { id: 'midnight', label: 'Midnight Tech', swatch: '#1E293B' },
-  { id: 'oatmeal',  label: 'Warm Oatmeal',  swatch: '#D97706' },
+  { id: 'oatmeal',  label: 'Warm Oatmeal',  swatch: '#D97757' },
   { id: 'solar',    label: 'Solar Yellow',  swatch: '#F59E0B' },
   { id: 'vivid',    label: 'Vivid (Canva)', swatch: '#EC4899' },
 ]

@@ -298,10 +298,10 @@ export default function Login() {
       className="min-h-screen flex items-start sm:items-center justify-center px-4 py-6 sm:p-8 overflow-y-auto"
       style={{
         backgroundColor: '#FFF8F1',
-        '--accent': '#F45A0A',
+        '--accent': '#CA5837',
         '--accent-text': '#FFFFFF',
         '--accent-bg': '#FFF3EA',
-        '--accent-fg': '#9A3412',
+        '--accent-fg': '#83372C',
       }}
     >
       <SeoHelmet

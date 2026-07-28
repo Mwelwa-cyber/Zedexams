@@ -19,17 +19,17 @@
   --sidebar-teal: #0b3038;
   --ink: #10243e;
   --ink-2: #5f6b78;
-  --copper: #c65a24;
-  --copper-hover: #b84b18;
-  --copper-pressed: #963a12;
-  --copper-bright: #e87832;
+  --copper: #aa5943;
+  --copper-hover: #9d4b36;
+  --copper-pressed: #803b2b;
+  --copper-bright: #c77456;
   --copper-tint: #fff1e8;
   /* Mobile chrome accent — defined on the shared .tdv2 scope (not .tdv2m) so
      it resolves for the dashboard mobile view (.tdv2m) AND the studio-shell
      mobile chrome (.tdv2-mchrome / .tdv2-bare), which mounts the dock, header
      and drawer directly under .tdv2 with no .tdv2m wrapper. */
-  --mobile-orange: #e8641f;
-  --mobile-orange-bright: #f97316;
+  --mobile-orange: #c46346;
+  --mobile-orange-bright: #d97757;
   --cream: #f8f2e6;
   --surface: #ffffff;
   --border: #e8ded4;
@@ -49,7 +49,7 @@
 
   --shadow-card: 0 1px 2px rgba(16, 36, 62, 0.05), 0 6px 18px rgba(16, 36, 62, 0.06);
   --shadow-card-hover: 0 2px 4px rgba(16, 36, 62, 0.06), 0 14px 32px rgba(16, 36, 62, 0.12);
-  --shadow-copper: 0 8px 18px rgba(143, 56, 18, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.38);
+  --shadow-copper: 0 8px 18px rgba(122, 57, 42, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.38);
 
   font-family: var(--font-ui);
   color: var(--ink);
@@ -140,7 +140,7 @@
 }
 
 .tdv2 :focus-visible {
-  outline: 3px solid rgba(198, 90, 36, 0.6);
+  outline: 3px solid rgba(170, 89, 67, 0.6);
   outline-offset: 3px;
   border-radius: 10px;
 }
@@ -158,7 +158,7 @@
   --ink: #e9eff6;
   --ink-2: #a3b3c2;
   --grey: #7b8b9b;
-  --copper-tint: rgba(232, 120, 50, 0.16);
+  --copper-tint: rgba(199, 116, 86, 0.16);
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 18px rgba(0, 0, 0, 0.3);
   --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.3), 0 14px 32px rgba(0, 0, 0, 0.45);
   --ring-track: rgba(255, 255, 255, 0.12);
@@ -186,11 +186,11 @@
 
 .tdv2.is-dark .tdv2-ws-expand:hover,
 .tdv2.is-dark .tdv2-footer-action:hover {
-  background: rgba(232, 120, 50, 0.14);
+  background: rgba(199, 116, 86, 0.14);
 }
 
 .tdv2.is-dark .tdv2-tile:hover {
-  background: linear-gradient(180deg, var(--surface) 55%, rgba(232, 120, 50, 0.12) 160%);
+  background: linear-gradient(180deg, var(--surface) 55%, rgba(199, 116, 86, 0.12) 160%);
 }
 
 .tdv2.is-dark .tdv2-check-bar {
@@ -229,7 +229,7 @@
 }
 
 .tdv2.is-dark .tdv2-btn-outline:hover {
-  background: rgba(232, 120, 50, 0.16);
+  background: rgba(199, 116, 86, 0.16);
 }
 
 .tdv2.is-dark .tdv2-btn-quiet {
@@ -370,8 +370,8 @@
 
 .tdv2-nav-item.is-active {
   position: relative;
-  background: linear-gradient(180deg, #d06a32 0%, #a94419 100%);
-  border-color: rgba(232, 120, 50, 0.55);
+  background: linear-gradient(180deg, #b46951 0%, #914534 100%);
+  border-color: rgba(199, 116, 86, 0.55);
   color: #ffffff;
   font-weight: 600;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.36);
@@ -417,7 +417,7 @@
 
 .tdv2-profile:hover {
   background: rgba(255, 255, 255, 0.13);
-  border-color: rgba(232, 120, 50, 0.7);
+  border-color: rgba(199, 116, 86, 0.7);
   transform: translateY(-2px);
 }
 
@@ -439,7 +439,7 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: linear-gradient(160deg, #e87832, #963a12);
+  background: linear-gradient(160deg, #c77456, #803b2b);
   color: #fff;
   font-size: 13px;
   font-weight: 700;
@@ -606,8 +606,8 @@
 }
 
 .tdv2-search:focus-within {
-  border-color: rgba(198, 90, 36, 0.6);
-  box-shadow: 0 0 0 3px rgba(198, 90, 36, 0.14);
+  border-color: rgba(170, 89, 67, 0.6);
+  box-shadow: 0 0 0 3px rgba(170, 89, 67, 0.14);
 }
 
 .tdv2-search input {
@@ -660,7 +660,7 @@
 
 .tdv2-iconbtn:hover {
   color: var(--ink);
-  border-color: rgba(198, 90, 36, 0.45);
+  border-color: rgba(170, 89, 67, 0.45);
   transform: translateY(-1px);
   box-shadow: 0 4px 10px rgba(16, 36, 62, 0.1);
 }
@@ -700,7 +700,7 @@
 }
 
 .tdv2-datechip:hover {
-  border-color: rgba(198, 90, 36, 0.45);
+  border-color: rgba(170, 89, 67, 0.45);
   transform: translateY(-1px);
   box-shadow: 0 4px 10px rgba(16, 36, 62, 0.1);
 }
@@ -768,7 +768,7 @@
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  background: linear-gradient(160deg, rgba(255, 200, 120, 0.35), rgba(255, 140, 60, 0.22));
+  background: linear-gradient(160deg, rgba(255, 200, 120, 0.35), rgba(220, 134, 98, 0.22));
   border: 1px solid rgba(255, 210, 150, 0.35);
   color: #ffd9a0;
 }
@@ -824,7 +824,7 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(255, 196, 130, 0.85);
+  color: rgba(232, 187, 156, 0.85);
 }
 
 .tdv2-hero-inset-title {
@@ -853,12 +853,12 @@
    shadow — unmistakably clickable. */
 .tdv2-hero .tdv2-btn-copper,
 .tdv2m-hero .tdv2-btn-copper {
-  background: linear-gradient(180deg, #fb8a3c 0%, #f97316 60%, #ea580c 100%);
+  background: linear-gradient(180deg, #d88462 0%, #d97757 60%, #c5613f 100%);
   border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 14px;
   padding: 12px 22px;
   font-size: 15.5px;
-  box-shadow: 0 8px 20px rgba(234, 88, 12, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: 0 8px 20px rgba(197, 97, 63, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .tdv2-hero .tdv2-btn-copper::after,
@@ -869,7 +869,7 @@
 .tdv2-hero .tdv2-btn-copper:hover:not(:disabled),
 .tdv2m-hero .tdv2-btn-copper:hover:not(:disabled) {
   filter: brightness(1.05);
-  box-shadow: 0 11px 26px rgba(234, 88, 12, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: 0 11px 26px rgba(197, 97, 63, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .tdv2-hero .tdv2-btn-copper .tdv2-btn-arrow,
@@ -996,7 +996,7 @@
 
 .tdv2-tile:hover {
   transform: translateY(-4px);
-  border-color: rgba(198, 90, 36, 0.55);
+  border-color: rgba(170, 89, 67, 0.55);
   box-shadow: var(--shadow-card-hover);
   background: linear-gradient(180deg, #ffffff 55%, var(--copper-tint) 160%);
 }
@@ -1021,7 +1021,7 @@
   transform: translateY(-1px);
 }
 
-.tdv2-tile-icon.tone-copper { background: linear-gradient(160deg, #ffe3cd, #ffc9a1); color: #963a12; }
+.tdv2-tile-icon.tone-copper { background: linear-gradient(160deg, #f6e2d9, #eec6b5); color: #803b2b; }
 .tdv2-tile-icon.tone-teal   { background: linear-gradient(160deg, #d4efee, #a9dcd9); color: #0b3038; }
 .tdv2-tile-icon.tone-green  { background: linear-gradient(160deg, #dcf3e4, #b4e4c6); color: #14683b; }
 .tdv2-tile-icon.tone-blue   { background: linear-gradient(160deg, #dde9fd, #b9d1fa); color: #1d4fbe; }
@@ -1051,7 +1051,7 @@
   border-radius: 50%;
   background: var(--copper-tint);
   color: var(--copper);
-  border: 1.5px solid rgba(198, 90, 36, 0.5);
+  border: 1.5px solid rgba(170, 89, 67, 0.5);
   transition: transform 200ms var(--ease), background 200ms var(--ease), color 200ms var(--ease);
 }
 
@@ -1350,7 +1350,7 @@
 
 .tdv2-ws-tile:hover {
   transform: translateY(-3px);
-  border-color: rgba(198, 90, 36, 0.5);
+  border-color: rgba(170, 89, 67, 0.5);
   box-shadow: var(--shadow-card-hover);
 }
 
@@ -1432,7 +1432,7 @@
 }
 
 .tdv2-ws-expand:hover {
-  border-color: rgba(198, 90, 36, 0.45);
+  border-color: rgba(170, 89, 67, 0.45);
   background: #fcf5ea;
 }
 
@@ -1470,7 +1470,7 @@
 
 .tdv2-ws-subitem:hover {
   background: var(--copper-tint);
-  border-color: rgba(198, 90, 36, 0.25);
+  border-color: rgba(170, 89, 67, 0.25);
   color: var(--copper-pressed);
 }
 
@@ -1687,7 +1687,7 @@ a.tdv2-check-row:hover {
 }
 
 .tdv2-footer-action:hover {
-  border-color: rgba(198, 90, 36, 0.45);
+  border-color: rgba(170, 89, 67, 0.45);
   background: var(--copper-tint);
   color: var(--copper-pressed);
 }
@@ -1703,8 +1703,8 @@ a.tdv2-check-row:hover {
   min-height: 44px;
   padding: 10px 20px;
   border-radius: 13px;
-  background: linear-gradient(180deg, #d86b32 0%, #b94b19 58%, #963a12 100%);
-  border: 1px solid rgba(150, 58, 18, 0.85);
+  background: linear-gradient(180deg, #ba6a53 0%, #9e4b37 58%, #803b2b 100%);
+  border: 1px solid rgba(128, 59, 43, 0.85);
   color: #ffffff;
   font-size: 15px;
   line-height: 20px;
@@ -1727,12 +1727,12 @@ a.tdv2-check-row:hover {
 .tdv2-btn-copper:hover:not(:disabled) {
   transform: translateY(-2px);
   filter: brightness(1.06);
-  box-shadow: 0 12px 26px rgba(143, 56, 18, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.38);
+  box-shadow: 0 12px 26px rgba(122, 57, 42, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.38);
 }
 
 .tdv2-btn-copper:active:not(:disabled) {
   transform: translateY(1px) scale(0.98);
-  box-shadow: 0 3px 10px rgba(143, 56, 18, 0.22), inset 0 2px 5px rgba(80, 30, 8, 0.35);
+  box-shadow: 0 3px 10px rgba(122, 57, 42, 0.22), inset 0 2px 5px rgba(80, 30, 8, 0.35);
 }
 
 .tdv2-btn-copper .tdv2-btn-arrow {
@@ -1791,7 +1791,7 @@ a.tdv2-check-row:hover {
   min-height: 44px;
   padding: 9px 18px;
   border-radius: 12px;
-  border: 1.5px solid rgba(198, 90, 36, 0.55);
+  border: 1.5px solid rgba(170, 89, 67, 0.55);
   background: #ffffff;
   color: var(--copper);
   font-size: 14.5px;
@@ -1806,7 +1806,7 @@ a.tdv2-check-row:hover {
   background: var(--copper-tint);
   border-color: var(--copper);
   transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgba(143, 56, 18, 0.14);
+  box-shadow: 0 6px 14px rgba(122, 57, 42, 0.14);
 }
 
 .tdv2-btn-outline:hover svg {
@@ -1937,7 +1937,7 @@ a.tdv2-check-row:hover {
   position: fixed;
   z-index: 131;
   border-radius: 16px;
-  border: 2px solid rgba(232, 120, 50, 0.95);
+  border: 2px solid rgba(199, 116, 86, 0.95);
   box-shadow: 0 0 0 200vmax rgba(6, 20, 34, 0.55);
   pointer-events: none;
   transition: top 280ms var(--ease), left 280ms var(--ease),
@@ -2109,7 +2109,7 @@ a.tdv2-check-row:hover {
 
 .tdv2-help-item:hover {
   transform: translateY(-2px);
-  border-color: rgba(198, 90, 36, 0.5);
+  border-color: rgba(170, 89, 67, 0.5);
   box-shadow: var(--shadow-card-hover);
 }
 
@@ -2222,7 +2222,7 @@ a.tdv2-check-row:hover {
   border-radius: 999px;
   background: rgba(9, 27, 48, 0.92);
   color: #ffe9d6;
-  border: 1px solid rgba(232, 120, 50, 0.5);
+  border: 1px solid rgba(199, 116, 86, 0.5);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
   font-size: 12.5px;
   font-weight: 600;
@@ -2237,8 +2237,8 @@ a.tdv2-check-row:hover {
   text-transform: uppercase;
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(232, 120, 50, 0.25);
-  color: #ffc9a1;
+  background: rgba(199, 116, 86, 0.25);
+  color: #eec6b5;
 }
 
 .tdv2-preview-banner button {
@@ -2283,7 +2283,7 @@ a.tdv2-check-row:hover {
   font-size: 12px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #ffc9a1;
+  color: #eec6b5;
   text-align: left;
 }
 
@@ -2325,8 +2325,8 @@ a.tdv2-check-row:hover {
 }
 
 .tdv2-chip.is-on {
-  background: rgba(216, 107, 50, 0.85);
-  border-color: rgba(232, 120, 50, 0.9);
+  background: rgba(186, 106, 83, 0.85);
+  border-color: rgba(199, 116, 86, 0.9);
   color: #fff;
 }
 
@@ -2707,7 +2707,7 @@ a.tdv2-check-row:hover {
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--mobile-orange-bright), #fb923c);
+  background: linear-gradient(90deg, var(--mobile-orange-bright), #d88962);
 }
 
 /* Supporting line — intentionally smaller than the term line */
@@ -2800,7 +2800,7 @@ a.tdv2-check-row:hover {
 }
 
 .tdv2.is-dark .tdv2m-check-seg {
-  background: rgba(249, 115, 22, 0.18);
+  background: rgba(217, 119, 87, 0.18);
 }
 
 .tdv2m-check-seg > span {
@@ -3432,7 +3432,7 @@ a.tdv2-check-row:hover {
    aria-current carries the state for assistive tech, never colour alone. */
 .tdv2 .tdv2m-dock-item.is-active {
   background: rgba(255, 255, 255, 0.12);
-  color: #ffb27d;
+  color: #e8af97;
   font-weight: 700;
 }
 
@@ -3453,7 +3453,7 @@ a.tdv2-check-row:hover {
   background: linear-gradient(180deg, var(--mobile-orange-bright), var(--mobile-orange));
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.25);
-  box-shadow: 0 10px 26px rgba(232, 100, 31, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  box-shadow: 0 10px 26px rgba(196, 99, 70, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.32);
   transition: transform 130ms var(--ease);
 }
 

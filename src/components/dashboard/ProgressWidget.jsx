@@ -70,7 +70,7 @@ function GoalRing({ current, goal }) {
 }
 
 function StreakFlame({ streak }) {
-  const color = streak >= 7 ? '#EF4444' : streak >= 3 ? '#F97316' : '#FBBF24'
+  const color = streak >= 7 ? '#EF4444' : streak >= 3 ? '#D97757' : '#FBBF24'
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
       <span style={{ fontSize: 32, lineHeight: 1 }} aria-hidden="true">🔥</span>

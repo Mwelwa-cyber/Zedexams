@@ -70,7 +70,7 @@ export default function TeacherTopBar() {
           {unreadCount > 0 && (
             <span
               className="absolute -top-1.5 -right-1.5 flex items-center justify-center rounded-full text-[10px] font-black"
-              style={{ background: '#ff7a2e', color: '#fff', minWidth: 18, height: 18, padding: '0 5px', border: '2px solid #fff' }}
+              style={{ background: '#d97757', color: '#fff', minWidth: 18, height: 18, padding: '0 5px', border: '2px solid #fff' }}
             >
               {unreadCount}
             </span>
@@ -93,9 +93,9 @@ export default function TeacherTopBar() {
           aria-label="Quick create"
           aria-expanded={createOpen}
           className="flex items-center gap-1.5 rounded-xl font-bold transition-colors"
-          style={{ background: '#ff7a2e', color: '#fff', padding: '0 14px', height: 40, fontSize: 13.5 }}
-          onMouseEnter={e => { e.currentTarget.style.background = '#e6651a' }}
-          onMouseLeave={e => { e.currentTarget.style.background = '#ff7a2e' }}
+          style={{ background: '#d97757', color: '#fff', padding: '0 14px', height: 40, fontSize: 13.5 }}
+          onMouseEnter={e => { e.currentTarget.style.background = '#c5613f' }}
+          onMouseLeave={e => { e.currentTarget.style.background = '#d97757' }}
         >
           <Icon as={createOpen ? X : Plus} size="sm" />
           <span className="hidden sm:inline">Create</span>
@@ -106,7 +106,7 @@ export default function TeacherTopBar() {
             style={{ background: '#fff', borderColor: '#0e2a32' }}
           >
             <div className="px-4 py-3 border-b" style={{ borderColor: '#f0eee8' }}>
-              <p className="text-xs font-black uppercase tracking-wider" style={{ color: '#ff7a2e' }}>
+              <p className="text-xs font-black uppercase tracking-wider" style={{ color: '#d97757' }}>
                 Quick create
               </p>
             </div>

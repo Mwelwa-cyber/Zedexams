@@ -293,7 +293,7 @@ export default function ReadingSettingsSheet({ open, onClose, prefs, setPref, re
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-white shadow-[0_2px_0_#c2410c] transition-transform active:translate-y-0.5"
+              className="rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-white shadow-[0_2px_0_#a3422e] transition-transform active:translate-y-0.5"
             >
               Apply settings
             </button>

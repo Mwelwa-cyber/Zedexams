@@ -207,7 +207,7 @@ export function buildTableOfSpecificationsHtml(blueprint, meta = {}) {
   * { box-sizing: border-box; }
   body { margin: 0; color: #111827; font-family: Arial, Helvetica, sans-serif; font-size: 11px; }
   .page { width: 100%; }
-  .brand { border-bottom: 3px solid #c65a24; padding-bottom: 9px; margin-bottom: 12px; text-align: center; }
+  .brand { border-bottom: 3px solid #aa5943; padding-bottom: 9px; margin-bottom: 12px; text-align: center; }
   .school { font-size: 18px; font-weight: 800; letter-spacing: .35px; text-transform: uppercase; }
   h1 { margin: 5px 0 2px; font-size: 16px; letter-spacing: .2px; }
   .subtitle { color: #4b5563; font-size: 10px; }
@@ -224,7 +224,7 @@ export function buildTableOfSpecificationsHtml(blueprint, meta = {}) {
   .legend { margin-top: 8px; color: #4b5563; line-height: 1.5; }
   .signatures { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 22px; margin-top: 27px; }
   .signature { border-top: 1px solid #111827; padding-top: 5px; text-align: center; }
-  .filing { margin-top: 10px; text-align: right; color: #9a3412; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
+  .filing { margin-top: 10px; text-align: right; color: #83372c; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
 </style>
 </head>
 <body>

@@ -151,7 +151,7 @@ export default function PaperPlanPanel({
 
       <div style={{
         borderRadius: 12,
-        border: '1px solid #f2c7af',
+        border: '1px solid #e6c7be',
         background: '#fffaf7',
         padding: '12px 14px',
       }}>

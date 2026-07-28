@@ -56,7 +56,7 @@ export function ReaderPrefsMenu({ size, font, page, setSize, setFont, setPage })
                     aria-pressed={size === opt.value}
                     title={opt.title}
                     className={`flex-1 rounded-lg border-2 border-[#0F1B2D] py-1.5 text-xs font-bold transition ${
-                      size === opt.value ? 'bg-[#FF7A1A] text-white' : 'bg-white text-[#0F1B2D] hover:bg-[#FFF3E9]'
+                      size === opt.value ? 'bg-[#D97757] text-white' : 'bg-white text-[#0F1B2D] hover:bg-[#FFF3E9]'
                     }`}
                   >
                     {opt.label}
@@ -76,7 +76,7 @@ export function ReaderPrefsMenu({ size, font, page, setSize, setFont, setPage })
                     onClick={() => setFont(opt.value)}
                     aria-pressed={font === opt.value}
                     className={`${opt.className} rounded-lg border-2 border-[#0F1B2D] px-2 py-1.5 text-sm font-semibold transition ${
-                      font === opt.value ? 'bg-[#FF7A1A] text-white' : 'bg-white text-[#0F1B2D] hover:bg-[#FFF3E9]'
+                      font === opt.value ? 'bg-[#D97757] text-white' : 'bg-white text-[#0F1B2D] hover:bg-[#FFF3E9]'
                     }`}
                   >
                     {opt.label}
@@ -100,7 +100,7 @@ export function ReaderPrefsMenu({ size, font, page, setSize, setFont, setPage })
                   >
                     <span
                       className={`block w-full h-9 rounded-lg border-2 transition ${
-                        page === opt.value ? 'border-[#FF7A1A] ring-2 ring-[#FF7A1A]/40' : 'border-[#0F1B2D]'
+                        page === opt.value ? 'border-[#D97757] ring-2 ring-[#D97757]/40' : 'border-[#0F1B2D]'
                       }`}
                       style={
                         opt.swatch === 'lined'

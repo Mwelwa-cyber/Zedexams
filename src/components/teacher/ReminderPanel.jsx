@@ -29,7 +29,7 @@ export default function ReminderPanel({ reminders, onNavigate, className = '' })
       ) : (
         <ul>
           {reminders.map((r) => {
-            const dot = r.tone === 'warn' ? '#ff7a2e' : r.tone === 'good' ? '#10864e' : '#16505d'
+            const dot = r.tone === 'warn' ? '#d97757' : r.tone === 'good' ? '#10864e' : '#16505d'
             return (
               <li key={r.id} className="theme-border border-t first:border-t-0">
                 <Link
@@ -44,7 +44,7 @@ export default function ReminderPanel({ reminders, onNavigate, className = '' })
                   <span className="min-w-0 flex-1">
                     <span className="theme-text block text-sm font-bold">{r.title}</span>
                     <span className="theme-text-muted mt-0.5 block text-xs" style={{ lineHeight: 1.4 }}>{r.body}</span>
-                    <span className="mt-1.5 inline-block text-xs font-bold" style={{ color: '#ff7a2e' }}>{r.cta} →</span>
+                    <span className="mt-1.5 inline-block text-xs font-bold" style={{ color: '#d97757' }}>{r.cta} →</span>
                   </span>
                 </Link>
               </li>

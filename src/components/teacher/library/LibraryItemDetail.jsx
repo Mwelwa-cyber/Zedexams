@@ -758,11 +758,11 @@ export default function LibraryItemDetail() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-2xl" aria-hidden="true">{meta.icon}</span>
-              <span className="text-[10px] font-black uppercase tracking-wide" style={{ color: '#ff7a2e', letterSpacing: '1.2px' }}>
+              <span className="text-[10px] font-black uppercase tracking-wide" style={{ color: '#d97757', letterSpacing: '1.2px' }}>
                 {meta.label}
               </span>
               {item.status === 'flagged' && (
-                <span className="text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full" style={{ background: '#fff5e6', color: '#c2531a' }}>
+                <span className="text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full" style={{ background: '#fff5e6', color: '#a5523a' }}>
                   Review recommended
                 </span>
               )}
@@ -797,7 +797,7 @@ export default function LibraryItemDetail() {
                   type="checkbox"
                   checked={showAnswers}
                   onChange={(e) => setShowAnswers(e.target.checked)}
-                  style={{ accentColor: '#ff7a2e' }}
+                  style={{ accentColor: '#d97757' }}
                 />
                 {item.tool === 'assessment' || item.tool === 'exam_paper' ? 'Marking key' : 'Show answers'}
               </label>
@@ -808,7 +808,7 @@ export default function LibraryItemDetail() {
                   type="checkbox"
                   checked={showPercents}
                   onChange={(e) => setShowPercents(e.target.checked)}
-                  style={{ accentColor: '#ff7a2e' }}
+                  style={{ accentColor: '#d97757' }}
                 />
                 Show percentages
               </label>

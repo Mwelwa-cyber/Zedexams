@@ -26,7 +26,7 @@ export default function GamesShell({ crumbs = [], children, maxW = 'max-w-6xl' }
   const GamesIcon = NAV_ICON_MAP.games
 
   return (
-    <div className="force-light-theme min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#fff7ed_0%,#f8fafc_38%,#ffffff_100%)] text-slate-900">
+    <div className="force-light-theme min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#fcf7f3_0%,#f8fafc_38%,#ffffff_100%)] text-slate-900">
       <GameStickerStyles />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.18),_transparent_36%),radial-gradient(circle_at_top_right,_rgba(14,165,233,0.14),_transparent_32%),radial-gradient(circle_at_center,_rgba(16,185,129,0.12),_transparent_42%)]" />
 
@@ -34,7 +34,7 @@ export default function GamesShell({ crumbs = [], children, maxW = 'max-w-6xl' }
         <nav className="sticky top-0 z-30 border-b border-white/60 bg-white/72 backdrop-blur-xl">
           <div className={`${maxW} mx-auto flex items-center justify-between gap-3 px-4 py-4 sm:px-6`}>
             <Link to="/games" className="flex min-w-0 items-center gap-3">
-              <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 via-orange-400 to-rose-400 text-white shadow-[0_20px_40px_-20px_rgba(249,115,22,0.55)]">
+              <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 via-orange-400 to-rose-400 text-white shadow-[0_20px_40px_-20px_rgba(217,119,87,0.55)]">
                 <GamesIcon className="h-6 w-6" />
               </span>
               <span className="min-w-0">
@@ -65,7 +65,7 @@ export default function GamesShell({ crumbs = [], children, maxW = 'max-w-6xl' }
                   </Link>
                   <Link
                     to="/register"
-                    className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2 text-sm font-black text-white shadow-[0_18px_40px_-24px_rgba(249,115,22,0.72)] transition hover:-translate-y-0.5 hover:from-amber-600 hover:to-orange-600 active:scale-[0.98]"
+                    className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2 text-sm font-black text-white shadow-[0_18px_40px_-24px_rgba(217,119,87,0.72)] transition hover:-translate-y-0.5 hover:from-amber-600 hover:to-orange-600 active:scale-[0.98]"
                   >
                     <HomeIcon className="h-4 w-4" />
                     Save scores

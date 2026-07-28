@@ -486,7 +486,7 @@ export default function AdminSettings() {
 function StatStrip({ vitals, loading, androidBuild }) {
   const cards = [
     { label: 'Users', value: fmtNum(vitals.users), icon: Users, tint: '#eff6ff', color: '#2563eb', to: '/admin/users' },
-    { label: 'Learners', value: fmtNum(vitals.learners), icon: Users, tint: '#fff7ed', color: '#ea580c', to: '/admin/learners' },
+    { label: 'Learners', value: fmtNum(vitals.learners), icon: Users, tint: '#fcf7f3', color: '#c5613f', to: '/admin/learners' },
     { label: 'Teachers', value: fmtNum(vitals.teachers), icon: Users, tint: '#ecfdf5', color: '#059669', to: '/admin/teachers' },
     { label: 'AI spend today', value: fmtUsd(vitals.aiTodayUsd), icon: Sparkles, tint: '#f5f3ff', color: '#7c3aed', to: '/admin/ai-costs' },
     { label: 'AI spend · 30d', value: fmtUsd(vitals.aiMonthUsd), icon: TrendingUp, tint: '#f5f3ff', color: '#7c3aed', to: '/admin/ai-costs' },
@@ -558,7 +558,7 @@ function CategoryRail({ filtered, activeId, onSelect, searching }) {
                   <Icon as={CATEGORY_ICONS[category.icon] || Settings} size="sm" />
                   <span className="flex-1 truncate">{category.label}</span>
                   {searching && matches > 0 && (
-                    <span className="rounded-full px-1.5 text-[10px] font-black" style={{ background: '#FF7A1A', color: '#fff' }}>
+                    <span className="rounded-full px-1.5 text-[10px] font-black" style={{ background: '#D97757', color: '#fff' }}>
                       {matches}
                     </span>
                   )}
@@ -708,7 +708,7 @@ function ActivityCard({ rows = [], compact = false }) {
         <ul className="space-y-2">
           {rows.slice(0, compact ? 5 : 8).map((r) => (
             <li key={r.id} className="flex items-start gap-2.5 rounded-xl border theme-border p-2.5">
-              <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: '#FF7A1A' }} />
+              <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: '#D97757' }} />
               <div className="min-w-0">
                 <p className="truncate text-xs font-bold theme-text">
                   {r.actorEmail || r.actorUid || 'System'}

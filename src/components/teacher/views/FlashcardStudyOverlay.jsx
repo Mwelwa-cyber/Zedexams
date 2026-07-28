@@ -81,7 +81,7 @@ export default function FlashcardStudyOverlay({
           isMastered
             ? { background: '#f0fdf4', borderColor: '#22c55e' }
             : isFlipped
-            ? { background: '#fff5e6', borderColor: '#ff7a2e' }
+            ? { background: '#fff5e6', borderColor: '#d97757' }
             : { background: '#ffffff', borderColor: '#0e2a32' }
         }
       >

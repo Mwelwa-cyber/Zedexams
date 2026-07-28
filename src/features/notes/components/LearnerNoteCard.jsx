@@ -19,7 +19,7 @@ import { resolveNoteCover } from '../lib/noteCovers'
 import { deriveNoteMeta } from '../lib/noteMeta'
 
 const NAVY = '#0F1B2D'
-const ORANGE = '#FF7A1A'
+const ORANGE = '#D97757'
 const GREEN = '#15803D'
 
 // Normalise whatever the progress hook hands us into a known status.
@@ -85,7 +85,7 @@ export function LearnerNoteCard({ note, onClick, progress }) {
 
         {/* Title — clickable */}
         <button type="button" onClick={open} className="text-left">
-          <h3 className="font-display text-xl sm:text-2xl leading-tight mb-1.5 tracking-tight text-[#0F1B2D] group-hover:text-[#C2410C] transition-colors">
+          <h3 className="font-display text-xl sm:text-2xl leading-tight mb-1.5 tracking-tight text-[#0F1B2D] group-hover:text-[#A3422E] transition-colors">
             {note.title}
           </h3>
         </button>

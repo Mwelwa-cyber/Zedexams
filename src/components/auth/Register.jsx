@@ -196,9 +196,9 @@ export default function Register() {
       className="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-y-auto"
       style={{
         backgroundColor: '#FDF6EC',
-        '--accent': '#EA580C',
-        '--accent-bg': '#FFEDD5',
-        '--accent-fg': '#9A3412',
+        '--accent': '#C5613F',
+        '--accent-bg': '#F8EADF',
+        '--accent-fg': '#83372C',
       }}
     >
       <SeoHelmet
@@ -263,13 +263,13 @@ export default function Register() {
               ? { background: '#EBF5F1', borderColor: 'rgba(28,100,70,0.2)' }
               : isParent
                 ? { background: '#EEF2FF', borderColor: 'rgba(79,70,229,0.22)' }
-                : { background: '#FFF5EC', borderColor: 'rgba(232,135,42,0.25)' }
+                : { background: '#FFF5EC', borderColor: 'rgba(198,123,79,0.25)' }
           }
         >
           <span className="text-[14px] flex-shrink-0" aria-hidden="true">{isParent ? '👪' : '📚'}</span>
           <span
             className="text-[12.5px] font-medium"
-            style={{ color: isTeacher ? '#1C6446' : isParent ? '#4338CA' : '#C96E1C' }}
+            style={{ color: isTeacher ? '#1C6446' : isParent ? '#4338CA' : '#AB643D' }}
           >
             {isTeacher
               ? 'Access lesson plans, schemes of work & teaching tools'
@@ -535,7 +535,7 @@ function RoleCard({ active, onClick, emoji, name, hint }) {
         'relative flex flex-col items-center gap-1 px-2.5 pt-4 pb-3 rounded-[14px] border-[1.5px] ' +
         'bg-white text-center select-none cursor-pointer transition-all hover:-translate-y-px hover:shadow-md ' +
         (active
-          ? 'border-[var(--accent)] shadow-[0_0_0_3px_rgba(232,135,42,0.10)] bg-[#FFF5EC]'
+          ? 'border-[var(--accent)] shadow-[0_0_0_3px_rgba(198,123,79,0.10)] bg-[#FFF5EC]'
           : 'border-[#E4E9F0]')
       }
     >

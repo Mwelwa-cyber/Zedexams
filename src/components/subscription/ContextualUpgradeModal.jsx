@@ -26,7 +26,7 @@ export default function ContextualUpgradeModal({
       <button
         type="button"
         onClick={onPrimary}
-        className="w-full rounded-2xl bg-[#F36A2A] px-4 py-3 text-[15px] font-bold text-white shadow-[0_6px_18px_rgba(243,106,42,0.28)] transition-colors hover:bg-[#E55E22]"
+        className="w-full rounded-2xl bg-[#CF6B51] px-4 py-3 text-[15px] font-bold text-white shadow-[0_6px_18px_rgba(207,107,81,0.28)] transition-colors hover:bg-[#C5613F]"
       >
         {scenario.primaryLabel}
       </button>

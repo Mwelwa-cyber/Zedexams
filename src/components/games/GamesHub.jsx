@@ -300,7 +300,7 @@ function SubjectTile({ subject, progress, href }) {
 }
 
 const HOT_BADGE_SKIN = {
-  Popular:     'bg-[#FF7A1A] text-white',
+  Popular:     'bg-[#D97757] text-white',
   New:         'bg-blue-600 text-white',
   Recommended: 'bg-emerald-500 text-white',
 }

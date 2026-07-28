@@ -143,7 +143,7 @@ export default function DiagramFixupPanel({ sections, subject, questionNumbers, 
                   disabled={batchRunning || busyKey !== null}
                   style={{
                     padding: '5px 10px', borderRadius: 999, fontSize: 12, cursor: 'pointer',
-                    border: `1.5px solid ${provider === s.provider ? '#ff7a2e' : '#d9cfb8'}`,
+                    border: `1.5px solid ${provider === s.provider ? '#d97757' : '#d9cfb8'}`,
                     background: provider === s.provider ? '#fff3e8' : '#fff', color: '#0e2a32',
                   }}>
                   {s.label}
@@ -156,7 +156,7 @@ export default function DiagramFixupPanel({ sections, subject, questionNumbers, 
               disabled={batchRunning || busyKey !== null}
               style={{
                 padding: '7px 14px', borderRadius: 10, fontSize: 13, fontWeight: 800,
-                background: '#ff7a2e', color: '#fff', border: 'none', cursor: 'pointer',
+                background: '#d97757', color: '#fff', border: 'none', cursor: 'pointer',
                 opacity: batchRunning ? 0.6 : 1,
               }}>
               {batchRunning ? '✦ Generating…' : `✨ Generate all ${entries.length} with AI`}
@@ -221,7 +221,7 @@ export default function DiagramFixupPanel({ sections, subject, questionNumbers, 
                     disabled={busy || batchRunning}
                     style={{
                       padding: '6px 12px', borderRadius: 10, fontSize: 13, fontWeight: 700,
-                      border: '1.5px solid #ff7a2e', background: '#fff3e8', color: '#0e2a32',
+                      border: '1.5px solid #d97757', background: '#fff3e8', color: '#0e2a32',
                       cursor: 'pointer', opacity: busy ? 0.6 : 1,
                     }}>
                     {busy ? '✦ Generating…' : '✨ Generate it'}

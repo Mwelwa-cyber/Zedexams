@@ -38,7 +38,7 @@ export function LearnerOnboarding({ user, onDone }) {
     <div className="notes-studio note-page-cream min-h-screen flex items-center justify-center px-5 py-10">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-2xl mx-auto mb-4 flex items-center justify-center border-2 border-[#0F1B2D]" style={{ backgroundColor: '#FF7A1A', boxShadow: '0 2px 0 #0F1B2D' }}>
+          <div className="w-12 h-12 rounded-2xl mx-auto mb-4 flex items-center justify-center border-2 border-[#0F1B2D]" style={{ backgroundColor: '#D97757', boxShadow: '0 2px 0 #0F1B2D' }}>
             <BookOpen size={20} className="text-white" strokeWidth={2.5} />
           </div>
           <div className="text-[10.5px] font-extrabold tracking-[0.16em] uppercase text-[#053541] mb-2">Welcome to ZedExams Notes</div>

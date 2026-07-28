@@ -20,7 +20,7 @@ export function CurriculumSummaryCard({ subtopicRow, curriculumMode, selectedOut
     <div className={[embedded ? '' : 'mx-4 mb-4', 'rounded-2xl bg-[#FFF4E8] p-4 lps-soft-shadow lps-section-enter'].join(' ')}>
       {/* Card header */}
       <div className="mb-3 flex items-center gap-2">
-        <span className="grid h-6 w-6 flex-shrink-0 place-items-center rounded-lg border border-[#0F1B2D] bg-[#FF7A1A] text-white" aria-hidden="true">
+        <span className="grid h-6 w-6 flex-shrink-0 place-items-center rounded-lg border border-[#0F1B2D] bg-[#D97757] text-white" aria-hidden="true">
           <Sparkles size={13} />
         </span>
         <p className="text-[12px] font-semibold text-[#3d3529]">Curriculum Summary</p>

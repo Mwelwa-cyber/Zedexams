@@ -65,7 +65,7 @@ export default function FlashcardsView({ flashcards, masteredCards, onStudy }) {
                 isMastered
                   ? { background: '#f0fdf4', borderColor: '#22c55e' }
                   : flipped[i]
-                  ? { background: '#fff5e6', borderColor: '#ff7a2e' }
+                  ? { background: '#fff5e6', borderColor: '#d97757' }
                   : { background: '#ffffff', borderColor: '#0e2a32' }
               }
             >

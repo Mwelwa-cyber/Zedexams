@@ -26,7 +26,7 @@ const CARD = {
   maxHeight: '90vh', display: 'flex', flexDirection: 'column', padding: 16,
 }
 const PRIMARY_BTN = {
-  background: '#ff7a2e', color: '#fff', border: 'none', cursor: 'pointer',
+  background: '#d97757', color: '#fff', border: 'none', cursor: 'pointer',
   borderRadius: 10, padding: '10px 16px', fontWeight: 800, fontSize: 14,
 }
 const GHOST_BTN = {
@@ -264,7 +264,7 @@ export default function CameraCaptureModal({ onConfirm, onClose }) {
                       onClick={() => setShowEnhanced(k === 'enhanced')}
                       style={{
                         padding: '6px 14px', borderRadius: 999, fontSize: 13, cursor: 'pointer', fontWeight: 700,
-                        border: `1.5px solid ${active ? '#ff7a2e' : '#d9cfb8'}`,
+                        border: `1.5px solid ${active ? '#d97757' : '#d9cfb8'}`,
                         background: active ? '#fff3e8' : '#fff', color: '#0e2a32',
                       }}
                     >

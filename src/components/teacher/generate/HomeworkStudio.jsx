@@ -398,7 +398,7 @@ export default function HomeworkStudio() {
                       style={{ color: '#0e2a32', border: '1.5px solid #d9cfb8' }}>
                       <input type="checkbox" checked={showAnswers}
                         onChange={(e) => setShowAnswers(e.target.checked)}
-                        style={{ accentColor: '#ff7a2e' }} />
+                        style={{ accentColor: '#d97757' }} />
                       Show answers
                     </label>
                     <button onClick={() => onExport(false)} className="studio-btn-ghost">

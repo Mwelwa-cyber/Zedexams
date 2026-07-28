@@ -200,7 +200,7 @@ export default function MemoryMatchGame({ game }) {
                   </span>
                 </div>
               ) : (
-                <div className="zx-card w-full h-full rounded-[14px] bg-[#FF7A1A] flex items-center justify-center text-white transition active:translate-y-[2px] active:shadow-none">
+                <div className="zx-card w-full h-full rounded-[14px] bg-[#D97757] flex items-center justify-center text-white transition active:translate-y-[2px] active:shadow-none">
                   <PuzzlePieceIcon className="h-10 w-10" />
                 </div>
               )}

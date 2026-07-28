@@ -151,7 +151,7 @@ export default function VisualStudioAdmin() {
                       {[a.subject, a.grade ? `Grade ${a.grade}` : '', a.status].filter(Boolean).join(' · ')}
                     </span>
                     <div style={{ marginTop: 4, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      {a.safetyStatus === 'flagged' && <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 6px', borderRadius: 999, background: '#fff7ed', color: '#92400e' }}>Flagged</span>}
+                      {a.safetyStatus === 'flagged' && <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 6px', borderRadius: 999, background: '#fcf7f3', color: '#92400e' }}>Flagged</span>}
                       {a.visibility === 'public' && <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 6px', borderRadius: 999, background: '#e6f0ec', color: '#16544a' }}>Public</span>}
                     </div>
                   </div>

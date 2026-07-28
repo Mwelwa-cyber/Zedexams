@@ -620,7 +620,7 @@ function ModeTab({ active, onClick, children }) {
       className="flex-1 px-3 py-2 text-sm font-black transition"
       style={
         active
-          ? { background: '#ff7a2e', color: '#fff' }
+          ? { background: '#d97757', color: '#fff' }
           : { background: 'transparent', color: '#0e2a32' }
       }
     >
@@ -681,7 +681,7 @@ function PlanPicker({ plans, loading, error, selectedId, onSelect, onBrowseLibra
         type="button"
         onClick={onBrowseLibrary}
         className="mt-1.5 text-xs font-bold hover:underline"
-        style={{ color: '#ff7a2e' }}
+        style={{ color: '#d97757' }}
       >
         Browse in library →
       </button>
@@ -692,8 +692,8 @@ function PlanPicker({ plans, loading, error, selectedId, onSelect, onBrowseLibra
 function SelectedPlanSummary({ plan }) {
   const h = plan.output?.header || {}
   return (
-    <div className="rounded-xl p-3" style={{ background: '#fff5e6', border: '1.5px solid #ff7a2e' }}>
-      <p className="text-[10px] font-black uppercase tracking-wide mb-1" style={{ color: '#ff7a2e' }}>
+    <div className="rounded-xl p-3" style={{ background: '#fff5e6', border: '1.5px solid #d97757' }}>
+      <p className="text-[10px] font-black uppercase tracking-wide mb-1" style={{ color: '#d97757' }}>
         Source plan
       </p>
       <p className="text-sm font-bold" style={{ color: '#0e2a32' }}>

@@ -19,7 +19,7 @@ import {
   serializeEditorElement,
 } from '../../utils/quizRichText.js'
 
-const TEXT_COLORS = ['#0f172a', '#1d4ed8', '#0f766e', '#15803d', '#b45309', '#c2410c', '#be123c', '#7c3aed', '#475569', '#dc2626']
+const TEXT_COLORS = ['#0f172a', '#1d4ed8', '#0f766e', '#15803d', '#b45309', '#a3422e', '#be123c', '#7c3aed', '#475569', '#dc2626']
 const HIGHLIGHT_COLORS = ['#fef08a', '#fde68a', '#bfdbfe', '#bae6fd', '#bbf7d0', '#fecaca', '#f5d0fe', '#e5e7eb']
 
 // ── Quick Templates ───────────────────────────────────────────────────
