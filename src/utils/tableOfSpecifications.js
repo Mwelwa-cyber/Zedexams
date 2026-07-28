@@ -1,16 +1,15 @@
 /**
- * Table of Specifications (TOS) — the teacher filing copy of an assessment
+ * Table of Specifications (TOS), the teacher filing copy of an assessment
  * blueprint.
  *
- * The assessment generator already plans every question by topic, Bloom level
- * and marks. This module turns that same blueprint into the traditional
- * Knowledge / Comprehension / Application / Analysis / Synthesis / Evaluation
- * table used in Zambian school assessment files. No second source of truth is
- * introduced: the printable document is derived from the blueprint the model
- * was constrained by.
+ * The assessment generator already plans every question by topic, cognitive
+ * level and marks. This module presents that same plan using either the
+ * traditional Bloom labels or the revised Bloom labels selected by the teacher.
+ * No second source of truth is introduced: both formats are derived from the
+ * blueprint the model was constrained by.
  */
 
-export const TOS_COLUMNS = [
+const TRADITIONAL_COLUMNS = [
   { key: 'knowledge', short: 'K', label: 'Knowledge', bloom: ['remember'] },
   { key: 'comprehension', short: 'C', label: 'Comprehension', bloom: ['understand'] },
   { key: 'application', short: 'AP', label: 'Application', bloom: ['apply'] },
@@ -18,6 +17,38 @@ export const TOS_COLUMNS = [
   { key: 'synthesis', short: 'SYN', label: 'Synthesis', bloom: ['create'] },
   { key: 'evaluation', short: 'EVA', label: 'Evaluation', bloom: ['evaluate'] },
 ]
+
+const REVISED_COLUMNS = [
+  { key: 'remember', short: 'R', label: 'Remember', bloom: ['remember'] },
+  { key: 'understand', short: 'U', label: 'Understand', bloom: ['understand'] },
+  { key: 'apply', short: 'AP', label: 'Apply', bloom: ['apply'] },
+  { key: 'analyse', short: 'AN', label: 'Analyse', bloom: ['analyse', 'analyze'] },
+  { key: 'evaluate', short: 'E', label: 'Evaluate', bloom: ['evaluate'] },
+  { key: 'create', short: 'C', label: 'Create', bloom: ['create'] },
+]
+
+export const TOS_TAXONOMY_OPTIONS = [
+  {
+    id: 'traditional',
+    label: "Traditional Bloom's",
+    documentLabel: "Traditional Bloom's Taxonomy",
+    filenameLabel: 'Traditional-Blooms',
+    description: 'Knowledge · Comprehension · Application · Analysis · Synthesis · Evaluation',
+    columns: TRADITIONAL_COLUMNS,
+  },
+  {
+    id: 'revised',
+    label: "Revised Bloom's",
+    documentLabel: "Revised Bloom's Taxonomy",
+    filenameLabel: 'Revised-Blooms',
+    description: 'Remember · Understand · Apply · Analyse · Evaluate · Create',
+    columns: REVISED_COLUMNS,
+  },
+]
+
+// Backwards-compatible export for code that previously used the traditional
+// table directly.
+export const TOS_COLUMNS = TRADITIONAL_COLUMNS
 
 function itemsFrom(blueprint) {
   if (!blueprint || !Array.isArray(blueprint.sections)) return []
@@ -36,26 +67,32 @@ function titleCase(value) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
-function cognitiveKey(level) {
+export function resolveTableOfSpecificationsTaxonomy(value) {
+  const id = clean(value).toLowerCase()
+  return TOS_TAXONOMY_OPTIONS.find((option) => option.id === id) || TOS_TAXONOMY_OPTIONS[0]
+}
+
+function cognitiveKey(level, columns) {
   const normal = clean(level).toLowerCase()
-  return TOS_COLUMNS.find((column) => column.bloom.includes(normal))?.key || null
+  return columns.find((column) => column.bloom.includes(normal))?.key || null
 }
 
-function blankCounts() {
-  return Object.fromEntries(TOS_COLUMNS.map((column) => [column.key, 0]))
+function blankCounts(columns) {
+  return Object.fromEntries(columns.map((column) => [column.key, 0]))
 }
 
-export function tableOfSpecificationsRows(blueprint) {
+export function tableOfSpecificationsRows(blueprint, taxonomy = 'traditional') {
+  const columns = resolveTableOfSpecificationsTaxonomy(taxonomy).columns
   const rows = new Map()
   for (const item of itemsFrom(blueprint)) {
     const topic = clean(item.topic) || 'General coverage'
     const row = rows.get(topic) || {
       topic,
-      ...blankCounts(),
+      ...blankCounts(columns),
       questions: 0,
       marks: 0,
     }
-    const key = cognitiveKey(item.bloomLevel)
+    const key = cognitiveKey(item.bloomLevel, columns)
     if (key) row[key] += 1
     row.questions += 1
     row.marks += Number(item.marks) || 0
@@ -65,15 +102,19 @@ export function tableOfSpecificationsRows(blueprint) {
 }
 
 export function buildTableOfSpecificationsModel(blueprint, meta = {}) {
-  const rows = tableOfSpecificationsRows(blueprint)
+  const taxonomy = resolveTableOfSpecificationsTaxonomy(
+    meta.bloomTaxonomy ?? meta.taxonomy ?? blueprint?.bloomTaxonomy,
+  )
+  const columns = taxonomy.columns
+  const rows = tableOfSpecificationsRows(blueprint, taxonomy.id)
   const totals = {
     topic: 'TOTAL',
-    ...blankCounts(),
+    ...blankCounts(columns),
     questions: 0,
     marks: 0,
   }
   for (const row of rows) {
-    for (const column of TOS_COLUMNS) totals[column.key] += row[column.key]
+    for (const column of columns) totals[column.key] += row[column.key]
     totals.questions += row.questions
     totals.marks += row.marks
   }
@@ -100,9 +141,13 @@ export function buildTableOfSpecificationsModel(blueprint, meta = {}) {
     framework,
     teacherName: clean(meta.teacherName),
     preparedDate: clean(meta.preparedDate),
+    taxonomyId: taxonomy.id,
+    taxonomyLabel: taxonomy.documentLabel,
+    taxonomyFilenameLabel: taxonomy.filenameLabel,
+    taxonomyDescription: taxonomy.description,
     rows,
     totals,
-    columns: TOS_COLUMNS,
+    columns,
     valid: rows.length > 0 && totals.questions === itemsFrom(blueprint).length &&
       totals.marks === (Number(blueprint?.totalMarks) || totals.marks),
   }
@@ -119,6 +164,7 @@ export function tableOfSpecificationsFilename(model, extension = 'docx') {
     model.grade,
     model.subject,
     model.assessmentType,
+    model.taxonomyFilenameLabel,
     'Table-of-Specifications',
   ].map(safeFilenamePart).filter(Boolean)
   return `${parts.join('-') || 'Table-of-Specifications'}.${extension}`
@@ -185,7 +231,7 @@ export function buildTableOfSpecificationsHtml(blueprint, meta = {}) {
   <header class="brand">
     <div class="school">${escapeHtml(schoolHeading)}</div>
     <h1>TABLE OF SPECIFICATIONS</h1>
-    <div class="subtitle">Assessment Blueprint · Teacher Filing Copy</div>
+    <div class="subtitle">${escapeHtml(model.taxonomyLabel)} · Assessment Blueprint · Teacher Filing Copy</div>
   </header>
   <table class="info">
     <tr>
@@ -196,7 +242,7 @@ export function buildTableOfSpecificationsHtml(blueprint, meta = {}) {
     </tr>
     <tr>
       <td><strong>Curriculum</strong>${infoValue(model.framework)}</td>
-      <td><strong>Duration</strong>${model.durationMinutes ? `${model.durationMinutes} minutes` : '____________________________'}</td>
+      <td><strong>Bloom's Format</strong>${infoValue(model.taxonomyLabel)}</td>
       <td><strong>Total Questions</strong>${model.totals.questions}</td>
       <td><strong>Total Marks</strong>${model.totals.marks}</td>
     </tr>
@@ -258,7 +304,7 @@ export async function downloadTableOfSpecificationsDocx(blueprint, meta = {}) {
   const infoRows = [
     ['Assessment', model.title, 'Grade / Form', model.grade],
     ['Subject', model.subject, 'Term / Year', [model.term && `Term ${model.term}`, model.year].filter(Boolean).join(' · ')],
-    ['Curriculum', model.framework, 'Duration', model.durationMinutes ? `${model.durationMinutes} minutes` : ''],
+    ['Curriculum', model.framework, "Bloom's Format", model.taxonomyLabel],
     ['Total Questions', String(model.totals.questions), 'Total Marks', String(model.totals.marks)],
   ].map(([a, b, c, d]) => new TableRow({ children: [
     cell(a, { bold: true, shading: 'FFF4ED', width: 18 }),
@@ -310,7 +356,7 @@ export async function downloadTableOfSpecificationsDocx(blueprint, meta = {}) {
         }),
         new Paragraph({
           alignment: AlignmentType.CENTER,
-          children: [text('Assessment Blueprint · Teacher Filing Copy', { italics: true, size: 18 })],
+          children: [text(`${model.taxonomyLabel} · Assessment Blueprint · Teacher Filing Copy`, { italics: true, size: 18 })],
           spacing: { after: 180 },
         }),
         new Table({ rows: infoRows, width: { size: 100, type: WidthType.PERCENTAGE } }),
