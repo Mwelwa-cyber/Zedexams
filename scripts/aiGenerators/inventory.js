@@ -107,15 +107,28 @@ const g = (file, fields) => ({
  */
 export const INVENTORY = Object.freeze([
   // ── Tier 1 · lesson plans and lesson content ──────────────────────────
-  g('functions/teacherTools/generateLessonPlan.js', {
+  g('functions/teacherTools/lessonPlan/runLessonPlanOperation.js', {
+    clientModule: 'src/components/teacher/studio/LessonPlanStudio.jsx',
+    clientLockKey: 'lesson-plan-studio:generate',
     tier: 1,
-    state: 'unmigrated',
-    entryPoint: 'generateLessonPlan (callable) + apiGenerateLessonPlan (SSE)',
-    clientSurface: '/teacher/lesson-plans — studio/StudioCanvas.jsx',
+    // PARTIAL, accurately. The server half is done — canonical helper, key
+    // required, deterministic document — but the studio does not yet hold a
+    // named generate lock, so the client can still mint a fresh key per click
+    // and the server's refusal never fires. The inventory is not going to
+    // claim otherwise to make its own test green.
+    state: 'partial',
+    entryPoint: 'studioGenerateLessonPlan + generateLessonPlan (callable) '
+      + '+ apiGenerateLessonPlan (SSE) — three adapters, ONE operation',
+    clientSurface: '/teacher/lesson-plans — studio/LessonPlanStudio.jsx',
     produces: 'A saved lesson plan document, exported to Word and PDF',
     incompleteResultSaveable: true,
-    note: 'Two entry points for one generator, and the SSE one streams. A '
-      + 'reservation has to cover both or the stream becomes the bypass.',
+    note: 'The consolidation. studioLessonPlan.js was a SECOND lesson-plan '
+      + 'generator with its own charge, its own auto-id document and its own '
+      + 'provider call; it is now a ~30-line adapter and no longer a model '
+      + 'call site, which is why the inventory total fell by one. All three '
+      + 'doors declare operationType generate_lesson_plan, so they share one '
+      + 'idempotency namespace; entryPoint is telemetry and is kept OUT of '
+      + 'the fingerprint.',
   }),
   g('functions/teacherTools/generateLessonActivities.js', {
     tier: 1,
@@ -124,16 +137,6 @@ export const INVENTORY = Object.freeze([
     clientSurface: 'Lesson plan studio — activity regeneration',
     produces: 'Activities appended into an existing lesson plan',
     incompleteResultSaveable: true,
-  }),
-  g('functions/teacherTools/studioLessonPlan.js', {
-    tier: 1,
-    state: 'unmigrated',
-    entryPoint: 'studioGenerateLessonPlan (callable)',
-    clientSurface: 'Lesson plan studio (V2 canvas path)',
-    produces: 'A saved lesson plan document',
-    incompleteResultSaveable: true,
-    note: 'A second lesson-plan generator. Whether it survives migration or '
-      + 'merges into generateLessonPlan is a Phase 6 decision, not a given.',
   }),
   g('functions/teacherTools/reviseLessonSection.js', {
     tier: 1,

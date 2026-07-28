@@ -242,7 +242,122 @@ function buildUserPrompt(inputs) {
   return lines.filter(Boolean).join("\n");
 }
 
+
+const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
+const {SCHOOL_RESOURCE_VALUES} = require("./schoolResources");
+
+// The allow-lists the legacy sanitiser validates against. They moved here with
+// sanitizeInputs, for the same reason: this is the module that still consumes
+// the shape they describe.
+const ALLOWED_GRADES = new Set([
+  "ECE", "ECE_N", "ECE_R", "G1", "G2", "G3", "G4", "G5", "G6", "G7",
+  "G8", "G9", "G10", "G11", "G12",
+]);
+// Mirrors the frontend TEACHER_SUBJECTS list in src/utils/teacherTools.js.
+// Every subject the dropdown can select must be accepted here, otherwise the
+// frontend silently fails with "Please select a supported subject."
+const ALLOWED_SUBJECTS = new Set([
+  "mathematics", "numeracy", "english", "literacy",
+  "cinyanja", "zambian_language",
+  "integrated_science", "environmental_science",
+  "biology", "chemistry", "physics",
+  "social_studies", "history", "geography", "civic_education",
+  "religious_education",
+  "technology_studies", "creative_and_technology_studies",
+  "home_economics", "expressive_arts", "physical_education",
+  // CBC 2023 Forms 1-4 subjects the Syllabus Studio exposes as their own
+  // canonical keys (Agricultural Science and Art & Design are shared with
+  // the 2013 syllabus).
+  "agricultural_science", "art_and_design",
+  "commerce_and_principles_of_accounts",
+  "design_and_technology_studies", "music_and_creative_arts",
+  // ── The 2026-07 subject split ──────────────────────────────────────────
+  // Canonical keys carved out of shared ones, each its own examinable subject
+  // with its own numbering (see src/utils/subjectSplitClassifier.js). The
+  // pre-split spellings above are kept so a saved pick still passes.
+  "commerce", "principles_of_accounts",
+  "food_and_nutrition", "fashion_and_fabrics", "mathematics_ii",
+  "literature_in_english",
+  // The 2013 senior RE split: two separately examined ECZ syllabi.
+  "religious_education_2044", "religious_education_2046",
+  // Not previously listed here, so this generator rejected the pick outright.
+  "hospitality_management",
+]);
+const ALLOWED_LANGUAGES = new Set([
+  "english", "bemba", "nyanja", "tonga", "lozi", "kaonde", "lunda", "luvale",
+]);
+const LE_VALUES = new Set(LEARNING_ENVIRONMENT_VALUES);
+const RESOURCE_VALUES = new Set(SCHOOL_RESOURCE_VALUES);
+
+/**
+ * Sanitise a legacy lesson-plan input payload.
+ *
+ * It used to live in generateLessonPlan.js. That file became a thin adapter
+ * onto the one lesson-plan operation, which sanitises through the TYPED
+ * request instead — but this prompt module is still live (reviseLessonSection
+ * builds its user prompt here), and its own test needs a sanitiser for the
+ * shape this prompt actually takes. So it moved here, beside the prompt it
+ * serves, rather than being stranded in an adapter that no longer uses it.
+ */
+function sanitizeInputs(raw = {}) {
+  const str = (v, max) => (typeof v === "string" ?
+    v.replace(/\u0000/g, "").trim().slice(0, max) : "");
+  const num = (v, def) => (Number.isFinite(Number(v)) ? Number(v) : def);
+
+  const grade = str(raw.grade, 10).toUpperCase().replace(/\s+/g, "");
+  const subject = str(raw.subject, 40).toLowerCase().replace(/[^a-z_]/g, "_");
+  const language = str(raw.language || "english", 20).toLowerCase();
+
+  // Optional curriculum-module selectors. Absent/0 → null so resolveCbcContext
+  // and the prompt behave exactly as before this upgrade.
+  const term = Math.round(num(raw.term, 0));
+  const lessonNumber = Math.round(num(raw.lessonNumber, 0));
+  const totalLessons = Math.round(num(raw.totalLessons, 0));
+  const learningEnvironment = str(raw.learningEnvironment, 40)
+    .toLowerCase().replace(/[^a-z_]/g, "_");
+  const resourceLevel = str(raw.resourceLevel, 10).toLowerCase();
+
+  const curriculumMode = ["cbc", "previous"].includes(raw.curriculumMode) ?
+    raw.curriculumMode : "cbc";
+  const specificCompetence = str(raw.specificCompetence, 300);
+  const learningActivities = Array.isArray(raw.learningActivities) ?
+    raw.learningActivities.map((a) => str(a, 200)).filter(Boolean) : [];
+  const expectedStandard = str(raw.expectedStandard, 300);
+  const selectedOutcomes = Array.isArray(raw.selectedOutcomes) ?
+    raw.selectedOutcomes.map((o) => str(o, 300)).filter(Boolean) : [];
+  const coveredActivities = Array.isArray(raw.coveredActivities) ?
+    raw.coveredActivities.map((a) => str(a, 200)).filter(Boolean) : [];
+  const lessonFocus = str(raw.lessonFocus, 200);
+
+  return {
+    grade,
+    subject,
+    topic: str(raw.topic, 120),
+    subtopic: str(raw.subtopic, 160),
+    term: term >= 1 && term <= 3 ? term : null,
+    lessonNumber: lessonNumber >= 1 ? lessonNumber : null,
+    totalLessons: totalLessons >= 1 ? totalLessons : null,
+    learningEnvironment: LE_VALUES.has(learningEnvironment) ?
+      learningEnvironment : "",
+    resourceLevel: RESOURCE_VALUES.has(resourceLevel) ? resourceLevel : "",
+    durationMinutes: Math.min(120, Math.max(20, Math.round(num(raw.durationMinutes, 40)))),
+    language: ALLOWED_LANGUAGES.has(language) ? language : "english",
+    teacherName: str(raw.teacherName, 80),
+    school: str(raw.school, 120),
+    numberOfPupils: Math.min(200, Math.max(1, Math.round(num(raw.numberOfPupils, 40)))),
+    instructions: str(raw.instructions, 500),
+    curriculumMode,
+    specificCompetence,
+    learningActivities,
+    expectedStandard,
+    selectedOutcomes,
+    coveredActivities,
+    lessonFocus,
+  };
+}
+
 module.exports = {
+  sanitizeInputs,
   PROMPT_VERSION,
   SYSTEM_PROMPT,
   buildUserPrompt,

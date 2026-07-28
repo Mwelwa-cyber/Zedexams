@@ -45,7 +45,7 @@ Module._load = function(id, parent, isMain) {
 };
 
 const {buildUserPrompt} = require("./lessonPlanPrompt");
-const {sanitizeInputs} = require("./generateLessonPlan");
+const {sanitizeInputs} = require("./lessonPlanPrompt");
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

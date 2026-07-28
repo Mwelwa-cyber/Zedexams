@@ -2510,6 +2510,11 @@ function makeStreamingEndpoint({tool, runCore}) {
           idempotencyKey: (req.body || {}).idempotencyKey,
           apiKey,
           onProgress: clientGone ? null : onProgress,
+          // Telemetry only. The lesson-plan runner records which door a request
+          // came through so the legacy ones can be retired on evidence; it is
+          // deliberately NOT part of the fingerprint, so the same lesson asked
+          // for over SSE and over the callable is one operation, not two.
+          entryPoint: "legacy-sse",
         });
         clearInterval(heartbeat);
         if (!clientGone) {
