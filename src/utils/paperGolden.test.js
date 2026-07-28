@@ -39,7 +39,7 @@ globalThis.Node = dom.window.Node
 
 const { Packer, Document, Paragraph } = await import('docx')
 const { unzipSync, strFromU8 } = await import('fflate')
-const { buildAssessmentDocument, svgImageRun, unresolvedFigureMessage } = await import('./assessmentToDocx.js')
+const { buildDocxDocument, svgImageRun, unresolvedFigureMessage } = await import('./assessmentToDocx.js')
 const { richTextToPaperHtml } = await import('../editor/utils/safeRender.js')
 const { clearImageBytesCache } = await import('./fetchImageBytes.js')
 const { findForbiddenTerms } = await import('../config/paperTerminology.js')
@@ -69,7 +69,7 @@ function assert(cond, msg) {
 
 /** Build a paper and return its word/document.xml. */
 async function renderDocx(meta, questions, opts = { mode: 'paper' }) {
-  const doc = await buildAssessmentDocument(meta, questions, opts)
+  const doc = await buildDocxDocument(meta, questions, opts)
   const zip = unzipSync(new Uint8Array(await Packer.toBuffer(doc)))
   return strFromU8(zip['word/document.xml'])
 }
@@ -596,7 +596,7 @@ console.log('\nGOLDEN — a figure is never smaller than the level allows')
 
 console.log('\nGOLDEN — the Word download is a real .docx (§4.4)')
 {
-  const doc = await buildAssessmentDocument(
+  const doc = await buildDocxDocument(
     { title: 'Format check', subject: 'Mathematics', grade: '8' },
     [{ id: 'q1', order: 1, type: 'short_answer', text: 'A question.', marks: 1 }],
     { mode: 'paper' },
@@ -639,7 +639,7 @@ console.log('\nGOLDEN — a library diagram: failure is visible, success is real
   resetSvgRasterizer()
   const failStats = { failedImages: [], unresolvedFigures: [] }
   const failedZip = unzipSync(new Uint8Array(await Packer.toBuffer(
-    await buildAssessmentDocument(meta, questions, { mode: 'paper', stats: failStats }),
+    await buildDocxDocument(meta, questions, { mode: 'paper', stats: failStats }),
   )))
   const failedXml = strFromU8(failedZip['word/document.xml'])
   assert(
@@ -665,7 +665,7 @@ console.log('\nGOLDEN — a library diagram: failure is visible, success is real
   // "the catalog has no such shape" and "the browser could not draw it" call for
   // different fixes.
   const unknownStats = { failedImages: [], unresolvedFigures: [] }
-  await Packer.toBuffer(await buildAssessmentDocument(
+  await Packer.toBuffer(await buildDocxDocument(
     meta,
     [{ ...questions[0], imageDiagram: { libraryKey: 'no-such-diagram', params: {} } }],
     { mode: 'paper', stats: unknownStats },
@@ -683,7 +683,7 @@ console.log('\nGOLDEN — a library diagram: failure is visible, success is real
   try {
     const okStats = { failedImages: [], unresolvedFigures: [] }
     const okZip = unzipSync(new Uint8Array(await Packer.toBuffer(
-      await buildAssessmentDocument(meta, questions, { mode: 'paper', stats: okStats }),
+      await buildDocxDocument(meta, questions, { mode: 'paper', stats: okStats }),
     )))
     const okXml = strFromU8(okZip['word/document.xml'])
     const media = Object.keys(okZip).filter((n) => /^word\/media\//.test(n))
@@ -703,7 +703,7 @@ console.log('\nGOLDEN — a library diagram: failure is visible, success is real
     // exact silent failure this change exists to end.
     setSvgRasterizer(async () => 'not bytes')
     const badStats = { failedImages: [], unresolvedFigures: [] }
-    await Packer.toBuffer(await buildAssessmentDocument(meta, questions, { mode: 'paper', stats: badStats }))
+    await Packer.toBuffer(await buildDocxDocument(meta, questions, { mode: 'paper', stats: badStats }))
     assert(
       badStats.unresolvedFigures[0]?.stage === 'rasterise',
       'a rasteriser returning non-PNG data is reported, not embedded',

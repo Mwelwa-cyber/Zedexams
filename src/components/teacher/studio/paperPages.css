@@ -1,0 +1,186 @@
+/*
+ * The paginated A4 preview's chrome (§1).
+ *
+ * Only the things that make a sheet READ as a sheet live here — the page's
+ * physical box, the grey gutter, the shadow, the label under each page, and the
+ * zoom toolbar. Everything INSIDE the sheet is drawn by the existing paper CSS
+ * (`assessmentStudio.css`, scoped under `.studio-v2 .sv-paper`), because the
+ * whole point is that the content is the same content the print window renders.
+ * A second copy of the paper's typography here is how the preview and the PDF
+ * would start to drift again.
+ *
+ * The sheet's own dimensions are set inline from the document's layout tokens
+ * rather than declared here, because they are a property of the document (A4 or
+ * A5, portrait or landscape, this paper's margins), not of the stylesheet.
+ */
+
+.pp-preview {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* The desk the sheets sit on. Deliberately not white: a white surround makes
+     an unlimited scroll look like one enormous page, which is the illusion this
+     component exists to break. */
+  background: #4b5563;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+@media (prefers-color-scheme: dark) {
+  .pp-preview { background: #1f2937; }
+}
+
+/* ── Toolbar ─────────────────────────────────────────────────────────────── */
+
+.pp-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(17, 24, 39, 0.85);
+  color: #f9fafb;
+  font-size: 12.5px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.pp-pagecount {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  opacity: 0.92;
+}
+
+.pp-zoom {
+  display: flex;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  padding: 2px;
+}
+
+.pp-zoom-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pp-zoom-btn:hover { background: rgba(255, 255, 255, 0.12); }
+
+.pp-zoom-btn.active {
+  background: #f9fafb;
+  color: #111827;
+  font-weight: 600;
+}
+
+.pp-zoom-btn:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 1px;
+}
+
+/* ── The scroll area and the sheets ──────────────────────────────────────── */
+
+.pp-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 20px 8px 28px;
+  /* A sheet wider than the viewport scrolls HERE rather than pushing the studio
+     sideways: a horizontally scrolling page body is the mobile failure that
+     makes a preview feel broken. */
+  -webkit-overflow-scrolling: touch;
+}
+
+.pp-page-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* The visible gap between one sheet and the next. */
+  margin-bottom: 22px;
+}
+
+/* Holds the sheet's SCALED footprint. The sheet itself is transformed, and a
+   transform does not affect layout, so without this box every sheet after the
+   first would overlap the one above at any zoom below 100%. */
+.pp-sizer {
+  position: relative;
+  flex: none;
+}
+
+.pp-sheet {
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28), 0 8px 24px rgba(0, 0, 0, 0.22);
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* The sheet's inner column. `overflow: hidden` on the sheet is what makes a page
+   boundary visible: content that would run past the bottom of the sheet is cut
+   exactly where the printer cuts it, instead of stretching the box. */
+.pp-sheet-body {
+  height: 100%;
+  overflow: hidden;
+}
+
+.pp-sheet-footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 4mm;
+  text-align: center;
+  font-size: 9.5pt;
+  color: #555;
+  letter-spacing: 0.02em;
+}
+
+.pp-page-label {
+  margin-top: 8px;
+  color: #e5e7eb;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.pp-empty {
+  color: #e5e7eb;
+  text-align: center;
+  font-size: 13px;
+  padding: 40px 16px;
+  font-style: italic;
+}
+
+/* ── Small screens ───────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .pp-toolbar {
+    justify-content: center;
+    padding: 6px 8px;
+  }
+  .pp-pagecount { width: 100%; text-align: center; }
+  .pp-zoom { width: 100%; justify-content: center; overflow-x: auto; }
+  .pp-scroll { padding: 12px 4px 20px; }
+  .pp-page-wrap { margin-bottom: 16px; }
+}
+
+/* The preview is a screen surface. When a teacher prints the STUDIO page (as
+   opposed to using Print / Save as PDF, which opens the real print document),
+   the sheets must not each print onto their own sheet with their own shadow. */
+@media print {
+  .pp-preview { background: #fff; }
+  .pp-toolbar, .pp-page-label { display: none; }
+  .pp-scroll { overflow: visible; padding: 0; }
+  .pp-sheet { box-shadow: none; }
+  .pp-page-wrap { margin-bottom: 0; break-after: page; page-break-after: always; }
+  .pp-page-wrap:last-child { break-after: auto; page-break-after: auto; }
+}

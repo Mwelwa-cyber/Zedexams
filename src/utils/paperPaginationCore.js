@@ -77,6 +77,8 @@ export const PAGINATION_STATES = Object.freeze({
 
 /** Issue codes. Each names a defect a teacher would see on the printed sheet. */
 export const PAGINATION_ISSUES = Object.freeze({
+  REDUNDANT_BREAK: 'redundant-break',
+  ORPHANED_HEADING: 'orphaned-heading',
   BLANK_PAGE: 'blank-page',
   FOOTER_ONLY_PAGE: 'footer-only-page',
   BODY_IN_FOOTER: 'body-in-footer',
@@ -99,11 +101,57 @@ export function emptyPagination(status = PAGINATION_STATES.IDLE, extra = {}) {
 const issue = (code, message, detail = {}) => ({ code, message, ...detail })
 
 /**
+ * Group blocks that must not be separated by a page turn (§7).
+ *
+ * A block carrying `avoidBreakAfter` — a section heading, a section's
+ * instruction line, a question stem in a table question — is declaring that the
+ * block AFTER it belongs with it. The printer honours that by moving the pair;
+ * a paginator that flowed them independently would report a page count for a
+ * layout the printer never produces, and would do it on exactly the papers the
+ * rule exists for.
+ *
+ * Groups are units for the FLOW only. Every block keeps its own identity in the
+ * page's `blockIds`, so a group tells you nothing new about where a block ended
+ * up — it only stops a break falling inside it.
+ *
+ * A group that cannot fit an empty page is dissolved rather than moved: moving
+ * it would add a blank sheet and then split it anyway.
+ */
+export function groupKeepTogether(blocks = [], maxHeight = Infinity) {
+  const groups = []
+  let current = null
+  for (const block of blocks) {
+    if (current) {
+      current.blocks.push(block)
+      current.height += Number(block.heightPx) || 0
+    } else {
+      current = { blocks: [block], height: Number(block.heightPx) || 0 }
+    }
+    // The chain continues only while each block hands on to the next. A forced
+    // break on the FOLLOWING block would contradict the keep, and the break wins
+    // — a teacher's explicit page break is an instruction, not a preference.
+    if (!block.avoidBreakAfter) {
+      groups.push(current)
+      current = null
+    }
+  }
+  if (current) groups.push(current)
+
+  // Dissolve what cannot fit. Done here rather than in the flow so the flow has
+  // one rule instead of two.
+  return groups.flatMap((group) => (
+    group.blocks.length > 1 && group.height > maxHeight
+      ? group.blocks.map((b) => ({ blocks: [b], height: Number(b.heightPx) || 0 }))
+      : [group]
+  ))
+}
+
+/**
  * Flow measured blocks into pages.
  *
  * @param {Array} blocks measured blocks, in document order. Each:
  *   {id, kind, questionId, heightPx, widthPx, breakBefore, avoidBreakInside,
- *    ownerQuestionId, isFigure, rendered}
+ *    avoidBreakAfter, ownerQuestionId, isFigure, rendered}
  * @param {object} box   pageContentBoxPx() (injected so tests can use round numbers)
  * @returns {{status, pageCount, pages, issues}}
  */
@@ -124,7 +172,7 @@ export function paginateBlocks(blocks = [], box = pageContentBoxPx()) {
   let breakPending = false
 
   function newPage(pageNumber) {
-    return { pageNumber, questionIds: [], blockIds: [], hasBodyContent: false, usedPx: 0 }
+    return { pageNumber, questionIds: [], blockIds: [], blockIndexes: [], hasBodyContent: false, usedPx: 0 }
   }
 
   function closePage() {
@@ -132,21 +180,28 @@ export function paginateBlocks(blocks = [], box = pageContentBoxPx()) {
     pages.push(current)
   }
 
-  for (const block of list) {
-    const height = Number(block.heightPx) || 0
+  // Keep-with-next chains are resolved BEFORE the flow (§7): a section heading
+  // and its first question are one unit as far as page placement goes, so the
+  // break falls before the heading rather than between it and the question.
+  for (const group of groupKeepTogether(list, box.height)) {
+    const groupHeight = group.height
+    const lead = group.blocks[0]
 
-    // A block that cannot fit a whole page will be fragmented by the printer
-    // however we flow it. Reported rather than modelled: a paginator that
-    // silently split it would produce a page count the printer disagrees with.
-    if (height > box.height) {
-      issues.push(issue(PAGINATION_ISSUES.OVERSIZED_BLOCK,
-        block.ownerQuestionId
-          ? `Question ${block.questionLabel ?? block.ownerQuestionId} is taller than one page and will be split across sheets.`
-          : 'A block on this paper is taller than one page and will be split across sheets.',
-        { blockId: block.id, questionId: block.ownerQuestionId ?? null }))
+    for (const block of group.blocks) {
+      const height = Number(block.heightPx) || 0
+      // A block that cannot fit a whole page will be fragmented by the printer
+      // however we flow it. Reported rather than modelled: a paginator that
+      // silently split it would produce a page count the printer disagrees with.
+      if (height > box.height) {
+        issues.push(issue(PAGINATION_ISSUES.OVERSIZED_BLOCK,
+          block.ownerQuestionId
+            ? `Question ${block.questionLabel ?? block.ownerQuestionId} is taller than one page and will be split across sheets.`
+            : 'A block on this paper is taller than one page and will be split across sheets.',
+          { blockId: block.id, questionId: block.ownerQuestionId ?? null }))
+      }
     }
 
-    const forcedBreak = (Boolean(block.breakBefore) || breakPending)
+    const forcedBreak = (Boolean(lead.breakBefore) || breakPending)
       && (used > 0 || current.hasBodyContent)
     // `page-break-inside: avoid` is the stylesheet's instruction to move a block
     // whole rather than fragment it, and the printer obeys it. Recording the
@@ -158,22 +213,33 @@ export function paginateBlocks(blocks = [], box = pageContentBoxPx()) {
     // A block that cannot fit an EMPTY page is unfittable, so moving it would
     // only add a blank sheet before splitting it anyway; that case is reported
     // as OVERSIZED_BLOCK above and flowed where it falls.
-    const wouldFragment = used > 0 && used + height > box.height
-    const keepsWhole = block.avoidBreakInside && height <= box.height
-    const overflows = wouldFragment && (!block.avoidBreakInside || keepsWhole)
+    //
+    // For a keep-together group the whole group is the unit, because that is
+    // what the printer moves.
+    const kept = group.blocks.length > 1 || lead.avoidBreakInside
+    const wouldFragment = used > 0 && used + groupHeight > box.height
+    const keepsWhole = kept && groupHeight <= box.height
+    const overflows = wouldFragment && (!kept || keepsWhole)
 
     if (forcedBreak || overflows) {
       closePage()
       current = newPage(pages.length + 1)
       used = 0
     }
-    breakPending = Boolean(block.breakAfter)
+    breakPending = Boolean(group.blocks[group.blocks.length - 1].breakAfter)
 
-    used += height
-    current.blockIds.push(block.id)
-    if (block.rendered !== false && height > 0) current.hasBodyContent = true
-    const qid = block.ownerQuestionId ?? block.questionId
-    if (qid != null && !current.questionIds.includes(qid)) current.questionIds.push(qid)
+    for (const block of group.blocks) {
+      const height = Number(block.heightPx) || 0
+      used += height
+      current.blockIds.push(block.id)
+      // The body position the studio preview draws by (§1). Null for a block
+      // the renderer did not stamp — the plan then places it by adjacency
+      // rather than dropping it.
+      if (Number.isInteger(block.blockIndex)) current.blockIndexes.push(block.blockIndex)
+      if (block.rendered !== false && height > 0) current.hasBodyContent = true
+      const qid = block.ownerQuestionId ?? block.questionId
+      if (qid != null && !current.questionIds.includes(qid)) current.questionIds.push(qid)
+    }
   }
   closePage()
 
@@ -188,7 +254,7 @@ export function paginateBlocks(blocks = [], box = pageContentBoxPx()) {
   // code that cannot fire is decoration. This is the "why is there an extra
   // sheet" complaint, and now the gate refuses it.
   if (breakPending) {
-    pages.push({ pageNumber: pages.length + 1, questionIds: [], blockIds: [], hasBodyContent: false, usedPx: 0 })
+    pages.push({ pageNumber: pages.length + 1, questionIds: [], blockIds: [], blockIndexes: [], hasBodyContent: false, usedPx: 0 })
   }
 
   return {
@@ -266,6 +332,45 @@ export function inspectPages(pages = [], blocks = [], box = pageContentBoxPx()) 
           + `away from the question on page ${stemPage}.`,
           { questionId: qid, stemPage, figurePage }))
       }
+    }
+  }
+
+  // A page break that breaks nothing (§7's "do not add redundant manual page
+  // breaks"). Two shapes, both of which a teacher inserts while trying to fix a
+  // layout and then leaves behind: a break before any body content has been
+  // drawn, and a break immediately following another one. Reported as a warning
+  // rather than a blocker — the paper is correct, it just has a stray marker.
+  let seenBody = false
+  let previousWasBreak = false
+  blocks.forEach((block, index) => {
+    const isBreak = Boolean(block.breakAfter) && (Number(block.heightPx) || 0) === 0
+    if (isBreak) {
+      if (!seenBody || previousWasBreak) {
+        issues.push(issue(PAGINATION_ISSUES.REDUNDANT_BREAK,
+          !seenBody
+            ? 'There is a page break before the paper starts — it will produce a blank first sheet.'
+            : 'Two page breaks in a row will produce a blank sheet between them.',
+          { blockId: block.id, blockIndex: index }))
+      }
+      previousWasBreak = true
+      return
+    }
+    if ((Number(block.heightPx) || 0) > 0 && block.rendered !== false) {
+      seenBody = true
+      previousWasBreak = false
+    }
+  })
+
+  // A section heading that ended up alone at the foot of a sheet. The keep rule
+  // above should make this unreachable; it is checked anyway, because a CSS rule
+  // that stops being honoured looks exactly like one that is.
+  for (const page of pages) {
+    const last = page.blockIds[page.blockIds.length - 1]
+    const block = byId.get(last)
+    if (block?.avoidBreakAfter && block.kind && String(block.kind).includes('section')) {
+      issues.push(issue(PAGINATION_ISSUES.ORPHANED_HEADING,
+        `A section heading is the last thing on page ${page.pageNumber}, away from the questions it introduces.`,
+        { pageNumber: page.pageNumber, blockId: block.id }))
     }
   }
 

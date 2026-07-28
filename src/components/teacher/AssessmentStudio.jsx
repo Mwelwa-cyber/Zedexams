@@ -87,7 +87,8 @@ import { classifyForLibrary } from '../../utils/libraryClassification'
 import { buildAssessmentName } from '../../utils/downloadFilename'
 import { startBrandedDownload, prewarmExports } from '../../utils/assessmentExportClient'
 import { printAssessmentAsPdf, openPrintWindow } from '../../utils/assessmentToPdf'
-import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
+import { computeSmartWarnings } from '../../utils/assessmentPaperLayout'
+import { buildAssessmentDocument } from '../../utils/assessmentDocument'
 import { usePaperPagination } from '../../hooks/usePaperPagination'
 import { computePaperHealth } from '../../utils/paperHealth'
 import { blockingIssuesByLocalId } from '../../utils/assessmentExportGate'
@@ -636,14 +637,19 @@ export default function AssessmentStudio() {
     mode: 'paper',
   })
 
-  const paperBlocks = useMemo(
-    () => buildPaperLayout(assessmentDoc, serializedPreview.questions, { mode: 'paper' }),
+  // The canonical AssessmentDocument (§2). The preview, the PDF, Word and the
+  // marking key all render THIS — one resolved layout, one set of metadata, one
+  // marks model — rather than each deriving its own from the raw form.
+  const paperDocument = useMemo(
+    () => buildAssessmentDocument(assessmentDoc, serializedPreview.questions, { mode: 'paper' }),
     [assessmentDoc, serializedPreview.questions],
   )
-  const markingKeyBlocks = useMemo(
-    () => buildPaperLayout(assessmentDoc, serializedPreview.questions, { mode: 'scheme' }),
+  const markingKeyDocument = useMemo(
+    () => buildAssessmentDocument(assessmentDoc, serializedPreview.questions, { mode: 'scheme' }),
     [assessmentDoc, serializedPreview.questions],
   )
+  const paperBlocks = paperDocument.blocks
+  const markingKeyBlocks = markingKeyDocument.blocks
   const warnings = useMemo(
     () => computeSmartWarnings(assessmentDoc, serializedPreview.questions),
     [assessmentDoc, serializedPreview.questions],
@@ -3097,6 +3103,8 @@ export default function AssessmentStudio() {
           <PaperRenderView
             mode="paper"
             blocks={paperBlocks}
+            document={paperDocument}
+            pagination={pagination}
             assessment={assessmentDoc}
             changeView={changeView}
             onExport={(kind) => handleExport(kind, 'paper')}
@@ -3116,6 +3124,8 @@ export default function AssessmentStudio() {
           <PaperRenderView
             mode="scheme"
             blocks={markingKeyBlocks}
+            document={markingKeyDocument}
+            pagination={pagination}
             assessment={assessmentDoc}
             changeView={changeView}
             onExport={(kind) => handleExport(kind, 'scheme')}

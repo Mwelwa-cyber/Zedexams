@@ -1765,7 +1765,15 @@ async function renderQuestion(b, stats = null) {
   return out
 }
 
-export async function buildAssessmentDocument(assessment, questions, { mode = 'paper', attribution = false, stats = null } = {}) {
+/**
+ * Build the `docx` library Document for a paper.
+ *
+ * Named `buildDocxDocument` rather than `buildAssessmentDocument` because that
+ * name now belongs to the canonical, rendering-agnostic document model in
+ * `assessmentDocument.js` — the thing all four renderers consume. This function
+ * is one of those renderers, and it returns a Word file, not a model.
+ */
+export async function buildDocxDocument(assessment, questions, { mode = 'paper', attribution = false, stats = null } = {}) {
   // The level's band governs the figures in the PAPER (§4.2). Scoping it to the
   // block render rather than the whole function also keeps it off the school
   // logo below — a logo is a mark on the letterhead, not a figure a learner has
@@ -1892,7 +1900,7 @@ export async function downloadAssessmentDocx(assessment, questions, filename = '
   // problem. A missing REQUIRED diagram is not: the learner is asked to label
   // something that is not on the page.
   const stats = { failedImages: [], unresolvedFigures: [], unprintableFigures: [] }
-  const doc = await buildAssessmentDocument(assessment, questions, { ...opts, stats })
+  const doc = await buildDocxDocument(assessment, questions, { ...opts, stats })
   const result = {
     failedImages: stats.failedImages.length,
     // Returned in full, not as a count: the pre-export validation gate has to

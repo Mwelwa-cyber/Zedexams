@@ -52,6 +52,15 @@ export const BLOCKING_PAGINATION_ISSUES = Object.freeze([
   PAGINATION_ISSUES.DIAGRAM_SEPARATED,
   PAGINATION_ISSUES.CLIPPED_CONTENT,
   PAGINATION_ISSUES.OVERSIZED_BLOCK,
+  // §7. A redundant manual break and an orphaned section heading are both
+  // defects the teacher only sees on paper: the first prints a blank sheet for
+  // every learner in the class, the second tells them a section started on the
+  // page they have already turned away from. Blocking is consistent with the
+  // rest of this list — every entry here is something the browser will print
+  // wrongly, and the alternative to blocking is a warning nobody reads at the
+  // photocopier.
+  PAGINATION_ISSUES.REDUNDANT_BREAK,
+  PAGINATION_ISSUES.ORPHANED_HEADING,
 ])
 
 const CHECKING_MESSAGE = 'Checking the page layout…'

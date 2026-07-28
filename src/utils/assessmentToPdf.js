@@ -130,11 +130,35 @@ export function buildPrintableHtml(assessment, questions, mode, { attribution = 
 <body>
 ${attribution ? attributionHtml() : ''}
 <table class="paper-sheet"><tbody><tr><td>
-${blocks.filter(isPaperBody).map(renderBlock).join('\n')}
+${blocks.filter(isPaperBody).map((b, i) => withBlockIndex(renderBlock(b), i)).join('\n')}
 </td></tr></tbody><tfoot><tr><td class="footer-reserve"></td></tr></tfoot></table>
 ${blocks.filter((b) => !isPaperBody(b)).map(renderBlock).join('\n')}
 </body>
 </html>`
+}
+
+/**
+ * Stamp a block's position in the body onto the element it rendered to.
+ *
+ * This is the join key between the two renderers (§1). The measurement runs in
+ * THIS document, and the studio's paginated preview draws the SAME blocks in the
+ * same order as React; without a shared identity, "which blocks are on page 2"
+ * is knowable in the print renderer and unknowable in the preview, and the
+ * preview is reduced to guessing its own page boundaries with a second set of
+ * rules. With it, the preview shows the pages the PDF will have because it is
+ * literally told where they fall.
+ *
+ * The index is the position in the BODY array — the same array the preview maps
+ * — not in `blocks`, because the paper code is excluded from both.
+ *
+ * Injected into the opening tag rather than threaded through every `render*`
+ * function: the alternative is thirteen call sites that each have to remember,
+ * and one that forgets is a block the measurement cannot place.
+ */
+function withBlockIndex(html, index) {
+  const s = String(html || '')
+  if (!s.trim()) return ''
+  return s.replace(/^(\s*<[a-zA-Z][\w-]*)/, `$1 id="pb-${index}" data-block-index="${index}"`)
 }
 
 /**
@@ -752,8 +776,53 @@ body {
   }
 }
 
+/* ── §7 Semantic page-breaking ──────────────────────────────────────────────
+   The rules a school paper has to obey, stated as CSS because the printer is
+   what enforces them — and mirrored in paperPaginationCore so the measured page
+   count agrees with the sheet.
+
+   The organising idea is that a question is either ATOMIC or STRUCTURED. A
+   multiple-choice item and anything carrying a figure are atomic: they are short
+   enough to move whole, and splitting them produces the two defects a learner
+   actually suffers — an option list beginning at B on the next page, or a
+   diagram they are asked to read that is not in front of them. A long structured
+   question is not short enough to move whole, so it may split, but only between
+   sub-parts, never mid-part.
+
+   An option GROUP is kept together in every case. That is what stops a single
+   orphaned choice at the top of a page, which no orphans/widows count can
+   express because the browser counts lines, not choices. */
+.question.q-choice,
+.question.has-figure {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.question.has-subparts {
+  page-break-inside: auto;
+  break-inside: auto;
+}
+.question.has-subparts .subpart {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.options-text, .options-image, .options-mixed {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+/* A figure never splits, and never leaves the stem behind. */
+.q-diagram, .q-figure {
+  page-break-inside: avoid;
+  break-inside: avoid;
+  page-break-before: avoid;
+  break-before: avoid;
+}
+
 @media print {
   .section-head, .passage, .instructions, .banner { page-break-inside: avoid; break-inside: avoid; }
+  /* A section heading is kept with the question that follows it: a heading
+     alone at the foot of a sheet tells the learner a section started on the
+     page they have just turned away from. */
+  .section-head, .section-instr { page-break-after: avoid; break-after: avoid; }
   .question.has-table { page-break-inside: auto; break-inside: auto; }
   .question.has-table .qline { page-break-after: avoid; break-after: avoid; }
   .table-wrap, .data-table { page-break-inside: auto; break-inside: auto; }
@@ -1013,6 +1082,14 @@ function renderQuestion(b) {
     : escapeHtml(b.text || '(no question text)')
   const questionClasses = ['question']
   if (b.tableData) questionClasses.push('has-table')
+  // §7's semantic page-breaking, expressed as classes the stylesheet keys off.
+  // The distinction the rules turn on is whether the question is a SHORT,
+  // atomic one (a multiple-choice item, anything carrying a figure) — which
+  // moves whole to the next page rather than splitting — or a long structured
+  // one, which may split, but only between its sub-parts.
+  if (b.type === 'mcq' || b.type === 'tf') questionClasses.push('q-choice')
+  if (b.imageUrl || b.imageDiagram || (b.images || []).length) questionClasses.push('has-figure')
+  if ((b.subParts || []).length) questionClasses.push('has-subparts')
   // Identity, for the pagination measurement. The printed sheet carries no
   // visible change — these are attributes, not content — but without them a
   // measured block cannot be traced back to the question it belongs to, and
