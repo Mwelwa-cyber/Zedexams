@@ -84,8 +84,8 @@ const lencoApiKey = defineSecret("LENCO_API_KEY");
 // a paying customer discovering a broken config.
 const googlePlaySaJson = defineSecret("GOOGLE_PLAY_SA_JSON");
 
-// Recipients for ops alerts. Prefer the explicit ADMIN_EMAILS list; when it is
-// unset (the common case here — ADMIN_EMAILS has never been configured), fall
+// Recipients for ops alerts. Prefer the explicit ADMIN_EMAILS list (set in
+// functions/.env.examsprepzambia as of 2026-07-28); when it is unset, fall
 // back to the SMTP sender account itself so alerts still land in the ops
 // mailbox — the same EMAIL_SMTP_USER account Dawn and the daily cost summary
 // send through — instead of being silently dropped ("SMTP or ADMIN_EMAILS not
