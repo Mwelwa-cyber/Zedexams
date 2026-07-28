@@ -603,25 +603,39 @@ the chat copy — email keeps delivering. `sendOpsAlert` reads the URL from
 secret **bound** to the function, which is what `functions/opsAlertSecrets.js`
 decides.
 
-The binding is opt-in rather than one more entry in every `secrets: [...]` array,
-and the reason generalises to every secret in this repo: **a `defineSecret()`
-bound to a function whose secret has no value in Secret Manager makes `firebase
-deploy` HARD-FAIL ("no value for the secret: X") and blocks EVERY functions
-deploy.** The same trap is documented for `RECRAFT_API_KEY` in `index.js` and
-worked around for the inbound WhatsApp secrets in `metaWhatsApp.js`. So the bind
-is gated on `OPS_ALERT_WEBHOOK_BOUND`, a non-secret flag that *does* belong in the
-committed `functions/.env.examsprepzambia`.
+The binding is **unconditional**, and the reason it can't be conditional is worth
+knowing before you gate any other secret: **`firebase deploy` decides which
+secrets to bind by analysing the source in a subprocess handed only
+`FIREBASE_CONFIG` + `GCLOUD_PROJECT`** (firebase-tools `prepare.js` →
+`discoverBuild`). `functions/.env.<project>` is loaded on a *different* path, for
+the deployed runtime's environment only. A `process.env` flag read at module load
+is therefore always undefined at deploy time — #1983 gated the bind on
+`OPS_ALERT_WEBHOOK_BOUND` and nothing was ever bound, silently: an *unreferenced*
+secret is never validated, so the deploy passed, and email kept delivering, so
+alerts kept arriving. Fixed in #1991; `opsAlertSecrets.test.js` now fails on any
+`process.env` read in that module.
 
-**The channel is ON as of 2026-07-27** (#1986): `OPS_ALERT_WEBHOOK_URL` is stored
-in Secret Manager (version 1, a Slack incoming webhook for `#zedexams-ops`) and
-`OPS_ALERT_WEBHOOK_BOUND=1` is set, so nine functions carry the secret —
+The trade the flag was avoiding is real and now a stated consequence instead:
+**a `defineSecret()` bound to a function whose secret has no value in Secret
+Manager makes `firebase deploy` HARD-FAIL ("no value for the secret: X") and
+blocks EVERY functions deploy** — the trap documented for `RECRAFT_API_KEY` in
+`index.js` and worked around for the inbound WhatsApp secrets in
+`metaWhatsApp.js`. So `OPS_ALERT_WEBHOOK_URL` must exist (stored 2026-07-27,
+version 1, a Slack incoming webhook for `#zedexams-ops`); retiring the chat
+channel means deleting the `list.push(...)` in `opsAlertSecrets.js` and
+redeploying *before* destroying the secret. Ten functions carry it:
 `agentJobsOnCreate`, `agentJobsOnApproved`, `dailyFirestoreBackup`,
 `backupCompletionCheck`, `storageBackupCheck`, `rateLimitHealthCheck`,
-`opsHeartbeatCheck`, `verifyGooglePlayPurchase`, `lencoWebhook`. Backing out is
-re-commenting the flag and redeploying; email keeps delivering either way. If you
-ever need to re-enable it from scratch the order matters — set the secret value
-FIRST, then the flag, then deploy, or the deploy hard-fails as above. Tests:
-`test:ops-alert`, `test:ops-alert-secrets`.
+`opsHeartbeatCheck`, `verifyGooglePlayPurchase`, `lencoWebhook`,
+`sendTestOpsAlert`.
+
+**Proving it rings:** `/admin` → Developer tools → **Test the ops alarm**
+(`sendTestOpsAlert` + `OpsAlertTester.jsx`) fires one real `info` alert down both
+channels and reports each separately, naming the reason a silent channel was
+silent. Three verdicts — `both` / `one` (delivered, but the redundancy is gone) /
+`none`. Throttled to one per admin per 5 minutes. It is what caught #1991 on its
+first press. Tests: `test:ops-alert`, `test:ops-alert-secrets`,
+`test:ops-alert-test`, `OpsAlertTester.spec.jsx`.
 
 ### Hosting + Functions wiring
 

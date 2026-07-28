@@ -115,10 +115,10 @@ already built — you just plug in the phone number.)
    *Slack: Apps → Incoming Webhooks → Add to a channel (e.g. `#zedexams-ops`).*
 2. Store it as a **secret**, not an env var — the URL is a credential:
    `firebase functions:secrets:set OPS_ALERT_WEBHOOK_URL` and paste it.
-3. Uncomment **`OPS_ALERT_WEBHOOK_BOUND=1`** in `functions/.env.examsprepzambia`
-   and let CI deploy. (Two steps because binding a secret that doesn't exist yet
-   hard-fails *every* functions deploy — the flag is what turns the binding on
-   once the secret is really there. See `functions/opsAlertSecrets.js`.)
+3. That's it — the binding is in code (`functions/opsAlertSecrets.js`), so the
+   next functions deploy picks the secret up. Keep the secret in place: because
+   every alerting function binds it, destroying it hard-fails *every* functions
+   deploy until the binding is removed in code first.
 4. Make sure **`ADMIN_EMAILS`** is set too (the email channel).
 5. Open **/admin → Developer tools → Test the ops alarm** and press **Send test
    alert**. It fires one real alert (marked *info*) down both channels and tells
