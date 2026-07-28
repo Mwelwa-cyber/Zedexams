@@ -1,71 +1,50 @@
 /**
- * Deploy-time binding for the ops-alert WEBHOOK channel — the Slack (or
- * Discord / Mattermost / generic) incoming webhook that `opsAlert.js` posts its
- * `{text}` payload to. `sendOpsAlert` already reads the URL from
- * `process.env.OPS_ALERT_WEBHOOK_URL`; Cloud Functions only puts it there for a
- * secret that is BOUND to the function, which is what this module decides.
+ * Binds the ops-alert WEBHOOK secret — the Slack (or Discord / Mattermost)
+ * incoming webhook `opsAlert.js` posts its `{text}` payload to. `sendOpsAlert`
+ * reads the URL from `process.env.OPS_ALERT_WEBHOOK_URL`, and Cloud Functions
+ * only puts it there for a secret BOUND to the function, which is what this
+ * module does for every function that raises an alert.
  *
- * Why the binding is opt-in rather than one more entry in every `secrets: [...]`
- * array:
- *   • The URL is a credential — anyone holding it can post into the channel —
- *     so it can't live in the committed `functions/.env.<project>` file.
- *   • A `defineSecret()` bound to a function whose secret has no value in
- *     Secret Manager makes `firebase deploy` HARD-FAIL ("no value for the
- *     secret: X") and blocks EVERY functions deploy. That trap is documented
- *     for RECRAFT_API_KEY in index.js and worked around for the inbound
- *     WhatsApp secrets in metaWhatsApp.js.
- * So the bind is gated on `OPS_ALERT_WEBHOOK_BOUND`, a NON-secret flag that
- * does belong in the committed env file. Turning the channel on:
- *   1. `firebase functions:secrets:set OPS_ALERT_WEBHOOK_URL` (paste the URL)
- *   2. set `OPS_ALERT_WEBHOOK_BOUND=1` in `functions/.env.examsprepzambia`
- *   3. deploy — the secret is bound, mounted as an env var, and picked up by
- *      `sendOpsAlert`'s existing default with no call-site change.
- * Backing out is the same steps in reverse (blank the flag, redeploy). Email
- * keeps delivering throughout: the two channels in `opsAlert.js` are
- * independent, so an unbound webhook only ever costs the chat copy.
+ * THE BINDING CANNOT BE GATED ON A FLAG IN functions/.env.<project>, and the
+ * first version of this file tried: `firebase deploy` decides which secrets to
+ * bind by ANALYSING the source in a subprocess that receives only
+ * FIREBASE_CONFIG, GCLOUD_PROJECT and GOOGLE_CLOUD_QUOTA_PROJECT
+ * (firebase-tools `deploy/functions/prepare.js` → `discoverBuild`, envs from
+ * `functions/env.js` `loadFirebaseEnvs`). The `.env.<project>` file is loaded on
+ * a different path (`loadUserEnvs`) purely to populate the DEPLOYED runtime's
+ * environment. So any `process.env` read at module load is undefined during
+ * analysis: the flag read as off, nothing bound the secret, and — because an
+ * unreferenced secret is never validated — the deploy passed while every alert
+ * quietly went out by email only. Keep this module free of `process.env`
+ * entirely; its test fails if one reappears.
  *
- * Pure + dependency-free (firebase-functions is required lazily, only on the
- * bound path) so it tests under plain `node`.
+ * The consequence to know: **`OPS_ALERT_WEBHOOK_URL` must exist in Secret
+ * Manager, or EVERY functions deploy hard-fails** with "no value for the secret"
+ * — the trap documented for RECRAFT_API_KEY in index.js. It exists (stored
+ * 2026-07-27, a Slack webhook for #zedexams-ops). To retire the chat channel,
+ * delete the `list.push(...)` below and redeploy BEFORE destroying the secret;
+ * email delivery is unaffected either way, since the two channels in
+ * opsAlert.js are independent.
  */
 
 const OPS_ALERT_WEBHOOK_SECRET = "OPS_ALERT_WEBHOOK_URL";
-const OPS_ALERT_WEBHOOK_FLAG = "OPS_ALERT_WEBHOOK_BOUND";
-
-// Anything other than an affirmative reads as OFF — an unset, blank, or
-// misspelled flag must leave the deploy exactly as it is today.
-const TRUTHY = new Set(["1", "true", "yes", "on"]);
 
 /**
- * Is the webhook secret bound on this deploy? Read at module-load time by the
- * Firebase CLI (which loads `functions/.env.<project>` before discovering the
- * function manifest), so the flag decides the deployed binding, not runtime
- * behaviour.
- * @param {Object} [env] defaults to process.env
- * @returns {boolean}
- */
-function isWebhookBindEnabled(env = process.env) {
-  return TRUTHY.has(String((env || {})[OPS_ALERT_WEBHOOK_FLAG] || "").trim().toLowerCase());
-}
-
-/**
- * Append the webhook secret to a function's `secrets: [...]` list when the
- * flag is on. Returns a NEW array — callers pass their own secret params and
- * must not have them mutated.
+ * Append the webhook secret to a function's `secrets: [...]` list. Returns a NEW
+ * array — callers pass their own secret params and must not have them mutated.
  *
- * Defining the same secret name from several modules is fine and already the
+ * Declaring the same secret name from several modules is fine and already the
  * pattern here (EMAIL_SMTP_USER is declared separately in firestoreBackup.js,
  * storageBackup.js, rateLimitHealth.js and opsHeartbeat.js — see the note at
  * firestoreBackup.js:57), so this needs no cross-module registry.
  *
  * @param {Array} [base] the function's existing secret params
  * @param {Object} [opts]
- * @param {Object} [opts.env] injected env (tests)
  * @param {Function} [opts.defineSecret] injected defineSecret (tests)
  * @returns {Array}
  */
-function opsAlertSecrets(base = [], {env, defineSecret} = {}) {
+function opsAlertSecrets(base = [], {defineSecret} = {}) {
   const list = Array.isArray(base) ? [...base] : [];
-  if (!isWebhookBindEnabled(env || process.env)) return list;
   const define = defineSecret || require("firebase-functions/params").defineSecret;
   list.push(define(OPS_ALERT_WEBHOOK_SECRET));
   return list;
@@ -73,7 +52,5 @@ function opsAlertSecrets(base = [], {env, defineSecret} = {}) {
 
 module.exports = {
   OPS_ALERT_WEBHOOK_SECRET,
-  OPS_ALERT_WEBHOOK_FLAG,
-  isWebhookBindEnabled,
   opsAlertSecrets,
 };

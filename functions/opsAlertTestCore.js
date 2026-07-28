@@ -59,9 +59,10 @@ function buildTestAlert({actorEmail, actorUid, nowIso, note} = {}) {
 
 // Skip reasons sendOpsAlert can report, and what an operator does about each.
 const SKIP_EXPLANATIONS = Object.freeze({
-  "webhook-unconfigured": "No webhook URL reached this function. Store the " +
-    "OPS_ALERT_WEBHOOK_URL secret, then set OPS_ALERT_WEBHOOK_BOUND=1 in " +
-    "functions/.env.<project> and redeploy.",
+  "webhook-unconfigured": "No webhook URL reached this function. Check that the " +
+    "OPS_ALERT_WEBHOOK_URL secret exists in Secret Manager and that the latest " +
+    "functions deploy succeeded — opsAlertSecrets.js binds it to every alerting " +
+    "function, so a stale deployment is the usual cause.",
   "webhook-failed": "The webhook URL could not be reached (network error). " +
     "Check the URL is still valid in the chat app.",
   "no-fetch": "This runtime has no fetch available — a platform problem, not " +

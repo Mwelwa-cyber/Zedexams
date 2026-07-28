@@ -64,8 +64,13 @@ assert.deepStrictEqual(describeChannel({sent: true}), {status: "sent", reason: n
 {
   const unconfigured = describeChannel({sent: false, skipped: "webhook-unconfigured"});
   assert.strictEqual(unconfigured.status, "not-configured", "unconfigured is not a failure");
-  assert.ok(/OPS_ALERT_WEBHOOK_BOUND/.test(unconfigured.detail),
-    "explanation names the flag the operator must set");
+  // The explanation must name something that still exists. It used to tell the
+  // operator to set OPS_ALERT_WEBHOOK_BOUND — a flag that could never work and
+  // has been deleted; advice naming it would send them down the same hole.
+  assert.ok(/OPS_ALERT_WEBHOOK_URL/.test(unconfigured.detail),
+    "explanation names the secret to check");
+  assert.ok(!/OPS_ALERT_WEBHOOK_BOUND/.test(unconfigured.detail),
+    "explanation must not reference the removed flag");
 
   const noEmails = describeChannel({sent: false, skipped: "no-admin-emails"});
   assert.strictEqual(noEmails.status, "not-configured", "empty ADMIN_EMAILS is configuration");
