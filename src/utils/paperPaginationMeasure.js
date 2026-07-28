@@ -89,8 +89,14 @@ export function measureBlocks(doc) {
     const nextTop = index + 1 < els.length ? tops[index + 1] : containerBottom
     const heightPx = Math.max(0, nextTop - tops[index])
     const isPageBreak = el.classList.contains('pagebreak') || el.classList.contains('page-break')
+    // The block's position in the paper's body, stamped by the renderer. This is
+    // what lets the studio's paginated preview draw the pages this measurement
+    // found rather than inventing its own boundaries (§1).
+    const rawIndex = el.getAttribute('data-block-index')
+    const blockIndex = rawIndex == null ? null : Number(rawIndex)
     return {
       id: el.id || `block-${index}`,
+      blockIndex: Number.isInteger(blockIndex) ? blockIndex : null,
       kind: el.getAttribute('data-block-kind') || el.className || 'block',
       heightPx,
       widthPx: rect.width,
@@ -101,6 +107,12 @@ export function measureBlocks(doc) {
       // and the count came out a page short.
       breakAfter: style.breakAfter === 'page' || style.pageBreakAfter === 'always' || isPageBreak,
       avoidBreakInside: style.breakInside === 'avoid' || style.pageBreakInside === 'avoid',
+      // Keep-with-next (§7). A section heading declares `break-after: avoid`,
+      // which the printer honours by moving the heading down with the question
+      // that follows it. Reading only break-inside meant the paginator flowed
+      // the two independently and reported a layout the printer never produces
+      // — on exactly the papers the rule exists for.
+      avoidBreakAfter: style.breakAfter === 'avoid' || style.pageBreakAfter === 'avoid',
       ownerQuestionId: ownerQuestionOf(el),
       questionLabel: questionLabelOf(el),
       isFigure: Boolean(el.querySelector?.('.q-diagram, svg, img')) && !el.querySelector?.('.q-text'),

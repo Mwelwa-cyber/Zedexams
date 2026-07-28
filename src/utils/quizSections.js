@@ -249,13 +249,31 @@ export function insertStandaloneSection(sections = [], { anchorId = null, mode =
 // section list flat for existing reorder/render code.
 export function createPartGroup(overrides = {}) {
   const partId = overrides.id || nextLocalId('part')
-  return {
+  const part = {
     id: partId,
     title: overrides.title ?? '',
     instructions: hydrateRichField(overrides.instructions ?? ''),
     example: hydrateRichField(overrides.example ?? ''),
     order: overrides.order ?? 0,
   }
+  // The section's marking and answer-choice settings, restored only when the
+  // saved part actually carried them. Defaulting them here instead would give
+  // every part saved before §3/§4 an explicit setting it never had, which is
+  // the difference between "use the paper's" and "this section chose 4".
+  // The list mirrors `serializeQuizSections` — a field in one and not the other
+  // is saved and then silently lost on reload.
+  if (overrides.marksMode === 'uniform' || overrides.marksMode === 'individual') {
+    part.marksMode = overrides.marksMode
+  }
+  if (Number.isFinite(Number(overrides.marksPerQuestion))) {
+    part.marksPerQuestion = Number(overrides.marksPerQuestion)
+  }
+  if (typeof overrides.showMarks === 'boolean') part.showMarks = overrides.showMarks
+  if (Number.isFinite(Number(overrides.marks))) part.marks = Number(overrides.marks)
+  if (Number.isFinite(Number(overrides.answerChoiceCount))) {
+    part.answerChoiceCount = Number(overrides.answerChoiceCount)
+  }
+  return part
 }
 
 export const PASSAGE_KIND_COMPREHENSION = 'comprehension'
@@ -766,13 +784,33 @@ export function serializeQuizSections(sections = [], parts = []) {
     questionOrder += 1
   })
 
-  const serializedParts = (parts || []).map((part, index) => ({
-    id: part.id,
-    title: String(part.title ?? '').trim(),
-    instructions: serializeRichField(part.instructions),
-    example: serializeRichField(part.example),
-    order: typeof part.order === 'number' ? part.order : index,
-  }))
+  // The section's own settings ride on the part. They are written as an
+  // explicit allow-list rather than spread, so a field added to the editor's
+  // in-memory part cannot silently start being persisted — but a field listed
+  // here and forgotten in `hydrateQuizSections` would be saved and then lost on
+  // reload, which is why the two lists are stated together in both files.
+  //
+  // `undefined` is never written: Firestore rejects it, and "not set" has to
+  // stay distinguishable from "set to nothing" — a section with no
+  // answerChoiceCount uses the paper's, and a section with a null one is the
+  // same thing said out loud.
+  const serializedParts = (parts || []).map((part, index) => {
+    const out = {
+      id: part.id,
+      title: String(part.title ?? '').trim(),
+      instructions: serializeRichField(part.instructions),
+      example: serializeRichField(part.example),
+      order: typeof part.order === 'number' ? part.order : index,
+    }
+    // §4 — how this section awards marks.
+    if (part.marksMode === 'uniform' || part.marksMode === 'individual') out.marksMode = part.marksMode
+    if (Number.isFinite(Number(part.marksPerQuestion))) out.marksPerQuestion = Number(part.marksPerQuestion)
+    if (typeof part.showMarks === 'boolean') out.showMarks = part.showMarks
+    if (Number.isFinite(Number(part.marks))) out.marks = Number(part.marks)
+    // §3 — the section's answer-choice override.
+    if (Number.isFinite(Number(part.answerChoiceCount))) out.answerChoiceCount = Number(part.answerChoiceCount)
+    return out
+  })
 
   return {
     passages,
@@ -1148,6 +1186,7 @@ export function hydrateQuizSections(questions = [], passages = [], parts = [], p
 
   const hydratedParts = (parts || [])
     .map((part, index) => createPartGroup({
+      ...part,
       id: part.id,
       title: part.title ?? '',
       instructions: part.instructions ?? '',

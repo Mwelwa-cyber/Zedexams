@@ -55,6 +55,7 @@ import { renderFixture, decodePng, encodePng, assertLibreOfficeCanConvert } from
 import {
   GATE_MODES, RENDERER_FAMILIES, mayWriteBaseline, validateUpdateRequest,
   validateBootstrapRequest, planBaselineBootstrap,
+  validateSweepUpdateRequest, assertBaselineDestination,
   baselineWriteFilter, gateVerdict, summariseGateVerdict,
 } from './gateCore.js'
 
@@ -82,6 +83,11 @@ const allowFailure = flag('allow-failure')
 // bootstrap than they can re-record. What it changes is the SCOPE: it creates
 // baselines that are absent and refuses to touch one that exists.
 const bootstrapping = flag('bootstrap-missing')
+// A SWEEP re-records every baseline a change moved, onto the pull request that
+// moved them. Same `--mode=update`, so the writer rules are identical; what it
+// relaxes is the one-fixture requirement, and what it requires in exchange is a
+// pull request to be reviewed on. See validateSweepUpdateRequest.
+const sweeping = flag('sweep')
 
 if (!GATE_MODES.includes(gateMode)) {
   console.error(`✗ --mode must be one of ${GATE_MODES.join(', ')}`)
@@ -111,13 +117,32 @@ if (gateMode === 'update') {
     )
     process.exit(EXIT_INFRASTRUCTURE)
   }
-  const request = { fixture: onlyFixture, family: onlyFamily, reason: arg('reason'), source: arg('source') }
+  const request = {
+    fixture: onlyFixture,
+    family: onlyFamily,
+    reason: arg('reason'),
+    source: arg('source'),
+    pullRequest: arg('pull-request'),
+  }
   const knownIds = VISUAL_FIXTURES.map((f) => f.id)
-  const problems = bootstrapping
-    ? validateBootstrapRequest(request, knownIds)
-    : validateUpdateRequest(request, knownIds)
+  // Where the baselines will land. Checked BEFORE anything renders, because a
+  // run that discovers its destination is the default branch after twenty
+  // minutes of rendering has already wasted the twenty minutes — and because a
+  // guard that runs last is one an edit can reorder past.
+  const destinationProblems = sweeping
+    ? assertBaselineDestination(arg('branch', process.env.GITHUB_REF_NAME || ''))
+    : []
+  const problems = [
+    ...destinationProblems,
+    ...(bootstrapping
+      ? validateBootstrapRequest(request, knownIds)
+      : sweeping
+        ? validateSweepUpdateRequest(request, knownIds)
+        : validateUpdateRequest(request, knownIds)),
+  ]
   if (problems.length) {
-    console.error(`✗ this baseline ${bootstrapping ? 'bootstrap' : 'update'} is not permitted:`)
+    const kind = bootstrapping ? 'bootstrap' : sweeping ? 'sweep' : 'update'
+    console.error(`✗ this baseline ${kind} is not permitted:`)
     for (const p of problems) console.error(`    ${p}`)
     process.exit(EXIT_INFRASTRUCTURE)
   }
@@ -287,7 +312,15 @@ if (missingBaselines.length) {
 const failed = verdicts.some((v) => v.failed)
 if (gateMode === 'update') {
   if (!bootstrapping) {
-    console.log('\n✓ baseline re-recorded for the named fixture and family only.')
+    // Counted for a sweep, because "every baseline a change moved" is a claim
+    // worth stating as a number a reviewer can check against the fixture list.
+    if (sweeping) {
+      const rerecorded = verdicts.filter((v) => v.updated)
+      console.log(`\n✓ ${rerecorded.length} baseline(s) re-recorded onto this branch.`)
+      for (const v of rerecorded) console.log(`    ${v.fixtureId} [${v.family}/${v.copy}]`)
+    } else {
+      console.log('\n✓ baseline re-recorded for the named fixture and family only.')
+    }
     process.exit(EXIT_OK)
   }
   // Counted rather than assumed. A bootstrap that recorded nothing is a

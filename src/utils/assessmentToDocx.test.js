@@ -16,7 +16,7 @@
 
 import { Document, ImageRun, Packer, Paragraph } from 'docx'
 import { unzipSync, strFromU8 } from 'fflate'
-import { buildAssessmentDocument, buildDiagramIdentifySvg, detectImageType, sanitizeXmlText } from './assessmentToDocx.js'
+import { buildDocxDocument, buildDiagramIdentifySvg, detectImageType, sanitizeXmlText } from './assessmentToDocx.js'
 import { DEFAULT_ANSWER_LINES } from './assessmentPaperLayout.js'
 import { clearImageBytesCache } from './fetchImageBytes.js'
 
@@ -87,7 +87,7 @@ const realFetch = globalThis.fetch
 clearImageBytesCache()
 globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => WEBP_HEADER.buffer.slice(0) })
 try {
-  const webpDoc = await buildAssessmentDocument(
+  const webpDoc = await buildDocxDocument(
     { title: 'Pic Test', subject: 'Science', showNameField: true, showDateField: true },
     [{ id: 'q1', order: 1, type: 'short_answer', text: 'Identify the picture.', imageUrl: 'https://example/pic.webp', marks: 1 }],
     { mode: 'paper' },
@@ -117,7 +117,7 @@ console.log('\nCORS-poisoned cache → exporter retries and still embeds the ima
     return { ok: true, arrayBuffer: async () => PNG_1x1.buffer.slice(0) }
   }
   try {
-    const recoveredDoc = await buildAssessmentDocument(
+    const recoveredDoc = await buildDocxDocument(
       { title: 'Pic Test', subject: 'Science', showNameField: true, showDateField: true },
       [{ id: 'q1', order: 1, type: 'short_answer', text: 'Identify the diagram.', imageUrl: 'https://example/diagram.png', marks: 1 }],
       { mode: 'paper' },
@@ -148,7 +148,7 @@ console.log('\nBucket CORS missing → exporter falls back to the same-origin im
     throw new TypeError('Failed to fetch (CORS)')
   }
   try {
-    const proxiedDoc = await buildAssessmentDocument(
+    const proxiedDoc = await buildDocxDocument(
       { title: 'Pic Test', subject: 'Science', showNameField: true, showDateField: true },
       [{ id: 'q1', order: 1, type: 'short_answer', text: 'Identify the diagram.', imageUrl: 'https://firebasestorage.googleapis.com/v0/b/examsprepzambia.firebasestorage.app/o/x.png?alt=media&token=t', marks: 1 }],
       { mode: 'paper' },
@@ -180,7 +180,7 @@ console.log('\nProxy returns the SPA fallback (rewrite not live) → fail closed
     throw new TypeError('Failed to fetch (CORS)')
   }
   try {
-    const htmlDoc = await buildAssessmentDocument(
+    const htmlDoc = await buildDocxDocument(
       { title: 'Pic Test', subject: 'Science', showNameField: true, showDateField: true },
       [{ id: 'q1', order: 1, type: 'short_answer', text: 'Identify the diagram.', imageUrl: 'https://firebasestorage.googleapis.com/v0/b/examsprepzambia.firebasestorage.app/o/x.png?alt=media&token=t', marks: 1 }],
       { mode: 'paper' },
@@ -202,7 +202,7 @@ clearImageBytesCache()
 globalThis.fetch = async () => ({ ok: false, arrayBuffer: async () => new ArrayBuffer(0) })
 try {
   const stats = { failedImages: [] }
-  const failDoc = await buildAssessmentDocument(
+  const failDoc = await buildDocxDocument(
     { title: 'Pic Test', subject: 'Science', showNameField: true, showDateField: true },
     [{ id: 'q1', order: 1, type: 'short_answer', text: 'Identify the diagram.', imageUrl: 'https://example/diagram.png', imageAlt: 'water cycle', marks: 1 }],
     { mode: 'paper', stats },
@@ -240,7 +240,7 @@ assert(sanitizeXmlText(`non${NONCHAR}char`) === 'nonchar', 'the two XML non-char
 
 // End-to-end: a question whose title / text / options carry control bytes
 // must still pack into a well-formed document.xml (no raw control char leaks).
-const dirtyDoc = await buildAssessmentDocument(
+const dirtyDoc = await buildDocxDocument(
   { title: `Dirty${US}Paper`, subject: 'Science', showNameField: true },
   [{
     id: 'q1', order: 1, type: 'mcq',
@@ -291,7 +291,7 @@ console.log('\nTrue/False renders as a 2-option list + a marking-key answer')
 // True/False options, no answer in the marking key — because renderQuestion
 // had no `tf` branch. It now renders through the MCQ branch.
 {
-  const paperDoc = await buildAssessmentDocument(
+  const paperDoc = await buildDocxDocument(
     { title: 'TF Test', subject: 'Science', showNameField: true },
     [{ id: 'q1', order: 1, type: 'tf', text: 'The sun is a star.', options: ['True', 'False'], correctAnswer: 0, marks: 1 }],
     { mode: 'paper' },
@@ -299,7 +299,7 @@ console.log('\nTrue/False renders as a 2-option list + a marking-key answer')
   const paperXml = strFromU8(unzipSync(new Uint8Array(await Packer.toBuffer(paperDoc)))['word/document.xml'])
   assert(paperXml.includes('True') && paperXml.includes('False'), 'tf paper prints the True / False options')
 
-  const schemeDoc = await buildAssessmentDocument(
+  const schemeDoc = await buildDocxDocument(
     { title: 'TF Test', subject: 'Science', showNameField: true },
     [{ id: 'q1', order: 1, type: 'tf', text: 'The sun is a star.', options: ['True', 'False'], correctAnswer: 0, marks: 1 }],
     { mode: 'scheme' },
@@ -310,7 +310,7 @@ console.log('\nTrue/False renders as a 2-option list + a marking-key answer')
 {
   // The legacy 'truefalse' spelling folds onto 'tf' in buildQuestionBlock, so
   // it renders the same — even without an explicit options array.
-  const doc = await buildAssessmentDocument(
+  const doc = await buildDocxDocument(
     { title: 'TF Test', subject: 'Science', showNameField: true },
     [{ id: 'q1', order: 1, type: 'truefalse', text: 'Water boils at 100°C.', correctAnswer: 1, marks: 1 }],
     { mode: 'paper' },
@@ -324,7 +324,7 @@ console.log('\nThe paper banner is a REAL Word header, not body text')
 // text. It is now a real Word first-page header (paperSectionShell), so it sits
 // in the header region and prints once at the top — matching the preview / PDF.
 {
-  const doc = await buildAssessmentDocument(
+  const doc = await buildDocxDocument(
     { schoolName: 'Kabulonga Primary', subject: 'Science', grade: '7', assessmentType: 'end_of_term', term: '2', showNameField: true },
     [{ id: 'q1', order: 1, type: 'short_answer', text: 'Name a planet.', marks: 1 }],
     { mode: 'paper' },
@@ -334,15 +334,49 @@ console.log('\nThe paper banner is a REAL Word header, not body text')
   const headerXml = headerParts.map((n) => strFromU8(files[n])).join('\n')
   const docXml = strFromU8(files['word/document.xml'])
   assert(headerParts.length >= 1, 'document carries a real Word header part')
-  assert(headerXml.includes('KABULONGA PRIMARY') && headerXml.includes('GRADE SEVEN'), 'school name + paper title live in the header part')
+  // "GRADE 7", not "GRADE SEVEN": the paper prints the grade the teacher typed
+  // unless it has selected the written-number style (§9, paperMetadata.js). The
+  // unconditional word lookup this replaced was a rename nobody asked for.
+  assert(headerXml.includes('KABULONGA PRIMARY') && headerXml.includes('GRADE 7'), 'school name + paper title live in the header part')
+  assert(!headerXml.includes('GRADE SEVEN'), 'the grade is not silently reworded')
   assert(!docXml.includes('KABULONGA PRIMARY'), 'banner is NOT duplicated into the document body')
   assert(docXml.includes('<w:titlePg/>'), 'section is flagged titlePage so the banner prints once (page 1)')
-  assert(docXml.includes('Pupil'), 'the document body still begins at the learner fields')
+  // "Name", not "Pupil's Name": Word used to hard-code its own label while the
+  // preview and the PDF printed "NAME", so the same paper said two different
+  // things depending on where you read it. All three now take the label off the
+  // block (§9), and a paper that wants "Pupil's Name" selects it.
+  assert(docXml.includes('Name'), 'the document body still begins at the learner fields')
+}
+
+{
+  const doc = await buildDocxDocument(
+    { schoolName: 'Kabulonga Primary', subject: 'Science', grade: '7', nameFieldStyle: 'pupil', showNameField: true },
+    [{ id: 'q1', order: 1, type: 'short_answer', text: 'Name a planet.', marks: 1 }],
+    { mode: 'paper' },
+  )
+  const files = unzipSync(new Uint8Array(await Packer.toBuffer(doc)))
+  const docXml = strFromU8(files['word/document.xml'])
+  assert(docXml.includes("Pupil"), 'the chosen name-field label reaches Word')
+}
+
+// …and the written-number style is still available to a school whose house
+// style wants it, on the same paper.
+{
+  const doc = await buildDocxDocument(
+    { schoolName: 'Kabulonga Primary', subject: 'Science', grade: '7', gradeNumberStyle: 'word', assessmentType: 'end_of_term', term: '2' },
+    [{ id: 'q1', order: 1, type: 'short_answer', text: 'Name a planet.', marks: 1 }],
+    { mode: 'paper' },
+  )
+  const files = unzipSync(new Uint8Array(await Packer.toBuffer(doc)))
+  const headerXml = Object.keys(files)
+    .filter((n) => /word\/header\d+\.xml/.test(n))
+    .map((n) => strFromU8(files[n])).join('\n')
+  assert(headerXml.includes('GRADE SEVEN'), 'the written-number style still produces GRADE SEVEN')
 }
 
 console.log('\nFree-plan export composes the watermark INTO the paper headers')
 {
-  const doc = await buildAssessmentDocument(
+  const doc = await buildDocxDocument(
     { schoolName: 'Kabulonga Primary', subject: 'Science', grade: '7', showNameField: true },
     [{ id: 'q1', order: 1, type: 'short_answer', text: 'Q', marks: 1 }],
     { mode: 'paper', attribution: true },
@@ -360,7 +394,7 @@ console.log('\nFree-plan export composes the watermark INTO the paper headers')
 }
 {
   // Paid / admin export stays completely clean.
-  const doc = await buildAssessmentDocument(
+  const doc = await buildDocxDocument(
     { schoolName: 'Kabulonga Primary', subject: 'Science', grade: '7', showNameField: true },
     [{ id: 'q1', order: 1, type: 'short_answer', text: 'Q', marks: 1 }],
     { mode: 'paper', attribution: false },
@@ -373,7 +407,7 @@ console.log('\nFree-plan export composes the watermark INTO the paper headers')
 
 console.log('\nInstructions box matches the preview label (Instructions vs Marking key)')
 {
-  const paper = await buildAssessmentDocument(
+  const paper = await buildDocxDocument(
     { subject: 'Science', grade: '7', coverInstructions: 'Answer all questions.' },
     [{ id: 'q1', order: 1, type: 'mcq', text: 'Q', options: ['a', 'b'], correctAnswer: 0, marks: 1 }],
     { mode: 'paper' },
@@ -383,7 +417,7 @@ console.log('\nInstructions box matches the preview label (Instructions vs Marki
 
   // Scheme mode with NO cover instructions still prints the "Marking key" label,
   // matching the preview — the DOCX used to drop the whole block when text was empty.
-  const scheme = await buildAssessmentDocument(
+  const scheme = await buildDocxDocument(
     { subject: 'Science', grade: '7' },
     [{ id: 'q1', order: 1, type: 'mcq', text: 'Q', options: ['a', 'b'], correctAnswer: 0, marks: 1 }],
     { mode: 'scheme' },
@@ -395,7 +429,7 @@ console.log('\nInstructions box matches the preview label (Instructions vs Marki
 console.log('\nEssay answer space honours the shared line-count constant (preview parity)')
 {
   // Learner fields off, so the only ruled lines in the body are the essay's.
-  const doc = await buildAssessmentDocument(
+  const doc = await buildDocxDocument(
     { subject: 'English', grade: '7', showNameField: false, showDateField: false, showMarksField: false },
     [{ id: 'q1', order: 1, type: 'essay', text: 'Write about your school.', marks: 10 }],
     { mode: 'paper' },
@@ -407,7 +441,7 @@ console.log('\nEssay answer space honours the shared line-count constant (previe
 
 console.log('\nDrawing canvas prints ABOVE the ruled answer lines (preview block order)')
 {
-  const doc = await buildAssessmentDocument(
+  const doc = await buildDocxDocument(
     { subject: 'Art', grade: '7', showNameField: false, showDateField: false, showMarksField: false },
     [{ id: 'q1', order: 1, type: 'essay', text: 'Sketch and describe a plant.', marks: 10, drawingHeight: 160 }],
     { mode: 'paper' },
@@ -454,7 +488,7 @@ console.log('\nThe printability check never reports a false clean bill (§4.2)')
   globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => PNG_1x1.buffer.slice(0) })
   try {
     const stats = { failedImages: [], unprintableFigures: [] }
-    await buildAssessmentDocument(
+    await buildDocxDocument(
       { subject: 'Science', grade: '7', showNameField: false, showDateField: false, showMarksField: false },
       [{
         id: 'q1', order: 1, type: 'diagram', marks: 1, text: 'Name the parts.',
@@ -519,7 +553,7 @@ console.log('\nThe level\'s band is scoped to one document, not the process (§4
     imageUrl: 'https://example/pic.png', imageWidth: 'small',
   }]
   const emu = async (grade) => {
-    const doc = await buildAssessmentDocument(
+    const doc = await buildDocxDocument(
       { subject: 'Science', grade, showNameField: false, showDateField: false, showMarksField: false },
       figureQ, { mode: 'paper' },
     )
@@ -572,7 +606,7 @@ console.log('\nLabelled diagram keeps its labels as a text list when the composi
   // doesn't silently lose them.
   globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => PNG_1x1.buffer.slice(0) })
   try {
-    const doc = await buildAssessmentDocument(
+    const doc = await buildDocxDocument(
       { subject: 'Science', grade: '7', showNameField: false, showDateField: false, showMarksField: false },
       [{
         id: 'q1', order: 1, type: 'diagram', marks: 3, text: 'Study the heart.',
@@ -590,13 +624,13 @@ console.log('\nLabelled diagram keeps its labels as a text list when the composi
 
 console.log('\nschoolLogoUrl in header → image embedded in Word header (not dropped)')
 // The Word export used to omit the school logo from the paper header even when
-// the PDF/preview rendered it. buildAssessmentDocument now pre-fetches the logo
+// the PDF/preview rendered it. buildDocxDocument now pre-fetches the logo
 // bytes and passes an ImageRun into headerParagraphs so the .docx header matches.
 {
   clearImageBytesCache()
   globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => PNG_1x1.buffer.slice(0) })
   try {
-    const logoDoc = await buildAssessmentDocument(
+    const logoDoc = await buildDocxDocument(
       { title: 'Logo Test', subject: 'Science', schoolName: 'ZedExams Academy',
         schoolLogoUrl: 'https://example.com/logo.png', showNameField: false },
       [{ id: 'q1', order: 1, type: 'short_answer', text: 'Answer.', marks: 1 }],
@@ -629,7 +663,7 @@ console.log('\nschoolLogoUrl fetch fails → document still packs, failure count
   let threw = false
   const failStats = { failedImages: [] }
   try {
-    const failLogoDoc = await buildAssessmentDocument(
+    const failLogoDoc = await buildDocxDocument(
       { title: 'Logo Fail Test', subject: 'Science', schoolName: 'ZedExams Academy',
         schoolLogoUrl: 'https://example.com/missing-logo.png', showNameField: false },
       [{ id: 'q1', order: 1, type: 'short_answer', text: 'Answer.', marks: 1 }],
@@ -642,7 +676,7 @@ console.log('\nschoolLogoUrl fetch fails → document still packs, failure count
     globalThis.fetch = realFetch
     clearImageBytesCache()
   }
-  assert(!threw, 'logo fetch failure → buildAssessmentDocument does not throw')
+  assert(!threw, 'logo fetch failure → buildDocxDocument does not throw')
   assert(failStats.failedImages.length === 1, 'logo fetch failure → counted in stats.failedImages')
   assert(failStats.failedImages[0] === 'school logo', 'logo fetch failure → label is "school logo"')
 }
@@ -651,7 +685,7 @@ console.log('\nNo logo URL → output unchanged (no regression for papers withou
 // Papers without a schoolLogoUrl must pack identically to before — the logo
 // paragraph must not appear in the header.
 {
-  const noLogoDoc = await buildAssessmentDocument(
+  const noLogoDoc = await buildDocxDocument(
     { title: 'No Logo Test', subject: 'Science', schoolName: 'ZedExams Academy', showNameField: false },
     [{ id: 'q1', order: 1, type: 'short_answer', text: 'Answer.', marks: 1 }],
     { mode: 'paper' },

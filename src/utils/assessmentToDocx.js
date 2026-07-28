@@ -22,6 +22,7 @@ import {
   ImageRun,
   Packer,
   PageBreak,
+  PageOrientation,
   Paragraph,
   Tab,
   TableCell,
@@ -39,7 +40,9 @@ import {
   MathSubScript,
 } from 'docx'
 import { attributionSection, attributionFooter, attributionWatermarkParagraph } from './docxAttribution.js'
-import { buildPaperLayout, DEFAULT_ANSWER_LINES } from './assessmentPaperLayout.js'
+import { DEFAULT_ANSWER_LINES } from './assessmentPaperLayout.js'
+import { buildAssessmentDocument } from './assessmentDocument.js'
+import { mmToTwip } from '../config/paperLayoutTokens.js'
 import { resolveImageWidthPercent } from './imageWidth.js'
 import { figureBox, embedBox } from './figureSizing.js'
 import {
@@ -1062,11 +1065,42 @@ function headerParagraphs(b, logoRun = null) {
  *
  * Spread into the section literal: `{ ...paperSectionShell(blocks, opts), children }`.
  */
-export function paperSectionShell(blocks = [], { attribution = false, logoRun = null } = {}) {
+export function paperSectionShell(blocks = [], { attribution = false, logoRun = null, layout = null } = {}) {
   const headerBlock = blocks.find((b) => b.kind === 'header')
   const banner = headerParagraphs(headerBlock, logoRun)
   const shell = {}
   const headers = {}
+  // The sheet itself (§2), from the SAME resolved tokens the print stylesheet's
+  // `@page` rule uses. Word takes twentieths of a point; the tokens convert.
+  // Without this, a paper set to A5 landscape printed as A5 landscape in the
+  // browser and as A4 portrait in the download — the shape of drift this whole
+  // change exists to end. `layout` is optional so a caller that has not been
+  // migrated keeps Word's own defaults, which are A4 portrait already.
+  // `docx` swaps width and height itself for a landscape section, so it must be
+  // handed the PORTRAIT dimensions plus the flag and it emits the laid-out ones.
+  // The layout tokens already report the sheet as laid out (a landscape A5 is
+  // 210 across, 148 down), so they are swapped back here. Passing them straight
+  // through applies the swap twice: the emitted `w:pgSz` came out 148 across on
+  // a page still marked landscape, which Word draws as a portrait A5.
+  const landscape = layout && layout.orientation === 'landscape'
+  const pageProperties = layout ? {
+    page: {
+      size: {
+        width: mmToTwip(landscape ? layout.page.heightMm : layout.page.widthMm),
+        height: mmToTwip(landscape ? layout.page.widthMm : layout.page.heightMm),
+        orientation: landscape ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT,
+      },
+      margin: {
+        top: mmToTwip(layout.margins.top),
+        right: mmToTwip(layout.margins.right),
+        // Word has no running `<tfoot>` reservation, so the footer's in-flow
+        // reserve is folded into the bottom margin here — the same total zone
+        // the browser reserves in two halves. See paperPageGeometry.js.
+        bottom: mmToTwip(layout.margins.bottom + layout.content.footerReserveMm),
+        left: mmToTwip(layout.margins.left),
+      },
+    },
+  } : {}
 
   if (banner.length) {
     headers.first = new Header({
@@ -1074,7 +1108,9 @@ export function paperSectionShell(blocks = [], { attribution = false, logoRun = 
     })
     // titlePage routes the FIRST page to `headers.first` (the banner) and every
     // later page to `headers.default`, so the banner is printed exactly once.
-    shell.properties = { titlePage: true }
+    shell.properties = { ...pageProperties, titlePage: true }
+  } else if (layout) {
+    shell.properties = pageProperties
   }
 
   if (attribution) {
@@ -1098,15 +1134,19 @@ function renderLearnerFields(b) {
   const out = []
   if (b.name || b.date) {
     const children = []
+    // The labels come off the block (§9), so Word prints the same words as the
+    // preview and the PDF. The fallbacks are what was hard-coded here, which is
+    // why a paper that has never set a label is byte-identical.
+    const labels = b.labels || {}
     if (b.name) {
-      children.push(runText("Pupil's Name: ", { size: 22, bold: true }))
+      children.push(runText(`${labels.name || "Pupil's Name"}: `, { size: 22, bold: true }))
       children.push(runText('______________________________________', { size: 22 }))
     }
     if (b.date) {
       // Right tab stop at the page margin pushes the date field to the
       // far right, the way the preview's flex row does.
       if (b.name) children.push(new Tab())
-      children.push(runText('Date: ', { size: 22, bold: true }))
+      children.push(runText(`${labels.date || 'Date'}: `, { size: 22, bold: true }))
       children.push(runText('____________________', { size: 22 }))
     }
     out.push(new Paragraph({
@@ -1118,7 +1158,7 @@ function renderLearnerFields(b) {
   if (b.classField) {
     out.push(new Paragraph({
       children: [
-        runText('Class: ', { size: 22, bold: true }),
+        runText(`${(b.labels || {}).classField || 'Class'}: `, { size: 22, bold: true }),
         runText('____________________________________', { size: 22 }),
       ],
       spacing: { after: 160 },
@@ -1126,7 +1166,10 @@ function renderLearnerFields(b) {
   }
   if (b.marks) {
     out.push(new Paragraph({
-      children: [runText(`TOTAL MARKS: _________ / ${b.totalMarks || '____'}`, { bold: true, size: 22 })],
+      children: [runText(
+        `${String((b.labels || {}).marks || 'Total marks').toUpperCase()}: _________ / ${b.totalMarks || '____'}`,
+        { bold: true, size: 22 },
+      )],
       alignment: AlignmentType.RIGHT,
       spacing: { before: 100, after: 200 },
     }))
@@ -1153,7 +1196,11 @@ function renderSectionHeader(b) {
     new Paragraph({
       children: [
         runText(title.toUpperCase(), { bold: true, size: 26 }),
-        runText(`  (${b.marks} mark${b.marks === 1 ? '' : 's'})`, { size: 22, color: '6b7280', italics: true }),
+        // A paper that hides marks from learners must not print the section's
+        // total in its heading either (§4).
+        ...(b.showMarks === false ? [] : [
+          runText(`  (${b.marks} mark${b.marks === 1 ? '' : 's'})`, { size: 22, color: '6b7280', italics: true }),
+        ]),
       ],
       heading: HeadingLevel.HEADING_2,
       spacing: { before: 280, after: 100 },
@@ -1278,7 +1325,11 @@ function subPartParas(subParts) {
 async function renderQuestion(b, stats = null) {
   const out = []
   const marks = b.marks ?? 1
-  const marksTag = marks >= 1 ? `  (${marks} mark${marks === 1 ? '' : 's'})` : ''
+  // `showMarks` is the paper's or the section's decision (§4). Absent on a block
+  // built by a caller that predates it, which keeps the old always-print
+  // behaviour.
+  const marksTag = marks >= 1 && b.showMarks !== false
+    ? `  (${marks} mark${marks === 1 ? '' : 's'})` : ''
 
   // When the question carries pre-hydrated rich HTML, walk it so the
   // Grade-7 math blocks (vertical sums, fractions, number bases) come
@@ -1765,13 +1816,25 @@ async function renderQuestion(b, stats = null) {
   return out
 }
 
-export async function buildAssessmentDocument(assessment, questions, { mode = 'paper', attribution = false, stats = null } = {}) {
+/**
+ * Build the `docx` library Document for a paper.
+ *
+ * Named `buildDocxDocument` rather than `buildAssessmentDocument` because that
+ * name now belongs to the canonical, rendering-agnostic document model in
+ * `assessmentDocument.js` — the thing all four renderers consume. This function
+ * is one of those renderers, and it returns a Word file, not a model.
+ */
+export async function buildDocxDocument(assessment, questions, { mode = 'paper', attribution = false, stats = null } = {}) {
   // The level's band governs the figures in the PAPER (§4.2). Scoping it to the
   // block render rather than the whole function also keeps it off the school
   // logo below — a logo is a mark on the letterhead, not a figure a learner has
   // to read, and floor-raising it to 45mm on a Nursery paper would swamp the
   // header. Published defaults only; see `currentBand`.
-  const blocks = buildPaperLayout(assessment, questions, { mode })
+  // The canonical document (§2) — the same object the studio preview and the
+  // print window render, so Word cannot drift from them on the page, the
+  // metadata, the marks or the answer-choice count.
+  const paperDocument = buildAssessmentDocument(assessment, questions, { mode })
+  const blocks = paperDocument.blocks
   const children = await renderPaperBlocksToDocx(blocks, stats, {
     band: seedBandForLevel(assessment && assessment.grade) || null,
   })
@@ -1799,7 +1862,10 @@ export async function buildAssessmentDocument(assessment, questions, { mode = 'p
         document: { run: { font: 'Times New Roman', size: 22 } },
       },
     },
-    sections: [{ ...paperSectionShell(blocks, { attribution, logoRun }), children }],
+    sections: [{
+      ...paperSectionShell(blocks, { attribution, logoRun, layout: paperDocument.layout }),
+      children,
+    }],
   })
 }
 
@@ -1892,7 +1958,7 @@ export async function downloadAssessmentDocx(assessment, questions, filename = '
   // problem. A missing REQUIRED diagram is not: the learner is asked to label
   // something that is not on the page.
   const stats = { failedImages: [], unresolvedFigures: [], unprintableFigures: [] }
-  const doc = await buildAssessmentDocument(assessment, questions, { ...opts, stats })
+  const doc = await buildDocxDocument(assessment, questions, { ...opts, stats })
   const result = {
     failedImages: stats.failedImages.length,
     // Returned in full, not as a count: the pre-export validation gate has to

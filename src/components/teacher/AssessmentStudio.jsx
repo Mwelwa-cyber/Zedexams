@@ -87,9 +87,12 @@ import { classifyForLibrary } from '../../utils/libraryClassification'
 import { buildAssessmentName } from '../../utils/downloadFilename'
 import { startBrandedDownload, prewarmExports } from '../../utils/assessmentExportClient'
 import { printAssessmentAsPdf, openPrintWindow } from '../../utils/assessmentToPdf'
-import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
+import { computeSmartWarnings } from '../../utils/assessmentPaperLayout'
+import { buildAssessmentDocument } from '../../utils/assessmentDocument'
+import { sanitizePaperStems } from '../../utils/inlineOptionStem'
 import { usePaperPagination } from '../../hooks/usePaperPagination'
 import { computePaperHealth } from '../../utils/paperHealth'
+import { buildExportValidationReport } from '../../utils/assessmentValidationReport'
 import { blockingIssuesByLocalId } from '../../utils/assessmentExportGate'
 import { buildAssessmentExportReadiness } from '../../utils/assessmentExportReadiness'
 import { buildPrintPdfReadiness, buildWordReadiness } from '../../utils/printPdfReadiness'
@@ -275,14 +278,34 @@ function mapAssessmentToForm(a = {}) {
   copy('coverInstructions')
   copy('endOfPaperText')
   copy('mcqOptionLayout')
-  copy('mcqAnswerChoiceCount')
+  // Read the new field first and fall back to the legacy one, so a paper saved
+  // by either build opens with the count its author chose (§3).
+  if (a.answerChoiceCount != null) out.mcqAnswerChoiceCount = a.answerChoiceCount
+  else copy('mcqAnswerChoiceCount')
+  copy('gradeNumberStyle')
+  copy('nameFieldStyle')
+  copy('nameFieldLabel')
+  // §2 — the sheet, read from the layout object with the loose top-level fields
+  // as a fallback for papers saved before the object existed.
+  if (a.layout && typeof a.layout === 'object') {
+    if (a.layout.pageSize) out.pageSize = a.layout.pageSize
+    if (a.layout.orientation) out.orientation = a.layout.orientation
+    if (a.layout.margins) out.margins = a.layout.margins
+  } else {
+    copy('pageSize')
+    copy('orientation')
+    copy('margins')
+  }
   copy('ungroupedOrder')
   copy('mode')
   copy('importStatus')
   copy('sourceFileName')
   copy('sourceContentType')
   if (Array.isArray(a.importWarnings)) out.importWarnings = a.importWarnings
-  for (const key of ['showNameField', 'showDateField', 'showMarksField', 'showClassField']) {
+  for (const key of [
+    'showNameField', 'showDateField', 'showMarksField', 'showClassField',
+    'showQuestionMarks', 'allowPerQuestionChoiceCount',
+  ]) {
     if (typeof a[key] === 'boolean') out[key] = a[key]
   }
   return out
@@ -368,7 +391,26 @@ function makeDefaultForm() {
     showClassField: false,
     // MCQ option presentation (applies to every multiple-choice question).
     mcqOptionLayout: 'vertical',      // 'vertical' | 'horizontal'
-    mcqAnswerChoiceCount: 4,          // 2 (A B) | 3 (A B C) | 4 (A B C D)
+    // A–D on a new paper. It is a stored DEFAULT, not a rendering rule: papers
+    // saved before this setting existed carry nothing here and keep printing
+    // every option they hold, because applying a recommendation retroactively
+    // could stop printing the option their correct answer points at (§3).
+    mcqAnswerChoiceCount: 4,          // 3 (A–C) | 4 (A–D) | 5 (A–E)
+    // Off by default: a stray setting on one imported question should not give
+    // it a different shape from the rest of its section.
+    allowPerQuestionChoiceCount: false,
+    // §4 — whether the mark prints beside each question. A section may override.
+    showQuestionMarks: true,
+    // §9 — "GRADE 4", not "GRADE FOUR", unless a school's house style asks.
+    gradeNumberStyle: 'numeral',      // 'numeral' | 'word'
+    nameFieldStyle: 'name',           // name | learner | pupil | candidate | custom
+    nameFieldLabel: '',
+    // §2 — the sheet itself. Resolved through paperLayoutTokens for every
+    // renderer; a paper with none of these set is A4 portrait with normal
+    // margins, which is what every existing paper already is.
+    pageSize: 'a4',
+    orientation: 'portrait',
+    margins: 'normal',
     // Where the block of loose / ungrouped questions sits relative to the
     // sections: the number of sections that print before it. 0 = the loose
     // questions lead the paper (the historical default); the teacher can push
@@ -611,6 +653,17 @@ export default function AssessmentStudio() {
     showClassField: form.showClassField,
     mcqOptionLayout: form.mcqOptionLayout,
     mcqAnswerChoiceCount: form.mcqAnswerChoiceCount,
+    answerChoiceCount: form.mcqAnswerChoiceCount ?? null,
+    allowPerQuestionChoiceCount: Boolean(form.allowPerQuestionChoiceCount),
+    showQuestionMarks: form.showQuestionMarks !== false,
+    gradeNumberStyle: form.gradeNumberStyle || 'numeral',
+    nameFieldStyle: form.nameFieldStyle || 'name',
+    nameFieldLabel: form.nameFieldLabel || '',
+    layout: {
+      pageSize: form.pageSize || 'a4',
+      orientation: form.orientation || 'portrait',
+      margins: form.margins || 'normal',
+    },
     ungroupedOrder: form.ungroupedOrder ?? 0,
     passages: serializedPreview.passages,
     pagebreaks: serializedPreview.pagebreaks,
@@ -636,14 +689,19 @@ export default function AssessmentStudio() {
     mode: 'paper',
   })
 
-  const paperBlocks = useMemo(
-    () => buildPaperLayout(assessmentDoc, serializedPreview.questions, { mode: 'paper' }),
+  // The canonical AssessmentDocument (§2). The preview, the PDF, Word and the
+  // marking key all render THIS — one resolved layout, one set of metadata, one
+  // marks model — rather than each deriving its own from the raw form.
+  const paperDocument = useMemo(
+    () => buildAssessmentDocument(assessmentDoc, serializedPreview.questions, { mode: 'paper' }),
     [assessmentDoc, serializedPreview.questions],
   )
-  const markingKeyBlocks = useMemo(
-    () => buildPaperLayout(assessmentDoc, serializedPreview.questions, { mode: 'scheme' }),
+  const markingKeyDocument = useMemo(
+    () => buildAssessmentDocument(assessmentDoc, serializedPreview.questions, { mode: 'scheme' }),
     [assessmentDoc, serializedPreview.questions],
   )
+  const paperBlocks = paperDocument.blocks
+  const markingKeyBlocks = markingKeyDocument.blocks
   const warnings = useMemo(
     () => computeSmartWarnings(assessmentDoc, serializedPreview.questions),
     [assessmentDoc, serializedPreview.questions],
@@ -683,6 +741,10 @@ export default function AssessmentStudio() {
       sections,
       parts,
       paperDetails: { title: autoTitle, subject: form.subject, grade: form.grade },
+      // The paper's own settings, so the integrity checks read the answer-choice
+      // count, the section marking rules and the declared totals the teacher set
+      // rather than defaults.
+      assessment: assessmentDoc,
       serialized: serializedPreview,
       // Already computed above for the error badges. Recomputing would be a
       // second answer to "what is wrong with this paper", and the day the two
@@ -690,7 +752,7 @@ export default function AssessmentStudio() {
       validationIssues,
       diagramResolver: renderDiagramSvg,
     }),
-    [sections, parts, autoTitle, form.subject, form.grade, serializedPreview, validationIssues],
+    [sections, parts, autoTitle, form.subject, form.grade, assessmentDoc, serializedPreview, validationIssues],
   )
   const exportGate = exportReadiness.gate
   // Two layers. Word asks only whether the paper is finished; Print and PDF also
@@ -809,6 +871,19 @@ export default function AssessmentStudio() {
   // The single "paper health" verdict — folds the blocking validation issues,
   // the advisory smart warnings, and the live paper stats into one object the
   // health gate (PaperHealthModal) renders, and that Save/Export gate on.
+  // The pre-export validation report (§10). Built from the canonical document
+  // and the measured layout, so the panel reports what a teacher is about to
+  // print rather than what the editor happens to hold.
+  const validationReport = useMemo(
+    () => buildExportValidationReport({
+      document: paperDocument,
+      assessment: assessmentDoc,
+      questions: serializedPreview.questions,
+      pagination,
+    }),
+    [paperDocument, assessmentDoc, serializedPreview.questions, pagination],
+  )
+
   const paperHealth = useMemo(
     () => computePaperHealth({
       validation: validationResult,
@@ -817,6 +892,12 @@ export default function AssessmentStudio() {
       // is refused actually lists the reason. Without it a layout refusal
       // opened a page saying everything was fine.
       pagination,
+      // §10's full validation report — the defects a FINISHED paper can still
+      // have: totals that do not add up, an answer that is no longer printed, a
+      // question asking about a diagram it does not have, a formula that would
+      // print as its own source. Every question can be complete and all four
+      // still be true, so they cannot come from collectQuizIssues.
+      report: validationReport,
       stats: {
         questionCount,
         totalMarks,
@@ -830,7 +911,7 @@ export default function AssessmentStudio() {
         duration: Number(form.duration) || 0,
       },
     }),
-    [validationResult, warnings, pagination, questionCount, totalMarks, estimatedMinutes, parts.length, form.duration],
+    [validationResult, warnings, pagination, validationReport, questionCount, totalMarks, estimatedMinutes, parts.length, form.duration],
   )
 
   /* ------------ helpers ------------ */
@@ -1087,8 +1168,24 @@ export default function AssessmentStudio() {
           setEditError('denied'); setEditLoading(false); return
         }
         setForm(current => ({ ...current, ...mapAssessmentToForm(assessment) }))
+        // §6 — a paper saved with its choices baked into the stem AND stored
+        // separately prints them twice. Repaired on read rather than by a
+        // one-off migration script, so a paper is fixed the moment a teacher
+        // opens it and nothing has to be run against the whole collection.
+        //
+        // Nothing is saved by this: the repair is applied to the in-memory
+        // paper, and it only reaches Firestore when the teacher next saves —
+        // which is also when they have SEEN the result. A migration that
+        // rewrote teacher content unattended is exactly what this avoids.
+        const cleaned = sanitizePaperStems(questions)
+        if (cleaned.changed) {
+          showToast(
+            `Removed a duplicated answer list from ${cleaned.report.removed.length} `
+            + `question${cleaned.report.removed.length === 1 ? '' : 's'} — the choices now print once.`,
+          )
+        }
         const hydrated = hydrateQuizSections(
-          questions,
+          cleaned.questions,
           assessment.passages || [],
           assessment.parts || [],
           assessment.pagebreaks || [],
@@ -2223,6 +2320,19 @@ export default function AssessmentStudio() {
       showClassField: form.showClassField,
       mcqOptionLayout: form.mcqOptionLayout,
       mcqAnswerChoiceCount: form.mcqAnswerChoiceCount,
+      // §3/§4/§9. Saved beside the legacy field rather than replacing it, so a
+      // paper written by this build still opens in a cached older bundle.
+      answerChoiceCount: form.mcqAnswerChoiceCount ?? null,
+      allowPerQuestionChoiceCount: Boolean(form.allowPerQuestionChoiceCount),
+      showQuestionMarks: form.showQuestionMarks !== false,
+      gradeNumberStyle: form.gradeNumberStyle || 'numeral',
+      nameFieldStyle: form.nameFieldStyle || 'name',
+      nameFieldLabel: form.nameFieldLabel || '',
+      layout: {
+        pageSize: form.pageSize || 'a4',
+        orientation: form.orientation || 'portrait',
+        margins: form.margins || 'normal',
+      },
       ungroupedOrder: form.ungroupedOrder ?? 0,
       endOfPaperText: form.endOfPaperText,
       footerCode,
@@ -3097,6 +3207,8 @@ export default function AssessmentStudio() {
           <PaperRenderView
             mode="paper"
             blocks={paperBlocks}
+            document={paperDocument}
+            pagination={pagination}
             assessment={assessmentDoc}
             changeView={changeView}
             onExport={(kind) => handleExport(kind, 'paper')}
@@ -3116,6 +3228,8 @@ export default function AssessmentStudio() {
           <PaperRenderView
             mode="scheme"
             blocks={markingKeyBlocks}
+            document={markingKeyDocument}
+            pagination={pagination}
             assessment={assessmentDoc}
             changeView={changeView}
             onExport={(kind) => handleExport(kind, 'scheme')}
@@ -3178,7 +3292,7 @@ export default function AssessmentStudio() {
       />
       {createPaperOpen && (
         <CreatePaperModal
-          paperMeta={{ grade: form.grade, subject: form.subject, term: form.term, framework: form.framework, assessmentType: form.assessmentType }}
+          paperMeta={{ grade: form.grade, subject: form.subject, term: form.term, framework: form.framework, assessmentType: form.assessmentType, mcqAnswerChoiceCount: form.mcqAnswerChoiceCount }}
           onApply={handleApplyAiPaper}
           onClose={() => setCreatePaperOpen(false)}
         />

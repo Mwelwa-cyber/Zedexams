@@ -41,6 +41,7 @@ import { collectQuizIssues } from './quizValidation.js'
 import { hydrateQuizSections, hasOnlyEmptyStarterSection } from './quizSections.js'
 import { describeExportBlock } from './assessmentExportGate.js'
 import { unresolvedRequiredFigures } from './unresolvedFigures.js'
+import { collectPaperIntegrityIssues } from '../../functions/shared/assessment/paperIntegrityCore.js'
 import { buildQuestionNumberMap } from '../../functions/shared/assessment/questionNumberingCore.js'
 
 /**
@@ -67,12 +68,16 @@ export { buildQuestionNumberMap }
  *                                         computed it (the studio shows the same issues as
  *                                         badges, and computing twice invites divergence)
  * @param {Function} input.diagramResolver the catalog call the EXPORTERS make
+ * @param {object} input.assessment       the paper's own settings (answer-choice
+ *                                        count, declared totals, section marking
+ *                                        rules) — what the integrity checks read
  * @returns {{questions, passages, questionCount, totalMarks, questionNumbers, issues, gate}}
  */
 export function buildAssessmentExportReadiness({
   sections = [],
   parts = [],
   paperDetails = {},
+  assessment = null,
   serialized = null,
   validationIssues = null,
   diagramResolver,
@@ -90,6 +95,15 @@ export function buildAssessmentExportReadiness({
     form: paperDetails, sections, parts, questionNumbers,
   }).issues
   const unresolvedFigures = unresolvedRequiredFigures(paper, diagramResolver)
+  // The paper's arithmetic and structure (numbering continuity, answer-choice
+  // count, duplicate and equivalent distractors, a correct answer that is no
+  // longer printed, totals that contradict the cover). The SAME module the
+  // export callable runs, so a paper the studio lets through is one the server
+  // lets through — see functions/shared/assessment/paperIntegrityCore.js.
+  const integrity = collectPaperIntegrityIssues({
+    assessment: { ...(assessment || paperDetails || {}), parts },
+    questions,
+  })
 
   return {
     questions,
@@ -101,8 +115,10 @@ export function buildAssessmentExportReadiness({
     questionNumbers,
     issues,
     unresolvedFigures,
+    integrity,
     gate: describeExportBlock({
       issues,
+      integrityBlockers: integrity.blockers,
       questionNumbers,
       questionCount: Number.isFinite(Number(paper.questionCount))
         ? Number(paper.questionCount)
@@ -153,6 +169,7 @@ export function buildSavedAssessmentExportReadiness(assessment = {}, questions =
       subject: assessment.subject || '',
       grade: assessment.grade || '',
     },
+    assessment,
     serialized: {
       questions: hydratedQuestions,
       passages: assessment.passages || [],
