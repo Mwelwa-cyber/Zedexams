@@ -81,14 +81,23 @@ A production failure often cannot be traced UI → function → data cleanly.
   one failure a subsystem can't self-report. 22 tests. Verdict persists to `opsHeartbeat/status`.
   Marshal already confirms scheduled agents ran.
 - **Binding the webhook:** `OPS_ALERT_WEBHOOK_URL` is a credential, so it is a Firebase secret rather
-  than a line in the committed `functions/.env.<project>`. Because a `defineSecret()` bound to an
-  empty secret hard-fails every functions deploy, the binding is opt-in: `functions/opsAlertSecrets.js`
-  appends the secret to the `secrets: [...]` list of each alert-raising function only when the
-  non-secret flag `OPS_ALERT_WEBHOOK_BOUND` is set. Bound functions: `agentJobsOnCreate`,
-  `agentJobsOnApproved`, `lencoWebhook`, `verifyGooglePlayPurchase`, `dailyFirestoreBackup`,
-  `backupCompletionCheck`, `storageBackupCheck`, `rateLimitHealthCheck`, `opsHeartbeatCheck`.
-  Tests: `opsAlertSecrets.test.js` (`npm run test:ops-alert-secrets`) — incl. that `defineSecret` is
-  never called while the flag is off, which is what keeps the deploy safe.
+  than a line in the committed `functions/.env.<project>`. `functions/opsAlertSecrets.js` appends it
+  **unconditionally** to the `secrets: [...]` list of every alert-raising function:
+  `agentJobsOnCreate`, `agentJobsOnApproved`, `lencoWebhook`, `verifyGooglePlayPurchase`,
+  `dailyFirestoreBackup`, `backupCompletionCheck`, `storageBackupCheck`, `rateLimitHealthCheck`,
+  `opsHeartbeatCheck`, `sendTestOpsAlert`. Consequence to know: the secret must EXIST in Secret
+  Manager or every functions deploy hard-fails ("no value for the secret" — the RECRAFT_API_KEY trap).
+- **The binding cannot be flag-gated, and getting that wrong is silent** (2026-07-27, fixed the same
+  night). The first version gated it on `OPS_ALERT_WEBHOOK_BOUND` in `functions/.env.<project>`, read
+  through `process.env`. `firebase deploy` analyses the source in a subprocess handed only
+  `FIREBASE_CONFIG` + `GCLOUD_PROJECT` (firebase-tools `deploy/functions/prepare.js` →
+  `discoverBuild`, envs from `functions/env.js` `loadFirebaseEnvs`); the `.env.<project>` file is
+  loaded on a different path (`loadUserEnvs`) for the DEPLOYED runtime only. So the flag read as unset
+  at deploy time, nothing bound the secret, the deploy passed (an unreferenced secret is never
+  validated), and every alert went out by email alone — found only because the admin test panel
+  reported `webhook-unconfigured`. `opsAlertSecrets.test.js` now fails on any `process.env` read in
+  that module, on an env-dependent binding, and if an alert-raising module stops routing its secrets
+  through the helper.
 - **Proving it on demand:** `sendTestOpsAlert` (admin-only callable, `functions/opsAlertTest.js`)
   behind **/admin → Developer tools → Test the ops alarm** (`OpsAlertTester.jsx`) fires ONE real
   alert through the ordinary `sendOpsAlert` path — severity `info`, titled so nobody mistakes it for
