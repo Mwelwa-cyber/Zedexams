@@ -14,24 +14,36 @@ import { useAuth } from '../../../../contexts/AuthContext'
 import useClassRegister from '../../../../hooks/useClassRegister'
 import { resolveAttendancePolicy, REGISTER_STATES } from '../../../../utils/attendanceConstants'
 import { canMarkDay } from '../../../../utils/attendanceDayCore'
-import { calendarMetaForTerm, formatDateLong, isValidIsoDate } from '../../../../utils/attendanceCalendarResolver'
+import {
+  calendarMetaForTerm, formatDateLong, isValidIsoDate, markableDays,
+} from '../../../../utils/attendanceCalendarResolver'
+import { classDisplayName } from '../../../../schemas/classRegister'
 import { saveAttendanceTermSettings, setAttendanceTermState } from '../../../../utils/attendanceService'
 import { useToast } from '../../../ui/Toast'
 import Button from '../../../ui/Button'
 import ConfirmDialog from '../../../ui/ConfirmDialog'
 import Skeleton from '../../../ui/Skeleton'
-import DailyAttendanceView from './DailyAttendanceView'
+import MarkAttendanceView from './MarkAttendanceView'
 import AttendanceGridView from './AttendanceGridView'
 import AttendanceSummaryPanel from './AttendanceSummaryPanel'
-import RegisterRosterManager from './RegisterRosterManager'
+import AttendanceInsightsPanel from './AttendanceInsightsPanel'
+import RegisterValidationPanel from './RegisterValidationPanel'
 import RegisterPrintView from './RegisterPrintView'
 import RegisterPaperPreview from './RegisterPaperPreview'
 
+/**
+ * Four tabs, and there is deliberately no Roster among them (§10).
+ *
+ * Learner membership belongs to the Class List and nowhere else. A Roster tab
+ * inside the register is a second, editable copy of every learner's name, and
+ * a second copy is a copy that disagrees — the register showing "Chanda
+ * Mulenga" while the class list, the results and the reports show "Chanda M.
+ * Mulenga". The register READS the class list and links to it.
+ */
 const SECTIONS = [
-  { key: 'daily', label: 'Daily' },
-  { key: 'grid', label: 'Term grid' },
-  { key: 'summary', label: 'Summary' },
-  { key: 'roster', label: 'Roster' },
+  { key: 'daily', label: 'Mark Attendance' },
+  { key: 'grid', label: 'Register Grid' },
+  { key: 'summary', label: 'Term Summary' },
   { key: 'export', label: 'Print & Export' },
 ]
 
@@ -166,22 +178,46 @@ export default function AttendanceWorkspace({ register, termSelection }) {
 
   return (
     <div className="space-y-4">
-      {/* context bar: term window + state + lifecycle */}
+      {/* context bar: who this register is for, the term window, its state */}
       <div className="theme-card border theme-border rounded-radius-md p-3 flex flex-wrap items-center gap-2">
         <div className="min-w-0 mr-auto">
-          <p className="theme-text text-sm font-black">
-            {termSelection?.term} · {termSelection?.year}
+          <p className="theme-text font-display font-black text-base">
+            {classDisplayName(register)}
             <span className={`ml-2 inline-block px-2 py-0.5 rounded-radius-md border text-xs font-black align-middle ${STATE_TONE[termState] || STATE_TONE.draft}`}>
               {stateInfo.label}
             </span>
           </p>
+          <p className="theme-text-muted text-sm">
+            {termSelection?.year} Academic Year · {termSelection?.term}
+            {' · '}<span className="tabular-nums">{registerHook.roster?.length || 0}</span> learners
+            {register.classTeacherName ? ` · Class teacher: ${register.classTeacherName}` : ''}
+          </p>
+          {/* Teacher-friendly term dates first; the calendar's dataset version
+              is diagnostic detail and lives in the tooltip (§17). */}
           <p className="theme-text-muted text-xs">
             {formatDateLong(termInfo.startDate)} → {formatDateLong(termInfo.endDate)}
-            {' · '}{calendarMetaForTerm(termInfo).label}
+            {' · '}
+            <span className="tabular-nums">{markableDays(days).length}</span> teaching days
+            <span
+              className="ml-1 underline decoration-dotted cursor-help"
+              title={`Calendar source: ${calendarMetaForTerm(termInfo).label}`}
+            >
+              calendar
+            </span>
           </p>
         </div>
+        {/* The class list is the source of truth, and the register says so
+            rather than keeping learners of its own (§9). */}
+        <Link
+          to={`/teacher/register/${register.id}/class-list`}
+          className="inline-flex items-center gap-1.5 rounded-radius-sm border border-emerald-300 bg-emerald-50 px-3 py-2 text-emerald-800 text-xs font-black min-h-[44px]"
+        >
+          {registerHook.roster?.length || 0} learners synced from Class List →
+        </Link>
         {termState === 'draft' && (
-          <Button type="button" size="sm" variant="secondary" loading={stateBusy} onClick={() => moveState('submitted')}>Submit register</Button>
+          <Button type="button" size="sm" variant="secondary" loading={stateBusy} onClick={() => moveState('submitted')}>
+            Finalise term register
+          </Button>
         )}
         {termState === 'submitted' && (
           <>
@@ -216,14 +252,16 @@ export default function AttendanceWorkspace({ register, termSelection }) {
       {!hydrated && <div className="space-y-3"><Skeleton className="h-10" /><Skeleton className="h-64" /></div>}
 
       {hydrated && section === 'daily' && (
-        <DailyAttendanceView registerHook={registerHook} canMark={canMark} />
+        <MarkAttendanceView registerHook={registerHook} canMark={canMark} />
       )}
       {hydrated && section === 'grid' && (
         <AttendanceGridView registerHook={registerHook} canEdit={canEdit} policy={policy} />
       )}
-      {/* Marking surfaces carry the paper preview: the register being filled
-          in and the sheet it prints on, side by side. */}
-      {hydrated && (section === 'daily' || section === 'grid') && (
+      {/* The paper preview belongs to the grid, not to daily marking. On a
+          phone it was a permanently-visible, unreadably small sheet under the
+          attendance rows (§24); the Print & Export tab is where a teacher goes
+          when they want to see the page. */}
+      {hydrated && section === 'grid' && (
         <RegisterPaperPreview
           registerHook={registerHook}
           register={register}
@@ -234,10 +272,17 @@ export default function AttendanceWorkspace({ register, termSelection }) {
         />
       )}
       {hydrated && section === 'summary' && (
-        <AttendanceSummaryPanel registerHook={registerHook} policy={policy} uid={uid} canEdit={canEdit} />
-      )}
-      {hydrated && section === 'roster' && (
-        <RegisterRosterManager registerHook={registerHook} register={register} uid={uid} canEdit={canEdit} termInfo={termInfo} />
+        <div className="space-y-4">
+          <AttendanceSummaryPanel registerHook={registerHook} policy={policy} uid={uid} canEdit={canEdit} />
+          <AttendanceInsightsPanel registerHook={registerHook} policy={policy} />
+          <RegisterValidationPanel
+            registerHook={registerHook}
+            stage={termState}
+            canFinalise={canEdit}
+            finalising={stateBusy}
+            onFinalise={() => moveState('submitted')}
+          />
+        </div>
       )}
       {hydrated && section === 'export' && (
         <RegisterPrintView

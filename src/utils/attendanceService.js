@@ -36,7 +36,7 @@ import {
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app, { db } from '../firebase/config'
 import { sanitizeNote } from './attendanceDayCore'
-import { REGISTER_STATES } from './attendanceConstants'
+import { ATTENDANCE_ERROR_MESSAGES, REGISTER_STATES } from './attendanceConstants'
 
 const fns = getFunctions(app, 'us-central1')
 const saveClassAttendanceCallable = httpsCallable(fns, 'saveClassAttendance')
@@ -98,20 +98,11 @@ export async function getAttendanceDay(classId, date) {
 
 // Structured error codes returned by the saveClassAttendance callable.
 // Every UI surface maps codes → copy through ATTENDANCE_ERROR_MESSAGES.
-export const ATTENDANCE_ERROR_MESSAGES = {
-  TERM_LOCKED: 'This term’s register is locked — ask an administrator to reopen it. Your changes are kept until then.',
-  TERM_MISMATCH: 'The selected term doesn’t match this date. Re-select the term and try again.',
-  DATE_OUTSIDE_TERM: 'This date falls outside the term, so it can’t be marked.',
-  NON_TEACHING_DAY: 'This date isn’t a teaching day (weekend, holiday or closure).',
-  FUTURE_DATE: 'This date is in the future — the register opens on the day.',
-  TEACHER_NOT_ASSIGNED: 'You’re not assigned to this class, so the server refused the change.',
-  INVALID_ATTENDANCE_STATUS: 'One of the marks had an invalid status and was refused.',
-  LEARNER_NOT_IN_CLASS: 'A learner in this change is not on the class roster.',
-  LEARNER_NOT_ELIGIBLE: 'A learner in this change was not enrolled on this date.',
-  STALE_VERSION: 'Someone else updated this day first — reviewing their changes…',
-  INVALID_ARGUMENT: 'The change couldn’t be understood by the server.',
-  NETWORK: 'No connection — the change is saved on this device and will sync when you’re back online.',
-}
+// Declared in ./attendanceConstants.js (pure copy, no Firestore) and
+// re-exported here so every existing caller keeps its import. Imported by
+// name as well, because `export … from` creates no local binding and
+// normalizeAttendanceError below reads the table.
+export { ATTENDANCE_ERROR_MESSAGES }
 
 /**
  * Normalise a callable failure to { code, details, offline }. Firebase

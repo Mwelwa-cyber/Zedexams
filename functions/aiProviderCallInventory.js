@@ -43,6 +43,11 @@ const LIMITED = [
   {name: "structureImportedQuiz", file: "index.js", check: 'action: "structureImportedQuiz"'},
   {name: "structureScannedQuiz", file: "index.js", check: 'action: "structureScannedQuiz"'},
   {name: "ocrNotePages", file: "index.js", check: 'action: "ocrNotePages"'},
+  {
+    name: "extractClassListPages",
+    file: "index.js",
+    check: 'action: "extractClassListPages"',
+  },
   {name: "checkShortAnswer", file: "index.js", check: 'action: "checkShortAnswer"'},
   {name: "explainAnswer", file: "index.js", check: 'action: "explainAnswer"'},
   {name: "editQuizQuestion", file: "index.js", check: 'action: "editQuizQuestion"'},
