@@ -30,10 +30,12 @@ vi.mock('docx', () => {
 
 import {
   TOS_COLUMNS,
+  TOS_TAXONOMY_OPTIONS,
   buildTableOfSpecificationsHtml,
   buildTableOfSpecificationsModel,
   downloadTableOfSpecificationsDocx,
   openTableOfSpecificationsPrintWindow,
+  resolveTableOfSpecificationsTaxonomy,
   tableOfSpecificationsFilename,
   tableOfSpecificationsRows,
 } from './tableOfSpecifications.js'
@@ -69,10 +71,11 @@ describe('Table of Specifications', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.restoreAllMocks()
   })
 
-  it('maps revised Bloom tags into the traditional six-column filing table', () => {
+  it('keeps the traditional six-column format as the backwards-compatible default', () => {
     const rows = tableOfSpecificationsRows(blueprint())
 
     expect(TOS_COLUMNS.map((column) => column.short))
@@ -94,6 +97,23 @@ describe('Table of Specifications', () => {
     })
   })
 
+  it('builds the revised format in Remember, Understand, Apply, Analyse, Evaluate, Create order', () => {
+    const model = buildTableOfSpecificationsModel(blueprint(), { bloomTaxonomy: 'revised' })
+
+    expect(model.taxonomyId).toBe('revised')
+    expect(model.columns.map((column) => column.label))
+      .toEqual(['Remember', 'Understand', 'Apply', 'Analyse', 'Evaluate', 'Create'])
+    expect(model.rows[0]).toMatchObject({ remember: 1, understand: 1, apply: 1 })
+    expect(model.rows[1]).toMatchObject({ analyse: 1, evaluate: 1, create: 1 })
+  })
+
+  it('exposes both teacher choices and safely falls back to traditional', () => {
+    expect(TOS_TAXONOMY_OPTIONS.map((option) => option.id))
+      .toEqual(['traditional', 'revised'])
+    expect(resolveTableOfSpecificationsTaxonomy('REVISED').id).toBe('revised')
+    expect(resolveTableOfSpecificationsTaxonomy('not-a-taxonomy').id).toBe('traditional')
+  })
+
   it('handles empty, untagged and American-spelling blueprint data honestly', () => {
     expect(tableOfSpecificationsRows(null)).toEqual([])
     const rows = tableOfSpecificationsRows(blueprint({
@@ -102,14 +122,14 @@ describe('Table of Specifications', () => {
         { topic: '', bloomLevel: 'analyze', marks: 2 },
         { topic: '   ', bloomLevel: 'unknown', marks: 1 },
       ] }],
-    }))
+    }), 'revised')
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({
-      topic: 'General coverage', analysis: 1, questions: 2, marks: 3,
+      topic: 'General coverage', analyse: 1, questions: 2, marks: 3,
     })
   })
 
-  it('builds reconciled teacher metadata and readable filenames', () => {
+  it('builds reconciled teacher metadata and taxonomy-specific filenames', () => {
     const model = buildTableOfSpecificationsModel(blueprint(), {
       schoolName: 'Jemareen Academy',
       grade: '4',
@@ -119,6 +139,7 @@ describe('Table of Specifications', () => {
       term: '2',
       year: '2026',
       teacherName: 'Mr Mwelwa',
+      bloomTaxonomy: 'revised',
     })
 
     expect(model).toMatchObject({
@@ -127,11 +148,12 @@ describe('Table of Specifications', () => {
       subject: 'Mathematics',
       term: '2',
       year: '2026',
+      taxonomyId: 'revised',
       valid: true,
     })
     expect(model.totals).toMatchObject({ questions: 6, marks: 10 })
     expect(tableOfSpecificationsFilename(model))
-      .toBe('Grade-4-Blue-Mathematics-End-of-Term-Test-Table-of-Specifications.docx')
+      .toBe('Grade-4-Blue-Mathematics-End-of-Term-Test-Revised-Blooms-Table-of-Specifications.docx')
   })
 
   it('marks a model invalid when the blueprint total does not reconcile', () => {
@@ -139,22 +161,26 @@ describe('Table of Specifications', () => {
     expect(model.valid).toBe(false)
   })
 
-  it('renders an A4 landscape filing copy with escaped school data', () => {
+  it('renders the selected revised taxonomy on the A4 landscape filing copy', () => {
     const html = buildTableOfSpecificationsHtml(blueprint(), {
       schoolName: 'Jemareen <Academy>',
       term: '2',
       year: '2026',
       teacherName: 'Mr Mwelwa',
+      bloomTaxonomy: 'revised',
     })
 
     expect(html).toContain('@page { size: A4 landscape')
     expect(html).toContain('Jemareen &lt;Academy&gt;')
     expect(html).toContain('TABLE OF SPECIFICATIONS')
-    expect(html).toContain('Fractions')
+    expect(html).toContain('Revised Bloom&#039;s Taxonomy')
+    expect(html).toContain('Remember')
+    expect(html).toContain('Understand')
+    expect(html.indexOf('Evaluate')).toBeLessThan(html.indexOf('Create'))
     expect(html).toMatch(/keep in the teacher's assessment file/i)
   })
 
-  it('opens the print copy synchronously and triggers printing', () => {
+  it('opens the chosen print copy synchronously and triggers printing', () => {
     vi.useFakeTimers()
     const printWindow = {
       document: { open: vi.fn(), write: vi.fn(), close: vi.fn() },
@@ -163,13 +189,14 @@ describe('Table of Specifications', () => {
     }
     const open = vi.spyOn(window, 'open').mockReturnValue(printWindow)
 
-    const result = openTableOfSpecificationsPrintWindow(blueprint())
+    const result = openTableOfSpecificationsPrintWindow(blueprint(), { bloomTaxonomy: 'revised' })
     expect(result).toBe(printWindow)
     expect(open).toHaveBeenCalledWith('', '_blank')
-    expect(printWindow.document.write).toHaveBeenCalledWith(expect.stringContaining('TABLE OF SPECIFICATIONS'))
+    expect(printWindow.document.write).toHaveBeenCalledWith(
+      expect.stringContaining('Revised Bloom&#039;s Taxonomy'),
+    )
     vi.runAllTimers()
     expect(printWindow.print).toHaveBeenCalledTimes(1)
-    vi.useRealTimers()
   })
 
   it('reports a blocked print window instead of pretending the copy opened', () => {
@@ -178,18 +205,20 @@ describe('Table of Specifications', () => {
       .toThrow(/blocked the print window/i)
   })
 
-  it('creates and saves an editable Word filing copy', async () => {
+  it('creates and saves an editable revised Bloom Word filing copy', async () => {
     const result = await downloadTableOfSpecificationsDocx(blueprint(), {
       schoolName: 'Jemareen Academy',
       subject: 'Mathematics',
       assessmentType: 'End-of-Term Test',
+      bloomTaxonomy: 'revised',
     })
 
     expect(mocks.toBlob).toHaveBeenCalledTimes(1)
     expect(mocks.saveBlob).toHaveBeenCalledWith(
       expect.any(Blob),
-      'Grade-4-Mathematics-End-of-Term-Test-Table-of-Specifications.docx',
+      'Grade-4-Mathematics-End-of-Term-Test-Revised-Blooms-Table-of-Specifications.docx',
     )
+    expect(result.model.taxonomyId).toBe('revised')
     expect(result.model.totals.questions).toBe(6)
   })
 
