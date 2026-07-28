@@ -37,8 +37,11 @@ export const NAV_GROUPS = [
     label: 'Create',
     items: [
       { id: 'lesson-plan', label: 'Lesson Plan Studio', icon: NotebookPen, to: '/teacher/lesson-plans/new', activePrefix: '/teacher/lesson-plans' },
-      { id: 'test-paper', label: 'Test Paper Studio', icon: FileText, to: '/teacher/assessment-papers/new' },
-      { id: 'exam', label: 'Exam Studio', icon: ClipboardCheck, to: '/teacher/assessment-papers/new' },
+      // One entry for the merged Assessment Paper Studio (2026-07 merge of
+      // the former Test Paper + Exam studios) — tests AND examinations are
+      // both authored there, so listing them separately here just re-splits
+      // what the merge unified (and diverges from STUDIO_NAV_GROUPS).
+      { id: 'assessment-studio', label: 'Assessment Studio', icon: FileText, to: '/teacher/assessment-papers/new' },
       { id: 'worksheet', label: 'Worksheet Studio', icon: Files, to: '/teacher/generate/worksheet' },
       { id: 'homework', label: 'Homework Studio', icon: BookOpenCheck, to: '/teacher/generate/homework' },
       { id: 'schemes', label: 'Schemes Studio', icon: CalendarRange, to: '/teacher/generate/scheme-of-work' },
