@@ -1316,8 +1316,15 @@ export function toEditableText(value) {
     if (value.startsWith('<') || value.trim().startsWith('{')) {
       return richTextToPlainText(value)
     }
+    // A plain string is returned VERBATIM rather than round-tripped through
+    // the HTML path, which would collapse the runs of spaces and newlines a
+    // teacher is in the middle of typing.
     return value
   }
+  // A Tiptap doc object — the shape a saved paper comes back as, because the
+  // write path stores `textJSON` beside the HTML and the loader prefers it.
+  // This used to reach `String(value)` and print "[object Object]" into the
+  // question box of every reopened paper.
   if (typeof value === 'object') return richTextToPlainText(value)
   return String(value)
 }
