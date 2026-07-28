@@ -332,8 +332,9 @@ const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const emailSmtpUser = defineSecret("EMAIL_SMTP_USER");
 const emailSmtpPassword = defineSecret("EMAIL_SMTP_PASSWORD");
 // Wraps the `secrets: [...]` list of every function that raises an ops alert so
-// the Slack/Discord webhook URL is bound too — but only once it exists in Secret
-// Manager and OPS_ALERT_WEBHOOK_BOUND is set. See functions/opsAlertSecrets.js.
+// the Slack/Discord webhook URL is bound too. Unconditional: the binding is
+// decided during deploy-time source analysis, which cannot see
+// functions/.env.<project> — see functions/opsAlertSecrets.js.
 const {opsAlertSecrets} = require("./opsAlertSecrets");
 // RECRAFT_API_KEY intentionally NOT declared/bound. Recraft was decommissioned
 // (2026-06) — every "recraft" request is now served by gpt-image-1, and the
