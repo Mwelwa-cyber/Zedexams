@@ -103,10 +103,41 @@ export const classRegisterWriteSchema = z
       (v) => (v == null ? v : normalizeClassGrade(v)),
       z.enum(GRADES),
     ),
+    /**
+     * DEPRECATED — a class exists for the WHOLE academic year (§13). A term is
+     * chosen when opening attendance, reports or assessments, never stored on
+     * the class. Kept in the schema, and kept on documents that already carry
+     * it, because §28 forbids destroying the field before the migration that
+     * moves it has been validated. Nothing writes it any more; the register's
+     * term comes from the studio's term selector.
+     */
     term: z.string().max(40).default(''),
     // Academic year, e.g. 2026. Bounded so a typo can't write a wild value.
     year: z.number().int().min(2000).max(2100),
     school: z.string().max(200).nullable().default(null),
+    /**
+     * The stream / class letter — the "A" of "Grade 4A". Separate from the
+     * grade because two streams of the same grade are two classes with two
+     * class lists and two registers, and separate from className because a
+     * teacher may name the class anything ("Grade 4 Blue").
+     */
+    stream: z.string().max(20).nullable().default(null),
+    /**
+     * The class teacher of record, printed on the register and shown in the
+     * class header. `classTeacherUid` is set when the class teacher holds a
+     * ZedExams account; the name is stored either way, because a printed
+     * register must name a person even where the school has one account.
+     */
+    classTeacherName: z.string().max(120).nullable().default(null),
+    classTeacherUid: z.string().max(200).nullable().default(null),
+    /**
+     * DEPRECATED — subjects are a property of a TEACHING ASSIGNMENT, not of a
+     * class (§7, §9). One class has one learner list regardless of how many
+     * subjects are taught to it; storing a subject here is what produced a
+     * separate "Grade 4A Mathematics" list beside "Grade 4A English". Retained
+     * for the same migration reason as `term`, and reported by
+     * scripts/migrate-class-subjects.mjs rather than deleted in place.
+     */
     subject: z.preprocess(
       (v) => (typeof v === 'string' && v ? normalizeSubject(v) : v),
       z.string().max(100).nullable().default(null),
@@ -155,6 +186,9 @@ export function coerceClassRegister(raw) {
     term: safeString(raw.term),
     year: safeNumber(raw.year, new Date().getFullYear()),
     school: raw.school == null ? null : safeString(raw.school),
+    stream: raw.stream == null ? null : (safeString(raw.stream) || null),
+    classTeacherName: raw.classTeacherName == null ? null : (safeString(raw.classTeacherName) || null),
+    classTeacherUid: raw.classTeacherUid == null ? null : (safeString(raw.classTeacherUid) || null),
     subject: raw.subject == null ? null : safeString(raw.subject),
     curriculum: raw.curriculum === 'cbc' || raw.curriculum === 'previous' ? raw.curriculum : null,
     status,
@@ -164,3 +198,29 @@ export function coerceClassRegister(raw) {
 
 export const CLASS_REGISTER_STATUSES = CLASS_STATUSES
 export const CLASS_REGISTER_GRADES = GRADES
+
+/**
+ * The name a class gets when the teacher has picked a grade and a stream but
+ * not typed a name — "Grade 4" + "A" → "Grade 4A", "Form 1" + "B" → "Form 1B".
+ *
+ * Streams are printed with no space after a numbered level, which is how
+ * Zambian schools write them, and with a space after a worded one ("Reception
+ * A") where running them together would read as a single word.
+ */
+export function suggestClassName(grade, stream) {
+  const level = formatClassGrade(grade)
+  const s = String(stream ?? '').trim()
+  if (!s) return level
+  return /\d$/.test(level) ? `${level}${s}` : `${level} ${s}`
+}
+
+/**
+ * How a class is identified in a heading, a printed register and a class
+ * switcher. The teacher's own name for the class wins — they named it — and
+ * the grade+stream form is the fallback for a class saved without one.
+ */
+export function classDisplayName(register) {
+  const typed = String(register?.className ?? '').trim()
+  if (typed) return typed
+  return suggestClassName(register?.grade, register?.stream)
+}

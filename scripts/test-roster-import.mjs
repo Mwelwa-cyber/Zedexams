@@ -61,8 +61,12 @@ test('normalizeStatus defaults blank to active', () => {
   eq(normalizeStatus('Active'), 'active')
   eq(normalizeStatus('transferred'), 'transferred')
   eq(normalizeStatus('moved'), 'transferred')
-  eq(normalizeStatus('inactive'), 'inactive')
-  eq(normalizeStatus('dropped'), 'inactive')
+  // 'inactive' was the single catch-all for "no longer in the class" before
+  // the vocabulary widened; it now reads as the closest true statement.
+  eq(normalizeStatus('inactive'), 'withdrawn')
+  eq(normalizeStatus('dropped'), 'withdrawn')
+  eq(normalizeStatus('graduated'), 'graduated')
+  eq(normalizeStatus('deceased'), 'deceased')
   eq(normalizeStatus('nonsense'), 'active')
 })
 
@@ -75,8 +79,41 @@ test('normalizePhone keeps + and digits, drops the rest', () => {
 
 test('exported enums are stable', () => {
   eq(GENDERS.join(','), 'M,F,other')
-  eq(ROSTER_STATUSES.join(','), 'active,transferred,inactive')
-  eq(ROSTER_HEADERS.join(','), 'learnerNumber,fullName,gender,parentPhone,status')
+  eq(ROSTER_STATUSES.join(','), 'active,transferred,withdrawn,graduated,deceased')
+  eq(ROSTER_HEADERS.join(','),
+    'learnerNumber,admissionNumber,fullName,gender,parentPhone,admissionDate,status')
+})
+
+test('admission number is its own column, not folded into the list number', () => {
+  const parsed = rowsToRoster([
+    ['No.', 'Adm No.', 'Full name', 'Gender'],
+    ['1', 'ADM-001', 'Mary Banda', 'F'],
+  ])
+  eq(parsed.headerDetected, true)
+  eq(parsed.rows[0].entry.learnerNumber, '1')
+  eq(parsed.rows[0].entry.admissionNumber, 'ADM-001')
+})
+
+test('admission dates are read day-first, as Zambian paperwork writes them', () => {
+  const parsed = rowsToRoster([
+    ['Name', 'Admission date'],
+    ['Mary Banda', '03/04/2026'],
+    ['John Phiri', '2026-01-12'],
+    ['Grace Mwale', 'sometime last year'],
+  ])
+  eq(parsed.rows[0].entry.admissionDate, '2026-04-03', '03/04 is 3 April, not 4 March')
+  eq(parsed.rows[1].entry.admissionDate, '2026-01-12')
+  eq(parsed.rows[2].entry.admissionDate, null, 'an unreadable date is left blank…')
+  assert(parsed.rows[2].warnings.some((w) => w.includes('could not be read')), '…and reported')
+})
+
+test('a shared admission number is a duplicate even when the names differ', () => {
+  const { fresh, duplicates } = partitionNewRosterEntries(
+    [{ fullName: 'C. Mulenga', admissionNumber: 'ADM-004' }],
+    [{ fullName: 'Chanda Mulenga', admissionNumber: 'ADM-004' }],
+  )
+  eq(fresh.length, 0)
+  eq(duplicates, 1)
 })
 
 // ── bare-name paste ──────────────────────────────────────────────
