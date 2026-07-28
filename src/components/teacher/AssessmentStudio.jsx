@@ -89,6 +89,7 @@ import { startBrandedDownload, prewarmExports } from '../../utils/assessmentExpo
 import { printAssessmentAsPdf, openPrintWindow } from '../../utils/assessmentToPdf'
 import { computeSmartWarnings } from '../../utils/assessmentPaperLayout'
 import { buildAssessmentDocument } from '../../utils/assessmentDocument'
+import { sanitizePaperStems } from '../../utils/inlineOptionStem'
 import { usePaperPagination } from '../../hooks/usePaperPagination'
 import { computePaperHealth } from '../../utils/paperHealth'
 import { blockingIssuesByLocalId } from '../../utils/assessmentExportGate'
@@ -276,14 +277,34 @@ function mapAssessmentToForm(a = {}) {
   copy('coverInstructions')
   copy('endOfPaperText')
   copy('mcqOptionLayout')
-  copy('mcqAnswerChoiceCount')
+  // Read the new field first and fall back to the legacy one, so a paper saved
+  // by either build opens with the count its author chose (§3).
+  if (a.answerChoiceCount != null) out.mcqAnswerChoiceCount = a.answerChoiceCount
+  else copy('mcqAnswerChoiceCount')
+  copy('gradeNumberStyle')
+  copy('nameFieldStyle')
+  copy('nameFieldLabel')
+  // §2 — the sheet, read from the layout object with the loose top-level fields
+  // as a fallback for papers saved before the object existed.
+  if (a.layout && typeof a.layout === 'object') {
+    if (a.layout.pageSize) out.pageSize = a.layout.pageSize
+    if (a.layout.orientation) out.orientation = a.layout.orientation
+    if (a.layout.margins) out.margins = a.layout.margins
+  } else {
+    copy('pageSize')
+    copy('orientation')
+    copy('margins')
+  }
   copy('ungroupedOrder')
   copy('mode')
   copy('importStatus')
   copy('sourceFileName')
   copy('sourceContentType')
   if (Array.isArray(a.importWarnings)) out.importWarnings = a.importWarnings
-  for (const key of ['showNameField', 'showDateField', 'showMarksField', 'showClassField']) {
+  for (const key of [
+    'showNameField', 'showDateField', 'showMarksField', 'showClassField',
+    'showQuestionMarks', 'allowPerQuestionChoiceCount',
+  ]) {
     if (typeof a[key] === 'boolean') out[key] = a[key]
   }
   return out
@@ -369,7 +390,26 @@ function makeDefaultForm() {
     showClassField: false,
     // MCQ option presentation (applies to every multiple-choice question).
     mcqOptionLayout: 'vertical',      // 'vertical' | 'horizontal'
-    mcqAnswerChoiceCount: 4,          // 2 (A B) | 3 (A B C) | 4 (A B C D)
+    // A–D on a new paper. It is a stored DEFAULT, not a rendering rule: papers
+    // saved before this setting existed carry nothing here and keep printing
+    // every option they hold, because applying a recommendation retroactively
+    // could stop printing the option their correct answer points at (§3).
+    mcqAnswerChoiceCount: 4,          // 3 (A–C) | 4 (A–D) | 5 (A–E)
+    // Off by default: a stray setting on one imported question should not give
+    // it a different shape from the rest of its section.
+    allowPerQuestionChoiceCount: false,
+    // §4 — whether the mark prints beside each question. A section may override.
+    showQuestionMarks: true,
+    // §9 — "GRADE 4", not "GRADE FOUR", unless a school's house style asks.
+    gradeNumberStyle: 'numeral',      // 'numeral' | 'word'
+    nameFieldStyle: 'name',           // name | learner | pupil | candidate | custom
+    nameFieldLabel: '',
+    // §2 — the sheet itself. Resolved through paperLayoutTokens for every
+    // renderer; a paper with none of these set is A4 portrait with normal
+    // margins, which is what every existing paper already is.
+    pageSize: 'a4',
+    orientation: 'portrait',
+    margins: 'normal',
     // Where the block of loose / ungrouped questions sits relative to the
     // sections: the number of sections that print before it. 0 = the loose
     // questions lead the paper (the historical default); the teacher can push
@@ -612,6 +652,17 @@ export default function AssessmentStudio() {
     showClassField: form.showClassField,
     mcqOptionLayout: form.mcqOptionLayout,
     mcqAnswerChoiceCount: form.mcqAnswerChoiceCount,
+    answerChoiceCount: form.mcqAnswerChoiceCount ?? null,
+    allowPerQuestionChoiceCount: Boolean(form.allowPerQuestionChoiceCount),
+    showQuestionMarks: form.showQuestionMarks !== false,
+    gradeNumberStyle: form.gradeNumberStyle || 'numeral',
+    nameFieldStyle: form.nameFieldStyle || 'name',
+    nameFieldLabel: form.nameFieldLabel || '',
+    layout: {
+      pageSize: form.pageSize || 'a4',
+      orientation: form.orientation || 'portrait',
+      margins: form.margins || 'normal',
+    },
     ungroupedOrder: form.ungroupedOrder ?? 0,
     passages: serializedPreview.passages,
     pagebreaks: serializedPreview.pagebreaks,
@@ -1097,8 +1148,24 @@ export default function AssessmentStudio() {
           setEditError('denied'); setEditLoading(false); return
         }
         setForm(current => ({ ...current, ...mapAssessmentToForm(assessment) }))
+        // §6 — a paper saved with its choices baked into the stem AND stored
+        // separately prints them twice. Repaired on read rather than by a
+        // one-off migration script, so a paper is fixed the moment a teacher
+        // opens it and nothing has to be run against the whole collection.
+        //
+        // Nothing is saved by this: the repair is applied to the in-memory
+        // paper, and it only reaches Firestore when the teacher next saves —
+        // which is also when they have SEEN the result. A migration that
+        // rewrote teacher content unattended is exactly what this avoids.
+        const cleaned = sanitizePaperStems(questions)
+        if (cleaned.changed) {
+          showToast(
+            `Removed a duplicated answer list from ${cleaned.report.removed.length} `
+            + `question${cleaned.report.removed.length === 1 ? '' : 's'} — the choices now print once.`,
+          )
+        }
         const hydrated = hydrateQuizSections(
-          questions,
+          cleaned.questions,
           assessment.passages || [],
           assessment.parts || [],
           assessment.pagebreaks || [],
@@ -2233,6 +2300,19 @@ export default function AssessmentStudio() {
       showClassField: form.showClassField,
       mcqOptionLayout: form.mcqOptionLayout,
       mcqAnswerChoiceCount: form.mcqAnswerChoiceCount,
+      // §3/§4/§9. Saved beside the legacy field rather than replacing it, so a
+      // paper written by this build still opens in a cached older bundle.
+      answerChoiceCount: form.mcqAnswerChoiceCount ?? null,
+      allowPerQuestionChoiceCount: Boolean(form.allowPerQuestionChoiceCount),
+      showQuestionMarks: form.showQuestionMarks !== false,
+      gradeNumberStyle: form.gradeNumberStyle || 'numeral',
+      nameFieldStyle: form.nameFieldStyle || 'name',
+      nameFieldLabel: form.nameFieldLabel || '',
+      layout: {
+        pageSize: form.pageSize || 'a4',
+        orientation: form.orientation || 'portrait',
+        margins: form.margins || 'normal',
+      },
       ungroupedOrder: form.ungroupedOrder ?? 0,
       endOfPaperText: form.endOfPaperText,
       footerCode,
@@ -3192,7 +3272,7 @@ export default function AssessmentStudio() {
       />
       {createPaperOpen && (
         <CreatePaperModal
-          paperMeta={{ grade: form.grade, subject: form.subject, term: form.term, framework: form.framework, assessmentType: form.assessmentType }}
+          paperMeta={{ grade: form.grade, subject: form.subject, term: form.term, framework: form.framework, assessmentType: form.assessmentType, mcqAnswerChoiceCount: form.mcqAnswerChoiceCount }}
           onApply={handleApplyAiPaper}
           onClose={() => setCreatePaperOpen(false)}
         />

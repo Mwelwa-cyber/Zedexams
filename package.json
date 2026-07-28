@@ -61,6 +61,7 @@
     "test:shared-assessment-validation": "node functions/shared/assessment/assessmentValidationCore.test.js",
     "test:shim-guard": "node functions/shared/assessment/shimGuard.test.js",
     "test:paper-integrity": "node functions/shared/assessment/paperIntegrityCore.test.js",
+    "test:answer-choice-count": "node functions/teacherTools/assessmentChoiceCount.test.js",
     "test:answer-choices": "node functions/shared/assessment/answerChoicesCore.test.js",
     "test:paper-marks": "node functions/shared/assessment/paperMarksCore.test.js",
     "test:inline-option-stem": "node src/utils/inlineOptionStem.test.js",
