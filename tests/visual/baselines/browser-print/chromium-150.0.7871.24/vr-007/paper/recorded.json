@@ -3,9 +3,9 @@
   "family": "browser-print",
   "copy": "paper",
   "identity": "browser-print/chromium-150.0.7871.24",
-  "sourceCommit": "14a83ff7463dc6ea6704364b8b5d23febb3d3edd",
-  "source": "PR #1958 (commit 72a8fc7)",
-  "reason": "The paper code moved from 277-281mm down to 288-292mm: its strip is now RESERVED by a running tfoot rather than shared with the body (#1958). Page count (1), anchors and the branded school header are unchanged; 138 connected pixels, the smallest of the nine because this paper's code is the shortest. Its ten declared answer lines are all still ruled - 13 counted, the extra three being the header field rules - and last body ink is 211.32mm against the 281.0mm limit. No DOCX baseline is affected: vr-007 docx measured 0px here, and its own docx correction landed separately in #1957.",
+  "sourceCommit": "8f46a3f8a198c112075e023e7918fb86d962e930",
+  "source": "1995",
+  "reason": "The grade now prints as the teacher typed it (GRADE 7, not GRADE SEVEN) per §9, the learner-field label is shared across renderers, and the Word export uses the paper's own margins instead of Word's 1-inch default so all three renderers set the same 174mm column per §2.",
   "environment": {
     "chromium": "150.0.7871.24",
     "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
@@ -57,7 +57,7 @@
     "header": 1
   },
   "inkByPage": {
-    "1": 0.02703195187202686
+    "1": 0.02686307694714629
   },
   "figures": {
     "unresolvedFigureCount": 0,
@@ -79,7 +79,7 @@
   },
   "hashes": {
     "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
-    "layout.json": "e60d53fec830112940bbb2577c80e640f5ac982125df219045792ea5f8e7e36a",
-    "page-01.png": "ba201a408b86913a24b4e8ae6dcce45969520750fb3652a4908d905312e07fa2"
+    "layout.json": "487ea3ae6c9bd007bc6f0fe58778435c19a75d82ed6a94c39b69417feff5ad0b",
+    "page-01.png": "3c56b54a5a241ffe02dbf6e5759ed2f61bb5826233093cb92cd62e0642f893e6"
   }
 }

@@ -3,9 +3,9 @@
   "family": "browser-print",
   "copy": "paper",
   "identity": "browser-print/chromium-150.0.7871.24",
-  "sourceCommit": "72a8fc74aa5ae503ce24d19002317bda4ac19195",
-  "source": "PR #1958 (commit 72a8fc7)",
-  "reason": "The paper code moved from 277-281mm down to 288-292mm: its strip is now RESERVED by a running tfoot rather than shared with the body, so body content can no longer print on top of it (#1958). Measured across all 18 targets before recording: every page count and every anchor page is unchanged, so nothing repaginated and no fixture declaration changed. Only the browser-print pixels move. No DOCX baseline is affected - the Word path does not use assessmentToPdf.js. The gate reported 379 connected pixels on this fixture, which is the size of the code's own ink appearing at its new position and vanishing from its old one.",
+  "sourceCommit": "8f46a3f8a198c112075e023e7918fb86d962e930",
+  "source": "1995",
+  "reason": "The grade now prints as the teacher typed it (GRADE 7, not GRADE SEVEN) per §9, the learner-field label is shared across renderers, and the Word export uses the paper's own margins instead of Word's 1-inch default so all three renderers set the same 174mm column per §2.",
   "environment": {
     "chromium": "150.0.7871.24",
     "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
@@ -59,7 +59,7 @@
     "header": 1
   },
   "inkByPage": {
-    "1": 0.020060684537038825
+    "1": 0.01955728081001065
   },
   "figures": {
     "unresolvedFigureCount": 0,
@@ -72,7 +72,7 @@
   },
   "hashes": {
     "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
-    "layout.json": "48f28ad7887627dfb9c47b7855d8df3060817fe274058828e7d4e4d0033b6de8",
-    "page-01.png": "df4d0aae25adff231a1009afe0d3d84666a4d888228d6f78ad76de791b684304"
+    "layout.json": "63943731b02637f7b6f401b46dd8b1e1b6c388f4111ec5d048ec8dfb960d0b46",
+    "page-01.png": "3968c8c798b009deef8e67e8c53cc13340309e5d36cb1b0822e8b9e75c635fe0"
   }
 }
