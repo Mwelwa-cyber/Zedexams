@@ -83,7 +83,12 @@ export function buildFooterCode(assessment = {}) {
 
 function plain(value) {
   if (!value) return ''
-  const out = richTextToPlainText(String(value))
+  // NOT String(value) — a question's text arrives here as serialised Tiptap
+  // JSON (that is what serializeQuizSections writes), and stringifying it first
+  // hid the doc from the extractor, which then returned the JSON verbatim. That
+  // is the raw `{"type":"doc",…}` teachers saw printed as their question on the
+  // preview page, since PaperBlocks renders this field and not `textHtml`.
+  const out = richTextToPlainText(value)
   return out.replace(/\s+/g, ' ').trim()
 }
 

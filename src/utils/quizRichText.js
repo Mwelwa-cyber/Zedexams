@@ -381,6 +381,18 @@ export function ensureRichTextHtml(value) {
 }
 
 export function richTextToPlainText(value) {
+  // A Tiptap doc is walked directly — it has no HTML to parse. Both shapes the
+  // editor produces are accepted: the live object held in section state, and
+  // the JSON string `serializeRichField` writes to Firestore.
+  //
+  // Without this the doc fell through to `String(value)` below, which is how a
+  // reopened paper printed "[object Object]" in the builder's question box and
+  // its raw `{"type":"doc",…}` on the preview page. Both callers asked the
+  // right function for plain text; the function only knew one of the three
+  // shapes it was being handed.
+  const tiptapDoc = asPlainTextTiptapDoc(value)
+  if (tiptapDoc) return tiptapDocToPlainText(tiptapDoc)
+
   const input = String(value ?? '')
   if (!input.trim()) return ''
   if (!canUseDom()) {
@@ -517,6 +529,43 @@ export function richTextHasFormatting(value) {
   return false
 }
 
+/**
+ * A Tiptap doc, whether handed over live (the shape the editor holds and
+ * `RichEditor` emits) or stringified (the shape `serializeRichField` persists).
+ *
+ * Deliberately looser than `asTiptapDoc` above, which also demands
+ * `Array.isArray(content)`: a doc with no content walks to '' here, which is
+ * the right answer for plain text, whereas rejecting it would send the raw JSON
+ * back to the caller.
+ */
+function asPlainTextTiptapDoc(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value) && value.type === 'doc') return value
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  // Cheap pre-check before JSON.parse, so ordinary text starting with `{` is
+  // not parsed on every keystroke.
+  if (!trimmed.startsWith('{') || !trimmed.includes('"type"') || !trimmed.includes('"doc"')) return null
+  try {
+    const parsed = JSON.parse(trimmed)
+    return parsed && typeof parsed === 'object' && parsed.type === 'doc' ? parsed : null
+  } catch {
+    // Not JSON — legitimate user text that happens to start with `{`.
+    return null
+  }
+}
+
+function tiptapDocToPlainText(doc) {
+  const out = []
+  ;(doc.content || []).forEach(child => walkTiptapNode(child, out))
+  return out
+    .join('')
+    .replace(/\u00A0/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim()
+}
+
 // Walk a Tiptap document object and concatenate its visible text. Mirrors the
 // block/inline rules of richTextToPlainText (paragraph → newline, hard_break
 // → newline, table cells separated by tabs, math nodes by their LaTeX source).
@@ -578,35 +627,16 @@ function walkTiptapNode(node, out) {
  *     serializeRichField in quizSections.js)
  *   - plain string
  *
- * `richTextToPlainText` alone only handles the first case — passing it a
- * stringified Tiptap JSON dumps the raw JSON into output, which is
- * useless for downstream consumers like the AI quiz verifier.
+ * Now a straight delegation: `richTextToPlainText` understands all four shapes
+ * itself. It did not, and that was the bug — the callers that broke were the
+ * ones that did not KNOW they might be holding a doc, so they reached for the
+ * shorter name and got "[object Object]" (the studio builder) or raw JSON (the
+ * paper preview). Two implementations of "plain text of a rich value" is what
+ * allowed one of them to be right and the other wrong; there is now one.
  */
 export function extractRichTextPlain(value) {
   if (value == null) return ''
-  if (typeof value === 'object' && value.type === 'doc') {
-    const out = []
-    ;(value.content || []).forEach(child => walkTiptapNode(child, out))
-    return out
-      .join('')
-      .replace(/\u00A0/g, ' ')
-      .replace(/[ \t]+\n/g, '\n')
-      .replace(/\n{3,}/g, '\n\n')
-      .replace(/[ \t]{2,}/g, ' ')
-      .trim()
-  }
-  const str = String(value)
-  if (!str.trim()) return ''
-  // Stringified Tiptap doc — cheap pre-check before JSON.parse.
-  if (str.startsWith('{') && str.includes('"type"') && str.includes('"doc"')) {
-    try {
-      const parsed = JSON.parse(str)
-      if (parsed && parsed.type === 'doc') return extractRichTextPlain(parsed)
-    } catch {
-      /* fall through to HTML/plain handling */
-    }
-  }
-  return richTextToPlainText(str)
+  return richTextToPlainText(value)
 }
 
 export function createMathNodeHtml(latex, displayMode = false) {
