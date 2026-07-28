@@ -25,12 +25,15 @@
 import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import {
   scanModelCallSites, scanFile, readProviderExports, PROVIDER_CALLS, NOT_A_MODEL_CALL,
 } from './aiGenerators/scanModelCallSites.js'
 import { INVENTORY, GENERATORS, CLASSES, TIERS, byTier, stateCounts } from './aiGenerators/inventory.js'
 import { CLAUSES, checkContract, derivedState } from './aiGenerators/migrationContract.js'
+import {
+  exportedRunnerName, findRunnerCallers, VERIFIED_FORWARDERS,
+} from './aiGenerators/runnerCallers.js'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -212,6 +215,33 @@ test('no generator is left in the partial state', () => {
   // rest means a server guarantee that disappears when the client omits a key.
   const partial = GENERATORS.filter((r) => r.state === 'partial').map((r) => r.file)
   assert.deepEqual(partial, [], `still partial: ${partial.join(', ')}`)
+})
+
+console.log('\n— everyone who calls a migrated runner carries a key —')
+
+test('no caller invokes a migrated generator without an idempotency key', () => {
+  // The check that was missing when Slice 2 shipped. It hardened five
+  // generators and broke Aria, who calls four of them directly and passed no
+  // key — her worksheet, flashcards, rubric and scheme_of_work jobs failed
+  // outright while the whole suite stayed green.
+  //
+  // The migration contract cannot catch this: it asks what a generator does,
+  // and the break was in something the generator does not know exists.
+  const violations = []
+  for (const r of GENERATORS.filter((x) => x.state === 'migrated')) {
+    const source = readFileSync(join(ROOT, r.file), 'utf8')
+    const runner = exportedRunnerName(source)
+    if (!runner) continue
+    for (const call of findRunnerCallers(ROOT, runner, r.file)) {
+      if (call.carriesKey) continue
+      if (call.forwardsAnObject && VERIFIED_FORWARDERS[call.file]) continue
+      violations.push(`${call.file}:${call.line} calls ${runner}() with no idempotencyKey`)
+    }
+  }
+  assert.deepEqual(violations, [],
+    `these callers would be REFUSED at the reservation:\n    ${violations.join('\n    ')}\n`
+    + '  A server-side caller with no browser should derive a stable key — see\n'
+    + '  agentJobIdempotencyKey() in functions/aiOperationsCore.js.')
 })
 
 console.log('\n— what the phase is actually facing —')
