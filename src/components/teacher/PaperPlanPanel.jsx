@@ -12,8 +12,12 @@
 // Presentational only: the panel computes nothing itself (blueprintSummary.js
 // does that, under test) and owns no server calls.
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { summarizePlan, DIFFICULTY_PRESETS } from '../../utils/blueprintSummary'
+import {
+  downloadTableOfSpecificationsDocx,
+  openTableOfSpecificationsPrintWindow,
+} from '../../utils/tableOfSpecifications'
 
 function Bar({ percent }) {
   return (
@@ -52,6 +56,27 @@ export default function PaperPlanPanel({
   generating = false,
 }) {
   const plan = useMemo(() => summarizePlan(blueprint), [blueprint])
+  const [exporting, setExporting] = useState('')
+  const [exportMessage, setExportMessage] = useState('')
+
+  async function exportSpecifications(kind) {
+    if (!blueprint || exporting) return
+    setExporting(kind)
+    setExportMessage('')
+    try {
+      if (kind === 'word') {
+        await downloadTableOfSpecificationsDocx(blueprint)
+        setExportMessage('The editable Table of Specifications download has started.')
+      } else {
+        openTableOfSpecificationsPrintWindow(blueprint)
+        setExportMessage('The filing copy is open. Choose Print or Save as PDF.')
+      }
+    } catch (error) {
+      setExportMessage(error?.message || 'Could not prepare the Table of Specifications.')
+    } finally {
+      setExporting('')
+    }
+  }
 
   // A plan we could not build is not hidden behind a spinner or dressed up as a
   // plan — the teacher is told, and can still generate (the generator falls back
@@ -110,6 +135,55 @@ export default function PaperPlanPanel({
             : '.'}{' '}
           {topicsOnFile > 0 && `Planned from ${topicsOnFile} topic${topicsOnFile === 1 ? '' : 's'} in the syllabus on file.`}
         </div>
+      </div>
+
+      <div style={{
+        borderRadius: 12,
+        border: '1px solid #f2c7af',
+        background: '#fffaf7',
+        padding: '12px 14px',
+      }}>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+          gap: 12, flexWrap: 'wrap',
+        }}>
+          <div style={{ flex: '1 1 260px' }}>
+            <div style={{ fontSize: 14, fontWeight: 900, color: 'var(--sv-text)' }}>
+              Table of Specifications
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--sv-muted)', marginTop: 3, lineHeight: 1.45 }}>
+              Download the teacher filing copy that shows the topics, marks and
+              cognitive levels used to plan this paper. It is separate from the
+              learner question paper.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="sv-btn"
+              onClick={() => exportSpecifications('pdf')}
+              disabled={Boolean(exporting) || generating || replanning}
+            >
+              {exporting === 'pdf' ? 'Preparing…' : 'Print / Save PDF'}
+            </button>
+            <button
+              type="button"
+              className="sv-btn sv-btn-primary"
+              onClick={() => exportSpecifications('word')}
+              disabled={Boolean(exporting) || generating || replanning}
+            >
+              {exporting === 'word' ? 'Preparing Word…' : 'Download Word copy'}
+            </button>
+          </div>
+        </div>
+        {exportMessage && (
+          <div role="status" style={{
+            marginTop: 8, fontSize: 12,
+            color: /could not|blocked/i.test(exportMessage) ? '#991b1b' : '#065f46',
+          }}>
+            {exportMessage}
+          </div>
+        )}
       </div>
 
       {plan.sections.length > 0 && (
