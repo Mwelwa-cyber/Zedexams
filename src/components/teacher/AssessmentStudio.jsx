@@ -92,6 +92,7 @@ import { buildAssessmentDocument } from '../../utils/assessmentDocument'
 import { sanitizePaperStems } from '../../utils/inlineOptionStem'
 import { usePaperPagination } from '../../hooks/usePaperPagination'
 import { computePaperHealth } from '../../utils/paperHealth'
+import { buildExportValidationReport } from '../../utils/assessmentValidationReport'
 import { blockingIssuesByLocalId } from '../../utils/assessmentExportGate'
 import { buildAssessmentExportReadiness } from '../../utils/assessmentExportReadiness'
 import { buildPrintPdfReadiness, buildWordReadiness } from '../../utils/printPdfReadiness'
@@ -870,6 +871,19 @@ export default function AssessmentStudio() {
   // The single "paper health" verdict — folds the blocking validation issues,
   // the advisory smart warnings, and the live paper stats into one object the
   // health gate (PaperHealthModal) renders, and that Save/Export gate on.
+  // The pre-export validation report (§10). Built from the canonical document
+  // and the measured layout, so the panel reports what a teacher is about to
+  // print rather than what the editor happens to hold.
+  const validationReport = useMemo(
+    () => buildExportValidationReport({
+      document: paperDocument,
+      assessment: assessmentDoc,
+      questions: serializedPreview.questions,
+      pagination,
+    }),
+    [paperDocument, assessmentDoc, serializedPreview.questions, pagination],
+  )
+
   const paperHealth = useMemo(
     () => computePaperHealth({
       validation: validationResult,
@@ -878,6 +892,12 @@ export default function AssessmentStudio() {
       // is refused actually lists the reason. Without it a layout refusal
       // opened a page saying everything was fine.
       pagination,
+      // §10's full validation report — the defects a FINISHED paper can still
+      // have: totals that do not add up, an answer that is no longer printed, a
+      // question asking about a diagram it does not have, a formula that would
+      // print as its own source. Every question can be complete and all four
+      // still be true, so they cannot come from collectQuizIssues.
+      report: validationReport,
       stats: {
         questionCount,
         totalMarks,
@@ -891,7 +911,7 @@ export default function AssessmentStudio() {
         duration: Number(form.duration) || 0,
       },
     }),
-    [validationResult, warnings, pagination, questionCount, totalMarks, estimatedMinutes, parts.length, form.duration],
+    [validationResult, warnings, pagination, validationReport, questionCount, totalMarks, estimatedMinutes, parts.length, form.duration],
   )
 
   /* ------------ helpers ------------ */

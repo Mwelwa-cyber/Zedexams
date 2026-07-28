@@ -72,6 +72,7 @@
     "test:paper-page-plan": "node src/utils/paperPagePlan.test.js",
     "test:preview-zoom": "node src/utils/paperPreviewZoom.test.js",
     "test:paper-acceptance": "node src/utils/paperAcceptance.test.js",
+    "test:validation-report": "node src/utils/assessmentValidationReport.test.js",
     "test:server-export-readiness": "node functions/assessmentExports/exportReadiness.test.js",
     "test:shared-assessment-neutral": "node functions/shared/assessment/neutrality.test.js",
     "test:unresolved-figures": "node functions/shared/assessment/unresolvedFiguresCore.test.js",

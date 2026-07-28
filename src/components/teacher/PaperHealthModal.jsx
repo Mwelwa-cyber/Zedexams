@@ -161,6 +161,11 @@ export default function PaperHealthModal({
                   <li key={c.id} className={c.ok ? 'ok' : 'missing'}>
                     <Icon name={c.ok ? 'check' : 'remove'} size={14} className="sv-health-check-ic" />
                     {c.label}
+                    {/* What the check actually measured — "3 Print/PDF pages",
+                        "40 marks in total". A ticked box that reports nothing
+                        asks the teacher to trust it; one that reports its number
+                        lets them check it against the paper in front of them. */}
+                    {c.detail ? <span className="sv-health-check-detail"> — {c.detail}</span> : null}
                   </li>
                 ))}
               </ul>
