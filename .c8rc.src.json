@@ -1,0 +1,20 @@
+{
+  "//": "Coverage config for the src/ slice of the plain-node suite, driven by `npm run src:coverage` (c8 wrapping scripts/run-src-node-tests.mjs). This is the third coverage surface: Vitest (vitest.config.js) measures src/ via the *.spec.* suite, .c8rc.json measures functions/ via the backend node tests, and this measures what the ~500 plain-node scripts cover in src/ — the exporters, parsers, layout and schema logic that read 0% in the Vitest report despite being tested (e.g. assessmentToDocx via test:paper-golden). `all: true` instruments every matching src file so the number reflects the true gap.",
+  "//scope": ".jsx files are deliberately excluded: plain node cannot parse JSX, so the node suite can never cover them — including them would only dilute the number with lines this suite is structurally unable to reach. Components are the Vitest gate's job. src/**/*.js only.",
+  "all": true,
+  "include": ["src/**/*.js"],
+  "exclude": [
+    "src/**/*.test.js",
+    "src/**/*.spec.js",
+    "src/test/**"
+  ],
+  "reporter": ["text-summary", "json-summary", "html"],
+  "reports-dir": "coverage-src",
+  "clean": true,
+  "check-coverage": true,
+  "//baseline": "Measured baseline 2026-07-28: see thresholds. Ratchet: thresholds sit a small buffer under the measured totals so the number can only go up — bump them when coverage rises. Like .c8rc.json, line % here counts physical lines (c8/V8), so it is NOT comparable to Vitest's executable-line percentage; compare each gate only to its own history.",
+  "lines": 20,
+  "statements": 20,
+  "functions": 60,
+  "branches": 70
+}

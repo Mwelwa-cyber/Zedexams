@@ -96,6 +96,31 @@ jobs:
       - name: Functions coverage
         run: npm run functions:coverage
 
+  src-node-coverage:
+    # src/ coverage from the plain-node suite (`.c8rc.src.json`, c8 wrapping
+    # scripts/run-src-node-tests.mjs). The third coverage surface: Vitest sees
+    # only the *.spec.* files, so src logic tested by the ~330 node scripts
+    # (exporters, parsers, schemas — e.g. assessmentToDocx via
+    # test:paper-golden) read 0% there. This job measures that slice and
+    # ratchets it via the thresholds in .c8rc.src.json. Deliberately NOT a
+    # required check (the nine required checks are fixed — see repo docs); it
+    # still fails the run when coverage drops below the ratchet.
+    name: Tests (src node coverage)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: src node coverage
+        run: npm run src:coverage
+
   unit:
     # Vitest (jsdom) component/hook/behaviour specs — the `*.spec.{js,jsx}`
     # files under src/. Separate from `tests` (the plain-node `*.test.js`
