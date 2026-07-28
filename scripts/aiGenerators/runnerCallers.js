@@ -115,7 +115,7 @@ export function findRunnerCallers(root, runnerName, definingFile) {
  * where that is proved.
  */
 export const VERIFIED_FORWARDERS = Object.freeze({
-  '__disabled__':
+  'functions/agents/runners/aria.js':
     'Forwards the args object built in runAria(), which derives a deterministic '
     + 'key from the agentJobs document id. Proved in aria.test.js: a key reaches '
     + 'the runner, the same job yields the same key, and the key does not move '
