@@ -6,15 +6,16 @@
 // need a picture. Then they either write it or change the spread and re-plan.
 //
 // Everything shown here comes from the SAME blueprint object the generator is
-// constrained by, so this is not a summary of intentions — it is the paper's
+// constrained by, so this is not a summary of intentions; it is the paper's
 // specification, in English.
 //
 // Presentational only: the panel computes nothing itself (blueprintSummary.js
 // does that, under test) and owns no server calls.
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { summarizePlan, DIFFICULTY_PRESETS } from '../../utils/blueprintSummary'
 import {
+  TOS_TAXONOMY_OPTIONS,
   downloadTableOfSpecificationsDocx,
   openTableOfSpecificationsPrintWindow,
 } from '../../utils/tableOfSpecifications'
@@ -56,20 +57,31 @@ export default function PaperPlanPanel({
   generating = false,
 }) {
   const plan = useMemo(() => summarizePlan(blueprint), [blueprint])
+  const suggestedTaxonomy = blueprint?.framework === '2013' ? 'traditional' : 'revised'
+  const [bloomTaxonomy, setBloomTaxonomy] = useState(suggestedTaxonomy)
   const [exporting, setExporting] = useState('')
   const [exportMessage, setExportMessage] = useState('')
+  const selectedTaxonomy = useMemo(
+    () => TOS_TAXONOMY_OPTIONS.find((option) => option.id === bloomTaxonomy) || TOS_TAXONOMY_OPTIONS[0],
+    [bloomTaxonomy],
+  )
+
+  useEffect(() => {
+    setBloomTaxonomy(suggestedTaxonomy)
+  }, [suggestedTaxonomy])
 
   async function exportSpecifications(kind) {
     if (!blueprint || exporting) return
     setExporting(kind)
     setExportMessage('')
     try {
+      const meta = { bloomTaxonomy }
       if (kind === 'word') {
-        await downloadTableOfSpecificationsDocx(blueprint)
-        setExportMessage('The editable Table of Specifications download has started.')
+        await downloadTableOfSpecificationsDocx(blueprint, meta)
+        setExportMessage(`${selectedTaxonomy.label} editable copy is downloading.`)
       } else {
-        openTableOfSpecificationsPrintWindow(blueprint)
-        setExportMessage('The filing copy is open. Choose Print or Save as PDF.')
+        openTableOfSpecificationsPrintWindow(blueprint, meta)
+        setExportMessage(`${selectedTaxonomy.label} filing copy is open. Choose Print or Save as PDF.`)
       }
     } catch (error) {
       setExportMessage(error?.message || 'Could not prepare the Table of Specifications.')
@@ -79,7 +91,7 @@ export default function PaperPlanPanel({
   }
 
   // A plan we could not build is not hidden behind a spinner or dressed up as a
-  // plan — the teacher is told, and can still generate (the generator falls back
+  // plan. The teacher is told, and can still generate (the generator falls back
   // to writing the paper unconstrained).
   if (!plan.ready) {
     return (
@@ -90,7 +102,7 @@ export default function PaperPlanPanel({
         }}>
           <strong>We could not work out a plan for this one.</strong>
           <div style={{ marginTop: 4 }}>
-            You can still write the paper — it just won’t be planned question by
+            You can still write the paper. It just won’t be planned question by
             question first, so check the spread of topics and marks yourself when
             it lands.
           </div>
@@ -147,7 +159,7 @@ export default function PaperPlanPanel({
           display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
           gap: 12, flexWrap: 'wrap',
         }}>
-          <div style={{ flex: '1 1 260px' }}>
+          <div style={{ flex: '1 1 300px' }}>
             <div style={{ fontSize: 14, fontWeight: 900, color: 'var(--sv-text)' }}>
               Table of Specifications
             </div>
@@ -156,7 +168,43 @@ export default function PaperPlanPanel({
               cognitive levels used to plan this paper. It is separate from the
               learner question paper.
             </div>
+
+            <div style={{ marginTop: 11 }}>
+              <div id="tos-bloom-format-label" style={{
+                fontSize: 11, fontWeight: 800, letterSpacing: 0.35,
+                textTransform: 'uppercase', color: 'var(--sv-muted)', marginBottom: 6,
+              }}>
+                Bloom&apos;s taxonomy format
+              </div>
+              <div
+                role="group"
+                aria-labelledby="tos-bloom-format-label"
+                style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}
+              >
+                {TOS_TAXONOMY_OPTIONS.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={`sv-cpm-pill ${bloomTaxonomy === option.id ? 'active' : ''}`}
+                    aria-pressed={bloomTaxonomy === option.id}
+                    disabled={Boolean(exporting) || generating || replanning}
+                    onClick={() => {
+                      setBloomTaxonomy(option.id)
+                      setExportMessage('')
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <div style={{
+                marginTop: 6, fontSize: 11.5, lineHeight: 1.45, color: 'var(--sv-muted)',
+              }}>
+                {selectedTaxonomy.description}
+              </div>
+            </div>
           </div>
+
           <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
             <button
               type="button"
