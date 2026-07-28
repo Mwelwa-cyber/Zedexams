@@ -78,7 +78,7 @@ subagent to verify it.
    Confirm a `vigil` summary `agentJobs` doc appears (visible in the
    `/admin/agents` Scheduled-jobs panel). On a clean run it's `done` with no
    AI spend; on failure it carries `output.vigil.failures` + `suggestions`,
-   emails `ADMIN_EMAILS`, and (if `GITHUB_BOT_TOKEN` is set) files `bug`
+   emails `OPS_ALERT_EMAILS`, and (if `GITHUB_BOT_TOKEN` is set) files `bug`
    issues — de-duplicated to once per failure per 24h via `monitorState/vigil`.
 
 ## Secrets & keys
@@ -88,7 +88,7 @@ subagent to verify it.
 | `ANTHROPIC_API_KEY` | Firebase secret (`defineSecret`) | Aria, Cala (resolve), Reva, Vigil (fix suggestions) |
 | `ANTHROPIC_API_KEY` | GitHub repo secret | Rex (PR review), Ledger, Mendi (bug fixer) |
 | `EMAIL_SMTP_USER` / `EMAIL_SMTP_PASSWORD` | Firebase secret | AI-cost summary, Vigil alert email |
-| `ADMIN_EMAILS` | Functions env var | Recipients for Vigil + cost alerts |
+| `OPS_ALERT_EMAILS` | Functions env var | Recipients for Vigil + cost alerts. NOT `ADMIN_EMAILS` — that is an admin-bootstrap allowlist (#1993) |
 | `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` / `GITHUB_APP_INSTALLATION_ID` | Firebase secret *(preferred)* | Vigil files `bug` issues → Mendi via a GitHub App installation token (no expiry to babysit). |
 | `GITHUB_BOT_TOKEN` | Firebase secret *(PAT fallback)* | Used for issue filing only if no App is configured. All unset = issue-filing skipped gracefully. |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Local dev only | `scripts/seed-agent-jobs.mjs` |

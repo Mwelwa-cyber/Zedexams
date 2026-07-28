@@ -84,20 +84,17 @@ const lencoApiKey = defineSecret("LENCO_API_KEY");
 // a paying customer discovering a broken config.
 const googlePlaySaJson = defineSecret("GOOGLE_PLAY_SA_JSON");
 
-// Recipients for ops alerts. Prefer the explicit ADMIN_EMAILS list; when it is
-// unset (the common case here — ADMIN_EMAILS has never been configured), fall
-// back to the SMTP sender account itself so alerts still land in the ops
-// mailbox — the same EMAIL_SMTP_USER account Dawn and the daily cost summary
-// send through — instead of being silently dropped ("SMTP or ADMIN_EMAILS not
-// configured"). Callers pass the resolved sender so they control the fallback.
+// Recipients for ops alerts: OPS_ALERT_EMAILS, falling back to ADMIN_EMAILS and
+// then to the SMTP sender account itself — the same EMAIL_SMTP_USER account Dawn
+// and the daily cost summary send through — so an alert lands somewhere instead
+// of being silently dropped ("SMTP or ADMIN_EMAILS not configured"). Callers
+// pass the resolved sender because only they know which one their transport got.
+// The precedence itself lives in functions/opsAlertRecipients.js, which also
+// explains why the recipient list is no longer the admin allowlist.
+const {resolveOpsAlertRecipients} = require("../opsAlertRecipients");
+
 function getAdminEmails(fallbackSender) {
-  const configured = (process.env.ADMIN_EMAILS || "")
-      .split(",")
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean);
-  if (configured.length) return configured;
-  const sender = String(fallbackSender || "").trim().toLowerCase();
-  return sender ? [sender] : [];
+  return resolveOpsAlertRecipients({fallbackSender}).recipients;
 }
 
 const NIGHTLY_QA_OPTS = {

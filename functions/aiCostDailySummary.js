@@ -114,11 +114,14 @@ function getTransporter() {
   return cachedTransporter;
 }
 
-function getAdminEmails() {
-  return (process.env.ADMIN_EMAILS || "")
-      .split(",")
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean);
+// Recipients for the cost/budget emails: OPS_ALERT_EMAILS, falling back to
+// ADMIN_EMAILS and then to the SMTP sender. Precedence and rationale live in
+// functions/opsAlertRecipients.js — in short, telling the platform where to
+// send an alert must not also decide who may hold admin.
+const {resolveOpsAlertRecipients} = require("./opsAlertRecipients");
+
+function getAdminEmails(fallbackSender) {
+  return resolveOpsAlertRecipients({fallbackSender}).recipients;
 }
 
 /**
@@ -142,9 +145,9 @@ async function maybeSendBudgetAlert() {
   const status = evaluateBudget({monthCostUsd, budgetUsd});
   if (!status.warning && !status.overBudget) return;
 
-  const adminEmails = getAdminEmails();
   const transporter = getTransporter();
   const senderEmail = String(emailSmtpUser.value() || "").trim();
+  const adminEmails = getAdminEmails(senderEmail);
   if (!transporter || !senderEmail || adminEmails.length === 0) {
     console.warn(
         "[aiCostDailySummary] budget threshold crossed but email not configured",
@@ -306,9 +309,9 @@ const aiCostDailySummary = onSchedule({
   if (!anomaly) return;
 
   // ── Anomaly email ─────────────────────────────────────────────
-  const adminEmails = getAdminEmails();
   const transporter = getTransporter();
   const senderEmail = String(emailSmtpUser.value() || "").trim();
+  const adminEmails = getAdminEmails(senderEmail);
   if (!transporter || !senderEmail || adminEmails.length === 0) {
     console.warn("[aiCostDailySummary] anomaly detected but email not configured");
     return;

@@ -168,7 +168,7 @@ budget governor (below) is the company's CFO.
 - **Outputs:** An `agentJobs` rollup (`output.vigil`) the `/admin/agents`
   dashboard surfaces. On failure it asks Haiku for likely causes + fixes,
   then escalates — **de-duplicated to once per failure per 24h** — via an
-  alert email to `ADMIN_EMAILS` and a GitHub **`bug`** issue, which **Mendi**
+  alert email to `OPS_ALERT_EMAILS` and a GitHub **`bug`** issue, which **Mendi**
   can pick up and turn into a draft fix PR.
 - **Wraps:** `functions/agents/runners/monitor.js`; Anthropic Haiku 4.5 for
   the (failure-only) fix suggestions. Deterministic checks run free every

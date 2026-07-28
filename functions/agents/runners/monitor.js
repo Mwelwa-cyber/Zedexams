@@ -840,7 +840,7 @@ async function notifyFailures({db, report, smtpUser, smtpPass, adminEmails, gith
       out.skipped.email = String(err?.message || err);
     }
   } else if (newlyEscalated.length && (!transporter || !adminEmails.length)) {
-    out.skipped.email = "SMTP or ADMIN_EMAILS not configured";
+    out.skipped.email = "SMTP or OPS_ALERT_EMAILS not configured";
   }
 
   await stateRef.set({failures: next, updatedAt: now}, {merge: false}).catch(() => {});

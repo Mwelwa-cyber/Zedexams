@@ -116,7 +116,7 @@ localStorage outbox for class attendance (`useClassRegister`, with server-only
 
 Sentry wired for frontend crash reporting (`VITE_SENTRY_DSN`, confirmed present in
 Actions secrets per `docs/PRODUCTION_READINESS.md`). Ops alerting via
-`functions/opsAlert.js` → `ADMIN_EMAILS`. Vigil (`hourlyMonitor`) synthetic
+`functions/opsAlert.js` → `OPS_ALERT_EMAILS`. Vigil (`hourlyMonitor`) synthetic
 checks. Admin cost/health dashboards (`/admin/ai-costs`, `/admin/company`). Audit
 ledger `adminAuditLogs` (`functions/auditLog.js`, server-write-only, admin-read).
 

@@ -19,7 +19,7 @@ A production failure often cannot be traced UI → function → data cleanly.
   publish/approval (`adminUsers.js:71,116`, `adminPayments.js:122-256`, `dispatcher.js:378-387`).
 - **Synthetic checks** — Vigil (`hourlyMonitor`) pages/Firebase/images/quizzes; Marshal
   (`hourlyAgentSupervisor`) agent-freshness → `/admin/company`.
-- **Ops alerts** — `sendOpsAlert` → email `ADMIN_EMAILS` (`opsAlert.js:69-106`); AI-cost/budget
+- **Ops alerts** — `sendOpsAlert` → email `OPS_ALERT_EMAILS` (`opsAlert.js`); AI-cost/budget
   alerts (`aiCostDailySummary.js`); Lenco amount-mismatch/over-collection/config alerts.
 - Attendance changes logged to `attendanceAudit` (append-only, `saveClassAttendance.js:120`).
 

@@ -127,7 +127,7 @@ Every config-failure stage carries a machine-readable reason —
 Console or the API not enabled). The callable throws `failed-precondition`
 with the reason in `details.reason`, the client records it as `errorReason`
 on the `play_verify_failed` PostHog event, and a **throttled critical ops
-email** goes to `ADMIN_EMAILS` the moment a real purchase hits a config
+email** goes to `OPS_ALERT_EMAILS` the moment a real purchase hits a config
 error (a buyer has paid and is not getting access — Google auto-refunds
 after 3 days, so an unfixed config loses the sale).
 
