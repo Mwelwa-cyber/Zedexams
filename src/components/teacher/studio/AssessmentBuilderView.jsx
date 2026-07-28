@@ -1,8 +1,12 @@
-import { useRef, useMemo } from 'react'
+import { useRef, useMemo, useState } from 'react'
 import { hasOnlyEmptyStarterSection, orderPaperGroups } from '../../../utils/quizSections.js'
 import { toEditableText } from '../AssessmentQuestionEditors'
 import { QUIZ_DOCUMENT_ACCEPT } from '../../quiz/documentQuizImporter'
 import { SECTION_LETTERS } from '../assessmentStudioMeta'
+import {
+  downloadTableOfSpecificationsDocx,
+  openTableOfSpecificationsPrintWindow,
+} from '../../../utils/tableOfSpecifications'
 import Icon from './studioIcons'
 import {
   HeaderBlock,
@@ -33,6 +37,43 @@ export function BuilderView(props) {
 
   const emptyPaper = hasOnlyEmptyStarterSection(sections)
   const importInputRef = useRef(null)
+  const [tosExporting, setTosExporting] = useState('')
+  const [tosMessage, setTosMessage] = useState('')
+
+  async function exportTableOfSpecifications(kind) {
+    if (!form.blueprint || tosExporting) return
+    setTosExporting(kind)
+    setTosMessage('')
+    const meta = {
+      schoolName: form.schoolName,
+      schoolLogoUrl: form.schoolLogoUrl,
+      title: form.paperName || form.title || assessmentTypeLabel,
+      assessmentType: assessmentTypeLabel,
+      grade: form.grade,
+      subject: form.subject,
+      term: form.term,
+      year: form.year,
+      durationMinutes: Number(form.duration) || 0,
+      teacherName: form.teacherName,
+      preparedDate: form.assessmentDate,
+      framework: form.framework === '2013'
+        ? '2013 Outcome-Based Curriculum'
+        : '2023 Competence-Based Curriculum',
+    }
+    try {
+      if (kind === 'word') {
+        await downloadTableOfSpecificationsDocx(form.blueprint, meta)
+        setTosMessage('Editable Table of Specifications downloaded.')
+      } else {
+        openTableOfSpecificationsPrintWindow(form.blueprint, meta)
+        setTosMessage('Filing copy opened. Choose Print or Save as PDF.')
+      }
+    } catch (error) {
+      setTosMessage(error?.message || 'Could not prepare the Table of Specifications.')
+    } finally {
+      setTosExporting('')
+    }
+  }
 
   // Group sections by their Part membership for rendering Section headers, then
   // lay the groups out in the teacher-chosen order (sections by their order, the
@@ -137,6 +178,47 @@ export function BuilderView(props) {
 
       <div className="sv-doc-canvas">
         <SmartWarningsBanner warnings={warnings} />
+
+        {form.blueprint && (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: 10, flexWrap: 'wrap', border: '1px solid #f2c7af',
+            background: '#fffaf7', borderRadius: 12, padding: '10px 12px', marginBottom: 10,
+          }}>
+            <div style={{ flex: '1 1 260px' }}>
+              <strong style={{ fontSize: 13.5, color: 'var(--sv-text)' }}>Teacher filing copy</strong>
+              <div style={{ fontSize: 12, color: 'var(--sv-muted)', marginTop: 2 }}>
+                Download the Table of Specifications used to plan this paper. It is not included in the learner copy.
+              </div>
+              {tosMessage && (
+                <div role="status" style={{
+                  fontSize: 11.5, marginTop: 4,
+                  color: /could not|blocked/i.test(tosMessage) ? '#991b1b' : '#065f46',
+                }}>
+                  {tosMessage}
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="sv-btn"
+                onClick={() => exportTableOfSpecifications('pdf')}
+                disabled={Boolean(tosExporting)}
+              >
+                {tosExporting === 'pdf' ? 'Preparing…' : 'Print / Save PDF'}
+              </button>
+              <button
+                type="button"
+                className="sv-btn sv-btn-primary"
+                onClick={() => exportTableOfSpecifications('word')}
+                disabled={Boolean(tosExporting)}
+              >
+                {tosExporting === 'word' ? 'Preparing Word…' : 'Download TOS'}
+              </button>
+            </div>
+          </div>
+        )}
 
         <HeaderBlock form={form} setF={setF} footerCode={footerCode} importing={importing} importSummary={importSummary} onDismissImportSummary={onDismissImportSummary} onImportDocument={onImportDocument} onScan={onScan} assessmentTypes={assessmentTypes} assessmentTypeLabel={assessmentTypeLabel} />
 
@@ -350,4 +432,3 @@ export function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, 
     </>
   )
 }
-
