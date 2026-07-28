@@ -7,6 +7,7 @@ import PaperPlanPanel from './PaperPlanPanel.jsx'
 function plan(over = {}) {
   return {
     version: 'blueprint.v1',
+    framework: '2023',
     totalMarks: 10,
     durationMinutes: 30,
     estimatedMinutes: 12,
@@ -61,14 +62,35 @@ describe('PaperPlanPanel', () => {
     expect(screen.getByText('2 · 6 marks')).toBeInTheDocument()
   })
 
-  it('describes difficulty in words, never as tier ids or Bloom levels', () => {
+  it('describes difficulty in words rather than internal tier ids', () => {
     render(<PaperPlanPanel blueprint={plan()} />)
     expect(screen.getByText('Straight recall')).toBeInTheDocument()
     expect(screen.getByText('Working things out')).toBeInTheDocument()
-    // None of the machine vocabulary reaches the screen.
-    for (const jargon of [/bloom/i, /\brecall\b:/, /analyse/i, /blueprint/i]) {
-      expect(screen.queryByText(jargon)).toBeNull()
-    }
+    expect(screen.queryByText(/\bband\b/i)).toBeNull()
+    expect(screen.queryByText(/\bblueprint\.v1\b/i)).toBeNull()
+  })
+
+  it('lets the teacher choose revised or traditional Bloom wording', () => {
+    render(<PaperPlanPanel blueprint={plan()} />)
+    const revised = screen.getByRole('button', { name: "Revised Bloom's" })
+    const traditional = screen.getByRole('button', { name: "Traditional Bloom's" })
+
+    // CBC papers start with the revised wording, but the teacher remains in control.
+    expect(revised).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('Remember · Understand · Apply · Analyse · Evaluate · Create'))
+      .toBeInTheDocument()
+
+    fireEvent.click(traditional)
+    expect(traditional).toHaveAttribute('aria-pressed', 'true')
+    expect(revised).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByText('Knowledge · Comprehension · Application · Analysis · Synthesis · Evaluation'))
+      .toBeInTheDocument()
+  })
+
+  it('suggests traditional Bloom wording for a 2013 curriculum paper', () => {
+    render(<PaperPlanPanel blueprint={plan({ framework: '2013' })} />)
+    expect(screen.getByRole('button', { name: "Traditional Bloom's" }))
+      .toHaveAttribute('aria-pressed', 'true')
   })
 
   it('warns when the paper looks longer than the time allowed', () => {
@@ -110,6 +132,7 @@ describe('PaperPlanPanel', () => {
       <PaperPlanPanel blueprint={plan()} replanning presetId="band" />,
     )
     expect(screen.getByRole('button', { name: 'Gentler' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: "Revised Bloom's" })).toBeDisabled()
     expect(screen.getByRole('button', { name: /Write this paper/i })).toBeDisabled()
     expect(screen.getByText(/Re-planning…/)).toBeInTheDocument()
 
@@ -142,7 +165,7 @@ describe('PaperPlanPanel', () => {
         onGenerate={onGenerate} onBack={vi.fn()} />,
     )
     expect(screen.getByText(/We could not work out a plan for this one/i)).toBeInTheDocument()
-    // Not dressed up as a plan — no headline, no fake counts.
+    // Not dressed up as a plan: no headline and no fake counts.
     expect(screen.queryByText(/Here’s the plan for your paper/i)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /Write the paper anyway/i }))
     expect(onGenerate).toHaveBeenCalledTimes(1)
