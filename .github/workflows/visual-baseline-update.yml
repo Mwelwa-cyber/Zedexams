@@ -206,7 +206,16 @@ jobs:
           appearance is reviewed on #${{ inputs.pull_request }}, alongside the
           code change that caused it."
           git push origin HEAD:"$BRANCH"
-          echo "Pushed to $BRANCH. The visual gate will re-run on the pull request."
+          echo "Pushed to $BRANCH."
+          echo
+          echo "The visual gate will NOT start by itself on this commit. A push made"
+          echo "with GITHUB_TOKEN does not trigger workflows (GitHub's loop"
+          echo "prevention), and on a bot-authored pull request the run that does"
+          echo "appear lands in action_required until a maintainer approves it."
+          echo
+          echo "So do ONE of these, or the baselines sit unverified:"
+          echo "  - press 'Approve and run workflows' on pull request #${{ inputs.pull_request }}, or"
+          echo "  - push any further commit to $BRANCH from a normal account."
 
       - name: Open a pull request for the baseline change
         if: inputs.scope != 'every-moved-baseline'
