@@ -80,7 +80,8 @@ export function buildTableOfSpecificationsModel(blueprint, meta = {}) {
 
   const currentYear = new Date().getFullYear()
   const subject = clean(meta.subject) || titleCase(blueprint?.subject) || 'Subject'
-  const grade = clean(meta.grade) || clean(blueprint?.gradeLabel) || titleCase(blueprint?.grade) || 'Grade / Form'
+  const grade = clean(meta.gradeLabel) || clean(blueprint?.gradeLabel) ||
+    clean(meta.grade) || titleCase(blueprint?.grade) || 'Grade / Form'
   const assessmentType = clean(meta.assessmentType) || titleCase(blueprint?.assessmentType) || 'Assessment'
   const framework = clean(meta.framework) || (
     clean(blueprint?.framework) === '2013' ? '2013 Outcome-Based Curriculum' : '2023 Competence-Based Curriculum'
@@ -219,7 +220,7 @@ export function buildTableOfSpecificationsHtml(blueprint, meta = {}) {
 
 export function openTableOfSpecificationsPrintWindow(blueprint, meta = {}) {
   if (typeof window === 'undefined') throw new Error('Printing is only available in the browser.')
-  const printWindow = window.open('', '_blank', 'noopener,noreferrer')
+  const printWindow = window.open('', '_blank')
   if (!printWindow) throw new Error('Your browser blocked the print window. Allow pop-ups and try again.')
   printWindow.document.open()
   printWindow.document.write(buildTableOfSpecificationsHtml(blueprint, meta))
