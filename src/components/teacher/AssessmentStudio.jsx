@@ -689,6 +689,10 @@ export default function AssessmentStudio() {
       sections,
       parts,
       paperDetails: { title: autoTitle, subject: form.subject, grade: form.grade },
+      // The paper's own settings, so the integrity checks read the answer-choice
+      // count, the section marking rules and the declared totals the teacher set
+      // rather than defaults.
+      assessment: assessmentDoc,
       serialized: serializedPreview,
       // Already computed above for the error badges. Recomputing would be a
       // second answer to "what is wrong with this paper", and the day the two
@@ -696,7 +700,7 @@ export default function AssessmentStudio() {
       validationIssues,
       diagramResolver: renderDiagramSvg,
     }),
-    [sections, parts, autoTitle, form.subject, form.grade, serializedPreview, validationIssues],
+    [sections, parts, autoTitle, form.subject, form.grade, assessmentDoc, serializedPreview, validationIssues],
   )
   const exportGate = exportReadiness.gate
   // Two layers. Word asks only whether the paper is finished; Print and PDF also

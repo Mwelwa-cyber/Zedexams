@@ -18,7 +18,7 @@ import {
   recommendedChoiceCount,
   resolveChoiceCount,
   validateChoices,
-} from './mcqChoices.js'
+} from './answerChoicesCore.js'
 
 const codes = (issues) => issues.map((i) => i.code)
 

@@ -36,13 +36,14 @@ let cached = null;
 /** Load the shared rules once per instance. */
 async function rules() {
   if (cached) return cached;
-  const [figures, gate, catalog, validation] = await Promise.all([
+  const [figures, gate, catalog, validation, integrity] = await Promise.all([
     import("../shared/assessment/unresolvedFiguresCore.js"),
     import("../shared/assessment/exportReadinessCore.js"),
     import("../shared/assessment/diagramCatalogCore.js"),
     import("../shared/assessment/assessmentValidationCore.js"),
+    import("../shared/assessment/paperIntegrityCore.js"),
   ]);
-  cached = {figures, gate, catalog, validation};
+  cached = {figures, gate, catalog, validation, integrity};
   return cached;
 }
 
@@ -94,7 +95,7 @@ function canonicalizePassages(assessment) {
  * @returns {Promise<{blocked, reason, message, numbers, unresolvedFigures, questions}>}
  */
 async function assessExportReadiness(assessment, questions) {
-  const {figures, gate, catalog, validation} = await rules();
+  const {figures, gate, catalog, validation, integrity} = await rules();
   const canonical = canonicalizeQuestions(questions);
   const paper = {questions: canonical, passages: canonicalizePassages(assessment)};
 
@@ -116,8 +117,19 @@ async function assessExportReadiness(assessment, questions) {
   });
   const questionNumbers = Object.fromEntries(entries.map((e) => [e.identity, e.number]));
 
+  // The paper's own arithmetic and structure: numbering continuity, the
+  // answer-choice count, duplicate and mathematically-equivalent distractors,
+  // a correct answer that is no longer printed, and totals that contradict the
+  // cover. All of it prints cleanly and is only discovered in a classroom, so
+  // the server checks it rather than trusting that the studio did.
+  const paperIntegrity = integrity.collectPaperIntegrityIssues({
+    assessment: assessment || {},
+    questions: canonical,
+  });
+
   const verdict = gate.describeExportBlock({
     issues,
+    integrityBlockers: paperIntegrity.blockers,
     questionNumbers,
     questionCount: canonical.length,
     // Server-side there is no "untouched starter block": that is live editor
@@ -128,7 +140,13 @@ async function assessExportReadiness(assessment, questions) {
     unresolvedFigures,
   });
 
-  return {...verdict, issues, unresolvedFigures, questions: canonical};
+  return {
+    ...verdict,
+    issues,
+    unresolvedFigures,
+    integrity: paperIntegrity,
+    questions: canonical,
+  };
 }
 
 module.exports = {
