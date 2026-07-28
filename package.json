@@ -100,6 +100,7 @@
     "test:visual-environment": "node scripts/visual/renderEnvironment.test.js",
     "test:visual-fixtures": "node scripts/visual/fixtures.test.js",
     "test:visual-gate": "node scripts/visual/gate.test.js",
+    "test:visual-exporters": "node scripts/visual/renderStages.contract.test.js",
     "test:visual-paths": "node scripts/visual/printAffectingPaths.test.js",
     "test:visual-verdict": "node scripts/visual/gateVerdict.test.js",
     "test:visual-baseline-scope": "node scripts/visual/baselinePrScope.test.js",
