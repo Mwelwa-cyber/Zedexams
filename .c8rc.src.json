@@ -12,9 +12,9 @@
   "reports-dir": "coverage-src",
   "clean": true,
   "check-coverage": true,
-  "//baseline": "Measured baseline 2026-07-28: see thresholds. Ratchet: thresholds sit a small buffer under the measured totals so the number can only go up — bump them when coverage rises. Like .c8rc.json, line % here counts physical lines (c8/V8), so it is NOT comparable to Vitest's executable-line percentage; compare each gate only to its own history.",
-  "lines": 20,
-  "statements": 20,
-  "functions": 60,
-  "branches": 70
+  "//baseline": "Measured baseline 2026-07-28: lines/statements 57.05%, branches 77.02%, functions 79.5% (334 src-suite scripts). Ratchet: thresholds sit a small buffer under the measured totals so the number can only go up — bump them when coverage rises. Like .c8rc.json, line % here counts physical lines (c8/V8), so it is NOT comparable to Vitest's executable-line percentage; compare each gate only to its own history.",
+  "lines": 56,
+  "statements": 56,
+  "functions": 78,
+  "branches": 76
 }

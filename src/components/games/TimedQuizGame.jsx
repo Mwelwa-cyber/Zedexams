@@ -23,6 +23,22 @@ import { LevelUpBanner, XpProgressBar, PersonalBestBanner } from './Progress'
 import { comboHeat } from './gameFeel'
 import { DoneStat, SaveBanner, StreakBanner } from './DoneBanners'
 import { RatingStars } from './gamesUi'
+import {
+  accuracyPct,
+  advanceDeck,
+  applyPenalty,
+  correctGain,
+  correctIndexFor,
+  isTimerDanger,
+  optionLetter,
+  questionAt,
+  ratingStars,
+  resolveGameConfig,
+  shouldCelebrate,
+  timeSpentSeconds,
+  timerPct,
+  wrongPenalty,
+} from './timedQuizCore'
 
 /**
  * Engine for any `type: "timed_quiz"` game document.
@@ -40,8 +56,7 @@ import { RatingStars } from './gamesUi'
  *      sign-in nudge if their score wasn't saved.
  */
 export default function TimedQuizGame({ game }) {
-  const points = Number(game.points) || 10
-  const duration = Number(game.timer) || 60
+  const { points, duration } = resolveGameConfig(game)
   const pool = useMemo(() => game.questions || [], [game.questions])
 
   const [phase, setPhase] = useState('ready') // ready | playing | done
@@ -89,21 +104,17 @@ export default function TimedQuizGame({ game }) {
   function advanceToNextQuestion() {
     setPicked(null)
     setQuestionNo((n) => n + 1)
-    const nextPos = pos + 1
-    if (nextPos >= deck.length) {
-      // Deck exhausted — reshuffle. If the freshly shuffled deck happens to
-      // start with the same question we just answered, rotate by one so we
-      // never see an immediate back-to-back repeat.
-      const justAsked = deck[pos]?.question
-      let fresh = shuffle(pool, Date.now() + Math.random() * 9999)
-      if (fresh.length > 1 && fresh[0]?.question === justAsked) {
-        fresh = [fresh[1], fresh[0], ...fresh.slice(2)]
-      }
-      setDeck(fresh)
-      setPos(0)
-    } else {
-      setPos(nextPos)
-    }
+    // Deck sequencing (reshuffle-on-exhaustion + no immediate repeat) lives
+    // in timedQuizCore; the fresh seed keeps runtime shuffles varied.
+    const next = advanceDeck({
+      deck,
+      pos,
+      pool,
+      shuffle,
+      seed: Date.now() + Math.random() * 9999,
+    })
+    setDeck(next.deck)
+    setPos(next.pos)
   }
 
   function start() {
@@ -132,14 +143,13 @@ export default function TimedQuizGame({ game }) {
   function pick(i) {
     if (phase !== 'playing' || picked !== null) return
     const q = currentQuestion()
-    const correctIdx = q.options.findIndex((o) => String(o) === String(q.answer))
+    const correctIdx = correctIndexFor(q)
     setPicked(i)
     setRevealedAt(Date.now())
     if (i === correctIdx) {
       playCorrect()
       const newStreak = streak + 1
-      const bonus = Math.min(5, Math.floor(newStreak / 3))
-      const gained = points + bonus
+      const gained = correctGain(points, newStreak)
       const heat = comboHeat(newStreak)
       if (heat.level > 0) playStreak(heat.level)
       pushPop(gained)
@@ -149,22 +159,21 @@ export default function TimedQuizGame({ game }) {
       setScore((s) => s + gained)
     } else {
       playWrong()
-      const penalty = Math.max(2, Math.floor(points / 4))
+      const penalty = wrongPenalty(points)
       pushPop(-penalty)
       setShakeAt(questionNo)
       setWrong((w) => w + 1)
       setStreak(0)
-      setScore((s) => Math.max(0, s - penalty))
+      setScore((s) => applyPenalty(s, penalty))
     }
   }
 
   async function finish() {
     setPhase('done')
-    const total = correct + wrong
-    const accuracy = total ? Math.round((correct / total) * 100) : 0
-    const timeSpent = startedAtRef.current ? Math.round((Date.now() - startedAtRef.current) / 1000) : duration
+    const accuracy = accuracyPct(correct, wrong)
+    const timeSpent = timeSpentSeconds(startedAtRef.current, Date.now(), duration)
     // Celebrate if they played well
-    if (score >= 50 || accuracy >= 80) {
+    if (shouldCelebrate(score, accuracy)) {
       playWin()
       setConfettiKey((k) => k + 1)
     }
@@ -221,8 +230,7 @@ export default function TimedQuizGame({ game }) {
 
   if (phase === 'ready') return <ReadyCard game={game} onStart={start} />
   if (phase === 'done') {
-    const total = correct + wrong
-    const accuracy = total ? Math.round((correct / total) * 100) : 0
+    const accuracy = accuracyPct(correct, wrong)
     return (
       <>
         <Confetti fire={confettiKey} />
@@ -245,8 +253,8 @@ export default function TimedQuizGame({ game }) {
   }
 
   const q = currentQuestion()
-  const correctIdx = q.options.findIndex((o) => String(o) === String(q.answer))
-  const pct = Math.max(0, Math.round((timeLeft / duration) * 100))
+  const correctIdx = correctIndexFor(q)
+  const pct = timerPct(timeLeft, duration)
 
   return (
     <div className="space-y-5">
@@ -275,7 +283,7 @@ export default function TimedQuizGame({ game }) {
             <Choice
               key={`${seed}-${questionNo}-${i}`}
               label={opt}
-              letter={String.fromCharCode(65 + i)}
+              letter={optionLetter(i)}
               picked={picked}
               isPicked={picked === i}
               isAnswer={correctIdx === i}
@@ -298,7 +306,7 @@ export default function TimedQuizGame({ game }) {
   )
 
   function currentQuestion() {
-    return deck[pos] || { question: '', options: [], answer: '' }
+    return questionAt(deck, pos)
   }
 }
 
@@ -358,7 +366,7 @@ function DoneCard({ game, score, correct, wrong, accuracy, bestStreak, saveResul
           <DoneStat label="Best streak" value={bestStreak} tone="rose" />
         </div>
         <div className="mb-4 flex justify-center">
-          <RatingStars filled={accuracy >= 90 ? 5 : accuracy >= 70 ? 4 : accuracy >= 50 ? 3 : 2} />
+          <RatingStars filled={ratingStars(accuracy)} />
         </div>
         <SaveBanner saveResult={saveResult} />
         {levelChange?.after && (
@@ -394,7 +402,7 @@ function DoneCard({ game, score, correct, wrong, accuracy, bestStreak, saveResul
 }
 
 function TimerBar({ timeLeft, pct }) {
-  const danger = timeLeft <= 10
+  const danger = isTimerDanger(timeLeft)
   return (
     <div className="zx-card-dark flex items-center gap-3 rounded-[22px] px-4 py-3">
       <div className="flex-1 h-3 rounded-full bg-white/15 overflow-hidden border border-white/10">

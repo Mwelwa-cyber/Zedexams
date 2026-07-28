@@ -38,6 +38,10 @@
  *     engaged then went quiet 14–45 days ago and surfaces the highest-value
  *     ones to win back, with a drafted nudge. Read-only — does not message
  *     learners. Writes an agentJobs rollup.
+ *
+ * Pure decision logic (rollup shaping, status/notability decisions, the
+ * audit accumulator, Dawn staleness checks) lives in ./cronCore.js; this
+ * file owns the schedules, secrets, and Firestore/model/email I/O.
  */
 
 const admin = require("firebase-admin");
@@ -57,7 +61,28 @@ const {refreshFxRate} = require("../fxRate");
 const {writeAgentRollup} = require("./rollups");
 const {buildPublicStatus} = require("./publicStatusCore");
 const {fetchSessionStatus, fetchBriefing, parseBriefing, isTerminalStatus} = require("./runners/dawn");
-const {shouldAuditGeneration} = require("./auditScope");
+const {
+  AUDIT_SAMPLE_SIZE,
+  truncateErrorMessage,
+  buildFailureJob,
+  auditGenerations,
+  buildQuillRollup,
+  buildCalaAuditRollup,
+  buildVigilRollup,
+  buildTillRollup,
+  buildEchoRollup,
+  isContentGateRunNotable,
+  buildContentGateRollup,
+  buildCompassRollup,
+  buildAnchorRollup,
+  buildMarshalRollup,
+  dawnRunStartMs,
+  isDawnRunStale,
+  dawnRecipient,
+  buildDawnDoneUpdate,
+  ECHO_DRAFT_SYSTEM_PROMPT,
+  buildEchoDraftUserContent,
+} = require("./cronCore");
 
 // Vigil needs the Anthropic key for fix suggestions, the SMTP secrets for the
 // alert email, and GitHub credentials to file bug issues. For GitHub it prefers
@@ -114,28 +139,19 @@ const nightlyQaSmoke = onSchedule(NIGHTLY_QA_OPTS, async () => {
     report = await runQuill();
   } catch (err) {
     console.error("Quill failed", err);
-    await db.collection("agentJobs").add({
+    await db.collection("agentJobs").add(buildFailureJob({
       agentId: "quill",
       department: "qaEng",
-      status: "failed",
-      input: {runType: "nightly-smoke"},
-      error: String(err && err.message || err).slice(0, 500),
-      createdBy: "system",
+      runType: "nightly-smoke",
+      err,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       runMs: Date.now() - start,
-    });
+    }));
     return;
   }
 
-  await writeAgentRollup(db, admin.firestore.FieldValue, {
-    agentId: "quill",
-    department: "qaEng",
-    status: report.ok ? "done" : "awaiting_approval",
-    input: {runType: "nightly-smoke"},
-    output: {quill: report},
-    createdBy: "system",
-    runMs: Date.now() - start,
-  });
+  await writeAgentRollup(db, admin.firestore.FieldValue,
+      buildQuillRollup({report, runMs: Date.now() - start}));
 });
 
 // Sunday early morning — sampling 20 recent aiGenerations gives us a
@@ -148,7 +164,6 @@ const WEEKLY_AUDIT_OPTS = {
   timeoutSeconds: 300,
   memory: "256MiB",
 };
-const AUDIT_SAMPLE_SIZE = 20;
 
 const weeklyCbcAlignmentAudit = onSchedule(WEEKLY_AUDIT_OPTS, async () => {
   const db = admin.firestore();
@@ -176,78 +191,10 @@ const weeklyCbcAlignmentAudit = onSchedule(WEEKLY_AUDIT_OPTS, async () => {
     return;
   }
 
-  const findings = [];
-  let aligned = 0;
-  let drifted = 0;
-  let errored = 0;
-  let skipped = 0;
+  const summary = await auditGenerations({docs: snap.docs, runCala});
 
-  for (const docSnap of snap.docs) {
-    const data = docSnap.data() || {};
-    const inputs = data.inputs || {};
-    const draft = data.output;
-    if (!draft) {
-      // Skip in-flight or failed generations.
-      continue;
-    }
-    // Skip content Cala can't meaningfully align — non-curricular tools
-    // (timetables, records of work) and subject-wide generations with no
-    // topic (e.g. a whole-subject exam paper). Auditing these only ever
-    // produced a bogus "Topic not found in verified CBC KB" finding.
-    if (!shouldAuditGeneration({tool: data.tool, inputs})) {
-      skipped += 1;
-      continue;
-    }
-    // Synthesize a minimal agentJobs-shaped doc for runCala to consume.
-    const fakeJob = {
-      input: {
-        grade: inputs.grade,
-        subject: inputs.subject,
-        topic: inputs.topic,
-        subtopic: inputs.subtopic,
-      },
-      output: {aria: {draft}},
-    };
-    try {
-      const result = await runCala({job: fakeJob});
-      if (result.aligned) aligned += 1; else drifted += 1;
-      if (!result.aligned) {
-        findings.push({
-          generationId: docSnap.id,
-          tool: data.tool || null,
-          gaps: result.gaps,
-          drift: result.drift,
-        });
-      }
-    } catch (err) {
-      errored += 1;
-      findings.push({
-        generationId: docSnap.id,
-        tool: data.tool || null,
-        error: String(err && err.message || err).slice(0, 200),
-      });
-    }
-  }
-
-  const summary = {
-    sampleSize: snap.size,
-    audited: aligned + drifted,
-    aligned,
-    drifted,
-    errored,
-    skipped,
-    findings: findings.slice(0, 50),
-  };
-
-  await writeAgentRollup(db, admin.firestore.FieldValue, {
-    agentId: "cala",
-    department: "qaEng",
-    status: drifted > 0 || errored > 0 ? "awaiting_approval" : "done",
-    input: {runType: "weekly-cbc-audit", sampleSize: snap.size},
-    output: {cala: summary},
-    createdBy: "system",
-    runMs: Date.now() - start,
-  });
+  await writeAgentRollup(db, admin.firestore.FieldValue,
+      buildCalaAuditRollup({summary, runMs: Date.now() - start}));
 });
 
 // Vigil — hourly health sweep. Runs the deterministic checks for free; only
@@ -276,16 +223,14 @@ const hourlyMonitor = onSchedule(HOURLY_MONITOR_OPTS, async () => {
     });
   } catch (err) {
     console.error("Vigil failed", err);
-    await db.collection("agentJobs").add({
+    await db.collection("agentJobs").add(buildFailureJob({
       agentId: "vigil",
       department: "qaEng",
-      status: "failed",
-      input: {runType: "hourly-monitor"},
-      error: String(err && err.message || err).slice(0, 500),
-      createdBy: "system",
+      runType: "hourly-monitor",
+      err,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       runMs: Date.now() - start,
-    });
+    }));
     return;
   }
 
@@ -297,7 +242,7 @@ const hourlyMonitor = onSchedule(HOURLY_MONITOR_OPTS, async () => {
       try {
         report.suggestions = await suggestFixes(apiKey, report);
       } catch (err) {
-        report.suggestionsError = String(err && err.message || err).slice(0, 300);
+        report.suggestionsError = truncateErrorMessage(err, 300);
       }
     }
     try {
@@ -317,19 +262,12 @@ const hourlyMonitor = onSchedule(HOURLY_MONITOR_OPTS, async () => {
         },
       });
     } catch (err) {
-      report.notifyError = String(err && err.message || err).slice(0, 300);
+      report.notifyError = truncateErrorMessage(err, 300);
     }
   }
 
-  await writeAgentRollup(db, admin.firestore.FieldValue, {
-    agentId: "vigil",
-    department: "qaEng",
-    status: report.ok ? "done" : "awaiting_approval",
-    input: {runType: "hourly-monitor"},
-    output: {vigil: report},
-    createdBy: "system",
-    runMs: Date.now() - start,
-  });
+  await writeAgentRollup(db, admin.firestore.FieldValue,
+      buildVigilRollup({report, runMs: Date.now() - start}));
 
   // Publish the honest public status doc the /status page renders. Derived from
   // THIS real Vigil report (not shallow client probes), with per-component
@@ -345,7 +283,7 @@ const hourlyMonitor = onSchedule(HOURLY_MONITOR_OPTS, async () => {
     publicStatus.updatedAt = admin.firestore.FieldValue.serverTimestamp();
     await statusRef.set(publicStatus, {merge: false});
   } catch (err) {
-    console.error("[hourlyMonitor] publicStatus write failed", String(err && err.message || err).slice(0, 300));
+    console.error("[hourlyMonitor] publicStatus write failed", truncateErrorMessage(err, 300));
   }
 });
 
@@ -386,31 +324,19 @@ const hourlyRevenueReconcile = onSchedule(HOURLY_RECONCILE_OPTS, async () => {
     });
   } catch (err) {
     console.error("Till failed", err);
-    await db.collection("agentJobs").add({
+    await db.collection("agentJobs").add(buildFailureJob({
       agentId: "till",
       department: "revenue",
-      status: "failed",
-      input: {runType: "hourly-reconcile"},
-      error: String(err && err.message || err).slice(0, 500),
-      createdBy: "system",
+      runType: "hourly-reconcile",
+      err,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       runMs: Date.now() - start,
-    });
+    }));
     return;
   }
 
-  // Surface notable runs (recovered money or errors needing a human) at the
-  // top of the dashboard; quiet "nothing to do" runs are just logged.
-  const notable = summary.recovered.length > 0 || summary.errors.length > 0;
-  await writeAgentRollup(db, admin.firestore.FieldValue, {
-    agentId: "till",
-    department: "revenue",
-    status: notable ? "awaiting_approval" : "done",
-    input: {runType: "hourly-reconcile"},
-    output: {till: summary},
-    createdBy: "system",
-    runMs: Date.now() - start,
-  });
+  await writeAgentRollup(db, admin.firestore.FieldValue,
+      buildTillRollup({summary, runMs: Date.now() - start}));
 });
 
 // Echo — support triage every 2 hours. Sweeps new feedback + the invisible
@@ -437,21 +363,12 @@ const supportTriage = onSchedule(SUPPORT_TRIAGE_OPTS, async () => {
   async function draftReply({kind, item}) {
     if (!apiKey) return templateReply({kind, item});
     const {callAnthropic} = require("../aiService");
-    const data = item.data || {};
-    const systemPrompt =
-      "You are a warm, concise support agent for ZedExams, a CBC learning " +
-      "platform for Zambian learners, teachers and parents. Draft a reply " +
-      "(under 110 words) to the message below. Be specific to what they said, " +
-      "acknowledge their point, never promise refunds or timelines you can't " +
-      "be sure of, and sign off as 'The ZedExams Team'. Plain text only — no " +
-      "subject line, no preamble.";
-    const who = data.name ? `Name: ${data.name}\n` : "";
     try {
       const reply = await callAnthropic(apiKey, {
-        systemPrompt,
+        systemPrompt: ECHO_DRAFT_SYSTEM_PROMPT,
         messages: [{
           role: "user",
-          content: `${who}Category: ${kind}\nMessage:\n${String(data.message || "").slice(0, 1200)}`,
+          content: buildEchoDraftUserContent({kind, item}),
         }],
         model: "claude-haiku-4-5-20251001",
         maxTokens: 300,
@@ -471,31 +388,19 @@ const supportTriage = onSchedule(SUPPORT_TRIAGE_OPTS, async () => {
     summary = await runEchoTriage({db, draftReply});
   } catch (err) {
     console.error("Echo failed", err);
-    await db.collection("agentJobs").add({
+    await db.collection("agentJobs").add(buildFailureJob({
       agentId: "echo",
       department: "support",
-      status: "failed",
-      input: {runType: "support-triage"},
-      error: String(err && err.message || err).slice(0, 500),
-      createdBy: "system",
+      runType: "support-triage",
+      err,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       runMs: Date.now() - start,
-    });
+    }));
     return;
   }
 
-  // Anything triaged (or errored) is something a human should glance at and
-  // send; a quiet run with no new messages is just logged.
-  const notable = summary.processed > 0 || summary.errors.length > 0;
-  await writeAgentRollup(db, admin.firestore.FieldValue, {
-    agentId: "echo",
-    department: "support",
-    status: notable ? "awaiting_approval" : "done",
-    input: {runType: "support-triage"},
-    output: {echo: summary},
-    createdBy: "system",
-    runMs: Date.now() - start,
-  });
+  await writeAgentRollup(db, admin.firestore.FieldValue,
+      buildEchoRollup({summary, runMs: Date.now() - start}));
 });
 
 // Content auto-publish gate — every 30 minutes. Publishes verified content
@@ -528,33 +433,24 @@ const contentAutoPublish = onSchedule(CONTENT_GATE_OPTS, async () => {
     summary = await runContentGate({db, config});
   } catch (err) {
     console.error("Content gate failed", err);
-    await db.collection("agentJobs").add({
+    await db.collection("agentJobs").add(buildFailureJob({
       agentId: "pubo",
       department: "content",
+      runType: "content-auto-publish",
       status: "done",
-      input: {runType: "content-auto-publish"},
-      error: String(err && err.message || err).slice(0, 500),
-      createdBy: "system",
+      err,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       runMs: Date.now() - start,
-    });
+    }));
     return;
   }
 
-  // Only log a run that actually published something (or errored). A quiet
-  // sweep — disabled, or nothing clean to publish — writes nothing, so this
-  // doesn't spam the dashboard every 30 minutes.
-  if (summary.autoApproved.length > 0 || summary.errors.length > 0) {
-    await db.collection("agentJobs").add({
-      agentId: "pubo",
-      department: "content",
-      status: "done",
-      input: {runType: "content-auto-publish"},
-      output: {gate: summary},
-      createdBy: "system",
+  if (isContentGateRunNotable(summary)) {
+    await db.collection("agentJobs").add(buildContentGateRollup({
+      summary,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       runMs: Date.now() - start,
-    });
+    }));
   }
 });
 
@@ -578,30 +474,19 @@ const weeklyProductSignal = onSchedule(PRODUCT_SIGNAL_OPTS, async () => {
     summary = await runCompass({db});
   } catch (err) {
     console.error("Compass failed", err);
-    await db.collection("agentJobs").add({
+    await db.collection("agentJobs").add(buildFailureJob({
       agentId: "compass",
       department: "content",
-      status: "failed",
-      input: {runType: "weekly-product-signal"},
-      error: String(err && err.message || err).slice(0, 500),
-      createdBy: "system",
+      runType: "weekly-product-signal",
+      err,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       runMs: Date.now() - start,
-    });
+    }));
     return;
   }
 
-  // A backlog (or an error) is something to act on; an empty week is just logged.
-  const notable = summary.backlog.length > 0 || summary.errors.length > 0;
-  await writeAgentRollup(db, admin.firestore.FieldValue, {
-    agentId: "compass",
-    department: "content",
-    status: notable ? "awaiting_approval" : "done",
-    input: {runType: "weekly-product-signal", windowDays: summary.windowDays},
-    output: {compass: summary},
-    createdBy: "system",
-    runMs: Date.now() - start,
-  });
+  await writeAgentRollup(db, admin.firestore.FieldValue,
+      buildCompassRollup({summary, runMs: Date.now() - start}));
 });
 
 // Anchor — weekly retention scan (Mondays 07:00 Africa/Lusaka). Surfaces
@@ -624,29 +509,19 @@ const weeklyRetentionScan = onSchedule(RETENTION_SCAN_OPTS, async () => {
     summary = await runAnchor({db});
   } catch (err) {
     console.error("Anchor failed", err);
-    await db.collection("agentJobs").add({
+    await db.collection("agentJobs").add(buildFailureJob({
       agentId: "anchor",
       department: "growth",
-      status: "failed",
-      input: {runType: "weekly-retention-scan"},
-      error: String(err && err.message || err).slice(0, 500),
-      createdBy: "system",
+      runType: "weekly-retention-scan",
+      err,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       runMs: Date.now() - start,
-    });
+    }));
     return;
   }
 
-  const notable = summary.atRisk > 0 || summary.errors.length > 0;
-  await writeAgentRollup(db, admin.firestore.FieldValue, {
-    agentId: "anchor",
-    department: "growth",
-    status: notable ? "awaiting_approval" : "done",
-    input: {runType: "weekly-retention-scan"},
-    output: {anchor: summary},
-    createdBy: "system",
-    runMs: Date.now() - start,
-  });
+  await writeAgentRollup(db, admin.firestore.FieldValue,
+      buildAnchorRollup({summary, runMs: Date.now() - start}));
 });
 
 // Dawn — delivers an on-demand morning briefing once the Managed Agent has
@@ -655,9 +530,8 @@ const weeklyRetentionScan = onSchedule(RETENTION_SCAN_OPTS, async () => {
 // poller watches those docs, and when the session goes idle it pulls the
 // briefing Dawn wrote, emails it, and saves it back onto the doc so the panel
 // renders it inline. Cheap: nearly every run finds no in-flight briefing and
-// returns after a single bounded query. A run that hangs past STALE_MS is
+// returns after a single bounded query. A run that hangs past DAWN_STALE_MS is
 // marked 'timeout' so it can't be polled forever.
-const DAWN_STALE_MS = 25 * 60 * 1000; // a Dawn run that isn't done by ~25 min is stuck.
 const DAWN_DELIVERY_OPTS = {
   schedule: "every 5 minutes",
   timeZone: "Africa/Lusaka",
@@ -717,7 +591,7 @@ const deliverDawnBriefings = onSchedule(DAWN_DELIVERY_OPTS, async () => {
   for (const doc of snap.docs) {
     const run = doc.data();
     const sessionId = run.sessionId || doc.id;
-    const startedMs = run.startedAt?.toMillis ? run.startedAt.toMillis() : now;
+    const startedMs = dawnRunStartMs(run, now);
 
     try {
       const status = await fetchSessionStatus({fetchImpl: fetch, apiKey, sessionId});
@@ -725,7 +599,7 @@ const deliverDawnBriefings = onSchedule(DAWN_DELIVERY_OPTS, async () => {
       if (!isTerminalStatus(status)) {
         // Still working. Give up on a run that has hung well past a normal ~10
         // min so a stuck session doesn't get polled indefinitely.
-        if (now - startedMs > DAWN_STALE_MS) {
+        if (isDawnRunStale({startedMs, now})) {
           await doc.ref.update({
             status: "timeout",
             lastStatus: status,
@@ -741,7 +615,7 @@ const deliverDawnBriefings = onSchedule(DAWN_DELIVERY_OPTS, async () => {
       // the session going idle, so a missing file isn't fatal until STALE_MS.
       const briefing = await fetchBriefing({fetchImpl: fetch, apiKey, sessionId});
       if (!briefing) {
-        if (now - startedMs > DAWN_STALE_MS) {
+        if (isDawnRunStale({startedMs, now})) {
           await doc.ref.update({
             status: "error",
             error: "Dawn finished but wrote no briefing file.",
@@ -753,35 +627,34 @@ const deliverDawnBriefings = onSchedule(DAWN_DELIVERY_OPTS, async () => {
 
       const {subject, body} = parseBriefing(briefing.text);
       let emailError = null;
-      const to = String(run.toEmail || "").trim();
+      const to = dawnRecipient(run);
       if (to) {
         try {
           const sent = await emailBriefing({to, subject, body});
           if (!sent.ok) emailError = sent.reason;
         } catch (err) {
-          emailError = String(err && err.message || err).slice(0, 300);
+          emailError = truncateErrorMessage(err, 300);
         }
       } else {
         emailError = "no-recipient";
       }
 
-      await doc.ref.update({
-        status: "done",
+      await doc.ref.update(buildDawnDoneUpdate({
         subject,
-        briefing: body.slice(0, 100_000),
-        sourceFile: briefing.filename,
-        emailedTo: emailError ? null : (to || null),
+        body,
+        briefing,
+        to,
         emailError,
         finishedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      }));
     } catch (err) {
       console.error(`Dawn delivery: session ${sessionId} failed`, err);
       // Don't wedge a run on a transient API hiccup — only fail it out once it
       // is clearly stuck.
-      if (now - startedMs > DAWN_STALE_MS) {
+      if (isDawnRunStale({startedMs, now})) {
         await doc.ref.update({
           status: "error",
-          error: String(err && err.message || err).slice(0, 300),
+          error: truncateErrorMessage(err, 300),
           finishedAt: admin.firestore.FieldValue.serverTimestamp(),
         }).catch(() => {});
       }
@@ -811,28 +684,19 @@ const hourlyAgentSupervisor = onSchedule(SUPERVISOR_OPTS, async () => {
     report = await runMarshal({db});
   } catch (err) {
     console.error("Marshal failed", err);
-    await db.collection("agentJobs").add({
+    await db.collection("agentJobs").add(buildFailureJob({
       agentId: "marshal",
       department: "qaEng",
-      status: "failed",
-      input: {runType: "hourly-supervisor"},
-      error: String(err && err.message || err).slice(0, 500),
-      createdBy: "system",
+      runType: "hourly-supervisor",
+      err,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       runMs: Date.now() - start,
-    });
+    }));
     return;
   }
 
-  await writeAgentRollup(db, admin.firestore.FieldValue, {
-    agentId: "marshal",
-    department: "qaEng",
-    status: report.healthy ? "done" : "awaiting_approval",
-    input: {runType: "hourly-supervisor"},
-    output: {marshal: report},
-    createdBy: "system",
-    runMs: Date.now() - start,
-  });
+  await writeAgentRollup(db, admin.firestore.FieldValue,
+      buildMarshalRollup({report, runMs: Date.now() - start}));
 });
 
 // Daily FX refresh (treasury). Fetches the ZMW/USD rate once a day and writes
