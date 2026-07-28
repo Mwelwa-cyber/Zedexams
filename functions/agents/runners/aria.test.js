@@ -10,6 +10,7 @@
  */
 
 const assert = require("node:assert");
+const {isValidIdempotencyKey} = require("../../aiOperationsCore");
 const {runAria, SUPPORTED_TOOLS} = require("./aria");
 
 let passed = 0;
@@ -32,28 +33,28 @@ async function run() {
   // ── refusal gates ──────────────────────────────────────────────────
   await test("refuses a tool it does not drive", async () => {
     await assert.rejects(
-      () => runAria({job: {createdBy: "u1", input: {tool: "assessment"}}}),
+      () => runAria({jobId: "job_test", job: {createdBy: "u1", input: {tool: "assessment"}}}),
       /does not drive the "assessment" generator/,
     );
   });
 
   await test("refuses a missing tool", async () => {
     await assert.rejects(
-      () => runAria({job: {createdBy: "u1", input: {}}}),
+      () => runAria({jobId: "job_test", job: {createdBy: "u1", input: {}}}),
       /does not drive the "<missing>" generator/,
     );
   });
 
   await test("refuses when createdBy is absent", async () => {
     await assert.rejects(
-      () => runAria({job: {input: {tool: "worksheet"}}}),
+      () => runAria({jobId: "job_test", job: {input: {tool: "worksheet"}}}),
       /needs a real teacher uid/,
     );
   });
 
   await test("refuses the synthetic 'system' uid", async () => {
     await assert.rejects(
-      () => runAria({job: {createdBy: "system", input: {tool: "worksheet"}}}),
+      () => runAria({jobId: "job_test", job: {createdBy: "system", input: {tool: "worksheet"}}}),
       /needs a real teacher uid/,
     );
   });
@@ -77,6 +78,7 @@ async function run() {
     };
 
     const out = await runAria({
+      jobId: "job_test",
       job: {createdBy: "teacher-7", input: {tool: "WORKSHEET", grade: "6"}},
       anthropicApiKeySecret: {value: () => "secret"},
       runners: fakeRunners,
@@ -104,6 +106,7 @@ async function run() {
       }},
     };
     const out = await runAria({
+      jobId: "job_test",
       job: {createdBy: "t1", input: {tool: "notes"}},
       anthropicApiKeySecret: {},
       runners: fakeRunners,
@@ -112,6 +115,40 @@ async function run() {
     assert.strictEqual(out.draft, null);
     assert.strictEqual(out.kbGrounded, false);
   });
+
+  // ── The idempotency key Aria hands its generators ──────────────────────
+  //
+  // Regression test for a real production break. Slice 2 made five generators
+  // refuse a request with no idempotency key; Aria called them with none, so
+  // her worksheet, flashcards, rubric and scheme_of_work jobs failed outright
+  // and nothing in the suite noticed — every existing test injected a fake
+  // runner that did not care.
+  {
+    const seen = [];
+    const runners = {
+      worksheet: {run: async (a) => { seen.push(a); return {generationId: "g1", worksheet: {}}; },
+        draftKey: "worksheet"},
+    };
+    const job = {createdBy: "u1", input: {tool: "worksheet", grade: "G5"}};
+
+    await runAria({jobId: "job_A", job, anthropicApiKeySecret: "s", runners, getApiKey: () => "k"});
+    await test("passes an idempotency key to the generator", () => assert.ok(isValidIdempotencyKey(seen[0].idempotencyKey)));
+
+    await runAria({jobId: "job_A", job, anthropicApiKeySecret: "s", runners, getApiKey: () => "k"});
+    await test("the SAME job yields the SAME key, so a retry resumes rather than re-pays", () => assert.ok(seen[1].idempotencyKey === seen[0].idempotencyKey));
+
+    await runAria({jobId: "job_B", job, anthropicApiKeySecret: "s", runners, getApiKey: () => "k"});
+    await test("a DIFFERENT job yields a different key", () => assert.ok(seen[2].idempotencyKey !== seen[0].idempotencyKey));
+
+    // The key must not move when the job's data does. Changed inputs on the
+    // same job are meant to be REJECTED by fingerprint mismatch, which only
+    // happens if the key stays put.
+    await runAria({
+      jobId: "job_A", job: {...job, input: {...job.input, grade: "G6"}},
+      anthropicApiKeySecret: "s", runners, getApiKey: () => "k",
+    });
+    await test("the key is derived from the job id alone, not from its mutable input", () => assert.ok(seen[3].idempotencyKey === seen[0].idempotencyKey));
+  }
 
   console.log(`\n${passed} passed`);
 }
