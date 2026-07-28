@@ -53,7 +53,14 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Must outlast the Deploy Firebase run this job WAITS for, not just its own
+    # work. Budget: ~4min lint+test+build+prerender, then up to 25min waiting on
+    # deploy-firebase (its own cap is 20min plus queueing), then ~4min to deploy
+    # Hosting. At 15 minutes the job was cancelled mid-wait whenever a functions
+    # deploy ran long — which ships the API without the client that matches it,
+    # the one skew direction that breaks users. scripts/test-deploy-timeouts.mjs
+    # fails if this stops covering the wait window below.
+    timeout-minutes: 40
 
     permissions:
       contents: read
@@ -217,7 +224,10 @@ jobs:
         if: steps.firebase_changes.outputs.required == 'true'
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          FIREBASE_DEPLOY_TIMEOUT_SECONDS: "720"
+          # 25min: deploy-firebase's job cap is 20min and it can sit queued for
+          # a few more, so a shorter window here abandons a functions deploy
+          # that was still going to succeed.
+          FIREBASE_DEPLOY_TIMEOUT_SECONDS: "1500"
           FIREBASE_DEPLOY_POLL_SECONDS: "20"
         run: |
           python - <<'PY'
