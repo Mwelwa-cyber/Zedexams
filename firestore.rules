@@ -849,6 +849,117 @@ service cloud.firestore {
       allow delete: if isVerified() && (resource.data.ownerUid == request.auth.uid || isAdmin());
     }
 
+    // ── teacherLibraryItems (the rendered, re-saveable library copy) ──────
+    //
+    // ONE logical generation produces ONE aiGenerations operation document and
+    // AT MOST ONE library item. Before this collection existed, saving a
+    // lesson plan called addDoc() on aiGenerations, so a single generation left
+    // TWO documents there: the server's deterministic operation record and an
+    // auto-ID rendered copy. The operation record looked perfectly correct in
+    // isolation the whole time, which is why it survived so long.
+    //
+    // The split is deliberate. aiGenerations stays SERVER-OWNED: what the model
+    // was asked, what it cost, what it returned. This collection is
+    // TEACHER-OWNED: the rendered plan they edit and re-save. Mutable library
+    // artefacts must never be written onto the operation record, and no
+    // operation/model/usage/token/cost field may be written here.
+    //
+    // Two origin contracts, because provenance that is sometimes true is worse
+    // than none. `sourceGenerationId` means "a real server-owned operation
+    // produced this", so a template instantiation — which has no upstream
+    // operation at all — must NOT carry one.
+    match /teacherLibraryItems/{itemId} {
+      function item() { return request.resource.data; }
+      function changed() { return item().diff(resource.data).affectedKeys(); }
+
+      // Fields a teacher may change on a re-save. Everything about where the
+      // artefact CAME FROM is absent, and so is everything about what the model
+      // did — those are the two ways this document could start lying.
+      function mutableFields() {
+        return ['data', 'html', 'meta', 'inputs', 'studioFormat',
+                'library', 'contentHash', 'revision', 'updatedAt', 'visibility'];
+      }
+
+      allow read: if isVerified() && resource.data.ownerUid == request.auth.uid;
+      allow read: if isAdmin();
+
+      allow create: if isVerified()
+                       && item().ownerUid == request.auth.uid
+                       && item().visibility == 'private'
+                       && item().revision is int && item().revision == 1
+                       && item().contentHash is string && item().contentHash.size() > 0
+                       && item().keys().hasOnly([
+                         'ownerUid', 'originType', 'sourceGenerationId',
+                         'sourceOperationType', 'sourceTemplateId', 'tool',
+                         'inputs', 'library', 'meta', 'data', 'html',
+                         'studioFormat', 'contentHash', 'createdAt',
+                         'updatedAt', 'revision', 'visibility',
+                       ])
+                       && (
+                         // An AI generation: the id IS the operation's
+                         // idempotency key, and that operation must exist and
+                         // belong to the same teacher. Without the existence
+                         // check a client could mint provenance for an
+                         // operation that never ran.
+                         (
+                           item().originType == 'ai_generation'
+                           && item().sourceGenerationId == itemId
+                           && item().sourceOperationType is string
+                           && !('sourceTemplateId' in item())
+                           && exists(/databases/$(database)/documents/aiGenerations/$(itemId))
+                           && get(/databases/$(database)/documents/aiGenerations/$(itemId))
+                                .data.ownerUid == request.auth.uid
+                         )
+                         ||
+                         // A template instantiation: no operation ran, so there
+                         // is no generation id to point at. The id is a fresh
+                         // UUID because every "Use template" click creates an
+                         // independent plan.
+                         (
+                           item().originType == 'template_instantiation'
+                           && !('sourceGenerationId' in item())
+                           && !('sourceOperationType' in item())
+                           && item().sourceTemplateId is string
+                           && exists(/databases/$(database)/documents/lessonPlanTemplates/$(item().sourceTemplateId))
+                         )
+                       );
+
+      // A re-save updates this document in place — that is the whole point, so
+      // the update rule must ALLOW data/html/contentHash/revision/updatedAt to
+      // change together. A rule that froze them would make re-saving fail, and
+      // the studio's fail-soft save path would swallow it.
+      allow update: if isVerified()
+                       && resource.data.ownerUid == request.auth.uid
+                       && changed().hasOnly(mutableFields())
+                       // Provenance is fixed at creation, in both contracts.
+                       && item().ownerUid == resource.data.ownerUid
+                       && item().originType == resource.data.originType
+                       && item().tool == resource.data.tool
+                       && (!('sourceGenerationId' in resource.data)
+                           || item().sourceGenerationId == resource.data.sourceGenerationId)
+                       && (!('sourceOperationType' in resource.data)
+                           || item().sourceOperationType == resource.data.sourceOperationType)
+                       && (!('sourceTemplateId' in resource.data)
+                           || item().sourceTemplateId == resource.data.sourceTemplateId)
+                       // Content and its identity move together. A write that
+                       // changes the plan while keeping the old hash, or that
+                       // changes content without advancing the revision, would
+                       // leave the two disagreeing about what this document is.
+                       && item().contentHash is string
+                       && item().revision is int
+                       && (
+                         (item().contentHash == resource.data.contentHash
+                          && item().revision == resource.data.revision)
+                         ||
+                         (item().contentHash != resource.data.contentHash
+                          && item().revision == resource.data.revision + 1)
+                       );
+
+      allow update: if isAdmin();
+      allow delete: if isVerified()
+                       && (resource.data.ownerUid == request.auth.uid || isAdmin());
+    }
+
     // ── lessonPlanTemplates (Template Bank) ───────────────────
     // Reusable, anonymised lesson-plan templates shared across teachers.
     // They are built + merged exclusively by Cloud Functions (the
