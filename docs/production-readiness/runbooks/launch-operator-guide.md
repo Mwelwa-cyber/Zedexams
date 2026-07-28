@@ -119,7 +119,9 @@ already built — you just plug in the phone number.)
    next functions deploy picks the secret up. Keep the secret in place: because
    every alerting function binds it, destroying it hard-fails *every* functions
    deploy until the binding is removed in code first.
-4. Make sure **`ADMIN_EMAILS`** is set too (the email channel).
+4. Make sure **`OPS_ALERT_EMAILS`** is set too (the email channel). Do NOT use
+   `ADMIN_EMAILS` for this — it is an admin-bootstrap allowlist, not a mailing
+   list (#1993; see `functions/opsAlertRecipients.js`).
 5. Open **/admin → Developer tools → Test the ops alarm** and press **Send test
    alert**. It fires one real alert (marked *info*) down both channels and tells
    you, per channel, whether it arrived — and if not, why.
@@ -235,7 +237,7 @@ And two things need a **test deploy** to measure (a preview/staging site):
 [ ] 1. GitHub branch protection: required checks ON for main
 [ ] 2. Deploy SA gets Cloud Scheduler Admin → 4 cron jobs exist
 [ ] 3. FIRESTORE_BACKUP_BUCKET set → opsBackups completed:true
-[ ] 4. OPS_ALERT_WEBHOOK_URL + ADMIN_EMAILS set → test alert in chat + email
+[ ] 4. OPS_ALERT_WEBHOOK_URL + OPS_ALERT_EMAILS set → test alert in chat + email
 [ ] 5. AI_MONTHLY_BUDGET_USD (or revenue_linked) + App Check enforced
 [ ] 6. STORAGE_BACKUP_BUCKET set → opsStorageBackups=fresh
 [ ] 7. Audit-failure alert tested + secrets escrow/recovery drill done

@@ -570,7 +570,7 @@ content job written to agentJobs collection (by an admin tool or a cron)
    → agentJobsOnApproved fires; Pubo flips the reserved aiGenerations doc public + stamps approval and sets status='done'
 ```
 
-Per-agent circuit breaker: `agentControl/{agentId}.paused`. Three failures in one hour pauses the agent automatically — implemented in `functions/agents/circuitBreaker.js`: each dispatcher runner failure is recorded against `agentControl/{agentId}.recentFailures`, and on the trip it sets `paused: true` and emails `ADMIN_EMAILS` via `functions/opsAlert.js`. An admin can also pause manually from `/admin/agents`.
+Per-agent circuit breaker: `agentControl/{agentId}.paused`. Three failures in one hour pauses the agent automatically — implemented in `functions/agents/circuitBreaker.js`: each dispatcher runner failure is recorded against `agentControl/{agentId}.recentFailures`, and on the trip it sets `paused: true` and emails `OPS_ALERT_EMAILS` via `functions/opsAlert.js`. An admin can also pause manually from `/admin/agents`.
 
 **Central Question Bank + Qix.** A second content flow: whenever a teacher creates or imports a question, it lands in the `questionBank/{id}` collection with `reviewStatus: 'pending_review'`, and the `questionReviewOnWrite` trigger (**Qix**, `functions/agents/questionReview.js`, region `africa-south1`) reviews it in the background — the teacher never waits. Qix first runs deterministic dedup (`questionDedupCore.js` exact/near-text + `questionEmbeddingCore.js` semantic via `openaiEmbeddings.js`) against sibling questions; an exact/near hit short-circuits with **no model call** and links to the original. Otherwise it runs an Anthropic Haiku review (tool-forced structured output) scoring quality + curriculum/grade fit and recommends approve / needs_admin / reject — fail-closed to `needs_admin` on any error, so nothing reaches the **Master Bank** without a clean pass. Verdicts surface in `/admin/question-review` (`QuestionReviewQueue.jsx`). Circuit breaker: `agentControl/qix.paused`. Unlike the content line, Qix does **not** write to `agentJobs` (per-question volume would drown the feed). Opt-in auto-approve of clean passes into the Master Bank is gated per the review UI.
 
@@ -595,10 +595,31 @@ Beyond the content line, a fleet of **ops/growth agents** runs on schedules in `
 
 ### Ops alerts — email always, Slack opt-in (and the deploy trap behind it)
 
-`functions/opsAlert.js`'s `sendOpsAlert` emails `ADMIN_EMAILS` and, since #1983,
+`functions/opsAlert.js`'s `sendOpsAlert` emails **`OPS_ALERT_EMAILS`** and, since #1983,
 can also POST `{text}` to an incoming webhook (Slack / Discord / Mattermost /
 generic). The two channels are independent, so an unbound webhook only ever costs
 the chat copy — email keeps delivering. `sendOpsAlert` reads the URL from
+
+**Recipients are `OPS_ALERT_EMAILS`, NOT `ADMIN_EMAILS` (#1993).** The two used to
+be one variable, and that variable does double duty: `resolveInitialUserRole`
+makes every address in `ADMIN_EMAILS` an account that is *born an administrator*.
+So the only way to get an alert delivered was to widen an authorization allowlist
+— one that lives in a committed file. `functions/opsAlertRecipients.js` owns the
+precedence (`OPS_ALERT_EMAILS` → `ADMIN_EMAILS` → the SMTP sender; the middle step
+is back-compat, since *reading* a list grants nothing). When you wire up a new
+alert, address it to `OPS_ALERT_EMAILS`. `ADMIN_EMAILS` ships **unset**; populating
+it is an authorization decision, and `scripts/grant-superadmin.mjs` — which
+promotes an account that already exists — is almost always what you actually want.
+Admin bootstrap additionally requires a **verified** address
+(`functions/security/adminBootstrapCore.js`, `test:admin-bootstrap`): an
+allowlisted address with no account behind it used to be registerable by anyone,
+who could then convert the minted claim into an authoritative `users.role` through
+`bootstrapUserProfile` — that callable is exempt from `assertVerifiedAuth` by
+design and writes with the admin SDK, so neither the verification guard nor the
+`firestore.rules` create-rule pin stood in the way. See AUTH-L6 in
+[`docs/architecture/10-authentication-and-roles.md`](docs/architecture/10-authentication-and-roles.md).
+
+`sendOpsAlert` reads the URL from
 `process.env.OPS_ALERT_WEBHOOK_URL`, and Cloud Functions only puts it there for a
 secret **bound** to the function, which is what `functions/opsAlertSecrets.js`
 decides.

@@ -69,7 +69,8 @@ const SKIP_EXPLANATIONS = Object.freeze({
     "a configuration one.",
   "smtp-unconfigured": "EMAIL_SMTP_USER / EMAIL_SMTP_PASSWORD are not bound to " +
     "this function.",
-  "no-admin-emails": "ADMIN_EMAILS is empty, so there is nobody to email.",
+  "no-admin-emails": "OPS_ALERT_EMAILS is empty (and neither ADMIN_EMAILS nor " +
+    "an SMTP sender filled in), so there is nobody to email.",
   "send-failed": "SMTP rejected the message. Check the mailbox credentials.",
 });
 

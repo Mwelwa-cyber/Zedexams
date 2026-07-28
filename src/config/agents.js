@@ -148,7 +148,7 @@ export const AGENTS = [
     outputs: 'agentJobs rollup (output.vigil) + alert email + bug issues',
     wraps: 'functions/agents/runners/monitor.js; Anthropic Haiku for fix suggestions',
     runtime: ['cloud-function'],
-    invocation: 'Cron: every hour. Reports to /admin/agents; alerts ADMIN_EMAILS and files bug issues on failure.',
+    invocation: 'Cron: every hour. Reports to /admin/agents; alerts OPS_ALERT_EMAILS and files bug issues on failure.',
   },
   {
     id: 'marshal',

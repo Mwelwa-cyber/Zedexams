@@ -6,7 +6,9 @@
  * of failure: a bad SMTP cred or an unconfigured mailbox silently dropped every
  * critical alert):
  *   • email   — the existing SMTP transport (mail.privateemail.com) +
- *               EMAIL_SMTP_USER / EMAIL_SMTP_PASSWORD secrets + ADMIN_EMAILS.
+ *               EMAIL_SMTP_USER / EMAIL_SMTP_PASSWORD secrets, addressed to
+ *               OPS_ALERT_EMAILS (see functions/opsAlertRecipients.js — the
+ *               recipient list is deliberately NOT the admin allowlist).
  *   • webhook — a Slack-compatible incoming webhook at OPS_ALERT_WEBHOOK_URL
  *               (Slack/Discord/Mattermost/generic all accept a JSON `{text}`).
  * The two are delivered in PARALLEL and are fully independent — one failing or
@@ -21,22 +23,20 @@
  * actually has an email to send, keeping the pure-logic tests clean.
  */
 
+const {
+  parseEmailList,
+  resolveOpsAlertRecipients,
+} = require("./opsAlertRecipients");
+
 /**
- * Split the ADMIN_EMAILS env var into a clean, de-duplicated list.
+ * Split a comma-separated address list into a clean, de-duplicated list.
+ * Kept as a named export (the parser moved to opsAlertRecipients.js when the
+ * recipient list stopped being ADMIN_EMAILS by definition); the name is
+ * historical, the behaviour is unchanged.
  * @param {string} raw
  * @returns {string[]}
  */
-function parseAdminEmails(raw) {
-  const seen = new Set();
-  return String(raw || "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter((e) => {
-      if (!e || seen.has(e)) return false;
-      seen.add(e);
-      return true;
-    });
-}
+const parseAdminEmails = parseEmailList;
 
 /**
  * Build the {subject, text} of an ops-alert email. Pure — no I/O.
@@ -55,7 +55,7 @@ function buildOpsAlertEmail({title, lines = [], severity = "warning"}) {
     "",
     ...lines.map((l) => String(l)),
     "",
-    "— ZedExams automated ops alert. This is sent to ADMIN_EMAILS.",
+    "— ZedExams automated ops alert. This is sent to OPS_ALERT_EMAILS.",
   ].join("\n");
   return {subject, text: body};
 }
@@ -86,12 +86,26 @@ function buildOpsAlertWebhook({title, lines = [], severity = "warning"}) {
  * Deliver the email channel. Best-effort; returns a structured result.
  * @returns {Promise<{sent: boolean, skipped?: string, recipients?: number}>}
  */
-async function sendEmailAlert({title, lines, severity, smtpUser, smtpPassword, adminEmails}) {
+async function sendEmailAlert({
+  title, lines, severity, smtpUser, smtpPassword,
+  adminEmails, opsAlertEmails, fallbackSender,
+}) {
   const user = String(smtpUser || process.env.EMAIL_SMTP_USER || "").trim();
   const pass = String(smtpPassword || process.env.EMAIL_SMTP_PASSWORD || "").trim();
-  const recipients = parseAdminEmails(
-    adminEmails != null ? adminEmails : process.env.ADMIN_EMAILS,
-  );
+  // Recipients come from OPS_ALERT_EMAILS, falling back to ADMIN_EMAILS — see
+  // functions/opsAlertRecipients.js for why the recipient list and the admin
+  // allowlist are no longer the same switch.
+  //
+  // `fallbackSender` is NOT defaulted to the resolved SMTP user here. Doing
+  // that would turn "nobody is configured to receive this" into a silent send
+  // to the sending mailbox for every caller, including those that deliberately
+  // want the skip — a behaviour change disguised as a refactor. Callers that
+  // want the sender as a last resort pass it (see agents/cron.js).
+  const {recipients} = resolveOpsAlertRecipients({
+    opsAlertEmails,
+    adminEmails,
+    fallbackSender,
+  });
 
   if (!user || !pass) return {sent: false, skipped: "smtp-unconfigured"};
   if (!recipients.length) return {sent: false, skipped: "no-admin-emails"};
@@ -160,7 +174,9 @@ async function postOpsWebhook(url, payload, {fetchImpl} = {}) {
  * @param {string} [args.severity]
  * @param {string} [args.smtpUser]      EMAIL_SMTP_USER
  * @param {string} [args.smtpPassword]  EMAIL_SMTP_PASSWORD
+ * @param {string} [args.opsAlertEmails] OPS_ALERT_EMAILS (defaults to env)
  * @param {string} [args.adminEmails]   ADMIN_EMAILS (defaults to env)
+ * @param {string} [args.fallbackSender] last-resort recipient (opt-in)
  * @param {string} [args.webhookUrl]    OPS_ALERT_WEBHOOK_URL (defaults to env)
  * @param {Function} [args.fetchImpl]   injected fetch (tests)
  * @returns {Promise<{sent: boolean, delivered: boolean,
@@ -173,6 +189,8 @@ async function sendOpsAlert({
   smtpUser,
   smtpPassword,
   adminEmails,
+  opsAlertEmails,
+  fallbackSender,
   webhookUrl,
   fetchImpl,
 } = {}) {
@@ -181,7 +199,10 @@ async function sendOpsAlert({
   ).trim();
 
   const [email, webhook] = await Promise.all([
-    sendEmailAlert({title, lines, severity, smtpUser, smtpPassword, adminEmails}),
+    sendEmailAlert({
+      title, lines, severity, smtpUser, smtpPassword,
+      adminEmails, opsAlertEmails, fallbackSender,
+    }),
     postOpsWebhook(url, buildOpsAlertWebhook({title, lines, severity}), {fetchImpl}),
   ]);
 
@@ -192,6 +213,7 @@ async function sendOpsAlert({
 
 module.exports = {
   parseAdminEmails,
+  resolveOpsAlertRecipients,
   buildOpsAlertEmail,
   buildOpsAlertWebhook,
   postOpsWebhook,

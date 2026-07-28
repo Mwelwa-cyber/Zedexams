@@ -592,16 +592,29 @@ async function getUserProfileOrThrow(uid) {
   return snap.data();
 }
 
-function getAdminEmails() {
+// ADMIN_EMAILS is an AUTHORIZATION allowlist, not a mailing list: every address
+// here is an account that is born an administrator (resolveInitialUserRole
+// below). The name says "bootstrap" so the next person wiring up an alert
+// reaches for OPS_ALERT_EMAILS (functions/opsAlertRecipients.js) instead of
+// widening this — routing a notification through an allowlist was how the two
+// became the same switch in the first place.
+function getAdminBootstrapEmails() {
   return (process.env.ADMIN_EMAILS || "")
     .split(",")
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean);
 }
 
-function resolveInitialUserRole(email) {
-  const normalizedEmail = cleanString(email, 254).toLowerCase();
-  return getAdminEmails().includes(normalizedEmail) ? "admin" : "learner";
+// Initial role for a brand-new account. Matching ADMIN_EMAILS is NOT enough —
+// the address must also be PROVEN. The rule and its reasoning live in
+// security/adminBootstrapCore.js so they are testable under plain `node`.
+function resolveInitialUserRole(email, {emailVerified = false} = {}) {
+  const {resolveInitialRole} = require("./security/adminBootstrapCore");
+  return resolveInitialRole({
+    email: cleanString(email, 254),
+    emailVerified,
+    adminEmails: getAdminBootstrapEmails(),
+  });
 }
 
 function getAllowedContinueOrigins() {
@@ -706,9 +719,18 @@ function buildBootstrappedUserProfile({
     authUser?.displayName || fallbackName,
     120,
   ) || "ZedExams User";
-  const role = (tokenRole === "admin" || tokenRole === "superAdmin") ?
-    tokenRole :
-    resolveInitialUserRole(email);
+  // Written with the ADMIN SDK (bypasses the users create rule) from a
+  // callable that is exempt from assertVerifiedAuth — so an elevated token
+  // role is accepted here only alongside a proven address. See
+  // security/adminBootstrapCore.js.
+  const {resolveBootstrapProfileRole} = require("./security/adminBootstrapCore");
+  const emailVerified = authUser?.emailVerified === true;
+  const role = resolveBootstrapProfileRole({
+    tokenRole,
+    email,
+    emailVerified,
+    adminEmails: getAdminBootstrapEmails(),
+  });
 
   return {
     displayName,
@@ -748,7 +770,13 @@ function toDate(value) {
 }
 
 exports.setUserRole = functions.auth.user().onCreate(async (user) => {
-  const role = resolveInitialUserRole(user.email || "");
+  // emailVerified is true here for federated sign-in (Google has already
+  // proven the address) and false for a fresh email/password signup, which has
+  // proven nothing. Passing it is what stops an ADMIN_EMAILS entry with no
+  // account behind it from being claimed by whoever registers it first.
+  const role = resolveInitialUserRole(user.email || "", {
+    emailVerified: user.emailVerified === true,
+  });
 
   // Mint the role claim AND the boolean admin/superAdmin claims the MFA guard
   // reads (buildRoleClaims sets admin:true only for admin/superAdmin roles).
@@ -3790,7 +3818,9 @@ async function raisePlayConfigError({uid, reason, message}) {
       severity: "critical",
       smtpUser: senderEmail,
       smtpPassword: senderPassword,
-      adminEmails: process.env.ADMIN_EMAILS || senderEmail,
+      opsAlertEmails: process.env.OPS_ALERT_EMAILS,
+      adminEmails: process.env.ADMIN_EMAILS,
+      fallbackSender: senderEmail,
       lines: [
         "A Google Play purchase could not be verified because of a configuration",
         "problem — the buyer has PAID and is not getting access. Google auto-refunds",

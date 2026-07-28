@@ -122,7 +122,7 @@ export default function OpsAlertTester() {
           <p className="text-xs mt-0.5">{verdict.blurb}</p>
           <div className="mt-3 bg-white/70 rounded-radius-md px-3 py-1">
             <ChannelRow name="Chat (Slack webhook)" channel={result.slack} />
-            <ChannelRow name="Email (ADMIN_EMAILS)" channel={result.email} />
+            <ChannelRow name="Email (OPS_ALERT_EMAILS)" channel={result.email} />
           </div>
         </div>
       )}

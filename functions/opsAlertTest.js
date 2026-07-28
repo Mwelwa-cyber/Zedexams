@@ -81,7 +81,9 @@ function createSendTestOpsAlert(smtpSecretsFn, secrets = []) {
       lines,
       smtpUser: senderEmail,
       smtpPassword: senderPassword,
-      adminEmails: process.env.ADMIN_EMAILS || senderEmail,
+      opsAlertEmails: process.env.OPS_ALERT_EMAILS,
+      adminEmails: process.env.ADMIN_EMAILS,
+      fallbackSender: senderEmail,
     });
 
     const summary = summarizeAlertResult(result);
