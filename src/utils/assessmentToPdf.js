@@ -11,14 +11,15 @@
  *   - 'scheme': marking key for teachers (correct answer + explanation per Q).
  */
 
-import { buildPaperLayout, DEFAULT_ANSWER_LINES } from './assessmentPaperLayout.js'
+import { DEFAULT_ANSWER_LINES } from './assessmentPaperLayout.js'
 import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 import { splitStatementSegments, statementLabel } from './fillBlanks.js'
 import { subPartLabel, splitPartBlanks } from './questionParts.js'
 import { hydrateTableData } from './tableData.js'
 import { resolveFigureLabels, resolveAnswerKeyLabels } from './figureLabelLayout.js'
 import { resolveImageWidthPercent } from './imageWidth.js'
-import { pageMarginRule, FOOTER_MM, FOOTER_RESERVE_MM } from '../config/paperPageGeometry.js'
+import { FOOTER_MM, FOOTER_RESERVE_MM } from '../config/paperPageGeometry.js'
+import { buildAssessmentDocument } from './assessmentDocument.js'
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
@@ -115,7 +116,13 @@ function attributionHtml() {
 }
 
 export function buildPrintableHtml(assessment, questions, mode, { attribution = false } = {}) {
-  const blocks = buildPaperLayout(assessment, questions, { mode })
+  // The canonical document (§2): one resolution of the layout, the metadata and
+  // the marks, shared with the studio preview and the Word export. The print
+  // window renders its blocks and its layout tokens, so a page-setup change
+  // reaches the printed sheet rather than only the preview.
+  const doc = buildAssessmentDocument(assessment, questions, { mode })
+  const layout = doc.layout
+  const blocks = doc.blocks
   const docTitle = mode === 'scheme'
     ? `${assessment.title || 'Marking Key'} — Marking Key`
     : (assessment.title || 'Assessment')
@@ -125,7 +132,7 @@ export function buildPrintableHtml(assessment, questions, mode, { attribution = 
 <head>
   <meta charset="utf-8">
   <title>${escapeHtml(docTitle)}</title>
-  <style>${PRINT_CSS}</style>
+  <style>${documentCss(layout)}${PRINT_CSS}</style>
 </head>
 <body>
 ${attribution ? attributionHtml() : ''}
@@ -177,18 +184,39 @@ function isPaperBody(block) {
   return block.kind !== 'footerCode'
 }
 
-const PRINT_CSS = `
-@page { size: A4; margin: ${pageMarginRule()}; }
+/**
+ * The document's own page rule and body typography (§2).
+ *
+ * Emitted from the RESOLVED layout tokens rather than written as literals, so a
+ * paper set to A5 landscape with wide margins and 14pt type prints as that in
+ * the browser, in the PDF that comes out of it, and — through the same tokens —
+ * in Word. Before this, `@page` said A4 and the body said 11.5pt whatever the
+ * document declared, so the page-setup controls would have been a preference the
+ * printer ignored.
+ *
+ * The DEFAULT output is byte-identical to the literals it replaces: A4, the
+ * margins paperPageGeometry derives, 11.5pt Times at 1.45. That is what makes
+ * this safe to land under the visual gate.
+ */
+function documentCss(layout) {
+  const t = layout.typography
+  return `
+@page { size: ${layout.page.cssSize}; margin: ${layout.margins.cssRule}; }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; background: white; }
 body {
   color: #111;
-  font-family: 'Times New Roman', 'Liberation Serif', serif;
-  font-size: 11.5pt;
-  line-height: 1.45;
+  font-family: ${t.bodyFontCss};
+  font-size: ${t.bodySizePt}pt;
+  line-height: ${t.lineSpacing};
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
+`
+}
+
+const PRINT_CSS = `
+* { box-sizing: border-box; }
 
 .banner {
   margin-bottom: 10pt;
@@ -909,17 +937,23 @@ function renderHeader(b) {
 }
 
 function renderLearnerFields(b) {
+  // The labels come off the block (§9), so a mock examination can say
+  // "CANDIDATE'S NAME" and a Grade 3 test "PUPIL'S NAME" — and the preview, the
+  // PDF and Word print the same words because all three read the same resolved
+  // field. The defaults reproduce exactly what was hard-coded here before.
+  const labels = b.labels || {}
+  const label = (key, fallback) => escapeHtml(String(labels[key] || fallback).toUpperCase())
   const parts = []
-  if (b.name) parts.push(`<span>NAME:</span><div class="line"></div>`)
-  if (b.date) parts.push(`<span>DATE:</span><div class="line" style="max-width: 140pt;"></div>`)
+  if (b.name) parts.push(`<span>${label('name', 'Name')}:</span><div class="line"></div>`)
+  if (b.date) parts.push(`<span>${label('date', 'Date')}:</span><div class="line" style="max-width: 140pt;"></div>`)
   const row1 = parts.length
     ? `<div class="learner-row">${parts.join('')}</div>`
     : ''
   const row2 = b.classField
-    ? `<div class="learner-row"><span>CLASS:</span><div class="line"></div></div>`
+    ? `<div class="learner-row"><span>${label('classField', 'Class')}:</span><div class="line"></div></div>`
     : ''
   const marksLine = b.marks
-    ? `<div class="total-marks">TOTAL MARKS: _____________ &nbsp; / &nbsp; ${b.totalMarks || '____'}</div>`
+    ? `<div class="total-marks">${label('marks', 'Total marks')}: _____________ &nbsp; / &nbsp; ${b.totalMarks || '____'}</div>`
     : ''
   return [row1, row2, marksLine].filter(Boolean).join('\n')
 }
@@ -940,7 +974,13 @@ function renderInstructionsBlock(b) {
 }
 
 function renderSectionHeader(b) {
-  return `<div class="section-head">Section ${escapeHtml(b.letter)}${b.title ? ` — ${escapeHtml(b.title)}` : ''} <span class="marks-tag">(${b.marks} mark${b.marks === 1 ? '' : 's'})</span></div>
+  // The section's total honours the same show/hide decision as the per-question
+  // marks (§4): a paper that hides marks from learners must not print the
+  // section's total in its heading.
+  const marksTag = b.showMarks === false
+    ? ''
+    : ` <span class="marks-tag">(${b.marks} mark${b.marks === 1 ? '' : 's'})</span>`
+  return `<div class="section-head">Section ${escapeHtml(b.letter)}${b.title ? ` — ${escapeHtml(b.title)}` : ''}${marksTag}</div>
   ${b.instructions ? `<div class="section-instr">${escapeHtml(b.instructions)}</div>` : ''}`
 }
 
@@ -973,7 +1013,9 @@ function figureFrameStyle(block, widthPreset) {
 
 function renderQuestion(b) {
   const marks = b.marks ?? 1
-  const qmark = marks > 1
+  // `showMarks` is the paper's or the section's decision (§4); absent on a block
+  // built by a caller that predates it, which then keeps the old behaviour.
+  const qmark = marks > 1 && b.showMarks !== false
     ? `<em class="qmarks">(${marks}&nbsp;marks)</em>`
     : ''
   let body = ''

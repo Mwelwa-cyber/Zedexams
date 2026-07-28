@@ -341,7 +341,22 @@ console.log('\nThe paper banner is a REAL Word header, not body text')
   assert(!headerXml.includes('GRADE SEVEN'), 'the grade is not silently reworded')
   assert(!docXml.includes('KABULONGA PRIMARY'), 'banner is NOT duplicated into the document body')
   assert(docXml.includes('<w:titlePg/>'), 'section is flagged titlePage so the banner prints once (page 1)')
-  assert(docXml.includes('Pupil'), 'the document body still begins at the learner fields')
+  // "Name", not "Pupil's Name": Word used to hard-code its own label while the
+  // preview and the PDF printed "NAME", so the same paper said two different
+  // things depending on where you read it. All three now take the label off the
+  // block (§9), and a paper that wants "Pupil's Name" selects it.
+  assert(docXml.includes('Name'), 'the document body still begins at the learner fields')
+}
+
+{
+  const doc = await buildDocxDocument(
+    { schoolName: 'Kabulonga Primary', subject: 'Science', grade: '7', nameFieldStyle: 'pupil', showNameField: true },
+    [{ id: 'q1', order: 1, type: 'short_answer', text: 'Name a planet.', marks: 1 }],
+    { mode: 'paper' },
+  )
+  const files = unzipSync(new Uint8Array(await Packer.toBuffer(doc)))
+  const docXml = strFromU8(files['word/document.xml'])
+  assert(docXml.includes("Pupil"), 'the chosen name-field label reaches Word')
 }
 
 // …and the written-number style is still available to a school whose house

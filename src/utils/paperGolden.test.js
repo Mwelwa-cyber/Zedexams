@@ -786,6 +786,54 @@ console.log('\nGOLDEN — a paper missing a required figure is not delivered')
   dom.window.URL.createObjectURL = realCreateObjectURL
 }
 
+/* ── The page setup reaches BOTH renderers (§2) ───────────────────────────
+   A page-size or orientation control that only moves the preview is a
+   preference the printer ignores, and the teacher discovers it after running
+   forty copies. So it is asserted against the rendered `.docx` section
+   properties AND against the print stylesheet's `@page` rule — the two places
+   a sheet's shape is actually decided. */
+{
+  const { buildPrintableHtml } = await import('./assessmentToPdf.js')
+  const questions = [{ id: 'q1', order: 1, type: 'short_answer', text: 'Explain.', marks: 2 }]
+
+  // Default: A4 portrait, unchanged from before any of this existed.
+  const defaultXml = strFromU8(unzipSync(new Uint8Array(await Packer.toBuffer(
+    await buildDocxDocument({ subject: 'Science', grade: '5' }, questions, { mode: 'paper' }),
+  )))['word/document.xml'])
+  // A4 portrait is 210 × 297mm = 11906 × 16838 twips.
+  assert(defaultXml.includes('w:w="11906"'), 'a paper with no page setup is A4 wide in Word')
+  assert(defaultXml.includes('w:h="16838"'), 'and A4 tall')
+  assert(
+    buildPrintableHtml({ subject: 'Science', grade: '5' }, questions, 'paper').includes('size: A4;'),
+    'and the print stylesheet says A4',
+  )
+
+  // A5 landscape with wide margins.
+  const a5 = { subject: 'Science', grade: '5', layout: { pageSize: 'a5', orientation: 'landscape', margins: 'wide' } }
+  const a5Xml = strFromU8(unzipSync(new Uint8Array(await Packer.toBuffer(
+    await buildDocxDocument(a5, questions, { mode: 'paper' }),
+  )))['word/document.xml'])
+  // A5 landscape is 210mm across and 148mm down = 11906 × 8391 twips, and that
+  // is the way round Word stores it. Asserted on the emitted XML rather than on
+  // the value passed in, because `docx` swaps the two itself for a landscape
+  // section — pass it the laid-out dimensions and the swap lands you back at
+  // portrait, on a page that still claims to be landscape.
+  assert(a5Xml.includes('w:w="11906"') && a5Xml.includes('w:h="8391"'), 'A5 landscape reaches Word as 210 × 148mm')
+  assert(a5Xml.includes('w:orient="landscape"'), 'and Word is told to turn it')
+  // 25mm = 1417 twips.
+  assert(a5Xml.includes('w:top="1417"'), 'wide margins reach Word')
+
+  const a5Css = buildPrintableHtml(a5, questions, 'paper')
+  assert(a5Css.includes('size: A5 landscape;'), 'the print stylesheet says A5 landscape')
+  assert(a5Css.includes('margin: 25mm 25mm'), 'and carries the same wide margins')
+
+  // Typography is one decision too: a paper set to 14pt prints at 14pt.
+  const large = buildPrintableHtml(
+    { subject: 'Science', grade: '5', layout: { bodySize: 'large' } }, questions, 'paper',
+  )
+  assert(large.includes('font-size: 14pt;'), 'the body size reaches the print stylesheet')
+}
+
 console.log(
   failures === 0
     ? `\n✓ paper golden files — ${passed} assertions passed`
