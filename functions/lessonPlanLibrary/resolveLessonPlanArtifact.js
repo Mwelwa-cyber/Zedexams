@@ -38,6 +38,50 @@ const ARTIFACT_SOURCES = Object.freeze({
 });
 
 /**
+ * Which storage shape an aiGenerations document is in.
+ *
+ * `record.data || record.output` reads like a sensible default and is not one.
+ * It quietly makes `data` an unofficial override on canonical operation
+ * records — so the day something writes `data` onto one, every reader silently
+ * switches to it and nothing says why. The shape is identified positively
+ * instead, and an unrecognised one fails closed.
+ *
+ *   legacy studio snapshot   `data`, no `output`   → the teacher's edited plan
+ *   canonical operation      `output`, no `data`   → what the model returned
+ *   canonical + artefact     `output` AND any of data/html/studioFormat →
+ *                            an INVARIANT FAILURE: the whole point of the
+ *                            split is that rendered artefacts never land on
+ *                            the operation record.
+ *   both data and output     ambiguous → refuse rather than guess
+ */
+function classifyGenerationShape(record = {}) {
+  const hasOutput = record.output !== undefined && record.output !== null;
+  const hasData = record.data !== undefined && record.data !== null;
+  const hasArtifactFields = hasData ||
+    record.html !== undefined || record.studioFormat !== undefined;
+
+  if (hasOutput && hasArtifactFields) return "canonical_with_artifact_fields";
+  if (hasOutput) return "canonical_operation";
+  if (hasData) return "legacy_studio_snapshot";
+  return "unknown";
+}
+
+/** The plan a generation record holds, or a refusal. */
+function planFromGeneration(record, id) {
+  const shape = classifyGenerationShape(record);
+  if (shape === "legacy_studio_snapshot") return record.data;
+  if (shape === "canonical_operation") return record.output;
+  if (shape === "canonical_with_artifact_fields") {
+    throw new HttpsError("failed-precondition",
+        "The lesson-plan record has an ambiguous storage shape.",
+        {code: "ARTIFACT_FIELDS_ON_OPERATION_RECORD", lessonPlanId: id});
+  }
+  throw new HttpsError("failed-precondition",
+      "The lesson-plan record has an ambiguous storage shape.",
+      {code: "UNRECOGNISED_GENERATION_SHAPE", lessonPlanId: id});
+}
+
+/**
  * @param {Object} args
  * @param {string} args.uid            Authenticated caller. Ownership is checked
  *                                     against the document, never assumed.
@@ -86,10 +130,7 @@ async function resolveLessonPlanArtifact({uid, lessonPlanId}) {
     libraryItemId: null,
     sourceGenerationId: id,
     ownerUid: gen.ownerUid,
-    // A legacy studio snapshot carries `data`; a canonical operation record
-    // carries `output`. Preferring `data` matters: on an operation document the
-    // two are the same plan, but on a legacy snapshot `data` is the edited one.
-    plan: gen.data || gen.output || null,
+    plan: planFromGeneration(gen, id),
     html: gen.html || "",
     meta: gen.meta || {},
     inputs: gen.inputs || {},
@@ -134,7 +175,7 @@ async function readPinnedArtifact({uid, artifactId, artifactSource}) {
       (doc.sourceGenerationId || null) : String(artifactId),
     ownerUid: doc.ownerUid,
     plan: artifactSource === ARTIFACT_SOURCES.libraryItem ?
-      (doc.data || null) : (doc.data || doc.output || null),
+      (doc.data || null) : planFromGeneration(doc, artifactId),
     html: doc.html || "",
     meta: doc.meta || {},
     inputs: doc.inputs || {},
@@ -144,6 +185,8 @@ async function readPinnedArtifact({uid, artifactId, artifactSource}) {
 
 module.exports = {
   ARTIFACT_SOURCES,
+  classifyGenerationShape,
+  planFromGeneration,
   resolveLessonPlanArtifact,
   readPinnedArtifact,
 };
