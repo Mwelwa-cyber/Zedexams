@@ -183,6 +183,32 @@ console.log('\nGOLDEN — Mathematics: the quadratic formula keeps its fraction 
   assert(!xml.includes('\\sqrt'), 'and neither does the root command')
 }
 
+console.log('\nGOLDEN — Mathematics: a fraction inside an ANSWER CHOICE survives to Word')
+{
+  // §11 lists "fractions inside answer choices" as its own fixture, and it is a
+  // different code path from a fraction in a stem: the options go through the
+  // option-string memo and are parsed by `cachedOptionNodes`, not by the
+  // question-body walker. A fraction that survives in a stem and collapses to
+  // "12" in an option is exactly the failure that shape of duplication produces.
+  const frac = (n, d) => richTextToPaperHtml(`<p>${math(String.raw`\frac{${n}}{${d}}`)}</p>`)
+  const xml = await renderDocx(
+    { title: 'Fractions', subject: 'Mathematics', grade: '5', answerChoiceCount: 4 },
+    [{
+      id: 'q1', order: 1, type: 'mcq', marks: 1,
+      text: 'Which fraction is the largest?',
+      options: [frac(1, 2), frac(1, 3), frac(3, 4), frac(1, 4)],
+      correctAnswer: 2,
+    }],
+  )
+  assert(xml.includes('<m:f>'), 'an option fraction reaches Word as a real stacked fraction')
+  // The bare-characters failure: "1/2" flattening to "12" because the bar was
+  // dropped. Four options that all collapsed that way would print as 12, 13, 34
+  // and 14 — plausible-looking numbers, every one of them wrong.
+  assert(!/>12</.test(xml) && !/>34</.test(xml), 'no option collapsed to its bare digits')
+  assert(!xml.includes('\\frac'), 'no LaTeX leaks into an option')
+  assert(xml.includes('A.') || xml.includes('A)'), 'the options are still lettered')
+}
+
 console.log('\nGOLDEN — Mathematics: Word receives a REAL equation, not a picture of one')
 {
   // §4.2: "For DOCX, emit real OMML equations — Word mangles anything else."
