@@ -23,6 +23,10 @@
  *   - Status transitions are guarded: each runner refuses to run twice.
  *   - Errors land in agentJobs.error with status='failed'; the UI
  *     surfaces a Retry path (Phase 3).
+ *
+ * The pure decisions (status transitions, stage sequencing, failure
+ * classification, payload validation) live in dispatcherCore.js; this
+ * module keeps the Firestore/trigger/runner wiring and delegates.
  */
 
 const admin = require("firebase-admin");
@@ -36,6 +40,7 @@ const {runPubo} = require("./runners/pubo");
 const {getUserRole, assertDailyLimit} = require("../aiService");
 const {recordAgentFailure} = require("./circuitBreaker");
 const {sendOpsAlert} = require("../opsAlert");
+const core = require("./dispatcherCore");
 
 /**
  * Record a runner failure against the circuit breaker. On the trip transition
@@ -43,23 +48,16 @@ const {sendOpsAlert} = require("../opsAlert");
  * throws, so the caller's own status='failed' handling is unaffected.
  */
 async function noteAgentFailure(agentId, err) {
-  const errorMessage = String((err && err.message) || err || "");
+  const errorMessage = core.agentErrorMessage(err);
   await recordAgentFailure({
     db: admin.firestore(),
     agentId,
     errorMessage,
     fieldValue: admin.firestore.FieldValue,
     alert: async ({failuresInWindow}) => {
-      await sendOpsAlert({
-        title: `Agent "${agentId}" auto-paused by circuit breaker`,
-        severity: "critical",
-        lines: [
-          `${agentId} hit ${failuresInWindow} failures within the breaker ` +
-            "window and was paused automatically to stop re-billing model calls.",
-          `Last error: ${errorMessage.slice(0, 300)}`,
-          `Investigate, then clear agentControl/${agentId}.paused to resume.`,
-        ],
-      });
+      await sendOpsAlert(
+        core.breakerAlertContent({agentId, errorMessage, failuresInWindow}),
+      );
     },
   });
 }
@@ -78,12 +76,7 @@ const TRIGGER_OPTS = {
   memory: "512MiB",
 };
 
-// Cached snapshot of paused agentIds. Each content job triggers 3 pause
-// checks (aria, cala, reva); without a cache that's 3 sequential Firestore
-// reads per job in a hot path. Refresh the cache every 60s — agentControl
-// only changes when an admin pauses an agent, so a minute of staleness is
-// safe and saves ~95% of reads at burst.
-const PAUSED_CACHE_TTL_MS = 60_000;
+// Paused-agents cache (TTL + refresh decision live in dispatcherCore).
 let pausedCache = {expiresAt: 0, paused: new Set()};
 
 async function refreshPausedCache() {
@@ -92,16 +85,16 @@ async function refreshPausedCache() {
     .where("paused", "==", true)
     .get()
     .catch(() => null);
-  const paused = new Set();
+  const pausedIds = [];
   if (snap && !snap.empty) {
-    snap.forEach((doc) => paused.add(doc.id));
+    snap.forEach((doc) => pausedIds.push(doc.id));
   }
-  pausedCache = {expiresAt: Date.now() + PAUSED_CACHE_TTL_MS, paused};
+  pausedCache = core.buildPausedCache(pausedIds, Date.now());
   return pausedCache;
 }
 
 async function isAgentPaused(agentId) {
-  if (Date.now() >= pausedCache.expiresAt) {
+  if (core.isPausedCacheExpired(pausedCache, Date.now())) {
     await refreshPausedCache();
   }
   return pausedCache.paused.has(agentId);
@@ -138,35 +131,22 @@ async function runContentChain({jobId, jobData, anthropicApiKeySecret}) {
   // chat/explain/etc. (aiDailyLimits/{uid}_{day}); fail-closed so a metering
   // outage can't be used to bypass the cap. createdBy is server-trusted
   // (pinned by the create rule).
-  const ownerUid = typeof jobData.createdBy === "string" ? jobData.createdBy : "";
-  if (!ownerUid || ownerUid === "system") {
-    await setJobFields(jobRef, {
-      status: "failed",
-      error: "Job has no valid owner (createdBy) — refusing to run.",
-    });
+  const owner = core.resolveJobOwner(jobData);
+  if (!owner.ok) {
+    await setJobFields(jobRef, owner.fields);
     return;
   }
   try {
-    const role = await getUserRole(ownerUid);
-    await assertDailyLimit(ownerUid, role, "agentJob");
+    const role = await getUserRole(owner.ownerUid);
+    await assertDailyLimit(owner.ownerUid, role, "agentJob");
   } catch (err) {
-    const exhausted = err && err.code === "resource-exhausted";
-    await setJobFields(jobRef, {
-      status: "failed",
-      error: exhausted ?
-        "Daily AI limit reached for this account — agent job not run. " +
-          "Please try again tomorrow." :
-        `Metering check failed: ${String(err && err.message || err).slice(0, 300)}`,
-    });
+    await setJobFields(jobRef, core.meteringFailureFields(err));
     return;
   }
 
   // 1. Aria
   if (await isAgentPaused("aria")) {
-    await setJobFields(jobRef, {
-      status: "failed",
-      error: "Aria is paused (agentControl/aria.paused = true).",
-    });
+    await setJobFields(jobRef, core.pausedJobFields("aria"));
     return;
   }
   await setJobFields(jobRef, {status: "running", agentId: "aria"});
@@ -175,44 +155,23 @@ async function runContentChain({jobId, jobData, anthropicApiKeySecret}) {
     ariaOut = await runAria({jobId: jobRef.id, job: jobData, anthropicApiKeySecret});
   } catch (err) {
     console.error("Aria failed", err);
-    await setJobFields(jobRef, {
-      status: "failed",
-      error: `Aria: ${String(err && err.message || err).slice(0, 500)}`,
-    });
+    await setJobFields(jobRef, core.runnerFailureFields("Aria", err));
     await noteAgentFailure("aria", err);
     return;
   }
-  await setJobFields(jobRef, {
-    "output.aria": ariaOut,
-    "publishedRefs": [
-      {collection: "aiGenerations", docId: ariaOut.generationId},
-    ],
-  });
+  await setJobFields(jobRef, core.ariaSuccessFields(ariaOut));
 
-  // Aria "succeeded" but produced no usable draft — the underlying generator
-  // returned a falsy value under the mapped draft key (aria.js maps it to
-  // null). Cala and Reva have nothing to work on, so stop here and attribute
-  // the failure to Aria. Letting it fall through to Cala would surface the
-  // misleading "Aria must run first" AND trip CALA's circuit breaker for an
-  // upstream problem — auto-pausing a healthy deterministic agent.
-  if (!ariaOut.draft) {
-    const err = new Error(
-      "Aria produced an empty draft — the generator returned no content.",
-    );
-    await setJobFields(jobRef, {
-      status: "failed",
-      error: `Aria: ${err.message}`,
-    });
+  // Empty-draft rationale lives with core.isEmptyAriaDraft in dispatcherCore.
+  if (core.isEmptyAriaDraft(ariaOut)) {
+    const err = new Error(core.EMPTY_DRAFT_MESSAGE);
+    await setJobFields(jobRef, core.runnerFailureFields("Aria", err));
     await noteAgentFailure("aria", err);
     return;
   }
 
   // 2. Cala
   if (await isAgentPaused("cala")) {
-    await setJobFields(jobRef, {
-      status: "awaiting_approval",
-      error: "Cala is paused — review manually.",
-    });
+    await setJobFields(jobRef, core.pausedJobFields("cala"));
     return;
   }
   await setJobFields(jobRef, {agentId: "cala"});
@@ -221,10 +180,7 @@ async function runContentChain({jobId, jobData, anthropicApiKeySecret}) {
     calaOut = await runCala({job: await readJob()});
   } catch (err) {
     console.error("Cala failed", err);
-    await setJobFields(jobRef, {
-      status: "failed",
-      error: `Cala: ${String(err && err.message || err).slice(0, 500)}`,
-    });
+    await setJobFields(jobRef, core.runnerFailureFields("Cala", err));
     await noteAgentFailure("cala", err);
     return;
   }
@@ -232,10 +188,7 @@ async function runContentChain({jobId, jobData, anthropicApiKeySecret}) {
 
   // 3. Reva
   if (await isAgentPaused("reva")) {
-    await setJobFields(jobRef, {
-      status: "awaiting_approval",
-      error: "Reva is paused — review manually.",
-    });
+    await setJobFields(jobRef, core.pausedJobFields("reva"));
     return;
   }
   await setJobFields(jobRef, {agentId: "reva"});
@@ -244,18 +197,11 @@ async function runContentChain({jobId, jobData, anthropicApiKeySecret}) {
     revaOut = await runReva({job: await readJob(), anthropicApiKeySecret});
   } catch (err) {
     console.error("Reva failed", err);
-    await setJobFields(jobRef, {
-      status: "failed",
-      error: `Reva: ${String(err && err.message || err).slice(0, 500)}`,
-    });
+    await setJobFields(jobRef, core.runnerFailureFields("Reva", err));
     await noteAgentFailure("reva", err);
     return;
   }
-  await setJobFields(jobRef, {
-    "output.reva": revaOut,
-    status: "awaiting_approval",
-    agentId: "reva",
-  });
+  await setJobFields(jobRef, core.chainCompleteFields(revaOut));
 }
 
 /**
@@ -278,10 +224,7 @@ async function runFromCala({jobId, anthropicApiKeySecret}) {
 
   // Cala.
   if (await isAgentPaused("cala")) {
-    await setJobFields(jobRef, {
-      status: "awaiting_approval",
-      error: "Cala is paused — review manually.",
-    });
+    await setJobFields(jobRef, core.pausedJobFields("cala"));
     return;
   }
   await setJobFields(jobRef, {status: "running", agentId: "cala"});
@@ -290,10 +233,7 @@ async function runFromCala({jobId, anthropicApiKeySecret}) {
     calaOut = await runCala({job: await readJob()});
   } catch (err) {
     console.error("Cala failed (retry)", err);
-    await setJobFields(jobRef, {
-      status: "failed",
-      error: `Cala: ${String(err && err.message || err).slice(0, 500)}`,
-    });
+    await setJobFields(jobRef, core.runnerFailureFields("Cala", err));
     await noteAgentFailure("cala", err);
     return;
   }
@@ -301,10 +241,7 @@ async function runFromCala({jobId, anthropicApiKeySecret}) {
 
   // Reva.
   if (await isAgentPaused("reva")) {
-    await setJobFields(jobRef, {
-      status: "awaiting_approval",
-      error: "Reva is paused — review manually.",
-    });
+    await setJobFields(jobRef, core.pausedJobFields("reva"));
     return;
   }
   await setJobFields(jobRef, {agentId: "reva"});
@@ -313,18 +250,11 @@ async function runFromCala({jobId, anthropicApiKeySecret}) {
     revaOut = await runReva({job: await readJob(), anthropicApiKeySecret});
   } catch (err) {
     console.error("Reva failed (retry)", err);
-    await setJobFields(jobRef, {
-      status: "failed",
-      error: `Reva: ${String(err && err.message || err).slice(0, 500)}`,
-    });
+    await setJobFields(jobRef, core.runnerFailureFields("Reva", err));
     await noteAgentFailure("reva", err);
     return;
   }
-  await setJobFields(jobRef, {
-    "output.reva": revaOut,
-    status: "awaiting_approval",
-    agentId: "reva",
-  });
+  await setJobFields(jobRef, core.chainCompleteFields(revaOut));
 }
 
 /**
@@ -338,12 +268,8 @@ function createAgentJobsOnCreate(anthropicApiKeySecret, opsAlertSecrets = []) {
       const snap = event.data;
       if (!snap) return;
       const jobData = {id: snap.id, ...(snap.data() || {})};
-      // Only the Content department's Aria-rooted pipeline runs here.
-      if (jobData.department !== "content") return;
-      if (jobData.agentId !== "aria") return;
-      if (jobData.status !== "queued") return;
-      // Ignore seed docs — they're for UI dev only.
-      if (jobData.seed === true) return;
+      // Guard rationale (department/agent/status/seed) in dispatcherCore.
+      if (!core.shouldRunContentChain(jobData)) return;
 
       await runContentChain({
         jobId: snap.id,
@@ -374,39 +300,15 @@ function createAgentJobsOnApproved(opsAlertSecrets = []) {
       // approval decision.
       try {
         const {writeAuditLog} = require("../auditLog");
-        if (before.status !== "approved" && after.status === "approved") {
-          await writeAuditLog({
-            actorUid: after.reviewedBy || "system",
-            action: "agent.approve",
-            targetType: "agentJob",
-            targetId: jobId,
-            metadata: {agentId: after.agentId || null, department: after.department || null},
-          });
-        }
-        if (before.status !== "rejected" && after.status === "rejected") {
-          await writeAuditLog({
-            actorUid: after.reviewedBy || "system",
-            action: "agent.reject",
-            targetType: "agentJob",
-            targetId: jobId,
-            metadata: {agentId: after.agentId || null, reason: after.reviewNotes || null},
-          });
+        for (const entry of core.approvalAuditEntries({jobId, before, after})) {
+          await writeAuditLog(entry);
         }
       } catch (err) {
         console.warn("[dispatcher] audit log write failed", err?.message);
       }
 
-      // Fire only on the approved transition. Rejected transitions are
-      // terminal but require no work — Pubo never publishes them.
-      if (before.status === "approved") return;
-      if (after.status !== "approved") return;
-      if (after.department !== "content") return;
-      // Scheduled rollups (input.runType) are read-only reports — Compass
-      // files them under the content department, and acknowledging one must
-      // not invoke Pubo (it would fail on the missing aria.generationId and
-      // count against Pubo's circuit breaker).
-      if (after.input && after.input.runType) return;
-      if (after.seed === true) return;
+      // Transition + rollup/seed guard rationale in dispatcherCore.
+      if (!core.shouldRunPubo(before, after)) return;
 
       // Eventarc delivers AT-LEAST-ONCE: a duplicate delivery of THIS SAME
       // approved transition carries identical before/after and would sail past
@@ -425,26 +327,17 @@ function createAgentJobsOnApproved(opsAlertSecrets = []) {
       const jobRef = admin.firestore().collection("agentJobs").doc(jobId);
 
       if (await isAgentPaused("pubo")) {
-        await setJobFields(jobRef, {
-          status: "failed",
-          error: "Pubo is paused — admin must publish manually.",
-        });
+        await setJobFields(jobRef, core.pausedJobFields("pubo"));
         return;
       }
 
       await setJobFields(jobRef, {agentId: "pubo"});
       try {
         const puboOut = await runPubo({job: jobData});
-        await setJobFields(jobRef, {
-          "output.pubo": puboOut,
-          status: "done",
-        });
+        await setJobFields(jobRef, core.puboSuccessFields(puboOut));
       } catch (err) {
         console.error("Pubo failed", err);
-        await setJobFields(jobRef, {
-          status: "failed",
-          error: `Pubo: ${String(err && err.message || err).slice(0, 500)}`,
-        });
+        await setJobFields(jobRef, core.runnerFailureFields("Pubo", err));
         await noteAgentFailure("pubo", err);
       }
     },

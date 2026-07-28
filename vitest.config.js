@@ -58,16 +58,18 @@ export default defineConfig({
       // file, including the hundreds still untested — that's the gap this
       // exists to close, one ratchet at a time.
       //
-      // Recalibrated for Vitest 4: its v8 provider now maps coverage with
-      // AST accuracy (ast-v8-to-istanbul), so branch/function counts reflect
-      // every branch/function in the untested files rather than the inflated
-      // figures the old remapper reported. Line coverage is unchanged (~3.5%);
-      // branches/functions simply read true now, hence the lower thresholds.
+      // Recalibrated 2026-07-28 against the measured totals (30.49 lines /
+      // 28.68 statements / 26.67 functions / 24.82 branches from the 307-file
+      // spec suite). The previous values (3.5/3.4/2.6/2.7) dated from this
+      // config's introduction and were never bumped as the suite grew, so the
+      // required CI check would have passed with ~90% of the specs deleted —
+      // a ratchet that gates nothing. Bump these again whenever coverage
+      // rises; never lower them to make a red build green.
       thresholds: {
-        lines: 3.5,
-        statements: 3.4,
-        functions: 2.6,
-        branches: 2.7,
+        lines: 30,
+        statements: 28,
+        functions: 26,
+        branches: 24.5,
       },
     },
   },

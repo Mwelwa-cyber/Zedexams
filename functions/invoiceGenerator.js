@@ -12,6 +12,10 @@
  * their plan regardless. Each step is wrapped in try/catch so a
  * missing email or Storage hiccup leaves the receipt-less success
  * path intact, and a row in `agentJobs` flags the run for support.
+ *
+ * Pure formatting/numbering/template logic lives in
+ * invoiceGeneratorCore.js (plain-node tested); this module keeps the
+ * PDF rendering, Storage, Firestore and SMTP effects.
  */
 
 const admin = require("firebase-admin");
@@ -19,37 +23,21 @@ const PDFDocument = require("pdfkit");
 const nodemailer = require("nodemailer");
 const crypto = require("node:crypto");
 
-const COMPANY_NAME = "ZedExams";
-const COMPANY_TAGLINE = "Zambian CBC exam prep";
-const COMPANY_EMAIL = "support@zedexams.com";
-const COMPANY_WEBSITE = "https://zedexams.com";
-const COMPANY_COUNTRY = "Zambia";
-
-function fmtMoney(amount, currency) {
-  return `${currency} ${(Number(amount) || 0).toFixed(2)}`;
-}
-
-function fmtDate(d) {
-  if (!d) return "";
-  return new Date(d).toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function shortInvoiceNumber(paymentId) {
-  // Friendly invoice number: ZE-YYYYMMDD-{first 6 of payment id}.
-  // The payment id alone is 36 chars (uuid) which looks ugly on a
-  // PDF; this preserves a one-to-one mapping while reading better
-  // for humans.
-  const today = new Date();
-  const y = today.getUTCFullYear();
-  const m = String(today.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(today.getUTCDate()).padStart(2, "0");
-  const tail = String(paymentId || "").replace(/-/g, "").slice(0, 6).toUpperCase();
-  return `ZE-${y}${m}${d}-${tail}`;
-}
+const {
+  COMPANY_NAME,
+  COMPANY_TAGLINE,
+  COMPANY_EMAIL,
+  COMPANY_WEBSITE,
+  COMPANY_COUNTRY,
+  fmtMoney,
+  fmtDate,
+  shortInvoiceNumber,
+  invoiceStoragePath,
+  invoiceDescriptionLines,
+  senderDomainOf,
+  buildReceiptEmailContent,
+  buildResendReceiptEmailContent,
+} = require("./invoiceGeneratorCore");
 
 /**
  * Build the PDF invoice as a Buffer. Synchronous-feeling API on top
@@ -136,10 +124,7 @@ function buildInvoicePdf({invoice, plan, payment, user}) {
         .text("Amount", 480, tableY, {width: 68, align: "right"});
 
     const itemY = tableY + 24;
-    const descLines = [
-      `${plan.name} subscription`,
-      `${plan.durationDays} days · activated ${fmtDate(invoice.issuedAtMs)}`,
-    ];
+    const descLines = invoiceDescriptionLines({plan, invoice});
     doc
         .fillColor("#1A1F2E")
         .font("Helvetica")
@@ -251,7 +236,7 @@ async function emitInvoice({payment, plan, senderEmail, senderPassword}) {
 
     const pdfBuffer = await buildInvoicePdf({invoice, plan, payment, user});
 
-    const storagePath = `invoices/${user.uid}/${payment.id}.pdf`;
+    const storagePath = invoiceStoragePath(user.uid, payment.id);
     const bucket = admin.storage().bucket();
     const file = bucket.file(storagePath);
     await file.save(pdfBuffer, {
@@ -291,31 +276,16 @@ async function emitInvoice({payment, plan, senderEmail, senderPassword}) {
     let emailedTo = null;
     if (transporter && user.email) {
       try {
-        const senderDomain = senderEmail.split("@")[1] || "zedexams.com";
+        const senderDomain = senderDomainOf(senderEmail);
+        const content = buildReceiptEmailContent({user, plan, payment, number});
         await transporter.sendMail({
           from: `${COMPANY_NAME} <${senderEmail}>`,
           sender: senderEmail,
           to: user.email,
           replyTo: senderEmail,
-          subject: `Your ${COMPANY_NAME} receipt — ${number}`,
-          text: [
-            `Hi${user.displayName ? ` ${user.displayName}` : ""},`,
-            "",
-            `Thanks for your payment. Your ${plan.name} subscription is active for ${plan.durationDays} days.`,
-            "",
-            `Invoice: ${number}`,
-            `Amount:  ${fmtMoney(payment.amount, payment.currency)}`,
-            "",
-            "Your receipt is attached as a PDF.",
-            "",
-            "— ZedExams",
-          ].join("\n"),
-          html: `<p>Hi${user.displayName ? ` ${user.displayName}` : ""},</p>
-<p>Thanks for your payment. Your <strong>${plan.name}</strong> subscription is active for <strong>${plan.durationDays} days</strong>.</p>
-<p><strong>Invoice:</strong> ${number}<br />
-<strong>Amount:</strong> ${fmtMoney(payment.amount, payment.currency)}</p>
-<p>Your receipt is attached as a PDF.</p>
-<p>— ZedExams</p>`,
+          subject: content.subject,
+          text: content.text,
+          html: content.html,
           attachments: [{
             filename: `${number}.pdf`,
             content: pdfBuffer,
@@ -411,31 +381,16 @@ async function resendInvoiceEmail({invoiceId, senderEmail, senderPassword, reque
     });
   }
 
-  const senderDomain = senderEmail.split("@")[1] || "zedexams.com";
+  const senderDomain = senderDomainOf(senderEmail);
+  const content = buildResendReceiptEmailContent({user, invoice});
   await transporter.sendMail({
     from: `${COMPANY_NAME} <${senderEmail}>`,
     sender: senderEmail,
     to: user.email,
     replyTo: senderEmail,
-    subject: `Your ${COMPANY_NAME} receipt — ${invoice.number} (resent)`,
-    text: [
-      `Hi${user.displayName ? ` ${user.displayName}` : ""},`,
-      "",
-      `As requested, here's a fresh copy of your receipt.`,
-      "",
-      `Invoice: ${invoice.number}`,
-      `Amount:  ${fmtMoney(invoice.amount, invoice.currency)}`,
-      "",
-      "Your receipt is attached as a PDF.",
-      "",
-      "— ZedExams",
-    ].join("\n"),
-    html: `<p>Hi${user.displayName ? ` ${user.displayName}` : ""},</p>
-<p>As requested, here&rsquo;s a fresh copy of your receipt.</p>
-<p><strong>Invoice:</strong> ${invoice.number}<br />
-<strong>Amount:</strong> ${fmtMoney(invoice.amount, invoice.currency)}</p>
-<p>Your receipt is attached as a PDF.</p>
-<p>— ZedExams</p>`,
+    subject: content.subject,
+    text: content.text,
+    html: content.html,
     attachments: [{
       filename: `${invoice.number}.pdf`,
       content: pdfBuffer,

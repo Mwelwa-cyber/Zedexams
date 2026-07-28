@@ -12,7 +12,21 @@ import { evaluateAndAwardGameBadges } from '../../utils/gameBadgesService'
 import { getTodaysChallenge, recordDailyPlay } from '../../utils/dailyChallengeService'
 import { playCorrect, playWrong, playWin, playStreak, primeSounds } from '../../utils/gameSounds'
 import { buildStaticMapUrl } from '../../utils/staticMap'
-import { getProvince } from '../../data/zambiaProvinces'
+import {
+  resolvePoints,
+  resolveDuration,
+  questionAt,
+  correctIndexFor,
+  correctAnswerOutcome,
+  wrongAnswerPenalty,
+  clampScore,
+  accuracyPct,
+  shouldCelebrate,
+  timerPct,
+  advanceOutcome,
+  ratingStarsFor,
+  silhouetteMapSpec,
+} from './provinceShapesCore.js'
 import Leaderboard from './Leaderboard'
 import BadgeToast from './BadgeToast'
 import ShareButton from './ShareButton'
@@ -36,8 +50,8 @@ import { RatingStars } from './gamesUi'
  * have been answered or the timer hits 0, whichever comes first.
  */
 export default function ProvinceShapesGame({ game }) {
-  const points = Number(game.points) || 15
-  const duration = Number(game.timer) || 90
+  const points = resolvePoints(game)
+  const duration = resolveDuration(game)
   const pool = useMemo(() => game.questions || [], [game.questions])
   const totalQuestions = pool.length
 
@@ -95,8 +109,8 @@ export default function ProvinceShapesGame({ game }) {
 
   function advanceToNextQuestion() {
     setPicked(null)
-    const nextPos = pos + 1
-    if (nextPos >= totalQuestions) {
+    const { nextPos, done } = advanceOutcome(pos, totalQuestions)
+    if (done) {
       finish()
     } else {
       setPos(nextPos)
@@ -128,14 +142,12 @@ export default function ProvinceShapesGame({ game }) {
   function pick(i) {
     if (phase !== 'playing' || picked !== null) return
     const q = currentQuestion()
-    const correctIdx = q.options.findIndex((o) => String(o) === String(q.answer))
+    const correctIdx = correctIndexFor(q)
     setPicked(i)
     setRevealedAt(Date.now())
     if (i === correctIdx) {
       playCorrect()
-      const newStreak = streak + 1
-      const bonus = Math.min(5, Math.floor(newStreak / 3))
-      const gained = points + bonus
+      const { newStreak, gained } = correctAnswerOutcome(streak, points)
       const heat = comboHeat(newStreak)
       if (heat.level > 0) playStreak(heat.level)
       pushPop(gained)
@@ -145,21 +157,20 @@ export default function ProvinceShapesGame({ game }) {
       setScore((s) => s + gained)
     } else {
       playWrong()
-      const penalty = Math.max(2, Math.floor(points / 4))
+      const penalty = wrongAnswerPenalty(points)
       pushPop(-penalty)
       setShakeAt(pos)
       setWrong((w) => w + 1)
       setStreak(0)
-      setScore((s) => Math.max(0, s - penalty))
+      setScore((s) => clampScore(s - penalty))
     }
   }
 
   async function finish() {
     setPhase('done')
-    const total = correct + wrong
-    const accuracy = total ? Math.round((correct / total) * 100) : 0
+    const accuracy = accuracyPct(correct, wrong)
     const timeSpent = startedAtRef.current ? Math.round((Date.now() - startedAtRef.current) / 1000) : duration
-    if (score >= 50 || accuracy >= 80) {
+    if (shouldCelebrate(score, accuracy)) {
       playWin()
       setConfettiKey((k) => k + 1)
     }
@@ -214,8 +225,7 @@ export default function ProvinceShapesGame({ game }) {
 
   if (phase === 'ready') return <ReadyCard game={game} totalQuestions={totalQuestions} onStart={start} />
   if (phase === 'done') {
-    const total = correct + wrong
-    const accuracy = total ? Math.round((correct / total) * 100) : 0
+    const accuracy = accuracyPct(correct, wrong)
     return (
       <>
         <Confetti fire={confettiKey} />
@@ -238,8 +248,8 @@ export default function ProvinceShapesGame({ game }) {
   }
 
   const q = currentQuestion()
-  const correctIdx = q.options.findIndex((o) => String(o) === String(q.answer))
-  const pct = Math.max(0, Math.round((timeLeft / duration) * 100))
+  const correctIdx = correctIndexFor(q)
+  const pct = timerPct(timeLeft, duration)
   const silhouetteUrl = buildSilhouetteUrl(q)
 
   return (
@@ -293,29 +303,17 @@ export default function ProvinceShapesGame({ game }) {
   )
 
   function currentQuestion() {
-    return deck[pos] || { question: '', options: [], answer: '', provinceId: '' }
+    return questionAt(deck, pos)
   }
 }
 
 /* ── URL helper ─────────────────────────────────────────────────── */
 
 function buildSilhouetteUrl(question) {
-  const province = getProvince(question?.provinceId)
-  if (!province) return ''
+  const spec = silhouetteMapSpec(question)
+  if (!spec) return ''
   try {
-    return buildStaticMapUrl({
-      lat: province.center.lat,
-      lng: province.center.lng,
-      zoom: province.zoom,
-      size: [600, 380],
-      mapType: 'terrain',
-      paths: [{
-        color: '0xff5722ff',
-        weight: 4,
-        fillcolor: '0xff572277',
-        points: province.polygon,
-      }],
-    })
+    return buildStaticMapUrl(spec)
   } catch (err) {
     console.warn('silhouette URL build failed', err?.message)
     return ''
@@ -419,7 +417,7 @@ function DoneCard({ game, score, correct, wrong, accuracy, bestStreak, saveResul
           <DoneStat label="Best streak" value={bestStreak} tone="rose" />
         </div>
         <div className="mb-4 flex justify-center">
-          <RatingStars filled={accuracy >= 90 ? 5 : accuracy >= 70 ? 4 : accuracy >= 50 ? 3 : 2} />
+          <RatingStars filled={ratingStarsFor(accuracy)} />
         </div>
         <SaveBanner saveResult={saveResult} />
         {levelChange?.after && (

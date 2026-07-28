@@ -155,10 +155,12 @@ function draftCoversOutcome(normDraft, draftTokens, outcomeText) {
  * @param {object} args
  * @param {object} args.job - The agentJobs document data with
  *   output.aria.draft populated.
+ * @param {Function} [args.resolveContext] - KB lookup, injectable so the
+ *   unit test can run without Firestore. Defaults to resolveCbcContext.
  * @returns {Promise<object>}
  *   { aligned, citations, gaps, drift, kbVersion, kbWarning }
  */
-async function runCala({job}) {
+async function runCala({job, resolveContext = resolveCbcContext}) {
   const input = job.input || {};
   const ariaOutput = job.output && job.output.aria;
   const draft = ariaOutput && ariaOutput.draft;
@@ -174,7 +176,7 @@ async function runCala({job}) {
     );
   }
 
-  const {kbMatch, kbWarning, kbVersion} = await resolveCbcContext({
+  const {kbMatch, kbWarning, kbVersion} = await resolveContext({
     grade: input.grade,
     subject: input.subject,
     topic: input.topic,
