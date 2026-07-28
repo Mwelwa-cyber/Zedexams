@@ -116,7 +116,7 @@ function buildBlueprintForRequest({
     requestedBandTypes: inputs.requestedBandTypes || [],
     questionTypes: inputs.questionTypes || [],
   });
-  return buildPaperBlueprint({
+  const blueprint = buildPaperBlueprint({
     grade: inputs.grade,
     gradeLabel,
     subject: inputs.subject,
@@ -134,6 +134,10 @@ function buildBlueprintForRequest({
     competencies: coverage.competencies || [],
     difficultyMix: inputs.difficultyMix || null,
   });
+  // Term is request metadata, not a planning variable, but the filing copy is
+  // derived from this blueprint. Carry it alongside the validated plan so PDF
+  // and Word exports cannot silently lose the teacher's selected term.
+  return {...blueprint, term: inputs.term || null};
 }
 
 /**
