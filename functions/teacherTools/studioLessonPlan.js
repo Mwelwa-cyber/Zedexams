@@ -1,272 +1,61 @@
 /**
- * studioGenerateLessonPlan — HTTPS callable for the Lesson Plan Studio.
+ * studioGenerateLessonPlan — the Lesson Plan Studio's door into the ONE
+ * lesson-plan operation.
  *
- * Unlike generateLessonPlan (which uses a structured schema + CBC KB lookup),
- * the studio sends its own system prompt and user prompt directly, giving the
- * studio full control over format (modern / classic / classic2).
+ * ## What this file used to be
  *
- * The function:
- *   1. Authenticates + checks teacher role.
- *   2. Grounds the plan on the teacher's OWN saved Scheme of Work / Weekly
- *      Forecast (resolveTeacherPlanContext) when the studio sends lesson
- *      coordinates in `context`.
- *   3. Meters usage under the existing `lesson_plan` tool quota.
- *   4. Calls Claude with forced-tool JSON output (mode: "tool") so the model
- *      can never wrap the plan in prose / markdown fences, and with thinking
- *      disabled + low effort so Sonnet 4.6's default high-effort reasoning
- *      does not eat the token budget and truncate the JSON.
- *   5. Returns { text } — the plan as a clean JSON string (studio parses it).
+ * A second lesson-plan generator. It took `systemPrompt` and `userPrompt` as
+ * strings from the browser, called the model itself, metered usage itself, and
+ * wrote its own auto-ID `aiGenerations` record with `tool: "lesson_plan_studio"`.
+ * Nothing about it was reserved, resumable or deduplicated, and it shared no
+ * identity with `generateLessonPlan` — the same teacher asking for the same
+ * lesson through the two surfaces produced two charges and two documents.
  *
- * Why mode "tool" + thinking off (the fix for "studio fails to create plans"):
- * Sonnet 4.6 defaults to effort "high" when `outputConfig` is unset, so a
- * plain `mode: "json"` call spent most of its 6144-token budget thinking and
- * truncated the JSON object. The truncated text failed the studio's
- * `JSON.parse`, surfacing as a generic "Something went wrong". Forcing a tool
- * call guarantees a well-formed object, and pinning thinking off + effort low
- * (the same settings the structured generateLessonPlan uses) keeps the whole
- * token budget available for the plan itself. Lesson-plan generation is
- * structured template-fill, not multi-step reasoning, so low effort is the
- * right call here as it is for the schema-based generator.
+ * ## What it is now
+ *
+ * An adapter, about thirty lines. It authenticates, resolves the API key, and
+ * hands a TYPED request to `runLessonPlanOperation`. The prompts are chosen
+ * server-side from `curriculumMode`; `systemPrompt` and `userPrompt` are no
+ * longer accepted at all, so a browser payload can no longer replace the
+ * curriculum instructions, the JSON contract or the writing standards.
+ *
+ * The response shape is unchanged (`{text, usage, kbWarning}` plus the new
+ * `generationId`), so the studio's renderer did not have to move with it.
  */
 
-const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertCallableRateLimit} = require("../rateLimit");
 const {assertVerifiedAuth} = require("../authGuard");
 const {getAnthropicApiKey, getUserRole, isStaffRole} = require("../aiService");
-const {callClaude, DEFAULT_MODEL} = require("./anthropicClient");
-const {assertAndIncrement} = require("./usageMeter");
-const {resolveTeacherPlanContext} = require("./teacherPlanContext");
-const {resolveCbcContext} = require("./cbcKnowledge");
-
-// Pinned reasoning controls — see the file header. Mirrors generateLessonPlan.
-const STUDIO_THINKING = {type: "disabled"};
-const STUDIO_OUTPUT_CONFIG = {effort: "low"};
-
-// 8000 (was 6144 in the old mode:"json" path): a "Detailed" plan in the modern
-// format can be large; with thinking off the full budget goes to the plan, so
-// give it room rather than risk a truncated tool call.
-const STUDIO_MAX_TOKENS = 8000;
-
-// Permissive top-level shape. Its job is to anchor Claude to an object response
-// and force tool use (which eliminates JSON-parse failures) — the studio's own
-// renderer does the real shaping. `additionalProperties: true` keeps it
-// forward-compatible with both the CBC and Previous-curriculum shapes the
-// studio system prompts describe, and with future prompt tweaks. Only the two
-// fields common to BOTH curriculum modes are required.
-const STUDIO_TOOL_SCHEMA = {
-  type: "object",
-  description: "A complete Zambian lesson plan as a single JSON object, in " +
-    "the structure described by the system and user prompts.",
-  additionalProperties: true,
-  properties: {
-    header: {type: "object", additionalProperties: true},
-    generalCompetences: {type: "array", items: {type: "string"}},
-    specificCompetence: {type: "string"},
-    specificOutcome: {type: "string"},
-    lessonGoal: {type: "string"},
-    rationale: {type: "string"},
-    priorKnowledge: {type: "string"},
-    references: {type: "array", items: {type: "string"}},
-    learningEnvironment: {type: "object", additionalProperties: true},
-    materials: {type: "array", items: {type: "string"}},
-    expectedStandard: {type: "string"},
-    stages: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: true,
-        // The stage keys MUST match the studio system prompt's documented
-        // contract (teacher / pupils / assessment / duration) — the same keys
-        // renderPlanHtml reads. The prompt (studioSystemPrompt.js) explicitly
-        // instructs the model to use these and FORBIDS the
-        // teacherActivities/learnerActivities/assessmentCriteria family. A tool
-        // schema that named the forbidden family contradicted the prompt, and
-        // under forced tool_choice that contradiction made the model emit a
-        // degenerate, near-empty tool call — every plan rendered as an empty
-        // table skeleton. Keeping schema + prompt in lock-step is what makes
-        // the model actually fill the plan. (normalizePlanShape on the client
-        // still tolerates the array family if a future model drifts.)
-        properties: {
-          name: {type: "string"},
-          duration: {type: "string"},
-          teacher: {type: "string"},
-          pupils: {type: "string"},
-          assessment: {type: "string"},
-        },
-      },
-    },
-  },
-  required: ["lessonGoal", "stages"],
-};
-
-function sanitize(v, max) {
-  return typeof v === "string" ? v.replace(/^@/g, "").trim().slice(0, max) : "";
-}
-
-/**
- * Core studio lesson-plan generation. Auth + role are checked by the caller;
- * this function takes already-trusted inputs so it can be unit tested without
- * the onCall/firebase-functions plumbing.
- *
- * @param {object} args
- *   uid (required), systemPrompt, userPrompt — studio prompts
- *   context — { grade, subject, term, week, topic, subtopic } lesson coords
- *   apiKey — resolved Anthropic key
- * @returns {Promise<{text: string, usage: object}>}
- */
-async function runStudioLessonPlan({uid, systemPrompt, userPrompt, context, apiKey}) {
-  // Ground the studio plan on two complementary sources, both fail-open so a
-  // lookup error never blocks a generation:
-  //   1. The server-side CBC knowledge base (resolveCbcContext) — stored
-  //      sub-topic curriculum modules, private RAG, editable topic KB, plus
-  //      prior-coverage dedup against the teacher's earlier plans. This is the
-  //      same authoritative grounding the schema-based generateLessonPlan has
-  //      always had; the studio previously relied only on its client-side
-  //      syllabus block and missed all of it.
-  //   2. The teacher's OWN saved Scheme of Work / Weekly Forecast
-  //      (resolveTeacherPlanContext) for this grade+subject+term+week. The
-  //      resolver is vocabulary-tolerant (matches on grade digits + normalised
-  //      subject + topic overlap), so the studio's "Grade 4" / "Form 1" labels
-  //      work without translation.
-  const ctx = context || {};
-  const grade = typeof ctx.grade === "string" ? ctx.grade.slice(0, 40) : ctx.grade;
-  const subject = typeof ctx.subject === "string" ? ctx.subject.slice(0, 80) : ctx.subject;
-  const topic = typeof ctx.topic === "string" ? ctx.topic.slice(0, 200) : "";
-  const subtopic = typeof ctx.subtopic === "string" ? ctx.subtopic.slice(0, 200) : "";
-  const [cbcResult, teacherPlansBlock, usage] = await Promise.all([
-    resolveCbcContext({
-      ownerUid: uid,
-      grade,
-      subject,
-      topic,
-      subtopic,
-      term: ctx.term,
-      lessonNumber: ctx.lessonNumber,
-      totalLessons: ctx.totalLessons,
-      framework: ctx.framework,
-    }).catch((err) => {
-      console.warn("[studioLessonPlan] CBC KB context lookup failed", err);
-      return null;
-    }),
-    resolveTeacherPlanContext({
-      ownerUid: uid,
-      grade,
-      subject,
-      term: ctx.term,
-      week: ctx.week,
-      topic,
-      subtopic,
-    }).catch((err) => {
-      console.warn("[studioLessonPlan] teacher-plan context lookup failed", err);
-      return "";
-    }),
-    // Meter usage — shares the lesson_plan quota with the existing generator.
-    assertAndIncrement(uid, "lesson_plan"),
-  ]);
-
-  // KB block first (shareable across teachers of the same grade/subject/topic,
-  // so the prompt-cache prefix stays stable), the per-teacher pacing block last.
-  const contextBlock = [
-    cbcResult && cbcResult.contextBlock,
-    teacherPlansBlock,
-  ].filter(Boolean).join("\n\n");
-
-  const response = await callClaude(apiKey, {
-    track: {uid, tool: "lesson_plan"},
-    systemPrompt,
-    cbcContextBlock: contextBlock || null,
-    messages: [{role: "user", content: userPrompt}],
-    maxTokens: STUDIO_MAX_TOKENS,
-    temperature: 0.3,
-    thinking: STUDIO_THINKING,
-    outputConfig: STUDIO_OUTPUT_CONFIG,
-    mode: "tool",
-    toolName: "emit_lesson_plan",
-    toolDescription: "Emit the complete Zambian lesson plan as a single " +
-      "structured JSON object, matching the format described in the system " +
-      "and user prompts. Do not include any prose or commentary outside this " +
-      "tool call.",
-    toolInputSchema: STUDIO_TOOL_SCHEMA,
-  });
-
-  // mode:"tool" returns the parsed object on `parsed` (callClaudeTool throws on
-  // a missing/invalid tool_use block, so we get a well-formed object here).
-  // Re-serialise to keep the studio's existing JSON.parse contract.
-  const planJson = response && response.parsed &&
-    typeof response.parsed === "object" ? response.parsed : {};
-  const text = JSON.stringify(planJson);
-
-  // Log a lightweight generation record (no heavy schema validation).
-  admin.firestore().collection("aiGenerations").add({
-    ownerUid: uid,
-    tool: "lesson_plan_studio",
-    status: "complete",
-    modelUsed: (response && response.model) || DEFAULT_MODEL,
-    tokensIn: Number(response && response.usage && response.usage.inputTokens || 0),
-    tokensOut: Number(response && response.usage && response.usage.outputTokens || 0),
-    kbVersion: (cbcResult && cbcResult.kbVersion) || null,
-    kbGrounded: Boolean(cbcResult && cbcResult.kbMatch),
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-  }).catch(() => {/* non-fatal */});
-
-  return {
-    text,
-    usage: response.usage || usage,
-    // Additive: surfaced so the studio can show the same "used general CBC
-    // knowledge" notice the schema-based generator shows. Null when grounded.
-    kbWarning: (cbcResult && cbcResult.kbWarning) || null,
-  };
-}
+const {ENTRY_POINTS, runLessonPlanOperation} = require("./lessonPlan/runLessonPlanOperation");
 
 function createStudioGenerateLessonPlan(anthropicApiKeySecret) {
   return onCall(
-    {secrets: [anthropicApiKeySecret], timeoutSeconds: 120, memory: "512MiB"},
-    async (request) => {
-      const uid = await assertVerifiedAuth(request, "Please sign in.");
-      await assertCallableRateLimit(request, {action: "studioGenerateLessonPlan", userPerMin: 8});
+      {secrets: [anthropicApiKeySecret], timeoutSeconds: 120, memory: "512MiB"},
+      async (request) => {
+        const uid = await assertVerifiedAuth(request, "Please sign in.");
+        await assertCallableRateLimit(request, {
+          action: "studioGenerateLessonPlan", userPerMin: 8,
+        });
 
-      const role = await getUserRole(uid);
-      if (!isStaffRole(role)) {
-        throw new HttpsError(
-          "permission-denied",
-          "Teacher tools are available to approved teachers only.",
-        );
-      }
+        const role = await getUserRole(uid);
+        if (!isStaffRole(role)) {
+          throw new HttpsError(
+              "permission-denied",
+              "Teacher tools are available to approved teachers only.",
+          );
+        }
 
-      const systemPrompt = sanitize(request.data && request.data.systemPrompt, 20000);
-      // 9000 (was 4000): the studio now appends Style-control and (for
-      // Maths/Science) Diagram-spec blocks to the user prompt on top of the
-      // syllabus-topic context, which can push a single-lesson prompt past
-      // 4000 chars. A tighter cap silently truncated the trailing
-      // "Return JSON only" instruction.
-      const userPrompt = sanitize(request.data && request.data.userPrompt, 9000);
-
-      if (!systemPrompt || !userPrompt) {
-        throw new HttpsError("invalid-argument", "systemPrompt and userPrompt are required.");
-      }
-
-      let apiKey;
-      try {
-        apiKey = getAnthropicApiKey(anthropicApiKeySecret);
-      } catch (err) {
-        throw err;
-      }
-
-      return runStudioLessonPlan({
-        uid,
-        systemPrompt,
-        userPrompt,
-        context: (request.data && request.data.context) || {},
-        apiKey,
-      });
-    },
+        const data = request.data || {};
+        return runLessonPlanOperation({
+          uid,
+          idempotencyKey: data.idempotencyKey,
+          inputs: data,
+          apiKey: getAnthropicApiKey(anthropicApiKeySecret),
+          entryPoint: ENTRY_POINTS.studio,
+        });
+      },
   );
 }
 
-module.exports = {
-  createStudioGenerateLessonPlan,
-  // Exported for unit tests of the generation core.
-  runStudioLessonPlan,
-  STUDIO_TOOL_SCHEMA,
-};
+module.exports = {createStudioGenerateLessonPlan};
