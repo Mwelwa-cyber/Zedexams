@@ -94,30 +94,39 @@ export function editDistance(a, b, max = 3) {
 }
 
 /**
- * Whether one token can stand for another: equal, an initial of it, or one
- * typing slip away.
+ * How well one token stands for another, 0 (not at all) to 1 (the same word).
  *
- * "M." standing for "Mulenga" is the single most common way one child appears
- * twice on a captured list — the top of a page writes the full name and the
- * continuation writes an initial.
+ *   1.0  the same token
+ *   0.9  one typing slip apart. Only longer tokens qualify: a one-edit gap
+ *        between three-letter names ("Ben"/"Bea") is more often two children.
+ *   0.5  an INITIAL of it. "M." standing for "Mulenga" is the commonest way
+ *        one child appears twice on a captured list — the top of a page writes
+ *        the full name and the continuation writes an initial — but it is weak
+ *        evidence and must be scored as such, because a single letter also
+ *        matches Musonda, Mwansa, Mwila and every other M on the register.
+ *        Scoring it as a full match made "Chanda M. Mulenga" look like
+ *        "Chanda Musonda", and offered a teacher three duplicate pairs that
+ *        were three different children.
  */
-function tokensCompatible(a, b) {
-  if (a === b) return true
-  if (a.length === 1 || b.length === 1) {
-    return a[0] === b[0]
-  }
-  // Only longer tokens tolerate a typo; a one-edit gap between three-letter
-  // names ("Ben"/"Bea") is more often two children than one.
+function tokenAffinity(a, b) {
+  if (a === b) return 1
+  if (a.length === 1 || b.length === 1) return a[0] === b[0] ? 0.5 : 0
   const threshold = Math.min(a.length, b.length) >= 5 ? 1 : 0
-  return threshold > 0 && editDistance(a, b, threshold) <= threshold
+  if (threshold > 0 && editDistance(a, b, threshold) <= threshold) return 0.9
+  return 0
 }
 
 /**
  * How alike two names are, 0–1, ignoring word order.
  *
- * Greedy one-to-one token matching: each token of the shorter name claims at
- * most one token of the longer. Without the one-to-one constraint "Mary Mary"
- * would score a perfect match against "Mary Banda".
+ * TWO PASSES, and the order matters. Exact tokens are claimed first, then the
+ * weaker matches take what is left. A single greedy pass lets an initial claim
+ * the token an exact match needed: comparing "Chanda Mulenga" with "Chanda M.
+ * Mulenga", the token `mulenga` would reach `m` before it reached `mulenga`,
+ * spend itself on the initial, and score the pair lower than two strangers.
+ *
+ * One-to-one throughout: each token of the shorter name claims at most one
+ * token of the longer, or "Mary Mary" scores a perfect match on "Mary Banda".
  */
 export function nameSimilarity(a, b) {
   const ta = nameTokens(a)
@@ -125,21 +134,32 @@ export function nameSimilarity(a, b) {
   if (!ta.length || !tb.length) return 0
   const [shorter, longer] = ta.length <= tb.length ? [ta, tb] : [tb, ta]
   const claimed = new Array(longer.length).fill(false)
-  let matched = 0
-  for (const token of shorter) {
-    for (let i = 0; i < longer.length; i += 1) {
-      if (claimed[i]) continue
-      if (tokensCompatible(token, longer[i])) {
-        claimed[i] = true
-        matched += 1
-        break
-      }
-    }
-  }
+  const spent = new Array(shorter.length).fill(false)
+  let score = 0
+
+  // Pass 1 — exact tokens only.
+  shorter.forEach((token, s) => {
+    const i = longer.findIndex((other, j) => !claimed[j] && other === token)
+    if (i >= 0) { claimed[i] = true; spent[s] = true; score += 1 }
+  })
+
+  // Pass 2 — the best remaining partial match for each unspent token.
+  shorter.forEach((token, s) => {
+    if (spent[s]) return
+    let best = 0
+    let bestIndex = -1
+    longer.forEach((other, j) => {
+      if (claimed[j]) return
+      const affinity = tokenAffinity(token, other)
+      if (affinity > best) { best = affinity; bestIndex = j }
+    })
+    if (bestIndex >= 0) { claimed[bestIndex] = true; score += best }
+  })
+
   // Divided by the LONGER name, so "Chanda" against "Chanda Mulenga Banda"
   // scores 0.33 rather than a perfect 1 — one shared given name is weak
   // evidence, and scoring it as certainty is how namesakes get merged.
-  return matched / longer.length
+  return score / longer.length
 }
 
 const digitsOnly = (v) => String(v ?? '').replace(/\D/g, '')

@@ -233,3 +233,4 @@ public/syllabi/_backups/
 # baseline-update.yml replaces one that does. Never by hand: a baseline carries
 # the environment that drew it, so a locally recorded one is un-comparable in CI.
 tests/visual/output/
+preview-shots/

@@ -72,9 +72,31 @@ test('edit distance is capped and symmetric', () => {
   eq(editDistance('abc', 'xyz', 1), 2)
 })
 
-test('an initial stands for a full name', () => {
-  assert(nameSimilarity('Chanda M. Mulenga', 'Chanda Mateo Mulenga') === 1,
-    'initial should match the name it abbreviates')
+test('an initial stands for the name it abbreviates, but only partly', () => {
+  // Both full tokens match exactly and the initial carries the third, so the
+  // pair scores high — high enough to be offered — without the initial being
+  // treated as certainty.
+  const score = nameSimilarity('Chanda M. Mulenga', 'Chanda Mateo Mulenga')
+  assert(score >= 0.8, `expected a strong score, got ${score}`)
+  assert(score < 1, 'an initial is not proof that two names are the same')
+})
+
+test('an initial does not make every name sharing that letter a duplicate', () => {
+  // The failure this guards: a single letter matches Musonda, Mwansa, Mwila
+  // and every other M on the register. Scoring it as a full token offered a
+  // teacher three "duplicates" that were three different children.
+  for (const other of ['Chanda Musonda', 'Mwansa Chanda', 'Mwansa Mulenga']) {
+    const result = compareLearners({ fullName: 'Chanda M. Mulenga' }, { fullName: other })
+    eq(result.duplicate, false, `"Chanda M. Mulenga" must not match "${other}"`)
+  }
+})
+
+test('an exact token is never spent on an initial that came first', () => {
+  // "mulenga" reaches "m" before it reaches "mulenga" in a single greedy
+  // pass; spending itself on the initial scored a real pair below two
+  // strangers. Exact matches are claimed first.
+  const score = nameSimilarity('Chanda Mulenga', 'Chanda M. Mulenga')
+  assert(score >= 0.66, `expected both full tokens to match, got ${score}`)
 })
 
 test('one shared given name is weak evidence, not certainty', () => {

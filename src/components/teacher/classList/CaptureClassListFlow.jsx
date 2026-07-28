@@ -51,11 +51,20 @@ function newPage(position, image, file) {
   }
 }
 
-export default function CaptureClassListFlow({ className, onCancel, onExtracted }) {
+/**
+ * @param {object} props
+ * @param {Array} [props.initialPages] Pages the strip starts with. Used by the
+ *   preview route (/teacher/register-preview/capture) so a reviewer sees the
+ *   three-pages-captured state rather than the empty one. It is a seam for the
+ *   preview and nothing else — the alternative was a hand-built replica of
+ *   this strip, which makes the preview a drawing of the screen instead of the
+ *   screen. Production callers pass nothing.
+ */
+export default function CaptureClassListFlow({ className, onCancel, onExtracted, initialPages }) {
   const toast = useToast()
   const cameraRef = useRef(null)
   const galleryRef = useRef(null)
-  const [pages, setPages] = useState([])
+  const [pages, setPages] = useState(() => initialPages || [])
   const [busy, setBusy] = useState(null)          // null | 'preparing' | 'reading'
   const [progress, setProgress] = useState(null)  // { done, total }
   const [zoomed, setZoomed] = useState(null)
