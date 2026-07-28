@@ -158,12 +158,62 @@ function classifyProviderError(err) {
   return {code: "INTERNAL_ERROR", message, retryable: false};
 }
 
+/**
+ * A stable UUID for something that has a durable identity of its own.
+ *
+ * Interactive callers mint a random key in the browser and keep it across
+ * retries. A server-side caller with no browser — an agent job, a trigger —
+ * has no such place to keep one, and inventing a fresh key per attempt would
+ * defeat the protection entirely: every retry would look like a new request.
+ *
+ * So the key is DERIVED from the thing that is already unique. One agentJobs
+ * document is one logical generation, so `agentJobs/{id}/aria` is the name, and
+ * the same job always produces the same key:
+ *
+ *   duplicate Firestore delivery → same key, no second provider call
+ *   infrastructure retry         → same key, resume the existing operation
+ *   retry of a failed job        → same key, existing retry/backoff rules
+ *   changed inputs, same job     → rejected by fingerprint mismatch
+ *   a genuinely new draft        → a new agentJobs document, so a new key
+ *
+ * NEVER derive it from a timestamp, an attempt counter, mutable input, or the
+ * entry point. Each of those makes a retry look like a new request, which is
+ * the exact failure this exists to prevent.
+ *
+ * RFC 4122 name-based v5 layout: SHA-1 of the name, version nibble set to 5,
+ * variant bits set to 10. The hash is not a security boundary here — the value
+ * is a namespace-scoped identifier, and the operation document is still owned
+ * by a server-derived uid.
+ */
+function deterministicIdempotencyKey(name) {
+  const text = String(name || "").trim();
+  if (!text) {
+    throw new Error("deterministicIdempotencyKey needs a non-empty name.");
+  }
+  const hex = require("crypto").createHash("sha1").update(text, "utf8").digest("hex");
+  const bytes = hex.slice(0, 32).match(/.{2}/g);
+  bytes[6] = ((parseInt(bytes[6], 16) & 0x0f) | 0x50).toString(16).padStart(2, "0");
+  bytes[8] = ((parseInt(bytes[8], 16) & 0x3f) | 0x80).toString(16).padStart(2, "0");
+  const h = bytes.join("");
+  return [h.slice(0, 8), h.slice(8, 12), h.slice(12, 16), h.slice(16, 20), h.slice(20, 32)]
+      .join("-");
+}
+
+/** The canonical name for an agent job's generation. One job, one key. */
+function agentJobIdempotencyKey(jobId, agentId) {
+  const id = String(jobId || "").trim();
+  if (!id) throw new Error("agentJobIdempotencyKey needs the agentJobs document id.");
+  return deterministicIdempotencyKey(`agentJobs/${id}/${agentId}`);
+}
+
 module.exports = {
   OPERATION_STATUSES,
   IN_FLIGHT_STATUSES,
   MAX_RETRIES,
   retryBackoffMs,
   isValidIdempotencyKey,
+  deterministicIdempotencyKey,
+  agentJobIdempotencyKey,
   stableStringify,
   computeInputFingerprint,
   computeNextRetryAt,

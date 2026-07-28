@@ -15,6 +15,7 @@ const {
   classifyProviderError,
   retryBackoffMs,
   MAX_RETRIES,
+  agentJobIdempotencyKey,
 } = require("./aiOperationsCore");
 
 let passed = 0;
@@ -160,5 +161,29 @@ for (const status of ["reserved", "queued", "processing"]) {
   const longMsg = classifyProviderError(new Error(`raw provider payload leaked: ${secretKey}`.repeat(10)));
   ok("long/raw provider messages are truncated, never fully echoed", longMsg.message.length <= 300);
 }
+
+// ── Deterministic keys for callers with nowhere to keep one ──────────────
+{
+  const k = agentJobIdempotencyKey("job_abc", "aria");
+  ok("a job-derived key is a valid idempotency key", isValidIdempotencyKey(k));
+  ok("the same job and agent always give the same key",
+      k === agentJobIdempotencyKey("job_abc", "aria"));
+  ok("a different job gives a different key",
+      k !== agentJobIdempotencyKey("job_xyz", "aria"));
+  ok("a different agent on the same job gives a different key",
+      k !== agentJobIdempotencyKey("job_abc", "cala"));
+  ok("it is RFC-4122 v5 shaped (version 5, variant 10)",
+      /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(k));
+  // The whole point: a retry must not look like a new request.
+  ok("nothing about it varies between calls", new Set([
+    agentJobIdempotencyKey("job_1", "aria"),
+    agentJobIdempotencyKey("job_1", "aria"),
+    agentJobIdempotencyKey("job_1", "aria"),
+  ]).size === 1);
+  let threw = null;
+  try { agentJobIdempotencyKey("", "aria"); } catch (e) { threw = e; }
+  ok("an empty job id is refused rather than hashed into a plausible key", !!threw);
+}
+
 
 console.log(`\n✓ ${passed} aiOperationsCore assertions passed.`);

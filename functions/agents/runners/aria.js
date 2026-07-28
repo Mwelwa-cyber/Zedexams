@@ -39,11 +39,17 @@ function defaultGetApiKey(secret) {
   return require("../../aiService").getAnthropicApiKey(secret);
 }
 
+const {agentJobIdempotencyKey} = require("../../aiOperationsCore");
+
 const SUPPORTED_TOOLS = new Set(Object.keys(RUNNERS));
 
 /**
  * @param {object} args
- * @param {object} args.job - The agentJobs document data (with id).
+ * @param {string} args.jobId - The agentJobs DOCUMENT ID, passed separately by
+ *   the dispatcher, which owns the authoritative path. It is deliberately not
+ *   read from `job.id`: that is mutable document data, and the idempotency key
+ *   derived from it must be as durable as the document itself.
+ * @param {object} args.job - The agentJobs document data.
  * @param {object} args.anthropicApiKeySecret - Firebase secret param.
  * @param {object} [args.runners] - Tool→runner map. Defaults to RUNNERS;
  *   injected by the unit test so the routing/draft-mapping logic runs
@@ -53,6 +59,7 @@ const SUPPORTED_TOOLS = new Set(Object.keys(RUNNERS));
  * @returns {Promise<object>} { generationId, draft, modelUsed }
  */
 async function runAria({
+  jobId,
   job,
   anthropicApiKeySecret,
   runners = RUNNERS,
@@ -77,7 +84,14 @@ async function runAria({
   }
 
   const apiKey = getApiKey(anthropicApiKeySecret);
-  const result = await runner.run({uid, rawInputs: input, apiKey});
+
+  // One agentJobs document is one logical Aria generation, so the key is
+  // derived from the job rather than minted per attempt. Without this the
+  // generators that now REQUIRE a key would refuse every Aria run — and a
+  // freshly minted key would be worse than none, because each retry would
+  // reserve a new operation and pay for a second provider call.
+  const idempotencyKey = agentJobIdempotencyKey(jobId, "aria");
+  const result = await runner.run({uid, rawInputs: input, apiKey, idempotencyKey});
 
   return {
     generationId: result.generationId,

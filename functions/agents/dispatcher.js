@@ -172,7 +172,7 @@ async function runContentChain({jobId, jobData, anthropicApiKeySecret}) {
   await setJobFields(jobRef, {status: "running", agentId: "aria"});
   let ariaOut;
   try {
-    ariaOut = await runAria({job: jobData, anthropicApiKeySecret});
+    ariaOut = await runAria({jobId: jobRef.id, job: jobData, anthropicApiKeySecret});
   } catch (err) {
     console.error("Aria failed", err);
     await setJobFields(jobRef, {
