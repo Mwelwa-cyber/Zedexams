@@ -1,12 +1,10 @@
-import { useRef, useMemo, useState } from 'react'
+import { useRef, useMemo } from 'react'
 import { hasOnlyEmptyStarterSection, orderPaperGroups } from '../../../utils/quizSections.js'
 import { toEditableText } from '../AssessmentQuestionEditors'
 import { QUIZ_DOCUMENT_ACCEPT } from '../../quiz/documentQuizImporter'
 import { SECTION_LETTERS } from '../assessmentStudioMeta'
-import {
-  downloadTableOfSpecificationsDocx,
-  openTableOfSpecificationsPrintWindow,
-} from '../../../utils/tableOfSpecifications'
+import { normalizeMarksMode, resolveQuestionMarks, marksLabel } from '../../../utils/paperMarksModel'
+import { CHOICE_COUNT_OPTIONS, normalizeChoiceCount } from '../../../utils/mcqChoices'
 import Icon from './studioIcons'
 import {
   HeaderBlock,
@@ -37,43 +35,6 @@ export function BuilderView(props) {
 
   const emptyPaper = hasOnlyEmptyStarterSection(sections)
   const importInputRef = useRef(null)
-  const [tosExporting, setTosExporting] = useState('')
-  const [tosMessage, setTosMessage] = useState('')
-
-  async function exportTableOfSpecifications(kind) {
-    if (!form.blueprint || tosExporting) return
-    setTosExporting(kind)
-    setTosMessage('')
-    const meta = {
-      schoolName: form.schoolName,
-      schoolLogoUrl: form.schoolLogoUrl,
-      title: form.paperName || form.title || assessmentTypeLabel,
-      assessmentType: assessmentTypeLabel,
-      grade: form.grade,
-      subject: form.subject,
-      term: form.term,
-      year: form.year,
-      durationMinutes: Number(form.duration) || 0,
-      teacherName: form.teacherName,
-      preparedDate: form.assessmentDate,
-      framework: form.framework === '2013'
-        ? '2013 Outcome-Based Curriculum'
-        : '2023 Competence-Based Curriculum',
-    }
-    try {
-      if (kind === 'word') {
-        await downloadTableOfSpecificationsDocx(form.blueprint, meta)
-        setTosMessage('Editable Table of Specifications downloaded.')
-      } else {
-        openTableOfSpecificationsPrintWindow(form.blueprint, meta)
-        setTosMessage('Filing copy opened. Choose Print or Save as PDF.')
-      }
-    } catch (error) {
-      setTosMessage(error?.message || 'Could not prepare the Table of Specifications.')
-    } finally {
-      setTosExporting('')
-    }
-  }
 
   // Group sections by their Part membership for rendering Section headers, then
   // lay the groups out in the teacher-chosen order (sections by their order, the
@@ -178,47 +139,6 @@ export function BuilderView(props) {
 
       <div className="sv-doc-canvas">
         <SmartWarningsBanner warnings={warnings} />
-
-        {form.blueprint && (
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            gap: 10, flexWrap: 'wrap', border: '1px solid #f2c7af',
-            background: '#fffaf7', borderRadius: 12, padding: '10px 12px', marginBottom: 10,
-          }}>
-            <div style={{ flex: '1 1 260px' }}>
-              <strong style={{ fontSize: 13.5, color: 'var(--sv-text)' }}>Teacher filing copy</strong>
-              <div style={{ fontSize: 12, color: 'var(--sv-muted)', marginTop: 2 }}>
-                Download the Table of Specifications used to plan this paper. It is not included in the learner copy.
-              </div>
-              {tosMessage && (
-                <div role="status" style={{
-                  fontSize: 11.5, marginTop: 4,
-                  color: /could not|blocked/i.test(tosMessage) ? '#991b1b' : '#065f46',
-                }}>
-                  {tosMessage}
-                </div>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="sv-btn"
-                onClick={() => exportTableOfSpecifications('pdf')}
-                disabled={Boolean(tosExporting)}
-              >
-                {tosExporting === 'pdf' ? 'Preparing…' : 'Print / Save PDF'}
-              </button>
-              <button
-                type="button"
-                className="sv-btn sv-btn-primary"
-                onClick={() => exportTableOfSpecifications('word')}
-                disabled={Boolean(tosExporting)}
-              >
-                {tosExporting === 'word' ? 'Preparing Word…' : 'Download TOS'}
-              </button>
-            </div>
-          </div>
-        )}
 
         <HeaderBlock form={form} setF={setF} footerCode={footerCode} importing={importing} importSummary={importSummary} onDismissImportSummary={onDismissImportSummary} onImportDocument={onImportDocument} onScan={onScan} assessmentTypes={assessmentTypes} assessmentTypeLabel={assessmentTypeLabel} />
 
@@ -339,16 +259,19 @@ export function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, 
   const partIndex = allParts.findIndex(p => p.id === group.part?.id)
   const letter = partIndex >= 0 ? SECTION_LETTERS[partIndex] || '·' : null
 
+  // The section's total, through the SAME rule the printed paper uses (§4).
+  // Summing `q.marks` directly — which this did — prints a different number from
+  // the paper the moment the section is set to "same marks for every question",
+  // because a uniform section's questions are worth the section's mark and not
+  // their own.
   const partMarks = useMemo(() => {
-    return group.members.reduce((sum, { section }) => {
-      if (section.kind === 'passage') {
-        return sum + (section.passage.questions || []).reduce((s, q) => s + (q.marks || 1), 0)
-      }
-      // Page breaks are structural markers with no marks.
-      if (section.kind === 'pagebreak') return sum
-      return sum + (section.question.marks || 1)
-    }, 0)
-  }, [group.members])
+    const questions = group.members.flatMap(({ section }) => {
+      if (section.kind === 'passage') return section.passage.questions || []
+      if (section.kind === 'pagebreak') return []
+      return section.question ? [section.question] : []
+    })
+    return questions.reduce((sum, q) => sum + resolveQuestionMarks(q, group.part), 0)
+  }, [group.members, group.part])
 
   return (
     <>
@@ -393,6 +316,11 @@ export function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, 
             onChange={e => onUpdatePart(group.part.id, 'instructions', e.target.value)}
             placeholder="Section instructions (e.g. Choose the correct answer from the options given.)"
           />
+          <SectionMarksControls
+            part={group.part}
+            partMarks={partMarks}
+            onUpdatePart={onUpdatePart}
+          />
         </div>
       )}
 
@@ -430,5 +358,80 @@ export function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, 
 
       <AddHere onAdd={() => onAddBlock(group.members.length ? group.members[group.members.length - 1].index : null)} />
     </>
+  )
+}
+
+
+/* ==================================================================
+ * SECTION MARKS + ANSWER-CHOICE CONTROLS (§3, §4)
+ *
+ * A 25-question multiple-choice section is "one mark each", and asking a
+ * teacher to type 1 twenty-five times is how a section ends up with a 2 in it
+ * by accident. So a section can declare a uniform mark, and every question in
+ * it is worth that — except one the teacher deliberately locked, which keeps
+ * its own. Switching to uniform must not silently rewrite a mark that was set
+ * on purpose; the only evidence would be the total moving.
+ *
+ * The declared total sits beside the computed one rather than replacing it. A
+ * section whose two numbers disagree is blocked at export with both named,
+ * because whichever the learner is marked against, one of them is wrong.
+ * ================================================================== */
+export function SectionMarksControls({ part, partMarks, onUpdatePart }) {
+  const mode = normalizeMarksMode(part.marksMode)
+  const uniform = mode === 'uniform'
+  const choiceCount = normalizeChoiceCount(part.answerChoiceCount)
+  return (
+    <div className="sv-section-settings">
+      <div className="sv-section-setting">
+        <span className="sv-section-setting-label">Marks</span>
+        <select
+          value={mode}
+          onChange={(e) => onUpdatePart(part.id, 'marksMode', e.target.value)}
+          aria-label="How this section awards marks"
+        >
+          <option value="individual">Set marks individually</option>
+          <option value="uniform">Same marks for every question</option>
+        </select>
+        {uniform && (
+          <label className="sv-section-setting-inline">
+            <span>Marks per question</span>
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              value={part.marksPerQuestion ?? 1}
+              onChange={(e) => onUpdatePart(part.id, 'marksPerQuestion', Number(e.target.value))}
+            />
+          </label>
+        )}
+        <label className="sv-section-setting-inline">
+          <input
+            type="checkbox"
+            checked={part.showMarks !== false}
+            onChange={(e) => onUpdatePart(part.id, 'showMarks', e.target.checked)}
+          />
+          <span>Show marks beside questions</span>
+        </label>
+        <span className="sv-section-setting-total">Section total: {marksLabel(partMarks)}</span>
+      </div>
+
+      <div className="sv-section-setting">
+        <span className="sv-section-setting-label">Answer choices</span>
+        <select
+          value={choiceCount ?? ''}
+          onChange={(e) => onUpdatePart(
+            part.id,
+            'answerChoiceCount',
+            e.target.value === '' ? null : Number(e.target.value),
+          )}
+          aria-label="Number of answer choices in this section"
+        >
+          <option value="">Use the paper&apos;s setting</option>
+          {CHOICE_COUNT_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label} — {o.description.toLowerCase()}</option>
+          ))}
+        </select>
+      </div>
+    </div>
   )
 }
