@@ -7,6 +7,7 @@
 
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { generateAssessment, planAssessment } from '../../utils/teacherTools'
+import { normalizeChoiceCount } from '../../utils/mcqChoices'
 import { paywall } from '../../utils/paywall'
 import { useAuth } from '../../contexts/AuthContext'
 import { useGenerationGate } from '../../hooks/useGenerationGate'
@@ -520,6 +521,11 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
       // The teacher's chosen difficulty spread, as weights. null = whatever this
       // level normally does, which is what the band already says.
       difficultyMix: presetById(presetId).weights,
+      // §3 — how many answer choices the paper is set to. Sent so the generator
+      // writes exactly that many rather than the studio trimming the surplus
+      // afterwards: a model given the target writes better distractors than one
+      // whose fifth option is thrown away. The server enforces it either way.
+      answerChoiceCount: normalizeChoiceCount(paperMeta?.mcqAnswerChoiceCount) ?? null,
     }
   }
 

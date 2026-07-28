@@ -3,9 +3,9 @@
   "family": "browser-print",
   "copy": "scheme",
   "identity": "browser-print/chromium-150.0.7871.24",
-  "sourceCommit": "e03393e01d83ddbb38427adb7379ab14e0ba340f",
-  "source": "PR #1958 (commit 72a8fc7)",
-  "reason": "The paper code moved from 277-281mm down to 288-292mm: its strip is now RESERVED by a running tfoot rather than shared with the body (#1958). Both copies are recorded by this run. The MARKING KEY is the one that matters here: while the code was still the table cell's last child, the last block's invisible trailing margin pushed the reservation past the page and gave the key a second sheet carrying nothing but the code - content ended at 278.5mm, comfortably inside the 281mm limit. Moving the code outside the table and zeroing that margin restored it to one page, which is what is being recorded; the key's last body ink is 278.54mm, within a pixel of the limit. Anchors unchanged in both copies, 156 connected pixels each. No DOCX baseline is affected.",
+  "sourceCommit": "8f46a3f8a198c112075e023e7918fb86d962e930",
+  "source": "1995",
+  "reason": "The grade now prints as the teacher typed it (GRADE 7, not GRADE SEVEN) per §9, the learner-field label is shared across renderers, and the Word export uses the paper's own margins instead of Word's 1-inch default so all three renderers set the same 174mm column per §2.",
   "environment": {
     "chromium": "150.0.7871.24",
     "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
@@ -59,7 +59,7 @@
     "diagram_1": 1
   },
   "inkByPage": {
-    "1": 0.040465100869406766
+    "1": 0.039961697142378586
   },
   "figures": {
     "unresolvedFigureCount": 0,
@@ -82,7 +82,7 @@
   },
   "hashes": {
     "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
-    "layout.json": "ec9e58cf3da87965039fb4b9b6615535d216216870e9870f91cdfd95226b2d0a",
-    "page-01.png": "2a06d6ec672bc1125e009b0857f64d5e7d10fe442fbe52d3fa9e73f4fb5467ee"
+    "layout.json": "ecfb72fec819f5d2ddf693d923dae84f534eeea62f891e84d95d4041232e8a16",
+    "page-01.png": "4838a9ebb3887ba177930cfb82299b66059c9caa0fd714c3dfaeae3d8448e16c"
   }
 }

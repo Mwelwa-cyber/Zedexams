@@ -116,22 +116,29 @@ function PaperHeaderBlock({ block }) {
 }
 
 function PaperLearnerFieldsBlock({ block }) {
+  // The labels come off the block (§9). A mock examination says "CANDIDATE'S
+  // NAME", a Grade 3 test says "PUPIL'S NAME", and the preview, the PDF and Word
+  // print the same words because all three read the same resolved field rather
+  // than each hard-coding "NAME". The fallbacks are exactly what was hard-coded
+  // here before, so a block built without labels is unchanged.
+  const labels = block.labels || {}
+  const label = (key, fallback) => String(labels[key] || fallback).toUpperCase()
   return (
     <>
       {(block.name || block.date) && (
         <div className="sv-paper-name-row">
-          {block.name && <><span>NAME:</span><div className="sv-line" /></>}
-          {block.date && <><span>DATE:</span><div className="sv-line" style={{ maxWidth: 180 }} /></>}
+          {block.name && <><span>{label('name', 'Name')}:</span><div className="sv-line" /></>}
+          {block.date && <><span>{label('date', 'Date')}:</span><div className="sv-line" style={{ maxWidth: 180 }} /></>}
         </div>
       )}
       {block.classField && (
         <div className="sv-paper-name-row" style={{ marginTop: 0 }}>
-          <span>CLASS:</span><div className="sv-line" />
+          <span>{label('classField', 'Class')}:</span><div className="sv-line" />
         </div>
       )}
       {block.marks && (
         <div className="sv-paper-total-marks">
-          TOTAL MARKS: _________ / {block.totalMarks || '____'}
+          {label('marks', 'Total marks')}: _________ / {block.totalMarks || '____'}
         </div>
       )}
     </>
@@ -173,7 +180,11 @@ function PaperSectionHead({ block }) {
     <div className="sv-paper-section">
       <div className="sv-paper-section-head">
         Section {block.letter}{block.title ? ` — ${block.title}` : ''}
-        <span className="sv-marks">({block.marks} mark{block.marks === 1 ? '' : 's'})</span>
+        {/* A paper that hides marks from learners must not print the section's
+            total in its heading either (§4). */}
+        {block.showMarks !== false && (
+          <span className="sv-marks">({block.marks} mark{block.marks === 1 ? '' : 's'})</span>
+        )}
       </div>
       {block.instructions && (
         <div className="sv-paper-section-instr">{block.instructions}</div>
@@ -243,7 +254,10 @@ function PaperQuestionBlock({ block }) {
     <div className={qClass}>
       <div className="sv-qline">
         <strong>{block.number}.</strong> {block.text || '(no question text)'}
-        {marks >= 1 && <em className="sv-qmarks">({marks}&nbsp;mark{marks === 1 ? '' : 's'})</em>}
+        {/* `showMarks` is the paper's or the section's decision (§4). Absent on
+            a block built by a caller that predates it, which keeps the old
+            behaviour of always printing the mark. */}
+        {marks >= 1 && block.showMarks !== false && <em className="sv-qmarks">({marks}&nbsp;mark{marks === 1 ? '' : 's'})</em>}
       </div>
       {block.imageUrl && (
         <>

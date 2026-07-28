@@ -21,6 +21,7 @@ import {
   GATE_MODES, RENDERER_FAMILIES, REQUIRED_ARTEFACTS, FAILURE_ARTEFACTS,
   mayWriteBaseline, validateUpdateRequest, baselineWriteFilter, planBaselineUpdate,
   validateBootstrapRequest, planBaselineBootstrap,
+  validateSweepUpdateRequest, assertBaselineDestination,
   gateVerdict, summariseGateVerdict, requiredArtefacts, shouldProceedToComparison,
 } from './gateCore.js'
 import { VISUAL_FIXTURES } from './fixtures.js'
@@ -381,14 +382,57 @@ test('an update request must carry a reason and a source', () => {
   }
 })
 
-test('the update workflow requires all four inputs', () => {
+test('the update workflow always requires a reason and a source', () => {
   const inputs = updateWorkflow.on.workflow_dispatch.inputs
-  for (const name of ['fixture', 'family', 'reason', 'source']) {
+  for (const name of ['scope', 'reason', 'source']) {
     assert.ok(inputs[name], `${name} is an input`)
     assert.equal(inputs[name].required, true, `${name} is required`)
   }
-  // The family is a choice, so a typo cannot silently target nothing.
-  assert.deepEqual(inputs.family.options, RENDERER_FAMILIES)
+  // The family is a choice, so a typo cannot silently target nothing. The empty
+  // option is the sweep's "every family" and is only reachable there — the
+  // validator below refuses it for a one-baseline update.
+  assert.deepEqual(inputs.family.options, ['', ...RENDERER_FAMILIES])
+})
+
+test('fixture and family are optional to the WORKFLOW and required by the RECORDER', () => {
+  // They stopped being `required: true` in the YAML when the sweep arrived,
+  // because a sweep legitimately names neither. The guarantee they carried —
+  // a one-baseline update cannot silently target nothing — did not move to
+  // trust, it moved to validateUpdateRequest, which is the thing that actually
+  // decides. This test is what says those two facts belong together.
+  const inputs = updateWorkflow.on.workflow_dispatch.inputs
+  assert.notEqual(inputs.fixture.required, true, 'a sweep names no fixture')
+  assert.notEqual(inputs.family.required, true, 'a sweep names no family')
+
+  const noFixture = validateUpdateRequest(
+    { family: 'docx', reason: 'a stated reason that is long enough', source: '1995' },
+    FIXTURE_IDS,
+  )
+  assert.ok(noFixture.some((p) => p.includes('no fixture ID given')))
+  const noFamily = validateUpdateRequest(
+    { fixture: 'vr-003', reason: 'a stated reason that is long enough', source: '1995' },
+    FIXTURE_IDS,
+  )
+  assert.ok(noFamily.some((p) => p.includes('no renderer family given')))
+})
+
+test('a sweep commits to the branch; a one-baseline update opens its own PR', () => {
+  const steps = updateWorkflow.jobs.update.steps
+  const commit = steps.find((st) => /Commit the baselines to this pull request/.test(String(st.name || '')))
+  const openPr = steps.find((st) => /Open a pull request/.test(String(st.name || '')))
+  assert.ok(commit, 'the sweep has a commit step')
+  assert.ok(openPr, 'the one-baseline path still opens a pull request')
+  // Mutually exclusive, so a run can never both push to the branch AND open a
+  // second pull request carrying the same baselines.
+  assert.match(String(commit.if), /every-moved-baseline/)
+  assert.match(String(openPr.if), /!=\s*'every-moved-baseline'/)
+  // The push names the dispatched branch and refuses the default one. Checked
+  // as text because the step is shell, and this is the guarantee that keeps a
+  // baseline out of main.
+  assert.match(String(commit.run), /github\.ref_name/)
+  assert.match(String(commit.run), /default_branch/)
+  assert.match(String(commit.run), /Refusing to push baselines to the default branch/)
+  assert.ok(!/--base main/.test(String(commit.run)), 'the sweep does not open a PR to main')
 })
 
 test('the update validates the fixture and compares BEFORE replacing', () => {
@@ -549,6 +593,58 @@ test('editing a writer workflow runs the gate that proves it is still safe', () 
   for (const name of Object.keys(WRITERS)) {
     assert.ok(PRINT_AFFECTING_PATHS.includes(`.github/workflows/${name}`), `${name} is watched`)
   }
+})
+
+/* ── The sweep update ─────────────────────────────────────────────────────
+   Re-recording every baseline a change moved, onto the pull request that moved
+   them. The one-fixture rule is right for a one-off; a change that legitimately
+   moves all eight fixtures turns it into sixteen dispatches, which is how a gate
+   ends up permanently red. What replaces the rule is a set of conditions, and
+   these are the tests that they hold. */
+
+const sweep = {
+  reason: 'the grade now prints as typed (§9) and Word uses the paper margins (§2)',
+  source: '1995',
+  pullRequest: '1995',
+}
+
+test('a sweep names its pull request, its reason and its source', () => {
+  assert.deepEqual(validateSweepUpdateRequest(sweep, FIXTURE_IDS), [])
+})
+
+test('a sweep with no pull request is refused — that is where the review happens', () => {
+  const problems = validateSweepUpdateRequest({ ...sweep, pullRequest: '' }, FIXTURE_IDS)
+  assert.equal(problems.length, 1)
+  assert.match(problems[0], /no pull request given/)
+})
+
+test('a pull request that is not a number is refused rather than coerced', () => {
+  assert.match(validateSweepUpdateRequest({ ...sweep, pullRequest: 'my-branch' }, FIXTURE_IDS)[0], /not a pull request number/)
+})
+
+test('a sweep still has to say why, and the reason still has to be one', () => {
+  assert.ok(validateSweepUpdateRequest({ ...sweep, reason: '' }, FIXTURE_IDS).length > 0)
+  assert.ok(validateSweepUpdateRequest({ ...sweep, reason: 'fix' }, FIXTURE_IDS).length > 0)
+  assert.ok(validateSweepUpdateRequest({ ...sweep, source: '' }, FIXTURE_IDS).length > 0)
+})
+
+test('fixture and family stay narrowing, and a typo is still an error', () => {
+  assert.deepEqual(validateSweepUpdateRequest({ ...sweep, fixture: 'vr-003' }, FIXTURE_IDS), [])
+  assert.deepEqual(validateSweepUpdateRequest({ ...sweep, family: 'docx' }, FIXTURE_IDS), [])
+  assert.ok(validateSweepUpdateRequest({ ...sweep, fixture: 'vr-999' }, FIXTURE_IDS).length > 0)
+  assert.ok(validateSweepUpdateRequest({ ...sweep, family: 'pdf' }, FIXTURE_IDS).length > 0)
+})
+
+test('baselines may never be written to the default branch', () => {
+  assert.deepEqual(assertBaselineDestination('claude/some-branch'), [])
+  assert.match(assertBaselineDestination('main')[0], /refusing to write baselines/)
+  assert.match(assertBaselineDestination('refs/heads/main')[0], /refusing to write baselines/)
+  assert.match(assertBaselineDestination('trunk', 'trunk')[0], /refusing to write baselines/)
+})
+
+test('a write with no destination at all is refused, not defaulted', () => {
+  assert.match(assertBaselineDestination('')[0], /no destination branch/)
+  assert.match(assertBaselineDestination(undefined)[0], /no destination branch/)
 })
 
 console.log(`\n✓ visual gate — ${passed} tests passed`)

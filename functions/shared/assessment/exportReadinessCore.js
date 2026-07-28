@@ -42,6 +42,7 @@
 import {
   unresolvedFiguresMessage, affectedQuestionNumbers, listNumbers,
 } from './unresolvedFiguresCore.js'
+import { integrityBlock } from './paperIntegrityCore.js'
 
 // Re-exported so this module's public surface is unchanged. There is one
 // implementation, next to the sentence that needs it — see unresolvedFigures.js.
@@ -133,7 +134,7 @@ function figureBlock(unresolvedFigures = []) {
  */
 export function describeExportBlock({
   issues = [], questionNumbers = {}, questionCount = 0, emptyStarter = false,
-  unresolvedFigures = [],
+  unresolvedFigures = [], integrityBlockers = [],
 } = {}) {
   const ready = { blocked: false, message: '', numbers: [], reason: 'ready' }
 
@@ -150,7 +151,15 @@ export function describeExportBlock({
   }
 
   const blocking = blockingIssues(issues)
-  if (blocking.length === 0) return figureBlock(unresolvedFigures) || ready
+  // The ranking, and why it is this way round: an unfinished question is a paper
+  // still being written, and "finish question 3" is the more useful first
+  // instruction than "the marks do not add up" about a paper that is about to
+  // gain three more questions. A figure the renderer cannot draw, and a paper
+  // whose arithmetic contradicts itself, are both the last things standing
+  // between a finished paper and the photocopier — so they come after.
+  if (blocking.length === 0) {
+    return figureBlock(unresolvedFigures) || integrityBlock(integrityBlockers) || ready
+  }
 
   const numbers = incompleteQuestionNumbers(issues, questionNumbers)
   if (numbers.length > 0) {

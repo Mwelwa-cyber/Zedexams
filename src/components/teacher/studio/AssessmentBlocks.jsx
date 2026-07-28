@@ -22,6 +22,9 @@ import {
   normalizeStudioFramework, CURRICULUM_FRAMEWORKS,
 } from '../syllabusTopicOptions'
 import { LEVEL_STAGE_LABELS, assessmentCategory } from '../paperTaxonomy'
+import { CHOICE_COUNT_OPTIONS, recommendedChoiceCount, resolveChoiceCount } from '../../../utils/mcqChoices'
+import { PAGE_SIZES, MARGIN_PRESETS } from '../../../config/paperLayoutTokens'
+import { GRADE_NUMBER_STYLES, LEARNER_NAME_LABELS } from '../../../utils/paperMetadata'
 
 /**
  * Render an ordered level list as <optgroup>s by education stage (Early
@@ -361,16 +364,109 @@ export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, a
             { value: 'horizontal', label: <><Icon name="layoutColumns" size={13} /> Horizontal</> },
           ]}
         />
+        {/* §3. The three counts a Zambian paper actually uses. Two is absent —
+            a two-choice "multiple choice" question is a true/false question,
+            which the studio has as its own type with its own marking. Papers
+            saved with two still render; they just cannot be chosen here. */}
         <SegControl
-          label="Answer choices"
-          value={form.mcqAnswerChoiceCount}
+          label="Number of answer choices"
+          value={resolveChoiceCount({ paper: form })}
           onChange={v => setF('mcqAnswerChoiceCount', v)}
-          options={[
-            { value: 2, label: 'A B' },
-            { value: 3, label: 'A B C' },
-            { value: 4, label: 'A B C D' },
-          ]}
+          options={CHOICE_COUNT_OPTIONS.map(o => ({ value: o.value, label: o.label }))}
         />
+        <p style={{ fontSize: 11, color: 'var(--sv-muted)', margin: '4px 0 0' }}>
+          {recommendedChoiceCount(form.grade) === 4
+            ? 'A–D is recommended from Grade 4 up. A section can override this, and your choice is never changed for you.'
+            : 'A–C is recommended below Grade 4 — five options is a reading test. A section can override this.'}
+        </p>
+        <label className="sv-inline-check" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12 }}>
+          <input
+            type="checkbox"
+            checked={Boolean(form.allowPerQuestionChoiceCount)}
+            onChange={e => setF('allowPerQuestionChoiceCount', e.target.checked)}
+          />
+          <span>
+            Let individual questions override this
+            <small style={{ display: 'block', color: 'var(--sv-muted)' }}>
+              Off by default: a stray setting on one imported question should not
+              quietly give it a different shape from the rest of its section.
+            </small>
+          </span>
+        </label>
+      </div>
+
+      {/* §2/§9. The sheet itself, and how the paper words the things that
+          identify it. Everything here resolves through the shared layout
+          tokens, so the preview, the print window, the PDF and Word all draw
+          the same page — there is no second place a renderer decides this. */}
+      <div style={{ marginTop: 'var(--sv-s4)' }}>
+        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--sv-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 'var(--sv-s2)' }}>
+          Page setup
+        </label>
+        <div className="sv-row-2">
+          <div className="sv-field">
+            <label>Paper size</label>
+            <select value={form.pageSize || 'a4'} onChange={e => setF('pageSize', e.target.value)}>
+              {Object.values(PAGE_SIZES).map(size => (
+                <option key={size.id} value={size.id}>{size.label} · {size.width} × {size.height} mm</option>
+              ))}
+            </select>
+          </div>
+          <div className="sv-field">
+            <label>Orientation</label>
+            <select value={form.orientation || 'portrait'} onChange={e => setF('orientation', e.target.value)}>
+              <option value="portrait">Portrait</option>
+              <option value="landscape">Landscape</option>
+            </select>
+          </div>
+        </div>
+        <div className="sv-row-2">
+          <div className="sv-field">
+            <label>Margins</label>
+            <select value={form.margins || 'normal'} onChange={e => setF('margins', e.target.value)}>
+              {Object.values(MARGIN_PRESETS).map(preset => (
+                <option key={preset.id} value={preset.id}>{preset.label} · {preset.top} mm</option>
+              ))}
+            </select>
+          </div>
+          <div className="sv-field">
+            <label>Grade in the title</label>
+            <select value={form.gradeNumberStyle || 'numeral'} onChange={e => setF('gradeNumberStyle', e.target.value)}>
+              {GRADE_NUMBER_STYLES.map(style => (
+                <option key={style.id} value={style.id}>{style.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="sv-row-2">
+          <div className="sv-field">
+            <label>Name field label</label>
+            <select value={form.nameFieldStyle || 'name'} onChange={e => setF('nameFieldStyle', e.target.value)}>
+              {LEARNER_NAME_LABELS.map(option => (
+                <option key={option.id} value={option.id}>{option.label}</option>
+              ))}
+            </select>
+          </div>
+          {form.nameFieldStyle === 'custom' && (
+            <div className="sv-field">
+              <label>Your label</label>
+              <input
+                value={form.nameFieldLabel || ''}
+                onChange={e => setF('nameFieldLabel', e.target.value)}
+                maxLength={40}
+                placeholder="e.g. Examinee"
+              />
+            </div>
+          )}
+        </div>
+        <label className="sv-inline-check" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12 }}>
+          <input
+            type="checkbox"
+            checked={form.showQuestionMarks !== false}
+            onChange={e => setF('showQuestionMarks', e.target.checked)}
+          />
+          <span>Show marks beside every question</span>
+        </label>
       </div>
 
       <div className="sv-title-preview-card">

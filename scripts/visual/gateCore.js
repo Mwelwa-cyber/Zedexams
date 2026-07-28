@@ -305,3 +305,74 @@ export function requiredArtefacts({ generationFailed = false } = {}) {
 export function shouldProceedToComparison({ generationFailed = false } = {}) {
   return !generationFailed
 }
+
+/**
+ * Validate a SWEEP update — re-recording every baseline a code change moved, in
+ * one run, onto the pull request that caused it.
+ *
+ * ## Why this exists beside `validateUpdateRequest`
+ *
+ * The one-fixture rule is right for its case: a re-record REPLACES an approved
+ * appearance, so it must name the one thing it replaces and say why. But a
+ * change that legitimately moves EVERY fixture — the paper's header wording, the
+ * Word export's margins — turns that rule into sixteen dispatches and sixteen
+ * pull requests, which `validateBootstrapRequest` already identifies, in those
+ * words, as "how a gate ends up permanently red".
+ *
+ * ## What makes relaxing it safe here
+ *
+ * Not the operator's good intentions. Three structural conditions:
+ *
+ *  - `pullRequest` is REQUIRED, and the baselines are committed to that pull
+ *    request's own branch. So the new appearance is reviewed — alongside the
+ *    code change that caused it, which is strictly more informative than a
+ *    baseline pull request reviewed on its own, where a reviewer sees changed
+ *    pixels and has to go and find out what moved them.
+ *  - the destination may never be the default branch (`assertBaselineDestination`).
+ *    Branch protection then applies to the result exactly as before.
+ *  - `reason` and `source` stay required and unchanged. A baseline whose origin
+ *    is unrecorded is equally untraceable however many were recorded at once.
+ *
+ * `fixture` and `family` remain available and NARROWING, same as the bootstrap:
+ * they shrink what is recorded, they never widen it.
+ */
+export function validateSweepUpdateRequest(request = {}, knownFixtureIds = []) {
+  const problems = validateBootstrapRequest(request, knownFixtureIds)
+
+  // The condition that carries the review guarantee. Without a pull request
+  // there is nowhere for the new appearance to be reviewed, and the sweep would
+  // be exactly the unreviewed mass update the one-fixture rule exists to stop.
+  const pr = String(request.pullRequest || '').trim()
+  if (!pr) {
+    problems.push(
+      'no pull request given — a sweep re-records many baselines at once and is only '
+      + 'permitted onto the pull request whose change moved them, where they are reviewed',
+    )
+  } else if (!/^\d+$/.test(pr)) {
+    problems.push(`"${pr}" is not a pull request number`)
+  }
+  return problems
+}
+
+/**
+ * Refuse to write baselines anywhere but a feature branch.
+ *
+ * Stated as its own function, and tested, because it is the one guarantee that
+ * cannot be restored after the fact: a baseline pushed straight to the default
+ * branch has skipped every review the rest of this design is built around, and
+ * nothing downstream can tell it apart from one that was reviewed.
+ */
+export function assertBaselineDestination(branch, defaultBranch = 'main') {
+  const target = String(branch || '').trim().replace(/^refs\/heads\//, '')
+  const base = String(defaultBranch || 'main').trim().replace(/^refs\/heads\//, '')
+  const problems = []
+  if (!target) {
+    problems.push('no destination branch — a baseline write must name the branch it lands on')
+  } else if (target === base) {
+    problems.push(
+      `refusing to write baselines to "${target}", the default branch — `
+      + 'they must land on a branch so branch protection and review apply',
+    )
+  }
+  return problems
+}

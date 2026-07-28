@@ -11,14 +11,15 @@
  *   - 'scheme': marking key for teachers (correct answer + explanation per Q).
  */
 
-import { buildPaperLayout, DEFAULT_ANSWER_LINES } from './assessmentPaperLayout.js'
+import { DEFAULT_ANSWER_LINES } from './assessmentPaperLayout.js'
 import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 import { splitStatementSegments, statementLabel } from './fillBlanks.js'
 import { subPartLabel, splitPartBlanks } from './questionParts.js'
 import { hydrateTableData } from './tableData.js'
 import { resolveFigureLabels, resolveAnswerKeyLabels } from './figureLabelLayout.js'
 import { resolveImageWidthPercent } from './imageWidth.js'
-import { pageMarginRule, FOOTER_MM, FOOTER_RESERVE_MM } from '../config/paperPageGeometry.js'
+import { FOOTER_MM, FOOTER_RESERVE_MM } from '../config/paperPageGeometry.js'
+import { buildAssessmentDocument } from './assessmentDocument.js'
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
@@ -115,7 +116,13 @@ function attributionHtml() {
 }
 
 export function buildPrintableHtml(assessment, questions, mode, { attribution = false } = {}) {
-  const blocks = buildPaperLayout(assessment, questions, { mode })
+  // The canonical document (§2): one resolution of the layout, the metadata and
+  // the marks, shared with the studio preview and the Word export. The print
+  // window renders its blocks and its layout tokens, so a page-setup change
+  // reaches the printed sheet rather than only the preview.
+  const doc = buildAssessmentDocument(assessment, questions, { mode })
+  const layout = doc.layout
+  const blocks = doc.blocks
   const docTitle = mode === 'scheme'
     ? `${assessment.title || 'Marking Key'} — Marking Key`
     : (assessment.title || 'Assessment')
@@ -125,16 +132,40 @@ export function buildPrintableHtml(assessment, questions, mode, { attribution = 
 <head>
   <meta charset="utf-8">
   <title>${escapeHtml(docTitle)}</title>
-  <style>${PRINT_CSS}</style>
+  <style>${documentCss(layout)}${PRINT_CSS}</style>
 </head>
 <body>
 ${attribution ? attributionHtml() : ''}
 <table class="paper-sheet"><tbody><tr><td>
-${blocks.filter(isPaperBody).map(renderBlock).join('\n')}
+${blocks.filter(isPaperBody).map((b, i) => withBlockIndex(renderBlock(b), i)).join('\n')}
 </td></tr></tbody><tfoot><tr><td class="footer-reserve"></td></tr></tfoot></table>
 ${blocks.filter((b) => !isPaperBody(b)).map(renderBlock).join('\n')}
 </body>
 </html>`
+}
+
+/**
+ * Stamp a block's position in the body onto the element it rendered to.
+ *
+ * This is the join key between the two renderers (§1). The measurement runs in
+ * THIS document, and the studio's paginated preview draws the SAME blocks in the
+ * same order as React; without a shared identity, "which blocks are on page 2"
+ * is knowable in the print renderer and unknowable in the preview, and the
+ * preview is reduced to guessing its own page boundaries with a second set of
+ * rules. With it, the preview shows the pages the PDF will have because it is
+ * literally told where they fall.
+ *
+ * The index is the position in the BODY array — the same array the preview maps
+ * — not in `blocks`, because the paper code is excluded from both.
+ *
+ * Injected into the opening tag rather than threaded through every `render*`
+ * function: the alternative is thirteen call sites that each have to remember,
+ * and one that forgets is a block the measurement cannot place.
+ */
+function withBlockIndex(html, index) {
+  const s = String(html || '')
+  if (!s.trim()) return ''
+  return s.replace(/^(\s*<[a-zA-Z][\w-]*)/, `$1 id="pb-${index}" data-block-index="${index}"`)
 }
 
 /**
@@ -153,18 +184,39 @@ function isPaperBody(block) {
   return block.kind !== 'footerCode'
 }
 
-const PRINT_CSS = `
-@page { size: A4; margin: ${pageMarginRule()}; }
+/**
+ * The document's own page rule and body typography (§2).
+ *
+ * Emitted from the RESOLVED layout tokens rather than written as literals, so a
+ * paper set to A5 landscape with wide margins and 14pt type prints as that in
+ * the browser, in the PDF that comes out of it, and — through the same tokens —
+ * in Word. Before this, `@page` said A4 and the body said 11.5pt whatever the
+ * document declared, so the page-setup controls would have been a preference the
+ * printer ignored.
+ *
+ * The DEFAULT output is byte-identical to the literals it replaces: A4, the
+ * margins paperPageGeometry derives, 11.5pt Times at 1.45. That is what makes
+ * this safe to land under the visual gate.
+ */
+function documentCss(layout) {
+  const t = layout.typography
+  return `
+@page { size: ${layout.page.cssSize}; margin: ${layout.margins.cssRule}; }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; background: white; }
 body {
   color: #111;
-  font-family: 'Times New Roman', 'Liberation Serif', serif;
-  font-size: 11.5pt;
-  line-height: 1.45;
+  font-family: ${t.bodyFontCss};
+  font-size: ${t.bodySizePt}pt;
+  line-height: ${t.lineSpacing};
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
+`
+}
+
+const PRINT_CSS = `
+* { box-sizing: border-box; }
 
 .banner {
   margin-bottom: 10pt;
@@ -752,8 +804,53 @@ body {
   }
 }
 
+/* ── §7 Semantic page-breaking ──────────────────────────────────────────────
+   The rules a school paper has to obey, stated as CSS because the printer is
+   what enforces them — and mirrored in paperPaginationCore so the measured page
+   count agrees with the sheet.
+
+   The organising idea is that a question is either ATOMIC or STRUCTURED. A
+   multiple-choice item and anything carrying a figure are atomic: they are short
+   enough to move whole, and splitting them produces the two defects a learner
+   actually suffers — an option list beginning at B on the next page, or a
+   diagram they are asked to read that is not in front of them. A long structured
+   question is not short enough to move whole, so it may split, but only between
+   sub-parts, never mid-part.
+
+   An option GROUP is kept together in every case. That is what stops a single
+   orphaned choice at the top of a page, which no orphans/widows count can
+   express because the browser counts lines, not choices. */
+.question.q-choice,
+.question.has-figure {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.question.has-subparts {
+  page-break-inside: auto;
+  break-inside: auto;
+}
+.question.has-subparts .subpart {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.options-text, .options-image, .options-mixed {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+/* A figure never splits, and never leaves the stem behind. */
+.q-diagram, .q-figure {
+  page-break-inside: avoid;
+  break-inside: avoid;
+  page-break-before: avoid;
+  break-before: avoid;
+}
+
 @media print {
   .section-head, .passage, .instructions, .banner { page-break-inside: avoid; break-inside: avoid; }
+  /* A section heading is kept with the question that follows it: a heading
+     alone at the foot of a sheet tells the learner a section started on the
+     page they have just turned away from. */
+  .section-head, .section-instr { page-break-after: avoid; break-after: avoid; }
   .question.has-table { page-break-inside: auto; break-inside: auto; }
   .question.has-table .qline { page-break-after: avoid; break-after: avoid; }
   .table-wrap, .data-table { page-break-inside: auto; break-inside: auto; }
@@ -840,17 +937,23 @@ function renderHeader(b) {
 }
 
 function renderLearnerFields(b) {
+  // The labels come off the block (§9), so a mock examination can say
+  // "CANDIDATE'S NAME" and a Grade 3 test "PUPIL'S NAME" — and the preview, the
+  // PDF and Word print the same words because all three read the same resolved
+  // field. The defaults reproduce exactly what was hard-coded here before.
+  const labels = b.labels || {}
+  const label = (key, fallback) => escapeHtml(String(labels[key] || fallback).toUpperCase())
   const parts = []
-  if (b.name) parts.push(`<span>NAME:</span><div class="line"></div>`)
-  if (b.date) parts.push(`<span>DATE:</span><div class="line" style="max-width: 140pt;"></div>`)
+  if (b.name) parts.push(`<span>${label('name', 'Name')}:</span><div class="line"></div>`)
+  if (b.date) parts.push(`<span>${label('date', 'Date')}:</span><div class="line" style="max-width: 140pt;"></div>`)
   const row1 = parts.length
     ? `<div class="learner-row">${parts.join('')}</div>`
     : ''
   const row2 = b.classField
-    ? `<div class="learner-row"><span>CLASS:</span><div class="line"></div></div>`
+    ? `<div class="learner-row"><span>${label('classField', 'Class')}:</span><div class="line"></div></div>`
     : ''
   const marksLine = b.marks
-    ? `<div class="total-marks">TOTAL MARKS: _____________ &nbsp; / &nbsp; ${b.totalMarks || '____'}</div>`
+    ? `<div class="total-marks">${label('marks', 'Total marks')}: _____________ &nbsp; / &nbsp; ${b.totalMarks || '____'}</div>`
     : ''
   return [row1, row2, marksLine].filter(Boolean).join('\n')
 }
@@ -871,7 +974,13 @@ function renderInstructionsBlock(b) {
 }
 
 function renderSectionHeader(b) {
-  return `<div class="section-head">Section ${escapeHtml(b.letter)}${b.title ? ` — ${escapeHtml(b.title)}` : ''} <span class="marks-tag">(${b.marks} mark${b.marks === 1 ? '' : 's'})</span></div>
+  // The section's total honours the same show/hide decision as the per-question
+  // marks (§4): a paper that hides marks from learners must not print the
+  // section's total in its heading.
+  const marksTag = b.showMarks === false
+    ? ''
+    : ` <span class="marks-tag">(${b.marks} mark${b.marks === 1 ? '' : 's'})</span>`
+  return `<div class="section-head">Section ${escapeHtml(b.letter)}${b.title ? ` — ${escapeHtml(b.title)}` : ''}${marksTag}</div>
   ${b.instructions ? `<div class="section-instr">${escapeHtml(b.instructions)}</div>` : ''}`
 }
 
@@ -904,7 +1013,9 @@ function figureFrameStyle(block, widthPreset) {
 
 function renderQuestion(b) {
   const marks = b.marks ?? 1
-  const qmark = marks > 1
+  // `showMarks` is the paper's or the section's decision (§4); absent on a block
+  // built by a caller that predates it, which then keeps the old behaviour.
+  const qmark = marks > 1 && b.showMarks !== false
     ? `<em class="qmarks">(${marks}&nbsp;marks)</em>`
     : ''
   let body = ''
@@ -1013,6 +1124,14 @@ function renderQuestion(b) {
     : escapeHtml(b.text || '(no question text)')
   const questionClasses = ['question']
   if (b.tableData) questionClasses.push('has-table')
+  // §7's semantic page-breaking, expressed as classes the stylesheet keys off.
+  // The distinction the rules turn on is whether the question is a SHORT,
+  // atomic one (a multiple-choice item, anything carrying a figure) — which
+  // moves whole to the next page rather than splitting — or a long structured
+  // one, which may split, but only between its sub-parts.
+  if (b.type === 'mcq' || b.type === 'tf') questionClasses.push('q-choice')
+  if (b.imageUrl || b.imageDiagram || (b.images || []).length) questionClasses.push('has-figure')
+  if ((b.subParts || []).length) questionClasses.push('has-subparts')
   // Identity, for the pagination measurement. The printed sheet carries no
   // visible change — these are attributes, not content — but without them a
   // measured block cannot be traced back to the question it belongs to, and
