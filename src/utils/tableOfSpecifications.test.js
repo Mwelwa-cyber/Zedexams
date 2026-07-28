@@ -26,6 +26,7 @@ const blueprint = {
   subject: 'mathematics',
   framework: '2023',
   assessmentType: 'end_of_term',
+  term: 2,
   totalMarks: 10,
   durationMinutes: 40,
   sections: [{
@@ -72,21 +73,27 @@ test('publishes both teacher-selectable taxonomy choices', () => {
   )
 })
 
-test('totals reconcile with the blueprint', () => {
-  const model = buildTableOfSpecificationsModel(blueprint, { term: '2', year: '2026' })
+test('totals and filing metadata reconcile with the blueprint', () => {
+  const model = buildTableOfSpecificationsModel(blueprint, { year: '2026' })
   assert.equal(model.totals.questions, 6)
   assert.equal(model.totals.marks, 10)
+  assert.equal(model.term, '2')
+  assert.equal(model.durationMinutes, 40)
   assert.equal(model.valid, true)
 })
 
-test('HTML identifies and renders the selected revised filing copy', () => {
+test('HTML identifies the selected format and preserves term, duration and totals', () => {
   const html = buildTableOfSpecificationsHtml(blueprint, {
     schoolName: 'Jemareen Academy',
     bloomTaxonomy: 'revised',
+    year: '2026',
   })
   assert.match(html, /Jemareen Academy/)
   assert.match(html, /TABLE OF SPECIFICATIONS/)
   assert.match(html, /Revised Bloom&#039;s Taxonomy/)
+  assert.match(html, /Term 2 · 2026/)
+  assert.match(html, /40 minutes/)
+  assert.match(html, /6 questions · 10 marks/)
   assert.match(html, /Remember/)
   assert.match(html, /Evaluate/)
   assert.match(html, /Create/)
