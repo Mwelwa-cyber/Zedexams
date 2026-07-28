@@ -16,7 +16,7 @@ import { useToast } from '../../ui/Toast'
 import ConfirmDialog from '../../ui/ConfirmDialog'
 import SeoHelmet from '../../seo/SeoHelmet'
 import Skeleton from '../../ui/Skeleton'
-import ClassListTab from './ClassListTab'
+import ClassListPanel from '../classList/ClassListPanel'
 import AttendanceTab from './AttendanceTab'
 import MarkSchedulesTab from './MarkSchedulesTab'
 import ReportsTab from './ReportsTab'
@@ -189,7 +189,7 @@ export default function ClassRegisterDetail() {
       </nav>
 
       {activeTab === 'class-list' && (
-        <ClassListTab register={reg} onRosterChange={(count) => setReg((r) => (r ? { ...r, learnerCount: count } : r))} />
+        <ClassListPanel register={reg} onRosterChange={(count) => setReg((r) => (r ? { ...r, learnerCount: count } : r))} />
       )}
       {activeTab === 'attendance' && <AttendanceTab register={reg} />}
       {activeTab === 'sba' && <SbaTab register={reg} />}
