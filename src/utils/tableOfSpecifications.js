@@ -135,7 +135,7 @@ export function buildTableOfSpecificationsModel(blueprint, meta = {}) {
     assessmentType,
     grade,
     subject,
-    term: clean(meta.term),
+    term: clean(meta.term) || clean(blueprint?.term),
     year: clean(meta.year) || String(currentYear),
     durationMinutes: Number(meta.durationMinutes ?? blueprint?.durationMinutes) || 0,
     framework,
@@ -195,6 +195,7 @@ export function buildTableOfSpecificationsHtml(blueprint, meta = {}) {
   )).join('')
   const totalCells = model.columns.map((column) => `<td>${model.totals[column.key]}</td>`).join('')
   const schoolHeading = model.schoolName || 'SCHOOL NAME'
+  const paperTotal = `${model.totals.questions} questions · ${model.totals.marks} marks`
 
   return `<!doctype html>
 <html lang="en">
@@ -243,8 +244,8 @@ export function buildTableOfSpecificationsHtml(blueprint, meta = {}) {
     <tr>
       <td><strong>Curriculum</strong>${infoValue(model.framework)}</td>
       <td><strong>Bloom's Format</strong>${infoValue(model.taxonomyLabel)}</td>
-      <td><strong>Total Questions</strong>${model.totals.questions}</td>
-      <td><strong>Total Marks</strong>${model.totals.marks}</td>
+      <td><strong>Duration</strong>${model.durationMinutes ? `${model.durationMinutes} minutes` : '____________________________'}</td>
+      <td><strong>Paper Total</strong>${escapeHtml(paperTotal)}</td>
     </tr>
   </table>
   <table class="tos">
@@ -301,11 +302,12 @@ export async function downloadTableOfSpecificationsDocx(blueprint, meta = {}) {
     shading: options.shading ? { fill: options.shading } : undefined,
   })
 
+  const paperTotal = `${model.totals.questions} questions · ${model.totals.marks} marks`
   const infoRows = [
     ['Assessment', model.title, 'Grade / Form', model.grade],
     ['Subject', model.subject, 'Term / Year', [model.term && `Term ${model.term}`, model.year].filter(Boolean).join(' · ')],
     ['Curriculum', model.framework, "Bloom's Format", model.taxonomyLabel],
-    ['Total Questions', String(model.totals.questions), 'Total Marks', String(model.totals.marks)],
+    ['Duration', model.durationMinutes ? `${model.durationMinutes} minutes` : '', 'Paper Total', paperTotal],
   ].map(([a, b, c, d]) => new TableRow({ children: [
     cell(a, { bold: true, shading: 'FFF4ED', width: 18 }),
     cell(b, { align: AlignmentType.LEFT, width: 32 }),
