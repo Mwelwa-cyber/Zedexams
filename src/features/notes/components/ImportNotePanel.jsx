@@ -24,8 +24,8 @@ export function ImportNotePanel({ importing, progress, warnings, onImport }) {
     <div className="space-y-5">
       <div className="notes-card p-6">
         <div className="flex items-center gap-3 mb-3">
-          <span className="w-10 h-10 rounded-xl grid place-items-center border-2 border-[#0F1B2D] bg-[#FFEDD5]" style={{ boxShadow: '0 2px 0 #0F1B2D' }}>
-            <FileType size={18} className="text-[#C2410C]" />
+          <span className="w-10 h-10 rounded-xl grid place-items-center border-2 border-[#0F1B2D] bg-[#F8EADF]" style={{ boxShadow: '0 2px 0 #0F1B2D' }}>
+            <FileType size={18} className="text-[#A3422E]" />
           </span>
           <div>
             <h2 className="font-display text-xl text-[#0F1B2D]">Import a document</h2>
@@ -35,7 +35,7 @@ export function ImportNotePanel({ importing, progress, warnings, onImport }) {
         <button
           type="button" onClick={pickFile} disabled={importing}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50"
-          style={{ backgroundColor: '#FF7A1A' }}
+          style={{ backgroundColor: '#D97757' }}
         >
           {importing ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
           {importing ? 'Importing…' : 'Choose a file'}
@@ -53,7 +53,7 @@ export function ImportNotePanel({ importing, progress, warnings, onImport }) {
         <textarea
           value={text} onChange={e => setText(e.target.value)} rows={8} disabled={importing}
           placeholder="Paste notes or a chapter here…"
-          className="w-full rounded-xl border-2 border-[#0F1B2D] p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF7A1A]/40"
+          className="w-full rounded-xl border-2 border-[#0F1B2D] p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/40"
         />
         <button
           type="button" disabled={importing || text.trim().length < 80}

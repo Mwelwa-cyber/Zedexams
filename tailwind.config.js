@@ -22,6 +22,34 @@ export default {
           red:    '#B71C1C',
           black:  '#212121',
         },
+        // ZedExams brand orange. This REPLACES Tailwind's stock `orange`
+        // scale, so the ~350 existing `bg-orange-500` / `text-orange-700`
+        // utilities pick up the brand ramp without being rewritten one by
+        // one — and a new one written by habit lands on brand too.
+        //
+        // The ramp is Tailwind's own orange rotated -7° in hue with
+        // saturation at 0.63×, which is exactly the transform that takes
+        // stock orange-500 (#f97316) to the brand terracotta (#d97757).
+        // Lightness is held, so every step keeps its position in the ramp
+        // and no step loses contrast against the sheet — each one gains
+        // some (500: 2.80:1 → 3.12:1, 700: 5.18:1 → 6.22:1 on white).
+        //
+        // Amber and gold are a SEPARATE palette (warnings, the learner-home
+        // accents, the Zambia flag gold above) and are deliberately not
+        // rotated with this one.
+        orange: {
+          50:  '#fcf7f3',
+          100: '#f8eadf',
+          200: '#efd1bc',
+          300: '#e4b190',
+          400: '#d88962',
+          500: '#d97757',  // the brand orange
+          600: '#c5613f',  // hover / pressed
+          700: '#a3422e',
+          800: '#83372c',
+          900: '#6b3026',
+          950: '#3a1713',
+        },
       },
       keyframes: {
         'scale-in':      { '0%': { opacity: 0, transform: 'scale(0.92)' }, '100%': { opacity: 1, transform: 'scale(1)' } },

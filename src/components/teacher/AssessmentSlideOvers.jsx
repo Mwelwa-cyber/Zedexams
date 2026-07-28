@@ -358,7 +358,7 @@ function AiTopicModeToggle({ value, onChange, pickDisabled = false }) {
     border: 'none', background: 'none', fontSize: 11, fontWeight: 700,
     padding: '3px 9px', borderRadius: 999, lineHeight: 1.6, color: '#64748b', cursor: 'pointer',
   }
-  const onStyle = { background: '#fff', color: '#0f172a', boxShadow: 'inset 0 0 0 1.5px #fb923c' }
+  const onStyle = { background: '#fff', color: '#0f172a', boxShadow: 'inset 0 0 0 1.5px #d88962' }
   return (
     <div style={{ display: 'inline-flex', gap: 2, padding: 2, borderRadius: 999, background: '#f1f5f9' }}>
       <button type="button"

@@ -141,9 +141,9 @@ export default function AuthAction() {
       className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden"
       style={{
         backgroundColor: '#FDF6EC',
-        '--accent': '#EA580C',
-        '--accent-bg': '#FFEDD5',
-        '--accent-fg': '#9A3412',
+        '--accent': '#C5613F',
+        '--accent-bg': '#F8EADF',
+        '--accent-fg': '#83372C',
       }}
     >
       <SeoHelmet

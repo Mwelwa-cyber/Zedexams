@@ -5,12 +5,12 @@
 // All the pixel work lives in src/utils/diagramClean.js — this component is just
 // the capture/preview/controls shell. It deliberately mirrors the inline-style
 // look of DiagramFixupPanel.jsx (fixed overlay, white rounded card, brand orange
-// #ff7a2e, teal text #0e2a32) so the two feel like siblings.
+// #d97757, teal text #0e2a32) so the two feel like siblings.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { cleanDiagramSource, isDiagramCleanSupported } from '../../utils/diagramClean.js'
 
-const ORANGE = '#ff7a2e'
+const ORANGE = '#d97757'
 const TEAL = '#0e2a32'
 const MUTED = '#566f76'
 const BORDER = '#d9cfb8'

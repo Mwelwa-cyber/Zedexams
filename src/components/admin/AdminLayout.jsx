@@ -42,7 +42,7 @@ function AdminBrand({ compact = false }) {
       <span
         aria-hidden="true"
         className={`admin-game-display grid shrink-0 place-items-center rounded-xl border-2 ${compact ? 'h-9 w-9 text-lg' : 'h-10 w-10 text-xl'}`}
-        style={{ background: '#0F1B2D', borderColor: '#0F1B2D', color: '#FFFFFF', boxShadow: '0 2px 0 #FF7A1A' }}
+        style={{ background: '#0F1B2D', borderColor: '#0F1B2D', color: '#FFFFFF', boxShadow: '0 2px 0 #D97757' }}
       >
         Z
       </span>
@@ -167,7 +167,7 @@ function NavBadge({ count }) {
   return (
     <span
       className="ml-auto inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-[10px] font-black"
-      style={{ background: '#FF7A1A', color: '#fff', border: '2px solid #0F1B2D', boxShadow: '0 2px 0 #0F1B2D' }}
+      style={{ background: '#D97757', color: '#fff', border: '2px solid #0F1B2D', boxShadow: '0 2px 0 #0F1B2D' }}
     >
       {count > 99 ? '99+' : count}
     </span>
@@ -300,7 +300,7 @@ export default function AdminLayout({ children }) {
           <div className="flex items-center gap-2 px-3 py-2 mb-1">
             <div
               className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-black"
-              style={{ background: '#FF7A1A', color: '#FFFFFF', border: '2px solid #0F1B2D', boxShadow: '0 2px 0 #0F1B2D' }}
+              style={{ background: '#D97757', color: '#FFFFFF', border: '2px solid #0F1B2D', boxShadow: '0 2px 0 #0F1B2D' }}
             >
               {(userProfile?.displayName || 'A')[0].toUpperCase()}
             </div>

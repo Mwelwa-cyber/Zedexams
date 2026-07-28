@@ -32,12 +32,12 @@ import {
 const DEFAULT_HL = '#fef08a'
 
 const TX_COLORS = [
-  '#1a1523', '#1e3a8a', '#dc2626', '#ea580c', '#ca8a04',
+  '#1a1523', '#1e3a8a', '#dc2626', '#c5613f', '#ca8a04',
   '#15803d', '#2563eb', '#7c3aed', '#be185d', '#64748b',
 ]
 const HL_COLORS = [
   '#fef08a', '#bbf7d0', '#bfdbfe', '#ddd6fe',
-  '#fce7f3', '#fee2e2', '#fed7aa', '#e0f2fe',
+  '#fce7f3', '#fee2e2', '#efd1bc', '#e0f2fe',
 ]
 
 const EMPTY_TOOLBAR_STATE = {

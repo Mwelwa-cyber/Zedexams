@@ -15,9 +15,9 @@
   --zsr-cream-2:      #FFFDF7; /* card surface — theme-oatmeal --card */
   --zsr-navy:         #1A1F2E; /* wordmark ink — matches index.html boot skeleton */
   --zsr-navy-soft:    #4B6280; /* muted ink */
-  --zsr-orange:       #EA580C; /* brand orange — matches .text-brand-orange */
-  --zsr-orange-soft:  #FDBA74; /* light orange for the track */
-  --zsr-orange-glow:  rgba(234, 88, 12, 0.22);
+  --zsr-orange:       #C5613F; /* brand orange — matches .text-brand-orange */
+  --zsr-orange-soft:  #E4B190; /* light orange for the track */
+  --zsr-orange-glow:  rgba(197, 97, 63, 0.22);
   --zsr-blue:         #2563EB; /* brand blue — matches the logo mark + arc */
   --zsr-track:        #EBD9C2; /* warm ring track — matches boot spinner border */
   --zsr-border:       #E7D5C0; /* theme-oatmeal --border */
@@ -89,7 +89,7 @@
   position: absolute;
   inset: -18%;
   border-radius: 50%;
-  background: radial-gradient(circle, var(--zsr-orange-glow) 0%, rgba(234, 88, 12, 0) 68%);
+  background: radial-gradient(circle, var(--zsr-orange-glow) 0%, rgba(197, 97, 63, 0) 68%);
   filter: blur(6px);
   animation: zsr-glow 2.8s ease-in-out infinite;
 }
@@ -263,7 +263,7 @@
   background: var(--zsr-orange);
   color: #fff;
 }
-.zsr__btn--primary:hover:not(:disabled) { background: #d24d09; }
+.zsr__btn--primary:hover:not(:disabled) { background: #af4b2f; }
 .zsr__btn--primary:disabled { opacity: 0.6; cursor: progress; }
 .zsr__btn--ghost {
   background: transparent;

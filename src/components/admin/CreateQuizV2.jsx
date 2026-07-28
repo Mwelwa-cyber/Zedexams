@@ -1428,7 +1428,7 @@ export default function CreateQuizV2() {
           <span style={{ fontSize: 22 }}>✏️</span>
           <div className="leading-tight">
             <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 16, margin: 0, color: '#0e2a32' }}>
-              ZedExams <span style={{ color: '#ff7a2e' }}>•</span>
+              ZedExams <span style={{ color: '#d97757' }}>•</span>
             </p>
             <p style={{ fontSize: 11.5, color: '#566f76', margin: 0, fontWeight: 600 }}>
               Quiz Creator
@@ -1462,7 +1462,7 @@ export default function CreateQuizV2() {
         <div style={{ flex: 1, minWidth: 260 }}>
           <span
             className="inline-flex items-center gap-2 mb-3 rounded-full text-xs font-bold uppercase tracking-wider"
-            style={{ background: '#ff7a2e', color: '#fff', padding: '7px 14px' }}
+            style={{ background: '#d97757', color: '#fff', padding: '7px 14px' }}
           >
             ✨ New quiz
           </span>

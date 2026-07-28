@@ -213,7 +213,7 @@ export function LessonPlanWizard({
           <div className="mb-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#c2410c]">
+                <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#a3422e]">
                   Step {currentStep + 1} of {WIZARD_STEPS.length}
                 </p>
                 <h2

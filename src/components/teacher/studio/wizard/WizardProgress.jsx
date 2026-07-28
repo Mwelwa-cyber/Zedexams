@@ -54,7 +54,7 @@ export function WizardProgress({ currentStep, completed = [], maxReachable = 0, 
                       isDone
                         ? 'border-[#0F1B2D] bg-[#16a34a] text-white'
                         : isActive
-                          ? 'border-[#0F1B2D] bg-[#FF7A1A] text-white'
+                          ? 'border-[#0F1B2D] bg-[#D97757] text-white'
                           : 'border-[#c9c0b0] bg-white text-[#7a6d5d]',
                     ].join(' ')}
                     aria-hidden="true"
@@ -95,7 +95,7 @@ export function WizardProgress({ currentStep, completed = [], maxReachable = 0, 
               <span
                 className={[
                   'mx-1 h-[3px] flex-1 rounded-full',
-                  i <= currentStep ? 'bg-[#FF7A1A]' : 'bg-[#ddd3be]',
+                  i <= currentStep ? 'bg-[#D97757]' : 'bg-[#ddd3be]',
                 ].join(' ')}
                 aria-hidden="true"
               />
@@ -116,7 +116,7 @@ export function WizardProgress({ currentStep, completed = [], maxReachable = 0, 
                 className={[
                   'grid place-items-center rounded-full border-2 transition-all',
                   isActive
-                    ? 'h-[22px] w-[22px] border-[#0F1B2D] bg-[#FF7A1A] shadow-[0_0_0_3px_rgba(255,122,26,0.25)]'
+                    ? 'h-[22px] w-[22px] border-[#0F1B2D] bg-[#D97757] shadow-[0_0_0_3px_rgba(217,119,87,0.25)]'
                     : isDone
                       ? 'h-[20px] w-[20px] border-[#0F1B2D] bg-[#16a34a] text-white'
                       : 'h-[16px] w-[16px] border-[#c9c0b0] bg-white',

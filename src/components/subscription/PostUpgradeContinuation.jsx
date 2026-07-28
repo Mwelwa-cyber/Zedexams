@@ -101,7 +101,7 @@ export function ContinuationCard({ variant, tool, onPrimary, onReview, onDismiss
           type="button"
           disabled={acted}
           onClick={() => act(onPrimary)}
-          className="w-full rounded-xl bg-[#F36A2A] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#E55E22] disabled:opacity-60"
+          className="w-full rounded-xl bg-[#CF6B51] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#C5613F] disabled:opacity-60"
         >
           {primaryLabel}
         </button>

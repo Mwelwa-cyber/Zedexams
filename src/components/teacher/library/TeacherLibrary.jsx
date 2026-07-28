@@ -84,7 +84,7 @@ const COLORS = {
   faint:    '#8a9aa1',
   border:   '#e7e3d8',
   card:     '#fff',
-  orange:   '#ff7a2e',
+  orange:   '#d97757',
 }
 
 /* ── Folder palettes ───────────────────────────────────────────── */
@@ -99,11 +99,11 @@ const NEUTRAL_PALETTE = {
 const SECTION_PALETTE = {
   [LIBRARY_TYPES.SCHEMES_OF_WORK]:  { from: '#fffdf4', to: '#fdeec0', border: '#efdfa9', tab: '#f9ecc2' }, // warm cream
   [LIBRARY_TYPES.WEEKLY_FORECASTS]: { from: '#f4fbf5', to: '#d9f0de', border: '#c2e2ca', tab: '#ddf1e1' }, // soft mint
-  [LIBRARY_TYPES.RECORDS_OF_WORK]:  { from: '#fff7f0', to: '#fce3ce', border: '#f1d2b4', tab: '#fbe5d2' }, // soft peach
+  [LIBRARY_TYPES.RECORDS_OF_WORK]:  { from: '#fff7f0', to: '#f4e2d9', border: '#e7cfc1', tab: '#f4e4dc' }, // soft peach
   [LIBRARY_TYPES.SYLLABI]:          { from: '#f4f9fe', to: '#d9e9f8', border: '#c3d9ee', tab: '#dcebf8' }, // soft blue
   [LIBRARY_TYPES.LESSON_PLANS]:     { from: '#f9f6fe', to: '#e7dcf7', border: '#d7c8ec', tab: '#e9def7' }, // lavender
   [LIBRARY_TYPES.NOTES]:            { from: '#f2fbfa', to: '#d4f0ec', border: '#bce2dc', tab: '#d8f1ed' }, // soft teal
-  [LIBRARY_TYPES.ASSESSMENTS]:      { from: '#fff6f3', to: '#fcdcd2', border: '#f1c9bc', tab: '#fbded5' }, // soft coral
+  [LIBRARY_TYPES.ASSESSMENTS]:      { from: '#fff6f3', to: '#f5dfdc', border: '#e8ccc8', tab: '#fbded5' }, // soft coral
   [LIBRARY_TYPES.SBA_TASKS]:        { from: '#eff9fe', to: '#d2ebf7', border: '#bbdcec', tab: '#d8eef9' }, // soft sky
   [LIBRARY_TYPES.SBA_MARK_SHEETS]:  { from: '#f6faf1', to: '#e0eecd', border: '#cbe0b2', tab: '#e5f0d3' }, // soft sage
   [LIBRARY_TYPES.SBA_PLANS]:        { from: '#f5f6fe', to: '#dee2f8', border: '#c8cdf0', tab: '#e1e5f9' }, // soft periwinkle
@@ -595,7 +595,7 @@ function CreateMenu() {
           border: 'none',
           padding: '11px 16px',
           fontSize: 13.5,
-          boxShadow: '0 6px 14px rgba(255,122,46,.32)',
+          boxShadow: '0 6px 14px rgba(217,119,87,.32)',
         }}
       >
         <Icon as={Plus} size="sm" strokeWidth={2.5} />
@@ -681,7 +681,7 @@ function PageHeading({ subtitle, crumbs, onCrumb, section }) {
               color: '#fff',
               padding: '10px 16px',
               fontSize: 13,
-              boxShadow: '0 6px 14px rgba(255,122,46,.32)',
+              boxShadow: '0 6px 14px rgba(217,119,87,.32)',
             }}
           >
             + New {singularLabel(section.label)}

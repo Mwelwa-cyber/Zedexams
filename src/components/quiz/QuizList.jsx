@@ -130,7 +130,7 @@ function QuizRow({ quiz, locked, onStart }) {
           </div>
         </div>
       </div>
-      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border-2 border-slate-900 bg-[#FF7A1A] px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.08em] text-white shadow-[0_2px_0_#0F1B2D] transition group-hover:translate-y-[1px] group-hover:shadow-[0_1px_0_#0F1B2D]">
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border-2 border-slate-900 bg-[#D97757] px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.08em] text-white shadow-[0_2px_0_#0F1B2D] transition group-hover:translate-y-[1px] group-hover:shadow-[0_1px_0_#0F1B2D]">
         {locked ? 'Unlock' : 'Start'}
         <Icon as={locked ? Lock : ChevronRight} size="xs" />
       </span>
@@ -192,7 +192,7 @@ function SubjectCard({ subject, quizzes, expanded, onToggle, onStart, isLocked }
       {expanded && !empty && (
         <div
           id={`quizzes-${subject.slug}`}
-          className="space-y-2.5 border-t-2 border-dashed border-slate-300 bg-[#FFF7ED]/60 p-3.5 sm:p-5"
+          className="space-y-2.5 border-t-2 border-dashed border-slate-300 bg-[#FCF7F3]/60 p-3.5 sm:p-5"
         >
           {quizzes.map(quiz => (
             <QuizRow
@@ -405,7 +405,7 @@ export default function QuizList() {
   const demoForGrade  = filteredQuizzes.filter(q => q.isDemo).length
 
   return (
-    <div className="force-light-theme min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#fff7ed_0%,#f8fafc_38%,#ffffff_100%)] text-slate-900">
+    <div className="force-light-theme min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#fcf7f3_0%,#f8fafc_38%,#ffffff_100%)] text-slate-900">
       <GameStickerStyles />
       <SeoHelmet title="Quizzes" path="/quizzes" noIndex />
       {/* Audit A8 PR 3 — first-session tour. Self-suppresses via
@@ -416,7 +416,7 @@ export default function QuizList() {
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.18),_transparent_36%),radial-gradient(circle_at_top_right,_rgba(14,165,233,0.14),_transparent_32%),radial-gradient(circle_at_center,_rgba(16,185,129,0.12),_transparent_42%)]" />
 
       {blockedToast && (
-        <div className="fixed left-1/2 top-4 z-50 flex -translate-x-1/2 items-center gap-2 rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white shadow-lg">
+        <div className="fixed left-1/2 top-4 z-50 flex -translate-x-1/2 items-center gap-2 rounded-2xl bg-[#D97757] px-5 py-3 text-sm font-black text-white shadow-lg">
           <Icon as={Lock} size="sm" /> Upgrade required to access that quiz
           <button
             onClick={() => setBlockedToast(false)}
@@ -556,7 +556,7 @@ export default function QuizList() {
                   aria-pressed={active}
                   className={`zx-card rounded-full px-3.5 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.08em] transition ${
                     active
-                      ? 'bg-[#FF7A1A] text-white'
+                      ? 'bg-[#D97757] text-white'
                       : 'bg-white text-slate-900 hover:bg-amber-50'
                   }`}
                 >

@@ -28,7 +28,7 @@ const CARD = {
   maxHeight: '92vh', display: 'flex', flexDirection: 'column', padding: 16,
 }
 const PRIMARY_BTN = {
-  background: '#ff7a2e', color: '#fff', border: 'none', cursor: 'pointer',
+  background: '#d97757', color: '#fff', border: 'none', cursor: 'pointer',
   borderRadius: 10, padding: '10px 16px', fontWeight: 800, fontSize: 14,
 }
 const GHOST_BTN = {
@@ -237,7 +237,7 @@ export default function ImageEditorModal({ imageUrl, imageWidth = 'full', onAppl
 
   const cornerStyle = (pos) => ({
     position: 'absolute', width: 16, height: 16, background: '#fff',
-    border: '2px solid #ff7a2e', borderRadius: 4, touchAction: 'none',
+    border: '2px solid #d97757', borderRadius: 4, touchAction: 'none',
     cursor: `${pos}-resize`, ...cornerPos(pos),
   })
 
@@ -280,7 +280,7 @@ export default function ImageEditorModal({ imageUrl, imageWidth = 'full', onAppl
                     position: 'absolute',
                     left: `${crop.x * 100}%`, top: `${crop.y * 100}%`,
                     width: `${crop.w * 100}%`, height: `${crop.h * 100}%`,
-                    border: '2px dashed #ff7a2e', boxShadow: '0 0 0 9999px rgba(0,0,0,0.45)',
+                    border: '2px dashed #d97757', boxShadow: '0 0 0 9999px rgba(0,0,0,0.45)',
                     cursor: 'move', touchAction: 'none',
                   }}
                 >
@@ -305,7 +305,7 @@ export default function ImageEditorModal({ imageUrl, imageWidth = 'full', onAppl
                 <button key={r.key} type="button" onClick={() => setCropRatio(r.key)}
                   style={{
                     ...GHOST_BTN, padding: '4px 10px',
-                    border: `1.5px solid ${cropRatio === r.key ? '#ff7a2e' : '#d9cfb8'}`,
+                    border: `1.5px solid ${cropRatio === r.key ? '#d97757' : '#d9cfb8'}`,
                     background: cropRatio === r.key ? '#fff3e8' : '#fff',
                   }}>{r.label}</button>
               ))}
@@ -348,7 +348,7 @@ export default function ImageEditorModal({ imageUrl, imageWidth = 'full', onAppl
                   <button key={o.key} type="button" onClick={() => setWidthPreset(o.key)}
                     style={{
                       ...GHOST_BTN, padding: '6px 12px',
-                      border: `1.5px solid ${widthPreset === o.key ? '#ff7a2e' : '#d9cfb8'}`,
+                      border: `1.5px solid ${widthPreset === o.key ? '#d97757' : '#d9cfb8'}`,
                       background: widthPreset === o.key ? '#fff3e8' : '#fff',
                     }}>{o.label}</button>
                 ))}

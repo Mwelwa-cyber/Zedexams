@@ -109,7 +109,7 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
       onClick={() => setTab(key)}
       style={{
         flex: 1, padding: '8px 12px', fontSize: 14, cursor: 'pointer',
-        border: 'none', borderBottom: `2.5px solid ${tab === key ? '#ff7a2e' : 'transparent'}`,
+        border: 'none', borderBottom: `2.5px solid ${tab === key ? '#d97757' : 'transparent'}`,
         background: 'none', fontWeight: tab === key ? 800 : 500, color: '#0e2a32',
       }}
     >
@@ -205,7 +205,7 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
                   <button
                     type="button"
                     className="mt-2 rounded-lg px-4 py-2 text-sm font-bold"
-                    style={{ border: '1.5px solid #ff7a2e', color: '#0e2a32', background: '#fff3e8', cursor: 'pointer' }}
+                    style={{ border: '1.5px solid #d97757', color: '#0e2a32', background: '#fff3e8', cursor: 'pointer' }}
                     onClick={() => { setTab('ai'); if (term) setPrompt(term) }}
                   >
                     ✨ Generate this picture with AI instead
@@ -281,7 +281,7 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
                   onClick={() => setProvider(s.provider)}
                   style={{
                     flex: 1, padding: '8px 10px', borderRadius: 10, fontSize: 13, cursor: 'pointer',
-                    border: `1.5px solid ${provider === s.provider ? '#ff7a2e' : '#d9cfb8'}`,
+                    border: `1.5px solid ${provider === s.provider ? '#d97757' : '#d9cfb8'}`,
                     background: provider === s.provider ? '#fff3e8' : '#fff',
                     color: '#0e2a32', textAlign: 'center',
                   }}
@@ -301,7 +301,7 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button type="button"
                     className="rounded-lg px-4 py-2 text-sm font-bold"
-                    style={{ flex: 1, background: '#ff7a2e', color: '#fff', border: 'none', cursor: 'pointer' }}
+                    style={{ flex: 1, background: '#d97757', color: '#fff', border: 'none', cursor: 'pointer' }}
                     onClick={() => onSelect({ url: aiUrl, name: prompt.slice(0, 80), pictureId: null })}
                   >
                     ✓ Use this picture
@@ -319,7 +319,7 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
             ) : (
               <button type="button"
                 className="rounded-lg px-4 py-2 text-sm font-bold"
-                style={{ background: '#ff7a2e', color: '#fff', border: 'none', cursor: 'pointer', opacity: aiBusy || !prompt.trim() ? 0.6 : 1 }}
+                style={{ background: '#d97757', color: '#fff', border: 'none', cursor: 'pointer', opacity: aiBusy || !prompt.trim() ? 0.6 : 1 }}
                 onClick={runAiGenerate}
                 disabled={aiBusy || !prompt.trim()}
               >

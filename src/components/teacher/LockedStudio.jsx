@@ -135,7 +135,7 @@ export default function LockedStudio({ tool }) {
               type="button"
               onClick={upgrade}
               className="rounded-xl px-4 py-2 text-sm font-bold"
-              style={{ background: '#ff7a2e', color: '#fff' }}
+              style={{ background: '#d97757', color: '#fff' }}
             >
               🔓 Unlock
             </button>
@@ -148,7 +148,7 @@ export default function LockedStudio({ tool }) {
           style={{ background: 'linear-gradient(135deg,#0e2a32 0%,#143a44 100%)', color: '#fff', boxShadow: '0 10px 30px rgba(14,42,50,.25)' }}
         >
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-black uppercase tracking-wider px-2.5 py-1 rounded-full" style={{ background: '#ff7a2e', color: '#fff' }}>
+            <span className="text-xs font-black uppercase tracking-wider px-2.5 py-1 rounded-full" style={{ background: '#d97757', color: '#fff' }}>
               🔒 Pro &amp; Max
             </span>
             <span className="text-xs" style={{ color: '#a9c4c9' }}>Free plan · sample only</span>
@@ -165,7 +165,7 @@ export default function LockedStudio({ tool }) {
             type="button"
             onClick={upgrade}
             className="mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold"
-            style={{ background: '#ff7a2e', color: '#fff' }}
+            style={{ background: '#d97757', color: '#fff' }}
           >
             See plans &amp; unlock →
           </button>
@@ -179,7 +179,7 @@ export default function LockedStudio({ tool }) {
             className="absolute z-10 text-[11px] font-black uppercase tracking-wider"
             style={{
               top: 18, right: -34, transform: 'rotate(45deg)', width: 150, textAlign: 'center',
-              background: '#ff7a2e', color: '#fff', padding: '4px 0', boxShadow: '0 2px 8px rgba(0,0,0,.2)',
+              background: '#d97757', color: '#fff', padding: '4px 0', boxShadow: '0 2px 8px rgba(0,0,0,.2)',
             }}
           >
             Sample

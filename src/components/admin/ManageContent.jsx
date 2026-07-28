@@ -80,7 +80,7 @@ const LS = {
 // cards, hairline navy border, a whisper of shadow — orange is reserved for the
 // one primary action so it reads as the call-to-action, not decoration.
 const SOFT_CARD  = 'rounded-2xl border border-[#0F1B2D]/[0.08] bg-white shadow-[0_1px_2px_rgba(15,27,45,0.05)]'
-const SELECT_CLS = 'w-full sm:w-auto rounded-xl border border-[#0F1B2D]/15 bg-white px-3 py-2 text-sm font-bold text-[#0F1B2D] focus:border-[#FF7A1A] focus:outline-none focus:ring-2 focus:ring-[#FF7A1A]/20 transition'
+const SELECT_CLS = 'w-full sm:w-auto rounded-xl border border-[#0F1B2D]/15 bg-white px-3 py-2 text-sm font-bold text-[#0F1B2D] focus:border-[#D97757] focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 transition'
 
 // Tinted icon chips for the stat cards. The "warning" tone is also applied to
 // the whole card so "Needs Review" stands out without shouting.
@@ -175,7 +175,7 @@ function Box({ checked, onClick, label }) {
       aria-pressed={checked}
       onClick={onClick}
       className={`h-[18px] w-[18px] flex-shrink-0 grid place-items-center rounded-[5px] border-2 transition-colors ${
-        checked ? 'bg-[#FF7A1A] border-[#FF7A1A]' : 'bg-white border-[#0F1B2D]/25 hover:border-[#FF7A1A]'
+        checked ? 'bg-[#D97757] border-[#D97757]' : 'bg-white border-[#0F1B2D]/25 hover:border-[#D97757]'
       }`}
     >
       {checked && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
@@ -231,7 +231,7 @@ function DailyExamModal({ quiz, onSave, onClose }) {
       <div className="bg-white rounded-3xl shadow-xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-black text-gray-800 text-base flex items-center gap-2">
-            <Icon as={Trophy} size="sm" className="text-[#FF7A1A]" /> Set as Daily Exam
+            <Icon as={Trophy} size="sm" className="text-[#D97757]" /> Set as Daily Exam
           </h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600" aria-label="Close">
             <Icon as={X} size="md" />
@@ -400,7 +400,7 @@ function Row({ tab, item, selected, onSelect, menuOpen, onMenu, actions, busy })
     <div
       className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${
         selected
-          ? 'bg-[#FFF4EA] ring-2 ring-[#FF7A1A]/60'
+          ? 'bg-[#FFF4EA] ring-2 ring-[#D97757]/60'
           : 'bg-white ring-1 ring-[#0F1B2D]/[0.06] hover:ring-[#0F1B2D]/15'
       }`}
     >
@@ -449,7 +449,7 @@ function Row({ tab, item, selected, onSelect, menuOpen, onMenu, actions, busy })
         <Link
           to={editTo}
           aria-disabled={!id}
-          className={`${btnBase} bg-[#FFEDD5] text-[#C2410C] hover:brightness-95`}
+          className={`${btnBase} bg-[#F8EADF] text-[#A3422E] hover:brightness-95`}
         >
           <Icon as={PencilLine} size="sm" /><span className="hidden sm:inline">Edit</span>
         </Link>
@@ -982,7 +982,7 @@ export default function ManageContent() {
         <div className="min-w-0">
           <span className="admin-game-eyebrow">Library</span>
           <h1 className="admin-game-display text-[#0F1B2D] mt-1 flex items-center gap-2.5" style={{ fontSize: 30 }}>
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#FFEDD5] text-[#C2410C]">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#F8EADF] text-[#A3422E]">
               <Icon as={FolderOpen} size="md" />
             </span>
             Content Library
@@ -1014,8 +1014,8 @@ export default function ManageContent() {
                   : 'text-[#4A5A6E] hover:text-[#0F1B2D]'
               }`}
             >
-              <Icon as={t.icon} size="sm" className={active ? 'text-[#FF7A1A]' : ''} /> {t.label}
-              <span className={`ml-0.5 rounded-full px-1.5 text-[11px] font-black ${active ? 'bg-[#FFEDD5] text-[#C2410C]' : 'bg-[#0F1B2D]/8 text-[#4A5A6E]'}`}>
+              <Icon as={t.icon} size="sm" className={active ? 'text-[#D97757]' : ''} /> {t.label}
+              <span className={`ml-0.5 rounded-full px-1.5 text-[11px] font-black ${active ? 'bg-[#F8EADF] text-[#A3422E]' : 'bg-[#0F1B2D]/8 text-[#4A5A6E]'}`}>
                 {counts[t.id]}
               </span>
             </button>
@@ -1088,7 +1088,7 @@ export default function ManageContent() {
               onChange={e => setSearch(e.target.value)}
               placeholder="Search title, subject, topic…"
               aria-label="Search content"
-              className="w-full rounded-xl border border-[#0F1B2D]/15 bg-white pl-9 pr-3 py-2 text-sm focus:border-[#FF7A1A] focus:outline-none focus:ring-2 focus:ring-[#FF7A1A]/20 transition"
+              className="w-full rounded-xl border border-[#0F1B2D]/15 bg-white pl-9 pr-3 py-2 text-sm focus:border-[#D97757] focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 transition"
             />
           </div>
           <select value={gradeF} onChange={e => setGradeF(e.target.value)} className={SELECT_CLS} aria-label="Filter by grade">
@@ -1148,12 +1148,12 @@ export default function ManageContent() {
 
       {/* Bulk bar */}
       {selected.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-[#F4C7A6] bg-[#FCEADF] px-4 py-2.5">
-          <span className="font-black text-[#C2410C] text-sm">{selected.size} selected</span>
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-[#E6C5B7] bg-[#F7EBE7] px-4 py-2.5">
+          <span className="font-black text-[#A3422E] text-sm">{selected.size} selected</span>
           <div className="flex-1" />
           {classifyMode && tab === 'quizzes' ? (
             <>
-              <span className="text-xs font-bold text-[#C2410C]">Mark as:</span>
+              <span className="text-xs font-bold text-[#A3422E]">Mark as:</span>
               <button onClick={() => bulkClassify('practice')} disabled={bulkBusy} className="rounded-lg border border-green-300 bg-green-50 px-3 py-1.5 text-xs font-black text-green-700 disabled:opacity-50">Practice</button>
               <button onClick={() => bulkClassify('exam')} disabled={bulkBusy} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-black text-amber-700 disabled:opacity-50">Exam-only</button>
               <button onClick={() => setClassifyMode(false)} className="rounded-lg px-3 py-1.5 text-xs font-bold text-gray-500">Cancel</button>
@@ -1161,10 +1161,10 @@ export default function ManageContent() {
           ) : (
             <>
               {tab === 'quizzes' && (
-                <button onClick={() => setClassifyMode(true)} disabled={bulkBusy} className="rounded-lg border border-[#F4C7A6] bg-white px-3 py-1.5 text-xs font-black text-[#C2410C] disabled:opacity-50">Classify</button>
+                <button onClick={() => setClassifyMode(true)} disabled={bulkBusy} className="rounded-lg border border-[#E6C5B7] bg-white px-3 py-1.5 text-xs font-black text-[#A3422E] disabled:opacity-50">Classify</button>
               )}
-              <button onClick={bulkPublish} disabled={bulkBusy} className="rounded-lg border border-[#F4C7A6] bg-white px-3 py-1.5 text-xs font-black text-green-700 disabled:opacity-50">Publish</button>
-              <button onClick={() => setPendingBulkDelete(true)} disabled={bulkBusy} className="rounded-lg border border-[#F4C7A6] bg-white px-3 py-1.5 text-xs font-black text-red-600 disabled:opacity-50">Delete</button>
+              <button onClick={bulkPublish} disabled={bulkBusy} className="rounded-lg border border-[#E6C5B7] bg-white px-3 py-1.5 text-xs font-black text-green-700 disabled:opacity-50">Publish</button>
+              <button onClick={() => setPendingBulkDelete(true)} disabled={bulkBusy} className="rounded-lg border border-[#E6C5B7] bg-white px-3 py-1.5 text-xs font-black text-red-600 disabled:opacity-50">Delete</button>
               <button onClick={clearSelection} className="rounded-lg px-3 py-1.5 text-xs font-bold text-gray-500">Clear</button>
             </>
           )}

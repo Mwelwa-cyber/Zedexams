@@ -2279,7 +2279,7 @@ function SyllabiStudioStyles() {
   --ss-cream:  #F2EDE3;
   --ss-cream2: #EBE4D8;
   --ss-teal:   #1B3A4B;
-  --ss-orange: #E8722A;
+  --ss-orange: #C66E4F;
   --ss-white:  #FFFFFF;
   --ss-text:   #1a1a1a;
   --ss-muted:  #6B6B6B;
@@ -2613,7 +2613,7 @@ function SyllabiStudioStyles() {
 }
 .ss-root .ss-tbl-search:focus {
   border-color: var(--ss-orange);
-  box-shadow: 0 0 0 2px rgba(232,114,42,0.15);
+  box-shadow: 0 0 0 2px rgba(198,110,79,0.15);
 }
 .ss-root .ss-row-count {
   font-size: 12px; color: var(--ss-muted);
@@ -2625,7 +2625,7 @@ function SyllabiStudioStyles() {
   padding: 7px 14px; font-size: 13px; font-weight: 700;
   cursor: pointer; font-family: inherit;
 }
-.ss-root .ss-add-row-btn:hover { background: #D5621D; }
+.ss-root .ss-add-row-btn:hover { background: #B55E40; }
 
 .ss-root .ss-tbl-container {
   overflow-x: auto;
@@ -2859,7 +2859,7 @@ function SyllabiStudioStyles() {
   padding: 8px 10px;
   font-family: inherit; font-size: 14px; outline: none;
 }
-.ss-ct-row input:focus { border-color: #E8722A; box-shadow: 0 0 0 2px rgba(232,114,42,0.15); }
+.ss-ct-row input:focus { border-color: #C66E4F; box-shadow: 0 0 0 2px rgba(198,110,79,0.15); }
 .ss-ct-add {
   margin-top: 6px;
   background: transparent; border: none;
@@ -2912,11 +2912,11 @@ function SyllabiStudioStyles() {
   font-family: inherit; font-size: 14px; line-height: 1.5;
   resize: vertical; min-height: 56px; outline: none;
 }
-.ss-field textarea:focus { border-color: #E8722A; box-shadow: 0 0 0 2px rgba(232,114,42,0.15); }
+.ss-field textarea:focus { border-color: #C66E4F; box-shadow: 0 0 0 2px rgba(198,110,79,0.15); }
 .ss-modal-note {
   font-size: 12px; color: #6B6B6B; margin: 10px 0 0;
   padding: 10px 12px; background: #FBF8F3; border-radius: 8px;
-  border-left: 3px solid #E8722A;
+  border-left: 3px solid #C66E4F;
 }
 .ss-modal-foot {
   display: flex; justify-content: flex-end; gap: 8px;

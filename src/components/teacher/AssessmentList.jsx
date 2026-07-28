@@ -87,7 +87,7 @@ function AssessmentRow({ assessment, onDelete, onExport, busy, routeBase, fallba
             {assessment.subject && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#e3eef0', color: '#16505d' }}>{assessment.subject}</span>}
             {assessment.term && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--sv-canvas)', color: 'var(--sv-muted)' }}>T{assessment.term}</span>}
             {assessment.totalMarks != null && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#fde9b8', color: '#8a3d12' }}>{assessment.totalMarks} marks</span>}
-            {assessment.duration != null && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#fff5e6', color: '#c2531a' }}>{assessment.duration} min</span>}
+            {assessment.duration != null && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#fff5e6', color: '#a5523a' }}>{assessment.duration} min</span>}
             {/* Phase 7: surface import-review state on the list so the teacher
                 doesn't have to open every imported draft to find the ones
                 that flagged warnings during parsing. */}
@@ -420,7 +420,7 @@ export default function AssessmentList() {
           <span style={{ fontSize: 22 }}>🦅</span>
           <div className="leading-tight">
             <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 16, margin: 0, color: '#0e2a32' }}>
-              ZedExams <span style={{ color: '#ff7a2e' }}>•</span>
+              ZedExams <span style={{ color: '#d97757' }}>•</span>
             </p>
             <p style={{ fontSize: 11.5, color: '#566f76', margin: 0, fontWeight: 600 }}>
               {cfg.studioName}
@@ -446,7 +446,7 @@ export default function AssessmentList() {
         <div style={{ flex: 1, minWidth: 260 }}>
           <span
             className="inline-flex items-center gap-2 mb-3 rounded-full text-xs font-bold uppercase tracking-wider"
-            style={{ background: '#ff7a2e', color: '#fff', padding: '7px 14px' }}
+            style={{ background: '#d97757', color: '#fff', padding: '7px 14px' }}
           >
             🦅 Sharp Eagle
           </span>
@@ -467,9 +467,9 @@ export default function AssessmentList() {
             type="button"
             onClick={() => navigate(`${cfg.routeBase}/new`)}
             className="inline-flex items-center gap-2.5 rounded-2xl font-bold no-underline transition-colors"
-            style={{ background: '#ff7a2e', color: '#fff', padding: '13px 22px', fontSize: 14.5, border: 'none', cursor: 'pointer' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#e6651a' }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#ff7a2e' }}
+            style={{ background: '#d97757', color: '#fff', padding: '13px 22px', fontSize: 14.5, border: 'none', cursor: 'pointer' }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#c5613f' }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#d97757' }}
           >
             ▶ New {cfg.noun}
           </button>
@@ -504,17 +504,17 @@ export default function AssessmentList() {
             type="button"
             onClick={() => navigate(`${cfg.routeBase}/new`)}
             className="inline-flex items-center gap-2 rounded-xl font-bold transition-colors"
-            style={{ background: '#ff7a2e', color: '#fff', border: 'none', cursor: 'pointer', padding: '10px 18px', fontSize: 14 }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#e6651a' }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#ff7a2e' }}
+            style={{ background: '#d97757', color: '#fff', border: 'none', cursor: 'pointer', padding: '10px 18px', fontSize: 14 }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#c5613f' }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#d97757' }}
           >
             + Create {cfg.noun}
           </button>
         </div>
       ) : (
           <>
-            <div className="flex items-center gap-2.5 mb-3" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#ff7a2e' }}>
-              <span style={{ width: 32, height: 3, background: '#ff7a2e', borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
+            <div className="flex items-center gap-2.5 mb-3" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#d97757' }}>
+              <span style={{ width: 32, height: 3, background: '#d97757', borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
               Saved
             </div>
             <div className="flex flex-wrap items-center gap-2 mb-4" role="group" aria-label="Filter by category">

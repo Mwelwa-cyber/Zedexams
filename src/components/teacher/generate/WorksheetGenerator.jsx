@@ -516,7 +516,7 @@ export default function WorksheetGenerator() {
                         type="checkbox"
                         checked={showAnswers}
                         onChange={(e) => setShowAnswers(e.target.checked)}
-                        style={{ accentColor: '#ff7a2e' }}
+                        style={{ accentColor: '#d97757' }}
                       />
                       Show answers
                     </label>

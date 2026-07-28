@@ -63,7 +63,7 @@
   font-size: 11.5px; color: var(--vs-muted); background: #f4f7f3; border: 1px dashed var(--vs-line);
   border-radius: 9px; padding: 9px 11px; line-height: 1.45;
 }
-.vs-note-warn { background: #fff7ed; border-color: #f3d6ad; color: #92400e; }
+.vs-note-warn { background: #fcf7f3; border-color: #f3d6ad; color: #92400e; }
 
 /* generate results */
 .vs-results { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 12px; }
@@ -95,7 +95,7 @@
 }
 .vs-text-ov { position: absolute; transform: translate(-50%, -50%); font-weight: 700; cursor: grab; user-select: none; padding: 2px 4px; }
 .vs-ov-item.selected { outline: 2px solid var(--vs-accent); outline-offset: 2px; }
-.vs-hit { position: absolute; transform: translate(-50%, -50%); width: 18px; height: 18px; border-radius: 50%; background: rgba(199,109,45,.25); border: 2px solid var(--vs-accent); cursor: grab; }
+.vs-hit { position: absolute; transform: translate(-50%, -50%); width: 18px; height: 18px; border-radius: 50%; background: rgba(173,104,74,.25); border: 2px solid var(--vs-accent); cursor: grab; }
 
 .vs-inspector { border-left: 1px solid var(--vs-line); padding: 14px; background: #fcfdfb; }
 .vs-inspector h4 { margin: 0 0 10px; font-size: 13px; }
@@ -129,7 +129,7 @@
 .vs-badge { display: inline-block; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 999px; letter-spacing: .03em; }
 .vs-badge--bw { background: #eef2f6; color: #334155; }
 .vs-badge--labelled { background: #e6f0ec; color: var(--vs-brand-d); }
-.vs-badge--flag { background: #fff7ed; color: #92400e; }
+.vs-badge--flag { background: #fcf7f3; color: #92400e; }
 
 /* preflight checklist */
 .vs-check { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--vs-line); }

@@ -118,10 +118,10 @@
           '<h1 style="font-size:1.5rem;font-weight:800;margin:0 0 0.5rem;">We could not finish loading ZedExams</h1>' +
           '<p style="margin:0 0 1.25rem;line-height:1.5;color:#4B6280;">This is usually a temporary loading or cached-version problem. Reloading the page fixes it most of the time.</p>' +
           '<div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;margin-bottom:1.25rem;">' +
-            '<button type="button" id="zed-fallback-reload" style="cursor:pointer;border:0;border-radius:0.625rem;padding:0.7rem 1.25rem;font-weight:700;font-size:0.95rem;color:#fff;background:#EA580C;">Reload</button>' +
+            '<button type="button" id="zed-fallback-reload" style="cursor:pointer;border:0;border-radius:0.625rem;padding:0.7rem 1.25rem;font-weight:700;font-size:0.95rem;color:#fff;background:#C5613F;">Reload</button>' +
             '<button type="button" id="zed-fallback-clear" style="cursor:pointer;border:1px solid #CBD5E1;border-radius:0.625rem;padding:0.7rem 1.25rem;font-weight:700;font-size:0.95rem;color:#1A1F2E;background:#fff;">Clear cache &amp; reload</button>' +
           '</div>' +
-          '<p style="margin:0;font-size:0.875rem;color:#4B6280;">Still stuck? Email <a href="mailto:support@zedexams.com" style="color:#EA580C;font-weight:700;">support@zedexams.com</a> or WhatsApp <a href="https://wa.me/260977740465" style="color:#EA580C;font-weight:700;">+260 977 740 465</a>.</p>' +
+          '<p style="margin:0;font-size:0.875rem;color:#4B6280;">Still stuck? Email <a href="mailto:support@zedexams.com" style="color:#C5613F;font-weight:700;">support@zedexams.com</a> or WhatsApp <a href="https://wa.me/260977740465" style="color:#C5613F;font-weight:700;">+260 977 740 465</a>.</p>' +
         '</div>' +
       '</div>';
     // Wire the recovery buttons via addEventListener (the inline onclick

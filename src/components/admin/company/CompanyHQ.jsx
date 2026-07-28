@@ -462,7 +462,7 @@ export function CompanyHQ() {
       <header className="rounded-2xl border-2 p-5" style={{ background: '#0F1B2D', borderColor: '#0F1B2D', color: '#fff' }}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-start gap-3">
-            <span className="grid h-12 w-12 place-items-center rounded-2xl" style={{ background: '#FF7A1A' }}>
+            <span className="grid h-12 w-12 place-items-center rounded-2xl" style={{ background: '#D97757' }}>
               <Bot size={26} />
             </span>
             <div>

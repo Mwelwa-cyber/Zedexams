@@ -677,7 +677,7 @@ function buildPasswordResetEmailHtml({resetLink, recipientEmail}) {
             Use the button below to choose a new password. If you did not request this, you can ignore this message and your password will stay the same.
           </p>
           <div style="margin:0 0 24px;">
-            <a href="${resetLink}" style="display:inline-block;background:#ea580c;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 24px;border-radius:10px;">
+            <a href="${resetLink}" style="display:inline-block;background:#c5613f;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 24px;border-radius:10px;">
               Reset password
             </a>
           </div>

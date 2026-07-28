@@ -20,7 +20,7 @@ export function CurriculumCompactField({ curriculumMode, onChange }) {
     <div className="rounded-2xl border-2 border-[#0F1B2D] bg-white p-3.5 shadow-[0_2px_0_#0F1B2D]">
       <span className="lps-eyebrow mb-1.5">Curriculum</span>
       <div className="flex items-center gap-3">
-        <span className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-xl border-2 border-[#0F1B2D] bg-[#FFF4E8] text-[#c2410c]" aria-hidden="true">
+        <span className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-xl border-2 border-[#0F1B2D] bg-[#FFF4E8] text-[#a3422e]" aria-hidden="true">
           <BookMarked size={18} />
         </span>
         <p className="min-w-0 flex-1 text-[13px] font-bold leading-snug text-[#0F1B2D]">

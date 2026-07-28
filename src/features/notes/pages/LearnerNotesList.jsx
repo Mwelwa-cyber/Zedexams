@@ -74,7 +74,7 @@ export function LearnerNotesList() {
       <main className="max-w-5xl mx-auto px-4 sm:px-5 py-8">
         <div className="mb-6 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 text-[10.5px] font-extrabold tracking-[0.16em] uppercase text-[#053541] mb-2 before:content-[''] before:w-[22px] before:h-[3px] before:rounded-sm before:bg-[#FF7A1A]">Your notes</div>
+            <div className="inline-flex items-center gap-2 text-[10.5px] font-extrabold tracking-[0.16em] uppercase text-[#053541] mb-2 before:content-[''] before:w-[22px] before:h-[3px] before:rounded-sm before:bg-[#D97757]">Your notes</div>
             <h1 className="font-display text-4xl sm:text-5xl tracking-tight mb-2 text-[#0F1B2D]">
               Welcome back, <span className="font-display-italic">{firstName}.</span>
             </h1>
@@ -99,7 +99,7 @@ export function LearnerNotesList() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by title…"
-              className="w-full pl-9 pr-3 py-2.5 text-sm bg-white rounded-xl border-2 border-[#0F1B2D] text-[#0F1B2D] placeholder:text-[#4A5A6E] focus:outline-none focus:ring-2 focus:ring-[#FF7A1A]/40 transition"
+              className="w-full pl-9 pr-3 py-2.5 text-sm bg-white rounded-xl border-2 border-[#0F1B2D] text-[#0F1B2D] placeholder:text-[#4A5A6E] focus:outline-none focus:ring-2 focus:ring-[#D97757]/40 transition"
             />
           </div>
         )}
@@ -199,8 +199,8 @@ function NotesProgressPanel({ total, completed }) {
   return (
     <div className="notes-card p-4 w-full lg:w-72 shrink-0">
       <div className="flex items-center gap-2.5 mb-3">
-        <span className="w-9 h-9 rounded-xl grid place-items-center border-2 border-[#0F1B2D] bg-[#FFEDD5]" style={{ boxShadow: '0 2px 0 #0F1B2D' }}>
-          <BookOpen size={16} className="text-[#C2410C]" />
+        <span className="w-9 h-9 rounded-xl grid place-items-center border-2 border-[#0F1B2D] bg-[#F8EADF]" style={{ boxShadow: '0 2px 0 #0F1B2D' }}>
+          <BookOpen size={16} className="text-[#A3422E]" />
         </span>
         <div>
           <div className="text-sm font-bold text-[#0F1B2D] leading-tight">Notes progress</div>
@@ -208,7 +208,7 @@ function NotesProgressPanel({ total, completed }) {
         </div>
       </div>
       <div className="h-2 rounded-full bg-[#F5EFE1] border border-[#0F1B2D]/15 overflow-hidden">
-        <div className="h-full rounded-full" style={{ width: `${percent}%`, backgroundColor: '#FF7A1A' }} />
+        <div className="h-full rounded-full" style={{ width: `${percent}%`, backgroundColor: '#D97757' }} />
       </div>
       <div className="mt-2 text-[11px] text-[#4A5A6E]">{completed} of {total} notes completed</div>
     </div>

@@ -42,7 +42,7 @@ const NOTE_SKINS = {
   5000:  { label: 'K50',  bg: 'linear-gradient(135deg, #6d28d9, #a78bfa)' },
   2000:  { label: 'K20',  bg: 'linear-gradient(135deg, #047857, #34d399)' },
   1000:  { label: 'K10',  bg: 'linear-gradient(135deg, #1d4ed8, #60a5fa)' },
-  500:   { label: 'K5',   bg: 'linear-gradient(135deg, #c2410c, #fb923c)' },
+  500:   { label: 'K5',   bg: 'linear-gradient(135deg, #a3422e, #d88962)' },
   200:   { label: 'K2',   bg: 'linear-gradient(135deg, #4d7c0f, #a3e635)' },
 }
 
@@ -375,7 +375,7 @@ export default function MarketChallengeGame({ game }) {
           }
           .zx-market-canopy {
             height: 1.1rem;
-            background: repeating-linear-gradient(90deg, #ef4444 0 18px, #fff7ed 18px 36px);
+            background: repeating-linear-gradient(90deg, #ef4444 0 18px, #fcf7f3 18px 36px);
           }
           .zx-market-wood {
             background:
