@@ -77,6 +77,7 @@ const FIELD_QUERY_COLLECTIONS = [
   {collection: "shares", field: "ownerUid"},
   {collection: "generatedContent", field: "ownerUid"},
   {collection: "aiGenerations", field: "ownerUid"},
+  {collection: "teacherLibraryItems", field: "ownerUid"},
   {collection: "agentJobs", field: "createdBy"},
   {collection: "assessments", field: "createdBy", recursive: true}, // + questions
   {collection: "quizzes", field: "createdBy", recursive: true}, // + questions
