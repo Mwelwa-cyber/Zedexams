@@ -48,6 +48,7 @@ function blueprint(overrides = {}) {
     subject: 'mathematics',
     framework: '2023',
     assessmentType: 'end_of_term',
+    term: 2,
     totalMarks: 10,
     durationMinutes: 40,
     sections: [{
@@ -136,7 +137,6 @@ describe('Table of Specifications', () => {
       gradeLabel: 'Grade 4 Blue',
       subject: 'Mathematics',
       assessmentType: 'End-of-Term Test',
-      term: '2',
       year: '2026',
       teacherName: 'Mr Mwelwa',
       bloomTaxonomy: 'revised',
@@ -148,6 +148,7 @@ describe('Table of Specifications', () => {
       subject: 'Mathematics',
       term: '2',
       year: '2026',
+      durationMinutes: 40,
       taxonomyId: 'revised',
       valid: true,
     })
@@ -156,15 +157,23 @@ describe('Table of Specifications', () => {
       .toBe('Grade-4-Blue-Mathematics-End-of-Term-Test-Revised-Blooms-Table-of-Specifications.docx')
   })
 
+  it('allows explicit filing metadata to override the blueprint metadata', () => {
+    const model = buildTableOfSpecificationsModel(blueprint(), {
+      term: '3',
+      durationMinutes: 60,
+    })
+    expect(model.term).toBe('3')
+    expect(model.durationMinutes).toBe(60)
+  })
+
   it('marks a model invalid when the blueprint total does not reconcile', () => {
     const model = buildTableOfSpecificationsModel(blueprint({ totalMarks: 99 }))
     expect(model.valid).toBe(false)
   })
 
-  it('renders the selected revised taxonomy on the A4 landscape filing copy', () => {
+  it('renders the selected revised taxonomy with term, duration and paper total', () => {
     const html = buildTableOfSpecificationsHtml(blueprint(), {
       schoolName: 'Jemareen <Academy>',
-      term: '2',
       year: '2026',
       teacherName: 'Mr Mwelwa',
       bloomTaxonomy: 'revised',
@@ -174,6 +183,9 @@ describe('Table of Specifications', () => {
     expect(html).toContain('Jemareen &lt;Academy&gt;')
     expect(html).toContain('TABLE OF SPECIFICATIONS')
     expect(html).toContain('Revised Bloom&#039;s Taxonomy')
+    expect(html).toContain('Term 2 · 2026')
+    expect(html).toContain('40 minutes')
+    expect(html).toContain('6 questions · 10 marks')
     expect(html).toContain('Remember')
     expect(html).toContain('Understand')
     expect(html.indexOf('Evaluate')).toBeLessThan(html.indexOf('Create'))
@@ -219,6 +231,8 @@ describe('Table of Specifications', () => {
       'Grade-4-Mathematics-End-of-Term-Test-Revised-Blooms-Table-of-Specifications.docx',
     )
     expect(result.model.taxonomyId).toBe('revised')
+    expect(result.model.term).toBe('2')
+    expect(result.model.durationMinutes).toBe(40)
     expect(result.model.totals.questions).toBe(6)
   })
 
