@@ -179,7 +179,13 @@ export const FONT_FAMILIES = Object.freeze({
   serif: Object.freeze({
     id: 'serif',
     label: 'Times New Roman (serif)',
-    css: "'Times New Roman', 'Liberation Serif', 'Nimbus Roman', serif",
+    // Byte-identical to the stack the print stylesheet has always declared.
+    // A tempting third entry ('Nimbus Roman', the other metric-compatible clone)
+    // was tried and removed: adding a fallback changes the rendered face on any
+    // machine where the earlier two are absent, which makes it an uncontrolled
+    // variable in a suite whose whole job is detecting changed pixels. It buys
+    // nothing on a Zambian school computer, which has one of the first two.
+    css: "'Times New Roman', 'Liberation Serif', serif",
     word: 'Times New Roman',
   }),
   sans: Object.freeze({
