@@ -879,6 +879,13 @@ service cloud.firestore {
         return ['data', 'html', 'meta', 'inputs', 'studioFormat',
                 'library', 'contentHash', 'revision', 'updatedAt', 'visibility'];
       }
+      // The fields contentHash is computed FROM. `library` (folder
+      // classification) and `visibility` are excluded on purpose: refiling a
+      // plan is not editing it, so it must not advance the revision.
+      function contentFields() {
+        return ['data', 'html', 'meta', 'inputs', 'studioFormat'];
+      }
+      function contentChanged() { return changed().hasAny(contentFields()); }
 
       allow read: if isVerified() && resource.data.ownerUid == request.auth.uid;
       allow read: if isAdmin();
@@ -947,13 +954,25 @@ service cloud.firestore {
                        // leave the two disagreeing about what this document is.
                        && item().contentHash is string
                        && item().revision is int
+                       // The FULL equivalence, not half of it:
+                       //   content changed  <=>  hash changed  <=>  revision +1
+                       // Stating only "hash changed => revision +1" would still
+                       // accept a write that bumped both while changing nothing,
+                       // or that edited the plan while keeping the old hash. Both
+                       // leave the document describing content it does not hold.
                        && (
-                         (item().contentHash == resource.data.contentHash
-                          && item().revision == resource.data.revision)
-                         ||
-                         (item().contentHash != resource.data.contentHash
+                         (contentChanged()
+                          && item().contentHash != resource.data.contentHash
                           && item().revision == resource.data.revision + 1)
-                       );
+                         ||
+                         (!contentChanged()
+                          && item().contentHash == resource.data.contentHash
+                          && item().revision == resource.data.revision)
+                       )
+                       // Server clock, not the client's. A save that could name
+                       // its own updatedAt could reorder itself against a
+                       // concurrent one.
+                       && item().updatedAt == request.time;
 
       allow update: if isAdmin();
       allow delete: if isVerified()
