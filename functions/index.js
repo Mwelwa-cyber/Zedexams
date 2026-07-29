@@ -894,6 +894,37 @@ exports.deleteMyAccount = onCall(
       }
     }
 
+    // ── Post-purge cleanup ────────────────────────────────────────────
+    // Both steps run AFTER the account is irreversibly gone, so neither may
+    // throw: turning a completed deletion into an error the user sees would
+    // invite them to retry something that has already happened. Each reports
+    // its outcome into the summary instead.
+
+    // Close (and redact) any web deletion request for this address, so the
+    // support queue drains itself when someone finishes the job in-app.
+    // request.auth.token.email is the verified address on the session — the
+    // deletionRequests rows are keyed by email, not uid.
+    try {
+      const {closeDeletionRequests} = require("./accountDeletionRequests");
+      summary.deletionRequestsClosed = await closeDeletionRequests(
+        admin.firestore(),
+        request.auth.token?.email,
+      );
+    } catch (error) {
+      console.error("deleteMyAccount deletionRequests close failed:", error);
+      summary.deletionRequestsClosed = "failed";
+    }
+
+    // Delete the PostHog person + events (Privacy Policy §7). A no-op unless
+    // POSTHOG_PERSONAL_API_KEY is configured; never throws.
+    try {
+      const {deleteAnalyticsProfile} = require("./analyticsPurge");
+      summary.analytics = await deleteAnalyticsProfile(uid);
+    } catch (error) {
+      console.error("deleteMyAccount analytics purge failed:", error);
+      summary.analytics = {ok: false, error: "threw"};
+    }
+
     console.log(
       `deleteMyAccount uid=${uid} summary=${JSON.stringify(summary)}`,
     );
@@ -4285,6 +4316,15 @@ exports.apiTrackVisit = require('./visitorTracking').apiTrackVisit;
 // Scheduled rollup: sums the sharded per-pageview counters into the day doc the
 // /admin/visitors dashboard reads (every 5 min, Lusaka today + yesterday).
 exports.aggregateVisitorStats = require('./visitorTracking').aggregateVisitorStats;
+
+// Public account-deletion request form (zedexams.com/delete-account), reached
+// via the /api/account/delete-request Hosting rewrite. Google Play requires a
+// deletion route that does NOT need the app — for someone who lost their
+// password or device, or a parent acting for a child. It RECORDS a request for
+// a human to verify; it never deletes. The destructive path stays
+// `deleteMyAccount` above, which is authenticated and requires a fresh login.
+exports.apiRequestAccountDeletion =
+  require('./accountDeletionRequests').apiRequestAccountDeletion;
 
 // Server-generated library downloads: regenerate a saved document on the server
 // and stream it from zedexams.com with the correct filename — no upload, no

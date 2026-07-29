@@ -51,8 +51,9 @@ const ROUTE_META = {
   '/games/g/4': { changefreq: 'weekly', priority: '0.7', lastmod: '2026-06-21' },
   '/games/g/5': { changefreq: 'weekly', priority: '0.7', lastmod: '2026-06-21' },
   '/games/g/6': { changefreq: 'weekly', priority: '0.7', lastmod: '2026-06-21' },
-  '/privacy': { changefreq: 'yearly', priority: '0.3', lastmod: '2026-06-21' },
-  '/terms': { changefreq: 'yearly', priority: '0.3', lastmod: '2026-06-21' },
+  '/privacy': { changefreq: 'yearly', priority: '0.3', lastmod: '2026-07-29' },
+  '/terms': { changefreq: 'yearly', priority: '0.3', lastmod: '2026-07-29' },
+  '/delete-account': { changefreq: 'yearly', priority: '0.3', lastmod: '2026-07-29' },
   '/status': { changefreq: 'daily', priority: '0.3' },
 }
 

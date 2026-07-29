@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import LegalLayout from './LegalLayout'
 import SeoHelmet from '../seo/SeoHelmet'
 
@@ -27,7 +28,7 @@ export default function Terms() {
         description="The terms governing how learners, teachers and schools use ZedExams, including AI-output disclaimers and how to cancel."
         path="/terms"
       />
-      <LegalLayout title="Terms & Conditions" lastUpdated="29 April 2026">
+      <LegalLayout title="Terms & Conditions" lastUpdated="29 July 2026">
       <P>
         Welcome to ZedExams. These Terms & Conditions ("Terms") govern your use of
         zedexams.com and any associated mobile or desktop apps (the "Service"). By creating
@@ -66,7 +67,7 @@ export default function Terms() {
 
       <H2>4. Teacher verification & content</H2>
       <UL>
-        <li>To publish content visible to learners, teachers must complete the verification flow (school name, NRC, proof of teaching status).</li>
+        <li>To publish content visible to learners, teachers must complete the verification flow by providing their school name and proof of teaching status — for example a teaching certificate or a Teaching Council of Zambia (TCZ) registration document. We do not ask for your NRC or any other government ID number. We may contact your school to confirm your status.</li>
         <li>You're responsible for the accuracy of any lesson plans, worksheets, quizzes, or other content you publish through ZedExams.</li>
         <li>You retain ownership of original content you create, and grant ZedExams a non-exclusive licence to host and serve it as part of the Service.</li>
         <li>We may remove content that breaks these Terms or any law.</li>
@@ -155,7 +156,14 @@ export default function Terms() {
 
       <H2>9. Termination</H2>
       <UL>
-        <li>You can stop using ZedExams at any time, and can request account deletion via WhatsApp or the contact form.</li>
+        <li>
+          You can stop using ZedExams at any time. You may delete your account in the app
+          (<strong>Settings → Account → Delete account</strong>), by submitting a request at{' '}
+          <Link className="underline theme-accent-text" to="/delete-account">zedexams.com/delete-account</Link>{' '}
+          without signing in, or by contacting us via WhatsApp or the contact form. Deletion
+          is handled as described in our{' '}
+          <Link className="underline theme-accent-text" to="/privacy">Privacy Policy</Link>.
+        </li>
         <li>We can suspend or close your account if you break these Terms, if we're required to by law, or if your account has been inactive for a long period.</li>
         <li>On termination, the parts of these Terms that should naturally survive (IP, disclaimers, liability, governing law) continue to apply.</li>
       </UL>

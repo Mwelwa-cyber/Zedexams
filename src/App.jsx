@@ -41,6 +41,7 @@ import { ActiveAssignmentSync } from './hooks/useActiveAssignmentSync'
 const PUBLIC_THEME_PATHS = new Set([
   '/login', '/register', '/auth/action', '/verify-email',
   '/pricing', '/teachers', '/privacy', '/terms', '/preferences', '/status',
+  '/delete-account',
   '/papers', '/company',
   // Dashboard V2 preview ships its own scoped design system; pin it to the
   // brand default so a saved learner theme can't bleed into the review.
@@ -143,6 +144,9 @@ const Terms = lazy(() => import('./components/marketing/Terms'))
 // Public consent/preferences page — no auth, so the cookie banner can link
 // signed-out visitors somewhere they can actually change their decision.
 const CookiePreferences = lazy(() => import('./components/marketing/CookiePreferences'))
+// Public account-deletion request page — the no-login deletion route Google
+// Play's Data safety form links to. Must stay reachable signed out.
+const DeleteAccountRequest = lazy(() => import('./components/marketing/DeleteAccountRequest'))
 const PastPapersHub = lazy(() => import('./components/papers/PastPapersHub'))
 const PastPaperViewer = lazy(() => import('./components/papers/PastPaperViewer'))
 const PastPaperPractice = lazy(() => import('./components/papers/PastPaperPractice'))
@@ -536,6 +540,10 @@ export default function App() {
               who want to change their analytics decision. No auth, so it works
               for the signed-out visitors the banner actually targets. */}
           <Route path="/preferences" element={<CookiePreferences />} />
+          {/* Play Data safety "delete account" URL. No auth by requirement —
+              it exists for people who can't sign in (lost password/device) and
+              for parents acting for a child. */}
+          <Route path="/delete-account" element={<DeleteAccountRequest />} />
           {/* Audit A2 — public ECZ past-paper archive. Hub is no-auth so
               search engines and signed-out visitors can browse; the actual
               PDF viewer at /papers/:id requires sign-in to download. */}

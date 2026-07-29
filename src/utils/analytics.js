@@ -27,6 +27,12 @@
  * phone, school name, payment data, or quiz / lesson IDs as super-
  * properties. Per-event properties stay as opaque ids (e.g. `quizId`
  * is fine since it's already in our own backend).
+ *
+ * Role policy (Privacy Policy §4 — children's privacy): consent is not
+ * the only gate. utils/analyticsPolicy decides how closely a given role
+ * may be observed, and learners — plus every session before a role is
+ * known — get session replay off, no identify, and no IP geolocation.
+ * See that module for why the default is minimise rather than observe.
  */
 
 import {
@@ -35,6 +41,7 @@ import {
   isAnalyticsAllowed,
   onConsentChange,
 } from './analyticsConsent'
+import { MINIMISED_POLICY, resolveAnalyticsPolicy } from './analyticsPolicy'
 
 const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY
 const POSTHOG_HOST = import.meta.env.VITE_POSTHOG_HOST || 'https://eu.i.posthog.com'
@@ -43,8 +50,37 @@ let posthogInstance = null
 let initInFlight = null
 let queuedIdentity = null
 
+// The treatment currently in force. Starts minimised and only widens once
+// identifyUser() hands us a role we can account for — so a session that
+// never signs in, or hasn't finished loading its profile, is never recorded.
+let activePolicy = MINIMISED_POLICY
+
 function configured() {
   return Boolean(POSTHOG_KEY)
+}
+
+/**
+ * Apply a resolved policy to a live PostHog instance. Split out so the
+ * loaded() callback and identifyUser() drive the SDK through one path —
+ * the failure mode being avoided is a policy that is applied on one route
+ * into the SDK and forgotten on the other.
+ */
+function applyPolicy(instance, policy) {
+  if (!instance) return
+  try {
+    // $geoip_disable is read server-side by PostHog's enrichment step, so it
+    // must be registered as a super-property (present on every event) rather
+    // than passed once at init.
+    instance.register({ $geoip_disable: !policy.geoip })
+  } catch (err) {
+    console.warn('[analytics] geoip policy failed', err)
+  }
+  try {
+    if (policy.sessionRecording) instance.startSessionRecording()
+    else instance.stopSessionRecording()
+  } catch (err) {
+    console.warn('[analytics] recording policy failed', err)
+  }
 }
 
 async function loadPostHog() {
@@ -72,13 +108,35 @@ async function loadPostHog() {
         autocapture: {
           dom_event_allowlist: ['click', 'submit', 'change'],
         },
-        // We'll manage identity ourselves — disable PostHog's anon-
-        // user persistence so we don't accidentally track a learner
-        // before they sign in.
+        // Session replay starts OFF for every session and is switched on
+        // only by applyPolicy(), once a role that may be recorded is
+        // known. Doing this at init (rather than stopping the recorder
+        // after the fact) means a learner's pre-sign-in screens are never
+        // captured in the first place — a recording that is stopped has
+        // already been made.
+        disable_session_recording: true,
+        session_recording: {
+          // Every <input>/<textarea>/<select> value is masked in the
+          // recording, so a password, an email or a child's name typed
+          // into a form is never in the payload even for the roles we do
+          // record. Applies to the initial DOM snapshot as well as later
+          // mutations.
+          maskAllInputs: true,
+          // Passwords are masked by maskAllInputs; naming the selector as
+          // well means a future relaxation of that flag can't silently
+          // unmask them.
+          maskInputOptions: { password: true, email: true, tel: true },
+        },
         loaded: (instance) => {
           posthogInstance = instance
+          applyPolicy(instance, activePolicy)
           if (queuedIdentity) {
-            instance.identify(queuedIdentity.uid, queuedIdentity.props)
+            const policy = resolveAnalyticsPolicy(queuedIdentity.role)
+            activePolicy = policy
+            applyPolicy(instance, policy)
+            if (policy.identify) {
+              instance.identify(queuedIdentity.uid, queuedIdentity.props)
+            }
             queuedIdentity = null
           }
         },
@@ -97,7 +155,13 @@ async function loadPostHog() {
 }
 
 function teardownPostHog() {
+  activePolicy = MINIMISED_POLICY
   if (!posthogInstance) return
+  try {
+    posthogInstance.stopSessionRecording()
+  } catch (err) {
+    console.warn('[analytics] stop recording failed', err)
+  }
   try {
     posthogInstance.opt_out_capturing()
     posthogInstance.reset()
@@ -126,22 +190,35 @@ export function initAnalytics() {
 }
 
 /**
- * Identify the signed-in user. Buffer if PostHog hasn't finished
- * loading yet; the loaded() callback will pick it up.
+ * Register the signed-in user's ROLE, and identify them only if that role
+ * may be identified. Buffer if PostHog hasn't finished loading yet; the
+ * loaded() callback will pick it up.
+ *
+ * For a minimised role (learner, parent, anything unrecognised) this is the
+ * point where the treatment is applied but the identity is deliberately NOT
+ * sent: the uid never reaches PostHog, so events stay on the anonymous
+ * distinct_id and there is no person profile to link them to.
  */
 export function identifyUser(uid, role) {
   if (!uid) return
-  // Only role + uid. No email / no displayName / no school.
+  const policy = resolveAnalyticsPolicy(role)
+  activePolicy = policy
+  // Only role + uid, and only for roles we identify at all. No email /
+  // no displayName / no school, ever.
   const props = { role: role || 'unknown' }
   if (posthogInstance) {
+    applyPolicy(posthogInstance, policy)
+    if (!policy.identify) return
     try {
       posthogInstance.identify(uid, props)
     } catch (err) {
       console.warn('[analytics] identify failed', err)
     }
   } else if (configured() && getConsent() === CONSENT_ACCEPTED) {
-    // SDK still loading — queue the identity.
-    queuedIdentity = { uid, props }
+    // SDK still loading — queue the role so loaded() can apply the same
+    // decision. The uid rides along but is only ever used when the policy
+    // permits identifying.
+    queuedIdentity = { uid, role, props }
     void loadPostHog()
   }
 }
@@ -153,7 +230,13 @@ export function identifyUser(uid, role) {
  */
 export function resetAnalytics() {
   queuedIdentity = null
+  // Back to minimised: the next session on this device is unknown until it
+  // signs in, and on a shared school phone the next user may well be a
+  // learner. Recording must stop BEFORE the identity is rotated, or the
+  // first frames of the next session belong to the new user.
+  activePolicy = MINIMISED_POLICY
   if (!posthogInstance) return
+  applyPolicy(posthogInstance, activePolicy)
   try { posthogInstance.reset() } catch (err) {
     console.warn('[analytics] reset failed', err)
   }

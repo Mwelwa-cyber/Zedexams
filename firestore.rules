@@ -2085,6 +2085,25 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ── deletionRequests (public account-deletion request queue) ─────
+    // Rows written EXCLUSIVELY by the apiRequestAccountDeletion Cloud
+    // Function (admin SDK) behind zedexams.com/delete-account — the
+    // no-login deletion route Google Play requires. Each row is an
+    // UNVERIFIED claim ("this address wants its account deleted") that a
+    // human verifies before the destructive purge runs through
+    // deleteMyAccount; it is never itself an instruction to delete.
+    //
+    // Client writes are denied because the endpoint is unauthenticated:
+    // the function is where the rate limits, the validation and the
+    // enumeration-safe response live, and a direct client write would
+    // route around all three. Client READS are denied because a row
+    // holds the requester's email, name and free-text notes — being able
+    // to read the queue would turn it into a list of departing users.
+    // Support works the queue with the admin SDK.
+    match /deletionRequests/{requestId} {
+      allow read, write: if false;
+    }
+
     // ── processedEvents (at-least-once trigger dedup) ────────────────
     // "{scope}_{eventId}" claim docs written exclusively by
     // functions/idempotency.js claimEventOnce (Cloud Functions, admin SDK)

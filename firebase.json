@@ -177,6 +177,13 @@
         }
       },
       {
+        "source": "/api/account/delete-request",
+        "function": {
+          "functionId": "apiRequestAccountDeletion",
+          "region": "us-central1"
+        }
+      },
+      {
         "source": "/api/image-proxy",
         "function": {
           "functionId": "apiImageProxy",

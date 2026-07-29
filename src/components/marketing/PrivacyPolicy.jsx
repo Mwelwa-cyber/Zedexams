@@ -28,7 +28,7 @@ export default function PrivacyPolicy() {
         description="How ZedExams collects, uses and protects learner, teacher and school data, including children's-data handling under the Zambia Data Protection Act."
         path="/privacy"
       />
-      <LegalLayout title="Privacy Policy" lastUpdated="29 April 2026">
+      <LegalLayout title="Privacy Policy" lastUpdated="29 July 2026">
       <P>
         ZedExams ("we", "us", "our") provides an online learning platform for Zambian
         Grade 4–7 learners, their teachers, and schools. This Privacy Policy explains what
@@ -68,8 +68,10 @@ export default function PrivacyPolicy() {
         </li>
         <li>
           <strong>Teacher verification documents</strong> — if you apply to be a verified
-          teacher, the proof file you upload (e.g. a teaching certificate) and metadata
-          such as filename and size.
+          teacher, we collect your school name and the proof file you upload (for example a
+          teaching certificate or a Teaching Council of Zambia registration document),
+          together with file metadata such as filename and size.{' '}
+          <strong>We do not ask for or collect your NRC or any other government ID number.</strong>
         </li>
         <li>
           <strong>Ask Zed conversations</strong> — the messages you send to our AI study
@@ -77,13 +79,29 @@ export default function PrivacyPolicy() {
         </li>
         <li>
           <strong>Device & technical data</strong> — basic browser / device information,
-          IP address (for abuse prevention), and crash logs.
+          IP address (for abuse prevention), and crash and error reports describing what
+          went wrong so we can fix bugs.
+        </li>
+        <li>
+          <strong>Product analytics — optional, and off until you opt in.</strong> If you
+          turn analytics on (at{' '}
+          <Link className="underline theme-accent-text" to="/preferences">zedexams.com/preferences</Link>),
+          we use <strong>PostHog</strong> to collect usage events — which pages and
+          features are used — along with device and browser information and an{' '}
+          <strong>approximate, city-level location estimated from your IP address</strong>.
+          Analytics profiles are identified by a random account identifier and your role,
+          never by your name or email. For teacher and admin accounts, PostHog may also
+          record a <strong>replay of how you interact with our screens</strong> so we can
+          find and fix usability problems; anything typed into a form is masked out of
+          those recordings, and they are deleted after 30 days. Learner accounts are
+          treated differently — see section 4.
         </li>
       </UL>
       <P>
-        We do <strong>not</strong> ask for your physical address, ID number, or financial
-        information unless you choose to use a paid feature (in which case payment data is
-        handled by the relevant mobile-money or card processor, not stored by us).
+        We do <strong>not</strong> ask for your physical address, NRC or other government ID
+        number, or financial information. If you use a paid feature, payment is handled by
+        the payment provider (see section 5) and we only receive confirmation of the
+        transaction — never your full payment details.
       </P>
 
       <H2>3. How we use your information</H2>
@@ -108,6 +126,29 @@ export default function PrivacyPolicy() {
         learner is permitted to create an account.
       </P>
       <P>
+        We collect only what the service needs, and we hold learner data to a stricter
+        standard than the rest of the platform:
+      </P>
+      <UL>
+        <li>
+          Learner accounts are <strong>excluded from session replay</strong>. We never
+          record a learner's screen.
+        </li>
+        <li>
+          Learner accounts are <strong>never identified to our analytics provider</strong>{' '}
+          and their location is not estimated from their IP address. What remains is
+          anonymous usage counts that cannot be traced back to an individual learner.
+        </li>
+        <li>
+          We never show advertising to learners, and we never share learner data for
+          marketing.
+        </li>
+        <li>
+          The same protections apply to parent and guardian accounts, because the parent
+          portal shows a learner's progress.
+        </li>
+      </UL>
+      <P>
         If you are a parent, guardian, or school administrator and you would like to review,
         correct, or delete a learner's data, contact us using the WhatsApp number above and
         we will action your request promptly.
@@ -130,8 +171,19 @@ export default function PrivacyPolicy() {
           processor only and do not use them to train their models for other customers.
         </li>
         <li>
-          <strong>Payment processors</strong> — if you make a payment, we share only the
-          transaction data needed to take that payment (e.g. with MTN MoMo).
+          <strong>PostHog, Inc.</strong> — optional product analytics, session replay, and
+          error tracking, and only if you opt in. Data is processed on PostHog's servers.
+        </li>
+        <li>
+          <strong>Sentry</strong> — crash and error reporting (technical details of the
+          error, plus device information) so we can diagnose faults.
+        </li>
+        <li>
+          <strong>Payment providers</strong> — when you pay for a subscription or top-up we
+          share the details needed to complete the transaction with the provider you choose:
+          MTN MoMo, Airtel Money, Zamtel Money, Lenco (mobile money and cards), or Google
+          Play Billing for purchases made through the Android app. They handle your payment
+          credentials; we never see or store them.
         </li>
       </UL>
       <P>
@@ -144,13 +196,14 @@ export default function PrivacyPolicy() {
         <li>Account data is kept while your account is active.</li>
         <li>Quiz/exam attempts and progress are kept while your account is active so you can see your history.</li>
         <li>Ask Zed and AI generation logs are kept for a limited period for debugging and abuse prevention.</li>
+        <li>If you opted in to analytics, events are retained by PostHog according to our project settings, and any session replay is automatically deleted after 30 days.</li>
         <li>If you delete your account, we delete or anonymise your personal data within a reasonable period, unless we are required to keep something for legal or accounting reasons.</li>
       </UL>
 
       <H2 id="delete-account">7. Deleting your account and data</H2>
       <P>
         You can permanently delete your ZedExams account and personal data at any time.
-        There are two ways to do this:
+        There are three ways to do this:
       </P>
       <UL>
         <li>
@@ -160,7 +213,13 @@ export default function PrivacyPolicy() {
           removed immediately and you are signed out.
         </li>
         <li>
-          <strong>By request</strong> — if you can't sign in, email us at{' '}
+          <strong>On the web, without signing in</strong> — visit{' '}
+          <Link className="underline theme-accent-text" to="/delete-account">zedexams.com/delete-account</Link>{' '}
+          and submit a deletion request. We verify your identity and action the request
+          within 7 days.
+        </li>
+        <li>
+          <strong>By message</strong> — email us at{' '}
           <a className="underline theme-accent-text" href={CONTACT_EMAIL_HREF}>{CONTACT_EMAIL}</a>{' '}
           or message us on WhatsApp and we will delete your account for you after verifying
           your identity.
@@ -169,10 +228,11 @@ export default function PrivacyPolicy() {
       <P>
         Deleting your account removes your profile (name, email, phone), quiz and exam results
         and history, saved and generated content, class memberships, notifications, referral
-        records, and subscription records. We may retain a limited amount of data where the law
-        or our accounting obligations require it (for example, payment/invoice records kept for
-        the statutory period); any such data is no longer linked to your profile. This action
-        cannot be undone.
+        records, and subscription records. If you opted in to analytics, we also delete your
+        PostHog profile and its associated events. We may retain a limited amount of data
+        where the law or our accounting obligations require it (for example, payment/invoice
+        records kept for the statutory period); any such data is no longer linked to your
+        profile. This action cannot be undone.
       </P>
 
       <H2>8. Your rights</H2>
@@ -211,12 +271,12 @@ export default function PrivacyPolicy() {
         lose it on a refresh. We don't use third-party advertising trackers.
       </P>
       <P>
-        Separately, we ask for your consent to use a privacy-friendly product-analytics
-        tool that helps us see which lessons and features help most. It's off until you
-        opt in, we never use it for advertising, and you can turn it on or off at any time
-        — without signing in — on our{' '}
+        Separately, we ask for your consent to use a product-analytics tool (PostHog) that
+        helps us see which lessons and features help most — see section 2 for exactly what
+        it collects. It is <strong>off until you opt in</strong>, we never use it for
+        advertising, and you can turn it on or off at any time — without signing in — on our{' '}
         <Link className="underline theme-accent-text" to="/preferences">privacy preferences</Link>{' '}
-        page.
+        page. We use no third-party advertising trackers.
       </P>
 
       <H2>11. Changes to this policy</H2>
