@@ -27,6 +27,16 @@ import {
   assertSucceeds,
   assertFails,
 } from '@firebase/rules-unit-testing'
+// The canonical vocabularies the Assessment Studio's pickers are built from.
+// Imported, never re-typed: a second hand-kept list here would drift from the
+// pickers and the matrix below would go on passing while teachers were denied.
+import { EDUCATION_LEVELS } from '../src/config/educationLevels.js'
+import {
+  ASSESSMENT_TYPE_VALUES,
+  paperGradeLabel,
+} from '../src/components/teacher/paperTaxonomy.js'
+import { classifyForLibrary } from '../src/utils/libraryClassification.js'
+import { LIBRARY_TYPES } from '../src/config/library.js'
 import {
   doc,
   getDoc,
@@ -1211,6 +1221,303 @@ async function main() {
       grade: '7',
       subject: 'Mathematics',
     }))
+  })
+
+  // ── assessments — the full grade × assessment-type matrix ─────────
+  //
+  // The behavioural counterpart to scripts/test-grade-rules-consistency.mjs.
+  // That guard reads firestore.rules as TEXT and proves the allowlists match
+  // the pickers; this proves the deployed rules actually ACCEPT the writes.
+  // Both are needed — the text guard cannot catch a rule that parses but
+  // denies, and this cannot run without an emulator.
+  //
+  // The blocker it reproduces (#2005): `assessments` was gated by the
+  // learner-scoped _validGrade ('4'-'7') plus the pre-merge assessmentType
+  // vocabulary, so the ONLY combination that saved was grade 4-7 with
+  // mid_term or end_of_term. Every Grade 1-3, Form 1-4, Nursery and Reception
+  // paper, and every Topic Test / Weekly Test / Mock / Examination / Final
+  // Exam at any grade, failed with "Missing or insufficient permissions". It
+  // survived review because makeDefaultForm() defaults to exactly the one
+  // passing combination — and because the only assessment write in this file
+  // used grade '7'.
+  //
+  // Grades and types come from EDUCATION_LEVELS and ASSESSMENT_TYPE_VALUES,
+  // the same modules the pickers and the static guard read. Adding a level or
+  // a paper type extends this matrix automatically.
+  section('assessments — every level × every assessment type actually saves')
+
+  const LEVEL_VALUES = EDUCATION_LEVELS.map((level) => String(level.value))
+
+  // The document the studio really writes (AssessmentStudio's
+  // assessmentPayload), not a three-field stand-in: every field the rules
+  // validate is present, so a validator tightened on any of them fails here.
+  // `library` is built by the app's own classifier rather than hand-shaped.
+  const assessmentDoc = (grade, assessmentType, overrides = {}) => ({
+    createdBy: TEACHER_A,
+    title: `${paperGradeLabel(grade)} Mathematics — ${assessmentType}`,
+    subject: 'Mathematics',
+    grade,
+    topic: 'Fractions',
+    assessmentType,
+    term: '1',
+    year: 2026,
+    duration: 60,
+    totalMarks: 40,
+    questionCount: 20,
+    schoolName: 'Chipata Primary School',
+    schoolLogoUrl: '',
+    motto: 'Knowledge is power',
+    address: 'P.O. Box 1, Chipata',
+    emisNumber: '1234567',
+    footerText: 'End of paper',
+    className: 'A',
+    assessmentDate: '2026-07-29',
+    coverInstructions: 'Answer ALL questions in the spaces provided.',
+    parts: [],
+    library: classifyForLibrary({
+      libraryType: LIBRARY_TYPES.ASSESSMENTS,
+      grade: paperGradeLabel(grade),
+      term: '1',
+      subject: 'Mathematics',
+      assessmentType,
+    }),
+    ...overrides,
+  })
+
+  // Every combination that was exercised, so the coverage assertions below
+  // are computed from what actually ran rather than restated.
+  const matrix = []
+  const docIdFor = (grade, type) =>
+    `matrix_${String(grade).toLowerCase()}_${type}`
+
+  for (const grade of LEVEL_VALUES) {
+    await test(`${paperGradeLabel(grade)} (${grade}) saves every assessment type`, async () => {
+      const denied = []
+      for (const assessmentType of ASSESSMENT_TYPE_VALUES) {
+        const id = docIdFor(grade, assessmentType)
+        try {
+          await assertSucceeds(
+            setDoc(doc(teacherA, 'assessments', id), assessmentDoc(grade, assessmentType)),
+          )
+          matrix.push({ grade, assessmentType })
+        } catch (err) {
+          // Name the exact pair — "a write failed" sends the next person
+          // hunting through 98 combinations.
+          denied.push(
+            `grade=${grade} (${paperGradeLabel(grade)}) × assessmentType=${assessmentType}`
+            + `  →  ${String(err && err.message || err).split('\n')[0]}`,
+          )
+        }
+      }
+      if (denied.length) {
+        throw new Error(
+          `${denied.length}/${ASSESSMENT_TYPE_VALUES.length} assessment type(s) were `
+          + `DENIED for a level the studio offers. A teacher picking these gets `
+          + `"Missing or insufficient permissions" and nothing they do fixes it:\n`
+          + denied.map((d) => `        ${d}`).join('\n'),
+        )
+      }
+    })
+  }
+
+  // A paper the teacher cannot reopen is as broken as one that never saved.
+  await test('every saved paper reads back with its grade and type intact', async () => {
+    const wrong = []
+    for (const { grade, assessmentType } of matrix) {
+      const snap = await assertSucceeds(
+        getDoc(doc(teacherA, 'assessments', docIdFor(grade, assessmentType))),
+      )
+      if (!snap.exists()) {
+        wrong.push(`grade=${grade} × ${assessmentType}: document missing after write`)
+        continue
+      }
+      const data = snap.data()
+      if (data.grade !== grade || data.assessmentType !== assessmentType) {
+        wrong.push(
+          `grade=${grade} × ${assessmentType}: read back as `
+          + `grade=${data.grade} × ${data.assessmentType}`,
+        )
+      }
+    }
+    if (wrong.length) throw new Error(wrong.join('\n        '))
+  })
+
+  // Updating is gated by the SAME validator as creating, and the studio's
+  // debounced autosave updates constantly — a validator that accepts a create
+  // and rejects the update would strand every paper after its first save.
+  await test('every saved paper can be updated (autosave path uses the same validator)', async () => {
+    const denied = []
+    for (const { grade, assessmentType } of matrix) {
+      try {
+        await assertSucceeds(
+          updateDoc(doc(teacherA, 'assessments', docIdFor(grade, assessmentType)), {
+            questionCount: 21,
+            totalMarks: 42,
+            updatedBy: TEACHER_A,
+          }),
+        )
+      } catch {
+        denied.push(`grade=${grade} × assessmentType=${assessmentType}`)
+      }
+    }
+    if (denied.length) {
+      throw new Error(
+        `update DENIED for ${denied.length} combination(s) that saved cleanly — the `
+        + `autosave would fail on every keystroke:\n        ${denied.join('\n        ')}`,
+      )
+    }
+  })
+
+  // The matrix must be non-empty and must have covered the whole vocabulary —
+  // a loop that silently ran zero combinations would pass every test above.
+  await test('the matrix is non-empty and covered every canonical grade and type', async () => {
+    const expected = LEVEL_VALUES.length * ASSESSMENT_TYPE_VALUES.length
+    if (matrix.length !== expected) {
+      throw new Error(
+        `matrix covered ${matrix.length} combination(s), expected ${expected} `
+        + `(${LEVEL_VALUES.length} levels × ${ASSESSMENT_TYPE_VALUES.length} types)`,
+      )
+    }
+    if (matrix.length === 0) throw new Error('the matrix is empty — nothing was proved')
+
+    const gradesSeen = new Set(matrix.map((m) => m.grade))
+    const typesSeen = new Set(matrix.map((m) => m.assessmentType))
+    const missingGrades = LEVEL_VALUES.filter((g) => !gradesSeen.has(g))
+    const missingTypes = ASSESSMENT_TYPE_VALUES.filter((t) => !typesSeen.has(t))
+    if (missingGrades.length || missingTypes.length) {
+      throw new Error(
+        `never exercised — grade(s): [${missingGrades.join(', ')}], `
+        + `type(s): [${missingTypes.join(', ')}]`,
+      )
+    }
+    console.log(
+      `       (${matrix.length} combinations: ${LEVEL_VALUES.length} levels `
+      + `× ${ASSESSMENT_TYPE_VALUES.length} types)`,
+    )
+  })
+
+  // The exact combinations from the incident report, named so a future
+  // narrowing of the rules fails against the bug rather than in the abstract.
+  await test('the reported blocker combinations save (Grade 2 Topic Test, Nursery, Form 1)', async () => {
+    const reported = [
+      ['2', 'topic_test'],       // "Grade 4 Topic Test" class — any grade
+      ['1', 'weekly_test'],
+      ['3', 'end_of_term'],
+      ['ECE_N', 'topic_test'],   // Nursery — permission denied for anything
+      ['ECE_R', 'mid_term'],
+      ['G8', 'examination'],     // Form 1 — permission denied for anything
+      ['G12', 'final_exam'],
+      ['4', 'mock_exam'],        // right grade, wrong type
+    ]
+    const denied = []
+    for (const [grade, assessmentType] of reported) {
+      try {
+        await assertSucceeds(
+          setDoc(
+            doc(teacherA, 'assessments', `blocker_${grade.toLowerCase()}_${assessmentType}`),
+            assessmentDoc(grade, assessmentType),
+          ),
+        )
+      } catch {
+        denied.push(`${paperGradeLabel(grade)} (${grade}) × ${assessmentType}`)
+      }
+    }
+    if (denied.length) {
+      throw new Error(
+        `the original launch blocker is back for:\n        ${denied.join('\n        ')}`,
+      )
+    }
+  })
+
+  // ── the matrix must not have been widened into a hole ─────────────
+  // Widening a validator is exactly how a real constraint gets lost, so every
+  // guard that must STILL bite is asserted here beside it.
+  section('assessments — invalid and unauthorised writes are still refused')
+
+  await test('a grade outside the ladder is refused', async () => {
+    for (const grade of ['13', 'G13', 'F5', 'ECE_X', 'Grade 4', 'four', '']) {
+      await assertFails(
+        setDoc(doc(teacherA, 'assessments', `bad_grade_${grade || 'empty'}`),
+          assessmentDoc(grade, 'topic_test')),
+      )
+    }
+  })
+
+  await test('an assessment type outside the registry is refused', async () => {
+    for (const assessmentType of ['pop_quiz', 'TOPIC_TEST', 'homework', '']) {
+      await assertFails(
+        setDoc(doc(teacherA, 'assessments', `bad_type_${assessmentType || 'empty'}`),
+          assessmentDoc('4', assessmentType)),
+      )
+    }
+  })
+
+  await test('malformed field values are refused (types, bounds, oversize)', async () => {
+    const malformed = {
+      'grade as a number': { grade: 4 },
+      'title over 200 chars': { title: 'x'.repeat(201) },
+      'empty title': { title: '' },
+      'duration below the floor': { duration: 1 },
+      'duration above the ceiling': { duration: 601 },
+      'totalMarks negative': { totalMarks: -1 },
+      'questionCount over 1000': { questionCount: 1001 },
+      'questionCount as a string': { questionCount: '20' },
+      'subject over 80 chars': { subject: 'x'.repeat(81) },
+      'assessmentType as a number': { assessmentType: 3 },
+      'parts not a list': { parts: 'section a' },
+    }
+    const accepted = []
+    for (const [label, override] of Object.entries(malformed)) {
+      try {
+        await assertFails(
+          setDoc(doc(teacherA, 'assessments', 'malformed_case'),
+            assessmentDoc('4', 'topic_test', override)),
+        )
+      } catch {
+        accepted.push(label)
+      }
+    }
+    if (accepted.length) {
+      throw new Error(
+        `the validator ACCEPTED malformed value(s) it must reject: ${accepted.join(', ')}`,
+      )
+    }
+  })
+
+  await test('the widened grade list did not open assessments to non-teachers', async () => {
+    // A learner, across the whole new grade range.
+    for (const grade of ['ECE_N', '2', 'G8']) {
+      await assertFails(
+        setDoc(doc(learnerA, 'assessments', `learner_${grade}`),
+          assessmentDoc(grade, 'topic_test', { createdBy: LEARNER_A })),
+      )
+    }
+    // An unverified teacher.
+    await assertFails(
+      setDoc(doc(unverifiedTeacher, 'assessments', 'unverified_teacher_paper'),
+        assessmentDoc('2', 'topic_test', { createdBy: UNVERIFIED_TEACHER })),
+    )
+    // A suspended teacher.
+    await assertFails(
+      setDoc(doc(suspendedTeacher, 'assessments', 'suspended_teacher_paper'),
+        assessmentDoc('2', 'topic_test', { createdBy: SUSPENDED_TEACHER })),
+    )
+  })
+
+  await test('tenant isolation holds across the whole matrix', async () => {
+    // Teacher B can neither read nor overwrite Teacher A's papers, at any level.
+    for (const grade of ['ECE_N', '2', 'G8', '7']) {
+      const id = docIdFor(grade, 'topic_test')
+      await assertFails(getDoc(doc(teacherB, 'assessments', id)))
+      await assertFails(
+        updateDoc(doc(teacherB, 'assessments', id), { title: 'Hijacked' }),
+      )
+    }
+    // …and cannot create one under Teacher A's name at a newly-allowed level.
+    await assertFails(
+      setDoc(doc(teacherB, 'assessments', 'spoof_ece'),
+        assessmentDoc('ECE_N', 'topic_test', { createdBy: TEACHER_A })),
+    )
   })
 
   // ── teacherProfiles/{uid}/teachingAssignments — optional numerics ─
