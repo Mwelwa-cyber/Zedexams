@@ -367,6 +367,11 @@ function contentToDocxParagraphs(nodes, baseOpts = { size: 22 }, opts = {}) {
   let lastSpacing = null
 
   for (const block of blocks) {
+    if (block.type === 'table') {
+      out.push(contentTableToDocx(block, baseOpts))
+      lastParagraphIndex = -1
+      continue
+    }
     if (block.type === 'verticalArithmetic') {
       out.push(...verticalArithmeticParagraphs(block, baseOpts))
       lastParagraphIndex = -1
@@ -412,6 +417,57 @@ function contentToDocxParagraphs(nodes, baseOpts = { size: 22 }, opts = {}) {
     return [para([...pendingPrefix, runText('', baseOpts)], firstParaSpacing || {})]
   }
   return out
+}
+
+/**
+ * A content-model table as a real Word table.
+ *
+ * Word needs `w:tbl`; before this the model had no table node at all, so every
+ * cell was concatenated into one paragraph and a results table printed as
+ * "TimeTemp020 °C535 °C". The preview and the print window render `textHtml`
+ * directly and so looked correct throughout, which is exactly why this was not
+ * noticed.
+ *
+ * Cells are rendered with `optionRuns` — the same inline mapper the answer
+ * options use — so a fraction, a subscript or a superscript inside a cell keeps
+ * the Phase 1 contract instead of degrading to text at the cell boundary.
+ *
+ * Borders are explicit. `docx` defaults a table to no visible borders, and an
+ * exam results table without ruled cells is not a table a learner can fill in.
+ */
+function contentTableToDocx(block, baseOpts = { size: 22 }) {
+  const columns = Math.max(1, Number(block.columns) || 1)
+  const cellOpts = { ...baseOpts, size: Math.min(Number(baseOpts.size) || 22, 20) }
+
+  const buildRow = (row, header) => {
+    const cells = []
+    for (let i = 0; i < columns; i += 1) {
+      const cell = row[i]
+      // Wrapped in a paragraph because optionRuns walks BLOCKS and reads their
+      // children; a cell holds inline nodes directly, and handing those over
+      // raw returned no runs at all — every cell came out empty.
+      const runs = cell
+        ? optionRuns([{type: 'paragraph', children: cell.children || []}], {
+          ...cellOpts, ...(header || cell.header ? {bold: true} : {}),
+        })
+        : [runText('', cellOpts)]
+      cells.push(new TableCell({
+        width: {size: Math.floor(100 / columns), type: WidthType.PERCENTAGE},
+        children: [para(runs)],
+      }))
+    }
+    // A header row repeats on every page a long table spans, which is what a
+    // printed results table does rather than leaving page two unlabelled.
+    return new TableRow({children: cells, tableHeader: header})
+  }
+
+  return new Table({
+    width: {size: 100, type: WidthType.PERCENTAGE},
+    rows: [
+      ...(block.head || []).map((row) => buildRow(row, true)),
+      ...(block.rows || []).map((row) => buildRow(row, false)),
+    ],
+  })
 }
 
 /**

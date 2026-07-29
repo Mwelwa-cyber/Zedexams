@@ -56,6 +56,7 @@
     "test:maths-subjects": "node scripts/test-maths-subjects.mjs",
     "test:maths-round-trip": "node scripts/test-maths-round-trip.mjs",
     "test:maths-parity": "node src/utils/mathsPaperParity.test.js",
+    "test:subject-print-parity": "node src/utils/subjectPrintParity.test.js",
     "test:maths-normalizer": "node src/utils/mathsTextNormalizer.test.js",
     "test:maths-notation": "node functions/shared/assessment/mathsNotationCore.test.js",
     "test:maths-notation-mirror": "node scripts/test-maths-notation-mirror.mjs",

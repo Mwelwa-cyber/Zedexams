@@ -122,6 +122,24 @@ export function parsePaperContent(html, { DOMParserImpl } = {}) {
     // accepted the `data-math-fraction` spelling too, so a fraction stored that
     // way was hydrated correctly for print and read here as the bare characters
     // "12" — a half printing as twelve, in Word, with nothing to indicate it.
+    // ── Tables ───────────────────────────────────────────────────────────
+    // A table is a BLOCK with structure, not a run of text, and it has to be
+    // read here or it is not read at all. The preview and the print window
+    // render `textHtml` directly, so a table looked perfect in both; Word walks
+    // this model, and with no table node every cell was concatenated into one
+    // paragraph — a results table printed as "TimeTemp020 °C535 °C". Invisible
+    // from three of the four renderers, which is why it survived this long.
+    if (tag === 'TABLE') {
+      flush()
+      const block = parseTable(el, marks, walk, () => {
+        const taken = inline
+        inline = []
+        return mergeRuns(taken)
+      })
+      if (block) blocks.push(block)
+      return
+    }
+
     if (el.matches && el.matches(VERTICAL_ARITHMETIC_SELECTOR)) {
       flush()
       const attrs = readVerticalArithmeticAttrs(el)
@@ -206,6 +224,54 @@ export function parsePaperContent(html, { DOMParserImpl } = {}) {
 }
 
 /**
+ * One `<table>` as a structured block: `{ type:'table', head:[row], rows:[row] }`
+ * where a row is an array of cells and a cell is an array of INLINE nodes.
+ *
+ * Cells hold inline content only. A cell containing a paragraph, a fraction or
+ * a sub/superscript is exactly what §4 means by "cells honour the rich-text
+ * contract"; a cell containing another table is not something a school paper
+ * does, and flattening it to its text is better than modelling it.
+ *
+ * `takeInline` hands back whatever the shared walker accumulated for one cell,
+ * so cell content is parsed by the SAME code as everything else rather than by
+ * a second, quietly different walker.
+ */
+function parseTable(el, marks, walk, takeInline) {
+  const readRow = (tr) => {
+    const cells = []
+    for (const cell of Array.from(tr.children || [])) {
+      const cellTag = String(cell.tagName || '').toUpperCase()
+      if (cellTag !== 'TD' && cellTag !== 'TH') continue
+      takeInline() // discard anything left over from a previous cell
+      for (const child of Array.from(cell.childNodes)) walk(child, marks)
+      cells.push({ header: cellTag === 'TH', children: takeInline() })
+    }
+    return cells
+  }
+
+  const head = []
+  const rows = []
+  for (const part of Array.from(el.querySelectorAll('tr'))) {
+    const inHead = Boolean(part.closest && part.closest('thead'))
+    const cells = readRow(part)
+    if (!cells.length) continue
+    // A row of TH cells is a header row wherever it sits — a table written
+    // without <thead> is common in pasted content and still has a header.
+    if (inHead || (!rows.length && !head.length && cells.every((c) => c.header))) {
+      head.push(cells)
+    } else {
+      rows.push(cells)
+    }
+  }
+  if (!head.length && !rows.length) return null
+  const columns = Math.max(
+    ...[...head, ...rows].map((r) => r.length),
+    1,
+  )
+  return { type: 'table', head, rows, columns }
+}
+
+/**
  * Merge adjacent text nodes that carry identical marks.
  *
  * Nested inline tags (`<strong><em>x</em>y</strong>`) and the sub/sup elements
@@ -246,6 +312,22 @@ function wrapMarks(html, marks) {
   return out
 }
 
+/** A table block as HTML, for the print window. */
+function tableToHtml(block) {
+  const cellHtml = (cell) => (cell.children || []).map(inlineToHtml).join('')
+  const rowHtml = (row) => '<tr>' + row
+      .map((cell) => (cell.header
+        ? `<th>${cellHtml(cell)}</th>`
+        : `<td>${cellHtml(cell)}</td>`))
+      .join('') + '</tr>'
+  const head = (block.head || []).map(rowHtml).join('')
+  const body = (block.rows || []).map(rowHtml).join('')
+  return '<table>' +
+    (head ? `<thead>${head}</thead>` : '') +
+    (body ? `<tbody>${body}</tbody>` : '') +
+    '</table>'
+}
+
 /**
  * Render content nodes back to HTML, for the print window.
  *
@@ -257,6 +339,10 @@ export function contentToHtml(nodes) {
   const blocks = Array.isArray(nodes) ? nodes : []
   const out = []
   for (const block of blocks) {
+    if (block.type === 'table') {
+      out.push(tableToHtml(block))
+      continue
+    }
     if (block.type === 'verticalArithmetic') {
       out.push(verticalArithmeticHtml(block))
       continue
@@ -356,6 +442,19 @@ export function contentToPlainText(nodes) {
   for (const block of blocks) {
     if (block.type === 'verticalArithmetic') {
       parts.push(`${block.lines.join(` ${block.operator} `)} = ${block.answer || '___'}`)
+      continue
+    }
+    if (block.type === 'table') {
+      // Cells separated by a tab, rows by a newline — the shape every plain-text
+      // consumer already expects of tabular data (it matches what the DOCX
+      // walker's own note describes), so search and alt text read a table as a
+      // table rather than as one run-together string.
+      for (const row of [...(block.head || []), ...(block.rows || [])]) {
+        const line = row
+            .map((cell) => contentToPlainText([{ type: 'paragraph', children: cell.children || [] }]))
+            .join('\t')
+        if (line.trim()) parts.push(line)
+      }
       continue
     }
     let line = ''
