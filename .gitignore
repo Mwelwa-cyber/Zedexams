@@ -166,6 +166,13 @@ dist-test*/
 # server was started from. Session debris, not source.
 .playwright-mcp/
 
+# Skills written into the working tree by a tool's own installer — e.g.
+# `playwright-cli install --skills`, which generates .claude/skills/playwright-cli/.
+# Vendoring generated tooling means re-syncing it by hand every time the
+# installer changes; anyone who wants these runs the installer. Hand-authored
+# Claude tooling (.claude/agents/, .claude/launch.json) stays tracked.
+.claude/skills/
+
 # Firebase Functions build output.
 functions/lib/
 
