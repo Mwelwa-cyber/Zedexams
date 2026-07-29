@@ -11,6 +11,8 @@
  * modifiedAt (ms), to, status ('ready'|'draft'), questionCount }.
  */
 
+import { paperGradeLabel } from '../paperTaxonomy.js'
+
 const DAY_MS = 24 * 60 * 60 * 1000
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -89,8 +91,15 @@ export function toolLabel(tool) {
   return TOOL_LABELS[tool] || 'Document'
 }
 
+// Grade reaches us in whatever shape the writing studio used — '4' from the
+// Assessment Studio, 'G4' from the server generators, 'Grade 4' from the
+// Lesson Plan Studio. Listing all three side by side reads as a bug to a
+// teacher (and it is one, upstream). paperGradeLabel resolves every stored
+// shape onto its official label — including 'ECE_N' → Nursery and 'G8' →
+// Form 1 — so labelling on read makes the list consistent today, independent
+// of the write-side normalisation work.
 function metaFor(resource) {
-  return [toolLabel(resource.tool), resource.grade, resource.subject]
+  return [toolLabel(resource.tool), paperGradeLabel(resource.grade), resource.subject]
     .map((s) => String(s || '').trim())
     .filter(Boolean)
     .join(' • ')
@@ -118,7 +127,8 @@ export function lastOpenedFromResources(resources = [], now = Date.now()) {
   return {
     title: r.title || 'Untitled document',
     subject: String(r.subject || r.title || '').replace(/_/g, ' '),
-    grade: String(r.grade || '').trim(),
+    // Was printing a bare '4' under the hero's LAST OPENED card.
+    grade: paperGradeLabel(r.grade),
     ago: relTime(ts, now),
     // Whole days since last touch — drives the hero's context subline
     // ("X hasn't been updated for N days").
@@ -179,6 +189,35 @@ export function checklistFromWeekPrep(weekPrep) {
       total: row.target,
       to: row.to || null,
     }))
+}
+
+/**
+ * AI Recommendation cards for the dashboard, from buildProfileRecommendations()'s
+ * output.
+ *
+ * The scope chips come off the recommendation ITSELF — buildRecommendations
+ * stamps gradeLabel/subjectName per card for exactly this, and the card's own
+ * CTA link already uses them. They used to be re-derived from the teacher's
+ * active assignment, which is a different assignment as soon as a teacher takes
+ * more than one subject, so a card titled "English is not planned yet" was
+ * chipped "technology studies" while its own button linked to English.
+ *
+ * A card that doesn't carry its own scope gets NO chip — a borrowed one is
+ * worse than none, because the teacher can't tell it's borrowed.
+ */
+export function recommendationCardsFrom(recommendations = [], { limit = 3 } = {}) {
+  return recommendations.slice(0, limit).map((r) => {
+    const grade = r.gradeLabel || null
+    const subject = r.subjectName || null
+    return {
+      id: r.id,
+      title: r.title,
+      text: r.text,
+      actionLabel: r.actionLabel,
+      to: r.to,
+      context: grade || subject ? { grade, subject } : null,
+    }
+  })
 }
 
 /**

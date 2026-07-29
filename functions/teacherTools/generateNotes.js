@@ -31,7 +31,7 @@ const {resolveCbcContext} = require("./cbcKnowledge");
 const {validateNotes} = require("./notesSchema");
 const {PROMPT_VERSION, pickSystemPrompt, buildUserPrompt} =
   require("./notesPrompt");
-const {assertAndIncrement} = require("./usageMeter");
+const {assertAndIncrement, refundGeneration} = require("./usageMeter");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
 const {
   isLessonPlanTool,
@@ -301,6 +301,15 @@ async function runNotes({uid, rawInputs, apiKey}) {
       status: "failed",
       errorMessage: String(err && err.message || err).slice(0, 500),
     });
+    // No usable notes were returned — roll the counter back so the teacher is
+    // not charged for a transient failure. Best-effort: must not mask the
+    // original error. (Matches generateWorksheet.js.)
+    try {
+      await refundGeneration(uid, usage, "notes");
+    } catch (refundErr) {
+      console.error("[generateNotes] refund failed after generation error",
+          {uid, generationId: genRef.id, usage}, refundErr);
+    }
     throw err;
   }
 

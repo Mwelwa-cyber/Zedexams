@@ -191,6 +191,25 @@ service cloud.firestore {
     // older documents without newer fields continue to pass. They defend
     // against bad client code and tampered clients that bypass UI validation.
     function _validGrade(value) { return value is string && value in ['4', '5', '6', '7']; }
+    // The LEARNER-facing ladder above is deliberately narrow: quizzes, lessons
+    // and results only exist for the grades that are switched on. Teacher-
+    // authored papers are NOT so limited — a teacher builds for Nursery
+    // through Form 4 — so `assessments` gets its own value space. Must cover
+    // every EDUCATION_LEVELS value in src/config/educationLevels.js (the
+    // studio's level picker persists it verbatim), plus the legacy spellings
+    // already in saved papers: bare secondary '8'-'12', the 'G'-prefixed
+    // primary codes the server generators write, the 'F1'-'F4' Forms emitted
+    // by curriculumSelectorConstants.js, and the retired 'ECE_B' Baby Class.
+    // Guarded by test:grade-rules-consistency.
+    function _validAssessmentGrade(value) {
+      return value is string && value in [
+        'ECE_N', 'ECE_R', 'ECE_B',
+        '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12',
+        'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7',
+        'G8', 'G9', 'G10', 'G11', 'G12',
+        'F1', 'F2', 'F3', 'F4'
+      ];
+    }
     function _validSubject(value) { return value is string && value.size() >= 1 && value.size() <= 80; }
     function _validContentStatus(value) { return value is string && value in ['draft', 'pending', 'published', 'rejected']; }
     // Must mirror QUESTION_TYPES in src/utils/questionType.js EXACTLY — the
@@ -560,16 +579,27 @@ service cloud.firestore {
     // class. Unlike quizzes, they are NEVER shown to learners through the
     // app — teachers print/download them. So reads, writes, and deletes are
     // restricted to the owner. Admins can also read for support.
+    // Must mirror ASSESSMENT_TYPES in src/components/teacher/paperTaxonomy.js
+    // (itself a mirror of functions/teacherTools/assessmentFormats.js). The
+    // studio persists the picker value verbatim, so a type missing here makes
+    // every save of that paper type fail with "Missing or insufficient
+    // permissions" — the same class of regression as the question-type list
+    // above. The second block is the pre-merge vocabulary, kept so papers
+    // saved before the canonical registry landed still update. Guarded by
+    // test:grade-rules-consistency, which derives the canonical list from
+    // ASSESSMENT_TYPE_VALUES.
     function _validAssessmentType(value) {
       return value is string && value in [
-        'weekly', 'monthly', 'mid_term', 'end_of_term', 'topic',
-        'mock', 'diagnostic', 'pre_test', 'post_test', 'revision',
-        'continuous', 'summative', 'practical', 'oral', 'project'
+        'topic_test', 'weekly_test', 'mid_term', 'end_of_term',
+        'mock_exam', 'examination', 'final_exam',
+        'weekly', 'monthly', 'topic', 'mock', 'diagnostic', 'pre_test',
+        'post_test', 'revision', 'continuous', 'summative', 'practical',
+        'oral', 'project'
       ];
     }
     function validAssessmentFields() {
       return (!('title' in incoming()) || (incoming().title is string && incoming().title.size() >= 1 && incoming().title.size() <= 200))
-        && (!('grade' in incoming()) || _validGrade(incoming().grade))
+        && (!('grade' in incoming()) || _validAssessmentGrade(incoming().grade))
         && (!('subject' in incoming()) || _validSubject(incoming().subject))
         && (!('topic' in incoming()) || (incoming().topic is string && incoming().topic.size() <= 200))
         && (!('assessmentType' in incoming()) || _validAssessmentType(incoming().assessmentType))

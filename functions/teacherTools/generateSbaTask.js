@@ -28,7 +28,7 @@ const {callClaude} = require("./anthropicClient");
 const {resolveCbcContext} = require("./cbcKnowledge");
 const {validateSbaTask} = require("./sbaTaskSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} = require("./sbaTaskPrompt");
-const {assertAndIncrement} = require("./usageMeter");
+const {assertAndIncrement, refundGeneration} = require("./usageMeter");
 const {
   SUBJECT_LABELS,
   GRADE_LABELS,
@@ -205,6 +205,15 @@ async function runSbaTask({uid, rawInputs, apiKey}) {
       status: "failed",
       errorMessage: String(err && err.message || err).slice(0, 500),
     });
+    // No usable task was returned — roll the counter back so the teacher is not
+    // charged for a transient failure. Best-effort: must not mask the original
+    // error. (Matches generateWorksheet.js.)
+    try {
+      await refundGeneration(uid, usage, "sba_task");
+    } catch (refundErr) {
+      console.error("[generateSbaTask] refund failed after generation error",
+          {uid, generationId: genRef.id, usage}, refundErr);
+    }
     throw err;
   }
 

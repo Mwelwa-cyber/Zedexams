@@ -35,7 +35,7 @@ const {assertCallableRateLimit} = require("../rateLimit");
 const {assertVerifiedAuth} = require("../authGuard");
 const {getAnthropicApiKey, getUserRole, isStaffRole} = require("../aiService");
 const {callClaude, DEFAULT_MODEL} = require("./anthropicClient");
-const {assertAndIncrement} = require("./usageMeter");
+const {assertAndIncrement, refundGeneration} = require("./usageMeter");
 const {resolveTeacherPlanContext} = require("./teacherPlanContext");
 const {resolveCbcContext} = require("./cbcKnowledge");
 
@@ -172,29 +172,65 @@ async function runStudioLessonPlan({uid, systemPrompt, userPrompt, context, apiK
     teacherPlansBlock,
   ].filter(Boolean).join("\n\n");
 
-  const response = await callClaude(apiKey, {
-    track: {uid, tool: "lesson_plan"},
-    systemPrompt,
-    cbcContextBlock: contextBlock || null,
-    messages: [{role: "user", content: userPrompt}],
-    maxTokens: STUDIO_MAX_TOKENS,
-    temperature: 0.3,
-    thinking: STUDIO_THINKING,
-    outputConfig: STUDIO_OUTPUT_CONFIG,
-    mode: "tool",
-    toolName: "emit_lesson_plan",
-    toolDescription: "Emit the complete Zambian lesson plan as a single " +
-      "structured JSON object, matching the format described in the system " +
-      "and user prompts. Do not include any prose or commentary outside this " +
-      "tool call.",
-    toolInputSchema: STUDIO_TOOL_SCHEMA,
-  });
+  // The meter was incremented above, inside the Promise.all, so the quota check
+  // fails fast. That means every failure from here on has ALREADY cost the
+  // teacher a lesson plan they never received — so each exit path below
+  // refunds. This studio is the free tier's entry point.
+  let response;
+  try {
+    response = await callClaude(apiKey, {
+      track: {uid, tool: "lesson_plan"},
+      systemPrompt,
+      cbcContextBlock: contextBlock || null,
+      messages: [{role: "user", content: userPrompt}],
+      maxTokens: STUDIO_MAX_TOKENS,
+      temperature: 0.3,
+      thinking: STUDIO_THINKING,
+      outputConfig: STUDIO_OUTPUT_CONFIG,
+      mode: "tool",
+      toolName: "emit_lesson_plan",
+      toolDescription: "Emit the complete Zambian lesson plan as a single " +
+        "structured JSON object, matching the format described in the system " +
+        "and user prompts. Do not include any prose or commentary outside this " +
+        "tool call.",
+      toolInputSchema: STUDIO_TOOL_SCHEMA,
+    });
+  } catch (err) {
+    // Best-effort: must not mask the original error.
+    try {
+      await refundGeneration(uid, usage, "lesson_plan");
+    } catch (refundErr) {
+      console.error("[studioLessonPlan] refund failed after generation error",
+          {uid, usage}, refundErr);
+    }
+    throw err;
+  }
 
   // mode:"tool" returns the parsed object on `parsed` (callClaudeTool throws on
   // a missing/invalid tool_use block, so we get a well-formed object here).
-  // Re-serialise to keep the studio's existing JSON.parse contract.
   const planJson = response && response.parsed &&
-    typeof response.parsed === "object" ? response.parsed : {};
+    typeof response.parsed === "object" ? response.parsed : null;
+
+  // A degenerate tool call ({} or a non-object) used to fall through to `{}`,
+  // render as the empty table skeleton, and report status "done" with the quota
+  // spent — the teacher got a blank lesson plan and paid for it. Treat it as
+  // the failure it is: refund, then surface a retryable error.
+  if (!planJson || Object.keys(planJson).length === 0) {
+    try {
+      await refundGeneration(uid, usage, "lesson_plan");
+    } catch (refundErr) {
+      console.error("[studioLessonPlan] refund failed after empty plan",
+          {uid, usage}, refundErr);
+    }
+    console.error("[studioLessonPlan] model returned an empty plan object",
+        {uid, grade, subject, topic, model: response && response.model});
+    throw new HttpsError(
+        "internal",
+        "The lesson plan came back empty. Please try again.",
+    );
+  }
+
+  // Re-serialise to keep the studio's existing JSON.parse contract.
   const text = JSON.stringify(planJson);
 
   // Log a lightweight generation record (no heavy schema validation).
