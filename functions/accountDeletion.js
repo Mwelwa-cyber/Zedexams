@@ -101,6 +101,10 @@ const FIELD_QUERY_COLLECTIONS = [
   // click — third-party PII collected because of this account, so it goes when
   // the account goes. Deleting the row also kills any live approval link.
   {collection: "consentRequests", field: "uid"},
+  // AI content reports filed BY this user. The report carries their uid and a
+  // snapshot of what they were shown, so it goes with the account. A report
+  // about content someone else saw is not keyed to this uid and is unaffected.
+  {collection: "aiContentReports", field: "reporterUid"},
   // Parent↔child link doc (id `${parentUid}_${learnerUid}`): either party's
   // deletion must clear it, so BOTH owner fields are queried.
   {collection: "parentLinks", field: "parentUid"},

@@ -2104,6 +2104,35 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ── aiContentReports (report an AI response) ─────────────────────
+    // Play's AI-Generated Content policy requires an in-app way to flag AI
+    // output, and requires that we act on it. A learner or teacher creates a
+    // report; only admins read or triage them.
+    //
+    // Create is allowed for any signed-in user INCLUDING a learner in limited
+    // mode — the whole point is that the person who saw something wrong can
+    // say so, and a consent gate on the safety valve would be backwards.
+    // `reporterUid` is pinned to the caller so a report cannot be filed in
+    // someone else's name, `status` is pinned to 'open' so a client cannot
+    // file a pre-resolved report, and the snapshot of the model's reply is
+    // size-capped so this is not a free write-anything collection.
+    match /aiContentReports/{reportId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if isAuthed()
+        && incoming().keys().hasOnly([
+              'reporterUid', 'role', 'reason', 'comment', 'conversationId',
+              'messageId', 'modelResponse', 'surface', 'status', 'createdAt'
+            ])
+        && incoming().keys().hasAll(['reporterUid', 'reason', 'modelResponse', 'status', 'createdAt'])
+        && incoming().reporterUid == request.auth.uid
+        && incoming().reason is string
+        && incoming().reason in ['inappropriate', 'wrong_or_harmful', 'uncomfortable', 'other']
+        && incoming().modelResponse is string && incoming().modelResponse.size() <= 5000
+        && (!('comment' in incoming()) || (incoming().comment is string && incoming().comment.size() <= 1000))
+        && incoming().status == 'open'
+        && incoming().createdAt == request.time;
+    }
+
     // ── consentRequests (guardian approval links) ────────────────────
     // Written and read EXCLUSIVELY by functions/guardianConsent (admin SDK).
     // Document ids are sha256(token), so the collection contains no value

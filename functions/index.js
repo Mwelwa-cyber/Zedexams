@@ -43,6 +43,7 @@ const {
 } = require("./aiService");
 const {UNTRUSTED_DATA_NOTICE, fenceUntrusted} = require("./promptInjectionGuard");
 const {checkLearnerText, LEARNER_BLOCK_MESSAGE} = require("./contentModeration");
+const {screenLearnerMessage, redactForLogs} = require("./learnerSafety/learnerSafetyCore");
 // Email-verification gate shared by callables + HTTP endpoints (see
 // authGuard.js for the exemption list).
 const {assertVerifiedAuth, assertDecodedVerified} = require("./authGuard");
@@ -1184,6 +1185,26 @@ exports.aiChat = onCall(
     const role = await getUserRole(request.auth.uid);
     await assertDailyLimit(request.auth.uid, role, "chat");
 
+    // Deterministic child-safety handling, ahead of moderation and the model.
+    // A child disclosing self-harm or abuse must not receive the generic
+    // "let's keep our chat about schoolwork" refusal — that is the platform
+    // turning away at the one moment it matters. Fixed reply, no model call,
+    // so it still works when the provider is down. See learnerSafetyCore.
+    if (!isStaffRole(role)) {
+      const screened = screenLearnerMessage(message);
+      if (screened.action === "respond") {
+        console.warn(JSON.stringify({
+          event: "learner_safety_intercept",
+          category: screened.category,
+          surface: "aiChat",
+          // Redacted: a child pasting contact details into a study chat must
+          // not create a durable record of them.
+          message: redactForLogs(message).slice(0, 200),
+        }));
+        return {reply: screened.reply, safetyIntercept: screened.category};
+      }
+    }
+
     // Learner-safety moderation (AI-003): screen the child's message BEFORE the
     // model call. A positive unsafe verdict returns a gentle refusal (not an
     // error, so the chat UI shows it); a moderation-service outage fails open.
@@ -1564,6 +1585,9 @@ exports.apiAiChat = onRequest(
     let messages;
     let apiKey;
     let moderationBlocked = false;
+    // Set when learnerSafetyCore intercepts a distress or secrecy message.
+    // Streamed verbatim instead of the model reply — see below.
+    let safetyReply = null;
     try {
       const token = (req.get("authorization") || "").replace(/^Bearer\s+/i, "");
       if (!token) {
@@ -1592,6 +1616,23 @@ exports.apiAiChat = onRequest(
       const role = await getUserRole(decoded.uid);
       await assertDailyLimit(decoded.uid, role, "chat");
 
+      // Deterministic child-safety handling, ahead of moderation and the
+      // model — same rule as the `aiChat` callable. A child disclosing
+      // self-harm or abuse gets a fixed, careful reply naming a trusted adult
+      // and a real helpline, not the generic schoolwork redirect.
+      if (!isStaffRole(role)) {
+        const screened = screenLearnerMessage(message);
+        if (screened.action === "respond") {
+          console.warn(JSON.stringify({
+            event: "learner_safety_intercept",
+            category: screened.category,
+            surface: "apiAiChat",
+            message: redactForLogs(message).slice(0, 200),
+          }));
+          safetyReply = screened.reply;
+        }
+      }
+
       ({systemPrompt, messages} = buildAnthropicChat({
         message,
         context: req.body?.context || {},
@@ -1618,14 +1659,19 @@ exports.apiAiChat = onRequest(
       return;
     }
 
-    // Moderation refusal (AI-003): the child's message was flagged unsafe.
-    // Stream the friendly refusal in the same SSE shape the client expects,
-    // without ever calling the model.
-    if (moderationBlocked) {
+    // Fixed reply instead of the model, streamed in the same SSE shape the
+    // client expects. Two causes, checked in this order:
+    //   • safetyReply — a distress or secrecy disclosure. Takes precedence,
+    //     because moderation would classify the same message as unsafe and
+    //     answer with the generic refusal, which is the wrong answer to a
+    //     child asking for help.
+    //   • moderationBlocked — the message was flagged unsafe (AI-003).
+    const fixedReply = safetyReply || (moderationBlocked ? LEARNER_BLOCK_MESSAGE : null);
+    if (fixedReply) {
       res.set("Content-Type", "text/event-stream; charset=utf-8");
       res.set("Cache-Control", "no-cache");
       res.status(200);
-      res.write(`data: ${JSON.stringify({text: LEARNER_BLOCK_MESSAGE})}\n\n`);
+      res.write(`data: ${JSON.stringify({text: fixedReply})}\n\n`);
       res.write("data: [DONE]\n\n");
       res.end();
       return;

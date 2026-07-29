@@ -39,6 +39,7 @@ import { useSpeech } from './useSpeech'
 import ProfessorPako from '../ui/ProfessorPako'
 import Icon from '../ui/Icon'
 import { Mic, Send, Sparkles, Volume2, VolumeX, X } from '../ui/icons'
+import ReportAiResponse from './ReportAiResponse'
 
 const SESSION_HISTORY_KEY = 'zedexams:zed-chat-history:v1'
 const MAX_HISTORY = 20 // server caps further; this is just for the UI thread.
@@ -139,17 +140,23 @@ function MessageRow({ message, onSpeak, isSpeaking }) {
             </span>
           )}
         </div>
-        {/* Read-aloud control for assistant messages, hidden while
-            streaming so it doesn't fire on partial text. */}
+        {/* Read-aloud + report controls for assistant messages, hidden while
+            streaming so they don't fire on partial text. The report path is
+            required by Play's AI-Generated Content policy and must sit on the
+            response itself — a link buried in Settings is not a mechanism a
+            nine-year-old will find in the moment something upsets them. */}
         {!isUser && !isError && !message.streaming && message.text && (
-          <button
-            type="button"
-            onClick={() => onSpeak(message)}
-            className="self-start mt-1 inline-flex items-center gap-1 text-[11px] font-bold theme-text-muted hover:theme-accent-text"
-          >
-            <Icon as={isSpeaking ? VolumeX : Volume2} size="xs" strokeWidth={2.1} />
-            {isSpeaking ? 'Stop' : 'Read aloud'}
-          </button>
+          <div className="flex flex-col w-full">
+            <button
+              type="button"
+              onClick={() => onSpeak(message)}
+              className="self-start mt-1 inline-flex items-center gap-1 text-[11px] font-bold theme-text-muted hover:theme-accent-text"
+            >
+              <Icon as={isSpeaking ? VolumeX : Volume2} size="xs" strokeWidth={2.1} />
+              {isSpeaking ? 'Stop' : 'Read aloud'}
+            </button>
+            <ReportAiResponse message={message} surface="zed-chat" />
+          </div>
         )}
       </div>
     </div>
