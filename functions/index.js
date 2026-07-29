@@ -46,6 +46,14 @@ const {checkLearnerText, LEARNER_BLOCK_MESSAGE} = require("./contentModeration")
 // Email-verification gate shared by callables + HTTP endpoints (see
 // authGuard.js for the exemption list).
 const {assertVerifiedAuth, assertDecodedVerified} = require("./authGuard");
+const {assertLearnerCapability} = require("./consentGuard");
+// Capability names, duplicated as plain strings ONLY because the shared
+// consent package is ESM and this file is CommonJS — importing it at module
+// scope is not possible (see functions/shared/README.md). The values are
+// pinned to guardianConsentCore's CAPABILITY by test:consent-guard, so a
+// rename there fails CI rather than silently disabling a gate here.
+const CAPABILITY_AI_CHAT = "aiChat";
+const CAPABILITY_SOCIAL = "social";
 // MFA second-factor gate for admin callables that already confirm admin their
 // own way (bulk grants, global content publishing). See functions/security/.
 const {assertAdminSecondFactor} = require("./security/requireAdminMfa");
@@ -1156,6 +1164,11 @@ exports.aiChat = onCall(
     await assertVerifiedAuth(request);
     recordAppCheckCallable(request, "aiChat");
 
+    // Families policy: a learner whose guardian has not approved the account
+    // cannot reach the AI assistant. Enforced HERE, not only in the UI —
+    // the compliance test is a direct API call with the banner bypassed.
+    await assertLearnerCapability(request.auth.uid, CAPABILITY_AI_CHAT);
+
     const message = cleanAiString(request.data?.message, LIMITS.message);
     if (!message) {
       throw new HttpsError(
@@ -1565,6 +1578,11 @@ exports.apiAiChat = onRequest(
       // quota so a hammering client is rejected cheaply before we build the
       // prompt or touch the model.
       await assertHttpRateLimit(req, res, {action: "aiChat", uid: decoded.uid});
+
+      // Families policy — same gate as the `aiChat` callable. This is the path
+      // the SPA actually uses, so gating only the callable would leave the
+      // real door open.
+      await assertLearnerCapability(decoded.uid, CAPABILITY_AI_CHAT);
 
       const message = cleanAiString(req.body?.message, LIMITS.message);
       if (!message) {
@@ -4325,6 +4343,17 @@ exports.aggregateVisitorStats = require('./visitorTracking').aggregateVisitorSta
 // `deleteMyAccount` above, which is authenticated and requires a fresh login.
 exports.apiRequestAccountDeletion =
   require('./accountDeletionRequests').apiRequestAccountDeletion;
+
+// ── Guardian consent (Families policy / Zambia DPA) ────────────────────────
+// Learners under 18 need a parent or guardian to approve the account before it
+// leaves limited mode. sendGuardianConsent messages the guardian;
+// apiGuardianConsent renders the decision page behind the /consent rewrite and
+// applies the answer; recordAgeGateAttempt is the neutral age screen's
+// retry cooldown (unauthenticated — it runs before an account exists).
+// See functions/guardianConsent/ and functions/shared/consent/.
+exports.sendGuardianConsent = require('./guardianConsent').sendGuardianConsent;
+exports.apiGuardianConsent = require('./guardianConsent').apiGuardianConsent;
+exports.recordAgeGateAttempt = require('./guardianConsent').recordAgeGateAttempt;
 
 // Server-generated library downloads: regenerate a saved document on the server
 // and stream it from zedexams.com with the correct filename — no upload, no

@@ -96,6 +96,11 @@ const FIELD_QUERY_COLLECTIONS = [
   {collection: "assessmentExports", field: "ownerUid"}, // export cache for the teacher's assessments (also purged)
   {collection: "classInvites", field: "createdBy"}, // orphaned class invite codes minted by the teacher
   {collection: "familyInviteCodes", field: "learnerUid"}, // parent-invite codes minted by the learner
+  // Guardian consent links. A row holds the learner's uid AND their guardian's
+  // email or phone number, plus the IP/user-agent evidence of the approving
+  // click — third-party PII collected because of this account, so it goes when
+  // the account goes. Deleting the row also kills any live approval link.
+  {collection: "consentRequests", field: "uid"},
   // Parent↔child link doc (id `${parentUid}_${learnerUid}`): either party's
   // deletion must clear it, so BOTH owner fields are queried.
   {collection: "parentLinks", field: "parentUid"},

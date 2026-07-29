@@ -85,6 +85,11 @@ const RETAINED = new Map([
   ["playBindingHealth", "Play account-binding telemetry"],
   ["processedEvents", "trigger-dedup claim docs; no client access"],
   ["rateLimits", "burst-throttle counters; no client access"],
+  ["ageGateAttempts",
+    "neutral-age-screen cooldown: sha256(deviceId) → timestamp, written before " +
+    "any account exists. Carries NO uid — a uid-keyed purge structurally " +
+    "cannot reach it, and there is nothing in a row that identifies a person. " +
+    "Rows self-expire via the `expiresAt` TTL field after 24h"],
   ["deletionRequests",
     "public deletion-request queue (zedexams.com/delete-account). NOT purged " +
     "by uid — a request is keyed by a self-asserted email and may exist for " +

@@ -2104,6 +2104,28 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ── consentRequests (guardian approval links) ────────────────────
+    // Written and read EXCLUSIVELY by functions/guardianConsent (admin SDK).
+    // Document ids are sha256(token), so the collection contains no value
+    // that can be replayed as a link — but a row still ties a learner uid to
+    // their guardian's email or phone number, and holds the consent evidence
+    // (IP + user agent of the approving click) that we would show a regulator.
+    // Neither the learner nor anyone else may read or forge one: a client
+    // that could write here could approve its own account.
+    match /consentRequests/{tokenHash} {
+      allow read, write: if false;
+    }
+
+    // ── ageGateAttempts (neutral age screen cooldown) ────────────────
+    // sha256(deviceId) → timestamp, written by recordAgeGateAttempt so a
+    // rejected age cannot be immediately retried with an older one. Carries
+    // `expiresAt` for a Firestore TTL policy to reap. Nothing in a document
+    // identifies a person, and there is nothing here for a client to read —
+    // a client that could delete one could bypass the cooldown.
+    match /ageGateAttempts/{deviceHash} {
+      allow read, write: if false;
+    }
+
     // ── processedEvents (at-least-once trigger dedup) ────────────────
     // "{scope}_{eventId}" claim docs written exclusively by
     // functions/idempotency.js claimEventOnce (Cloud Functions, admin SDK)

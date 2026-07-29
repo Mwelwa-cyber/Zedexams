@@ -48,6 +48,7 @@
 const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("./authGuard");
+const {assertLearnerCapability} = require("./consentGuard");
 const core = require("./classManagementCore");
 
 const REGION = "us-central1";
@@ -130,6 +131,12 @@ const joinClassByCode = onCall({
   memory: "256MiB",
 }, async (request) => {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
+
+  // Families policy: joining a class puts a learner's name in front of other
+  // people. A learner whose guardian has not approved the account cannot do
+  // that yet. Enforced server-side because the compliance test is a direct
+  // API call, not a walk through the UI.
+  await assertLearnerCapability(uid, "social");
 
   const parsedCode = core.parseInviteCode(request.data?.code);
   throwIfError(parsedCode.error);
