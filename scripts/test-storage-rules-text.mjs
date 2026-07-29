@@ -141,7 +141,9 @@ test('lesson-files whole-note uploads remain PDF or Word only', () => {
 console.log('\nupload size caps')
 
 test('paper upload cap is 50 MB (multi-image scanned papers)', () => {
-  assertContains('request.resource.size < 50 * 1024 * 1024', 'validPaperUpload size cap moved')
+  // `<=` — inclusive, matching MAX_PAPER_FILE_BYTES on the client. See the
+  // boundary test further down for why the two have to name the same file.
+  assertContains('request.resource.size <= 50 * 1024 * 1024', 'validPaperUpload size cap moved')
 })
 
 test('paper upload accepts PDF + Word + scanned-image MIME types', () => {
@@ -280,6 +282,79 @@ test('the role + ownership helpers all require verification', () => {
   assert(
     /function ownsPath\(ownerUid\) \{\n      return isVerified\(\)/.test(rules),
     'ownsPath() must be built on isVerified() — it gates every owner-scoped write',
+  )
+})
+
+test('the role helpers accept superAdmin, like firestore.rules does', () => {
+  // firestore.rules: "Admin and superAdmin are equivalent — both get full
+  // read/write access", and scripts/grant-superadmin.mjs writes role
+  // 'superAdmin' BY DEFAULT. When these helpers accepted only the literal
+  // 'admin', a promoted owner passed every Firestore check and was refused by
+  // every Storage write behind them — the Past Paper Studio created its draft
+  // doc and then died on the upload with storage/unauthorized.
+  const adminFn = rules.slice(
+    rules.indexOf('function isAdmin()'),
+    rules.indexOf('function isTeacherOrAdmin()') > rules.indexOf('function isAdmin()')
+      ? rules.indexOf('function isTeacherOrAdmin()')
+      : rules.indexOf('function isAdmin()') + 600,
+  )
+  assert(
+    adminFn.includes("role == 'superAdmin'"),
+    "isAdmin() must accept the superAdmin role — firestore.rules treats it as equivalent to admin",
+  )
+  const teacherFn = rules.slice(rules.indexOf('function isTeacherOrAdmin()'))
+    .slice(0, 700)
+  assert(
+    teacherFn.includes("role == 'superAdmin'"),
+    'isTeacherOrAdmin() must accept the superAdmin role',
+  )
+  assert(
+    teacherFn.includes("role == 'teacher'") && teacherFn.includes("role == 'admin'"),
+    'isTeacherOrAdmin() must still accept teacher and admin',
+  )
+})
+
+test('the platform-admin break-glass claim is honoured, and denies closed', () => {
+  assert(
+    /function isPlatformAdmin\(\)/.test(rules),
+    'isPlatformAdmin() helper missing — the tamper-proof claim firestore.rules already grants admin on',
+  )
+  assert(
+    rules.includes("'platformAdmin' in request.auth.token")
+    && rules.includes('request.auth.token.platformAdmin == true'),
+    'the claim must be checked as present AND true, so a token without it denies closed',
+  )
+  assert(
+    rules.includes("'superAdmin' in request.auth.token")
+    && rules.includes('request.auth.token.superAdmin == true'),
+    'the superAdmin boolean claim must be checked as present AND true',
+  )
+})
+
+test('role parity does not weaken the verification gate or the upload checks', () => {
+  // Parity is about who the caller IS, never about what they may upload.
+  const adminFn = rules.slice(rules.indexOf('function isAdmin()')).slice(0, 700)
+  assert(
+    adminFn.includes('isVerified()'),
+    'isAdmin() must still require isVerified() on every arm, claims included',
+  )
+  assert(
+    /allow create, update: if isAdmin\(\) && validPictureBankUpload\(\);/.test(rules),
+    'picture-bank writes must still run the content-type check',
+  )
+  assert(
+    /allow create, update: if ownsPath\(ownerUid\)\n        && isTeacherOrAdmin\(\)\n        && validPaperUpload\(\);/.test(rules),
+    'past-paper writes must still be owner-scoped AND content-checked',
+  )
+})
+
+test('the paper size cap matches the client so no file passes one and fails the other', () => {
+  // src/utils/pastPapers.js rejects `size > MAX_PAPER_FILE_BYTES`, so a file of
+  // exactly 50 MB is allowed there. A `<` here refused it as an opaque
+  // storage/unauthorized — the same error a permissions problem produces.
+  assert(
+    /request\.resource\.size <= 50 \* 1024 \* 1024/.test(rules),
+    'validPaperUpload() must accept a file of exactly 50 MB, matching MAX_PAPER_FILE_BYTES',
   )
 })
 

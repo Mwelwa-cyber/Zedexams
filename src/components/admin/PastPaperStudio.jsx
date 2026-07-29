@@ -104,6 +104,36 @@ function inputCls() {
   return 'w-full rounded-xl border-2 theme-border theme-input px-3 py-2 text-sm focus:outline-none disabled:opacity-50'
 }
 
+/**
+ * Turn a Storage upload failure into something an admin can act on.
+ *
+ * `storage/unauthorized` arrives as "User does not have permission to access
+ * 'papers/<uid>/<paperId>/assets/0-<filename>'" — a sentence that names the
+ * path and nothing that would tell you WHY. It is returned for every arm of
+ * the rule alike: the wrong role, an unverified email, a suspended account, a
+ * content type outside the allowlist. That opacity is what made the
+ * superAdmin-vs-admin gap in storage.rules read as a broken uploader, so the
+ * message now says what to check instead of restating the path.
+ */
+function describeUploadError(err) {
+  const code = err?.code || ''
+  if (code === 'storage/unauthorized') {
+    return 'Storage refused this upload. Your account needs the admin (or teacher) '
+      + 'role AND a verified email address, and the file must be a PDF, Word doc, '
+      + 'JPG, PNG or WEBP under 50MB. If you are signed in as an admin, sign out '
+      + 'and back in once — a recently-changed role only reaches Storage after the '
+      + 'sign-in token refreshes.'
+  }
+  if (code === 'storage/retry-limit-exceeded' || code === 'storage/canceled') {
+    return 'The upload timed out before it finished. Check the connection and try '
+      + 'again — anything that already uploaded has been kept.'
+  }
+  if (code === 'storage/quota-exceeded') {
+    return 'The storage bucket is out of space. Nothing was uploaded.'
+  }
+  return err?.message || 'Upload failed.'
+}
+
 function formatBytes(n) {
   if (!n) return '0 B'
   const mb = n / (1024 * 1024)
@@ -435,7 +465,16 @@ export default function PastPaperStudio() {
       await updatePaper(paperId, { assets: next, assetType })
     } catch (err) {
       console.error('[PastPaperStudio] upload failed', err)
-      setError(err?.message || 'Upload failed.')
+      setError(describeUploadError(err))
+      // Keep whatever DID upload before the failure — on a 30-image scanned
+      // paper, losing nine successful uploads because the tenth was refused
+      // means starting the whole thing again.
+      if (next.length > assets.length) {
+        setAssets(next)
+        setLocalFiles(nextFiles)
+        updatePaper(paperId, { assets: next, assetType: inferAssetType(next) })
+          .catch((e) => console.warn('[PastPaperStudio] partial-upload save failed', e))
+      }
     } finally {
       setUploading(false)
     }

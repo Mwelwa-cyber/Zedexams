@@ -43,6 +43,7 @@ vi.mock('firebase/firestore', () => ({
 
 const mockUpdatePaper = vi.fn(async () => {})
 const mockGetPaper = vi.fn()
+const mockUploadAsset = vi.fn()
 vi.mock('../../utils/pastPapers', async (importOriginal) => {
   const actual = await importOriginal()
   return {
@@ -53,7 +54,7 @@ vi.mock('../../utils/pastPapers', async (importOriginal) => {
     deletePaper: vi.fn(),
     deletePaperPdf: vi.fn(),
     resolvePaperUrl: vi.fn(async () => ''),
-    uploadPaperAsset: vi.fn(),
+    uploadPaperAsset: (...a) => mockUploadAsset(...a),
   }
 })
 
@@ -107,6 +108,9 @@ function publishWrite() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  // clearAllMocks only clears CALLS — a queued mockRejectedValueOnce would
+  // otherwise leak into the next test and fail it somewhere unrelated.
+  mockUploadAsset.mockReset()
   quizQuestionCount = 0
   quizExists = true
   searchQuery = 'step=publish'
@@ -340,6 +344,74 @@ describe('PastPaperStudio — unpublishing a live paper', () => {
     await confirmUnpublish(user)
     expect(await screen.findByText('Not published')).toBeInTheDocument()
     expect(screen.queryByText('Live to learners')).not.toBeInTheDocument()
+  })
+})
+
+describe('PastPaperStudio — upload failures', () => {
+  // Storage returns `storage/unauthorized` for every arm of the rule alike —
+  // wrong role, unverified email, suspended account, disallowed type — and its
+  // message names only the path. That opacity is what made a role gap in
+  // storage.rules read as a broken uploader for a whole afternoon.
+  const pdf = (name = 'paper.pdf') =>
+    new File([new Uint8Array([1, 2, 3])], name, { type: 'application/pdf' })
+
+  function fileInput() {
+    return document.querySelector('input[type="file"]')
+  }
+
+  async function renderUploadStep() {
+    searchQuery = 'step=upload'
+    mockGetPaper.mockResolvedValue(savedPaper({ assets: [] }))
+    renderStudio()
+    await screen.findByText(/Drag & drop files here/)
+  }
+
+  it('explains what to check instead of restating the storage path', async () => {
+    const user = userEvent.setup()
+    mockUploadAsset.mockRejectedValue(Object.assign(
+      new Error("Firebase Storage: User does not have permission to access 'papers/u/p/assets/0-paper.pdf'. (storage/unauthorized)"),
+      { code: 'storage/unauthorized' },
+    ))
+    await renderUploadStep()
+
+    await user.upload(fileInput(), pdf())
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(/admin \(or teacher\) role/)
+    expect(alert).toHaveTextContent(/verified email/)
+    expect(alert).toHaveTextContent(/sign out and back in once/i)
+    expect(alert).not.toHaveTextContent('papers/u/p/assets')
+  })
+
+  it('keeps the files that uploaded before the one that failed', async () => {
+    // A scanned paper is 30 images. Dropping nine good uploads because the
+    // tenth was refused means re-doing the whole batch.
+    const user = userEvent.setup()
+    mockUploadAsset
+      .mockResolvedValueOnce({
+        path: 'papers/u/p/assets/0-page-1.jpg',
+        filename: 'page-1.jpg',
+        size: 10,
+        contentType: 'image/jpeg',
+      })
+      .mockRejectedValueOnce(Object.assign(new Error('nope'), { code: 'storage/unauthorized' }))
+    await renderUploadStep()
+
+    await user.upload(fileInput(), [pdf('page-1.jpg'), pdf('page-2.jpg')])
+
+    expect(await screen.findByText('page-1.jpg')).toBeInTheDocument()
+    const assetWrites = mockUpdatePaper.mock.calls.filter(([, f]) => 'assets' in f)
+    expect(assetWrites.at(-1)[1].assets).toHaveLength(1)
+  })
+
+  it('passes a non-permission failure through in the words the SDK used', async () => {
+    const user = userEvent.setup()
+    mockUploadAsset.mockRejectedValue(new Error('Network request failed'))
+    await renderUploadStep()
+
+    await user.upload(fileInput(), pdf())
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Network request failed')
   })
 })
 

@@ -55,6 +55,11 @@ const LEARNER_B = 'learner_b'
 const TEACHER_A = 'teacher_a'
 const TEACHER_B = 'teacher_b'
 const ADMIN = 'admin_user'
+// `superAdmin` is what scripts/grant-superadmin.mjs writes BY DEFAULT, and
+// firestore.rules treats it as equivalent to `admin` everywhere. storage.rules
+// has to agree, or the project owner can read every admin surface and write
+// none of the files behind it.
+const SUPER_ADMIN = 'super_admin_user'
 const UNVERIFIED_LEARNER = 'unverified_learner'
 const UNVERIFIED_TEACHER = 'unverified_teacher'
 const GRACE_LEARNER = 'grace_learner'
@@ -149,6 +154,7 @@ async function main() {
     await setDoc(doc(db, 'users', TEACHER_A), { role: 'teacher' })
     await setDoc(doc(db, 'users', TEACHER_B), { role: 'teacher' })
     await setDoc(doc(db, 'users', ADMIN), { role: 'admin' })
+    await setDoc(doc(db, 'users', SUPER_ADMIN), { role: 'superAdmin' })
     // Email-verification enforcement fixtures (see the matching section in
     // test-firestore-rules-emulator.mjs).
     await setDoc(doc(db, 'users', UNVERIFIED_LEARNER), { role: 'learner', grade: '5' })
@@ -177,6 +183,7 @@ async function main() {
   const teacherAStorage = testEnv.authenticatedContext(TEACHER_A, verifiedToken(TEACHER_A)).storage()
   const teacherBStorage = testEnv.authenticatedContext(TEACHER_B, verifiedToken(TEACHER_B)).storage()
   const adminStorage = testEnv.authenticatedContext(ADMIN, verifiedToken(ADMIN)).storage()
+  const superAdminStorage = testEnv.authenticatedContext(SUPER_ADMIN, verifiedToken(SUPER_ADMIN)).storage()
   const guestStorage = testEnv.unauthenticatedContext().storage()
   const unverifiedStorage = testEnv.authenticatedContext(UNVERIFIED_LEARNER, unverifiedToken(UNVERIFIED_LEARNER)).storage()
   const unverifiedTeacherStorage = testEnv.authenticatedContext(UNVERIFIED_TEACHER, unverifiedToken(UNVERIFIED_TEACHER)).storage()
@@ -313,6 +320,81 @@ async function main() {
       ref(teacherAStorage, `papers/${TEACHER_A}/sneaky.gif`),
       PNG_BYTES,
       { contentType: 'image/gif' },
+    ))
+  })
+
+  // ── superAdmin parity with admin ──────────────────────────────
+  // firestore.rules says "Admin and superAdmin are equivalent — both get full
+  // read/write access", and grant-superadmin.mjs writes `superAdmin` by
+  // DEFAULT. storage.rules used to accept only the literal string 'admin', so
+  // the project owner could open every admin screen, create the pastPapers
+  // draft doc, and then be refused by Storage on the upload itself —
+  // "User does not have permission to access 'papers/<uid>/<paperId>/assets/…'".
+  // The symptom is indistinguishable from a broken uploader, which is why
+  // these are behavioural tests and not a text check.
+  section('superAdmin — write parity with admin')
+
+  await test('superAdmin can upload a past-paper asset under own /papers/ path', async () => {
+    await assertSucceeds(uploadBytes(
+      ref(superAdminStorage, `papers/${SUPER_ADMIN}/paper-1/assets/0-exam.pdf`),
+      PDF_BYTES,
+      { contentType: 'application/pdf' },
+    ))
+  })
+
+  await test('superAdmin can upload to the legacy admin-only /papers/{file} path', async () => {
+    await assertSucceeds(uploadBytes(
+      ref(superAdminStorage, 'papers/legacy-superadmin.pdf'),
+      PDF_BYTES,
+      { contentType: 'application/pdf' },
+    ))
+  })
+
+  await test('superAdmin can read a past paper', async () => {
+    await assertSucceeds(getBytes(ref(superAdminStorage, `papers/${TEACHER_A}/seed.pdf`)))
+  })
+
+  await test('superAdmin can upload a syllabus PDF (isAdmin path)', async () => {
+    await assertSucceeds(uploadBytes(
+      ref(superAdminStorage, 'syllabus-uploads-pdf/v1/syllabus.pdf'),
+      PDF_BYTES,
+      { contentType: 'application/pdf' },
+    ))
+  })
+
+  await test('superAdmin can upload a picture-bank image (isAdmin path)', async () => {
+    await assertSucceeds(uploadBytes(
+      ref(superAdminStorage, 'picture-bank/figures/heart.png'),
+      PNG_BYTES,
+      { contentType: 'image/png' },
+    ))
+  })
+
+  await test('superAdmin can upload a quiz image (isTeacherOrAdmin path)', async () => {
+    await assertSucceeds(uploadBytes(
+      ref(superAdminStorage, `quiz-images/${SUPER_ADMIN}/figure.png`),
+      PNG_BYTES,
+      { contentType: 'image/png' },
+    ))
+  })
+
+  await test('superAdmin is still bound by the content-type allowlist', async () => {
+    // Parity with admin means the same grants, not a bypass of the checks
+    // every other writer passes.
+    await assertFails(uploadBytes(
+      ref(superAdminStorage, `papers/${SUPER_ADMIN}/sneaky.gif`),
+      PNG_BYTES,
+      { contentType: 'image/gif' },
+    ))
+  })
+
+  await test('superAdmin CANNOT upload under another user’s /papers/ path (cross-tenant)', async () => {
+    // ownsPath() still applies — the role grant is not a licence to write
+    // into someone else's folder.
+    await assertFails(uploadBytes(
+      ref(superAdminStorage, `papers/${TEACHER_B}/spoof.pdf`),
+      PDF_BYTES,
+      { contentType: 'application/pdf' },
     ))
   })
 
