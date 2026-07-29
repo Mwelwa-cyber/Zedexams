@@ -509,3 +509,229 @@ export function nodeHtmlToNotationMarkup(html) {
 
   return s
 }
+
+/* ------------------------------------------------------------------ *
+ * 8. Science notation (Phase 3 §1)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Science reuses the EXISTING structured marks rather than gaining a chemistry
+ * engine: H₂O is H + a subscripted 2 + O, a charge is a superscript, and an
+ * exponent in a unit is the same superscript a power uses. The contract here is
+ * therefore about the ASCII forms that must never reach print, not about a new
+ * storage shape.
+ *
+ * The repair rule is narrower than it first looks. A digit after an element
+ * symbol is a subscript only where the surrounding token is a plausible
+ * formula: "H2O" and "CO2" are, and "Grade 2 pupils" and "Form 2" are not. So
+ * the pattern demands an element-shaped token — a capital letter, an optional
+ * lower-case letter, then digits — and at least one more element after it or a
+ * known formula, rather than treating any letter-digit pair as chemistry.
+ */
+
+/** The subscript digits a flattened formula degrades to at the plain-text floor. */
+const SUBSCRIPTS = Object.freeze({
+  0: '₀', 1: '₁', 2: '₂', 3: '₃', 4: '₄',
+  5: '₅', 6: '₆', 7: '₇', 8: '₈', 9: '₉',
+})
+
+/**
+ * A chemical formula written in ASCII: two or more element-shaped groups where
+ * at least one carries digits. `H2O`, `CO2`, `C6H12O6`, `H2SO4`, `CaCO3`.
+ *
+ * Requiring TWO groups is what keeps "Grade 2", "Form 4" and "Q3" out: those
+ * are one letter-group and a number, not a formula. It also keeps a lone "O2"
+ * out, which is the deliberate cost of not guessing — a teacher writing about
+ * oxygen gas alone still gets the toolbar.
+ *
+ * A leading COEFFICIENT is captured separately and left at full size. "6CO2"
+ * is six molecules of carbon dioxide; subscripting that 6 would say something
+ * else entirely, and without capturing it the whole token failed to match at
+ * all — which silently excluded every balanced symbol equation, the exact
+ * content junior secondary uses this for.
+ */
+const CHEM_FORMULA_RE = /\b(\d*)((?:[A-Z][a-z]?\d*){2,})\b/g
+
+/** An ASCII reaction arrow. `->`, `-->`, `=>`, and the reversible `<->`. */
+const ASCII_ARROW_RE = /(<->|<=>|-{1,2}>|=>)/g
+
+/**
+ * A unit exponent written flat: `m/s2`, `cm3`, `km2`, `m2`. Restricted to the
+ * unit abbreviations a school paper actually uses, because "s2" on its own is
+ * as likely to be a label as a unit.
+ */
+const UNIT_EXPONENT_RE = /\b((?:[a-zA-Z]{1,3}\/)?(?:mm|cm|dm|m|km|s|g|kg|ml|l|N|J|W|Hz))([23])\b/g
+
+/** `deg C`, `degrees C`, `30 C` where a degree sign belongs. */
+const DEGREE_RE = /\b(\d+(?:\.\d+)?)\s*(?:deg(?:rees)?)\s*([CF])\b/gi
+
+/**
+ * The element symbols a Zambian school syllabus actually uses. Needed for the
+ * SINGLE-group case: "O2" is a formula and "Q3" is not, and only a real symbol
+ * list can tell them apart.
+ */
+const ELEMENT_SYMBOLS = new Set([
+  'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne',
+  'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca',
+  'Fe', 'Cu', 'Zn', 'Ag', 'Au', 'Pb', 'Sn', 'Hg', 'I', 'Br',
+  'Mn', 'Cr', 'Ni', 'Ba', 'Sr', 'Co', 'Ti', 'U',
+])
+
+/**
+ * Is the surrounding text definitely about chemistry?
+ *
+ * A single element group with a digit — "O2", "H2" — is a formula in a
+ * balanced equation and a label everywhere else ("Form 2", "Q3", "Section B2").
+ * So it is only converted when the text has already proved itself: a reaction
+ * arrow, or a multi-element formula somewhere in the same field. Same shape as
+ * the bare-fraction rule, and for the same reason — the alternative is
+ * subscripting a section heading.
+ */
+function hasChemistryContext(text) {
+  if (/[→⇌]|<->|<=>|-{1,2}>|=>/.test(text)) return true
+  CHEM_FORMULA_RE.lastIndex = 0
+  let m
+  while ((m = CHEM_FORMULA_RE.exec(text)) !== null) {
+    if (looksLikeFormula(m[2])) return true
+  }
+  return false
+}
+
+/** A lone element with a subscript count: `O2`, `H2`, `N2`, `Cl2`. */
+const LONE_FORMULA_RE = /\b(\d*)([A-Z][a-z]?)(\d+)\b/g
+
+/** Does a token look like a real formula rather than a word with a digit? */
+function looksLikeFormula(token) {
+  if (!/\d/.test(token)) return false
+  // At least two element groups, and every group must be a plausible symbol.
+  const groups = token.match(/[A-Z][a-z]?\d*/g) || []
+  if (groups.length < 2) return false
+  return groups.every((g) => /^[A-Z][a-z]?\d*$/.test(g))
+}
+
+/**
+ * Science contract violations in one field's text. Same shape as
+ * `detectNotationViolations`, so the enforcement ladder treats them identically.
+ */
+export function detectScienceViolations(text) {
+  const s = String(text ?? '')
+  const violations = []
+  if (!s) return { ok: true, violations }
+  const push = (code, sample, repairable) => {
+    violations.push({ code, sample: String(sample).slice(0, 60), repairable })
+  }
+
+  let m
+  CHEM_FORMULA_RE.lastIndex = 0
+  while ((m = CHEM_FORMULA_RE.exec(s)) !== null) {
+    if (looksLikeFormula(m[2])) push('CHEM_FORMULA_ASCII', m[0], true)
+  }
+
+  ASCII_ARROW_RE.lastIndex = 0
+  while ((m = ASCII_ARROW_RE.exec(s)) !== null) push('ARROW_ASCII', m[1], true)
+
+  if (hasChemistryContext(s)) {
+    LONE_FORMULA_RE.lastIndex = 0
+    while ((m = LONE_FORMULA_RE.exec(s)) !== null) {
+      if (ELEMENT_SYMBOLS.has(m[2])) push('CHEM_FORMULA_ASCII', m[0], true)
+    }
+  }
+
+  UNIT_EXPONENT_RE.lastIndex = 0
+  while ((m = UNIT_EXPONENT_RE.exec(s)) !== null) push('UNIT_EXPONENT_ASCII', m[0], true)
+
+  DEGREE_RE.lastIndex = 0
+  while ((m = DEGREE_RE.exec(s)) !== null) push('DEGREE_ASCII', m[0], true)
+
+  return { ok: violations.length === 0, violations }
+}
+
+/**
+ * Repair science notation into the editor's node HTML.
+ *
+ * Unlike the maths repairs, which emit markup for a later converter, these emit
+ * the FINAL form directly — `<sub>`/`<sup>` and the real characters — because
+ * there is no intermediate science markup in the contract and none is wanted:
+ * the storage shape is the existing rich text, per §1.
+ */
+export function repairScienceNotation(text) {
+  let s = String(text ?? '')
+  if (!s) return { text: s, repaired: 0, remaining: [] }
+  let repaired = 0
+
+  // Decided on the ORIGINAL text, before any pass has run. The multi-group
+  // formula and the ASCII arrow ARE the evidence, so asking after they have
+  // been rewritten finds neither — "The gas O2 reacts with H2O" converted the
+  // H2O and then judged itself not to be chemistry.
+  const isChemistry = hasChemistryContext(s)
+
+  s = s.replace(CHEM_FORMULA_RE, (whole, coefficient, formula) => {
+    if (!looksLikeFormula(formula)) return whole
+    repaired += 1
+    // The COEFFICIENT stays full size — "6CO₂" is six molecules, and
+    // subscripting the 6 would say something else entirely.
+    return coefficient + formula.replace(/(\d+)/g, (digits) => `<sub>${digits}</sub>`)
+  })
+
+  if (isChemistry) {
+    s = s.replace(LONE_FORMULA_RE, (whole, coefficient, element, count) => {
+      if (!ELEMENT_SYMBOLS.has(element)) return whole
+      repaired += 1
+      return `${coefficient}${element}<sub>${count}</sub>`
+    })
+  }
+
+  s = s.replace(ASCII_ARROW_RE, (whole) => {
+    repaired += 1
+    return whole === '<->' || whole === '<=>' ? '⇌' : '→'
+  })
+
+  s = s.replace(UNIT_EXPONENT_RE, (whole, unit, exp) => {
+    repaired += 1
+    return `${unit}<sup>${exp}</sup>`
+  })
+
+  s = s.replace(DEGREE_RE, (whole, value, scale) => {
+    repaired += 1
+    return `${value} °${scale.toUpperCase()}`
+  })
+
+  return { text: s, repaired, remaining: detectScienceViolations(s).violations }
+}
+
+/**
+ * The plain-text floor for science — used when a formula still cannot be
+ * expressed as markup. Unicode subscripts are legible everywhere and are not
+ * raw markup, which is the whole distinction the floor draws.
+ */
+export function scienceToPlainText(text) {
+  let s = String(text ?? '')
+  if (!s) return ''
+  s = s.replace(/<sub>([^<]*)<\/sub>/gi, (whole, inner) =>
+    inner.split('').map((c) => SUBSCRIPTS[c] ?? c).join(''))
+  s = s.replace(/<sup>([^<]*)<\/sup>/gi, (whole, inner) =>
+    inner.split('').map((c) => SUPERSCRIPTS[c] ?? c).join(''))
+  return s
+}
+
+/**
+ * The canonical subject keys that get science notation.
+ *
+ * `numeracy` appears in BOTH this list and the mathematics one, and that is
+ * correct rather than an oversight: CBC "Mathematics and Science" is one
+ * integrated learning area, so a Grade 2 paper owes both contracts — a column
+ * sum and a water molecule can sit on the same page.
+ */
+export const SCIENCE_SUBJECT_KEYS = Object.freeze([
+  'integrated_science',
+  'environmental_science',
+  'physics',
+  'chemistry',
+  'biology',
+  'agricultural_science',
+  'numeracy',
+])
+
+export function isScienceSubjectKey(subject) {
+  return SCIENCE_SUBJECT_KEYS.includes(String(subject || '').trim())
+}
