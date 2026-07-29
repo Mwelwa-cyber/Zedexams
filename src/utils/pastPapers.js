@@ -35,6 +35,11 @@ import {
 import { db, storage } from '../firebase/config'
 import { capture } from './analytics'
 import { normalizePaperFields } from './pastPaperNormalize.js'
+import {
+  attachQuizFields,
+  paperQuizIsAttached,
+  pendingQuizFields,
+} from './pastPaperQuizStatus.js'
 
 // Grade 9 ECZ exams were phased out, so the public archive only
 // surfaces Grade 7 and Grade 12 papers. Any legacy Grade 9 docs that
@@ -272,7 +277,11 @@ export async function getLinkedQuizMeta(quizId) {
  */
 export async function listPapersWithQuiz({ limit = 60 } = {}) {
   const all = await listPublishedPapers({ limit })
-  return all.filter((p) => Boolean(p.quizId))
+  // Derived status, not `Boolean(p.quizId)` — a paper published with the Quiz
+  // step skipped can still carry an id in `pendingQuizId`, and a paper whose
+  // quiz was skipped after a draft quiz existed reads 'pending'. Neither
+  // belongs on a surface that promises "take the quiz".
+  return all.filter((p) => paperQuizIsAttached(p))
 }
 
 /**
@@ -426,6 +435,39 @@ export async function updatePaper(paperId, fields) {
   // and the slug is re-derived whenever grade + subject + year are all in play.
   await updateDoc(doc(db, COLLECTION, paperId), {
     ...normalizePaperFields(fields),
+    updatedAt: serverTimestamp(),
+  })
+}
+
+/**
+ * Attach a quiz to a paper — `quizId` + `quizStatus` in ONE updateDoc.
+ *
+ * Deliberately not two `updatePaper` calls and never a read-modify-write of
+ * the whole doc: between two writes the paper is readable in a state it
+ * should never be in (attached with no id, or an id the UI won't route to),
+ * and a stale tab re-writing a doc it read minutes ago is a failure this
+ * platform has shipped before. `pendingQuizId` is cleared in the same patch
+ * so nothing is left pointing at the paper's authoring quiz.
+ */
+export async function attachQuizToPaper(paperId, quizId) {
+  if (!paperId) throw new Error('attachQuizToPaper requires a paper id')
+  await updateDoc(doc(db, COLLECTION, paperId), {
+    ...attachQuizFields(quizId),
+    updatedAt: serverTimestamp(),
+  })
+}
+
+/**
+ * Mark a paper's quiz as still to come — the Studio's "Skip for now" path.
+ * `quizId` is nulled so no learner surface can route into a quiz with no
+ * questions; the draft quiz the Studio was authoring is parked in
+ * `pendingQuizId` so re-entering the wizard picks that one back up instead of
+ * minting a second, orphaned quiz doc.
+ */
+export async function markPaperQuizPending(paperId, draftQuizId = null) {
+  if (!paperId) throw new Error('markPaperQuizPending requires a paper id')
+  await updateDoc(doc(db, COLLECTION, paperId), {
+    ...pendingQuizFields(draftQuizId),
     updatedAt: serverTimestamp(),
   })
 }

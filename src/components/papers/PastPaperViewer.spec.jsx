@@ -111,6 +111,62 @@ describe('PastPaperViewer — publish/visibility gate', () => {
   })
 })
 
+describe('PastPaperViewer — optional quiz (quizStatus)', () => {
+  // Every case here asks the same question from a different angle: can the
+  // learner reach a quiz that isn't there? The paper itself must always be
+  // fully visible — publishing without a quiz gates the quiz, not the paper.
+  function quizLinks() {
+    return screen.queryAllByRole('link', { name: /quiz/i })
+      .filter((el) => el.getAttribute('href')?.endsWith('/quiz'))
+  }
+
+  it('offers the quiz when one is attached', async () => {
+    mockGetPaper.mockResolvedValue(publishedPaper({ quizId: 'q1', quizStatus: 'attached' }))
+    renderViewer()
+    expect(await screen.findByText(/Past Paper/)).toBeInTheDocument()
+    expect(screen.getAllByText('Quiz Available').length).toBeGreaterThan(0)
+    expect(quizLinks().length).toBeGreaterThan(0)
+  })
+
+  it('shows "Quiz coming soon" and no quiz link when the quiz is pending', async () => {
+    mockGetPaper.mockResolvedValue(publishedPaper({ quizStatus: 'pending', quizId: null }))
+    renderViewer()
+    // The paper is live and readable — only the quiz launcher is withheld.
+    expect(await screen.findByText(/Past Paper/)).toBeInTheDocument()
+    expect(screen.getAllByText(/Quiz coming soon/i).length).toBeGreaterThan(0)
+    expect(screen.queryByText('Quiz Available')).not.toBeInTheDocument()
+    expect(quizLinks()).toHaveLength(0)
+  })
+
+  it('never links to the draft quiz a pending paper is still carrying', async () => {
+    // The Studio parks its authoring quiz on the paper. If the viewer read the
+    // raw id, "Start Quiz" would open a quiz with no questions in it.
+    mockGetPaper.mockResolvedValue(publishedPaper({
+      quizStatus: 'pending', quizId: 'draft-q', pendingQuizId: 'draft-q',
+    }))
+    renderViewer()
+    expect(await screen.findByText(/Past Paper/)).toBeInTheDocument()
+    expect(screen.getAllByText(/Quiz coming soon/i).length).toBeGreaterThan(0)
+    expect(quizLinks()).toHaveLength(0)
+  })
+
+  it('still offers the quiz on a paper published before quizStatus existed', async () => {
+    mockGetPaper.mockResolvedValue(publishedPaper({ quizId: 'legacy-q' }))
+    renderViewer()
+    expect(await screen.findByText(/Past Paper/)).toBeInTheDocument()
+    expect(screen.getAllByText('Quiz Available').length).toBeGreaterThan(0)
+    expect(quizLinks().length).toBeGreaterThan(0)
+  })
+
+  it('shows "Quiz coming soon" on an old paper that never had a quiz', async () => {
+    mockGetPaper.mockResolvedValue(publishedPaper())
+    renderViewer()
+    expect(await screen.findByText(/Past Paper/)).toBeInTheDocument()
+    expect(screen.getAllByText(/Quiz coming soon/i).length).toBeGreaterThan(0)
+    expect(quizLinks()).toHaveLength(0)
+  })
+})
+
 describe('PastPaperViewer — mobile scrolling / touch behaviour', () => {
   function imagePaper() {
     return publishedPaper({

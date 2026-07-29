@@ -8,6 +8,8 @@
  * paperVisuals.js; data access lives in src/utils/pastPapers.js.
  */
 
+import { paperQuizIsAttached } from '../../utils/pastPaperQuizStatus.js'
+
 // Sentinel used by the hub for "no filter selected".
 export const ANY = 'any'
 
@@ -95,7 +97,10 @@ export function filterPapers(papers, { grade, subject, year, query, quizOnly, so
     if (grade && grade !== ANY && String(p.grade) !== String(grade)) return false
     if (subject && subject !== ANY && p.subject !== subject) return false
     if (year && year !== ANY && Number(p.year) !== Number(year)) return false
-    if (quizOnly && !p.quizId) return false
+    // "Has a quiz" is the derived status, not the raw id — a paper published
+    // with the Studio's Quiz step skipped can carry the id of a quiz that has
+    // no questions in it yet, and this filter is a promise to the learner.
+    if (quizOnly && !paperQuizIsAttached(p)) return false
     if (q) {
       const label = labelOf ? labelOf(p.subject) : p.subject
       const hay = `${p.title || ''} ${label || ''} ${p.year || ''} grade ${p.grade || ''}`.toLowerCase()

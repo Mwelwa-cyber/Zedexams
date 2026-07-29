@@ -22,6 +22,7 @@ import {
   recordPaperEvent,
   resolvePaperUrl,
 } from '../../utils/pastPapers'
+import { QUIZ_PENDING_COPY, paperQuizIsAttached } from '../../utils/pastPaperQuizStatus'
 import { saveBlob } from '../../utils/saveBlob'
 import usePaperResumeSync from '../../features/learnerHome/lib/paperResumeSync'
 import { buildDownloadName } from '../../utils/downloadFilename'
@@ -432,15 +433,17 @@ export default function PastPaperViewer() {
     return () => { cancelled = true }
   }, [paper?.grade, paper?.year])
 
-  // Linked-quiz metadata (question count / difficulty) for the panel.
+  // Linked-quiz metadata (question count / difficulty) for the panel. Skipped
+  // entirely while the quiz is pending — there is no panel to fill, and the
+  // paper may still carry the id of a quiz that has no questions in it.
   useEffect(() => {
-    if (!paper?.quizId) { setQuizMeta(null); return }
+    if (!paper || !paperQuizIsAttached(paper)) { setQuizMeta(null); return }
     let cancelled = false
     getLinkedQuizMeta(paper.quizId)
       .then((meta) => { if (!cancelled) setQuizMeta(meta) })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [paper?.quizId])
+  }, [paper])
 
   // This learner's timed-practice attempts on this paper (progress panel).
   useEffect(() => {
@@ -513,7 +516,11 @@ export default function PastPaperViewer() {
   const subjectInfo = subjectMeta(paper.subject)
   const subjectLabel = subjectInfo.fullLabel
   const SubjectIcon = subjectInfo.Icon
-  const quizAvailable = Boolean(paper.quizId)
+  // Derived rather than `Boolean(paper.quizId)`: the Quiz step of the Past
+  // Paper Studio is optional, so a live paper can be carrying a quiz id that
+  // is explicitly marked 'pending' (nothing in it yet). Papers published
+  // before the field existed fall back to the id — see pastPaperQuizStatus.js.
+  const quizAvailable = paperQuizIsAttached(paper)
   const timedExamAvailable = Boolean(currentUser)
   const answersAvailable = Boolean(markSchemeSource)
 
@@ -995,13 +1002,17 @@ function PaperPanels({
             </Link>
           </>
         ) : (
+          /* Informational only — nothing here is clickable, because there is
+             no quiz to click into. The paper itself stays fully readable and
+             downloadable; only the quiz launcher is withheld. */
           <div className="text-center py-2">
             <span className="mx-auto grid place-items-center w-10 h-10 rounded-full theme-bg-subtle theme-text-muted mb-2">
               <Clock size={20} strokeWidth={2.2} />
             </span>
-            <h2 className="theme-text font-black text-base">Quiz Coming Soon</h2>
+            <h2 className="theme-text font-black text-base">📝 {QUIZ_PENDING_COPY.learnerHeading}</h2>
             <p className="theme-text-muted text-sm mt-1">
-              We're preparing an interactive quiz for this paper. Read it now and check back soon.
+              {QUIZ_PENDING_COPY.learnerBody.charAt(0).toUpperCase()}
+              {QUIZ_PENDING_COPY.learnerBody.slice(1)}
             </p>
           </div>
         )}

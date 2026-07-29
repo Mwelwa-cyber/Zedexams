@@ -9,7 +9,11 @@
  */
 
 const assert = require("node:assert");
-const {lightEntry, lightSignature} = require("./pastPapersIndexHelpers");
+const {
+  deriveQuizStatus,
+  lightEntry,
+  lightSignature,
+} = require("./pastPapersIndexHelpers");
 
 let passed = 0;
 function ok(name, cond) {
@@ -60,6 +64,44 @@ ok("lightEntry omits absent paperNumber", !("paperNumber" in sparse));
 ok("lightEntry omits absent slug", !("slug" in sparse));
 ok("lightEntry defaults specimen to false", sparse.specimen === false);
 
+// ── quizStatus: mirrors src/utils/pastPaperQuizStatus.js ─────────────────
+// The Quiz step of the Studio is optional, so the index has to say whether a
+// published paper's quiz is actually there. These cases are the same ones
+// src/utils/pastPaperQuizStatus.test.js pins on the frontend copy — if the two
+// derivations drift, the hub badges a paper the viewer says is pending.
+ok("legacy paper with a quizId derives attached",
+  deriveQuizStatus({quizId: "q1"}) === "attached");
+ok("legacy paper with no quizId derives pending",
+  deriveQuizStatus({title: "old"}) === "pending");
+ok("stated pending wins over a lingering quizId",
+  deriveQuizStatus({quizStatus: "pending", quizId: "q1"}) === "pending");
+ok("stated attached with no quizId falls back to pending",
+  deriveQuizStatus({quizStatus: "attached", quizId: null}) === "pending");
+ok("a junk status falls back to the quizId signal",
+  deriveQuizStatus({quizStatus: "ready", quizId: "q1"}) === "attached");
+
+ok("lightEntry carries an attached quiz status",
+  full.quizStatus === "attached");
+const pendingEntry = lightEntry("p3", {
+  title: "Grade 12 Biology 2024",
+  grade: "12",
+  year: 2024,
+  quizStatus: "pending",
+  // A pending paper parks its draft quiz id on the doc; the index must not
+  // republish it as `quizId` or the hub renders a live "Take quiz" button
+  // pointing at a quiz with no questions in it.
+  quizId: "draft-q",
+  pendingQuizId: "draft-q",
+});
+ok("lightEntry marks a skipped paper pending",
+  pendingEntry.quizStatus === "pending");
+ok("lightEntry withholds the quizId of a pending paper",
+  pendingEntry.quizId === null);
+ok("lightEntry never leaks pendingQuizId to the hub",
+  !("pendingQuizId" in pendingEntry));
+ok("lightEntry defaults an old paper with no quiz to pending",
+  sparse.quizStatus === "pending" && sparse.quizId === null);
+
 // ── lightSignature: change detection drives the rebuild guard ────────────
 const published = {
   status: "published", title: "T", grade: "7", subject: "english",
@@ -87,6 +129,12 @@ ok("status flip changes signature",
 // Linking a quiz → rebuild (the hub shows a "Quiz available" badge).
 ok("quizId change changes signature",
   lightSignature(published) !== lightSignature({...published, quizId: "q9"}));
+
+// Attaching a quiz to a paper published with the step skipped → rebuild, so
+// the hub's badge flips without waiting for the 6-hourly cron.
+ok("quizStatus change changes signature",
+  lightSignature({...published, quizStatus: "pending"}) !==
+    lightSignature({...published, quizStatus: "attached"}));
 
 // A doc gaining/changing its SEO slug → rebuild, so the archive picks it up.
 ok("slug change changes signature",

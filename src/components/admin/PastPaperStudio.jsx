@@ -8,7 +8,7 @@
  *                step also previews each upload inline so the admin
  *                can see exactly what the learner will see.
  *   2. Details — grade, subject, year, board, title, marks, duration
- *   3. Quiz    — Open Quiz Editor + Import-with-AI handoff
+ *   3. Quiz    — Open Quiz Editor + Import-with-AI handoff, OR skip
  *   4. Publish — flip the linked quiz to publicAccess + isPublished,
  *                flip the paper to status='published'.
  *
@@ -17,11 +17,24 @@
  * Assets are uploaded immediately, not held in browser memory — a
  * scanned paper can be 30+ images at 5-10MB each.
  *
+ * The Quiz step is OPTIONAL. An admin batch-uploading an archive can skip
+ * it and publish; the paper goes live immediately with a "Quiz coming soon"
+ * note for learners, shows a "Quiz pending" badge in /admin/papers, and the
+ * quiz gets attached later via `/admin/papers/:id/edit?step=quiz` without
+ * redoing Upload or Details.
+ *
+ * Which quiz field the Studio writes matters. The authoring quiz is parked
+ * on the paper as `pendingQuizId` and only PROMOTED to `quizId` (together
+ * with `quizStatus: 'attached'`, in one write) once it actually has
+ * questions. The Studio mints its linked quiz the moment step 3 opens, so
+ * writing that id straight to `quizId` would put an empty quiz behind the
+ * learner's "Start Quiz" button for as long as the admin took to fill it in.
+ *
  * Replaces the older single-page AdminPastPaperEditor.
  */
 
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import {
@@ -40,6 +53,13 @@ import {
   updatePaper,
   uploadPaperAsset,
 } from '../../utils/pastPapers'
+import {
+  QUIZ_PENDING_COPY,
+  attachQuizFields,
+  paperQuizIsAttached,
+  pendingQuizFields,
+  resolveStudioQuizId,
+} from '../../utils/pastPaperQuizStatus'
 import { PAPER_SUBJECTS } from '../../config/curriculum'
 import { db } from '../../firebase/config'
 import { getFunctions, httpsCallable } from 'firebase/functions'
@@ -91,12 +111,21 @@ function formatBytes(n) {
   return `${(n / 1024).toFixed(0)} KB`
 }
 
-function Stepper({ step, onJump, completed }) {
+const QUIZ_STEP_ID = 3
+
+/**
+ * The step rail. A skipped Quiz step is drawn as deliberately-postponed
+ * rather than done: dashed amber border, a "later" tag, and no tick. A ✓
+ * there would say the quiz was finished, which is the one thing the admin
+ * needs to remember it wasn't.
+ */
+function Stepper({ step, onJump, completed, quizSkipped }) {
   return (
     <ol className="flex flex-wrap gap-2 text-xs font-bold">
       {STEPS.map((s) => {
         const isCurrent = step === s.id
-        const isDone = completed.has(s.id)
+        const isSkipped = s.id === QUIZ_STEP_ID && quizSkipped
+        const isDone = completed.has(s.id) && !isSkipped
         return (
           <li key={s.id}>
             <button
@@ -106,15 +135,22 @@ function Stepper({ step, onJump, completed }) {
                 'flex items-center gap-2 px-3 py-2 rounded-full border-2 transition-colors',
                 isCurrent
                   ? 'theme-accent-fill theme-on-accent border-transparent'
-                  : isDone
-                    ? 'theme-card theme-text border-emerald-300'
-                    : 'theme-card theme-text-muted theme-border hover:theme-text',
+                  : isSkipped
+                    ? 'theme-card theme-text-muted border-dashed border-amber-400'
+                    : isDone
+                      ? 'theme-card theme-text border-emerald-300'
+                      : 'theme-card theme-text-muted theme-border hover:theme-text',
               ].join(' ')}
             >
               <span className="w-5 h-5 rounded-full bg-black/15 flex items-center justify-center text-[10px] font-black">
                 {isDone ? '✓' : s.id}
               </span>
               <span className="hidden sm:inline">{s.label}</span>
+              {isSkipped && (
+                <span className="rounded-full bg-amber-100 text-amber-800 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide">
+                  later
+                </span>
+              )}
             </button>
           </li>
         )
@@ -172,13 +208,34 @@ function DropZone({ disabled, onFiles }) {
   )
 }
 
+/**
+ * `?step=quiz` (or `?step=3`) — the deep link "Add quiz" uses from
+ * /admin/papers to land straight on the Quiz step of an already-published
+ * paper. Anything else is ignored and the wizard opens at step 1.
+ */
+function stepFromQuery(value) {
+  if (!value) return null
+  const raw = String(value).trim().toLowerCase()
+  const byLabel = STEPS.find((s) => s.label.toLowerCase() === raw)
+  if (byLabel) return byLabel.id
+  const n = Number(raw)
+  return STEPS.some((s) => s.id === n) ? n : null
+}
+
 export default function PastPaperStudio() {
   const { paperId: routePaperId } = useParams()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { currentUser } = useAuth()
   const isNew = !routePaperId
 
   const [paperId, setPaperId] = useState(routePaperId || null)
+  // Captured once, at mount: the deep link decides where the wizard OPENS,
+  // and must not yank the admin back to step 3 later if the query string
+  // changes under them. A ref also keeps it out of the bootstrap effect's
+  // deps — that effect creates a draft paper in new mode, so re-running it
+  // on a query change would litter Firestore with empty papers.
+  const deepLinkStep = useRef(stepFromQuery(searchParams.get('step')))
   const [step, setStep] = useState(1)
   const [completed, setCompleted] = useState(() => new Set())
   const [bootstrapping, setBootstrapping] = useState(true)
@@ -209,6 +266,10 @@ export default function PastPaperStudio() {
   // surface "N questions in the quiz" and a one-click handoff.
   const [existingQuizId, setExistingQuizId] = useState(null)
   const [quizCount, setQuizCount] = useState(0)
+  // The Quiz step was deliberately postponed — either the admin pressed
+  // "Skip for now" in this session, or the paper was loaded already carrying
+  // quizStatus 'pending'. Drives the muted step pill and the Publish notice.
+  const [quizSkipped, setQuizSkipped] = useState(false)
   const [originalStatus, setOriginalStatus] = useState(PAPER_STATUSES.DRAFT)
   const [uploading, setUploading] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -267,17 +328,31 @@ export default function PastPaperStudio() {
           })
           setAssets(Array.isArray(row.assets) ? row.assets : [])
           setOriginalStatus(row.status || PAPER_STATUSES.DRAFT)
-          if (row.quizId) {
+          // A paper published with the Quiz step skipped reopens in the
+          // skipped state, so the step rail and the Publish notice tell the
+          // admin what they left rather than pretending it was never chosen.
+          if (!cancelled) setQuizSkipped(!paperQuizIsAttached(row))
+          // Upload + Details are already filled in on a saved paper, so mark
+          // them done — otherwise the "Add quiz" deep link lands on step 3
+          // with a rail that refuses to jump back to what it just skipped.
+          if (!cancelled) {
+            setCompleted(new Set(paperQuizIsAttached(row) ? [1, 2, 3] : [1, 2]))
+            if (deepLinkStep.current) setStep(deepLinkStep.current)
+          }
+          // The authoring quiz is whichever the paper points at: the attached
+          // one, or the draft parked in pendingQuizId by an earlier skip.
+          const studioQuizId = resolveStudioQuizId(row)
+          if (studioQuizId) {
             // Verify the linked quiz still exists. If an admin deleted
             // it from /admin/content, the paper still carries the dead
             // id and step 3 would mislead with "0 questions in the quiz"
             // → "Open Quiz Editor" → "Quiz not found". Treat a missing
             // quiz as unlinked so ensureLinkedQuiz() creates a fresh one.
             try {
-              const quizSnap = await getDoc(doc(db, 'quizzes', row.quizId))
+              const quizSnap = await getDoc(doc(db, 'quizzes', studioQuizId))
               if (quizSnap.exists()) {
-                if (!cancelled) setExistingQuizId(row.quizId)
-                const qs = await getDocs(query(collection(db, 'quizzes', row.quizId, 'questions')))
+                if (!cancelled) setExistingQuizId(studioQuizId)
+                const qs = await getDocs(query(collection(db, 'quizzes', studioQuizId, 'questions')))
                 if (!cancelled) setQuizCount(qs.size)
               } else if (!cancelled) {
                 setExistingQuizId(null)
@@ -482,7 +557,10 @@ export default function PastPaperStudio() {
         fields.grade = details.grade
       }
       await setDoc(doc(db, 'quizzes', quizId), fields)
-      await updatePaper(paperId, { quizId })
+      // Park the id, don't attach it. This quiz has zero questions right now;
+      // `quizId` is what every learner surface routes on, so it is only
+      // written at publish time, once there is something behind it.
+      await updatePaper(paperId, { pendingQuizId: quizId })
       setExistingQuizId(quizId)
       return quizId
     } catch (err) {
@@ -592,43 +670,63 @@ export default function PastPaperStudio() {
     }
   }
 
+  // ── Step 3: skip ──────────────────────────────────────────────────
+  // "Skip for now" postpones the quiz; it does NOT discard it. Anything
+  // already imported or typed stays on the linked quiz doc (which is why the
+  // draft id is parked rather than dropped), so coming back finds the work.
+  function skipQuizStep() {
+    setError('')
+    setQuizSkipped(true)
+    markCompleted(3)
+    setStep(4)
+  }
+
   // ── Step 4: publish ───────────────────────────────────────────────
+  // A quiz is attached only when it actually has questions. Everything else
+  // publishes as `pending`: live to learners now, with a "Quiz coming soon"
+  // note where the quiz launcher sits.
   async function publish() {
     if (!paperId || !currentUser?.uid) return
     setError('')
     if (!assets.length) { setError('Upload at least one asset before publishing.'); return }
     if (!details.title.trim()) { setError('Title is required.'); return }
-    if (!existingQuizId) {
-      setError('No quiz is linked to this paper yet — finish step 3 first.')
-      return
-    }
-    if (quizCount === 0) {
-      setError('The linked quiz has no questions yet. Open the Quiz Editor or run the AI importer first.')
-      return
-    }
+
+    const attachingQuiz = Boolean(existingQuizId) && quizCount > 0
 
     setPublishing(true)
     try {
       const detailsOk = await saveDetails()
       if (!detailsOk) return
 
-      // Flip the linked quiz from authoring mode to public.
-      await setDoc(doc(db, 'quizzes', existingQuizId), {
-        isPublished: true,
-        publicAccess: true,
-        title: `${details.title.trim()} — Quiz`,
-        subject: details.subject,
-        linkedPaperId: paperId,
-        quizType: 'past_paper',
-        updatedAt: serverTimestamp(),
-      }, { merge: true })
+      if (attachingQuiz) {
+        // Flip the linked quiz from authoring mode to public.
+        await setDoc(doc(db, 'quizzes', existingQuizId), {
+          isPublished: true,
+          publicAccess: true,
+          title: `${details.title.trim()} — Quiz`,
+          subject: details.subject,
+          linkedPaperId: paperId,
+          quizType: 'past_paper',
+          updatedAt: serverTimestamp(),
+        }, { merge: true })
+      }
 
-      // Paper goes public.
+      // Paper goes public. quizId + quizStatus travel together in this ONE
+      // update — a two-step write would leave the paper readable as attached
+      // with no id behind it (or the reverse), and a stale second tab
+      // re-writing the pair is exactly the race this platform has shipped
+      // before. `existingQuizId` is parked in `pendingQuizId` on the pending
+      // path so re-entering the wizard resumes that quiz instead of minting
+      // a second one and orphaning the first.
       await updatePaper(paperId, {
-        quizId: existingQuizId,
+        ...(attachingQuiz
+          ? attachQuizFields(existingQuizId)
+          : pendingQuizFields(existingQuizId)),
         status: PAPER_STATUSES.PUBLISHED,
       })
-      setInfo('Published.')
+      setInfo(attachingQuiz
+        ? 'Published.'
+        : 'Published. Learners see the paper now — add the quiz any time from All papers.')
       navigate('/admin/papers')
     } catch (err) {
       console.error('[PastPaperStudio] publish failed', err)
@@ -673,10 +771,15 @@ export default function PastPaperStudio() {
       // the "Open Quiz Editor" button is immediately useful.
       ensureLinkedQuiz()
     } else if (step === 3) {
+      // Continuing WITH a quiz still requires a real one — a paper is either
+      // published with a finished quiz or published with none. What it must
+      // never do is carry a quiz with nothing in it, which is what half-
+      // finished authoring would produce.
       if (quizCount === 0) {
-        setError('Add at least one question to the linked quiz before continuing.')
+        setError(`Add at least one question to the linked quiz, or choose "${QUIZ_PENDING_COPY.skipAction}".`)
         return
       }
+      setQuizSkipped(false)
       markCompleted(3)
       setStep(4)
     }
@@ -697,13 +800,13 @@ export default function PastPaperStudio() {
           {isNew ? 'New past paper' : 'Edit past paper'}
         </h1>
         <p className="theme-text-muted text-sm mt-1">
-          A draft is saved automatically so you can leave and come back. Publish links the quiz
-          to the paper so learners (and marketing visitors) can take it inline.
+          A draft is saved automatically so you can leave and come back. Publish makes the paper
+          available to learners; if a quiz is attached, they can take it inline.
         </p>
       </div>
 
       <div className="theme-card border theme-border rounded-radius-md p-4">
-        <Stepper step={step} onJump={jump} completed={completed} />
+        <Stepper step={step} onJump={jump} completed={completed} quizSkipped={quizSkipped} />
       </div>
 
       {error && (
@@ -741,6 +844,7 @@ export default function PastPaperStudio() {
             onOpenEditor={openQuizEditor}
             onImportWithAi={importQuestionsWithAi}
             onRefreshCount={refreshQuizCount}
+            onSkip={skipQuizStep}
           />
           {importReport && <ImportReportCard report={importReport} />}
         </>
@@ -752,6 +856,7 @@ export default function PastPaperStudio() {
           assets={assets}
           quizId={existingQuizId}
           quizCount={quizCount}
+          onGoToQuizStep={() => setStep(3)}
         />
       )}
 
@@ -1114,7 +1219,7 @@ function DetailsStep({ details, setDetail }) {
 
 function QuizStep({
   paperId, quizId, quizCount, hasAssets, linkingQuiz, importing,
-  onOpenEditor, onImportWithAi, onRefreshCount,
+  onOpenEditor, onImportWithAi, onRefreshCount, onSkip,
 }) {
   return (
     <section className="space-y-4">
@@ -1174,6 +1279,33 @@ function QuizStep({
           </p>
         )}
       </div>
+
+      {/* The quiz is optional — batch-uploading an archive shouldn't stall on
+          authoring questions for every paper. Skipping keeps whatever is
+          already on the linked quiz; it only postpones attaching it.
+          Offered only while the quiz is empty: once it has questions there is
+          nothing to postpone, and un-attaching a working quiz is deliberately
+          not part of this flow (it would regress the learner's view). */}
+      {quizCount === 0 && (
+      <div className="theme-card border theme-border border-dashed rounded-radius-md p-4 flex flex-wrap items-center gap-3">
+        <div className="flex-1 min-w-[240px]">
+          <p className="theme-text font-black text-sm">Not ready to build the quiz?</p>
+          <p className="theme-text-muted text-xs mt-0.5">
+            Publish the paper now and attach the quiz later — learners get the paper
+            immediately with a &ldquo;Quiz coming soon&rdquo; note. Anything you have
+            already added here is kept.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onSkip}
+          className="theme-card border-2 border-amber-400 rounded-full px-4 py-2 text-sm font-black text-amber-800 hover:bg-amber-50"
+        >
+          {QUIZ_PENDING_COPY.skipAction}
+        </button>
+      </div>
+      )}
+
       <div className="theme-card border theme-border rounded-radius-md p-4 text-sm theme-text-muted">
         <p className="font-black theme-text mb-1">Tip</p>
         Open the Quiz Editor in a new browser tab if you want to keep the Studio
@@ -1184,8 +1316,11 @@ function QuizStep({
   )
 }
 
-function PublishStep({ paperId, details, assets, quizId, quizCount }) {
+function PublishStep({ paperId, details, assets, quizId, quizCount, onGoToQuizStep }) {
   const subjectMeta = useMemo(() => PAPER_SUBJECTS.find((s) => s.id === details.subject), [details.subject])
+  // A quiz with no questions is not a quiz — the paper publishes as pending
+  // either way, so the summary says so rather than reporting an id.
+  const quizAttaching = Boolean(quizId) && quizCount > 0
   return (
     <section className="space-y-4">
       <div className="theme-card border theme-border rounded-radius-md p-5">
@@ -1216,16 +1351,42 @@ function PublishStep({ paperId, details, assets, quizId, quizCount }) {
       </div>
       <div className="theme-card border theme-border rounded-radius-md p-5">
         <p className="theme-accent-text font-black text-xs uppercase tracking-widest mb-2">Linked quiz</p>
-        <p className="theme-text font-black text-sm">
-          {quizCount} question{quizCount === 1 ? '' : 's'} ready
-        </p>
-        {quizId && (
-          <p className="theme-text-muted text-xs mt-1 font-mono break-all">
-            quiz id: {quizId}
+        {quizAttaching ? (
+          <>
+            <p className="theme-text font-black text-sm">
+              {quizCount} question{quizCount === 1 ? '' : 's'} ready
+            </p>
+            <p className="theme-text-muted text-xs mt-1 font-mono break-all">
+              quiz id: {quizId}
+            </p>
+          </>
+        ) : (
+          <p className="theme-text font-black text-sm">
+            No quiz attached — publishing as <span className="text-amber-700">Quiz pending</span>.
           </p>
         )}
       </div>
-      {quizCount > 0 && (
+
+      {/* Informational, NOT an error: publishing without a quiz is a supported
+          outcome, and the publish button stays enabled. */}
+      {!quizAttaching && (
+        <div className="border-l-4 border-amber-500 bg-amber-50 text-amber-900 text-sm rounded-r-lg p-3">
+          <p className="font-black">No quiz attached yet.</p>
+          <p className="mt-1">
+            This paper will be published and visible to learners now, with a
+            &ldquo;Quiz coming soon&rdquo; note. You can add the quiz any time from All papers.
+          </p>
+          <button
+            type="button"
+            onClick={onGoToQuizStep}
+            className="mt-2 text-xs font-black underline hover:no-underline"
+          >
+            ← Back to the Quiz step
+          </button>
+        </div>
+      )}
+
+      {quizAttaching && (
         <a
           href={`/papers/${paperId}/quiz`}
           target="_blank"
@@ -1236,9 +1397,19 @@ function PublishStep({ paperId, details, assets, quizId, quizCount }) {
         </a>
       )}
       <p className="theme-text-muted text-xs">
-        Publishing flips the paper to <strong>Published</strong> and turns on
-        <strong> publicAccess</strong> on the linked quiz, so anonymous marketing
-        visitors can preview up to 30 questions before the paywall.
+        {quizAttaching ? (
+          <>
+            Publishing flips the paper to <strong>Published</strong> and turns on
+            <strong> publicAccess</strong> on the linked quiz, so anonymous marketing
+            visitors can preview up to 30 questions before the paywall.
+          </>
+        ) : (
+          <>
+            Publishing flips the paper to <strong>Published</strong>. It shows up in
+            the archive with a <strong>Quiz pending</strong> badge until a quiz is
+            attached.
+          </>
+        )}
       </p>
     </section>
   )

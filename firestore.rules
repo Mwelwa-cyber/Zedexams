@@ -2570,10 +2570,13 @@ service cloud.firestore {
     //   markSchemePath, markSchemeFilename (optional, separate PDF),
     //   description (optional), durationMinutes, totalMarks (optional),
     //   status ('draft'|'published'|'archived'),
+    //   quizId (optional link to quizzes/{id}),
+    //   quizStatus ('pending'|'attached'), pendingQuizId (optional),
     //   uploadedBy (uid), uploadedAt, updatedAt,
     //   views, downloads (server-incremented counters)
     function _validPaperGrade(value) { return value is string && value in ['7', '9', '12']; }
     function _validPaperStatus(value) { return value is string && value in ['draft', 'published', 'archived']; }
+    function _validPaperQuizStatus(value) { return value is string && value in ['pending', 'attached']; }
     function validPastPaperFields() {
       return (!('title' in incoming()) || (incoming().title is string && incoming().title.size() >= 1 && incoming().title.size() <= 200))
         && (!('grade' in incoming()) || _validPaperGrade(incoming().grade))
@@ -2598,7 +2601,17 @@ service cloud.firestore {
         && (!('assetType' in incoming()) || (incoming().assetType is string && incoming().assetType.size() <= 16))
         // Optional link to a quizzes/{quizId} doc whose questions are
         // the "Attempt the quiz" version of this paper.
-        && (!('quizId' in incoming()) || incoming().quizId == null || (incoming().quizId is string && incoming().quizId.size() <= 100));
+        && (!('quizId' in incoming()) || incoming().quizId == null || (incoming().quizId is string && incoming().quizId.size() <= 100))
+        // The Quiz step of the Past Paper Studio is optional: a paper can be
+        // published now and get its quiz later. 'pending' means live to
+        // learners with a "Quiz coming soon" note and quizId == null;
+        // 'attached' is written together with the quizId in one update.
+        // Papers created before this field existed simply omit it — readers
+        // derive the status from quizId (src/utils/pastPaperQuizStatus.js).
+        && (!('quizStatus' in incoming()) || _validPaperQuizStatus(incoming().quizStatus))
+        // Where a pending paper parks the draft quiz the Studio was authoring,
+        // so re-entering the wizard resumes that quiz instead of orphaning it.
+        && (!('pendingQuizId' in incoming()) || incoming().pendingQuizId == null || (incoming().pendingQuizId is string && incoming().pendingQuizId.size() <= 100));
     }
     match /pastPapers/{paperId} {
       // Anonymous-readable index: published papers list freely so

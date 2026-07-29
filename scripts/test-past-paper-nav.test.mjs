@@ -82,6 +82,26 @@ eq(isSpecimen(PAPERS[0]), false, 'ordinary paper is not specimen')
 eq(filterPapers(PAPERS, { grade: '7', query: 'mathematics' }).length, 2, 'search by subject word')
 eq(filterPapers(PAPERS, { query: '2024' }).length, 1, 'search by year')
 eq(filterPapers(PAPERS, { grade: '7', quizOnly: true }).length, 2, 'quizOnly keeps papers with quizId')
+// The Quiz step of the Past Paper Studio is optional. A paper published with
+// it skipped still carries the id of the quiz that was being authored, so
+// quizOnly has to read the derived status — filtering on the bare id would
+// promise a quiz that has no questions in it yet.
+eq(
+  filterPapers(
+    [{ id: 'pending', grade: '7', year: 2025, quizId: 'q-draft', quizStatus: 'pending' }],
+    { quizOnly: true },
+  ).length,
+  0,
+  'quizOnly drops a paper whose quiz is still pending',
+)
+eq(
+  filterPapers(
+    [{ id: 'legacy', grade: '7', year: 2019, quizId: 'q-old' }],
+    { quizOnly: true },
+  ).length,
+  1,
+  'quizOnly keeps a pre-quizStatus paper that has a quizId',
+)
 eq(
   filterPapers(PAPERS, {
     grade: '7',

@@ -305,6 +305,7 @@
     "test:assessment-shapes": "node scripts/test-assessment-shapes.mjs",
     "test:paper-taxonomy": "node scripts/test-paper-taxonomy.mjs",
     "test:past-paper-normalize": "node scripts/test-past-paper-normalize.mjs",
+    "test:paper-quiz-status": "node src/utils/pastPaperQuizStatus.test.js",
     "test:assessment-format-extract": "node functions/teacherTools/assessmentFormatExtractHelpers.test.js",
     "test:docx-archive-guard": "node functions/teacherTools/docxArchiveGuard.test.js",
     "test:docx-archive-inspect": "node functions/teacherTools/docxArchiveInspect.test.js",

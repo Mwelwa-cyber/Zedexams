@@ -13,6 +13,12 @@ import {
   PAPER_STATUSES,
   listAllPapersForAdmin,
 } from '../../utils/pastPapers'
+import {
+  QUIZ_PENDING_COPY,
+  QUIZ_STATUSES,
+  countPendingQuizPapers,
+  derivePaperQuizStatus,
+} from '../../utils/pastPaperQuizStatus'
 import { SUBJECTS } from '../../config/curriculum'
 import { convertPaperToQuizDraft } from '../../utils/paperToQuizConverter'
 import { useAuth } from '../../contexts/AuthContext'
@@ -33,10 +39,22 @@ function formatDate(ts) {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+// Quiz filter — the second axis of the list. Kept separate from the
+// publish-status chips rather than folded in as one more option: a paper has
+// BOTH a publish status and a quiz status, and merging them would make
+// "Published" and "Quiz pending" mutually exclusive when the whole point of
+// the optional-quiz flow is a paper that is both.
+const QUIZ_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: QUIZ_STATUSES.PENDING, label: QUIZ_PENDING_COPY.adminBadge },
+  { id: QUIZ_STATUSES.ATTACHED, label: 'Quiz attached' },
+]
+
 export default function AdminPastPapers() {
   const [papers, setPapers] = useState([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
+  const [quizFilter, setQuizFilter] = useState('all')
   // Per-row "Convert to quiz draft" state. converting holds the
   // current paper id so only one row spins at a time; convertMsg /
   // convertErr show a banner above the list with the result.
@@ -129,9 +147,17 @@ export default function AdminPastPapers() {
     return () => { cancelled = true }
   }, [])
 
-  const filtered = statusFilter === 'all'
-    ? papers
-    : papers.filter((p) => (p.status || PAPER_STATUSES.DRAFT) === statusFilter)
+  const filtered = papers.filter((p) => {
+    if (statusFilter !== 'all' && (p.status || PAPER_STATUSES.DRAFT) !== statusFilter) return false
+    if (quizFilter !== 'all' && derivePaperQuizStatus(p) !== quizFilter) return false
+    return true
+  })
+
+  // Header count, so a batch quiz-adding session has a target to work down.
+  // Counted across every paper, not the current filter — it is the size of the
+  // backlog, and a number that changed when you clicked a chip would be a
+  // different fact wearing the same label.
+  const pendingQuizCount = countPendingQuizPapers(papers)
 
   return (
     <div className="space-y-5">
@@ -140,7 +166,14 @@ export default function AdminPastPapers() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-black theme-text-muted uppercase tracking-widest">Content</p>
-          <h1 className="theme-text font-display font-black text-2xl sm:text-3xl">Past papers</h1>
+          <h1 className="theme-text font-display font-black text-2xl sm:text-3xl">
+            Past papers
+            {pendingQuizCount > 0 && (
+              <span className="ml-2 align-middle text-sm font-bold text-amber-700">
+                ({pendingQuizCount} pending quiz{pendingQuizCount === 1 ? '' : 'zes'})
+              </span>
+            )}
+          </h1>
           <p className="theme-text-muted text-sm mt-1">
             ECZ archive uploads — Grade 7 and Grade 12 across every CBC subject.
           </p>
@@ -199,6 +232,27 @@ export default function AdminPastPapers() {
         ))}
       </div>
 
+      {/* Quiz filter — "Quiz pending" is the batch-adding worklist: filter,
+          open the first paper, add its quiz, come back to the same list. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[11px] font-black theme-text-muted uppercase tracking-widest mr-1">Quiz</span>
+        {QUIZ_FILTERS.map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => setQuizFilter(opt.id)}
+            className={`rounded-full border-2 px-3 py-1 text-xs font-bold transition-colors ${
+              quizFilter === opt.id
+                ? 'theme-accent-fill theme-on-accent border-transparent'
+                : 'theme-border theme-text-muted hover:theme-text'
+            }`}
+          >
+            {opt.label}
+            {opt.id === QUIZ_STATUSES.PENDING && pendingQuizCount > 0 && ` (${pendingQuizCount})`}
+          </button>
+        ))}
+      </div>
+
       {/* Convert-to-quiz feedback banner (shared across rows). */}
       {convertMsg && (
         <div className="rounded-2xl border-2 border-violet-200 bg-violet-50 px-4 py-3 text-xs font-bold text-violet-900">
@@ -226,6 +280,9 @@ export default function AdminPastPapers() {
           {filtered.map((p) => {
             const subjectMeta = SUBJECTS.find((s) => s.id === p.subject)
             const status = STATUS_LABEL[p.status] || STATUS_LABEL.draft
+            // Derived, so papers uploaded before quizStatus existed read
+            // correctly instead of every one of them claiming to be pending.
+            const quizPending = derivePaperQuizStatus(p) === QUIZ_STATUSES.PENDING
             return (
               <li key={p.id} className="p-4 flex flex-wrap sm:flex-nowrap items-start gap-3">
                 <div className="flex-1 min-w-0">
@@ -242,6 +299,20 @@ export default function AdminPastPapers() {
                   <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${status.cls}`}>
                     {status.label}
                   </span>
+                  {quizPending && (
+                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                      {QUIZ_PENDING_COPY.adminBadge}
+                    </span>
+                  )}
+                  {quizPending && (
+                    <Link
+                      to={`/admin/papers/${p.id}/edit?step=quiz`}
+                      className="text-xs font-bold rounded-full px-2.5 py-1 border-2 border-amber-300 text-amber-800 hover:bg-amber-50"
+                      title="Open this paper's wizard on the Quiz step — Upload and Details are already filled in"
+                    >
+                      {QUIZ_PENDING_COPY.adminAction}
+                    </Link>
+                  )}
                   {p.pdfPath && (
                     <button
                       type="button"
