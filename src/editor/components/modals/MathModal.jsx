@@ -21,10 +21,11 @@
  *   onClose     {function}
  */
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import katex from 'katex'
 // Chemistry-formula extension (see safeRender.js for context).
 import 'katex/contrib/mhchem'
+import useFocusTrap from '../../../hooks/useFocusTrap.js'
 
 // ── Templates: ready-to-insert structures with argument placeholders ──
 const TEMPLATES = [
@@ -168,6 +169,12 @@ const SYMBOL_CATEGORIES = [
 ]
 
 export default function MathModal({ editor, editState, onClose }) {
+  // Escape closes, Tab stays inside, focus returns to the editor on close
+  // (§13). The shared hook every other dialog in the app uses, rather than
+  // a per-modal copy that each drifts from the others.
+  const panelRef = useRef(null)
+  useFocusTrap(panelRef, { onEscape: onClose })
+
   const isEditing = editState !== null && editState !== undefined
 
   const [latex,    setLatex]    = useState(isEditing ? editState.latex : TEMPLATES[0].latex)
@@ -252,6 +259,8 @@ export default function MathModal({ editor, editState, onClose }) {
     >
       <div
         className="modal math-modal"
+        ref={panelRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={isEditing ? 'Edit math expression' : 'Insert math expression'}

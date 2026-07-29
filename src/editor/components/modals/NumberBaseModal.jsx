@@ -13,10 +13,17 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { buildNumberBaseInner } from '../../extensions/NumberBase.js'
+import useFocusTrap from '../../../hooks/useFocusTrap.js'
 
 const COMMON_BASES = ['2', '3', '4', '5', '6', '7', '8', '10', '12', '16']
 
 export default function NumberBaseModal({ editor, editState, onClose }) {
+  // Escape closes, Tab stays inside, focus returns to the editor on close
+  // (§13). The shared hook every other dialog in the app uses, rather than
+  // a per-modal copy that each drifts from the others.
+  const panelRef = useRef(null)
+  useFocusTrap(panelRef, { onEscape: onClose })
+
   const isEditing = Boolean(editState)
 
   const [number, setNumber] = useState(editState?.attrs?.number || '')
@@ -71,6 +78,8 @@ export default function NumberBaseModal({ editor, editState, onClose }) {
     >
       <div
         className="modal math-modal nb-modal"
+        ref={panelRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={isEditing ? 'Edit number base' : 'Insert number base'}
