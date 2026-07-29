@@ -1,8 +1,4 @@
 {
-  "env": {
-    "PLAYWRIGHT_MCP_EXECUTABLE_PATH": "/opt/pw-browsers/chromium",
-    "PLAYWRIGHT_MCP_CONFIG": "/home/user/Zedexams/.playwright-mcp.config.json"
-  },
   "permissions": {
     "allow": [
       "Bash(head -100 /m/Claude/Examprep-zambia/src/hooks/*.jsx)",
