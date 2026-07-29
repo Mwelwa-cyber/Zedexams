@@ -31,13 +31,36 @@ function partsToSubParts(parts) {
   return parts
     .filter((p) => p && typeof p === 'object')
     .map((p) => ({
-      text: String(p.text ?? p.prompt ?? '').trim(),
-      answer: String(p.answer ?? p.correctAnswer ?? '').trim(),
+      // Both fields go through the converter. This is the leak §2 names: a
+      // sub-part is where a maths paper puts "(a) Work out \\frac{3}{5} + …",
+      // and taking the model's string raw delivered that markup to the teacher
+      // as literal text. `hasImportMarkup` gates both converters, so a prose
+      // sub-part is returned byte-identical.
+      text: importMarkupToRichHtml(String(p.text ?? p.prompt ?? '').trim()),
+      answer: importMarkupToOptionHtml(String(p.answer ?? p.correctAnswer ?? '').trim()),
       marks: Number.isFinite(Number(p.marks)) && Number(p.marks) >= 0 ? Math.round(Number(p.marks)) : 1,
       answerFormat: ['inline', 'lines', 'none'].includes(p.answerFormat) ? p.answerFormat : 'inline',
     }))
     .filter((p) => p.text)
     .slice(0, 12)
+}
+
+/**
+ * A stimulus sub-question, with its maths markup converted.
+ *
+ * `stimulusDescriptorFromQuestion` splits a crammed "(a)… (b)…" prompt into
+ * separate questions, and it does that on the raw model text — so each piece
+ * still carries `\\frac{…}` and friends when it comes back.
+ */
+function convertStimulusQuestion(sq) {
+  if (!sq || typeof sq !== 'object') return sq
+  const out = { ...sq }
+  if (typeof sq.text === 'string') out.text = importMarkupToRichHtml(sq.text)
+  if (typeof sq.correctAnswer === 'string') {
+    out.correctAnswer = importMarkupToOptionHtml(sq.correctAnswer)
+  }
+  if (Array.isArray(sq.options)) out.options = sq.options.map(importMarkupToOptionHtml)
+  return out
 }
 
 /**
@@ -150,6 +173,12 @@ export function mapAiQuestion(q, { partId = null } = {}) {
   const marks = Number.isFinite(Number(q?.marks)) && Number(q.marks) > 0 ?
     Math.round(Number(q.marks)) : 1
   const answer = String(q?.answer || '').trim()
+  // The DISPLAY form of the expected answer. `answer` stays the plain string
+  // throughout, because it is what matchAnswerIndex compares an MCQ option
+  // against — converting before the match would compare node HTML to plain
+  // option text and never line up. Machine value and display form, separate,
+  // exactly as Phase 1 requires.
+  const richAnswer = importMarkupToOptionHtml(answer)
   const explanation = String(q?.markingGuide || '').trim()
   const reviewNotes = []
   const visual = readVisual(q)
@@ -186,7 +215,7 @@ export function mapAiQuestion(q, { partId = null } = {}) {
     } else {
       overrides.type = 'short_answer'
       overrides.detectedType = 'short_answer'
-      overrides.correctAnswer = answer
+      overrides.correctAnswer = richAnswer
       reviewNotes.push('AI matching columns were incomplete — rebuild the pairs or reword as short answer.')
     }
   } else if (type === 'mcq' && visual?.kind === 'shape_options' &&
@@ -272,16 +301,22 @@ export function mapAiQuestion(q, { partId = null } = {}) {
       // AI emits singular `answer`; schema normalises to `answers[]`. Accept both.
       const answers = Array.isArray(s.answers) ? s.answers :
         (s.answer != null ? [String(s.answer)] : [])
-      return { text: String(s.text ?? '').trim(), answers }
+      // A fill-blank statement and its answers can be maths ("____ + 13 = 37",
+      // "\\frac{1}{2}"), so both take the inline converter.
+      return {
+        text: importMarkupToOptionHtml(String(s.text ?? '').trim()),
+        answers: answers.map((a) => importMarkupToOptionHtml(String(a ?? ''))),
+      }
     }) : []
     const statements = normalizeFillStatements(rawStmts)
-    const wordBank = normalizeWordBank(Array.isArray(q?.wordBank) ? q.wordBank : [])
+    const wordBank = normalizeWordBank(
+        (Array.isArray(q?.wordBank) ? q.wordBank : []).map((w) => importMarkupToOptionHtml(String(w ?? ''))))
     const hasValidBlanks = statements.some((s) => /_{2,}/.test(s.text))
     if (hasValidBlanks) {
       overrides.statements = statements
       overrides.wordBank = wordBank
       overrides.wordBankReuse = false
-      overrides.correctAnswer = answer // prose answer key for marking
+      overrides.correctAnswer = richAnswer // prose answer key for marking
       if (!answer) {
         reviewNotes.push('AI did not give a prose answer key for the fill-blanks question.')
       }
@@ -290,7 +325,7 @@ export function mapAiQuestion(q, { partId = null } = {}) {
       // usable (matches the same degrade path in assessmentSchema.js).
       overrides.type = 'short_answer'
       overrides.detectedType = 'short_answer'
-      overrides.correctAnswer = answer
+      overrides.correctAnswer = richAnswer
       reviewNotes.push('Fill-blanks had no valid blanks — converted to short answer. Edit or re-generate.')
     }
   } else {
@@ -304,7 +339,7 @@ export function mapAiQuestion(q, { partId = null } = {}) {
         // The stem becomes the instruction; each marker becomes a sub-part.
         overrides.text = importMarkupToRichHtml(split.stem || text)
         subParts = split.parts.map((p) => ({
-          text: String(p.text || '').trim(),
+          text: importMarkupToRichHtml(String(p.text || '').trim()),
           answer: '',
           marks: Number.isFinite(p.marks) && p.marks > 0 ? p.marks : 1,
           answerFormat: 'inline',
@@ -321,7 +356,7 @@ export function mapAiQuestion(q, { partId = null } = {}) {
       }
     } else {
       // Plain single-answer question.
-      overrides.correctAnswer = answer
+      overrides.correctAnswer = richAnswer
       if (!answer) reviewNotes.push('AI did not give a model answer.')
     }
   }
@@ -486,7 +521,10 @@ export function aiAssessmentToStudioBlocks(assessment) {
     const questions = Array.isArray(sec?.questions) ? sec.questions : []
     if (questions.length === 0) return
 
-    const passageText = String(sec?.passage?.text || '').trim()
+    // A stimulus for a maths word problem carries the same markup a question
+    // does — a table of values, a fraction in the story — so the passage is
+    // converted like any other block field.
+    const passageText = importMarkupToRichHtml(String(sec?.passage?.text || '').trim())
     if (passageText) {
       const mapped = []
       for (const q of questions) {
@@ -553,7 +591,10 @@ export function aiAssessmentToStudioBlocks(assessment) {
           title: stimulus.title,
           imageDiagram: stimulus.imageDiagram,
           partId: part.id,
-          questions: stimulus.questions,
+          // The splitter works on the RAW prompt, so its sub-questions arrive
+          // carrying whatever markup the model wrote. Converting here rather
+          // than inside the splitter keeps that module about splitting.
+          questions: stimulus.questions.map(convertStimulusQuestion),
         }))
         out.sections[out.sections.length - 1].partId = part.id
         out.questionCount += stimulus.questions.length
