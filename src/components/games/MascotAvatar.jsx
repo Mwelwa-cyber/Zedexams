@@ -51,8 +51,8 @@ function Face({ cx = 32, cy = 33, spread = 7, eyeY = -2, mouthY = 6, cheekY = 4 
 }
 
 function FoxArt() {
-  const body = '#F2792B'
-  const dark = '#C2410C'
+  const body = '#CE7452'
+  const dark = '#A3422E'
   return (
     <g stroke={NAVY} strokeWidth="2" strokeLinejoin="round">
       {/* ears */}

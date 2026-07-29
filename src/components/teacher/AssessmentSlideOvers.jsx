@@ -17,7 +17,9 @@ import {
   normalizeStudioFramework,
 } from './syllabusTopicOptions'
 import { QUIZ_DOCUMENT_ACCEPT } from '../quiz/documentQuizImporter'
-import { PaperBlock } from './views/PaperBlocks'
+import PaperPagesPreview from './views/PaperPagesPreview'
+import { isBodyBlock } from '../../utils/assessmentDocument'
+import { DEFAULT_PAPER_LAYOUT } from '../../config/paperLayoutTokens'
 import Icon from './studio/studioIcons'
 import { bloomLevel, BLOOM_LABELS, BLOOM_LEVELS } from '../../utils/assessmentBloom'
 import { paperGradeLabel } from './paperTaxonomy'
@@ -47,8 +49,18 @@ import './studio/lessonStudio.css'
  * matches the PDF and DOCX exports pixel-for-pixel. The `mode` prop
  * switches between the printable paper and the marking key.
  * ================================================================== */
-export function PaperRenderView({ mode, blocks, assessment, changeView, onExport, onExportAnswerSheet, onSave, saving, exporting, showSave, exportGate, printGate }) {
+export function PaperRenderView({
+  mode, blocks, assessment, changeView, onExport, onExportAnswerSheet, onSave, saving,
+  exporting, showSave, exportGate, printGate, document: paperDocument = null, pagination = null,
+}) {
   const isKey = mode === 'scheme'
+  // The document's resolved layout tokens, when the caller passes the canonical
+  // document. A caller that has not been migrated yet gets the A4 defaults, so
+  // the paginated preview still draws real sheets rather than falling back to
+  // the unlimited column it replaced.
+  const layout = paperDocument?.layout || DEFAULT_PAPER_LAYOUT
+  const bodyPreviewBlocks = blocks.filter(isBodyBlock)
+  const footerCode = blocks.find((b) => b.kind === 'footerCode')?.code || ''
   // An unfinished paper prints blank questions, so every download route is held
   // shut until it is complete. The buttons stay visible (a hidden button reads
   // as a broken studio) but are disabled and explain themselves, and the notice
@@ -74,7 +86,12 @@ export function PaperRenderView({ mode, blocks, assessment, changeView, onExport
         <button className="sv-chip" onClick={() => changeView('builder')}><Icon name="builder" size={14} /> Builder</button>
         <button className={`sv-chip ${!isKey ? 'active' : ''}`} onClick={() => changeView('preview')}><Icon name="preview" size={14} /> Preview</button>
         <button className={`sv-chip ${isKey ? 'active' : ''}`} onClick={() => changeView('marking-key')}><Icon name="key" size={14} /> Marking key</button>
-        <span className="sv-pages mono"><Icon name="pages" size={13} /> A4 · Portrait</span>
+        {/* The page size and orientation come from the document rather than a
+            hard-coded "A4 · Portrait" — a landscape or A5 paper used to be
+            labelled as A4 portrait while printing as neither. */}
+        <span className="sv-pages mono">
+          <Icon name="pages" size={13} /> {layout.page.label} · {layout.orientation === 'landscape' ? 'Landscape' : 'Portrait'}
+        </span>
       </div>
 
       {isKey && (
@@ -84,9 +101,16 @@ export function PaperRenderView({ mode, blocks, assessment, changeView, onExport
       )}
 
       <div className="sv-preview-shell">
-        <div className="sv-paper">
-          {blocks.map((block, i) => <PaperBlock key={i} block={block} />)}
-        </div>
+        {/* Real A4 sheets, with the breaks the measurement found in the print
+            renderer — not a continuous column that hides every page boundary
+            until the teacher is standing at the photocopier (§1). */}
+        <PaperPagesPreview
+          blocks={bodyPreviewBlocks}
+          layout={layout}
+          pagination={pagination}
+          pageNumbering={paperDocument?.pageNumbering || null}
+          footerCode={footerCode}
+        />
 
         {blocked && (
           <div className="sv-export-block" role="status">
@@ -334,7 +358,7 @@ function AiTopicModeToggle({ value, onChange, pickDisabled = false }) {
     border: 'none', background: 'none', fontSize: 11, fontWeight: 700,
     padding: '3px 9px', borderRadius: 999, lineHeight: 1.6, color: '#64748b', cursor: 'pointer',
   }
-  const onStyle = { background: '#fff', color: '#0f172a', boxShadow: 'inset 0 0 0 1.5px #fb923c' }
+  const onStyle = { background: '#fff', color: '#0f172a', boxShadow: 'inset 0 0 0 1.5px #d88962' }
   return (
     <div style={{ display: 'inline-flex', gap: 2, padding: 2, borderRadius: 999, background: '#f1f5f9' }}>
       <button type="button"

@@ -52,7 +52,7 @@ function StatCard({ icon, label, value, sub, tone, loading, linkTo }) {
 }
 
 function AttentionItem({ to, icon, title, detail, level = 'neutral', action = 'Open' }) {
-  const color = level === 'high' ? '#B91C1C' : level === 'medium' ? '#C2410C' : '#053541'
+  const color = level === 'high' ? '#B91C1C' : level === 'medium' ? '#A3422E' : '#053541'
   const background = level === 'high' ? '#FEF2F2' : level === 'medium' ? '#FFF7E6' : '#E3EEF0'
 
   return (
@@ -413,7 +413,7 @@ export default function AdminDashboard() {
                   disabled={clearingSeed}
                   leadingIcon={<Icon as={Sprout} size="sm" />}
                   className="shrink-0"
-                  style={{ backgroundColor: '#FF7A1A', color: 'white' }}
+                  style={{ backgroundColor: '#D97757', color: 'white' }}
                 >
                   {seeding ? 'Seeding…' : 'Run seed'}
                 </Button>
@@ -430,7 +430,7 @@ export default function AdminDashboard() {
               </div>
             </div>
             {seedMsg && (
-              <p className="mt-3 text-[12px] font-bold rounded-xl px-4 py-2" style={{ background: '#FFEDD5', color: '#9A3412' }}>
+              <p className="mt-3 text-[12px] font-bold rounded-xl px-4 py-2" style={{ background: '#F8EADF', color: '#83372C' }}>
                 {seedMsg}
               </p>
             )}
@@ -506,7 +506,7 @@ export default function AdminDashboard() {
                   <div className="text-right">
                     <p
                       className="admin-game-display text-[18px] leading-none"
-                      style={{ color: pctColor(r.percentage) === 'green' ? '#047857' : pctColor(r.percentage) === 'amber' ? '#C2410C' : '#B91C1C' }}
+                      style={{ color: pctColor(r.percentage) === 'green' ? '#047857' : pctColor(r.percentage) === 'amber' ? '#A3422E' : '#B91C1C' }}
                     >
                       {r.percentage}%
                     </p>

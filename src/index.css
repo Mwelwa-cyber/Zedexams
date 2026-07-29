@@ -116,27 +116,37 @@ body.theme-midnight {
 
 body.theme-oatmeal {
   --bg:           #FDF6EC;
-  --bg-subtle:    #FEF3C7;
+  --bg-subtle:    #F7EDE4;
   --card:         #FFFDF7;
-  --card-hover:   #FFF7ED;
+  --card-hover:   #FCF7F3;
   --text:         #1C1917;
   --text-muted:   #78716C;
   --border:       #E7D5C0;
-  /* amber-700, not amber-600: white-on-#D97706 was only 3.18:1 (fails WCAG AA
-     for normal text); #B45309 lifts white text to ~5:1 while staying amber. */
-  --accent:       #B45309;
+  /* Oatmeal is the DEFAULT theme, so this accent is what every public page and
+     every signed-out visitor sees — it is the brand orange, not a per-learner
+     colour choice. It moved from amber to the brand terracotta with the rest of
+     the palette; the yellow-gold ramp still lives in Solar (a deliberate yellow
+     theme) and in --warning below.
+     Still amber-700's LUMINANCE, not amber-600's: white on the brand terracotta
+     #D97757 is only 3.12:1 and fails WCAG AA for normal text, exactly as
+     white-on-#D97706 (3.18:1) did. #B44F2D holds white text at 5.1:1 — the same
+     guarantee #B45309 gave — while reading as the same terracotta. */
+  --accent:       #B44F2D;
   --accent-text:  #FFFFFF;
-  --accent-bg:    #FEF3C7;
-  --accent-fg:    #92400E;
+  --accent-bg:    #F7EAE4;
+  --accent-fg:    #7C3D27;
   --input-bg:     #FFFDF7;
   --input-border: #E7D5C0;
-  --shadow:       rgba(217,119,6,0.08);
-  --hero-gradient: linear-gradient(135deg, #92400E 0%, #D97706 100%);
-  --hero-muted:   #FEF3C7;
-  --shadow-sm:    0 1px 2px rgba(120,70,20,0.05),  0 1px 3px rgba(120,70,20,0.07);
-  --shadow-md:    0 2px 4px rgba(120,70,20,0.07),  0 4px 12px rgba(120,70,20,0.09);
-  --shadow-lg:    0 4px 6px rgba(120,70,20,0.06),  0 10px 28px rgba(120,70,20,0.11);
-  --shadow-xl:    0 12px 24px rgba(120,70,20,0.09), 0 24px 48px rgba(120,70,20,0.13);
+  --shadow:       rgba(197,97,63,0.08);
+  /* The light end is #C5613F rather than #D97757: hero body copy sits on it at
+     normal weight, and 4.07:1 is as close to the brand orange as that text can
+     go. It still beats the 3.19:1 the amber gradient gave it. */
+  --hero-gradient: linear-gradient(135deg, #7C3D27 0%, #C5613F 100%);
+  --hero-muted:   #F7EAE4;
+  --shadow-sm:    0 1px 2px rgba(124,61,39,0.05),  0 1px 3px rgba(124,61,39,0.07);
+  --shadow-md:    0 2px 4px rgba(124,61,39,0.07),  0 4px 12px rgba(124,61,39,0.09);
+  --shadow-lg:    0 4px 6px rgba(124,61,39,0.06),  0 10px 28px rgba(124,61,39,0.11);
+  --shadow-xl:    0 12px 24px rgba(124,61,39,0.09), 0 24px 48px rgba(124,61,39,0.13);
   --shadow-inner-hl: inset 0 1px 0 rgba(255,255,255,0.75);
   --success:      #15803D; --success-bg: #DCFCE7; --success-fg: #166534;
   --warning:      #D97706; --warning-bg: #FEF3C7; --warning-fg: #92400E;
@@ -363,16 +373,16 @@ body.theme-midnight .moe-calendar {
    * pick up the subject-specific palette without per-component changes.
    */
   .quiz-theme-mathematics {
-    --bg:              #fff7ed;
-    --bg-subtle:       #ffedd5;
-    --border:          #fed7aa;
-    --accent:          #ea580c;
+    --bg:              #fcf7f3;
+    --bg-subtle:       #f8eadf;
+    --border:          #efd1bc;
+    --accent:          #c5613f;
     --accent-text:     #ffffff;
-    --accent-bg:       #ffedd5;
-    --accent-fg:       #c2410c;
-    --shadow:          rgba(249,115,22,0.18);
-    --hero-gradient:   linear-gradient(135deg, #c2410c 0%, #f97316 100%);
-    --hero-muted:      #fed7aa;
+    --accent-bg:       #f8eadf;
+    --accent-fg:       #a3422e;
+    --shadow:          rgba(217,119,87,0.18);
+    --hero-gradient:   linear-gradient(135deg, #a3422e 0%, #d97757 100%);
+    --hero-muted:      #efd1bc;
   }
   .quiz-theme-english {
     --bg:              #eff6ff;
@@ -455,17 +465,17 @@ body.theme-midnight .moe-calendar {
     --text:            #0e2a32;
     --text-muted:      #566f76;
     --border:          #d9cfb8;
-    --accent:          #ff7a2e;
+    --accent:          #d97757;
     --accent-text:     #ffffff;
     --accent-bg:       #fff5e6;
-    --accent-fg:       #c2531a;
+    --accent-fg:       #a5523a;
     --input-bg:        #ffffff;
     --input-border:    #d9cfb8;
     --shadow:          rgba(14,42,50,0.10);
     --hero-gradient:   linear-gradient(135deg, #0e2a32 0%, #16505d 100%);
     --hero-muted:      #fde9b8;
     --success:         #10864e; --success-bg: #e6f5ed; --success-fg: #0a5a35;
-    --warning:         #c2531a; --warning-bg: #fff5e6; --warning-fg: #8a3d12;
+    --warning:         #a5523a; --warning-bg: #fff5e6; --warning-fg: #8a3d12;
     --danger:          #b91c1c; --danger-bg:  #fee2e2; --danger-fg:  #7f1414;
     --info:            #16505d; --info-bg:    #e3eef0; --info-fg:    #0e2a32;
   }
@@ -482,10 +492,10 @@ body.theme-midnight .moe-calendar {
   .studio-theme .studio-eyebrow {
     display: inline-flex; align-items: center; gap: 10px;
     font-size: 11px; font-weight: 700; letter-spacing: 1.4px;
-    text-transform: uppercase; color: #ff7a2e;
+    text-transform: uppercase; color: #d97757;
   }
   .studio-theme .studio-eyebrow::before {
-    content: ''; width: 32px; height: 3px; background: #ff7a2e; border-radius: 2px;
+    content: ''; width: 32px; height: 3px; background: #d97757; border-radius: 2px;
   }
   .studio-theme .studio-card {
     background: #ffffff; border: 2px solid #0e2a32; border-radius: 18px;
@@ -498,20 +508,20 @@ body.theme-midnight .moe-calendar {
   }
   .studio-theme .studio-btn-primary {
     display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    background: linear-gradient(180deg, #ff8a45 0%, #ff7a2e 100%);
+    background: linear-gradient(180deg, #dd876a 0%, #d97757 100%);
     color: #fff; border: none; font-weight: 800;
     border-radius: 14px; padding: 11px 18px;
-    box-shadow: 0 1px 0 rgba(255,255,255,.25) inset, 0 8px 18px -8px rgba(230,101,26,.55);
+    box-shadow: 0 1px 0 rgba(255,255,255,.25) inset, 0 8px 18px -8px rgba(197,97,63,.55);
     transition: background .15s ease, transform .15s ease, box-shadow .15s ease;
   }
   .studio-theme .studio-btn-primary:hover:not(:disabled) {
-    background: linear-gradient(180deg, #ff7a2e 0%, #e6651a 100%);
+    background: linear-gradient(180deg, #d97757 0%, #c5613f 100%);
     transform: translateY(-1px);
-    box-shadow: 0 1px 0 rgba(255,255,255,.2) inset, 0 12px 22px -8px rgba(230,101,26,.6);
+    box-shadow: 0 1px 0 rgba(255,255,255,.2) inset, 0 12px 22px -8px rgba(197,97,63,.6);
   }
   .studio-theme .studio-btn-primary:active:not(:disabled) {
     transform: translateY(0);
-    box-shadow: 0 1px 0 rgba(255,255,255,.15) inset, 0 4px 10px -6px rgba(230,101,26,.5);
+    box-shadow: 0 1px 0 rgba(255,255,255,.15) inset, 0 4px 10px -6px rgba(197,97,63,.5);
   }
   .studio-theme .studio-btn-primary:disabled { opacity: .55; cursor: not-allowed; }
   .studio-theme .studio-btn-ghost {
@@ -524,7 +534,7 @@ body.theme-midnight .moe-calendar {
   .studio-theme .studio-btn-ghost:active { transform: translateY(0); }
   .studio-theme .studio-btn-primary:focus-visible,
   .studio-theme .studio-btn-ghost:focus-visible {
-    outline: 3px solid rgba(255,122,46,.45); outline-offset: 2px;
+    outline: 3px solid rgba(217,119,87,.45); outline-offset: 2px;
   }
   /* Spinner shown inside the primary button while a generation runs. */
   .studio-theme .studio-btn-spinner {
@@ -540,7 +550,7 @@ body.theme-midnight .moe-calendar {
   }
   .studio-theme .studio-input:hover:not(:focus) { border-color: #c4b795; }
   .studio-theme .studio-input:focus {
-    outline: none; border-color: #ff7a2e; box-shadow: 0 0 0 3px rgba(255,122,46,.18);
+    outline: none; border-color: #d97757; box-shadow: 0 0 0 3px rgba(217,119,87,.18);
   }
   /* Selects get a hand-drawn chevron instead of the platform default arrow,
      so dropdowns look the same on every OS. */
@@ -572,7 +582,7 @@ body.theme-midnight .moe-calendar {
   }
   .studio-theme .studio-advanced__toggle:hover { color: #0e2a32; }
   .studio-theme .studio-advanced__toggle:focus-visible {
-    outline: 3px solid rgba(255,122,46,.45); outline-offset: -3px; border-radius: 14px;
+    outline: 3px solid rgba(217,119,87,.45); outline-offset: -3px; border-radius: 14px;
   }
   .studio-theme .studio-advanced__label { flex: 0 0 auto; }
   .studio-theme .studio-advanced__hint {
@@ -625,15 +635,15 @@ body.theme-midnight .moe-calendar {
   .studio-theme .studio-page-header::before {
     content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
     background:
-      radial-gradient(520px 260px at 88% -30%, rgba(255,122,46,.28), transparent 65%),
+      radial-gradient(520px 260px at 88% -30%, rgba(217,119,87,.28), transparent 65%),
       radial-gradient(420px 240px at -10% 120%, rgba(56,163,181,.25), transparent 60%);
   }
   .studio-theme .studio-page-header__body { flex: 1; min-width: 240px; }
   .studio-theme .studio-page-header__eyebrow {
     display: inline-flex; align-items: center; gap: 6px; margin-bottom: 12px;
     padding: 5px 12px; border-radius: 999px;
-    background: rgba(255,122,46,.18); color: #ffb98c;
-    border: 1px solid rgba(255,122,46,.45);
+    background: rgba(217,119,87,.18); color: #eab7a4;
+    border: 1px solid rgba(217,119,87,.45);
     font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase;
   }
   .studio-theme .studio-page-header__title {
@@ -661,7 +671,7 @@ body.theme-midnight .moe-calendar {
     font-weight: 700; letter-spacing: .5px;
     background: #0e2a32; color: #fde9b8;
   }
-  .studio-theme .studio-badge-accent { background: #ff7a2e; color: #fff; }
+  .studio-theme .studio-badge-accent { background: #d97757; color: #fff; }
   .studio-theme .studio-badge-success { background: #10864e; color: #fff; }
   .studio-theme .studio-hero {
     background: linear-gradient(135deg, #0e2a32 0%, #16505d 100%);
@@ -678,7 +688,7 @@ body.theme-midnight .moe-calendar {
     align-items: center;
     gap: 10px;
     margin: 0 0 8px;
-    color: #c2531a;
+    color: #a5523a;
     font-size: 11px;
     font-weight: 800;
     letter-spacing: 0;
@@ -691,7 +701,7 @@ body.theme-midnight .moe-calendar {
     height: 3px;
     flex: 0 0 auto;
     border-radius: 2px;
-    background: #ff7a2e;
+    background: #d97757;
   }
 
   .studio-theme .teacher-subscription-banner {
@@ -701,7 +711,7 @@ body.theme-midnight .moe-calendar {
     gap: 16px;
     margin-bottom: 20px;
     padding: 14px 18px;
-    border: 1.5px solid #f59b64;
+    border: 1.5px solid #db9981;
     border-radius: 8px;
     background: #fff5e6;
   }
@@ -725,7 +735,7 @@ body.theme-midnight .moe-calendar {
     padding: 9px 16px;
     border: 0;
     border-radius: 8px;
-    background: #ff7a2e;
+    background: #d97757;
     color: #fff;
     font-size: 14px;
     font-weight: 800;
@@ -734,7 +744,7 @@ body.theme-midnight .moe-calendar {
   }
 
   .studio-theme .teacher-subscription-banner__button:hover {
-    background: #e6651a;
+    background: #c5613f;
   }
 
   .studio-theme .teacher-dashboard-hero {
@@ -761,7 +771,7 @@ body.theme-midnight .moe-calendar {
     margin-bottom: 14px;
     padding: 7px 12px;
     border-radius: 999px;
-    background: #ff7a2e;
+    background: #d97757;
     color: #fff;
     font-size: 12px;
     font-weight: 800;
@@ -819,7 +829,7 @@ body.theme-midnight .moe-calendar {
     min-height: 46px;
     padding: 12px 18px;
     border-radius: 8px;
-    background: #ff7a2e;
+    background: #d97757;
     color: #fff;
     font-size: 14.5px;
     font-weight: 800;
@@ -828,7 +838,7 @@ body.theme-midnight .moe-calendar {
   }
 
   .studio-theme .teacher-dashboard-hero__cta:hover {
-    background: #e6651a;
+    background: #c5613f;
     transform: translateY(-1px);
   }
 
@@ -877,7 +887,7 @@ body.theme-midnight .moe-calendar {
     height: 26px;
     flex: 0 0 auto;
     border-radius: 4px;
-    background: var(--pill-accent, #ff7a2e);
+    background: var(--pill-accent, #d97757);
   }
 
   .studio-theme .teacher-stat-pill__value {
@@ -994,7 +1004,7 @@ body.theme-midnight .moe-calendar {
   }
 
   .studio-theme .teacher-studio-card__badge--accent {
-    background: #ff7a2e;
+    background: #d97757;
     color: #fff;
   }
 
@@ -1164,7 +1174,7 @@ body.theme-midnight .moe-calendar {
     place-items: center;
     border-radius: 12px;
     background: #fff5e6;
-    color: #c2531a;
+    color: #a5523a;
     border: 1.5px solid #f3d4b0;
   }
 
@@ -1247,7 +1257,7 @@ body.theme-midnight .moe-calendar {
     align-items: center;
     gap: 4px;
     flex: 0 0 auto;
-    color: #c2531a;
+    color: #a5523a;
     font-size: 12px;
     font-weight: 800;
     text-decoration: none;
@@ -1255,7 +1265,7 @@ body.theme-midnight .moe-calendar {
   }
 
   .studio-theme .teacher-workspace-section__viewall:hover {
-    color: #ff7a2e;
+    color: #d97757;
   }
 
   .studio-theme .teacher-workspace-grid {
@@ -1279,7 +1289,7 @@ body.theme-midnight .moe-calendar {
   }
 
   .studio-theme a.teacher-workspace-card:hover {
-    border-color: #ff7a2e;
+    border-color: #d97757;
     box-shadow: 0 10px 24px rgba(14,42,50,.10);
     transform: translateY(-2px);
   }
@@ -1329,7 +1339,7 @@ body.theme-midnight .moe-calendar {
     white-space: nowrap;
   }
 
-  .studio-theme .teacher-workspace-card__badge--accent { background: #ff7a2e; color: #fff; }
+  .studio-theme .teacher-workspace-card__badge--accent { background: #d97757; color: #fff; }
   .studio-theme .teacher-workspace-card__badge--saved { background: #0e2a32; color: #fde9b8; }
   .studio-theme .teacher-workspace-card__badge--success { background: #10864e; color: #fff; }
   .studio-theme .teacher-workspace-card__badge--muted { background: #e7e1cf; color: #7a6a4a; }
@@ -1398,7 +1408,7 @@ body.theme-midnight .moe-calendar {
 
   /* ════════════════════════════════════════════════════════════════════
    * Teacher Dashboard — intelligent AI workspace redesign.
-   * Same ZedExams palette (orange #ff7a2e, dark teal hero, cream, white
+   * Same ZedExams palette (orange #d97757, dark teal hero, cream, white
    * cards, light dividers) — just more space, softer shadows, 20–24px radii,
    * and a personalised, time-aware hero.
    * ════════════════════════════════════════════════════════════════════ */
@@ -1418,9 +1428,9 @@ body.theme-midnight .moe-calendar {
     margin-bottom: 18px;
     padding: 14px 18px;
     border-radius: 18px;
-    background: linear-gradient(135deg, #fff5e6 0%, #ffe9d2 100%);
-    border: 1.5px solid #f7cfa6;
-    box-shadow: 0 6px 18px rgba(243,106,42,.10);
+    background: linear-gradient(135deg, #fff5e6 0%, #f7e7dd 100%);
+    border: 1.5px solid #e9cab7;
+    box-shadow: 0 6px 18px rgba(207,107,81,.10);
     animation: teacher-pop .4s cubic-bezier(.2,.8,.2,1.2);
   }
   .studio-theme .teacher-celebrate__emoji { font-size: 24px; line-height: 1; }
@@ -1435,7 +1445,7 @@ body.theme-midnight .moe-calendar {
     padding: 6px; border-radius: 8px;
     min-width: 32px; min-height: 32px;
   }
-  .studio-theme .teacher-celebrate__dismiss:hover { background: rgba(243,106,42,.12); }
+  .studio-theme .teacher-celebrate__dismiss:hover { background: rgba(207,107,81,.12); }
   @keyframes teacher-pop {
     from { opacity: 0; transform: translateY(-8px) scale(.98); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
@@ -1449,14 +1459,14 @@ body.theme-midnight .moe-calendar {
     padding: 34px 36px;
     border-radius: 24px;
     background:
-      radial-gradient(120% 140% at 100% 0%, rgba(255,122,46,.22) 0%, rgba(255,122,46,0) 45%),
+      radial-gradient(120% 140% at 100% 0%, rgba(217,119,87,.22) 0%, rgba(217,119,87,0) 45%),
       linear-gradient(135deg, #0c2a31 0%, #16505d 100%);
     color: #fff;
     box-shadow: 0 18px 44px rgba(14,42,50,.22);
   }
   .studio-theme .teacher-hero--morning {
     background:
-      radial-gradient(120% 150% at 100% 0%, rgba(255,178,90,.30) 0%, rgba(255,178,90,0) 48%),
+      radial-gradient(120% 150% at 100% 0%, rgba(225,165,123,.30) 0%, rgba(225,165,123,0) 48%),
       linear-gradient(135deg, #103039 0%, #1b5b69 100%);
   }
   .studio-theme .teacher-hero--evening {
@@ -1546,7 +1556,7 @@ body.theme-midnight .moe-calendar {
   .studio-theme .teacher-hero__continue-label {
     display: block;
     margin-bottom: 2px;
-    color: #ffd9b8;
+    color: #f2d6c8;
     font-size: 10px;
     font-weight: 800;
     letter-spacing: .08em;
@@ -1584,15 +1594,15 @@ body.theme-midnight .moe-calendar {
     min-height: 46px;
     padding: 12px 18px;
     border-radius: 14px;
-    background: #ff7a2e;
+    background: #d97757;
     color: #fff;
     font-size: 14px;
     font-weight: 800;
     text-decoration: none;
-    box-shadow: 0 8px 20px rgba(243,106,42,.32);
+    box-shadow: 0 8px 20px rgba(207,107,81,.32);
     transition: background .15s ease, transform .15s ease;
   }
-  .studio-theme a.teacher-hero__continue:hover .teacher-hero__cta { background: #e6651a; }
+  .studio-theme a.teacher-hero__continue:hover .teacher-hero__cta { background: #c5613f; }
   /* Empty-state continue (no last item) keeps the CTA as the only action. */
   .studio-theme .teacher-hero__continue--empty .teacher-hero__continue-info { flex: 1 1 auto; }
 
@@ -1606,13 +1616,13 @@ body.theme-midnight .moe-calendar {
   }
   .studio-theme .teacher-section-head .teacher-dashboard-eyebrow { margin-bottom: 12px; }
   .studio-theme .teacher-section-head__link {
-    color: #c2531a;
+    color: #a5523a;
     font-size: 12.5px;
     font-weight: 800;
     text-decoration: none;
     white-space: nowrap;
   }
-  .studio-theme .teacher-section-head__link:hover { color: #ff7a2e; }
+  .studio-theme .teacher-section-head__link:hover { color: #d97757; }
   .studio-theme .teacher-range {
     position: relative;
     display: inline-flex;
@@ -1654,8 +1664,8 @@ body.theme-midnight .moe-calendar {
     transition: border-color .15s ease, box-shadow .15s ease;
   }
   .studio-theme .teacher-universal-search:focus-within {
-    border-color: #ff7a2e;
-    box-shadow: 0 0 0 3px rgba(255,122,46,.16);
+    border-color: #d97757;
+    box-shadow: 0 0 0 3px rgba(217,119,87,.16);
   }
   .studio-theme .teacher-universal-search__icon { color: #8a7a58; flex: 0 0 auto; }
   .studio-theme .teacher-universal-search__input {
@@ -1677,13 +1687,13 @@ body.theme-midnight .moe-calendar {
     height: 44px;
     border: 0;
     border-radius: 13px;
-    background: #ff7a2e;
+    background: #d97757;
     color: #fff;
     cursor: pointer;
-    box-shadow: 0 6px 16px rgba(243,106,42,.28);
+    box-shadow: 0 6px 16px rgba(207,107,81,.28);
     transition: background .15s ease;
   }
-  .studio-theme .teacher-universal-search__filter:hover { background: #e6651a; }
+  .studio-theme .teacher-universal-search__filter:hover { background: #c5613f; }
 
   /* ── Prepare This Week (weekly preparation guide) ─────────────── */
   .studio-theme .teacher-prepweek {
@@ -1766,10 +1776,10 @@ body.theme-midnight .moe-calendar {
   }
   .studio-theme .teacher-prepweek__stage--current .teacher-prepweek__stage-icon {
     background: #fff;
-    color: #ff7a2e;
-    box-shadow: inset 0 0 0 2px #ff7a2e;
+    color: #d97757;
+    box-shadow: inset 0 0 0 2px #d97757;
   }
-  .studio-theme .teacher-prepweek__stage--current .teacher-prepweek__stage-label { color: #c2531a; }
+  .studio-theme .teacher-prepweek__stage--current .teacher-prepweek__stage-label { color: #a5523a; }
   .studio-theme .teacher-prepweek__stage--done .teacher-prepweek__stage-icon {
     background: #e2f0e7;
     color: #2f7d5f;
@@ -1799,7 +1809,7 @@ body.theme-midnight .moe-calendar {
   .studio-theme .teacher-prepweek-row:hover,
   .studio-theme .teacher-prepweek-row:focus-visible { background: #fdf8ec; }
   .studio-theme .teacher-prepweek-row:focus-visible {
-    outline: 2px solid #ff7a2e;
+    outline: 2px solid #d97757;
     outline-offset: -2px;
   }
   .studio-theme .teacher-prepweek-row__status {
@@ -1813,8 +1823,8 @@ body.theme-midnight .moe-calendar {
   .studio-theme .teacher-prepweek-row__status--done { background: #2f7d5f; color: #fff; }
   .studio-theme .teacher-prepweek-row__status--alert { background: #fdecea; color: #c0392b; }
   .studio-theme .teacher-prepweek-row__status--progress {
-    border: 2.5px solid #ff7a2e;
-    border-top-color: #ffd9bd;
+    border: 2.5px solid #d97757;
+    border-top-color: #f3d8cc;
   }
   .studio-theme .teacher-prepweek-row__status--todo { border: 2.5px solid #cfc4a6; }
   .studio-theme .teacher-prepweek-row__body { flex: 1; min-width: 0; }
@@ -1844,7 +1854,7 @@ body.theme-midnight .moe-calendar {
     display: block;
     height: 100%;
     border-radius: 999px;
-    background: #ff7a2e;
+    background: #d97757;
     transition: width .3s ease;
   }
   .studio-theme .teacher-prepweek-row--done .teacher-prepweek-row__fill { background: #2f7d5f; }
@@ -1890,12 +1900,12 @@ body.theme-midnight .moe-calendar {
     min-height: 44px;
   }
   .studio-theme .teacher-prepweek__btn--primary {
-    background: #ff7a2e;
+    background: #d97757;
     color: #fff;
-    box-shadow: 0 6px 16px rgba(243,106,42,.28);
+    box-shadow: 0 6px 16px rgba(207,107,81,.28);
     transition: background .15s ease;
   }
-  .studio-theme .teacher-prepweek__btn--primary:hover { background: #e6651a; }
+  .studio-theme .teacher-prepweek__btn--primary:hover { background: #c5613f; }
   .studio-theme .teacher-prepweek__btn--ghost {
     background: #fff;
     color: #0e2a32;
@@ -1978,7 +1988,7 @@ body.theme-midnight .moe-calendar {
     border-color: #f1d09a;
   }
   .studio-theme .teacher-quickcreate-card:focus-visible {
-    outline: 2px solid #ff7a2e;
+    outline: 2px solid #d97757;
     outline-offset: 2px;
   }
   .studio-theme .teacher-quickcreate-card__icon {
@@ -2020,7 +2030,7 @@ body.theme-midnight .moe-calendar {
     transition: background .15s ease, color .15s ease;
   }
   .studio-theme .teacher-quickcreate-card:hover .teacher-quickcreate-card__go {
-    background: #ff7a2e;
+    background: #d97757;
     color: #fff;
   }
   @media (max-width: 1024px) {
@@ -2056,7 +2066,7 @@ body.theme-midnight .moe-calendar {
     border-color: #f1d09a;
   }
   .studio-theme .teacher-workspace-toggle:focus-visible {
-    outline: 2px solid #ff7a2e;
+    outline: 2px solid #d97757;
     outline-offset: 2px;
   }
   /* The button variant of a section-head link (same look, no anchor). */
@@ -2070,7 +2080,7 @@ body.theme-midnight .moe-calendar {
   }
   /* Programmatic focus target — a visible ring only for keyboard focus. */
   .studio-theme .teacher-workspace-header__title:focus-visible {
-    outline: 2px solid #ff7a2e;
+    outline: 2px solid #d97757;
     outline-offset: 4px;
     border-radius: 6px;
   }
@@ -2201,12 +2211,12 @@ body.theme-midnight .moe-calendar {
   }
   .studio-theme .studio-next-steps__btn:hover { background: #f4f8fd; }
   .studio-theme .studio-next-steps__btn--primary {
-    background: #ff7a2e;
-    border-color: #ff7a2e;
+    background: #d97757;
+    border-color: #d97757;
     color: #fff;
-    box-shadow: 0 6px 16px rgba(243,106,42,.28);
+    box-shadow: 0 6px 16px rgba(207,107,81,.28);
   }
-  .studio-theme .studio-next-steps__btn--primary:hover { background: #e6651a; }
+  .studio-theme .studio-next-steps__btn--primary:hover { background: #c5613f; }
 
   /* ── Free-preview upsell (post-generation upgrade prompt) ─────── */
   .studio-theme .teacher-preview-upsell {
@@ -2248,12 +2258,12 @@ body.theme-midnight .moe-calendar {
     min-height: 42px;
   }
   .studio-theme .teacher-preview-upsell__btn--primary {
-    background: #ff7a2e;
+    background: #d97757;
     color: #fff;
-    box-shadow: 0 6px 16px rgba(243,106,42,.28);
+    box-shadow: 0 6px 16px rgba(207,107,81,.28);
     transition: background .15s ease;
   }
-  .studio-theme .teacher-preview-upsell__btn--primary:hover { background: #e6651a; }
+  .studio-theme .teacher-preview-upsell__btn--primary:hover { background: #c5613f; }
   .studio-theme .teacher-preview-upsell__btn--ghost {
     background: #fff;
     color: #0e2a32;
@@ -2310,8 +2320,8 @@ body.theme-midnight .moe-calendar {
     margin-top: 8px;
     padding: 10px 16px;
     border-radius: 12px;
-    border: 1.5px solid #ff7a2e;
-    color: #c2531a;
+    border: 1.5px solid #d97757;
+    color: #a5523a;
     background: #fff;
     font-size: 13px;
     font-weight: 800;
@@ -2321,11 +2331,11 @@ body.theme-midnight .moe-calendar {
   }
   .studio-theme .teacher-reco-card__action:hover,
   .studio-theme .teacher-reco-card__action:focus-visible {
-    background: #ff7a2e;
+    background: #d97757;
     color: #fff;
   }
   .studio-theme .teacher-reco-card__action:focus-visible {
-    outline: 2px solid #ff7a2e;
+    outline: 2px solid #d97757;
     outline-offset: 2px;
   }
 
@@ -2377,9 +2387,9 @@ body.theme-midnight .moe-calendar {
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .studio-theme .teacher-recent-row__title:hover { color: #c2531a; }
+  .studio-theme .teacher-recent-row__title:hover { color: #a5523a; }
   .studio-theme .teacher-recent-row__title:focus-visible {
-    outline: 2px solid #ff7a2e;
+    outline: 2px solid #d97757;
     outline-offset: 2px;
     border-radius: 4px;
   }
@@ -2402,7 +2412,7 @@ body.theme-midnight .moe-calendar {
     flex: 1;
     min-width: 0;
     padding: 6px 10px;
-    border: 1.5px solid #ff7a2e;
+    border: 1.5px solid #d97757;
     border-radius: 9px;
     font-size: 13px;
     font-weight: 700;
@@ -2494,7 +2504,7 @@ body.theme-midnight .moe-calendar {
     flex: 0 0 auto;
     font-size: 12px;
     font-weight: 800;
-    color: #c2531a;
+    color: #a5523a;
     white-space: nowrap;
   }
   .studio-theme .teacher-recent-row__rename-problem {
@@ -2566,7 +2576,7 @@ body.theme-midnight .moe-calendar {
   }
   .studio-theme a.teacher-continue-card:hover {
     transform: translateY(-3px);
-    border-color: #ff7a2e;
+    border-color: #d97757;
     box-shadow: 0 14px 30px rgba(14,42,50,.10);
   }
   .studio-theme .teacher-continue-card--skeleton {
@@ -2627,7 +2637,7 @@ body.theme-midnight .moe-calendar {
   .studio-theme .teacher-continue-card__fill {
     height: 100%;
     border-radius: 999px;
-    background: linear-gradient(90deg, #ff9a4d 0%, #ff7a2e 100%);
+    background: linear-gradient(90deg, #df9370 0%, #d97757 100%);
     transition: width .6s cubic-bezier(.4,0,.2,1);
   }
   .studio-theme .teacher-continue-card__foot {
@@ -2716,13 +2726,13 @@ body.theme-midnight .moe-calendar {
     border-radius: 13px;
     background: #fff5e6;
     border: 1.5px solid #f3d4b0;
-    color: #c2531a;
+    color: #a5523a;
     font-size: 13.5px;
     font-weight: 800;
     text-decoration: none;
     transition: background .15s ease, transform .15s ease;
   }
-  .studio-theme .teacher-continue-feature__cta:hover { background: #ffe9d2; transform: translateY(-1px); }
+  .studio-theme .teacher-continue-feature__cta:hover { background: #f7e7dd; transform: translateY(-1px); }
 
   /* ── Activity stat cards (coloured badges + trend) ────────────── */
   .studio-theme .teacher-activity { margin-bottom: 26px; }
@@ -2834,7 +2844,7 @@ body.theme-midnight .moe-calendar {
     font-size: 12px;
     font-weight: 800;
   }
-  .studio-theme .teacher-plan-chip--pro { background: #fde6d6; border-color: #f5b78c; color: #b4530f; }
+  .studio-theme .teacher-plan-chip--pro { background: #f6e6e0; border-color: #e2b5a2; color: #984d2e; }
   .studio-theme .teacher-plan-chip--max { background: #e2f0e7; border-color: #a9d3bc; color: #1f5c44; }
 
   /* Inside the compact plan+usage card the chip sits inline, not stacked. */
@@ -2856,16 +2866,16 @@ body.theme-midnight .moe-calendar {
     gap: 7px;
     padding: 10px 16px;
     border-radius: 12px;
-    background: #ff7a2e;
+    background: #d97757;
     color: #fff;
     font-size: 13px;
     font-weight: 800;
     text-decoration: none;
     min-height: 42px;
-    box-shadow: 0 6px 16px rgba(243,106,42,.28);
+    box-shadow: 0 6px 16px rgba(207,107,81,.28);
     transition: background .15s ease;
   }
-  .studio-theme .teacher-usage-card__upgrade:hover { background: #e6651a; }
+  .studio-theme .teacher-usage-card__upgrade:hover { background: #c5613f; }
   .studio-theme .teacher-usage-card__manage {
     font-size: 12.5px;
     font-weight: 800;
@@ -2901,7 +2911,7 @@ body.theme-midnight .moe-calendar {
     flex: 0 0 auto;
     border-radius: 14px;
     background: #fff0e0;
-    color: #ff7a2e;
+    color: #d97757;
   }
   .studio-theme .teacher-usage-card__metric-body { display: flex; flex-direction: column; min-width: 0; }
   .studio-theme .teacher-usage-card__big {
@@ -2924,13 +2934,13 @@ body.theme-midnight .moe-calendar {
     border-radius: 12px;
     border: 1.5px solid #f3d4b0;
     background: #fff5e6;
-    color: #c2531a;
+    color: #a5523a;
     font-size: 13px;
     font-weight: 800;
     cursor: pointer;
     transition: background .15s ease;
   }
-  .studio-theme .teacher-usage-card__toggle:hover { background: #ffe9d2; }
+  .studio-theme .teacher-usage-card__toggle:hover { background: #f7e7dd; }
   .studio-theme .teacher-usage-card__chevron { transition: transform .2s ease; }
   .studio-theme .teacher-usage-card__chevron.is-open { transform: rotate(180deg); }
   .studio-theme .teacher-usage-gauge { position: relative; width: 54px; height: 54px; flex: 0 0 auto; }
@@ -2987,17 +2997,17 @@ body.theme-midnight .moe-calendar {
     --text:            #0F1B2D;
     --text-muted:      #4A5A6E;
     --border:          #0F1B2D;
-    --accent:          #FF7A1A;
+    --accent:          #D97757;
     --accent-text:     #FFFFFF;
-    --accent-bg:       #FFEDD5;
-    --accent-fg:       #C2410C;
+    --accent-bg:       #F8EADF;
+    --accent-fg:       #A3422E;
     --input-bg:        #FFFFFF;
     --input-border:    #0F1B2D;
     --shadow:          rgba(15,27,45,0.10);
     --hero-gradient:   linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
     --hero-muted:      #FDE9B8;
     --success:         #10864E; --success-bg: #E6F5ED; --success-fg: #0A5A35;
-    --warning:         #C2410C; --warning-bg: #FFEDD5; --warning-fg: #9A3412;
+    --warning:         #A3422E; --warning-bg: #F8EADF; --warning-fg: #83372C;
     --danger:          #B91C1C; --danger-bg:  #FEE2E2; --danger-fg:  #7F1414;
     --info:            #0E5E70; --info-bg:    #E3EEF0; --info-fg:    #053541;
   }
@@ -3024,7 +3034,7 @@ body.theme-midnight .moe-calendar {
   .admin-game-theme .admin-game-eyebrow::before,
   .admin-game-theme .studio-eyebrow::before {
     content: ''; width: 22px; height: 3px;
-    border-radius: 2px; background: #FF7A1A;
+    border-radius: 2px; background: #D97757;
   }
   /* Sticker card — white surface with 2px navy border + hard offset shadow.
    * Mirrors .zx-card from /games. Applied to .admin-game-card and remaps the
@@ -3053,7 +3063,7 @@ body.theme-midnight .moe-calendar {
   .admin-game-theme .admin-game-btn-primary,
   .admin-game-theme .studio-btn-primary {
     display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    background: #FF7A1A; color: #FFFFFF;
+    background: #D97757; color: #FFFFFF;
     border: 2px solid #0F1B2D; border-radius: 14px;
     padding: 10px 18px; font-weight: 800;
     box-shadow: 0 3px 0 #0F1B2D;
@@ -3091,7 +3101,7 @@ body.theme-midnight .moe-calendar {
   }
   .admin-game-theme .admin-game-input:focus,
   .admin-game-theme .studio-input:focus {
-    outline: none; box-shadow: 0 0 0 3px rgba(255,122,26,0.25);
+    outline: none; box-shadow: 0 0 0 3px rgba(217,119,87,0.25);
   }
   .admin-game-theme .admin-game-label,
   .admin-game-theme .studio-label {
@@ -3110,7 +3120,7 @@ body.theme-midnight .moe-calendar {
   }
   .admin-game-theme .admin-game-pill-accent,
   .admin-game-theme .studio-badge-accent {
-    background: #FF7A1A; color: #FFFFFF;
+    background: #D97757; color: #FFFFFF;
   }
   .admin-game-theme .admin-game-pill-outline {
     background: #FFFFFF; color: #0F1B2D;
@@ -3123,7 +3133,7 @@ body.theme-midnight .moe-calendar {
     border: 2px solid #0F1B2D; border-radius: 18px;
     box-shadow: 0 2px 0 #0F1B2D;
   }
-  .admin-game-theme .admin-game-tile.tone-orange { background: #FFEDD5; color: #C2410C; }
+  .admin-game-theme .admin-game-tile.tone-orange { background: #F8EADF; color: #A3422E; }
   .admin-game-theme .admin-game-tile.tone-blue   { background: #DBEAFE; color: #1D4ED8; }
   .admin-game-theme .admin-game-tile.tone-green  { background: #D1FAE5; color: #047857; }
   .admin-game-theme .admin-game-tile.tone-yellow { background: #FEF3C7; color: #B45309; }
@@ -3136,11 +3146,11 @@ body.theme-midnight .moe-calendar {
   }
   .admin-game-theme .admin-game-progress > span {
     display: block; height: 100%;
-    background: #FF7A1A; border-radius: 999px;
+    background: #D97757; border-radius: 999px;
   }
   /* Sidebar nav active state — orange sticker */
   .admin-game-theme .admin-game-nav-active {
-    background: #FF7A1A !important;
+    background: #D97757 !important;
     color: #FFFFFF !important;
     border: 2px solid #0F1B2D;
     box-shadow: 0 2px 0 #0F1B2D;
@@ -4461,7 +4471,7 @@ select option {
     width: 18px;
     height: 2px;
     border-radius: 2px;
-    background: #FF7A1A;
+    background: #D97757;
   }
 
   /* Sticker buttons */
@@ -4488,7 +4498,7 @@ select option {
     box-shadow: 0 3px 0 #0F1B2D;
     cursor: not-allowed;
   }
-  .zx-sb-primary   { background: #FF7A1A; color: #fff; }
+  .zx-sb-primary   { background: #D97757; color: #fff; }
   .zx-sb-secondary { background: #fff;    color: #0F1B2D; }
   .zx-sb-dark      { background: #0F172A; color: #fff; }
   .zx-sb-amber     { background: #FBBF24; color: #0F1B2D; }
@@ -4510,7 +4520,7 @@ select option {
     text-transform: uppercase;
     white-space: nowrap;
   }
-  .zx-pill-orange { background: #FF7A1A; color: #fff; }
+  .zx-pill-orange { background: #D97757; color: #fff; }
   .zx-pill-light  { background: #fff;    color: #0F1B2D; }
   .zx-pill-green  { background: #10B981; color: #fff; }
   .zx-pill-amber  { background: #FBBF24; color: #0F1B2D; }
@@ -4550,7 +4560,7 @@ select option {
     font-weight: 800;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: #ffb066;
+    color: #e3a785;
   }
   .ztt-hero-cal {
     display: grid;
@@ -4619,7 +4629,7 @@ select option {
     white-space: nowrap;
   }
   .ztt-badge-next        { background: #1e3a8a; color: #fff; }
-  .ztt-badge-today       { background: #f97316; color: #fff; }
+  .ztt-badge-today       { background: #d97757; color: #fff; }
   .ztt-badge-upcoming    { background: #16a34a; color: #fff; }
   .ztt-badge-in-progress { background: #7c3aed; color: #fff; }
   .ztt-badge-completed   { background: #e2e8f0; color: #475569; }
@@ -4697,7 +4707,7 @@ select option {
     text-align: left;
     padding: 10px 12px;
     border-radius: 16px;
-    background: #fff7ed;
+    background: #fcf7f3;
     border: 1px solid #fcd9a8;
     transition: background 0.15s ease;
   }
@@ -4757,7 +4767,7 @@ select option {
     border: 1px solid transparent;
     transition: background 0.15s ease, color 0.15s ease;
   }
-  .ztt-pick-on { background: #f97316; color: #fff; }
+  .ztt-pick-on { background: #d97757; color: #fff; }
   /* Selected timeline filter chip (blue accent, distinct from the orange
      reminder-offset picks). */
   .ztt-pick-sel { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
@@ -4786,7 +4796,7 @@ select option {
     border: 3px solid var(--card);
     box-shadow: 0 0 0 2px var(--border);
   }
-  .ztt-tl-dot-today { background: #f97316; }
+  .ztt-tl-dot-today { background: #d97757; }
 
   /* Sticky today banner. */
   .ztt-banner {
@@ -4854,7 +4864,7 @@ select option {
   .zx-opt:active { transform: translateY(2px); box-shadow: 0 0 0 #0F1B2D; }
   .zx-opt:disabled { cursor: not-allowed; opacity: 0.7; }
   .zx-opt[data-selected="true"] {
-    background: #FF7A1A;
+    background: #D97757;
     color: #fff;
   }
   .zx-opt[data-selected="true"] .zx-opt-letter {
@@ -4992,9 +5002,9 @@ select option {
     width: 44px;
     height: 36px;
     border-radius: 14px;
-    background: #FF7A1A;
+    background: #D97757;
     color: #fff;
-    box-shadow: 0 6px 18px -6px rgba(255, 122, 26, 0.55);
+    box-shadow: 0 6px 18px -6px rgba(217, 119, 87, 0.55);
     transition: box-shadow 0.2s ease, transform 0.2s ease;
   }
   .zx-nav-pill-idle {
@@ -5101,14 +5111,14 @@ select option {
      at equal-or-higher specificity, so the primary CTA, the picked answer, and
      the correct/wrong markings keep their colour on dark (a learner must still
      see which option they selected). These accents read well on dark as-is. */
-  body.theme-midnight .zx-sb-primary { background: #FF7A1A; color: #fff; }
+  body.theme-midnight .zx-sb-primary { background: #D97757; color: #fff; }
   body.theme-midnight .zx-sb-amber   { background: #FBBF24; color: #0F1B2D; }
   body.theme-midnight .zx-sb-dark    { background: #0F172A; color: #fff; }
-  body.theme-midnight .zx-opt[data-selected="true"] { background: #FF7A1A; color: #fff; border-color: #FF7A1A; }
+  body.theme-midnight .zx-opt[data-selected="true"] { background: #D97757; color: #fff; border-color: #D97757; }
   body.theme-midnight .zx-opt[data-selected="true"] .zx-opt-letter { background: #fff; color: #0F1B2D; }
   body.theme-midnight .zx-opt[data-correct="true"] { background: var(--success); color: #fff; border-color: var(--success); }
   body.theme-midnight .zx-opt[data-wrong="true"]   { background: var(--danger);  color: #fff; border-color: var(--danger); }
-  body.theme-midnight .zx-pill-orange { background: #FF7A1A; color: #fff; }
+  body.theme-midnight .zx-pill-orange { background: #D97757; color: #fff; }
   body.theme-midnight .zx-pill-green  { background: #10B981; color: #fff; }
   body.theme-midnight .zx-pill-amber  { background: #FBBF24; color: #0F1B2D; }
 
@@ -5286,15 +5296,23 @@ select option {
  * true-white with a firmer border + shadow, and bolds the orange CTA to a
  * high-contrast amber-on-ink fill. The learner app's oatmeal theme is
  * untouched because nothing else carries .marketing-page. Kept unlayered
- * (outside @layer) so it wins over the themed utility/component classes. */
+ * (outside @layer) so it wins over the themed utility/component classes.
+ *
+ * The CTA used to be amber-500 with dark ink, which was the loudest fill
+ * available on cream — but it made the public pages the one place the brand
+ * orange was a different colour from the rest of the product. It now carries
+ * the same brand terracotta the app does, with white text at 5.1:1 (the
+ * amber-on-ink pair it replaces was louder, not more legible). --accent is
+ * still declared here rather than inherited from oatmeal, because a signed-in
+ * visitor on another theme can reach a .marketing-page route. */
 .marketing-page {
   --text:         #1F1F1F;   /* main text — was #1C1917 */
   --text-muted:   #4B5563;   /* secondary copy — was #78716C (too faint) */
   --border:       #E2D6C0;   /* firmer hairline on cream */
   --card:         #FFFFFF;   /* true-white cards, not the cream #FFFDF7 */
   --card-hover:   #FFFBF3;
-  --accent:       #F59E0B;   /* amber-500 CTA fill */
-  --accent-text:  #111827;   /* dark ink on the orange fill */
+  --accent:       #B44F2D;   /* brand terracotta CTA fill */
+  --accent-text:  #FFFFFF;   /* white on the terracotta fill — 5.1:1 */
   --input-bg:     #FFFFFF;
   --input-border: #D8C9AE;
   /* Cooler, deeper shadows so white cards lift cleanly off the cream bg. */
@@ -5386,10 +5404,10 @@ body.data-saver [data-bg-gradient] {
 /* ── CBC brand palette utility classes ─────────────────────── */
 .bg-brand-blue   { background-color: #1E40AF; }
 .bg-brand-green  { background-color: #15803D; }
-.bg-brand-orange { background-color: #EA580C; }
+.bg-brand-orange { background-color: #C5613F; }
 .text-brand-blue   { color: #1E40AF; }
 .text-brand-green  { color: #15803D; }
-.text-brand-orange { color: #EA580C; }
+.text-brand-orange { color: #C5613F; }
 
 /* ── Safe-area bottom padding (iOS/Android notch) ───────────── */
 .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
@@ -5530,7 +5548,7 @@ body.data-saver [data-bg-gradient] {
   --quiz-border: #0F1B2D;
   --quiz-shadow: #0F1B2D;
   --quiz-highlight: #ffe58a;
-  --quiz-accent: #FF7A1A;
+  --quiz-accent: #D97757;
   --quiz-text-scale: 1;
   --quiz-line-height: 1.5;
   --quiz-underline-style: solid;
@@ -5845,7 +5863,7 @@ body.data-saver [data-bg-gradient] {
   --learner-shell-tint-top: rgba(255, 255, 255, 0.06);
   --learner-shell-glow-1: rgba(37, 99, 235, 0.26);
   --learner-shell-glow-2: rgba(16, 185, 129, 0.18);
-  --learner-shell-glow-3: rgba(249, 115, 22, 0.11);
+  --learner-shell-glow-3: rgba(217, 119, 87, 0.11);
 }
 
 /* Light themes: leave the page-level --bg/--card/--text tokens alone so
@@ -6025,7 +6043,7 @@ body.theme-oatmeal .learner-page-heading {
 
 body.theme-oatmeal .learner-chrome-label,
 body.theme-oatmeal .learner-chrome-icon {
-  color: #c2410c;
+  color: #a3422e;
 }
 
 body.theme-solar .learner-page-heading {
@@ -6071,11 +6089,11 @@ body.theme-midnight .learner-game-theme {
 }
 
 body.theme-oatmeal .learner-game-theme {
-  background-color: #fff7ed;
+  background-color: #fcf7f3;
   background-image:
     radial-gradient(circle at 10% 0%, rgba(217, 119, 6, 0.18), transparent 24rem),
     radial-gradient(circle at 88% 8%, rgba(245, 158, 11, 0.14), transparent 24rem),
-    linear-gradient(180deg, #fff7ed 0%, #ffedd5 52%, #fde68a 100%);
+    linear-gradient(180deg, #fcf7f3 0%, #f8eadf 52%, #fde68a 100%);
 }
 
 body.theme-solar .learner-game-theme {

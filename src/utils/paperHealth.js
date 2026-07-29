@@ -63,7 +63,7 @@ function asArray(value) {
  * }}
  */
 export function computePaperHealth({
-  validation = {}, smartWarnings = [], stats = {}, pagination = null,
+  validation = {}, smartWarnings = [], stats = {}, pagination = null, report = null,
 } = {}) {
   const issues = asArray(validation.issues)
   const summary = asArray(validation.summary)
@@ -78,6 +78,21 @@ export function computePaperHealth({
     .filter((i) => i && i.severity !== 'warn')
     .map((i) => ({ id: i.id, label: i.label }))
 
+  // §10's validation report contributes the defects that only a FINISHED paper
+  // can have: the marks not adding up, a correct answer that is no longer
+  // printed, a diagram a question asks for and does not have, a formula that
+  // would print as its own source. Every question on the paper can be complete
+  // and all four still be true, which is why they cannot come from
+  // collectQuizIssues — it answers "is this question finished".
+  //
+  // The LAYOUT rows are deliberately excluded here and folded into
+  // `printBlockers` below instead: they block the browser routes and not Word,
+  // and merging them would grey out a .docx download that is very likely fine.
+  const reportBlockers = asArray(report?.blockers)
+    .filter((b) => b && b.check !== 'page-layout')
+    .map((b) => ({ id: `report-${b.code}`, label: b.message }))
+  blockers.push(...reportBlockers)
+
   // Advisories = the non-blocking 'warn' validation issues PLUS the advisory
   // ('warn' / 'info') smart warnings. Keyed ids stay stable so React lists and
   // tests can target them.
@@ -88,6 +103,8 @@ export function computePaperHealth({
     ...smart
       .filter((w) => w && (w.severity === 'warn' || w.severity === 'info'))
       .map((w) => ({ id: w.key, label: w.message, severity: w.severity })),
+    ...asArray(report?.warnings)
+      .map((w) => ({ id: `report-${w.code}`, label: w.message, severity: 'warn' })),
   ]
 
   // ── Printability, which is a THIRD classification and not a shade of the
@@ -116,10 +133,17 @@ export function computePaperHealth({
     && pagination.status !== 'failed'
   const layoutUnverified = pagination?.status === 'failed'
 
-  // The green-tick readiness checklist is the validation summary verbatim.
-  const checks = summary
-    .filter(Boolean)
-    .map((s, idx) => ({ id: s.id || `check-${idx}`, label: s.label, ok: Boolean(s.ok) }))
+  // The green-tick readiness checklist: the validation summary verbatim, plus
+  // §10's named checks. Both are "what was verified", and a teacher about to run
+  // forty copies wants to read the whole list rather than infer it from the
+  // absence of complaints.
+  const checks = [
+    ...summary
+      .filter(Boolean)
+      .map((s, idx) => ({ id: s.id || `check-${idx}`, label: s.label, ok: Boolean(s.ok) })),
+    ...asArray(report?.checks)
+      .map((c) => ({ id: `report-${c.id}`, label: c.label, ok: Boolean(c.ok), detail: c.detail || '' })),
+  ]
 
   const blockerCount = blockers.length
   const advisoryCount = advisories.length

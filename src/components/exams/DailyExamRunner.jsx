@@ -782,7 +782,7 @@ function DailyExamRunnerInner() {
                     className="min-h-0 flex-1 rounded-full border-2 border-slate-900 transition-all"
                     style={{
                       height: 10,
-                      background: current ? '#FF7A1A' : isFlagged ? '#FBBF24' : complete ? '#10B981' : '#fff',
+                      background: current ? '#D97757' : isFlagged ? '#FBBF24' : complete ? '#10B981' : '#fff',
                       boxShadow: current ? '0 2px 0 #0F1B2D' : 'none',
                     }}
                   />

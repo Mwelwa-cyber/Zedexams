@@ -17,11 +17,32 @@ name: Visual baseline update (reviewed)
 #
 # ## What it will not do
 #
-#  - update more than the one fixture and one renderer family named
+#  - update more than the one fixture and one renderer family named,
+#    EXCEPT in `scope: every-moved-baseline` (see below)
 #  - update anything without a written reason and a source reference
 #  - update a baseline whose fixture no longer validates
 #  - update from an incomplete render
 #  - push to main
+#
+# ## The sweep, and why it does not reopen the hole
+#
+# A change that legitimately moves EVERY fixture — the paper's header wording,
+# the Word export's margins — turns the one-fixture rule into sixteen dispatches
+# and sixteen pull requests, which the bootstrap validator already names, in
+# those words, as "how a gate ends up permanently red".
+#
+# `scope: every-moved-baseline` re-records them in one run, and what replaces the
+# one-fixture rule is three conditions the recorder enforces
+# (validateSweepUpdateRequest / assertBaselineDestination):
+#
+#  - it REQUIRES a pull request number, and commits the baselines to that pull
+#    request's own branch. The new appearance is still reviewed — alongside the
+#    code change that caused it, which tells a reviewer more than a standalone
+#    baseline pull request, where changed pixels arrive with no explanation of
+#    what moved them.
+#  - it refuses to write to the default branch, so branch protection still
+#    applies to the result.
+#  - reason and source stay required and unchanged.
 #
 # The result is a branch and a pull request, so a baseline change is reviewed
 # like any other change. A baseline committed without review is indistinguishable
@@ -30,15 +51,28 @@ name: Visual baseline update (reviewed)
 on:
   workflow_dispatch:
     inputs:
-      fixture:
-        description: 'Fixture ID to update (e.g. vr-003). One only.'
+      scope:
+        description: 'One baseline, or every baseline this change moved'
         required: true
-        type: string
-      family:
-        description: 'Renderer family whose baseline is being replaced'
-        required: true
+        default: one-baseline
         type: choice
         options:
+          - one-baseline
+          - every-moved-baseline
+      pull_request:
+        description: 'PR number the baselines belong to. REQUIRED for every-moved-baseline; that is where they are reviewed.'
+        required: false
+        type: string
+      fixture:
+        description: 'Fixture ID (e.g. vr-003). Required for one-baseline; narrows a sweep.'
+        required: false
+        type: string
+      family:
+        description: 'Renderer family. Required for one-baseline; narrows a sweep.'
+        required: false
+        type: choice
+        options:
+          - ''
           - browser-print
           - docx
       reason:
@@ -93,8 +127,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libreoffice-writer fonts-liberation
 
-      - name: Validate the fixture before re-recording it
-        run: node scripts/visual/validateFixtures.mjs --fixture="${{ inputs.fixture }}"
+      - name: Validate the fixture(s) before re-recording
+        run: |
+          if [ "${{ inputs.scope }}" = "every-moved-baseline" ] && [ -z "${{ inputs.fixture }}" ]; then
+            node scripts/visual/validateFixtures.mjs
+          else
+            node scripts/visual/validateFixtures.mjs --fixture="${{ inputs.fixture }}"
+          fi
 
       # Compare BEFORE replacing, so the audit record can state what changed
       # rather than only that something was replaced.
@@ -112,14 +151,17 @@ jobs:
             --family="${{ inputs.family }}" \
             --allow-failure
 
-      - name: Re-record the selected baseline only
+      - name: Re-record the selected baseline(s)
         run: |
-          node scripts/visual/runVisualGate.mjs \
-            --mode=update \
-            --fixture="${{ inputs.fixture }}" \
-            --family="${{ inputs.family }}" \
-            --reason="${{ inputs.reason }}" \
-            --source="${{ inputs.source }}"
+          ARGS=(--mode=update --reason="${{ inputs.reason }}" --source="${{ inputs.source }}")
+          if [ -n "${{ inputs.fixture }}" ]; then ARGS+=(--fixture="${{ inputs.fixture }}"); fi
+          if [ -n "${{ inputs.family }}" ]; then ARGS+=(--family="${{ inputs.family }}"); fi
+          if [ "${{ inputs.scope }}" = "every-moved-baseline" ]; then
+            # The recorder re-checks every one of these itself; passing them is
+            # not what authorises the sweep, validateSweepUpdateRequest is.
+            ARGS+=(--sweep --pull-request="${{ inputs.pull_request }}" --branch="${{ github.ref_name }}")
+          fi
+          node scripts/visual/runVisualGate.mjs "${ARGS[@]}"
 
       - name: Upload the before/after evidence
         if: always()
@@ -130,7 +172,53 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
+      # A SWEEP commits to the branch it was dispatched against — the pull
+      # request whose change moved the baselines. That is where they get
+      # reviewed, next to the diff that explains them. The recorder has already
+      # refused the default branch (assertBaselineDestination), so this can only
+      # ever be a feature branch; the guard is repeated here because a step that
+      # pushes should not rely on a previous step having checked.
+      - name: Commit the baselines to this pull request's branch
+        if: inputs.scope == 'every-moved-baseline'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BRANCH="${{ github.ref_name }}"
+          if [ "$BRANCH" = "${{ github.event.repository.default_branch }}" ]; then
+            echo "Refusing to push baselines to the default branch."
+            exit 1
+          fi
+          git config user.email "noreply@anthropic.com"
+          git config user.name "Claude"
+          git add tests/visual/baselines
+          if git diff --cached --quiet; then
+            echo "The baselines already match this render — nothing to update."
+            exit 0
+          fi
+          git commit -m "Visual baselines: re-recorded for #${{ inputs.pull_request }}
+
+          Reason: ${{ inputs.reason }}
+          Source: ${{ inputs.source }}
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          Recorded in one sweep because this change moves every fixture. The new
+          appearance is reviewed on #${{ inputs.pull_request }}, alongside the
+          code change that caused it."
+          git push origin HEAD:"$BRANCH"
+          echo "Pushed to $BRANCH."
+          echo
+          echo "The visual gate will NOT start by itself on this commit. A push made"
+          echo "with GITHUB_TOKEN does not trigger workflows (GitHub's loop"
+          echo "prevention), and on a bot-authored pull request the run that does"
+          echo "appear lands in action_required until a maintainer approves it."
+          echo
+          echo "So do ONE of these, or the baselines sit unverified:"
+          echo "  - press 'Approve and run workflows' on pull request #${{ inputs.pull_request }}, or"
+          echo "  - push any further commit to $BRANCH from a normal account."
+
       - name: Open a pull request for the baseline change
+        if: inputs.scope != 'every-moved-baseline'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

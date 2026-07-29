@@ -47,7 +47,7 @@ export default function DailyChallengeCard({ challenge, streak, loading, hideGra
         className="pointer-events-none absolute inset-0"
         style={{
           backgroundImage:
-            'radial-gradient(circle at 88% 14%, rgba(255,255,255,0.14) 0, transparent 28%), radial-gradient(circle at 12% 95%, rgba(255,154,62,0.32) 0, transparent 38%)',
+            'radial-gradient(circle at 88% 14%, rgba(255,255,255,0.14) 0, transparent 28%), radial-gradient(circle at 12% 95%, rgba(220,143,100,0.32) 0, transparent 38%)',
         }}
       />
 
@@ -59,7 +59,7 @@ export default function DailyChallengeCard({ challenge, streak, loading, hideGra
       <div className="relative grid items-center gap-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-8">
         <div className="relative">
           <div className="flex items-start justify-between gap-3 sm:justify-start sm:gap-4">
-            <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-slate-900 bg-[#FF7A1A] px-2.5 py-1 text-[11.5px] font-bold uppercase tracking-[0.08em] text-white shadow-[0_2px_0_#0F1B2D] sm:px-3 sm:py-1.5 sm:text-xs">
+            <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-slate-900 bg-[#D97757] px-2.5 py-1 text-[11.5px] font-bold uppercase tracking-[0.08em] text-white shadow-[0_2px_0_#0F1B2D] sm:px-3 sm:py-1.5 sm:text-xs">
               <SparklesIcon className="h-3.5 w-3.5" />
               Daily Challenge
             </span>
@@ -137,7 +137,7 @@ function HeroCTA({ gameId, playedToday, streakLine, gradeLabel }) {
   function celebrate() {
     const host = hostRef.current
     if (!host) return
-    const colors = ['#FF7A1A', '#0E5E70', '#EAB308', '#16A34A', '#2563EB', '#FFFFFF']
+    const colors = ['#D97757', '#0E5E70', '#EAB308', '#16A34A', '#2563EB', '#FFFFFF']
     for (let i = 0; i < 28; i += 1) {
       const piece = document.createElement('span')
       piece.className = 'zx-confetti-piece'
@@ -156,7 +156,7 @@ function HeroCTA({ gameId, playedToday, streakLine, gradeLabel }) {
         to={`/games/play/${gameId}`}
         ref={linkRef}
         onClick={celebrate}
-        className="zx-play-btn inline-flex items-center gap-1.5 rounded-full border-2 border-slate-900 bg-[#FF7A1A] px-5 py-3 text-[15px] font-bold text-white shadow-[0_2px_0_#0F1B2D] transition active:translate-y-[2px] active:shadow-none"
+        className="zx-play-btn inline-flex items-center gap-1.5 rounded-full border-2 border-slate-900 bg-[#D97757] px-5 py-3 text-[15px] font-bold text-white shadow-[0_2px_0_#0F1B2D] transition active:translate-y-[2px] active:shadow-none"
       >
         <PlayIcon className="h-4 w-4" />
         {playedToday ? 'Play again' : 'Play now ▸'}

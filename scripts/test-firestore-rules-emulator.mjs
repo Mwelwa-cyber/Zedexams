@@ -59,6 +59,10 @@ const EXPIRED_LEARNER = 'expired_learner'
 const LIFETIME_LEARNER = 'lifetime_learner'
 const SUSPENDED_LEARNER = 'suspended_learner'
 const SUSPENDED_TEACHER = 'suspended_teacher'
+// Sensitive-collection fixtures: a Firestore-role super admin (isSuperAdmin()
+// accepts users.role == 'superAdmin') and a family-portal parent account.
+const SUPER_ADMIN = 'super_admin_user'
+const PARENT_USER = 'parent_user'
 
 // Every rule beyond the signup surface now requires the email_verified token
 // claim (firestore.rules isVerified()), so authed contexts must mint it —
@@ -98,6 +102,11 @@ async function main() {
 
   const [host, portStr] = process.env.FIRESTORE_EMULATOR_HOST.split(':')
   const port = Number(portStr) || 8080
+
+  // One runtime-computed date key shared by the date-keyed rollup fixtures and
+  // their tests, so a run straddling midnight UTC can't seed one day and read
+  // another. Never a hard-coded literal.
+  const DAY = new Date().toISOString().slice(0, 10)
 
   const testEnv = await initializeTestEnvironment({
     projectId: PROJECT_ID,
@@ -340,6 +349,120 @@ async function main() {
       createdAt: new Date(),
       updatedAt: new Date(),
     })
+
+    // ── Sensitive server-owned collections (fixtures) ─────────────────
+    // Role docs for the extra identities used below.
+    await setDoc(doc(db, 'users', SUPER_ADMIN), { role: 'superAdmin' })
+    await setDoc(doc(db, 'users', PARENT_USER), { role: 'parent' })
+
+    // invoices — server-issued MoMo receipt owned by LEARNER_A.
+    await setDoc(doc(db, 'invoices', 'inv_learner_a'), {
+      paymentId: 'pay_learner_a', userId: LEARNER_A,
+      number: 'ZE-00000000-000001', amount: 50, currency: 'ZMW',
+      provider: 'MTN MoMo', issuedAt: new Date(),
+    })
+
+    // Audit ledgers — written only via the admin SDK.
+    await setDoc(doc(db, 'adminAuditLogs', 'audit_1'), {
+      action: 'role_change', actorUid: ADMIN, targetUid: LEARNER_A, at: new Date(),
+    })
+    await setDoc(doc(db, 'securityAuditLogs', 'sec_1'), {
+      event: 'mfa_enrolled', uid: ADMIN, at: new Date(),
+    })
+
+    // schoolLicences — TEACHER_A is a member; TEACHER_B is not.
+    await setDoc(doc(db, 'schoolLicences', 'licence_1'), {
+      schoolName: 'Test Basic School', memberUids: [TEACHER_A],
+      seats: 10, status: 'active',
+    })
+
+    // subscriptionEvents — append-only cancel/reactivate ledger row.
+    await setDoc(doc(db, 'subscriptionEvents', 'subev_a'), {
+      uid: LEARNER_A, type: 'cancelled', at: new Date(),
+    })
+
+    // Internal counters + rollups (rateLimits / aiUsage tree / aiDailyLimits
+    // / aiUsageDaily / newsletterSignupRateLimit).
+    await setDoc(doc(db, 'rateLimits', `uid_${LEARNER_A}_0`), {
+      count: 3, expireAt: new Date(),
+    })
+    await setDoc(doc(db, 'aiUsage', DAY), { totalCostUsd: 1.23, callCount: 4 })
+    await setDoc(doc(db, 'aiUsage', DAY, 'users', TEACHER_A), {
+      costUsd: 0.5, callCount: 2,
+    })
+    await setDoc(doc(db, 'aiDailyLimits', `${LEARNER_A}_${DAY}`), { calls: 5 })
+    await setDoc(doc(db, 'aiUsageDaily', DAY), { totalCostUsd: 1.23 })
+    await setDoc(doc(db, 'newsletterSignupRateLimit', 'ip_hash_1'), { count: 2 })
+
+    // Family portal — a parent↔learner link pair + a learner-owned invite code.
+    await setDoc(doc(db, 'parentLinks', `${PARENT_USER}_${LEARNER_A}`), {
+      parentUid: PARENT_USER, learnerUid: LEARNER_A, createdAt: new Date(),
+    })
+    await setDoc(doc(db, 'parentLinks', `${PARENT_USER}_${LEARNER_B}`), {
+      parentUid: PARENT_USER, learnerUid: LEARNER_B, createdAt: new Date(),
+    })
+    await setDoc(doc(db, 'familyInviteCodes', 'FAMCODE1'), {
+      learnerUid: LEARNER_A, createdAt: new Date(),
+    })
+
+    // parentDigestEvents — weekly-digest audit row about LEARNER_A.
+    await setDoc(doc(db, 'parentDigestEvents', 'digest_1'), {
+      learnerUid: LEARNER_A, parentEmail: 'parent@example.com', sentAt: new Date(),
+    })
+
+    // downloadTickets — bearer-credential ticket; fully server-only.
+    await setDoc(doc(db, 'downloadTickets', 'ticket_1'), {
+      ownerUid: TEACHER_A, path: 'library/x.docx', expiresAt: new Date(),
+    })
+
+    // assessmentExports — export state for TEACHER_A's assessment.
+    await setDoc(doc(db, 'assessmentExports', 'assess_teacher_a'), {
+      ownerUid: TEACHER_A, status: 'ready',
+      storagePath: 'exports/assess_teacher_a.docx',
+    })
+
+    // agentJobs — one job owned by TEACHER_A awaiting approval, one the
+    // admin-delete case can remove without disturbing the first.
+    await setDoc(doc(db, 'agentJobs', 'job_teacher_a'), {
+      agentId: 'aria', department: 'content', status: 'awaiting_approval',
+      createdBy: TEACHER_A, input: { topic: 'Fractions' },
+    })
+    await setDoc(doc(db, 'agentJobs', 'job_to_delete'), {
+      agentId: 'aria', department: 'content', status: 'rejected',
+      createdBy: TEACHER_A, input: {},
+    })
+
+    // questionBank — a private pending row owned by TEACHER_A, a Master-Bank
+    // row owned by TEACHER_B, and a second owned row for the delete case.
+    await setDoc(doc(db, 'questionBank', 'qb_owned'), {
+      ownerId: TEACHER_A, reviewStatus: 'pending_review', masterEligible: false,
+      text: 'What is 1/2 + 1/4?', grade: '5', subject: 'Mathematics',
+    })
+    await setDoc(doc(db, 'questionBank', 'qb_master'), {
+      ownerId: TEACHER_B, reviewStatus: 'approved', masterEligible: true,
+      text: 'Master bank question', grade: '5', subject: 'Mathematics',
+    })
+    await setDoc(doc(db, 'questionBank', 'qb_owned_del'), {
+      ownerId: TEACHER_A, reviewStatus: 'private_saved', masterEligible: false,
+      text: 'Delete me', grade: '5', subject: 'Mathematics',
+    })
+
+    // topicMisconceptions — server-only distractor memory.
+    await setDoc(doc(db, 'topicMisconceptions', 'cbc_5_mathematics_fractions'), {
+      misconceptions: [{ text: 'Adds numerators and denominators', count: 3 }],
+    })
+
+    // Passkey (WebAuthn) server-only store + admin-readable audit trail.
+    await setDoc(doc(db, 'passkeyCredentials', 'cred_1'), {
+      uid: LEARNER_A, publicKey: 'pk', counter: 1,
+    })
+    await setDoc(doc(db, 'webauthnChallenges', 'chal_1'), {
+      challengeHash: 'abc', expiresAt: new Date(),
+    })
+    await setDoc(doc(db, 'passkeyUserHandles', LEARNER_A), { handle: 'opaque' })
+    await setDoc(doc(db, 'passkeyAuditLog', 'pk_evt_1'), {
+      event: 'registered', uidHash: 'h', at: new Date(),
+    })
   })
 
   const learnerA = testEnv.authenticatedContext(LEARNER_A, verifiedToken(LEARNER_A)).firestore()
@@ -356,6 +479,8 @@ async function main() {
   const lifetimeLearner = testEnv.authenticatedContext(LIFETIME_LEARNER, verifiedToken(LIFETIME_LEARNER)).firestore()
   const suspendedLearner = testEnv.authenticatedContext(SUSPENDED_LEARNER, verifiedToken(SUSPENDED_LEARNER)).firestore()
   const suspendedTeacher = testEnv.authenticatedContext(SUSPENDED_TEACHER, verifiedToken(SUSPENDED_TEACHER)).firestore()
+  const superAdmin = testEnv.authenticatedContext(SUPER_ADMIN, verifiedToken(SUPER_ADMIN)).firestore()
+  const parent = testEnv.authenticatedContext(PARENT_USER, verifiedToken(PARENT_USER)).firestore()
 
   // ── users/{uid} ──────────────────────────────────────────────
   section('users/{uid} — profile + role + subscription pinning')
@@ -1368,6 +1493,492 @@ async function main() {
     await assertFails(setDoc(doc(learnerA, 'pastPapers', 'learner_paper'), {
       title: 'x', grade: '7', subject: 'Mathematics', year: 2023,
       status: 'published', uploadedBy: LEARNER_A,
+    }))
+  })
+
+  // ── invoices/{invoiceId} — owner+admin read, server-only writes ──
+  section('invoices — owner/admin read, no client writes')
+
+  await test('owner can read their own invoice', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'invoices', 'inv_learner_a')))
+  })
+
+  await test('another learner CANNOT read someone else’s invoice', async () => {
+    await assertFails(getDoc(doc(learnerB, 'invoices', 'inv_learner_a')))
+  })
+
+  await test('admin can read any invoice', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'invoices', 'inv_learner_a')))
+  })
+
+  await test('owner CANNOT forge an invoice (create is server-only)', async () => {
+    await assertFails(setDoc(doc(learnerA, 'invoices', 'inv_forged'), {
+      paymentId: 'p', userId: LEARNER_A, amount: 0, currency: 'ZMW',
+    }))
+  })
+
+  await test('admin CANNOT alter an invoice from the client (update is server-only)', async () => {
+    await assertFails(updateDoc(doc(admin, 'invoices', 'inv_learner_a'), { amount: 1 }))
+  })
+
+  // ── adminAuditLogs / securityAuditLogs — tamper-resistant ledgers ──
+  section('audit ledgers — admin/super-admin read, no client writes ever')
+
+  await test('admin can read adminAuditLogs', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'adminAuditLogs', 'audit_1')))
+  })
+
+  await test('a learner CANNOT read adminAuditLogs', async () => {
+    await assertFails(getDoc(doc(learnerA, 'adminAuditLogs', 'audit_1')))
+  })
+
+  await test('even an admin CANNOT append to adminAuditLogs from the client', async () => {
+    await assertFails(setDoc(doc(admin, 'adminAuditLogs', 'audit_forged'), {
+      action: 'fake', actorUid: ADMIN,
+    }))
+  })
+
+  await test('super admin can read securityAuditLogs', async () => {
+    await assertSucceeds(getDoc(doc(superAdmin, 'securityAuditLogs', 'sec_1')))
+  })
+
+  await test('a REGULAR admin CANNOT read securityAuditLogs (isSuperAdmin only)', async () => {
+    // Stricter than adminAuditLogs on purpose — these rows concern who can
+    // reach privileged admin actions.
+    await assertFails(getDoc(doc(admin, 'securityAuditLogs', 'sec_1')))
+  })
+
+  await test('even a super admin CANNOT write securityAuditLogs from the client', async () => {
+    await assertFails(setDoc(doc(superAdmin, 'securityAuditLogs', 'sec_forged'), {
+      event: 'fake',
+    }))
+  })
+
+  // ── schoolLicences — member read, admin-only write ───────────
+  section('schoolLicences — member/admin read, admin-only write')
+
+  await test('a member teacher can read their school licence', async () => {
+    await assertSucceeds(getDoc(doc(teacherA, 'schoolLicences', 'licence_1')))
+  })
+
+  await test('a non-member teacher CANNOT read the licence', async () => {
+    await assertFails(getDoc(doc(teacherB, 'schoolLicences', 'licence_1')))
+  })
+
+  await test('admin can read any licence', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'schoolLicences', 'licence_1')))
+  })
+
+  await test('a member teacher CANNOT edit the licence (e.g. add seats/members)', async () => {
+    await assertFails(updateDoc(doc(teacherA, 'schoolLicences', 'licence_1'), {
+      memberUids: [TEACHER_A, TEACHER_B],
+    }))
+  })
+
+  await test('admin CAN write a licence', async () => {
+    await assertSucceeds(updateDoc(doc(admin, 'schoolLicences', 'licence_1'), { seats: 12 }))
+  })
+
+  // ── subscriptionEvents — owner/admin read, append server-only ──
+  section('subscriptionEvents — owner/admin read, no client writes')
+
+  await test('owner can read their own subscription event', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'subscriptionEvents', 'subev_a')))
+  })
+
+  await test('another learner CANNOT read someone else’s subscription event', async () => {
+    await assertFails(getDoc(doc(learnerB, 'subscriptionEvents', 'subev_a')))
+  })
+
+  await test('admin can read any subscription event', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'subscriptionEvents', 'subev_a')))
+  })
+
+  await test('a client CANNOT forge a subscription event', async () => {
+    await assertFails(setDoc(doc(learnerA, 'subscriptionEvents', 'subev_forged'), {
+      uid: LEARNER_A, type: 'reactivated',
+    }))
+  })
+
+  // ── internal counters + rollups — server-only bookkeeping ────
+  section('rateLimits / aiDailyLimits / downloadTickets / topicMisconceptions — fully server-only')
+
+  await test('a learner CANNOT read their own rateLimits counter', async () => {
+    await assertFails(getDoc(doc(learnerA, 'rateLimits', `uid_${LEARNER_A}_0`)))
+  })
+
+  await test('even an admin CANNOT read rateLimits (no client rule at all)', async () => {
+    await assertFails(getDoc(doc(admin, 'rateLimits', `uid_${LEARNER_A}_0`)))
+  })
+
+  await test('a client CANNOT reset a rateLimits counter (dodge the throttle)', async () => {
+    await assertFails(setDoc(doc(learnerA, 'rateLimits', `uid_${LEARNER_A}_0`), { count: 0 }))
+  })
+
+  await test('a learner CANNOT read their own aiDailyLimits counter', async () => {
+    await assertFails(getDoc(doc(learnerA, 'aiDailyLimits', `${LEARNER_A}_${DAY}`)))
+  })
+
+  await test('even an admin CANNOT read or reset aiDailyLimits from the client', async () => {
+    await assertFails(getDoc(doc(admin, 'aiDailyLimits', `${LEARNER_A}_${DAY}`)))
+    await assertFails(setDoc(doc(admin, 'aiDailyLimits', `${LEARNER_A}_${DAY}`), { calls: 0 }))
+  })
+
+  await test('the ticket owner CANNOT read a downloadTicket (bearer id is server-only)', async () => {
+    await assertFails(getDoc(doc(teacherA, 'downloadTickets', 'ticket_1')))
+  })
+
+  await test('even an admin CANNOT read or mint a downloadTicket from the client', async () => {
+    await assertFails(getDoc(doc(admin, 'downloadTickets', 'ticket_1')))
+    await assertFails(setDoc(doc(admin, 'downloadTickets', 'ticket_forged'), {
+      ownerUid: ADMIN, path: 'x',
+    }))
+  })
+
+  await test('a teacher CANNOT read topicMisconceptions (server-only, both directions)', async () => {
+    await assertFails(getDoc(doc(teacherA, 'topicMisconceptions', 'cbc_5_mathematics_fractions')))
+  })
+
+  await test('even an admin CANNOT read or write topicMisconceptions from the client', async () => {
+    await assertFails(getDoc(doc(admin, 'topicMisconceptions', 'cbc_5_mathematics_fractions')))
+    await assertFails(setDoc(doc(admin, 'topicMisconceptions', 'cbc_5_mathematics_forged'), {
+      misconceptions: [],
+    }))
+  })
+
+  // ── aiUsage / aiUsageDaily — admin-read cost rollups ─────────
+  section('aiUsage + aiUsageDaily — admin read only, server-only writes')
+
+  const COST_DAY = DAY
+
+  await test('admin can read an aiUsage day doc and its subcollection shard', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'aiUsage', COST_DAY)))
+    await assertSucceeds(getDoc(doc(admin, 'aiUsage', COST_DAY, 'users', TEACHER_A)))
+  })
+
+  await test('a teacher CANNOT read the aiUsage rollup (per-user spend is sensitive)', async () => {
+    await assertFails(getDoc(doc(teacherA, 'aiUsage', COST_DAY)))
+    await assertFails(getDoc(doc(teacherA, 'aiUsage', COST_DAY, 'users', TEACHER_A)))
+  })
+
+  await test('even an admin CANNOT write aiUsage from the client', async () => {
+    await assertFails(updateDoc(doc(admin, 'aiUsage', COST_DAY), { totalCostUsd: 0 }))
+    await assertFails(setDoc(doc(admin, 'aiUsage', COST_DAY, 'users', ADMIN), { costUsd: 0 }))
+  })
+
+  await test('admin can read aiUsageDaily; a learner cannot', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'aiUsageDaily', COST_DAY)))
+    await assertFails(getDoc(doc(learnerA, 'aiUsageDaily', COST_DAY)))
+  })
+
+  await test('even an admin CANNOT write aiUsageDaily from the client', async () => {
+    await assertFails(updateDoc(doc(admin, 'aiUsageDaily', COST_DAY), { totalCostUsd: 0 }))
+  })
+
+  // ── family portal — parentLinks + familyInviteCodes ──────────
+  section('parentLinks + familyInviteCodes — link visibility scoped to both ends')
+
+  await test('the parent can read their own link', async () => {
+    await assertSucceeds(getDoc(doc(parent, 'parentLinks', `${PARENT_USER}_${LEARNER_A}`)))
+  })
+
+  await test('the learner can read a link about them', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'parentLinks', `${PARENT_USER}_${LEARNER_A}`)))
+  })
+
+  await test('a third party CANNOT read someone else’s parent link', async () => {
+    await assertFails(getDoc(doc(learnerB, 'parentLinks', `${PARENT_USER}_${LEARNER_A}`)))
+  })
+
+  await test('the parent dashboard list (where parentUid == uid) succeeds', async () => {
+    await assertSucceeds(getDocs(query(
+      collection(parent, 'parentLinks'), where('parentUid', '==', PARENT_USER),
+    )))
+  })
+
+  await test('an unfiltered parentLinks scan is denied', async () => {
+    await assertFails(getDocs(collection(learnerA, 'parentLinks')))
+  })
+
+  await test('a client CANNOT forge a parent link (create is callable-only)', async () => {
+    await assertFails(setDoc(doc(parent, 'parentLinks', `${PARENT_USER}_forged`), {
+      parentUid: PARENT_USER, learnerUid: LEARNER_B, createdAt: serverTimestamp(),
+    }))
+  })
+
+  await test('the learner CAN cut off a link about them (delete)', async () => {
+    await assertSucceeds(deleteDoc(doc(learnerA, 'parentLinks', `${PARENT_USER}_${LEARNER_A}`)))
+  })
+
+  await test('the parent CAN delete their own link', async () => {
+    await assertSucceeds(deleteDoc(doc(parent, 'parentLinks', `${PARENT_USER}_${LEARNER_B}`)))
+  })
+
+  await test('the owning learner can read their own family invite code', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'familyInviteCodes', 'FAMCODE1')))
+  })
+
+  await test('another learner CANNOT read someone else’s invite code', async () => {
+    await assertFails(getDoc(doc(learnerB, 'familyInviteCodes', 'FAMCODE1')))
+  })
+
+  await test('a learner-scoped list of their own codes succeeds; an unfiltered scan fails', async () => {
+    await assertSucceeds(getDocs(query(
+      collection(learnerA, 'familyInviteCodes'), where('learnerUid', '==', LEARNER_A),
+    )))
+    await assertFails(getDocs(collection(learnerA, 'familyInviteCodes')))
+  })
+
+  await test('a learner CANNOT mint or revoke a code client-side (callable-only)', async () => {
+    await assertFails(setDoc(doc(learnerA, 'familyInviteCodes', 'FAMFORGED'), {
+      learnerUid: LEARNER_A, createdAt: serverTimestamp(),
+    }))
+    await assertFails(deleteDoc(doc(learnerA, 'familyInviteCodes', 'FAMCODE1')))
+  })
+
+  // ── parentDigestEvents — owner-learner/admin read, append server-only ──
+  section('parentDigestEvents — learner/admin read, no client writes')
+
+  await test('the learner can read their own digest event', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'parentDigestEvents', 'digest_1')))
+  })
+
+  await test('another learner CANNOT read it (it carries the parent email)', async () => {
+    await assertFails(getDoc(doc(learnerB, 'parentDigestEvents', 'digest_1')))
+  })
+
+  await test('admin can read any digest event', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'parentDigestEvents', 'digest_1')))
+  })
+
+  await test('a client CANNOT append a digest event', async () => {
+    await assertFails(setDoc(doc(learnerA, 'parentDigestEvents', 'digest_forged'), {
+      learnerUid: LEARNER_A, sentAt: serverTimestamp(),
+    }))
+  })
+
+  // ── assessmentExports — owner-read of server-owned export state ──
+  section('assessmentExports — owner/admin read, no client writes at all')
+
+  await test('the owning teacher can read their export state', async () => {
+    await assertSucceeds(getDoc(doc(teacherA, 'assessmentExports', 'assess_teacher_a')))
+  })
+
+  await test('another teacher CANNOT read it', async () => {
+    await assertFails(getDoc(doc(teacherB, 'assessmentExports', 'assess_teacher_a')))
+  })
+
+  await test('admin can read any export state', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'assessmentExports', 'assess_teacher_a')))
+  })
+
+  await test('neither the owner nor an admin can write export state from the client', async () => {
+    await assertFails(updateDoc(doc(teacherA, 'assessmentExports', 'assess_teacher_a'), {
+      status: 'ready',
+    }))
+    await assertFails(updateDoc(doc(admin, 'assessmentExports', 'assess_teacher_a'), {
+      status: 'ready',
+    }))
+  })
+
+  // ── newsletterSignupRateLimit — admin read, server-only writes ──
+  section('newsletterSignupRateLimit — admin read only')
+
+  await test('admin can read the signup rate-limit counter', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'newsletterSignupRateLimit', 'ip_hash_1')))
+  })
+
+  await test('anonymous and signed-in non-admins CANNOT read it', async () => {
+    await assertFails(getDoc(doc(guest, 'newsletterSignupRateLimit', 'ip_hash_1')))
+    await assertFails(getDoc(doc(learnerA, 'newsletterSignupRateLimit', 'ip_hash_1')))
+  })
+
+  await test('even an admin CANNOT write the counter from the client', async () => {
+    await assertFails(updateDoc(doc(admin, 'newsletterSignupRateLimit', 'ip_hash_1'), { count: 0 }))
+  })
+
+  // ── agentJobs — creator-scoped read, constrained create, admin review ──
+  section('agentJobs — creator/admin read, queued-only create, review-field-only update')
+
+  await test('the creating teacher can read their own job', async () => {
+    await assertSucceeds(getDoc(doc(teacherA, 'agentJobs', 'job_teacher_a')))
+  })
+
+  await test('another teacher CANNOT read someone else’s job', async () => {
+    await assertFails(getDoc(doc(teacherB, 'agentJobs', 'job_teacher_a')))
+  })
+
+  await test('admin can read any job', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'agentJobs', 'job_teacher_a')))
+  })
+
+  await test('a teacher CAN create a valid queued job they own', async () => {
+    await assertSucceeds(setDoc(doc(teacherA, 'agentJobs', 'job_new_valid'), {
+      agentId: 'aria', department: 'content', status: 'queued',
+      createdBy: TEACHER_A, input: { topic: 'Decimals' },
+    }))
+  })
+
+  await test('a learner CANNOT create a job (paid teacher tools behind the dispatcher)', async () => {
+    await assertFails(setDoc(doc(learnerA, 'agentJobs', 'job_learner'), {
+      agentId: 'aria', department: 'content', status: 'queued',
+      createdBy: LEARNER_A, input: {},
+    }))
+  })
+
+  await test('create with a non-queued status is refused (no skipping the pipeline)', async () => {
+    await assertFails(setDoc(doc(teacherA, 'agentJobs', 'job_pre_approved'), {
+      agentId: 'aria', department: 'content', status: 'approved',
+      createdBy: TEACHER_A, input: {},
+    }))
+  })
+
+  await test('create smuggling an output field is refused', async () => {
+    await assertFails(setDoc(doc(teacherA, 'agentJobs', 'job_with_output'), {
+      agentId: 'aria', department: 'content', status: 'queued',
+      createdBy: TEACHER_A, input: {}, output: { forged: true },
+    }))
+  })
+
+  await test('create under someone else’s createdBy is refused', async () => {
+    await assertFails(setDoc(doc(teacherA, 'agentJobs', 'job_spoofed'), {
+      agentId: 'aria', department: 'content', status: 'queued',
+      createdBy: TEACHER_B, input: {},
+    }))
+  })
+
+  await test('the creator CANNOT approve their own job (update is admin-only)', async () => {
+    await assertFails(updateDoc(doc(teacherA, 'agentJobs', 'job_teacher_a'), {
+      status: 'approved',
+    }))
+  })
+
+  await test('admin CAN approve a job with review fields only', async () => {
+    await assertSucceeds(updateDoc(doc(admin, 'agentJobs', 'job_teacher_a'), {
+      status: 'approved', reviewedBy: ADMIN, reviewedAt: serverTimestamp(),
+    }))
+  })
+
+  await test('admin CANNOT rewrite the job output (server-owned field)', async () => {
+    await assertFails(updateDoc(doc(admin, 'agentJobs', 'job_teacher_a'), {
+      status: 'approved', output: { forged: true },
+    }))
+  })
+
+  await test('a teacher CANNOT delete a job; admin CAN', async () => {
+    await assertFails(deleteDoc(doc(teacherA, 'agentJobs', 'job_to_delete')))
+    await assertSucceeds(deleteDoc(doc(admin, 'agentJobs', 'job_to_delete')))
+  })
+
+  // ── questionBank — Central Question Bank + Master-Bank promotion gate ──
+  section('questionBank — owner scope, pending-only create, no self-promotion')
+
+  await test('the owner can read their own pending question', async () => {
+    await assertSucceeds(getDoc(doc(teacherA, 'questionBank', 'qb_owned')))
+  })
+
+  await test('another teacher CANNOT read a private pending question', async () => {
+    await assertFails(getDoc(doc(teacherB, 'questionBank', 'qb_owned')))
+  })
+
+  await test('any verified user CAN read a masterEligible question (shared Master Bank)', async () => {
+    await assertSucceeds(getDoc(doc(teacherA, 'questionBank', 'qb_master')))
+    await assertSucceeds(getDoc(doc(learnerA, 'questionBank', 'qb_master')))
+  })
+
+  await test('admin can read any question', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'questionBank', 'qb_owned')))
+  })
+
+  await test('a teacher CAN create their own pending_review question', async () => {
+    await assertSucceeds(setDoc(doc(teacherA, 'questionBank', 'qb_new'), {
+      ownerId: TEACHER_A, reviewStatus: 'pending_review', masterEligible: false,
+      text: 'New question', grade: '5', subject: 'Mathematics',
+    }))
+  })
+
+  await test('a teacher CANNOT create a question already masterEligible', async () => {
+    await assertFails(setDoc(doc(teacherA, 'questionBank', 'qb_self_master'), {
+      ownerId: TEACHER_A, reviewStatus: 'pending_review', masterEligible: true,
+      text: 'Sneaky', grade: '5', subject: 'Mathematics',
+    }))
+  })
+
+  await test('a teacher CANNOT create a question pre-approved', async () => {
+    await assertFails(setDoc(doc(teacherA, 'questionBank', 'qb_self_approved'), {
+      ownerId: TEACHER_A, reviewStatus: 'approved', masterEligible: false,
+      text: 'Sneaky', grade: '5', subject: 'Mathematics',
+    }))
+  })
+
+  await test('a teacher CANNOT create a question under another owner', async () => {
+    await assertFails(setDoc(doc(teacherA, 'questionBank', 'qb_spoof_owner'), {
+      ownerId: TEACHER_B, reviewStatus: 'pending_review', masterEligible: false,
+      text: 'Spoof', grade: '5', subject: 'Mathematics',
+    }))
+  })
+
+  await test('the owner CAN edit their own question (stays in review vocabulary)', async () => {
+    await assertSucceeds(updateDoc(doc(teacherA, 'questionBank', 'qb_owned'), {
+      text: 'What is 1/2 + 1/4? (edited)',
+    }))
+  })
+
+  await test('the owner CANNOT self-approve their question', async () => {
+    await assertFails(updateDoc(doc(teacherA, 'questionBank', 'qb_owned'), {
+      reviewStatus: 'approved',
+    }))
+  })
+
+  await test('the owner CANNOT self-promote into the Master Bank', async () => {
+    await assertFails(updateDoc(doc(teacherA, 'questionBank', 'qb_owned'), {
+      masterEligible: true,
+    }))
+  })
+
+  await test('a non-owner teacher CANNOT edit someone else’s question', async () => {
+    await assertFails(updateDoc(doc(teacherB, 'questionBank', 'qb_owned'), {
+      text: 'Vandalised',
+    }))
+  })
+
+  await test('the owner CAN delete their own question; a non-owner cannot', async () => {
+    await assertFails(deleteDoc(doc(teacherB, 'questionBank', 'qb_owned_del')))
+    await assertSucceeds(deleteDoc(doc(teacherA, 'questionBank', 'qb_owned_del')))
+  })
+
+  // ── passkeys — server-only WebAuthn store + admin audit trail ──
+  section('passkeys — credentials/challenges/handles fully server-only, audit admin-read')
+
+  await test('a user CANNOT read a passkey credential (not even nominally their own)', async () => {
+    await assertFails(getDoc(doc(learnerA, 'passkeyCredentials', 'cred_1')))
+  })
+
+  await test('even an admin CANNOT read or write passkeyCredentials from the client', async () => {
+    await assertFails(getDoc(doc(admin, 'passkeyCredentials', 'cred_1')))
+    await assertFails(setDoc(doc(admin, 'passkeyCredentials', 'cred_forged'), {
+      uid: ADMIN, publicKey: 'pk', counter: 0,
+    }))
+  })
+
+  await test('nobody can read or write webauthnChallenges (replay protection)', async () => {
+    await assertFails(getDoc(doc(learnerA, 'webauthnChallenges', 'chal_1')))
+    await assertFails(getDoc(doc(admin, 'webauthnChallenges', 'chal_1')))
+    await assertFails(deleteDoc(doc(admin, 'webauthnChallenges', 'chal_1')))
+  })
+
+  await test('a user CANNOT read their own passkeyUserHandles doc (opaque by design)', async () => {
+    await assertFails(getDoc(doc(learnerA, 'passkeyUserHandles', LEARNER_A)))
+  })
+
+  await test('admin can read the passkey audit log; a learner cannot', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'passkeyAuditLog', 'pk_evt_1')))
+    await assertFails(getDoc(doc(learnerA, 'passkeyAuditLog', 'pk_evt_1')))
+  })
+
+  await test('even an admin CANNOT append to the passkey audit log from the client', async () => {
+    await assertFails(setDoc(doc(admin, 'passkeyAuditLog', 'pk_evt_forged'), {
+      event: 'fake', at: serverTimestamp(),
     }))
   })
 

@@ -327,7 +327,7 @@ export default function GeneratePanel({ onEdit, onToast, assessmentMode = false,
                     <p className="vs-hint vs-note-warn" style={{ margin: 8 }}>⚠ {safety[r.url].error}</p>
                   )}
                   {safety[r.url]?.result && (
-                    <div className="vs-hint" style={{ margin: 8, ...(safety[r.url].result.safetyStatus === 'ok' ? {} : { background: '#fff7ed', borderColor: '#f3d6ad', color: '#92400e' }) }}>
+                    <div className="vs-hint" style={{ margin: 8, ...(safety[r.url].result.safetyStatus === 'ok' ? {} : { background: '#fcf7f3', borderColor: '#f3d6ad', color: '#92400e' }) }}>
                       {safety[r.url].result.safetyStatus === 'ok'
                         ? <b>✓ Looks suitable.</b>
                         : <b>⚠ This image may need review.</b>}

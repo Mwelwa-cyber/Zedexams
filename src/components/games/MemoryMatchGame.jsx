@@ -6,7 +6,6 @@ import {
   TrophyIcon,
 } from '@heroicons/react/24/solid'
 import { useAuth } from '../../contexts/AuthContext'
-import { shuffle } from '../../utils/gamesService'
 import { playCorrect, playWrong, playWin, playTick, primeSounds } from '../../utils/gameSounds'
 import { useGameFinish } from './useGameFinish'
 import { SaveBanner, StreakBanner, DoneStat } from './DoneBanners'
@@ -20,6 +19,19 @@ import SmartFeedback from './SmartFeedback'
 import ScorePops, { useScorePops } from './ScorePops'
 import { LevelUpBanner, XpProgressBar, PersonalBestBanner } from './Progress'
 import { RatingStars } from './gamesUi'
+import {
+  buildDeck,
+  canFlip,
+  doneSummary,
+  formatTime,
+  gridCols,
+  isMatch,
+  isWin,
+  playablePairs,
+  pointsPerMatch,
+  scoreWin,
+  starsForEfficiency,
+} from './memoryMatchCore'
 
 /**
  * Engine for any `type: "memory_match"` game document.
@@ -34,8 +46,8 @@ import { RatingStars } from './gamesUi'
  *     uses the minimum number of moves.
  */
 export default function MemoryMatchGame({ game }) {
-  const points = Number(game.points) || 10
-  const pairs = useMemo(() => (game.questions || []).filter((p) => p.answer), [game.questions])
+  const points = pointsPerMatch(game)
+  const pairs = useMemo(() => playablePairs(game.questions), [game.questions])
 
   const [phase, setPhase] = useState('ready') // ready | playing | done
   const [deck, setDeck] = useState([])        // array of { pairId, label, side }
@@ -58,20 +70,11 @@ export default function MemoryMatchGame({ game }) {
     return () => clearInterval(t)
   }, [phase])
 
-  function buildDeck() {
-    const cards = []
-    pairs.forEach((p, i) => {
-      cards.push({ pairId: i, label: p.question, side: 'Q' })
-      cards.push({ pairId: i, label: p.answer,   side: 'A' })
-    })
-    return shuffle(cards, Date.now())
-  }
-
   function start() {
     primeSounds()
     reset()
     setPhase('playing')
-    setDeck(buildDeck())
+    setDeck(buildDeck(pairs))
     setFlipped([])
     setMatched([])
     setMoves(0)
@@ -83,15 +86,14 @@ export default function MemoryMatchGame({ game }) {
 
   function handleFlip(i) {
     if (phase !== 'playing') return
-    if (flipped.includes(i) || matched.includes(i)) return
-    if (flipped.length >= 2) return
+    if (!canFlip(i, flipped, matched)) return
     playTick()
     const next = [...flipped, i]
     setFlipped(next)
     if (next.length === 2) {
       setMoves((m) => m + 1)
       const [a, b] = next
-      if (deck[a].pairId === deck[b].pairId && deck[a].side !== deck[b].side) {
+      if (isMatch(deck[a], deck[b])) {
         // match
         setTimeout(() => {
           playCorrect()
@@ -99,7 +101,7 @@ export default function MemoryMatchGame({ game }) {
           const newMatched = [...matched, a, b]
           setMatched(newMatched)
           setFlipped([])
-          if (newMatched.length === deck.length) {
+          if (isWin(newMatched.length, deck.length)) {
             winRound(newMatched)
           }
         }, 380)
@@ -120,14 +122,9 @@ export default function MemoryMatchGame({ game }) {
     setConfettiKey((k) => k + 1)
     setPhase('done')
     const totalPairs = pairs.length
-    const perfectMoves = totalPairs
-    const movesUsed = Math.max(moves + 1, perfectMoves) // +1 for the final move that sealed the win
-    const efficiency = perfectMoves / movesUsed       // 0..1 (1 = perfect)
-    const bonusMax = points * totalPairs
-    const bonus = Math.round(efficiency * bonusMax)
-    const finalScore = points * totalPairs + bonus
+    // `moves` is stale here (the sealing move's setMoves hasn't landed), so +1.
+    const { finalScore, accuracy } = scoreWin({ totalPairs, movesTaken: moves + 1, points })
     const timeSpent = startRef.current ? Math.round((Date.now() - startRef.current) / 1000) : elapsed
-    const accuracy = Math.round(efficiency * 100)
 
     await finish({
       game,
@@ -144,10 +141,7 @@ export default function MemoryMatchGame({ game }) {
 
   if (phase === 'ready') return <ReadyCard game={game} onStart={start} pairs={pairs.length} />
   if (phase === 'done') {
-    const totalPairs = pairs.length
-    const movesUsed = Math.max(moves, totalPairs)
-    const efficiency = Math.round((totalPairs / movesUsed) * 100)
-    const finalScore = Math.round(points * totalPairs + (efficiency / 100) * points * totalPairs)
+    const { efficiency, finalScore } = doneSummary({ totalPairs: pairs.length, moves, points })
     return (
       <>
         <Confetti fire={confettiKey} />
@@ -206,7 +200,7 @@ export default function MemoryMatchGame({ game }) {
                   </span>
                 </div>
               ) : (
-                <div className="zx-card w-full h-full rounded-[14px] bg-[#FF7A1A] flex items-center justify-center text-white transition active:translate-y-[2px] active:shadow-none">
+                <div className="zx-card w-full h-full rounded-[14px] bg-[#D97757] flex items-center justify-center text-white transition active:translate-y-[2px] active:shadow-none">
                   <PuzzlePieceIcon className="h-10 w-10" />
                 </div>
               )}
@@ -254,7 +248,7 @@ function ReadyCard({ game, pairs, onStart }) {
 }
 
 function DoneCard({ game, score, moves, mismatches, elapsed, efficiency, saveResult, newBadges, streakResult, levelChange, personalBest, onRestart }) {
-  const stars = efficiency >= 90 ? 5 : efficiency >= 75 ? 4 : efficiency >= 55 ? 3 : 2
+  const stars = starsForEfficiency(efficiency)
   return (
     <div className="space-y-5">
       {levelChange?.leveledUp && <LevelUpBanner change={levelChange} />}
@@ -323,17 +317,4 @@ function StatPill({ label, value, tone = 'slate' }) {
       <div className="font-display text-lg font-bold leading-none mt-1">{value}</div>
     </div>
   )
-}
-
-function gridCols(n) {
-  if (n <= 8) return 4
-  if (n <= 12) return 4
-  if (n <= 16) return 4
-  return 6
-}
-
-function formatTime(s) {
-  const m = Math.floor(s / 60)
-  const r = s % 60
-  return m > 0 ? `${m}:${String(r).padStart(2, '0')}` : `${r}s`
 }

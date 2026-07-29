@@ -35,6 +35,8 @@ npm run test:all                  # what CI's "Tests" job runs (importer + sanit
 npm run test:unit                 # Vitest run over src/**/*.spec.{js,jsx} (jsdom)
 npm run test:unit:watch           # Vitest watch mode
 npm run test:coverage             # Vitest + v8 coverage of src/ → ./coverage (frontend gap is measured here)
+npm run src:coverage              # c8 coverage of src/ from the plain-node suite → ./coverage-src (.c8rc.src.json ratchet)
+npm run functions:coverage        # c8 coverage of functions/ from the backend node suite → ./coverage-functions (.c8rc.json ratchet)
 npm run test:importer             # quiz-document parser unit tests
 npm run test:sanitize             # rich-text sanitiser
 npm run test:schema               # question schema

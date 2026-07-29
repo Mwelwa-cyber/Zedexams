@@ -104,7 +104,7 @@ export function LessonContextStep({
   if (curriculumMode !== 'cbc') {
     return (
       <div className="flex items-start gap-3 rounded-2xl border-2 border-[#0F1B2D] bg-white p-4 shadow-[0_2px_0_#0F1B2D]">
-        <span className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-xl bg-[#FFF4E8] text-[#c2410c]" aria-hidden="true">
+        <span className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-xl bg-[#FFF4E8] text-[#a3422e]" aria-hidden="true">
           <Info size={18} />
         </span>
         <p className="text-[13px] leading-relaxed text-[#3d3529]">

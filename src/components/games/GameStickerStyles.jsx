@@ -45,7 +45,7 @@ export default function GameStickerStyles() {
         width: 18px;
         height: 2px;
         border-radius: 2px;
-        background: #FF7A1A;
+        background: #D97757;
       }
       .zx-sticker-btn {
         display: inline-flex;
@@ -67,7 +67,7 @@ export default function GameStickerStyles() {
         cursor: not-allowed;
       }
       .zx-sticker-btn-primary {
-        background: #FF7A1A;
+        background: #D97757;
         color: #fff;
       }
       .zx-sticker-btn-secondary {
@@ -104,8 +104,8 @@ export default function GameStickerStyles() {
         100% { transform: translateY(0)    scale(1);    opacity: 1; }
       }
       @keyframes zx-flame {
-        0%, 100% { transform: scale(1) rotate(-2deg); filter: drop-shadow(0 0 4px rgba(255,140,0,0.4)); }
-        50%      { transform: scale(1.15) rotate(2deg); filter: drop-shadow(0 0 8px rgba(255,140,0,0.7)); }
+        0%, 100% { transform: scale(1) rotate(-2deg); filter: drop-shadow(0 0 4px rgba(209,118,49,0.4)); }
+        50%      { transform: scale(1.15) rotate(2deg); filter: drop-shadow(0 0 8px rgba(209,118,49,0.7)); }
       }
       .zx-flame { animation: zx-flame 1.4s ease-in-out infinite; display: inline-block; }
       /* Game-feel juice: floating score deltas, answer reactions, combo bump. */

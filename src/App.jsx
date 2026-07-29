@@ -47,6 +47,10 @@ const PUBLIC_THEME_PATHS = new Set([
 ])
 function isPublicThemePath(pathname) {
   if (PUBLIC_THEME_PATHS.has(pathname)) return true
+  // Same reasoning as the dashboard preview above: a review of the Class List
+  // and Register redesign has to be looked at in the brand's own colours, not
+  // whichever theme the reviewing account happens to have saved.
+  if (pathname.startsWith('/teacher/register-preview')) return true
   if (pathname.startsWith('/share/')) return true
   if (pathname.startsWith('/papers/')) return true
   if (pathname.startsWith('/grade-')) return true
@@ -225,6 +229,12 @@ const TeacherDashboardLive = lazy(() => import('./components/teacher/dashboardV2
 // client-side). Public on purpose so the design can be reviewed without a
 // session; the preview control panel is compiled out of production builds.
 const TeacherDashboardV2 = lazy(() => import('./components/teacher/dashboardV2/TeacherDashboardV2'))
+// Class List + Register preview — mock data only, intentionally unguarded.
+const ClassListRegisterPreview = lazy(() => import('./components/teacher/classList/preview/ClassListRegisterPreview'))
+const ImportReviewPreview = lazy(() =>
+  import('./components/teacher/classList/preview/ClassListRegisterPreview')
+    .then((m) => ({ default: m.ImportReviewPreview })))
+const CapturePreview = lazy(() => import('./components/teacher/classList/preview/CapturePreview'))
 // Teacher Help & Support — contact/report forms (contactMessages, triaged by
 // Echo), suggestions (feedback inbox), WhatsApp/email channels, FAQs. Same
 // V2 chrome as the dashboard, so it's also outside TeacherLayout.
@@ -728,6 +738,13 @@ export default function App() {
           <Route path="/teacher/help"                    element={<ProtectedRoute requiredRole="teacher"><TeacherHelpSupport /></ProtectedRoute>} />
           {/* Dashboard V2 preview — mock data only, intentionally unguarded (see lazy import note) */}
           <Route path="/teacher/dashboard-preview"       element={<TeacherDashboardV2 />} />
+          {/* Class List + Class Register preview — the shipping components
+              driven by fixture data, for review before deployment. Mock data
+              only; nothing on these routes reads or writes Firestore, which is
+              why they are unguarded, as /teacher/dashboard-preview is. */}
+          <Route path="/teacher/register-preview"         element={<ClassListRegisterPreview />} />
+          <Route path="/teacher/register-preview/capture" element={<CapturePreview />} />
+          <Route path="/teacher/register-preview/review"  element={<ImportReviewPreview />} />
           {/* Assessment Paper Studio — teacher-only, private. One studio for
               every assessment type: topic/weekly/mid-term/end-of-term tests
               AND mock/examination/final examinations — which type a paper is

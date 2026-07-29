@@ -109,10 +109,9 @@ async function kbHealthCheck(db) {
   };
 }
 
-async function runQuill() {
-  const db = admin.firestore();
-  const now = Date.now();
-
+// db/now are injectable for plain-node tests (sibling-runner pattern);
+// production callers pass nothing and get the live Firestore + clock.
+async function runQuill({db = admin.firestore(), now = Date.now()} = {}) {
   const [statusCounts, stuck, failures, recentGenerations, kb] = await Promise.all([
     countByStatus(db),
     findStuckJobs(db, now),
@@ -144,4 +143,11 @@ async function runQuill() {
   };
 }
 
-module.exports = {runQuill};
+module.exports = {
+  runQuill,
+  countByStatus,
+  findStuckJobs,
+  findRecentFailures,
+  countRecentGenerations,
+  kbHealthCheck,
+};

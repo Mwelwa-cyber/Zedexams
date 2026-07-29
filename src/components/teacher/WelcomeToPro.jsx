@@ -5,7 +5,7 @@ import { PLANS, getActivePlan } from '../../utils/subscriptionConfig'
 import { ensureProFonts } from '../../utils/proFonts'
 import SeoHelmet from '../seo/SeoHelmet'
 
-const CONFETTI_COLORS = ['#F36A2A', '#FBE4D5', '#F2C49B', '#FFFFFF', '#9DB1AE']
+const CONFETTI_COLORS = ['#CF6B51', '#F5E5DE', '#E3C0AD', '#FFFFFF', '#9DB1AE']
 
 function formatDate(date) {
   return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -175,10 +175,10 @@ export default function WelcomeToPro() {
 const styles = `
 .zwp-page{
   --cream:#F4EFE3;--cream-2:#EDE6D3;--ink:#0F1B1B;--ink-2:#234141;--teal:#0E3838;
-  --orange:#F36A2A;--orange-soft:#FBE4D5;--line:#E2D8C0;--muted:#6B7775;--muted-2:#9DB1AE;
+  --orange:#CF6B51;--orange-soft:#F5E5DE;--line:#E2D8C0;--muted:#6B7775;--muted-2:#9DB1AE;
   --green:#2F7D5F;--good:#E6F1EA;
   background:
-    radial-gradient(900px 500px at 90% -10%, rgba(243,106,42,.10), transparent 60%),
+    radial-gradient(900px 500px at 90% -10%, rgba(207,107,81,.10), transparent 60%),
     radial-gradient(800px 600px at -10% 30%, rgba(14,56,56,.06), transparent 60%),
     var(--cream);
   color:var(--ink);
@@ -196,10 +196,10 @@ const styles = `
 .zwp-brand-text small{display:block;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-top:2px}
 .zwp-brand-text strong{font-family:'Fraunces',serif;font-weight:600;font-size:18px}
 .zwp-hero{background:var(--teal);color:#fff;border-radius:28px;padding:44px 40px 40px;position:relative;overflow:hidden;box-shadow:0 30px 80px rgba(10,40,40,.20)}
-.zwp-hero::after{content:"";position:absolute;right:-100px;top:-100px;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle at 30% 30%, rgba(243,106,42,.20), transparent 60%);pointer-events:none}
+.zwp-hero::after{content:"";position:absolute;right:-100px;top:-100px;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle at 30% 30%, rgba(207,107,81,.20), transparent 60%);pointer-events:none}
 .zwp-pill{display:inline-flex;align-items:center;gap:6px;background:var(--orange);color:#fff;font-size:12px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;padding:7px 14px;border-radius:999px;position:relative;z-index:2}
 .zwp-hero h1{font-size:clamp(40px,7vw,60px);margin:18px 0 12px;max-width:520px;letter-spacing:-0.025em;position:relative;z-index:2}
-.zwp-hero h1 em{font-style:italic;color:#F2C49B;font-weight:400}
+.zwp-hero h1 em{font-style:italic;color:#E3C0AD;font-weight:400}
 .zwp-hero p.zwp-lede{font-size:16px;color:var(--muted-2);max-width:420px;position:relative;z-index:2}
 .zwp-mascot{position:absolute;right:32px;bottom:32px;width:120px;height:120px;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:64px;box-shadow:0 10px 30px rgba(0,0,0,.18);z-index:2;animation:zwp-bob 3s ease-in-out infinite}
 @keyframes zwp-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
@@ -231,8 +231,8 @@ const styles = `
 .zwp-receipt-row code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:var(--cream);padding:2px 6px;border-radius:4px;color:var(--ink-2)}
 .zwp-ctas{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:28px}
 .zwp-cta{padding:16px;border-radius:14px;font-family:inherit;font-weight:600;font-size:15px;border:1px solid transparent;cursor:pointer;text-align:center;display:block;transition:all .15s ease}
-.zwp-cta-primary{background:var(--orange);color:#fff;box-shadow:0 8px 22px rgba(243,106,42,.28)}
-.zwp-cta-primary:hover{background:#E55E22;transform:translateY(-1px)}
+.zwp-cta-primary{background:var(--orange);color:#fff;box-shadow:0 8px 22px rgba(207,107,81,.28)}
+.zwp-cta-primary:hover{background:#C5613F;transform:translateY(-1px)}
 .zwp-cta-secondary{background:#fff;border-color:var(--line);color:var(--ink)}
 .zwp-cta-secondary:hover{border-color:var(--ink)}
 .zwp-small-print{text-align:center;font-size:13px;color:var(--muted);padding:0 20px 40px}

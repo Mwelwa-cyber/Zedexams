@@ -127,9 +127,9 @@ export default function VerifyEmail() {
       className="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-y-auto"
       style={{
         backgroundColor: '#FDF6EC',
-        '--accent': '#EA580C',
-        '--accent-bg': '#FFEDD5',
-        '--accent-fg': '#9A3412',
+        '--accent': '#C5613F',
+        '--accent-bg': '#F8EADF',
+        '--accent-fg': '#83372C',
       }}
     >
       <SeoHelmet

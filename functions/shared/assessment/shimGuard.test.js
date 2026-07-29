@@ -29,6 +29,8 @@ const SHIMS = [
   'src/utils/questionType.js',
   'src/utils/fillBlanks.js',
   'src/utils/comprehensionGrouping.js',
+  'src/utils/mcqChoices.js',
+  'src/utils/paperMarksModel.js',
   'src/components/diagrams/diagramCatalog.js',
 ]
 

@@ -39,7 +39,7 @@ globalThis.Node = dom.window.Node
 
 const { Packer, Document, Paragraph } = await import('docx')
 const { unzipSync, strFromU8 } = await import('fflate')
-const { buildAssessmentDocument, svgImageRun, unresolvedFigureMessage } = await import('./assessmentToDocx.js')
+const { buildDocxDocument, svgImageRun, unresolvedFigureMessage } = await import('./assessmentToDocx.js')
 const { richTextToPaperHtml } = await import('../editor/utils/safeRender.js')
 const { clearImageBytesCache } = await import('./fetchImageBytes.js')
 const { findForbiddenTerms } = await import('../config/paperTerminology.js')
@@ -69,7 +69,7 @@ function assert(cond, msg) {
 
 /** Build a paper and return its word/document.xml. */
 async function renderDocx(meta, questions, opts = { mode: 'paper' }) {
-  const doc = await buildAssessmentDocument(meta, questions, opts)
+  const doc = await buildDocxDocument(meta, questions, opts)
   const zip = unzipSync(new Uint8Array(await Packer.toBuffer(doc)))
   return strFromU8(zip['word/document.xml'])
 }
@@ -181,6 +181,32 @@ console.log('\nGOLDEN — Mathematics: the quadratic formula keeps its fraction 
   assert(xml.includes('2a'), 'the denominator is in the equation')
   assert(!xml.includes('\\frac'), 'no LaTeX leaks into the Word file')
   assert(!xml.includes('\\sqrt'), 'and neither does the root command')
+}
+
+console.log('\nGOLDEN — Mathematics: a fraction inside an ANSWER CHOICE survives to Word')
+{
+  // §11 lists "fractions inside answer choices" as its own fixture, and it is a
+  // different code path from a fraction in a stem: the options go through the
+  // option-string memo and are parsed by `cachedOptionNodes`, not by the
+  // question-body walker. A fraction that survives in a stem and collapses to
+  // "12" in an option is exactly the failure that shape of duplication produces.
+  const frac = (n, d) => richTextToPaperHtml(`<p>${math(String.raw`\frac{${n}}{${d}}`)}</p>`)
+  const xml = await renderDocx(
+    { title: 'Fractions', subject: 'Mathematics', grade: '5', answerChoiceCount: 4 },
+    [{
+      id: 'q1', order: 1, type: 'mcq', marks: 1,
+      text: 'Which fraction is the largest?',
+      options: [frac(1, 2), frac(1, 3), frac(3, 4), frac(1, 4)],
+      correctAnswer: 2,
+    }],
+  )
+  assert(xml.includes('<m:f>'), 'an option fraction reaches Word as a real stacked fraction')
+  // The bare-characters failure: "1/2" flattening to "12" because the bar was
+  // dropped. Four options that all collapsed that way would print as 12, 13, 34
+  // and 14 — plausible-looking numbers, every one of them wrong.
+  assert(!/>12</.test(xml) && !/>34</.test(xml), 'no option collapsed to its bare digits')
+  assert(!xml.includes('\\frac'), 'no LaTeX leaks into an option')
+  assert(xml.includes('A.') || xml.includes('A)'), 'the options are still lettered')
 }
 
 console.log('\nGOLDEN — Mathematics: Word receives a REAL equation, not a picture of one')
@@ -596,7 +622,7 @@ console.log('\nGOLDEN — a figure is never smaller than the level allows')
 
 console.log('\nGOLDEN — the Word download is a real .docx (§4.4)')
 {
-  const doc = await buildAssessmentDocument(
+  const doc = await buildDocxDocument(
     { title: 'Format check', subject: 'Mathematics', grade: '8' },
     [{ id: 'q1', order: 1, type: 'short_answer', text: 'A question.', marks: 1 }],
     { mode: 'paper' },
@@ -639,7 +665,7 @@ console.log('\nGOLDEN — a library diagram: failure is visible, success is real
   resetSvgRasterizer()
   const failStats = { failedImages: [], unresolvedFigures: [] }
   const failedZip = unzipSync(new Uint8Array(await Packer.toBuffer(
-    await buildAssessmentDocument(meta, questions, { mode: 'paper', stats: failStats }),
+    await buildDocxDocument(meta, questions, { mode: 'paper', stats: failStats }),
   )))
   const failedXml = strFromU8(failedZip['word/document.xml'])
   assert(
@@ -665,7 +691,7 @@ console.log('\nGOLDEN — a library diagram: failure is visible, success is real
   // "the catalog has no such shape" and "the browser could not draw it" call for
   // different fixes.
   const unknownStats = { failedImages: [], unresolvedFigures: [] }
-  await Packer.toBuffer(await buildAssessmentDocument(
+  await Packer.toBuffer(await buildDocxDocument(
     meta,
     [{ ...questions[0], imageDiagram: { libraryKey: 'no-such-diagram', params: {} } }],
     { mode: 'paper', stats: unknownStats },
@@ -683,7 +709,7 @@ console.log('\nGOLDEN — a library diagram: failure is visible, success is real
   try {
     const okStats = { failedImages: [], unresolvedFigures: [] }
     const okZip = unzipSync(new Uint8Array(await Packer.toBuffer(
-      await buildAssessmentDocument(meta, questions, { mode: 'paper', stats: okStats }),
+      await buildDocxDocument(meta, questions, { mode: 'paper', stats: okStats }),
     )))
     const okXml = strFromU8(okZip['word/document.xml'])
     const media = Object.keys(okZip).filter((n) => /^word\/media\//.test(n))
@@ -703,7 +729,7 @@ console.log('\nGOLDEN — a library diagram: failure is visible, success is real
     // exact silent failure this change exists to end.
     setSvgRasterizer(async () => 'not bytes')
     const badStats = { failedImages: [], unresolvedFigures: [] }
-    await Packer.toBuffer(await buildAssessmentDocument(meta, questions, { mode: 'paper', stats: badStats }))
+    await Packer.toBuffer(await buildDocxDocument(meta, questions, { mode: 'paper', stats: badStats }))
     assert(
       badStats.unresolvedFigures[0]?.stage === 'rasterise',
       'a rasteriser returning non-PNG data is reported, not embedded',
@@ -784,6 +810,54 @@ console.log('\nGOLDEN — a paper missing a required figure is not delivered')
 
   dom.window.HTMLAnchorElement.prototype.click = realClick
   dom.window.URL.createObjectURL = realCreateObjectURL
+}
+
+/* ── The page setup reaches BOTH renderers (§2) ───────────────────────────
+   A page-size or orientation control that only moves the preview is a
+   preference the printer ignores, and the teacher discovers it after running
+   forty copies. So it is asserted against the rendered `.docx` section
+   properties AND against the print stylesheet's `@page` rule — the two places
+   a sheet's shape is actually decided. */
+{
+  const { buildPrintableHtml } = await import('./assessmentToPdf.js')
+  const questions = [{ id: 'q1', order: 1, type: 'short_answer', text: 'Explain.', marks: 2 }]
+
+  // Default: A4 portrait, unchanged from before any of this existed.
+  const defaultXml = strFromU8(unzipSync(new Uint8Array(await Packer.toBuffer(
+    await buildDocxDocument({ subject: 'Science', grade: '5' }, questions, { mode: 'paper' }),
+  )))['word/document.xml'])
+  // A4 portrait is 210 × 297mm = 11906 × 16838 twips.
+  assert(defaultXml.includes('w:w="11906"'), 'a paper with no page setup is A4 wide in Word')
+  assert(defaultXml.includes('w:h="16838"'), 'and A4 tall')
+  assert(
+    buildPrintableHtml({ subject: 'Science', grade: '5' }, questions, 'paper').includes('size: A4;'),
+    'and the print stylesheet says A4',
+  )
+
+  // A5 landscape with wide margins.
+  const a5 = { subject: 'Science', grade: '5', layout: { pageSize: 'a5', orientation: 'landscape', margins: 'wide' } }
+  const a5Xml = strFromU8(unzipSync(new Uint8Array(await Packer.toBuffer(
+    await buildDocxDocument(a5, questions, { mode: 'paper' }),
+  )))['word/document.xml'])
+  // A5 landscape is 210mm across and 148mm down = 11906 × 8391 twips, and that
+  // is the way round Word stores it. Asserted on the emitted XML rather than on
+  // the value passed in, because `docx` swaps the two itself for a landscape
+  // section — pass it the laid-out dimensions and the swap lands you back at
+  // portrait, on a page that still claims to be landscape.
+  assert(a5Xml.includes('w:w="11906"') && a5Xml.includes('w:h="8391"'), 'A5 landscape reaches Word as 210 × 148mm')
+  assert(a5Xml.includes('w:orient="landscape"'), 'and Word is told to turn it')
+  // 25mm = 1417 twips.
+  assert(a5Xml.includes('w:top="1417"'), 'wide margins reach Word')
+
+  const a5Css = buildPrintableHtml(a5, questions, 'paper')
+  assert(a5Css.includes('size: A5 landscape;'), 'the print stylesheet says A5 landscape')
+  assert(a5Css.includes('margin: 25mm 25mm'), 'and carries the same wide margins')
+
+  // Typography is one decision too: a paper set to 14pt prints at 14pt.
+  const large = buildPrintableHtml(
+    { subject: 'Science', grade: '5', layout: { bodySize: 'large' } }, questions, 'paper',
+  )
+  assert(large.includes('font-size: 14pt;'), 'the body size reaches the print stylesheet')
 }
 
 console.log(

@@ -37,7 +37,7 @@
 .lset[data-accent='sky']     { --lset-accent: #0ea5e9; }
 .lset[data-accent='violet']  { --lset-accent: #8b5cf6; --lset-accent-2: #6366f1; }
 .lset[data-accent='rose']    { --lset-accent: #f43f5e; --lset-accent-2: #ec4899; }
-.lset[data-accent='amber']   { --lset-accent: #f59e0b; --lset-accent-2: #f97316; }
+.lset[data-accent='amber']   { --lset-accent: #f59e0b; --lset-accent-2: #d97757; }
 
 /* Card-style variants (personalisation live preview). */
 .lset[data-card-style='sharp'] { --lset-radius: 10px; }

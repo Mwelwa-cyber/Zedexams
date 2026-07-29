@@ -41,7 +41,7 @@ const SUBJECT_STYLES = {
   'English':             { bg: '#FFF1F2', fg: '#9F1239', border: '#FECDD3' },
   'Technology Studies':  { bg: '#F5F3FF', fg: '#5B21B6', border: '#DDD6FE' },
   'Home Economics':      { bg: '#FDF2F8', fg: '#9D174D', border: '#FBCFE8' },
-  'Expressive Art':      { bg: '#FFF7ED', fg: '#9A3412', border: '#FED7AA' },
+  'Expressive Art':      { bg: '#FCF7F3', fg: '#83372C', border: '#EFD1BC' },
 }
 
 const subjectStyle = (subject) =>
@@ -142,7 +142,7 @@ export function LearnerNoteRead() {
       <main className="max-w-2xl mx-auto px-4 sm:px-5 py-8">
         <button
           onClick={() => navigate('/notes')}
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0F1B2D] hover:text-[#C2410C] transition mb-8"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0F1B2D] hover:text-[#A3422E] transition mb-8"
         >
           <ArrowLeft size={15} /> All notes
         </button>
@@ -251,7 +251,7 @@ function FileDownload({ note }) {
         target="_blank"
         rel="noopener noreferrer"
         className="notes-chip notes-chip-shadow inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-bold hover:-translate-y-px transition"
-        style={{ backgroundColor: '#FF7A1A' }}
+        style={{ backgroundColor: '#D97757' }}
       >
         <Download size={15} /> Download PDF
       </a>

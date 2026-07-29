@@ -219,7 +219,7 @@ function driftSummary(drift, rows) {
 // Bloom's-taxonomy ramp, lower-order → higher-order.
 const BLOOM_COLORS = {
   remember: '#bfdbfe', understand: '#93c5fd', apply: '#86efac',
-  analyze: '#fcd34d', evaluate: '#fdba74', create: '#fca5a5',
+  analyze: '#fcd34d', evaluate: '#e4b190', create: '#fca5a5',
 }
 
 export function BloomBalanceAction({ questions, questionNumbers, drift }) {

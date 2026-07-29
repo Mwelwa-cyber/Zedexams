@@ -99,10 +99,10 @@
 .tws-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-card-hover);
-  border-color: rgba(198, 90, 36, 0.35);
+  border-color: rgba(170, 89, 67, 0.35);
 }
 .tws-card:focus-visible {
-  outline: 3px solid rgba(198, 90, 36, 0.55);
+  outline: 3px solid rgba(170, 89, 67, 0.55);
   outline-offset: 2px;
 }
 
@@ -196,7 +196,7 @@
   gap: 8px;
   width: 100%;
   min-height: 50px;
-  border: 1px dashed rgba(198, 90, 36, 0.45);
+  border: 1px dashed rgba(170, 89, 67, 0.45);
   border-radius: 999px;
   background: var(--surface);
   color: var(--copper-pressed);
@@ -207,13 +207,13 @@
 }
 .tws-expand:hover { background: var(--copper-tint); border-color: var(--copper); }
 .tws-expand:focus-visible {
-  outline: 3px solid rgba(198, 90, 36, 0.55);
+  outline: 3px solid rgba(170, 89, 67, 0.55);
   outline-offset: 2px;
 }
 
 /* ── Dark theme ──────────────────────────────────────────────────────── */
 .tdv2.is-dark .tws-pill.kind-saved { background: #1d3557; }
-.tdv2.is-dark .tws-card:hover { border-color: rgba(232, 120, 50, 0.4); }
+.tdv2.is-dark .tws-card:hover { border-color: rgba(199, 116, 86, 0.4); }
 
 /* ── Reduced motion ──────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {

@@ -21,6 +21,20 @@ import SmartFeedback from './SmartFeedback'
 import ScorePops, { useScorePops } from './ScorePops'
 import { LevelUpBanner, XpProgressBar, PersonalBestBanner } from './Progress'
 import { RatingStars } from './gamesUi'
+import {
+  allSlotsFilled,
+  buildGuess,
+  computeAccuracy,
+  computeScore,
+  emptySlotIndex,
+  isCorrectGuess,
+  isLastWord,
+  makeTiles,
+  normalizeTarget,
+  playableWords,
+  pointsForGame,
+  stripLeadingEmoji,
+} from './wordBuilderCore.js'
 
 /**
  * Engine for any `type: "word_builder"` game document.
@@ -33,11 +47,8 @@ import { RatingStars } from './gamesUi'
  * combo is shown and the player can tap a slot to remove a letter.
  */
 export default function WordBuilderGame({ game }) {
-  const points = Number(game.points) || 10
-  const words = useMemo(
-    () => (game.questions || []).filter((q) => q.answer),
-    [game.questions],
-  )
+  const points = pointsForGame(game)
+  const words = useMemo(() => playableWords(game.questions), [game.questions])
 
   const [phase, setPhase] = useState('ready') // ready | playing | done
   const [order, setOrder] = useState([])
@@ -54,7 +65,7 @@ export default function WordBuilderGame({ game }) {
   const { saveResult, newBadges, streakResult, levelChange, personalBest, finish, reset } = useGameFinish()
 
   const current = words[order[pos] ?? 0] || { question: '', answer: '' }
-  const target = String(current.answer || '').toUpperCase()
+  const target = normalizeTarget(current.answer)
 
   // Load letters whenever the word index changes
   useEffect(() => {
@@ -78,7 +89,7 @@ export default function WordBuilderGame({ game }) {
 
   function placeTile(tileIdx) {
     if (solvedThisWord || tiles[tileIdx]?.placed) return
-    const emptySlot = slots.findIndex((v) => v === null)
+    const emptySlot = emptySlotIndex(slots)
     if (emptySlot === -1) return
     playTick()
     const nextSlots = slots.slice()
@@ -88,9 +99,9 @@ export default function WordBuilderGame({ game }) {
     nextTiles[tileIdx] = { ...nextTiles[tileIdx], placed: true }
     setTiles(nextTiles)
 
-    if (nextSlots.every((v) => v !== null)) {
-      const guess = nextSlots.map((idx) => nextTiles[idx].letter).join('')
-      if (guess === target) {
+    if (allSlotsFilled(nextSlots)) {
+      const guess = buildGuess(nextSlots, nextTiles)
+      if (isCorrectGuess(guess, target)) {
         playCorrect()
         pushPop(points)
         setSolvedThisWord(true)
@@ -121,7 +132,7 @@ export default function WordBuilderGame({ game }) {
   }
 
   async function nextWord() {
-    if (pos + 1 >= order.length) {
+    if (isLastWord(pos, order.length)) {
       await endRound()
     } else {
       setPos(pos + 1)
@@ -133,9 +144,9 @@ export default function WordBuilderGame({ game }) {
     setConfettiKey((k) => k + 1)
     setPhase('done')
     const totalWords = order.length
-    const accuracy = Math.round((solvedCount / Math.max(totalWords, 1)) * 100)
+    const accuracy = computeAccuracy(solvedCount, totalWords)
     const bonusBestStreak = solvedCount // approximation — solved all in a row
-    const score = solvedCount * points + Math.max(0, solvedCount * points - mistakes * 2)
+    const score = computeScore(solvedCount, points, mistakes)
     const timeSpent = startRef.current ? Math.round((Date.now() - startRef.current) / 1000) : 0
 
     await finish({
@@ -152,8 +163,8 @@ export default function WordBuilderGame({ game }) {
   if (phase === 'ready') return <ReadyCard game={game} wordCount={words.length} onStart={start} />
   if (phase === 'done') {
     const totalWords = order.length
-    const accuracy = Math.round((solvedCount / Math.max(totalWords, 1)) * 100)
-    const score = solvedCount * points + Math.max(0, solvedCount * points - mistakes * 2)
+    const accuracy = computeAccuracy(solvedCount, totalWords)
+    const score = computeScore(solvedCount, points, mistakes)
     return (
       <>
         <Confetti fire={confettiKey} />
@@ -176,7 +187,7 @@ export default function WordBuilderGame({ game }) {
   }
 
   // Playing
-  const allFilled = slots.every((v) => v !== null)
+  const allFilled = allSlotsFilled(slots)
   const isWrong = allFilled && !solvedThisWord
 
   return (
@@ -274,7 +285,7 @@ export default function WordBuilderGame({ game }) {
           disabled={!solvedThisWord && !isWrong}
           className="zx-sticker-btn zx-sticker-btn-primary rounded-[14px] px-4 py-2.5 text-sm"
         >
-          {pos + 1 >= order.length ? 'Finish round' : 'Next word'}
+          {isLastWord(pos, order.length) ? 'Finish round' : 'Next word'}
         </button>
       </div>
     </div>
@@ -360,28 +371,4 @@ function DoneCard({ game, score, solved, total, accuracy, mistakes, saveResult, 
       <Leaderboard gameId={game.id} />
     </div>
   )
-}
-
-/* ── helpers ─────────────────────────────────────────────────── */
-
-function makeTiles(word) {
-  const letters = Array.from(word)
-  // Add a few decoys when the word is short
-  const decoyPool = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').filter((l) => !word.includes(l))
-  const decoyCount = word.length <= 4 ? 2 : word.length <= 6 ? 1 : 0
-  for (let i = 0; i < decoyCount; i++) {
-    const idx = Math.floor(Math.random() * decoyPool.length)
-    letters.push(decoyPool.splice(idx, 1)[0])
-  }
-  // shuffle
-  for (let i = letters.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[letters[i], letters[j]] = [letters[j], letters[i]]
-  }
-  return letters.map((letter) => ({ letter, placed: false }))
-}
-
-function stripLeadingEmoji(s) {
-  if (!s) return ''
-  return String(s).replace(/^\s*\p{Extended_Pictographic}+\s*/u, '').trim()
 }

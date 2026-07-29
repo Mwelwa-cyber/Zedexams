@@ -5,7 +5,7 @@
  *
  *  - `browser-print` — the studio's own print path: `buildPrintableHtml`, then
  *    Chromium prints it. This is what a teacher gets from "Print / Save as PDF".
- *  - `docx` — `buildAssessmentDocument`, then LibreOffice converts it. This is
+ *  - `docx` — `buildDocxDocument`, then LibreOffice converts it. This is
  *    what a teacher gets from "Download Word".
  *
  * The rule the owner set, and the reason these are separate: **Chromium is not
@@ -51,7 +51,7 @@ export async function loadExporters(opts = {}) {
   globalThis.DOMParser = dom.window.DOMParser
   globalThis.Node = dom.window.Node
   const { Packer } = await import('docx')
-  const { buildAssessmentDocument } = await import('../../src/utils/assessmentToDocx.js')
+  const { buildDocxDocument } = await import('../../src/utils/assessmentToDocx.js')
   const { buildPrintableHtml } = await import('../../src/utils/assessmentToPdf.js')
 
   // Give the shipping exporter a real rasteriser.
@@ -91,7 +91,7 @@ export async function loadExporters(opts = {}) {
     )
   }
 
-  exporters = { Packer, buildAssessmentDocument, buildPrintableHtml }
+  exporters = { Packer, buildDocxDocument, buildPrintableHtml }
   return exporters
 }
 
@@ -171,7 +171,7 @@ export function convertWithLibreOffice(inputPath, outDir, soffice = process.env.
  * a stage from quietly excusing its own incomplete output.
  */
 export async function renderFixture(fixture, stage, opts = {}) {
-  const { Packer, buildAssessmentDocument, buildPrintableHtml } = await loadExporters(opts)
+  const { Packer, buildDocxDocument, buildPrintableHtml } = await loadExporters(opts)
   const workDir = opts.workDir || fs.mkdtempSync(path.join(os.tmpdir(), `visual-${fixture.id}-`))
   fs.mkdirSync(workDir, { recursive: true })
 
@@ -197,7 +197,7 @@ export async function renderFixture(fixture, stage, opts = {}) {
     // lands in `unresolvedFigures`, and a render carrying one must never become a
     // baseline: that is how a paper missing its diagram becomes the reference.
     stats = { failedImages: [], unresolvedFigures: [], unprintableFigures: [] }
-    const doc = await buildAssessmentDocument(fixture.assessment, fixture.questions, {
+    const doc = await buildDocxDocument(fixture.assessment, fixture.questions, {
       mode: opts.mode || 'paper',
       stats,
     })

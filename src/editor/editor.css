@@ -690,13 +690,13 @@
 .tbb.tbmath {
   gap: 5px;
   padding: 0 8px;
-  background: #fff7ed;
-  color: #9a3412;
-  border: 1px solid #fed7aa;
+  background: #fcf7f3;
+  color: #83372c;
+  border: 1px solid #efd1bc;
   font-size: 11px;
   font-weight: 700;
 }
-.tbb.tbmath:hover { background: #ffedd5; }
+.tbb.tbmath:hover { background: #f8eadf; }
 .tb-frac-icon {
   display: inline-flex;
   flex-direction: column;
@@ -727,8 +727,8 @@
   flex-wrap: wrap;
   gap: 4px;
   padding: 8px 6px;
-  background: #fff7ed;
-  border-bottom: 1px solid #fed7aa;
+  background: #fcf7f3;
+  border-bottom: 1px solid #efd1bc;
 }
 .more-math-sheet .tbb {
   flex: 1 1 100px;

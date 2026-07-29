@@ -61,7 +61,7 @@ const OtpInput = forwardRef(function OtpInput(
         'focus:ring-[3px] focus:ring-black/5 disabled:opacity-60 ' +
         (invalid
           ? 'border-[var(--danger-fg,#b91c1c)] focus:border-[var(--danger-fg,#b91c1c)]'
-          : 'border-[#2A2A3C] focus:border-[var(--accent,#EA580C)]')
+          : 'border-[#2A2A3C] focus:border-[var(--accent,#C5613F)]')
       }
     />
   )

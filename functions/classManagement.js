@@ -38,28 +38,23 @@
  *     through this function (admin SDK bypasses the rule). Same for
  *     mints — mints would otherwise need a "the teacher is rotating
  *     their own code" rule that's annoying to express.
+ *
+ * Pure decision logic (invite codes, roster shaping, eligibility,
+ * assignment payload validation) lives in classManagementCore.js —
+ * this file keeps only the Firestore/auth I/O and maps each Core
+ * `{code, message}` error onto the same HttpsError as before.
  */
 
 const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertVerifiedAuth} = require("./authGuard");
+const core = require("./classManagementCore");
 
 const REGION = "us-central1";
-const INVITE_CODE_LENGTH = 8;
-const MAX_LEARNERS_PER_CLASS = 200;
-const INVITE_TTL_DAYS = 30;
 
-// Avoid 0/O and 1/I/L ambiguity — codes get spoken aloud / written
-// on whiteboards during onboarding sessions.
-const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-
-function randomCode() {
-  const bytes = require("node:crypto").randomBytes(INVITE_CODE_LENGTH);
-  let code = "";
-  for (let i = 0; i < INVITE_CODE_LENGTH; i += 1) {
-    code += CODE_ALPHABET[bytes[i] % CODE_ALPHABET.length];
-  }
-  return code;
+// Re-throw a Core-returned {code, message} decision as the callable error.
+function throwIfError(error) {
+  if (error) throw new HttpsError(error.code, error.message);
 }
 
 async function mintUniqueCode(db) {
@@ -67,7 +62,7 @@ async function mintUniqueCode(db) {
   // (~852 trillion combinations) and a sub-thousand active code
   // population, collision probability is vanishingly small.
   for (let attempt = 0; attempt < 10; attempt += 1) {
-    const code = randomCode();
+    const code = core.randomCode();
     const snap = await db.collection("classInvites").doc(code).get();
     if (!snap.exists) return code;
   }
@@ -80,9 +75,7 @@ async function loadClassOrThrow(db, classId, requireOwnerUid) {
   const snap = await ref.get();
   if (!snap.exists) throw new HttpsError("not-found", "Class not found.");
   const data = snap.data() || {};
-  if (requireOwnerUid && data.teacherUid !== requireOwnerUid) {
-    throw new HttpsError("permission-denied", "Only the class owner can do that.");
-  }
+  throwIfError(core.classOwnershipError(data, requireOwnerUid));
   return {ref, data};
 }
 
@@ -103,7 +96,7 @@ const generateClassInvite = onCall({
   // succeeds. If cleanup fails, the orphan invite expires naturally.
   const newCode = await mintUniqueCode(db);
   const expiresAt = admin.firestore.Timestamp.fromMillis(
-      Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000,
+      core.inviteExpiryMs(Date.now()),
   );
   const previousCode = classData.inviteCode || null;
 
@@ -138,10 +131,9 @@ const joinClassByCode = onCall({
 }, async (request) => {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
 
-  const code = String(request.data?.code || "").trim().toUpperCase();
-  if (!code || code.length < 6 || code.length > 16) {
-    throw new HttpsError("invalid-argument", "Enter a valid invite code.");
-  }
+  const parsedCode = core.parseInviteCode(request.data?.code);
+  throwIfError(parsedCode.error);
+  const code = parsedCode.code;
 
   const db = admin.firestore();
   const inviteRef = db.collection("classInvites").doc(code);
@@ -151,7 +143,7 @@ const joinClassByCode = onCall({
   }
   const invite = inviteSnap.data() || {};
   const now = admin.firestore.Timestamp.now();
-  if (invite.expiresAt && invite.expiresAt.toMillis() < now.toMillis()) {
+  if (core.isInviteExpired(invite.expiresAt ? invite.expiresAt.toMillis() : null, now.toMillis())) {
     throw new HttpsError("failed-precondition", "This invite code has expired. Ask your teacher for a new one.");
   }
 
@@ -161,12 +153,9 @@ const joinClassByCode = onCall({
     throw new HttpsError("not-found", "The class behind this code no longer exists.");
   }
   const classData = classSnap.data() || {};
-  if (classData.active === false) {
-    throw new HttpsError("failed-precondition", "This class is no longer active.");
-  }
 
-  const learners = Array.isArray(classData.learners) ? classData.learners : [];
-  const pendingLearners = Array.isArray(classData.pendingLearners) ? classData.pendingLearners : [];
+  const decision = core.decideJoinRequest({classData, uid});
+  throwIfError(decision.error);
 
   // Best-effort lookup of the teacher's display name to surface in
   // the success toast. Falls back gracefully if the read fails.
@@ -178,7 +167,7 @@ const joinClassByCode = onCall({
     console.warn("[classManagement] teacher displayName lookup failed", err);
   }
 
-  if (learners.includes(uid)) {
+  if (decision.outcome === "already-approved") {
     return {
       classId: classRef.id,
       name: classData.name || "Class",
@@ -187,7 +176,7 @@ const joinClassByCode = onCall({
       alreadyMember: true,
     };
   }
-  if (pendingLearners.includes(uid)) {
+  if (decision.outcome === "already-pending") {
     return {
       classId: classRef.id,
       name: classData.name || "Class",
@@ -195,9 +184,6 @@ const joinClassByCode = onCall({
       status: "pending",
       alreadyMember: true,
     };
-  }
-  if (learners.length + pendingLearners.length >= MAX_LEARNERS_PER_CLASS) {
-    throw new HttpsError("resource-exhausted", "This class is full. Ask your teacher for help.");
   }
 
   await classRef.update({
@@ -221,23 +207,15 @@ const approveLearner = onCall({
 }, async (request) => {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
 
-  const classId = String(request.data?.classId || "").trim();
-  const learnerUid = String(request.data?.learnerUid || "").trim();
-  if (!classId || !learnerUid) {
-    throw new HttpsError("invalid-argument", "classId and learnerUid are required.");
-  }
+  const args = core.parseClassLearnerArgs(request.data);
+  throwIfError(args.error);
+  const {classId, learnerUid} = args;
 
   const db = admin.firestore();
   const {ref: classRef, data: classData} = await loadClassOrThrow(db, classId, uid);
-  const pendingLearners = Array.isArray(classData.pendingLearners) ? classData.pendingLearners : [];
-  const learners = Array.isArray(classData.learners) ? classData.learners : [];
 
-  if (!pendingLearners.includes(learnerUid)) {
-    throw new HttpsError("failed-precondition", "That learner is not awaiting approval.");
-  }
-  if (learners.length >= MAX_LEARNERS_PER_CLASS) {
-    throw new HttpsError("resource-exhausted", "This class is full. Remove an inactive learner before approving another.");
-  }
+  const decision = core.decideApproval({classData, learnerUid});
+  throwIfError(decision.error);
 
   await classRef.update({
     pendingLearners: admin.firestore.FieldValue.arrayRemove(learnerUid),
@@ -274,11 +252,9 @@ const declineLearner = onCall({
 }, async (request) => {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
 
-  const classId = String(request.data?.classId || "").trim();
-  const learnerUid = String(request.data?.learnerUid || "").trim();
-  if (!classId || !learnerUid) {
-    throw new HttpsError("invalid-argument", "classId and learnerUid are required.");
-  }
+  const args = core.parseClassLearnerArgs(request.data);
+  throwIfError(args.error);
+  const {classId, learnerUid} = args;
 
   const db = admin.firestore();
   const {ref: classRef} = await loadClassOrThrow(db, classId, uid);
@@ -296,11 +272,9 @@ const removeLearnerFromClass = onCall({
 }, async (request) => {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
 
-  const classId = String(request.data?.classId || "").trim();
-  const learnerUid = String(request.data?.learnerUid || "").trim();
-  if (!classId || !learnerUid) {
-    throw new HttpsError("invalid-argument", "classId and learnerUid are required.");
-  }
+  const args = core.parseClassLearnerArgs(request.data);
+  throwIfError(args.error);
+  const {classId, learnerUid} = args;
 
   const db = admin.firestore();
   const {ref: classRef} = await loadClassOrThrow(db, classId, uid);
@@ -325,7 +299,7 @@ const removeLearnerFromClass = onCall({
  *     a second Firestore read per row. The function does that fetch
  *     once.
  *
- * Validation:
+ * Validation (in classManagementCore.parseAssignmentRequest):
  *   - classId required; class must exist, be active, and be owned by
  *     the caller.
  *   - resourceType ∈ {'quiz', 'exam'}; resourceId required.
@@ -340,38 +314,13 @@ const createClassAssignment = onCall({
 }, async (request) => {
   const uid = await assertVerifiedAuth(request, "Sign in required.");
 
-  const classId = String(request.data?.classId || "").trim();
-  const resourceType = String(request.data?.resourceType || "").trim();
-  const resourceId = String(request.data?.resourceId || "").trim();
-  const dueAtMs = Number(request.data?.dueAtMs || 0) || null;
-  const openAtMs = Number(request.data?.openAtMs || 0) || null;
-
   // New optional fields introduced with the redesigned assignment wizard.
   // Stored on the assignment doc so learner-side rendering can honour the
   // teacher's settings (timer, retakes, schedule, etc.) without a second
   // collection. Unknown values fall back to safe defaults.
-  const ALLOWED_MODES = ["automatic", "manual"];
-  const assignmentMode = ALLOWED_MODES.includes(request.data?.assignmentMode)
-    ? request.data.assignmentMode
-    : "manual";
-  const timed = Boolean(request.data?.timed);
-  const allowRetakes = Boolean(request.data?.allowRetakes);
-  const shuffleQuestions = Boolean(request.data?.shuffleQuestions);
-  const lockAfterSubmission = Boolean(request.data?.lockAfterSubmission);
-  const notifyLearners = request.data?.notifyLearners === false ? false : true;
-  const addToDailyChallenge = Boolean(request.data?.addToDailyChallenge);
-  const template = typeof request.data?.template === "string"
-    ? request.data.template.slice(0, 40)
-    : null;
-  const learnerUidsRaw = Array.isArray(request.data?.learnerUids)
-    ? request.data.learnerUids
-    : null;
-  const learnerUids = learnerUidsRaw
-    ? learnerUidsRaw
-        .map((u) => (typeof u === "string" ? u.trim() : ""))
-        .filter((u) => u && u.length <= 200)
-        .slice(0, 200)
-    : null;
+  const parsed = core.parseAssignmentRequest(request.data, Date.now());
+  throwIfError(parsed.error);
+  const {classId, resourceType, resourceId, dueAtMs, openAtMs, notifyLearners, learnerUids} = parsed;
 
   // Idempotency: the wizard mints one key per "Assign" press and resends it on
   // every retry. A double-tap, a callable retry after a dropped response, or a
@@ -381,18 +330,6 @@ const createClassAssignment = onCall({
   // path (older clients) — never trust the raw key as a doc id.
   const {deriveIdempotentId} = require("./idempotency");
   const idempotentId = deriveIdempotentId(`assignment:${uid}`, request.data?.idempotencyKey, "a_");
-
-  if (!classId) throw new HttpsError("invalid-argument", "classId is required.");
-  if (!["quiz", "exam"].includes(resourceType)) {
-    throw new HttpsError("invalid-argument", "resourceType must be 'quiz' or 'exam'.");
-  }
-  if (!resourceId) throw new HttpsError("invalid-argument", "resourceId is required.");
-  if (dueAtMs && dueAtMs < Date.now() - 60000) {
-    throw new HttpsError("invalid-argument", "Due date must be in the future.");
-  }
-  if (openAtMs && dueAtMs && openAtMs > dueAtMs) {
-    throw new HttpsError("invalid-argument", "Open date must be before the due date.");
-  }
 
   const db = admin.firestore();
 
@@ -411,67 +348,36 @@ const createClassAssignment = onCall({
     throw new HttpsError("failed-precondition", "Cannot assign work to an archived class.");
   }
 
-  // Resource fetch + permission gate
-  let resourceTitle = "Assigned work";
-  let resourceSubject = classData.subject || null;
-  let resourceGrade = classData.grade || null;
+  // Resource fetch + permission gate (decision in the Core module).
+  let resource;
+  let callerIsAdmin = false;
   if (resourceType === "quiz") {
     const quizSnap = await db.collection("quizzes").doc(resourceId).get();
     if (!quizSnap.exists) throw new HttpsError("not-found", "Quiz not found.");
-    const quiz = quizSnap.data() || {};
-    const callerIsCreator = quiz.createdBy === uid;
-    const callerIsAdmin = (await db.collection("users").doc(uid).get()).data()?.role === "admin";
-    if (!quiz.isPublished && !callerIsCreator && !callerIsAdmin) {
-      throw new HttpsError("permission-denied", "You can only assign published quizzes or your own drafts.");
-    }
-    resourceTitle = quiz.title || resourceTitle;
-    if (quiz.subject) resourceSubject = quiz.subject;
-    if (quiz.grade) resourceGrade = String(quiz.grade);
+    resource = quizSnap.data() || {};
+    callerIsAdmin = (await db.collection("users").doc(uid).get()).data()?.role === "admin";
   } else {
-    // 'exam' — daily exam quiz docs share the quizzes collection but
-    // are flagged with quizType == 'daily_exam'. Treat the same.
     const examSnap = await db.collection("quizzes").doc(resourceId).get();
     if (!examSnap.exists) throw new HttpsError("not-found", "Exam not found.");
-    const exam = examSnap.data() || {};
-    if (exam.quizType !== "daily_exam") {
-      throw new HttpsError("invalid-argument", "That is not a daily exam.");
-    }
-    resourceTitle = exam.title || resourceTitle;
-    if (exam.subject) resourceSubject = exam.subject;
-    if (exam.grade) resourceGrade = String(exam.grade);
+    resource = examSnap.data() || {};
   }
+  const resolved = core.resolveAssignmentResource({resourceType, resource, uid, callerIsAdmin, classData});
+  throwIfError(resolved.error);
+  const resourceTitle = resolved.resourceTitle;
 
   const dueAt = dueAtMs ? admin.firestore.Timestamp.fromMillis(dueAtMs) : null;
   const openAt = openAtMs ? admin.firestore.Timestamp.fromMillis(openAtMs) : null;
-  // Treat a future openAt as a "scheduled" assignment for status badges;
-  // learner-side rendering hides locked assignments until openAt passes.
-  const isScheduled = openAt && openAt.toMillis() > Date.now() + 60000;
+  const isScheduled = core.isScheduledAssignment(openAtMs, Date.now());
 
-  const assignmentDoc = {
-    classId,
-    teacherUid: uid,
-    resourceType,
-    resourceId,
-    resourceTitle: String(resourceTitle).slice(0, 200),
-    subject: resourceSubject,
-    grade: resourceGrade,
+  const assignmentDoc = core.buildAssignmentDoc({
+    parsed,
+    resolved,
+    uid,
     dueAt,
     openAt,
-    active: true,
-    status: isScheduled ? "scheduled" : "active",
-    assignmentMode,
-    template,
-    settings: {
-      timed,
-      allowRetakes,
-      shuffleQuestions,
-      lockAfterSubmission,
-      notifyLearners,
-      addToDailyChallenge,
-    },
-    learnerUids: learnerUids && learnerUids.length > 0 ? learnerUids : null,
+    isScheduled,
     assignedAt: admin.firestore.FieldValue.serverTimestamp(),
-  };
+  });
 
   let ref;
   let alreadyExisted = false;
@@ -498,13 +404,11 @@ const createClassAssignment = onCall({
 
   // Notify the targeted learners (best-effort — never block the assignment).
   if (notifyLearners && !isScheduled) {
-    const recipients = (learnerUids && learnerUids.length > 0)
-      ? learnerUids
-      : (Array.isArray(classData.learners) ? classData.learners : []);
+    const recipients = core.assignmentNotificationRecipients({learnerUids, classData});
     const {createNotification} = require("./notifications/createNotification");
     const label = resourceType === "exam" ? "Open exam" : "Open quiz";
     await Promise.all(
-        recipients.slice(0, 200).map((learnerUid) =>
+        recipients.map((learnerUid) =>
           createNotification({
             uid: learnerUid,
             category: "assessments",
@@ -547,9 +451,7 @@ const removeClassAssignment = onCall({
   const snap = await ref.get();
   if (!snap.exists) throw new HttpsError("not-found", "Assignment not found.");
   const data = snap.data() || {};
-  if (data.teacherUid !== uid) {
-    throw new HttpsError("permission-denied", "Only the assigning teacher can remove it.");
-  }
+  throwIfError(core.assignmentOwnershipError(data, uid));
 
   await ref.update({
     active: false,
@@ -576,11 +478,7 @@ const leaveClass = onCall({
   const snap = await classRef.get();
   if (!snap.exists) throw new HttpsError("not-found", "Class not found.");
   const data = snap.data() || {};
-  const learners = Array.isArray(data.learners) ? data.learners : [];
-  const pendingLearners = Array.isArray(data.pendingLearners) ? data.pendingLearners : [];
-  if (!learners.includes(uid) && !pendingLearners.includes(uid)) {
-    throw new HttpsError("failed-precondition", "You are not a member of this class.");
-  }
+  throwIfError(core.membershipError(data, uid));
   await classRef.update({
     learners: admin.firestore.FieldValue.arrayRemove(uid),
     pendingLearners: admin.firestore.FieldValue.arrayRemove(uid),

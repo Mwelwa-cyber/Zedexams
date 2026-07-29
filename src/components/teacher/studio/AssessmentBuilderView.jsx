@@ -3,6 +3,8 @@ import { hasOnlyEmptyStarterSection, orderPaperGroups } from '../../../utils/qui
 import { toEditableText } from '../AssessmentQuestionEditors'
 import { QUIZ_DOCUMENT_ACCEPT } from '../../quiz/documentQuizImporter'
 import { SECTION_LETTERS } from '../assessmentStudioMeta'
+import { normalizeMarksMode, resolveQuestionMarks, marksLabel } from '../../../utils/paperMarksModel'
+import { CHOICE_COUNT_OPTIONS, normalizeChoiceCount } from '../../../utils/mcqChoices'
 import Icon from './studioIcons'
 import {
   HeaderBlock,
@@ -257,16 +259,19 @@ export function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, 
   const partIndex = allParts.findIndex(p => p.id === group.part?.id)
   const letter = partIndex >= 0 ? SECTION_LETTERS[partIndex] || '·' : null
 
+  // The section's total, through the SAME rule the printed paper uses (§4).
+  // Summing `q.marks` directly — which this did — prints a different number from
+  // the paper the moment the section is set to "same marks for every question",
+  // because a uniform section's questions are worth the section's mark and not
+  // their own.
   const partMarks = useMemo(() => {
-    return group.members.reduce((sum, { section }) => {
-      if (section.kind === 'passage') {
-        return sum + (section.passage.questions || []).reduce((s, q) => s + (q.marks || 1), 0)
-      }
-      // Page breaks are structural markers with no marks.
-      if (section.kind === 'pagebreak') return sum
-      return sum + (section.question.marks || 1)
-    }, 0)
-  }, [group.members])
+    const questions = group.members.flatMap(({ section }) => {
+      if (section.kind === 'passage') return section.passage.questions || []
+      if (section.kind === 'pagebreak') return []
+      return section.question ? [section.question] : []
+    })
+    return questions.reduce((sum, q) => sum + resolveQuestionMarks(q, group.part), 0)
+  }, [group.members, group.part])
 
   return (
     <>
@@ -311,6 +316,11 @@ export function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, 
             onChange={e => onUpdatePart(group.part.id, 'instructions', e.target.value)}
             placeholder="Section instructions (e.g. Choose the correct answer from the options given.)"
           />
+          <SectionMarksControls
+            part={group.part}
+            partMarks={partMarks}
+            onUpdatePart={onUpdatePart}
+          />
         </div>
       )}
 
@@ -351,3 +361,77 @@ export function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, 
   )
 }
 
+
+/* ==================================================================
+ * SECTION MARKS + ANSWER-CHOICE CONTROLS (§3, §4)
+ *
+ * A 25-question multiple-choice section is "one mark each", and asking a
+ * teacher to type 1 twenty-five times is how a section ends up with a 2 in it
+ * by accident. So a section can declare a uniform mark, and every question in
+ * it is worth that — except one the teacher deliberately locked, which keeps
+ * its own. Switching to uniform must not silently rewrite a mark that was set
+ * on purpose; the only evidence would be the total moving.
+ *
+ * The declared total sits beside the computed one rather than replacing it. A
+ * section whose two numbers disagree is blocked at export with both named,
+ * because whichever the learner is marked against, one of them is wrong.
+ * ================================================================== */
+export function SectionMarksControls({ part, partMarks, onUpdatePart }) {
+  const mode = normalizeMarksMode(part.marksMode)
+  const uniform = mode === 'uniform'
+  const choiceCount = normalizeChoiceCount(part.answerChoiceCount)
+  return (
+    <div className="sv-section-settings">
+      <div className="sv-section-setting">
+        <span className="sv-section-setting-label">Marks</span>
+        <select
+          value={mode}
+          onChange={(e) => onUpdatePart(part.id, 'marksMode', e.target.value)}
+          aria-label="How this section awards marks"
+        >
+          <option value="individual">Set marks individually</option>
+          <option value="uniform">Same marks for every question</option>
+        </select>
+        {uniform && (
+          <label className="sv-section-setting-inline">
+            <span>Marks per question</span>
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              value={part.marksPerQuestion ?? 1}
+              onChange={(e) => onUpdatePart(part.id, 'marksPerQuestion', Number(e.target.value))}
+            />
+          </label>
+        )}
+        <label className="sv-section-setting-inline">
+          <input
+            type="checkbox"
+            checked={part.showMarks !== false}
+            onChange={(e) => onUpdatePart(part.id, 'showMarks', e.target.checked)}
+          />
+          <span>Show marks beside questions</span>
+        </label>
+        <span className="sv-section-setting-total">Section total: {marksLabel(partMarks)}</span>
+      </div>
+
+      <div className="sv-section-setting">
+        <span className="sv-section-setting-label">Answer choices</span>
+        <select
+          value={choiceCount ?? ''}
+          onChange={(e) => onUpdatePart(
+            part.id,
+            'answerChoiceCount',
+            e.target.value === '' ? null : Number(e.target.value),
+          )}
+          aria-label="Number of answer choices in this section"
+        >
+          <option value="">Use the paper&apos;s setting</option>
+          {CHOICE_COUNT_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label} — {o.description.toLowerCase()}</option>
+          ))}
+        </select>
+      </div>
+    </div>
+  )
+}

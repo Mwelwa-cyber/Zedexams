@@ -455,7 +455,7 @@ function GridView({ cards, onStudy }) {
           className="text-left rounded-2xl border-2 p-4 min-h-[140px] transition-all hover:-translate-y-0.5 hover:shadow-md"
           style={
             flipped[i]
-              ? { background: '#fff5e6', borderColor: '#ff7a2e' }
+              ? { background: '#fff5e6', borderColor: '#d97757' }
               : { background: '#ffffff', borderColor: '#0e2a32' }
           }
         >

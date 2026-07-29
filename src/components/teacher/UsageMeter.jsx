@@ -281,7 +281,7 @@ export default function UsageMeter() {
 const styles = `
 .zum-card{
   --cream:#F4EFE3;--cream-2:#EDE6D3;--ink:#0F1B1B;--ink-2:#234141;--teal:#0E3838;
-  --orange:#F36A2A;--orange-soft:#FBE4D5;--line:#E2D8C0;--muted:#6B7775;
+  --orange:#CF6B51;--orange-soft:#F5E5DE;--line:#E2D8C0;--muted:#6B7775;
   --green:#2F7D5F;--warn:#D08200;--danger:#C0392B;
   background:#fff;border:1px solid var(--line);border-radius:22px;padding:24px 26px;
   box-shadow:0 1px 0 rgba(15,27,27,.02), 0 8px 24px rgba(15,27,27,.04);
@@ -312,7 +312,7 @@ const styles = `
 .zum-meter-count{font-size:13px;font-variant-numeric:tabular-nums;color:var(--muted);font-weight:500;white-space:nowrap}
 .zum-meter-count strong{color:var(--ink);font-weight:600}
 .zum-link{background:none;border:none;color:var(--orange);font-weight:600;font-size:13px;cursor:pointer;padding:0;font-family:inherit;text-decoration:underline}
-.zum-link:hover{color:#E55E22}
+.zum-link:hover{color:#C5613F}
 .zum-bar{grid-column:1 / -1;height:8px;background:var(--cream-2);border-radius:999px;overflow:hidden;position:relative}
 .zum-fill{height:100%;border-radius:999px;background:var(--green);transition:width .6s cubic-bezier(.4,0,.2,1)}
 .zum-bar-warn .zum-fill{background:var(--warn)}
@@ -321,14 +321,14 @@ const styles = `
 .zum-daily{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;padding-top:18px;border-top:1px dashed var(--line);font-size:13px;color:var(--ink-2)}
 .zum-daily-bar{flex:1;height:6px;background:var(--cream-2);border-radius:999px;overflow:hidden;max-width:240px}
 .zum-daily-fill{height:100%;background:var(--teal);border-radius:999px;transition:width .6s ease}
-.zum-limit-banner{margin-top:18px;background:#FFF6EE;border:1px solid #FBD9C0;border-radius:14px;padding:14px 16px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between}
+.zum-limit-banner{margin-top:18px;background:#FFF6EE;border:1px solid #F1D8CD;border-radius:14px;padding:14px 16px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between}
 .zum-limit-msg{font-size:13px;color:var(--ink-2);line-height:1.5}
 .zum-limit-msg strong{color:var(--ink);font-weight:600}
 .zum-limit-actions{display:flex;gap:8px;align-items:center}
-.zum-limit-banner button{background:var(--orange);color:#fff;border:none;border-radius:10px;padding:9px 14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;box-shadow:0 4px 12px rgba(243,106,42,.24)}
-.zum-limit-banner button:hover{background:#E55E22}
+.zum-limit-banner button{background:var(--orange);color:#fff;border:none;border-radius:10px;padding:9px 14px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;box-shadow:0 4px 12px rgba(207,107,81,.24)}
+.zum-limit-banner button:hover{background:#C5613F}
 .zum-limit-banner button.zum-limit-pay{background:#fff;color:var(--orange);border:1.5px solid var(--orange);box-shadow:none}
-.zum-limit-banner button.zum-limit-pay:hover{background:var(--orange-soft);color:#E55E22}
+.zum-limit-banner button.zum-limit-pay:hover{background:var(--orange-soft);color:#C5613F}
 .zum-recover{flex-basis:100%;margin-top:4px}
 .zum-recover-link{background:none!important;border:none!important;box-shadow:none!important;color:var(--ink-2)!important;font-family:inherit;font-size:12px;font-weight:600;text-decoration:underline;cursor:pointer;padding:0!important}
 .zum-recover-link:hover:not(:disabled){color:var(--orange)!important}

@@ -181,8 +181,8 @@ export default function MfaSetupPage() {
   return (
     <Shell>
       <div className="flex flex-col items-center text-center mb-5">
-        <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#FFEDD5]">
-          <Icon as={ShieldCheck} size="xl" className="text-[#EA580C]" label="" />
+        <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#F8EADF]">
+          <Icon as={ShieldCheck} size="xl" className="text-[#C5613F]" label="" />
         </span>
         <h1 className="text-[22px] font-bold text-[#1A1F2E]">Secure your administrator account</h1>
         <p className="text-[13.5px] text-[#6B6B76] mt-2 max-w-sm">
@@ -345,7 +345,7 @@ function Shell({ children }) {
   return (
     <div
       className="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-y-auto"
-      style={{ backgroundColor: '#FDF6EC', '--accent': '#EA580C', '--accent-bg': '#FFEDD5', '--accent-fg': '#9A3412' }}
+      style={{ backgroundColor: '#FDF6EC', '--accent': '#C5613F', '--accent-bg': '#F8EADF', '--accent-fg': '#83372C' }}
     >
       <div className="bg-white rounded-[18px] shadow-xl w-full max-w-[calc(100vw-2rem)] sm:max-w-[460px] px-5 sm:px-8 pt-8 pb-7 animate-scale-in relative z-10">
         <div className="flex flex-col items-center mb-5 gap-1">

@@ -21,11 +21,11 @@ import { orderPaperGroups } from './quizSections.js'
 import { seedBandForLevel } from './assessmentBandService.js'
 import { minFigureMm, mmToPx } from './figureSizing.js'
 import { assessmentTypeLabel } from '../components/teacher/paperTaxonomy.js'
-
-const GRADE_WORDS = {
-  1: 'ONE', 2: 'TWO', 3: 'THREE', 4: 'FOUR', 5: 'FIVE', 6: 'SIX',
-  7: 'SEVEN', 8: 'EIGHT', 9: 'NINE', 10: 'TEN', 11: 'ELEVEN', 12: 'TWELVE',
-}
+import { formatGradeToken, resolveLearnerFields } from './paperMetadata.js'
+import { resolveConfiguredChoiceCount, paperChoiceSettings } from './mcqChoices.js'
+import { computeMarksModel, resolveQuestionMarks, showMarksFor } from './paperMarksModel.js'
+import { normalizeFigureSpec, resolveFigureBox } from './figureLayoutModel.js'
+import { resolvePaperLayout } from '../config/paperLayoutTokens.js'
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
@@ -44,8 +44,11 @@ export const DEFAULT_ANSWER_LINES = {
 }
 
 export function buildPaperTitle(assessment = {}) {
-  const grade = assessment.grade ?? ''
-  const gradeWord = GRADE_WORDS[grade] || String(grade).toUpperCase()
+  // The grade prints as the teacher typed it — "GRADE 4", not "GRADE FOUR" —
+  // unless the paper has selected the written-number style. This used to be an
+  // unconditional word lookup, so a studio that showed "Grade 4" everywhere
+  // produced a download whose header said something else (§9).
+  const gradeWord = formatGradeToken(assessment.grade, assessment.gradeNumberStyle)
   const type = assessment.assessmentType
   const term = assessment.term ?? ''
   const year = assessment.year ?? assessment.assessmentYear ?? (assessment.assessmentDate
@@ -80,7 +83,12 @@ export function buildFooterCode(assessment = {}) {
 
 function plain(value) {
   if (!value) return ''
-  const out = richTextToPlainText(String(value))
+  // NOT String(value) — a question's text arrives here as serialised Tiptap
+  // JSON (that is what serializeQuizSections writes), and stringifying it first
+  // hid the doc from the extractor, which then returned the JSON verbatim. That
+  // is the raw `{"type":"doc",…}` teachers saw printed as their question on the
+  // preview page, since PaperBlocks renders this field and not `textHtml`.
+  const out = richTextToPlainText(value)
   return out.replace(/\s+/g, ' ').trim()
 }
 
@@ -371,22 +379,31 @@ export function computeSmartWarnings(assessment, questions = []) {
  * `assessment` is the saved-or-in-progress document. `questions` is the
  * flat ordered list from serializeQuizSections.
  */
-export function buildPaperLayout(assessment = {}, questions = [], { mode = 'paper' } = {}) {
+export function buildPaperLayout(assessment = {}, questions = [], { mode = 'paper', context = null } = {}) {
   const includeAnswers = mode === 'scheme'
   const sortedQs = [...questions].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-  const groups = groupQuestionsByPart(sortedQs, assessment.parts || [], assessment.ungroupedOrder)
+  const parts = assessment.parts || []
+  const groups = groupQuestionsByPart(sortedQs, parts, assessment.ungroupedOrder)
+
+  // The resolved document context. `buildAssessmentDocument` passes it in so the
+  // layout, metadata and marks are resolved exactly once per document; a direct
+  // caller (the library's read-only paper view, an export path) gets the same
+  // thing built here, so there is never a code path that renders without one.
+  const band = seedBandForLevel(assessment.grade)
+  const ctx = context || {
+    layout: resolvePaperLayout(assessment.layout || assessment),
+    marks: computeMarksModel(assessment, sortedQs),
+    choices: paperChoiceSettings(assessment),
+  }
 
   // Paper-level MCQ presentation. Both are optional; when unset the
   // renderers keep their legacy auto behaviour (4-up grid, auto-stack on
   // long options, render every stored option).
   //   mcqOptionLayout      — 'vertical' | 'horizontal' (text options only)
-  //   mcqAnswerChoiceCount — 2 | 3 | 4: cap every MCQ to the first N options
+  //   answer-choice count  — 2..5, resolved per question through mcqChoices.js
   const mcqOpts = {
     mcqLayout: (assessment.mcqOptionLayout === 'vertical' || assessment.mcqOptionLayout === 'horizontal')
       ? assessment.mcqOptionLayout
-      : null,
-    mcqCount: [2, 3, 4].includes(Number(assessment.mcqAnswerChoiceCount))
-      ? Number(assessment.mcqAnswerChoiceCount)
       : null,
     // The band's minimum figure size, resolved ONCE and carried on the block
     // (§4.2). It was previously read only by `assessmentToDocx`, which is why
@@ -395,7 +412,10 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
     // never consulted the floor at all. Resolving it here makes it the layout's
     // decision, like every other thing the three renderers must agree on.
     // Published defaults only: an export must not block on a config read.
-    figureMinWidthPx: Math.round(mmToPx(minFigureMm(seedBandForLevel(assessment.grade)))),
+    figureMinWidthPx: Math.round(mmToPx(minFigureMm(band))),
+    band,
+    ctx,
+    assessment,
   }
 
   const blocks = []
@@ -417,15 +437,29 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
   })
 
   // 2. Learner info row + marks line
+  //
+  // The labels are resolved (§9): a paper can say "Candidate's Name" on a mock
+  // examination and "Pupil's Name" on a Grade 3 test, and all three renderers
+  // print the same words because they read them off the block rather than each
+  // hard-coding "Name".
+  const learnerFields = resolveLearnerFields(assessment)
   const nameFieldsConfig = {
-    name: assessment.showNameField !== false,
-    date: assessment.showDateField !== false,
-    classField: Boolean(assessment.showClassField),
-    marks: assessment.showMarksField !== false,
+    name: learnerFields.name.show,
+    date: learnerFields.date.show,
+    classField: learnerFields.classField.show,
+    marks: learnerFields.marks.show,
+    labels: {
+      name: learnerFields.name.label,
+      date: learnerFields.date.label,
+      classField: learnerFields.classField.label,
+      marks: learnerFields.marks.label,
+    },
     className: assessment.className,
     assessmentDate: assessment.assessmentDate,
     duration: assessment.duration,
-    totalMarks: questions.reduce((sum, q) => sum + (q?.marks || 0), 0),
+    // The paper's total, from the marks model — the same number the section
+    // headings, the marking key and the Save button read (§4).
+    totalMarks: ctx.marks.totalMarks,
   }
   blocks.push({ kind: 'learnerFields', ...nameFieldsConfig })
 
@@ -462,17 +496,30 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
     const isUngrouped = !group.id
     const partIndex = isUngrouped
       ? -1
-      : (assessment.parts || []).findIndex(p => p.id === group.id)
+      : parts.findIndex(p => p.id === group.id)
     const letter = partIndex >= 0 ? SECTION_LETTERS[partIndex] : ''
-    const partMarks = group.questions.reduce((sum, q) => sum + (q.marks || 0), 0)
+    const section = isUngrouped ? null : (parts[partIndex] || null)
+    // The section's total comes from the marks model, not from re-summing the
+    // group here: a uniform section's questions carry the section's per-question
+    // mark rather than their own, and summing `q.marks` would print the total of
+    // whatever was stored before the teacher switched the section to uniform.
+    const partMarks = section
+      ? (ctx.marks.sections.find(s => s.id === section.id)?.marks ?? 0)
+      : ctx.marks.ungrouped.marks
 
     if (!isUngrouped) {
       blocks.push({
         kind: 'sectionHeader',
+        sectionId: section?.id ?? null,
         letter,
         title: stripSectionLabel(plain(group.title)),
         marks: partMarks,
+        showMarks: showMarksFor(section, assessment),
         instructions: plain(group.instructions),
+        // A heading alone at the foot of a page is the classic orphan: the
+        // learner turns over to find "Section B" was the last thing on the
+        // previous sheet. The pagination rules keep it with what follows (§7).
+        keepWithNext: true,
       })
     } else if (groupIndex === 0 && groups.length > 1) {
       // First group is ungrouped but more parts follow — emit a friendly heading
@@ -521,7 +568,7 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
         })
         for (const q of passageQuestions) {
           runningNumber += 1
-          blocks.push(buildQuestionBlock(q, runningNumber, includeAnswers, mcqOpts))
+          blocks.push(buildQuestionBlock(q, runningNumber, includeAnswers, mcqOpts, section))
         }
         const footer = passageTotalFooter(item.passage, passageQuestions)
         if (footer) blocks.push(footer)
@@ -529,7 +576,7 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
         blocks.push({ kind: 'pagebreak' })
       } else {
         runningNumber += 1
-        blocks.push(buildQuestionBlock(item.q, runningNumber, includeAnswers, mcqOpts))
+        blocks.push(buildQuestionBlock(item.q, runningNumber, includeAnswers, mcqOpts, section))
       }
     }
   })
@@ -596,14 +643,16 @@ function passageTotalFooter(passage, questions) {
   return { kind: 'passageTotal', totalMarks }
 }
 
-function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}) {
+function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}, section = null) {
   // Fold any authoring alias ('truefalse' → 'tf', 'fill_in_blank' →
   // 'fill_blanks') onto the canonical type so every downstream renderer (the
   // preview, the PDF print window, the DOCX export, the answer sheet) switches
   // on one spelling. Without this a legacy 'truefalse' doc slipped past every
   // `=== 'tf'` check and printed a true/false question with no options.
   const type = canonicalizeQuestionType(q.type) || 'mcq'
-  const { mcqLayout = null, mcqCount = null, figureMinWidthPx = 0 } = mcqOpts
+  const {
+    mcqLayout = null, figureMinWidthPx = 0, band = null, ctx = null, assessment = null,
+  } = mcqOpts
   // True/False is a 2-choice MCQ — same options/correctAnswer model — so it
   // flows through the MCQ option pipeline below.
   const isChoice = type === 'mcq' || type === 'tf'
@@ -614,13 +663,28 @@ function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}) {
     options = ['True', 'False']
   }
   let optionMedia = Array.isArray(q.optionMedia) ? q.optionMedia : []
-  // Paper-level "answer choices" cap. When the teacher fixes the whole
-  // paper to 2/3/4 choices we render only the first N — non-destructive,
-  // the stored question keeps every option so switching back restores them.
-  // True/False is always exactly two choices, so the cap never applies to it.
-  if (type === 'mcq' && mcqCount && options.length > mcqCount) {
-    options = options.slice(0, mcqCount)
-    optionMedia = optionMedia.slice(0, mcqCount)
+  // The answer-choice count that applies to THIS question — paper default, a
+  // section override, or the question's own when the paper enabled per-question
+  // overrides (§3). `resolveConfiguredChoiceCount` returns null when nothing was
+  // configured, and that is the important half: a paper saved before this
+  // setting existed prints every option it holds rather than being silently
+  // trimmed to a recommendation nobody chose.
+  const choiceCount = isChoice
+    ? resolveConfiguredChoiceCount({
+      paper: assessment,
+      section,
+      question: q,
+      allowPerQuestion: ctx?.choices?.allowPerQuestion,
+      type,
+    })
+    : null
+  // Non-destructive: the stored question keeps every option, so reducing a paper
+  // from A–D to A–C and back restores the fourth. What the studio does NOT do is
+  // let the correct answer fall silently off the end — `validateChoices` blocks
+  // the export when it has.
+  if (type === 'mcq' && choiceCount && options.length > choiceCount) {
+    options = options.slice(0, choiceCount)
+    optionMedia = optionMedia.slice(0, choiceCount)
   }
   // Drop any letter prefix baked into the option text ("A. digestive system")
   // so the renderers' own A/B/C/D labels don't double up ("A. A. …").
@@ -660,9 +724,20 @@ function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}) {
     answerLines: p.answerLines,
   }))
 
+  // The figure's physical box (§8), resolved against THIS document's column so
+  // the preview, the print window and Word all draw it at the same number of
+  // millimetres rather than at their own idea of "50% of the column".
+  const figureSpec = normalizeFigureSpec(q)
+  const figure = ctx?.layout
+    ? resolveFigureBox(figureSpec, ctx.layout, { band })
+    : null
+
   return {
     kind: 'question',
     number,
+    // The stored id, so a measurement taken in one renderer can name the
+    // question a defect belongs to in another.
+    questionId: q.localId ?? q.id ?? null,
     text: plain(q.text),
     subParts,
     // Rich-text HTML for the question body. The editor preview, PDF
@@ -676,7 +751,17 @@ function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}) {
     optionsHtml,
     optionsNodes,
     optionsPlain,
-    marks: subParts.length ? sumSubPartMarks(subParts) : (q.marks ?? 1),
+    // The mark from the marks model (§4): a uniform section's per-question mark,
+    // a locked per-question override, or the question's own — resolved by ONE
+    // rule so the number beside the question, the section heading and the cover
+    // total cannot disagree. Sub-parts still own their sum by construction.
+    marks: subParts.length
+      ? sumSubPartMarks(subParts)
+      : resolveQuestionMarks(q, section),
+    /** Whether the mark prints beside the question at all. */
+    showMarks: showMarksFor(section, assessment),
+    /** The answer-choice count in force, or null when the paper never set one. */
+    choiceCount,
     type,
     options,
     optionMedia,
@@ -697,6 +782,13 @@ function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}) {
     // The floor the width preset above cannot go under (§4.2). Carried on the
     // block so the preview, the print window and Word read one number.
     figureMinWidthPx,
+    // The resolved physical figure box (§8) — millimetres, CSS pixels and EMU,
+    // plus alignment, border and keep-with-question. Null only when the block
+    // was built without a document context (a caller that predates it).
+    figure,
+    figureAlign: figureSpec.align,
+    figureBorder: figureSpec.border,
+    figureKeepWithQuestion: figureSpec.keepWithQuestion,
     // Additional figures, rendered stacked below the primary by the preview,
     // PDF and DOCX renderers (multi-figure scanned questions).
     images: Array.isArray(q.images)

@@ -45,7 +45,7 @@ const MOOD_CONFIG = {
 
 // Inline mini Pako avatar (lightweight — just head + cap)
 function PakoAvatar({ mood = 'normal' }) {
-  const eyeColor = mood === 'happy' ? '#15803D' : mood === 'wrong' ? '#EA580C' : '#1E40AF'
+  const eyeColor = mood === 'happy' ? '#15803D' : mood === 'wrong' ? '#C5613F' : '#1E40AF'
   return (
     <svg viewBox="0 0 60 70" width="44" height="44" xmlns="http://www.w3.org/2000/svg">
       {/* Cap */}
@@ -141,7 +141,7 @@ export default function QuizTip({ isCorrect, tipText, onDismiss, visible }) {
             <div
               className="h-1 rounded-full opacity-50 animate-[shrink_8s_linear_forwards]"
               style={{
-                background: isCorrect ? '#15803D' : isCorrect === false ? '#EA580C' : 'var(--accent)',
+                background: isCorrect ? '#15803D' : isCorrect === false ? '#C5613F' : 'var(--accent)',
                 animation: 'shrink 8s linear forwards',
               }}
             />

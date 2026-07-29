@@ -151,6 +151,7 @@ function makeFakeDb(seed) {
     familyInviteCodes: {fc1: {learnerUid: "u1", createdBy: "u1"}, fc2: {learnerUid: "u2"}},
     classInvites: {ci1: {createdBy: "u1"}, ci2: {createdBy: "u2"}},
     assessmentExports: {ae1: {ownerUid: "u1"}, ae2: {ownerUid: "u2"}},
+    teacherLibraryItems: {tl1: {ownerUid: "u1"}, tl2: {ownerUid: "u2"}},
     visualProjects: {vp1: {ownerId: "u1"}, vp2: {ownerId: "u2"}},
     schoolLicences: {sl1: {memberUids: ["u1", "u2"]}, sl2: {memberUids: ["u3"]}},
   });
@@ -198,6 +199,8 @@ function makeFakeDb(seed) {
   assert.ok(db.store.classInvites.ci2);
   assert.strictEqual(db.store.assessmentExports.ae1, undefined, "u1 export cache not deleted");
   assert.ok(db.store.assessmentExports.ae2);
+  assert.strictEqual(db.store.teacherLibraryItems.tl1, undefined, "u1 teacher library item not deleted");
+  assert.ok(db.store.teacherLibraryItems.tl2, "other teacher library item wrongly deleted");
   assert.strictEqual(db.store.visualProjects.vp1, undefined, "u1 visual project not deleted");
   assert.ok(db.store.visualProjects.vp2);
   // schoolLicences: uid pulled from the shared roster, the licence itself kept.

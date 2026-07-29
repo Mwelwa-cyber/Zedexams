@@ -80,7 +80,7 @@ const STATUS_LABEL = {
 }
 
 const AGENT_DOT = {
-  aria:   '#f97316',
+  aria:   '#d97757',
   cala:   '#22d3ee',
   reva:   '#a855f7',
   pubo:   '#10b981',

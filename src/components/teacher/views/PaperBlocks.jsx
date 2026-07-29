@@ -25,6 +25,48 @@ import '../studio/assessmentStudio.css'
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
 /**
+ * An editor paragraph with nothing in it. `richTextToPaperHtml` returns this
+ * for a field the teacher has not written, and rendering it would replace the
+ * "(no question text)" placeholder with a blank line.
+ */
+const EMPTY_PARAGRAPH = /^<p>\s*(?:<br\s*\/?>|&nbsp;|\s)*<\/p>$/i
+
+/**
+ * Is there rich HTML worth rendering for this field?
+ *
+ * Every caller pairs `xHtml` with a plain `x` mirror and falls back to it, so a
+ * block built by a caller that predates the rich twin — or a legacy question
+ * stored as plain text — renders exactly as it did before.
+ */
+export function hasRichHtml(html) {
+  if (typeof html !== 'string') return false
+  const trimmed = html.trim()
+  return Boolean(trimmed) && !EMPTY_PARAGRAPH.test(trimmed)
+}
+
+/**
+ * A rich-text field of the paper, rendered as the markup the exports render.
+ *
+ * The HTML comes from `buildPaperLayout`, which built it with
+ * `richTextToPaperHtml` — already sanitised (`toHTML` runs it through
+ * `sanitizeHTML`) and already flattened: KaTeX nodes have become readable text
+ * and the Grade-7 maths blocks have their inner structure baked in, because the
+ * print window runs no JavaScript. So there is nothing to hydrate here, and the
+ * preview shows what the PDF and Word will show rather than its own rendering
+ * of the same content.
+ *
+ * This is why the preview lost formatting for so long: the layout published
+ * `textHtml` and `optionsHtml` for exactly this, the PDF and DOCX read them, and
+ * this renderer read the plain mirror beside them — so a bold word, a
+ * superscript or a stacked fraction printed correctly and previewed as flat
+ * text. The styles the flattened maths needs are in `assessmentStudio.css`
+ * under "Rich paper text".
+ */
+function RichPaperHtml({ html, className }) {
+  return <span className={className} dangerouslySetInnerHTML={{ __html: html }} />
+}
+
+/**
  * Wrap a list of layout blocks in the `.studio-v2` + `.sv-paper` shell so the
  * scoped paper CSS applies. Use this from any surface that wants the exam-paper
  * look without the full Assessment Studio chrome.
@@ -116,22 +158,29 @@ function PaperHeaderBlock({ block }) {
 }
 
 function PaperLearnerFieldsBlock({ block }) {
+  // The labels come off the block (§9). A mock examination says "CANDIDATE'S
+  // NAME", a Grade 3 test says "PUPIL'S NAME", and the preview, the PDF and Word
+  // print the same words because all three read the same resolved field rather
+  // than each hard-coding "NAME". The fallbacks are exactly what was hard-coded
+  // here before, so a block built without labels is unchanged.
+  const labels = block.labels || {}
+  const label = (key, fallback) => String(labels[key] || fallback).toUpperCase()
   return (
     <>
       {(block.name || block.date) && (
         <div className="sv-paper-name-row">
-          {block.name && <><span>NAME:</span><div className="sv-line" /></>}
-          {block.date && <><span>DATE:</span><div className="sv-line" style={{ maxWidth: 180 }} /></>}
+          {block.name && <><span>{label('name', 'Name')}:</span><div className="sv-line" /></>}
+          {block.date && <><span>{label('date', 'Date')}:</span><div className="sv-line" style={{ maxWidth: 180 }} /></>}
         </div>
       )}
       {block.classField && (
         <div className="sv-paper-name-row" style={{ marginTop: 0 }}>
-          <span>CLASS:</span><div className="sv-line" />
+          <span>{label('classField', 'Class')}:</span><div className="sv-line" />
         </div>
       )}
       {block.marks && (
         <div className="sv-paper-total-marks">
-          TOTAL MARKS: _________ / {block.totalMarks || '____'}
+          {label('marks', 'Total marks')}: _________ / {block.totalMarks || '____'}
         </div>
       )}
     </>
@@ -173,7 +222,11 @@ function PaperSectionHead({ block }) {
     <div className="sv-paper-section">
       <div className="sv-paper-section-head">
         Section {block.letter}{block.title ? ` — ${block.title}` : ''}
-        <span className="sv-marks">({block.marks} mark{block.marks === 1 ? '' : 's'})</span>
+        {/* A paper that hides marks from learners must not print the section's
+            total in its heading either (§4). */}
+        {block.showMarks !== false && (
+          <span className="sv-marks">({block.marks} mark{block.marks === 1 ? '' : 's'})</span>
+        )}
       </div>
       {block.instructions && (
         <div className="sv-paper-section-instr">{block.instructions}</div>
@@ -242,8 +295,14 @@ function PaperQuestionBlock({ block }) {
   return (
     <div className={qClass}>
       <div className="sv-qline">
-        <strong>{block.number}.</strong> {block.text || '(no question text)'}
-        {marks >= 1 && <em className="sv-qmarks">({marks}&nbsp;mark{marks === 1 ? '' : 's'})</em>}
+        <strong>{block.number}.</strong>{' '}
+        {hasRichHtml(block.textHtml)
+          ? <RichPaperHtml className="sv-qbody" html={block.textHtml} />
+          : (block.text || '(no question text)')}
+        {/* `showMarks` is the paper's or the section's decision (§4). Absent on
+            a block built by a caller that predates it, which keeps the old
+            behaviour of always printing the mark. */}
+        {marks >= 1 && block.showMarks !== false && <em className="sv-qmarks">({marks}&nbsp;mark{marks === 1 ? '' : 's'})</em>}
       </div>
       {block.imageUrl && (
         <>
@@ -577,6 +636,14 @@ function PaperMcqOptions({ block }) {
   // math markup (`<span class="mnode" data-latex="…">`) which would otherwise
   // print as escaped HTML in this text preview.
   const optText = (i) => block.optionsPlain?.[i] ?? block.options?.[i] ?? ''
+  // The rich twin, when the option carries formatting. Used in all three option
+  // modes because the print window uses it in all three (`opt-rich` in
+  // assessmentToPdf.js) — an option is where a fraction or a superscript is most
+  // likely to appear, and a maths choice list flattened to "34" for "3/4" is a
+  // preview a teacher cannot check their paper against.
+  const optBody = (i) => (hasRichHtml(block.optionsHtml?.[i])
+    ? <RichPaperHtml className="sv-opt-rich" html={block.optionsHtml[i]} />
+    : optText(i))
   if (block.optionsMode === 'image') {
     // Fixed-width option cells (140px) instead of `repeat(4, 1fr)`: a 1fr grid
     // stretches each picture to a quarter of the paper width, so on a wide
@@ -601,7 +668,7 @@ function PaperMcqOptions({ block }) {
                     : <span style={{ fontSize: 24, color: '#888' }}>?</span>}
               </div>
               <div style={{ fontSize: 12, fontWeight: 700, color: isCorrect ? '#047857' : undefined }}>
-                {SECTION_LETTERS[i]}.{optText(i) ? ` ${optText(i)}` : ''}{isCorrect ? ' ✓' : ''}
+                {SECTION_LETTERS[i]}.{optText(i) ? <> {optBody(i)}</> : ''}{isCorrect ? ' ✓' : ''}
               </div>
             </div>
           )
@@ -624,7 +691,7 @@ function PaperMcqOptions({ block }) {
                   ? <img src={media.imageUrl} alt={media.alt || ''} style={{ width: 40, height: 40, objectFit: 'contain' }} />
                   : <span style={{ width: 40, height: 40, display: 'inline-block' }} />}
               <span style={{ color: isCorrect ? '#047857' : undefined, fontWeight: isCorrect ? 700 : 400 }}>
-                {optText(i)}{isCorrect ? ' ✓' : ''}
+                {optBody(i)}{isCorrect ? ' ✓' : ''}
               </span>
             </div>
           )
@@ -650,7 +717,7 @@ function PaperMcqOptions({ block }) {
         const isCorrect = block.showAnswer && correct === i
         return (
           <div key={i} style={isCorrect ? { color: '#047857', fontWeight: 700 } : undefined}>
-            <span className="sv-opt-letter">{SECTION_LETTERS[i]}.</span> {optText(i)}{isCorrect ? '  ✓' : ''}
+            <span className="sv-opt-letter">{SECTION_LETTERS[i]}.</span> {optBody(i)}{isCorrect ? '  ✓' : ''}
           </div>
         )
       })}

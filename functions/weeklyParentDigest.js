@@ -44,9 +44,8 @@ const {assertVerifiedAuth} = require("./authGuard");
 const {isAdminRole} = require("./aiService");
 const {defineSecret} = require("firebase-functions/params");
 const nodemailer = require("nodemailer");
-const crypto = require("node:crypto");
 
-const {aggregateProgress, ONE_DAY_MS} = require("./parentPortalShared");
+const {aggregateProgress} = require("./parentPortalShared");
 const {
   WHATSAPP_SECRETS,
   isConfigured: isWhatsAppConfigured,
@@ -55,145 +54,32 @@ const {
   buildWhatsAppDigestBody,
 } = require("./metaWhatsApp");
 
+// Pure decision/formatting logic lives in the Core module so it can be
+// unit-tested under plain `node` with no Firebase/SMTP dependency.
+const {
+  WINDOW_DAYS,
+  MAX_SHARES_PER_RUN,
+  lastSentMillis,
+  shouldSkipResend,
+  shareGateReason,
+  shouldSkipEmptyWeek,
+  deriveLearnerInfo,
+  buildShareUrl,
+  resolveSenderDomain,
+  normalizeRunnerTargetTokens,
+  normalizeRequestTargetTokens,
+  createRunSummary,
+  rollupStatus,
+  buildEmailPayload,
+  buildWhatsAppSummaryLine,
+  buildWhatsAppContentVariables,
+} = require("./weeklyParentDigestCore");
+
 const REGION = "us-central1";
-const WINDOW_DAYS = 7;
-const MAX_SHARES_PER_RUN = 200;
-const RESEND_GUARD_MS = 5 * ONE_DAY_MS;
 
 // Re-use the existing email secrets — no new infrastructure.
 const emailSmtpUser = defineSecret("EMAIL_SMTP_USER");
 const emailSmtpPassword = defineSecret("EMAIL_SMTP_PASSWORD");
-
-const SUBJECT_LABELS = {
-  mathematics: "Maths",
-  english: "English",
-  science: "Science",
-  "social-studies": "Social Studies",
-  technology: "Technology",
-  "home-economics": "Home Ec.",
-  "expressive-arts": "Arts",
-};
-
-function subjectLabel(slug) {
-  if (!slug) return "";
-  return SUBJECT_LABELS[slug] || slug;
-}
-
-function buildEmailText({learnerName, learnerGrade, summary, subjectBreakdown, recentResults, shareUrl}) {
-  const lines = [];
-  lines.push(`Hi,`);
-  lines.push("");
-  lines.push(`Here is ${learnerName}'s ZedExams week${learnerGrade ? ` (Grade ${learnerGrade})` : ""}:`);
-  lines.push("");
-  if (summary.totalAttempts === 0) {
-    lines.push(`${learnerName} hasn't practised this week. A quick reminder might help — they can sign in at https://zedexams.com.`);
-  } else {
-    lines.push(`• Quizzes done: ${summary.totalAttempts}`);
-    if (summary.averagePercentage != null) {
-      lines.push(`• Average score: ${summary.averagePercentage}%`);
-    }
-    lines.push(`• Day streak: ${summary.currentStreak}${summary.currentStreak > 0 ? " 🔥" : ""}`);
-    if (subjectBreakdown.length > 0) {
-      lines.push("");
-      lines.push("By subject:");
-      for (const row of subjectBreakdown) {
-        const label = subjectLabel(row.subject);
-        const avg = row.averagePercentage != null ? ` — avg ${row.averagePercentage}%` : "";
-        lines.push(`  · ${label}: ${row.count}× quizzes${avg}`);
-      }
-    }
-    if (recentResults.length > 0) {
-      lines.push("");
-      lines.push("Recent quizzes:");
-      for (const r of recentResults.slice(0, 5)) {
-        const label = r.quizTitle || subjectLabel(r.subject) || "Quiz";
-        const pct = typeof r.percentage === "number" ? `${r.percentage}%` : "—";
-        lines.push(`  · ${label}: ${pct}`);
-      }
-    }
-  }
-  lines.push("");
-  lines.push(`Open the live progress page any time: ${shareUrl}`);
-  lines.push("");
-  lines.push("— ZedExams");
-  return lines.join("\n");
-}
-
-function buildEmailHtml({learnerName, learnerGrade, summary, subjectBreakdown, recentResults, shareUrl}) {
-  const safe = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => (
-    {"&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"}[c]
-  ));
-  const subjectRows = subjectBreakdown.map((row) => {
-    const avg = row.averagePercentage != null
-      ? `<span style="color:#4B6280;">avg ${row.averagePercentage}%</span>`
-      : "";
-    return `<tr><td style="padding:6px 0;">${safe(subjectLabel(row.subject))}</td><td style="padding:6px 0;text-align:right;">${row.count}× &nbsp; ${avg}</td></tr>`;
-  }).join("");
-  const recentRows = recentResults.slice(0, 5).map((r) => {
-    const label = safe(r.quizTitle || subjectLabel(r.subject) || "Quiz");
-    const pct = typeof r.percentage === "number"
-      ? `<strong>${r.percentage}%</strong>`
-      : "—";
-    return `<tr><td style="padding:6px 0;">${label}</td><td style="padding:6px 0;text-align:right;">${pct}</td></tr>`;
-  }).join("");
-
-  const noActivityBlock = summary.totalAttempts === 0 ? `
-    <p style="margin:0 0 16px 0;color:#1A1F2E;font-size:15px;line-height:1.55;">
-      ${safe(learnerName)} hasn't practised this week. A friendly reminder might help — they can pick up where they left off at
-      <a href="https://zedexams.com" style="color:#059669;font-weight:bold;">zedexams.com</a>.
-    </p>` : `
-    <table role="presentation" style="width:100%;border-collapse:collapse;margin:0 0 16px 0;">
-      <tr>
-        <td style="padding:8px 0;font-size:14px;color:#1A1F2E;">Quizzes done</td>
-        <td style="padding:8px 0;text-align:right;font-size:14px;font-weight:bold;color:#1A1F2E;">${summary.totalAttempts}</td>
-      </tr>
-      ${summary.averagePercentage != null ? `
-      <tr>
-        <td style="padding:8px 0;font-size:14px;color:#1A1F2E;">Average score</td>
-        <td style="padding:8px 0;text-align:right;font-size:14px;font-weight:bold;color:#1A1F2E;">${summary.averagePercentage}%</td>
-      </tr>` : ""}
-      <tr>
-        <td style="padding:8px 0;font-size:14px;color:#1A1F2E;">Day streak</td>
-        <td style="padding:8px 0;text-align:right;font-size:14px;font-weight:bold;color:#1A1F2E;">${summary.currentStreak}${summary.currentStreak > 0 ? " 🔥" : ""}</td>
-      </tr>
-    </table>
-    ${subjectBreakdown.length > 0 ? `
-      <p style="margin:16px 0 4px 0;font-size:11px;color:#4B6280;text-transform:uppercase;letter-spacing:1px;font-weight:bold;">By subject</p>
-      <table role="presentation" style="width:100%;border-collapse:collapse;margin:0 0 16px 0;font-size:14px;color:#1A1F2E;">
-        ${subjectRows}
-      </table>` : ""}
-    ${recentRows ? `
-      <p style="margin:16px 0 4px 0;font-size:11px;color:#4B6280;text-transform:uppercase;letter-spacing:1px;font-weight:bold;">Recent quizzes</p>
-      <table role="presentation" style="width:100%;border-collapse:collapse;margin:0 0 16px 0;font-size:14px;color:#1A1F2E;">
-        ${recentRows}
-      </table>` : ""}`;
-
-  return `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8" /><title>ZedExams weekly progress</title></head>
-<body style="margin:0;padding:0;background:#FDF6EC;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table role="presentation" style="width:100%;border-collapse:collapse;">
-    <tr><td style="padding:32px 16px;">
-      <table role="presentation" style="max-width:520px;margin:0 auto;background:#fff;border-radius:18px;border:1px solid #E5E7EB;overflow:hidden;">
-        <tr><td style="padding:24px 24px 16px 24px;">
-          <p style="margin:0 0 4px 0;font-size:11px;color:#4B6280;text-transform:uppercase;letter-spacing:1px;font-weight:bold;">ZedExams · weekly progress</p>
-          <h1 style="margin:0 0 4px 0;font-size:22px;color:#1A1F2E;">${safe(learnerName)}'s week</h1>
-          <p style="margin:0 0 16px 0;font-size:13px;color:#4B6280;">${learnerGrade ? `Grade ${safe(learnerGrade)} · ` : ""}last 7 days</p>
-          ${noActivityBlock}
-          <p style="margin:24px 0 0 0;text-align:center;">
-            <a href="${safe(shareUrl)}" style="display:inline-block;background:#059669;color:#fff;text-decoration:none;font-weight:bold;font-size:14px;padding:10px 18px;border-radius:999px;">Open progress page</a>
-          </p>
-        </td></tr>
-        <tr><td style="padding:16px 24px 20px 24px;background:#FDF6EC;border-top:1px solid #E5E7EB;font-size:11px;color:#4B6280;line-height:1.5;">
-          You're getting this email because ${safe(learnerName)} shared their ZedExams progress with you.
-          To stop these emails, ask them to revoke the share link from their profile.
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
-}
 
 let cachedTransporter = null;
 function getTransporter() {
@@ -267,43 +153,17 @@ async function deliverEmail({db, shareDoc, share, token, stats, learnerName, lea
   if (!transporter || !senderEmail) return;          // SMTP not configured
   if (!share.parentEmail) return;                    // no email recipient
 
-  const lastSentMs = share.lastWeeklyDigestSentAt?.toMillis
-      ? share.lastWeeklyDigestSentAt.toMillis()
-      : 0;
-  if (!force && lastSentMs && (now - lastSentMs) < RESEND_GUARD_MS) {
+  const lastSentMs = lastSentMillis(share.lastWeeklyDigestSentAt);
+  if (shouldSkipResend({lastSentMs, now, force})) {
     summary.skipped.email += 1;
     return;
   }
 
-  const emailPayload = {
-    from: `ZedExams <${senderEmail}>`,
-    sender: senderEmail,
-    to: share.parentEmail,
-    replyTo: senderEmail,
-    subject: `${learnerName}'s ZedExams week`,
-    text: buildEmailText({
-      learnerName, learnerGrade,
-      summary: stats.summary,
-      subjectBreakdown: stats.subjectBreakdown,
-      recentResults: stats.recentResults,
-      shareUrl,
-    }),
-    html: buildEmailHtml({
-      learnerName, learnerGrade,
-      summary: stats.summary,
-      subjectBreakdown: stats.subjectBreakdown,
-      recentResults: stats.recentResults,
-      shareUrl,
-    }),
-    envelope: {
-      from: senderEmail,
-      to: [share.parentEmail],
-    },
-    messageId: `<weekly-digest-${token}-${crypto.randomUUID()}@${senderDomain}>`,
-    headers: {
-      "X-Auto-Response-Suppress": "All",
-    },
-  };
+  const emailPayload = buildEmailPayload({
+    senderEmail, senderDomain,
+    parentEmail: share.parentEmail,
+    token, learnerName, learnerGrade, stats, shareUrl,
+  });
 
   try {
     await transporter.sendMail(emailPayload);
@@ -343,10 +203,8 @@ async function deliverWhatsApp({db, shareDoc, share, token, stats, learnerName, 
   if (!share.parentPhone) return;                    // no phone recipient
   if (!whatsAppReady) return;                          // soft-fail when Meta WhatsApp unset
 
-  const lastSentMs = share.lastWeeklyDigestWhatsAppSentAt?.toMillis
-      ? share.lastWeeklyDigestWhatsAppSentAt.toMillis()
-      : 0;
-  if (!force && lastSentMs && (now - lastSentMs) < RESEND_GUARD_MS) {
+  const lastSentMs = lastSentMillis(share.lastWeeklyDigestWhatsAppSentAt);
+  if (shouldSkipResend({lastSentMs, now, force})) {
     summary.skipped.whatsapp += 1;
     return;
   }
@@ -376,14 +234,8 @@ async function deliverWhatsApp({db, shareDoc, share, token, stats, learnerName, 
   // is configured (META_WHATSAPP_TEMPLATE_NAME). Order is fixed:
   // 1=name, 2=summaryLine, 3=shareUrl. The template body must use
   // {{1}}, {{2}}, {{3}} in that order.
-  const summaryLine = stats.summary.totalAttempts === 0
-      ? "no quizzes this week"
-      : `${stats.summary.totalAttempts} quizzes${stats.summary.averagePercentage != null ? `, avg ${stats.summary.averagePercentage}%` : ""}`;
-  const contentVariables = {
-    1: learnerName.slice(0, 60),
-    2: summaryLine.slice(0, 120),
-    3: shareUrl,
-  };
+  const summaryLine = buildWhatsAppSummaryLine(stats.summary);
+  const contentVariables = buildWhatsAppContentVariables({learnerName, summaryLine, shareUrl});
 
   let result;
   try {
@@ -469,20 +321,15 @@ async function runWeeklyDigest({
   const db = admin.firestore();
   const now = Date.now();
   const senderEmail = String(emailSmtpUser.value() || "").trim();
-  const senderDomain = senderEmail.split("@")[1] || "zedexams.com";
+  const senderDomain = resolveSenderDomain(senderEmail);
   const transporter = getTransporter();
   const whatsAppReady = isWhatsAppConfigured();
-  const summary = {
-    sharesScanned: 0,
-    sent: {email: 0, whatsapp: 0},
-    skipped: {email: 0, whatsapp: 0, share: 0},
-    failed: {email: 0, whatsapp: 0},
-    errors: [],
+  const summary = createRunSummary({
     whatsAppReady,
     smtpReady: Boolean(transporter && senderEmail),
     force,
     runType,
-  };
+  });
 
   if (!summary.smtpReady && !whatsAppReady) {
     console.warn("[weeklyParentDigest] neither SMTP nor Meta WhatsApp configured — nothing to do");
@@ -493,10 +340,7 @@ async function runWeeklyDigest({
   if (Array.isArray(targetTokens) && targetTokens.length > 0) {
     // Direct fetches when an admin asks for specific tokens. Bounded
     // at 10 to keep manual triggers cheap and bounded.
-    const tokens = targetTokens
-        .filter((t) => typeof t === "string" && t.trim())
-        .map((t) => t.trim().toUpperCase())
-        .slice(0, 10);
+    const tokens = normalizeRunnerTargetTokens(targetTokens);
     const fetched = await Promise.all(
         tokens.map((token) => db.collection("progressShares").doc(token).get()
             .catch((err) => {
@@ -520,9 +364,7 @@ async function runWeeklyDigest({
     const token = shareDoc.id;
 
     // Per-share gates that apply to BOTH channels.
-    if (share.revokedAt) { summary.skipped.share += 1; continue; }
-    if (share.expiresAt && share.expiresAt.toMillis() < now) { summary.skipped.share += 1; continue; }
-    if (!share.parentEmail && !share.parentPhone) { summary.skipped.share += 1; continue; }
+    if (shareGateReason(share, now)) { summary.skipped.share += 1; continue; }
 
     let stats;
     try {
@@ -537,7 +379,7 @@ async function runWeeklyDigest({
     // week messages train recipients to ignore us across both channels.
     // Manual triggers can override this gate via force=true so an admin
     // can prove the WhatsApp path without waiting for fresh quiz attempts.
-    if (stats.summary.totalAttempts === 0 && !force) {
+    if (shouldSkipEmptyWeek(stats, force)) {
       summary.skipped.share += 1;
       continue;
     }
@@ -549,9 +391,8 @@ async function runWeeklyDigest({
     } catch (err) {
       console.warn(`[weeklyParentDigest] learner lookup failed for ${share.learnerUid}`, err);
     }
-    const learnerName = learner.displayName || "your learner";
-    const learnerGrade = learner.grade ? String(learner.grade) : null;
-    const shareUrl = `https://zedexams.com/parent/${token}`;
+    const {learnerName, learnerGrade} = deriveLearnerInfo(learner);
+    const shareUrl = buildShareUrl(token);
 
     // Run channels independently — one failing must not block the other.
     await Promise.all([
@@ -570,11 +411,10 @@ async function runWeeklyDigest({
 
   // Single rollup doc so /admin can see how many digests went out in
   // the run (matches the agentJobs pattern other crons use).
-  const totalFailed = summary.failed.email + summary.failed.whatsapp;
   await db.collection("agentJobs").add({
     agentId: "weekly-parent-digest",
     department: "growth",
-    status: totalFailed > 0 ? "awaiting_approval" : "done",
+    status: rollupStatus(summary),
     input: {runType, timezone: "Africa/Lusaka", force, targetTokens: targetTokens || null},
     output: {digest: {...summary, errors: summary.errors.slice(0, 10)}},
     createdBy,
@@ -622,10 +462,7 @@ const triggerWeeklyParentDigest = onCall({
   }
 
   const force = Boolean(request.data?.force);
-  const rawTokens = request.data?.targetTokens;
-  const targetTokens = Array.isArray(rawTokens)
-      ? rawTokens.filter((t) => typeof t === "string").slice(0, 10)
-      : null;
+  const targetTokens = normalizeRequestTargetTokens(request.data?.targetTokens);
 
   const summary = await runWeeklyDigest({
     runType: "manual-admin-trigger",

@@ -60,7 +60,7 @@ function CurriculumCard({ mode, emoji, title, description, recommended, selected
             {title}
           </span>
           {recommended && (
-            <span className="inline-flex items-center rounded-full border border-[#0F1B2D] bg-[#FF7A1A] px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-white">
+            <span className="inline-flex items-center rounded-full border border-[#0F1B2D] bg-[#D97757] px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-white">
               Recommended
             </span>
           )}

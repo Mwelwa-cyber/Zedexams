@@ -2056,6 +2056,135 @@
   color: #000;
   margin-right: 2px;
 }
+
+/* ── Rich paper text ──────────────────────────────────────────────────────
+ *
+ * The preview renders the same pre-hydrated HTML the print window renders
+ * (PaperBlocks' RichPaperHtml), so bold, superscripts, stacked fractions and
+ * vertical sums appear here as they will on the printed page.
+ *
+ * Ported from the print stylesheet's "Grade-7 math blocks" section in
+ * assessmentToPdf.js — pt there because it builds a print document, px here
+ * because this is a screen preview. That file in turn carries the note "must
+ * match editor.css visually", which is the real source. Three copies is one
+ * more than anyone wants; they are not merged because editor.css is unscoped
+ * and full of generic selectors (.card, .btn, .qe-row) that would bleed
+ * straight into the studio, and the print copy has to be inlined into a
+ * standalone document with no stylesheet to link. Everything below is scoped
+ * under .sv-paper so it cannot leak the other way either.
+ *
+ * Without these rules the flattened maths is WORSE than the plain text it
+ * replaced: a fraction's markup is <span><span>3</span><span>4</span></span>,
+ * which reads as "34" until the stack is styled.
+ */
+.studio-v2 .sv-paper .sv-qbody { display: inline; }
+.studio-v2 .sv-paper .sv-qbody p { margin: 0; }
+/* The first paragraph stays inline so the question number and its text share a
+   line, which is how this preview has always read. Later paragraphs are blocks,
+   so a multi-paragraph stem still breaks where the teacher broke it. */
+.studio-v2 .sv-paper .sv-qbody > p:first-child { display: inline; }
+.studio-v2 .sv-paper .sv-qbody > p + p { display: block; margin-top: 4px; }
+.studio-v2 .sv-paper .sv-opt-rich,
+.studio-v2 .sv-paper .sv-opt-rich p { display: inline; margin: 0; }
+.studio-v2 .sv-paper .sv-opt-rich .vert-arith,
+.studio-v2 .sv-paper .sv-opt-rich .math-frac,
+.studio-v2 .sv-paper .sv-opt-rich .num-base {
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.studio-v2 .sv-paper .math-frac {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  vertical-align: middle;
+  line-height: 1;
+  margin: 0 1px;
+}
+.studio-v2 .sv-paper .math-frac-whole { padding-right: 3px; }
+.studio-v2 .sv-paper .math-frac-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  vertical-align: middle;
+}
+.studio-v2 .sv-paper .math-frac-num,
+.studio-v2 .sv-paper .math-frac-den {
+  display: block;
+  font-size: 0.85em;
+  padding: 0 2px;
+  line-height: 1.1;
+  text-align: center;
+}
+/* currentColor, not a fixed ink: the bar has to stay visible when the marking
+   key prints a question in green, and it is what the print copy uses. */
+.studio-v2 .sv-paper .math-frac-num {
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 1px;
+}
+.studio-v2 .sv-paper .math-frac-den { padding-top: 1px; }
+
+.studio-v2 .sv-paper .num-base {
+  display: inline-flex;
+  align-items: baseline;
+  vertical-align: baseline;
+  font-family: inherit;
+}
+.studio-v2 .sv-paper .num-base-num { font: inherit; }
+.studio-v2 .sv-paper .num-base-sub {
+  font-size: 0.65em;
+  position: relative;
+  bottom: -0.35em;
+  margin-left: 1px;
+  font-weight: 500;
+}
+
+.studio-v2 .sv-paper .vert-arith {
+  display: inline-block;
+  margin: 5px 8px 8px 0;
+  font-family: 'Cambria Math', 'Times New Roman', 'Liberation Serif', serif;
+  font-size: 17px;
+  line-height: 1.25;
+  vertical-align: middle;
+}
+.studio-v2 .sv-paper .vert-arith .va-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  white-space: pre;
+}
+.studio-v2 .sv-paper .vert-arith .va-op {
+  display: inline-block;
+  width: 19px;
+  text-align: left;
+  font-weight: 700;
+}
+.studio-v2 .sv-paper .vert-arith .va-num {
+  display: inline-block;
+  text-align: right;
+  font-feature-settings: 'tnum' 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+}
+.studio-v2 .sv-paper .vert-arith .va-rule {
+  border-top: 2px solid #000;
+  margin: 1px 0 1px 21px;
+  min-width: 75px;
+}
+.studio-v2 .sv-paper .vert-arith .va-answer-row .va-num { min-height: 21px; }
+.studio-v2 .sv-paper .vert-arith .va-working {
+  border-top: 1px dashed #888;
+  margin-top: 5px;
+  padding-top: 5px;
+}
+.studio-v2 .sv-paper .vert-arith .va-working-line {
+  border-bottom: 1px solid #888;
+  height: 19px;
+  width: 133px;
+  margin: 2px 0;
+}
 .studio-v2 .sv-paper-passage {
   background: #fafafa;
   border: 1px solid #ccc;
@@ -2899,4 +3028,70 @@
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+}
+
+/* ── Section settings (§3, §4) ─────────────────────────────────────────────
+   The marking rule and the answer-choice override for one section, shown
+   inside the section header block rather than in a modal: they change what the
+   section prints, and the printed total is right there beside them. */
+.studio-v2 .sv-section-settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-s3, 10px);
+  margin-top: var(--sv-s3, 10px);
+  padding-top: var(--sv-s3, 10px);
+  border-top: 1px dashed var(--sv-line, #d8d3c8);
+}
+
+.studio-v2 .sv-section-setting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.studio-v2 .sv-section-setting-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sv-muted, #6b6b6b);
+}
+
+.studio-v2 .sv-section-setting select,
+.studio-v2 .sv-section-setting input[type="number"] {
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid var(--sv-line, #d8d3c8);
+  border-radius: 6px;
+  background: var(--sv-paper, #fff);
+  color: inherit;
+}
+
+.studio-v2 .sv-section-setting input[type="number"] { width: 68px; }
+
+.studio-v2 .sv-section-setting-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+/* The computed total, beside the rule that produced it — so a teacher who sets
+   "1 mark each" on 25 questions sees 25 without leaving the section. */
+.studio-v2 .sv-section-setting-total {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .studio-v2 .sv-section-settings { flex-direction: column; gap: 8px; }
+}
+
+/* The number a checklist row actually measured, beside the tick. */
+.studio-v2 .sv-health-check-detail {
+  color: var(--sv-muted, #6b6b6b);
+  font-variant-numeric: tabular-nums;
 }

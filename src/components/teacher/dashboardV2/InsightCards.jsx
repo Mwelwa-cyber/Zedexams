@@ -37,7 +37,7 @@ function ProgressRing({ fraction }) {
         cy="15"
         r={r}
         fill="none"
-        stroke="#c65a24"
+        stroke="#aa5943"
         strokeWidth="3.5"
         strokeLinecap="round"
         strokeDasharray={c}
