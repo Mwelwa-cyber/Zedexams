@@ -74,6 +74,11 @@ export default function RichEditor({
   // toolset. Used for answer-option editing where the row is narrow and
   // headings / alignment / tables don't belong.
   toolbarVariant = 'full',
+  // The paper's grade. Used ONLY to order the mathematics tools (§6) — a
+  // lower-primary teacher meets vertical calculation and fractions first.
+  // Nothing is hidden at any grade, and an absent grade gets the full
+  // ordering, so a caller that does not know the grade loses nothing.
+  grade,
 }) {
   // ── Modals ────────────────────────────────────────────────────
   const [showMath,  setShowMath]  = useState(false)
@@ -85,6 +90,11 @@ export default function RichEditor({
   const [vertArithEdit, setVertArithEdit] = useState(null)
   const [showFraction, setShowFraction] = useState(false)
   const [fractionEdit, setFractionEdit] = useState(null)
+  // The Mixed number button opens the same modal as Fraction, but on its
+  // whole-number field. Two buttons, one modal: a teacher looking for "2 3/7"
+  // is looking for a mixed number, not for a fraction with an extra box they
+  // have to notice.
+  const [fractionMixed, setFractionMixed] = useState(false)
   const [showNumBase, setShowNumBase] = useState(false)
   const [numBaseEdit, setNumBaseEdit] = useState(null)
 
@@ -153,6 +163,7 @@ export default function RichEditor({
     }
     const handleFractionClick = (e) => {
       setFractionEdit({ attrs: e.detail.attrs, pos: e.detail.pos })
+      setFractionMixed(false)
       setShowFraction(true)
     }
     const handleNumberBaseClick = (e) => {
@@ -178,8 +189,16 @@ export default function RichEditor({
   const handleCloseMath = useCallback(() => { setShowMath(false); setMathEdit(null) }, [])
   const handleOpenVertArith = useCallback(() => { setVertArithEdit(null); setShowVertArith(true) }, [])
   const handleCloseVertArith = useCallback(() => { setShowVertArith(false); setVertArithEdit(null) }, [])
-  const handleOpenFraction = useCallback(() => { setFractionEdit(null); setShowFraction(true) }, [])
-  const handleCloseFraction = useCallback(() => { setShowFraction(false); setFractionEdit(null) }, [])
+  const handleOpenFraction = useCallback((opts) => {
+    setFractionEdit(null)
+    setFractionMixed(Boolean(opts?.mixed))
+    setShowFraction(true)
+  }, [])
+  const handleCloseFraction = useCallback(() => {
+    setShowFraction(false)
+    setFractionEdit(null)
+    setFractionMixed(false)
+  }, [])
   const handleOpenNumBase = useCallback(() => { setNumBaseEdit(null); setShowNumBase(true) }, [])
   const handleCloseNumBase = useCallback(() => { setShowNumBase(false); setNumBaseEdit(null) }, [])
 
@@ -202,6 +221,7 @@ export default function RichEditor({
           <EditorToolbar
             editor={editor}
             variant={toolbarVariant}
+            grade={grade}
             onMath={handleOpenMath}
             onTable={handleOpenTable}
             onVerticalArithmetic={handleOpenVertArith}
@@ -245,6 +265,7 @@ export default function RichEditor({
         <FractionModal
           editor={editor}
           editState={fractionEdit}
+          mixed={fractionMixed}
           onClose={handleCloseFraction}
         />
       )}

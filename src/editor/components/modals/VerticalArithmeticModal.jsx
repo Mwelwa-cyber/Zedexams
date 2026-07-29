@@ -13,6 +13,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { VERT_OPERATORS, buildVerticalArithmeticInner } from '../../extensions/VerticalArithmetic.js'
+import useFocusTrap from '../../../hooks/useFocusTrap.js'
 
 const OPERATOR_LABELS = {
   '+': 'Add',
@@ -22,6 +23,12 @@ const OPERATOR_LABELS = {
 }
 
 export default function VerticalArithmeticModal({ editor, editState, onClose }) {
+  // Escape closes, Tab stays inside, focus returns to the editor on close
+  // (§13). The shared hook every other dialog in the app uses, rather than
+  // a per-modal copy that each drifts from the others.
+  const panelRef = useRef(null)
+  useFocusTrap(panelRef, { onEscape: onClose })
+
   const isEditing = Boolean(editState)
 
   const [operator, setOperator] = useState(editState?.attrs?.operator || '−')
@@ -104,6 +111,8 @@ export default function VerticalArithmeticModal({ editor, editState, onClose }) 
     >
       <div
         className="modal math-modal va-modal"
+        ref={panelRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={isEditing ? 'Edit vertical arithmetic' : 'Insert vertical arithmetic'}

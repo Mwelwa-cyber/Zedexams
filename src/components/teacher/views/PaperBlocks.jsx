@@ -815,11 +815,7 @@ function PaperAnswerBlock({ block }) {
             <span key={i} style={{ marginRight: 12 }}>{i + 1}. {l.text || '—'}</span>
           ))}
         </div>
-        {block.explanation && (
-          <div style={{ color: '#555', fontStyle: 'italic', fontSize: 11, marginTop: 2 }}>
-            Notes: {block.explanation}
-          </div>
-        )}
+        <SchemeNotes block={block} />
       </div>
     )
   }
@@ -833,11 +829,7 @@ function PaperAnswerBlock({ block }) {
             <span key={i} style={{ marginRight: 12 }}>({subPartLabel(i)}) {String(p?.answer ?? '').trim() || '—'}</span>
           ))}
         </div>
-        {block.explanation && (
-          <div style={{ color: '#555', fontStyle: 'italic', fontSize: 11, marginTop: 2 }}>
-            Notes: {block.explanation}
-          </div>
-        )}
+        <SchemeNotes block={block} />
       </div>
     )
   }
@@ -897,17 +889,45 @@ function PaperAnswerBlock({ block }) {
           : ''}
       </>
     )
+  } else if (hasRichHtml(block.answerHtml)) {
+    // A structured expected answer — "three fifths" written as a stacked
+    // fraction. Rendered as the same paper HTML the stem uses, so the marking
+    // key shows the notation the question asked for. `String(correctAnswer)`
+    // printed "[object Object]" here.
+    body = (
+      <>
+        <strong>Expected answer:</strong>{' '}
+        <RichPaperHtml html={block.answerHtml} className="sv-opt-rich" />
+      </>
+    )
   } else {
-    body = <><strong>Expected answer:</strong> {String(block.correctAnswer ?? '')}</>
+    body = <><strong>Expected answer:</strong> {block.answerPlain ?? String(block.correctAnswer ?? '')}</>
   }
   return (
     <div style={{ margin: '4px 0 4px 14px', padding: '4px 8px', background: '#ecfdf5', borderLeft: '3px solid #047857', fontSize: 12, color: '#047857' }}>
       <div>{body}</div>
-      {block.explanation && (
-        <div style={{ color: '#555', fontStyle: 'italic', fontSize: 11, marginTop: 2 }}>
-          Notes: {block.explanation}
-        </div>
-      )}
+      <SchemeNotes block={block} />
+    </div>
+  )
+}
+
+/**
+ * The marking note under an answer. Rich when the teacher wrote mathematics
+ * into it, plain otherwise — the plain mirror is what every note written
+ * before this existed still takes.
+ */
+function SchemeNotes({ block }) {
+  if (hasRichHtml(block.explanationHtml)) {
+    return (
+      <div style={{ color: '#555', fontStyle: 'italic', fontSize: 11, marginTop: 2 }}>
+        Notes: <RichPaperHtml html={block.explanationHtml} className="sv-opt-rich" />
+      </div>
+    )
+  }
+  if (!block.explanation) return null
+  return (
+    <div style={{ color: '#555', fontStyle: 'italic', fontSize: 11, marginTop: 2 }}>
+      Notes: {block.explanation}
     </div>
   )
 }

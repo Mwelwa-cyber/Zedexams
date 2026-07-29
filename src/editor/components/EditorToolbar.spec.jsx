@@ -63,10 +63,52 @@ describe('EditorToolbar — full variant', () => {
     for (const title of [
       'Bold (Ctrl+B)', 'Italic (Ctrl+I)', 'Underline (Ctrl+U)', 'Strikethrough',
       'Superscript', 'Subscript', 'Clear formatting', 'Highlight',
-      'Undo (Ctrl+Z)', 'Redo (Ctrl+Y)', 'Insert Table', 'Insert Math (LaTeX)',
+      'Undo (Ctrl+Z)', 'Redo (Ctrl+Y)', 'Insert Table',
     ]) {
       expect(screen.getByTitle(title), title).toBeInTheDocument()
     }
+  })
+
+  it('names every mathematics tool in words a teacher reads (§6)', () => {
+    // These titles were machine vocabulary ("Insert Math (LaTeX)") or a bare
+    // glyph. A teacher choosing a tool should not have to know what LaTeX is,
+    // so the assertion is on the WORDS, and it doubles as the check that every
+    // tool is present at once.
+    renderToolbar()
+    for (const [tool, name] of [
+      ['formula', 'Insert a formula'],
+      ['fraction', 'Insert a fraction'],
+      ['mixed number', 'Insert a mixed number'],
+      ['vertical calculation', 'Insert a vertical calculation'],
+      ['power', 'Power (superscript)'],
+      ['square root', 'Insert a square root'],
+      ['number base', 'Insert a number in another base'],
+      ['brackets', 'Insert brackets'],
+      ['more maths', 'More maths tools'],
+    ]) {
+      expect(screen.getByLabelText(name), tool).toBeInTheDocument()
+    }
+    expect(screen.queryByTitle(/latex/i)).toBeNull()
+  })
+
+  it('orders the tools for the grade band, and hides none of them', () => {
+    // Ordering is a convenience, never a restriction: a Grade 2 teacher meets
+    // vertical calculation first but can still reach a number base.
+    const { unmount } = renderToolbar({ grade: '2' })
+    const early = screen.getAllByRole('button')
+      .map(b => b.getAttribute('aria-label'))
+      .filter(Boolean)
+    expect(early.indexOf('Insert a vertical calculation'))
+      .toBeLessThan(early.indexOf('Insert a formula'))
+    expect(early).toContain('Insert a number in another base')
+    unmount()
+
+    renderToolbar({ grade: 'G10' })
+    const secondary = screen.getAllByRole('button')
+      .map(b => b.getAttribute('aria-label'))
+      .filter(Boolean)
+    expect(secondary.indexOf('Insert a formula'))
+      .toBeLessThan(secondary.indexOf('Insert a vertical calculation'))
   })
 
   it('applies bold to ONLY the selected word (word-level formatting)', () => {
