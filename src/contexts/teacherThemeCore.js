@@ -1,12 +1,12 @@
 /**
  * Teacher workspace themes — pure data + decisions, no React and no DOM.
  *
- * WHY THIS IS SEPARATE FROM THE 6 LEARNER THEMES
- * ----------------------------------------------
- * ZedExams already ships a theme system: 6 palettes (sky / lavender /
- * midnight / oatmeal / solar / vivid) applied as `theme-<id>` classes on
- * <body> by ThemeContext. That system stays exactly as it is — learners keep
- * every palette they can pick today.
+ * WHY THIS IS SEPARATE FROM THE LEARNER READING THEMES
+ * ----------------------------------------------------
+ * ZedExams already ships a theme system: the reading palettes (oatmeal / sky
+ * / solar / midnight) applied as `theme-<id>` classes on <body> by
+ * ThemeContext. That system stays exactly as it is — this module does not
+ * touch it.
  *
  * This module adds a SECOND, teacher-facing palette set applied as
  * `data-theme` on <html>. The two cannot be merged into one token set,

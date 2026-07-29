@@ -26,7 +26,7 @@
  */
 
 const GRADE_OPTIONS = ['4', '5', '6', '7']
-const THEME_OPTIONS = ['sky', 'lavender', 'midnight', 'oatmeal', 'vivid', 'solar']
+const THEME_OPTIONS = ['oatmeal', 'sky', 'solar', 'midnight']
 
 export const SETTINGS_GROUPS = [
   { id: 'platform', label: 'Platform' },

@@ -5,8 +5,9 @@
 
 import { useAuth } from '../../../contexts/AuthContext'
 import { useSettingsSave } from '../components/SaveContext'
-import { useTheme, THEMES, DEFAULT_THEME } from '../../../contexts/ThemeContext'
+import { useTheme, DEFAULT_THEME } from '../../../contexts/ThemeContext'
 import { Panel, Section, Toggle, OptionCards, Note } from '../components/ui'
+import ReadingThemeSwatches from '../../../components/theme/ReadingThemeSwatches'
 import {
   normalizePersonalisation,
   ACCENT_OPTIONS,
@@ -39,31 +40,15 @@ export default function PersonalisationPanel({ section }) {
         Every change previews live and saves automatically — no need to hit save.
       </Note>
 
-      <Section title="Theme" hint="Your global ZedExams colour palette. Applies everywhere.">
-        <div className="lset-chips">
-          {THEMES.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className={`lset-chip${theme === t.id ? ' lset-chip--on' : ''}`}
-              aria-pressed={theme === t.id}
-              onClick={() => setTheme(t.id)}
-            >
-              <span
-                aria-hidden="true"
-                style={{
-                  display: 'inline-block', width: 12, height: 12, borderRadius: '50%',
-                  background: t.swatch, marginRight: 7, verticalAlign: 'middle',
-                  border: '1px solid rgba(0,0,0,.15)',
-                }}
-              />
-              {t.label}
-            </button>
-          ))}
-        </div>
+      <Section title="Reading theme" hint="Your global ZedExams colour palette. Applies everywhere.">
+        {/* Self-previewing swatches — each shows its own text colour on its
+            own page background, so the choice is visible before it is made.
+            The same component backs the picker in the reader and quiz
+            toolbars, so a theme looks the same wherever it is offered. */}
+        <ReadingThemeSwatches value={theme} onChange={setTheme} />
         <Toggle
           title="Dark mode"
-          hint="Switch to the Midnight Tech palette."
+          hint="Switch to the Midnight palette."
           checked={isDark}
           onChange={onDarkMode}
         />

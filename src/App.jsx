@@ -29,7 +29,7 @@ import VisitorTracker from './components/ui/VisitorTracker'
 import { ActiveAssignmentSync } from './hooks/useActiveAssignmentSync'
 
 // Auth/legal routes always render in the brand-default theme so a
-// visitor's previously-saved preference (e.g. Vivid's deep violet bg)
+// visitor's previously-saved preference (e.g. Midnight's dark page)
 // can't bleed onto the light-only login/register/legal screens. The
 // saved theme applies again as soon as they land on an authenticated
 // route.

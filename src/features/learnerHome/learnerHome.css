@@ -346,9 +346,14 @@
 .lhx-menu-item[aria-checked='true'] {
   background: var(--lhx-purple-soft); color: var(--lhx-purple-deep);
 }
+/* The swatch previews the theme it offers: it declares that palette's tokens
+   on itself (see `.reading-swatch` in index.css), so --bg and --text below
+   resolve to the offered theme rather than the active one. */
 .lhx-menu-swatch {
-  width: 18px; height: 18px; border-radius: 999px; flex-shrink: 0;
-  border: 2px solid var(--lhx-card);
+  display: grid; place-items: center;
+  width: 26px; height: 20px; border-radius: 6px; flex-shrink: 0;
+  font-size: 10px; font-weight: 800; line-height: 1;
+  background: var(--bg); color: var(--text);
   box-shadow: 0 0 0 1px var(--lhx-border-strong);
 }
 .lhx-menu-check { margin-left: auto; display: inline-flex; }
@@ -779,15 +784,6 @@ body.theme-sky .lhx {
     linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 220px);
 }
 
-body.theme-lavender .lhx {
-  --lhx-shade: rgba(45, 32, 108, 0.28);
-  --lhx-shade-soft: rgba(38, 28, 92, 0.12);
-  background-image:
-    radial-gradient(1200px 560px at 50% -220px, rgba(139, 92, 246, 0.22), transparent 68%),
-    radial-gradient(760px 420px at 108% 4%, rgba(168, 85, 247, 0.14), transparent 66%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 220px);
-}
-
 body.theme-oatmeal .lhx {
   --lhx-shade: rgba(120, 53, 15, 0.3);
   --lhx-shade-soft: rgba(120, 70, 20, 0.14);
@@ -803,26 +799,6 @@ body.theme-solar .lhx {
   background-image:
     radial-gradient(1200px 560px at 50% -220px, rgba(245, 158, 11, 0.22), transparent 68%),
     radial-gradient(760px 420px at 108% 4%, rgba(251, 191, 36, 0.16), transparent 66%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 220px);
-}
-
-/*
- * Vivid's raw --bg is a deep violet meant for its marketing surfaces. The
- * classic dashboard did NOT put the learner on it — `theme-vivid
- * .learner-game-theme` used a light pink canvas so the white cards and
- * dark body text stayed legible. Same call here.
- */
-body.theme-vivid .lhx {
-  --lhx-bg: #fdf2f8;
-  --lhx-bg-deep: #fce7f3;
-  /* --bg-subtle is Vivid's deep violet; the wash sits under dark text on
-     light cards here, so it follows the light canvas instead. */
-  --lhx-purple-wash: #fce7f3;
-  --lhx-shade: rgba(124, 58, 237, 0.3);
-  --lhx-shade-soft: rgba(236, 72, 153, 0.16);
-  background-image:
-    radial-gradient(1200px 560px at 50% -220px, rgba(236, 72, 153, 0.22), transparent 68%),
-    radial-gradient(760px 420px at 108% 4%, rgba(124, 58, 237, 0.16), transparent 66%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 220px);
 }
 

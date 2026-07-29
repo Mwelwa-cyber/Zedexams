@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { SIZE_OPTIONS, FONT_OPTIONS, PAGE_OPTIONS } from '../hooks/useReaderPrefs'
+import ReadingThemePicker from '../../../components/theme/ReadingThemePicker'
 
 function GroupLabel({ children }) {
   return <div className="text-[11px] font-bold uppercase tracking-wide text-[#4A5A6E] mb-1.5">{children}</div>
@@ -30,8 +31,14 @@ export function ReaderPrefsMenu({ size, font, page, setSize, setFont, setPage })
   }, [open])
 
   return (
-    <div className="mb-4 flex justify-end" ref={wrapRef}>
-      <div className="relative">
+    <div className="mb-4 flex items-center justify-end gap-2">
+      {/* The reading-theme picker sits in this same toolbar because it is the
+          same kind of choice — how the page reads — and this is where a
+          learner already comes to make it. It is intentionally OUTSIDE
+          wrapRef so opening it dismisses this menu rather than leaving two
+          popovers stacked. */}
+      <ReadingThemePicker surface="reader" />
+      <div className="relative" ref={wrapRef}>
         <button
           type="button"
           onClick={() => setOpen(o => !o)}

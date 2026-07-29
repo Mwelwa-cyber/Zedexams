@@ -2,8 +2,8 @@
  *
  * Built entirely on the app's theme custom properties (--bg, --card, --border,
  * --text, --text-muted, --accent, --accent-text …) so the page inherits the
- * learner's chosen ZedExams theme (Sky / Lavender / Midnight / Oatmeal / Solar
- * / Vivid) and light/dark automatically — "keep the existing ZedExams theme and
+ * learner's chosen reading theme (Warm Oatmeal / Sky Blue / Solar Yellow /
+ * Midnight) and light/dark automatically — "keep the existing ZedExams theme and
  * colors". No hard-coded brand hues except neutral shadow/scrim rgba.
  *
  * Layout goals: mobile-first, no horizontal scroll, large tap targets, sticky
@@ -764,7 +764,7 @@ body[data-a11y-motion='reduced'] .lset-toast { animation: none; }
    OVERVIEW DASHBOARD  — the premium redesign (mockup-faithful).
    A left rail (page title + descriptive nav + help card) beside a responsive
    grid of summary cards. Everything below is theme-variable driven so dark mode
-   and the six themes still apply; only the decorative section-tone tiles carry
+   and the reading themes still apply; only the decorative section-tone tiles carry
    fixed pastels (they read as accents in either mode).
    ══════════════════════════════════════════════════════════════════════════ */
 

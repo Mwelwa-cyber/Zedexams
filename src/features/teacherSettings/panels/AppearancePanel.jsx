@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useTheme, THEMES } from '../../../contexts/ThemeContext'
+import { useTheme } from '../../../contexts/ThemeContext'
+import { capture } from '../../../utils/analytics'
 import {
   loadAccessibilityPrefs,
   saveAccessibilityPrefs,
@@ -12,20 +13,30 @@ import ThemeCards from '../components/fields/ThemeCards'
 // Theme + accessibility. Everything here applies instantly, so there is no
 // Save bar.
 //
-// TWO theme controls, and the split is deliberate rather than an oversight:
-// the workspace theme re-colours the teacher dashboard and studios, while
-// the reading theme belongs to the learner and quiz views a teacher also
-// looks at. They are different surfaces with different palettes, so folding
-// them into one control would mean one of the two silently stops being
-// choosable. The copy under each says which is which.
+// ONE theme control, since 2026-07. The reading theme (the learner note
+// reader and quiz runner palette) used to be offered here too, which meant
+// the only place to change it was the one page it does not colour — a
+// teacher picked a palette and nothing on screen moved. It now lives in the
+// reader and quiz toolbars, where the change is visible the moment it is
+// made. It is a per-device preference and always was; nothing a teacher sets
+// here has ever reached a learner's screen.
 export default function AppearancePanel() {
-  const { theme, setTheme, teacherTheme, setTeacherTheme, teacherThemes } = useTheme()
+  const { teacherTheme, setTeacherTheme, teacherThemes } = useTheme()
   const [a11y, setA11y] = useState(loadAccessibilityPrefs)
 
   const setPref = (key) => (value) => {
     const next = { ...a11y, [key]: value }
     setA11y(next)
     saveAccessibilityPrefs(next)
+  }
+
+  // Recorded here, not in the theme provider: the provider also resolves a
+  // theme on every page load and hydrates one from the signed-in profile, and
+  // neither of those is someone choosing a theme.
+  const chooseTeacherTheme = (next) => {
+    if (next === teacherTheme) return
+    capture('workspace_theme_selected', { theme: next, previous_theme: teacherTheme })
+    setTeacherTheme(next)
   }
 
   return (
@@ -40,39 +51,9 @@ export default function AppearancePanel() {
         <ThemeCards
           label="Workspace theme"
           value={teacherTheme}
-          onChange={setTeacherTheme}
+          onChange={chooseTeacherTheme}
           options={teacherThemes}
         />
-      </section>
-
-      <section className="tset-section">
-        <h2 className="tset-section__title">Reading theme</h2>
-        <p className="tset-section__hint">
-          Applies to the learner and quiz views. Saved on this device only.
-        </p>
-        <div className="tset-chips">
-          {THEMES.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              aria-pressed={theme === t.id}
-              className={`tset-chip${theme === t.id ? ' tset-chip--on' : ''}`}
-              onClick={() => setTheme(t.id)}
-            >
-              <span
-                aria-hidden="true"
-                style={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: '50%',
-                  background: t.swatch,
-                  display: 'inline-block',
-                }}
-              />
-              {t.label}
-            </button>
-          ))}
-        </div>
       </section>
 
       <section className="tset-section">

@@ -468,9 +468,78 @@
   border-color: var(--zt-accent);
   transform: translateY(-1px);
 }
+/* Selected state, identical on all four cards: the accent border says which
+   one is chosen, the soft ring behind it separates the card from its
+   neighbours without the hard second outline a full-strength ring draws. */
 .studio-theme .tset-theme-card--on {
   border-color: var(--zt-accent);
-  box-shadow: 0 0 0 2px var(--zt-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--zt-accent) 25%, transparent);
+}
+
+/* ── Theme thumbnail ────────────────────────────────────────────────────
+   A miniature of the workspace in the card's own palette. Every colour is
+   a --zt-* token resolved through the card's data-theme, so this preview
+   IS the real cascade rather than a picture of it (see ThemeThumbnail.jsx).
+   Fixed aspect so all four read as the same app at a glance. */
+.studio-theme .tset-thumb {
+  display: flex;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 9px;
+  border: 1px solid var(--zt-line);
+  background: var(--zt-surface);
+}
+.studio-theme .tset-thumb__sidebar {
+  display: flex;
+  flex: 0 0 30%;
+  flex-direction: column;
+  gap: 5px;
+  padding: 7px 5px;
+  background: var(--zt-sidebar-bg);
+}
+.studio-theme .tset-thumb__pill {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--zt-accent);
+}
+.studio-theme .tset-thumb__nav {
+  height: 4px;
+  width: 78%;
+  border-radius: 999px;
+  background: var(--zt-sidebar-muted);
+}
+.studio-theme .tset-thumb__nav:nth-of-type(3) { width: 60%; }
+.studio-theme .tset-thumb__main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: space-between;
+  padding: 8px;
+}
+.studio-theme .tset-thumb__card {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 5px;
+  padding: 7px;
+  border-radius: 5px;
+  border: 1px solid var(--zt-card-border);
+  background: var(--zt-card);
+}
+.studio-theme .tset-thumb__row {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--zt-text-muted);
+  opacity: .55;
+}
+.studio-theme .tset-thumb__row--short { width: 55%; }
+.studio-theme .tset-thumb__bar {
+  height: 9px;
+  width: 46%;
+  border-radius: 4px;
+  background: var(--zt-accent);
 }
 .studio-theme .tset-theme-card__top {
   display: flex;

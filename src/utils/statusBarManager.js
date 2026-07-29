@@ -42,7 +42,7 @@ import {
 
 // Themes whose page background is dark → light icons by default. Keep in sync
 // with the dark entries in THEMES (src/contexts/ThemeContext.jsx).
-const DARK_THEMES = ['midnight', 'vivid']
+const DARK_THEMES = ['midnight']
 
 // How long a *changed* decision must hold before we commit it to the OS. Long
 // enough to swallow scroll wobble and momentary banners, short enough to feel
