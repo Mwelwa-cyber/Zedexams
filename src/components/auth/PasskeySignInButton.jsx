@@ -33,7 +33,7 @@ export default function PasskeySignInButton({ onClick, loading, disabled }) {
         )}
         <span>{loading ? 'Waiting for your device…' : 'Sign in with a passkey'}</span>
       </button>
-      <p className="text-[14px] text-[#8B8F9C] text-center mt-2">
+      <p className="text-[14px] text-[#6E7280] text-center mt-2">
         Use your fingerprint, face, PIN, or device screen lock.
       </p>
     </div>

@@ -196,7 +196,7 @@ export default function Register() {
       className="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-y-auto"
       style={{
         backgroundColor: '#FDF6EC',
-        '--accent': '#C5613F',
+        '--accent': '#B44F2D',
         '--accent-bg': '#F8EADF',
         '--accent-fg': '#83372C',
       }}
@@ -219,16 +219,16 @@ export default function Register() {
         {/* Logo */}
         <div className="flex flex-col items-center mb-2.5 gap-1">
           <Logo variant="full" size="md" />
-          <p className="text-[12px] text-[#999] font-body">Practise smart.</p>
+          <p className="text-[12px] text-[#6E7280] font-body">Practise smart.</p>
         </div>
 
         <div className="text-center mb-6">
           <h2 className="text-[20px] font-bold text-[#1A1F2E]">Create account</h2>
-          <p className="text-[13px] text-[#888] mt-1">First — who's joining us today?</p>
+          <p className="text-[13px] text-[#6E7280] mt-1">First — who's joining us today?</p>
         </div>
 
         {/* Role picker */}
-        <div className="text-[10.5px] font-bold uppercase tracking-[1px] text-[#aaa] text-center mb-2.5">
+        <div className="text-[10.5px] font-bold uppercase tracking-[1px] text-[#6E7280] text-center mb-2.5">
           I am a
         </div>
         <div className="grid grid-cols-3 gap-2.5 mb-4">
@@ -269,7 +269,7 @@ export default function Register() {
           <span className="text-[14px] flex-shrink-0" aria-hidden="true">{isParent ? '👪' : '📚'}</span>
           <span
             className="text-[12.5px] font-medium"
-            style={{ color: isTeacher ? '#1C6446' : isParent ? '#4338CA' : '#AB643D' }}
+            style={{ color: isTeacher ? '#1C6446' : isParent ? '#4338CA' : '#96552F' }}
           >
             {isTeacher
               ? 'Access lesson plans, schemes of work & teaching tools'
@@ -287,13 +287,13 @@ export default function Register() {
             label={isTeacher ? 'Sign up with Google as a teacher' : 'Sign up with Google'}
           />
           {isTeacher && (
-            <p className="text-[11.5px] text-[#888] mt-2 leading-[1.45]">
+            <p className="text-[11.5px] text-[#6E7280] mt-2 leading-[1.45]">
               You'll set your subject and province after signing in.
             </p>
           )}
           <div className="flex items-center gap-3 mt-4" aria-hidden="true">
             <span className="h-px flex-1 bg-[#E4E9F0]" />
-            <span className="text-[11px] uppercase tracking-[1px] text-[#aaa] font-medium">or use your email</span>
+            <span className="text-[11px] uppercase tracking-[1px] text-[#6E7280] font-medium">or use your email</span>
             <span className="h-px flex-1 bg-[#E4E9F0]" />
           </div>
         </div>
@@ -368,7 +368,7 @@ export default function Register() {
                 />
               ))}
             </div>
-            <p className={`text-[11px] mt-1 ${score >= 3 ? 'text-[#1E9E6B]' : 'text-[#aaa]'}`}>
+            <p className={`text-[11px] mt-1 ${score >= 3 ? 'text-[#1E9E6B]' : 'text-[#6E7280]'}`}>
               {strengthHint}
             </p>
           </div>
@@ -429,7 +429,7 @@ export default function Register() {
                   <option value="6">Grade 6</option>
                   <option value="7">Grade 7</option>
                 </select>
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#aaa] text-[13px] pointer-events-none" aria-hidden="true">▾</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6E7280] text-[13px] pointer-events-none" aria-hidden="true">▾</span>
               </div>
               {fieldErrors.grade && (
                 <p id="grade-error" className="text-red-600 text-[11.5px] mt-1">{fieldErrors.grade}</p>
@@ -455,7 +455,7 @@ export default function Register() {
                     <option value="">Select subject</option>
                     {TEACHER_SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#aaa] text-[13px] pointer-events-none" aria-hidden="true">▾</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6E7280] text-[13px] pointer-events-none" aria-hidden="true">▾</span>
                 </div>
                 {fieldErrors.subject && (
                   <p id="subject-error" className="text-red-600 text-[11.5px] mt-1">{fieldErrors.subject}</p>
@@ -477,7 +477,7 @@ export default function Register() {
                     <option value="">Province</option>
                     {ZAMBIAN_PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#aaa] text-[13px] pointer-events-none" aria-hidden="true">▾</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6E7280] text-[13px] pointer-events-none" aria-hidden="true">▾</span>
                 </div>
                 {fieldErrors.province && (
                   <p id="province-error" className="text-red-600 text-[11.5px] mt-1">{fieldErrors.province}</p>
@@ -505,14 +505,14 @@ export default function Register() {
           </Button>
         </form>
 
-        <p className="text-[11.5px] text-[#aaa] text-center mt-3 leading-[1.5]">
+        <p className="text-[11.5px] text-[#6E7280] text-center mt-3 leading-[1.5]">
           By registering you agree to our{' '}
           <Link to="/terms" className="text-[var(--accent)] font-medium hover:underline">Terms of Service</Link>
           {' '}and{' '}
           <Link to="/privacy" className="text-[var(--accent)] font-medium hover:underline">Privacy Policy</Link>
         </p>
 
-        <p className="text-center text-[13px] text-[#888] mt-4">
+        <p className="text-center text-[13px] text-[#6E7280] mt-4">
           Already registered?{' '}
           <Link to="/login" className="text-[var(--accent)] font-semibold hover:underline">
             Sign In
@@ -552,7 +552,7 @@ function RoleCard({ active, onClick, emoji, name, hint }) {
       </span>
       <span className="text-[28px]" aria-hidden="true">{emoji}</span>
       <span className="text-[13.5px] font-semibold text-[#1A1F2E]">{name}</span>
-      <span className="text-[11px] text-[#888] leading-[1.35]">{hint}</span>
+      <span className="text-[11px] text-[#6E7280] leading-[1.35]">{hint}</span>
     </button>
   )
 }
@@ -573,7 +573,7 @@ function Field({ label, id, icon, type = 'text', error, ...rest }) {
           {...rest}
         />
         {icon && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#aaa] text-[15px] leading-none pointer-events-none" aria-hidden="true">
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6E7280] text-[15px] leading-none pointer-events-none" aria-hidden="true">
             {icon}
           </span>
         )}
@@ -591,7 +591,7 @@ function EyeBtn({ shown, onClick }) {
       type="button"
       onClick={onClick}
       onMouseDown={e => e.preventDefault()}
-      className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-9 h-9 rounded-lg text-[15px] leading-none select-none text-[#aaa] hover:text-[#1A1F2E] transition-transform active:scale-90 bg-transparent shadow-none p-0 min-h-0"
+      className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-9 h-9 rounded-lg text-[15px] leading-none select-none text-[#6E7280] hover:text-[#1A1F2E] transition-transform active:scale-90 bg-transparent shadow-none p-0 min-h-0"
       aria-label={shown ? 'Hide password' : 'Show password'}
       aria-pressed={shown}
       tabIndex={-1}

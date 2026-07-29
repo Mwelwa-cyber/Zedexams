@@ -429,11 +429,22 @@ body.theme-midnight .moe-calendar {
   .theme-border         { border-color: var(--border); }
 
   /*
-   * Force-light-theme container. Public pages (e.g. games) use this so the
-   * rendered content is readable regardless of which theme the user has
-   * stored in localStorage. Scoped to descendants via CSS variable override.
+   * PINNED-PALETTE CONTAINER (historically "force-light-theme").
    *
-   * "Regardless of which theme" only holds for the tokens actually listed.
+   * The Games hub and the quiz list paint themselves with hard-coded Tailwind
+   * literals — `bg-white`, `text-slate-900`, a cream page gradient, a 2px navy
+   * sticker outline. This scope exists so those literals always have a KNOWN
+   * background behind them: it pins the palette tokens instead of letting them
+   * inherit whichever reading theme the learner saved, which would otherwise
+   * put Sky's blue --card behind a cream gradient.
+   *
+   * It used to pin them light in every direction, which meant a learner who
+   * chose Midnight got a full-brightness white page — dark mode simply did not
+   * exist on the two surfaces they use most. The pin is still a pin; it just
+   * has two directions now (see the Midnight block further down, which also
+   * remaps the literals themselves).
+   *
+   * "Regardless of which theme" only ever held for the tokens actually listed.
    * --input-bg and --input-border were not, so a learner on Midnight got a
    * light page with the DARK palette's field fill still inherited from
    * <body> — and this scope's own --text painted on it, which is the same
@@ -6138,6 +6149,163 @@ body.theme-midnight .learner-game-theme {
     0 16px 34px -26px rgba(15, 23, 42, 0.3);
   backdrop-filter: blur(24px) saturate(1.4);
   -webkit-backdrop-filter: blur(24px) saturate(1.4);
+}
+
+/* ── The Games / quiz-list surface, in the dark ────────────────────────────
+ *
+ * These two surfaces (GamesShell, QuizList) are painted almost entirely in
+ * hard-coded Tailwind literals — ~500 uses of `bg-white`, `text-slate-900`,
+ * `border-slate-900` and friends across ~30 files — plus an inline <style>
+ * of "sticker" rules (heavy navy outline, hard 2px offset shadow) that is the
+ * look of the Games section. None of it reads a palette token, so pinning the
+ * palette light was the only way to keep it legible, and the consequence was
+ * that a learner on Midnight got a full-brightness page on the two surfaces
+ * they open most.
+ *
+ * This block translates that vocabulary instead of pinning it. It is a remap,
+ * not a redesign: every rule below takes one literal and states its dark twin,
+ * so the sticker look survives — a heavy outline and a hard offset shadow,
+ * drawn in light ink on a dark card rather than navy ink on a white one.
+ *
+ * WHY IT LIVES HERE AND NOT IN THE COMPONENTS
+ * Converting ~500 class names by hand across 30 game files would be a much
+ * larger diff with a far worse failure mode: anything missed becomes a white
+ * card in a dark page, one component at a time, and only on a theme most
+ * reviewers are not using. One scoped block either covers the vocabulary or
+ * it does not, and `npm run test:games-dark-surface` fails if a game file
+ * starts using a literal that is not remapped here.
+ *
+ * The selector is `.force-light-theme` under Midnight: the same container
+ * that pins the light palette, so the two directions of the pin cannot drift
+ * onto different elements.
+ *
+ * `text-white` is deliberately NOT remapped — it sits on coloured fills (the
+ * terracotta CTA, the mascot tiles), which are unchanged in the dark.
+ */
+body.theme-midnight .force-light-theme {
+  --bg:              #0F172A;
+  --bg-subtle:       #1E293B;
+  --card:            #1E293B;
+  --card-hover:      #263449;
+  --input-bg:        #0F172A;
+  --input-border:    #334155;
+  --text:            #F1F5F9;
+  --text-muted:      #94A3B8;
+  --border:          #334155;
+  /* The shell's page gradient is an arbitrary Tailwind value on this very
+     element, so it is overridden here rather than by class. Same three-stop
+     shape, walked down instead of up. */
+  background-image: linear-gradient(180deg, #131C2E 0%, #0F172A 38%, #0B1220 100%) !important;
+  color: var(--text);
+}
+
+/* Surfaces.
+ *
+ * `.bg-white` only — `bg-white/85`, `bg-white/15` and friends are separate
+ * class names and stay translucent washes over coloured art.
+ *
+ * `.zx-card` is deliberately ABSENT here. It declares only a border and a
+ * shadow; every card that is white carries `bg-white` as well. Remapping the
+ * class itself instead outranked the tint utilities it is combined with —
+ * `zx-card … bg-amber-100 text-amber-900` became amber-900 ink on the neutral
+ * dark card at 1.61:1, so the one element on the leaderboard that exists to be
+ * noticed was the one that could not be read. Only classes that carry their
+ * own background belong in this list.
+ */
+body.theme-midnight .force-light-theme .bg-white,
+body.theme-midnight .force-light-theme .zx-chip,
+body.theme-midnight .force-light-theme .zx-sticker-btn-secondary {
+  background-color: var(--card);
+}
+body.theme-midnight .force-light-theme .bg-slate-50,
+body.theme-midnight .force-light-theme .bg-slate-100,
+body.theme-midnight .force-light-theme .bg-slate-200 {
+  background-color: var(--bg-subtle);
+}
+/* The navy pills (`bg-slate-900`, `.zx-card-dark`, `.zx-sticker-btn-dark`)
+   are a RAISED surface on a white page. On a dark page the same colour is the
+   page, so they are lifted rather than kept — a pill you cannot see is worse
+   than one that changed shade. */
+body.theme-midnight .force-light-theme .bg-slate-900,
+body.theme-midnight .force-light-theme .bg-slate-800,
+body.theme-midnight .force-light-theme .zx-card-dark,
+body.theme-midnight .force-light-theme .zx-sticker-btn-dark {
+  background-color: #334155;
+  color: #F8FAFC;
+}
+/* The frosted sticky nav: translucent white over a cream page becomes
+   translucent ink over a dark one, so the blur still reads as glass. */
+body.theme-midnight .force-light-theme .bg-white\/60,
+body.theme-midnight .force-light-theme .bg-white\/70,
+body.theme-midnight .force-light-theme .bg-white\/72,
+body.theme-midnight .force-light-theme .bg-white\/75,
+body.theme-midnight .force-light-theme .bg-white\/80,
+body.theme-midnight .force-light-theme .bg-white\/85 {
+  background-color: rgba(15, 23, 42, 0.72);
+}
+
+/* Ink. */
+body.theme-midnight .force-light-theme .text-slate-900,
+body.theme-midnight .force-light-theme .text-slate-800,
+body.theme-midnight .force-light-theme .text-slate-700,
+body.theme-midnight .force-light-theme .zx-sticker-btn-secondary,
+body.theme-midnight .force-light-theme .zx-chip {
+  color: var(--text);
+}
+body.theme-midnight .force-light-theme .text-slate-600,
+body.theme-midnight .force-light-theme .text-slate-500,
+body.theme-midnight .force-light-theme .text-slate-400,
+body.theme-midnight .force-light-theme .text-slate-300,
+body.theme-midnight .force-light-theme .zx-eyebrow,
+/* The subject eyebrow is written both ways — as .zx-eyebrow and as a bare
+   arbitrary value — so both spellings are listed. Missing the second one left
+   "SCIENCE" at 1.11:1: a dark teal that was correct on white and is very
+   nearly the page in the dark. */
+body.theme-midnight .force-light-theme .text-\[\#053541\] {
+  color: var(--text-muted);
+}
+/* The games section's teal link colour, chosen against a white card. Lifted
+   to the same hue at a legible lightness rather than swapped for the app
+   accent, so /games still reads as its own place. */
+body.theme-midnight .force-light-theme .text-\[\#0E5E70\] {
+  color: #6FD3E8;
+}
+/* Cream tiles and hairlines, in the dark. */
+body.theme-midnight .force-light-theme .bg-\[\#EFE9DB\],
+body.theme-midnight .force-light-theme .bg-\[\#FCF7F3\] {
+  background-color: var(--bg-subtle);
+}
+body.theme-midnight .force-light-theme .border-\[\#D8D0BC\] {
+  border-color: var(--border);
+}
+
+/* The sticker outline + hard offset shadow — the signature of this section.
+   #0F1B2D is invisible on a dark card, so both are redrawn in a light ink.
+   Kept a definite grey rather than the full --text so the outline still reads
+   as an outline and not as a second row of type. */
+body.theme-midnight .force-light-theme .zx-card,
+body.theme-midnight .force-light-theme .zx-chip {
+  border-color: #7C8CA5;
+  box-shadow: 0 2px 0 #7C8CA5;
+}
+body.theme-midnight .force-light-theme .zx-sticker-btn {
+  border-color: #7C8CA5;
+  box-shadow: 0 3px 0 #7C8CA5;
+}
+body.theme-midnight .force-light-theme .zx-sticker-btn:hover { box-shadow: 0 2px 0 #7C8CA5; }
+body.theme-midnight .force-light-theme .zx-sticker-btn:active { box-shadow: 0 0 0 #7C8CA5; }
+body.theme-midnight .force-light-theme .zx-sticker-btn:disabled { box-shadow: 0 3px 0 #7C8CA5; }
+body.theme-midnight .force-light-theme .border-slate-900,
+body.theme-midnight .force-light-theme .border-slate-800,
+body.theme-midnight .force-light-theme .border-slate-300,
+body.theme-midnight .force-light-theme .border-slate-200,
+body.theme-midnight .force-light-theme .border-slate-100,
+body.theme-midnight .force-light-theme .ring-slate-200 {
+  border-color: #7C8CA5;
+}
+body.theme-midnight .force-light-theme .border-white\/60,
+body.theme-midnight .force-light-theme .border-white\/40 {
+  border-color: rgba(148, 163, 184, 0.28);
 }
 
 /* Heavy slate shadow + translucent subtle bg only in Midnight; light

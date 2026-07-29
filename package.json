@@ -628,6 +628,7 @@
     "test:teacher-theme-mirror": "node src/contexts/teacherThemeMirror.test.js",
     "test:reading-theme-mirror": "node src/contexts/readingThemeMirror.test.js",
     "test:reading-theme-contrast": "node src/contexts/readingThemeContrast.test.js",
+    "test:games-dark-surface": "node src/components/games/gamesDarkSurface.test.js",
     "test:export-theme-isolation": "node src/utils/exportThemeIsolation.test.js",
     "test:lesson-plan-format": "node src/utils/lessonPlanFormat.test.js",
     "test:lesson-plan-condense": "node src/utils/lessonPlanCondense.test.js",

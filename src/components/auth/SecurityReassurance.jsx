@@ -19,7 +19,7 @@ export default function SecurityReassurance() {
             <IconComponent size={20} color={color} strokeWidth={1.9} aria-hidden="true" className="shrink-0 mt-px" />
             <div>
               <p className="text-[13px] font-semibold text-[#26344D] leading-tight">{title}</p>
-              <p className="text-[12px] text-[#8B8F9C] leading-snug mt-0.5">{text}</p>
+              <p className="text-[12px] text-[#6E7280] leading-snug mt-0.5">{text}</p>
             </div>
           </li>
         ))}
