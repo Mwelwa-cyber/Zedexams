@@ -132,7 +132,8 @@ export default function PrivacyPolicy() {
       <UL>
         <li>
           Learner accounts are <strong>excluded from session replay</strong>. We never
-          record a learner's screen.
+          record a learner's screen — not for product analytics, and not as part of an
+          error report.
         </li>
         <li>
           Learner accounts are <strong>never identified to our analytics provider</strong>{' '}
@@ -176,7 +177,9 @@ export default function PrivacyPolicy() {
         </li>
         <li>
           <strong>Sentry</strong> — crash and error reporting (technical details of the
-          error, plus device information) so we can diagnose faults.
+          error, plus device information) so we can diagnose faults. For teacher and admin
+          accounts only, an error report may include a masked replay of the moments before
+          the fault; learner and parent sessions are reported without any recording.
         </li>
         <li>
           <strong>Payment providers</strong> — when you pay for a subscription or top-up we
