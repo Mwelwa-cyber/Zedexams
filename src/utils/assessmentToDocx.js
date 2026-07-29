@@ -174,47 +174,40 @@ function runMarks(marks = {}) {
 }
 
 /**
- * A structured fraction as a real Word equation — the school notation a learner
- * writes, with a horizontal bar (§4.2, §5).
+ * A structured fraction in Word: superscript-numerator, solidus,
+ * subscript-denominator.
  *
- * This used to be superscript-numerator + "⁄" + subscript-denominator. That is
- * legible, and it is also exactly the two forms §5 rules out: a diagonal
- * solidus, and a superscript-over-subscript imitation of a fraction. A Zambian
- * paper prints the numerator directly above the denominator, so Word has to
- * draw an equation — nothing else in WordprocessingML puts one number over
- * another.
+ * This is NOT the school notation the rest of the phase enforces, and the gap
+ * is deliberate rather than overlooked. §5 rules out both the diagonal solidus
+ * and a superscript-over-subscript imitation, and nothing in
+ * WordprocessingML puts one number above another except an OMML equation — so
+ * the fix is to emit one, and the machinery to do it is already in this file
+ * (`mathTreeToOmml`, used for LaTeX-derived formulas).
  *
- * A mixed number keeps its whole part as an ordinary run BESIDE the equation,
- * which is what puts the full-size 2 next to a stacked 3-over-7 rather than
- * inside it.
+ * It was tried, and the visual gate refused it: rendered through LibreOffice,
+ * the digits inside the equation stop appearing in the PDF's text layer, so
+ * `assertPagePrintsItsContent` reported vr-001 as a paper missing its own
+ * denominator. No fixture has ever routed content through the OMML path, so
+ * the existing LaTeX equations are unverified through LibreOffice too — this
+ * change was simply the first thing to ask the question.
  *
- * The old form remains the fallback, not because it is good but because a
- * dropped formula is worse than an ugly one: if the equation cannot be built,
- * the reader still gets the numbers.
+ * Whether LibreOffice DRAWS the equation and merely omits it from the text
+ * layer, or does not draw it at all, is not something this repository can
+ * currently answer, and the two differ by every fraction on every maths paper
+ * for the many Zambian schools on LibreOffice. §9's own wording is "use native
+ * equation support where the current exporter can do so RELIABLY... where a
+ * native equation is not available, use the project's validated mathematics
+ * fallback." Unverifiable is not reliable, so the validated fallback stands
+ * until someone can confirm a real LibreOffice render.
+ *
+ * The preview, the print window and the PDF all draw a true horizontal bar
+ * today; Word is the one renderer still on this form.
  */
 function fractionRuns(node, baseOpts, marks) {
   const num = String(node.numerator ?? '')
   const den = String(node.denominator ?? '')
-  const wholeRuns = node.whole
-    ? [runText(`${node.whole} `, { ...baseOpts, ...marks })]
-    : []
-
-  if (num && den) {
-    try {
-      const equation = new OMath({
-        children: [new MathFraction({
-          numerator: [new MathRun(sanitizeXmlText(num))],
-          denominator: [new MathRun(sanitizeXmlText(den))],
-        })],
-      })
-      return [...wholeRuns, equation]
-    } catch (err) {
-      console.warn('[assessmentToDocx] fraction equation failed, using the text form', err)
-    }
-  }
-
   return [
-    ...wholeRuns,
+    ...(node.whole ? [runText(`${node.whole} `, { ...baseOpts, ...marks })] : []),
     runText(num, { ...baseOpts, ...marks, superScript: true }),
     runText('⁄', { ...baseOpts, ...marks }),
     runText(den, { ...baseOpts, ...marks, subScript: true }),

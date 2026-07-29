@@ -37,6 +37,7 @@ import {
 } from './AssessmentQuestionEditors'
 import { STUDIO_QUESTION_TYPE_OPTIONS, typeSelectValue, patchForTypeChange } from './assessmentQuestionTypes'
 import { isMathsSubject } from './mathsSubjects.js'
+import { normalizeMathsInQuestion } from '../../utils/mathsTextNormalizer.js'
 
 // Question fields whose edits invalidate any prior AI answer suggestion.
 // Module-scope so the array is allocated once per page load, not per render.
@@ -76,6 +77,70 @@ function AiSuggestionNotice({ rationale, confidence, routedTo, onConfirm }) {
       >
         <Icon name="check" size={12} /> Confirm
       </button>
+    </div>
+  )
+}
+
+/**
+ * "Convert maths notation" — the §8 upgrade path for AI-generated and imported
+ * questions, which arrive as plain strings saying "3/5" and "x^2".
+ *
+ * Shown only when there is something to do, and it states the count BEFORE
+ * changing anything, because a bare `a/b` is the one pattern the normaliser
+ * will not touch on its own: "3/5" is a fraction, a ratio and a date, and the
+ * text does not say which. Powers, roots and mixed numbers have no second
+ * reading, so those are offered as a plain one-click conversion; bare
+ * fractions are a separate, explicitly-worded confirmation.
+ *
+ * Undo is the normal editor undo — this writes through the same updateQuestion
+ * path every other edit takes, so nothing special is needed to reverse it.
+ */
+function ConvertMathsNotation({ question, onUpdate }) {
+  const preview = normalizeMathsInQuestion(question)
+  const unambiguous = preview.converted
+  const ambiguous = preview.candidates
+  if (!unambiguous && !ambiguous) return null
+
+  const apply = (includeBareFractions) => {
+    const { question: next, converted } = normalizeMathsInQuestion(question, { includeBareFractions })
+    if (!converted) return
+    // Field by field through the normal update path, so autosave, validation
+    // and the dirty flag all behave exactly as they do for a typed edit.
+    for (const field of ['text', 'correctAnswer', 'explanation', 'options']) {
+      if (next[field] !== question[field]) onUpdate(field, next[field])
+    }
+  }
+
+  return (
+    <div style={{ margin: '4px 0 8px', padding: '6px 9px', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', background: 'var(--sv-tinted)', fontSize: 11.5, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      <span style={{ color: 'var(--sv-muted)' }}>
+        This question uses typed maths notation.
+      </span>
+      {unambiguous > 0 && (
+        <button
+          type="button"
+          className="sv-btn sv-btn-outline sv-btn-sm"
+          onClick={() => apply(false)}
+          title="Convert powers, roots and mixed numbers to proper maths"
+        >
+          Convert {unambiguous} {unambiguous === 1 ? 'expression' : 'expressions'}
+        </button>
+      )}
+      {ambiguous > 0 && (
+        <button
+          type="button"
+          className="sv-btn sv-btn-outline sv-btn-sm"
+          onClick={() => apply(true)}
+          title="Also convert plain a/b to stacked fractions — check none of them is a ratio or a date"
+        >
+          Also convert {ambiguous} {ambiguous === 1 ? 'fraction' : 'fractions'} like 3/5
+        </button>
+      )}
+      {ambiguous > 0 && (
+        <span style={{ color: 'var(--sv-muted)', flexBasis: '100%' }}>
+          Check first — a ratio and a date are written the same way as a fraction.
+        </span>
+      )}
     </div>
   )
 }
@@ -580,6 +645,8 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
           <Icon name="ai" size={13} /> Revise {reviseOpen ? '▾' : '▸'}
         </button>
       </div>
+
+      {mathsPaper && <ConvertMathsNotation question={question} onUpdate={updateQuestion} />}
 
       {reviseOpen && (
         <ReviseQuestionPopover
