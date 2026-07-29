@@ -50,9 +50,19 @@ body.theme-sky,
   --text-muted:   #4B6280;
   --border:       #BAE6FD;
   --accent:       #0EA5E9;
-  --accent-text:  #FFFFFF;
+  /* Sky was the one palette putting WHITE on its accent fill: #FFFFFF on
+     #0EA5E9 is 2.77:1, which fails AA for normal text AND the 3:1 large-text
+     floor — so every primary button in this theme was below the bar at any
+     size. Darkening the blue enough to carry white would have taken it to
+     sky-700 and cost the theme its name; putting the palette's own ink on it
+     reaches 6.25:1 and is what Solar and Midnight already do with their
+     bright accents. */
+  --accent-text:  #0C1A2E;
   --accent-bg:    #E0F2FE;
-  --accent-fg:    #0284C7;
+  /* --accent-fg is the accent used AS TEXT (links, kickers), judged against
+     the page rather than against a fill. #0284C7 was 4.10:1 on --card and
+     3.57:1 on --accent-bg; sky-700 clears 4.5:1 on all three surfaces. */
+  --accent-fg:    #0369A1;
   --input-bg:     #FFFFFF;
   --input-border: #BAE6FD;
   --shadow:       rgba(14,165,233,0.08);
@@ -109,7 +119,11 @@ body.theme-oatmeal,
   --card:         #FFFDF7;
   --card-hover:   #FCF7F3;
   --text:         #1C1917;
-  --text-muted:   #78716C;
+  /* #78716C in the source palette — 4.47:1 on the cream page and 4.16:1 on
+     --bg-subtle, both under AA for body copy, and this is the DEFAULT theme
+     so it is what most of the site is read in. #6E6862 keeps the warm stone
+     cast and clears 4.8:1 on every oatmeal surface. */
+  --text-muted:   #6E6862;
   --border:       #E7D5C0;
   /* Oatmeal is the DEFAULT theme, so this accent is what every public page and
      every signed-out visitor sees — it is the brand orange, not a per-learner
@@ -150,7 +164,9 @@ body.theme-solar,
   --card:         #FFFFFF;
   --card-hover:   #FFFBEB;
   --text:         #1C1917;
-  --text-muted:   #78716C;
+  /* Same correction as Oatmeal, for the same reason: #78716C read 4.31:1 on
+     Solar's --bg-subtle (#FEF3C7), the surface its preview cards use. */
+  --text-muted:   #6E6862;
   --border:       #FDE68A;
   --accent:       #F59E0B;
   --accent-text:  #1C1917;
@@ -416,12 +432,22 @@ body.theme-midnight .moe-calendar {
    * Force-light-theme container. Public pages (e.g. games) use this so the
    * rendered content is readable regardless of which theme the user has
    * stored in localStorage. Scoped to descendants via CSS variable override.
+   *
+   * "Regardless of which theme" only holds for the tokens actually listed.
+   * --input-bg and --input-border were not, so a learner on Midnight got a
+   * light page with the DARK palette's field fill still inherited from
+   * <body> — and this scope's own --text painted on it, which is the same
+   * colour: the search box on /games and /quizzes rendered its text at
+   * 1.00:1 against its own background. A partial palette is worse than none,
+   * because every visible surface looks correct.
    */
   .force-light-theme {
     --bg:              #FFFFFF;
     --bg-subtle:       #F8FAFC;
     --card:            #FFFFFF;
     --card-hover:      #F1F5F9;
+    --input-bg:        #FFFFFF;
+    --input-border:    #CBD5E1;
     --text:            #0F172A;
     --text-muted:      #475569;
     --border:          #E2E8F0;
@@ -544,6 +570,22 @@ body.theme-midnight .moe-calendar {
    * background of a scrollable display block, hence the explicit rule. */
   [data-theme='night'] .studio-theme {
     color-scheme: dark;
+    /* The semantic four are declared literal on .studio-theme below, with the
+     * stated reason that "a validation error is the same red in every theme".
+     * That holds for the HUE and not for the surface: those literals are a
+     * light-theme set — a near-white wash (#e6f5ed) carrying dark ink
+     * (#0a5a35) — so on Night every status chip stayed a pale pill on a dark
+     * card, and any of those foregrounds used as bare text sat around 2:1.
+     *
+     * So the hues are unchanged and only the direction is: a translucent wash
+     * of the same colour over whatever card it lands on, with a lightened ink
+     * on top. This mirrors what the Midnight reading palette already does,
+     * and it is why the washes are rgba rather than a second set of hexes —
+     * one value works on both --card and the slightly darker --surface. */
+    --success:      #22C55E; --success-bg: rgba(16,134,78,0.20);  --success-fg: #4ADE80;
+    --warning:      #F59E0B; --warning-bg: rgba(217,119,6,0.20);  --warning-fg: #FBBF24;
+    --danger:       #EF4444; --danger-bg:  rgba(185,28,28,0.20);  --danger-fg:  #F87171;
+    --info:         #3B82F6; --info-bg:    rgba(59,130,246,0.20); --info-fg:    #93C5FD;
   }
   [data-theme='night'] .studio-theme .katex-display {
     background: transparent;
@@ -3368,15 +3410,48 @@ body {
 
 * { box-sizing: border-box; }
 
+/* ── Native widgets follow the palette ─────────────────────────
+ * Everything above this point is painted by our CSS. The controls below are
+ * painted by the OS: <select> dropdown popups, checkboxes and radios, the
+ * date/time pickers, the caret, autofill fills, and the document scrollbar.
+ * None of them read a custom property — they read `color-scheme`, and
+ * index.html pins the document to `light` so the default cream palette gets
+ * the rendering it was designed for.
+ *
+ * On Midnight that pin was never lifted, so a learner reading on the dark
+ * palette still got a white dropdown list, a white autofill bar and a light
+ * scrollbar. `.dark` is set on <html> by ThemeContext for exactly the reading
+ * themes whose surfaces are dark, so it is the right hook: a CSS declaration
+ * beats the <meta>, and nothing else has to know.
+ *
+ * The studio is deliberately excluded in both directions. Its palette comes
+ * from the WORKSPACE theme (`data-theme`), not the reading theme, so a
+ * teacher whose learner palette is Midnight must not get dark native controls
+ * inside a light studio — the twin of the rule that gives Night its dark ones
+ * (`[data-theme='night'] .studio-theme`, declared with the studio palette
+ * earlier in this file). */
+html.dark { color-scheme: dark; }
+:root:not([data-theme='night']) .studio-theme { color-scheme: light; }
+/* Same exclusion, same reason: .force-light-theme repaints its subtree light
+   whatever the reading theme is, so its native controls have to come back
+   light with it. */
+html.dark .force-light-theme { color-scheme: light; }
+
+/* Some platforms render <option> with a transparent fill that inherits
+   whatever sits behind the popup, so the pair is stated explicitly. Read from
+   the palette rather than pinned to white — pinning is what put a white
+   dropdown list on the dark page even after `color-scheme` was correct. */
 select option {
-  color: #111827;
-  background: #ffffff;
+  color: var(--text);
+  background: var(--input-bg);
 }
 
 /* ── Custom scrollbar ─────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 100px; }
+/* --border, not a fixed slate: #cbd5e1 is a light-grey thumb on a light track,
+   which on Midnight is the brightest thing on the page. */
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 100px; }
 
 /* ── Reusable component classes ────────────────────────────── */
 @layer components {
@@ -5413,8 +5488,23 @@ select option {
  * the same brand terracotta the app does, with white text at 5.1:1 (the
  * amber-on-ink pair it replaces was louder, not more legible). --accent is
  * still declared here rather than inherited from oatmeal, because a signed-in
- * visitor on another theme can reach a .marketing-page route. */
-.marketing-page {
+ * visitor on another theme can reach a .marketing-page route.
+ *
+ * WHY THIS IS SCOPED TO THE LIGHT THEMES
+ * --------------------------------------
+ * "Pinned to the oatmeal brand theme" was true of every landing route EXCEPT
+ * the one that matters most: `/` is not in App.jsx's PUBLIC_THEME_PATHS, so
+ * the home page renders in whatever palette the visitor saved. On Midnight
+ * that made this block fatal — it forces near-black ink (#1F1F1F) and
+ * true-white cards while leaving --bg alone, so the page stayed navy and
+ * every heading below the hero disappeared into it. The failure is invisible
+ * to anyone testing on a light theme, which is why it survived.
+ *
+ * So the contrast pass below is what it always was — a correction for cream —
+ * and is scoped to the themes that are actually cream. Midnight gets its own
+ * block after it: the same intent (cards that lift off the page, a firmer
+ * hairline, solid form fields) expressed in its own direction. */
+body:not(.theme-midnight) .marketing-page {
   --text:         #1F1F1F;   /* main text — was #1C1917 */
   --text-muted:   #4B5563;   /* secondary copy — was #78716C (too faint) */
   --border:       #E2D6C0;   /* firmer hairline on cream */
@@ -5430,10 +5520,32 @@ select option {
   --shadow-lg:    0 8px 18px rgba(28,25,23,0.12), 0 22px 48px rgba(28,25,23,0.16);
 }
 
+/* Midnight's marketing surface. Only the four tokens the cream pass exists to
+   correct are restated, in the dark direction: a card that is LIGHTER than the
+   page (#1B2436 against #0F172A) rather than white, a hairline firm enough to
+   draw an edge on it, and form fields sunk below the card so they still read
+   as inputs. Everything else — ink, muted copy, the accent ramp — comes from
+   the Midnight palette, which is already tuned for this background. */
+body.theme-midnight .marketing-page {
+  --card:         #1B2436;
+  --card-hover:   #232E44;
+  --border:       #37455C;
+  --input-bg:     #0B1220;
+  --input-border: #3B4A63;
+  /* Dark surfaces are separated by ambient depth, not by a cast shadow. */
+  --shadow-sm:    0 1px 2px rgba(0,0,0,0.45);
+  --shadow-md:    0 2px 8px rgba(0,0,0,0.45), 0 10px 24px rgba(0,0,0,0.35);
+  --shadow-lg:    0 8px 20px rgba(0,0,0,0.55), 0 22px 48px rgba(0,0,0,0.40);
+}
+
 /* Muted/help fine print — the one tier lighter than secondary copy. Kept dark
    enough to clear WCAG AA on the cream --bg-subtle (#FEF3C7) preview cards,
    where the old #6B7280 only reached 4.34:1. #586273 lands at ~5.5:1. */
-.marketing-page .theme-text-help { color: #586273; }
+body:not(.theme-midnight) .marketing-page .theme-text-help { color: #586273; }
+/* The same tier on Midnight, read from the other side: #586273 is 2.9:1 on the
+   navy page — the light-theme value is not merely suboptimal there, it is
+   below AA for any text at all. #A9B4C6 lands at ~7.6:1 on --bg. */
+body.theme-midnight .marketing-page .theme-text-help { color: #A9B4C6; }
 
 /* Flat feature/pricing cards ship with no shadow; give them a subtle one
  * so they still read as cards on cream. Elevated/hero cards already carry
@@ -6390,10 +6502,30 @@ body.theme-solar .learner-game-theme .learner-bottom-nav {
  * isn't fixed/sticky can opt in with data-print="hide".
  */
 @media print {
-  /* 1. Force a clean white-on-black palette — overrides every theme */
+  /* 1. Force a clean white-on-black palette — overrides every theme.
+   *
+   * The scopes after the first three are not decoration. A custom property
+   * declared on an ELEMENT beats one inherited from an ancestor, and
+   * `!important` does not cross that line — it only settles which declaration
+   * wins on the element it is written for. So every scope that re-declares
+   * this palette on an inner node kept its own colours right through this
+   * reset: on the Night workspace theme a `.theme-card` inside `.studio-theme`
+   * printed at #232D3B with pale ink, which is the ruined-ream outcome
+   * exportThemeIsolation.test.js exists to prevent — reached through Ctrl-P
+   * rather than through an exporter, which is why that guard never saw it.
+   *
+   * Keep this list and the palette scopes in step; the guard in
+   * src/utils/exportThemeIsolation.test.js fails if a new one is added
+   * without being reset here. */
   :root,
   body,
-  body[class*="theme-"] {
+  body[class*="theme-"],
+  .studio-theme,
+  .force-light-theme,
+  .marketing-page,
+  .learner-game-theme,
+  .admin-game-theme,
+  [class*="quiz-theme-"] {
     --bg:           #ffffff !important;
     --bg-subtle:    #ffffff !important;
     --card:         #ffffff !important;

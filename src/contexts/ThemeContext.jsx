@@ -64,6 +64,30 @@ export function normalizeThemeId(id) {
 const DARK_THEME_IDS = new Set(['midnight'])
 
 /**
+ * The colour the browser paints its own chrome with — the Android address bar
+ * and the iOS status-bar backdrop. It is a <meta>, so no palette token can
+ * reach it; index.html ships a fixed value and this is what keeps that value
+ * honest once a theme is applied.
+ *
+ * Each entry is the theme's own `--bg`, because that is the strip of page the
+ * chrome sits against. A fixed navy was close enough to be missed on Midnight
+ * (#0F1B2D against #0F172A reads as a seam, not as a different colour) and
+ * plainly wrong on the three light palettes, where a dark bar sat above a
+ * cream page.
+ *
+ * Kept here rather than in boot.js's pre-paint guard on purpose: this is one
+ * more table that would have to be mirrored across ThemeContext / index.css /
+ * boot.js, and the cost of getting it late is a browser chrome that settles a
+ * few hundred milliseconds after the page — not a flash of unstyled content.
+ */
+const THEME_META_COLORS = {
+  oatmeal:  '#FDF6EC',
+  sky:      '#F0F9FF',
+  solar:    '#FFFBEB',
+  midnight: '#0F172A',
+}
+
+/**
  * Apply a theme by setting `theme-<id>` on <body>, removing any prior
  * theme class. Exported so the route-aware applicator can override the
  * saved preference (e.g. pin the brand default on auth/legal pages).
@@ -75,6 +99,8 @@ export function applyThemeToBody(id) {
   THEME_CLASS_IDS.forEach(t => body.classList.remove(`theme-${t}`))
   body.classList.add(`theme-${next}`)
   document.documentElement.classList.toggle('dark', DARK_THEME_IDS.has(next))
+  const meta = document.querySelector('meta[name="theme-color"]')
+  if (meta && THEME_META_COLORS[next]) meta.setAttribute('content', THEME_META_COLORS[next])
 }
 
 /**
