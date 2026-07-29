@@ -31,16 +31,76 @@ service firebase.storage {
         && userDoc().data.verificationGraceUntil > request.time;
     }
 
-    function isTeacherOrAdmin() {
-      return isVerified()
-        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
-        && (userDoc().data.role == 'teacher' || userDoc().data.role == 'admin');
+    // ── platform-admin claim (mirrors firestore.rules' isPlatformAdmin) ──
+    // Minted only by the adminSetPlatformAdmin Cloud Function (admin SDK), so
+    // it is tamper-proof, and checked WITHOUT a Firestore read — which is what
+    // makes it a break-glass path for an admin whose user doc is missing or
+    // unreadable. "Claim present AND true" so a token without it denies closed.
+    function isPlatformAdmin() {
+      return isAuthed()
+        && 'platformAdmin' in request.auth.token
+        && request.auth.token.platformAdmin == true;
     }
 
+    // The boolean superAdmin claim minted by adminSetUserRole /
+    // scripts/grant-superadmin.mjs. firestore.rules honours it for its most
+    // sensitive reads (isSuperAdmin), so it is at least as trusted as the
+    // Firestore role string it is minted alongside.
+    function hasSuperAdminClaim() {
+      return isAuthed()
+        && 'superAdmin' in request.auth.token
+        && request.auth.token.superAdmin == true;
+    }
+
+    // ── role helpers — MUST stay in step with firestore.rules ────────────
+    // firestore.rules: "Admin and superAdmin are equivalent — both get full
+    // read/write access", and its isTeacherOrAbove() accepts
+    // teacher/admin/superAdmin. These two used to accept the literal string
+    // 'admin' (and 'teacher') only, so an account promoted by
+    // scripts/grant-superadmin.mjs — which writes role 'superAdmin' BY
+    // DEFAULT — passed every Firestore check and was refused by every Storage
+    // write behind them.
+    //
+    // That asymmetry is invisible from the UI and reads as a broken feature:
+    // the admin opens the Past Paper Studio, the draft pastPapers doc is
+    // created (Firestore says admin), and then the file upload dies with
+    // "User does not have permission to access 'papers/<uid>/<paperId>/…'".
+    // Same for syllabus uploads, picture-bank images and every other
+    // admin-authored asset. Pinned by the superAdmin section of
+    // scripts/test-storage-rules-emulator.mjs.
+    //
+    // Identity parity only: what a caller IS changes here, what they may
+    // UPLOAD does not — every write still goes through its
+    // valid*Upload() content-type and size check.
+    // isVerified() still gates EVERY arm, including the claim ones — unlike
+    // Firestore there are no signup-time Storage writes, so nothing here has a
+    // reason to run before the caller's email is verified.
     function isAdmin() {
       return isVerified()
-        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
-        && userDoc().data.role == 'admin';
+        && (
+          isPlatformAdmin()
+          || hasSuperAdminClaim()
+          || (
+            firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+            && (userDoc().data.role == 'admin' || userDoc().data.role == 'superAdmin')
+          )
+        );
+    }
+
+    function isTeacherOrAdmin() {
+      return isVerified()
+        && (
+          isPlatformAdmin()
+          || hasSuperAdminClaim()
+          || (
+            firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+            && (
+              userDoc().data.role == 'teacher'
+              || userDoc().data.role == 'admin'
+              || userDoc().data.role == 'superAdmin'
+            )
+          )
+        );
     }
 
     // ── account-status gate (P0: suspended-account enforcement) ──
@@ -95,7 +155,13 @@ service firebase.storage {
       // often start life as .docx. 50MB per file is the cap — the
       // admin Studio enforces it client-side too, this is the server
       // backstop.
-      return request.resource.size < 50 * 1024 * 1024
+      //
+      // `<=`, not `<`: src/utils/pastPapers.js rejects a file only when it is
+      // LARGER than MAX_PAPER_FILE_BYTES, so a file of exactly 50 MB passed
+      // the Studio's check and was refused here — as an opaque
+      // storage/unauthorized, indistinguishable from a permissions problem.
+      // The two boundaries have to name the same file.
+      return request.resource.size <= 50 * 1024 * 1024
         && (
           request.resource.contentType == 'application/pdf'
           || request.resource.contentType == 'application/msword'
