@@ -1,4 +1,10 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react'
+import { TEACHER_THEMES, isTeacherThemeId } from './teacherThemeCore'
+import {
+  applyTeacherThemeAttribute,
+  useTeacherThemeValue,
+  writeTeacherTheme,
+} from './teacherThemeStore'
 
 const LS_KEY = 'examprep:theme'
 
@@ -66,6 +72,23 @@ function resolveInitialTheme() {
   return DEFAULT_THEME
 }
 
+/* ── Teacher workspace theme ───────────────────────────────────────────
+ * A SECOND palette set, applied as `data-theme` on <html>, covering the
+ * teacher dashboard + studios. It is deliberately independent of the six
+ * learner themes above: learners keep every palette they can pick today,
+ * and teachers get the four workspace themes on top.
+ *
+ * Both live in this one provider on purpose — one place owns theme state,
+ * one place writes localStorage, one place applies the DOM change. What is
+ * separate is only the token namespace (see teacherThemeCore.js).
+ */
+
+/**
+ * Apply a teacher theme by setting `data-theme` on <html>. Exported so
+ * boot-time and test code can drive it without mounting the provider.
+ */
+export const applyTeacherTheme = applyTeacherThemeAttribute
+
 const ThemeContext = createContext(null)
 
 export function useTheme() {
@@ -76,12 +99,60 @@ export function useTheme() {
 
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(resolveInitialTheme)
+  // Lives in a module store, not in this provider — see teacherThemeStore.js
+  // for why (the dashboard's own dark toggle reads the same value).
+  const teacherTheme = useTeacherThemeValue()
 
   function setTheme(id) {
     const next = normalizeThemeId(id)
     setThemeState(next)
     try { localStorage.setItem(LS_KEY, next) } catch { }
   }
+
+  /*
+   * Persisting the teacher theme to Firestore has to happen OUTSIDE this
+   * provider: main.jsx mounts <ThemeProvider> above <AuthProvider>, so
+   * calling useAuth() here would be a hook-order violation and would also
+   * make the theme layer untestable without Firebase.
+   *
+   * So <TeacherThemeSync> (rendered inside AuthProvider, in App.jsx)
+   * registers the writer here. Until it does, setTeacherTheme still works
+   * fully — it just persists to localStorage only, which is exactly the
+   * right behaviour for a signed-out visitor.
+   */
+  const persistRef = useRef(null)
+
+  const registerTeacherThemePersister = useCallback((fn) => {
+    persistRef.current = fn
+    return () => { if (persistRef.current === fn) persistRef.current = null }
+  }, [])
+
+  /** A deliberate choice by the user — applies everywhere and persists. */
+  const setTeacherTheme = useCallback((id) => {
+    // Apply first, on its own line. Folding this into the argument of an
+    // optional call — `persistRef.current?.(writeTeacherTheme(id))` — means
+    // the argument is never evaluated when no persister is registered, so
+    // the theme silently fails to apply for every signed-out visitor.
+    const next = writeTeacherTheme(id)
+    persistRef.current?.(next)
+  }, [])
+
+  /**
+   * The signed-in profile's saved theme arriving from Firestore. Same local
+   * effect as a user choice, but must NOT write back — that would echo the
+   * value we just read straight back to the server on every sign-in.
+   */
+  const hydrateTeacherTheme = useCallback((id) => {
+    if (!isTeacherThemeId(id)) return
+    writeTeacherTheme(id)
+  }, [])
+
+  // boot.js already set the attribute pre-paint from the same localStorage
+  // key, so on a normal load this is a no-op and there is no flash. It
+  // matters after a hydration or a programmatic change.
+  useEffect(() => {
+    applyTeacherThemeAttribute(teacherTheme)
+  }, [teacherTheme])
 
   // The body class is applied by <ThemeApplicator /> inside the Router so it
   // can pin the brand default on auth/legal routes regardless of the saved
@@ -92,7 +163,11 @@ export function ThemeProvider({ children }) {
   }, [theme])
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, themes: THEMES }}>
+    <ThemeContext.Provider value={{
+      theme, setTheme, themes: THEMES,
+      teacherTheme, setTeacherTheme, teacherThemes: TEACHER_THEMES,
+      hydrateTeacherTheme, registerTeacherThemePersister,
+    }}>
       {children}
     </ThemeContext.Provider>
   )

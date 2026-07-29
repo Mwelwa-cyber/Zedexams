@@ -18,7 +18,7 @@ export function FormatOptionsStep({
   curriculumMode,
 }) {
   return (
-    <div className="rounded-2xl border-2 border-[#0F1B2D] bg-white p-4 shadow-[0_2px_0_#0F1B2D]">
+    <div className="rounded-2xl border-2 border-card-border bg-card p-4 shadow-[0_2px_0_var(--zt-card-border)]">
       <FormatOptionsForm
         embedded
         formatOptions={formatOptions}

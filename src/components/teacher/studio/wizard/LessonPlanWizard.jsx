@@ -213,17 +213,17 @@ export function LessonPlanWizard({
           <div className="mb-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#a3422e]">
+                <p className="text-[11px] font-extrabold uppercase tracking-widest text-accent-text">
                   Step {currentStep + 1} of {WIZARD_STEPS.length}
                 </p>
                 <h2
                   ref={headingRef}
                   tabIndex={-1}
-                  className="font-display mt-0.5 text-[19px] font-extrabold leading-tight text-[#0F1B2D] outline-none"
+                  className="font-display mt-0.5 text-[19px] font-extrabold leading-tight text-ink outline-none"
                 >
                   {step.title}
                 </h2>
-                <p className="mt-0.5 text-[12.5px] font-semibold text-[#4A5A6E]">{step.description}</p>
+                <p className="mt-0.5 text-[12.5px] font-semibold text-ink-muted">{step.description}</p>
               </div>
               <button
                 type="button"
@@ -246,11 +246,11 @@ export function LessonPlanWizard({
 
           {/* ── Contextual banners (setup step only) ── */}
           {currentStep === 0 && planContext && (planContext.topic || planContext.subjectLabel) && (
-            <div className="mb-3 flex items-start gap-2 rounded-[14px] bg-[#FFF4E8] px-3 py-2 lps-soft-shadow">
+            <div className="mb-3 flex items-start gap-2 rounded-[14px] bg-accent-tint px-3 py-2 lps-soft-shadow">
               <span className="mt-0.5 text-[14px] leading-none" aria-hidden="true">📅</span>
               <div className="min-w-0 flex-1">
-                <p className="text-[11.5px] font-semibold text-[#3d3529]">This week&rsquo;s lesson — filled in for you</p>
-                <p className="truncate text-[11px] text-[#6b6452]">
+                <p className="text-[11.5px] font-semibold text-ink">This week&rsquo;s lesson — filled in for you</p>
+                <p className="truncate text-[11px] text-ink-muted">
                   {[planContext.subjectLabel, planContext.topic, planContext.subtopic].filter(Boolean).join(' · ')}
                   {planContext.weekNumber ? ` · Week ${planContext.weekNumber}` : ''}
                 </p>
@@ -260,7 +260,7 @@ export function LessonPlanWizard({
                   type="button"
                   onClick={onDismissPlanContext}
                   aria-label="Dismiss this week's lesson suggestion"
-                  className="-mr-1 -mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-md text-[#a39d8e] hover:bg-white/60 hover:text-[#6b6452]"
+                  className="-mr-1 -mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-md text-ink-muted hover:bg-card/60 hover:text-ink-muted"
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <line x1="18" y1="6" x2="6" y2="18" />

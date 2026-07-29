@@ -171,8 +171,8 @@
   letter-spacing: 0.04em;
   white-space: nowrap;
 }
-.tws-pill.kind-saved { background: var(--navy); color: #fff; }
-.tws-pill.kind-new { background: var(--copper-hover); color: #fff; }
+.tws-pill.kind-saved { background: var(--navy); color: var(--on-sidebar); }
+.tws-pill.kind-new { background: var(--copper-hover); color: var(--zt-on-accent); }
 .tws-pill.is-skeleton {
   width: 58px;
   background: var(--border);
@@ -212,7 +212,7 @@
 }
 
 /* ── Dark theme ──────────────────────────────────────────────────────── */
-.tdv2.is-dark .tws-pill.kind-saved { background: #1d3557; }
+.tdv2.is-dark .tws-pill.kind-saved { background: color-mix(in srgb, var(--navy) 70%, #ffffff); }
 .tdv2.is-dark .tws-card:hover { border-color: rgba(199, 116, 86, 0.4); }
 
 /* ── Reduced motion ──────────────────────────────────────────────────── */

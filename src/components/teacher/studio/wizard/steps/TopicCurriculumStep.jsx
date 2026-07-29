@@ -27,7 +27,7 @@ export function TopicCurriculumStep({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border-2 border-[#0F1B2D] bg-white p-4 shadow-[0_2px_0_#0F1B2D]">
+      <div className="rounded-2xl border-2 border-card-border bg-card p-4 shadow-[0_2px_0_var(--zt-card-border)]">
         <TopicSubtopicForm
           embedded
           topicData={topicData}
@@ -51,7 +51,7 @@ export function TopicCurriculumStep({
 
       {/* Previous curriculum: pick the specific outcome(s) for this lesson. */}
       {curriculumMode === 'previous' && subtopicRow && (
-        <div className="rounded-2xl border-2 border-[#0F1B2D] bg-white p-4 shadow-[0_2px_0_#0F1B2D]">
+        <div className="rounded-2xl border-2 border-card-border bg-card p-4 shadow-[0_2px_0_var(--zt-card-border)]">
           <p className="lps-eyebrow mb-2.5">Specific Outcomes</p>
           <SpecificOutcomeForm
             embedded

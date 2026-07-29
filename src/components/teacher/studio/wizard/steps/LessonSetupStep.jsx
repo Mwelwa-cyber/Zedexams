@@ -34,7 +34,7 @@ export function LessonSetupStep({
   return (
     <div className="space-y-4">
       {showPicker ? (
-        <div className="rounded-2xl border-2 border-[#0F1B2D] bg-white p-4 shadow-[0_2px_0_#0F1B2D]">
+        <div className="rounded-2xl border-2 border-card-border bg-card p-4 shadow-[0_2px_0_var(--zt-card-border)]">
           <CurriculumPicker
             embedded
             curriculumMode={curriculumMode}
@@ -47,7 +47,7 @@ export function LessonSetupStep({
             <button
               type="button"
               onClick={() => setChanging(false)}
-              className="mt-3 text-[12px] font-bold text-[#4A5A6E] underline"
+              className="mt-3 text-[12px] font-bold text-ink-muted underline"
             >
               Keep current curriculum
             </button>
@@ -61,7 +61,7 @@ export function LessonSetupStep({
       )}
 
       {curriculumMode && !showPicker && (
-        <div className="rounded-2xl border-2 border-[#0F1B2D] bg-white p-4 shadow-[0_2px_0_#0F1B2D]">
+        <div className="rounded-2xl border-2 border-card-border bg-card p-4 shadow-[0_2px_0_var(--zt-card-border)]">
           <LessonDetailsForm
             embedded
             lessonDetails={lessonDetails}

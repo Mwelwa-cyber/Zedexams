@@ -40,11 +40,11 @@ export function WizardProgress({ currentStep, completed = [], maxReachable = 0, 
                   className={[
                     'flex w-full items-center gap-3 rounded-xl border-2 px-3 py-2.5 text-left transition-colors',
                     isActive
-                      ? 'border-[#0F1B2D] bg-[#FFF4E8] shadow-[0_2px_0_#0F1B2D]'
+                      ? 'border-card-border bg-accent-tint shadow-[0_2px_0_var(--zt-card-border)]'
                       : isDone
-                        ? 'border-transparent bg-transparent hover:bg-white/70'
+                        ? 'border-transparent bg-transparent hover:bg-card'
                         : reachable
-                          ? 'border-transparent bg-transparent hover:bg-white/70'
+                          ? 'border-transparent bg-transparent hover:bg-card'
                           : 'border-transparent bg-transparent opacity-45 cursor-not-allowed',
                   ].join(' ')}
                 >
@@ -52,17 +52,19 @@ export function WizardProgress({ currentStep, completed = [], maxReachable = 0, 
                     className={[
                       'grid h-7 w-7 flex-shrink-0 place-items-center rounded-full border-2 text-[12px] font-extrabold',
                       isDone
-                        ? 'border-[#0F1B2D] bg-[#16a34a] text-white'
+                        ? 'border-card-border bg-[#16a34a] text-white'
                         : isActive
-                          ? 'border-[#0F1B2D] bg-[#D97757] text-white'
-                          : 'border-[#c9c0b0] bg-white text-[#7a6d5d]',
+                          // text-on-accent, not text-white: two themes have an
+                        // accent light enough that white sits at ~3:1 on it.
+                        ? 'border-card-border bg-accent text-on-accent'
+                          : 'border-line bg-card text-ink-muted',
                     ].join(' ')}
                     aria-hidden="true"
                   >
                     {isDone ? <Check size={14} strokeWidth={3} /> : i + 1}
                   </span>
                   <span className="min-w-0">
-                    <span className={['block text-[12.5px] font-bold leading-tight', isActive ? 'text-[#0F1B2D]' : 'text-[#4A5A6E]'].join(' ')}>
+                    <span className={['block text-[12.5px] font-bold leading-tight', isActive ? 'text-ink' : 'text-ink-muted'].join(' ')}>
                       {step.title}
                     </span>
                     <span className="sr-only">
@@ -95,7 +97,7 @@ export function WizardProgress({ currentStep, completed = [], maxReachable = 0, 
               <span
                 className={[
                   'mx-1 h-[3px] flex-1 rounded-full',
-                  i <= currentStep ? 'bg-[#D97757]' : 'bg-[#ddd3be]',
+                  i <= currentStep ? 'bg-accent' : 'bg-line',
                 ].join(' ')}
                 aria-hidden="true"
               />
@@ -116,10 +118,10 @@ export function WizardProgress({ currentStep, completed = [], maxReachable = 0, 
                 className={[
                   'grid place-items-center rounded-full border-2 transition-all',
                   isActive
-                    ? 'h-[22px] w-[22px] border-[#0F1B2D] bg-[#D97757] shadow-[0_0_0_3px_rgba(217,119,87,0.25)]'
+                    ? 'h-[22px] w-[22px] border-card-border bg-accent shadow-[0_0_0_3px_rgba(217,119,87,0.25)]'
                     : isDone
-                      ? 'h-[20px] w-[20px] border-[#0F1B2D] bg-[#16a34a] text-white'
-                      : 'h-[16px] w-[16px] border-[#c9c0b0] bg-white',
+                      ? 'h-[20px] w-[20px] border-card-border bg-[#16a34a] text-white'
+                      : 'h-[16px] w-[16px] border-line bg-card',
                 ].join(' ')}
                 aria-hidden="true"
               >

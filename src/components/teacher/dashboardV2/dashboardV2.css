@@ -12,32 +12,73 @@
    below always have local fallbacks.
    ──────────────────────────────────────────────────────────────────────── */
 
+/* ────────────────────────────────────────────────────────────────────────
+   THEMING — read this before changing a colour below.
+
+   Every colour in this file resolves through the variables in this block,
+   and the palette-bearing ones now point at the teacher theme tokens
+   (--zt-*, defined in src/index.css, switched by `data-theme` on <html>).
+   That is the whole theming mechanism for the dashboard: the four themes
+   change these token VALUES and nothing else. No rule in this file is
+   per-theme, and none should become one.
+
+   So: a new colour goes through a variable here, not as a literal hex in a
+   rule. A literal is how a surface stops following the theme — it looks
+   correct in Terracotta (which it was picked against) and wrong in the
+   other three, which is the failure mode this indirection exists to stop.
+
+   The SEMANTIC colours (--green/--amber/--blue/--red) are deliberately NOT
+   themed: a "saved" tick, an error and a warning must mean the same thing
+   in every palette.
+   ──────────────────────────────────────────────────────────────────────── */
 .tdv2 {
-  /* Brand palette */
-  --navy: #061c4a;
-  --sidebar-navy: #071d33;
-  --sidebar-teal: #0b3038;
-  --ink: #10243e;
-  --ink-2: #5f6b78;
-  --copper: #aa5943;
-  --copper-hover: #9d4b36;
-  --copper-pressed: #803b2b;
-  --copper-bright: #c77456;
-  --copper-tint: #fff1e8;
+  /* Brand palette — themed via the --zt-* tokens */
+  --navy: var(--zt-sidebar-bg);
+  --sidebar-navy: var(--zt-sidebar-bg);
+  /* Gradient partner for the sidebar. Derived from the theme's own sidebar
+     colour rather than a fixed second hue, so the depth survives all four
+     themes instead of fading a teal into a green one. */
+  --sidebar-teal: color-mix(in srgb, var(--zt-sidebar-bg) 88%, #000000);
+  --ink: var(--zt-text);
+  --ink-2: var(--zt-text-muted);
+  --copper: var(--zt-accent);
+  --copper-hover: var(--zt-accent-deep);
+  --copper-pressed: color-mix(in srgb, var(--zt-accent-deep) 82%, #000000);
+  --copper-bright: color-mix(in srgb, var(--zt-accent) 82%, #ffffff);
+  /* Accent wash behind tinted panels. Mixed into the CARD colour, so it
+     lands as a pale tint on the light themes and a dark tint on Night —
+     a fixed #fff1e8 would be a white box on a dark page. */
+  --copper-tint: color-mix(in srgb, var(--zt-accent) 12%, var(--zt-card));
+  /* The accent as TEXT on a light surface — see teacherThemeCore.js. */
+  --copper-text: var(--zt-accent-text);
+  /* Foreground on the sidebar. White in all four themes, and that is a
+     property of the themes rather than an oversight: every one of them
+     defines a dark sidebar (--zt-sidebar-bg ranges #10161F–#24382C), and
+     the contrast test asserts it. Named so a future light-sidebar theme
+     changes one value here instead of hunting literal #fff through the
+     sidebar, drawer, dock and toast. */
+  --on-sidebar: var(--zt-on-dark);
   /* Mobile chrome accent — defined on the shared .tdv2 scope (not .tdv2m) so
      it resolves for the dashboard mobile view (.tdv2m) AND the studio-shell
      mobile chrome (.tdv2-mchrome / .tdv2-bare), which mounts the dock, header
      and drawer directly under .tdv2 with no .tdv2m wrapper. */
-  --mobile-orange: #c46346;
-  --mobile-orange-bright: #d97757;
-  --cream: #f8f2e6;
-  --surface: #ffffff;
-  --border: #e8ded4;
+  --mobile-orange: var(--zt-accent);
+  --mobile-orange-bright: var(--zt-accent-deep);
+  /* Page background. */
+  --cream: var(--zt-surface);
+  /* Card/panel background. NOTE: scoped to .tdv2, so this --surface is the
+     dashboard's card colour and does NOT collide with the global
+     --surface alias in index.css. */
+  --surface: var(--zt-card);
+  /* Hairline, not the strong outline: --zt-card-border is near-black on the
+     light themes and would turn ~46 dividers and input edges black. */
+  --border: var(--zt-line);
+  /* Semantic — intentionally NOT themed. See the header note. */
   --green: #1fa15b;
   --amber: #f59e0b;
   --blue: #2563eb;
   --red: #ef4444;
-  --grey: #98a2ad;
+  --grey: var(--zt-text-muted);
 
   --font-ui: 'Inter', 'Segoe UI', system-ui, sans-serif;
   --font-display: 'Playfair Display', Georgia, serif;
@@ -146,19 +187,23 @@
 }
 
 /* ── Dark theme ───────────────────────────────────────────────────────
-   Toggled from the account menu (useDashboardTheme, persisted per device).
-   The variables carry most of the switch; the overrides below catch the
-   handful of literal light-surface colours. The sidebar, hero, account
-   menu, toasts and preview chrome are already dark in both themes. */
+   `is-dark` is set when the active workspace theme is a dark one (today:
+   Night). useDashboardTheme derives it from the theme rather than holding a
+   second boolean — see that file.
+
+   The PALETTE is not repeated here any more. Night's surfaces, ink and
+   borders arrive through the same --zt-* tokens every other theme uses, so
+   this block carries only what a token cannot express: depth (shadows need
+   more opacity on a dark page), the progress-ring track, and the
+   `color-scheme` hint that makes native form controls, scrollbars and date
+   pickers render dark instead of as white boxes.
+
+   What remains below are the overrides for literal light surfaces that have
+   no token of their own. Each is a real fix; they are not palette
+   duplication. The sidebar, hero, account menu, toasts and preview chrome
+   are dark in every theme and need nothing here. */
 
 .tdv2.is-dark {
-  --cream: #0c1a2b;
-  --surface: #14263c;
-  --border: rgba(255, 255, 255, 0.11);
-  --ink: #e9eff6;
-  --ink-2: #a3b3c2;
-  --grey: #7b8b9b;
-  --copper-tint: rgba(199, 116, 86, 0.16);
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 18px rgba(0, 0, 0, 0.3);
   --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.3), 0 14px 32px rgba(0, 0, 0, 0.45);
   --ring-track: rgba(255, 255, 255, 0.12);
@@ -275,7 +320,7 @@
   display: flex;
   flex-direction: column;
   padding: 18px 14px 14px;
-  background: linear-gradient(180deg, #071d33 0%, #0b3038 100%);
+  background: linear-gradient(180deg, var(--sidebar-navy) 0%, var(--sidebar-teal) 100%);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: 4px 0 24px rgba(6, 28, 74, 0.18);
   color: rgba(255, 255, 255, 0.78);
@@ -295,7 +340,7 @@
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  background: #ffffff;
+  background: var(--on-sidebar);
   border-radius: 13px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.9);
   overflow: hidden;
@@ -310,7 +355,7 @@
 .tdv2-logo-name {
   font-size: 17px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--on-sidebar);
   letter-spacing: 0.01em;
   line-height: 1.2;
 }
@@ -364,15 +409,15 @@
 
 .tdv2-nav-item:hover {
   background: rgba(255, 255, 255, 0.07);
-  color: #ffffff;
+  color: var(--on-sidebar);
   transform: translateX(2px);
 }
 
 .tdv2-nav-item.is-active {
   position: relative;
-  background: linear-gradient(180deg, #b46951 0%, #914534 100%);
-  border-color: rgba(199, 116, 86, 0.55);
-  color: #ffffff;
+  background: linear-gradient(180deg, var(--copper) 0%, var(--copper-hover) 100%);
+  border-color: color-mix(in srgb, var(--copper-bright) 55%, transparent);
+  color: var(--zt-on-accent);
   font-weight: 600;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.36);
 }
@@ -439,8 +484,8 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: linear-gradient(160deg, #c77456, #803b2b);
-  color: #fff;
+  background: linear-gradient(160deg, var(--copper-bright), var(--copper-pressed));
+  color: var(--zt-on-accent);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.03em;
@@ -450,7 +495,7 @@
 .tdv2-profile-name {
   font-size: 14px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--on-sidebar);
   line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
@@ -531,7 +576,7 @@
 .tdv2-menu-item:hover,
 .tdv2-menu-item:focus-visible {
   background: rgba(255, 255, 255, 0.09);
-  color: #ffffff;
+  color: var(--on-sidebar);
 }
 
 .tdv2-menu-item svg {
@@ -540,7 +585,7 @@
 }
 
 .tdv2-menu-item:hover svg {
-  color: #ffffff;
+  color: var(--on-sidebar);
 }
 
 .tdv2-menu-divider {
@@ -719,12 +764,17 @@
   overflow: hidden;
   border-radius: 22px;
   padding: 30px 34px 26px;
-  color: #f2f7f7;
+  color: var(--on-sidebar);
+  /* The hero is a dark chrome surface like the sidebar, so it follows the
+     same token. The depth layers are neutral black/white alphas rather than
+     the teal/navy tints they used to be: a fixed teal wash reads as grime
+     over Miombo's green and Terracotta's navy, whereas a neutral shadow
+     deepens whatever base the theme supplies. */
   background:
-    radial-gradient(48% 95% at 84% 48%, rgba(6, 42, 55, 0.95) 0%, rgba(6, 42, 55, 0) 72%),
-    radial-gradient(90% 140% at 92% -20%, rgba(31, 122, 122, 0.55) 0%, rgba(11, 48, 56, 0) 55%),
-    radial-gradient(70% 120% at 8% 115%, rgba(6, 28, 74, 0.6) 0%, rgba(11, 48, 56, 0) 60%),
-    linear-gradient(135deg, #0a2b33 0%, #0e3a42 55%, #0b3038 100%);
+    radial-gradient(48% 95% at 84% 48%, rgba(0, 0, 0, 0.42) 0%, rgba(0, 0, 0, 0) 72%),
+    radial-gradient(90% 140% at 92% -20%, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0) 55%),
+    radial-gradient(70% 120% at 8% 115%, rgba(0, 0, 0, 0.32) 0%, rgba(0, 0, 0, 0) 60%),
+    linear-gradient(135deg, var(--sidebar-teal) 0%, var(--zt-sidebar-bg) 55%, var(--sidebar-teal) 100%);
   border: 1px solid rgba(255, 255, 255, 0.09);
   box-shadow: 0 18px 44px rgba(6, 28, 74, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   display: flex;
@@ -768,9 +818,11 @@
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  background: linear-gradient(160deg, rgba(255, 200, 120, 0.35), rgba(220, 134, 98, 0.22));
-  border: 1px solid rgba(255, 210, 150, 0.35);
-  color: #ffd9a0;
+  background: linear-gradient(160deg,
+    color-mix(in srgb, var(--copper-bright) 35%, transparent),
+    color-mix(in srgb, var(--copper) 22%, transparent));
+  border: 1px solid color-mix(in srgb, var(--copper-bright) 35%, transparent);
+  color: color-mix(in srgb, var(--copper-bright) 78%, #ffffff);
 }
 
 .tdv2-hero-wave {
@@ -784,7 +836,7 @@
   font-weight: 700;
   font-size: 36px;
   line-height: 1.18;
-  color: #ffffff;
+  color: var(--on-sidebar);
   letter-spacing: 0.005em;
 }
 
@@ -824,14 +876,14 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(232, 187, 156, 0.85);
+  color: color-mix(in srgb, var(--copper-bright) 85%, transparent);
 }
 
 .tdv2-hero-inset-title {
   font-family: var(--font-display);
   font-size: 20px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--on-sidebar);
   letter-spacing: 0.01em;
 }
 
@@ -853,7 +905,7 @@
    shadow — unmistakably clickable. */
 .tdv2-hero .tdv2-btn-copper,
 .tdv2m-hero .tdv2-btn-copper {
-  background: linear-gradient(180deg, #d88462 0%, #d97757 60%, #c5613f 100%);
+  background: linear-gradient(180deg, var(--copper-bright) 0%, var(--copper) 60%, var(--copper-hover) 100%);
   border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 14px;
   padding: 12px 22px;
@@ -998,7 +1050,7 @@
   transform: translateY(-4px);
   border-color: rgba(170, 89, 67, 0.55);
   box-shadow: var(--shadow-card-hover);
-  background: linear-gradient(180deg, #ffffff 55%, var(--copper-tint) 160%);
+  background: linear-gradient(180deg, var(--surface) 55%, var(--copper-tint) 160%);
 }
 
 .tdv2-tile:active {
@@ -1021,6 +1073,10 @@
   transform: translateY(-1px);
 }
 
+/* Category tone chips are a fixed decorative palette, deliberately NOT
+   themed — the same tone must identify the same kind of tool in every
+   theme, exactly like the semantic colours above. They are pale chips that
+   stay legible on Night's cards. */
 .tdv2-tile-icon.tone-copper { background: linear-gradient(160deg, #f6e2d9, #eec6b5); color: #803b2b; }
 .tdv2-tile-icon.tone-teal   { background: linear-gradient(160deg, #d4efee, #a9dcd9); color: #0b3038; }
 .tdv2-tile-icon.tone-green  { background: linear-gradient(160deg, #dcf3e4, #b4e4c6); color: #14683b; }
@@ -1058,7 +1114,7 @@
 .tdv2-tile:hover .tdv2-tile-arrow {
   transform: translateX(4px);
   background: var(--copper);
-  color: #fff;
+  color: var(--zt-on-accent);
 }
 
 /* ── AI recommendations ──────────────────────────────────────────────── */
@@ -1148,7 +1204,7 @@
 }
 
 .tdv2-ai-more:hover {
-  background: #ffffff;
+  background: var(--surface);
   border-color: rgba(37, 99, 235, 0.45);
 }
 
@@ -1193,11 +1249,11 @@
 }
 
 .tdv2-doc-row:hover {
-  background: #fbf6ee;
+  background: color-mix(in srgb, var(--ink) 4%, var(--surface));
 }
 
 .tdv2-doc-row + .tdv2-doc-row {
-  border-top: 1px solid #f2ebdf;
+  border-top: 1px solid var(--border);
 }
 
 .tdv2-doc-icon {
@@ -1422,7 +1478,7 @@
   margin-top: 10px;
   border-radius: 13px;
   border: 1px solid var(--border);
-  background: #fdfaf4;
+  background: color-mix(in srgb, var(--ink) 2%, var(--surface));
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -1479,7 +1535,7 @@
   justify-content: center;
   margin-top: 14px;
   padding-top: 14px;
-  border-top: 1px solid #f2ebdf;
+  border-top: 1px solid var(--border);
 }
 
 /* ── Checklist ───────────────────────────────────────────────────────── */
@@ -1495,11 +1551,11 @@
 }
 
 a.tdv2-check-row:hover {
-  background: #fbf6ee;
+  background: color-mix(in srgb, var(--ink) 4%, var(--surface));
 }
 
 .tdv2-check-row + .tdv2-check-row {
-  border-top: 1px solid #f4eee3;
+  border-top: 1px solid var(--border);
 }
 
 .tdv2-ring {
@@ -1577,7 +1633,7 @@ a.tdv2-check-row:hover {
   min-height: 32px;
   padding: 5px 12px;
   border-radius: 9px;
-  background: #ffffff;
+  background: var(--surface);
   border: 1px solid #f0b9b1;
   font-size: 12.5px;
   font-weight: 600;
@@ -1605,11 +1661,11 @@ a.tdv2-check-row:hover {
 }
 
 .tdv2-activity-row:hover {
-  background: #fbf6ee;
+  background: color-mix(in srgb, var(--ink) 4%, var(--surface));
 }
 
 .tdv2-activity-row + .tdv2-activity-row {
-  border-top: 1px solid #f4eee3;
+  border-top: 1px solid var(--border);
 }
 
 .tdv2-activity-icon {
@@ -1679,7 +1735,7 @@ a.tdv2-check-row:hover {
   margin-top: 14px;
   border-radius: 12px;
   border: 1px solid var(--border);
-  background: #fdfaf4;
+  background: color-mix(in srgb, var(--ink) 2%, var(--surface));
   font-size: 13.5px;
   font-weight: 600;
   color: var(--ink);
@@ -1703,9 +1759,9 @@ a.tdv2-check-row:hover {
   min-height: 44px;
   padding: 10px 20px;
   border-radius: 13px;
-  background: linear-gradient(180deg, #ba6a53 0%, #9e4b37 58%, #803b2b 100%);
-  border: 1px solid rgba(128, 59, 43, 0.85);
-  color: #ffffff;
+  background: linear-gradient(180deg, var(--copper-bright) 0%, var(--copper-hover) 58%, var(--copper-pressed) 100%);
+  border: 1px solid color-mix(in srgb, var(--copper-pressed) 85%, transparent);
+  color: var(--zt-on-accent);
   font-size: 15px;
   line-height: 20px;
   font-weight: 650;
@@ -1792,7 +1848,7 @@ a.tdv2-check-row:hover {
   padding: 9px 18px;
   border-radius: 12px;
   border: 1.5px solid rgba(170, 89, 67, 0.55);
-  background: #ffffff;
+  background: var(--surface);
   color: var(--copper);
   font-size: 14.5px;
   font-weight: 650;
@@ -1874,7 +1930,7 @@ a.tdv2-check-row:hover {
   padding: 9px 18px;
   border-radius: 12px;
   border: 1px solid var(--border);
-  background: #ffffff;
+  background: var(--surface);
   font-size: 14.5px;
   font-weight: 600;
   color: var(--ink);
@@ -2145,7 +2201,7 @@ a.tdv2-check-row:hover {
 }
 
 .tdv2-faq + .tdv2-faq {
-  border-top: 1px solid #f2ebdf;
+  border-top: 1px solid var(--border);
 }
 
 .tdv2-faq-q {
@@ -2325,9 +2381,9 @@ a.tdv2-check-row:hover {
 }
 
 .tdv2-chip.is-on {
-  background: rgba(186, 106, 83, 0.85);
-  border-color: rgba(199, 116, 86, 0.9);
-  color: #fff;
+  background: color-mix(in srgb, var(--copper) 85%, transparent);
+  border-color: color-mix(in srgb, var(--copper-bright) 90%, transparent);
+  color: var(--zt-on-accent);
 }
 
 .tdv2-toast {
@@ -2341,8 +2397,8 @@ a.tdv2-check-row:hover {
   gap: 10px;
   padding: 12px 18px;
   border-radius: 14px;
-  background: #101d2d;
-  color: #fff;
+  background: var(--zt-sidebar-bg);
+  color: var(--on-sidebar);
   font-size: 13.5px;
   font-weight: 500;
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -2659,7 +2715,7 @@ a.tdv2-check-row:hover {
   font-weight: 700;
   font-size: 28px;
   line-height: 34px;
-  color: #ffffff;
+  color: var(--on-sidebar);
   overflow-wrap: anywhere;
 }
 
@@ -2752,7 +2808,7 @@ a.tdv2-check-row:hover {
   padding: 0 13px;
   border-radius: 999px;
   background: linear-gradient(180deg, var(--mobile-orange-bright), var(--mobile-orange));
-  color: #ffffff;
+  color: var(--zt-on-accent);
   font-size: 12.5px;
   font-weight: 750;
   letter-spacing: 0.01em;
@@ -2926,7 +2982,7 @@ a.tdv2-check-row:hover {
   padding: 0 7px;
   border-radius: 999px;
   background: var(--mobile-orange-bright);
-  color: #ffffff;
+  color: var(--zt-on-accent);
   font-size: 12.5px;
   font-weight: 750;
 }
@@ -2983,7 +3039,7 @@ a.tdv2-check-row:hover {
   width: 100%;
   min-height: 48px;
   justify-content: center;
-  color: #ffffff;
+  color: var(--zt-on-accent);
 }
 
 .tdv2m-rec-secondary {
@@ -3134,7 +3190,7 @@ a.tdv2-check-row:hover {
   padding: 2px 7px;
   border-radius: 999px;
   background: var(--mobile-orange-bright);
-  color: #ffffff;
+  color: var(--zt-on-accent);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -3279,7 +3335,7 @@ a.tdv2-check-row:hover {
 .tdv2 .tdv2m-tools-chip.is-active {
   background: var(--copper);
   border-color: var(--copper);
-  color: #ffffff;
+  color: var(--zt-on-accent);
 }
 
 .tdv2m-tools-body {
@@ -3395,7 +3451,7 @@ a.tdv2-check-row:hover {
   border-radius: 999px;
   /* Dark teal frosted glass — opaque enough to stay solid over any content,
      with a blur for the glass feel. */
-  background: color-mix(in srgb, #0b3038 94%, transparent);
+  background: color-mix(in srgb, var(--sidebar-teal) 94%, transparent);
   backdrop-filter: blur(14px) saturate(160%);
   -webkit-backdrop-filter: blur(14px) saturate(160%);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -3451,7 +3507,7 @@ a.tdv2-check-row:hover {
   height: 62px;
   border-radius: 999px;
   background: linear-gradient(180deg, var(--mobile-orange-bright), var(--mobile-orange));
-  color: #ffffff;
+  color: var(--zt-on-accent);
   border: 1px solid rgba(255, 255, 255, 0.25);
   box-shadow: 0 10px 26px rgba(196, 99, 70, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.32);
   transition: transform 130ms var(--ease);
@@ -3650,7 +3706,7 @@ a.tdv2-check-row:hover {
   flex-direction: column;
   padding: calc(14px + env(safe-area-inset-top, 0px)) 14px
     calc(14px + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(180deg, #071d33 0%, #0b3038 100%);
+  background: linear-gradient(180deg, var(--sidebar-navy) 0%, var(--sidebar-teal) 100%);
   color: rgba(255, 255, 255, 0.78);
   box-shadow: 12px 0 40px rgba(0, 0, 0, 0.4);
   transform: translateX(-104%);

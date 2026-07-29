@@ -609,7 +609,10 @@
     "test:import-review": "node scripts/test-import-review.mjs",
     "test:attendance-insights": "node scripts/test-attendance-insights.mjs",
     "test:register-validation": "node scripts/test-register-validation.mjs",
-    "test:class-list-extract": "node functions/classList/extractClassList.test.js"
+    "test:class-list-extract": "node functions/classList/extractClassList.test.js",
+    "test:teacher-theme-contrast": "node src/contexts/teacherThemeContrast.test.js",
+    "test:teacher-theme-mirror": "node src/contexts/teacherThemeMirror.test.js",
+    "test:export-theme-isolation": "node src/utils/exportThemeIsolation.test.js"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
