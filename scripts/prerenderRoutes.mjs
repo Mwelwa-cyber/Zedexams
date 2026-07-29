@@ -77,6 +77,10 @@ export function buildRouteList() {
     '/teachers',
     '/privacy',
     '/terms',
+    // Play Data safety "delete account" URL. Indexable on purpose: someone
+    // who can no longer sign in has to be able to FIND this page, and search
+    // is how they will look for it.
+    '/delete-account',
     // Revision blog index (individual posts appended below).
     '/blog',
     // ECZ past-paper archive + public games surfaces (data-driven; see above).

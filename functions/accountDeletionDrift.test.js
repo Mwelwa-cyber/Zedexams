@@ -85,6 +85,14 @@ const RETAINED = new Map([
   ["playBindingHealth", "Play account-binding telemetry"],
   ["processedEvents", "trigger-dedup claim docs; no client access"],
   ["rateLimits", "burst-throttle counters; no client access"],
+  ["deletionRequests",
+    "public deletion-request queue (zedexams.com/delete-account). NOT purged " +
+    "by uid — a request is keyed by a self-asserted email and may exist for " +
+    "someone with no account at all, so a uid-keyed purge structurally cannot " +
+    "reach it. The row is instead closed and REDACTED by " +
+    "accountDeletionRequests.closeDeletionRequests() on the deleteMyAccount " +
+    "path: status/timestamps survive as the audit trail that the request was " +
+    "honoured, while email, name, notes, IP and user-agent are cleared"],
   ["securityAuditLogs", "MFA/admin-security ledger; compliance record"],
   ["visitorStats", "per-day visitor rollups; anonymous telemetry"],
   ["visits", "raw visit tracker; anonymous telemetry"],

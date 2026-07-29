@@ -24,13 +24,19 @@
   </url>
   <url>
     <loc>https://zedexams.com/privacy</loc>
-    <lastmod>2026-06-21</lastmod>
+    <lastmod>2026-07-29</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://zedexams.com/terms</loc>
-    <lastmod>2026-06-21</lastmod>
+    <lastmod>2026-07-29</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://zedexams.com/delete-account</loc>
+    <lastmod>2026-07-29</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>

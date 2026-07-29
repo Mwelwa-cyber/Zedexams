@@ -582,6 +582,10 @@ export function AuthProvider({ children }) {
             // Audit B2 — identify with uid + role only (no email).
             // Safe to call repeatedly; PostHog dedupes on uid.
             identifyUser(user.uid, profile?.role)
+            // The role is only known here, not at the onAuthStateChanged
+            // call below, and it is what decides whether either replay
+            // system may record this session (Privacy Policy §4).
+            setSentryUser(user.uid, profile?.role)
             return
           }
 
@@ -592,6 +596,7 @@ export function AuthProvider({ children }) {
               setUserProfile(repairedProfile)
               setProfileIssue(null)
               identifyUser(user.uid, repairedProfile?.role)
+              setSentryUser(user.uid, repairedProfile?.role)
             } else {
               setUserProfile(null)
               setProfileIssue('missing')
@@ -675,6 +680,9 @@ export function AuthProvider({ children }) {
         // start routes straight to the loader → dashboard instead of
         // flashing the marketing page (see AUTH_HINT_KEY).
         setAuthSessionHint(true)
+        // No role yet — the profile read hasn't returned. Deliberately
+        // called without one so error-replay stays off until the profile
+        // listener above re-calls this with the role it resolved.
         setSentryUser(user.uid)
         // Audit A5.1 — opportunistically refresh the FCM token if the
         // user has previously granted permission. Silent no-op on
