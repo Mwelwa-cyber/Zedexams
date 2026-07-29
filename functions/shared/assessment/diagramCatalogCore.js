@@ -59,6 +59,414 @@ function niceAxisTicks(max, target = 4) {
   return { step, top, ticks }
 }
 
+/* ── secondary-mathematics helpers ───────────────────────────────────────────
+ *
+ * The senior figures differ from the primary ones in a way worth stating: a
+ * learner MEASURES them. An angle in a circle-theorem diagram, a bearing, the
+ * quartile read off an ogive and the image of a rotation all carry marks, so
+ * these figures are COMPUTED from their parameters rather than drawn to look
+ * about right. Everything below exists so that computation is written once.
+ */
+
+// The ink. Most Zambian schools print monochrome and photocopy the master, so
+// a grid has to be light enough not to swamp a curve and dark enough to survive
+// the copier — `#d9cfbe`, which the primary coordinate grid uses, does not.
+const INK = '#1c1612'
+const SOFT_INK = '#3a2f25'
+const GRID_MINOR = '#a49b8e'
+const GRID_MAJOR = '#6f675c'
+
+function nOr(value, fallback) {
+  const n = parseFloat(value)
+  return Number.isFinite(n) ? n : fallback
+}
+
+/** True for whatever a teacher actually types into a yes/no field. */
+function isYes(value) {
+  return /^(y|yes|true|1|on)$/i.test(String(value ?? '').trim())
+}
+
+/** Round for output: SVG does not need sixteen significant figures. */
+const f = (n) => Math.round(n * 100) / 100
+
+/** Split a comma list, dropping blanks. */
+const commaList = (raw) => String(raw ?? '').split(',').map((s) => s.trim()).filter(Boolean)
+
+/**
+ * A point on a circle, `deg` measured anticlockwise from the 3 o'clock
+ * position — the convention a teacher meets in every textbook diagram, and the
+ * one the `points` parameter is documented in.
+ */
+function onCircle(cx, cy, r, deg) {
+  const t = (deg * Math.PI) / 180
+  return [cx + r * Math.cos(t), cy - r * Math.sin(t)]
+}
+
+/** A text label. Author-entered content is escaped here, once. */
+function label(x, y, text, opts = {}) {
+  const {
+    size = 14, anchor = 'middle', weight = '700', italic = false, fill = INK, extra = '',
+  } = opts
+  if (text === '' || text === null || text === undefined) return ''
+  return `<text x="${f(x)}" y="${f(y)}" font-family="Lora,serif" font-size="${size}"`
+    + `${italic ? ' font-style="italic"' : ''} font-weight="${weight}" text-anchor="${anchor}"`
+    + ` fill="${fill}"${extra ? ` ${extra}` : ''}>${esc(text)}</text>`
+}
+
+/**
+ * "Diagram not drawn to scale" — the exam's own caption, printed INSIDE the
+ * SVG rather than beside it so it survives the print window, the PDF and Word
+ * without three renderers each having to remember it.
+ */
+function notToScaleNote(w, h, on) {
+  if (!on) return ''
+  return `<text x="${f(w / 2)}" y="${f(h - 7)}" font-family="Lora,serif" font-size="11"`
+    + ` font-style="italic" text-anchor="middle" fill="${SOFT_INK}"`
+    + ` data-note="not-to-scale">Diagram not drawn to scale</text>`
+}
+
+/** An arrowhead at `tip`, pointing along the direction from `from` to `tip`. */
+function arrowHead(from, tip, { size = 9, fill = INK } = {}) {
+  const a = Math.atan2(tip[1] - from[1], tip[0] - from[0])
+  const back = a + Math.PI
+  const wing = 0.38
+  const p1 = [tip[0] + size * Math.cos(back - wing), tip[1] + size * Math.sin(back - wing)]
+  const p2 = [tip[0] + size * Math.cos(back + wing), tip[1] + size * Math.sin(back + wing)]
+  return `<polygon points="${f(tip[0])},${f(tip[1])} ${f(p1[0])},${f(p1[1])} ${f(p2[0])},${f(p2[1])}" fill="${fill}"/>`
+}
+
+/** The angle ∠(p, v, q) in degrees, non-reflex. */
+function angleAt(v, p, q) {
+  const a = [p[0] - v[0], p[1] - v[1]]
+  const b = [q[0] - v[0], q[1] - v[1]]
+  const mag = Math.hypot(a[0], a[1]) * Math.hypot(b[0], b[1])
+  if (!mag) return NaN
+  const cos = Math.max(-1, Math.min(1, (a[0] * b[0] + a[1] * b[1]) / mag))
+  return (Math.acos(cos) * 180) / Math.PI
+}
+
+/**
+ * The angle marker at `v` between the rays to `p` and `q`, drawn the short way
+ * round, with its label on the bisector.
+ *
+ * A right angle gets the square marker instead of an arc, because that is what
+ * it means on an examination paper — an arc through 90° reads as "some angle",
+ * and the square reads as "this is the perpendicular", which is often the fact
+ * the question turns on.
+ */
+function angleMark(v, p, q, text, opts = {}) {
+  const { r = 26, col = INK, gap = 14, square = null } = opts
+  const a1 = Math.atan2(p[1] - v[1], p[0] - v[0])
+  const a2 = Math.atan2(q[1] - v[1], q[0] - v[0])
+  let delta = a2 - a1
+  while (delta <= -Math.PI) delta += 2 * Math.PI
+  while (delta > Math.PI) delta -= 2 * Math.PI
+  const mid = a1 + delta / 2
+  const isRight = square === true || (square !== false && Math.abs(Math.abs(delta) - Math.PI / 2) < 0.02)
+  let mark
+  if (isRight) {
+    const s = 13
+    const u1 = [Math.cos(a1), Math.sin(a1)]
+    const u2 = [Math.cos(a2), Math.sin(a2)]
+    const c1 = [v[0] + s * u1[0], v[1] + s * u1[1]]
+    const c2 = [v[0] + s * (u1[0] + u2[0]), v[1] + s * (u1[1] + u2[1])]
+    const c3 = [v[0] + s * u2[0], v[1] + s * u2[1]]
+    mark = `<polyline points="${f(c1[0])},${f(c1[1])} ${f(c2[0])},${f(c2[1])} ${f(c3[0])},${f(c3[1])}"`
+      + ` fill="none" stroke="${col}" stroke-width="1.5" data-angle-mark="right"/>`
+  } else {
+    const s = [v[0] + r * Math.cos(a1), v[1] + r * Math.sin(a1)]
+    const e = [v[0] + r * Math.cos(a2), v[1] + r * Math.sin(a2)]
+    mark = `<path d="M ${f(s[0])},${f(s[1])} A ${r},${r} 0 0,${delta > 0 ? 1 : 0} ${f(e[0])},${f(e[1])}"`
+      + ` fill="none" stroke="${col}" stroke-width="1.6" data-angle-mark="arc"/>`
+  }
+  const lr = isRight ? r + gap + 4 : r + gap
+  const lx = v[0] + lr * Math.cos(mid)
+  const ly = v[1] + lr * Math.sin(mid) + 4
+  return mark + label(lx, ly, text, { size: 13, fill: col })
+}
+
+/** "50" → "50°", but "x" stays "x" — a marked angle is often the unknown. */
+function degText(value) {
+  const n = parseFloat(value)
+  const s = String(value ?? '').trim()
+  return /^-?\d+(\.\d+)?$/.test(s) ? `${Math.round(n * 10) / 10}°` : s
+}
+const markText = degText
+
+/* ── circle geometry ─────────────────────────────────────────────────────── */
+
+const CIRCLE_CX = 180, CIRCLE_CY = 152, CIRCLE_R = 104
+const NORTH_LEN = 52
+
+/**
+ * Everything the circle figure needs, plus the teacher-readable problems with
+ * what was typed.
+ *
+ * Parsing and validating in ONE function is the point: a validator that read
+ * the parameters separately from the renderer would be checking a different
+ * figure from the one that gets drawn, and would eventually approve a diagram
+ * the renderer could not draw (or reject one it could).
+ */
+function circleTheoremModel(p) {
+  const issues = []
+  const pts = new Map()
+  const centreName = String(p.centre ?? 'O').trim() || 'O'
+  pts.centreName = centreName
+  pts.set(centreName, [CIRCLE_CX, CIRCLE_CY])
+  const onCirc = new Set()
+
+  for (const item of commaList(p.points)) {
+    const m = /^([^@]+)@\s*(-?[\d.]+)\s*$/.exec(item)
+    if (!m) {
+      issues.push({ field: 'points', message: `"${item}" is not a point. Write each one as a name, @, and its position in degrees — for example A@160.` })
+      continue
+    }
+    const name = m[1].trim()
+    if (!name) continue
+    if (pts.has(name)) {
+      issues.push({ field: 'points', message: `"${name}" is used twice. Give each point its own name.` })
+      continue
+    }
+    pts.set(name, onCircle(CIRCLE_CX, CIRCLE_CY, CIRCLE_R, parseFloat(m[2])))
+    onCirc.add(name)
+  }
+  if (onCirc.size < 2) {
+    issues.push({ field: 'points', message: 'Put at least two points on the circle, for example A@160,B@60.' })
+  }
+
+  // Tangent at a point, naming the two ends so an alternate-segment angle has
+  // something to be measured to.
+  let tangent = null
+  const raw = String(p.tangent ?? '').trim()
+  if (raw) {
+    const m = /^([^:]+):\s*([^,]+)\s*,\s*(.+)$/.exec(raw)
+    if (!m) {
+      issues.push({ field: 'tangent', message: 'Write the tangent as the point it touches, a colon, then the names of its two ends — for example C:T,U.' })
+    } else {
+      const at = m[1].trim()
+      const base = pts.get(at)
+      if (!base || !onCirc.has(at)) {
+        issues.push({ field: 'tangent', message: `A tangent touches the circle, so "${at}" must be one of your points on the circle.` })
+      } else {
+        // Perpendicular to the radius, which is what makes it a tangent.
+        const ux = (base[0] - CIRCLE_CX) / CIRCLE_R, uy = (base[1] - CIRCLE_CY) / CIRCLE_R
+        const tx = -uy, ty = ux
+        const L = 92
+        const a = [base[0] - tx * L, base[1] - ty * L]
+        const b = [base[0] + tx * L, base[1] + ty * L]
+        const n1 = m[2].trim(), n2 = m[3].trim()
+        if (n1 && !pts.has(n1)) pts.set(n1, a)
+        if (n2 && !pts.has(n2)) pts.set(n2, b)
+        tangent = { at, a, b }
+      }
+    }
+  }
+
+  const joins = []
+  for (const item of commaList(p.joins)) {
+    const [from, to] = item.split('-').map((s) => s.trim())
+    if (!from || !to) {
+      issues.push({ field: 'joins', message: `"${item}" is not a line. Write each one as two point names with a dash between them, for example A-B.` })
+      continue
+    }
+    for (const name of [from, to]) {
+      if (!pts.has(name)) issues.push({ field: 'joins', message: `"${name}" is not one of your points. Add it above, or correct the spelling.` })
+    }
+    joins.push([from, to])
+  }
+
+  const angles = []
+  for (const item of commaList(p.angles)) {
+    const eq = item.indexOf('=')
+    if (eq < 0) {
+      issues.push({ field: 'angles', message: `"${item}" needs an = and a label, for example ABC=40 or ABC=x.` })
+      continue
+    }
+    const names = item.slice(0, eq).trim()
+    const text = item.slice(eq + 1).trim()
+    // Three single-letter names is how a paper writes it; dashes let a figure
+    // use longer names without the notation becoming ambiguous.
+    const parts = names.includes('-')
+      ? names.split('-').map((s) => s.trim())
+      : names.split('')
+    if (parts.length !== 3 || parts.some((s) => !s)) {
+      issues.push({ field: 'angles', message: `"${names}" must name three points — the two arms and the corner between them, for example ABC (or A-B-C).` })
+      continue
+    }
+    const missing = parts.filter((n) => !pts.has(n))
+    if (missing.length) {
+      issues.push({ field: 'angles', message: `"${missing[0]}" is not one of your points. Add it above, or correct the spelling.` })
+      continue
+    }
+    angles.push({ from: parts[0], vertex: parts[1], to: parts[2], text })
+  }
+
+  // Only when the figure claims to be drawn to scale is the drawn angle a
+  // promise. A circle-theorem diagram normally is not, which is why the caption
+  // exists — but a teacher who turns it off is telling learners they may
+  // measure, and then a 110° mark on a 63° corner is a wrong answer on the page.
+  if (!isYes(p.notToScale)) {
+    for (const ang of angles) {
+      const n = parseFloat(ang.text)
+      if (!/^-?\d+(\.\d+)?$/.test(ang.text) || !Number.isFinite(n)) continue
+      const drawn = angleAt(pts.get(ang.vertex), pts.get(ang.from), pts.get(ang.to))
+      if (Number.isFinite(drawn) && Math.abs(drawn - n) > 2) {
+        issues.push({
+          field: 'angles',
+          message: `You marked ${ang.from}${ang.vertex}${ang.to} as ${n}°, but where the points sit it is drawn as ${Math.round(drawn)}°. Move the points, or switch "Diagram not drawn to scale" back on.`,
+        })
+      }
+    }
+  }
+
+  return { pts, joins, angles, tangent, issues }
+}
+
+/* ── bearings ────────────────────────────────────────────────────────────── */
+
+/** An arc from north, clockwise, to the leg — always the way a bearing is read. */
+function bearingArc(at, bearingDeg, r = 30) {
+  const t = ((bearingDeg % 360) + 360) % 360
+  const text = `${String(Math.round(t)).padStart(3, '0')}°`
+  const mid = (t / 2) * (Math.PI / 180)
+  const lx = at[0] + (r + 17) * Math.sin(mid)
+  const ly = at[1] - (r + 17) * Math.cos(mid) + 4
+  if (t < 0.5 || t > 359.5) return label(lx, ly, text, { size: 12, fill: INK })
+  const rad = (t * Math.PI) / 180
+  const start = [at[0], at[1] - r]
+  const end = [at[0] + r * Math.sin(rad), at[1] - r * Math.cos(rad)]
+  // sweep-flag 1 is the positive-angle direction, which with SVG's y pointing
+  // down is clockwise on the page — the direction a bearing is measured in.
+  return `<path d="M ${f(start[0])},${f(start[1])} A ${r},${r} 0 ${t > 180 ? 1 : 0},1 ${f(end[0])},${f(end[1])}"`
+    + ` fill="none" stroke="${INK}" stroke-width="1.5" data-bearing="${f(t)}"/>`
+    + label(lx, ly, text, { size: 12, fill: INK })
+}
+
+/**
+ * Walk the journey in real units, then fit it to the box with ONE scale factor.
+ *
+ * Scaling the axes separately would fit the drawing more snugly and quietly
+ * change every bearing on it, which is the whole content of the question.
+ */
+function bearingsModel(p) {
+  const issues = []
+  const legs = []
+  const model = new Map()
+  const raw = String(p.legs ?? '').split(';').map((s) => s.trim()).filter(Boolean)
+
+  for (const item of raw) {
+    const parts = item.split(',').map((s) => s.trim())
+    const [pair, bearingRaw, distanceRaw] = parts
+    const [from, to] = String(pair ?? '').split('>').map((s) => s.trim())
+    if (!from || !to || parts.length < 3) {
+      issues.push({ field: 'legs', message: `"${item}" is not a leg. Write each one as from>to, bearing, distance — for example A>B,060,8.` })
+      continue
+    }
+    const bearing = parseFloat(bearingRaw)
+    const distance = parseFloat(distanceRaw)
+    if (!Number.isFinite(bearing) || bearing < 0 || bearing >= 360) {
+      issues.push({ field: 'legs', message: `The bearing on leg ${from}>${to} must be a number from 000 to 359.` })
+      continue
+    }
+    if (!Number.isFinite(distance) || distance <= 0) {
+      issues.push({ field: 'legs', message: `The distance on leg ${from}>${to} must be a positive number.` })
+      continue
+    }
+    if (!model.size) model.set(from, [0, 0])
+    if (!model.has(from)) {
+      issues.push({ field: 'legs', message: `Leg ${from}>${to} starts at "${from}", which no earlier leg reaches. Journeys are drawn in order.` })
+      continue
+    }
+    const rad = (bearing * Math.PI) / 180
+    const base = model.get(from)
+    // North is -y, and a bearing turns clockwise from it.
+    model.set(to, [base[0] + distance * Math.sin(rad), base[1] - distance * Math.cos(rad)])
+    legs.push({ from, to, bearing, distance, distanceText: String(distanceRaw ?? '').trim() })
+  }
+  if (!legs.length) {
+    issues.push({ field: 'legs', message: 'Add at least one leg, for example A>B,060,8.' })
+  }
+
+  const W = 420, H = 372
+  const pad = 46, padTop = NORTH_LEN + 24
+  const xs = [...model.values()].map((v) => v[0])
+  const ys = [...model.values()].map((v) => v[1])
+  const minX = xs.length ? Math.min(...xs) : 0, maxX = xs.length ? Math.max(...xs) : 0
+  const minY = ys.length ? Math.min(...ys) : 0, maxY = ys.length ? Math.max(...ys) : 0
+  const spanX = maxX - minX || 1, spanY = maxY - minY || 1
+  const scale = Math.min((W - 2 * pad) / spanX, (H - padTop - pad - 18) / spanY)
+  const at = new Map()
+  const offX = (W - spanX * scale) / 2 - minX * scale
+  const offY = padTop - minY * scale
+  for (const [name, v] of model) at.set(name, [offX + v[0] * scale, offY + v[1] * scale])
+
+  return { legs, at, issues }
+}
+
+/* ── triangles ───────────────────────────────────────────────────────────── */
+
+/**
+ * Build the triangle from whatever angles the teacher stated.
+ *
+ * Two numeric angles determine the shape exactly, and it is then DRAWN at those
+ * angles — a learner measuring a 50° corner reads 50°. One numeric angle still
+ * fixes that corner truly and splits the rest evenly, because drawing one
+ * stated angle correctly beats drawing none. No numeric angle falls back to a
+ * plain scalene shape, which is what an all-symbolic figure wants anyway.
+ */
+function triangleModel(p) {
+  const issues = []
+  const read = (v) => {
+    const s = String(v ?? '').trim()
+    return /^-?\d+(\.\d+)?$/.test(s) ? parseFloat(s) : null
+  }
+  const given = { A: read(p.angleA), B: read(p.angleB), C: read(p.angleC) }
+  for (const [k, v] of Object.entries(given)) {
+    if (v !== null && (v <= 0 || v >= 180)) {
+      issues.push({ field: `angle${k}`, message: `An angle in a triangle is between 0° and 180°. Correct the angle at ${k}.` })
+      given[k] = null
+    }
+  }
+  const known = Object.entries(given).filter(([, v]) => v !== null)
+  const sum = known.reduce((t, [, v]) => t + v, 0)
+  if (known.length === 3 && Math.abs(sum - 180) > 0.5) {
+    issues.push({ field: 'angleC', message: `The three angles add up to ${Math.round(sum)}°. In a triangle they must add up to 180°.` })
+  } else if (known.length === 2 && sum >= 180) {
+    issues.push({ field: 'angleB', message: `Those two angles already add up to ${Math.round(sum)}°, leaving nothing for the third. Two angles of a triangle add up to less than 180°.` })
+  }
+
+  let alpha, beta
+  if (given.A !== null && given.B !== null) {
+    alpha = given.A; beta = given.B
+  } else if (given.A !== null && given.C !== null) {
+    alpha = given.A; beta = 180 - given.A - given.C
+  } else if (given.B !== null && given.C !== null) {
+    beta = given.B; alpha = 180 - given.B - given.C
+  } else if (known.length === 1) {
+    const [k, v] = known[0]
+    const rest = (180 - v) / 2
+    alpha = k === 'A' ? v : rest
+    beta = k === 'B' ? v : rest
+  } else {
+    alpha = 62; beta = 48
+  }
+  if (!(alpha > 0 && beta > 0 && alpha + beta < 180)) { alpha = 62; beta = 48 }
+
+  // Unit construction with AB along the x axis (y up), then fitted to the box.
+  const a = (alpha * Math.PI) / 180, b = (beta * Math.PI) / 180
+  const ac = Math.sin(b) / Math.sin(a + b)
+  const raw = { A: [0, 0], B: [1, 0], C: [ac * Math.cos(a), ac * Math.sin(a)] }
+  const W = 360, H = 300, pad = 52
+  const xs = [raw.A[0], raw.B[0], raw.C[0]], ys = [raw.A[1], raw.B[1], raw.C[1]]
+  const minX = Math.min(...xs), maxX = Math.max(...xs)
+  const minY = Math.min(...ys), maxY = Math.max(...ys)
+  const scale = Math.min((W - 2 * pad) / (maxX - minX || 1), (H - 2 * pad - 14) / (maxY - minY || 1))
+  const offX = (W - (maxX - minX) * scale) / 2 - minX * scale
+  const offY = (H - 14 - (maxY - minY) * scale) / 2 + maxY * scale
+  const put = ([x, y]) => [offX + x * scale, offY - y * scale]
+  return { A: put(raw.A), B: put(raw.B), C: put(raw.C), issues }
+}
+
 export const DIAGRAM_CATALOG = {
   // ============ SHAPES 2D ============
   triangle: { cat: 'Shapes 2D', name: 'Triangle', defaults: { a: 'A', b: 'B', c: 'C', cap: 'Triangle ABC' }, fields: [['a', 'Vertex A'], ['b', 'Vertex B'], ['c', 'Vertex C'], ['cap', 'Caption']],
@@ -331,6 +739,268 @@ export const DIAGRAM_CATALOG = {
       }
       return `<svg viewBox="0 0 360 250" xmlns="http://www.w3.org/2000/svg" width="360"><rect x="8" y="8" width="344" height="234" rx="6" fill="none" stroke="#1c1612" stroke-width="1.4"/><text x="20" y="26" font-family="Lora,serif" font-size="13" font-weight="700" fill="#1c1612">E</text><circle cx="140" cy="125" r="85" fill="${c}" fill-opacity=".16" stroke="${c}" stroke-width="2"/><circle cx="230" cy="125" r="85" fill="${c}" fill-opacity=".16" stroke="${c}" stroke-width="2"/><text x="78" y="55" font-family="Lora,serif" font-size="15" font-weight="700" text-anchor="middle" fill="#1c1612">${esc(p.a)}</text><text x="292" y="55" font-family="Lora,serif" font-size="15" font-weight="700" text-anchor="middle" fill="#1c1612">${esc(p.b)}</text>${rows(p.onlyA, 95, 125, 'middle')}${rows(p.both, 185, 125, 'middle')}${rows(p.onlyB, 275, 125, 'middle')}${rows(p.outside, 36, 60, 'start')}</svg>`
     } },
+
+  // ============ CIRCLE GEOMETRY ============
+  //
+  // One parametric figure covers the whole family — angle at the centre, angles
+  // in the same segment, cyclic quadrilaterals, tangent and radius, the
+  // alternate segment — because on paper they ARE one figure: a circle, some
+  // named points on it, some lines between them, and the angles the question
+  // turns on. Six near-identical catalog entries would have been six places to
+  // fix the same bug.
+  circletheorem: {
+    cat: 'Circle Geometry',
+    name: 'Circle theorem',
+    defaults: {
+      centre: 'O',
+      points: 'A@160,B@60,C@300',
+      joins: 'O-A,O-C,A-B,B-C',
+      angles: 'AOC=110,ABC=x',
+      tangent: '',
+      notToScale: 'yes',
+      cap: 'Circle with centre O',
+    },
+    fields: [
+      ['centre', 'Centre label'],
+      ['points', 'Points on the circle, e.g. A@160,B@60,C@300 (degrees anticlockwise from 3 o\'clock)'],
+      ['joins', 'Lines to draw, e.g. O-A,A-B,B-C'],
+      ['angles', 'Angles to mark, e.g. AOC=110,ABC=x'],
+      ['tangent', 'Tangent at a point, e.g. C:T,U (names its two ends)'],
+      ['notToScale', 'Print "Diagram not drawn to scale" (yes/no)'],
+      ['cap', 'Caption'],
+    ],
+    validate: (p) => circleTheoremModel(p).issues,
+    render: (p, col) => {
+      const W = 360, H = 336
+      const { pts, joins, angles, tangent } = circleTheoremModel(p)
+      const cx = CIRCLE_CX, cy = CIRCLE_CY, R = CIRCLE_R
+      let out = `<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${col}" stroke-width="2.2"/>`
+      if (tangent) {
+        out += `<line x1="${f(tangent.a[0])}" y1="${f(tangent.a[1])}" x2="${f(tangent.b[0])}" y2="${f(tangent.b[1])}"`
+          + ` stroke="${col}" stroke-width="2.2" data-tangent="${esc(tangent.at)}"/>`
+      }
+      for (const [from, to] of joins) {
+        const a = pts.get(from), b = pts.get(to)
+        if (!a || !b) continue
+        out += `<line x1="${f(a[0])}" y1="${f(a[1])}" x2="${f(b[0])}" y2="${f(b[1])}"`
+          + ` stroke="${INK}" stroke-width="1.9" data-join="${esc(from)}${esc(to)}"/>`
+      }
+      for (const ang of angles) {
+        const v = pts.get(ang.vertex), a = pts.get(ang.from), b = pts.get(ang.to)
+        if (!v || !a || !b) continue
+        // A smaller arc at the centre keeps it clear of the two radii's labels.
+        out += angleMark(v, a, b, degText(ang.text), { r: ang.vertex === pts.centreName ? 30 : 24, col: INK })
+      }
+      for (const [name, pt] of pts) {
+        const isCentre = name === pts.centreName
+        out += `<circle cx="${f(pt[0])}" cy="${f(pt[1])}" r="${isCentre ? 3.6 : 3.2}" fill="${INK}" data-point="${esc(name)}"/>`
+        // Push the name away from the middle of the figure so it never sits on
+        // a chord — the direction is the point's own, so a figure with points
+        // anywhere round the circle still reads.
+        const dx = pt[0] - cx, dy = pt[1] - cy
+        const m = Math.hypot(dx, dy) || 1
+        const off = isCentre ? 0 : 17
+        out += label(pt[0] + (isCentre ? -10 : (dx / m) * off), pt[1] + (isCentre ? -9 : (dy / m) * off + 5),
+          name, { size: 15, anchor: isCentre ? 'end' : 'middle' })
+      }
+      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="${W}">`
+        + `${out}${notToScaleNote(W, H, isYes(p.notToScale))}</svg>`
+    },
+  },
+
+  // ============ BEARINGS ============
+  bearings: {
+    cat: 'Bearings',
+    name: 'Bearings journey',
+    defaults: {
+      legs: 'A>B,060,8;B>C,135,6',
+      unit: 'km',
+      notToScale: 'no',
+      cap: 'Bearings journey',
+    },
+    fields: [
+      ['legs', 'Legs, e.g. A>B,060,8;B>C,135,6 (from>to, bearing, distance)'],
+      ['unit', 'Distance unit'],
+      ['notToScale', 'Print "Diagram not drawn to scale" (yes/no)'],
+      ['cap', 'Caption'],
+    ],
+    validate: (p) => bearingsModel(p).issues,
+    render: (p, col) => {
+      const W = 420, H = 372
+      const { legs, at } = bearingsModel(p)
+      const unit = String(p.unit ?? '').trim()
+      let out = ''
+      const starts = new Set()
+      for (const leg of legs) {
+        const a = at.get(leg.from), b = at.get(leg.to)
+        if (!a || !b) continue
+        if (!starts.has(leg.from)) {
+          starts.add(leg.from)
+          // The north line is what makes a bearing readable: every angle on the
+          // page is measured from it, so it is drawn at every point a leg
+          // leaves from, not just the first.
+          const top = [a[0], a[1] - NORTH_LEN]
+          out += `<line x1="${f(a[0])}" y1="${f(a[1])}" x2="${f(top[0])}" y2="${f(top[1] + 8)}"`
+            + ` stroke="${SOFT_INK}" stroke-width="1.3" stroke-dasharray="5 4" data-north="${esc(leg.from)}"/>`
+            + arrowHead([a[0], a[1] - 20], top, { size: 8, fill: SOFT_INK })
+            + label(a[0], top[1] - 6, 'N', { size: 12, fill: SOFT_INK })
+        }
+        out += `<line x1="${f(a[0])}" y1="${f(a[1])}" x2="${f(b[0])}" y2="${f(b[1])}"`
+          + ` stroke="${col}" stroke-width="2.2" data-leg="${esc(leg.from)}${esc(leg.to)}"/>`
+          + arrowHead(a, b, { size: 9, fill: col })
+        out += bearingArc(a, leg.bearing)
+        // The distance sits beside its own leg, on the side away from the turn.
+        const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2
+        const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1
+        const nx = -(b[1] - a[1]) / len, ny = (b[0] - a[0]) / len
+        const text = unit ? `${leg.distanceText} ${unit}` : leg.distanceText
+        out += label(mx + nx * 15, my + ny * 15 + 4, text, { size: 12, weight: '600', fill: SOFT_INK })
+      }
+      for (const [name, pt] of at) {
+        out += `<circle cx="${f(pt[0])}" cy="${f(pt[1])}" r="4" fill="${INK}" data-point="${esc(name)}"/>`
+          + label(pt[0] + 13, pt[1] + 16, name, { size: 15 })
+      }
+      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="${W}">`
+        + `${out}${notToScaleNote(W, H, isYes(p.notToScale))}</svg>`
+    },
+  },
+
+  // ============ TRIGONOMETRY ============
+  elevation: {
+    cat: 'Trigonometry',
+    name: 'Angle of elevation / depression',
+    defaults: {
+      angle: '35',
+      mode: 'elevation',
+      observer: 'A',
+      object: 'B',
+      base: '50 m',
+      height: 'h',
+      notToScale: 'no',
+      cap: 'Angle of elevation',
+    },
+    fields: [
+      ['angle', 'Angle (degrees)'],
+      ['mode', 'elevation or depression'],
+      ['observer', 'Observer label'],
+      ['object', 'Object label'],
+      ['base', 'Horizontal distance label'],
+      ['height', 'Vertical label'],
+      ['notToScale', 'Print "Diagram not drawn to scale" (yes/no)'],
+      ['cap', 'Caption'],
+    ],
+    validate: (p) => {
+      const a = parseFloat(p.angle)
+      if (!Number.isFinite(a)) {
+        return [{ field: 'angle', message: 'Give the angle as a number of degrees, for example 35.' }]
+      }
+      if (a <= 0 || a >= 90) {
+        return [{ field: 'angle', message: 'An angle of elevation or depression is between 0° and 90°. Enter a value in that range.' }]
+      }
+      return []
+    },
+    render: (p, col) => {
+      const W = 400, H = 300
+      const depression = /depress/i.test(String(p.mode ?? ''))
+      const theta = Math.max(3, Math.min(87, nOr(p.angle, 35)))
+      const rad = (theta * Math.PI) / 180
+      // Fit the true triangle into the box: start from the widest base that
+      // fits, and shrink it if the resulting height would not.
+      let base = 260, rise = base * Math.tan(rad)
+      if (rise > 176) { rise = 176; base = rise / Math.tan(rad) }
+      const left = 60, groundY = depression ? 40 + rise : 216
+      const obs = depression ? [left, 40] : [left, groundY]
+      const foot = [left + base, groundY]
+      const top = depression ? [left + base, 40 + rise] : [left + base, groundY - rise]
+      const horizEnd = depression ? [left + base + 26, 40] : foot
+      let out = ''
+      // Ground / horizontal reference. In depression the horizontal through the
+      // observer is the dashed one the angle is measured from; the ground is
+      // solid underneath.
+      if (depression) {
+        out += `<line x1="${f(obs[0])}" y1="${f(obs[1])}" x2="${f(horizEnd[0])}" y2="${f(obs[1])}"`
+          + ` stroke="${SOFT_INK}" stroke-width="1.4" stroke-dasharray="6 4" data-horizontal="1"/>`
+        out += `<line x1="${f(obs[0] - 26)}" y1="${f(groundY)}" x2="${f(foot[0] + 30)}" y2="${f(groundY)}"`
+          + ` stroke="${INK}" stroke-width="2" data-ground="1"/>`
+        out += `<line x1="${f(obs[0])}" y1="${f(obs[1])}" x2="${f(obs[0])}" y2="${f(groundY)}"`
+          + ` stroke="${col}" stroke-width="2.2" data-vertical="1"/>`
+        out += `<line x1="${f(obs[0])}" y1="${f(obs[1])}" x2="${f(top[0])}" y2="${f(top[1])}"`
+          + ` stroke="${INK}" stroke-width="1.9" data-sightline="1"/>`
+        out += angleMark(obs, horizEnd, top, degText(theta), { r: 40, col: INK })
+        out += `<circle cx="${f(obs[0])}" cy="${f(obs[1])}" r="3.6" fill="${INK}" data-point="observer"/>`
+        out += `<circle cx="${f(top[0])}" cy="${f(top[1])}" r="3.6" fill="${INK}" data-point="object"/>`
+        out += label(obs[0] - 12, obs[1] - 6, p.observer, { size: 15, anchor: 'end' })
+        out += label(top[0] + 12, top[1] + 5, p.object, { size: 15, anchor: 'start' })
+        out += label((obs[0] + top[0]) / 2, groundY + 20, p.base, { size: 13, weight: '600', italic: true, fill: SOFT_INK })
+        out += label(obs[0] - 10, (obs[1] + groundY) / 2, p.height, { size: 13, weight: '600', italic: true, anchor: 'end', fill: SOFT_INK })
+      } else {
+        out += `<line x1="${f(obs[0] - 26)}" y1="${f(groundY)}" x2="${f(foot[0] + 30)}" y2="${f(groundY)}"`
+          + ` stroke="${INK}" stroke-width="2" data-ground="1"/>`
+        out += `<line x1="${f(foot[0])}" y1="${f(foot[1])}" x2="${f(top[0])}" y2="${f(top[1])}"`
+          + ` stroke="${col}" stroke-width="2.2" data-vertical="1"/>`
+        out += `<line x1="${f(obs[0])}" y1="${f(obs[1])}" x2="${f(top[0])}" y2="${f(top[1])}"`
+          + ` stroke="${INK}" stroke-width="1.9" data-sightline="1"/>`
+        out += angleMark(obs, foot, top, degText(theta), { r: 40, col: INK })
+        out += angleMark(foot, obs, top, '', { r: 13, col: INK, square: true })
+        out += `<circle cx="${f(obs[0])}" cy="${f(obs[1])}" r="3.6" fill="${INK}" data-point="observer"/>`
+        out += `<circle cx="${f(top[0])}" cy="${f(top[1])}" r="3.6" fill="${INK}" data-point="object"/>`
+        out += label(obs[0] - 12, obs[1] + 5, p.observer, { size: 15, anchor: 'end' })
+        out += label(top[0] + 12, top[1] + 5, p.object, { size: 15, anchor: 'start' })
+        out += label((obs[0] + foot[0]) / 2, groundY + 20, p.base, { size: 13, weight: '600', italic: true, fill: SOFT_INK })
+        out += label(foot[0] + 10, (top[1] + foot[1]) / 2, p.height, { size: 13, weight: '600', italic: true, anchor: 'start', fill: SOFT_INK })
+      }
+      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="${W}">`
+        + `${out}${notToScaleNote(W, H, isYes(p.notToScale))}</svg>`
+    },
+  },
+
+  labelledtriangle: {
+    cat: 'Trigonometry',
+    name: 'Triangle (sides and angles)',
+    defaults: {
+      a: 'A', b: 'B', c: 'C',
+      angleA: '50', angleB: '60', angleC: '',
+      sideAB: '', sideBC: '8 cm', sideCA: '',
+      notToScale: 'yes',
+      cap: 'Triangle ABC',
+    },
+    fields: [
+      ['a', 'Vertex A'], ['b', 'Vertex B'], ['c', 'Vertex C'],
+      ['angleA', 'Angle at A'], ['angleB', 'Angle at B'], ['angleC', 'Angle at C'],
+      ['sideAB', 'Side AB'], ['sideBC', 'Side BC'], ['sideCA', 'Side CA'],
+      ['notToScale', 'Print "Diagram not drawn to scale" (yes/no)'],
+      ['cap', 'Caption'],
+    ],
+    validate: (p) => triangleModel(p).issues,
+    render: (p, col) => {
+      const W = 360, H = 300
+      const { A, B, C } = triangleModel(p)
+      let out = `<polygon points="${f(A[0])},${f(A[1])} ${f(B[0])},${f(B[1])} ${f(C[0])},${f(C[1])}"`
+        + ` fill="${col}" fill-opacity=".08" stroke="${col}" stroke-width="2.2"/>`
+      out += angleMark(A, B, C, markText(p.angleA), { r: 24, col: INK })
+      out += angleMark(B, C, A, markText(p.angleB), { r: 24, col: INK })
+      out += angleMark(C, A, B, markText(p.angleC), { r: 24, col: INK })
+      const centroid = [(A[0] + B[0] + C[0]) / 3, (A[1] + B[1] + C[1]) / 3]
+      const side = (u, v, text) => {
+        if (!String(text ?? '').trim()) return ''
+        const mx = (u[0] + v[0]) / 2, my = (u[1] + v[1]) / 2
+        const dx = mx - centroid[0], dy = my - centroid[1]
+        const m = Math.hypot(dx, dy) || 1
+        return label(mx + (dx / m) * 20, my + (dy / m) * 20 + 4, text,
+          { size: 13, weight: '600', italic: true, fill: SOFT_INK })
+      }
+      out += side(A, B, p.sideAB) + side(B, C, p.sideBC) + side(C, A, p.sideCA)
+      const vertex = (pt, name) => {
+        const dx = pt[0] - centroid[0], dy = pt[1] - centroid[1]
+        const m = Math.hypot(dx, dy) || 1
+        return `<circle cx="${f(pt[0])}" cy="${f(pt[1])}" r="3.2" fill="${INK}" data-point="${esc(name)}"/>`
+          + label(pt[0] + (dx / m) * 18, pt[1] + (dy / m) * 18 + 5, name, { size: 15 })
+      }
+      out += vertex(A, p.a) + vertex(B, p.b) + vertex(C, p.c)
+      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="${W}">`
+        + `${out}${notToScaleNote(W, H, isYes(p.notToScale))}</svg>`
+    },
+  },
 
   // ============ SCIENCE ============
   plantcell: { cat: 'Science', name: 'Plant Cell', defaults: { cap: 'Plant cell' }, fields: [['cap', 'Caption']],

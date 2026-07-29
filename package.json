@@ -24,6 +24,8 @@
     "test:diagram-clean": "node src/utils/diagramClean.test.js",
     "test:shared-rules": "node functions/shared/assessment/sharedRules.test.js",
     "test:diagram-catalog": "node functions/shared/assessment/diagramCatalogCore.test.js",
+    "test:svg-geometry": "node scripts/test-svg-geometry.mjs",
+    "test:secondary-diagrams": "node scripts/test-secondary-diagrams.mjs",
     "test:visual-prompt": "node scripts/test-visual-prompt.mjs",
     "test:visual-versions": "node scripts/test-visual-versions.mjs",
     "test:visual-asset": "node scripts/test-visual-asset-schema.mjs",
