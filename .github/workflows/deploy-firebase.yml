@@ -89,6 +89,13 @@ jobs:
       - name: Tests (importer + sanitize + schema)
         run: npm run test:all
 
+      # The deploy verdict decides whether a functions deploy stands, and every
+      # way it can be wrong is quiet — passing a stale function, or failing a
+      # deploy that finished and thereby skipping the Hosting deploy behind it.
+      # Prove it before trusting it, the same way the visual gate does.
+      - name: Test the deploy-log classifier
+        run: npm run test:deploy-log
+
       - name: Install function dependencies
         working-directory: functions
         run: |
@@ -195,84 +202,25 @@ jobs:
 
           only="${{ steps.target.outputs.only }}"
 
-          # Functions firebase-tools reported as failed. It logs each as
-          # "failed to update/create function .../functions/<name>" and can still
-          # EXIT 0, so we always scan, regardless of exit code.
-          parse_failed() {
-            grep -iE "failed to (update|create) function" \
-              | grep -oiE "/functions/[A-Za-z0-9_-]+" \
-              | sed 's#/functions/##' \
-              | sort -u
-          }
+          # firebase-tools logs per-function failures and can still EXIT 0, so
+          # the output is always scanned regardless of the exit code.
+          #
+          # Which functions actually still need work is decided by
+          # scripts/deploy/functionsDeployLog.js, a tested module, NOT by a grep
+          # over the output.
+          #
+          # The grep it replaces asked "does the failure text appear anywhere",
+          # which is the wrong question: firebase-tools retries a throttled
+          # operation ITSELF, inside one deploy, and prints both the failure and
+          # the later success for the same function. On 2026-07-29 that read a
+          # finished deploy as failed and skipped the Hosting deploy behind it
+          # for 35 minutes. The module reads the log in ORDER — a function is
+          # unresolved only when its LAST event is a failure — and keeps every
+          # pre-existing 409 rule (queue race, idempotent "already exists", bare
+          # gen1 during a live race) applied to what is genuinely still failing.
+          # See functionsDeployLog.test.js, which enumerates the cases.
+          classify() { node scripts/deploy/classifyFunctionsDeploy.mjs "$@"; }
 
-          # Subset of failures whose error was specifically the transient
-          # "HTTP Error: 409, unable to queue the operation" race. Investigation
-          # on 2026-06-30 (zero pending operations in either region, healthy
-          # operations quota, no regional incident, and every function left
-          # ACTIVE with a fresh updateTime) established that these operations
-          # COMPLETE server-side — firebase-tools simply races its own in-flight
-          # operation and gives up reporting. So a 409 here is cosmetic, not a
-          # stale deploy. Any OTHER failure (build error, bad config, the gen1
-          # "Failed to update" with no 409, a quota/permission error) is still
-          # treated as fatal.
-          parse_409() {
-            grep -iE "HTTP Error: 409, unable to queue the operation" \
-              | grep -oiE "/functions/[A-Za-z0-9_-]+" \
-              | sed 's#/functions/##' \
-              | sort -u
-          }
-
-          # Subset of failures whose error was the idempotent "409, Resource
-          # '<...>/functions/<name>' already exists" that fires when firebase-tools
-          # tries to CREATE a function that is already present. firebase-tools
-          # only takes the create path for a function it does not yet see in the
-          # deployed set, so "already exists" means its own create raced (the
-          # resource landed server-side with the code we just uploaded) or the
-          # function was created by a prior attempt of this same deploy. Either
-          # way the deployed code is current — the very next deploy takes the
-          # update path and the 409 disappears. So this is cosmetic, exactly like
-          # the "unable to queue" race above, and must not fail the job. (It first
-          # bit the brand-new notification crons — dailyPracticeReminders — on
-          # their first-ever deploy, blocking every Hosting deploy behind them.)
-          parse_already_exists() {
-            grep -iE "HTTP Error: 409, Resource '[^']*/functions/[A-Za-z0-9_-]+' already exists" \
-              | grep -oiE "/functions/[A-Za-z0-9_-]+' already exists" \
-              | grep -oiE "/functions/[A-Za-z0-9_-]+" \
-              | sed 's#/functions/##' \
-              | sort -u
-          }
-
-          # Functions firebase-tools attached an explicit "had HTTP Error: <code>"
-          # line to. Gen 2 update failures ALWAYS carry one of these
-          # ("Request to https://.../functions/NAME... had HTTP Error: 409, ...");
-          # Gen 1 update failures do NOT — a gen1 failure emits only the bare
-          # "failed to update function .../functions/NAME" with no HTTP detail.
-          # So a function that is in parse_failed but NOT here is a "bare" gen1
-          # failure whose underlying cause the log never spelled out. This is the
-          # gap that false-failed the deploy of #1471: setUserRole (gen1) hit the
-          # same "unable to queue the operation" race as two gen2 siblings, but
-          # printed no 409 line, so parse_409 couldn't see it was transient.
-          parse_detailed() {
-            grep -iE "had HTTP Error:" \
-              | grep -oiE "/functions/[A-Za-z0-9_-]+" \
-              | sed 's#/functions/##' \
-              | sort -u
-          }
-
-          # Scheduled functions whose Cloud Scheduler TRIGGER failed to upsert.
-          # firebase-tools reports these as "Failed to upsert schedule function
-          # <name> in region ...". This is CATEGORICALLY different from the
-          # cosmetic 409 races above: the function CODE deploys but its trigger
-          # is never created, so it silently never fires — and the "no changes
-          # detected" retry masks it as success (the body is unchanged on retry).
-          # This is how the backup completion-checker + observability canaries
-          # shipped green-but-dead when the deploy SA lacked cloudscheduler perms.
-          # NEVER cosmetic — always fail.
-          parse_scheduler_failed() {
-            grep -oiE "Failed to upsert schedule function [A-Za-z0-9_-]+" \
-              | sed -E 's/.*schedule function //I' \
-              | sort -u
-          }
 
           max=2            # one full deploy + one quick retry of the failed set
           attempt=0
@@ -296,47 +244,45 @@ jobs:
             echo "::endgroup::"
             all_out=$(printf '%s\n%s' "${all_out}" "${out}")
 
-            failed=$(printf '%s\n' "${out}" | parse_failed) || true
+            # Functions still unresolved after THIS attempt — a function that
+            # failed and then succeeded within the attempt is already done, and
+            # retrying it would spend more of the very mutation quota whose
+            # exhaustion caused the failure.
+            failed=$(printf '%s\n' "${out}" | classify --retry-set) || true
             # Stop once the deploy is clean, or after the final attempt.
             if { [ "${code}" -eq 0 ] && [ -z "${failed}" ]; } || [ "${attempt}" -ge "${max}" ]; then
               break
             fi
 
-            # Narrow the retry to ONLY the functions that just failed. (If the
+            # Narrow the retry to ONLY the functions still unresolved. (If the
             # failure wasn't function-specific — e.g. a firestore.rules error —
             # failed is empty, so we retry the original target as-is.)
             if [ -n "${failed}" ]; then
               only=$(printf '%s\n' "${failed}" | sed 's/^/functions:/' | paste -sd, -)
             fi
-            echo "Deploy reported failure(s); retrying [--only ${only}] in 30s…"
+            echo "Deploy reported unresolved failure(s); retrying [--only ${only}] in 30s…"
             sleep 30
           done
 
-          # ---- Cloud Scheduler trigger failures are FATAL (never cosmetic) --
-          # Scanned across ALL attempts, because the "no changes detected" retry
-          # (the function body is unchanged) would otherwise mask a first-attempt
-          # scheduler-upsert failure as a clean deploy. A scheduled function whose
-          # trigger fails to upsert deploys its CODE but never fires — exactly how
-          # backupCompletionCheck / storageBackupCheck / rateLimitHealthCheck /
-          # opsHeartbeatCheck shipped green-but-dead. Fail loudly instead.
-          sched_failed=$(printf '%s\n' "${all_out}" | parse_scheduler_failed) || true
-          if [ -n "${sched_failed}" ]; then
-            echo "::error::Firebase deploy FAILED to create/update Cloud Scheduler triggers — the scheduled function(s) below deployed their CODE but have NO trigger and will NEVER fire:"
-            printf '%s\n' "${sched_failed}" | sed 's/^/::error::  no-trigger: /'
-            if printf '%s\n' "${all_out}" | grep -qiE "cloudscheduler\.jobs\.(create|update|delete)"; then
-              echo "::error::Root cause: the Firebase deploy service account lacks Cloud Scheduler permission (HTTP 403 on cloudscheduler.jobs.*). Grant it roles/cloudscheduler.admin on the project, then re-run this deploy."
-            fi
+          # ---- Verdict ------------------------------------------------------
+          # Handed EVERY attempt's output, in order. Two reasons it must be the
+          # accumulated log rather than just the last attempt:
+          #   • a first-attempt Cloud Scheduler upsert failure must survive the
+          #     retry's "no changes detected" masking (that is how the backup
+          #     checkers once shipped green-but-dead), and
+          #   • a function the narrowed retry never mentions keeps whatever its
+          #     last reported state was, which fails closed.
+          # The verdict itself (order-aware resolution + the 409 rules + the
+          # scheduler rule) lives in scripts/deploy/functionsDeployLog.js and is
+          # tested; this step only decides WHAT to hand it.
+          if ! printf '%s\n' "${all_out}" | classify --verdict; then
             exit 1
           fi
 
-          # ---- Classify the final attempt's result -------------------------
-          failed=$(printf '%s\n' "${out}" | parse_failed) || true
-
-          if [ -z "${failed}" ]; then
-            if [ "${code}" -eq 0 ]; then
-              echo "Firebase deploy clean — all targets deployed."
-              exit 0
-            fi
+          # A non-function failure — firestore.rules, indexes, storage, or the
+          # CLI itself — leaves no per-function marker for the classifier to
+          # find, so a non-zero exit still has to be honoured here.
+          if [ "${code}" -ne 0 ]; then
             # Detect a 401 authentication failure specifically — this is the
             # pattern produced when the FIREBASE_TOKEN has been revoked by a
             # Google account security event (password change, sign-out, etc.)
@@ -347,65 +293,9 @@ jobs:
               echo "::error::  1. (Preferred) Add a FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON secret — a service-account key is not tied to a personal account and cannot be revoked this way. See DEPLOY.md."
               echo "::error::  2. (Legacy) Rotate the token: npx firebase-tools@latest login:ci → update the FIREBASE_TOKEN secret at Settings > Secrets and variables > Actions."
             else
-              echo "::error::Firebase deploy exited ${code} with no per-function failure markers — likely a firestore.rules / indexes / storage or CLI error. See the log above."
+              echo "::error::Firebase deploy exited ${code} with no unresolved per-function failure — likely a firestore.rules / indexes / storage or CLI error. See the log above."
             fi
             exit 1
           fi
 
-          # Split the remaining failures: cosmetic 409 races vs. everything else.
-          # Cosmetic = the "unable to queue the operation" race + the idempotent
-          # "Resource already exists" create race. Both complete server-side, so
-          # they must not fail the job (or they permanently block Hosting behind
-          # a false-red Firebase deploy).
-          cosmetic=$(printf '%s\n' "${out}" | parse_409) || true
-          existing=$(printf '%s\n' "${out}" | parse_already_exists) || true
-
-          # Bare gen1 failures during a live "unable to queue" race.
-          #
-          # A gen1 function (e.g. setUserRole) surfaces a transient 409 as only
-          # "failed to update function .../functions/NAME" — no "HTTP Error: 409"
-          # line — so parse_409 can't classify it and it looks non-transient.
-          # But the "unable to queue the operation" race is SYSTEMIC: Cloud
-          # Functions throttles concurrent operations project-wide, so when it
-          # fires it hits an arbitrary handful of the ~90 functions in one batch.
-          # If parse_409 already found that race in this same deploy, a co-failing
-          # function that reported NO error detail at all (in parse_failed but not
-          # parse_detailed) is overwhelmingly the same race, not a real error —
-          # gen2 siblings just happened to print the 409 it didn't. So treat those
-          # bare failures as cosmetic ONLY when the race is demonstrably present.
-          # A genuine gen1 error still fails closed: with no "unable to queue"
-          # line anywhere in the output, `race` is empty and bare stays genuine.
-          race=$(printf '%s\n' "${out}" | parse_409) || true
-          bare=""
-          if [ -n "${race}" ]; then
-            detailed=$(printf '%s\n' "${out}" | parse_detailed) || true
-            # Both inputs must be sorted for comm. parse_failed / parse_detailed
-            # already end in `sort -u`, but sort at the call site too so the
-            # invariant is local and obvious (a mis-sorted first input would let
-            # comm silently misclassify a genuine failure as a bare/cosmetic one).
-            bare=$(comm -23 <(printf '%s\n' "${failed}" | grep -v '^$' | sort -u) <(printf '%s\n' "${detailed}" | grep -v '^$' | sort -u) || true)
-          fi
-
-          cosmetic=$(printf '%s\n' "${cosmetic}" "${existing}" "${bare}" | grep -v '^$' | sort -u) || true
-          if [ -z "${cosmetic}" ]; then
-            genuine="${failed}"
-          else
-            genuine=$(comm -23 <(printf '%s\n' "${failed}") <(printf '%s\n' "${cosmetic}") || true)
-          fi
-
-          if [ -n "${genuine}" ]; then
-            echo "::error::Firebase deploy failed for function(s) with a non-transient error (NOT the cosmetic 409 race) — these may be running stale code:"
-            printf '%s\n' "${genuine}" | sed 's/^/::error::  failed: /'
-            exit 1
-          fi
-
-          # Everything left is a cosmetic 409 — the "unable to queue the
-          # operation" race (gen2 with a 409 line, or a bare gen1 failure during
-          # that same race) or the idempotent "Resource already exists" create
-          # race. All complete server-side, so downgrade to a warning rather than
-          # block a green check. (Follow-up: a verify-by-state step gated on a
-          # read-only cloudfunctions.viewer service-account key will confirm each
-          # of these is ACTIVE with a fresh updateTime.)
-          echo "::warning::Firebase deploy hit a cosmetic 409 (transient 'unable to queue the operation' — incl. bare gen1 failures during that race — and/or idempotent 'already exists') on the function(s) below. These operations complete server-side, so this is treated as non-fatal:"
-          printf '%s\n' "${cosmetic}" | sed 's/^/::warning::  cosmetic-409: /'
-          echo "Firebase deploy complete (some functions finished via the async 409 path)."
+          echo "Firebase deploy clean — all targets deployed."
