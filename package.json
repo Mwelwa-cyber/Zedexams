@@ -426,6 +426,7 @@
     "test:lesson-batch-export": "node scripts/test-lesson-batch-export.test.js",
     "test:lesson-word-export": "node scripts/test-lesson-studio-word-export.test.js",
     "test:lesson-kit": "node scripts/test-lesson-kit.test.js",
+    "test:generation-refunds": "node functions/teacherTools/generationRefunds.test.js",
     "test:worksheet-schema": "node functions/teacherTools/worksheetSchema.test.js",
     "test:worksheet-prompt": "node functions/teacherTools/worksheetPrompt.test.js",
     "test:kb-candidates": "node functions/teacherTools/cbcGradeSubjectCandidates.test.js",

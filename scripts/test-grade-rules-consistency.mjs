@@ -29,6 +29,8 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { ALL_GRADES, getActiveGrades } from '../src/config/curriculum.js'
+import { EDUCATION_LEVELS } from '../src/config/educationLevels.js'
+import { ASSESSMENT_TYPE_VALUES } from '../src/components/teacher/paperTaxonomy.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const RULES_PATH = join(__dirname, '..', 'firestore.rules')
@@ -101,6 +103,92 @@ test('sanity: exactly grades 4-7 are active today (update with intent)', () => {
     `active grades changed to [${activeValues.join(', ')}]. That's allowed — but `
       + `confirm firestore.rules _validGrade was widened to match before deploying. `
       + `(ALL_GRADES total: ${ALL_GRADES.length})`,
+  )
+})
+
+// ── Assessments: the teacher side spans the WHOLE ladder ────────────
+// Background (the second outage this guards against): _validGrade above is
+// scoped to the LEARNER-facing collections, where only grades 4-7 are switched
+// on. The teacher's Assessment Studio is not so limited — a teacher builds
+// papers from Nursery to Form 4, and picks one of seven canonical assessment
+// types.
+//
+// `assessments` was gated by _validGrade plus a pre-merge assessmentType list,
+// so a paper saved for ANY grade outside 4-7, or of ANY type other than
+// mid_term/end_of_term, failed with an opaque "Missing or insufficient
+// permissions". It looked healthy in testing only because the studio's default
+// form (Grade 4, End-of-Term Test) is the one combination that passed, and the
+// emulator suite only ever writes grade '7'. These tests make that drift loud.
+console.log('\nassessment rules cover the whole teacher-facing ladder')
+
+const assessmentGradeLine = rules
+  .split('\n')
+  .find((l) => l.includes('function _validAssessmentGrade('))
+
+test('_validAssessmentGrade helper is defined', () => {
+  assert(
+    assessmentGradeLine,
+    '_validAssessmentGrade definition not found in firestore.rules. Teacher '
+      + 'papers must NOT be gated by the learner-scoped _validGrade.',
+  )
+})
+
+test('assessments are gated by _validAssessmentGrade, not _validGrade', () => {
+  const start = rules.indexOf('function validAssessmentFields()')
+  const end = rules.indexOf('match /assessments/{assessmentId}')
+  assert(start >= 0 && end > start, 'validAssessmentFields() block not found')
+  const block = rules.slice(start, end)
+  assert(
+    block.includes('_validAssessmentGrade(incoming().grade)'),
+    'validAssessmentFields() still gates grade through the learner-scoped '
+      + '_validGrade — every ECE, Grade 1-3 and Form 1-4 paper fails to save.',
+  )
+})
+
+// Quoted values inside the helper body (from its `function` line to the first
+// closing brace), so the surrounding comment prose is never scraped.
+const assessmentGradeAllowed = new Set(
+  (assessmentGradeLine
+    ? rules
+      .slice(rules.indexOf(assessmentGradeLine))
+      .split('}')[0]
+      .match(/'([A-Za-z0-9_]+)'/g) || []
+    : []
+  ).map((q) => q.replace(/'/g, '')),
+)
+
+test('every studio level value is permitted by _validAssessmentGrade', () => {
+  const missing = EDUCATION_LEVELS
+    .map((lvl) => String(lvl.value))
+    .filter((v) => !assessmentGradeAllowed.has(v))
+  assert(
+    missing.length === 0,
+    `level value(s) [${missing.join(', ')}] can be chosen in the Assessment `
+      + `Studio's grade picker but are NOT in firestore.rules _validAssessmentGrade `
+      + `([${[...assessmentGradeAllowed].join(', ')}]). Saving a paper at those `
+      + `levels fails with permission-denied. Widen the rule and re-deploy.`,
+  )
+})
+
+const assessmentTypeAllowed = new Set(
+  (rules
+    .slice(rules.indexOf('function _validAssessmentType('))
+    .split('}')[0]
+    .match(/'([a-z_]+)'/g) || []
+  ).map((q) => q.replace(/'/g, '')),
+)
+
+test('every canonical assessment type is permitted by _validAssessmentType', () => {
+  const missing = ASSESSMENT_TYPE_VALUES.filter(
+    (t) => !assessmentTypeAllowed.has(t),
+  )
+  assert(
+    missing.length === 0,
+    `assessment type(s) [${missing.join(', ')}] are offered by the studio's `
+      + `picker (paperTaxonomy.ASSESSMENT_TYPES) but are NOT in firestore.rules `
+      + `_validAssessmentType ([${[...assessmentTypeAllowed].join(', ')}]). Every `
+      + `save of those paper types fails with permission-denied — the same class `
+      + `of regression as the question-type list. Keep the two in sync.`,
   )
 })
 

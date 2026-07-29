@@ -12,6 +12,7 @@ import {
   savedCountsFromSummary,
   studioSavedCounts,
   checklistFromWeekPrep,
+  recommendationCardsFrom,
   feedFromState,
   activityFromResources,
   teachingDaysLeft,
@@ -76,6 +77,39 @@ assert.equal(lastOpenedFromResources([], NOW), null)
 assert.equal(
   lastOpenedFromResources([{ ...resources[0], createdAt: NOW - 2 * 60 * 60 * 1000 }], NOW).agoDays,
   0,
+)
+
+// ── grade labels are resolved on read ────────────────────────────────
+// Regression: the dashboard printed whatever shape the writing studio stored,
+// so Recent Documents listed "Test Paper • 4 • …" beside "Test Paper • G4 • …"
+// for the same grade, and the hero's LAST OPENED card printed a bare "4".
+// Every stored shape must render as its one official label.
+const gradeShapes = [
+  ['4', 'Grade 4'],           // Assessment Studio
+  ['G4', 'Grade 4'],          // server generators / Teaching Profile
+  ['Grade 4', 'Grade 4'],     // Lesson Plan Studio
+  ['ECE_N', 'Nursery'],       // level picker — never the raw code
+  ['G8', 'Form 1'],           // CBC secondary
+]
+for (const [stored, label] of gradeShapes) {
+  const row = { ...resources[0], grade: stored }
+  assert.equal(
+    documentsFromResources([row], { limit: 1, now: NOW })[0].meta,
+    `Test Paper • ${label} • integrated science`,
+    `Recent Documents must render grade ${JSON.stringify(stored)} as ${label}`,
+  )
+  assert.equal(
+    lastOpenedFromResources([row], NOW).grade,
+    label,
+    `LAST OPENED must render grade ${JSON.stringify(stored)} as ${label}`,
+  )
+}
+// A missing grade stays empty (and is dropped from the meta line) rather than
+// growing a placeholder label.
+assert.equal(lastOpenedFromResources([{ ...resources[0], grade: '' }], NOW).grade, '')
+assert.equal(
+  documentsFromResources([{ ...resources[0], grade: '' }], { limit: 1, now: NOW })[0].meta,
+  'Test Paper • integrated science',
 )
 
 // ── saved counts ─────────────────────────────────────────────────────
@@ -169,5 +203,48 @@ assert.equal(termChipLabel({ termNumber: 2, weekNumber: 10 }, NOW), `${shortDate
 assert.equal(termChipLabel({ termNumber: 2 }, NOW), `${shortDate(NOW)} — Term 2`)
 assert.equal(termChipLabel(null, NOW), '')
 assert.equal(termChipLabel({}, NOW), '')
+
+// ── AI recommendation chips ──────────────────────────────────────────
+// Regression: the chips were re-derived from the teacher's ACTIVE assignment
+// rather than read off the card, so a teacher taking more than one subject saw
+// a card titled "English is not planned yet" chipped "technology studies" —
+// while the card's own button correctly linked to English.
+const recs = [
+  {
+    id: 'scheme-english', title: 'English is not planned yet', text: 'Create a scheme.',
+    actionLabel: 'Create Scheme', to: '/teacher/generate/scheme-of-work?grade=G4&subject=english',
+    gradeLabel: 'Grade 4', subjectName: 'English',
+  },
+  {
+    id: 'scheme-mathematics', title: 'Mathematics is not planned yet', text: 'Create a scheme.',
+    actionLabel: 'Create Scheme', to: '/teacher/generate/scheme-of-work?grade=G6&subject=mathematics',
+    gradeLabel: 'Grade 6', subjectName: 'Mathematics',
+  },
+  // A global card (draft-papers) reads the whole paper list — it has no single
+  // grade or subject, so it must carry no chip at all.
+  {
+    id: 'draft-papers', title: 'Test papers are still drafts', text: 'Review them.',
+    actionLabel: 'Review drafts', to: '/teacher/assessment-papers',
+  },
+  { id: 'overflow', title: 'Never shown', text: '', actionLabel: '', to: '/x' },
+]
+
+const cards = recommendationCardsFrom(recs)
+assert.equal(cards.length, 3, 'only the top 3 recommendations are shown')
+// Each card is chipped with ITS OWN scope…
+assert.deepEqual(cards[0].context, { grade: 'Grade 4', subject: 'English' })
+// …including the second and third, which the old `i === 0` gate never chipped.
+assert.deepEqual(cards[1].context, { grade: 'Grade 6', subject: 'Mathematics' })
+// A card with no scope of its own borrows nothing.
+assert.equal(cards[2].context, null)
+// The CTA the chip sits beside is untouched.
+assert.equal(cards[0].to, '/teacher/generate/scheme-of-work?grade=G4&subject=english')
+assert.equal(cards[0].actionLabel, 'Create Scheme')
+// A partially-scoped card shows only the half it actually knows.
+assert.deepEqual(
+  recommendationCardsFrom([{ id: 's', title: 't', subjectName: 'English' }])[0].context,
+  { grade: null, subject: 'English' },
+)
+assert.deepEqual(recommendationCardsFrom([]), [])
 
 console.log('dashboardV2Data: all assertions passed')

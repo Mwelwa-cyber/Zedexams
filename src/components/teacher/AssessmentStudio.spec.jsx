@@ -24,14 +24,17 @@ vi.mock('firebase/functions', () => ({ getFunctions: () => ({}), httpsCallable: 
 
 const mockGetAssessmentById = vi.fn()
 const mockGetAssessmentQuestions = vi.fn()
+const mockCreateAssessment = vi.fn()
+const mockSaveAssessmentQuestions = vi.fn()
+const mockUpdateAssessmentWithQuestions = vi.fn()
 vi.mock('../../hooks/useFirestore', () => ({
   useFirestore: () => ({
-    createAssessment: vi.fn(),
-    saveAssessmentQuestions: vi.fn(),
+    createAssessment: mockCreateAssessment,
+    saveAssessmentQuestions: mockSaveAssessmentQuestions,
     getMyAssessments: vi.fn().mockResolvedValue([]),
     getAssessmentById: mockGetAssessmentById,
     getAssessmentQuestions: mockGetAssessmentQuestions,
-    updateAssessmentWithQuestions: vi.fn(),
+    updateAssessmentWithQuestions: mockUpdateAssessmentWithQuestions,
   }),
 }))
 
@@ -341,5 +344,153 @@ describe('AssessmentStudio — startBlankPaper resets form (F6)', () => {
     // makeDefaultForm() seeds title as '' — prove the form was fully reset.
     const builderEl = screen.getByTestId('builder-view')
     expect(builderEl.dataset.formTitle).toBe('')
+  })
+})
+
+/*
+ * Runaway-duplicate regression — a failed question write must not mint a
+ * second paper.
+ *
+ * Root cause: in persistAssessment's create branch, `createdIdRef.current` was
+ * assigned AFTER `saveAssessmentQuestions`. That call rejects on a Zod failure
+ * (questionWritePayload.js) or a validQuestionFields() rules rejection, which
+ * left the ref null even though the parent doc already existed. Saving is a
+ * 2-second debounced autosave rather than a button, so every subsequent edit
+ * re-entered the create branch and filed another orphan paper — the four
+ * identical "GRADE 4 END OF TERM 1 TEST" rows in the library.
+ *
+ * Fix: claim the id immediately after createAssessment(), before anything that
+ * can throw, so the retry is an UPDATE to the paper that already exists.
+ *
+ * Observable: with saveAssessmentQuestions rejecting, a second autosave cycle
+ * calls createAssessment exactly once in total and routes the retry through
+ * updateAssessmentWithQuestions against the id from the first create.
+ */
+describe('AssessmentStudio — failed question write does not duplicate the paper', () => {
+  const importedPaper = {
+    sections: [],
+    questions: [
+      {
+        type: 'mcq',
+        question: 'What is 2 + 2?',
+        options: ['3', '4', '5', '6'],
+        correctAnswer: 1,
+        marks: 1,
+      },
+    ],
+    imageAssets: [],
+    quiz: {
+      title: 'Imported Paper',
+      grade: '4',
+      subject: 'Mathematics',
+      sourceFileName: 'stub.pdf',
+      sourceContentType: 'application/pdf',
+    },
+    importStatus: 'ok',
+    warnings: [],
+    summary: {},
+    scanned: false,
+    smartApplied: false,
+    pageImageUrls: {},
+    parts: [],
+  }
+
+  beforeEach(() => {
+    mockParams = {}
+    mockImportQuizDocument.mockResolvedValue(importedPaper)
+    mockCreateAssessment.mockResolvedValue('created-paper-1')
+    // The failure this whole regression is about: the parent doc is written,
+    // the question batch is rejected.
+    mockSaveAssessmentQuestions.mockRejectedValue(new Error('permission-denied'))
+    mockUpdateAssessmentWithQuestions.mockResolvedValue([])
+  })
+
+  it('claims the created id before the question write, so a retry updates instead of re-creating', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      renderStudioFresh('test')
+      fireEvent.click(screen.getByRole('button', { name: 'stub-new-paper' }))
+      await waitFor(() => expect(screen.getByTestId('builder-view')).toBeInTheDocument())
+
+      // Seed a real question so the library autosave gate opens
+      // (shouldAutosaveToLibrary requires questionCount > 0 + libraryDirty).
+      fireEvent.click(screen.getByRole('button', { name: 'stub-import-doc' }))
+      await waitFor(() => expect(mockImportQuizDocument).toHaveBeenCalledTimes(1))
+
+      // First autosave: creates the parent, then the question batch rejects.
+      await vi.advanceTimersByTimeAsync(2500)
+      await waitFor(() => expect(mockCreateAssessment).toHaveBeenCalledTimes(1))
+      await waitFor(() => expect(mockSaveAssessmentQuestions).toHaveBeenCalledTimes(1))
+
+      // A further edit re-arms the debounced autosave (this is the keystroke
+      // that used to mint orphan #2). The paper now holds work, so the import
+      // goes through the "Replace current questions?" confirmation first.
+      fireEvent.click(screen.getByRole('button', { name: 'stub-import-doc' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Replace questions' }))
+      await waitFor(() => expect(mockImportQuizDocument).toHaveBeenCalledTimes(2))
+      await vi.advanceTimersByTimeAsync(2500)
+
+      // The retry is an UPDATE to the paper that already exists…
+      await waitFor(() =>
+        expect(mockUpdateAssessmentWithQuestions).toHaveBeenCalledWith(
+          'created-paper-1',
+          expect.any(Object),
+          expect.any(Array),
+          expect.any(Array),
+        ),
+      )
+      // …and no second paper was ever created.
+      expect(mockCreateAssessment).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
+/*
+ * Load-failure regression — a dropped questions read must not present as an
+ * empty (or deleted) paper.
+ *
+ * Root cause: getAssessmentQuestions (useFirestore.js) swallows read failures
+ * and returns []. The edit-route effect hydrated that as a real paper, set
+ * savedToLibrary(true), and the next autosave wrote questionCount: 0 and
+ * totalMarks: 0 over the real values — a 40-question exam emptied on screen.
+ *
+ * Fix: a paper whose questionCount > 0 that yields zero questions is a failed
+ * read, not an empty paper. It gets its own error state, with copy that says
+ * the questions are safe and a way to retry.
+ */
+describe('AssessmentStudio — questions read failure (load-failed state)', () => {
+  beforeEach(() => {
+    mockParams = { paperId: 'paper-1' }
+  })
+
+  it('shows a retryable load-failed state instead of hydrating an empty paper', async () => {
+    mockGetAssessmentById.mockResolvedValue({
+      id: 'paper-1', title: 'Term 2 Exam', createdBy: 'owner-1', questionCount: 40,
+    })
+    mockGetAssessmentQuestions.mockResolvedValue([])   // swallowed read failure
+
+    render(<MemoryRouter><AssessmentStudio /></MemoryRouter>)
+
+    expect(await screen.findByText(/Couldn't open this assessment paper/)).toBeInTheDocument()
+    expect(screen.getByText(/Your questions are safe/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+    // Never the "deleted" copy — a teacher told their exam is gone rebuilds it.
+    expect(screen.queryByText(/has been deleted/)).not.toBeInTheDocument()
+    // The builder must not mount, so no autosave can overwrite the counts.
+    expect(screen.queryByTestId('builder-view')).not.toBeInTheDocument()
+  })
+
+  it('a genuinely empty paper (questionCount 0) still opens in the builder', async () => {
+    mockGetAssessmentById.mockResolvedValue({
+      id: 'paper-1', title: 'Fresh Paper', createdBy: 'owner-1', questionCount: 0,
+    })
+    mockGetAssessmentQuestions.mockResolvedValue([])
+
+    render(<MemoryRouter><AssessmentStudio /></MemoryRouter>)
+
+    await waitFor(() => expect(screen.getByTestId('builder-view')).toBeInTheDocument())
+    expect(screen.queryByText(/Couldn't open this/)).not.toBeInTheDocument()
   })
 })

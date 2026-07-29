@@ -10,6 +10,7 @@ import app, { auth, getAppCheckToken } from '../firebase/config'
 import { apiUrl, isNativePlatform } from './runtime'
 import { LEARNING_ENVIRONMENTS } from '../config/learningEnvironments'
 import { TEACHER_GRADES, TEACHER_SUBJECTS } from '../config/teacherTaxonomy'
+import { friendlyMessage, friendlyTemplate } from './friendlyErrors'
 
 // Re-exported so existing `import { TEACHER_GRADES } from './teacherTools'`
 // callers keep working. The canonical definitions live in the pure,
@@ -221,11 +222,19 @@ export const RUBRIC_CRITERIA_COUNTS = [
   { value: 6, label: '6 criteria' },
 ]
 
-function messageFromError(error) {
+// Every teacher-facing generator routes its failures through here, so this is
+// the one place that decides what a teacher reads when something breaks. Two
+// constraints: never surface a Firebase code or a developer instruction, and
+// never name a tool the teacher isn't using.
+//
+// `label` is the human noun for the thing being generated ('worksheet',
+// 'scheme of work'). It defaults to the generic wording so a call site that
+// doesn't pass one still reads correctly.
+function messageFromError(error, label = 'document') {
   const code = error?.code || ''
   const detail = error?.message || ''
   if (code.includes('unauthenticated')) {
-    return 'Please sign in to generate a lesson plan.'
+    return `Please sign in to generate a ${label}.`
   }
   if (code.includes('permission-denied')) {
     return 'Teacher tools are available to approved teachers only. Apply to become a verified teacher to continue.'
@@ -242,7 +251,21 @@ function messageFromError(error) {
   if (code.includes('invalid-argument')) {
     return detail || 'Please check your inputs and try again.'
   }
-  return detail || 'The lesson plan generator is unavailable right now. Please try again.'
+  // Timeouts — ours (`client-timeout`) and the callable's
+  // (`deadline-exceeded`). On Zambian mobile data these are the NORMAL failure
+  // mode, and they used to surface either our own deploy checklist or the bare
+  // string "deadline-exceeded". Both take the shared friendly copy instead.
+  if (code.includes('client-timeout') || code.includes('deadline-exceeded')) {
+    return friendlyTemplate('aiTimeout').message
+  }
+  // Anything left: map real infrastructure failures (offline, 5xx, network) to
+  // calm copy rather than echoing a raw technical string. friendlyMessage falls
+  // back to our sentence only when it can't classify the error, so a genuine
+  // server-authored message still reaches the teacher.
+  return friendlyMessage(
+    error,
+    `The ${label} generator is unavailable right now. Please try again.`,
+  )
 }
 
 // Safety net — if the httpsCallable promise hasn't resolved in 130s, we
@@ -255,13 +278,22 @@ const HARD_CLIENT_TIMEOUT_MS = 130_000
 function withTimeout(promise, ms, label = 'request') {
   return new Promise((resolve, reject) => {
     const t = setTimeout(() => {
+      // The diagnostic goes to the console for us. It used to BE the rejection
+      // message, and messageFromError had no `client-timeout` branch, so every
+      // slow-connection timeout rendered our deploy checklist — secret names
+      // and all — to the teacher verbatim.
+      console.error(
+        `[zedexams] client-side timeout: ${label} did not respond within ` +
+        `${Math.round(ms / 1000)}s. Check that the Cloud Function is deployed ` +
+        `and reachable, the ANTHROPIC_API_KEY secret is set, and the caller ` +
+        `has a teacher/admin role.`,
+      )
       const err = new Error(
-        `Client-side timeout: ${label} did not respond within ${Math.round(ms / 1000)}s. ` +
-        `This usually means the Cloud Function is not deployed or not reachable. ` +
-        `Check: (1) 'firebase functions:list' includes generateLessonPlan, ` +
-        `(2) ANTHROPIC_API_KEY secret is set, (3) you are signed in as a teacher/admin.`
+        'This is taking longer than usual — your connection may be slow. ' +
+        'Please wait a moment and try again.',
       )
       err.code = 'client-timeout'
+      err.timeoutLabel = label
       reject(err)
     }, ms)
     promise
@@ -295,7 +327,7 @@ export async function generateRubric(inputs) {
     )
     return {
       ok: false,
-      error: messageFromError(error),
+      error: messageFromError(error, 'rubric'),
       code: error?.code || 'unknown',
       rawMessage: error?.message || '',
     }
@@ -327,7 +359,7 @@ export async function generateSchemeOfWork(inputs) {
     )
     return {
       ok: false,
-      error: messageFromError(error),
+      error: messageFromError(error, 'scheme of work'),
       code: error?.code || 'unknown',
       rawMessage: error?.message || '',
     }
@@ -351,7 +383,7 @@ export async function getTermModuleOutline({ grade, subject, term }) {
   } catch (error) {
     return {
       ok: false,
-      error: messageFromError(error),
+      error: messageFromError(error, 'term outline'),
       code: error?.code || 'unknown',
     }
   }
@@ -382,7 +414,7 @@ export async function generateFlashcards(inputs) {
     )
     return {
       ok: false,
-      error: messageFromError(error),
+      error: messageFromError(error, 'flashcard set'),
       code: error?.code || 'unknown',
       rawMessage: error?.message || '',
     }
@@ -414,7 +446,7 @@ export async function generateWorksheet(inputs) {
     )
     return {
       ok: false,
-      error: messageFromError(error),
+      error: messageFromError(error, 'worksheet'),
       code: error?.code || 'unknown',
       rawMessage: error?.message || '',
     }
@@ -446,7 +478,7 @@ export async function generateNotes(inputs) {
     )
     return {
       ok: false,
-      error: messageFromError(error),
+      error: messageFromError(error, 'set of notes'),
       code: error?.code || 'unknown',
       rawMessage: error?.message || '',
     }
@@ -520,7 +552,7 @@ function runStreamingGenerator({
         }
       } catch (err) {
         if (!cancelled) {
-          onError?.(new Error(messageFromError(err)))
+          onError?.(new Error(messageFromError(err, 'worksheet')))
         }
       }
     })()
@@ -533,7 +565,7 @@ function runStreamingGenerator({
       token = await auth.currentUser?.getIdToken()
       if (!token) throw new Error('Please sign in before generating.')
     } catch (err) {
-      onError?.(new Error(messageFromError(err)))
+      onError?.(new Error(messageFromError(err, 'worksheet')))
       return
     }
 
@@ -565,7 +597,7 @@ function runStreamingGenerator({
         const result = await callableFallback(inputs)
         if (!cancelled) onResult?.(result.data)
       } catch (fallbackErr) {
-        if (!cancelled) onError?.(new Error(messageFromError(fallbackErr)))
+        if (!cancelled) onError?.(new Error(messageFromError(fallbackErr, 'worksheet')))
       }
       return
     }
@@ -673,7 +705,7 @@ export async function generateLessonPlan(inputs) {
     )
     return {
       ok: false,
-      error: messageFromError(error),
+      error: messageFromError(error, 'lesson plan'),
       code: error?.code || 'unknown',
       rawMessage: error?.message || '',
     }
@@ -708,7 +740,7 @@ export async function generateHomework(inputs) {
     )
     return {
       ok: false,
-      error: messageFromError(error),
+      error: messageFromError(error, 'homework'),
       code: error?.code || 'unknown',
       rawMessage: error?.message || '',
     }
@@ -746,7 +778,7 @@ export async function generateAssessment(inputs) {
     )
     return {
       ok: false,
-      error: messageFromError(error),
+      error: messageFromError(error, 'paper'),
       code: error?.code || 'unknown',
       rawMessage: error?.message || '',
       // Structured quota context (e.g. { reason: 'max-only' }) so studios can
@@ -780,7 +812,7 @@ export async function planAssessment(inputs) {
       Date.now() - startedAt, 'ms', { code: error?.code, message: error?.message })
     return {
       ok: false,
-      error: messageFromError(error),
+      error: messageFromError(error, 'paper plan'),
       code: error?.code || 'unknown',
       rawMessage: error?.message || '',
       details: error?.details || null,
@@ -811,7 +843,7 @@ export async function regenerateAssessmentQuestion(inputs) {
       Date.now() - startedAt, 'ms', { code: error?.code, message: error?.message })
     return {
       ok: false,
-      error: messageFromError(error),
+      error: messageFromError(error, 'question'),
       code: error?.code || 'unknown',
       rawMessage: error?.message || '',
       details: error?.details || null,
@@ -847,7 +879,7 @@ export async function generateSbaTask(inputs) {
     )
     return {
       ok: false,
-      error: messageFromError(error),
+      error: messageFromError(error, 'SBA task'),
       code: error?.code || 'unknown',
       rawMessage: error?.message || '',
     }
@@ -882,7 +914,7 @@ export async function generateQuiz(inputs) {
     )
     return {
       ok: false,
-      error: messageFromError(error),
+      error: messageFromError(error, 'quiz'),
       code: error?.code || 'unknown',
       rawMessage: error?.message || '',
     }

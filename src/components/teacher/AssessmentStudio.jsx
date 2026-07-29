@@ -1167,6 +1167,14 @@ export default function AssessmentStudio() {
         if (!isAdmin && assessment.createdBy !== currentUser.uid) {
           setEditError('denied'); setEditLoading(false); return
         }
+        // The paper says it has questions but none came back. getAssessmentQuestions
+        // swallows read failures and returns [], so this is a failed/partial read,
+        // not an empty paper. Hydrating it would show a blank exam and — worse —
+        // the next autosave would write questionCount:0 and totalMarks:0 over the
+        // real values. Fail loudly; the question subdocs themselves are intact.
+        if (assessment.questionCount > 0 && questions.length === 0) {
+          setEditError('loadfailed'); setEditLoading(false); return
+        }
         setForm(current => ({ ...current, ...mapAssessmentToForm(assessment) }))
         // §6 — a paper saved with its choices baked into the stem AND stored
         // separately prints them twice. Repaired on read rather than by a
@@ -2379,18 +2387,22 @@ export default function AssessmentStudio() {
       applyAssignedIds(idMap)
     } else {
       const newAssessmentId = await createAssessment({ ...assessmentPayload, createdBy: currentUser.uid })
+      // Claim the id BEFORE anything that can throw. The parent doc now exists,
+      // so from here on every save of this paper must be an UPDATE to it.
+      // saveAssessmentQuestions below rejects on a Zod failure
+      // (questionWritePayload.js) or a validQuestionFields() rules rejection;
+      // when it did, this assignment was skipped, the ref stayed null, and the
+      // 2s debounced autosave minted a brand-new orphan paper on the very next
+      // keystroke — repeatedly. Entry is single-flight (callers gate on the
+      // saving/exporting flags), so this plain ref write isn't actually racy.
+      // eslint-disable-next-line require-atomic-updates
+      createdIdRef.current = newAssessmentId
       const idMap = await saveAssessmentQuestions(newAssessmentId, questionsForSave)
       // The Studio keeps editing THIS paper in place after the create, so the
       // create path must patch ids back too — otherwise the first post-create
       // autosave takes the update branch with every question still `_id:null`
       // and re-inserts all 30. This is the exact origin of the reported bug.
       applyAssignedIds(idMap)
-      // Remember the id so later saves/downloads in this session update the
-      // same doc instead of creating duplicates while still on /new. Entry is
-      // single-flight (callers gate on the saving/exporting flags), so this
-      // plain ref write isn't actually racy.
-      // eslint-disable-next-line require-atomic-updates
-      createdIdRef.current = newAssessmentId
       // The freshly-created paper now owns its questions; clear the
       // new-paper draft so it doesn't resurrect on the next visit.
       clearAssessmentDraft(currentUser.uid)
@@ -3059,24 +3071,47 @@ export default function AssessmentStudio() {
 
   if (isEditing && editError) {
     const notFound = editError === 'notfound'
+    // The questions read failed — this paper is intact, we just couldn't fetch
+    // it. Never reuse the "deleted" copy here: a teacher told their 40-question
+    // exam is gone will rebuild it rather than retry.
+    const loadFailed = editError === 'loadfailed'
     return (
       <div className="studio-v2">
         <SeoHelmet title={`Edit ${cfg.noun}`} noIndex />
         <div className="theme-text py-20 text-center">
-          <div className="mb-3 text-5xl" aria-hidden="true">🔒</div>
-          <h2 className="text-display-xl theme-text mb-2">{notFound ? `${cfg.Noun} not found` : 'Access denied'}</h2>
+          <div className="mb-3 text-5xl" aria-hidden="true">{loadFailed ? '📶' : '🔒'}</div>
+          <h2 className="text-display-xl theme-text mb-2">
+            {loadFailed
+              ? `Couldn't open this ${cfg.noun}`
+              : notFound ? `${cfg.Noun} not found` : 'Access denied'}
+          </h2>
           <p className="theme-text-muted text-body mb-5">
-            {notFound
-              ? `This ${cfg.noun} does not exist or has been deleted.`
-              : `You can only edit ${cfg.nounPlural} you created.`}
+            {loadFailed
+              ? `Your questions are safe — the connection dropped while loading them. Check your internet and try again.`
+              : notFound
+                ? `This ${cfg.noun} does not exist or has been deleted.`
+                : `You can only edit ${cfg.nounPlural} you created.`}
           </p>
-          <button
-            type="button"
-            onClick={() => navigate(cfg.routeBase)}
-            className="theme-accent-fill theme-on-accent rounded-xl px-6 py-2.5 text-sm font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md"
-          >
-            ← Back to {cfg.nounPlural}
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            {loadFailed ? (
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="theme-accent-fill theme-on-accent rounded-xl px-6 py-2.5 text-sm font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md"
+              >
+                Try again
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => navigate(cfg.routeBase)}
+              className={loadFailed
+                ? 'sv-btn sv-btn-outline'
+                : 'theme-accent-fill theme-on-accent rounded-xl px-6 py-2.5 text-sm font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md'}
+            >
+              ← Back to {cfg.nounPlural}
+            </button>
+          </div>
         </div>
       </div>
     )
