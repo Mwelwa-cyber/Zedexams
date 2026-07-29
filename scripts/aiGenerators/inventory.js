@@ -307,6 +307,22 @@ export const INVENTORY = Object.freeze([
     produces: 'Structured notes from an uploaded document',
     incompleteResultSaveable: true,
   }),
+  g('functions/classList/extractClassList.js', {
+    tier: 4,
+    state: 'unmigrated',
+    entryPoint: 'extractClassListPages (callable)',
+    clientSurface: 'Class List — capture the pages of a written register',
+    produces: 'Learner rows read from photographed class-list pages',
+    // Nothing this call produces is written by the server: the rows go back
+    // to the browser for a compulsory review and are saved from there. So a
+    // duplicated call costs a second reading of the same pages and nothing
+    // else — no duplicate learners, no duplicate documents. It is a real
+    // charge to a teacher's daily allowance, which is why it is inventoried,
+    // but it is the least damaging duplicate in this table.
+    incompleteResultSaveable: false,
+    note: 'Writes nothing. A duplicate call re-reads the same pages and the '
+      + 'teacher reviews one set of rows either way.',
+  }),
 
   // ── Tier 5 · images and figures ───────────────────────────────────────
   g('functions/teacherTools/generateDiagram.js', {

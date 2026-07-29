@@ -27,21 +27,24 @@
  */
 
 import { parseCsv } from './csvQuizImport.js'
+import { LEARNER_STATUS_VALUES } from './learnerStatus.js'
 
 // ── Canonical CSV template ───────────────────────────────────────
 
 export const ROSTER_HEADERS = [
   'learnerNumber',
+  'admissionNumber',
   'fullName',
   'gender',
   'parentPhone',
+  'admissionDate',
   'status',
 ]
 
 const TEMPLATE_EXAMPLE_ROWS = [
-  ['1', 'Mary Banda', 'F', '0977123456', 'active'],
-  ['2', 'John Phiri', 'M', '', 'active'],
-  ['3', 'Grace Mwale', 'F', '0966555444', 'transferred'],
+  ['1', 'ADM-001', 'Mary Banda', 'F', '0977123456', '2026-01-12', 'active'],
+  ['2', 'ADM-002', 'John Phiri', 'M', '', '2026-01-12', 'active'],
+  ['3', 'ADM-003', 'Grace Mwale', 'F', '0966555444', '2026-05-04', 'transferred'],
 ]
 
 function encodeCsvRow(values) {
@@ -62,7 +65,14 @@ export function buildRosterCsvTemplate() {
 // ── Field normalisers ────────────────────────────────────────────
 
 export const GENDERS = ['M', 'F', 'other']
-export const ROSTER_STATUSES = ['active', 'transferred', 'inactive']
+
+/**
+ * The enrolment-status vocabulary, owned by ./learnerStatus.js. Re-exported
+ * here because the importer and the schema were written against this name; the
+ * list itself is declared once, so widening it does not have to be remembered
+ * in two files.
+ */
+export const ROSTER_STATUSES = LEARNER_STATUS_VALUES
 
 /** M/Male/Boy → 'M'; F/Female/Girl → 'F'; explicit other → 'other'; blank → null. */
 export function normalizeGender(raw) {
@@ -73,14 +83,67 @@ export function normalizeGender(raw) {
   return 'other'
 }
 
-/** active/transferred/inactive (with synonyms); blank → 'active'. */
+/**
+ * One of LEARNER_STATUS_VALUES, from whatever a teacher wrote in the column;
+ * blank → 'active'. An unrecognised word reads as 'active' rather than being
+ * rejected: a class list is imported to get learners onto the register, and
+ * the worst outcome of guessing here is a learner who is expected in class and
+ * is not, which the teacher sees on the very first day and can correct.
+ */
 export function normalizeStatus(raw) {
   const k = String(raw ?? '').trim().toLowerCase()
   if (!k) return 'active'
-  if (['active', 'present', 'enrolled', 'a'].includes(k)) return 'active'
+  if (['active', 'present', 'enrolled', 'enroled', 'a'].includes(k)) return 'active'
   if (['transferred', 'transfer', 'moved', 'left', 't'].includes(k)) return 'transferred'
-  if (['inactive', 'dropped', 'withdrawn', 'absent', 'i'].includes(k)) return 'inactive'
+  if (['inactive', 'dropped', 'withdrawn', 'withdrew', 'absent', 'i', 'w'].includes(k)) return 'withdrawn'
+  if (['graduated', 'graduate', 'completed', 'g'].includes(k)) return 'graduated'
+  if (['deceased', 'died', 'late'].includes(k)) return 'deceased'
   return 'active'
+}
+
+/**
+ * A date a teacher typed, as 'YYYY-MM-DD', or null.
+ *
+ * Zambian school paperwork is written day-first, so an ambiguous 03/04/2026 is
+ * read as 3 April — the opposite of the JS Date default, which would silently
+ * file a third of every class list under the wrong month. Only an unambiguous
+ * ISO string (or a first component above 12) is read any other way.
+ */
+export function normalizeAdmissionDate(raw) {
+  const s = String(raw ?? '').trim()
+  if (!s) return null
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s)
+  if (iso) return isoOrNull(Number(iso[1]), Number(iso[2]), Number(iso[3]))
+  const parts = /^(\d{1,4})[/.\-\s](\d{1,2})[/.\-\s](\d{2,4})$/.exec(s)
+  if (!parts) return null
+  const [, a, b, c] = parts
+  // yyyy/mm/dd when the first component is a full year.
+  if (a.length === 4) return isoOrNull(Number(a), Number(b), Number(c))
+  const year = c.length === 2 ? 2000 + Number(c) : Number(c)
+  // dd/mm/yyyy unless the first component cannot be a day-of-month.
+  if (Number(a) > 12) return isoOrNull(year, Number(b), Number(a))
+  return isoOrNull(year, Number(b), Number(a))
+}
+
+function isoOrNull(year, month, day) {
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) return null
+  if (!Number.isInteger(month) || month < 1 || month > 12) return null
+  if (!Number.isInteger(day) || day < 1 || day > 31) return null
+  const d = new Date(Date.UTC(year, month - 1, day))
+  // Rejects 31 April rather than rolling it forward into May.
+  if (d.getUTCMonth() !== month - 1 || d.getUTCDate() !== day) return null
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+/**
+ * An admission number as the school writes it, upper-cased with inner runs of
+ * whitespace collapsed. Punctuation is KEPT — "ADM/2026/014" and "ADM-001" are
+ * how Zambian schools actually number learners, and stripping it would make
+ * two genuinely different learners compare equal.
+ */
+export function normalizeAdmissionNumber(raw) {
+  const s = String(raw ?? '').trim().replace(/\s+/g, ' ').toUpperCase()
+  return s ? s.slice(0, 40) : null
 }
 
 /** Keep a leading '+' and digits; collapse spaces. Returns null when empty. */
@@ -93,11 +156,20 @@ export function normalizePhone(raw) {
 
 // ── Header detection + column mapping ────────────────────────────
 
+// Admission number is matched BEFORE learner number, and learner number no
+// longer answers to "Adm No." — the two are different facts about a learner
+// (position in the list vs. the school's permanent identifier for them) and
+// collapsing them meant a class list carrying both lost one of them. A file
+// whose only numeric column is headed "Adm No." therefore lands in
+// admissionNumber, which is where the register, the duplicate check and the
+// printed page all look for it.
 const HEADER_PATTERNS = {
-  learnerNumber: /^(learner\s*(no\.?|number)?|no\.?|sn|s\/n|#|number|index|adm(ission)?\s*(no\.?)?)$/i,
+  admissionNumber: /^(adm(ission)?\s*(no\.?|number|#)?|admission|reg(istration)?\s*(no\.?|number)?|pupil\s*(no\.?|number)|student\s*(no\.?|id)|nrc)$/i,
+  learnerNumber: /^(learner\s*(no\.?|number)?|no\.?|sn|s\/n|#|number|index|position)$/i,
   fullName: /^(full\s*name|name|pupil(\s*name)?|learner\s*name|student(\s*name)?)$/i,
   gender: /^(gender|sex|m\/f)$/i,
   parentPhone: /^(parent\s*phone|phone|contact|mobile|guardian(\s*phone)?|parent(\s*contact)?|cell)$/i,
+  admissionDate: /^(admission\s*date|date\s*(of\s*)?admi(tted|ssion)|date\s*joined|joined(\s*on)?|enrol(l)?ed(\s*on)?)$/i,
   status: /^(status|state|enrol(l)?ment)$/i,
 }
 
@@ -176,12 +248,23 @@ export function rowToRosterEntry(cells, mapping, { bareName = false } = {}) {
 
   const parentPhone = normalizePhone(cellAt(cells, mapping.parentPhone))
   const status = normalizeStatus(cellAt(cells, mapping.status))
+  const admissionNumber = normalizeAdmissionNumber(cellAt(cells, mapping.admissionNumber))
+
+  const admissionDateRaw = cellAt(cells, mapping.admissionDate)
+  const admissionDate = normalizeAdmissionDate(admissionDateRaw)
+  // A date we could not read is reported, never guessed at — an admission date
+  // is what decides which register days show N/A for this learner.
+  if (admissionDateRaw && !admissionDate) {
+    warnings.push(`Admission date "${admissionDateRaw}" could not be read — left blank`)
+  }
 
   const entry = {
     learnerNumber: learnerNumber || '',
+    admissionNumber,
     fullName,
     gender,
     parentPhone,
+    admissionDate,
     status,
   }
   const computedStatus = errors.length ? 'error' : (warnings.length ? 'warning' : 'ok')
@@ -277,20 +360,30 @@ export function rosterNameKey(name) {
 export function partitionNewRosterEntries(entries, existing = []) {
   const seenNames = new Set()
   const seenUids = new Set()
+  const seenAdmission = new Set()
   for (const e of (Array.isArray(existing) ? existing : [])) {
     const k = rosterNameKey(e?.fullName)
     if (k) seenNames.add(k)
     if (e?.linkedUid) seenUids.add(e.linkedUid)
+    const adm = normalizeAdmissionNumber(e?.admissionNumber)
+    if (adm) seenAdmission.add(adm)
   }
   const fresh = []
   let duplicates = 0
   for (const entry of (Array.isArray(entries) ? entries : [])) {
     const uid = entry?.linkedUid || null
     const nameKey = rosterNameKey(entry?.fullName)
-    const isDup = (uid && seenUids.has(uid)) || (nameKey && seenNames.has(nameKey))
+    // An admission number is the school's own identifier, so it is the
+    // strongest signal available here — two rows carrying the same one are the
+    // same learner even when the name was spelled differently on each page.
+    const adm = normalizeAdmissionNumber(entry?.admissionNumber)
+    const isDup = (uid && seenUids.has(uid))
+      || (adm && seenAdmission.has(adm))
+      || (nameKey && seenNames.has(nameKey))
     if (isDup) { duplicates += 1; continue }
     if (uid) seenUids.add(uid)
     if (nameKey) seenNames.add(nameKey)
+    if (adm) seenAdmission.add(adm)
     fresh.push(entry)
   }
   return { fresh, duplicates }

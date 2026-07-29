@@ -82,18 +82,67 @@ async function nextOrder(classId) {
 
 // ── Writes ───────────────────────────────────────────────────────
 
-export async function addRosterEntry(classId, teacherUid, entry) {
-  const payload = rosterEntryWriteSchema.parse({
+/**
+ * A learner's permanent identity, minted once and carried onto every later
+ * enrolment (Grade 4A/2026 → Grade 5A/2027). It is deliberately NOT the
+ * enrolment document's id: the enrolment changes every year and the learner
+ * does not, and joining a child's history across years is the whole point.
+ *
+ * `crypto.randomUUID` is available in every browser this app supports and on
+ * Node 19+; the fallback exists so the module can be imported by a script or a
+ * test runner without one.
+ */
+export function mintLearnerId() {
+  const uuid = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+  return `lrn_${uuid}`
+}
+
+/**
+ * Shape one learner for a write. Kept in one place because five callers add
+ * learners — the form, the paste, the file import, the capture review and the
+ * account import — and a field one of them forgets is a field that silently
+ * never reaches half the class list.
+ *
+ * `admissionDate` and `joinedClassOn` are written TOGETHER: the teacher fills
+ * in one date and the attendance calculator reads the other, so keeping them
+ * in step here means the register shows N/A before a learner joined without
+ * anyone having filled in a second field.
+ */
+function toRosterPayload(classId, teacherUid, entry, order) {
+  const admissionDate = entry.admissionDate ?? entry.joinedClassOn ?? null
+  return rosterEntryWriteSchema.parse({
     classId,
     teacherUid,
+    learnerId: entry.learnerId ?? mintLearnerId(),
     learnerNumber: entry.learnerNumber ?? '',
+    admissionNumber: entry.admissionNumber ?? null,
     fullName: entry.fullName,
     gender: entry.gender ?? null,
+    dateOfBirth: entry.dateOfBirth ?? null,
     parentPhone: entry.parentPhone ?? null,
     status: entry.status ?? 'active',
+    admissionDate,
+    joinedClassOn: entry.joinedClassOn ?? admissionDate,
+    leftClassOn: entry.leftClassOn ?? null,
+    previousSchool: entry.previousSchool ?? null,
+    leavingReason: entry.leavingReason ?? null,
+    destinationSchool: entry.destinationSchool ?? null,
     linkedUid: entry.linkedUid ?? null,
-    order: entry.order ?? await nextOrder(classId),
+    order,
+    needsReview: entry.needsReview === true,
+    reviewReasons: Array.isArray(entry.reviewReasons) ? entry.reviewReasons : [],
+    source: entry.source ?? 'manual',
+    importSessionId: entry.importSessionId ?? null,
   })
+}
+
+export async function addRosterEntry(classId, teacherUid, entry) {
+  const payload = toRosterPayload(
+    classId, teacherUid, entry,
+    entry.order ?? await nextOrder(classId),
+  )
   const now = serverTimestamp()
   const ref = await addDoc(rosterCol(classId), { ...payload, createdAt: now, updatedAt: now })
   await recountRegister(classId)
@@ -130,6 +179,10 @@ export async function bulkAddRoster(classId, teacherUid, entries) {
   const existing = existingDocs.map((data) => ({
     fullName: data.fullName,
     linkedUid: data.linkedUid || null,
+    // The school's own identifier is the strongest duplicate signal there is,
+    // so a re-import cannot double a class just because a name was spelled
+    // differently on the second file.
+    admissionNumber: data.admissionNumber || null,
   }))
   const { fresh, duplicates } = partitionNewRosterEntries(entries, existing)
   const start = existingDocs.reduce((max, data) => Math.max(max, Number(data.order) || 0), 0) + 1
@@ -145,17 +198,7 @@ export async function bulkAddRoster(classId, teacherUid, entries) {
     chunk.forEach((entry, j) => {
       let payload
       try {
-        payload = rosterEntryWriteSchema.parse({
-          classId,
-          teacherUid,
-          learnerNumber: entry.learnerNumber ?? '',
-          fullName: entry.fullName,
-          gender: entry.gender ?? null,
-          parentPhone: entry.parentPhone ?? null,
-          status: entry.status ?? 'active',
-          linkedUid: entry.linkedUid ?? null,
-          order: start + i + j,
-        })
+        payload = toRosterPayload(classId, teacherUid, entry, start + i + j)
       } catch {
         skipped += 1
         return

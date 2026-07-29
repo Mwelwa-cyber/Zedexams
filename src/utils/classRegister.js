@@ -63,13 +63,20 @@ export async function createRegister({ teacherUid, fields }) {
   const payload = classRegisterWriteSchema.parse({
     className: fields.className,
     grade: fields.grade,
+    stream: fields.stream ?? null,
+    // Deprecated on the class (§13, §7) — a new class writes neither, and the
+    // empty/null default is what the schema already expects. Passed through
+    // only so an EDIT of an older class can hand back the value it arrived
+    // with instead of dropping it. See ClassRegisterEditor.
     term: fields.term ?? '',
     year: fields.year,
     school: fields.school ?? null,
+    classTeacherName: fields.classTeacherName ?? null,
+    classTeacherUid: fields.classTeacherUid ?? null,
     subject: fields.subject ?? null,
     curriculum: fields.curriculum ?? null,
     teacherUid,
-    status: 'active',
+    status: fields.status === 'archived' ? 'archived' : 'active',
     learnerCount: 0,
   })
   const now = serverTimestamp()

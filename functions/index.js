@@ -237,6 +237,10 @@ const {runNoteInsights} = require("./noteInsights");
 const {runGenerateNoteSmart} = require("./noteSmart");
 // Notes document import — AI structuring (text → study blocks) and OCR (scanned pages → text).
 const {runNoteImport, runNoteOcr} = require("./noteImport");
+const {
+  runClassListExtraction,
+  MAX_PAGES_PER_CALL: MAX_CLASS_LIST_PAGES,
+} = require("./classList/extractClassList");
 // Daily Exam auto-picker — promotes one exam paper (questionCount >= 50
 // or examOnly=true) per grade into the day's Daily Exam slot every
 // morning so the admin no longer has to click "Daily Exam" by hand for
@@ -2266,6 +2270,56 @@ exports.ocrNotePages = onCall(
     }
     await assertDailyLimit(request.auth.uid, role, "importNote");
     return runNoteOcr({
+      pages,
+      apiKey: getAnthropicApiKey(anthropicApiKey),
+      uid: request.auth.uid,
+    });
+  },
+);
+
+// Class-list capture — the client photographs the pages of a written or
+// printed class register and sends them here in batches; each call returns the
+// learner rows read from those pages, per page, with a per-row confidence.
+//
+// NOTHING IS WRITTEN. The rows go back to the browser, the teacher reviews and
+// corrects them on the import review screen, and the class list is written
+// from there. A class list is the register's source of truth for a whole year;
+// it is not something a model gets to create unattended.
+exports.extractClassListPages = onCall(
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 240,
+    memory: "1GiB",
+    enforceAppCheck: shouldEnforceAppCheck("extractClassListPages"),
+  },
+  async (request) => {
+    await assertVerifiedAuth(request);
+    await assertCallableRateLimit(request, {
+      action: "extractClassListPages",
+      userPerMin: 8,
+    });
+    recordAppCheckCallable(request, "extractClassListPages");
+    const role = await getUserRole(request.auth.uid);
+    if (!isStaffRole(role)) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only teachers and administrators can capture a class list.",
+      );
+    }
+    const pages = Array.isArray(request.data?.pages) ? request.data.pages : [];
+    if (!pages.length) {
+      throw new HttpsError("invalid-argument", "No page images were supplied.");
+    }
+    if (pages.length > MAX_CLASS_LIST_PAGES) {
+      throw new HttpsError(
+        "invalid-argument",
+        `Too many pages in one call (max ${MAX_CLASS_LIST_PAGES}). ` +
+        "Send them in batches.",
+      );
+    }
+    await assertDailyLimit(request.auth.uid, role, "captureClassList");
+    return runClassListExtraction({
       pages,
       apiKey: getAnthropicApiKey(anthropicApiKey),
       uid: request.auth.uid,

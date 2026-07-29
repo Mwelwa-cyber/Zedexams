@@ -127,6 +127,31 @@ export const DAY_CLASSIFICATIONS = {
 
 export const VALID_DAY_CLASSIFICATIONS = new Set(Object.keys(DAY_CLASSIFICATIONS));
 
+/**
+ * What each server rejection code means, in words a teacher can act on.
+ *
+ * Declared HERE rather than in attendanceService.js, which it used to share a
+ * file with: this is a table of copy with no Firestore in it, and living
+ * behind the Firestore client meant that any component wanting to show a
+ * rejection message pulled the whole Firebase SDK in behind it — including
+ * under test, where there is no config and the import throws. attendanceService
+ * re-exports it, so no caller had to change.
+ */
+export const ATTENDANCE_ERROR_MESSAGES = {
+  TERM_LOCKED: 'This term’s register is locked — ask an administrator to reopen it. Your changes are kept until then.',
+  TERM_MISMATCH: 'The selected term doesn’t match this date. Re-select the term and try again.',
+  DATE_OUTSIDE_TERM: 'This date falls outside the term, so it can’t be marked.',
+  NON_TEACHING_DAY: 'This date isn’t a teaching day (weekend, holiday or closure).',
+  FUTURE_DATE: 'This date is in the future — the register opens on the day.',
+  TEACHER_NOT_ASSIGNED: 'You’re not assigned to this class, so the server refused the change.',
+  INVALID_ATTENDANCE_STATUS: 'One of the marks had an invalid status and was refused.',
+  LEARNER_NOT_IN_CLASS: 'A learner in this change is not on the class roster.',
+  LEARNER_NOT_ELIGIBLE: 'A learner in this change was not enrolled on this date.',
+  STALE_VERSION: 'Someone else updated this day first — reviewing their changes…',
+  INVALID_ARGUMENT: 'The change couldn’t be understood by the server.',
+  NETWORK: 'No connection — the change is saved on this device and will sync when you’re back online.',
+};
+
 // Register lifecycle states for a class+term register.
 export const REGISTER_STATES = {
   draft: { id: 'draft', label: 'Draft', editable: true },
