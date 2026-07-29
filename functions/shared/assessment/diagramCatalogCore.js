@@ -494,6 +494,7 @@ function cartesian(opts) {
   const {
     xMin, xMax, yMin, yMax, W, H,
     padL = 36, padR = 22, padT = 20, padB = 34, xName = 'x', yName = 'y',
+    xStep: xStepIn = null, yStep: yStepIn = null,
   } = opts
   const ux = (W - padL - padR) / (xMax - xMin)
   const uy = (H - padT - padB) / (yMax - yMin)
@@ -503,11 +504,16 @@ function cartesian(opts) {
   const axisX = clamp(ox, padL, W - padR)
   const axisY = clamp(oy, padT, H - padB)
   const toSvg = ([gx, gy]) => [ox + gx * ux, oy - gy * uy]
+  // A single step for both axes reads well on a square-ish plane and badly on a
+  // statistical chart, where x might run 0–50 and y 0–12. Either axis may say
+  // what it needs; neither has to.
   const step = gridStep(Math.max(xMax - xMin, yMax - yMin))
+  const xStep = xStepIn || step
+  const yStep = yStepIn || step
   const inBox = ([gx, gy]) => gx >= xMin - 1e-9 && gx <= xMax + 1e-9 && gy >= yMin - 1e-9 && gy <= yMax + 1e-9
 
   let grid = '', axes = '', labels = ''
-  for (let x = Math.ceil(xMin / step) * step; x <= xMax + 1e-9; x += step) {
+  for (let x = Math.ceil(xMin / xStep) * xStep; x <= xMax + 1e-9; x += xStep) {
     const sx = toSvg([x, 0])[0]
     const zero = Math.abs(x) < 1e-9
     if (!zero) {
@@ -515,7 +521,7 @@ function cartesian(opts) {
       labels += `<text x="${f(sx)}" y="${f(axisY + 15)}" font-family="Lora,serif" font-size="10.5" text-anchor="middle" fill="${SOFT_INK}" data-axis="x">${+x.toFixed(4)}</text>`
     }
   }
-  for (let y = Math.ceil(yMin / step) * step; y <= yMax + 1e-9; y += step) {
+  for (let y = Math.ceil(yMin / yStep) * yStep; y <= yMax + 1e-9; y += yStep) {
     const sy = toSvg([0, y])[1]
     const zero = Math.abs(y) < 1e-9
     if (!zero) {
@@ -765,6 +771,130 @@ function vectorModel(p) {
     }
   }
   return { vectors, issues }
+}
+
+/* ── statistics ──────────────────────────────────────────────────────────── */
+
+/**
+ * The grouped frequency table behind a histogram, a frequency polygon and an
+ * ogive — one reading, because on paper they are three views of one table and
+ * a teacher who fixes a typo should not have to fix it three times.
+ */
+function distributionModel(p) {
+  const issues = []
+  const bounds = commaList(p.boundaries).map(Number)
+  const freqs = commaList(p.frequencies).map(Number)
+  if (bounds.length < 2 || bounds.some((n) => !Number.isFinite(n))) {
+    issues.push({ field: 'boundaries', message: 'List the class boundaries as numbers, lowest first — for example 0,10,20,30,40.' })
+  }
+  if (!freqs.length || freqs.some((n) => !Number.isFinite(n))) {
+    issues.push({ field: 'frequencies', message: 'List one frequency for each class, for example 4,9,12,5.' })
+  }
+  if (bounds.length >= 2 && freqs.length && freqs.length !== bounds.length - 1) {
+    issues.push({
+      field: 'frequencies',
+      message: `${bounds.length} boundaries make ${bounds.length - 1} classes, but you gave ${freqs.length} ${freqs.length === 1 ? 'frequency' : 'frequencies'}. There must be one for each class.`,
+    })
+  }
+  for (let i = 1; i < bounds.length; i += 1) {
+    if (bounds[i] <= bounds[i - 1]) {
+      issues.push({ field: 'boundaries', message: `The boundaries must increase: ${bounds[i]} comes after ${bounds[i - 1]}.` })
+      break
+    }
+  }
+  if (freqs.some((n) => n < 0)) {
+    issues.push({ field: 'frequencies', message: 'A frequency cannot be negative.' })
+  }
+
+  const classes = []
+  for (let i = 0; i + 1 < bounds.length && i < freqs.length; i += 1) {
+    const lower = bounds[i], upper = bounds[i + 1]
+    const width = upper - lower
+    classes.push({
+      lower, upper, width,
+      mid: (lower + upper) / 2,
+      freq: freqs[i],
+      density: width > 0 ? freqs[i] / width : 0,
+    })
+  }
+  let running = 0
+  const cumulative = classes.map((c) => { running += c.freq; return { x: c.upper, cf: running } })
+  return { bounds, freqs, classes, cumulative, total: running, issues }
+}
+
+const DISTRIBUTION_FIELDS = [
+  ['boundaries', 'Class boundaries, e.g. 0,10,20,30,40'],
+  ['frequencies', 'Frequency of each class, e.g. 4,9,12,5'],
+  ['xLabel', 'Horizontal axis label'],
+  ['yLabel', 'Vertical axis label'],
+]
+
+/** Where a cumulative-frequency curve reaches a given cf, by interpolation. */
+function readOffX(cumulative, startX, cf) {
+  let prev = { x: startX, cf: 0 }
+  for (const pt of cumulative) {
+    if (cf <= pt.cf + 1e-9) {
+      const span = pt.cf - prev.cf
+      if (span <= 0) return pt.x
+      return prev.x + ((cf - prev.cf) / span) * (pt.x - prev.x)
+    }
+    prev = pt
+  }
+  return prev.x
+}
+
+/* ── linear programming ──────────────────────────────────────────────────── */
+
+/** `2x + 3y <= 12` → `{a, b, op, c}`. The only algebra a syllabus asks for here. */
+function parseConstraint(raw) {
+  const s = String(raw ?? '').replace(/\s+/g, '').replace(/≤/g, '<=').replace(/≥/g, '>=')
+  const m = /^(.*?)(<=|>=|<|>|=)(.*)$/.exec(s)
+  if (!m) return null
+  const coeff = (side) => {
+    let a = 0, b = 0, k = 0
+    for (const chunk of side.replace(/-/g, '+-').split('+').filter(Boolean)) {
+      const co = (t) => (t === '' || t === '+' ? 1 : t === '-' ? -1 : Number(t))
+      let mm
+      if ((mm = /^(-?\d*\.?\d*)x$/.exec(chunk))) { const v = co(mm[1]); if (!Number.isFinite(v)) return null; a += v }
+      else if ((mm = /^(-?\d*\.?\d*)y$/.exec(chunk))) { const v = co(mm[1]); if (!Number.isFinite(v)) return null; b += v }
+      else if ((mm = /^(-?\d*\.?\d+)$/.exec(chunk))) { k += Number(mm[1]) }
+      else return null
+    }
+    return { a, b, k }
+  }
+  const left = coeff(m[1]), right = coeff(m[3])
+  if (!left || !right) return null
+  const a = left.a - right.a, b = left.b - right.b, c = right.k - left.k
+  if (a === 0 && b === 0) return null
+  return { a, b, op: m[2], c, strict: m[2] === '<' || m[2] === '>', text: String(raw ?? '').trim() }
+}
+
+/** Does this point satisfy the constraint? */
+function satisfies({ a, b, op, c }, [x, y], tol = 1e-9) {
+  const v = a * x + b * y
+  if (op === '=') return Math.abs(v - c) <= tol
+  if (op === '<=' || op === '<') return v <= c + tol
+  return v >= c - tol
+}
+
+/** Clip a convex polygon by one half-plane (Sutherland–Hodgman). */
+function clipHalfPlane(poly, con) {
+  if (!poly.length) return poly
+  const inside = (pt) => satisfies(con, pt, 1e-9)
+  const cross = (p1, p2) => {
+    const d1 = con.a * p1[0] + con.b * p1[1] - con.c
+    const d2 = con.a * p2[0] + con.b * p2[1] - con.c
+    const t = d1 / (d1 - d2)
+    return [p1[0] + t * (p2[0] - p1[0]), p1[1] + t * (p2[1] - p1[1])]
+  }
+  const out = []
+  for (let i = 0; i < poly.length; i += 1) {
+    const cur = poly[i], next = poly[(i + 1) % poly.length]
+    const inCur = inside(cur), inNext = inside(next)
+    if (inCur) out.push(cur)
+    if (inCur !== inNext) out.push(cross(cur, next))
+  }
+  return out
 }
 
 export const DIAGRAM_CATALOG = {

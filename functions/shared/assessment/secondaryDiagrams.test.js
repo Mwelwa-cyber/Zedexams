@@ -1,5 +1,5 @@
 /**
- * scripts/test-secondary-diagrams.mjs — the senior figures are mathematically true.
+ * The senior figures are mathematically true.
  *
  * These diagrams carry marks. A learner measures the angle in a circle-theorem
  * figure, reads the bearing off a journey, takes a value off a plotted curve
@@ -7,18 +7,28 @@
  * below are not "it rendered" — they parse the SVG that was actually drawn and
  * do the mathematics on it, the way a learner with a protractor would.
  *
- * Run: node scripts/test-secondary-diagrams.mjs
+ * It lives HERE rather than under scripts/ for a reason the coverage ratchet
+ * made plain: `functions/shared/assessment` is inside the backend coverage
+ * scope, the figures are mostly branches, and a test sitting in scripts/ runs
+ * in `test:all` but not in `functions:coverage` — so the code counted against
+ * the ratchet while its own tests did not count for it. The rule the .c8rc
+ * states is to cover the new code rather than lower the bar, and this is that.
+ *
+ * The SVG reader it uses is a test tool and stays under scripts/lib, with its
+ * own tests (`npm run test:svg-geometry`).
+ *
+ * Run: node functions/shared/assessment/secondaryDiagrams.test.js
  */
 
 import assert from 'node:assert/strict'
 import {
   DIAGRAM_CATALOG, getDiagram, renderDiagramSvg,
-} from '../functions/shared/assessment/diagramCatalogCore.js'
+} from './diagramCatalogCore.js'
 import {
-  parseSvg, select, selectOne, num, points, texts,
+  parseSvg, select, selectOne, num, texts,
   angleBetween, bearingFromNorth, dist, approx, approxPoint,
   plotFrame, assertFrameMatchesAxisLabels, graphPoints,
-} from './lib/svgGeometry.mjs'
+} from '../../../scripts/lib/svgGeometry.mjs'
 
 let passed = 0
 function test(name, fn) {
