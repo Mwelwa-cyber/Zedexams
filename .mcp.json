@@ -7,7 +7,8 @@
         "@playwright/mcp@latest"
       ],
       "env": {
-        "PLAYWRIGHT_MCP_EXECUTABLE_PATH": "${PLAYWRIGHT_MCP_EXECUTABLE_PATH:-}"
+        "PLAYWRIGHT_MCP_EXECUTABLE_PATH": "${PLAYWRIGHT_MCP_EXECUTABLE_PATH:-}",
+        "PLAYWRIGHT_MCP_CONFIG": "${PLAYWRIGHT_MCP_CONFIG:-}"
       }
     }
   }

@@ -1,0 +1,7 @@
+{
+  "browser": {
+    "launchOptions": {
+      "args": ["--ssl-version-max=tls1.2"]
+    }
+  }
+}
