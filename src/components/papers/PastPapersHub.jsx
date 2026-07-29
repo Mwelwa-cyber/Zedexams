@@ -44,6 +44,7 @@ import {
   getCachedPublishedPapers,
   loadPublishedPapers,
 } from '../../utils/pastPapers'
+import { paperQuizIsAttached } from '../../utils/pastPaperQuizStatus'
 import {
   deriveYears,
   filterPapers,
@@ -244,7 +245,10 @@ function SubjectCard({ subject, papers, saved, onToggleSave, onOpen }) {
   const [expanded, setExpanded] = useState(false)
   const { fullLabel, Icon, tile } = subjectMeta(subject)
   const single = papers.length === 1
-  const anyQuiz = papers.some((p) => p.quizId)
+  // Derived — a paper published with the Studio's Quiz step skipped can still
+  // carry an id, and badging it "Quiz" would advertise a quiz the viewer then
+  // tells the learner is still coming.
+  const anyQuiz = papers.some((p) => paperQuizIsAttached(p))
   const first = papers[0]
 
   const CardInner = (
@@ -312,7 +316,7 @@ function SubjectCard({ subject, papers, saved, onToggleSave, onOpen }) {
 // ── Compact list-style paper row (search results + subject expansion) ─
 function PaperRow({ paper, saved, onToggleSave, onOpen }) {
   const { Icon, tile, label } = subjectMeta(paper.subject)
-  const hasQuiz = Boolean(paper.quizId)
+  const hasQuiz = paperQuizIsAttached(paper)
   const specimen = isSpecimen(paper)
 
   return (

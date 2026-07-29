@@ -102,5 +102,23 @@ console.log('\nnormalizePaperFields (the pipeline)')
   const out = normalizePaperFields({ grade: '12', subject: 'english', year: 2020 })
   eq('partial-but-complete identity slugs', out.slug, 'grade-12-english-2020')
 }
+{
+  // quizStatus — the optional-quiz flow. A recognised value is canonicalised;
+  // an unrecognised one is DROPPED rather than stored, because the readers
+  // derive a status from quizId when the field is absent and that is a better
+  // answer than a persisted word no surface understands.
+  eq('quizStatus pending passes through',
+    normalizePaperFields({ quizStatus: 'pending' }).quizStatus, 'pending')
+  eq('quizStatus attached passes through',
+    normalizePaperFields({ quizStatus: 'attached' }).quizStatus, 'attached')
+  eq('quizStatus is canonicalised',
+    normalizePaperFields({ quizStatus: ' Attached ' }).quizStatus, 'attached')
+  ok('an unrecognised quizStatus is not written',
+    !('quizStatus' in normalizePaperFields({ quizStatus: 'ready' })))
+  ok('a null quizStatus is not written',
+    !('quizStatus' in normalizePaperFields({ quizStatus: null })))
+  ok('quizStatus is untouched when absent',
+    !('quizStatus' in normalizePaperFields({ title: 'x' })))
+}
 
 console.log(`\n✓ ${passed} assertions passed`)

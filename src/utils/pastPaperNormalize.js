@@ -23,6 +23,7 @@
  */
 
 import { normalizeSubject, PAPER_SUBJECTS } from '../config/curriculum.js'
+import { normalizeQuizStatus } from './pastPaperQuizStatus.js'
 
 // ── Grade ─────────────────────────────────────────────────────────────────
 /**
@@ -196,6 +197,16 @@ export function normalizePaperFields(fields = {}) {
   if ('examBoard' in out) out.examBoard = normalizeExamBoard(out.examBoard)
   if ('year' in out) out.year = normalizeYear(out.year)
   if ('paperNumber' in out) out.paperNumber = normalizePaperNumber(out.paperNumber)
+  // quizStatus ('pending' | 'attached') — the Quiz step of the Studio is
+  // optional, so a paper can go live without one. An unrecognised value is
+  // dropped from the write rather than persisted: the readers derive a status
+  // from `quizId` when the field is absent (see pastPaperQuizStatus.js), which
+  // is a better answer than a stored word nothing understands.
+  if ('quizStatus' in out) {
+    const status = normalizeQuizStatus(out.quizStatus)
+    if (status) out.quizStatus = status
+    else delete out.quizStatus
+  }
   if (out.grade && out.subject && out.year) out.slug = paperSlug(out)
   return out
 }

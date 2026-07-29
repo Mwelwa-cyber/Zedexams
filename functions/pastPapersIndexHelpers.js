@@ -15,21 +15,52 @@ const LIGHT_FIELDS = [
   "subject",
   "year",
   "quizId",
+  "quizStatus",
   "specimen",
   "examBoard",
   "paperNumber",
   "slug",
 ];
 
+/**
+ * Mirror of `derivePaperQuizStatus` in src/utils/pastPaperQuizStatus.js.
+ * Duplicated rather than imported because that module is ESM under src/ and
+ * this one is CommonJS shipped inside functions/ — see the "one copy of the
+ * rules" note in CLAUDE.md for why a synced copy would be worse than a small
+ * mirror. Kept honest by pastPapersIndex.test.js, which asserts the same
+ * cases the src-side test does.
+ *
+ * Fail-closed both ways: an unrecognised status is ignored in favour of the
+ * quizId signal, and "attached" with no id reads as pending — the index feeds
+ * the archive hub's "has a quiz" badge, and a badge on a paper with no quiz
+ * behind it is a dead link.
+ */
+function deriveQuizStatus(data) {
+  const quizId = typeof data.quizId === "string" && data.quizId.trim()
+    ? data.quizId.trim()
+    : null;
+  const stated = typeof data.quizStatus === "string"
+    ? data.quizStatus.trim().toLowerCase()
+    : null;
+  if (stated === "attached") return quizId ? "attached" : "pending";
+  if (stated === "pending") return "pending";
+  return quizId ? "attached" : "pending";
+}
+
 /** Project a pastPapers doc down to the lightweight shape the hub renders. */
 function lightEntry(id, data) {
+  const quizStatus = deriveQuizStatus(data);
   const entry = {
     id,
     title: data.title || "",
     grade: data.grade != null ? String(data.grade) : null,
     subject: data.subject || null,
     year: typeof data.year === "number" ? data.year : null,
-    quizId: data.quizId || null,
+    // A pending paper never publishes an id into the index — the hub links
+    // straight off this field, so carrying the draft quiz's id here would put
+    // a "Take quiz" button on a paper whose quiz has no questions yet.
+    quizId: quizStatus === "attached" ? data.quizId : null,
+    quizStatus,
     specimen: Boolean(data.specimen),
     examBoard: data.examBoard || "ECZ",
   };
@@ -52,4 +83,4 @@ function lightSignature(data) {
   return LIGHT_FIELDS.map((k) => JSON.stringify(data[k] ?? null)).join("|");
 }
 
-module.exports = {LIGHT_FIELDS, lightEntry, lightSignature};
+module.exports = {LIGHT_FIELDS, deriveQuizStatus, lightEntry, lightSignature};

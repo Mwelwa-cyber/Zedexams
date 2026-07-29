@@ -22,6 +22,10 @@ import { useAuth } from '../../contexts/AuthContext'
 import { hasPremiumAccess } from '../../utils/subscriptionConfig'
 import { getPaperById } from '../../utils/pastPapers'
 import {
+  LEARNER_QUIZ_PENDING_TEXT,
+  paperQuizIsAttached,
+} from '../../utils/pastPaperQuizStatus'
+import {
   FREE_QUESTION_LIMIT,
   getAnsweredCount,
   hasReachedFreeLimit,
@@ -227,8 +231,12 @@ export default function PublicQuizRunner() {
         if (cancelled) return
         if (!p) { setError('Paper not found.'); return }
         setPaper(p)
-        if (!p.quizId) {
-          setError('This paper does not have a quiz yet.')
+        // Derived, not `!p.quizId`: a paper published with the Studio's Quiz
+        // step skipped can be carrying the id of a quiz that has no questions
+        // in it yet. Nothing in the UI links here in that state, but a
+        // bookmarked or shared /quiz URL still lands on this route.
+        if (!paperQuizIsAttached(p)) {
+          setError(LEARNER_QUIZ_PENDING_TEXT)
           return
         }
         const payload = await loadPublicQuiz(p.quizId)
