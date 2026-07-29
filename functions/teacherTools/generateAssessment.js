@@ -48,6 +48,9 @@ const {assertAndIncrement, refundGeneration} = require("./usageMeter");
 const {requireAndReserveAiOperation, completeAiOperation, failAiOperation} = require("../aiOperations");
 const {FREE_PREVIEW_LIMITS} = require("./teacherPlans");
 const {clampAssessmentPreview} = require("./freePreview");
+const {
+  enforceNotation, applyPlainTextFloor,
+} = require("./notationEnforcement");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
 const {sourceAssessmentFromBank} = require("./masterBankSourcing");
 const {buildAvoidNote, mergeSourcedIntoSections} = require("./masterBankSourcingCore");
@@ -636,6 +639,43 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
   assessment = choiceCountResult.assessment;
   const choiceCountReport = choiceCountResult.report;
 
+  // MATHS NOTATION enforcement (Phase 2 §3) — the half that does not depend on
+  // the model. The prompt asks for printable markup; this notices when the
+  // model wrote "3/5" or "x^2" anyway, repairs what has exactly one reading,
+  // and flattens whatever is left to clean plain text.
+  //
+  // No model call is made here. A corrective regeneration is a stated Phase 3
+  // item (see the PR): the repair pass already fixes the overwhelmingly common
+  // violations, and spending a second full-paper call — with the answer
+  // re-verification that implies — is a cost and correctness decision that
+  // wants its own change rather than riding along with the conversion work.
+  // `needsRetry` is computed and RECORDED so the size of that remainder is
+  // known before anyone pays for it.
+  let notation = {applied: false, repaired: 0, violations: [], needsRetry: false};
+  try {
+    notation = await enforceNotation(assessment, {subject: inputs.subject});
+    if (notation.applied) {
+      const floor = await applyPlainTextFloor(assessment, {subject: inputs.subject});
+      notation.flattened = floor.flattened;
+      if (notation.repaired || notation.flattened || notation.violations.length) {
+        // Logged, not silent: notation compliance is only monitorable over
+        // time if every generation says what it had to fix.
+        console.log("[generateAssessment] notation", {
+          uid,
+          subject: inputs.subject,
+          grade: inputs.grade,
+          repaired: notation.repaired,
+          flattened: notation.flattened,
+          unresolved: notation.violations.length,
+          needsRetry: notation.needsRetry,
+        });
+      }
+    }
+  } catch (err) {
+    // A notation check must never cost a teacher the paper they were billed for.
+    console.error("[generateAssessment] notation enforcement failed", err);
+  }
+
   // Curriculum-context guard (§7–9): defence-in-depth against the model
   // echoing a DIFFERENT grade/subject/framework than the teacher selected, or
   // leaking framework-incompatible fields (CBC ↔ 2013/OBC). Input validation
@@ -670,6 +710,14 @@ async function runAssessment({uid, rawInputs, apiKey, idempotencyKey}) {
   // and the difference is what someone needs when they ask why the prompt is
   // not working. A `short` entry names a question the export gate will block.
   quality.answerChoices = choiceCountReport;
+  // What notation enforcement did to this paper, carried with the quality
+  // summary so it is visible rather than buried in a log line.
+  quality.notation = {
+    applied: notation.applied,
+    repaired: notation.repaired,
+    flattened: notation.flattened || 0,
+    unresolved: notation.violations.length,
+  };
   const totalQuestions = assessment.sections
       .reduce((sum, s) => sum + (s.questions ? s.questions.length : 0), 0);
   const sourcing = {
