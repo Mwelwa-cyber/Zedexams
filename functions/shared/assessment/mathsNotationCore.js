@@ -439,3 +439,73 @@ export function checkQuestionNotation(question) {
   }
   return { ok: fields.length === 0, fields }
 }
+
+/* ------------------------------------------------------------------ *
+ * 7. The way back — editor nodes to contract markup
+ * ------------------------------------------------------------------ */
+
+const ATTR = (html, name) => {
+  const m = new RegExp(`${name}\\s*=\\s*"([^"]*)"`).exec(html)
+  return m ? m[1] : ''
+}
+
+/**
+ * Turn the editor's node HTML back into the markup the contract declares.
+ *
+ * Needed because mathematics travels BOTH ways. A teacher saves a question to
+ * the Master Bank as structured nodes; sourcing it back into a new paper hands
+ * it to code that expects the generator's markup. The bank mapper stripped tags
+ * to get plain text — and a stacked fraction keeps its digits in ATTRIBUTES, so
+ * stripping tags did not flatten `3/5`, it deleted it. "Calculate 3/5 + 1/4"
+ * came back as "Calculate  + ", and a question whose ANSWER was a fraction was
+ * dropped from sourcing entirely, because the mapper reads an empty answer as
+ * an unusable question.
+ *
+ * Emitting markup rather than plain text is what closes the loop: the studio's
+ * converter turns it straight back into the same nodes, so a bank question
+ * round-trips instead of degrading a little on each pass.
+ */
+export function nodeHtmlToNotationMarkup(html) {
+  let s = String(html ?? '')
+  if (!s || !/<|&lt;/.test(s)) return s
+
+  // Stacked fraction / mixed number.
+  s = s.replace(/<span\b[^>]*(?:class="[^"]*math-frac[^"]*"|data-math-fraction)[^>]*>\s*<\/span>/gi,
+      (tag) => {
+        const whole = ATTR(tag, 'data-whole')
+        const num = ATTR(tag, 'data-num') || ATTR(tag, 'data-numerator')
+        const den = ATTR(tag, 'data-den') || ATTR(tag, 'data-denominator')
+        if (!num || !den) return ''
+        return `${whole ? whole : ''}\\frac{${num}}{${den}}`
+      })
+
+  // Inline KaTeX node.
+  s = s.replace(/<span\b[^>]*(?:class="[^"]*mnode[^"]*"|data-latex)[^>]*>\s*<\/span>/gi,
+      (tag) => {
+        const latex = ATTR(tag, 'data-latex') || ATTR(tag, 'data-math-latex')
+        return latex ? `$${latex}$` : ''
+      })
+
+  // Number base — no contract markup of its own, so it degrades to the
+  // subscript form the inline-maths rule already covers.
+  s = s.replace(/<span\b[^>]*(?:class="[^"]*num-base[^"]*"|data-number-base)[^>]*>\s*<\/span>/gi,
+      (tag) => {
+        const num = ATTR(tag, 'data-number')
+        const base = ATTR(tag, 'data-base')
+        if (!num) return ''
+        return base ? `$${num}_{${base}}$` : num
+      })
+
+  // Column calculation.
+  s = s.replace(/<div\b[^>]*(?:class="[^"]*vert-arith[^"]*"|data-vertical-arithmetic)[^>]*>\s*<\/div>/gi,
+      (tag) => {
+        const lines = ATTR(tag, 'data-lines').split('|').filter(Boolean)
+        if (lines.length < 2) return ''
+        const op = ATTR(tag, 'data-operator') || '+'
+        const answer = ATTR(tag, 'data-answer')
+        return `[[vmath op=${op} lines=${lines.join(',')}` +
+          `${answer ? ` answer=${answer}` : ''}]]`
+      })
+
+  return s
+}

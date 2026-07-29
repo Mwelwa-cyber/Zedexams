@@ -14,6 +14,7 @@
 const admin = require("firebase-admin");
 const {
   normalizeGrade, normalizeSubject, editorQuestionToQuiz, editorQuestionToAssessment,
+  withNotationMarkup,
   selectBankQuestions,
 } = require("./masterBankSourcingCore");
 
@@ -37,7 +38,29 @@ function parseQuestion(dataStr) {
  * assessment sourcing entry points. Returns `{candidates, scanned}`; candidates
  * carry the dedupe/balance metadata plus the mapped question under `item`.
  */
+/**
+ * The node-HTML → contract-markup converter, loaded once and cached.
+ *
+ * A dynamic import at the CJS/ESM boundary, per the repo's rule — never a
+ * top-level require of the shared package. Resolves to a pass-through if the
+ * contract cannot be loaded, so a bank scan degrades to its old behaviour
+ * rather than failing.
+ */
+let notationMarkupPromise = null;
+function loadNotationMarkup() {
+  if (!notationMarkupPromise) {
+    notationMarkupPromise = import("../shared/assessment/mathsNotationCore.js")
+        .then((m) => m.nodeHtmlToNotationMarkup)
+        .catch((err) => {
+          console.error("[masterBankSourcing] notation contract failed to load", err);
+          return (v) => v;
+        });
+  }
+  return notationMarkupPromise;
+}
+
 async function scanMasterBank({grade, subject, topic, mapFn}) {
+  const toMarkup = await loadNotationMarkup();
   const wantGrade = normalizeGrade(grade);
   const wantSubject = normalizeSubject(subject);
   const wantTopic = String(topic || "").trim().toLowerCase();
@@ -64,7 +87,9 @@ async function scanMasterBank({grade, subject, topic, mapFn}) {
       const rowTopic = String(row.topic || "").toLowerCase();
       if (!rowTopic.includes(wantTopic) && !wantTopic.includes(rowTopic)) return;
     }
-    const item = mapFn(parseQuestion(row.data));
+    // Maths nodes become contract markup BEFORE the mapper strips tags —
+    // otherwise a stacked fraction is deleted rather than flattened.
+    const item = mapFn(withNotationMarkup(parseQuestion(row.data), toMarkup));
     if (!item) return;
     candidates.push({
       fingerprint: row.fingerprint || doc.id,

@@ -60,6 +60,7 @@
     "test:maths-notation": "node functions/shared/assessment/mathsNotationCore.test.js",
     "test:maths-notation-mirror": "node scripts/test-maths-notation-mirror.mjs",
     "test:notation-enforcement": "node functions/teacherTools/notationEnforcement.test.js",
+    "test:notation-side-paths": "node functions/teacherTools/notationSidePaths.test.js",
     "test:export-gate": "node functions/shared/assessment/exportReadinessCore.test.js",
     "test:printable-model": "node src/utils/printableModel.test.js",
     "test:print-pdf-readiness": "node src/utils/printPdfReadiness.test.js",
