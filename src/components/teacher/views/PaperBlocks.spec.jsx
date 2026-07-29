@@ -1,6 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 import { PaperBlock } from './PaperBlocks.jsx'
+import { buildAssessmentDocument } from '../../../utils/assessmentDocument.js'
+import { buildPrintableHtml } from '../../../utils/assessmentToPdf.js'
 
 // Regression guard for the "test paper studio images too big" bug.
 //
@@ -181,5 +183,121 @@ describe('PaperBlocks — marking-key figure', () => {
       return spots
     }
     expect(at(false)).toEqual(at(true))
+  })
+})
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Rich paper text
+ *
+ * The preview rendered the PLAIN mirror of a question stem and its options
+ * while the PDF and Word rendered the rich HTML published beside it, so a bold
+ * word, a superscript or a stacked fraction printed correctly and previewed as
+ * flat text. A teacher proof-reading on screen could not see what they were
+ * about to hand out.
+ *
+ * These go through the real `buildAssessmentDocument` rather than hand-written
+ * blocks: the defect was that this renderer read a different FIELD of the block
+ * than the exports did, so a test that hand-builds the block chooses the answer
+ * it is meant to be checking.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+const richStem = {
+  type: 'doc',
+  content: [{
+    type: 'paragraph',
+    content: [
+      { type: 'text', text: 'The formula for water is ' },
+      { type: 'text', marks: [{ type: 'bold' }], text: 'H' },
+      { type: 'text', marks: [{ type: 'bold' }, { type: 'subscript' }], text: '2' },
+      { type: 'text', marks: [{ type: 'bold' }], text: 'O' },
+      { type: 'text', text: '. The area is 5cm' },
+      { type: 'text', marks: [{ type: 'superscript' }], text: '2' },
+    ],
+  }],
+}
+
+const fractionOption = {
+  type: 'doc',
+  content: [{
+    type: 'paragraph',
+    content: [{ type: 'mathFraction', attrs: { whole: '', num: '3', den: '4' } }],
+  }],
+}
+
+function renderPaper(question) {
+  const model = buildAssessmentDocument(
+    { title: 'T', subject: 'Integrated Science', grade: '6', questions: [] },
+    [{ id: 'q1', order: 1, type: 'mcq', marks: 2, correctAnswer: 0, ...question }],
+    { mode: 'paper' },
+  )
+  const block = model.blocks.find((b) => b.kind === 'question')
+  return { block, ...render(<PaperBlock block={block} />) }
+}
+
+describe('PaperBlocks — rich paper text', () => {
+  afterEach(cleanup)
+
+  it('keeps bold, subscript and superscript in the question stem', () => {
+    const { container } = renderPaper({ text: richStem, options: ['a', 'b', 'c', 'd'] })
+    const body = container.querySelector('.sv-qbody')
+    expect(body).toBeTruthy()
+    expect(body.querySelector('strong')).toBeTruthy()
+    expect(body.querySelector('sub').textContent).toBe('2')
+    expect(body.querySelector('sup').textContent).toBe('2')
+    // The reading order still has to be right — marked-up runs are easy to
+    // render in the wrong place.
+    expect(body.textContent).toBe('The formula for water is H2O. The area is 5cm2')
+  })
+
+  it('never prints the raw markup of a formatted stem', () => {
+    const { container } = renderPaper({ text: richStem, options: ['a', 'b', 'c', 'd'] })
+    expect(container.textContent).not.toContain('<strong>')
+    expect(container.textContent).not.toContain('"type"')
+  })
+
+  it('stacks a fraction option instead of flattening it to "34"', () => {
+    // The failure this guards is specific: the flattened markup for 3/4 is a
+    // stack of two spans, so rendering it WITHOUT the numerator/denominator
+    // styling reads as "34" — worse than the "3/4" plain text it replaced.
+    const { container } = renderPaper({ text: 'Which is largest?', options: [fractionOption, '1/2', '1/5', '1/8'] })
+    const stack = container.querySelector('.sv-opt-rich .math-frac-stack')
+    expect(stack).toBeTruthy()
+    expect(stack.querySelector('.math-frac-num').textContent).toBe('3')
+    expect(stack.querySelector('.math-frac-den').textContent).toBe('4')
+  })
+
+  it('falls back to the plain mirror when a question has no rich twin', () => {
+    // A block built by a caller that predates textHtml, or a legacy question
+    // stored as plain text. This is the path every existing paper takes.
+    const { container } = render(<PaperBlock block={{
+      kind: 'question', type: 'mcq', number: 3, marks: 1,
+      text: 'Name the largest planet.', options: [], optionsPlain: [],
+    }} />)
+    expect(container.textContent).toContain('Name the largest planet.')
+    expect(container.querySelector('.sv-qbody')).toBeNull()
+  })
+
+  it('still shows the placeholder for a question with no text at all', () => {
+    // An empty editor paragraph is not content: rendering it would replace the
+    // placeholder with a blank line, which reads as a rendering failure.
+    const { container } = render(<PaperBlock block={{
+      kind: 'question', type: 'mcq', number: 4, marks: 1,
+      text: '', textHtml: '<p></p>', options: [], optionsPlain: [],
+    }} />)
+    expect(container.textContent).toContain('(no question text)')
+  })
+
+  it('shows the teacher the same content the print window builds', () => {
+    // The two renderers reading DIFFERENT fields of the same block is the whole
+    // defect, so this asserts on the actual print HTML rather than restating
+    // what the preview does.
+    const { block, container } = renderPaper({ text: richStem, options: ['a', 'b', 'c', 'd'] })
+    const printed = buildPrintableHtml(
+      { title: 'T', subject: 'Integrated Science', grade: '6' },
+      [{ id: 'q1', order: 1, type: 'mcq', marks: 2, correctAnswer: 0, text: richStem, options: ['a', 'b', 'c', 'd'] }],
+      'paper',
+    )
+    expect(printed).toContain(block.textHtml)
+    expect(container.querySelector('.sv-qbody').innerHTML).toBe(block.textHtml)
   })
 })
