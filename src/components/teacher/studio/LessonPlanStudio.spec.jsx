@@ -121,6 +121,11 @@ vi.mock('./hooks/useAILessonCount', () => ({
   })),
 }))
 
+// The real default format options, so the stub cannot drift from the studio's
+// own shape — a hand-written literal here is how these specs kept passing while
+// the studio read fields the stub never had.
+const { initialFormatOptions } = await import('../../../utils/lessonPlanFormat.js')
+
 // Default stub for useStudioState — individual tests override via mockUseStudioState.mockReturnValueOnce()
 vi.mock('./hooks/useStudioState', () => ({
   useStudioState: () => mockUseStudioState(),
@@ -203,18 +208,12 @@ function makeStudioState(overrides = {}) {
     setLessonSeriesField: vi.fn(),
     lessonBreakdown: [],
     setLessonBreakdown: vi.fn(),
-    formatOptions: {
-      detail: 'standard', writingStyle: 'standard', format: 'modern',
-      illustrations: 'automatic',
-      advanced: {
-        compactMetadata: true, includeEnrolment: false, includeAttendance: false,
-        includeLessonEvaluation: true,
-        autoIllustrations: false, localLanguage: false,
-      },
-    },
+    formatOptions: { ...initialFormatOptions('2'), illustrations: 'automatic' },
     updateFormatOption: vi.fn(),
     setFormatOption: vi.fn(),
     setAdvancedOption: vi.fn(),
+    setSectionOption: vi.fn(),
+    setFormatOptions: vi.fn(),
     // Static generation state — tests that exercise the generate flow must use
     // renderStudioWithGeneration() so these fields are backed by real useState.
     generationStatus: 'idle',
@@ -480,15 +479,7 @@ describe('LessonPlanStudio — auto-illustration', () => {
     renderStudioWithGeneration({
       curriculumMode: 'cbc',
       topicData: { topic: 'Test', subtopic: 'Sub', subtopicRow: null },
-      formatOptions: {
-        detail: 'standard', writingStyle: 'standard', format: 'modern',
-        illustrations: 'none',
-        advanced: {
-          compactMetadata: true, includeEnrolment: false, includeAttendance: false,
-          includeLessonEvaluation: true,
-          autoIllustrations: false, localLanguage: false,
-        },
-      },
+      formatOptions: { ...initialFormatOptions('2'), illustrations: 'none' },
     })
     fireEvent.click(screen.getByTestId('trigger-generate'))
 
@@ -929,12 +920,9 @@ describe('LessonPlanStudio — local language wiring', () => {
         term: '', week: '', date: '', time: '', teacherName: '', school: '',
       },
       formatOptions: {
-        detail: 'standard', writingStyle: 'standard', format: 'modern', illustrations: 'none',
-        advanced: {
-          compactMetadata: true, includeEnrolment: false, includeAttendance: false,
-          includeLessonEvaluation: true, includeKeyVocabulary: true,
-          autoIllustrations: false, localLanguage,
-        },
+        ...initialFormatOptions('2'),
+        illustrations: 'none',
+        advanced: { ...initialFormatOptions('2').advanced, localLanguage },
       },
     }
   }
@@ -1031,18 +1019,27 @@ describe('LessonPlanStudio — Teacher Settings seeding', () => {
         rememberLastUsed: true,
         include: { reflection: false },
       },
+      // §2.6 — the teacher's last-used paper format. A teacher who wants
+      // 1-page point-form plans sets it once.
+      lessonPlanFormat: {
+        pageBudget: '1',
+        writingStyle: 'point',
+        marginMm: 10,
+        headerStyle: 'ministry',
+        environmentDisplay: 'detailed',
+      },
     },
   }
 
-  it('seeds medium, resources, detail and reflection from saved preferences', async () => {
+  it('seeds medium, resources and the saved paper format from preferences', async () => {
     const { useAuth } = await import('../../../contexts/AuthContext')
     const { getSchoolProfile } = await import('../../../utils/schoolProfileService')
     useAuth.mockReturnValue({ currentUser: { uid: 'uid-teach' }, userProfile: PREFS_PROFILE })
     getSchoolProfile.mockResolvedValueOnce({ resourceLevel: 'low' })
 
     const setLessonDetails = vi.fn()
-    const updateFormatOption = vi.fn()
-    renderStudio({ setLessonDetails, updateFormatOption })
+    const setFormatOptions = vi.fn()
+    renderStudio({ setLessonDetails, setFormatOptions })
 
     await waitFor(() => expect(setLessonDetails).toHaveBeenCalledTimes(1))
     const updater = setLessonDetails.mock.calls[0][0]
@@ -1054,9 +1051,23 @@ describe('LessonPlanStudio — Teacher Settings seeding', () => {
     expect(updater({ teacherName: '', school: '', medium: 'Tonga', resources: 'full' }))
       .toMatchObject({ medium: 'Tonga', resources: 'full' })
 
-    // Format options seed through updateFormatOption (detail + reflection off).
-    await waitFor(() => expect(updateFormatOption).toHaveBeenCalledWith('detail', 'detailed'))
-    expect(updateFormatOption).toHaveBeenCalledWith('advanced', { includeLessonEvaluation: false })
+    // The paper format is applied as ONE update, so the page-budget cascade
+    // cannot overwrite the margin and header style saved alongside it.
+    await waitFor(() => expect(setFormatOptions).toHaveBeenCalled())
+    const formatUpdater = setFormatOptions.mock.calls[0][0]
+    const seeded = formatUpdater(initialFormatOptions('2'))
+    expect(seeded).toMatchObject({
+      pageBudget: '1',
+      writingStyle: 'point',
+      marginMm: 10,
+      headerStyle: 'ministry',
+      environmentDisplay: 'detailed',
+    })
+
+    // Teacher Settings → "include reflection: false" still switches the
+    // evaluation section off, through the new per-section toggles.
+    const reflectionUpdater = setFormatOptions.mock.calls.at(-1)[0]
+    expect(reflectionUpdater(initialFormatOptions('2')).sections.lessonEvaluation).toBe(false)
   })
 
   it('does not seed when AI Memory (rememberLastUsed) is off', async () => {

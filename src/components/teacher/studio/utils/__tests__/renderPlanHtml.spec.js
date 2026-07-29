@@ -172,7 +172,10 @@ describe('renderPlanHtml — modern format, cbc', () => {
 
   it('wraps output in plan-official div', () => {
     const html = renderPlanHtml(SAMPLE_PLAN, BASE_META, 'cbc')
-    expect(html).toContain('class="plan-official"')
+    // `plan-compact` joins it from 2026-07 — the class carrying the paper-fit
+    // custom properties the exporters and the preview share.
+    expect(html).toMatch(/<div class="plan-official[ "]/)
+    expect(html).toContain('plan-compact')
   })
 
   it('never includes a Key Vocabulary section (feature removed)', () => {
@@ -181,14 +184,17 @@ describe('renderPlanHtml — modern format, cbc', () => {
     expect(html).not.toContain('Key Vocabulary')
   })
 
-  it('does NOT include Lesson Evaluation when showReflection is false', () => {
+  it('does NOT include Lesson Evaluation when the section is off', () => {
     const html = renderPlanHtml(SAMPLE_PLAN, { ...BASE_META, showReflection: false }, 'cbc')
-    expect(html).not.toContain('Lesson Evaluation')
+    expect(html).not.toMatch(/LESSON EVALUATION/i)
   })
 
-  it('includes Lesson Evaluation when showReflection is true', () => {
+  it('includes Lesson Evaluation when the section is on', () => {
     const html = renderPlanHtml(SAMPLE_PLAN, { ...BASE_META, showReflection: true }, 'cbc')
-    expect(html).toContain('Lesson Evaluation')
+    expect(html).toContain('LESSON EVALUATION')
+    // §4.5 — one ruled line per field, not two rows of underscores.
+    expect(html).toContain('class="rule"')
+    expect(html).not.toMatch(/_{20,}/)
   })
 })
 
@@ -229,9 +235,15 @@ describe('renderPlanHtml — classic format, cbc', () => {
 
   it('uses the shared two-column meta header', () => {
     const html = renderPlanHtml(SAMPLE_PLAN, meta, 'cbc')
-    expect(html).toContain('class="meta-compact two-col"')
-    expect(html).toContain('Name of teacher')
-    expect(html).toContain('Total no. of pupils')
+    // §4.3 — a borderless <table>, not a CSS grid: the PDF download rasterises
+    // with html2canvas, which lays out display:grid unreliably.
+    expect(html).toMatch(/<table class="meta[ "]/)
+    expect(html).toContain('Name of Teacher')
+    expect(html).toContain('No of pupils')
+    // Compact metadata is the two-column form; without it every field takes a
+    // full-width row (more legible, three lines longer).
+    const compact = renderPlanHtml(SAMPLE_PLAN, { ...meta, compactMeta: true }, 'cbc')
+    expect(compact).toContain('<table class="meta">')
   })
 
   it('shows topic and sub-topic in the header, not as a duplicate field line', () => {
@@ -326,18 +338,14 @@ describe('renderPlanHtml — previous curriculum, modern format', () => {
     expect(html).toContain('RATIONALE')
   })
 
-  it('contains TEACHING ACTIVITIES column header', () => {
+  it('uses the OBC activity column headings (§4.6)', () => {
     const html = renderPlanHtml(OLD_PLAN, meta, 'previous')
-    expect(html).toContain('TEACHING ACTIVITIES')
-  })
-
-  it('contains LEARNING ACTIVITIES column header', () => {
-    const html = renderPlanHtml(OLD_PLAN, meta, 'previous')
-    expect(html).toContain('LEARNING ACTIVITIES')
+    expect(html).toContain("TEACHER'S ACTIVITY")
+    expect(html).toContain("LEARNER'S ACTIVITY")
   })
 })
 
-describe('renderPlanHtml — previous curriculum, classic format', () => {
+describe('renderPlanHtml — previous curriculum (§4.6 OBC parity)', () => {
   const meta = { ...BASE_META, format: 'classic' }
 
   it('does NOT render a CONTENT column header (dropped for legibility)', () => {
@@ -345,34 +353,36 @@ describe('renderPlanHtml — previous curriculum, classic format', () => {
     expect(html).not.toContain('>CONTENT<')
   })
 
-  it('contains TEACHER\'S ACTIVITY and PUPILS\' ACTIVITY column headers', () => {
+  it('uses STAGE/TIME and LEARNING POINT, not the CBC columns', () => {
     const html = renderPlanHtml(OLD_PLAN, meta, 'previous')
-    expect(html).toContain("TEACHER'S ACTIVITY")
-    expect(html).toContain("PUPILS' ACTIVITY")
+    expect(html).toContain('STAGE/TIME')
+    expect(html).toContain('LEARNING POINT')
+    expect(html).not.toContain('ASSESSMENT CRITERIA')
+    // METHODS was the pre-parity fourth column; LEARNING POINT replaced it.
+    expect(html).not.toContain('>METHODS<')
   })
 
-  it('contains METHODS column header when stages carry methods', () => {
+  it('uses the OBC field vocabulary, not relabelled CBC', () => {
     const html = renderPlanHtml(OLD_PLAN, meta, 'previous')
-    expect(html).toContain('METHODS')
+    expect(html).toContain('SPECIFIC OUTCOMES')
+    expect(html).toContain('PRE-REQUISITE')
+    expect(html).toContain('<b>Grade:</b>')
+    expect(html).not.toContain('<b>Class:</b>')
+    expect(html).not.toContain('GENERAL COMPETENCES')
+    expect(html).not.toContain('EXPECTED STANDARD')
   })
 
-  it('contains SPECIFIC OUTCOMES (LSBAT) heading', () => {
-    const html = renderPlanHtml(OLD_PLAN, meta, 'previous')
-    expect(html).toContain('SPECIFIC OUTCOMES (LSBAT)')
-  })
-})
-
-describe('renderPlanHtml — previous curriculum, classic2 format', () => {
-  const meta = { ...BASE_META, format: 'classic2' }
-
-  it('contains TEACHER\'S ACTIVITY column header', () => {
-    const html = renderPlanHtml(OLD_PLAN, meta, 'previous')
-    expect(html).toContain("TEACHER'S ACTIVITY")
+  it('ends in EVALUATION and LESSON LEARNT', () => {
+    const html = renderPlanHtml(OLD_PLAN, { ...meta, showReflection: true }, 'previous')
+    expect(html).toContain('<b>EVALUATION:</b>')
+    expect(html).toContain('<b>LESSON LEARNT:</b>')
+    expect(html).not.toContain('Successes')
   })
 
-  it('contains PUPILS\' ACTIVITY column header', () => {
-    const html = renderPlanHtml(OLD_PLAN, meta, 'previous')
-    expect(html).toContain("PUPILS' ACTIVITY")
+  it('renders the same document whichever format card is selected', () => {
+    const classic = renderPlanHtml(OLD_PLAN, { ...BASE_META, format: 'classic' }, 'previous')
+    const classic2 = renderPlanHtml(OLD_PLAN, { ...BASE_META, format: 'classic2' }, 'previous')
+    expect(classic).toBe(classic2)
   })
 })
 
@@ -392,29 +402,35 @@ describe('renderPlanHtml — compact meta header', () => {
 
   it('renders the two-column compact meta wrapper', () => {
     const html = renderPlanHtml(SAMPLE_PLAN, meta, 'cbc')
-    expect(html).toContain('class="meta-compact two-col"')
-    expect(html).toContain('class="meta-col"')
+    expect(html).toContain('<table class="meta">')
+    expect(html).toContain('class="item"')
   })
 
-  it('labels the teacher field "Name of teacher"', () => {
+  it('labels the teacher field "Name of Teacher", with the label underlined', () => {
     const html = renderPlanHtml(SAMPLE_PLAN, meta, 'cbc')
-    expect(html).toContain('Name of teacher')
+    expect(html).toContain('<b>Name of Teacher:</b>')
     expect(html).toContain('Chibuye Dorica')
     expect(html).not.toContain("Teacher's name")
+  })
+
+  it('carries no horizontal rules in the header (§4.3)', () => {
+    const html = renderPlanHtml(SAMPLE_PLAN, meta, 'cbc')
+    const header = html.slice(0, html.indexOf('class="meta"'))
+    expect(header).not.toMatch(/border-top|border-bottom|<hr/)
   })
 
   it('renders Date, Time and Duration in the header', () => {
     const html = renderPlanHtml(SAMPLE_PLAN, meta, 'cbc')
     expect(html).toContain('26th March 2026')
     expect(html).toContain('07:00 – 08:00')
-    expect(html).toContain('60 min')
+    expect(html).toContain('60 minutes')
   })
 
-  it('adds the Total no. of pupils / Girls / Boys fields', () => {
+  it('keeps the pupil-count blanks with their label', () => {
     const html = renderPlanHtml(SAMPLE_PLAN, meta, 'cbc')
-    expect(html).toContain('Total no. of pupils')
-    expect(html).toContain('Girls')
-    expect(html).toContain('Boys')
+    // §1.6 — the GIRLS/BOYS blanks used to land on their own line, misaligned
+    // from their labels. Label and value now share one cell.
+    expect(html).toMatch(/<b>No of pupils:<\/b>\s*<span class="val">B: _+/)
   })
 
   it('no longer renders the Lesson Sequence row', () => {

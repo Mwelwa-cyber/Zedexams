@@ -28,6 +28,14 @@ import { gradeLabel as tpGradeLabel, subjectLabel as tpSubjectLabel } from '../.
 import { useCoverageAnalysis } from './hooks/useCoverageAnalysis'
 import { buildAlignmentInstructions } from './utils/teacherPlanContext'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
+import {
+  WRITING_STYLE_DIRECTIVES,
+  resolveLessonFormat,
+  toStoredPreferences,
+} from '../../../utils/lessonPlanFormat'
+import { runLengthGate } from '../../../utils/lessonPlanCondense'
+import { blockNotationDirective } from '../../../utils/lessonPlanBlocks'
+import { normalizeTeacherPreferences } from '../../../utils/teacherSettingsCore'
 import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
 import { saveLessonPlanGeneration, getGeneration } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
@@ -195,9 +203,63 @@ function computeIsValid(studioState) {
  *   - handleGenerate() — calls studioGenerateLessonPlan Cloud Function
  *   - StudioShell with LessonPlanWizard (five-step flow) + StudioCanvas
  */
+/**
+ * The generation-prompt lines that carry §3.1's word budgets and §2.2's writing
+ * style, plus §4.7's block notation.
+ *
+ * Kept beside the studio rather than inside the system prompt because the
+ * budgets change per plan — the system prompt is prompt-cached and must stay
+ * byte-stable across generations for that cache to hit.
+ *
+ * @param {object} fmt  a resolved lesson format
+ * @returns {string[]}
+ */
+export function lessonFormatPromptLines(fmt) {
+  const b = fmt.wordBudgets
+  const lines = [
+    `- Writing style: ${WRITING_STYLE_DIRECTIVES[fmt.writingStyle]}`,
+  ]
+
+  if (fmt.pageTarget != null) {
+    lines.push(
+      '',
+      `- PAGE BUDGET: this plan must print on ${fmt.pageTarget} A4 ${fmt.pageTarget === 1 ? 'side' : 'sides'}. Write in point form as a Zambian teacher writes in a plan book: sentence fragments, imperative voice, no repetition of the stage name or the lesson context, no full sentences. Keep every cell within its word budget.`,
+      '',
+      '- WORD BUDGETS (hard limits, per cell):',
+      `  · Lesson goal: ≤ ${b.lessonGoal} words`,
+      `  · Prior knowledge / Pre-requisite: ≤ ${b.priorKnowledge} words`,
+      b.rationale > 0 ? `  · Rationale: ≤ ${b.rationale} words` : '  · Rationale: omit it',
+      `  · Teacher's Activities per stage: ≤ ${b.teacher} words, at most ${b.maxFragments.teacher} fragments`,
+      `  · Learners' Activities per stage: ≤ ${b.pupils} words, at most ${b.maxFragments.pupils} fragments`,
+      `  · Assessment / Learning Point per stage: ≤ ${b.assessment} words, at most ${b.maxFragments.assessment} fragment${b.maxFragments.assessment === 1 ? '' : 's'}`,
+      b.remedialWork > 0
+        ? `  · Remedial work and Extension: ≤ ${b.remedialWork} words each`
+        : '  · Remedial work and Extension: omit them',
+      b.expectedAnswers
+        ? `  · Expected answers in brackets: keep them, ≤ ${b.expectedAnswerWords} words`
+        : '  · Expected answers in brackets: omit them',
+      '',
+      '- Write each cell as separate lines, one action per line. Do not number them and do not add a dash — the template adds the dash.',
+    )
+  }
+
+  // §2.4 — a section the teacher switched off must not be generated at all.
+  // Asking for it and then hiding it spends tokens and, worse, lets the model
+  // put content there that then never reaches the teacher.
+  const omitted = Object.entries(fmt.sections)
+    .filter(([, on]) => !on)
+    .map(([key]) => key)
+  if (omitted.length) {
+    lines.push('', `- OMIT these sections entirely (the teacher switched them off): ${omitted.join(', ')}. Return "" for them.`)
+  }
+
+  lines.push('', blockNotationDirective())
+  return lines
+}
+
 export default function LessonPlanStudio() {
   const studioState = useStudioState()
-  const { currentUser, userProfile } = useAuth()
+  const { currentUser, userProfile, updateProfileFields } = useAuth()
   const navigate = useNavigate()
 
   // Keep a ref to the latest studioState so handleGenerate can read current
@@ -236,7 +298,7 @@ export default function LessonPlanStudio() {
     unmountedRef.current = false
     return () => { unmountedRef.current = true }
   }, [])
-  const { setLessonDetails, updateFormatOption } = studioState
+  const { setLessonDetails, setFormatOptions } = studioState
   useEffect(() => {
     if (prefilledIdentityRef.current || !userProfile) return
     prefilledIdentityRef.current = true
@@ -258,18 +320,56 @@ export default function LessonPlanStudio() {
               ? seed.resources
               : prev.resources,
         }))
-        const current = studioStateRef.current
-        if (seed.detail && current.formatOptions.detail === 'standard') {
-          updateFormatOption('detail', seed.detail)
-        }
-        if (
-          seed.includeLessonEvaluation === false &&
-          current.formatOptions.advanced?.includeLessonEvaluation === true
-        ) {
-          updateFormatOption('advanced', { includeLessonEvaluation: false })
+        // §2.6 — preload the teacher's last-used paper format. A teacher who
+        // wants 1-page point-form plans sets it once. Applied as ONE update so
+        // the page-budget cascade (which re-applies that budget's margins,
+        // density and section defaults) cannot overwrite the rest of it.
+        const saved = normalizeTeacherPreferences(userProfile?.teacherPreferences).lessonPlanFormat
+        setFormatOptions((prev) => ({
+          ...prev,
+          ...saved,
+          sections: { ...prev.sections, ...(saved.sections || {}) },
+        }))
+        if (seed.includeLessonEvaluation === false) {
+          setFormatOptions((prev) => ({
+            ...prev,
+            sections: { ...prev.sections, lessonEvaluation: false },
+          }))
         }
       })
-  }, [userProfile, currentUser, setLessonDetails, updateFormatOption])
+  }, [userProfile, currentUser, setLessonDetails, setFormatOptions])
+
+  /**
+   * §2.6 — remember the teacher's paper format for the next plan.
+   *
+   * Stores the RAW choices under `teacherPreferences.lessonPlanFormat`, never a
+   * resolved format: a stored resolved format would pin this month's typography
+   * table into the profile and never pick up a preset change. The write merges
+   * into the whole preferences map because `updateProfileFields` replaces a map
+   * wholesale — writing a partial one would erase the teacher's AI and
+   * curriculum preferences.
+   *
+   * Fire-and-forget. A failed preference write must never cost a teacher the
+   * plan they just generated.
+   */
+  const persistFormatPreference = useCallback((format) => {
+    if (typeof updateProfileFields !== 'function') return
+    try {
+      const latest = normalizeTeacherPreferences(userProfileRef.current?.teacherPreferences)
+      const next = { ...latest, lessonPlanFormat: toStoredPreferences(format) }
+      if (JSON.stringify(next.lessonPlanFormat) === JSON.stringify(latest.lessonPlanFormat)) return
+      Promise.resolve(updateProfileFields({ teacherPreferences: next })).catch(() => {})
+    } catch {
+      // Preferences are a convenience; never let one break a generation.
+    }
+  }, [updateProfileFields])
+
+  // Same ref pattern as userProfileRef: handleGenerate is memoised on [uid], so
+  // reading this from its closure would freeze it at first render.
+  const persistFormatPreferenceRef = useRef(persistFormatPreference)
+  useEffect(() => {
+    persistFormatPreferenceRef.current = persistFormatPreference
+  })
 
   // Learning Environment is a CBC-only concept. When the teacher switches to
   // the Previous (Outcomes-Based) curriculum, clear any environments selected
@@ -291,6 +391,11 @@ export default function LessonPlanStudio() {
   const [kit, setKit] = useState(null)
   const [lastPlanJson, setLastPlanJson] = useState(null)
   const [lastMeta, setLastMeta] = useState(null)
+  // Set when Fit to page exhausted every layout lever and the plan still
+  // spills. Surfaced to the teacher rather than acted on: the only remaining
+  // lever changes the words, and a plan silently rewritten to fit is not the
+  // plan the teacher reviewed.
+  const [fitNotice, setFitNotice] = useState(null)
   // Render meta built from the form the instant Generate is clicked — passed to
   // the canvas so the live "writing itself" preview can type the document header
   // (school, teacher, class, subject, topic, date, duration) in from the very
@@ -753,19 +858,13 @@ export default function LessonPlanStudio() {
       userPromptLines.push(`Focus for THIS lesson: ${lessonFocus}`)
     }
 
-    // Format preferences
-    const detailLabel = formatOptions.detail === 'simplified'
-      ? 'Simplified — key points only, concise activities, short descriptions'
-      : formatOptions.detail === 'detailed'
-        ? 'Detailed — comprehensive coverage, thorough activities, extended explanations'
-        : 'Standard — balanced detail and clarity'
-    const styleLabel = formatOptions.writingStyle === 'simple'
-      ? 'Simple — plain accessible language a beginning teacher can follow'
-      : formatOptions.writingStyle === 'professional'
-        ? 'Professional — formal, sophisticated vocabulary suitable for inspection'
-        : 'Standard — formal teacher language'
-    userPromptLines.push('', `- Lesson plan detail: ${detailLabel}`)
-    userPromptLines.push(`- Writing style: ${styleLabel}`)
+    // Format preferences (§3.1). The word budgets are the whole point: the old
+    // Detail Level knob changed TONE, so "Simplified" produced the same 80-120
+    // word cells as "Detailed" and the plan still ran to four pages. Explicit
+    // per-cell limits are what makes the page budget a request the model can
+    // actually satisfy — and §3.2's length gate is what makes it a promise.
+    const lessonFormat = resolveLessonFormat(formatOptions)
+    userPromptLines.push('', ...lessonFormatPromptLines(lessonFormat))
 
     // Teacher Settings → My AI: English variant + include/exclude switches
     // (pure derivation, order-stable — see utils/teacherDefaults).
@@ -806,7 +905,16 @@ export default function LessonPlanStudio() {
     })
     const meta = {
       format: formatOptions.format || 'modern',
-      showReflection: formatOptions.advanced?.includeLessonEvaluation ?? false,
+      // The resolved paper format travels WITH the plan, so the preview, the
+      // print window, the PDF and the Word export all draw the document the
+      // teacher chose — and reopening a saved plan reproduces it rather than
+      // re-deriving it from whatever the defaults happen to be that month.
+      lessonFormat,
+      // §2.3 — which environment categories actually print. Without this the
+      // renderer can only guess from which descriptions are non-empty, and a
+      // generator that wrote "Not applicable" for all three looks like a
+      // teacher who selected all three.
+      learningEnvironments: [...(learningEnvironments || [])],
       showEnrolment: formatOptions.advanced?.includeEnrolment ?? false,
       showAttendance: formatOptions.advanced?.includeAttendance ?? false,
       compactMeta: formatOptions.advanced?.compactMetadata ?? false,
@@ -867,7 +975,24 @@ export default function LessonPlanStudio() {
       // Normalise the stage field-name families up front (teacher/pupils ↔
       // teacherActivities/learnerActivities) so the preview, the Word export and
       // the editor all read consistent data — see utils/planShape.js.
-      const planJson = normalizePlanShape(JSON.parse(raw))
+      const rawPlanJson = normalizePlanShape(JSON.parse(raw))
+
+      // §3.2 — the post-generation length gate. Word budgets in a prompt are a
+      // request; measuring the result and repairing the cells that overshot is
+      // what turns the page budget into a promise. It is ONE targeted call on
+      // the offending cells, not a regeneration — the parts that came back
+      // right are not re-rolled. Any failure leaves the plan exactly as
+      // generated (see runLengthGate), so this can cost a page but never a plan.
+      const gate = await runLengthGate(rawPlanJson, lessonFormat, async (condensePrompt) => {
+        const repair = await generateCallable({
+          systemPrompt: 'You condense Zambian teachers\' lesson-plan cells. You reply with JSON only.',
+          userPrompt: condensePrompt,
+        })
+        return String(repair.data?.text || '')
+      })
+      if (run !== runRef.current) return
+      if (gate.error) console.warn('[zedexams] lesson-plan length gate failed', gate.error)
+      const planJson = gate.repaired ? normalizePlanShape(gate.plan) : rawPlanJson
 
       // `meta` was built from the form before the call (and already drove the
       // live header animation); reuse it verbatim for the finished document.
@@ -892,6 +1017,11 @@ export default function LessonPlanStudio() {
       // the plan that's already on screen. (A background auto-illustration, if
       // any, lands after this and re-enables Save so the teacher can re-save the
       // illustrated copy.)
+      // §2.6 — remember the paper format for next time. Fire-and-forget: a
+      // teacher whose preference write fails still has their plan, and the
+      // next generation simply starts from the defaults again.
+      persistFormatPreferenceRef.current(lessonFormat)
+
       if (uid) {
         setSaveStatus('saving')
         try {
@@ -1274,6 +1404,52 @@ export default function LessonPlanStudio() {
     await downloadLessonPlanDocx(exportJson, filename, { ...m, curriculumMode: mode })
   }, [lastPlanJson, lastMeta, diagrams])
 
+  /**
+   * Fit to page changed the paper format (§2.5). Apply it to BOTH the form
+   * (so the next generation keeps it) and the meta the current plan renders
+   * with, then re-render the plan and remember the choice.
+   */
+  const handleLessonFormatChange = useCallback((format) => {
+    const fmt = resolveLessonFormat(format)
+    studioStateRef.current.setFormatOptions((prev) => ({
+      ...prev,
+      pageBudget: fmt.pageBudget,
+      writingStyle: fmt.writingStyle,
+      density: fmt.density,
+      marginMm: fmt.marginMm,
+      environmentDisplay: fmt.environmentDisplay,
+      headerStyle: fmt.headerStyle,
+      ministryLine: fmt.ministryLine,
+      sections: { ...fmt.sections },
+    }))
+    setLastMeta((prev) => {
+      const next = { ...(prev ?? {}), lessonFormat: fmt }
+      if (lastPlanJson) {
+        studioStateRef.current.setGeneratedPlan(
+          renderPlanHtml(
+            diagrams.length ? { ...lastPlanJson, diagrams } : lastPlanJson,
+            next,
+            studioStateRef.current.curriculumMode,
+          ),
+        )
+      }
+      return next
+    })
+    persistFormatPreferenceRef.current(fmt)
+  }, [lastPlanJson, diagrams])
+
+  /**
+   * The Fit-to-page ladder ran out of layout levers. The only one left changes
+   * the WORDS, so it is offered rather than applied — a plan silently rewritten
+   * to fit is not the plan the teacher reviewed.
+   */
+  const handleCondenseToFit = useCallback((result) => {
+    setFitNotice({
+      pages: result.pages,
+      target: resolveLessonFormat(result.format).pageTarget,
+    })
+  }, [])
+
   // Navigate to the teacher's saved lesson library.
   const handleViewCompleted = useCallback(() => {
     navigate('/teacher/library')
@@ -1484,6 +1660,31 @@ export default function LessonPlanStudio() {
           />
         }
         canvas={
+          <div className="flex min-h-0 flex-1 flex-col">
+          {/* Fit to page ran out of layout levers (§2.5). The remaining one
+              rewrites the plan's words, so it is offered, never applied. */}
+          {fitNotice && (
+            <div
+              role="status"
+              data-testid="fit-notice"
+              className="flex items-start gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-[12.5px] text-amber-900"
+            >
+              <span className="flex-1">
+                Tightened as far as the printer allows — the plan still runs to{' '}
+                <strong>{fitNotice.pages}</strong>{' '}
+                {fitNotice.pages === 1 ? 'page' : 'pages'} against a{' '}
+                {fitNotice.target}-page budget. Shorten a few cells in Edit mode, switch some
+                sections off, or raise the page budget.
+              </span>
+              <button
+                type="button"
+                onClick={() => setFitNotice(null)}
+                className="flex-shrink-0 font-bold underline hover:no-underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
           <StudioCanvas
             generatedPlan={studioState.generatedPlan}
             generationStatus={studioState.generationStatus}
@@ -1506,12 +1707,19 @@ export default function LessonPlanStudio() {
               subtopic: studioState.topicData.subtopic || '',
             }}
             onPlanChange={handlePlanChange}
+            // The paper format the plan on screen was rendered with. Read from
+            // the SAVED meta first: reopening a plan must reproduce the sheet it
+            // was generated as, not re-derive it from today's form state.
+            lessonFormat={lastMeta?.lessonFormat ?? studioState.formatOptions}
+            onLessonFormatChange={handleLessonFormatChange}
+            onCondenseToFit={handleCondenseToFit}
             onSaveToLibrary={handleSaveToLibrary}
             saveStatus={saveStatus}
             saveError={saveError}
             canSave={!!lastPlanJson && saveStatus !== 'saving' && planSignature !== savedSignature}
             onViewLibrary={handleViewCompleted}
           />
+          </div>
         }
       />
       {kit && studioView === 'canvas' && (

@@ -8,7 +8,7 @@
  *   1 Topic & Curriculum — topic, subtopic, curriculum summary (+ outcomes
  *                          for the Previous curriculum)
  *   2 Lesson Context     — learning environment + planning mode (CBC only)
- *   3 Format & Options   — detail level, writing style, document format
+ *   3 Format & Options   — page budget, writing style, document format
  *   4 Review & Generate  — read-only summary + the Generate action
  *
  * Validation rules are the SAME rules the studio has always enforced via
@@ -40,7 +40,7 @@ export const WIZARD_STEPS = [
     id: 'format',
     title: 'Format & Options',
     short: 'Format',
-    description: 'Pick the detail level, writing style and document format.',
+    description: 'Pick the page budget, writing style and document format.',
   },
   {
     id: 'review',
@@ -119,7 +119,10 @@ export function validateStep(stepIndex, s) {
 
   if (step === 3) {
     const fmt = s.formatOptions ?? {}
-    if (!fmt.detail) return invalid('Choose a detail level to continue.')
+    // §2.1 — Page Budget replaced Detail Level. Validating the retired field
+    // would block every teacher on this step forever, so the check moves with
+    // the control it guards.
+    if (!fmt.pageBudget) return invalid('Choose a page budget to continue.')
     if (!fmt.writingStyle) return invalid('Choose a writing style to continue.')
     if (!fmt.format) return invalid('Choose a lesson plan format to continue.')
     return VALID

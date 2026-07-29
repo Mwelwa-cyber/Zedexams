@@ -29,6 +29,13 @@ import {
 import { attributionSection } from './docxAttribution.js'
 import { sanitizeXmlText } from './xmlText.js'
 import { fetchImageBytes } from './fetchImageBytes.js'
+import { parseCellBlocks } from './lessonPlanBlocks.js'
+import { objectNamesInPlan, rasterizeObjectArt } from './objectArtRaster.js'
+import {
+  headerLines,
+  resolveEnvironmentLines,
+  resolveLessonFormat,
+} from './lessonPlanFormat.js'
 
 /* ────────────────────────────────────────────────────────────────────
  * Lesson illustration (black-and-white drawing) embedding.
@@ -514,9 +521,22 @@ function buildV1Body(plan, opts = {}) {
 }
 
 /* ────────────────────────────────────────────────────────────────────
- * v3 — official CDC teaching-module layout: CAPS labels, black ruled
- * LESSON PROGRESSION table, REMEDIAL WORK / EXTENSION ACTIVITY and a
- * blank LESSON EVALUATION the teacher fills in after teaching.
+ * v3 — the compact official layout (2026-07).
+ *
+ * Every rule that decides how much paper a plan uses is read from the
+ * resolved format in `src/utils/lessonPlanFormat.js` (opts.lessonFormat) —
+ * the same object the studio preview and the print window read. The three
+ * renderers used to carry three sets of numbers, which is how a teacher
+ * could choose "2 pages", see two on screen, and download four.
+ *
+ * The Word-specific parts of §4:
+ *   - cells carry dash lines, NOT `bullet: { level: 0 }` — a bullet indents
+ *     ~0.6 cm inside an already-narrow cell and forces extra wrapping;
+ *   - the header row repeats on a page break (`tableHeader: true`) instead of
+ *     the whole "LESSON PROGRESSION" block being re-emitted;
+ *   - body rows may split (`cantSplit: false`), so a long Development row
+ *     wraps across the boundary rather than shunting itself wholesale onto the
+ *     next page and leaving a half-blank one behind it.
  * ─────────────────────────────────────────────────────────────────── */
 
 const BLACK_BORDER = {
@@ -526,204 +546,490 @@ const BLACK_BORDER = {
   right:  { style: BorderStyle.SINGLE, size: 6, color: '000000' },
 }
 
+const NONE_EDGE = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
+const NO_BORDERS = {
+  top: NONE_EDGE, bottom: NONE_EDGE, left: NONE_EDGE, right: NONE_EDGE,
+  insideHorizontal: NONE_EDGE, insideVertical: NONE_EDGE,
+}
+
+// A4 in twips, and the conversion the page geometry is built from.
+const A4_WIDTH_TWIPS = 11906
+const A4_HEIGHT_TWIPS = 16838
+const TWIPS_PER_MM = 56.6929
+
+const mmToTwips = (mm) => Math.round(mm * TWIPS_PER_MM)
+const ptToHalfPt = (pt) => Math.max(2, Math.round(pt * 2))
+const ptToTwips = (pt) => Math.round(pt * 20)
+
+/** The resolved lesson format for an export, with a safe default. */
+function exportFormat(opts) {
+  return resolveLessonFormat(opts?.lessonFormat || {})
+}
+
+/** Usable text width for a format's margins — what column widths divide up. */
+function contentWidthTwips(fmt) {
+  return A4_WIDTH_TWIPS - 2 * mmToTwips(fmt.marginMm)
+}
+
+/** Percentages → DXA column widths that sum to the real content width. */
+function columnWidths(fmt, percentages) {
+  const total = contentWidthTwips(fmt)
+  return percentages.map((p) => Math.round((total * p) / 100))
+}
+
+// The active typography, set once per document build. A module-level value
+// rather than a threaded argument because every helper below needs it and
+// threading it through fifteen signatures obscured what they actually do.
+let FMT = { bodyPt: 11, tablePt: 10, cellPaddingPt: 3, lineHeight: 1.25, cellSpaceAfterPt: 0, sectionGapPt: 4 }
+
+function setTypography(fmt) {
+  FMT = fmt.typography
+}
+
+/** Line spacing for a paragraph, from the density's line height. */
+function lineSpacing(pt) {
+  return { line: Math.round(pt * FMT.lineHeight * 20), lineRule: 'atLeast' }
+}
+
+/**
+ * A section line: underlined bold label, value inline, one line (§4.3, §4.4).
+ * Returns null for an empty value so a switched-off or unanswered section
+ * prints nothing rather than a label with a blank after it.
+ */
 function fieldLine(label, value) {
+  const v = value == null ? '' : String(value).trim()
+  if (!v) return null
   return new Paragraph({
     children: [
-      text(`${label}: `, { bold: true, size: 20 }),
-      text(value == null ? '' : String(value), { size: 20 }),
+      text(`${label}: `, { bold: true, underline: {}, size: ptToHalfPt(FMT.bodyPt) }),
+      text(v, { size: ptToHalfPt(FMT.bodyPt) }),
     ],
-    spacing: { after: 80 },
+    spacing: { after: ptToTwips(FMT.sectionGapPt / 2), ...lineSpacing(FMT.bodyPt) },
   })
 }
 
-function v3HeaderCell(label, widthPct) {
+/** A label-only line (a heading for a following block). */
+function labelLine(label, extra = {}) {
+  return new Paragraph({
+    children: [text(label, { bold: true, underline: {}, size: ptToHalfPt(FMT.bodyPt) })],
+    spacing: { after: ptToTwips(FMT.sectionGapPt / 2), ...lineSpacing(FMT.bodyPt) },
+    ...extra,
+  })
+}
+
+/**
+ * Dash lines inside a table cell (§4.1). Plain paragraphs prefixed "– " with
+ * hanging indent zero — the whole point is that no cell width is spent on a
+ * list marker.
+ */
+function dashList(items = []) {
+  const lines = (Array.isArray(items) ? items : toLinesLocal(items))
+    .map((s) => String(s == null ? '' : s).replace(/^\s*[–—•*-]\s*/, '').trim())
+    .filter(Boolean)
+  if (lines.length === 0) return [new Paragraph({ children: [], spacing: { after: 0 } })]
+  return lines.map((line) => new Paragraph({
+    children: [text(`– ${line}`, { size: ptToHalfPt(FMT.tablePt) })],
+    spacing: { after: ptToTwips(FMT.cellSpaceAfterPt), ...lineSpacing(FMT.tablePt) },
+  }))
+}
+
+/* ── §4.7 structured cell content ──────────────────────────────────── */
+
+// The digits of a worked column sum, one place value per cell, so the columns
+// line up in Word's proportional font. A monospace <pre> aligns only while the
+// font is monospace — which Word's default is not.
+function sumTable(node) {
+  const cellOf = (runs, { rule = false } = {}) => new TableCell({
+    children: [new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: runs,
+      spacing: { after: 0, ...lineSpacing(FMT.tablePt) },
+    })],
+    borders: rule
+      ? { ...NO_BORDERS, bottom: { style: BorderStyle.SINGLE, size: 6, color: '000000' } }
+      : NO_BORDERS,
+    margins: { top: 0, bottom: 0, left: 20, right: 20 },
+  })
+  const digitRow = (n, { sign = '', rule = false } = {}) => {
+    const digits = String(n).padStart(node.width, ' ').split('')
+    return new TableRow({
+      cantSplit: true,
+      children: [
+        cellOf([text(sign, { size: ptToHalfPt(FMT.tablePt) })], { rule }),
+        ...digits.map((d) => cellOf(
+          [text(d === ' ' ? '' : d, { size: ptToHalfPt(FMT.tablePt) })],
+          { rule },
+        )),
+      ],
+    })
+  }
+  const headRow = new TableRow({
+    cantSplit: true,
+    children: [
+      cellOf([]),
+      ...node.headings.map((h) => cellOf([text(h, { size: ptToHalfPt(FMT.tablePt - 1), bold: true })])),
+    ],
+  })
+  return new Table({
+    borders: NO_BORDERS,
+    rows: [
+      headRow,
+      ...node.addends.map((a, i) => digitRow(a, {
+        sign: i === 0 ? '' : '+',
+        rule: i === node.addends.length - 1,
+      })),
+      digitRow(node.total),
+    ],
+  })
+}
+
+function expandParagraph(node) {
+  return new Paragraph({
+    children: [text(node.parts.join(' + '), { size: ptToHalfPt(FMT.tablePt) })],
+    spacing: { after: ptToTwips(FMT.cellSpaceAfterPt), ...lineSpacing(FMT.tablePt) },
+  })
+}
+
+/**
+ * The early-childhood matching exercise. Each pair is a row: the left object,
+ * a dotted gap the learner draws through, and the right object.
+ *
+ * The line art reaches Word as a real picture only when the caller pre-
+ * rasterised it (`opts.objectArt`, built in the browser by
+ * `downloadLessonPlanDocx`). Without it the block still prints as a usable
+ * matching sheet with the object WORDS in their boxes — the exercise survives,
+ * plainer, rather than exporting as an empty grid.
+ */
+function matchTable(node, art) {
+  const objectCell = (name) => {
+    const picture = art && art[name]
+    const children = []
+    if (picture) {
+      children.push(new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 20 },
+        children: [new ImageRun({
+          type: picture.type || 'png',
+          data: picture.bytes,
+          transformation: { width: picture.width, height: picture.height },
+          altText: { name, title: name, description: name },
+        })],
+      }))
+    }
+    children.push(new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [text(name, { size: ptToHalfPt(FMT.tablePt) })],
+      spacing: { after: 0, ...lineSpacing(FMT.tablePt) },
+    }))
+    return new TableCell({
+      children,
+      borders: {
+        top: { style: BorderStyle.SINGLE, size: 4, color: '888888' },
+        bottom: { style: BorderStyle.SINGLE, size: 4, color: '888888' },
+        left: { style: BorderStyle.SINGLE, size: 4, color: '888888' },
+        right: { style: BorderStyle.SINGLE, size: 4, color: '888888' },
+      },
+      margins: { top: 40, bottom: 40, left: 60, right: 60 },
+    })
+  }
+  const gapCell = () => new TableCell({
+    children: [new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [text('·   ·   ·', { size: ptToHalfPt(FMT.tablePt), color: '888888' })],
+      spacing: { after: 0 },
+    })],
+    borders: NO_BORDERS,
+    verticalAlign: 'center',
+  })
+  return [
+    new Paragraph({
+      children: [text('Draw a line to match the objects that are the same:', {
+        italics: true, size: ptToHalfPt(FMT.tablePt),
+      })],
+      spacing: { after: ptToTwips(2), ...lineSpacing(FMT.tablePt) },
+    }),
+    new Table({
+      borders: NO_BORDERS,
+      rows: node.pairs.map((p) => new TableRow({
+        cantSplit: true,
+        children: [objectCell(p.left), gapCell(), objectCell(p.right)],
+      })),
+    }),
+  ]
+}
+
+/**
+ * A whole progression cell: prose as dash lines, structured blocks as real
+ * Word objects, in the order they were written.
+ */
+function cellChildren(value, opts = {}) {
+  const nodes = parseCellBlocks(value)
+  if (nodes.length === 0) return dashList([])
+  const out = []
+  for (const node of nodes) {
+    if (node.type === 'text') out.push(...dashList(toLinesLocal(node.text)))
+    else if (node.type === 'sum') out.push(sumTable(node), new Paragraph({ children: [], spacing: { after: 0 } }))
+    else if (node.type === 'expand') out.push(expandParagraph(node))
+    else if (node.type === 'match') out.push(...matchTable(node, opts.objectArt))
+  }
+  return out.length ? out : dashList([])
+}
+
+/* ── Table scaffolding ─────────────────────────────────────────────── */
+
+function progressionHeaderCell(label, width) {
   return new TableCell({
-    children: [para(text(label, { bold: true, size: 20 }), { spacing: { after: 0 } })],
-    width: { size: widthPct, type: WidthType.PERCENTAGE },
+    children: [new Paragraph({
+      children: [text(label, { bold: true, size: ptToHalfPt(FMT.tablePt) })],
+      spacing: { after: 0, ...lineSpacing(FMT.tablePt) },
+    })],
+    width: { size: width, type: WidthType.DXA },
     borders: BLACK_BORDER,
+    margins: cellMargins(),
   })
 }
 
-function v3StageCell(children, widthPct) {
+function cellMargins() {
+  const pad = ptToTwips(FMT.cellPaddingPt)
+  return { top: pad, bottom: pad, left: pad + 20, right: pad + 20 }
+}
+
+function progressionCell(children, width) {
   return new TableCell({
     children,
-    width: { size: widthPct, type: WidthType.PERCENTAGE },
+    width: { size: width, type: WidthType.DXA },
     borders: BLACK_BORDER,
+    margins: cellMargins(),
   })
 }
 
-// Official CAPS header label lines, shared by both curricula. The grade/class
-// label differs (CBC "CLASS" vs previous "GRADE") so it is passed in.
-function v3HeaderLines(h, { classLabel = 'CLASS' } = {}) {
-  const lines = []
-  if (h.school) lines.push(fieldLine('SCHOOL', h.school))
-  lines.push(fieldLine('NAME OF TEACHER', h.teacherName || ''))
-  lines.push(fieldLine('DATE', h.date || ''))
-  if (h.time) lines.push(fieldLine('TIME', h.time))
-  lines.push(fieldLine(classLabel, h.class || ''))
-  lines.push(fieldLine('DURATION', h.durationMinutes ? `${h.durationMinutes} minutes` : ''))
-  if (h.termAndWeek) lines.push(fieldLine('TERM & WEEK', h.termAndWeek))
-  const hasAttendance = h.boysPresent != null || h.girlsPresent != null || h.totalPupils != null
-  if (hasAttendance) {
-    lines.push(fieldLine(
-      'TOTAL ATTENDANCE',
-      `Boys: ${h.boysPresent ?? '____'}   Girls: ${h.girlsPresent ?? '____'}   Total: ${h.totalPupils ?? h.numberOfPupils ?? '____'}`,
-    ))
+/**
+ * The STAGES cell: the name, then the duration on its own line. Word wraps on
+ * word boundaries by default, so the mid-word breaks the HTML needed
+ * `hyphens:none` for cannot happen here — but the 18% column still matters,
+ * because at 15% "ASSESSMENT" alone overflows the measure.
+ */
+function stageCell(stage, width) {
+  const duration = stage.durationMinutes > 0
+    ? `${stage.durationMinutes} min`
+    : String(stage.duration || '').replace(/[()]/g, '').trim()
+  const children = [new Paragraph({
+    children: [text(stage.name || '', { bold: true, size: ptToHalfPt(FMT.tablePt) })],
+    spacing: { after: 0, ...lineSpacing(FMT.tablePt) },
+  })]
+  if (duration) {
+    children.push(new Paragraph({
+      children: [text(`(${duration})`, { italics: true, size: ptToHalfPt(FMT.tablePt - 1) })],
+      spacing: { after: 0, ...lineSpacing(FMT.tablePt) },
+    }))
   }
-  lines.push(fieldLine('SUBJECT', h.subject || ''))
-  lines.push(fieldLine('TOPIC', h.topic || ''))
-  lines.push(fieldLine('SUB-TOPIC', h.subtopic || ''))
-  return lines
+  return progressionCell(children, width)
 }
 
-// School name as a centred title above "LESSON PLAN" (mirrors the on-screen
-// renderHeader masthead).
-function schoolHeading(name) {
-  return new Paragraph({
-    children: [text(name, { bold: true, size: 30 })],
-    alignment: AlignmentType.CENTER,
-    spacing: { after: 80 },
+/**
+ * One ruled line per evaluation field (§4.5).
+ *
+ * A borderless two-column table: the label in the first cell, an empty
+ * bottom-bordered cell filling the rest of the measure. The old rendering was
+ * two 60-underscore paragraphs per field — a third of a page for three fields,
+ * and a run of underscores is one unbreakable "word" so it wrapped wherever it
+ * liked.
+ */
+function ruledFields(fmt, labels) {
+  const total = contentWidthTwips(fmt)
+  const labelWidth = Math.round(total * 0.28)
+  const ruleWidth = total - labelWidth
+  const underlinedCell = () => new TableCell({
+    children: [new Paragraph({ children: [], spacing: { after: 0 } })],
+    width: { size: ruleWidth, type: WidthType.DXA },
+    borders: { ...NO_BORDERS, bottom: { style: BorderStyle.SINGLE, size: 6, color: '000000' } },
+    margins: { top: 60, bottom: 60, left: 60, right: 0 },
+  })
+  return new Table({
+    width: { size: total, type: WidthType.DXA },
+    columnWidths: [labelWidth, ruleWidth],
+    borders: NO_BORDERS,
+    rows: labels.map((label) => new TableRow({
+      cantSplit: true,
+      children: [
+        new TableCell({
+          children: [new Paragraph({
+            children: label
+              ? [text(`${label}:`, { bold: true, underline: {}, size: ptToHalfPt(FMT.bodyPt) })]
+              : [],
+            spacing: { after: 0, ...lineSpacing(FMT.bodyPt) },
+          })],
+          width: { size: labelWidth, type: WidthType.DXA },
+          borders: NO_BORDERS,
+          margins: { top: 60, bottom: 60, left: 0, right: 80 },
+        }),
+        underlinedCell(),
+      ],
+    })),
   })
 }
 
-const NONE_EDGE = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
-const RULE_EDGE = { style: BorderStyle.SINGLE, size: 6, color: '000000' }
+/* ── Header (§4.3) ─────────────────────────────────────────────────── */
 
-// One borderless cell carrying a "LABEL: value" run sequence.
-function metaCell(runs) {
+/**
+ * The masthead: optional MINISTRY OF EDUCATION, the school, then LESSON PLAN.
+ * No horizontal rules anywhere — the two that used to bracket the metadata
+ * block cost two lines on every plan and the Ministry-style reference
+ * documents do not carry them.
+ */
+function mastheadParagraphs(h, fmt) {
+  const lines = headerLines({
+    headerStyle: fmt.headerStyle,
+    ministryLine: fmt.ministryLine,
+    school: h.school || '',
+  })
+  const out = []
+  if (fmt.headerStyle === 'ministry' && lines.length > 1) {
+    out.push(new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [text(lines[0], { bold: true, size: ptToHalfPt(FMT.bodyPt + 1.5) })],
+      spacing: { after: ptToTwips(2) },
+    }))
+  }
+  const school = fmt.headerStyle === 'ministry' ? lines[1] : lines[0]
+  if (school) {
+    out.push(new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [text(school, { bold: true, size: ptToHalfPt(FMT.bodyPt + 3) })],
+      spacing: { after: ptToTwips(1) },
+    }))
+  }
+  out.push(new Paragraph({
+    alignment: AlignmentType.CENTER,
+    children: [text('LESSON PLAN', { bold: true, size: ptToHalfPt(FMT.bodyPt + 1) })],
+    spacing: { after: ptToTwips(FMT.sectionGapPt) },
+  }))
+  return out
+}
+
+// One borderless cell carrying an underlined "LABEL: value" pair. The label and
+// its value live in ONE cell so they can never separate — which is what used to
+// drop SUB-TOPIC's value onto the next line.
+function metaCell(runs, width) {
   return new TableCell({
-    children: [new Paragraph({ children: runs, spacing: { after: 60 } })],
-    width: { size: 50, type: WidthType.PERCENTAGE },
+    children: [new Paragraph({ children: runs, spacing: { after: 0, ...lineSpacing(FMT.bodyPt) } })],
+    width: { size: width, type: WidthType.DXA },
+    borders: NO_BORDERS,
     margins: { top: 20, bottom: 20, right: 160 },
   })
 }
 
 function lvRuns(label, value) {
-  const runs = [text(`${label}: `, { bold: true, size: 20 })]
-  if (value != null && value !== '') runs.push(text(String(value), { size: 20 }))
+  const runs = [text(`${label}: `, { bold: true, underline: {}, size: ptToHalfPt(FMT.bodyPt) })]
+  if (value != null && value !== '') runs.push(text(String(value), { size: ptToHalfPt(FMT.bodyPt) }))
   return runs
 }
 
-// Two-column CBC header matching the on-screen renderTwoColMeta layout:
-//   left  — Name of teacher, Class, Subject, Topic, Sub-topic
-//   right — Date, Time, Duration, Total no. of pupils, Girls / Boys
-// Bracketed top and bottom by a single black rule, no inner lines.
-function v3CbcHeaderTable(h) {
+/**
+ * The clean, rule-less two-column metadata block. Identity on the left,
+ * session on the right; sub-topic (and any other long field) spans the width.
+ */
+function metaTable(h, fmt, { gradeLabel = 'Class', extraLeft = [], extraWide = [] } = {}) {
   const blank = '______'
   const left = [
-    lvRuns('NAME OF TEACHER', h.teacherName || ''),
-    lvRuns('CLASS', h.class || ''),
-    lvRuns('SUBJECT', h.subject || ''),
-    lvRuns('TOPIC', h.topic || ''),
-    lvRuns('SUB-TOPIC', h.subtopic || ''),
+    lvRuns('Name of Teacher', h.teacherName || ''),
+    lvRuns(gradeLabel, h.class || ''),
+    lvRuns('Subject', h.subject || ''),
+    lvRuns('Topic', h.topic || ''),
+    ...extraLeft.map(([k, v]) => lvRuns(k, v)),
   ]
   const right = [
-    lvRuns('DATE', h.date || ''),
-    lvRuns('TIME', h.time || ''),
-    lvRuns('DURATION', h.durationMinutes ? `${h.durationMinutes} minutes` : ''),
-    lvRuns('TOTAL NO. OF PUPILS', ''),
+    lvRuns('Date', h.date || ''),
+    lvRuns('Time', h.time || ''),
+    lvRuns('Duration', h.durationMinutes ? `${h.durationMinutes} minutes` : ''),
     [
-      text('GIRLS: ', { bold: true, size: 20 }),
-      text(`${blank}     `, { size: 20 }),
-      text('BOYS: ', { bold: true, size: 20 }),
-      text(blank, { size: 20 }),
+      text('No of pupils: ', { bold: true, underline: {}, size: ptToHalfPt(FMT.bodyPt) }),
+      text(`B: ${blank}   G: ${blank}`, { size: ptToHalfPt(FMT.bodyPt) }),
     ],
   ]
-  const rows = left.map((lr, i) => new TableRow({ cantSplit: true, children: [metaCell(lr), metaCell(right[i])] }))
+  const wide = [
+    ['Sub-Topic', h.subtopic || ''],
+    ...extraWide,
+  ].filter(([, v]) => String(v || '').trim())
+
+  const total = contentWidthTwips(fmt)
+  const colA = Math.round(total * 0.54)
+  const colB = total - colA
+  const rows = []
+  for (let i = 0; i < Math.max(left.length, right.length); i += 1) {
+    rows.push(new TableRow({
+      cantSplit: true,
+      children: [metaCell(left[i] || [], colA), metaCell(right[i] || [], colB)],
+    }))
+  }
+  for (const [k, v] of wide) {
+    rows.push(new TableRow({
+      cantSplit: true,
+      children: [new TableCell({
+        children: [new Paragraph({ children: lvRuns(k, v), spacing: { after: 0, ...lineSpacing(FMT.bodyPt) } })],
+        columnSpan: 2,
+        borders: NO_BORDERS,
+        margins: { top: 20, bottom: 20 },
+      })],
+    }))
+  }
   return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    columnWidths: [4800, 4800],
-    borders: {
-      top: RULE_EDGE,
-      bottom: RULE_EDGE,
-      left: NONE_EDGE,
-      right: NONE_EDGE,
-      insideHorizontal: NONE_EDGE,
-      insideVertical: NONE_EDGE,
-    },
+    width: { size: total, type: WidthType.DXA },
+    columnWidths: [colA, colB],
+    borders: NO_BORDERS,
     rows,
   })
 }
 
+/* ── Bodies ────────────────────────────────────────────────────────── */
+
 /**
- * v3 body for the Previous (Outcomes-Based / 2013) curriculum. Mirrors the
- * on-screen preview (renderOldClassic): RATIONALE → PRE-REQUISITE → SPECIFIC
- * OUTCOMES, one ruled progression table whose columns are the old-curriculum
- * STAGE / TEACHER / PUPILS (+ optional METHODS) headings, then
- * HOMEWORK and the pupil/teacher evaluation blanks. No CBC-only sections
- * (general/specific competences, learning environment, expected standard).
+ * The OBC (Outcomes-Based / 2013) body (§4.6).
+ *
+ * The outcome-based plan has its OWN vocabulary — Grade not Class, Specific
+ * outcomes not competences, Pre-requisite not Prior Knowledge, Learning/T Aids
+ * not Materials — and its own table:
+ *   STAGE/TIME | TEACHER'S ACTIVITY | LEARNER'S ACTIVITY | LEARNING POINT
+ * ending in EVALUATION and LESSON LEARNT. It is not the CBC plan relabelled.
  */
-function buildV3PreviousBody(plan, opts = {}) {
+function buildV3PreviousBody(plan, opts = {}, fmt) {
   const h = plan.header || {}
   const children = []
-  children.push(...v3HeaderLines(h, { classLabel: 'GRADE' }))
+  const aids = (plan.tlAids?.length ? plan.tlAids : plan.materials || []).join(', ')
 
-  const materials = plan.materials?.length ? plan.materials : (plan.tlAids || [])
-  if (materials.length) {
-    children.push(para(text('TEACHING / LEARNING MATERIALS:', { bold: true, size: 20 })))
-    children.push(...bulletList(materials))
+  children.push(...mastheadParagraphs(h, fmt))
+  children.push(metaTable(h, fmt, {
+    gradeLabel: 'Grade',
+    extraLeft: fmt.sections.references ? [['Reference', (plan.references || []).join('; ')]] : [],
+    extraWide: aids ? [['Learning/T Aids', aids]] : [],
+  }))
+  children.push(new Paragraph({ children: [], spacing: { after: ptToTwips(FMT.sectionGapPt) } }))
+
+  const outcomes = plan.specificOutcomes || []
+  if (outcomes.length === 1) {
+    children.push(fieldLine('SPECIFIC OUTCOMES', outcomes[0]))
+  } else if (outcomes.length > 1) {
+    children.push(labelLine('SPECIFIC OUTCOMES'))
+    children.push(...dashList(outcomes))
   }
-  if (plan.references?.length) {
-    children.push(para(text('REFERENCES:', { bold: true, size: 20 })))
-    children.push(...bulletList(plan.references))
-  }
-  children.push(fieldLine('RATIONALE', plan.rationale || ''))
-  children.push(fieldLine('PRE-REQUISITE KNOWLEDGE', plan.prerequisiteKnowledge || plan.priorKnowledge || ''))
-  if (plan.specificOutcomes?.length) {
-    children.push(para(text('SPECIFIC OUTCOMES (by the end of the lesson, pupils should be able to):', { bold: true, size: 20 })))
-    children.push(...numberedList(plan.specificOutcomes))
-  }
+  if (fmt.sections.rationale) children.push(fieldLine('RATIONALE', plan.rationale))
+  children.push(fieldLine('PRE-REQUISITE', plan.prerequisiteKnowledge || plan.priorKnowledge))
 
   children.push(...lessonIllustrationParagraphs(plan, opts))
 
-  // The CONTENT column is intentionally dropped (matches the on-screen preview
-  // renderOldClassic): the generator leaves it empty on outcome-based plans and
-  // it only squeezed the stage/activity columns. METHODS stays optional — shown
-  // only when at least one stage carries that data.
-  const stages = plan.stages || []
-  const hasMethods = stages.some((s) => String(s.methods || '').trim())
+  children.push(progressionTable(plan, opts, fmt, {
+    headings: ['STAGE/TIME', "TEACHER'S ACTIVITY", "LEARNER'S ACTIVITY", 'LEARNING POINT'],
+    fourth: (s) => (s.learningPoint ?? s.assessmentCriteria ?? s.methods ?? ''),
+  }))
 
-  children.push(new Paragraph({
-    children: [text('LESSON DEVELOPMENT', { bold: true, size: 22 })],
-    spacing: { before: 160, after: 120 },
-  }))
-  const cols = [['STAGE / TIME', hasMethods ? 14 : 16]]
-  cols.push(["TEACHER'S ACTIVITY", hasMethods ? 34 : 42])
-  cols.push(["PUPILS' ACTIVITY", hasMethods ? 34 : 42])
-  if (hasMethods) cols.push(['METHODS', 18])
-  const headerRow = new TableRow({ tableHeader: true, cantSplit: true, children: cols.map(([label, w]) => v3HeaderCell(label, w)) })
-  const stageRows = stages.map((s) => {
-    const cells = [
-      v3StageCell([
-        para(text(s.name || '', { bold: true, size: 18 }), { spacing: { after: 40 } }),
-        ...(s.durationMinutes > 0
-          ? [para(text(`(${s.durationMinutes} min)`, { italics: true, size: 16 }), { spacing: { after: 0 } })]
-          : []),
-      ], cols[0][1]),
-    ]
-    let i = 1
-    cells.push(v3StageCell(bulletList(s.teacherActivities), cols[i++][1]))
-    cells.push(v3StageCell(bulletList(s.learnerActivities), cols[i++][1]))
-    if (hasMethods) cells.push(v3StageCell(bulletList(toLinesLocal(s.methods)), cols[i++][1]))
-    return new TableRow({ cantSplit: true, children: cells })
-  })
-  children.push(new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    rows: [headerRow, ...stageRows],
-  }))
-  children.push(para([]))
-
-  if (plan.homework) children.push(fieldLine('HOMEWORK / EXERCISE', plan.homework))
-  children.push(new Paragraph({
-    children: [text('EVALUATION:', { bold: true, size: 20 })],
-    spacing: { before: 160, after: 80 },
-  }))
-  const blank = '_'.repeat(60)
-  children.push(fieldLine('Pupil evaluation', '_'.repeat(18)))
-  children.push(para(text(blank, { size: 20 })))
-  children.push(fieldLine('Teacher evaluation', '_'.repeat(18)))
-  children.push(para(text(blank, { size: 20 })))
-  return children
+  if (fmt.sections.homework && plan.homework) children.push(fieldLine('HOMEWORK', plan.homework))
+  if (fmt.sections.lessonEvaluation) {
+    children.push(labelLine('EVALUATION', { spacing: { before: ptToTwips(FMT.sectionGapPt), after: ptToTwips(2) } }))
+    children.push(ruledFields(fmt, ['', '']))
+    children.push(labelLine('LESSON LEARNT', { spacing: { before: ptToTwips(FMT.sectionGapPt), after: ptToTwips(2) } }))
+    children.push(ruledFields(fmt, ['', '']))
+  }
+  return children.filter(Boolean)
 }
 
 // Local string→lines coercion (the docx module is otherwise self-contained;
@@ -733,89 +1039,114 @@ function toLinesLocal(value) {
   return String(value == null ? '' : value).split(/\n|;\s*/).map((s) => s.trim()).filter(Boolean)
 }
 
-function buildV3Body(plan, opts = {}, mode = 'cbc') {
-  if (mode === 'previous') return buildV3PreviousBody(plan, opts)
+/** True when a stage is the homework row (which §2.4 lets a teacher drop). */
+function isHomeworkStage(stage) {
+  return /HOMEWORK/i.test(String(stage?.name || ''))
+}
 
+/**
+ * The one progression table, shared by both curricula. Column widths come from
+ * §4.1 (18 / 34 / 26 / 22) resolved against the real content width, so they
+ * hold whatever margins the teacher chose.
+ */
+function progressionTable(plan, opts, fmt, { headings, fourth }) {
+  const stages = (plan.stages || []).filter((s) => fmt.sections.homework || !isHomeworkStage(s))
+  const widths = columnWidths(fmt, [18, 34, 26, 22])
+
+  const headerRow = new TableRow({
+    tableHeader: true,     // §4.1 — repeats at the top of every continuation page
+    cantSplit: true,
+    children: headings.map((label, i) => progressionHeaderCell(label, widths[i])),
+  })
+  const stageRows = stages.map((s) => new TableRow({
+    // §4.1 — a row MAY split. Forcing a long Development row to stay whole is
+    // what pushed it onto a fresh page and left the previous one half blank.
+    cantSplit: false,
+    children: [
+      stageCell(s, widths[0]),
+      progressionCell(cellChildren(s.teacherActivities ?? s.teacher, opts), widths[1]),
+      progressionCell(cellChildren(s.learnerActivities ?? s.pupils, opts), widths[2]),
+      progressionCell(cellChildren(fourth(s), opts), widths[3]),
+    ],
+  }))
+
+  return new Table({
+    width: { size: contentWidthTwips(fmt), type: WidthType.DXA },
+    columnWidths: widths,
+    rows: [headerRow, ...stageRows],
+  })
+}
+
+/** The CBC body. */
+function buildV3CbcBody(plan, opts, fmt) {
   const h = plan.header || {}
-  const le = plan.learningEnvironment || {}
   const children = []
 
-  // Header block — two aligned columns (matches the on-screen renderTwoColMeta).
-  children.push(v3CbcHeaderTable(h))
-  children.push(para([]))
+  children.push(...mastheadParagraphs(h, fmt))
+  children.push(metaTable(h, fmt))
+  children.push(new Paragraph({ children: [], spacing: { after: ptToTwips(FMT.sectionGapPt) } }))
 
-  // Official field sections.
+  // §4.4 — Competences, References and Materials print as ONE line each.
   children.push(fieldLine('GENERAL COMPETENCES', (plan.generalCompetences || []).join(', ')))
-  children.push(fieldLine('SPECIFIC COMPETENCE', plan.specificCompetence || ''))
-  children.push(fieldLine('LESSON GOAL', plan.lessonGoal || ''))
-  children.push(fieldLine('RATIONALE', plan.rationale || ''))
-  children.push(fieldLine('PRIOR KNOWLEDGE', plan.priorKnowledge || ''))
-  if (plan.references?.length) {
-    children.push(para(text('REFERENCES:', { bold: true, size: 20 })))
-    children.push(...bulletList(plan.references))
+  children.push(fieldLine('SPECIFIC COMPETENCE', plan.specificCompetence))
+  children.push(fieldLine('LESSON GOAL', plan.lessonGoal))
+  if (fmt.sections.rationale) children.push(fieldLine('RATIONALE', plan.rationale))
+  if (fmt.sections.priorKnowledge) children.push(fieldLine('PRIOR KNOWLEDGE', plan.priorKnowledge))
+  if (fmt.sections.references) children.push(fieldLine('REFERENCES', (plan.references || []).join('; ')))
+
+  // §2.3 — one line, only for the categories the teacher selected, and never
+  // the words "Not applicable".
+  for (const line of resolveEnvironmentLines({
+    environment: plan.learningEnvironment,
+    selected: opts.learningEnvironments,
+    display: fmt.environmentDisplay,
+    place: fmt.environmentPlace,
+  })) {
+    children.push(fieldLine(line.label.toUpperCase(), line.value))
   }
-  children.push(para(text('LEARNING ENVIRONMENT:', { bold: true, size: 20 })))
-  children.push(fieldLine('I. Natural', le.natural || ''))
-  children.push(fieldLine('II. Artificial', le.artificial || ''))
-  children.push(fieldLine('III. Technological', le.technological || ''))
-  if (plan.materials?.length) {
-    children.push(para(text('TEACHING AND LEARNING MATERIALS/RESOURCES:', { bold: true, size: 20 })))
-    children.push(...bulletList(plan.materials))
-  }
-  children.push(fieldLine('EXPECTED STANDARD', plan.expectedStandard || ''))
+
+  children.push(fieldLine('MATERIALS', (plan.materials || []).join(', ')))
+  if (fmt.sections.expectedStandard) children.push(fieldLine('EXPECTED STANDARD', plan.expectedStandard))
 
   children.push(...lessonIllustrationParagraphs(plan, opts))
 
-  // LESSON PROGRESSION — one black ruled table, exactly like the modules.
-  children.push(new Paragraph({
-    children: [text('LESSON PROGRESSION', { bold: true, size: 22 })],
-    spacing: { before: 160, after: 120 },
+  children.push(labelLine('LESSON PROGRESSION', {
+    alignment: AlignmentType.CENTER,
+    spacing: { before: ptToTwips(FMT.sectionGapPt), after: ptToTwips(2) },
   }))
-  const headerRow = new TableRow({
-    tableHeader: true,
-    cantSplit: true,
-    children: [
-      v3HeaderCell('STAGES', 15),
-      v3HeaderCell("TEACHER'S ACTIVITIES", 31),
-      v3HeaderCell("LEARNERS' ACTIVITIES", 30),
-      v3HeaderCell('ASSESSMENT CRITERIA', 24),
-    ],
-  })
-  const stageRows = (plan.stages || []).map((s) => new TableRow({
-    cantSplit: true,
-    children: [
-      v3StageCell([
-        para(text(s.name || '', { bold: true, size: 18 }), { spacing: { after: 40 } }),
-        ...(s.durationMinutes > 0
-          ? [para(text(`(${s.durationMinutes} min)`, { italics: true, size: 16 }), { spacing: { after: 0 } })]
-          : []),
-      ], 15),
-      v3StageCell(bulletList(s.teacherActivities), 31),
-      v3StageCell(bulletList(s.learnerActivities), 30),
-      v3StageCell(bulletList(s.assessmentCriteria), 24),
-    ],
+  children.push(progressionTable(plan, opts, fmt, {
+    headings: ['STAGES', "TEACHER'S ACTIVITIES", "LEARNERS' ACTIVITIES", 'ASSESSMENT'],
+    fourth: (s) => (s.assessmentCriteria ?? s.assessment ?? ''),
   }))
-  children.push(new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    rows: [headerRow, ...stageRows],
-  }))
-  children.push(para([]))
 
-  // Closing block.
-  if (plan.remedialWork) children.push(fieldLine('REMEDIAL WORK', plan.remedialWork))
-  if (plan.extensionActivity) children.push(fieldLine('EXTENSION ACTIVITY', plan.extensionActivity))
-  children.push(new Paragraph({
-    children: [text('LESSON EVALUATION:', { bold: true, size: 20 })],
-    spacing: { before: 160, after: 80 },
-  }))
-  const blank = '_'.repeat(60)
-  children.push(fieldLine('Successes (competences achieved)', '_'.repeat(18)))
-  children.push(para(text(blank, { size: 20 })))
-  children.push(fieldLine('Challenges (competences not achieved and why)', '_'.repeat(18)))
-  children.push(para(text(blank, { size: 20 })))
-  children.push(fieldLine('Way forward (including remedial work if applicable)', '_'.repeat(18)))
-  children.push(para(text(blank, { size: 20 })))
-  return children
+  if (fmt.sections.remedialWork) children.push(fieldLine('REMEDIAL WORK', plan.remedialWork))
+  if (fmt.sections.extensionActivity) children.push(fieldLine('EXTENSION ACTIVITY', plan.extensionActivity))
+  if (fmt.sections.lessonEvaluation) {
+    children.push(labelLine('LESSON EVALUATION', {
+      spacing: { before: ptToTwips(FMT.sectionGapPt), after: ptToTwips(2) },
+    }))
+    children.push(ruledFields(fmt, ['Successes', 'Challenges', 'Way forward']))
+  }
+  return children.filter(Boolean)
+}
+
+function buildV3Body(plan, opts = {}, mode = 'cbc') {
+  const fmt = exportFormat(opts)
+  setTypography(fmt)
+  return mode === 'previous'
+    ? buildV3PreviousBody(plan, opts, fmt)
+    : buildV3CbcBody(plan, opts, fmt)
+}
+
+/** Page geometry for a resolved format — A4 at the teacher's chosen margins. */
+function pageProperties(fmt) {
+  const m = mmToTwips(fmt.marginMm)
+  return {
+    page: {
+      size: { width: A4_WIDTH_TWIPS, height: A4_HEIGHT_TWIPS },
+      margin: { top: m, right: m, bottom: m, left: m },
+    },
+  }
 }
 
 /**
@@ -826,21 +1157,27 @@ export function buildLessonPlanDocument(plan, opts = {}) {
   const isV3 = Array.isArray(plan.stages) || plan.schemaVersion === '3.0'
   if (isV3) {
     const mode = opts.curriculumMode === 'previous' ? 'previous' : 'cbc'
-    // CBC moves the school name to a centred masthead (the two-column header
-    // table drops it); the previous-curriculum body keeps it in its field lines.
-    const head = []
-    if (mode === 'cbc' && plan.header?.school) head.push(schoolHeading(plan.header.school))
-    head.push(h1('LESSON PLAN'))
+    const fmt = exportFormat(opts)
+    // The masthead (Ministry line, school, LESSON PLAN) is part of the body now
+    // — §4.3 gave it a header style, and the two rules that used to bracket it
+    // are gone, so there is nothing left for a separate head block to do.
     return new Document({
       creator: 'zedexams.com',
       title: sanitizeXmlText(`Lesson Plan — ${plan.header?.subject || ''} — ${plan.header?.topic || ''}`),
       description: 'Generated by ZedExams Teacher Tools',
       styles: {
         default: {
-          document: { run: { font: 'Calibri', size: 20 } },
+          document: { run: { font: 'Calibri', size: ptToHalfPt(fmt.typography.bodyPt) } },
         },
       },
-      sections: [{ ...attributionSection(opts), children: [...head, ...buildV3Body(plan, opts, mode)] }],
+      sections: [{
+        ...attributionSection(opts),
+        // Margins are the teacher's Paper Fit choice, not a constant — the
+        // preview draws the same sheet, so the two agree on where the text
+        // starts. Narrower margins alone recover ~8-10% of every page.
+        properties: pageProperties(fmt),
+        children: buildV3Body(plan, opts, mode),
+      }],
     })
   }
   const isV2 = !!plan.lessonProgression || !!plan.lessonCompetencies || plan.schemaVersion === '2.0'
@@ -944,6 +1281,13 @@ export async function downloadLessonPlanDocx(plan, filename = 'lesson-plan.docx'
   let buildOpts = opts
   if (plan?.lessonDiagram?.url) {
     buildOpts = { ...opts, diagramImage: await fetchLessonDiagramImage(plan.lessonDiagram) }
+  }
+  // §4.7 — the matching-block line art is SVG markup; Word needs bytes. This is
+  // the same async pre-pass shape as the illustration above, and it fails soft:
+  // an empty map means the block prints with the object words in their boxes.
+  const objectNames = objectNamesInPlan(plan)
+  if (objectNames.length) {
+    buildOpts = { ...buildOpts, objectArt: await rasterizeObjectArt(objectNames) }
   }
   const doc = buildLessonPlanDocument(plan, buildOpts)
   const blob = await Packer.toBlob(doc)

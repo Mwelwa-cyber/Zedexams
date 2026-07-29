@@ -591,3 +591,10 @@
   #view-plans .doc { padding: 0 !important; min-height: 0 !important; }
   @page { size: A4; margin: 14mm 15mm; }
 }
+
+/* ── Compact lesson plan (2026-07) ────────────────────────────────────────
+   The document's own layout rules are NOT here. They live in
+   src/utils/lessonPlanPrintCss.js, which the studio preview injects, the
+   print window inlines and the PDF exporter inlines — one stylesheet, so the
+   preview and the printout cannot disagree about where the text sits. Only
+   the studio chrome around the document stays in this file. */

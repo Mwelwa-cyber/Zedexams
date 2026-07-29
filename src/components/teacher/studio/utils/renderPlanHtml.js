@@ -1,11 +1,39 @@
 /**
- * renderPlanHtml — self-contained ES module that converts a parsed lesson-plan
- * JSON object into an HTML string using the same logic as
- * public/studio/06-generate.js (lines 225–700).
+ * renderPlanHtml — converts a parsed lesson-plan JSON object into the HTML the
+ * studio preview, the print window and (through the same rules) the exporters
+ * put on paper.
  *
- * No browser globals required — stageDiagramsHtml returns '' because the SVG
- * engine (11-diagrams.js) is not available in the React bundle.
+ * The governing constraint is paper. A generated plan used to run four A4 sides
+ * where the teacher's handwritten equivalent runs two, and paper costs money in
+ * a Zambian school. So the layout rules here are compactness rules, and the
+ * ones that decide how much paper a plan uses live in `src/utils/lessonPlanFormat.js`
+ * — imported, not re-declared, because the Word and PDF exporters read the same
+ * module and a second copy is how the preview and the download start disagreeing.
+ *
+ * Three things in here are load-bearing and easy to undo by accident:
+ *
+ *   - **Cells carry dash lines, never bullet lists.** A bulleted list inside an
+ *     already-narrow table cell spends ~0.6 cm of the cell's width on indent,
+ *     which forces extra wrapping on every line. `– ` with a hanging indent of
+ *     zero prints identically to how a teacher writes and recovers the width.
+ *   - **The STAGES column never breaks mid-word.** "INTRODU CTION" is a layout
+ *     bug a reader blames on the app. The column is 18% wide with hyphenation
+ *     off, and stage names break on their own separators (a slash, an em dash).
+ *   - **An unselected learning environment prints nothing.** Not "Not
+ *     applicable" — nothing. `resolveEnvironmentLines` is the only thing that
+ *     decides what that section says.
+ *
+ * No browser globals required — stageDiagramsHtml returns '' when a plan has no
+ * figures, so the module stays a pure string builder and is unit-testable under
+ * plain `node`.
  */
+
+import { cellToHtml } from '../../../../utils/lessonPlanBlocks.js'
+import {
+  headerLines,
+  resolveEnvironmentLines,
+  resolveLessonFormat,
+} from '../../../../utils/lessonPlanFormat.js'
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
@@ -48,38 +76,76 @@ function joinList(v, sep) {
 }
 
 /**
- * Remove a leading numbered prefix like "1." or "2)" from a string.
+ * Remove a leading numbered prefix like "1." or "2)" from a string, and any
+ * dash the model already added — the renderer supplies its own dash so every
+ * line starts the same way whether or not the model bulleted it.
  * @param {unknown} s
  * @returns {string}
  */
 function stripPrefix(s) {
-  return String(s || '').replace(/^\s*\d+[.)]\s*/, '')
+  return String(s || '')
+    .replace(/^\s*\d+[.)]\s*/, '')
+    .replace(/^\s*[–—•*-]\s*/, '')
+    .trim()
 }
 
 /**
- * Convert an array of strings (or a single string) to a simple HTML block.
- * Numbered lines get an <ol>; otherwise each line is wrapped in a <div>.
+ * A table cell's prose: one dash line per fragment, hanging indent zero.
+ *
+ * This replaces the in-cell <ul>/<ol> the plans used to carry. It is the single
+ * largest width saving in the progression table and the reason a Development
+ * cell now wraps to three lines where it used to wrap to five.
  * @param {unknown} text
  * @returns {string}
  */
-function formatProse(text) {
-  if (!text) return ''
-  const t = String(text).trim()
-  const lines = t
-    .split(/\n+/)
-    .map((l) => l.trim())
-    .filter(Boolean)
-  const isNumbered = lines.length > 1 && lines.every((l) => /^\d+[.)]/.test(l))
-  if (isNumbered) {
-    return (
-      '<ol style="padding-left:20px;margin:4px 0">' +
-      lines
-        .map((l) => '<li>' + esc(l.replace(/^\d+[.)]\s*/, '')) + '</li>')
-        .join('') +
-      '</ol>'
-    )
+function dashLines(text) {
+  const lines = asList(text).map(stripPrefix).filter(Boolean)
+  if (lines.length === 0) return ''
+  return lines.map((l) => `<div class="li">&ndash; ${esc(l)}</div>`).join('')
+}
+
+/**
+ * A cell of a progression table: prose as dash lines, plus any structured
+ * blocks (worked place-value sums, matching exercises — §4.7) in the order they
+ * were written.
+ * @param {unknown} value
+ * @returns {string}
+ */
+function cellHtml(value) {
+  return cellToHtml(value, dashLines)
+}
+
+/**
+ * Read one activity cell off a stage, accepting EITHER field-name family.
+ *
+ * `planShape.normalizePlanShape` gives a studio-generated plan both — the
+ * renderer's `teacher`/`pupils`/`assessment` strings and the exporters'
+ * `teacherActivities`/`learnerActivities`/`assessmentCriteria` arrays — but a
+ * plan reaching this renderer from the library or from an export shape may
+ * carry only the arrays. Reading one family and silently rendering an empty
+ * cell for the other is the exact failure planShape exists to prevent, so the
+ * fallback lives here rather than depending on every caller normalising first.
+ *
+ * @param {object} stage
+ * @param {string} key  'teacher' | 'pupils' | 'assessment' | 'learningPoint'
+ * @returns {unknown}
+ */
+function stageCellValue(stage, key) {
+  const s = stage || {}
+  switch (key) {
+    case 'teacher':
+      return s.teacher ?? s.teacherActivities ?? ''
+    case 'pupils':
+      return s.pupils ?? s.learnerActivities ?? s.learners ?? s.pupilActivities ?? ''
+    case 'assessment':
+      return s.assessment ?? s.assessmentCriteria ?? ''
+    case 'learningPoint':
+      // OBC's fourth column. A plan generated before LEARNING POINT existed
+      // carries the same content under the CBC name or the old METHODS column.
+      return s.learningPoint ?? s.assessment ?? s.assessmentCriteria ?? s.methods ?? ''
+    default:
+      return ''
   }
-  return lines.map((l) => '<div style="margin:3px 0">' + esc(l) + '</div>').join('')
 }
 
 // The official five stage names used when the model under-delivers.
@@ -99,7 +165,7 @@ const OFFICIAL_STAGES = [
  */
 function ensureStages(stages) {
   const list = Array.isArray(stages)
-    ? stages.filter((s) => s && (s.name || s.teacher || s.pupils))
+    ? stages.filter((s) => s && (s.name || stageCellValue(s, 'teacher') || stageCellValue(s, 'pupils')))
     : []
   if (list.length > 0) return list
   return OFFICIAL_STAGES.map((name) => ({
@@ -121,7 +187,7 @@ const OLD_STAGES = ['INTRODUCTION', 'DEVELOPMENT', 'CONCLUSION']
  */
 function ensureOldStages(stages) {
   const list = Array.isArray(stages)
-    ? stages.filter((s) => s && (s.name || s.teacher || s.pupils || s.content))
+    ? stages.filter((s) => s && (s.name || stageCellValue(s, 'teacher') || stageCellValue(s, 'pupils') || s.content))
     : []
   if (list.length > 0) return list
   return OLD_STAGES.map((name) => ({
@@ -132,6 +198,22 @@ function ensureOldStages(stages) {
     pupils: '',
     methods: '',
   }))
+}
+
+/** True when a stage is the homework row (which §2.4 lets a teacher drop). */
+function isHomeworkStage(stage) {
+  return /HOMEWORK/i.test(String(stage?.name || ''))
+}
+
+/**
+ * Drop the stages a teacher switched off. Only the homework row is optional —
+ * the other four are what makes the document a lesson plan.
+ * @param {object[]} stages
+ * @param {object} fmt
+ * @returns {object[]}
+ */
+function applyStageToggles(stages, fmt) {
+  return fmt.sections.homework ? stages : stages.filter((s) => !isHomeworkStage(s))
 }
 
 /**
@@ -192,6 +274,39 @@ function stageDiagramsHtml(stageName, diagrams) {
 }
 
 /**
+ * The standalone TEACHING ILLUSTRATION block.
+ *
+ * A plan can carry figures two ways: `diagrams[]`, tagged to a stage and drawn
+ * inside that stage's cell, and a single `lessonDiagram` for the whole lesson.
+ * Only the first was rendered here, so a plan with a `lessonDiagram` previewed
+ * and printed without its drawing while the Word export embedded it — the
+ * exporters disagreeing about the document again.
+ *
+ * Skipped when the same image is already attached to a stage, so a studio plan
+ * whose `lessonDiagram` was derived from `diagrams[0]` does not print twice.
+ *
+ * @param {object} data
+ * @returns {string}
+ */
+function lessonDiagramHtml(data) {
+  const diagram = data && data.lessonDiagram
+  if (!diagram || !diagram.url) return ''
+  const attached = Array.isArray(data.diagrams) ? data.diagrams : []
+  if (attached.some((d) => d && d.url === diagram.url)) return ''
+  const caption = String(diagram.prompt || diagram.caption || '').trim()
+  return (
+    '<div class="field-line"><b>TEACHING ILLUSTRATION:</b></div>' +
+    '<figure class="lp-figure" style="margin:2mm auto;text-align:center;max-width:420px">' +
+    `<img src="${esc(diagram.url)}" alt="${esc(caption || 'Teaching illustration')}" ` +
+    'style="max-width:100%;height:auto;border:1px solid #000" />' +
+    (caption
+      ? `<figcaption style="font-size:.85em;font-style:italic;margin-top:1mm">${esc(caption)}</figcaption>`
+      : '') +
+    '</figure>'
+  )
+}
+
+/**
  * Roman numeral for small indices (1–10).
  * @param {number} n
  * @returns {string}
@@ -206,181 +321,270 @@ function romanNum(n) {
 const OFFICIAL_TD = 'border:1px solid #000;padding:5px 7px;vertical-align:top;text-align:left'
 const OFFICIAL_TH = OFFICIAL_TD + ';font-weight:700'
 
+/**
+ * The STAGES cell carries its no-break rules INLINE as well as in lesson.css.
+ * The stylesheet covers the studio preview, but the same HTML is also rendered
+ * by the library's saved-plan frame and pasted into the print window, and
+ * "INTRODU CTION" in a printed plan is a bug a teacher blames on the app —
+ * so the rule travels with the markup rather than depending on a stylesheet
+ * reaching every consumer.
+ */
+const STAGE_TD = OFFICIAL_TD + ';font-weight:700;hyphens:none;-webkit-hyphens:none;overflow-wrap:normal;word-break:normal'
+
+/**
+ * Progression-table column widths (§4.1). Fixed layout in every renderer, so a
+ * long Teacher's Activities cell can never steal width from the STAGES column
+ * and start breaking its heading mid-word.
+ */
+export const PROGRESSION_WIDTHS = { stage: 18, teacher: 34, learner: 26, assessment: 22 }
+
+/**
+ * Stage names break on their OWN separators — the slash in "EXERCISE /
+ * ASSESSMENT", the em dash in "LESSON DEVELOPMENT — Activity 1" — and nowhere
+ * else. The `hyphens:none; overflow-wrap:normal` on `.lp-table .stage` in
+ * lesson.css is the other half of this; without both, an 18% column still
+ * chops "HOMEWORK" into "HOMEWO RK".
+ * @param {string} name
+ * @returns {string}
+ */
+function stageNameHtml(name) {
+  return esc(name)
+    .replace(/\s*\/\s*/g, ' /<br>')
+    .replace(/\s*(&mdash;|—|--)\s*/g, '<br>')
+}
+
+/**
+ * One STAGES cell: the name, then the duration on its own line.
+ * @param {object} stage
+ * @returns {string}
+ */
+function stageCellHtml(stage) {
+  const duration = String(stage.duration || '').trim()
+  return (
+    stageNameHtml(stage.name || '') +
+    (duration ? `<span class="t">(${esc(duration)})</span>` : '')
+  )
+}
+
 // ── Header / meta renderers ───────────────────────────────────────────────────
 
 /**
- * Render the school header block.
+ * The masthead: an optional MINISTRY OF EDUCATION line for government teachers,
+ * the school name, then LESSON PLAN. No horizontal rules — §4.3 removed the two
+ * that used to bracket the metadata block, because they cost two lines and the
+ * Ministry-style reference plans do not have them.
  * @param {object} meta
+ * @param {object} fmt
  * @param {string} [titleText]
  * @returns {string}
  */
-function renderHeader(meta, titleText) {
-  let h = '<div class="doc-head">'
-  if (meta.headerLine) h += `<div class="header-line">${esc(meta.headerLine)}</div>`
-  h += `<div class="school">${esc(meta.school || 'School Name')}</div>`
+function renderHeader(meta, fmt, titleText) {
+  const lines = headerLines({
+    headerStyle: fmt.headerStyle,
+    ministryLine: fmt.ministryLine,
+    school: meta.school || 'School Name',
+  })
+  let h = '<div class="doc-head clean">'
+  if (fmt.headerStyle === 'ministry' && lines.length > 1) {
+    h += `<div class="ministry">${esc(lines[0])}</div>`
+    h += `<div class="school">${esc(lines[1])}</div>`
+  } else {
+    h += `<div class="school">${esc(lines[0] || '')}</div>`
+  }
   if (meta.department) h += `<div class="department">${esc(meta.department)}</div>`
   h += `<div class="lp-title">${esc(titleText || 'Lesson Plan')}</div></div>`
   return h
 }
 
 /**
- * Render a full meta table (one row per field).
- * @param {object} meta
- * @returns {string}
+ * One `Label: value` cell of the metadata block. Label underlined, value not.
+ *
+ * A table CELL, not a grid item, and that is not a style preference: the PDF
+ * download rasterises with html2canvas, which lays out `display:grid`
+ * unreliably. A borderless table renders identically in the browser, in the
+ * rasteriser and in Word — so all three renderers can share this structure.
  */
-function renderMetaTable(meta) {
-  const rows = []
-  if (meta.teacher) rows.push(['Teacher', esc(meta.teacher) + (meta.tsno ? ' &nbsp;·&nbsp; TS ' + esc(meta.tsno) : '')])
-  if (meta.teacherName) rows.push(['Teacher', esc(meta.teacherName)])
-  if (meta.date) rows.push(['Date', esc(meta.date)])
-  if (meta.time) rows.push(['Time', esc(meta.time)])
-  rows.push(['Duration', esc(String(meta.duration || '40')) + ' minutes'])
-  rows.push(['Class', esc(meta.klass || meta.grade || '')])
-  rows.push(['Subject', esc(meta.subject || '')])
-  if (meta.topic) rows.push(['Topic', esc(meta.topic)])
-  if (meta.subtopic) rows.push(['Sub-topic', esc(meta.subtopic)])
-  if (meta.showEnrolment) rows.push(['Total Enrolment', 'Boys: _____ &nbsp;&nbsp; Girls: _____ &nbsp;&nbsp; Total: _____'])
-  if (meta.showAttendance) rows.push(['Total Attendance', 'Boys: _____ &nbsp;&nbsp; Girls: _____ &nbsp;&nbsp; Total: _____'])
-  return `<table class="meta-table"><tbody>${rows
-    .map((r) => `<tr><td class="k">${r[0]}</td><td class="v">${r[1]}</td></tr>`)
-    .join('')}</tbody></table>`
+function metaItem(label, value, { wide = false } = {}) {
+  return (
+    `<td class="item${wide ? ' span2' : ''}"${wide ? ' colspan="2"' : ''}>` +
+    `<b>${esc(label)}:</b> <span class="val">${value}</span></td>`
+  )
 }
 
 /**
- * Render a compact meta row (items as inline key/value pairs).
+ * The clean, rule-less two-column metadata block (§4.3).
+ *
+ * Identity fields on the left, session fields on the right, each label and its
+ * value inside ONE cell so they can never separate — which is what used to drop
+ * "SUB-TOPIC:"'s value onto the next line and misalign the GIRLS/BOYS blanks
+ * from their labels. Sub-topic spans both columns because it is the one field
+ * that is routinely too long for half a line.
+ *
  * @param {object} meta
+ * @param {object} data
+ * @param {object} fmt
+ * @param {object} [opts]  { gradeLabel, extraLeft, extraRight, extraWide }
  * @returns {string}
  */
-/**
- * Shared two-column lesson-plan header used by every CBC format (modern,
- * classic, classic2). Identity/subject on the left, scheduling/attendance on
- * the right — mirrors the official CDC lesson-plan header layout. Topic and
- * sub-topic are read from the plan `data` when present, falling back to `meta`.
- * @param {object} meta
- * @param {object} [data]
- * @returns {string}
- */
-function renderTwoColMeta(meta, data = {}) {
+function renderMetaBlock(meta, data = {}, fmt, opts = {}) {
+  const gradeLabel = opts.gradeLabel || 'Class'
   const teacherDisplay = meta.teacherName
     ? esc(meta.teacherName)
     : meta.teacher
       ? esc(meta.teacher) + (meta.tsno ? ' (TS ' + esc(meta.tsno) + ')' : '')
       : ''
+
+  const pupils = [
+    meta.showEnrolment || meta.showAttendance
+      ? 'B: ______ &nbsp; G: ______ &nbsp; Total: ______'
+      : 'B: ______ &nbsp; G: ______',
+  ][0]
+
   const left = [
-    ['Name of teacher', teacherDisplay],
-    ['Class', esc(meta.klass || meta.grade || '')],
+    ['Name of Teacher', teacherDisplay],
+    [gradeLabel, esc(meta.klass || meta.grade || '')],
     ['Subject', esc(meta.subject || '')],
     ['Topic', esc(data.topic || meta.topic || '')],
-    ['Sub-topic', esc(data.subtopic || meta.subtopic || '')],
+    ...(opts.extraLeft || []),
   ]
   const right = [
     ['Date', esc(meta.date || '')],
     ['Time', esc(meta.time || '')],
-    ['Duration', esc(String(meta.duration || '40')) + ' min'],
-    ['Total no. of pupils', ''],
-    ['Girls', '______ &nbsp;&nbsp;&nbsp; <span class="lbl">Boys:</span> ______'],
+    ['Duration', esc(String(meta.duration || '40')) + ' minutes'],
+    ['No of pupils', pupils],
+    ...(opts.extraRight || []),
   ]
-  const item = ([k, v]) => `<div class="item"><span class="lbl">${k}:</span><span class="val">${v}</span></div>`
-  return (
-    '<div class="meta-compact two-col">' +
-    `<div class="meta-col">${left.map(item).join('')}</div>` +
-    `<div class="meta-col">${right.map(item).join('')}</div>` +
-    '</div>'
-  )
-}
+  const wide = [
+    ['Sub-Topic', esc(data.subtopic || meta.subtopic || '')],
+    ...(opts.extraWide || []),
+  ].filter(([, v]) => String(v).trim())
 
-function renderMetaCompact(meta) {
-  return renderTwoColMeta(meta)
-}
+  const table = (rowsHtml, extraClass = '') =>
+    `<table class="meta${extraClass}"><tbody>${rowsHtml}</tbody></table>`
 
-/**
- * Dispatch to compact or full meta based on meta.compactMeta.
- * @param {object} meta
- * @returns {string}
- */
-function renderMeta(meta) {
-  return meta.compactMeta ? renderMetaCompact(meta) : renderMetaTable(meta)
-}
+  // Compact metadata keeps the two columns (≤ 6 lines). With it off, every field
+  // takes its own full-width row — more legible, three lines longer.
+  if (!fmt.compactMeta) {
+    return table(
+      [...left, ...right, ...wide]
+        .map(([k, v]) => `<tr>${metaItem(k, v, { wide: true })}</tr>`)
+        .join(''),
+      ' one-col',
+    )
+  }
 
-/**
- * Official header block for classic formats. Uses the shared two-column header
- * so classic/classic2 match the modern format exactly (name/class/subject/topic/
- * sub-topic on the left; date/time/duration/pupil counts on the right).
- * @param {object} meta
- * @param {object} [data]
- * @returns {string}
- */
-function renderOfficialHeader(meta, data) {
-  return renderTwoColMeta(meta, data)
+  const rows = []
+  const count = Math.max(left.length, right.length)
+  for (let i = 0; i < count; i += 1) {
+    const a = left[i] ? metaItem(left[i][0], left[i][1]) : '<td class="item"></td>'
+    const b = right[i] ? metaItem(right[i][0], right[i][1]) : '<td class="item"></td>'
+    rows.push(`<tr>${a}${b}</tr>`)
+  }
+  for (const [k, v] of wide) rows.push(`<tr>${metaItem(k, v, { wide: true })}</tr>`)
+  return table(rows.join(''))
 }
 
 // ── Field line helpers ────────────────────────────────────────────────────────
 
 /**
- * Render the canonical pre-table field lines (classic + classic2 formats).
- * @param {object} data
+ * A single-line section (§4.4). Materials, References and Competences print as
+ * one wrapped, comma-separated line each rather than a bullet list — a list of
+ * three items costs a heading plus three indented lines where the line costs
+ * one.
+ * @param {string} label
+ * @param {string} value
  * @returns {string}
  */
-function renderFieldLines(data) {
-  const refs = asList(data.references)
-  const refsHtml =
-    refs.length > 1
-      ? `<div class="field-line"><strong>REFERENCES:</strong></div>` +
-        refs.map((r) => `<div class="field-line" style="padding-left:18px">&bull; ${esc(r)}</div>`).join('')
-      : `<div class="field-line"><strong>REFERENCES:</strong> ${esc(refs[0] || '')}</div>`
+function sectionLine(label, value) {
+  const v = String(value || '').trim()
+  if (!v) return ''
+  return `<div class="field-line"><b>${esc(label)}:</b> ${esc(v)}</div>`
+}
 
-  const mats = asList(data.materials)
-  const matsHtml =
-    mats.length > 1
-      ? `<div class="field-line" style="margin-top:8px"><strong>TEACHING AND LEARNING MATERIALS/RESOURCES:</strong></div>` +
-        mats.map((m) => `<div class="field-line" style="padding-left:18px">&bull; ${esc(m)}</div>`).join('')
-      : `<div class="field-line" style="margin-top:8px"><strong>TEACHING AND LEARNING MATERIALS/RESOURCES:</strong> ${esc(mats[0] || '')}</div>`
+/**
+ * The LEARNING ENVIRONMENT section — one line, and only for the categories the
+ * teacher actually selected (§2.3). There is deliberately no branch that emits
+ * a heading with nothing under it.
+ * @param {object} data
+ * @param {object} meta
+ * @param {object} fmt
+ * @returns {string}
+ */
+function environmentHtml(data, meta, fmt) {
+  const lines = resolveEnvironmentLines({
+    environment: data.learningEnvironment,
+    selected: meta.learningEnvironments,
+    display: fmt.environmentDisplay,
+    place: fmt.environmentPlace,
+  })
+  return lines.map((l) => sectionLine(l.label.toUpperCase(), l.value)).join('')
+}
 
-  return `
-    <div class="field-line"><strong>GENERAL COMPETENCES:</strong> ${esc(joinList(data.generalCompetences, ', '))}</div>
-    <div class="field-line"><strong>SPECIFIC COMPETENCE:</strong> ${esc(data.specificCompetence || '')}</div>
-    <div class="field-line" style="margin-top:8px"><strong>LESSON GOAL:</strong> ${esc(data.lessonGoal || '')}</div>
-    <div class="field-line"><strong>RATIONALE:</strong> ${esc(data.rationale || '')}</div>
-    <div class="field-line"><strong>PRIOR KNOWLEDGE:</strong> ${esc(data.priorKnowledge || '')}</div>
-    ${refsHtml}
-    <div class="field-line" style="margin-top:8px"><strong>LEARNING ENVIRONMENT:</strong></div>
-    <div class="field-line" style="padding-left:18px">I. <strong>Natural:</strong> ${esc(data.learningEnvironment?.natural || '')}</div>
-    <div class="field-line" style="padding-left:18px">II. <strong>Artificial:</strong> ${esc(data.learningEnvironment?.artificial || '')}</div>
-    <div class="field-line" style="padding-left:18px">III. <strong>Technological:</strong> ${esc(data.learningEnvironment?.technological || '')}</div>
-    ${matsHtml}
-    <div class="field-line"><strong>EXPECTED STANDARD:</strong> ${esc(data.expectedStandard || data.expectedStandards || '')}</div>`
+/**
+ * Render the canonical pre-table field lines (CBC classic + classic2 formats).
+ * Every optional section is gated on the teacher's own toggle, so a plan that
+ * says nothing about remedial work has no empty REMEDIAL WORK line either.
+ * @param {object} data
+ * @param {object} meta
+ * @param {object} fmt
+ * @returns {string}
+ */
+function renderFieldLines(data, meta, fmt) {
+  const out = [
+    sectionLine('GENERAL COMPETENCES', joinList(data.generalCompetences, ', ')),
+    sectionLine('SPECIFIC COMPETENCE', data.specificCompetence),
+    sectionLine('LESSON GOAL', data.lessonGoal),
+  ]
+  if (fmt.sections.rationale) out.push(sectionLine('RATIONALE', data.rationale))
+  if (fmt.sections.priorKnowledge) out.push(sectionLine('PRIOR KNOWLEDGE', data.priorKnowledge))
+  if (fmt.sections.references) out.push(sectionLine('REFERENCES', joinList(data.references, '; ')))
+  out.push(environmentHtml(data, meta, fmt))
+  out.push(sectionLine('MATERIALS', joinList(data.materials, ', ')))
+  if (fmt.sections.expectedStandard) {
+    out.push(sectionLine('EXPECTED STANDARD', data.expectedStandard || data.expectedStandards))
+  }
+  return out.filter(Boolean).join('')
+}
+
+/**
+ * One ruled line per evaluation field (§4.5).
+ *
+ * The old rendering was two rows of ~58 underscore characters per field — about
+ * a third of a page for three fields, and it wrapped unpredictably because a
+ * run of underscores is one unbreakable "word". A bottom-bordered empty span is
+ * one line, always exactly the width of the page, and the teacher writes on it.
+ * @param {string} label
+ * @returns {string}
+ */
+function ruledField(label) {
+  return `<div class="eval-field"><b>${esc(label)}:</b><span class="rule"></span></div>`
 }
 
 /**
  * Render the lesson evaluation / reflection block.
  * @param {object} data
  * @param {object} meta
+ * @param {object} fmt
  * @returns {string}
  */
-function renderLessonEvaluation(data, meta) {
+function renderLessonEvaluation(data, meta, fmt) {
   const extras = []
-  if (data.remedialWork) {
-    extras.push(
-      `<div class="field-line" style="margin-top:10px"><strong>REMEDIAL WORK:</strong> ${esc(data.remedialWork)}</div>`,
-    )
+  if (fmt.sections.remedialWork && data.remedialWork) {
+    extras.push(sectionLine('REMEDIAL WORK', data.remedialWork))
   }
-  if (data.extensionActivity) {
-    extras.push(
-      `<div class="field-line"${data.remedialWork ? '' : ' style="margin-top:10px"'}><strong>EXTENSION ACTIVITY:</strong> ${esc(data.extensionActivity)}</div>`,
-    )
+  if (fmt.sections.extensionActivity && data.extensionActivity) {
+    extras.push(sectionLine('EXTENSION ACTIVITY', data.extensionActivity))
   }
-  if (!meta.showReflection) return extras.join('')
-  const blank = (n) => `<div class="field-line">${'_'.repeat(n)}</div>`
-  const prompt = (label, hint) =>
-    `<div class="field-line"><strong>${label}</strong> (${hint}): ${'_'.repeat(18)}</div>`
-  return `${extras.join('')}
-    <div class="field-line" style="margin-top:14px"><strong>LESSON EVALUATION:</strong></div>
-    ${prompt('Successes', 'competences achieved')}
-    ${blank(58)}
-    ${prompt('Challenges', 'competences not achieved and why')}
-    ${blank(58)}
-    ${prompt('Way forward', 'including remedial work if applicable')}
-    ${blank(58)}`
+  if (!fmt.sections.lessonEvaluation) return extras.join('')
+  return (
+    extras.join('') +
+    '<div class="eval">' +
+    '<div class="field-line"><b>LESSON EVALUATION:</b></div>' +
+    ruledField('Successes') +
+    ruledField('Challenges') +
+    ruledField('Way forward') +
+    '</div>'
+  )
 }
 
 // ── New curriculum (2023 ECF / CBC) renderers ─────────────────────────────────
@@ -389,94 +593,67 @@ function renderLessonEvaluation(data, meta) {
  * "Modern Clean" format — sectioned layout with one mini-table per stage.
  * @param {object} data
  * @param {object} meta
+ * @param {object} fmt
  * @returns {string}
  */
-function renderModern(data, meta) {
-  const list = (arr) =>
-    asList(arr)
-      .map((x) => `<li>${esc(stripPrefix(x))}</li>`)
-      .join('')
-
-  const stages = ensureStages(data.stages)
+function renderModern(data, meta, fmt) {
+  const stages = applyStageToggles(ensureStages(data.stages), fmt)
     .map(
       (s) => `
     <div class="stage-block"><table class="stage-table m-stage-table">
       <tr><td colspan="3" class="stage-head">${esc(s.name)}${s.duration ? `<span class="duration">${esc(s.duration)}</span>` : ''}</td></tr>
       <tr><th class="col-head">TEACHER'S ACTIVITIES</th><th class="col-head">LEARNERS' ACTIVITIES</th><th class="col-head">ASSESSMENT CRITERIA</th></tr>
-      <tr><td>${formatProse(s.teacher)}</td><td>${formatProse(s.pupils)}${stageDiagramsHtml(s.name, data.diagrams)}</td><td>${formatProse(s.assessment || '')}</td></tr>
+      <tr><td>${cellHtml(stageCellValue(s, 'teacher'))}</td><td>${cellHtml(stageCellValue(s, 'pupils'))}${stageDiagramsHtml(s.name, data.diagrams)}</td><td>${cellHtml(stageCellValue(s, 'assessment'))}</td></tr>
     </table></div>`,
     )
     .join('')
 
-  const support =
-    data.remedialWork || data.extensionActivity
-      ? `
-    <h2 class="sec">Remedial Work &amp; Extension</h2>
-    ${data.remedialWork ? `<p><strong>Remedial work:</strong> ${esc(data.remedialWork)}</p>` : ''}
-    ${data.extensionActivity ? `<p><strong>Extension activity:</strong> ${esc(data.extensionActivity)}</p>` : ''}`
-      : ''
-
-  const evaluation = meta.showReflection
-    ? `
-    <h2 class="sec">Lesson Evaluation</h2>
-    <div class="callout-line"><strong>Successes (competences achieved):</strong><span class="blank"></span></div>
-    <div class="callout-line"><strong>Challenges (competences not achieved and why):</strong><span class="blank"></span></div>
-    <div class="callout-line"><strong>Way forward (including remedial work if applicable):</strong><span class="blank"></span></div>`
-    : ''
-
-  return `<div class="plan-official">${renderHeader(meta)}${renderMeta(meta)}
-    <h2 class="sec">General Competences</h2><ul>${list(data.generalCompetences)}</ul>
-    <h2 class="sec">Specific Competence</h2><p>${esc(data.specificCompetence || '')}</p>
-    <h2 class="sec">Lesson Goal</h2><p>${esc(data.lessonGoal || '')}</p>
-    <h2 class="sec">Rationale</h2><p>${esc(data.rationale || '')}</p>
-    <h2 class="sec">Prior Knowledge</h2><p>${esc(data.priorKnowledge || '')}</p>
-    <h2 class="sec">References</h2><ul>${list(data.references)}</ul>
-    <h2 class="sec">Learning Environment</h2>
-    <p><strong>Natural:</strong> ${esc(data.learningEnvironment?.natural || '')}</p>
-    <p><strong>Artificial:</strong> ${esc(data.learningEnvironment?.artificial || '')}</p>
-    <p><strong>Technological:</strong> ${esc(data.learningEnvironment?.technological || '')}</p>
-    <h2 class="sec">Teaching &amp; Learning Materials</h2><ul>${list(data.materials)}</ul>
-    <h2 class="sec">Expected Standard</h2><p>${esc(data.expectedStandard || data.expectedStandards || '')}</p>
-    <h2 class="sec">Lesson Progression</h2>${stages}
-    ${support}
-    ${evaluation}</div>`
+  return `<div class="plan-official plan-compact">${renderHeader(meta, fmt)}${renderMetaBlock(meta, data, fmt)}
+    ${renderFieldLines(data, meta, fmt)}${lessonDiagramHtml(data)}
+    <div class="progression-title">LESSON PROGRESSION</div>${stages}
+    ${renderLessonEvaluation(data, meta, fmt)}</div>`
 }
 
 /**
- * "Classic" format — ONE progression table with four columns.
+ * "Classic" format — ONE progression table with four columns. This is the
+ * layout the compactness work targets: it is what a Zambian head teacher
+ * expects to see, and it is the cheapest in paper.
  * @param {object} data
  * @param {object} meta
+ * @param {object} fmt
  * @returns {string}
  */
-function renderClassic(data, meta) {
-  const stagesHtml = ensureStages(data.stages)
+function renderClassic(data, meta, fmt) {
+  const stagesHtml = applyStageToggles(ensureStages(data.stages), fmt)
     .map(
       (s) => `<tr>
-    <td class="stage" style="${OFFICIAL_TD}">${esc(s.name).replace(/\s*\/\s*/g, '<br>')}${s.duration ? `<br><span class="duration">(${esc(s.duration)})</span>` : ''}</td>
-    <td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>
-    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}${stageDiagramsHtml(s.name, data.diagrams)}</td>
-    <td style="${OFFICIAL_TD}">${formatProse(s.assessment || '')}</td></tr>`,
+    <td class="stage" style="${STAGE_TD}">${stageCellHtml(s)}</td>
+    <td style="${OFFICIAL_TD}">${cellHtml(stageCellValue(s, 'teacher'))}</td>
+    <td style="${OFFICIAL_TD}">${cellHtml(stageCellValue(s, 'pupils'))}${stageDiagramsHtml(s.name, data.diagrams)}</td>
+    <td style="${OFFICIAL_TD}">${cellHtml(stageCellValue(s, 'assessment'))}</td></tr>`,
     )
     .join('')
 
-  return `<div class="plan-official">${renderHeader(meta)}${renderOfficialHeader(meta, data)}
-    ${renderFieldLines(data)}
+  const w = PROGRESSION_WIDTHS
+  return `<div class="plan-official plan-compact">${renderHeader(meta, fmt)}${renderMetaBlock(meta, data, fmt)}
+    ${renderFieldLines(data, meta, fmt)}${lessonDiagramHtml(data)}
     <div class="progression-title">LESSON PROGRESSION</div>
-    <table class="lp-table official-table" border="1" style="border-collapse:collapse;border:1px solid #000;width:100%">
-      <thead><tr><th style="width:15%;${OFFICIAL_TH}">STAGES</th><th style="width:31%;${OFFICIAL_TH}">TEACHER'S ACTIVITIES</th><th style="width:30%;${OFFICIAL_TH}">LEARNERS' ACTIVITIES</th><th style="width:24%;${OFFICIAL_TH}">ASSESSMENT CRITERIA</th></tr></thead>
+    <table class="lp-table official-table" border="1" style="border-collapse:collapse;border:1px solid #000;width:100%;table-layout:fixed">
+      <thead><tr><th style="width:${w.stage}%;${OFFICIAL_TH}">STAGES</th><th style="width:${w.teacher}%;${OFFICIAL_TH}">TEACHER'S ACTIVITIES</th><th style="width:${w.learner}%;${OFFICIAL_TH}">LEARNERS' ACTIVITIES</th><th style="width:${w.assessment}%;${OFFICIAL_TH}">ASSESSMENT</th></tr></thead>
       <tbody>${stagesHtml}</tbody>
     </table>
-    ${renderLessonEvaluation(data, meta)}</div>`
+    ${renderLessonEvaluation(data, meta, fmt)}</div>`
 }
 
 /**
  * "Official CBC Format" — per-stage tables with Teacher's Role / Learners' Role columns.
  * @param {object} data
  * @param {object} meta
+ * @param {object} fmt
  * @returns {string}
  */
-function renderClassic2(data, meta) {
-  const stages = ensureStages(data.stages)
+function renderClassic2(data, meta, fmt) {
+  const stages = applyStageToggles(ensureStages(data.stages), fmt)
     .map(
       (s) => `
     <div class="stage-block"><table class="stage-table c2-stage-table official-table" border="1" style="border-collapse:collapse;border:1px solid #000;width:100%">
@@ -487,233 +664,167 @@ function renderClassic2(data, meta) {
         <th class="col-head" style="width:34%;${OFFICIAL_TH}">ASSESSMENT CRITERIA</th>
       </tr>
       <tr>
-        <td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>
-        <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}${stageDiagramsHtml(s.name, data.diagrams)}</td>
-        <td style="${OFFICIAL_TD}">${formatProse(s.assessment || '')}</td>
+        <td style="${OFFICIAL_TD}">${cellHtml(stageCellValue(s, 'teacher'))}</td>
+        <td style="${OFFICIAL_TD}">${cellHtml(stageCellValue(s, 'pupils'))}${stageDiagramsHtml(s.name, data.diagrams)}</td>
+        <td style="${OFFICIAL_TD}">${cellHtml(stageCellValue(s, 'assessment'))}</td>
       </tr>
     </table></div>`,
     )
     .join('')
 
-  return `<div class="plan-official">${renderHeader(meta)}${renderOfficialHeader(meta, data)}
-    ${renderFieldLines(data)}
+  return `<div class="plan-official plan-compact">${renderHeader(meta, fmt)}${renderMetaBlock(meta, data, fmt)}
+    ${renderFieldLines(data, meta, fmt)}${lessonDiagramHtml(data)}
     <div class="progression-title">LESSON PROGRESSION</div>${stages}
-    ${renderLessonEvaluation(data, meta)}</div>`
+    ${renderLessonEvaluation(data, meta, fmt)}</div>`
 }
 
-// ── Old curriculum (2013) renderers ───────────────────────────────────────────
+// ── Old curriculum (2013 OBC) renderers ───────────────────────────────────────
 
 /**
- * Old-curriculum official header block.
- * @param {object} meta
+ * OBC field lines (§4.6). The outcome-based plan has its OWN vocabulary — it is
+ * not the CBC plan with relabelled fields. Specific outcomes, not competences;
+ * Pre-requisite, not Prior Knowledge; Learning/T Aids, not Materials; and no
+ * General Competences, Specific Competence or Expected Standard at all.
  * @param {object} data
+ * @param {object} fmt
  * @returns {string}
  */
-function renderOldHeader(meta, data) {
-  const pairs = []
-  const teacherDisplay = (meta.teacherName || meta.teacher || '') + (meta.tsno ? ' (TS ' + esc(meta.tsno) + ')' : '')
-  pairs.push(['NAME OF TEACHER', esc(teacherDisplay), 'wide'])
-  pairs.push(['DATE', esc(meta.date || '')])
-  pairs.push(['TIME', esc(meta.time || '')])
-  pairs.push(['SUBJECT', esc(meta.subject || '')])
-  pairs.push(['DURATION', esc(String(meta.duration || '40')) + ' minutes'])
-  pairs.push(['GRADE', esc(meta.klass || meta.grade || '')])
-  pairs.push(['TOPIC', esc(data.topic || ''), 'wide'])
-  pairs.push(['SUB-TOPIC', esc(data.subtopic || ''), 'wide'])
-  if (meta.showEnrolment) pairs.push(['NO. OF PUPILS', 'Boys: ______ Girls: ______ Total: ______', 'wide'])
-  if (meta.showAttendance) pairs.push(['ATTENDANCE', 'Boys: ______ Girls: ______ Total: ______', 'wide'])
-  pairs.push(['T/L AIDS', esc(joinList(data.tlAids || data.materials, ', ')), 'wide'])
-  pairs.push(['REFERENCES', esc(joinList(data.references, '; ')), 'wide'])
-  const line = ([k, v, wide]) => `<div class="om-item${wide ? ' om-wide' : ''}"><strong>${k}:</strong> ${v}</div>`
-  return `<div class="official-meta${meta.compactMeta ? ' two-col' : ''}">${pairs.map(line).join('')}</div>`
-}
-
-/**
- * Old-curriculum field lines: RATIONALE → PRE-REQUISITE → SPECIFIC OUTCOMES.
- * @param {object} data
- * @returns {string}
- */
-function renderOldFieldLines(data) {
+function renderOldFieldLines(data, fmt) {
   const outcomes = asList(data.specificOutcomes)
-  const outcomesHtml = outcomes.length
-    ? `<div class="field-line" style="margin-top:8px"><strong>SPECIFIC OUTCOMES (LSBAT):</strong> By the end of this lesson, pupils should be able to:</div>` +
-      outcomes
-        .map((o, i) => `<div class="field-line" style="padding-left:18px">${romanNum(i + 1)}. ${esc(stripPrefix(o))}</div>`)
-        .join('')
-    : ''
-  return `
-    <div class="field-line" style="margin-top:8px"><strong>RATIONALE:</strong> ${esc(data.rationale || '')}</div>
-    <div class="field-line"><strong>PRE-REQUISITE KNOWLEDGE:</strong> ${esc(data.prerequisiteKnowledge || data.priorKnowledge || '')}</div>
-    ${outcomesHtml}`
-}
-
-/**
- * Old-curriculum homework + evaluation blanks.
- * @param {object} data
- * @param {object} meta
- * @returns {string}
- */
-function renderOldClosing(data, meta) {
-  const parts = []
-  if (data.homework) {
-    parts.push(
-      `<div class="field-line" style="margin-top:10px"><strong>HOMEWORK / EXERCISE:</strong> ${esc(data.homework)}</div>`,
+  const out = []
+  if (outcomes.length === 1) {
+    out.push(sectionLine('SPECIFIC OUTCOMES', stripPrefix(outcomes[0])))
+  } else if (outcomes.length > 1) {
+    out.push(
+      '<div class="field-line"><b>SPECIFIC OUTCOMES:</b> By the end of this lesson, pupils should be able to:</div>' +
+        outcomes
+          .map((o, i) => `<div class="li outcome">${romanNum(i + 1)} ${esc(stripPrefix(o))}</div>`)
+          .join(''),
     )
   }
-  if (!meta.showReflection) return parts.join('')
-  const blank = (n) => `<div class="field-line">${'_'.repeat(n)}</div>`
-  parts.push(`
-    <div class="field-line" style="margin-top:14px"><strong>PUPIL EVALUATION:</strong></div>
-    ${blank(58)}
-    ${blank(58)}
-    <div class="field-line" style="margin-top:10px"><strong>TEACHER EVALUATION:</strong></div>
-    ${blank(58)}
-    ${blank(58)}`)
+  if (fmt.sections.rationale) out.push(sectionLine('RATIONALE', data.rationale))
+  out.push(sectionLine('PRE-REQUISITE', data.prerequisiteKnowledge || data.priorKnowledge))
+  return out.filter(Boolean).join('')
+}
+
+/**
+ * OBC metadata block. Same clean two-column grid as CBC, with the OBC field set:
+ * Grade rather than Class, plus Reference and Learning/T Aids.
+ * @param {object} meta
+ * @param {object} data
+ * @param {object} fmt
+ * @returns {string}
+ */
+function renderOldMeta(meta, data, fmt) {
+  const extraLeft = fmt.sections.references
+    ? [['Reference', esc(joinList(data.references, '; '))]]
+    : []
+  const aids = joinList(data.tlAids || data.materials, ', ')
+  return renderMetaBlock(meta, data, fmt, {
+    gradeLabel: 'Grade',
+    extraLeft,
+    extraWide: aids ? [['Learning/T Aids', esc(aids)]] : [],
+  })
+}
+
+/**
+ * OBC closing block (§4.6): EVALUATION and LESSON LEARNT as ruled lines the
+ * teacher completes after teaching. CBC's "Successes / Challenges / Way forward"
+ * prompts are a CBC convention and do not belong on an OBC plan.
+ * @param {object} data
+ * @param {object} fmt
+ * @returns {string}
+ */
+function renderOldClosing(data, fmt) {
+  const parts = []
+  if (fmt.sections.homework && data.homework) {
+    parts.push(sectionLine('HOMEWORK', data.homework))
+  }
+  if (!fmt.sections.lessonEvaluation) return parts.join('')
+  parts.push(
+    '<div class="eval">' +
+      '<div class="field-line"><b>EVALUATION:</b></div>' +
+      '<div class="eval-field"><span class="rule"></span></div>' +
+      '<div class="eval-field"><span class="rule"></span></div>' +
+      '<div class="field-line"><b>LESSON LEARNT:</b></div>' +
+      '<div class="eval-field"><span class="rule"></span></div>' +
+      '<div class="eval-field"><span class="rule"></span></div>' +
+      '</div>',
+  )
   return parts.join('')
 }
 
 /**
- * Old-curriculum "Classic" — progression table
- * (STAGE/TIME | TEACHER'S ACTIVITY | PUPILS' ACTIVITY | [METHODS]).
+ * The OBC progression table (§4.6):
+ *   STAGE/TIME | TEACHER'S ACTIVITY | LEARNER'S ACTIVITY | LEARNING POINT
  *
- * The CONTENT column is intentionally NOT rendered: the generator leaves it
- * empty on outcome-based plans, and an always-on 30% CONTENT column was
- * squeezing STAGE/TIME down to ~11% (chopping "INTRODUCTION" mid-word) and each
- * activity column to ~22% (one word per line). Dropping it lets STAGE/TIME and
- * the two activity columns breathe so every stage (Introduction, Development,
- * Conclusion, Homework) is fully legible. METHODS stays optional — it renders
- * only when at least one stage carries that data. Widths are recomputed per
- * column set so they always sum to 100%.
+ * LEARNING POINT is the OBC column — it replaces CBC's ASSESSMENT CRITERIA and
+ * carries what the stage teaches, not how it is judged. Stage and time share
+ * the first column, which is why the heading reads STAGE/TIME.
  * @param {object} data
- * @param {object} meta
+ * @param {object} fmt
  * @returns {string}
  */
-function renderOldClassic(data, meta) {
-  const stages = ensureOldStages(data.stages)
-  const hasMethods = stages.some((s) => String(s.methods || '').trim())
-
-  const stageW = hasMethods ? 14 : 16
-  const methodsW = hasMethods ? 18 : 0
-  const activityW = Math.round((100 - stageW - methodsW) / 2)
-
-  const heads = [['STAGE/TIME', stageW]]
-  heads.push(["TEACHER'S ACTIVITY", activityW])
-  heads.push(["PUPILS' ACTIVITY", activityW])
-  if (hasMethods) heads.push(['METHODS', methodsW])
-
-  const theadHtml = heads
-    .map(([label, w]) => `<th style="width:${w}%;${OFFICIAL_TH}">${label}</th>`)
-    .join('')
-
+function renderOldTable(data, fmt) {
+  const stages = applyStageToggles(ensureOldStages(data.stages), fmt)
+  const w = PROGRESSION_WIDTHS
   const stagesHtml = stages
-    .map((s) => {
-      const cells = [
-        `<td class="stage" style="${OFFICIAL_TD}">${esc(s.name).replace(/\s*\/\s*/g, '<br>')}${s.duration ? `<br><span class="duration">(${esc(s.duration)})</span>` : ''}</td>`,
-      ]
-      cells.push(`<td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>`)
-      cells.push(`<td style="${OFFICIAL_TD}">${formatProse(s.pupils)}${stageDiagramsHtml(s.name, data.diagrams)}</td>`)
-      if (hasMethods) cells.push(`<td style="${OFFICIAL_TD}">${formatProse(s.methods || '')}</td>`)
-      return `<tr>${cells.join('')}</tr>`
-    })
-    .join('')
-
-  return `<div class="plan-official">${renderHeader(meta)}${renderOldHeader(meta, data)}
-    ${renderOldFieldLines(data)}
-    <table class="lp-table official-table" border="1" style="border-collapse:collapse;border:1px solid #000;width:100%;margin-top:10px">
-      <thead><tr>${theadHtml}</tr></thead>
-      <tbody>${stagesHtml}</tbody>
-    </table>
-    ${renderOldClosing(data, meta)}</div>`
-}
-
-/**
- * Old-curriculum "Classic 2" — four-column table without CONTENT column.
- * @param {object} data
- * @param {object} meta
- * @returns {string}
- */
-function renderOldClassic2(data, meta) {
-  const stagesHtml = ensureOldStages(data.stages)
     .map(
       (s) => `<tr>
-    <td class="stage" style="${OFFICIAL_TD}">${esc(s.name).replace(/\s*\/\s*/g, '<br>')}${s.duration ? `<br><span class="duration">(${esc(s.duration)})</span>` : ''}</td>
-    <td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>
-    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}${stageDiagramsHtml(s.name, data.diagrams)}</td>
-    <td style="${OFFICIAL_TD}">${formatProse(s.methods || '')}</td></tr>`,
+    <td class="stage" style="${STAGE_TD}">${stageCellHtml(s)}</td>
+    <td style="${OFFICIAL_TD}">${cellHtml(stageCellValue(s, 'teacher'))}</td>
+    <td style="${OFFICIAL_TD}">${cellHtml(stageCellValue(s, 'pupils'))}${stageDiagramsHtml(s.name, data.diagrams)}</td>
+    <td style="${OFFICIAL_TD}">${cellHtml(stageCellValue(s, 'learningPoint'))}</td></tr>`,
     )
     .join('')
 
-  return `<div class="plan-official">${renderHeader(meta)}${renderOldHeader(meta, data)}
-    ${renderOldFieldLines(data)}
-    <table class="lp-table official-table" border="1" style="border-collapse:collapse;border:1px solid #000;width:100%;margin-top:10px">
-      <thead><tr><th style="width:14%;${OFFICIAL_TH}">STAGE/TIME</th><th style="width:34%;${OFFICIAL_TH}">TEACHER'S ACTIVITY</th><th style="width:34%;${OFFICIAL_TH}">PUPILS' ACTIVITY</th><th style="width:18%;${OFFICIAL_TH}">METHODS</th></tr></thead>
+  return `<table class="lp-table official-table" border="1" style="border-collapse:collapse;border:1px solid #000;width:100%;table-layout:fixed">
+      <thead><tr><th style="width:${w.stage}%;${OFFICIAL_TH}">STAGE/TIME</th><th style="width:${w.teacher}%;${OFFICIAL_TH}">TEACHER'S ACTIVITY</th><th style="width:${w.learner}%;${OFFICIAL_TH}">LEARNER'S ACTIVITY</th><th style="width:${w.assessment}%;${OFFICIAL_TH}">LEARNING POINT</th></tr></thead>
       <tbody>${stagesHtml}</tbody>
-    </table>
-    ${renderOldClosing(data, meta)}</div>`
+    </table>`
 }
 
 /**
- * Old-curriculum "Modern" — simple primary template with three-column table.
+ * The OBC plan. All three "format" choices render the same document — the
+ * outcome-based layout is a Ministry convention, not a style preference, and
+ * offering three variants of it is how the CBC/OBC vocabularies got mixed in
+ * the first place.
  * @param {object} data
  * @param {object} meta
+ * @param {object} fmt
  * @returns {string}
  */
-function renderOldModern(data, meta) {
-  const outcomes = asList(data.specificOutcomes)
-  const outcomesHtml = outcomes.length
-    ? outcomes
-        .map((o, i) => `<div class="field-line" style="padding-left:18px">${romanNum(i + 1)}. ${esc(stripPrefix(o))}</div>`)
-        .join('')
-    : ''
-
-  const headerPairs = [
-    ['NAME', esc((meta.teacherName || meta.teacher || '') + (meta.tsno ? ' (TS ' + esc(meta.tsno) + ')' : ''))],
-    ['DATE', esc(meta.date || '')],
-    ['SUBJECT', esc(meta.subject || '')],
-    ['DURATION', esc(String(meta.duration || '40')) + ' minutes'],
-    ['TOPIC', esc(data.topic || '')],
-    ['NO. OF PUPILS', 'Boys: ______ Girls: ______ Total: ______'],
-    ['SUB-TOPIC', esc(data.subtopic || ''), 'wide'],
-  ]
-  if (meta.showAttendance) headerPairs.push(['ATTENDANCE', 'Boys: ______ Girls: ______ Total: ______', 'wide'])
-
-  const line = ([k, v, wide]) => `<div class="om-item${wide ? ' om-wide' : ''}"><strong>${k}:</strong> ${v}</div>`
-
-  const stagesHtml = ensureOldStages(data.stages)
-    .map(
-      (s) => `<tr>
-    <td class="stage" style="${OFFICIAL_TD}">${esc(s.name).replace(/\s*\/\s*/g, '<br>')}${s.duration ? `<br><span class="duration">(${esc(s.duration)})</span>` : ''}</td>
-    <td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>
-    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}${stageDiagramsHtml(s.name, data.diagrams)}</td></tr>`,
-    )
-    .join('')
-
-  const blank = (n) => `<div class="field-line">${'_'.repeat(n)}</div>`
-  const evaluation = meta.showReflection
-    ? `
-    <div class="field-line" style="margin-top:14px"><strong>EVALUATION:</strong></div>
-    ${blank(58)}
-    ${blank(58)}
-    ${blank(58)}`
-    : ''
-
-  return `<div class="plan-official">${renderHeader(meta)}
-    <div class="official-meta${meta.compactMeta ? ' two-col' : ''}">${headerPairs.map(line).join('')}</div>
-    <div class="field-line"><strong>T/L MATERIALS:</strong> ${esc(joinList(data.tlAids || data.materials, ', '))}</div>
-    <div class="field-line"><strong>REFERENCE:</strong> ${esc(joinList(data.references, '; '))}</div>
-    <div class="field-line" style="margin-top:8px"><strong>RATIONALE:</strong> ${esc(data.rationale || '')}</div>
-    <div class="field-line" style="margin-top:8px"><strong>OUTCOMES:</strong> By the end of this lesson, LSBAT;</div>
-    ${outcomesHtml}
-    <div class="field-line" style="margin-top:8px"><strong>PRE-REQUISITE:</strong> ${esc(data.prerequisiteKnowledge || data.priorKnowledge || '')}</div>
-    <table class="lp-table official-table" border="1" style="border-collapse:collapse;border:1px solid #000;width:100%;margin-top:10px">
-      <thead><tr><th style="width:16%;${OFFICIAL_TH}">STAGES/TIME</th><th style="width:42%;${OFFICIAL_TH}">TEACHING ACTIVITIES</th><th style="width:42%;${OFFICIAL_TH}">LEARNING ACTIVITIES</th></tr></thead>
-      <tbody>${stagesHtml}</tbody>
-    </table>
-    ${data.homework ? `<div class="field-line" style="margin-top:10px"><strong>HOMEWORK:</strong> ${esc(data.homework)}</div>` : ''}
-    ${evaluation}</div>`
+function renderOld(data, meta, fmt) {
+  return `<div class="plan-official plan-compact plan-obc">${renderHeader(meta, fmt)}${renderOldMeta(meta, data, fmt)}
+    ${renderOldFieldLines(data, fmt)}${lessonDiagramHtml(data)}
+    <div class="progression-title">LESSON PROGRESSION</div>
+    ${renderOldTable(data, fmt)}
+    ${renderOldClosing(data, fmt)}</div>`
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────────
+
+/**
+ * Read the paper-fit choices out of the render meta.
+ *
+ * `meta.lessonFormat` is the resolved format the studio built; everything else
+ * is the pre-2026-07 meta shape, kept working so a plan saved before Page Budget
+ * existed still opens (and still honours the toggles it was saved with).
+ * @param {object} meta
+ * @returns {object}
+ */
+export function formatFromMeta(meta = {}) {
+  const base = resolveLessonFormat(meta.lessonFormat || {})
+  // Legacy meta flags still win where they were explicitly set, so reopening an
+  // old plan does not silently switch its sections on or off.
+  const sections = { ...base.sections }
+  if (typeof meta.showReflection === 'boolean') sections.lessonEvaluation = meta.showReflection
+  return {
+    ...base,
+    sections,
+    compactMeta: meta.compactMeta !== false,
+  }
+}
 
 /**
  * Convert a parsed lesson-plan JSON object to an HTML string.
@@ -722,16 +833,18 @@ function renderOldModern(data, meta) {
  * @param {object} meta      - Rendering metadata:
  *   {
  *     format: 'modern' | 'classic' | 'classic2' | 'official-cbc',
- *     showReflection:  boolean,
- *     showEnrolment:   boolean,
- *     showAttendance:  boolean,
- *     compactMeta:     boolean,
- *     teacherName:     string,
- *     school:          string,
- *     date:            string,
- *     time:            string,
- *     lessonNumber:    number,
- *     totalLessons:    number,
+ *     lessonFormat:    object   resolved src/utils/lessonPlanFormat.js format
+ *     learningEnvironments: string[]  categories the teacher selected
+ *     showReflection:  boolean
+ *     showEnrolment:   boolean
+ *     showAttendance:  boolean
+ *     compactMeta:     boolean
+ *     teacherName:     string
+ *     school:          string
+ *     date:            string
+ *     time:            string
+ *     lessonNumber:    number
+ *     totalLessons:    number
  *   }
  * @param {string} curriculumMode - 'cbc' | 'previous'
  * @returns {string} HTML string
@@ -739,18 +852,17 @@ function renderOldModern(data, meta) {
 export function renderPlanHtml(planJson, meta, curriculumMode) {
   if (!planJson || typeof planJson !== 'object') return ''
 
+  const m = meta && typeof meta === 'object' ? meta : {}
+  const fmt = formatFromMeta(m)
   const isOld = curriculumMode === 'previous'
+
+  if (isOld) return renderOld(planJson, m, fmt)
 
   // Normalise the format key — the Format & Options card emits 'official', the
   // older saved-plan meta used 'official-cbc'; both map to 'classic2' internally.
-  const fmt = (meta.format || 'modern').toLowerCase().replace(/^official(-cbc)?$/, 'classic2')
+  const layout = (m.format || 'modern').toLowerCase().replace(/^official(-cbc)?$/, 'classic2')
 
-  if (fmt === 'classic') {
-    return isOld ? renderOldClassic(planJson, meta) : renderClassic(planJson, meta)
-  }
-  if (fmt === 'classic2') {
-    return isOld ? renderOldClassic2(planJson, meta) : renderClassic2(planJson, meta)
-  }
-  // Default: modern
-  return isOld ? renderOldModern(planJson, meta) : renderModern(planJson, meta)
+  if (layout === 'classic') return renderClassic(planJson, m, fmt)
+  if (layout === 'classic2') return renderClassic2(planJson, m, fmt)
+  return renderModern(planJson, m, fmt)
 }

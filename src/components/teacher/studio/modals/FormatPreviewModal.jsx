@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
 import { renderPlanHtml } from '../utils/renderPlanHtml'
+import { resolveLessonFormat } from '../../../../utils/lessonPlanFormat'
+import { lessonPlanPrintCss } from '../../../../utils/lessonPlanPrintCss'
 import {
   CBC_SAMPLE_DATA,
   CBC_SAMPLE_META,
@@ -23,23 +25,24 @@ import {
  *   advanced        : formatOptions.advanced object (optional)
  *   onClose         : () => void
  */
-export function FormatPreviewModal({ format, curriculumMode = 'cbc', advanced = {}, onClose }) {
+export function FormatPreviewModal({ format, curriculumMode = 'cbc', advanced = {}, formatOptions = null, onClose }) {
   const open = Boolean(format)
 
-  // Ensure the studio document stylesheet is present so the sample renders with
-  // the real tables / headings / accent bar. Idempotent — StudioCanvas injects
-  // the same <link> on mount, but the modal can open before that runs.
+  // Ensure the document stylesheet is present so the sample renders exactly as
+  // the plan will print. Idempotent — the paginated preview injects the same
+  // <style> on mount, but the modal can open before that runs, and it is the
+  // one shared stylesheet in either case.
   useEffect(() => {
     if (!open) return
-    const id = 'studio-lesson-css'
-    if (!document.getElementById(id)) {
-      const link = document.createElement('link')
-      link.rel = 'stylesheet'
-      link.href = '/studio/lesson.css'
-      link.id = id
-      document.head.appendChild(link)
+    const id = 'lesson-plan-document-css'
+    let style = document.getElementById(id)
+    if (!style) {
+      style = document.createElement('style')
+      style.id = id
+      document.head.appendChild(style)
     }
-  }, [open])
+    style.textContent = lessonPlanPrintCss(formatOptions ?? {}, { includePageRule: false, includeSheets: true })
+  }, [open, formatOptions])
 
   // Close on Escape.
   useEffect(() => {
@@ -57,13 +60,15 @@ export function FormatPreviewModal({ format, curriculumMode = 'cbc', advanced = 
   const baseData = isOld ? OLD_SAMPLE_DATA : CBC_SAMPLE_DATA
   const baseMeta = isOld ? OLD_SAMPLE_META : CBC_SAMPLE_META
 
-  // Map the Advanced-Options toggles onto the renderer's meta flags, falling
-  // back to the sample defaults when a toggle is absent.
+  // Map the live Format & Options choices onto the renderer's meta, falling
+  // back to the sample defaults when one is absent. The sample is rendered by
+  // the real renderer, so the page budget, margins, environment display and
+  // section toggles all show here exactly as they will print.
   const meta = {
     ...baseMeta,
     format,
+    lessonFormat: resolveLessonFormat(formatOptions ?? {}),
     compactMeta: advanced.compactMetadata ?? baseMeta.compactMeta,
-    showReflection: advanced.includeLessonEvaluation ?? baseMeta.showReflection,
     showEnrolment: advanced.includeEnrolment ?? baseMeta.showEnrolment,
     showAttendance: advanced.includeAttendance ?? baseMeta.showAttendance,
   }
