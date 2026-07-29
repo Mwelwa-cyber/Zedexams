@@ -31,6 +31,7 @@ import FeedbackButton from '../feedback/FeedbackButton'
 import { buildRequestKey } from '../../utils/requestControl.js'
 import { deduplicatedRequest } from '../../utils/requestDeduplication.js'
 import { useAbortableRequest } from '../../hooks/useAbortableRequest.js'
+import GuardianConsentBanner from '../auth/GuardianConsentBanner'
 
 const subjectBadge = {
   English:               'bg-violet-100 text-violet-700',
@@ -138,6 +139,14 @@ export default function StudentDashboard() {
   return (
     <div className="max-w-2xl md:max-w-3xl mx-auto px-4 py-5 space-y-5">
       <SeoHelmet title="My stats" path="/my-stats" noIndex />
+
+      {/* Guardian consent / migration prompt. Renders nothing for an approved
+          or adult account, so it costs a signed-in teacher or an approved
+          learner one null return. It sits ABOVE the hero because a learner in
+          limited mode needs to know why Ask Zed is refusing before they
+          conclude the app is broken. */}
+      <GuardianConsentBanner />
+
       {showUpgrade && (
         <UpgradeModal
           portal="learner"

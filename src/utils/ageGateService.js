@@ -82,8 +82,8 @@ export async function recordAgeGateAttempt() {
  *
  * @return {Promise<{ok: boolean, sent?: string, waLink?: string}>}
  */
-export async function sendGuardianConsentRequest() {
+export async function sendGuardianConsentRequest(payload = {}) {
   const call = httpsCallable(fns(), 'sendGuardianConsent')
-  const res = await call({})
+  const res = await call(payload)
   return res?.data || { ok: false }
 }

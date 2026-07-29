@@ -74,8 +74,22 @@ export default function PrivacyPolicy() {
           <strong>We do not ask for or collect your NRC or any other government ID number.</strong>
         </li>
         <li>
+          <strong>Guardian contact and consent records</strong> — for learners under 18,
+          a parent or guardian's email address or WhatsApp number so they can approve the
+          account, plus a record of that approval (when the link was used, and the device
+          it was used from). We use this contact only for consent, account safety, and the
+          parental rights described in section 4 — never for marketing.
+        </li>
+        <li>
+          <strong>Date of birth</strong> — asked once at sign-up so we know whether an
+          account needs a guardian's approval. We store the date, not a photograph or a
+          document.
+        </li>
+        <li>
           <strong>Ask Zed conversations</strong> — the messages you send to our AI study
-          assistant, so it can answer follow-ups and so we can debug abuse.
+          assistant, so it can answer follow-ups and so we can debug abuse. Contact details
+          (phone numbers, email addresses, links) are removed before a learner&apos;s message
+          is written to our logs.
         </li>
         <li>
           <strong>Device & technical data</strong> — basic browser / device information,
@@ -126,6 +140,14 @@ export default function PrivacyPolicy() {
         learner is permitted to create an account.
       </P>
       <P>
+        When someone under 18 signs up, we ask for a parent or guardian&apos;s contact
+        details and send them a link to approve the account. Until they approve it, the
+        account runs in a limited mode: the learner can read lessons and past papers, but
+        cannot use the Ask Zed assistant, join a class, appear on a leaderboard, or buy
+        anything. The guardian&apos;s link also lets them refuse and have the account
+        removed.
+      </P>
+      <P>
         We collect only what the service needs, and we hold learner data to a stricter
         standard than the rest of the platform:
       </P>
@@ -147,6 +169,18 @@ export default function PrivacyPolicy() {
         <li>
           The same protections apply to parent and guardian accounts, because the parent
           portal shows a learner's progress.
+        </li>
+        <li>
+          Our AI assistant is restricted to schoolwork for learners: it never asks for
+          personal information, never claims to be a person or to keep secrets, and
+          declines romantic, sexual or self-harm topics. If a learner writes something
+          suggesting they are being hurt or want to hurt themselves, it stops and points
+          them to a trusted adult and to Childline Zambia (116).
+        </li>
+        <li>
+          Every AI response carries a <strong>Report</strong> control, and reports about a
+          child&apos;s safety are reviewed the same day. See our{' '}
+          <Link className="underline theme-accent-text" to="/child-safety">child safety standards</Link>.
         </li>
       </UL>
       <P>

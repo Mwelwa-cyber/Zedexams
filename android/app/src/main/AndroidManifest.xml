@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Backups are off. ZedExams is a school app used by minors, and there is
          no restore story worth preserving: the only device-local state is the
@@ -64,4 +65,23 @@
          this in anyway; declared explicitly so Play Console billing detection and
          reviewers can see it in the source manifest. -->
     <uses-permission android:name="com.android.vending.BILLING" />
+
+    <!-- Advertising ID: REMOVED AT MERGE TIME, deliberately.
+
+         Play's Families policy prohibits transmitting the Android Advertising
+         ID (AAID) or other persistent device identifiers from children, and
+         ZedExams serves Grade 4-7 learners. We ship no ads and never read the
+         AAID ourselves — but we do not have to: play-services-measurement,
+         pulled in transitively by Firebase, declares AD_ID in ITS manifest,
+         and the merger would add it to ours without anyone editing this file.
+         A reviewer reading the MERGED manifest would then see an app for
+         children requesting an advertising identifier.
+
+         tools:node="remove" strips it from the merged result whichever
+         dependency contributes it, so the guarantee survives a Firebase
+         version bump. scripts/test-android-manifest.mjs fails the build if
+         this declaration is deleted or an ad SDK is added. -->
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove" />
 </manifest>

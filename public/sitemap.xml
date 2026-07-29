@@ -41,6 +41,12 @@
     <priority>0.3</priority>
   </url>
   <url>
+    <loc>https://zedexams.com/child-safety</loc>
+    <lastmod>2026-07-29</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
     <loc>https://zedexams.com/blog</loc>
     <lastmod>2026-07-25</lastmod>
     <changefreq>weekly</changefreq>

@@ -65,6 +65,35 @@ const RESEND_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 // ── sendGuardianConsent ───────────────────────────────────────────────────
 
+const GUARDIAN_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const GUARDIAN_PHONE_RE = /^\+?\d{9,15}$/;
+
+/**
+ * Validate a guardian contact supplied by the client.
+ *
+ * Returns null when nothing was supplied (the ordinary resend path, where the
+ * contact is already on file), and throws on a supplied-but-unusable value —
+ * silently ignoring a bad contact would show the learner "sent" for a message
+ * that went nowhere.
+ */
+function validateGuardianContact(data) {
+  const raw = String(data?.contact || "").trim();
+  if (!raw) return null;
+  const method = data?.method === "whatsapp" ? "whatsapp" : "email";
+  const ok = method === "email" ?
+    GUARDIAN_EMAIL_RE.test(raw) :
+    GUARDIAN_PHONE_RE.test(raw.replace(/[\s-]/g, ""));
+  if (!ok) {
+    throw new HttpsError(
+        "invalid-argument",
+        method === "email" ?
+          "That doesn't look like an email address." :
+          "That doesn't look like a WhatsApp number.",
+    );
+  }
+  return {contact: raw.slice(0, 254), method};
+}
+
 async function sendEmailMessage({to, subject, text}) {
   const senderEmail = String(emailSmtpUser.value() || "").trim();
   const senderDomain = senderEmail.split("@")[1] || "zedexams.com";
@@ -103,12 +132,47 @@ exports.sendGuardianConsent = onCall(
       if (!user || user.role !== "learner") {
         throw new HttpsError("failed-precondition", "This account does not need guardian approval.");
       }
-      const contact = String(user.guardian?.contact || "").trim();
-      if (!contact) {
-        throw new HttpsError("failed-precondition", "We do not have a parent or guardian contact on file.");
-      }
       if (user.guardian?.consentStatus === "granted") {
         return {ok: true, alreadyGranted: true};
+      }
+
+      // The guardian contact is written HERE, not by the client.
+      // firestore.rules blocks the client from touching `guardian` at all,
+      // because a client that could edit it could also edit consentStatus.
+      // So the migration banner — the path for accounts that predate this
+      // flow and have no guardian on file — supplies the contact as a
+      // parameter and the server validates and stores it.
+      //
+      // Honest limitation: a determined learner can enter their OWN address
+      // and approve themselves. No email-based consent flow prevents that,
+      // which is why Play treats this as a good-faith mechanism rather than
+      // an identity check. What the flow does guarantee is that whoever is
+      // named is told what we hold about the child and is given a one-click
+      // way to delete the account. Changing an address once approval is
+      // pending is allowed for the same reason it is not a security boundary:
+      // refusing would only strand the honest case of a mistyped address.
+      const supplied = validateGuardianContact(request.data);
+      let contact = String(user.guardian?.contact || "").trim();
+      let method = user.guardian?.method === "whatsapp" ? "whatsapp" : "email";
+
+      if (supplied) {
+        contact = supplied.contact;
+        method = supplied.method;
+        await db.doc(`users/${uid}`).set({
+          guardian: {
+            contact,
+            method,
+            consentStatus: "pending",
+            requestedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+        }, {merge: true});
+      }
+
+      if (!contact) {
+        throw new HttpsError(
+            "failed-precondition",
+            "Please add a parent or guardian's email address or WhatsApp number.",
+        );
       }
 
       // One message a day. The recipient did not ask for any of this, and a
@@ -123,7 +187,6 @@ exports.sendGuardianConsent = onCall(
       }
 
       const rawToken = mintToken();
-      const method = user.guardian?.method === "whatsapp" ? "whatsapp" : "email";
       const childName = safeName(user.firstName || user.displayName || user.name);
 
       await db.collection(REQUESTS).doc(tokenDocId(rawToken)).set({
