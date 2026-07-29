@@ -102,6 +102,7 @@
     "test:assessment-tool-schema": "node functions/teacherTools/assessmentToolSchema.test.js",
     "test:latex-unicode": "node src/utils/latexToUnicode.test.js",
     "test:paper-golden": "node src/utils/paperGolden.test.js",
+    "test:forms-paper-golden": "node src/utils/formsPaperGolden.test.js",
     "test:paper-content-model": "node src/utils/paperContentModel.test.js",
     "test:figure-sizing": "node src/utils/figureSizing.test.js",
     "test:figure-labels": "node src/utils/figureLabelLayout.test.js",
