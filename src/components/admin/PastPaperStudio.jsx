@@ -270,7 +270,16 @@ export default function PastPaperStudio() {
   // "Skip for now" in this session, or the paper was loaded already carrying
   // quizStatus 'pending'. Drives the muted step pill and the Publish notice.
   const [quizSkipped, setQuizSkipped] = useState(false)
+  // Two statuses, on purpose. `originalStatus` is what the paper was when the
+  // Studio loaded it and never changes; `paperStatus` is what it is NOW.
+  // Unpublishing moves the second one, and the first is what keeps "Discard
+  // draft" (a delete, assets and all) away from a paper that has been live —
+  // taking a paper off the shelf to fix a typo must not put a destructive
+  // button one confirm away from where it wasn't a moment ago.
   const [originalStatus, setOriginalStatus] = useState(PAPER_STATUSES.DRAFT)
+  const [paperStatus, setPaperStatus] = useState(PAPER_STATUSES.DRAFT)
+  const [unpublishing, setUnpublishing] = useState(false)
+  const [confirmUnpublish, setConfirmUnpublish] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [importing, setImporting] = useState(false)
   const [linkingQuiz, setLinkingQuiz] = useState(false)
@@ -328,6 +337,7 @@ export default function PastPaperStudio() {
           })
           setAssets(Array.isArray(row.assets) ? row.assets : [])
           setOriginalStatus(row.status || PAPER_STATUSES.DRAFT)
+          setPaperStatus(row.status || PAPER_STATUSES.DRAFT)
           // A paper published with the Quiz step skipped reopens in the
           // skipped state, so the step rail and the Publish notice tell the
           // admin what they left rather than pretending it was never chosen.
@@ -736,7 +746,54 @@ export default function PastPaperStudio() {
     }
   }
 
+  // ── Unpublish ─────────────────────────────────────────────────────
+  // Takes a live paper off the shelf so an error can be fixed without the
+  // archive showing the broken version in the meantime. It is the exact
+  // inverse of publish() and nothing else: the paper goes back to `draft`
+  // (admin-only per the Firestore read rule) and its quiz stops being public.
+  // The quiz LINK is deliberately left alone — quizId and quizStatus stay put,
+  // so re-publishing restores the paper as it was rather than dropping the
+  // admin back into the Quiz step. Un-attaching is a separate decision.
+  //
+  // The paper's files, questions, views and downloads are all untouched. That
+  // is the difference between this and "Discard draft", which deletes.
+  async function unpublish() {
+    if (!paperId) return
+    setError('')
+    setInfo('')
+    setUnpublishing(true)
+    try {
+      // Hide the linked quiz too. Without this the paper vanishes from the
+      // archive while `/papers/:id/quiz` keeps serving the questions to
+      // anyone holding the link — "unpublished" that only half applies is
+      // worse than not offering the button, because it reads as done.
+      const liveQuizId = existingQuizId && quizCount > 0 ? existingQuizId : null
+      if (liveQuizId) {
+        await setDoc(doc(db, 'quizzes', liveQuizId), {
+          isPublished: false,
+          publicAccess: false,
+          updatedAt: serverTimestamp(),
+        }, { merge: true })
+      }
+      await updatePaper(paperId, { status: PAPER_STATUSES.DRAFT })
+      setPaperStatus(PAPER_STATUSES.DRAFT)
+      setConfirmUnpublish(false)
+      // Stay in the Studio — fixing the thing that prompted this is the
+      // entire reason the button exists.
+      setInfo(liveQuizId
+        ? 'Unpublished. Learners can no longer see this paper or take its quiz. Make your changes, then publish again.'
+        : 'Unpublished. Learners can no longer see this paper. Make your changes, then publish again.')
+    } catch (err) {
+      console.error('[PastPaperStudio] unpublish failed', err)
+      setError(err?.message || 'Could not unpublish this paper.')
+    } finally {
+      setUnpublishing(false)
+    }
+  }
+
   function discardDraft() {
+    // Never offered on a paper that was live when the Studio opened — see the
+    // note on `originalStatus`.
     if (!paperId || originalStatus === PAPER_STATUSES.PUBLISHED) return
     setConfirmDiscard(true)
   }
@@ -788,6 +845,11 @@ export default function PastPaperStudio() {
   if (bootstrapping) return <p className="theme-text-muted text-sm">Starting studio…</p>
   if (!paperId) return <p className="theme-text-muted text-sm">{error || 'Loading…'}</p>
 
+  // Live NOW, not "was live when this page loaded" — the Unpublish button and
+  // the primary button's label both have to follow an unpublish that just
+  // happened, without a reload.
+  const isLive = paperStatus === PAPER_STATUSES.PUBLISHED
+
   return (
     <div className="space-y-5 w-full">
       <SeoHelmet title={isNew ? 'New past paper' : 'Edit past paper'} path="/admin/papers" noIndex />
@@ -796,9 +858,21 @@ export default function PastPaperStudio() {
         <Link to="/admin/papers" className="text-xs font-bold theme-text-muted hover:theme-text">
           ← All papers
         </Link>
-        <h1 className="theme-text font-display font-black text-2xl sm:text-3xl mt-1">
-          {isNew ? 'New past paper' : 'Edit past paper'}
-        </h1>
+        <div className="flex flex-wrap items-center gap-2 mt-1">
+          <h1 className="theme-text font-display font-black text-2xl sm:text-3xl">
+            {isNew ? 'New past paper' : 'Edit past paper'}
+          </h1>
+          {/* Whether learners can see this paper RIGHT NOW. An admin who came
+              here to fix an error needs that answered before they read
+              anything else on the page. */}
+          {!isNew && (
+            <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+              isLive ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+            }`}>
+              {isLive ? 'Live to learners' : 'Not published'}
+            </span>
+          )}
+        </div>
         <p className="theme-text-muted text-sm mt-1">
           A draft is saved automatically so you can leave and come back. Publish makes the paper
           available to learners; if a quiz is attached, they can take it inline.
@@ -884,16 +958,32 @@ export default function PastPaperStudio() {
           <button
             type="button"
             onClick={publish}
-            disabled={publishing}
+            disabled={publishing || unpublishing}
             className="rounded-full px-5 py-2 text-sm font-black bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
           >
-            {publishing ? 'Publishing…' : (originalStatus === PAPER_STATUSES.PUBLISHED ? 'Save changes' : 'Publish paper')}
+            {publishing ? 'Publishing…' : (isLive ? 'Save changes' : 'Publish paper')}
+          </button>
+        )}
+        {/* Offered on every step, not just Publish: an admin who spots the
+            error while re-reading the upload or the quiz shouldn't have to
+            walk to step 4 to take the paper down. Not styled as a destructive
+            action — it hides, it never deletes, and pressing Publish undoes
+            it. */}
+        {isLive && (
+          <button
+            type="button"
+            onClick={() => setConfirmUnpublish(true)}
+            disabled={publishing || unpublishing}
+            className="rounded-full border-2 border-amber-400 px-4 py-2 text-sm font-black text-amber-800 hover:bg-amber-50 disabled:opacity-50"
+            title="Hide this paper from learners so you can fix something, then publish it again"
+          >
+            {unpublishing ? 'Unpublishing…' : 'Unpublish'}
           </button>
         )}
         <Link to="/admin/papers" className="text-sm font-bold theme-text-muted hover:theme-text">
           Cancel
         </Link>
-        {originalStatus !== PAPER_STATUSES.PUBLISHED && (
+        {originalStatus !== PAPER_STATUSES.PUBLISHED && !isLive && (
           <button
             type="button"
             onClick={discardDraft}
@@ -913,6 +1003,25 @@ export default function PastPaperStudio() {
         loading={importing}
         onConfirm={() => pendingImport && runImport(pendingImport.quizId)}
         onCancel={() => setPendingImport(null)}
+      />
+
+      <ConfirmDialog
+        open={confirmUnpublish}
+        title="Unpublish this paper?"
+        message={
+          (existingQuizId && quizCount > 0
+            ? 'Learners will stop seeing this paper in the archive, and its quiz will stop being available. '
+            : 'Learners will stop seeing this paper in the archive. ')
+          + 'Nothing is deleted — your files, questions and details stay exactly as they are, '
+          + 'and you can publish it again once you have made your changes.'
+        }
+        confirmLabel="Unpublish"
+        // Not `danger` — the dialog's red treatment is for writes that lose
+        // something. This one hides a paper and is undone by publishing again.
+        variant="primary"
+        loading={unpublishing}
+        onConfirm={unpublish}
+        onCancel={() => setConfirmUnpublish(false)}
       />
 
       <ConfirmDialog

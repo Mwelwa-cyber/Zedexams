@@ -18,7 +18,7 @@
  * through the `?step=` deep link the admin list uses.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 
@@ -72,6 +72,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
   }
 })
 
+import { setDoc } from 'firebase/firestore'
 import PastPaperStudio from './PastPaperStudio'
 
 function savedPaper(overrides = {}) {
@@ -97,7 +98,7 @@ function renderStudio() {
   return render(<MemoryRouter><PastPaperStudio /></MemoryRouter>)
 }
 
-/** The one updatePaper call that carries `status` — i.e. the publish write. */
+/** The one updatePaper call that carries `status` — the publish/unpublish write. */
 function publishWrite() {
   const calls = mockUpdatePaper.mock.calls.filter(([, fields]) => 'status' in fields)
   expect(calls).toHaveLength(1)
@@ -200,6 +201,145 @@ describe('PastPaperStudio — publishing with a quiz', () => {
     const fields = publishWrite()
     expect(fields.quizId).toBe('draft-q')
     expect(fields.quizStatus).toBe('attached')
+  })
+})
+
+describe('PastPaperStudio — unpublishing a live paper', () => {
+  // The button exists so an admin who spots an error can take the paper off
+  // the shelf, fix it, and put it back. Each case asks whether it does exactly
+  // that and nothing more — a "hide" that half-applies, or that quietly loses
+  // work, is worse than no button at all.
+  const livePaper = (overrides = {}) => savedPaper({
+    status: 'published', quizId: 'q-real', quizStatus: 'attached', ...overrides,
+  })
+
+  async function confirmUnpublish(user) {
+    await user.click(screen.getByRole('button', { name: 'Unpublish' }))
+    const dialog = await screen.findByRole('alertdialog')
+    await user.click(within(dialog).getByRole('button', { name: 'Unpublish' }))
+  }
+
+  it('takes the paper back to draft', async () => {
+    const user = userEvent.setup()
+    quizQuestionCount = 8
+    mockGetPaper.mockResolvedValue(livePaper())
+    renderStudio()
+    await screen.findByRole('button', { name: 'Unpublish' })
+
+    await confirmUnpublish(user)
+
+    expect(publishWrite().status).toBe('draft')
+  })
+
+  it('makes the linked quiz private too, so the /quiz link stops serving it', async () => {
+    const user = userEvent.setup()
+    quizQuestionCount = 8
+    mockGetPaper.mockResolvedValue(livePaper())
+    renderStudio()
+    await screen.findByRole('button', { name: 'Unpublish' })
+
+    await confirmUnpublish(user)
+
+    const quizWrite = vi.mocked(setDoc).mock.calls.at(-1)[1]
+    expect(quizWrite.isPublished).toBe(false)
+    expect(quizWrite.publicAccess).toBe(false)
+  })
+
+  it('leaves the quiz LINK alone, so publishing again restores the paper as it was', async () => {
+    const user = userEvent.setup()
+    quizQuestionCount = 8
+    mockGetPaper.mockResolvedValue(livePaper())
+    renderStudio()
+    await screen.findByRole('button', { name: 'Unpublish' })
+
+    await confirmUnpublish(user)
+
+    const fields = publishWrite()
+    expect('quizId' in fields).toBe(false)
+    expect('quizStatus' in fields).toBe(false)
+  })
+
+  it('touches no quiz when the paper was published with the Quiz step skipped', async () => {
+    const user = userEvent.setup()
+    quizQuestionCount = 0
+    mockGetPaper.mockResolvedValue(savedPaper({
+      status: 'published', quizStatus: 'pending', quizId: null, pendingQuizId: 'draft-q',
+    }))
+    renderStudio()
+    await screen.findByRole('button', { name: 'Unpublish' })
+
+    await confirmUnpublish(user)
+
+    expect(publishWrite().status).toBe('draft')
+    expect(setDoc).not.toHaveBeenCalled()
+  })
+
+  it('keeps the admin in the Studio and flips the primary button back to Publish', async () => {
+    const user = userEvent.setup()
+    quizQuestionCount = 8
+    mockGetPaper.mockResolvedValue(livePaper())
+    renderStudio()
+    await screen.findByRole('button', { name: 'Unpublish' })
+
+    await confirmUnpublish(user)
+
+    // Fixing the thing that prompted the unpublish is the point — navigating
+    // away to the list would put the wizard between the admin and the fix.
+    expect(mockNavigate).not.toHaveBeenCalled()
+    expect(await screen.findByRole('button', { name: /Publish paper/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Unpublish' })).not.toBeInTheDocument()
+    expect(screen.getByText(/Learners can no longer see this paper/)).toBeInTheDocument()
+  })
+
+  it('never offers "Discard draft" on a paper that has been live', async () => {
+    // Discard DELETES the paper and its uploaded files. Unpublishing must not
+    // move a destructive button into reach of an admin who only meant to hide
+    // a paper for ten minutes.
+    const user = userEvent.setup()
+    quizQuestionCount = 8
+    mockGetPaper.mockResolvedValue(livePaper())
+    renderStudio()
+    await screen.findByRole('button', { name: 'Unpublish' })
+    expect(screen.queryByRole('button', { name: 'Discard draft' })).not.toBeInTheDocument()
+
+    await confirmUnpublish(user)
+
+    expect(screen.queryByRole('button', { name: 'Discard draft' })).not.toBeInTheDocument()
+  })
+
+  it('offers no Unpublish on a paper that was never published', async () => {
+    mockGetPaper.mockResolvedValue(savedPaper())
+    renderStudio()
+    await screen.findByRole('button', { name: /Publish paper/ })
+    expect(screen.queryByRole('button', { name: 'Unpublish' })).not.toBeInTheDocument()
+    // …and a draft still gets its Discard action.
+    expect(screen.getByRole('button', { name: 'Discard draft' })).toBeInTheDocument()
+  })
+
+  it('writes nothing until the confirm dialog is confirmed', async () => {
+    const user = userEvent.setup()
+    quizQuestionCount = 8
+    mockGetPaper.mockResolvedValue(livePaper())
+    renderStudio()
+
+    await user.click(await screen.findByRole('button', { name: 'Unpublish' }))
+    const dialog = await screen.findByRole('alertdialog')
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+
+    expect(mockUpdatePaper).not.toHaveBeenCalled()
+    expect(setDoc).not.toHaveBeenCalled()
+  })
+
+  it('says the paper is live, and stops saying so once it is not', async () => {
+    const user = userEvent.setup()
+    quizQuestionCount = 8
+    mockGetPaper.mockResolvedValue(livePaper())
+    renderStudio()
+
+    expect(await screen.findByText('Live to learners')).toBeInTheDocument()
+    await confirmUnpublish(user)
+    expect(await screen.findByText('Not published')).toBeInTheDocument()
+    expect(screen.queryByText('Live to learners')).not.toBeInTheDocument()
   })
 })
 
