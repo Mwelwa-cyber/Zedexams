@@ -1,9 +1,12 @@
 import { Pencil, Eye } from 'lucide-react'
 import { cleanSubjectName } from '../../utils/subjectName.js'
 import { SCHOOL_RESOURCE_LEVELS } from '../../../../../config/schoolResources.js'
+import {
+  OPTIONAL_SECTION_LABELS,
+  PAGE_BUDGET_LABELS,
+  WRITING_STYLE_LABELS,
+} from '../../../../../utils/lessonPlanFormat.js'
 
-const DETAIL_LABELS = { simplified: 'Simplified', standard: 'Standard', detailed: 'Detailed' }
-const STYLE_LABELS = { simple: 'Simple', standard: 'Standard', professional: 'Professional' }
 const FORMAT_LABELS = { modern: 'Modern Clean', classic: 'Classic', official: 'Official CBC' }
 const CURRICULUM_LABELS = {
   cbc: 'CBC — Competency-Based Curriculum',
@@ -13,7 +16,6 @@ const ADVANCED_LABELS = {
   compactMetadata: 'Compact metadata layout',
   includeEnrolment: 'Enrolment row',
   includeAttendance: 'Attendance row',
-  includeLessonEvaluation: 'Lesson evaluation',
   autoIllustrations: 'Auto AI illustrations',
   localLanguage: 'Written in local language',
 }
@@ -82,6 +84,12 @@ export function ReviewGenerateStep({ studioState, onEditStep, hasPlan = false, o
   const advancedOn = Object.entries(formatOptions.advanced ?? {})
     .filter(([, v]) => v === true)
     .map(([k]) => ADVANCED_LABELS[k] ?? k)
+  // §2.4 — name the sections the teacher switched OFF, not the ones left on.
+  // A list of everything included is noise; a list of what is missing is the
+  // thing a teacher wants to check before submitting the plan.
+  const sectionsOff = Object.entries(formatOptions.sections ?? {})
+    .filter(([, v]) => v === false)
+    .map(([k]) => OPTIONAL_SECTION_LABELS[k] ?? k)
 
   return (
     <div className="space-y-3.5">
@@ -136,10 +144,12 @@ export function ReviewGenerateStep({ studioState, onEditStep, hasPlan = false, o
       )}
 
       <Section title="Format & Options" stepIndex={3} onEditStep={onEditStep}>
-        <Row label="Detail level" value={DETAIL_LABELS[formatOptions.detail] ?? formatOptions.detail} />
-        <Row label="Writing style" value={STYLE_LABELS[formatOptions.writingStyle] ?? formatOptions.writingStyle} />
+        <Row label="Page budget" value={PAGE_BUDGET_LABELS[formatOptions.pageBudget] ?? formatOptions.pageBudget} />
+        <Row label="Writing style" value={WRITING_STYLE_LABELS[formatOptions.writingStyle] ?? formatOptions.writingStyle} />
         <Row label="Format" value={FORMAT_LABELS[formatOptions.format] ?? formatOptions.format} />
+        <Row label="Margins" value={formatOptions.marginMm ? `${formatOptions.marginMm} mm` : ''} />
         <Row label="Medium" value={lessonDetails.medium || 'English'} />
+        {sectionsOff.length > 0 && <Row label="Sections off" value={sectionsOff.join(', ')} />}
         {advancedOn.length > 0 && <Row label="Advanced" value={advancedOn.join(', ')} />}
       </Section>
     </div>

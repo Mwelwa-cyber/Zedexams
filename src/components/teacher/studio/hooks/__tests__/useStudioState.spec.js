@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useCurriculumMode } from '../useCurriculumMode.js'
 import { useStudioState } from '../useStudioState.js'
+import { initialFormatOptions } from '../../../../../utils/lessonPlanFormat.js'
 
 // ── useCurriculumMode ─────────────────────────────────────────────────────────
 
@@ -147,20 +148,13 @@ describe('useStudioState — initial state shape', () => {
 
   it('has correct default formatOptions', () => {
     const { result } = renderHook(() => useStudioState())
-    expect(result.current.formatOptions).toEqual({
-      detail: 'standard',
-      writingStyle: 'standard',
-      format: 'modern',
-      illustrations: 'none',
-      advanced: {
-        compactMetadata: true,
-        includeEnrolment: false,
-        includeAttendance: false,
-        includeLessonEvaluation: true,
-        autoIllustrations: false,
-        localLanguage: false,
-      },
-    })
+    // The defaults are DERIVED from the shared page-budget presets rather than
+    // written out here; a second copy would drift from the presets the
+    // exporters read, which is exactly how the preview and the download used to
+    // disagree about margins.
+    expect(result.current.formatOptions).toEqual(initialFormatOptions('2'))
+    expect(result.current.formatOptions.pageBudget).toBe('2')
+    expect(result.current.formatOptions.writingStyle).toBe('point')
   })
 
   it('starts generationStatus as idle', () => {
@@ -357,7 +351,7 @@ describe('useStudioState — updateFormatOption (top-level)', () => {
   it('does not mutate other top-level fields', () => {
     const { result } = renderHook(() => useStudioState())
     act(() => result.current.updateFormatOption('format', 'classic'))
-    expect(result.current.formatOptions.writingStyle).toBe('standard')
+    expect(result.current.formatOptions.writingStyle).toBe('point')
     expect(result.current.formatOptions.illustrations).toBe('none')
   })
 
@@ -376,7 +370,7 @@ describe('useStudioState — updateFormatOption (advanced)', () => {
     expect(result.current.formatOptions.advanced.includeEnrolment).toBe(true)
     // Other advanced fields must survive
     expect(result.current.formatOptions.advanced.compactMetadata).toBe(true)
-    expect(result.current.formatOptions.advanced.includeLessonEvaluation).toBe(true)
+    expect(result.current.formatOptions.advanced.localLanguage).toBe(false)
   })
 
   it('can update multiple advanced fields at once', () => {
@@ -395,8 +389,27 @@ describe('useStudioState — updateFormatOption (advanced)', () => {
   it('does not mutate the top-level format fields when updating advanced', () => {
     const { result } = renderHook(() => useStudioState())
     act(() => result.current.updateFormatOption('advanced', { autoIllustrations: true }))
-    expect(result.current.formatOptions.detail).toBe('standard')
+    expect(result.current.formatOptions.pageBudget).toBe('2')
     expect(result.current.formatOptions.format).toBe('modern')
+  })
+
+  it('changing the page budget re-applies that budget\'s paper defaults', () => {
+    // §2.1 — the budget governs margins, density and which optional sections
+    // are on. Leaving the old values in place is how a teacher picks "1 page"
+    // and gets a plan that still carries every section at 15 mm margins.
+    const { result } = renderHook(() => useStudioState())
+    act(() => result.current.updateFormatOption('pageBudget', '1'))
+    expect(result.current.formatOptions.marginMm).toBe(10)
+    expect(result.current.formatOptions.density).toBe('compact')
+    expect(result.current.formatOptions.sections.rationale).toBe(false)
+    expect(result.current.formatOptions.sections.priorKnowledge).toBe(true)
+  })
+
+  it('a section toggle changes only that section', () => {
+    const { result } = renderHook(() => useStudioState())
+    act(() => result.current.setSectionOption('references', false))
+    expect(result.current.formatOptions.sections.references).toBe(false)
+    expect(result.current.formatOptions.sections.rationale).toBe(true)
   })
 })
 

@@ -53,7 +53,7 @@ export function LessonPlanWizard({
     learningEnvironments, toggleLearningEnvironment,
     lessonSeries, setLessonSeriesField,
     lessonBreakdown, setLessonBreakdown,
-    formatOptions, setFormatOption, setAdvancedOption,
+    formatOptions, setFormatOption, setAdvancedOption, setSectionOption,
     generationStatus,
     wizardStep, setWizardStep,
   } = studioState
@@ -332,6 +332,7 @@ export function LessonPlanWizard({
                 formatOptions={formatOptions}
                 onUpdateFormat={setFormatOption}
                 onUpdateAdvanced={setAdvancedOption}
+                onUpdateSection={setSectionOption}
                 onUpdateMedium={(value) => setLessonDetail('medium', value)}
                 lessonMedium={lessonDetails.medium}
                 curriculumMode={curriculumMode ?? 'cbc'}

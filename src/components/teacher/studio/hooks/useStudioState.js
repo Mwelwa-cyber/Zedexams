@@ -1,11 +1,15 @@
 import { useState, useCallback } from 'react'
 import { useCurriculumMode } from './useCurriculumMode.js'
 import { DEFAULT_SCHOOL_RESOURCES } from '../../../../config/schoolResources.js'
+import {
+  TYPOGRAPHY_PRESETS,
+  defaultSections,
+  defaultWritingStyle,
+  initialFormatOptions,
+  normalizePageBudget,
+} from '../../../../utils/lessonPlanFormat.js'
 
-/**
- * Root state hook for the Lesson Plan Studio.
- * Returns all form state and setters used by StudioShell → LessonPlanWizard → sections.
- */
+
 export function useStudioState() {
   const curriculumModeState = useCurriculumMode()
 
@@ -56,20 +60,7 @@ export function useStudioState() {
   const [lessonBreakdown, setLessonBreakdown] = useState([])
 
   // Format options
-  const [formatOptions, setFormatOptions] = useState({
-    detail: 'standard', // 'simplified' | 'standard' | 'detailed'
-    writingStyle: 'standard', // 'simple' | 'standard' | 'professional'
-    format: 'modern', // 'modern' | 'classic' | 'official-cbc'
-    illustrations: 'none', // 'none' | 'automatic' | 'manual' — defaults to 'none' while the Illustrations bar is hidden (see SHOW_ILLUSTRATIONS in FormatOptionsForm)
-    advanced: {
-      compactMetadata: true,
-      includeEnrolment: false,
-      includeAttendance: false,
-      includeLessonEvaluation: true,
-      autoIllustrations: false,
-      localLanguage: false,
-    },
-  })
+  const [formatOptions, setFormatOptions] = useState(() => initialFormatOptions())
 
   // Generation state
   const [generationStatus, setGenerationStatus] = useState('idle') // 'idle' | 'loading' | 'done' | 'error'
@@ -115,13 +106,39 @@ export function useStudioState() {
     )
   }, [])
 
-  // Update a format option (top-level or nested advanced)
+  // Update a format option (top-level or nested advanced).
+  //
+  // Changing the PAGE BUDGET re-applies that budget's defaults for the things
+  // the budget governs — margins, density and which optional sections are on.
+  // Without that, choosing "1 page" left 15 mm margins and every optional
+  // section switched on, and the plan came out at two.
   const updateFormatOption = useCallback((key, value) => {
     if (key === 'advanced') {
       setFormatOptions((prev) => ({ ...prev, advanced: { ...prev.advanced, ...value } }))
-    } else {
-      setFormatOptions((prev) => ({ ...prev, [key]: value }))
+      return
     }
+    if (key === 'pageBudget') {
+      const budget = normalizePageBudget(value)
+      const preset = TYPOGRAPHY_PRESETS[budget]
+      setFormatOptions((prev) => ({
+        ...prev,
+        pageBudget: budget,
+        writingStyle: defaultWritingStyle(budget),
+        marginMm: preset.marginMm,
+        density: preset.density,
+        sections: defaultSections(budget),
+      }))
+      return
+    }
+    setFormatOptions((prev) => ({ ...prev, [key]: value }))
+  }, [])
+
+  // Toggle one optional section (§2.4).
+  const setSectionOption = useCallback((key, value) => {
+    setFormatOptions((prev) => ({
+      ...prev,
+      sections: { ...(prev.sections ?? defaultSections(prev.pageBudget)), [key]: Boolean(value) },
+    }))
   }, [])
 
   // Update a single field in lessonSeries (used by LessonProgressionForm via setLessonSeriesField)
@@ -183,6 +200,7 @@ export function useStudioState() {
     setAdvancedOption: useCallback((key, value) => {
       setFormatOptions((prev) => ({ ...prev, advanced: { ...prev.advanced, [key]: value } }))
     }, []),
+    setSectionOption,
     generationStatus,
     setGenerationStatus,
     generatedPlan,

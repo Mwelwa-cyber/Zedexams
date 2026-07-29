@@ -127,11 +127,21 @@ describe('StudioCanvas — done state', () => {
     expect(screen.getByText('Lesson plan content')).toBeInTheDocument()
   })
 
-  it('renders the plan inside an element with id="doc"', () => {
+  it('renders the plan onto real A4 sheets, not a continuous column', () => {
+    // §3.3 — the preview is paginated so a teacher can see what the printer
+    // produces, including where the page breaks fall.
     renderCanvas({ generationStatus: 'done', generatedPlan: HTML })
-    const doc = document.getElementById('doc')
-    expect(doc).not.toBeNull()
-    expect(doc.innerHTML).toContain('Lesson plan content')
+    const sheets = document.querySelectorAll('.lp-sheet')
+    expect(sheets.length).toBeGreaterThan(0)
+    expect(sheets[0].innerHTML).toContain('Lesson plan content')
+    expect(sheets[0].querySelector('.lp-pgnum')?.textContent).toMatch(/Page 1 of/)
+  })
+
+  it('shows a measured page count, never an estimate', () => {
+    renderCanvas({ generationStatus: 'done', generatedPlan: HTML })
+    const badge = screen.getByTestId('page-badge')
+    expect(badge.textContent).toMatch(/^\d+ pages?$/)
+    expect(badge.textContent).not.toMatch(/est/i)
   })
 
   it('does NOT render the live generation canvas', () => {
@@ -278,7 +288,12 @@ describe('StudioCanvas — Print button', () => {
     fireEvent.click(screen.getByRole('button', { name: /print/i }))
     expect(openSpy).toHaveBeenCalledTimes(1)
     expect(writes.join('')).toContain('<p>plan</p>')
-    expect(writes.join('')).toContain('/studio/lesson.css')
+    // The print window INLINES the shared document stylesheet rather than
+    // linking the studio's — that is what makes the printout the preview.
+    const printed = writes.join('')
+    expect(printed).toContain('.plan-compact')
+    expect(printed).toContain('@page{size:A4;margin:15mm}')
+    expect(printed).not.toContain('/studio/lesson.css')
   })
 
   it('falls back to window.print() when the pop-up is blocked', () => {

@@ -2,12 +2,26 @@ import { useState } from 'react'
 import { Settings, AlignLeft, FileText, Layers } from '../../../ui/icons'
 import { FormatCard } from '../cards/FormatCard'
 import { FormatPreviewModal } from '../modals/FormatPreviewModal'
+import {
+  ENVIRONMENT_DISPLAYS,
+  HEADER_STYLES,
+  MARGIN_MAX_MM,
+  MARGIN_MIN_MM,
+  MARGIN_PRESETS,
+  OPTIONAL_SECTIONS,
+  OPTIONAL_SECTION_LABELS,
+  PAGE_BUDGETS,
+  PAGE_BUDGET_LABELS,
+  WRITING_STYLE_LABELS,
+  defaultSections,
+  marginWarning,
+} from '../../../../utils/lessonPlanFormat'
 
-// Decorative icon per detail option (keyed by value).
-const DETAIL_ICONS = {
-  simplified: AlignLeft,
-  standard: FileText,
-  detailed: Layers,
+// Decorative icon per page-budget option (keyed by value).
+const BUDGET_ICONS = {
+  1: AlignLeft,
+  2: FileText,
+  none: Layers,
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -18,17 +32,37 @@ const LOCAL_LANGUAGES = new Set(['Bemba', 'Nyanja', 'Tonga', 'Lozi', 'Kaonde', '
 // Advanced Options drawer so the form isn't cluttered for the common case.
 const MEDIUM_OPTIONS = ['English', 'Bemba', 'Nyanja', 'Tonga', 'Lozi', 'Kaonde', 'Lunda', 'Luvale']
 
-const DETAIL_OPTIONS = [
-  { value: 'simplified', label: 'Simplified', description: 'Key points only, concise' },
-  { value: 'standard',   label: 'Standard',   description: 'Balanced detail and clarity' },
-  { value: 'detailed',   label: 'Detailed',   description: 'Comprehensive coverage' },
+// §2.1 — Page Budget replaced Detail Level, which changed TONE and called it
+// length. What a teacher actually cares about is how much paper the plan costs,
+// so that is what the primary control asks.
+const BUDGET_DESCRIPTIONS = {
+  1: 'Tightest wording, optional sections off',
+  2: 'Point form, all standard sections',
+  none: 'Comprehensive notes, no page limit',
+}
+
+const WRITING_STYLE_OPTIONS = ['point', 'simple', 'standard', 'professional']
+
+const MARGIN_OPTIONS = [
+  { value: 'normal',  label: 'Normal',  mm: MARGIN_PRESETS.normal },
+  { value: 'narrow',  label: 'Narrow',  mm: MARGIN_PRESETS.narrow },
+  { value: 'minimum', label: 'Minimum', mm: MARGIN_PRESETS.minimum },
 ]
 
-const WRITING_STYLE_OPTIONS = [
-  { value: 'simple',       label: 'Simple' },
-  { value: 'standard',     label: 'Standard' },
-  { value: 'professional', label: 'Professional' },
+const DENSITY_OPTIONS = [
+  { value: 'comfortable', label: 'Comfortable' },
+  { value: 'compact',     label: 'Compact' },
 ]
+
+const ENVIRONMENT_OPTIONS = {
+  simple: { label: 'Simple', hint: 'Prints one line: “Learning Environment: Classroom”' },
+  detailed: { label: 'Detailed', hint: 'Prints the category and its description' },
+}
+
+const HEADER_STYLE_OPTIONS = {
+  school: { label: 'School', hint: 'School name, then LESSON PLAN' },
+  ministry: { label: 'Ministry + School', hint: 'MINISTRY OF EDUCATION above the school name' },
+}
 
 // Format preview thumbnails. These were previously <img src="/studio/previews/
 // *.png"> pointing at PNG files that were never committed, so every card
@@ -113,13 +147,39 @@ const ILLUSTRATION_OPTIONS = [
 const SHOW_ILLUSTRATIONS = false
 
 const ADVANCED_TOGGLES = [
-  { field: 'compactMetadata',          label: 'Compact Metadata Layout' },
-  { field: 'includeEnrolment',         label: 'Include Enrolment Row' },
-  { field: 'includeAttendance',        label: 'Include Attendance Row' },
-  { field: 'includeLessonEvaluation',  label: 'Include Lesson Evaluation' },
-  { field: 'autoIllustrations',        label: 'Auto-add AI Illustrations' },
-  { field: 'localLanguage',            label: 'Write in Local Language' },
+  { field: 'compactMetadata',   label: 'Compact Metadata Layout' },
+  { field: 'includeEnrolment',  label: 'Include Enrolment Row' },
+  { field: 'includeAttendance', label: 'Include Attendance Row' },
+  { field: 'autoIllustrations', label: 'Auto-add AI Illustrations' },
+  { field: 'localLanguage',     label: 'Write in Local Language' },
 ]
+
+// A small segmented control — the shape used for every either/or choice below.
+function Segmented({ options, value, onChange, ariaLabel }) {
+  return (
+    <div className="flex gap-2" role="group" aria-label={ariaLabel}>
+      {options.map((opt) => {
+        const selected = value === opt.value
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            aria-pressed={selected}
+            className={[
+              'flex-1 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-all',
+              selected
+                ? 'border-blue-500 lps-brand-gradient text-white shadow-sm'
+                : 'border-[#d9cfbe] bg-white text-[#3d3529] hover:bg-[#f9f5ef]',
+            ].join(' ')}
+          >
+            {opt.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 // ── Sub-section label ─────────────────────────────────────────────────────────
 
@@ -139,15 +199,20 @@ function SubLabel({ children }) {
  *
  * Props:
  *   formatOptions: {
- *     detail: 'simplified' | 'standard' | 'detailed',
- *     writingStyle: 'simple' | 'standard' | 'professional',
+ *     pageBudget: '1' | '2' | 'none',       // §2.1 — the primary control
+ *     writingStyle: 'point' | 'simple' | 'standard' | 'professional',
  *     format: 'modern' | 'classic' | 'official',
  *     illustrations: 'none' | 'automatic' | 'manual',
+ *     environmentDisplay: 'simple' | 'detailed',   // §2.3
+ *     headerStyle: 'school' | 'ministry',          // §4.3
+ *     ministryLine: string,
+ *     marginMm: number,                            // §2.5 Paper Fit
+ *     density: 'comfortable' | 'compact',
+ *     sections: Record<string, boolean>,           // §2.4
  *     advanced: {
  *       compactMetadata: boolean,
  *       includeEnrolment: boolean,
  *       includeAttendance: boolean,
- *       includeLessonEvaluation: boolean,
  *       autoIllustrations: boolean,
  *       localLanguage: boolean
  *     }
@@ -159,12 +224,28 @@ function SubLabel({ children }) {
  *   curriculumMode: 'cbc' | 'previous'
  *   embedded: boolean — wizard mode: body only, no collapsible section chrome
  */
-export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvanced, onUpdateMedium, lessonMedium, curriculumMode = 'cbc', embedded = false }) {
+export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvanced, onUpdateSection, onUpdateMedium, lessonMedium, curriculumMode = 'cbc', embedded = false }) {
   const [open, setOpen] = useState(true)
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [previewFormat, setPreviewFormat] = useState(null)
 
   const localLanguageEnabled = LOCAL_LANGUAGES.has(lessonMedium)
+
+  const pageBudget = formatOptions.pageBudget ?? '2'
+  const environmentDisplay = formatOptions.environmentDisplay ?? 'simple'
+  const headerStyle = formatOptions.headerStyle ?? 'school'
+  const density = formatOptions.density ?? 'compact'
+  const marginMm = formatOptions.marginMm ?? MARGIN_PRESETS.normal
+  const margin = marginWarning(marginMm)
+  const sections = formatOptions.sections ?? defaultSections(pageBudget)
+
+  // Changing the budget re-applies that budget's DEFAULTS for the things it
+  // governs — margins, density and which optional sections are on. Leaving the
+  // old values in place is how a teacher picks "1 page" and gets a plan that
+  // still carries every section at 15 mm margins, i.e. two.
+  function handleBudgetChange(value) {
+    onUpdateFormat('pageBudget', value)
+  }
 
   return (
     <div className={embedded ? '' : 'border-b border-[#e5ddd0]'}>
@@ -207,18 +288,19 @@ export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvan
       {(open || embedded) && (
         <div className={embedded ? 'space-y-5' : 'lps-section-enter px-4 pb-4 space-y-5'}>
 
-          {/* 1. Lesson Plan Detail */}
+          {/* 1. Page Budget (§2.1) — how much paper, not how much prose. */}
           <div>
-            <SubLabel>Lesson Plan Detail</SubLabel>
+            <SubLabel>Page Budget</SubLabel>
             <div className="space-y-2">
-              {DETAIL_OPTIONS.map((opt) => {
-                const selected = formatOptions.detail === opt.value
-                const DetailIcon = DETAIL_ICONS[opt.value] ?? FileText
+              {PAGE_BUDGETS.map((value) => {
+                const opt = { value, label: PAGE_BUDGET_LABELS[value], description: BUDGET_DESCRIPTIONS[value] }
+                const selected = pageBudget === opt.value
+                const DetailIcon = BUDGET_ICONS[opt.value] ?? FileText
                 return (
                   <button
                     key={opt.value}
                     type="button"
-                    onClick={() => onUpdateFormat('detail', opt.value)}
+                    onClick={() => handleBudgetChange(opt.value)}
                     aria-pressed={selected}
                     className={[
                       'lps-lift flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-all',
@@ -265,33 +347,127 @@ export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvan
             </div>
           </div>
 
-          {/* 2. Writing Style */}
+          {/* 2. Writing Style (§2.2) — Point form is what a teacher's plan book
+              actually contains, and it is the only style that changes LENGTH
+              rather than tone. It is the default at any limited page budget. */}
           <div>
             <SubLabel>Writing Style</SubLabel>
-            <div className="flex gap-2">
-              {WRITING_STYLE_OPTIONS.map((opt) => {
-                const selected = formatOptions.writingStyle === opt.value
+            <div className="grid grid-cols-2 gap-2">
+              {WRITING_STYLE_OPTIONS.map((value) => {
+                const selected = formatOptions.writingStyle === value
                 return (
                   <button
-                    key={opt.value}
+                    key={value}
                     type="button"
-                    onClick={() => onUpdateFormat('writingStyle', opt.value)}
+                    onClick={() => onUpdateFormat('writingStyle', value)}
                     aria-pressed={selected}
                     className={[
-                      'flex-1 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-all',
+                      'rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-all',
                       selected
                         ? 'border-blue-500 lps-brand-gradient text-white shadow-sm'
                         : 'border-[#d9cfbe] bg-white text-[#3d3529] hover:bg-[#f9f5ef]',
                     ].join(' ')}
                   >
-                    {opt.label}
+                    {WRITING_STYLE_LABELS[value]}
                   </button>
                 )
               })}
             </div>
+            {formatOptions.writingStyle === 'point' && (
+              <p className="mt-1.5 text-[11px] italic text-[#7a6d5d]">
+                Sentence fragments, as teachers write in a plan book.
+              </p>
+            )}
           </div>
 
-          {/* 3. Lesson Plan Format */}
+          {/* 3. Learning Environment display (§2.3) — CBC only; the OBC plan has
+              no learning-environment section to display. */}
+          {curriculumMode !== 'previous' && (
+            <div>
+              <SubLabel>Learning Environment</SubLabel>
+              <Segmented
+                ariaLabel="Learning environment display"
+                options={ENVIRONMENT_DISPLAYS.map((v) => ({ value: v, label: ENVIRONMENT_OPTIONS[v].label }))}
+                value={environmentDisplay}
+                onChange={(v) => onUpdateFormat('environmentDisplay', v)}
+              />
+              <p className="mt-1.5 text-[11px] italic text-[#7a6d5d]">
+                {ENVIRONMENT_OPTIONS[environmentDisplay].hint}
+              </p>
+            </div>
+          )}
+
+          {/* 4. Header style (§4.3) */}
+          <div>
+            <SubLabel>Header</SubLabel>
+            <Segmented
+              ariaLabel="Header style"
+              options={HEADER_STYLES.map((v) => ({ value: v, label: HEADER_STYLE_OPTIONS[v].label }))}
+              value={headerStyle}
+              onChange={(v) => onUpdateFormat('headerStyle', v)}
+            />
+            <p className="mt-1.5 text-[11px] italic text-[#7a6d5d]">
+              {HEADER_STYLE_OPTIONS[headerStyle].hint}
+            </p>
+            {headerStyle === 'ministry' && (
+              <input
+                type="text"
+                value={formatOptions.ministryLine ?? ''}
+                onChange={(e) => onUpdateFormat('ministryLine', e.target.value)}
+                placeholder="Ministry of Education"
+                aria-label="Ministry line"
+                className="mt-2 w-full rounded-lg border border-[#d9cfbe] bg-white px-2.5 py-1.5 text-[12px] text-[#3d3529] focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+              />
+            )}
+          </div>
+
+          {/* 5. Paper Fit (§2.5) — margins and density, the two levers that
+              change how much of the sheet the plan actually uses. */}
+          <div>
+            <SubLabel>Paper Fit</SubLabel>
+            <Segmented
+              ariaLabel="Margins"
+              options={MARGIN_OPTIONS.map((o) => ({ value: String(o.mm), label: o.label }))}
+              value={String(marginMm)}
+              onChange={(v) => onUpdateFormat('marginMm', Number(v))}
+            />
+            <label className="mt-2 flex items-center gap-2 text-[11px] text-[#7a6d5d]">
+              <span className="flex-shrink-0">Margin</span>
+              <input
+                type="range"
+                min={MARGIN_MIN_MM}
+                max={MARGIN_MAX_MM}
+                step={1}
+                value={marginMm}
+                onChange={(e) => onUpdateFormat('marginMm', Number(e.target.value))}
+                aria-label="Margin in millimetres"
+                className="flex-1 accent-blue-600"
+              />
+              <span className="w-10 flex-shrink-0 text-right font-semibold text-[#3d3529]">{marginMm} mm</span>
+            </label>
+            {/* Never a block — teachers know their own printers. */}
+            {margin.level !== 'none' && (
+              <p
+                data-testid="margin-safe-warning"
+                className={[
+                  'mt-1.5 rounded-lg px-2.5 py-1.5 text-[11px] leading-snug',
+                  margin.level === 'red' ? 'bg-red-50 text-red-800' : 'bg-amber-50 text-amber-900',
+                ].join(' ')}
+              >
+                {margin.message}
+              </p>
+            )}
+            <div className="mt-2">
+              <Segmented
+                ariaLabel="Density"
+                options={DENSITY_OPTIONS}
+                value={density}
+                onChange={(v) => onUpdateFormat('density', v)}
+              />
+            </div>
+          </div>
+
+          {/* 6. Lesson Plan Format */}
           <div>
             <SubLabel>Lesson Plan Format</SubLabel>
             <div className="grid grid-cols-3 gap-2">
@@ -309,7 +485,7 @@ export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvan
             </div>
           </div>
 
-          {/* 4. Illustrations — temporarily hidden (see SHOW_ILLUSTRATIONS) */}
+          {/* 7. Illustrations — temporarily hidden (see SHOW_ILLUSTRATIONS) */}
           {SHOW_ILLUSTRATIONS && (
             <div>
               <SubLabel>Illustrations</SubLabel>
@@ -342,7 +518,7 @@ export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvan
             </div>
           )}
 
-          {/* 5. Advanced Options */}
+          {/* 8. Advanced Options */}
           <div>
             <button
               type="button"
@@ -390,6 +566,32 @@ export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvan
                   </select>
                 </div>
 
+                {/* §2.4 — one checkbox per optional section, so the teacher
+                    composes the plan they actually submit. */}
+                <p className="pt-1 text-[10px] font-bold uppercase tracking-widest text-[#a39d8e]">
+                  Sections to include
+                </p>
+                {OPTIONAL_SECTIONS.map((field) => {
+                  const checked = sections[field] !== false
+                  return (
+                    <label
+                      key={field}
+                      className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-[#e5ddd0] px-3 py-2"
+                    >
+                      <span className="text-[12px] text-[#3d3529]">{OPTIONAL_SECTION_LABELS[field]}</span>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => onUpdateSection?.(field, !checked)}
+                        className="h-4 w-4 rounded border-[#d9cfbe] text-blue-600 focus:ring-blue-400"
+                      />
+                    </label>
+                  )
+                })}
+
+                <p className="pt-1 text-[10px] font-bold uppercase tracking-widest text-[#a39d8e]">
+                  Layout
+                </p>
                 {ADVANCED_TOGGLES
                   .filter(({ field }) => SHOW_ILLUSTRATIONS || field !== 'autoIllustrations')
                   .map(({ field, label }) => {
@@ -429,6 +631,7 @@ export function FormatOptionsForm({ formatOptions, onUpdateFormat, onUpdateAdvan
         format={previewFormat}
         curriculumMode={curriculumMode}
         advanced={formatOptions.advanced}
+        formatOptions={formatOptions}
         onClose={() => setPreviewFormat(null)}
       />
     </div>

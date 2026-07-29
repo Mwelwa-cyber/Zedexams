@@ -21,6 +21,9 @@
 
 import { downloadHtmlAsPdf } from './htmlToPdf.js'
 import { injectHtmlWatermark, WATERMARK_TEXT } from './exportWatermark.js'
+import { renderPlanHtml } from '../components/teacher/studio/utils/renderPlanHtml.js'
+import { lessonPlanPrintCss } from './lessonPlanPrintCss.js'
+import { resolveLessonFormat } from './lessonPlanFormat.js'
 
 const BRAND_PRIMARY = '#059669' // emerald-600, matches the lesson-plan UI
 
@@ -36,16 +39,16 @@ export async function downloadLessonPlanPdf(
   plan,
   titleForDocument = 'CBC Lesson Plan',
   filename = 'lesson-plan.pdf',
-  { attribution = false } = {},
+  { attribution = false, ...meta } = {},
 ) {
   if (!plan) throw new Error('No lesson plan to export.')
-  const html = withWatermark(buildPrintableHtml(plan, titleForDocument), attribution)
+  const html = withWatermark(buildPrintableHtml(plan, titleForDocument, meta), attribution)
   return downloadHtmlAsPdf(html, filename, {
-    onFallback: () => printLessonPlanAsPdf(plan, titleForDocument, { attribution }),
+    onFallback: () => printLessonPlanAsPdf(plan, titleForDocument, { attribution, ...meta }),
   })
 }
 
-export function printLessonPlanAsPdf(plan, titleForDocument = 'CBC Lesson Plan', { attribution = false } = {}) {
+export function printLessonPlanAsPdf(plan, titleForDocument = 'CBC Lesson Plan', { attribution = false, ...meta } = {}) {
   if (!plan) throw new Error('No lesson plan to export.')
 
   // NOTE: must NOT pass `noopener`/`noreferrer` in the features string — when
@@ -57,7 +60,7 @@ export function printLessonPlanAsPdf(plan, titleForDocument = 'CBC Lesson Plan',
     throw new Error('Your browser blocked the print window. Please allow pop-ups and try again.')
   }
 
-  const html = withWatermark(buildPrintableHtml(plan, titleForDocument), attribution)
+  const html = withWatermark(buildPrintableHtml(plan, titleForDocument, meta), attribution)
   win.document.open()
   win.document.write(html)
   win.document.close()
@@ -82,123 +85,81 @@ export function printLessonPlanAsPdf(plan, titleForDocument = 'CBC Lesson Plan',
  * ─────────────────────────────────────────────────────────────────── */
 
 // Exported for the plain-node export tests — pure string builder, no DOM.
-export function buildPrintableHtml(plan, title) {
+export function buildPrintableHtml(plan, title, opts = {}) {
   const isV3 = Array.isArray(plan.stages) || plan.schemaVersion === '3.0'
-  if (isV3) return buildPrintableHtmlV3(plan, title)
+  if (isV3) return buildPrintableHtmlV3(plan, title, opts)
   return buildPrintableHtmlLegacy(plan, title)
 }
 
-/* v3 — official CDC teaching-module layout: plain black-and-white A4,
- * CAPS labels, one black ruled LESSON PROGRESSION table, blank LESSON
- * EVALUATION. Mirrors the studio's Classic CBC format. */
-function buildPrintableHtmlV3(plan, title) {
-  const h = plan.header || {}
-  const le = plan.learningEnvironment || {}
-  const safe = (v) => (v == null ? '' : escapeHtml(String(v)))
-  const list = (items) => (items || []).length
-    ? `<ul>${items.map(i => `<li>${safe(i)}</li>`).join('')}</ul>`
-    : ''
-  const line = (label, value) => value
-    ? `<p class="fl"><strong>${label}:</strong> ${safe(value)}</p>`
-    : ''
-  const cellList = (items) => (items || []).length
-    ? items.map(i => `<p class="cl">${safe(i)}</p>`).join('')
-    : ''
-  const stageRows = (plan.stages || []).map(s => `
-    <tr>
-      <td class="stage"><strong>${safe(s.name)}</strong>${s.durationMinutes > 0 ? `<br><em>(${safe(s.durationMinutes)} min)</em>` : ''}</td>
-      <td>${cellList(s.teacherActivities)}</td>
-      <td>${cellList(s.learnerActivities)}</td>
-      <td>${cellList(s.assessmentCriteria)}</td>
-    </tr>`).join('')
+/**
+ * v3 — the compact official layout.
+ *
+ * This does NOT build its own HTML. It renders through `renderPlanHtml`, the
+ * same function the studio preview uses, and styles it with
+ * `lessonPlanPrintCss`, the same stylesheet the preview injects. Before this,
+ * the preview and the PDF were two independent implementations of "the lesson
+ * plan", and they drifted: the environment section, the evaluation blanks, the
+ * column widths and the page margins all disagreed. Whatever a teacher sees on
+ * screen is now literally what this prints.
+ *
+ * The one adaptation needed is shape: the exporters are handed the plan with
+ * its coordinates under `plan.header` and its activities as arrays, while the
+ * renderer reads a studio `meta` object. `metaFromPlan` is that translation and
+ * nothing more.
+ */
+function buildPrintableHtmlV3(plan, title, opts = {}) {
+  const curriculumMode = opts.curriculumMode === 'previous' ? 'previous' : 'cbc'
+  const fmt = resolveLessonFormat(opts.lessonFormat || {})
+  const meta = metaFromPlan(plan, opts, fmt)
+  const body = renderPlanHtml(plan, meta, curriculumMode)
+  const css = lessonPlanPrintCss(fmt, { includePageRule: true })
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>${safe(title)}</title>
+<title>${escapeHtml(String(title || 'Lesson Plan'))}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{font-family:"Times New Roman",Georgia,serif;color:#000;background:#fff;font-size:11pt;line-height:1.45}
-  body{padding:20px 28px;max-width:210mm;margin:0 auto}
-  h1{font-size:15pt;font-weight:800;text-align:center;letter-spacing:.12em;border-top:1.5px solid #000;border-bottom:1.5px solid #000;display:table;margin:0 auto 14px;padding:4px 18px}
-  .fl{margin:3px 0}
-  .fl strong{font-weight:700}
-  /* A borderless two-column header — a <table> (not CSS grid) so the
-     rasteriser used by the PDF download renders both columns reliably. */
-  table.meta{width:100%;border-collapse:collapse;border:0;border-top:1.5px solid #000;border-bottom:1.5px solid #000;margin:6px 0 10px}
-  table.meta td{border:0;width:50%;padding:3px 22px 3px 0;font-size:10.5pt;vertical-align:top}
-  ul{margin:3px 0 6px 22px}
-  li{margin:2px 0}
-  .pt{font-weight:700;font-size:11.5pt;letter-spacing:.04em;margin:12px 0 6px}
-  table{width:100%;border-collapse:collapse;margin:4px 0 12px;border:1px solid #000}
-  th,td{border:1px solid #000;padding:5px 7px;text-align:left;vertical-align:top;font-size:10.5pt}
-  th{font-weight:700}
-  td.stage{width:15%;font-size:9pt}
-  .cl{margin:0 0 5px}
-  .rule{border-bottom:1px solid #000;height:1.3em;margin:0 0 6px}
-  .illus{margin:8px 0 12px;text-align:center;page-break-inside:avoid;break-inside:avoid}
-  .illus img{max-width:80%;max-height:260px;height:auto;border:1px solid #000}
-  .illus figcaption{font-size:9pt;font-style:italic;margin-top:4px}
-  /* Keep these out of @media print: the PDF download rasterises in screen
-     media and reads these computed styles to decide where NOT to cut a page.
-     A whole header block and any single progression row stay intact. */
-  table{page-break-inside:auto}
-  table.meta{page-break-inside:avoid;break-inside:avoid}
-  tr{page-break-inside:avoid;break-inside:avoid}
-  thead{display:table-header-group}
-  @media print{ body{padding:14mm 16mm;max-width:none} }
+  html,body{background:#fff;color:#000}
+  /* The rasteriser used by the PDF download reads computed styles in SCREEN
+     media to decide where not to cut a page, so these stay outside @media print. */
+  body{padding:${fmt.marginMm}mm;max-width:210mm;margin:0 auto}
+${css}
+  /* Last, so it overrides — and so the fragmentation rules above stay in the
+     base stylesheet where the rasteriser can read them. */
+  @media print{ body{padding:0;max-width:none} }
 </style>
 </head>
-<body>
-  ${h.school ? `<p class="fl" style="text-align:center;font-weight:700;font-size:13pt;margin-bottom:4px">${safe(h.school)}</p>` : ''}
-  <h1>LESSON PLAN</h1>
-  <table class="meta"><tbody>
-    <tr><td><strong>NAME OF TEACHER:</strong> ${safe(h.teacherName)}</td><td><strong>DATE:</strong> ${safe(h.date)}</td></tr>
-    <tr><td><strong>CLASS:</strong> ${safe(h.class)}</td><td><strong>TIME:</strong> ${safe(h.time)}</td></tr>
-    <tr><td><strong>SUBJECT:</strong> ${safe(h.subject)}</td><td><strong>DURATION:</strong> ${h.durationMinutes ? `${safe(h.durationMinutes)} minutes` : ''}</td></tr>
-    <tr><td><strong>TOPIC:</strong> ${safe(h.topic)}</td><td><strong>TOTAL NO. OF PUPILS:</strong></td></tr>
-    <tr><td><strong>SUB-TOPIC:</strong> ${safe(h.subtopic)}</td><td><strong>GIRLS:</strong> ______ &nbsp;&nbsp; <strong>BOYS:</strong> ______</td></tr>
-  </tbody></table>
-  ${line('GENERAL COMPETENCES', (plan.generalCompetences || []).join(', '))}
-  ${line('SPECIFIC COMPETENCE', plan.specificCompetence)}
-  ${line('LESSON GOAL', plan.lessonGoal)}
-  ${line('RATIONALE', plan.rationale)}
-  ${line('PRIOR KNOWLEDGE', plan.priorKnowledge)}
-  ${plan.references?.length ? `<p class="fl"><strong>REFERENCES:</strong></p>${list(plan.references)}` : ''}
-  <p class="fl"><strong>LEARNING ENVIRONMENT:</strong></p>
-  ${line('I. Natural', le.natural)}
-  ${line('II. Artificial', le.artificial)}
-  ${line('III. Technological', le.technological)}
-  ${plan.materials?.length ? `<p class="fl"><strong>TEACHING AND LEARNING MATERIALS/RESOURCES:</strong></p>${list(plan.materials)}` : ''}
-  ${line('EXPECTED STANDARD', plan.expectedStandard)}
-  ${plan.lessonDiagram?.url ? `<p class="fl"><strong>TEACHING ILLUSTRATION:</strong></p>${diagramFigureHtml(plan, safe)}` : ''}
-
-  <p class="pt">LESSON PROGRESSION</p>
-  <table>
-    <thead>
-      <tr>
-        <th style="width:15%">STAGES</th>
-        <th style="width:31%">TEACHER'S ACTIVITIES</th>
-        <th style="width:30%">LEARNERS' ACTIVITIES</th>
-        <th style="width:24%">ASSESSMENT CRITERIA</th>
-      </tr>
-    </thead>
-    <tbody>${stageRows}</tbody>
-  </table>
-
-  ${line('REMEDIAL WORK', plan.remedialWork)}
-  ${line('EXTENSION ACTIVITY', plan.extensionActivity)}
-  <p class="pt">LESSON EVALUATION:</p>
-  <p class="fl"><strong>Successes</strong> (competences achieved): __________________</p>
-  <div class="rule"></div>
-  <p class="fl"><strong>Challenges</strong> (competences not achieved and why): __________________</p>
-  <div class="rule"></div>
-  <p class="fl"><strong>Way forward</strong> (including remedial work if applicable): __________________</p>
-  <div class="rule"></div>
-</body>
+<body>${body}</body>
 </html>`
 }
+
+/**
+ * Build the renderer's `meta` from an export-shaped plan.
+ *
+ * `opts` is the studio/library meta when there is one — a plan exported from
+ * the studio carries the very object its preview was rendered with, so the two
+ * agree by construction rather than by both guessing from `plan.header`.
+ */
+function metaFromPlan(plan, opts = {}, fmt) {
+  const h = plan.header || {}
+  return {
+    ...opts,
+    format: opts.format || 'classic',
+    lessonFormat: fmt,
+    school: opts.school || h.school || '',
+    teacherName: opts.teacherName || h.teacherName || '',
+    date: opts.date || h.date || '',
+    time: opts.time || h.time || '',
+    grade: opts.grade || h.class || '',
+    subject: opts.subject || h.subject || '',
+    topic: opts.topic || h.topic || '',
+    subtopic: opts.subtopic || h.subtopic || '',
+    duration: opts.duration || h.durationMinutes || 40,
+  }
+}
+
 
 function buildPrintableHtmlLegacy(plan, title) {
   const header = plan.header || {}

@@ -351,7 +351,12 @@ export default function LibraryItemDetail() {
       // if the server path isn't available (unsaved item, native shell, error,
       // or a studio-saved plan the server can't rebuild yet).
       const served = await downloadLibraryItemViaServer({ generationId: item.id, filename: name() })
-      if (!served) await downloadLessonPlanDocx(exportable, name())
+      // Hand the SAVED meta to the exporter: it carries the paper format the
+      // plan was generated with (page budget, margins, environment display) and
+      // which curriculum it belongs to. Without it a 1-page OBC plan downloaded
+      // as a 2-page CBC one — the plan the teacher approved is not the plan
+      // that came out of the printer.
+      if (!served) await downloadLessonPlanDocx(exportable, name(), lessonPlanExportMeta(item))
       recordExport(item.id, 'docx')
     } else if (item.tool === 'worksheet') {
       await downloadWorksheetDocx(item.output, name(), { mode: 'worksheet' })
@@ -494,7 +499,7 @@ export default function LibraryItemDetail() {
           topic: item.inputs?.topic || item.meta?.topic,
           ext: 'pdf',
         })
-        await downloadLessonPlanPdf(plan, titleForGeneration(item), filename)
+        await downloadLessonPlanPdf(plan, titleForGeneration(item), filename, lessonPlanExportMeta(item))
         recordExport(item.id, 'pdf')
       } catch (err) {
         console.error('[LibraryItemDetail] lesson plan pdf failed', err)
@@ -1335,6 +1340,24 @@ function EditHeaderModal({ tool, header, saving, onCancel, onSave }) {
       </form>
     </div>
   )
+}
+
+/**
+ * The render/export meta for a saved lesson plan.
+ *
+ * A studio-generated plan carries the exact meta its preview was rendered with
+ * — including the resolved paper format (§2.5) — so reproducing the document is
+ * a matter of handing it back rather than re-deriving it. The curriculum comes
+ * from the plan's own classification: an OBC plan exported as CBC gets the
+ * wrong columns and the wrong field names.
+ */
+function lessonPlanExportMeta(item) {
+  const meta = item?.meta && typeof item.meta === 'object' ? item.meta : {}
+  const syllabus = String(item?.classification?.syllabusHint || '').toUpperCase()
+  return {
+    ...meta,
+    curriculumMode: syllabus === 'OBC' ? 'previous' : (meta.curriculumMode || 'cbc'),
+  }
 }
 
 function formatSubject(s) {

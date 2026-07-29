@@ -49,7 +49,7 @@ function cbcState(overrides = {}) {
     learningEnvironments: ['Artificial'],
     lessonSeries: { planningMode: 'single', lessonFocus: '' },
     lessonBreakdown: [],
-    formatOptions: { detail: 'standard', writingStyle: 'standard', format: 'modern', advanced: {} },
+    formatOptions: { pageBudget: '2', writingStyle: 'point', format: 'modern', advanced: {} },
     ...overrides,
   }
 }
@@ -176,8 +176,8 @@ assert(validateStep(2, previousState()).valid, 'Previous curriculum context step
 
 assert(validateStep(3, cbcState()).valid, 'defaults pass the format step')
 {
-  const s = cbcState({ formatOptions: { detail: '', writingStyle: 'standard', format: 'modern', advanced: {} } })
-  assert(!validateStep(3, s).valid, 'missing detail level → blocked')
+  const s = cbcState({ formatOptions: { pageBudget: '', writingStyle: 'point', format: 'modern', advanced: {} } })
+  assert(!validateStep(3, s).valid, 'missing page budget → blocked')
 }
 
 // ── Step 4: Review aggregates 0–3 ─────────────────────────────────────────────

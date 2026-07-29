@@ -1,6 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import LiveLessonPlanPreview from './LiveLessonPlanPreview'
 import LessonPlanEditor from './LessonPlanEditor'
+import PaginatedPlanPreview from './PaginatedPlanPreview'
+import { measurePlanPages } from './utils/paginatePlan'
+import { fitToPage, pageCountVerdict } from '../../../utils/lessonPlanPagination'
+import { formatCssVariableString, lessonPlanPrintCss } from '../../../utils/lessonPlanPrintCss'
+import { useLessonPlanDocumentCss } from './hooks/useLessonPlanDocumentCss'
+import { resolveLessonFormat } from '../../../utils/lessonPlanFormat'
 
 /**
  * Wrap the rendered lesson-plan HTML (renderPlanHtml output, already escaped)
@@ -11,27 +17,24 @@ import LessonPlanEditor from './LessonPlanEditor'
  * margins, chrome hidden) take effect. The inline <script> waits for the
  * stylesheet + images to load, then prints once.
  */
-function buildPrintableDocument(planHtml) {
-  const css = (typeof window !== 'undefined' && window.location ? window.location.origin : '') + '/studio/lesson.css'
+function buildPrintableDocument(planHtml, format) {
+  const fmt = resolveLessonFormat(format)
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lesson Plan</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,800&family=Lora:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="${css}">
 <style>
-  html,body{margin:0;background:#fff}
-  /* On screen, give the page a little breathing room; print CSS resets this. */
-  @media screen{ #view-plans .workspace-print{padding:18px} }
-  #view-plans .doc{min-height:0}
+  html,body{margin:0;padding:0;background:#fff}
+  body{padding:${fmt.marginMm}mm;max-width:210mm;margin:0 auto}
+${lessonPlanPrintCss(fmt, { includePageRule: true })}
+  /* Last, so it wins — and so the fragmentation rules above stay where a
+     rasteriser reading screen media can still see them. */
+  @media print{ body{padding:0;max-width:none} }
 </style>
 </head>
-<body>
-  <div id="view-plans"><div class="workspace-print"><div class="doc-wrap"><div class="doc">${planHtml}</div></div></div></div>
+<body>${planHtml}
   <script>
     (function(){
       function go(){ try{ window.focus(); window.print(); }catch(e){} }
@@ -78,6 +81,11 @@ export function StudioCanvas({
   curriculumMode = 'cbc',
   lessonContext = {},
   onPlanChange,
+  // Paper: the resolved lesson format (page budget, margins, typography) and
+  // the way back to the studio state when Fit to page changes it.
+  lessonFormat = null,
+  onLessonFormatChange,
+  onCondenseToFit,
   // Save to library
   onSaveToLibrary,
   saveStatus = 'idle',
@@ -113,6 +121,49 @@ export function StudioCanvas({
     }
   }, [])
 
+  const [fitting, setFitting] = useState(false)
+  const fmt = resolveLessonFormat(lessonFormat || {})
+
+  // The measured page count, KEYED to the document it was measured for.
+  //
+  // `null` reads as "Measuring…", never as a pass — a budget the app has not
+  // checked is not a budget the app can promise. Keying it is what makes that
+  // true: an effect that reset the count when the document changed would run
+  // AFTER the child's layout effect had already reported the new measurement,
+  // and would throw it away. Comparing keys instead means a count for a
+  // different document simply cannot be displayed.
+  const measureKey = `${generatedPlan?.length ?? 0}:${fmt.marginMm}:${fmt.pageBudget}:${fmt.density}:${fmt.typography.tablePt}`
+  const [measured, setMeasured] = useState({ key: null, pages: null })
+  const pageCount = measured.key === measureKey ? measured.pages : null
+  const verdict = pageCountVerdict(pageCount, fmt)
+  const handlePageCount = useCallback((pages) => {
+    setMeasured({ key: measureKey, pages })
+  }, [measureKey])
+
+  // Inject the document stylesheet here, not only in the paginated preview:
+  // the live "writing itself" preview mounts the moment Generate is clicked and
+  // renders the same document, so an injection that waited for the sheets left
+  // it unstyled for the whole generation.
+  useLessonPlanDocumentCss(fmt)
+
+  const handleFitToPage = useCallback(() => {
+    if (!generatedPlan || typeof onLessonFormatChange !== 'function') return
+    setFitting(true)
+    try {
+      const result = fitToPage(fmt, (candidate) => measurePlanPages({
+        html: generatedPlan,
+        marginMm: candidate.marginMm,
+        cssVars: formatCssVariableString(candidate),
+      }))
+      onLessonFormatChange(result.format)
+      // The layout levers are spent. The only one left changes the WORDS, and
+      // that is the teacher's call, not a silent rewrite.
+      if (result.needsCondense && typeof onCondenseToFit === 'function') onCondenseToFit(result)
+    } finally {
+      setFitting(false)
+    }
+  }, [generatedPlan, fmt, onLessonFormatChange, onCondenseToFit])
+
   const isDone    = generationStatus === 'done'
   const isLoading = generationStatus === 'loading'
   const isError   = generationStatus === 'error'
@@ -134,7 +185,7 @@ export function StudioCanvas({
     // print rules (A4 page, margins) apply. `generatedPlan` is the live preview
     // HTML and is kept in sync with edits, so this works in edit mode too.
     if (!generatedPlan) return
-    const printable = buildPrintableDocument(generatedPlan)
+    const printable = buildPrintableDocument(generatedPlan, fmt)
     const win = window.open('', '_blank', 'width=900,height=1100')
     if (!win) {
       // Pop-up blocked — fall back to the (chrome-isolated where possible) inline
@@ -214,6 +265,35 @@ export function StudioCanvas({
             )}
 
             <div className="flex-1" />
+
+            {/* Measured page count (§3.3) — amber/red when the plan exceeds the
+                budget the teacher chose, with the one-tap way to recover it. */}
+            {!isEditing && (
+              <span
+                data-testid="page-badge"
+                title={verdict.target ? `Budget: ${verdict.target} ${verdict.target === 1 ? 'page' : 'pages'}` : 'No page limit'}
+                className={[
+                  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold',
+                  verdict.level === 'red' ? 'bg-red-100 text-red-800'
+                    : verdict.level === 'amber' ? 'bg-amber-100 text-amber-900'
+                      : verdict.level === 'measuring' ? 'bg-[#efe7d8] text-[#7a6d5d]'
+                        : 'bg-green-100 text-green-800',
+                ].join(' ')}
+              >
+                {verdict.label}
+              </span>
+            )}
+            {!isEditing && verdict.level !== 'ok' && verdict.level !== 'measuring' && typeof onLessonFormatChange === 'function' && (
+              <button
+                type="button"
+                data-action="fit-to-page"
+                onClick={handleFitToPage}
+                disabled={fitting}
+                className="lps-btn-ghost px-3 py-1.5 text-[13px]"
+              >
+                {fitting ? 'Fitting…' : 'Fit to page'}
+              </button>
+            )}
 
             <button
               type="button"
@@ -435,17 +515,16 @@ export function StudioCanvas({
         {/* 3b. Generated / done state (preview) — after the live reveal, or
              immediately for reopened plans that have no structured planJson. */}
         {isDone && !isEditing && generatedPlan && (revealDone || !planJson) && (
-          /* The .doc-wrap caps the document at A4 width (794px) and centres it;
-             without it the bare .doc sized to its content and, under the parent's
-             justify-center, overflowed off BOTH edges on phones (text clipped
-             left and right). w-full + max-w lets it shrink to the viewport while
-             the fixed-layout tables wrap inside. */
-          <div className="doc-wrap mx-auto w-full max-w-[794px] overflow-hidden rounded-2xl lps-soft-shadow-lg lps-section-enter">
-            {/* Safe: generatedPlan is our own renderPlanHtml() output (HTML escaped), never raw user input */}
-            <div
-              id="doc"
-              className="doc"
-              dangerouslySetInnerHTML={{ __html: generatedPlan }}
+          /* Real A4 sheets (§3.3), not a continuous column — a teacher has to be
+             able to see what comes out of the printer, including where the page
+             breaks fall. The sheets scale to the viewport rather than reflowing,
+             because a sheet that reflowed would no longer be the sheet that
+             prints and the page count would be a count of something else. */
+          <div className="mx-auto w-full max-w-[900px] lps-section-enter">
+            <PaginatedPlanPreview
+              html={generatedPlan}
+              format={fmt}
+              onPageCount={handlePageCount}
             />
           </div>
         )}

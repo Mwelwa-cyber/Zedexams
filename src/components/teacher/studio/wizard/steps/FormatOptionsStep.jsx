@@ -13,6 +13,7 @@ export function FormatOptionsStep({
   formatOptions,
   onUpdateFormat,
   onUpdateAdvanced,
+  onUpdateSection,
   onUpdateMedium,
   lessonMedium,
   curriculumMode,
@@ -24,6 +25,7 @@ export function FormatOptionsStep({
         formatOptions={formatOptions}
         onUpdateFormat={onUpdateFormat}
         onUpdateAdvanced={onUpdateAdvanced}
+        onUpdateSection={onUpdateSection}
         onUpdateMedium={onUpdateMedium}
         lessonMedium={lessonMedium}
         curriculumMode={curriculumMode}

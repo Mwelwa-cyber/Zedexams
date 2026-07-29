@@ -4,6 +4,7 @@
 //   teacherProfile      — personal info (phone, TS number, qualification, …)
 //   teaching            — assigned grades/subjects/streams + weekly load
 //   teacherPreferences  — AI prefs + curriculum defaults + advanced toggles
+//                         + the Lesson Plan Studio's last-used paper format
 //   timetable           — simple weekly period grid
 //
 // These helpers coerce whatever is stored (legacy / partial / tampered) into
@@ -15,10 +16,12 @@
 // Run tests: node src/utils/teacherSettingsCore.test.js
 
 import { TEACHING_LANGUAGE_VALUES } from '../config/zambia.js'
+import { resolveLessonFormat, toStoredPreferences } from './lessonPlanFormat.js'
 
-// Value spaces shared with the studios. planDetail mirrors
-// useStudioState.formatOptions.detail exactly so a saved preference can seed
-// the Lesson Plan Studio without translation.
+// Value spaces shared with the studios. planDetail is the pre-2026-07 Detail
+// Level vocabulary; the Lesson Plan Studio has since replaced it with Page
+// Budget (see lessonPlanFormat.js, which maps the old values onto a budget so a
+// saved preference still seeds the studio sensibly).
 export const PLAN_DETAIL_VALUES = ['simplified', 'standard', 'detailed']
 export const ENGLISH_VARIANTS = ['british', 'american']
 export const DIFFICULTY_VALUES = ['easy', 'mixed', 'hard']
@@ -136,12 +139,25 @@ export function normalizeAdvancedPreferences(data = {}) {
   }
 }
 
+/**
+ * The teacher's last-used Lesson Plan Studio format (§2.6).
+ *
+ * Stored as the RAW choices, never a resolved format: a stored resolved format
+ * would pin one month's typography table into a teacher's profile and never
+ * pick up a preset change. `resolveLessonFormat` does the deriving on read, and
+ * it tolerates every field here being absent or wrong.
+ */
+export function normalizeLessonPlanFormat(data = {}) {
+  return toStoredPreferences(resolveLessonFormat(data && typeof data === 'object' ? data : {}))
+}
+
 export function normalizeTeacherPreferences(data = {}) {
   const d = data && typeof data === 'object' ? data : {}
   return {
     ai: normalizeAiPreferences(d.ai),
     curriculum: normalizeCurriculumDefaults(d.curriculum),
     advanced: normalizeAdvancedPreferences(d.advanced),
+    lessonPlanFormat: normalizeLessonPlanFormat(d.lessonPlanFormat),
   }
 }
 

@@ -622,7 +622,13 @@
     "test:teacher-theme-contrast": "node src/contexts/teacherThemeContrast.test.js",
     "test:teacher-theme-mirror": "node src/contexts/teacherThemeMirror.test.js",
     "test:reading-theme-mirror": "node src/contexts/readingThemeMirror.test.js",
-    "test:export-theme-isolation": "node src/utils/exportThemeIsolation.test.js"
+    "test:export-theme-isolation": "node src/utils/exportThemeIsolation.test.js",
+    "test:lesson-plan-format": "node src/utils/lessonPlanFormat.test.js",
+    "test:lesson-plan-condense": "node src/utils/lessonPlanCondense.test.js",
+    "test:lesson-plan-blocks": "node src/utils/lessonPlanBlocks.test.js",
+    "test:lesson-pagination": "node src/utils/lessonPlanPagination.test.js",
+    "test:lesson-render": "node src/components/teacher/studio/utils/renderPlanHtml.test.js",
+    "check:lesson-page-budget": "node scripts/lessonPageBudget/checkPageBudget.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
