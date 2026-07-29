@@ -96,7 +96,7 @@ import { buildExportValidationReport } from '../../utils/assessmentValidationRep
 import { blockingIssuesByLocalId } from '../../utils/assessmentExportGate'
 import { buildAssessmentExportReadiness } from '../../utils/assessmentExportReadiness'
 import { buildPrintPdfReadiness, buildWordReadiness } from '../../utils/printPdfReadiness'
-import { renderDiagramSvg } from '../diagrams/diagramCatalog'
+import { resolveFigureForExport } from '../diagrams/diagramCatalog'
 import { compareToBlueprint } from '../../utils/blueprintDrift'
 import {
   canRegenerateQuestion, slotForQuestionNumber, replaceQuestionInSections,
@@ -750,7 +750,10 @@ export default function AssessmentStudio() {
       // second answer to "what is wrong with this paper", and the day the two
       // disagree the badge and the banner tell a teacher different things.
       validationIssues,
-      diagramResolver: renderDiagramSvg,
+      // The gate's resolver, not the preview's: it also refuses a figure whose
+      // parameters cannot produce a true drawing, and the server export callable
+      // runs the same one. See resolveFigureForExport.
+      diagramResolver: resolveFigureForExport,
     }),
     [sections, parts, autoTitle, form.subject, form.grade, assessmentDoc, serializedPreview, validationIssues],
   )

@@ -23,7 +23,9 @@
 import assert from 'node:assert/strict'
 import {
   DIAGRAM_CATALOG, getDiagram, renderDiagramSvg,
+  resolveFigureForExport, validateDiagramParams,
 } from './diagramCatalogCore.js'
+import { unresolvedRequiredFigures } from './unresolvedFiguresCore.js'
 import {
   parseSvg, select, selectOne, num, texts,
   angleBetween, bearingFromNorth, dist, approx, approxPoint,
@@ -42,9 +44,11 @@ const pointAt = (parsed, name) => {
   const el = selectOne(parsed, 'circle', (e) => e.attrs['data-point'] === name)
   return [num(el, 'cx'), num(el, 'cy')]
 }
+// validate() is optional — a figure whose every field is free text has nothing
+// to complain about, and must not be forced to say so in an empty function.
 const issues = (key, params) => {
   const entry = getDiagram(key)
-  return entry.validate({ ...entry.defaults, ...params })
+  return entry.validate ? entry.validate({ ...entry.defaults, ...params }) : []
 }
 
 /* ── every new family, structurally ──────────────────────────────────────── */
@@ -53,6 +57,7 @@ const FAMILIES = [
   'circletheorem', 'bearings', 'elevation', 'labelledtriangle',
   'functiongraph', 'transformation', 'vectordiagram',
   'histogram', 'frequencypolygon', 'ogive', 'travelgraph', 'linearprogramming',
+  'earthgeometry', 'venn3elements',
 ]
 
 /** The families that plot into the shared Cartesian frame. */
@@ -748,6 +753,139 @@ test('inequalities with no common region are refused, rather than drawn empty', 
     /No region satisfies all of these inequalities/,
   )
   assert.match(issues('linearprogramming', { ...LP, constraints: 'x squared <= 4' })[0].message, /is not an inequality this can draw/)
+})
+
+/* ── earth geometry ──────────────────────────────────────────────────────── */
+
+console.log('\nearth geometry')
+
+const placeAt = (parsed, name) => {
+  const el = selectOne(parsed, 'circle', (e) => e.attrs['data-place'] === name)
+  return [num(el, 'cx'), num(el, 'cy')]
+}
+
+test('two points on the same parallel are drawn at the same height', () => {
+  // The property a latitude question rests on. A decorative ellipse globe gets
+  // this wrong the moment the two longitudes differ.
+  const parsed = draw('earthgeometry', { points: 'P:60N,20E;Q:60N,80E' })
+  approx(placeAt(parsed, 'P')[1], placeAt(parsed, 'Q')[1], 0.05, 'same parallel, same height')
+})
+
+test('north of the equator is above it, and south is below', () => {
+  const parsed = draw('earthgeometry', { points: 'A:40N,0;B:0,0;C:40S,0' })
+  const [, ay] = placeAt(parsed, 'A')
+  const [, by] = placeAt(parsed, 'B')
+  const [, cy] = placeAt(parsed, 'C')
+  assert.ok(ay < by, '40N is above the equator')
+  assert.ok(by < cy, '0 is above 40S')
+})
+
+test('a point sits on the sphere, not inside or outside it', () => {
+  const parsed = draw('earthgeometry', { points: 'P:35N,15E;Q:10S,40W' })
+  const globe = selectOne(parsed, 'circle', (e) => e.attrs.r && parseFloat(e.attrs.r) > 50)
+  const centre = [num(globe, 'cx'), num(globe, 'cy')]
+  const R = num(globe, 'r')
+  for (const name of ['P', 'Q']) {
+    assert.ok(dist(placeAt(parsed, name), centre) <= R + 0.5, `${name} is on or inside the outline`)
+  }
+})
+
+test('a parallel of latitude is drawn for the equator and for each point', () => {
+  const parsed = draw('earthgeometry', { points: 'P:60N,20E;Q:30S,20E', showParallels: 'yes' })
+  const drawn = new Set(select(parsed, 'polyline', (e) => e.attrs['data-parallel'])
+    .map((e) => Number(e.attrs['data-parallel'])))
+  assert.deepEqual([...drawn].sort((a, b) => a - b), [-30, 0, 60])
+  assert.equal(select(draw('earthgeometry', { points: 'P:60N,20E', showParallels: 'no' }), 'polyline', (e) => e.attrs['data-parallel']).length, 0)
+})
+
+test('the far side of a circle is dashed, the near side solid', () => {
+  // What makes the sketch read as a sphere rather than a disc.
+  const parsed = draw('earthgeometry', { points: 'P:0,0', showParallels: 'yes', showMeridians: 'no' })
+  const arcs = select(parsed, 'polyline', (e) => e.attrs['data-parallel'] === '0')
+  assert.ok(arcs.some((e) => e.attrs['stroke-dasharray']), 'the hidden half is dashed')
+  assert.ok(arcs.some((e) => !e.attrs['stroke-dasharray']), 'the visible half is solid')
+})
+
+test('an impossible latitude or longitude is refused', () => {
+  assert.match(issues('earthgeometry', { points: 'P:100N,20E' })[0].message, /Latitude runs from 0° to 90°/)
+  assert.match(issues('earthgeometry', { points: 'P:60N,200E' })[0].message, /Longitude runs from 0° to 180°/)
+  assert.match(issues('earthgeometry', { points: 'somewhere hot' })[0].message, /is not a point/)
+})
+
+/* ── three-set Venn ──────────────────────────────────────────────────────── */
+
+console.log('\nthree-set Venn')
+
+test('all seven regions and the outside are written in', () => {
+  // The two-set figure cannot express A∩B∩C, which is most of what a senior
+  // sets question is about.
+  const parsed = draw('venn3elements', {
+    a: 'A', b: 'B', c: 'C',
+    onlyA: '2', onlyB: '5', onlyC: '7', aAndB: '3', aAndC: '4', bAndC: '6', all: '1', outside: '8',
+  })
+  const rendered = texts(parsed)
+  for (const v of ['1', '2', '3', '4', '5', '6', '7', '8']) {
+    assert.ok(rendered.includes(v), `region value ${v} was not written in`)
+  }
+  assert.equal(select(parsed, 'circle', (e) => e.attrs['data-set']).length, 3)
+})
+
+test('the three circles are the same size and each overlaps both others', () => {
+  const parsed = draw('venn3elements', getDiagram('venn3elements').defaults)
+  const sets = select(parsed, 'circle', (e) => e.attrs['data-set'])
+  const centres = sets.map((e) => [num(e, 'cx'), num(e, 'cy')])
+  const radii = sets.map((e) => num(e, 'r'))
+  assert.ok(radii.every((r) => Math.abs(r - radii[0]) < 0.01), 'equal radii')
+  for (let i = 0; i < 3; i += 1) {
+    for (let j = i + 1; j < 3; j += 1) {
+      assert.ok(dist(centres[i], centres[j]) < radii[0] * 2, `circles ${i} and ${j} overlap`)
+      assert.ok(dist(centres[i], centres[j]) > 1, `circles ${i} and ${j} are not on top of each other`)
+    }
+  }
+})
+
+/* ── the export gate ─────────────────────────────────────────────────────── */
+
+console.log('\nthe export gate')
+
+test('a figure that draws something WRONG is refused for export', () => {
+  // The distinction the senior families make necessary. A circle-theorem
+  // figure whose 110° mark sits on a 180° corner renders perfectly well; it is
+  // simply wrong, and a learner measuring it has no way to know. The gate's
+  // resolver refuses it and the validator's own sentence becomes the reason.
+  const bad = {
+    points: 'A@180,B@90,C@0', joins: 'O-A,O-C', angles: 'AOC=110', notToScale: 'no', centre: 'O', tangent: '',
+  }
+  assert.throws(() => resolveFigureForExport('circletheorem', bad), /drawn as 180°/)
+  // The renderer is deliberately NOT stricter — a teacher mid-edit still sees
+  // the figure they are fixing.
+  assert.ok(renderDiagramSvg('circletheorem', bad, '#1c1612').startsWith('<svg'))
+})
+
+test('the gate reports a params problem the way it reports a missing figure', () => {
+  // unresolvedRequiredFigures treats a resolver that throws as a figure that
+  // could not be drawn — which is exactly the verdict — and carries the
+  // message through, so the teacher reads the sentence and not a code.
+  const paper = {
+    questions: [{ id: 'q1', imageDiagram: { libraryKey: 'linearprogramming', params: { constraints: 'x+y<=2,x+y>=6' } } }],
+    passages: [],
+  }
+  const found = unresolvedRequiredFigures(paper, resolveFigureForExport)
+  assert.equal(found.length, 1)
+  assert.equal(found[0].questionNumber, 1)
+  assert.match(found[0].reason, /No region satisfies all of these inequalities/)
+})
+
+test('a good figure passes the gate, and an unknown key still fails it', () => {
+  const ok = { questions: [{ id: 'q1', imageDiagram: { libraryKey: 'bearings', params: { legs: 'A>B,060,8' } } }], passages: [] }
+  assert.deepEqual(unresolvedRequiredFigures(ok, resolveFigureForExport), [])
+  const unknown = { questions: [{ id: 'q1', imageDiagram: { libraryKey: 'not-a-figure', params: {} } }], passages: [] }
+  assert.equal(unresolvedRequiredFigures(unknown, resolveFigureForExport).length, 1)
+})
+
+test('validateDiagramParams answers for a figure that has no validator', () => {
+  assert.deepEqual(validateDiagramParams('triangle', {}), [])
+  assert.deepEqual(validateDiagramParams('not-a-figure', {}), [])
 })
 
 /* ── the catalog is still one catalog ────────────────────────────────────── */

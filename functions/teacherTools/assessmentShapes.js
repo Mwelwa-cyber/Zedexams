@@ -53,6 +53,27 @@ const SHAPE_LIBRARY = {
   venn3: {params: ["a", "b", "c", "cap"], desc: "three-set Venn diagram"},
   vennelements: {params: ["a", "b", "onlyA", "both", "onlyB", "outside", "cap"], desc: "two-set Venn with elements placed in each region (comma lists): onlyA, both (A∩B), onlyB, outside"},
   mapping: {params: ["left", "right", "links", "cap"], desc: "mapping/relation diagram; left & right are comma lists, links like '1>2,2>3' (1-based rows)"},
+
+  // ── Secondary mathematics (Forms 1-4 / Grade 12) ──────────────────────────
+  // Every one of these is COMPUTED from its parameters, so the figure is
+  // mathematically true: the image of a rotation, the turning point of a
+  // plotted quadratic and an ogive's quartiles are all correct by
+  // construction. Give the parameters and let the figure do the geometry —
+  // never describe a diagram in prose and hope.
+  circletheorem: {params: ["centre", "points", "joins", "angles", "tangent", "notToScale", "cap"], desc: "circle-theorem figure (angle at the centre, same segment, cyclic quadrilateral, tangent, alternate segment). points 'A@160,B@60,C@300' places each point at that many degrees anticlockwise from the 3 o'clock position; joins 'O-A,A-B' draws chords and radii (O is the centre); angles 'AOC=110,ABC=x' marks an angle at the middle letter; tangent 'C:T,U' adds the tangent at C with its ends named"},
+  bearings: {params: ["legs", "unit", "notToScale", "cap"], desc: "bearings journey drawn on true bearings with a north line at each turning point; legs 'A>B,060,8;B>C,135,6' is from>to, three-figure bearing, distance"},
+  elevation: {params: ["angle", "mode", "observer", "object", "base", "height", "notToScale", "cap"], desc: "angle of elevation or depression, drawn at its true size; mode is 'elevation' or 'depression'"},
+  labelledtriangle: {params: ["a", "b", "c", "angleA", "angleB", "angleC", "sideAB", "sideBC", "sideCA", "notToScale", "cap"], desc: "triangle for sine/cosine-rule questions; numeric angles are drawn at their true size, and any label may be a symbol such as x"},
+  functiongraph: {params: ["fn", "xMin", "xMax", "yMin", "yMax", "show", "notToScale", "cap"], desc: "a function plotted exactly from its equation; fn like 'y = x^2 - 2x - 3', 'y = 2x + 1' or 'y = 6/x' (polynomials to a cubic, and the reciprocal — no brackets or other functions); show 'roots,turning,yintercept' marks those points with their coordinates"},
+  transformation: {params: ["object", "type", "by", "objectLabel", "imageLabel", "xMin", "xMax", "yMin", "yMax", "notToScale", "cap"], desc: "object and its computed image on a grid; object '(1,1),(4,1),(1,3)'; type translation|reflection|rotation|enlargement|shear|stretch; by 'translation 3,-2' / 'reflection y=x' / 'rotation 90,0,0' (angle,centre; positive is anticlockwise) / 'enlargement 2,0,0' (factor,centre) / 'shear x,2' / 'stretch y,3'"},
+  vectordiagram: {params: ["vectors", "grid", "xMin", "xMax", "yMin", "yMax", "notToScale", "cap"], desc: "directed line segments; vectors 'a:(0,0)>(4,2),b:(4,2)>(6,-2)' is name:from>to"},
+  histogram: {params: ["boundaries", "frequencies", "density", "xLabel", "yLabel", "notToScale", "cap"], desc: "histogram from a grouped frequency table; boundaries '0,10,20,30' and one frequency per class. Set density 'yes' for frequency density when the classes have unequal widths"},
+  frequencypolygon: {params: ["boundaries", "frequencies", "xLabel", "yLabel", "notToScale", "cap"], desc: "frequency polygon through the class midpoints, closing to zero at each end"},
+  ogive: {params: ["boundaries", "frequencies", "readOff", "xLabel", "yLabel", "notToScale", "cap"], desc: "cumulative frequency curve; readOff 'median,quartiles' draws the read-off lines at the true interpolated positions"},
+  travelgraph: {params: ["points", "xLabel", "yLabel", "shade", "notToScale", "cap"], desc: "distance-time or speed-time graph; points '0,0;1,60;2.5,60;4,0' is time,value in time order. shade 'yes' fills the area under the graph for area-under-graph questions"},
+  linearprogramming: {params: ["constraints", "shade", "regionLabel", "xMin", "xMax", "yMin", "yMax", "notToScale", "cap"], desc: "feasible region from inequalities; constraints 'x+y<=6,2x+y<=8,x>=0,y>=0'. Strict inequalities get a dashed boundary automatically; shade 'unwanted' (exam convention) or 'wanted'"},
+  earthgeometry: {params: ["points", "showParallels", "showMeridians", "notToScale", "cap"], desc: "latitude and longitude sketch on a globe; points 'P:60N,20E;Q:60N,80E' — points on the same parallel are drawn at the same height"},
+  venn3elements: {params: ["a", "b", "c", "onlyA", "onlyB", "onlyC", "aAndB", "aAndC", "bAndC", "all", "outside", "notToScale", "cap"], desc: "three-set Venn with all seven regions written in, plus the outside — use this rather than venn3 when a question needs A∩B∩C"},
 };
 
 const SHAPE_KEYS = new Set(Object.keys(SHAPE_LIBRARY));

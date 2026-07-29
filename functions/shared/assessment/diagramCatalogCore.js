@@ -966,6 +966,63 @@ function travelModel(p) {
   return { pts, issues }
 }
 
+/* ── earth geometry ──────────────────────────────────────────────────────── */
+
+const EARTH_CX = 180, EARTH_CY = 168, EARTH_R = 128
+// A small tilt is what makes the sketch read as a sphere: with the axis exactly
+// side-on, every parallel projects to a straight line and the globe is a disc.
+const EARTH_TILT = (18 * Math.PI) / 180
+
+/**
+ * Points on the globe, projected orthographically.
+ *
+ * The projection is real spherical geometry rather than a decorative ellipse,
+ * so two points on the same parallel land at the same height and a point at
+ * 0°N sits on the equator — which is what a learner is being asked to see.
+ */
+function earthModel(p) {
+  const issues = []
+  const places = []
+  for (const item of String(p.points ?? '').split(';').map((s) => s.trim()).filter(Boolean)) {
+    const m = /^([^:]+):\s*(\d+(?:\.\d+)?)\s*([NnSs]?)\s*,\s*(\d+(?:\.\d+)?)\s*([EeWw]?)\s*$/.exec(item)
+    if (!m) {
+      issues.push({ field: 'points', message: `"${item}" is not a point. Write each one as name:latitude,longitude — for example P:60N,20E — separated by semicolons.` })
+      continue
+    }
+    const lat = parseFloat(m[2]) * (/^s$/i.test(m[3]) ? -1 : 1)
+    const lon = parseFloat(m[4]) * (/^w$/i.test(m[5]) ? -1 : 1)
+    if (Math.abs(lat) > 90) {
+      issues.push({ field: 'points', message: `Latitude runs from 0° to 90°, so ${m[2]}° is not a latitude.` })
+      continue
+    }
+    if (Math.abs(lon) > 180) {
+      issues.push({ field: 'points', message: `Longitude runs from 0° to 180°, so ${m[4]}° is not a longitude.` })
+      continue
+    }
+    places.push({ name: m[1].trim(), lat, lon })
+  }
+  if (!places.length && !issues.length) {
+    issues.push({ field: 'points', message: 'Add at least one point, for example P:60N,20E.' })
+  }
+  // Face the middle of the points, so every one of them is on the near side
+  // rather than round the back where it cannot be marked.
+  const lon0 = places.length ? places.reduce((t, q) => t + q.lon, 0) / places.length : 0
+
+  const project = (lat, lon) => {
+    const phi = (lat * Math.PI) / 180
+    const lam = ((lon - lon0) * Math.PI) / 180
+    const X = Math.cos(phi) * Math.sin(lam)
+    const Y = Math.sin(phi)
+    const Z = Math.cos(phi) * Math.cos(lam)
+    const cosE = Math.cos(EARTH_TILT), sinE = Math.sin(EARTH_TILT)
+    return {
+      at: [EARTH_CX + EARTH_R * X, EARTH_CY - EARTH_R * (Y * cosE - Z * sinE)],
+      visible: Z * cosE + Y * sinE > 0,
+    }
+  }
+  return { places, project, lon0, issues }
+}
+
 export const DIAGRAM_CATALOG = {
   // ============ SHAPES 2D ============
   triangle: { cat: 'Shapes 2D', name: 'Triangle', defaults: { a: 'A', b: 'B', c: 'C', cap: 'Triangle ABC' }, fields: [['a', 'Vertex A'], ['b', 'Vertex B'], ['c', 'Vertex C'], ['cap', 'Caption']],
@@ -1996,6 +2053,149 @@ export const DIAGRAM_CATALOG = {
     },
   },
 
+  // ============ EARTH GEOMETRY ============
+  earthgeometry: {
+    cat: 'Earth Geometry',
+    name: 'Latitude and longitude',
+    defaults: {
+      points: 'P:60N,20E;Q:60N,80E;R:0,20E',
+      showParallels: 'yes',
+      showMeridians: 'yes',
+      notToScale: 'yes',
+      cap: 'Points on the earth\'s surface',
+    },
+    fields: [
+      ['points', 'Points, e.g. P:60N,20E;Q:60N,80E (name:latitude,longitude)'],
+      ['showParallels', 'Draw the equator and each point\'s parallel (yes/no)'],
+      ['showMeridians', 'Draw the Greenwich meridian and each point\'s meridian (yes/no)'],
+      ['notToScale', 'Print "Diagram not drawn to scale" (yes/no)'],
+      ['cap', 'Caption'],
+    ],
+    validate: (p) => earthModel(p).issues,
+    render: (p, col) => {
+      const W = 360, H = 356
+      const { places, project, lon0 } = earthModel(p)
+      const cx = EARTH_CX, cy = EARTH_CY, R = EARTH_R
+      let out = `<circle cx="${cx}" cy="${cy}" r="${R}" fill="${col}" fill-opacity=".05" stroke="${col}" stroke-width="2.2"/>`
+
+      // A great or small circle drawn as two arcs — the near half solid, the far
+      // half dashed — which is how a globe reads as a sphere rather than a disc.
+      const ring = (samples, attr) => {
+        let near = [], far = [], svg = ''
+        const flush = () => {
+          for (const [run, dashed] of [[near, false], [far, true]]) {
+            if (run.length > 1) {
+              svg += `<polyline points="${run.map(([x, y]) => `${f(x)},${f(y)}`).join(' ')}" fill="none"`
+                + ` stroke="${SOFT_INK}" stroke-width="1.2"${dashed ? ' stroke-dasharray="4 4"' : ''} ${attr}/>`
+            }
+          }
+          near = []; far = []
+        }
+        let wasVisible = null
+        for (const s of samples) {
+          if (wasVisible !== null && s.visible !== wasVisible) { flush() }
+          ;(s.visible ? near : far).push(s.at)
+          wasVisible = s.visible
+        }
+        flush()
+        return svg
+      }
+
+      if (isYes(p.showParallels)) {
+        const lats = [0, ...places.map((q) => q.lat)]
+        for (const lat of [...new Set(lats.map((v) => +v.toFixed(4)))]) {
+          const samples = []
+          for (let i = 0; i <= 120; i += 1) {
+            const lon = lon0 - 180 + (360 * i) / 120
+            samples.push(project(lat, lon))
+          }
+          out += ring(samples, `data-parallel="${f(lat)}"`)
+        }
+      }
+      if (isYes(p.showMeridians)) {
+        const lons = [0, ...places.map((q) => q.lon)]
+        for (const lon of [...new Set(lons.map((v) => +v.toFixed(4)))]) {
+          const samples = []
+          for (let i = 0; i <= 120; i += 1) {
+            // A meridian is a whole great circle: down one side, up the other.
+            const t = -180 + (360 * i) / 120
+            const lat = t <= 0 ? -90 - t : 90 - t
+            samples.push(project(Math.max(-90, Math.min(90, lat)), Math.abs(t) <= 90 ? lon : lon + 180))
+          }
+          out += ring(samples, `data-meridian="${f(lon)}"`)
+        }
+      }
+      for (const q of places) {
+        const { at, visible } = project(q.lat, q.lon)
+        if (!visible) continue
+        out += `<circle cx="${f(at[0])}" cy="${f(at[1])}" r="4" fill="${INK}" data-place="${esc(q.name)}"`
+          + ` data-lat="${f(q.lat)}" data-lon="${f(q.lon)}"/>`
+          + label(at[0] + 13, at[1] - 8, q.name, { size: 15 })
+      }
+      out += label(cx, cy - R - 8, 'N', { size: 12, fill: SOFT_INK })
+        + label(cx, cy + R + 16, 'S', { size: 12, fill: SOFT_INK })
+      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="${W}">`
+        + `${out}${notToScaleNote(W, H, isYes(p.notToScale))}</svg>`
+    },
+  },
+
+  venn3elements: {
+    cat: 'Graphs',
+    name: '3-Set Venn (with elements)',
+    defaults: {
+      a: 'A', b: 'B', c: 'C',
+      onlyA: '2', onlyB: '5', onlyC: '7',
+      aAndB: '3', aAndC: '4', bAndC: '6', all: '1',
+      outside: '8',
+      notToScale: 'no',
+      cap: 'Venn diagram of three sets',
+    },
+    fields: [
+      ['a', 'Set A name'], ['b', 'Set B name'], ['c', 'Set C name'],
+      ['onlyA', 'In A only'], ['onlyB', 'In B only'], ['onlyC', 'In C only'],
+      ['aAndB', 'In A∩B only'], ['aAndC', 'In A∩C only'], ['bAndC', 'In B∩C only'],
+      ['all', 'In A∩B∩C'], ['outside', 'Outside all three'],
+      ['notToScale', 'Print "Diagram not drawn to scale" (yes/no)'],
+      ['cap', 'Caption'],
+    ],
+    render: (p, col) => {
+      const W = 380, H = 356
+      const cx = 190, cy = 176, r = 84, d = 46
+      // Three circles at 120° apart: the only arrangement in which all seven
+      // regions exist and can be written in.
+      const cA = [cx - d * Math.cos(Math.PI / 6), cy - d * Math.sin(Math.PI / 6)]
+      const cB = [cx + d * Math.cos(Math.PI / 6), cy - d * Math.sin(Math.PI / 6)]
+      const cC = [cx, cy + d]
+      let out = `<rect x="8" y="8" width="${W - 16}" height="${H - 40}" rx="6" fill="none" stroke="${INK}" stroke-width="1.4"/>`
+        + label(24, 28, 'E', { size: 13 })
+      for (const [centre, key] of [[cA, 'a'], [cB, 'b'], [cC, 'c']]) {
+        out += `<circle cx="${f(centre[0])}" cy="${f(centre[1])}" r="${r}" fill="${col}" fill-opacity=".13"`
+          + ` stroke="${col}" stroke-width="2" data-set="${key}"/>`
+      }
+      // Region anchors: each single-set region sits away from the other two,
+      // each pairwise region on the line between its pair pushed off the third,
+      // and the triple region in the middle.
+      const away = (from, to, k) => [from[0] + (from[0] - to[0]) * k, from[1] + (from[1] - to[1]) * k]
+      const mid = (u, v) => [(u[0] + v[0]) / 2, (u[1] + v[1]) / 2]
+      const regions = [
+        [away(cA, mid(cB, cC), 0.62), p.onlyA],
+        [away(cB, mid(cA, cC), 0.62), p.onlyB],
+        [away(cC, mid(cA, cB), 0.62), p.onlyC],
+        [away(mid(cA, cB), cC, 0.42), p.aAndB],
+        [away(mid(cA, cC), cB, 0.42), p.aAndC],
+        [away(mid(cB, cC), cA, 0.42), p.bAndC],
+        [[cx, cy + 4], p.all],
+      ]
+      for (const [at, text] of regions) out += label(at[0], at[1] + 4, text, { size: 13, weight: '600' })
+      out += label(cA[0] - 46, cA[1] - 62, p.a, { size: 15 })
+        + label(cB[0] + 46, cB[1] - 62, p.b, { size: 15 })
+        + label(cC[0], cC[1] + 76, p.c, { size: 15 })
+        + label(36, 52, p.outside, { size: 13, weight: '600', anchor: 'start' })
+      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="${W}">`
+        + `${out}${notToScaleNote(W, H, isYes(p.notToScale))}</svg>`
+    },
+  },
+
   // ============ SCIENCE ============
   plantcell: { cat: 'Science', name: 'Plant Cell', defaults: { cap: 'Plant cell' }, fields: [['cap', 'Caption']],
     render: (_p, col) => `<svg viewBox="0 0 360 280" xmlns="http://www.w3.org/2000/svg" width="360"><rect x="20" y="20" width="320" height="240" rx="14" fill="#d9f0c8" stroke="${col}" stroke-width="3"/><rect x="32" y="32" width="296" height="216" rx="8" fill="#fff" stroke="#7a9a4a" stroke-width="1.5"/><ellipse cx="180" cy="140" rx="40" ry="34" fill="#7a9a4a" fill-opacity=".4" stroke="#365314" stroke-width="1.6"/><circle cx="180" cy="140" r="14" fill="#365314"/><ellipse cx="80" cy="80" rx="14" ry="8" fill="#7a9a4a"/><ellipse cx="280" cy="90" rx="14" ry="8" fill="#7a9a4a"/><ellipse cx="100" cy="200" rx="14" ry="8" fill="#7a9a4a"/><ellipse cx="280" cy="200" rx="14" ry="8" fill="#7a9a4a"/><text x="180" y="143" font-family="Lora,serif" font-size="9" text-anchor="middle" fill="#fff">nucleus</text><text x="80" y="65" font-family="Lora,serif" font-size="10" text-anchor="middle" fill="#1c1612">chloroplast</text><text x="40" y="270" font-family="Lora,serif" font-size="10" fill="#1c1612">cell wall →</text></svg>` },
@@ -2094,6 +2294,47 @@ export function getDiagramsByCategory(category) {
  * Returns null if the key is unknown — callers should display a placeholder
  * (and ideally keep the source data so re-adding the entry restores rendering).
  */
+/**
+ * The problems with a figure's parameters, in words a teacher can act on.
+ *
+ * Returns `[]` for a key with no validator — every primary figure — so a caller
+ * never has to know which kind it is holding.
+ */
+export function validateDiagramParams(libraryKey, params) {
+  const entry = getDiagram(libraryKey)
+  if (!entry || typeof entry.validate !== 'function') return []
+  try {
+    const found = entry.validate({ ...entry.defaults, ...(params || {}) })
+    return Array.isArray(found) ? found : []
+  } catch (err) {
+    // A validator that throws must not be able to block an export on its own.
+    console.error('[diagramCatalog] validate failed for', libraryKey, err)
+    return []
+  }
+}
+
+/**
+ * The resolver the export gate runs — the one place that decides whether a
+ * figure is fit to leave the building.
+ *
+ * It is stricter than `renderDiagramSvg` in exactly one way, and that way is
+ * the point of the senior families. A circle-theorem figure whose marked angle
+ * contradicts the drawing, an enlargement whose image lands off the grid, and a
+ * set of inequalities with no common region all DRAW something. They draw
+ * something wrong, and a learner measuring it gets a wrong answer with no way
+ * to know. So the gate refuses the paper and prints the validator's own
+ * sentence as the reason — `unresolvedRequiredFigures` treats a resolver that
+ * throws as a figure that could not be drawn, which is precisely the verdict.
+ *
+ * The studio preview and the exporters keep calling `renderDiagramSvg`, so a
+ * teacher mid-edit still sees their figure while they fix it.
+ */
+export function resolveFigureForExport(libraryKey, params) {
+  const problems = validateDiagramParams(libraryKey, params)
+  if (problems.length) throw new Error(problems[0].message)
+  return renderDiagramSvg(libraryKey, params)
+}
+
 export function renderDiagramSvg(libraryKey, params, color = DEFAULT_COLOR) {
   const entry = getDiagram(libraryKey)
   if (!entry) return null
