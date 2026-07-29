@@ -36,6 +36,7 @@ import {
   DiagramLabelEditor,
 } from './AssessmentQuestionEditors'
 import { STUDIO_QUESTION_TYPE_OPTIONS, typeSelectValue, patchForTypeChange } from './assessmentQuestionTypes'
+import { isMathsSubject } from './mathsSubjects.js'
 
 // Question fields whose edits invalidate any prior AI answer suggestion.
 // Module-scope so the array is allocated once per page load, not per render.
@@ -179,6 +180,11 @@ function ReviseQuestionPopover({
 
 export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, questionIssues, paperMeta, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onSaveToBank, onUpdateQuestion, onUploadImage, onRemoveImage, onUploadOptionImage, onRemoveOptionImage, onAssignSectionToPart, onToggleLock, onRewriteQuestion, rewriting = false }) {
   const question = section.question
+  // Does this paper get the mathematics tools? Resolved from the paper's
+  // subject through the canonical key system (mathsSubjects.js) — so a Grade 2
+  // "Mathematics and Science" paper, which stores `numeracy` rather than
+  // `mathematics`, gets them with no extra setup.
+  const mathsPaper = isMathsSubject(paperMeta?.subject)
   // What still stops this question printing correctly (empty text, no options,
   // no correct answer chosen, an image mid-upload). Flagged on the card itself
   // so the teacher fixes it where they are, instead of meeting the list only
@@ -596,6 +602,8 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
         value={question.text}
         onChange={v => updateQuestion('text', v)}
         onEditDetail={() => onEditQuestion(question.localId)}
+        maths={mathsPaper}
+        fieldId={`q:${question.localId}:text`}
       />
 
       {(isMcq || isStructured) && (
@@ -816,6 +824,7 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
       {isMcq && (
         <McqOptions
           question={question}
+          maths={mathsPaper}
           maxOptions={typeof paperMeta?.mcqAnswerChoiceCount === 'number' ? paperMeta.mcqAnswerChoiceCount : undefined}
           onChangeOption={(optIndex, value) => {
             const next = [...(question.options || ['', '', '', ''])]

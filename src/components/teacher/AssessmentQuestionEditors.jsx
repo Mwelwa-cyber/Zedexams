@@ -13,8 +13,9 @@ import DiagramSvg from '../diagrams/DiagramSvg'
 import { SECTION_LETTERS } from './assessmentStudioMeta'
 import Icon from './studio/studioIcons'
 import { richTextToPlainText, richTextHasFormatting } from '../../utils/quizRichText.js'
+import MathsRichField from './MathsRichField.jsx'
 
-export function McqOptions({ question, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage, onPickFromBank, onPickDiagram, onChangeOptionAlt, maxOptions }) {
+export function McqOptions({ question, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage, onPickFromBank, onPickDiagram, onChangeOptionAlt, maxOptions, maths = false }) {
   const allOptions = Array.isArray(question.options) && question.options.length
     ? question.options
     : ['', '', '', '']
@@ -37,6 +38,8 @@ export function McqOptions({ question, onChangeOption, onSelectCorrect, onUpload
             optIndex={optIndex}
             option={option}
             media={media}
+            maths={maths}
+            questionId={question.localId}
             isCorrect={correctIndex === optIndex}
             onChangeOption={onChangeOption}
             onSelectCorrect={onSelectCorrect}
@@ -62,7 +65,7 @@ export function McqOptions({ question, onChangeOption, onSelectCorrect, onUpload
   )
 }
 
-function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage, onPickFromBank, onPickDiagram, onChangeOptionAlt }) {
+function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage, onPickFromBank, onPickDiagram, onChangeOptionAlt, maths = false, questionId }) {
   const fileRef = useRef(null)
   // A diagram option also counts as media for the alt-text affordance (its alt
   // is auto-seeded by the converter/picker, so it won't be flagged as missing).
@@ -75,7 +78,16 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
       onClick={() => onSelectCorrect(optIndex)}
       role="button"
       tabIndex={0}
-      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectCorrect(optIndex) } }}
+      // Only the ROW itself answers Enter/Space. The handler used to fire for
+      // any key event that bubbled up, so a space typed into the option field
+      // marked that option correct and preventDefault ate the space — the
+      // teacher could not type "less than 1" into an answer choice. Nested
+      // editors (and the maths field's Tiptap instance) need the same
+      // exemption, so it is checked here once rather than stopped in each.
+      onKeyDown={e => {
+        if (e.target !== e.currentTarget) return
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectCorrect(optIndex) }
+      }}
       style={{ gridTemplateColumns: '24px auto 1fr auto' }}
     >
       <div className="sv-letter">{SECTION_LETTERS[optIndex]}</div>
@@ -178,14 +190,41 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
           )}
         </div>
       ) : <span />}
-      <input
-        className="sv-opt-text"
-        type="text"
-        value={option}
-        onChange={e => onChangeOption(optIndex, e.target.value)}
-        onClick={e => e.stopPropagation()}
-        placeholder={media?.imageUrl ? `Optional caption for ${SECTION_LETTERS[optIndex]}` : `Option ${SECTION_LETTERS[optIndex]}`}
-      />
+      {/* A rich option gets the rich field even on a non-mathematics paper.
+          A plain <input> would show "[object Object]" for a Tiptap option and
+          flatten it on the first keystroke — which is reachable whenever a
+          paper's subject is changed after its options were written. Same guard
+          CardQuestionText already applies to question text. */}
+      {(maths || richTextHasFormatting(option)) ? (
+        // Structured mathematics inside an answer choice (§3): A, B, C and D
+        // can each be a stacked fraction. The compact toolbar drops headings,
+        // alignment and tables — none of which belong in an answer choice —
+        // and keeps bold/italic/underline, sup/sub and the full maths toolset.
+        //
+        // The wrapper stops clicks reaching the row, whose onClick marks an
+        // option correct: without it, clicking into the editor to fix a
+        // denominator would silently change the answer key.
+        <div className="sv-opt-maths" onClick={e => e.stopPropagation()}>
+          <MathsRichField
+            fieldId={`opt:${questionId || 'q'}:${optIndex}`}
+            value={option}
+            onChange={value => onChangeOption(optIndex, value)}
+            toolbarVariant="compact"
+            minHeight={38}
+            placeholder={media?.imageUrl ? `Optional caption for ${SECTION_LETTERS[optIndex]}` : `Option ${SECTION_LETTERS[optIndex]}`}
+            ariaLabel={`Option ${SECTION_LETTERS[optIndex]} — edit with mathematics tools`}
+          />
+        </div>
+      ) : (
+        <input
+          className="sv-opt-text"
+          type="text"
+          value={option}
+          onChange={e => onChangeOption(optIndex, e.target.value)}
+          onClick={e => e.stopPropagation()}
+          placeholder={media?.imageUrl ? `Optional caption for ${SECTION_LETTERS[optIndex]}` : `Option ${SECTION_LETTERS[optIndex]}`}
+        />
+      )}
       {isCorrect && <div className="sv-check"><Icon name="check" size={13} /></div>}
     </div>
       {hasImage && onChangeOptionAlt && (
@@ -1336,7 +1375,24 @@ export function toEditableText(value) {
 // quick textarea edit would silently flatten it. In that case we show a
 // read-only plain view plus an "edit in detail" affordance, so the rich
 // content is only ever changed in the full RichEditor (which preserves it).
-export function CardQuestionText({ value, onChange, onEditDetail, placeholder = 'Question text' }) {
+export function CardQuestionText({ value, onChange, onEditDetail, placeholder = 'Question text', maths = false, fieldId }) {
+  // On a mathematics paper the card edits rich content in place (§2). The
+  // teacher inserts a fraction where they are working; opening the detailed
+  // editor to add one is exactly what this phase removes. Note this replaces
+  // BOTH branches below — the read-only "edit in detail" fallback existed only
+  // because a textarea could not hold the content safely, and a real editor can.
+  if (maths) {
+    return (
+      <MathsRichField
+        fieldId={fieldId || 'question-text'}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        ariaLabel="Question text — edit with mathematics tools"
+        minHeight={72}
+      />
+    )
+  }
   if (richTextHasFormatting(value)) {
     return (
       <div className="sv-q-text-formatted">

@@ -2057,6 +2057,77 @@
   margin-right: 2px;
 }
 
+/* ── Mathematics-aware fields ─────────────────────────────────────────────
+ *
+ * A question stem or answer option on a mathematics paper. Only the field the
+ * teacher is working in mounts an editor (§14); every other one renders the
+ * same pre-hydrated paper HTML the PDF and Word exports consume — which is why
+ * `.sv-maths-preview-body` is added to the fraction / number-base / vertical
+ * selectors below rather than given rules of its own. One stylesheet, so an
+ * unfocused card cannot draw a fraction differently from the printed page.
+ *
+ * The inactive state is a real <button> so a keyboard reaches it (§13). It is
+ * styled to read as a text field, not as a button — the affordance a teacher
+ * needs here is "click to type", and a button chrome would say something else.
+ */
+.studio-v2 .sv-maths-preview {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--sv-r-sm);
+  padding: 7px 8px;
+  cursor: text;
+}
+.studio-v2 .sv-maths-preview:hover { background: rgba(14, 44, 48, 0.03); }
+.studio-v2 .sv-maths-preview:focus-visible {
+  outline: 2px solid var(--sv-primary);
+  outline-offset: 1px;
+}
+.studio-v2 .sv-maths-preview.empty { color: var(--sv-muted); }
+.studio-v2 .sv-maths-placeholder { color: var(--sv-muted); font-size: 14px; }
+.studio-v2 .sv-maths-preview-body { display: block; font-size: 14px; line-height: 1.55; }
+.studio-v2 .sv-maths-preview-body p { margin: 0 0 4px; }
+.studio-v2 .sv-maths-preview-body p:last-child { margin-bottom: 0; }
+
+/* The mounted editor. RichEditor brings its own .re-wrap / .toolbar styling
+   from editor.css; these rules only fit it into the card. */
+.studio-v2 .sv-maths-editor .qe-field { margin: 0; }
+.studio-v2 .sv-maths-editor .re-wrap {
+  border: 1px solid var(--sv-border-strong);
+  border-radius: var(--sv-r-sm);
+  background: var(--sv-paper);
+}
+
+/* An answer option's field sits in the option row's flexible column. */
+.studio-v2 .sv-opt-maths { flex: 1; min-width: 0; }
+.studio-v2 .sv-opt-maths .sv-maths-preview { min-height: 28px; padding: 3px 6px; }
+.studio-v2 .sv-opt-maths .sv-maths-editor .re-wrap { background: #fff; }
+
+/* Phones (§6). The toolbar must never push the editor out of the viewport or
+   scroll the page sideways, so it wraps in place and its buttons meet the
+   44px touch target. `overflow-x: hidden` on the field is the backstop: a
+   wide vertical-arithmetic block scrolls inside its own preview instead of
+   widening the card. */
+@media (max-width: 640px) {
+  .studio-v2 .sv-maths-editor .toolbar {
+    flex-wrap: wrap;
+    row-gap: 4px;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .studio-v2 .sv-maths-editor .toolbar .tbb {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .studio-v2 .sv-maths-preview,
+  .studio-v2 .sv-maths-editor { max-width: 100%; overflow-x: auto; }
+}
+
 /* ── Rich paper text ──────────────────────────────────────────────────────
  *
  * The preview renders the same pre-hydrated HTML the print window renders
@@ -2093,7 +2164,7 @@
   vertical-align: middle;
 }
 
-.studio-v2 .sv-paper .math-frac {
+.studio-v2 :is(.sv-paper, .sv-maths-preview-body) .math-frac {
   display: inline-flex;
   align-items: center;
   gap: 2px;
@@ -2101,8 +2172,8 @@
   line-height: 1;
   margin: 0 1px;
 }
-.studio-v2 .sv-paper .math-frac-whole { padding-right: 3px; }
-.studio-v2 .sv-paper .math-frac-stack {
+.studio-v2 :is(.sv-paper, .sv-maths-preview-body) .math-frac-whole { padding-right: 3px; }
+.studio-v2 :is(.sv-paper, .sv-maths-preview-body) .math-frac-stack {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
@@ -2110,8 +2181,8 @@
   line-height: 1;
   vertical-align: middle;
 }
-.studio-v2 .sv-paper .math-frac-num,
-.studio-v2 .sv-paper .math-frac-den {
+.studio-v2 :is(.sv-paper, .sv-maths-preview-body) .math-frac-num,
+.studio-v2 :is(.sv-paper, .sv-maths-preview-body) .math-frac-den {
   display: block;
   font-size: 0.85em;
   padding: 0 2px;
@@ -2120,20 +2191,20 @@
 }
 /* currentColor, not a fixed ink: the bar has to stay visible when the marking
    key prints a question in green, and it is what the print copy uses. */
-.studio-v2 .sv-paper .math-frac-num {
+.studio-v2 :is(.sv-paper, .sv-maths-preview-body) .math-frac-num {
   border-bottom: 1px solid currentColor;
   padding-bottom: 1px;
 }
-.studio-v2 .sv-paper .math-frac-den { padding-top: 1px; }
+.studio-v2 :is(.sv-paper, .sv-maths-preview-body) .math-frac-den { padding-top: 1px; }
 
-.studio-v2 .sv-paper .num-base {
+.studio-v2 :is(.sv-paper, .sv-maths-preview-body) .num-base {
   display: inline-flex;
   align-items: baseline;
   vertical-align: baseline;
   font-family: inherit;
 }
-.studio-v2 .sv-paper .num-base-num { font: inherit; }
-.studio-v2 .sv-paper .num-base-sub {
+.studio-v2 :is(.sv-paper, .sv-maths-preview-body) .num-base-num { font: inherit; }
+.studio-v2 :is(.sv-paper, .sv-maths-preview-body) .num-base-sub {
   font-size: 0.65em;
   position: relative;
   bottom: -0.35em;
@@ -2141,7 +2212,7 @@
   font-weight: 500;
 }
 
-.studio-v2 .sv-paper .vert-arith {
+.studio-v2 :is(.sv-paper, .sv-maths-preview-body) .vert-arith {
   display: inline-block;
   margin: 5px 8px 8px 0;
   font-family: 'Cambria Math', 'Times New Roman', 'Liberation Serif', serif;
@@ -2149,37 +2220,37 @@
   line-height: 1.25;
   vertical-align: middle;
 }
-.studio-v2 .sv-paper .vert-arith .va-row {
+.studio-v2 :is(.sv-paper, .sv-maths-preview-body) .vert-arith .va-row {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   white-space: pre;
 }
-.studio-v2 .sv-paper .vert-arith .va-op {
+.studio-v2 :is(.sv-paper, .sv-maths-preview-body) .vert-arith .va-op {
   display: inline-block;
   width: 19px;
   text-align: left;
   font-weight: 700;
 }
-.studio-v2 .sv-paper .vert-arith .va-num {
+.studio-v2 :is(.sv-paper, .sv-maths-preview-body) .vert-arith .va-num {
   display: inline-block;
   text-align: right;
   font-feature-settings: 'tnum' 1;
   font-variant-numeric: tabular-nums;
   letter-spacing: 1px;
 }
-.studio-v2 .sv-paper .vert-arith .va-rule {
+.studio-v2 :is(.sv-paper, .sv-maths-preview-body) .vert-arith .va-rule {
   border-top: 2px solid #000;
   margin: 1px 0 1px 21px;
   min-width: 75px;
 }
-.studio-v2 .sv-paper .vert-arith .va-answer-row .va-num { min-height: 21px; }
-.studio-v2 .sv-paper .vert-arith .va-working {
+.studio-v2 :is(.sv-paper, .sv-maths-preview-body) .vert-arith .va-answer-row .va-num { min-height: 21px; }
+.studio-v2 :is(.sv-paper, .sv-maths-preview-body) .vert-arith .va-working {
   border-top: 1px dashed #888;
   margin-top: 5px;
   padding-top: 5px;
 }
-.studio-v2 .sv-paper .vert-arith .va-working-line {
+.studio-v2 :is(.sv-paper, .sv-maths-preview-body) .vert-arith .va-working-line {
   border-bottom: 1px solid #888;
   height: 19px;
   width: 133px;

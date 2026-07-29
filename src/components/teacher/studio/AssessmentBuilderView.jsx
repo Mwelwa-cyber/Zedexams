@@ -1,6 +1,7 @@
 import { useRef, useMemo } from 'react'
 import { hasOnlyEmptyStarterSection, orderPaperGroups } from '../../../utils/quizSections.js'
 import { toEditableText } from '../AssessmentQuestionEditors'
+import { MathsEditingProvider } from '../MathsRichField.jsx'
 import { QUIZ_DOCUMENT_ACCEPT } from '../../quiz/documentQuizImporter'
 import { SECTION_LETTERS } from '../assessmentStudioMeta'
 import { normalizeMarksMode, resolveQuestionMarks, marksLabel } from '../../../utils/paperMarksModel'
@@ -137,6 +138,11 @@ export function BuilderView(props) {
         />
       </div>
 
+      {/* One mounted Tiptap instance for the whole paper (§14). Every
+          mathematics field renders as static paper HTML until the teacher
+          moves into it; the provider is what makes "the active question only"
+          a property of the paper rather than of each card. */}
+      <MathsEditingProvider>
       <div className="sv-doc-canvas">
         <SmartWarningsBanner warnings={warnings} />
 
@@ -214,6 +220,7 @@ export function BuilderView(props) {
 
         <FooterBlock form={form} setF={setF} footerCode={footerCode} />
       </div>
+      </MathsEditingProvider>
 
       <div className="sv-totals-bar">
         <span><Icon name="questions" size={14} /> <strong>{questionCount}</strong> questions</span>
