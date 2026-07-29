@@ -201,4 +201,23 @@ describe('SyllabiLibrary (Syllabus Studio)', () => {
     expect(root.getAttribute('data-era')).toBe('legacy')
     expect(sidebar.classList.contains('is-open')).toBe(false)
   })
+
+  it('fills the viewport from its measured page offset rather than a fixed guess', async () => {
+    // The studio's height is `100dvh - var(--ss-vh-offset)`, and the offset is
+    // how far down the page it starts. Hard-coding it (it used to be 160px)
+    // either overshoots the fold or leaves a dead strip at the bottom, so the
+    // value has to come from the element's own position — 200px down here.
+    const rect = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+      top: 200, left: 0, right: 0, bottom: 0, width: 0, height: 0, x: 0, y: 200,
+      toJSON: () => ({}),
+    })
+    try {
+      const { container } = renderStudio()
+      await screen.findAllByRole('button', { name: /Physics/ })
+      expect(container.querySelector('.ss-root').style.getPropertyValue('--ss-vh-offset'))
+        .toBe('208px')
+    } finally {
+      rect.mockRestore()
+    }
+  })
 })
