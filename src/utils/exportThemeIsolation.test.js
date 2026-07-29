@@ -95,4 +95,97 @@ assert.match(
   'htmlToPdf must give the render iframe an explicit white background',
 )
 
-console.log(`✓ export theme isolation — ${files.length} exporter modules carry no theme tokens`)
+/*
+ * The fourth path to paper is the plainest one: a teacher pressing Ctrl-P on
+ * a studio page. That prints the LIVE document through index.css's
+ * `@media print` block, which resets the palette tokens back to black-on-white
+ * — but only on the elements it names.
+ *
+ * That distinction is the whole bug. A custom property declared on an element
+ * beats one inherited from an ancestor, and `!important` does not change that:
+ * it decides which declaration wins ON THAT ELEMENT, not whether an ancestor's
+ * declaration outranks a descendant's. `.studio-theme` re-declares --bg /
+ * --card / --text on the studio shell, so it sailed through a reset aimed at
+ * `:root, body` and printed Night's #232D3B card with pale ink.
+ *
+ * So the rule is: every scope that re-declares the palette on an inner element
+ * must also appear in the print reset. Enumerating them in CSS is unavoidable
+ * — there is no selector for "any element that declares --bg" — which makes
+ * the list exactly the kind of thing that goes stale the next time a surface
+ * gets its own palette. This reads both out of the stylesheet and compares
+ * them.
+ */
+// Comments are stripped first: the rule splitter below treats everything
+// between `}` and the next `{` as a selector list, and these palette blocks
+// are heavily commented — without this, every word of the prose above a rule
+// is read as a selector.
+const css = readFileSync(resolve(here, '../index.css'), 'utf8')
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+
+const printBlockStart = css.indexOf('@media print {')
+assert.ok(printBlockStart > 0, 'index.css no longer has an @media print block')
+const screenCss = css.slice(0, printBlockStart)
+const printCss = css.slice(printBlockStart)
+
+const printReset = printCss.match(/([^{}]+)\{[^{}]*--bg:\s*#ffffff\s*!important/)
+assert.ok(printReset, 'the @media print palette reset no longer sets --bg to white')
+const printScopes = printReset[1]
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
+
+/**
+ * A scope "re-declares the palette" if it sets --bg or --card. Scopes that
+ * only tune one token (a component's --text-muted, say) inherit the rest and
+ * so are already reset through their ancestor.
+ *
+ * Two deliberate exclusions:
+ *  - `body` / `:root` / `.reading-swatch[…]` — the first two ARE the reset's
+ *    own targets; the swatch is a picker preview whose entire job is to show
+ *    a palette, and printing it as four white squares would be the bug.
+ *  - selectors already scoped to <body> by a body class are still listed when
+ *    their subject is an inner element (`body.theme-x .marketing-page`), which
+ *    is why the check compares the SUBJECT — the last compound — rather than
+ *    the whole selector.
+ */
+const subjectOf = (sel) => sel.trim().split(/\s+/).pop()
+const EXEMPT = /^(:root|body|html|\.reading-swatch)/
+
+const declaringScopes = new Set()
+for (const m of screenCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+  if (!/--bg\s*:|--card\s*:/.test(m[2])) continue
+  for (const sel of m[1].split(',')) {
+    const subject = subjectOf(sel)
+    if (!subject || subject.startsWith('/*') || EXEMPT.test(subject)) continue
+    declaringScopes.add(subject)
+  }
+}
+
+assert.ok(
+  declaringScopes.size >= 5,
+  `expected to find the palette scopes in index.css; found ${declaringScopes.size}. ` +
+  'If the parser has drifted, fix it rather than deleting this guard.',
+)
+
+// A scope is covered when the print reset names it, or names a pattern that
+// matches it (`[class*="quiz-theme-"]` covers all seven mascot palettes).
+const covered = (subject) =>
+  printScopes.some((p) => {
+    if (p === subject) return true
+    const attr = p.match(/^\[class\*=["']([^"']+)["']\]$/)
+    return attr ? subject.includes(attr[1]) : false
+  })
+
+const uncovered = [...declaringScopes].filter((s) => !covered(s))
+assert.deepEqual(
+  uncovered,
+  [],
+  'These scopes re-declare the palette on an inner element but are not reset by ' +
+  '@media print, so a themed page prints in its screen colours:\n  ' +
+  uncovered.join('\n  '),
+)
+
+console.log(
+  `✓ export theme isolation — ${files.length} exporter modules carry no theme tokens; ` +
+  `${declaringScopes.size} palette scopes reset for print`,
+)
