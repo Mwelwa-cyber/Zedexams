@@ -81,6 +81,9 @@ export function buildRouteList() {
     // who can no longer sign in has to be able to FIND this page, and search
     // is how they will look for it.
     '/delete-account',
+    // Child safety standards — Play's CSAE declaration links to it, and a
+    // parent looking for it will search rather than guess the URL.
+    '/child-safety',
     // Revision blog index (individual posts appended below).
     '/blog',
     // ECZ past-paper archive + public games surfaces (data-driven; see above).

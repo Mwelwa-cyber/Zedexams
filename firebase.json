@@ -184,6 +184,13 @@
         }
       },
       {
+        "source": "/consent",
+        "function": {
+          "functionId": "apiGuardianConsent",
+          "region": "us-central1"
+        }
+      },
+      {
         "source": "/api/image-proxy",
         "function": {
           "functionId": "apiImageProxy",

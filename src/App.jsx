@@ -41,7 +41,7 @@ import { ActiveAssignmentSync } from './hooks/useActiveAssignmentSync'
 const PUBLIC_THEME_PATHS = new Set([
   '/login', '/register', '/auth/action', '/verify-email',
   '/pricing', '/teachers', '/privacy', '/terms', '/preferences', '/status',
-  '/delete-account',
+  '/delete-account', '/child-safety',
   '/papers', '/company',
   // Dashboard V2 preview ships its own scoped design system; pin it to the
   // brand default so a saved learner theme can't bleed into the review.
@@ -147,6 +147,8 @@ const CookiePreferences = lazy(() => import('./components/marketing/CookiePrefer
 // Public account-deletion request page — the no-login deletion route Google
 // Play's Data safety form links to. Must stay reachable signed out.
 const DeleteAccountRequest = lazy(() => import('./components/marketing/DeleteAccountRequest'))
+// Child safety standards — the page Play's CSAE declaration links to.
+const ChildSafety = lazy(() => import('./components/marketing/ChildSafety'))
 const PastPapersHub = lazy(() => import('./components/papers/PastPapersHub'))
 const PastPaperViewer = lazy(() => import('./components/papers/PastPaperViewer'))
 const PastPaperPractice = lazy(() => import('./components/papers/PastPaperPractice'))
@@ -544,6 +546,7 @@ export default function App() {
               it exists for people who can't sign in (lost password/device) and
               for parents acting for a child. */}
           <Route path="/delete-account" element={<DeleteAccountRequest />} />
+          <Route path="/child-safety" element={<ChildSafety />} />
           {/* Audit A2 — public ECZ past-paper archive. Hub is no-auth so
               search engines and signed-out visitors can browse; the actual
               PDF viewer at /papers/:id requires sign-in to download. */}

@@ -54,6 +54,7 @@ const ROUTE_META = {
   '/privacy': { changefreq: 'yearly', priority: '0.3', lastmod: '2026-07-29' },
   '/terms': { changefreq: 'yearly', priority: '0.3', lastmod: '2026-07-29' },
   '/delete-account': { changefreq: 'yearly', priority: '0.3', lastmod: '2026-07-29' },
+  '/child-safety': { changefreq: 'yearly', priority: '0.3', lastmod: '2026-07-29' },
   '/status': { changefreq: 'daily', priority: '0.3' },
 }
 

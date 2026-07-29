@@ -43,9 +43,18 @@ const {
 } = require("./aiService");
 const {UNTRUSTED_DATA_NOTICE, fenceUntrusted} = require("./promptInjectionGuard");
 const {checkLearnerText, LEARNER_BLOCK_MESSAGE} = require("./contentModeration");
+const {screenLearnerMessage, redactForLogs} = require("./learnerSafety/learnerSafetyCore");
 // Email-verification gate shared by callables + HTTP endpoints (see
 // authGuard.js for the exemption list).
 const {assertVerifiedAuth, assertDecodedVerified} = require("./authGuard");
+const {assertLearnerCapability} = require("./consentGuard");
+// Capability names, duplicated as plain strings ONLY because the shared
+// consent package is ESM and this file is CommonJS — importing it at module
+// scope is not possible (see functions/shared/README.md). The values are
+// pinned to guardianConsentCore's CAPABILITY by test:consent-guard, so a
+// rename there fails CI rather than silently disabling a gate here.
+const CAPABILITY_AI_CHAT = "aiChat";
+const CAPABILITY_SOCIAL = "social";
 // MFA second-factor gate for admin callables that already confirm admin their
 // own way (bulk grants, global content publishing). See functions/security/.
 const {assertAdminSecondFactor} = require("./security/requireAdminMfa");
@@ -1156,6 +1165,11 @@ exports.aiChat = onCall(
     await assertVerifiedAuth(request);
     recordAppCheckCallable(request, "aiChat");
 
+    // Families policy: a learner whose guardian has not approved the account
+    // cannot reach the AI assistant. Enforced HERE, not only in the UI —
+    // the compliance test is a direct API call with the banner bypassed.
+    await assertLearnerCapability(request.auth.uid, CAPABILITY_AI_CHAT);
+
     const message = cleanAiString(request.data?.message, LIMITS.message);
     if (!message) {
       throw new HttpsError(
@@ -1170,6 +1184,26 @@ exports.aiChat = onCall(
 
     const role = await getUserRole(request.auth.uid);
     await assertDailyLimit(request.auth.uid, role, "chat");
+
+    // Deterministic child-safety handling, ahead of moderation and the model.
+    // A child disclosing self-harm or abuse must not receive the generic
+    // "let's keep our chat about schoolwork" refusal — that is the platform
+    // turning away at the one moment it matters. Fixed reply, no model call,
+    // so it still works when the provider is down. See learnerSafetyCore.
+    if (!isStaffRole(role)) {
+      const screened = screenLearnerMessage(message);
+      if (screened.action === "respond") {
+        console.warn(JSON.stringify({
+          event: "learner_safety_intercept",
+          category: screened.category,
+          surface: "aiChat",
+          // Redacted: a child pasting contact details into a study chat must
+          // not create a durable record of them.
+          message: redactForLogs(message).slice(0, 200),
+        }));
+        return {reply: screened.reply, safetyIntercept: screened.category};
+      }
+    }
 
     // Learner-safety moderation (AI-003): screen the child's message BEFORE the
     // model call. A positive unsafe verdict returns a gentle refusal (not an
@@ -1551,6 +1585,9 @@ exports.apiAiChat = onRequest(
     let messages;
     let apiKey;
     let moderationBlocked = false;
+    // Set when learnerSafetyCore intercepts a distress or secrecy message.
+    // Streamed verbatim instead of the model reply — see below.
+    let safetyReply = null;
     try {
       const token = (req.get("authorization") || "").replace(/^Bearer\s+/i, "");
       if (!token) {
@@ -1566,6 +1603,11 @@ exports.apiAiChat = onRequest(
       // prompt or touch the model.
       await assertHttpRateLimit(req, res, {action: "aiChat", uid: decoded.uid});
 
+      // Families policy — same gate as the `aiChat` callable. This is the path
+      // the SPA actually uses, so gating only the callable would leave the
+      // real door open.
+      await assertLearnerCapability(decoded.uid, CAPABILITY_AI_CHAT);
+
       const message = cleanAiString(req.body?.message, LIMITS.message);
       if (!message) {
         throw new HttpsError("invalid-argument", "Please enter a question for Zed.");
@@ -1573,6 +1615,23 @@ exports.apiAiChat = onRequest(
 
       const role = await getUserRole(decoded.uid);
       await assertDailyLimit(decoded.uid, role, "chat");
+
+      // Deterministic child-safety handling, ahead of moderation and the
+      // model — same rule as the `aiChat` callable. A child disclosing
+      // self-harm or abuse gets a fixed, careful reply naming a trusted adult
+      // and a real helpline, not the generic schoolwork redirect.
+      if (!isStaffRole(role)) {
+        const screened = screenLearnerMessage(message);
+        if (screened.action === "respond") {
+          console.warn(JSON.stringify({
+            event: "learner_safety_intercept",
+            category: screened.category,
+            surface: "apiAiChat",
+            message: redactForLogs(message).slice(0, 200),
+          }));
+          safetyReply = screened.reply;
+        }
+      }
 
       ({systemPrompt, messages} = buildAnthropicChat({
         message,
@@ -1600,14 +1659,19 @@ exports.apiAiChat = onRequest(
       return;
     }
 
-    // Moderation refusal (AI-003): the child's message was flagged unsafe.
-    // Stream the friendly refusal in the same SSE shape the client expects,
-    // without ever calling the model.
-    if (moderationBlocked) {
+    // Fixed reply instead of the model, streamed in the same SSE shape the
+    // client expects. Two causes, checked in this order:
+    //   • safetyReply — a distress or secrecy disclosure. Takes precedence,
+    //     because moderation would classify the same message as unsafe and
+    //     answer with the generic refusal, which is the wrong answer to a
+    //     child asking for help.
+    //   • moderationBlocked — the message was flagged unsafe (AI-003).
+    const fixedReply = safetyReply || (moderationBlocked ? LEARNER_BLOCK_MESSAGE : null);
+    if (fixedReply) {
       res.set("Content-Type", "text/event-stream; charset=utf-8");
       res.set("Cache-Control", "no-cache");
       res.status(200);
-      res.write(`data: ${JSON.stringify({text: LEARNER_BLOCK_MESSAGE})}\n\n`);
+      res.write(`data: ${JSON.stringify({text: fixedReply})}\n\n`);
       res.write("data: [DONE]\n\n");
       res.end();
       return;
@@ -4325,6 +4389,17 @@ exports.aggregateVisitorStats = require('./visitorTracking').aggregateVisitorSta
 // `deleteMyAccount` above, which is authenticated and requires a fresh login.
 exports.apiRequestAccountDeletion =
   require('./accountDeletionRequests').apiRequestAccountDeletion;
+
+// ── Guardian consent (Families policy / Zambia DPA) ────────────────────────
+// Learners under 18 need a parent or guardian to approve the account before it
+// leaves limited mode. sendGuardianConsent messages the guardian;
+// apiGuardianConsent renders the decision page behind the /consent rewrite and
+// applies the answer; recordAgeGateAttempt is the neutral age screen's
+// retry cooldown (unauthenticated — it runs before an account exists).
+// See functions/guardianConsent/ and functions/shared/consent/.
+exports.sendGuardianConsent = require('./guardianConsent').sendGuardianConsent;
+exports.apiGuardianConsent = require('./guardianConsent').apiGuardianConsent;
+exports.recordAgeGateAttempt = require('./guardianConsent').recordAgeGateAttempt;
 
 // Server-generated library downloads: regenerate a saved document on the server
 // and stream it from zedexams.com with the correct filename — no upload, no

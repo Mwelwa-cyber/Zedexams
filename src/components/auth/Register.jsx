@@ -11,6 +11,7 @@ import Button from '../ui/Button'
 import GoogleSignInButton from './GoogleSignInButton'
 import SeoHelmet from '../seo/SeoHelmet'
 import { ZAMBIAN_PROVINCES } from '../../config/zambia'
+import AgeGateStep from './AgeGateStep'
 
 // Auth-error copy is centralised in src/utils/friendlyErrors.js
 // (friendlyAuthMessage with flow: 'signup') so Login + Register share one
@@ -76,6 +77,12 @@ export default function Register() {
     province: '',
     subject: '',
   })
+  // Age gate (Play Families policy). It runs BEFORE the account-details form
+  // — a mixed-audience app must route by age before it collects anything —
+  // and its result is carried here until register() writes it.
+  //   null            → the age screen is still showing
+  //   {dob, guardian} → answered; guardian is null for an adult
+  const [ageResult, setAgeResult] = useState(null)
   const [showPw, setShowPw]           = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [loading, setLoading]         = useState(false)
@@ -175,7 +182,14 @@ export default function Register() {
         form.grade,
         form.school.trim(),
         form.role,
-        isTeacher ? { province: form.province, subject: form.subject } : {},
+        {
+          ...(isTeacher ? { province: form.province, subject: form.subject } : {}),
+          // The age screen ran before this form, so these are always present.
+          // register() derives isMinor from the DOB via the shared consent
+          // core rather than trusting a flag the client computed.
+          dob: ageResult?.dob || null,
+          guardian: ageResult?.guardian || null,
+        },
       )
       // A fresh email/password signup is always unverified at this instant —
       // the dashboard is gated behind verification, so land directly on the
@@ -308,8 +322,18 @@ export default function Register() {
           </div>
         )}
 
-        {/* noValidate: our own validateFields drives friendly inline errors +
-            scroll-to-first-invalid instead of the browser's native bubbles. */}
+        {/* Age gate first. A mixed-audience app must route by age BEFORE it
+            collects an account, and the screen has to stay neutral — so it
+            renders instead of the form rather than alongside it, with nothing
+            on it hinting what a younger answer leads to. */}
+        {!ageResult ? (
+          <AgeGateStep
+            onAdult={({ dob }) => setAgeResult({ dob, guardian: null })}
+            onChild={({ dob, guardian }) => setAgeResult({ dob, guardian })}
+          />
+        ) : (
+        /* noValidate: our own validateFields drives friendly inline errors +
+           scroll-to-first-invalid instead of the browser's native bubbles. */
         <form onSubmit={handleSubmit} noValidate className="space-y-3.5">
           <Field
             label="Full Name"
@@ -504,6 +528,7 @@ export default function Register() {
               : (isTeacher ? 'Request Teacher Account' : 'Create Free Account')}
           </Button>
         </form>
+        )}
 
         <p className="text-[11.5px] text-[#aaa] text-center mt-3 leading-[1.5]">
           By registering you agree to our{' '}
