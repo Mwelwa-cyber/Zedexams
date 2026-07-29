@@ -58,6 +58,22 @@ export default function DiagramPicker({ open, initial, onConfirm, onClose, accen
   const visibleEntries = getDiagramsByCategory(activeCat)
   const activeEntry = activeKey ? DIAGRAM_CATALOG[activeKey] : null
 
+  // The senior figures carry marks, so a figure that cannot be drawn from what
+  // was typed says so HERE rather than printing something plausible and wrong.
+  // Entries without a validate() — every primary figure — have nothing to
+  // report and behave exactly as before.
+  let problems = []
+  if (activeEntry?.validate) {
+    try {
+      problems = activeEntry.validate({ ...activeEntry.defaults, ...draftParams }) || []
+    } catch {
+      // A validator that throws must never be the thing that stops a teacher
+      // inserting a diagram — the figure itself already fails safe.
+      problems = []
+    }
+  }
+  const problemsFor = (fieldKey) => problems.filter((issue) => issue.field === fieldKey)
+
   function pick(key) {
     const entry = DIAGRAM_CATALOG[key]
     if (!entry) return
@@ -71,6 +87,9 @@ export default function DiagramPicker({ open, initial, onConfirm, onClose, accen
 
   function confirm() {
     if (!activeEntry) return
+    // The button is disabled too, but the guard is here as well: a figure that
+    // cannot be drawn from these parameters must not reach a paper by any route.
+    if (problems.length) return
     onConfirm({ libraryKey: activeKey, params: { ...draftParams } })
   }
 
@@ -154,17 +173,30 @@ export default function DiagramPicker({ open, initial, onConfirm, onClose, accen
             <div className="grid flex-1 gap-4 overflow-y-auto px-5 py-4 md:grid-cols-2">
               <div className="space-y-3">
                 <h3 className="theme-text text-base font-black">{activeEntry.name}</h3>
-                {activeEntry.fields.map(([fieldKey, label]) => (
-                  <label key={fieldKey} className="block">
-                    <span className="theme-text-muted mb-1 block text-xs font-black uppercase tracking-wide">{label}</span>
-                    <input
-                      type="text"
-                      value={draftParams[fieldKey] ?? ''}
-                      onChange={event => updateField(fieldKey, event.target.value)}
-                      className="theme-input w-full rounded-lg border-2 px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
-                    />
-                  </label>
-                ))}
+                {activeEntry.fields.map(([fieldKey, label]) => {
+                  const fieldProblems = problemsFor(fieldKey)
+                  const errorId = fieldProblems.length ? `zx-diagram-error-${fieldKey}` : undefined
+                  return (
+                    <label key={fieldKey} className="block">
+                      <span className="theme-text-muted mb-1 block text-xs font-black uppercase tracking-wide">{label}</span>
+                      <input
+                        type="text"
+                        value={draftParams[fieldKey] ?? ''}
+                        onChange={event => updateField(fieldKey, event.target.value)}
+                        aria-invalid={fieldProblems.length ? 'true' : undefined}
+                        aria-describedby={errorId}
+                        className={`theme-input w-full rounded-lg border-2 px-3 py-2 text-sm outline-none ${
+                          fieldProblems.length ? 'border-rose-500 focus:border-rose-500' : 'focus:border-[var(--accent)]'
+                        }`}
+                      />
+                      {fieldProblems.length > 0 && (
+                        <span id={errorId} role="alert" className="mt-1 block text-xs font-bold text-rose-600">
+                          {fieldProblems.map(issue => issue.message).join(' ')}
+                        </span>
+                      )}
+                    </label>
+                  )
+                })}
               </div>
               <div className="space-y-2">
                 <p className="theme-text-muted text-xs font-black uppercase tracking-wide">Preview</p>
@@ -175,7 +207,13 @@ export default function DiagramPicker({ open, initial, onConfirm, onClose, accen
               </div>
             </div>
 
-            <div className="theme-border flex justify-end gap-2 border-t-2 px-5 py-3">
+            <div className="theme-border flex items-center justify-end gap-2 border-t-2 px-5 py-3">
+              {problems.length > 0 && (
+                <p className="mr-auto text-xs font-bold text-rose-600">
+                  {problems.length === 1 ? 'Fix the problem above to insert this diagram.'
+                    : `Fix the ${problems.length} problems above to insert this diagram.`}
+                </p>
+              )}
               <button
                 type="button"
                 onClick={onClose}
@@ -186,7 +224,9 @@ export default function DiagramPicker({ open, initial, onConfirm, onClose, accen
               <button
                 type="button"
                 onClick={confirm}
-                className="theme-accent-fill theme-on-accent min-h-0 rounded-lg px-4 py-2 text-sm font-black hover:opacity-90"
+                disabled={problems.length > 0}
+                title={problems.length ? problems[0].message : undefined}
+                className="theme-accent-fill theme-on-accent min-h-0 rounded-lg px-4 py-2 text-sm font-black hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Insert diagram
               </button>

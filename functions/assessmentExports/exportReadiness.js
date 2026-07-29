@@ -99,11 +99,15 @@ async function assessExportReadiness(assessment, questions) {
   const canonical = canonicalizeQuestions(questions);
   const paper = {questions: canonical, passages: canonicalizePassages(assessment)};
 
-  // The SAME resolver the renderers draw from — a check against a different
-  // drawing function would be a check of nothing.
+  // The SAME resolver the studio's gate runs — a check against a different
+  // drawing function would be a check of nothing. It is the catalogue's own
+  // export resolver rather than its renderer, so a figure that draws something
+  // WRONG (a marked angle that contradicts the drawing, an image off the grid,
+  // inequalities with no common region) refuses the paper here too, with the
+  // validator's own sentence as the reason.
   const unresolvedFigures = figures.unresolvedRequiredFigures(
     paper,
-    (key, params) => catalog.renderDiagramSvg(key, params),
+    (key, params) => catalog.resolveFigureForExport(key, params),
   );
 
   // Identity comes from the adapter, not from the question: a stored question
