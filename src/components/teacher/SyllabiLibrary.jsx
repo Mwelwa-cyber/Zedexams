@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import SeoHelmet from '../seo/SeoHelmet'
 import { getMergedSyllabi } from '../../utils/syllabusKbService'
 import {
@@ -296,6 +296,7 @@ export default function SyllabiLibrary() {
   // viewport and every non-essential control is hidden.
   const [subjectPanelOpen, setSubjectPanelOpen] = useState(false)
   const [reading, setReading] = useState(false)
+  const rootRef = useRef(null)
 
   const rawData = era === 'legacy' ? legacyData : currentData
   const loading = era === 'legacy' ? loadingLegacy : loadingCurrent
@@ -443,6 +444,26 @@ export default function SyllabiLibrary() {
     return () => { document.body.style.overflow = prev }
   }, [reading])
 
+  // How much of the viewport the page chrome above the studio (the shell's
+  // top padding + the teacher top bar) actually eats. It used to be a
+  // hard-coded 160px in the stylesheet, which is only ever right by accident:
+  // when the guess ran short the studio pushed past the fold, and when it ran
+  // long the card stopped short of the bottom of the screen. Measuring the
+  // studio's own document offset makes it end exactly at the viewport edge.
+  // Skipped in reading mode — the root is position:fixed there and owns the
+  // whole viewport already, so a measurement taken then would read 0.
+  useEffect(() => {
+    const el = rootRef.current
+    if (!el || reading) return undefined
+    function measure() {
+      const top = el.getBoundingClientRect().top + (window.scrollY || 0)
+      el.style.setProperty('--ss-vh-offset', `${Math.max(0, Math.round(top)) + 8}px`)
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [reading])
+
   // ── Home + sidebar derived state ────────────────────────────────────────
   const grouped = useMemo(() => (rawData ? groupByCategory(rawData) : {}), [rawData])
 
@@ -486,7 +507,7 @@ export default function SyllabiLibrary() {
   const rootClass = `ss-root${isLegacy ? ' is-legacy' : ''}${reading ? ' is-reading' : ''}`
 
   return (
-    <section className={rootClass} data-view={view} data-era={era}>
+    <section className={rootClass} data-view={view} data-era={era} ref={rootRef}>
       <SeoHelmet title="Syllabi Studio" noIndex />
       <SyllabiStudioStyles />
 
@@ -1136,6 +1157,14 @@ function SearchResults({ query, results, onOpenResult, era }) {
 function SyllabiStudioStyles() {
   return (
     <style>{`
+/* The one rule in this stylesheet that reaches OUTSIDE .ss-root, and it has to:
+   the studio is a child of TeacherLayout's .studio-shell, which caps content at
+   --studio-shell-max (1600px) for reading-width pages. A syllabus table is the
+   opposite of a reading-width page — every capped pixel is a column the teacher
+   scrolls to instead of reads. Scoped with :has() so it lifts the cap only while
+   this page is mounted; a browser without :has() simply keeps the 1600px cap. */
+.studio-shell:has(> .ss-root) { max-width: none; }
+
 .ss-root {
   --ss-cream:  #F2EDE3;
   --ss-cream2: #EBE4D8;
@@ -1145,16 +1174,32 @@ function SyllabiStudioStyles() {
   --ss-text:   #1a1a1a;
   --ss-muted:  #6B6B6B;
   --ss-radius: 14px;
+  /* Replaced at runtime with the measured height of the chrome above the
+     studio (see the effect in SyllabiLibrary). The literal here is only the
+     value used for the first paint, before the measurement lands. */
+  --ss-vh-offset: 160px;
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   background: var(--ss-cream);
   color: var(--ss-text);
-  border-radius: 22px;
   overflow: hidden;
-  border: 1.5px solid var(--ss-cream2);
   box-shadow: 0 10px 40px rgba(15, 23, 42, 0.08);
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 160px);
+  min-height: calc(100dvh - var(--ss-vh-offset));
+  /* Edge to edge inside the page shell at every width: cancel the shell's own
+     side gutters (px-3 / sm:px-5 / lg:px-8) rather than sitting inside them.
+     The gutters are what pushed the header controls and the last table column
+     past the clip edge on a laptop. Keep these in step with .studio-shell. */
+  margin-left: -0.75rem; margin-right: -0.75rem;
+  border: 1.5px solid var(--ss-cream2);
+  border-left: none; border-right: none;
+  border-radius: 0;
+}
+@media (min-width: 640px) {
+  .ss-root { margin-left: -1.25rem; margin-right: -1.25rem; }
+}
+@media (min-width: 1024px) {
+  .ss-root { margin-left: -2rem; margin-right: -2rem; }
 }
 
 .ss-root *, .ss-root *::before, .ss-root *::after { box-sizing: border-box; }
@@ -1165,12 +1210,17 @@ function SyllabiStudioStyles() {
 }
 
 /* ── HEADER ───────────────────────────────────────────────────────────── */
+/* The header sizes to its contents instead of being pinned to 64px. At 64px
+   fixed, a squeezed logo block wrapped to two lines and was then clipped top
+   and bottom by the root's overflow:hidden — the title read as a cut-off
+   "Syllabi / Studio". Wrapping is allowed too, so the search moves onto its
+   own row rather than off the right edge. */
 .ss-root .ss-header {
-  height: 64px;
+  min-height: 64px;
   background: var(--ss-teal);
   color: white;
-  display: flex; align-items: center;
-  padding: 0 24px; gap: 16px;
+  display: flex; align-items: center; flex-wrap: wrap;
+  padding: 10px 24px; gap: 10px 16px;
   flex-shrink: 0; z-index: 5;
 }
 .ss-root .ss-logo-mark {
@@ -1179,14 +1229,32 @@ function SyllabiStudioStyles() {
   display: flex; align-items: center; justify-content: center;
   font-size: 20px; flex-shrink: 0;
 }
-.ss-root .ss-logo-text-wrap { display: flex; flex-direction: column; line-height: 1.1; }
+/* Title + subtitle shrink to an ellipsis before they ever wrap — a second
+   line is what overflowed the header, and a truncated subtitle costs nothing
+   (the same words are on the hero below). */
+.ss-root .ss-logo-text-wrap {
+  display: flex; flex-direction: column; line-height: 1.15;
+  min-width: 0; flex: 0 1 auto;
+}
 .ss-root .ss-logo-text {
   font-family: 'Playfair Display', 'Fraunces', Georgia, serif;
   font-size: 20px; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.ss-root .ss-logo-sub { font-size: 12px; opacity: 0.6; }
-.ss-root .ss-spacer { flex: 1; }
-.ss-root .ss-search-wrap { position: relative; display: inline-flex; }
+.ss-root .ss-logo-sub {
+  font-size: 12px; opacity: 0.6;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* Inert: the search's own margin-left:auto does the pushing now, so spare
+   width goes to the search box (up to its max) instead of to empty space. */
+.ss-root .ss-spacer { flex: 0 0 0; min-width: 0; }
+/* Flexible, not a fixed 280px: the input used to keep its width while its
+   wrapper shrank, so the right-hand end of the search box was clipped off. */
+.ss-root .ss-search-wrap {
+  position: relative; display: flex;
+  flex: 1 1 180px; min-width: 140px; max-width: 340px;
+  margin-left: auto;
+}
 .ss-root .ss-search-box {
   background: rgba(255,255,255,0.12);
   border: 1.5px solid rgba(255,255,255,0.25);
@@ -1194,7 +1262,7 @@ function SyllabiStudioStyles() {
   color: white;
   padding: 8px 14px 8px 36px;
   font-size: 14px;
-  width: 280px;
+  width: 100%; min-width: 0;
   outline: none;
   font-family: inherit;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='rgba(255,255,255,0.5)' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0'/%3E%3C/svg%3E");
@@ -1237,7 +1305,7 @@ function SyllabiStudioStyles() {
   flex-shrink: 0;
   padding: 16px 0 24px;
   overflow-y: auto;
-  max-height: calc(100vh - 160px);
+  max-height: calc(100dvh - var(--ss-vh-offset));
   position: sticky;
   top: 0;
 }
@@ -1369,7 +1437,7 @@ function SyllabiStudioStyles() {
   min-width: 0;
   padding: 28px 32px;
   overflow-y: auto;
-  max-height: calc(100vh - 160px);
+  max-height: calc(100dvh - var(--ss-vh-offset));
 }
 
 .ss-root .ss-loading,
@@ -1615,7 +1683,8 @@ function SyllabiStudioStyles() {
   padding: 7px 14px;
   border: 1.5px solid var(--ss-teal);
   border-radius: 8px;
-  font-size: 13px; width: 260px;
+  font-size: 13px;
+  flex: 0 1 260px; min-width: 0;
   outline: none;
   font-family: inherit;
   background: white;
@@ -1633,7 +1702,10 @@ function SyllabiStudioStyles() {
 
 .ss-root .ss-tbl-container {
   overflow-x: auto;
-  max-height: calc(100dvh - 340px);
+  /* The studio's own chrome above the table (back button, subject hero, grade
+     tabs, toolbar) is ~180px; the rest of the subtraction is the page chrome
+     the studio measured for itself, so this tracks the real viewport. */
+  max-height: calc(100dvh - var(--ss-vh-offset) - 180px);
   min-height: 280px;
 }
 .ss-root .ss-table {
@@ -1650,7 +1722,13 @@ function SyllabiStudioStyles() {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  white-space: nowrap;
+  /* Headings wrap. They used to be nowrap, which set the table's minimum width
+     to the sum of "SPECIFIC COMPETENCES" + "LEARNING ACTIVITIES" + "EXPECTED
+     STANDARD" laid out on one line each — wider than a laptop column, so the
+     last heading was always cut off at the edge no matter how much room the
+     rows themselves needed. Two-line headings cost one row of height once. */
+  white-space: normal;
+  overflow-wrap: break-word;
   position: sticky; top: 0; z-index: 10;
   border-right: 1px solid rgba(255,255,255,0.15);
 }
@@ -1902,6 +1980,10 @@ function SyllabiStudioStyles() {
   flex-wrap: nowrap; overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
+/* A tab in a scrolling row must keep its size — the default flex-shrink
+   squashed "3-4 Years - Pre-Maths & Science" into a four-line sliver instead
+   of letting the row scroll. */
+.ss-root.is-reading .ss-tabs-scroll .ss-tab-btn { flex: 0 0 auto; white-space: nowrap; }
 .ss-root.is-reading .ss-table-wrap {
   flex: 1; min-height: 0;
   display: flex; flex-direction: column;
@@ -1961,18 +2043,11 @@ function SyllabiStudioStyles() {
 .ss-root .ss-rb-exit:hover { background: rgba(255,255,255,0.22); }
 
 /* ── RESPONSIVE ──────────────────────────────────────────────────────── */
-@media (max-width: 1100px) {
+/* 1300, not 1100: the studio never gets the whole viewport on desktop — the
+   teacher sidebar takes ~260px of it — so the era switcher has to go compact
+   while the window still looks wide, or it eats the search box's room. */
+@media (max-width: 1300px) {
   .ss-root .ss-era-btn { padding: 6px 12px; font-size: 11px; }
-}
-/* Below the desktop shell the studio goes full-bleed — counter the
-   app-container gutters and drop the card chrome so it reads as a page,
-   not a card inside the dashboard. */
-@media (max-width: 1023px) {
-  .ss-root {
-    margin-left: -1.5rem; margin-right: -1.5rem;
-    border-left: none; border-right: none;
-    border-radius: 0;
-  }
 }
 @media (max-width: 900px) {
   .ss-root .ss-sidebar { display: none; }
@@ -1986,7 +2061,7 @@ function SyllabiStudioStyles() {
   .ss-root .ss-hero { padding: 20px 22px; }
   .ss-root .ss-hero-title { font-size: 24px; }
   .ss-root .ss-hero-emoji { font-size: 40px; }
-  .ss-root .ss-search-box { width: 160px; }
+  .ss-root .ss-search-wrap { flex-basis: 180px; max-width: 260px; }
   .ss-root .ss-era-btn { padding: 5px 10px; font-size: 10.5px; }
 }
 /* 701–900px in subject view: the icon rail is on screen, so the hamburger
@@ -2017,17 +2092,22 @@ function SyllabiStudioStyles() {
     scrollbar-width: none;
   }
   .ss-root .ss-tabs-scroll::-webkit-scrollbar { display: none; }
+  /* See the reading-mode twin above: keep each tab its natural width and let
+     the row scroll, rather than shrinking every tab to fit. */
+  .ss-root .ss-tabs-scroll .ss-tab-btn { flex: 0 0 auto; white-space: nowrap; }
   .ss-root .ss-fs-label { display: none; }
   .ss-root .ss-fullscreen-btn { padding: 8px 10px; }
   .ss-root .ss-rb-filter, .ss-root .ss-rb-count { display: none; }
 }
-@media (max-width: 639px) {
-  .ss-root { margin-left: -1rem; margin-right: -1rem; }
-}
 @media (max-width: 560px) {
   .ss-root .ss-stats-row { grid-template-columns: 1fr 1fr; }
-  .ss-root .ss-header { padding: 0 12px; gap: 10px; }
-  .ss-root .ss-search-box { width: 130px; padding-left: 32px; }
+  .ss-root .ss-header { padding: 8px 12px; gap: 8px 10px; }
+  /* Phone: the search takes the full second row rather than a 130px stub
+     squeezed in beside the logo. */
+  .ss-root .ss-search-wrap {
+    flex: 1 1 100%; max-width: none; min-width: 0; margin-left: 0;
+  }
+  .ss-root .ss-search-box { padding-left: 32px; }
   .ss-root .ss-logo-sub { display: none; }
 }
 
@@ -2098,9 +2178,9 @@ function SyllabiStudioStyles() {
   .ss-root .ss-dh-text p { font-size: 11.5px; line-height: 1.4; }
   .ss-root .ss-back-btn { margin-bottom: 12px; }
 
-  /* Toolbar: the filter input flexes instead of a fixed 260px */
+  /* Toolbar: the filter input grows to fill the phone width */
   .ss-root .ss-table-toolbar { padding: 10px; gap: 8px; }
-  .ss-root .ss-tbl-search { width: auto; flex: 1 1 120px; min-width: 0; }
+  .ss-root .ss-tbl-search { flex: 1 1 120px; }
 }
 
 /* Reading mode owns the viewport; body overflow:hidden alone doesn't stop
