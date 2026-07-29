@@ -10,7 +10,7 @@
 
 const assert = require("node:assert/strict");
 const {
-  MATHS_SUBJECT_KEYS, isMathsSubjectKey,
+  MATHS_SUBJECT_KEYS, SCIENCE_SUBJECT_KEYS, isMathsSubjectKey, isScienceSubjectKey,
   enforceNotation, buildCorrectiveInstruction, applyPlainTextFloor,
 } = require("./notationEnforcement");
 
@@ -103,6 +103,90 @@ check("a non-mathematics paper is not touched at all", async () => {
   assert.equal(report.applied, false);
   assert.equal(report.repaired, 0);
   assert.equal(JSON.stringify(paper), before, "a non-maths paper was rewritten");
+});
+
+section("science subjects (Phase 3)");
+
+check("the server science list matches the shared contract exactly", async () => {
+  const core = await import("../shared/assessment/mathsNotationCore.js");
+  assert.deepEqual(
+      [...SCIENCE_SUBJECT_KEYS].sort(),
+      [...core.SCIENCE_SUBJECT_KEYS].sort(),
+      "the server and the contract disagree about which subjects are science",
+  );
+});
+
+check("a science paper's formulae, arrows, units and degrees are all repaired", async () => {
+  const paper = {
+    header: {subject: "integrated_science"},
+    sections: [{questions: [{
+      type: "short_answer",
+      prompt: "Water is H2O. Complete: carbon dioxide + water -> glucose + oxygen.",
+      answer: "CO2",
+      markingGuide: "Accept 9.8 m/s2 measured at 30 deg C.",
+      parts: [{text: "Name the gas O2 in 2H2 + O2 -> 2H2O.", answer: "oxygen"}],
+    }]}],
+  };
+  const report = await enforceNotation(paper, {subject: "integrated_science"});
+  assert.equal(report.applied, true);
+  const q = paper.sections[0].questions[0];
+  assert.match(q.prompt, /H<sub>2<\/sub>O/);
+  assert.match(q.prompt, /→/);
+  assert.match(q.answer, /CO<sub>2<\/sub>/);
+  assert.match(q.markingGuide, /m\/s<sup>2<\/sup>/);
+  assert.match(q.markingGuide, /30 °C/);
+  assert.match(q.parts[0].text, /O<sub>2<\/sub>/);
+});
+
+check("the integrated learning area gets BOTH contracts on one paper", async () => {
+  // A Grade 2 "Mathematics and Science" paper can carry a column sum and a
+  // water molecule on the same page, so `numeracy` owes both.
+  assert.equal(isMathsSubjectKey("numeracy"), true);
+  assert.equal(isScienceSubjectKey("numeracy"), true);
+  const paper = {
+    header: {subject: "numeracy"},
+    sections: [{questions: [{
+      type: "short_answer",
+      prompt: "Write the fraction 3/5 in its lowest terms. Water is H2O.",
+      answer: "3/5",
+    }]}],
+  };
+  await enforceNotation(paper, {subject: "numeracy"});
+  const prompt = paper.sections[0].questions[0].prompt;
+  assert.match(prompt, /\\frac\{3\}\{5\}/, "the maths contract did not run");
+  assert.match(prompt, /H<sub>2<\/sub>O/, "the science contract did not run");
+});
+
+check("a science paper is not subjected to the MATHS repairs it does not owe", async () => {
+  // integrated_science is not in the maths list, so a bare a/b there is left
+  // alone even in a fractional-sounding sentence — that contract is not its.
+  const paper = {
+    header: {subject: "biology"},
+    sections: [{questions: [{
+      type: "short_answer",
+      prompt: "The fraction 3/5 of the sample was water, H2O.",
+      answer: "water",
+    }]}],
+  };
+  await enforceNotation(paper, {subject: "biology"});
+  const prompt = paper.sections[0].questions[0].prompt;
+  assert.match(prompt, /3\/5/, "a maths repair ran on a science-only paper");
+  assert.match(prompt, /H<sub>2<\/sub>O/);
+});
+
+check("a language paper is still untouched by either contract", async () => {
+  const paper = {
+    header: {subject: "english"},
+    sections: [{questions: [{
+      type: "short_answer",
+      prompt: "Water is H2O and 3/5 of the class agreed.",
+      answer: "yes",
+    }]}],
+  };
+  const before = JSON.stringify(paper);
+  const report = await enforceNotation(paper, {subject: "english"});
+  assert.equal(report.applied, false);
+  assert.equal(JSON.stringify(paper), before);
 });
 
 section("detect and repair");

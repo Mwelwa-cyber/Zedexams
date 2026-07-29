@@ -57,6 +57,33 @@ function isMathsSubjectKey(subject) {
 }
 
 /**
+ * The canonical subject keys that get SCIENCE notation (Phase 3).
+ *
+ * Mirrors SCIENCE_SUBJECT_KEYS in the shared contract; the test asserts the two
+ * match. `numeracy` is in this list AND the mathematics one, which is correct:
+ * CBC "Mathematics and Science" is one integrated learning area, so a Grade 2
+ * paper owes both contracts.
+ */
+const SCIENCE_SUBJECT_KEYS = Object.freeze([
+  "integrated_science",
+  "environmental_science",
+  "physics",
+  "chemistry",
+  "biology",
+  "agricultural_science",
+  MATHS_SCIENCE_SUBJECT_KEY,
+]);
+
+function isScienceSubjectKey(subject) {
+  return SCIENCE_SUBJECT_KEYS.includes(String(subject || "").trim());
+}
+
+/** Any subject this module has something to enforce for. */
+function isEnforcedSubject(subject) {
+  return isMathsSubjectKey(subject) || isScienceSubjectKey(subject);
+}
+
+/**
  * Walk every string a question keeps at a contract field path, applying `fn`.
  *
  * Returns the number of values changed. Mutates in place: the caller owns a
@@ -66,10 +93,13 @@ function isMathsSubjectKey(subject) {
  */
 function mapQuestionFields(question, fields, fn) {
   let changed = 0;
+  // `path` is passed through so a caller can REPORT which field it found
+  // something in, not only rewrite it — the science detector needs the name.
+  let path = "";
   const apply = (holder, key) => {
     const value = holder[key];
     if (typeof value !== "string" || !value) return;
-    const next = fn(value);
+    const next = fn(value, path);
     if (next !== value) {
       holder[key] = next;
       changed += 1;
@@ -77,7 +107,7 @@ function mapQuestionFields(question, fields, fn) {
   };
 
   for (const field of fields) {
-    const path = field.path;
+    path = field.path;
     if (path === "prompt" || path === "answer" ||
         path === "markingGuide" || path === "solution") {
       apply(question, path);
@@ -155,7 +185,7 @@ function eachQuestion(assessment) {
  * notation check is not a reason to lose it.
  */
 async function enforceNotation(assessment, {subject} = {}) {
-  if (!isMathsSubjectKey(subject)) {
+  if (!isEnforcedSubject(subject)) {
     return {applied: false, repaired: 0, violations: [], needsRetry: false};
   }
   let core;
@@ -166,32 +196,55 @@ async function enforceNotation(assessment, {subject} = {}) {
     return {applied: false, repaired: 0, violations: [], needsRetry: false};
   }
 
-  const {NOTATION_FIELDS, repairNotation, checkQuestionNotation} = core;
+  const {
+    NOTATION_FIELDS, repairNotation, checkQuestionNotation,
+    repairScienceNotation, detectScienceViolations,
+  } = core;
+  const doMaths = isMathsSubjectKey(subject);
+  const doScience = isScienceSubjectKey(subject);
+  // A field is repaired by whichever contracts its subject owes — both, for the
+  // integrated lower-primary learning area. Order does not matter: the maths
+  // patterns and the science patterns do not overlap.
+  const repairField = (value) => {
+    let out = value;
+    try {
+      if (doMaths) out = repairNotation(out).text;
+    } catch { /* keep what we have */ }
+    try {
+      if (doScience) out = repairScienceNotation(out).text;
+    } catch { /* keep what we have */ }
+    return out;
+  };
   let repaired = 0;
   const violations = [];
 
   for (const {question, section, sIdx, qIdx} of eachQuestion(assessment)) {
-    repaired += mapQuestionFields(question, NOTATION_FIELDS, (value) => {
-      try {
-        return repairNotation(value).text;
-      } catch {
-        return value;
-      }
-    });
+    repaired += mapQuestionFields(question, NOTATION_FIELDS, repairField);
     // A section's passage is shared by its questions, so it is repaired once
     // per section rather than once per question.
     if (qIdx === 0 && section && section.passage &&
         typeof section.passage.text === "string") {
       const before = section.passage.text;
-      try {
-        section.passage.text = repairNotation(before).text;
-      } catch { /* leave it */ }
+      section.passage.text = repairField(before);
       if (section.passage.text !== before) repaired += 1;
     }
 
     let report;
     try {
-      report = checkQuestionNotation(question);
+      report = doMaths ?
+        checkQuestionNotation(question) :
+        {ok: true, fields: []};
+      if (doScience) {
+        // The science check runs over the same fields, folded into one report
+        // so the retry decision and the log line see a single list.
+        const extra = [];
+        mapQuestionFields(question, NOTATION_FIELDS, (value, path) => {
+          const found = detectScienceViolations(value).violations;
+          if (found.length) extra.push({path: path || "(field)", violations: found});
+          return value;
+        });
+        if (extra.length) report = {ok: false, fields: [...report.fields, ...extra]};
+      }
     } catch {
       continue;
     }
@@ -255,29 +308,30 @@ function buildCorrectiveInstruction(violations) {
  * compliance be monitored over time.
  */
 async function applyPlainTextFloor(assessment, {subject} = {}) {
-  if (!isMathsSubjectKey(subject)) return {flattened: 0};
+  if (!isEnforcedSubject(subject)) return {flattened: 0};
   let core;
   try {
     core = await import("../shared/assessment/mathsNotationCore.js");
   } catch {
     return {flattened: 0};
   }
-  const {NOTATION_FIELDS, detectNotationViolations, toPlainMathsText} = core;
+  const {
+    NOTATION_FIELDS, detectNotationViolations, toPlainMathsText,
+    detectScienceViolations, scienceToPlainText,
+  } = core;
+  const doMaths = isMathsSubjectKey(subject);
+  const doScience = isScienceSubjectKey(subject);
 
   let flattened = 0;
   const flatten = (value) => {
-    let bad;
+    let out = value;
     try {
-      bad = !detectNotationViolations(value).ok;
-    } catch {
-      return value;
-    }
-    if (!bad) return value;
+      if (doMaths && !detectNotationViolations(out).ok) out = toPlainMathsText(out);
+    } catch { /* keep what we have */ }
     try {
-      return toPlainMathsText(value);
-    } catch {
-      return value;
-    }
+      if (doScience && !detectScienceViolations(out).ok) out = scienceToPlainText(out);
+    } catch { /* keep what we have */ }
+    return out;
   };
 
   for (const {question, section, qIdx} of eachQuestion(assessment)) {
@@ -294,7 +348,10 @@ async function applyPlainTextFloor(assessment, {subject} = {}) {
 
 module.exports = {
   MATHS_SUBJECT_KEYS,
+  SCIENCE_SUBJECT_KEYS,
   isMathsSubjectKey,
+  isScienceSubjectKey,
+  isEnforcedSubject,
   enforceNotation,
   buildCorrectiveInstruction,
   applyPlainTextFloor,
