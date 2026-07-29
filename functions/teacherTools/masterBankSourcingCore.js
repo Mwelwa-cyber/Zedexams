@@ -36,6 +36,34 @@ function normalizeSubject(value) {
 }
 
 /** Strip HTML tags/entities to a collapsed plain string. */
+/**
+ * Rewrite a bank question's maths NODES into contract markup before anything
+ * strips its tags.
+ *
+ * `toMarkup` is injected rather than imported because this module is CommonJS
+ * and synchronous while the contract is ESM — the alternative is a second copy
+ * of the node vocabulary here, which is the fork the contract exists to
+ * prevent. `masterBankSourcing.js` is async and loads it once per scan.
+ *
+ * Without this, `plainify` deleted the mathematics outright: a stacked
+ * fraction keeps its digits in ATTRIBUTES, so stripping tags did not flatten
+ * "3/5" — it removed it. "Calculate 3/5 + 1/4" came back as "Calculate  + ",
+ * and a bank question whose ANSWER was a fraction was dropped from sourcing
+ * entirely, because the mapper reads an empty answer as unusable.
+ */
+function withNotationMarkup(editorQ, toMarkup) {
+  if (!editorQ || typeof editorQ !== "object" || typeof toMarkup !== "function") {
+    return editorQ;
+  }
+  const convert = (v) => (typeof v === "string" ? toMarkup(v) : v);
+  const out = {...editorQ};
+  for (const key of ["text", "explanation", "correctAnswer", "answer"]) {
+    if (typeof out[key] === "string") out[key] = convert(out[key]);
+  }
+  if (Array.isArray(out.options)) out.options = out.options.map(convert);
+  return out;
+}
+
 function plainify(value) {
   return String(value == null ? "" : value)
     .replace(/<[^>]*>/g, " ")
@@ -302,6 +330,7 @@ function mergeSourcedIntoSections(sections, sourcedQuestions) {
 }
 
 module.exports = {
+  withNotationMarkup,
   normalizeGrade,
   normalizeSubject,
   plainify,

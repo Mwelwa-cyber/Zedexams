@@ -132,11 +132,13 @@ MARK ALLOCATION — marks must reflect the work required:
 - calculation questions may split marks across method/working, units and the final answer — say so in the marking guide;
 - composition, performance and practical tasks use a criterion-based (rubric-style) marking guide listing each criterion and its marks.
 
-MATHS NOTATION — write every piece of maths the way it should PRINT, not as rough ASCII. This applies to the question text, the options, and the marking guide:
+MATHS NOTATION — write every piece of maths the way it should PRINT, not as rough ASCII. This applies to EVERY field that can carry maths, not only the ones a learner reads: the question text, the options, the answer, the marking guide, each sub-question part and its answer, fill-in-the-blank statements and word banks, table cells, worked solutions, and any passage or stimulus in a word problem. A fraction typed as ASCII in a sub-part answer is just as wrong as one in the question:
 - Fractions: ALWAYS write \\frac{a}{b} (e.g. \\frac{1}{3}, \\frac{2}{5}). Mixed numbers: put the whole number directly before the fraction — c\\frac{a}{b} (e.g. 2\\frac{1}{4}). NEVER write a fraction as "1/3".
 - Other inline maths — square roots, powers/indices, decimals in standard form, ratios, symbols — wrap in single dollar signs: $\\sqrt{49}$, $x^{2}$, $3.2\\times10^{4}$, $\\pi r^{2}$.
-- Column (vertical) addition or subtraction shown stacked: put it on its OWN line as a token [[vmath op=- lines=954751,362948 answer=591803]] — op is + - × or ÷, "lines" are the operands top-to-bottom, "answer" is optional (omit it to leave the sum for the learner). Use this whenever a real paper shows a sum written in columns.
+- Column (vertical) calculations shown stacked — addition, subtraction, MULTIPLICATION and DIVISION alike: put it on its OWN line as a token [[vmath op=- lines=954751,362948 answer=591803]] — op is + - × or ÷, "lines" are the operands top-to-bottom, "answer" is optional (omit it to leave the sum for the learner). Use this whenever a real paper shows a calculation written in columns, including a long multiplication or a long division.
 - Use this notation INSIDE multiple-choice options too: if the options are fractions, each option is a \\frac{...}{...} (e.g. options ["\\frac{3}{15}", "\\frac{8}{15}", "\\frac{11}{15}", "\\frac{3}{8}"]).
+- Units, degrees and money: write the unit as ordinary text after the number ("12 cm", "3.5 kg", "K250"); write an angle as $45^{\\circ}$ and a temperature as $30^{\\circ}$C. Never leave a bare "deg" or "degrees C".
+- NEVER emit a calculation drawn with spaces and dashes to look like columns — that is what the [[vmath]] token is for, and ASCII columns print as rubble.
 
 VISUALS — when a question needs a picture, set its "visual" object (else leave "visual" null):
 - Use visuals the way real Zambian primary papers do — for Science, Home Economics, Expressive Arts (Art/Music/PE), Social Studies and Mathematics shapes/measurement — NOT for questions that are purely verbal. Be selective: only add a visual where a printed exam genuinely shows one.
