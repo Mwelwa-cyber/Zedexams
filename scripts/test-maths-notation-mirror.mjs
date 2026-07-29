@@ -103,4 +103,50 @@ check('every contract field has a human description the prompt could quote', () 
   }
 })
 
+/* ── The science half (Phase 3) ─────────────────────────────────────────── */
+
+const SCIENCE_BLOCK = (() => {
+  const start = SYSTEM_PROMPT.search(/^SCIENCE NOTATION\b/m)
+  assert.notEqual(start, -1, 'the prompt has no SCIENCE NOTATION block')
+  const rest = SYSTEM_PROMPT.slice(start)
+  const end = rest.slice(1).search(/\n[A-Z][A-Z &-]{6,}/)
+  return end === -1 ? rest : rest.slice(0, end + 1)
+})()
+
+console.log('\nthe prompt states the science contract too')
+
+check('subscripts, superscripts and a real arrow are all demanded', () => {
+  // Each of these is a repair the server would otherwise have to make on every
+  // generation. The prompt asking correctly is what keeps that rare.
+  assert.match(SCIENCE_BLOCK, /<sub>/, 'the prompt never asks for a subscript')
+  assert.match(SCIENCE_BLOCK, /<sup>/, 'the prompt never asks for a superscript')
+  assert.ok(SCIENCE_BLOCK.includes('→'), 'the prompt never asks for a real arrow')
+  assert.ok(SCIENCE_BLOCK.includes('⇌'), 'the prompt never mentions a reversible arrow')
+  assert.ok(SCIENCE_BLOCK.includes('°'), 'the prompt never asks for the degree sign')
+})
+
+check('the model is told NOT to write H2O', () => {
+  assert.match(SCIENCE_BLOCK, /NEVER write "H2O"/i)
+})
+
+check('a coefficient is explicitly exempted from subscripting', () => {
+  // The one rule the model is most likely to over-apply: subscripting the 6 in
+  // 6CO2 says six-of-something-else, and it is not obvious from "use subscripts".
+  assert.match(SCIENCE_BLOCK, /COEFFICIENT/i)
+  assert.match(SCIENCE_BLOCK, /NOT subscripted/i)
+})
+
+check('word equations are named as first-class, not just symbol equations', () => {
+  // Primary science uses word equations long before symbol ones; a prompt that
+  // only described formulae would push the model to the wrong register.
+  assert.match(SCIENCE_BLOCK, /[Ww]ord equations?/)
+})
+
+check('the science rules are scoped to every field, as the maths rules are', () => {
+  const scoped = SCIENCE_BLOCK.slice(0, SCIENCE_BLOCK.indexOf('\n-'))
+  for (const word of ['answer', 'part', 'passage']) {
+    assert.ok(new RegExp(word, 'i').test(scoped), `science scope omits ${word}s`)
+  }
+})
+
 console.log(`\n${passed} notation mirror checks passed\n`)
