@@ -1,9 +1,16 @@
 import { useRef } from 'react'
 import { Check } from 'lucide-react'
+import ThemeThumbnail from './ThemeThumbnail'
 
 /**
- * Workspace-theme picker: one card per theme, each showing the theme's own
- * accent as a colour dot.
+ * Workspace-theme picker: one card per theme, each carrying a live miniature
+ * of the workspace drawn in that theme's real colours (see ThemeThumbnail),
+ * with the accent dot, name and description beneath it.
+ *
+ * Every card is built the same way — there is no per-theme branch here and no
+ * per-theme CSS, so a theme cannot end up previewing itself differently from
+ * its neighbours. The dark theme is not a special case: it previews through
+ * the same mechanism and simply resolves to dark tokens.
  *
  * Same ARIA radiogroup contract as OptionCards (roving tabindex, arrow keys
  * move AND select) rather than a looser list of buttons, because this is a
@@ -52,6 +59,7 @@ export default function ThemeCards({ value, onChange, options, label }) {
             onClick={() => onChange(opt.id)}
             onKeyDown={(e) => onKeyDown(e, i)}
           >
+            <ThemeThumbnail themeId={opt.id} />
             <span className="tset-theme-card__top">
               <span className="tset-theme-card__dot" aria-hidden="true" />
               <span className="tset-theme-card__name">{opt.label}</span>

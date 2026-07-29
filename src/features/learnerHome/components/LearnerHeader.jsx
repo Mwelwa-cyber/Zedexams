@@ -37,7 +37,7 @@ const ChromeTile = forwardRef(function ChromeTile(
 })
 
 /**
- * Theme picker. Same six themes and the same setTheme call the classic
+ * Reading-theme picker. Same themes and the same setTheme call the classic
  * dashboard's selector used — only the chrome is rebuilt in .lhx idiom.
  */
 function ThemeTile() {
@@ -81,7 +81,17 @@ function ThemeTile() {
               className="lhx-menu-item"
               onClick={() => { setTheme(t.id); setOpen(false) }}
             >
-              <span className="lhx-menu-swatch" style={{ background: t.swatch }} aria-hidden="true" />
+              {/* Self-previewing: the swatch declares the palette it offers
+                  (the `.reading-swatch` alias in index.css), so the "Aa" is
+                  drawn in that theme's real text colour on its real page
+                  background instead of a colour repeated here. */}
+              <span
+                className="reading-swatch lhx-menu-swatch"
+                data-reading-theme={t.id}
+                aria-hidden="true"
+              >
+                Aa
+              </span>
               {t.label}
               {theme === t.id && (
                 <span className="lhx-menu-check" aria-hidden="true"><Check size={16} strokeWidth={2.5} /></span>

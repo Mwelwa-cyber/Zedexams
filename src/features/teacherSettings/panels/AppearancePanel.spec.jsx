@@ -4,9 +4,9 @@
  * These assert behaviour a token/contrast test cannot: that choosing a theme
  * changes the document immediately (there is no Save button, so an
  * unapplied choice is indistinguishable from a broken control), that the
- * choice survives a reload, and that the reading-theme control next to it
- * still works — the two are separate settings and it would be easy for a
- * refactor to wire the second into the first.
+ * choice survives a reload, and that it never touches the learner reading
+ * theme — a separate setting on a separate key that it would be easy for a
+ * refactor to wire into this one.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
@@ -23,6 +23,9 @@ vi.mock('../components/SettingsDetailShell', () => ({
   default: ({ children }) => <div>{children}</div>,
 }))
 
+const capture = vi.fn()
+vi.mock('../../../utils/analytics', () => ({ capture: (...args) => capture(...args) }))
+
 function renderPanel() {
   return render(
     <MemoryRouter>
@@ -37,6 +40,7 @@ beforeEach(() => {
   localStorage.clear()
   resetTeacherThemeStore()
   document.documentElement.removeAttribute('data-theme')
+  capture.mockClear()
 })
 
 afterEach(() => {
@@ -105,5 +109,36 @@ describe('workspace theme picker', () => {
     // The learner/quiz reading theme is its own control on its own key, and
     // picking a workspace theme must not have silently changed it.
     expect(localStorage.getItem('examprep:theme')).not.toBe('night')
+  })
+
+  /*
+   * The reading theme moved out of this page in 2026-07. It colours the
+   * learner reader and the quiz runner and NOTHING on this screen, so
+   * offering it here meant a teacher changed a setting and watched nothing
+   * happen — the picker now lives in those two toolbars. It was always a
+   * per-device preference; no teacher setting has ever reached a learner.
+   */
+  it('no longer offers the reading theme — it belongs to the views it colours', () => {
+    renderPanel()
+    expect(screen.queryByText(/Reading theme/i)).toBeNull()
+    expect(screen.getAllByRole('radiogroup').map((g) => g.getAttribute('aria-label')))
+      .not.toContain('Reading theme')
+  })
+
+  it('records the selection, and records nothing for merely arriving', async () => {
+    const u = userEvent.setup()
+    renderPanel()
+    expect(capture).not.toHaveBeenCalled()
+
+    await u.click(screen.getByRole('radio', { name: /Copperbelt/ }))
+    expect(capture).toHaveBeenCalledTimes(1)
+    expect(capture).toHaveBeenCalledWith('workspace_theme_selected', {
+      theme: 'copperbelt',
+      previous_theme: 'terracotta',
+    })
+
+    // Re-picking the theme already in use is not a selection.
+    await u.click(screen.getByRole('radio', { name: /Copperbelt/ }))
+    expect(capture).toHaveBeenCalledTimes(1)
   })
 })

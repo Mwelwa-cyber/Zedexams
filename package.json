@@ -613,6 +613,7 @@
     "test:class-list-extract": "node functions/classList/extractClassList.test.js",
     "test:teacher-theme-contrast": "node src/contexts/teacherThemeContrast.test.js",
     "test:teacher-theme-mirror": "node src/contexts/teacherThemeMirror.test.js",
+    "test:reading-theme-mirror": "node src/contexts/readingThemeMirror.test.js",
     "test:export-theme-isolation": "node src/utils/exportThemeIsolation.test.js"
   },
   "lint-staged": {

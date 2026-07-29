@@ -21,11 +21,17 @@
   //    this the body would flash blue before React mounts and applies the
   //    saved/brand-default theme. Mirror ThemeContext: saved choice, else the
   //    'oatmeal' brand default.
+  //    `retired` covers the two palettes removed in 2026-07: their CSS is
+  //    gone, so a device still holding one of those ids would paint with no
+  //    palette at all. ThemeContext rewrites the stored key once React
+  //    mounts; this only has to survive the first frame, so it maps and does
+  //    not write.
   try {
     var legacy = { light: 'sky', warm: 'oatmeal', dark: 'midnight' };
-    var ids = ['sky', 'lavender', 'midnight', 'oatmeal', 'solar', 'vivid'];
+    var retired = { lavender: 'sky', vivid: 'solar' };
+    var ids = ['oatmeal', 'sky', 'solar', 'midnight'];
     var saved = localStorage.getItem('examprep:theme');
-    saved = legacy[saved] || saved;
+    saved = legacy[saved] || retired[saved] || saved;
     document.body.classList.add(
       'theme-' + (ids.indexOf(saved) !== -1 ? saved : 'oatmeal')
     );

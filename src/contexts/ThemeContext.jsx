@@ -8,13 +8,16 @@ import {
 
 const LS_KEY = 'examprep:theme'
 
+/**
+ * The reading themes — the palettes a learner reads ON (note reader, quiz
+ * runner, learner dashboard). Default first, so the picker opens on the one
+ * most readers are already using.
+ */
 export const THEMES = [
+  { id: 'oatmeal',  label: 'Warm Oatmeal',  swatch: '#B44F2D' },
   { id: 'sky',      label: 'Sky Blue',      swatch: '#0EA5E9' },
-  { id: 'lavender', label: 'Lavender',      swatch: '#8B5CF6' },
-  { id: 'midnight', label: 'Midnight Tech', swatch: '#1E293B' },
-  { id: 'oatmeal',  label: 'Warm Oatmeal',  swatch: '#D97757' },
   { id: 'solar',    label: 'Solar Yellow',  swatch: '#F59E0B' },
-  { id: 'vivid',    label: 'Vivid (Canva)', swatch: '#EC4899' },
+  { id: 'midnight', label: 'Midnight',      swatch: '#38BDF8' },
 ]
 
 export const DEFAULT_THEME = 'oatmeal'
@@ -23,11 +26,34 @@ const LEGACY_THEME_MAP = {
   warm: 'oatmeal',
   dark: 'midnight',
 }
+
+/**
+ * Themes that were removed (2026-07). A device that last read in one of them
+ * still has that id in localStorage, and there is no CSS behind it any more —
+ * so an unmapped value renders the learner a page with no palette at all.
+ *
+ * Each retired theme maps to the surviving palette closest to it rather than
+ * to the default, because a learner who deliberately chose the violet one is
+ * better served by the blue than by being silently reset to cream. The map is
+ * applied on read AND the stored key is rewritten (see resolveInitialTheme),
+ * so the fallback fires exactly once per device and then the id is simply a
+ * current one. This is a migration, not a choice — it must not emit an
+ * analytics event.
+ */
+const RETIRED_THEME_MAP = {
+  lavender: 'sky',
+  vivid: 'solar',
+}
+
 const THEME_IDS = THEMES.map(t => t.id)
-const THEME_CLASS_IDS = [...THEME_IDS, ...Object.keys(LEGACY_THEME_MAP)]
+const THEME_CLASS_IDS = [
+  ...THEME_IDS,
+  ...Object.keys(LEGACY_THEME_MAP),
+  ...Object.keys(RETIRED_THEME_MAP),
+]
 
 export function normalizeThemeId(id) {
-  const next = LEGACY_THEME_MAP[id] || id
+  const next = LEGACY_THEME_MAP[id] || RETIRED_THEME_MAP[id] || id
   return THEME_IDS.includes(next) ? next : DEFAULT_THEME
 }
 
@@ -67,7 +93,18 @@ export function applyThemeToBody(id) {
 function resolveInitialTheme() {
   try {
     const saved = localStorage.getItem(LS_KEY)
-    if (saved) return normalizeThemeId(saved)
+    if (saved) {
+      const next = normalizeThemeId(saved)
+      // Rewrite a stale id (a retired theme, or a legacy alias) so the
+      // fallback never has to fire again on this device. Without this the
+      // mapping is re-derived on every load, and any code reading the key
+      // directly — boot.js's pre-paint guard included — keeps seeing an id
+      // that no longer has a palette behind it.
+      if (next !== saved) {
+        try { localStorage.setItem(LS_KEY, next) } catch { /* read-only storage */ }
+      }
+      return next
+    }
   } catch { /* localStorage unavailable — fall through */ }
   return DEFAULT_THEME
 }

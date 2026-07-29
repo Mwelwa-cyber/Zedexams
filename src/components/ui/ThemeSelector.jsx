@@ -125,14 +125,22 @@ export default function ThemeSelector({ compact = false, onDark = false, quizSty
                   : 'theme-text hover:theme-bg-subtle'
               }`}
             >
+              {/* Self-previewing: the block declares the palette it offers
+                  (see the `.reading-swatch` alias in index.css), so the "Aa"
+                  is drawn in that theme's real text colour on its real page
+                  background rather than in a colour repeated here. */}
               <span
                 aria-hidden="true"
-                className="w-5 h-5 rounded-full border-2 flex-shrink-0"
+                data-reading-theme={t.id}
+                className="reading-swatch grid h-6 w-7 flex-shrink-0 place-items-center rounded-md border text-[11px] font-black leading-none"
                 style={{
-                  backgroundColor: t.swatch,
+                  background: 'var(--bg)',
+                  color: 'var(--text)',
                   borderColor: theme === t.id ? 'currentColor' : 'var(--border)',
                 }}
-              />
+              >
+                Aa
+              </span>
               {t.label}
               {theme === t.id && <span className="ml-auto text-xs" aria-hidden="true">✓</span>}
             </button>

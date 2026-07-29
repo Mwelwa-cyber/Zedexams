@@ -38,6 +38,16 @@ describe('normalizeThemeId', () => {
     expect(normalizeThemeId('dark')).toBe('midnight')
   })
 
+  it('maps the retired themes to their nearest surviving palette', () => {
+    expect(normalizeThemeId('lavender')).toBe('sky')
+    expect(normalizeThemeId('vivid')).toBe('solar')
+  })
+
+  it('offers exactly the four reading themes, default first', () => {
+    expect(THEMES.map((t) => t.id)).toEqual(['oatmeal', 'sky', 'solar', 'midnight'])
+    expect(THEMES[0].id).toBe(DEFAULT_THEME)
+  })
+
   it('falls back to the default for anything unknown', () => {
     expect(normalizeThemeId('neon')).toBe(DEFAULT_THEME)
     expect(normalizeThemeId(undefined)).toBe(DEFAULT_THEME)
@@ -111,15 +121,37 @@ describe('ThemeProvider', () => {
   })
 
   it('restores a saved theme from localStorage', () => {
-    localStorage.setItem(LS_KEY, 'lavender')
+    localStorage.setItem(LS_KEY, 'sky')
     render(<ThemeProvider><ThemeProbe /></ThemeProvider>)
-    expect(screen.getByTestId('theme').textContent).toBe('lavender')
+    expect(screen.getByTestId('theme').textContent).toBe('sky')
   })
 
   it('normalises a legacy saved theme on load', () => {
     localStorage.setItem(LS_KEY, 'warm')
     render(<ThemeProvider><ThemeProbe /></ThemeProvider>)
     expect(screen.getByTestId('theme').textContent).toBe('oatmeal')
+  })
+
+  /* A device that last read in a retired palette still holds its id. There is
+   * no CSS behind it any more, so an unmapped value is not a cosmetic problem
+   * — it renders the learner a page with no palette at all. */
+  it.each([
+    ['lavender', 'sky'],
+    ['vivid', 'solar'],
+  ])('maps the retired %s theme to %s and rewrites the stored key', (retired, mapped) => {
+    localStorage.setItem(LS_KEY, retired)
+    render(<ThemeProvider><ThemeProbe /></ThemeProvider>)
+    expect(screen.getByTestId('theme').textContent).toBe(mapped)
+    // Rewritten, so the fallback fires once per device rather than on every
+    // load — and anything reading the key directly (boot.js) sees a live id.
+    expect(localStorage.getItem(LS_KEY)).toBe(mapped)
+  })
+
+  it('falls back to the default when the stored value is garbage', () => {
+    localStorage.setItem(LS_KEY, 'purple-zebra')
+    render(<ThemeProvider><ThemeProbe /></ThemeProvider>)
+    expect(screen.getByTestId('theme').textContent).toBe(DEFAULT_THEME)
+    expect(localStorage.getItem(LS_KEY)).toBe(DEFAULT_THEME)
   })
 
   it('setTheme updates state and persists to localStorage', () => {

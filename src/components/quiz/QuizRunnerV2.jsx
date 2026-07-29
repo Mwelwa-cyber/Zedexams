@@ -20,6 +20,7 @@ import RichContent, { getRichPlainText } from '../../editor/RichContent'
 import { useQuizDisplayPrefs } from '../../hooks/useQuizDisplayPrefs'
 import { useQuizReadAloud } from '../../hooks/useQuizReadAloud'
 import ReadingSettingsButton from './reading/ReadingSettingsButton'
+import ReadingThemePicker from '../theme/ReadingThemePicker'
 import ReadingSettingsSheet from './reading/ReadingSettingsSheet'
 import TextToSpeechButton from './reading/TextToSpeechButton'
 import PassageViewer from './reading/PassageViewer'
@@ -1843,6 +1844,7 @@ export default function QuizRunnerV2() {
               )}
               {mode === 'exam' && <div className={`zx-timer ${warn ? 'zx-timer-warn' : ''}`}>⏱️ {fmt(timeLeft)}</div>}
               {mode === 'practice' && <span className="zx-pill-dark zx-pill-green">🌱 Practice</span>}
+              <ReadingThemePicker surface="quiz" />
               <ReadingSettingsButton onClick={() => setShowReadingSettings(true)} />
             </div>
           </div>

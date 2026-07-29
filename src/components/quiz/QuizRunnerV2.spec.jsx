@@ -17,6 +17,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { ThemeProvider } from '../../contexts/ThemeContext'
 
 // firebase/config.js runs initializeApp at import time — stub it so the tree
 // imports without a real Firebase project.
@@ -131,10 +132,15 @@ function quizDoc(overrides = {}) {
   }
 }
 
+// The runner's header carries the reading-theme picker, which reads the real
+// ThemeProvider — the app mounts one above every route, so rendering the
+// runner without it would be testing an arrangement that never ships.
 function renderRunner() {
   return render(
     <MemoryRouter>
-      <QuizRunnerV2 />
+      <ThemeProvider>
+        <QuizRunnerV2 />
+      </ThemeProvider>
     </MemoryRouter>,
   )
 }

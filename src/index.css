@@ -25,8 +25,23 @@ body {
 
 /* ── Theme CSS custom properties ──────────────────────────── */
 /* Applied via body.theme-* classes set by ThemeContext        */
+/*
+ * `.reading-swatch[data-reading-theme='<id>']` is an ALIAS on each palette,
+ * not a copy of it: a picker swatch that has to preview a theme it is not
+ * currently inside declares that theme's tokens on itself, and everything it
+ * draws (`var(--bg)`, `var(--text)`, `var(--accent)`) resolves through the
+ * same cascade the real page uses. A second set of hex values in the swatch
+ * component would go stale the first time a palette was corrected — and go
+ * stale invisibly, because a swatch showing the wrong colour still looks
+ * like a working control.
+ *
+ * The alias is needed because these palettes are declared on `body`, and a
+ * `body.theme-sky` rule cannot match a <span> inside that body.
+ */
 
-:root, body.theme-sky {
+:root,
+body.theme-sky,
+.reading-swatch[data-reading-theme='sky'] {
   --bg:           #F0F9FF;
   --bg-subtle:    #E0F2FE;
   --card:         #FFFFFF;
@@ -56,35 +71,8 @@ body {
   --info:         #2563EB; --info-bg:    #DBEAFE; --info-fg:    #1E40AF;
 }
 
-body.theme-lavender {
-  --bg:           #F5F3FF;
-  --bg-subtle:    #EDE9FE;
-  --card:         #FFFFFF;
-  --card-hover:   #FAF9FF;
-  --text:         #1E1B4B;
-  --text-muted:   #6B7280;
-  --border:       #DDD6FE;
-  --accent:       #8B5CF6;
-  --accent-text:  #FFFFFF;
-  --accent-bg:    #EDE9FE;
-  --accent-fg:    #6D28D9;
-  --input-bg:     #FFFFFF;
-  --input-border: #DDD6FE;
-  --shadow:       rgba(139,92,246,0.08);
-  --hero-gradient: linear-gradient(135deg, #7C3AED 0%, #4C1D95 100%);
-  --hero-muted:   #DDD6FE;
-  --shadow-sm:    0 1px 2px rgba(15,23,42,0.04), 0 1px 3px rgba(15,23,42,0.06);
-  --shadow-md:    0 2px 4px rgba(15,23,42,0.06), 0 4px 12px rgba(15,23,42,0.08);
-  --shadow-lg:    0 4px 6px rgba(15,23,42,0.05), 0 10px 28px rgba(15,23,42,0.10);
-  --shadow-xl:    0 12px 24px rgba(15,23,42,0.08), 0 24px 48px rgba(15,23,42,0.12);
-  --shadow-inner-hl: inset 0 1px 0 rgba(255,255,255,0.7);
-  --success:      #15803D; --success-bg: #DCFCE7; --success-fg: #166534;
-  --warning:      #D97706; --warning-bg: #FEF3C7; --warning-fg: #92400E;
-  --danger:       #DC2626; --danger-bg:  #FEE2E2; --danger-fg:  #991B1B;
-  --info:         #2563EB; --info-bg:    #DBEAFE; --info-fg:    #1E40AF;
-}
-
-body.theme-midnight {
+body.theme-midnight,
+.reading-swatch[data-reading-theme='midnight'] {
   --bg:           #0F172A;
   --bg-subtle:    #1E293B;
   --card:         #1E293B;
@@ -114,7 +102,8 @@ body.theme-midnight {
   --info:         #3B82F6; --info-bg:    rgba(59,130,246,0.20); --info-fg:    #93C5FD;
 }
 
-body.theme-oatmeal {
+body.theme-oatmeal,
+.reading-swatch[data-reading-theme='oatmeal'] {
   --bg:           #FDF6EC;
   --bg-subtle:    #F7EDE4;
   --card:         #FFFDF7;
@@ -154,37 +143,8 @@ body.theme-oatmeal {
   --info:         #2563EB; --info-bg:    #DBEAFE; --info-fg:    #1E40AF;
 }
 
-/* "Vivid" — Canva-style: saturated cards on a deep violet bg, hot-pink
- * accent. Designed for phones where the pastel palettes wash out. */
-body.theme-vivid {
-  --bg:           #1A0B3D;
-  --bg-subtle:    #2A1660;
-  --card:         #FFFFFF;
-  --card-hover:   #FFF8FE;
-  --text:         #0F0728;
-  --text-muted:   #524A6B;
-  --border:       #E11D48;
-  --accent:       #EC4899;
-  --accent-text:  #FFFFFF;
-  --accent-bg:    #FCE7F3;
-  --accent-fg:    #BE185D;
-  --input-bg:     #FFFFFF;
-  --input-border: #F472B6;
-  --shadow:       rgba(236,72,153,0.20);
-  --hero-gradient: linear-gradient(135deg, #7C3AED 0%, #EC4899 50%, #F59E0B 100%);
-  --hero-muted:   #FBCFE8;
-  --shadow-sm:    0 1px 2px rgba(124,58,237,0.10),  0 1px 3px rgba(236,72,153,0.12);
-  --shadow-md:    0 2px 6px rgba(124,58,237,0.14),  0 4px 14px rgba(236,72,153,0.16);
-  --shadow-lg:    0 6px 14px rgba(124,58,237,0.18), 0 14px 40px rgba(236,72,153,0.22);
-  --shadow-xl:    0 14px 32px rgba(124,58,237,0.22),0 28px 60px rgba(236,72,153,0.30);
-  --shadow-inner-hl: inset 0 1px 0 rgba(255,255,255,0.85);
-  --success:      #16A34A; --success-bg: #BBF7D0; --success-fg: #14532D;
-  --warning:      #F59E0B; --warning-bg: #FEF3C7; --warning-fg: #78350F;
-  --danger:       #E11D48; --danger-bg:  #FECDD3; --danger-fg:  #881337;
-  --info:         #6D28D9; --info-bg:    #EDE9FE; --info-fg:    #4C1D95;
-}
-
-body.theme-solar {
+body.theme-solar,
+.reading-swatch[data-reading-theme='solar'] {
   --bg:           #FFFBEB;
   --bg-subtle:    #FEF3C7;
   --card:         #FFFFFF;
@@ -233,7 +193,7 @@ body.theme-solar {
 /* ── MoE School Calendar — scoped tokens ───────────────────────
  * SchoolCalendar (teacher) and LearnerCalendar (learner) keep their
  * bespoke Zambian-MoE "official document" palette across light themes
- * (Sky/Lavender/Oatmeal/Solar/Vivid). Midnight gets a tuned dark
+ * (Sky/Oatmeal/Solar). Midnight gets a tuned dark
  * variant so the calendar stays legible without losing the
  * Navy/Gold identity entirely.
  *
@@ -593,7 +553,7 @@ body.theme-midnight .moe-calendar {
   /* The teacher studio shell.
    *
    * This block is what makes the workspace theme reach the studios. It
-   * overrides the SAME variable names the six learner themes use (--bg,
+   * overrides the SAME variable names the learner reading themes use (--bg,
    * --card, --text, --accent …), so every `theme-bg` / `theme-card` /
    * `theme-text` utility already written inside a studio re-colours through
    * it with no component change. Previously these were fixed literals, which
@@ -6168,15 +6128,6 @@ body.theme-midnight .learner-game-theme .theme-bg-subtle {
   }
 }
 
-body.theme-lavender .learner-page-heading {
-  color: #312e81;
-}
-
-body.theme-lavender .learner-chrome-label,
-body.theme-lavender .learner-chrome-icon {
-  color: #7c3aed;
-}
-
 body.theme-midnight .learner-page-heading {
   color: #f8fafc;
 }
@@ -6204,29 +6155,12 @@ body.theme-solar .learner-chrome-icon {
   color: #a16207;
 }
 
-body.theme-vivid .learner-page-heading {
-  color: #831843;
-}
-
-body.theme-vivid .learner-chrome-label,
-body.theme-vivid .learner-chrome-icon {
-  color: #db2777;
-}
-
 body.theme-sky .learner-game-theme {
   background-color: #f0f9ff;
   background-image:
     radial-gradient(circle at 10% 0%, rgba(14, 165, 233, 0.18), transparent 24rem),
     radial-gradient(circle at 88% 8%, rgba(59, 130, 246, 0.16), transparent 24rem),
     linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 52%, #dbeafe 100%);
-}
-
-body.theme-lavender .learner-game-theme {
-  background-color: #f5f3ff;
-  background-image:
-    radial-gradient(circle at 10% 0%, rgba(139, 92, 246, 0.18), transparent 24rem),
-    radial-gradient(circle at 88% 8%, rgba(168, 85, 247, 0.14), transparent 24rem),
-    linear-gradient(180deg, #f5f3ff 0%, #ede9fe 52%, #e9d5ff 100%);
 }
 
 body.theme-midnight .learner-game-theme {
@@ -6253,24 +6187,10 @@ body.theme-solar .learner-game-theme {
     linear-gradient(180deg, #fffbeb 0%, #fef3c7 52%, #fde68a 100%);
 }
 
-body.theme-vivid .learner-game-theme {
-  background-color: #fdf2f8;
-  background-image:
-    radial-gradient(circle at 10% 0%, rgba(236, 72, 153, 0.18), transparent 24rem),
-    radial-gradient(circle at 88% 8%, rgba(124, 58, 237, 0.14), transparent 24rem),
-    linear-gradient(180deg, #fdf2f8 0%, #fce7f3 52%, #fae8ff 100%);
-}
-
 body.theme-sky .learner-dashboard-header,
 body.theme-sky .learner-game-theme .learner-bottom-nav {
   background: rgba(240, 249, 255, 0.52);
   border-color: rgba(186, 230, 253, 0.82);
-}
-
-body.theme-lavender .learner-dashboard-header,
-body.theme-lavender .learner-game-theme .learner-bottom-nav {
-  background: rgba(245, 243, 255, 0.52);
-  border-color: rgba(221, 214, 254, 0.84);
 }
 
 body.theme-midnight .learner-dashboard-header,
@@ -6291,12 +6211,6 @@ body.theme-solar .learner-game-theme .learner-bottom-nav {
   border-color: rgba(253, 230, 138, 0.82);
 }
 
-body.theme-vivid .learner-dashboard-header,
-body.theme-vivid .learner-game-theme .learner-bottom-nav {
-  background: rgba(253, 242, 248, 0.54);
-  border-color: rgba(251, 207, 232, 0.8);
-}
-
 /* Header-only floating-glass tints. The rules above set the *same* background
  * on the header and the bottom nav; these later, equal-specificity overrides
  * drop only the header into the see-through 18–20% range (Midnight a little
@@ -6305,10 +6219,6 @@ body.theme-vivid .learner-game-theme .learner-bottom-nav {
 body.theme-sky .learner-dashboard-header {
   background: rgba(240, 249, 255, 0.2);
   border-bottom-color: rgba(186, 230, 253, 0.5);
-}
-body.theme-lavender .learner-dashboard-header {
-  background: rgba(245, 243, 255, 0.2);
-  border-bottom-color: rgba(221, 214, 254, 0.5);
 }
 body.theme-midnight .learner-dashboard-header {
   background: rgba(10, 16, 31, 0.34);
@@ -6322,19 +6232,147 @@ body.theme-solar .learner-dashboard-header {
   background: rgba(255, 251, 235, 0.2);
   border-bottom-color: rgba(253, 230, 138, 0.5);
 }
-body.theme-vivid .learner-dashboard-header {
-  background: rgba(253, 242, 248, 0.2);
-  border-bottom-color: rgba(251, 207, 232, 0.5);
-}
 
 body.theme-sky .learner-game-theme .learner-bottom-nav,
-body.theme-lavender .learner-game-theme .learner-bottom-nav,
 body.theme-oatmeal .learner-game-theme .learner-bottom-nav,
-body.theme-solar .learner-game-theme .learner-bottom-nav,
-body.theme-vivid .learner-game-theme .learner-bottom-nav {
+body.theme-solar .learner-game-theme .learner-bottom-nav {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.5),
     0 -14px 32px -30px rgba(15, 23, 42, 0.18);
+}
+
+/* ── Reading-theme picker (.rth-*) ────────────────────────────
+ * The popover mounted in the note reader and the quiz runner — the two
+ * surfaces the reading themes actually colour. Built on the app's own theme
+ * tokens so the popover itself follows whichever theme is active, EXCEPT the
+ * swatch previews, which each declare the palette they are offering (see the
+ * `.reading-swatch` alias at the top of this file).
+ *
+ * The trigger is styled to match the reading-settings button already sitting
+ * beside it in both surfaces (white pill, hard border, offset shadow) rather
+ * than to the theme, so the pair reads as one control group.
+ */
+.rth { position: relative; display: inline-flex; }
+
+.rth-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.25rem;
+  min-width: 2.25rem;
+  padding: 0 .55rem;
+  border-radius: 999px;
+  border: 2px solid #0F1B2D;
+  background: #FFFFFF;
+  color: #0F1B2D;
+  box-shadow: 0 2px 0 #0F1B2D;
+  cursor: pointer;
+  transition: transform .12s ease;
+}
+.rth-trigger:active { transform: translateY(2px); box-shadow: 0 0 0 #0F1B2D; }
+.rth-trigger:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.rth-popover {
+  position: absolute;
+  top: calc(100% + .5rem);
+  z-index: 60;
+  width: 17rem;
+  max-width: calc(100vw - 1.5rem);
+  padding: .85rem;
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+  animation: rth-pop .16s var(--ease-out) both;
+}
+.rth-popover--right { right: 0; }
+.rth-popover--left { left: 0; }
+
+@keyframes rth-pop {
+  from { opacity: 0; transform: translateY(-4px) scale(.98); }
+  to   { opacity: 1; transform: none; }
+}
+/* Motion is a preference, not decoration — the app-wide
+   body[data-a11y-motion="reduced"] rule already neutralises this, and this
+   media query covers the visitor who set it at the OS level instead. */
+@media (prefers-reduced-motion: reduce) {
+  .rth-popover { animation: none; }
+  .rth-trigger { transition: none; }
+}
+
+.rth-popover__title {
+  margin: 0 0 .55rem;
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.rth-popover__note {
+  margin: .7rem 0 0;
+  font-size: .7rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.rth-swatches {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .5rem;
+}
+.rth-swatch {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  padding: .35rem .35rem .4rem;
+  border-radius: .7rem;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color .15s ease, transform .15s ease;
+}
+.rth-swatch:hover { border-color: var(--accent); transform: translateY(-1px); }
+.rth-swatch:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+/* Same selected treatment as the workspace theme cards: accent border plus a
+   soft accent ring, so "chosen" looks the same wherever a theme is chosen. */
+.rth-swatch--on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/* The preview declares its OWN palette (data-reading-theme), so every token
+   below resolves to the theme being offered, not the one in use. */
+.rth-swatch__preview {
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+  justify-content: center;
+  min-height: 2.6rem;
+  padding: .4rem .5rem;
+  border-radius: .5rem;
+  background: var(--bg);
+  color: var(--text);
+}
+.rth-swatch__aa {
+  font-size: .95rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text);
+}
+.rth-swatch__rule {
+  height: 3px;
+  width: 60%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.rth-swatch__name {
+  padding-left: .15rem;
+  font-size: .68rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text);
 }
 
 /* ── Print rules ──────────────────────────────────────────────
@@ -6514,7 +6552,7 @@ body.theme-vivid .learner-game-theme .learner-bottom-nav {
 /* ── Blog typography (audit C5) ────────────────────────────────
  * Scoped to .blog-prose so the rest of the app's typography
  * isn't touched. Lean — uses theme tokens for colours so dark
- * mode + Vivid + Midnight all read cleanly. */
+ * mode + Midnight all read cleanly. */
 .blog-prose {
   line-height: 1.7;
   font-size: 16px;
