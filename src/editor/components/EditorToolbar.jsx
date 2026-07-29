@@ -27,9 +27,188 @@ import {
   TableIcon,
 } from '../../components/ui/icons'
 
+import { mathsToolOrder } from '../../components/teacher/mathsSubjects.js'
+
 // Default highlight for the compact (answer-option) variant's single-toggle
 // highlighter — matches the first swatch of the full variant's picker.
 const DEFAULT_HL = '#fef08a'
+
+/**
+ * One factory per mathematics tool, keyed by the ids `mathsToolOrder` returns.
+ *
+ * They live in a map rather than inline JSX because the ORDER is decided by the
+ * paper's grade band and the set is not: rendering
+ * `mathsToolOrder(grade).map(...)` makes "every tool, most-useful first" a
+ * property of the data, so a tool cannot be dropped from a band by being
+ * forgotten in a branch — the band test asserts each ordering is a permutation
+ * of the whole set.
+ *
+ * Every button keeps the touch-safe pattern the toolbar already used:
+ * preventDefault on mousedown so the editor does not blur, action on click, so
+ * a tap on a phone registers the same as a mouse click.
+ */
+const MATH_BUTTONS = {
+  formula: ({ onMath }) => (
+    <button
+      key="formula"
+      type="button" className="tbb tbm" title="Formula — build an equation"
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={(e) => { e.preventDefault(); onMath() }}
+      aria-label="Insert a formula"
+      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+    >
+      <span style={{ fontWeight: 900, fontSize: '14px', lineHeight: 1 }} aria-hidden="true">Σ</span>
+      <span className="tbb-text">Formula</span>
+    </button>
+  ),
+
+  fraction: ({ onFraction }) => (
+    <button
+      key="fraction"
+      type="button"
+      className="tbb tbmath tbb-math-primary"
+      title="Fraction — a numerator above a denominator"
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={(e) => { e.preventDefault(); onFraction && onFraction() }}
+      aria-label="Insert a fraction"
+    >
+      <span className="tb-frac-icon" aria-hidden="true">
+        <span className="tb-frac-n">a</span>
+        <span className="tb-frac-d">b</span>
+      </span>
+      <span className="tbb-text">Fraction</span>
+    </button>
+  ),
+
+  // Same modal as Fraction, opened on its whole-number field. The two are
+  // separate buttons because a teacher looking for "2 3/7" is looking for a
+  // mixed number, not for a fraction with an extra box they have to notice.
+  mixedNumber: ({ onFraction }) => (
+    <button
+      key="mixedNumber"
+      type="button"
+      className="tbb tbmath tbb-math-primary"
+      title="Mixed number — a whole number beside a fraction, e.g. 2 3/7"
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={(e) => { e.preventDefault(); onFraction && onFraction({ mixed: true }) }}
+      aria-label="Insert a mixed number"
+    >
+      <span className="tb-mixed-icon" aria-hidden="true">
+        <span className="tb-frac-w">2</span>
+        <span className="tb-frac-icon">
+          <span className="tb-frac-n">a</span>
+          <span className="tb-frac-d">b</span>
+        </span>
+      </span>
+      <span className="tbb-text">Mixed</span>
+    </button>
+  ),
+
+  verticalArithmetic: ({ onVerticalArithmetic }) => (
+    <button
+      key="verticalArithmetic"
+      type="button"
+      className="tbb tbmath tbb-math-primary"
+      title="Vertical calculation — digits set out in columns"
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={(e) => { e.preventDefault(); onVerticalArithmetic && onVerticalArithmetic() }}
+      aria-label="Insert a vertical calculation"
+    >
+      <span className="tb-va-icon" aria-hidden="true">⊟</span>
+      <span className="tbb-text">Vertical</span>
+    </button>
+  ),
+
+  power: ({ editor, toolbarState }) => (
+    <TBtn
+      key="power"
+      editor={editor}
+      cmd="toggleSuperscript"
+      active={toolbarState.superscript}
+      title="Power — raise to a power, e.g. x²"
+      ariaLabel="Power (superscript)"
+      extraClass="tbb-math-secondary"
+    >
+      <span style={{ fontWeight: 700, fontSize: '12px', lineHeight: 1 }} aria-hidden="true">x²</span>
+    </TBtn>
+  ),
+
+  subscript: ({ editor, toolbarState }) => (
+    <TBtn
+      key="subscript"
+      editor={editor}
+      cmd="toggleSubscript"
+      active={toolbarState.subscript}
+      title="Subscript — a small character below the line, e.g. H₂O"
+      ariaLabel="Subscript"
+      extraClass="tbb-math-secondary"
+    >
+      <span style={{ fontWeight: 700, fontSize: '12px', lineHeight: 1 }} aria-hidden="true">x₂</span>
+    </TBtn>
+  ),
+
+  root: ({ editor }) => (
+    <button
+      key="root"
+      type="button"
+      className="tbb tbb-math-secondary"
+      title="Square root"
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={(e) => {
+        e.preventDefault()
+        editor?.chain().focus().insertMathNode('\\sqrt{}').run()
+      }}
+      aria-label="Insert a square root"
+    >
+      <span style={{ fontWeight: 700, fontSize: '14px', lineHeight: 1 }} aria-hidden="true">√</span>
+    </button>
+  ),
+
+  numberBase: ({ onNumberBase }) => (
+    <button
+      key="numberBase"
+      type="button"
+      className="tbb tbb-math-secondary"
+      title="Number base — e.g. 313 in base five"
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={(e) => { e.preventDefault(); onNumberBase && onNumberBase() }}
+      aria-label="Insert a number in another base"
+    >
+      <span style={{ fontWeight: 700, fontSize: '12px', lineHeight: 1 }} aria-hidden="true">n<sub style={{ fontSize: '9px' }}>b</sub></span>
+    </button>
+  ),
+
+  // Brackets plus the overflow sheet. On a phone the sheet is how the
+  // secondary tools stay reachable without scrolling the toolbar sideways.
+  symbols: ({ editor, showMoreMath, setShowMoreMath }) => (
+    <span key="symbols" style={{ display: 'contents' }}>
+      <button
+        type="button"
+        className="tbb tbb-math-secondary"
+        title="Brackets ( )"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={(e) => {
+          e.preventDefault()
+          editor?.chain().focus().insertContent('()').run()
+        }}
+        aria-label="Insert brackets"
+      >
+        <span style={{ fontWeight: 700, fontSize: '13px', lineHeight: 1 }} aria-hidden="true">( )</span>
+      </button>
+      <button
+        type="button"
+        className="tbb tbb-math-more"
+        title="More maths tools"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={(e) => { e.preventDefault(); setShowMoreMath((v) => !v) }}
+        aria-expanded={showMoreMath}
+        aria-label="More maths tools"
+      >
+        <span style={{ fontWeight: 700, fontSize: '12px', lineHeight: 1 }} aria-hidden="true">+Math</span>
+      </button>
+    </span>
+  ),
+}
 
 const TX_COLORS = [
   '#1a1523', '#1e3a8a', '#dc2626', '#c5613f', '#ca8a04',
@@ -123,6 +302,10 @@ function tap(fn, disabled = false) {
 
 function TBtn({
   editor, cmd, args, title, active = false, disabled = false, children, extraClass = '', onAction,
+  // Every mathematics affordance needs a name a screen reader can read (§13).
+  // The visible glyph is aria-hidden, so without this the button announces as
+  // nothing at all.
+  ariaLabel,
 }) {
   // TOUCH FIX — separate preventDefault from the action.
   //
@@ -152,6 +335,7 @@ function TBtn({
       type="button"
       className={`tbb${active ? ' on' : ''}${extraClass ? ' ' + extraClass : ''}`}
       title={title}
+      aria-label={ariaLabel || title}
       onMouseDown={preventBlur}
       onClick={handleClick}
       aria-pressed={active}
@@ -174,6 +358,10 @@ export default function EditorToolbar({
   // and the full Grade-7 math toolset. No headings, no alignment, no table,
   // no colour pickers — those don't make sense inside a short answer choice.
   variant = 'full',
+  // The paper's grade, used ONLY to order the mathematics tools (§6). An
+  // absent grade falls through to the full secondary ordering, which hides
+  // nothing — see mathsGradeBand.
+  grade,
 }) {
   const [showTxColor, setShowTxColor] = useState(false)
   const [showHlColor, setShowHlColor] = useState(false)
@@ -225,6 +413,13 @@ export default function EditorToolbar({
   if (!editor?.isInitialized) return <div className="toolbar" />
 
   const run = (cmd, args) => runCommand(editor, cmd, args)
+
+  // Everything the mathematics button factories need, assembled once so each
+  // factory stays a pure function of it.
+  const mathButtonCtx = {
+    editor, toolbarState, showMoreMath, setShowMoreMath,
+    onMath, onFraction, onVerticalArithmetic, onNumberBase,
+  }
 
   return (
     <>
@@ -451,111 +646,16 @@ export default function EditorToolbar({
         </>)}
 
         {/* -- Math toolset --
-            Primary Grade-7 math buttons. Wrapped in `.tbb-math-primary`
-            so the desktop layout shows them inline; on phones the CSS
-            hides them behind the "More Math" sheet below.
+            Rendered in the order the paper's grade band actually reaches for
+            (mathsToolOrder), NOT in a fixed order: a lower-primary teacher
+            meets vertical calculation and fractions first, a secondary
+            teacher meets the formula editor first. Every tool is present at
+            every grade — ordering is a convenience, never a restriction — so
+            there is one toolbar here rather than a component per band.
 
-            Same touch-safe pattern: blur-prevention on mousedown,
-            action on click. */}
-        <button
-          type="button" className="tbb tbm" title="Insert Math (LaTeX)"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={(e) => { e.preventDefault(); onMath() }}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-        >
-          <span style={{ fontWeight: 900, fontSize: '14px', lineHeight: 1 }}>Σ</span>
-          Math
-        </button>
-
-        <button
-          type="button"
-          className="tbb tbmath tbb-math-primary"
-          title="Insert fraction (proper, improper, or mixed)"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={(e) => { e.preventDefault(); onFraction && onFraction() }}
-          aria-label="Insert fraction"
-        >
-          <span className="tb-frac-icon" aria-hidden="true">
-            <span className="tb-frac-n">a</span>
-            <span className="tb-frac-d">b</span>
-          </span>
-          <span className="tbb-text">Fraction</span>
-        </button>
-
-        <button
-          type="button"
-          className="tbb tbmath tbb-math-secondary"
-          title="Vertical addition / subtraction / multiplication / division"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={(e) => { e.preventDefault(); onVerticalArithmetic && onVerticalArithmetic() }}
-          aria-label="Insert vertical arithmetic"
-        >
-          <span className="tb-va-icon" aria-hidden="true">⊟</span>
-          <span className="tbb-text">Vertical</span>
-        </button>
-
-        <TBtn
-          editor={editor}
-          cmd="toggleSuperscript"
-          active={toolbarState.superscript}
-          title="Superscript / Power (x²)"
-          extraClass="tbb-math-secondary"
-        >
-          <span style={{ fontWeight: 700, fontSize: '12px', lineHeight: 1 }}>x²</span>
-        </TBtn>
-
-        <button
-          type="button"
-          className="tbb tbb-math-secondary"
-          title="Insert number base (e.g. 313₅)"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={(e) => { e.preventDefault(); onNumberBase && onNumberBase() }}
-          aria-label="Insert number base"
-        >
-          <span style={{ fontWeight: 700, fontSize: '12px', lineHeight: 1 }}>n<sub style={{ fontSize: '9px' }}>b</sub></span>
-        </button>
-
-        <button
-          type="button"
-          className="tbb tbb-math-secondary"
-          title="Insert square root"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={(e) => {
-            e.preventDefault()
-            editor?.chain().focus().insertMathNode('\\sqrt{}').run()
-          }}
-          aria-label="Insert square root"
-        >
-          <span style={{ fontWeight: 700, fontSize: '14px', lineHeight: 1 }}>√</span>
-        </button>
-
-        <button
-          type="button"
-          className="tbb tbb-math-secondary"
-          title="Insert brackets ( )"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={(e) => {
-            e.preventDefault()
-            editor?.chain().focus().insertContent('()').run()
-          }}
-          aria-label="Insert brackets"
-        >
-          <span style={{ fontWeight: 700, fontSize: '13px', lineHeight: 1 }}>( )</span>
-        </button>
-
-        {/* Mobile-only "More math" button — opens an overflow sheet with
-            buttons that the narrow layout hides. CSS toggles visibility. */}
-        <button
-          type="button"
-          className="tbb tbb-math-more"
-          title="More math tools"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={(e) => { e.preventDefault(); setShowMoreMath((v) => !v) }}
-          aria-expanded={showMoreMath}
-          aria-label="More math tools"
-        >
-          <span style={{ fontWeight: 700, fontSize: '12px', lineHeight: 1 }}>+Math</span>
-        </button>
+            Titles and aria-labels are the plain words a teacher reads
+            ("Vertical calculation", not "⊟"), per §6. */}
+        {mathsToolOrder(grade).map((tool) => MATH_BUTTONS[tool]?.(mathButtonCtx))}
 
         <div className="tbsep" />
 

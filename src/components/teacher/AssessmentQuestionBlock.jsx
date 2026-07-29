@@ -603,6 +603,7 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
         onChange={v => updateQuestion('text', v)}
         onEditDetail={() => onEditQuestion(question.localId)}
         maths={mathsPaper}
+        grade={paperMeta?.grade}
         fieldId={`q:${question.localId}:text`}
       />
 
@@ -825,6 +826,7 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
         <McqOptions
           question={question}
           maths={mathsPaper}
+          grade={paperMeta?.grade}
           maxOptions={typeof paperMeta?.mcqAnswerChoiceCount === 'number' ? paperMeta.mcqAnswerChoiceCount : undefined}
           onChangeOption={(optIndex, value) => {
             const next = [...(question.options || ['', '', '', ''])]

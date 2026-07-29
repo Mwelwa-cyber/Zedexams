@@ -15,7 +15,7 @@ import Icon from './studio/studioIcons'
 import { richTextToPlainText, richTextHasFormatting } from '../../utils/quizRichText.js'
 import MathsRichField from './MathsRichField.jsx'
 
-export function McqOptions({ question, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage, onPickFromBank, onPickDiagram, onChangeOptionAlt, maxOptions, maths = false }) {
+export function McqOptions({ question, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage, onPickFromBank, onPickDiagram, onChangeOptionAlt, maxOptions, maths = false, grade }) {
   const allOptions = Array.isArray(question.options) && question.options.length
     ? question.options
     : ['', '', '', '']
@@ -39,6 +39,7 @@ export function McqOptions({ question, onChangeOption, onSelectCorrect, onUpload
             option={option}
             media={media}
             maths={maths}
+            grade={grade}
             questionId={question.localId}
             isCorrect={correctIndex === optIndex}
             onChangeOption={onChangeOption}
@@ -65,7 +66,7 @@ export function McqOptions({ question, onChangeOption, onSelectCorrect, onUpload
   )
 }
 
-function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage, onPickFromBank, onPickDiagram, onChangeOptionAlt, maths = false, questionId }) {
+function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage, onPickFromBank, onPickDiagram, onChangeOptionAlt, maths = false, questionId, grade }) {
   const fileRef = useRef(null)
   // A diagram option also counts as media for the alt-text affordance (its alt
   // is auto-seeded by the converter/picker, so it won't be flagged as missing).
@@ -210,6 +211,7 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
             value={option}
             onChange={value => onChangeOption(optIndex, value)}
             toolbarVariant="compact"
+            grade={grade}
             minHeight={38}
             placeholder={media?.imageUrl ? `Optional caption for ${SECTION_LETTERS[optIndex]}` : `Option ${SECTION_LETTERS[optIndex]}`}
             ariaLabel={`Option ${SECTION_LETTERS[optIndex]} — edit with mathematics tools`}
@@ -1375,7 +1377,7 @@ export function toEditableText(value) {
 // quick textarea edit would silently flatten it. In that case we show a
 // read-only plain view plus an "edit in detail" affordance, so the rich
 // content is only ever changed in the full RichEditor (which preserves it).
-export function CardQuestionText({ value, onChange, onEditDetail, placeholder = 'Question text', maths = false, fieldId }) {
+export function CardQuestionText({ value, onChange, onEditDetail, placeholder = 'Question text', maths = false, fieldId, grade }) {
   // On a mathematics paper the card edits rich content in place (§2). The
   // teacher inserts a fraction where they are working; opening the detailed
   // editor to add one is exactly what this phase removes. Note this replaces
@@ -1389,6 +1391,7 @@ export function CardQuestionText({ value, onChange, onEditDetail, placeholder = 
         onChange={onChange}
         placeholder={placeholder}
         ariaLabel="Question text — edit with mathematics tools"
+        grade={grade}
         minHeight={72}
       />
     )

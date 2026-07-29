@@ -713,6 +713,18 @@
   padding: 1px 2px 0;
   font-size: 10px;
 }
+/* Mixed number: the whole number at full size BESIDE the stack, vertically
+   centred on the bar — the shape a learner writes in an exercise book, and the
+   same shape the button inserts. */
+.tb-mixed-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  line-height: 1;
+  font-family: 'Cambria Math', serif;
+}
+.tb-mixed-icon .tb-frac-w { font-size: 12px; }
+
 .tb-va-icon { font-size: 14px; font-weight: 800; line-height: 1; }
 .tbb-text { font-size: 11px; }
 
@@ -842,6 +854,27 @@
   transition: .12s;
 }
 .frac-preset:hover { border-color: var(--vi2); background: var(--vi3); }
+/* Each quick choice draws the stacked fraction it inserts, so the button and
+   the result show the same notation (§5). 44px keeps it a comfortable touch
+   target on a phone. */
+.frac-preset {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+}
+
+/* Why Insert is unavailable, stated rather than left to be inferred from a
+   greyed-out button. Announced too — the element carries role="alert". */
+.frac-error {
+  margin-top: 10px;
+  padding: 7px 9px;
+  border: 1px solid #FCA5A5;
+  border-radius: 6px;
+  background: #FEF2F2;
+  color: #991B1B;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
 
 .frac-num-den {
   display: grid;

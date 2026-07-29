@@ -137,6 +137,7 @@ function MathsFieldPreview({ value, placeholder, ariaLabel, onActivate }) {
  * @param {'full'|'compact'} toolbarVariant  'compact' for answer options
  * @param {number}   minHeight    Editor min height in px
  * @param {boolean}  autoFocus    Focus the editor as soon as it mounts
+ * @param {string}   grade        Paper grade — orders the maths tools only (§6)
  */
 export default function MathsRichField({
   fieldId,
@@ -147,6 +148,7 @@ export default function MathsRichField({
   toolbarVariant = 'full',
   minHeight = 72,
   autoFocus = true,
+  grade,
 }) {
   const { isActive, activate } = useMathsFieldState(fieldId)
 
@@ -188,6 +190,7 @@ export default function MathsRichField({
         placeholder={placeholder}
         minHeight={minHeight}
         toolbarVariant={toolbarVariant}
+        grade={grade}
       />
     </div>
   )
