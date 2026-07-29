@@ -7,6 +7,7 @@
  */
 
 const {learningEnvironmentLabel} = require("./learningEnvironments");
+const {subjectNameForGrade} = require("./subjectNaming");
 
 const PROMPT_VERSION = "quiz.v1";
 
@@ -47,7 +48,7 @@ function buildUserPrompt(inputs) {
     "Write a short Zambian CBC formative QUIZ for the following:",
     "",
     `- Grade: ${grade}`,
-    `- Subject: ${subject}`,
+    `- Subject: ${subjectNameForGrade(subject, grade)}`,
     `- Topic: ${topic}`,
     subtopic ? `- Sub-topic: ${subtopic}` : "",
     term ? `- Term: ${term}` : "",

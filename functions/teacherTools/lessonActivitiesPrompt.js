@@ -11,6 +11,7 @@
  */
 
 const {learningEnvironmentLabel} = require("./learningEnvironments");
+const {subjectNameForGrade} = require("./subjectNaming");
 
 const PROMPT_VERSION = "lessonActivities.v1";
 
@@ -85,7 +86,7 @@ function buildUserPrompt(inputs) {
     "",
     "LESSON CONTEXT",
     `- Grade: ${grade}`,
-    `- Subject: ${subject}`,
+    `- Subject: ${subjectNameForGrade(subject, grade)}`,
     `- Topic: ${topic}`,
     subtopic ? `- Sub-topic: ${subtopic}` : "",
     term ? `- Term: ${term}` : "",

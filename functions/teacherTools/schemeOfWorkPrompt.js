@@ -15,6 +15,8 @@
  * two must never be mixed. The output JSON schema/keys are identical for both.
  */
 
+const {subjectNameForGrade} = require("./subjectNaming");
+
 // NOTE: version bumped forward from the existing "scheme_of_work.v3" to mark
 // the curriculum-aware prompt (the brief's "v2" target predates this tool
 // already being at v3 — a downgrade would collide with the historical v2/v3).
@@ -184,7 +186,7 @@ function buildUserPrompt(inputs) {
       "for the following:",
     "",
     `- Grade / Class: ${grade}`,
-    `- Subject: ${subject}`,
+    `- Subject: ${subjectNameForGrade(subject, grade)}`,
     `- Term: ${term}`,
     `- Number of teaching weeks: ${numberOfWeeks}`,
     `- Medium of instruction: ${language}`,

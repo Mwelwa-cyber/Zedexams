@@ -30,6 +30,7 @@
 
 import { TEACHER_GRADES, TEACHER_SUBJECTS, ECE_SUBJECTS } from '../config/teacherTaxonomy.js'
 import { normalizeCurriculumType, curriculumTypeLabel, gradeLabel } from './teachingProfileCore.js'
+import { canonicalMathsScienceLabel } from '../config/mathsScienceArea.js'
 
 const CURRICULUM_NOT_CONFIRMED_LABEL = 'Curriculum not confirmed'
 
@@ -82,6 +83,11 @@ const SUBJECT_LOOKUP = (() => {
   alias('math', 'mathematics')
   alias('maths and science', 'numeracy')
   alias('mathematics & science', 'numeracy')
+  // Spellings of the combined maths/science area that documents still carry
+  // from before it was named properly on screen.
+  alias('numeracy (maths & science)', 'numeracy')
+  alias('pre-maths & science', 'numeracy')
+  alias('pre-maths and science', 'numeracy')
   alias('science', 'integrated_science')
   return map
 })()
@@ -112,20 +118,32 @@ export function cleanSubjectText(raw) {
   return v
 }
 
+// One slug, two names: the ECE and Lower-Primary entries of the taxonomy share
+// `numeracy`, so a slug lookup alone cannot say which name applies. Whichever
+// of the two the lookup happened to return is re-resolved against the grade.
+function nameForGrade(hit, grade) {
+  const canonical = canonicalMathsScienceLabel(hit.subjectLabel, grade)
+  return canonical ? { subjectLabel: canonical } : null
+}
+
 /**
  * Resolve a raw subject string to the canonical taxonomy subject. Falls back
  * to the cleaned display text (with a slugified id) when no taxonomy entry
  * matches, so unknown subjects are still shown — just not silently renamed.
  * Returns { subjectId, subjectLabel, matched }.
+ *
+ * `grade` is optional and only affects the combined maths/science area, which
+ * one slug serves under two names ("Pre-Mathematics and Science" at Nursery /
+ * Reception, "Mathematics and Science" from Grade 1).
  */
-export function resolveSubject(raw) {
+export function resolveSubject(raw, grade) {
   const rawStr = s(raw)
   // A raw slug ('integrated_science') matches directly.
   const direct = SUBJECT_LOOKUP.get(rawStr.toLowerCase())
-  if (direct) return { ...direct, matched: true }
+  if (direct) return { ...direct, ...nameForGrade(direct, grade), matched: true }
   const cleaned = cleanSubjectText(rawStr)
   const hit = SUBJECT_LOOKUP.get(cleaned.toLowerCase())
-  if (hit) return { ...hit, matched: true }
+  if (hit) return { ...hit, ...nameForGrade(hit, grade), matched: true }
   const fallbackId = cleaned.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
   return { subjectId: fallbackId || rawStr.toLowerCase(), subjectLabel: cleaned || rawStr, matched: false }
 }
@@ -141,7 +159,7 @@ export function resolveSubject(raw) {
 export function normalizeDetectedAssignment(candidate = {}) {
   const c = candidate && typeof candidate === 'object' ? candidate : {}
   const gradeId = canonicalGradeId(c.grade) || s(c.grade)
-  const subject = resolveSubject(c.subject)
+  const subject = resolveSubject(c.subject, gradeId)
   const className = s(c.className)
   const curriculumConfirmed = c.curriculumSource === 'structured'
   const curriculumId = curriculumConfirmed ? normalizeCurriculumType(c.curriculumType) : ''

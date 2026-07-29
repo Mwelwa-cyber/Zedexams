@@ -53,7 +53,7 @@ check('Nursery & Reception expose exactly the four ECE syllabus subjects', () =>
     // Official syllabus labels.
     assert.equal(labelOf(opts, 'english'), 'English Language')
     assert.equal(labelOf(opts, 'zambian_language'), 'Zambian Languages')
-    assert.equal(labelOf(opts, 'numeracy'), 'Pre-Maths & Science')
+    assert.equal(labelOf(opts, 'numeracy'), 'Pre-Mathematics and Science')
     assert.equal(labelOf(opts, 'expressive_arts'), 'Creative & Technology Studies')
   }
 })
@@ -114,9 +114,9 @@ check('Lower Primary numeracy is labelled "Mathematics and Science", not "Numera
     assert.ok(valuesOf(opts).includes('numeracy'), `${grade} offers the combined maths/science area`)
     assert.equal(labelOf(opts, 'numeracy'), 'Mathematics and Science', `${grade} numeracy label`)
   }
-  // The ECE bands keep their own, more age-appropriate "Pre-Maths & Science"
-  // label via ECE_SUBJECTS — the relabel above must not bleed into them.
-  assert.equal(labelOf(getSubjectsForGrade('ECE_N'), 'numeracy'), 'Pre-Maths & Science')
+  // The ECE bands keep their own, more age-appropriate "Pre-Mathematics and
+  // Science" label via ECE_SUBJECTS — the relabel above must not bleed in.
+  assert.equal(labelOf(getSubjectsForGrade('ECE_N'), 'numeracy'), 'Pre-Mathematics and Science')
 })
 
 console.log('teacher subject taxonomy — CBC vs OBC (previous) curriculum split')

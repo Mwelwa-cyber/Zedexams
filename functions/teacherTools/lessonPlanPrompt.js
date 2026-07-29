@@ -24,6 +24,7 @@
 
 const {learningEnvironmentLabel} = require("./learningEnvironments");
 const {schoolResourcePromptLines} = require("./schoolResources");
+const {subjectNameForGrade} = require("./subjectNaming");
 
 const PROMPT_VERSION = "lesson_plan.v3";
 
@@ -113,7 +114,7 @@ function buildUserPrompt(inputs) {
     openingLine,
     "",
     `- Grade / Class: ${grade}`,
-    `- Subject: ${subject}`,
+    `- Subject: ${subjectNameForGrade(subject, grade)}`,
     `- Topic: ${topic}`,
     subtopic ? `- Sub-topic: ${subtopic}` : "",
     term ? `- Term: ${term}` : "",

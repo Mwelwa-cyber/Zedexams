@@ -11,6 +11,8 @@
  * slide, vocabulary surfaced explicitly.
  */
 
+const {subjectNameForGrade} = require("./subjectNaming");
+
 const PROMPT_VERSION = "slide_notes.v1";
 
 const SYSTEM_PROMPT = `You are an expert Zambian teacher and instructional designer who turns a CBC topic into a short, beautiful, illustrated slide deck for LEARNERS to read on their own.
@@ -44,7 +46,7 @@ function buildUserPrompt(inputs) {
     "Create a LEARNER visual slide deck for the following Zambian CBC topic.",
     "",
     `- Grade: ${grade}`,
-    `- Subject: ${subject}`,
+    `- Subject: ${subjectNameForGrade(subject, grade)}`,
     `- Topic: ${topic}`,
     subtopic ? `- Sub-topic: ${subtopic}` : "",
     `- Medium of instruction: ${language}`,

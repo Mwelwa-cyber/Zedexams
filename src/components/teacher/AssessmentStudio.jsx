@@ -1733,9 +1733,12 @@ export default function AssessmentStudio() {
     // value it emits is applied straight through — no translation table.
     // The modal now emits a canonical subject KEY ('numeracy',
     // 'integrated_science'); the studio form carries a display label, so map
-    // it back to something human-readable for the header/exports.
+    // it back to something human-readable for the header/exports. The grade
+    // goes with it — the combined maths/science area prints as
+    // "Pre-Mathematics and Science" at Nursery/Reception and "Mathematics and
+    // Science" from Grade 1, and never as its `numeracy` slug.
     const aiSubjectLabel = aiPaperForm.subject
-      ? kbSubjectLabel(aiPaperForm.subject) : ''
+      ? kbSubjectLabel(aiPaperForm.subject, aiPaperForm.grade) : ''
     // Builder + modal now share one level value scheme (bare number for primary
     // grades, 'G8'…'G12' for the forms). Carry the modal's chosen value through
     // verbatim so a Form paper stays a Form and is never relabelled a Grade.

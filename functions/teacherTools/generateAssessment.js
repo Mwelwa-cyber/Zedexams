@@ -201,7 +201,7 @@ function validateInputs(inputs) {
     classifySubjectForGrade(inputs.grade, inputs.subject) === "not_in_grade"
   ) {
     errs.push(
-        `${subjectLabelFor(inputs.subject)} is not available for ` +
+        `${subjectLabelFor(inputs.subject, inputs.grade)} is not available for ` +
         `${gradeLabelFor(inputs.grade)} under the selected curriculum. ` +
         "Please choose a valid curriculum, level and subject combination.",
     );

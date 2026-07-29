@@ -9,6 +9,8 @@
  * Pure — no firebase, no I/O.
  */
 
+const {subjectNameForGrade} = require("./subjectNaming");
+
 /**
  * Human-readable grade label. Mirrors the client level ladder
  * (src/config/educationLevels.js): G1–G7 → "Grade N", G8–G12 → the forms
@@ -36,7 +38,15 @@ function gradeLabelFor(code) {
   return String(code || "");
 }
 
-function subjectLabelFor(key) {
+/**
+ * Human-readable subject label. `grade` is optional and only changes the
+ * combined maths/science area, whose name differs by level (subjectNaming.js);
+ * pass it wherever the grade is known so an ECE message never uses the primary
+ * name — and no message ever says "Numeracy".
+ */
+function subjectLabelFor(key, grade) {
+  const named = subjectNameForGrade(key, grade);
+  if (named !== key) return named;
   const known = {
     integrated_science: "Integrated Science",
     social_studies: "Social Studies",
@@ -64,7 +74,8 @@ function curriculumRefusalMessage({grade, subject, framework}) {
   const curriculumName = String(framework) === "2013" ?
     "the previous syllabus" : "CBC";
   return (
-    `${subjectLabelFor(subject)} for ${gradeLabelFor(grade)} has no approved ` +
+    `${subjectLabelFor(subject, grade)} for ${gradeLabelFor(grade)} ` +
+    `has no approved ` +
     `${curriculumName} syllabus content yet, so a paper cannot be generated ` +
     "for it. Ask an administrator to add the verified syllabus, or choose " +
     "another curriculum, grade or subject."

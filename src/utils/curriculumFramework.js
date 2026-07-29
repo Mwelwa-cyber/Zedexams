@@ -231,8 +231,14 @@ const ECE_SUBJECTS = [
     blockPreference: SINGLES(5),
   },
   {
-    id: 'pre-mathematics-science', canonicalName: 'Pre-Mathematics and Pre-Science', shortName: 'Pre-Maths & Sci',
-    aliases: ['pre maths', 'pre mathematics', 'pre science', 'pre-maths and pre-science'],
+    // The ECE syllabus names this area "Pre-Mathematics and Science". The older
+    // "…and Pre-Science" spelling stays an alias so a saved timetable or an
+    // imported allocation written against it still resolves to this subject.
+    id: 'pre-mathematics-science', canonicalName: 'Pre-Mathematics and Science', shortName: 'Pre-Maths & Sci',
+    aliases: [
+      'pre maths', 'pre mathematics', 'pre science', 'pre-maths and pre-science',
+      'pre-mathematics and pre-science', 'pre-maths & science', 'pre-maths and science',
+    ],
     weeklyPeriods: 10, weeklyMinutes: 300, timeAllocation: '5 h 00 min',
     compulsory: true, optionGroupId: null, subjectType: 'integrated',
     blockPreference: BLOCKS([2, 2, 2, 1, 1, 1, 1]),

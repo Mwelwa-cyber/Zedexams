@@ -129,6 +129,9 @@ const SUBJECT_ALIAS = {
   // ("2.1 EXPLORING MY" instead of "2.1 EXPLORING MY WORLD"). Mapping the
   // label back to `numeracy` lets the merged source serve the full names.
   'Mathematics and Science': 'numeracy',
+  // ECE names the same combined sheet "Pre-Mathematics and Science" (see the
+  // `ece` list in 02-syllabus-new.js) and stores it under the same slug.
+  'Pre-Mathematics and Science': 'numeracy',
   'Additional Mathematics': 'mathematics',
   'Advanced Mathematics': 'mathematics',
   'Further Mathematics': 'mathematics',

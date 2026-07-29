@@ -40,6 +40,9 @@ import {
   getSubjectsForGrade as taxonomySubjectsForGrade,
   isSubjectValidForGrade as taxonomySubjectValidForGrade,
 } from './teacherTaxonomy.js'
+import {
+  isMathsScienceName, MATHS_SCIENCE_SUBJECT_KEY,
+} from './mathsScienceArea.js'
 
 /**
  * Bump when the SHAPE or the subject/grade DATA behind the catalogue changes in
@@ -185,10 +188,10 @@ const SUBJECT_ALIASES = {
   'expressive art': 'expressive_arts',
   'expressive arts': 'expressive_arts',
   expressive_art: 'expressive_arts',
-  numeracy: 'numeracy',
-  'maths & science': 'numeracy',
-  'mathematics and science': 'numeracy',
-  'pre-maths & science': 'numeracy',
+  // The combined maths/science area's every spelling — the slug, both
+  // level-dependent labels and the syllabus sheet names — folds via
+  // isMathsScienceName() in normalizeSubjectId() rather than being listed here,
+  // so there is one list of them (src/config/mathsScienceArea.js) instead of two.
   'creative & technology studies': 'creative_and_technology_studies',
   'creative and technology studies': 'creative_and_technology_studies',
   creative_technology_studies: 'creative_and_technology_studies',
@@ -203,6 +206,9 @@ const SUBJECT_ALIASES = {
 export function normalizeSubjectId(value) {
   const s = String(value ?? '').trim()
   if (!s) return ''
+  // The combined maths/science area answers to the slug, two level-dependent
+  // labels and two syllabus sheet names; they all name the same subject.
+  if (isMathsScienceName(s)) return MATHS_SCIENCE_SUBJECT_KEY
   // Already a canonical-looking slug.
   if (/^[a-z][a-z_]*$/.test(s)) {
     const k = s.replace(/^_+|_+$/g, '')

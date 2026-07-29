@@ -1,3 +1,5 @@
+import { canonicalMathsScienceLabel } from '../../../../config/mathsScienceArea.js'
+
 /**
  * subjectName — turn a raw syllabi subject KEY into the clean subject name a
  * teacher expects to read on the finished lesson plan.
@@ -12,7 +14,14 @@
  * line reads "Integrated Science Syllabus (Grades 1-7)" instead of "Integrated
  * Science" (the bug visible in the studio preview).
  *
- * Pure, dependency-free, unit-testable under plain `node`.
+ * The ECE + Lower-Primary sheets abbreviate the combined maths/science area
+ * ("Grade 1 - Maths & Science", "3-4 Years - Pre-Maths & Science"). Those are
+ * ingestion spellings, not the names the syllabus gives the learning area, so
+ * they are expanded to "Mathematics and Science" / "Pre-Mathematics and
+ * Science" here — the stage is read from the sheet's own "Pre-" prefix. Only
+ * the printed words change; the key stays whatever the caller passed in.
+ *
+ * Pure, unit-testable under plain `node`.
  *
  * @param {string} key  raw syllabi subject key
  * @returns {string}    clean subject name (falls back to the key when no suffix)
@@ -26,9 +35,11 @@ export function cleanSubjectName(key) {
   const sep = s.indexOf('::')
   if (sep !== -1) {
     const sheet = s.slice(sep + 2)
-    return sheet
+    const strand = sheet
       .replace(/^\s*(grade\s*\d+|\d+\s*-\s*\d+\s*years?|form\s*\d+)\s*[-–:]\s*/i, '')
       .trim() || sheet
+    return canonicalMathsScienceLabel(strand) || strand
   }
-  return s.replace(/\s*Syllab(?:us|i)\s*\([^)]*\)\s*$/i, '').trim() || s
+  const name = s.replace(/\s*Syllab(?:us|i)\s*\([^)]*\)\s*$/i, '').trim() || s
+  return canonicalMathsScienceLabel(name) || name
 }

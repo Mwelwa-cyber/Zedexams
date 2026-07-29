@@ -11,6 +11,10 @@
  * `import { TEACHER_GRADES } from '../utils/teacherTools'` callers keep working.
  */
 
+import {
+  MATHS_SCIENCE_LABEL, PRE_MATHS_SCIENCE_LABEL,
+} from './mathsScienceArea.js'
+
 // Grades grouped by Zambia CBC phase. Values use the canonical G-prefix the
 // backend's ALLOWED_GRADES accepts (ECE, G1–G12). Labels show the
 // "Grade 8 / Form 1" dual naming so secondary teachers still recognise them.
@@ -265,8 +269,9 @@ export const TEACHER_SUBJECTS = [
   // sheet, stored under the `numeracy` slug. Teachers expect the real learning-
   // area name, "Mathematics and Science" — "Numeracy" isn't a 2023-curriculum
   // subject and confused authors picking it from the studio dropdowns. The ECE
-  // bands keep their own "Pre-Maths & Science" label via ECE_SUBJECTS below.
-  { value: 'numeracy',             label: 'Mathematics and Science' },
+  // bands name the same area "Pre-Mathematics and Science" via ECE_SUBJECTS
+  // below. Both names live in src/config/mathsScienceArea.js.
+  { value: 'numeracy',             label: MATHS_SCIENCE_LABEL },
   { value: 'integrated_science',   label: 'Integrated Science' },
   { value: 'environmental_science',label: 'Environmental Science' },
   { value: 'biology',              label: 'Biology' },
@@ -332,7 +337,7 @@ export const ECE_SUBJECTS = [
   { group: 'Early Childhood Education' },
   { value: 'english',          label: 'English Language' },
   { value: 'zambian_language', label: 'Zambian Languages' },
-  { value: 'numeracy',         label: 'Pre-Maths & Science' },
+  { value: 'numeracy',         label: PRE_MATHS_SCIENCE_LABEL },
   { value: 'expressive_arts',  label: 'Creative & Technology Studies' },
 ]
 
