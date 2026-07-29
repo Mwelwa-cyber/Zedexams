@@ -16,7 +16,8 @@ import {
 } from '../functions/shared/assessment/diagramCatalogCore.js'
 import {
   parseSvg, select, selectOne, num, points, texts,
-  angleBetween, bearingFromNorth, dist, approx,
+  angleBetween, bearingFromNorth, dist, approx, approxPoint,
+  plotFrame, assertFrameMatchesAxisLabels, graphPoints,
 } from './lib/svgGeometry.mjs'
 
 let passed = 0
@@ -38,7 +39,13 @@ const issues = (key, params) => {
 
 /* ── every new family, structurally ──────────────────────────────────────── */
 
-const FAMILIES = ['circletheorem', 'bearings', 'elevation', 'labelledtriangle']
+const FAMILIES = [
+  'circletheorem', 'bearings', 'elevation', 'labelledtriangle',
+  'functiongraph', 'transformation', 'vectordiagram',
+]
+
+/** The families that plot into the shared Cartesian frame. */
+const GRID_FAMILIES = ['functiongraph', 'transformation', 'vectordiagram']
 
 console.log('\nsecondary diagrams — catalog shape')
 
@@ -323,6 +330,224 @@ test('side labels are printed only where the teacher gave one', () => {
   const rendered = texts(draw('labelledtriangle', { sideAB: '', sideBC: '8 cm', sideCA: '' }))
   assert.ok(rendered.includes('8 cm'), 'the given side is labelled')
   assert.equal(rendered.filter((t) => t.includes('cm')).length, 1, 'no blank side labels')
+})
+
+/* ── the Cartesian frame ─────────────────────────────────────────────────── */
+
+console.log('\nthe Cartesian plane')
+
+test('every grid family publishes a frame that agrees with its own axis numbers', () => {
+  // This is what keeps every assertion below honest. The frame says what a
+  // pixel means; the axis labels are painted from the same frame; if the frame
+  // were wrong the labels would move with it, so a figure cannot pass this AND
+  // a geometry assertion while lying about either.
+  for (const key of GRID_FAMILIES) {
+    const parsed = draw(key, getDiagram(key).defaults)
+    assertFrameMatchesAxisLabels(parsed, plotFrame(parsed))
+  }
+})
+
+test('the grid is drawn in ink that survives a photocopier', () => {
+  // #d9cfbe, which the primary coordinate grid uses, prints at about 1.3:1 on
+  // white — invisible once a school has copied the master forty times. A
+  // learner reads values off these graphs, so the grid has to be there.
+  const svg = renderDiagramSvg('functiongraph', getDiagram('functiongraph').defaults, '#1c1612')
+  assert.ok(!svg.includes('#d9cfbe') && !svg.includes('#e4dccd'), 'the senior grid must not use the faint primary greys')
+})
+
+/* ── function graphs ─────────────────────────────────────────────────────── */
+
+console.log('\nfunction graphs')
+
+test('the curve is sampled from the function, not sketched to look right', () => {
+  // Every drawn point is checked against y = f(x) in GRAPH coordinates. A
+  // hand-drawn parabola of about the right shape fails this at the third
+  // sample.
+  const fns = [
+    ['y = x^2 - 2x - 3', (x) => x * x - 2 * x - 3],
+    ['y = 2x + 1', (x) => 2 * x + 1],
+    ['y = x^3 - 4x', (x) => x ** 3 - 4 * x],
+  ]
+  for (const [expr, fn] of fns) {
+    const parsed = draw('functiongraph', { fn: expr, xMin: '-4', xMax: '4', yMin: '-8', yMax: '8', show: '' })
+    const frame = plotFrame(parsed)
+    const curves = select(parsed, 'polyline', (e) => e.attrs['data-curve'])
+    assert.ok(curves.length >= 1, `${expr} drew no curve`)
+    let checked = 0
+    for (const c of curves) {
+      for (const [gx, gy] of graphPoints(frame, c)) {
+        approx(gy, fn(gx), 0.02, `${expr} at x=${gx.toFixed(3)}`)
+        checked += 1
+      }
+    }
+    assert.ok(checked > 50, `${expr} was checked at only ${checked} points`)
+  }
+})
+
+test('a quadratic\'s turning point and roots are marked at their true positions', () => {
+  // y = x² − 2x − 3 has roots at −1 and 3 and a minimum at (1, −4). Those are
+  // the values a learner reads off, so they are the values under test.
+  const parsed = draw('functiongraph', {
+    fn: 'y = x^2 - 2x - 3', xMin: '-3', xMax: '5', yMin: '-6', yMax: '8', show: 'roots,turning,yintercept',
+  })
+  const frame = plotFrame(parsed)
+  const at = (kind) => select(parsed, 'circle', (e) => e.attrs['data-mark'] === kind)
+    .map((e) => frame.toGraph([num(e, 'cx'), num(e, 'cy')]))
+  const roots = at('root').map(([x]) => x).sort((a, b) => a - b)
+  assert.equal(roots.length, 2)
+  approx(roots[0], -1, 0.02, 'first root')
+  approx(roots[1], 3, 0.02, 'second root')
+  const turning = at('turning')
+  assert.equal(turning.length, 1)
+  approxPoint(turning[0], [1, -4], 0.03, 'minimum')
+  approxPoint(at('yintercept')[0], [0, -3], 0.03, 'y-intercept')
+  // And the printed coordinates say the same thing as the dots.
+  const printed = texts(parsed)
+  assert.ok(printed.includes('(1, -4)'), 'the turning point is labelled with its coordinates')
+})
+
+test('a cubic\'s three roots and two turning points are all found', () => {
+  const parsed = draw('functiongraph', {
+    fn: 'y = x^3 - 4x', xMin: '-3', xMax: '3', yMin: '-6', yMax: '6', show: 'roots,turning',
+  })
+  const frame = plotFrame(parsed)
+  const roots = select(parsed, 'circle', (e) => e.attrs['data-mark'] === 'root')
+    .map((e) => frame.toGraph([num(e, 'cx'), num(e, 'cy')])[0]).sort((a, b) => a - b)
+  assert.equal(roots.length, 3)
+  approx(roots[0], -2, 0.02); approx(roots[1], 0, 0.02); approx(roots[2], 2, 0.02)
+  const turning = select(parsed, 'circle', (e) => e.attrs['data-mark'] === 'turning').length
+  assert.equal(turning, 2, 'a cubic has two turning points')
+})
+
+test('a reciprocal is drawn as two branches, never a stroke through its asymptote', () => {
+  const parsed = draw('functiongraph', {
+    fn: 'y = 6/x', xMin: '-6', xMax: '6', yMin: '-6', yMax: '6', show: '',
+  })
+  const frame = plotFrame(parsed)
+  const curves = select(parsed, 'polyline', (e) => e.attrs['data-curve'])
+  assert.equal(curves.length, 2, 'one branch each side of x = 0')
+  for (const c of curves) {
+    const xs = graphPoints(frame, c).map(([x]) => x)
+    assert.ok(xs.every((x) => x > 0) || xs.every((x) => x < 0), 'a branch never crosses the pole')
+  }
+})
+
+test('a function outside the family it can plot is refused, not approximated', () => {
+  assert.match(issues('functiongraph', { fn: 'y = sin x' })[0].message, /Brackets and other functions are not drawn/)
+  const svg = renderDiagramSvg('functiongraph', { ...getDiagram('functiongraph').defaults, fn: 'y = sin x' }, '#1c1612')
+  assert.ok(svg.includes('Function not recognised'), 'it says so on the figure rather than drawing something else')
+})
+
+test('a curve entirely off the page is caught before it is printed', () => {
+  assert.match(
+    issues('functiongraph', { fn: 'y = x^2 + 40', xMin: '-3', xMax: '3', yMin: '-6', yMax: '8' })[0].message,
+    /Widen the y range/,
+  )
+})
+
+/* ── transformations ─────────────────────────────────────────────────────── */
+
+console.log('\ntransformations')
+
+const OBJECT = '(1,1),(4,1),(1,3)'
+const imageOf = (params) => {
+  const parsed = draw('transformation', { object: OBJECT, xMin: '-8', xMax: '8', yMin: '-8', yMax: '8', ...params })
+  const frame = plotFrame(parsed)
+  return graphPoints(frame, selectOne(parsed, 'polygon', (e) => e.attrs['data-shape'] === 'image'))
+}
+
+test('the image is computed from the object, never hand-placed', () => {
+  // Every case is worked by hand from (1,1),(4,1),(1,3) and asserted in graph
+  // coordinates — the answer a learner would write down.
+  const cases = [
+    ['translation', '3,-2', [[4, -1], [7, -1], [4, 1]]],
+    ['reflection', 'y-axis', [[-1, 1], [-4, 1], [-1, 3]]],
+    ['reflection', 'x-axis', [[1, -1], [4, -1], [1, -3]]],
+    ['reflection', 'y=x', [[1, 1], [1, 4], [3, 1]]],
+    ['reflection', 'y=-x', [[-1, -1], [-1, -4], [-3, -1]]],
+    ['reflection', 'x=2', [[3, 1], [0, 1], [3, 3]]],
+    ['rotation', '90,0,0', [[-1, 1], [-1, 4], [-3, 1]]],
+    ['rotation', '180,0,0', [[-1, -1], [-4, -1], [-1, -3]]],
+    ['rotation', '-90,0,0', [[1, -1], [1, -4], [3, -1]]],
+    ['enlargement', '2,0,0', [[2, 2], [8, 2], [2, 6]]],
+    ['enlargement', '-1,0,0', [[-1, -1], [-4, -1], [-1, -3]]],
+    ['shear', 'x,2', [[3, 1], [6, 1], [7, 3]]],
+    ['stretch', 'y,3', [[1, 3], [4, 3], [1, 9]]],
+  ]
+  for (const [type, by, expected] of cases) {
+    const got = imageOf({ type, by, yMax: '10' })
+    assert.equal(got.length, expected.length, `${type} ${by}: wrong number of vertices`)
+    got.forEach((pt, i) => approxPoint(pt, expected[i], 0.03, `${type} ${by} vertex ${i}`))
+  }
+})
+
+test('a rotation about a centre that is not the origin still lands exactly', () => {
+  // 90° anticlockwise about (1, 2): (x,y) → (1 - (y-2), 2 + (x-1)).
+  const got = imageOf({ type: 'rotation', by: '90,1,2' })
+  got.forEach((pt, i) => {
+    const [x, y] = [[1, 1], [4, 1], [1, 3]][i]
+    approxPoint(pt, [1 - (y - 2), 2 + (x - 1)], 0.03, `rotation about (1,2) vertex ${i}`)
+  })
+})
+
+test('the mirror line and the centre of rotation are drawn', () => {
+  const mirrored = draw('transformation', { object: OBJECT, type: 'reflection', by: 'y=x' })
+  assert.equal(select(mirrored, 'line', (e) => e.attrs['data-mirror']).length, 1)
+  assert.ok(texts(mirrored).includes('y = x'), 'the mirror line names itself')
+  const rotated = draw('transformation', { object: OBJECT, type: 'rotation', by: '90,1,2' })
+  const centre = selectOne(rotated, 'circle', (e) => e.attrs['data-centre'])
+  const frame = plotFrame(rotated)
+  approxPoint(frame.toGraph([num(centre, 'cx'), num(centre, 'cy')]), [1, 2], 0.03, 'centre of rotation')
+})
+
+test('an image that would fall off the paper is caught, not clipped', () => {
+  assert.match(
+    issues('transformation', { object: OBJECT, type: 'enlargement', by: '4,0,0', xMin: '-6', xMax: '6', yMin: '-6', yMax: '6' })[0].message,
+    /outside the grid you set/,
+  )
+})
+
+test('an unusable transformation is explained in the teacher\'s own terms', () => {
+  assert.match(issues('transformation', { type: 'wobble', by: '1' })[0].message, /translation, reflection, rotation/)
+  assert.match(issues('transformation', { type: 'reflection', by: 'the middle' })[0].message, /needs its mirror line/)
+  assert.match(issues('transformation', { type: 'enlargement', by: '0,0,0' })[0].message, /not zero/)
+  assert.match(issues('transformation', { object: 'somewhere' })[0].message, /as coordinates/)
+})
+
+/* ── vectors ─────────────────────────────────────────────────────────────── */
+
+console.log('\nvectors')
+
+test('each vector runs between the points it was given, and carries an arrowhead', () => {
+  const parsed = draw('vectordiagram', {
+    vectors: 'a:(0,0)>(4,2),b:(4,2)>(6,-2)', xMin: '-2', xMax: '8', yMin: '-4', yMax: '5',
+  })
+  const frame = plotFrame(parsed)
+  const a = selectOne(parsed, 'line', (e) => e.attrs['data-vector'] === 'a')
+  approxPoint(frame.toGraph([num(a, 'x1'), num(a, 'y1')]), [0, 0], 0.03, 'a starts at the origin')
+  approxPoint(frame.toGraph([num(a, 'x2'), num(a, 'y2')]), [4, 2], 0.03, 'a ends at (4,2)')
+  assert.equal(select(parsed, 'polygon').length, 2, 'one arrowhead per vector')
+  assert.ok(texts(parsed).includes('a') && texts(parsed).includes('b'), 'both vectors are named')
+})
+
+test('turning the grid off moves nothing', () => {
+  // The axes are simply not printed — the frame is the same, so an off-grid
+  // vector diagram and an on-grid one place every arrow identically.
+  const params = { vectors: 'a:(1,1)>(5,3)', xMin: '-2', xMax: '8', yMin: '-4', yMax: '5' }
+  const on = draw('vectordiagram', { ...params, grid: 'yes' })
+  const off = draw('vectordiagram', { ...params, grid: 'no' })
+  const arrow = (parsed) => {
+    const el = selectOne(parsed, 'line', (e) => e.attrs['data-vector'] === 'a')
+    return [num(el, 'x1'), num(el, 'y1'), num(el, 'x2'), num(el, 'y2')]
+  }
+  assert.deepEqual(arrow(on), arrow(off))
+  assert.equal(select(off, 'line', (e) => e.attrs['data-axis-line']).length, 0, 'no axes when the grid is off')
+})
+
+test('a vector with no direction, or one off the grid, is refused', () => {
+  assert.match(issues('vectordiagram', { vectors: 'a:(2,2)>(2,2)' })[0].message, /no direction to draw/)
+  assert.match(issues('vectordiagram', { vectors: 'a:(0,0)>(40,2)' })[0].message, /outside the grid you set/)
+  assert.match(issues('vectordiagram', { vectors: 'a goes up a bit' })[0].message, /is not a vector/)
 })
 
 /* ── the catalog is still one catalog ────────────────────────────────────── */

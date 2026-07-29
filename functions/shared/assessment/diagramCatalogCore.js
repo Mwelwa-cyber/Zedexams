@@ -467,6 +467,306 @@ function triangleModel(p) {
   return { A: put(raw.A), B: put(raw.B), C: put(raw.C), issues }
 }
 
+/* ── the Cartesian plane ─────────────────────────────────────────────────── */
+
+/** A grid step that leaves a readable number of labels, not forty. */
+function gridStep(span) {
+  for (const s of [1, 2, 5, 10, 20, 25, 50, 100, 200, 500, 1000]) {
+    if (span / s <= 14) return s
+  }
+  return Math.pow(10, Math.ceil(Math.log10(span / 14)))
+}
+
+/**
+ * Draw a labelled Cartesian grid and return the frame everything else plots in.
+ *
+ * The frame is published on the root element as `data-plot-*`, which is how a
+ * test converts a drawn pixel back into graph units. That is not the renderer
+ * marking its own homework: the axis NUMBERS are painted from the same frame,
+ * and the harness checks the two agree — so a figure cannot satisfy both a
+ * frame check and a geometry assertion while lying about either.
+ *
+ * Grid weight is a printing decision. The primary coordinate grid uses
+ * `#d9cfbe`, which disappears on a photocopy; on a graph a learner READS values
+ * off, the grid has to survive the copier without swamping the curve.
+ */
+function cartesian(opts) {
+  const {
+    xMin, xMax, yMin, yMax, W, H,
+    padL = 36, padR = 22, padT = 20, padB = 34, xName = 'x', yName = 'y',
+  } = opts
+  const ux = (W - padL - padR) / (xMax - xMin)
+  const uy = (H - padT - padB) / (yMax - yMin)
+  const ox = padL - xMin * ux
+  const oy = padT + yMax * uy
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
+  const axisX = clamp(ox, padL, W - padR)
+  const axisY = clamp(oy, padT, H - padB)
+  const toSvg = ([gx, gy]) => [ox + gx * ux, oy - gy * uy]
+  const step = gridStep(Math.max(xMax - xMin, yMax - yMin))
+  const inBox = ([gx, gy]) => gx >= xMin - 1e-9 && gx <= xMax + 1e-9 && gy >= yMin - 1e-9 && gy <= yMax + 1e-9
+
+  let grid = '', axes = '', labels = ''
+  for (let x = Math.ceil(xMin / step) * step; x <= xMax + 1e-9; x += step) {
+    const sx = toSvg([x, 0])[0]
+    const zero = Math.abs(x) < 1e-9
+    if (!zero) {
+      grid += `<line x1="${f(sx)}" y1="${f(padT)}" x2="${f(sx)}" y2="${f(H - padB)}" stroke="${GRID_MINOR}" stroke-width="0.7"/>`
+      labels += `<text x="${f(sx)}" y="${f(axisY + 15)}" font-family="Lora,serif" font-size="10.5" text-anchor="middle" fill="${SOFT_INK}" data-axis="x">${+x.toFixed(4)}</text>`
+    }
+  }
+  for (let y = Math.ceil(yMin / step) * step; y <= yMax + 1e-9; y += step) {
+    const sy = toSvg([0, y])[1]
+    const zero = Math.abs(y) < 1e-9
+    if (!zero) {
+      grid += `<line x1="${f(padL)}" y1="${f(sy)}" x2="${f(W - padR)}" y2="${f(sy)}" stroke="${GRID_MINOR}" stroke-width="0.7"/>`
+      labels += `<text x="${f(axisX - 6)}" y="${f(sy + 4)}" font-family="Lora,serif" font-size="10.5" text-anchor="end" fill="${SOFT_INK}" data-axis="y" data-baseline="4">${+y.toFixed(4)}</text>`
+    }
+  }
+  axes += `<line x1="${f(padL)}" y1="${f(axisY)}" x2="${f(W - padR)}" y2="${f(axisY)}" stroke="${INK}" stroke-width="1.6" data-axis-line="x"/>`
+    + `<line x1="${f(axisX)}" y1="${f(padT)}" x2="${f(axisX)}" y2="${f(H - padB)}" stroke="${INK}" stroke-width="1.6" data-axis-line="y"/>`
+    + label(W - padR + 12, axisY + 4, xName, { size: 13, italic: true, weight: '600' })
+    + label(axisX, padT - 7, yName, { size: 13, italic: true, weight: '600' })
+  const attrs = ` data-plot-ox="${f(ox)}" data-plot-oy="${f(oy)}" data-plot-ux="${f(ux)}" data-plot-uy="${f(uy)}"`
+  return { svg: grid + axes + labels, toSvg, inBox, attrs, ux, uy, ox, oy, step }
+}
+
+/** Read the four range fields, keeping them in an order that can be plotted. */
+function readRange(p, fallback = [-6, 6, -6, 6]) {
+  let xMin = nOr(p.xMin, fallback[0]), xMax = nOr(p.xMax, fallback[1])
+  let yMin = nOr(p.yMin, fallback[2]), yMax = nOr(p.yMax, fallback[3])
+  if (xMax <= xMin) xMax = xMin + 1
+  if (yMax <= yMin) yMax = yMin + 1
+  return { xMin, xMax, yMin, yMax }
+}
+
+const RANGE_FIELDS = [
+  ['xMin', 'x from'], ['xMax', 'x to'], ['yMin', 'y from'], ['yMax', 'y to'],
+]
+
+/**
+ * The small family of functions a syllabus actually graphs: polynomials up to
+ * a cubic, and the reciprocal. Written as a parser rather than a set of
+ * patterns because "2x^2-3x+1" and "x^2 - 3x" and "-x^3+2x" are the same shape
+ * of thing, and a pattern list would keep meeting the one spelling it missed.
+ *
+ * Returns `null` for anything outside that family — a figure that cannot plot
+ * the function must say so, not plot a different one.
+ */
+function parseFunction(raw) {
+  const s = String(raw ?? '').replace(/\s+/g, '').replace(/^y=/i, '').replace(/^f\(x\)=/i, '')
+  if (!s) return null
+  const terms = []
+  for (const chunk of s.replace(/-/g, '+-').split('+').filter(Boolean)) {
+    const co = (t) => (t === '' || t === '+' ? 1 : t === '-' ? -1 : Number(t))
+    let m
+    if ((m = /^(-?\d*\.?\d*)\/x$/.exec(chunk))) {
+      const c = co(m[1])
+      if (!Number.isFinite(c)) return null
+      terms.push({ coeff: c, power: -1 })
+    } else if ((m = /^(-?\d*\.?\d*)x(?:\^(\d+))?$/.exec(chunk))) {
+      const c = co(m[1])
+      if (!Number.isFinite(c)) return null
+      terms.push({ coeff: c, power: m[2] ? parseInt(m[2], 10) : 1 })
+    } else if ((m = /^(-?\d*\.?\d+)$/.exec(chunk))) {
+      terms.push({ coeff: Number(m[1]), power: 0 })
+    } else {
+      return null
+    }
+  }
+  return terms.length ? terms : null
+}
+
+const evalTerms = (terms, x) => terms.reduce((t, { coeff, power }) => t + coeff * Math.pow(x, power), 0)
+const hasPole = (terms) => terms.some((t) => t.power < 0)
+
+/**
+ * Where a continuous function crosses a level, found by bisection.
+ *
+ * Solving the quadratic in closed form and the cubic numerically would give two
+ * code paths and one of them would be the tested one. Bisection converges to
+ * well past drawing precision for every case, including the cubic's three roots
+ * and the reciprocal's none.
+ */
+function crossings(terms, xMin, xMax, level = 0, { skipPole = false } = {}) {
+  const N = 2000
+  const out = []
+  const g = (x) => evalTerms(terms, x) - level
+  let px = xMin, pv = g(px)
+  for (let i = 1; i <= N; i += 1) {
+    const x = xMin + ((xMax - xMin) * i) / N
+    const v = g(x)
+    if (Number.isFinite(pv) && Number.isFinite(v) && pv !== 0 && pv * v < 0) {
+      // A reciprocal flips sign across its pole without crossing anything.
+      if (!(skipPole && px < 0 && x > 0)) {
+        let lo = px, hi = x
+        for (let k = 0; k < 80; k += 1) {
+          const mid = (lo + hi) / 2
+          if (g(lo) * g(mid) <= 0) hi = mid; else lo = mid
+        }
+        out.push((lo + hi) / 2)
+      }
+    } else if (v === 0) {
+      out.push(x)
+    }
+    px = x; pv = v
+  }
+  return out
+}
+
+/** Turning points: where the derivative crosses zero. */
+function turningPoints(terms, xMin, xMax) {
+  const d = terms
+    .filter((t) => t.power !== 0)
+    .map((t) => ({ coeff: t.coeff * t.power, power: t.power - 1 }))
+  if (!d.length) return []
+  return crossings(d, xMin, xMax, 0, { skipPole: hasPole(terms) })
+    .map((x) => [x, evalTerms(terms, x)])
+}
+
+/** A tidy printed coordinate: (2, -3), not (2.0000000001, -3). */
+const coordText = (x, y) => `(${+Number(x).toFixed(2)}, ${+Number(y).toFixed(2)})`
+
+/** `(1,1),(4,1),(1,3)` → `[[1,1],[4,1],[1,3]]`. */
+function parseVertices(raw) {
+  const out = []
+  const re = /\(\s*(-?\d*\.?\d+)\s*,\s*(-?\d*\.?\d+)\s*\)/g
+  let m
+  while ((m = re.exec(String(raw ?? '')))) out.push([parseFloat(m[1]), parseFloat(m[2])])
+  return out
+}
+
+/**
+ * The transformation, applied.
+ *
+ * The image is COMPUTED from the object and the transformation — never placed
+ * by hand and never sketched "about right". A rotation of 90° about (1, 2) has
+ * exactly one image, and the mark scheme is the drawing.
+ */
+function transformationModel(p) {
+  const issues = []
+  const object = parseVertices(p.object)
+  if (object.length < 2) {
+    issues.push({ field: 'object', message: 'List the object\'s corners as coordinates, for example (1,1),(4,1),(1,3).' })
+  }
+  const type = String(p.type ?? '').trim().toLowerCase()
+  const by = String(p.by ?? '').trim()
+  const nums = by.split(',').map((s) => parseFloat(s.trim()))
+  const { xMin, xMax, yMin, yMax } = readRange(p)
+  let map = null
+  let guide = null
+
+  if (type.startsWith('transl')) {
+    if (nums.length < 2 || nums.some((n) => !Number.isFinite(n))) {
+      issues.push({ field: 'by', message: 'A translation needs how far across and how far up, for example 3,-2.' })
+    } else {
+      map = ([x, y]) => [x + nums[0], y + nums[1]]
+    }
+  } else if (type.startsWith('refl')) {
+    const spec = by.replace(/\s+/g, '').toLowerCase()
+    let m
+    if (spec === 'x-axis' || spec === 'y=0') { map = ([x, y]) => [x, -y]; guide = { line: [[xMin, 0], [xMax, 0]], lineLabel: 'y = 0' } }
+    else if (spec === 'y-axis' || spec === 'x=0') { map = ([x, y]) => [-x, y]; guide = { line: [[0, yMin], [0, yMax]], lineLabel: 'x = 0' } }
+    else if (spec === 'y=x') { map = ([x, y]) => [y, x]; guide = { line: [[Math.max(xMin, yMin), Math.max(xMin, yMin)], [Math.min(xMax, yMax), Math.min(xMax, yMax)]], lineLabel: 'y = x' } }
+    else if (spec === 'y=-x') { map = ([x, y]) => [-y, -x]; guide = { line: [[Math.max(xMin, -yMax), -Math.max(xMin, -yMax)], [Math.min(xMax, -yMin), -Math.min(xMax, -yMin)]], lineLabel: 'y = −x' } }
+    else if ((m = /^x=(-?\d*\.?\d+)$/.exec(spec))) { const k = parseFloat(m[1]); map = ([x, y]) => [2 * k - x, y]; guide = { line: [[k, yMin], [k, yMax]], lineLabel: `x = ${k}` } }
+    else if ((m = /^y=(-?\d*\.?\d+)$/.exec(spec))) { const k = parseFloat(m[1]); map = ([x, y]) => [x, 2 * k - y]; guide = { line: [[xMin, k], [xMax, k]], lineLabel: `y = ${k}` } }
+    else {
+      issues.push({ field: 'by', message: 'A reflection needs its mirror line: x-axis, y-axis, y=x, y=-x, or a line such as x=2 or y=-1.' })
+    }
+  } else if (type.startsWith('rot')) {
+    const [deg, cx = 0, cy = 0] = nums
+    if (!Number.isFinite(deg)) {
+      issues.push({ field: 'by', message: 'A rotation needs its angle and centre, for example 90,0,0 — a positive angle turns anticlockwise.' })
+    } else {
+      const r = (deg * Math.PI) / 180
+      const cos = Math.cos(r), sin = Math.sin(r)
+      const ox = Number.isFinite(cx) ? cx : 0, oy = Number.isFinite(cy) ? cy : 0
+      map = ([x, y]) => [
+        ox + (x - ox) * cos - (y - oy) * sin,
+        oy + (x - ox) * sin + (y - oy) * cos,
+      ]
+      guide = { centre: [ox, oy], centreLabel: coordText(ox, oy) }
+    }
+  } else if (type.startsWith('enl')) {
+    const [k, cx = 0, cy = 0] = nums
+    if (!Number.isFinite(k) || k === 0) {
+      issues.push({ field: 'by', message: 'An enlargement needs a scale factor that is not zero, and its centre — for example 2,0,0.' })
+    } else {
+      const ox = Number.isFinite(cx) ? cx : 0, oy = Number.isFinite(cy) ? cy : 0
+      map = ([x, y]) => [ox + k * (x - ox), oy + k * (y - oy)]
+      guide = { centre: [ox, oy], centreLabel: coordText(ox, oy) }
+    }
+  } else if (type.startsWith('shear') || type.startsWith('stretch')) {
+    const [axisRaw, kRaw] = by.split(',').map((s) => s.trim())
+    const axis = String(axisRaw ?? '').toLowerCase()
+    const k = parseFloat(kRaw)
+    if ((axis !== 'x' && axis !== 'y') || !Number.isFinite(k)) {
+      issues.push({ field: 'by', message: `A ${type} needs the invariant axis and the factor, for example x,2.` })
+    } else if (type.startsWith('shear')) {
+      map = axis === 'x' ? ([x, y]) => [x + k * y, y] : ([x, y]) => [x, y + k * x]
+      guide = { line: axis === 'x' ? [[xMin, 0], [xMax, 0]] : [[0, yMin], [0, yMax]], lineLabel: axis === 'x' ? 'invariant' : 'invariant' }
+    } else {
+      map = axis === 'x' ? ([x, y]) => [k * x, y] : ([x, y]) => [x, k * y]
+      guide = { line: axis === 'x' ? [[0, yMin], [0, yMax]] : [[xMin, 0], [xMax, 0]], lineLabel: 'invariant' }
+    }
+  } else {
+    issues.push({ field: 'type', message: 'Choose one of: translation, reflection, rotation, enlargement, shear, stretch.' })
+  }
+
+  const image = map ? object.map(map) : []
+  if (image.length) {
+    const off = image.filter(([x, y]) => x < xMin - 1e-9 || x > xMax + 1e-9 || y < yMin - 1e-9 || y > yMax + 1e-9)
+    if (off.length) {
+      // Silently clipping the image is the failure worth catching: the object
+      // is on the page, the transformation looks applied, and the answer the
+      // question asks for is off the edge of the paper.
+      issues.push({
+        field: 'xMax',
+        message: `The image reaches ${coordText(off[0][0], off[0][1])}, which is outside the grid you set. Widen the range so the whole image is on the paper.`,
+      })
+    }
+  }
+  return { object, image, guide, issues }
+}
+
+/** `a:(0,0)>(4,2)` → one directed segment. */
+function vectorModel(p) {
+  const issues = []
+  const vectors = []
+  // Vectors are comma-separated but so are the coordinates inside them, so the
+  // split has to be on a comma that BEGINS a new vector — an optional name,
+  // then an opening bracket. A plain `.split(',')` cuts "(0,0)" in half.
+  const items = String(p.vectors ?? '').split(/,(?=\s*(?:[^,()]*:)?\s*\()/).map((s) => s.trim()).filter(Boolean)
+  for (const item of items) {
+    const m = /^([^:]*):?\s*\(\s*(-?\d*\.?\d+)\s*,\s*(-?\d*\.?\d+)\s*\)\s*>\s*\(\s*(-?\d*\.?\d+)\s*,\s*(-?\d*\.?\d+)\s*\)$/.exec(item)
+    if (!m) {
+      issues.push({ field: 'vectors', message: `"${item}" is not a vector. Write each one as name:(from)>(to), for example a:(0,0)>(4,2).` })
+      continue
+    }
+    const from = [parseFloat(m[2]), parseFloat(m[3])]
+    const to = [parseFloat(m[4]), parseFloat(m[5])]
+    if (from[0] === to[0] && from[1] === to[1]) {
+      issues.push({ field: 'vectors', message: `Vector "${m[1].trim() || '?'}" starts and ends at the same point, so it has no direction to draw.` })
+      continue
+    }
+    vectors.push({ name: m[1].trim(), from, to })
+  }
+  if (!vectors.length && !issues.length) {
+    issues.push({ field: 'vectors', message: 'Add at least one vector, for example a:(0,0)>(4,2).' })
+  }
+  const { xMin, xMax, yMin, yMax } = readRange(p)
+  for (const v of vectors) {
+    for (const pt of [v.from, v.to]) {
+      if (pt[0] < xMin - 1e-9 || pt[0] > xMax + 1e-9 || pt[1] < yMin - 1e-9 || pt[1] > yMax + 1e-9) {
+        issues.push({ field: 'vectors', message: `Vector "${v.name || '?'}" reaches ${coordText(pt[0], pt[1])}, which is outside the grid you set.` })
+        break
+      }
+    }
+  }
+  return { vectors, issues }
+}
+
 export const DIAGRAM_CATALOG = {
   // ============ SHAPES 2D ============
   triangle: { cat: 'Shapes 2D', name: 'Triangle', defaults: { a: 'A', b: 'B', c: 'C', cap: 'Triangle ABC' }, fields: [['a', 'Vertex A'], ['b', 'Vertex B'], ['c', 'Vertex C'], ['cap', 'Caption']],
@@ -998,6 +1298,215 @@ export const DIAGRAM_CATALOG = {
       }
       out += vertex(A, p.a) + vertex(B, p.b) + vertex(C, p.c)
       return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="${W}">`
+        + `${out}${notToScaleNote(W, H, isYes(p.notToScale))}</svg>`
+    },
+  },
+
+  // ============ FUNCTION GRAPHS, TRANSFORMATIONS, VECTORS ============
+  //
+  // Everything here plots into the shared `cartesian` frame, so a point at
+  // (3, -2) is at the same place in a graph question, a transformation question
+  // and a vector question. A learner reads values off these, so the curve is
+  // SAMPLED FROM THE FUNCTION rather than sketched to the right shape.
+  functiongraph: {
+    cat: 'Graphs',
+    name: 'Function graph',
+    defaults: {
+      fn: 'y = x^2 - 2x - 3',
+      xMin: '-3', xMax: '5', yMin: '-6', yMax: '8',
+      show: 'roots,turning',
+      notToScale: 'no',
+      cap: 'Graph of y = x² − 2x − 3',
+    },
+    fields: [
+      ['fn', 'Function, e.g. y = x^2 - 2x - 3, y = 2x + 1, y = 6/x'],
+      ...RANGE_FIELDS,
+      ['show', 'Mark on the graph: roots, turning, yintercept (comma list)'],
+      ['notToScale', 'Print "Diagram not drawn to scale" (yes/no)'],
+      ['cap', 'Caption'],
+    ],
+    validate: (p) => {
+      const issues = []
+      if (!parseFunction(p.fn)) {
+        issues.push({ field: 'fn', message: 'Write the function using x, powers and a constant — for example y = x^2 - 2x - 3, y = 2x + 1 or y = 6/x. Brackets and other functions are not drawn.' })
+      }
+      const r = readRange(p)
+      if (nOr(p.xMax, NaN) <= nOr(p.xMin, NaN)) issues.push({ field: 'xMax', message: '"x to" must be greater than "x from".' })
+      if (nOr(p.yMax, NaN) <= nOr(p.yMin, NaN)) issues.push({ field: 'yMax', message: '"y to" must be greater than "y from".' })
+      const terms = parseFunction(p.fn)
+      if (terms) {
+        // A graph whose curve is entirely off the page is a grid with nothing
+        // on it, and the teacher finds out only when it is printed.
+        const N = 200
+        let anyInside = false
+        for (let i = 0; i <= N; i += 1) {
+          const x = r.xMin + ((r.xMax - r.xMin) * i) / N
+          const y = evalTerms(terms, x)
+          if (Number.isFinite(y) && y >= r.yMin && y <= r.yMax) { anyInside = true; break }
+        }
+        if (!anyInside) {
+          issues.push({ field: 'yMin', message: 'None of this curve fits between "y from" and "y to". Widen the y range so the graph appears.' })
+        }
+      }
+      return issues
+    },
+    render: (p, col) => {
+      const W = 400, H = 360
+      const { xMin, xMax, yMin, yMax } = readRange(p)
+      const grid = cartesian({ xMin, xMax, yMin, yMax, W, H })
+      const terms = parseFunction(p.fn)
+      let out = grid.svg
+      if (!terms) {
+        out += label(W / 2, H / 2, 'Function not recognised', { size: 13, fill: SOFT_INK, italic: true })
+      } else {
+        // Sample densely and break the line wherever the curve leaves the box
+        // or crosses a pole, so a reciprocal draws as two branches rather than
+        // one stroke straight through its own asymptote.
+        const N = 400
+        const runs = []
+        let run = []
+        for (let i = 0; i <= N; i += 1) {
+          const x = xMin + ((xMax - xMin) * i) / N
+          const y = evalTerms(terms, x)
+          const poleHere = hasPole(terms) && Math.abs(x) < (xMax - xMin) / (2 * N)
+          if (!Number.isFinite(y) || y < yMin || y > yMax || poleHere) {
+            if (run.length > 1) runs.push(run)
+            run = []
+            continue
+          }
+          run.push(grid.toSvg([x, y]))
+        }
+        if (run.length > 1) runs.push(run)
+        for (const r of runs) {
+          out += `<polyline points="${r.map(([x, y]) => `${f(x)},${f(y)}`).join(' ')}"`
+            + ` fill="none" stroke="${col}" stroke-width="2.4" data-curve="1"/>`
+        }
+        const show = new Set(commaList(p.show).map((s) => s.toLowerCase()))
+        const dot = (gx, gy, kind) => {
+          const [sx, sy] = grid.toSvg([gx, gy])
+          return `<circle cx="${f(sx)}" cy="${f(sy)}" r="4" fill="${INK}" data-mark="${kind}"/>`
+            + label(sx, sy - 10, coordText(gx, gy), { size: 11, weight: '600', fill: INK })
+        }
+        if (show.has('roots')) {
+          for (const x of crossings(terms, xMin, xMax, 0, { skipPole: hasPole(terms) })) {
+            if (x >= xMin && x <= xMax) out += dot(x, 0, 'root')
+          }
+        }
+        if (show.has('turning')) {
+          for (const [x, y] of turningPoints(terms, xMin, xMax)) {
+            if (y >= yMin && y <= yMax) out += dot(x, y, 'turning')
+          }
+        }
+        if (show.has('yintercept')) {
+          const y0 = evalTerms(terms, 0)
+          if (Number.isFinite(y0) && y0 >= yMin && y0 <= yMax && xMin <= 0 && xMax >= 0) out += dot(0, y0, 'yintercept')
+        }
+      }
+      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="${W}"${grid.attrs}>`
+        + `${out}${notToScaleNote(W, H, isYes(p.notToScale))}</svg>`
+    },
+  },
+
+  transformation: {
+    cat: 'Transformations',
+    name: 'Transformation (object and image)',
+    defaults: {
+      object: '(1,1),(4,1),(1,3)',
+      type: 'rotation',
+      by: '90,0,0',
+      objectLabel: 'P',
+      imageLabel: 'Q',
+      xMin: '-6', xMax: '6', yMin: '-6', yMax: '6',
+      notToScale: 'no',
+      cap: 'Object and image',
+    },
+    fields: [
+      ['object', 'Object vertices, e.g. (1,1),(4,1),(1,3)'],
+      ['type', 'translation, reflection, rotation, enlargement, shear or stretch'],
+      ['by', 'translation 3,-2 · reflection y=x · rotation 90,0,0 · enlargement 2,0,0 · shear x,2 · stretch y,3'],
+      ['objectLabel', 'Object label'],
+      ['imageLabel', 'Image label'],
+      ...RANGE_FIELDS,
+      ['notToScale', 'Print "Diagram not drawn to scale" (yes/no)'],
+      ['cap', 'Caption'],
+    ],
+    validate: (p) => transformationModel(p).issues,
+    render: (p, col) => {
+      const W = 400, H = 380
+      const { xMin, xMax, yMin, yMax } = readRange(p)
+      const grid = cartesian({ xMin, xMax, yMin, yMax, W, H })
+      const { object, image, guide } = transformationModel(p)
+      let out = grid.svg
+      const poly = (pts, attrs) => `<polygon points="${pts.map((g) => {
+        const [x, y] = grid.toSvg(g)
+        return `${f(x)},${f(y)}`
+      }).join(' ')}" ${attrs}/>`
+      if (guide?.line) {
+        const [a, b] = guide.line
+        const [x1, y1] = grid.toSvg(a), [x2, y2] = grid.toSvg(b)
+        out += `<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${INK}"`
+          + ` stroke-width="1.5" stroke-dasharray="7 4" data-mirror="1"/>`
+          + label(x2 - 6, y2 - 8, guide.lineLabel || '', { size: 12, italic: true, anchor: 'end', fill: INK })
+      }
+      if (guide?.centre) {
+        const [cxp, cyp] = grid.toSvg(guide.centre)
+        out += `<circle cx="${f(cxp)}" cy="${f(cyp)}" r="4" fill="none" stroke="${INK}" stroke-width="1.8" data-centre="1"/>`
+          + `<circle cx="${f(cxp)}" cy="${f(cyp)}" r="1.6" fill="${INK}"/>`
+          + label(cxp + 8, cyp + 15, guide.centreLabel || '', { size: 11, weight: '600', anchor: 'start', fill: INK })
+      }
+      if (object.length >= 2) out += poly(object, `fill="${col}" fill-opacity=".14" stroke="${col}" stroke-width="2.2" data-shape="object"`)
+      if (image.length >= 2) out += poly(image, `fill="none" stroke="${INK}" stroke-width="2.2" stroke-dasharray="6 3" data-shape="image"`)
+      const nameAt = (pts, text) => {
+        if (!pts.length || !String(text ?? '').trim()) return ''
+        const gx = pts.reduce((t, q) => t + q[0], 0) / pts.length
+        const gy = pts.reduce((t, q) => t + q[1], 0) / pts.length
+        const [sx, sy] = grid.toSvg([gx, gy])
+        return label(sx, sy + 5, text, { size: 15 })
+      }
+      out += nameAt(object, p.objectLabel) + nameAt(image, p.imageLabel)
+      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="${W}"${grid.attrs}>`
+        + `${out}${notToScaleNote(W, H, isYes(p.notToScale))}</svg>`
+    },
+  },
+
+  vectordiagram: {
+    cat: 'Transformations',
+    name: 'Vectors',
+    defaults: {
+      vectors: 'a:(0,0)>(4,2),b:(4,2)>(6,-2)',
+      grid: 'yes',
+      xMin: '-2', xMax: '8', yMin: '-4', yMax: '5',
+      notToScale: 'no',
+      cap: 'Vector diagram',
+    },
+    fields: [
+      ['vectors', 'Vectors, e.g. a:(0,0)>(4,2),b:(4,2)>(6,-2) (name:from>to)'],
+      ['grid', 'Show the grid (yes/no)'],
+      ...RANGE_FIELDS,
+      ['notToScale', 'Print "Diagram not drawn to scale" (yes/no)'],
+      ['cap', 'Caption'],
+    ],
+    validate: (p) => vectorModel(p).issues,
+    render: (p, col) => {
+      const W = 400, H = 340
+      const { xMin, xMax, yMin, yMax } = readRange(p)
+      const grid = cartesian({ xMin, xMax, yMin, yMax, W, H })
+      const { vectors } = vectorModel(p)
+      // Off the grid, a vector diagram is still drawn in the same frame — the
+      // axes are simply not printed, so switching the grid off cannot move a
+      // single arrow.
+      let out = isYes(p.grid) ? grid.svg : ''
+      for (const v of vectors) {
+        const a = grid.toSvg(v.from), b = grid.toSvg(v.to)
+        out += `<line x1="${f(a[0])}" y1="${f(a[1])}" x2="${f(b[0])}" y2="${f(b[1])}" stroke="${col}"`
+          + ` stroke-width="2.6" data-vector="${esc(v.name)}"/>`
+          + arrowHead(a, b, { size: 10, fill: col })
+        const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2
+        const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1
+        const nx = -(b[1] - a[1]) / len, ny = (b[0] - a[0]) / len
+        out += label(mx + nx * 14, my + ny * 14 + 4, v.name, { size: 14, italic: true, fill: INK })
+      }
+      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="${W}"${grid.attrs}>`
         + `${out}${notToScaleNote(W, H, isYes(p.notToScale))}</svg>`
     },
   },
