@@ -897,6 +897,75 @@ function clipHalfPlane(poly, con) {
   return out
 }
 
+/** Where a boundary line crosses the plotted box, or null if it misses it. */
+function boundarySegment({ a, b, c }, xMin, xMax, yMin, yMax) {
+  const hits = []
+  const push = (x, y) => {
+    if (x < xMin - 1e-9 || x > xMax + 1e-9 || y < yMin - 1e-9 || y > yMax + 1e-9) return
+    if (hits.some((h) => Math.abs(h[0] - x) < 1e-9 && Math.abs(h[1] - y) < 1e-9)) return
+    hits.push([x, y])
+  }
+  if (b !== 0) { push(xMin, (c - a * xMin) / b); push(xMax, (c - a * xMax) / b) }
+  if (a !== 0) { push((c - b * yMin) / a, yMin); push((c - b * yMax) / a, yMax) }
+  return hits.length >= 2 ? [hits[0], hits[1]] : null
+}
+
+/** The feasible region: the plotted box, clipped by every constraint in turn. */
+function linearProgrammingModel(p) {
+  const issues = []
+  const constraints = []
+  for (const item of commaList(p.constraints)) {
+    const con = parseConstraint(item)
+    if (!con) {
+      issues.push({ field: 'constraints', message: `"${item}" is not an inequality this can draw. Write it as, for example, x+y<=6, 2x+y>=8, y>=0.` })
+      continue
+    }
+    constraints.push(con)
+  }
+  if (!constraints.length && !issues.length) {
+    issues.push({ field: 'constraints', message: 'Add at least one inequality, for example x+y<=6.' })
+  }
+  const { xMin, xMax, yMin, yMax } = readRange(p, [0, 8, 0, 8])
+  let region = [[xMin, yMin], [xMax, yMin], [xMax, yMax], [xMin, yMax]]
+  for (const con of constraints) region = clipHalfPlane(region, con)
+  if (constraints.length && region.length < 3) {
+    // Not a drawing problem. There is no set of values satisfying all of them
+    // inside the grid, so the question as written has no answer.
+    issues.push({
+      field: 'constraints',
+      message: 'No region satisfies all of these inequalities inside the grid you set. Check the inequalities, or widen the grid.',
+    })
+  }
+  return { constraints, region, issues }
+}
+
+/** `0,0;1,60;2.5,60` → the points of a travel graph, in order of time. */
+function travelModel(p) {
+  const issues = []
+  const pts = []
+  for (const item of String(p.points ?? '').split(';').map((s) => s.trim()).filter(Boolean)) {
+    const [xr, yr] = item.split(',').map((s) => s.trim())
+    const x = parseFloat(xr), y = parseFloat(yr)
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      issues.push({ field: 'points', message: `"${item}" is not a point. Write each one as time,value — for example 1,60 — separated by semicolons.` })
+      continue
+    }
+    if (x < 0 || y < 0) {
+      issues.push({ field: 'points', message: 'A travel graph starts at zero; times and values cannot be negative.' })
+      continue
+    }
+    if (pts.length && x < pts[pts.length - 1][0]) {
+      issues.push({ field: 'points', message: `Time runs forwards: ${x} comes after ${pts[pts.length - 1][0]}. List the points in time order.` })
+      continue
+    }
+    pts.push([x, y])
+  }
+  if (pts.length < 2) {
+    issues.push({ field: 'points', message: 'A travel graph needs at least two points, for example 0,0;1,60.' })
+  }
+  return { pts, issues }
+}
+
 export const DIAGRAM_CATALOG = {
   // ============ SHAPES 2D ============
   triangle: { cat: 'Shapes 2D', name: 'Triangle', defaults: { a: 'A', b: 'B', c: 'C', cap: 'Triangle ABC' }, fields: [['a', 'Vertex A'], ['b', 'Vertex B'], ['c', 'Vertex C'], ['cap', 'Caption']],
@@ -1635,6 +1704,292 @@ export const DIAGRAM_CATALOG = {
         const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1
         const nx = -(b[1] - a[1]) / len, ny = (b[0] - a[0]) / len
         out += label(mx + nx * 14, my + ny * 14 + 4, v.name, { size: 14, italic: true, fill: INK })
+      }
+      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="${W}"${grid.attrs}>`
+        + `${out}${notToScaleNote(W, H, isYes(p.notToScale))}</svg>`
+    },
+  },
+
+  // ============ STATISTICS ============
+  histogram: {
+    cat: 'Statistics',
+    name: 'Histogram',
+    defaults: {
+      boundaries: '0,10,20,30,40,50',
+      frequencies: '4,9,14,8,3',
+      density: 'no',
+      xLabel: 'Mass (kg)',
+      yLabel: 'Frequency',
+      notToScale: 'no',
+      cap: 'Histogram',
+    },
+    fields: [
+      ...DISTRIBUTION_FIELDS,
+      ['density', 'Plot frequency density instead of frequency (yes/no)'],
+      ['notToScale', 'Print "Diagram not drawn to scale" (yes/no)'],
+      ['cap', 'Caption'],
+    ],
+    validate: (p) => distributionModel(p).issues,
+    render: (p, col) => {
+      const W = 440, H = 340
+      const { classes } = distributionModel(p)
+      const useDensity = isYes(p.density)
+      const heights = classes.map((c) => (useDensity ? c.density : c.freq))
+      const xMin = classes.length ? classes[0].lower : 0
+      const xMax = classes.length ? classes[classes.length - 1].upper : 1
+      const { top, step } = niceAxisTicks(Math.max(...heights, 1))
+      const grid = cartesian({
+        xMin, xMax, yMin: 0, yMax: top, W, H,
+        padL: 46, padB: 44, xStep: gridStep(xMax - xMin), yStep: step,
+        xName: '', yName: '',
+      })
+      let out = grid.svg
+      for (const [i, c] of classes.entries()) {
+        // Adjacent bars with no gaps: a histogram's horizontal axis is
+        // continuous, and a gap between bars would make it a bar chart of
+        // separate categories, which is a different diagram answering a
+        // different question.
+        const [x1, yTop] = grid.toSvg([c.lower, heights[i]])
+        const [x2, yBase] = grid.toSvg([c.upper, 0])
+        out += `<rect x="${f(x1)}" y="${f(yTop)}" width="${f(x2 - x1)}" height="${f(yBase - yTop)}"`
+          + ` fill="${col}" fill-opacity=".55" stroke="${INK}" stroke-width="1.4" data-bar="${i}"/>`
+      }
+      out += label(W / 2, H - 8, p.xLabel, { size: 12, weight: '600', fill: SOFT_INK })
+      out += `<g transform="rotate(-90 12 ${f(H / 2)})">${label(12, H / 2, p.yLabel, { size: 12, weight: '600', fill: SOFT_INK })}</g>`
+      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="${W}"${grid.attrs}>`
+        + `${out}${notToScaleNote(W, H, isYes(p.notToScale))}</svg>`
+    },
+  },
+
+  frequencypolygon: {
+    cat: 'Statistics',
+    name: 'Frequency polygon',
+    defaults: {
+      boundaries: '0,10,20,30,40,50',
+      frequencies: '4,9,14,8,3',
+      xLabel: 'Mass (kg)',
+      yLabel: 'Frequency',
+      notToScale: 'no',
+      cap: 'Frequency polygon',
+    },
+    fields: [
+      ...DISTRIBUTION_FIELDS,
+      ['notToScale', 'Print "Diagram not drawn to scale" (yes/no)'],
+      ['cap', 'Caption'],
+    ],
+    validate: (p) => distributionModel(p).issues,
+    render: (p, col) => {
+      const W = 440, H = 340
+      const { classes } = distributionModel(p)
+      const width = classes.length ? classes[0].width : 10
+      // The polygon closes down to zero at a midpoint one class beyond each
+      // end, which is how it is taught and how the area under it stays equal
+      // to the histogram's.
+      const xMin = classes.length ? classes[0].mid - width : 0
+      const xMax = classes.length ? classes[classes.length - 1].mid + width : 1
+      const { top, step } = niceAxisTicks(Math.max(...classes.map((c) => c.freq), 1))
+      const grid = cartesian({
+        xMin, xMax, yMin: 0, yMax: top, W, H,
+        padL: 46, padB: 44, xStep: gridStep(xMax - xMin), yStep: step, xName: '', yName: '',
+      })
+      const pts = [[xMin, 0], ...classes.map((c) => [c.mid, c.freq]), [xMax, 0]]
+      let out = grid.svg
+      out += `<polyline points="${pts.map((g) => {
+        const [x, y] = grid.toSvg(g)
+        return `${f(x)},${f(y)}`
+      }).join(' ')}" fill="none" stroke="${col}" stroke-width="2.4" data-polygon="1"/>`
+      for (const c of classes) {
+        const [x, y] = grid.toSvg([c.mid, c.freq])
+        out += `<circle cx="${f(x)}" cy="${f(y)}" r="3.4" fill="${INK}" data-plot="${f(c.mid)}"/>`
+      }
+      out += label(W / 2, H - 8, p.xLabel, { size: 12, weight: '600', fill: SOFT_INK })
+      out += `<g transform="rotate(-90 12 ${f(H / 2)})">${label(12, H / 2, p.yLabel, { size: 12, weight: '600', fill: SOFT_INK })}</g>`
+      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="${W}"${grid.attrs}>`
+        + `${out}${notToScaleNote(W, H, isYes(p.notToScale))}</svg>`
+    },
+  },
+
+  ogive: {
+    cat: 'Statistics',
+    name: 'Cumulative frequency curve (ogive)',
+    defaults: {
+      boundaries: '0,10,20,30,40,50',
+      frequencies: '4,9,14,8,3',
+      readOff: 'median,quartiles',
+      xLabel: 'Mass (kg)',
+      yLabel: 'Cumulative frequency',
+      notToScale: 'no',
+      cap: 'Cumulative frequency curve',
+    },
+    fields: [
+      ...DISTRIBUTION_FIELDS,
+      ['readOff', 'Read-off lines: median, quartiles (comma list, or blank)'],
+      ['notToScale', 'Print "Diagram not drawn to scale" (yes/no)'],
+      ['cap', 'Caption'],
+    ],
+    validate: (p) => distributionModel(p).issues,
+    render: (p, col) => {
+      const W = 440, H = 356
+      const { classes, cumulative, total } = distributionModel(p)
+      const xMin = classes.length ? classes[0].lower : 0
+      const xMax = classes.length ? classes[classes.length - 1].upper : 1
+      const { top, step } = niceAxisTicks(Math.max(total, 1))
+      const grid = cartesian({
+        xMin, xMax, yMin: 0, yMax: top, W, H,
+        padL: 48, padB: 44, xStep: gridStep(xMax - xMin), yStep: step, xName: '', yName: '',
+      })
+      // The curve starts at the LOWER boundary of the first class with a
+      // cumulative frequency of zero. Starting it at the first upper boundary
+      // is the common slip, and it moves every quartile a learner reads off.
+      const curve = [[xMin, 0], ...cumulative.map((c) => [c.x, c.cf])]
+      let out = grid.svg
+      out += `<polyline points="${curve.map((g) => {
+        const [x, y] = grid.toSvg(g)
+        return `${f(x)},${f(y)}`
+      }).join(' ')}" fill="none" stroke="${col}" stroke-width="2.4" data-curve="1"/>`
+      for (const c of cumulative) {
+        const [x, y] = grid.toSvg([c.x, c.cf])
+        out += `<circle cx="${f(x)}" cy="${f(y)}" r="3.4" fill="${INK}" data-plot="${f(c.x)}"/>`
+      }
+      const wanted = new Set(commaList(p.readOff).map((s) => s.toLowerCase()))
+      const marks = []
+      if (wanted.has('median')) marks.push(['median', total / 2])
+      if (wanted.has('quartiles')) { marks.push(['lower quartile', total / 4], ['upper quartile', (3 * total) / 4]) }
+      for (const [name, cf] of marks) {
+        if (!(cf > 0)) continue
+        const x = readOffX(cumulative, xMin, cf)
+        const [px, py] = grid.toSvg([x, cf])
+        const [ax] = grid.toSvg([xMin, 0])
+        const [, ay] = grid.toSvg([0, 0])
+        out += `<line x1="${f(ax)}" y1="${f(py)}" x2="${f(px)}" y2="${f(py)}" stroke="${INK}" stroke-width="1.2"`
+          + ` stroke-dasharray="5 3" data-readoff="${esc(name)}"/>`
+          + `<line x1="${f(px)}" y1="${f(py)}" x2="${f(px)}" y2="${f(ay)}" stroke="${INK}" stroke-width="1.2"`
+          + ` stroke-dasharray="5 3" data-readoff-drop="${esc(name)}"/>`
+      }
+      out += label(W / 2, H - 8, p.xLabel, { size: 12, weight: '600', fill: SOFT_INK })
+      out += `<g transform="rotate(-90 12 ${f(H / 2)})">${label(12, H / 2, p.yLabel, { size: 12, weight: '600', fill: SOFT_INK })}</g>`
+      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="${W}"${grid.attrs}>`
+        + `${out}${notToScaleNote(W, H, isYes(p.notToScale))}</svg>`
+    },
+  },
+
+  travelgraph: {
+    cat: 'Statistics',
+    name: 'Travel graph (distance–time / speed–time)',
+    defaults: {
+      points: '0,0;1,60;2.5,60;4,0',
+      xLabel: 'Time (hours)',
+      yLabel: 'Distance (km)',
+      shade: 'no',
+      notToScale: 'no',
+      cap: 'Travel graph',
+    },
+    fields: [
+      ['points', 'Points, e.g. 0,0;1,60;2.5,60;4,0 (time,value separated by ;)'],
+      ['xLabel', 'Horizontal axis label'],
+      ['yLabel', 'Vertical axis label'],
+      ['shade', 'Shade the area under the graph (yes/no)'],
+      ['notToScale', 'Print "Diagram not drawn to scale" (yes/no)'],
+      ['cap', 'Caption'],
+    ],
+    validate: (p) => travelModel(p).issues,
+    render: (p, col) => {
+      const W = 440, H = 340
+      const { pts } = travelModel(p)
+      const xMax = pts.length ? Math.max(...pts.map(([x]) => x)) : 1
+      const yMaxData = pts.length ? Math.max(...pts.map(([, y]) => y)) : 1
+      const { top: yTop, step: yStep } = niceAxisTicks(Math.max(yMaxData, 1))
+      const grid = cartesian({
+        xMin: 0, xMax: xMax || 1, yMin: 0, yMax: yTop, W, H,
+        padL: 48, padB: 44, xStep: gridStep(xMax || 1), yStep, xName: '', yName: '',
+      })
+      let out = grid.svg
+      const px = pts.map((g) => grid.toSvg(g))
+      if (isYes(p.shade) && px.length > 1) {
+        // The area under a speed–time graph IS the distance travelled, which is
+        // what the question asks for, so it is fillable.
+        const base = grid.toSvg([0, 0])[1]
+        const d = `M ${f(px[0][0])},${f(base)} `
+          + px.map(([x, y]) => `L ${f(x)},${f(y)}`).join(' ')
+          + ` L ${f(px[px.length - 1][0])},${f(base)} Z`
+        out += `<path d="${d}" fill="${col}" fill-opacity=".18" stroke="none" data-area="1"/>`
+      }
+      out += `<polyline points="${px.map(([x, y]) => `${f(x)},${f(y)}`).join(' ')}"`
+        + ` fill="none" stroke="${col}" stroke-width="2.6" data-travel="1"/>`
+      for (const [i, g] of pts.entries()) {
+        const [x, y] = grid.toSvg(g)
+        out += `<circle cx="${f(x)}" cy="${f(y)}" r="3.6" fill="${INK}" data-plot="${i}"/>`
+      }
+      out += label(W / 2, H - 8, p.xLabel, { size: 12, weight: '600', fill: SOFT_INK })
+      out += `<g transform="rotate(-90 12 ${f(H / 2)})">${label(12, H / 2, p.yLabel, { size: 12, weight: '600', fill: SOFT_INK })}</g>`
+      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="${W}"${grid.attrs}>`
+        + `${out}${notToScaleNote(W, H, isYes(p.notToScale))}</svg>`
+    },
+  },
+
+  linearprogramming: {
+    cat: 'Graphs',
+    name: 'Linear programming region',
+    defaults: {
+      constraints: 'x+y<=6,2x+y<=8,x>=0,y>=0',
+      shade: 'unwanted',
+      regionLabel: 'R',
+      xMin: '0', xMax: '8', yMin: '0', yMax: '8',
+      notToScale: 'no',
+      cap: 'Feasible region R',
+    },
+    fields: [
+      ['constraints', 'Inequalities, e.g. x+y<=6,2x+y<=8,x>=0,y>=0'],
+      ['shade', 'Shade the wanted or the unwanted region'],
+      ['regionLabel', 'Label for the feasible region'],
+      ...RANGE_FIELDS,
+      ['notToScale', 'Print "Diagram not drawn to scale" (yes/no)'],
+      ['cap', 'Caption'],
+    ],
+    validate: (p) => linearProgrammingModel(p).issues,
+    render: (p, col) => {
+      const W = 400, H = 380
+      const { xMin, xMax, yMin, yMax } = readRange(p, [0, 8, 0, 8])
+      const grid = cartesian({ xMin, xMax, yMin, yMax, W, H })
+      const { constraints, region } = linearProgrammingModel(p)
+      const shadeUnwanted = !/wanted$/i.test(String(p.shade ?? '')) || /^unwanted$/i.test(String(p.shade ?? '').trim())
+      let out = grid.svg
+      const toPath = (poly) => poly.map((g, i) => {
+        const [x, y] = grid.toSvg(g)
+        return `${i ? 'L' : 'M'} ${f(x)},${f(y)}`
+      }).join(' ') + ' Z'
+      if (region.length >= 3) {
+        if (shadeUnwanted) {
+          // Exam convention: shade what is NOT wanted, leaving the feasible
+          // region clear. Drawn as the whole plane with the region punched out
+          // of it by the even-odd rule, so the two can never disagree about
+          // where the boundary is.
+          const box = [[xMin, yMin], [xMax, yMin], [xMax, yMax], [xMin, yMax]]
+          out += `<path d="${toPath(box)} ${toPath(region)}" fill="${col}" fill-opacity=".22"`
+            + ` fill-rule="evenodd" stroke="none" data-shading="unwanted"/>`
+        } else {
+          out += `<path d="${toPath(region)}" fill="${col}" fill-opacity=".28" stroke="none" data-shading="wanted"/>`
+        }
+        out += `<polygon points="${region.map((g) => {
+          const [x, y] = grid.toSvg(g)
+          return `${f(x)},${f(y)}`
+        }).join(' ')}" fill="none" stroke="${INK}" stroke-width="1.4" data-region="1"/>`
+        const cx = region.reduce((t, g) => t + g[0], 0) / region.length
+        const cy = region.reduce((t, g) => t + g[1], 0) / region.length
+        const [lx, ly] = grid.toSvg([cx, cy])
+        out += label(lx, ly + 6, p.regionLabel, { size: 17 })
+      }
+      for (const con of constraints) {
+        const seg = boundarySegment(con, xMin, xMax, yMin, yMax)
+        if (!seg) continue
+        const [a, b] = seg
+        const [x1, y1] = grid.toSvg(a), [x2, y2] = grid.toSvg(b)
+        // A dashed boundary means the line itself is NOT part of the region.
+        // Drawing a strict inequality solid tells a learner the wrong thing
+        // about every point on it.
+        out += `<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${INK}" stroke-width="1.9"`
+          + `${con.strict ? ' stroke-dasharray="7 4"' : ''} data-boundary="${esc(con.text)}"${con.strict ? ' data-strict="1"' : ''}/>`
+        out += label(x2 - 4, y2 - 7, con.text, { size: 11, weight: '600', anchor: 'end', fill: INK })
       }
       return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="${W}"${grid.attrs}>`
         + `${out}${notToScaleNote(W, H, isYes(p.notToScale))}</svg>`

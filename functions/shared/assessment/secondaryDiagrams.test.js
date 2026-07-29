@@ -52,10 +52,14 @@ const issues = (key, params) => {
 const FAMILIES = [
   'circletheorem', 'bearings', 'elevation', 'labelledtriangle',
   'functiongraph', 'transformation', 'vectordiagram',
+  'histogram', 'frequencypolygon', 'ogive', 'travelgraph', 'linearprogramming',
 ]
 
 /** The families that plot into the shared Cartesian frame. */
-const GRID_FAMILIES = ['functiongraph', 'transformation', 'vectordiagram']
+const GRID_FAMILIES = [
+  'functiongraph', 'transformation', 'vectordiagram',
+  'histogram', 'frequencypolygon', 'ogive', 'travelgraph', 'linearprogramming',
+]
 
 console.log('\nsecondary diagrams — catalog shape')
 
@@ -558,6 +562,192 @@ test('a vector with no direction, or one off the grid, is refused', () => {
   assert.match(issues('vectordiagram', { vectors: 'a:(2,2)>(2,2)' })[0].message, /no direction to draw/)
   assert.match(issues('vectordiagram', { vectors: 'a:(0,0)>(40,2)' })[0].message, /outside the grid you set/)
   assert.match(issues('vectordiagram', { vectors: 'a goes up a bit' })[0].message, /is not a vector/)
+})
+
+/* ── statistics ──────────────────────────────────────────────────────────── */
+
+console.log('\nstatistics')
+
+const DIST = { boundaries: '0,10,20,30,40,50', frequencies: '4,9,14,8,3' }
+
+test('a histogram\'s bars span their class boundaries, at the stated frequency', () => {
+  const parsed = draw('histogram', DIST)
+  const frame = plotFrame(parsed)
+  const bars = select(parsed, 'rect', (e) => e.attrs['data-bar'])
+  assert.equal(bars.length, 5)
+  const bounds = [0, 10, 20, 30, 40, 50]
+  const freqs = [4, 9, 14, 8, 3]
+  bars.forEach((el, i) => {
+    const left = frame.toGraph([num(el, 'x'), num(el, 'y')])
+    const right = frame.toGraph([num(el, 'x') + num(el, 'width'), num(el, 'y') + num(el, 'height')])
+    approx(left[0], bounds[i], 0.02, `bar ${i} left edge`)
+    approx(right[0], bounds[i + 1], 0.02, `bar ${i} right edge`)
+    approx(left[1], freqs[i], 0.02, `bar ${i} height`)
+    approx(right[1], 0, 0.02, `bar ${i} sits on the axis`)
+  })
+})
+
+test('histogram bars touch — it is not a bar chart of separate categories', () => {
+  const parsed = draw('histogram', DIST)
+  const bars = select(parsed, 'rect', (e) => e.attrs['data-bar'])
+  for (let i = 1; i < bars.length; i += 1) {
+    approx(num(bars[i], 'x'), num(bars[i - 1], 'x') + num(bars[i - 1], 'width'), 0.05, `gap before bar ${i}`)
+  }
+})
+
+test('unequal classes plot frequency DENSITY when asked', () => {
+  // 0–10 with frequency 5 and 10–30 with frequency 20 are the same height on a
+  // frequency axis and half vs one on a density axis. Getting this wrong is
+  // the classic misleading histogram.
+  const parsed = draw('histogram', { boundaries: '0,10,30', frequencies: '5,20', density: 'yes' })
+  const frame = plotFrame(parsed)
+  const bars = select(parsed, 'rect', (e) => e.attrs['data-bar'])
+  approx(frame.toGraph([num(bars[0], 'x'), num(bars[0], 'y')])[1], 0.5, 0.02, 'density of the narrow class')
+  approx(frame.toGraph([num(bars[1], 'x'), num(bars[1], 'y')])[1], 1, 0.02, 'density of the wide class')
+})
+
+test('a frequency polygon plots the midpoints and closes to zero at both ends', () => {
+  const parsed = draw('frequencypolygon', DIST)
+  const frame = plotFrame(parsed)
+  const line = graphPoints(frame, selectOne(parsed, 'polyline', (e) => e.attrs['data-polygon']))
+  // It closes at the MIDPOINT of the notional empty class at each end — −5 and
+  // 55, not the boundaries −10 and 60 — which is what keeps the area under the
+  // polygon equal to the area of the histogram it came from.
+  const expected = [[-5, 0], [5, 4], [15, 9], [25, 14], [35, 8], [45, 3], [55, 0]]
+  assert.equal(line.length, expected.length)
+  line.forEach((pt, i) => approxPoint(pt, expected[i], 0.05, `vertex ${i}`))
+})
+
+test('an ogive rises from the first LOWER boundary and never falls', () => {
+  // Starting the curve at the first UPPER boundary is the common slip, and it
+  // moves every quartile a learner reads off it.
+  const parsed = draw('ogive', DIST)
+  const frame = plotFrame(parsed)
+  const curve = graphPoints(frame, selectOne(parsed, 'polyline', (e) => e.attrs['data-curve']))
+  approxPoint(curve[0], [0, 0], 0.05, 'the curve starts at (0, 0)')
+  const expected = [[0, 0], [10, 4], [20, 13], [30, 27], [40, 35], [50, 38]]
+  curve.forEach((pt, i) => approxPoint(pt, expected[i], 0.06, `cumulative point ${i}`))
+  for (let i = 1; i < curve.length; i += 1) {
+    assert.ok(curve[i][1] >= curve[i - 1][1] - 1e-6, 'a cumulative frequency curve never falls')
+  }
+})
+
+test('the read-off lines land at the true median and quartiles', () => {
+  // n = 38, so the median is read at cf 19 and the quartiles at 9.5 and 28.5.
+  // Between (10, 4) and (20, 13) the curve is linear, so cf 9.5 is at
+  // x = 10 + (5.5/9)*10 = 16.11…; cf 19 falls between (10,4)→(20,13)→(30,27):
+  // 19 is in the 13→27 class, x = 20 + (6/14)*10 = 24.28…; cf 28.5 is in the
+  // 27→35 class, x = 30 + (1.5/8)*10 = 31.875.
+  const parsed = draw('ogive', { ...DIST, readOff: 'median,quartiles' })
+  const frame = plotFrame(parsed)
+  const dropAt = (name) => {
+    const el = selectOne(parsed, 'line', (e) => e.attrs['data-readoff-drop'] === name)
+    return frame.toGraph([num(el, 'x1'), num(el, 'y1')])
+  }
+  approx(dropAt('median')[0], 20 + (6 / 14) * 10, 0.05, 'median')
+  approx(dropAt('lower quartile')[0], 10 + (5.5 / 9) * 10, 0.05, 'lower quartile')
+  approx(dropAt('upper quartile')[0], 30 + (1.5 / 8) * 10, 0.05, 'upper quartile')
+  // Each read-off is a horizontal line to the curve and a vertical drop to the
+  // axis — the way it is done with a ruler.
+  assert.equal(select(parsed, 'line', (e) => e.attrs['data-readoff']).length, 3)
+  const medianAcross = selectOne(parsed, 'line', (e) => e.attrs['data-readoff'] === 'median')
+  approx(num(medianAcross, 'y1'), num(medianAcross, 'y2'), 0.01, 'the read-off line is horizontal')
+  approx(frame.toGraph([num(medianAcross, 'x2'), num(medianAcross, 'y2')])[1], 19, 0.05, 'read across at cf 19')
+})
+
+test('read-off lines are drawn only when asked for', () => {
+  assert.equal(select(draw('ogive', { ...DIST, readOff: '' }), 'line', (e) => e.attrs['data-readoff']).length, 0)
+  assert.equal(select(draw('ogive', { ...DIST, readOff: 'median' }), 'line', (e) => e.attrs['data-readoff']).length, 1)
+})
+
+test('a table whose frequencies do not match its classes is refused, with the counts', () => {
+  assert.match(
+    issues('histogram', { boundaries: '0,10,20,30', frequencies: '4,9' })[0].message,
+    /4 boundaries make 3 classes, but you gave 2 frequencies/,
+  )
+  assert.match(issues('ogive', { boundaries: '0,10,5', frequencies: '1,2' })[0].message, /must increase/)
+  assert.match(issues('histogram', { ...DIST, frequencies: '4,-9,14,8,3' })[0].message, /cannot be negative/)
+})
+
+/* ── travel graphs ───────────────────────────────────────────────────────── */
+
+console.log('\ntravel graphs')
+
+test('the graph passes through every point given, in time order', () => {
+  const parsed = draw('travelgraph', { points: '0,0;1,60;2.5,60;4,0' })
+  const frame = plotFrame(parsed)
+  const line = graphPoints(frame, selectOne(parsed, 'polyline', (e) => e.attrs['data-travel']))
+  const expected = [[0, 0], [1, 60], [2.5, 60], [4, 0]]
+  assert.equal(line.length, expected.length)
+  line.forEach((pt, i) => approxPoint(pt, expected[i], 0.05, `point ${i}`))
+})
+
+test('the area under the graph can be shaded — it is what the question asks for', () => {
+  assert.equal(select(draw('travelgraph', { points: '0,0;1,20;3,20', shade: 'yes' }), 'path', (e) => e.attrs['data-area']).length, 1)
+  assert.equal(select(draw('travelgraph', { points: '0,0;1,20;3,20', shade: 'no' }), 'path', (e) => e.attrs['data-area']).length, 0)
+})
+
+test('time that runs backwards is refused', () => {
+  assert.match(issues('travelgraph', { points: '0,0;3,60;1,20' })[0].message, /Time runs forwards/)
+  assert.match(issues('travelgraph', { points: '0,0' })[0].message, /at least two points/)
+  assert.match(issues('travelgraph', { points: '0,0;later,60' })[0].message, /is not a point/)
+})
+
+/* ── linear programming ──────────────────────────────────────────────────── */
+
+console.log('\nlinear programming')
+
+const LP = { constraints: 'x+y<=6,2x+y<=8,x>=0,y>=0', xMin: '0', xMax: '8', yMin: '0', yMax: '8' }
+
+test('every vertex of the drawn region satisfies every inequality', () => {
+  const parsed = draw('linearprogramming', LP)
+  const frame = plotFrame(parsed)
+  const region = graphPoints(frame, selectOne(parsed, 'polygon', (e) => e.attrs['data-region']))
+  assert.ok(region.length >= 3, 'a region was drawn')
+  for (const [x, y] of region) {
+    assert.ok(x + y <= 6 + 0.02, `(${x.toFixed(2)}, ${y.toFixed(2)}) breaks x + y <= 6`)
+    assert.ok(2 * x + y <= 8 + 0.02, `(${x.toFixed(2)}, ${y.toFixed(2)}) breaks 2x + y <= 8`)
+    assert.ok(x >= -0.02 && y >= -0.02, 'the region stays in the first quadrant')
+  }
+  // The corner where x+y=6 meets 2x+y=8 is (2, 4), and it is a vertex of the
+  // feasible region — the point an optimum is usually found at.
+  assert.ok(region.some(([x, y]) => Math.abs(x - 2) < 0.05 && Math.abs(y - 4) < 0.05),
+    'the intersection of the two boundaries is a vertex of the region')
+})
+
+test('a strict inequality is drawn with a dashed boundary', () => {
+  // Dashed means the line itself is not part of the region. Drawing it solid
+  // tells a learner the wrong thing about every point on it.
+  const parsed = draw('linearprogramming', { ...LP, constraints: 'x+y<6,y>=1' })
+  const dashed = select(parsed, 'line', (e) => e.attrs['data-strict'])
+  assert.equal(dashed.length, 1)
+  assert.match(dashed[0].attrs['stroke-dasharray'] || '', /\d/)
+  const solid = select(parsed, 'line', (e) => e.attrs['data-boundary'] && !e.attrs['data-strict'])
+  assert.equal(solid.length, 1)
+  assert.ok(!solid[0].attrs['stroke-dasharray'], 'a non-strict boundary is solid')
+})
+
+test('shading the unwanted region leaves the feasible region clear', () => {
+  const unwanted = draw('linearprogramming', { ...LP, shade: 'unwanted' })
+  const shading = selectOne(unwanted, 'path', (e) => e.attrs['data-shading'] === 'unwanted')
+  // The whole box with the region punched out of it, by the even-odd rule —
+  // so the shading and the outline cannot disagree about where the boundary is.
+  assert.equal(shading.attrs['fill-rule'], 'evenodd')
+  assert.equal((shading.attrs.d.match(/Z/g) || []).length, 2, 'two subpaths: the box and the region')
+  const wanted = draw('linearprogramming', { ...LP, shade: 'wanted' })
+  assert.equal(select(wanted, 'path', (e) => e.attrs['data-shading'] === 'wanted').length, 1)
+})
+
+test('the feasible region is labelled', () => {
+  assert.ok(texts(draw('linearprogramming', { ...LP, regionLabel: 'R' })).includes('R'))
+})
+
+test('inequalities with no common region are refused, rather than drawn empty', () => {
+  assert.match(
+    issues('linearprogramming', { ...LP, constraints: 'x+y<=2,x+y>=6' })[0].message,
+    /No region satisfies all of these inequalities/,
+  )
+  assert.match(issues('linearprogramming', { ...LP, constraints: 'x squared <= 4' })[0].message, /is not an inequality this can draw/)
 })
 
 /* ── the catalog is still one catalog ────────────────────────────────────── */
