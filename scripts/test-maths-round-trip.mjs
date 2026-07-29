@@ -155,7 +155,7 @@ check('each maths node type survives — fraction, mixed number, vertical, power
   }
   const all = new Set()
   for (const section of g7.hydrated) nodeTypesIn(section.question.text, all)
-  for (const type of ['mathFraction', 'verticalArithmetic', 'numberBase', 'math']) {
+  for (const type of ['mathFraction', 'verticalArithmetic', 'numberBase', 'mathInline']) {
     assert.ok(all.has(type), `${type} was lost in the round trip`)
   }
   // The mixed number keeps its whole part — a mixed number that loses its
