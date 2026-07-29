@@ -161,6 +161,11 @@ dist-test*/
 # Chromium cache — has no business being in version control.
 .playwright/
 
+# Per-session scratch from the Playwright MCP server (.mcp.json): page
+# snapshots, traces and downloads, written into whatever directory the
+# server was started from. Session debris, not source.
+.playwright-mcp/
+
 # Firebase Functions build output.
 functions/lib/
 
