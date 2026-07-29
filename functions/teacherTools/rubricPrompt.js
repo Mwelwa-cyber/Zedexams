@@ -13,6 +13,8 @@
  * "pupils". The two must never be mixed.
  */
 
+const {subjectNameForGrade} = require("./subjectNaming");
+
 const PROMPT_VERSION = "rubric.v2";
 
 const SYSTEM_PROMPT_CBC = `You are an expert Zambian teacher who designs assessment rubrics that match the Zambian Competence-Based Curriculum (CBC) standards. Your rubrics are:
@@ -82,7 +84,7 @@ function buildUserPrompt(inputs) {
     heading,
     "",
     `- Grade / Class: ${grade}`,
-    `- Subject: ${subject}`,
+    `- Subject: ${subjectNameForGrade(subject, grade)}`,
     `- Task type: ${taskType}`,
     taskDescription ? `- Task description: ${taskDescription}` : "",
     `- Total marks: ${totalMarks}`,

@@ -19,6 +19,10 @@ import {
   levelsForFramework, resolveLevel, levelKbGrade, reportLevelResolution,
   levelAvailability, LEVEL_AVAILABILITY,
 } from '../../config/educationLevels.js'
+import {
+  MATHS_SCIENCE_LABEL, MATHS_SCIENCE_SUBJECT_KEY, mathsScienceLabelForGrade,
+  isMathsScienceName,
+} from '../../config/mathsScienceArea.js'
 
 // ── Grades ─────────────────────────────────────────────────────────────────
 // Every level, its label, its syllabus code, its aliases and which curriculum
@@ -362,7 +366,11 @@ const SUBJECT_LABELS = {
   technology_studies: 'Technology Studies',
   home_economics: 'Home Economics',
   zambian_language: 'Zambian Language (Cinyanja etc.)',
-  numeracy: 'Numeracy (Maths & Science)',
+  // The combined CBC maths/science area. It is stored under the `numeracy`
+  // slug, but "Numeracy" is not what the syllabus calls it and not what may
+  // print on a paper — subjectLabel() takes the grade so Nursery/Reception get
+  // "Pre-Mathematics and Science" instead. See src/config/mathsScienceArea.js.
+  numeracy: MATHS_SCIENCE_LABEL,
   literacy: 'Literacy',
   creative_and_technology_studies: 'Creative & Technology Studies',
   religious_education: 'Religious Education',
@@ -403,9 +411,19 @@ const SUBJECT_LABELS = {
   music_and_creative_arts: 'Music & Creative Arts',
 }
 
-export function subjectLabel(key) {
+/**
+ * Teacher-facing label for a canonical subject key.
+ *
+ * `grade` is optional and only changes the combined maths/science area, whose
+ * name differs by level ("Pre-Mathematics and Science" at Nursery/Reception,
+ * "Mathematics and Science" from Grade 1). Pass it wherever the grade is known
+ * — a dropdown built for a level, a saved paper's header — so an ECE paper
+ * never prints the primary name.
+ */
+export function subjectLabel(key, grade) {
   const k = String(key || '').trim()
   if (!k) return ''
+  if (k === MATHS_SCIENCE_SUBJECT_KEY) return mathsScienceLabelForGrade(grade)
   return SUBJECT_LABELS[k] || k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
@@ -473,6 +491,11 @@ const SUBJECT_FIXES = {
 export function toKbSubjectKey(subject) {
   const s = String(subject || '').trim()
   if (!s) return ''
+  // The combined maths/science area answers to more spellings than any other
+  // subject — the slug, two level-dependent labels, two syllabus sheet names
+  // and the old parenthesised one. They all mean the same syllabus rows, so
+  // they fold in one place rather than as five entries below.
+  if (isMathsScienceName(s)) return MATHS_SCIENCE_SUBJECT_KEY
   // Already a canonical-looking key (lowercase + underscores, no spaces).
   if (/^[a-z][a-z_]*$/.test(s)) {
     const k = s.replace(/^_+|_+$/g, '')

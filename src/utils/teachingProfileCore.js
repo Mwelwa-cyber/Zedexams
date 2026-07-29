@@ -31,6 +31,7 @@ import {
   SPLIT_LEGACY_SUBJECTS,
   splitSubjectsAtGrade,
 } from '../config/teacherTaxonomy.js'
+import { canonicalMathsScienceLabel } from '../config/mathsScienceArea.js'
 
 // ── value spaces ─────────────────────────────────────────────────────────────
 
@@ -121,12 +122,21 @@ export function gradeLabel(value) {
   return found ? found.label : String(value ?? '')
 }
 
-/** Display label for a subject slug (e.g. 'integrated_science' → 'Integrated Science'). */
-export function subjectLabel(value) {
+/**
+ * Display label for a subject slug (e.g. 'integrated_science' → 'Integrated
+ * Science').
+ *
+ * `grade` is optional and only changes the combined maths/science area, which
+ * TEACHER_SUBJECTS and ECE_SUBJECTS both carry under the `numeracy` slug under
+ * two different names — without the grade the first list wins, which is right
+ * for Grades 1-4 and wrong for Nursery/Reception.
+ */
+export function subjectLabel(value, grade) {
   const found =
     TEACHER_SUBJECTS.find((s) => s.value === value) ||
     ECE_SUBJECTS.find((s) => s.value === value)
-  return found ? found.label : String(value ?? '')
+  if (!found) return String(value ?? '')
+  return canonicalMathsScienceLabel(found.label, grade) || found.label
 }
 
 /** Which school level a grade belongs to: ECE / primary (G1–G7) / secondary (G8+). */
@@ -191,7 +201,7 @@ export function assignmentKey(a) {
 /** A short human label for an assignment card / selector ("Grade 4 · Mathematics"). */
 export function assignmentLabel(a) {
   const n = normalizeAssignment(a)
-  const parts = [gradeLabel(n.grade), subjectLabel(n.subject)]
+  const parts = [gradeLabel(n.grade), subjectLabel(n.subject, n.grade)]
   if (n.className) parts.push(n.className)
   return parts.filter(Boolean).join(' · ')
 }
@@ -224,7 +234,7 @@ export function validateAssignment(data = {}) {
   // assignmentNeedsReview() surfaces it instead of it passing quietly.
   else if (SPLIT_LEGACY_SUBJECTS[n.subject]) {
     const options = SPLIT_LEGACY_SUBJECTS[n.subject].map((k) => subjectLabel(k)).join(' or ')
-    errors.push(`${subjectLabel(n.subject)} is now two separate subjects. Choose ${options}.`)
+    errors.push(`${subjectLabel(n.subject, n.grade)} is now two separate subjects. Choose ${options}.`)
   }
   // Still a real subject elsewhere, but not at this grade — Home Economics is
   // three separate syllabi at CBC Forms 1-4. Same hard error for the same reason:
@@ -232,7 +242,7 @@ export function validateAssignment(data = {}) {
   else if (splitSubjectsAtGrade(n.subject, n.grade, n.curriculumType)) {
     const options = splitSubjectsAtGrade(n.subject, n.grade, n.curriculumType).map((k) => subjectLabel(k))
     const list = `${options.slice(0, -1).join(', ')} or ${options[options.length - 1]}`
-    errors.push(`${subjectLabel(n.subject)} is not one subject at ${gradeLabel(n.grade)} in the ${curriculumTypeLabel(n.curriculumType)}. Choose ${list}.`)
+    errors.push(`${subjectLabel(n.subject, n.grade)} is not one subject at ${gradeLabel(n.grade)} in the ${curriculumTypeLabel(n.curriculumType)}. Choose ${list}.`)
   }
   else if (!VALID_SUBJECT_VALUES.has(n.subject)) warnings.push(`Unrecognised subject "${n.subject}".`)
   else if (!subjectExistsInCurriculum(n.subject, n.curriculumType)) {
@@ -240,7 +250,7 @@ export function validateAssignment(data = {}) {
   }
   if (n.grade && n.subject && VALID_GRADE_VALUES.has(n.grade) && VALID_SUBJECT_VALUES.has(n.subject) && errors.length === 0) {
     if (!isSubjectValidForGrade(n.subject, n.grade, n.curriculumType)) {
-      warnings.push(`${subjectLabel(n.subject)} is not usually taught at ${gradeLabel(n.grade)} in the ${curriculumTypeLabel(n.curriculumType)}.`)
+      warnings.push(`${subjectLabel(n.subject, n.grade)} is not usually taught at ${gradeLabel(n.grade)} in the ${curriculumTypeLabel(n.curriculumType)}.`)
     }
   }
   return { valid: errors.length === 0, errors, warnings }

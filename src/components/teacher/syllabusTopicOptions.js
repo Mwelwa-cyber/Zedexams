@@ -187,8 +187,12 @@ export function useSyllabusSubjectOptions(grade, framework = '2023') {
       if (k.startsWith(prefix)) keys.add(k.slice(prefix.length))
     }
   }
+  // The label is resolved AGAINST THE GRADE, not from the key alone: the
+  // combined maths/science area is "Pre-Mathematics and Science" at Nursery /
+  // Reception and "Mathematics and Science" from Grade 1, and both are stored
+  // under the one `numeracy` slug.
   const subjects = Array.from(keys)
-    .map((key) => ({ key, label: subjectLabel(key) }))
+    .map((key) => ({ key, label: subjectLabel(key, g) }))
     .sort((a, b) => a.label.localeCompare(b.label))
   return { subjects, loading }
 }

@@ -66,7 +66,12 @@ for (const k of ['english', 'mathematics', 'integrated_science', 'social_studies
 }
 
 // ── Subject labels ───────────────────────────────────────────────────────
-eq(subjectLabel('numeracy'), 'Numeracy (Maths & Science)', 'numeracy label')
+// The combined maths/science area is NEVER labelled "Numeracy" — that is the
+// storage slug, not a 2023-syllabus subject. Its name depends on the level, so
+// subjectLabel takes the grade; see scripts/test-maths-science-naming.mjs.
+eq(subjectLabel('numeracy'), 'Mathematics and Science', 'numeracy label')
+eq(subjectLabel('numeracy', 'ECE_R'), 'Pre-Mathematics and Science',
+  'numeracy label at Reception')
 eq(subjectLabel('integrated_science'), 'Integrated Science', 'integrated_science label')
 ok(subjectLabel('some_new_subject') === 'Some New Subject', 'unknown key title-cased')
 for (const k of FALLBACK_SUBJECT_KEYS) {

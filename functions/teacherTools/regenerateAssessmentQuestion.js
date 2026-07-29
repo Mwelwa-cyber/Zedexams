@@ -98,7 +98,7 @@ async function runRegenerateQuestion({uid, rawInputs, apiKey}) {
       cbcContextBlock: contextBlock,
       messages: [{role: "user", content: buildRegeneratePrompt(inputs, {
         gradeLabel: gradeLabelFor(inputs.grade),
-        subjectLabel: subjectLabelFor(inputs.subject),
+        subjectLabel: subjectLabelFor(inputs.subject, inputs.grade),
       }) + (misconceptionDirective ? `\n\n${misconceptionDirective}` : "")}],
       // One question with options, answer and marking guide: ~120 tokens per
       // mark plus a floor for the wording, capped well below a paper's budget.

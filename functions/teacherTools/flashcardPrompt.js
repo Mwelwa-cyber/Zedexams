@@ -8,6 +8,8 @@
  * language and "pupils". The two must never be mixed.
  */
 
+const {subjectNameForGrade} = require("./subjectNaming");
+
 const PROMPT_VERSION = "flashcards.v2";
 
 const SYSTEM_PROMPT_CBC = `You are an expert Zambian teacher who creates revision flashcards for the Zambian Competence-Based Curriculum (CBC). Your flashcards are:
@@ -64,7 +66,7 @@ function buildUserPrompt(inputs) {
     heading,
     "",
     `- Grade / Class: ${grade}`,
-    `- Subject: ${subject}`,
+    `- Subject: ${subjectNameForGrade(subject, grade)}`,
     `- Topic: ${topic}`,
     subtopic ? `- Sub-topic: ${subtopic}` : "",
     `- Number of cards (approx): ${count}`,

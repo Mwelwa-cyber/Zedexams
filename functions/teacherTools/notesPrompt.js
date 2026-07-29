@@ -19,6 +19,7 @@
  */
 
 const {learningEnvironmentLabel} = require("./learningEnvironments");
+const {subjectNameForGrade} = require("./subjectNaming");
 
 const PROMPT_VERSION = "notes.v2";
 
@@ -168,7 +169,7 @@ function buildUserPrompt(inputs) {
     heading,
     "",
     `- Grade: ${grade}`,
-    `- Subject: ${subject}`,
+    `- Subject: ${subjectNameForGrade(subject, grade)}`,
     `- Topic: ${topic}`,
     subtopic ? `- Sub-topic: ${subtopic}` : "",
     term ? `- Term: ${term}` : "",

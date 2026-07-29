@@ -45,14 +45,21 @@ const {ASSESSMENT_TYPE_LABELS} = require("./assessmentFormats");
 const {shapeLibraryReference} = require("./assessmentShapes");
 const {bloomProfileForGrade, gradeLanguageLadder} =
   require("./bloomTaxonomy");
+const {MATHS_SCIENCE_SUBJECT_KEY, subjectNameForGrade} =
+  require("./subjectNaming");
 
 const PROMPT_VERSION = "assessment.v10";
 
 // Lower-primary subject keys that are an INTEGRATED Maths & Science learning
-// area (the CBC "Numeracy" learning area for ECE + Grades 1-3). The maths and
-// science strands share one syllabus subject, so a paper for this subject must
-// deliberately cover both — see buildUserPrompt.
-const COMBINED_NUMERACY_SUBJECTS = new Set(["numeracy"]);
+// area for ECE + Grades 1-4. The maths and science strands share one syllabus
+// subject, so a paper for this subject must deliberately cover both — see
+// buildUserPrompt.
+//
+// `numeracy` is the STORAGE SLUG. It is not the area's name and must never be
+// what the model is handed or what prints on the paper: the syllabus calls it
+// "Pre-Mathematics and Science" at Nursery/Reception and "Mathematics and
+// Science" from Grade 1. Mirrors src/config/mathsScienceArea.js.
+const COMBINED_NUMERACY_SUBJECTS = new Set([MATHS_SCIENCE_SUBJECT_KEY]);
 
 // Human labels for the canonical question-type keys, used when listing the
 // teacher's whitelist in the user prompt.
@@ -249,9 +256,10 @@ function buildUserPrompt(inputs) {
     "",
     `- Assessment type: ${typeLabel}`,
     `- Grade: ${grade}`,
-    `- Subject: ${subject}`,
+    `- Subject: ${subjectNameForGrade(subject, grade)}`,
     isCombinedNumeracy ?
-      "- IMPORTANT — at this level \"Numeracy\" is the INTEGRATED Maths & " +
+      `- IMPORTANT — at this level "${subjectNameForGrade(subject, grade)}" ` +
+      "is ONE INTEGRATED Maths & " +
       "Science learning area, NOT science alone. This paper MUST cover BOTH " +
       "strands in roughly equal measure: (a) NUMBER & MATHS — counting, " +
       "number value, addition and subtraction, money, patterns, measurement, " +
@@ -260,7 +268,10 @@ function buildUserPrompt(inputs) {
       "weather, hygiene and surroundings. Do NOT produce a science-only (or " +
       "maths-only) paper. Pull the maths from the syllabus sub-topics in the " +
       "curriculum module (e.g. grouping things, shapes, time, addition and " +
-      "subtraction) just as much as the science ones." :
+      "subtraction) just as much as the science ones. Name the subject " +
+      `EXACTLY "${subjectNameForGrade(subject, grade)}" wherever it appears ` +
+      "on the paper — never \"Numeracy\", which is a key competence and a " +
+      "storage code, not the name of this learning area." :
       "",
     `- Topic: ${topic}`,
     subtopic ? `- Sub-topic: ${subtopic}` : "",
