@@ -60,14 +60,14 @@ export function ProgressPanel({
       />
 
       <div className="lpw-sheet">
-        <div className="flex items-center justify-between border-b-2 border-[#ddd3be] px-4 py-3">
-          <h2 className="font-display text-[15px] font-extrabold text-[#0F1B2D]">Your progress</h2>
+        <div className="flex items-center justify-between border-b-2 border-line px-4 py-3">
+          <h2 className="font-display text-[15px] font-extrabold text-ink">Your progress</h2>
           <button
             ref={closeRef}
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="grid h-11 w-11 place-items-center rounded-xl text-[#4A5A6E] hover:bg-white/70"
+            className="grid h-11 w-11 place-items-center rounded-xl text-ink-muted hover:bg-card"
           >
             <X size={20} aria-hidden="true" />
           </button>
@@ -75,7 +75,7 @@ export function ProgressPanel({
 
         <div className="min-h-0 flex-1 overflow-y-auto pb-4">
           {!hasSelection ? (
-            <p className="px-4 py-6 text-center text-[13px] font-semibold text-[#7a6d5d]">
+            <p className="px-4 py-6 text-center text-[13px] font-semibold text-ink-muted">
               Pick a class and subject in Lesson Setup to see your saved
               lessons and curriculum coverage.
             </p>
@@ -85,7 +85,7 @@ export function ProgressPanel({
                   panel until a subtopic is chosen). */}
               <SubtopicLessonsPanel {...lessonMemory} />
               {!lessonMemory.subtopicName && (
-                <p className="px-4 pt-3 text-[12px] font-semibold text-[#7a6d5d]">
+                <p className="px-4 pt-3 text-[12px] font-semibold text-ink-muted">
                   Choose a topic and subtopic to see the lessons you have
                   already created for it.
                 </p>

@@ -50,21 +50,21 @@ export function EnvironmentCards({ learningEnvironments = [], onToggle, disabled
               'lps-lift flex w-full min-h-[56px] items-center gap-3 rounded-2xl border px-3.5 py-3 text-left transition-all',
               checked
                 ? 'border-blue-500 bg-blue-50 lps-card-glow'
-                : 'border-[#e0d7c8] bg-white hover:border-[#cfc3ae] hover:bg-[#f9f5ef]',
+                : 'border-line bg-card hover:border-line hover:bg-surface',
             ].join(' ')}
           >
             <span
               className={[
                 'grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl',
-                checked ? 'bg-blue-100 text-blue-600' : 'bg-[#f5efe1] text-[#a99e8b]',
+                checked ? 'bg-blue-100 text-blue-600' : 'bg-surface text-ink-muted',
               ].join(' ')}
               aria-hidden="true"
             >
               <Icon size={20} />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[13px] font-bold text-[#0F1B2D]">{label}</span>
-              <span className="block text-[11.5px] text-[#7a6d5d]">{description}</span>
+              <span className="block text-[13px] font-bold text-ink">{label}</span>
+              <span className="block text-[11.5px] text-ink-muted">{description}</span>
             </span>
             {checked && (
               <span
@@ -103,11 +103,11 @@ export function LessonContextStep({
 }) {
   if (curriculumMode !== 'cbc') {
     return (
-      <div className="flex items-start gap-3 rounded-2xl border-2 border-[#0F1B2D] bg-white p-4 shadow-[0_2px_0_#0F1B2D]">
-        <span className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-xl bg-[#FFF4E8] text-[#a3422e]" aria-hidden="true">
+      <div className="flex items-start gap-3 rounded-2xl border-2 border-card-border bg-card p-4 shadow-[0_2px_0_var(--zt-card-border)]">
+        <span className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-xl bg-accent-tint text-accent-text" aria-hidden="true">
           <Info size={18} />
         </span>
-        <p className="text-[13px] leading-relaxed text-[#3d3529]">
+        <p className="text-[13px] leading-relaxed text-ink">
           The Previous (Outcomes-Based) curriculum doesn&rsquo;t use learning
           environments or lesson series — there&rsquo;s nothing to set here.
           Continue to Format &amp; Options.
@@ -120,7 +120,7 @@ export function LessonContextStep({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border-2 border-[#0F1B2D] bg-white p-4 shadow-[0_2px_0_#0F1B2D]">
+      <div className="rounded-2xl border-2 border-card-border bg-card p-4 shadow-[0_2px_0_var(--zt-card-border)]">
         <p className="lps-eyebrow mb-2.5">Learning Environment</p>
         <EnvironmentCards
           learningEnvironments={learningEnvironments}
@@ -128,13 +128,13 @@ export function LessonContextStep({
           disabled={!subtopicRow}
         />
         {!subtopicRow && (
-          <p className="mt-2 text-[11.5px] font-semibold text-[#a39d8e]">
+          <p className="mt-2 text-[11.5px] font-semibold text-ink-muted">
             Choose a topic and subtopic first.
           </p>
         )}
       </div>
 
-      <div className="rounded-2xl border-2 border-[#0F1B2D] bg-white p-4 shadow-[0_2px_0_#0F1B2D]">
+      <div className="rounded-2xl border-2 border-card-border bg-card p-4 shadow-[0_2px_0_var(--zt-card-border)]">
         <p className="lps-eyebrow mb-2.5">Lesson Progression</p>
         <LessonProgressionForm
           embedded

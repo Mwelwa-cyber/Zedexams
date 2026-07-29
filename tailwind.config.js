@@ -16,6 +16,46 @@ export default {
         body:    ['Plus Jakarta Sans', 'Nunito', 'sans-serif'],
       },
       colors: {
+        // ── Teacher workspace theme tokens ──────────────────────────────
+        // Backed by the --zt-* custom properties defined in src/index.css
+        // and switched by `data-theme` on <html>. Writing `bg-sidebar` or
+        // `text-ink-muted` is how a teacher component opts into theming;
+        // nothing here has a fixed value, so all four themes work through
+        // the same class with no per-theme variants.
+        //
+        // Scope: these are TEACHER tokens. The 6 learner palettes are a
+        // separate system (body.theme-* + the `theme-*` utility classes in
+        // index.css) and are untouched by these — see teacherThemeCore.js
+        // for why the two token sets cannot share names.
+        sidebar: 'var(--zt-sidebar-bg)',
+        'sidebar-text': 'var(--zt-sidebar-text)',
+        'sidebar-muted': 'var(--zt-sidebar-muted)',
+        surface: 'var(--zt-surface)',
+        card: 'var(--zt-card)',
+        // Strong outline. For hairlines/dividers/input edges use `line` —
+        // see the note in teacherThemeCore.js.
+        'card-border': 'var(--zt-card-border)',
+        line: 'var(--zt-line)',
+        accent: 'var(--zt-accent)',
+        'accent-deep': 'var(--zt-accent-deep)',
+        // The accent used AS text on a page/card background. `accent` is a
+        // fill and is not guaranteed readable as small text — see the note
+        // in teacherThemeCore.js.
+        'accent-text': 'var(--zt-accent-text)',
+        'on-accent': 'var(--zt-on-accent)',
+        // Pale accent wash behind selected/highlighted panels. Mixed into
+        // the CARD colour rather than white, so it stays a light tint on the
+        // light themes and becomes a dark tint on Night instead of a white
+        // box. Opacity modifiers (`bg-accent/12`) cannot do this: these
+        // colours are bare var() references, which Tailwind cannot inject an
+        // alpha channel into.
+        'accent-tint': 'color-mix(in srgb, var(--zt-accent) 12%, var(--zt-card))',
+        ink: 'var(--zt-text)',
+        'ink-muted': 'var(--zt-text-muted)',
+        banner: 'var(--zt-banner-bg)',
+        'banner-border': 'var(--zt-banner-border)',
+        'banner-text': 'var(--zt-banner-text)',
+
         zambia: {
           green:  '#2E7D32',
           gold:   '#F9A825',

@@ -285,6 +285,116 @@ body.theme-midnight .moe-calendar {
   --moe-progress-track:#334155;
 }
 
+/* ── Teacher workspace themes ──────────────────────────────────
+ * Applied as `data-theme` on <html> by ThemeContext (and pre-paint by
+ * public/boot.js). Values are mirrored from src/contexts/teacherThemeCore.js,
+ * which is the source of truth — `npm run test:teacher-theme-css` parses the
+ * blocks below and fails on any drift.
+ *
+ * WHY `--zt-` AND NOT `--card` / `--accent` / `--surface`
+ * The 6 learner themes above already own those names and declare them on
+ * <body>. A <body> declaration beats an <html> one for everything inside the
+ * body, so a teacher token reusing a learner name would be shadowed on every
+ * page and silently never apply. The prefix is what lets both systems live in
+ * one stylesheet. Tailwind maps these to readable class names
+ * (bg-surface, text-ink-muted, …) in tailwind.config.js.
+ *
+ * These tokens are consumed ONLY by teacher-scoped CSS and components, so the
+ * attribute being global on <html> does not re-colour learner surfaces.
+ *
+ * Contrast: every text/background pair in all four themes is asserted at
+ * WCAG AA by `npm run test:teacher-theme-contrast`. Several values differ
+ * from the original design palette purely to clear that bar — each one is
+ * annotated in teacherThemeCore.js with the ratio it replaced.
+ */
+:root,
+[data-theme='terracotta'] {
+  --zt-sidebar-bg: #1E3247;
+  --zt-sidebar-text: rgba(255, 255, 255, 0.78);
+  --zt-sidebar-muted: rgba(255, 255, 255, 0.55);
+  --zt-surface: #F5EEE1;
+  --zt-card: #FFFFFF;
+  --zt-card-border: #2E2A24;
+  --zt-line: #E4D9C6;
+  --zt-accent: #B95C3A;
+  --zt-accent-deep: #A94F2E;
+  --zt-accent-text: #AA5435;
+  --zt-on-accent: #FFFFFF;
+  --zt-text: #2E2A24;
+  --zt-text-muted: #736C5F;
+  --zt-banner-bg: #FBF3DC;
+  --zt-banner-border: #EAD9A8;
+  --zt-banner-text: #6B5B33;
+}
+
+[data-theme='miombo'] {
+  --zt-sidebar-bg: #24382C;
+  --zt-sidebar-text: rgba(255, 255, 255, 0.80);
+  --zt-sidebar-muted: rgba(255, 255, 255, 0.55);
+  --zt-surface: #F3F1E7;
+  --zt-card: #FFFFFF;
+  --zt-card-border: #262A22;
+  --zt-line: #DFDCCB;
+  --zt-accent: #C9922E;
+  --zt-accent-deep: #A97A1F;
+  --zt-accent-text: #8E6721;
+  --zt-on-accent: #1C1705;
+  --zt-text: #262A22;
+  --zt-text-muted: #716E5E;
+  --zt-banner-bg: #F6F0D9;
+  --zt-banner-border: #E3D9A9;
+  --zt-banner-text: #66603A;
+}
+
+[data-theme='copperbelt'] {
+  --zt-sidebar-bg: #173540;
+  --zt-sidebar-text: rgba(255, 255, 255, 0.80);
+  --zt-sidebar-muted: rgba(255, 255, 255, 0.55);
+  --zt-surface: #F2EFE6;
+  --zt-card: #FFFFFF;
+  --zt-card-border: #22303A;
+  --zt-line: #DED9CB;
+  --zt-accent: #B4602E;
+  --zt-accent-deep: #9C4F22;
+  --zt-accent-text: #A6582A;
+  --zt-on-accent: #FFFFFF;
+  --zt-text: #22303A;
+  --zt-text-muted: #6F6C67;
+  --zt-banner-bg: #F8F1DE;
+  --zt-banner-border: #E7D9AC;
+  --zt-banner-text: #695E38;
+}
+
+[data-theme='night'] {
+  --zt-sidebar-bg: #10161F;
+  --zt-sidebar-text: rgba(255, 255, 255, 0.80);
+  --zt-sidebar-muted: rgba(255, 255, 255, 0.50);
+  --zt-surface: #1A222E;
+  --zt-card: #232D3B;
+  --zt-card-border: #6B7A8D;
+  --zt-line: #3B4757;
+  --zt-accent: #D9784F;
+  --zt-accent-deep: #C0602F;
+  --zt-accent-text: #E08A61;
+  --zt-on-accent: #120B04;
+  --zt-text: #EDE7DC;
+  --zt-text-muted: #94A0AF;
+  --zt-banner-bg: #2A2F26;
+  --zt-banner-border: #4A4F3A;
+  --zt-banner-text: #D9D3A8;
+}
+
+/* Text/icons on the dark chrome surfaces (sidebar, hero band, toast).
+   Deliberately NOT per-theme: all four themes define a dark sidebar and a
+   dark hero, and the contrast test asserts that. It is a named token rather
+   than a literal #fff so a future light-chrome theme changes one value
+   instead of every sidebar, drawer, dock, hero and toast rule. It is also
+   NOT --zt-on-accent: that one is near-black on Miombo and Night, because
+   those accents are light. */
+:root {
+  --zt-on-dark: #FFFFFF;
+}
+
 /* ── Design System v2 — alias tokens ───────────────────────────
  * Maps the design-system spec's token names onto the existing
  * theme-aware vars. var(--accent) etc resolve at use time, so all
@@ -457,23 +567,62 @@ body.theme-midnight .moe-calendar {
     --hero-muted:      #fecdd3;
   }
 
+  /* Night: the studio shell in a dark palette.
+   *
+   * `color-scheme` is the load-bearing line. Native widgets — <select>
+   * dropdowns, date/time pickers, scrollbars, checkboxes, the caret — are
+   * painted by the OS, not by our CSS, and default to a LIGHT rendering.
+   * Without this they stay white boxes on a dark page: exactly the failure
+   * this theme is most likely to ship with, because the surrounding CSS all
+   * looks correct. index.html pins the document to `color-scheme: light` for
+   * the learner surfaces, so this override is scoped to the studio shell
+   * rather than set on :root — a teacher on Night must not flip native
+   * controls dark on the learner pages they also visit.
+   *
+   * KaTeX renders formulas with `color: currentColor`, so tokenised --text
+   * carries maths automatically; the one thing it does not inherit is the
+   * background of a scrollable display block, hence the explicit rule. */
+  [data-theme='night'] .studio-theme {
+    color-scheme: dark;
+  }
+  [data-theme='night'] .studio-theme .katex-display {
+    background: transparent;
+    color: var(--zt-text);
+  }
+
+  /* The teacher studio shell.
+   *
+   * This block is what makes the workspace theme reach the studios. It
+   * overrides the SAME variable names the six learner themes use (--bg,
+   * --card, --text, --accent …), so every `theme-bg` / `theme-card` /
+   * `theme-text` utility already written inside a studio re-colours through
+   * it with no component change. Previously these were fixed literals, which
+   * is why the studios sat at one cream palette regardless of preference.
+   *
+   * Learner surfaces are untouched: this only applies under .studio-theme,
+   * which TeacherLayout puts on the studio shell and nothing else uses.
+   *
+   * The semantic four (success/warning/danger/info) stay literal — a
+   * validation error is the same red in every theme. */
   .studio-theme {
-    --bg:              #f5efe1;
-    --bg-subtle:       #ece4d2;
-    --card:            #ffffff;
-    --card-hover:      #f7f1e3;
-    --text:            #0e2a32;
-    --text-muted:      #566f76;
-    --border:          #d9cfb8;
-    --accent:          #d97757;
-    --accent-text:     #ffffff;
-    --accent-bg:       #fff5e6;
-    --accent-fg:       #a5523a;
-    --input-bg:        #ffffff;
-    --input-border:    #d9cfb8;
+    --bg:              var(--zt-surface);
+    --bg-subtle:       color-mix(in srgb, var(--zt-text) 6%, var(--zt-surface));
+    --card:            var(--zt-card);
+    --card-hover:      color-mix(in srgb, var(--zt-text) 4%, var(--zt-card));
+    --text:            var(--zt-text);
+    --text-muted:      var(--zt-text-muted);
+    --border:          var(--zt-line);
+    --accent:          var(--zt-accent);
+    --accent-text:     var(--zt-on-accent);
+    --accent-bg:       color-mix(in srgb, var(--zt-accent) 12%, var(--zt-card));
+    --accent-fg:       var(--zt-accent-text);
+    --input-bg:        var(--zt-card);
+    --input-border:    var(--zt-line);
     --shadow:          rgba(14,42,50,0.10);
-    --hero-gradient:   linear-gradient(135deg, #0e2a32 0%, #16505d 100%);
-    --hero-muted:      #fde9b8;
+    --hero-gradient:   linear-gradient(135deg,
+                         var(--zt-sidebar-bg) 0%,
+                         color-mix(in srgb, var(--zt-sidebar-bg) 70%, var(--zt-accent)) 100%);
+    --hero-muted:      var(--zt-banner-border);
     --success:         #10864e; --success-bg: #e6f5ed; --success-fg: #0a5a35;
     --warning:         #a5523a; --warning-bg: #fff5e6; --warning-fg: #8a3d12;
     --danger:          #b91c1c; --danger-bg:  #fee2e2; --danger-fg:  #7f1414;
@@ -483,10 +632,10 @@ body.theme-midnight .moe-calendar {
   .studio-theme h1,
   .studio-theme h2,
   .studio-theme h3 { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
-  .studio-theme .studio-display { font-family: 'Fraunces', serif; font-weight: 800; letter-spacing: -.3px; color: var(--sv-ink, #0e2a32); }
+  .studio-theme .studio-display { font-family: 'Fraunces', serif; font-weight: 800; letter-spacing: -.3px; color: var(--sv-ink, var(--zt-text)); }
   /* Horizontal gutters come from `.studio-shell` (the layout wrapper) so we
      don't double-inset; studio-page keeps only its vertical rhythm + canvas bg. */
-  .studio-theme .studio-page { background: var(--sv-canvas, #f5efe1); min-height: 100vh; padding: 1rem 0; }
+  .studio-theme .studio-page { background: var(--sv-canvas, var(--zt-surface)); min-height: 100vh; padding: 1rem 0; }
   @media (min-width: 640px)  { .studio-theme .studio-page { padding: 1.5rem 0; } }
   @media (min-width: 1024px) { .studio-theme .studio-page { padding: 2rem 0; } }
   .studio-theme .studio-eyebrow {

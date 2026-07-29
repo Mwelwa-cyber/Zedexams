@@ -33,6 +33,29 @@
     document.body.classList.add('theme-oatmeal');
   }
 
+  // 1b. Pre-paint TEACHER workspace theme guard. Separate from the learner
+  //     palette above: that one is a body class, this one is `data-theme` on
+  //     <html> driving the --zt-* tokens (src/index.css). Mirrors
+  //     src/contexts/teacherThemeCore.js — keep the id list and the default in
+  //     step with it; test:teacher-theme-boot fails if they drift.
+  //
+  //     This lives here rather than as an inline <script> in index.html's
+  //     <head> (which is where a theme guard normally goes) because the CSP
+  //     deliberately has no 'unsafe-inline' in script-src — see the header
+  //     comment. boot.js is render-blocking at the top of <body> and is
+  //     preloaded in <head>, so it still runs before first paint and there is
+  //     no flash of the default theme.
+  try {
+    var teacherIds = ['terracotta', 'miombo', 'copperbelt', 'night'];
+    var savedTeacher = localStorage.getItem('zedexams-theme');
+    document.documentElement.setAttribute(
+      'data-theme',
+      teacherIds.indexOf(savedTeacher) !== -1 ? savedTeacher : 'terracotta'
+    );
+  } catch (e) {
+    document.documentElement.setAttribute('data-theme', 'terracotta');
+  }
+
   // 2. Promote the deferred Google Fonts stylesheet from media="print" to "all"
   //    once it loads (replaces the inline onload attribute on #zed-fonts). If
   //    it already loaded before this ran, promote immediately.

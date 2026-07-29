@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { useAuth, hasAuthSessionHint } from './contexts/AuthContext'
 import { useTheme, applyThemeToBody, DEFAULT_THEME } from './contexts/ThemeContext'
+import TeacherThemeSync from './contexts/TeacherThemeSync'
 import { PlatformSettingsProvider } from './contexts/PlatformSettingsContext'
 import MaintenanceBanner from './components/banners/MaintenanceBanner'
 import AnnouncementBanner from './components/banners/AnnouncementBanner'
@@ -486,6 +487,11 @@ export default function App() {
           default. Self-hides once a decision is recorded. */}
       <CookieConsentBanner />
       <ThemeApplicator />
+      {/* Binds the teacher workspace theme to users/{uid}.preferences.theme.
+          Mounted here rather than in ThemeProvider because that provider sits
+          above AuthProvider and so cannot read auth (headless; no-op when
+          signed out). */}
+      <TeacherThemeSync />
       {/* Live cross-device sync of the teacher's ACTIVE teaching assignment
           (headless; no-op unless a teacher is signed in). Notifies open
           studios via the Switch / Keep notice — never mutates form state. */}

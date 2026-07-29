@@ -25,22 +25,22 @@ function resourceLabel(value) {
 function Row({ label, value }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-1">
-      <dt className="flex-shrink-0 text-[11px] font-bold uppercase tracking-wider text-[#7a6d5d]">{label}</dt>
-      <dd className="min-w-0 text-right text-[13px] font-semibold leading-snug text-[#0F1B2D]">{value || '—'}</dd>
+      <dt className="flex-shrink-0 text-[11px] font-bold uppercase tracking-wider text-ink-muted">{label}</dt>
+      <dd className="min-w-0 text-right text-[13px] font-semibold leading-snug text-ink">{value || '—'}</dd>
     </div>
   )
 }
 
 function Section({ title, stepIndex, onEditStep, children }) {
   return (
-    <section className="rounded-2xl border-2 border-[#0F1B2D] bg-white p-4 shadow-[0_2px_0_#0F1B2D]">
+    <section className="rounded-2xl border-2 border-card-border bg-card p-4 shadow-[0_2px_0_var(--zt-card-border)]">
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <h3 className="lps-eyebrow">{title}</h3>
         <button
           type="button"
           onClick={() => onEditStep(stepIndex)}
           aria-label={`Edit ${title}`}
-          className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg px-2.5 py-1 text-[12px] font-bold text-[#a3422e] hover:bg-[#FFF4E8]"
+          className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg px-2.5 py-1 text-[12px] font-bold text-accent-text hover:bg-accent-tint"
         >
           <Pencil size={14} aria-hidden="true" />
           Edit

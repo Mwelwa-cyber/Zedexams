@@ -149,10 +149,13 @@
 }
 .tsl-chip:hover { border-color: var(--grey); color: var(--ink); }
 .tsl-chip.is-active {
-  /* copper-hover, not copper: white 13px text needs ≥4.5:1 (AA) */
+  /* copper-hover, not copper: the deeper end buys headroom for 13px
+     text. The foreground follows --zt-on-accent, which is white on the
+     themes whose accent is dark enough and near-black on the two whose
+     accent is not (Miombo's gold, Night's coral). */
   background: var(--copper-hover);
   border-color: var(--copper-hover);
-  color: #fff;
+  color: var(--zt-on-accent);
   box-shadow: var(--shadow-copper);
 }
 .tsl-chip:focus-visible,
@@ -397,7 +400,7 @@
   height: 19px;
   border-radius: 999px;
   background: var(--copper);
-  color: #fff;
+  color: var(--zt-on-accent);
   box-shadow: 0 1px 3px rgba(16, 36, 62, 0.25);
 }
 
@@ -436,7 +439,7 @@
   box-shadow: 0 1px 2px rgba(16, 36, 62, 0.14);
 }
 .tsl-app-badge.kind-saved { background: #e4f1ef; color: #0f766e; }
-.tsl-app-badge.kind-new { background: var(--copper-hover); color: #fff; }
+.tsl-app-badge.kind-new { background: var(--copper-hover); color: var(--zt-on-accent); }
 .tsl-app-badge.kind-setup { background: #fef3c7; color: #b45309; }
 .tsl-app-badge.kind-warning {
   top: 8px;
@@ -505,7 +508,7 @@
   font-weight: 800;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: #fff;
+  color: var(--zt-on-accent);
   background: var(--copper-hover);
   padding: 2px 6px;
   border-radius: 999px;
@@ -532,7 +535,7 @@
   border: 0;
   border-radius: 12px;
   background: var(--copper-hover);
-  color: #fff;
+  color: var(--zt-on-accent);
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
