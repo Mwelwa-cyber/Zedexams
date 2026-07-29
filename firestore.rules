@@ -385,7 +385,18 @@ service cloud.firestore {
         && (incoming().get('emailVerified', false) == false
             || tokenEmailVerified())
         && (incoming().get('emailVerifiedAt', null) == null
-            || tokenEmailVerified());
+            || tokenEmailVerified())
+        // Guardian consent (Families policy / Zambia DPA). A signup may
+        // declare a guardian contact, but the DECISION is server-only: the
+        // only writer of 'granted' is confirmGuardianConsent, reached by a
+        // link sent to the guardian. Without this pin a learner could create
+        // their own account pre-approved and the whole flow would be theatre.
+        && (incoming().get('guardian', null) == null
+            || incoming().guardian.get('consentStatus', '') == 'pending')
+        // Consent EVIDENCE is what we would show a regulator; a client-minted
+        // one proves nothing, so it may not exist at create time.
+        && (incoming().get('guardian', null) == null
+            || incoming().guardian.get('evidence', null) == null);
       // Self-update: cannot change role or subscription fields. The
       // cancelAtPeriodEnd flag is in this list too (audit D4) — only
       // the setSubscriptionCancellation Cloud Function (admin SDK) is
@@ -400,6 +411,14 @@ service cloud.firestore {
       // Cloud Function, so they're blocked from self-mutation too.
       allow update: if isAuthed() && isOwner(userId)
         && !changedKeys().hasAny([
+          // Guardian consent + the age answer. `guardian` holds the approval
+          // decision and its evidence, written only by confirmGuardianConsent
+          // (admin SDK). `dob` and `isMinor` are the age screen's answer:
+          // letting a learner rewrite either would let them age out of the
+          // restricted experience from the client, which is the neutral age
+          // screen's one forbidden outcome. The Resend control does not touch
+          // these — it calls sendGuardianConsent, which writes server-side.
+          'guardian', 'dob', 'isMinor',
           'role', 'plan', 'premium', 'isPremium', 'paymentStatus', 'subscriptionStatus',
           'premiumActivatedAt', 'subscriptionPlan', 'subscriptionExpiry', 'subscriptionActivatedBy',
           'subscriptionActivatedAt', 'subscriptionProvider', 'subscriptionPaymentId',

@@ -20,6 +20,8 @@ import { ROLES, hasPremiumAccess, hasLearnerPortalAccess } from '../utils/subscr
 import { isSuperAdmin as isSuperAdminRole, resolvePermissionFlags } from '../utils/permissions'
 import { setSentryUser, clearSentryUser } from '../utils/sentry'
 import { capture, identifyUser, resetAnalytics } from '../utils/analytics'
+import { requiresGuardianConsent } from '../utils/guardianConsent'
+import { sendGuardianConsentRequest } from '../utils/ageGateService'
 import { refreshTokenIfGranted, clearPushUser } from '../utils/fcm'
 import { mintAndPersistReferralCode, readPendingReferral, clearPendingReferral } from '../utils/referrals'
 import { clearAllSearchCaches } from '../utils/cache/searchCache.js'
@@ -276,7 +278,43 @@ export function AuthProvider({ children }) {
       userRecord.province = String(extras.province || '').trim()
       userRecord.subject  = String(extras.subject  || '').trim()
     }
+
+    // Age gate + guardian consent (Play Families policy / Zambia DPA).
+    //
+    // `isMinor` is DERIVED from the declared date of birth via the shared
+    // consent core, never taken as a flag from the caller — the whole point of
+    // the age screen is that the answer decides the routing, and a client that
+    // could send `isMinor: false` alongside a 2016 birthday would make the
+    // screen decorative. requiresGuardianConsent also treats an absent or
+    // unreadable date as a child, so a tampered payload fails towards the
+    // restricted experience rather than out of it.
+    if (extras.dob) userRecord.dob = String(extras.dob)
+    const minor = requiresGuardianConsent(extras.dob)
+    userRecord.isMinor = minor
+    if (minor) {
+      const guardian = extras.guardian || {}
+      userRecord.guardian = {
+        contact: String(guardian.contact || '').trim(),
+        method: guardian.method === 'whatsapp' ? 'whatsapp' : 'email',
+        // Always 'pending' at creation. A client cannot self-approve: the only
+        // writer of 'granted' is the confirmGuardianConsent server path, and
+        // firestore.rules pins this field against client updates.
+        consentStatus: 'pending',
+        requestedAt: new Date().toISOString(),
+      }
+    }
+
     await setDoc(doc(db, 'users', cred.user.uid), userRecord)
+
+    // Message the guardian. Best-effort: a failed send must not fail signup —
+    // the learner lands in limited mode with a Resend control either way.
+    if (minor) {
+      try {
+        await sendGuardianConsentRequest()
+      } catch (err) {
+        console.warn('[register] guardian consent send failed', err)
+      }
+    }
     if (referredBy) clearPendingReferral()
     // Fire the verification email but don't fail signup if delivery hiccups
     // (e.g. rate-limited, transient Firebase Auth outage). The user lands on
