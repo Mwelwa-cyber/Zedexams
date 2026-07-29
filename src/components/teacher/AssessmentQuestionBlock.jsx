@@ -857,6 +857,9 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
               <ShortAnswerInputs
                 correctAnswer={question.correctAnswer}
                 onChange={value => updateQuestion('correctAnswer', value)}
+                maths={mathsPaper}
+                grade={paperMeta?.grade}
+                fieldId={`q:${question.localId}:answer`}
               />
               <AnswerSpaceControl question={question} onUpdate={updateQuestion} />
               <SplitIntoPartsButton question={question} onUpdate={updateQuestion} />
@@ -908,6 +911,9 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
             onChange={value => updateQuestion('correctAnswer', value)}
             label="Expected response / marking notes"
             lines={4}
+            maths={mathsPaper}
+            grade={paperMeta?.grade}
+            fieldId={`q:${question.localId}:answer`}
           />
           <AnswerSpaceControl question={question} onUpdate={updateQuestion} />
         </>

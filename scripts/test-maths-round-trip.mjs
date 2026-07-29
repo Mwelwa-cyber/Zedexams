@@ -38,7 +38,10 @@ const para = (...content) => ({ type: 'paragraph', content })
 const text = (t) => ({ type: 'text', text: t })
 const fraction = (num, den, whole = '') => ({ type: 'mathFraction', attrs: { whole, num, den } })
 const numberBase = (number, base) => ({ type: 'numberBase', attrs: { number, base } })
-const mathNode = (latex) => ({ type: 'math', attrs: { latex } })
+// The editor's real node name — asserting against 'math' would build a
+// fixture ProseMirror rejects, and the renderer's catch would turn that into
+// a silently empty paper rather than a failing test.
+const mathNode = (latex) => ({ type: 'mathInline', attrs: { latex } })
 const verticalArithmetic = (operands, operator) => ({
   type: 'verticalArithmetic', attrs: { operands: operands.join(','), operator },
 })

@@ -1398,22 +1398,24 @@ function renderAnswerBlock(b) {
       .map((p, i) => `(${subPartLabel(i)}) ${escapeHtml(String(p.answer ?? '—'))}`)
       .join('&nbsp;&nbsp; ')
     const body = `<div><span class="label">Answers:</span> ${pairs}</div>`
-    const notes = b.explanation ? `<div class="notes">Notes: ${escapeHtml(b.explanation)}</div>` : ''
-    return `<div class="answer-block">${body}${notes}</div>`
+    return `<div class="answer-block">${body}${schemeNotesHtml(b)}</div>`
   }
 
   // Identify-mode diagrams print a numbered list of expected answers.
   if (b.type === 'diagram' && b.diagramMode === 'identify' && Array.isArray(b.diagramLabels) && b.diagramLabels.length) {
     const pairs = b.diagramLabels.map((l, i) => `${i + 1}. ${escapeHtml(l.text || '—')}`).join('&nbsp;&nbsp; ')
     const body = `<div><span class="label">Answers:</span> ${pairs}</div>`
-    const notes = b.explanation ? `<div class="notes">Notes: ${escapeHtml(b.explanation)}</div>` : ''
-    return `<div class="answer-block">${body}${notes}</div>`
+    return `<div class="answer-block">${body}${schemeNotesHtml(b)}</div>`
   }
   let body = ''
   if (b.type === 'mcq' || b.type === 'truefalse' || b.type === 'true_false' || b.type === 'tf') {
     const i = Number(b.correctAnswer)
     const letter = SECTION_LETTERS[i] || '?'
-    const opt = b.options?.[i] ?? ''
+    // The PLAIN mirror, not the raw option. A rich option is a Tiptap doc, and
+    // `String(doc)` is "[object Object]" — which is what the printed marking
+    // key said for a fraction answer. The Word export already read
+    // `optionsPlain` here; the print window did not, and the two disagreed.
+    const opt = b.optionsPlain?.[i] ?? b.options?.[i] ?? ''
     body = `<div><span class="label">Answer:</span> ${escapeHtml(letter)}. ${escapeHtml(String(opt))}</div>`
   } else if (b.type === 'numeric') {
     const value = escapeHtml(String(b.correctAnswer ?? ''))
@@ -1443,11 +1445,28 @@ function renderAnswerBlock(b) {
       return `${label} ${escapeHtml(e.text || '—')}`
     }).join('&nbsp;&nbsp; ')
     body = `<div><span class="label">Correct order:</span> ${seq}</div>`
+  } else if (b.answerHtml && b.answerHtml.trim()) {
+    // A structured expected answer. `b.answerHtml` is already sanitised and
+    // pre-hydrated by the layout, so the fraction bar is in the markup — which
+    // matters here more than anywhere, because the print window runs no
+    // JavaScript. escapeHtml(String(correctAnswer)) printed "[object Object]".
+    body = `<div><span class="label">Expected answer:</span> ${b.answerHtml}</div>`
   } else {
-    body = `<div><span class="label">Expected answer:</span> ${escapeHtml(String(b.correctAnswer ?? ''))}</div>`
+    body = `<div><span class="label">Expected answer:</span> ${escapeHtml(b.answerPlain ?? String(b.correctAnswer ?? ''))}</div>`
   }
-  if (b.explanation) {
-    body += `<div class="notes">Notes: ${escapeHtml(b.explanation)}</div>`
-  }
+  body += schemeNotesHtml(b)
   return `<div class="answer-block">${body}</div>`
+}
+
+/**
+ * The marking note under an answer — rich when the teacher wrote mathematics
+ * into it, escaped plain text otherwise (which is what every note written
+ * before this existed still takes).
+ */
+function schemeNotesHtml(b) {
+  if (b.explanationHtml && b.explanationHtml.trim()) {
+    return `<div class="notes">Notes: ${b.explanationHtml}</div>`
+  }
+  if (!b.explanation) return ''
+  return `<div class="notes">Notes: ${escapeHtml(b.explanation)}</div>`
 }

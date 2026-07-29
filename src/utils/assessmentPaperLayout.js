@@ -10,7 +10,7 @@
  * two drifting (preview = marble banner, PDF = cover-row table).
  */
 
-import { richTextToPlainText } from './quizRichText.js'
+import { richTextToPlainText, richTextHasFormatting } from './quizRichText.js'
 import { richTextToPaperHtml } from '../editor/utils/safeRender.js'
 import { analyzeTiming } from './assessmentTiming.js'
 import { canonicalizeQuestionType } from '../editor/schema/question.js'
@@ -100,6 +100,30 @@ function plain(value) {
  * expected label for that slot and is followed by a real delimiter, so legit
  * content like "Arteries" or "A car is faster" is never touched.
  */
+/**
+ * The rich twins of `correctAnswer` and `explanation` for the marking key.
+ *
+ * `answerPlain` is always present and always safe — `plain()` walks a Tiptap
+ * doc, so a structured answer degrades to readable text rather than to
+ * "[object Object]" in any renderer that has not been taught the nodes.
+ */
+function answerFields(q, includeAnswer) {
+  if (!includeAnswer) return { answerPlain: '', answerHtml: '', answerNodes: [], explanationHtml: '', explanationNodes: [] }
+  const answer = q.correctAnswer
+  // An MCQ's correctAnswer is an INDEX. Running a number through the rich
+  // pipeline would be meaningless, and `plain()` would return '' for it.
+  const answerIsText = typeof answer === 'string' || (answer && typeof answer === 'object')
+  const answerRich = answerIsText && richTextHasFormatting(answer)
+  const explanationRich = richTextHasFormatting(q.explanation)
+  return {
+    answerPlain: answerIsText ? plain(answer) : String(answer ?? ''),
+    answerHtml: answerRich ? richHtml(answer) : '',
+    answerNodes: answerRich ? richNodes(answer) : [],
+    explanationHtml: explanationRich ? richHtml(q.explanation) : '',
+    explanationNodes: explanationRich ? richNodes(q.explanation) : [],
+  }
+}
+
 function stripOptionLabel(value, index) {
   if (typeof value !== 'string') return value
   const expected = SECTION_LETTERS[index]
@@ -771,6 +795,17 @@ function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}, section = nu
     mcqLayout: type === 'mcq' ? mcqLayout : null,
     correctAnswer: q.correctAnswer,
     explanation: includeAnswer ? plain(q.explanation) : '',
+    // The marking key's own mathematics (§4, §9). An expected answer and a
+    // marking note are as likely to contain a fraction as the question is —
+    // "the answer is three fifths" is a fraction, and the three renderers all
+    // reached for String(correctAnswer), which prints "[object Object]" for a
+    // structured one.
+    //
+    // Produced ONLY when the value is genuinely rich. A plain answer keeps the
+    // exact single-run path it has always taken, so no existing paper's
+    // marking key changes shape; the nodes are additive and each renderer
+    // falls back to the plain mirror when they are absent.
+    ...answerFields(q, includeAnswer),
     imageUrl: q.imageUrl || '',
     // Exact library figure on the stem ({libraryKey, params}); preview/PDF
     // render it via the diagram catalog, DOCX rasterises it.

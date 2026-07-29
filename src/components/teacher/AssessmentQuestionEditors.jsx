@@ -417,10 +417,33 @@ export function FillBlanksInputs({ question, onUpdate }) {
   )
 }
 
-export function ShortAnswerInputs({ correctAnswer, onChange, label, lines = 2 }) {
+export function ShortAnswerInputs({ correctAnswer, onChange, label, lines = 2, maths = false, fieldId, grade }) {
+  const heading = label || 'Expected answer (used for marking key)'
+  // The expected answer can carry mathematics too (§4) — "the answer is three
+  // fifths" is a fraction, and the marking key, PDF and Word all render it.
+  // A rich answer gets the field even off a mathematics paper, for the same
+  // reason a rich option does: a textarea would flatten it on the first
+  // keystroke.
+  if (maths || richTextHasFormatting(correctAnswer)) {
+    return (
+      <div className="sv-answer-lines">
+        <div className="sv-answer-meta"><Icon name="ruler" size={13} /> {heading}</div>
+        <MathsRichField
+          fieldId={fieldId || 'expected-answer'}
+          value={correctAnswer}
+          onChange={onChange}
+          toolbarVariant="compact"
+          grade={grade}
+          minHeight={Math.max(38, lines * 20)}
+          placeholder="Type the expected answer or marking notes"
+          ariaLabel={`${heading} — edit with mathematics tools`}
+        />
+      </div>
+    )
+  }
   return (
     <div className="sv-answer-lines">
-      <div className="sv-answer-meta"><Icon name="ruler" size={13} /> {label || 'Expected answer (used for marking key)'}</div>
+      <div className="sv-answer-meta"><Icon name="ruler" size={13} /> {heading}</div>
       <textarea
         value={String(correctAnswer ?? '')}
         onChange={e => onChange(e.target.value)}

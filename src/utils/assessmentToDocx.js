@@ -174,25 +174,59 @@ function runMarks(marks = {}) {
 }
 
 /**
- * One inline node as docx runs.
+ * A structured fraction as a real Word equation — the school notation a learner
+ * writes, with a horizontal bar (§4.2, §5).
  *
- * A fraction is drawn as superscript-numerator / solidus / subscript-denominator:
- * Word has no native inline fraction short of an OMML equation object, and this
- * form is unambiguous and legible in every Word version. (Real OMML is the
- * remaining §4.2 work.)
+ * This used to be superscript-numerator + "⁄" + subscript-denominator. That is
+ * legible, and it is also exactly the two forms §5 rules out: a diagonal
+ * solidus, and a superscript-over-subscript imitation of a fraction. A Zambian
+ * paper prints the numerator directly above the denominator, so Word has to
+ * draw an equation — nothing else in WordprocessingML puts one number over
+ * another.
+ *
+ * A mixed number keeps its whole part as an ordinary run BESIDE the equation,
+ * which is what puts the full-size 2 next to a stacked 3-over-7 rather than
+ * inside it.
+ *
+ * The old form remains the fallback, not because it is good but because a
+ * dropped formula is worse than an ugly one: if the equation cannot be built,
+ * the reader still gets the numbers.
  */
+function fractionRuns(node, baseOpts, marks) {
+  const num = String(node.numerator ?? '')
+  const den = String(node.denominator ?? '')
+  const wholeRuns = node.whole
+    ? [runText(`${node.whole} `, { ...baseOpts, ...marks })]
+    : []
+
+  if (num && den) {
+    try {
+      const equation = new OMath({
+        children: [new MathFraction({
+          numerator: [new MathRun(sanitizeXmlText(num))],
+          denominator: [new MathRun(sanitizeXmlText(den))],
+        })],
+      })
+      return [...wholeRuns, equation]
+    } catch (err) {
+      console.warn('[assessmentToDocx] fraction equation failed, using the text form', err)
+    }
+  }
+
+  return [
+    ...wholeRuns,
+    runText(num, { ...baseOpts, ...marks, superScript: true }),
+    runText('⁄', { ...baseOpts, ...marks }),
+    runText(den, { ...baseOpts, ...marks, subScript: true }),
+  ]
+}
+
+/** One inline node as docx runs. */
 function inlineRuns(node, baseOpts) {
   const marks = runMarks(node.marks)
   if (node.type === 'text') return [runText(node.value, { ...baseOpts, ...marks })]
   if (node.type === 'break') return [runText('\n', { ...baseOpts, break: 1 })]
-  if (node.type === 'fraction') {
-    const runs = []
-    if (node.whole) runs.push(runText(`${node.whole} `, { ...baseOpts, ...marks }))
-    runs.push(runText(node.numerator, { ...baseOpts, ...marks, superScript: true }))
-    runs.push(runText('⁄', { ...baseOpts, ...marks }))
-    runs.push(runText(node.denominator, { ...baseOpts, ...marks, subScript: true }))
-    return runs
-  }
+  if (node.type === 'fraction') return fractionRuns(node, baseOpts, marks)
   if (node.type === 'numberBase') {
     const runs = [runText(node.number, { ...baseOpts, ...marks })]
     if (node.base) runs.push(runText(node.base, { ...baseOpts, ...marks, subScript: true }))
@@ -1800,20 +1834,44 @@ async function renderQuestion(b, stats = null) {
     } else if (b.type === 'fill_blanks') {
       // Fill-in-the-blanks answers are already rendered inline (green) on each
       // statement in the marking-key pass above — nothing more to print here.
+    } else if (Array.isArray(b.answerNodes) && b.answerNodes.length) {
+      // A structured expected answer reaches Word as real Word formatting —
+      // an OMML fraction, genuine sub/superscript — through the same run
+      // builder the options use. `String(b.correctAnswer)` printed
+      // "[object Object]" into the marking key.
+      out.push(para([
+        runText('Expected answer: ', { bold: true, size: 20, color: '047857' }),
+        ...optionRuns(b.answerNodes, { size: 20, color: '047857' }, b.answerPlain),
+      ]))
     } else {
       out.push(para([
         runText('Expected answer: ', { bold: true, size: 20, color: '047857' }),
-        runText(String(b.correctAnswer ?? ''), { size: 20, color: '047857' }),
+        runText(b.answerPlain ?? String(b.correctAnswer ?? ''), { size: 20, color: '047857' }),
       ]))
     }
-    if (b.explanation) {
-      out.push(para([
-        runText('Notes: ', { bold: true, size: 18, color: '6b7280' }),
-        runText(b.explanation, { size: 18, color: '6b7280', italics: true }),
-      ]))
-    }
+    out.push(...schemeNotesParagraphs(b))
   }
   return out
+}
+
+/**
+ * The marking note under an answer. Rich when the teacher wrote mathematics
+ * into it; the plain single run otherwise, which is the path every note
+ * written before this existed keeps taking.
+ */
+function schemeNotesParagraphs(b) {
+  const noteOpts = { size: 18, color: '6b7280', italics: true }
+  if (Array.isArray(b.explanationNodes) && b.explanationNodes.length) {
+    return [para([
+      runText('Notes: ', { bold: true, size: 18, color: '6b7280' }),
+      ...optionRuns(b.explanationNodes, noteOpts, b.explanation),
+    ])]
+  }
+  if (!b.explanation) return []
+  return [para([
+    runText('Notes: ', { bold: true, size: 18, color: '6b7280' }),
+    runText(b.explanation, noteOpts),
+  ])]
 }
 
 /**
