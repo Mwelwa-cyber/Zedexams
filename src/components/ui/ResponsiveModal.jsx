@@ -107,12 +107,12 @@ export default function ResponsiveModal({
         aria-modal="true"
         aria-labelledby={labelledBy}
         tabIndex={-1}
-        className="absolute inset-x-0 bottom-0 flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl outline-none animate-slide-up
+        className="absolute inset-x-0 bottom-0 flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-3xl theme-card theme-text shadow-2xl outline-none animate-slide-up
                    sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[80vh] sm:w-[min(440px,calc(100vw-32px))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl sm:animate-scale-in"
       >
         {/* Bottom-sheet drag-handle affordance (hidden on desktop) */}
         <div className="flex shrink-0 justify-center pt-2.5 sm:hidden" aria-hidden="true">
-          <div className="h-1 w-10 rounded-full bg-gray-300" />
+          <div className="h-1 w-10 rounded-full theme-bg-subtle" />
         </div>
         {/* Close lives on the shell, above the scroll area, so it can never
             scroll out of reach on short screens. */}
@@ -121,7 +121,7 @@ export default function ResponsiveModal({
             type="button"
             onClick={() => onClose?.('close')}
             aria-label="Close"
-            className="absolute right-3 top-2 z-10 grid h-9 w-9 place-items-center rounded-full bg-white/90 text-lg text-gray-400 shadow-sm ring-1 ring-black/5 transition-colors hover:bg-gray-100 hover:text-gray-700 sm:top-3"
+            className="absolute right-3 top-2 z-10 grid h-9 w-9 place-items-center rounded-full theme-card text-lg theme-text-muted shadow-sm ring-1 ring-black/5 transition-colors hover:theme-bg-subtle hover:theme-text sm:top-3"
           >
             ✕
           </button>
@@ -140,7 +140,7 @@ export default function ResponsiveModal({
           )}
         </div>
         {footer && (
-          <div className="shrink-0 border-t border-gray-100 bg-white px-5 pt-2.5 pb-[max(14px,env(safe-area-inset-bottom))] sm:px-6 sm:pb-4">
+          <div className="shrink-0 border-t theme-border theme-card px-5 pt-2.5 pb-[max(14px,env(safe-area-inset-bottom))] sm:px-6 sm:pb-4">
             {footer}
           </div>
         )}

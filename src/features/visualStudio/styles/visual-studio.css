@@ -11,6 +11,13 @@
   --vs-brand-d: #16544a;
   --vs-accent: #c76d2d;
   min-height: 100%;
+  /* Own the ink rather than inheriting it. Without this the studio's text
+     colour comes from <body>, which is the LEARNER reading theme — so an admin
+     whose reading theme is Midnight got near-white text on the white image
+     canvas at 1.1:1, regardless of the workspace theme this file is scoped to.
+     Two theme systems, and the one that reached this text was the one that
+     does not own this screen. */
+  color: var(--vs-ink);
 }
 
 .vstudio__main { max-width: 1440px; margin: 0 auto; padding: 18px 16px 64px; }
@@ -212,3 +219,17 @@
 }
 [data-theme='night'] .vs-iconbtn.danger { color: #EE8A9B; }
 [data-theme='night'] .vs-iconbtn.danger:hover { background: rgba(180, 35, 24, 0.22); }
+
+/* The light-pinned surfaces above keep DARK ink. Remapping --vs-ink without
+   this is exactly the shape that made the quiz editor unreadable — surfaces
+   pinned light, ink following the theme — and it put near-white text on the
+   white canvas at 1.1:1. Anything drawn on the image or on a result thumbnail
+   is inside this scope. */
+[data-theme='night'] .vs-canvas,
+[data-theme='night'] .vs-stage,
+[data-theme='night'] .vs-result img,
+[data-theme='night'] .vs-label {
+  color: #15302a;
+  --vs-ink: #15302a;
+  --vs-muted: #5d6d65;
+}

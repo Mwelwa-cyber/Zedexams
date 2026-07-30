@@ -647,12 +647,41 @@
    #053541 on the eyebrow and #0f1b2d on the live-label are why the "TEACHER
    STUDIO" eyebrow and the panel headings were invisible: near-black ink that
    used to sit on white and now sits on #232D3B. */
-[data-theme='night'] .lps-soft-shadow,
-[data-theme='night'] .lps-soft-shadow-lg {
-  background-color: #232D3B;
+/* .lps-soft-shadow declares ONLY a border and a shadow — every call site
+   brings its own background (bg-white, bg-accent-tint, bg-[#EEF4FF], the brand
+   gradient). Setting a background here outranks all of them and repaints
+   cards that were deliberately tinted. Only the outline moves; the fills are
+   remapped by the classes that actually carry them, below. This is the same
+   trap the games remap documents for .zx-card. */
+[data-theme='night'] .lps-soft-shadow {
   border-color: #6B7A8D;
   box-shadow: 0 2px 0 #6B7A8D;
 }
+[data-theme='night'] .lps-soft-shadow-lg {
+  background-color: #232D3B;
+  border-color: #6B7A8D;
+  box-shadow: 0 3px 0 #6B7A8D, 0 18px 34px -22px rgba(0, 0, 0, 0.55);
+}
+
+/* The fills the studio's call sites actually carry. Grouped by what they are
+   rather than by hex: card surfaces, tinted panels, and the parchment washes
+   the wizard uses for its summary blocks. */
+[data-theme='night'] .lps-game .bg-white,
+[data-theme='night'] .lps-game .bg-\[\#f9f5ef\],
+[data-theme='night'] .lps-game .bg-\[\#fdfbf7\] { background-color: #232D3B; }
+[data-theme='night'] .lps-game .bg-\[\#f5f0e8\],
+[data-theme='night'] .lps-game .bg-\[\#f5f0ea\],
+[data-theme='night'] .lps-game .bg-\[\#f0ebe2\],
+[data-theme='night'] .lps-game .bg-\[\#f0ebe4\],
+[data-theme='night'] .lps-game .bg-\[\#F5EFE1\] { background-color: #1F2836; }
+[data-theme='night'] .lps-game .bg-\[\#c9c0b0\] { background-color: #3B4757; }
+[data-theme='night'] .lps-game .bg-\[\#FFF4E8\],
+[data-theme='night'] .lps-game .bg-\[\#EEF4FF\] { background-color: #2A3646; }
+[data-theme='night'] .lps-game .border-\[\#d9cfbe\],
+[data-theme='night'] .lps-game .border-\[\#e5ddd0\],
+[data-theme='night'] .lps-game .border-\[\#e0d7c8\],
+[data-theme='night'] .lps-game .border-\[\#d9cfc3\] { border-color: #3B4757; }
+[data-theme='night'] .lps-game .border-\[\#0F1B2D\] { border-color: #6B7A8D; }
 [data-theme='night'] .lps-eyebrow { color: #CFE3EE; }
 [data-theme='night'] .lps-btn-ghost {
   background: #232D3B;

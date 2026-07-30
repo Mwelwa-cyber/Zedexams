@@ -653,7 +653,8 @@
     "test:consent-guard": "node functions/consentGuard.test.js",
     "test:learner-safety": "node functions/learnerSafety/learnerSafetyCore.test.js",
     "test:android-manifest": "node scripts/test-android-manifest.mjs",
-    "audit:colors": "node scripts/audit-hardcoded-colors.mjs"
+    "audit:colors": "node scripts/audit-hardcoded-colors.mjs",
+    "audit:dark": "node scripts/audit-dark-surfaces.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
