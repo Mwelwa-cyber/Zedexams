@@ -186,166 +186,174 @@ export function LessonPlanWizard({
       }
     : null
 
+  // Layout contract (see .lpw-nav in lessonStudio.css): `.lpw-body` spans the
+  // full width of TeacherLayout's content column and holds exactly two things —
+  // the scrolling step content, capped to a reading width by `.lpw-steps`, and
+  // the sticky action bar as its LAST child. The cap lives on the inner wrapper
+  // rather than on `.lpw-body` so the bar reaches the column's edges instead of
+  // stopping at the form's reading width; it must not move back out here.
   return (
-    <div className="lpw-body mx-auto w-full max-w-3xl pt-1 lg:max-w-5xl">
-      <div className="lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-8">
-        {/* ── Desktop step rail ── */}
-        <div className="hidden lg:block">
-          <div className="sticky top-4 space-y-4">
-            <WizardProgress
-              variant="rail"
-              currentStep={currentStep}
-              completed={completed}
-              maxReachable={maxReachable}
-              onStepClick={(i) => goToStep(i)}
-            />
-            {hasPlan && (
-              <button type="button" onClick={onViewPlan} className="lps-btn-ghost w-full px-3 py-2 text-[12px]">
-                {isGenerating ? 'View generation progress' : 'View generated plan'}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* ── Active step column ── */}
-        <div className="min-w-0">
-          {/* Compact step header + five-point progress (mobile/tablet). */}
-          <div className="mb-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[11px] font-extrabold uppercase tracking-widest text-accent-text">
-                  Step {currentStep + 1} of {WIZARD_STEPS.length}
-                </p>
-                <h2
-                  ref={headingRef}
-                  tabIndex={-1}
-                  className="font-display mt-0.5 text-[19px] font-extrabold leading-tight text-ink outline-none"
-                >
-                  {step.title}
-                </h2>
-                <p className="mt-0.5 text-[12.5px] font-semibold text-ink-muted">{step.description}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setProgressOpen(true)}
-                className="lps-btn-ghost min-h-[44px] flex-shrink-0 px-3 py-2 text-[12px]"
-              >
-                <ChartNoAxesColumnIncreasing size={16} aria-hidden="true" />
-                Progress
-              </button>
-            </div>
-            <div className="mt-2.5 lg:hidden">
+    <div className="lpw-body w-full pt-1">
+      <div className="lpw-steps mx-auto w-full max-w-3xl lg:max-w-5xl">
+        <div className="lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-8">
+          {/* ── Desktop step rail ── */}
+          <div className="hidden lg:block">
+            <div className="sticky top-4 space-y-4">
               <WizardProgress
+                variant="rail"
                 currentStep={currentStep}
                 completed={completed}
                 maxReachable={maxReachable}
                 onStepClick={(i) => goToStep(i)}
               />
-            </div>
-          </div>
-
-          {/* ── Contextual banners (setup step only) ── */}
-          {currentStep === 0 && planContext && (planContext.topic || planContext.subjectLabel) && (
-            <div className="mb-3 flex items-start gap-2 rounded-[14px] bg-accent-tint px-3 py-2 lps-soft-shadow">
-              <span className="mt-0.5 text-[14px] leading-none" aria-hidden="true">📅</span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[11.5px] font-semibold text-ink">This week&rsquo;s lesson — filled in for you</p>
-                <p className="truncate text-[11px] text-ink-muted">
-                  {[planContext.subjectLabel, planContext.topic, planContext.subtopic].filter(Boolean).join(' · ')}
-                  {planContext.weekNumber ? ` · Week ${planContext.weekNumber}` : ''}
-                </p>
-              </div>
-              {typeof onDismissPlanContext === 'function' && (
-                <button
-                  type="button"
-                  onClick={onDismissPlanContext}
-                  aria-label="Dismiss this week's lesson suggestion"
-                  className="-mr-1 -mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-md text-ink-muted hover:bg-card/60 hover:text-ink-muted"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
+              {hasPlan && (
+                <button type="button" onClick={onViewPlan} className="lps-btn-ghost w-full px-3 py-2 text-[12px]">
+                  {isGenerating ? 'View generation progress' : 'View generated plan'}
                 </button>
               )}
             </div>
-          )}
+          </div>
 
-          {currentStep === 0 && (activeAssignmentLabel || mappingNotice) && (
-            <div className="mb-3 rounded-[14px] bg-[#EEF4FF] px-3 py-2 lps-soft-shadow">
-              {activeAssignmentLabel && (
-                <p className="text-[11.5px] font-semibold text-[#1d3b53]">Teaching: {activeAssignmentLabel}</p>
-              )}
-              {mappingNotice && (
-                <div className={activeAssignmentLabel ? 'mt-1' : ''}>
-                  <p className="text-[11px] leading-snug text-[#b45309]">
-                    Some Teaching Profile details could not be selected automatically. {mappingNotice} Choose the correct class and subject below before creating the Lesson Plan.
+          {/* ── Active step column ── */}
+          <div className="min-w-0">
+            {/* Compact step header + five-point progress (mobile/tablet). */}
+            <div className="mb-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-extrabold uppercase tracking-widest text-accent-text">
+                    Step {currentStep + 1} of {WIZARD_STEPS.length}
                   </p>
-                  <Link to="/settings/teaching-profile" className="text-[11px] font-semibold text-[#b45309] underline">Review Teaching Profile</Link>
+                  <h2
+                    ref={headingRef}
+                    tabIndex={-1}
+                    className="font-display mt-0.5 text-[19px] font-extrabold leading-tight text-ink outline-none"
+                  >
+                    {step.title}
+                  </h2>
+                  <p className="mt-0.5 text-[12.5px] font-semibold text-ink-muted">{step.description}</p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setProgressOpen(true)}
+                  className="lps-btn-ghost min-h-[44px] flex-shrink-0 px-3 py-2 text-[12px]"
+                >
+                  <ChartNoAxesColumnIncreasing size={16} aria-hidden="true" />
+                  Progress
+                </button>
+              </div>
+              <div className="mt-2.5 lg:hidden">
+                <WizardProgress
+                  currentStep={currentStep}
+                  completed={completed}
+                  maxReachable={maxReachable}
+                  onStepClick={(i) => goToStep(i)}
+                />
+              </div>
+            </div>
+
+            {/* ── Contextual banners (setup step only) ── */}
+            {currentStep === 0 && planContext && (planContext.topic || planContext.subjectLabel) && (
+              <div className="mb-3 flex items-start gap-2 rounded-[14px] bg-accent-tint px-3 py-2 lps-soft-shadow">
+                <span className="mt-0.5 text-[14px] leading-none" aria-hidden="true">📅</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11.5px] font-semibold text-ink">This week&rsquo;s lesson — filled in for you</p>
+                  <p className="truncate text-[11px] text-ink-muted">
+                    {[planContext.subjectLabel, planContext.topic, planContext.subtopic].filter(Boolean).join(' · ')}
+                    {planContext.weekNumber ? ` · Week ${planContext.weekNumber}` : ''}
+                  </p>
+                </div>
+                {typeof onDismissPlanContext === 'function' && (
+                  <button
+                    type="button"
+                    onClick={onDismissPlanContext}
+                    aria-label="Dismiss this week's lesson suggestion"
+                    className="-mr-1 -mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-md text-ink-muted hover:bg-card/60 hover:text-ink-muted"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {currentStep === 0 && (activeAssignmentLabel || mappingNotice) && (
+              <div className="mb-3 rounded-[14px] bg-[#EEF4FF] px-3 py-2 lps-soft-shadow">
+                {activeAssignmentLabel && (
+                  <p className="text-[11.5px] font-semibold text-[#1d3b53]">Teaching: {activeAssignmentLabel}</p>
+                )}
+                {mappingNotice && (
+                  <div className={activeAssignmentLabel ? 'mt-1' : ''}>
+                    <p className="text-[11px] leading-snug text-[#b45309]">
+                      Some Teaching Profile details could not be selected automatically. {mappingNotice} Choose the correct class and subject below before creating the Lesson Plan.
+                    </p>
+                    <Link to="/settings/teaching-profile" className="text-[11px] font-semibold text-[#b45309] underline">Review Teaching Profile</Link>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Active step content (one step at a time, subtle slide) ── */}
+            <div
+              key={currentStep}
+              className={direction === 'back' ? 'lpw-step-enter lpw-step-enter-back' : 'lpw-step-enter'}
+            >
+              {currentStep === 0 && (
+                <LessonSetupStep
+                  curriculumMode={curriculumMode}
+                  onSelectCurriculum={handleSelectCurriculum}
+                  lessonDetails={lessonDetails}
+                  onChangeDetail={handleChangeDetail}
+                  dateHint={dateHint}
+                  dateWarning={dateWarning}
+                />
+              )}
+              {currentStep === 1 && (
+                <TopicCurriculumStep
+                  topicData={topicData}
+                  lessonDetails={lessonDetails}
+                  curriculumMode={curriculumMode}
+                  onTopicChange={(value) => setTopicField('topic', value)}
+                  onSubtopicChange={(value) => setTopicField('subtopic', value)}
+                  onSubtopicRowLoaded={(row) => setTopicField('subtopicRow', row)}
+                  selectedOutcomes={selectedOutcomes}
+                  onToggleOutcome={toggleSelectedOutcome}
+                />
+              )}
+              {currentStep === 2 && (
+                <LessonContextStep
+                  curriculumMode={curriculumMode}
+                  learningEnvironments={learningEnvironments}
+                  onToggleEnvironment={toggleLearningEnvironment}
+                  lessonSeries={lessonSeries}
+                  lessonBreakdown={lessonBreakdown}
+                  subtopicRow={topicData.subtopicRow ?? null}
+                  onUpdateSeries={setLessonSeriesField}
+                  onUpdateBreakdown={setLessonBreakdown}
+                  aiState={aiState}
+                />
+              )}
+              {currentStep === 3 && (
+                <FormatOptionsStep
+                  formatOptions={formatOptions}
+                  onUpdateFormat={setFormatOption}
+                  onUpdateAdvanced={setAdvancedOption}
+                  onUpdateSection={setSectionOption}
+                  onUpdateMedium={(value) => setLessonDetail('medium', value)}
+                  lessonMedium={lessonDetails.medium}
+                  curriculumMode={curriculumMode ?? 'cbc'}
+                />
+              )}
+              {currentStep === REVIEW_STEP && (
+                <ReviewGenerateStep
+                  studioState={studioState}
+                  onEditStep={handleEditStep}
+                  hasPlan={hasPlan}
+                  onViewPlan={onViewPlan}
+                />
               )}
             </div>
-          )}
-
-          {/* ── Active step content (one step at a time, subtle slide) ── */}
-          <div
-            key={currentStep}
-            className={direction === 'back' ? 'lpw-step-enter lpw-step-enter-back' : 'lpw-step-enter'}
-          >
-            {currentStep === 0 && (
-              <LessonSetupStep
-                curriculumMode={curriculumMode}
-                onSelectCurriculum={handleSelectCurriculum}
-                lessonDetails={lessonDetails}
-                onChangeDetail={handleChangeDetail}
-                dateHint={dateHint}
-                dateWarning={dateWarning}
-              />
-            )}
-            {currentStep === 1 && (
-              <TopicCurriculumStep
-                topicData={topicData}
-                lessonDetails={lessonDetails}
-                curriculumMode={curriculumMode}
-                onTopicChange={(value) => setTopicField('topic', value)}
-                onSubtopicChange={(value) => setTopicField('subtopic', value)}
-                onSubtopicRowLoaded={(row) => setTopicField('subtopicRow', row)}
-                selectedOutcomes={selectedOutcomes}
-                onToggleOutcome={toggleSelectedOutcome}
-              />
-            )}
-            {currentStep === 2 && (
-              <LessonContextStep
-                curriculumMode={curriculumMode}
-                learningEnvironments={learningEnvironments}
-                onToggleEnvironment={toggleLearningEnvironment}
-                lessonSeries={lessonSeries}
-                lessonBreakdown={lessonBreakdown}
-                subtopicRow={topicData.subtopicRow ?? null}
-                onUpdateSeries={setLessonSeriesField}
-                onUpdateBreakdown={setLessonBreakdown}
-                aiState={aiState}
-              />
-            )}
-            {currentStep === 3 && (
-              <FormatOptionsStep
-                formatOptions={formatOptions}
-                onUpdateFormat={setFormatOption}
-                onUpdateAdvanced={setAdvancedOption}
-                onUpdateSection={setSectionOption}
-                onUpdateMedium={(value) => setLessonDetail('medium', value)}
-                lessonMedium={lessonDetails.medium}
-                curriculumMode={curriculumMode ?? 'cbc'}
-              />
-            )}
-            {currentStep === REVIEW_STEP && (
-              <ReviewGenerateStep
-                studioState={studioState}
-                onEditStep={handleEditStep}
-                hasPlan={hasPlan}
-                onViewPlan={onViewPlan}
-              />
-            )}
           </div>
         </div>
       </div>

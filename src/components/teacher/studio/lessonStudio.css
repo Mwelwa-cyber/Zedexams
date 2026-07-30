@@ -326,26 +326,64 @@
    subtle step transitions, and the Progress overlay (bottom sheet on phones,
    side panel at md+). Pure presentation — step logic lives in wizardSteps.js. */
 
-/* Sticky bottom navigation. The wizard is an immersive studio route (see
-   immersiveStudioRoutes.js): TeacherLayout suppresses the dashboard's floating
-   dock while it's open, so this bar is the SOLE fixed bottom bar and sits flush
-   to the true bottom on every breakpoint — no dock to clear. Safe-area padding
-   keeps the buttons above the phone's home indicator. The wizard body reserves
-   matching padding (see .lpw-body) so the bar never covers fields. */
+/* Bottom navigation. It is `sticky`, NOT `fixed`, and that distinction is the
+   whole fix: a fixed bar is positioned against the WINDOW, so it spanned the
+   teacher sidebar as well and sat on top of the profile / logout row at the
+   bottom of it. Sticky positions the bar against its own containing block —
+   the wizard column inside TeacherLayout's <main> — so it physically cannot
+   reach the sidebar at any width, with no z-index battle to win.
+
+   The second half of the fix is that a sticky bar occupies REAL FLOW SPACE at
+   the end of the form. The fixed bar didn't, so `.lpw-body` had to reserve a
+   matching 128px of padding by hand — a number nobody re-measured when the bar
+   grew a validation hint or a second row of buttons, which is how the last
+   field ended up underneath it on small screens. Scrolling to the end of the
+   form now brings the last field clear of the bar by construction.
+
+   The wizard is an immersive studio route (see immersiveStudioRoutes.js), so
+   TeacherLayout suppresses the dashboard's floating dock while it's open and
+   this stays the sole bottom bar. Safe-area padding keeps the buttons above
+   the phone's home indicator. */
 .lpw-nav {
-  position: fixed;
-  inset-inline: 0;
+  position: sticky;
   bottom: 0;
-  z-index: 40;
+  z-index: 30;
   border-top: 2px solid #0f1b2d;
   background: rgba(245, 239, 225, 0.96);
   backdrop-filter: blur(6px);
   padding: 10px 16px;
   padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  /* Reach the edges of the CONTENT COLUMN (not the window) by cancelling the
+     two ancestor gutters: .studio-shell's px-3/sm:px-5/lg:px-8 plus .lps-game's
+     px-3/sm:px-4. Each value is exactly the padding it undoes, so the bar can
+     never grow wider than the column it sits in. */
+  margin-inline: -1.5rem;
 }
-/* Room for the sticky nav + breathing space so the last field clears it. */
-.lpw-body {
-  padding-bottom: calc(128px + env(safe-area-inset-bottom, 0px));
+@media (min-width: 640px) {
+  .lpw-nav {
+    margin-inline: -2.25rem;
+  }
+}
+@media (min-width: 1024px) {
+  .lpw-nav {
+    margin-inline: -3rem;
+  }
+}
+
+/* Breathing room between the last field and the bar. This is spacing, not
+   clearance — getting it wrong costs a cramped-looking gap, never a hidden
+   field (which is what the old `.lpw-body { padding-bottom: 128px }` risked). */
+.lpw-steps {
+  padding-bottom: 18px;
+}
+
+/* TeacherLayout's page well reserves `pb-24` on phones for the floating dock —
+   which this route suppresses. Left in place it becomes ~96px of empty cream
+   BELOW the bar once the teacher reaches the end of the form, because the bar
+   un-sticks that far early. Scoped with :has() so it only applies while the
+   wizard is mounted; a browser without :has() simply keeps the gap. */
+.studio-shell:has(.lpw-body) {
+  padding-bottom: 0;
 }
 
 /* Floating-bar shrink-on-scroll. While the teacher scrolls DOWN the bar

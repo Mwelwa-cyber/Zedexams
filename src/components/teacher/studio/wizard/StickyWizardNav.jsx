@@ -3,7 +3,11 @@ import { WIZARD_STEPS, REVIEW_STEP } from './wizardSteps'
 import useHideOnScroll from '../../../../hooks/useHideOnScroll'
 
 /**
- * StickyWizardNav — the fixed bottom action bar of the wizard.
+ * StickyWizardNav — the bottom action bar of the wizard, shared by all five
+ * steps. It is `position: sticky` inside the wizard's own column, never
+ * `fixed` against the window — see `.lpw-nav` in lessonStudio.css for why
+ * (short version: a fixed bar covered the teacher sidebar's logout row, and
+ * the hand-reserved body padding that kept it off the form kept going stale).
  *
  *   Step 1:        [ Save & exit ]            [ Next: Topic → ]
  *   Steps 2–4:     [ ← Back ]                 [ Next: Context → ]
@@ -54,7 +58,9 @@ export function StickyWizardNav({
 
   return (
     <div className={`lpw-nav${compact ? ' lpw-nav--compact' : ''}`}>
-      <div className="mx-auto w-full max-w-3xl">
+      {/* Same cap as the wizard's `.lpw-steps`, so the buttons line up with the
+          fields above them while the bar itself spans the content column. */}
+      <div className="mx-auto w-full max-w-3xl lg:max-w-5xl">
         {hint && (
           <p
             className="mb-1.5 text-center text-[12px] font-semibold leading-snug text-[#b45309]"
