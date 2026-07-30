@@ -379,6 +379,7 @@
     "test:ai-cost-providers": "node functions/aiCostProviders.test.js",
     "test:firestore-backup": "node functions/firestoreBackup.test.js",
     "test:storage-backup": "node functions/storageBackup.test.js",
+    "test:provision-storage-backup": "node scripts/test-provision-storage-backup.mjs",
     "test:ratelimit-health": "node functions/rateLimitHealth.test.js",
     "test:ops-heartbeat": "node functions/opsHeartbeat.test.js",
     "test:audit-log": "node functions/auditLog.test.js",
@@ -650,7 +651,8 @@
     "test:shared-consent-neutral": "node functions/shared/consent/neutrality.test.js",
     "test:consent-guard": "node functions/consentGuard.test.js",
     "test:learner-safety": "node functions/learnerSafety/learnerSafetyCore.test.js",
-    "test:android-manifest": "node scripts/test-android-manifest.mjs"
+    "test:android-manifest": "node scripts/test-android-manifest.mjs",
+    "provision:storage-backup": "node scripts/provision-storage-backup.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
