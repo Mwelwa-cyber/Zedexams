@@ -380,6 +380,7 @@
     "test:ai-cost-providers": "node functions/aiCostProviders.test.js",
     "test:firestore-backup": "node functions/firestoreBackup.test.js",
     "test:storage-backup": "node functions/storageBackup.test.js",
+    "test:storage-backup-heartbeat": "node functions/storageBackupHeartbeatCore.test.js",
     "test:provision-storage-backup": "node scripts/test-provision-storage-backup.mjs",
     "test:ratelimit-health": "node functions/rateLimitHealth.test.js",
     "test:ops-heartbeat": "node functions/opsHeartbeat.test.js",

@@ -3337,6 +3337,7 @@ exports.backupCompletionCheck = require("./firestoreBackup").backupCompletionChe
 // the mirror is misconfigured / empty / stale. Closes DR-003 (Storage had no
 // verified backup). Safe to deploy before STORAGE_BACKUP_BUCKET is set.
 exports.storageBackupCheck = require("./storageBackup").storageBackupCheck;
+exports.storageBackupHeartbeat = require("./storageBackup").storageBackupHeartbeat;
 // Rate-limiter health canary (hourly) — probes the fail-open burst limiter and
 // raises an ops alert (edge-triggered) when it is degraded, turning the
 // `rate_limit_degraded` telemetry into an actual notification (OBS-005/OBS-004).

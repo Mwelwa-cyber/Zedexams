@@ -7,27 +7,40 @@
  * Architecture: the cross-region COPY is a Storage Transfer Service (STS) job
  * the operator provisions once (a Cloud Function copying the whole bucket daily
  * would be the wrong tool — cost/timeouts/scale). This module is the piece that
- * makes that mirror TRUSTWORTHY: a daily check that the backup bucket received
- * a recent object, recording the outcome in opsStorageBackups/{date} and
- * alerting ops when the mirror is misconfigured, empty, or stale (a silently
- * stopped backup — the exact DR-003 risk). Same shape as the Firestore backup
- * runner: injectable I/O, never throws, one structured log + one status doc.
+ * makes that mirror TRUSTWORTHY, recording the outcome in
+ * opsStorageBackups/{date} and alerting ops when the mirror is misconfigured,
+ * empty, or stale. Same shape as the Firestore backup runner: injectable I/O,
+ * never throws, one structured log + one status doc.
  *
- * One-time setup (documented here because the code can't do it):
- *   1. Enable Object Versioning on the PRIMARY bucket
- *      (gs://examsprepzambia.firebasestorage.app) — protects individual objects
- *      from overwrite/delete.
- *   2. Create a cross-region backup bucket (different region from the primary),
- *      uniform access, a retention lifecycle rule, and versioning.
- *   3. Create a Storage Transfer Service job: source = primary bucket,
- *      destination = backup bucket, daily schedule. Grant the STS service
- *      account roles/storage.objectViewer on the source and
- *      roles/storage.objectAdmin on the destination.
- *   4. Set STORAGE_BACKUP_BUCKET (bucket name or gs:// uri) on the runtime
- *      (functions/.env.<project>). Optionally STORAGE_BACKUP_PREFIX (scope the
- *      freshness scan to the mirror path) and STORAGE_BACKUP_MAX_AGE_HOURS.
- *      Until it's set the checker records "misconfigured" (prod, alerts) /
- *      "skipped-non-production" (dev) — deploying first is safe.
+ * TWO CRONS, AND THE ORDER IS THE DESIGN:
+ *
+ *   storageBackupHeartbeat  23:30 UTC  overwrite _ops/…heartbeat.json (primary)
+ *   [STS transfer job]      00:30 UTC  mirror primary → backup
+ *   storageBackupCheck      02:00 UTC  read the heartbeat in the BACKUP
+ *                                      (= 04:00 Africa/Lusaka)
+ *
+ * The check used to ask "is the newest object in the backup recent?" and treat
+ * that as "did the mirror run?". It isn't. The transfer runs with
+ * `--overwrite-when=different`, so a night where nothing in the source changed
+ * copies nothing — correctly — and the newest destination object just keeps
+ * ageing until the check pages `stale` about a mirror that is provably fine.
+ * This project's source bucket routinely goes 16–17 quiet hours and was
+ * observed past the 26h default on day one. The failure is also asymmetric:
+ * right after provisioning everything has just been copied, so the first check
+ * reads `fresh` and hands the operator a false all-clear before the lying
+ * `stale` shows up a day or two later.
+ *
+ * So the heartbeat is written first and read last: one small object, one fixed
+ * path, overwritten nightly. An overwrite is a change, so the mirror MUST carry
+ * it, and its mtime in the backup is proof the transfer ran end to end rather
+ * than a job's report about itself. See storageBackupHeartbeatCore.js.
+ *
+ * One-time setup — `npm run provision:storage-backup` (see the script; it also
+ * enables versioning, the lifecycle rules and every IAM binding). Afterwards set
+ * STORAGE_BACKUP_BUCKET (bucket name or gs:// uri) on the runtime
+ * (functions/.env.<project>), optionally STORAGE_BACKUP_MAX_AGE_HOURS. Until
+ * it's set the checker records "misconfigured" (prod, alerts) /
+ * "skipped-non-production" (dev) — deploying first is safe.
  *
  * See docs/production-readiness/14-backup-and-disaster-recovery.md (DR-003) +
  * runbooks/firestore-restore.md.
@@ -40,9 +53,14 @@ const admin = require("firebase-admin");
 const {isProductionRuntime} = require("./firestoreBackupCore");
 const {
   resolveStorageBackupBucket,
-  classifyBackupFreshness,
   resolveMaxAgeMs,
 } = require("./storageBackupCore");
+const {
+  HEARTBEAT_PATH,
+  STORAGE_HEARTBEAT_STATUS,
+  classifyHeartbeat,
+  buildHeartbeatBody,
+} = require("./storageBackupHeartbeatCore");
 const {sendOpsAlert} = require("./opsAlert");
 const {opsAlertSecrets} = require("./opsAlertSecrets");
 
@@ -56,10 +74,11 @@ function dateKeyUtc(now = new Date()) {
 const STORAGE_BACKUP_STATUS = Object.freeze({
   MISCONFIGURED: "misconfigured", // prod, no backup bucket configured (alerts)
   SKIPPED_NON_PROD: "skipped-non-production", // dev/emulator (no alert)
-  EMPTY: "empty", // backup destination has no objects (alerts)
-  STALE: "stale", // newest object older than the threshold (alerts)
-  FRESH: "fresh", // a recent object exists — mirror is healthy
-  ERROR: "error", // the freshness lookup itself failed (alerts)
+  AWAITING: "awaiting-heartbeat", // our writer hasn't run yet (warns, never pages)
+  EMPTY: "empty", // heartbeat never reached the backup (alerts)
+  STALE: "stale", // heartbeat in the backup older than the threshold (alerts)
+  FRESH: "fresh", // the mirror carried a recent heartbeat across
+  ERROR: "error", // the lookup itself failed (alerts)
 });
 
 function logStorageBackupEvent(fields) {
@@ -71,54 +90,45 @@ function logStorageBackupEvent(fields) {
 }
 
 /**
- * Default production freshness probe: the newest object mtime under `prefix` in
- * the backup bucket, via the Admin Storage SDK.
+ * Overwrite the heartbeat object in the PRIMARY bucket. Overwriting a fixed
+ * path is the point: it guarantees the nightly transfer has a changed object to
+ * carry, so a quiet night can no longer look like a stopped mirror.
  *
- * GCS lists objects in LEXICOGRAPHIC NAME order, never by mtime, so "the newest
- * object" is only knowable by looking at every object in range. The first
- * version of this probe read one 5000-object page and stopped, and a Storage
- * Transfer Service mirror reproduces the source layout — there is no dated
- * path for STORAGE_BACKUP_PREFIX to point at — so past ~5000 objects the newest
- * one routinely sorts outside the page and a perfectly healthy mirror reads as
- * `stale`. A 04:00 alert that cries wolf is worse than no alert: it is how a
- * real one gets ignored. So the scan PAGES, and when it hits its page cap it
- * says so (`truncated`) rather than drawing a conclusion from a partial view.
- *
- * @returns {Promise<{latestUpdatedMs: number|null, scanned: number, truncated: boolean}>}
+ * @returns {Promise<{path: string, writtenAtMs: number}>}
  */
-async function probeLatestBackupObject(
-    bucketName,
-    {prefix = "", pageSize = 1000, maxPages = 200} = {},
-) {
+async function writeStorageBackupHeartbeat({
+  bucketName = undefined, now = new Date(), correlationId = crypto.randomUUID(),
+} = {}) {
   const bucket = admin.storage().bucket(bucketName);
-  let query = {prefix, maxResults: pageSize, autoPaginate: false};
-  let latestUpdatedMs = null;
-  let scanned = 0;
-  let pages = 0;
-  let truncated = false;
+  await bucket.file(HEARTBEAT_PATH).save(buildHeartbeatBody(now, correlationId), {
+    contentType: "application/json",
+    resumable: false,
+    // Never cached: a CDN-cached heartbeat would report a time that is not the
+    // time the object was actually written.
+    metadata: {cacheControl: "no-store"},
+  });
+  return {path: HEARTBEAT_PATH, writtenAtMs: now.getTime()};
+}
 
-  while (query) {
-    // autoPaginate:false resolves to [files, nextQuery] — nextQuery is null on
-    // the last page. Paginating by hand keeps each round trip bounded.
-    const [files, nextQuery] = await bucket.getFiles(query);
-    pages += 1;
-    for (const f of files || []) {
-      const updated = f && f.metadata && (f.metadata.updated || f.metadata.timeCreated);
-      const ms = updated ? Date.parse(updated) : NaN;
-      if (Number.isFinite(ms) && (latestUpdatedMs == null || ms > latestUpdatedMs)) {
-        latestUpdatedMs = ms;
-      }
-    }
-    scanned += (files || []).length;
-    if (!nextQuery) break;
-    if (pages >= maxPages) {
-      truncated = true;
-      break;
-    }
-    query = nextQuery;
+/**
+ * Read the heartbeat's mtime from one bucket. Returns null when the object is
+ * absent — an expected state (new deploy, mirror not yet run), not an error.
+ * A read FAILURE still throws, because "could not look" must never be reported
+ * as "not there".
+ *
+ * @returns {Promise<number|null>}
+ */
+async function probeHeartbeat(bucketName) {
+  const file = admin.storage().bucket(bucketName).file(HEARTBEAT_PATH);
+  try {
+    const [metadata] = await file.getMetadata();
+    const updated = metadata && (metadata.updated || metadata.timeCreated);
+    const ms = updated ? Date.parse(updated) : NaN;
+    return Number.isFinite(ms) ? ms : null;
+  } catch (err) {
+    if (err && (err.code === 404 || err.status === 404)) return null;
+    throw err;
   }
-
-  return {latestUpdatedMs, scanned, truncated};
 }
 
 /**
@@ -128,7 +138,7 @@ async function probeLatestBackupObject(
  *
  * @param {object} [deps]
  * @param {FirebaseFirestore.Firestore} [deps.db]
- * @param {(bucketName: string, opts: object) => Promise<{latestUpdatedMs: number|null, scanned: number}>} [deps.probe]
+ * @param {(bucketName: string) => Promise<number|null>} [deps.heartbeat] mtime probe
  * @param {NodeJS.ProcessEnv} [deps.env]
  * @param {Function} [deps.alert]
  * @param {Date} [deps.now]
@@ -136,7 +146,7 @@ async function probeLatestBackupObject(
  */
 async function runStorageBackupCheck({
   db = admin.firestore(),
-  probe = probeLatestBackupObject,
+  heartbeat = probeHeartbeat,
   env = process.env,
   alert = sendOpsAlert,
   now = new Date(),
@@ -146,12 +156,11 @@ async function runStorageBackupCheck({
   const nowMs = now.getTime();
   const production = isProductionRuntime(env);
   const bucketName = resolveStorageBackupBucket(env.STORAGE_BACKUP_BUCKET);
-  const prefix = String(env.STORAGE_BACKUP_PREFIX || "");
   const maxAgeMs = resolveMaxAgeMs(env.STORAGE_BACKUP_MAX_AGE_HOURS);
 
   const base = {
     correlationId, dateKey, production,
-    backupBucket: bucketName || null, prefix: prefix || null,
+    backupBucket: bucketName || null,
     maxAgeHours: Math.round(maxAgeMs / (60 * 60 * 1000)),
     checkedAt: now.toISOString(),
   };
@@ -192,10 +201,16 @@ async function runStorageBackupCheck({
     return result;
   }
 
-  // ── Configured: probe the newest backed-up object ────────────────────────
-  let probeResult;
+  // ── Configured: read the heartbeat on BOTH sides ─────────────────────────
+  // Both, not just the backup, because "our writer never ran" and "the mirror
+  // is broken" have different fixes and must not collapse into one alert.
+  let primaryUpdatedMs;
+  let backupUpdatedMs;
   try {
-    probeResult = await probe(bucketName, {prefix});
+    [primaryUpdatedMs, backupUpdatedMs] = await Promise.all([
+      heartbeat(undefined), // undefined → the default (primary) bucket
+      heartbeat(bucketName),
+    ]);
   } catch (err) {
     const message = String((err && err.message) || err).slice(0, 500);
     const result = {status: STORAGE_BACKUP_STATUS.ERROR, error: message};
@@ -204,87 +219,111 @@ async function runStorageBackupCheck({
         "Storage backup check ERRORED — mirror health is UNKNOWN",
         [
           `Date: ${dateKey}  ·  correlationId: ${correlationId}`,
-          `Backup bucket: ${bucketName}${prefix ? ` (prefix ${prefix})` : ""}`,
-          `Could not read the backup bucket: ${message}`,
-          "Check the runtime SA can list the backup bucket (roles/storage." +
+          `Backup bucket: ${bucketName}`,
+          `Could not read ${HEARTBEAT_PATH}: ${message}`,
+          "Check the runtime SA can read the backup bucket (roles/storage." +
           "objectViewer) and that the bucket exists.",
         ],
     );
     return result;
   }
 
-  const {status: freshness, ageMs} = classifyBackupFreshness({
-    latestUpdatedMs: probeResult.latestUpdatedMs, nowMs, maxAgeMs,
+  const {status, ageMs, lagMs} = classifyHeartbeat({
+    primaryUpdatedMs, backupUpdatedMs, nowMs, maxAgeMs,
   });
-  const ageHours = ageMs == null ? null : Math.round((ageMs / (60 * 60 * 1000)) * 10) / 10;
-
-  // A truncated scan can PROVE freshness (a recent object was actually seen)
-  // but it can never prove the absence of one — the newest object may sort past
-  // where the scan stopped. Reporting "stale"/"empty" from a partial view is
-  // asserting something about objects nobody looked at, so an inconclusive scan
-  // is reported as what it is: health UNKNOWN.
-  const inconclusive = probeResult.truncated === true &&
-    freshness !== STORAGE_BACKUP_STATUS.FRESH;
-  const status = inconclusive ? STORAGE_BACKUP_STATUS.ERROR : freshness;
+  const hours = (ms) => (ms == null ? null : Math.round((ms / (60 * 60 * 1000)) * 10) / 10);
+  const ageHours = hours(ageMs);
 
   const result = {
     status,
     ageHours,
-    scanned: probeResult.scanned,
-    truncated: probeResult.truncated === true,
-    latestObjectAt: probeResult.latestUpdatedMs
-      ? new Date(probeResult.latestUpdatedMs).toISOString()
-      : null,
-    ...(inconclusive
-      ? {errorCode: "STORAGE_BACKUP_SCAN_TRUNCATED", freshnessSeen: freshness}
-      : {}),
+    // How far the mirror trails the source. Reported on every verdict, because
+    // a lag climbing towards the threshold is the warning that precedes a real
+    // `stale` — and the number that tells them apart afterwards.
+    mirrorLagHours: hours(lagMs),
+    heartbeatPath: HEARTBEAT_PATH,
+    heartbeatWrittenAt: primaryUpdatedMs ? new Date(primaryUpdatedMs).toISOString() : null,
+    heartbeatMirroredAt: backupUpdatedMs ? new Date(backupUpdatedMs).toISOString() : null,
   };
   await record(result);
 
-  if (inconclusive) {
+  if (status === STORAGE_HEARTBEAT_STATUS.AWAITING) {
+    // Deliberately a WARNING. A freshly-deployed system looks exactly like
+    // this, and paging on the expected state of a first night is how an alert
+    // channel earns the mute it later gets when something is really wrong.
     await raise(
-        "Storage backup check INCONCLUSIVE — mirror health is UNKNOWN",
+        "Storage backup heartbeat NOT YET WRITTEN — mirror health unverified",
         [
           `Date: ${dateKey}  ·  correlationId: ${correlationId}`,
-          `Backup bucket: ${bucketName}${prefix ? ` (prefix ${prefix})` : ""}`,
-          `The freshness scan stopped after ${probeResult.scanned} objects ` +
-          "without reaching the end of the bucket, and saw no recent object in " +
-          "that range. GCS lists by NAME, not by time, so this proves nothing " +
-          "either way — the mirror may be healthy.",
-          "Fix: set STORAGE_BACKUP_PREFIX to narrow the scan to a path the " +
-          "mirror writes to, or raise the probe's page cap.",
+          `No ${HEARTBEAT_PATH} in the primary bucket, so there is nothing for ` +
+          "the mirror to carry and nothing to verify against. This is the " +
+          "expected state for the first night after deploy.",
+          "If it persists: storageBackupHeartbeat (23:30 UTC) is not running, " +
+          "or cannot write to the primary bucket.",
         ],
         "warning",
     );
-  } else if (status === STORAGE_BACKUP_STATUS.EMPTY) {
+  } else if (status === STORAGE_HEARTBEAT_STATUS.MISSING_AT_BACKUP) {
     await raise(
-        "Storage backup EMPTY — the mirror has produced no objects",
+        "Storage backup EMPTY — the mirror has never copied the heartbeat",
         [
           `Date: ${dateKey}  ·  correlationId: ${correlationId}`,
-          `Backup bucket: ${bucketName}${prefix ? ` (prefix ${prefix})` : ""}`,
-          "The backup destination is empty — the Storage Transfer Service job " +
-          "has never run, is disabled, or points at the wrong bucket/prefix. " +
-          "The Storage bucket effectively has no backup.",
+          `Backup bucket: ${bucketName}`,
+          `${HEARTBEAT_PATH} exists in the primary bucket but has never ` +
+          "appeared in the backup. The Storage Transfer Service job has never " +
+          "run, is disabled, points at the wrong bucket, or excludes the " +
+          "_ops/ prefix. The Storage bucket effectively has no backup.",
         ],
     );
-  } else if (status === STORAGE_BACKUP_STATUS.STALE) {
+  } else if (status === STORAGE_HEARTBEAT_STATUS.STALE) {
     await raise(
         "Storage backup STALE — the mirror has stopped running",
         [
           `Date: ${dateKey}  ·  correlationId: ${correlationId}`,
-          `Backup bucket: ${bucketName}${prefix ? ` (prefix ${prefix})` : ""}`,
-          `Newest backed-up object is ~${ageHours}h old (threshold ` +
-          `${base.maxAgeHours}h). The Storage Transfer Service job appears to ` +
-          "have stopped — new uploads since then are not backed up.",
+          `Backup bucket: ${bucketName}`,
+          `The heartbeat is rewritten nightly, so the mirror always has a ` +
+          `changed object to copy. Its copy in the backup is ~${ageHours}h old ` +
+          `(threshold ${base.maxAgeHours}h), which means the transfer itself ` +
+          "has stopped — this is not a quiet night. Uploads since then are " +
+          "not backed up.",
+          "Check the transfer job's last operation: " +
+          "`gcloud transfer operations list --job-names=transferJobs/" +
+          "zedexams-storage-mirror`.",
         ],
     );
   }
   return result;
 }
 
-// 04:00 Lusaka — a morning check, after the operator's overnight Storage
-// Transfer Service mirror is expected to have finished. Scheduled functions
-// stay in us-central1 per the repo region convention.
+// 23:30 UTC (01:30 Lusaka) — an hour before the 00:30 UTC transfer, so the
+// mirror always has a freshly-changed object to carry. Ordering is the whole
+// design: write → transfer → check. Moving either schedule without the other
+// breaks the chain, which is why both times are named in the comment on each.
+const storageBackupHeartbeat = onSchedule({
+  schedule: "30 23 * * *",
+  timeZone: "Etc/UTC",
+  region: "us-central1",
+  timeoutSeconds: 60,
+  memory: "256MiB",
+}, async () => {
+  try {
+    const {path, writtenAtMs} = await writeStorageBackupHeartbeat();
+    logStorageBackupEvent({
+      status: "heartbeat-written", path, writtenAt: new Date(writtenAtMs).toISOString(),
+    });
+  } catch (err) {
+    // Never throw: a failed heartbeat must not retry-storm. The check reports
+    // it the next morning as `awaiting-heartbeat`, which is the honest verdict
+    // — nothing is known about the mirror, rather than something is wrong.
+    logStorageBackupEvent({
+      status: "heartbeat-failed", error: String((err && err.message) || err).slice(0, 500),
+    });
+  }
+});
+
+// 04:00 Lusaka (02:00 UTC) — after the 00:30 UTC transfer is expected to have
+// finished. Scheduled functions stay in us-central1 per the repo region
+// convention.
 const storageBackupCheck = onSchedule({
   schedule: "every day 04:00",
   timeZone: "Africa/Lusaka",
@@ -298,8 +337,10 @@ const storageBackupCheck = onSchedule({
 
 module.exports = {
   storageBackupCheck,
+  storageBackupHeartbeat,
   runStorageBackupCheck,
-  probeLatestBackupObject,
+  writeStorageBackupHeartbeat,
+  probeHeartbeat,
   dateKeyUtc,
   STORAGE_BACKUP_STATUS,
 };
