@@ -645,8 +645,15 @@ body.theme-midnight .moe-calendar {
   [data-theme='night'] .studio-theme .studio-btn-ghost:hover {
     background: color-mix(in srgb, var(--zt-text) 10%, var(--zt-card));
   }
+  /* background-COLOR, not the `background` shorthand. The shorthand resets
+     every background longhand it does not name — including the
+     `background-repeat: no-repeat` and `background-position` that put the
+     select chevron in the corner — so a select styled by this rule tiled the
+     chevron across the whole control. Setting the colour longhand leaves the
+     geometry alone. Same reason applies to any dark override on an element
+     that carries a background-image. */
   [data-theme='night'] .studio-theme .studio-input {
-    background: var(--zt-card);
+    background-color: var(--zt-card);
     border-color: var(--zt-line);
     color: var(--zt-text);
   }
@@ -658,6 +665,12 @@ body.theme-midnight .moe-calendar {
      cannot inherit a colour and has to be redrawn rather than restyled. */
   [data-theme='night'] .studio-theme select.studio-input {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394A0AF' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    /* Restated with the image rather than inherited from the light rule: an
+       image and the rules that place it travel together, or the next
+       background shorthand somewhere in the cascade separates them again. */
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 14px 14px;
   }
   [data-theme='night'] .studio-theme .studio-advanced {
     border-color: var(--zt-line);
@@ -1089,7 +1102,9 @@ body.theme-midnight .moe-calendar {
     appearance: none; -webkit-appearance: none;
     padding-right: 34px; cursor: pointer;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23566f76' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 12px center;
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 14px 14px;
   }
 
   /* ── Studio form helpers (studioFields.jsx) ─────────────────── */
@@ -3830,6 +3845,26 @@ html.dark .force-light-theme { color-scheme: light; }
 select option {
   color: var(--text);
   background: var(--input-bg);
+}
+
+/* A custom select arrow is a background-image, and a background-image tiles by
+   default. Every place that draws one states `background-repeat: no-repeat`
+   next to it — but any LATER rule using the `background` shorthand resets that
+   longhand back to `repeat` without mentioning it, and the arrow then tiles
+   across the whole control. That is not hypothetical: a dark-theme override
+   written as `background: var(--zt-card)` did exactly this to every studio
+   <select>, and it is invisible to review because the rule that broke it does
+   not name the property it broke.
+
+   So no-repeat is also asserted here, on the element type rather than on each
+   place that draws an arrow. Unlayered, so it outranks the @layer rules a
+   shorthand lives in. It is safe as a blanket: a <select> is a single-line
+   control, and a tiled background on one is a bug in every case — there is no
+   select in this app that wants a repeating texture. It constrains only the
+   repeat, so a control that wants its arrow elsewhere still sets its own
+   `background-position`. */
+select {
+  background-repeat: no-repeat;
 }
 
 /* ── Custom scrollbar ─────────────────────────────────────── */
