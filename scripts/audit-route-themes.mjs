@@ -25,22 +25,51 @@ import { dirname, join, resolve } from 'node:path'
 const ROOT = process.cwd()
 const app = readFileSync(join(ROOT, 'src/App.jsx'), 'utf8')
 
-/* ── route → component name ───────────────────────────────────────────── */
+/* ── route sources ────────────────────────────────────────────────────────
+ * Routes are declared in more than one place. App.jsx has most of them as
+ * <Route> elements; the teacher area declares its own as DATA in
+ * teacherRoutes.jsx, which App.jsx maps into elements (#2033).
+ *
+ * That second source is why this list is asserted rather than assumed. When
+ * the teacher routes moved out of App.jsx, this audit went from 201 routes to
+ * 132 and still exited 0 — it did not report the 69 it had stopped seeing,
+ * because a route it cannot see is not a route it flags. Silently auditing
+ * two thirds of the router is worse than not auditing it, so a shrinking
+ * count is now a failure. */
+const TEACHER_ROUTES_FILE = join(ROOT, 'src/components/teacher/teacherRoutes.jsx')
+const teacherSrc = existsSync(TEACHER_ROUTES_FILE) ? readFileSync(TEACHER_ROUTES_FILE, 'utf8') : ''
+
 const routes = []
 for (const m of app.matchAll(/<Route\s+path="([^"]+)"/g)) {
   const start = m.index
   const chunk = app.slice(start, start + 600)
   const el = chunk.match(/element=\{([\s\S]*?)\}\s*\/?>/)
-  routes.push({ path: m[1], element: el ? el[1].replace(/\s+/g, ' ').trim() : '' })
+  routes.push({ path: m[1], element: el ? el[1].replace(/\s+/g, ' ').trim() : '', src: 'App.jsx' })
+}
+// teacherRoutes.jsx declares routes through three helpers — page(), bare()
+// and redirect() — and the path may sit on the next line, so the newline is
+// matched rather than assumed away. All three are read: missing `redirect`
+// alone would have lost 13 routes without a word.
+for (const m of teacherSrc.matchAll(/\b(?:page|bare|redirect)\(\s*\n?\s*'([^']+)'\s*,\s*([\s\S]{0,300}?)(?:,\s*\n?\s*'|\)\s*,\s*\n)/g)) {
+  routes.push({ path: m[1], element: m[2].replace(/\s+/g, ' ').trim(), src: 'teacherRoutes.jsx' })
 }
 
 /* ── component name → file ────────────────────────────────────────────── */
 const lazyMap = new Map()
-for (const m of app.matchAll(/const\s+(\w+)\s*=\s*lazy\(\s*\(\)\s*=>\s*import\(\s*['"]([^'"]+)['"]/g)) {
-  lazyMap.set(m[1], m[2])
-}
-for (const m of app.matchAll(/^import\s+(\w+)\s+from\s+['"](\.[^'"]+)['"]/gm)) {
-  if (!lazyMap.has(m[1])) lazyMap.set(m[1], m[2])
+// teacherRoutes.jsx's specifiers are relative to ITS directory, so they are
+// rebased onto src/ before being stored — otherwise every teacher page
+// resolves to nothing and reports as unmeasured.
+const REBASE = { 'App.jsx': '', 'teacherRoutes.jsx': 'components/teacher/' }
+for (const [src, text] of [['App.jsx', app], ['teacherRoutes.jsx', teacherSrc]]) {
+  const rebase = (spec) => spec.startsWith('./')
+    ? './' + REBASE[src] + spec.slice(2)
+    : spec.startsWith('../') ? './' + join(REBASE[src], spec).replace(/^\.\//, '') : spec
+  for (const m of text.matchAll(/const\s+(\w+)\s*=\s*lazy\(\s*\(\)\s*=>\s*import\(\s*['"]([^'"]+)['"]/g)) {
+    if (!lazyMap.has(m[1])) lazyMap.set(m[1], rebase(m[2]))
+  }
+  for (const m of text.matchAll(/^import\s+(\w+)\s+from\s+['"](\.[^'"]+)['"]/gm)) {
+    if (!lazyMap.has(m[1])) lazyMap.set(m[1], rebase(m[2]))
+  }
 }
 
 function resolveFile(spec) {
@@ -111,10 +140,16 @@ function containerFor(file, depth = 0) {
 // Detected by what they return rather than by a name convention, so a redirect
 // called something else is still classified correctly — and a component that
 // stops being a redirect stops being excused.
+// Scanned in BOTH sources: the legacy assessment/lesson-plan redirects moved
+// to teacherRoutes.jsx with the rest of the teacher area, and looking for them
+// only in App.jsx left six routes reported as unmeasured surfaces when they
+// render no surface at all.
 const localRedirects = new Set(['Navigate'])
-for (const m of app.matchAll(/function\s+(\w+)\s*\([^)]*\)\s*\{/g)) {
-  const body = app.slice(m.index, app.indexOf('\n}', m.index))
-  if (/<Navigate\b/.test(body) && !/<(?!Navigate)[A-Z]\w+/.test(body)) localRedirects.add(m[1])
+for (const text of [app, teacherSrc]) {
+  for (const m of text.matchAll(/function\s+(\w+)\s*\([^)]*\)\s*\{/g)) {
+    const body = text.slice(m.index, text.indexOf('\n}', m.index))
+    if (/<Navigate\b/.test(body) && !/<(?!Navigate)[A-Z]\w+/.test(body)) localRedirects.add(m[1])
+  }
 }
 
 const rows = []
@@ -139,9 +174,10 @@ for (const r of routes) {
   // redirect depending on auth state. Resolve it through what it can render:
   // it is covered when every branch is.
   if (!file && !REDIRECTS.has(name)) {
-    const def = app.match(new RegExp(`function\\s+${name}\\s*\\([^)]*\\)\\s*\\{`))
+    const text = [app, teacherSrc].find((t) => new RegExp(`function\\s+${name}\\s*\\(`).test(t)) || app
+    const def = text.match(new RegExp(`function\\s+${name}\\s*\\([^)]*\\)\\s*\\{`))
     if (def) {
-      const body = app.slice(def.index, app.indexOf('\n}', def.index))
+      const body = text.slice(def.index, text.indexOf('\n}', def.index))
       const targets = [...new Set([...body.matchAll(/<([A-Z]\w+)/g)].map((m) => m[1]))]
         .filter((t) => lazyMap.has(t))
       const cs = targets.map((t) => {
@@ -164,8 +200,28 @@ for (const r of rows) {
   ;(byContainer[k] ||= []).push(r)
 }
 
+/* ── Did we read everything each source declares? ─────────────────────────
+ * A hand-set minimum goes stale the moment routes are legitimately
+ * consolidated, and then the honest move looks like lowering the number. So
+ * each source is checked against ITSELF: count the declarations in the file,
+ * count what the parser got, and require them to match. That catches a
+ * regex that silently stops matching one shape — which is how `redirect()`
+ * was missed on the first attempt here, losing 13 routes without a word —
+ * and it needs no maintenance when routes are added or removed.
+ *
+ * The floor stays as a second, cruder net for a whole SOURCE disappearing:
+ * a file this script does not know about cannot be self-checked. */
+const declared = {
+  'App.jsx': (app.match(/<Route\s+path="/g) || []).length,
+  // Every page()/bare()/redirect() CALL, minus the one that is the redirect
+  // helper's own definition rather than a route.
+  'teacherRoutes.jsx': (teacherSrc.match(/^\s*(?:page|bare|redirect)\(/gm) || []).length
+    - (/const redirect = \([^)]*\) =>\s*\n?\s*bare\(/.test(teacherSrc) ? 1 : 0),
+}
+const MIN_ROUTES = 150
 console.log(`# Step 5 — route theming\n`)
-console.log(`${rows.length} routes declared in src/App.jsx.\n`)
+const bySrc = rows.reduce((a, r) => ((a[r.src] = (a[r.src] || 0) + 1), a), {})
+console.log(`${rows.length} routes: ${Object.entries(bySrc).map(([k, v]) => `${v} in ${k}`).join(', ')}.\n`)
 console.log('| Themed container | Routes | Verdict |')
 console.log('|---|---|---|')
 for (const [k, v] of Object.entries(byContainer).sort((a, b) => b[1].length - a[1].length)) {
@@ -191,4 +247,22 @@ if (process.argv[2] === 'full') {
     console.log(`| \`${r.path}\` | ${r.name || '—'} | ${r.container || '**UNKNOWN**'} |`)
   }
 }
-process.exit(unknown.length ? 1 : 0)
+let short = false
+for (const [src, n] of Object.entries(declared)) {
+  const got = rows.filter((r) => r.src === src).length
+  if (got !== n) {
+    short = true
+    console.log(`\n✗ ${src} declares ${n} routes; the parser read ${got}.`)
+    console.log('  A declaration shape has stopped matching. A route this script')
+    console.log('  cannot see is not a route it flags, so it would report a clean')
+    console.log('  run over a fraction of the router — which is exactly what')
+    console.log('  happened when the teacher routes moved out of App.jsx.')
+  }
+}
+if (rows.length < MIN_ROUTES) {
+  short = true
+  console.log(`\n✗ Only ${rows.length} routes in total, expected at least ${MIN_ROUTES}.`)
+  console.log('  A whole route SOURCE has probably stopped being read: a file this')
+  console.log('  script does not know about cannot be self-checked. Add it above.')
+}
+process.exit(unknown.length || short ? 1 : 0)
