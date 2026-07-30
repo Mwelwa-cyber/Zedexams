@@ -406,6 +406,27 @@ async function runWorksheet({uid, rawInputs, apiKey, onProgress, idempotencyKey}
 
   const validation = validateWorksheet(parsed);
   const worksheet = validation.value;
+  // The notation ladder (Phase 5): repair computer-style maths into the
+  // contract markup the worksheet renderers now draw as stacked fractions and
+  // column sums (toolNotationRender), then floor anything still broken to
+  // clean plain text. String work only — no model calls, no extra charge.
+  try {
+    const {enforceNotation, applyPlainTextFloor, WORKSHEET_FIELDS} =
+      require("./notationEnforcement");
+    const notationOpts = {subject: inputs.subject, fields: WORKSHEET_FIELDS};
+    const notationReport = await enforceNotation(worksheet, notationOpts);
+    if (notationReport.applied) {
+      const {flattened} = await applyPlainTextFloor(worksheet, notationOpts);
+      if (notationReport.repaired || flattened) {
+        console.info("[generateWorksheet] notation:", {
+          repaired: notationReport.repaired, flattened,
+          violations: notationReport.violations.length,
+        });
+      }
+    }
+  } catch (err) {
+    console.error("[generateWorksheet] notation enforcement failed", err);
+  }
   if (!validation.ok) {
     await genRef.set({
       status: "flagged",

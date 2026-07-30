@@ -6,6 +6,7 @@
  * a take-home copy doesn't ship the key.
  */
 import { makePdfExporter, escapeHtml as safe } from './htmlPdfExport.js'
+import { markupToHtml, TOOL_NOTATION_CSS } from './toolNotationRender.js'
 
 const BRAND = '#059669'
 
@@ -27,15 +28,15 @@ export function buildHomeworkPrintableHtml(hw, { includeAnswers = false } = {}) 
 
   const questionList = questions.map((q, i) => `
     <div class="question">
-      <p><strong>${safe(q.number || i + 1)}.</strong> ${safe(q.prompt)}</p>
+      <p><strong>${safe(q.number || i + 1)}.</strong> ${markupToHtml(q.prompt)}</p>
     </div>`).join('')
 
   const answerKey = includeAnswers ? `
     <h2>Answer Key (teacher)</h2>
     ${questions.map((q, i) => `
       <div class="answer">
-        <p><strong>${safe(q.number || i + 1)}.</strong> <span class="answer-text">${safe(q.answer || '—')}</span></p>
-        ${q.workingNotes ? `<p class="working">${safe(q.workingNotes)}</p>` : ''}
+        <p><strong>${safe(q.number || i + 1)}.</strong> <span class="answer-text">${markupToHtml(q.answer || '—')}</span></p>
+        ${q.workingNotes ? `<p class="working">${markupToHtml(q.workingNotes)}</p>` : ''}
       </div>`).join('')}
     ${hw.answerKey?.markingNotes ? `<div class="marking-notes"><strong>Marking notes:</strong> ${safe(hw.answerKey.markingNotes)}</div>` : ''}
   ` : ''
@@ -80,6 +81,8 @@ export function buildHomeworkPrintableHtml(hw, { includeAnswers = false } = {}) 
   .answer{page-break-inside:avoid;break-inside:avoid}
   .parent-note{page-break-inside:avoid;break-inside:avoid}
   table{page-break-inside:avoid;break-inside:avoid}
+
+  ${TOOL_NOTATION_CSS}
 
   @media print{
     body{padding:12mm 16mm;max-width:none}

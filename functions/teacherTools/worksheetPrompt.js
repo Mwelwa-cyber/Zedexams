@@ -13,8 +13,14 @@
 
 const {learningEnvironmentLabel} = require("./learningEnvironments");
 const {subjectNameForGrade} = require("./subjectNaming");
+const {MATHS_NOTATION_BLOCK} = require("./notationPromptBlock");
 
-const PROMPT_VERSION = "worksheet.v2";
+// v3 (edited in place rather than copied): the only change is the shared
+// MATHS NOTATION block joining the user prompt and the drill example switching
+// from the banned plain form ("7/10 =") to the markup form. The version string
+// is what aiGenerations records, so the record stays honest without a 200-line
+// duplicate of this file existing only to carry one block.
+const PROMPT_VERSION = "worksheet.v3";
 
 const SYSTEM_PROMPT_CBC = `You are an expert Zambian teacher who creates classroom-ready worksheets for the Zambian Competence-Based Curriculum (CBC). Your worksheets are:
 - Tightly aligned to the CDC syllabus for the requested grade, subject and topic.
@@ -197,11 +203,14 @@ function buildUserPrompt(inputs) {
     "",
     "Layout & format — choose what suits the topic:",
     "- READING COMPREHENSION: put the passage pupils must read in the section's \"passage\" field (and a short \"passageTitle\"), then make the questions \"short_answer\" questions about that passage. Keep that section's layout \"standard\".",
-    "- DRILL / PRACTICE SETS (e.g. convert fractions to decimals, times-tables, comparative-adjective fill-ins, mental maths): set the section's layout to \"grid\" with \"columns\": 3 or 4, use short \"calculation\" or \"fill_in_blank\" prompts (e.g. \"7/10 =\", \"Poy is ____ than Pam. (tall)\"), and give each item 1 mark. Do NOT leave a passage on a grid section.",
+    "- DRILL / PRACTICE SETS (e.g. convert fractions to decimals, times-tables, comparative-adjective fill-ins, mental maths): set the section's layout to \"grid\" with \"columns\": 3 or 4, use short \"calculation\" or \"fill_in_blank\" prompts (e.g. \"\\frac{7}{10} =\" for a fraction drill — the maths notation rules below apply INSIDE drill items too — or \"Poy is ____ than Pam. (tall)\"), and give each item 1 mark. Do NOT leave a passage on a grid section.",
     "- COLUMN ARITHMETIC that needs vertical working (multi-digit column multiplication, long division): keep layout \"standard\" and set the question's \"workingStyle\" to \"columns\" so the printout leaves tall working space. Use \"box\" for a single boxed answer, \"lines\" for a couple of ruled lines, or \"\" to let the format default to the question type.",
     "- Default everything else to layout \"standard\" and workingStyle \"\".",
     "- Use Zambian English spelling (colour, practise as verb).",
     "- Ensure header.totalMarks equals the sum of all question marks.",
+    "",
+    MATHS_NOTATION_BLOCK,
+    "",
     "- Return ONLY the JSON object. No markdown fences. No commentary.",
   ].filter(Boolean).join("\n");
 }

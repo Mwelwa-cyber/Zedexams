@@ -11,6 +11,7 @@ import {
 } from '../../hooks/useCreateQuizDraft'
 import { storage } from '../../firebase/config'
 import { generateAIQuizQuestions } from '../../utils/aiAssistant'
+import { richifyGeneratedQuestions } from '../quiz/generatedQuizRichText'
 import AiGenerationProgress from '../ui/AiGenerationProgress'
 import {
   createPartGroup,
@@ -762,7 +763,10 @@ export default function CreateQuizV2() {
         })
 
         // Keep only AI questions that actually have text and usable options/answer.
-        const generatedList = Array.isArray(generated) ? generated : []
+        // Convert the generation markup (\frac, $...$, [[vmath]]) into the
+        // rich nodes the editor renders — same converter as the import paths,
+        // so a generated fraction is a real stacked fraction, not markup text.
+        const generatedList = richifyGeneratedQuestions(Array.isArray(generated) ? generated : [])
         const usableGenerated = generatedList.filter(question => {
           if (!richTextHasContent(question?.text ?? '')) return false
           const t = question?.type || 'mcq'

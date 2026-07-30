@@ -14,8 +14,13 @@
 
 const {learningEnvironmentLabel} = require("./learningEnvironments");
 const {subjectNameForGrade} = require("./subjectNaming");
+const {MATHS_NOTATION_BLOCK} = require("./notationPromptBlock");
 
-const PROMPT_VERSION = "homework.v2";
+// v3 (edited in place): the only change is the shared MATHS NOTATION block
+// joining the user prompt. Edited in place because the version string is
+// what aiGenerations records, and a full file copy existing only to carry
+// one shared block is the duplication the block ends.
+const PROMPT_VERSION = "homework.v3";
 
 const SYSTEM_PROMPT_CBC = `You are an expert Zambian teacher setting HOMEWORK — short take-home practice a learner does independently, aligned to the 2023 Competency-Based Curriculum (CBC).
 
@@ -131,6 +136,8 @@ function buildUserPrompt(inputs) {
     "- Every question MUST have a correct answer in the answer key.",
     "- Keep it doable at home without special materials.",
     "- Use Zambian English spelling. Return ONLY the JSON object.",
+    "",
+    MATHS_NOTATION_BLOCK,
   ].filter(Boolean).join("\n");
 }
 

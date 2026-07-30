@@ -259,6 +259,27 @@ async function runQuiz({uid, rawInputs, apiKey}) {
 
   const validation = validateQuiz(mergedInput);
   const quiz = validation.value;
+  // Notation handling (Phase 5). This tool's document renders as plain
+  // strings in the library — a destination that cannot draw markup — so the
+  // ladder here is repair THEN flatten-everything: repair normalises raw
+  // computer forms into the contract ("x^2" → $x^{2}$), and the flatten
+  // converts ALL markup, the model's and the repair's alike, to clean
+  // readable plain text (x², √49, 3/5). Skipping repair would leave a raw
+  // "x^2" as "x^2"; skipping the flatten would print markup verbatim.
+  // String work only, no model calls.
+  try {
+    const {enforceNotation, flattenMarkupToPlainText, QUIZ_DOC_FIELDS} =
+      require("./notationEnforcement");
+    const notationOpts = {subject: inputs.subject, fields: QUIZ_DOC_FIELDS};
+    const report = await enforceNotation(quiz, notationOpts);
+    const {flattened} = await flattenMarkupToPlainText(quiz, notationOpts);
+    if (report.repaired || flattened) {
+      console.info("[generateQuiz] notation:",
+          {repaired: report.repaired, flattened});
+    }
+  } catch (err) {
+    console.error("[generateQuiz] notation handling failed", err);
+  }
   const sourcing = {
     fromBank: sourced.fromBank,
     generated: quiz.questions.length - sourced.fromBank,

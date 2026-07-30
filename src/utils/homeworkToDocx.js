@@ -5,6 +5,7 @@
  */
 
 import { saveBlob } from './saveBlob.js'
+import { markupFieldToDocx } from './toolNotationDocx.js'
 import { sanitizeXmlText } from './xmlText.js'
 import {
   AlignmentType,
@@ -48,12 +49,6 @@ function h2(str) {
   return new Paragraph({
     children: [text(str, { bold: true, size: 24 })],
     heading: HeadingLevel.HEADING_2, spacing: { before: 240, after: 120 },
-  })
-}
-function numbered(str, idx) {
-  return new Paragraph({
-    children: [text(`${idx + 1}. ${str}`, { size: 20 })],
-    indent: { left: 360 }, spacing: { after: 60 },
   })
 }
 function bodyPara(str) {
@@ -102,7 +97,18 @@ export function buildHomeworkDocument(hw, opts = {}) {
 
   children.push(h2('Questions'))
   ;(hw.questions || []).forEach((q, i) => {
-    children.push(numbered(q.prompt, q.number ? q.number - 1 : i))
+    {
+      // A prompt may carry notation markup; plain prompts keep the old path.
+      const prompt = markupFieldToDocx(q.prompt, { size: 20 })
+      children.push(new Paragraph({
+        children: [
+          new TextRun({ text: `${q.number || i + 1}. `, size: 20 }),
+          ...prompt.runs,
+        ],
+        indent: { left: 360 }, spacing: { after: 60 },
+      }))
+      children.push(...prompt.extraParagraphs)
+    }
   })
 
   if (hw.parentNote) {
@@ -116,16 +122,19 @@ export function buildHomeworkDocument(hw, opts = {}) {
   if (opts.includeAnswers !== false) {
     children.push(h2('Answer Key (teacher)'))
     ;(hw.questions || []).forEach((q, i) => {
+      const hwAnswer = markupFieldToDocx(q.answer || '—', { size: 20 })
       children.push(new Paragraph({
         children: [
           text(`${q.number || i + 1}. `, { bold: true, size: 20 }),
-          text(q.answer || '—', { size: 20 }),
+          ...hwAnswer.runs,
         ],
         spacing: { after: q.workingNotes ? 20 : 60 },
       }))
+      // A [[vmath]] or multi-line answer lives in extraParagraphs.
+      children.push(...hwAnswer.extraParagraphs)
       if (q.workingNotes) {
         children.push(new Paragraph({
-          children: [text(q.workingNotes, { italics: true, size: 18 })],
+          children: [...markupFieldToDocx(q.workingNotes, { italics: true, size: 18 }).runs],
           indent: { left: 360 }, spacing: { after: 60 },
         }))
       }

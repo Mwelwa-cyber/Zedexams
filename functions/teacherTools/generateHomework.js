@@ -277,6 +277,27 @@ async function runHomework({uid, rawInputs, apiKey, idempotencyKey}) {
 
   const validation = validateHomework(parsed);
   const homework = validation.value;
+  // The notation ladder (Phase 5): repair computer-style maths into the
+  // contract markup the homework renderers now draw as stacked fractions and
+  // column sums (toolNotationRender), then floor anything still broken to
+  // clean plain text. String work only — no model calls, no extra charge.
+  try {
+    const {enforceNotation, applyPlainTextFloor, HOMEWORK_FIELDS} =
+      require("./notationEnforcement");
+    const notationOpts = {subject: inputs.subject, fields: HOMEWORK_FIELDS};
+    const notationReport = await enforceNotation(homework, notationOpts);
+    if (notationReport.applied) {
+      const {flattened} = await applyPlainTextFloor(homework, notationOpts);
+      if (notationReport.repaired || flattened) {
+        console.info("[generateHomework] notation:", {
+          repaired: notationReport.repaired, flattened,
+          violations: notationReport.violations.length,
+        });
+      }
+    }
+  } catch (err) {
+    console.error("[generateHomework] notation enforcement failed", err);
+  }
 
   const tokensIn = Number(usageInfo.inputTokens || 0);
   const tokensOut = Number(usageInfo.outputTokens || 0);

@@ -4,6 +4,7 @@ const {AI_ERROR_REASON} = require("./aiErrorReasons");
 const {UNTRUSTED_DATA_NOTICE, fenceUntrusted} = require("./promptInjectionGuard");
 const {resolveCustomSystemPrompt} = require("./aiPromptPolicy");
 const {anthropicFetch} = require("./anthropicFetch");
+const {MATHS_NOTATION_BLOCK} = require("./teacherTools/notationPromptBlock");
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
@@ -995,6 +996,16 @@ function buildQuizMessages(payload) {
     "}",
     "",
     ...hardRules,
+    "",
+    // The shared notation contract every generator carries (see
+    // teacherTools/notationPromptBlock.js). The quiz editor renders this
+    // markup as real stacked fractions and column sums via importRichText —
+    // the same converter the assessment and import paths use. A short_answer's
+    // "answer" stays plain: it is compared against what a learner types.
+    MATHS_NOTATION_BLOCK,
+    "- The notation rules apply to \"text\", \"options\", \"explanation\" and",
+    "  fill-in-the-blank \"statements\" — NEVER to a short_answer \"answer\",",
+    "  a fill-blank answer, or the \"wordBank\" (learners type against those).",
     "",
     "Return ONLY the JSON object. No markdown fences. No commentary.",
   ].filter(Boolean).join("\n");

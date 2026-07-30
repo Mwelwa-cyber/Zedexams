@@ -3,6 +3,8 @@
  * Shared by the Homework Studio result panel and the Library detail view so
  * a saved homework renders exactly as it did in the studio.
  */
+import { renderText } from '../../../utils/mathRender'
+
 export default function HomeworkView({ hw, showAnswers = false }) {
   const h = hw.header || {}
   return (
@@ -21,15 +23,15 @@ export default function HomeworkView({ hw, showAnswers = false }) {
       <ol className="list-decimal pl-5 space-y-3 text-sm theme-text">
         {(hw.questions || []).map((q) => (
           <li key={q.number}>
-            <p>{q.prompt}</p>
+            <p>{renderText(q.prompt)}</p>
             {showAnswers && (
               <div className="mt-1 pt-1 border-t theme-border">
                 <p className="text-emerald-700 dark:text-emerald-400">
-                  <span className="font-bold">Answer: </span>{q.answer}
+                  <span className="font-bold">Answer: </span>{renderText(q.answer)}
                 </p>
                 {q.workingNotes && (
                   <p className="text-xs theme-text-secondary italic mt-0.5">
-                    {q.workingNotes}
+                    {renderText(q.workingNotes)}
                   </p>
                 )}
               </div>

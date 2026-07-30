@@ -108,8 +108,14 @@ function mapQuestionFields(question, fields, fn) {
 
   for (const field of fields) {
     path = field.path;
-    if (path === "prompt" || path === "answer" ||
-        path === "markingGuide" || path === "solution") {
+    if (!path.includes("[") && !path.includes(".")) {
+      // A direct string field: the path IS the property name. This is not a
+      // wildcard over the question — only paths a tool EXPLICITLY lists in
+      // its field subset (QUIZ_EDITOR_FIELDS, WORKSHEET_FIELDS, …) ever reach
+      // here, so an unlisted field like a future `teacherComment` is never
+      // touched. A new tool whose fields are all direct properties needs no
+      // new branch; a NESTED field (metadata.title) would need one, exactly
+      // as parts[]/statements[] did.
       apply(question, path);
     } else if (path === "options[]") {
       if (Array.isArray(question.options)) {
@@ -151,8 +157,62 @@ function mapQuestionFields(question, fields, fn) {
   return changed;
 }
 
-/** Every question in an assessment, flattened, with its section. */
+/* ── the other tools' field subsets (Phase 5) ──────────────────────────────
+ *
+ * Each tool applies the SAME contract to the fields its format actually has —
+ * the spec's rule is that the contract application shrinks to fit the schema,
+ * never that a tool gets a different contract.
+ *
+ * What is deliberately absent from each list is the machine-compared value:
+ * the quiz editor's short_answer `answer`/`correctAnswer` is matched against
+ * what a learner types, so markup there would mark every learner wrong. The
+ * worksheet and homework `answer` IS listed — those are marked by a teacher
+ * reading the printed answer key, so it is display, not comparison.
+ */
+const QUIZ_EDITOR_FIELDS = Object.freeze([
+  Object.freeze({path: "text", kind: "block", what: "question text"}),
+  Object.freeze({path: "options[]", kind: "inline", what: "multiple-choice options"}),
+  Object.freeze({path: "explanation", kind: "block", what: "the explanation"}),
+  Object.freeze({path: "statements[].text", kind: "inline", what: "a fill-in-the-blank statement"}),
+  // wordBank is deliberately OFF this list: its entries are the answers the
+  // learner types against, so like the answer key they must stay plain.
+]);
+
+const QUIZ_DOC_FIELDS = Object.freeze([
+  Object.freeze({path: "question", kind: "block", what: "question text"}),
+  Object.freeze({path: "options[]", kind: "inline", what: "multiple-choice options"}),
+  // This tool's MCQ key IS the full option text (schema rule), so it must go
+  // through the same conversion as the options or they stop matching.
+  Object.freeze({path: "correctAnswer", kind: "inline", what: "the option-text answer key"}),
+  Object.freeze({path: "explanation", kind: "block", what: "the explanation"}),
+]);
+
+const WORKSHEET_FIELDS = Object.freeze([
+  Object.freeze({path: "prompt", kind: "block", what: "question text"}),
+  Object.freeze({path: "options[]", kind: "inline", what: "multiple-choice options"}),
+  Object.freeze({path: "answer", kind: "inline", what: "the answer-key answer"}),
+  Object.freeze({path: "workingNotes", kind: "block", what: "the marking notes"}),
+]);
+
+const HOMEWORK_FIELDS = Object.freeze([
+  Object.freeze({path: "prompt", kind: "block", what: "question text"}),
+  Object.freeze({path: "answer", kind: "inline", what: "the answer-key answer"}),
+  Object.freeze({path: "workingNotes", kind: "block", what: "the marking notes"}),
+]);
+
+/** Every question in an assessment, flattened, with its section.
+ *
+ * Accepts the three shapes the tools actually produce: sectioned
+ * (assessment/worksheet), a flat `questions` array (homework, quiz document),
+ * or a bare array (the quiz editor's parsed response). */
 function eachQuestion(assessment) {
+  if (Array.isArray(assessment)) {
+    return eachQuestion({sections: [{questions: assessment}]});
+  }
+  if (assessment && !Array.isArray(assessment.sections) &&
+      Array.isArray(assessment.questions)) {
+    return eachQuestion({sections: [{questions: assessment.questions}]});
+  }
   const out = [];
   const sections = Array.isArray(assessment && assessment.sections) ?
     assessment.sections : [];
@@ -184,7 +244,7 @@ function eachQuestion(assessment) {
  * Never throws: a paper is a teacher's already-billed result, and a crash in a
  * notation check is not a reason to lose it.
  */
-async function enforceNotation(assessment, {subject} = {}) {
+async function enforceNotation(assessment, {subject, fields: fieldsIn} = {}) {
   if (!isEnforcedSubject(subject)) {
     return {applied: false, repaired: 0, violations: [], needsRetry: false};
   }
@@ -198,8 +258,15 @@ async function enforceNotation(assessment, {subject} = {}) {
 
   const {
     NOTATION_FIELDS, repairNotation, checkQuestionNotation,
-    repairScienceNotation, detectScienceViolations,
+    detectNotationViolations, repairScienceNotation, detectScienceViolations,
   } = core;
+  // A tool passes its own field subset (QUIZ_EDITOR_FIELDS, WORKSHEET_FIELDS,
+  // …); the assessment default stays the full contract. The custom-fields
+  // maths check maps the same detector over the tool's fields rather than
+  // calling checkQuestionNotation, which is hard-wired to the assessment's.
+  const fields = Array.isArray(fieldsIn) && fieldsIn.length ?
+    fieldsIn : NOTATION_FIELDS;
+  const customFields = fields !== NOTATION_FIELDS;
   const doMaths = isMathsSubjectKey(subject);
   const doScience = isScienceSubjectKey(subject);
   // A field is repaired by whichever contracts its subject owes — both, for the
@@ -219,26 +286,43 @@ async function enforceNotation(assessment, {subject} = {}) {
   const violations = [];
 
   for (const {question, section, sIdx, qIdx} of eachQuestion(assessment)) {
-    repaired += mapQuestionFields(question, NOTATION_FIELDS, repairField);
+    repaired += mapQuestionFields(question, fields, repairField);
     // A section's passage is shared by its questions, so it is repaired once
     // per section rather than once per question.
-    if (qIdx === 0 && section && section.passage &&
-        typeof section.passage.text === "string") {
-      const before = section.passage.text;
-      section.passage.text = repairField(before);
-      if (section.passage.text !== before) repaired += 1;
+    if (qIdx === 0 && section) {
+      // An assessment passage is {text}; a worksheet's is a bare string. Both
+      // are display, so both are on the contract.
+      if (section.passage && typeof section.passage.text === "string") {
+        const before = section.passage.text;
+        section.passage.text = repairField(before);
+        if (section.passage.text !== before) repaired += 1;
+      } else if (typeof section.passage === "string" && section.passage) {
+        const before = section.passage;
+        section.passage = repairField(before);
+        if (section.passage !== before) repaired += 1;
+      }
     }
 
     let report;
     try {
-      report = doMaths ?
-        checkQuestionNotation(question) :
-        {ok: true, fields: []};
+      if (doMaths && !customFields) {
+        report = checkQuestionNotation(question);
+      } else if (doMaths) {
+        const found = [];
+        mapQuestionFields(question, fields, (value, path) => {
+          const {violations: hits} = detectNotationViolations(value);
+          if (hits.length) found.push({path: path || "(field)", violations: hits});
+          return value;
+        });
+        report = {ok: !found.length, fields: found};
+      } else {
+        report = {ok: true, fields: []};
+      }
       if (doScience) {
         // The science check runs over the same fields, folded into one report
         // so the retry decision and the log line see a single list.
         const extra = [];
-        mapQuestionFields(question, NOTATION_FIELDS, (value, path) => {
+        mapQuestionFields(question, fields, (value, path) => {
           const found = detectScienceViolations(value).violations;
           if (found.length) extra.push({path: path || "(field)", violations: found});
           return value;
@@ -252,7 +336,8 @@ async function enforceNotation(assessment, {subject} = {}) {
       violations.push({
         sectionIndex: sIdx,
         questionIndex: qIdx,
-        prompt: String(question.prompt || "").slice(0, 80),
+        prompt: String(question.prompt || question.text ||
+          question.question || "").slice(0, 80),
         fields: report.fields,
       });
     }
@@ -307,7 +392,7 @@ function buildCorrectiveInstruction(violations) {
  * Returns the number of values flattened, for the log line that lets notation
  * compliance be monitored over time.
  */
-async function applyPlainTextFloor(assessment, {subject} = {}) {
+async function applyPlainTextFloor(assessment, {subject, fields: fieldsIn} = {}) {
   if (!isEnforcedSubject(subject)) return {flattened: 0};
   let core;
   try {
@@ -319,6 +404,8 @@ async function applyPlainTextFloor(assessment, {subject} = {}) {
     NOTATION_FIELDS, detectNotationViolations, toPlainMathsText,
     detectScienceViolations, scienceToPlainText,
   } = core;
+  const fields = Array.isArray(fieldsIn) && fieldsIn.length ?
+    fieldsIn : NOTATION_FIELDS;
   const doMaths = isMathsSubjectKey(subject);
   const doScience = isScienceSubjectKey(subject);
 
@@ -335,12 +422,69 @@ async function applyPlainTextFloor(assessment, {subject} = {}) {
   };
 
   for (const {question, section, qIdx} of eachQuestion(assessment)) {
-    flattened += mapQuestionFields(question, NOTATION_FIELDS, flatten);
-    if (qIdx === 0 && section && section.passage &&
-        typeof section.passage.text === "string") {
-      const before = section.passage.text;
-      section.passage.text = flatten(before);
-      if (section.passage.text !== before) flattened += 1;
+    flattened += mapQuestionFields(question, fields, flatten);
+    if (qIdx === 0 && section) {
+      if (section.passage && typeof section.passage.text === "string") {
+        const before = section.passage.text;
+        section.passage.text = flatten(before);
+        if (section.passage.text !== before) flattened += 1;
+      } else if (typeof section.passage === "string" && section.passage) {
+        const before = section.passage;
+        section.passage = flatten(before);
+        if (section.passage !== before) flattened += 1;
+      }
+    }
+  }
+  return {flattened};
+}
+
+/**
+ * Convert ALL notation markup to readable plain text, valid or not.
+ *
+ * Different job from `applyPlainTextFloor`, and the difference bit during
+ * Phase 5: the floor flattens VIOLATIONS — and valid markup is, by
+ * definition, not a violation, so a compliant `$\sqrt{49}$` sails through it
+ * untouched. That is correct for a destination that renders markup and
+ * exactly wrong for one that prints strings verbatim (the quiz document's
+ * library page). A plain-string destination calls THIS: every field is run
+ * through the contract's own plain-text conversion, so the model may write
+ * markup freely and the page never shows it.
+ */
+async function flattenMarkupToPlainText(assessment, {subject, fields: fieldsIn} = {}) {
+  if (!isEnforcedSubject(subject)) return {flattened: 0};
+  let core;
+  try {
+    core = await import("../shared/assessment/mathsNotationCore.js");
+  } catch {
+    return {flattened: 0};
+  }
+  const {NOTATION_FIELDS, toPlainMathsText, scienceToPlainText} = core;
+  const fields = Array.isArray(fieldsIn) && fieldsIn.length ?
+    fieldsIn : NOTATION_FIELDS;
+  const doScience = isScienceSubjectKey(subject);
+  let flattened = 0;
+  const flatten = (value) => {
+    let out = value;
+    try {
+      out = toPlainMathsText(out);
+    } catch { /* keep what we have */ }
+    try {
+      if (doScience) out = scienceToPlainText(out);
+    } catch { /* keep what we have */ }
+    return out;
+  };
+  for (const {question, section, qIdx} of eachQuestion(assessment)) {
+    flattened += mapQuestionFields(question, fields, flatten);
+    if (qIdx === 0 && section) {
+      if (section.passage && typeof section.passage.text === "string") {
+        const before = section.passage.text;
+        section.passage.text = flatten(before);
+        if (section.passage.text !== before) flattened += 1;
+      } else if (typeof section.passage === "string" && section.passage) {
+        const before = section.passage;
+        section.passage = flatten(before);
+        if (section.passage !== before) flattened += 1;
+      }
     }
   }
   return {flattened};
@@ -349,6 +493,11 @@ async function applyPlainTextFloor(assessment, {subject} = {}) {
 module.exports = {
   MATHS_SUBJECT_KEYS,
   SCIENCE_SUBJECT_KEYS,
+  QUIZ_EDITOR_FIELDS,
+  QUIZ_DOC_FIELDS,
+  WORKSHEET_FIELDS,
+  HOMEWORK_FIELDS,
+  flattenMarkupToPlainText,
   isMathsSubjectKey,
   isScienceSubjectKey,
   isEnforcedSubject,
