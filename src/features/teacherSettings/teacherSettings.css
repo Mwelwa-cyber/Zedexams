@@ -678,10 +678,18 @@
   margin-top: 4px;
   padding: 12px 16px;
   border-radius: 16px;
-  background: rgba(255,255,255,.92);
+  /* Translucent so the `blur` behind it reads as frost — but color-mix rather
+     than a white literal, so the frost is tinted by whichever theme is on
+     instead of being a white slab floating over a dark page. */
+  background: color-mix(in srgb, var(--zt-card) 92%, transparent);
   border: 1.5px solid var(--zt-line);
   box-shadow: 0 12px 30px rgba(14,42,50,.12);
   backdrop-filter: blur(8px);
+}
+[data-theme='night'] .studio-theme .tset-savebar {
+  /* A shadow tuned for a light page is invisible on a dark one; this is what
+     separates the bar from the content scrolling under it. */
+  box-shadow: 0 12px 30px rgba(0,0,0,.45);
 }
 .studio-theme .tset-savebar__status {
   margin: 0 auto 0 2px;
@@ -689,8 +697,11 @@
   font-weight: 700;
   color: var(--zt-text-muted);
 }
-.studio-theme .tset-savebar__status--saved { color: #10864e; }
+/* #10864e measures 4.01:1 on the studio surface — deepened to clear 4.5. */
+.studio-theme .tset-savebar__status--saved { color: #0a6b3d; }
 .studio-theme .tset-savebar__status--error { color: #b91c1c; }
+[data-theme='night'] .studio-theme .tset-savebar__status--saved { color: #5FD09A; }
+[data-theme='night'] .studio-theme .tset-savebar__status--error { color: #F1A08C; }
 
 /* TeacherBottomNav is fixed to the bottom below Tailwind lg (1024px); lift
    the sticky save bar above it so Save is never hidden under the nav. */

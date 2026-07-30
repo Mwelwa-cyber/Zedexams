@@ -2283,6 +2283,20 @@ function SyllabiStudioStyles() {
   --ss-white:  #FFFFFF;
   --ss-text:   #1a1a1a;
   --ss-muted:  #6B6B6B;
+  /* Ink half of --ss-teal — see the twin comment in SyllabiLibrary.jsx. The
+     token FILLS chrome that stays dark in both themes AND inks headings that
+     must invert; the two halves need separate names. Identical here. */
+  --ss-ink-strong: var(--ss-teal);
+  /* Same split for --ss-orange, for the second reason: it FILLS accent bars,
+     the active-tab underline and badges that carry white text, and it also
+     INKS the sidebar group labels — where #C66E4F on white measures 3.66:1,
+     under the 4.5 a 10px label needs. The ink half is darkened; the fills are
+     untouched, so nothing in the layout moves. */
+  --ss-accent-ink: #A5522F;
+  /* And a third: the same accent as a FILL under white text. #C66E4F carries
+     white at 3.66:1 — a 11px bold pill fails. Deepened just enough to clear
+     4.5 while staying the same hue, so the chips read as they always did. */
+  --ss-orange-solid: #AE5A39;
   --ss-radius: 14px;
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   background: var(--ss-cream);
@@ -2374,7 +2388,7 @@ function SyllabiStudioStyles() {
   padding: 14px 20px 6px;
   font-size: 10px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 1.2px;
-  color: var(--ss-orange);
+  color: var(--ss-accent-ink);
 }
 .ss-root .ss-sb-label::before {
   content: ''; display: inline-block;
@@ -2397,7 +2411,7 @@ function SyllabiStudioStyles() {
 .ss-root .ss-nav-item.is-active {
   background: var(--ss-cream);
   border-left-color: var(--ss-orange);
-  font-weight: 600; color: var(--ss-teal);
+  font-weight: 600; color: var(--ss-ink-strong);
 }
 .ss-root .ss-home-item { margin: 0 0 12px; }
 .ss-root .ss-nav-icon { font-size: 15px; flex-shrink: 0; }
@@ -2440,7 +2454,7 @@ function SyllabiStudioStyles() {
 .ss-root .ss-hero-label {
   font-size: 11px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 1.2px;
-  color: var(--ss-orange);
+  color: var(--ss-accent-ink);
   margin-bottom: 8px;
 }
 .ss-root .ss-hero-title {
@@ -2465,7 +2479,7 @@ function SyllabiStudioStyles() {
 .ss-root .ss-stat-num {
   font-family: 'Playfair Display', 'Fraunces', Georgia, serif;
   font-size: 28px; font-weight: 900;
-  color: var(--ss-teal);
+  color: var(--ss-ink-strong);
 }
 .ss-root .ss-stat-lbl {
   font-size: 11px; color: var(--ss-muted);
@@ -2484,7 +2498,7 @@ function SyllabiStudioStyles() {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 11px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 1.2px;
-  color: var(--ss-orange);
+  color: var(--ss-accent-ink);
 }
 .ss-root .ss-sh-dash::before {
   content: ''; display: inline-block;
@@ -2494,7 +2508,7 @@ function SyllabiStudioStyles() {
 .ss-root .ss-sh-title {
   font-family: 'Playfair Display', 'Fraunces', Georgia, serif;
   font-size: 22px; font-weight: 900;
-  color: var(--ss-teal); margin: 0;
+  color: var(--ss-ink-strong); margin: 0;
 }
 
 .ss-root .ss-cards-grid {
@@ -2522,7 +2536,7 @@ function SyllabiStudioStyles() {
 .ss-root .ss-card-name {
   font-family: 'Playfair Display', 'Fraunces', Georgia, serif;
   font-size: 15px; font-weight: 700;
-  color: var(--ss-teal); line-height: 1.3; margin-bottom: 6px;
+  color: var(--ss-ink-strong); line-height: 1.3; margin-bottom: 6px;
 }
 .ss-root .ss-card-meta { font-size: 12px; color: var(--ss-muted); }
 .ss-root .ss-card-badge {
@@ -2539,7 +2553,7 @@ function SyllabiStudioStyles() {
   border: 1.5px solid var(--ss-teal);
   border-radius: 8px;
   font-size: 13px; cursor: pointer;
-  color: var(--ss-teal); font-weight: 600;
+  color: var(--ss-ink-strong); font-weight: 600;
   margin-bottom: 20px; font-family: inherit;
   transition: background 0.15s;
 }
@@ -2582,7 +2596,7 @@ function SyllabiStudioStyles() {
   cursor: pointer; border-radius: 8px;
   border: 1.5px solid var(--ss-teal);
   background: var(--ss-white);
-  color: var(--ss-teal);
+  color: var(--ss-ink-strong);
   font-family: inherit;
   transition: background 0.15s, color 0.15s;
 }
@@ -2620,7 +2634,7 @@ function SyllabiStudioStyles() {
   margin-left: auto; font-weight: 600;
 }
 .ss-root .ss-add-row-btn {
-  background: var(--ss-orange); color: white;
+  background: var(--ss-orange-solid); color: white;
   border: none; border-radius: 8px;
   padding: 7px 14px; font-size: 13px; font-weight: 700;
   cursor: pointer; font-family: inherit;
@@ -2652,7 +2666,7 @@ function SyllabiStudioStyles() {
 }
 .ss-root .ss-topic-header-row td {
   background: #D4E4EC;
-  color: var(--ss-teal);
+  color: var(--ss-ink-strong);
   font-weight: 800; font-size: 13px;
   padding: 11px 16px;
   border-top: 2.5px solid var(--ss-teal);
@@ -2663,7 +2677,7 @@ function SyllabiStudioStyles() {
 .ss-root .ss-add-row-inline {
   float: right; background: transparent;
   border: 1.5px dashed var(--ss-teal);
-  color: var(--ss-teal); font-weight: 700; font-size: 11px;
+  color: var(--ss-ink-strong); font-weight: 700; font-size: 11px;
   padding: 2px 10px; border-radius: 5px; cursor: pointer;
   font-family: inherit;
 }
@@ -2696,7 +2710,7 @@ function SyllabiStudioStyles() {
 .ss-root .ss-table td:last-child { border-right: none; }
 .ss-root .ss-topic-cell-dim { opacity: 0.45; font-size: 11px; }
 .ss-root .ss-subtopic-cell {
-  font-weight: 600; color: var(--ss-teal);
+  font-weight: 600; color: var(--ss-ink-strong);
   min-width: 180px;
   border-left: 3px solid transparent;
 }
@@ -2719,7 +2733,7 @@ function SyllabiStudioStyles() {
   font-family: inherit; font-size: 12px; font-weight: 700;
   cursor: pointer; padding: 0;
 }
-.ss-root .ss-row-edit { color: var(--ss-teal); }
+.ss-root .ss-row-edit { color: var(--ss-ink-strong); }
 .ss-root .ss-row-edit:hover { text-decoration: underline; }
 .ss-root .ss-row-delete { color: #B91C1C; }
 .ss-root .ss-row-delete:hover { text-decoration: underline; }
@@ -2730,7 +2744,7 @@ function SyllabiStudioStyles() {
 .ss-root .ss-sr-header h2 {
   font-family: 'Playfair Display', 'Fraunces', Georgia, serif;
   font-size: 24px; font-weight: 900;
-  color: var(--ss-teal); margin: 0 0 4px;
+  color: var(--ss-ink-strong); margin: 0 0 4px;
 }
 .ss-root .ss-sr-header p { font-size: 13px; color: var(--ss-muted); margin: 0; }
 .ss-root .ss-sr-empty { font-size: 14px; color: var(--ss-muted); }
@@ -2752,13 +2766,13 @@ function SyllabiStudioStyles() {
   font-size: 20px; flex-shrink: 0;
 }
 .ss-root .ss-sri-body { flex: 1; display: flex; flex-direction: column; }
-.ss-root .ss-sri-title { font-size: 14px; font-weight: 700; color: var(--ss-teal); margin-bottom: 2px; }
+.ss-root .ss-sri-title { font-size: 14px; font-weight: 700; color: var(--ss-ink-strong); margin-bottom: 2px; }
 .ss-root .ss-sri-meta { font-size: 12px; color: var(--ss-muted); }
 .ss-root .ss-pill {
   display: inline-block;
   padding: 3px 10px; border-radius: 20px;
   font-size: 11px; font-weight: 700;
-  background: var(--ss-orange); color: white;
+  background: var(--ss-orange-solid); color: white;
 }
 
 /* ── Custom (Firestore-only) topics panel ───────────────────────────── */
@@ -2781,7 +2795,7 @@ function SyllabiStudioStyles() {
   padding: 2px 10px;
   font-size: 12px;
   border-radius: 12px;
-  background: var(--ss-orange); color: white;
+  background: var(--ss-orange-solid); color: white;
   font-family: 'Inter', sans-serif;
   font-weight: 800;
   vertical-align: middle;
@@ -2807,7 +2821,7 @@ function SyllabiStudioStyles() {
 .ss-root .ss-custom-grade-label {
   font-size: 11px; font-weight: 800;
   text-transform: uppercase; letter-spacing: 1px;
-  color: var(--ss-teal);
+  color: var(--ss-ink-strong);
   padding-bottom: 4px;
   border-bottom: 1.5px dashed var(--ss-cream2);
 }
@@ -2826,14 +2840,14 @@ function SyllabiStudioStyles() {
 }
 .ss-root .ss-custom-card-meta {
   grid-area: meta;
-  font-size: 11px; color: var(--ss-orange);
+  font-size: 11px; color: var(--ss-accent-ink);
   font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
 }
 .ss-root .ss-custom-card-title {
   grid-area: title;
   font-family: 'Playfair Display', serif;
   font-weight: 800; font-size: 15px;
-  color: var(--ss-teal);
+  color: var(--ss-ink-strong);
 }
 .ss-root .ss-custom-card-subs {
   grid-area: subs;
@@ -2953,6 +2967,86 @@ function SyllabiStudioStyles() {
   .ss-root .ss-search-box { width: 140px; padding-left: 32px; }
   .ss-root .ss-logo-sub { display: none; }
 }
+
+/* ── NIGHT THEME ─────────────────────────────────────────────────────── */
+/* The admin twin of the block at the end of SyllabiLibrary.jsx. The two
+   stylesheets are independent copies of one design system, so a fix applied
+   to one is invisible in the other — keep them in step.
+
+   --ss-teal stays dark: it fills the header, the section rows and the
+   active tab, which are dark in both themes. Ink drawn in teal reads
+   --ss-ink-strong and inverts. */
+[data-theme='night'] .ss-root {
+  --ss-cream:  #1A222E;
+  --ss-cream2: #3B4757;
+  --ss-teal:   #16303F;
+  --ss-orange: #D9784F;
+  --ss-white:  #232D3B;
+  --ss-text:   #EDE7DC;
+  --ss-muted:  #94A0AF;
+  --ss-ink-strong: #CFE3EE;
+  --ss-accent-ink: #E58A62;
+  --ss-orange-solid: #AE5A39;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+}
+[data-theme='night'] .ss-root mark { background: #7A5F00; color: #FFE9A8; }
+[data-theme='night'] .ss-root .ss-error-title { color: #F1A08C; }
+[data-theme='night'] .ss-root .ss-add-row-btn:hover { background: #E8865C; }
+[data-theme='night'] .ss-root .ss-toast {
+  background: #16332A;
+  border-color: #2E6B55;
+  color: #8FE3C2;
+}
+
+/* Table chrome + the row-state tints the editor adds on top of it. */
+[data-theme='night'] .ss-root .ss-topic-header-row td {
+  background: #223543;
+  border-bottom-color: #3E5A6B;
+}
+[data-theme='night'] .ss-root .ss-data-row { border-bottom-color: #313D4C; }
+[data-theme='night'] .ss-root .ss-data-row:hover { background: #2A3646; }
+[data-theme='night'] .ss-root .ss-data-row.ss-odd-row { background: #1F2836; }
+[data-theme='night'] .ss-root .ss-data-row.ss-odd-row:hover { background: #2A3646; }
+[data-theme='night'] .ss-root .ss-data-row.ss-ov-edited { background: #3A3116; }
+[data-theme='night'] .ss-root .ss-data-row.ss-ov-edited:hover { background: #4A3E1B; }
+[data-theme='night'] .ss-root .ss-data-row.ss-ov-inserted { background: #16332A; }
+[data-theme='night'] .ss-root .ss-data-row.ss-ov-inserted:hover { background: #1D4335; }
+[data-theme='night'] .ss-root .ss-table td { border-right-color: #313D4C; }
+[data-theme='night'] .ss-root .ss-subtopic-cell.ss-first-in-group { border-left-color: #3E5A6B; }
+[data-theme='night'] .ss-root .ss-standard-cell { color: #AEB8C4; }
+[data-theme='night'] .ss-root .ss-row-delete { color: #F1A08C; }
+[data-theme='night'] .ss-root .ss-row-restore { color: #E7B268; }
+
+/* The edit/insert modal and the custom-topic panel are rendered outside
+   .ss-root, so the token restatement above never reaches them — they carry
+   their own literals and need naming one by one. */
+[data-theme='night'] .ss-modal {
+  background: #232D3B;
+  color: #EDE7DC;
+}
+[data-theme='night'] .ss-modal-head { border-bottom-color: #3B4757; }
+[data-theme='night'] .ss-modal-head h2 { color: #CFE3EE; }
+[data-theme='night'] .ss-modal-head p,
+[data-theme='night'] .ss-ct-hint { color: #94A0AF; }
+[data-theme='night'] .ss-field label { color: #CFE3EE; }
+[data-theme='night'] .ss-field textarea,
+[data-theme='night'] .ss-field select,
+[data-theme='night'] .ss-ct-row input {
+  background: #1A222E;
+  border-color: #3B4757;
+  color: #EDE7DC;
+}
+[data-theme='night'] .ss-modal-note {
+  background: #1F2836;
+  color: #94A0AF;
+}
+[data-theme='night'] .ss-modal-foot { border-top-color: #3B4757; }
+[data-theme='night'] .ss-btn-ghost {
+  border-color: #3B4757;
+  color: #CFE3EE;
+}
+[data-theme='night'] .ss-btn-ghost:hover { background: #2A3646; }
+[data-theme='night'] .ss-ct-add { color: #6EE7B7; }
 `}</style>
   )
 }

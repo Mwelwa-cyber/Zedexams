@@ -603,6 +603,372 @@ body.theme-midnight .moe-calendar {
     color: var(--zt-text);
   }
 
+  /* Night: the studio COMPONENT classes.
+   *
+   * The block above tokenises the studio's --bg / --card / --text variables,
+   * which is what re-colours every `theme-card` / `theme-text` utility. The
+   * `.studio-*` component classes below it never read those variables — they
+   * were written with literals (#ffffff cards, #0e2a32 borders and ink,
+   * #d9cfb8 hairlines), so a teacher on Night got a dark page carrying white
+   * cards and dark-on-dark labels: worse than either theme on its own,
+   * because the shell said dark and the content said light.
+   *
+   * These are remaps, not new tokens. Rewriting each rule to read var(--card)
+   * would be the better shape, but it changes what every light theme paints
+   * too, and this is a dark-mode fix — a remap can only affect Night. The
+   * cost is the usual one: a NEW component written with #ffffff is correct in
+   * three themes and a white card in the fourth until someone adds it here.
+   *
+   * Ordered to mirror the light rules above so the pairs stay findable. */
+  /* .studio-eyebrow reads --zt-accent-text in the base rule now, so only the
+     dashboard eyebrow's literal is left to remap. */
+  [data-theme='night'] .studio-theme .teacher-dashboard-eyebrow {
+    color: var(--zt-accent-text);
+  }
+  [data-theme='night'] .studio-theme .studio-card {
+    background: var(--zt-card);
+    border-color: var(--zt-card-border);
+    box-shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 28px -18px rgba(0,0,0,.6);
+  }
+  [data-theme='night'] .studio-theme .studio-card:hover {
+    box-shadow: 0 10px 24px rgba(0,0,0,.5);
+  }
+  [data-theme='night'] .studio-theme .studio-card-soft {
+    background: var(--zt-card);
+    border-color: var(--zt-line);
+  }
+  [data-theme='night'] .studio-theme .studio-btn-ghost {
+    background: var(--zt-card);
+    color: var(--zt-text);
+    border-color: var(--zt-card-border);
+  }
+  [data-theme='night'] .studio-theme .studio-btn-ghost:hover {
+    background: color-mix(in srgb, var(--zt-text) 10%, var(--zt-card));
+  }
+  [data-theme='night'] .studio-theme .studio-input {
+    background: var(--zt-card);
+    border-color: var(--zt-line);
+    color: var(--zt-text);
+  }
+  [data-theme='night'] .studio-theme .studio-input::placeholder { color: var(--zt-text-muted); }
+  [data-theme='night'] .studio-theme .studio-input:hover:not(:focus) {
+    border-color: var(--zt-card-border);
+  }
+  /* The chevron is a data-URI SVG, so its stroke is baked into the URL — it
+     cannot inherit a colour and has to be redrawn rather than restyled. */
+  [data-theme='night'] .studio-theme select.studio-input {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394A0AF' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  }
+  [data-theme='night'] .studio-theme .studio-advanced {
+    border-color: var(--zt-line);
+    background: color-mix(in srgb, var(--zt-text) 4%, var(--zt-surface));
+  }
+  [data-theme='night'] .studio-theme .studio-advanced.is-open {
+    background: color-mix(in srgb, var(--zt-text) 7%, var(--zt-surface));
+  }
+  [data-theme='night'] .studio-theme .studio-advanced__toggle { color: var(--zt-text-muted); }
+  [data-theme='night'] .studio-theme .studio-advanced__toggle:hover { color: var(--zt-text); }
+  [data-theme='night'] .studio-theme .studio-empty__text { color: var(--zt-text-muted); }
+  [data-theme='night'] .studio-theme .studio-empty__badge {
+    box-shadow: 0 1px 0 rgba(255,255,255,.10) inset, 0 10px 24px -14px rgba(0,0,0,.7);
+  }
+  [data-theme='night'] .studio-theme .studio-backlink { color: var(--zt-text); }
+  [data-theme='night'] .studio-theme .studio-backlink:hover { background: rgba(255,255,255,.09); }
+  /* The page header is a dark gradient in every theme, so it needs nothing —
+     except the emoji medallion, which is a 92px near-white disc and reads as
+     a glare spot once the rest of the page stops being bright. */
+  [data-theme='night'] .studio-theme .studio-page-header__emoji {
+    background: linear-gradient(180deg, #D8D2C6 0%, #B9B2A3 100%);
+  }
+  [data-theme='night'] .studio-theme .studio-label { color: var(--zt-text-muted); }
+  /* #0e2a32 is very nearly the Night surface itself — the badge disappeared. */
+  [data-theme='night'] .studio-theme .studio-badge {
+    background: #33414F;
+    color: #FDE9B8;
+  }
+  [data-theme='night'] .studio-theme .teacher-dashboard-surface { color: var(--zt-text); }
+  [data-theme='night'] .studio-theme .teacher-subscription-banner {
+    background: var(--zt-banner-bg);
+    border-color: var(--zt-banner-border);
+  }
+  [data-theme='night'] .studio-theme .teacher-subscription-banner__title { color: var(--zt-banner-text); }
+  [data-theme='night'] .studio-theme .teacher-subscription-banner__text { color: var(--zt-text-muted); }
+  /* The per-card --studio-tone-* pairs are deliberately NOT remapped: each is
+     a pastel fill with its own dark ink, self-consistent on any background,
+     and they are how a teacher tells the studios apart at a glance. Setting
+     them here would also outrank every `--amber` / `--blue` modifier at once
+     and collapse the whole grid to one colour. */
+  [data-theme='night'] .studio-theme .teacher-studio-card {
+    background: var(--zt-card);
+    border-color: var(--zt-line);
+    color: var(--zt-text);
+  }
+  [data-theme='night'] .studio-theme a.teacher-studio-card:hover {
+    border-color: var(--zt-card-border);
+    box-shadow: 0 12px 28px rgba(0,0,0,.5);
+  }
+  /* The card's own `color` does not reach these — each declares its own. */
+  [data-theme='night'] .studio-theme .teacher-studio-card__title { color: var(--zt-text); }
+  [data-theme='night'] .studio-theme .teacher-studio-card__text,
+  [data-theme='night'] .studio-theme .teacher-studio-card__meta { color: var(--zt-text-muted); }
+  [data-theme='night'] .studio-theme .teacher-studio-card__badge--saved {
+    background: #33414F;
+    color: #FDE9B8;
+  }
+  [data-theme='night'] .studio-theme .teacher-studio-card__badge--muted {
+    background: #3B4757;
+    color: #D6CBAE;
+  }
+  [data-theme='night'] .studio-theme .studio-next-steps {
+    background: color-mix(in srgb, #3B82F6 12%, var(--zt-card));
+    border-color: #3E5A78;
+  }
+  [data-theme='night'] .studio-theme .studio-next-steps__title { color: var(--zt-text); }
+  [data-theme='night'] .studio-theme .studio-next-steps__facts { color: #9EC2E8; }
+  [data-theme='night'] .studio-theme .studio-next-steps__btn {
+    background: var(--zt-card);
+    border-color: #3E5A78;
+    color: var(--zt-text);
+  }
+
+  /* Night: the CLASSIC teacher dashboard (/teacher/classic).
+   *
+   * The live /teacher dashboard is dashboardV2, which is tokenised through
+   * --zt-* and has its own `.tdv2.is-dark` variant, so it was already correct.
+   * This block covers the PRE-V2 dashboard kept as the transition fallback —
+   * its ~150 rules are literals of the same small vocabulary, and on Night the
+   * whole page rendered white cards with near-black ink on a dark shell.
+   *
+   * Grouped by what each rule NEEDS rather than one remap per class, because
+   * the vocabulary really is that small: a card surface, a neutral wash, three
+   * inks (primary / muted / accent) and the three semantic tints — which reuse
+   * the --success-* / --warning-* / --danger-* triples the studio block above
+   * already restates for Night, so a status chip here and a status chip in a
+   * studio are the same colour.
+   *
+   * Pastel CATEGORY chips (--quickcreate icons, activity badges, the studio
+   * tone pairs) are deliberately absent: each is a coloured sticker carrying
+   * its own dark ink and is legible on any background. Remapping them was what
+   * broke the Games leaderboard in #2027 — the class remap outranked the tint
+   * utility and left the one element meant to be noticed at 1.61:1. */
+  [data-theme='night'] .studio-theme .teacher-stat-pill__label,
+  [data-theme='night'] .studio-theme .teacher-recent-card__meta,
+  [data-theme='night'] .studio-theme .teacher-recent-card__arrow,
+  [data-theme='night'] .studio-theme .teacher-workspace-header__text,
+  [data-theme='night'] .studio-theme .teacher-workspace-section__desc,
+  [data-theme='night'] .studio-theme .teacher-workspace-card__text,
+  [data-theme='night'] .studio-theme .teacher-range,
+  [data-theme='night'] .studio-theme .teacher-range select,
+  [data-theme='night'] .studio-theme .teacher-range > svg,
+  [data-theme='night'] .studio-theme .teacher-universal-search__icon,
+  [data-theme='night'] .studio-theme .teacher-prepweek__context,
+  [data-theme='night'] .studio-theme .teacher-prepweek__stage-label,
+  [data-theme='night'] .studio-theme .teacher-prepweek-row__detail,
+  [data-theme='night'] .studio-theme .teacher-prepweek-row__meta,
+  [data-theme='night'] .studio-theme .teacher-prepweek__state-text,
+  [data-theme='night'] .studio-theme .teacher-quickcreate-card__text,
+  [data-theme='night'] .studio-theme .teacher-activity__toggle-hint,
+  [data-theme='night'] .studio-theme .teacher-reco-card__text,
+  [data-theme='night'] .studio-theme .teacher-recent-row__meta,
+  [data-theme='night'] .studio-theme .teacher-recent-row__time,
+  [data-theme='night'] .studio-theme .teacher-recent-row__more,
+  [data-theme='night'] .studio-theme .teacher-recent-menu__hint,
+  [data-theme='night'] .studio-theme .teacher-insight-card__text,
+  [data-theme='night'] .studio-theme .teacher-continue-card__meta,
+  [data-theme='night'] .studio-theme .teacher-continue-feature__meta,
+  [data-theme='night'] .studio-theme .teacher-continue-feature__foot,
+  [data-theme='night'] .studio-theme .teacher-activity-card__label,
+  [data-theme='night'] .studio-theme .teacher-activity-card__trend--flat,
+  [data-theme='night'] .studio-theme .teacher-activity-total__label,
+  [data-theme='night'] .studio-theme .teacher-usage-card__manage,
+  [data-theme='night'] .studio-theme .teacher-usage-card__k {
+    color: var(--zt-text-muted);
+  }
+
+  [data-theme='night'] .studio-theme .teacher-stat-pill__value,
+  [data-theme='night'] .studio-theme .teacher-dashboard-heading,
+  [data-theme='night'] .studio-theme .teacher-empty-state__title,
+  [data-theme='night'] .studio-theme .teacher-recent-card__icon,
+  [data-theme='night'] .studio-theme .teacher-recent-card__title,
+  [data-theme='night'] .studio-theme .teacher-workspace-header__title,
+  [data-theme='night'] .studio-theme .teacher-workspace-section__label,
+  [data-theme='night'] .studio-theme .teacher-workspace-card__title,
+  [data-theme='night'] .studio-theme .teacher-celebrate__text,
+  [data-theme='night'] .studio-theme .teacher-hero__continue-icon,
+  [data-theme='night'] .studio-theme .teacher-universal-search__input,
+  [data-theme='night'] .studio-theme .teacher-prepweek__title,
+  [data-theme='night'] .studio-theme .teacher-prepweek-row__label,
+  [data-theme='night'] .studio-theme .teacher-prepweek__state-title,
+  [data-theme='night'] .studio-theme .teacher-quickcreate-card__title,
+  [data-theme='night'] .studio-theme .teacher-allowance-notice__title,
+  [data-theme='night'] .studio-theme .teacher-preview-upsell__title,
+  [data-theme='night'] .studio-theme .teacher-reco-card__title,
+  [data-theme='night'] .studio-theme .teacher-recent-row__title,
+  [data-theme='night'] .studio-theme .teacher-recent-row__rename input,
+  [data-theme='night'] .studio-theme .teacher-recent-menu__item,
+  [data-theme='night'] .studio-theme .teacher-continue-card__icon,
+  [data-theme='night'] .studio-theme .teacher-continue-card__title,
+  [data-theme='night'] .studio-theme .teacher-continue-feature__icon,
+  [data-theme='night'] .studio-theme .teacher-continue-feature__title,
+  [data-theme='night'] .studio-theme .teacher-activity-card__value,
+  [data-theme='night'] .studio-theme .teacher-activity-total__value,
+  [data-theme='night'] .studio-theme .teacher-usage-card__manage:hover,
+  [data-theme='night'] .studio-theme .teacher-usage-card__big,
+  [data-theme='night'] .studio-theme .teacher-usage-gauge__value {
+    color: var(--zt-text);
+  }
+
+  [data-theme='night'] .studio-theme .teacher-prepweek--skeleton,
+  [data-theme='night'] .studio-theme .teacher-prepweek-row:hover,
+  [data-theme='night'] .studio-theme .teacher-prepweek-row__bar,
+  [data-theme='night'] .studio-theme .teacher-prepweek__btn--ghost:hover,
+  [data-theme='night'] .studio-theme .teacher-quickcreate-card__icon,
+  [data-theme='night'] .studio-theme .teacher-workspace-toggle:hover,
+  [data-theme='night'] .studio-theme .teacher-activity__toggle:hover,
+  [data-theme='night'] .studio-theme .studio-next-steps__btn:hover,
+  [data-theme='night'] .studio-theme .teacher-preview-upsell__btn--ghost:hover,
+  [data-theme='night'] .studio-theme .teacher-reco-card__icon,
+  [data-theme='night'] .studio-theme .teacher-recent__skeleton,
+  [data-theme='night'] .studio-theme .teacher-recent-row__icon,
+  [data-theme='night'] .studio-theme .teacher-recent-menu__item:hover,
+  [data-theme='night'] .studio-theme .teacher-continue-card--skeleton,
+  [data-theme='night'] .studio-theme .teacher-continue-card__bar,
+  [data-theme='night'] .studio-theme .teacher-continue-feature--skeleton,
+  [data-theme='night'] .studio-theme .teacher-continue-feature__bar,
+  [data-theme='night'] .studio-theme .teacher-continue-feature__cta:hover,
+  [data-theme='night'] .studio-theme .teacher-usage-card--skeleton,
+  [data-theme='night'] .studio-theme .teacher-usage-card__divider,
+  [data-theme='night'] .studio-theme .teacher-usage-card__toggle:hover {
+    background: color-mix(in srgb, var(--zt-text) 7%, var(--zt-card));
+    border-color: var(--zt-line);
+  }
+
+  [data-theme='night'] .studio-theme .teacher-stat-pill,
+  [data-theme='night'] .studio-theme .teacher-empty-state,
+  [data-theme='night'] .studio-theme .teacher-universal-search,
+  [data-theme='night'] .studio-theme .teacher-prepweek,
+  [data-theme='night'] .studio-theme .teacher-prepweek-row,
+  [data-theme='night'] .studio-theme .teacher-quickcreate-card,
+  [data-theme='night'] .studio-theme .teacher-activity__toggle,
+  [data-theme='night'] .studio-theme .teacher-reco-card,
+  [data-theme='night'] .studio-theme .teacher-recent__list,
+  [data-theme='night'] .studio-theme .teacher-recent-menu,
+  [data-theme='night'] .studio-theme .teacher-insight-card,
+  [data-theme='night'] .studio-theme .teacher-continue-feature,
+  [data-theme='night'] .studio-theme .teacher-activity-card,
+  [data-theme='night'] .studio-theme .teacher-activity-total,
+  [data-theme='night'] .studio-theme .teacher-usage-card {
+    background: var(--zt-card);
+    border-color: var(--zt-line);
+  }
+
+  [data-theme='night'] .studio-theme .teacher-prepweek__stage--done .teacher-prepweek__stage-icon,
+  [data-theme='night'] .studio-theme .teacher-prepweek__stage--done .teacher-prepweek__stage-label,
+  [data-theme='night'] .studio-theme .teacher-allowance-notice,
+  [data-theme='night'] .studio-theme .teacher-allowance-notice__text,
+  [data-theme='night'] .studio-theme .teacher-allowance-notice__close,
+  [data-theme='night'] .studio-theme .teacher-recent-row__status--ready,
+  [data-theme='night'] .studio-theme .teacher-continue-card__chip--ready,
+  [data-theme='night'] .studio-theme .teacher-activity-card__trend--up,
+  [data-theme='night'] .studio-theme .teacher-plan-chip--max {
+    background: var(--success-bg);
+    border-color: var(--success);
+    color: var(--success-fg);
+  }
+
+  [data-theme='night'] .studio-theme .teacher-workspace-section__viewall,
+  [data-theme='night'] .studio-theme .teacher-workspace-section__viewall:hover,
+  [data-theme='night'] .studio-theme .teacher-celebrate__dismiss,
+  [data-theme='night'] .studio-theme .teacher-section-head__link,
+  [data-theme='night'] .studio-theme .teacher-section-head__link:hover,
+  [data-theme='night'] .studio-theme .teacher-prepweek__stage--current .teacher-prepweek__stage-label,
+  [data-theme='night'] .studio-theme .teacher-recent-row__title:hover,
+  [data-theme='night'] .studio-theme .teacher-recent-row__busy {
+    color: var(--zt-accent-text);
+  }
+
+  [data-theme='night'] .studio-theme .teacher-prepweek__range,
+  [data-theme='night'] .studio-theme .teacher-prepweek__tip,
+  [data-theme='night'] .studio-theme .teacher-workspace-toggle,
+  [data-theme='night'] .studio-theme .teacher-preview-upsell,
+  [data-theme='night'] .studio-theme .teacher-preview-upsell__text,
+  [data-theme='night'] .studio-theme .teacher-recent-row__status--draft,
+  [data-theme='night'] .studio-theme .teacher-continue-card__chip--draft,
+  [data-theme='night'] .studio-theme .teacher-plan-chip {
+    background: var(--warning-bg);
+    border-color: var(--warning);
+    color: var(--warning-fg);
+  }
+
+  [data-theme='night'] .studio-theme .teacher-recent-card,
+  [data-theme='night'] .studio-theme .teacher-workspace-card,
+  [data-theme='night'] .studio-theme .teacher-prepweek__btn--ghost,
+  [data-theme='night'] .studio-theme .teacher-preview-upsell__btn--ghost,
+  [data-theme='night'] .studio-theme .teacher-recent-row__rename button,
+  [data-theme='night'] .studio-theme .teacher-continue-card {
+    background: var(--zt-card);
+    border-color: var(--zt-line);
+    color: var(--zt-text);
+  }
+
+  [data-theme='night'] .studio-theme .teacher-prepweek-row__status--alert,
+  [data-theme='night'] .studio-theme .teacher-prepweek-row__meta--alert,
+  [data-theme='night'] .studio-theme .teacher-recent-row__rename-problem,
+  [data-theme='night'] .studio-theme .teacher-activity-card__trend--down,
+  [data-theme='night'] .studio-theme .teacher-plan-chip--pro {
+    background: var(--danger-bg);
+    border-color: var(--danger);
+    color: var(--danger-fg);
+  }
+
+  [data-theme='night'] .studio-theme .teacher-empty-state__icon,
+  [data-theme='night'] .studio-theme .teacher-prepweek__stage-icon,
+  [data-theme='night'] .studio-theme .teacher-prepweek__state-icon,
+  [data-theme='night'] .studio-theme .teacher-continue-card__chip--started {
+    background: color-mix(in srgb, var(--zt-text) 7%, var(--zt-card));
+    border-color: var(--zt-line);
+    color: var(--zt-text-muted);
+  }
+
+  [data-theme='night'] .studio-theme .teacher-workspace-header__icon,
+  [data-theme='night'] .studio-theme .teacher-continue-feature__cta,
+  [data-theme='night'] .studio-theme .teacher-usage-card__spark,
+  [data-theme='night'] .studio-theme .teacher-usage-card__toggle {
+    background: color-mix(in srgb, var(--zt-text) 7%, var(--zt-card));
+    border-color: var(--zt-line);
+    color: var(--zt-accent-text);
+  }
+
+  [data-theme='night'] .studio-theme .teacher-prepweek__stage--current .teacher-prepweek__stage-icon,
+  [data-theme='night'] .studio-theme .teacher-reco-card__action {
+    background: var(--zt-card);
+    border-color: var(--zt-line);
+    color: var(--zt-accent-text);
+  }
+
+  [data-theme='night'] .studio-theme .teacher-quickcreate-card__go,
+  [data-theme='night'] .studio-theme .teacher-recent-row__more:hover {
+    background: color-mix(in srgb, var(--zt-text) 7%, var(--zt-card));
+    border-color: var(--zt-line);
+    color: var(--zt-text);
+  }
+
+  /* Two icon tiles keep a LIGHT fill on Night and so must keep DARK ink.
+     They are stickers like the pastel chips, but neither is caught by fill:
+     the quickcreate tone tiles set their pastel at a higher specificity than
+     the base rule the group remapped, and the continue-card tile fills from
+     `var(--c-bg, …)`, which reads as no background at all. Both ended up with
+     --zt-text on a near-white tile at about 1:1. Pinned after the group so
+     these win at equal specificity. */
+  [data-theme='night'] .studio-theme .teacher-quickcreate-card--orange .teacher-quickcreate-card__icon,
+  [data-theme='night'] .studio-theme .teacher-quickcreate-card--violet .teacher-quickcreate-card__icon,
+  [data-theme='night'] .studio-theme .teacher-quickcreate-card--green .teacher-quickcreate-card__icon,
+  [data-theme='night'] .studio-theme .teacher-quickcreate-card--blue .teacher-quickcreate-card__icon,
+  [data-theme='night'] .studio-theme .teacher-continue-card__icon {
+    color: #0e2a32;
+  }
+
+
   /* The teacher studio shell.
    *
    * This block is what makes the workspace theme reach the studios. It
@@ -654,7 +1020,10 @@ body.theme-midnight .moe-calendar {
   .studio-theme .studio-eyebrow {
     display: inline-flex; align-items: center; gap: 10px;
     font-size: 11px; font-weight: 700; letter-spacing: 1.4px;
-    text-transform: uppercase; color: #d97757;
+    /* The token, not the #d97757 brand fill: that literal measures 2.71:1 on
+       the studio surface, and this is 11px uppercase text. --zt-accent-text is
+       the per-theme accent tuned for exactly this, and clears 4.5 in all four. */
+    text-transform: uppercase; color: var(--zt-accent-text);
   }
   .studio-theme .studio-eyebrow::before {
     content: ''; width: 32px; height: 3px; background: #d97757; border-radius: 2px;
@@ -750,7 +1119,7 @@ body.theme-midnight .moe-calendar {
   .studio-theme .studio-advanced__hint {
     flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
     white-space: nowrap; font-weight: 600; text-transform: none;
-    letter-spacing: 0; color: #8a9aa1; font-size: 11.5px;
+    letter-spacing: 0; color: var(--zt-text-muted); font-size: 11.5px;
   }
   .studio-theme .studio-advanced__chevron {
     margin-left: auto; flex: 0 0 auto; transition: transform .18s ease;
@@ -892,13 +1261,17 @@ body.theme-midnight .moe-calendar {
     line-height: 1.45;
   }
 
+  /* Tokenised rather than the #d97757 brand fill: white on that literal is
+     3.12:1, under the 4.5 a 14px label needs. --zt-accent-deep with its
+     paired --zt-on-accent clears it in every theme — including Night, where
+     the accent is the LIGHT one and the ink pairs to near-black. */
   .studio-theme .teacher-subscription-banner__button {
     flex: 0 0 auto;
     padding: 9px 16px;
     border: 0;
     border-radius: 8px;
-    background: #d97757;
-    color: #fff;
+    background: var(--zt-accent-deep);
+    color: var(--zt-on-accent);
     font-size: 14px;
     font-weight: 800;
     cursor: pointer;
@@ -906,7 +1279,7 @@ body.theme-midnight .moe-calendar {
   }
 
   .studio-theme .teacher-subscription-banner__button:hover {
-    background: #c5613f;
+    background: var(--zt-accent);
   }
 
   .studio-theme .teacher-dashboard-hero {
@@ -1165,8 +1538,10 @@ body.theme-midnight .moe-calendar {
     white-space: nowrap;
   }
 
+  /* White on #d97757 is 3.12:1 and these badges are 10px uppercase — the
+     hue is kept and the fill deepened until the label clears 4.5. */
   .studio-theme .teacher-studio-card__badge--accent {
-    background: #d97757;
+    background: #ae5a39;
     color: #fff;
   }
 
@@ -1182,7 +1557,7 @@ body.theme-midnight .moe-calendar {
 
   .studio-theme .teacher-studio-card__badge--muted {
     background: #e7e1cf;
-    color: #7a6a4a;
+    color: #6a5c3f;
   }
 
   .studio-theme .teacher-studio-card__title {
@@ -1504,7 +1879,7 @@ body.theme-midnight .moe-calendar {
   .studio-theme .teacher-workspace-card__badge--accent { background: #d97757; color: #fff; }
   .studio-theme .teacher-workspace-card__badge--saved { background: #0e2a32; color: #fde9b8; }
   .studio-theme .teacher-workspace-card__badge--success { background: #10864e; color: #fff; }
-  .studio-theme .teacher-workspace-card__badge--muted { background: #e7e1cf; color: #7a6a4a; }
+  .studio-theme .teacher-workspace-card__badge--muted { background: #e7e1cf; color: #6a5c3f; }
 
   .studio-theme .teacher-workspace-card__title {
     margin: 0 0 5px;
@@ -1519,7 +1894,7 @@ body.theme-midnight .moe-calendar {
   .studio-theme .teacher-workspace-card__text {
     flex: 1;
     margin: 0;
-    color: #6a7c82;
+    color: #5c6d74;
     font-size: 12px;
     line-height: 1.4;
   }
@@ -1809,7 +2184,7 @@ body.theme-midnight .moe-calendar {
     position: absolute;
     right: 0;
     pointer-events: none;
-    color: #8a7a58;
+    color: #756748;
   }
 
   /* ── Universal search ─────────────────────────────────────────── */
@@ -1829,7 +2204,7 @@ body.theme-midnight .moe-calendar {
     border-color: #d97757;
     box-shadow: 0 0 0 3px rgba(217,119,87,.16);
   }
-  .studio-theme .teacher-universal-search__icon { color: #8a7a58; flex: 0 0 auto; }
+  .studio-theme .teacher-universal-search__icon { color: #756748; flex: 0 0 auto; }
   .studio-theme .teacher-universal-search__input {
     flex: 1;
     min-width: 0;
@@ -1929,12 +2304,12 @@ body.theme-midnight .moe-calendar {
     height: 34px;
     border-radius: 12px;
     background: #f5efe1;
-    color: #8a7a58;
+    color: #756748;
   }
   .studio-theme .teacher-prepweek__stage-label {
     font-size: 12.5px;
     font-weight: 800;
-    color: #8a7a58;
+    color: #756748;
   }
   .studio-theme .teacher-prepweek__stage--current .teacher-prepweek__stage-icon {
     background: #fff;
@@ -1944,9 +2319,9 @@ body.theme-midnight .moe-calendar {
   .studio-theme .teacher-prepweek__stage--current .teacher-prepweek__stage-label { color: #a5523a; }
   .studio-theme .teacher-prepweek__stage--done .teacher-prepweek__stage-icon {
     background: #e2f0e7;
-    color: #2f7d5f;
+    color: #26684d;
   }
-  .studio-theme .teacher-prepweek__stage--done .teacher-prepweek__stage-label { color: #2f7d5f; }
+  .studio-theme .teacher-prepweek__stage--done .teacher-prepweek__stage-label { color: #26684d; }
   .studio-theme .teacher-prepweek__stage-arrow { color: #cfc4a6; font-weight: 800; margin-left: 6px; }
 
   /* Progress rows */
@@ -1982,7 +2357,7 @@ body.theme-midnight .moe-calendar {
     height: 24px;
     border-radius: 999px;
   }
-  .studio-theme .teacher-prepweek-row__status--done { background: #2f7d5f; color: #fff; }
+  .studio-theme .teacher-prepweek-row__status--done { background: #26684d; color: #fff; }
   .studio-theme .teacher-prepweek-row__status--alert { background: #fdecea; color: #c0392b; }
   .studio-theme .teacher-prepweek-row__status--progress {
     border: 2.5px solid #d97757;
@@ -2019,7 +2394,7 @@ body.theme-midnight .moe-calendar {
     background: #d97757;
     transition: width .3s ease;
   }
-  .studio-theme .teacher-prepweek-row--done .teacher-prepweek-row__fill { background: #2f7d5f; }
+  .studio-theme .teacher-prepweek-row--done .teacher-prepweek-row__fill { background: #26684d; }
   .studio-theme .teacher-prepweek-row__meta {
     flex: 0 0 auto;
     font-size: 12.5px;
@@ -2092,7 +2467,7 @@ body.theme-midnight .moe-calendar {
     height: 52px;
     border-radius: 18px;
     background: #f5efe1;
-    color: #8a7a58;
+    color: #756748;
   }
   .studio-theme .teacher-prepweek__state-title {
     margin: 4px 0 0;
@@ -2306,7 +2681,7 @@ body.theme-midnight .moe-calendar {
     padding: 9px 14px;
     border: 0;
     border-radius: 11px;
-    background: #2f7d5f;
+    background: #26684d;
     color: #fff;
     font-size: 12.5px;
     font-weight: 800;
@@ -2595,7 +2970,7 @@ body.theme-midnight .moe-calendar {
     flex: 0 0 auto;
     font-size: 12px;
     font-weight: 700;
-    color: #8a7a58;
+    color: #756748;
     white-space: nowrap;
   }
   .studio-theme .teacher-recent-row__status {
@@ -2605,8 +2980,8 @@ body.theme-midnight .moe-calendar {
     font-size: 11px;
     font-weight: 800;
   }
-  .studio-theme .teacher-recent-row__status--ready { background: #e2f0e7; color: #2f7d5f; }
-  .studio-theme .teacher-recent-row__status--draft { background: #fff3dd; color: #9a6b17; }
+  .studio-theme .teacher-recent-row__status--ready { background: #e2f0e7; color: #26684d; }
+  .studio-theme .teacher-recent-row__status--draft { background: #fff3dd; color: #8c6114; }
   .studio-theme .teacher-recent-row__menuwrap { position: relative; flex: 0 0 auto; }
   .studio-theme .teacher-recent-row__more {
     display: grid;
@@ -2660,7 +3035,7 @@ body.theme-midnight .moe-calendar {
     border-top: 1px solid #efe7d5;
     font-size: 11.5px;
     font-weight: 600;
-    color: #8a7a58;
+    color: #756748;
   }
   .studio-theme .teacher-recent-row__busy {
     flex: 0 0 auto;
@@ -2785,7 +3160,7 @@ body.theme-midnight .moe-calendar {
   }
   .studio-theme .teacher-continue-card__meta {
     margin: 0 0 12px;
-    color: #6a7c82;
+    color: #5c6d74;
     font-size: 12px;
     line-height: 1.35;
   }
@@ -2865,7 +3240,7 @@ body.theme-midnight .moe-calendar {
   .studio-theme .teacher-continue-feature__fill {
     height: 100%;
     border-radius: 999px;
-    background: linear-gradient(90deg, #34a06f 0%, #2f7d5f 100%);
+    background: linear-gradient(90deg, #34a06f 0%, #26684d 100%);
     transition: width .6s cubic-bezier(.4,0,.2,1);
   }
   .studio-theme .teacher-continue-feature__foot {
@@ -2874,7 +3249,7 @@ body.theme-midnight .moe-calendar {
     justify-content: space-between;
     gap: 8px;
     margin-top: 8px;
-    color: #6a7c82;
+    color: #5c6d74;
     font-size: 12px;
     font-weight: 700;
   }

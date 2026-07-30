@@ -51,10 +51,16 @@ export default function TeacherTopBar() {
     return () => document.removeEventListener('keydown', onKey)
   }, [])
 
+  // color-mix rather than the token straight: the bar is `backdrop-blur`, so it
+  // has to stay translucent for the frost to show — but the literal this
+  // replaces pinned that tint cream, which is the wrong colour on Night.
   return (
     <div
       className="lg:sticky lg:top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2.5 mb-4 hidden lg:flex items-center justify-end gap-2 backdrop-blur"
-      style={{ background: 'rgba(245,239,225,.92)', borderBottom: '1px solid rgba(14,42,50,.08)' }}
+      style={{
+        background: 'color-mix(in srgb, var(--zt-surface) 92%, transparent)',
+        borderBottom: '1px solid var(--zt-line)',
+      }}
     >
       {/* Notifications — desktop only (mobile/tablet use Alerts in TeacherGlassHeader) */}
       <div ref={bellRef} className="relative flex-shrink-0 hidden lg:block">
@@ -64,13 +70,13 @@ export default function TeacherTopBar() {
           aria-label={`Notifications${unreadCount ? `, ${unreadCount} new` : ''}`}
           aria-expanded={bellOpen}
           className="relative flex items-center justify-center rounded-xl border-2 transition-colors"
-          style={{ background: '#fff', borderColor: '#0e2a32', width: 40, height: 40 }}
+          style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-card-border)', width: 40, height: 40 }}
         >
           <Icon as={Bell} size="sm" />
           {unreadCount > 0 && (
             <span
               className="absolute -top-1.5 -right-1.5 flex items-center justify-center rounded-full text-[10px] font-black"
-              style={{ background: '#d97757', color: '#fff', minWidth: 18, height: 18, padding: '0 5px', border: '2px solid #fff' }}
+              style={{ background: '#d97757', color: '#fff', minWidth: 18, height: 18, padding: '0 5px', border: '2px solid var(--zt-card)' }}
             >
               {unreadCount}
             </span>
@@ -103,10 +109,10 @@ export default function TeacherTopBar() {
         {createOpen && (
           <div
             className="absolute right-0 mt-2 w-64 rounded-xl border-2 shadow-elev-xl overflow-hidden"
-            style={{ background: '#fff', borderColor: '#0e2a32' }}
+            style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-card-border)' }}
           >
-            <div className="px-4 py-3 border-b" style={{ borderColor: '#f0eee8' }}>
-              <p className="text-xs font-black uppercase tracking-wider" style={{ color: '#d97757' }}>
+            <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--zt-line)' }}>
+              <p className="text-xs font-black uppercase tracking-wider" style={{ color: 'var(--zt-accent-text)' }}>
                 Quick create
               </p>
             </div>
@@ -116,14 +122,14 @@ export default function TeacherTopBar() {
                   <Link
                     to={`${item.to}${createQuery}`}
                     onClick={() => setCreateOpen(false)}
-                    className="flex items-center gap-3 px-4 py-2.5 no-underline hover:bg-[#fff5e6] transition-colors"
+                    className="flex items-center gap-3 px-4 py-2.5 no-underline hover:bg-[var(--zt-surface)] transition-colors"
                   >
                     <span
                       style={{ width: 32, height: 32, borderRadius: 9, background: item.accent, display: 'grid', placeItems: 'center', flexShrink: 0 }}
                     >
                       <Icon as={item.icon} size="sm" />
                     </span>
-                    <span className="text-sm font-bold" style={{ color: '#0e2a32' }}>{item.label}</span>
+                    <span className="text-sm font-bold" style={{ color: 'var(--zt-text)' }}>{item.label}</span>
                   </Link>
                 </li>
               ))}
