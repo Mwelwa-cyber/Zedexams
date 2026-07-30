@@ -213,27 +213,31 @@ export function parseArgs(argv = []) {
  * @param {number} noncurrentDays
  * @returns {object} GCS lifecycle config
  */
-export function buildLifecycleConfig(noncurrentDays = DEFAULT_NONCURRENT_DAYS) {
+export function buildLifecycleConfig(
+  noncurrentDays = DEFAULT_NONCURRENT_DAYS,
+  { staging = true } = {},
+) {
   const days = Number.isFinite(noncurrentDays) && noncurrentDays > 0
     ? Math.floor(noncurrentDays)
     : DEFAULT_NONCURRENT_DAYS
-  return {
-    lifecycle: {
-      rule: [
-        {
-          action: { type: 'Delete' },
-          condition: { daysSinceNoncurrentTime: days },
-        },
-        {
-          action: { type: 'Delete' },
-          condition: {
-            daysSinceNoncurrentTime: STAGING_NONCURRENT_DAYS,
-            matchesPrefix: [STAGING_PREFIX],
-          },
-        },
-      ],
+  const rule = [
+    {
+      action: { type: 'Delete' },
+      condition: { daysSinceNoncurrentTime: days },
     },
+  ]
+  // Only the PRIMARY has a staging prefix. The backup does not, because the
+  // transfer excludes it — see the `backup-lifecycle` step.
+  if (staging) {
+    rule.push({
+      action: { type: 'Delete' },
+      condition: {
+        daysSinceNoncurrentTime: STAGING_NONCURRENT_DAYS,
+        matchesPrefix: [STAGING_PREFIX],
+      },
+    })
   }
+  return { lifecycle: { rule } }
 }
 
 /** The Storage Transfer Service agent for a project. Pure. */
@@ -299,6 +303,27 @@ export function planProvision(opts = {}) {
       argv: ['gcloud', 'services', 'enable', 'storagetransfer.googleapis.com', P],
     },
     {
+      // Enabling the API does NOT create the STS service agent — it is
+      // materialised lazily on first use, and until then every binding that
+      // names it fails with "Service account project-N@storage-transfer-
+      // service.iam.gserviceaccount.com does not exist". On a first run in a
+      // fresh project that took out five of the twelve steps.
+      //
+      // This GET is the documented way to force creation. It reads; it grants
+      // nothing. `--billing-project` sets x-goog-user-project, without which
+      // the call is billed to the caller's own project and 403s from Cloud
+      // Shell.
+      id: 'materialise-sts-agent',
+      title: 'Materialise the STS service agent (lazily created; read-only GET)',
+      argv: ['bash', '-lc',
+        'curl -sS -f ' +
+        '-H "Authorization: Bearer $(gcloud auth print-access-token)" ' +
+        `-H "x-goog-user-project: ${project}" ` +
+        `https://storagetransfer.googleapis.com/v1/googleServiceAccounts/${project} ` +
+        '> /dev/null',
+      ],
+    },
+    {
       id: 'source-versioning',
       title: `Object Versioning ON for the primary bucket (${src})`,
       argv: ['gcloud', 'storage', 'buckets', 'update', src, '--versioning', P],
@@ -337,9 +362,19 @@ export function planProvision(opts = {}) {
       argv: ['gcloud', 'storage', 'buckets', 'update', dst, '--versioning', P],
     },
     {
+      // No staging rule here, and that is not an oversight: the transfer
+      // EXCLUDES tmp-downloads/, so those objects never reach this bucket, and
+      // a rule for a prefix that cannot exist is a claim the config does not
+      // keep. It could not help even if they did arrive — STS never deletes at
+      // the destination, so a mirrored staging file lands as a LIVE object and
+      // no daysSinceNoncurrentTime rule can ever touch it. That is the hole the
+      // exclusion closes; the rule would only have looked like it did.
       id: 'backup-lifecycle',
       title: `Expire NON-CURRENT versions after ${noncurrentDays}d (live objects untouched)`,
-      writeFile: { path: lifecycleFile, contents: buildLifecycleConfig(noncurrentDays) },
+      writeFile: {
+        path: lifecycleFile,
+        contents: buildLifecycleConfig(noncurrentDays, {staging: false}),
+      },
       argv: [
         'gcloud', 'storage', 'buckets', 'update', dst,
         `--lifecycle-file=${lifecycleFile}`, P,
@@ -386,9 +421,31 @@ export function planProvision(opts = {}) {
         // Copy changed objects; never delete at the destination. A mirror that
         // propagates a source delete is not a backup.
         '--overwrite-when=different',
+        // Export staging never crosses. Those objects exist for ~90 seconds and
+        // the reaper deletes them — but STS never deletes at the destination,
+        // so any that happened to be staged mid-transfer would land in the
+        // backup as live objects and stay there forever. Nothing on the backup
+        // side can clean that up, so the only place to stop it is here.
+        `--exclude-prefixes=${STAGING_PREFIX}`,
         P,
       ],
       tolerate: ['already exists', 'ALREADY_EXISTS'],
+    },
+    {
+      // `create` is tolerated when the job already exists, which means a re-run
+      // would silently keep an OLD job's settings — the exclusion added here
+      // would never reach a job provisioned before it existed. Update is
+      // idempotent and runs either way, so the live job always matches this
+      // file rather than matching whenever it was first created.
+      id: 'transfer-job-settings',
+      title: 'Reconcile the existing job to these settings (idempotent)',
+      argv: [
+        'gcloud', 'transfer', 'jobs', 'update', `transferJobs/${jobName}`,
+        '--overwrite-when=different',
+        `--exclude-prefixes=${STAGING_PREFIX}`,
+        '--schedule-repeats-every=24h',
+        P,
+      ],
     },
   ]
 

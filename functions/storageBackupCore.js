@@ -45,31 +45,6 @@ function resolveStorageBackupBucket(raw) {
 }
 
 /**
- * Classify the freshness of the Storage backup from the newest backed-up
- * object's modified time. Pure.
- *
- *   - empty  — no objects found in the backup destination at all (the mirror
- *              has never run, or points at the wrong place).
- *   - stale  — the newest object is older than maxAge (the mirror has stopped
- *              running — a silently-broken backup, the whole DR-003 risk).
- *   - fresh  — a recent object exists; the mirror is running.
- *
- * @param {object} p
- * @param {number|null|undefined} p.latestUpdatedMs newest object mtime (ms) or
- *   null/undefined when the destination is empty
- * @param {number} p.nowMs
- * @param {number} [p.maxAgeMs]
- * @returns {{status: 'empty'|'stale'|'fresh', ageMs: number|null}}
- */
-function classifyBackupFreshness({latestUpdatedMs, nowMs, maxAgeMs = DEFAULT_MAX_AGE_HOURS * HOUR_MS}) {
-  if (latestUpdatedMs == null || !Number.isFinite(Number(latestUpdatedMs))) {
-    return {status: "empty", ageMs: null};
-  }
-  const ageMs = Math.max(0, Number(nowMs) - Number(latestUpdatedMs));
-  return {status: ageMs > maxAgeMs ? "stale" : "fresh", ageMs};
-}
-
-/**
  * Resolve the maxAge threshold (ms) from an hours value, falling back to the
  * default when unset/invalid/non-positive. Pure.
  * @param {string|number|undefined} rawHours
@@ -84,6 +59,5 @@ module.exports = {
   HOUR_MS,
   DEFAULT_MAX_AGE_HOURS,
   resolveStorageBackupBucket,
-  classifyBackupFreshness,
   resolveMaxAgeMs,
 };

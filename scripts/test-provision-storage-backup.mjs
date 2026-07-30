@@ -88,6 +88,8 @@ console.log('\nprovision-storage-backup (lifecycle safety)')
   ok('export staging gets a short window, not the full retention',
     rules[1].condition.matchesPrefix.join() === 'tmp-downloads/' &&
     rules[1].condition.daysSinceNoncurrentTime === 1)
+  ok('the staging rule can be omitted where the prefix cannot exist',
+    buildLifecycleConfig(30, {staging: false}).lifecycle.rule.length === 1)
   ok('a nonsense retention falls back to the default, never 0',
     buildLifecycleConfig(0).lifecycle.rule[0].condition.daysSinceNoncurrentTime === 30 &&
     buildLifecycleConfig(NaN).lifecycle.rule[0].condition.daysSinceNoncurrentTime === 30)
@@ -106,9 +108,19 @@ console.log('\nprovision-storage-backup (lifecycle safety)')
   ok('the PRIMARY bucket gets a lifecycle rule too',
     cmd(p, 'source-lifecycle').includes('gs://examsprepzambia.firebasestorage.app') &&
     cmd(p, 'source-lifecycle').includes('--lifecycle-file=/tmp/src.json'))
-  ok('the primary rule is the same bounded rule as the backup\'s',
-    JSON.stringify(step(p, 'source-lifecycle').writeFile.contents) ===
-    JSON.stringify(step(p, 'backup-lifecycle').writeFile.contents))
+  ok('the primary carries the staging rule, the backup does not',
+    step(p, 'source-lifecycle').writeFile.contents.lifecycle.rule.length === 2 &&
+    step(p, 'backup-lifecycle').writeFile.contents.lifecycle.rule.length === 1)
+  // The backup omits it BECAUSE the transfer excludes the prefix. If the
+  // exclusion is ever dropped, staging files reach the backup as live objects
+  // that no noncurrent rule can reach — so the two must move together.
+  ok('the backup omits the staging rule only while the transfer excludes it',
+    cmd(p, 'transfer-job').includes('--exclude-prefixes=tmp-downloads/') &&
+    step(p, 'backup-lifecycle').writeFile.contents.lifecycle.rule
+      .every((r) => r.condition.matchesPrefix === undefined))
+  ok('both lifecycle steps advertise what they actually apply',
+    step(p, 'source-lifecycle').title.includes('tmp-downloads/') &&
+    !step(p, 'backup-lifecycle').title.includes('tmp-downloads/'))
   ok('the primary\'s expiry lands in the same run as its versioning',
     p.steps.findIndex((s) => s.id === 'source-versioning') <
     p.steps.findIndex((s) => s.id === 'source-lifecycle'))
@@ -163,6 +175,20 @@ console.log('\nprovision-storage-backup (schedule)')
     cmd(p, 'transfer-job').includes('--overwrite-when=different'))
   ok('the job is named so a re-run finds it instead of duplicating it',
     cmd(p, 'transfer-job').includes('--name=transferJobs/zedexams-storage-mirror'))
+  // `create` is tolerated when the job exists, so create alone would leave a
+  // pre-existing job on its original settings forever.
+  ok('an existing job is reconciled, not left on its original settings',
+    cmd(p, 'transfer-job-settings').includes('jobs update') &&
+    cmd(p, 'transfer-job-settings').includes('--exclude-prefixes=tmp-downloads/') &&
+    p.steps.findIndex((s) => s.id === 'transfer-job') <
+    p.steps.findIndex((s) => s.id === 'transfer-job-settings'))
+  ok('the STS agent is materialised before anything names it',
+    p.steps.findIndex((s) => s.id === 'materialise-sts-agent') <
+    p.steps.findIndex((s) => s.id === 'sts-read-source'))
+  ok('materialising the agent is a read, and bills the right project',
+    cmd(p, 'materialise-sts-agent').includes('googleServiceAccounts/examsprepzambia') &&
+    cmd(p, 'materialise-sts-agent').includes('x-goog-user-project: examsprepzambia') &&
+    !/POST|PATCH|DELETE|add-iam/.test(cmd(p, 'materialise-sts-agent')))
 
   const now = new Date('2030-01-02T09:00:00Z')
   ok('a time already past today starts tomorrow, never in the past',

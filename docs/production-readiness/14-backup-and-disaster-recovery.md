@@ -96,12 +96,23 @@ undefined.
   it and the health check need). Then (4) uncomment `STORAGE_BACKUP_BUCKET` in
   `functions/.env.examsprepzambia` (optionally `STORAGE_BACKUP_PREFIX` to scope the freshness scan,
   `STORAGE_BACKUP_MAX_AGE_HOURS`) and deploy.
-- **Freshness is scanned honestly.** GCS lists objects by NAME, never by mtime, and an STS mirror
-  reproduces the source layout (there is no dated path to scope a scan to). The probe therefore PAGES
-  rather than reading one 5 000-object page — past that, the newest object routinely sorted outside the
-  page and a healthy mirror read as `stale`. A scan that hits its page cap without seeing a recent
-  object now reports **health UNKNOWN at warning severity** instead of a false `stale`: a 04:00 alert
-  that cries wolf is how the real one gets ignored.
+- **Freshness is PROVED by a heartbeat, not inferred from bucket activity.** The check originally asked
+  "is the newest object in the backup recent?" and treated that as "did the mirror run?". Those are
+  different questions. The transfer runs `--overwrite-when=different`, so a night in which nothing in
+  the source changed correctly copies **nothing** — no destination object is written, the newest one
+  keeps ageing, and once it crosses the threshold the check emails `stale` about a mirror that is
+  provably perfect. Not theoretical: this project's source bucket routinely goes 16–17 quiet hours and
+  was observed past the 26h default on its first day of operation. It also fails **asymmetrically** —
+  right after provisioning everything has just been copied, so the first check reads `fresh` and gives
+  the operator a false all-clear before the lying `stale` arrives a day or two later.
+  So `storageBackupHeartbeat` (23:30 UTC) overwrites one small object at a fixed path in the primary
+  bucket, an hour before the 00:30 UTC transfer. An overwrite is a change, so the mirror **must** carry
+  it, and the check reads that object's mtime in the *backup* — proof the transfer ran end to end,
+  rather than a job's report about itself. Write → transfer → check; the ordering is the design.
+  Two consequences worth knowing: the check is now O(1) (one object, one metadata read — the paging and
+  truncation machinery is gone), and reading the heartbeat on **both** sides separates "our writer never
+  ran" (`awaiting-heartbeat`, a warning, and exactly what a first night after deploy looks like) from
+  "the mirror is broken" (`empty`/`stale`, an error). A brand-new deploy must not page.
 - **Launch blocker:** No (but High until the mirror is provisioned). **Complexity:** Low–Medium.
 
 ### DR-004 — No database deletion protection
@@ -264,9 +275,21 @@ does, and why each piece is there:
    very large bucket, and `STORAGE_BACKUP_MAX_AGE_HOURS=26`). Leave it unset
    until the bucket exists — pointing the check at a bucket that isn't there
    swaps one true alert for a misleading one.
+4b. **First-run gotcha.** Enabling the API does **not** create the STS service agent — it is
+   materialised lazily, and until then every IAM binding naming it fails with *"Service account
+   project-N@storage-transfer-service.iam.gserviceaccount.com does not exist"* (this took out five of
+   twelve steps on the first real run). The script now forces creation with a read-only `GET` on
+   `storagetransfer.googleapis.com/v1/googleServiceAccounts/<project>`, passing `x-goog-user-project`
+   so the call isn't billed to the caller's own project and 403'd.
 5. **Verify**: after 04:00 Lusaka read `opsStorageBackups/{today}` — `status` must
-   be `"fresh"` (not `misconfigured` / `empty` / `stale`). `latestObjectAt` shows
-   the newest backed-up object's time.
+   be `"fresh"` (not `misconfigured` / `awaiting-heartbeat` / `empty` / `stale`).
+   `heartbeatWrittenAt` and `heartbeatMirroredAt` show both sides, and
+   `mirrorLagHours` is how far the backup trails the source — worth watching as it
+   climbs, since that is the number that turns into a real `stale`.
+   **On the first night only**, `awaiting-heartbeat` is expected: the heartbeat is
+   written at 23:30 UTC and carried by the 00:30 UTC transfer, so a deploy landing
+   after 23:30 has nothing to verify against until the following day. It warns
+   rather than paging, for exactly that reason.
 6. **Restore from the mirror** (disaster): copy objects back with
    `gsutil -m rsync -r gs://zedexams-storage-backup gs://examsprepzambia.firebasestorage.app`
    (or restore selected prefixes). Versioning on the primary lets you recover an

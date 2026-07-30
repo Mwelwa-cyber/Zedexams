@@ -173,8 +173,12 @@ Then uncomment **`STORAGE_BACKUP_BUCKET`** in `functions/.env.examsprepzambia`
 (the line is already there, commented) and merge a PR so it deploys.
 
 **✅ You did it when:** the **`opsStorageBackups`** status reads **`fresh`**, and
-the "Storage backup MISCONFIGURED" email stops arriving each morning. It reads
-`empty` until the first overnight transfer finishes — that's expected on day one.
+the "Storage backup MISCONFIGURED" email stops arriving each morning.
+
+On the **first** night it may read `awaiting-heartbeat` instead. That's expected,
+not a failure: a tiny marker file is written to the main bucket at 23:30 UTC and
+copied across at 00:30 UTC, and until that round trip has happened once there is
+nothing to check against. It sends a gentle warning rather than an alarm.
 
 ---
 

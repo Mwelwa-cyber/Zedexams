@@ -2,11 +2,17 @@
  * Node test for the Firebase Storage backup health check (DR-003).
  * Run: node functions/storageBackup.test.js
  *
- * Covers the pure core (bucket resolution + freshness classification) and
+ * Covers the pure cores (bucket resolution + heartbeat classification) and
  * drives runStorageBackupCheck through every outcome — misconfigured / skip /
- * empty / stale / fresh / error — with injected Firestore, freshness probe and
- * alert, pinning that a broken/absent Storage mirror ALERTS and that every run
- * records an opsStorageBackups/{date} status doc.
+ * awaiting / empty / stale / fresh / error — with injected Firestore, heartbeat
+ * probe and alert.
+ *
+ * The load-bearing case is the one named "a quiet source bucket does NOT make a
+ * healthy mirror look stale". The check previously inferred "did the mirror
+ * run" from "did any object change", which under --overwrite-when=different is
+ * a fact about the SOURCE, not the mirror — so a quiet night paged `stale`
+ * about a perfectly good backup. Everything else here is scaffolding around
+ * keeping that distinction true.
  */
 
 const assert = require("node:assert");
@@ -14,9 +20,10 @@ const Module = require("node:module");
 
 // storageBackup.js loads firebase-functions + firebase-admin at import; stub
 // them so the test runs under a root-only install (matches firestoreBackup.test).
-// `__bucket` is a mutable hook so the pagination tests can drive the real
-// probeLatestBackupObject against a fake bucket — the module captures this one
-// object at require time, so replacing the hook later still reaches it.
+// `__bucket` is a mutable hook so the heartbeat I/O tests can drive the real
+// writeStorageBackupHeartbeat/probeHeartbeat against a fake bucket — the module
+// captures this one object at require time, so replacing the hook later still
+// reaches it.
 const adminStub = {
   firestore: () => { throw new Error("not initialised in tests"); },
   storage: () => ({bucket: (name) => adminStub.__bucket(name)}),
@@ -37,11 +44,14 @@ Module._load = function (request, ...rest) {
   return origLoad.call(this, request, ...rest);
 };
 const {
-  resolveStorageBackupBucket, classifyBackupFreshness, resolveMaxAgeMs,
-  DEFAULT_MAX_AGE_HOURS, HOUR_MS,
+  resolveStorageBackupBucket, resolveMaxAgeMs, DEFAULT_MAX_AGE_HOURS, HOUR_MS,
 } = require("./storageBackupCore");
 const {
-  runStorageBackupCheck, STORAGE_BACKUP_STATUS, probeLatestBackupObject,
+  HEARTBEAT_PATH, STORAGE_HEARTBEAT_STATUS, classifyHeartbeat, buildHeartbeatBody,
+} = require("./storageBackupHeartbeatCore");
+const {
+  runStorageBackupCheck, STORAGE_BACKUP_STATUS,
+  writeStorageBackupHeartbeat, probeHeartbeat,
 } = require("./storageBackup");
 Module._load = origLoad;
 
@@ -68,20 +78,49 @@ ok("unset → null", resolveStorageBackupBucket(undefined) === null);
 ok("blank → null", resolveStorageBackupBucket("   ") === null);
 ok("invalid chars → null", resolveStorageBackupBucket("Bad Bucket!") === null);
 
-// ── classifyBackupFreshness ────────────────────────────────────────────────
+// ── classifyHeartbeat — the whole verdict, so tested exhaustively ─────────
 const NOW_MS = Date.parse("2030-01-02T04:00:00Z");
-ok("no objects → empty",
-  classifyBackupFreshness({latestUpdatedMs: null, nowMs: NOW_MS}).status === "empty");
-ok("recent object → fresh",
-  classifyBackupFreshness({latestUpdatedMs: NOW_MS - 2 * HOUR_MS, nowMs: NOW_MS}).status === "fresh");
-ok("object older than threshold → stale",
-  classifyBackupFreshness({latestUpdatedMs: NOW_MS - 48 * HOUR_MS, nowMs: NOW_MS}).status === "stale");
+const hbAt = (primary, backup) =>
+  classifyHeartbeat({primaryUpdatedMs: primary, backupUpdatedMs: backup, nowMs: NOW_MS});
+
+ok("recently mirrored → fresh",
+  hbAt(NOW_MS - 4 * HOUR_MS, NOW_MS - 2 * HOUR_MS).status === "fresh");
+ok("mirrored copy older than threshold → stale",
+  hbAt(NOW_MS - 2 * HOUR_MS, NOW_MS - 48 * HOUR_MS).status === "stale");
 ok("exactly at threshold is still fresh (boundary)",
-  classifyBackupFreshness({latestUpdatedMs: NOW_MS - DEFAULT_MAX_AGE_HOURS * HOUR_MS, nowMs: NOW_MS}).status === "fresh");
+  hbAt(NOW_MS, NOW_MS - DEFAULT_MAX_AGE_HOURS * HOUR_MS).status === "fresh");
+ok("written but never mirrored → empty",
+  hbAt(NOW_MS - 2 * HOUR_MS, null).status === "empty");
+
+// The asymmetry that keeps a new deploy from paging: no heartbeat on the
+// PRIMARY means OUR writer hasn't run, which says nothing about the mirror.
+ok("never written → awaiting, not empty",
+  hbAt(null, null).status === "awaiting-heartbeat");
+ok("never written outranks an old backup copy",
+  hbAt(null, NOW_MS - 500 * HOUR_MS).status === "awaiting-heartbeat");
+
 ok("custom maxAge honoured",
-  classifyBackupFreshness({latestUpdatedMs: NOW_MS - 10 * HOUR_MS, nowMs: NOW_MS, maxAgeMs: 6 * HOUR_MS}).status === "stale");
+  classifyHeartbeat({
+    primaryUpdatedMs: NOW_MS, backupUpdatedMs: NOW_MS - 10 * HOUR_MS,
+    nowMs: NOW_MS, maxAgeMs: 6 * HOUR_MS,
+  }).status === "stale");
+ok("mirror lag is the gap between the two sides",
+  hbAt(NOW_MS - 2 * HOUR_MS, NOW_MS - 5 * HOUR_MS).lagMs === 3 * HOUR_MS);
+ok("lag is never negative when the backup leads",
+  hbAt(NOW_MS - 5 * HOUR_MS, NOW_MS - 2 * HOUR_MS).lagMs === 0);
 ok("ageMs is never negative for a future timestamp",
-  classifyBackupFreshness({latestUpdatedMs: NOW_MS + HOUR_MS, nowMs: NOW_MS}).ageMs === 0);
+  hbAt(NOW_MS, NOW_MS + HOUR_MS).ageMs === 0);
+ok("a non-numeric timestamp is treated as absent, never as 1970",
+  hbAt("nonsense", NOW_MS).status === "awaiting-heartbeat");
+
+// ── the heartbeat body explains itself to whoever finds it ────────────────
+{
+  const body = JSON.parse(buildHeartbeatBody(new Date(NOW_MS), "cid-1"));
+  ok("the body says what it is and that deleting it is safe",
+    /heartbeat/i.test(body.what) && /safe to delete/i.test(body.why));
+  ok("the body records when it was written", body.writtenAt === "2030-01-02T04:00:00.000Z");
+  ok("the heartbeat lives under _ops/", HEARTBEAT_PATH.startsWith("_ops/"));
+}
 
 // ── resolveMaxAgeMs ────────────────────────────────────────────────────────
 ok("default when unset", resolveMaxAgeMs(undefined) === DEFAULT_MAX_AGE_HOURS * HOUR_MS);
@@ -119,118 +158,162 @@ ok("custom hours honoured", resolveMaxAgeMs("12") === 12 * HOUR_MS);
       db.writes.some((x) => x.path === "opsStorageBackups/2030-01-02" && x.data.status === "skipped-non-production"));
   }
 
-  // ── configured + recent object → fresh, no alert ─────────────────────────
+  // ── HEARTBEAT: the mirror carried a recent token across → fresh ─────────
+  // `heartbeat(bucket)` is called twice: undefined = primary, name = backup.
+  const hb = (primaryMs, backupMs) => async (bucket) =>
+    (bucket === undefined ? primaryMs : backupMs);
+
   {
     const db = fakeDb();
     const alerts = [];
-    const probe = async () => ({latestUpdatedMs: NOW.getTime() - 3 * HOUR_MS, scanned: 1200});
-    const res = await runStorageBackupCheck({db, env: configured, now: NOW, probe, alert: async (a) => alerts.push(a)});
-    ok("recent mirror object → fresh", res.status === STORAGE_BACKUP_STATUS.FRESH);
-    ok("a fresh backup raises NO alert", alerts.length === 0);
-    const w = db.writes.find((x) => x.path === "opsStorageBackups/2030-01-02");
-    ok("fresh recorded with ageHours + latestObjectAt + scanned",
-      w && w.data.status === "fresh" && typeof w.data.ageHours === "number" &&
-      w.data.latestObjectAt && w.data.scanned === 1200);
+    const written = NOW.getTime() - 4.5 * HOUR_MS;
+    const mirrored = NOW.getTime() - 2 * HOUR_MS;
+    const res = await runStorageBackupCheck({
+      db, env: configured, now: NOW, heartbeat: hb(written, mirrored),
+      alert: async (a) => alerts.push(a),
+    });
+    ok("a recently mirrored heartbeat → fresh", res.status === STORAGE_BACKUP_STATUS.FRESH);
+    ok("a fresh mirror raises NO alert", alerts.length === 0);
+    ok("fresh records both sides' timestamps and the path",
+      db.writes.some((x) => x.data.heartbeatPath === "_ops/storage-backup-heartbeat.json" &&
+        x.data.heartbeatWrittenAt && x.data.heartbeatMirroredAt));
   }
 
-  // ── configured + stale object → stale + alert ────────────────────────────
+  // ── THE BUG THIS REPLACED ────────────────────────────────────────────────
+  // A quiet source bucket — nothing uploaded or changed for days — used to age
+  // the newest destination object past the threshold and page `stale` about a
+  // perfectly healthy mirror. The heartbeat is rewritten nightly and copied
+  // every run, so source quiet cannot reach the verdict at all.
   {
     const db = fakeDb();
     const alerts = [];
-    const probe = async () => ({latestUpdatedMs: NOW.getTime() - 50 * HOUR_MS, scanned: 900});
-    const res = await runStorageBackupCheck({db, env: configured, now: NOW, probe, alert: async (a) => alerts.push(a)});
-    ok("mirror older than threshold → stale", res.status === STORAGE_BACKUP_STATUS.STALE);
-    ok("a stale backup alerts ops (mirror stopped)",
-      alerts.length === 1 && /STALE/.test(alerts[0].title));
+    const res = await runStorageBackupCheck({
+      db, env: configured, now: NOW,
+      heartbeat: hb(NOW.getTime() - 4.5 * HOUR_MS, NOW.getTime() - 2 * HOUR_MS),
+      alert: async (a) => alerts.push(a),
+    });
+    ok("a quiet source bucket does NOT make a healthy mirror look stale",
+      res.status === STORAGE_BACKUP_STATUS.FRESH && alerts.length === 0);
   }
 
-  // ── configured + empty destination → empty + alert ───────────────────────
+  // ── the mirror genuinely stopped → stale + alert ─────────────────────────
   {
     const db = fakeDb();
     const alerts = [];
-    const probe = async () => ({latestUpdatedMs: null, scanned: 0});
-    const res = await runStorageBackupCheck({db, env: configured, now: NOW, probe, alert: async (a) => alerts.push(a)});
-    ok("no objects in the backup destination → empty", res.status === STORAGE_BACKUP_STATUS.EMPTY);
-    ok("an empty backup alerts ops (mirror never ran)",
+    const res = await runStorageBackupCheck({
+      db, env: configured, now: NOW,
+      heartbeat: hb(NOW.getTime() - 2 * HOUR_MS, NOW.getTime() - 50 * HOUR_MS),
+      alert: async (a) => alerts.push(a),
+    });
+    ok("a heartbeat the mirror stopped carrying → stale",
+      res.status === STORAGE_BACKUP_STATUS.STALE);
+    ok("a stopped mirror alerts ops",
+      alerts.length === 1 && /STALE/.test(alerts[0].title) && alerts[0].severity === "error");
+    ok("the lag between the two sides is reported",
+      db.writes.some((x) => x.data.mirrorLagHours === 48));
+  }
+
+  // ── heartbeat never reached the backup → empty + alert ───────────────────
+  {
+    const db = fakeDb();
+    const alerts = [];
+    const res = await runStorageBackupCheck({
+      db, env: configured, now: NOW,
+      heartbeat: hb(NOW.getTime() - 2 * HOUR_MS, null),
+      alert: async (a) => alerts.push(a),
+    });
+    ok("written but never mirrored → empty", res.status === STORAGE_BACKUP_STATUS.EMPTY);
+    ok("a mirror that never copied it alerts ops",
       alerts.length === 1 && /EMPTY/.test(alerts[0].title));
   }
 
-  // ── probe itself throws → error status + alert, never throws ─────────────
+  // ── our writer hasn't run → NOT an error about the mirror ────────────────
+  // The first night after deploy looks exactly like this. Paging here is how
+  // an alert channel earns the mute it later gets when something is real.
   {
     const db = fakeDb();
     const alerts = [];
-    const probe = async () => { throw new Error("PERMISSION_DENIED listing bucket"); };
-    const res = await runStorageBackupCheck({db, env: configured, now: NOW, probe, alert: async (a) => alerts.push(a)});
-    ok("a probe failure is reported, not thrown", res.status === STORAGE_BACKUP_STATUS.ERROR);
-    ok("a probe failure alerts ops (health unknown)",
-      alerts.length === 1 && /ERRORED/.test(alerts[0].title));
-    ok("probe error recorded with the message",
-      db.writes.some((x) => x.path === "opsStorageBackups/2030-01-02" && /PERMISSION_DENIED/.test(x.data.error || "")));
-  }
-
-  // ── a TRUNCATED scan never invents a verdict ─────────────────────────────
-  // GCS lists by name, not by mtime, so a scan that stopped early proves
-  // freshness when it SAW a recent object and proves nothing when it didn't.
-  {
-    const db = fakeDb();
-    const alerts = [];
-    const stale = NOW.getTime() - (100 * HOUR_MS);
-    const probe = async () => ({latestUpdatedMs: stale, scanned: 200000, truncated: true});
-    const res = await runStorageBackupCheck({db, env: configured, now: NOW, probe, alert: async (a) => alerts.push(a)});
-    ok("truncated scan + no recent object → error, not a false STALE",
-      res.status === STORAGE_BACKUP_STATUS.ERROR);
-    ok("the inconclusive alert is a warning, not an ERROR page",
-      alerts.length === 1 && /INCONCLUSIVE/.test(alerts[0].title) && alerts[0].severity === "warning");
-    ok("the record says the scan was truncated and what it saw",
-      db.writes.some((x) => x.data.truncated === true &&
-        x.data.errorCode === "STORAGE_BACKUP_SCAN_TRUNCATED" &&
-        x.data.freshnessSeen === STORAGE_BACKUP_STATUS.STALE));
-  }
-  {
-    const db = fakeDb();
-    const alerts = [];
-    const recent = NOW.getTime() - (2 * HOUR_MS);
-    const probe = async () => ({latestUpdatedMs: recent, scanned: 200000, truncated: true});
-    const res = await runStorageBackupCheck({db, env: configured, now: NOW, probe, alert: async (a) => alerts.push(a)});
-    ok("truncated scan that SAW a recent object is still fresh",
-      res.status === STORAGE_BACKUP_STATUS.FRESH);
-    ok("a fresh truncated scan raises nothing", alerts.length === 0);
-  }
-
-  // ── probeLatestBackupObject pages instead of reading one page ────────────
-  console.log("\nprobeLatestBackupObject (pagination)");
-  {
-    const file = (updated) => ({metadata: {updated}});
-    // The newest object sits on the LAST page — the exact case a single-page
-    // scan misread as `stale` on any bucket bigger than one page.
-    const pages = [
-      [[file("2030-01-01T00:00:00Z")], {pageToken: "p2"}],
-      [[file("2030-01-01T01:00:00Z")], {pageToken: "p3"}],
-      [[file("2030-01-02T09:00:00Z")], null],
-    ];
-    let calls = 0;
-    adminStub.__bucket = () => ({getFiles: async () => pages[calls++]});
-    const res = await probeLatestBackupObject("b", {pageSize: 1, maxPages: 10});
-    ok("every page is read", calls === 3);
-    ok("the newest mtime wins across pages",
-      res.latestUpdatedMs === Date.parse("2030-01-02T09:00:00Z"));
-    ok("scanned counts every page", res.scanned === 3);
-    ok("a completed scan is not truncated", res.truncated === false);
-  }
-  {
-    let calls = 0;
-    adminStub.__bucket = () => ({
-      getFiles: async () => { calls += 1; return [[{metadata: {updated: "2030-01-01T00:00:00Z"}}], {pageToken: `p${calls}`}]; },
+    const res = await runStorageBackupCheck({
+      db, env: configured, now: NOW, heartbeat: hb(null, null),
+      alert: async (a) => alerts.push(a),
     });
-    const res = await probeLatestBackupObject("b", {pageSize: 1, maxPages: 3});
-    ok("the page cap bounds the scan", calls === 3);
-    ok("hitting the cap is reported as truncated", res.truncated === true);
+    ok("no heartbeat on the primary → awaiting, not empty/stale",
+      res.status === STORAGE_BACKUP_STATUS.AWAITING);
+    ok("a missing heartbeat WARNS rather than paging",
+      alerts.length === 1 && alerts[0].severity === "warning");
+    ok("it blames our writer, not the mirror",
+      /NOT YET WRITTEN/.test(alerts[0].title));
+  }
+  // Absent from the primary means we know nothing — even if the backup happens
+  // to hold an old copy, that says nothing about whether the mirror still runs.
+  {
+    const db = fakeDb();
+    const alerts = [];
+    const res = await runStorageBackupCheck({
+      db, env: configured, now: NOW,
+      heartbeat: hb(null, NOW.getTime() - 200 * HOUR_MS),
+      alert: async (a) => alerts.push(a),
+    });
+    ok("a stale backup copy with no primary heartbeat is still 'awaiting'",
+      res.status === STORAGE_BACKUP_STATUS.AWAITING && alerts[0].severity === "warning");
+  }
+
+  // ── the lookup itself failed → error, never a false verdict ──────────────
+  {
+    const db = fakeDb();
+    const alerts = [];
+    const heartbeat = async () => { throw new Error("PERMISSION_DENIED reading bucket"); };
+    const res = await runStorageBackupCheck({
+      db, env: configured, now: NOW, heartbeat, alert: async (a) => alerts.push(a),
+    });
+    ok("a read failure is reported, not thrown", res.status === STORAGE_BACKUP_STATUS.ERROR);
+    ok("a read failure alerts ops (health unknown)",
+      alerts.length === 1 && /ERRORED/.test(alerts[0].title));
+    ok("the error message is recorded",
+      db.writes.some((x) => /PERMISSION_DENIED/.test(x.data.error || "")));
+  }
+
+  // ── heartbeat I/O: the write must OVERWRITE a fixed path ────────────────
+  // A dated path would leave yesterday's object behind and give the mirror
+  // a brand-new object each night rather than a changed one — which works, but
+  // accumulates forever and makes the check guess which date to read.
+  console.log("\nstorageBackup (heartbeat I/O)");
+  {
+    const saved = [];
+    adminStub.__bucket = (name) => ({
+      __name: name,
+      file: (path) => ({
+        save: async (body, opts) => saved.push({name, path, body, opts}),
+      }),
+    });
+    const res = await writeStorageBackupHeartbeat({now: new Date(NOW_MS), correlationId: "cid-9"});
+    ok("the heartbeat is written to the fixed path", res.path === HEARTBEAT_PATH);
+    ok("it goes to the DEFAULT (primary) bucket, not the backup",
+      saved.length === 1 && saved[0].name === undefined);
+    ok("the body is the self-describing JSON", /safe to delete/i.test(saved[0].body));
+    ok("it is never cached (a cached mtime is the wrong mtime)",
+      saved[0].opts.metadata.cacheControl === "no-store");
   }
   {
-    adminStub.__bucket = () => ({getFiles: async () => [[], null]});
-    const res = await probeLatestBackupObject("b", {});
-    ok("an empty bucket yields no timestamp",
-      res.latestUpdatedMs === null && res.scanned === 0 && res.truncated === false);
+    adminStub.__bucket = () => ({
+      file: () => ({getMetadata: async () => [{updated: "2030-01-02T02:00:00Z"}]}),
+    });
+    ok("a present heartbeat reports its mtime",
+      (await probeHeartbeat("b")) === Date.parse("2030-01-02T02:00:00Z"));
+  }
+  {
+    const notFound = Object.assign(new Error("No such object"), {code: 404});
+    adminStub.__bucket = () => ({file: () => ({getMetadata: async () => { throw notFound; }})});
+    ok("an absent heartbeat is null, not an error", (await probeHeartbeat("b")) === null);
+  }
+  {
+    // "Could not look" must never be reported as "not there" — that would turn
+    // a permissions failure into a confident verdict about the mirror.
+    const denied = Object.assign(new Error("PERMISSION_DENIED"), {code: 403});
+    adminStub.__bucket = () => ({file: () => ({getMetadata: async () => { throw denied; }})});
+    let threw = false;
+    try { await probeHeartbeat("b"); } catch (_e) { threw = true; }
+    ok("a read failure throws rather than reporting absence", threw);
   }
 
   console.log(`\n─── ${passed} assertions · all passed ───`);
