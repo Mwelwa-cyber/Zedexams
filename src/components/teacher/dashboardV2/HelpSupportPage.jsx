@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Activity,
   BookOpen,
@@ -18,17 +18,11 @@ import {
   ShieldCheck,
   Sparkles,
 } from 'lucide-react'
-import { useAuth } from '../../../contexts/AuthContext'
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
 import ContactDialog from '../../marketing/ContactDialog'
 import FeedbackDialog from '../../feedback/FeedbackDialog'
 import SeoHelmet from '../../seo/SeoHelmet'
-import Sidebar from './Sidebar'
 import TopHeader from './TopHeader'
-import LogoutDialog from './LogoutDialog'
-import { MobileHeader, MobileBottomNav, NavDrawer } from './MobileDashboardView'
-import { teacherFromAuth } from './dashboardV2Data'
-import useDashboardTheme from './useDashboardTheme'
 import useIsMobile from './useIsMobile'
 import ensureDashboardFonts from './dashboardFonts'
 import './dashboardV2.css'
@@ -107,30 +101,20 @@ function FaqItem({ item }) {
  * report forms write to contactMessages (triaged by the Echo support agent),
  * suggestions go to the feedback inbox, and WhatsApp/email are the real
  * support channels the marketing site advertises.
+ *
+ * Page content only — the sidebar, mobile chrome and logout come from
+ * TeacherLayout, which this route renders inside.
  */
 export default function HelpSupportPage() {
-  const { currentUser, userProfile, logout } = useAuth()
   const { settings } = usePlatformSettings()
-  const navigate = useNavigate()
 
   const supportEmail = settings?.supportEmail || 'support@zedexams.com'
-  const teacher = teacherFromAuth({
-    displayName: userProfile?.displayName || currentUser?.displayName,
-    email: userProfile?.email || currentUser?.email,
-  })
 
   const [contactSource, setContactSource] = useState(null) // null | source string
   const [feedbackOpen, setFeedbackOpen] = useState(false)
-  const [logoutOpen, setLogoutOpen] = useState(false)
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const { dark, toggleTheme } = useDashboardTheme()
+  // Only decides which content container to use; the navigation around it is
+  // the shell's at every width.
   const isMobile = useIsMobile()
-
-  const confirmLogout = useCallback(async () => {
-    setLogoutOpen(false)
-    await logout()
-    navigate('/login')
-  }, [logout, navigate])
 
   const channels = [
     {
@@ -171,33 +155,12 @@ export default function HelpSupportPage() {
   ]
 
   return (
-    <div className={`tdv2 ${isMobile ? 'tdv2-is-mobile tdv2m' : ''} ${dark ? 'is-dark' : ''}`}>
+    <div className={isMobile ? 'tdv2m' : ''}>
       <SeoHelmet
         title="Help & Support | ZedExams Teachers"
         description="Get help with ZedExams teacher tools — contact support, report a problem, or browse FAQs."
         noIndex
       />
-      {isMobile ? (
-        <>
-          <MobileHeader drawerOpen={drawerOpen} onOpenMenu={() => setDrawerOpen(true)} />
-          <NavDrawer
-            open={drawerOpen}
-            onClose={() => setDrawerOpen(false)}
-            teacher={teacher}
-            dark={dark}
-            onToggleTheme={toggleTheme}
-            onLogout={() => setLogoutOpen(true)}
-          />
-          <MobileBottomNav drawerOpen={drawerOpen} onMore={() => setDrawerOpen(true)} />
-        </>
-      ) : (
-        <Sidebar
-          teacher={teacher}
-          onRequestLogout={() => setLogoutOpen(true)}
-          dark={dark}
-          onToggleTheme={toggleTheme}
-        />
-      )}
 
       <div className="tdv2-main">
         {!isMobile && <TopHeader termChip="" />}
@@ -297,9 +260,6 @@ export default function HelpSupportPage() {
         onClose={() => setFeedbackOpen(false)}
         source="teacher-help"
       />
-      {logoutOpen ? (
-        <LogoutDialog onCancel={() => setLogoutOpen(false)} onConfirm={confirmLogout} />
-      ) : null}
     </div>
   )
 }

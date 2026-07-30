@@ -36,6 +36,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { declaredRoutePaths, readSource, TEACHER_ROUTES_PATH } from './lib/declaredRoutes.mjs'
 
 const SRC = 'src'
 const APP = join(SRC, 'App.jsx')
@@ -50,9 +51,10 @@ function test(name, fn) {
 // ── Declared routes ─────────────────────────────────────────────────────────
 
 const appSource = readFileSync(APP, 'utf8')
-const declaredRoutes = [...appSource.matchAll(/<Route\s+path="([^"]+)"/g)]
-  .map((m) => m[1])
-  .filter((p) => p !== '*')
+// Routes come from BOTH declaration sites — App.jsx's inline <Route>s and the
+// /teacher/* route table. Reading App.jsx alone would silently drop every
+// teacher route and report a working link as dead.
+const declaredRoutes = declaredRoutePaths().filter((p) => p !== '*')
 
 /**
  * React Router v6 matching, reduced to what our route table actually uses:
@@ -130,10 +132,10 @@ export function collectNavTargets(files, read = (f) => readFileSync(f, 'utf8')) 
   return found
 }
 
-// App.jsx's own literal <Navigate to="…"> redirect targets. A redirect pointing
-// at a route someone deleted 404s exactly like a dead link, and the redirect
-// table is the easiest place for that to hide.
-export function collectRedirectTargets(source = appSource) {
+// Literal <Navigate to="…"> redirect targets from both declaration sites. A
+// redirect pointing at a route someone deleted 404s exactly like a dead link,
+// and the redirect table is the easiest place for that to hide.
+export function collectRedirectTargets(source = `${appSource}\n${readSource(TEACHER_ROUTES_PATH)}`) {
   return [...source.matchAll(/<Navigate\s+to="(\/[^"${]*)"/g)].map((m) => normaliseTarget(m[1]))
 }
 
@@ -141,10 +143,12 @@ export function collectRedirectTargets(source = appSource) {
 
 console.log('\nroute targets\n')
 
-test('App.jsx declares a route table we can read', () => {
+test('both declaration sites yield a route table we can read', () => {
   assert.ok(declaredRoutes.length > 100, `expected the full route table, parsed ${declaredRoutes.length}`)
-  assert.ok(declaredRoutes.includes('/teacher/assessment-papers/new'))
-  assert.ok(declaredRoutes.includes('/notes'))
+  // One route from each site, so losing either is a failure rather than a
+  // quietly shorter list.
+  assert.ok(declaredRoutes.includes('/teacher/assessment-papers/new'), 'teacher route table')
+  assert.ok(declaredRoutes.includes('/notes'), 'App.jsx inline routes')
 })
 
 test('routeToRegExp models the v6 rules we depend on', () => {
@@ -169,7 +173,12 @@ test('the two dead links that shipped would both be caught', () => {
 })
 
 test('every navigation target in src/ resolves to a declared route', () => {
-  const files = sourceFiles(SRC).filter((f) => f !== APP)
+  // The two route-DECLARATION files are excluded: their redirect builders
+  // contain template literals (`/teacher/lesson-plans/new${search}`) that read
+  // as nav targets but are route plumbing. Their <Navigate> targets are
+  // checked by the redirect test below, so nothing goes unchecked.
+  const files = sourceFiles(SRC)
+    .filter((f) => f !== APP && !f.endsWith('teacherRoutes.jsx'))
   const targets = collectNavTargets(files)
   assert.ok(targets.size > 150, `expected to scan a real link surface, found ${targets.size} targets`)
 
@@ -177,12 +186,12 @@ test('every navigation target in src/ resolves to a declared route', () => {
   assert.equal(
     dead.length,
     0,
-    `these navigation targets match no route in App.jsx — each one is a "Page not found" `
+    `these navigation targets match no declared route — each one is a "Page not found" `
     + `waiting for a user:\n${dead.map(([t, at]) => `  ${t}\n      ${at.join('\n      ')}`).join('\n')}`,
   )
 })
 
-test('every literal <Navigate> redirect in App.jsx resolves to a declared route', () => {
+test('every literal <Navigate> redirect resolves to a declared route', () => {
   const dead = collectRedirectTargets().filter((t) => !resolvesToRoute(t))
   assert.equal(dead.length, 0, `App.jsx redirects to routes that do not exist: ${dead.join(', ')}`)
 })

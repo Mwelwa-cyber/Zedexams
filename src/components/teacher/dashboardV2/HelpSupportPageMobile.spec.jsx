@@ -3,6 +3,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
+import TeacherLayout from '../TeacherLayout'
 import HelpSupportPage from './HelpSupportPage'
 
 // Force the mobile chrome regardless of jsdom viewport.
@@ -26,12 +27,16 @@ vi.mock('../../../contexts/PlatformSettingsContext', () => ({
 vi.mock('../../../contexts/NotificationContext', () => ({
   useNotifications: () => ({ unreadCount: 0, open: false, setOpen: () => {} }),
 }))
+// Not part of the chrome under test, and it boots Firebase.
+vi.mock('../TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
 
 function renderPage() {
   return render(
     <HelmetProvider>
       <MemoryRouter initialEntries={['/teacher/help']}>
-        <HelpSupportPage />
+        <TeacherLayout variant="dashboard">
+          <HelpSupportPage />
+        </TeacherLayout>
       </MemoryRouter>
     </HelmetProvider>,
   )

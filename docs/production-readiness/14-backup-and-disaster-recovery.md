@@ -90,12 +90,18 @@ undefined.
   **stopped** (newest object older than `STORAGE_BACKUP_MAX_AGE_HOURS`, default 26h). A silently-broken
   Storage backup now surfaces the next morning instead of at disaster time. Deploy-safe before the
   mirror exists (records `misconfigured` in prod / `skipped-non-production` in dev).
-- **Operator setup still owed** (see Runbook §D): (1) enable **Object Versioning** on the primary
-  bucket `gs://examsprepzambia.firebasestorage.app`; (2) create a **cross-region backup bucket**
-  (versioning + retention lifecycle); (3) create the **STS job** (primary → backup, daily) and grant its
-  service account `storage.objectViewer` on the source + `storage.objectAdmin` on the destination;
-  (4) set `STORAGE_BACKUP_BUCKET` (and optionally `STORAGE_BACKUP_PREFIX` to scope the freshness scan,
-  `STORAGE_BACKUP_MAX_AGE_HOURS`) in `functions/.env.examsprepzambia`.
+- **Operator setup still owed** (see Runbook §D): steps 1–3 are now one re-runnable, dry-run-by-default
+  script — `npm run provision:storage-backup` (versioning on the primary; a cross-region backup bucket
+  with versioning + a non-current-versions-only lifecycle rule; the daily STS job plus every IAM binding
+  it and the health check need). Then (4) uncomment `STORAGE_BACKUP_BUCKET` in
+  `functions/.env.examsprepzambia` (optionally `STORAGE_BACKUP_PREFIX` to scope the freshness scan,
+  `STORAGE_BACKUP_MAX_AGE_HOURS`) and deploy.
+- **Freshness is scanned honestly.** GCS lists objects by NAME, never by mtime, and an STS mirror
+  reproduces the source layout (there is no dated path to scope a scan to). The probe therefore PAGES
+  rather than reading one 5 000-object page — past that, the newest object routinely sorted outside the
+  page and a healthy mirror read as `stale`. A scan that hits its page cap without seeing a recent
+  object now reports **health UNKNOWN at warning severity** instead of a false `stale`: a 04:00 alert
+  that cries wolf is how the real one gets ignored.
 - **Launch blocker:** No (but High until the mirror is provisioned). **Complexity:** Low–Medium.
 
 ### DR-004 — No database deletion protection
@@ -208,20 +214,56 @@ undefined.
 > The daily `storageBackupCheck` (04:00 Lusaka) only VERIFIES this mirror — it
 > does not create it. Until these steps are done it records `misconfigured` and
 > emails an alert every morning.
+**Steps 1–3 are one script** — `scripts/provision-storage-backup.mjs`, dry-run by
+default and re-runnable (a step whose resource already exists reports *already
+done*, not an error):
+
+```bash
+npm run provision:storage-backup              # prints every gcloud command, runs nothing
+npm run provision:storage-backup -- --live    # provisions
+```
+
+It needs `gcloud` authenticated as a principal holding `roles/storage.admin` +
+`roles/storagetransfer.admin` + `roles/serviceusage.serviceUsageAdmin`. What it
+does, and why each piece is there:
+
 1. **Enable Object Versioning** on the primary bucket (protects individual objects
-   from overwrite/delete): `gsutil versioning set on gs://examsprepzambia.firebasestorage.app`
-2. **Create a cross-region backup bucket** (different region from the primary),
-   uniform bucket-level access, versioning + a retention lifecycle rule:
-   `gsutil mb -l europe-west1 gs://zedexams-storage-backup`
+   from overwrite/delete) **and apply its expiry rule in the same run** — the two
+   are one decision. Versioning alone means every delete on the primary leaves a
+   noncurrent version billed forever, and this repo deletes constantly:
+   `tmpDownloadReaper` sweeps `tmp-downloads/` hourly *specifically* so that
+   prefix "can never grow unbounded", plus `orphanReaper` and the
+   lesson/question/user cascade triggers. Versioning without a lifecycle rule
+   silently converts every one of those reclaims into permanent storage.
+2. **Create a cross-region backup bucket** — the primary is in `africa-south1`, so
+   a backup there shares its blast radius. Uniform bucket-level access,
+   public-access prevention, versioning, and the same lifecycle rule.
+   Both buckets' rules expire **non-current versions only** (never live objects —
+   a rule that expires live objects would delete the app's images on the primary
+   and quietly empty the mirror on the backup) and are keyed on
+   **`daysSinceNoncurrentTime` alone**. Lifecycle conditions AND together, so
+   adding `numNewerVersions` would exempt every *deleted* object — which has zero
+   newer versions — from expiry entirely, defeating the rule on exactly the path
+   that generates the most garbage. `tmp-downloads/` gets a 1-day window instead
+   of 30: those objects live ~90 seconds by design and have no recovery value.
 3. **Create a Storage Transfer Service job** (source = primary, destination =
-   backup, **daily** schedule) in the console or via `gcloud transfer jobs create`.
-   Grant its service account `roles/storage.objectViewer` on the source and
-   `roles/storage.objectAdmin` on the destination. Schedule it to finish before
-   04:00 Lusaka so the health check sees a fresh object.
-4. **Set the env** in `functions/.env.examsprepzambia` and deploy functions:
+   backup, **daily**, `--overwrite-when=different`, never `--delete-from`: a
+   mirror that propagates a source delete is not a backup). Grant the STS service
+   agent `roles/storage.objectViewer` **+ `roles/storage.legacyBucketReader`** on
+   the source and `roles/storage.objectAdmin` **+ `roles/storage.legacyBucketWriter`**
+   on the destination — the object roles carry no `storage.buckets.get`, and
+   omitting the legacy pair is the classic "job created fine, every run fails
+   `PERMISSION_DENIED`". The script also grants the **Functions runtime SA**
+   `objectViewer` on the destination, without which the health check reads
+   `error` forever — indistinguishable from a genuinely broken mirror. Scheduled
+   00:30 UTC (02:30 Lusaka) so it finishes before the 04:00 Lusaka check.
+4. **Set the env** in `functions/.env.examsprepzambia` (a commented stub is
+   already there — uncomment it) and deploy functions:
    `STORAGE_BACKUP_BUCKET=gs://zedexams-storage-backup` (optionally
    `STORAGE_BACKUP_PREFIX=` to scope the freshness scan to the mirror path on a
-   very large bucket, and `STORAGE_BACKUP_MAX_AGE_HOURS=26`).
+   very large bucket, and `STORAGE_BACKUP_MAX_AGE_HOURS=26`). Leave it unset
+   until the bucket exists — pointing the check at a bucket that isn't there
+   swaps one true alert for a misleading one.
 5. **Verify**: after 04:00 Lusaka read `opsStorageBackups/{today}` — `status` must
    be `"fresh"` (not `misconfigured` / `empty` / `stale`). `latestObjectAt` shows
    the newest backed-up object's time.

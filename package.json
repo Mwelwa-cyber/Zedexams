@@ -237,6 +237,7 @@
     "test:dashboard-v2-data": "node src/components/teacher/dashboardV2/dashboardV2Data.test.js",
     "test:launcher-core": "node src/components/teacher/dashboardV2/launcher/teacherLauncherCore.test.js",
     "test:dashboard-v2-links": "node scripts/test-dashboard-v2-links.mjs",
+    "test:teacher-nav-active": "node src/components/teacher/dashboardV2/teacherNavActive.test.js",
     "test:notification-links": "node scripts/test-notification-links.mjs",
     "test:route-targets": "node scripts/test-route-targets.mjs",
     "test:dashboard-v2-tour": "node src/components/teacher/dashboardV2/onboardingTourCore.test.js",
@@ -379,6 +380,7 @@
     "test:ai-cost-providers": "node functions/aiCostProviders.test.js",
     "test:firestore-backup": "node functions/firestoreBackup.test.js",
     "test:storage-backup": "node functions/storageBackup.test.js",
+    "test:provision-storage-backup": "node scripts/test-provision-storage-backup.mjs",
     "test:ratelimit-health": "node functions/rateLimitHealth.test.js",
     "test:ops-heartbeat": "node functions/opsHeartbeat.test.js",
     "test:audit-log": "node functions/auditLog.test.js",
@@ -656,7 +658,8 @@
     "audit:colors": "node scripts/audit-hardcoded-colors.mjs",
     "audit:dark": "node scripts/audit-dark-surfaces.mjs",
     "audit:routes": "node scripts/audit-route-themes.mjs",
-    "test:route-themes": "node scripts/audit-route-themes.mjs"
+    "test:route-themes": "node scripts/audit-route-themes.mjs",
+    "provision:storage-backup": "node scripts/provision-storage-backup.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

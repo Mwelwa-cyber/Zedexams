@@ -32,6 +32,7 @@
  * Run: npm run test:public-routes   (also via npm run test:all)
  */
 import { readFileSync } from 'node:fs'
+import { teacherRouteEntries } from './lib/declaredRoutes.mjs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { getActiveGrades } from '../src/config/curriculum.js'
@@ -84,6 +85,15 @@ const routes = appJsx
     chunk,
   }))
   .filter((r) => r.path)
+  // …plus the /teacher/* routes, which are declared as data in their own
+  // table rather than inline here. Without them this file would report every
+  // teacher route as "not declared" — and, worse, the auth-guard checks below
+  // would have nothing left to check.
+  .concat(teacherRouteEntries().map((r) => ({
+    ...r,
+    redirect: /<Navigate\b/.test(r.chunk),
+    redirectTo: (r.chunk.match(/<Navigate\s+to="([^"]+)"/) || [])[1] || null,
+  })))
 
 const byPath = (p) => routes.find((r) => r.path === p)
 
@@ -162,17 +172,18 @@ const PROTECTED_ROUTES = [
   ['/quizzes', 'ProtectedRoute'],
   ['/admin', 'AdminRoute'],
   ['/admin/users', 'AdminRoute'],
-  // Dashboard V2 brings its own chrome, so /teacher is gated by
-  // ProtectedRoute requiredRole="teacher" directly instead of TeacherRoute
-  // (which would add TeacherLayout's duplicate sidebar around it).
-  ['/teacher', 'ProtectedRoute'],
+  // The dashboard renders inside the same shell as every other teacher page,
+  // so it is gated by TeacherRoute like the rest. (It used to be wrapped in a
+  // bare ProtectedRoute because it brought its own sidebar.)
+  ['/teacher', 'TeacherRoute'],
+  ['/teacher/subscription', 'TeacherRoute'],
   ['/teacher/classic', 'TeacherRoute'],
   ['/teacher/library', 'TeacherRoute'],
 ]
 for (const [p, guard] of PROTECTED_ROUTES) {
   test(`${p} requires ${guard}`, () => {
     const r = byPath(p)
-    assert(r, `App.jsx has no <Route path="${p}">`)
+    assert(r, `no route declared for "${p}" in App.jsx or the teacher route table`)
     assert(
       r.chunk.includes(guard),
       `${p} is no longer wrapped in ${guard} — it may have become publicly accessible`,

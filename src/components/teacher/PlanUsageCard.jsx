@@ -110,7 +110,7 @@ export default function PlanUsageCard({ usage, loading }) {
           <div className="teacher-usage-card__actions">
             {isFree ? (
               <Link
-                to="/my-subscription"
+                to="/teacher/subscription"
                 className="teacher-usage-card__upgrade"
                 onClick={() => capture('plan_upgrade_clicked', { source: 'dashboard-plan-card', placement: 'dashboard-bottom' })}
               >
@@ -118,7 +118,7 @@ export default function PlanUsageCard({ usage, loading }) {
                 <Icon as={ArrowRight} size="xs" />
               </Link>
             ) : (
-              <Link to="/my-subscription" className="teacher-usage-card__manage">
+              <Link to="/teacher/subscription" className="teacher-usage-card__manage">
                 Manage plan
               </Link>
             )}

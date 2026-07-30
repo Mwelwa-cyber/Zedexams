@@ -1,9 +1,14 @@
 # 03 — Route Register
 
 > Snapshot as of 2026-07-17 — verify before acting. Audited commit `0cd4c49`.
-> Source of truth: [`src/App.jsx`](../../src/App.jsx) (single `<Routes>` block, lines 436–727). Hosting-layer redirects/rewrites: [`firebase.json`](../../firebase.json).
+> Source of truth: [`src/App.jsx`](../../src/App.jsx) (single `<Routes>` block) **plus
+> [`src/components/teacher/teacherRoutes.jsx`](../../src/components/teacher/teacherRoutes.jsx)**,
+> which since 2026-07-30 holds every `/teacher/*` route as data that App.jsx maps
+> into `<Route>` elements. `/my-subscription` now forwards teachers to
+> `/teacher/subscription` (learners and admins keep the standalone page).
+> Hosting-layer redirects/rewrites: [`firebase.json`](../../firebase.json).
 
-Every route in the SPA is declared in `src/App.jsx`. Nearly every page component is `React.lazy()`-imported and rendered inside one `<Suspense fallback={<PageLoader/>}>`. A single `<RouteErrorBoundary>` (inline, keyed on pathname) wraps all routes.
+Every route in the SPA is declared in `src/App.jsx` or the teacher route table. Nearly every page component is `React.lazy()`-imported and rendered inside one `<Suspense fallback={<PageLoader/>}>`. A single `<RouteErrorBoundary>` (inline, keyed on pathname) wraps all routes.
 
 ## Guards and layouts (the wrappers)
 

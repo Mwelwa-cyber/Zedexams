@@ -3,6 +3,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
+import TeacherLayout from '../TeacherLayout'
 import TeacherDashboardV2 from './TeacherDashboardV2'
 import { TOUR_STORAGE_KEY } from './onboardingTourCore'
 
@@ -14,9 +15,19 @@ beforeEach(() => {
 
 // The header bell reads the app-wide NotificationProvider (main.jsx); specs
 // mount without it, so stub the hook.
+// The sidebar and its account menu belong to the shell, so they show the
+// SIGNED-IN teacher — mockData only drives the page content.
 vi.mock('../../../contexts/AuthContext', () => ({
-  useAuth: () => ({ isTeacher: true, currentUser: null, userProfile: null }),
+  useAuth: () => ({
+    isTeacher: true,
+    isAdmin: false,
+    currentUser: { displayName: 'Mahenga Mwelwa', email: 'mahenga@example.com' },
+    userProfile: { displayName: 'Mahenga Mwelwa', email: 'mahenga@example.com' },
+    logout: vi.fn().mockResolvedValue(),
+  }),
 }))
+// Reads Firestore and is not under test here.
+vi.mock('../TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
 vi.mock('../../../contexts/NotificationContext', () => ({
   useNotifications: () => ({ unreadCount: 0, open: false, setOpen: () => {} }),
 }))
@@ -25,7 +36,9 @@ function renderDashboard() {
   return render(
     <HelmetProvider>
       <MemoryRouter initialEntries={['/teacher/dashboard-preview']}>
-        <TeacherDashboardV2 />
+        <TeacherLayout variant="dashboard">
+          <TeacherDashboardV2 />
+        </TeacherLayout>
       </MemoryRouter>
     </HelmetProvider>,
   )

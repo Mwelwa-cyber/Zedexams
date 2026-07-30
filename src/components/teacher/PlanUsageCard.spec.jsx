@@ -49,7 +49,7 @@ describe('PlanUsageCard', () => {
     // and never the word "midnight".
     expect(screen.getByText(/resets in .+ · at \d{2}:\d{2} local time/i)).toBeInTheDocument()
     expect(screen.queryByText(/midnight/i)).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /manage plan/i })).toHaveAttribute('href', '/my-subscription')
+    expect(screen.getByRole('link', { name: /manage plan/i })).toHaveAttribute('href', '/teacher/subscription')
     expect(screen.queryByRole('link', { name: /upgrade/i })).not.toBeInTheDocument()
   })
 
@@ -60,7 +60,7 @@ describe('PlanUsageCard', () => {
     expect(screen.getByText('of 2')).toBeInTheDocument()
     expect(screen.getByText(/3 top-up credits/i)).toBeInTheDocument()
     const upgrade = screen.getByRole('link', { name: /upgrade/i })
-    expect(upgrade).toHaveAttribute('href', '/my-subscription')
+    expect(upgrade).toHaveAttribute('href', '/teacher/subscription')
     fireEvent.click(upgrade)
     expect(capture).toHaveBeenCalledWith('plan_upgrade_clicked', expect.objectContaining({ source: 'dashboard-plan-card' }))
   })

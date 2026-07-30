@@ -72,24 +72,53 @@ function logStorageBackupEvent(fields) {
 
 /**
  * Default production freshness probe: the newest object mtime under `prefix` in
- * the backup bucket, via the Admin Storage SDK. Bounded scan (getFiles with a
- * cap) so it never lists an unbounded bucket — point STORAGE_BACKUP_PREFIX at
- * the mirror's dated path for a big bucket so the newest object is in range.
+ * the backup bucket, via the Admin Storage SDK.
  *
- * @returns {Promise<{latestUpdatedMs: number|null, scanned: number}>}
+ * GCS lists objects in LEXICOGRAPHIC NAME order, never by mtime, so "the newest
+ * object" is only knowable by looking at every object in range. The first
+ * version of this probe read one 5000-object page and stopped, and a Storage
+ * Transfer Service mirror reproduces the source layout — there is no dated
+ * path for STORAGE_BACKUP_PREFIX to point at — so past ~5000 objects the newest
+ * one routinely sorts outside the page and a perfectly healthy mirror reads as
+ * `stale`. A 04:00 alert that cries wolf is worse than no alert: it is how a
+ * real one gets ignored. So the scan PAGES, and when it hits its page cap it
+ * says so (`truncated`) rather than drawing a conclusion from a partial view.
+ *
+ * @returns {Promise<{latestUpdatedMs: number|null, scanned: number, truncated: boolean}>}
  */
-async function probeLatestBackupObject(bucketName, {prefix = "", maxResults = 5000} = {}) {
+async function probeLatestBackupObject(
+    bucketName,
+    {prefix = "", pageSize = 1000, maxPages = 200} = {},
+) {
   const bucket = admin.storage().bucket(bucketName);
-  const [files] = await bucket.getFiles({prefix, maxResults, autoPaginate: false});
+  let query = {prefix, maxResults: pageSize, autoPaginate: false};
   let latestUpdatedMs = null;
-  for (const f of files || []) {
-    const updated = f && f.metadata && (f.metadata.updated || f.metadata.timeCreated);
-    const ms = updated ? Date.parse(updated) : NaN;
-    if (Number.isFinite(ms) && (latestUpdatedMs == null || ms > latestUpdatedMs)) {
-      latestUpdatedMs = ms;
+  let scanned = 0;
+  let pages = 0;
+  let truncated = false;
+
+  while (query) {
+    // autoPaginate:false resolves to [files, nextQuery] — nextQuery is null on
+    // the last page. Paginating by hand keeps each round trip bounded.
+    const [files, nextQuery] = await bucket.getFiles(query);
+    pages += 1;
+    for (const f of files || []) {
+      const updated = f && f.metadata && (f.metadata.updated || f.metadata.timeCreated);
+      const ms = updated ? Date.parse(updated) : NaN;
+      if (Number.isFinite(ms) && (latestUpdatedMs == null || ms > latestUpdatedMs)) {
+        latestUpdatedMs = ms;
+      }
     }
+    scanned += (files || []).length;
+    if (!nextQuery) break;
+    if (pages >= maxPages) {
+      truncated = true;
+      break;
+    }
+    query = nextQuery;
   }
-  return {latestUpdatedMs, scanned: (files || []).length};
+
+  return {latestUpdatedMs, scanned, truncated};
 }
 
 /**
@@ -184,21 +213,50 @@ async function runStorageBackupCheck({
     return result;
   }
 
-  const {status, ageMs} = classifyBackupFreshness({
+  const {status: freshness, ageMs} = classifyBackupFreshness({
     latestUpdatedMs: probeResult.latestUpdatedMs, nowMs, maxAgeMs,
   });
   const ageHours = ageMs == null ? null : Math.round((ageMs / (60 * 60 * 1000)) * 10) / 10;
+
+  // A truncated scan can PROVE freshness (a recent object was actually seen)
+  // but it can never prove the absence of one — the newest object may sort past
+  // where the scan stopped. Reporting "stale"/"empty" from a partial view is
+  // asserting something about objects nobody looked at, so an inconclusive scan
+  // is reported as what it is: health UNKNOWN.
+  const inconclusive = probeResult.truncated === true &&
+    freshness !== STORAGE_BACKUP_STATUS.FRESH;
+  const status = inconclusive ? STORAGE_BACKUP_STATUS.ERROR : freshness;
+
   const result = {
     status,
     ageHours,
     scanned: probeResult.scanned,
+    truncated: probeResult.truncated === true,
     latestObjectAt: probeResult.latestUpdatedMs
       ? new Date(probeResult.latestUpdatedMs).toISOString()
       : null,
+    ...(inconclusive
+      ? {errorCode: "STORAGE_BACKUP_SCAN_TRUNCATED", freshnessSeen: freshness}
+      : {}),
   };
   await record(result);
 
-  if (status === STORAGE_BACKUP_STATUS.EMPTY) {
+  if (inconclusive) {
+    await raise(
+        "Storage backup check INCONCLUSIVE — mirror health is UNKNOWN",
+        [
+          `Date: ${dateKey}  ·  correlationId: ${correlationId}`,
+          `Backup bucket: ${bucketName}${prefix ? ` (prefix ${prefix})` : ""}`,
+          `The freshness scan stopped after ${probeResult.scanned} objects ` +
+          "without reaching the end of the bucket, and saw no recent object in " +
+          "that range. GCS lists by NAME, not by time, so this proves nothing " +
+          "either way — the mirror may be healthy.",
+          "Fix: set STORAGE_BACKUP_PREFIX to narrow the scan to a path the " +
+          "mirror writes to, or raise the probe's page cap.",
+        ],
+        "warning",
+    );
+  } else if (status === STORAGE_BACKUP_STATUS.EMPTY) {
     await raise(
         "Storage backup EMPTY — the mirror has produced no objects",
         [

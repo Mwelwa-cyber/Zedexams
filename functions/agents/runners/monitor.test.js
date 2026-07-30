@@ -10,7 +10,7 @@
 
 const assert = require("node:assert");
 const crypto = require("node:crypto");
-const {runStructuralChecks, extractPlainText, failureKey, isMendiEligible, makeAppJwt, normalizePem, resolveGithubToken, checkDailyExams, checkPlayBilling, dailyExamCheckWindow} = require("./monitor");
+const {runStructuralChecks, extractPlainText, failureKey, isMendiEligible, makeAppJwt, normalizePem, resolveGithubToken, checkQuizzes, checkDailyExams, checkPlayBilling, dailyExamCheckWindow} = require("./monitor");
 const {lusakaDayString} = require("../../lusakaTime");
 
 let passed = 0;
@@ -617,4 +617,90 @@ test("checkPlayBilling never throws — a probe crash becomes a warning", async 
   assert.ok(res.failures[0].message.includes("boom"));
 });
 
-console.log(`\n✓ monitor.test.js — ${passed} checks passed`);
+// ── checkQuizzes numbers a problem by its position in the WHOLE quiz ──
+//
+// The bug this guards: the questions read was capped below the size of a real
+// past paper, so an arbitrary slice of the collection was sorted and problems
+// were numbered within the slice. Quiz q2WGapKWzsxvTkIaw7mG (Grade 7 English
+// Language Mock 2026, 60 questions) has one genuinely duplicated question at
+// number 43; Vigil reported it as "Question 23", whose four options are
+// perfectly distinct. The report was unactionable, so the fault stayed and was
+// re-escalated by email every 24h.
+
+/** Firestore hands back documents in id order, which is NOT `order` order. */
+function stubQuizDb(quizzes) {
+  const docs = quizzes.map((quiz) => ({
+    id: quiz.id,
+    data: () => ({title: quiz.title, isPublished: quiz.isPublished !== false}),
+    ref: {
+      collection: () => ({
+        // Model the real limit: the driver returns at most n documents.
+        limit: (n) => ({async get() {
+          return {docs: quiz.questions.slice(0, n).map((q) => ({data: () => q}))};
+        }}),
+      }),
+    },
+  }));
+  return {collection: () => ({orderBy: () => ({limit: () => ({async get() { return {docs}; }})})})};
+}
+
+/** One well-formed MCQ; `dupe` makes options 1 and 4 identical. */
+function question(order, dupe) {
+  return {
+    order,
+    type: "mcq",
+    text: `<p>Question ${order}</p>`,
+    options: dupe ?
+      ["Many people called the old man Miyanda.", "B", "C", "Many people called the old man Miyanda."] :
+      [`${order}-A`, `${order}-B`, `${order}-C`, `${order}-D`],
+    correctAnswer: 0,
+  };
+}
+
+const pending = [];
+function testAsync(name, fn) {
+  pending.push(fn().then(() => {
+    passed += 1;
+    console.log(`  ok — ${name}`);
+  }));
+}
+
+testAsync("checkQuizzes numbers a duplicate by its real question number, not its position in a slice", async () => {
+  // 60 questions arriving in reverse order — any id order that isn't `order`
+  // order reproduces the bug; reversed is the clearest.
+  const questions = Array.from({length: 60}, (_, i) => question(60 - i, 60 - i === 43));
+  const res = await checkQuizzes(stubQuizDb([
+    {id: "q2WGapKWzsxvTkIaw7mG", title: "Grade 7 English Language Mock 2026 — Quiz", questions},
+  ]));
+  assert.strictEqual(res.failures.length, 1);
+  const {message} = res.failures[0];
+  assert.ok(message.includes("Question 43 has duplicate options (1 and 4)"), message);
+  // Under the old 30-question cap the reversed slice held orders 60…31, so the
+  // same fault was numbered within that slice instead.
+  assert.ok(!message.includes("Question 13"), message);
+});
+
+testAsync("checkQuizzes reports a quiz past the ceiling as unchecked rather than mis-numbered", async () => {
+  const questions = Array.from({length: 201}, (_, i) => question(i + 1, i + 1 === 43));
+  const res = await checkQuizzes(stubQuizDb([{id: "huge", title: "Huge quiz", questions}]));
+  assert.strictEqual(res.failures.length, 1);
+  assert.ok(res.failures[0].id.endsWith(":oversized"), res.failures[0].id);
+  assert.ok(res.failures[0].message.includes("were not checked"), res.failures[0].message);
+  // No question number is claimed, because none would be trustworthy.
+  assert.ok(!/Question \d+/.test(res.failures[0].message), res.failures[0].message);
+});
+
+testAsync("checkQuizzes still reads a whole ordinary quiz and reports it clean", async () => {
+  const questions = Array.from({length: 60}, (_, i) => question(60 - i, false));
+  const res = await checkQuizzes(stubQuizDb([{id: "clean", title: "Clean quiz", questions}]));
+  assert.strictEqual(res.failures.length, 0);
+  assert.strictEqual(res.ok, true);
+  assert.strictEqual(res.checked, 1);
+});
+
+Promise.all(pending)
+    .then(() => console.log(`\n✓ monitor.test.js — ${passed} checks passed`))
+    .catch((err) => {
+      console.error(err);
+      process.exit(1);
+    });

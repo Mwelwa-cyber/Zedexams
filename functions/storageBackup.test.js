@@ -14,6 +14,14 @@ const Module = require("node:module");
 
 // storageBackup.js loads firebase-functions + firebase-admin at import; stub
 // them so the test runs under a root-only install (matches firestoreBackup.test).
+// `__bucket` is a mutable hook so the pagination tests can drive the real
+// probeLatestBackupObject against a fake bucket — the module captures this one
+// object at require time, so replacing the hook later still reaches it.
+const adminStub = {
+  firestore: () => { throw new Error("not initialised in tests"); },
+  storage: () => ({bucket: (name) => adminStub.__bucket(name)}),
+  __bucket: () => { throw new Error("no bucket stub installed"); },
+};
 const origLoad = Module._load;
 Module._load = function (request, ...rest) {
   if (request === "firebase-functions/v2/scheduler") {
@@ -22,10 +30,7 @@ Module._load = function (request, ...rest) {
   if (request === "firebase-functions/params") {
     return {defineSecret: (name) => ({name})};
   }
-  if (request === "firebase-admin") {
-    return {firestore: () => { throw new Error("not initialised in tests"); },
-      storage: () => { throw new Error("not initialised in tests"); }};
-  }
+  if (request === "firebase-admin") return adminStub;
   if (request === "./opsAlert") {
     return {sendOpsAlert: async () => ({sent: false})};
   }
@@ -35,7 +40,9 @@ const {
   resolveStorageBackupBucket, classifyBackupFreshness, resolveMaxAgeMs,
   DEFAULT_MAX_AGE_HOURS, HOUR_MS,
 } = require("./storageBackupCore");
-const {runStorageBackupCheck, STORAGE_BACKUP_STATUS} = require("./storageBackup");
+const {
+  runStorageBackupCheck, STORAGE_BACKUP_STATUS, probeLatestBackupObject,
+} = require("./storageBackup");
 Module._load = origLoad;
 
 let passed = 0;
@@ -159,6 +166,71 @@ ok("custom hours honoured", resolveMaxAgeMs("12") === 12 * HOUR_MS);
       alerts.length === 1 && /ERRORED/.test(alerts[0].title));
     ok("probe error recorded with the message",
       db.writes.some((x) => x.path === "opsStorageBackups/2030-01-02" && /PERMISSION_DENIED/.test(x.data.error || "")));
+  }
+
+  // ── a TRUNCATED scan never invents a verdict ─────────────────────────────
+  // GCS lists by name, not by mtime, so a scan that stopped early proves
+  // freshness when it SAW a recent object and proves nothing when it didn't.
+  {
+    const db = fakeDb();
+    const alerts = [];
+    const stale = NOW.getTime() - (100 * HOUR_MS);
+    const probe = async () => ({latestUpdatedMs: stale, scanned: 200000, truncated: true});
+    const res = await runStorageBackupCheck({db, env: configured, now: NOW, probe, alert: async (a) => alerts.push(a)});
+    ok("truncated scan + no recent object → error, not a false STALE",
+      res.status === STORAGE_BACKUP_STATUS.ERROR);
+    ok("the inconclusive alert is a warning, not an ERROR page",
+      alerts.length === 1 && /INCONCLUSIVE/.test(alerts[0].title) && alerts[0].severity === "warning");
+    ok("the record says the scan was truncated and what it saw",
+      db.writes.some((x) => x.data.truncated === true &&
+        x.data.errorCode === "STORAGE_BACKUP_SCAN_TRUNCATED" &&
+        x.data.freshnessSeen === STORAGE_BACKUP_STATUS.STALE));
+  }
+  {
+    const db = fakeDb();
+    const alerts = [];
+    const recent = NOW.getTime() - (2 * HOUR_MS);
+    const probe = async () => ({latestUpdatedMs: recent, scanned: 200000, truncated: true});
+    const res = await runStorageBackupCheck({db, env: configured, now: NOW, probe, alert: async (a) => alerts.push(a)});
+    ok("truncated scan that SAW a recent object is still fresh",
+      res.status === STORAGE_BACKUP_STATUS.FRESH);
+    ok("a fresh truncated scan raises nothing", alerts.length === 0);
+  }
+
+  // ── probeLatestBackupObject pages instead of reading one page ────────────
+  console.log("\nprobeLatestBackupObject (pagination)");
+  {
+    const file = (updated) => ({metadata: {updated}});
+    // The newest object sits on the LAST page — the exact case a single-page
+    // scan misread as `stale` on any bucket bigger than one page.
+    const pages = [
+      [[file("2030-01-01T00:00:00Z")], {pageToken: "p2"}],
+      [[file("2030-01-01T01:00:00Z")], {pageToken: "p3"}],
+      [[file("2030-01-02T09:00:00Z")], null],
+    ];
+    let calls = 0;
+    adminStub.__bucket = () => ({getFiles: async () => pages[calls++]});
+    const res = await probeLatestBackupObject("b", {pageSize: 1, maxPages: 10});
+    ok("every page is read", calls === 3);
+    ok("the newest mtime wins across pages",
+      res.latestUpdatedMs === Date.parse("2030-01-02T09:00:00Z"));
+    ok("scanned counts every page", res.scanned === 3);
+    ok("a completed scan is not truncated", res.truncated === false);
+  }
+  {
+    let calls = 0;
+    adminStub.__bucket = () => ({
+      getFiles: async () => { calls += 1; return [[{metadata: {updated: "2030-01-01T00:00:00Z"}}], {pageToken: `p${calls}`}]; },
+    });
+    const res = await probeLatestBackupObject("b", {pageSize: 1, maxPages: 3});
+    ok("the page cap bounds the scan", calls === 3);
+    ok("hitting the cap is reported as truncated", res.truncated === true);
+  }
+  {
+    adminStub.__bucket = () => ({getFiles: async () => [[], null]});
+    const res = await probeLatestBackupObject("b", {});
+    ok("an empty bucket yields no timestamp",
+      res.latestUpdatedMs === null && res.scanned === 0 && res.truncated === false);
   }
 
   console.log(`\n─── ${passed} assertions · all passed ───`);

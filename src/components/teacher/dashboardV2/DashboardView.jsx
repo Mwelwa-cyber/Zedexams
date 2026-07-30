@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import Sidebar from './Sidebar'
 import TopHeader from './TopHeader'
 import GreetingHero from './GreetingHero'
 import QuickCreateCard from './QuickCreateCard'
@@ -7,28 +6,29 @@ import AiRecommendationsCard from './AiRecommendationsCard'
 import RecentDocumentsCard from './RecentDocumentsCard'
 import TeacherWorkspaceSection from './TeacherWorkspaceSection'
 import { ChecklistCard, FeedStatusCard, RecentActivityCard } from './InsightCards'
-import LogoutDialog from './LogoutDialog'
 import OnboardingTour from './OnboardingTour'
 import { Toast } from './PreviewChrome'
-import useDashboardTheme from './useDashboardTheme'
 import useIsMobile from './useIsMobile'
-import MobileDashboardView from './MobileDashboardView'
+import MobileDashboardContent from './MobileDashboardView'
 import ensureDashboardFonts from './dashboardFonts'
 import './dashboardV2.css'
 
 ensureDashboardFonts()
 
 /**
- * Presentational shell for Teacher Dashboard V2 — shared by the live
- * /teacher dashboard (real data) and /teacher/dashboard-preview (mock data).
- * Owns only page-level chrome state (logout dialog, toast); everything
+ * Teacher Dashboard V2 page CONTENT — shared by the live /teacher dashboard
+ * (real data) and /teacher/dashboard-preview (mock data). Everything
  * rendered comes from props.
  *
- * renderExtras({ openLogout, showToast }) lets the preview page mount its
- * banner + control panel with access to the same chrome controls.
+ * This used to be the dashboard's own shell: it mounted its own Sidebar, its
+ * own mobile header/drawer/dock and its own logout dialog, which is what made
+ * the teacher area two shells wearing the same components. All of that now
+ * comes from TeacherLayout, and this renders only the page.
+ *
+ * renderExtras({ showToast }) lets the preview page mount its banner +
+ * control panel with access to the same toast.
  */
 export default function DashboardView({
-  teacher,
   termChip,
   hero = null,
   greeting,
@@ -44,16 +44,13 @@ export default function DashboardView({
   activity,
   loading = false,
   onRetryFeed,
-  onConfirmLogout,
   banner = null,
   renderExtras,
 }) {
-  const [logoutOpen, setLogoutOpen] = useState(false)
   const [toast, setToast] = useState(null)
   const toastTimer = useRef(null)
   const workspaceRef = useRef(null)
   const [allToolsOpen, setAllToolsOpen] = useState(false)
-  const { dark, toggleTheme } = useDashboardTheme()
 
   // Quick Create's "View all teacher tools" expands the workspace's extra
   // tools and brings the section into view — the tools live on this page,
@@ -70,18 +67,17 @@ export default function DashboardView({
   }, [])
   useEffect(() => () => clearTimeout(toastTimer.current), [])
 
-  const openLogout = useCallback(() => setLogoutOpen(true), [])
   const isMobile = useIsMobile()
 
-  // Below 768px the dashboard swaps to its dedicated mobile information
-  // architecture — own header, drawer, bottom nav — never the desktop
-  // sidebar squeezed down. Page-level chrome (logout dialog, toast,
-  // preview extras) is shared between the two layouts.
+  // Below 768px the dashboard swaps to a dedicated mobile information
+  // architecture — hero, compact checklist, app-style tool tiles — rather
+  // than the desktop cards squeezed down. This is a CONTENT decision; the
+  // navigation around it is TeacherLayout's either way, which is why the
+  // swap no longer drags a second header, drawer and dock along with it.
   if (isMobile) {
     return (
-      <div className={`tdv2 tdv2-is-mobile ${dark ? 'is-dark' : ''}`}>
-        <MobileDashboardView
-          teacher={teacher}
+      <>
+        <MobileDashboardContent
           greeting={greeting}
           hero={hero}
           recommendations={recommendations}
@@ -89,36 +85,17 @@ export default function DashboardView({
           launcherWarnings={launcherWarnings}
           checklist={checklist}
           loading={loading}
-          dark={dark}
-          onToggleTheme={toggleTheme}
-          onRequestLogout={openLogout}
           banner={banner}
         />
-        {logoutOpen ? (
-          <LogoutDialog
-            onCancel={() => setLogoutOpen(false)}
-            onConfirm={() => {
-              setLogoutOpen(false)
-              onConfirmLogout({ showToast })
-            }}
-          />
-        ) : null}
         <Toast toast={toast} />
         <OnboardingTour isMobile loading={loading} />
-        {renderExtras ? renderExtras({ openLogout, showToast }) : null}
-      </div>
+        {renderExtras ? renderExtras({ showToast }) : null}
+      </>
     )
   }
 
   return (
-    <div className={`tdv2 ${dark ? 'is-dark' : ''}`}>
-      <Sidebar
-        teacher={teacher}
-        onRequestLogout={openLogout}
-        dark={dark}
-        onToggleTheme={toggleTheme}
-      />
-
+    <>
       <div className="tdv2-main">
         <TopHeader termChip={termChip} />
         <main className="tdv2-content">
@@ -155,19 +132,9 @@ export default function DashboardView({
         </main>
       </div>
 
-      {logoutOpen ? (
-        <LogoutDialog
-          onCancel={() => setLogoutOpen(false)}
-          onConfirm={() => {
-            setLogoutOpen(false)
-            onConfirmLogout({ showToast })
-          }}
-        />
-      ) : null}
-
       <Toast toast={toast} />
       <OnboardingTour loading={loading} />
-      {renderExtras ? renderExtras({ openLogout, showToast }) : null}
-    </div>
+      {renderExtras ? renderExtras({ showToast }) : null}
+    </>
   )
 }

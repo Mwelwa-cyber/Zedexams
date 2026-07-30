@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { resolveGreeting } from './dashboardV2Core'
 import DashboardView from './DashboardView'
@@ -24,7 +23,6 @@ import {
  * and (outside production builds) the interaction-state control panel.
  */
 export default function TeacherDashboardV2() {
-  const navigate = useNavigate()
   const [greetingOverride, setGreetingOverride] = useState(null)
   const [ctaState, setCtaState] = useState('default')
 
@@ -60,7 +58,6 @@ export default function TeacherDashboardV2() {
       />
       <PreviewBanner />
       <DashboardView
-        teacher={TEACHER}
         termChip={TERM_CHIP}
         hero={HERO}
         greeting={greeting}
@@ -74,18 +71,13 @@ export default function TeacherDashboardV2() {
         feed={FEED_ITEMS}
         activity={ACTIVITY_ITEMS}
         onRetryFeed={({ showToast }) => showToast('error', 'Still couldn’t save — check your connection.')}
-        onConfirmLogout={({ showToast }) => {
-          showToast('success', 'Signed out (preview only — no real session ended).')
-          navigate('/login')
-        }}
-        renderExtras={({ openLogout, showToast }) => (
+        renderExtras={({ showToast }) => (
           <PreviewControlPanel
             greetingOverride={greetingOverride}
             onGreetingOverride={setGreetingOverride}
             ctaState={ctaState}
             onCtaState={setCtaState}
             onShowErrorToast={() => showToast('error', 'Couldn’t save changes. Check your connection.')}
-            onOpenLogout={openLogout}
           />
         )}
       />
