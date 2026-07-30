@@ -109,10 +109,13 @@ function mapQuestionFields(question, fields, fn) {
   for (const field of fields) {
     path = field.path;
     if (!path.includes("[") && !path.includes(".")) {
-      // Any direct string field — prompt/answer/markingGuide/solution on an
-      // assessment question, text/question/explanation/workingNotes on the
-      // other tools'. The path IS the property name, so a new tool's field
-      // list needs no new branch here.
+      // A direct string field: the path IS the property name. This is not a
+      // wildcard over the question — only paths a tool EXPLICITLY lists in
+      // its field subset (QUIZ_EDITOR_FIELDS, WORKSHEET_FIELDS, …) ever reach
+      // here, so an unlisted field like a future `teacherComment` is never
+      // touched. A new tool whose fields are all direct properties needs no
+      // new branch; a NESTED field (metadata.title) would need one, exactly
+      // as parts[]/statements[] did.
       apply(question, path);
     } else if (path === "options[]") {
       if (Array.isArray(question.options)) {

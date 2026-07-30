@@ -259,13 +259,15 @@ async function runQuiz({uid, rawInputs, apiKey}) {
 
   const validation = validateQuiz(mergedInput);
   const quiz = validation.value;
-  // Notation floor (Phase 5). This tool's document renders as PLAIN STRINGS
-  // in the library, so unlike the quiz editor it gets the FLOOR ONLY: markup
-  // the model emits under the shared notation block ($x^2$, \frac{3}{5},
-  // [[vmath]]) is converted to clean readable plain text, and plain maths is
-  // left alone. Running the repair stage here would turn "3/5" INTO markup a
-  // plain-string view cannot draw — the exact page-level defect the ladder
-  // exists to prevent. String work only, no model calls.
+  // Notation handling (Phase 5). For THIS tool the floor is the whole
+  // ladder, by design and not as a fallback: the quiz document renders as
+  // plain strings in the library, a destination that cannot draw markup. So
+  // the valid markup the shared prompt block asks the model for ($x^2$,
+  // \frac{3}{5}, [[vmath]]) is deliberately converted to clean readable
+  // plain text on arrival, and plain maths is left alone. Running the repair
+  // stage here would turn "3/5" INTO markup a plain-string view prints
+  // verbatim — the exact page-level defect the ladder exists to prevent.
+  // String work only, no model calls.
   try {
     const {flattenMarkupToPlainText, QUIZ_DOC_FIELDS} =
       require("./notationEnforcement");

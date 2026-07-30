@@ -17,7 +17,9 @@ const {subjectNameForGrade} = require("./subjectNaming");
 const {MATHS_NOTATION_BLOCK} = require("./notationPromptBlock");
 
 // v3 (edited in place): the only change is the shared MATHS NOTATION block
-// joining the user prompt — see worksheetPrompt.js for why in place.
+// joining the user prompt. Edited in place because the version string is
+// what aiGenerations records, and a full file copy existing only to carry
+// one shared block is the duplication the block ends.
 const PROMPT_VERSION = "homework.v3";
 
 const SYSTEM_PROMPT_CBC = `You are an expert Zambian teacher setting HOMEWORK — short take-home practice a learner does independently, aligned to the 2023 Competency-Based Curriculum (CBC).

@@ -29,7 +29,10 @@ const { MATHS_NOTATION_BLOCK } = require('../functions/teacherTools/notationProm
 // prompt cannot be REQUIRED under a root install. Its wiring is asserted by
 // source scan instead — the same idiom neutrality.test.js uses, and honest
 // here because the thing under test is "the block reaches the prompt", which
-// is a property of the source.
+// is a property of the source. Known hazard: if buildQuizMessages moves to
+// another file, the scan of aiService.js would stop seeing it — the require
+// assertion below fails in that case (the require moves with the function),
+// which is what keeps the failure loud rather than silent.
 import { readFileSync } from 'node:fs'
 const AI_SERVICE_SRC = readFileSync(new URL('../functions/aiService.js', import.meta.url), 'utf8')
 

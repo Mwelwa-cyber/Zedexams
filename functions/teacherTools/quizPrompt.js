@@ -11,7 +11,9 @@ const {subjectNameForGrade} = require("./subjectNaming");
 const {MATHS_NOTATION_BLOCK} = require("./notationPromptBlock");
 
 // v2 (edited in place): the only change is the shared MATHS NOTATION block
-// joining the user prompt — see worksheetPrompt.js for why in place.
+// joining the user prompt. Edited in place because the version string is
+// what aiGenerations records, and a full file copy existing only to carry
+// one shared block is the duplication the block ends.
 const PROMPT_VERSION = "quiz.v2";
 
 const SYSTEM_PROMPT = `You are an expert Zambian teacher writing a short formative QUIZ for the Competence-Based Curriculum (CBC).

@@ -1173,7 +1173,8 @@ export default function QuizRunnerV2() {
                               segments), so a segment carrying markup renders
                               through RichContent; plain segments — every
                               legacy quiz — take exactly the old path. */}
-                          {segment && (String(segment).includes('<')
+                          {/* Tag-shaped only: "x < 5" in prose stays plain. */}
+                          {segment && (/<[a-z!/]/i.test(String(segment))
                             ? <RichContent value={segment} fallback={<span>{getRichPlainText(segment)}</span>} />
                             : <span>{segment}</span>)}
                           {segIndex < statement.segments.length - 1 && (
@@ -1277,7 +1278,7 @@ export default function QuizRunnerV2() {
                       {/* A prompt may be rich (a fraction to match); RichContent
                           draws it, and a plain string renders as before. */}
                       <span className="min-w-[7rem] flex-1 text-sm font-bold text-slate-900">
-                        {typeof prompt === 'string' && !prompt.includes('<')
+                        {typeof prompt === 'string' && !/<[a-z!/]/i.test(prompt)
                           ? prompt
                           : <RichContent value={prompt} fallback={<span>{getRichPlainText(prompt)}</span>} />}
                       </span>
@@ -1300,7 +1301,7 @@ export default function QuizRunnerV2() {
                             the choice entirely. */}
                         {right.map((opt, optIndex) => (
                           <option key={optIndex} value={optIndex}>
-                            {typeof opt === 'string' && !opt.includes('<') && !opt.startsWith('{')
+                            {typeof opt === 'string' && !/<[a-z!/]/i.test(opt) && !opt.startsWith('{')
                               ? opt
                               : (getRichPlainText(opt) || `Option ${optIndex + 1}`)}
                           </option>
@@ -1403,7 +1404,7 @@ export default function QuizRunnerV2() {
                           the learner ordered blanks. Rich values render; plain
                           strings take exactly the old path. */}
                       <span className="flex-1 text-sm font-bold text-slate-900">
-                        {typeof items[itemIndex] === 'string' && !String(items[itemIndex]).includes('<')
+                        {typeof items[itemIndex] === 'string' && !/<[a-z!/]/i.test(String(items[itemIndex]))
                           ? items[itemIndex]
                           : <RichContent value={items[itemIndex]} fallback={<span>{getRichPlainText(items[itemIndex])}</span>} />}
                       </span>
