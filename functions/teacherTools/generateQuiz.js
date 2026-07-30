@@ -259,6 +259,23 @@ async function runQuiz({uid, rawInputs, apiKey}) {
 
   const validation = validateQuiz(mergedInput);
   const quiz = validation.value;
+  // Notation floor (Phase 5). This tool's document renders as PLAIN STRINGS
+  // in the library, so unlike the quiz editor it gets the FLOOR ONLY: markup
+  // the model emits under the shared notation block ($x^2$, \frac{3}{5},
+  // [[vmath]]) is converted to clean readable plain text, and plain maths is
+  // left alone. Running the repair stage here would turn "3/5" INTO markup a
+  // plain-string view cannot draw — the exact page-level defect the ladder
+  // exists to prevent. String work only, no model calls.
+  try {
+    const {flattenMarkupToPlainText, QUIZ_DOC_FIELDS} =
+      require("./notationEnforcement");
+    const {flattened} = await flattenMarkupToPlainText(quiz, {
+      subject: inputs.subject, fields: QUIZ_DOC_FIELDS,
+    });
+    if (flattened) console.info("[generateQuiz] notation floor:", {flattened});
+  } catch (err) {
+    console.error("[generateQuiz] notation floor failed", err);
+  }
   const sourcing = {
     fromBank: sourced.fromBank,
     generated: quiz.questions.length - sourced.fromBank,

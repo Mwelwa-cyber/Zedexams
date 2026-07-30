@@ -1980,13 +1980,40 @@ exports.generateQuizQuestions = onCall(
       track: {uid: request.auth.uid, tool: "generateQuizQuestions"},
     });
 
+    const parsedQuestions = parseGeneratedQuiz(raw, topic, {
+      topic,
+      subject,
+      grade,
+      subtopic,
+    });
+    // The notation ladder (Phase 5): mechanically repair computer-style maths
+    // ("3/5", "x^2") into the markup the quiz editor renders as real stacked
+    // fractions via importRichText, then floor anything still broken to clean
+    // plain text — a teacher may meet unformatted maths, never raw markup.
+    // A short_answer's answer key is not in QUIZ_EDITOR_FIELDS: it is compared
+    // against what a learner types, so it stays exactly as generated.
+    // String work only — no model calls, no change to the usage charge.
+    try {
+      const {enforceNotation, applyPlainTextFloor, QUIZ_EDITOR_FIELDS} =
+        require("./teacherTools/notationEnforcement");
+      const notationOpts = {subject, fields: QUIZ_EDITOR_FIELDS};
+      const report = await enforceNotation(parsedQuestions, notationOpts);
+      if (report.applied) {
+        const {flattened} = await applyPlainTextFloor(
+            parsedQuestions, notationOpts);
+        if (report.repaired || flattened) {
+          console.info("[generateQuizQuestions] notation:", {
+            repaired: report.repaired, flattened,
+            violations: report.violations.length,
+          });
+        }
+      }
+    } catch (err) {
+      console.error("[generateQuizQuestions] notation enforcement failed", err);
+    }
+
     return {
-      questions: parseGeneratedQuiz(raw, topic, {
-        topic,
-        subject,
-        grade,
-        subtopic,
-      }),
+      questions: parsedQuestions,
       warning: kbWarning || null,
     };
   },
