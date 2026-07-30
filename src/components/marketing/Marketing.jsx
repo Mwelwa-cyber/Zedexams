@@ -445,7 +445,10 @@ function LessonPlanPreview() {
             </ol>
           </div>
 
-          <p className="mt-4 border-t border-dashed border-slate-300 pt-2 text-[11px] italic text-slate-400">
+          {/* slate-500, not slate-400: this sits on the white A4 mock, where
+              slate-400 is 2.56:1 — below AA in every theme, not just the dark
+              one. slate-500 clears 4.76:1 and still reads as a footnote. */}
+          <p className="mt-4 border-t border-dashed border-slate-300 pt-2 text-[11px] italic text-slate-500">
             …materials, assessment and homework continue on the printable page
           </p>
         </div>

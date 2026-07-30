@@ -141,7 +141,7 @@ export default function AuthAction() {
       className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden"
       style={{
         backgroundColor: '#FDF6EC',
-        '--accent': '#C5613F',
+        '--accent': '#B44F2D',
         '--accent-bg': '#F8EADF',
         '--accent-fg': '#83372C',
       }}
@@ -162,13 +162,13 @@ export default function AuthAction() {
       <div className="bg-white rounded-[18px] shadow-xl w-full max-w-[400px] sm:max-w-[520px] px-8 pt-9 pb-8 animate-scale-in relative z-10">
         <div className="flex flex-col items-center mb-2.5 gap-1">
           <Logo variant="full" size="md" />
-          <p className="text-[12px] text-[#999] font-body">Practise smart.</p>
+          <p className="text-[12px] text-[#6E7280] font-body">Practise smart.</p>
         </div>
 
         {status === 'loading' && (
           <div className="text-center py-10">
             <h2 className="text-[20px] font-bold text-[#1A1F2E]">Verifying your link…</h2>
-            <p className="text-[13px] text-[#888] mt-2">One moment while ZedExams checks this email link.</p>
+            <p className="text-[13px] text-[#6E7280] mt-2">One moment while ZedExams checks this email link.</p>
           </div>
         )}
 
@@ -176,7 +176,7 @@ export default function AuthAction() {
           <div className="animate-slide-up">
             <div className="text-center mb-6">
               <h2 className="text-[20px] font-bold text-[#1A1F2E]">Set a new password</h2>
-              <p className="text-[13px] text-[#888] mt-1">
+              <p className="text-[13px] text-[#6E7280] mt-1">
                 {accountEmail ? <>For <span className="font-semibold text-[#1A1F2E]">{accountEmail}</span></> : 'Enter your new password below.'}
               </p>
             </div>
@@ -243,7 +243,7 @@ export default function AuthAction() {
             {mode === 'resetPassword' && (
               <>
                 <h2 className="text-[20px] font-bold text-[#1A1F2E]">Password updated</h2>
-                <p className="text-[13px] text-[#888] mt-2">
+                <p className="text-[13px] text-[#6E7280] mt-2">
                   You can now sign in to ZedExams with your new password.
                 </p>
               </>
@@ -251,7 +251,7 @@ export default function AuthAction() {
             {mode === 'verifyEmail' && (
               <>
                 <h2 className="text-[20px] font-bold text-[#1A1F2E]">Email verified</h2>
-                <p className="text-[13px] text-[#888] mt-2">
+                <p className="text-[13px] text-[#6E7280] mt-2">
                   {auth.currentUser
                     ? <>Thanks for confirming {accountEmail || 'your email address'}. You&apos;re all set.</>
                     : <>Thanks for confirming {accountEmail || 'your email address'}. You can now sign in to ZedExams.</>}
@@ -261,7 +261,7 @@ export default function AuthAction() {
             {mode === 'recoverEmail' && (
               <>
                 <h2 className="text-[20px] font-bold text-[#1A1F2E]">Email change reverted</h2>
-                <p className="text-[13px] text-[#888] mt-2">
+                <p className="text-[13px] text-[#6E7280] mt-2">
                   Your ZedExams sign-in email has been restored to {accountEmail || 'the previous address'}.
                 </p>
               </>
@@ -283,8 +283,8 @@ export default function AuthAction() {
         {status === 'error' && (
           <div className="text-center py-6 animate-slide-up">
             <h2 className="text-[20px] font-bold text-[#1A1F2E]">Something went wrong</h2>
-            <p className="text-[13px] text-[#888] mt-2">{error}</p>
-            <p className="text-[12.5px] text-[#888] mt-4">
+            <p className="text-[13px] text-[#6E7280] mt-2">{error}</p>
+            <p className="text-[12.5px] text-[#6E7280] mt-4">
               <Link to="/login" className="text-[var(--accent)] font-semibold hover:underline">
                 Back to sign in
               </Link>

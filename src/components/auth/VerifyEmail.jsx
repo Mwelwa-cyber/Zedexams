@@ -127,7 +127,7 @@ export default function VerifyEmail() {
       className="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-y-auto"
       style={{
         backgroundColor: '#FDF6EC',
-        '--accent': '#C5613F',
+        '--accent': '#B44F2D',
         '--accent-bg': '#F8EADF',
         '--accent-fg': '#83372C',
       }}
@@ -148,7 +148,7 @@ export default function VerifyEmail() {
       <div className="bg-white rounded-[18px] shadow-xl w-full max-w-[calc(100vw-2rem)] sm:max-w-[520px] px-5 sm:px-8 pt-9 pb-8 animate-scale-in relative z-10">
         <div className="flex flex-col items-center mb-2.5 gap-1">
           <Logo variant="full" size="md" />
-          <p className="text-[12px] text-[#999] font-body">Practise smart.</p>
+          <p className="text-[12px] text-[#6E7280] font-body">Practise smart.</p>
         </div>
 
         <div className="text-center mb-6 animate-slide-up">
@@ -156,7 +156,7 @@ export default function VerifyEmail() {
             <span aria-hidden="true" className="text-2xl">✉️</span>
           </div>
           <h1 className="text-[20px] font-bold text-[#1A1F2E]">Verify your email</h1>
-          <p className="text-[13px] text-[#888] mt-2 leading-relaxed">
+          <p className="text-[13px] text-[#6E7280] mt-2 leading-relaxed">
             We sent a verification link to
             {' '}
             <span className="font-semibold text-[#1A1F2E] break-all">
@@ -164,7 +164,7 @@ export default function VerifyEmail() {
             </span>
             .
           </p>
-          <p className="text-[13px] text-[#888] mt-2 leading-relaxed">
+          <p className="text-[13px] text-[#6E7280] mt-2 leading-relaxed">
             Open the email and click the link, then come back here. If you
             can&apos;t find it, check your <strong>spam or junk</strong> folder.
           </p>
@@ -224,7 +224,7 @@ export default function VerifyEmail() {
             type="button"
             onClick={handleSignOut}
             disabled={busy}
-            className="text-[#888] font-semibold hover:underline bg-transparent shadow-none p-0 min-h-0 disabled:opacity-50"
+            className="text-[#6E7280] font-semibold hover:underline bg-transparent shadow-none p-0 min-h-0 disabled:opacity-50"
           >
             Sign out
           </button>

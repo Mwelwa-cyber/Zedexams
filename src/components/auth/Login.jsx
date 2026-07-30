@@ -298,7 +298,7 @@ export default function Login() {
       className="min-h-screen flex items-start sm:items-center justify-center px-4 py-6 sm:p-8 overflow-y-auto"
       style={{
         backgroundColor: '#FFF8F1',
-        '--accent': '#CA5837',
+        '--accent': '#B44F2D',
         '--accent-text': '#FFFFFF',
         '--accent-bg': '#FFF3EA',
         '--accent-fg': '#83372C',
@@ -333,7 +333,7 @@ export default function Login() {
 
             <div className="text-center mb-6">
               <h2 className="text-[24px] font-bold text-[#111827]">Reset password</h2>
-              <p className="text-[15px] text-[#8B8F9C] mt-1">Enter your email and we'll send you a reset link.</p>
+              <p className="text-[15px] text-[#6E7280] mt-1">Enter your email and we'll send you a reset link.</p>
             </div>
 
             {resetSuccess ? (
@@ -397,7 +397,7 @@ export default function Login() {
           <>
             <div className="text-center mt-3 mb-6">
               <h1 className="text-[30px] sm:text-[32px] font-bold text-[#111827] tracking-tight">Welcome back</h1>
-              <p className="text-[17px] sm:text-[18px] text-[#8B8F9C] mt-1">Sign in to your account</p>
+              <p className="text-[17px] sm:text-[18px] text-[#6E7280] mt-1">Sign in to your account</p>
             </div>
 
             {sessionExpired && (
@@ -418,7 +418,7 @@ export default function Login() {
                 />
               )}
               {passkeysEnabled && !passkeySupported && (
-                <p className="text-[13px] text-[#8B8F9C] text-center">
+                <p className="text-[13px] text-[#6E7280] text-center">
                   Passkeys are not supported on this browser. Use Google or your password to sign in.
                 </p>
               )}
@@ -485,7 +485,7 @@ export default function Login() {
                     type="button"
                     onClick={() => setShowPw(v => !v)}
                     onMouseDown={e => e.preventDefault()}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-11 h-11 rounded-xl text-[#8B8F9C] hover:text-[#111827] transition-colors bg-transparent shadow-none p-0 min-h-0"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-11 h-11 rounded-xl text-[#6E7280] hover:text-[#111827] transition-colors bg-transparent shadow-none p-0 min-h-0"
                     aria-label={showPw ? 'Hide password' : 'Show password'}
                     aria-pressed={showPw}
                   >
@@ -522,7 +522,7 @@ export default function Login() {
           </>
         )}
 
-        <p className="text-center text-[15px] text-[#8B8F9C] mt-6">
+        <p className="text-center text-[15px] text-[#6E7280] mt-6">
           New to ZedExams?{' '}
           <Link
             to="/register"
