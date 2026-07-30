@@ -15,7 +15,7 @@ import assert from 'node:assert'
 import {
   parseArgs, planProvision, buildLifecycleConfig, stsServiceAgent,
   runtimeServiceAccount, scheduleStartsRfc3339, classifyStepResult,
-  resolveProjectNumber,
+  resolveProjectNumber, unknownFlags, validateServiceAccountEmail,
 } from './provision-storage-backup.mjs'
 
 let passed = 0
@@ -172,6 +172,48 @@ console.log('\nprovision-storage-backup (project number)')
     resolveProjectNumber('p', () => ({error: new Error('ENOENT')})) === '')
   ok('a failed lookup yields no number',
     resolveProjectNumber('p', () => ({status: 1, stdout: ''})) === '')
+}
+
+console.log('\nprovision-storage-backup (argument hygiene)')
+{
+  ok('the documented flags are accepted',
+    unknownFlags(['--live', '--location=us-central1', '--project-number=1',
+      '--runtime-sa=a@b.iam.gserviceaccount.com', '--noncurrent-days=90']).length === 0)
+  // A dropped flag reads exactly like success from the operator's side: the
+  // script prints a plan and provisions — just not where they asked.
+  ok('a typo is refused, not silently ignored',
+    unknownFlags(['--locaton=us-central1']).join() === '--locaton=us-central1')
+  ok('a bare flag used as a value flag is refused',
+    unknownFlags(['--location']).length === 1)
+  ok('a value flag used bare is refused', unknownFlags(['--live=yes']).length === 1)
+  ok('non-flag arguments are left alone', unknownFlags(['live', 'x']).length === 0)
+}
+
+console.log('\nprovision-storage-backup (--runtime-sa)')
+{
+  // Not a privilege boundary — --live already needs roles/storage.admin, which
+  // can grant any binding directly. This catches the MISTAKE: a value that is
+  // not a service account would be bound under a `serviceAccount:` prefix to
+  // the bucket holding every backed-up upload.
+  ok('the default compute SA is accepted',
+    validateServiceAccountEmail('123456-compute@developer.gserviceaccount.com').ok)
+  // The hardened setup — a dedicated runtime SA — is exactly who needs the flag,
+  // so it must NOT be pinned to the default compute address.
+  ok('a dedicated runtime SA is accepted',
+    validateServiceAccountEmail('functions-runtime@examsprepzambia.iam.gserviceaccount.com').ok)
+  ok('the App Engine default SA is accepted',
+    validateServiceAccountEmail('examsprepzambia@appspot.gserviceaccount.com').ok)
+  ok('a human address is refused',
+    validateServiceAccountEmail('mahengamwelwa@gmail.com').ok === false)
+  ok('a look-alike domain is refused',
+    validateServiceAccountEmail('sa@evil-gserviceaccount.com').ok === false)
+  ok('a non-Google domain is refused',
+    validateServiceAccountEmail('attacker@evil.com').ok === false)
+  ok('an empty value is refused', validateServiceAccountEmail('').ok === false)
+  ok('a refusal says why', /service-account/.test(
+    validateServiceAccountEmail('x@evil.com').reason))
+  ok('a rejected value still parses (main owns the exit)',
+    parseArgs(['--runtime-sa=x@evil.com']).runtimeServiceAccount === 'x@evil.com')
 }
 
 console.log(`\n─── ${passed} assertions · all passed ───`)

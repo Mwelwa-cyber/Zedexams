@@ -43,6 +43,28 @@
  *   node scripts/provision-storage-backup.mjs --live                # provision
  *   node scripts/provision-storage-backup.mjs --location=us-central1 --live
  *
+ * FLAGS (an unrecognised --flag is refused, so a typo can't silently fall back
+ * to a default — `--locaton=x` would otherwise provision in europe-west1):
+ *   --live                 actually run the commands (default: print only)
+ *   --project=             GCP project            (default examsprepzambia)
+ *   --project-number=      skip the gcloud lookup for the SA email suffixes
+ *   --source-bucket=       bucket to mirror FROM  (default the live Storage bucket)
+ *   --backup-bucket=       bucket to mirror TO    (default zedexams-storage-backup)
+ *   --location=            backup bucket region   (default europe-west1)
+ *   --job-name=            STS job name           (default zedexams-storage-mirror)
+ *   --schedule-utc=HH:MM   daily transfer start   (default 00:30 UTC)
+ *   --noncurrent-days=     non-current version retention (default 30)
+ *   --runtime-sa=          the Cloud Functions runtime SA that must be able to
+ *                          LIST the backup bucket, when the project does not use
+ *                          the default <PROJECT_NUMBER>-compute SA. This flag
+ *                          decides who gets read access to every backed-up
+ *                          object, so it must be a SERVICE ACCOUNT address and a
+ *                          non-default value is echoed for confirmation before
+ *                          any binding is applied. It grants nothing the caller
+ *                          could not already grant directly — running --live
+ *                          requires roles/storage.admin — but a wrong value here
+ *                          is a quiet mistake, and quiet is the problem.
+ *
  * --live needs `gcloud` on PATH, authenticated as a principal holding
  * roles/storage.admin + roles/storagetransfer.admin + roles/serviceusage.
  * serviceUsageAdmin on the project.
@@ -73,6 +95,63 @@ const DEFAULT_JOB_NAME = 'zedexams-storage-mirror'
 // 00:30 UTC = 02:30 Lusaka, comfortably before the 04:00 Lusaka health check.
 const DEFAULT_SCHEDULE_UTC = '00:30'
 const DEFAULT_NONCURRENT_DAYS = 30
+
+// Every flag the script understands. Anything else is refused rather than
+// ignored: a silently-dropped `--locaton=us-central1` provisions the backup in
+// the default region and reads, from the operator's side, exactly like success.
+const VALUE_FLAGS = Object.freeze([
+  'project', 'project-number', 'source-bucket', 'backup-bucket', 'location',
+  'job-name', 'schedule-utc', 'noncurrent-days', 'runtime-sa',
+])
+const BARE_FLAGS = Object.freeze(['live'])
+
+/**
+ * Flags the script does not understand. Pure — returned rather than thrown so
+ * the test can assert the list and main() owns the exit.
+ * @param {string[]} argv
+ * @returns {string[]}
+ */
+export function unknownFlags(argv = []) {
+  return argv.filter((a) => String(a).startsWith('--')).filter((a) => {
+    const name = String(a).slice(2).split('=')[0]
+    return a.includes('=') ? !VALUE_FLAGS.includes(name) : !BARE_FLAGS.includes(name)
+  })
+}
+
+/**
+ * Reject anything that is not a Google SERVICE ACCOUNT address before it can be
+ * handed to `add-iam-policy-binding` under a `serviceAccount:` prefix.
+ *
+ * This is not a privilege boundary — `--live` already requires
+ * roles/storage.admin, and anyone holding that can grant any binding directly
+ * with one gcloud command. What it prevents is a MISTAKE: a human address or a
+ * group typed here would be prefixed `serviceAccount:` and either fail
+ * confusingly or, worse, bind a principal nobody intended to the bucket holding
+ * every backed-up upload and past paper.
+ *
+ * Deliberately NOT pinned to `<PROJECT_NUMBER>-compute@developer...`: a project
+ * running its functions under a dedicated runtime SA is the normal hardened
+ * setup, and that is exactly who needs this flag.
+ *
+ * @param {string} email
+ * @returns {{ok: true}|{ok: false, reason: string}}
+ */
+export function validateServiceAccountEmail(email) {
+  const value = String(email || '').trim()
+  if (!value) return {ok: false, reason: 'empty'}
+  if (!/^[a-z0-9][a-z0-9-]{4,29}@[a-z0-9-]+\.iam\.gserviceaccount\.com$/.test(value) &&
+      !/^\d+-compute@developer\.gserviceaccount\.com$/.test(value) &&
+      !/^[a-z0-9-]+@appspot\.gserviceaccount\.com$/.test(value)) {
+    return {
+      ok: false,
+      reason: 'not a Google service-account address (expected ' +
+        '<name>@<project>.iam.gserviceaccount.com, ' +
+        '<number>-compute@developer.gserviceaccount.com or ' +
+        '<project>@appspot.gserviceaccount.com)',
+    }
+  }
+  return {ok: true}
+}
 
 /** Parse argv into a plain options object. Pure. */
 export function parseArgs(argv = []) {
@@ -311,7 +390,24 @@ function quote(argv) {
 }
 
 async function main(argv) {
+  const unknown = unknownFlags(argv)
+  if (unknown.length) {
+    console.error(`Unrecognised flag(s): ${unknown.join(', ')}`)
+    console.error('Run with no arguments to see the dry-run plan, or read the')
+    console.error('FLAGS block at the top of scripts/provision-storage-backup.mjs.')
+    return 1
+  }
+
   const opts = parseArgs(argv)
+
+  if (opts.runtimeServiceAccount) {
+    const verdict = validateServiceAccountEmail(opts.runtimeServiceAccount)
+    if (!verdict.ok) {
+      console.error(`--runtime-sa=${opts.runtimeServiceAccount} is ${verdict.reason}.`)
+      console.error('This value receives READ access to every backed-up object; refusing.')
+      return 1
+    }
+  }
 
   let projectNumber = opts.projectNumber
   if (!projectNumber) projectNumber = resolveProjectNumber(opts.project)
@@ -326,7 +422,22 @@ async function main(argv) {
   console.log(`  project         ${opts.project}${projectNumber ? ` (#${projectNumber})` : ' (project number UNRESOLVED — is gcloud installed and authenticated?)'}`)
   console.log(`  primary bucket  gs://${opts.sourceBucket}`)
   console.log(`  backup bucket   gs://${opts.backupBucket} (${opts.location})`)
-  console.log(`  mode            ${opts.live ? 'LIVE — commands will run' : 'DRY RUN — nothing will run'}\n`)
+  console.log(`  mode            ${opts.live ? 'LIVE — commands will run' : 'DRY RUN — nothing will run'}`)
+
+  // A non-default runtime SA is legitimate (a hardened project runs functions
+  // under a dedicated one) but it decides who can read every backed-up object,
+  // so it is never applied silently — it is named back before step 1 runs.
+  const resolvedRuntimeSa = runtimeServiceAccount(projectNumber, opts.runtimeServiceAccount)
+  const defaultRuntimeSa = runtimeServiceAccount(projectNumber, '')
+  if (resolvedRuntimeSa !== defaultRuntimeSa) {
+    console.log(`\n  ⚠️  NON-DEFAULT runtime service account — this principal will be`)
+    console.log(`      granted roles/storage.objectViewer on gs://${opts.backupBucket},`)
+    console.log('      i.e. read access to every backed-up upload, export and past paper:')
+    console.log(`        ${resolvedRuntimeSa}`)
+    console.log(`      (the default for this project is ${defaultRuntimeSa})`)
+    console.log('      Ctrl-C now if that is not the Cloud Functions runtime SA.')
+  }
+  console.log('')
 
   if (!projectNumber) {
     console.log('  ⚠️  Without the project number the IAM bindings below carry a')
