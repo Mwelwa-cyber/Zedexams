@@ -1023,6 +1023,64 @@ function earthModel(p) {
   return { places, project, lon0, issues }
 }
 
+
+/* ── editable 3D solids (frustum, pyramid) ───────────────────────────────── */
+
+/**
+ * Read the numeric part of a dimension label ("15 cm" → 15), so the solid is
+ * drawn in the TRUE proportions the question states. A symbolic label ("x")
+ * has no proportion to honour and falls back to the default shape.
+ */
+function dimOf(value, fallback) {
+  const m = /-?\d+(\.\d+)?/.exec(String(value ?? ''))
+  return m ? parseFloat(m[0]) : fallback
+}
+
+/** Dimensions + teacher-readable problems, shared by frustum and pyramid. */
+function solidDims(p) {
+  const issues = []
+  const dims = {
+    l: dimOf(p.l, 15), w: dimOf(p.w, 6), h: dimOf(p.h, 8),
+    tl: dimOf(p.tl, 10), tw: dimOf(p.tw, 4),
+  }
+  for (const [key, name] of [['l', 'base length'], ['w', 'base width'], ['h', 'height']]) {
+    if (!(dims[key] > 0)) issues.push({ field: key, message: `The ${name} must be a positive measurement, for example "15 cm".` })
+  }
+  // Only the frustum HAS a top face; its fields exist only on that entry, so
+  // the pyramid never triggers these.
+  if ('tl' in p || 'tw' in p) {
+    if (!(dims.tl > 0) || !(dims.tw > 0)) {
+      issues.push({ field: 'tl', message: 'The top face needs positive measurements, for example "10 cm".' })
+    } else if (dims.tl >= dims.l || dims.tw >= dims.w) {
+      issues.push({ field: 'tl', message: `A frustum's top face is smaller than its base — ${dims.tl} × ${dims.tw} does not fit inside ${dims.l} × ${dims.w}. Swap them, or reduce the top.` })
+    }
+  }
+  return { dims, issues }
+}
+
+/**
+ * An oblique projection of an l × w × h box, fitted to the viewBox with ONE
+ * scale factor so the stated proportions survive onto the page. `at(x, z, y)`
+ * maps a point (x along the length, z into the depth, y up) to SVG.
+ */
+function obliqueBox(l, w, h, { W, H }) {
+  const DX = 0.45, DY = 0.32
+  const scale = Math.min((W - 80) / (l + w * DX), (H - 96) / (h + w * DY))
+  const x0 = (W - (l + w * DX) * scale) / 2
+  const yBase = H - 52
+  const at = (x, z, y) => [
+    f(x0 + (x + z * DX) * scale),
+    f(yBase - (y + z * DY) * scale),
+  ]
+  return { at, base: [at(0, 0, 0), at(l, 0, 0), at(l, w, 0), at(0, w, 0)] }
+}
+
+/** One edge of a solid: solid ink for visible, dashed for hidden. */
+function edge(a, b, col, hidden, kind = 'edge') {
+  return `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${col}"`
+    + ` stroke-width="${hidden ? 1.3 : 2.1}"${hidden ? ' stroke-dasharray="5 4"' : ''} data-${kind}="${hidden ? 'hidden' : 'visible'}"/>`
+}
+
 export const DIAGRAM_CATALOG = {
   // ============ SHAPES 2D ============
   triangle: { cat: 'Shapes 2D', name: 'Triangle', defaults: { a: 'A', b: 'B', c: 'C', cap: 'Triangle ABC' }, fields: [['a', 'Vertex A'], ['b', 'Vertex B'], ['c', 'Vertex C'], ['cap', 'Caption']],
@@ -1142,6 +1200,65 @@ export const DIAGRAM_CATALOG = {
     render: (p, col) => `<svg viewBox="0 0 220 280" xmlns="http://www.w3.org/2000/svg" width="220"><line x1="110" y1="30" x2="30" y2="230" stroke="${col}" stroke-width="2"/><line x1="110" y1="30" x2="190" y2="230" stroke="${col}" stroke-width="2"/><path d="M 30,230 A 80,20 0 0,0 190,230" fill="${col}" fill-opacity=".25" stroke="${col}" stroke-width="2"/><path d="M 30,230 A 80,20 0 0,1 190,230" fill="none" stroke="${col}" stroke-width="1" stroke-dasharray="3 3"/><line x1="110" y1="30" x2="110" y2="230" stroke="${col}" stroke-width="1" stroke-dasharray="3 3"/><text x="120" y="135" font-family="Lora,serif" font-style="italic" font-size="13" fill="#3a2f25">${esc(p.h)}</text><text x="150" y="245" font-family="Lora,serif" font-style="italic" font-size="13" fill="#3a2f25">${esc(p.r)}</text></svg>` },
   sphere: { cat: 'Shapes 3D', name: 'Sphere', defaults: { r: 'r', cap: 'Sphere' }, fields: [['r', 'Radius'], ['cap', 'Caption']],
     render: (p, col) => `<svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" width="240"><circle cx="120" cy="120" r="90" fill="${col}" fill-opacity=".15" stroke="${col}" stroke-width="2"/><ellipse cx="120" cy="120" rx="90" ry="25" fill="none" stroke="${col}" stroke-width="1" stroke-dasharray="3 3"/><line x1="120" y1="120" x2="210" y2="120" stroke="${col}" stroke-width="1.6" stroke-dasharray="4 3"/><circle cx="120" cy="120" r="3" fill="#1c1612"/><text x="160" y="113" font-family="Lora,serif" font-style="italic" font-size="13" fill="#3a2f25">${esc(p.r)}</text></svg>` },
+
+
+  pyramid: { cat: 'Shapes 3D', name: 'Pyramid (rectangular base)',
+    defaults: { l: '15 cm', w: '6 cm', h: '8 cm', notToScale: 'yes', cap: 'Rectangular-based pyramid' },
+    fields: [['l', 'Base length'], ['w', 'Base width'], ['h', 'Perpendicular height'], ['notToScale', 'Print "Diagram not drawn to scale" (yes/no)'], ['cap', 'Caption']],
+    validate: (p) => solidDims(p).issues,
+    render: (p, col) => {
+      const W = 340, H = 300
+      const { l, w, h } = solidDims(p).dims
+      const box = obliqueBox(l, w, h, { W, H })
+      const [A, B, C, D] = box.base
+      const apex = box.at(l / 2, w / 2, h)
+      const centre = box.at(l / 2, w / 2, 0)
+      let out = ''
+      // Base: front and right edges visible, back and left hidden.
+      out += edge(A, B, col, false) + edge(B, C, col, false)
+      out += edge(C, D, col, true) + edge(D, A, col, true)
+      for (const [corner, hidden] of [[A, false], [B, false], [C, false], [D, true]]) {
+        out += edge(corner, apex, col, hidden, 'slant')
+      }
+      out += edge(centre, apex, INK, true, 'height')
+      out += label((A[0] + B[0]) / 2, A[1] + 20, p.l, { size: 13, weight: '600', italic: true, fill: SOFT_INK })
+      out += label((B[0] + C[0]) / 2 + 20, (B[1] + C[1]) / 2 + 6, p.w, { size: 13, weight: '600', italic: true, anchor: 'start', fill: SOFT_INK })
+      out += label(centre[0] + 8, (centre[1] + apex[1]) / 2, p.h, { size: 13, weight: '600', italic: true, anchor: 'start', fill: SOFT_INK })
+      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="${W}">${out}${notToScaleNote(W, H, isYes(p.notToScale))}</svg>`
+    } },
+
+  frustum: { cat: 'Shapes 3D', name: 'Frustum (of a rectangular pyramid)',
+    defaults: { l: '15 cm', w: '6 cm', tl: '10 cm', tw: '4 cm', h: '8 cm', notToScale: 'yes', cap: 'Frustum of a rectangular pyramid' },
+    fields: [['l', 'Base length'], ['w', 'Base width'], ['tl', 'Top length'], ['tw', 'Top width'], ['h', 'Perpendicular height'], ['notToScale', 'Print "Diagram not drawn to scale" (yes/no)'], ['cap', 'Caption']],
+    validate: (p) => solidDims(p).issues,
+    render: (p, col) => {
+      const W = 340, H = 300
+      const { l, w, h, tl, tw } = solidDims(p).dims
+      const box = obliqueBox(l, w, h, { W, H })
+      const [A, B, C, D] = box.base
+      // The top rectangle is CENTRED over the base — that is what makes it a
+      // frustum of the pyramid rather than an oblique prism, and the tests
+      // measure it.
+      const ox = (l - tl) / 2, oz = (w - tw) / 2
+      const E = box.at(ox, oz, h), F = box.at(ox + tl, oz, h)
+      const G = box.at(ox + tl, oz + tw, h), Hc = box.at(ox, oz + tw, h)
+      let out = ''
+      out += edge(A, B, col, false) + edge(B, C, col, false)
+      out += edge(C, D, col, true) + edge(D, A, col, true)
+      out += edge(E, F, col, false) + edge(F, G, col, false)
+      out += edge(G, Hc, col, false) + edge(Hc, E, col, false)
+      for (const [base, top, hidden] of [[A, E, false], [B, F, false], [C, G, false], [D, Hc, true]]) {
+        out += edge(base, top, col, hidden, 'slant')
+      }
+      out += edge(box.at(l / 2, w / 2, 0), box.at(l / 2, w / 2, h), INK, true, 'height')
+      out += label((A[0] + B[0]) / 2, A[1] + 20, p.l, { size: 13, weight: '600', italic: true, fill: SOFT_INK })
+      out += label((B[0] + C[0]) / 2 + 20, (B[1] + C[1]) / 2 + 6, p.w, { size: 13, weight: '600', italic: true, anchor: 'start', fill: SOFT_INK })
+      out += label((E[0] + F[0]) / 2, E[1] - 8, p.tl, { size: 13, weight: '600', italic: true, fill: SOFT_INK })
+      out += label((F[0] + G[0]) / 2 + 16, (F[1] + G[1]) / 2, p.tw, { size: 13, weight: '600', italic: true, anchor: 'start', fill: SOFT_INK })
+      const hm = box.at(l / 2, w / 2, h / 2)
+      out += label(hm[0] + 8, hm[1] + 4, p.h, { size: 13, weight: '600', italic: true, anchor: 'start', fill: SOFT_INK })
+      return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" width="${W}">${out}${notToScaleNote(W, H, isYes(p.notToScale))}</svg>`
+    } },
 
   // ============ GRAPHS ============
   numberline: { cat: 'Graphs', name: 'Number Line', defaults: { min: '-5', max: '5', step: '1', highlight: '0', cap: 'Number line' }, fields: [['min', 'Min'], ['max', 'Max'], ['step', 'Step'], ['highlight', 'Highlight'], ['cap', 'Caption']],
