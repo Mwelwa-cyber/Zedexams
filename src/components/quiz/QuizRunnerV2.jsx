@@ -1267,7 +1267,13 @@ export default function QuizRunnerV2() {
                   const selected = Number.isInteger(response[rowIndex]) && response[rowIndex] >= 0 ? response[rowIndex] : ''
                   return (
                     <div key={rowIndex} className="flex flex-wrap items-center gap-2 rounded-2xl border-2 border-slate-900 bg-white p-3 shadow-[0_2px_0_#0F1B2D]">
-                      <span className="min-w-[7rem] flex-1 text-sm font-bold text-slate-900">{prompt}</span>
+                      {/* A prompt may be rich (a fraction to match); RichContent
+                          draws it, and a plain string renders as before. */}
+                      <span className="min-w-[7rem] flex-1 text-sm font-bold text-slate-900">
+                        {typeof prompt === 'string' && !prompt.includes('<')
+                          ? prompt
+                          : <RichContent value={prompt} fallback={<span>{getRichPlainText(prompt)}</span>} />}
+                      </span>
                       <span aria-hidden="true" className="font-black text-slate-400">→</span>
                       <select
                         value={selected}
@@ -1281,8 +1287,16 @@ export default function QuizRunnerV2() {
                         }`}
                       >
                         <option value="">— choose —</option>
+                        {/* A native <option> can only hold text, so a RICH
+                            right-hand value shows its plain projection —
+                            "1/32" — rather than the old "Option N", which hid
+                            the choice entirely. */}
                         {right.map((opt, optIndex) => (
-                          <option key={optIndex} value={optIndex}>{typeof opt === 'string' ? opt : `Option ${optIndex + 1}`}</option>
+                          <option key={optIndex} value={optIndex}>
+                            {typeof opt === 'string' && !opt.includes('<') && !opt.startsWith('{')
+                              ? opt
+                              : (getRichPlainText(opt) || `Option ${optIndex + 1}`)}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -1378,7 +1392,14 @@ export default function QuizRunnerV2() {
                       }`}
                     >
                       <span className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full border-2 border-slate-900 bg-orange-50 text-sm font-black text-slate-900">{position + 1}</span>
-                      <span className="flex-1 text-sm font-bold text-slate-900">{typeof items[itemIndex] === 'string' ? items[itemIndex] : ''}</span>
+                      {/* A rich sequence item used to render as an EMPTY string —
+                          the learner ordered blanks. Rich values render; plain
+                          strings take exactly the old path. */}
+                      <span className="flex-1 text-sm font-bold text-slate-900">
+                        {typeof items[itemIndex] === 'string' && !String(items[itemIndex]).includes('<')
+                          ? items[itemIndex]
+                          : <RichContent value={items[itemIndex]} fallback={<span>{getRichPlainText(items[itemIndex])}</span>} />}
+                      </span>
                       <div className="flex flex-shrink-0 flex-col gap-1">
                         <button
                           type="button"

@@ -100,7 +100,20 @@ function isCorrectChoice(question, optionIndex) {
   const opt = question.options?.[optionIndex]
   if (opt && typeof opt === 'object' && opt.isCorrect) return true
   if (typeof question.correctAnswer === 'string') {
-    const target = question.correctAnswer.trim().toLowerCase()
+    const raw = question.correctAnswer.trim()
+    // A single letter key ("A"–"H") names a position, not a text — matching it
+    // against option TEXT can only succeed by accident (an option that IS the
+    // letter), and for every rich-option question it succeeded never: the key
+    // matched nothing, every choice marked wrong, none highlighted correct.
+    const letterIndex = /^[A-Ha-h]$/.test(raw) ? raw.toUpperCase().charCodeAt(0) - 65 : -1
+    if (letterIndex >= 0 && letterIndex < (question.options?.length || 0)) {
+      return letterIndex === optionIndex
+    }
+    // Text key: compare plain projections of BOTH sides, because the key may
+    // be stored rich exactly as the option is ("\frac{1}{32}" vs a fraction
+    // node). Projecting only one side compares two different alphabets and
+    // fails on every maths question.
+    const target = (getRichPlainText(raw) || raw).trim().toLowerCase()
     return plainTextFromOption(opt).trim().toLowerCase() === target
   }
   return false
@@ -535,9 +548,15 @@ export default function PublicQuizRunner() {
               (bold/underline/highlight) stand out. */}
           <div className="flex items-start gap-2">
             <div className="question-text flex-1">
-              {question.textJSON
-                ? <RichContent value={question.textJSON} fallback={<p>{plainTextFromQuestion(question)}</p>} />
-                : <p>{plainTextFromQuestion(question)}</p>}
+              {/* A legacy question has no textJSON, only an HTML `text` string
+                  — which RichContent renders (it is the same value the main
+                  quiz runner renders). The old plain branch handed that HTML
+                  to getRichPlainText, which returns non-JSON strings VERBATIM,
+                  so the learner read escaped raw markup as the question. */}
+              <RichContent
+                value={question.textJSON ?? question.text ?? ''}
+                fallback={<p>{plainTextFromQuestion(question)}</p>}
+              />
             </div>
             <TextToSpeechButton
               id={`q:${currentIndex}`}
@@ -594,9 +613,12 @@ export default function PublicQuizRunner() {
                 Explanation
               </p>
               <div className="theme-text text-sm">
-                {question.explanationJSON
-                  ? <RichContent value={question.explanationJSON} fallback={<p>{getRichPlainText(question.explanation) || question.explanation}</p>} />
-                  : <p>{getRichPlainText(question.explanation) || question.explanation}</p>}
+                {/* Same shape as the stem: a legacy explanation is an HTML
+                    string, and RichContent is the renderer that can draw it. */}
+                <RichContent
+                  value={question.explanationJSON ?? question.explanation ?? ''}
+                  fallback={<p>{getRichPlainText(question.explanation) || question.explanation}</p>}
+                />
               </div>
             </div>
           )}
