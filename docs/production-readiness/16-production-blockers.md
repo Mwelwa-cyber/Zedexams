@@ -31,8 +31,8 @@ Scheduler job active-state, runtime missing-secret/env warnings.
 | **DR-002** restore rehearsal | **Runtime-verified** (27,192 docs, RTO 25m50s) | none for the Firestore restore |
 | **DR-003** Storage backup | Impl · operator config pending | provision STS mirror + `STORAGE_BACKUP_BUCKET`; confirm `opsStorageBackups=fresh` — *operator* |
 | **DR-006** secrets recovery | Impl · operator config pending | populate escrow vault; confirm Play App Signing; run recovery drill — *operator* |
-| **DR-007** same-date collision | **Blocked by CICD-002** | completion-checker cron has NO trigger (never deployed); fix the deploy-SA IAM + redeploy, then confirm `completed:true` — *operator* |
-| **CICD-002** scheduler deploy | Open residual | grant deploy SA `roles/cloudscheduler.admin` + redeploy (workflow now fails loudly on this) — *operator* |
+| **DR-007** same-date collision | Impl · staged verification pending | cron trigger now deploys (CICD-002 fixed); awaiting the nightly `opsBackups/{date}`→`completed:true` — *operator* |
+| **CICD-002** scheduler deploy | **Resolved (2026-07-29)** | deploy SA granted `roles/cloudscheduler.admin`; every scheduler trigger upserts clean in deploy `410de624` (green on attempt 1 with the guard) — the four crons now deploy |
 | **SEC-007** adm-zip/websocket | Impl · staged verification pending | valid-DOCX runtime extraction test on the deploy — *operator* |
 | **OBS-002** audit ledger | Impl · staged verification pending | confirm a failed audit write raises an alert; server-only rules = *open residual (emulator PR)* |
 | **OBS-004** alerting | Impl · operator config pending | set `OPS_ALERT_WEBHOOK_URL`; send one test alert; confirm email + webhook — *operator* |
@@ -42,12 +42,12 @@ Scheduler job active-state, runtime missing-secret/env warnings.
 **Operator runtime/governance checklist — do in this order** (protects every future PR, incl. REL-001):
 1. **B4 branch protection** — require the `Lint`, `Tests (importer+sanitize+schema)`, `Build + mobile smoke`,
    `Tests (Functions coverage)`, and both rules-emulator checks on `main`.
-2. **CICD-002 (do before the cron-based checks below — they don't fire without it):** grant the deploy SA
-   `roles/cloudscheduler.admin`; re-run `deploy-firebase`; confirm the four `firebase-schedule-*` jobs exist
-   in Cloud Scheduler (`backupCompletionCheck`, `storageBackupCheck`, `rateLimitHealthCheck`, `opsHeartbeatCheck`).
+2. ✅ **CICD-002 — DONE (2026-07-29):** deploy SA granted `roles/cloudscheduler.admin`; scheduler triggers
+   now upsert clean. Remaining: confirm the four `firebase-schedule-*` jobs in Cloud Scheduler + the
+   nightly `completed:true` (folds into DR-007 below).
 3. **DR-007** — read `opsBackups/{recent}`: `started`→`completed:true`, matching `opsBackupRuns/{correlationId}`.
-3. **OBS-004** — set `OPS_ALERT_WEBHOOK_URL`; trigger one controlled alert; confirm BOTH email + webhook arrive.
-4. **OBS-005/B3** — confirm `AI_MONTHLY_BUDGET_USD`/`AI_BUDGET_MODE` live; short-answer throttle → pending →
+4. **OBS-004** — set `OPS_ALERT_WEBHOOK_URL`; trigger one controlled alert; confirm BOTH email + webhook arrive.
+5. **OBS-005/B3** — confirm `AI_MONTHLY_BUDGET_USD`/`AI_BUDGET_MODE` live; short-answer throttle → pending →
    regrade recomputes once; large scanned import throttles with no missing/duplicate pages; limiter-health alert fires.
 5. **DR-003** — provision the cross-region Storage mirror; set `STORAGE_BACKUP_BUCKET`; confirm `opsStorageBackups=fresh`.
 6. **OBS-002** — confirm a failed audit write alerts (server-only-rules is the separate emulator follow-up).
@@ -186,7 +186,12 @@ Scheduler job active-state, runtime missing-secret/env warnings.
 - **Runtime check:** confirm `main` branch-protection required checks in GitHub settings.
 - **Fix:** add the rules-emulator + storage-rules + build jobs to required checks. **Effort:** Trivial.
 
-### B4b · CICD-002 — Deploy SA can't create Cloud Scheduler jobs; failures shipped green — **found 2026-07-22**
+### B4b · CICD-002 — Deploy SA can't create Cloud Scheduler jobs; failures shipped green — **found 2026-07-22 · RESOLVED 2026-07-29**
+- **Resolution (2026-07-29):** the deploy SA was granted `roles/cloudscheduler.admin`. Deploy `410de624`
+  then upserted **every** scheduler trigger cleanly (no 403, no `Failed to upsert schedule function`) and
+  went **green on attempt 1 with the new guard active** — proving the four crons now deploy with their
+  triggers. Residual is only the operator confirming the jobs in Cloud Scheduler + the nightly
+  `completed:true` (tracked under DR-007). The code guard below stays as the permanent regression trap.
 - **Why it matters:** "repeatable system-wide failure that ships silently." Every scheduled function's
   Cloud Scheduler **trigger** fails to upsert — the Firebase deploy service account lacks
   `cloudscheduler.jobs.create/update` (**HTTP 403** on every `firebase-schedule-*` job; deploy log for
