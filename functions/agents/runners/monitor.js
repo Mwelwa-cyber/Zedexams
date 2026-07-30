@@ -43,7 +43,13 @@ const ORIGIN = "https://zedexams.com";
 // Bound the work so an hourly run stays cheap and fast.
 const QUIZ_SAMPLE = 10;        // published quizzes to structurally validate
 const IMAGE_SAMPLE = 20;       // image URLs to HEAD-check per run
-const QUESTIONS_PER_QUIZ = 30; // cap questions read per sampled quiz
+// Ceiling on questions read per sampled quiz — a runaway-collection backstop,
+// NOT a sample. Every question of a quiz has to be read or the reported
+// question number is wrong: the report numbers a problem by its position after
+// sorting, which only equals the number an admin sees in the editor when the
+// whole collection is in hand. A 60-question past paper read 30-at-a-time
+// reported its broken question 43 as "Question 23" — see checkQuizzes.
+const MAX_QUESTIONS_PER_QUIZ = 200;
 const FETCH_TIMEOUT_MS = 8000;
 // The public origin is served through a CDN/SPA shell that can be slower than
 // a bare API call, so give the page probe a more forgiving budget than the
@@ -326,18 +332,38 @@ async function checkQuizzes(db) {
       if (checked >= QUIZ_SAMPLE) break;
       if (!doc.data()?.isPublished) continue;
       checked += 1;
-      const qs = await doc.ref.collection("questions").limit(QUESTIONS_PER_QUIZ).get().catch(() => null);
+      // Read one MORE than the ceiling so a collection that exceeds it is
+      // detectable rather than silently truncated.
+      const qs = await doc.ref.collection("questions").limit(MAX_QUESTIONS_PER_QUIZ + 1).get().catch(() => null);
+      const title = doc.data()?.title || doc.id;
       // Sort by the `order` field so "Question N" in a failure matches the
       // editor's numbering. Without this the docs arrive in document-id order,
       // so the reported question number points an admin at the wrong question.
+      //
+      // The sort is only half of it: the POSITION is the number, so the sort
+      // has to see every question. This read used to be capped at 30, which on
+      // a 60-question past paper sorted an arbitrary 30-document slice and
+      // numbered problems within the slice — quiz q2WGapKWzsxvTkIaw7mG's
+      // genuinely duplicated question 43 was reported as "Question 23", where
+      // an admin found four perfectly distinct options, concluded the checker
+      // was broken, and left the real fault in place to be re-escalated every
+      // 24h. `order` itself is NOT usable as the number: past-paper import
+      // writes it 0-based (pastPaperImportHelpers.js) while the editor writes
+      // it 1-based, so only the position is meaningful.
       const questions = qs ? qs.docs.map((d) => d.data()).sort((a, b) => (Number(a?.order ?? 0)) - (Number(b?.order ?? 0))) : [];
       if (questions.length === 0) {
-        failures.push({check: "quizzes", id: `${doc.id}:empty`, severity: "warning", message: `Published quiz "${doc.data()?.title || doc.id}" has no questions.`, ref: doc.id});
+        failures.push({check: "quizzes", id: `${doc.id}:empty`, severity: "warning", message: `Published quiz "${title}" has no questions.`, ref: doc.id});
+        continue;
+      }
+      if (questions.length > MAX_QUESTIONS_PER_QUIZ) {
+        // Past the ceiling the numbering would be wrong again. Report that the
+        // quiz went unchecked — a number nobody can act on is worse than none.
+        failures.push({check: "quizzes", id: `${doc.id}:oversized`, severity: "warning", message: `Published quiz "${title}" has more than ${MAX_QUESTIONS_PER_QUIZ} questions, so its questions were not checked.`, ref: doc.id});
         continue;
       }
       const problems = runStructuralChecks(questions);
       problems.forEach((p) => {
-        failures.push({check: "quizzes", id: `${doc.id}:${p.questionIndex}:${p.field}`, severity: "warning", message: `Quiz "${doc.data()?.title || doc.id}": ${p.message}`, ref: doc.id});
+        failures.push({check: "quizzes", id: `${doc.id}:${p.questionIndex}:${p.field}`, severity: "warning", message: `Quiz "${title}": ${p.message}`, ref: doc.id});
       });
     }
   } catch (err) {
@@ -849,6 +875,7 @@ async function notifyFailures({db, report, smtpUser, smtpPass, adminEmails, gith
 
 module.exports = {
   runMonitorChecks,
+  checkQuizzes,
   checkDailyExams,
   checkPlayBilling,
   dailyExamCheckWindow,
