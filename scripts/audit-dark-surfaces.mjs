@@ -117,6 +117,18 @@ const SURFACES = [
     html: `<div class="notes-studio" data-s><div class="notes-card" style="padding:10px" data-s>A note</div></div>`,
   },
   {
+    // The shape the neutral-vocabulary remap exists for: a page whose own
+    // background is tokenised and goes dark, carrying cards written in
+    // Tailwind literals that do not. Lifted from QuizRunnerV2.
+    id: 'runner', name: 'Quiz runner (tokenised page, literal cards)',
+    html: `<div class="theme-bg theme-text min-h-screen px-3 py-8" data-s>
+      <div class="bg-white rounded-2xl border border-slate-200 p-5" data-s>
+        <p class="text-slate-900">What is 3/4 of 20?</p>
+        <p class="text-slate-500">Question 3 of 10</p>
+        <button class="bg-slate-100 border border-slate-300 text-slate-800 px-3 py-2" data-s>A. 15</button>
+      </div></div>`,
+  },
+  {
     id: 'games', name: 'Games / quiz list',
     html: `<div class="force-light-theme" data-s><div class="bg-white p-4" data-s>
       <span class="text-slate-900">Leaderboard</span></div></div>`,
@@ -148,6 +160,7 @@ const FOLLOWS = {
   studio: 'workspace', assessment: 'workspace', lesson: 'workspace',
   syllabi: 'workspace', vstudio: 'workspace', calendar: 'either',
   shared: 'either', modal: 'either', notes: 'either', games: 'either',
+  runner: 'either',
 }
 
 const THEMES = [

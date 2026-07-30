@@ -7531,3 +7531,99 @@ body[data-a11y-dyslexia="on"] li { max-width: 66ch; }
 body[data-a11y-colorblind="protanopia"]   #root { filter: url(#cb-protanopia); }
 body[data-a11y-colorblind="deuteranopia"] #root { filter: url(#cb-deuteranopia); }
 body[data-a11y-colorblind="tritanopia"]   #root { filter: url(#cb-tritanopia); }
+
+/* ── The neutral Tailwind vocabulary, on the dark themes ───────────────────
+ *
+ * The last shape of this bug. A page's own background is tokenised — the quiz
+ * runner opens `theme-bg theme-text` and goes properly dark — while the CARDS
+ * inside it are Tailwind literals. So on Midnight the page is #0F172A and the
+ * question card is pure #FFFFFF: internally readable, and a white slab on a
+ * dark page. Roughly 270 `bg-white` across the learner surfaces do this.
+ *
+ * WHY A REMAP RATHER THAN 700 EDITS
+ * The same reasoning as the games block above, and the same failure mode if it
+ * is not done this way: converting each call site by hand is a diff nobody can
+ * review, and anything missed is a white card in a dark page, one component at
+ * a time, on a theme most reviewers are not using. One block either covers the
+ * vocabulary or it does not.
+ *
+ * The vocabulary is bounded and taken from what the learner surfaces actually
+ * use, not from Tailwind's whole neutral scale.
+ *
+ * WHAT IS DELIBERATELY ABSENT
+ * `text-white`, `bg-black`, `border-white` and `border-slate-900` — each sits
+ * on a coloured or dark fill that does not change in the dark, so remapping
+ * them would break the one thing that was already right. Same exclusion, same
+ * reason, as the games block.
+ *
+ * Opacity variants (`bg-white/70`) are separate class names and are left
+ * alone: they are translucent washes over artwork, not surfaces. */
+:is(body.theme-midnight, html[data-theme='night'] body) .bg-white { background-color: var(--card); }
+:is(body.theme-midnight, html[data-theme='night'] body) .bg-gray-50,
+:is(body.theme-midnight, html[data-theme='night'] body) .bg-slate-50,
+:is(body.theme-midnight, html[data-theme='night'] body) .bg-stone-50,
+:is(body.theme-midnight, html[data-theme='night'] body) .bg-neutral-50,
+:is(body.theme-midnight, html[data-theme='night'] body) .bg-gray-100,
+:is(body.theme-midnight, html[data-theme='night'] body) .bg-slate-100,
+:is(body.theme-midnight, html[data-theme='night'] body) .bg-neutral-100 {
+  background-color: var(--bg-subtle);
+}
+:is(body.theme-midnight, html[data-theme='night'] body) .bg-gray-200,
+:is(body.theme-midnight, html[data-theme='night'] body) .bg-slate-200,
+:is(body.theme-midnight, html[data-theme='night'] body) .bg-neutral-200 {
+  background-color: var(--card-hover);
+}
+
+:is(body.theme-midnight, html[data-theme='night'] body) .text-black,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-gray-900,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-gray-800,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-slate-900,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-slate-800,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-neutral-900,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-neutral-800 {
+  color: var(--text);
+}
+:is(body.theme-midnight, html[data-theme='night'] body) .text-gray-700,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-gray-600,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-gray-500,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-gray-400,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-slate-700,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-slate-600,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-slate-500,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-slate-400,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-neutral-700,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-neutral-600,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-neutral-500,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-neutral-400 {
+  color: var(--text-muted);
+}
+
+:is(body.theme-midnight, html[data-theme='night'] body) .border-gray-200,
+:is(body.theme-midnight, html[data-theme='night'] body) .border-gray-300,
+:is(body.theme-midnight, html[data-theme='night'] body) .border-slate-200,
+:is(body.theme-midnight, html[data-theme='night'] body) .border-slate-300,
+:is(body.theme-midnight, html[data-theme='night'] body) .border-slate-400,
+:is(body.theme-midnight, html[data-theme='night'] body) .border-neutral-100,
+:is(body.theme-midnight, html[data-theme='night'] body) .border-neutral-200,
+:is(body.theme-midnight, html[data-theme='night'] body) .border-neutral-300 {
+  border-color: var(--border);
+}
+
+/* ── …except inside the surfaces that are light ON PURPOSE ────────────────
+ * Higher specificity, so it wins over the remap above. Each of these is a
+ * picture of a printed or generated artefact, or a document-authoring canvas,
+ * and stays light in every theme — see the note on each container. Without
+ * this the remap would darken the inside of the A4 preview and the image
+ * canvas, which is the one place a dark surface is actively wrong. */
+:is(body.theme-midnight, html[data-theme='night'] body)
+  :is(.qe-page, .sv-paper, .vs-canvas, .vs-stage, .pp-sheet, .marketing-page) :is(
+    .bg-white, .bg-gray-50, .bg-slate-50, .bg-stone-50, .bg-neutral-50,
+    .bg-gray-100, .bg-slate-100, .bg-neutral-100) {
+  background-color: #ffffff;
+}
+:is(body.theme-midnight, html[data-theme='night'] body)
+  :is(.qe-page, .sv-paper, .vs-canvas, .vs-stage, .pp-sheet, .marketing-page) :is(
+    .text-black, .text-gray-900, .text-gray-800, .text-slate-900, .text-slate-800,
+    .text-neutral-900, .text-neutral-800) {
+  color: #111111;
+}
