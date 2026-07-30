@@ -147,6 +147,20 @@ Module._load = function (request, ...rest) {
       },
     };
   }
+  if (request === "../aiOperations") {
+    // generateSbaTask now reserves an operation unconditionally (Phase 6
+    // REL-001). This test is about refunds, not idempotency, so the reservation
+    // is a stateless "always created" — every run reaches the provider, which
+    // is what the refund assertions expect. The unmigrated generators in this
+    // suite (studioLessonPlan, generateNotes) don't import this module, so the
+    // stub is inert for them. Idempotency itself is proved in
+    // generateSbaTask.test.js / aiOperations.test.js.
+    return {
+      requireAndReserveAiOperation: async () => ({status: "created", operation: {}}),
+      completeAiOperation: async () => {},
+      failAiOperation: async () => {},
+    };
+  }
   return origLoad.call(this, request, ...rest);
 };
 
@@ -202,6 +216,7 @@ const GENERATORS = [
         term: "1", topic: "Fractions",
       },
       apiKey: "test-key",
+      idempotencyKey: "11111111-1111-4111-8111-111111111111",
     }),
   },
 ];

@@ -29,6 +29,8 @@ const {resolveCbcContext} = require("./cbcKnowledge");
 const {validateSbaTask} = require("./sbaTaskSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} = require("./sbaTaskPrompt");
 const {assertAndIncrement, refundGeneration} = require("./usageMeter");
+const {requireAndReserveAiOperation, completeAiOperation, failAiOperation} =
+  require("../aiOperations");
 const {
   SUBJECT_LABELS,
   GRADE_LABELS,
@@ -106,12 +108,55 @@ function validateInputs(inputs) {
   return {errs, meta};
 }
 
-async function runSbaTask({uid, rawInputs, apiKey}) {
+/**
+ * Reconstruct the client-facing response for an idempotency key that already
+ * completed (§7 — a duplicate/retried request must return the existing result,
+ * never call the provider again). Reads the persisted aiGenerations doc rather
+ * than re-deriving anything. Mirrors generateWorksheet's resume path.
+ */
+async function buildResumedSbaResponse(operation) {
+  const genId = operation.resultDocumentId;
+  const genSnap = genId ?
+    await admin.firestore().collection("aiGenerations").doc(genId).get() : null;
+  const genData = genSnap && genSnap.exists ? genSnap.data() : null;
+  return {
+    generationId: genId,
+    task: genData ? genData.output : null,
+    usage: null,
+    warning: genData && genData.status === "flagged" ?
+      "Some fields were incomplete — please review." : null,
+    kbGrounded: Boolean(genData && genData.kbVersion),
+    resumed: true,
+  };
+}
+
+async function runSbaTask({uid, rawInputs, apiKey, idempotencyKey}) {
   const inputs = sanitizeInputs(rawInputs || {});
   const {errs, meta} = validateInputs(inputs);
   if (errs.length > 0) {
     throw new HttpsError("invalid-argument", errs.join(" "));
   }
+
+  // Idempotency reservation (§6/§7/§8), UNCONDITIONAL. A request without a
+  // valid key is refused here — before the usage meter, before the provider,
+  // before any result document exists. `inputs` is the canonical fingerprint
+  // (every teacher-changeable field is already in there), so replaying one key
+  // with different inputs is rejected rather than quietly answered with the
+  // first result.
+  const reservation = await requireAndReserveAiOperation({
+    idempotencyKey,
+    userId: uid,
+    operationType: "generate_sba_task",
+    inputFingerprint: inputs,
+  });
+  if (reservation.status === "completed") {
+    return buildResumedSbaResponse(reservation.operation);
+  }
+  if (reservation.status === "processing") {
+    return {status: "processing", operationId: idempotencyKey};
+  }
+  // "created" or "retrying" — exactly one provider call happens below.
+  // "failed" and "cancelled" already threw inside the helper.
 
   const totalMarks = meta.defaultMarks;
   const subjectLabel = SUBJECT_LABELS[inputs.subject];
@@ -138,7 +183,12 @@ async function runSbaTask({uid, rawInputs, apiKey}) {
     assertAndIncrement(uid, "sba_task"),
   ]);
 
-  const genRef = admin.firestore().collection("aiGenerations").doc();
+  // Deterministic doc id (= the idempotency key), always. A retry of the SAME
+  // logical request re-set()s this exact doc instead of creating a sibling, and
+  // the resumed-completed path reads it straight back by id. The auto-id branch
+  // that used to sit here is deleted rather than bypassed: a reservation that
+  // settles onto an auto-id document cannot be resumed.
+  const genRef = admin.firestore().collection("aiGenerations").doc(idempotencyKey);
   await genRef.set({
     ownerUid: uid,
     tool: "sba_task",
@@ -214,6 +264,12 @@ async function runSbaTask({uid, rawInputs, apiKey}) {
       console.error("[generateSbaTask] refund failed after generation error",
           {uid, generationId: genRef.id, usage}, refundErr);
     }
+    try {
+      await failAiOperation({idempotencyKey, err, usageCharged: 0});
+    } catch (opErr) {
+      console.error("[generateSbaTask] failAiOperation failed after generation error",
+          {uid, generationId: genRef.id}, opErr);
+    }
     throw err;
   }
 
@@ -239,6 +295,14 @@ async function runSbaTask({uid, rawInputs, apiKey}) {
       costUsdCents,
       modelUsed,
     });
+    // A "flagged" task is still a real result the teacher already got and was
+    // billed for — a completion for idempotency purposes, not a failure.
+    try {
+      await completeAiOperation({idempotencyKey, resultDocumentId: genRef.id, usageCharged: 1});
+    } catch (opErr) {
+      console.error("[generateSbaTask] completeAiOperation failed (flagged)",
+          {uid, generationId: genRef.id}, opErr);
+    }
     return {
       generationId: genRef.id,
       task,
@@ -261,6 +325,12 @@ async function runSbaTask({uid, rawInputs, apiKey}) {
     modelUsed,
     completedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
+  try {
+    await completeAiOperation({idempotencyKey, resultDocumentId: genRef.id, usageCharged: 1});
+  } catch (opErr) {
+    console.error("[generateSbaTask] completeAiOperation failed",
+        {uid, generationId: genRef.id}, opErr);
+  }
 
   return {
     generationId: genRef.id,
@@ -285,7 +355,8 @@ function createGenerateSbaTask(anthropicApiKeySecret) {
         );
       }
       const apiKey = getAnthropicApiKey(anthropicApiKeySecret);
-      return runSbaTask({uid, rawInputs: request.data, apiKey});
+      const idempotencyKey = request.data && request.data.idempotencyKey;
+      return runSbaTask({uid, rawInputs: request.data, apiKey, idempotencyKey});
     },
   );
 }

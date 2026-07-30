@@ -32,6 +32,8 @@ import { LIBRARY_TYPES } from '../../../config/library'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { useIsMounted } from '../../../hooks/useIsMounted'
+import { useAiOperationLock } from '../../../hooks/useAiOperationLock'
+import { stableFingerprint } from '../../../hooks/aiOperationLockCore'
 import StudioPageHeader from '../StudioPageHeader'
 import StudioOutputBoundary from '../StudioOutputBoundary'
 import SeoHelmet from '../../seo/SeoHelmet'
@@ -83,6 +85,13 @@ export default function SbaTaskStudio() {
   // Per-run token: stops a resolved callable from hijacking the UI if Stop was
   // clicked before the response landed.
   const runRef = useRef(0)
+  // Idempotency lock: one logical generation → one provider call + one saved
+  // doc + one usage charge, even across a double-click / rapid tap / refresh /
+  // a second tab. generateSbaTask.js's server-side reservation enforces this;
+  // this is the client-side belt (mints + persists the key). Separate lock keys
+  // for the full generate vs a per-section regenerate so they never collide.
+  const { run: runGenerateLocked } = useAiOperationLock('sba-studio:generate')
+  const { run: runRegenerateLocked } = useAiOperationLock('sba-studio:regenerate')
   const toast = useToast()
   // School name on the task banner — pre-filled from the teacher's registration
   // profile, but editable in case they set tasks for more than one school.
@@ -154,7 +163,22 @@ export default function SbaTaskStudio() {
   // that key on the current task, leaving the rest of the reveal in place.
   async function regenerateSection(sectionId) {
     if (!ensureCanGenerate('sba_task')) return null
-    const res = await generateSbaTask(form)
+    const lockResult = await runRegenerateLocked({
+      // Section-scoped fingerprint so a regenerate mints its own key rather
+      // than resuming the full-generate result.
+      fingerprint: stableFingerprint({ ...form, __regenerateSection: sectionId }),
+      action: async (idempotencyKey) => {
+        const outcome = await generateSbaTask({ ...form, idempotencyKey })
+        if (!outcome.ok) {
+          const err = new Error(outcome.error || 'Generation failed')
+          err.response = outcome
+          throw err
+        }
+        return outcome
+      },
+    })
+    if (lockResult.reason === 'locked') return null
+    const res = lockResult.ok ? lockResult.data : (lockResult.error?.response || { ok: false })
     if (res.ok && res.data?.task) {
       const fresh = res.data.task
       setTask((prev) => (prev ? { ...prev, [sectionId]: fresh[sectionId] } : fresh))
@@ -179,9 +203,33 @@ export default function SbaTaskStudio() {
     setWarning('')
     setTask(null)
     setGenerationId(null)
-    const res = await generateSbaTask(form)
+    const lockResult = await runGenerateLocked({
+      fingerprint: stableFingerprint(form),
+      action: async (idempotencyKey) => {
+        const outcome = await generateSbaTask({ ...form, idempotencyKey })
+        if (!outcome.ok) {
+          // generateSbaTask() resolves rather than throws; a genuine failure
+          // must be THROWN so the lock keeps the key reserved for a same-input
+          // retry (never re-billed) instead of minting a fresh key.
+          const err = new Error(outcome.error || 'Generation failed')
+          err.response = outcome
+          throw err
+        }
+        return outcome
+      },
+    })
     if (run !== runRef.current) return
     if (!isMounted.current) return
+    if (lockResult.reason === 'locked') return // a duplicate click slipped past the disabled button
+    const res = lockResult.ok ? lockResult.data : (lockResult.error?.response || {
+      ok: false, error: lockResult.error?.message || 'Generation failed. Please try again.',
+    })
+    if (res.ok && res.data?.status === 'processing') {
+      // The server already has this exact request in flight (a retried network
+      // call or another tab) — leave "Generating…" showing; the owning call
+      // completes it.
+      return
+    }
     if (!res.ok) {
       setStatus('error')
       setErrorMessage(res.error || 'Generation failed.')

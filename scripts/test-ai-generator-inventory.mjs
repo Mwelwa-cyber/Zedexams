@@ -204,6 +204,7 @@ test('exactly the generators believed migrated are migrated, named one by one', 
     'functions/teacherTools/generateFlashcards.js',
     'functions/teacherTools/generateHomework.js',
     'functions/teacherTools/generateRubric.js',
+    'functions/teacherTools/generateSbaTask.js',
     'functions/teacherTools/generateSchemeOfWork.js',
     'functions/teacherTools/generateWorksheet.js',
   ])
