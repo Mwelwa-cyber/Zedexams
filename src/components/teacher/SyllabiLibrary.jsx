@@ -1173,6 +1173,22 @@ function SyllabiStudioStyles() {
   --ss-white:  #FFFFFF;
   --ss-text:   #1a1a1a;
   --ss-muted:  #6B6B6B;
+  /* --ss-teal does two jobs that pull in opposite directions when the palette
+     inverts: it FILLS the header, the chips and the active pills (which stay
+     dark in both themes), and it also INKS headings and labels drawn on cream
+     (which must go light). One value cannot do both, so the ink half has its
+     own token. In this theme they are the same colour, so nothing moves. */
+  --ss-ink-strong: var(--ss-teal);
+  /* Same split for --ss-orange, for the second reason: it FILLS accent bars,
+     the active-tab underline and badges that carry white text, and it also
+     INKS the sidebar group labels — where #C66E4F on white measures 3.66:1,
+     under the 4.5 a 10px label needs. The ink half is darkened; the fills are
+     untouched, so nothing in the layout moves. */
+  --ss-accent-ink: #A5522F;
+  /* And a third: the same accent as a FILL under white text. #C66E4F carries
+     white at 3.66:1 — a 11px bold pill fails. Deepened just enough to clear
+     4.5 while staying the same hue, so the chips read as they always did. */
+  --ss-orange-solid: #AE5A39;
   --ss-radius: 14px;
   /* Replaced at runtime with the measured height of the chrome above the
      studio (see the effect in SyllabiLibrary). The literal here is only the
@@ -1319,7 +1335,7 @@ function SyllabiStudioStyles() {
   padding: 14px 20px 6px;
   font-size: 10px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 1.2px;
-  color: var(--ss-orange);
+  color: var(--ss-accent-ink);
 }
 .ss-root .ss-sb-label::before {
   content: ''; display: inline-block;
@@ -1345,7 +1361,7 @@ function SyllabiStudioStyles() {
   background: var(--ss-cream);
   border-left-color: var(--ss-orange);
   font-weight: 600;
-  color: var(--ss-teal);
+  color: var(--ss-ink-strong);
 }
 .ss-root .ss-nav-icon { font-size: 15px; flex-shrink: 0; }
 
@@ -1359,7 +1375,7 @@ function SyllabiStudioStyles() {
   align-items: center; justify-content: space-between;
   padding: 14px 20px 8px;
   font-size: 14px; font-weight: 800;
-  color: var(--ss-teal);
+  color: var(--ss-ink-strong);
 }
 .ss-root .ss-panel-close {
   width: 30px; height: 30px;
@@ -1367,7 +1383,7 @@ function SyllabiStudioStyles() {
   background: var(--ss-cream);
   border: 1.5px solid var(--ss-cream2);
   border-radius: 8px;
-  color: var(--ss-teal); font-size: 13px;
+  color: var(--ss-ink-strong); font-size: 13px;
   cursor: pointer; font-family: inherit;
 }
 .ss-root .ss-rail-toggle {
@@ -1378,7 +1394,7 @@ function SyllabiStudioStyles() {
   background: var(--ss-white);
   border: 1.5px solid var(--ss-cream2);
   border-radius: 8px;
-  color: var(--ss-teal); font-size: 15px; font-weight: 700;
+  color: var(--ss-ink-strong); font-size: 15px; font-weight: 700;
   cursor: pointer; font-family: inherit;
   transition: background 0.15s;
 }
@@ -1476,7 +1492,7 @@ function SyllabiStudioStyles() {
 .ss-root .ss-hero-label {
   font-size: 11px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 1.2px;
-  color: var(--ss-orange);
+  color: var(--ss-accent-ink);
   margin-bottom: 8px;
 }
 .ss-root .ss-hero-title {
@@ -1503,7 +1519,7 @@ function SyllabiStudioStyles() {
 .ss-root .ss-stat-num {
   font-family: 'Playfair Display', 'Fraunces', Georgia, serif;
   font-size: 28px; font-weight: 900;
-  color: var(--ss-teal);
+  color: var(--ss-ink-strong);
 }
 .ss-root .ss-stat-lbl {
   font-size: 11px; color: var(--ss-muted);
@@ -1523,7 +1539,7 @@ function SyllabiStudioStyles() {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 11px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 1.2px;
-  color: var(--ss-orange);
+  color: var(--ss-accent-ink);
 }
 .ss-root .ss-sh-dash::before {
   content: ''; display: inline-block;
@@ -1533,7 +1549,7 @@ function SyllabiStudioStyles() {
 .ss-root .ss-sh-title {
   font-family: 'Playfair Display', 'Fraunces', Georgia, serif;
   font-size: 22px; font-weight: 900;
-  color: var(--ss-teal);
+  color: var(--ss-ink-strong);
   margin: 0;
 }
 
@@ -1570,7 +1586,7 @@ function SyllabiStudioStyles() {
 .ss-root .ss-card-name {
   font-family: 'Playfair Display', 'Fraunces', Georgia, serif;
   font-size: 15px; font-weight: 700;
-  color: var(--ss-teal);
+  color: var(--ss-ink-strong);
   line-height: 1.3;
   margin-bottom: 6px;
 }
@@ -1590,7 +1606,7 @@ function SyllabiStudioStyles() {
   border: 1.5px solid var(--ss-teal);
   border-radius: 8px;
   font-size: 13px; cursor: pointer;
-  color: var(--ss-teal); font-weight: 600;
+  color: var(--ss-ink-strong); font-weight: 600;
   margin-bottom: 20px;
   font-family: inherit;
   transition: background 0.15s;
@@ -1641,7 +1657,7 @@ function SyllabiStudioStyles() {
   border-radius: 8px;
   border: 1.5px solid var(--ss-teal);
   background: var(--ss-white);
-  color: var(--ss-teal);
+  color: var(--ss-ink-strong);
   font-weight: 700; font-size: 12.5px;
   cursor: pointer;
   font-family: inherit;
@@ -1655,7 +1671,7 @@ function SyllabiStudioStyles() {
   border-radius: 8px;
   border: 1.5px solid var(--ss-teal);
   background: var(--ss-white);
-  color: var(--ss-teal);
+  color: var(--ss-ink-strong);
   font-family: inherit;
   transition: background 0.15s, color 0.15s;
 }
@@ -1746,7 +1762,7 @@ function SyllabiStudioStyles() {
 }
 .ss-root .ss-topic-header-row td {
   background: #D4E4EC;
-  color: var(--ss-teal);
+  color: var(--ss-ink-strong);
   font-weight: 800;
   font-size: 15px;
   padding: 11px 16px;
@@ -1777,7 +1793,7 @@ function SyllabiStudioStyles() {
    horizontal scroll. */
 .ss-root .ss-topic-cell-dim { opacity: 0.45; font-size: 12px; }
 .ss-root .ss-subtopic-cell {
-  font-weight: 600; color: var(--ss-teal);
+  font-weight: 600; color: var(--ss-ink-strong);
   border-left: 3px solid transparent;
 }
 .ss-root .ss-subtopic-cell.ss-first-in-group { border-left-color: #9BBECE; }
@@ -1797,7 +1813,7 @@ function SyllabiStudioStyles() {
 }
 .ss-root .ss-outcome-code {
   display: inline-block;
-  font-weight: 700; color: var(--ss-teal);
+  font-weight: 700; color: var(--ss-ink-strong);
   font-variant-numeric: tabular-nums;
   margin-right: 4px;
 }
@@ -1807,7 +1823,7 @@ function SyllabiStudioStyles() {
 .ss-root .ss-sr-header h2 {
   font-family: 'Playfair Display', 'Fraunces', Georgia, serif;
   font-size: 24px; font-weight: 900;
-  color: var(--ss-teal);
+  color: var(--ss-ink-strong);
   margin: 0 0 4px;
 }
 .ss-root .ss-sr-header p { font-size: 13px; color: var(--ss-muted); margin: 0; }
@@ -1839,14 +1855,14 @@ function SyllabiStudioStyles() {
   flex-shrink: 0;
 }
 .ss-root .ss-sri-body { flex: 1; display: flex; flex-direction: column; }
-.ss-root .ss-sri-title { font-size: 14px; font-weight: 700; color: var(--ss-teal); margin-bottom: 2px; }
+.ss-root .ss-sri-title { font-size: 14px; font-weight: 700; color: var(--ss-ink-strong); margin-bottom: 2px; }
 .ss-root .ss-sri-meta { font-size: 12px; color: var(--ss-muted); }
 .ss-root .ss-pill {
   display: inline-block;
   padding: 3px 10px;
   border-radius: 20px;
   font-size: 11px; font-weight: 700;
-  background: var(--ss-orange); color: white;
+  background: var(--ss-orange-solid); color: white;
 }
 
 /* ── ERA SWITCHER ────────────────────────────────────────────────────── */
@@ -1870,8 +1886,8 @@ function SyllabiStudioStyles() {
   transition: background 0.15s, color 0.15s;
 }
 .ss-root .ss-era-btn:hover { background: rgba(255,255,255,0.1); color: white; }
-.ss-root .ss-era-btn.is-active { background: var(--ss-orange); color: white; }
-.ss-root .ss-era-btn.is-active.is-legacy { background: #B8860B; }
+.ss-root .ss-era-btn.is-active { background: var(--ss-orange-solid); color: white; }
+.ss-root .ss-era-btn.is-active.is-legacy { background: #8A6408; }
 
 /* ── ERA SWITCHER IN SLIDE-OUT PANEL ─────────────────────────────────── */
 /* Hidden outside the panel; visible only when the slide-out is open.
@@ -1897,26 +1913,28 @@ function SyllabiStudioStyles() {
   text-align: center;
   transition: background 0.15s, color 0.15s;
 }
-.ss-root .ss-panel-era-btn:hover { background: var(--ss-cream); color: var(--ss-teal); }
-.ss-root .ss-panel-era-btn.is-active { background: var(--ss-orange); color: white; }
-.ss-root .ss-panel-era-btn.is-active.is-legacy { background: #B8860B; }
+.ss-root .ss-panel-era-btn:hover { background: var(--ss-cream); color: var(--ss-ink-strong); }
+.ss-root .ss-panel-era-btn.is-active { background: var(--ss-orange-solid); color: white; }
+.ss-root .ss-panel-era-btn.is-active.is-legacy { background: #8A6408; }
 
 .ss-root .ss-era-tag {
   display: inline-block;
   padding: 3px 10px;
   border-radius: 20px;
   font-size: 11px; font-weight: 700;
-  background: var(--ss-orange); color: white;
+  background: var(--ss-orange-solid); color: white;
   vertical-align: middle;
   margin-left: 6px;
 }
-.ss-root .ss-era-tag.is-legacy { background: #B8860B; }
+.ss-root .ss-era-tag.is-legacy { background: #8A6408; }
 
 /* ── LEGACY (2013) PALETTE OVERRIDES ─────────────────────────────────── */
 /* Swap the warm-teal/orange brand for a warm-amber palette so teachers
    immediately see they're reading the retired 2013 syllabi. */
 .ss-root.is-legacy {
   --ss-orange: #B8860B;          /* primary accent */
+  --ss-accent-ink: #7C5A07;       /* the ink half — #B8860B is 2.5:1 on white */
+  --ss-orange-solid: #8A6408;     /* white on #B8860B is 3.25:1 */
   --ss-teal:   #6B4C00;           /* deep brown for hero + table chrome */
   --ss-cream:  #FFF8E1;           /* hover/background tint */
   --ss-cream2: #F5EBC9;           /* toolbar tint */
@@ -2186,6 +2204,81 @@ function SyllabiStudioStyles() {
 /* Reading mode owns the viewport; body overflow:hidden alone doesn't stop
    iOS touch scroll-chaining, so contain edge swipes at the scroller. */
 .ss-root.is-reading .ss-tbl-container { overscroll-behavior: contain; }
+
+/* ── NIGHT THEME ─────────────────────────────────────────────────────── */
+/* This studio paints itself from its own six tokens rather than the
+   workspace ones, so a teacher on Night got the one page in /teacher still
+   at full cream brightness. Restating the tokens is most of the fix; the
+   rules below it are the places the stylesheet reached past them for a
+   literal. Kept LAST in the sheet so it wins the cascade against the
+   .is-legacy palette, which sits at the same specificity.
+
+   --ss-teal deliberately keeps a dark value: it FILLS the header, the
+   section rows, the active tab and the reading bar, all of which are dark
+   in both themes and carry white text. Ink that was drawn IN teal reads
+   --ss-ink-strong and inverts (see the base block). */
+[data-theme='night'] .ss-root,
+[data-theme='night'] .ss-root.is-legacy {
+  --ss-cream:  #1A222E;
+  --ss-cream2: #3B4757;
+  --ss-teal:   #16303F;
+  --ss-orange: #D9784F;
+  --ss-white:  #232D3B;
+  --ss-text:   #EDE7DC;
+  --ss-muted:  #94A0AF;
+  --ss-ink-strong: #CFE3EE;
+  --ss-accent-ink: #E58A62;
+  --ss-orange-solid: #AE5A39;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+}
+[data-theme='night'] .ss-root.is-legacy {
+  /* The retired-syllabus amber has to stay distinguishable from the live
+     palette without going back to a cream page. */
+  --ss-orange: #E0B54A;
+  --ss-teal:   #3A2B06;
+  --ss-ink-strong: #F0D89B;
+  --ss-accent-ink: #E7C86E;
+  --ss-orange-solid: #7C5A07;
+}
+[data-theme='night'] .ss-root mark { background: #7A5F00; color: #FFE9A8; }
+[data-theme='night'] .ss-root .ss-error-title { color: #F1A08C; }
+
+/* Table chrome: every one of these was a literal light tint. */
+[data-theme='night'] .ss-root .ss-topic-header-row td {
+  background: #223543;
+  border-bottom-color: #3E5A6B;
+}
+[data-theme='night'] .ss-root.is-legacy .ss-topic-header-row td {
+  background: #33280A;
+  color: #F0D89B;
+  border-top-color: #6B5410;
+  border-bottom-color: #8A6D14;
+}
+[data-theme='night'] .ss-root .ss-data-row { border-bottom-color: #313D4C; }
+[data-theme='night'] .ss-root .ss-data-row:hover { background: #2A3646; }
+[data-theme='night'] .ss-root .ss-data-row.ss-odd-row { background: #1F2836; }
+[data-theme='night'] .ss-root .ss-data-row.ss-odd-row:hover { background: #2A3646; }
+[data-theme='night'] .ss-root .ss-table td { border-right-color: #313D4C; }
+[data-theme='night'] .ss-root .ss-subtopic-cell.ss-first-in-group { border-left-color: #3E5A6B; }
+[data-theme='night'] .ss-root .ss-standard-cell { color: #AEB8C4; }
+
+/* The pinned phone column repeats those tints as opaque backgrounds and
+   redraws the row separator as an inset shadow — both need the dark twin or
+   the first column scrolls as a bright stripe. */
+@media (max-width: 700px) {
+  [data-theme='night'] .ss-root .ss-table td.ss-topic-cell-dim { color: rgba(237,231,220,0.55); }
+  [data-theme='night'] .ss-root .ss-data-row td:first-child { box-shadow: inset 0 -1px 0 #313D4C; }
+  [data-theme='night'] .ss-root .ss-data-row td.ss-subtopic-cell.ss-first-in-group:first-child {
+    box-shadow: inset 3px 0 0 #3E5A6B, inset 0 -1px 0 #313D4C;
+  }
+  [data-theme='night'] .ss-root .ss-data-row.ss-odd-row td:first-child { background: #1F2836; }
+  [data-theme='night'] .ss-root .ss-data-row:hover td:first-child { background: #2A3646; }
+  [data-theme='night'] .ss-root .ss-data-row.ss-odd-row:hover td:first-child { background: #2A3646; }
+  [data-theme='night'] .ss-root .ss-table thead th:first-child::after,
+  [data-theme='night'] .ss-root .ss-data-row td:first-child::after {
+    background: linear-gradient(to right, rgba(0,0,0,0.35), transparent);
+  }
+}
 `}</style>
   )
 }

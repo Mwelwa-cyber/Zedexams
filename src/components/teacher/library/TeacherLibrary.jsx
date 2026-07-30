@@ -77,14 +77,32 @@ import {
 
 const PARAM_KEYS = ['type', 'syllabus', 'grade', 'term', 'subject', 'assess']
 
+// Every one of these is spent as an inline `style` prop, which no stylesheet
+// can reach past — so the literals they used to hold were the reason this page
+// stayed at full brightness on Night while the shell around it went dark. They
+// are the workspace tokens now, which means the page follows all four themes
+// rather than gaining one. `orange` is the brand accent and stays a literal:
+// it is legible on both the cream and the dark card, and it is the same colour
+// the marketing site and the Create button use.
 const COLORS = {
-  paper:    '#faf9f5',
-  ink:      '#0e2a32',
-  inkSoft:  '#566f76',
-  faint:    '#8a9aa1',
-  border:   '#e7e3d8',
-  card:     '#fff',
+  paper:    'var(--zt-surface)',
+  ink:      'var(--zt-text)',
+  inkSoft:  'var(--zt-text-muted)',
+  faint:    'var(--zt-text-muted)',
+  border:   'var(--zt-line)',
+  card:     'var(--zt-card)',
   orange:   '#d97757',
+  // The folder tiles below are painted from SECTION_PALETTE, which is a set of
+  // pastels that stay light in every theme — they are the page's identity, and
+  // a coloured folder on a dark page reads as a folder. Their ink therefore
+  // must NOT follow --zt-text, or it goes near-white on a near-white tile. Same
+  // reason the active filter chip fills from the sidebar token: that surface is
+  // dark in all four themes, so white text on it is right in all four.
+  onPastel:      '#0e2a32',
+  onPastelSoft:  '#566f76',
+  onPastelFaint: '#7c8c93',
+  fill:          'var(--zt-sidebar-bg)',
+  onFill:        'var(--zt-on-dark)',
 }
 
 /* ── Folder palettes ───────────────────────────────────────────── */
@@ -570,7 +588,7 @@ function FilterChip({ label, active, onClick }) {
       onClick={onClick}
       className="text-xs font-bold rounded-full px-3 py-1.5 cursor-pointer transition-colors"
       style={active
-        ? { background: COLORS.ink, border: `1px solid ${COLORS.ink}`, color: '#fff' }
+        ? { background: COLORS.fill, border: `1px solid ${COLORS.fill}`, color: COLORS.onFill }
         : { background: COLORS.card, border: `1px solid ${COLORS.border}`, color: COLORS.inkSoft }}
     >
       {label}
@@ -629,7 +647,7 @@ function CreateMenu() {
                 >
                   <span
                     className="grid place-items-center flex-shrink-0"
-                    style={{ width: 32, height: 32, borderRadius: 10, background: pal.to, color: COLORS.ink }}
+                    style={{ width: 32, height: 32, borderRadius: 10, background: pal.to, color: COLORS.onPastel }}
                   >
                     <Icon as={SectionIcon} size="sm" />
                   </span>
@@ -1022,16 +1040,16 @@ function FolderCard({ icon, palette, title, subtitle, onClick }) {
         <span className="flex flex-col min-w-0 flex-1 self-stretch">
           <span
             className="line-clamp-2"
-            style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 'clamp(15px, 2.2vw, 17px)', color: COLORS.ink, lineHeight: 1.2 }}
+            style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 'clamp(15px, 2.2vw, 17px)', color: COLORS.onPastel, lineHeight: 1.2 }}
           >
             {title}
           </span>
-          <span style={{ fontSize: 12, color: COLORS.inkSoft, fontWeight: 600, marginTop: 4 }}>
+          <span style={{ fontSize: 12, color: COLORS.onPastelSoft, fontWeight: 600, marginTop: 4 }}>
             {subtitle}
           </span>
           <span
             className="inline-flex items-center gap-1"
-            style={{ fontSize: 11.5, color: COLORS.faint, fontWeight: 700, marginTop: 'auto', paddingTop: 10 }}
+            style={{ fontSize: 11.5, color: COLORS.onPastelFaint, fontWeight: 700, marginTop: 'auto', paddingTop: 10 }}
           >
             Open <Icon as={ArrowRight} size={12} />
           </span>
@@ -1043,7 +1061,7 @@ function FolderCard({ icon, palette, title, subtitle, onClick }) {
             height: 38,
             background: 'rgba(255,255,255,.8)',
             border: `1px solid ${palette.border}`,
-            color: COLORS.ink,
+            color: COLORS.onPastel,
           }}
         >
           <Icon as={IconComponent} size="sm" />
