@@ -39,7 +39,14 @@
  *     versions and there is exactly one thing to read.
  */
 
+// One declaration of the threshold, imported rather than repeated. It was
+// written out here as `26 * HOUR_MS` as well, so the release that mis-tuned it
+// had TWO copies to get wrong — and a default only the tests reach is the copy
+// nobody notices. storageBackupCore requires nothing, so there is no cycle.
+const {DEFAULT_MAX_AGE_HOURS} = require("./storageBackupCore");
+
 const HOUR_MS = 60 * 60 * 1000;
+const DEFAULT_MAX_AGE_MS = DEFAULT_MAX_AGE_HOURS * HOUR_MS;
 
 // Under `_ops/` so it sorts away from real content and is obvious in a bucket
 // listing. Fixed — every write overwrites the previous one.
@@ -58,6 +65,11 @@ const STORAGE_HEARTBEAT_STATUS = Object.freeze({
   // Present on the primary, absent from the backup: the mirror has never
   // carried it across.
   MISSING_AT_BACKUP: "empty",
+  // Present on both, but the primary's copy has itself stopped advancing while
+  // the mirror is demonstrably caught up. The WRITER stopped, not the mirror —
+  // a different cron, a different fix. Without this the check sends someone to
+  // debug a transfer job that is working perfectly.
+  WRITER_STOPPED: "heartbeat-writer-stopped",
   STALE: "stale",
   FRESH: "fresh",
 });
@@ -78,7 +90,7 @@ const STORAGE_HEARTBEAT_STATUS = Object.freeze({
  * @param {number} [p.maxAgeMs]
  * @returns {{status: string, ageMs: number|null, lagMs: number|null}}
  */
-function classifyHeartbeat({primaryUpdatedMs, backupUpdatedMs, nowMs, maxAgeMs = 26 * HOUR_MS}) {
+function classifyHeartbeat({primaryUpdatedMs, backupUpdatedMs, nowMs, maxAgeMs = DEFAULT_MAX_AGE_MS}) {
   // `Number(null)` is 0 — finite, and a perfectly plausible epoch timestamp —
   // so absence must be tested BEFORE coercion or a missing heartbeat reads as
   // 1970 and every verdict becomes `stale`.
@@ -98,15 +110,39 @@ function classifyHeartbeat({primaryUpdatedMs, backupUpdatedMs, nowMs, maxAgeMs =
   }
 
   const ageMs = Math.max(0, Number(nowMs) - backup);
-  // How far the backup's copy trails the primary's — the mirror's actual lag,
-  // reported whatever the verdict, because "fresh but 20h behind" is worth
-  // seeing before it becomes "stale".
+  // How far the backup's copy trails the primary's — the mirror's actual lag.
+  // Zero in healthy operation, because the backup copy is written AFTER the
+  // primary write it carries.
   const lagMs = Math.max(0, primary - backup);
-  return {
-    status: ageMs > maxAgeMs ? STORAGE_HEARTBEAT_STATUS.STALE : STORAGE_HEARTBEAT_STATUS.FRESH,
-    ageMs,
-    lagMs,
-  };
+
+  // TWO independent signals, and they answer different questions.
+  //
+  //   ageMs — how long since ANY copy landed. Catches a stopped transfer, but
+  //           only via wall-clock, so it depends on the threshold being
+  //           calibrated against the schedule. It was not, for one release:
+  //           26h let a missed night read as fresh by 33 minutes.
+  //   lagMs — whether the backup is behind the SOURCE. Schedule-independent:
+  //           the primary heartbeat advanced and the backup's copy did not,
+  //           full stop. On a missed night this reads ~23h while age reads
+  //           ~25.5h, so it crosses any sane threshold on the same morning.
+  //
+  // Either one alone is enough to call the mirror stopped. Requiring both
+  // would mean a tuning mistake in one silently disables detection, which is
+  // exactly what happened.
+  const tooOld = ageMs > maxAgeMs;
+  const tooFarBehind = lagMs > maxAgeMs;
+
+  if (tooOld || tooFarBehind) {
+    // A stale age with the mirror CAUGHT UP is not the mirror's failure: the
+    // primary's own heartbeat stopped advancing, so the copy is old because
+    // the original is. Blaming the transfer here sends someone to the wrong
+    // system — and the right one, the writer cron, keeps not running.
+    if (tooOld && !tooFarBehind) {
+      return {status: STORAGE_HEARTBEAT_STATUS.WRITER_STOPPED, ageMs, lagMs};
+    }
+    return {status: STORAGE_HEARTBEAT_STATUS.STALE, ageMs, lagMs};
+  }
+  return {status: STORAGE_HEARTBEAT_STATUS.FRESH, ageMs, lagMs};
 }
 
 /**
@@ -133,6 +169,7 @@ function buildHeartbeatBody(now, correlationId = "") {
 
 module.exports = {
   HOUR_MS,
+  DEFAULT_MAX_AGE_MS,
   HEARTBEAT_PATH,
   HEARTBEAT_WRITE_HOUR_UTC,
   STORAGE_HEARTBEAT_STATUS,

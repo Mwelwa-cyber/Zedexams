@@ -213,6 +213,29 @@ ok("custom hours honoured", resolveMaxAgeMs("12") === 12 * HOUR_MS);
       db.writes.some((x) => x.data.mirrorLagHours === 48));
   }
 
+  // ── our writer stopped, the mirror did NOT → name the right system ──────
+  // Reported as `stale` before this, which sent the reader to debug a transfer
+  // job that was working perfectly while the actual broken cron kept not
+  // running.
+  {
+    const db = fakeDb();
+    const alerts = [];
+    const res = await runStorageBackupCheck({
+      db, env: configured, now: NOW,
+      // Primary heartbeat is old; the mirror faithfully carried that old copy,
+      // so the backup is level with it — no lag.
+      heartbeat: hb(NOW.getTime() - 40 * HOUR_MS, NOW.getTime() - 39 * HOUR_MS),
+      alert: async (a) => alerts.push(a),
+    });
+    ok("an old heartbeat with a caught-up mirror → heartbeat-writer-stopped",
+      res.status === STORAGE_BACKUP_STATUS.WRITER_STOPPED);
+    ok("the alert says the mirror is fine and our cron isn't",
+      alerts.length === 1 && /heartbeat STOPPED/.test(alerts[0].title) &&
+      /storageBackupHeartbeat/.test(alerts[0].lines.join(" ")));
+    ok("it does NOT tell them to go and look at the transfer job",
+      !/transfer job appears to have stopped/i.test(alerts[0].lines.join(" ")));
+  }
+
   // ── heartbeat never reached the backup → empty + alert ───────────────────
   {
     const db = fakeDb();

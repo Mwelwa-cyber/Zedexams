@@ -11,8 +11,9 @@
 
 const assert = require("node:assert");
 const {
-  HEARTBEAT_PATH, HEARTBEAT_WRITE_HOUR_UTC, classifyHeartbeat,
+  HEARTBEAT_PATH, HEARTBEAT_WRITE_HOUR_UTC, classifyHeartbeat, DEFAULT_MAX_AGE_MS,
 } = require("./storageBackupHeartbeatCore");
+const {DEFAULT_MAX_AGE_HOURS, HOUR_MS} = require("./storageBackupCore");
 
 let passed = 0;
 function ok(name, cond) { assert.ok(cond, name); passed += 1; console.log(`  ok  ${name}`); }
@@ -44,5 +45,67 @@ ok("the heartbeat is not under the excluded staging prefix",
 ok("a heartbeat is never classified from a missing primary",
   classifyHeartbeat({primaryUpdatedMs: null, backupUpdatedMs: 1, nowMs: 2}).status ===
   "awaiting-heartbeat");
+
+// ── THE DETECTION EDGE, computed from the real schedule ──────────────────
+// The threshold and the cron times are declared in different files and only
+// work together. 26h was correct for the OLD signal (source churn, healthy age
+// just under 24h) and survived unchanged into the heartbeat, where a healthy
+// age is ~1.5h — so one missed night computed 25.45h and read FRESH, by 33
+// minutes, in the wrong direction. This derives the numbers rather than
+// asserting a remembered constant, so the same drift cannot recur silently.
+console.log("\nstorageBackupHeartbeatCore (detection edge)");
+{
+  const H = HOUR_MS;
+  const DAY = 24 * H;
+  const write = 23.5 * H;       // heartbeat written 23:30 UTC
+  const land = DAY + 0.55 * H;  // transfer lands it ~00:33 the next morning
+  const check = DAY + 2 * H;    // check runs 02:00 UTC
+
+  const at = (nowMs, primary, backup) =>
+    classifyHeartbeat({primaryUpdatedMs: primary, backupUpdatedMs: backup, nowMs});
+
+  const healthy = at(check, write, land);
+  ok("a healthy night is ~1.5h old, not ~24h (this is what moved)",
+    healthy.ageMs / H > 1 && healthy.ageMs / H < 2);
+  ok("a healthy night is fresh", healthy.status === "fresh");
+  ok("a healthy night has zero lag — the copy is newer than what it copied",
+    healthy.lagMs === 0);
+
+  // One missed transfer: the heartbeat advanced, the backup's copy did not.
+  const missed = at(check + DAY, write + DAY, land);
+  ok("ONE missed night is caught the next morning",
+    missed.status === "stale");
+  ok("...and it is caught on BOTH signals, not just the tuned one",
+    missed.ageMs > DEFAULT_MAX_AGE_MS && missed.lagMs > DEFAULT_MAX_AGE_MS);
+  // The specific regression: 26h did not catch it.
+  ok("the old 26h threshold demonstrably did NOT catch it (25.45 < 26)",
+    missed.ageMs / H > 25 && missed.ageMs / H < 26);
+
+  ok("the threshold sits clear of a healthy night",
+    DEFAULT_MAX_AGE_HOURS > (healthy.ageMs / H) * 4);
+  ok("the threshold sits clear below one missed night",
+    DEFAULT_MAX_AGE_HOURS < (missed.ageMs / H) / 1.5);
+}
+
+// ── the two faults stay separate ──────────────────────────────────────────
+{
+  const H = HOUR_MS;
+  const now = 100 * H;
+  // Writer stopped: the primary heartbeat is old, and the mirror carried that
+  // old copy across faithfully — so the backup is level with it.
+  const writerDead = classifyHeartbeat({
+    primaryUpdatedMs: now - 40 * H, backupUpdatedMs: now - 39 * H, nowMs: now,
+  });
+  ok("an old heartbeat the mirror KEPT UP with blames the writer, not the mirror",
+    writerDead.status === "heartbeat-writer-stopped");
+  ok("...and reports no lag, because there is none", writerDead.lagMs === 0);
+
+  // Mirror stopped: the primary advanced, the backup did not.
+  const mirrorDead = classifyHeartbeat({
+    primaryUpdatedMs: now - H, backupUpdatedMs: now - 40 * H, nowMs: now,
+  });
+  ok("an advancing heartbeat the mirror stopped carrying blames the mirror",
+    mirrorDead.status === "stale");
+}
 
 console.log(`\n─── ${passed} assertions · all passed ───`);

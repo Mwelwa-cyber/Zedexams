@@ -83,19 +83,23 @@ undefined.
   scheduled bucket-to-bucket mirror — not a Cloud Function copying the whole bucket daily (cost /
   timeouts / scale). Like DR-001's bucket + IAM, the mirror is **operator-provisioned once**; what code
   adds is what closes the real risk — making the mirror **verifiable**.
-- **Added here** (`functions/storageBackup.js` + `storageBackupCore.js`, 31 tests): a daily
-  **health check** `storageBackupCheck` (04:00 Africa/Lusaka) that reads the newest object in the backup
-  bucket and records `opsStorageBackups/{date}` with status **`fresh` / `stale` / `empty` /
-  `misconfigured` / `error`**, raising an **ops alert** when the mirror is absent, has never run, or has
-  **stopped** (newest object older than `STORAGE_BACKUP_MAX_AGE_HOURS`, default 26h). A silently-broken
-  Storage backup now surfaces the next morning instead of at disaster time. Deploy-safe before the
-  mirror exists (records `misconfigured` in prod / `skipped-non-production` in dev).
+- **Added here** (`functions/storageBackup.js` + `storageBackupCore.js` +
+  `storageBackupHeartbeatCore.js`): a daily **health check** `storageBackupCheck` (04:00 Africa/Lusaka)
+  recording `opsStorageBackups/{date}` with status **`fresh` / `stale` / `empty` /
+  `heartbeat-writer-stopped` / `awaiting-heartbeat` / `misconfigured` / `error`**, raising an **ops
+  alert** when the mirror is absent, has never run, or has **stopped**. A silently-broken Storage backup
+  now surfaces the next morning instead of at disaster time. Deploy-safe before the mirror exists
+  (records `misconfigured` in prod / `skipped-non-production` in dev).
+  It originally read the *newest object* in the backup bucket and aged it against
+  `STORAGE_BACKUP_MAX_AGE_HOURS` (then 26h). Both halves of that were wrong and are corrected below —
+  the signal (a fact about the source's activity, not the mirror's) and the threshold (calibrated for
+  the signal it no longer uses).
 - **Operator setup still owed** (see Runbook §D): steps 1–3 are now one re-runnable, dry-run-by-default
   script — `npm run provision:storage-backup` (versioning on the primary; a cross-region backup bucket
   with versioning + a non-current-versions-only lifecycle rule; the daily STS job plus every IAM binding
   it and the health check need). Then (4) uncomment `STORAGE_BACKUP_BUCKET` in
-  `functions/.env.examsprepzambia` (optionally `STORAGE_BACKUP_PREFIX` to scope the freshness scan,
-  `STORAGE_BACKUP_MAX_AGE_HOURS`) and deploy.
+  `functions/.env.examsprepzambia` and deploy. Leave `STORAGE_BACKUP_MAX_AGE_HOURS` unset — its default
+  is derived from the cron schedule (see below), so overriding it means re-deriving it.
 - **Freshness is PROVED by a heartbeat, not inferred from bucket activity.** The check originally asked
   "is the newest object in the backup recent?" and treated that as "did the mirror run?". Those are
   different questions. The transfer runs `--overwrite-when=different`, so a night in which nothing in
@@ -113,6 +117,25 @@ undefined.
   truncation machinery is gone), and reading the heartbeat on **both** sides separates "our writer never
   ran" (`awaiting-heartbeat`, a warning, and exactly what a first night after deploy looks like) from
   "the mirror is broken" (`empty`/`stale`, an error). A brand-new deploy must not page.
+- **The staleness threshold is derived from the schedule, not inherited.** `STORAGE_BACKUP_MAX_AGE_HOURS`
+  defaults to **12**, and briefly did not: it stayed at 26 from the previous design, where freshness came
+  from source-object churn and a healthy age sat just under 24h. Under the heartbeat a healthy age is
+  ~1.5h (written 23:30, mirrored ~00:33, checked 02:00) and **one missed transfer reads 25.45h** — so 26
+  called a missed night `fresh`, by 33 minutes, and `stale` did not arrive until the *second* missed
+  night at ~49h. The number had not moved when its meaning did. The age signal is bimodal — either the
+  transfer landed before the check (≤1.5h) or the newest copy is the previous day's (~25.5h) — so the
+  threshold's only job is to cut that gap; 12 sits ~8× above one and ~2× below the other.
+  Two guards against a repeat: `lagMs` (how far the backup trails the *source*) now **votes on the
+  verdict** alongside age, so it is schedule-independent and a mis-tuned threshold can no longer silently
+  disable detection on its own; and `test:storage-backup-heartbeat` *computes* the edge from the cron
+  times rather than asserting a remembered constant.
+  The constraint no threshold relaxes: the transfer must finish before the 02:00 check (a 1.5h budget;
+  it currently takes ~3 minutes). If that ever tightens, move the **check** later — raising the threshold
+  past ~25.4h re-hides a missed night.
+- **A stopped writer is no longer reported as a stopped mirror.** An old heartbeat whose backup copy is
+  *level with it* means our own 23:30 cron stopped while the transfer kept working →
+  `heartbeat-writer-stopped`, naming that function and its Cloud Scheduler job. It previously read
+  `stale` and sent the reader to debug a transfer job that was perfectly healthy.
 - **Launch blocker:** No (but High until the mirror is provisioned). **Complexity:** Low–Medium.
 
 ### DR-004 — No database deletion protection
@@ -270,11 +293,11 @@ does, and why each piece is there:
    00:30 UTC (02:30 Lusaka) so it finishes before the 04:00 Lusaka check.
 4. **Set the env** in `functions/.env.examsprepzambia` (a commented stub is
    already there — uncomment it) and deploy functions:
-   `STORAGE_BACKUP_BUCKET=gs://zedexams-storage-backup` (optionally
-   `STORAGE_BACKUP_PREFIX=` to scope the freshness scan to the mirror path on a
-   very large bucket, and `STORAGE_BACKUP_MAX_AGE_HOURS=26`). Leave it unset
-   until the bucket exists — pointing the check at a bucket that isn't there
-   swaps one true alert for a misleading one.
+   `STORAGE_BACKUP_BUCKET=gs://zedexams-storage-backup`. Leave it unset until the
+   bucket exists — pointing the check at a bucket that isn't there swaps one true
+   alert for a misleading one. `STORAGE_BACKUP_MAX_AGE_HOURS` should also stay
+   unset: its default (12) is derived from the cron schedule, and the derivation
+   is what makes it correct.
 4b. **First-run gotcha.** Enabling the API does **not** create the STS service agent — it is
    materialised lazily, and until then every IAM binding naming it fails with *"Service account
    project-N@storage-transfer-service.iam.gserviceaccount.com does not exist"* (this took out five of
@@ -282,7 +305,7 @@ does, and why each piece is there:
    `storagetransfer.googleapis.com/v1/googleServiceAccounts/<project>`, passing `x-goog-user-project`
    so the call isn't billed to the caller's own project and 403'd.
 5. **Verify**: after 04:00 Lusaka read `opsStorageBackups/{today}` — `status` must
-   be `"fresh"` (not `misconfigured` / `awaiting-heartbeat` / `empty` / `stale`).
+   be `"fresh"` (not `misconfigured` / `awaiting-heartbeat` / `heartbeat-writer-stopped` / `empty` / `stale`).
    `heartbeatWrittenAt` and `heartbeatMirroredAt` show both sides, and
    `mirrorLagHours` is how far the backup trails the source — worth watching as it
    climbs, since that is the number that turns into a real `stale`.

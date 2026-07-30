@@ -20,9 +20,34 @@
 
 const HOUR_MS = 60 * 60 * 1000;
 
-// A daily mirror plus generous slack: a backup older than this is treated as a
-// failed/stalled mirror and alerts. Tunable via STORAGE_BACKUP_MAX_AGE_HOURS.
-const DEFAULT_MAX_AGE_HOURS = 26;
+// How old the MIRRORED HEARTBEAT may be before the mirror counts as stopped.
+// Tunable via STORAGE_BACKUP_MAX_AGE_HOURS.
+//
+// This was 26 and that was wrong — a number that outlived the signal it was
+// calibrated for. When freshness came from source-object churn, a healthy age
+// sat just under 24h and 26 was a sensible two-hour grace. The heartbeat
+// collapsed a healthy age to ~1.5h, and nobody moved the threshold.
+//
+// Derivation, from the fixed schedule (heartbeat 23:30 UTC → transfer 00:30 →
+// check 02:00). The age signal is BIMODAL, not continuous: either the transfer
+// landed before the check, in which case age ≤ 1.5h, or it did not, in which
+// case the newest copy is the PREVIOUS day's and age is ~25.5h. There is
+// nothing in between, so the threshold's only job is to cut that gap:
+//
+//   healthy night   age ≈ 1.45h
+//   one missed night age ≈ 25.45h   ← 26 called this FRESH, missing by 33 min
+//   two missed nights age ≈ 49.45h
+//
+// 12h sits ~8× above the healthy maximum and ~2× below one missed night, so a
+// single missed transfer alerts the next morning instead of the one after.
+//
+// NOTE the constraint this does NOT relax: the transfer must finish before the
+// 02:00 check — a 1.5h budget — and no threshold changes that, because a
+// transfer still running at check time leaves yesterday's copy as the newest.
+// Today's transfer takes ~3 minutes (a 30× margin). If the bucket ever grows
+// enough for that to tighten, the fix is to move the CHECK later, not to raise
+// this number: raising it past ~25.4h re-hides a fully missed night.
+const DEFAULT_MAX_AGE_HOURS = 12;
 
 /**
  * Normalize the configured Storage backup bucket to a BARE bucket name (the
