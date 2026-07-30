@@ -10,6 +10,7 @@
  */
 import { downloadHtmlAsPdf } from './htmlToPdf.js'
 import { injectHtmlWatermark, WATERMARK_TEXT } from './exportWatermark.js'
+import { markupToHtml, TOOL_NOTATION_CSS } from './toolNotationRender.js'
 
 const BRAND = '#059669' // emerald-600
 
@@ -52,12 +53,12 @@ function workingSpace(q) {
 function renderQuestion(q, includeAnswer) {
   const marks = `<span class="marks">[${q.marks} mark${q.marks === 1 ? '' : 's'}]</span>`
   let html = `<div class="question" style="page-break-inside:avoid">
-    <p class="q-prompt"><strong>${safe(q.number)}.</strong> ${safe(q.prompt)} ${marks}</p>`
+    <p class="q-prompt"><strong>${safe(q.number)}.</strong> ${markupToHtml(q.prompt)} ${marks}</p>`
 
   if (q.type === 'multiple_choice' || q.type === 'true_false') {
     html += '<ul class="options">'
     ;(q.options || []).forEach((opt, i) => {
-      html += `<li><strong>${LETTERS[i] || '•'}.</strong> ${safe(opt)}</li>`
+      html += `<li><strong>${LETTERS[i] || '•'}.</strong> ${markupToHtml(opt)}</li>`
     })
     html += '</ul>'
   } else if (!includeAnswer) {
@@ -65,9 +66,9 @@ function renderQuestion(q, includeAnswer) {
   }
 
   if (includeAnswer && q.answer) {
-    html += `<p class="answer">&#10003; Answer: ${safe(q.answer)}</p>`
+    html += `<p class="answer">&#10003; Answer: ${markupToHtml(q.answer)}</p>`
     if (q.workingNotes) {
-      html += `<p class="notes">Notes: ${safe(q.workingNotes)}</p>`
+      html += `<p class="notes">Notes: ${markupToHtml(q.workingNotes)}</p>`
     }
   }
 
@@ -81,7 +82,7 @@ function renderSection(section, includeAnswer) {
 
   if (section.passage) {
     if (section.passageTitle) html += `<p class="passage-title"><strong>${safe(section.passageTitle)}</strong></p>`
-    html += `<div class="passage">${safe(section.passage)}</div>`
+    html += `<div class="passage">${markupToHtml(section.passage)}</div>`
   }
 
   if (section.layout === 'grid') {
@@ -89,8 +90,8 @@ function renderSection(section, includeAnswer) {
     html += `<div class="grid-${cols}">`
     ;(section.questions || []).forEach((q) => {
       const ans = includeAnswer && q.answer
-        ? `<p class="answer">&#10003; ${safe(q.answer)}</p>` : ''
-      html += `<div><p><strong>${safe(q.number)}.</strong> ${safe(q.prompt)} <span class="blank"></span></p>${ans}</div>`
+        ? `<p class="answer">&#10003; ${markupToHtml(q.answer)}</p>` : ''
+      html += `<div><p><strong>${safe(q.number)}.</strong> ${markupToHtml(q.prompt)} <span class="blank"></span></p>${ans}</div>`
     })
     html += '</div>'
   } else {
@@ -104,6 +105,11 @@ function renderSection(section, includeAnswer) {
 }
 
 /* ── HTML template ───────────────────────────────────────────────── */
+
+// Exported for the golden test — the same HTML both download paths use.
+export function buildWorksheetPrintableHtml(worksheet, mode) {
+  return buildHtml(worksheet, mode)
+}
 
 function buildHtml(worksheet, mode) {
   const includeAnswer = mode === 'answer_key'
@@ -187,6 +193,9 @@ function buildHtml(worksheet, mode) {
   .marking-notes{background:#f8fafc;border:1px solid #cbd5e1;padding:8px 12px;margin-top:16px;font-size:10.5pt}
   .marking-notes h3{font-size:10.5pt;font-weight:700;color:#334155;margin-bottom:4px}
 
+  /* structured maths (stacked fractions, column sums) — shared stylesheet */
+  ${TOOL_NOTATION_CSS}
+
   @media print{
     body{padding:12mm 16mm;max-width:none}
     .question{page-break-inside:avoid}
@@ -228,7 +237,7 @@ function buildHtml(worksheet, mode) {
   ${includeAnswer && worksheet.answerKey?.markingNotes ? `
   <div class="marking-notes">
     <h3>Marking Guidance</h3>
-    <p>${safe(worksheet.answerKey.markingNotes)}</p>
+    <p>${markupToHtml(worksheet.answerKey.markingNotes)}</p>
   </div>` : ''}
 </body>
 </html>`

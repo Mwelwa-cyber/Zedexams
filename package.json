@@ -67,6 +67,7 @@
     "test:toolchain-notation-mirror": "node scripts/test-toolchain-notation-mirror.mjs",
     "test:quiz-notation": "node functions/teacherTools/quizNotation.test.js",
     "test:generated-quiz-richtext": "node src/components/quiz/generatedQuizRichText.test.js",
+    "test:tool-notation": "node src/utils/toolNotationGolden.test.js",
     "test:notation-enforcement": "node functions/teacherTools/notationEnforcement.test.js",
     "test:notation-side-paths": "node functions/teacherTools/notationSidePaths.test.js",
     "test:export-gate": "node functions/shared/assessment/exportReadinessCore.test.js",

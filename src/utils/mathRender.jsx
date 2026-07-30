@@ -11,6 +11,49 @@
  */
 
 import React from 'react'
+import { hasToolMarkup, parseMarkupBlocks } from './toolNotationRender.js'
+
+/** Contract-markup blocks → React, using the same <Fraction> as the legacy path. */
+function renderMarkupBlocks(str) {
+  const out = []
+  let keyIdx = 0
+  parseMarkupBlocks(str).forEach((block, blockIdx) => {
+    if (blockIdx > 0) out.push(<br key={`br-${keyIdx++}`} />)
+    if (block.kind === 'vmath') {
+      const { operator, lines, answer } = block.attrs
+      out.push(
+        <span key={`va-${keyIdx++}`} className="my-1 inline-flex flex-col items-end tabular-nums leading-snug">
+          {lines.map((value, i) => (
+            <span key={i} className="block min-w-[4rem] text-right">
+              {i === lines.length - 1 && <span className="float-left mr-2">{operator}</span>}
+              {value}
+            </span>
+          ))}
+          <span className="mt-0.5 block min-w-[4rem] border-t border-current pt-0.5 text-right">
+            {answer || ' '}
+          </span>
+        </span>,
+      )
+      return
+    }
+    for (const part of block.parts) {
+      if (part.type === 'text') out.push(part.value)
+      else if (part.type === 'script') {
+        out.push(part.script === 'sub'
+          ? <sub key={`s-${keyIdx++}`}>{part.value}</sub>
+          : <sup key={`s-${keyIdx++}`}>{part.value}</sup>)
+      } else if (part.type === 'fraction') {
+        out.push(
+          <React.Fragment key={`fr-${keyIdx++}`}>
+            {part.whole || null}
+            <Fraction numerator={part.num} denominator={part.den} />
+          </React.Fragment>,
+        )
+      }
+    }
+  })
+  return out
+}
 
 /* ── Inline stacked-fraction component ──────────────────────── */
 
@@ -61,6 +104,16 @@ export function renderMath(text) {
   if (text == null) return text
   const str = String(text)
   if (!str) return str
+
+  // The generation notation contract (Phase 5): a worksheet or homework field
+  // may now carry \frac{a}{b}, $…$ or a [[vmath]] token. That markup has ONE
+  // parser (toolNotationRender) shared with both exporters, so the screen and
+  // the print cannot disagree; here its parts map to the same <Fraction> the
+  // legacy path uses. Checked FIRST because "\frac{3}{5}" also contains "3",
+  // which would send it down the bare-digits path and print the markup raw.
+  if (hasToolMarkup(str)) {
+    return renderMarkupBlocks(str)
+  }
 
   // Short-circuit if nothing relevant is present.
   if (!/[\d⁄¼½¾⅐-⅞]/.test(str)) return str

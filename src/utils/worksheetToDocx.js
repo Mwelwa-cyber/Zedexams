@@ -25,6 +25,7 @@ import {
   WidthType,
 } from 'docx'
 import { attributionSection } from './docxAttribution.js'
+import { markupFieldToDocx } from './toolNotationDocx.js'
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '888888' },
@@ -158,14 +159,18 @@ function renderQuestion(q, {includeAnswer}) {
   const blocks = []
   const marksTag = `  [${q.marks} mark${q.marks === 1 ? '' : 's'}]`
 
+  // The prompt may carry notation markup (stacked fractions, $...$, column
+  // sums); a plain prompt takes exactly the old single-run path.
+  const prompt = markupFieldToDocx(q.prompt, { size: 22 })
   blocks.push(new Paragraph({
     children: [
       text(`${q.number}. `, { bold: true, size: 22 }),
-      text(q.prompt, { size: 22 }),
+      ...prompt.runs,
       text(marksTag, { size: 18, color: '6b7280', italics: true }),
     ],
     spacing: { before: 160, after: 80 },
   }))
+  blocks.push(...prompt.extraParagraphs)
 
   if (q.type === 'multiple_choice' || q.type === 'true_false') {
     const letters = ['A', 'B', 'C', 'D', 'E']
@@ -173,7 +178,7 @@ function renderQuestion(q, {includeAnswer}) {
       blocks.push(new Paragraph({
         children: [
           text(`   ${letters[i] || '•'}. `, { bold: true, size: 20 }),
-          text(opt, { size: 20 }),
+          ...markupFieldToDocx(opt, { size: 20 }).runs,
         ],
         spacing: { after: 40 },
       }))
@@ -187,7 +192,7 @@ function renderQuestion(q, {includeAnswer}) {
     blocks.push(new Paragraph({
       children: [
         text('✓ Answer: ', { bold: true, size: 20, color: '059669' }),
-        text(q.answer, { size: 20, color: '059669' }),
+        ...markupFieldToDocx(q.answer, { size: 20, color: '059669' }).runs,
       ],
       spacing: { before: 80 },
     }))
@@ -195,7 +200,7 @@ function renderQuestion(q, {includeAnswer}) {
       blocks.push(new Paragraph({
         children: [
           text('   Notes: ', { bold: true, size: 18, color: '6b7280' }),
-          text(q.workingNotes, { size: 18, color: '6b7280', italics: true }),
+          ...markupFieldToDocx(q.workingNotes, { size: 18, color: '6b7280', italics: true }).runs,
         ],
         spacing: { after: 80 },
       }))
@@ -240,15 +245,20 @@ function gridSectionBlocks(section, {includeAnswer}) {
     const cells = []
     for (let c = 0; c < cols; c++) {
       const q = slice[c]
+      // Drill items are the acid test: twelve structured fractions in a
+      // 4-column grid. The markup runs keep each item inline in its cell.
       const runs = q ? [
         text(`${q.number}. `, { bold: true, size: 22 }),
-        text(`${q.prompt} `, { size: 22 }),
-        text('______', { size: 22 }),
+        ...markupFieldToDocx(q.prompt, { size: 22 }).runs,
+        text(' ______', { size: 22 }),
       ] : [text(' ', { size: 22 })]
       const children = [new Paragraph({ children: runs, spacing: { after: 40 } })]
       if (includeAnswer && q && q.answer) {
         children.push(new Paragraph({
-          children: [text(`✓ ${q.answer}`, { size: 18, color: '059669' })],
+          children: [
+            text('✓ ', { size: 18, color: '059669' }),
+            ...markupFieldToDocx(q.answer, { size: 18, color: '059669' }).runs,
+          ],
           spacing: { after: 80 },
         }))
       }

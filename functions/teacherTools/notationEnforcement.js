@@ -282,11 +282,18 @@ async function enforceNotation(assessment, {subject, fields: fieldsIn} = {}) {
     repaired += mapQuestionFields(question, fields, repairField);
     // A section's passage is shared by its questions, so it is repaired once
     // per section rather than once per question.
-    if (qIdx === 0 && section && section.passage &&
-        typeof section.passage.text === "string") {
-      const before = section.passage.text;
-      section.passage.text = repairField(before);
-      if (section.passage.text !== before) repaired += 1;
+    if (qIdx === 0 && section) {
+      // An assessment passage is {text}; a worksheet's is a bare string. Both
+      // are display, so both are on the contract.
+      if (section.passage && typeof section.passage.text === "string") {
+        const before = section.passage.text;
+        section.passage.text = repairField(before);
+        if (section.passage.text !== before) repaired += 1;
+      } else if (typeof section.passage === "string" && section.passage) {
+        const before = section.passage;
+        section.passage = repairField(before);
+        if (section.passage !== before) repaired += 1;
+      }
     }
 
     let report;
@@ -409,11 +416,16 @@ async function applyPlainTextFloor(assessment, {subject, fields: fieldsIn} = {})
 
   for (const {question, section, qIdx} of eachQuestion(assessment)) {
     flattened += mapQuestionFields(question, fields, flatten);
-    if (qIdx === 0 && section && section.passage &&
-        typeof section.passage.text === "string") {
-      const before = section.passage.text;
-      section.passage.text = flatten(before);
-      if (section.passage.text !== before) flattened += 1;
+    if (qIdx === 0 && section) {
+      if (section.passage && typeof section.passage.text === "string") {
+        const before = section.passage.text;
+        section.passage.text = flatten(before);
+        if (section.passage.text !== before) flattened += 1;
+      } else if (typeof section.passage === "string" && section.passage) {
+        const before = section.passage;
+        section.passage = flatten(before);
+        if (section.passage !== before) flattened += 1;
+      }
     }
   }
   return {flattened};
@@ -456,11 +468,16 @@ async function flattenMarkupToPlainText(assessment, {subject, fields: fieldsIn} 
   };
   for (const {question, section, qIdx} of eachQuestion(assessment)) {
     flattened += mapQuestionFields(question, fields, flatten);
-    if (qIdx === 0 && section && section.passage &&
-        typeof section.passage.text === "string") {
-      const before = section.passage.text;
-      section.passage.text = flatten(before);
-      if (section.passage.text !== before) flattened += 1;
+    if (qIdx === 0 && section) {
+      if (section.passage && typeof section.passage.text === "string") {
+        const before = section.passage.text;
+        section.passage.text = flatten(before);
+        if (section.passage.text !== before) flattened += 1;
+      } else if (typeof section.passage === "string" && section.passage) {
+        const before = section.passage;
+        section.passage = flatten(before);
+        if (section.passage !== before) flattened += 1;
+      }
     }
   }
   return {flattened};
