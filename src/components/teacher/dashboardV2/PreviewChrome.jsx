@@ -46,7 +46,6 @@ export function PreviewControlPanel({
   ctaState,
   onCtaState,
   onShowErrorToast,
-  onOpenLogout,
 }) {
   const [open, setOpen] = useState(false)
 
@@ -97,11 +96,11 @@ export function PreviewControlPanel({
             </div>
           </div>
           <div>
+            {/* The logout dialog is the shell's, not the page's, so there is
+                no longer a page-level handle to open it from here — the
+                sidebar's account menu opens the real one. */}
             <div className="tdv2-panel-label">Dialogs &amp; toasts</div>
             <div className="tdv2-panel-row">
-              <button type="button" className="tdv2-chip" onClick={onOpenLogout}>
-                Logout dialog
-              </button>
               <button type="button" className="tdv2-chip" onClick={onShowErrorToast}>
                 Error toast
               </button>

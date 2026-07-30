@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
+import TeacherLayout from '../TeacherLayout'
 import TeacherDashboardV2 from './TeacherDashboardV2'
 import { TOUR_STORAGE_KEY } from './onboardingTourCore'
 
@@ -11,10 +12,16 @@ beforeEach(() => {
   localStorage.setItem(TOUR_STORAGE_KEY, 'done')
 })
 
+// The shell's studio top bar reads Firestore (useTeacherReminders); it is not
+// part of the navigation under test and never renders in the dashboard
+// variant anyway, so stub the module rather than boot Firebase.
+vi.mock('../TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
 // The mobile header bell reads the app-wide NotificationProvider (main.jsx);
 // specs mount without it, so stub the hook.
 vi.mock('../../../contexts/AuthContext', () => ({
-  useAuth: () => ({ isTeacher: true, currentUser: null, userProfile: null }),
+  useAuth: () => ({
+    isTeacher: true, isAdmin: false, currentUser: null, userProfile: null, logout: vi.fn(),
+  }),
 }))
 vi.mock('../../../contexts/NotificationContext', () => ({
   useNotifications: () => ({ unreadCount: 0, open: false, setOpen: () => {} }),
@@ -77,11 +84,16 @@ afterEach(() => {
   window.matchMedia = realMatchMedia
 })
 
+// The navigation under test belongs to TeacherLayout, not to the dashboard —
+// which is the point: these guarantees now hold for every teacher page, not
+// just this one. The dashboard is rendered inside it exactly as the route does.
 function renderDashboard() {
   return render(
     <HelmetProvider>
       <MemoryRouter initialEntries={['/teacher/dashboard-preview']}>
-        <TeacherDashboardV2 />
+        <TeacherLayout variant="dashboard">
+          <TeacherDashboardV2 />
+        </TeacherLayout>
       </MemoryRouter>
     </HelmetProvider>,
   )
@@ -127,9 +139,9 @@ describe('responsive navigation — one nav system at a time', () => {
       }
       expect(screen.getByRole('button', { name: 'Quick create' })).toBeInTheDocument()
 
-      // The shell drops the desktop grid so no sidebar column can reserve
-      // space even before CSS media queries apply.
-      expect(document.querySelector('.tdv2')).toHaveClass('tdv2-is-mobile')
+      // The shell mounts no sidebar scope at all, so no sidebar column can
+      // reserve space even before CSS media queries apply.
+      expect(document.querySelector('.tdv2-shell')).toBeNull()
     },
   )
 
@@ -143,7 +155,7 @@ describe('responsive navigation — one nav system at a time', () => {
       expect(screen.getByLabelText('Teacher navigation')).toBeInTheDocument()
       expect(bottomNav()).toBeNull()
       expect(mobileHeader()).toBeNull()
-      expect(document.querySelector('.tdv2')).not.toHaveClass('tdv2-is-mobile')
+      expect(document.querySelector('.tdv2-mchrome')).toBeNull()
     },
   )
 
@@ -182,7 +194,7 @@ describe('responsive navigation — one nav system at a time', () => {
     expect(desktopSidebar()).toBeNull()
     expect(screen.queryByLabelText('Teacher navigation')).not.toBeInTheDocument()
     expect(bottomNav()).not.toBeNull()
-    expect(document.querySelector('.tdv2')).toHaveClass('tdv2-is-mobile')
+    expect(document.querySelector('.tdv2-shell')).toBeNull()
   })
 
   it('legacy MediaQueryList (no addEventListener, Safari < 14) still gets the mobile IA and live updates', () => {

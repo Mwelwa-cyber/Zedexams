@@ -5,8 +5,14 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import TeacherLayout from './TeacherLayout'
 
 // The shell's page-level chrome is exercised elsewhere; stub it so the spec
-// focuses on the chrome swap (old Teacher Panel → shared V2 Sidebar/mobile).
+// focuses on the navigation.
 vi.mock('./TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
+// Exactly one navigation system is MOUNTED at a time (not CSS-hidden), so a
+// spec has to say which viewport it is testing. jsdom reports no viewport, so
+// drive the hook directly. The swap itself is covered end-to-end, across real
+// breakpoints, in dashboardV2/responsiveNavigation.spec.jsx.
+let mobile = false
+vi.mock('./dashboardV2/useIsMobile', () => ({ default: () => mobile }))
 // MobileHeader's bell reads the app-wide NotificationProvider (main.jsx).
 vi.mock('../../contexts/NotificationContext', () => ({
   useNotifications: () => ({ unreadCount: 0, open: false, setOpen: () => {} }),
@@ -44,6 +50,7 @@ describe('TeacherLayout (V2 shell sidebar)', () => {
   beforeEach(() => {
     logout.mockClear()
     auth.isAdmin = false
+    mobile = false
   })
 
   it('renders the shared V2 sidebar with the full teacher map, not the old Teacher Panel', () => {
@@ -87,6 +94,7 @@ describe('TeacherLayout (V2 shell sidebar)', () => {
 
   it('renders the V2 mobile chrome: header, bottom nav, and a drawer with the full map', async () => {
     const user = userEvent.setup()
+    mobile = true
     renderLayout()
     // V2 mobile header + bottom nav replace the old glass header + tab bar
     expect(screen.getByRole('button', { name: 'Open menu' })).toBeInTheDocument()

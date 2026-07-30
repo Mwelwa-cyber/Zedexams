@@ -28,7 +28,7 @@ export default function FreePreviewUpsell({ context, title, text }) {
       <p className="teacher-preview-upsell__text">{text}</p>
       <div className="teacher-preview-upsell__actions">
         <Link
-          to="/my-subscription"
+          to="/teacher/subscription"
           className="teacher-preview-upsell__btn teacher-preview-upsell__btn--primary"
           onClick={() => capture('upgrade_button_selected', { context, action: 'upgrade' })}
         >

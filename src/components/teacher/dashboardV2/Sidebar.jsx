@@ -12,7 +12,8 @@ import {
   UserRound,
   UsersRound,
 } from 'lucide-react'
-import { NAV_GROUPS } from './dashboardV2Config'
+import { TEACHER_NAV_GROUPS } from './dashboardV2Config'
+import { buildActiveMatcher } from './teacherNavActive'
 
 const LOGO_WEBP = '/zedexams-logo.webp?v=2'
 const LOGO_PNG = '/zedexams-logo.png?v=5'
@@ -23,7 +24,7 @@ const LOGO_PNG = '/zedexams-logo.png?v=5'
 const ACCOUNT_MENU_ITEMS = [
   { id: 'view-profile', label: 'View profile', icon: UserRound, to: '/settings/profile' },
   { id: 'account-settings', label: 'Account settings', icon: Settings, to: '/settings' },
-  { id: 'subscription', label: 'Subscription & billing', icon: CreditCard, to: '/my-subscription' },
+  { id: 'subscription', label: 'Subscription & billing', icon: CreditCard, to: '/teacher/subscription' },
   { id: 'switch-role', label: 'Switch class or role', icon: UsersRound, to: '/settings/teaching-profile' },
   { id: 'notifications', label: 'Notification preferences', icon: Bell, to: '/settings/notifications' },
   // 'theme' is rendered specially below: it toggles the dashboard theme in
@@ -122,34 +123,15 @@ function AccountMenu({ teacher, onSelect, onClose, onLogout, menuRef, dark, onTo
   )
 }
 
-/* '/teacher' only matches exactly (it's the dashboard); the preview route
-   also lights the Dashboard item so the sidebar never looks unanchored.
-   '/settings' is exact too so the Profile item ('/settings/profile') doesn't
-   light both entries at once. `activePrefix` widens matching for items whose
-   destination is one page of a route family (e.g. the Lesson Plan Studio item
-   points at /teacher/lesson-plans/new but must stay lit on
-   /teacher/lesson-plans/:id/edit too). */
-function isNavActive(pathname, to, activePrefix) {
-  if (!to) return false
-  if (activePrefix && (pathname === activePrefix || pathname.startsWith(`${activePrefix}/`))) {
-    return true
-  }
-  const path = to.split('?')[0]
-  if (path === '/teacher') {
-    return pathname === '/teacher' || pathname === '/teacher/dashboard-preview'
-  }
-  if (path === '/settings') return pathname === '/settings'
-  return pathname === path || pathname.startsWith(`${path}/`)
-}
-
 export default function Sidebar({
   teacher,
   onRequestLogout,
   dark = false,
   onToggleTheme,
-  // The dashboard renders its curated groups; the studio shell
-  // (TeacherLayout) passes STUDIO_NAV_GROUPS for the full teacher map.
-  groups = NAV_GROUPS,
+  // One menu for the whole teacher area. TeacherLayout passes the same
+  // groups it gives the mobile drawer (plus the admin shortcut), so the
+  // desktop panel and the drawer cannot list different things.
+  groups = TEACHER_NAV_GROUPS,
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const wrapRef = useRef(null)
@@ -157,6 +139,10 @@ export default function Sidebar({
   const triggerRef = useRef(null)
   const { pathname } = useLocation()
   const navigate = useNavigate()
+  // Active state is derived from the route alone (longest match wins), never
+  // from click state — so a deep link highlights correctly and nothing stays
+  // stuck lit after navigating.
+  const isActive = buildActiveMatcher(pathname, groups)
 
   const closeMenu = useCallback((refocus = true) => {
     setMenuOpen(false)
@@ -201,8 +187,8 @@ export default function Sidebar({
             {group.label ? (
               <div className="tdv2-nav-label" aria-hidden="true">{group.label}</div>
             ) : null}
-            {group.items.map(({ id, label, icon: ItemIcon, to, href, activePrefix }) => {
-              const active = isNavActive(pathname, to, activePrefix)
+            {group.items.map(({ id, label, icon: ItemIcon, to, href }) => {
+              const active = isActive(to)
               const inner = (
                 <>
                   <ItemIcon size={20} strokeWidth={1.75} aria-hidden="true" />

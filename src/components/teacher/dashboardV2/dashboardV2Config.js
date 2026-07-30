@@ -24,59 +24,26 @@ import {
   Users,
 } from 'lucide-react'
 
-export const NAV_GROUPS = [
-  {
-    id: 'root',
-    label: null,
-    items: [
-      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, to: '/teacher' },
-    ],
-  },
-  {
-    id: 'create',
-    label: 'Create',
-    items: [
-      { id: 'lesson-plan', label: 'Lesson Plan Studio', icon: NotebookPen, to: '/teacher/lesson-plans/new', activePrefix: '/teacher/lesson-plans' },
-      // One entry for the merged Assessment Paper Studio (2026-07 merge of
-      // the former Test Paper + Exam studios) — tests AND examinations are
-      // both authored there, so listing them separately here just re-splits
-      // what the merge unified (and diverges from STUDIO_NAV_GROUPS).
-      { id: 'assessment-studio', label: 'Assessment Studio', icon: FileText, to: '/teacher/assessment-papers/new' },
-      { id: 'worksheet', label: 'Worksheet Studio', icon: Files, to: '/teacher/generate/worksheet' },
-      { id: 'homework', label: 'Homework Studio', icon: BookOpenCheck, to: '/teacher/generate/homework' },
-      { id: 'schemes', label: 'Schemes Studio', icon: CalendarRange, to: '/teacher/generate/scheme-of-work' },
-    ],
-  },
-  {
-    id: 'manage',
-    label: 'Manage',
-    items: [
-      { id: 'library', label: 'My Library', icon: FolderOpen, to: '/teacher/library' },
-      { id: 'classes', label: 'My Classes', icon: Users, to: '/teacher/classes' },
-      { id: 'assessments', label: 'Assessments', icon: ListChecks, to: '/teacher/assessment-papers' },
-    ],
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    items: [
-      { id: 'subscription', label: 'Subscription', icon: CreditCard, to: '/my-subscription' },
-      { id: 'profile', label: 'Profile', icon: UserRound, to: '/settings/profile' },
-      { id: 'settings', label: 'Settings', icon: Settings, to: '/settings' },
-      { id: 'help', label: 'Help & Support', icon: CircleHelp, to: '/teacher/help' },
-    ],
-  },
-]
-
 /**
- * Grouped navigation for the studio shell (TeacherLayout) — the V2-styled
- * replacement for the old "Teacher Panel" sidebar. Unlike NAV_GROUPS (the
- * dashboard's curated list), this keeps the FULL teacher map the old panel
- * offered — planning studios, registers, syllabi, calendar — so swapping the
- * chrome loses no destination. Rendered by the same Sidebar component via
- * its `groups` prop.
+ * THE teacher navigation menu — one config, every surface.
+ *
+ * There used to be two: a curated NAV_GROUPS for the /teacher dashboard and a
+ * full-map STUDIO_NAV_GROUPS for the studio shell. Because they were separate
+ * arrays maintained by hand they said different things about the same tools —
+ * the dashboard offered "Lesson Plan Studio", "Schemes Studio" and a
+ * Worksheet/Homework pair the studio shell didn't list, so the sidebar
+ * visibly changed items and labels the moment a teacher left the dashboard.
+ * Merging them is the fix; a shared *component* rendering two different
+ * configs was never one sidebar.
+ *
+ * Consumed by Sidebar (desktop) and NavDrawer (mobile) through TeacherLayout,
+ * which is now the only thing that mounts either.
+ *
+ * Worksheet Studio and Homework Studio are deliberately absent: they stay
+ * reachable from Quick Create and the all-tools grid (asserted by
+ * dashboardV2Config.spec.js) rather than lengthening the permanent menu.
  */
-export const STUDIO_NAV_GROUPS = [
+export const TEACHER_NAV_GROUPS = [
   {
     id: 'root',
     label: null,
@@ -112,7 +79,7 @@ export const STUDIO_NAV_GROUPS = [
     id: 'settings',
     label: 'Settings',
     items: [
-      { id: 'subscription', label: 'Subscription', icon: CreditCard, to: '/my-subscription' },
+      { id: 'subscription', label: 'Subscription', icon: CreditCard, to: '/teacher/subscription' },
       { id: 'profile', label: 'Profile', icon: UserRound, to: '/settings/profile' },
       { id: 'settings', label: 'Settings', icon: Settings, to: '/settings' },
       { id: 'help', label: 'Help & Support', icon: CircleHelp, to: '/teacher/help' },
@@ -120,10 +87,65 @@ export const STUDIO_NAV_GROUPS = [
   },
 ]
 
+/**
+ * The name a tool is called by, keyed on the route that opens it.
+ *
+ * Route, not id: the same tool carries different ids in the sidebar config,
+ * the Quick Create tiles, the all-tools grid and the studio registry
+ * (`lesson-plan` / `lesson-plans` / `lesson_plan`), so ids cannot join them.
+ * The destination can, and it is also the thing a teacher actually
+ * experiences as sameness — two cards that open the same page are one tool
+ * and must not be called two things.
+ *
+ * Where a tool appears in TEACHER_NAV_GROUPS, the sidebar's label is
+ * authoritative and is copied here verbatim (asserted, not trusted). The rest
+ * are tools reachable only from Quick Create / the grid.
+ *
+ * "Studio" naming is deliberately kept for the PAGE headers — the product
+ * identity is "Lesson Plan Studio" — but every navigation surface says
+ * "Lesson Plans".
+ */
+export const CANONICAL_TOOL_LABELS = {
+  '/teacher/lesson-plans/new': 'Lesson Plans',
+  '/teacher/generate/scheme-of-work': 'Schemes of Work',
+  '/teacher/generate/weekly-forecast': 'Weekly Focus',
+  '/teacher/generate/record-of-work': 'Record of Work',
+  '/teacher/library': 'My Library',
+  '/teacher/assessment-papers': 'Assessments',
+  '/teacher/classes': 'My Classes',
+  '/teacher/register': 'Class List',
+  '/teacher/attendance': 'Class Register',
+  '/teacher/syllabi': 'Syllabi Studio',
+  '/teacher/curriculum': 'Curriculum',
+  '/teacher/calendar': 'School Calendar',
+  '/teacher/subscription': 'Subscription',
+  // The create route of a tool the sidebar already names: one tool, so it
+  // takes the sidebar's word rather than a second one ("Test Paper") for the
+  // same studio.
+  '/teacher/assessment-papers/new': 'Assessments',
+  // Not in the sidebar — named here so the tiles and the grid still agree.
+  '/teacher/generate/worksheet': 'Worksheets',
+  '/teacher/generate/homework': 'Homework',
+  '/teacher/generate/notes': 'Teacher Notes',
+  '/teacher/generate/flashcards': 'Flashcards',
+  '/teacher/generate/rubric': 'Rubrics',
+  '/teacher/generate/mark-schedule': 'Mark Schedule',
+  '/teacher/generate/class-timetable': 'Class Timetable',
+  '/teacher/question-bank': 'Question Bank',
+  '/teacher/templates': 'Paper Templates',
+  '/teacher/drafts': 'Drafts',
+}
+
+/** The canonical name for a destination, or null if it isn't a named tool. */
+export function canonicalToolLabel(to) {
+  if (!to) return null
+  return CANONICAL_TOOL_LABELS[to.split('?')[0]] || null
+}
+
 export const QUICK_CREATE_TILES = [
   {
     id: 'lesson-plan',
-    title: 'Lesson Plan',
+    title: 'Lesson Plans',
     description: 'Plan lessons with stages, resources and assessment.',
     icon: NotebookPen,
     to: '/teacher/lesson-plans/new',
@@ -139,7 +161,7 @@ export const QUICK_CREATE_TILES = [
   },
   {
     id: 'worksheet',
-    title: 'Worksheet',
+    title: 'Worksheets',
     description: 'Create classroom practice, exercises and consolidation tasks.',
     icon: Files,
     to: '/teacher/generate/worksheet',
@@ -147,7 +169,7 @@ export const QUICK_CREATE_TILES = [
   },
   {
     id: 'test-paper',
-    title: 'Test Paper',
+    title: 'Assessments',
     description: 'Build weekly, mid-term and end-of-term tests.',
     icon: FileText,
     to: '/teacher/assessment-papers/new',
@@ -208,7 +230,7 @@ export const WORKSPACE_EXPANDABLE = [
     title: 'Assessment',
     icon: ClipboardCheck,
     items: [
-      { id: 'assessment-papers', label: 'Assessment Papers', to: '/teacher/assessment-papers' },
+      { id: 'assessment-papers', label: 'Assessments', to: '/teacher/assessment-papers' },
       { id: 'rubrics', label: 'Rubrics', to: '/teacher/generate/rubric' },
       { id: 'sba', label: 'SBA Tasks', to: '/teacher/generate/sba' },
       { id: 'mark-schedule', label: 'Mark Schedule', to: '/teacher/generate/mark-schedule' },
@@ -223,16 +245,16 @@ export const WORKSPACE_EXPANDABLE = [
  * scripts/test-dashboard-v2-links.mjs).
  */
 export const ALL_TOOLS = [
-  { id: 'lesson-plan', label: 'Lesson Plan Studio', icon: NotebookPen, to: '/teacher/lesson-plans/new' },
+  { id: 'lesson-plan', label: 'Lesson Plans', icon: NotebookPen, to: '/teacher/lesson-plans/new' },
   { id: 'scheme-of-work', label: 'Schemes of Work', icon: CalendarRange, to: '/teacher/generate/scheme-of-work' },
   { id: 'weekly-focus', label: 'Weekly Focus', icon: ClipboardList, to: '/teacher/generate/weekly-forecast' },
   { id: 'record-of-work', label: 'Record of Work', icon: ChartNoAxesColumnIncreasing, to: '/teacher/generate/record-of-work' },
-  { id: 'worksheet', label: 'Worksheet Studio', icon: Files, to: '/teacher/generate/worksheet' },
-  { id: 'homework', label: 'Homework Studio', icon: BookOpenCheck, to: '/teacher/generate/homework' },
+  { id: 'worksheet', label: 'Worksheets', icon: Files, to: '/teacher/generate/worksheet' },
+  { id: 'homework', label: 'Homework', icon: BookOpenCheck, to: '/teacher/generate/homework' },
   { id: 'notes', label: 'Teacher Notes', icon: BookOpen, to: '/teacher/generate/notes' },
   { id: 'flashcards', label: 'Flashcards', icon: Files, to: '/teacher/generate/flashcards' },
-  { id: 'assessment-papers', label: 'Assessment Papers', icon: FileText, to: '/teacher/assessment-papers' },
-  { id: 'rubric', label: 'Rubric Studio', icon: ClipboardCheck, to: '/teacher/generate/rubric' },
+  { id: 'assessment-papers', label: 'Assessments', icon: FileText, to: '/teacher/assessment-papers' },
+  { id: 'rubric', label: 'Rubrics', icon: ClipboardCheck, to: '/teacher/generate/rubric' },
   { id: 'mark-schedule', label: 'Mark Schedule', icon: ListChecks, to: '/teacher/generate/mark-schedule' },
   { id: 'sba', label: 'SBA Tasks', icon: ClipboardCheck, to: '/teacher/generate/sba' },
   { id: 'sba-planner', label: 'SBA Year Plan', icon: CalendarRange, to: '/teacher/generate/sba-planner' },

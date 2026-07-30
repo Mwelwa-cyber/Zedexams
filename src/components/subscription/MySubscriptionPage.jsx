@@ -38,8 +38,16 @@ const MAX_UPGRADE_PERKS = [
  * My Subscription — every user's home for their plan, benefits, payment status,
  * and the upgrade/renew button. Audience-aware: learners and teachers see their
  * own Pro benefits and check out against the right plan portal.
+ *
+ * Rendered two ways. Teachers reach it at /teacher/subscription INSIDE
+ * TeacherLayout (`inShell`), where the sidebar is the way back and the page
+ * owns only its content — so it drops the "Back" link and the full-height
+ * page background the shell already provides, and takes the same header
+ * treatment as the Settings pages. Learners and admins keep the standalone
+ * /my-subscription page, which has no surrounding chrome and therefore still
+ * needs its own way back.
  */
-export default function MySubscriptionPage() {
+export default function MySubscriptionPage({ inShell = false }) {
   const { userProfile } = useAuth()
   const navigate = useNavigate()
   const {
@@ -74,19 +82,32 @@ export default function MySubscriptionPage() {
   const ctaLabel = status === SUB_STATUS.EXPIRED ? 'Renew' : 'Upgrade'
 
   return (
-    <div className="min-h-screen theme-bg">
-      <SeoHelmet title="My Subscription" path="/my-subscription" noIndex />
-      <div className="mx-auto max-w-2xl px-4 py-5 space-y-5">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-1.5 bg-transparent px-0 text-sm font-black theme-text-muted shadow-none min-h-0 hover:theme-text"
-        >
-          <Icon as={ArrowLeft} size="sm" /> Back
-        </button>
+    <div className={inShell ? '' : 'min-h-screen theme-bg'}>
+      <SeoHelmet
+        title="My Subscription"
+        path={inShell ? '/teacher/subscription' : '/my-subscription'}
+        noIndex
+      />
+      <div className={`mx-auto max-w-2xl space-y-5 ${inShell ? '' : 'px-4 py-5'}`}>
+        {/* Standalone page only: with no sidebar there is nothing else to
+            navigate with. Inside the shell the sidebar IS the way back. */}
+        {!inShell && (
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center gap-1.5 bg-transparent px-0 text-sm font-black theme-text-muted shadow-none min-h-0 hover:theme-text"
+          >
+            <Icon as={ArrowLeft} size="sm" /> Back
+          </button>
+        )}
 
-        <header className="space-y-1">
-          <h1 className="text-2xl font-black theme-text">My Subscription</h1>
+        <header className={inShell ? 'space-y-1 mb-1' : 'space-y-1'}>
+          {/* Inside the teacher shell the sidebar item says "Subscription",
+              so the page it opens says the same. The standalone learner page
+              has no sidebar to agree with and keeps its own title. */}
+          <h1 className={inShell ? 'studio-display text-3xl font-black theme-text' : 'text-2xl font-black theme-text'}>
+            {inShell ? 'Subscription' : 'My Subscription'}
+          </h1>
           <p className="text-sm font-bold theme-text-muted">
             {audience === 'teacher'
               ? 'Your ZedExams Pro plan for teacher tools.'

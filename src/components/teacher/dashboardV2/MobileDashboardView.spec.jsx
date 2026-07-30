@@ -3,6 +3,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
+import TeacherLayout from '../TeacherLayout'
 import TeacherDashboardV2 from './TeacherDashboardV2'
 import { TOUR_STORAGE_KEY } from './onboardingTourCore'
 
@@ -20,18 +21,33 @@ beforeEach(() => {
 
 // Force the mobile information architecture regardless of jsdom viewport.
 vi.mock('./useIsMobile', () => ({ default: () => true }))
+// Not part of the mobile IA under test, and it boots Firebase.
+vi.mock('../TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
+// The drawer's profile card belongs to the shell, so it shows the SIGNED-IN
+// teacher (auth) — not mockData's TEACHER, which only drives the page content.
 vi.mock('../../../contexts/AuthContext', () => ({
-  useAuth: () => ({ isTeacher: true, currentUser: null, userProfile: null }),
+  useAuth: () => ({
+    isTeacher: true,
+    isAdmin: false,
+    currentUser: { displayName: 'Mahenga Mwelwa', email: 'mahenga@example.com' },
+    userProfile: { displayName: 'Mahenga Mwelwa', email: 'mahenga@example.com' },
+    logout: vi.fn().mockResolvedValue(),
+  }),
 }))
 vi.mock('../../../contexts/NotificationContext', () => ({
   useNotifications: () => ({ unreadCount: 3, open: false, setOpen: () => {} }),
 }))
 
+// The mobile header, drawer and dock are TeacherLayout's; the dashboard
+// supplies only the content below them. Rendered together exactly as the
+// route composes them.
 function renderMobile() {
   return render(
     <HelmetProvider>
       <MemoryRouter initialEntries={['/teacher/dashboard-preview']}>
-        <TeacherDashboardV2 />
+        <TeacherLayout variant="dashboard">
+          <TeacherDashboardV2 />
+        </TeacherLayout>
       </MemoryRouter>
     </HelmetProvider>,
   )
@@ -129,9 +145,9 @@ describe('MobileDashboardView (via preview page)', () => {
     await user.click(screen.getByRole('button', { name: 'Quick create' }))
     const sheet = screen.getByRole('dialog', { name: 'Quick Create' })
     const expected = [
-      ['Lesson Plan', '/teacher/lesson-plans/new'],
-      ['Worksheet', '/teacher/generate/worksheet'],
-      ['Test Paper', '/teacher/assessment-papers/new'],
+      ['Lesson Plans', '/teacher/lesson-plans/new'],
+      ['Worksheets', '/teacher/generate/worksheet'],
+      ['Assessments', '/teacher/assessment-papers/new'],
       ['Weekly Focus', '/teacher/generate/weekly-forecast'],
     ]
     for (const [label, href] of expected) {
