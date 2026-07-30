@@ -140,6 +140,7 @@
     "test:question-bank-panel": "node scripts/test-question-bank-panel.mjs",
     "test:papers-nav": "node scripts/test-past-paper-nav.test.mjs",
     "test:lesson-plan-routing": "node scripts/test-lesson-plan-routing.mjs",
+    "test:lesson-plan-wizard-nav": "node scripts/test-lesson-plan-wizard-nav.mjs",
     "test:immersive-routes": "node scripts/test-immersive-studio-routes.mjs",
     "test:draft-core": "node src/hooks/draft/draftCore.test.js",
     "test:draft-restore": "node src/hooks/draft/restoreLessonPlan.test.js",
