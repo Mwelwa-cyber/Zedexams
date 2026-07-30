@@ -95,6 +95,11 @@ const DEFAULT_JOB_NAME = 'zedexams-storage-mirror'
 // 00:30 UTC = 02:30 Lusaka, comfortably before the 04:00 Lusaka health check.
 const DEFAULT_SCHEDULE_UTC = '00:30'
 const DEFAULT_NONCURRENT_DAYS = 30
+// `tmp-downloads/` is export-staging: saveViaStampedUrl writes there, the
+// client deletes ~90s later and tmpDownloadReaper sweeps hourly. Keep the
+// matching prefix in functions/storageCleanup/tmpDownloadReaperCore.js.
+const STAGING_PREFIX = 'tmp-downloads/'
+const STAGING_NONCURRENT_DAYS = 1
 
 // Every flag the script understands. Anything else is refused rather than
 // ignored: a silently-dropped `--locaton=us-central1` provisions the backup in
@@ -174,11 +179,36 @@ export function parseArgs(argv = []) {
 }
 
 /**
- * The lifecycle rule for the BACKUP bucket. Deliberately narrow: it expires
- * non-current (superseded) versions once they are both old and superseded
- * `numNewerVersions` times over. There is NO rule on live objects — a mirror
- * that expires live objects is a mirror that empties itself, which is the
- * failure this whole subsystem exists to prevent. Pure.
+ * The lifecycle rule for a versioned bucket — the SAME shape for the primary
+ * and the backup, because turning versioning on without one is what turns a
+ * delete into an object that is billed forever.
+ *
+ * Two decisions, both learned the hard way:
+ *
+ * • **Time only — no `numNewerVersions`.** Lifecycle conditions AND together,
+ *   so `{daysSinceNoncurrentTime: 30, numNewerVersions: 3}` deletes a version
+ *   only if it is BOTH 30 days noncurrent AND has three newer versions. A
+ *   DELETED object has zero newer versions, so it never matches and lives
+ *   forever. That is precisely this repo's highest-churn path: every teacher
+ *   export stages a file under `tmp-downloads/`, which `tmpDownloadReaper`
+ *   sweeps hourly to keep the prefix — in its own words — from growing
+ *   unbounded. Under versioning each of those deletes becomes an immortal
+ *   noncurrent version, and the extra condition guarantees nothing ever
+ *   reclaims it. A bounded time window is the whole policy: you have N days to
+ *   recover any version, then it is gone.
+ * • **Still cannot touch a live object.** `daysSinceNoncurrentTime` applies by
+ *   definition only to versions that have already been superseded or deleted;
+ *   there is no `age`/`createdBefore` rule here. A rule that expires live
+ *   objects on the primary would delete the app's images, and on the backup
+ *   would empty the mirror.
+ *
+ * The staging prefix gets its own short window: those objects exist for ~90
+ * seconds by design and have no recovery value, so holding them 30 days is
+ * paying to store nothing.
+ *
+ * NOTE: `--lifecycle-file` REPLACES a bucket's whole lifecycle configuration.
+ * Both buckets have none today; if one later grows a rule added elsewhere,
+ * re-running this would drop it. Pure.
  *
  * @param {number} noncurrentDays
  * @returns {object} GCS lifecycle config
@@ -192,7 +222,14 @@ export function buildLifecycleConfig(noncurrentDays = DEFAULT_NONCURRENT_DAYS) {
       rule: [
         {
           action: { type: 'Delete' },
-          condition: { daysSinceNoncurrentTime: days, numNewerVersions: 3 },
+          condition: { daysSinceNoncurrentTime: days },
+        },
+        {
+          action: { type: 'Delete' },
+          condition: {
+            daysSinceNoncurrentTime: STAGING_NONCURRENT_DAYS,
+            matchesPrefix: [STAGING_PREFIX],
+          },
         },
       ],
     },
@@ -241,6 +278,7 @@ export function planProvision(opts = {}) {
     projectNumber = '',
     runtimeServiceAccount: runtimeSaOverride = '',
     lifecycleFile = '<generated at run time>',
+    sourceLifecycleFile = '<generated at run time>',
   } = opts
 
   const src = `gs://${sourceBucket}`
@@ -264,6 +302,22 @@ export function planProvision(opts = {}) {
       id: 'source-versioning',
       title: `Object Versioning ON for the primary bucket (${src})`,
       argv: ['gcloud', 'storage', 'buckets', 'update', src, '--versioning', P],
+    },
+    {
+      // Versioning and its expiry rule are ONE decision, applied in one run.
+      // Versioning alone means every delete on the primary — and this repo
+      // deletes constantly: tmpDownloadReaper hourly, orphanReaper, the
+      // lesson/question/user cascade triggers — leaves a noncurrent version
+      // that is billed forever. The reapers whose entire job is reclaiming
+      // space would stop reclaiming any.
+      id: 'source-lifecycle',
+      title: `Expire NON-CURRENT versions on the PRIMARY after ${noncurrentDays}d ` +
+        `(${STAGING_PREFIX} after ${STAGING_NONCURRENT_DAYS}d; live objects untouched)`,
+      writeFile: {path: sourceLifecycleFile, contents: buildLifecycleConfig(noncurrentDays)},
+      argv: [
+        'gcloud', 'storage', 'buckets', 'update', src,
+        `--lifecycle-file=${sourceLifecycleFile}`, P,
+      ],
     },
     {
       id: 'create-backup-bucket',
@@ -412,11 +466,15 @@ async function main(argv) {
   let projectNumber = opts.projectNumber
   if (!projectNumber) projectNumber = resolveProjectNumber(opts.project)
 
-  const lifecycleFile = opts.live
-    ? join(mkdtempSync(join(tmpdir(), 'zedexams-lifecycle-')), 'lifecycle.json')
-    : '/tmp/zedexams-storage-backup-lifecycle.json'
+  const lifecycleDir = opts.live
+    ? mkdtempSync(join(tmpdir(), 'zedexams-lifecycle-'))
+    : '/tmp'
+  const lifecycleFile = join(lifecycleDir, 'backup-lifecycle.json')
+  const sourceLifecycleFile = join(lifecycleDir, 'primary-lifecycle.json')
 
-  const { steps, envLine } = planProvision({ ...opts, projectNumber, lifecycleFile })
+  const { steps, envLine } = planProvision({
+    ...opts, projectNumber, lifecycleFile, sourceLifecycleFile,
+  })
 
   console.log('\nZedExams — Storage backup mirror (DR-003)')
   console.log(`  project         ${opts.project}${projectNumber ? ` (#${projectNumber})` : ' (project number UNRESOLVED — is gcloud installed and authenticated?)'}`)

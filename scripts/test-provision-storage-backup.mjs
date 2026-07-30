@@ -73,23 +73,53 @@ console.log('\nprovision-storage-backup (plan)')
 console.log('\nprovision-storage-backup (lifecycle safety)')
 {
   const rules = buildLifecycleConfig(30).lifecycle.rule
-  ok('exactly one lifecycle rule', rules.length === 1)
-  ok('it deletes only NON-CURRENT versions',
-    rules[0].condition.daysSinceNoncurrentTime === 30 &&
-    rules[0].condition.numNewerVersions === 3)
+  ok('a general rule plus a staging rule', rules.length === 2)
+  ok('the general rule expires non-current versions on time alone',
+    rules[0].condition.daysSinceNoncurrentTime === 30)
+  // Conditions AND together, so numNewerVersions makes a DELETED object (zero
+  // newer versions) immortal — the exact case tmpDownloadReaper generates
+  // hourly. Its absence is the fix, so its absence is the assertion.
+  ok('NO rule carries numNewerVersions (it would make deletes immortal)',
+    rules.every((r) => r.condition.numNewerVersions === undefined))
   ok('no rule can expire a live object (no age/createdBefore condition)',
     rules.every((r) => r.condition.age === undefined &&
       r.condition.createdBefore === undefined &&
       r.condition.daysSinceNoncurrentTime !== undefined))
+  ok('export staging gets a short window, not the full retention',
+    rules[1].condition.matchesPrefix.join() === 'tmp-downloads/' &&
+    rules[1].condition.daysSinceNoncurrentTime === 1)
   ok('a nonsense retention falls back to the default, never 0',
     buildLifecycleConfig(0).lifecycle.rule[0].condition.daysSinceNoncurrentTime === 30 &&
     buildLifecycleConfig(NaN).lifecycle.rule[0].condition.daysSinceNoncurrentTime === 30)
-  const p = plan({noncurrentDays: 90, lifecycleFile: '/tmp/lc.json'})
-  ok('the lifecycle step writes the config it then applies',
+  const p = plan({
+    noncurrentDays: 90, lifecycleFile: '/tmp/lc.json', sourceLifecycleFile: '/tmp/src.json',
+  })
+  ok('the backup lifecycle step writes the config it then applies',
     step(p, 'backup-lifecycle').writeFile.path === '/tmp/lc.json' &&
     cmd(p, 'backup-lifecycle').includes('--lifecycle-file=/tmp/lc.json') &&
     step(p, 'backup-lifecycle').writeFile.contents.lifecycle.rule[0]
       .condition.daysSinceNoncurrentTime === 90)
+
+  // Versioning without an expiry rule is what bills a delete forever. The two
+  // are one decision, so the plan must never contain the first without the
+  // second, and never in the other order.
+  ok('the PRIMARY bucket gets a lifecycle rule too',
+    cmd(p, 'source-lifecycle').includes('gs://examsprepzambia.firebasestorage.app') &&
+    cmd(p, 'source-lifecycle').includes('--lifecycle-file=/tmp/src.json'))
+  ok('the primary rule is the same bounded rule as the backup\'s',
+    JSON.stringify(step(p, 'source-lifecycle').writeFile.contents) ===
+    JSON.stringify(step(p, 'backup-lifecycle').writeFile.contents))
+  ok('the primary\'s expiry lands in the same run as its versioning',
+    p.steps.findIndex((s) => s.id === 'source-versioning') <
+    p.steps.findIndex((s) => s.id === 'source-lifecycle'))
+  ok('every bucket the plan versions, the plan also expires',
+    p.steps.filter((s) => (s.argv || []).includes('--versioning'))
+      .map((s) => s.argv[4])
+      .every((bucket) => p.steps.some((s) =>
+        s.id.endsWith('-lifecycle') && s.argv.includes(bucket))))
+  ok('the two lifecycle files are distinct (one cannot clobber the other)',
+    step(p, 'source-lifecycle').writeFile.path !==
+    step(p, 'backup-lifecycle').writeFile.path)
 }
 
 console.log('\nprovision-storage-backup (IAM)')

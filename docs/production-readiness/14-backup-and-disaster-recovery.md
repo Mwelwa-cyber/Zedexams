@@ -228,13 +228,24 @@ It needs `gcloud` authenticated as a principal holding `roles/storage.admin` +
 does, and why each piece is there:
 
 1. **Enable Object Versioning** on the primary bucket (protects individual objects
-   from overwrite/delete): `gcloud storage buckets update gs://examsprepzambia.firebasestorage.app --versioning`
+   from overwrite/delete) **and apply its expiry rule in the same run** — the two
+   are one decision. Versioning alone means every delete on the primary leaves a
+   noncurrent version billed forever, and this repo deletes constantly:
+   `tmpDownloadReaper` sweeps `tmp-downloads/` hourly *specifically* so that
+   prefix "can never grow unbounded", plus `orphanReaper` and the
+   lesson/question/user cascade triggers. Versioning without a lifecycle rule
+   silently converts every one of those reclaims into permanent storage.
 2. **Create a cross-region backup bucket** — the primary is in `africa-south1`, so
    a backup there shares its blast radius. Uniform bucket-level access,
-   public-access prevention, versioning, and a lifecycle rule that expires
-   **non-current versions only** (never live objects — a mirror that expires live
-   objects quietly empties itself, which is precisely the failure this subsystem
-   exists to catch).
+   public-access prevention, versioning, and the same lifecycle rule.
+   Both buckets' rules expire **non-current versions only** (never live objects —
+   a rule that expires live objects would delete the app's images on the primary
+   and quietly empty the mirror on the backup) and are keyed on
+   **`daysSinceNoncurrentTime` alone**. Lifecycle conditions AND together, so
+   adding `numNewerVersions` would exempt every *deleted* object — which has zero
+   newer versions — from expiry entirely, defeating the rule on exactly the path
+   that generates the most garbage. `tmp-downloads/` gets a 1-day window instead
+   of 30: those objects live ~90 seconds by design and have no recovery value.
 3. **Create a Storage Transfer Service job** (source = primary, destination =
    backup, **daily**, `--overwrite-when=different`, never `--delete-from`: a
    mirror that propagates a source delete is not a backup). Grant the STS service
