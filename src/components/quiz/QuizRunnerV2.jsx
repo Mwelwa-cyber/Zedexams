@@ -1168,7 +1168,14 @@ export default function QuizRunnerV2() {
                       const blankCorrect = fbChecked ? fbResult.perBlank?.[flatIndex] : null
                       return (
                         <span key={segIndex} className="inline-flex flex-wrap items-center gap-1">
-                          {segment && <span>{segment}</span>}
+                          {/* A generated maths statement is rich HTML (its
+                              fraction spans survive the blank split as text
+                              segments), so a segment carrying markup renders
+                              through RichContent; plain segments — every
+                              legacy quiz — take exactly the old path. */}
+                          {segment && (String(segment).includes('<')
+                            ? <RichContent value={segment} fallback={<span>{getRichPlainText(segment)}</span>} />
+                            : <span>{segment}</span>)}
                           {segIndex < statement.segments.length - 1 && (
                             <input
                               type="text"
