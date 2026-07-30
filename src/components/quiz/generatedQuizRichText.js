@@ -23,24 +23,29 @@ import {
   importMarkupToOptionHtml,
 } from './importRichText.js'
 
+/** Already-converted editor HTML — never feed it back through the converter. */
+function alreadyRich(value) {
+  return typeof value === 'string' && /<[a-z!/]/i.test(value)
+}
+
 /** One generated question, its display fields converted, marking fields untouched. */
 export function richifyGeneratedQuestion(question) {
   if (!question || typeof question !== 'object') return question
   const out = { ...question }
-  if (typeof out.text === 'string' && hasImportMarkup(out.text)) {
+  if (typeof out.text === 'string' && !alreadyRich(out.text) && hasImportMarkup(out.text)) {
     out.text = importMarkupToRichHtml(out.text)
   }
-  if (typeof out.explanation === 'string' && hasImportMarkup(out.explanation)) {
+  if (typeof out.explanation === 'string' && !alreadyRich(out.explanation) && hasImportMarkup(out.explanation)) {
     out.explanation = importMarkupToRichHtml(out.explanation)
   }
   if (Array.isArray(out.options)) {
     out.options = out.options.map((opt) =>
-      (typeof opt === 'string' ? importMarkupToOptionHtml(opt) : opt))
+      (typeof opt === 'string' && !alreadyRich(opt) ? importMarkupToOptionHtml(opt) : opt))
   }
   if (Array.isArray(out.statements)) {
     out.statements = out.statements.map((st) => {
       if (!st || typeof st !== 'object') return st
-      if (typeof st.text !== 'string' || !hasImportMarkup(st.text)) return st
+      if (typeof st.text !== 'string' || alreadyRich(st.text) || !hasImportMarkup(st.text)) return st
       // Inline conversion: a statement is one line with a blank in it, and a
       // block-level <p> wrapper would break the blank segmentation.
       return { ...st, text: importMarkupToOptionHtml(st.text) }

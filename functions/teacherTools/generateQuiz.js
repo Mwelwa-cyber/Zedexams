@@ -259,24 +259,26 @@ async function runQuiz({uid, rawInputs, apiKey}) {
 
   const validation = validateQuiz(mergedInput);
   const quiz = validation.value;
-  // Notation handling (Phase 5). For THIS tool the floor is the whole
-  // ladder, by design and not as a fallback: the quiz document renders as
-  // plain strings in the library, a destination that cannot draw markup. So
-  // the valid markup the shared prompt block asks the model for ($x^2$,
-  // \frac{3}{5}, [[vmath]]) is deliberately converted to clean readable
-  // plain text on arrival, and plain maths is left alone. Running the repair
-  // stage here would turn "3/5" INTO markup a plain-string view prints
-  // verbatim — the exact page-level defect the ladder exists to prevent.
+  // Notation handling (Phase 5). This tool's document renders as plain
+  // strings in the library — a destination that cannot draw markup — so the
+  // ladder here is repair THEN flatten-everything: repair normalises raw
+  // computer forms into the contract ("x^2" → $x^{2}$), and the flatten
+  // converts ALL markup, the model's and the repair's alike, to clean
+  // readable plain text (x², √49, 3/5). Skipping repair would leave a raw
+  // "x^2" as "x^2"; skipping the flatten would print markup verbatim.
   // String work only, no model calls.
   try {
-    const {flattenMarkupToPlainText, QUIZ_DOC_FIELDS} =
+    const {enforceNotation, flattenMarkupToPlainText, QUIZ_DOC_FIELDS} =
       require("./notationEnforcement");
-    const {flattened} = await flattenMarkupToPlainText(quiz, {
-      subject: inputs.subject, fields: QUIZ_DOC_FIELDS,
-    });
-    if (flattened) console.info("[generateQuiz] notation floor:", {flattened});
+    const notationOpts = {subject: inputs.subject, fields: QUIZ_DOC_FIELDS};
+    const report = await enforceNotation(quiz, notationOpts);
+    const {flattened} = await flattenMarkupToPlainText(quiz, notationOpts);
+    if (report.repaired || flattened) {
+      console.info("[generateQuiz] notation:",
+          {repaired: report.repaired, flattened});
+    }
   } catch (err) {
-    console.error("[generateQuiz] notation floor failed", err);
+    console.error("[generateQuiz] notation handling failed", err);
   }
   const sourcing = {
     fromBank: sourced.fromBank,
