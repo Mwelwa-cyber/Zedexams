@@ -8,8 +8,11 @@
 
 const {learningEnvironmentLabel} = require("./learningEnvironments");
 const {subjectNameForGrade} = require("./subjectNaming");
+const {MATHS_NOTATION_BLOCK} = require("./notationPromptBlock");
 
-const PROMPT_VERSION = "quiz.v1";
+// v2 (edited in place): the only change is the shared MATHS NOTATION block
+// joining the user prompt — see worksheetPrompt.js for why in place.
+const PROMPT_VERSION = "quiz.v2";
 
 const SYSTEM_PROMPT = `You are an expert Zambian teacher writing a short formative QUIZ for the Competence-Based Curriculum (CBC).
 
@@ -87,7 +90,12 @@ function buildUserPrompt(inputs) {
     "Rules:",
     "- Every question MUST have exactly one correct answer + an explanation.",
     "- correctAnswer for multiple_choice/true_false must match one option exactly.",
+    "- For short_answer questions, correctAnswer stays PLAIN text (it is compared",
+    "  against what a learner types) — the notation rules below apply to the",
+    "  question text, options and explanation, never to a short answer key.",
     "- Use Zambian English spelling. Return ONLY the JSON object.",
+    "",
+    MATHS_NOTATION_BLOCK,
   ].filter(Boolean).join("\n");
 }
 

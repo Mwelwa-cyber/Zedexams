@@ -26,8 +26,8 @@ const base = {
 {
   assert.strictEqual(
     PROMPT_VERSION,
-    "worksheet.v2",
-    "PROMPT_VERSION should be worksheet.v2",
+    "worksheet.v3",
+    "PROMPT_VERSION should be worksheet.v3",
   );
 }
 
