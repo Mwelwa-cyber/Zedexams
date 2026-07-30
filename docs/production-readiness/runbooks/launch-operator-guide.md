@@ -159,12 +159,22 @@ database.
 **Why it matters:** Step 3 copies the database; this copies the files. Both
 matter for a full recovery. (DR-003.)
 
-**Do this:**
-1. Create a **second Storage bucket** (ideally a different region) and set up a
-   **Storage Transfer** job to mirror the main bucket into it.
-2. Set the env var **`STORAGE_BACKUP_BUCKET`** to that bucket.
+**Do this:** one script does the whole setup — the second bucket, the daily
+**Storage Transfer** job that mirrors the main bucket into it, and the
+permissions both need. It shows you the plan first and changes nothing until you
+add `--live`:
 
-**✅ You did it when:** the **`opsStorageBackups`** status reads **`fresh`**.
+```bash
+npm run provision:storage-backup              # look at what it will do
+npm run provision:storage-backup -- --live    # do it
+```
+
+Then uncomment **`STORAGE_BACKUP_BUCKET`** in `functions/.env.examsprepzambia`
+(the line is already there, commented) and merge a PR so it deploys.
+
+**✅ You did it when:** the **`opsStorageBackups`** status reads **`fresh`**, and
+the "Storage backup MISCONFIGURED" email stops arriving each morning. It reads
+`empty` until the first overnight transfer finishes — that's expected on day one.
 
 ---
 
