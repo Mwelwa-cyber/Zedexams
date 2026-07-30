@@ -40,6 +40,8 @@ const SHAPE_LIBRARY = {
   cylinder: {params: ["r", "h", "cap"], desc: "cylinder with radius and height labels"},
   cone: {params: ["r", "h", "cap"], desc: "cone with radius and height labels"},
   sphere: {params: ["r", "cap"], desc: "sphere with a radius label"},
+  pyramid: {params: ["l", "w", "h", "notToScale", "cap"], desc: "rectangular-based pyramid drawn in the TRUE proportions of its measurements, with a dashed perpendicular height (use for volume/surface-area questions)"},
+  frustum: {params: ["l", "w", "tl", "tw", "h", "notToScale", "cap"], desc: "frustum of a rectangular pyramid: base l x w, smaller top tl x tw centred over it, dashed height — the top MUST be smaller than the base"},
   // graphs & number work
   numberline: {params: ["min", "max", "step", "highlight", "cap"], desc: "number line from min to max in steps; highlight marks one value"},
   numberlinejump: {params: ["min", "max", "step", "jumps", "cap"], desc: "number line showing integer jumps for add/subtract; jumps like \"-3>2,2>5\" (each draws a +/- hop arc). Use for integer arithmetic."},

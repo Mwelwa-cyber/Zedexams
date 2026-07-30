@@ -58,6 +58,7 @@ const FAMILIES = [
   'functiongraph', 'transformation', 'vectordiagram',
   'histogram', 'frequencypolygon', 'ogive', 'travelgraph', 'linearprogramming',
   'earthgeometry', 'venn3elements',
+  'frustum', 'pyramid',
 ]
 
 /** The families that plot into the shared Cartesian frame. */
@@ -842,6 +843,66 @@ test('the three circles are the same size and each overlaps both others', () => 
       assert.ok(dist(centres[i], centres[j]) > 1, `circles ${i} and ${j} are not on top of each other`)
     }
   }
+})
+
+/* ── editable solids ─────────────────────────────────────────────────────── */
+
+console.log('\neditable solids')
+
+test('the frustum is drawn in the true proportions of its measurements', () => {
+  // Base 15 x 6, top 10 x 4, height 8 — the front base edge and the front top
+  // edge are on the page in the SAME scale, so their ratio is the stated one.
+  const parsed = draw('frustum', { l: '15 cm', w: '6 cm', tl: '10 cm', tw: '4 cm', h: '8 cm' })
+  const edges = select(parsed, 'line', (e) => e.attrs['data-edge'] === 'visible')
+  const widths = edges.map((e) => Math.abs(num(e, 'x2') - num(e, 'x1'))).filter((v) => v > 1)
+  const frontBase = Math.max(...widths)
+  // The top front edge is the largest horizontal run at the top height.
+  const tops = edges.filter((e) => num(e, 'y1') === num(e, 'y2'))
+    .sort((a, b) => num(a, 'y1') - num(b, 'y1'))
+  const topEdge = Math.abs(num(tops[0], 'x2') - num(tops[0], 'x1'))
+  approx(topEdge / frontBase, 10 / 15, 0.02, 'top length : base length')
+})
+
+test('the top face is centred over the base — a frustum, not an oblique prism', () => {
+  const parsed = draw('frustum', { l: '12 cm', w: '6 cm', tl: '6 cm', tw: '3 cm', h: '5 cm' })
+  // The three VISIBLE horizontal edges, lowest on the page first: front base,
+  // front top, top back. A CENTRED top face sits half the width difference
+  // deeper than the front base edge, and in oblique projection that depth
+  // shifts it right by exactly oz * 0.45 * scale — where the scale is read
+  // back off the page from the base edge itself (length 12 drawn at l*s px).
+  // An oblique-prism top (not centred) misses this by its own offset.
+  const horiz = select(parsed, 'line', (e) => e.attrs['data-edge'] === 'visible' && num(e, 'y1') === num(e, 'y2'))
+    .sort((a, b) => num(b, 'y1') - num(a, 'y1'))
+  assert.equal(horiz.length, 3)
+  const mid = (e) => (num(e, 'x1') + num(e, 'x2')) / 2
+  const len = (e) => Math.abs(num(e, 'x2') - num(e, 'x1'))
+  const scale = len(horiz[0]) / 12
+  const expectedShift = ((6 - 3) / 2) * 0.45 * scale
+  approx(mid(horiz[1]) - mid(horiz[0]), expectedShift, 0.5, 'top centred over base (allowing the depth shift)')
+  // And the top edge really is the stated 6-of-12 proportion of the base.
+  approx(len(horiz[1]) / len(horiz[0]), 0.5, 0.02, 'top length : base length')
+})
+
+test('hidden edges are dashed and the height is a dashed interior line', () => {
+  for (const key of ['frustum', 'pyramid']) {
+    const parsed = draw(key, getDiagram(key).defaults)
+    const hidden = select(parsed, 'line', (e) => (e.attrs['data-edge'] === 'hidden' || e.attrs['data-slant'] === 'hidden'))
+    assert.ok(hidden.length >= 2, `${key} has dashed hidden edges`)
+    for (const e of hidden) assert.ok(e.attrs['stroke-dasharray'], `${key} hidden edge is dashed`)
+    const height = selectOne(parsed, 'line', (e) => e.attrs['data-height'])
+    assert.ok(height.attrs['stroke-dasharray'], `${key} height is dashed`)
+    // Vertical: the perpendicular height drops straight down.
+    approx(num(height, 'x1'), num(height, 'x2'), 0.01, `${key} height is vertical`)
+  }
+})
+
+test('an impossible frustum is refused in the teacher\'s own terms', () => {
+  assert.match(issues('frustum', { tl: '20 cm' })[0].message, /top face is smaller than its base/)
+  // A symbolic label ("h") is legitimate and falls back to the default
+  // proportions; only an explicit non-positive measurement is refused.
+  assert.match(issues('pyramid', { h: '0 cm' })[0].message, /positive measurement/)
+  assert.deepEqual(issues('pyramid', { h: 'h' }), [])
+  assert.deepEqual(issues('frustum', {}), [])
 })
 
 /* ── the export gate ─────────────────────────────────────────────────────── */
