@@ -159,3 +159,56 @@
   .vs-inspector { border-left: none; border-top: 1px solid var(--vs-line); }
   .vs-results { grid-template-columns: 1fr 1fr; }
 }
+
+/* ── NIGHT ────────────────────────────────────────────────────────────────
+ * Visual Studio had no dark rules, so an admin on Night got the dark shell
+ * and a white authoring surface inside it.
+ *
+ * WHAT STAYS LIGHT, AND WHY IT IS NOT AN OVERSIGHT
+ * `.vs-stage`, `.vs-canvas`, the label chips drawn on top of an image, and the
+ * result thumbnails keep their light surround. The job of this screen is
+ * judging a GENERATED PICTURE — whether a diagram reads, whether a label sits
+ * on the right part, whether the contrast survives a photocopier. That
+ * judgement has to be made against a constant surround, or the same image
+ * looks acceptable on one theme and wrong on the other. It is the same reason
+ * the A4 preview in the assessment studio stays white.
+ *
+ * Everything AROUND the canvas — panels, cards, chips, the inspector, the
+ * tool rail — is chrome and follows the theme. */
+[data-theme='night'] .vstudio {
+  --vs-ink: #EDE7DC;
+  --vs-muted: #94A0AF;
+  --vs-line: #3B4757;
+  --vs-brand: #4FA895;
+  --vs-brand-d: #3D8A79;
+  --vs-accent: #E08A61;
+}
+[data-theme='night'] .vs-card,
+[data-theme='night'] .vs-panel,
+[data-theme='night'] .vs-result,
+[data-theme='night'] .vs-editor,
+[data-theme='night'] .vs-bankcard,
+[data-theme='night'] .vs-iconbtn,
+[data-theme='night'] .vs-chip {
+  background: #232D3B;
+  color: var(--vs-ink);
+}
+[data-theme='night'] .vs-field select,
+[data-theme='night'] .vs-field input,
+[data-theme='night'] .vs-field textarea {
+  background: #1A222E;
+  color: var(--vs-ink);
+  border-color: var(--vs-line);
+}
+[data-theme='night'] .vs-inspector { background: #1F2836; }
+[data-theme='night'] .vs-tools { background: #1F2836; }
+[data-theme='night'] .vs-tool:hover { background: #2A3646; }
+[data-theme='night'] .vs-tool.active { background: #33414F; }
+[data-theme='night'] .vs-chip.active { background: rgba(79, 168, 149, 0.24); }
+[data-theme='night'] .vs-hint { background: #1F2836; }
+[data-theme='night'] .vs-note-warn {
+  background: rgba(200, 146, 61, 0.20);
+  color: #E5B55F;
+}
+[data-theme='night'] .vs-iconbtn.danger { color: #EE8A9B; }
+[data-theme='night'] .vs-iconbtn.danger:hover { background: rgba(180, 35, 24, 0.22); }

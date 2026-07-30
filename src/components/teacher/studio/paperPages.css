@@ -26,8 +26,14 @@
   overflow: hidden;
 }
 
-@media (prefers-color-scheme: dark) {
-  .pp-preview { background: #1f2937; }
+/* Keyed to the app's own dark themes, not to `prefers-color-scheme`.
+   ThemeContext deliberately does not read the OS preference — the note there
+   explains why — so an OS-driven rule here made the desk disagree with the
+   rest of the app in both directions: a teacher on Night with a light OS kept
+   the lighter desk, and a teacher on Terracotta with a dark OS got the darker
+   one. It is the only `prefers-color-scheme` rule left in the app's CSS. */
+:is(body.theme-midnight, html[data-theme='night'] body) .pp-preview {
+  background: #1f2937;
 }
 
 /* ── Toolbar ─────────────────────────────────────────────────────────────── */
