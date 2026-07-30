@@ -21,9 +21,16 @@ vi.mock('../../../utils/teacherTools', () => ({
   DURATION_PRESETS: [{ value: 40, label: '40 min' }],
 }))
 
-vi.mock('../../../contexts/AuthContext', () => ({
-  useAuth: () => ({ currentUser: { uid: 'test-uid' }, userProfile: {}, isAdmin: false }),
-}))
+// Stable references — NotesStudio has a mount effect keyed on [currentUser]
+// that toggles plansLoading. A fresh object each render would re-fire it every
+// render, whose async chain flips the loading state back, re-rendering forever
+// (an act() that never settles → test timeout). Closing over one object each
+// keeps the effect from re-running.
+vi.mock('../../../contexts/AuthContext', () => {
+  const currentUser = { uid: 'test-uid' }
+  const userProfile = {}
+  return { useAuth: () => ({ currentUser, userProfile, isAdmin: false }) }
+})
 vi.mock('../../../hooks/useGenerationGate', () => ({
   useGenerationGate: () => ({ ensureCanGenerate: () => true }),
 }))
