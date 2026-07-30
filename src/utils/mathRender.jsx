@@ -88,11 +88,12 @@ export function Fraction({ numerator, denominator }) {
 // Simple fractions: N/M where both sides are 1-3 digits. Bounded by
 // characters that aren't digits or slashes to avoid grabbing parts of
 // URLs, dates, page ranges like "54-57", etc.
-const SIMPLE_FRACTION = /(?<![\d/])(\d{1,3})\/(\d{1,3})(?!\d)/g
+// (?![\d/]) after: "12/03/2026" is a date, not a fraction and a half.
+const SIMPLE_FRACTION = /(?<![\d/])(\d{1,3})\/(\d{1,3})(?![\d/])/g
 
 // Mixed numbers: whole + space + fraction. Rendered as "whole N⁄M" with the
 // fraction stacked. We look for standalone patterns like "1 1/2".
-const MIXED_NUMBER = /(?<![\d/])(\d{1,3})\s+(\d{1,3})\/(\d{1,3})(?!\d)/g
+const MIXED_NUMBER = /(?<![\d/])(\d{1,3})\s+(\d{1,3})\/(\d{1,3})(?![\d/])/g
 
 /**
  * Looks through a string for fraction patterns and returns an array of

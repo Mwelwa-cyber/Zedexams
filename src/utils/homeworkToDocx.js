@@ -122,13 +122,16 @@ export function buildHomeworkDocument(hw, opts = {}) {
   if (opts.includeAnswers !== false) {
     children.push(h2('Answer Key (teacher)'))
     ;(hw.questions || []).forEach((q, i) => {
+      const hwAnswer = markupFieldToDocx(q.answer || '—', { size: 20 })
       children.push(new Paragraph({
         children: [
           text(`${q.number || i + 1}. `, { bold: true, size: 20 }),
-          ...markupFieldToDocx(q.answer || '—', { size: 20 }).runs,
+          ...hwAnswer.runs,
         ],
         spacing: { after: q.workingNotes ? 20 : 60 },
       }))
+      // A [[vmath]] or multi-line answer lives in extraParagraphs.
+      children.push(...hwAnswer.extraParagraphs)
       if (q.workingNotes) {
         children.push(new Paragraph({
           children: [...markupFieldToDocx(q.workingNotes, { italics: true, size: 18 }).runs],

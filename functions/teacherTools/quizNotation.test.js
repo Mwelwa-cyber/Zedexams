@@ -78,8 +78,9 @@ async function test(name, fn) {
     await enforceNotation(questions, {subject: "mathematics", fields: QUIZ_EDITOR_FIELDS});
     assert.match(questions[0].statements[0].text, /\$x\^\{2\}\$/);
     assert.equal(questions[0].statements[0].answer, "5", "a typed answer stays plain");
-    // The word bank IS display — the learner picks from it by reading it.
-    assert.match(questions[0].wordBank[1], /\$x\^\{2\}\$/);
+    // The word bank holds the answers the learner TYPES against, so like the
+    // answer key it stays exactly as generated.
+    assert.equal(questions[0].wordBank[1], "x^2");
   });
 
   await test("a non-maths subject is left entirely alone", async () => {
@@ -97,12 +98,17 @@ async function test(name, fn) {
     const quiz = {questions: [{
       question: "Work out $\\sqrt{49}$ + \\frac{1}{2}.",
       options: ["$x^2$", "7"],
+      // The doc schema's MCQ key IS the option text, so it must flatten in
+      // step with the option or the saved quiz has no matching key.
+      correctAnswer: "$x^2$",
       explanation: "Use \\frac{1}{2} of the total.",
     }]};
     const {flattened} = await flattenMarkupToPlainText(quiz, {
       subject: "mathematics", fields: QUIZ_DOC_FIELDS,
     });
     assert.ok(flattened >= 2, `expected flattening, got ${flattened}`);
+    assert.equal(quiz.questions[0].correctAnswer, quiz.questions[0].options[0],
+        "the flattened key still matches its flattened option");
     for (const value of [
       quiz.questions[0].question,
       quiz.questions[0].options[0],
@@ -122,6 +128,8 @@ async function test(name, fn) {
     assert.ok(HOMEWORK_FIELDS.some((f) => f.path === "answer"));
     assert.ok(WORKSHEET_FIELDS.some((f) => f.path === "workingNotes"));
     assert.ok(!QUIZ_DOC_FIELDS.some((f) => f.path === "answer"));
+    assert.ok(!QUIZ_EDITOR_FIELDS.some((f) => f.path === "wordBank[]"),
+        "the word bank is typed against, so it stays off the editor list");
   });
 
   console.log(`\n${passed} quiz notation checks passed\n`);

@@ -1004,7 +1004,8 @@ function buildQuizMessages(payload) {
     // "answer" stays plain: it is compared against what a learner types.
     MATHS_NOTATION_BLOCK,
     "- The notation rules apply to \"text\", \"options\", \"explanation\" and",
-    "  fill-in-the-blank \"statements\" — NEVER to a short_answer \"answer\".",
+    "  fill-in-the-blank \"statements\" — NEVER to a short_answer \"answer\",",
+    "  a fill-blank answer, or the \"wordBank\" (learners type against those).",
     "",
     "Return ONLY the JSON object. No markdown fences. No commentary.",
   ].filter(Boolean).join("\n");

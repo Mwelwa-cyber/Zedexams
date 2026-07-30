@@ -1303,7 +1303,7 @@ export default function QuizRunnerV2() {
                           <option key={optIndex} value={optIndex}>
                             {typeof opt === 'string' && !/<[a-z!/]/i.test(opt) && !opt.startsWith('{')
                               ? opt
-                              : (getRichPlainText(opt) || `Option ${optIndex + 1}`)}
+                              : (String(getRichPlainText(opt) || '').trim() || `Option ${optIndex + 1}`)}
                           </option>
                         ))}
                       </select>

@@ -101,12 +101,16 @@ function isCorrectChoice(question, optionIndex) {
   if (opt && typeof opt === 'object' && opt.isCorrect) return true
   if (typeof question.correctAnswer === 'string') {
     const raw = question.correctAnswer.trim()
-    // A single letter key ("A"–"H") names a position, not a text — matching it
-    // against option TEXT can only succeed by accident (an option that IS the
-    // letter), and for every rich-option question it succeeded never: the key
-    // matched nothing, every choice marked wrong, none highlighted correct.
+    // Exact option-text match wins FIRST: options ["B","C","A","D"] with key
+    // "A" means the option whose text is "A", not position 0. Only when no
+    // option's text equals the key is a single letter read as a position —
+    // the legacy shape where rich options made text matching impossible.
+    const options = Array.isArray(question.options) ? question.options : []
+    const textHit = options.findIndex((o) =>
+      plainTextFromOption(o).trim().toLowerCase() === raw.toLowerCase())
+    if (textHit >= 0) return textHit === optionIndex
     const letterIndex = /^[A-Ha-h]$/.test(raw) ? raw.toUpperCase().charCodeAt(0) - 65 : -1
-    if (letterIndex >= 0 && letterIndex < (question.options?.length || 0)) {
+    if (letterIndex >= 0 && letterIndex < options.length) {
       return letterIndex === optionIndex
     }
     // Text key: compare plain projections of BOTH sides, because the key may

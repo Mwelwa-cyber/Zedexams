@@ -79,6 +79,7 @@ function renderQuestion(q, includeAnswer) {
 function renderSection(section, includeAnswer) {
   let html = `<div class="section">`
   if (section.title) html += `<h2>${safe(section.title)}</h2>`
+  if (section.instructions) html += `<p class="section-instructions">${markupToHtml(section.instructions)}</p>`
 
   if (section.passage) {
     if (section.passageTitle) html += `<p class="passage-title"><strong>${safe(section.passageTitle)}</strong></p>`
@@ -230,7 +231,7 @@ function buildHtml(worksheet, mode) {
   </div>` : `
   <div class="ak-banner">&#128273; Answer Key — do not distribute to pupils</div>`}
 
-  ${h.instructions ? `<div class="instructions">${safe(h.instructions)}</div>` : ''}
+  ${h.instructions ? `<div class="instructions">${markupToHtml(h.instructions)}</div>` : ''}
 
   ${sections.map((s) => renderSection(s, includeAnswer)).join('')}
 

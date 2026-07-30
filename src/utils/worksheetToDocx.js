@@ -189,13 +189,17 @@ function renderQuestion(q, {includeAnswer}) {
   }
 
   if (includeAnswer && q.answer) {
+    const answer = markupFieldToDocx(q.answer, { size: 20, color: '059669' })
     blocks.push(new Paragraph({
       children: [
         text('✓ Answer: ', { bold: true, size: 20, color: '059669' }),
-        ...markupFieldToDocx(q.answer, { size: 20, color: '059669' }).runs,
+        ...answer.runs,
       ],
       spacing: { before: 80 },
     }))
+    // A [[vmath]] answer lives in extraParagraphs — dropping them loses the
+    // whole calculation from the key.
+    blocks.push(...answer.extraParagraphs)
     if (q.workingNotes) {
       blocks.push(new Paragraph({
         children: [
@@ -220,8 +224,12 @@ function passageBlocks(section) {
       spacing: { before: 80, after: 80 },
     }))
   }
-  const paragraphs = String(section.passage).split(/\n{2,}/).map((chunk) =>
-    para(text(chunk.replace(/\n/g, ' '), { size: 21 })))
+  // A maths passage may carry notation markup; the converter's first-line
+  // runs plus its extra paragraphs cover multi-line and [[vmath]] content.
+  const paragraphs = String(section.passage).split(/\n{2,}/).flatMap((chunk) => {
+    const field = markupFieldToDocx(chunk, { size: 21 })
+    return [para(field.runs), ...field.extraParagraphs]
+  })
   blocks.push(new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [new TableRow({

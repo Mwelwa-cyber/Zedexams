@@ -174,12 +174,16 @@ const QUIZ_EDITOR_FIELDS = Object.freeze([
   Object.freeze({path: "options[]", kind: "inline", what: "multiple-choice options"}),
   Object.freeze({path: "explanation", kind: "block", what: "the explanation"}),
   Object.freeze({path: "statements[].text", kind: "inline", what: "a fill-in-the-blank statement"}),
-  Object.freeze({path: "wordBank[]", kind: "inline", what: "a word-bank entry"}),
+  // wordBank is deliberately OFF this list: its entries are the answers the
+  // learner types against, so like the answer key they must stay plain.
 ]);
 
 const QUIZ_DOC_FIELDS = Object.freeze([
   Object.freeze({path: "question", kind: "block", what: "question text"}),
   Object.freeze({path: "options[]", kind: "inline", what: "multiple-choice options"}),
+  // This tool's MCQ key IS the full option text (schema rule), so it must go
+  // through the same conversion as the options or they stop matching.
+  Object.freeze({path: "correctAnswer", kind: "inline", what: "the option-text answer key"}),
   Object.freeze({path: "explanation", kind: "block", what: "the explanation"}),
 ]);
 
