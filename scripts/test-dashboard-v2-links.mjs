@@ -12,25 +12,14 @@
  */
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { makeRouteMatcher } from './lib/declaredRoutes.mjs'
 
 const ROOT = new URL('..', import.meta.url).pathname
-const appSrc = readFileSync(join(ROOT, 'src/App.jsx'), 'utf8')
 
-// ── Declared routes → matchers ──────────────────────────────────────
-const routePaths = [...appSrc.matchAll(/<Route\s+path="([^"]+)"/g)].map((m) => m[1])
-if (routePaths.length < 50) {
-  throw new Error(`Parsed only ${routePaths.length} routes from App.jsx — parser drifted?`)
-}
-
-const matchers = routePaths.map((p) => {
-  if (p === '*') return () => false // catch-all 404 never legitimises a link
-  const pattern = p
-    .replace(/\/\*$/, '(/.*)?') // trailing wildcard: /settings/* also serves /settings
-    .replace(/:[A-Za-z0-9_]+/g, '[^/]+')
-  const re = new RegExp(`^${pattern}$`)
-  return (path) => re.test(path)
-})
-const routeExists = (path) => matchers.some((m) => m(path))
+// ── Declared routes → matcher ───────────────────────────────────────
+// Both files, via the shared helper: the /teacher/* routes live in their own
+// table, so parsing App.jsx alone would quietly mark every teacher link dead.
+const routeExists = makeRouteMatcher()
 
 // ── Link targets used by the dashboard ──────────────────────────────
 const DIR = join(ROOT, 'src/components/teacher/dashboardV2')

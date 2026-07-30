@@ -3,6 +3,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
+import TeacherLayout from '../TeacherLayout'
 import TeacherDashboardLive from './TeacherDashboardLive'
 
 vi.mock('../../../utils/analytics', () => ({ capture: vi.fn() }))
@@ -17,8 +18,15 @@ const logout = vi.fn().mockResolvedValue()
 // authoritative resolveTeacherPlan (the same entitlement StudioGate uses), so
 // the profile carries a teacherPlan here.
 vi.mock('../../../contexts/AuthContext', () => ({
-  useAuth: () => ({ logout, userProfile: { teacherPlan: 'pro' } }),
+  useAuth: () => ({
+    logout,
+    isAdmin: false,
+    currentUser: { displayName: 'Bwalya Chanda', email: 'bwalya@example.com' },
+    userProfile: { teacherPlan: 'pro', displayName: 'Bwalya Chanda', email: 'bwalya@example.com' },
+  }),
 }))
+// Reads Firestore; not under test here.
+vi.mock('../TeacherTopBar', () => ({ default: () => <div data-testid="topbar" /> }))
 
 const hookData = {
   teacher: {
@@ -54,7 +62,16 @@ function renderLive() {
     <HelmetProvider>
       <MemoryRouter initialEntries={['/teacher']}>
         <Routes>
-          <Route path="/teacher" element={<TeacherDashboardLive />} />
+          {/* Composed exactly as the route does: the shell owns the sidebar,
+              the account menu and logout; the page owns the content. */}
+          <Route
+            path="/teacher"
+            element={(
+              <TeacherLayout variant="dashboard">
+                <TeacherDashboardLive />
+              </TeacherLayout>
+            )}
+          />
           <Route path="/login" element={<div>Login page</div>} />
         </Routes>
       </MemoryRouter>

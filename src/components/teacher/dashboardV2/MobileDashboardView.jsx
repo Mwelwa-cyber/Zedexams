@@ -36,7 +36,8 @@ import useHideOnScroll from '../../../hooks/useHideOnScroll'
 import NotificationCenter from '../../notifications/NotificationCenter'
 import BottomSheet from './BottomSheet'
 import MobileToolsScreen from './MobileToolsScreen'
-import { NAV_GROUPS } from './dashboardV2Config'
+import { TEACHER_NAV_GROUPS, canonicalToolLabel } from './dashboardV2Config'
+import { buildActiveMatcher } from './teacherNavActive'
 import { STUDIO_BY_ID } from './launcher/teacherStudios'
 import { resolveBadge } from './launcher/teacherLauncherCore'
 import useRecentStudios from './launcher/useRecentStudios'
@@ -56,13 +57,15 @@ const BOTTOM_NAV = [
   { id: 'assessments', label: 'Assessments', icon: ListChecks, to: '/teacher/assessment-papers' },
 ]
 
-/** Quick Create — the four fastest studios; routes are the canonical ones. */
+/** Quick Create — the four fastest studios; routes are the canonical ones.
+    Labels come from CANONICAL_TOOL_LABELS so this sheet cannot call a tool
+    something the sidebar doesn't (it used to say "Test Paper"). */
 const QUICK_CREATE = [
-  { id: 'lesson-plans', label: 'Lesson Plan', to: '/teacher/lesson-plans/new' },
-  { id: 'worksheets', label: 'Worksheet', to: '/teacher/generate/worksheet' },
-  { id: 'assessment-papers', label: 'Test Paper', to: '/teacher/assessment-papers/new' },
-  { id: 'weekly-focus', label: 'Weekly Focus', to: '/teacher/generate/weekly-forecast' },
-]
+  { id: 'lesson-plans', to: '/teacher/lesson-plans/new' },
+  { id: 'worksheets', to: '/teacher/generate/worksheet' },
+  { id: 'assessment-papers', to: '/teacher/assessment-papers/new' },
+  { id: 'weekly-focus', to: '/teacher/generate/weekly-forecast' },
+].map((tile) => ({ ...tile, label: canonicalToolLabel(tile.to) }))
 
 /** Default "recently used" row until this device has real visits. */
 const DEFAULT_RECENT_IDS = ['assessment-papers', 'lesson-plans', 'question-bank', 'weekly-focus']
@@ -70,7 +73,7 @@ const DEFAULT_RECENT_IDS = ['assessment-papers', 'lesson-plans', 'question-bank'
 const ACCOUNT_ITEMS = [
   { id: 'view-profile', label: 'View profile', icon: UserRound, to: '/settings/profile' },
   { id: 'account-settings', label: 'Account settings', icon: Settings, to: '/settings' },
-  { id: 'subscription', label: 'Subscription & billing', icon: CreditCard, to: '/my-subscription' },
+  { id: 'subscription', label: 'Subscription & billing', icon: CreditCard, to: '/teacher/subscription' },
   { id: 'switch-role', label: 'Switch class or role', icon: UsersRound, to: '/settings/teaching-profile' },
   { id: 'notifications', label: 'Notification preferences', icon: Bell, to: '/settings/notifications' },
   { id: 'help', label: 'Help & Support', icon: CircleHelp, to: '/teacher/help' },
@@ -89,9 +92,9 @@ export function NavDrawer({
   dark,
   onToggleTheme,
   onLogout,
-  // Dashboard/help use the curated groups; the studio shell (TeacherLayout)
-  // passes STUDIO_NAV_GROUPS for the full teacher map.
-  groups = NAV_GROUPS,
+  // Same single menu the desktop sidebar renders — TeacherLayout hands both
+  // surfaces the identical groups.
+  groups = TEACHER_NAV_GROUPS,
 }) {
   const [accountOpen, setAccountOpen] = useState(false)
   const panelRef = useRef(null)
@@ -139,19 +142,9 @@ export function NavDrawer({
     navigate(to)
   }
 
-  // `activePrefix` widens matching for items pointing at one page of a route
-  // family (mirrors isNavActive in Sidebar.jsx).
-  const isActive = (to, activePrefix) => {
-    if (activePrefix && (pathname === activePrefix || pathname.startsWith(`${activePrefix}/`))) {
-      return true
-    }
-    const path = to.split('?')[0]
-    if (path === '/teacher') {
-      return pathname === '/teacher' || pathname === '/teacher/dashboard-preview'
-    }
-    if (path === '/settings') return pathname === '/settings'
-    return pathname === path || pathname.startsWith(`${path}/`)
-  }
+  // Same resolver the desktop sidebar uses — the drawer used to carry a
+  // hand-kept copy of it.
+  const isActive = buildActiveMatcher(pathname, groups)
 
   return (
     <div className={`tdv2m-drawer-root ${open ? 'is-open' : ''}`} aria-hidden={!open}>
@@ -186,7 +179,7 @@ export function NavDrawer({
               {group.label ? (
                 <div className="tdv2-nav-label" aria-hidden="true">{group.label}</div>
               ) : null}
-              {group.items.map(({ id, label, icon: ItemIcon, to, href, activePrefix }) => {
+              {group.items.map(({ id, label, icon: ItemIcon, to, href }) => {
                 if (href) {
                   return (
                     <a key={id} href={href} className="tdv2-nav-item" onClick={onClose}>
@@ -195,7 +188,7 @@ export function NavDrawer({
                     </a>
                   )
                 }
-                const active = isActive(to, activePrefix)
+                const active = isActive(to)
                 return (
                   <Link
                     key={id}
@@ -843,15 +836,18 @@ function RecentlyUsedTools({ savedCounts, warnings = [], onViewAll }) {
 }
 
 /**
- * Dedicated MOBILE information architecture for Dashboard V2 (< 768px) —
- * opaque sticky header, deep-teal hero with term progress, compact weekly
- * checklist, one collapsed AI recommendation, four recently used tools, an
- * All Teacher Tools launcher, and a floating dock with a Quick Create
- * button. Same props contract as the desktop layout inside DashboardView,
+ * Dedicated MOBILE information architecture for the dashboard (< 768px) —
+ * deep-teal hero with term progress, compact weekly checklist, one collapsed
+ * AI recommendation, four recently used tools and an All Teacher Tools
+ * launcher. Same props contract as the desktop layout inside DashboardView,
  * so live data and the mock preview both flow through unchanged.
+ *
+ * CONTENT only. The header, drawer and floating dock that used to be mounted
+ * here are exported above and mounted by TeacherLayout instead, for every
+ * teacher page — so the dashboard and a studio page cannot show different
+ * navigation, and the drawer's state does not live inside one page's tree.
  */
-export default function MobileDashboardView({
-  teacher,
+export default function MobileDashboardContent({
   greeting,
   hero = null,
   recommendations,
@@ -859,21 +855,13 @@ export default function MobileDashboardView({
   launcherWarnings = [],
   checklist,
   loading = false,
-  dark = false,
-  onToggleTheme,
-  onRequestLogout,
   banner = null,
 }) {
-  const [drawerOpen, setDrawerOpen] = useState(false)
   const [toolsOpen, setToolsOpen] = useState(false)
-
-  const closeDrawer = useCallback(() => setDrawerOpen(false), [])
   const closeTools = useCallback(() => setToolsOpen(false), [])
 
   return (
     <div className="tdv2m">
-      <MobileHeader drawerOpen={drawerOpen} onOpenMenu={() => setDrawerOpen(true)} />
-
       <main className="tdv2m-content">
         {banner}
 
@@ -900,17 +888,6 @@ export default function MobileDashboardView({
           <ChevronRight size={19} strokeWidth={2} aria-hidden="true" />
         </button>
       </main>
-
-      <MobileBottomNav />
-
-      <NavDrawer
-        open={drawerOpen}
-        onClose={closeDrawer}
-        teacher={teacher}
-        dark={dark}
-        onToggleTheme={onToggleTheme}
-        onLogout={onRequestLogout}
-      />
 
       {toolsOpen ? (
         <MobileToolsScreen

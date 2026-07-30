@@ -109,12 +109,16 @@
   box-sizing: border-box;
 }
 
-/* ── Shell-only scope (TeacherLayout) ─────────────────────────────────
-   Studio pages reuse the V2 sidebar without adopting the whole dashboard
-   grid: .tdv2-shell turns the .tdv2 root into a plain sticky column that
-   carries the design-system variables for the sidebar (and its logout
-   dialog) only. Hidden below the lg breakpoint — the studio shell keeps
-   its own mobile chrome (glass header + bottom nav). */
+/* ── Shell scope (TeacherLayout) ──────────────────────────────────────
+   TeacherLayout mounts the sidebar as a column beside the page rather than
+   as one half of the dashboard's grid: .tdv2-shell turns the .tdv2 root into
+   a plain sticky column that carries the design-system variables for the
+   sidebar (and its logout dialog) only.
+
+   Appears at 768px, the same width the mobile chrome disappears — the two
+   are one cut-over, not two. They used to disagree (sidebar at 1024, chrome
+   until 1024 here but 768 on the dashboard), so a tablet showed the
+   dashboard an icon rail and every other teacher page a bottom dock. */
 .tdv2.tdv2-shell {
   display: none;
   grid-template-columns: none;
@@ -127,7 +131,7 @@
   background: transparent;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   .tdv2.tdv2-shell {
     display: block;
   }
@@ -136,6 +140,26 @@
 .tdv2-shell .tdv2-sidebar {
   width: 248px;
   height: 100%;
+}
+
+/* 768–1023px: the compact icon rail. The rail's own rules live in the
+   max-width:1023px block below and apply to .tdv2-sidebar wherever it is
+   mounted; only the width has to be restated, because the line above pins
+   the full-panel width. */
+@media (max-width: 1023px) {
+  .tdv2-shell .tdv2-sidebar {
+    width: 76px;
+  }
+}
+
+/* Page scope: a .tdv2 root for a page that brings its own grid (the
+   dashboard). Carries the design-system variables without the shell's
+   sticky column or the dashboard root's two-column grid. */
+.tdv2.tdv2-page {
+  display: block;
+  grid-template-columns: none;
+  min-height: 0;
+  background: transparent;
 }
 
 /* Bare scope: a .tdv2 root that only carries the design-system variables
@@ -148,11 +172,11 @@
   background: transparent;
 }
 
-/* Studio-shell mobile chrome (< lg): the shared V2 header/drawer/bottom nav
-   over the same breakpoint range the old glass header + tab bar covered.
-   The header is sticky inside the dashboard's own scroll column; here the
-   scope wrapper has no height, so pin it to the viewport instead. */
-@media (min-width: 1024px) {
+/* Mobile chrome (< 768px): the shared header/drawer/floating dock, mounted
+   by TeacherLayout for every teacher page including the dashboard. The
+   scope wrapper has no height of its own, so the header pins to the
+   viewport rather than sticking inside a scroll column. */
+@media (min-width: 768px) {
   .tdv2.tdv2-mchrome {
     display: none;
   }
@@ -2536,11 +2560,10 @@ a.tdv2-check-row:hover {
    tdv2m-*; shared tokens/components (buttons, badges, cards) come from
    the tdv2 system above. */
 
-.tdv2.tdv2-is-mobile {
-  display: block;
-  grid-template-columns: none;
-}
-
+/* The mobile root used to also need a .tdv2-is-mobile modifier to cancel the
+   dashboard grid, because the dashboard mounted its own shell. It renders
+   inside TeacherLayout's .tdv2-page scope now, which is already display:block,
+   so the modifier is gone rather than left behind as a class nothing sets. */
 .tdv2m {
   min-height: 100dvh;
   overflow-x: clip;
@@ -3821,25 +3844,24 @@ a.tdv2-check-row:hover {
   }
 }
 
-/* ── ≥768px: the DASHBOARD mobile chrome can never appear ─────────────
-   Belt-and-braces mirror of the sidebar rule above, but scoped to the
-   dashboard mobile view (.tdv2-is-mobile): the dashboard swaps to its
-   desktop layout at ≥768px (useIsMobile), so if a rotate/resize leaves the
-   mobile DOM mounted for a frame, the sticky header, floating dock, drawer,
-   sheets and tools screen leave layout entirely.
+/* ── ≥768px: mobile chrome can never appear ───────────────────────────
+   Belt-and-braces mirror of the sidebar rule above. TeacherLayout mounts
+   exactly one navigation system (useIsMobile), so at this width none of
+   these should exist at all; if a rotate/resize leaves them mounted for a
+   frame, the sticky header, floating dock, drawer, sheets and tools screen
+   leave layout entirely rather than overlapping the desktop panel.
 
-   This must NOT hide the studio-shell mobile chrome (TeacherLayout →
-   .tdv2-mchrome): that shell shows its desktop sidebar only at ≥1024px, so
-   its header/dock/drawer must remain visible across 768–1023px (tablets),
-   where they are governed instead by the .tdv2-mchrome { display:none } rule
-   at ≥1024px above. Scoping this hide to .tdv2-is-mobile keeps tablet studio
-   pages from losing their only navigation. */
+   Unscoped on purpose. It used to be scoped to the dashboard's own mobile
+   root because the studio shell kept its dock up to 1024px while the
+   dashboard swapped at 768px — the two disagreed, so a blanket rule would
+   have stripped tablet studio pages of their only navigation. Both now cut
+   over at 768px, so the exception it was protecting no longer exists. */
 @media (min-width: 768px) {
-  .tdv2-is-mobile .tdv2m-header,
-  .tdv2-is-mobile .tdv2m-dockbar,
-  .tdv2-is-mobile .tdv2m-drawer-root,
-  .tdv2-is-mobile .tdv2m-sheet-root,
-  .tdv2-is-mobile .tdv2m-tools {
+  .tdv2m-header,
+  .tdv2m-dockbar,
+  .tdv2m-drawer-root,
+  .tdv2m-sheet-root,
+  .tdv2m-tools {
     display: none;
   }
 }

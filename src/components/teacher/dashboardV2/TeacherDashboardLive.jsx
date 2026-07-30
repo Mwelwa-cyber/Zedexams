@@ -10,13 +10,12 @@ import useTeacherDashboardData from './useTeacherDashboardData'
 import DashboardView from './DashboardView'
 
 /**
- * The LIVE /teacher dashboard — Dashboard V2 wired to real data. Auth is
- * enforced by the route (ProtectedRoute requiredRole="teacher"); this page
- * brings its own chrome (V2 sidebar/header), so it is intentionally NOT
- * wrapped in TeacherLayout.
+ * The LIVE /teacher dashboard — Dashboard V2 wired to real data. Renders
+ * inside TeacherLayout like every other teacher page; the sidebar, mobile
+ * chrome and logout belong to the shell, not to this page.
  */
 export default function TeacherDashboardLive() {
-  const { logout, userProfile } = useAuth()
+  const { userProfile } = useAuth()
   const navigate = useNavigate()
   const data = useTeacherDashboardData()
   // Display-only plan badge for the mobile hero ('Free' | 'Pro' | 'Max') —
@@ -46,15 +45,6 @@ export default function TeacherDashboardLive() {
     navigate(data.lastOpened ? data.lastOpened.to : '/teacher/lesson-plans/new')
   }
 
-  const handleConfirmLogout = async ({ showToast }) => {
-    try {
-      await logout()
-      navigate('/login')
-    } catch {
-      showToast('error', 'Could not sign out. Check your connection and try again.')
-    }
-  }
-
   return (
     <>
       <SeoHelmet
@@ -63,7 +53,6 @@ export default function TeacherDashboardLive() {
         noIndex
       />
       <DashboardView
-        teacher={data.teacher}
         termChip={data.termChip}
         hero={{ ...data.hero, plan: { tier: teacherPlan, label: `${planLabel} Plan` } }}
         greeting={greeting}
@@ -79,7 +68,6 @@ export default function TeacherDashboardLive() {
         activity={data.activity}
         loading={data.loading}
         onRetryFeed={data.reload}
-        onConfirmLogout={handleConfirmLogout}
       />
     </>
   )

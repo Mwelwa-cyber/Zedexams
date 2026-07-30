@@ -22,7 +22,7 @@ describe('FreePreviewUpsell', () => {
   it('shows the value-first message with upgrade + pricing actions and tracks display', () => {
     renderUpsell()
     expect(screen.getByText(/your first 2 weeks are ready/i)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /upgrade to pro/i })).toHaveAttribute('href', '/my-subscription')
+    expect(screen.getByRole('link', { name: /upgrade to pro/i })).toHaveAttribute('href', '/teacher/subscription')
     expect(screen.getByRole('link', { name: /view pricing/i })).toHaveAttribute('href', '/pricing')
     expect(capture).toHaveBeenCalledWith('upgrade_prompt_displayed', { context: 'scheme-preview' })
   })
