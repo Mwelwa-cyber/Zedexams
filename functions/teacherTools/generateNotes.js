@@ -32,6 +32,8 @@ const {validateNotes} = require("./notesSchema");
 const {PROMPT_VERSION, pickSystemPrompt, buildUserPrompt} =
   require("./notesPrompt");
 const {assertAndIncrement, refundGeneration} = require("./usageMeter");
+const {requireAndReserveAiOperation, completeAiOperation, failAiOperation} =
+  require("../aiOperations");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
 const {
   isLessonPlanTool,
@@ -209,7 +211,29 @@ async function loadLessonPlan(uid, lessonPlanId) {
   return {...data, output: body};
 }
 
-async function runNotes({uid, rawInputs, apiKey}) {
+/**
+ * Reconstruct the client-facing response for an idempotency key that already
+ * completed (§7 — a duplicate/retried request must return the existing result,
+ * never call the provider again). Reads the persisted aiGenerations doc rather
+ * than re-deriving anything. Mirrors generateWorksheet's resume path.
+ */
+async function buildResumedNotesResponse(operation) {
+  const genId = operation.resultDocumentId;
+  const genSnap = genId ?
+    await admin.firestore().collection("aiGenerations").doc(genId).get() : null;
+  const genData = genSnap && genSnap.exists ? genSnap.data() : null;
+  return {
+    generationId: genId,
+    notes: genData ? genData.output : null,
+    usage: null,
+    warning: genData && genData.status === "flagged" ?
+      "Some fields were incomplete — please review." : null,
+    kbGrounded: Boolean(genData && genData.kbVersion),
+    resumed: true,
+  };
+}
+
+async function runNotes({uid, rawInputs, apiKey, idempotencyKey}) {
   let inputs = sanitizeInputs(rawInputs || {});
 
   // If a lesson plan is referenced, load it and use it to fill in any
@@ -229,6 +253,28 @@ async function runNotes({uid, rawInputs, apiKey}) {
     throw new HttpsError("invalid-argument", inputErrors.join(" "));
   }
 
+  // Idempotency reservation (§6/§7/§8), UNCONDITIONAL. A request without a
+  // valid key is refused here — before the usage meter, before the provider,
+  // before any result document exists. It sits AFTER the lesson-plan derivation
+  // so the fingerprint is the FINAL inputs (a from-plan request and the same
+  // request with the plan's fields spelled out reconcile to one key). The
+  // lesson-plan load above is a cheap read with no spend, so re-doing it on a
+  // resumed duplicate costs nothing but a Firestore get.
+  const reservation = await requireAndReserveAiOperation({
+    idempotencyKey,
+    userId: uid,
+    operationType: "generate_notes",
+    inputFingerprint: inputs,
+  });
+  if (reservation.status === "completed") {
+    return buildResumedNotesResponse(reservation.operation);
+  }
+  if (reservation.status === "processing") {
+    return {status: "processing", operationId: idempotencyKey};
+  }
+  // "created" or "retrying" — exactly one provider call happens below.
+  // "failed" and "cancelled" already threw inside the helper.
+
   const {contextBlock, kbMatch, kbWarning, kbVersion} = await resolveCbcContext({
     grade: inputs.grade,
     subject: inputs.subject,
@@ -244,7 +290,12 @@ async function runNotes({uid, rawInputs, apiKey}) {
 
   const usage = await assertAndIncrement(uid, "notes");
 
-  const genRef = admin.firestore().collection("aiGenerations").doc();
+  // Deterministic doc id (= the idempotency key), always. A retry of the SAME
+  // logical request re-set()s this exact doc instead of creating a sibling, and
+  // the resumed-completed path reads it straight back by id. The auto-id branch
+  // that used to sit here is deleted rather than bypassed: a reservation that
+  // settles onto an auto-id document cannot be resumed.
+  const genRef = admin.firestore().collection("aiGenerations").doc(idempotencyKey);
   await genRef.set({
     ownerUid: uid,
     tool: "notes",
@@ -310,6 +361,12 @@ async function runNotes({uid, rawInputs, apiKey}) {
       console.error("[generateNotes] refund failed after generation error",
           {uid, generationId: genRef.id, usage}, refundErr);
     }
+    try {
+      await failAiOperation({idempotencyKey, err, usageCharged: 0});
+    } catch (opErr) {
+      console.error("[generateNotes] failAiOperation failed after generation error",
+          {uid, generationId: genRef.id}, opErr);
+    }
     throw err;
   }
 
@@ -348,6 +405,14 @@ async function runNotes({uid, rawInputs, apiKey}) {
       costUsdCents,
       modelUsed,
     });
+    // A "flagged" note is still a real result the teacher already got and was
+    // billed for — a completion for idempotency purposes, not a failure.
+    try {
+      await completeAiOperation({idempotencyKey, resultDocumentId: genRef.id, usageCharged: 1});
+    } catch (opErr) {
+      console.error("[generateNotes] completeAiOperation failed (flagged)",
+          {uid, generationId: genRef.id}, opErr);
+    }
     return {
       generationId: genRef.id,
       notes,
@@ -371,6 +436,12 @@ async function runNotes({uid, rawInputs, apiKey}) {
     modelUsed,
     completedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
+  try {
+    await completeAiOperation({idempotencyKey, resultDocumentId: genRef.id, usageCharged: 1});
+  } catch (opErr) {
+    console.error("[generateNotes] completeAiOperation failed",
+        {uid, generationId: genRef.id}, opErr);
+  }
 
   return {
     generationId: genRef.id,
@@ -395,7 +466,8 @@ function createGenerateNotes(anthropicApiKeySecret) {
         );
       }
       const apiKey = getAnthropicApiKey(anthropicApiKeySecret);
-      return runNotes({uid, rawInputs: request.data, apiKey});
+      const idempotencyKey = request.data && request.data.idempotencyKey;
+      return runNotes({uid, rawInputs: request.data, apiKey, idempotencyKey});
     },
   );
 }
