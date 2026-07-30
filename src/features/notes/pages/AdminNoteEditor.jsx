@@ -298,7 +298,7 @@ export function AdminNoteEditor() {
   }
 
   return (
-    <div className="notes-studio min-h-full" style={{ backgroundColor: '#FAFAF7' }}>
+    <div className="notes-studio notes-studio--soft min-h-full">
       <SeoHelmet title={title || (isNew ? 'New note' : 'Edit note')} noIndex />
       <main className="max-w-5xl mx-auto px-5 py-6">
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">

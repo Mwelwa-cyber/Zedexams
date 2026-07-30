@@ -17,7 +17,7 @@ export function LearnerGate({ children }) {
 
   if (status === 'checking') {
     return (
-      <div className="min-h-screen flex items-center justify-center text-neutral-500" style={{ backgroundColor: '#F5EFE1' }}>
+      <div className="notes-studio min-h-screen flex items-center justify-center theme-text-muted">
         <Loader2 size={20} className="animate-spin" />
       </div>
     )

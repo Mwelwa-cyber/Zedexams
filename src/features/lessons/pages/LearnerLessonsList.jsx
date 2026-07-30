@@ -42,7 +42,7 @@ export function LearnerLessonsList() {
   ), [activeSubject, lessons, subjects])
 
   return (
-    <div className="notes-studio min-h-screen pb-24 lg:pb-8" style={{ backgroundColor: '#FAFAF7' }}>
+    <div className="notes-studio notes-studio--soft min-h-screen pb-24 lg:pb-8">
       <SeoHelmet title="Lessons" path="/lessons" noIndex />
       <main className="max-w-5xl mx-auto px-4 sm:px-5 py-8">
         <div className="mb-6">

@@ -168,7 +168,10 @@
 }
 .lps-btn-primary:disabled {
   background: #efe9db;
-  color: #8b8271;
+  /* #8b8271 measured 3.14:1 on this fill. Disabled text is exempt from WCAG
+     1.4.3, but a teacher still has to READ which button is unavailable and
+     why, so it is held to the same 4.5:1 as the rest. */
+  color: #6f6759;
   border-color: #c9bfa9;
   box-shadow: none;
   cursor: not-allowed;
@@ -588,7 +591,9 @@
   margin: 10px 2px 0;
   text-align: center;
   font: 500 12px/1.4 'Plus Jakarta Sans', system-ui, sans-serif;
-  color: #7a6d5d;
+  /* 4.39:1 at #7a6d5d — just under, and this is the line that says which step
+     of the generation is running. */
+  color: #6e6253;
 }
 @keyframes lp-live-pulse {
   0% { box-shadow: 0 0 0 0 rgba(217, 119, 87, 0.5); }
@@ -623,3 +628,121 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ============================================================
+   NIGHT
+   ============================================================
+   The Lesson Plan Studio wears the /games sticker skin, and that skin is
+   written in literals rather than tokens — white cards, a 2px navy outline
+   and a hard navy offset shadow. There is no token layer to restate, so this
+   is a remap in the same shape as the games one in index.css: each literal
+   named, with its dark twin stated.
+
+   The sticker LOOK survives rather than being flattened: still a heavy
+   outline and a hard offset shadow, drawn in light ink on a dark card instead
+   of navy ink on a white one. Flattening the shadows would have been less
+   code and would have left the studio looking like a different product on one
+   theme.
+
+   #053541 on the eyebrow and #0f1b2d on the live-label are why the "TEACHER
+   STUDIO" eyebrow and the panel headings were invisible: near-black ink that
+   used to sit on white and now sits on #232D3B. */
+/* .lps-soft-shadow declares ONLY a border and a shadow — every call site
+   brings its own background (bg-white, bg-accent-tint, bg-[#EEF4FF], the brand
+   gradient). Setting a background here outranks all of them and repaints
+   cards that were deliberately tinted. Only the outline moves; the fills are
+   remapped by the classes that actually carry them, below. This is the same
+   trap the games remap documents for .zx-card. */
+[data-theme='night'] .lps-soft-shadow {
+  border-color: #6B7A8D;
+  box-shadow: 0 2px 0 #6B7A8D;
+}
+[data-theme='night'] .lps-soft-shadow-lg {
+  background-color: #232D3B;
+  border-color: #6B7A8D;
+  box-shadow: 0 3px 0 #6B7A8D, 0 18px 34px -22px rgba(0, 0, 0, 0.55);
+}
+
+/* The fills the studio's call sites actually carry. Grouped by what they are
+   rather than by hex: card surfaces, tinted panels, and the parchment washes
+   the wizard uses for its summary blocks. */
+[data-theme='night'] .lps-game .bg-white,
+[data-theme='night'] .lps-game .bg-\[\#f9f5ef\],
+[data-theme='night'] .lps-game .bg-\[\#fdfbf7\] { background-color: #232D3B; }
+[data-theme='night'] .lps-game .bg-\[\#f5f0e8\],
+[data-theme='night'] .lps-game .bg-\[\#f5f0ea\],
+[data-theme='night'] .lps-game .bg-\[\#f0ebe2\],
+[data-theme='night'] .lps-game .bg-\[\#f0ebe4\],
+[data-theme='night'] .lps-game .bg-\[\#F5EFE1\] { background-color: #1F2836; }
+[data-theme='night'] .lps-game .bg-\[\#c9c0b0\] { background-color: #3B4757; }
+[data-theme='night'] .lps-game .bg-\[\#FFF4E8\],
+[data-theme='night'] .lps-game .bg-\[\#EEF4FF\] { background-color: #2A3646; }
+[data-theme='night'] .lps-game .border-\[\#d9cfbe\],
+[data-theme='night'] .lps-game .border-\[\#e5ddd0\],
+[data-theme='night'] .lps-game .border-\[\#e0d7c8\],
+[data-theme='night'] .lps-game .border-\[\#d9cfc3\] { border-color: #3B4757; }
+[data-theme='night'] .lps-game .border-\[\#0F1B2D\] { border-color: #6B7A8D; }
+[data-theme='night'] .lps-eyebrow { color: #CFE3EE; }
+[data-theme='night'] .lps-btn-ghost {
+  background: #232D3B;
+  color: #EDE7DC;
+  border-color: #6B7A8D;
+  box-shadow: 0 2px 0 #6B7A8D;
+}
+[data-theme='night'] .lps-btn-ghost:hover:not(:disabled) {
+  background: #2A3646;
+  box-shadow: 0 1px 0 #6B7A8D;
+}
+[data-theme='night'] .lps-btn-ghost:active:not(:disabled) { box-shadow: 0 0 0 #6B7A8D; }
+[data-theme='night'] .lps-btn-primary:disabled {
+  background: #2E3847;
+  color: #9BA4B1;
+  border-color: #4A5566;
+}
+[data-theme='night'] .lps-tile {
+  background: #3A2B24;
+  color: #E9A78F;
+  border-color: #6B7A8D;
+}
+/* The step-1 inputs. These were white with dark ink while the rest of the
+   form system around them was dark — the reported "inconsistent inputs on
+   Lesson Setup". */
+/* The :not() chain is copied from the light rule, not decoration. Each
+   :not([type=…]) contributes its argument's specificity, so the light rule
+   scores four attribute selectors — enough that a plain
+   `[data-theme='night'] .lps-game input` loses to it and the input stays
+   white on a dark form. Matching the chain is what makes this apply; it also
+   keeps the same exclusions, so checkboxes and file pickers are still left to
+   the platform. */
+[data-theme='night'] .lps-game select,
+[data-theme='night'] .lps-game textarea,
+[data-theme='night'] .lps-game input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']) {
+  background-color: #1A222E;
+  color: #EDE7DC;
+  border-color: #6B7A8D;
+}
+[data-theme='night'] .lps-game select:focus,
+[data-theme='night'] .lps-game textarea:focus,
+[data-theme='night'] .lps-game input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):focus { border-color: #D9784F; }
+[data-theme='night'] .lps-game ::placeholder { color: #94A0AF; }
+
+/* The blue/indigo accent utilities the section components still carry, which
+   the light skin repaints orange. Same repaint, darker. */
+[data-theme='night'] .lps-game .bg-blue-50 { background-color: #2E2419; }
+[data-theme='night'] .lps-game .bg-blue-100 { background-color: #3A2B24; }
+[data-theme='night'] .lps-game .text-blue-500 { color: #E9A78F; }
+[data-theme='night'] .lps-game .text-blue-900 { color: #F0BFA5; }
+[data-theme='night'] .lps-game .bg-white\/60,
+[data-theme='night'] .lps-game .bg-white\/70 { background-color: #232D3B; }
+
+/* The wizard sheet and the live-generation strip along the bottom — the
+   reported "sticky bottom action bar" that stayed cream. */
+[data-theme='night'] .lpw-sheet { background: #1A222E; }
+[data-theme='night'] .lp-live-label { color: #EDE7DC; }
+[data-theme='night'] .lp-live-stop {
+  background: #232D3B;
+  color: #EDE7DC;
+  border-color: #6B7A8D;
+}
+[data-theme='night'] .lp-live-track { background: #3B4757; }
+[data-theme='night'] .lp-live-foot { color: #94A0AF; }

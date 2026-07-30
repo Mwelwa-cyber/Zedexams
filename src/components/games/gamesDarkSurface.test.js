@@ -127,13 +127,21 @@ assert.ok(
 /* ── 3. What the remap in index.css names ─────────────────────────────── */
 
 const css = readFileSync(resolve(root, 'src/index.css'), 'utf8')
+// The block is keyed to `.force-light-theme` and the dark hook, not to one
+// spelling of that hook. There are two dark modes set by two different people
+// in two different places — a learner picks Midnight (reading theme, on
+// <body>), a teacher picks Night (workspace theme, on <html>) — so the block
+// now leads with `:is(body.theme-midnight, html[data-theme='night'] body)`.
+// Matching the literal old selector would fail here for a reason that has
+// nothing to do with what this test is checking.
 const block = css.match(
-  /body\.theme-midnight \.force-light-theme \{[\s\S]*?(?=\n\/\* Heavy slate shadow)/,
+  /:is\(body\.theme-midnight[^)]*\) \.force-light-theme \{[\s\S]*?(?=\n\/\* Heavy slate shadow)/,
 )
 assert.ok(
   block,
-  'index.css no longer carries the Midnight remap for .force-light-theme. ' +
-  'Without it /games and /quizzes render at full brightness on the dark theme.',
+  'index.css no longer carries the dark remap for .force-light-theme. ' +
+  'Without it /games and /quizzes render at full brightness on the dark ' +
+  'theme — for a learner on Midnight AND a teacher on Night.',
 )
 
 // Selectors are written escaped (`.bg-white\/72`, `.text-\[\#053541\]`);

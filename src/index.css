@@ -188,6 +188,72 @@ body.theme-solar,
   --info:         #2563EB; --info-bg:    #DBEAFE; --info-fg:    #1E40AF;
 }
 
+/* ── One dark mode: the workspace theme reaches the reading tokens ──────
+ *
+ * THE PROBLEM THIS SOLVES
+ * There are two independent palette systems. The six LEARNER reading themes
+ * declare --bg / --card / --text on <body>; the four TEACHER workspace themes
+ * declare --zt-* on <html>. A teacher who turns on Night sets the second one
+ * and never touches the first — their reading theme is still whatever it
+ * defaults to, which is light.
+ *
+ * Every shared surface reads the FIRST set. `src/components/ui/` — Card,
+ * Toast, Button, EmptyState, PageHeader, ErrorBoundary, LiveGenerationCanvas
+ * — is written in `theme-bg` / `theme-card` / `theme-text`, and those
+ * components render inside the teacher studios. So do whole shared pages:
+ * /my-subscription is tokenised perfectly and still rendered at full
+ * brightness for a teacher on Night, because being perfectly tokenised in the
+ * WRONG token set looks exactly like being hardcoded.
+ *
+ * That is the actual cause of most "a light card inside a dark page" reports,
+ * and no amount of replacing literals with tokens fixes it — the pages that
+ * do it worst are already the most thoroughly tokenised ones.
+ *
+ * WHY THE SELECTOR LOOKS LIKE THIS
+ * `[data-theme='night']` is on <html> and the reading palettes are on <body>.
+ * A declaration on <body> beats one on <html> for everything inside the body,
+ * whatever the specificity — proximity wins for inherited custom properties.
+ * So the bridge has to be declared ON body too, and beat `body.theme-<id>`:
+ * hence `html[data-theme='night'] body`, which is two class-level components
+ * against one.
+ *
+ * SCOPE
+ * Only Night. The three light workspace themes leave the reading palette
+ * alone, so a teacher on Terracotta keeps whichever reading theme they chose.
+ * And only a teacher can set `data-theme='night'` — a learner's <html> carries
+ * the terracotta default — so no learner surface changes for a learner.
+ *
+ * The values are Midnight's, not a fourth palette. A teacher on Night reading
+ * a lesson should get the dark reading palette that already exists and is
+ * already contrast-tested, not a near-miss of it. */
+html[data-theme='night'] body {
+  --bg:           #0F172A;
+  --bg-subtle:    #1E293B;
+  --card:         #1E293B;
+  --card-hover:   #263449;
+  --text:         #F1F5F9;
+  --text-muted:   #94A3B8;
+  --border:       #334155;
+  --accent:       #38BDF8;
+  --accent-text:  #0F172A;
+  --accent-bg:    rgba(56,189,248,0.12);
+  --accent-fg:    #7DD3FC;
+  --input-bg:     #0F172A;
+  --input-border: #334155;
+  --shadow:       rgba(0,0,0,0.30);
+  --hero-gradient: linear-gradient(135deg, #020617 0%, #1E293B 100%);
+  --hero-muted:   #94A3B8;
+  --shadow-sm:    0 1px 2px rgba(0,0,0,0.40);
+  --shadow-md:    0 2px 6px rgba(0,0,0,0.40), 0 8px 16px rgba(0,0,0,0.30);
+  --shadow-lg:    0 6px 16px rgba(0,0,0,0.50), 0 16px 32px rgba(0,0,0,0.35);
+  --shadow-xl:    0 16px 40px rgba(0,0,0,0.60);
+  --shadow-inner-hl: inset 0 1px 0 rgba(255,255,255,0.05);
+  --success:      #22C55E; --success-bg: rgba(21,128,61,0.20);  --success-fg: #4ADE80;
+  --warning:      #F59E0B; --warning-bg: rgba(217,119,6,0.20);  --warning-fg: #FBBF24;
+  --danger:       #EF4444; --danger-bg:  rgba(220,38,38,0.20);  --danger-fg:  #F87171;
+  --info:         #3B82F6; --info-bg:    rgba(59,130,246,0.20); --info-fg:    #93C5FD;
+}
+
 /* ── Phase 0 — theme-independent design tokens ─────────────── */
 :root {
   /* Radius scale — from small chips to hero feature cards */
@@ -238,7 +304,13 @@ body.theme-solar,
   --moe-past-card-bg:  #F7F7F7;
   --moe-progress-track:#E5E9EF;
 }
-body.theme-midnight .moe-calendar {
+/* Both dark hooks, for the reason spelled out at the theme bridge above: a
+   learner picks Midnight (reading theme, on <body>) and a teacher picks Night
+   (workspace theme, on <html>), and /teacher/calendar is a TEACHER page. Keyed
+   to the reading theme alone, it gave a teacher on Night the dark sidebar the
+   shell paints and a fully light calendar beside it — the component is
+   completely tokenised, it was just listening for the wrong person's choice. */
+:is(body.theme-midnight, html[data-theme='night'] body) .moe-calendar {
   --moe-page-bg:       #0F172A;
   --moe-surface:       #1E293B;
   --moe-surface-2:     #263449;
@@ -645,8 +717,15 @@ body.theme-midnight .moe-calendar {
   [data-theme='night'] .studio-theme .studio-btn-ghost:hover {
     background: color-mix(in srgb, var(--zt-text) 10%, var(--zt-card));
   }
+  /* background-COLOR, not the `background` shorthand. The shorthand resets
+     every background longhand it does not name — including the
+     `background-repeat: no-repeat` and `background-position` that put the
+     select chevron in the corner — so a select styled by this rule tiled the
+     chevron across the whole control. Setting the colour longhand leaves the
+     geometry alone. Same reason applies to any dark override on an element
+     that carries a background-image. */
   [data-theme='night'] .studio-theme .studio-input {
-    background: var(--zt-card);
+    background-color: var(--zt-card);
     border-color: var(--zt-line);
     color: var(--zt-text);
   }
@@ -658,6 +737,12 @@ body.theme-midnight .moe-calendar {
      cannot inherit a colour and has to be redrawn rather than restyled. */
   [data-theme='night'] .studio-theme select.studio-input {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394A0AF' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    /* Restated with the image rather than inherited from the light rule: an
+       image and the rules that place it travel together, or the next
+       background shorthand somewhere in the cascade separates them again. */
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 14px 14px;
   }
   [data-theme='night'] .studio-theme .studio-advanced {
     border-color: var(--zt-line);
@@ -1089,7 +1174,9 @@ body.theme-midnight .moe-calendar {
     appearance: none; -webkit-appearance: none;
     padding-right: 34px; cursor: pointer;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23566f76' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 12px center;
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 14px 14px;
   }
 
   /* ── Studio form helpers (studioFields.jsx) ─────────────────── */
@@ -3817,11 +3904,17 @@ body {
  * (`[data-theme='night'] .studio-theme`, declared with the studio palette
  * earlier in this file). */
 html.dark { color-scheme: dark; }
+/* The workspace twin. `html.dark` is toggled from the READING theme only, so a
+   teacher on Night — whose reading theme is still the light default — got the
+   dark surfaces the bridge above gives them and light native dropdowns,
+   scrollbars and autofill on top of them. */
+html[data-theme='night'] { color-scheme: dark; }
 :root:not([data-theme='night']) .studio-theme { color-scheme: light; }
 /* Same exclusion, same reason: .force-light-theme repaints its subtree light
    whatever the reading theme is, so its native controls have to come back
    light with it. */
-html.dark .force-light-theme { color-scheme: light; }
+html.dark .force-light-theme,
+html[data-theme='night'] .force-light-theme { color-scheme: light; }
 
 /* Some platforms render <option> with a transparent fill that inherits
    whatever sits behind the popup, so the pair is stated explicitly. Read from
@@ -3830,6 +3923,26 @@ html.dark .force-light-theme { color-scheme: light; }
 select option {
   color: var(--text);
   background: var(--input-bg);
+}
+
+/* A custom select arrow is a background-image, and a background-image tiles by
+   default. Every place that draws one states `background-repeat: no-repeat`
+   next to it — but any LATER rule using the `background` shorthand resets that
+   longhand back to `repeat` without mentioning it, and the arrow then tiles
+   across the whole control. That is not hypothetical: a dark-theme override
+   written as `background: var(--zt-card)` did exactly this to every studio
+   <select>, and it is invisible to review because the rule that broke it does
+   not name the property it broke.
+
+   So no-repeat is also asserted here, on the element type rather than on each
+   place that draws an arrow. Unlayered, so it outranks the @layer rules a
+   shorthand lives in. It is safe as a blanket: a <select> is a single-line
+   control, and a tiled background on one is a bug in every case — there is no
+   select in this app that wants a repeating texture. It constrains only the
+   repeat, so a control that wants its arrow elsewhere still sets its own
+   `background-position`. */
+select {
+  background-repeat: no-repeat;
 }
 
 /* ── Custom scrollbar ─────────────────────────────────────── */
@@ -5589,7 +5702,7 @@ select option {
     transition: box-shadow 0.2s ease, transform 0.2s ease;
   }
 
-  body.theme-midnight .zx-glass-dock {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-glass-dock {
     background: color-mix(in srgb, var(--card) 80%, transparent);
     border-color: rgba(255, 255, 255, 0.12);
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5),
@@ -5597,36 +5710,36 @@ select option {
   }
 
   /* Midnight theme — keep navy stroke, lift alpha so strips stay legible */
-  body.theme-midnight .zx-glass-nav,
-  body.theme-midnight .zx-glass-bottom {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-glass-nav,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-glass-bottom {
     background: color-mix(in srgb, var(--card) 72%, transparent);
   }
-  body.theme-midnight .zx-glass-bottom {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-glass-bottom {
     border-color: rgba(255, 255, 255, 0.10);
     box-shadow: 0 -10px 30px -12px rgba(0, 0, 0, 0.45),
                 inset 0 1px 0 rgba(255, 255, 255, 0.06);
   }
-  body.theme-midnight .zx-glass-bottom::before {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-glass-bottom::before {
     background: linear-gradient(
       to top,
       color-mix(in srgb, var(--card) 45%, transparent),
       transparent
     );
   }
-  body.theme-midnight .zx-glass-nav {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-glass-nav {
     border-color: rgba(255, 255, 255, 0.10);
     box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.45),
                 inset 0 -1px 0 rgba(255, 255, 255, 0.06);
   }
-  body.theme-midnight .zx-glass-nav::after {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-glass-nav::after {
     background: linear-gradient(
       to bottom,
       color-mix(in srgb, var(--card) 45%, transparent),
       transparent
     );
   }
-  body.theme-midnight .zx-nav-pill-idle { color: #e2e8f0; }
-  body.theme-midnight .zx-logo-pill {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-nav-pill-idle { color: #e2e8f0; }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-logo-pill {
     background: transparent;
   }
 
@@ -5637,94 +5750,94 @@ select option {
      blinding-white with dark-on-dark text in the dark theme. These rules
      repaint the sticker chrome + the Tailwind literals it pairs with onto the
      Midnight tokens. The bold accents (orange / green / amber / red) are kept
-     — they read well on dark. Scoped to body.theme-midnight, so the light
-     themes are untouched; the `body.theme-midnight` class lifts specificity
+     — they read well on dark. Scoped to the dark themes, so the light
+     themes are untouched; the `:is(body.theme-midnight, html[data-theme='night'] body)` class lifts specificity
      enough to beat the raw Tailwind utilities without !important. */
-  body.theme-midnight .zx-card-shared {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared {
     background: var(--card);
     border-color: var(--border);
     box-shadow: 0 2px 0 var(--border);
     color: var(--text);
   }
-  body.theme-midnight .zx-hero-strip {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-hero-strip {
     background: var(--card);
     border-bottom-color: var(--border);
     box-shadow: 0 2px 0 var(--border);
     color: var(--text);
   }
-  body.theme-midnight .zx-sb,
-  body.theme-midnight .zx-sb-secondary,
-  body.theme-midnight .zx-timer {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-sb,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-sb-secondary,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-timer {
     background: var(--card);
     color: var(--text);
     border-color: var(--border);
     box-shadow: 0 3px 0 var(--border);
   }
-  body.theme-midnight .zx-sb:disabled { box-shadow: 0 3px 0 var(--border); }
-  body.theme-midnight .zx-opt {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-sb:disabled { box-shadow: 0 3px 0 var(--border); }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-opt {
     background: var(--card);
     color: var(--text);
     border-color: var(--border);
     box-shadow: 0 2px 0 var(--border);
   }
-  body.theme-midnight .zx-opt-letter { background: var(--bg-subtle); color: var(--text); }
-  body.theme-midnight .zx-pill-light,
-  body.theme-midnight .zx-pill-dark {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-opt-letter { background: var(--bg-subtle); color: var(--text); }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-pill-light,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-pill-dark {
     background: var(--bg-subtle);
     color: var(--text);
     border-color: var(--border);
     box-shadow: 0 2px 0 var(--border);
   }
-  body.theme-midnight .zx-eyebrow-shared { color: var(--text-muted); }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-eyebrow-shared { color: var(--text-muted); }
 
   /* Re-assert the bold accent states AFTER the neutral base overrides above,
      at equal-or-higher specificity, so the primary CTA, the picked answer, and
      the correct/wrong markings keep their colour on dark (a learner must still
      see which option they selected). These accents read well on dark as-is. */
-  body.theme-midnight .zx-sb-primary { background: #D97757; color: #fff; }
-  body.theme-midnight .zx-sb-amber   { background: #FBBF24; color: #0F1B2D; }
-  body.theme-midnight .zx-sb-dark    { background: #0F172A; color: #fff; }
-  body.theme-midnight .zx-opt[data-selected="true"] { background: #D97757; color: #fff; border-color: #D97757; }
-  body.theme-midnight .zx-opt[data-selected="true"] .zx-opt-letter { background: #fff; color: #0F1B2D; }
-  body.theme-midnight .zx-opt[data-correct="true"] { background: var(--success); color: #fff; border-color: var(--success); }
-  body.theme-midnight .zx-opt[data-wrong="true"]   { background: var(--danger);  color: #fff; border-color: var(--danger); }
-  body.theme-midnight .zx-pill-orange { background: #D97757; color: #fff; }
-  body.theme-midnight .zx-pill-green  { background: #10B981; color: #fff; }
-  body.theme-midnight .zx-pill-amber  { background: #FBBF24; color: #0F1B2D; }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-sb-primary { background: #D97757; color: #fff; }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-sb-amber   { background: #FBBF24; color: #0F1B2D; }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-sb-dark    { background: #0F172A; color: #fff; }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-opt[data-selected="true"] { background: #D97757; color: #fff; border-color: #D97757; }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-opt[data-selected="true"] .zx-opt-letter { background: #fff; color: #0F1B2D; }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-opt[data-correct="true"] { background: var(--success); color: #fff; border-color: var(--success); }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-opt[data-wrong="true"]   { background: var(--danger);  color: #fff; border-color: var(--danger); }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-pill-orange { background: #D97757; color: #fff; }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-pill-green  { background: #10B981; color: #fff; }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-pill-amber  { background: #FBBF24; color: #0F1B2D; }
 
   /* Tailwind light literals used *inside* the sticker surfaces. Scoped to the
      sticker/hero/glass containers so we only repaint the learner runner
      context, never every slate/orange class in the app. */
-  body.theme-midnight .zx-card-shared .text-slate-900,
-  body.theme-midnight .zx-card-shared .text-slate-800,
-  body.theme-midnight .zx-card-shared .text-slate-700,
-  body.theme-midnight .zx-hero-strip .text-slate-900 {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .text-slate-900,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .text-slate-800,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .text-slate-700,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-hero-strip .text-slate-900 {
     color: var(--text);
   }
-  body.theme-midnight .zx-card-shared .text-slate-600,
-  body.theme-midnight .zx-card-shared .text-slate-500,
-  body.theme-midnight .zx-hero-strip .text-slate-700,
-  body.theme-midnight .zx-hero-strip .text-slate-600,
-  body.theme-midnight .zx-glass-bottom .text-slate-700,
-  body.theme-midnight .zx-glass-bottom .text-slate-600 {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .text-slate-600,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .text-slate-500,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-hero-strip .text-slate-700,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-hero-strip .text-slate-600,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-glass-bottom .text-slate-700,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-glass-bottom .text-slate-600 {
     color: var(--text-muted);
   }
-  body.theme-midnight .zx-card-shared .bg-white,
-  body.theme-midnight .zx-hero-strip .bg-white {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .bg-white,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-hero-strip .bg-white {
     background-color: var(--card);
   }
-  body.theme-midnight .zx-card-shared .bg-slate-50,
-  body.theme-midnight .zx-card-shared .bg-slate-100 {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .bg-slate-50,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .bg-slate-100 {
     background-color: var(--bg-subtle);
   }
-  body.theme-midnight .zx-card-shared .bg-orange-50 {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .bg-orange-50 {
     background-color: var(--accent-bg);
   }
-  body.theme-midnight .zx-card-shared .border-slate-900,
-  body.theme-midnight .zx-card-shared .border-slate-400,
-  body.theme-midnight .zx-card-shared .border-slate-300,
-  body.theme-midnight .zx-card-shared .border-slate-200,
-  body.theme-midnight .zx-hero-strip .border-slate-900 {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .border-slate-900,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .border-slate-400,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .border-slate-300,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .border-slate-200,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-hero-strip .border-slate-900 {
     border-color: var(--border);
   }
 
@@ -5743,8 +5856,8 @@ select option {
     }
     /* Midnight (dark) theme keeps its neutral dark card tint, minus the
        colour-boosting saturate(). */
-    body.theme-midnight .zx-glass-nav,
-    body.theme-midnight .zx-glass-bottom {
+    :is(body.theme-midnight, html[data-theme='night'] body) .zx-glass-nav,
+    :is(body.theme-midnight, html[data-theme='night'] body) .zx-glass-bottom {
       background: color-mix(in srgb, var(--card) 72%, transparent);
       -webkit-backdrop-filter: blur(18px);
       backdrop-filter: blur(18px);
@@ -6477,7 +6590,7 @@ body.data-saver [data-bg-gradient] {
    subject cards, recent-activity rows, and the bottom nav inherit the
    user's chosen palette (e.g. white card on Sky's #F0F9FF page). The
    dark slate remap is scoped to Midnight below. */
-body.theme-midnight .learner-game-theme {
+:is(body.theme-midnight, html[data-theme='night'] body) .learner-game-theme {
   --bg: var(--learner-shell-bg);
   --bg-subtle: var(--learner-shell-bg-subtle);
   --card: var(--learner-shell-card);
@@ -6550,14 +6663,18 @@ body.theme-midnight .learner-game-theme {
  * it does not, and `npm run test:games-dark-surface` fails if a game file
  * starts using a literal that is not remapped here.
  *
- * The selector is `.force-light-theme` under Midnight: the same container
- * that pins the light palette, so the two directions of the pin cannot drift
- * onto different elements.
+ * The selector is `.force-light-theme` under EITHER dark theme: the same
+ * container that pins the light palette, so the two directions of the pin
+ * cannot drift onto different elements. Both hooks are listed because the two
+ * dark modes are set by different people in different places — a learner picks
+ * Midnight (reading, on <body>), a teacher picks Night (workspace, on <html>) —
+ * and scoping this to the reading one only left Games and Quizzes as the one
+ * surface a teacher on Night still met at full brightness.
  *
  * `text-white` is deliberately NOT remapped — it sits on coloured fills (the
  * terracotta CTA, the mascot tiles), which are unchanged in the dark.
  */
-body.theme-midnight .force-light-theme {
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme {
   --bg:              #0F172A;
   --bg-subtle:       #1E293B;
   --card:            #1E293B;
@@ -6587,70 +6704,70 @@ body.theme-midnight .force-light-theme {
  * noticed was the one that could not be read. Only classes that carry their
  * own background belong in this list.
  */
-body.theme-midnight .force-light-theme .bg-white,
-body.theme-midnight .force-light-theme .zx-chip,
-body.theme-midnight .force-light-theme .zx-sticker-btn-secondary {
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .bg-white,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .zx-chip,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .zx-sticker-btn-secondary {
   background-color: var(--card);
 }
-body.theme-midnight .force-light-theme .bg-slate-50,
-body.theme-midnight .force-light-theme .bg-slate-100,
-body.theme-midnight .force-light-theme .bg-slate-200 {
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .bg-slate-50,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .bg-slate-100,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .bg-slate-200 {
   background-color: var(--bg-subtle);
 }
 /* The navy pills (`bg-slate-900`, `.zx-card-dark`, `.zx-sticker-btn-dark`)
    are a RAISED surface on a white page. On a dark page the same colour is the
    page, so they are lifted rather than kept — a pill you cannot see is worse
    than one that changed shade. */
-body.theme-midnight .force-light-theme .bg-slate-900,
-body.theme-midnight .force-light-theme .bg-slate-800,
-body.theme-midnight .force-light-theme .zx-card-dark,
-body.theme-midnight .force-light-theme .zx-sticker-btn-dark {
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .bg-slate-900,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .bg-slate-800,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .zx-card-dark,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .zx-sticker-btn-dark {
   background-color: #334155;
   color: #F8FAFC;
 }
 /* The frosted sticky nav: translucent white over a cream page becomes
    translucent ink over a dark one, so the blur still reads as glass. */
-body.theme-midnight .force-light-theme .bg-white\/60,
-body.theme-midnight .force-light-theme .bg-white\/70,
-body.theme-midnight .force-light-theme .bg-white\/72,
-body.theme-midnight .force-light-theme .bg-white\/75,
-body.theme-midnight .force-light-theme .bg-white\/80,
-body.theme-midnight .force-light-theme .bg-white\/85 {
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .bg-white\/60,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .bg-white\/70,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .bg-white\/72,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .bg-white\/75,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .bg-white\/80,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .bg-white\/85 {
   background-color: rgba(15, 23, 42, 0.72);
 }
 
 /* Ink. */
-body.theme-midnight .force-light-theme .text-slate-900,
-body.theme-midnight .force-light-theme .text-slate-800,
-body.theme-midnight .force-light-theme .text-slate-700,
-body.theme-midnight .force-light-theme .zx-sticker-btn-secondary,
-body.theme-midnight .force-light-theme .zx-chip {
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .text-slate-900,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .text-slate-800,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .text-slate-700,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .zx-sticker-btn-secondary,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .zx-chip {
   color: var(--text);
 }
-body.theme-midnight .force-light-theme .text-slate-600,
-body.theme-midnight .force-light-theme .text-slate-500,
-body.theme-midnight .force-light-theme .text-slate-400,
-body.theme-midnight .force-light-theme .text-slate-300,
-body.theme-midnight .force-light-theme .zx-eyebrow,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .text-slate-600,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .text-slate-500,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .text-slate-400,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .text-slate-300,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .zx-eyebrow,
 /* The subject eyebrow is written both ways — as .zx-eyebrow and as a bare
    arbitrary value — so both spellings are listed. Missing the second one left
    "SCIENCE" at 1.11:1: a dark teal that was correct on white and is very
    nearly the page in the dark. */
-body.theme-midnight .force-light-theme .text-\[\#053541\] {
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .text-\[\#053541\] {
   color: var(--text-muted);
 }
 /* The games section's teal link colour, chosen against a white card. Lifted
    to the same hue at a legible lightness rather than swapped for the app
    accent, so /games still reads as its own place. */
-body.theme-midnight .force-light-theme .text-\[\#0E5E70\] {
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .text-\[\#0E5E70\] {
   color: #6FD3E8;
 }
 /* Cream tiles and hairlines, in the dark. */
-body.theme-midnight .force-light-theme .bg-\[\#EFE9DB\],
-body.theme-midnight .force-light-theme .bg-\[\#FCF7F3\] {
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .bg-\[\#EFE9DB\],
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .bg-\[\#FCF7F3\] {
   background-color: var(--bg-subtle);
 }
-body.theme-midnight .force-light-theme .border-\[\#D8D0BC\] {
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .border-\[\#D8D0BC\] {
   border-color: var(--border);
 }
 
@@ -6658,39 +6775,39 @@ body.theme-midnight .force-light-theme .border-\[\#D8D0BC\] {
    #0F1B2D is invisible on a dark card, so both are redrawn in a light ink.
    Kept a definite grey rather than the full --text so the outline still reads
    as an outline and not as a second row of type. */
-body.theme-midnight .force-light-theme .zx-card,
-body.theme-midnight .force-light-theme .zx-chip {
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .zx-card,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .zx-chip {
   border-color: #7C8CA5;
   box-shadow: 0 2px 0 #7C8CA5;
 }
-body.theme-midnight .force-light-theme .zx-sticker-btn {
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .zx-sticker-btn {
   border-color: #7C8CA5;
   box-shadow: 0 3px 0 #7C8CA5;
 }
-body.theme-midnight .force-light-theme .zx-sticker-btn:hover { box-shadow: 0 2px 0 #7C8CA5; }
-body.theme-midnight .force-light-theme .zx-sticker-btn:active { box-shadow: 0 0 0 #7C8CA5; }
-body.theme-midnight .force-light-theme .zx-sticker-btn:disabled { box-shadow: 0 3px 0 #7C8CA5; }
-body.theme-midnight .force-light-theme .border-slate-900,
-body.theme-midnight .force-light-theme .border-slate-800,
-body.theme-midnight .force-light-theme .border-slate-300,
-body.theme-midnight .force-light-theme .border-slate-200,
-body.theme-midnight .force-light-theme .border-slate-100,
-body.theme-midnight .force-light-theme .ring-slate-200 {
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .zx-sticker-btn:hover { box-shadow: 0 2px 0 #7C8CA5; }
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .zx-sticker-btn:active { box-shadow: 0 0 0 #7C8CA5; }
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .zx-sticker-btn:disabled { box-shadow: 0 3px 0 #7C8CA5; }
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .border-slate-900,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .border-slate-800,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .border-slate-300,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .border-slate-200,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .border-slate-100,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .ring-slate-200 {
   border-color: #7C8CA5;
 }
-body.theme-midnight .force-light-theme .border-white\/60,
-body.theme-midnight .force-light-theme .border-white\/40 {
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .border-white\/60,
+:is(body.theme-midnight, html[data-theme='night'] body) .force-light-theme .border-white\/40 {
   border-color: rgba(148, 163, 184, 0.28);
 }
 
 /* Heavy slate shadow + translucent subtle bg only in Midnight; light
    themes use the default --shadow-sm so cards stay airy. */
-body.theme-midnight .learner-game-theme .surface,
-body.theme-midnight .learner-game-theme .theme-card {
+:is(body.theme-midnight, html[data-theme='night'] body) .learner-game-theme .surface,
+:is(body.theme-midnight, html[data-theme='night'] body) .learner-game-theme .theme-card {
   box-shadow: var(--shadow-md);
 }
 
-body.theme-midnight .learner-game-theme .theme-bg-subtle {
+:is(body.theme-midnight, html[data-theme='night'] body) .learner-game-theme .theme-bg-subtle {
   background-color: rgba(148, 163, 184, 0.1);
 }
 
@@ -6783,12 +6900,12 @@ body.theme-midnight .learner-game-theme .theme-bg-subtle {
   }
 }
 
-body.theme-midnight .learner-page-heading {
+:is(body.theme-midnight, html[data-theme='night'] body) .learner-page-heading {
   color: #f8fafc;
 }
 
-body.theme-midnight .learner-chrome-label,
-body.theme-midnight .learner-chrome-icon {
+:is(body.theme-midnight, html[data-theme='night'] body) .learner-chrome-label,
+:is(body.theme-midnight, html[data-theme='night'] body) .learner-chrome-icon {
   color: #e2e8f0;
 }
 
@@ -6818,7 +6935,7 @@ body.theme-sky .learner-game-theme {
     linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 52%, #dbeafe 100%);
 }
 
-body.theme-midnight .learner-game-theme {
+:is(body.theme-midnight, html[data-theme='night'] body) .learner-game-theme {
   background-color: #020617;
   background-image:
     radial-gradient(circle at 10% 0%, rgba(59, 130, 246, 0.16), transparent 24rem),
@@ -6848,8 +6965,8 @@ body.theme-sky .learner-game-theme .learner-bottom-nav {
   border-color: rgba(186, 230, 253, 0.82);
 }
 
-body.theme-midnight .learner-dashboard-header,
-body.theme-midnight .learner-game-theme .learner-bottom-nav {
+:is(body.theme-midnight, html[data-theme='night'] body) .learner-dashboard-header,
+:is(body.theme-midnight, html[data-theme='night'] body) .learner-game-theme .learner-bottom-nav {
   background: rgba(10, 16, 31, 0.72);
   border-color: rgba(71, 85, 105, 0.58);
 }
@@ -6875,7 +6992,7 @@ body.theme-sky .learner-dashboard-header {
   background: rgba(240, 249, 255, 0.2);
   border-bottom-color: rgba(186, 230, 253, 0.5);
 }
-body.theme-midnight .learner-dashboard-header {
+:is(body.theme-midnight, html[data-theme='night'] body) .learner-dashboard-header {
   background: rgba(10, 16, 31, 0.34);
   border-bottom-color: rgba(71, 85, 105, 0.4);
 }
@@ -7414,3 +7531,99 @@ body[data-a11y-dyslexia="on"] li { max-width: 66ch; }
 body[data-a11y-colorblind="protanopia"]   #root { filter: url(#cb-protanopia); }
 body[data-a11y-colorblind="deuteranopia"] #root { filter: url(#cb-deuteranopia); }
 body[data-a11y-colorblind="tritanopia"]   #root { filter: url(#cb-tritanopia); }
+
+/* ── The neutral Tailwind vocabulary, on the dark themes ───────────────────
+ *
+ * The last shape of this bug. A page's own background is tokenised — the quiz
+ * runner opens `theme-bg theme-text` and goes properly dark — while the CARDS
+ * inside it are Tailwind literals. So on Midnight the page is #0F172A and the
+ * question card is pure #FFFFFF: internally readable, and a white slab on a
+ * dark page. Roughly 270 `bg-white` across the learner surfaces do this.
+ *
+ * WHY A REMAP RATHER THAN 700 EDITS
+ * The same reasoning as the games block above, and the same failure mode if it
+ * is not done this way: converting each call site by hand is a diff nobody can
+ * review, and anything missed is a white card in a dark page, one component at
+ * a time, on a theme most reviewers are not using. One block either covers the
+ * vocabulary or it does not.
+ *
+ * The vocabulary is bounded and taken from what the learner surfaces actually
+ * use, not from Tailwind's whole neutral scale.
+ *
+ * WHAT IS DELIBERATELY ABSENT
+ * `text-white`, `bg-black`, `border-white` and `border-slate-900` — each sits
+ * on a coloured or dark fill that does not change in the dark, so remapping
+ * them would break the one thing that was already right. Same exclusion, same
+ * reason, as the games block.
+ *
+ * Opacity variants (`bg-white/70`) are separate class names and are left
+ * alone: they are translucent washes over artwork, not surfaces. */
+:is(body.theme-midnight, html[data-theme='night'] body) .bg-white { background-color: var(--card); }
+:is(body.theme-midnight, html[data-theme='night'] body) .bg-gray-50,
+:is(body.theme-midnight, html[data-theme='night'] body) .bg-slate-50,
+:is(body.theme-midnight, html[data-theme='night'] body) .bg-stone-50,
+:is(body.theme-midnight, html[data-theme='night'] body) .bg-neutral-50,
+:is(body.theme-midnight, html[data-theme='night'] body) .bg-gray-100,
+:is(body.theme-midnight, html[data-theme='night'] body) .bg-slate-100,
+:is(body.theme-midnight, html[data-theme='night'] body) .bg-neutral-100 {
+  background-color: var(--bg-subtle);
+}
+:is(body.theme-midnight, html[data-theme='night'] body) .bg-gray-200,
+:is(body.theme-midnight, html[data-theme='night'] body) .bg-slate-200,
+:is(body.theme-midnight, html[data-theme='night'] body) .bg-neutral-200 {
+  background-color: var(--card-hover);
+}
+
+:is(body.theme-midnight, html[data-theme='night'] body) .text-black,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-gray-900,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-gray-800,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-slate-900,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-slate-800,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-neutral-900,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-neutral-800 {
+  color: var(--text);
+}
+:is(body.theme-midnight, html[data-theme='night'] body) .text-gray-700,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-gray-600,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-gray-500,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-gray-400,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-slate-700,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-slate-600,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-slate-500,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-slate-400,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-neutral-700,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-neutral-600,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-neutral-500,
+:is(body.theme-midnight, html[data-theme='night'] body) .text-neutral-400 {
+  color: var(--text-muted);
+}
+
+:is(body.theme-midnight, html[data-theme='night'] body) .border-gray-200,
+:is(body.theme-midnight, html[data-theme='night'] body) .border-gray-300,
+:is(body.theme-midnight, html[data-theme='night'] body) .border-slate-200,
+:is(body.theme-midnight, html[data-theme='night'] body) .border-slate-300,
+:is(body.theme-midnight, html[data-theme='night'] body) .border-slate-400,
+:is(body.theme-midnight, html[data-theme='night'] body) .border-neutral-100,
+:is(body.theme-midnight, html[data-theme='night'] body) .border-neutral-200,
+:is(body.theme-midnight, html[data-theme='night'] body) .border-neutral-300 {
+  border-color: var(--border);
+}
+
+/* ── …except inside the surfaces that are light ON PURPOSE ────────────────
+ * Higher specificity, so it wins over the remap above. Each of these is a
+ * picture of a printed or generated artefact, or a document-authoring canvas,
+ * and stays light in every theme — see the note on each container. Without
+ * this the remap would darken the inside of the A4 preview and the image
+ * canvas, which is the one place a dark surface is actively wrong. */
+:is(body.theme-midnight, html[data-theme='night'] body)
+  :is(.qe-page, .sv-paper, .vs-canvas, .vs-stage, .pp-sheet, .marketing-page) :is(
+    .bg-white, .bg-gray-50, .bg-slate-50, .bg-stone-50, .bg-neutral-50,
+    .bg-gray-100, .bg-slate-100, .bg-neutral-100) {
+  background-color: #ffffff;
+}
+:is(body.theme-midnight, html[data-theme='night'] body)
+  :is(.qe-page, .sv-paper, .vs-canvas, .vs-stage, .pp-sheet, .marketing-page) :is(
+    .text-black, .text-gray-900, .text-gray-800, .text-slate-900, .text-slate-800,
+    .text-neutral-900, .text-neutral-800) {
+  color: #111111;
+}

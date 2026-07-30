@@ -107,7 +107,10 @@
   top: 0;
   z-index: 50;
   height: var(--sv-topbar-h);
-  background: rgba(244, 239, 229, 0.92);
+  /* color-mix, not the token straight: `backdrop-filter` below needs this to
+     stay translucent for the frost to show, and the literal it replaces pinned
+     that tint cream on every theme. */
+  background: color-mix(in srgb, var(--sv-canvas) 92%, transparent);
   backdrop-filter: saturate(180%) blur(14px);
   -webkit-backdrop-filter: saturate(180%) blur(14px);
   border-bottom: 1px solid var(--sv-border);
@@ -683,7 +686,7 @@
   position: sticky;
   top: var(--sv-topbar-h);
   z-index: 30;
-  background: rgba(244, 239, 229, 0.95);
+  background: color-mix(in srgb, var(--sv-canvas) 95%, transparent);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--sv-border);
   padding: var(--sv-s2) var(--sv-s4);
@@ -1858,7 +1861,7 @@
 }
 .studio-v2 .sv-ai-action:hover {
   border-color: var(--sv-gold);
-  background: rgba(245,231,204,0.30);
+  background: var(--sv-gold-soft);
 }
 .studio-v2 .sv-ai-action[disabled] {
   opacity: 0.55;
@@ -3165,4 +3168,113 @@
 .studio-v2 .sv-health-check-detail {
   color: var(--sv-muted, #6b6b6b);
   font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   NIGHT
+   ============================================================
+   The Assessment Paper Studio paints itself from its own --sv-* tokens rather
+   than the workspace ones, so it had no dark mode at all: a teacher on Night
+   got the dark shell and a cream studio inside it. Restating the tokens is
+   most of the fix — this file is disciplined about going through them.
+
+   WHAT DELIBERATELY STAYS LIGHT
+   `.sv-paper` and everything under it is the A4 DOCUMENT PREVIEW: a picture of
+   the sheet that comes out of the printer. It is drawn in literal white and
+   #111 on purpose and must stay that way in every theme, because a teacher
+   checking a paper before printing forty copies is checking what the paper
+   will look like, not what their screen prefers. It is the one intentional
+   light region on this page.
+
+   Note the near-collision that makes that easy to get wrong: `--sv-paper` (the
+   token) is the general CARD surface and is remapped below; `.sv-paper` (the
+   class) is the printed sheet and is not. Same word, opposite decisions. */
+[data-theme='night'] .studio-v2 {
+  --sv-paper: #232D3B;
+  --sv-canvas: #1A222E;
+  --sv-canvas-2: #151C27;
+  --sv-tinted: #1F2836;
+
+  --sv-ink: #EDE7DC;
+  --sv-ink-soft: #CFD8E2;
+  --sv-text: #EDE7DC;
+  --sv-muted: #94A0AF;
+  --sv-muted-2: #7A8694;
+
+  /* The accent HUES are unchanged — they are the studio's identity and they
+     read on a dark surface. What changes is the `-soft` tints: those are pale
+     washes mixed toward white, which on a dark card become bright blocks. A
+     translucent wash of the same hue works on both --sv-paper and the slightly
+     darker --sv-canvas, which a second set of hexes would not. */
+  --sv-primary: #C4576B;
+  --sv-primary-soft: rgba(196, 87, 107, 0.22);
+  --sv-primary-dark: #A33F52;
+  --sv-gold: #D9A857;
+  --sv-gold-soft: rgba(200, 146, 61, 0.22);
+  --sv-sage: #6BB08C;
+  --sv-sage-soft: rgba(62, 123, 90, 0.26);
+  --sv-indigo: #8091D0;
+  --sv-indigo-soft: rgba(63, 79, 139, 0.30);
+  --sv-plum: #B07BD8;
+  --sv-plum-soft: rgba(110, 43, 160, 0.28);
+
+  /* Borders were rgba(ink) over a light surface — the same alpha over a dark
+     one is invisible, so these are rgba(WHITE) at the matching weight. */
+  --sv-border: rgba(237, 231, 220, 0.16);
+  --sv-border-strong: rgba(237, 231, 220, 0.30);
+  --sv-border-soft: rgba(237, 231, 220, 0.09);
+
+  /* Shadows tuned for a light page do nothing on a dark one; these are what
+     separates a card from the canvas behind it. */
+  --sv-shadow-xs: 0 1px 1px rgba(0,0,0,0.30);
+  --sv-shadow-sm: 0 1px 3px rgba(0,0,0,0.40), 0 1px 2px rgba(0,0,0,0.30);
+  --sv-shadow-md: 0 8px 24px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.30);
+  --sv-shadow-lg: 0 24px 56px rgba(0,0,0,0.55), 0 8px 16px rgba(0,0,0,0.35);
+  --sv-shadow-paper: 0 8px 32px rgba(0,0,0,0.50), 0 2px 8px rgba(0,0,0,0.35);
+}
+
+/* Semantic ink on the tinted chips. Each of these was a dark ink chosen for a
+   pale wash; the wash is now translucent over a dark card, so the ink has to
+   come up with it. Hues unchanged — a warning is the same amber. */
+[data-theme='night'] .studio-v2 .sv-badge-mini.is-unsaved,
+[data-theme='night'] .studio-v2 .sv-warn-warn,
+[data-theme='night'] .studio-v2 .sv-status-pill.draft,
+[data-theme='night'] .studio-v2 .sv-chip.sv-chip-warn,
+[data-theme='night'] .studio-v2 .sv-q-incomplete-tag,
+[data-theme='night'] .studio-v2 .sv-q-type-tag.diag,
+[data-theme='night'] .studio-v2 .sv-health-badge.attention,
+[data-theme='night'] .studio-v2 .sv-health-group.attention h4,
+[data-theme='night'] .studio-v2 .sv-health-group.attention li,
+[data-theme='night'] .studio-v2 .sv-chip.sv-chip-health.attention,
+[data-theme='night'] .studio-v2 .sv-export-block,
+[data-theme='night'] .studio-v2 .sv-cpm-warn { color: #E5B55F; }
+
+[data-theme='night'] .studio-v2 .sv-badge-mini.is-local,
+[data-theme='night'] .studio-v2 .sv-status-pill.ready,
+[data-theme='night'] .studio-v2 .sv-q-type-tag.tf,
+[data-theme='night'] .studio-v2 .sv-health-badge.ready,
+[data-theme='night'] .studio-v2 .sv-health-allclear,
+[data-theme='night'] .studio-v2 .sv-chip.sv-chip-health.ready { color: #6BC79A; }
+
+[data-theme='night'] .studio-v2 .sv-warn-info,
+[data-theme='night'] .studio-v2 .sv-status-pill.printed,
+[data-theme='night'] .studio-v2 .sv-q-type-tag.mcq { color: #8FA3E0; }
+
+[data-theme='night'] .studio-v2 .sv-warn-error,
+[data-theme='night'] .studio-v2 .sv-health-group.blocked li { color: #EE8A9B; }
+
+[data-theme='night'] .studio-v2 .sv-badge-mini.is-autosave-failed {
+  background: rgba(200, 90, 30, 0.24);
+  color: #F0A878;
+}
+
+/* The handful of rules that reached past the tokens for a flat light fill. */
+[data-theme='night'] .studio-v2 .sv-block.is-incomplete { background: #26221A; }
+[data-theme='night'] .studio-v2 .sv-chip.sv-chip-warn:hover { background: rgba(200, 146, 61, 0.32); }
+[data-theme='night'] .studio-v2 .sv-cpm-input,
+[data-theme='night'] .studio-v2 .sv-cpm-checklist,
+[data-theme='night'] .studio-v2 .sv-cpm-pill,
+[data-theme='night'] .studio-v2 .sv-opt-maths .sv-maths-editor .re-wrap {
+  background: var(--sv-paper);
+  color: var(--sv-text);
 }

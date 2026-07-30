@@ -24,7 +24,7 @@ export function AdminNotesList() {
   const { notes, loading, totalCount } = useAdminNotes({ subject, grade, status, search })
 
   return (
-    <div className="notes-studio min-h-full" style={{ backgroundColor: '#FAFAF7' }}>
+    <div className="notes-studio notes-studio--soft min-h-full">
       <SeoHelmet title="Admin notes" noIndex />
       <main className="max-w-6xl mx-auto px-5 py-8">
         <div className="flex items-end justify-between mb-8 flex-wrap gap-4">

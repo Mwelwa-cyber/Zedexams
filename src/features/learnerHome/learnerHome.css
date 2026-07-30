@@ -810,7 +810,7 @@ body.theme-solar .lhx {
  * light-on-light here. Each gets a dark-surface equivalent rather than
  * being dropped, so a card still says "science" or "exam open".
  */
-body.theme-midnight .lhx {
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx {
   --lhx-hi: rgba(255, 255, 255, 0.08);
   --lhx-hi-soft: rgba(255, 255, 255, 0.06);
   --lhx-shade: rgba(0, 0, 0, 0.62);
@@ -838,7 +838,7 @@ body.theme-midnight .lhx {
 }
 /* Recessed tracks and inset floors are cut with black on light themes;
    on Midnight they have to be cut with light or they vanish. */
-body.theme-midnight .lhx .lhx-track { background: rgba(255, 255, 255, 0.12); box-shadow: none; }
-body.theme-midnight .lhx .lhx-seg,
-body.theme-midnight .lhx .lhx-terms { box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5); }
-body.theme-midnight .lhx .lhx-nav { border-top-color: rgba(255, 255, 255, 0.1); }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-track { background: rgba(255, 255, 255, 0.12); box-shadow: none; }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-seg,
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-terms { box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5); }
+:is(body.theme-midnight, html[data-theme='night'] body) .lhx .lhx-nav { border-top-color: rgba(255, 255, 255, 0.1); }

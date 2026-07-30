@@ -644,6 +644,8 @@
     "test:reading-theme-contrast": "node src/contexts/readingThemeContrast.test.js",
     "test:games-dark-surface": "node src/components/games/gamesDarkSurface.test.js",
     "test:teacher-dark-surface": "node src/components/teacher/teacherDarkSurface.test.js",
+    "test:select-arrow": "node src/components/ui/selectArrow.test.js",
+    "test:theme-bridge": "node src/contexts/themeBridge.test.js",
     "test:export-theme-isolation": "node src/utils/exportThemeIsolation.test.js",
     "test:lesson-plan-format": "node src/utils/lessonPlanFormat.test.js",
     "test:lesson-plan-condense": "node src/utils/lessonPlanCondense.test.js",
@@ -659,6 +661,10 @@
     "test:consent-guard": "node functions/consentGuard.test.js",
     "test:learner-safety": "node functions/learnerSafety/learnerSafetyCore.test.js",
     "test:android-manifest": "node scripts/test-android-manifest.mjs",
+    "audit:colors": "node scripts/audit-hardcoded-colors.mjs",
+    "audit:dark": "node scripts/audit-dark-surfaces.mjs",
+    "audit:routes": "node scripts/audit-route-themes.mjs",
+    "test:route-themes": "node scripts/audit-route-themes.mjs",
     "provision:storage-backup": "node scripts/provision-storage-backup.mjs"
   },
   "lint-staged": {

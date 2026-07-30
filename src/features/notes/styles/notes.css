@@ -12,9 +12,23 @@
 .notes-studio {
   font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
   color: #0a0a0a;
-  /* Cream canvas, matching the admin "sticker" theme. */
-  background-color: #F5EFE1;
+  /* Cream canvas, matching the admin "sticker" theme.
+   *
+   * A TOKEN rather than a literal because the canvas has two light values —
+   * the cream here and the softer off-white the admin list/editor pages use
+   * (`.notes-studio--soft`) — and both were previously written as an INLINE
+   * `style={{ backgroundColor: … }}` on the page root. An inline style beats
+   * every stylesheet rule, so the dark override below could never reach those
+   * pages: they stayed cream on both dark themes no matter what this file
+   * said. One token, set here and re-pointed once for dark, reaches all of
+   * them. */
+  --notes-canvas: #F5EFE1;
+  background-color: var(--notes-canvas);
 }
+/* The softer off-white used by the admin notes list, editor, visual-notes
+   generator and the learner lessons list. Same value those pages carried
+   inline, so nothing moves in the light themes. */
+.notes-studio--soft { --notes-canvas: #FAFAF7; }
 
 /* ─── Chrome theme ────────────────────────────────────────────────────────
    The surfaces *around* a note — the library list, note cards, reader header
@@ -143,91 +157,97 @@
    The notes reader + library are full-screen learner surfaces that hardcode a
    cream/white paper (note-page-*), navy (#0F1B2D) chrome, and neutral-scale
    editorial text — none of which adapt to the app's Midnight theme, leaving the
-   whole reading surface blinding-white in dark mode. Under body.theme-midnight
+   whole reading surface blinding-white in dark mode. Under :is(body.theme-midnight, html[data-theme='night'] body)
    we repaint the paper, prose, study blocks, cards/chips and the Tailwind light
    literals onto the Midnight tokens. Scoped to .notes-studio so nothing outside
-   the notes surface is touched; the body.theme-midnight class lifts specificity
+   the notes surface is touched; the :is(body.theme-midnight, html[data-theme='night'] body) class lifts specificity
    enough to beat the raw utilities without !important. The editorial serif
    typography + layout are untouched — only colour changes. */
-body.theme-midnight .notes-studio,
-body.theme-midnight .notes-studio.note-page-cream,
-body.theme-midnight .notes-studio.note-page-white,
-body.theme-midnight .notes-studio.note-page-sepia,
-body.theme-midnight .notes-studio.note-page-lined {
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio,
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio.note-page-cream,
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio.note-page-white,
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio.note-page-sepia,
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio.note-page-lined {
+  /* BOTH, and both are needed. The token carries the `--soft` variant without
+     it needing its own dark rule; the explicit background-color is what beats
+     the `.note-page-*` reading-page classes, which set a background-color of
+     their own rather than reading the token. Setting only the token left the
+     sepia and lined reading pages at their paper colours on a dark theme. */
+  --notes-canvas: var(--bg);
   background-color: var(--bg);
   background-image: none;
   color: var(--text);
 }
 
 /* Prose + study editorial text */
-body.theme-midnight .notes-studio .prose-note p,
-body.theme-midnight .notes-studio .prose-note ul li,
-body.theme-midnight .notes-studio .prose-note ol li,
-body.theme-midnight .notes-studio .prose-note h2,
-body.theme-midnight .notes-studio .prose-note strong,
-body.theme-midnight .notes-studio .study-note strong,
-body.theme-midnight .notes-studio .math-display {
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .prose-note p,
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .prose-note ul li,
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .prose-note ol li,
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .prose-note h2,
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .prose-note strong,
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .study-note strong,
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .math-display {
   color: var(--text);
 }
-body.theme-midnight .notes-studio .prose-note figcaption {
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .prose-note figcaption {
   color: var(--text-muted);
 }
-body.theme-midnight .notes-studio .prose-note th {
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .prose-note th {
   background: var(--bg-subtle);
   color: var(--text);
 }
-body.theme-midnight .notes-studio .prose-note th,
-body.theme-midnight .notes-studio .prose-note td {
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .prose-note th,
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .prose-note td {
   border-color: var(--border);
 }
 /* Keep the AI highlight legible on dark: a fainter amber wash under the (now
    light) text rather than a solid band that would swallow it. */
-body.theme-midnight .notes-studio .study-note mark.note-hl {
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .study-note mark.note-hl {
   background: linear-gradient(transparent 55%, rgba(250, 204, 21, 0.30) 55%);
   color: inherit;
 }
 
 /* Sticker chrome — cards + chips */
-body.theme-midnight .notes-studio .notes-card {
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .notes-card {
   background: var(--card);
   border-color: var(--border);
   box-shadow: 0 2px 0 var(--border);
 }
-body.theme-midnight .notes-studio .notes-chip { border-color: var(--border); }
-body.theme-midnight .notes-studio .notes-chip-shadow { box-shadow: 0 2px 0 var(--border); }
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .notes-chip { border-color: var(--border); }
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .notes-chip-shadow { box-shadow: 0 2px 0 var(--border); }
 
 /* Tailwind light literals used across the reader + study blocks + lists,
    scoped to the notes surface. */
-body.theme-midnight .notes-studio .text-neutral-900,
-body.theme-midnight .notes-studio .text-neutral-800,
-body.theme-midnight .notes-studio .text-\[\#0F1B2D\] {
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .text-neutral-900,
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .text-neutral-800,
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .text-\[\#0F1B2D\] {
   color: var(--text);
 }
-body.theme-midnight .notes-studio .text-neutral-700,
-body.theme-midnight .notes-studio .text-neutral-600,
-body.theme-midnight .notes-studio .text-neutral-500,
-body.theme-midnight .notes-studio .text-\[\#4A5A6E\],
-body.theme-midnight .notes-studio .text-\[\#9CA3AF\] {
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .text-neutral-700,
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .text-neutral-600,
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .text-neutral-500,
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .text-\[\#4A5A6E\],
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .text-\[\#9CA3AF\] {
   color: var(--text-muted);
 }
-body.theme-midnight .notes-studio .bg-white {
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .bg-white {
   background-color: var(--card);
 }
-body.theme-midnight .notes-studio .bg-neutral-50,
-body.theme-midnight .notes-studio .bg-neutral-50\/70,
-body.theme-midnight .notes-studio .bg-neutral-100,
-body.theme-midnight .notes-studio .bg-neutral-200 {
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .bg-neutral-50,
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .bg-neutral-50\/70,
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .bg-neutral-100,
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .bg-neutral-200 {
   background-color: var(--bg-subtle);
 }
-body.theme-midnight .notes-studio .border-neutral-100,
-body.theme-midnight .notes-studio .border-neutral-200,
-body.theme-midnight .notes-studio .border-\[\#0F1B2D\] {
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .border-neutral-100,
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .border-neutral-200,
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .border-\[\#0F1B2D\] {
   border-color: var(--border);
 }
 /* Dashed section rules use a warm cream border literal. */
-body.theme-midnight .notes-studio .border-\[\#D8D0BC\] {
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .border-\[\#D8D0BC\] {
   border-color: var(--border);
 }
 /* Study-block table header is already dark (bg-neutral-900) — keep it, just
    align its border to the theme. */
-body.theme-midnight .notes-studio .bg-neutral-900 { background-color: var(--bg-subtle); }
+:is(body.theme-midnight, html[data-theme='night'] body) .notes-studio .bg-neutral-900 { background-color: var(--bg-subtle); }

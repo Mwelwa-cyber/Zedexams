@@ -13,6 +13,43 @@
  */
 .qe-page, .overlay, .modal, .re-wrap, .editor-area,
 .toolbar, .tblstrip, .alist, .pcard, .savebar, .qe-toast {
+  /* ── The palette is PINNED LIGHT inside the editor ──────────────────────
+   *
+   * The canvas is light-only by design (see `color-scheme: light` on .qe-page
+   * below) — it is a document-authoring surface, like the A4 preview in the
+   * assessment studio, and the intent has been stated in this file from the
+   * start.
+   *
+   * But only HALF of it was implemented. The surfaces were pinned with
+   * literals (--white, --sl1, --sl2) while the INK was bridged onto the app's
+   * --text, which follows the theme and goes near-white in the dark. So on
+   * Midnight and on Night the editor was near-white ink on a near-white
+   * canvas — measured at 1.04:1 to 1.10:1 across the page, toolbar, question
+   * cards and save bar. Not "no dark mode": unusable, and worse than either
+   * theme on its own.
+   *
+   * Pinning the palette tokens here rather than un-bridging each `var()` is
+   * what makes the intent hold for tokens added later too: anything inside
+   * this scope that reaches for --text or --border now gets the light value
+   * automatically. The values are the default (Oatmeal) palette's, so the
+   * editor looks the same for every user regardless of the theme they picked.
+   *
+   * If the editor should instead gain a real dark canvas, that is a design
+   * change: it means re-drawing the toolbar, the question cards and the
+   * rich-text content styles, and deciding what a pasted white-background
+   * table does. This commit fixes the bug and leaves that decision open. */
+  --text:         #1C1917;
+  --text-muted:   #6E6862;
+  --border:       #E7D5C0;
+  --accent:       #B44F2D;
+  --accent-text:  #FFFFFF;
+  --accent-bg:    #F7EAE4;
+  --accent-fg:    #7C3D27;
+  --input-bg:     #FFFDF7;
+  --input-border: #E7D5C0;
+  --warning:      #D97706; --warning-bg: #FEF3C7;
+  --danger:       #DC2626; --danger-bg:  #FEE2E2;
+
   --ink:  var(--text);
   --ink2: var(--text);
   --vi:   var(--accent-fg);
