@@ -304,7 +304,13 @@ html[data-theme='night'] body {
   --moe-past-card-bg:  #F7F7F7;
   --moe-progress-track:#E5E9EF;
 }
-body.theme-midnight .moe-calendar {
+/* Both dark hooks, for the reason spelled out at the theme bridge above: a
+   learner picks Midnight (reading theme, on <body>) and a teacher picks Night
+   (workspace theme, on <html>), and /teacher/calendar is a TEACHER page. Keyed
+   to the reading theme alone, it gave a teacher on Night the dark sidebar the
+   shell paints and a fully light calendar beside it — the component is
+   completely tokenised, it was just listening for the wrong person's choice. */
+:is(body.theme-midnight, html[data-theme='night'] body) .moe-calendar {
   --moe-page-bg:       #0F172A;
   --moe-surface:       #1E293B;
   --moe-surface-2:     #263449;
@@ -5696,7 +5702,7 @@ select {
     transition: box-shadow 0.2s ease, transform 0.2s ease;
   }
 
-  body.theme-midnight .zx-glass-dock {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-glass-dock {
     background: color-mix(in srgb, var(--card) 80%, transparent);
     border-color: rgba(255, 255, 255, 0.12);
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5),
@@ -5704,36 +5710,36 @@ select {
   }
 
   /* Midnight theme — keep navy stroke, lift alpha so strips stay legible */
-  body.theme-midnight .zx-glass-nav,
-  body.theme-midnight .zx-glass-bottom {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-glass-nav,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-glass-bottom {
     background: color-mix(in srgb, var(--card) 72%, transparent);
   }
-  body.theme-midnight .zx-glass-bottom {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-glass-bottom {
     border-color: rgba(255, 255, 255, 0.10);
     box-shadow: 0 -10px 30px -12px rgba(0, 0, 0, 0.45),
                 inset 0 1px 0 rgba(255, 255, 255, 0.06);
   }
-  body.theme-midnight .zx-glass-bottom::before {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-glass-bottom::before {
     background: linear-gradient(
       to top,
       color-mix(in srgb, var(--card) 45%, transparent),
       transparent
     );
   }
-  body.theme-midnight .zx-glass-nav {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-glass-nav {
     border-color: rgba(255, 255, 255, 0.10);
     box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.45),
                 inset 0 -1px 0 rgba(255, 255, 255, 0.06);
   }
-  body.theme-midnight .zx-glass-nav::after {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-glass-nav::after {
     background: linear-gradient(
       to bottom,
       color-mix(in srgb, var(--card) 45%, transparent),
       transparent
     );
   }
-  body.theme-midnight .zx-nav-pill-idle { color: #e2e8f0; }
-  body.theme-midnight .zx-logo-pill {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-nav-pill-idle { color: #e2e8f0; }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-logo-pill {
     background: transparent;
   }
 
@@ -5744,94 +5750,94 @@ select {
      blinding-white with dark-on-dark text in the dark theme. These rules
      repaint the sticker chrome + the Tailwind literals it pairs with onto the
      Midnight tokens. The bold accents (orange / green / amber / red) are kept
-     — they read well on dark. Scoped to body.theme-midnight, so the light
-     themes are untouched; the `body.theme-midnight` class lifts specificity
+     — they read well on dark. Scoped to the dark themes, so the light
+     themes are untouched; the `:is(body.theme-midnight, html[data-theme='night'] body)` class lifts specificity
      enough to beat the raw Tailwind utilities without !important. */
-  body.theme-midnight .zx-card-shared {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared {
     background: var(--card);
     border-color: var(--border);
     box-shadow: 0 2px 0 var(--border);
     color: var(--text);
   }
-  body.theme-midnight .zx-hero-strip {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-hero-strip {
     background: var(--card);
     border-bottom-color: var(--border);
     box-shadow: 0 2px 0 var(--border);
     color: var(--text);
   }
-  body.theme-midnight .zx-sb,
-  body.theme-midnight .zx-sb-secondary,
-  body.theme-midnight .zx-timer {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-sb,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-sb-secondary,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-timer {
     background: var(--card);
     color: var(--text);
     border-color: var(--border);
     box-shadow: 0 3px 0 var(--border);
   }
-  body.theme-midnight .zx-sb:disabled { box-shadow: 0 3px 0 var(--border); }
-  body.theme-midnight .zx-opt {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-sb:disabled { box-shadow: 0 3px 0 var(--border); }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-opt {
     background: var(--card);
     color: var(--text);
     border-color: var(--border);
     box-shadow: 0 2px 0 var(--border);
   }
-  body.theme-midnight .zx-opt-letter { background: var(--bg-subtle); color: var(--text); }
-  body.theme-midnight .zx-pill-light,
-  body.theme-midnight .zx-pill-dark {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-opt-letter { background: var(--bg-subtle); color: var(--text); }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-pill-light,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-pill-dark {
     background: var(--bg-subtle);
     color: var(--text);
     border-color: var(--border);
     box-shadow: 0 2px 0 var(--border);
   }
-  body.theme-midnight .zx-eyebrow-shared { color: var(--text-muted); }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-eyebrow-shared { color: var(--text-muted); }
 
   /* Re-assert the bold accent states AFTER the neutral base overrides above,
      at equal-or-higher specificity, so the primary CTA, the picked answer, and
      the correct/wrong markings keep their colour on dark (a learner must still
      see which option they selected). These accents read well on dark as-is. */
-  body.theme-midnight .zx-sb-primary { background: #D97757; color: #fff; }
-  body.theme-midnight .zx-sb-amber   { background: #FBBF24; color: #0F1B2D; }
-  body.theme-midnight .zx-sb-dark    { background: #0F172A; color: #fff; }
-  body.theme-midnight .zx-opt[data-selected="true"] { background: #D97757; color: #fff; border-color: #D97757; }
-  body.theme-midnight .zx-opt[data-selected="true"] .zx-opt-letter { background: #fff; color: #0F1B2D; }
-  body.theme-midnight .zx-opt[data-correct="true"] { background: var(--success); color: #fff; border-color: var(--success); }
-  body.theme-midnight .zx-opt[data-wrong="true"]   { background: var(--danger);  color: #fff; border-color: var(--danger); }
-  body.theme-midnight .zx-pill-orange { background: #D97757; color: #fff; }
-  body.theme-midnight .zx-pill-green  { background: #10B981; color: #fff; }
-  body.theme-midnight .zx-pill-amber  { background: #FBBF24; color: #0F1B2D; }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-sb-primary { background: #D97757; color: #fff; }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-sb-amber   { background: #FBBF24; color: #0F1B2D; }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-sb-dark    { background: #0F172A; color: #fff; }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-opt[data-selected="true"] { background: #D97757; color: #fff; border-color: #D97757; }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-opt[data-selected="true"] .zx-opt-letter { background: #fff; color: #0F1B2D; }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-opt[data-correct="true"] { background: var(--success); color: #fff; border-color: var(--success); }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-opt[data-wrong="true"]   { background: var(--danger);  color: #fff; border-color: var(--danger); }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-pill-orange { background: #D97757; color: #fff; }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-pill-green  { background: #10B981; color: #fff; }
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-pill-amber  { background: #FBBF24; color: #0F1B2D; }
 
   /* Tailwind light literals used *inside* the sticker surfaces. Scoped to the
      sticker/hero/glass containers so we only repaint the learner runner
      context, never every slate/orange class in the app. */
-  body.theme-midnight .zx-card-shared .text-slate-900,
-  body.theme-midnight .zx-card-shared .text-slate-800,
-  body.theme-midnight .zx-card-shared .text-slate-700,
-  body.theme-midnight .zx-hero-strip .text-slate-900 {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .text-slate-900,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .text-slate-800,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .text-slate-700,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-hero-strip .text-slate-900 {
     color: var(--text);
   }
-  body.theme-midnight .zx-card-shared .text-slate-600,
-  body.theme-midnight .zx-card-shared .text-slate-500,
-  body.theme-midnight .zx-hero-strip .text-slate-700,
-  body.theme-midnight .zx-hero-strip .text-slate-600,
-  body.theme-midnight .zx-glass-bottom .text-slate-700,
-  body.theme-midnight .zx-glass-bottom .text-slate-600 {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .text-slate-600,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .text-slate-500,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-hero-strip .text-slate-700,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-hero-strip .text-slate-600,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-glass-bottom .text-slate-700,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-glass-bottom .text-slate-600 {
     color: var(--text-muted);
   }
-  body.theme-midnight .zx-card-shared .bg-white,
-  body.theme-midnight .zx-hero-strip .bg-white {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .bg-white,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-hero-strip .bg-white {
     background-color: var(--card);
   }
-  body.theme-midnight .zx-card-shared .bg-slate-50,
-  body.theme-midnight .zx-card-shared .bg-slate-100 {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .bg-slate-50,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .bg-slate-100 {
     background-color: var(--bg-subtle);
   }
-  body.theme-midnight .zx-card-shared .bg-orange-50 {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .bg-orange-50 {
     background-color: var(--accent-bg);
   }
-  body.theme-midnight .zx-card-shared .border-slate-900,
-  body.theme-midnight .zx-card-shared .border-slate-400,
-  body.theme-midnight .zx-card-shared .border-slate-300,
-  body.theme-midnight .zx-card-shared .border-slate-200,
-  body.theme-midnight .zx-hero-strip .border-slate-900 {
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .border-slate-900,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .border-slate-400,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .border-slate-300,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-card-shared .border-slate-200,
+  :is(body.theme-midnight, html[data-theme='night'] body) .zx-hero-strip .border-slate-900 {
     border-color: var(--border);
   }
 
@@ -5850,8 +5856,8 @@ select {
     }
     /* Midnight (dark) theme keeps its neutral dark card tint, minus the
        colour-boosting saturate(). */
-    body.theme-midnight .zx-glass-nav,
-    body.theme-midnight .zx-glass-bottom {
+    :is(body.theme-midnight, html[data-theme='night'] body) .zx-glass-nav,
+    :is(body.theme-midnight, html[data-theme='night'] body) .zx-glass-bottom {
       background: color-mix(in srgb, var(--card) 72%, transparent);
       -webkit-backdrop-filter: blur(18px);
       backdrop-filter: blur(18px);
@@ -6584,7 +6590,7 @@ body.data-saver [data-bg-gradient] {
    subject cards, recent-activity rows, and the bottom nav inherit the
    user's chosen palette (e.g. white card on Sky's #F0F9FF page). The
    dark slate remap is scoped to Midnight below. */
-body.theme-midnight .learner-game-theme {
+:is(body.theme-midnight, html[data-theme='night'] body) .learner-game-theme {
   --bg: var(--learner-shell-bg);
   --bg-subtle: var(--learner-shell-bg-subtle);
   --card: var(--learner-shell-card);
@@ -6796,12 +6802,12 @@ body.theme-midnight .learner-game-theme {
 
 /* Heavy slate shadow + translucent subtle bg only in Midnight; light
    themes use the default --shadow-sm so cards stay airy. */
-body.theme-midnight .learner-game-theme .surface,
-body.theme-midnight .learner-game-theme .theme-card {
+:is(body.theme-midnight, html[data-theme='night'] body) .learner-game-theme .surface,
+:is(body.theme-midnight, html[data-theme='night'] body) .learner-game-theme .theme-card {
   box-shadow: var(--shadow-md);
 }
 
-body.theme-midnight .learner-game-theme .theme-bg-subtle {
+:is(body.theme-midnight, html[data-theme='night'] body) .learner-game-theme .theme-bg-subtle {
   background-color: rgba(148, 163, 184, 0.1);
 }
 
@@ -6894,12 +6900,12 @@ body.theme-midnight .learner-game-theme .theme-bg-subtle {
   }
 }
 
-body.theme-midnight .learner-page-heading {
+:is(body.theme-midnight, html[data-theme='night'] body) .learner-page-heading {
   color: #f8fafc;
 }
 
-body.theme-midnight .learner-chrome-label,
-body.theme-midnight .learner-chrome-icon {
+:is(body.theme-midnight, html[data-theme='night'] body) .learner-chrome-label,
+:is(body.theme-midnight, html[data-theme='night'] body) .learner-chrome-icon {
   color: #e2e8f0;
 }
 
@@ -6929,7 +6935,7 @@ body.theme-sky .learner-game-theme {
     linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 52%, #dbeafe 100%);
 }
 
-body.theme-midnight .learner-game-theme {
+:is(body.theme-midnight, html[data-theme='night'] body) .learner-game-theme {
   background-color: #020617;
   background-image:
     radial-gradient(circle at 10% 0%, rgba(59, 130, 246, 0.16), transparent 24rem),
@@ -6959,8 +6965,8 @@ body.theme-sky .learner-game-theme .learner-bottom-nav {
   border-color: rgba(186, 230, 253, 0.82);
 }
 
-body.theme-midnight .learner-dashboard-header,
-body.theme-midnight .learner-game-theme .learner-bottom-nav {
+:is(body.theme-midnight, html[data-theme='night'] body) .learner-dashboard-header,
+:is(body.theme-midnight, html[data-theme='night'] body) .learner-game-theme .learner-bottom-nav {
   background: rgba(10, 16, 31, 0.72);
   border-color: rgba(71, 85, 105, 0.58);
 }
@@ -6986,7 +6992,7 @@ body.theme-sky .learner-dashboard-header {
   background: rgba(240, 249, 255, 0.2);
   border-bottom-color: rgba(186, 230, 253, 0.5);
 }
-body.theme-midnight .learner-dashboard-header {
+:is(body.theme-midnight, html[data-theme='night'] body) .learner-dashboard-header {
   background: rgba(10, 16, 31, 0.34);
   border-bottom-color: rgba(71, 85, 105, 0.4);
 }

@@ -139,7 +139,7 @@ export function AdminVisualNotesGenerator() {
   }
 
   return (
-    <div className="notes-studio min-h-full" style={{ backgroundColor: '#FAFAF7' }}>
+    <div className="notes-studio notes-studio--soft min-h-full">
       <SeoHelmet title="Generate visual notes" noIndex />
       <main className="w-full px-5 py-6">
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">

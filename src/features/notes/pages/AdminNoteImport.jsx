@@ -43,7 +43,7 @@ export function AdminNoteImport() {
   }
 
   return (
-    <div className="notes-studio min-h-screen" style={{ backgroundColor: '#F5EFE1' }}>
+    <div className="notes-studio min-h-screen">
       <main className="max-w-2xl mx-auto px-4 py-8">
         <button onClick={() => navigate('/admin/lessons')} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0F1B2D] mb-6">
           <ArrowLeft size={15} /> All notes
