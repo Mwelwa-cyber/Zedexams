@@ -650,7 +650,8 @@
     "test:shared-consent-neutral": "node functions/shared/consent/neutrality.test.js",
     "test:consent-guard": "node functions/consentGuard.test.js",
     "test:learner-safety": "node functions/learnerSafety/learnerSafetyCore.test.js",
-    "test:android-manifest": "node scripts/test-android-manifest.mjs"
+    "test:android-manifest": "node scripts/test-android-manifest.mjs",
+    "audit:colors": "node scripts/audit-hardcoded-colors.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
