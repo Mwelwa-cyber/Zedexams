@@ -122,6 +122,31 @@ assert.match(
 const css = readFileSync(resolve(here, '../index.css'), 'utf8')
   .replace(/\/\*[\s\S]*?\*\//g, '')
 
+/**
+ * Split a selector list on TOP-LEVEL commas only.
+ *
+ * `a, b` is two selectors; `:is(a, b) c` is one. A naive `.split(',')` turns
+ * the second into `:is(a` and `b) c`, and the subject it then reads off the
+ * first fragment — `:is(a` — matches nothing in the print reset, so the guard
+ * reports a scope that does not exist and stays silent about the real one.
+ * That is not hypothetical: it is what happened the day the pinned-palette
+ * remap grew a second dark hook and became `:is(body.theme-midnight,
+ * html[data-theme='night'] body) .force-light-theme`.
+ */
+function splitSelectorList(list) {
+  const out = []
+  let depth = 0
+  let start = 0
+  for (let i = 0; i < list.length; i++) {
+    const c = list[i]
+    if (c === '(' || c === '[') depth++
+    else if (c === ')' || c === ']') depth--
+    else if (c === ',' && depth === 0) { out.push(list.slice(start, i)); start = i + 1 }
+  }
+  out.push(list.slice(start))
+  return out.map((s) => s.trim()).filter(Boolean)
+}
+
 const printBlockStart = css.indexOf('@media print {')
 assert.ok(printBlockStart > 0, 'index.css no longer has an @media print block')
 const screenCss = css.slice(0, printBlockStart)
@@ -129,10 +154,7 @@ const printCss = css.slice(printBlockStart)
 
 const printReset = printCss.match(/([^{}]+)\{[^{}]*--bg:\s*#ffffff\s*!important/)
 assert.ok(printReset, 'the @media print palette reset no longer sets --bg to white')
-const printScopes = printReset[1]
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean)
+const printScopes = splitSelectorList(printReset[1])
 
 /**
  * A scope "re-declares the palette" if it sets --bg or --card. Scopes that
@@ -154,7 +176,7 @@ const EXEMPT = /^(:root|body|html|\.reading-swatch)/
 const declaringScopes = new Set()
 for (const m of screenCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
   if (!/--bg\s*:|--card\s*:/.test(m[2])) continue
-  for (const sel of m[1].split(',')) {
+  for (const sel of splitSelectorList(m[1])) {
     const subject = subjectOf(sel)
     if (!subject || subject.startsWith('/*') || EXEMPT.test(subject)) continue
     declaringScopes.add(subject)
