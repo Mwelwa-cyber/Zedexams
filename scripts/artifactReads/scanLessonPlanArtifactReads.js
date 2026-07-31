@@ -62,6 +62,7 @@ export const CLASSIFIED_DIRECT_READERS = Object.freeze({
   'functions/teacherTools/generateSbaTask.js': 'Resume path: reads back its own operation result.',
   'functions/teacherTools/regenerateAssessmentQuestion.js': 'Resume path: reads back its own operation result.',
   'functions/teacherTools/generateSchemeOfWork.js': 'Resume path: reads back its own operation result.',
+  'functions/teacherTools/studioLessonPlan.js': 'Resume path: reads back its own operation result.',
   'functions/teacherTools/generateWorksheet.js': 'Resume path: reads back its own operation result.',
 })
 

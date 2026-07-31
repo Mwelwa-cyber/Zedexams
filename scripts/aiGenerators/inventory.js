@@ -126,14 +126,19 @@ export const INVENTORY = Object.freeze([
     incompleteResultSaveable: true,
   }),
   g('functions/teacherTools/studioLessonPlan.js', {
+    clientModule: 'src/components/teacher/studio/LessonPlanStudio.jsx',
+    clientLockKey: 'lesson-plan-studio:generate',
     tier: 1,
-    state: 'unmigrated',
+    state: 'migrated',
     entryPoint: 'studioGenerateLessonPlan (callable)',
-    clientSurface: 'Lesson plan studio (V2 canvas path)',
+    clientSurface: 'Lesson Plan Studio — LessonPlanStudio.jsx (V2 canvas path)',
     produces: 'A saved lesson plan document',
     incompleteResultSaveable: true,
-    note: 'A second lesson-plan generator. Whether it survives migration or '
-      + 'merges into generateLessonPlan is a Phase 6 decision, not a given.',
+    note: 'Returns its plan INLINE and validates the studio-built prompts, so '
+      + 'the migration persists the result to aiGenerations/{idempotencyKey} for '
+      + 'resume and factors the systemPrompt/userPrompt check into validateInputs. '
+      + 'Its length-gate REPAIR call is a second door into the same callable and '
+      + 'now carries its own minted key (the reservation refuses a keyless call).',
   }),
   g('functions/teacherTools/reviseLessonSection.js', {
     tier: 1,
