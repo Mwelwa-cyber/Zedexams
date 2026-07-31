@@ -115,7 +115,7 @@ already from the previous workflow; the last four are new):
 
 | Secret | Source |
 |--------|--------|
-| `FIREBASE_TOKEN` | `firebase login:ci` |
+| `FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON` | already set — the same key `deploy-firebase.yml` and `deploy-hosting.yml` use. `roles/firebase.admin` on that account is a strict superset of `roles/firebaseappdistro.admin`, so no extra grant is needed. Override with `FIREBASE_APPDIST_SERVICE_ACCOUNT_JSON` only if you want a dedicated, narrower identity. |
 | `FIREBASE_ANDROID_APP_ID` | Firebase Console → Project Settings → Your apps → Android |
 | `VITE_FIREBASE_*` | same values used by `deploy-hosting.yml` |
 | `ZED_RELEASE_KEYSTORE_BASE64` | **base64 of your `zedexams-release.keystore` file** — see below |
