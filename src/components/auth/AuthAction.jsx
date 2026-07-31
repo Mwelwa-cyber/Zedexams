@@ -140,7 +140,7 @@ export default function AuthAction() {
     <div
       className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden"
       style={{
-        backgroundColor: '#FDF6EC',
+        backgroundColor: 'var(--zt-surface)',
         '--accent': '#B44F2D',
         '--accent-bg': '#F8EADF',
         '--accent-fg': '#83372C',

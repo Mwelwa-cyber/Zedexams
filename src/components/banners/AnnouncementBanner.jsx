@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext'
 const SEVERITY_STYLE = {
   info:    { background: '#dbeafe', color: '#1e3a8a' },
   warn:    { background: '#fde68a', color: '#78350f' },
-  success: { background: '#d1fae5', color: '#065f46' },
+  success: { background: '#d1fae5', color: 'var(--success-fg)' },
 }
 
 const AUDIENCE_BY_ROLE = {

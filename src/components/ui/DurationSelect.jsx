@@ -157,11 +157,11 @@ export default function DurationSelect({
       )}
 
       {error ? (
-        <p id={errorId} role="alert" className="mt-1 text-xs font-bold" style={{ color: '#b3261e' }}>
+        <p id={errorId} role="alert" className="mt-1 text-xs font-bold" style={{ color: 'var(--danger-fg)' }}>
           <span aria-hidden="true">⚠ </span>{error}
         </p>
       ) : summary ? (
-        <p className="mt-1 text-xs" style={{ color: '#566f76' }}>{summary}</p>
+        <p className="mt-1 text-xs" style={{ color: 'var(--zt-text-muted)' }}>{summary}</p>
       ) : null}
     </div>
   )

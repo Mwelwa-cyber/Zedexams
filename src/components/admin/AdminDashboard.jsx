@@ -34,14 +34,14 @@ function StatCard({ icon, label, value, sub, tone, loading, linkTo }) {
         <span aria-hidden="true">{icon}</span>
       </div>
       <div className="min-w-0">
-        <div className="admin-game-display text-[24px] leading-none" style={{ color: '#0F1B2D' }}>
+        <div className="admin-game-display text-[24px] leading-none" style={{ color: 'var(--zt-text)' }}>
           {loading ? <Skeleton height={22} width={48} /> : value}
         </div>
-        <div className="mt-1 truncate text-[10px] font-extrabold uppercase tracking-[0.12em]" style={{ color: '#4A5A6E' }}>
+        <div className="mt-1 truncate text-[10px] font-extrabold uppercase tracking-[0.12em]" style={{ color: 'var(--zt-text-muted)' }}>
           {label}
         </div>
         {sub && (
-          <div className="mt-0.5 truncate text-[11px] font-semibold" style={{ color: '#4A5A6E' }}>
+          <div className="mt-0.5 truncate text-[11px] font-semibold" style={{ color: 'var(--zt-text-muted)' }}>
             {sub}
           </div>
         )}
@@ -59,14 +59,14 @@ function AttentionItem({ to, icon, title, detail, level = 'neutral', action = 'O
     <Link
       to={to}
       className="admin-game-card-soft flex min-h-[92px] items-start gap-3 p-3 no-underline is-pressable"
-      style={{ background, color: '#0F1B2D' }}
+      style={{ background, color: 'var(--zt-text)' }}
     >
-      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border-2 text-sm font-black" style={{ borderColor: '#0F1B2D', color, background: '#FFFFFF' }}>
+      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border-2 text-sm font-black" style={{ borderColor: '#0F1B2D', color, background: 'var(--zt-card)' }}>
         <span aria-hidden="true">{icon}</span>
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[12px] font-black leading-tight" style={{ color: '#0F1B2D' }}>{title}</p>
-        <p className="mt-1 text-[11px] font-semibold leading-snug" style={{ color: '#4A5A6E' }}>{detail}</p>
+        <p className="text-[12px] font-black leading-tight" style={{ color: 'var(--zt-text)' }}>{title}</p>
+        <p className="mt-1 text-[11px] font-semibold leading-snug" style={{ color: 'var(--zt-text-muted)' }}>{detail}</p>
         <p className="mt-2 text-[10px] font-black uppercase tracking-[0.12em]" style={{ color }}>{action}</p>
       </div>
     </Link>
@@ -246,17 +246,17 @@ export default function AdminDashboard() {
         <div className="flex items-end justify-between gap-3">
           <div className="min-w-0">
             <span className="admin-game-eyebrow">Admin overview</span>
-            <h1 className="admin-game-display mt-2 text-[30px] leading-[1.05] sm:text-[38px]" style={{ color: '#0F1B2D' }}>
+            <h1 className="admin-game-display mt-2 text-[30px] leading-[1.05] sm:text-[38px]" style={{ color: 'var(--zt-text)' }}>
               Platform overview
             </h1>
-            <p className="mt-2 max-w-2xl text-[13px] font-medium" style={{ color: '#4A5A6E' }}>
+            <p className="mt-2 max-w-2xl text-[13px] font-medium" style={{ color: 'var(--zt-text-muted)' }}>
               Review queues, spot blockers, and jump into the next admin task.
             </p>
           </div>
           <Link
             to="/admin/analytics"
             className="hidden sm:inline text-xs font-extrabold whitespace-nowrap"
-            style={{ color: '#053541' }}
+            style={{ color: 'var(--zt-text)' }}
           >
             All ›
           </Link>
@@ -267,7 +267,7 @@ export default function AdminDashboard() {
       <section>
         <div className="mb-3">
           <span className="admin-game-eyebrow">Stats</span>
-          <h2 className="admin-game-display mt-1 text-[21px] sm:text-[24px]" style={{ color: '#0F1B2D' }}>
+          <h2 className="admin-game-display mt-1 text-[21px] sm:text-[24px]" style={{ color: 'var(--zt-text)' }}>
             Platform snapshot
           </h2>
         </div>
@@ -299,7 +299,7 @@ export default function AdminDashboard() {
         <div className="mb-3 flex items-end justify-between">
           <div>
             <span className="admin-game-eyebrow">Needs attention</span>
-            <h2 className="admin-game-display mt-1 text-[21px] sm:text-[24px]" style={{ color: '#0F1B2D' }}>
+            <h2 className="admin-game-display mt-1 text-[21px] sm:text-[24px]" style={{ color: 'var(--zt-text)' }}>
               Review queue
             </h2>
           </div>
@@ -318,12 +318,12 @@ export default function AdminDashboard() {
           </div>
         ) : attentionItems.length === 0 ? (
           <div className="admin-game-card-soft flex items-center gap-3 p-4" style={{ background: '#E3F4EC' }}>
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border-2 text-sm font-black" style={{ borderColor: '#0F1B2D', color: '#047857', background: '#FFFFFF' }}>
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border-2 text-sm font-black" style={{ borderColor: '#0F1B2D', color: '#047857', background: 'var(--zt-card)' }}>
               <span aria-hidden="true">✓</span>
             </div>
             <div className="min-w-0">
-              <p className="text-[13px] font-black" style={{ color: '#0F1B2D' }}>All clear</p>
-              <p className="mt-0.5 text-[11px] font-semibold leading-snug" style={{ color: '#4A5A6E' }}>
+              <p className="text-[13px] font-black" style={{ color: 'var(--zt-text)' }}>All clear</p>
+              <p className="mt-0.5 text-[11px] font-semibold leading-snug" style={{ color: 'var(--zt-text-muted)' }}>
                 No flagged or failed generations, pending approvals, payments, or low scores right now.
               </p>
             </div>
@@ -343,7 +343,7 @@ export default function AdminDashboard() {
         <div className="mb-3 flex items-end justify-between">
           <div>
             <span className="admin-game-eyebrow">Core workflows</span>
-            <h2 className="admin-game-display mt-1 text-[21px] sm:text-[24px]" style={{ color: '#0F1B2D' }}>
+            <h2 className="admin-game-display mt-1 text-[21px] sm:text-[24px]" style={{ color: 'var(--zt-text)' }}>
               Quick actions
             </h2>
           </div>
@@ -354,7 +354,7 @@ export default function AdminDashboard() {
               key={a.to}
               to={a.to}
               className="admin-game-card is-pressable relative flex flex-col rounded-[22px] bg-white p-4 sm:p-5 no-underline animate-pop"
-              style={{ animationDelay: `${i * 60}ms`, color: '#0F1B2D' }}
+              style={{ animationDelay: `${i * 60}ms`, color: 'var(--zt-text)' }}
             >
               <span className="admin-game-pill-accent admin-game-pill absolute right-3 top-3">
                 Go ›
@@ -362,10 +362,10 @@ export default function AdminDashboard() {
               <div className={`admin-game-tile ${a.tone} mb-3 h-14 w-14 text-[28px] leading-none`}>
                 <span aria-hidden="true">{a.icon}</span>
               </div>
-              <p className="admin-game-display text-[17px] leading-tight" style={{ color: '#0F1B2D' }}>
+              <p className="admin-game-display text-[17px] leading-tight" style={{ color: 'var(--zt-text)' }}>
                 {a.label}
               </p>
-              <p className="mt-1 text-[11.5px] font-semibold" style={{ color: '#4A5A6E' }}>
+              <p className="mt-1 text-[11.5px] font-semibold" style={{ color: 'var(--zt-text-muted)' }}>
                 {a.sub}
               </p>
             </Link>
@@ -382,7 +382,7 @@ export default function AdminDashboard() {
             <span aria-hidden="true" className="text-lg">🛠️</span>
             <span className="admin-game-eyebrow">Developer tools</span>
           </span>
-          <span className="text-[11px] font-semibold normal-case tracking-normal" style={{ color: '#4A5A6E' }}>
+          <span className="text-[11px] font-semibold normal-case tracking-normal" style={{ color: 'var(--zt-text-muted)' }}>
             Seed data, digest &amp; alarm testers
           </span>
         </summary>
@@ -398,8 +398,8 @@ export default function AdminDashboard() {
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <div className="flex-1">
                 <p className="admin-game-eyebrow">Seed</p>
-                <h2 className="admin-game-display text-[18px] mt-1" style={{ color: '#0F1B2D' }}>Sample data</h2>
-                <p className="mt-1 text-[12px] font-medium" style={{ color: '#4A5A6E' }}>
+                <h2 className="admin-game-display text-[18px] mt-1" style={{ color: 'var(--zt-text)' }}>Sample data</h2>
+                <p className="mt-1 text-[12px] font-medium" style={{ color: 'var(--zt-text-muted)' }}>
                   Load the sample quizzes into Firestore, or clear the seeded set created by your account.
                   Clearing removes the matching seeded quiz docs and their question subcollections.
                 </p>
@@ -444,11 +444,11 @@ export default function AdminDashboard() {
         <div className="mb-3 flex items-end justify-between">
           <div>
             <span className="admin-game-eyebrow">Activity</span>
-            <h2 className="admin-game-display mt-1 text-[22px] sm:text-[26px]" style={{ color: '#0F1B2D' }}>
+            <h2 className="admin-game-display mt-1 text-[22px] sm:text-[26px]" style={{ color: 'var(--zt-text)' }}>
               Recent results
             </h2>
           </div>
-          <Link to="/admin/results" className="text-xs font-extrabold" style={{ color: '#053541' }}>
+          <Link to="/admin/results" className="text-xs font-extrabold" style={{ color: 'var(--zt-text)' }}>
             All ›
           </Link>
         </div>
@@ -488,18 +488,18 @@ export default function AdminDashboard() {
                   style={{ borderTop: idx === 0 ? 'none' : '1.5px dashed #D8D0BC' }}
                 >
                   <div className="min-w-0">
-                    <p className="text-[13px] font-extrabold truncate" style={{ color: '#0F1B2D' }}>
+                    <p className="text-[13px] font-extrabold truncate" style={{ color: 'var(--zt-text)' }}>
                       {r.userName || 'Learner'}
                     </p>
-                    <p className="text-[10.5px] font-semibold uppercase tracking-wider" style={{ color: '#4A5A6E' }}>
+                    <p className="text-[10.5px] font-semibold uppercase tracking-wider" style={{ color: 'var(--zt-text-muted)' }}>
                       Grade {r.grade}
                     </p>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[13px] font-bold truncate" style={{ color: '#0F1B2D' }}>
+                    <p className="text-[13px] font-bold truncate" style={{ color: 'var(--zt-text)' }}>
                       {r.quizTitle}
                     </p>
-                    <p className="text-[10.5px] font-semibold uppercase tracking-wider" style={{ color: '#4A5A6E' }}>
+                    <p className="text-[10.5px] font-semibold uppercase tracking-wider" style={{ color: 'var(--zt-text-muted)' }}>
                       {r.subject}
                     </p>
                   </div>
@@ -510,7 +510,7 @@ export default function AdminDashboard() {
                     >
                       {r.percentage}%
                     </p>
-                    <p className="mt-0.5 text-[10.5px] font-semibold" style={{ color: '#4A5A6E' }}>
+                    <p className="mt-0.5 text-[10.5px] font-semibold" style={{ color: 'var(--zt-text-muted)' }}>
                       {r.score}/{r.totalMarks} · {fmt(r.completedAt)}
                     </p>
                   </div>

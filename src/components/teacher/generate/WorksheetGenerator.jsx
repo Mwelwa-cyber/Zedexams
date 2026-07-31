@@ -503,14 +503,14 @@ export default function WorksheetGenerator() {
                     <h2 className="studio-display" style={{ fontSize: 22, margin: '0 0 2px' }}>
                       {worksheet.header?.title || 'Worksheet'}
                     </h2>
-                    <p className="text-xs" style={{ color: '#566f76' }}>
+                    <p className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>
                       {worksheet.header?.totalMarks} marks · review, export, print.
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <label
                       className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl cursor-pointer"
-                      style={{ color: '#0e2a32', border: '1.5px solid #d9cfb8' }}
+                      style={{ color: 'var(--zt-text)', border: '1.5px solid #d9cfb8' }}
                     >
                       <input
                         type="checkbox"

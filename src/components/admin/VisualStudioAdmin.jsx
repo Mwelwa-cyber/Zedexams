@@ -172,7 +172,7 @@ export default function VisualStudioAdmin() {
 
 function btn(color) {
   return {
-    flex: 1, minWidth: 64, border: `1px solid ${color}`, color, background: '#fff',
+    flex: 1, minWidth: 64, border: `1px solid ${color}`, color, background: 'var(--zt-card)',
     borderRadius: 8, padding: '6px 8px', fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
   }
 }

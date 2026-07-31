@@ -15,7 +15,7 @@ const LIST_KEYS = new Set(['learningActivities', 'resources'])
 
 function FieldLabel({ children }) {
   return (
-    <label className="block text-[11px] font-black uppercase tracking-wide mb-1" style={{ color: '#566f76' }}>
+    <label className="block text-[11px] font-black uppercase tracking-wide mb-1" style={{ color: 'var(--zt-text-muted)' }}>
       {children}
     </label>
   )
@@ -37,12 +37,12 @@ export default function WeeklyForecastEditableTable({ forecast, onChange }) {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs" style={{ color: '#566f76' }}>
+      <p className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>
         {curriculumLabel(curriculum)} forecast · {days.length} day{days.length === 1 ? '' : 's'} ·
         edit any field. Changes aren't saved until you press Save.
       </p>
       {days.map((d, i) => (
-        <div key={i} className="rounded-xl border theme-border p-4" style={{ background: '#fff' }}>
+        <div key={i} className="rounded-xl border theme-border p-4" style={{ background: 'var(--zt-card)' }}>
           <div className="flex items-center gap-2 mb-3">
             <span className="inline-flex items-center justify-center px-3 h-8 rounded-lg font-black text-white" style={{ background: '#0e2a32' }}>
               {d.day || `Day ${i + 1}`}

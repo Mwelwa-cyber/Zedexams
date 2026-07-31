@@ -224,7 +224,7 @@ export default function PrepareThisWeek({ loading, error, prep, onRetry, assignm
                   const a = assignments.find((x) => x.id === e.target.value)
                   if (a) onSelectAssignment?.(a)
                 }}
-                style={{ background: '#fff', color: '#0e2a32', border: '1.5px solid #e4dcc6', borderRadius: 10, padding: '6px 10px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', maxWidth: 220 }}
+                style={{ background: 'var(--zt-card)', color: 'var(--zt-text)', border: '1.5px solid #e4dcc6', borderRadius: 10, padding: '6px 10px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', maxWidth: 220 }}
               >
                 {assignments.map((a) => (
                   <option key={a.id} value={a.id}>

@@ -22,7 +22,7 @@ const OVERLAY = {
   padding: 16,
 }
 const CARD = {
-  background: '#fff', borderRadius: 16, width: 'min(560px, 100%)',
+  background: 'var(--zt-card)', borderRadius: 16, width: 'min(560px, 100%)',
   maxHeight: '90vh', display: 'flex', flexDirection: 'column', padding: 16,
 }
 const PRIMARY_BTN = {
@@ -30,7 +30,7 @@ const PRIMARY_BTN = {
   borderRadius: 10, padding: '10px 16px', fontWeight: 800, fontSize: 14,
 }
 const GHOST_BTN = {
-  background: '#fff', color: '#0e2a32', border: '1.5px solid #d9cfb8',
+  background: 'var(--zt-card)', color: 'var(--zt-text)', border: '1.5px solid #d9cfb8',
   cursor: 'pointer', borderRadius: 10, padding: '10px 16px', fontWeight: 700, fontSize: 14,
 }
 
@@ -179,7 +179,7 @@ export default function CameraCaptureModal({ onConfirm, onClose }) {
     <div style={OVERLAY} onClick={onClose}>
       <div style={CARD} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between gap-3 mb-2">
-          <h3 style={{ fontWeight: 900, fontSize: 18, color: '#0e2a32', margin: 0 }}>
+          <h3 style={{ fontWeight: 900, fontSize: 18, color: 'var(--zt-text)', margin: 0 }}>
             {stage === 'review' ? '✨ Review captured image' : '📷 Capture a diagram'}
           </h3>
           <button type="button" onClick={onClose} aria-label="Close"
@@ -199,7 +199,7 @@ export default function CameraCaptureModal({ onConfirm, onClose }) {
         {stage === 'capture' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {cameraError === 'no-camera' ? (
-              <div style={{ textAlign: 'center', padding: '24px 12px', color: '#566f76' }}>
+              <div style={{ textAlign: 'center', padding: '24px 12px', color: 'var(--zt-text-muted)' }}>
                 <div style={{ fontSize: 40 }}>📷</div>
                 <p style={{ margin: '8px 0 0', fontSize: 14 }}>
                   We couldn't open a live camera here. You can still take or choose
@@ -226,7 +226,7 @@ export default function CameraCaptureModal({ onConfirm, onClose }) {
                 >🔄</button>
               </div>
             )}
-            <p style={{ margin: 0, fontSize: 12, color: '#566f76', textAlign: 'center' }}>
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--zt-text-muted)', textAlign: 'center' }}>
               Capture a diagram, picture, handwritten drawing, graph, map, labelled
               drawing or table — we'll clean it up for printing.
             </p>
@@ -244,7 +244,7 @@ export default function CameraCaptureModal({ onConfirm, onClose }) {
         )}
 
         {stage === 'enhancing' && (
-          <div style={{ textAlign: 'center', padding: '40px 12px', color: '#566f76' }}>
+          <div style={{ textAlign: 'center', padding: '40px 12px', color: 'var(--zt-text-muted)' }}>
             <div style={{ fontSize: 36 }}>✨</div>
             <p style={{ marginTop: 8, fontSize: 14 }}>{busyMsg || 'Working…'}</p>
           </div>
@@ -265,7 +265,7 @@ export default function CameraCaptureModal({ onConfirm, onClose }) {
                       style={{
                         padding: '6px 14px', borderRadius: 999, fontSize: 13, cursor: 'pointer', fontWeight: 700,
                         border: `1.5px solid ${active ? '#d97757' : '#d9cfb8'}`,
-                        background: active ? '#fff3e8' : '#fff', color: '#0e2a32',
+                        background: active ? '#fff3e8' : '#fff', color: 'var(--zt-text)',
                       }}
                     >
                       {k === 'enhanced' ? '✨ Enhanced' : 'Original'}
@@ -275,7 +275,7 @@ export default function CameraCaptureModal({ onConfirm, onClose }) {
               </div>
             )}
 
-            <div style={{ background: '#f8f6ef', borderRadius: 12, border: '1px solid #d9cfb8', padding: 8, textAlign: 'center' }}>
+            <div style={{ background: 'var(--zt-surface)', borderRadius: 12, border: '1px solid #d9cfb8', padding: 8, textAlign: 'center' }}>
               <img
                 src={(showEnhanced && enhanced ? enhanced : original)?.url}
                 alt="Captured preview"
@@ -291,7 +291,7 @@ export default function CameraCaptureModal({ onConfirm, onClose }) {
             )}
 
             {enhanced && (
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#0e2a32', cursor: 'pointer' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--zt-text)', cursor: 'pointer' }}>
                 <input type="checkbox" checked={blackAndWhite} onChange={toggleBlackAndWhite} />
                 Clean black &amp; white (best for printing line diagrams &amp; handwriting)
               </label>

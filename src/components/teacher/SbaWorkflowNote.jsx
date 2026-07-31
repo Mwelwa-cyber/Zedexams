@@ -78,7 +78,7 @@ export default function SbaWorkflowNote({ current }) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-black theme-text">New to SBA? Here’s the workflow</h2>
-          <p className="text-xs mt-1" style={{ color: '#566f76' }}>
+          <p className="text-xs mt-1" style={{ color: 'var(--zt-text-muted)' }}>
             School Based Assessment runs across <strong>Grades 5–7</strong> and is <strong>30% of the final Grade 7 mark</strong>
             {' '}— 10% banked per grade. Tasks come from the syllabus, are <strong>never multiple-choice</strong>, and the marked
             evidence must be kept for ECZ verification.
@@ -115,7 +115,7 @@ export default function SbaWorkflowNote({ current }) {
                     <span className="ml-auto text-[10px] font-black uppercase tracking-wide text-cyan-700">You’re here</span>
                   )}
                 </div>
-                <p className="text-[11px] mt-1 leading-snug" style={{ color: '#566f76' }}>{step.desc}</p>
+                <p className="text-[11px] mt-1 leading-snug" style={{ color: 'var(--zt-text-muted)' }}>{step.desc}</p>
               </Link>
             </li>
           )

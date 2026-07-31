@@ -21,9 +21,9 @@ const STAGES = [
  * Grade 1.
  */
 const LEARNING_AREAS = [
-  { emoji: '📖', title: 'Literacy & Language', body: 'Listening, speaking, early mark-making and pre-reading — in a familiar Zambian Language.', bg: '#e8f5ee', color: '#1a5c36' },
-  { emoji: '🔢', title: 'Pre-Mathematics', body: 'Counting, sorting, comparing and early number sense through play.', bg: '#e8f0ff', color: '#2d3a8c' },
-  { emoji: '🌿', title: 'Integrated / Environmental Science', body: 'Exploring the natural world — plants, animals, weather and everyday materials.', bg: '#e8fff0', color: '#006b2d' },
+  { emoji: '📖', title: 'Literacy & Language', body: 'Listening, speaking, early mark-making and pre-reading — in a familiar Zambian Language.', bg: '#e8f5ee', color: 'var(--success-fg)' },
+  { emoji: '🔢', title: 'Pre-Mathematics', body: 'Counting, sorting, comparing and early number sense through play.', bg: '#e8f0ff', color: 'var(--info-fg)' },
+  { emoji: '🌿', title: 'Integrated / Environmental Science', body: 'Exploring the natural world — plants, animals, weather and everyday materials.', bg: '#e8fff0', color: 'var(--success-fg)' },
   { emoji: '🌍', title: 'Social Studies', body: 'The family, the community and getting along with others.', bg: '#fff3e8', color: '#8c4a00' },
   { emoji: '🎨', title: 'Expressive Arts', body: 'Art, music, movement, drama and creative play.', bg: '#fdf0ff', color: '#6b0080' },
 ]
@@ -200,7 +200,7 @@ export default function ECE2013Curriculum() {
                 <tr>
                   {['Learning Area', 'Time / Week'].map(h => (
                     <th key={h} className="border-b theme-border px-4 py-2 text-left text-[11px] font-black uppercase tracking-[0.06em]"
-                      style={{ background: 'rgba(212, 160, 23, 0.16)', color: '#7a5800' }}>
+                      style={{ background: 'rgba(212, 160, 23, 0.16)', color: 'var(--warning-fg)' }}>
                       {h}
                     </th>
                   ))}
@@ -214,8 +214,8 @@ export default function ECE2013Curriculum() {
                   </tr>
                 ))}
                 <tr style={{ background: 'rgba(212, 160, 23, 0.16)' }}>
-                  <td className="px-4 py-2 text-sm font-black" style={{ color: '#7a5800' }}>Total</td>
-                  <td className="px-4 py-2 text-sm font-black" style={{ color: '#7a5800' }}>15 hours</td>
+                  <td className="px-4 py-2 text-sm font-black" style={{ color: 'var(--warning-fg)' }}>Total</td>
+                  <td className="px-4 py-2 text-sm font-black" style={{ color: 'var(--warning-fg)' }}>15 hours</td>
                 </tr>
               </tbody>
             </table>

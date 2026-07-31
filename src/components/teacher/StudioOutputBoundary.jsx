@@ -10,7 +10,7 @@ export default function StudioOutputBoundary({ children, onRetry }) {
           <p className="studio-display" style={{ fontSize: 18 }}>
             Couldn&apos;t display the result
           </p>
-          <p className="text-sm" style={{ color: '#566f76', maxWidth: 360 }}>
+          <p className="text-sm" style={{ color: 'var(--zt-text-muted)', maxWidth: 360 }}>
             The content generated but something went wrong while displaying it.
             Try regenerating — it usually works on the next attempt.
           </p>

@@ -1428,13 +1428,13 @@ export default function CreateQuizV2() {
 
       {/* Page header — brand on the left, back link on the right */}
       <div className="flex items-center justify-between gap-3 mb-5">
-        <div className="flex items-center gap-2.5 no-underline" style={{ color: '#0e2a32' }}>
+        <div className="flex items-center gap-2.5 no-underline" style={{ color: 'var(--zt-text)' }}>
           <span style={{ fontSize: 22 }}>✏️</span>
           <div className="leading-tight">
-            <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 16, margin: 0, color: '#0e2a32' }}>
+            <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 16, margin: 0, color: 'var(--zt-text)' }}>
               ZedExams <span style={{ color: '#d97757' }}>•</span>
             </p>
-            <p style={{ fontSize: 11.5, color: '#566f76', margin: 0, fontWeight: 600 }}>
+            <p style={{ fontSize: 11.5, color: 'var(--zt-text-muted)', margin: 0, fontWeight: 600 }}>
               Quiz Creator
             </p>
           </div>
@@ -1484,7 +1484,7 @@ export default function CreateQuizV2() {
         </div>
         <div
           className="flex-shrink-0 hidden sm:grid place-items-center"
-          style={{ width: 130, height: 130, borderRadius: '50%', background: '#fff', fontSize: 60, boxShadow: '0 8px 28px rgba(0,0,0,.25)' }}
+          style={{ width: 130, height: 130, borderRadius: '50%', background: 'var(--zt-card)', fontSize: 60, boxShadow: '0 8px 28px rgba(0,0,0,.25)' }}
         >
           ✏️
         </div>

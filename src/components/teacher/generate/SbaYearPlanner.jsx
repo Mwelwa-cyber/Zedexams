@@ -268,7 +268,7 @@ export default function SbaYearPlanner() {
                   <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>
                     {subjectMeta?.label} · {SBA_GRADES.find((g) => g.value === grade)?.label}
                   </h2>
-                  <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
                     {plan.total} marks max → 10% · {summary.total} required tasks
                   </p>
                 </div>
@@ -288,7 +288,7 @@ export default function SbaYearPlanner() {
                 </div>
               </div>
               {generationId && (
-                <p className="text-xs mb-3" style={{ color: '#566f76' }}>
+                <p className="text-xs mb-3" style={{ color: 'var(--zt-text-muted)' }}>
                   In your library — <Link to={`/teacher/library/${generationId}`} className="font-bold underline">open the saved copy</Link>.
                 </p>
               )}
@@ -319,7 +319,7 @@ export default function SbaYearPlanner() {
             <section key={g.group} className="studio-card p-5">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <h3 className="text-base font-black theme-text">{g.group}</h3>
-                <span className="text-xs font-bold" style={{ color: '#566f76' }}>
+                <span className="text-xs font-bold" style={{ color: 'var(--zt-text-muted)' }}>
                   {g.summary.done}/{g.summary.total} marked · {g.maxMarks} marks
                 </span>
               </div>

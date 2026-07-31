@@ -33,7 +33,7 @@ export default function SbaHub() {
         style={{ borderLeftColor: '#0e7490' }}
       >
         <h2 className="text-sm font-black theme-text">How SBA works</h2>
-        <p className="text-xs mt-1" style={{ color: '#566f76' }}>
+        <p className="text-xs mt-1" style={{ color: 'var(--zt-text-muted)' }}>
           School Based Assessment runs across <strong>Grades 5–7</strong> and is{' '}
           <strong>30% of the final Grade 7 mark</strong> — 10% banked per grade. Tasks come from the
           syllabus, are <strong>never multiple-choice</strong>, and the marked evidence must be kept
@@ -52,7 +52,7 @@ export default function SbaHub() {
                 <span aria-hidden="true" style={{ fontSize: 20 }}>{step.emoji}</span>
                 <span className="text-sm font-black theme-text">{i + 1}. {step.title}</span>
               </div>
-              <p className="text-xs mt-2 leading-snug" style={{ color: '#566f76' }}>{step.desc}</p>
+              <p className="text-xs mt-2 leading-snug" style={{ color: 'var(--zt-text-muted)' }}>{step.desc}</p>
             </Link>
           </li>
         ))}
@@ -74,7 +74,7 @@ export default function SbaHub() {
               </div>
               <ol className="space-y-2">
                 {step.how.map((line, j) => (
-                  <li key={j} className="flex gap-2 text-xs leading-snug" style={{ color: '#566f76' }}>
+                  <li key={j} className="flex gap-2 text-xs leading-snug" style={{ color: 'var(--zt-text-muted)' }}>
                     <span
                       aria-hidden="true"
                       className="flex-none grid place-items-center rounded-full text-[10px] font-black"

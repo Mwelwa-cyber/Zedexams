@@ -189,7 +189,7 @@ export default function LockedStudio({ tool }) {
             <h2 className="studio-display" style={{ fontSize: 20, margin: '0 0 2px' }}>
               Example output
             </h2>
-            <p className="text-xs" style={{ color: '#566f76' }}>
+            <p className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>
               A real generation looks like this. Yours would use your own grade, subject and topic.
             </p>
           </div>

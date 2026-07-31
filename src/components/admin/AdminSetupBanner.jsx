@@ -47,10 +47,10 @@ export default function AdminSetupBanner() {
             <span aria-hidden="true">✓</span>
           </div>
           <div className="min-w-0">
-            <p className="font-black text-sm sm:text-base" style={{ color: '#0F1B2D' }}>
+            <p className="font-black text-sm sm:text-base" style={{ color: 'var(--zt-text)' }}>
               Platform health
             </p>
-            <p className="mt-0.5 max-w-2xl text-xs font-semibold leading-relaxed" style={{ color: '#4A5A6E' }}>
+            <p className="mt-0.5 max-w-2xl text-xs font-semibold leading-relaxed" style={{ color: 'var(--zt-text-muted)' }}>
               Check the services that keep generators, approvals, and curriculum tools running.
             </p>
             <div className="mt-2 flex flex-wrap gap-1.5">

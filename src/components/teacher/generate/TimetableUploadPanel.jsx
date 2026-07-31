@@ -44,7 +44,7 @@ export default function TimetableUploadPanel({ grade, days, onExtracted }) {
     <section className="studio-card p-5 space-y-3">
       <div>
         <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>Already have a timetable? Upload it</h2>
-        <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
           Bring in a timetable you already have — a PDF, Word or Excel file, or a photo of one on paper. We&apos;ll read it into the
           editable grid below so you can correct it, then the curriculum check confirms it matches this grade.
         </p>
@@ -59,18 +59,18 @@ export default function TimetableUploadPanel({ grade, days, onExtracted }) {
           className="studio-btn-ghost disabled:opacity-50">
           📷 Take a photo
         </button>
-        <span className="self-center text-[11px]" style={{ color: '#8a7f67' }}>
+        <span className="self-center text-[11px]" style={{ color: 'var(--zt-text-muted)' }}>
           PDF · Word · Excel · image — up to 15 MB
         </span>
       </div>
 
       {busy && (
-        <p className="text-xs font-bold" style={{ color: '#1E8449' }}>
+        <p className="text-xs font-bold" style={{ color: 'var(--success-fg)' }}>
           Reading your timetable… this can take a few seconds.
         </p>
       )}
       {notes && !busy && (
-        <p className="text-xs" style={{ color: '#9a7000' }}>
+        <p className="text-xs" style={{ color: 'var(--warning-fg)' }}>
           Note from the reader: {notes}
         </p>
       )}

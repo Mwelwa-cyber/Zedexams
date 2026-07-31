@@ -16,8 +16,8 @@ import { useMemo, useState } from 'react'
 import { summariseConflicts } from '../../../utils/timetableConflictEngine'
 
 const SEVERITY_META = {
-  error: { icon: '⛔', label: 'Error', color: '#be3144' },
-  warning: { icon: '⚠️', label: 'Warning', color: '#9a7000' },
+  error: { icon: '⛔', label: 'Error', color: 'var(--danger-fg)' },
+  warning: { icon: '⚠️', label: 'Warning', color: 'var(--warning-fg)' },
 }
 
 const FILTERS = [
@@ -44,7 +44,7 @@ function dayName(day) {
 function BlockLine({ label, block, className }) {
   if (!block) return null
   return (
-    <div className="text-[11px]" style={{ color: '#566f76' }}>
+    <div className="text-[11px]" style={{ color: 'var(--zt-text-muted)' }}>
       <span className="font-bold">{label}:</span>{' '}
       {className ? `${className} · ` : ''}{block.subjectDisplayName || '—'} · {dayName(block.day)}{' '}
       {block.timeReview ? '(time needs review)' : `${block.startTime}–${block.endTime}`}
@@ -88,22 +88,22 @@ export default function TimetableConflictPanel({
   }, [conflicts, filter, dayFilter])
 
   const coverageTone = coverage?.status === 'complete'
-    ? { color: '#1E8449', label: 'Complete' }
+    ? { color: 'var(--success-fg)', label: 'Complete' }
     : coverage?.status === 'partial'
-      ? { color: '#9a7000', label: 'Partial' }
-      : { color: '#be3144', label: 'Failed' }
+      ? { color: 'var(--warning-fg)', label: 'Partial' }
+      : { color: 'var(--danger-fg)', label: 'Failed' }
 
   return (
     <section className="studio-card p-5 space-y-3" aria-label="Timetable conflicts">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>Timetable conflicts</h2>
-          <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
             Checks this week against your other saved class timetables for the same school, term and year.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[11px]" style={{ color: '#8a7f67' }} aria-live="polite">
+          <span className="text-[11px]" style={{ color: 'var(--zt-text-muted)' }} aria-live="polite">
             {status === 'loading' ? 'Checking conflicts…'
               : status === 'error' ? 'Conflict check failed'
                 : lastCheckedAt ? `Conflicts up to date · last checked ${fmtClock(lastCheckedAt)}` : ''}
@@ -118,14 +118,14 @@ export default function TimetableConflictPanel({
 
       {offline && (
         <div className="rounded-xl border px-3 py-2 text-xs font-bold"
-          style={{ borderColor: 'rgba(212,160,23,0.4)', background: 'rgba(212,160,23,0.08)', color: '#7a5800' }}>
+          style={{ borderColor: 'rgba(212,160,23,0.4)', background: 'rgba(212,160,23,0.08)', color: 'var(--warning-fg)' }}>
           ⚠️ You are offline. Cross-class conflict results may be outdated — reconnect before a final save.
         </div>
       )}
 
       {staleSiblings.length > 0 && (
         <div className="rounded-xl border px-3 py-2 text-xs"
-          style={{ borderColor: 'rgba(212,160,23,0.4)', background: 'rgba(212,160,23,0.08)', color: '#7a5800' }}>
+          style={{ borderColor: 'rgba(212,160,23,0.4)', background: 'rgba(212,160,23,0.08)', color: 'var(--warning-fg)' }}>
           <span className="font-bold">Updated since your last check:</span>{' '}
           {staleSiblings.join(', ')} — results below already reflect the fresh data.
         </div>
@@ -133,7 +133,7 @@ export default function TimetableConflictPanel({
 
       {status === 'error' && (
         <div className="rounded-xl border px-3 py-2 text-xs font-bold"
-          style={{ borderColor: 'rgba(190,49,68,0.4)', background: 'rgba(190,49,68,0.06)', color: '#be3144' }}>
+          style={{ borderColor: 'rgba(190,49,68,0.4)', background: 'rgba(190,49,68,0.06)', color: 'var(--danger-fg)' }}>
           ⛔ Conflict check failed{errorMessage ? ` — ${errorMessage}` : ''}. Your timetable edits are unaffected; try refreshing.
         </div>
       )}
@@ -150,7 +150,7 @@ export default function TimetableConflictPanel({
             <div className="text-lg font-black" style={{ color: card.value > 0 ? '#be3144' : '#1E8449' }}>
               {card.value}
             </div>
-            <div className="text-[11px] font-bold" style={{ color: '#566f76' }}>{card.label}</div>
+            <div className="text-[11px] font-bold" style={{ color: 'var(--zt-text-muted)' }}>{card.label}</div>
           </div>
         ))}
       </div>
@@ -159,7 +159,7 @@ export default function TimetableConflictPanel({
           (owner-scoped reads) until a canonical schoolId + school membership
           model exists — never claim "all school timetables checked". */}
       {coverage && (
-        <div className="rounded-xl border theme-border bg-white px-3 py-2 text-[11px] space-y-0.5" style={{ color: '#566f76' }}>
+        <div className="rounded-xl border theme-border bg-white px-3 py-2 text-[11px] space-y-0.5" style={{ color: 'var(--zt-text-muted)' }}>
           <div className="font-black" style={{ color: coverageTone.color }}>
             Conflict coverage: Account-level · {coverageTone.label}
           </div>
@@ -198,21 +198,21 @@ export default function TimetableConflictPanel({
 
       {/* Conflict list / empty states */}
       {status === 'idle' && !conflicts.length ? (
-        <p className="text-xs" style={{ color: '#566f76' }}>
+        <p className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>
           Refresh to check this timetable against your other saved class timetables.
         </p>
       ) : coverage && coverage.siblingsChecked === 0 && !conflicts.length ? (
-        <div className="rounded-xl border border-dashed theme-border bg-white/60 px-3 py-4 text-center text-xs" style={{ color: '#566f76' }}>
+        <div className="rounded-xl border border-dashed theme-border bg-white/60 px-3 py-4 text-center text-xs" style={{ color: 'var(--zt-text-muted)' }}>
           <div className="font-black">No sibling timetables found</div>
           No other active class timetables were found for this school, term and year.
           {conflicts.length === 0 && ' Internal class checks still ran on this timetable.'}
         </div>
       ) : visible.length === 0 ? (
-        <div className="rounded-xl border border-dashed theme-border bg-white/60 px-3 py-4 text-center text-xs" style={{ color: '#1E8449' }}>
+        <div className="rounded-xl border border-dashed theme-border bg-white/60 px-3 py-4 text-center text-xs" style={{ color: 'var(--success-fg)' }}>
           <div className="font-black">
             {coverage?.status === 'partial' ? 'No confirmed conflicts found' : 'No conflicts found'}
           </div>
-          <span style={{ color: '#566f76' }}>
+          <span style={{ color: 'var(--zt-text-muted)' }}>
             {conflicts.length > 0
               ? 'No conflicts match the current filter.'
               : coverage?.status === 'partial'
@@ -240,7 +240,7 @@ export default function TimetableConflictPanel({
                       {c.identityUnverified ? ' · identity unverified' : ''}
                     </span>
                     {c.siblingTimetableTitle && (
-                      <span className="text-[10px] font-bold" style={{ color: '#8a7f67' }}>
+                      <span className="text-[10px] font-bold" style={{ color: 'var(--zt-text-muted)' }}>
                         vs {c.siblingTimetableTitle}
                       </span>
                     )}

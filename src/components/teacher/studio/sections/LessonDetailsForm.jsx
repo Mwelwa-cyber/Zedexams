@@ -339,7 +339,7 @@ export function LessonDetailsForm({ lessonDetails, curriculumMode, onChange, dis
                   {dateWarning}
                 </p>
               ) : dateHint ? (
-                <p id="ldf-date-hint" className="mt-1 text-[11.5px] leading-snug" style={{ color: '#6a7c82' }}>
+                <p id="ldf-date-hint" className="mt-1 text-[11.5px] leading-snug" style={{ color: 'var(--zt-text-muted)' }}>
                   {dateHint}
                 </p>
               ) : null}

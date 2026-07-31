@@ -43,7 +43,7 @@ export default function AiReviewPanel({ review, onConfirm, onDiscard }) {
           borderRadius: 10, padding: '10px 14px', fontSize: 12, marginBottom: 10,
         }}
       >
-        <strong style={{ color: '#065f46' }}>
+        <strong style={{ color: 'var(--success-fg)' }}>
           {questions.length} question{questions.length === 1 ? '' : 's'} generated
         </strong>
         {dropped > 0 && (
@@ -51,7 +51,7 @@ export default function AiReviewPanel({ review, onConfirm, onDiscard }) {
             · {dropped} incomplete and dropped
           </span>
         )}
-        <div style={{ color: '#374151', marginTop: 4 }}>
+        <div style={{ color: 'var(--zt-text-muted)', marginTop: 4 }}>
           Untick any question you don&apos;t want, then add the rest to your paper.
         </div>
       </div>

@@ -80,10 +80,10 @@ function AssessmentRow({ assessment, onDelete, onExport, busy, routeBase, fallba
           🦅
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-black text-sm leading-snug" style={{ color: '#0e2a32' }}>{assessment.title || `Untitled ${fallbackLabel.toLowerCase()}`}</p>
+          <p className="font-black text-sm leading-snug" style={{ color: 'var(--zt-text)' }}>{assessment.title || `Untitled ${fallbackLabel.toLowerCase()}`}</p>
           <div className="flex flex-wrap gap-1.5 mt-1.5 items-center">
-            <span className="text-xs font-bold" style={{ color: '#566f76' }}>{typeLabel}</span>
-            {assessment.grade && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#e6f5ed', color: '#0a5a35' }}>Grade {assessment.grade}</span>}
+            <span className="text-xs font-bold" style={{ color: 'var(--zt-text-muted)' }}>{typeLabel}</span>
+            {assessment.grade && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#e6f5ed', color: 'var(--success-fg)' }}>Grade {assessment.grade}</span>}
             {assessment.subject && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#e3eef0', color: '#16505d' }}>{assessment.subject}</span>}
             {assessment.term && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--sv-canvas)', color: 'var(--sv-muted)' }}>T{assessment.term}</span>}
             {assessment.totalMarks != null && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#fde9b8', color: '#8a3d12' }}>{assessment.totalMarks} marks</span>}
@@ -93,7 +93,7 @@ function AssessmentRow({ assessment, onDelete, onExport, busy, routeBase, fallba
                 that flagged warnings during parsing. */}
             <ImportReviewBadge record={assessment} />
           </div>
-          <p className="mt-1.5 text-xs" style={{ color: '#566f76' }}>
+          <p className="mt-1.5 text-xs" style={{ color: 'var(--zt-text-muted)' }}>
             {assessment.questionCount ?? 0} questions · Created {formatDate(assessment.createdAt)}
             {assessment.updatedAt && ` · Updated ${formatDate(assessment.updatedAt)}`}
           </p>
@@ -104,7 +104,7 @@ function AssessmentRow({ assessment, onDelete, onExport, busy, routeBase, fallba
         <Link
           to={`${routeBase}/${id}/edit`}
           className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold no-underline transition-colors"
-          style={{ background: '#fff', borderColor: '#0e2a32', color: '#0e2a32' }}
+          style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-card-border)', color: 'var(--zt-text)' }}
         >
           ✏️ Edit
         </Link>
@@ -113,7 +113,7 @@ function AssessmentRow({ assessment, onDelete, onExport, busy, routeBase, fallba
           onClick={() => handleExport('docx', 'paper')}
           disabled={!!exporting || busy}
           className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50"
-          style={{ background: '#fff', borderColor: '#0e2a32', color: '#0e2a32' }}
+          style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-card-border)', color: 'var(--zt-text)' }}
         >
           {exporting === 'docx-paper' ? 'Building…' : '📝 Paper (Word)'}
         </button>
@@ -122,7 +122,7 @@ function AssessmentRow({ assessment, onDelete, onExport, busy, routeBase, fallba
           onClick={() => handleExport('pdf', 'paper')}
           disabled={!!exporting || busy}
           className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50"
-          style={{ background: '#fff', borderColor: '#0e2a32', color: '#0e2a32' }}
+          style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-card-border)', color: 'var(--zt-text)' }}
         >
           {exporting === 'pdf-paper' ? 'Opening…' : '📄 Paper (PDF)'}
         </button>
@@ -131,7 +131,7 @@ function AssessmentRow({ assessment, onDelete, onExport, busy, routeBase, fallba
           onClick={() => handleExport('docx', 'scheme')}
           disabled={!!exporting || busy}
           className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50"
-          style={{ background: '#fff', borderColor: '#0e2a32', color: '#0e2a32' }}
+          style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-card-border)', color: 'var(--zt-text)' }}
         >
           {exporting === 'docx-scheme' ? 'Building…' : '🗒️ Scheme (Word)'}
         </button>
@@ -140,7 +140,7 @@ function AssessmentRow({ assessment, onDelete, onExport, busy, routeBase, fallba
           onClick={() => onDelete(assessment)}
           disabled={busy}
           className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50"
-          style={{ borderColor: '#fecaca', color: '#b91c1c', background: '#fff' }}
+          style={{ borderColor: 'var(--danger)', color: 'var(--danger-fg)', background: 'var(--zt-card)' }}
         >
           🗑 Delete
         </button>
@@ -416,13 +416,13 @@ export default function AssessmentList() {
       <SeoHelmet title={cfg.NounPlural} noIndex />
       {/* Page header — brand on the left, action on the right */}
       <div className="flex items-center justify-between gap-3 mb-5">
-        <Link to="/teacher" className="flex items-center gap-2.5 no-underline" style={{ color: '#0e2a32' }}>
+        <Link to="/teacher" className="flex items-center gap-2.5 no-underline" style={{ color: 'var(--zt-text)' }}>
           <span style={{ fontSize: 22 }}>🦅</span>
           <div className="leading-tight">
-            <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 16, margin: 0, color: '#0e2a32' }}>
+            <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 16, margin: 0, color: 'var(--zt-text)' }}>
               ZedExams <span style={{ color: '#d97757' }}>•</span>
             </p>
-            <p style={{ fontSize: 11.5, color: '#566f76', margin: 0, fontWeight: 600 }}>
+            <p style={{ fontSize: 11.5, color: 'var(--zt-text-muted)', margin: 0, fontWeight: 600 }}>
               {cfg.studioName}
             </p>
           </div>
@@ -430,9 +430,9 @@ export default function AssessmentList() {
         <Link
           to="/teacher"
           className="inline-flex items-center gap-2 rounded-xl border-2 font-bold no-underline transition-colors"
-          style={{ background: '#fff', borderColor: '#0e2a32', color: '#0e2a32', padding: '8px 14px', fontSize: 13 }}
+          style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-card-border)', color: 'var(--zt-text)', padding: '8px 14px', fontSize: 13 }}
           onMouseEnter={e => { e.currentTarget.style.background = '#f5efe1' }}
-          onMouseLeave={e => { e.currentTarget.style.background = '#fff' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'var(--zt-card)' }}
         >
           ← Dashboard
         </Link>
@@ -476,7 +476,7 @@ export default function AssessmentList() {
         </div>
         <div
           className="flex-shrink-0 hidden sm:grid place-items-center"
-          style={{ width: 150, height: 150, borderRadius: '50%', background: '#fff', fontSize: 68, boxShadow: '0 8px 28px rgba(0,0,0,.25)' }}
+          style={{ width: 150, height: 150, borderRadius: '50%', background: 'var(--zt-card)', fontSize: 68, boxShadow: '0 8px 28px rgba(0,0,0,.25)' }}
         >
           🦅
         </div>
@@ -491,13 +491,13 @@ export default function AssessmentList() {
       {assessments.length === 0 ? (
         <div
           className="text-center py-12 rounded-2xl border-2 border-dashed"
-          style={{ background: '#fff', borderColor: '#b8ad96' }}
+          style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-line)' }}
         >
           <div style={{ fontSize: 40, marginBottom: 12, opacity: .5 }}>📂</div>
-          <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 17, color: '#0e2a32', marginBottom: 6 }}>
+          <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 17, color: 'var(--zt-text)', marginBottom: 6 }}>
             No {cfg.nounPlural} yet
           </p>
-          <p style={{ fontSize: 13, color: '#8a9aa1', margin: '0 0 16px' }}>
+          <p style={{ fontSize: 13, color: 'var(--zt-text-muted)', margin: '0 0 16px' }}>
             Create your first topic test, end-of-term test, or examination paper.
           </p>
           <button
@@ -526,9 +526,9 @@ export default function AssessmentList() {
                   aria-pressed={categoryFilter === f.value}
                   className="rounded-full border-2 px-3 py-1.5 text-xs font-bold transition-colors"
                   style={{
-                    borderColor: categoryFilter === f.value ? '#0e2a32' : '#e5e7eb',
-                    background: categoryFilter === f.value ? '#0e2a32' : '#fff',
-                    color: categoryFilter === f.value ? '#fff' : '#374151',
+                    borderColor: categoryFilter === f.value ? 'var(--zt-sidebar-bg)' : 'var(--zt-line)',
+                    background: categoryFilter === f.value ? 'var(--zt-sidebar-bg)' : 'var(--zt-card)',
+                    color: categoryFilter === f.value ? 'var(--zt-on-dark)' : 'var(--zt-text)',
                   }}
                 >
                   {f.label}
@@ -536,7 +536,7 @@ export default function AssessmentList() {
               ))}
             </div>
             <div className="flex flex-wrap items-baseline justify-between gap-3 mb-4">
-              <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 24, color: '#0e2a32', margin: 0 }}>
+              <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 24, color: 'var(--zt-text)', margin: 0 }}>
                 {needsReviewOnly
                   ? `${visible.length} of ${byCategory.length}${hasNextPage ? '+' : ''} need review`
                   : `${byCategory.length}${hasNextPage ? '+' : ''} ${cfg.noun}${byCategory.length === 1 && !hasNextPage ? '' : 's'}`}
@@ -551,9 +551,9 @@ export default function AssessmentList() {
                 disabled={!needsReviewOnly && needsReviewCount === 0 && fullyLoaded}
                 className="rounded-full border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
-                  borderColor: needsReviewOnly ? '#d97706' : '#e5e7eb',
+                  borderColor: needsReviewOnly ? '#d97706' : 'var(--zt-line)',
                   background: needsReviewOnly ? '#fef3c7' : '#fff',
-                  color: needsReviewOnly ? '#92400e' : '#374151',
+                  color: needsReviewOnly ? '#92400e' : 'var(--zt-text)',
                 }}
                 title={needsReviewOnly
                   ? `Click to show all ${cfg.nounPlural}`
@@ -603,17 +603,17 @@ export default function AssessmentList() {
             {/* While pages are still auto-loading to satisfy an active filter,
                 say so — never claim "none" for rows that just haven't loaded. */}
             {filterActive && visible.length === 0 && !fullyLoaded && (
-              <p className="text-center text-sm font-bold mt-6" style={{ color: '#566f76' }}>
+              <p className="text-center text-sm font-bold mt-6" style={{ color: 'var(--zt-text-muted)' }}>
                 Searching the rest of your library…
               </p>
             )}
             {needsReviewOnly && visible.length === 0 && fullyLoaded && (
-              <p className="text-center text-sm font-bold mt-6" style={{ color: '#566f76' }}>
+              <p className="text-center text-sm font-bold mt-6" style={{ color: 'var(--zt-text-muted)' }}>
                 No {cfg.nounPlural} need review right now. Click the chip again to see all of them.
               </p>
             )}
             {!needsReviewOnly && byCategory.length === 0 && fullyLoaded && (
-              <p className="text-center text-sm font-bold mt-6" style={{ color: '#566f76' }}>
+              <p className="text-center text-sm font-bold mt-6" style={{ color: 'var(--zt-text-muted)' }}>
                 No {categoryFilter === 'test' ? 'tests' : 'examinations'} yet — try the "All" filter or create one.
               </p>
             )}

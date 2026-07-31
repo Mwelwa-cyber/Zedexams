@@ -601,12 +601,12 @@ export default function SchemeOfWorkGenerator() {
               />
             </div>
             {isOffCurrentTerm(calendarTermYear, form) && (
-              <div className="text-sm flex flex-wrap items-center gap-2" style={{ color: '#566f76' }} role="status">
+              <div className="text-sm flex flex-wrap items-center gap-2" style={{ color: 'var(--zt-text-muted)' }} role="status">
                 <span>📅 The national school calendar shows you're in <b>Term {calendarTermYear.term} {calendarTermYear.year}</b>.</span>
                 <button
                   type="button"
                   className="font-bold underline"
-                  style={{ color: '#0e2a32' }}
+                  style={{ color: 'var(--zt-text)' }}
                   title="Switch to the current calendar term, keeping your exam, revision and custom week reservations"
                   onClick={() => setConfirmUseCurrent(true)}
                 >
@@ -616,12 +616,12 @@ export default function SchemeOfWorkGenerator() {
             )}
 
             {/* Calendar-derived teaching weeks + reservation */}
-            <div className="rounded-xl border theme-border p-3.5 space-y-3" style={{ background: '#fbfaf5' }}>
+            <div className="rounded-xl border theme-border p-3.5 space-y-3" style={{ background: 'var(--zt-surface)' }}>
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <span className="text-sm font-bold" style={{ color: '#0e2a32' }}>
+                <span className="text-sm font-bold" style={{ color: 'var(--zt-text)' }}>
                   📅 Teaching weeks
                 </span>
-                <span className="text-sm" style={{ color: '#566f76' }}>
+                <span className="text-sm" style={{ color: 'var(--zt-text-muted)' }}>
                   {calendarWeeks
                     ? <>School Calendar: <b>{calendarWeeks} weeks</b> · Term {form.term} {form.year}</>
                     : 'No calendar data for this year/term'}
@@ -653,7 +653,7 @@ export default function SchemeOfWorkGenerator() {
                 />
               </div>
               {reservedPlan && (
-                <p className="text-xs" style={{ color: '#566f76' }}>
+                <p className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>
                   {deliveryWeekCount(reservedPlan)} teaching weeks ·{' '}
                   {reservedWeekCount(reservedPlan)} reserved (exam/revision)
                   {revisionIsDefault && revisionWeeksArr.length > 0 && (
@@ -669,10 +669,10 @@ export default function SchemeOfWorkGenerator() {
             </div>
 
             {/* Framework time allocation — auto or manual */}
-            <div className="rounded-xl border theme-border p-3.5 space-y-2" style={{ background: '#fbfaf5' }}>
-              <span className="text-sm font-bold" style={{ color: '#0e2a32' }}>⏱️ Time allocation</span>
+            <div className="rounded-xl border theme-border p-3.5 space-y-2" style={{ background: 'var(--zt-surface)' }}>
+              <span className="text-sm font-bold" style={{ color: 'var(--zt-text)' }}>⏱️ Time allocation</span>
               {frameworkMatch ? (
-                <p className="text-sm" style={{ color: '#566f76' }}>
+                <p className="text-sm" style={{ color: 'var(--zt-text-muted)' }}>
                   Curriculum Framework: <b>{frameworkMatch.periodsPerWeek} periods × {frameworkMatch.periodMinutes} min</b>
                   {frameworkMatch.timeAllocation ? <> · {frameworkMatch.timeAllocation}/week</> : null}
                 </p>
@@ -699,7 +699,7 @@ export default function SchemeOfWorkGenerator() {
                 options={timetableOptions}
                 onChange={setTimetableId}
               />
-              <p className="text-xs mt-1" style={{ color: '#566f76' }}>
+              <p className="text-xs mt-1" style={{ color: 'var(--zt-text-muted)' }}>
                 {timetables.length
                   ? 'Attach a saved timetable to pace the scheme around your real periods and teaching days.'
                   : 'No saved timetables yet — create one in the Class Timetable Studio to make schemes timetable-aware.'}
@@ -757,7 +757,7 @@ export default function SchemeOfWorkGenerator() {
               {hasSyllabusTopics ? 'Review term topics' : 'Generate Scheme of Work'}
             </GenerateButton>
             {hasSyllabusTopics && (
-              <p className="text-xs text-center" style={{ color: '#566f76' }}>
+              <p className="text-xs text-center" style={{ color: 'var(--zt-text-muted)' }}>
                 We'll divide the syllabus across the terms and let you review Term {form.term}'s topics before generating.
               </p>
             )}
@@ -796,7 +796,7 @@ export default function SchemeOfWorkGenerator() {
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                   <div>
                     <h2 className="studio-display" style={{ fontSize: 22, margin: '0 0 2px' }}>Edit your Scheme of Work</h2>
-                    <p className="text-xs" style={{ color: '#566f76' }}>
+                    <p className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>
                       {scheme.header?.numberOfWeeks || scheme.weeks?.length} weeks · Term {scheme.header?.term} · you're in control — edit anything before or after saving
                     </p>
                   </div>
@@ -860,7 +860,7 @@ export default function SchemeOfWorkGenerator() {
                 <SchemeEditableTable scheme={scheme} onChange={setScheme} />
                 <div className="mt-6">
                   <details open>
-                    <summary className="text-xs font-bold cursor-pointer" style={{ color: '#566f76' }}>
+                    <summary className="text-xs font-bold cursor-pointer" style={{ color: 'var(--zt-text-muted)' }}>
                       Preview the printed page
                     </summary>
                     <div className="mt-3">
@@ -943,7 +943,7 @@ function AdvisoryPanel({ advisories, curriculumSource }) {
       {sourceMeta && (
         <div
           className="rounded-xl border px-4 py-2.5 text-sm flex items-center gap-2"
-          style={{ background: '#f0f7f4', borderColor: '#bfe3d4', color: '#0e2a32' }}
+          style={{ background: '#f0f7f4', borderColor: '#bfe3d4', color: 'var(--zt-text)' }}
         >
           <span>🧭</span>
           <span>
@@ -1063,7 +1063,7 @@ function LiveSchemeReveal({ scheme, status }) {
     <div>
       <SchemeOfWorkView scheme={partial} />
       {visible < total && (
-        <p className="mt-2 text-center text-xs animate-pulse" style={{ color: '#566f76' }}>
+        <p className="mt-2 text-center text-xs animate-pulse" style={{ color: 'var(--zt-text-muted)' }}>
           Writing week {visible + 1} of {total}…
         </p>
       )}

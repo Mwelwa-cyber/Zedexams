@@ -32,10 +32,10 @@ const JUNIOR_TIMETABLE = [
 
 /** The five Vocational Career Pathway options (shared Junior + Senior). */
 const VOCATIONAL_OPTIONS = [
-  { emoji: '🌱', title: 'Agriculture', body: 'Agricultural Science (Entrepreneurship integrated) with Computer Studies, English and Mathematics as support subjects.', bg: '#e8fff0', color: '#006b2d' },
-  { emoji: '🔧', title: 'Technology', body: 'Design & Technology / practical technology skills with academic support subjects.', bg: '#fff8e8', color: '#7a5800' },
-  { emoji: '🎭', title: 'Performing & Creative Arts (PCA)', body: 'Music, art, dance and drama, with academic support subjects.', bg: '#ffe8e8', color: '#8c0000' },
-  { emoji: '⚽', title: 'Physical Education & Sports (PES)', body: 'Physical education, sport and health, with academic support subjects.', bg: '#e8faff', color: '#005c7a' },
+  { emoji: '🌱', title: 'Agriculture', body: 'Agricultural Science (Entrepreneurship integrated) with Computer Studies, English and Mathematics as support subjects.', bg: '#e8fff0', color: 'var(--success-fg)' },
+  { emoji: '🔧', title: 'Technology', body: 'Design & Technology / practical technology skills with academic support subjects.', bg: '#fff8e8', color: 'var(--warning-fg)' },
+  { emoji: '🎭', title: 'Performing & Creative Arts (PCA)', body: 'Music, art, dance and drama, with academic support subjects.', bg: '#ffe8e8', color: 'var(--danger-fg)' },
+  { emoji: '⚽', title: 'Physical Education & Sports (PES)', body: 'Physical education, sport and health, with academic support subjects.', bg: '#e8faff', color: 'var(--info-fg)' },
   { emoji: '🍳', title: 'Home Economics & Hospitality (HEH)', body: 'Food & nutrition, clothing, hospitality and catering, with academic support subjects.', bg: '#fdf0ff', color: '#6b0080' },
 ]
 
@@ -257,7 +257,7 @@ export default function Secondary2013Curriculum() {
                   <tr>
                     {['Subject', 'Time / Week', 'Periods'].map(h => (
                       <th key={h} className="border-b theme-border px-4 py-2 text-left text-[11px] font-black uppercase tracking-[0.06em]"
-                        style={{ background: 'rgba(212, 160, 23, 0.16)', color: '#7a5800' }}>
+                        style={{ background: 'rgba(212, 160, 23, 0.16)', color: 'var(--warning-fg)' }}>
                         {h}
                       </th>
                     ))}
@@ -272,9 +272,9 @@ export default function Secondary2013Curriculum() {
                     </tr>
                   ))}
                   <tr style={{ background: 'rgba(212, 160, 23, 0.16)' }}>
-                    <td className="px-4 py-2 text-sm font-black" style={{ color: '#7a5800' }}>TOTAL</td>
-                    <td className="px-4 py-2 text-sm font-black" style={{ color: '#7a5800' }}>30 hours</td>
-                    <td className="px-4 py-2 text-sm font-black" style={{ color: '#7a5800' }}>46</td>
+                    <td className="px-4 py-2 text-sm font-black" style={{ color: 'var(--warning-fg)' }}>TOTAL</td>
+                    <td className="px-4 py-2 text-sm font-black" style={{ color: 'var(--warning-fg)' }}>30 hours</td>
+                    <td className="px-4 py-2 text-sm font-black" style={{ color: 'var(--warning-fg)' }}>46</td>
                   </tr>
                 </tbody>
               </table>

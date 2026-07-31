@@ -5,8 +5,8 @@
 import { ShieldCheck, LockKeyhole, BadgeCheck } from 'lucide-react'
 
 const ITEMS = [
-  { icon: ShieldCheck, color: '#26344D', title: 'Secure', text: 'Your data is protected' },
-  { icon: LockKeyhole, color: '#CA5837', title: 'Private', text: 'We never store your biometrics' },
+  { icon: ShieldCheck, color: 'var(--info-fg)', title: 'Secure', text: 'Your data is protected' },
+  { icon: LockKeyhole, color: 'var(--danger-fg)', title: 'Private', text: 'We never store your biometrics' },
   { icon: BadgeCheck, color: '#16A34A', title: 'Trusted', text: 'Built for teachers and learners' },
 ]
 

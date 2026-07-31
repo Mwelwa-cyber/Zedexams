@@ -28,7 +28,7 @@ const LIST_KEYS = new Set(['specificCompetences', 'learningActivities', 'methods
 
 function FieldLabel({ children }) {
   return (
-    <label className="block text-[11px] font-black uppercase tracking-wide mb-1" style={{ color: '#566f76' }}>
+    <label className="block text-[11px] font-black uppercase tracking-wide mb-1" style={{ color: 'var(--zt-text-muted)' }}>
       {children}
     </label>
   )
@@ -38,16 +38,16 @@ function WeekCard({ week, index, columns, weekCount, onChange }) {
   const editableCols = columns.filter((c) => c.type !== 'week')
 
   return (
-    <div className="rounded-xl border theme-border p-4" style={{ background: '#fff' }}>
+    <div className="rounded-xl border theme-border p-4" style={{ background: 'var(--zt-card)' }}>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg font-black text-white" style={{ background: '#0e2a32' }}>
             {week.week}
           </span>
-          <span className="text-sm font-black" style={{ color: '#0e2a32' }}>Week {week.week}</span>
+          <span className="text-sm font-black" style={{ color: 'var(--zt-text)' }}>Week {week.week}</span>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <label className="text-[11px] flex items-center gap-1" style={{ color: '#566f76' }}>
+          <label className="text-[11px] flex items-center gap-1" style={{ color: 'var(--zt-text-muted)' }}>
             Move to week
             <select
               value={week.week}
@@ -69,7 +69,7 @@ function WeekCard({ week, index, columns, weekCount, onChange }) {
             type="button"
             onClick={() => onChange(deleteRow)}
             className="text-xs py-1 px-2 rounded-lg font-bold"
-            style={{ color: '#b91c1c', border: '1.5px solid #fecaca', background: '#fff' }}
+            style={{ color: '#b91c1c', border: '1.5px solid #fecaca', background: 'var(--zt-card)' }}
             title="Delete this week"
           >🗑️</button>
         </div>
@@ -120,7 +120,7 @@ export default function SchemeEditableTable({ scheme, onChange }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <p className="text-xs" style={{ color: '#566f76' }}>
+        <p className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>
           {curriculumLabel(curriculum)} format · {weeks.length} week{weeks.length === 1 ? '' : 's'} ·
           edit any field, or add / delete / split / merge / move weeks. Changes aren't saved until you press Save.
         </p>
@@ -141,7 +141,7 @@ export default function SchemeEditableTable({ scheme, onChange }) {
       ))}
 
       {weeks.length === 0 && (
-        <div className="rounded-xl border theme-border p-6 text-center text-sm" style={{ color: '#566f76' }}>
+        <div className="rounded-xl border theme-border p-6 text-center text-sm" style={{ color: 'var(--zt-text-muted)' }}>
           No weeks yet.
           <button type="button" onClick={() => onChange(addRow(scheme, -1))} className="studio-btn-ghost ml-2 text-xs">➕ Add the first week</button>
         </div>

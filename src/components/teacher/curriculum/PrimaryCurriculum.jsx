@@ -411,10 +411,10 @@ function searchMatches(haystack, query) {
 
 function ChipStyle({ tone, children }) {
   const map = {
-    lp:        { background: 'rgba(46, 134, 193, 0.14)', color: '#1A5276' },
-    up:        { background: 'rgba(30, 132, 73, 0.14)',  color: '#1E8449' },
-    compulsory:{ background: 'rgba(30, 132, 73, 0.14)',  color: '#1E8449' },
-    optional:  { background: 'rgba(212, 160, 23, 0.16)', color: '#9a7000' },
+    lp:        { background: 'rgba(46, 134, 193, 0.14)', color: 'var(--info-fg)' },
+    up:        { background: 'rgba(30, 132, 73, 0.14)',  color: 'var(--success-fg)' },
+    compulsory:{ background: 'rgba(30, 132, 73, 0.14)',  color: 'var(--success-fg)' },
+    optional:  { background: 'rgba(212, 160, 23, 0.16)', color: 'var(--warning-fg)' },
   }
   return (
     <span
@@ -493,7 +493,7 @@ function ThemedTable({ title, headers, rows, totalRow }) {
                 <th
                   key={h}
                   className="border-b theme-border px-4 py-2 text-left text-[11px] font-black uppercase tracking-[0.06em]"
-                  style={{ background: 'rgba(212, 160, 23, 0.16)', color: '#7a5800' }}
+                  style={{ background: 'rgba(212, 160, 23, 0.16)', color: 'var(--warning-fg)' }}
                 >
                   {h}
                 </th>
@@ -513,7 +513,7 @@ function ThemedTable({ title, headers, rows, totalRow }) {
             {totalRow && (
               <tr style={{ background: 'rgba(212, 160, 23, 0.16)' }}>
                 {totalRow.map((cell, j) => (
-                  <td key={j} className="px-4 py-2 text-sm font-black" style={{ color: '#7a5800' }}>
+                  <td key={j} className="px-4 py-2 text-sm font-black" style={{ color: 'var(--warning-fg)' }}>
                     {cell}
                   </td>
                 ))}
@@ -546,7 +546,7 @@ function GradeOverview({ overview, query }) {
             <tr>
               {['Subject', 'Time / Week', 'Indicative Scope'].map(h => (
                 <th key={h} className="border-b theme-border px-4 py-2 text-left text-[11px] font-black uppercase tracking-[0.06em]"
-                  style={{ background: 'rgba(212, 160, 23, 0.16)', color: '#7a5800' }}>
+                  style={{ background: 'rgba(212, 160, 23, 0.16)', color: 'var(--warning-fg)' }}>
                   {h}
                 </th>
               ))}
@@ -561,7 +561,7 @@ function GradeOverview({ overview, query }) {
               </tr>
             ))}
             <tr style={{ background: 'rgba(212, 160, 23, 0.16)' }}>
-              <td colSpan={2} className="px-4 py-2 text-sm font-black" style={{ color: '#7a5800' }}>Assessment</td>
+              <td colSpan={2} className="px-4 py-2 text-sm font-black" style={{ color: 'var(--warning-fg)' }}>Assessment</td>
               <td className="px-4 py-2 text-sm theme-text">{overview.assessment}</td>
             </tr>
           </tbody>
@@ -644,9 +644,9 @@ export default function PrimaryCurriculum() {
                 placeholder="Search subjects, grades, topics…"
                 className="w-full rounded-full border px-9 py-2 text-sm theme-text shadow-elev-md outline-none"
                 style={{
-                  background: '#ffffff',
+                  background: 'var(--zt-card)',
                   borderColor: 'rgba(255,255,255,0.3)',
-                  color: '#0f172a',
+                  color: 'var(--zt-text)',
                 }}
               />
             </label>

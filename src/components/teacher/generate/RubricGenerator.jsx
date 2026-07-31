@@ -346,7 +346,7 @@ export default function RubricGenerator() {
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                   <div>
                     <h2 className="studio-display" style={{ fontSize: 22, margin: '0 0 2px' }}>{rubric.header?.title}</h2>
-                    <p className="text-xs" style={{ color: '#566f76' }}>
+                    <p className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>
                       {rubric.header?.totalMarks} marks · {rubric.criteria?.length} criteria
                     </p>
                   </div>

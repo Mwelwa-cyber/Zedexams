@@ -246,7 +246,7 @@ export default function SecurityPanel() {
                 <Icon as={item.icon} size="sm" />
               </span>
               <span className="tset-row__text">
-                <p className="tset-row__title" style={{ color: '#566f76' }}>{item.title}</p>
+                <p className="tset-row__title" style={{ color: 'var(--zt-text-muted)' }}>{item.title}</p>
                 <p className="tset-row__desc">{item.desc}</p>
               </span>
               <span className="tset-row__soon">Soon</span>

@@ -628,7 +628,7 @@ export default function EditorToolbar({
               <button
                 type="button"
                 className="sw"
-                style={{ background: '#fff', gridColumn: '1 / -1', fontSize: '10px', fontWeight: 700 }}
+                style={{ background: 'var(--zt-card)', gridColumn: '1 / -1', fontSize: '10px', fontWeight: 700 }}
                 aria-label="Remove highlight"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={(e) => {

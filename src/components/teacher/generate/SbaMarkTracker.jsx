@@ -303,7 +303,7 @@ export default function SbaMarkTracker() {
                   onChange={(e) => setH('year', e.target.value.replace(/[^\d]/g, ''))} className="studio-input" />
               </div>
             </div>
-            <p className="text-xs" style={{ color: '#566f76' }}>
+            <p className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>
               {subjectMeta?.label} · {SBA_GRADES.find((g) => g.value === grade)?.label}: <strong>{columns.length} tasks</strong>,
               maximum <strong>{total} marks</strong> → converted to 10%.
             </p>
@@ -314,7 +314,7 @@ export default function SbaMarkTracker() {
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
                 <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>Pupils and task marks</h2>
-                <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
                   {named.length} pupil{named.length === 1 ? '' : 's'} · rows without a name are ignored
                 </p>
               </div>
@@ -340,7 +340,7 @@ export default function SbaMarkTracker() {
               </div>
             </div>
             {generationId && (
-              <p className="text-xs mb-2 -mt-2" style={{ color: '#566f76' }}>
+              <p className="text-xs mb-2 -mt-2" style={{ color: 'var(--zt-text-muted)' }}>
                 In your library — <Link to={`/teacher/library/${generationId}`} className="font-bold underline">open the saved copy</Link>.
               </p>
             )}
@@ -348,7 +348,7 @@ export default function SbaMarkTracker() {
             <div className="overflow-x-auto">
               <table className="text-sm border-collapse min-w-[720px]">
                 <thead>
-                  <tr className="text-[11px] font-black uppercase tracking-wide" style={{ color: '#566f76' }}>
+                  <tr className="text-[11px] font-black uppercase tracking-wide" style={{ color: 'var(--zt-text-muted)' }}>
                     <th className="py-1.5 pr-2 w-8 text-left" rowSpan={2}>SN</th>
                     <th className="py-1.5 pr-2 text-left sticky left-0 bg-white" rowSpan={2}>Pupil's name</th>
                     {groups.map((g, i) => (
@@ -358,7 +358,7 @@ export default function SbaMarkTracker() {
                     <th className="py-1.5 px-2 text-center text-emerald-700" rowSpan={2}>SBA<br />/10</th>
                     <th className="w-8" rowSpan={2} />
                   </tr>
-                  <tr className="text-[10px] font-bold" style={{ color: '#7a8e94' }}>
+                  <tr className="text-[10px] font-bold" style={{ color: 'var(--zt-text-muted)' }}>
                     {columns.map((c) => (
                       <th key={c.key} className="py-1 px-1 text-center align-bottom" title={c.label}>
                         <span className="block max-w-[64px] truncate mx-auto">{c.label}</span>
@@ -412,7 +412,7 @@ export default function SbaMarkTracker() {
             <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>
               Final SBA mark (entered in Grade 7)
             </h2>
-            <p className="text-xs mt-0.5 mb-3" style={{ color: '#566f76' }}>
+            <p className="text-xs mt-0.5 mb-3" style={{ color: 'var(--zt-text-muted)' }}>
               The mark submitted on the ECZ portal is the sum of the three per-grade SBA marks. Enter a pupil's
               Grade 5, 6 and 7 marks (each out of 10) to get the final out of {SBA_MAX_FINAL_MARK}.
             </p>

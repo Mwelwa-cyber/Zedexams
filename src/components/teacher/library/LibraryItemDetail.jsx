@@ -721,10 +721,10 @@ export default function LibraryItemDetail() {
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen p-8 flex items-center justify-center" style={{ background: '#f5efe1' }}>
+      <div className="min-h-screen p-8 flex items-center justify-center" style={{ background: 'var(--zt-surface)' }}>
         <div className="studio-card p-8 text-center">
           <div className="text-4xl mb-3 animate-bounce">📚</div>
-          <p style={{ color: '#566f76' }}>Loading…</p>
+          <p style={{ color: 'var(--zt-text-muted)' }}>Loading…</p>
         </div>
       </div>
     )
@@ -732,11 +732,11 @@ export default function LibraryItemDetail() {
 
   if (status === 'notfound' || !item) {
     return (
-      <div className="min-h-screen p-8 flex items-center justify-center" style={{ background: '#f5efe1' }}>
+      <div className="min-h-screen p-8 flex items-center justify-center" style={{ background: 'var(--zt-surface)' }}>
         <div className="studio-card p-8 max-w-md text-center">
           <div className="text-5xl mb-3">🤷</div>
-          <h2 className="studio-display" style={{ fontSize: 20, color: '#0e2a32', marginBottom: 8 }}>Not found</h2>
-          <p className="text-sm mb-4" style={{ color: '#566f76' }}>
+          <h2 className="studio-display" style={{ fontSize: 20, color: 'var(--zt-text)', marginBottom: 8 }}>Not found</h2>
+          <p className="text-sm mb-4" style={{ color: 'var(--zt-text-muted)' }}>
             This generation may have been deleted or belongs to another account.
           </p>
           <Link to="/teacher/library" className="studio-btn-ghost inline-block">
@@ -754,8 +754,8 @@ export default function LibraryItemDetail() {
       <SeoHelmet title={item?.title || meta.label || 'Library item'} noIndex />
       <div className="w-full">
         {/* Breadcrumb */}
-        <nav className="mb-4 text-sm" style={{ color: '#566f76' }}>
-          <Link to="/teacher/library" className="hover:underline" style={{ color: '#0e2a32', fontWeight: 700 }}>← My Library</Link>
+        <nav className="mb-4 text-sm" style={{ color: 'var(--zt-text-muted)' }}>
+          <Link to="/teacher/library" className="hover:underline" style={{ color: 'var(--zt-text)', fontWeight: 700 }}>← My Library</Link>
         </nav>
 
         {/* Header */}
@@ -775,7 +775,7 @@ export default function LibraryItemDetail() {
             <h1 className="studio-display" style={{ fontSize: 28, margin: 0 }}>
               {titleForGeneration(item)}
             </h1>
-            <div className="mt-1 text-xs flex flex-wrap gap-3" style={{ color: '#566f76' }}>
+            <div className="mt-1 text-xs flex flex-wrap gap-3" style={{ color: 'var(--zt-text-muted)' }}>
               <span>{item.inputs?.grade || item.meta?.klass}</span>
               <span>·</span>
               <span>{formatSubject(item.inputs?.subject || item.meta?.subject)}</span>
@@ -797,7 +797,7 @@ export default function LibraryItemDetail() {
             {(item.tool === 'worksheet' || item.tool === 'lesson_activities' ||
               item.tool === 'homework' ||
               item.tool === 'assessment' || item.tool === 'exam_paper') && (
-              <label className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl cursor-pointer" style={{ color: '#0e2a32', border: '1.5px solid #d9cfb8' }}>
+              <label className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl cursor-pointer" style={{ color: 'var(--zt-text)', border: '1.5px solid #d9cfb8' }}>
                 <input
                   type="checkbox"
                   checked={showAnswers}
@@ -808,7 +808,7 @@ export default function LibraryItemDetail() {
               </label>
             )}
             {item.tool === 'mark_schedule' && (
-              <label className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl cursor-pointer" style={{ color: '#0e2a32', border: '1.5px solid #d9cfb8' }}>
+              <label className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl cursor-pointer" style={{ color: 'var(--zt-text)', border: '1.5px solid #d9cfb8' }}>
                 <input
                   type="checkbox"
                   checked={showPercents}
@@ -978,7 +978,7 @@ export default function LibraryItemDetail() {
             <button
               onClick={onDelete}
               className="px-4 py-2 rounded-xl text-sm font-bold transition"
-              style={{ color: '#b91c1c', border: '2px solid #fecaca', background: '#fff' }}
+              style={{ color: '#b91c1c', border: '2px solid #fecaca', background: 'var(--zt-card)' }}
             >
               🗑️ Delete
             </button>
@@ -1383,7 +1383,7 @@ function DocEditBar({ saving, onSave, onCancel, children }) {
   return (
     <div>
       <div className="flex items-center justify-between gap-2 mb-4 flex-wrap sticky top-0 z-10 py-2" style={{ background: 'var(--surface, #fff)' }}>
-        <p className="text-sm font-bold" style={{ color: '#0e2a32' }}>
+        <p className="text-sm font-bold" style={{ color: 'var(--zt-text)' }}>
           ✏️ Editing — you're in control. Changes save to your library and future exports.
         </p>
         <div className="flex gap-2">

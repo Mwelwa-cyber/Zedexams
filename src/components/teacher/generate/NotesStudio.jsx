@@ -518,7 +518,7 @@ export default function NotesStudio() {
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                   <div>
                     <h2 className="studio-display" style={{ fontSize: 22, margin: '0 0 2px' }}>Your Teacher Notes</h2>
-                    <p className="text-xs" style={{ color: '#566f76' }}>
+                    <p className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>
                       Skim before class — or print and tuck into your lesson plan.
                     </p>
                   </div>
@@ -544,12 +544,12 @@ export default function NotesStudio() {
                 {/* Diagram generation CTA — only shown when there are concepts to illustrate */}
                 {notes.keyConcepts?.length > 0 && diagramStatus !== 'done' && (
                   <div className="mt-6 rounded-2xl border-2 border-dashed p-4 flex flex-wrap items-center justify-between gap-3"
-                    style={{ borderColor: '#d9cfb8', background: '#faf6ee' }}>
+                    style={{ borderColor: 'var(--zt-line)', background: '#faf6ee' }}>
                     <div>
-                      <p className="text-sm font-black" style={{ color: '#0e2a32' }}>
+                      <p className="text-sm font-black" style={{ color: 'var(--zt-text)' }}>
                         🎨 Add AI diagrams to key concepts
                       </p>
-                      <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
                         Generates up to {NOTES_DIAGRAM_CAP} labelled illustrations — one per concept.
                       </p>
                       {diagramStatus === 'error' && (
@@ -621,7 +621,7 @@ function ModeTab({ active, onClick, children }) {
       style={
         active
           ? { background: '#d97757', color: '#fff' }
-          : { background: 'transparent', color: '#0e2a32' }
+          : { background: 'transparent', color: 'var(--zt-text)' }
       }
     >
       {children}
@@ -632,7 +632,7 @@ function ModeTab({ active, onClick, children }) {
 function PlanPicker({ plans, loading, error, selectedId, onSelect, onBrowseLibrary }) {
   if (loading) {
     return (
-      <div className="rounded-xl border-2 border-dashed p-4 text-center text-sm" style={{ borderColor: '#d9cfb8', color: '#566f76' }}>
+      <div className="rounded-xl border-2 border-dashed p-4 text-center text-sm" style={{ borderColor: 'var(--zt-line)', color: 'var(--zt-text-muted)' }}>
         Loading your lesson plans…
       </div>
     )
@@ -640,10 +640,10 @@ function PlanPicker({ plans, loading, error, selectedId, onSelect, onBrowseLibra
   if (error) {
     return (
       <div className="rounded-xl border-2 border-dashed p-4 text-center" style={{ borderColor: '#e6b8b8' }}>
-        <p className="text-sm mb-2" style={{ color: '#0e2a32' }}>
+        <p className="text-sm mb-2" style={{ color: 'var(--zt-text)' }}>
           Couldn't load your lesson plans.
         </p>
-        <p className="text-xs" style={{ color: '#566f76' }}>
+        <p className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>
           Check your connection and try again, or switch to <strong>Standalone</strong> to write notes without a plan.
         </p>
       </div>
@@ -651,11 +651,11 @@ function PlanPicker({ plans, loading, error, selectedId, onSelect, onBrowseLibra
   }
   if (plans.length === 0) {
     return (
-      <div className="rounded-xl border-2 border-dashed p-4 text-center" style={{ borderColor: '#d9cfb8' }}>
-        <p className="text-sm mb-2" style={{ color: '#0e2a32' }}>
+      <div className="rounded-xl border-2 border-dashed p-4 text-center" style={{ borderColor: 'var(--zt-line)' }}>
+        <p className="text-sm mb-2" style={{ color: 'var(--zt-text)' }}>
           You don't have any saved lesson plans yet.
         </p>
-        <p className="text-xs" style={{ color: '#566f76' }}>
+        <p className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>
           Switch to <strong>Standalone</strong> for now, or generate a plan in
           the Lesson Plan Studio first.
         </p>
@@ -696,10 +696,10 @@ function SelectedPlanSummary({ plan }) {
       <p className="text-[10px] font-black uppercase tracking-wide mb-1" style={{ color: '#d97757' }}>
         Source plan
       </p>
-      <p className="text-sm font-bold" style={{ color: '#0e2a32' }}>
+      <p className="text-sm font-bold" style={{ color: 'var(--zt-text)' }}>
         {titleForGeneration(plan)}
       </p>
-      <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+      <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
         {[h.class || plan.inputs?.grade, h.subject || plan.inputs?.subject]
           .filter(Boolean).join(' · ')}
       </p>
