@@ -147,26 +147,66 @@ export function markPendingPatch(row) {
 }
 
 /**
- * Pure: does this error mean "nobody is signed in", rather than a real
- * Firestore problem? Kept separate from the exit so it can be tested — the
- * cost of getting it wrong is swallowing a genuine failure behind a
- * "run firebase login" message that will not help.
+ * Pure: does this error mean the caller is not authenticated — and if so, in
+ * which of the two ways? They need DIFFERENT commands, which is the whole
+ * reason this returns a kind rather than a boolean:
+ *
+ *   'expired' — credentials exist but the grant is stale. Google's wording is
+ *               `invalid_grant` + `rapt_required` ("reauth required"), which
+ *               says nothing to anyone who has not met it before. The fix is
+ *               to re-run the login; nothing needs setting up.
+ *   'missing' — there are no credentials at all.
+ *
+ * Returns null for anything else, so a genuine Firestore failure surfaces as
+ * itself instead of being hidden behind advice that will not help.
  */
-export function isAuthFailure(err) {
+export function classifyAuthFailure(err) {
   const message = String(err?.message ?? '')
-  if (/could not load the default credentials|application[- ]default credentials/i.test(message)) return true
-  if (/unauthenticated|invalid_grant|could not refresh access token/i.test(message)) return true
+  const details = String(err?.details ?? '')
+  const text = `${message} ${details}`
+  // Checked first: an expired grant also mentions credentials, and reporting
+  // it as "missing" sends the operator to set up something they already have.
+  if (/rapt_required|reauth|invalid_grant|could not refresh access token|token has been expired or revoked/i.test(text)) {
+    return 'expired'
+  }
+  if (/could not load the default credentials|application[- ]default credentials|unauthenticated/i.test(text)) {
+    return 'missing'
+  }
   // gRPC status 16 = UNAUTHENTICATED. 7 (PERMISSION_DENIED) is deliberately
   // NOT here: that is a signed-in principal without the right role, which is a
   // different problem and needs a different sentence.
-  return err?.code === 16
+  return err?.code === 16 ? 'missing' : null
 }
 
-function exitUnauthenticated(what, err) {
+/** Back-compat boolean over the classifier. */
+export function isAuthFailure(err) {
+  return classifyAuthFailure(err) !== null
+}
+
+/**
+ * The remedy, per kind. `firebase-admin` authenticates with Google
+ * APPLICATION-DEFAULT credentials — NOT the ones `firebase login` stores for
+ * the firebase CLI — so `gcloud auth application-default login` is the command
+ * that actually fixes this, and naming the wrong one costs the operator a
+ * round trip.
+ */
+export const AUTH_REMEDIES = {
+  expired: [
+    'Your Google credentials have expired and need re-authorising (Google calls this "rapt_required").',
+    'Re-run the login, then re-run this script:',
+    '  gcloud auth application-default login',
+  ],
+  missing: [
+    'This script reads Firestore with admin credentials. Get them with either:',
+    '  gcloud auth application-default login       (then re-run)',
+    '  set GOOGLE_APPLICATION_CREDENTIALS to a service-account JSON file',
+  ],
+}
+
+function exitUnauthenticated(what, err, kind = 'missing') {
   console.error(`\n${what}: ${err?.message ?? err}`)
-  console.error('\nThis script reads Firestore with admin credentials. Get them with either:')
-  console.error('  firebase login                            (then re-run)')
-  console.error('  export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json')
+  console.error('')
+  for (const line of AUTH_REMEDIES[kind] ?? AUTH_REMEDIES.missing) console.error(line)
   process.exit(1)
 }
 
@@ -204,7 +244,8 @@ async function main() {
     papersSnap = await db.collection('pastPapers')
       .where('status', '==', PAPER_STATUS_PUBLISHED).get()
   } catch (err) {
-    if (isAuthFailure(err)) exitUnauthenticated('could not authenticate to Firestore', err)
+    const kind = classifyAuthFailure(err)
+    if (kind) exitUnauthenticated('could not authenticate to Firestore', err, kind)
     throw err
   }
 

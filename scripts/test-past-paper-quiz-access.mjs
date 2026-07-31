@@ -18,7 +18,9 @@
 import assert from 'node:assert/strict'
 
 import {
+  AUTH_REMEDIES,
   PAPER_QUIZ_STATES,
+  classifyAuthFailure,
   classifyPaperQuizLink,
   isAuthFailure,
   markPendingPatch,
@@ -156,26 +158,55 @@ t('a deleted quiz parks nothing — there is nothing to resume', () => {
 
 console.log('credential failures')
 
-t('the real application-default failure is recognised', () => {
+t('no credentials at all classifies as missing', () => {
   // Verbatim from a run with no credentials — the whole reason this exists is
   // that initializeApp() succeeds and the FIRST QUERY is what fails.
-  assert.equal(isAuthFailure(new Error('Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information.')), true)
+  assert.equal(classifyAuthFailure(new Error('Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information.')), 'missing')
 })
 
-t('a gRPC UNAUTHENTICATED status is recognised', () => {
-  assert.equal(isAuthFailure({ code: 16, message: 'UNAUTHENTICATED' }), true)
+t('an expired grant classifies as expired, not missing', () => {
+  // Verbatim from a real run against production: credentials WERE configured,
+  // Google just wanted them re-authorised. Reporting this as "missing" sends
+  // the operator to set up something they already have.
+  const err = new Error('2 UNKNOWN: Getting metadata from plugin failed with error: {"error":"invalid_grant","error_description":"reauth related error (rapt_required)","error_uri":"https://support.google.com/a/answer/9368756","error_subtype":"rapt_required"}')
+  err.code = 2
+  assert.equal(classifyAuthFailure(err), 'expired')
 })
 
-t('PERMISSION_DENIED is NOT reported as missing credentials', () => {
-  // A signed-in principal without the right role. Telling that operator to run
-  // `firebase login` sends them down the wrong path — they already are.
+t('the kind is read from `details` too, not only `message`', () => {
+  // gRPC puts the payload on `details`; a wrapper that loses the message must
+  // not turn a known failure into an unclassified one.
+  assert.equal(classifyAuthFailure({ code: 2, details: 'invalid_grant ... rapt_required' }), 'expired')
+})
+
+t('a gRPC UNAUTHENTICATED status classifies as missing', () => {
+  assert.equal(classifyAuthFailure({ code: 16, message: 'UNAUTHENTICATED' }), 'missing')
+})
+
+t('PERMISSION_DENIED is NOT an auth failure', () => {
+  // A signed-in principal without the right role. Sending that operator to a
+  // login command is the wrong path — they already are signed in.
+  assert.equal(classifyAuthFailure({ code: 7, message: 'Missing or insufficient permissions.' }), null)
   assert.equal(isAuthFailure({ code: 7, message: 'Missing or insufficient permissions.' }), false)
 })
 
 t('an ordinary Firestore failure is left to surface as itself', () => {
-  assert.equal(isAuthFailure(new Error('The query requires an index.')), false)
-  assert.equal(isAuthFailure({ code: 14, message: 'UNAVAILABLE' }), false)
-  assert.equal(isAuthFailure(null), false)
+  assert.equal(classifyAuthFailure(new Error('The query requires an index.')), null)
+  assert.equal(classifyAuthFailure({ code: 14, message: 'UNAVAILABLE' }), null)
+  assert.equal(classifyAuthFailure(null), null)
+})
+
+t('each kind has a remedy, and none of them says `firebase login`', () => {
+  // firebase-admin authenticates with Google APPLICATION-DEFAULT credentials,
+  // not the ones `firebase login` stores for the firebase CLI. Naming the
+  // wrong command costs the operator a round trip.
+  for (const kind of ['expired', 'missing']) {
+    const lines = AUTH_REMEDIES[kind]
+    assert.ok(Array.isArray(lines) && lines.length > 0, `no remedy for ${kind}`)
+    const text = lines.join('\n')
+    assert.ok(/gcloud auth application-default login/.test(text), `${kind} does not name the working command`)
+    assert.ok(!/^\s*firebase login\s*$/m.test(text), `${kind} still suggests firebase login`)
+  }
 })
 
 console.log('load outcomes')
