@@ -45,7 +45,7 @@ export default function SubjectIcon({
   return (
     <span
       className={`inline-grid place-items-center rounded-2xl ${className}`}
-      style={{ width: px, height: px, background: bg, color: '#0e2a32' }}
+      style={{ width: px, height: px, background: bg, color: 'var(--zt-text)' }}
       aria-hidden="true"
     >
       {IconComp

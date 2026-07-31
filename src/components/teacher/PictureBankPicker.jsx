@@ -110,7 +110,7 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
       style={{
         flex: 1, padding: '8px 12px', fontSize: 14, cursor: 'pointer',
         border: 'none', borderBottom: `2.5px solid ${tab === key ? '#d97757' : 'transparent'}`,
-        background: 'none', fontWeight: tab === key ? 800 : 500, color: '#0e2a32',
+        background: 'none', fontWeight: tab === key ? 800 : 500, color: 'var(--zt-text)',
       }}
     >
       {label}
@@ -129,14 +129,14 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
     >
       <div
         style={{
-          background: '#fff', borderRadius: 16, width: 'min(720px, 100%)',
+          background: 'var(--zt-card)', borderRadius: 16, width: 'min(720px, 100%)',
           maxHeight: '85vh', display: 'flex', flexDirection: 'column',
           padding: 16,
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-3 mb-2">
-          <h3 style={{ fontWeight: 900, fontSize: 18, color: '#0e2a32', margin: 0 }}>
+          <h3 style={{ fontWeight: 900, fontSize: 18, color: 'var(--zt-text)', margin: 0 }}>
             Add a picture
           </h3>
           <button type="button" onClick={onClose}
@@ -159,13 +159,13 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
                 onChange={(e) => setTerm(e.target.value)}
                 placeholder='Search, e.g. "domestic animals" or "coat of arms"'
                 className="flex-1 border rounded-lg px-3 py-2 text-sm"
-                style={{ borderColor: '#d9cfb8', minWidth: 180 }}
+                style={{ borderColor: 'var(--zt-line)', minWidth: 180 }}
               />
               <select
                 value={subjectFilter}
                 onChange={(e) => setSubjectFilter(e.target.value)}
                 className="border rounded-lg px-2 py-2 text-sm"
-                style={{ borderColor: '#d9cfb8' }}
+                style={{ borderColor: 'var(--zt-line)' }}
               >
                 <option value="all">All subjects</option>
                 {subjectOptions.map((s) => (
@@ -180,16 +180,16 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
                   connection and try again — or use ✨ Generate with AI.
                 </p>
               ) : results === null || (isSearching && results.length === 0) ? (
-                <p className="text-sm" style={{ color: '#566f76' }}>Searching…</p>
+                <p className="text-sm" style={{ color: 'var(--zt-text-muted)' }}>Searching…</p>
               ) : results.length === 0 ? (
-                <div className="text-sm" style={{ color: '#566f76' }}>
+                <div className="text-sm" style={{ color: 'var(--zt-text-muted)' }}>
                   {term || subjectFilter !== 'all' ? (
                     <p>
                       Nothing matches{term ? ` “${term}”` : ''}
                       {subjectFilter !== 'all' ? ' in this subject' : ''}.{' '}
                       {subjectFilter !== 'all' && (
                         <button type="button" className="underline font-bold"
-                          style={{ color: '#0e2a32', border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}
+                          style={{ color: 'var(--zt-text)', border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}
                           onClick={() => setSubjectFilter('all')}>
                           Search all subjects
                         </button>
@@ -205,7 +205,7 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
                   <button
                     type="button"
                     className="mt-2 rounded-lg px-4 py-2 text-sm font-bold"
-                    style={{ border: '1.5px solid #d97757', color: '#0e2a32', background: '#fff3e8', cursor: 'pointer' }}
+                    style={{ border: '1.5px solid #d97757', color: 'var(--zt-text)', background: '#fff3e8', cursor: 'pointer' }}
                     onClick={() => { setTab('ai'); if (term) setPrompt(term) }}
                   >
                     ✨ Generate this picture with AI instead
@@ -214,7 +214,7 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
               ) : (
                 <>
                   {isSearching && (
-                    <p className="text-xs" style={{ color: '#566f76', marginBottom: 6 }}>Searching…</p>
+                    <p className="text-xs" style={{ color: 'var(--zt-text-muted)', marginBottom: 6 }}>Searching…</p>
                   )}
                   <div
                     style={{
@@ -233,19 +233,19 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
                         disabled={!url}
                         style={{
                           border: '1.5px solid #d9cfb8', borderRadius: 12,
-                          padding: 6, background: '#fff', cursor: 'pointer',
+                          padding: 6, background: 'var(--zt-card)', cursor: 'pointer',
                           textAlign: 'left',
                         }}
                         title={p.name}
                       >
                         {url ? (
                           <img src={url} alt={p.name}
-                            style={{ width: '100%', height: 90, objectFit: 'contain', background: '#f8f6ef', borderRadius: 8 }} />
+                            style={{ width: '100%', height: 90, objectFit: 'contain', background: 'var(--zt-surface)', borderRadius: 8 }} />
                         ) : (
                           <div style={{ width: '100%', height: 90, background: '#f1ede1', borderRadius: 8 }} />
                         )}
                         <div style={{
-                          fontSize: 12, fontWeight: 700, color: '#0e2a32',
+                          fontSize: 12, fontWeight: 700, color: 'var(--zt-text)',
                           marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
                         }}>
@@ -269,7 +269,7 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
               rows={3}
               placeholder="Describe the picture (e.g. Labelled diagram of the human ear showing the earlobe, eardrum, middle ear and inner ear)"
               className="border rounded-lg px-3 py-2 text-sm"
-              style={{ borderColor: '#d9cfb8', resize: 'vertical', fontFamily: 'inherit' }}
+              style={{ borderColor: 'var(--zt-line)', resize: 'vertical', fontFamily: 'inherit' }}
               disabled={aiBusy}
             />
             <div style={{ display: 'flex', gap: 6 }}>
@@ -283,11 +283,11 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
                     flex: 1, padding: '8px 10px', borderRadius: 10, fontSize: 13, cursor: 'pointer',
                     border: `1.5px solid ${provider === s.provider ? '#d97757' : '#d9cfb8'}`,
                     background: provider === s.provider ? '#fff3e8' : '#fff',
-                    color: '#0e2a32', textAlign: 'center',
+                    color: 'var(--zt-text)', textAlign: 'center',
                   }}
                 >
                   {s.label}
-                  <small style={{ display: 'block', color: '#566f76', fontSize: 10, marginTop: 2 }}>{s.hint}</small>
+                  <small style={{ display: 'block', color: 'var(--zt-text-muted)', fontSize: 10, marginTop: 2 }}>{s.hint}</small>
                 </button>
               ))}
             </div>
@@ -297,7 +297,7 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
             {aiUrl ? (
               <>
                 <img src={aiUrl} alt={prompt}
-                  style={{ width: '100%', maxHeight: 280, objectFit: 'contain', background: '#f8f6ef', borderRadius: 12, border: '1px solid #d9cfb8' }} />
+                  style={{ width: '100%', maxHeight: 280, objectFit: 'contain', background: 'var(--zt-surface)', borderRadius: 12, border: '1px solid #d9cfb8' }} />
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button type="button"
                     className="rounded-lg px-4 py-2 text-sm font-bold"
@@ -308,7 +308,7 @@ export default function PictureBankPicker({ subject = '', onSelect, onClose }) {
                   </button>
                   <button type="button"
                     className="rounded-lg px-4 py-2 text-sm"
-                    style={{ flex: 1, border: '1.5px solid #d9cfb8', background: '#fff', cursor: 'pointer', color: '#0e2a32' }}
+                    style={{ flex: 1, border: '1.5px solid #d9cfb8', background: 'var(--zt-card)', cursor: 'pointer', color: 'var(--zt-text)' }}
                     onClick={runAiGenerate}
                     disabled={aiBusy}
                   >

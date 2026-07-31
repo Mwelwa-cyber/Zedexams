@@ -113,7 +113,7 @@ export default function DiagramFixupPanel({ sections, subject, questionNumbers, 
     >
       <div
         style={{
-          background: '#fff', borderRadius: 16, width: 'min(760px, 100%)',
+          background: 'var(--zt-card)', borderRadius: 16, width: 'min(760px, 100%)',
           maxHeight: '88vh', display: 'flex', flexDirection: 'column',
           padding: 16,
         }}
@@ -121,10 +121,10 @@ export default function DiagramFixupPanel({ sections, subject, questionNumbers, 
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div>
-            <h3 style={{ margin: 0, fontWeight: 900, fontSize: 18, color: '#0e2a32' }}>
+            <h3 style={{ margin: 0, fontWeight: 900, fontSize: 18, color: 'var(--zt-text)' }}>
               🖼 Diagrams needed ({entries.length})
             </h3>
-            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#566f76' }}>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--zt-text-muted)' }}>
               These questions reference a figure. Attach a match from the
               picture bank, or generate one from the AI's description.
             </p>
@@ -144,7 +144,7 @@ export default function DiagramFixupPanel({ sections, subject, questionNumbers, 
                   style={{
                     padding: '5px 10px', borderRadius: 999, fontSize: 12, cursor: 'pointer',
                     border: `1.5px solid ${provider === s.provider ? '#d97757' : '#d9cfb8'}`,
-                    background: provider === s.provider ? '#fff3e8' : '#fff', color: '#0e2a32',
+                    background: provider === s.provider ? '#fff3e8' : '#fff', color: 'var(--zt-text)',
                   }}>
                   {s.label}
                 </button>
@@ -166,7 +166,7 @@ export default function DiagramFixupPanel({ sections, subject, questionNumbers, 
 
         <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
           {entries.length === 0 && (
-            <p style={{ fontSize: 14, color: '#566f76' }}>
+            <p style={{ fontSize: 14, color: 'var(--zt-text-muted)' }}>
               🎉 Every diagram question has its figure. Nothing to fix.
             </p>
           )}
@@ -180,15 +180,15 @@ export default function DiagramFixupPanel({ sections, subject, questionNumbers, 
               : `Q${questionNumbers?.[q.localId] || '?'} · ${String(q.text || '').slice(0, 90)}`
             return (
               <div key={key} style={{ border: '1px solid #d9cfb8', borderRadius: 12, padding: 12 }}>
-                <div style={{ fontSize: 13, color: '#566f76' }}>
+                <div style={{ fontSize: 13, color: 'var(--zt-text-muted)' }}>
                   {label}
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#0e2a32', margin: '4px 0 8px' }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--zt-text)', margin: '4px 0 8px' }}>
                   {job.brief}
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                   {bank === null ? (
-                    <span style={{ fontSize: 12, color: '#566f76' }}>Checking the picture bank…</span>
+                    <span style={{ fontSize: 12, color: 'var(--zt-text-muted)' }}>Checking the picture bank…</span>
                   ) : matches.length > 0 ? (
                     matches.map((p) => {
                       const url = p.url || urls[p.id]
@@ -199,29 +199,29 @@ export default function DiagramFixupPanel({ sections, subject, questionNumbers, 
                           title={`Attach "${p.name}"`}
                           style={{
                             border: '1.5px solid #d9cfb8', borderRadius: 10, padding: 4,
-                            background: '#fff', cursor: 'pointer', width: 92,
+                            background: 'var(--zt-card)', cursor: 'pointer', width: 92,
                           }}>
                           {url ? (
                             <img src={url} alt={p.name}
-                              style={{ width: '100%', height: 60, objectFit: 'contain', background: '#f8f6ef', borderRadius: 6 }} />
+                              style={{ width: '100%', height: 60, objectFit: 'contain', background: 'var(--zt-surface)', borderRadius: 6 }} />
                           ) : (
                             <div style={{ width: '100%', height: 60, background: '#f1ede1', borderRadius: 6 }} />
                           )}
-                          <div style={{ fontSize: 10, fontWeight: 700, color: '#0e2a32', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--zt-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {p.name}
                           </div>
                         </button>
                       )
                     })
                   ) : (
-                    <span style={{ fontSize: 12, color: '#566f76' }}>No bank match —</span>
+                    <span style={{ fontSize: 12, color: 'var(--zt-text-muted)' }}>No bank match —</span>
                   )}
                   <button type="button"
                     onClick={() => generateFor(job)}
                     disabled={busy || batchRunning}
                     style={{
                       padding: '6px 12px', borderRadius: 10, fontSize: 13, fontWeight: 700,
-                      border: '1.5px solid #d97757', background: '#fff3e8', color: '#0e2a32',
+                      border: '1.5px solid #d97757', background: '#fff3e8', color: 'var(--zt-text)',
                       cursor: 'pointer', opacity: busy ? 0.6 : 1,
                     }}>
                     {busy ? '✦ Generating…' : '✨ Generate it'}

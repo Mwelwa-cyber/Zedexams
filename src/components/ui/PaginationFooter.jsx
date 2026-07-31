@@ -78,7 +78,7 @@ export default function PaginationFooter({
           {sentinelRef ? <div ref={sentinelRef} aria-hidden="true" style={{ height: 1, width: '100%' }} /> : null}
         </>
       ) : loadedCount > 0 ? (
-        <p className="text-xs font-bold" style={{ color: '#8a9aa1' }}>
+        <p className="text-xs font-bold" style={{ color: 'var(--zt-text-muted)' }}>
           You've reached the end · {loadedCount} {loadedCount === 1 ? noun : plural}
         </p>
       ) : null}

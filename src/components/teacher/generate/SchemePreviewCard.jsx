@@ -13,7 +13,7 @@ import { curriculumLabel, templateLabel } from '../../../utils/schemeFormat'
 function Row({ label, value, missing }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-1.5 border-b" style={{ borderColor: '#efe7d2' }}>
-      <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#8a7a55' }}>{label}</span>
+      <span className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--zt-text-muted)' }}>{label}</span>
       <span className="text-sm font-bold text-right" style={{ color: missing ? '#b45309' : '#0e2a32' }}>
         {value || '—'}
       </span>
@@ -62,7 +62,7 @@ export default function SchemePreviewCard({
       </div>
 
       <div className="mt-3">
-        <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#8a7a55' }}>Sources</span>
+        <span className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--zt-text-muted)' }}>Sources</span>
         <div className="flex flex-wrap gap-1.5 mt-1">
           {(sources.length ? sources : ['Syllabus Studio', 'Curriculum Framework', 'School Calendar']).map((s) => (
             <span key={s} className="text-[11px] font-bold px-2 py-0.5 rounded-md" style={{ background: '#eef6f2', color: '#0e6b52' }}>

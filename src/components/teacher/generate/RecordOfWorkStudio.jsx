@@ -393,7 +393,7 @@ export default function RecordOfWorkStudio() {
         <div className="space-y-6">
           {/* Opening an existing record by id — loading + safe not-found states. */}
           {openState === 'loading' && (
-            <div className="rounded-xl border theme-border bg-white px-4 py-3 text-sm" role="status" style={{ color: '#566f76' }}>
+            <div className="rounded-xl border theme-border bg-white px-4 py-3 text-sm" role="status" style={{ color: 'var(--zt-text-muted)' }}>
               Opening your Record of Work…
             </div>
           )}
@@ -419,7 +419,7 @@ export default function RecordOfWorkStudio() {
           <section className="studio-card p-5 space-y-3">
             <div>
               <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>Start from your scheme of work</h2>
-              <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
                 {schemesStatus === 'ready' && schemes.length === 0
                   ? 'No saved schemes yet — generate one first, or log the weeks manually below.'
                   : "Every scheme week arrives prefilled with its planned work; edit each log to record what really happened."}
@@ -447,7 +447,7 @@ export default function RecordOfWorkStudio() {
               <button type="button" onClick={buildFromCalendar} className="studio-btn-ghost">
                 📅 Fill from the School Calendar &amp; my lesson plans
               </button>
-              <span className="text-xs" style={{ color: '#566f76' }}>
+              <span className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>
                 Uses Term {header.term} · {header.year} and your grade/subject below.
               </span>
             </div>
@@ -500,7 +500,7 @@ export default function RecordOfWorkStudio() {
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
                 <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>The term, week by week</h2>
-                <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
                   One line per item of work done. Mark coverage after each week — remarks are for what to re-teach or carry over.
                 </p>
                 {attentionSummary && (
@@ -525,16 +525,16 @@ export default function RecordOfWorkStudio() {
                 >
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-xs font-black uppercase tracking-wide" style={{ color: '#0e2a32' }}>Week {w.week || i + 1}</p>
+                      <p className="text-xs font-black uppercase tracking-wide" style={{ color: 'var(--zt-text)' }}>Week {w.week || i + 1}</p>
                       {/* Text + icon, never colour alone. Derived, not stored. */}
                       <span
                         className="text-[11px] font-bold px-2 py-0.5 rounded-full border"
                         style={
-                          meta.tone === 'good' ? { background: '#ecfdf5', borderColor: '#a7f3d0', color: '#065f46' }
+                          meta.tone === 'good' ? { background: '#ecfdf5', borderColor: '#a7f3d0', color: 'var(--success-fg)' }
                             : meta.tone === 'warn' ? { background: '#fffbeb', borderColor: '#fcd34d', color: '#92400e' }
                               : meta.tone === 'bad' ? { background: '#fef2f2', borderColor: '#fecaca', color: '#991b1b' }
                                 : meta.tone === 'info' ? { background: '#eff6ff', borderColor: '#bfdbfe', color: '#1e40af' }
-                                  : { background: '#f8fafc', borderColor: '#e2e8f0', color: '#475569' }
+                                  : { background: '#f8fafc', borderColor: '#e2e8f0', color: 'var(--zt-text-muted)' }
                         }
                       >
                         {meta.icon} {meta.label}
@@ -568,7 +568,7 @@ export default function RecordOfWorkStudio() {
                       <Link
                         to={`/teacher/library/${w.sourceLessonPlanId}`}
                         className="text-[11px] font-bold underline"
-                        style={{ color: '#4338ca' }}
+                        style={{ color: 'var(--info-fg)' }}
                         title="Open the lesson plan this planned topic came from"
                       >
                         📘 From your lesson plan
@@ -600,7 +600,7 @@ export default function RecordOfWorkStudio() {
                       taught, reason and initials stay digital-only. Optional;
                       legacy records need no backfill. */}
                   <details open={weekHasVariance(w)}>
-                    <summary className="text-xs font-bold cursor-pointer" style={{ color: '#566f76' }}>
+                    <summary className="text-xs font-bold cursor-pointer" style={{ color: 'var(--zt-text-muted)' }}>
                       Variance details (optional — only the follow-up prints, in REMARKS)
                     </summary>
                     <div className="grid grid-cols-2 gap-2 mt-2">
@@ -633,7 +633,7 @@ export default function RecordOfWorkStudio() {
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
                 <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>Your record of work</h2>
-                <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
                   Exactly what prints — with the signature block the head teacher checks.
                   {artifact && ` Coverage so far: ${summary.full} full · ${summary.partial} partial · ${summary.none} not covered · ${summary.blank} not logged.`}
                 </p>
@@ -655,14 +655,14 @@ export default function RecordOfWorkStudio() {
               </div>
             </div>
             {generationId && (
-              <p className="text-xs mb-3 -mt-2" style={{ color: '#566f76' }}>
+              <p className="text-xs mb-3 -mt-2" style={{ color: 'var(--zt-text-muted)' }}>
                 In your library — <Link to={`/teacher/library/${generationId}`} className="font-bold underline">open the saved copy</Link>.
               </p>
             )}
             {artifact ? (
               <RecordOfWorkView record={artifact} />
             ) : (
-              <div className="rounded-xl border border-dashed theme-border bg-white/60 py-14 text-center text-sm" style={{ color: '#566f76' }}>
+              <div className="rounded-xl border border-dashed theme-border bg-white/60 py-14 text-center text-sm" style={{ color: 'var(--zt-text-muted)' }}>
                 Build the term from your scheme above, or type a week's topic — the record appears here as you go.
               </div>
             )}

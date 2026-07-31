@@ -112,13 +112,13 @@ export default function BlockDetailsModal({
         className="relative w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-5 space-y-4 shadow-xl">
         <div>
           <h3 className="text-base font-black">{block.label}</h3>
-          <p className="text-xs" style={{ color: '#566f76' }}>
+          <p className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>
             {block.day} · Period {block.startSlot}{block.length > 1 ? ` (double period, ${block.length} periods)` : ''}
           </p>
         </div>
 
         <fieldset className="space-y-2">
-          <legend className="text-xs font-black uppercase tracking-wide" style={{ color: '#566f76' }}>Teacher</legend>
+          <legend className="text-xs font-black uppercase tracking-wide" style={{ color: 'var(--zt-text-muted)' }}>Teacher</legend>
           <label className="flex items-start gap-2 text-sm">
             <input type="radio" name="teacher-mode" checked={teacherMode === 'none'}
               onChange={() => setTeacherMode('none')} className="mt-1" />
@@ -129,7 +129,7 @@ export default function BlockDetailsModal({
               onChange={() => setTeacherMode('me')} className="mt-1" />
             <span className="flex-1">
               <span className="font-bold">Me{teacherDisplayName ? ` — ${teacherDisplayName}` : ''}</span>
-              <span className="block text-[11px]" style={{ color: '#566f76' }}>
+              <span className="block text-[11px]" style={{ color: 'var(--zt-text-muted)' }}>
                 Linked through a Teaching Assignment — enables reliable conflict checking and My Teaching Timetable import.
               </span>
               {teacherMode === 'me' && (
@@ -143,7 +143,7 @@ export default function BlockDetailsModal({
                     ))}
                   </select>
                 ) : (
-                  <span className="block mt-1 text-[11px] font-bold" style={{ color: '#9a7000' }}>
+                  <span className="block mt-1 text-[11px] font-bold" style={{ color: 'var(--warning-fg)' }}>
                     No active Teaching Assignments — add one in Settings → Teaching Profile first.
                   </span>
                 )
@@ -155,7 +155,7 @@ export default function BlockDetailsModal({
               onChange={() => setTeacherMode('named')} className="mt-1" />
             <span className="flex-1">
               <span className="font-bold">Another teacher (name only)</span>
-              <span className="block text-[11px]" style={{ color: '#9a7000' }}>
+              <span className="block text-[11px]" style={{ color: 'var(--warning-fg)' }}>
                 A name is display text, not an identity — overlaps for name-only teachers are reported as unverified warnings.
               </span>
               {teacherMode === 'named' && (
@@ -169,7 +169,7 @@ export default function BlockDetailsModal({
         </fieldset>
 
         <fieldset className="space-y-1.5">
-          <legend className="text-xs font-black uppercase tracking-wide" style={{ color: '#566f76' }}>Room / facility</legend>
+          <legend className="text-xs font-black uppercase tracking-wide" style={{ color: 'var(--zt-text-muted)' }}>Room / facility</legend>
           <select value={roomChoice} onChange={(e) => setRoomChoice(e.target.value)}
             aria-label="Room or facility"
             className="studio-input !py-1.5 text-xs w-full">
@@ -185,7 +185,7 @@ export default function BlockDetailsModal({
               placeholder="e.g. Room 12" aria-label="Room name"
               className="studio-input !py-1.5 text-xs w-full" />
           )}
-          <p className="text-[11px]" style={{ color: '#8a7f67' }}>
+          <p className="text-[11px]" style={{ color: 'var(--zt-text-muted)' }}>
             Shared facilities are conflict-checked across your class timetables by id; a free-text room is matched by name only.
           </p>
         </fieldset>

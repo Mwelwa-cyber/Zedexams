@@ -345,7 +345,7 @@ function Shell({ children }) {
   return (
     <div
       className="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-y-auto"
-      style={{ backgroundColor: '#FDF6EC', '--accent': '#C5613F', '--accent-bg': '#F8EADF', '--accent-fg': '#83372C' }}
+      style={{ backgroundColor: 'var(--zt-surface)', '--accent': '#C5613F', '--accent-bg': '#F8EADF', '--accent-fg': '#83372C' }}
     >
       <div className="bg-white rounded-[18px] shadow-xl w-full max-w-[calc(100vw-2rem)] sm:max-w-[460px] px-5 sm:px-8 pt-8 pb-7 animate-scale-in relative z-10">
         <div className="flex flex-col items-center mb-5 gap-1">

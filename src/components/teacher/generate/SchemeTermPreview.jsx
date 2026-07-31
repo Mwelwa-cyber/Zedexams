@@ -84,31 +84,31 @@ function Advisories({ list }) {
 function TopicCard({ item, index, count, onRemove, onMove, onWeeks }) {
   const subs = Array.isArray(item.subtopics) ? item.subtopics : []
   return (
-    <div className="rounded-xl border theme-border p-3.5" style={{ background: '#fff' }}>
+    <div className="rounded-xl border theme-border p-3.5" style={{ background: 'var(--zt-card)' }}>
       <div className="flex items-start gap-3">
         <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg font-black text-white shrink-0 mt-0.5" style={{ background: item.isRevision ? '#6b21a8' : '#0e2a32' }}>
           {index + 1}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-black break-words" style={{ color: '#0e2a32' }}>
+            <span className="text-sm font-black break-words" style={{ color: 'var(--zt-text)' }}>
               {item.topic}
             </span>
             <SourceBadge source={item.isRevision ? 'teacher' : item.source} />
           </div>
           {subs.length > 0 && (
-            <p className="text-xs mt-1 break-words" style={{ color: '#566f76' }}>
+            <p className="text-xs mt-1 break-words" style={{ color: 'var(--zt-text-muted)' }}>
               {subs.slice(0, 6).join(' · ')}{subs.length > 6 ? ` +${subs.length - 6} more` : ''}
             </p>
           )}
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             {/* Weeks stepper */}
-            <div className="inline-flex items-center gap-1 rounded-lg border theme-border px-1" style={{ background: '#fbfaf5' }}>
-              <button type="button" aria-label="Fewer weeks" onClick={() => onWeeks(Math.max(1, (item.weeks || 1) - 1))} className="px-2 py-0.5 text-sm font-black" style={{ color: '#566f76' }}>−</button>
-              <span className="text-xs font-bold tabular-nums" style={{ color: '#0e2a32' }}>
+            <div className="inline-flex items-center gap-1 rounded-lg border theme-border px-1" style={{ background: 'var(--zt-surface)' }}>
+              <button type="button" aria-label="Fewer weeks" onClick={() => onWeeks(Math.max(1, (item.weeks || 1) - 1))} className="px-2 py-0.5 text-sm font-black" style={{ color: 'var(--zt-text-muted)' }}>−</button>
+              <span className="text-xs font-bold tabular-nums" style={{ color: 'var(--zt-text)' }}>
                 {item.weeks || 1} wk{(item.weeks || 1) === 1 ? '' : 's'}
               </span>
-              <button type="button" aria-label="More weeks" onClick={() => onWeeks(Math.min(6, (item.weeks || 1) + 1))} className="px-2 py-0.5 text-sm font-black" style={{ color: '#566f76' }}>+</button>
+              <button type="button" aria-label="More weeks" onClick={() => onWeeks(Math.min(6, (item.weeks || 1) + 1))} className="px-2 py-0.5 text-sm font-black" style={{ color: 'var(--zt-text-muted)' }}>+</button>
             </div>
           </div>
         </div>
@@ -197,12 +197,12 @@ function TermPanel({
     <div className={`rounded-2xl border p-4 sm:p-5 ${focused ? '' : 'opacity-95'}`} style={{ background: '#fdfbf4', borderColor: '#e6dcc0' }}>
       <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
         <h3 className="studio-display" style={{ fontSize: 18, margin: 0 }}>Term {term}</h3>
-        <span className="text-xs font-bold" style={{ color: '#8a7a55' }}>
+        <span className="text-xs font-bold" style={{ color: 'var(--zt-text-muted)' }}>
           {totalWeeks ? `${totalWeeks} calendar week${totalWeeks === 1 ? '' : 's'}` : ''}
           {deliveryWeeks ? ` · ${deliveryWeeks} for teaching` : ''}
         </span>
       </div>
-      <p className="text-sm mb-3" style={{ color: '#566f76' }}>
+      <p className="text-sm mb-3" style={{ color: 'var(--zt-text-muted)' }}>
         We are planning for <b>Term {term}</b>. Based on the syllabus, the periods per week and the school calendar,
         these are the topics we suggest — <b>{used}</b> of about <b>{deliveryWeeks || totalWeeks || '—'}</b> teaching weeks used.
         Remove, reorder, add, or change the weeks for any topic, then approve.
@@ -226,7 +226,7 @@ function TermPanel({
           />
         ))}
         {items.length === 0 && (
-          <div className="rounded-xl border theme-border p-5 text-center text-sm" style={{ color: '#566f76' }}>
+          <div className="rounded-xl border theme-border p-5 text-center text-sm" style={{ color: 'var(--zt-text-muted)' }}>
             No topics for this term yet — add one below or restore a removed topic.
           </div>
         )}
@@ -239,7 +239,7 @@ function TermPanel({
             typing it. */}
         {allTopics.length > 0 && (
           <div>
-            <label className="text-xs font-bold uppercase tracking-wide" style={{ color: '#8a7a55' }}>
+            <label className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--zt-text-muted)' }}>
               Add a topic from the syllabus
             </label>
             <select
@@ -278,10 +278,10 @@ function TermPanel({
       {/* Removed bin */}
       {removed.length > 0 && (
         <div className="mt-3">
-          <p className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: '#8a7a55' }}>Removed — tap to restore</p>
+          <p className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: 'var(--zt-text-muted)' }}>Removed — tap to restore</p>
           <div className="flex flex-wrap gap-1.5">
             {removed.map((r) => (
-              <button key={r.id} type="button" onClick={() => restore(r.id)} className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: '#f3f4f6', color: '#374151', border: '1px dashed #cbd5e1' }}>
+              <button key={r.id} type="button" onClick={() => restore(r.id)} className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: '#f3f4f6', color: 'var(--zt-text-muted)', border: '1px dashed #cbd5e1' }}>
                 ↩ {r.topic}
               </button>
             ))}
@@ -361,7 +361,7 @@ export default function SchemeTermPreview({
     return (
       <div className="studio-card p-8 text-center">
         <div className="text-3xl mb-2">🦁</div>
-        <p className="text-sm" style={{ color: '#566f76' }}>Reading the syllabus and school calendar…</p>
+        <p className="text-sm" style={{ color: 'var(--zt-text-muted)' }}>Reading the syllabus and school calendar…</p>
       </div>
     )
   }
@@ -372,7 +372,7 @@ export default function SchemeTermPreview({
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
             <h2 className="studio-display" style={{ fontSize: 22, margin: '0 0 2px' }}>Review your term plan</h2>
-            <p className="text-sm" style={{ color: '#566f76' }}>
+            <p className="text-sm" style={{ color: 'var(--zt-text-muted)' }}>
               {curriculumLabel ? `${curriculumLabel} · ` : ''}{gradeLabel}{subjectLabel ? ` · ${subjectLabel}` : ''}
             </p>
           </div>
@@ -392,14 +392,14 @@ export default function SchemeTermPreview({
               className="px-4 py-2 text-sm font-bold"
               style={scope === opt.v
                 ? { background: '#0e2a32', color: '#fff' }
-                : { background: '#fff', color: '#566f76' }}
+                : { background: 'var(--zt-card)', color: 'var(--zt-text-muted)' }}
             >
               {opt.label}
             </button>
           ))}
         </div>
         {scope === 'all' && (
-          <p className="text-xs mt-2" style={{ color: '#566f76' }}>
+          <p className="text-xs mt-2" style={{ color: 'var(--zt-text-muted)' }}>
             The full syllabus is divided across all three terms below. Review and edit each term, then generate them one at a time.
           </p>
         )}

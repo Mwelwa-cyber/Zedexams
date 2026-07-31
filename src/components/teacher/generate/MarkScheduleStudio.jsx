@@ -307,7 +307,7 @@ export default function MarkScheduleStudio() {
             {/* Subjects + max marks */}
             <div>
               <label className="studio-label">Subjects and maximum marks</label>
-              <p className="text-xs mb-1.5" style={{ color: '#566f76' }}>
+              <p className="text-xs mb-1.5" style={{ color: 'var(--zt-text-muted)' }}>
                 Pick a subject and an out-of mark from the dropdowns, or type your own.
               </p>
               {/* Shared option lists for the comboboxes below — a teacher chooses
@@ -364,7 +364,7 @@ export default function MarkScheduleStudio() {
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
                 <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>Pupils and marks</h2>
-                <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
                   {named.length} pupil{named.length === 1 ? '' : 's'} entered · rows without a name are ignored
                 </p>
               </div>
@@ -378,7 +378,7 @@ export default function MarkScheduleStudio() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm border-collapse min-w-[680px]">
                 <thead>
-                  <tr className="text-left text-[11px] font-black uppercase tracking-wide" style={{ color: '#566f76' }}>
+                  <tr className="text-left text-[11px] font-black uppercase tracking-wide" style={{ color: 'var(--zt-text-muted)' }}>
                     <th className="py-1.5 pr-2 w-8">SN</th>
                     <th className="py-1.5 pr-2">Pupil's name</th>
                     {subjects.map((s) => (
@@ -450,7 +450,7 @@ export default function MarkScheduleStudio() {
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
                 <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>Your mark schedule</h2>
-                <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
                   Positions update as you type — ties share a position.
                 </p>
               </div>
@@ -491,7 +491,7 @@ export default function MarkScheduleStudio() {
               </div>
             </div>
             {generationId && (
-              <p className="text-xs mb-3 -mt-2" style={{ color: '#566f76' }}>
+              <p className="text-xs mb-3 -mt-2" style={{ color: 'var(--zt-text-muted)' }}>
                 In your library — <Link to={`/teacher/library/${generationId}`} className="font-bold underline">open the saved copy</Link>.
               </p>
             )}
@@ -499,7 +499,7 @@ export default function MarkScheduleStudio() {
             {artifact ? (
               <MarkScheduleView schedule={artifact} mode={mode} />
             ) : (
-              <div className="rounded-xl border border-dashed theme-border bg-white/60 py-14 text-center text-sm" style={{ color: '#566f76' }}>
+              <div className="rounded-xl border border-dashed theme-border bg-white/60 py-14 text-center text-sm" style={{ color: 'var(--zt-text-muted)' }}>
                 Add pupils and their marks above — the schedule builds itself here as you type.
               </div>
             )}

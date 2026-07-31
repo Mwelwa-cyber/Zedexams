@@ -178,7 +178,7 @@ function PhotoEditor({ onSave, pushToast }) {
       <div
         style={{
           width: 160, height: 160, borderRadius: 16, overflow: 'hidden',
-          background: '#fff', border: '1.5px solid var(--border)', flex: '0 0 auto',
+          background: 'var(--zt-card)', border: '1.5px solid var(--border)', flex: '0 0 auto',
           display: 'grid', placeItems: 'center',
         }}
       >

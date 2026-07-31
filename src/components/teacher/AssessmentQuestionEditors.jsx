@@ -93,7 +93,7 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
     >
       <div className="sv-letter">{SECTION_LETTERS[optIndex]}</div>
       {media?.diagram?.libraryKey ? (
-        <div style={{ position: 'relative', width: 44, height: 44, borderRadius: 4, overflow: 'hidden', flexShrink: 0, background: '#fff' }}
+        <div style={{ position: 'relative', width: 44, height: 44, borderRadius: 4, overflow: 'hidden', flexShrink: 0, background: 'var(--zt-card)' }}
           onClick={e => { e.stopPropagation(); onPickDiagram?.(optIndex) }}
           role="button" tabIndex={0} title="Edit this shape"
           onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); onPickDiagram?.(optIndex) } }}>

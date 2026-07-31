@@ -34,7 +34,7 @@ export default function FullScreenLoader({ label }) {
         gap: 20,
         padding: 20,
         boxSizing: 'border-box',
-        background: '#FDF6EC',
+        background: 'var(--zt-surface)',
         fontFamily: "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif",
         zIndex: 9999,
       }}
@@ -69,7 +69,7 @@ export default function FullScreenLoader({ label }) {
         Zed<span style={{ color: '#C5613F' }}>Exams</span>
       </div>
       {label ? (
-        <div style={{ fontSize: '0.9rem', color: '#4B6280', fontWeight: 600 }}>{label}</div>
+        <div style={{ fontSize: '0.9rem', color: 'var(--info-fg)', fontWeight: 600 }}>{label}</div>
       ) : null}
       <div className="zed-boot-bar" aria-hidden="true">
         <div className="zed-boot-bar-fill" />

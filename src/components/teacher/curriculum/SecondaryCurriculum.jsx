@@ -8,14 +8,14 @@ const ZAMBIA_GREEN = '#1a7a4a'
 const ZAMBIA_GOLD = '#d4a017'
 
 const PATHWAYS = [
-  { id: 1, emoji: '🔬', title: 'Natural Sciences (STEM)',       subjects: 'Biology, Chemistry, Physics, Agricultural Science',       bg: '#e8f5ee', color: '#1a5c36' },
-  { id: 2, emoji: '🌍', title: 'Social Sciences',                subjects: 'Geography, History, Civic Education',                     bg: '#e8f0ff', color: '#2d3a8c' },
+  { id: 1, emoji: '🔬', title: 'Natural Sciences (STEM)',       subjects: 'Biology, Chemistry, Physics, Agricultural Science',       bg: '#e8f5ee', color: 'var(--success-fg)' },
+  { id: 2, emoji: '🌍', title: 'Social Sciences',                subjects: 'Geography, History, Civic Education',                     bg: '#e8f0ff', color: 'var(--info-fg)' },
   { id: 3, emoji: '💼', title: 'Business & Finance',             subjects: 'Principles of Accounts, Commerce',                        bg: '#fff3e8', color: '#8c4a00' },
-  { id: 4, emoji: '🌱', title: 'Agriculture Science (STEM)',     subjects: 'Agricultural Science, Chemistry, Physics',                bg: '#e8fff0', color: '#006b2d' },
+  { id: 4, emoji: '🌱', title: 'Agriculture Science (STEM)',     subjects: 'Agricultural Science, Chemistry, Physics',                bg: '#e8fff0', color: 'var(--success-fg)' },
   { id: 5, emoji: '🍳', title: 'Home Economics & Hospitality',   subjects: 'Food & Nutrition, Fashion, Hospitality, Tourism',         bg: '#fdf0ff', color: '#6b0080' },
-  { id: 6, emoji: '💻', title: 'Technology (STEM)',              subjects: 'Computer Science, Design & Technology, ICT',              bg: '#fff8e8', color: '#7a5800' },
-  { id: 7, emoji: '🎭', title: 'Performing & Creative Arts',     subjects: 'Music, Art & Design, Literature',                          bg: '#ffe8e8', color: '#8c0000' },
-  { id: 8, emoji: '⚽', title: 'Physical Education & Sport',     subjects: 'Physical Education, Biology',                              bg: '#e8faff', color: '#005c7a' },
+  { id: 6, emoji: '💻', title: 'Technology (STEM)',              subjects: 'Computer Science, Design & Technology, ICT',              bg: '#fff8e8', color: 'var(--warning-fg)' },
+  { id: 7, emoji: '🎭', title: 'Performing & Creative Arts',     subjects: 'Music, Art & Design, Literature',                          bg: '#ffe8e8', color: 'var(--danger-fg)' },
+  { id: 8, emoji: '⚽', title: 'Physical Education & Sport',     subjects: 'Physical Education, Biology',                              bg: '#e8faff', color: 'var(--info-fg)' },
 ]
 
 const REFORMS = [
@@ -71,9 +71,9 @@ const A_LEVEL_SUBJECTS = [
 ]
 
 const CATEGORY_TONE = {
-  'STEM':            { bg: '#e8f0ff', color: '#2d3a8c' },
-  'Social Sciences': { bg: '#e8f5ee', color: '#1a5c36' },
-  'Languages':       { bg: '#e8f5ee', color: '#1a5c36' },
+  'STEM':            { bg: '#e8f0ff', color: 'var(--info-fg)' },
+  'Social Sciences': { bg: '#e8f5ee', color: 'var(--success-fg)' },
+  'Languages':       { bg: '#e8f5ee', color: 'var(--success-fg)' },
   'Business':        { bg: '#fff3e8', color: '#8c4a00' },
   'Home Econ.':      { bg: '#f0f0f0', color: '#555555' },
   'Sports':          { bg: '#fdf0ff', color: '#6b0080' },
@@ -198,7 +198,7 @@ export default function SecondaryCurriculum() {
             title="Ordinary Level (O-Level)"
             sub="Section 4.3.1"
             rows={[
-              ['Duration', '4 Years', { background: 'rgba(26, 122, 74, 0.14)', color: '#1a5c36' }],
+              ['Duration', '4 Years', { background: 'rgba(26, 122, 74, 0.14)', color: 'var(--success-fg)' }],
               ['Forms', 'Form 1 → Form 4'],
               ['Pathways available', '8 Pathways'],
               ['Subjects per learner', '6 – 7 subjects'],
@@ -211,7 +211,7 @@ export default function SecondaryCurriculum() {
             title="Advanced Level (A-Level)"
             sub="Section 4.3.2"
             rows={[
-              ['Duration', '2 Years', { background: 'rgba(212, 160, 23, 0.18)', color: '#9a7000' }],
+              ['Duration', '2 Years', { background: 'rgba(212, 160, 23, 0.18)', color: 'var(--warning-fg)' }],
               ['Forms', 'Form 5 → Form 6'],
               ['Pathways available', '5 Pathways'],
               ['Subjects per learner', '3 – 4 subjects'],

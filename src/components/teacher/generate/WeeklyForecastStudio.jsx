@@ -694,7 +694,7 @@ export default function WeeklyForecastStudio() {
           <section className="studio-card p-5 space-y-4">
             <div>
               <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>1. Choose what you're planning</h2>
-              <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
                 Pick the curriculum, grade and subject — the topic and competence lists become specific to them. The week's dates fill from the MoE calendar.
               </p>
             </div>
@@ -762,7 +762,7 @@ export default function WeeklyForecastStudio() {
           <section className="studio-card p-5 space-y-4">
             <div>
               <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>2. Pull from your curriculum</h2>
-              <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
                 Start from a saved scheme of work, set the teaching days from your class timetable, or just pick topics per day from the syllabus below.
               </p>
             </div>
@@ -770,7 +770,7 @@ export default function WeeklyForecastStudio() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Scheme of work + uploaded modules */}
               <div className="rounded-xl border theme-border bg-white p-3 space-y-2">
-                <p className="text-xs font-black uppercase tracking-wide" style={{ color: '#0e2a32' }}>📋 Scheme of work or modules</p>
+                <p className="text-xs font-black uppercase tracking-wide" style={{ color: 'var(--zt-text)' }}>📋 Scheme of work or modules</p>
                 <div>
                   <label className="studio-label">Saved scheme</label>
                   <select value={schemeId} onChange={(e) => { setSchemeId(e.target.value); setWeekPick('') }} className="studio-input" disabled={schemesStatus !== 'ready' || !schemes.length}>
@@ -789,7 +789,7 @@ export default function WeeklyForecastStudio() {
                   >
                     {moduleStatus === 'loading' ? 'Loading modules…' : '📚 Load from curriculum modules'}
                   </button>
-                  <span className="text-xs" style={{ color: '#566f76' }}>
+                  <span className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>
                     {moduleStatus === 'ready' && !selectedScheme && `${moduleWeeks.length} module sub-topic${moduleWeeks.length === 1 ? '' : 's'} — pick one in “Week”.`}
                     {moduleStatus === 'empty' && 'No modules for this grade, subject and term yet.'}
                     {moduleStatus === 'error' && 'Could not load modules.'}
@@ -812,7 +812,7 @@ export default function WeeklyForecastStudio() {
 
               {/* Class timetable */}
               <div className="rounded-xl border theme-border bg-white p-3 space-y-2">
-                <p className="text-xs font-black uppercase tracking-wide" style={{ color: '#0e2a32' }}>🗓️ Class timetable</p>
+                <p className="text-xs font-black uppercase tracking-wide" style={{ color: 'var(--zt-text)' }}>🗓️ Class timetable</p>
                 <div>
                   <label className="studio-label">Saved timetable</label>
                   <select value={timetableId} onChange={(e) => setTimetableId(e.target.value)} className="studio-input" disabled={!timetables.length}>
@@ -825,7 +825,7 @@ export default function WeeklyForecastStudio() {
                 {timetableId ? (
                   schedule.days.length ? (
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs" style={{ color: '#566f76' }}>
+                      <p className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>
                         {subjectLabel} is taught on <strong>{schedule.days.join(', ')}</strong> ({schedule.periodsPerWeek} period{schedule.periodsPerWeek === 1 ? '' : 's'}/week).
                       </p>
                       <button type="button" onClick={applyTimetableDays} className="studio-btn-ghost text-xs whitespace-nowrap">Apply days</button>
@@ -834,7 +834,7 @@ export default function WeeklyForecastStudio() {
                     <p className="text-xs text-amber-700">{subjectLabel} isn’t on this timetable — choose the days manually below.</p>
                   )
                 ) : (
-                  <p className="text-xs" style={{ color: '#566f76' }}>
+                  <p className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>
                     Pick a timetable and the teaching days set themselves to the days this subject appears.
                   </p>
                 )}
@@ -867,7 +867,7 @@ export default function WeeklyForecastStudio() {
                   {holidaySummary(availability.holidays)} this week — {availability.count} teaching day{availability.count === 1 ? '' : 's'} available. Holiday days are left out of the plan unless you add them.
                 </p>
               )}
-              <p className="text-xs mt-1" style={{ color: '#566f76' }}>
+              <p className="text-xs mt-1" style={{ color: 'var(--zt-text-muted)' }}>
                 Add or remove days to match how often this subject is taught — some subjects run all five days, others only two or three.
               </p>
             </div>
@@ -876,7 +876,7 @@ export default function WeeklyForecastStudio() {
           {/* ── Alerts ── */}
           {alerts.length > 0 && (
             <section className="studio-card p-4 space-y-2">
-              <h2 className="text-xs font-black uppercase tracking-wide" style={{ color: '#0e2a32' }}>⚠ Checks</h2>
+              <h2 className="text-xs font-black uppercase tracking-wide" style={{ color: 'var(--zt-text)' }}>⚠ Checks</h2>
               <ul className="space-y-1.5">
                 {alerts.map((a, i) => (
                   <li key={i} className={`text-xs rounded-lg px-3 py-2 ${ALERT_STYLE[a.level] || ALERT_STYLE.info}`}>
@@ -891,7 +891,7 @@ export default function WeeklyForecastStudio() {
           <section className="studio-card p-5">
             <div className="mb-4">
               <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>3. The week, day by day</h2>
-              <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
                 Pick a topic and the sub-topic, competence, activities and expected standard fill in from the syllabus. One line per activity / resource.
               </p>
             </div>
@@ -902,7 +902,7 @@ export default function WeeklyForecastStudio() {
                 const moveTargets = needsReview ? openMoveTargets(days, availability.teachingDays) : []
                 return (
                 <div key={d.day} className="rounded-xl border theme-border bg-white p-3 space-y-2">
-                  <p className="text-xs font-black uppercase tracking-wide" style={{ color: '#0e2a32' }}>
+                  <p className="text-xs font-black uppercase tracking-wide" style={{ color: 'var(--zt-text)' }}>
                     {d.day}
                     {holiday && d.nonTeachingDayConfirmed && (
                       <span className="ml-2 text-[10px] font-bold text-amber-700" title={`${holiday.holiday} — you confirmed teaching on this day`}>· holiday (confirmed)</span>
@@ -1026,7 +1026,7 @@ export default function WeeklyForecastStudio() {
                     {curriculumLabel(forecastCurriculum)}
                   </span>
                 </h2>
-                <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
                   Exactly what prints — the remarks column travels with it for the classroom
                   {forecastCurriculum === 'obc' ? ' (Outcome-Based: no learning-activity or expected-standard columns).' : '.'}
                 </p>
@@ -1048,7 +1048,7 @@ export default function WeeklyForecastStudio() {
               </div>
             </div>
             {generationId && (
-              <p className="text-xs mb-3 -mt-2" style={{ color: '#566f76' }}>
+              <p className="text-xs mb-3 -mt-2" style={{ color: 'var(--zt-text-muted)' }}>
                 In your library — <Link to={`/teacher/library/${generationId}`} className="font-bold underline">open the saved copy</Link>.
               </p>
             )}
@@ -1080,7 +1080,7 @@ export default function WeeklyForecastStudio() {
             {artifact ? (
               <WeeklyForecastView forecast={artifact} />
             ) : (
-              <div className="rounded-xl border border-dashed theme-border bg-white/60 py-14 text-center text-sm" style={{ color: '#566f76' }}>
+              <div className="rounded-xl border border-dashed theme-border bg-white/60 py-14 text-center text-sm" style={{ color: 'var(--zt-text-muted)' }}>
                 Build a week from your scheme above, or pick a day's topic — the forecast appears here as you go.
               </div>
             )}
@@ -1139,7 +1139,7 @@ function ResourceAssistant({ grade, subject, topic, subtopic, competence, existi
   }
 
   if (!topic) {
-    return <p className="text-[11px] mt-1" style={{ color: '#94a3b8' }}>Pick a topic to get AI resource ideas.</p>
+    return <p className="text-[11px] mt-1" style={{ color: 'var(--zt-text-muted)' }}>Pick a topic to get AI resource ideas.</p>
   }
 
   return (
@@ -1149,7 +1149,7 @@ function ResourceAssistant({ grade, subject, topic, subtopic, competence, existi
         onClick={fetchSuggestions}
         disabled={status === 'loading'}
         className="text-[11px] font-bold rounded-full px-2.5 py-1 border theme-border bg-white hover:theme-text disabled:opacity-50"
-        style={{ color: '#0e2a32' }}
+        style={{ color: 'var(--zt-text)' }}
       >
         {status === 'loading' ? '✨ Thinking…' : status === 'done' ? '✨ Suggest more' : '✨ Suggest resources'}
       </button>
@@ -1170,7 +1170,7 @@ function SuggestionGroup({ label, items, lower, onAccept, onDismiss }) {
   if (!items.length) return null
   return (
     <div>
-      <p className="text-[10px] font-black uppercase tracking-wide" style={{ color: '#566f76' }}>{label}</p>
+      <p className="text-[10px] font-black uppercase tracking-wide" style={{ color: 'var(--zt-text-muted)' }}>{label}</p>
       <div className="flex flex-wrap gap-1.5 mt-1">
         {items.map((item) => {
           const added = lower.has(item.toLowerCase())

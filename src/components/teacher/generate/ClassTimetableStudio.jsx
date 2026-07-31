@@ -1044,7 +1044,7 @@ export default function ClassTimetableStudio() {
     if (cell.state === 'off') {
       return (
         <td key={day} className="py-1 px-1 text-center text-[10px]"
-          style={{ background: '#efece3', color: '#a89e86' }}>
+          style={{ background: 'var(--zt-surface)', color: '#a89e86' }}>
           day ends
         </td>
       )
@@ -1060,7 +1060,7 @@ export default function ClassTimetableStudio() {
       <td key={day} id={block ? `ttcell-${block.blockId}` : undefined}
         className="py-1 px-1 align-top" rowSpan={isDouble ? block.length : undefined}
         style={{
-          ...(block?.type === BLOCK_TYPES.ACTIVITY ? { background: '#f6f3ea' } : block ? { background: `${tints[block.label] || '#fff'}55` } : {}),
+          ...(block?.type === BLOCK_TYPES.ACTIVITY ? { background: 'var(--zt-surface)' } : block ? { background: `${tints[block.label] || '#fff'}55` } : {}),
           ...(isConflictTarget ? { outline: '3px solid #be3144', outlineOffset: '-2px', borderRadius: 8 } : {}),
         }}>
         <select
@@ -1082,12 +1082,12 @@ export default function ClassTimetableStudio() {
         {block && (
           <div className="mt-0.5 flex items-center gap-1 flex-wrap">
             {isDouble && (
-              <span className="text-[9px] font-black uppercase tracking-wide" style={{ color: '#7a5800' }}>
+              <span className="text-[9px] font-black uppercase tracking-wide" style={{ color: 'var(--warning-fg)' }}>
                 Double period
               </span>
             )}
             {block.type === BLOCK_TYPES.ACTIVITY && (
-              <span className="text-[9px] font-black uppercase tracking-wide" style={{ color: '#8a7f67' }}>
+              <span className="text-[9px] font-black uppercase tracking-wide" style={{ color: 'var(--zt-text-muted)' }}>
                 Activity
               </span>
             )}
@@ -1119,12 +1119,12 @@ export default function ClassTimetableStudio() {
               </button>
             )}
             {isConflictTarget && (
-              <span className="text-[9px] font-black uppercase" style={{ color: '#be3144' }}>
+              <span className="text-[9px] font-black uppercase" style={{ color: 'var(--danger-fg)' }}>
                 ⛔ In conflict
               </span>
             )}
             {(block.teacher || block.room) && (
-              <span className="w-full text-[9px] truncate" style={{ color: '#566f76' }}
+              <span className="w-full text-[9px] truncate" style={{ color: 'var(--zt-text-muted)' }}
                 title={[block.teacher, block.room].filter(Boolean).join(' · ')}>
                 {[block.teacher, block.room].filter(Boolean).join(' · ')}
               </span>
@@ -1242,22 +1242,22 @@ export default function ClassTimetableStudio() {
               <div className="min-w-0">
                 <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>Curriculum requirements</h2>
                 {curriculum ? (
-                  <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
                     {curriculum.curriculumName} · {curriculum.levelLabel} ·{' '}
                     <strong>{curriculum.totalPeriods} periods/week</strong> · {curriculum.periodMinutes}-minute periods · {curriculum.contactLabel} contact time.
                   </p>
                 ) : !header.grade ? (
-                  <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
                     Pick a grade to load its official subjects and weekly allocation.
                   </p>
                 ) : expectsAllocation ? (
-                  <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
                     No official allocation is prescribed for this curriculum and grade
                     {/^G7$/i.test(header.grade) ? ' (Grade 7 does not use the Grades 4–6 CBC table)' : ''} —
                     see the diagnostic below.
                   </p>
                 ) : (
-                  <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
                     This curriculum has no catalogued allocation table — the subjects below
                     start from the standard list for this grade; set the weekly periods yourself.
                   </p>
@@ -1276,10 +1276,10 @@ export default function ClassTimetableStudio() {
             {recoveredReview && (
               <div className="rounded-xl border p-3 text-xs space-y-1.5"
                 style={{ borderColor: 'rgba(212,160,23,0.45)', background: 'rgba(212,160,23,0.08)' }}>
-                <div className="font-black uppercase tracking-wide" style={{ color: '#7a5800' }}>
+                <div className="font-black uppercase tracking-wide" style={{ color: 'var(--warning-fg)' }}>
                   ⚠ Recovered draft — needs review
                 </div>
-                <p style={{ color: '#566f76' }}>
+                <p style={{ color: 'var(--zt-text-muted)' }}>
                   This unfinished timetable was recovered from another device. Its saved
                   {' '}curriculum/grade{!recoveredReview.gradeValid ? ' is not offered in the current catalog' : ' allocation is incomplete'}.
                   {recoveredReview.missing?.length
@@ -1298,15 +1298,15 @@ export default function ClassTimetableStudio() {
             {allocationBlocked && header.grade && (
               <div className="rounded-xl border p-3 text-xs space-y-1.5"
                 style={{ borderColor: 'rgba(190,49,68,0.4)', background: 'rgba(190,49,68,0.06)' }}>
-                <div className="font-black uppercase tracking-wide" style={{ color: '#be3144' }}>
+                <div className="font-black uppercase tracking-wide" style={{ color: 'var(--danger-fg)' }}>
                   Curriculum timetable data unavailable
                 </div>
-                <p style={{ color: '#566f76' }}>
+                <p style={{ color: 'var(--zt-text-muted)' }}>
                   {readiness.missing?.length
                     ? `No complete curriculum allocation was found for this grade — ${readiness.missing.map((m) => m.label).join(', ')} ${readiness.missing.length === 1 ? 'is' : 'are'} missing. Generation has been disabled.`
                     : 'No timetable allocation was found for this curriculum and grade. Generation has been disabled.'}
                 </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 font-mono text-[11px]" style={{ color: '#566f76' }}>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 font-mono text-[11px]" style={{ color: 'var(--zt-text-muted)' }}>
                   <span>Curriculum ID: {curriculumId}</span>
                   <span>Grade ID: {header.grade || '—'}</span>
                   <span>Stage ID: {curriculum?.stageId || '—'}</span>
@@ -1341,7 +1341,7 @@ export default function ClassTimetableStudio() {
                     )
                   })}
                 </div>
-                <p className="text-[11px]" style={{ color: '#8a7f67' }}>{g.hint} The unselected option gets 0 periods and never appears in auto-fill.</p>
+                <p className="text-[11px]" style={{ color: 'var(--zt-text-muted)' }}>{g.hint} The unselected option gets 0 periods and never appears in auto-fill.</p>
               </div>
             ))}
 
@@ -1352,13 +1352,13 @@ export default function ClassTimetableStudio() {
                     <div key={s.id} className="flex items-center justify-between gap-2 rounded-xl border theme-border bg-white px-3 py-1.5">
                       <span className="text-sm font-bold" title={s.timeAllocation ? `${s.label} · ${s.timeAllocation}` : s.label}>
                         {s.label}
-                        {s.optionGroupId && <span className="ml-1 text-[10px] font-black uppercase" style={{ color: '#9a7000' }}>· choice</span>}
+                        {s.optionGroupId && <span className="ml-1 text-[10px] font-black uppercase" style={{ color: 'var(--warning-fg)' }}>· choice</span>}
                       </span>
-                      <span className="text-xs font-black whitespace-nowrap" style={{ color: '#1E8449' }}>{s.periodsPerWeek}/wk</span>
+                      <span className="text-xs font-black whitespace-nowrap" style={{ color: 'var(--success-fg)' }}>{s.periodsPerWeek}/wk</span>
                     </div>
                   ))}
                 </div>
-                <p className="text-[11px]" style={{ color: '#8a7f67' }}>
+                <p className="text-[11px]" style={{ color: 'var(--zt-text-muted)' }}>
                   Source: {FRAMEWORK_SOURCE}.
                   {curriculum.level === 'adapted' && ' This is the official adapted baseline — authorised adjustments for learner level are allowed; the validation panel marks a changed week as "Customised from curriculum baseline".'}
                 </p>
@@ -1388,7 +1388,7 @@ export default function ClassTimetableStudio() {
 
                   {weekMode === 'exact' && (
                     <div className="flex flex-wrap items-center gap-2 pt-1">
-                      <span className="text-[11px] font-bold" style={{ color: '#566f76' }}>Lesson periods per day:</span>
+                      <span className="text-[11px] font-bold" style={{ color: 'var(--zt-text-muted)' }}>Lesson periods per day:</span>
                       {days.map((d) => (
                         <label key={d} className="flex items-center gap-1 text-[11px] font-bold">
                           {d.slice(0, 3)}
@@ -1419,7 +1419,7 @@ export default function ClassTimetableStudio() {
                           </button>
                         )
                       })}
-                      <span className="self-center text-[10px]" style={{ color: '#8a7f67' }}>
+                      <span className="self-center text-[10px]" style={{ color: 'var(--zt-text-muted)' }}>
                         School activities never count as curriculum contact time.
                       </span>
                     </div>
@@ -1442,7 +1442,7 @@ export default function ClassTimetableStudio() {
                 </select>
               </FieldWrapper>
             </div>
-            <p className="text-xs -mt-2" style={{ color: '#566f76' }}>
+            <p className="text-xs -mt-2" style={{ color: 'var(--zt-text-muted)' }}>
               {getSchoolDayTemplate(dayTemplate)?.description}
             </p>
 
@@ -1465,7 +1465,7 @@ export default function ClassTimetableStudio() {
                   )
                 })}
               </div>
-              <p className="text-xs" style={{ color: '#566f76' }}>
+              <p className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>
                 {timing.fitToEndTime
                   ? 'Enter when the school reports and when it knocks off — the studio shares the day evenly across the lessons and drops each break in at the time you set.'
                   : 'Set a fixed period length — the studio works out what time the day knocks off.'}
@@ -1483,7 +1483,7 @@ export default function ClassTimetableStudio() {
               </FieldWrapper>
               {timing.fitToEndTime ? (
                 <FieldWrapper label="Period length (auto)">
-                  <div className="studio-input flex items-center font-bold" style={{ background: '#efe9da', color: '#566f76' }} aria-live="polite">
+                  <div className="studio-input flex items-center font-bold" style={{ background: '#efe9da', color: 'var(--zt-text-muted)' }} aria-live="polite">
                     {derivedPeriodMinutes ? `≈ ${derivedPeriodMinutes} min` : '—'}
                   </div>
                 </FieldWrapper>
@@ -1501,7 +1501,7 @@ export default function ClassTimetableStudio() {
 
             {/* Knock-off readout / check */}
             {timing.fitToEndTime ? (
-              <p className="text-xs font-bold" style={{ color: '#566f76' }}>
+              <p className="text-xs font-bold" style={{ color: 'var(--zt-text-muted)' }}>
                 The day runs {timing.startTime}–{timing.endTime}.
                 {derivedPeriodMinutes ? ` Each of the ${timing.lessonPeriods} lesson periods is about ${derivedPeriodMinutes} minutes.` : ''}
               </p>
@@ -1519,7 +1519,7 @@ export default function ClassTimetableStudio() {
             <div className="space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="studio-label !mb-0">Assembly, breaks, lunch &amp; closing</span>
-                <span className="text-[11px]" style={{ color: '#8a7f67' }}>
+                <span className="text-[11px]" style={{ color: 'var(--zt-text-muted)' }}>
                   These never count as curriculum periods. No lunch at your school? Just untick it.
                 </span>
               </div>
@@ -1547,7 +1547,7 @@ export default function ClassTimetableStudio() {
                           <>
                             <span className="studio-label">When</span>
                             <div className="studio-input w-full flex items-center text-xs"
-                              style={{ minHeight: 44, background: '#f7f4ec', color: '#566f76' }}>
+                              style={{ minHeight: 44, background: '#f7f4ec', color: 'var(--zt-text-muted)' }}>
                               {b.event === 'assembly' ? 'Before lessons' : 'After last period'}
                             </div>
                           </>
@@ -1587,7 +1587,7 @@ export default function ClassTimetableStudio() {
           <section className="studio-card p-5 space-y-3">
             <div>
               <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>Day-specific school structure</h2>
-              <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
                 Every teaching day uses the school day above by default. Give a day its own Full day / Half day / Custom
                 structure — its own reporting time, knock-off time, assembly, breaks, lunch and lesson count — for a
                 <strong> regular</strong> weekly pattern, like a Friday that always knocks off at 12:30. This is saved
@@ -1621,7 +1621,7 @@ export default function ClassTimetableStudio() {
                         {override ? dayTypeLabel(dayType) : 'Same as the week'}
                       </span>
                     </div>
-                    <div className="text-[11px] mt-0.5" style={{ color: '#566f76' }}>
+                    <div className="text-[11px] mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
                       Reports {reports || '—'} · Knocks off {knockOff || '—'} · {count} lesson{count === 1 ? '' : 's'}
                     </div>
                     <div className="flex items-center gap-2 mt-1.5">
@@ -1631,7 +1631,7 @@ export default function ClassTimetableStudio() {
                       </button>
                       {override && (
                         <button type="button" onClick={() => clearDaySchedule(day)}
-                          className="studio-btn-ghost !py-1 !px-2 text-[11px]" style={{ color: '#b3261e' }}>
+                          className="studio-btn-ghost !py-1 !px-2 text-[11px]" style={{ color: 'var(--danger-fg)' }}>
                           Reset to the week
                         </button>
                       )}
@@ -1696,7 +1696,7 @@ export default function ClassTimetableStudio() {
                                           <>
                                             <span className="studio-label">When</span>
                                             <div className="studio-input w-full flex items-center text-[11px]"
-                                              style={{ minHeight: 44, background: '#f7f4ec', color: '#566f76' }}>
+                                              style={{ minHeight: 44, background: '#f7f4ec', color: 'var(--zt-text-muted)' }}>
                                               {b.event === 'assembly' ? 'Before lessons' : 'After last period'}
                                             </div>
                                           </>
@@ -1737,7 +1737,7 @@ export default function ClassTimetableStudio() {
           <section className="studio-card p-5 space-y-3">
             <div>
               <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>School Calendar — date-specific overrides</h2>
-              <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
                 For an <strong>occasional</strong> change to one calendar date — a single Friday shortened for a staff
                 meeting, a sports day — without permanently changing the saved weekly timetable above.
               </p>
@@ -1765,7 +1765,7 @@ export default function ClassTimetableStudio() {
             </div>
 
             {calendarOverrides.length === 0 ? (
-              <p className="text-xs" style={{ color: '#8a7f67' }}>No date-specific overrides recorded.</p>
+              <p className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>No date-specific overrides recorded.</p>
             ) : (
               <div className="space-y-1.5">
                 {calendarOverrides.map((o) => {
@@ -1776,13 +1776,13 @@ export default function ClassTimetableStudio() {
                     <div key={o.date} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border theme-border bg-white px-3 py-2">
                       <div>
                         <span className="text-xs font-black">{o.date}</span>
-                        <span className="text-[11px] ml-2" style={{ color: '#566f76' }}>
+                        <span className="text-[11px] ml-2" style={{ color: 'var(--zt-text-muted)' }}>
                           {resolved.weekday} · {dayTypeLabel(o.dayType)} · knocks off {lastLessonEndTime(resolved.periods) || '—'}
                           {o.reason ? ` · ${o.reason}` : ''}
                         </span>
                       </div>
                       <button type="button" onClick={() => removeOverride(o.date)}
-                        className="studio-btn-ghost !py-1 !px-2 text-[11px]" style={{ color: '#b3261e' }}>
+                        className="studio-btn-ghost !py-1 !px-2 text-[11px]" style={{ color: 'var(--danger-fg)' }}>
                         Remove
                       </button>
                     </div>
@@ -1797,7 +1797,7 @@ export default function ClassTimetableStudio() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>Subjects &amp; weekly periods</h2>
-                <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
                   Seeded from the curriculum for this grade. Placed counts update live as you build the week.
                 </p>
               </div>
@@ -1830,12 +1830,12 @@ export default function ClassTimetableStudio() {
                     </div>
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-[10px] theme-text-secondary">
                       {unselected ? (
-                        <span className="font-bold" style={{ color: '#9a7000' }}>Not selected — 0 periods</span>
+                        <span className="font-bold" style={{ color: 'var(--warning-fg)' }}>Not selected — 0 periods</span>
                       ) : (
                         <>
                           {report && (
                             <span className={`font-black ${report.status === 'ok' ? '' : 'text-rose-600'}`}
-                              style={report.status === 'ok' ? { color: '#1E8449' } : undefined}>
+                              style={report.status === 'ok' ? { color: 'var(--success-fg)' } : undefined}>
                               {report.placed} of {report.target} placed
                             </span>
                           )}
@@ -1856,7 +1856,7 @@ export default function ClassTimetableStudio() {
               </button>
             </div>
 
-            <div className={`text-xs font-bold ${overAllocated ? 'text-rose-700' : ''}`} style={overAllocated ? undefined : { color: '#566f76' }}>
+            <div className={`text-xs font-bold ${overAllocated ? 'text-rose-700' : ''}`} style={overAllocated ? undefined : { color: 'var(--zt-text-muted)' }}>
               {allocated} periods allocated · {capacity} slots available
               {overAllocated && ' — over capacity: not everything will fit. Add lesson periods or reduce allocations.'}
               {!overAllocated && spareSlots > 0 && curriculum && (
@@ -1870,7 +1870,7 @@ export default function ClassTimetableStudio() {
               <button type="button" onClick={onAutoFill} className="studio-btn-primary">
                 ⚡ Auto-fill timetable
               </button>
-              <span className="self-center text-[11px]" style={{ color: '#8a7f67' }}>
+              <span className="self-center text-[11px]" style={{ color: 'var(--zt-text-muted)' }}>
                 Locked cells (🔒) are kept exactly where they are.
               </span>
               <button type="button" onClick={() => setConfirmClear(true)} className="studio-btn-ghost text-rose-700">
@@ -1882,7 +1882,7 @@ export default function ClassTimetableStudio() {
           {/* ── Layout preference ── */}
           <section className="studio-card p-5 space-y-3">
             <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>Timetable layout</h2>
-            <p className="text-xs -mt-1" style={{ color: '#566f76' }}>
+            <p className="text-xs -mt-1" style={{ color: 'var(--zt-text-muted)' }}>
               A display preference only — switching never moves a lesson, changes times or breaks a double period.
               It applies to the editor, the preview, printing and every export.
             </p>
@@ -1932,7 +1932,7 @@ export default function ClassTimetableStudio() {
             <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
               <div>
                 <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>The week</h2>
-                <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
                   {filled} curriculum period{filled === 1 ? '' : 's'} placed · click any cell to change it ·
                   ⊕ joins two matching neighbours into a double period.
                 </p>
@@ -1960,14 +1960,14 @@ export default function ClassTimetableStudio() {
             </div>
 
             {days.length === 0 ? (
-              <div className="rounded-xl border border-dashed theme-border bg-white/60 py-14 text-center text-sm" style={{ color: '#566f76' }}>
+              <div className="rounded-xl border border-dashed theme-border bg-white/60 py-14 text-center text-sm" style={{ color: 'var(--zt-text-muted)' }}>
                 Pick at least one teaching day above.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-sm" style={{ minWidth: Math.max(360, 140 + visibleDays.length * 130) }}>
                   <thead>
-                    <tr className="text-[11px] font-black uppercase tracking-wide" style={{ color: '#566f76' }}>
+                    <tr className="text-[11px] font-black uppercase tracking-wide" style={{ color: 'var(--zt-text-muted)' }}>
                       <th className="py-1.5 px-2 text-left w-32 sticky left-0 z-10" style={{ background: 'var(--studio-card-bg, #fdfcf8)' }}>Time</th>
                       {visibleDays.map((d) => <th key={d} className="py-1.5 px-2 text-center">{d}</th>)}
                     </tr>
@@ -1977,7 +1977,7 @@ export default function ClassTimetableStudio() {
                       if (p.kind === 'break') {
                         return (
                           <tr key={p.id} className="border-t theme-border">
-                            <td className="py-1.5 px-2 text-xs font-bold whitespace-nowrap sticky left-0 z-10" style={{ color: '#566f76', background: 'var(--studio-card-bg, #fdfcf8)' }}>
+                            <td className="py-1.5 px-2 text-xs font-bold whitespace-nowrap sticky left-0 z-10" style={{ color: 'var(--zt-text-muted)', background: 'var(--studio-card-bg, #fdfcf8)' }}>
                               {p.start}–{p.end}
                             </td>
                             <td colSpan={visibleDays.length} className="py-1.5 px-2 text-center text-xs font-black uppercase tracking-widest"
@@ -2013,14 +2013,14 @@ export default function ClassTimetableStudio() {
                         : '✗ Curriculum check failed'}
                   </span>
                   {validation.customised && (
-                    <span className="rounded-full border px-2 py-0.5 text-[10px] font-black uppercase" style={{ borderColor: '#9a7000', color: '#9a7000' }}>
+                    <span className="rounded-full border px-2 py-0.5 text-[10px] font-black uppercase" style={{ borderColor: '#9a7000', color: 'var(--warning-fg)' }}>
                       Customised from curriculum baseline
                     </span>
                   )}
                 </div>
 
                 {curriculum && (
-                  <div style={{ color: '#566f76' }}>
+                  <div style={{ color: 'var(--zt-text-muted)' }}>
                     {curriculum.curriculumName} · {curriculum.levelLabel} · {curriculum.periodMinutes}-min periods ·
                     required {curriculum.totalPeriods} periods / {curriculum.contactLabel}
                   </div>
@@ -2047,7 +2047,7 @@ export default function ClassTimetableStudio() {
                   const chosen = g.options.find((o) => o.id === g.selectedOptionId)
                   const others = g.options.filter((o) => o.id !== g.selectedOptionId)
                   return (
-                    <div key={g.id} style={{ color: '#566f76' }}>
+                    <div key={g.id} style={{ color: 'var(--zt-text-muted)' }}>
                       {chosen?.label} selected{others.length ? ` · ${others.map((o) => o.label).join(', ')} not selected` : ''}
                     </div>
                   )
@@ -2062,10 +2062,10 @@ export default function ClassTimetableStudio() {
                   <div key={m} className="font-bold text-rose-700">• {m}</div>
                 ))}
                 {validation.warnings.map((m) => (
-                  <div key={m} style={{ color: '#9a7000' }}>• {m}</div>
+                  <div key={m} style={{ color: 'var(--warning-fg)' }}>• {m}</div>
                 ))}
                 {validation.notes.map((m) => (
-                  <div key={m} style={{ color: '#566f76' }}>• {m}</div>
+                  <div key={m} style={{ color: 'var(--zt-text-muted)' }}>• {m}</div>
                 ))}
               </div>
             )}
@@ -2121,14 +2121,14 @@ export default function ClassTimetableStudio() {
               </div>
             </div>
             {generationId && (
-              <p className="text-xs mb-3 -mt-2" style={{ color: '#566f76' }}>
+              <p className="text-xs mb-3 -mt-2" style={{ color: 'var(--zt-text-muted)' }}>
                 In your library — <Link to={`/teacher/library/${generationId}`} className="font-bold underline">open the saved copy</Link>.
               </p>
             )}
             {filled > 0 ? (
               <ClassTimetableView timetable={artifact} />
             ) : (
-              <div className="rounded-xl border border-dashed theme-border bg-white/60 py-14 text-center text-sm" style={{ color: '#566f76' }}>
+              <div className="rounded-xl border border-dashed theme-border bg-white/60 py-14 text-center text-sm" style={{ color: 'var(--zt-text-muted)' }}>
                 Auto-fill or place a few lessons above — your printable timetable shows here.
               </div>
             )}

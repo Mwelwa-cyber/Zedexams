@@ -356,7 +356,7 @@ export default function FlashcardGenerator() {
                     <h2 className="studio-display" style={{ fontSize: 22, margin: '0 0 2px' }}>
                       {flashcards.header?.title || 'Flashcards'}
                     </h2>
-                    <p className="text-xs" style={{ color: '#566f76' }}>
+                    <p className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>
                       {totalCards} cards · click any card to flip · press Study for full-screen mode
                     </p>
                   </div>
@@ -456,7 +456,7 @@ function GridView({ cards, onStudy }) {
           style={
             flipped[i]
               ? { background: '#fff5e6', borderColor: '#d97757' }
-              : { background: '#ffffff', borderColor: '#0e2a32' }
+              : { background: 'var(--zt-card)', borderColor: '#0e2a32' }
           }
         >
           <div className="flex items-center justify-between mb-2">

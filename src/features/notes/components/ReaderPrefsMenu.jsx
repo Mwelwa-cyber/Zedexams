@@ -112,7 +112,7 @@ export function ReaderPrefsMenu({ size, font, page, setSize, setFont, setPage })
                       style={
                         opt.swatch === 'lined'
                           ? {
-                              backgroundColor: '#FFFFFF',
+                              backgroundColor: 'var(--zt-card)',
                               backgroundImage:
                                 'repeating-linear-gradient(to bottom, transparent 0, transparent 7px, #C9D8EA 7px, #C9D8EA 8px)',
                             }

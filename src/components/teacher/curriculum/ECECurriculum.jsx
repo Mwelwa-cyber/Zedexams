@@ -23,8 +23,8 @@ const STAGES = [
  * Studies (CTS).
  */
 const LEARNING_AREAS = [
-  { emoji: '📖', title: 'Pre-Literacy & Language', body: 'Listening, speaking, early reading and mark-making — building communication and a love of stories in English and a Zambian Language.', bg: '#e8f5ee', color: '#1a5c36' },
-  { emoji: '🔢', title: 'Pre-Mathematics and Science', body: 'Counting, sorting, patterns, shapes and exploring the natural world through hands-on discovery.', bg: '#e8f0ff', color: '#2d3a8c' },
+  { emoji: '📖', title: 'Pre-Literacy & Language', body: 'Listening, speaking, early reading and mark-making — building communication and a love of stories in English and a Zambian Language.', bg: '#e8f5ee', color: 'var(--success-fg)' },
+  { emoji: '🔢', title: 'Pre-Mathematics and Science', body: 'Counting, sorting, patterns, shapes and exploring the natural world through hands-on discovery.', bg: '#e8f0ff', color: 'var(--info-fg)' },
   { emoji: '🎨', title: 'Creative & Technology Studies (CTS)', body: 'Art, music, movement, play and simple making — replaces the old Expressive Arts area and aligns with Primary CTS.', bg: '#fff3e8', color: '#8c4a00' },
 ]
 

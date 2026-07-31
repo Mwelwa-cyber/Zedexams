@@ -24,7 +24,7 @@ const OVERLAY = {
   display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
 }
 const CARD = {
-  background: '#fff', borderRadius: 16, width: 'min(640px, 100%)',
+  background: 'var(--zt-card)', borderRadius: 16, width: 'min(640px, 100%)',
   maxHeight: '92vh', display: 'flex', flexDirection: 'column', padding: 16,
 }
 const PRIMARY_BTN = {
@@ -32,7 +32,7 @@ const PRIMARY_BTN = {
   borderRadius: 10, padding: '10px 16px', fontWeight: 800, fontSize: 14,
 }
 const GHOST_BTN = {
-  background: '#fff', color: '#0e2a32', border: '1.5px solid #d9cfb8',
+  background: 'var(--zt-card)', color: 'var(--zt-text)', border: '1.5px solid #d9cfb8',
   cursor: 'pointer', borderRadius: 10, padding: '8px 12px', fontWeight: 700, fontSize: 13,
 }
 
@@ -236,7 +236,7 @@ export default function ImageEditorModal({ imageUrl, imageWidth = 'full', onAppl
   const previewTransform = `rotate(${rotation}deg)`
 
   const cornerStyle = (pos) => ({
-    position: 'absolute', width: 16, height: 16, background: '#fff',
+    position: 'absolute', width: 16, height: 16, background: 'var(--zt-card)',
     border: '2px solid #d97757', borderRadius: 4, touchAction: 'none',
     cursor: `${pos}-resize`, ...cornerPos(pos),
   })
@@ -245,7 +245,7 @@ export default function ImageEditorModal({ imageUrl, imageWidth = 'full', onAppl
     <div style={OVERLAY} onClick={onClose}>
       <div style={CARD} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between gap-3 mb-2">
-          <h3 style={{ fontWeight: 900, fontSize: 18, color: '#0e2a32', margin: 0 }}>🖼 Edit image</h3>
+          <h3 style={{ fontWeight: 900, fontSize: 18, color: 'var(--zt-text)', margin: 0 }}>🖼 Edit image</h3>
           <button type="button" onClick={onClose} aria-label="Close"
             style={{ fontSize: 22, lineHeight: 1, border: 'none', background: 'none', cursor: 'pointer' }}>×</button>
         </div>
@@ -293,14 +293,14 @@ export default function ImageEditorModal({ imageUrl, imageWidth = 'full', onAppl
           </div>
         </div>
 
-        {busy && <p style={{ margin: '8px 0 0', fontSize: 13, color: '#566f76', textAlign: 'center' }}>{busy}</p>}
+        {busy && <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--zt-text-muted)', textAlign: 'center' }}>{busy}</p>}
         {error && <p style={{ margin: '8px 0 0', fontSize: 13, color: '#991b1b' }}>⚠️ {error}</p>}
 
         {/* Crop controls */}
         {cropMode ? (
           <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-              <span style={{ fontSize: 12, color: '#566f76' }}>Ratio:</span>
+              <span style={{ fontSize: 12, color: 'var(--zt-text-muted)' }}>Ratio:</span>
               {CROP_RATIOS.map((r) => (
                 <button key={r.key} type="button" onClick={() => setCropRatio(r.key)}
                   style={{
@@ -342,7 +342,7 @@ export default function ImageEditorModal({ imageUrl, imageWidth = 'full', onAppl
 
             {/* Resize presets */}
             <div style={{ marginTop: 12 }}>
-              <span style={{ fontSize: 12, color: '#566f76' }}>Size on the page:</span>
+              <span style={{ fontSize: 12, color: 'var(--zt-text-muted)' }}>Size on the page:</span>
               <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
                 {IMAGE_WIDTH_OPTIONS.map((o) => (
                   <button key={o.key} type="button" onClick={() => setWidthPreset(o.key)}

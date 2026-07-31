@@ -200,7 +200,7 @@ function DriftRows({ rows, emptyNote }) {
             got {row.actual}
           </span>
           {row.status === 'unplanned' && (
-            <span style={{ fontSize: 11, color: '#7A5A1F' }}>not in the plan</span>
+            <span style={{ fontSize: 11, color: 'var(--warning-fg)' }}>not in the plan</span>
           )}
         </div>
       ))}
@@ -479,7 +479,7 @@ export function MapCompetenciesAction({ questions, questionNumbers, subjectLabel
               </div>
               <DriftRows rows={drift.topics} />
               {drift.outcomes.missing.length > 0 && (
-                <div style={{ fontSize: 12, color: '#8A3D0F', lineHeight: 1.5 }}>
+                <div style={{ fontSize: 12, color: 'var(--warning-fg)', lineHeight: 1.5 }}>
                   No longer assessed: {drift.outcomes.missing.join('; ')}
                 </div>
               )}

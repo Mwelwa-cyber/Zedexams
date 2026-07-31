@@ -402,7 +402,7 @@ export default function SbaTaskStudio() {
               topicMaxLength={160}
               subtopicMaxLength={200}
             />
-            <p className="text-[11px] -mt-2" style={{ color: '#7a8e94' }}>
+            <p className="text-[11px] -mt-2" style={{ color: 'var(--zt-text-muted)' }}>
               Topics come from the <strong>2013 (OBC)</strong> syllabus — the curriculum SBA is assessed against.
             </p>
 
@@ -450,7 +450,7 @@ export default function SbaTaskStudio() {
                     placeholder="Your school name"
                     className="studio-input"
                   />
-                  <p className="text-[11px] mt-1" style={{ color: '#7a8e94' }}>
+                  <p className="text-[11px] mt-1" style={{ color: 'var(--zt-text-muted)' }}>
                     Pulled from your profile — edit it here and it appears on the task sheet and the download.
                   </p>
                 </div>
@@ -480,7 +480,7 @@ export default function SbaTaskStudio() {
                   </p>
                 )}
                 {generationId && (
-                  <p className="text-xs" style={{ color: '#566f76' }}>
+                  <p className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>
                     Saved to your library — <Link to={`/teacher/library/${generationId}`} className="font-bold underline">open the saved copy</Link>.
                   </p>
                 )}
@@ -495,7 +495,7 @@ export default function SbaTaskStudio() {
                 title="Setting your SBA task…"
                 subtitle="Task, stimulus and marking scheme, the ECZ way."
                 emptyState={
-                  <div className="rounded-xl border border-dashed theme-border bg-white/60 py-16 text-center text-sm" style={{ color: '#566f76' }}>
+                  <div className="rounded-xl border border-dashed theme-border bg-white/60 py-16 text-center text-sm" style={{ color: 'var(--zt-text-muted)' }}>
                     Choose a subject and task type, then generate. Your ECZ-compliant SBA task appears here.
                   </div>
                 }

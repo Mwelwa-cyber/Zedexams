@@ -389,13 +389,13 @@ export default function HomeworkStudio() {
                       style={{ fontSize: 22, margin: '0 0 2px' }}>
                       {homework.header?.title || 'Homework'}
                     </h2>
-                    <p className="text-xs" style={{ color: '#566f76' }}>
+                    <p className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>
                       ~{homework.header?.estimatedMinutes} min · review, export, print.
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <label className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl cursor-pointer"
-                      style={{ color: '#0e2a32', border: '1.5px solid #d9cfb8' }}>
+                      style={{ color: 'var(--zt-text)', border: '1.5px solid #d9cfb8' }}>
                       <input type="checkbox" checked={showAnswers}
                         onChange={(e) => setShowAnswers(e.target.checked)}
                         style={{ accentColor: '#d97757' }} />

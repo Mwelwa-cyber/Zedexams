@@ -34,7 +34,7 @@ export default function CreatedFromLessonPlanNotice({ urlDefaults }) {
       <Link
         to={`/teacher/library/${id}`}
         className="text-sm font-bold underline ml-auto"
-        style={{ color: '#4338ca' }}
+        style={{ color: 'var(--info-fg)' }}
       >
         View source lesson
       </Link>

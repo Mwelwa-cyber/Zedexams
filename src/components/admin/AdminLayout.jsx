@@ -47,10 +47,10 @@ function AdminBrand({ compact = false }) {
         Z
       </span>
       <div className="min-w-0 leading-tight">
-        <p className="admin-game-display truncate" style={{ fontSize: compact ? 16 : 18, margin: 0, color: '#0F1B2D' }}>
+        <p className="admin-game-display truncate" style={{ fontSize: compact ? 16 : 18, margin: 0, color: 'var(--zt-text)' }}>
           ZedExams
         </p>
-        <p className="truncate" style={{ fontSize: compact ? 10.5 : 11.5, color: '#4A5A6E', margin: 0, fontWeight: 700 }}>
+        <p className="truncate" style={{ fontSize: compact ? 10.5 : 11.5, color: 'var(--zt-text-muted)', margin: 0, fontWeight: 700 }}>
           Admin
         </p>
       </div>
@@ -256,10 +256,10 @@ export default function AdminLayout({ children }) {
       {/* ── Desktop Sidebar ─────────────────────────────── */}
       <aside
         className="hidden w-64 flex-shrink-0 flex-col md:flex md:sticky md:top-0 md:h-screen md:self-start"
-        style={{ backgroundColor: '#FFFFFF', borderRight: '2px solid #0F1B2D', boxShadow: '2px 0 0 #0F1B2D' }}
+        style={{ backgroundColor: 'var(--zt-card)', borderRight: '2px solid #0F1B2D', boxShadow: '2px 0 0 #0F1B2D' }}
       >
-        <div className="px-4 py-5" style={{ backgroundColor: '#F5EFE1', borderBottom: '2px solid #0F1B2D' }}>
-          <Link to="/admin" className="inline-flex items-center gap-2.5 no-underline" style={{ color: '#0F1B2D' }}>
+        <div className="px-4 py-5" style={{ backgroundColor: 'var(--zt-surface)', borderBottom: '2px solid #0F1B2D' }}>
+          <Link to="/admin" className="inline-flex items-center gap-2.5 no-underline" style={{ color: 'var(--zt-text)' }}>
             <AdminBrand />
           </Link>
           <div className="mt-3 pl-1 flex items-center justify-between">
@@ -319,9 +319,9 @@ export default function AdminLayout({ children }) {
       </aside>
 
       {/* ── Mobile Header ───────────────────────────────── */}
-      <div className="fixed left-0 right-0 top-0 z-40 md:hidden" style={{ backgroundColor: '#FFFFFF', borderBottom: '2px solid #0F1B2D', boxShadow: '0 2px 0 #0F1B2D' }}>
+      <div className="fixed left-0 right-0 top-0 z-40 md:hidden" style={{ backgroundColor: 'var(--zt-card)', borderBottom: '2px solid #0F1B2D', boxShadow: '0 2px 0 #0F1B2D' }}>
         <div className="flex items-center justify-between px-4 h-16">
-          <Link to="/admin" className="flex items-center gap-2.5 no-underline" style={{ color: '#0F1B2D' }}>
+          <Link to="/admin" className="flex items-center gap-2.5 no-underline" style={{ color: 'var(--zt-text)' }}>
             <AdminBrand compact />
           </Link>
           <div className="flex items-center gap-2">

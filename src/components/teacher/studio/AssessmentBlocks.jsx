@@ -1040,7 +1040,7 @@ export function PassageBlock({ section, sectionIndex, parts, questionNumbers, qu
 export function PagebreakBlock({ sectionIndex, onMoveSection, onRemoveSection }) {
   return (
     <div className="sv-block b-pagebreak" style={{ background: '#f8fafc', border: '1px dashed #94a3b8', borderRadius: 6 }}>
-      <div className="sv-block-head" style={{ color: '#475569' }}>
+      <div className="sv-block-head" style={{ color: 'var(--zt-text-muted)' }}>
         <span className="sv-ic"><Icon name="pagebreak" size={15} /></span> Page break
         <span className="sv-tools">
           <button className="sv-tool" title="Move up" onClick={() => onMoveSection(sectionIndex, -1)}><Icon name="moveUp" size={14} /></button>
@@ -1048,7 +1048,7 @@ export function PagebreakBlock({ sectionIndex, onMoveSection, onRemoveSection })
           <button className="sv-tool danger" title="Delete" onClick={() => onRemoveSection(sectionIndex)}><Icon name="delete" size={14} /></button>
         </span>
       </div>
-      <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 11, padding: '4px 0 8px', textTransform: 'uppercase', letterSpacing: 1 }}>
+      <div style={{ textAlign: 'center', color: 'var(--zt-text-muted)', fontSize: 11, padding: '4px 0 8px', textTransform: 'uppercase', letterSpacing: 1 }}>
         — Forces a new page when printed / exported —
       </div>
     </div>

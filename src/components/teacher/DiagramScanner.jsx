@@ -22,7 +22,7 @@ const primaryBtn = {
 }
 const ghostBtn = {
   padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 700,
-  border: `1.5px solid ${BORDER}`, background: '#fff', color: TEAL, cursor: 'pointer',
+  border: `1.5px solid ${BORDER}`, background: 'var(--zt-card)', color: TEAL, cursor: 'pointer',
 }
 
 // One labelled on/off pill toggle.
@@ -206,7 +206,7 @@ export default function DiagramScanner({
     >
       <div
         style={{
-          background: '#fff', borderRadius: 16, width: 'min(720px, 100%)',
+          background: 'var(--zt-card)', borderRadius: 16, width: 'min(720px, 100%)',
           maxHeight: '92vh', display: 'flex', flexDirection: 'column', padding: 16,
         }}
         onClick={(e) => e.stopPropagation()}
@@ -282,7 +282,7 @@ export default function DiagramScanner({
             <div
               style={{
                 position: 'relative', border: `1px solid ${BORDER}`, borderRadius: 12,
-                background: '#f8f6ef', minHeight: 200, display: 'flex',
+                background: 'var(--zt-surface)', minHeight: 200, display: 'flex',
                 alignItems: 'center', justifyContent: 'center', padding: 8,
               }}
             >

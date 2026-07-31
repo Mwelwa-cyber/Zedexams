@@ -75,7 +75,7 @@ function StreakFlame({ streak }) {
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
       <span style={{ fontSize: 32, lineHeight: 1 }} aria-hidden="true">🔥</span>
       <span style={{ fontSize: 26, fontWeight: 900, lineHeight: 1, color }}>{streak}</span>
-      <span style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--zt-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
         day streak
       </span>
     </div>
@@ -159,7 +159,7 @@ export default function ProgressWidget({ results = [], streak = 0, loading = fal
         {/* Weekly goal ring + label */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
           <GoalRing current={thisWeekCount} goal={WEEKLY_GOAL} />
-          <span style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--zt-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             weekly goal
           </span>
         </div>

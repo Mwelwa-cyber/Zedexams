@@ -313,10 +313,10 @@ export function PasteImportSlide({ open, onClose, onInsert }) {
             background: '#f0faf4', border: '1.5px solid #6ee7b7',
             borderRadius: 10, padding: '10px 14px', fontSize: 12,
           }}>
-            <strong style={{ color: '#065f46' }}>
+            <strong style={{ color: 'var(--success-fg)' }}>
               {preview.length} question{preview.length !== 1 ? 's' : ''} detected
             </strong>
-            <span style={{ color: '#374151', marginLeft: 8 }}>
+            <span style={{ color: 'var(--zt-text-muted)', marginLeft: 8 }}>
               {[
                 mcqCount  && `${mcqCount} MCQ`,
                 saCount   && `${saCount} short-answer`,
@@ -356,9 +356,9 @@ const AI_COUNT_PRESETS = [5, 10, 15, 20, 25]
 function AiTopicModeToggle({ value, onChange, pickDisabled = false }) {
   const baseBtn = {
     border: 'none', background: 'none', fontSize: 11, fontWeight: 700,
-    padding: '3px 9px', borderRadius: 999, lineHeight: 1.6, color: '#64748b', cursor: 'pointer',
+    padding: '3px 9px', borderRadius: 999, lineHeight: 1.6, color: 'var(--zt-text-muted)', cursor: 'pointer',
   }
-  const onStyle = { background: '#fff', color: '#0f172a', boxShadow: 'inset 0 0 0 1.5px #d88962' }
+  const onStyle = { background: 'var(--zt-card)', color: 'var(--zt-text)', boxShadow: 'inset 0 0 0 1.5px #d88962' }
   return (
     <div style={{ display: 'inline-flex', gap: 2, padding: 2, borderRadius: 999, background: '#f1f5f9' }}>
       <button type="button"

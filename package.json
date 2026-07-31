@@ -665,6 +665,7 @@
     "test:android-manifest": "node scripts/test-android-manifest.mjs",
     "audit:colors": "node scripts/audit-hardcoded-colors.mjs",
     "audit:dark": "node scripts/audit-dark-surfaces.mjs",
+    "audit:inline": "node scripts/audit-inline-theme-literals.mjs",
     "audit:routes": "node scripts/audit-route-themes.mjs",
     "test:route-themes": "node scripts/audit-route-themes.mjs",
     "provision:storage-backup": "node scripts/provision-storage-backup.mjs"
