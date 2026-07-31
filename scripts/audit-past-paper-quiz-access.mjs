@@ -146,6 +146,30 @@ export function markPendingPatch(row) {
   }
 }
 
+/**
+ * Pure: does this error mean "nobody is signed in", rather than a real
+ * Firestore problem? Kept separate from the exit so it can be tested — the
+ * cost of getting it wrong is swallowing a genuine failure behind a
+ * "run firebase login" message that will not help.
+ */
+export function isAuthFailure(err) {
+  const message = String(err?.message ?? '')
+  if (/could not load the default credentials|application[- ]default credentials/i.test(message)) return true
+  if (/unauthenticated|invalid_grant|could not refresh access token/i.test(message)) return true
+  // gRPC status 16 = UNAUTHENTICATED. 7 (PERMISSION_DENIED) is deliberately
+  // NOT here: that is a signed-in principal without the right role, which is a
+  // different problem and needs a different sentence.
+  return err?.code === 16
+}
+
+function exitUnauthenticated(what, err) {
+  console.error(`\n${what}: ${err?.message ?? err}`)
+  console.error('\nThis script reads Firestore with admin credentials. Get them with either:')
+  console.error('  firebase login                            (then re-run)')
+  console.error('  export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json')
+  process.exit(1)
+}
+
 async function main() {
   const LIVE = process.argv.includes('--live')
 
@@ -166,14 +190,23 @@ async function main() {
     db = getFirestore()
     db.settings({ projectId: 'examsprepzambia' })
   } catch (err) {
-    console.error('firebase init failed:', err.message)
-    console.error('try: firebase login   OR   set GOOGLE_APPLICATION_CREDENTIALS')
-    process.exit(1)
+    exitUnauthenticated('firebase init failed', err)
   }
 
   console.log('Scanning published past papers that advertise a quiz…\n')
-  const papersSnap = await db.collection('pastPapers')
-    .where('status', '==', PAPER_STATUS_PUBLISHED).get()
+  // `initializeApp()` does NOT resolve application-default credentials — it
+  // defers that to the first RPC. So a machine with no credentials gets past
+  // the try/catch above, prints "auth: application default", and then fails
+  // HERE with a bare google-auth stack instead of the one line that tells the
+  // operator what to do. The guidance has to be on the first real read.
+  let papersSnap
+  try {
+    papersSnap = await db.collection('pastPapers')
+      .where('status', '==', PAPER_STATUS_PUBLISHED).get()
+  } catch (err) {
+    if (isAuthFailure(err)) exitUnauthenticated('could not authenticate to Firestore', err)
+    throw err
+  }
 
   const rows = []
   for (const docSnap of papersSnap.docs) {

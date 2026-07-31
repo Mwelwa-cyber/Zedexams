@@ -20,6 +20,7 @@ import assert from 'node:assert/strict'
 import {
   PAPER_QUIZ_STATES,
   classifyPaperQuizLink,
+  isAuthFailure,
   markPendingPatch,
   planQuizAccessRepair,
   restorePublicAccessPatch,
@@ -151,6 +152,30 @@ t('a deleted quiz parks nothing — there is nothing to resume', () => {
   assert.equal(patch.quizId, null)
   assert.equal(patch.quizStatus, 'pending')
   assert.equal(patch.pendingQuizId, null)
+})
+
+console.log('credential failures')
+
+t('the real application-default failure is recognised', () => {
+  // Verbatim from a run with no credentials — the whole reason this exists is
+  // that initializeApp() succeeds and the FIRST QUERY is what fails.
+  assert.equal(isAuthFailure(new Error('Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information.')), true)
+})
+
+t('a gRPC UNAUTHENTICATED status is recognised', () => {
+  assert.equal(isAuthFailure({ code: 16, message: 'UNAUTHENTICATED' }), true)
+})
+
+t('PERMISSION_DENIED is NOT reported as missing credentials', () => {
+  // A signed-in principal without the right role. Telling that operator to run
+  // `firebase login` sends them down the wrong path — they already are.
+  assert.equal(isAuthFailure({ code: 7, message: 'Missing or insufficient permissions.' }), false)
+})
+
+t('an ordinary Firestore failure is left to surface as itself', () => {
+  assert.equal(isAuthFailure(new Error('The query requires an index.')), false)
+  assert.equal(isAuthFailure({ code: 14, message: 'UNAVAILABLE' }), false)
+  assert.equal(isAuthFailure(null), false)
 })
 
 console.log('load outcomes')
