@@ -25,7 +25,7 @@ vi.mock('./libraryClassification', () => ({
   classifyForLibrary: vi.fn(() => ({ libraryType: 'lesson_plans', gradeForm: 'Grade 4', subject: 'Mathematics' })),
 }))
 
-import { getDocs } from 'firebase/firestore'
+import { getDoc, getDocs } from 'firebase/firestore'
 import { __resetRequestDeduplicationForTests } from './requestDeduplication.js'
 import {
   saveLessonPlanGeneration,
@@ -37,6 +37,7 @@ import {
   TOOL_FILTER_OPTIONS,
   getItemPermissions,
   listMyGenerations,
+  getGeneration,
 } from './teacherLibraryService'
 
 function fakeSnap(rows) {
@@ -173,6 +174,46 @@ describe('duplicateGeneration', () => {
       'class_timetable', 'mark_schedule', 'record_of_work',
       'sba_mark_sheet', 'sba_plan', 'weekly_forecast',
     ])
+  })
+})
+
+// getGeneration must tell a genuinely missing/foreign doc (→ null → "Not found")
+// from a transient load failure (→ re-throw → retryable panel). The subtlety is
+// the owner-only read rule: for a normal teacher a deleted OR foreign doc is
+// DENIED (permission-denied) rather than returned empty, so snap.exists() is
+// never reached for those — the classification hinges on the error code.
+describe('getGeneration — missing/foreign vs load failure', () => {
+  beforeEach(() => getDoc.mockReset())
+
+  it('returns null for a falsy id without touching Firestore', async () => {
+    expect(await getGeneration('')).toBeNull()
+    expect(getDoc).not.toHaveBeenCalled()
+  })
+
+  it('maps permission-denied (deleted/foreign under owner-only rules) to null', async () => {
+    getDoc.mockRejectedValueOnce(Object.assign(new Error('Missing or insufficient permissions.'), { code: 'permission-denied' }))
+    expect(await getGeneration('gone')).toBeNull()
+  })
+
+  it('returns null when an admin reads a truly deleted doc (snap does not exist)', async () => {
+    getDoc.mockResolvedValueOnce({ exists: () => false })
+    expect(await getGeneration('deleted')).toBeNull()
+  })
+
+  it('re-throws a transient failure so the caller can offer a retry', async () => {
+    getDoc.mockRejectedValueOnce(Object.assign(new Error('backend unavailable'), { code: 'unavailable' }))
+    await expect(getGeneration('g1')).rejects.toThrow(/unavailable/i)
+  })
+
+  it('returns the normalised doc when the read succeeds', async () => {
+    getDoc.mockResolvedValueOnce({
+      exists: () => true,
+      id: 'g1',
+      data: () => ({ ownerUid: 'u1', tool: 'worksheet', inputs: { grade: 'G4' }, output: {} }),
+    })
+    const row = await getGeneration('g1')
+    expect(row.id).toBe('g1')
+    expect(row.tool).toBe('worksheet')
   })
 })
 
