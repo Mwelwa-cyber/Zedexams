@@ -157,7 +157,12 @@ const MARKERS = Object.freeze({
   usageMeter: 'assertAndIncrement',
   usageRefund: 'refundGeneration',
   curriculum: 'resolveCbcContext',
-  inputValidation: 'function validateInputs',
+  // A call to any `validate<Name>Inputs(...)` — the document generators call the
+  // local `validateInputs(inputs)`, regenerateAssessmentQuestion calls the shared
+  // `validateRegenerateInputs(inputs)`. Matching the call (not `function
+  // validateInputs`) proves the check runs on this path and covers validators
+  // that live in a shared core.
+  inputValidation: /\bvalidate\w*Inputs\s*\(/,
 })
 
 function walk(dir, out = []) {
@@ -232,7 +237,13 @@ export function scanFile(absPath, root) {
     meteredUsage: text.includes(MARKERS.usageMeter),
     refundsUsage: text.includes(MARKERS.usageRefund),
     curriculumGrounded: text.includes(MARKERS.curriculum),
-    validatesInput: text.includes(MARKERS.inputValidation),
+    // Input validation, recognised by the CALL rather than a local declaration:
+    // the document generators define `function validateInputs`, but a generator
+    // whose validation lives in a shared core (regenerateAssessmentQuestion →
+    // `validateRegenerateInputs`) is validating just as strictly. `validate…Inputs(`
+    // matches both — and it is the call, not the definition, that proves the
+    // check actually runs on this path.
+    validatesInput: MARKERS.inputValidation.test(text),
     settlesOperation: text.includes(MARKERS.complete) && text.includes(MARKERS.fail),
   }
 }
