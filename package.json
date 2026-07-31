@@ -696,7 +696,10 @@
     "audit:inline": "node scripts/audit-inline-theme-literals.mjs",
     "audit:routes": "node scripts/audit-route-themes.mjs",
     "test:route-themes": "node scripts/audit-route-themes.mjs",
-    "provision:storage-backup": "node scripts/provision-storage-backup.mjs"
+    "provision:storage-backup": "node scripts/provision-storage-backup.mjs",
+    "test:past-paper-quiz-access": "node scripts/test-past-paper-quiz-access.mjs",
+    "audit:paper-quiz-access": "node scripts/audit-past-paper-quiz-access.mjs",
+    "audit:paper-quiz-access:live": "node scripts/audit-past-paper-quiz-access.mjs --live"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

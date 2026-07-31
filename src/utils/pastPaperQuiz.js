@@ -30,6 +30,12 @@ import {
   query,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { QUIZ_LOAD, isPermissionDenied } from './pastPaperQuizLoad'
+
+// The load-outcome vocabulary lives in the pure `pastPaperQuizLoad.js` (no
+// Firebase import) so the plain-node tests can read it; re-exported here so
+// callers keep importing the loader and its outcomes from one place.
+export { QUIZ_LOAD, QUIZ_LOAD_TEXT, isPermissionDenied } from './pastPaperQuizLoad'
 
 export const FREE_QUESTION_LIMIT = 30
 const COUNTER_PREFIX = 'zedexams:pastPaperQuiz:'
@@ -95,32 +101,54 @@ export function resetCounter(paperId, uid) {
 // ── Quiz data ──────────────────────────────────────────────────
 
 /**
- * Fetch a public-access quiz + its ordered questions. Returns null if
- * the quiz doesn't exist, isn't published, or hasn't been opted into
- * public access. The Firestore read rule is the source of truth — this
- * helper just throws the result into a friendly shape for the runner.
+ * Fetch a public-access quiz + its ordered questions.
+ *
+ * Always resolves to `{ outcome, quiz, questions, denied, error }` — it never
+ * returns null and never rejects, so the caller decides what to say about a
+ * failure instead of inheriting a silence. The Firestore read rule is the
+ * security boundary: the read succeeds either because the quiz is
+ * publicAccess + isPublished (anon / learner path) or because the visitor is
+ * the admin / creator (preview-a-draft path).
  */
 export async function loadPublicQuiz(quizId) {
-  if (!quizId) return null
-  // Firestore rules are the security boundary. The read here succeeds
-  // either because (a) the quiz is publicAccess + isPublished (anon /
-  // signed-in learner path), or (b) the visitor is the admin / creator
-  // (preview-a-draft path). Either way we want to render the runner —
-  // we don't gate on the flags client-side anymore, because the rules
-  // already do it correctly for non-privileged callers.
+  if (!quizId) {
+    return { outcome: QUIZ_LOAD.UNAVAILABLE, quiz: null, questions: [], denied: false, error: null }
+  }
+
   let quizSnap
   try {
     quizSnap = await getDoc(doc(db, 'quizzes', quizId))
-  } catch {
-    return null
+  } catch (err) {
+    return {
+      outcome: isPermissionDenied(err) ? QUIZ_LOAD.UNAVAILABLE : QUIZ_LOAD.FAILED,
+      quiz: null,
+      questions: [],
+      denied: isPermissionDenied(err),
+      error: err,
+    }
   }
-  if (!quizSnap.exists()) return null
+  if (!quizSnap.exists()) {
+    return { outcome: QUIZ_LOAD.UNAVAILABLE, quiz: null, questions: [], denied: false, error: null }
+  }
   const quiz = { id: quizSnap.id, ...quizSnap.data() }
 
-  const qs = await getDocs(query(
-    collection(db, 'quizzes', quizId, 'questions'),
-    orderBy('order', 'asc'),
-  ))
+  let qs
+  try {
+    qs = await getDocs(query(
+      collection(db, 'quizzes', quizId, 'questions'),
+      orderBy('order', 'asc'),
+    ))
+  } catch (err) {
+    // The quiz metadata is public but its questions are not. Reported as its
+    // own outcome because the remedy is different from an unpublished quiz.
+    return {
+      outcome: isPermissionDenied(err) ? QUIZ_LOAD.QUESTIONS_BLOCKED : QUIZ_LOAD.FAILED,
+      quiz,
+      questions: [],
+      denied: isPermissionDenied(err),
+      error: err,
+    }
+  }
   const questions = qs.docs.map((d) => ({ id: d.id, ...d.data() }))
-  return { quiz, questions }
+  return { outcome: QUIZ_LOAD.OK, quiz, questions, denied: false, error: null }
 }

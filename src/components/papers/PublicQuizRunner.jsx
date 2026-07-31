@@ -27,12 +27,15 @@ import {
 } from '../../utils/pastPaperQuizStatus'
 import {
   FREE_QUESTION_LIMIT,
+  QUIZ_LOAD,
+  QUIZ_LOAD_TEXT,
   getAnsweredCount,
   hasReachedFreeLimit,
   loadPublicQuiz,
   recordAnsweredQuestion,
   resetCounter,
 } from '../../utils/pastPaperQuiz'
+import { reportClientError } from '../../utils/clientErrorReporting'
 import { paywall } from '../../utils/paywall'
 import { validateQuizSubjectIntegrity } from '../../utils/quizSubjectIntegrity'
 import { PAPER_SUBJECTS } from '../../config/curriculum'
@@ -258,8 +261,23 @@ export default function PublicQuizRunner() {
         }
         const payload = await loadPublicQuiz(p.quizId)
         if (cancelled) return
-        if (!payload) {
-          setError('The quiz for this paper is not available right now.')
+        if (payload.outcome !== QUIZ_LOAD.OK) {
+          // The paper SAYS it has a quiz (quizStatus attached + a quizId), so
+          // a failure here is a broken link, not a paper without a quiz.
+          // Report it: an admin who unpublishes the linked quiz, or deletes
+          // it from /admin/content, otherwise gets no signal at all — the
+          // learner sees a dead end and nobody upstream ever hears about it.
+          console.error('[PublicQuizRunner] linked quiz could not be loaded', {
+            paperId,
+            quizId: p.quizId,
+            outcome: payload.outcome,
+            denied: payload.denied,
+          })
+          reportClientError(
+            payload.error || new Error(`past-paper quiz ${payload.outcome}`),
+            `past-paper-quiz:${payload.outcome}`,
+          )
+          setError(QUIZ_LOAD_TEXT[payload.outcome] || QUIZ_LOAD_TEXT[QUIZ_LOAD.FAILED])
           return
         }
         // FAIL CLOSED on a subject/grade/curriculum identity mismatch between
