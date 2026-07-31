@@ -25,7 +25,10 @@
  *   danger   — renders with warning styling (platform-wide blast radius)
  */
 
-const GRADE_OPTIONS = ['4', '5', '6', '7']
+import { gradesForFeature, gradeNumberOf } from '../../../config/canonicalEducation.js'
+
+// Derived from the canonical model — see FEATURE_GRADE_RESTRICTIONS.
+const GRADE_OPTIONS = gradesForFeature('learner-catalogue').map((g) => gradeNumberOf(g.code))
 const THEME_OPTIONS = ['oatmeal', 'sky', 'solar', 'midnight']
 
 export const SETTINGS_GROUPS = [

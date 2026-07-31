@@ -569,11 +569,12 @@
     },
     "senior_secondary": {
       "id": "senior_secondary",
-      "label": "Forms 3–5",
+      "label": "Forms 3–6",
       "levels": [
         "form-3",
         "form-4",
-        "form-5"
+        "form-5",
+        "form-6"
       ],
       "reading": {
         "requirement": "full",

@@ -5,6 +5,7 @@
 // studioGradeToKbGrade / studioSubjectToKey when calling generators.
 
 import { ASSESSMENT_TYPES } from './paperTaxonomy.js'
+import { CANONICAL_SUBJECTS, CANONICAL_GRADES, subjectName } from '../../config/canonicalEducation.js'
 
 // Display labels for every selectable assessment type PLUS every legacy/
 // route-scoped value a saved paper might still carry. The canonical 7 types
@@ -32,18 +33,33 @@ export const ASSESSMENT_TYPE_LABELS = {
   ...Object.fromEntries(Object.entries(ASSESSMENT_TYPES).map(([k, v]) => [k, v.label])),
 }
 
-export const STUDIO_SUBJECTS = [
-  'English',
-  'Integrated Science',
-  'Mathematics',
-  'Social Studies',
-  'Expressive Art',
-  'Technology Studies',
-  'Cinyanja',
-  'Home Economics',
-]
+/**
+ * Every subject name a paper may carry, from the canonical model.
+ *
+ * This was a local list of eight labels — 'Integrated Science', 'Expressive
+ * Art', 'Cinyanja', 'English' — that existed nowhere else in the product, so a
+ * paper's subject could never be matched to a timetable slot, a scheme of work
+ * or a syllabus without a per-pair alias table. The studio's live picker has
+ * been syllabus-backed for a while (useStudioSubjectChoices); what remained
+ * hardcoded here is the vocabulary the lesson-kit deep link speaks, which is
+ * why a kit could hand the studio a subject the syllabus does not know.
+ *
+ * Names come from the canonical model, which takes them from the Syllabus
+ * Studio — so 'Science' rather than 'Integrated Science' under the CBC.
+ */
+export const STUDIO_SUBJECTS = CANONICAL_SUBJECTS.map((s) => subjectName(s.id))
 
-export const STUDIO_GRADES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']
+/**
+ * The grade values the studio's header accepts, from the canonical ladder.
+ *
+ * Papers store bare numbers for primary and the G-code for secondary (see
+ * educationLevels.js), which is the scheme reproduced here. The list previously
+ * stopped at '12' and had no ECE bands at all, so a Nursery paper's grade was
+ * not a value the studio recognised.
+ */
+export const STUDIO_GRADES = CANONICAL_GRADES.map((g) => (
+  g.stage === 'ece' || g.formNumber != null ? g.code : String(g.gradeNumber)
+))
 
 // Option / column letters (A, B, C, …) — shared by the studio shell and the
 // per-question-type editors (MCQ option labels, matching column headers).

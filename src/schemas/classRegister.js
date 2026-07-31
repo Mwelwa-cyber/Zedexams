@@ -15,6 +15,7 @@
 
 import { z } from 'zod'
 import { normalizeSubject } from '../config/curriculum.js'
+import { CANONICAL_GRADES } from '../config/canonicalEducation.js'
 
 const CLASS_STATUSES = ['active', 'archived']
 
@@ -31,22 +32,24 @@ const CLASS_STATUSES = ['active', 'archived']
  *  - label  full display label for register UI ("Grade 4", "Form 1").
  *  - short  label minus the redundant "Grade " prefix, for surfaces that
  *           already print their own "GRADE:" caption (the report cards).
+ *
+ * DERIVED from the canonical ladder (src/config/canonicalEducation.js) rather
+ * than listed here, so the register cannot again offer a different set of
+ * grades from the studios — it stopped at Form 4 while the product claimed to
+ * serve Forms 1-6. What stays local is the register's own STORED value scheme
+ * ('nursery', '4', 'form-1'), which existing documents depend on.
  */
-export const CLASS_REGISTER_GRADE_OPTIONS = [
-  { value: 'nursery',   label: 'Nursery',       short: 'Nursery' },
-  { value: 'reception', label: 'Reception',     short: 'Reception' },
-  { value: '1', label: 'Grade 1', short: '1' },
-  { value: '2', label: 'Grade 2', short: '2' },
-  { value: '3', label: 'Grade 3', short: '3' },
-  { value: '4', label: 'Grade 4', short: '4' },
-  { value: '5', label: 'Grade 5', short: '5' },
-  { value: '6', label: 'Grade 6', short: '6' },
-  { value: '7', label: 'Grade 7', short: '7' },
-  { value: 'form-1', label: 'Form 1', short: 'Form 1' },
-  { value: 'form-2', label: 'Form 2', short: 'Form 2' },
-  { value: 'form-3', label: 'Form 3', short: 'Form 3' },
-  { value: 'form-4', label: 'Form 4', short: 'Form 4' },
-]
+export const CLASS_REGISTER_GRADE_OPTIONS = CANONICAL_GRADES.map((rung) => {
+  if (rung.stage === 'ece') {
+    return { value: rung.properName.toLowerCase(), label: rung.properName, short: rung.properName }
+  }
+  if (rung.formNumber != null) {
+    const label = `Form ${rung.formNumber}`
+    return { value: `form-${rung.formNumber}`, label, short: label }
+  }
+  const n = String(rung.gradeNumber)
+  return { value: n, label: `Grade ${n}`, short: n }
+})
 
 const GRADES = CLASS_REGISTER_GRADE_OPTIONS.map((o) => o.value)
 

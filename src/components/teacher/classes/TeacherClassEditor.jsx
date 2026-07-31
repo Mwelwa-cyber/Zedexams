@@ -11,10 +11,34 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { createClass } from '../../../utils/classes'
-import { SUBJECTS } from '../../../config/curriculum'
+import {
+  CANONICAL_GRADES, CANONICAL_SUBJECTS, gradeLabel, subjectName,
+} from '../../../config/canonicalEducation'
 import SeoHelmet from '../../seo/SeoHelmet'
 
-const GRADES = ['4', '5', '6', '7']
+// The FULL canonical ladder — Nursery through Form 6 — not a local subset.
+//
+// This form used to offer Grades 4-7 and nothing else, so a teacher could not
+// register the Nursery class or the Form 2 class they actually taught. A class
+// roster is an organisational tool: a teacher must be able to register any class
+// they teach, including grades the platform has no quizzes for yet. There is
+// therefore no product reason to restrict it, and per the canonical model's
+// rule an unrestricted feature renders the full list rather than declaring one.
+const GRADE_OPTIONS = CANONICAL_GRADES.map((g) => ({
+  value: g.code,
+  label: gradeLabel(g.code),
+}))
+
+// Subjects likewise come from the canonical list, so a class and a paper agree
+// on what a subject is called. The stored value is the canonical subject id —
+// the stable key — never the display label.
+const SUBJECT_OPTIONS = CANONICAL_SUBJECTS.map((s) => ({
+  value: s.id,
+  label: subjectName(s.id),
+  group: s.group,
+}))
+
+const SUBJECT_GROUPS = [...new Set(SUBJECT_OPTIONS.map((s) => s.group))]
 
 function inputCls() {
   return 'w-full rounded-xl border-2 theme-border theme-input px-3 py-2 text-sm focus:outline-none disabled:opacity-50'
@@ -27,7 +51,7 @@ export default function TeacherClassEditor() {
   const [form, setForm] = useState({
     name: '',
     description: '',
-    grade: '5',
+    grade: 'G5',
     subject: '',
     school: userProfile?.school || '',
   })
@@ -105,7 +129,7 @@ export default function TeacherClassEditor() {
               Grade <span className="text-rose-700">*</span>
             </label>
             <select value={form.grade} onChange={(e) => set('grade', e.target.value)} className={inputCls()}>
-              {GRADES.map((g) => <option key={g} value={g}>Grade {g}</option>)}
+              {GRADE_OPTIONS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
             </select>
           </div>
           <div>
@@ -114,7 +138,13 @@ export default function TeacherClassEditor() {
             </label>
             <select value={form.subject} onChange={(e) => set('subject', e.target.value)} className={inputCls()}>
               <option value="">All subjects</option>
-              {SUBJECTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+              {SUBJECT_GROUPS.map((group) => (
+                <optgroup key={group} label={group}>
+                  {SUBJECT_OPTIONS.filter((s) => s.group === group).map((s) => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
+                </optgroup>
+              ))}
             </select>
           </div>
         </div>

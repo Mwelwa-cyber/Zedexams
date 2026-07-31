@@ -32,6 +32,7 @@
 
 import { z } from 'zod'
 import { normalizeSubject } from '../config/curriculum.js'
+import { gradesForFeature, gradeNumberOf } from '../config/canonicalEducation.js'
 
 // ── Field helpers ─────────────────────────────────────────────────
 
@@ -49,8 +50,11 @@ const emptyableString = (max) =>
   z.preprocess((v) => (v == null ? '' : v), z.string().max(max))
 
 // The only grades the platform (and firestore.rules `_validGrade`) accept.
-// Kept as strings because the Firestore rule requires `value is string`.
-const ACTIVE_GRADE_STRINGS = ['4', '5', '6', '7']
+// A documented FILTER on the canonical ladder, not a list of its own — see
+// FEATURE_GRADE_RESTRICTIONS['learner-catalogue']. Kept as strings because
+// the Firestore rule requires `value is string`.
+const ACTIVE_GRADE_STRINGS = gradesForFeature('learner-catalogue')
+  .map((g) => gradeNumberOf(g.code))
 
 // Friendly, actionable message shown when a quiz has no valid grade. Surfaced
 // verbatim by the editor (manual save toast + auto-save hint) so the admin

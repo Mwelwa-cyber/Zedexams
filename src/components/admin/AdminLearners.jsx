@@ -7,8 +7,12 @@ import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
 import { downloadCSV } from '../../utils/csvExport'
 import SeoHelmet from '../seo/SeoHelmet'
+import { gradesForFeature, gradeNumberOf } from '../../config/canonicalEducation'
 
-const GRADES = ['4', '5', '6', '7']
+// The learner catalogue's grades, from the canonical model — a documented
+// FILTER on the one ladder (quizzes and lessons are authored for upper
+// primary only), never a list of its own.
+const GRADES = gradesForFeature('learner-catalogue').map((g) => gradeNumberOf(g.code))
 const PAGE_SIZE_OPTIONS = [20, 50, 100]
 const DEFAULT_PAGE_SIZE = 20
 

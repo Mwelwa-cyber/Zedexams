@@ -24,6 +24,8 @@ import {
 import { convertPaperToQuizDraft } from '../../utils/paperToQuizConverter'
 import ImportReviewBadge from '../quiz/ImportReviewBadge'
 import SeoHelmet from '../seo/SeoHelmet'
+import { PAPER_SUBJECTS } from '../../config/curriculum'
+import { gradesForFeature, gradeNumberOf } from '../../config/canonicalEducation'
 
 // Three first-class content types share one admin home. Past papers are folded
 // in as their own tab (their admin "home") but stay out of the Daily-Exam
@@ -57,11 +59,9 @@ const STATUS_CFG = {
   rejected:  { label: 'Rejected',  dot: 'bg-red-500',    pill: 'bg-red-100 text-red-600'       },
 }
 
-const SUBJECTS = [
-  '', 'English', 'Integrated Science', 'Mathematics', 'Social Studies',
-  'Expressive Art', 'Technology Studies', 'Cinyanja', 'Home Economics',
-  'Special Paper 1',
-]
+// Leading '' is the "all subjects" filter option; the rest is the
+// learner catalogue, not a second copy of it.
+const SUBJECTS = ['', ...PAPER_SUBJECTS.map((s) => s.label)]
 
 const SORTS = [
   { id: 'code',   label: 'Topic code' },
@@ -913,7 +913,12 @@ export default function ManageContent() {
     return count + 1
   }, 0), [quizzes, gradeF, subjectF, needle])
 
-  const gradeOptions = tab === 'pastpapers' ? ['7', '12'] : ['4', '5', '6', '7']
+  // Both are declared filters on the canonical ladder, with their product
+  // reasons recorded in FEATURE_GRADE_RESTRICTIONS.
+  const gradeOptions = (tab === 'pastpapers'
+    ? gradesForFeature('past-papers')
+    : gradesForFeature('learner-catalogue')
+  ).map((g) => gradeNumberOf(g.code))
   const hasFilters = search || gradeF || subjectF || quizTypeF || paperStatusF || needsReviewOnly
   const counts = { quizzes: quizzes.length, lessons: lessons.length, pastpapers: papers.length }
 

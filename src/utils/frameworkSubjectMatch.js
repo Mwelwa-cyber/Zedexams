@@ -22,6 +22,7 @@
 
 import { getFrameworkForGrade, obcSeniorSecondaryAllocation } from './curriculumFramework.js'
 import { normalizeCurriculum } from './schemeFormat.js'
+import { resolveStoredSubject } from '../config/canonicalEducation.js'
 
 // Normalised curriculum ('cbc'|'obc') → the framework id its allocations live
 // under in curriculumFramework.js.
@@ -31,7 +32,19 @@ const FRAMEWORK_ID_BY_CURRICULUM = {
 }
 
 // KB subject slug → substrings to look for in a framework subject label.
-// First matching framework subject (in framework order) wins.
+//
+// SECONDARY PATH ONLY. Every framework subject that corresponds to a canonical
+// subject now carries a `canonicalSubjectId` foreign key, and the match below
+// uses that first. This substring table remains for the framework rows that
+// have NO canonical subject behind them — Physical Education and Religious
+// Education are taught inside the Expressive Arts allocation rather than
+// getting a line of their own, and Sign Language / Braille / Activities for
+// Daily Living are adapted-curriculum provisions rather than syllabus subjects.
+//
+// It used to be the ONLY path, which is why a scheme of work for
+// `integrated_science` could not find the framework's "Science" row under the
+// CBC until 'science' was added as a substring — the two vocabularies were
+// reconciled by guessing at labels rather than by a shared key.
 const SLUG_ALIASES = {
   mathematics: ['mathematics'],
   numeracy: ['mathematics'],
@@ -104,13 +117,27 @@ export function matchFrameworkSubject(grade, subjectSlug, curriculum) {
     }
     return null
   }
-  const tokens = tokensFor(subjectSlug)
   const subjects = framework.subjects || []
 
-  const matches = subjects.filter((s) => {
-    const label = String(s.label || '').toLowerCase()
-    return tokens.some((tok) => label.includes(tok))
-  })
+  // PRIMARY: match on the canonical subject id both sides now carry. This is
+  // what makes a scheme of work for `integrated_science` resolve against the
+  // CBC framework's "Science" row and the OBC framework's "Integrated Science"
+  // row alike — the two curricula name the subject differently, and neither
+  // name is the identity.
+  const canonicalId = resolveStoredSubject(subjectSlug)?.id || ''
+  let matches = canonicalId
+    ? subjects.filter((s) => s.canonicalSubjectId === canonicalId)
+    : []
+
+  // SECONDARY: the label-substring fallback, for framework rows with no
+  // canonical subject behind them (see SLUG_ALIASES).
+  if (matches.length === 0) {
+    const tokens = tokensFor(subjectSlug)
+    matches = subjects.filter((s) => {
+      const label = String(s.label || '').toLowerCase()
+      return tokens.some((tok) => label.includes(tok))
+    })
+  }
   if (matches.length === 0) return null
 
   // Prefer a match that actually carries periods (choiceGroup alternates seed

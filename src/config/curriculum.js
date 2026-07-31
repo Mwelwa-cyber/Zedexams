@@ -50,7 +50,22 @@ export const GRADES = [4, 5, 6, 7]
 
 /** Learning Areas (subjects) — 8 as per CBC Upper Primary.
  *
+ * This is the LEARNER catalogue: the eight upper-primary subjects the app
+ * publishes quizzes and lessons for, with the mascot-and-pastel presentation
+ * the learner surfaces are built around. It is NOT the product's subject
+ * vocabulary — that is src/config/canonicalEducation.js, which covers all 34
+ * subjects across both curricula and takes its names from the Syllabus Studio.
+ *
  * Each subject carries:
+ *  - canonicalId  FK into CANONICAL_SUBJECTS. This is the identity: it is what
+ *                 makes a learner quiz for `integrated_science` the same
+ *                 subject as a timetable slot, a scheme of work and a syllabus
+ *                 page, none of which spell it "Integrated Science".
+ *  - label        the learner-facing display name AND, historically, the value
+ *                 stored on quizzes/lessons/results. It is kept as a display
+ *                 property rather than reconciled with the canonical name so
+ *                 the learner surfaces keep the wording children know; use
+ *                 `canonicalId` for anything that must MATCH across studios.
  *  - icon         legacy single-emoji fallback (still consumed by older
  *                 callers that expect a string)
  *  - iconKey      identifier for the SVG renderer in <SubjectIcon>
@@ -59,6 +74,7 @@ export const GRADES = [4, 5, 6, 7]
 export const SUBJECTS = [
   {
     id: 'english',
+    canonicalId: 'english',
     label: 'English',
     shortLabel: 'English',
     icon: '📖',
@@ -74,6 +90,7 @@ export const SUBJECTS = [
   },
   {
     id: 'science',
+    canonicalId: 'integrated_science',
     label: 'Integrated Science',
     shortLabel: 'Science',
     icon: '🔬',
@@ -89,6 +106,7 @@ export const SUBJECTS = [
   },
   {
     id: 'mathematics',
+    canonicalId: 'mathematics',
     label: 'Mathematics',
     shortLabel: 'Maths',
     icon: '📐',
@@ -104,6 +122,7 @@ export const SUBJECTS = [
   },
   {
     id: 'social-studies',
+    canonicalId: 'social_studies',
     label: 'Social Studies',
     shortLabel: 'Social',
     icon: '🌍',
@@ -119,6 +138,7 @@ export const SUBJECTS = [
   },
   {
     id: 'expressive-arts',
+    canonicalId: 'expressive_arts',
     label: 'Expressive Art',
     shortLabel: 'Art',
     icon: '🎨',
@@ -134,6 +154,7 @@ export const SUBJECTS = [
   },
   {
     id: 'technology',
+    canonicalId: 'technology_studies',
     label: 'Technology Studies',
     shortLabel: 'Technology',
     icon: '💻',
@@ -149,6 +170,7 @@ export const SUBJECTS = [
   },
   {
     id: 'cinyanja',
+    canonicalId: 'zambian_language',
     label: 'Cinyanja',
     shortLabel: 'Cinyanja',
     icon: '🗣️',
@@ -164,6 +186,7 @@ export const SUBJECTS = [
   },
   {
     id: 'home-economics',
+    canonicalId: 'home_economics',
     label: 'Home Economics',
     shortLabel: 'Home Ec.',
     icon: '🏡',
@@ -195,6 +218,7 @@ export const SUBJECTS = [
 export const SPECIAL_PAPER_SUBJECTS = [
   {
     id: 'special-paper-1',
+    canonicalId: null,
     label: 'Special Paper 1',
     shortLabel: 'Special Paper 1',
     icon: '📝',
@@ -210,6 +234,7 @@ export const SPECIAL_PAPER_SUBJECTS = [
   },
   {
     id: 'creative-technology-studies',
+    canonicalId: 'creative_and_technology_studies',
     label: 'Creative and Technology Studies',
     shortLabel: 'Creative & Tech',
     icon: '🛠️',
@@ -741,6 +766,27 @@ export const TEACHER_SUBJECT_TO_CURRICULUM = {
   home_economics: 'home-economics',
   cinyanja: 'cinyanja',
   creative_and_technology_studies: 'creative-technology-studies',
+}
+
+/**
+ * The learner-dashboard visual metadata (icon, pastel, tailwind palette) for a
+ * CANONICAL subject id.
+ *
+ * The canonical model (src/config/canonicalEducation.js) owns what a subject IS
+ * and what it is CALLED; this catalogue owns what it LOOKS LIKE on the learner
+ * surfaces, keyed by the older hyphen ids. `TEACHER_SUBJECT_TO_CURRICULUM`
+ * already bridges the two vocabularies, so this is the one place a surface
+ * holding a canonical id turns it into an icon — rather than each one keeping a
+ * SUBJECTS.find() against a vocabulary the record no longer speaks.
+ *
+ * Returns null for a subject with no learner-dashboard entry (a secondary or
+ * vocational subject); SubjectIcon already renders a neutral fallback for that.
+ */
+export function subjectVisualsFor(canonicalSubjectId) {
+  const raw = String(canonicalSubjectId ?? '').trim().toLowerCase()
+  if (!raw) return null
+  const key = TEACHER_SUBJECT_TO_CURRICULUM[raw] || raw
+  return SUBJECT_MAP[key] || SUBJECT_MAP[key.replace(/_/g, '-')] || null
 }
 
 /**
