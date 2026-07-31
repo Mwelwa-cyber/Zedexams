@@ -1,0 +1,86 @@
+/* ────────────────────────────────────────────────────────────────────────
+   UI audit page — layout only.
+
+   Loaded with the lazy /dev/ui chunk and nowhere else. Every rule below is
+   prefixed `.ui-audit-` so it cannot reach a real surface.
+
+   THE STANDING RULE FOR THIS FILE: no colour literals. The page exists to
+   catch components that stopped following the theme; chrome that does the
+   same thing makes every specimen suspect. Colours come from the theme
+   tokens, and the only geometry here is grid and scroll behaviour that
+   Tailwind cannot express inline.
+   ──────────────────────────────────────────────────────────────────────── */
+
+/* Four theme columns, side by side, scrolling horizontally rather than
+   wrapping. Two columns of four is two comparisons; the comparison is the
+   whole point of the mode. On a phone the columns narrow to a readable
+   minimum and the row scrolls. */
+.ui-audit-themes-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(16rem, 1fr);
+  gap: 0.75rem;
+  min-width: min-content;
+}
+
+@media (min-width: 1280px) {
+  .ui-audit-themes-grid {
+    grid-auto-columns: minmax(0, 1fr);
+  }
+}
+
+/* The variant × state matrix. The row header stays put while the states
+   scroll under it — without it you lose track of which variant you are
+   looking at three columns in, which is where the interesting failures are. */
+.ui-audit-matrix {
+  font-size: 13px;
+}
+
+.ui-audit-matrix th,
+.ui-audit-matrix td {
+  vertical-align: middle;
+}
+
+/* Pinned focus ring.
+ *
+ * MIRRORS the global `*:focus-visible` rule in src/index.css. It has to be
+ * repeated because a pseudo-class cannot be applied programmatically, but it
+ * is repeated through the same two tokens — so the thing being audited (does
+ * the accent ring stay visible against this theme's page) is still resolved
+ * from the theme rather than from a value typed here.
+ *
+ * Kept in step by test:ui-audit-forced-states, which parses both declarations
+ * and fails if they diverge. */
+.ui-audit-force-focus > * {
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+  border-radius: 8px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Pinned sidebar-nav hover.
+ *
+ * Same bargain as the focus ring, for the same reason: `.tdv2-nav-item:hover`
+ * is a rule, and a rule cannot be applied without its pseudo-class. Repeated
+ * here so all three nav states (default / hover / active) can be judged in one
+ * glance across four themes, and kept identical to the original by
+ * test:ui-audit-forced-states. */
+.ui-audit-nav-hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--on-sidebar);
+  transform: translateX(2px);
+}
+
+/* The section rhythm. Generous enough to tell sections apart at a glance,
+   tight enough that the page stays a dense reference rather than a brochure. */
+.ui-audit-section + .ui-audit-section {
+  margin-top: 2.5rem;
+}
+
+/* A wide specimen (the button matrix, a table) scrolls inside its own box.
+   The page body must never scroll sideways — on a phone that turns every
+   vertical swipe into a fight. */
+.ui-audit-scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
