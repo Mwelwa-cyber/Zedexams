@@ -86,6 +86,10 @@ export function PaperRenderView({
         <button className="sv-chip" onClick={() => changeView('builder')}><Icon name="builder" size={14} /> Builder</button>
         <button className={`sv-chip ${!isKey ? 'active' : ''}`} onClick={() => changeView('preview')}><Icon name="preview" size={14} /> Preview</button>
         <button className={`sv-chip ${isKey ? 'active' : ''}`} onClick={() => changeView('marking-key')}><Icon name="key" size={14} /> Marking key</button>
+        {/* The teacher's filing copy — a document in its own right, not an
+            export of this one, so it gets a place in the rail rather than a
+            button buried in the export row. */}
+        <button className="sv-chip" onClick={() => changeView('tos')} title="Table of Specifications — the copy for your teacher's file"><Icon name="target" size={14} /> Spec table</button>
         {/* The page size and orientation come from the document rather than a
             hard-coded "A4 · Portrait" — a landscape or A5 paper used to be
             labelled as A4 portrait while printing as neither. */}
@@ -563,7 +567,7 @@ function AiTopicSubtopicPicker({ grade, subject, framework, topics, subtopics, o
   )
 }
 
-export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNumbers, generating, onGenerate, review, onConfirmReview, onDiscardReview, onImport, onScan, importing, onGenerateDiagram, generatingDiagram, onOpenDiagramScanner, onOpenMarkingKey, onCreatePaper, onUpdatePaperMeta, diagramsNeeded = 0, onOpenDiagramFix, onVerifyPaper, drift }) {
+export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNumbers, generating, onGenerate, review, onConfirmReview, onDiscardReview, onImport, onScan, importing, onGenerateDiagram, generatingDiagram, onOpenDiagramScanner, onOpenMarkingKey, onOpenSpecTable, onCreatePaper, onUpdatePaperMeta, diagramsNeeded = 0, onOpenDiagramFix, onVerifyPaper, drift }) {
   const docInputRef = useRef(null)
   const [customCount, setCustomCount] = useState(false)
   // The paper's curriculum framework drives both pickers below — one choice
@@ -770,6 +774,13 @@ export function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, que
           <button className="sv-ai-action" onClick={onOpenMarkingKey}>
             <div className="sv-ic"><Icon name="key" size={20} /></div>
             <div><strong>Open marking key</strong><small>Auto-generated answers + explanations</small></div>
+          </button>
+          <button className="sv-ai-action" onClick={onOpenSpecTable}>
+            <div className="sv-ic"><Icon name="target" size={20} /></div>
+            <div>
+              <strong>Table of Specifications</strong>
+              <small>Suggested from this paper — check the figures, then print or download it for your file</small>
+            </div>
           </button>
           <button className="sv-ai-action" onClick={onVerifyPaper} disabled={!questions?.length}>
             <div className="sv-ic"><Icon name="verify" size={20} /></div>

@@ -67,6 +67,10 @@ export function BuilderView(props) {
         <button className="sv-chip active"><Icon name="builder" size={14} /> Builder</button>
         <button className="sv-chip" onClick={() => changeView('preview')}><Icon name="preview" size={14} /> Preview</button>
         <button className="sv-chip" onClick={() => changeView('marking-key')}><Icon name="key" size={14} /> Marking key</button>
+        {/* The teacher's filing copy, alongside the two documents the learner
+            and the marker get. It used to be a download button on the plan
+            step only, so a saved paper had no route back to it at all. */}
+        <button className="sv-chip" onClick={() => changeView('tos')} title="Table of Specifications — the copy for your teacher's file"><Icon name="target" size={14} /> Spec table</button>
         {/* Measured, not estimated — "Calculating pages…" until it is, because
             a placeholder number reads as a fact. See usePaperPagination. */}
         <span className="sv-pages mono"><Icon name="pages" size={13} /> {pagination?.label ?? 'Calculating pages…'} · A4</span>

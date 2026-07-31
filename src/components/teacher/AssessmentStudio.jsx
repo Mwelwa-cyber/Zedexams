@@ -113,6 +113,7 @@ import { TopBar, BottomBar } from './studio/AssessmentBars'
 import { HomeView } from './studio/AssessmentHomeView'
 import { BuilderView } from './studio/AssessmentBuilderView'
 import PaperHealthModal from './PaperHealthModal'
+import TableOfSpecificationView from './views/TableOfSpecificationView'
 import PaperTemplatePicker from './PaperTemplatePicker'
 import {
   PaperRenderView,
@@ -467,7 +468,7 @@ export default function AssessmentStudio() {
   const [view, setView] = useState(
     isEditing
       ? 'builder'
-      : ['home', 'builder', 'preview', 'marking-key'].includes(requestedView) ? requestedView : 'home',
+      : ['home', 'builder', 'preview', 'marking-key', 'tos'].includes(requestedView) ? requestedView : 'home',
   )
   const [slideover, setSlideover] = useState(null) // 'blocks' | 'ai' | 'editor' | null
   const [editorTargetKey, setEditorTargetKey] = useState(null)
@@ -673,6 +674,25 @@ export default function AssessmentStudio() {
     totalMarks,
     questionCount,
   }), [form, footerCode, autoTitle, serializedPreview, totalMarks, questionCount])
+
+  // Header identity for the Table of Specifications. The grid itself comes from
+  // the paper's own questions; this is only what the sheet is titled, so a
+  // filed copy names the school, the paper and the teacher who wrote it.
+  const tosMeta = useMemo(() => ({
+    schoolName: form.schoolName || '',
+    schoolLogoUrl: form.schoolLogoUrl || '',
+    title: autoTitle,
+    gradeLabel: paperGradeLabel(form.grade) || form.grade || '',
+    subject: form.subject || '',
+    term: form.term || '',
+    year: String(form.year || ''),
+    durationMinutes: Number(form.duration) || 0,
+    framework: form.framework === '2013'
+      ? '2013 Outcome-Based Curriculum'
+      : '2023 Competence-Based Curriculum',
+    assessmentType: ASSESSMENT_TYPE_LABELS_META?.[form.assessmentType] || '',
+    teacherName: userProfile?.displayName || currentUser?.displayName || '',
+  }), [form, autoTitle, userProfile, currentUser])
 
   // The REAL page count, measured by rendering the paper the print window's own
   // way. It replaces `Math.ceil((questionCount + totalMarks * 0.4) / 8)`, which
@@ -3314,6 +3334,20 @@ export default function AssessmentStudio() {
         </StudioOutputBoundary>
       )}
 
+      {/* The teacher's filing copy. A separate view rather than a download
+          button, because it is a document a head teacher checks — so it has to
+          be readable, and correctable, before it is filed. */}
+      {view === 'tos' && (
+        <StudioOutputBoundary onRetry={() => changeView('builder')}>
+          <TableOfSpecificationView
+            blueprint={paperBlueprint}
+            questions={serializedPreview.questions}
+            meta={tosMeta}
+            changeView={changeView}
+          />
+        </StudioOutputBoundary>
+      )}
+
       <BottomBar
         view={view}
         warnings={warnings}
@@ -3355,6 +3389,7 @@ export default function AssessmentStudio() {
         generatingDiagram={generatingDiagram}
         onOpenDiagramScanner={() => { closeSlide(); setDiagramScannerOpen(true) }}
         onOpenMarkingKey={() => { closeSlide(); changeView('marking-key') }}
+        onOpenSpecTable={() => { closeSlide(); changeView('tos') }}
         onCreatePaper={() => setCreatePaperOpen(true)}
         onUpdatePaperMeta={(k, v) => setF(k, v)}
         diagramsNeeded={countDiagramsNeeded(sections)}
@@ -3364,7 +3399,7 @@ export default function AssessmentStudio() {
       />
       {createPaperOpen && (
         <CreatePaperModal
-          paperMeta={{ grade: form.grade, subject: form.subject, term: form.term, framework: form.framework, assessmentType: form.assessmentType, mcqAnswerChoiceCount: form.mcqAnswerChoiceCount }}
+          paperMeta={{ grade: form.grade, subject: form.subject, term: form.term, framework: form.framework, assessmentType: form.assessmentType, mcqAnswerChoiceCount: form.mcqAnswerChoiceCount, schoolName: form.schoolName, title: autoTitle, teacherName: userProfile?.displayName || currentUser?.displayName || '' }}
           onApply={handleApplyAiPaper}
           onClose={() => setCreatePaperOpen(false)}
         />

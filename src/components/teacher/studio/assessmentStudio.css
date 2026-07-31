@@ -3278,3 +3278,267 @@
   background: var(--sv-paper);
   color: var(--sv-text);
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+ * TABLE OF SPECIFICATIONS — the teacher's filing copy, shown on screen.
+ *
+ * Drawn to look like the ruled grid it prints as, because that is the point:
+ * this document used to be download-only, so nobody saw it until it was
+ * already in a file. Cells are inputs — the figures are a suggestion, and a
+ * suggestion the teacher cannot overrule is just an assertion.
+ * ══════════════════════════════════════════════════════════════════════ */
+.studio-v2 .sv-tos {
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-r);
+  background: var(--sv-paper);
+  padding: var(--sv-s4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-s3);
+}
+.studio-v2 .sv-tos-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sv-s3);
+  flex-wrap: wrap;
+}
+.studio-v2 .sv-tos-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--sv-text);
+}
+.studio-v2 .sv-tos-sub {
+  margin: 4px 0 0;
+  max-width: 62ch;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--sv-muted);
+}
+.studio-v2 .sv-tos-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-s4);
+}
+.studio-v2 .sv-tos-field {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  flex: 1 1 240px;
+}
+.studio-v2 .sv-tos-field legend {
+  padding: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.35px;
+  text-transform: uppercase;
+  color: var(--sv-muted);
+  margin-bottom: 6px;
+}
+.studio-v2 .sv-tos-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.studio-v2 .sv-tos-hint {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--sv-muted);
+}
+
+/* The sheet itself. */
+.studio-v2 .sv-tos-sheet {
+  border: 1px solid var(--sv-border-strong);
+  border-radius: var(--sv-r-sm);
+  background: #fff;
+  padding: var(--sv-s4);
+}
+.studio-v2 .sv-tos-sheet-head {
+  text-align: center;
+  border-bottom: 2px solid var(--sv-primary);
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+  color: #1A1A1A;
+}
+.studio-v2 .sv-tos-ministry {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #555;
+}
+.studio-v2 .sv-tos-school {
+  font-size: 16px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.studio-v2 .sv-tos-doc-title {
+  margin-top: 3px;
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+}
+.studio-v2 .sv-tos-doc-sub {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: #555;
+}
+/* Wide grids scroll inside their own box; the page never scrolls sideways. */
+.studio-v2 .sv-tos-scroll { overflow-x: auto; }
+.studio-v2 .sv-tos-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  font-size: 12px;
+  color: #1A1A1A;
+}
+.studio-v2 .sv-tos-table th,
+.studio-v2 .sv-tos-table td {
+  border: 1px solid #444;
+  padding: 3px 4px;
+  text-align: center;
+  vertical-align: middle;
+}
+.studio-v2 .sv-tos-table thead th {
+  background: var(--sv-tinted);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.studio-v2 .sv-tos-table .sn { width: 40px; }
+.studio-v2 .sv-tos-table .topic { width: 30%; text-align: left; }
+.studio-v2 .sv-tos-abbr { display: block; }
+.studio-v2 .sv-tos-full {
+  display: block;
+  margin-top: 1px;
+  font-size: 8.5px;
+  font-weight: 500;
+  color: #555;
+}
+.studio-v2 .sv-tos-table tfoot td {
+  background: var(--sv-tinted);
+  font-weight: 800;
+}
+.studio-v2 .sv-tos-total { font-weight: 800; }
+/* The row-remove column is a control, not part of the printed grid. */
+.studio-v2 .sv-tos-table .sv-tos-rowaction {
+  border: 0;
+  width: 26px;
+  padding: 0 0 0 4px;
+}
+.studio-v2 .sv-tos-remove {
+  border: 0;
+  background: transparent;
+  color: var(--sv-muted);
+  font-size: 15px;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.studio-v2 .sv-tos-remove:hover:not(:disabled) {
+  background: var(--sv-tinted);
+  color: var(--sv-text);
+}
+.studio-v2 .sv-tos-remove:disabled { opacity: 0.35; cursor: default; }
+.studio-v2 .sv-tos-input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  padding: 2px 3px;
+  border-radius: 3px;
+}
+.studio-v2 .sv-tos-input.num {
+  text-align: center;
+  /* An empty cell must LOOK empty, the way the handwritten table does. */
+  -moz-appearance: textfield;
+}
+.studio-v2 .sv-tos-input.num::-webkit-outer-spin-button,
+.studio-v2 .sv-tos-input.num::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.studio-v2 .sv-tos-input:focus {
+  outline: 2px solid var(--sv-primary);
+  outline-offset: -1px;
+  background: var(--sv-tinted);
+}
+.studio-v2 .sv-tos-legend {
+  margin: 8px 0 0;
+  font-size: 10.5px;
+  color: #555;
+  line-height: 1.5;
+}
+.studio-v2 .sv-tos-rowtools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.studio-v2 .sv-tos-note,
+.studio-v2 .sv-tos-warn {
+  font-size: 12px;
+  color: var(--sv-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+.studio-v2 .sv-tos-warn { color: var(--warning-fg, #8A5A0F); }
+.studio-v2 .sv-tos-signature {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+.studio-v2 .sv-tos-signature label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--sv-muted);
+}
+.studio-v2 .sv-tos-signature input {
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-r-sm);
+  background: var(--sv-paper);
+  color: var(--sv-text);
+  padding: 6px 8px;
+  font-size: 13px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.studio-v2 .sv-tos-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.studio-v2 .sv-tos-message { font-size: 12px; color: var(--sv-sage, #2C5A41); }
+.studio-v2 .sv-tos-message.is-error { color: var(--sv-danger, #991B1B); }
+.studio-v2 .sv-sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The sheet keeps its printed light face in night mode — it is a preview of a
+   sheet of paper, and a dark "paper" is a preview of something else. */
+[data-theme='night'] .studio-v2 .sv-tos-sheet { background: #F4F1EA; }
+[data-theme='night'] .studio-v2 .sv-tos-table thead th,
+[data-theme='night'] .studio-v2 .sv-tos-table tfoot td { background: #E6E0D3; }
+[data-theme='night'] .studio-v2 .sv-tos-input:focus { background: #E6E0D3; }
+[data-theme='night'] .studio-v2 .sv-tos-signature input {
+  background: var(--sv-paper);
+  color: var(--sv-text);
+}

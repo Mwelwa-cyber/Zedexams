@@ -180,6 +180,7 @@
     "test:diagram-label": "node scripts/test-diagram-label-grading.mjs",
     "test:question-parts": "node src/utils/questionParts.test.js",
     "test:paper-health": "node src/utils/paperHealth.test.js",
+    "test:table-of-specifications": "node src/utils/tableOfSpecifications.test.js",
     "test:library-taxonomy": "node src/lib/library/taxonomy.test.js",
     "test:library-studios": "node src/lib/library/studios.test.js",
     "test:library-queries": "node src/lib/library/queries.test.js",
