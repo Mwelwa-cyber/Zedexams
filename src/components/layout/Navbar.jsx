@@ -102,7 +102,7 @@ export default function Navbar() {
   // learners guessing what each glyph meant — so the links stack a tiny label
   // under the icon instead of hiding it, and switch to the inline row at xl+.
   const linkClass = ({ isActive }) =>
-    `relative flex flex-col xl:flex-row items-center gap-0.5 xl:gap-1.5 px-2 xl:px-2.5 2xl:px-3 py-1 xl:py-1.5 rounded-[10px] text-[10px] xl:text-sm font-bold transition-all duration-fast ease-out ${
+    `relative flex flex-col xl:flex-row items-center gap-1 xl:gap-1.5 px-1.5 xl:px-2.5 2xl:px-3 py-1.5 rounded-[10px] text-[11px] xl:text-sm font-bold transition-all duration-fast ease-out ${
       isActive
         ? 'theme-accent-bg theme-accent-text shadow-elev-inner-hl after:absolute after:left-3 after:right-3 after:-bottom-[2px] after:h-[2px] after:rounded-full after:theme-accent-fill'
         : 'theme-text-muted hover:theme-bg-subtle hover:theme-text'
@@ -124,32 +124,34 @@ export default function Navbar() {
           <Logo variant="full" size="md" />
         </Link>
 
-        {/* Desktop nav links. Inline icon+label needs more width than exists
+        {/* Desktop nav links. Inline icon+text needs more width than exists
             between lg and xl (logo + links + search/bell/badge/profile/logout
             overflowed the glass bar), but pure icons were unreadable — so on
-            those widths each link stacks a 10px label under a 20px icon, and
-            the row layout with full-size labels returns at xl+. */}
+            those widths each link stacks an 11px label under a 24px icon
+            (the 20px icon + 10px label read too small on tablets), and the
+            row layout with full-size labels returns at xl+, where the icon
+            drops back to 20px so it sits on the text baseline. */}
         <div className="hidden lg:flex items-center gap-1 flex-1 justify-center">
           {navLinks.map(l => (
             <NavLink key={l.to} to={l.to} className={linkClass} title={l.label} aria-label={l.label}>
-              <Icon as={l.icon} size="md" />
+              <Icon as={l.icon} size="lg" className="xl:h-5 xl:w-5" />
               <span className={linkLabelClass}>{l.label}</span>
             </NavLink>
           ))}
           {(isTeacher && !isAdmin) && (
             <NavLink to="/teacher" className={linkClass} title="Teacher" aria-label="Teacher">
-              <Icon as={GraduationCap} size="md" />
+              <Icon as={GraduationCap} size="lg" className="xl:h-5 xl:w-5" />
               <span className={linkLabelClass}>Teacher</span>
             </NavLink>
           )}
           {isAdmin && (
             <NavLink to="/admin" className={linkClass} title="Admin" aria-label="Admin">
-              <Icon as={ShieldCheck} size="md" />
+              <Icon as={ShieldCheck} size="lg" className="xl:h-5 xl:w-5" />
               <span className={linkLabelClass}>Admin</span>
             </NavLink>
           )}
           <NavLink to="/settings" className={linkClass} title="Settings" aria-label="Settings">
-            <Icon as={Settings} size="md" />
+            <Icon as={Settings} size="lg" className="xl:h-5 xl:w-5" />
             <span className={linkLabelClass}>Settings</span>
           </NavLink>
         </div>
