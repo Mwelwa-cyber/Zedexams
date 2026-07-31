@@ -85,21 +85,23 @@ async function build2013Lookup() {
   return extract2013TopicLookup(await response.json())
 }
 
-// The syllabi load failing degrades to "no rows on file" (every field falls
-// back to free text) rather than surfacing an error — caching that empty
-// fallback (instead of retrying every mount) matches the pre-existing
-// behaviour.
-async function loadFrameworkLookup(framework) {
-  try {
-    return framework === '2013' ? await build2013Lookup() : await build2023Lookup()
-  } catch (err) {
-    console.warn('TopicSubtopicPicker: syllabi load failed', err)
-    return new Map()
-  }
+// The RAW builder is what the cache runs: it rejects on failure so
+// createAsyncCache (which only stores a RESOLVED value) never caches an empty
+// fallback. That is what lets the lookup self-heal — a syllabi load that fails
+// once is retried on the next mount instead of latching "no rows on file" for
+// the whole session.
+function loadFrameworkLookup(framework) {
+  return framework === '2013' ? build2013Lookup() : build2023Lookup()
 }
 
+// A failed load degrades to an empty Map for THIS caller (every field falls
+// back to free text, no surfaced error) WITHOUT caching it — the rejection was
+// never stored, so the next mount re-reads the syllabi.
 function loadLookup(framework = '2023', options) {
-  return lookupCache.get(framework, options)
+  return lookupCache.get(framework, options).catch((err) => {
+    console.warn('TopicSubtopicPicker: syllabi load failed', err)
+    return new Map()
+  })
 }
 
 export default function TopicSubtopicPicker({
@@ -139,8 +141,10 @@ export default function TopicSubtopicPicker({
     setLookup(null)
     run(({ signal }) => loadLookup(effectiveFramework, { signal })).then((result) => {
       if (result.status === 'success') setLookup(result.data)
-      // 'stale'/'aborted' — a newer framework switch already owns this;
-      // loadFrameworkLookup never rejects, so there's no 'error' branch.
+      // 'stale'/'aborted' — a newer framework switch already owns this.
+      // loadLookup() catches its own failure and resolves with an empty Map, so
+      // a real load failure arrives as a 'success' with no rows (free-text
+      // fallback); since that empty Map was never cached, the next mount retries.
     }).catch(() => {}) // run() resolves a status object and never rejects; guards regardless
     return cancel
   }, [effectiveFramework, run, cancel])
