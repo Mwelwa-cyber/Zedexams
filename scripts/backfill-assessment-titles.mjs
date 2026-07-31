@@ -30,6 +30,27 @@
  * The paper's own fields decide the new title. The year falls back to the
  * paper's CREATION year, never to today, so a 2025 paper is not retitled 2026.
  *
+ * ── RUN ORDER: canonical-education migration FIRST ────────────────────
+ *
+ * If scripts/migrate-canonical-education.mjs has not been run against this
+ * collection yet, run it before this script.
+ *
+ * The generated title interpolates the paper's `subject` verbatim
+ * (buildAssessmentDocumentTitle → readPaperSubject), and that migration rewrites
+ * assessments.subject onto its canonical name — "Integrated Science" becomes
+ * "Science", which is what the Syllabus Studio calls it.
+ *
+ * Run in the wrong order and a paper ends up titled
+ * "GRADE 4 INTEGRATED SCIENCE - …" while its subject reads "Science". It is then
+ * STUCK: generatedAssessmentTitleVariants builds its variants from the paper's
+ * CURRENT subject, so every variant says SCIENCE, the stored title matches none
+ * of them, and a re-run skips it as "its title is not one we generated". A wrong
+ * title this script then refuses to repair.
+ *
+ * Nothing here detects that, because a title generated from a since-changed
+ * field is indistinguishable from one a teacher typed — which is the whole
+ * reason the order matters rather than being a preference.
+ *
  * ── Two modes ─────────────────────────────────────────────────────────
  *
  *   DRY RUN (default)   No writes. Prints every old → new title.
@@ -54,6 +75,7 @@
 import {
   buildAssessmentDocumentTitle,
   isGeneratedAssessmentTitle,
+  normalizeTitleForCompare,
 } from '../src/components/teacher/assessmentTitle.js'
 import { confirmByTyping } from './lib/confirmPrompt.mjs'
 
@@ -96,6 +118,60 @@ export function planAll(entries = []) {
     else skip.push(row)
   }
   return { retitle, skip }
+}
+
+/**
+ * Titles that would STILL be shared by more than one of this teacher's papers
+ * after the run — the check that decides whether the backfill actually achieved
+ * the distinct names it exists to produce.
+ *
+ * Compared through normalizeTitleForCompare, not as raw strings. Two titles
+ * differing only by a hyphen flavour, a double space or capitalisation are the
+ * same name to the teacher reading the library, and that function is the one
+ * place this codebase decides what "the same title" means — this comparison is
+ * exactly the question it was written for, and not calling it meant the warning
+ * under-reported.
+ *
+ * It compares the name each paper ENDS UP with: the new title for a paper being
+ * retitled, the existing one for a paper left alone. A collision between a
+ * regenerated name and a legacy one is a real collision.
+ *
+ * KNOWN GAP, deliberately not closed here: the normaliser folds case, dashes and
+ * whitespace, not number words. A legacy "GRADE FOUR END OF TERM 1 TEST - 2026"
+ * still does not collide with a regenerated "GRADE 4 …", even though a teacher
+ * reads them as one name. Spelled-out levels only survive on papers this script
+ * SKIPS (an unrecognised title is left alone), regenerated titles always take
+ * the "GRADE 4" form from paperGradeLabel, and this output is advisory — so
+ * closing it would change no write. Worth doing when the library list is
+ * actually confusing someone, not before.
+ *
+ * @param {Array<{action?:string, to?:string, from?:string, assessment?:object}>} rows
+ * @returns {Map<string, string[]>} owner uid → the shared titles, as displayed
+ */
+export function findSharedTitles(rows = []) {
+  const byOwner = new Map()
+  for (const row of rows) {
+    const owner = row?.assessment?.createdBy || 'unknown'
+    const title = row?.action === 'retitle' ? row.to : row.from
+    if (!byOwner.has(owner)) byOwner.set(owner, [])
+    byOwner.get(owner).push(String(title ?? ''))
+  }
+  const shared = new Map()
+  for (const [owner, titles] of byOwner) {
+    // Group by the normalised key, but report the title as it will be DISPLAYED
+    // — an operator has to find these in the library, and the normalised form
+    // (upper-cased, dashes folded) is not what they will see there.
+    const seen = new Map()
+    for (const title of titles) {
+      const key = normalizeTitleForCompare(title)
+      if (!key) continue
+      if (!seen.has(key)) seen.set(key, [])
+      seen.get(key).push(title)
+    }
+    const collisions = [...seen.values()].filter((group) => group.length > 1).map((g) => g[0])
+    if (collisions.length) shared.set(owner, collisions)
+  }
+  return shared
 }
 
 function creationYear(assessment) {
@@ -147,19 +223,10 @@ async function runAgainstFirestore(admin) {
   // The whole point is that the new names are DISTINCT. Say so out loud, per
   // teacher, so a run that leaves a collision in place is visible rather than
   // reported as a success.
-  const byOwner = new Map()
-  for (const row of [...retitle, ...skip]) {
-    const owner = row.assessment?.createdBy || 'unknown'
-    if (!byOwner.has(owner)) byOwner.set(owner, [])
-    byOwner.get(owner).push(row.action === 'retitle' ? row.to : row.from)
-  }
-  for (const [owner, titles] of byOwner) {
-    const dupes = titles.filter((t, i) => titles.indexOf(t) !== i)
-    if (dupes.length) {
-      console.log(`\n  ⚠ ${owner}: ${new Set(dupes).size} title(s) still shared by more than one paper:`)
-      for (const dupe of new Set(dupes)) console.log(`      ${dupe}`)
-      console.log('      (same subject, term, level, type and year — a real duplicate, not a naming gap.)')
-    }
+  for (const [owner, titles] of findSharedTitles([...retitle, ...skip])) {
+    console.log(`\n  ⚠ ${owner}: ${titles.length} title(s) still shared by more than one paper:`)
+    for (const title of titles) console.log(`      ${title}`)
+    console.log('      (same subject, term, level, type and year — a real duplicate, not a naming gap.)')
   }
 
   if (SHOW_SKIPPED) {
@@ -238,6 +305,15 @@ function runFixtureDemo() {
   console.log(`\n  ${retitle.length} papers → ${names.size} distinct names.`)
 }
 
-const admin = await loadAdmin()
-if (admin) await runAgainstFirestore(admin)
-else runFixtureDemo()
+// Only run the CLI when this file IS the entry point. Without this, importing it
+// for its exported rules (test:assessment-title does) runs the whole script —
+// and with GOOGLE_APPLICATION_CREDENTIALS set that means connecting to Firestore
+// from a test. Matches the guard on the other migration scripts.
+const invokedAsScript =
+  import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}`
+
+if (invokedAsScript) {
+  const admin = await loadAdmin()
+  if (admin) await runAgainstFirestore(admin)
+  else runFixtureDemo()
+}

@@ -246,6 +246,15 @@ function runFixtureDemo() {
   console.log('\nRun `npm run test:phantom-assessments` to exercise the rules in full.')
 }
 
-const admin = await loadAdmin()
-if (admin) await runAgainstFirestore(admin)
-else runFixtureDemo()
+// Only run the CLI when this file IS the entry point. Without this, importing it
+// for its exported rules (test:assessment-title does) runs the whole script —
+// and with GOOGLE_APPLICATION_CREDENTIALS set that means connecting to Firestore
+// from a test. Matches the guard on the other migration scripts.
+const invokedAsScript =
+  import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}`
+
+if (invokedAsScript) {
+  const admin = await loadAdmin()
+  if (admin) await runAgainstFirestore(admin)
+  else runFixtureDemo()
+}
