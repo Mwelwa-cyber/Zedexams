@@ -543,6 +543,26 @@ export function hasOnlyEmptyStarterSection(sections = []) {
     isQuestionBlank(sections[0]?.question)
 }
 
+/**
+ * How many questions in this paper have something IN them.
+ *
+ * countQuizQuestions counts slots — including the blank starter question the
+ * studio seeds a new paper with in local state. That distinction decides
+ * whether a paper is worth persisting: gating an autosave on the raw count
+ * filed a paper for every visit to the "new paper" route, each holding one
+ * empty question. Nothing here counts a question the teacher has not begun.
+ */
+export function countAuthoredQuestions(sections = []) {
+  return (sections || []).reduce((total, section) => {
+    if (!section || section.kind === 'pagebreak') return total
+    if (section.kind === 'passage') {
+      const questions = section.passage?.questions || []
+      return total + questions.filter(question => !isQuestionBlank(question)).length
+    }
+    return total + (isQuestionBlank(section.question) ? 0 : 1)
+  }, 0)
+}
+
 export function countQuizQuestions(sections = []) {
   return sections.reduce((total, section) => {
     if (section.kind === 'passage') {

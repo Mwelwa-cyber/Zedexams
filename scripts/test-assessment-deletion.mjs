@@ -131,7 +131,10 @@ console.log('shouldAutosaveToLibrary — deletion guard')
 
 const baseAutosave = {
   uid: 'teacher-1',
-  questionCount: 3,
+  // Questions with content in them — the gate deliberately does not read the
+  // raw count, which includes the blank starter question a new paper is seeded
+  // with (that is what filed phantom papers on every visit to /new).
+  authoredQuestionCount: 3,
   libraryDirty: true,
   saving: false,
   exporting: false,
