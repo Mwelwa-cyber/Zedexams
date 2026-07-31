@@ -105,21 +105,35 @@ export async function hasGenerationOfTool(uid, tool) {
 /**
  * Fetch a single generation by id.
  *
- * Returns null ONLY for the two "no such document" cases — a falsy id, or a
- * doc that genuinely does not exist / isn't readable by the caller's rules.
- * A load FAILURE (network drop, transient Firestore error, a parse throw in
- * normaliseGeneration) is RE-THROWN, never collapsed into null: swallowing it
- * made every caller render a load failure as a false "deleted / not found"
- * state with no way to retry. Callers that prefer fail-soft opt in explicitly
- * with `.catch(() => null)` (RecordOfWorkStudio) or a try/catch that skips the
- * id (TimetablePanel); the ones that surface an error/retry UI let it reject
- * (LibraryItemDetail, LessonPlanStudio).
+ * Returns null for the "no such document / not yours" cases and RE-THROWS a
+ * genuine load failure, so a caller can tell a deleted doc (dead end) from a
+ * transient error (retryable) instead of rendering both as "not found".
+ *
+ * The distinction is subtle because of the owner-only read rule. `aiGenerations`
+ * read requires `resource.data.ownerUid == request.auth.uid || isAdmin()`
+ * (firestore.rules), so for a normal teacher a DELETED or FOREIGN doc is
+ * *denied* — `getDoc` rejects with `permission-denied` before `snap.exists()`
+ * is ever reached. That denial IS the "missing / not yours" case, not a
+ * failure, so it maps to null (an admin, who is allowed to read any doc, gets
+ * the `!snap.exists()` path for a truly deleted one — also null). Every OTHER
+ * error (network drop, `unavailable`, a parse throw in normaliseGeneration) is
+ * a real failure and re-thrown.
+ *
+ * Callers that prefer fail-soft opt in explicitly with `.catch(() => null)`
+ * (RecordOfWorkStudio) or a try/catch that skips the id (TimetablePanel); the
+ * ones that surface an error/retry UI let it reject (LibraryItemDetail,
+ * LessonPlanStudio).
  */
 export async function getGeneration(id) {
   if (!id) return null
-  const snap = await getDoc(doc(db, 'aiGenerations', id))
-  if (!snap.exists()) return null
-  return normaliseGeneration({id: snap.id, ...snap.data()})
+  try {
+    const snap = await getDoc(doc(db, 'aiGenerations', id))
+    if (!snap.exists()) return null
+    return normaliseGeneration({id: snap.id, ...snap.data()})
+  } catch (err) {
+    if (err?.code === 'permission-denied') return null
+    throw err
+  }
 }
 
 /**

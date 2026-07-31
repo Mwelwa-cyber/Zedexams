@@ -18,6 +18,7 @@
  */
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react'
+import { setActiveShellNavGuard } from './shellNavGuardCore'
 
 export const UNSAVED_MARKS_MESSAGE = 'You have unsaved marks. Leave without saving?'
 
@@ -51,6 +52,12 @@ export function useRegisterUnsavedGuard(confirmFn) {
     // tab re-renders in place — leaving the dirty grid mounted with the guard
     // silently disarmed for the next real navigation.
   }, [confirmFn])
+
+  // Publish the same gate to the module-scope registry so the shared shell nav
+  // (TeacherLayout's sidebar / drawer / dock / account menu / logout), which
+  // renders OUTSIDE this React context, can consult it before navigating away.
+  // The disposer clears it when the register detail view unmounts.
+  useEffect(() => setActiveShellNavGuard(confirmDiscardIfDirty), [confirmDiscardIfDirty])
 
   const contextValue = useMemo(() => ({ setDirty }), [setDirty])
 
