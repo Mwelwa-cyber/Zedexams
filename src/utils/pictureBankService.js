@@ -20,6 +20,7 @@ import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'fi
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app, { db, storage } from '../firebase/config'
 import { generateDiagram } from './generateDiagram'
+import { assertFileSignature } from './fileSignature'
 
 export const PICTURE_BANK_SUBJECTS_GENERIC = '_generic'
 
@@ -33,12 +34,14 @@ const FETCH_LIMIT = 500
 // instead of an opaque storage/unauthorized when the rule rejects the upload.
 const PICTURE_BANK_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
-function assertUploadableImage(file) {
+async function assertUploadableImage(file) {
   if (!file) throw new Error('Pick an image file.')
   if (!PICTURE_BANK_CONTENT_TYPES.includes(file.type)) {
     throw new Error('Only JPEG, PNG or WebP images are supported (SVG is not allowed).')
   }
   if (file.size > MAX_PICTURE_BYTES) throw new Error('Image is over the 10 MB limit.')
+  // Declared type is not enough — verify the real bytes (STOR-003).
+  await assertFileSignature(file, PICTURE_BANK_CONTENT_TYPES, { label: 'a JPEG, PNG or WebP image' })
 }
 
 function tokenize(text) {
@@ -169,7 +172,7 @@ export async function deleteBankPicture(pic) {
 
 /** Admin: upload a new picture straight into the bank as active. */
 export async function uploadBankPicture(file, { name, keywords, subject, gradeBand, uid }) {
-  assertUploadableImage(file)
+  await assertUploadableImage(file)
   const cleanName = String(name || '').trim().slice(0, 120)
   if (!cleanName) throw new Error('Give the picture a name.')
   const kw = normaliseKeywords(keywords)
@@ -220,7 +223,7 @@ function nameFromFile(fileName) {
  * keywords required up front, unlike the single active upload.
  */
 export async function uploadStagedBankPicture(file, { subject, gradeBand, uid } = {}) {
-  assertUploadableImage(file)
+  await assertUploadableImage(file)
 
   const ref = doc(collection(db, 'pictureBank'))
   const ext = (String(file.name || '').split('.').pop() || 'png').toLowerCase()

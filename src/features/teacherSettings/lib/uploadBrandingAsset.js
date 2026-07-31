@@ -16,6 +16,7 @@
 import { getDownloadURL, ref as storageRef, uploadBytes, deleteObject } from 'firebase/storage'
 import { storage } from '../../../firebase/config'
 import { compressImage } from '../../../utils/imageCompression'
+import { assertFileSignature } from '../../../utils/fileSignature'
 
 export const BRANDING_ASSETS = {
   photo: { base: 'profile-photo', ext: 'jpg', maxWidth: 512, keepAlpha: false },
@@ -63,6 +64,8 @@ export async function uploadBrandingAsset(uid, kind, file) {
   if (!OK_TYPES.includes(file?.type)) {
     throw new Error('Please choose a JPG, PNG or WebP image.')
   }
+  // The declared type is the client's word — verify the real bytes (STOR-003).
+  await assertFileSignature(file, OK_TYPES, { label: 'a JPG, PNG or WebP image' })
   if (file.size > MAX_BYTES * 4) {
     // Pre-compression sanity cap (post-compression enforced by rules).
     throw new Error('That image is too large — please choose one under 20 MB.')

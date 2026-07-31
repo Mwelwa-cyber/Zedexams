@@ -40,8 +40,20 @@ vi.mock('./generateDiagram', () => ({ generateDiagram: vi.fn() }))
 
 const { uploadBankPicture, uploadStagedBankPicture } = await import('./pictureBankService')
 
-function fakeFile({ type, size = 1024, name = 'pic' }) {
-  return { type, size, name }
+// Real PNG magic bytes; a "<script>" payload for the renamed-file threat.
+const PNG_BYTES = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x00]
+const SCRIPT_BYTES = [0x3c, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x3e, 0x00, 0x00, 0x00, 0x00]
+
+function fakeFile({ type, size = 1024, name = 'pic', bytes = PNG_BYTES }) {
+  return {
+    type,
+    size,
+    name,
+    // assertFileSignature reads the leading bytes via slice().arrayBuffer().
+    slice() {
+      return { async arrayBuffer() { return Uint8Array.from(bytes).buffer } }
+    },
+  }
 }
 
 describe('pictureBankService upload validation', () => {
@@ -77,6 +89,13 @@ describe('pictureBankService upload validation', () => {
     await expect(
       uploadBankPicture(fakeFile({ type: 'image/png', size: 11 * 1024 * 1024, name: 'big.png' }), meta),
     ).rejects.toThrow(/10 MB limit/i)
+    expect(uploadBytes).not.toHaveBeenCalled()
+  })
+
+  it('rejects a file declared image/png whose real bytes are not an image (STOR-003)', async () => {
+    await expect(
+      uploadBankPicture(fakeFile({ type: 'image/png', name: 'evil.png', bytes: SCRIPT_BYTES }), meta),
+    ).rejects.toThrow(/contents don't match/i)
     expect(uploadBytes).not.toHaveBeenCalled()
   })
 
