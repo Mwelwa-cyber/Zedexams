@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { TEACHER_NAV_GROUPS } from './dashboardV2Config'
 import { buildActiveMatcher } from './teacherNavActive'
+import { confirmShellNavigation } from '../register/shellNavGuardCore'
 
 const LOGO_WEBP = '/zedexams-logo.webp?v=2'
 const LOGO_PNG = '/zedexams-logo.png?v=5'
@@ -221,7 +222,7 @@ export default function Sidebar({
             menuRef={menuRef}
             dark={dark}
             onToggleTheme={onToggleTheme}
-            onSelect={(to) => navigate(to)}
+            onSelect={(to) => { if (confirmShellNavigation()) navigate(to) }}
             onClose={() => closeMenu()}
             onLogout={() => {
               closeMenu(false)

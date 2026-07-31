@@ -38,6 +38,7 @@ import BottomSheet from './BottomSheet'
 import MobileToolsScreen from './MobileToolsScreen'
 import { TEACHER_NAV_GROUPS, canonicalToolLabel } from './dashboardV2Config'
 import { buildActiveMatcher } from './teacherNavActive'
+import { confirmShellNavigation } from '../register/shellNavGuardCore'
 import { STUDIO_BY_ID } from './launcher/teacherStudios'
 import { resolveBadge } from './launcher/teacherLauncherCore'
 import useRecentStudios from './launcher/useRecentStudios'
@@ -138,6 +139,9 @@ export function NavDrawer({
   }, [accountOpen])
 
   const go = (to) => {
+    // Same unsaved-marks gate the shell applies to anchor nav; the account items
+    // navigate imperatively (buttons), so the capture listener can't see them.
+    if (!confirmShellNavigation()) return
     onClose()
     navigate(to)
   }

@@ -1,8 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import TeacherLayout from './TeacherLayout'
+import { setActiveShellNavGuard, __resetShellNavGuard } from './register/shellNavGuardCore'
+
+function LocationSink() {
+  const { pathname } = useLocation()
+  return <div data-testid="loc">{pathname}</div>
+}
 
 // The shell's page-level chrome is exercised elsewhere; stub it so the spec
 // focuses on the navigation.
@@ -90,6 +96,48 @@ describe('TeacherLayout (V2 shell sidebar)', () => {
     renderLayout()
     const sidebar = screen.getByLabelText('Teacher navigation')
     expect(within(sidebar).getByText('Admin Panel')).toBeInTheDocument()
+  })
+
+  describe('shell-nav unsaved guard', () => {
+    afterEach(() => __resetShellNavGuard())
+
+    function renderWithSink(path = '/teacher/attendance') {
+      return render(
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route path="*" element={<TeacherLayout><LocationSink /></TeacherLayout>} />
+          </Routes>
+        </MemoryRouter>,
+      )
+    }
+
+    it('a registered dirty gate that DENIES blocks a shell sidebar navigation', async () => {
+      const user = userEvent.setup()
+      const gate = vi.fn(() => false) // teacher declines "leave without saving?"
+      setActiveShellNavGuard(gate)
+      renderWithSink('/teacher/attendance')
+      expect(screen.getByTestId('loc')).toHaveTextContent('/teacher/attendance')
+
+      await user.click(screen.getByRole('link', { name: /My Library/ }))
+      // The capture listener consulted the gate and cancelled the SPA navigation.
+      expect(gate).toHaveBeenCalled()
+      expect(screen.getByTestId('loc')).toHaveTextContent('/teacher/attendance')
+    })
+
+    it('no registered gate → shell navigation proceeds as normal', async () => {
+      const user = userEvent.setup()
+      renderWithSink('/teacher/attendance')
+      await user.click(screen.getByRole('link', { name: /My Library/ }))
+      expect(screen.getByTestId('loc')).toHaveTextContent('/teacher/library')
+    })
+
+    it('a gate that ALLOWS lets the shell navigation through', async () => {
+      const user = userEvent.setup()
+      setActiveShellNavGuard(() => true) // teacher accepts the discard
+      renderWithSink('/teacher/attendance')
+      await user.click(screen.getByRole('link', { name: /My Library/ }))
+      expect(screen.getByTestId('loc')).toHaveTextContent('/teacher/library')
+    })
   })
 
   it('renders the V2 mobile chrome: header, bottom nav, and a drawer with the full map', async () => {

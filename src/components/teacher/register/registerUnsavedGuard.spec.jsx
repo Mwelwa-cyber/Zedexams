@@ -6,13 +6,14 @@
  * The Host below mimics ClassRegisterDetail: a guarded "leave" control beside a
  * provider-wrapped child that publishes a dirty flag via useMarkUnsaved.
  */
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import {
   useRegisterUnsavedGuard,
   RegisterUnsavedGuardProvider,
   useMarkUnsaved,
 } from './registerUnsavedGuard'
+import { confirmShellNavigation, __resetShellNavGuard } from './shellNavGuardCore'
 
 function DirtyChild({ dirty }) {
   useMarkUnsaved(dirty)
@@ -86,6 +87,32 @@ describe('registerUnsavedGuard', () => {
     fireEvent.click(screen.getByText('leave'))
     expect(confirmFn).not.toHaveBeenCalled()
     expect(onNavigate).toHaveBeenCalledTimes(1)
+  })
+
+  // The shell bridge: the same gate is published to the module-scope registry
+  // so TeacherLayout's sidebar / drawer / dock / logout (rendered OUTSIDE this
+  // React context) can consult it. This is what closes the shell-nav hole the
+  // per-link guards above could not reach.
+  describe('shell registry bridge', () => {
+    afterEach(() => __resetShellNavGuard())
+
+    it('publishes the dirty gate to the shell and clears it on unmount', () => {
+      const confirmFn = vi.fn(() => false)
+      const { unmount } = render(<Host dirty onNavigate={() => {}} confirmFn={confirmFn} />)
+      // A shell nav control (outside the provider) now sees the dirty gate.
+      expect(confirmShellNavigation()).toBe(false)
+      expect(confirmFn).toHaveBeenCalledTimes(1)
+      unmount()
+      // Once the register view leaves, the shell gate is a no-op again.
+      expect(confirmShellNavigation()).toBe(true)
+    })
+
+    it('a clean register never blocks shell navigation', () => {
+      const confirmFn = vi.fn(() => false)
+      render(<Host dirty={false} onNavigate={() => {}} confirmFn={confirmFn} />)
+      expect(confirmShellNavigation()).toBe(true)
+      expect(confirmFn).not.toHaveBeenCalled()
+    })
   })
 
   it('fails safe (blocks) when the flag is dirty but no confirm function exists', () => {

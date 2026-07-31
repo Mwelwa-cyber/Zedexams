@@ -1,5 +1,6 @@
-import { Suspense, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { confirmShellNavigation, isPlainInAppLinkClick } from './register/shellNavGuardCore'
 import { ShieldCheck } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import TeacherTopBar from './TeacherTopBar'
@@ -59,6 +60,28 @@ export default function TeacherLayout({ children, variant = 'studio' }) {
   // "recently used" visit — not only taps on the dashboard launcher.
   useRecordStudioVisit()
 
+  // A page (currently the Class Register) can register an unsaved-changes gate
+  // via the module-scope shell-nav registry. The shell's own nav lives outside
+  // that page's React context, so we intercept anchor navigations in the CAPTURE
+  // phase — before React Router's <Link> handler runs — and cancel the ones the
+  // gate refuses. Scoped to the shell chrome OUTSIDE <main>: page content
+  // (including the register's own in-panel links) guards its own navigations, so
+  // gating those here too would double-prompt. A no-op when no page has an
+  // unsaved gate registered, which is every teacher page but a dirty register.
+  useEffect(() => {
+    const onCaptureClick = (e) => {
+      const anchor = e.target?.closest?.('a[href]')
+      if (!anchor || anchor.closest('main')) return
+      if (!isPlainInAppLinkClick(e, anchor, window.location.origin)) return
+      if (!confirmShellNavigation()) {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    }
+    document.addEventListener('click', onCaptureClick, true)
+    return () => document.removeEventListener('click', onCaptureClick, true)
+  }, [])
+
   const teacher = teacherFromAuth({
     displayName: userProfile?.displayName || currentUser?.displayName,
     email: userProfile?.email || currentUser?.email,
@@ -80,6 +103,14 @@ export default function TeacherLayout({ children, variant = 'studio' }) {
       ...rest,
     ]
   }, [isAdmin])
+
+  // Logout is a <button>, not an anchor, so the capture listener above can't see
+  // it — gate it here. Confirm the unsaved-marks discard BEFORE opening the
+  // logout dialog, so a teacher signing out mid-edit is warned like any other
+  // navigation away.
+  function requestLogout() {
+    if (confirmShellNavigation()) setLogoutOpen(true)
+  }
 
   async function confirmLogout() {
     setLogoutOpen(false)
@@ -113,7 +144,7 @@ export default function TeacherLayout({ children, variant = 'studio' }) {
           <Sidebar
             teacher={teacher}
             groups={groups}
-            onRequestLogout={() => setLogoutOpen(true)}
+            onRequestLogout={requestLogout}
             dark={dark}
             onToggleTheme={toggleTheme}
           />
@@ -135,7 +166,7 @@ export default function TeacherLayout({ children, variant = 'studio' }) {
             groups={groups}
             dark={dark}
             onToggleTheme={toggleTheme}
-            onLogout={() => setLogoutOpen(true)}
+            onLogout={requestLogout}
           />
           {/* Suppressed inside the full-screen assessment studio, which renders
               its own fixed bottom dock (.sv-dock) — two stacked bars collide. */}
