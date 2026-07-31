@@ -103,6 +103,10 @@ const DIMENSION_NORMALIZERS = {
  * it is a permanently legitimate one. A value that was SUPPLIED and does not
  * resolve is different: that is a caller sending something we cannot file, and
  * it throws rather than being quietly nulled into the Unsorted pile.
+ *
+ * NOTE: this treats absent as null, which is right for a CREATE and wrong for a
+ * partial update — see `mergeDimensionInput`, which every update goes through
+ * first.
  */
 export function normalizeLibraryDimensions(meta = {}) {
   const out = {}
@@ -117,6 +121,33 @@ export function normalizeLibraryDimensions(meta = {}) {
     out[dim] = value
   }
   return out
+}
+
+/**
+ * Resolve what each dimension should BE after this save, before normalisation.
+ *
+ * `meta` is documented as a Partial<LibraryMeta>, and on an update the three
+ * cases have to stay distinguishable:
+ *
+ *   undefined  → the caller is not talking about this dimension. Keep what is
+ *                stored. Without this, a title-only update would file a
+ *                correctly-classified plan into Unsorted, and a `working`
+ *                autosave — which skips validation by design — would erase the
+ *                teacher's filing silently, with nothing to notice it by.
+ *   null       → the caller is deliberately clearing it. Honoured, and then
+ *                rejected by the usual validation if the studio requires it and
+ *                the target state is `classified`.
+ *   a value    → normalised and validated as ever.
+ *
+ * On a create (and on a legacy document being given its first block) there is
+ * nothing to preserve, so absent means null exactly as before.
+ */
+export function mergeDimensionInput(metaInput = {}, existing = null) {
+  const merged = {}
+  for (const dim of Object.keys(DIMENSION_NORMALIZERS)) {
+    merged[dim] = metaInput[dim] === undefined ? (existing?.[dim] ?? null) : metaInput[dim]
+  }
+  return merged
 }
 
 /* ── The plan ────────────────────────────────────────────────── */
@@ -145,13 +176,17 @@ function resolveStatus(status) {
  * @param {object} [args.payload]                  studio body, passed through untouched
  * @param {'working'|'classified'|'archived'} args.targetState
  * @param {string} args.uid                        authenticated author
- * @param {object} [args.existing]                 the stored meta, when updating
+ * @param {object} [args.existing]                 the stored META BLOCK, or null when
+ *   the document has none — which is not the same as the document not existing
+ * @param {boolean} [args.documentExists]          true when `docId` names a real document
+ * @param {unknown} [args.existingCreatedAt]       the document's own creation time, kept
+ *   when a legacy document is given its first block
  * @param {unknown} args.timestamp                 server-timestamp sentinel
  * @param {number} [args.currentYear]              defaults academicYear
  * @returns {{
  *   op: 'create'|'update', collection: string, docId: string|null,
  *   fields: Record<string, unknown>, meta: object, before: object|null,
- *   classificationState: string,
+ *   classificationState: string, bootstrap: boolean,
  * }}
  */
 export function buildSavePlan({
@@ -162,6 +197,8 @@ export function buildSavePlan({
   targetState,
   uid,
   existing = null,
+  documentExists = undefined,
+  existingCreatedAt = undefined,
   timestamp,
   currentYear,
 }) {
@@ -184,7 +221,26 @@ export function buildSavePlan({
     )
   }
 
-  const dimensions = normalizeLibraryDimensions(metaInput)
+  const isCreate = !docId
+  // A document that exists but has NO metadata block yet — every document in the
+  // library today. Firestore-wise this is an update; contract-wise it is the
+  // document's first block, so the identity fields have to be stamped as they
+  // are on a create. Without that distinction the update omits
+  // `libraryMeta.createdBy`, and the rule requiring it to equal the caller
+  // rejects the write: every legacy document would be unmigratable, and the
+  // failure would surface as PERMISSION_DENIED in step 3.
+  //
+  // `documentExists` is optional so an existing caller keeps working; when it is
+  // not supplied, the presence of a stored block is the best available proxy.
+  const bootstrap = !isCreate && !existing && documentExists !== false
+  const stampsIdentity = isCreate || bootstrap
+
+  // On a partial update, a dimension the caller did not mention keeps its stored
+  // value; there is nothing to preserve on a create or a first block.
+  const dimensionInput = stampsIdentity
+    ? metaInput
+    : mergeDimensionInput(metaInput, existing)
+  const dimensions = normalizeLibraryDimensions(dimensionInput)
 
   // DERIVED, never supplied. A caller can pass classificationState; it is
   // discarded here, which is what the spoofing test pins.
@@ -195,7 +251,6 @@ export function buildSavePlan({
     throw new MissingDimensionsError(studio.id, missingRequiredDimensions(dimensions, studio))
   }
 
-  const isCreate = !docId
   const academicYear = Number.isFinite(metaInput.academicYear)
     ? metaInput.academicYear
     : (existing?.academicYear ?? currentYear)
@@ -230,12 +285,17 @@ export function buildSavePlan({
     meta.archivedAt = null
   }
 
-  if (isCreate) {
+  if (stampsIdentity) {
     meta.createdBy = uid
-    meta.createdAt = timestamp
+    // A legacy document already has a creation time; keeping it means the block
+    // records when the document was written, not when it was migrated.
+    meta.createdAt = (bootstrap && existingCreatedAt !== undefined && existingCreatedAt !== null)
+      ? existingCreatedAt
+      : timestamp
   }
-  // On update `createdBy` and `createdAt` are absent from the field map — the
-  // author of a document is not something a later save gets to restate.
+  // On an ordinary update `createdBy` and `createdAt` are absent from the field
+  // map — the author of a document is not something a later save gets to
+  // restate, and the rules pin it immutable.
 
   const payloadFields = payload && typeof payload === 'object' ? { ...payload } : {}
   // The payload is the studio's own body and never the metadata block: a
@@ -257,10 +317,11 @@ export function buildSavePlan({
   const after = {
     ...(existing || {}),
     ...meta,
-    createdBy: isCreate ? uid : (existing?.createdBy ?? uid),
+    createdBy: stampsIdentity ? uid : (existing?.createdBy ?? uid),
   }
 
   return {
+    bootstrap,
     op: isCreate ? 'create' : 'update',
     collection: studio.collection,
     docId,

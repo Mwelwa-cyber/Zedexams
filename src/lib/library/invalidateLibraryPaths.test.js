@@ -80,18 +80,42 @@ test('each key is emitted for the document year AND the all-years view', () => {
   assert.ok(keys.includes(keyFor({ curriculum: 'cbc' }, { academicYear: null })))
 })
 
-test('a path stops at its first null', () => {
-  // A plan with a grade but no term is counted by curriculum and grade, and by
-  // nothing deeper — there is no term folder that should claim it.
-  const keys = libraryCountKeysFor(meta({ term: null, classificationState: 'needs_sorting' }))
-  assert.ok(keys.includes(keyFor({ curriculum: 'cbc', grade: 'grade-4' })))
-  assert.ok(!keys.some((k) => k.includes(':1:')), 'no term-level key')
+test('a complete document with an optional level unfilled stops at its first null', () => {
+  // Class timetables require only a grade, so this document is complete with a
+  // null term — and is counted by the levels it actually has.
+  const timetableMeta = {
+    createdBy: UID,
+    studio: LIBRARY_TYPES.CLASS_TIMETABLES,
+    curriculum: 'cbc',
+    grade: 'grade-4',
+    term: null,
+    academicYear: 2026,
+    libraryState: 'classified',
+    classificationState: 'complete',
+  }
+  const timetables = STUDIO_BY_ID[LIBRARY_TYPES.CLASS_TIMETABLES]
+  const keyForTimetable = (path) => folderCountKey({
+    createdBy: UID, studio: timetables.id, academicYear: 2026, path,
+  })
+  const keys = libraryCountKeysFor(timetableMeta)
+  assert.ok(keys.includes(keyForTimetable({ curriculum: 'cbc' })))
+  assert.ok(keys.includes(keyForTimetable({ curriculum: 'cbc', grade: 'grade-4' })))
+  assert.ok(!keys.some((k) => k.endsWith(':1:NONE:NONE')), 'no term-level key')
 })
 
-test('a needs-sorting document also contributes to the Unsorted bucket', () => {
-  const keys = libraryCountKeysFor(meta({ grade: null, classificationState: 'needs_sorting' }))
+test('a needs-sorting document contributes to the Unsorted bucket and NOTHING else', () => {
+  // A partially filed document has one home. Counting it toward the prefix that
+  // WAS filled in produced a Grade 4 folder reporting one item whose every term
+  // child was empty, and whose document could not be reached by drilling at all.
+  const keys = libraryCountKeysFor(meta({ term: null, classificationState: 'needs_sorting' }))
   assert.ok(keys.includes(keyFor({}, { bucket: 'unsorted' })))
   assert.ok(keys.includes(keyFor({}, { academicYear: null, bucket: 'unsorted' })))
+  assert.ok(
+    !keys.includes(keyFor({ curriculum: 'cbc' })),
+    'the curriculum folder must not count a document it cannot show',
+  )
+  assert.ok(!keys.includes(keyFor({ curriculum: 'cbc', grade: 'grade-4' })))
+  assert.equal(keys.length, 2, 'the two year views of the one bucket, and nothing more')
 })
 
 test('a working document contributes to NOTHING', () => {
@@ -148,14 +172,36 @@ test('classified → archived invalidates the BEFORE paths only', () => {
   assert.deepEqual(countKeys.sort(), libraryCountKeysFor(before).sort())
 })
 
-test('a transition into needs_sorting invalidates the Unsorted bucket', () => {
+test('a transition into needs_sorting drops BOTH the old folders and the bucket', () => {
   const before = meta()
   const after = meta({ subject: null, classificationState: 'needs_sorting' })
   const { countKeys } = libraryPathKeys(before, after)
+  // The bucket gains it…
   assert.ok(countKeys.includes(keyFor({}, { bucket: 'unsorted' })))
-  // …and so does a document leaving it.
+  // …and every folder it used to be counted in has to be re-read, or those
+  // folders keep claiming a document that is no longer in them.
+  assert.ok(countKeys.includes(keyFor({ curriculum: 'cbc', grade: 'grade-4' })))
+  assert.ok(countKeys.includes(keyFor({ curriculum: 'cbc', grade: 'grade-4', term: 1 })))
+
+  // …and the same in reverse when a teacher files it from the triage screen.
   const cleared = libraryPathKeys(after, before)
   assert.ok(cleared.countKeys.includes(keyFor({}, { bucket: 'unsorted' })))
+  assert.ok(cleared.countKeys.includes(keyFor({ curriculum: 'cbc', grade: 'grade-4' })))
+})
+
+test('a needs-sorting document invalidates the triage list cache', () => {
+  // The triage list caches under its own namespace, so invalidating the folder
+  // lists alone would leave Sort-now listing a document the teacher just filed.
+  const unsorted = meta({ grade: null, classificationState: 'needs_sorting' })
+  const { listPrefixes } = libraryPathKeys(null, unsorted)
+  assert.ok(
+    listPrefixes.some((p) => p.startsWith('library:needs-sorting:')),
+    'the needs-sorting namespace is never invalidated',
+  )
+
+  // Filing it clears the triage list too — that is the `before` side.
+  const filed = libraryPathKeys(unsorted, meta())
+  assert.ok(filed.listPrefixes.some((p) => p.startsWith('library:needs-sorting:')))
 })
 
 test('list caches are invalidated by prefix, covering every level', () => {
@@ -163,6 +209,21 @@ test('list caches are invalidated by prefix, covering every level', () => {
   assert.ok(listPrefixes.length > 0)
   assert.ok(listPrefixes.every((p) => p.startsWith('library:list:')), 'list keys, not count keys')
   assert.ok(listPrefixes.every((p) => p.endsWith(':')), 'prefixes are separator-terminated')
+})
+
+test('the keys the invalidator drops match what the queries actually count', () => {
+  // The pairing that keeps folder totals honest: a complete document is counted
+  // by the folder queries and invalidates folder keys; a needs-sorting one is
+  // counted by the Unsorted query and invalidates the Unsorted key.
+  const classificationOf = (descriptor) => descriptor.filters
+    .find((f) => f[0] === metaPath('classificationState'))?.[2]
+
+  const descriptors = buildFolderCountQueries(lessonPlans, {}, { createdBy: UID })
+  for (const descriptor of descriptors.filter((d) => d.bucket === 'candidate')) {
+    assert.equal(classificationOf(descriptor), 'complete', descriptor.label)
+  }
+  const [unsorted] = descriptors.filter((d) => d.bucket === 'unsorted')
+  assert.equal(classificationOf(unsorted), 'needs_sorting')
 })
 
 /* ── The keys a folder view actually reads ─────────────────── */

@@ -2387,32 +2387,14 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "libraryMeta.updatedAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "aiGenerations",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "ownerUid",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "libraryMeta.studio",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "libraryMeta.libraryState",
-          "order": "ASCENDING"
-        },
-        {
           "fieldPath": "libraryMeta.academicYear",
           "order": "ASCENDING"
         },
         {
+          "fieldPath": "libraryMeta.classificationState",
+          "order": "ASCENDING"
+        },
+        {
           "fieldPath": "libraryMeta.updatedAt",
           "order": "DESCENDING"
         }
@@ -2432,6 +2414,10 @@
         },
         {
           "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.classificationState",
           "order": "ASCENDING"
         },
         {
@@ -2465,6 +2451,10 @@
           "order": "ASCENDING"
         },
         {
+          "fieldPath": "libraryMeta.classificationState",
+          "order": "ASCENDING"
+        },
+        {
           "fieldPath": "libraryMeta.curriculum",
           "order": "ASCENDING"
         },
@@ -2488,6 +2478,10 @@
         },
         {
           "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.classificationState",
           "order": "ASCENDING"
         },
         {
@@ -2525,6 +2519,10 @@
           "order": "ASCENDING"
         },
         {
+          "fieldPath": "libraryMeta.classificationState",
+          "order": "ASCENDING"
+        },
+        {
           "fieldPath": "libraryMeta.curriculum",
           "order": "ASCENDING"
         },
@@ -2552,6 +2550,52 @@
         },
         {
           "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.classificationState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.curriculum",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.term",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "aiGenerations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.academicYear",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.classificationState",
           "order": "ASCENDING"
         },
         {
@@ -2589,7 +2633,7 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "libraryMeta.academicYear",
+          "fieldPath": "libraryMeta.classificationState",
           "order": "ASCENDING"
         },
         {
@@ -2602,6 +2646,10 @@
         },
         {
           "fieldPath": "libraryMeta.term",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.subject",
           "order": "ASCENDING"
         },
         {
@@ -2624,6 +2672,14 @@
         },
         {
           "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.academicYear",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.classificationState",
           "order": "ASCENDING"
         },
         {
@@ -2665,23 +2721,29 @@
           "order": "ASCENDING"
         },
         {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "aiGenerations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
           "fieldPath": "libraryMeta.academicYear",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "libraryMeta.curriculum",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "libraryMeta.grade",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "libraryMeta.term",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "libraryMeta.subject",
           "order": "ASCENDING"
         },
         {
@@ -2733,32 +2795,14 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "libraryMeta.updatedAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "assessments",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "createdBy",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "libraryMeta.studio",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "libraryMeta.libraryState",
-          "order": "ASCENDING"
-        },
-        {
           "fieldPath": "libraryMeta.academicYear",
           "order": "ASCENDING"
         },
         {
+          "fieldPath": "libraryMeta.classificationState",
+          "order": "ASCENDING"
+        },
+        {
           "fieldPath": "libraryMeta.updatedAt",
           "order": "DESCENDING"
         }
@@ -2778,6 +2822,10 @@
         },
         {
           "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.classificationState",
           "order": "ASCENDING"
         },
         {
@@ -2811,6 +2859,10 @@
           "order": "ASCENDING"
         },
         {
+          "fieldPath": "libraryMeta.classificationState",
+          "order": "ASCENDING"
+        },
+        {
           "fieldPath": "libraryMeta.curriculum",
           "order": "ASCENDING"
         },
@@ -2834,6 +2886,10 @@
         },
         {
           "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.classificationState",
           "order": "ASCENDING"
         },
         {
@@ -2871,6 +2927,10 @@
           "order": "ASCENDING"
         },
         {
+          "fieldPath": "libraryMeta.classificationState",
+          "order": "ASCENDING"
+        },
+        {
           "fieldPath": "libraryMeta.curriculum",
           "order": "ASCENDING"
         },
@@ -2898,6 +2958,52 @@
         },
         {
           "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.classificationState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.curriculum",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.term",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "assessments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.academicYear",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.classificationState",
           "order": "ASCENDING"
         },
         {
@@ -2935,41 +3041,7 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "libraryMeta.academicYear",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "libraryMeta.curriculum",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "libraryMeta.grade",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "libraryMeta.term",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "libraryMeta.updatedAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "assessments",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "createdBy",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "libraryMeta.studio",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "libraryMeta.libraryState",
+          "fieldPath": "libraryMeta.classificationState",
           "order": "ASCENDING"
         },
         {
@@ -3015,6 +3087,10 @@
           "order": "ASCENDING"
         },
         {
+          "fieldPath": "libraryMeta.classificationState",
+          "order": "ASCENDING"
+        },
+        {
           "fieldPath": "libraryMeta.curriculum",
           "order": "ASCENDING"
         },
@@ -3024,6 +3100,92 @@
         },
         {
           "fieldPath": "libraryMeta.term",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "assessments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "assessments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.academicYear",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "aiGenerations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.classificationState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.curriculum",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.grade",
           "order": "ASCENDING"
         },
         {
@@ -3053,41 +3215,11 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "libraryMeta.curriculum",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "libraryMeta.grade",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "libraryMeta.subject",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "libraryMeta.updatedAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "aiGenerations",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "ownerUid",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "libraryMeta.studio",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "libraryMeta.libraryState",
-          "order": "ASCENDING"
-        },
-        {
           "fieldPath": "libraryMeta.academicYear",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.classificationState",
           "order": "ASCENDING"
         },
         {

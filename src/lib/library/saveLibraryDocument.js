@@ -73,9 +73,20 @@ export async function saveLibraryDocument({
   // needs the path the document is LEAVING. Skipped on create, where there is
   // no before.
   let existing = null
+  let documentExists = false
+  let existingCreatedAt
   if (docId) {
     const snap = await getDoc(doc(firestore, studio.collection, docId))
-    existing = snap.exists() ? readMeta(snap.data()) : null
+    documentExists = snap.exists()
+    if (documentExists) {
+      const data = snap.data()
+      existing = readMeta(data)
+      // A legacy document exists with no block at all. The plan needs both facts
+      // — that the document is real, and that it has no block — to stamp the
+      // identity fields on this first write instead of omitting them and being
+      // refused by the rules.
+      existingCreatedAt = data?.createdAt
+    }
   }
 
   const plan = buildSavePlan({
@@ -86,6 +97,8 @@ export async function saveLibraryDocument({
     targetState,
     uid,
     existing,
+    documentExists,
+    existingCreatedAt,
     timestamp: deps.timestamp || serverTimestamp(),
     currentYear: now().getFullYear(),
   })

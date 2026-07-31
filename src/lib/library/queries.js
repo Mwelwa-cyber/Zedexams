@@ -247,6 +247,15 @@ export function documentListKeyPrefix(scope) {
   return libraryKeyPrefix('list', scope)
 }
 
+/** The key namespace the triage list caches under — its own, so it invalidates
+ *  independently of the folder views a needs-sorting document is absent from. */
+export const NEEDS_SORTING_KIND = 'needs-sorting'
+
+/** Prefix covering the Needs-sorting list for a studio. */
+export function needsSortingKeyPrefix(scope) {
+  return libraryKeyPrefix(NEEDS_SORTING_KIND, { ...scope, path: {} })
+}
+
 /* ── Query builders ──────────────────────────────────────────── */
 
 function requireOwner(createdBy) {
@@ -259,7 +268,15 @@ function requireOwner(createdBy) {
   return createdBy
 }
 
-function baseFilters({ studioDef, createdBy, academicYear, path, libraryState }) {
+/**
+ * @param {object} args
+ * @param {string|null} [args.classificationState] narrows the query to complete
+ *   or needs-sorting documents. Ordinary folder views pass 'complete' — see
+ *   buildFolderCountQueries for why that is not optional.
+ */
+function baseFilters({
+  studioDef, createdBy, academicYear, path, libraryState, classificationState = null,
+}) {
   const filters = [
     // The collection's OWN owner field, not `libraryMeta.createdBy`: Firestore
     // evaluates a list/count rule against the query, and these collections gate
@@ -269,6 +286,9 @@ function baseFilters({ studioDef, createdBy, academicYear, path, libraryState })
     [metaPath('libraryState'), '==', libraryState],
   ]
   if (academicYear != null) filters.push([metaPath('academicYear'), '==', academicYear])
+  if (classificationState) {
+    filters.push([metaPath('classificationState'), '==', classificationState])
+  }
   for (const dim of LIBRARY_DIMENSIONS) {
     if (path[dim] != null) filters.push([metaPath(dim), '==', path[dim]])
   }
@@ -321,6 +341,7 @@ export function buildFolderCountQueries(studioDef, pathFilters = {}, options = {
       filters: baseFilters({
         studioDef, createdBy, academicYear, path: candidatePath,
         libraryState: LIBRARY_STATES.CLASSIFIED,
+        classificationState: CLASSIFICATION_STATES.COMPLETE,
       }),
       dimension,
       value: candidate.value,
@@ -339,13 +360,11 @@ export function buildFolderCountQueries(studioDef, pathFilters = {}, options = {
       }),
       collection: studioDef.collection,
       // ONE equality. A document missing three required fields counts once.
-      filters: [
-        ...baseFilters({
-          studioDef, createdBy, academicYear, path: {},
-          libraryState: LIBRARY_STATES.CLASSIFIED,
-        }),
-        [metaPath('classificationState'), '==', CLASSIFICATION_STATES.NEEDS_SORTING],
-      ],
+      filters: baseFilters({
+        studioDef, createdBy, academicYear, path: {},
+        libraryState: LIBRARY_STATES.CLASSIFIED,
+        classificationState: CLASSIFICATION_STATES.NEEDS_SORTING,
+      }),
       dimension: null,
       value: null,
       label: 'Needs sorting',
@@ -389,18 +408,30 @@ export const DEFAULT_LIST_LIMIT = 60
  *
  * `includeArchived` swaps which single lifecycle value is matched rather than
  * widening to an `in` — archived documents are a separate view, not extra rows
- * in the normal one, and one equality keeps the index simple. Needs-sorting
- * documents ARE included: they are classified, just incompletely, and the
- * triage screen lists them from this same builder.
+ * in the normal one, and one equality keeps the index simple.
+ *
+ * Needs-sorting documents are NOT here: a normal folder view lists only complete
+ * documents, for the same reason the counts do (see buildFolderCountQueries).
+ * They are reachable through `buildNeedsSortingQuery` and nowhere else, so there
+ * is exactly one route to a document that is not fully filed. The archive view
+ * is deliberately flat — it is "everything I archived", not a folder tree.
  */
 export function buildDocumentListQuery(studioDef, pathFilters = {}, options = {}) {
   const createdBy = requireOwner(options.createdBy)
   const academicYear = options.year ?? options.academicYear ?? null
-  const path = normalizePathFilters(pathFilters)
   const sortKey = options.sort && SORTS[options.sort] ? options.sort : 'recent'
   const libraryState = options.includeArchived
     ? LIBRARY_STATES.ARCHIVED
     : LIBRARY_STATES.CLASSIFIED
+  // The archive is FLAT — "everything I archived", not a folder tree — so it
+  // ignores the path rather than filtering on it. That is not only a product
+  // choice: a path-filtered archive would need the whole hierarchy indexed a
+  // second time, on a collection eleven studios share, for a view that has no
+  // folders to drill. Dropping the path here is what keeps the emitted query
+  // and the declared index the same shape.
+  const path = options.includeArchived
+    ? normalizePathFilters({})
+    : normalizePathFilters(pathFilters)
 
   return {
     kind: 'list',
@@ -410,7 +441,14 @@ export function buildDocumentListQuery(studioDef, pathFilters = {}, options = {}
       libraryState, sortKey, options.limit ?? DEFAULT_LIST_LIMIT,
     ]),
     collection: studioDef.collection,
-    filters: baseFilters({ studioDef, createdBy, academicYear, path, libraryState }),
+    filters: baseFilters({
+      studioDef,
+      createdBy,
+      academicYear,
+      path,
+      libraryState,
+      classificationState: options.includeArchived ? null : CLASSIFICATION_STATES.COMPLETE,
+    }),
     orderBy: [SORTS[sortKey]],
     limit: options.limit ?? DEFAULT_LIST_LIMIT,
   }
@@ -426,7 +464,7 @@ export function buildNeedsSortingQuery(studioDef, options = {}) {
   return {
     kind: 'list',
     key: createCacheKey([
-      KEY_ROOT, 'needs-sorting', createdBy, studioDef.id, academicYear,
+      KEY_ROOT, NEEDS_SORTING_KIND, createdBy, studioDef.id, academicYear,
       options.limit ?? DEFAULT_LIST_LIMIT,
     ]),
     collection: studioDef.collection,
@@ -434,8 +472,8 @@ export function buildNeedsSortingQuery(studioDef, options = {}) {
       ...baseFilters({
         studioDef, createdBy, academicYear, path: normalizePathFilters({}),
         libraryState: LIBRARY_STATES.CLASSIFIED,
+        classificationState: CLASSIFICATION_STATES.NEEDS_SORTING,
       }),
-      [metaPath('classificationState'), '==', CLASSIFICATION_STATES.NEEDS_SORTING],
     ],
     orderBy: [SORTS.recent],
     limit: options.limit ?? DEFAULT_LIST_LIMIT,
@@ -465,23 +503,32 @@ export function enumerateQueryShapes(studioDef) {
   const base = [studioDef.ownerField, metaPath('studio'), metaPath('libraryState')]
   const year = metaPath('academicYear')
   const classification = metaPath('classificationState')
-  // Counts: every hierarchy prefix, with and without the year filter.
+  // Counts: every hierarchy prefix, with and without the year filter. Every one
+  // carries the classification filter, because a folder counts complete
+  // documents only.
   for (let depth = 1; depth <= studioDef.hierarchy.length; depth += 1) {
     const prefix = studioDef.hierarchy.slice(0, depth).map(metaPath)
-    add([...base, ...prefix], null, null)
-    add([...base, year, ...prefix], null, null)
+    add([...base, classification, ...prefix], null, null)
+    add([...base, year, classification, ...prefix], null, null)
   }
   // The Unsorted count + triage list.
   add([...base, classification], null, null)
   add([...base, year, classification], null, null)
   add([...base, classification], SORTS.recent[0], SORTS.recent[1])
+  add([...base, year, classification], SORTS.recent[0], SORTS.recent[1])
   // Lists: a full path, and every prefix a filter-pill view can leave open.
   for (let depth = 0; depth <= studioDef.hierarchy.length; depth += 1) {
     const prefix = studioDef.hierarchy.slice(0, depth).map(metaPath)
     for (const [field, dir] of Object.values(SORTS)) {
-      add([...base, ...prefix], field, dir)
-      add([...base, year, ...prefix], field, dir)
+      add([...base, classification, ...prefix], field, dir)
+      add([...base, year, classification, ...prefix], field, dir)
     }
+  }
+  // The archive view: flat, and unfiltered by classification, so it needs the
+  // root shape only.
+  for (const [field, dir] of Object.values(SORTS)) {
+    add([...base], field, dir)
+    add([...base, year], field, dir)
   }
   return shapes
 }

@@ -215,6 +215,108 @@ test('a classified draft is normal — status and libraryState are different axe
   assert.equal(written(result).classificationState, 'complete')
 })
 
+/* ── Legacy documents getting their first block ────────────── */
+
+test('a legacy document with no block is given one, with the identity stamped', () => {
+  // Every document in the library today is this case. Firestore-wise it is an
+  // update; contract-wise it is the document's first block, so `createdBy` has
+  // to be written — the rule requiring it to equal the caller would otherwise
+  // reject the write, and every legacy document would be unmigratable.
+  const result = plan({
+    docId: 'legacy_1',
+    existing: null,
+    documentExists: true,
+    existingCreatedAt: 'original_created_at',
+    meta: FULL_META,
+  })
+  assert.equal(result.op, 'update')
+  assert.equal(result.bootstrap, true)
+  assert.equal(written(result).createdBy, UID, 'the author is stamped on the first block')
+  // The document's own creation time is kept, so the block records when the
+  // document was written rather than when it was migrated.
+  assert.equal(written(result).createdAt, 'original_created_at')
+})
+
+test('a legacy document with no recorded creation time falls back to now', () => {
+  const result = plan({
+    docId: 'legacy_2', existing: null, documentExists: true, meta: FULL_META,
+  })
+  assert.equal(written(result).createdAt, TS)
+  assert.equal(written(result).createdBy, UID)
+})
+
+test('a document that already has a block is NOT re-stamped', () => {
+  const result = plan({
+    docId: 'doc_1',
+    existing: { createdBy: 'original_author', libraryState: 'classified', academicYear: YEAR },
+    documentExists: true,
+    meta: FULL_META,
+  })
+  assert.equal(result.bootstrap, false)
+  assert.ok(!('createdBy' in written(result)))
+  assert.ok(!('createdAt' in written(result)))
+})
+
+/* ── Partial updates ───────────────────────────────────────── */
+
+const CLASSIFIED_EXISTING = {
+  createdBy: UID, studio: LIBRARY_TYPES.LESSON_PLANS,
+  curriculum: 'cbc', grade: 'grade-4', term: 2, subject: 'mathematics',
+  libraryState: 'classified', classificationState: 'complete', academicYear: YEAR,
+}
+
+test('a title-only update preserves every classification dimension', () => {
+  // `meta` is a Partial<LibraryMeta>: a dimension the caller did not mention is
+  // not a dimension the caller cleared.
+  const result = plan({
+    docId: 'doc_1', existing: CLASSIFIED_EXISTING, documentExists: true,
+    meta: { title: 'Updated title' },
+  })
+  const after = written(result)
+  assert.equal(after.title, 'Updated title')
+  assert.equal(after.curriculum, 'cbc')
+  assert.equal(after.grade, 'grade-4')
+  assert.equal(after.term, 2)
+  assert.equal(after.subject, 'mathematics')
+  assert.equal(after.classificationState, 'complete')
+})
+
+test('a working autosave with no classification fields preserves the filing', () => {
+  // The dangerous one: a working save skips validation by design, so erasing
+  // the dimensions here would be silent — the plan would still succeed and the
+  // document would quietly leave its folder.
+  const result = plan({
+    docId: 'doc_1', existing: CLASSIFIED_EXISTING, documentExists: true,
+    meta: { title: 'autosaved' }, targetState: 'working',
+  })
+  assert.equal(written(result).grade, 'grade-4')
+  assert.equal(written(result).term, 2)
+  assert.equal(written(result).classificationState, 'complete')
+})
+
+test('an explicit null clears a dimension on a working save', () => {
+  const result = plan({
+    docId: 'doc_1', existing: CLASSIFIED_EXISTING, documentExists: true,
+    meta: { grade: null }, targetState: 'working',
+  })
+  assert.equal(written(result).grade, null)
+  assert.equal(written(result).term, 2, 'the dimensions not mentioned are untouched')
+  assert.equal(written(result).classificationState, 'needs_sorting')
+})
+
+test('an explicit null is refused when the document must stay classified', () => {
+  assert.throws(() => plan({
+    docId: 'doc_1', existing: CLASSIFIED_EXISTING, documentExists: true,
+    meta: { grade: null },
+  }), MissingDimensionsError)
+})
+
+test('a create still reads absent as null — there is nothing to preserve', () => {
+  const result = plan({ meta: { title: 'new' }, targetState: 'working' })
+  assert.equal(written(result).grade, null)
+  assert.equal(written(result).classificationState, 'needs_sorting')
+})
+
 /* ── Named-field merges ────────────────────────────────────── */
 
 test('an update writes named fields only — never the author, never createdAt', () => {

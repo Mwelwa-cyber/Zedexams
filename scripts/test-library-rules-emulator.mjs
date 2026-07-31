@@ -222,6 +222,37 @@ async function main() {
     }))
   })
 
+  await test('a genuine legacy document can be given its first block', async () => {
+    // The step-3 path, end to end: a real lesson plan saved before any of this
+    // existed, updated through the rules the studio will hit. It fails if the
+    // bootstrap write omits libraryMeta.createdBy, because the update rule
+    // requires it to equal the caller — which is how every legacy document
+    // would have become unmigratable.
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'aiGenerations', 'legacy_plan'), {
+        ownerUid: TEACHER_A,
+        tool: 'lesson_plan',
+        status: 'complete',
+        visibility: 'private',
+        createdAt: new Date('2026-02-01T00:00:00Z'),
+        inputs: { grade: 'G4', subject: 'mathematics' },
+        meta: {},
+        data: {},
+        html: '<p>legacy</p>',
+      })
+    })
+
+    const block = meta(TEACHER_A, { studio: LIBRARY_TYPES.LESSON_PLANS })
+    await assertSucceeds(updateDoc(doc(teacherA, 'aiGenerations', 'legacy_plan'),
+      Object.fromEntries(Object.entries(block).map(([k, v]) => [metaPath(k), v]))))
+
+    // …and the same write without the author is still refused, so the test
+    // above is proving the stamp rather than a permissive rule.
+    const { createdBy: _omitted, ...noAuthor } = block
+    await assertFails(updateDoc(doc(teacherA, 'aiGenerations', 'lib_legacy'),
+      Object.fromEntries(Object.entries(noAuthor).map(([k, v]) => [metaPath(k), v]))))
+  })
+
   await test('an assessment carries the same block under the same rules', async () => {
     const assessment = {
       createdBy: TEACHER_A,
@@ -305,6 +336,42 @@ async function main() {
     })
   }
 
+  await test('a needs-sorting document is in the bucket and in NO folder count', async () => {
+    // The consistency this protects: a Grade 4 folder must never report an item
+    // whose every term child is empty and whose document cannot be reached by
+    // drilling. A partially filed document lives in triage, and only there.
+    const studio = STUDIO_BY_ID[LIBRARY_TYPES.SCHEMES_OF_WORK]
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), studio.collection, 'seed_partial_path'), {
+        ownerUid: TEACHER_A,
+        createdBy: TEACHER_A,
+        [LIBRARY_META_FIELD]: meta(TEACHER_A, {
+          studio: studio.id,
+          curriculum: 'cbc', grade: 'grade-6', term: null, subject: null,
+          classificationState: 'needs_sorting',
+        }),
+      })
+    })
+
+    const gradeCounts = buildFolderCountQueries(
+      studio, { curriculum: 'cbc' }, { createdBy: TEACHER_A },
+    )
+    const grade6 = gradeCounts.find((d) => d.value === 'grade-6')
+    const inFolder = await run(teacherA, grade6)
+    if (inFolder.data().count !== 0) {
+      throw new Error(
+        `the Grade 6 folder counts ${inFolder.data().count} needs-sorting document(s)`,
+      )
+    }
+
+    const [unsorted] = buildFolderCountQueries(studio, {}, { createdBy: TEACHER_A })
+      .filter((d) => d.bucket === 'unsorted')
+    const inBucket = await run(teacherA, unsorted)
+    if (inBucket.data().count < 1) {
+      throw new Error('the needs-sorting document is in no bucket either — it is unreachable')
+    }
+  })
+
   await test('the Unsorted count is one number, not one per missing field', async () => {
     const studio = STUDIO_BY_ID[LIBRARY_TYPES.LESSON_PLANS]
     // The seeded unsorted document is missing curriculum? No — only grade. Add
@@ -331,6 +398,14 @@ async function main() {
 
   await test('working and archived documents are in no folder count', async () => {
     const studio = STUDIO_BY_ID[LIBRARY_TYPES.LESSON_PLANS]
+    const grade4 = buildFolderCountQueries(studio, { curriculum: 'cbc' }, { createdBy: TEACHER_A })
+      .find((d) => d.value === 'grade-4')
+
+    // Measured before and after rather than compared to a fixture total: a
+    // hard-coded count silently becomes a different assertion the moment
+    // another test seeds a Grade 4 document.
+    const before = (await run(teacherA, grade4)).data().count
+
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       const db = ctx.firestore()
       for (const state of ['working', 'archived']) {
@@ -341,12 +416,12 @@ async function main() {
         })
       }
     })
-    const gradeCounts = buildFolderCountQueries(studio, { curriculum: 'cbc' }, { createdBy: TEACHER_A })
-    const grade4 = gradeCounts.find((d) => d.value === 'grade-4')
-    const snap = await run(teacherA, grade4)
-    // Only the one classified Grade 4 seed — never the working or archived ones.
-    if (snap.data().count !== 1) {
-      throw new Error(`expected 1 classified Grade 4 document, got ${snap.data().count}`)
+
+    const after = (await run(teacherA, grade4)).data().count
+    if (after !== before) {
+      throw new Error(
+        `a working and an archived Grade 4 document changed the folder count ${before} → ${after}`,
+      )
     }
   })
 

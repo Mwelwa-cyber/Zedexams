@@ -24,6 +24,8 @@ import {
   folderCountKey,
   isFixedSetDimension,
   metaPath,
+  NEEDS_SORTING_KIND,
+  needsSortingKeyPrefix,
   nextDimension,
   normalizePathFilters,
 } from './queries.js'
@@ -112,6 +114,44 @@ test('curriculum and term are fixed sets; grade and subject are dynamic', () => 
 })
 
 /* ── buildFolderCountQueries ───────────────────────────────── */
+
+test('a folder count includes ONLY complete documents', () => {
+  // A needs-sorting document is reachable through triage and nowhere else. When
+  // it also counted toward the prefix of its path that WAS filled in, a Grade 4
+  // folder could report an item whose every term child was empty.
+  for (const descriptor of buildFolderCountQueries(
+    lessonPlans, { curriculum: 'cbc' }, { createdBy: UID },
+  )) {
+    assert.deepEqual(
+      filterFor(descriptor, 'classificationState'),
+      [metaPath('classificationState'), '==', CLASSIFICATION_STATES.COMPLETE],
+      descriptor.label,
+    )
+  }
+  // …and the normal document list agrees with the count above it.
+  const list = buildDocumentListQuery(lessonPlans, { curriculum: 'cbc' }, { createdBy: UID })
+  assert.deepEqual(
+    filterFor(list, 'classificationState'),
+    [metaPath('classificationState'), '==', CLASSIFICATION_STATES.COMPLETE],
+  )
+})
+
+test('the archive view is flat — it is not filtered by classification', () => {
+  const archived = buildDocumentListQuery(lessonPlans, {}, {
+    createdBy: UID, includeArchived: true,
+  })
+  assert.equal(filterFor(archived, 'classificationState'), undefined)
+})
+
+test('the triage list has its own cache namespace', () => {
+  // Its own namespace is what lets a filing invalidate the Sort-now screen
+  // without touching every folder list.
+  const list = buildNeedsSortingQuery(lessonPlans, { createdBy: UID })
+  assert.ok(list.key.startsWith(`library:${NEEDS_SORTING_KIND}:`))
+  assert.ok(list.key.startsWith(needsSortingKeyPrefix({
+    createdBy: UID, studio: lessonPlans.id, academicYear: null,
+  })))
+})
 
 test('one descriptor per candidate, plus exactly one Unsorted descriptor', () => {
   const descriptors = buildFolderCountQueries(lessonPlans, {}, { createdBy: UID })
@@ -300,12 +340,15 @@ test('query shapes cover every level of every studio, with no duplicates', () =>
         )
       }
     }
-    // Every hierarchy prefix a folder view can ask for is represented.
+    // Every hierarchy prefix a folder view can ask for is represented — and
+    // each carries the classification filter, because a folder counts complete
+    // documents only.
     const flattened = shapes.map((s) => s.equalityFields.join(','))
     for (let depth = 1; depth <= studio.hierarchy.length; depth += 1) {
       const prefix = [
         studio.ownerField,
-        ...['studio', 'libraryState', ...studio.hierarchy.slice(0, depth)].map(metaPath),
+        ...['studio', 'libraryState', 'classificationState',
+          ...studio.hierarchy.slice(0, depth)].map(metaPath),
       ].join(',')
       assert.ok(flattened.includes(prefix), `${studio.id}: no shape for ${prefix}`)
     }

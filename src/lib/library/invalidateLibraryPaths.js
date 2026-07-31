@@ -29,6 +29,7 @@ import {
   LIBRARY_STATES,
   documentListKeyPrefix,
   folderCountKey,
+  needsSortingKeyPrefix,
   normalizePathFilters,
 } from './queries.js'
 import { invalidateKeys, invalidatePrefixes } from './libraryCountCache.js'
@@ -40,13 +41,17 @@ import { invalidateKeys, invalidatePrefixes } from './libraryCountCache.js'
  * documents are in no count, so they yield [] and a transition into or out of
  * those states naturally invalidates one side only.
  *
- * A path stops at its first null. A lesson plan with a grade but no term is
- * counted by the curriculum and grade folders and by nothing deeper — there is
- * no term folder that should be claiming it.
+ * A document contributes to EITHER the folder counts or the Unsorted bucket,
+ * never both, mirroring the queries exactly. A needs-sorting document used to
+ * count toward the prefix of its path that WAS filled in, which produced a
+ * Grade 4 folder reporting one item whose every term child was empty and whose
+ * document could not be reached by drilling at all. A partially filed document
+ * has one home, and it is triage.
  *
- * Each key is emitted twice: once under the document's academic year and once
- * under the all-years view (`null`), because both are real views of the same
- * document and a year switcher that shows a stale total is the same bug.
+ * For a complete document the path is walked in full; each key is emitted twice,
+ * once under the document's academic year and once under the all-years view
+ * (`null`), because both are real views of the same document and a year switcher
+ * showing a stale total is the same bug.
  *
  * @param {import('./queries.js').LibraryMeta|null} meta
  * @returns {string[]}
@@ -58,20 +63,22 @@ export function libraryCountKeysFor(meta) {
 
   const path = normalizePathFilters(meta)
   const years = [meta.academicYear ?? null, null]
+  const needsSorting = meta.classificationState === CLASSIFICATION_STATES.NEEDS_SORTING
   const keys = new Set()
 
   for (const academicYear of years) {
+    if (needsSorting) {
+      keys.add(folderCountKey({
+        createdBy: meta.createdBy, studio: studio.id, academicYear, path: {}, bucket: 'unsorted',
+      }))
+      continue
+    }
     const walked = {}
     for (const dim of studio.hierarchy) {
       if (path[dim] == null) break
       walked[dim] = path[dim]
       keys.add(folderCountKey({
         createdBy: meta.createdBy, studio: studio.id, academicYear, path: { ...walked },
-      }))
-    }
-    if (meta.classificationState === CLASSIFICATION_STATES.NEEDS_SORTING) {
-      keys.add(folderCountKey({
-        createdBy: meta.createdBy, studio: studio.id, academicYear, path: {}, bucket: 'unsorted',
       }))
     }
   }
@@ -81,7 +88,12 @@ export function libraryCountKeysFor(meta) {
 /**
  * The list-cache prefixes a document's path covers — every hierarchy prefix,
  * outermost first. Prefixes rather than keys because a list key also carries
- * sort and page size, which the mutation knows nothing about.
+ * lifecycle, sort and page size, which the mutation knows nothing about.
+ *
+ * The triage list caches under its own namespace (`library:needs-sorting:…`),
+ * so a document entering or leaving needs-sorting has to drop THAT prefix too —
+ * invalidating the folder lists alone would leave the Sort-now screen listing a
+ * document the teacher had just filed.
  */
 export function libraryListPrefixesFor(meta) {
   if (!meta || !meta.createdBy) return []
@@ -90,19 +102,24 @@ export function libraryListPrefixesFor(meta) {
 
   const path = normalizePathFilters(meta)
   const years = [meta.academicYear ?? null, null]
+  const needsSorting = meta.classificationState === CLASSIFICATION_STATES.NEEDS_SORTING
   const prefixes = new Set()
 
   for (const academicYear of years) {
+    const scope = { createdBy: meta.createdBy, studio: studio.id, academicYear }
+    if (needsSorting) {
+      prefixes.add(needsSortingKeyPrefix(scope))
+      // The archive view is not filtered by classification, so an archived
+      // needs-sorting document still belongs to a list under this studio.
+      prefixes.add(documentListKeyPrefix({ ...scope, path: {} }))
+      continue
+    }
     const walked = {}
-    prefixes.add(documentListKeyPrefix({
-      createdBy: meta.createdBy, studio: studio.id, academicYear, path: {},
-    }))
+    prefixes.add(documentListKeyPrefix({ ...scope, path: {} }))
     for (const dim of studio.hierarchy) {
       if (path[dim] == null) break
       walked[dim] = path[dim]
-      prefixes.add(documentListKeyPrefix({
-        createdBy: meta.createdBy, studio: studio.id, academicYear, path: { ...walked },
-      }))
+      prefixes.add(documentListKeyPrefix({ ...scope, path: { ...walked } }))
     }
   }
   return [...prefixes]

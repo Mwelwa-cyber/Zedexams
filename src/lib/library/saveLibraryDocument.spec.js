@@ -118,6 +118,58 @@ describe('saveLibraryDocument', () => {
     expect(fields).not.toHaveProperty(LIBRARY_META_FIELD)
   })
 
+  it('gives a real legacy document its first block, author included', async () => {
+    // The document exists and has no block — every document in the library
+    // today. The shell has to tell the plan BOTH facts, or the update omits
+    // libraryMeta.createdBy and the rules refuse the write.
+    storedDoc = {
+      ownerUid: UID,
+      tool: 'lesson_plan',
+      createdAt: 'original_created_at',
+      html: '<p>legacy</p>',
+    }
+
+    await saveLibraryDocument({
+      studioId: LIBRARY_TYPES.LESSON_PLANS,
+      docId: 'legacy_1',
+      meta: FULL_META,
+      targetState: 'classified',
+      uid: UID,
+    })
+
+    expect(updateDoc).toHaveBeenCalledTimes(1)
+    const [, fields] = updateDoc.mock.calls[0]
+    expect(fields[metaPath('createdBy')]).toBe(UID)
+    // The document's own creation time is kept, so the block records when the
+    // document was written rather than when it was migrated.
+    expect(fields[metaPath('createdAt')]).toBe('original_created_at')
+  })
+
+  it('a partial update leaves the filing alone', async () => {
+    storedDoc = {
+      ownerUid: UID,
+      [LIBRARY_META_FIELD]: {
+        createdBy: UID, studio: LIBRARY_TYPES.LESSON_PLANS, libraryState: 'classified',
+        classificationState: 'complete', academicYear: 2026,
+        curriculum: 'cbc', grade: 'grade-4', term: 1, subject: 'mathematics',
+      },
+    }
+
+    await saveLibraryDocument({
+      studioId: LIBRARY_TYPES.LESSON_PLANS,
+      docId: 'doc_1',
+      meta: { title: 'Renamed' },
+      targetState: 'working',
+      uid: UID,
+    })
+
+    const [, fields] = updateDoc.mock.calls[0]
+    expect(fields[metaPath('title')]).toBe('Renamed')
+    expect(fields[metaPath('grade')]).toBe('grade-4')
+    expect(fields[metaPath('term')]).toBe(1)
+    expect(fields[metaPath('classificationState')]).toBe('complete')
+  })
+
   it('refuses to classify a document that is missing a required dimension', async () => {
     await expect(saveLibraryDocument({
       studioId: LIBRARY_TYPES.LESSON_PLANS,
