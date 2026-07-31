@@ -12,7 +12,6 @@ import {
   libraryTypeForGeneration,
 } from '../../../utils/teacherLibraryService'
 import {
-  LIBRARY_SECTIONS,
   LIBRARY_SECTION_BY_ID,
   LIBRARY_TYPES,
   SYLLABUS_OPTIONS,
@@ -21,6 +20,11 @@ import {
   getSubjectsForGradeForm,
   getAssessmentTypesForGradeForm,
 } from '../../../config/library'
+// The library home grid, the Create menu and the folder filter chips all render
+// from ONE registry — label, icon, tint, route and hierarchy. Adding a studio
+// there surfaces its card here with no change to this file.
+import { STUDIOS, STUDIO_BY_ID, creatableStudios } from '../../../lib/library/studios'
+import { NEUTRAL_TINT, studioIcon, studioTint } from './studioPresentation'
 import { classifyForLibrary } from '../../../utils/libraryClassification'
 import SeoHelmet from '../../seo/SeoHelmet'
 import Icon from '../../ui/Icon'
@@ -38,7 +42,6 @@ import {
   Clock,
   ComputerDesktop,
   DocumentTextIcon,
-  Files,
   FileText,
   FolderOpen,
   Globe,
@@ -105,51 +108,22 @@ const COLORS = {
   onFill:        'var(--zt-on-dark)',
 }
 
-/* ── Folder palettes ───────────────────────────────────────────── */
-// Soft pastel gradients per library section — folder body fades from
-// `from` (near-white) to `to`, the tab + icon chip sit on `tab`, and
-// `border` keeps the outline a shade darker than the fill.
+/* ── Folder palettes + per-tile icons ──────────────────────────── */
+// Both now come from the studio registry's `tint` and `icon` tokens, resolved
+// by studioPresentation.js — the same twelve pastels and icons as before, with
+// one place to add the thirteenth. Distinct SVG icons make folder choices
+// scannable without relying on platform-specific emoji rendering.
 
-const NEUTRAL_PALETTE = {
-  from: '#fbfbf9', to: '#edebe4', border: '#dedacd', tab: '#eceadf',
+const NEUTRAL_PALETTE = NEUTRAL_TINT
+
+function paletteFor(studioId) {
+  const studio = STUDIO_BY_ID[studioId]
+  return studio ? studioTint(studio.tint) : NEUTRAL_PALETTE
 }
 
-const SECTION_PALETTE = {
-  [LIBRARY_TYPES.SCHEMES_OF_WORK]:  { from: '#fffdf4', to: '#fdeec0', border: '#efdfa9', tab: '#f9ecc2' }, // warm cream
-  [LIBRARY_TYPES.WEEKLY_FORECASTS]: { from: '#f4fbf5', to: '#d9f0de', border: '#c2e2ca', tab: '#ddf1e1' }, // soft mint
-  [LIBRARY_TYPES.RECORDS_OF_WORK]:  { from: '#fff7f0', to: '#f4e2d9', border: '#e7cfc1', tab: '#f4e4dc' }, // soft peach
-  [LIBRARY_TYPES.SYLLABI]:          { from: '#f4f9fe', to: '#d9e9f8', border: '#c3d9ee', tab: '#dcebf8' }, // soft blue
-  [LIBRARY_TYPES.LESSON_PLANS]:     { from: '#f9f6fe', to: '#e7dcf7', border: '#d7c8ec', tab: '#e9def7' }, // lavender
-  [LIBRARY_TYPES.NOTES]:            { from: '#f2fbfa', to: '#d4f0ec', border: '#bce2dc', tab: '#d8f1ed' }, // soft teal
-  [LIBRARY_TYPES.ASSESSMENTS]:      { from: '#fff6f3', to: '#f5dfdc', border: '#e8ccc8', tab: '#fbded5' }, // soft coral
-  [LIBRARY_TYPES.SBA_TASKS]:        { from: '#eff9fe', to: '#d2ebf7', border: '#bbdcec', tab: '#d8eef9' }, // soft sky
-  [LIBRARY_TYPES.SBA_MARK_SHEETS]:  { from: '#f6faf1', to: '#e0eecd', border: '#cbe0b2', tab: '#e5f0d3' }, // soft sage
-  [LIBRARY_TYPES.SBA_PLANS]:        { from: '#f5f6fe', to: '#dee2f8', border: '#c8cdf0', tab: '#e1e5f9' }, // soft periwinkle
-  [LIBRARY_TYPES.MARK_SCHEDULES]:   { from: '#fdf6f9', to: '#f8dfeb', border: '#ecc9da', tab: '#f7e1ec' }, // soft rose
-  [LIBRARY_TYPES.CLASS_TIMETABLES]: { from: '#fffdf0', to: '#f8edbe', border: '#ebdb9b', tab: '#f6ebbe' }, // soft butter
-}
-
-function paletteFor(sectionId) {
-  return SECTION_PALETTE[sectionId] || NEUTRAL_PALETTE
-}
-
-/* ── Per-tile icons ────────────────────────────────────────────── */
-// Distinct SVG icons make folder choices scannable without relying on
-// platform-specific emoji rendering.
-
-const SECTION_ICON = {
-  [LIBRARY_TYPES.SCHEMES_OF_WORK]:  BookOpen,
-  [LIBRARY_TYPES.WEEKLY_FORECASTS]: CalendarDays,
-  [LIBRARY_TYPES.RECORDS_OF_WORK]:  ClipboardList,
-  [LIBRARY_TYPES.SYLLABI]:          Files,
-  [LIBRARY_TYPES.LESSON_PLANS]:     PencilLine,
-  [LIBRARY_TYPES.NOTES]:            DocumentTextIcon,
-  [LIBRARY_TYPES.ASSESSMENTS]:      BarChart3,
-  [LIBRARY_TYPES.SBA_TASKS]:        ClipboardCheckList,
-  [LIBRARY_TYPES.SBA_MARK_SHEETS]:  Calculator,
-  [LIBRARY_TYPES.SBA_PLANS]:        Layers,
-  [LIBRARY_TYPES.MARK_SCHEDULES]:   ListChecks,
-  [LIBRARY_TYPES.CLASS_TIMETABLES]: CalendarDays,
+function iconFor(studioId) {
+  const studio = STUDIO_BY_ID[studioId]
+  return studio ? studioIcon(studio.icon) : FolderOpen
 }
 
 const TOOL_ICON = {
@@ -567,12 +541,12 @@ function TopBar({ query, onQueryChange, filtersOpen, onToggleFilters, typeFilter
       {filtersOpen && (
         <div className="flex flex-wrap items-center gap-2 mt-3" role="group" aria-label="Filter search results by folder">
           <FilterChip label="All folders" active={!typeFilter} onClick={() => onTypeFilter('')} />
-          {LIBRARY_SECTIONS.map((s) => (
+          {STUDIOS.map((studio) => (
             <FilterChip
-              key={s.id}
-              label={s.label}
-              active={typeFilter === s.id}
-              onClick={() => onTypeFilter(typeFilter === s.id ? '' : s.id)}
+              key={studio.id}
+              label={studio.label}
+              active={typeFilter === studio.id}
+              onClick={() => onTypeFilter(typeFilter === studio.id ? '' : studio.id)}
             />
           ))}
         </div>
@@ -598,7 +572,7 @@ function FilterChip({ label, active, onClick }) {
 
 function CreateMenu() {
   const [open, setOpen] = useState(false)
-  const options = LIBRARY_SECTIONS.filter((s) => s.createTo)
+  const options = creatableStudios()
   return (
     <div className="relative flex-shrink-0">
       <button
@@ -634,13 +608,13 @@ function CreateMenu() {
             }}
           >
             {options.map((s) => {
-              const SectionIcon = SECTION_ICON[s.id] || FolderOpen
+              const SectionIcon = iconFor(s.id)
               const pal = paletteFor(s.id)
               return (
                 <Link
                   key={s.id}
                   role="menuitem"
-                  to={s.createTo}
+                  to={s.createRoute}
                   onClick={() => setOpen(false)}
                   className="flex items-center gap-3 rounded-xl px-3 py-2.5 no-underline transition-colors hover:bg-stone-50"
                   style={{ color: COLORS.ink }}
@@ -774,15 +748,18 @@ function RecentStrip({ item }) {
 /* ── Step pickers ──────────────────────────────────────────────── */
 
 function SectionPicker({ tree, onPick }) {
+  // One card per registry entry — no parallel list. A studio added to STUDIOS
+  // appears here with its label, icon, tint and count, and nothing in this file
+  // has to know it exists.
   return (
     <div className={FOLDER_GRID_CLASS}>
-      {LIBRARY_SECTIONS.map((s) => {
+      {STUDIOS.map((s) => {
         const branch = tree[s.id] || {}
         const count = countLeaves(branch)
         return (
           <FolderCard
             key={s.id}
-            icon={SECTION_ICON[s.id] || FolderOpen}
+            icon={iconFor(s.id)}
             palette={paletteFor(s.id)}
             title={s.label}
             subtitle={`${count} saved ${count === 1 ? 'item' : 'items'}`}
@@ -946,7 +923,7 @@ function DocumentList({ items, section }) {
 function DocumentCard({ item, section }) {
   const title = item.__title || titleForGeneration(item)
   const linkTo = item.__linkTo || `/teacher/library/${item.id}`
-  const itemIcon = TOOL_ICON[item.tool] || SECTION_ICON[section.id] || DocumentTextIcon
+  const itemIcon = TOOL_ICON[item.tool] || iconFor(section.id) || DocumentTextIcon
   const pal = paletteFor(section.id)
   return (
     <Link

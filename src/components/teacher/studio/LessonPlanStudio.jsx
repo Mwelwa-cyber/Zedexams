@@ -67,6 +67,8 @@ import {
 import { DuplicateLessonModal } from './modals/DuplicateLessonModal'
 import { useDraftManager } from '../../../hooks/draft/useDraftManager'
 import { lessonPlanInputDescriptor } from '../../../hooks/draft/descriptors'
+import { useAiOperationLock } from '../../../hooks/useAiOperationLock'
+import { stableFingerprint } from '../../../hooks/aiOperationLockCore'
 import { applyLessonPlanRestore } from '../../../hooks/draft/restoreLessonPlan'
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
 import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
@@ -462,6 +464,14 @@ export default function LessonPlanStudio() {
   // Per-run token: stops a resolved callable from hijacking the UI if Stop was
   // clicked before the response landed.
   const runRef = useRef(0)
+
+  // Idempotency lock: one intentional Generate → one provider call + one saved
+  // plan + one usage charge, even across a double-click / rapid tap / refresh /
+  // a second tab. studioLessonPlan.js's server-side reservation enforces this
+  // (and now REFUSES a keyless call), so the primary generate AND the
+  // length-gate repair both carry a key. This is the free tier's entry point,
+  // where a double-charge hurts most.
+  const { run: runGenerateLocked } = useAiOperationLock('lesson-plan-studio:generate')
 
   // ── Active Teaching Profile assignment auto-fill ────────────────────────────
   // Prefill a NEW plan from the teacher's ACTIVE assignment (grade / subject /
@@ -940,30 +950,42 @@ export default function LessonPlanStudio() {
     // the finally below — exactly once — whichever way the handler exits.
     const releaseCriticalWork = beginCriticalWork()
     try {
-      const result = await generateCallable({
-        systemPrompt,
-        userPrompt,
-        // Lesson coordinates so the server can ground the plan on the CBC
-        // knowledge base (resolveCbcContext: stored curriculum modules, topic
-        // KB, prior-coverage dedup) AND on the teacher's OWN saved Scheme of
-        // Work / Weekly Forecast (resolveTeacherPlanContext). framework tells
-        // the KB which syllabus family the studio is planning against.
-        context: {
-          grade: lessonDetails.grade || '',
-          subject: subjectName || '',
-          term: lessonDetails.term || '',
-          week: lessonDetails.week || '',
-          topic: topicData.topic || '',
-          subtopic: topicData.subtopic || '',
-          lessonNumber,
-          totalLessons,
-          framework: curriculumMode === 'previous' ? '2013' : '2023',
-        },
+      // Lesson coordinates so the server can ground the plan on the CBC
+      // knowledge base (resolveCbcContext: stored curriculum modules, topic
+      // KB, prior-coverage dedup) AND on the teacher's OWN saved Scheme of
+      // Work / Weekly Forecast (resolveTeacherPlanContext). framework tells
+      // the KB which syllabus family the studio is planning against.
+      const genContext = {
+        grade: lessonDetails.grade || '',
+        subject: subjectName || '',
+        term: lessonDetails.term || '',
+        week: lessonDetails.week || '',
+        topic: topicData.topic || '',
+        subtopic: topicData.subtopic || '',
+        lessonNumber,
+        totalLessons,
+        framework: curriculumMode === 'previous' ? '2013' : '2023',
+      }
+      // The primary generate goes through the idempotency lock. A concurrent
+      // duplicate is refused here (reason 'locked'); a genuine failure is
+      // re-thrown so the existing catch below keeps mapping quota rejections.
+      const lockResult = await runGenerateLocked({
+        fingerprint: stableFingerprint({ systemPrompt, userPrompt, context: genContext }),
+        action: (idempotencyKey) => generateCallable({
+          systemPrompt, userPrompt, context: genContext, idempotencyKey,
+        }),
       })
+      if (lockResult.reason === 'locked') return
+      if (!lockResult.ok) throw (lockResult.error || new Error('Generation failed'))
+      const result = lockResult.data
 
       // Bail if Stop was clicked while this generation was in-flight.
       // The finally block still runs and releases the critical-work lock.
       if (run !== runRef.current) return
+
+      // The server already has this exact request in flight (a retried call or
+      // another tab) — leave the canvas as-is; the owning call completes it.
+      if (result?.data?.status === 'processing') return
 
       const raw = String(result.data?.text || '')
         .trim()
@@ -984,9 +1006,14 @@ export default function LessonPlanStudio() {
       // right are not re-rolled. Any failure leaves the plan exactly as
       // generated (see runLengthGate), so this can cost a page but never a plan.
       const gate = await runLengthGate(rawPlanJson, lessonFormat, async (condensePrompt) => {
+        // A distinct sub-operation (condense specific cells), so it carries its
+        // own idempotency key — the server now refuses a keyless call. Minted
+        // fresh per repair; it is auto-triggered and best-effort, not a
+        // double-click surface.
         const repair = await generateCallable({
           systemPrompt: 'You condense Zambian teachers\' lesson-plan cells. You reply with JSON only.',
           userPrompt: condensePrompt,
+          idempotencyKey: crypto.randomUUID(),
         })
         return String(repair.data?.text || '')
       })
@@ -1184,7 +1211,7 @@ export default function LessonPlanStudio() {
     } finally {
       releaseCriticalWork()
     }
-  }, [uid]) // uid is used inside the try block for Firestore writes
+  }, [uid, runGenerateLocked]) // uid for Firestore writes; runGenerateLocked is a stable useCallback
 
   // Navigate to the next non-completed lesson in the series.
   const handleContinue = useCallback(() => {

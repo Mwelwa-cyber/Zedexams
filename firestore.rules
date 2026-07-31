@@ -211,6 +211,86 @@ service cloud.firestore {
       ];
     }
     function _validSubject(value) { return value is string && value.size() >= 1 && value.size() <= 80; }
+
+    // ── library smart-folder metadata (LibraryMeta v1) ───────
+    //
+    // Folders in the teacher library are VIEWS computed from these fields —
+    // there are no folder documents. That makes the fields load-bearing: a
+    // document whose `grade` is a spelling nothing recognises is a document no
+    // folder query will ever return, and it fails silently rather than loudly.
+    // So the enums are pinned here as well as in the client.
+    //
+    // Every helper below applies ONLY to writes that carry `libraryMeta`.
+    // Legacy writes (every studio, until it migrates to saveLibraryDocument in
+    // steps 3+) are untouched and keep working exactly as before.
+    //
+    // The grade ids mirror EDUCATION_LEVELS[].id in src/config/educationLevels.js
+    // — NOT the `value` codes `_validAssessmentGrade` above accepts, which are a
+    // different vocabulary for a different field. Guarded by test:library-indexes.
+    function _validLibraryGrade(value) {
+      return value == null || (value is string && value in [
+        'nursery', 'reception',
+        'grade-1', 'grade-2', 'grade-3', 'grade-4', 'grade-5', 'grade-6', 'grade-7',
+        'form-1', 'form-2', 'form-3', 'form-4', 'form-5'
+      ]);
+    }
+    function _validLibraryCurriculum(value) {
+      return value == null || (value is string && value in ['cbc', 'obc']);
+    }
+    function _validLibraryTerm(value) {
+      return value == null || (value is int && value >= 1 && value <= 3);
+    }
+    function _validLibraryState(value) {
+      return value is string && value in ['working', 'classified', 'archived'];
+    }
+    function _validClassificationState(value) {
+      return value is string && value in ['complete', 'needs_sorting'];
+    }
+    // Does this write carry the smart-folder block at all? The block is ONE
+    // nested map — `grade`, `term`, `subject` and `status` are already taken at
+    // the top level of these collections, with different vocabularies
+    // ('G4' vs 'grade-4', the string 'Term 2' vs the int 2, the generation's
+    // 'complete' vs the teacher's 'draft'), so nesting is what keeps the two
+    // meanings from being written to one field name.
+    function libMeta() { return incoming().libraryMeta; }
+    function hasLibraryMeta() { return 'libraryMeta' in incoming(); }
+
+    // Shape + enum membership. `scope`/`schoolId` are the sharp edge: the
+    // fields are stamped NOW so a second migration is not needed later, but
+    // until a school membership model exists a client that could write
+    // scope:'school' would be creating documents no other teacher can safely
+    // reach and no rule can safely authorise. Personal only, enforced here.
+    function validLibraryMeta() {
+      return libMeta() is map
+        && libMeta().libraryMetaVersion is int
+        && libMeta().libraryMetaVersion >= 1
+        && _validLibraryState(libMeta().libraryState)
+        && _validClassificationState(libMeta().classificationState)
+        && _validLibraryCurriculum(libMeta().get('curriculum', null))
+        && _validLibraryGrade(libMeta().get('grade', null))
+        && _validLibraryTerm(libMeta().get('term', null))
+        && (libMeta().get('subject', null) == null || _validSubject(libMeta().subject))
+        && (libMeta().get('academicYear', 2026) is int
+            && libMeta().get('academicYear', 2026) >= 2000
+            && libMeta().get('academicYear', 2026) <= 2100)
+        && libMeta().get('metaSource', 'user_set') in ['user_set', 'migrated_inferred']
+        && libMeta().get('status', 'draft') in ['draft', 'final']
+        && libMeta().scope == 'personal'
+        && libMeta().schoolId == null;
+    }
+    // Author isolation. `createdBy` names the AUTHOR (not an owner), which is
+    // what makes the future school model a non-breaking extension — so it is
+    // set once and never rewritten.
+    function libraryAuthorOnCreate() {
+      return !hasLibraryMeta() || (validLibraryMeta() && libMeta().createdBy == request.auth.uid);
+    }
+    function libraryAuthorOnUpdate() {
+      return !hasLibraryMeta() || (
+        validLibraryMeta()
+        && libMeta().get('createdBy', '') == request.auth.uid
+        && libMeta().get('createdBy', '') == resource.data.get('libraryMeta', {}).get('createdBy', request.auth.uid)
+      );
+    }
     function _validContentStatus(value) { return value is string && value in ['draft', 'pending', 'published', 'rejected']; }
     // Must mirror QUESTION_TYPES in src/utils/questionType.js EXACTLY — the
     // editor persists canonical types verbatim, so a type missing here makes
@@ -650,9 +730,11 @@ service cloud.firestore {
       );
       allow create: if validAssessmentFields()
         && isTeacherOrAbove()
+        && libraryAuthorOnCreate()
         && incoming().createdBy == request.auth.uid;
       allow update: if validAssessmentFields()
         && isTeacherOrAbove()
+        && libraryAuthorOnUpdate()
         && resource.data.createdBy == request.auth.uid
         && incoming().createdBy == request.auth.uid;
       allow delete: if isVerified() && (
@@ -858,9 +940,15 @@ service cloud.firestore {
                        && incoming().tool in ['mark_schedule', 'weekly_forecast', 'record_of_work', 'class_timetable', 'sba_mark_sheet', 'sba_plan']
                        && incoming().status == 'complete'
                        && incoming().visibility == 'private'
+                       && libraryAuthorOnCreate()
                        && incoming().keys().hasOnly([
                          'ownerUid', 'tool', 'status', 'visibility',
                          'createdAt', 'inputs', 'output', 'library',
+                         // Smart-folder metadata (LibraryMeta v1), one nested
+                         // map. Present only once a studio saves through
+                         // saveLibraryDocument; validated by
+                         // libraryAuthorOnCreate above.
+                         'libraryMeta',
                        ]);
       // The Lesson Plan Studio (legacy vanilla-JS editor) is the one AI tool
       // whose library copy is assembled client-side: the generate callable
@@ -874,10 +962,13 @@ service cloud.firestore {
                        && incoming().tool == 'lesson_plan'
                        && incoming().status == 'complete'
                        && incoming().visibility == 'private'
+                       && libraryAuthorOnCreate()
                        && incoming().keys().hasOnly([
                          'ownerUid', 'tool', 'status', 'visibility',
                          'createdAt', 'inputs', 'library',
                          'meta', 'data', 'html', 'studioFormat',
+                         // Smart-folder metadata — see the note on the rule above.
+                         'libraryMeta',
                        ]);
       // Teachers can update their own generations' output (in-place editing),
       // the teacherEdited / visibility / exportedFormats metadata fields, and
@@ -890,7 +981,13 @@ service cloud.firestore {
                        && changedKeys().hasOnly([
                          'output', 'teacherEdited', 'visibility', 'exportedFormats',
                          'library',
+                         // Refiling a document is a metadata change, not a
+                         // content change, so the smart-folder block is mutable
+                         // — with `libraryMeta.createdBy` pinned immutable by
+                         // libraryAuthorOnUpdate below.
+                         'libraryMeta',
                        ])
+                       && libraryAuthorOnUpdate()
                        && incoming().ownerUid == resource.data.ownerUid
                        && incoming().tool == resource.data.tool;
       // Admin can update anything (for moderation, flag/unflag etc.)

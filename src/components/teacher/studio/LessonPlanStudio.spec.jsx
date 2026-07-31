@@ -48,6 +48,30 @@ vi.mock('./hooks/useLessonSeries', () => ({
 
 vi.mock('../../../firebase/config', () => ({ default: {}, db: {} }))
 
+// The AI idempotency lock is mocked to a deterministic passthrough: it runs the
+// action with a fixed key and returns {ok, data} (or {ok:false, error} on a
+// throw), exactly the pre-lock behaviour these studio tests were written
+// against. The REAL hook holds a module-level lock per lockKey that persists
+// across tests in this file — a test that leaves the callable pending (the
+// 'loading'/'error' cases) would never release it, and every later generate
+// would come back 'locked' and hang at 'loading'. The lock's own behaviour is
+// covered by useAiOperationLock.spec.jsx + the SBA/Homework/Notes studio specs;
+// here we test the studio's handling of the generate result.
+vi.mock('../../../hooks/useAiOperationLock', () => ({
+  useAiOperationLock: () => ({
+    run: async ({ action }) => {
+      try {
+        return { ok: true, data: await action('11111111-1111-4111-8111-111111111111') }
+      } catch (error) {
+        return { ok: false, reason: 'error', error }
+      }
+    },
+    isRunning: false,
+    otherTabRunning: false,
+    clear: () => {},
+  }),
+}))
+
 // The quota pre-flight gate (which internally subscribes to the usage meter via
 // Firestore onSnapshot). Mocked to "allowed" so generation tests aren't blocked
 // and the firebase/firestore mock stays minimal. A dedicated test below
