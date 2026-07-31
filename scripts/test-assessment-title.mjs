@@ -21,6 +21,7 @@ import {
   generatedAssessmentTitleVariants,
   normalizeTitleForCompare,
 } from '../src/components/teacher/assessmentTitle.js'
+import { findSharedTitles } from './backfill-assessment-titles.mjs'
 
 let passed = 0
 function test(name, fn) {
@@ -191,6 +192,82 @@ test('the variant set covers both shapes for every term', () => {
   assert.ok(variants.includes('GRADE 4 ENGLISH - END OF TERM 3 TEST - 2026'))
   // …and the termless shape, for papers saved before the term reached the title.
   assert.ok(variants.includes('GRADE 4 END-OF-TERM TEST - 2026'))
+})
+
+/* ── the backfill's "still shared" warning ─────────────────────────────────
+ * The check that decides whether the backfill actually produced the distinct
+ * names it exists for. It compared RAW strings until now, so it under-reported
+ * exactly the variants normalizeTitleForCompare was written to fold.
+ */
+
+const owned = (createdBy, action, title) => ({
+  assessment: { createdBy },
+  action,
+  ...(action === 'retitle' ? { to: title } : { from: title }),
+})
+
+test('a collision surviving the run is reported, per teacher', () => {
+  const shared = findSharedTitles([
+    owned('teacher-1', 'retitle', 'GRADE 4 HOME ECONOMICS - END OF TERM 1 TEST - 2026'),
+    owned('teacher-1', 'retitle', 'GRADE 4 HOME ECONOMICS - END OF TERM 1 TEST - 2026'),
+    owned('teacher-2', 'retitle', 'GRADE 4 ENGLISH - END OF TERM 1 TEST - 2026'),
+  ])
+  assert.deepEqual([...shared.keys()], ['teacher-1'], "another teacher's papers are not the same library")
+  assert.equal(shared.get('teacher-1').length, 1)
+})
+
+test('two names that differ only by dash, case or spacing are one name', () => {
+  // The regression: raw-string comparison called these three distinct and
+  // reported no collision, while the teacher sees one name three times.
+  const shared = findSharedTitles([
+    owned('t', 'retitle', 'GRADE 4 ENGLISH - END OF TERM 1 TEST - 2026'),
+    owned('t', 'skip', 'GRADE 4 ENGLISH – END OF TERM 1 TEST – 2026'),
+    owned('t', 'skip', 'grade 4  english  -  end of term 1 test - 2026'),
+  ])
+  assert.equal(shared.get('t').length, 1, 'three spellings of one name is one collision')
+})
+
+test('a reported title is the one an operator will see in the library', () => {
+  // Not the normalised key — nobody can search for "GRADE 4 ENGLISH - …" upper-
+  // cased and dash-folded if that is not what the library shows.
+  const shared = findSharedTitles([
+    owned('t', 'skip', 'grade 4 english – end of term 1 test – 2026'),
+    owned('t', 'skip', 'GRADE 4 ENGLISH - END OF TERM 1 TEST - 2026'),
+  ])
+  assert.equal(shared.get('t')[0], 'grade 4 english – end of term 1 test – 2026')
+})
+
+test('a paper being retitled is judged on the name it ENDS UP with', () => {
+  // `to` for a retitle, `from` for a skip: a regenerated name colliding with a
+  // legacy one is a real collision, and using the wrong side would hide it.
+  const shared = findSharedTitles([
+    owned('t', 'retitle', 'GRADE 4 ENGLISH - END OF TERM 1 TEST - 2026'),
+    owned('t', 'skip', 'GRADE 4 ENGLISH - END OF TERM 1 TEST - 2026'),
+  ])
+  assert.equal(shared.get('t').length, 1)
+  // Distinct outcomes are silence, which is what a successful run looks like.
+  assert.equal(findSharedTitles([
+    owned('t', 'retitle', 'GRADE 4 ENGLISH - END OF TERM 1 TEST - 2026'),
+    owned('t', 'retitle', 'GRADE 4 ENGLISH - END OF TERM 2 TEST - 2026'),
+  ]).size, 0)
+})
+
+test('a spelled-out level does NOT collide — the known, documented gap', () => {
+  // Recorded so the limitation is a decision with a test behind it rather than
+  // something rediscovered in the data later. normalizeTitleForCompare folds
+  // case, dashes and whitespace; it does not fold number words.
+  const shared = findSharedTitles([
+    owned('t', 'skip', 'GRADE FOUR END OF TERM 1 TEST - 2026'),
+    owned('t', 'retitle', 'GRADE 4 END OF TERM 1 TEST - 2026'),
+  ])
+  assert.equal(shared.size, 0, 'closing this gap is a deliberate change, not an accident')
+})
+
+test('a blank title is never reported as a collision', () => {
+  assert.equal(findSharedTitles([
+    owned('t', 'skip', ''),
+    owned('t', 'skip', '   '),
+  ]).size, 0)
 })
 
 console.log(`\n${passed} assertions passed.`)
