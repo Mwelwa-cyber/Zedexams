@@ -10,8 +10,17 @@
  *
  * The rule, from the Privacy Policy §4 (Children's privacy): ZedExams serves
  * Grade 4–7 learners, typically aged 9–12. Learner accounts are excluded from
- * session replay, are never identified to the analytics vendor, and have IP
- * geolocation suppressed. What remains is anonymous usage counts.
+ * session replay AND from every other form of observation the vendor offers —
+ * heatmap coordinate collection and surveys — are never identified to the
+ * analytics vendor, and have IP geolocation suppressed. What remains is
+ * anonymous usage counts.
+ *
+ * "Session replay" is the headline, but it is not the only recorder, and a
+ * policy that names only the headline is how the other ones stay on: heatmaps
+ * and surveys are separate PostHog subsystems with separate switches, each
+ * defaulting to whatever the PostHog PROJECT says rather than to what this
+ * file says. Every observation switch belongs in this object so that turning
+ * one on is a decision made here, in one place, against a role.
  *
  * ── Why the default is minimise, not observe ──────────────────────────────
  *
@@ -55,6 +64,18 @@ const MINIMISED = Object.freeze({
   identify: false,
   // No screen recording, at all.
   sessionRecording: false,
+  // No heatmap collection. Heatmaps are the second recorder: PostHog buffers
+  // the pointer coordinate of every click, rageclick and dead click against
+  // the URL it happened on, and flushes them as $$heatmap. That is a
+  // behavioural trace of a child moving around a page — a different shape to
+  // a replay, not a lesser one — and §4 draws the line at observation, not at
+  // the file format. Off for the same people replay is off for.
+  heatmaps: false,
+  // No surveys. A PostHog survey is an inbound prompt that asks a question and
+  // stores the free-text answer, so leaving it on would collect volunteered
+  // writing from a nine-year-old — the one kind of data masking cannot help
+  // with, because the whole point of the field is to capture what was typed.
+  surveys: false,
   // Suppress PostHog's IP→location enrichment (country/city/lat/long/postal).
   // Set as a super-property; PostHog drops the enrichment server-side.
   geoip: false,
@@ -65,6 +86,8 @@ const MINIMISED = Object.freeze({
 const FULL = Object.freeze({
   identify: true,
   sessionRecording: true,
+  heatmaps: true,
+  surveys: true,
   geoip: true,
   capture: true,
 })
@@ -74,8 +97,8 @@ const FULL = Object.freeze({
  *
  * @param {string|null|undefined} role  users/{uid}.role, or null when signed
  *                                      out / not yet loaded.
- * @return {{identify: boolean, sessionRecording: boolean, geoip: boolean,
- *           capture: boolean}}
+ * @return {{identify: boolean, sessionRecording: boolean, heatmaps: boolean,
+ *           surveys: boolean, geoip: boolean, capture: boolean}}
  */
 export function resolveAnalyticsPolicy(role) {
   if (typeof role !== 'string') return MINIMISED

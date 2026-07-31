@@ -31,8 +31,16 @@
  * Role policy (Privacy Policy §4 — children's privacy): consent is not
  * the only gate. utils/analyticsPolicy decides how closely a given role
  * may be observed, and learners — plus every session before a role is
- * known — get session replay off, no identify, and no IP geolocation.
- * See that module for why the default is minimise rather than observe.
+ * known — get session replay off, heatmap collection off, surveys off,
+ * no identify, and no IP geolocation. See that module for why the default
+ * is minimise rather than observe.
+ *
+ * Every one of those switches must be set AT INIT as well as applied by
+ * applyPolicy(). PostHog's client config defaults to "whatever the PostHog
+ * project says" for recording, heatmaps and surveys alike, and the project
+ * has all three enabled — so a switch this file does not name is a switch
+ * that is ON for every learner, and the only evidence of it is in the
+ * vendor's dashboard rather than in this repo.
  */
 
 import {
@@ -81,6 +89,25 @@ function applyPolicy(instance, policy) {
   } catch (err) {
     console.warn('[analytics] recording policy failed', err)
   }
+  try {
+    // Heatmaps and surveys are separate PostHog subsystems, each with its own
+    // switch, and each defaults to the value set in the PostHog PROJECT when
+    // the client says nothing. Saying nothing is what we used to do, so both
+    // ran for every session — including learners — while replay was correctly
+    // held off. Naming them here is what makes the policy object the whole
+    // policy rather than the replay half of it.
+    //
+    // set_config is the runtime toggle for both: it calls
+    // heatmaps.startIfEnabled() (which also DISCARDS the pending coordinate
+    // buffer when disabling, so nothing already collected is flushed) and
+    // surveys.loadIfEnabled().
+    instance.set_config({
+      capture_heatmaps: policy.heatmaps,
+      disable_surveys: !policy.surveys,
+    })
+  } catch (err) {
+    console.warn('[analytics] observation policy failed', err)
+  }
 }
 
 async function loadPostHog() {
@@ -115,6 +142,18 @@ async function loadPostHog() {
         // captured in the first place — a recording that is stopped has
         // already been made.
         disable_session_recording: true,
+        // Heatmap collection starts OFF for the same reason and by the same
+        // rule. Left unset, posthog-js falls through to the PostHog project's
+        // heatmaps_opt_in flag (true for this project), so every click and
+        // rageclick coordinate on /login, /register and the learner pages was
+        // buffered and flushed as $$heatmap regardless of who was on the
+        // screen. applyPolicy() turns it on for an observable role.
+        capture_heatmaps: false,
+        // Surveys likewise. This one has to be set AT INIT rather than turned
+        // off later: posthog-js's surveys.loadIfEnabled() early-returns once a
+        // survey manager exists, so a survey system that has already loaded
+        // cannot be unloaded by flipping the flag afterwards.
+        disable_surveys: true,
         session_recording: {
           // Every <input>/<textarea>/<select> value is masked in the
           // recording, so a password, an email or a child's name typed
@@ -142,6 +181,24 @@ async function loadPostHog() {
         },
       })
       posthogInstance = posthog
+      // posthog-js exports a module SINGLETON, and init() early-returns on an
+      // instance that is already loaded — without running loaded(). So on a
+      // decline-then-accept cycle (teardownPostHog() nulled our reference but
+      // the SDK is still there) the block above never executes, and the
+      // instance would keep whatever observation settings the PREVIOUS user's
+      // role left on it. Re-assert the policy and re-arm capturing here;
+      // applyPolicy is idempotent, so on a genuine first init this is a no-op
+      // repeat of what loaded() just did.
+      applyPolicy(posthog, activePolicy)
+      try {
+        if (posthog.has_opted_out_capturing?.()) {
+          // captureEventName: null suppresses the $opt_in event — re-arming a
+          // consent decision is not itself a product event worth recording.
+          posthog.opt_in_capturing({ captureEventName: null })
+        }
+      } catch (err) {
+        console.warn('[analytics] opt-in failed', err)
+      }
       return posthog
     } catch (err) {
       console.warn('[analytics] posthog init failed', err)
@@ -157,11 +214,11 @@ async function loadPostHog() {
 function teardownPostHog() {
   activePolicy = MINIMISED_POLICY
   if (!posthogInstance) return
-  try {
-    posthogInstance.stopSessionRecording()
-  } catch (err) {
-    console.warn('[analytics] stop recording failed', err)
-  }
+  // Go through applyPolicy rather than stopping the recorder by hand: consent
+  // being withdrawn has to switch off every observation subsystem, and a
+  // hand-written list here is one that stops matching the policy object the
+  // first time a new switch is added to it.
+  applyPolicy(posthogInstance, MINIMISED_POLICY)
   try {
     posthogInstance.opt_out_capturing()
     posthogInstance.reset()
