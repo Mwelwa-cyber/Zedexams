@@ -37,6 +37,36 @@ test('a learner is never identified, never recorded, never geolocated', () => {
   assert.equal(p.geoip, false, 'learner IP must not be geolocated')
 })
 
+test('a learner is not heatmapped and is never shown a survey', () => {
+  // "Session replay" is the headline recorder but not the only one. Heatmaps
+  // buffer the pointer coordinate of every click and rageclick against the URL
+  // it happened on; a survey asks a child a question and stores the free-text
+  // answer. Both are separate PostHog subsystems that default to the PROJECT's
+  // setting when the client says nothing, and this project has both enabled —
+  // so leaving either out of the policy leaves it ON for every learner.
+  const p = resolveAnalyticsPolicy('learner')
+  assert.equal(p.heatmaps, false, 'learner clicks must not be heatmapped')
+  assert.equal(p.surveys, false, 'learner must not be surveyed')
+})
+
+test('every observation switch is off in the minimised treatment', () => {
+  // The guard against the next switch being added to FULL and forgotten in
+  // MINIMISED. `capture` is the one deliberate exception — §4 permits
+  // anonymised usage counts — so it is named here rather than inferred.
+  const ALLOWED_WHEN_MINIMISED = new Set(['capture'])
+  for (const [key, value] of Object.entries(MINIMISED_POLICY)) {
+    if (ALLOWED_WHEN_MINIMISED.has(key)) continue
+    assert.equal(value, false, `${key} must be off for a minimised role`)
+  }
+  // ...and the two objects must describe the same set of switches, or a key
+  // present only in FULL is one no minimised role is ever protected from.
+  assert.deepEqual(
+    Object.keys(MINIMISED_POLICY).sort(),
+    Object.keys(FULL_POLICY).sort(),
+    'MINIMISED and FULL must declare the same switches',
+  )
+})
+
 test('a learner still contributes anonymous usage counts', () => {
   // §4 permits "anonymised usage counts" — the minimised treatment is a
   // narrowing, not a total blackout. If this flips to false the product
