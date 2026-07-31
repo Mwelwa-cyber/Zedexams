@@ -14,6 +14,8 @@ import { resolveImageWidthPercent } from '../../utils/imageWidth'
 import { hasSubParts, sumSubPartMarks } from '../../utils/questionParts.js'
 import { suggestAnswer as suggestAnswerCall } from '../../utils/suggestAnswer'
 import { reviseQuestion as reviseQuestionCall } from '../../utils/reviseQuestion'
+import { useAiOperationLock } from '../../hooks/useAiOperationLock'
+import { stableFingerprint } from '../../hooks/aiOperationLockCore'
 import Icon from './studio/studioIcons'
 import DiagramSvg from '../diagrams/DiagramSvg'
 import DiagramPicker from '../diagrams/DiagramPicker'
@@ -296,6 +298,13 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
   const mountedRef = useRef(true)
   useEffect(() => () => { mountedRef.current = false }, [])
 
+  // Idempotency locks: one intentional Revise / Suggest → one provider call +
+  // one charge, even across a double-click / rapid tap / refresh / a second tab.
+  // The reviseQuestion / suggestAnswer callables now REFUSE a keyless call, so
+  // the key travels with every request; these are the client-side belt.
+  const { run: runReviseLocked } = useAiOperationLock('assessment-question:revise')
+  const { run: runSuggestLocked } = useAiOperationLock('assessment-question:suggest-answer')
+
   function updateQuestion(field, value) {
     if (aiSuggestion && FIELDS_THAT_INVALIDATE_SUGGESTION.includes(field)) {
       setAiSuggestion(null)
@@ -375,15 +384,26 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
     setReviseError('')
     setRevising(true)
     try {
-      const result = await reviseQuestionCall({
+      const payload = {
         text,
         fromGrade: paperMeta?.grade,
         toGrade,
         subject: paperMeta?.subject,
         language: paperMeta?.language,
+        // Preserve the paper's curriculum (framework: 2023 → CBC, 2013 →
+        // previous) so the revision never drifts to another syllabus.
+        curriculum: paperMeta?.framework,
         modifier,
+      }
+      const lockResult = await runReviseLocked({
+        fingerprint: stableFingerprint(payload),
+        action: (idempotencyKey) => reviseQuestionCall({ ...payload, idempotencyKey }),
       })
       if (!mountedRef.current) return
+      if (lockResult.reason === 'locked') return
+      if (!lockResult.ok) throw (lockResult.error || new Error('Could not revise the question.'))
+      const result = lockResult.data
+      if (result?.status === 'processing') return
       setRevisedPreview(result.text)
     } catch (err) {
       if (mountedRef.current) setReviseError(err?.message || 'Could not revise the question.')
@@ -434,7 +454,7 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
     setSuggestError('')
     setSuggesting(true)
     try {
-      const result = await suggestAnswerCall({
+      const payload = {
         type,
         text,
         options: isMcq ? question.options : undefined,
@@ -460,8 +480,19 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
         grade: paperMeta?.grade,
         subject: paperMeta?.subject,
         language: paperMeta?.language,
+        // Preserve the paper's curriculum so the predicted answer stays in the
+        // question's own syllabus (2023 → CBC, 2013 → previous).
+        curriculum: paperMeta?.framework,
+      }
+      const lockResult = await runSuggestLocked({
+        fingerprint: stableFingerprint(payload),
+        action: (idempotencyKey) => suggestAnswerCall({ ...payload, idempotencyKey }),
       })
       if (!mountedRef.current) return
+      if (lockResult.reason === 'locked') return
+      if (!lockResult.ok) throw (lockResult.error || new Error('Could not suggest an answer.'))
+      const result = lockResult.data
+      if (result?.status === 'processing') return
       // Write the predicted answer to the question via the raw prop —
       // bypasses the local wrapper that would otherwise clear the
       // suggestion badge. Matching and sequence both store the answer

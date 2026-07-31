@@ -75,10 +75,21 @@ export const CLAUSES = Object.freeze([
   },
   {
     id: 'curriculum-pinned',
-    title: 'Curriculum and subject identity pinned before generation',
+    title: 'Curriculum is pinned (generation) or preserved (transformation)',
     defends: 'Grade, subject and curriculum drifting between what the teacher '
-      + 'chose and what the model was told — the §3.5 failure.',
-    holds: (scan) => scan.curriculumGrounded,
+      + 'chose and what the model was told — the §3.5 failure. The two operation '
+      + 'classes defend against it differently, and the contract must not treat '
+      + 'them the same: a GENERATION originates curriculum content and must pin '
+      + 'an explicit curriculum (resolveCbcContext); a TRANSFORMATION (revise / '
+      + 'suggest / explain) works on an item that already exists and must '
+      + 'PRESERVE that item\'s curriculum + subject, failing closed when it '
+      + 'cannot name them (checkSourceCurriculum) so it can never silently pull '
+      + 'in another curriculum\'s material. A blanket exemption for '
+      + 'transformations was refused precisely because it would let exactly that '
+      + 'drift through — the requirement is preservation, not absence.',
+    holds: (scan, record) => (record.operationClass === 'transformation'
+      ? scan.preservesSourceCurriculum
+      : scan.curriculumGrounded),
   },
   {
     id: 'usage-metered',

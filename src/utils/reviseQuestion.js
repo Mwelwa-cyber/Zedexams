@@ -62,7 +62,7 @@ function withTimeout(promise, ms) {
   })
 }
 
-export async function reviseQuestion({ text, fromGrade, toGrade, subject, language, modifier } = {}) {
+export async function reviseQuestion({ text, fromGrade, toGrade, subject, language, modifier, curriculum, idempotencyKey } = {}) {
   if (!text || !String(text).trim()) {
     throw new Error('Add the question text first, then ask AI to revise it.')
   }
@@ -72,11 +72,18 @@ export async function reviseQuestion({ text, fromGrade, toGrade, subject, langua
   try {
     const result = await withTimeout(
       reviseQuestionCallable({
-        text, fromGrade, toGrade, subject, language, modifier,
+        // `curriculum` pins the revision to the question's source syllabus (the
+        // server fail-closes without it); `idempotencyKey` collapses a
+        // double-click to one provider call + charge.
+        text, fromGrade, toGrade, subject, language, modifier, curriculum, idempotencyKey,
       }),
       REVISE_TIMEOUT_MS,
     )
     const data = result?.data || {}
+    // The server already has this exact request in flight (a retry / another
+    // tab) — surface it so the caller leaves its "revising" state rather than
+    // reading this as an empty revision.
+    if (data.status === 'processing') return { status: 'processing' }
     if (!data.text) {
       throw new Error('AI returned an empty revision. Please try again.')
     }

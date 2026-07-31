@@ -59,7 +59,7 @@ function withTimeout(promise, ms) {
   })
 }
 
-export async function suggestAnswer({ type, text, options, wordBank, unit, tolerance, matchingLeft, matchingRight, sequenceItems, imageUrl, grade, subject, language } = {}) {
+export async function suggestAnswer({ type, text, options, wordBank, unit, tolerance, matchingLeft, matchingRight, sequenceItems, imageUrl, grade, subject, language, curriculum, idempotencyKey } = {}) {
   if (!text || !String(text).trim()) {
     throw new Error('Add some question text first, then ask AI for the answer.')
   }
@@ -70,11 +70,16 @@ export async function suggestAnswer({ type, text, options, wordBank, unit, toler
         matchingLeft, matchingRight,
         sequenceItems,
         imageUrl,
-        grade, subject, language,
+        // `curriculum` pins the predicted answer to the question's source
+        // syllabus (the server fail-closes without it); `idempotencyKey`
+        // collapses a double-click to one provider call + charge.
+        grade, subject, language, curriculum, idempotencyKey,
       }),
       SUGGEST_TIMEOUT_MS,
     )
     const data = result?.data || {}
+    // Server already has this exact request in flight (retry / another tab).
+    if (data.status === 'processing') return { status: 'processing' }
     return {
       answer: data.answer,
       rationale: data.rationale || '',

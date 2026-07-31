@@ -364,12 +364,21 @@ export const INVENTORY = Object.freeze([
 
   // ── Tier 6 · revision and recommendation ──────────────────────────────
   g('functions/teacherTools/reviseQuestion.js', {
+    clientModule: 'src/components/teacher/AssessmentQuestionBlock.jsx',
+    clientLockKey: 'assessment-question:revise',
+    operationClass: 'transformation',
     tier: 6,
-    state: 'unmigrated',
+    state: 'migrated',
     entryPoint: 'reviseQuestion (callable)',
-    clientSurface: '/admin/question-review',
-    produces: 'A revised question in the Central Question Bank',
+    clientSurface: 'Assessment Paper Studio — per-question revise (AssessmentQuestionBlock.jsx)',
+    produces: 'A revised question, preserving the source curriculum + subject',
     incompleteResultSaveable: false,
+    note: 'A TRANSFORMATION: it re-grades / re-tones an existing question, so it '
+      + 'does not resolveCbcContext against a fresh topic; instead it PRESERVES '
+      + 'the source curriculum via checkSourceCurriculum (fail-closed) and pins '
+      + 'the prompt to it. Returns text inline, persisted to '
+      + 'aiGenerations/{idempotencyKey} for resume. This migration also closed an '
+      + 'AI-006 refund gap and a latent CBC-hard-coding bug.',
   }),
   g('functions/suggestQuizAnswers.js', {
     tier: 6,
@@ -380,12 +389,22 @@ export const INVENTORY = Object.freeze([
     incompleteResultSaveable: false,
   }),
   g('functions/teacherTools/suggestAnswer.js', {
+    clientModule: 'src/components/teacher/AssessmentQuestionBlock.jsx',
+    clientLockKey: 'assessment-question:suggest-answer',
+    operationClass: 'transformation',
     tier: 6,
-    state: 'unmigrated',
+    state: 'migrated',
     entryPoint: 'suggestAnswer (callable)',
-    clientSurface: 'Quiz editor — answer suggestion (teacher tools path)',
-    produces: 'A suggested answer offered to an author',
+    clientSurface: 'Assessment Paper Studio — per-question suggest answer (AssessmentQuestionBlock.jsx)',
+    produces: 'A suggested answer, preserving the source curriculum + subject',
     incompleteResultSaveable: false,
+    note: 'A TRANSFORMATION: it predicts the answer to an EXISTING question, so '
+      + 'it preserves the source curriculum via checkSourceCurriculum '
+      + '(fail-closed) rather than grounding a fresh topic. Has a Gemini-vision '
+      + 'path for image questions; refund + failAiOperation settle only when the '
+      + 'Claude fallback also throws. Result persisted to '
+      + 'aiGenerations/{idempotencyKey}. Also closed an AI-006 refund gap and the '
+      + 'CBC-hard-coded prompt.',
   }),
 
   // ── Composite: many entry points behind one file ──────────────────────

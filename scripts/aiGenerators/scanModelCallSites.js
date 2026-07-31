@@ -163,6 +163,9 @@ const MARKERS = Object.freeze({
   // validateInputs`) proves the check runs on this path and covers validators
   // that live in a shared core.
   inputValidation: /\bvalidate\w*Inputs\s*\(/,
+  // The shared fail-closed source-curriculum gate a transformation must route
+  // through (functions/teacherTools/sourceCurriculum.js).
+  sourceCurriculum: 'checkSourceCurriculum',
 })
 
 function walk(dir, out = []) {
@@ -237,6 +240,12 @@ export function scanFile(absPath, root) {
     meteredUsage: text.includes(MARKERS.usageMeter),
     refundsUsage: text.includes(MARKERS.usageRefund),
     curriculumGrounded: text.includes(MARKERS.curriculum),
+    // A TRANSFORMATION op (revise/suggest/explain) does not originate curriculum
+    // content, so it cannot resolveCbcContext against a fresh topic. Instead it
+    // must PRESERVE the source item's curriculum via the shared fail-closed gate
+    // — checkSourceCurriculum — which refuses a request that cannot name its own
+    // curriculum. This marker proves the generator routes through that gate.
+    preservesSourceCurriculum: text.includes(MARKERS.sourceCurriculum),
     // Input validation, recognised by the CALL rather than a local declaration:
     // the document generators define `function validateInputs`, but a generator
     // whose validation lives in a shared core (regenerateAssessmentQuestion →
