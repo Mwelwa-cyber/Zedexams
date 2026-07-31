@@ -4,1137 +4,3108 @@
       "collectionGroup": "reservations",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "provider", "order": "ASCENDING" },
-        { "fieldPath": "status",   "order": "ASCENDING" }
+        {
+          "fieldPath": "provider",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "reservations",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status",    "order": "ASCENDING" },
-        { "fieldPath": "expiresAt", "order": "ASCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expiresAt",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "visualAssets",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "createdBy", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lessonPlanTemplates",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status",       "order": "ASCENDING"  },
-        { "fieldPath": "qualityScore", "order": "DESCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "qualityScore",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "questionBank",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "subject", "order": "ASCENDING" },
-        { "fieldPath": "grade",   "order": "ASCENDING" },
-        { "fieldPath": "topic",   "order": "ASCENDING" }
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "topic",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "quizzes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "quizType",  "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "quizType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "quizzes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "quizType",  "order": "ASCENDING" },
-        { "fieldPath": "grade",     "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "quizType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "quizzes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "quizType",  "order": "ASCENDING" },
-        { "fieldPath": "subject",   "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "quizType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "quizzes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "quizType",  "order": "ASCENDING" },
-        { "fieldPath": "term",      "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "quizType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "term",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "quizzes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "quizType",  "order": "ASCENDING" },
-        { "fieldPath": "grade",     "order": "ASCENDING" },
-        { "fieldPath": "subject",   "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "quizType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "quizzes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "quizType",  "order": "ASCENDING" },
-        { "fieldPath": "grade",     "order": "ASCENDING" },
-        { "fieldPath": "term",      "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "quizType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "term",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "quizzes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "quizType",  "order": "ASCENDING" },
-        { "fieldPath": "subject",   "order": "ASCENDING" },
-        { "fieldPath": "term",      "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "quizType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "term",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "quizzes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "quizType",  "order": "ASCENDING" },
-        { "fieldPath": "grade",     "order": "ASCENDING" },
-        { "fieldPath": "subject",   "order": "ASCENDING" },
-        { "fieldPath": "term",      "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "quizType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "term",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "quizzes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "isPublished", "order": "ASCENDING" },
-        { "fieldPath": "quizType",    "order": "ASCENDING" },
-        { "fieldPath": "grade",       "order": "ASCENDING" },
-        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+        {
+          "fieldPath": "isPublished",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "quizType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "quizzes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "isPublished", "order": "ASCENDING" },
-        { "fieldPath": "quizType",    "order": "ASCENDING" },
-        { "fieldPath": "grade",       "order": "ASCENDING" },
-        { "fieldPath": "subject",     "order": "ASCENDING" },
-        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+        {
+          "fieldPath": "isPublished",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "quizType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "quizzes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "isPublished", "order": "ASCENDING" },
-        { "fieldPath": "quizType",    "order": "ASCENDING" },
-        { "fieldPath": "grade",       "order": "ASCENDING" },
-        { "fieldPath": "term",        "order": "ASCENDING" },
-        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+        {
+          "fieldPath": "isPublished",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "quizType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "term",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "quizzes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "isPublished", "order": "ASCENDING" },
-        { "fieldPath": "quizType",    "order": "ASCENDING" },
-        { "fieldPath": "grade",       "order": "ASCENDING" },
-        { "fieldPath": "subject",     "order": "ASCENDING" },
-        { "fieldPath": "term",        "order": "ASCENDING" },
-        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+        {
+          "fieldPath": "isPublished",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "quizType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "term",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "quizzes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "createdBy",   "order": "ASCENDING" },
-        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "quizSummaries",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "isPublished", "order": "ASCENDING" },
-        { "fieldPath": "quizType",    "order": "ASCENDING" },
-        { "fieldPath": "grade",       "order": "ASCENDING" },
-        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+        {
+          "fieldPath": "isPublished",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "quizType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "quizSummaries",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "isPublished", "order": "ASCENDING" },
-        { "fieldPath": "quizType",    "order": "ASCENDING" },
-        { "fieldPath": "grade",       "order": "ASCENDING" },
-        { "fieldPath": "subject",     "order": "ASCENDING" },
-        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+        {
+          "fieldPath": "isPublished",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "quizType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "quizSummaries",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "isPublished", "order": "ASCENDING" },
-        { "fieldPath": "quizType",    "order": "ASCENDING" },
-        { "fieldPath": "grade",       "order": "ASCENDING" },
-        { "fieldPath": "term",        "order": "ASCENDING" },
-        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+        {
+          "fieldPath": "isPublished",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "quizType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "term",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "quizSummaries",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "isPublished", "order": "ASCENDING" },
-        { "fieldPath": "quizType",    "order": "ASCENDING" },
-        { "fieldPath": "grade",       "order": "ASCENDING" },
-        { "fieldPath": "subject",     "order": "ASCENDING" },
-        { "fieldPath": "term",        "order": "ASCENDING" },
-        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+        {
+          "fieldPath": "isPublished",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "quizType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "term",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "daily_exam_locks",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
-        { "fieldPath": "date",   "order": "ASCENDING" }
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "results",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "userId",      "order": "ASCENDING" },
-        { "fieldPath": "completedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "completedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "results",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "quizId",      "order": "ASCENDING" },
-        { "fieldPath": "completedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "quizId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "completedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "payments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status",      "order": "ASCENDING" },
-        { "fieldPath": "createdAt",   "order": "ASCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "teacherApplications",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status",      "order": "ASCENDING" },
-        { "fieldPath": "submittedAt", "order": "ASCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "submittedAt",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "papers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "grade",       "order": "ASCENDING" },
-        { "fieldPath": "uploadedAt",  "order": "DESCENDING" }
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "uploadedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "papers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "subject",     "order": "ASCENDING" },
-        { "fieldPath": "uploadedAt",  "order": "DESCENDING" }
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "uploadedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "papers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "grade",       "order": "ASCENDING" },
-        { "fieldPath": "subject",     "order": "ASCENDING" },
-        { "fieldPath": "uploadedAt",  "order": "DESCENDING" }
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "uploadedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "papers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "grade",       "order": "ASCENDING" },
-        { "fieldPath": "subject",     "order": "ASCENDING" },
-        { "fieldPath": "term",        "order": "ASCENDING" },
-        { "fieldPath": "uploadedAt",  "order": "DESCENDING" }
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "term",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "uploadedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lessons",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "isPublished", "order": "ASCENDING" },
-        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+        {
+          "fieldPath": "isPublished",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lessons",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "isPublished", "order": "ASCENDING" },
-        { "fieldPath": "grade",       "order": "ASCENDING" },
-        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+        {
+          "fieldPath": "isPublished",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lessons",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "isPublished", "order": "ASCENDING" },
-        { "fieldPath": "subject",     "order": "ASCENDING" },
-        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+        {
+          "fieldPath": "isPublished",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lessons",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "isPublished", "order": "ASCENDING" },
-        { "fieldPath": "grade",       "order": "ASCENDING" },
-        { "fieldPath": "subject",     "order": "ASCENDING" },
-        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+        {
+          "fieldPath": "isPublished",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lessons",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "createdBy",   "order": "ASCENDING" },
-        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lessons",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status",      "order": "ASCENDING" },
-        { "fieldPath": "submittedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "submittedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-    { "collectionGroup": "lessons", "queryScope": "COLLECTION", "fields": [
-        { "fieldPath": "grade",     "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
-    ]},
-    { "collectionGroup": "lessons", "queryScope": "COLLECTION", "fields": [
-        { "fieldPath": "subject",   "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
-    ]},
-    { "collectionGroup": "lessons", "queryScope": "COLLECTION", "fields": [
-        { "fieldPath": "status",    "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
-    ]},
-    { "collectionGroup": "lessons", "queryScope": "COLLECTION", "fields": [
-        { "fieldPath": "grade",     "order": "ASCENDING"  },
-        { "fieldPath": "subject",   "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
-    ]},
-    { "collectionGroup": "lessons", "queryScope": "COLLECTION", "fields": [
-        { "fieldPath": "grade",     "order": "ASCENDING"  },
-        { "fieldPath": "status",    "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
-    ]},
-    { "collectionGroup": "lessons", "queryScope": "COLLECTION", "fields": [
-        { "fieldPath": "subject",   "order": "ASCENDING"  },
-        { "fieldPath": "status",    "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
-    ]},
-    { "collectionGroup": "lessons", "queryScope": "COLLECTION", "fields": [
-        { "fieldPath": "grade",     "order": "ASCENDING"  },
-        { "fieldPath": "subject",   "order": "ASCENDING"  },
-        { "fieldPath": "status",    "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
-    ]},
-    { "collectionGroup": "lessons", "queryScope": "COLLECTION", "fields": [
-        { "fieldPath": "status",      "order": "ASCENDING"  },
-        { "fieldPath": "grade",       "order": "ASCENDING"  },
-        { "fieldPath": "publishedAt", "order": "DESCENDING" }
-    ]},
-    { "collectionGroup": "lessons", "queryScope": "COLLECTION", "fields": [
-        { "fieldPath": "status",      "order": "ASCENDING"  },
-        { "fieldPath": "grade",       "order": "ASCENDING"  },
-        { "fieldPath": "subject",     "order": "ASCENDING"  },
-        { "fieldPath": "publishedAt", "order": "DESCENDING" }
-    ]},
-    { "collectionGroup": "lessons", "queryScope": "COLLECTION", "fields": [
-        { "fieldPath": "isPublished", "order": "ASCENDING"  },
-        { "fieldPath": "grade",       "order": "ASCENDING"  },
-        { "fieldPath": "publishedAt", "order": "DESCENDING" }
-    ]},
-    { "collectionGroup": "lessons", "queryScope": "COLLECTION", "fields": [
-        { "fieldPath": "isPublished", "order": "ASCENDING"  },
-        { "fieldPath": "grade",       "order": "ASCENDING"  },
-        { "fieldPath": "subject",     "order": "ASCENDING"  },
-        { "fieldPath": "publishedAt", "order": "DESCENDING" }
-    ]},
+    {
+      "collectionGroup": "lessons",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "lessons",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "lessons",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "lessons",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "lessons",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "lessons",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "lessons",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "lessons",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "publishedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "lessons",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "publishedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "lessons",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "isPublished",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "publishedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "lessons",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "isPublished",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "publishedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
     {
       "collectionGroup": "quizzes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status",      "order": "ASCENDING" },
-        { "fieldPath": "submittedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "submittedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "papers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "uploadedBy",  "order": "ASCENDING" },
-        { "fieldPath": "uploadedAt",  "order": "DESCENDING" }
+        {
+          "fieldPath": "uploadedBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "uploadedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "papers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status",      "order": "ASCENDING" },
-        { "fieldPath": "submittedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "submittedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "teacherLibraryItems",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ownerUid",  "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "teacherLibraryItems",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ownerUid",  "order": "ASCENDING" },
-        { "fieldPath": "tool",      "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tool",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "aiGenerations",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ownerUid",    "order": "ASCENDING" },
-        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "aiGenerations",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status",      "order": "ASCENDING" },
-        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "aiGenerations",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "tool",        "order": "ASCENDING" },
-        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+        {
+          "fieldPath": "tool",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "aiGenerations",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ownerUid",    "order": "ASCENDING" },
-        { "fieldPath": "tool",        "order": "ASCENDING" },
-        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tool",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "games",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "active",  "order": "ASCENDING" },
-        { "fieldPath": "grade",   "order": "ASCENDING" },
-        { "fieldPath": "subject", "order": "ASCENDING" },
-        { "fieldPath": "title",   "order": "ASCENDING" }
+        {
+          "fieldPath": "active",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "title",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "games",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "active",  "order": "ASCENDING" },
-        { "fieldPath": "grade",   "order": "ASCENDING" },
-        { "fieldPath": "title",   "order": "ASCENDING" }
+        {
+          "fieldPath": "active",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "title",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "games",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "active",  "order": "ASCENDING" },
-        { "fieldPath": "subject", "order": "ASCENDING" },
-        { "fieldPath": "title",   "order": "ASCENDING" }
+        {
+          "fieldPath": "active",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "title",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "scores",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "gameId",    "order": "ASCENDING" },
-        { "fieldPath": "score",     "order": "DESCENDING" },
-        { "fieldPath": "playedAt",  "order": "DESCENDING" }
+        {
+          "fieldPath": "gameId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "score",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "playedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "scores",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "userId",   "order": "ASCENDING" },
-        { "fieldPath": "playedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "playedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "scores",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
-        { "fieldPath": "gameId", "order": "ASCENDING" },
-        { "fieldPath": "score",  "order": "DESCENDING" }
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "gameId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "score",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "scores",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "grade",    "order": "ASCENDING" },
-        { "fieldPath": "subject",  "order": "ASCENDING" },
-        { "fieldPath": "score",    "order": "DESCENDING" }
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "score",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "scores",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "playedAt", "order": "DESCENDING" },
-        { "fieldPath": "score",    "order": "DESCENDING" }
-      ]
-    },
-
-    {
-      "collectionGroup": "exam_attempts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "subject",          "order": "ASCENDING"  },
-        { "fieldPath": "attemptDate",      "order": "ASCENDING"  },
-        { "fieldPath": "status",           "order": "ASCENDING"  },
-        { "fieldPath": "percentage",       "order": "DESCENDING" },
-        { "fieldPath": "timeTakenSeconds", "order": "ASCENDING"  },
-        { "fieldPath": "submittedAt",      "order": "ASCENDING"  }
+        {
+          "fieldPath": "playedAt",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "score",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "exam_attempts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "subject",     "order": "ASCENDING"  },
-        { "fieldPath": "attemptDate", "order": "ASCENDING"  },
-        { "fieldPath": "status",      "order": "ASCENDING"  },
-        { "fieldPath": "percentage",  "order": "DESCENDING" },
-        { "fieldPath": "score",       "order": "DESCENDING" },
-        { "fieldPath": "submittedAt", "order": "ASCENDING"  }
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "attemptDate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "percentage",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "timeTakenSeconds",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "submittedAt",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "exam_attempts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "subject",     "order": "ASCENDING"  },
-        { "fieldPath": "grade",       "order": "ASCENDING"  },
-        { "fieldPath": "attemptDate", "order": "ASCENDING"  },
-        { "fieldPath": "status",      "order": "ASCENDING"  },
-        { "fieldPath": "percentage",  "order": "DESCENDING" },
-        { "fieldPath": "score",       "order": "DESCENDING" },
-        { "fieldPath": "submittedAt", "order": "ASCENDING"  }
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "attemptDate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "percentage",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "score",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "submittedAt",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "exam_attempts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "grade",       "order": "ASCENDING"  },
-        { "fieldPath": "attemptDate", "order": "ASCENDING"  },
-        { "fieldPath": "status",      "order": "ASCENDING"  },
-        { "fieldPath": "percentage",  "order": "DESCENDING" },
-        { "fieldPath": "score",       "order": "DESCENDING" },
-        { "fieldPath": "submittedAt", "order": "ASCENDING"  }
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "attemptDate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "percentage",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "score",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "submittedAt",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "exam_attempts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "attemptDate", "order": "ASCENDING"  },
-        { "fieldPath": "status",      "order": "ASCENDING"  },
-        { "fieldPath": "percentage",  "order": "DESCENDING" },
-        { "fieldPath": "score",       "order": "DESCENDING" },
-        { "fieldPath": "submittedAt", "order": "ASCENDING"  }
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "attemptDate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "percentage",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "score",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "submittedAt",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "exam_attempts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "userId",      "order": "ASCENDING"  },
-        { "fieldPath": "status",      "order": "ASCENDING"  },
-        { "fieldPath": "submittedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "attemptDate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "percentage",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "score",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "submittedAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "exam_attempts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "submittedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "quizzes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "quizType",      "order": "ASCENDING" },
-        { "fieldPath": "isDailyExam",   "order": "ASCENDING" },
-        { "fieldPath": "dailyExamDate", "order": "ASCENDING" },
-        { "fieldPath": "subject",       "order": "ASCENDING" }
+        {
+          "fieldPath": "quizType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "isDailyExam",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dailyExamDate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "generatedContent",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ownerUid",    "order": "ASCENDING"  },
-        { "fieldPath": "contentType", "order": "ASCENDING"  },
-        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "contentType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "generatedContent",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ownerUid",  "order": "ASCENDING"  },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "learnerProgress",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "learnerUid", "order": "ASCENDING"  },
-        { "fieldPath": "subject",    "order": "ASCENDING"  },
-        { "fieldPath": "createdAt",  "order": "DESCENDING" }
+        {
+          "fieldPath": "learnerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "learnerProgress",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "teacherUid", "order": "ASCENDING"  },
-        { "fieldPath": "createdAt",  "order": "DESCENDING" }
+        {
+          "fieldPath": "teacherUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "agentJobs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "department", "order": "ASCENDING"  },
-        { "fieldPath": "status",     "order": "ASCENDING"  },
-        { "fieldPath": "createdAt",  "order": "DESCENDING" }
+        {
+          "fieldPath": "department",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "agentJobs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "department", "order": "ASCENDING"  },
-        { "fieldPath": "createdAt",  "order": "DESCENDING" }
+        {
+          "fieldPath": "department",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "agentJobs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status",    "order": "ASCENDING"  },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "agentJobs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "agentId",   "order": "ASCENDING"  },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "agentId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "agentJobs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "createdBy", "order": "ASCENDING"  },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "pastPapers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status",  "order": "ASCENDING"  },
-        { "fieldPath": "grade",   "order": "ASCENDING"  },
-        { "fieldPath": "year",    "order": "DESCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "year",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "pastPapers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status",  "order": "ASCENDING"  },
-        { "fieldPath": "grade",   "order": "ASCENDING"  },
-        { "fieldPath": "subject", "order": "ASCENDING"  },
-        { "fieldPath": "year",    "order": "DESCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "year",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "pastPapers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status",  "order": "ASCENDING"  },
-        { "fieldPath": "year",    "order": "DESCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "year",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "classes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "teacherUid", "order": "ASCENDING"  },
-        { "fieldPath": "active",     "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt",  "order": "DESCENDING" }
+        {
+          "fieldPath": "teacherUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "active",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "classes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "learners",  "arrayConfig": "CONTAINS"  },
-        { "fieldPath": "active",    "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "learners",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "active",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "classes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "pendingLearners", "arrayConfig": "CONTAINS"  },
-        { "fieldPath": "active",          "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt",       "order": "DESCENDING" }
+        {
+          "fieldPath": "pendingLearners",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "active",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "classRegisters",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "teacherUid", "order": "ASCENDING"  },
-        { "fieldPath": "status",     "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt",  "order": "DESCENDING" }
+        {
+          "fieldPath": "teacherUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "assignments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "classId",    "order": "ASCENDING"  },
-        { "fieldPath": "active",     "order": "ASCENDING"  },
-        { "fieldPath": "assignedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "classId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "active",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "assignedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "assignments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "teacherUid", "order": "ASCENDING"  },
-        { "fieldPath": "active",     "order": "ASCENDING"  },
-        { "fieldPath": "assignedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "teacherUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "active",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "assignedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "progressShares",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "learnerUid", "order": "ASCENDING"  },
-        { "fieldPath": "createdAt",  "order": "DESCENDING" }
+        {
+          "fieldPath": "learnerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "familyInviteCodes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "learnerUid", "order": "ASCENDING" },
-        { "fieldPath": "revokedAt",  "order": "ASCENDING" }
+        {
+          "fieldPath": "learnerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "revokedAt",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "familyInviteCodes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "learnerUid", "order": "ASCENDING"  },
-        { "fieldPath": "createdAt",  "order": "DESCENDING" }
+        {
+          "fieldPath": "learnerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "paperAttempts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "userId",      "order": "ASCENDING"  },
-        { "fieldPath": "submittedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "submittedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "paperAttempts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "userId",  "order": "ASCENDING"  },
-        { "fieldPath": "paperId", "order": "ASCENDING"  },
-        { "fieldPath": "submittedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "paperId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "submittedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "quizzes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "isPublished", "order": "ASCENDING"  },
-        { "fieldPath": "grade",       "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt",   "order": "DESCENDING" }
+        {
+          "fieldPath": "isPublished",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "quizzes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "isPublished", "order": "ASCENDING"  },
-        { "fieldPath": "grade",       "order": "ASCENDING"  },
-        { "fieldPath": "subject",     "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt",   "order": "DESCENDING" }
+        {
+          "fieldPath": "isPublished",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "role",   "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" }
+        {
+          "fieldPath": "role",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "aiAgentTasks",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status",    "order": "ASCENDING"  },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "aiAgentTasks",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "agentName", "order": "ASCENDING"  },
-        { "fieldPath": "status",    "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "agentName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "aiAgentTasks",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "taskType",  "order": "ASCENDING"  },
-        { "fieldPath": "status",    "order": "ASCENDING"  },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "taskType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "aiAgentLogs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "taskId",    "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "ASCENDING" }
+        {
+          "fieldPath": "taskId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "aiAgentLogs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "agentName", "order": "ASCENDING"  },
-        { "fieldPath": "severity",  "order": "ASCENDING"  },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "agentName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "severity",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "aiTaskSteps",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "taskId",     "order": "ASCENDING" },
-        { "fieldPath": "stepNumber", "order": "ASCENDING" }
+        {
+          "fieldPath": "taskId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "stepNumber",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "aiGeneratedContent",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status",    "order": "ASCENDING"  },
-        { "fieldPath": "subject",   "order": "ASCENDING"  },
-        { "fieldPath": "grade",     "order": "ASCENDING"  },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "aiGeneratedContent",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "type",      "order": "ASCENDING"  },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "aiGeneratedContent",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "type",      "order": "ASCENDING"  },
-        { "fieldPath": "status",    "order": "ASCENDING"  },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "aiGeneratedContent",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "type",      "order": "ASCENDING"  },
-        { "fieldPath": "status",    "order": "ASCENDING"  },
-        { "fieldPath": "grade",     "order": "ASCENDING"  },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "aiGeneratedContentVersions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "contentId", "order": "ASCENDING"  },
-        { "fieldPath": "version",   "order": "DESCENDING" }
+        {
+          "fieldPath": "contentId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "version",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "aiSupervisorLogs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "actionTaken", "order": "ASCENDING"  },
-        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+        {
+          "fieldPath": "actionTaken",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "curriculumUpdateReports",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status",    "order": "ASCENDING"  },
-        { "fieldPath": "checkedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "checkedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "assessmentStandards",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "grade",          "order": "ASCENDING" },
-        { "fieldPath": "subject",        "order": "ASCENDING" },
-        { "fieldPath": "assessmentType", "order": "ASCENDING" }
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "assessmentType",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "learnerWeaknessProfiles",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "learnerId",   "order": "ASCENDING"  },
-        { "fieldPath": "lastUpdated", "order": "DESCENDING" }
+        {
+          "fieldPath": "learnerId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "lastUpdated",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "topics",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "grade",   "order": "ASCENDING" },
-        { "fieldPath": "subject", "order": "ASCENDING" }
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "feed",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "dedupeKey", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "ASCENDING" }
+        {
+          "fieldPath": "dedupeKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "items",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "studioId", "order": "ASCENDING" },
-        { "fieldPath": "savedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "studioId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "savedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "payments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "userId",    "order": "ASCENDING"  },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "payments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status",      "order": "ASCENDING"  },
-        { "fieldPath": "confirmedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "confirmedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "payments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status",      "order": "ASCENDING" },
-        { "fieldPath": "confirmedAt", "order": "ASCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "confirmedAt",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "premium",            "order": "ASCENDING" },
-        { "fieldPath": "subscriptionExpiry", "order": "ASCENDING" }
+        {
+          "fieldPath": "premium",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionExpiry",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "invoices",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "userId",   "order": "ASCENDING"  },
-        { "fieldPath": "issuedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "issuedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "assessments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "createdBy", "order": "ASCENDING"  },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "adminAuditLogs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "action",    "order": "ASCENDING"  },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "action",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lessons",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "createdBy", "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lessons",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "createdBy", "order": "ASCENDING"  },
-        { "fieldPath": "subject",   "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lessons",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "createdBy", "order": "ASCENDING"  },
-        { "fieldPath": "grade",     "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lessons",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "createdBy", "order": "ASCENDING"  },
-        { "fieldPath": "status",    "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lessons",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "createdBy", "order": "ASCENDING"  },
-        { "fieldPath": "subject",   "order": "ASCENDING"  },
-        { "fieldPath": "grade",     "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lessons",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "createdBy", "order": "ASCENDING"  },
-        { "fieldPath": "subject",   "order": "ASCENDING"  },
-        { "fieldPath": "status",    "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lessons",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "createdBy", "order": "ASCENDING"  },
-        { "fieldPath": "grade",     "order": "ASCENDING"  },
-        { "fieldPath": "status",    "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lessons",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "createdBy", "order": "ASCENDING"  },
-        { "fieldPath": "subject",   "order": "ASCENDING"  },
-        { "fieldPath": "grade",     "order": "ASCENDING"  },
-        { "fieldPath": "status",    "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "deletionRequests",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "email",  "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" }
+        {
+          "fieldPath": "email",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "aiGenerations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.classificationState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "aiGenerations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "aiGenerations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.academicYear",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "aiGenerations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.curriculum",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "aiGenerations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.academicYear",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.curriculum",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "aiGenerations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.curriculum",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "aiGenerations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.academicYear",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.curriculum",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "aiGenerations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.curriculum",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.term",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "aiGenerations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.academicYear",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.curriculum",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.term",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "aiGenerations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.curriculum",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.term",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "aiGenerations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.academicYear",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.curriculum",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.term",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "assessments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.classificationState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "assessments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "assessments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.academicYear",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "assessments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.curriculum",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "assessments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.academicYear",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.curriculum",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "assessments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.curriculum",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "assessments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.academicYear",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.curriculum",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "assessments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.curriculum",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.term",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "assessments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.academicYear",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.curriculum",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.term",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "assessments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.curriculum",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.term",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "assessments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.academicYear",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.curriculum",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.term",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "aiGenerations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.curriculum",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "aiGenerations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ownerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.studio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.libraryState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.academicYear",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.curriculum",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.grade",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.subject",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "libraryMeta.updatedAt",
+          "order": "DESCENDING"
+        }
       ]
     }
   ],
@@ -1143,9 +3114,18 @@
       "collectionGroup": "feed",
       "fieldPath": "expiresAt",
       "indexes": [
-        { "order": "ASCENDING",  "queryScope": "COLLECTION" },
-        { "order": "DESCENDING", "queryScope": "COLLECTION" },
-        { "order": "ASCENDING",  "queryScope": "COLLECTION_GROUP" }
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
       ]
     }
   ]
