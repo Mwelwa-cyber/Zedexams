@@ -17,6 +17,7 @@ import ConfirmDialog from '../../ui/ConfirmDialog'
 import SeoHelmet from '../../seo/SeoHelmet'
 import Skeleton from '../../ui/Skeleton'
 import ClassListPanel from '../classList/ClassListPanel'
+import { useRegisterUnsavedGuard, RegisterUnsavedGuardProvider } from './registerUnsavedGuard'
 import AttendanceTab from './AttendanceTab'
 import MarkSchedulesTab from './MarkSchedulesTab'
 import ReportsTab from './ReportsTab'
@@ -44,6 +45,12 @@ export default function ClassRegisterDetail() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [confirmArchive, setConfirmArchive] = useState(false)
+
+  // Unsaved-marks guard: MarkEntryGrid (mounted deep inside a tab) publishes
+  // its dirty flag here so the tab links / back / Edit / Archive confirm before
+  // an SPA navigation unmounts the grid and discards typed-but-unsaved marks.
+  const guard = useRegisterUnsavedGuard()
+  const guardLink = (e) => { if (!guard.confirmDiscardIfDirty()) e.preventDefault() }
 
   useEffect(() => {
     let cancelled = false
@@ -117,7 +124,7 @@ export default function ClassRegisterDetail() {
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <Link to="/teacher/register" className="theme-text-muted text-xs font-black uppercase tracking-wider hover:theme-accent-text">
+          <Link to="/teacher/register" onClick={guardLink} className="theme-text-muted text-xs font-black uppercase tracking-wider hover:theme-accent-text">
             ← Class List
           </Link>
           <h1 className="theme-text font-display font-black text-2xl sm:text-3xl mt-1 truncate">{reg.className}</h1>
@@ -129,11 +136,11 @@ export default function ClassRegisterDetail() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link to={`/teacher/register/${classId}/edit`}
+          <Link to={`/teacher/register/${classId}/edit`} onClick={guardLink}
             className="text-sm font-black theme-text-muted hover:theme-accent-text px-3 py-1.5">
             Edit
           </Link>
-          <button type="button" onClick={() => setConfirmArchive(true)}
+          <button type="button" onClick={() => { if (guard.confirmDiscardIfDirty()) setConfirmArchive(true) }}
             className="text-sm font-black theme-text-muted hover:text-red-500 px-3 py-1.5">
             Archive
           </button>
@@ -178,6 +185,7 @@ export default function ClassRegisterDetail() {
             <Link
               key={t.key}
               to={`/teacher/register/${classId}/${t.key}`}
+              onClick={guardLink}
               className={`whitespace-nowrap px-3 py-2.5 text-sm font-black border-b-2 transition-colors ${
                 isActive ? 'theme-accent-text border-current' : 'theme-text-muted border-transparent hover:theme-text'
               }`}
@@ -188,15 +196,19 @@ export default function ClassRegisterDetail() {
         })}
       </nav>
 
-      {activeTab === 'class-list' && (
-        <ClassListPanel register={reg} onRosterChange={(count) => setReg((r) => (r ? { ...r, learnerCount: count } : r))} />
-      )}
-      {activeTab === 'attendance' && <AttendanceTab register={reg} />}
-      {activeTab === 'sba' && <SbaTab register={reg} />}
-      {activeTab === 'results' && <AssessmentResultsTab register={reg} />}
-      {activeTab === 'schedules' && <MarkSchedulesTab register={reg} />}
-      {activeTab === 'reports' && <ReportsTab register={reg} />}
-      {activeTab === 'progress' && <ProgressTab register={reg} />}
+      {/* The grid that produces unsaved marks lives under these tabs; the
+          provider lets it publish its dirty flag up to `guard` above. */}
+      <RegisterUnsavedGuardProvider value={guard.contextValue}>
+        {activeTab === 'class-list' && (
+          <ClassListPanel register={reg} onRosterChange={(count) => setReg((r) => (r ? { ...r, learnerCount: count } : r))} />
+        )}
+        {activeTab === 'attendance' && <AttendanceTab register={reg} />}
+        {activeTab === 'sba' && <SbaTab register={reg} />}
+        {activeTab === 'results' && <AssessmentResultsTab register={reg} />}
+        {activeTab === 'schedules' && <MarkSchedulesTab register={reg} />}
+        {activeTab === 'reports' && <ReportsTab register={reg} />}
+        {activeTab === 'progress' && <ProgressTab register={reg} />}
+      </RegisterUnsavedGuardProvider>
 
       <ConfirmDialog
         open={confirmArchive}
