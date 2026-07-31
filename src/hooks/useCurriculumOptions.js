@@ -42,22 +42,29 @@ async function buildIndex() {
   return { subjectsByGrade, grades }
 }
 
-// The syllabi load failing should never surface as an error to a studio — it
-// degrades to "no syllabus rows on file" instead. Caching this fallback
-// (rather than retrying every mount) matches the pre-existing behaviour.
-async function buildIndexSafe() {
-  try {
-    return await buildIndex()
-  } catch (err) {
-    console.warn('useCurriculumOptions: syllabi load failed', err)
-    return { subjectsByGrade: new Map(), grades: new Set() }
-  }
-}
+// The cache is fed the RAW builder (which rejects on failure) rather than a
+// catch-all wrapper. createAsyncCache only stores a RESOLVED value, so a
+// rejected build is never cached — that is what lets the index self-heal: a
+// syllabi load that fails once is retried on the next call instead of latching
+// an empty lookup for the whole session (the previous buildIndexSafe resolved
+// with an empty index, which the cache then served forever).
+const indexCache = createAsyncCache(buildIndex, { name: 'curriculum-index' })
 
-const indexCache = createAsyncCache(buildIndexSafe, { name: 'curriculum-index' })
+// Degraded value returned to a studio when the syllabi genuinely can't load —
+// "no syllabus rows on file" rather than a surfaced error. It is NOT cached
+// (see loadCurriculumIndex), so it never sticks past the failed call.
+const EMPTY_INDEX = { subjectsByGrade: new Map(), grades: new Set() }
 
 export async function loadCurriculumIndex({ force = false, signal, timeoutMs } = {}) {
-  return indexCache.get(INDEX_KEY, { force, signal, timeoutMs })
+  try {
+    return await indexCache.get(INDEX_KEY, { force, signal, timeoutMs })
+  } catch (err) {
+    // A failed (or aborted) load degrades to the empty index for THIS caller
+    // only. Because the rejection above was never cached, the next call — a
+    // remount, a different studio, or an explicit retry — re-reads the syllabi.
+    console.warn('useCurriculumOptions: syllabi load failed', err)
+    return EMPTY_INDEX
+  }
 }
 
 /** Drop the cached index so the next mount re-reads the syllabi. */
@@ -74,9 +81,11 @@ export function useCurriculumOptions(grade) {
     if (cached) { setIndex(cached); return undefined }
     run(({ signal }) => loadCurriculumIndex({ signal })).then((result) => {
       if (result.status === 'success') setIndex(result.data)
-      // 'stale' / 'aborted' — a newer mount or unmount already won; a
-      // failure can't happen (buildIndexSafe never rejects), but if it
-      // somehow did, `ready` simply stays false rather than crashing.
+      // 'stale' / 'aborted' — a newer mount or unmount already won.
+      // loadCurriculumIndex() catches its own failures and resolves with the
+      // empty index, so a real load failure arrives here as a 'success' whose
+      // data is empty: the studio stays usable (free-text fallback) and, since
+      // the empty index was never cached, the next mount retries.
     }).catch(() => {}) // run() resolves a status object and never rejects; guards regardless
     return cancel
     // eslint-disable-next-line react-hooks/exhaustive-deps
