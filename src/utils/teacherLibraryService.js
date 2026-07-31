@@ -103,18 +103,23 @@ export async function hasGenerationOfTool(uid, tool) {
 }
 
 /**
- * Fetch a single generation by id. Returns null if not found or not owned.
+ * Fetch a single generation by id.
+ *
+ * Returns null ONLY for the two "no such document" cases — a falsy id, or a
+ * doc that genuinely does not exist / isn't readable by the caller's rules.
+ * A load FAILURE (network drop, transient Firestore error, a parse throw in
+ * normaliseGeneration) is RE-THROWN, never collapsed into null: swallowing it
+ * made every caller render a load failure as a false "deleted / not found"
+ * state with no way to retry. Callers that prefer fail-soft opt in explicitly
+ * with `.catch(() => null)` (RecordOfWorkStudio) or a try/catch that skips the
+ * id (TimetablePanel); the ones that surface an error/retry UI let it reject
+ * (LibraryItemDetail, LessonPlanStudio).
  */
 export async function getGeneration(id) {
   if (!id) return null
-  try {
-    const snap = await getDoc(doc(db, 'aiGenerations', id))
-    if (!snap.exists()) return null
-    return normaliseGeneration({id: snap.id, ...snap.data()})
-  } catch (err) {
-    console.error('getGeneration failed', err)
-    return null
-  }
+  const snap = await getDoc(doc(db, 'aiGenerations', id))
+  if (!snap.exists()) return null
+  return normaliseGeneration({id: snap.id, ...snap.data()})
 }
 
 /**

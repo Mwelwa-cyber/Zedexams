@@ -123,6 +123,8 @@ export default function LibraryItemDetail() {
   const toast = useToast()
   const [item, setItem] = useState(null)
   const [status, setStatus] = useState('loading')
+  // Bumped by the error-panel Retry button to re-run the load effect.
+  const [reloadKey, setReloadKey] = useState(0)
   const [showAnswers, setShowAnswers] = useState(false)
   // Mark schedules: false = raw marks view, true = percentages view.
   const [showPercents, setShowPercents] = useState(false)
@@ -226,11 +228,15 @@ export default function LibraryItemDetail() {
   }
 
   useEffect(() => {
-    if (!id) return
+    if (!id) return undefined
+    let cancelled = false
     setStatus('loading')
     getGeneration(id)
       .then((row) => {
+        if (cancelled) return
         if (!row) {
+          // getGeneration returns null ONLY for a genuinely missing/foreign
+          // doc — a load failure rejects instead and lands in .catch below.
           setStatus('notfound')
           return
         }
@@ -238,10 +244,14 @@ export default function LibraryItemDetail() {
         setStatus('ready')
       })
       .catch(err => {
+        if (cancelled) return
+        // A transient load failure is NOT "not found": show a retryable error
+        // rather than a dead-end that tells the teacher their work was deleted.
         console.error('LibraryItemDetail load:', err)
-        setStatus('notfound')
+        setStatus('error')
       })
-  }, [id])
+    return () => { cancelled = true }
+  }, [id, reloadKey])
 
   // Load any live share links the teacher already created for this item, so
   // they can revoke a link shared in a previous session.
@@ -725,6 +735,32 @@ export default function LibraryItemDetail() {
         <div className="studio-card p-8 text-center">
           <div className="text-4xl mb-3 animate-bounce">📚</div>
           <p style={{ color: 'var(--zt-text-muted)' }}>Loading…</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (status === 'error') {
+    return (
+      <div className="min-h-screen p-8 flex items-center justify-center" style={{ background: 'var(--zt-surface)' }}>
+        <div className="studio-card p-8 max-w-md text-center">
+          <div className="text-5xl mb-3">⚠️</div>
+          <h2 className="studio-display" style={{ fontSize: 20, color: 'var(--zt-text)', marginBottom: 8 }}>Couldn’t load this item</h2>
+          <p className="text-sm mb-4" style={{ color: 'var(--zt-text-muted)' }}>
+            Something went wrong loading this generation — it hasn’t been deleted. Check your connection and try again.
+          </p>
+          <div className="flex items-center justify-center gap-2">
+            <button
+              type="button"
+              className="studio-btn-primary"
+              onClick={() => setReloadKey((k) => k + 1)}
+            >
+              Try again
+            </button>
+            <Link to="/teacher/library" className="studio-btn-ghost inline-block">
+              ← Back to library
+            </Link>
+          </div>
         </div>
       </div>
     )

@@ -369,3 +369,47 @@ describe('LibraryItemDetail — export readiness for generated papers', () => {
     await waitFor(() => expect(downloadAssessmentDocx).toHaveBeenCalledTimes(1))
   })
 })
+
+/* ── load-failure vs not-found (getGeneration now re-throws) ──────────────── */
+
+/**
+ * getGeneration used to swallow every error and return null, so a transient
+ * load failure was indistinguishable from a deleted/foreign doc — the teacher
+ * saw "Not found" for work that still exists, with no way to retry. It now
+ * rejects on a genuine failure and returns null ONLY for a missing doc; the
+ * detail view splits those into two panels.
+ */
+describe('LibraryItemDetail — load failure vs not found', () => {
+  it('a null result (missing/foreign doc) shows the Not found panel', async () => {
+    mockItem.current = null
+    const { getGeneration } = await import('../../../utils/teacherLibraryService')
+    getGeneration.mockResolvedValueOnce(null)
+    renderDetail()
+    expect(await screen.findByText('Not found')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /try again/i })).not.toBeInTheDocument()
+  })
+
+  it('a rejected load shows a retryable error, not "Not found"', async () => {
+    const { getGeneration } = await import('../../../utils/teacherLibraryService')
+    getGeneration.mockRejectedValueOnce(new Error('network down'))
+    renderDetail()
+    expect(await screen.findByText(/Couldn’t load this item/i)).toBeInTheDocument()
+    // The teacher is reassured their work still exists, and offered a retry.
+    expect(screen.getByText(/hasn’t been deleted/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument()
+    expect(screen.queryByText('Not found')).not.toBeInTheDocument()
+  })
+
+  it('Try again re-loads and recovers without a remount', async () => {
+    const { getGeneration } = await import('../../../utils/teacherLibraryService')
+    getGeneration.mockRejectedValueOnce(new Error('network down'))
+    // The next (retry) call succeeds.
+    mockItem.current = TEST_ITEM
+    renderDetail()
+    const retry = await screen.findByRole('button', { name: /try again/i })
+    fireEvent.click(retry)
+    // Same mounted view: the item loads on the retry and the error panel clears.
+    expect(await screen.findByTestId('la-view')).toBeInTheDocument()
+    expect(screen.queryByText(/Couldn’t load this item/i)).not.toBeInTheDocument()
+  })
+})
