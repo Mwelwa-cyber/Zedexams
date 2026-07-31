@@ -12,12 +12,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
+// Controllable mock so per-test rejection can be tested.
+const mockGetMyAssessments = vi.hoisted(() => vi.fn().mockResolvedValue([]))
+
 vi.mock('../../../firebase/config', () => ({ db: {}, auth: {}, storage: {} }))
 vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: { uid: 'teacher_1' } }),
 }))
 vi.mock('../../../hooks/useFirestore', () => ({
-  useFirestore: () => ({ getMyAssessments: async () => [] }),
+  useFirestore: () => ({ getMyAssessments: mockGetMyAssessments }),
 }))
 vi.mock('../../../utils/teacherLibraryService', async (importOriginal) => {
   const actual = await importOriginal()
@@ -50,7 +53,10 @@ const renderLibrary = () => render(
 )
 
 describe('TeacherLibrary home grid', () => {
-  beforeEach(() => { delete globalThis.__libraryStudiosOverride })
+  beforeEach(() => {
+    delete globalThis.__libraryStudiosOverride
+    mockGetMyAssessments.mockResolvedValue([])
+  })
 
   it('renders exactly one card per registry entry', async () => {
     renderLibrary()
@@ -117,5 +123,53 @@ describe('TeacherLibrary home grid', () => {
         `no filter chip for ${studio.id}`,
       ).toBeInTheDocument()
     }
+  })
+})
+
+describe('TeacherLibrary — assessment read failure', () => {
+  beforeEach(() => {
+    delete globalThis.__libraryStudiosOverride
+    mockGetMyAssessments.mockResolvedValue([])
+  })
+
+  it('shows error state with retry button, not a false-empty grid, when getMyAssessments throws', async () => {
+    mockGetMyAssessments.mockRejectedValue(new Error('network blip'))
+    renderLibrary()
+    // The error state message appears instead of the normal grid.
+    await waitFor(() =>
+      expect(screen.getByText('Could not load your library')).toBeInTheDocument()
+    )
+    // The error detail is shown.
+    expect(screen.getByText(/network blip/i)).toBeInTheDocument()
+    // A retry button is present.
+    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument()
+    // The normal studio grid is NOT shown — the user is not misled into
+    // thinking they have no papers.
+    expect(screen.queryByText('Lesson Plans')).not.toBeInTheDocument()
+  })
+
+  it('retrying after a failure re-loads and shows the grid on success', async () => {
+    // All calls reject while we wait for the error state.
+    // Using persistent rejection (not Once) means the component stays in error
+    // state even if the effect re-runs due to reference-unstable mock objects,
+    // which lets us safely get a reference to the retry button before switching.
+    mockGetMyAssessments.mockRejectedValue(new Error('transient failure'))
+
+    renderLibrary()
+    // findByRole internally retries until the button appears.
+    const retryBtn = await screen.findByRole('button', { name: /try again/i })
+
+    // Switch to success BEFORE clicking, then fire the click.
+    // React reuses the same DOM node while the component is in error state,
+    // so the stored reference is still valid for the click event.
+    mockGetMyAssessments.mockResolvedValue([])
+    fireEvent.click(retryBtn)
+
+    // The library grid returns after the retry effect run resolves.
+    await waitFor(() =>
+      expect(screen.getByText('Lesson Plans')).toBeInTheDocument()
+    )
+    // Error state is gone.
+    expect(screen.queryByText('Could not load your library')).not.toBeInTheDocument()
   })
 })

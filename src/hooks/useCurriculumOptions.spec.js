@@ -82,6 +82,22 @@ describe('loadCurriculumIndex', () => {
     expect(index.grades.size).toBe(0)
   })
 
+  it('falls back to an empty index but does NOT latch it — the next call retries and self-heals', async () => {
+    // First load fails (offline / transient blip): the caller gets an empty
+    // index rather than a thrown error.
+    getMergedSyllabi.mockReset().mockRejectedValueOnce(new Error('offline')).mockResolvedValue({ any: 'payload' })
+    syllabiToKbTopics.mockReturnValue([{ grade: 'Grade 7', subject: 'math' }])
+
+    const failed = await loadCurriculumIndex()
+    expect(failed.subjectsByGrade.size).toBe(0)
+
+    // The empty fallback was NOT cached — the very next call re-reads the
+    // syllabi and returns real data instead of serving the latched empty index.
+    const recovered = await loadCurriculumIndex()
+    expect([...recovered.subjectsByGrade.get('Grade 7')]).toEqual(['math'])
+    expect(getMergedSyllabi).toHaveBeenCalledTimes(2)
+  })
+
   it('invalidateCurriculumIndex forces the next call to re-fetch', async () => {
     syllabiToKbTopics.mockReturnValue([{ grade: 'Grade 7', subject: 'math' }])
     await loadCurriculumIndex()

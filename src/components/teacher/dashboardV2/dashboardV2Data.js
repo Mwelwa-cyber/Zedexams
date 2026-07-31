@@ -222,11 +222,11 @@ export function recommendationCardsFrom(recommendations = [], { limit = 3 } = {}
 
 /**
  * Honest Feed & Status items — every entry is verified in data:
- *  - success: something was saved in the last 7 days
- *  - warning: draft test papers with no questions yet
- *  - error:   the library fetch itself failed (caller passes gensError)
+ *  - success:  something was saved in the last 7 days
+ *  - warning:  draft test papers with no questions yet
+ *  - error:    a library or assessment-papers fetch failed (gensError / papersError)
  */
-export function feedFromState({ resources = [], gensError = false, now = Date.now() } = {}) {
+export function feedFromState({ resources = [], gensError = false, papersError = false, now = Date.now() } = {}) {
   const items = []
   const recent = resources.find((r) => r.status !== 'draft' && now - (r.createdAt || 0) < 7 * DAY_MS)
   if (recent) {
@@ -252,8 +252,17 @@ export function feedFromState({ resources = [], gensError = false, now = Date.no
     items.push({
       id: 'feed-error',
       kind: 'error',
-      title: 'Couldn’t load your library',
+      title: "Couldn't load your library",
       body: 'Check your connection and try again.',
+      retry: true,
+    })
+  }
+  if (papersError) {
+    items.push({
+      id: 'feed-papers-error',
+      kind: 'error',
+      title: "Couldn't load your assessment papers",
+      body: 'Your saved test and exam papers may not be showing. Check your connection and try again.',
       retry: true,
     })
   }

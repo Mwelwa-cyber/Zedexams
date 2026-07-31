@@ -263,6 +263,7 @@
     "test:assessment-autosave": "node scripts/test-assessment-autosave.mjs",
     "test:assessment-title": "node scripts/test-assessment-title.mjs",
     "test:phantom-assessments": "node scripts/test-phantom-assessments.mjs",
+    "test:assessment-load-guard": "node scripts/test-assessment-load-guard.mjs",
     "test:assessment-deletion": "node scripts/test-assessment-deletion.mjs",
     "test:assessment-pdf": "node src/utils/assessmentToPdf.test.js",
     "test:studio-question-types": "node src/components/teacher/assessmentQuestionTypes.test.js",

@@ -72,8 +72,10 @@ async function loadLookup() {
       _lookupCache = normalizeTopicLookup(byKey)
       return _lookupCache
     } catch {
-      _lookupCache = new Map()
-      return _lookupCache
+      // Degrade to an empty lookup for THIS caller but do NOT cache it —
+      // leaving _lookupCache null lets the next call retry (self-heal) instead
+      // of latching an empty lookup for the whole session on a transient blip.
+      return new Map()
     } finally {
       _lookupPromise = null
     }
@@ -97,8 +99,10 @@ async function load2013Lookup() {
       _lookup2013Cache = extract2013TopicLookup(raw)
       return _lookup2013Cache
     } catch {
-      _lookup2013Cache = new Map()
-      return _lookup2013Cache
+      // Degrade to an empty lookup for THIS caller but do NOT cache it — the
+      // next call retries instead of latching an empty 2013 lookup for the
+      // session (mirrors loadLookup above).
+      return new Map()
     } finally {
       _lookup2013Promise = null
     }
