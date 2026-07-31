@@ -27,6 +27,7 @@
  * question.
  */
 
+const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {assertCallableRateLimit} = require("../rateLimit");
 const {assertVerifiedAuth} = require("../authGuard");
@@ -38,7 +39,10 @@ const {
 } = require("../aiService");
 const {callClaude} = require("./anthropicClient");
 const {callGemini} = require("../geminiClient");
-const {assertAndIncrement} = require("./usageMeter");
+const {assertAndIncrement, refundGeneration} = require("./usageMeter");
+const {requireAndReserveAiOperation, completeAiOperation, failAiOperation} =
+  require("../aiOperations");
+const {checkSourceCurriculum, curriculumDirective} = require("./sourceCurriculum");
 
 const SUGGEST_MODEL = process.env.SUGGEST_ANSWER_MODEL || "claude-haiku-4-5";
 
@@ -130,6 +134,11 @@ function sanitizeInputs(raw = {}) {
     text,
     grade,
     subject,
+    // Source curriculum (CBC vs 2013/previous). Carried so the predicted answer
+    // stays inside the question's own syllabus — checkSourceCurriculum
+    // fail-closes on it, and the prompt is pinned to it. Before this the system
+    // prompt hard-coded CBC, so an OBC question was answered against CBC.
+    curriculum: str(raw.curriculum, 20).toLowerCase(),
     language: ALLOWED_LANGUAGES.has(language) ? language : "english",
     options,
     nonEmptyOptionCount,
@@ -172,13 +181,15 @@ function validateInputs(inputs) {
 }
 
 const SYSTEM_PROMPT = [
-  "You are an expert Zambian CBC examiner.",
+  "You are an expert Zambian examiner.",
   "Your job: predict the correct answer for a single exam question and",
   "give a short rationale. You are NOT generating the question or alternatives —",
   "only answering the one provided.",
   "",
   "Rules:",
-  "- Stay strictly within the Zambian CBC (ECE–G12) syllabus.",
+  "- Stay strictly within the Zambian syllabus and subject named in the request",
+  "  (a request states its curriculum — CBC or the 2013/previous syllabus).",
+  "  Never answer as though the question belonged to a different curriculum.",
   "- If the question is mathematical, do the arithmetic step by step internally,",
   "  but only output the final numeric answer in the structured response.",
   "- For MCQ, you MUST return the 0-based index of the option you believe is correct.",
@@ -454,8 +465,9 @@ function coerceResult(parsed, inputs) {
 // {answer, rationale, confidence}. The post-call coerceResult does the
 // strict shape-checking either way, so this is fine if Gemini occasionally
 // emits a slightly off-spec field.
-async function callGeminiForAnswer({inputs, geminiKey}) {
+async function callGeminiForAnswer({inputs, geminiKey, directive}) {
   const promptLines = [
+    ...(directive ? [directive, ""] : []),
     buildUserPrompt(inputs),
     "",
     "An image is attached above. Use BOTH the question text and the",
@@ -498,7 +510,63 @@ async function callGeminiForAnswer({inputs, geminiKey}) {
   return parsedObj;
 }
 
-async function runSuggestAnswer({uid, inputs, apiKey, geminiKey}) {
+/**
+ * Reconstruct the response for an idempotency key that already completed (§7).
+ * The suggestion is returned INLINE, so it is persisted to
+ * aiGenerations/{idempotencyKey} purely so a duplicate resumes the same answer.
+ */
+async function buildResumedSuggestResponse(uid, operation) {
+  const genId = operation.resultDocumentId;
+  const snap = genId ?
+    await admin.firestore().collection("aiGenerations").doc(genId).get() : null;
+  const out = snap && snap.exists ? (snap.data().output || {}) : {};
+  return {uid, ...out, resumed: true};
+}
+
+async function runSuggestAnswer({uid, inputs, apiKey, geminiKey, idempotencyKey}) {
+  // Fail-closed source-curriculum gate, in the RUNNER as well as the callable,
+  // so a direct invocation cannot bypass it (the answer must stay in the
+  // question's own syllabus rather than defaulting to CBC).
+  const src = checkSourceCurriculum(inputs);
+  if (!src.ok) {
+    throw new HttpsError("invalid-argument", src.errors.join(" "));
+  }
+  const directive = curriculumDirective(src);
+
+  // Idempotency reservation (§6/§7/§8), UNCONDITIONAL, before the meter and any
+  // provider. `inputs` (incl. the source curriculum) is the fingerprint.
+  const reservation = await requireAndReserveAiOperation({
+    idempotencyKey,
+    userId: uid,
+    operationType: "suggest_answer",
+    inputFingerprint: inputs,
+  });
+  if (reservation.status === "completed") {
+    return buildResumedSuggestResponse(uid, reservation.operation);
+  }
+  if (reservation.status === "processing") {
+    return {status: "processing", operationId: idempotencyKey};
+  }
+
+  const usage = await assertAndIncrement(uid, "suggest_answer");
+
+  const genRef = admin.firestore().collection("aiGenerations").doc(idempotencyKey);
+  await genRef.set({
+    ownerUid: uid,
+    tool: "suggest_answer",
+    operationClass: "transformation",
+    inputs,
+    sourceCurriculum: src.curriculum,
+    sourceSubject: src.subject,
+    output: null,
+    modelUsed: SUGGEST_MODEL,
+    status: "generating",
+    errorMessage: null,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    completedAt: null,
+    visibility: "private",
+  }).catch((err) => console.warn("[suggestAnswer] reserve doc failed", err));
+
   // Route to Gemini Vision when the question has an attached image AND
   // a Gemini key is configured. Claude is text-only at this callable, so
   // it can't actually *see* the diagram / map / data-table image — it
@@ -507,49 +575,79 @@ async function runSuggestAnswer({uid, inputs, apiKey, geminiKey}) {
   // question types where the image carries the answer.
   let parsed = null;
   let routedTo = "claude-haiku";
-  if (inputs.imageUrl && geminiKey) {
-    try {
-      parsed = await callGeminiForAnswer({inputs, geminiKey});
-      routedTo = "gemini-vision";
-    } catch (visionErr) {
-      // Don't fail the whole call — fall back to Claude text-only.
-      // Most image questions can still be answered from the text alone,
-      // and the teacher sees the badge as "low confidence" if not.
-      console.warn("suggestAnswer: Gemini vision failed, falling back to Claude", {
-        message: visionErr?.message?.slice(0, 200),
-      });
-      parsed = null;
+  try {
+    if (inputs.imageUrl && geminiKey) {
+      try {
+        parsed = await callGeminiForAnswer({inputs, geminiKey, directive});
+        routedTo = "gemini-vision";
+      } catch (visionErr) {
+        // Don't fail the whole call — fall back to Claude text-only.
+        // Most image questions can still be answered from the text alone,
+        // and the teacher sees the badge as "low confidence" if not.
+        console.warn("suggestAnswer: Gemini vision failed, falling back to Claude", {
+          message: visionErr?.message?.slice(0, 200),
+        });
+        parsed = null;
+      }
     }
-  }
 
-  if (!parsed) {
-    const claudeResult = await callClaude(apiKey, {
-      track: {uid, tool: "suggestAnswer"},
-      model: SUGGEST_MODEL,
-      mode: "tool",
-      systemPrompt: SYSTEM_PROMPT,
-      messages: [{role: "user", content: buildUserPrompt(inputs)}],
-      maxTokens: 400,
-      temperature: 0.0,
-      toolName: "submit_answer",
-      toolDescription:
-        "Submit the predicted correct answer, a short rationale, and a confidence rating.",
-      toolInputSchema: SUGGEST_TOOL_SCHEMA,
-      // Match the other Haiku-based teacher tools (worksheet, rubric,
-      // flashcards): no `thinking` field. Haiku 4.5 runs straight-through
-      // and adding the field is unnecessary.
-    });
-    parsed = claudeResult.parsed;
+    if (!parsed) {
+      const claudeResult = await callClaude(apiKey, {
+        track: {uid, tool: "suggestAnswer"},
+        model: SUGGEST_MODEL,
+        mode: "tool",
+        systemPrompt: SYSTEM_PROMPT,
+        // The source-curriculum directive is prepended so the predicted answer
+        // stays inside the question's own syllabus.
+        messages: [{role: "user", content: `${directive}\n\n${buildUserPrompt(inputs)}`}],
+        maxTokens: 400,
+        temperature: 0.0,
+        toolName: "submit_answer",
+        toolDescription:
+          "Submit the predicted correct answer, a short rationale, and a confidence rating.",
+        toolInputSchema: SUGGEST_TOOL_SCHEMA,
+        // Match the other Haiku-based teacher tools (worksheet, rubric,
+        // flashcards): no `thinking` field. Haiku 4.5 runs straight-through
+        // and adding the field is unnecessary.
+      });
+      parsed = claudeResult.parsed;
+    }
+  } catch (err) {
+    // The Claude path threw (the Gemini path already falls back). Nothing usable
+    // was produced, so refund and settle the operation as failed.
+    await genRef.set({
+      status: "failed",
+      errorMessage: String(err && err.message || err).slice(0, 500),
+    }, {merge: true}).catch(() => {});
+    try {
+      await refundGeneration(uid, usage, "suggest_answer");
+    } catch (refundErr) {
+      console.error("[suggestAnswer] refund failed", {uid}, refundErr);
+    }
+    try {
+      await failAiOperation({idempotencyKey, err, usageCharged: 0});
+    } catch (opErr) {
+      console.error("[suggestAnswer] failAiOperation failed", {uid}, opErr);
+    }
+    throw err;
   }
 
   const result = coerceResult(parsed, inputs);
   result.routedTo = routedTo;
-  return {
-    uid,
-    type: inputs.type,
-    ...result,
-    model: SUGGEST_MODEL,
-  };
+  const output = {type: inputs.type, ...result, model: SUGGEST_MODEL};
+
+  await genRef.set({
+    status: "complete",
+    output,
+    completedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, {merge: true}).catch(() => {});
+  try {
+    await completeAiOperation({idempotencyKey, resultDocumentId: genRef.id, usageCharged: 1});
+  } catch (opErr) {
+    console.error("[suggestAnswer] completeAiOperation failed", {uid}, opErr);
+  }
+
+  return {uid, ...output};
 }
 
 function createSuggestAnswer(anthropicApiKeySecret, geminiApiKeySecret) {
@@ -572,21 +670,27 @@ function createSuggestAnswer(anthropicApiKeySecret, geminiApiKeySecret) {
         );
       }
 
-      // Validate BEFORE consuming quota — malformed requests should not
-      // burn a teacher's monthly suggest_answer credit.
+      // Fail-closed validation BEFORE the reservation / any spend: the shape,
+      // then the source curriculum (a transformation that cannot name its own
+      // curriculum is refused rather than defaulted to CBC). The meter now lives
+      // in the runner, after the reservation, so a duplicate/keyless request
+      // never charges.
       const inputs = sanitizeInputs(request.data || {});
       const errs = validateInputs(inputs);
       if (errs.length > 0) {
         throw new HttpsError("invalid-argument", errs.join(" "));
       }
-
-      await assertAndIncrement(uid, "suggest_answer");
+      const src = checkSourceCurriculum(inputs);
+      if (!src.ok) {
+        throw new HttpsError("invalid-argument", src.errors.join(" "));
+      }
 
       const apiKey = getAnthropicApiKey(anthropicApiKeySecret);
       const geminiKey = geminiApiKeySecret
         ? (geminiApiKeySecret.value() || process.env.GEMINI_API_KEY || "")
         : (process.env.GEMINI_API_KEY || "");
-      return runSuggestAnswer({uid, inputs, apiKey, geminiKey});
+      const idempotencyKey = request.data && request.data.idempotencyKey;
+      return runSuggestAnswer({uid, inputs, apiKey, geminiKey, idempotencyKey});
     },
   );
 }

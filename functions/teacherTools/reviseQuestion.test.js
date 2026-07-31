@@ -65,6 +65,13 @@ console.log("\nbuildUserPrompt — polish instruction");
   ok("carries the original text verbatim", prompt.includes("Wat is teh capitol of Zambia"));
 }
 
+console.log("\nsanitizeInputs — carries the source curriculum (transformation preserves it)");
+{
+  const inp = sanitizeInputs({text: "x", modifier: "polish", curriculum: "Previous", subject: "history"});
+  ok("curriculum lower-cased + carried", inp.curriculum === "previous");
+  ok("subject carried", inp.subject === "history");
+}
+
 console.log("\nstripPreamble");
 {
   ok("strips a 'Rewritten question:' preamble", stripPreamble("Rewritten question: What is 5 + 3?") === "What is 5 + 3?");

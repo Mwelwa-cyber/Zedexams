@@ -43,6 +43,11 @@ function sanitizeInputs(raw = {}) {
     fromGrade: ALLOWED_GRADES.has(fromGrade) ? fromGrade : "",
     toGrade: ALLOWED_GRADES.has(toGrade) ? toGrade : "",
     subject,
+    // Source curriculum (CBC vs 2013/previous). Carried so the revision is
+    // pinned to the SAME syllabus the question came from — checkSourceCurriculum
+    // normalises + fail-closes on it. Grade may change (that is the point of a
+    // re-grade), but the curriculum and subject must be preserved.
+    curriculum: str(raw.curriculum, 20).toLowerCase(),
     language: ALLOWED_LANGUAGES.has(language) ? language : "english",
     modifier,
   };
@@ -61,13 +66,15 @@ function validateInputs(inputs) {
 }
 
 const SYSTEM_PROMPT = [
-  "You are an expert Zambian CBC examiner.",
+  "You are an expert Zambian examiner.",
   "Your job: rewrite ONE exam question to fit a different grade level or",
   "tone, while preserving the original intent. You are NOT generating",
   "options, answers, or marking notes — only rewriting the question text.",
   "",
   "Rules:",
-  "- Stay strictly within the Zambian CBC (ECE–G12) syllabus.",
+  "- Stay strictly within the Zambian syllabus and subject named in the request",
+  "  (a request states its curriculum). Never move the question into a different",
+  "  curriculum or subject than the one it came from.",
   "- Preserve the original learning goal — don't change what the question",
   "  is actually asking for, only HOW it's asked.",
   "- Match the target grade's reading level and vocabulary.",
