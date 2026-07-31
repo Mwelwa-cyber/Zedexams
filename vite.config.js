@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { readFileSync, writeFileSync, readdirSync, rmSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { NAVIGATE_FALLBACK_DENYLIST } from './scripts/lib/swNavigateFallback.mjs'
 
 /**
  * The Sentry release string. Must be byte-for-byte identical to the one the
@@ -262,20 +263,20 @@ export default defineConfig(async ({ mode }) => {
           // back to the cached index.html, which then router-handles the
           // route client-side. Keeps deep links working offline.
           navigateFallback: '/index.html',
-          // ...except for Firebase / Cloud Functions / auth domains; we
-          // never want the SW to hijack those — Firestore handles its own
-          // offline persistence (enabled in src/firebase/config.js) and
-          // Cloud Functions calls must always reach the network.
-          navigateFallbackDenylist: [
-            /^\/__\//,                                 // Firebase reserved
-            /^https?:\/\/.*googleapis\.com/,
-            /^https?:\/\/.*firebaseio\.com/,
-            /^https?:\/\/identitytoolkit\.googleapis\.com/,
-            // Static files opened in a new tab (e.g. the bundled exam
-            // timetable PDF) are navigation requests — without this the SW
-            // would serve index.html and the SPA would 404 the unknown route.
-            /^\/timetables\//,
-          ],
+          // ...except for Firebase's reserved namespace and anything that is
+          // a FILE rather than a route. A browser navigation to /sitemap.xml,
+          // /robots.txt or a bundled PDF is a `navigate` request, so without
+          // this the SW answers it with index.html and the SPA renders its
+          // 404 for a file that exists in dist/ and that Hosting serves fine.
+          // Rules + rationale live in scripts/lib/swNavigateFallback.mjs so
+          // they can be unit-tested (npm run test:sw-navigate-fallback).
+          //
+          // NOTE: these are matched against `url.pathname + url.search`, so
+          // origin-shaped patterns (https://*.googleapis.com/…) can never
+          // fire — don't add one back expecting it to do anything. Firestore
+          // and Cloud Functions traffic is not navigation traffic and was
+          // never reaching this route in the first place.
+          navigateFallbackDenylist: NAVIGATE_FALLBACK_DENYLIST,
           runtimeCaching: [
             // Same-origin JS/CSS chunks that are deliberately kept OUT of the
             // precache (the heavy on-demand vendor chunks in globIgnores, plus

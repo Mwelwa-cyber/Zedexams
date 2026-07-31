@@ -276,6 +276,7 @@
     "test:grade-rules": "node scripts/test-grade-rules-consistency.mjs",
     "test:public-routes": "node scripts/test-public-routes.mjs",
     "test:sitemap-sync": "node scripts/test-sitemap-sync.mjs",
+    "test:sw-navigate-fallback": "node scripts/test-sw-navigate-fallback.mjs",
     "test:prerender-title-dedup": "node scripts/test-prerender-title-dedup.mjs",
     "test:secret-hygiene": "node scripts/test-secret-hygiene.mjs",
     "test:playwright-mcp-env": "node scripts/test-playwright-mcp-env.mjs",
