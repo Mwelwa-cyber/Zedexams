@@ -32,10 +32,20 @@ import { forwardRef } from 'react'
  *   • focus-visible → global accent ring (set up in index.css)
  */
 
+// `aria-disabled:` alongside `disabled:` is not belt-and-braces — it is the
+// only one of the two that fires when `as="a"`. An anchor cannot carry the
+// `disabled` attribute, so the link form sets aria-disabled instead (see
+// elementProps below) and the `disabled:` utilities never matched: a disabled
+// anchor rendered at full opacity with a pointer cursor, looking exactly like
+// an enabled one. Found by /dev/ui, which renders the two side by side.
+//
+// This covers the LOOK. A disabled anchor still follows its href on click —
+// see the note on elementProps.
 const BASE =
   'inline-flex items-center justify-center gap-2 font-black font-body ' +
   'select-none cursor-pointer transition-all ' +
   'disabled:cursor-not-allowed disabled:opacity-60 ' +
+  'aria-disabled:cursor-not-allowed aria-disabled:opacity-60 ' +
   'active:scale-[0.97]'
 
 const SIZE = {
@@ -106,6 +116,13 @@ const Button = forwardRef(function Button(
 
   // Only buttons should have a `type` attribute; if we're rendering an <a>,
   // drop `type` and let the link behave naturally.
+  //
+  // KNOWN GAP: `aria-disabled` announces the state and (with the utilities in
+  // BASE) dims it, but it does not PREVENT navigation — a disabled anchor
+  // still follows its href on click and stays in the tab order. Making it
+  // inert needs an onClick preventDefault plus tabIndex=-1, which changes the
+  // behaviour of every existing `as="a"` call site, so it is deliberately left
+  // as a separate decision rather than folded into a styling fix.
   const elementProps = Component === 'button' ? { type, disabled: isDisabled } : { 'aria-disabled': isDisabled || undefined }
 
   return (

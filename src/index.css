@@ -6167,10 +6167,38 @@ body.data-saver [data-bg-gradient] {
 .rich-content ul li { list-style: disc; }
 .rich-content ol li { list-style: decimal; }
 .rich-content img { max-width: 100%; height: auto; }
+
+/* Library diagrams rendered by <DiagramSvg> (src/components/diagrams).
+ *
+ * The catalog emits `<svg viewBox="…" width="320">` — a fixed pixel width
+ * with no height, so the figure scales by aspect ratio but never shrinks
+ * below the width the catalog chose. Some entries are wider still (the bar
+ * chart and the number line are 460 and 540), which is more than a phone has,
+ * so any surface rendering one below ~560px got a horizontally scrolling PAGE
+ * rather than a scaled-down figure. `overflow-x` on an ancestor cannot fix
+ * that — it would clip the diagram instead of fitting it.
+ *
+ * This is the one line that makes them responsive, and it belongs here rather
+ * than in the catalog: the catalog is SHARED with the export path
+ * (functions/shared/assessment/diagramCatalogCore.js), where the fixed width
+ * is correct — a paper is laid out at a known column width and the exporters
+ * rasterise at that size. Only the on-screen React renderer needs to fit a
+ * viewport, and `.zx-diagram-svg` is that renderer's own class and nothing
+ * else's. */
+.zx-diagram-svg svg { max-width: 100%; height: auto; }
 .rich-content pre, .rich-content code { max-width: 100%; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; }
 .rich-content table { border-collapse: collapse; width: 100%; margin: 6px 0; display: block; max-width: 100%; overflow-x: auto; }
-.rich-content table td, .rich-content table th { border: 1.5px solid #cbd5e1; padding: 5px 8px; }
-.rich-content table th { background: #f8fafc; font-weight: 700; }
+/* Tokens, not literals — found by /dev/ui.
+ *
+ * These were `#cbd5e1` and `#f8fafc`: a light-grey rule and a near-white
+ * header fill, both fixed. Stored rich text inherits `color` from the page,
+ * so on Midnight (learner) and Night (teacher) a table header printed light
+ * text on a near-white cell — invisible — while the borders became the
+ * brightest thing on a dark card. It affects every note, question and lesson
+ * containing a table, and it is invisible in review because the palette it is
+ * authored in is the one it is correct in. */
+.rich-content table td, .rich-content table th { border: 1.5px solid var(--border); padding: 5px 8px; }
+.rich-content table th { background: var(--bg-subtle); font-weight: 700; }
 .rich-content .math-inline-node { display: inline-flex; align-items: center; vertical-align: middle; background: transparent; border: none; padding: 0; margin: 0 1px; }
 /* KaTeX equations can be wider than the viewport on phones; let them scroll inside their card */
 .rich-content .katex-display { max-width: 100%; overflow-x: auto; overflow-y: hidden; }

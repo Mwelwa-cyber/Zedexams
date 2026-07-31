@@ -202,6 +202,9 @@ const AgentProfile    = lazy(() => import('./components/admin/agents/AgentsHome'
 const AgentJobDetail  = lazy(() => import('./components/admin/agents/AgentJobDetail'))
 const CompanyHQ       = lazy(() => import('./components/admin/company/CompanyHQ').then(m => ({ default: m.CompanyHQ })))
 
+// Internal UI audit page at /dev/ui — see the route comment below.
+const UiAuditPage     = lazy(() => import('./components/dev/uiAudit/UiAuditPage'))
+
 
 // Audit A10 — teacher classroom roster (foundation PR; quiz assignment + class analytics stack later).
 // Audit A10 PR 2 — learner-side join + view classes.
@@ -657,6 +660,22 @@ export default function App() {
           <Route path="/admin/agents/jobs"              element={<AdminRoute><AgentsAllJobs /></AdminRoute>} />
           <Route path="/admin/agents/jobs/:jobId"       element={<AdminRoute><AgentJobDetail /></AdminRoute>} />
           <Route path="/admin/agents/:agentId"          element={<AdminRoute><AgentProfile /></AdminRoute>} />
+
+          {/* ── Internal UI audit ("kitchen sink") ──────────────
+              Every shared primitive, every design token and all four
+              workspace themes on one scrollable page, for visual regression
+              QA by eyeball. Not linked from any navigation — direct URL only.
+
+              Guarded by ProtectedRoute + AdminMfaGate, the same access gate
+              every /admin route has, but deliberately NOT wrapped in
+              AdminLayout: the page owns its own `.studio-theme` scope and a
+              sticky toolbar, and the admin chrome would both nest a second
+              themed container inside it and add navigation to a page whose
+              whole point is that it is unreachable by clicking.
+
+              Lazy like every other route, so it adds nothing to the main
+              bundle — its cost to production is one entry in this table. */}
+          <Route path="/dev/ui"                         element={<ProtectedRoute requiredRole="admin"><AdminMfaGate><UiAuditPage /></AdminMfaGate></ProtectedRoute>} />
 
 
           {/* ── Teacher routes ──────────────────────────────────
