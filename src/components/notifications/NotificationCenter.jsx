@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useNotifications } from '../../contexts/NotificationContext'
+import { confirmShellNavigation } from '../teacher/register/shellNavGuardCore'
 import Icon from '../ui/Icon'
 import { Bell, Check, Search, Settings, Trash2, X } from '../ui/icons'
 import {
@@ -146,16 +147,23 @@ export default function NotificationCenter() {
   const close = () => setOpen(false)
 
   const openNotification = (n) => {
+    const url = n.action?.url
+    const external = url && /^https?:\/\//i.test(url)
+    // An in-app SPA navigation unmounts the current page — gate it behind any
+    // registered unsaved-changes guard (e.g. dirty register marks) so a
+    // notification tap can't silently discard them. External links open a new
+    // tab and leave the page mounted, so they're never gated.
+    if (url && !external && !confirmShellNavigation()) return
     if (!n.read) markRead(n.id)
-    if (n.action?.url) {
-      const url = n.action.url
+    if (url) {
       close()
-      if (/^https?:\/\//i.test(url)) window.open(url, '_blank', 'noopener')
+      if (external) window.open(url, '_blank', 'noopener')
       else navigate(url)
     }
   }
 
   const goToSettings = () => {
+    if (!confirmShellNavigation()) return
     close()
     navigate('/settings')
   }

@@ -119,7 +119,13 @@ export default function ClassRegisterDetail() {
     .sort((a, b) => a - b)
 
   return (
-    <div className="space-y-5">
+    // Marks this subtree as "already guards its own links" (the tab links,
+    // ← Class List and Edit all call guardLink; Archive gates imperatively).
+    // TeacherLayout's shell-nav capture listener exempts exactly this region so
+    // it doesn't double-prompt here — while still gating shared chrome rendered
+    // inside <main> (e.g. TeacherTopBar's Quick Create links), which is NOT
+    // register-owned and would otherwise discard unsaved marks.
+    <div className="space-y-5" data-register-self-guarded>
       <SeoHelmet title={reg.className} path={`/teacher/register/${classId}`} noIndex />
 
       <div className="flex flex-wrap items-start justify-between gap-3">
