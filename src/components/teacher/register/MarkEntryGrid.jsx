@@ -15,6 +15,7 @@ import { saveRecordMarks } from '../../../utils/classRecords'
 import { convertSbaMark } from '../../../config/sba'
 import { useToast } from '../../ui/Toast'
 import Button from '../../ui/Button'
+import { useMarkUnsaved } from './registerUnsavedGuard'
 
 const GRADE_TONE = {
   Excellent: 'text-emerald-600',
@@ -60,13 +61,19 @@ export default function MarkEntryGrid({ classId, record, onClose, onSaved }) {
   }, [isSba, rows, sbaMax]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Marks live only in local state until Save, so warn before a tab close /
-  // reload / external navigation discards typed-but-unsaved marks.
+  // reload discards typed-but-unsaved marks.
   useEffect(() => {
     if (!dirty) return undefined
     const onBeforeUnload = (e) => { e.preventDefault(); e.returnValue = '' }
     window.addEventListener('beforeunload', onBeforeUnload)
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [dirty])
+
+  // Publish the dirty flag to the Class Register shell so its tab links, the
+  // "← Class List" / "Edit" links and Archive confirm before an SPA navigation
+  // unmounts this grid and discards the marks. No-op when opened outside the
+  // shell (the grid's own Back button + beforeunload still cover those paths).
+  useMarkUnsaved(dirty)
 
   function setMark(rosterId, colKey, raw, max) {
     setDirty(true)
