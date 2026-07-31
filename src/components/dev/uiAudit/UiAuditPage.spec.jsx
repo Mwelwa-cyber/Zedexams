@@ -22,7 +22,7 @@
  * Storybook story.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, within, act } from '@testing-library/react'
+import { render, screen, within, act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { ThemeProvider } from '../../../contexts/ThemeContext'
@@ -31,6 +31,20 @@ import { resetTeacherThemeStore } from '../../../contexts/teacherThemeStore'
 import { TEACHER_THEMES } from '../../../contexts/teacherThemeCore'
 import { AUDIT_SECTIONS } from './auditSections.js'
 import UiAuditPage from './UiAuditPage.jsx'
+
+/**
+ * This file renders the ENTIRE shared component library, and in "All themes"
+ * mode it renders it four times over — roughly 32 section instances in one
+ * jsdom tree. That is the page's job, so the work is real rather than a hang,
+ * and Vitest's 5s default is simply the wrong budget for it: the two
+ * column-mode cases take ~2s on a warm laptop and blew straight past 5s on a
+ * loaded CI runner, turning a green local suite red on main.
+ *
+ * A timeout tuned to the fastest machine that runs the suite is a timeout that
+ * fails on the slowest one, so it is set generously here and stated rather
+ * than nudged until CI stops complaining.
+ */
+vi.setConfig({ testTimeout: 30000 })
 
 // jsdom has no layout engine, so getComputedStyle returns empty strings for
 // custom properties and every swatch resolves to null. That is fine — the
@@ -132,11 +146,15 @@ describe('UiAuditPage', () => {
     expect(scope).toHaveClass('studio-theme')
   })
 
-  it('renders one scoped column per theme when All themes is on', async () => {
-    const u = userEvent.setup()
+  it('renders one scoped column per theme when All themes is on', () => {
     const { container } = renderPage()
 
-    await u.click(screen.getByLabelText(/All themes side by side/i))
+    // fireEvent rather than userEvent: these two cases assert what the toggle
+    // RENDERS, not the interaction semantics getting there (which the theme
+    // switcher case above already covers). userEvent's pointer sequence and
+    // per-event delay are pure overhead on the most expensive render in the
+    // suite.
+    fireEvent.click(screen.getByLabelText(/All themes side by side/i))
 
     const themed = AUDIT_SECTIONS.filter((s) => s.allThemes)
     for (const t of TEACHER_THEMES) {
@@ -150,11 +168,10 @@ describe('UiAuditPage', () => {
     }
   })
 
-  it('keeps section anchors unique in All themes mode', async () => {
-    const u = userEvent.setup()
+  it('keeps section anchors unique in All themes mode', () => {
     renderPage()
 
-    await u.click(screen.getByLabelText(/All themes side by side/i))
+    fireEvent.click(screen.getByLabelText(/All themes side by side/i))
 
     for (const section of AUDIT_SECTIONS) {
       // Four copies of a section would mean four elements sharing one id, and
