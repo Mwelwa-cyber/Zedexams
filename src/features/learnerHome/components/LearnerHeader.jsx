@@ -14,6 +14,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useNotifications } from '../../../contexts/NotificationContext'
 import { useTheme, THEMES } from '../../../contexts/ThemeContext'
+import useHideOnScroll from '../../../hooks/useHideOnScroll'
 import NotificationCenter from '../../../components/notifications/NotificationCenter'
 import CharacterAvatar from '../../../components/profile/CharacterAvatar'
 import LearnerIcon from './LearnerIcon'
@@ -111,6 +112,13 @@ export default function LearnerHeader({ activeTerm, showGreeting = true }) {
   const { unreadCount, open: alertsOpen, setOpen: setAlertsOpen } = useNotifications()
   const [sheetOpen, setSheetOpen] = useState(false)
   const accountRef = useRef(null)
+  // LinkedIn-style auto-hide, same hook the glass Navbar uses: the chrome
+  // bar folds away while the learner scrolls down into the page and glides
+  // back the moment they scroll up. Kept pinned while an overlay anchored
+  // to it (alerts, account sheet) is open so it can't slide out from under
+  // its own dialog.
+  const scrolledHidden = useHideOnScroll()
+  const topbarHidden = scrolledHidden && !alertsOpen && !sheetOpen
 
   const firstName = firstNameOf(userProfile?.displayName)
   const greeting = getGreeting(new Date().getHours())
@@ -122,38 +130,40 @@ export default function LearnerHeader({ activeTerm, showGreeting = true }) {
 
   return (
     <header className="lhx-header">
-      <div className="lhx-header-row">
-        <Link to="/dashboard" className="lhx-logo" aria-label="ZedExams home">
-          <img src="/zedexams-logo.webp" alt="ZedExams" height="30" />
-        </Link>
-        <nav className="lhx-chrome" aria-label="Account and settings">
-          <ChromeTile as={Link} to="/my-results" icon="progress" label="Progress" />
-          <ThemeTile />
-          <ChromeTile
-            icon="notification"
-            label="Alerts"
-            badge={unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : null}
-            onClick={() => setAlertsOpen(true)}
-            aria-label={unreadCount > 0 ? `Alerts, ${unreadCount} unread` : 'Alerts'}
-            aria-haspopup="dialog"
-          />
-          <ChromeTile
-            ref={accountRef}
-            label="Account"
-            onClick={() => setSheetOpen(true)}
-            aria-label={`Account menu for ${userProfile?.displayName || 'your account'}`}
-            aria-haspopup="dialog"
-            aria-expanded={sheetOpen}
-          >
-            <span className="lhx-chrome-avatar">
-              {userProfile?.avatarCharacter ? (
-                <CharacterAvatar characterId={userProfile.avatarCharacter} className="w-full h-full" />
-              ) : (
-                <span aria-hidden="true">{(firstName || 'Z').charAt(0).toUpperCase()}</span>
-              )}
-            </span>
-          </ChromeTile>
-        </nav>
+      <div className={`lhx-topbar ${topbarHidden ? 'lhx-topbar-hidden' : ''}`}>
+        <div className="lhx-header-row">
+          <Link to="/dashboard" className="lhx-logo" aria-label="ZedExams home">
+            <img src="/zedexams-logo.webp" alt="ZedExams" height="30" />
+          </Link>
+          <nav className="lhx-chrome" aria-label="Account and settings">
+            <ChromeTile as={Link} to="/my-results" icon="progress" label="Progress" />
+            <ThemeTile />
+            <ChromeTile
+              icon="notification"
+              label="Alerts"
+              badge={unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : null}
+              onClick={() => setAlertsOpen(true)}
+              aria-label={unreadCount > 0 ? `Alerts, ${unreadCount} unread` : 'Alerts'}
+              aria-haspopup="dialog"
+            />
+            <ChromeTile
+              ref={accountRef}
+              label="Account"
+              onClick={() => setSheetOpen(true)}
+              aria-label={`Account menu for ${userProfile?.displayName || 'your account'}`}
+              aria-haspopup="dialog"
+              aria-expanded={sheetOpen}
+            >
+              <span className="lhx-chrome-avatar">
+                {userProfile?.avatarCharacter ? (
+                  <CharacterAvatar characterId={userProfile.avatarCharacter} className="w-full h-full" />
+                ) : (
+                  <span aria-hidden="true">{(firstName || 'Z').charAt(0).toUpperCase()}</span>
+                )}
+              </span>
+            </ChromeTile>
+          </nav>
+        </div>
       </div>
       {showGreeting && (
         <div>
