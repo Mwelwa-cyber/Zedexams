@@ -1435,7 +1435,11 @@ async function main() {
   section('assessments — invalid and unauthorised writes are still refused')
 
   await test('a grade outside the ladder is refused', async () => {
-    for (const grade of ['13', 'G13', 'F5', 'ECE_X', 'Grade 4', 'four', '']) {
+    // 'G13' was on this list until Form 6 joined the canonical ladder — it is
+    // now a real level and is covered positively by the matrix above, which
+    // derives from EDUCATION_LEVELS. 'F5' stays: the F-codes are a legacy
+    // spelling that has always stopped at F4, and no F5 document exists.
+    for (const grade of ['13', 'G14', 'F5', 'ECE_X', 'Grade 4', 'four', '']) {
       await assertFails(
         setDoc(doc(teacherA, 'assessments', `bad_grade_${grade || 'empty'}`),
           assessmentDoc(grade, 'topic_test')),

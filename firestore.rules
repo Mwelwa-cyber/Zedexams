@@ -210,7 +210,12 @@ service cloud.firestore {
         // ladder when the education model was unified; without it here a
         // teacher can pick Form 6 and then fail to save with permission-denied.
         'G8', 'G9', 'G10', 'G11', 'G12', 'G13',
-        'F1', 'F2', 'F3', 'F4', 'F5', 'F6'
+        // F-codes are accepted for legacy documents only — a paper has always
+        // STORED its secondary level as the G-code. They deliberately stop at
+        // F4: no F5/F6 document has ever been written, so adding them would
+        // widen the validator for nothing, and a validator widened for nothing
+        // is how a real constraint gets lost.
+        'F1', 'F2', 'F3', 'F4'
       ];
     }
     function _validSubject(value) { return value is string && value.size() >= 1 && value.size() <= 80; }
