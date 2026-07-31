@@ -413,7 +413,8 @@ describe('AssessmentStudio — failed question write does not duplicate the pape
       await waitFor(() => expect(screen.getByTestId('builder-view')).toBeInTheDocument())
 
       // Seed a real question so the library autosave gate opens
-      // (shouldAutosaveToLibrary requires questionCount > 0 + libraryDirty).
+      // (shouldAutosaveToLibrary requires authoredQuestionCount > 0 +
+      // libraryDirty — a blank starter question is not enough).
       fireEvent.click(screen.getByRole('button', { name: 'stub-import-doc' }))
       await waitFor(() => expect(mockImportQuizDocument).toHaveBeenCalledTimes(1))
 

@@ -221,6 +221,41 @@ than absence of one.
   step AND in the generator, with one shared message (`assessmentLabels.js`). A read
   FAILURE is never reported as an empty catalogue.
 
+### Nothing is filed until the teacher edits it, and a paper's name identifies it
+
+Two data-integrity rules the Assessment Paper Studio now holds to.
+
+- **"Untouched" is identity, not a content heuristic.** `isUntouchedPaper` +
+  `paperSignature` (`assessmentAutosave.js`) compare the live `{form, sections, parts}`
+  against the baseline the MACHINE established, and every place the studio fills the
+  paper in for the teacher re-arms that baseline: the initial state, the School-Profile
+  seeding, "New paper", and the edit-mode hydration of a saved paper. Neither autosave
+  — the 800ms device draft nor the 2s library write — may fire while the paper still
+  matches it. The old test was "empty starter question AND no title AND no school name",
+  which the studio's own School-Profile seeding defeated by writing the teacher's school
+  name onto an untouched paper: **loading `/teacher/assessment-papers/new` filed a
+  phantom paper holding one blank question, every visit.** Second layer: the gate reads
+  `countAuthoredQuestions(sections)` (questions with something in them), never the raw
+  `questionCount`, which counts the blank starter slot. No paper doc is created before
+  the first real edit — the id is minted by `persistAssessment`, not eagerly on mount.
+  Already-filed phantoms: `npm run cleanup:phantom-assessments:dry` (rules in
+  `phantomAssessment.js`, dry-run by default, `--live` requires typing DELETE, every
+  deleted doc backed up first). It is a one-off, never a scheduled sweep.
+- **A paper has TWO titles, and they are different strings on purpose**
+  (`assessmentTitle.js`). The DOCUMENT title is the library/Recent-Documents/filename
+  name and carries grade + **subject** + type + **term** + year
+  ("GRADE 4 INTEGRATED SCIENCE - END OF TERM 2 TEST - 2026"); the printed HEADER title
+  omits the subject because `assessmentPaperLayout`'s header block prints it on its own
+  line right below. One string used to do both jobs, with no subject and a DEFAULTED
+  term, so every Grade 4 end-of-term paper a teacher wrote in a year had one name. The
+  term is read from the paper (`readPaperTerm`) — a paper that states none is not given
+  one. `mapAssessmentToForm` deliberately does NOT carry a generated title into
+  `form.title`, which is what lets an old paper pick up its subject on the next save;
+  papers now record `titleSource: 'auto' | 'manual'`. Existing papers:
+  `npm run backfill:assessment-titles:dry` — it rewrites only a title
+  `isGeneratedAssessmentTitle` recognises (including one stamped with the wrong term)
+  and never one a human chose.
+
 ### The words a paper is allowed to use (§4.1)
 
 `src/config/paperTerminology.js` is the single declaration of the Zambian

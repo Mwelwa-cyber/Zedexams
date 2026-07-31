@@ -16,6 +16,7 @@ import {
   TERMS,
   INSTRUCTION_PRESETS,
   buildTitleFromForm,
+  buildHeaderTitleFromForm,
 } from '../AssessmentStudio'
 import {
   useStudioSubjectChoices, useSyllabusLevelOptions, useSyllabusSubjectOptions,
@@ -472,9 +473,16 @@ export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, a
       <div className="sv-title-preview-card">
         <div className="sv-auto-label"><Icon name="more" size={13} /> Auto-generated header</div>
         <div className="sv-school">{(form.schoolName || 'YOUR SCHOOL NAME').toUpperCase()}</div>
-        <div className="sv-title-auto">{buildTitleFromForm(form)}</div>
+        {/* The header title, which omits the subject — the printed paper puts the
+            subject on its own line, right below, exactly as previewed here. The
+            paper's LIBRARY name is a different (subject-bearing) string, shown
+            under the card so the teacher knows what to look for in their library. */}
+        <div className="sv-title-auto">{buildHeaderTitleFromForm(form)}</div>
         {form.subject && <div className="sv-subject-auto">{form.subject.toUpperCase()}</div>}
         {form.paperName && <div className="sv-paper-auto">{form.paperName.toUpperCase()}</div>}
+      </div>
+      <div className="sv-import-row-hint" style={{ display: 'block', marginTop: 6 }}>
+        Saved in your library as <strong>{(form.title || '').trim() || buildTitleFromForm(form)}</strong>
       </div>
 
       <div className="sv-import-row">

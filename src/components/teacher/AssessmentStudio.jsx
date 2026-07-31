@@ -34,6 +34,7 @@ import {
   emptyPassageQuestion,
   getQuestionKey,
   hasOnlyEmptyStarterSection,
+  countAuthoredQuestions,
   hydrateQuizSections,
   collectSectionFirestoreIds,
   serializeQuizSections,
@@ -48,7 +49,12 @@ import { getSchoolProfile } from '../../utils/schoolProfileService'
 import { applySchoolProfileDefaults, brandingForAiPaper } from '../../utils/schoolProfile'
 import { collectQuizIssues } from '../../utils/quizValidation.js'
 import { assertNoBlobImageUrls, applyUploadedImageUrls } from '../../utils/importedQuizAssets.js'
-import { shouldAutosaveToLibrary, shouldAutosaveOnDownload } from './assessmentAutosave.js'
+import {
+  shouldAutosaveToLibrary, shouldAutosaveOnDownload, paperSignature, isUntouchedPaper,
+} from './assessmentAutosave.js'
+import {
+  buildAssessmentDocumentTitle, buildAssessmentHeaderTitle, isGeneratedAssessmentTitle,
+} from './assessmentTitle.js'
 import { isAssessmentDeleted, subscribeAssessmentDeletion } from '../../utils/assessmentDeletion'
 import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
@@ -72,7 +78,7 @@ import { importHasQuestions } from './scan/importReviewModel'
 import { studioGradeToKbGrade, studioSubjectToKey, normalizeStudioFramework } from './syllabusTopicOptions'
 import {
   subjectLabel as kbSubjectLabel, paperGradeLabel, paperLevel,
-  ASSESSMENT_TYPE_VALUES, normalizeAssessmentType,
+  ASSESSMENT_TYPE_VALUES,
 } from './paperTaxonomy'
 import { STUDIO_SUBJECTS, STUDIO_GRADES, ASSESSMENT_TYPE_LABELS as ASSESSMENT_TYPE_LABELS_META } from './assessmentStudioMeta'
 import {
@@ -251,7 +257,16 @@ function mapAssessmentToForm(a = {}) {
   const copy = (key, transform) => {
     if (a[key] !== undefined && a[key] !== null) out[key] = transform ? transform(a[key]) : a[key]
   }
-  copy('title')
+  // A title THIS CODEBASE generated is deliberately NOT carried into the form.
+  // `form.title` means "the teacher named this paper themselves", and the studio
+  // regenerates the name from the paper's own fields whenever it is blank — so
+  // leaving a generated title out is what lets a paper saved under the old
+  // subject-less name pick up its subject and real term the next time it is
+  // saved. A name a human chose is copied through untouched.
+  if (typeof a.title === 'string' && a.title.trim()
+    && !isGeneratedAssessmentTitle(a.title, a)) {
+    out.title = a.title
+  }
   if (a.subject != null) out.subject = normalizeSubject(a.subject)
   // Normalise a saved grade into the picker's value scheme ('Grade 4' → '4',
   // 'Nursery' → 'ECE_N', 'Form 1' → 'G8'). A legacy secondary "Grade 8"…"12"
@@ -314,33 +329,23 @@ function mapAssessmentToForm(a = {}) {
   return out
 }
 
+// The name the paper is FILED under — the library, Recent Documents, the
+// dashboard and the download filename all show this. It carries the subject and
+// the term (read from the paper, never defaulted), because identifying one paper
+// among a teacher's others is its whole job: without them, every Grade 4
+// end-of-term paper a teacher wrote in 2026 was called the same thing.
+//
+// Distinct from the title printed ON the paper (below), which omits the subject
+// because the header prints it on its own line. Both live in assessmentTitle.js.
 export function buildTitleFromForm(form) {
-  // Official level label ("GRADE 4" / "FORM 1" / "NURSERY"), so a Form paper is
-  // never mis-titled "GRADE 8" and an ECE paper never reads "GRADE ECE_N".
-  const levelWord = paperGradeLabel(form.grade).toUpperCase()
-  // Normalize so a legacy stored type ('mock', 'topic', 'exam' — from before
-  // the canonical registry) still titles correctly; canonical values pass
-  // through unchanged.
-  const type = normalizeAssessmentType(form.assessmentType)
-  const typeUpper = (ASSESSMENT_TYPE_LABELS[type] || 'Assessment').toUpperCase()
-  const termBit = form.term ? `TERM ${form.term}` : ''
-  let typeFormatted = typeUpper
-  if (type === 'end_of_term' && termBit) {
-    typeFormatted = `END OF TERM ${form.term} TEST`
-  } else if (type === 'mid_term' && termBit) {
-    typeFormatted = `MID-TERM ${form.term} TEST`
-  } else if (type === 'mock_exam' || type === 'examination' || type === 'final_exam') {
-    // Examination-category papers are titled as the formal paper they are —
-    // no term prefix, since an exam covers the whole syllabus rather than a
-    // single term — and each type keeps ITS OWN wording: an Examination is
-    // never titled "Mock Examination", a Final Examination never collapses
-    // to a plain "Examination".
-    typeFormatted = typeUpper
-  } else if (termBit) {
-    typeFormatted = `${termBit} ${typeUpper}`
-  }
-  const year = form.year || new Date().getFullYear()
-  return `${levelWord} ${typeFormatted} - ${year}`
+  return buildAssessmentDocumentTitle(form)
+}
+
+// The title as it prints in the paper's header — no subject, since the header
+// renders the subject directly beneath it. This is what the studio's
+// "Auto-generated header" card previews.
+export function buildHeaderTitleFromForm(form) {
+  return buildAssessmentHeaderTitle(form)
 }
 
 function buildFooterCode(form) {
@@ -619,6 +624,10 @@ export default function AssessmentStudio() {
     [serializedPreview],
   )
   const questionCount = serializedPreview.questionCount
+  // Questions the teacher has actually begun. Distinct from questionCount,
+  // which counts SLOTS — including the blank starter question a fresh paper is
+  // seeded with. Only this may decide whether the paper is worth persisting.
+  const authoredQuestionCount = useMemo(() => countAuthoredQuestions(sections), [sections])
   const totalMarks = serializedPreview.totalMarks
   const estimatedMinutes = useMemo(
     () => estimatePaperMinutes(serializedPreview.questions),
@@ -1048,14 +1057,52 @@ export default function AssessmentStudio() {
   }
 
   /* ------------ draft restore / autosave ------------ */
-  // Live snapshot of "is this paper still untouched?", refreshed every render
-  // so the async draft restore can re-check it AFTER the cloud read completes,
-  // without relying on the stale `sections` captured when the effect first ran
-  // (the effect is keyed only by uid). A ref, not state, because reading it
-  // must not re-run the effect.
+  // ── "Has the teacher touched this paper yet?" ──────────────────────────
+  //
+  // Nothing may be persisted — not a paper, not a question, not a draft row —
+  // until the answer is yes. Loading /teacher/assessment-papers/new and doing
+  // nothing used to file a paper holding one blank question about two seconds
+  // later, on every visit, because this question was answered with a content
+  // heuristic ("empty starter question AND no title AND no school name") that
+  // the studio's OWN School-Profile seeding defeated: it writes the teacher's
+  // school name onto an untouched paper, and the heuristic then read the paper
+  // as edited. See isUntouchedPaper in assessmentAutosave.js.
+  //
+  // So the answer is identity against the baseline the machine established, and
+  // every place the studio fills the paper in FOR the teacher re-arms that
+  // baseline: the initial state here, the School-Profile seeding, "New paper",
+  // and the edit-mode hydration of a saved paper. A teacher edit is then the
+  // only thing that can make the paper differ from its baseline.
+  const pristineBaselineRef = useRef(null)
+  // Latches on the first real edit, so a long paper is not re-serialised on
+  // every keystroke for an answer that cannot change back. Re-arming clears it.
+  const paperTouchedRef = useRef(false)
+  const armPristineBaseline = useCallback((paper) => {
+    pristineBaselineRef.current = paperSignature(paper)
+    paperTouchedRef.current = false
+  }, [])
+  // The initial state IS the first baseline. Assigned during the first render
+  // (not in an effect) so the very first run of the dirty-tracking effect below
+  // already has something to compare against.
+  if (pristineBaselineRef.current === null) armPristineBaseline({ form, sections, parts })
+  const paperIsUntouched = useMemo(() => {
+    if (paperTouchedRef.current) return false
+    const untouched = isUntouchedPaper({ form, sections, parts }, pristineBaselineRef.current)
+    if (!untouched) paperTouchedRef.current = true
+    return untouched
+    // pristineBaselineRef is a ref: re-arming it does not re-render, and every
+    // re-arm site changes form/sections/parts in the same commit, which does.
+  }, [form, sections, parts])
+  // Live snapshot of the same answer, refreshed every render so the async draft
+  // restore can re-check it AFTER the cloud read completes, without relying on
+  // the stale `sections` captured when the effect first ran (the effect is keyed
+  // only by uid). A ref, not state, because reading it must not re-run the effect.
   const isPaperUntouchedRef = useRef(true)
-  isPaperUntouchedRef.current = hasOnlyEmptyStarterSection(sections)
-    && !form.title?.trim() && !form.schoolName?.trim()
+  isPaperUntouchedRef.current = paperIsUntouched
+  // Latest committed paper, so an effect can compose the post-update values it
+  // needs to re-arm the baseline with.
+  const livePaperRef = useRef(null)
+  livePaperRef.current = { form, sections, parts }
 
   // In edit mode we never restore the "new paper" draft — start as if a draft
   // was already considered so the restore effect below early-returns.
@@ -1121,7 +1168,13 @@ export default function AssessmentStudio() {
     if (!draftSettled || !schoolProfile) return
     schoolDefaultsAppliedRef.current = true
     if (!isPaperUntouchedRef.current) return
-    setForm(f => applySchoolProfileDefaults(f, schoolProfile))
+    const seeded = applySchoolProfileDefaults(livePaperRef.current.form, schoolProfile)
+    setForm(seeded)
+    // Branding WE put on the paper is not an edit. Re-arm the baseline to what
+    // we just wrote, or the paper reads as dirty and the autosave files a
+    // phantom holding one blank question — the bug this guards.
+    armPristineBaseline({ ...livePaperRef.current, form: seeded })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftSettled, schoolProfile])
 
   useEffect(() => {
@@ -1135,7 +1188,11 @@ export default function AssessmentStudio() {
     // the source of truth — stop maintaining a parallel "new paper" draft that
     // could otherwise resurrect as a duplicate on the next visit to /new.
     if (createdIdRef.current) return
-    if (hasOnlyEmptyStarterSection(sections) && !form.title.trim() && !form.schoolName.trim()) return
+    // Nothing to draft until the teacher has actually changed something. An
+    // untouched paper holds only what the studio itself put there, and writing
+    // that down leaves a draft row behind for a visit in which the teacher did
+    // nothing at all.
+    if (paperIsUntouched) return
     const timer = setTimeout(() => {
       const payload = { form, sections, parts, view }
       saveAssessmentDraft(currentUser.uid, payload)
@@ -1149,7 +1206,7 @@ export default function AssessmentStudio() {
       setDirty(false)
     }, 800)
     return () => clearTimeout(timer)
-  }, [form, sections, parts, view, currentUser?.uid, isEditing])
+  }, [form, sections, parts, view, currentUser?.uid, isEditing, paperIsUntouched])
 
   // ── Continuous autosave to the durable library ──────────────────────────
   // Files the paper in the teacher's library — and keeps it updated as they
@@ -1163,7 +1220,9 @@ export default function AssessmentStudio() {
   useEffect(() => {
     const ok = shouldAutosaveToLibrary({
       uid: currentUser?.uid,
-      questionCount,
+      // Questions with something in them — NOT the raw count, which includes
+      // the blank starter question a new paper is seeded with.
+      authoredQuestionCount,
       libraryDirty,
       saving,
       exporting,
@@ -1190,7 +1249,7 @@ export default function AssessmentStudio() {
     }, 2000)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, sections, parts, libraryDirty, questionCount, saving, exporting,
+  }, [form, sections, parts, libraryDirty, authoredQuestionCount, saving, exporting,
     editLoading, importingDocument, aiGenerating, currentUser?.uid])
 
   // ── Deletion guard: stop autosaving a paper the teacher just deleted ──
@@ -1229,7 +1288,8 @@ export default function AssessmentStudio() {
         if (assessment.questionCount > 0 && questions.length === 0) {
           setEditError('loadfailed'); setEditLoading(false); return
         }
-        setForm(current => ({ ...current, ...mapAssessmentToForm(assessment) }))
+        const hydratedForm = { ...livePaperRef.current.form, ...mapAssessmentToForm(assessment) }
+        setForm(hydratedForm)
         // §6 — a paper saved with its choices baked into the stem AND stored
         // separately prints them twice. Repaired on read rather than by a
         // one-off migration script, so a paper is fixed the moment a teacher
@@ -1255,6 +1315,12 @@ export default function AssessmentStudio() {
         setSections(hydrated.sections)
         setParts(hydrated.parts)
         setDeletedIds([])
+        // The saved paper as loaded is the new "untouched" baseline: reopening a
+        // paper is not editing it, so it must not arm an autosave that rewrites
+        // the doc (and, for a paper repaired on read, does so unattended).
+        armPristineBaseline({
+          form: hydratedForm, sections: hydrated.sections, parts: hydrated.parts,
+        })
         // The loaded paper is the new undo baseline — not the empty starter.
         resetUndoBaseline()
         setView('builder')
@@ -1282,11 +1348,15 @@ export default function AssessmentStudio() {
   const dirtyTrackingReadyRef = useRef(false)
   useEffect(() => {
     if (!dirtyTrackingReadyRef.current) { dirtyTrackingReadyRef.current = true; return }
-    if (hasOnlyEmptyStarterSection(sections) && !form.title.trim() && !form.schoolName.trim()) return
+    // Everything the studio seeds for the teacher — defaults, deep-link params,
+    // School-Profile branding, a "New paper" reset — re-arms the baseline, so a
+    // paper that still matches it has not been edited and must not arm either
+    // autosave. This is the trigger condition Bug 1 came down to.
+    if (paperIsUntouched) return
     setDirty(true)
     setLibraryDirty(true)
     setSavedToLibrary(false)
-  }, [form, sections, parts])
+  }, [form, sections, parts, paperIsUntouched])
 
   useEffect(() => () => revokeImportedQuizAssets(importedAssets), [importedAssets])
 
@@ -1810,7 +1880,13 @@ export default function AssessmentStudio() {
         grade: aiStudioGrade || f.grade,
         subject: aiSubjectLabel || f.subject,
         framework: normalizeStudioFramework(aiPaperForm.framework || f.framework),
-        term: f.term || aiPaperForm.term,
+        // The term was chosen explicitly in the modal, so the paper follows it —
+        // like grade/subject/type above, and UNLIKE the backfill-only fields
+        // below. It used to read `f.term || aiPaperForm.term`, and the form's
+        // term always has a value ('1' from makeDefaultForm), so the teacher's
+        // choice was silently discarded: pick Term 2, get a Term 1 paper, with
+        // "TERM 1" printed in its title. That is Bug 2's misreported term.
+        term: String(aiPaperForm.term || f.term || ''),
         duration: f.duration || String(aiPaperForm.durationMinutes),
         assessmentType: aiPaperForm.assessmentType || f.assessmentType,
         // Carry the generated paper's blueprint onto the studio form so the
@@ -2361,6 +2437,10 @@ export default function AssessmentStudio() {
     // and import metadata included.
     const assessmentPayload = {
       title: finalTitle,
+      // Where the title came from, recorded so a later migration never has to
+      // guess whether a name is ours to rewrite. 'auto' = generated from this
+      // paper's own fields and safe to regenerate; 'manual' = a human named it.
+      titleSource: form.title.trim() ? 'manual' : 'auto',
       subject: form.subject,
       grade: form.grade,
       term: form.term,
@@ -3078,10 +3158,16 @@ export default function AssessmentStudio() {
     revokeImportedQuizAssets(importedAssets)
     setImportedAssets({})
     // Reset questions + sections to a single empty starter.
-    setSections([createStandaloneSection()])
+    const blankSections = [createStandaloneSection()]
+    const blankForm = applySchoolProfileDefaults(makeDefaultForm(), schoolProfile)
+    setSections(blankSections)
     setParts([])
     // Reset all form fields to defaults, then re-apply school profile branding.
-    setForm(applySchoolProfileDefaults(makeDefaultForm(), schoolProfile))
+    setForm(blankForm)
+    // A blank paper is untouched by definition. Re-arm the baseline to it, or
+    // the reset itself reads as an edit and files a phantom paper — clicking
+    // "New paper" was a second route to Bug 1, alongside loading /new.
+    armPristineBaseline({ form: blankForm, sections: blankSections, parts: [] })
     // Clear the session identity so the next library write creates a fresh doc
     // instead of overwriting the paper that was previously saved this session.
     createdIdRef.current = null

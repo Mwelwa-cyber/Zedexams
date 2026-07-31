@@ -30,7 +30,10 @@ vi.mock('../AssessmentStudio', () => ({
   SUBJECTS: ['English', 'Mathematics'],
   TERMS: ['1', '2', '3'],
   INSTRUCTION_PRESETS: [],
-  buildTitleFromForm: () => 'GRADE 4 TOPIC TEST - 2026',
+  // Two different titles, and the card previews the HEADER one (no subject —
+  // the header prints the subject on its own line right below it).
+  buildTitleFromForm: () => 'GRADE 4 ENGLISH - TOPIC TEST - 2026',
+  buildHeaderTitleFromForm: () => 'GRADE 4 TOPIC TEST - 2026',
 }))
 vi.mock('../../documentQuizImporter', () => ({ QUIZ_DOCUMENT_ACCEPT: '.doc,.pdf' }), { virtual: true })
 vi.mock('../../quiz/documentQuizImporter', () => ({ QUIZ_DOCUMENT_ACCEPT: '.doc,.pdf' }))
@@ -111,6 +114,28 @@ function renderHeader(props = {}) {
     </MemoryRouter>,
   )
 }
+
+/*
+ * A paper has two names, and the card must show each in its own place. Putting
+ * the subject-bearing LIBRARY name in the header preview would print the subject
+ * twice on every paper (the header renders it on its own line right below the
+ * title), and showing only the header name leaves the teacher with no idea what
+ * their paper is called in the library — which is where the seven identically
+ * named papers were indistinguishable.
+ */
+describe('HeaderBlock — the header title and the library name are shown separately', () => {
+  it('previews the subject-less header title, and names the library copy below it', () => {
+    const { container } = renderHeader()
+    expect(container.querySelector('.sv-title-auto')).toHaveTextContent('GRADE 4 TOPIC TEST - 2026')
+    expect(container.querySelector('.sv-title-auto'))
+      .not.toHaveTextContent(baseForm.subject.toUpperCase())
+    // The subject still prints on its own line, as it does on the paper.
+    expect(container.querySelector('.sv-subject-auto'))
+      .toHaveTextContent(baseForm.subject.toUpperCase())
+    expect(screen.getByText(/Saved in your library as/)).toBeInTheDocument()
+    expect(screen.getByText('GRADE 4 ENGLISH - TOPIC TEST - 2026')).toBeInTheDocument()
+  })
+})
 
 describe('HeaderBlock — import summary banner', () => {
   it('renders no banner when importSummary is null', () => {
