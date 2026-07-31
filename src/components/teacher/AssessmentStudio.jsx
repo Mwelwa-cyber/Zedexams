@@ -124,6 +124,7 @@ import {
 } from './AssessmentSlideOvers'
 import { estimatePaperMinutes } from '../../utils/assessmentTiming'
 import { normalizeSubject } from '../../config/curriculum'
+import { shouldBlockHydration } from '../../utils/assessmentLoadGuard'
 
 import './studio/assessmentStudio.css'
 import StudioOutputBoundary from './StudioOutputBoundary'
@@ -500,7 +501,7 @@ export default function AssessmentStudio() {
   // Edit mode: load state, ownership guard, and the Firestore ids of
   // sub-questions removed since load (so the update can delete them).
   const [editLoading, setEditLoading] = useState(isEditing)
-  const [editError, setEditError] = useState(null) // null | 'notfound' | 'denied'
+  const [editError, setEditError] = useState(null) // null | 'notfound' | 'denied' | 'loadfailed'
   const [deletedIds, setDeletedIds] = useState([])
   // Wall-clock time of the last successful draft autosave, surfaced in the
   // top bar so the teacher can see their work is being kept ("Saved 14:32").
@@ -1221,12 +1222,15 @@ export default function AssessmentStudio() {
         if (!isAdmin && assessment.createdBy !== currentUser.uid) {
           setEditError('denied'); setEditLoading(false); return
         }
-        // The paper says it has questions but none came back. getAssessmentQuestions
-        // swallows read failures and returns [], so this is a failed/partial read,
-        // not an empty paper. Hydrating it would show a blank exam and — worse —
-        // the next autosave would write questionCount:0 and totalMarks:0 over the
-        // real values. Fail loudly; the question subdocs themselves are intact.
-        if (assessment.questionCount > 0 && questions.length === 0) {
+        // The paper's metadata says it has content but the questions read came
+        // back empty. getAssessmentQuestions swallows read failures and returns
+        // [], so a zero-length result is ambiguous: it could be a failed read,
+        // not an empty paper. shouldBlockHydration() resolves this using the
+        // summary doc's questionCount / totalMarks: if either is > 0 with zero
+        // questions, that is a failed read. Hydrating it would show a blank
+        // editor and the next autosave would clobber the real counts with 0 —
+        // permanent data loss. Fail loudly so the teacher can retry safely.
+        if (shouldBlockHydration({ assessment, questions })) {
           setEditError('loadfailed'); setEditLoading(false); return
         }
         setForm(current => ({ ...current, ...mapAssessmentToForm(assessment) }))
@@ -1269,7 +1273,11 @@ export default function AssessmentStudio() {
         setEditLoading(false)
       })
       .catch(() => {
-        if (!cancelled) { setEditError('notfound'); setEditLoading(false) }
+        // getAssessmentById now re-throws on a real error (network blip,
+        // permission failure) while returning null for "doc does not exist".
+        // Reaching this catch therefore means a read error, not absence —
+        // show a retryable 'loadfailed' state, not a false "not found".
+        if (!cancelled) { setEditError('loadfailed'); setEditLoading(false) }
       })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
