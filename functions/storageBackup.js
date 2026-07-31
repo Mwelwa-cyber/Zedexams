@@ -54,6 +54,7 @@ const {isProductionRuntime} = require("./firestoreBackupCore");
 const {
   resolveStorageBackupBucket,
   resolveMaxAgeMs,
+  DEFAULT_MAX_LAG_HOURS,
 } = require("./storageBackupCore");
 const {
   HEARTBEAT_PATH,
@@ -75,6 +76,7 @@ const STORAGE_BACKUP_STATUS = Object.freeze({
   MISCONFIGURED: "misconfigured", // prod, no backup bucket configured (alerts)
   SKIPPED_NON_PROD: "skipped-non-production", // dev/emulator (no alert)
   AWAITING: "awaiting-heartbeat", // our writer hasn't run yet (warns, never pages)
+  WRITER_STOPPED: "heartbeat-writer-stopped", // our writer stopped, mirror is fine
   EMPTY: "empty", // heartbeat never reached the backup (alerts)
   STALE: "stale", // heartbeat in the backup older than the threshold (alerts)
   FRESH: "fresh", // the mirror carried a recent heartbeat across
@@ -162,6 +164,9 @@ async function runStorageBackupCheck({
     correlationId, dateKey, production,
     backupBucket: bucketName || null,
     maxAgeHours: Math.round(maxAgeMs / (60 * 60 * 1000)),
+    // Recorded alongside, because a verdict reached by the lag test is
+    // unreadable without the constant it was compared against.
+    maxLagHours: DEFAULT_MAX_LAG_HOURS,
     checkedAt: now.toISOString(),
   };
   const statusRef = db.collection("opsStorageBackups").doc(dateKey);
@@ -262,6 +267,23 @@ async function runStorageBackupCheck({
           "or cannot write to the primary bucket.",
         ],
         "warning",
+    );
+  } else if (status === STORAGE_HEARTBEAT_STATUS.WRITER_STOPPED) {
+    // The mirror is caught up; it is our own cron that stopped. Naming the
+    // right system matters more than the severity here — the previous version
+    // reported this as `stale` and sent the reader to a transfer job that was
+    // working perfectly.
+    await raise(
+        "Storage backup heartbeat STOPPED — the mirror is fine, our cron isn't",
+        [
+          `Date: ${dateKey}  ·  correlationId: ${correlationId}`,
+          `${HEARTBEAT_PATH} in the PRIMARY bucket is ~${ageHours}h old and the ` +
+          "backup's copy is level with it, so the transfer is still running — " +
+          "it is storageBackupHeartbeat (23:30 UTC) that has stopped writing.",
+          "Until it resumes, nothing new is being proved about the mirror even " +
+          "though the mirror itself looks healthy. Check that function's logs " +
+          "and that its Cloud Scheduler job exists and is ENABLED.",
+        ],
     );
   } else if (status === STORAGE_HEARTBEAT_STATUS.MISSING_AT_BACKUP) {
     await raise(

@@ -87,8 +87,16 @@ ok("recently mirrored → fresh",
   hbAt(NOW_MS - 4 * HOUR_MS, NOW_MS - 2 * HOUR_MS).status === "fresh");
 ok("mirrored copy older than threshold → stale",
   hbAt(NOW_MS - 2 * HOUR_MS, NOW_MS - 48 * HOUR_MS).status === "stale");
-ok("exactly at threshold is still fresh (boundary)",
-  hbAt(NOW_MS, NOW_MS - DEFAULT_MAX_AGE_HOURS * HOUR_MS).status === "fresh");
+// Boundary on AGE, with the mirror caught up (primary older than its copy, as
+// it always is in healthy operation). The primary must be older than the backup
+// here: pinning it at `now` would describe a mirror 12h behind its source,
+// which the lag test correctly calls stale — a different case, tested below.
+ok("exactly at the age threshold is still fresh (boundary)",
+  hbAt(NOW_MS - (DEFAULT_MAX_AGE_HOURS + 1) * HOUR_MS,
+    NOW_MS - DEFAULT_MAX_AGE_HOURS * HOUR_MS).status === "fresh");
+// The same age, but reached because the SOURCE moved on without the mirror.
+ok("...but the same age with the mirror behind its source is stale",
+  hbAt(NOW_MS, NOW_MS - DEFAULT_MAX_AGE_HOURS * HOUR_MS).status === "stale");
 ok("written but never mirrored → empty",
   hbAt(NOW_MS - 2 * HOUR_MS, null).status === "empty");
 
@@ -211,6 +219,29 @@ ok("custom hours honoured", resolveMaxAgeMs("12") === 12 * HOUR_MS);
       alerts.length === 1 && /STALE/.test(alerts[0].title) && alerts[0].severity === "error");
     ok("the lag between the two sides is reported",
       db.writes.some((x) => x.data.mirrorLagHours === 48));
+  }
+
+  // ── our writer stopped, the mirror did NOT → name the right system ──────
+  // Reported as `stale` before this, which sent the reader to debug a transfer
+  // job that was working perfectly while the actual broken cron kept not
+  // running.
+  {
+    const db = fakeDb();
+    const alerts = [];
+    const res = await runStorageBackupCheck({
+      db, env: configured, now: NOW,
+      // Primary heartbeat is old; the mirror faithfully carried that old copy,
+      // so the backup is level with it — no lag.
+      heartbeat: hb(NOW.getTime() - 40 * HOUR_MS, NOW.getTime() - 39 * HOUR_MS),
+      alert: async (a) => alerts.push(a),
+    });
+    ok("an old heartbeat with a caught-up mirror → heartbeat-writer-stopped",
+      res.status === STORAGE_BACKUP_STATUS.WRITER_STOPPED);
+    ok("the alert says the mirror is fine and our cron isn't",
+      alerts.length === 1 && /heartbeat STOPPED/.test(alerts[0].title) &&
+      /storageBackupHeartbeat/.test(alerts[0].lines.join(" ")));
+    ok("it does NOT tell them to go and look at the transfer job",
+      !/transfer job appears to have stopped/i.test(alerts[0].lines.join(" ")));
   }
 
   // ── heartbeat never reached the backup → empty + alert ───────────────────
