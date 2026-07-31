@@ -232,12 +232,17 @@ export const INVENTORY = Object.freeze([
 
   // ── Tier 3 · notes and study content ──────────────────────────────────
   g('functions/teacherTools/generateNotes.js', {
+    clientModule: 'src/components/teacher/generate/NotesStudio.jsx',
+    clientLockKey: 'notes-studio:generate',
     tier: 3,
-    state: 'unmigrated',
+    state: 'migrated',
     entryPoint: 'generateNotes (callable)',
-    clientSurface: 'Notes Studio (src/features/notes/)',
+    clientSurface: '/teacher/generate/notes — NotesStudio.jsx',
     produces: 'Saved notes, read by learners',
     incompleteResultSaveable: true,
+    note: 'The from-plan path still reads a SOURCE lesson plan directly '
+      + '(loadLessonPlan) — a separate artifact-resolution concern tracked in '
+      + 'scanLessonPlanArtifactReads, orthogonal to this idempotency migration.',
   }),
   g('functions/teacherTools/generateFlashcards.js', {
     clientModule: 'src/components/teacher/generate/FlashcardGenerator.jsx',

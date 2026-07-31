@@ -49,6 +49,8 @@ import Icon from '../../ui/Icon'
 import { Download, ImageIcon, RefreshCw } from '../../ui/icons'
 import StudioOutputBoundary from '../StudioOutputBoundary'
 import { useDraftManager } from '../../../hooks/draft/useDraftManager'
+import { useAiOperationLock } from '../../../hooks/useAiOperationLock'
+import { stableFingerprint } from '../../../hooks/aiOperationLockCore'
 import { notesInputDescriptor } from '../../../hooks/draft/descriptors'
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
 import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
@@ -123,6 +125,14 @@ export default function NotesStudio() {
   // Per-run token: stops a resolved callable from hijacking the UI if Stop was
   // clicked before the response landed.
   const runRef = useRef(0)
+
+  // Idempotency lock: one logical generation → one provider call + one saved
+  // doc + one usage charge, even across a double-click / rapid tap / refresh /
+  // a second tab. generateNotes.js's server-side reservation enforces this;
+  // this is the client-side belt (mints + persists the key). Separate lock keys
+  // for the full generate vs a per-section regenerate so they never collide.
+  const { run: runGenerateLocked } = useAiOperationLock('notes-studio:generate')
+  const { run: runRegenerateLocked } = useAiOperationLock('notes-studio:regenerate')
 
   // Universal Draft Manager: auto-save the notes inputs (incl. the mode tab).
   const { featureFlags } = usePlatformSettings().settings
@@ -209,7 +219,23 @@ export default function NotesStudio() {
 
   async function regenerateSection(sectionId) {
     if (!ensureCanGenerate('notes')) return null
-    const res = await generateNotes(buildInputs())
+    const payload = buildInputs()
+    const lockResult = await runRegenerateLocked({
+      // Section-scoped fingerprint so a regenerate mints its own key rather
+      // than resuming the full-generate result.
+      fingerprint: stableFingerprint({ ...payload, __regenerateSection: sectionId }),
+      action: async (idempotencyKey) => {
+        const outcome = await generateNotes({ ...payload, idempotencyKey })
+        if (!outcome.ok) {
+          const err = new Error(outcome.error || 'Generation failed')
+          err.response = outcome
+          throw err
+        }
+        return outcome
+      },
+    })
+    if (lockResult.reason === 'locked') return null
+    const res = lockResult.ok ? lockResult.data : (lockResult.error?.response || { ok: false })
     if (res.ok && res.data?.notes) {
       const fresh = res.data.notes
       setNotes((prev) => (prev ? { ...prev, [sectionId]: fresh[sectionId] } : fresh))
@@ -273,9 +299,34 @@ export default function NotesStudio() {
     setWarning('')
     setNotes(null)
 
-    const res = await generateNotes(buildInputs())
+    const payload = buildInputs()
+    const lockResult = await runGenerateLocked({
+      fingerprint: stableFingerprint(payload),
+      action: async (idempotencyKey) => {
+        const outcome = await generateNotes({ ...payload, idempotencyKey })
+        if (!outcome.ok) {
+          // generateNotes() resolves rather than throws; a genuine failure must
+          // be THROWN so the lock keeps the key reserved for a same-input retry
+          // (never re-billed) instead of minting a fresh key.
+          const err = new Error(outcome.error || 'Generation failed')
+          err.response = outcome
+          throw err
+        }
+        return outcome
+      },
+    })
     if (run !== runRef.current) return
     if (!isMounted.current) return
+    if (lockResult.reason === 'locked') return // a duplicate click slipped past the disabled button
+    const res = lockResult.ok ? lockResult.data : (lockResult.error?.response || {
+      ok: false, error: lockResult.error?.message || 'Generation failed. Please try again.',
+    })
+    if (res.ok && res.data?.status === 'processing') {
+      // The server already has this exact request in flight (a retried network
+      // call or another tab) — leave "Generating…" showing; the owning call
+      // completes it.
+      return
+    }
     if (!res.ok) {
       setStatus('error')
       setErrorMessage(res.error)
