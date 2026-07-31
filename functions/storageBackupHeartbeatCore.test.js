@@ -11,7 +11,8 @@
 
 const assert = require("node:assert");
 const {
-  HEARTBEAT_PATH, HEARTBEAT_WRITE_HOUR_UTC, classifyHeartbeat, DEFAULT_MAX_AGE_MS,
+  HEARTBEAT_PATH, HEARTBEAT_WRITE_HOUR_UTC, classifyHeartbeat,
+  DEFAULT_MAX_AGE_MS, DEFAULT_MAX_LAG_MS,
 } = require("./storageBackupHeartbeatCore");
 const {DEFAULT_MAX_AGE_HOURS, HOUR_MS} = require("./storageBackupCore");
 
@@ -75,11 +76,39 @@ console.log("\nstorageBackupHeartbeatCore (detection edge)");
   const missed = at(check + DAY, write + DAY, land);
   ok("ONE missed night is caught the next morning",
     missed.status === "stale");
-  ok("...and it is caught on BOTH signals, not just the tuned one",
-    missed.ageMs > DEFAULT_MAX_AGE_MS && missed.lagMs > DEFAULT_MAX_AGE_MS);
   // The specific regression: 26h did not catch it.
   ok("the old 26h threshold demonstrably did NOT catch it (25.45 < 26)",
     missed.ageMs / H > 25 && missed.ageMs / H < 26);
+
+  // ── the GENERALISED defence, and why it needs its own constant ──────────
+  // lagMs = max(0, primary − backup) and ageMs = max(0, now − backup), and the
+  // primary heartbeat is always a past write, so lagMs ≤ ageMs ALWAYS. Compare
+  // both to one constant and `lag > T` implies `age > T` — the lag branch is
+  // unreachable and the `||` degenerates to the age test alone. Asserting that
+  // both exceed a shared threshold would DOCUMENT that coupling rather than
+  // catch it, which is what the previous version of this test did.
+  ok("lag can never exceed age (the fact that makes one shared threshold fail)",
+    missed.lagMs <= missed.ageMs && healthy.lagMs <= healthy.ageMs);
+  ok("the lag threshold is well below the age threshold, so it can fire first",
+    DEFAULT_MAX_LAG_MS < DEFAULT_MAX_AGE_MS);
+
+  // The real test: re-tune age back to the broken 26h and confirm the missed
+  // night is STILL caught — by lag, which age can no longer veto. This fails
+  // if the two thresholds are ever collapsed back into one.
+  const misTuned = classifyHeartbeat({
+    primaryUpdatedMs: write + DAY, backupUpdatedMs: land, nowMs: check + DAY,
+    maxAgeMs: 26 * H,
+  });
+  ok("a missed night is caught even with the age threshold mis-tuned to 26h",
+    misTuned.status === "stale");
+  ok("...and it is LAG that catches it there, with age silent",
+    misTuned.lagMs > DEFAULT_MAX_LAG_MS && misTuned.ageMs < 26 * H);
+  // Belt and braces: an absurd age ceiling must not disable detection either.
+  ok("even a 1000h age ceiling cannot silence a missed night",
+    classifyHeartbeat({
+      primaryUpdatedMs: write + DAY, backupUpdatedMs: land, nowMs: check + DAY,
+      maxAgeMs: 1000 * H,
+    }).status === "stale");
 
   ok("the threshold sits clear of a healthy night",
     DEFAULT_MAX_AGE_HOURS > (healthy.ageMs / H) * 4);

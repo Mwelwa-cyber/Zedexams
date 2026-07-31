@@ -87,8 +87,16 @@ ok("recently mirrored → fresh",
   hbAt(NOW_MS - 4 * HOUR_MS, NOW_MS - 2 * HOUR_MS).status === "fresh");
 ok("mirrored copy older than threshold → stale",
   hbAt(NOW_MS - 2 * HOUR_MS, NOW_MS - 48 * HOUR_MS).status === "stale");
-ok("exactly at threshold is still fresh (boundary)",
-  hbAt(NOW_MS, NOW_MS - DEFAULT_MAX_AGE_HOURS * HOUR_MS).status === "fresh");
+// Boundary on AGE, with the mirror caught up (primary older than its copy, as
+// it always is in healthy operation). The primary must be older than the backup
+// here: pinning it at `now` would describe a mirror 12h behind its source,
+// which the lag test correctly calls stale — a different case, tested below.
+ok("exactly at the age threshold is still fresh (boundary)",
+  hbAt(NOW_MS - (DEFAULT_MAX_AGE_HOURS + 1) * HOUR_MS,
+    NOW_MS - DEFAULT_MAX_AGE_HOURS * HOUR_MS).status === "fresh");
+// The same age, but reached because the SOURCE moved on without the mirror.
+ok("...but the same age with the mirror behind its source is stale",
+  hbAt(NOW_MS, NOW_MS - DEFAULT_MAX_AGE_HOURS * HOUR_MS).status === "stale");
 ok("written but never mirrored → empty",
   hbAt(NOW_MS - 2 * HOUR_MS, null).status === "empty");
 

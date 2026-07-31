@@ -49,6 +49,28 @@ const HOUR_MS = 60 * 60 * 1000;
 // this number: raising it past ~25.4h re-hides a fully missed night.
 const DEFAULT_MAX_AGE_HOURS = 12;
 
+// How far the backup's copy may trail the PRIMARY's before the mirror counts as
+// stopped — a second, independent threshold, and it must not be folded back
+// into the one above.
+//
+// The reason is arithmetic, not taste. lagMs = max(0, primary − backup) and
+// ageMs = max(0, now − backup); the primary heartbeat is always a past write,
+// so primary ≤ now and therefore lagMs ≤ ageMs, ALWAYS. Compare both against
+// the same constant and `lag > T` implies `age > T` — the lag test can never
+// fire on its own, the `||` collapses to the age test, and the independent
+// signal is decorative. That was the state of this file for one commit: with
+// the old 26h in place a missed night read age 25.45h and lag 22.95h, both
+// under, both false, FRESH — the original bug, unmodified, with lag "voting".
+//
+// A separate constant works because healthy lag is not merely small, it is
+// EXACTLY ZERO every night: the backup's copy is written after the primary
+// write it carries, so the subtraction goes negative and clamps. The only way
+// healthy lag rises is scheduler jitter pushing the 23:30 write past the 00:30
+// transfer, which tops out at ~1.5h even if the write slips all the way to the
+// 02:00 check. 6h leaves 4× headroom over that and still fires 3.8× under a
+// missed night's ~23h — at any age threshold anyone might set.
+const DEFAULT_MAX_LAG_HOURS = 6;
+
 /**
  * Normalize the configured Storage backup bucket to a BARE bucket name (the
  * shape admin.storage().bucket(name) wants). Accepts "bucket-name" or
@@ -83,6 +105,7 @@ function resolveMaxAgeMs(rawHours) {
 module.exports = {
   HOUR_MS,
   DEFAULT_MAX_AGE_HOURS,
+  DEFAULT_MAX_LAG_HOURS,
   resolveStorageBackupBucket,
   resolveMaxAgeMs,
 };

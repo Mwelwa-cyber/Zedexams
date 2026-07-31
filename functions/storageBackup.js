@@ -54,6 +54,7 @@ const {isProductionRuntime} = require("./firestoreBackupCore");
 const {
   resolveStorageBackupBucket,
   resolveMaxAgeMs,
+  DEFAULT_MAX_LAG_HOURS,
 } = require("./storageBackupCore");
 const {
   HEARTBEAT_PATH,
@@ -163,6 +164,9 @@ async function runStorageBackupCheck({
     correlationId, dateKey, production,
     backupBucket: bucketName || null,
     maxAgeHours: Math.round(maxAgeMs / (60 * 60 * 1000)),
+    // Recorded alongside, because a verdict reached by the lag test is
+    // unreadable without the constant it was compared against.
+    maxLagHours: DEFAULT_MAX_LAG_HOURS,
     checkedAt: now.toISOString(),
   };
   const statusRef = db.collection("opsStorageBackups").doc(dateKey);

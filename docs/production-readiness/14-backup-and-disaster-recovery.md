@@ -125,13 +125,30 @@ undefined.
   night at ~49h. The number had not moved when its meaning did. The age signal is bimodal — either the
   transfer landed before the check (≤1.5h) or the newest copy is the previous day's (~25.5h) — so the
   threshold's only job is to cut that gap; 12 sits ~8× above one and ~2× below the other.
-  Two guards against a repeat: `lagMs` (how far the backup trails the *source*) now **votes on the
-  verdict** alongside age, so it is schedule-independent and a mis-tuned threshold can no longer silently
-  disable detection on its own; and `test:storage-backup-heartbeat` *computes* the edge from the cron
-  times rather than asserting a remembered constant.
+  Two guards against a repeat. First, `lagMs` (how far the backup trails the *source*) **votes on the
+  verdict** alongside age — it is schedule-independent, so a mis-tuned age ceiling can no longer disable
+  detection on its own. That only works because the two are compared against **separate constants**
+  (`DEFAULT_MAX_LAG_HOURS` = 6): `lagMs ≤ ageMs` always, since the primary heartbeat is a past write, so
+  a *shared* threshold makes `lag > T` imply `age > T`, the lag branch unreachable, and the `||` collapse
+  silently back to the age test. That was the state of the code for one commit — lag "voting" while
+  provably unable to fire. A separate constant is safe because healthy lag is not merely small but
+  **exactly zero** every night (the copy is written after the write it carries); only scheduler jitter
+  pushing the 23:30 write past the transfer lifts it, and that tops out ~1.5h.
+  Second, `test:storage-backup-heartbeat` *computes* the edge from the cron times rather than asserting a
+  remembered constant, and re-runs a missed night with the age ceiling deliberately mis-tuned to 26h (and
+  to 1000h) to prove lag still catches it. Asserting that both signals exceed a shared threshold would
+  have **documented** the coupling rather than caught it.
   The constraint no threshold relaxes: the transfer must finish before the 02:00 check (a 1.5h budget;
   it currently takes ~3 minutes). If that ever tightens, move the **check** later — raising the threshold
-  past ~25.4h re-hides a missed night.
+  past ~25.4h re-hides a missed night. ~25.4h is a hard ceiling rather than a tuning preference, because
+  a transfer *still running* at 02:00 and one that *never ran* both leave yesterday's copy as the newest
+  and so produce the same age (~25.5h vs ~25.45h); no age threshold can separate them.
+- **Known, accepted:** that indistinguishability means a slow-but-running transfer pages as `stale` and
+  points at a transfer job that is healthy and mid-flight — the same misdirection `heartbeat-writer-stopped`
+  removes on the other axis. Only STS operation state separates those two, which this design deliberately
+  does not read (the whole point is to verify the mirror end-to-end rather than trust a job's report about
+  itself). At a ~3-minute runtime this is theoretical; the lever if it stops being theoretical is moving
+  the check later, not raising the ceiling.
 - **A stopped writer is no longer reported as a stopped mirror.** An old heartbeat whose backup copy is
   *level with it* means our own 23:30 cron stopped while the transfer kept working →
   `heartbeat-writer-stopped`, naming that function and its Cloud Scheduler job. It previously read
