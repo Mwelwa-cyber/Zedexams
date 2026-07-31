@@ -149,6 +149,18 @@ undefined.
   does not read (the whole point is to verify the mirror end-to-end rather than trust a job's report about
   itself). At a ~3-minute runtime this is theoretical; the lever if it stops being theoretical is moving
   the check later, not raising the ceiling.
+- **The one path with a single detector is bounded at runtime.** The two-signal defence above is
+  asymmetric: a missed night is caught by age **or** lag, but `heartbeat-writer-stopped` is *defined* by
+  lag being zero, so age is its only signal and no second one is available by construction. That made it
+  depend on the age ceiling — the constant this subsystem has already been wrong about once — and it was
+  protected only *incidentally*, by a test assertion written to keep the missed-night threshold sane.
+  Worse, that assertion bounded `DEFAULT_MAX_AGE_HOURS` and said nothing about
+  `STORAGE_BACKUP_MAX_AGE_HOURS`, which is parsed straight from the environment: `=1000` reached
+  production unchecked and would report a writer dead for four days as `fresh` at age 97h.
+  `resolveMaxAgeMs` now **clamps to `MAX_SAFE_AGE_HOURS` (24)**, under the ~25.4h cliff. Tightening below
+  the default still works — it is a ceiling, not an override — and the value actually used is recorded as
+  `maxAgeHours` on the status doc, so a clamped 1000 reads back as 24. The detector is also pinned by its
+  own assertions now, exercised through the runtime resolver rather than the constant.
 - **A stopped writer is no longer reported as a stopped mirror.** An old heartbeat whose backup copy is
   *level with it* means our own 23:30 cron stopped while the transfer kept working →
   `heartbeat-writer-stopped`, naming that function and its Cloud Scheduler job. It previously read

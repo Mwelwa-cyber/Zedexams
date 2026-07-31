@@ -91,21 +91,45 @@ function resolveStorageBackupBucket(raw) {
   return bare;
 }
 
+// The hard ceiling on the age threshold, enforced at runtime rather than
+// merely documented.
+//
+// Above ~25.4h an age test can no longer see a fully missed night (the newest
+// copy is the previous day's, so age reads ~25.45h) — and while the LAG test
+// still catches that case independently, there is one verdict lag cannot reach:
+// `heartbeat-writer-stopped` is DEFINED by lag being zero, so age is its only
+// detector. Set the ceiling above 25.4h and a heartbeat writer dead for four
+// days reports `fresh` at age 97h, with nothing to contradict it.
+//
+// A test bounded DEFAULT_MAX_AGE_HOURS, which protected the compiled-in value
+// and nothing else: STORAGE_BACKUP_MAX_AGE_HOURS is parsed straight from the
+// environment, so `=1000` reached production unchecked. A knob that can
+// silently disable a detector is not a knob worth having, so this clamps.
+// 24h is a clean day, safely under the 25.4h cliff, and still detects a
+// stopped writer after one missed nightly write.
+const MAX_SAFE_AGE_HOURS = 24;
+
 /**
  * Resolve the maxAge threshold (ms) from an hours value, falling back to the
- * default when unset/invalid/non-positive. Pure.
+ * default when unset/invalid/non-positive and CLAMPING to MAX_SAFE_AGE_HOURS.
+ * The clamp is silent in the return value but not in practice: the check
+ * records the resolved `maxAgeHours` on opsStorageBackups/{date}, so an
+ * operator who sets 1000 sees 24 there — the number actually used. Pure.
+ *
  * @param {string|number|undefined} rawHours
  * @returns {number}
  */
 function resolveMaxAgeMs(rawHours) {
   const n = parseFloat(rawHours);
-  return (Number.isFinite(n) && n > 0 ? n : DEFAULT_MAX_AGE_HOURS) * HOUR_MS;
+  const hours = Number.isFinite(n) && n > 0 ? n : DEFAULT_MAX_AGE_HOURS;
+  return Math.min(hours, MAX_SAFE_AGE_HOURS) * HOUR_MS;
 }
 
 module.exports = {
   HOUR_MS,
   DEFAULT_MAX_AGE_HOURS,
   DEFAULT_MAX_LAG_HOURS,
+  MAX_SAFE_AGE_HOURS,
   resolveStorageBackupBucket,
   resolveMaxAgeMs,
 };

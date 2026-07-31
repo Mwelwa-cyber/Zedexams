@@ -14,7 +14,9 @@ const {
   HEARTBEAT_PATH, HEARTBEAT_WRITE_HOUR_UTC, classifyHeartbeat,
   DEFAULT_MAX_AGE_MS, DEFAULT_MAX_LAG_MS,
 } = require("./storageBackupHeartbeatCore");
-const {DEFAULT_MAX_AGE_HOURS, HOUR_MS} = require("./storageBackupCore");
+const {
+  DEFAULT_MAX_AGE_HOURS, HOUR_MS, MAX_SAFE_AGE_HOURS, resolveMaxAgeMs,
+} = require("./storageBackupCore");
 
 let passed = 0;
 function ok(name, cond) { assert.ok(cond, name); passed += 1; console.log(`  ok  ${name}`); }
@@ -135,6 +137,39 @@ console.log("\nstorageBackupHeartbeatCore (detection edge)");
   });
   ok("an advancing heartbeat the mirror stopped carrying blames the mirror",
     mirrorDead.status === "stale");
+
+  // ── writer-stopped has ONE detector, and this is it ────────────────────
+  // The asymmetry: a missed night is caught by age OR lag, but writer-stopped
+  // is DEFINED by lag being zero, so age is its only signal. That made its
+  // detection depend on the age ceiling — a constant this file has already
+  // been wrong about once. It was protected only incidentally, by an
+  // assertion written to keep the missed-night threshold sane; rewording that
+  // one line would have removed this detector with nothing failing.
+  //
+  // So it is pinned directly, and pinned through the RUNTIME path: the older
+  // guard bounded DEFAULT_MAX_AGE_HOURS, which says nothing about
+  // STORAGE_BACKUP_MAX_AGE_HOURS being parsed straight out of the
+  // environment. `=1000` used to sail through and report a four-day-dead
+  // writer as `fresh`.
+  const writerStoppedAt = (rawEnvHours) => classifyHeartbeat({
+    primaryUpdatedMs: now - 100 * H,
+    backupUpdatedMs: now - 97.45 * H, // mirror carried it faithfully, lag ~0
+    nowMs: now,
+    maxAgeMs: resolveMaxAgeMs(rawEnvHours),
+  }).status;
+
+  ok("a dead writer is caught at the default ceiling",
+    writerStoppedAt(undefined) === "heartbeat-writer-stopped");
+  ok("...and at the old mis-tuned 26h, because the resolver clamps it",
+    writerStoppedAt("26") === "heartbeat-writer-stopped");
+  ok("...and at an absurd 1000h from the environment",
+    writerStoppedAt("1000") === "heartbeat-writer-stopped");
+  ok("no env value can lift the ceiling past the missed-night cliff",
+    resolveMaxAgeMs("99999") / H <= 25.4 && MAX_SAFE_AGE_HOURS <= 25.4);
+  // A legitimate tightening must still work — the clamp is a ceiling, not an
+  // override.
+  ok("a tighter-than-default override is still honoured",
+    resolveMaxAgeMs("4") / H === 4);
 }
 
 console.log(`\n─── ${passed} assertions · all passed ───`);
