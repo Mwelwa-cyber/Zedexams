@@ -251,7 +251,14 @@ export function useFirestore() {
     try {
       const snap = await getDoc(doc(db, 'assessments', assessmentId))
       return snap.exists() ? { id: snap.id, ...snap.data() } : null
-    } catch (e) { reportRead('getAssessmentById', e); return null }
+    } catch (e) {
+      // Log + forward to telemetry before re-throwing so the caller can
+      // distinguish "doc does not exist" (returns null above) from "read failed"
+      // (throws here). The AssessmentStudio edit loader catches this and shows
+      // a retryable 'loadfailed' state instead of a false "not found" message.
+      reportRead('getAssessmentById', e)
+      throw e
+    }
   }
 
   // Assessments have no Zod schema yet, so subject parity with quizzes/lessons

@@ -493,4 +493,19 @@ describe('AssessmentStudio — questions read failure (load-failed state)', () =
     await waitFor(() => expect(screen.getByTestId('builder-view')).toBeInTheDocument())
     expect(screen.queryByText(/Couldn't open this/)).not.toBeInTheDocument()
   })
+
+  it('shows load-failed (not "not found") when the assessment doc read throws', async () => {
+    // getAssessmentById now re-throws on a real error so a network blip does
+    // not look like a deleted paper. The loader's .catch() must surface this as
+    // a retryable 'loadfailed' state, not the misleading 'notfound' copy.
+    mockGetAssessmentById.mockRejectedValue(new Error('network blip'))
+
+    render(<MemoryRouter><AssessmentStudio /></MemoryRouter>)
+
+    expect(await screen.findByText(/Couldn't open this assessment paper/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+    // Not the "does not exist or has been deleted" copy.
+    expect(screen.queryByText(/not exist or has been deleted/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/not found/i)).not.toBeInTheDocument()
+  })
 })
