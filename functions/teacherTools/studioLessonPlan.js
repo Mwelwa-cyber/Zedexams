@@ -36,6 +36,8 @@ const {assertVerifiedAuth} = require("../authGuard");
 const {getAnthropicApiKey, getUserRole, isStaffRole} = require("../aiService");
 const {callClaude, DEFAULT_MODEL} = require("./anthropicClient");
 const {assertAndIncrement, refundGeneration} = require("./usageMeter");
+const {requireAndReserveAiOperation, completeAiOperation, failAiOperation} =
+  require("../aiOperations");
 const {resolveTeacherPlanContext} = require("./teacherPlanContext");
 const {resolveCbcContext} = require("./cbcKnowledge");
 
@@ -105,6 +107,38 @@ function sanitize(v, max) {
 }
 
 /**
+ * The studio builds its own prompts, so "valid input" is simply having both.
+ * Factored out of the callable so the one check runs on the runner's path too
+ * (a keyless/direct invocation is validated before it can reserve or spend).
+ */
+function validateInputs({systemPrompt, userPrompt}) {
+  const errs = [];
+  if (!systemPrompt || !userPrompt) {
+    errs.push("systemPrompt and userPrompt are required.");
+  }
+  return errs;
+}
+
+/**
+ * Reconstruct the client-facing response for an idempotency key that already
+ * completed (§7). This generator returns its plan INLINE, so the result is
+ * persisted to aiGenerations/{idempotencyKey} purely to make the resume
+ * possible — a duplicate/retry returns the same plan without a second call.
+ */
+async function buildResumedStudioPlanResponse(operation) {
+  const genId = operation.resultDocumentId;
+  const genSnap = genId ?
+    await admin.firestore().collection("aiGenerations").doc(genId).get() : null;
+  const out = genSnap && genSnap.exists ? (genSnap.data().output || {}) : {};
+  return {
+    text: out.text || null,
+    usage: null,
+    kbWarning: out.kbWarning || null,
+    resumed: true,
+  };
+}
+
+/**
  * Core studio lesson-plan generation. Auth + role are checked by the caller;
  * this function takes already-trusted inputs so it can be unit tested without
  * the onCall/firebase-functions plumbing.
@@ -115,7 +149,30 @@ function sanitize(v, max) {
  *   apiKey — resolved Anthropic key
  * @returns {Promise<{text: string, usage: object}>}
  */
-async function runStudioLessonPlan({uid, systemPrompt, userPrompt, context, apiKey}) {
+async function runStudioLessonPlan({uid, systemPrompt, userPrompt, context, apiKey, idempotencyKey}) {
+  const inputErrors = validateInputs({systemPrompt, userPrompt});
+  if (inputErrors.length > 0) {
+    throw new HttpsError("invalid-argument", inputErrors.join(" "));
+  }
+
+  // Idempotency reservation (§6/§7/§8), UNCONDITIONAL, before the usage meter
+  // and the provider. The studio's own prompts + lesson coordinates are the
+  // fingerprint, so a double-click / refresh / second tab reuses the key while a
+  // genuinely different plan gets a fresh one. This studio is the free tier's
+  // entry point, which is exactly where a double-charge hurts most.
+  const reservation = await requireAndReserveAiOperation({
+    idempotencyKey,
+    userId: uid,
+    operationType: "studio_lesson_plan",
+    inputFingerprint: {systemPrompt, userPrompt, context: context || {}},
+  });
+  if (reservation.status === "completed") {
+    return buildResumedStudioPlanResponse(reservation.operation);
+  }
+  if (reservation.status === "processing") {
+    return {status: "processing", operationId: idempotencyKey};
+  }
+
   // Ground the studio plan on two complementary sources, both fail-open so a
   // lookup error never blocks a generation:
   //   1. The server-side CBC knowledge base (resolveCbcContext) — stored
@@ -203,6 +260,12 @@ async function runStudioLessonPlan({uid, systemPrompt, userPrompt, context, apiK
       console.error("[studioLessonPlan] refund failed after generation error",
           {uid, usage}, refundErr);
     }
+    try {
+      await failAiOperation({idempotencyKey, err, usageCharged: 0});
+    } catch (opErr) {
+      console.error("[studioLessonPlan] failAiOperation failed after generation error",
+          {uid}, opErr);
+    }
     throw err;
   }
 
@@ -216,42 +279,62 @@ async function runStudioLessonPlan({uid, systemPrompt, userPrompt, context, apiK
   // spent — the teacher got a blank lesson plan and paid for it. Treat it as
   // the failure it is: refund, then surface a retryable error.
   if (!planJson || Object.keys(planJson).length === 0) {
+    const emptyErr = new HttpsError(
+        "internal",
+        "The lesson plan came back empty. Please try again.",
+    );
     try {
       await refundGeneration(uid, usage, "lesson_plan");
     } catch (refundErr) {
       console.error("[studioLessonPlan] refund failed after empty plan",
           {uid, usage}, refundErr);
     }
+    try {
+      await failAiOperation({idempotencyKey, err: emptyErr, usageCharged: 0});
+    } catch (opErr) {
+      console.error("[studioLessonPlan] failAiOperation failed after empty plan",
+          {uid}, opErr);
+    }
     console.error("[studioLessonPlan] model returned an empty plan object",
         {uid, grade, subject, topic, model: response && response.model});
-    throw new HttpsError(
-        "internal",
-        "The lesson plan came back empty. Please try again.",
-    );
+    throw emptyErr;
   }
 
   // Re-serialise to keep the studio's existing JSON.parse contract.
   const text = JSON.stringify(planJson);
+  const kbWarning = (cbcResult && cbcResult.kbWarning) || null;
 
-  // Log a lightweight generation record (no heavy schema validation).
-  admin.firestore().collection("aiGenerations").add({
+  // The generation record is now the idempotency result of record, keyed by the
+  // operation, so a duplicate/retry resumes THIS plan (`output.text`) rather
+  // than paying for a second one. It replaces the old fire-and-forget `.add()`
+  // log — same fields, plus the plan itself, at a deterministic id.
+  await admin.firestore().collection("aiGenerations").doc(idempotencyKey).set({
     ownerUid: uid,
     tool: "lesson_plan_studio",
     status: "complete",
+    output: {text, kbWarning},
     modelUsed: (response && response.model) || DEFAULT_MODEL,
     tokensIn: Number(response && response.usage && response.usage.inputTokens || 0),
     tokensOut: Number(response && response.usage && response.usage.outputTokens || 0),
     kbVersion: (cbcResult && cbcResult.kbVersion) || null,
     kbGrounded: Boolean(cbcResult && cbcResult.kbMatch),
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
-  }).catch(() => {/* non-fatal */});
+    completedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }).catch((err) => {
+    console.warn("[studioLessonPlan] result doc write failed", err);
+  });
+  try {
+    await completeAiOperation({idempotencyKey, resultDocumentId: idempotencyKey, usageCharged: 1});
+  } catch (opErr) {
+    console.error("[studioLessonPlan] completeAiOperation failed", {uid}, opErr);
+  }
 
   return {
     text,
     usage: response.usage || usage,
     // Additive: surfaced so the studio can show the same "used general CBC
     // knowledge" notice the schema-based generator shows. Null when grounded.
-    kbWarning: (cbcResult && cbcResult.kbWarning) || null,
+    kbWarning,
   };
 }
 
@@ -278,23 +361,19 @@ function createStudioGenerateLessonPlan(anthropicApiKeySecret) {
       // "Return JSON only" instruction.
       const userPrompt = sanitize(request.data && request.data.userPrompt, 9000);
 
-      if (!systemPrompt || !userPrompt) {
-        throw new HttpsError("invalid-argument", "systemPrompt and userPrompt are required.");
-      }
+      const apiKey = getAnthropicApiKey(anthropicApiKeySecret);
+      const idempotencyKey = request.data && request.data.idempotencyKey;
 
-      let apiKey;
-      try {
-        apiKey = getAnthropicApiKey(anthropicApiKeySecret);
-      } catch (err) {
-        throw err;
-      }
-
+      // Input validation (systemPrompt/userPrompt required) now runs inside
+      // runStudioLessonPlan via validateInputs, so it fires before the
+      // reservation on every path into the runner.
       return runStudioLessonPlan({
         uid,
         systemPrompt,
         userPrompt,
         context: (request.data && request.data.context) || {},
         apiKey,
+        idempotencyKey,
       });
     },
   );

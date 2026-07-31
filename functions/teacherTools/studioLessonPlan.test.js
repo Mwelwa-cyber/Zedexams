@@ -2,10 +2,15 @@
  * Plain-node tests for studioLessonPlan.js — the Lesson Plan Studio generation
  * core (runStudioLessonPlan).
  *
- * Guards the "studio fails to create lesson plans" regression: the studio must
- * call Claude with forced-tool JSON output and with thinking disabled + low
- * effort, otherwise Sonnet 4.6's default high-effort reasoning eats the token
- * budget and truncates the JSON, breaking the studio's JSON.parse.
+ * Two concerns in one file:
+ *   • The "studio fails to create lesson plans" regression: forced-tool JSON
+ *     output with thinking disabled + low effort (otherwise Sonnet 4.6's default
+ *     high-effort reasoning eats the token budget and truncates the JSON), plus
+ *     the CBC + teacher-plan grounding composition and the stage-key tool schema.
+ *   • The Phase 6 REL-001 idempotency + refund wiring: reserve-before-spend,
+ *     resume-on-duplicate, keyless refusal, and empty-plan as a refunded failure.
+ *     The generation record is now the keyed result of record
+ *     (aiGenerations/{idempotencyKey}) rather than a fire-and-forget `.add()`.
  *
  * Run: node functions/teacherTools/studioLessonPlan.test.js
  */
@@ -13,6 +18,8 @@
 "use strict";
 
 const assert = require("node:assert");
+const Module = require("node:module");
+const {isValidIdempotencyKey} = require("../aiOperationsCore");
 
 // ── Mutable mock state (closed over by the Module._load stubs) ───────────────
 let lastCallClaudeOpts = null;
@@ -26,31 +33,55 @@ let resolveCbcContextImpl = async () => ({
 });
 let lastCbcContextArgs = null;
 let assertAndIncrementCalls = 0;
-let loggedDocs = [];
+let refundCalls = [];
 
-// ── Stub dependencies that studioLessonPlan.js pulls in ─────────────────────
-const Module = require("node:module");
+// Keyed aiGenerations store.
+let genDocs = {};
+// aiOperations spies.
+const opCalls = {reserve: [], complete: [], fail: []};
+let opStore = new Map();
+let completeThrows = false;
+let failThrows = false;
+let isStaff = true;
+
+const HttpsError = class extends Error {
+  constructor(code, msg, details) { super(msg); this.code = code; this.details = details; }
+};
+
 const originalLoad = Module._load.bind(Module);
 Module._load = function(id, parent, isMain) {
   if (id === "firebase-admin") {
-    return {
-      firestore: Object.assign(
-        () => ({collection: () => ({add: async (d) => { loggedDocs.push(d); }})}),
-        {FieldValue: {serverTimestamp: () => "TS"}},
-      ),
-    };
+    const firestore = () => ({
+      collection: (name) => {
+        assert.strictEqual(name, "aiGenerations", "only aiGenerations is written");
+        return {
+          doc: (suppliedId) => {
+            const docId = suppliedId || `gen_${Object.keys(genDocs).length + 1}`;
+            return {
+              id: docId,
+              set: async (data, opts) => {
+                genDocs[docId] = opts && opts.merge ?
+                  {...(genDocs[docId] || {}), ...data} : {...data};
+              },
+              get: async () => ({exists: docId in genDocs, data: () => genDocs[docId]}),
+            };
+          },
+        };
+      },
+    });
+    firestore.FieldValue = {serverTimestamp: () => "TS"};
+    return {firestore};
   }
   if (id === "firebase-functions/v2/https") {
-    const HttpsError = class extends Error {
-      constructor(code, msg) { super(msg); this.code = code; }
-    };
     return {onCall: (_opts, handler) => handler, HttpsError};
   }
+  if (id === "../rateLimit") return {assertCallableRateLimit: async () => {}};
+  if (id === "../authGuard") return {assertVerifiedAuth: async () => "teacher-1"};
   if (id === "../aiService") {
     return {
       getAnthropicApiKey: () => "test-key",
       getUserRole: async () => "teacher",
-      isStaffRole: () => true,
+      isStaffRole: () => isStaff,
     };
   }
   if (id === "./anthropicClient") {
@@ -69,6 +100,7 @@ Module._load = function(id, parent, isMain) {
         assertAndIncrementCalls++;
         return {plan: "free", used: 1, limit: 10};
       },
+      refundGeneration: async (uid, usage, tool) => { refundCalls.push({uid, usage, tool}); },
     };
   }
   if (id === "./teacherPlanContext") {
@@ -80,10 +112,46 @@ Module._load = function(id, parent, isMain) {
       return resolveCbcContextImpl(args);
     }};
   }
+  if (id === "../aiOperations") {
+    return {
+      requireAndReserveAiOperation: ({idempotencyKey, userId, operationType, inputFingerprint}) => {
+        if (!isValidIdempotencyKey(idempotencyKey)) {
+          throw new HttpsError("invalid-argument", "missing key",
+              {code: "IDEMPOTENCY_KEY_REQUIRED"});
+        }
+        opCalls.reserve.push({userId, idempotencyKey, operationType, inputFingerprint});
+        const existing = opStore.get(idempotencyKey);
+        if (!existing) {
+          const rec = {userId, status: "processing", resultDocumentId: null};
+          opStore.set(idempotencyKey, rec);
+          return Promise.resolve({status: "created", operation: rec});
+        }
+        if (existing.status === "completed") return Promise.resolve({status: "completed", operation: existing});
+        if (existing.status === "failed") {
+          throw new HttpsError("failed-precondition", existing.errorMessage || "failed");
+        }
+        if (existing.status === "cancelled") throw new HttpsError("cancelled", "cancelled");
+        return Promise.resolve({status: "processing", operation: existing});
+      },
+      completeAiOperation: async ({idempotencyKey, resultDocumentId, usageCharged}) => {
+        if (completeThrows) throw new Error("settle write failed");
+        opCalls.complete.push({idempotencyKey, resultDocumentId, usageCharged});
+        const rec = opStore.get(idempotencyKey);
+        if (rec) { rec.status = "completed"; rec.resultDocumentId = resultDocumentId; }
+      },
+      failAiOperation: async ({idempotencyKey, err, usageCharged}) => {
+        if (failThrows) throw new Error("fail-op write failed");
+        opCalls.fail.push({idempotencyKey, err, usageCharged});
+        const rec = opStore.get(idempotencyKey);
+        if (rec) rec.status = "failed";
+      },
+    };
+  }
   return originalLoad(id, parent, isMain);
 };
 
-const {runStudioLessonPlan, STUDIO_TOOL_SCHEMA} = require("./studioLessonPlan");
+const {runStudioLessonPlan, createStudioGenerateLessonPlan, STUDIO_TOOL_SCHEMA} =
+  require("./studioLessonPlan");
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 let passed = 0;
@@ -92,6 +160,8 @@ function ok(name, cond) {
   passed++;
   console.log(`  ok  ${name}`);
 }
+
+const IDK = "11111111-1111-4111-8111-111111111111";
 
 function resetMocks() {
   lastCallClaudeOpts = null;
@@ -110,7 +180,15 @@ function resetMocks() {
   });
   lastCbcContextArgs = null;
   assertAndIncrementCalls = 0;
-  loggedDocs = [];
+  refundCalls = [];
+  genDocs = {};
+  opStore = new Map();
+  opCalls.reserve.length = 0;
+  opCalls.complete.length = 0;
+  opCalls.fail.length = 0;
+  completeThrows = false;
+  failThrows = false;
+  isStaff = true;
 }
 
 const baseArgs = (overrides = {}) => ({
@@ -119,12 +197,13 @@ const baseArgs = (overrides = {}) => ({
   userPrompt: "Generate a lesson plan.",
   context: {grade: "Grade 5", subject: "integrated_science", term: "1", topic: "Matter", subtopic: "States"},
   apiKey: "test-key",
+  idempotencyKey: IDK,
   ...overrides,
 });
 
 // ── Tests ─────────────────────────────────────────────────────────────────
 (async () => {
-  // 1. The regression guard: forced-tool mode + thinking off + low effort.
+  // ═══ Regression guard (forced-tool / thinking off / low effort) ═══════════
   resetMocks();
   await runStudioLessonPlan(baseArgs());
   ok("uses forced-tool mode", lastCallClaudeOpts.mode === "tool");
@@ -136,18 +215,19 @@ const baseArgs = (overrides = {}) => ({
     lastCallClaudeOpts.outputConfig && lastCallClaudeOpts.outputConfig.effort === "low");
   ok("gives the plan a generous token budget", lastCallClaudeOpts.maxTokens >= 8000);
 
-  // 2. Returns clean, parseable JSON (the studio frontend JSON.parses this).
+  // Returns clean, parseable JSON (the studio frontend JSON.parses this).
   resetMocks();
   const res = await runStudioLessonPlan(baseArgs());
   const parsed = JSON.parse(res.text);
   ok("returns JSON that round-trips", parsed.lessonGoal === "Learners identify states of matter.");
   ok("returns usage", res.usage && res.usage.outputTokens === 200);
   ok("meters the lesson_plan quota once", assertAndIncrementCalls === 1);
-  ok("logs an aiGenerations row", loggedDocs.length === 1 &&
-    loggedDocs[0].tool === "lesson_plan_studio");
+  ok("writes the keyed result row (tool lesson_plan_studio, status complete)",
+    genDocs[IDK] && genDocs[IDK].tool === "lesson_plan_studio" && genDocs[IDK].status === "complete");
+  ok("the keyed row stores the plan text for resume",
+    genDocs[IDK].output && typeof genDocs[IDK].output.text === "string");
 
-  // 3. Grounding: the KB block and the teacher-plan block are BOTH passed,
-  //    composed KB-first (shareable prompt-cache prefix) + teacher-plans last.
+  // Grounding: KB block + teacher-plan block BOTH passed, composed KB-first.
   resetMocks();
   await runStudioLessonPlan(baseArgs());
   ok("composes KB + teacher-plan blocks, KB first",
@@ -157,10 +237,10 @@ const baseArgs = (overrides = {}) => ({
     lastCbcContextArgs && lastCbcContextArgs.ownerUid === "teacher-1" &&
     lastCbcContextArgs.subject === "integrated_science" &&
     lastCbcContextArgs.subtopic === "States" && lastCbcContextArgs.term === "1");
-  ok("stamps kbVersion + kbGrounded on the log row",
-    loggedDocs[0].kbVersion === "v9" && loggedDocs[0].kbGrounded === true);
+  ok("stamps kbVersion + kbGrounded on the row",
+    genDocs[IDK].kbVersion === "v9" && genDocs[IDK].kbGrounded === true);
 
-  // 4. Fail-open: grounding lookup errors must NOT block generation.
+  // Fail-open: grounding lookup errors must NOT block generation.
   resetMocks();
   resolveTeacherPlanImpl = async () => { throw new Error("firestore down"); };
   resolveCbcContextImpl = async () => { throw new Error("kb down"); };
@@ -169,14 +249,14 @@ const baseArgs = (overrides = {}) => ({
   ok("sends null context block on grounding failure",
     lastCallClaudeOpts.cbcContextBlock === null);
 
-  // 4b. One source failing still delivers the other.
+  // One source failing still delivers the other.
   resetMocks();
   resolveCbcContextImpl = async () => { throw new Error("kb down"); };
   await runStudioLessonPlan(baseArgs());
   ok("teacher-plan block survives a KB failure",
     lastCallClaudeOpts.cbcContextBlock === "<teacher_plans>BLOCK</teacher_plans>");
 
-  // 5. No grounding found anywhere → null context block, still generates.
+  // No grounding found anywhere → null context block, still generates.
   resetMocks();
   resolveTeacherPlanImpl = async () => "";
   resolveCbcContextImpl = async () => null;
@@ -184,8 +264,7 @@ const baseArgs = (overrides = {}) => ({
   ok("generates with no grounding at all", Boolean(JSON.parse(res5.text).lessonGoal));
   ok("null context block when nothing matches", lastCallClaudeOpts.cbcContextBlock === null);
 
-  // 5b. kbWarning is surfaced (additive) so the studio can show the same
-  //     "used general CBC knowledge" notice the schema generator shows.
+  // kbWarning is surfaced (additive).
   resetMocks();
   resolveCbcContextImpl = async () => ({
     contextBlock: "<general_cbc/>", kbMatch: null,
@@ -193,17 +272,10 @@ const baseArgs = (overrides = {}) => ({
   });
   const res5b = await runStudioLessonPlan(baseArgs());
   ok("returns kbWarning when the KB fell back", res5b.kbWarning === "Used general CBC knowledge.");
-  ok("kbGrounded false on fallback", loggedDocs[0].kbGrounded === false);
+  ok("kbGrounded false on fallback", genDocs[IDK].kbGrounded === false);
 
-  // 6. Tool schema must NOT contradict the studio system prompt's stage-key
-  //    contract. The prompt (src/.../studioSystemPrompt.js) instructs the model
-  //    to emit stage keys teacher/pupils/assessment/duration and explicitly
-  //    FORBIDS teacherActivities/learnerActivities/assessmentCriteria. A tool
-  //    schema that named the forbidden family contradicted the prompt and, under
-  //    forced tool_choice, made the model emit an empty tool call — every plan
-  //    rendered as a hollow table skeleton. Guard against re-introducing that.
-  const stageProps =
-    STUDIO_TOOL_SCHEMA.properties.stages.items.properties || {};
+  // Tool schema must not contradict the studio prompt's stage-key contract.
+  const stageProps = STUDIO_TOOL_SCHEMA.properties.stages.items.properties || {};
   ok("stage schema uses the prompt's teacher/pupils/assessment keys",
     "teacher" in stageProps && "pupils" in stageProps && "assessment" in stageProps);
   ok("stage schema does NOT name the prompt-forbidden activity-array keys",
@@ -211,8 +283,91 @@ const baseArgs = (overrides = {}) => ({
     !("learnerActivities" in stageProps) &&
     !("assessmentCriteria" in stageProps));
 
+  // ═══ Idempotency + refund wiring (REL-001) ════════════════════════════════
+  // Reserve before the provider, settle once, charge once, no refund.
+  resetMocks();
+  await runStudioLessonPlan(baseArgs());
+  ok("reserved before provider (operationType studio_lesson_plan)",
+    opCalls.reserve.length === 1 && opCalls.reserve[0].operationType === "studio_lesson_plan");
+  ok("settled once as completed", opCalls.complete.length === 1 && opCalls.complete[0].usageCharged === 1);
+  ok("result doc IS the idempotency key", opCalls.complete[0].resultDocumentId === IDK);
+  ok("no refund on success", refundCalls.length === 0);
+
+  // Duplicate SAME completed key → resume without a second provider call/charge.
+  resetMocks();
+  await runStudioLessonPlan(baseArgs());
+  const claudeSeen = lastCallClaudeOpts;
+  lastCallClaudeOpts = null;
+  const meterAfterFirst = assertAndIncrementCalls;
+  const resume = await runStudioLessonPlan(baseArgs());
+  ok("resume: no second provider call", lastCallClaudeOpts === null && claudeSeen !== null);
+  ok("resume: no second charge", assertAndIncrementCalls === meterAfterFirst);
+  ok("resume: marked resumed with the saved text", resume.resumed === true && typeof resume.text === "string");
+
+  // Provider throws → refund + fail, error rethrown, no completion, no doc.
+  resetMocks();
+  callClaudeReturn = new Error("provider down");
+  let threw = null;
+  try { await runStudioLessonPlan(baseArgs()); } catch (e) { threw = e; }
+  ok("throw: original error rethrown", threw && /provider down/.test(threw.message));
+  ok("throw: quota refunded", refundCalls.length === 1 && refundCalls[0].tool === "lesson_plan");
+  ok("throw: operation failed, not completed", opCalls.fail.length === 1 && opCalls.complete.length === 0);
+  ok("throw: no result document written", !(IDK in genDocs));
+
+  // Empty plan object → refunded FAILURE, never a billed completion.
+  resetMocks();
+  callClaudeReturn = {parsed: {}, text: "", usage: {inputTokens: 1, outputTokens: 1}, model: "m"};
+  threw = null;
+  try { await runStudioLessonPlan(baseArgs()); } catch (e) { threw = e; }
+  ok("empty: throws internal", threw && threw.code === "internal");
+  ok("empty: refunded + failed, not completed",
+    refundCalls.length === 1 && opCalls.fail.length === 1 && opCalls.complete.length === 0);
+
+  // Keyless / malformed key → refused before the provider, nothing spent.
+  for (const badKey of [undefined, null, "", "not-a-uuid"]) {
+    resetMocks();
+    threw = null;
+    try { await runStudioLessonPlan(baseArgs({idempotencyKey: badKey})); } catch (e) { threw = e; }
+    ok(`refused: ${JSON.stringify(badKey)} rejected before spend`,
+      threw && threw.code === "invalid-argument" &&
+      lastCallClaudeOpts === null && assertAndIncrementCalls === 0 && opCalls.reserve.length === 0);
+  }
+
+  // Missing prompt → invalid-argument before reservation.
+  resetMocks();
+  threw = null;
+  try { await runStudioLessonPlan(baseArgs({systemPrompt: ""})); } catch (e) { threw = e; }
+  ok("invalid-inputs: throws invalid-argument before reservation",
+    threw && threw.code === "invalid-argument" && opCalls.reserve.length === 0);
+
+  // onCall wrapper: staff threads the key; non-staff is refused.
+  resetMocks();
+  const handler = createStudioGenerateLessonPlan("secret");
+  const wres = await handler({auth: {uid: "teacher-1", token: {}}, data: {
+    systemPrompt: "SYS", userPrompt: "USER", context: {}, idempotencyKey: IDK,
+  }});
+  ok("wrapper: staff gets a plan, key threaded (doc id is the key)",
+    wres && wres.text && IDK in genDocs);
+
+  resetMocks();
+  isStaff = false;
+  const handler2 = createStudioGenerateLessonPlan("secret");
+  threw = null;
+  try {
+    await handler2({auth: {uid: "teacher-1", token: {}}, data: {systemPrompt: "SYS", userPrompt: "USER"}});
+  } catch (e) { threw = e; }
+  ok("wrapper: non-staff refused with permission-denied", threw && threw.code === "permission-denied");
+
+  // completeAiOperation throwing is swallowed — still returns the plan.
+  resetMocks();
+  completeThrows = true;
+  const resSettle = await runStudioLessonPlan(baseArgs());
+  ok("settle-failure: still returns the plan text", typeof resSettle.text === "string" && resSettle.text.length > 0);
+
   console.log(`\n${passed} assertions passed.`);
+  Module._load = originalLoad;
 })().catch((err) => {
+  Module._load = originalLoad;
   console.error(err);
   process.exit(1);
 });
