@@ -15,6 +15,7 @@ const JPEG = [0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]
 const GIF = [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]
 const PDF = [0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34]
 const ZIP = [0x50, 0x4b, 0x03, 0x04, 0x14, 0x00]
+const OLE = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1] // legacy .doc/.xls/.ppt
 // "RIFF" + 4 size bytes + "WEBP"
 const WEBP = [0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50]
 // A script/text payload renamed to .png — the exact STOR-003 threat.
@@ -44,6 +45,7 @@ async function main() {
     assert.equal(sniffMimeFromBytes(GIF), 'image/gif')
     assert.equal(sniffMimeFromBytes(PDF), 'application/pdf')
     assert.equal(sniffMimeFromBytes(ZIP), 'application/zip')
+    assert.equal(sniffMimeFromBytes(OLE), 'application/x-ole-storage')
     assert.equal(sniffMimeFromBytes(WEBP), 'image/webp')
   })
 
@@ -67,6 +69,14 @@ async function main() {
   await run('normalises image/jpg to image/jpeg and ignores unmodellable types', () => {
     assert.deepEqual([...expectedSignatureTypes(['image/jpg'])], ['image/jpeg'])
     assert.equal(expectedSignatureTypes(['application/x-unknowable']).size, 0)
+  })
+
+  await run('maps legacy office (msword) onto the OLE compound-file container', async () => {
+    assert.deepEqual([...expectedSignatureTypes(['application/msword'])], ['application/x-ole-storage'])
+    // A doc-type allow-list accepts a real .doc (OLE) as well as a real PDF.
+    const docTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+    assert.equal(await assertFileSignature(fakeFile(OLE), docTypes), 'application/x-ole-storage')
+    assert.equal(await assertFileSignature(fakeFile(PDF), docTypes), 'application/pdf')
   })
 
   // ── assertFileSignature ─────────────────────────────────────────────────
