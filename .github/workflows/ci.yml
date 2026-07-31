@@ -217,6 +217,12 @@ jobs:
         # Guards the expression-budget cliff that broke every scanned
         # past-paper import — see scripts/test-quiz-autosave-rules-emulator.mjs.
         run: npm run test:quiz-autosave-rules
+      - name: Library smart-folder rules + index coverage
+        # Runs every query the library's builders can emit against the real
+        # emulator. A missing composite index is a FAILED_PRECONDITION in a
+        # teacher's browser, not a deploy failure, so it has to be executed
+        # here — see scripts/test-library-rules-emulator.mjs.
+        run: npm run test:library-rules-emulator
 
   dependency-audit:
     # Dependency vulnerability gate (CICD-002). Audits only PRODUCTION
