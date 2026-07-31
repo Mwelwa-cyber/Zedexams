@@ -2,11 +2,13 @@
 //
 // When the studio opens an existing paper, it reads two documents in parallel:
 // the assessment summary doc (containing questionCount / totalMarks) and the
-// questions subcollection. `getAssessmentQuestions` swallows read errors and
-// returns [] rather than throwing, so an empty result is ambiguous: it could
-// mean the paper genuinely has no questions, or it could mean the read failed.
+// questions subcollection. `getAssessmentQuestions` re-throws on a read error,
+// so a thrown error is caught by the studio's outer .catch() before this guard
+// is ever reached. A zero-length questions array here means either the paper
+// genuinely has no questions, or there is a data inconsistency (the counts say
+// content exists but no question documents are present in the subcollection).
 //
-// shouldBlockHydration() resolves the ambiguity with the summary doc:
+// shouldBlockHydration() resolves that data-inconsistency case with the summary:
 //   - If the paper claims it has content (questionCount > 0 OR totalMarks > 0)
 //     but the questions array is empty, that is a failed read, not an empty
 //     paper. The studio must NOT hydrate it — hydrating would show a blank editor

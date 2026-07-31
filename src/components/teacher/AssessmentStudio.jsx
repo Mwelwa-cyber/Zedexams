@@ -1223,9 +1223,12 @@ export default function AssessmentStudio() {
           setEditError('denied'); setEditLoading(false); return
         }
         // The paper's metadata says it has content but the questions read came
-        // back empty. getAssessmentQuestions swallows read failures and returns
-        // [], so a zero-length result is ambiguous: it could be a failed read,
-        // not an empty paper. shouldBlockHydration() resolves this using the
+        // back empty. getAssessmentQuestions re-throws on a read error, so an
+        // error would already have been caught by the outer .catch() above.
+        // A zero-length result here therefore means one of two things: the paper
+        // genuinely has no questions, or there is a data inconsistency (subcollection
+        // missing but the counts say otherwise). shouldBlockHydration() resolves
+        // the ambiguity using the
         // summary doc's questionCount / totalMarks: if either is > 0 with zero
         // questions, that is a failed read. Hydrating it would show a blank
         // editor and the next autosave would clobber the real counts with 0 —

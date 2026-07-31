@@ -244,7 +244,14 @@ export function useFirestore() {
       // it resurfacing in the studio's recent-papers list (and anywhere else
       // this read feeds).
       return snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(a => !isAssessmentDeleted(a.id))
-    } catch (e) { reportRead('getMyAssessments', e); return [] }
+    } catch (e) {
+      // Log + forward to telemetry before re-throwing so callers can
+      // distinguish "zero results" (genuine empty, returns [] above) from
+      // "read failed" (throws here). Callers must track the error and show
+      // a retryable error state rather than a false "no papers yet" empty.
+      reportRead('getMyAssessments', e)
+      throw e
+    }
   }
 
   async function getAssessmentById(assessmentId) {
@@ -310,7 +317,13 @@ export function useFirestore() {
         orderBy('order', 'asc'),
       ))
       return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    } catch (e) { reportRead('getAssessmentQuestions', e); return [] }
+    } catch (e) {
+      // Log + forward to telemetry before re-throwing. A genuine empty
+      // subcollection returns [] above (Firestore returns an empty snapshot,
+      // not an error); reaching here means the read itself failed.
+      reportRead('getAssessmentQuestions', e)
+      throw e
+    }
   }
 
   async function saveAssessmentQuestions(assessmentId, questions) {

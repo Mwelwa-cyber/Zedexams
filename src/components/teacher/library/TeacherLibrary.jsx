@@ -229,6 +229,8 @@ export default function TeacherLibrary() {
   const [assessments, setAssessments] = useState([])
   const [status, setStatus] = useState('loading')
   const [errorMessage, setErrorMessage] = useState('')
+  // Bumped by the Retry button — re-triggers the data-load effect.
+  const [reloadKey, setReloadKey] = useState(0)
 
   // The global search in TeacherTopBar lands here as /teacher/library?q=…
   // Seed the search box from the URL and re-sync whenever the param
@@ -251,9 +253,12 @@ export default function TeacherLibrary() {
     if (!currentUser) return
     let cancelled = false
     setStatus('loading')
+    // Both reads must succeed — if either throws (network blip, permission
+    // failure) the entire library cannot be trusted to be complete, so we
+    // show an error with retry rather than a silently incomplete view.
     Promise.all([
       listMyGenerations({ uid: currentUser.uid }),
-      getMyAssessments(currentUser.uid).catch(() => []),
+      getMyAssessments(currentUser.uid),
     ])
       .then(([gens, asmts]) => {
         if (cancelled) return
@@ -267,7 +272,9 @@ export default function TeacherLibrary() {
         setStatus('error')
       })
     return () => { cancelled = true }
-  }, [currentUser]) // eslint-disable-line react-hooks/exhaustive-deps
+  // reloadKey lets the Retry button re-trigger this effect.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser, reloadKey])
 
   /* ── Selection helpers ─────────────────────────────────────── */
   function setStep(updates) {
@@ -383,7 +390,7 @@ export default function TeacherLibrary() {
   if (status === 'loading') {
     body = <LoadingState />
   } else if (status === 'error') {
-    body = <ErrorState message={errorMessage} />
+    body = <ErrorState message={errorMessage} onRetry={() => setReloadKey((k) => k + 1)} />
   } else if (trimmedQuery) {
     subtitle = `${searchRows.length} result${searchRows.length === 1 ? '' : 's'} for “${trimmedQuery}”`
     body = <SearchResults rows={searchRows} />
@@ -1084,7 +1091,7 @@ function LoadingState() {
   )
 }
 
-function ErrorState({ message }) {
+function ErrorState({ message, onRetry }) {
   return (
     <div className="rounded-2xl border border-dashed p-12 text-center" style={{ background: COLORS.card, borderColor: COLORS.border }}>
       <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full" style={{ background: '#fee2e2', color: '#b91c1c' }}>
@@ -1094,6 +1101,15 @@ function ErrorState({ message }) {
         Could not load your library
       </p>
       <p style={{ fontSize: 13, color: COLORS.faint, margin: 0 }}>{message}</p>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          style={{ marginTop: 12, fontSize: 13, color: COLORS.ink, background: 'none', border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: '4px 12px', cursor: 'pointer' }}
+        >
+          Try again
+        </button>
+      )}
     </div>
   )
 }

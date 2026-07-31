@@ -57,6 +57,9 @@ export default function useTeacherDashboardData() {
   const [schoolName, setSchoolName] = useState('')
   const [loading, setLoading] = useState(true)
   const [gensError, setGensError] = useState(false)
+  // True when the assessments fetch failed (not merely empty) — the feed shows
+  // a retryable error card rather than hiding assessment papers silently.
+  const [papersError, setPapersError] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
 
   const reload = useCallback(() => setReloadKey((k) => k + 1), [])
@@ -66,14 +69,16 @@ export default function useTeacherDashboardData() {
     let cancelled = false
     async function load() {
       let gensFailed = false
+      let papersFailed = false
       const [gens, papers] = await Promise.all([
         listMyGenerations({ uid: currentUser.uid }).catch(() => { gensFailed = true; return [] }),
-        getMyAssessments(currentUser.uid).catch(() => []),
+        getMyAssessments(currentUser.uid).catch(() => { papersFailed = true; return [] }),
       ])
       if (cancelled) return
       setGenerations(gens)
       setAssessments(papers)
       setGensError(gensFailed)
+      setPapersError(papersFailed)
       setLoading(false)
     }
     load()
@@ -229,9 +234,11 @@ export default function useTeacherDashboardData() {
     },
     lastOpened: lastOpenedFromResources(resources, now),
     documents: documentsFromResources(resources, { limit: 5, now }),
-    savedCounts: gensError ? null : studioSavedCounts(librarySummary.byTool, assessments.length),
+    // Null when either fetch failed — showing a wrong zero is worse than hiding
+    // the counts until retry succeeds.
+    savedCounts: (gensError || papersError) ? null : studioSavedCounts(librarySummary.byTool, assessments.length),
     checklist: checklistFromWeekPrep(weekPrep),
-    feed: feedFromState({ resources, gensError, now }),
+    feed: feedFromState({ resources, gensError, papersError, now }),
     launcherWarnings: launcherWarningsFromResources(resources),
     activity: activityFromResources(resources, { limit: 3, now }),
     recommendations: recommendationCards,

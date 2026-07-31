@@ -32,6 +32,10 @@ function CreateForm({ register, roster, onCreated, onCancel }) {
   const { getMyAssessments } = useFirestore()
   const toast = useToast()
   const [assessments, setAssessments] = useState([])
+  // True when the load threw (network blip, permission failure) — shown as a
+  // retryable notice rather than silently hiding the "link an assessment" picker.
+  const [assessmentsError, setAssessmentsError] = useState(false)
+  const [assessmentsReloadKey, setAssessmentsReloadKey] = useState(0)
   const [sourceId, setSourceId] = useState('')
   const [title, setTitle] = useState('')
   const [assessmentType, setAssessmentType] = useState('topic')
@@ -42,10 +46,15 @@ function CreateForm({ register, roster, onCreated, onCancel }) {
 
   useEffect(() => {
     if (!currentUser) return
+    setAssessmentsError(false)
     getMyAssessments(currentUser.uid)
       .then((rows) => setAssessments(Array.isArray(rows) ? rows : []))
-      .catch((err) => console.warn('[AssessmentResultsTab] assessments load failed', err))
-  }, [currentUser, getMyAssessments])
+      .catch((err) => {
+        console.warn('[AssessmentResultsTab] assessments load failed', err)
+        setAssessmentsError(true)
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser, getMyAssessments, assessmentsReloadKey])
 
   function pickAssessment(id) {
     setSourceId(id)
@@ -88,7 +97,19 @@ function CreateForm({ register, roster, onCreated, onCancel }) {
     <div className="theme-card border theme-border rounded-radius-md p-4 space-y-3">
       <h3 className="theme-text font-black">New assessment result</h3>
 
-      {assessments.length > 0 && (
+      {assessmentsError ? (
+        <p className="text-xs theme-text-muted" role="alert">
+          Couldn't load your assessment papers.{' '}
+          <button
+            type="button"
+            className="underline cursor-pointer theme-text-muted"
+            style={{ background: 'none', border: 'none', padding: 0, font: 'inherit' }}
+            onClick={() => setAssessmentsReloadKey((k) => k + 1)}
+          >
+            Try again
+          </button>
+        </p>
+      ) : assessments.length > 0 && (
         <div>
           <label className="block text-xs font-black theme-text-muted uppercase tracking-wider mb-1">Link an assessment (optional)</label>
           <select className={`${inputCls} w-full`} value={sourceId} onChange={(e) => pickAssessment(e.target.value)}>
