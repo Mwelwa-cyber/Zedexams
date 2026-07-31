@@ -13,16 +13,23 @@ name: Android Release (App Distribution)
 #                                           Firebase, looks like
 #                                           1:NNNNNNNNNN:android:HEX.
 #
-#   Firebase App Distribution auth — provide ONE of:
-#   FIREBASE_APPDIST_SERVICE_ACCOUNT_JSON — (preferred) the JSON key of a
-#                                           service account in the Firebase
-#                                           project with the "Firebase App
-#                                           Distribution Admin" role. Used via
-#                                           GOOGLE_APPLICATION_CREDENTIALS — the
-#                                           non-deprecated auth path.
-#   FIREBASE_TOKEN                       — (legacy fallback) `firebase login:ci`
-#                                           token. Still works but firebase-tools
-#                                           warns `--token` is going away.
+#   Firebase App Distribution auth — service-account only. Provide ONE of:
+#   FIREBASE_APPDIST_SERVICE_ACCOUNT_JSON — (optional override) the JSON key of a
+#                                           dedicated service account, if you
+#                                           ever want App Distribution on its own
+#                                           narrowly-scoped identity.
+#   FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON  — (default) the same key deploy-*.yml
+#                                           already uses. `roles/firebase.admin`
+#                                           on that account is a strict superset
+#                                           of `roles/firebaseappdistro.admin`
+#                                           (all six firebaseappdistro.*
+#                                           permissions included), so no extra
+#                                           IAM grant is needed.
+#
+#   FIREBASE_TOKEN is NO LONGER USED here. It was a `firebase login:ci` token —
+#   user-scoped, never-expiring, with no key id to age and no coverage in
+#   Policy Analyzer, logged as the human who minted it. This workflow was its
+#   last consumer; removing it is what lets that credential be revoked.
 #
 #   NOTE: App Distribution must be ONBOARDED for the app first — open the
 #   Firebase console → App Distribution → "Get started" once, and create a
@@ -82,8 +89,8 @@ jobs:
 
       - name: Verify required secrets
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           FIREBASE_APPDIST_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_APPDIST_SERVICE_ACCOUNT_JSON }}
+          FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON }}
           FIREBASE_ANDROID_APP_ID: ${{ secrets.FIREBASE_ANDROID_APP_ID }}
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
@@ -97,10 +104,10 @@ jobs:
           ZED_RELEASE_KEY_PASSWORD: ${{ secrets.ZED_RELEASE_KEY_PASSWORD }}
         run: |
           missing=()
-          # Firebase App Distribution auth is satisfied by EITHER a service
-          # account key (preferred) OR the legacy login:ci token.
-          if [ -z "$FIREBASE_APPDIST_SERVICE_ACCOUNT_JSON" ] && [ -z "$FIREBASE_TOKEN" ]; then
-            missing+=("FIREBASE_APPDIST_SERVICE_ACCOUNT_JSON or FIREBASE_TOKEN")
+          # App Distribution auth is a service-account key: a dedicated one if
+          # you have wired it, otherwise the deploy key the other workflows use.
+          if [ -z "$FIREBASE_APPDIST_SERVICE_ACCOUNT_JSON" ] && [ -z "$FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON" ]; then
+            missing+=("FIREBASE_APPDIST_SERVICE_ACCOUNT_JSON or FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON")
           fi
           [ -z "$FIREBASE_ANDROID_APP_ID" ] && missing+=("FIREBASE_ANDROID_APP_ID")
           [ -z "$VITE_FIREBASE_API_KEY" ] && missing+=("VITE_FIREBASE_API_KEY")
@@ -301,40 +308,62 @@ jobs:
 
       - name: Distribute to Firebase App Distribution
         id: distribute
-        # Non-fatal: the signed APK artifact (uploaded above) is the primary
-        # deliverable. A distribution failure (e.g. App Distribution not yet
-        # onboarded, missing tester group, wrong app id) should warn, not fail
-        # the whole release. The next step surfaces a clear warning.
-        continue-on-error: true
+        # FAILS THE JOB. This used to be `continue-on-error: true`, on the
+        # reasoning that the signed APK (uploaded in the step above, so still
+        # produced either way) is the primary deliverable and a distribution
+        # problem should only warn.
+        #
+        # What that actually bought was silence. The tester group has existed
+        # since onboarding with two testers and a release count of ZERO — this
+        # step has never once succeeded, and every failure was swallowed into a
+        # warning inside a green run. A channel nobody could tell was broken is
+        # worse than a red build: the APK is still attached to the run, so the
+        # cost of failing here is a red tick, and the benefit is knowing.
         env:
           FIREBASE_APPDIST_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_APPDIST_SERVICE_ACCOUNT_JSON }}
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON }}
           FIREBASE_ANDROID_APP_ID: ${{ secrets.FIREBASE_ANDROID_APP_ID }}
           GROUPS: ${{ vars.APP_DISTRIBUTION_GROUPS || 'testers' }}
           RELEASE_NOTES: ${{ steps.notes.outputs.value }}
         run: |
           set -euo pipefail
           apk="android/app/build/outputs/apk/release/app-release.apk"
+          # A dedicated App Distribution SA if one is wired, else the deploy SA
+          # every other workflow already authenticates with. Both go through
+          # GOOGLE_APPLICATION_CREDENTIALS; there is no --token path any more.
           if [ -n "${FIREBASE_APPDIST_SERVICE_ACCOUNT_JSON:-}" ]; then
-            # Preferred: service-account auth via GOOGLE_APPLICATION_CREDENTIALS
-            # (the non-deprecated path firebase-tools steers you toward).
-            creds="$RUNNER_TEMP/firebase-appdist-sa.json"
-            printf '%s' "$FIREBASE_APPDIST_SERVICE_ACCOUNT_JSON" > "$creds"
-            export GOOGLE_APPLICATION_CREDENTIALS="$creds"
-            npx -y firebase-tools@latest appdistribution:distribute "$apk" \
-              --app "$FIREBASE_ANDROID_APP_ID" \
-              --groups "$GROUPS" \
-              --release-notes "$RELEASE_NOTES"
+            sa_json="$FIREBASE_APPDIST_SERVICE_ACCOUNT_JSON"
+            source_secret="FIREBASE_APPDIST_SERVICE_ACCOUNT_JSON"
           else
-            echo "::warning::Using deprecated --token auth. Add the FIREBASE_APPDIST_SERVICE_ACCOUNT_JSON secret (a Firebase App Distribution Admin service-account key) to switch to the supported auth path."
-            npx -y firebase-tools@latest appdistribution:distribute "$apk" \
-              --app "$FIREBASE_ANDROID_APP_ID" \
-              --groups "$GROUPS" \
-              --release-notes "$RELEASE_NOTES" \
-              --token "$FIREBASE_TOKEN"
+            sa_json="$FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON"
+            source_secret="FIREBASE_DEPLOY_SERVICE_ACCOUNT_JSON"
           fi
+          creds="$RUNNER_TEMP/firebase-appdist-sa.json"
+          printf '%s' "$sa_json" > "$creds"
+          chmod 600 "$creds"
+          # Name the identity in the log, as deploy-firebase.yml does. The
+          # secret name is not the account name — FIREBASE_DEPLOY_SERVICE_
+          # ACCOUNT_JSON holds a github-deploy@ key, not a firebase-deploy@ one,
+          # and reasoning from the name alone gets that backwards.
+          client_email=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("client_email",""))' "$creds") || {
+            echo "::error::$source_secret is not valid JSON — re-paste the entire service-account key file."
+            exit 1
+          }
+          if [ -z "$client_email" ]; then
+            echo "::error::$source_secret parsed as JSON but has no client_email — is it really a service-account key?"
+            exit 1
+          fi
+          echo "Distributing as service account: $client_email (from $source_secret)"
+          export GOOGLE_APPLICATION_CREDENTIALS="$creds"
+          npx -y firebase-tools@latest appdistribution:distribute "$apk" \
+            --app "$FIREBASE_ANDROID_APP_ID" \
+            --groups "$GROUPS" \
+            --release-notes "$RELEASE_NOTES"
 
       - name: Report distribution outcome
-        if: ${{ steps.distribute.outcome == 'failure' }}
+        # The step above now fails the job, so this needs failure() to run at
+        # all. It stays because the three usual causes are not obvious from
+        # firebase-tools' own error text.
+        if: ${{ failure() && steps.distribute.outcome == 'failure' }}
         run: |
-          echo "::warning title=Firebase App Distribution failed::The signed APK artifact is still available on this run. Most common cause: App Distribution is not onboarded for this app — open the Firebase console → App Distribution → \"Get started\" once, then ensure the '${{ vars.APP_DISTRIBUTION_GROUPS || 'testers' }}' tester group exists and FIREBASE_ANDROID_APP_ID is correct. See the 'Distribute to Firebase App Distribution' step log for the exact error."
+          echo "::error title=Firebase App Distribution failed::The signed APK artifact is still available on this run. Usual causes: App Distribution not onboarded (Firebase console → App Distribution → \"Get started\"); the '${{ vars.APP_DISTRIBUTION_GROUPS || 'testers' }}' tester group missing; FIREBASE_ANDROID_APP_ID wrong; or the service account named in the step log lacking App Distribution access. See the 'Distribute to Firebase App Distribution' step log for the exact error."
