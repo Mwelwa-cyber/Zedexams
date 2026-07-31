@@ -208,6 +208,7 @@ test('exactly the generators believed migrated are migrated, named one by one', 
     'functions/teacherTools/generateSbaTask.js',
     'functions/teacherTools/generateSchemeOfWork.js',
     'functions/teacherTools/generateWorksheet.js',
+    'functions/teacherTools/regenerateAssessmentQuestion.js',
   ])
 })
 

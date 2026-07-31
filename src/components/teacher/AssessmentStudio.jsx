@@ -104,6 +104,8 @@ import {
   plainStem, isAuthoredEdit,
 } from '../../utils/questionRegeneration'
 import { regenerateAssessmentQuestion } from '../../utils/teacherTools'
+import { useAiOperationLock } from '../../hooks/useAiOperationLock'
+import { stableFingerprint } from '../../hooks/aiOperationLockCore'
 import { mapAiQuestion } from '../../utils/aiPaperToSections'
 import { instantiateTemplate } from '../../utils/paperTemplates'
 import Icon from './studio/studioIcons'
@@ -802,6 +804,11 @@ export default function AssessmentStudio() {
   // A question the teacher has edited is confirmed before it is overwritten;
   // this holds the pending request while the confirm dialog is open.
   const [rewriteConfirm, setRewriteConfirm] = useState(null)
+  // Idempotency lock: one intentional "rewrite this question" → one provider
+  // call + one charge, even across a double-click / rapid tap / refresh / a
+  // second tab. regenerateAssessmentQuestion.js's server-side reservation
+  // enforces this; this is the client-side belt (mints + persists the key).
+  const { run: runRegenerateLocked } = useAiOperationLock('assessment-studio:regenerate-question')
 
   function toggleQuestionLock(questionKey, locked) {
     setSections((prev) => setQuestionLock(prev, questionKey, locked).sections)
@@ -838,7 +845,7 @@ export default function AssessmentStudio() {
 
     setRewritingKey(questionKey)
     try {
-      const res = await regenerateAssessmentQuestion({
+      const payload = {
         grade: studioGradeToKbGrade(form.grade),
         subject: studioSubjectToKey(form.subject),
         framework: form.framework,
@@ -846,7 +853,31 @@ export default function AssessmentStudio() {
         slot,
         currentText: plainStem(question.text),
         avoid: avoidList(sections, questionKey),
+      }
+      const lockResult = await runRegenerateLocked({
+        fingerprint: stableFingerprint(payload),
+        action: async (idempotencyKey) => {
+          const outcome = await regenerateAssessmentQuestion({ ...payload, idempotencyKey })
+          if (!outcome.ok) {
+            // The callable resolves rather than throws; a genuine failure must be
+            // THROWN so the lock keeps the key reserved for a same-input retry
+            // (never re-billed) instead of minting a fresh key.
+            const err = new Error(outcome.error || 'Generation failed')
+            err.response = outcome
+            throw err
+          }
+          return outcome
+        },
       })
+      if (lockResult.reason === 'locked') return // a duplicate click slipped past rewritingKey
+      const res = lockResult.ok ? lockResult.data : (lockResult.error?.response || {
+        ok: false, error: lockResult.error?.message || 'Could not rewrite that question. Please try again.',
+      })
+      if (res.ok && res.data?.status === 'processing') {
+        // The server already has this exact rewrite in flight (a retried call or
+        // another tab) — the owning call will splice the result in.
+        return
+      }
       if (!res.ok) {
         showToast(res.error || 'Could not rewrite that question. Please try again.', true)
         return

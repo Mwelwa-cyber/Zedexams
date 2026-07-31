@@ -178,14 +178,18 @@ export const INVENTORY = Object.freeze([
     incompleteResultSaveable: true,
   }),
   g('functions/teacherTools/regenerateAssessmentQuestion.js', {
+    clientModule: 'src/components/teacher/AssessmentStudio.jsx',
+    clientLockKey: 'assessment-studio:regenerate-question',
     tier: 2,
-    state: 'unmigrated',
+    state: 'migrated',
     entryPoint: 'regenerateAssessmentQuestion (callable)',
-    clientSurface: 'Assessment Paper Studio — per-question regenerate',
+    clientSurface: 'Assessment Paper Studio — per-question regenerate (AssessmentStudio.jsx)',
     produces: 'One replaced question in a saved paper',
     incompleteResultSaveable: false,
-    note: 'Sits beside the one migrated generator and shares its document. A '
-      + 'duplicate here overwrites a teacher edit, which Phase 5 called sacred.',
+    note: 'Returns its question INLINE, so unlike the document generators it '
+      + 'persists the result to aiGenerations/{idempotencyKey} purely to make a '
+      + 'duplicate/retry resume the same question rather than pay for a second '
+      + 'rewrite — the first migration of an inline-return generator.',
   }),
   g('functions/teacherTools/generateWorksheet.js', {
     clientModule: 'src/components/teacher/generate/WorksheetGenerator.jsx',

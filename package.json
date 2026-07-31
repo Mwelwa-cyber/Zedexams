@@ -314,6 +314,7 @@
     "test:generate-worksheet": "node functions/teacherTools/generateWorksheet.test.js",
     "test:generate-sba-task": "node functions/teacherTools/generateSbaTask.test.js",
     "test:generate-notes": "node functions/teacherTools/generateNotes.test.js",
+    "test:regenerate-assessment-question": "node functions/teacherTools/regenerateAssessmentQuestion.test.js",
     "test:generate-rubric": "node functions/teacherTools/generateRubric.test.js",
     "test:generate-flashcards": "node functions/teacherTools/generateFlashcards.test.js",
     "test:generate-scheme-of-work": "node functions/teacherTools/generateSchemeOfWork.test.js",
