@@ -33,6 +33,7 @@ import {
   createStandaloneSection,
   emptyPassageQuestion,
   getQuestionKey,
+  hasAuthoredContent,
   hasOnlyEmptyStarterSection,
   hydrateQuizSections,
   collectSectionFirestoreIds,
@@ -497,6 +498,32 @@ export default function AssessmentStudio() {
   }))
   const [sections, setSections] = useState(() => [createStandaloneSection()])
   const [parts, setParts] = useState([])
+  // The live document, readable from an async callback without making that
+  // callback depend on (and re-run for) every keystroke. Declared here, beside
+  // the state it mirrors, because the effects that read it are spread across
+  // the file and a ref defined below its first reader only works by accident
+  // of when effects run.
+  const liveDocumentRef = useRef({ form, sections, parts })
+  liveDocumentRef.current = { form, sections, parts }
+  // The (form, sections, parts) tuple a PROGRAMMATIC writer produced — the
+  // School-Profile pre-branding, a draft restore — so the dirty effect further
+  // down can tell the app's own writes from a teacher's edit. See the
+  // "a person changed this document" block for why this exists.
+  //
+  // Matched by REFERENCE, not counted: React batches, and a counter that gets
+  // batched away stops decrementing and then swallows the teacher's next real
+  // edit. Identity has no such failure mode — a teacher's edit produces a
+  // different object, always.
+  //
+  // Declared up here beside the state it describes because its callers are
+  // spread through the file and several of them name it in a dependency array,
+  // which is evaluated during render rather than deferred to the effect.
+  const programmaticStateRef = useRef(null)
+  // Declare the state THIS write is about to produce as the app's own doing.
+  // Call it immediately before the setState, with whichever slices change.
+  const markProgrammaticWrite = useCallback((next) => {
+    programmaticStateRef.current = { ...liveDocumentRef.current, ...next }
+  }, [])
   const [saving, setSaving] = useState(false)
   // Edit mode: load state, ownership guard, and the Firestore ids of
   // sub-questions removed since load (so the update can delete them).
@@ -518,6 +545,13 @@ export default function AssessmentStudio() {
   // skips edits the draft autosave already "cleared". Cleared only by a
   // library write.
   const [libraryDirty, setLibraryDirty] = useState(false)
+  // Has a person authored anything in this document? Set once by markDirty()
+  // and not cleared by a save — `dirty` and `libraryDirty` both answer "is
+  // there work outstanding", which is a different question from "is there work
+  // at all", and the cross-device draft needs the second one. Without it the
+  // draft store filed an untouched, app-branded paper and greeted the teacher
+  // with "Restored your unsaved draft" for work nobody did (B-1).
+  const [userAuthored, setUserAuthored] = useState(false)
   // Flips true once the paper has been written to the teacher's library
   // (createAssessment succeeded). Distinct from the local-device autosave —
   // this is the durable, cross-device copy.
@@ -620,6 +654,12 @@ export default function AssessmentStudio() {
     [serializedPreview],
   )
   const questionCount = serializedPreview.questionCount
+  // Whether a person has written anything, as opposed to how many question
+  // SLOTS exist. The two differ on exactly one document — the one the studio
+  // seeds on open — and that difference is B-1. Used by the library autosave
+  // gate; questionCount stays for display and for the paper stats, where
+  // counting slots is the right answer.
+  const paperHasAuthoredContent = useMemo(() => hasAuthoredContent(sections), [sections])
   const totalMarks = serializedPreview.totalMarks
   const estimatedMinutes = useMemo(
     () => estimatePaperMinutes(serializedPreview.questions),
@@ -1087,9 +1127,25 @@ export default function AssessmentStudio() {
       // Re-check the LIVE state: don't clobber anything the teacher started
       // typing while the async cloud read was in flight.
       if (!isPaperUntouchedRef.current) return
-      if (draft.form) setForm(current => ({ ...current, ...draft.form }))
-      if (Array.isArray(draft.sections) && draft.sections.length) setSections(draft.sections)
-      if (Array.isArray(draft.parts)) setParts(draft.parts)
+      // Restoring a draft is the app putting the teacher's own earlier work
+      // back on screen, not a new edit of it. Declare the whole tuple so the
+      // dirty effect doesn't read the restore as unsaved changes.
+      const restoredForm = draft.form
+        ? { ...liveDocumentRef.current.form, ...draft.form }
+        : liveDocumentRef.current.form
+      const restoredSections = Array.isArray(draft.sections) && draft.sections.length
+        ? draft.sections
+        : liveDocumentRef.current.sections
+      const restoredParts = Array.isArray(draft.parts) ? draft.parts : liveDocumentRef.current.parts
+      markProgrammaticWrite({
+        form: restoredForm, sections: restoredSections, parts: restoredParts,
+      })
+      setForm(restoredForm)
+      setSections(restoredSections)
+      setParts(restoredParts)
+      // A restored draft IS the teacher's work, even though restoring it is
+      // not an edit — so the draft store must keep maintaining it.
+      setUserAuthored(true)
       // Restored draft is the new undo baseline — not the empty starter.
       resetUndoBaseline()
       if (draft.view === 'builder' || draft.view === 'preview') setView(draft.view)
@@ -1122,8 +1178,17 @@ export default function AssessmentStudio() {
     if (!draftSettled || !schoolProfile) return
     schoolDefaultsAppliedRef.current = true
     if (!isPaperUntouchedRef.current) return
-    setForm(f => applySchoolProfileDefaults(f, schoolProfile))
-  }, [draftSettled, schoolProfile])
+    // THE B-1 WRITE. Pre-branding fills in form.schoolName, which is precisely
+    // what the old dirty guard tested for absence of — so the app's own
+    // branding read as a teacher's edit and filed a junk paper. Declared as
+    // programmatic, and computed outside the updater so the reference we hand
+    // to markProgrammaticWrite is the one React will actually store (a
+    // side effect inside a setState updater runs twice under StrictMode and
+    // is not something the identity match can rely on).
+    const branded = applySchoolProfileDefaults(liveDocumentRef.current.form, schoolProfile)
+    markProgrammaticWrite({ form: branded })
+    setForm(branded)
+  }, [draftSettled, schoolProfile, markProgrammaticWrite])
 
   useEffect(() => {
     if (!currentUser?.uid) return
@@ -1136,7 +1201,12 @@ export default function AssessmentStudio() {
     // the source of truth — stop maintaining a parallel "new paper" draft that
     // could otherwise resurrect as a duplicate on the next visit to /new.
     if (createdIdRef.current) return
-    if (hasOnlyEmptyStarterSection(sections) && !form.title.trim() && !form.schoolName.trim()) return
+    // Same B-1 reasoning as the library autosave: this guard was a heuristic
+    // about the document's shape, and the School-Profile pre-branding defeated
+    // it by filling in the school name. A draft written for an untouched paper
+    // comes back as "Restored your unsaved draft" on the next visit, for work
+    // nobody did. Gate on whether a person has authored anything instead.
+    if (!userAuthored) return
     const timer = setTimeout(() => {
       const payload = { form, sections, parts, view }
       saveAssessmentDraft(currentUser.uid, payload)
@@ -1150,7 +1220,7 @@ export default function AssessmentStudio() {
       setDirty(false)
     }, 800)
     return () => clearTimeout(timer)
-  }, [form, sections, parts, view, currentUser?.uid, isEditing])
+  }, [form, sections, parts, view, currentUser?.uid, isEditing, userAuthored])
 
   // ── Continuous autosave to the durable library ──────────────────────────
   // Files the paper in the teacher's library — and keeps it updated as they
@@ -1164,7 +1234,10 @@ export default function AssessmentStudio() {
   useEffect(() => {
     const ok = shouldAutosaveToLibrary({
       uid: currentUser?.uid,
-      questionCount,
+      // NOT questionCount — the seeded empty starter makes that 1 before
+      // anybody has typed, which is how an untouched studio filed a junk
+      // paper (B-1).
+      hasAuthoredContent: paperHasAuthoredContent,
       libraryDirty,
       saving,
       exporting,
@@ -1191,7 +1264,7 @@ export default function AssessmentStudio() {
     }, 2000)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, sections, parts, libraryDirty, questionCount, saving, exporting,
+  }, [form, sections, parts, libraryDirty, paperHasAuthoredContent, saving, exporting,
     editLoading, importingDocument, aiGenerating, currentUser?.uid])
 
   // ── Deletion guard: stop autosaving a paper the teacher just deleted ──
@@ -1286,18 +1359,75 @@ export default function AssessmentStudio() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId, isEditing, currentUser?.uid, isAdmin])
 
-  // Mark the paper "dirty" the moment its content changes, so the status badge
-  // can show "Unsaved changes" until the debounced autosave above clears it.
-  // The first run (initial mount + async draft restore) is skipped so an
-  // untouched paper never reads as unsaved; a real library save also clears it.
-  const dirtyTrackingReadyRef = useRef(false)
+  /* ------------ "a person changed this document" ------------ */
+  //
+  // B-1: opening the studio used to file a junk paper in the library within
+  // three seconds, having typed nothing. The chain was entirely internal —
+  // the saved School Profile pre-brands a fresh paper, that write lands in
+  // `form.schoolName`, and the effect below could not tell the app's own
+  // branding from a teacher typing. It marked the paper dirty, the library
+  // autosave saw one question (the seeded empty starter) and filed it.
+  //
+  // So dirtiness now has to be attributable to a PERSON, and there are two
+  // independent gates rather than one clever condition:
+  //
+  //   1. nothing is dirty before the teacher's first interaction with the page
+  //   2. a write the app made for them is marked as such and skipped
+  //
+  // The old guard ("only the empty starter, and no title, and no school name")
+  // was neither: it was a heuristic about the document's *shape*, and the
+  // pre-branding write defeated it by construction, because filling in the
+  // school name is exactly what pre-branding does.
+
+  // Gate 1. Set by any real user input anywhere on the page — capture phase, so
+  // a handler that stops propagation cannot hide the interaction, and on
+  // `document` rather than the studio root so events inside portalled modals
+  // and slide-overs count too.
+  //
+  // The bias is deliberate: this must never cost a teacher an edit, so the
+  // event list is broad and the flag is sticky. Missing a user path here would
+  // silently drop their work, which is far worse than the junk paper it guards
+  // against — that is also why gate 2 and the content check in
+  // shouldAutosaveToLibrary exist independently of it.
+  const userTouchedRef = useRef(false)
   useEffect(() => {
-    if (!dirtyTrackingReadyRef.current) { dirtyTrackingReadyRef.current = true; return }
-    if (hasOnlyEmptyStarterSection(sections) && !form.title.trim() && !form.schoolName.trim()) return
+    const onUserInput = () => { userTouchedRef.current = true }
+    // `click` is in the list even though a mouse click is always preceded by
+    // pointerdown/mousedown: a keyboard activation, an assistive-technology
+    // activation and an element.click() all dispatch click ALONE. Erring wide
+    // is the right direction here — an extra event only means the other two
+    // gates do the work, while a missing one means a lost edit.
+    const events = ['pointerdown', 'mousedown', 'touchstart', 'click', 'keydown',
+      'input', 'change', 'paste', 'drop', 'compositionend']
+    for (const type of events) document.addEventListener(type, onUserInput, true)
+    return () => {
+      for (const type of events) document.removeEventListener(type, onUserInput, true)
+    }
+  }, [])
+
+  // The one place that says the document changed because a person changed it.
+  const markDirty = useCallback(() => {
     setDirty(true)
     setLibraryDirty(true)
     setSavedToLibrary(false)
-  }, [form, sections, parts])
+    setUserAuthored(true)
+  }, [])
+
+  const dirtyTrackingReadyRef = useRef(false)
+  useEffect(() => {
+    // Initial mount — the starter document is not an edit of itself.
+    if (!dirtyTrackingReadyRef.current) { dirtyTrackingReadyRef.current = true; return }
+    if (!userTouchedRef.current) return
+    const programmatic = programmaticStateRef.current
+    if (programmatic
+      && programmatic.form === form
+      && programmatic.sections === sections
+      && programmatic.parts === parts) {
+      programmaticStateRef.current = null
+      return
+    }
+    markDirty()
+  }, [form, sections, parts, markDirty])
 
   useEffect(() => () => revokeImportedQuizAssets(importedAssets), [importedAssets])
 

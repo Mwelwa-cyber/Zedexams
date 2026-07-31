@@ -131,7 +131,10 @@ console.log('shouldAutosaveToLibrary — deletion guard')
 
 const baseAutosave = {
   uid: 'teacher-1',
-  questionCount: 3,
+  // Not questionCount — the gate reads whether anything was WRITTEN, because
+  // the studio seeds an empty question and the count was 1 before anyone typed
+  // (B-1). See scripts/test-assessment-autosave.mjs.
+  hasAuthoredContent: true,
   libraryDirty: true,
   saving: false,
   exporting: false,

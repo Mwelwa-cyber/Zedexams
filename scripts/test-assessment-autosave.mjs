@@ -23,7 +23,7 @@ function test(name, fn) {
 
 const baseAutosave = {
   uid: 'teacher-1',
-  questionCount: 3,
+  hasAuthoredContent: true,
   libraryDirty: true,
   saving: false,
   exporting: false,
@@ -47,7 +47,22 @@ test('does not fire when nothing changed since the last library write', () => {
 })
 
 test('does not fire on an empty (no-question) paper', () => {
-  assert.equal(shouldAutosaveToLibrary({ ...baseAutosave, questionCount: 0 }), false)
+  assert.equal(shouldAutosaveToLibrary({ ...baseAutosave, hasAuthoredContent: false }), false)
+})
+
+test('B-1: the seeded empty starter question is not content', () => {
+  // The gate used to read the QUESTION COUNT, and the studio seeds one empty
+  // question so the builder opens as something rather than a blank rectangle.
+  // That made the count 1 before anybody had typed, so every teacher who
+  // merely OPENED the studio filed a junk paper: one question, no text, one
+  // mark. A seeded slot is a UI affordance; content is what someone wrote.
+  //
+  // Passing the old shape must not resurrect the old behaviour either — an
+  // unrecognised key reads as no content, which fails closed.
+  assert.equal(shouldAutosaveToLibrary({ ...baseAutosave, hasAuthoredContent: false }), false)
+  const oldShape = { ...baseAutosave, questionCount: 1 }
+  delete oldShape.hasAuthoredContent
+  assert.equal(shouldAutosaveToLibrary(oldShape), false)
 })
 
 test('yields to an explicit save / export / import / generation', () => {

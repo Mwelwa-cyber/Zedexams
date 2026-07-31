@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import {
+  createPagebreakSection,
   createPassageSection,
   createStandaloneSection,
+  hasAuthoredContent,
+  hasOnlyEmptyStarterSection,
   insertStandaloneSection,
   serializeQuizSections,
   hydrateQuizSections,
@@ -520,3 +523,75 @@ function runWriteBackIsLoadBearingTest() {
 }
 
 runWriteBackIsLoadBearingTest()
+
+// ── hasAuthoredContent — "did a person write anything", not "how many slots" ──
+//
+// B-1: the studio seeds one empty question so the builder opens as something
+// rather than a blank rectangle, and the library autosave gated on the QUESTION
+// COUNT. The count was 1 before anybody had typed, so every teacher who merely
+// opened the studio filed a junk paper. This predicate is the fixed gate.
+function runHasAuthoredContentTest() {
+  // The document the studio opens with. This is the whole bug.
+  const starter = [createStandaloneSection()]
+  assert.equal(hasAuthoredContent(starter), false, 'the seeded empty starter is not content')
+  assert.equal(hasOnlyEmptyStarterSection(starter), true)
+
+  // ...and the gate must keep saying "no content" past the point where
+  // hasOnlyEmptyStarterSection stops applying. That helper answers the narrower
+  // "is this EXACTLY the pristine one-question starter" and goes false as soon
+  // as there are two of them — which is why it could not be the save gate.
+  const twoBlanks = [createStandaloneSection(), createStandaloneSection()]
+  assert.equal(hasOnlyEmptyStarterSection(twoBlanks), false, 'the narrow helper stops applying')
+  assert.equal(hasAuthoredContent(twoBlanks), false, 'two empty questions are still not content')
+
+  const blankPassage = [createPassageSection()]
+  assert.equal(hasAuthoredContent(blankPassage), false, 'an empty passage is not content')
+
+  const withPagebreak = [createPagebreakSection(), createStandaloneSection()]
+  assert.equal(hasAuthoredContent(withPagebreak), false, 'a page break is structure, not content')
+
+  assert.equal(hasAuthoredContent([]), false)
+  assert.equal(hasAuthoredContent(undefined), false)
+  assert.equal(hasAuthoredContent(null), false)
+  assert.equal(hasAuthoredContent([null, undefined]), false, 'a malformed section is not content')
+
+  // ── and the other direction: real work must always register, because a
+  // false negative here means the autosave stops and a teacher loses a paper.
+  assert.equal(
+    hasAuthoredContent([createStandaloneSection({ text: '<p>What is 2 + 2?</p>' })]),
+    true,
+    'a question with a stem is content',
+  )
+  const optionsOnly = createStandaloneSection()
+  optionsOnly.question.options = ['3', '4', '5', '6']
+  assert.equal(hasAuthoredContent([optionsOnly]), true, 'options typed before the stem are content')
+
+  const imageOnly = createStandaloneSection()
+  imageOnly.question.imageUrl = 'https://example.com/diagram.png'
+  assert.equal(hasAuthoredContent([imageOnly]), true, 'a diagram with no stem yet is content')
+
+  // A teacher who has pasted a comprehension extract and not yet written the
+  // questions has done real work — losing it to a crash would be the worse bug.
+  const passageTextOnly = createPassageSection()
+  passageTextOnly.passage.passageText = '<p>The rains came early that year.</p>'
+  assert.equal(hasAuthoredContent([passageTextOnly]), true, 'passage text alone is content')
+
+  const passageTitleOnly = createPassageSection()
+  passageTitleOnly.passage.title = 'The Rains'
+  assert.equal(hasAuthoredContent([passageTitleOnly]), true, 'a passage title alone is content')
+
+  const passageQuestion = createPassageSection()
+  passageQuestion.passage.questions = [{ type: 'mcq', text: '<p>Who narrates?</p>', options: [] }]
+  assert.equal(hasAuthoredContent([passageQuestion]), true, 'a written passage question is content')
+
+  // Mixed: one blank starter plus one real question still counts.
+  assert.equal(
+    hasAuthoredContent([createStandaloneSection(), createStandaloneSection({ text: '<p>Q2</p>' })]),
+    true,
+    'one real question among blanks is content',
+  )
+
+  console.log('runHasAuthoredContentTest passed (seeded starter is not content; real work always is)')
+}
+
+runHasAuthoredContentTest()

@@ -25,7 +25,7 @@
 // another save / export / import / AI generation owns the document.
 export function shouldAutosaveToLibrary({
   uid,
-  questionCount,
+  hasAuthoredContent,
   libraryDirty,
   saving,
   exporting,
@@ -47,7 +47,21 @@ export function shouldAutosaveToLibrary({
   if (!libraryDirty) return false
   // Don't file an empty or title-only paper — wait until there's at least one
   // question worth keeping.
-  if (!questionCount) return false
+  //
+  // This gate used to read the QUESTION COUNT, and the studio seeds one empty
+  // question so the builder opens as something rather than a blank rectangle.
+  // The count was therefore 1 before anybody had typed, and every teacher who
+  // merely opened the studio filed a junk paper: one question, no text, one
+  // mark (B-1). The seeded question is a UI affordance, not content, so the
+  // gate now asks whether anything was actually written.
+  //
+  // This is deliberately independent of how `libraryDirty` is computed. The
+  // proximate cause of B-1 was a programmatic write being read as an edit, and
+  // that is fixed at source — but "the paper has content" is the invariant
+  // that has to hold for a durable write no matter what marks it dirty, and
+  // one of the two guards being wrong should not be enough to pollute a
+  // teacher's library.
+  if (!hasAuthoredContent) return false
   return true
 }
 

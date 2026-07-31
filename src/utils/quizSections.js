@@ -543,6 +543,41 @@ export function hasOnlyEmptyStarterSection(sections = []) {
     isQuestionBlank(sections[0]?.question)
 }
 
+/**
+ * Does this document contain anything a person actually wrote?
+ *
+ * Deliberately NOT countQuizQuestions, which counts SLOTS. Every studio seeds
+ * one empty question so the builder opens as something rather than a blank
+ * rectangle — and that seed makes the slot count 1 before anybody has typed.
+ * Gating a durable save on the slot count therefore files a paper for every
+ * teacher who merely *opened* the studio (B-1): one question, no text, one
+ * mark. A slot is a UI affordance; this asks whether there is content.
+ *
+ * `hasOnlyEmptyStarterSection` answers a narrower question — "is this exactly
+ * the pristine one-question starter" — and says false the moment a second
+ * empty question is added, or the starter is replaced by an empty passage.
+ * Neither of those is content either, so the save gate needs this instead.
+ *
+ * A passage counts as content on its own text: a teacher who has pasted a
+ * comprehension extract and not yet written the questions has done real work
+ * that must survive a crash.
+ */
+export function hasAuthoredContent(sections = []) {
+  return (Array.isArray(sections) ? sections : []).some((section) => {
+    if (!section) return false
+    if (section.kind === 'pagebreak') return false
+    if (section.kind === 'passage') {
+      const passage = section.passage || {}
+      if (!richFieldEmpty(passage.passageText)) return true
+      if (!richFieldEmpty(passage.instructions)) return true
+      if (String(passage.title ?? '').trim()) return true
+      if (String(passage.imageUrl ?? '').trim()) return true
+      return (passage.questions || []).some(question => !isQuestionBlank(question))
+    }
+    return !isQuestionBlank(section.question)
+  })
+}
+
 export function countQuizQuestions(sections = []) {
   return sections.reduce((total, section) => {
     if (section.kind === 'passage') {
