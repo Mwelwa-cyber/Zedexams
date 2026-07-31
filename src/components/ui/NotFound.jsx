@@ -40,7 +40,17 @@ export default function NotFound() {
 
   return (
     <div className="min-h-screen theme-bg flex items-center justify-center p-4">
-      <SeoHelmet title="Page not found" noIndex />
+      {/*
+        `path` matters here even though the page is noindex: SeoHelmet falls
+        back to the bare origin when it isn't given one, so every unknown URL
+        was emitting <link rel="canonical" href="https://zedexams.com/"> next
+        to <meta name="robots" content="noindex">. That pair is contradictory
+        — it tells Google not to index this URL while pointing the indexing
+        signal at the homepage — and Google's guidance is to never combine
+        noindex with a canonical to a different page. Self-canonicalling keeps
+        the noindex unambiguous.
+      */}
+      <SeoHelmet title="Page not found" path={location.pathname} noIndex />
       <div className="theme-card border theme-border rounded-3xl px-6 py-10 max-w-md w-full text-center shadow-sm">
         <div className="text-5xl mb-3">🧭</div>
         <p className="theme-text-muted font-black text-xs uppercase tracking-widest mb-2">404 — Page not found</p>
