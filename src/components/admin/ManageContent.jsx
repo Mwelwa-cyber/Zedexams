@@ -17,6 +17,7 @@ import ConfirmDialog from '../ui/ConfirmDialog'
 import { todayString } from '../../utils/examService'
 import { EXAM_ONLY_QUESTION_THRESHOLD, isExamOnly } from '../../utils/quizClassification.js'
 import { summarizeImportReview } from '../../utils/importReviewSummary.js'
+import { describeQuizPaperLink, unassignWarning } from './quizPaperLink.js'
 import { SUBJECTS as CURRICULUM_SUBJECTS } from '../../config/curriculum'
 import {
   PAPER_STATUSES, listAllPapersForAdmin, updatePaper, deletePaper, splitAssetsByRole,
@@ -563,6 +564,8 @@ export default function ManageContent() {
   const [dailyQuiz, setDailyQuiz] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)   // { kind, item }
   const [pendingBulkDelete, setPendingBulkDelete] = useState(false)
+  // { quiz, link } — set when Unassign would break a past paper's quiz.
+  const [pendingUnassign, setPendingUnassign] = useState(null)
 
   function show(msg, isErr = false) {
     setToast({ msg, isErr }); setTimeout(() => setToast(null), 3000)
@@ -653,7 +656,19 @@ export default function ManageContent() {
     show(`🏆 Set as Daily Exam on ${date}${isDemo ? ' · Demo' : ''}`)
   }
 
+  // Unassigning writes `isPublished: false`, and BOTH read clauses on
+  // `quizzes/{id}` require it — so a quiz a past paper links to stops being
+  // readable by every learner, paid included, while the paper goes on
+  // advertising it. Ask first in that case; an ordinary practice quiz is
+  // unaffected and still unassigns in one click.
+  function requestUnassign(quiz) {
+    const link = describeQuizPaperLink(quiz, papers)
+    if (link.linked) { setPendingUnassign({ quiz, link }); return }
+    unassignQuiz(quiz)
+  }
+
   async function unassignQuiz(quiz) {
+    setPendingUnassign(null)
     const patch = { quizType: null, isPublished: false, status: 'draft', isDailyExam: false, dailyExamDate: null }
     await updateQuiz(quiz.id, patch)
     setQuizzes(qs => qs.map(q => q.id === quiz.id ? { ...q, ...patch } : q))
@@ -922,10 +937,14 @@ export default function ManageContent() {
   const hasFilters = search || gradeF || subjectF || quizTypeF || paperStatusF || needsReviewOnly
   const counts = { quizzes: quizzes.length, lessons: lessons.length, pastpapers: papers.length }
 
+  // Resolved even when the dialog is closed — `unassignWarning` is total, and
+  // reading the copy from one place keeps the three props in step.
+  const unassignCopy = unassignWarning(pendingUnassign?.link)
+
   const rowActions = {
     publish: publishQuiz,
     daily: q => setDailyQuiz(q),
-    unassign: unassignQuiz,
+    unassign: requestUnassign,
     classify: classifyItem,
     togglePublish: tab === 'lessons' ? toggleLessonPublish : togglePaperPublish,
     convert: convertPaper,
@@ -963,6 +982,19 @@ export default function ManageContent() {
         loading={Boolean(deleting) && pendingDelete?.item?.id === deleting}
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}
+      />
+
+      {/* Unassign-a-paper's-quiz confirm. Not `danger` — the write is
+          reversible by publishing again; what it needs is to be READ, because
+          the damage it does is invisible from this screen. */}
+      <ConfirmDialog
+        open={Boolean(pendingUnassign)}
+        title={unassignCopy.title}
+        message={unassignCopy.message}
+        confirmLabel={unassignCopy.confirmLabel}
+        variant="primary"
+        onConfirm={() => pendingUnassign && unassignQuiz(pendingUnassign.quiz)}
+        onCancel={() => setPendingUnassign(null)}
       />
 
       {/* Bulk-delete confirm */}
