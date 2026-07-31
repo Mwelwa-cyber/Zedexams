@@ -53,7 +53,6 @@ function CreateForm({ register, roster, onCreated, onCancel }) {
         console.warn('[AssessmentResultsTab] assessments load failed', err)
         setAssessmentsError(true)
       })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, getMyAssessments, assessmentsReloadKey])
 
   function pickAssessment(id) {
