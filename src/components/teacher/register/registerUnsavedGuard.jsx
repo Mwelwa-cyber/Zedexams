@@ -41,9 +41,15 @@ export function useRegisterUnsavedGuard(confirmFn) {
     const ask = confirmFn || (typeof window !== 'undefined' ? window.confirm : null)
     // No confirm available (SSR / non-browser) → fail SAFE: block the discard
     // rather than silently drop unsaved marks.
-    const ok = ask ? ask(UNSAVED_MARKS_MESSAGE) : false
-    if (ok) dirtyRef.current = false
-    return ok
+    return ask ? ask(UNSAVED_MARKS_MESSAGE) : false
+    // Intentionally NOT clearing dirtyRef here on a positive answer. The flag is
+    // owned by the publisher's lifecycle: useMarkUnsaved's cleanup resets it
+    // when the grid actually unmounts (i.e. the navigation truly committed).
+    // Clearing on the answer alone would drop the guard for callers that prompt
+    // but do NOT navigate — Archive opens a *second* dialog the user may cancel,
+    // a cmd/ctrl-click opens a new tab without unmounting, clicking the active
+    // tab re-renders in place — leaving the dirty grid mounted with the guard
+    // silently disarmed for the next real navigation.
   }, [confirmFn])
 
   const contextValue = useMemo(() => ({ setDirty }), [setDirty])

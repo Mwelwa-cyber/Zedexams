@@ -61,6 +61,21 @@ describe('registerUnsavedGuard', () => {
     expect(onNavigate).toHaveBeenCalledTimes(1)
   })
 
+  it('stays armed after a confirm whose caller does NOT unmount the grid', () => {
+    // Archive opens a second dialog, a cmd-click opens a new tab, clicking the
+    // active tab re-renders in place — the user confirmed once but the grid is
+    // still mounted and dirty. The guard must prompt AGAIN on the next attempt,
+    // not silently discard because the flag was cleared on the first answer.
+    const onNavigate = vi.fn()
+    const confirmFn = vi.fn(() => true)
+    render(<Host mounted dirty onNavigate={onNavigate} confirmFn={confirmFn} />)
+    fireEvent.click(screen.getByText('leave'))
+    fireEvent.click(screen.getByText('leave'))
+    // Both attempts prompted — the grid never unmounted, so the guard stayed armed.
+    expect(confirmFn).toHaveBeenCalledTimes(2)
+    expect(onNavigate).toHaveBeenCalledTimes(2)
+  })
+
   it('clears the flag when the dirty child unmounts (no stale prompt afterwards)', () => {
     const onNavigate = vi.fn()
     const confirmFn = vi.fn(() => false)
