@@ -53,6 +53,16 @@ console.log("\ncheckSourceCurriculum — FAILS CLOSED (no default)");
   ok("unknown curriculum is NOT silently defaulted", unknown.ok === false && unknown.curriculum === null);
 }
 
+console.log("\ncheckSourceCurriculum — requireSubject:false (contextual-subject transformations)");
+{
+  // A lesson-section edit's subject is contextual, so the subject requirement
+  // can be relaxed — but the CURRICULUM is ALWAYS strict.
+  const noSubjectOk = checkSourceCurriculum({curriculum: "cbc"}, {requireSubject: false});
+  ok("no subject is allowed when requireSubject:false", noSubjectOk.ok === true);
+  const stillNeedsCurriculum = checkSourceCurriculum({subject: "history"}, {requireSubject: false});
+  ok("curriculum is STILL required with requireSubject:false", stillNeedsCurriculum.ok === false);
+}
+
 console.log("\ncheckSourceCurriculum — passes with a valid source, normalising");
 {
   const good = checkSourceCurriculum({curriculum: "2013", subject: " History "});

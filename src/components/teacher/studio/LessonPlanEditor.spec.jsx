@@ -8,6 +8,24 @@ vi.mock('../../../utils/reviseLessonSection', () => ({
   reviseLessonSection: mockRevise,
   messageFromReviseError: (e) => e?.message || 'failed',
 }))
+// The AI edit now routes through useAiOperationLock. Mock it to a deterministic
+// passthrough (runs the action with a fixed key, returns {ok,data}) so these
+// tests stay about the editor, not the module-level lock's cross-test state.
+// mockRevise still receives the payload (+ the fixed idempotencyKey).
+vi.mock('../../../hooks/useAiOperationLock', () => ({
+  useAiOperationLock: () => ({
+    run: async ({ action }) => {
+      try {
+        return { ok: true, data: await action('11111111-1111-4111-8111-111111111111') }
+      } catch (error) {
+        return { ok: false, reason: 'error', error }
+      }
+    },
+    isRunning: false,
+    otherTabRunning: false,
+    clear: () => {},
+  }),
+}))
 
 import LessonPlanEditor from './LessonPlanEditor'
 

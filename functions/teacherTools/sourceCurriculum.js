@@ -43,19 +43,24 @@ const CURRICULUM_LABEL = Object.freeze({
  * usage. A transformation that cannot name its source curriculum is refused —
  * it must never fall back to a default (that is the drift this prevents).
  */
-function checkSourceCurriculum(inputs) {
+function checkSourceCurriculum(inputs, {requireSubject = true} = {}) {
   const curriculum = normalizeCurriculum(inputs && inputs.curriculum);
   const subject = typeof (inputs && inputs.subject) === "string" ?
     inputs.subject.trim() : "";
   const errors = [];
   if (!curriculum) {
+    // Curriculum is ALWAYS strictly required — it is the field that was
+    // silently defaulting to CBC, i.e. the drift itself.
     errors.push(
-      "The source question's curriculum is required so the result stays in the " +
+      "The source item's curriculum is required so the result stays in the " +
       "same syllabus. Please reselect the curriculum and try again.");
   }
-  if (!subject) {
+  if (requireSubject && !subject) {
+    // Subject is core identity for a question (revise/suggest); for a lesson-
+    // section edit it is contextual grounding that is preserved-if-present, so
+    // that caller passes requireSubject:false.
     errors.push(
-      "The source question's subject is required so the result stays on the " +
+      "The source item's subject is required so the result stays on the " +
       "same subject.");
   }
   return {ok: errors.length === 0, curriculum, subject, errors};

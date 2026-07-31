@@ -141,14 +141,22 @@ export const INVENTORY = Object.freeze([
       + 'now carries its own minted key (the reservation refuses a keyless call).',
   }),
   g('functions/teacherTools/reviseLessonSection.js', {
+    clientModule: 'src/components/teacher/studio/LessonPlanEditor.jsx',
+    clientLockKey: 'lesson-section:revise',
+    operationClass: 'transformation',
     tier: 1,
-    state: 'unmigrated',
+    state: 'migrated',
     entryPoint: 'reviseLessonSection (callable)',
-    clientSurface: 'Lesson plan studio — per-section regenerate',
-    produces: 'One replaced section of a saved lesson plan',
+    clientSurface: 'Lesson Plan Editor — per-section AI edit (LessonPlanEditor.jsx)',
+    produces: 'One replaced section ({text}|{items}) of a lesson plan, preserving its curriculum',
     incompleteResultSaveable: false,
-    note: 'Targeted regeneration: the operation must be keyed on the section, '
-      + 'like regenerateAssessmentQuestion, or two edits collide silently.',
+    note: 'A TRANSFORMATION: edits ONE section of an existing plan, so it '
+      + 'PRESERVES the plan\'s curriculum via checkSourceCurriculum rather than '
+      + 'grounding a fresh topic. Its curriculumMode previously DEFAULTED to CBC '
+      + '(silent drift for a 2013 plan); the default is removed so the gate fails '
+      + 'closed. Subject is contextual here (requireSubject:false). Returns text/'
+      + 'items inline, persisted to aiGenerations/{idempotencyKey} for resume; '
+      + 'this migration also closed an AI-006 refund gap.',
   }),
 
   // ── Tier 2 · papers, quizzes and question generation ──────────────────

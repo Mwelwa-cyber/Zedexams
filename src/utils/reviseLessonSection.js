@@ -65,7 +65,13 @@ export async function reviseLessonSection(args = {}) {
       topic: String(args.context?.topic || ''),
       subtopic: String(args.context?.subtopic || ''),
     },
+    // Collapses a double-click to one provider call + charge; the server refuses
+    // a keyless call.
+    idempotencyKey: args.idempotencyKey,
   }
   const result = await callable(payload)
-  return result.data || {}
+  const data = result.data || {}
+  // The server already has this exact request in flight (a retry / another tab).
+  if (data.status === 'processing') return { status: 'processing' }
+  return data
 }

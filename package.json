@@ -410,6 +410,7 @@
     "test:revise-question-runner": "node functions/teacherTools/reviseQuestionRunner.test.js",
     "test:suggest-answer": "node functions/teacherTools/suggestAnswer.test.js",
     "test:revise-lesson-section": "node functions/teacherTools/reviseLessonSection.test.js",
+    "test:revise-lesson-section-runner": "node functions/teacherTools/reviseLessonSectionRunner.test.js",
     "test:lesson-plan-shape": "node src/components/teacher/studio/utils/planShape.test.js",
     "test:lesson-reveal-steps": "node src/components/teacher/studio/utils/lessonRevealSteps.test.js",
     "test:lesson-wizard-steps": "node src/components/teacher/studio/wizard/wizardSteps.test.js",
