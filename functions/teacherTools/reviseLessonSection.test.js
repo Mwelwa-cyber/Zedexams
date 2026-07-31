@@ -58,7 +58,9 @@ console.log("\nsanitizeInputs — field cleaning + defaults");
 {
   const inp = sanitizeInputs({sectionLabel: "x", kind: "bogus", curriculumMode: "nope", modifier: "lol"});
   ok("unknown kind falls back to text", inp.kind === "text");
-  ok("unknown mode falls back to cbc", inp.curriculumMode === "cbc");
+  // No default: an unknown/missing mode becomes "" so the transformation gate
+  // fails closed rather than silently treating a 2013 section as CBC.
+  ok("unknown mode → '' (fail-closed downstream)", inp.curriculumMode === "");
   ok("unknown modifier becomes null", inp.modifier === null);
 }
 

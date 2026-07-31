@@ -1,6 +1,8 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { stagesForEditing, writeStage, toLines } from './utils/planShape'
 import { reviseLessonSection, messageFromReviseError } from '../../../utils/reviseLessonSection'
+import { useAiOperationLock } from '../../../hooks/useAiOperationLock'
+import { stableFingerprint } from '../../../hooks/aiOperationLockCore'
 
 /**
  * LessonPlanEditor — manual + AI-assisted editor for a generated lesson plan.
@@ -56,18 +58,30 @@ function AiEditControl({ kind, sectionLabel, current, curriculumMode, context, o
   const [instruction, setInstruction] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  // Idempotency lock: one intentional edit → one provider call + charge, even
+  // across a double-click / rapid tap / refresh / second tab. The callable now
+  // refuses a keyless call, so the key travels with every request.
+  const { run: runLocked } = useAiOperationLock('lesson-section:revise')
 
   async function run(modifier) {
     if (busy) return
     setBusy(true)
     setError(null)
     try {
-      const res = await reviseLessonSection({
+      const payload = {
         sectionLabel, kind, curriculumMode, current,
         modifier: modifier || null,
         instruction: modifier ? '' : instruction,
         context,
+      }
+      const lockResult = await runLocked({
+        fingerprint: stableFingerprint(payload),
+        action: (idempotencyKey) => reviseLessonSection({ ...payload, idempotencyKey }),
       })
+      if (lockResult.reason === 'locked') return
+      if (!lockResult.ok) throw (lockResult.error || new Error('AI edit failed.'))
+      const res = lockResult.data
+      if (res?.status === 'processing') return
       const value = kind === 'list' ? (res.items || []) : (res.text || '')
       const empty = kind === 'list' ? value.length === 0 : !value
       if (empty) {

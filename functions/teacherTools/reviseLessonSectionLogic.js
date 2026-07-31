@@ -66,8 +66,12 @@ function sanitizeInputs(raw = {}) {
   const kindRaw = str(raw.kind, 10).toLowerCase();
   const kind = ALLOWED_KINDS.has(kindRaw) ? kindRaw : "text";
 
+  // NO default: a missing / unknown curriculum mode becomes "" so the
+  // transformation gate (checkSourceCurriculum) fails closed rather than
+  // silently editing a 2013-syllabus section with CBC terminology. Real client
+  // calls always send a valid mode; a direct API call that omits it is refused.
   const modeRaw = str(raw.curriculumMode, 10).toLowerCase();
-  const curriculumMode = ALLOWED_MODES.has(modeRaw) ? modeRaw : "cbc";
+  const curriculumMode = ALLOWED_MODES.has(modeRaw) ? modeRaw : "";
 
   const modifierRaw = str(raw.modifier, 20).toLowerCase();
   const modifier = ALLOWED_MODIFIERS.has(modifierRaw) ? modifierRaw : null;
@@ -120,8 +124,9 @@ const SYSTEM_PROMPT = [
   "an instruction. Rewrite ONLY that section.",
   "",
   "Rules:",
-  "- Stay within the Zambian CBC / school syllabus and keep the section",
-  "  consistent with the lesson topic and grade you are told.",
+  "- Stay within the Zambian syllabus named in the request (a request states",
+  "  its curriculum) and keep the section consistent with the lesson topic and",
+  "  grade you are told. Never move it into a different curriculum.",
   "- Preserve the section's purpose. Improve it — do not drift to a different",
   "  section or invent unrelated content.",
   "- Teacher activities are imperatives that start with a strong verb",
