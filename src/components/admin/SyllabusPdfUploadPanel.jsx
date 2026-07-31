@@ -17,6 +17,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ref as storageRef, uploadBytes } from 'firebase/storage'
+import { assertFileSignature } from '../../utils/fileSignature'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { Link } from 'react-router-dom'
 import app, { storage } from '../../firebase/config'
@@ -102,6 +103,9 @@ export default function SyllabusPdfUploadPanel({ onComplete }) {
     setError(null)
     setResult(null)
     try {
+      // The declared type / .pdf extension is the client's word — verify the
+      // real bytes before this document is uploaded and parsed (STOR-003).
+      await assertFileSignature(file, ['application/pdf'], { label: 'a PDF' })
       setStep('Uploading PDF to secure storage…')
       const stamp = Date.now()
       const safeName = `${stamp}-${safeFilename(file.name)}.pdf`

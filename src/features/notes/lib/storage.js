@@ -9,6 +9,7 @@ import {
   ref, uploadBytesResumable, getDownloadURL, deleteObject,
 } from 'firebase/storage'
 import { storage } from '../../../firebase/config'
+import { assertFileSignature } from '../../../utils/fileSignature'
 
 const ALLOWED_DOC_TYPES = [
   'application/pdf',
@@ -31,17 +32,19 @@ const sanitize = (name) =>
  *
  * Path: lesson-files/{ownerUid}/{assetBatchId}/{timestamp}-{filename}
  */
-export function uploadNoteFile({ ownerUid, assetBatchId, file, onProgress }) {
-  if (!ownerUid)     return Promise.reject(new Error('uploadNoteFile: ownerUid required'))
-  if (!assetBatchId) return Promise.reject(new Error('uploadNoteFile: assetBatchId required'))
-  if (!file)         return Promise.reject(new Error('uploadNoteFile: file required'))
+export async function uploadNoteFile({ ownerUid, assetBatchId, file, onProgress }) {
+  if (!ownerUid)     throw new Error('uploadNoteFile: ownerUid required')
+  if (!assetBatchId) throw new Error('uploadNoteFile: assetBatchId required')
+  if (!file)         throw new Error('uploadNoteFile: file required')
 
   if (!ALLOWED_DOC_TYPES.includes(file.type)) {
-    return Promise.reject(new Error('Only PDF or Word documents are allowed.'))
+    throw new Error('Only PDF or Word documents are allowed.')
   }
   if (file.size > MAX_DOC_SIZE) {
-    return Promise.reject(new Error('File is too large (max 25 MB).'))
+    throw new Error('File is too large (max 25 MB).')
   }
+  // The declared type is forgeable — verify the real bytes (STOR-003).
+  await assertFileSignature(file, ALLOWED_DOC_TYPES, { label: 'a PDF or Word document' })
 
   const safeName = sanitize(file.name)
   const path = `lesson-files/${ownerUid}/${assetBatchId}/${Date.now()}-${safeName}`
@@ -100,6 +103,7 @@ export async function uploadInlineImage({ ownerUid, assetBatchId, file }) {
   if (!ALLOWED_IMG_TYPES.includes(file.type)) {
     throw new Error('Only PNG, JPG, WebP, or GIF images are allowed.')
   }
+  await assertFileSignature(file, ALLOWED_IMG_TYPES, { label: 'a PNG, JPG, WebP or GIF image' })
   if (file.size > MAX_IMG_SIZE) {
     throw new Error('Image is too large (max 5 MB).')
   }

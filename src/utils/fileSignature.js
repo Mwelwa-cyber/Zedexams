@@ -31,6 +31,8 @@ const SIGNATURES = [
   { mime: 'application/zip', bytes: [0x50, 0x4b, 0x03, 0x04] },
   { mime: 'application/zip', bytes: [0x50, 0x4b, 0x05, 0x06] },
   { mime: 'application/zip', bytes: [0x50, 0x4b, 0x07, 0x08] },
+  // OLE2 compound file — the container for LEGACY office (.doc/.xls/.ppt).
+  { mime: 'application/x-ole-storage', bytes: [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1] },
 ]
 
 // Declared office MIMEs that legitimately present as a ZIP container on disk.
@@ -41,8 +43,19 @@ const ZIP_CONTAINER_MIMES = new Set([
   'application/vnd.openxmlformats-officedocument.presentationml.presentation', // pptx
 ])
 
+// Declared MIMEs for legacy office formats, which are OLE2 compound files.
+const OLE_CONTAINER_MIMES = new Set([
+  'application/x-ole-storage',
+  'application/msword', // .doc
+  'application/vnd.ms-excel', // .xls
+  'application/vnd.ms-powerpoint', // .ppt
+])
+
 // The detected types we actually know how to produce from bytes.
-const SNIFFABLE = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/pdf', 'application/zip'])
+const SNIFFABLE = new Set([
+  'image/png', 'image/jpeg', 'image/webp', 'image/gif',
+  'application/pdf', 'application/zip', 'application/x-ole-storage',
+])
 
 function normalizeMime(mime) {
   const m = String(mime || '').toLowerCase().trim()
@@ -83,6 +96,7 @@ export function expectedSignatureTypes(allowedMimes) {
   for (const raw of allowedMimes || []) {
     const mime = normalizeMime(raw)
     if (ZIP_CONTAINER_MIMES.has(mime)) out.add('application/zip')
+    else if (OLE_CONTAINER_MIMES.has(mime)) out.add('application/x-ole-storage')
     else if (SNIFFABLE.has(mime)) out.add(mime)
   }
   return out

@@ -21,6 +21,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ref as storageRef, uploadBytes } from 'firebase/storage'
+import { assertFileSignature } from '../../utils/fileSignature'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import {
   collection,
@@ -197,9 +198,12 @@ export default function CurriculumUploadPanel() {
     setError(null)
     setResult(null)
     try {
+      const ext = extOf(file.name) || 'pdf'
+      // The extension is the client's word — verify the real bytes match the
+      // declared format before this document is uploaded and parsed (STOR-003).
+      await assertFileSignature(file, [EXT_TO_CONTENT_TYPE[ext]], { label: 'a PDF, DOCX or XLSX file' })
       setStep('Uploading file to secure storage…')
       const stamp = Date.now()
-      const ext = extOf(file.name) || 'pdf'
       const safeName = `${stamp}-${safeFilename(file.name)}.${ext}`
       const storagePath = `curriculum-uploads/${currentUser.uid}/${safeName}`
       const ref = storageRef(storage, storagePath)
