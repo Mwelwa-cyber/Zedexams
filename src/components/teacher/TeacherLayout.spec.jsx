@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import TeacherLayout from './TeacherLayout'
 import { setActiveShellNavGuard, __resetShellNavGuard } from './register/shellNavGuardCore'
 
@@ -137,6 +137,36 @@ describe('TeacherLayout (V2 shell sidebar)', () => {
       renderWithSink('/teacher/attendance')
       await user.click(screen.getByRole('link', { name: /My Library/ }))
       expect(screen.getByTestId('loc')).toHaveTextContent('/teacher/library')
+    })
+
+    it('gates shared chrome INSIDE <main> (TeacherTopBar-style) but exempts register-owned content', async () => {
+      const user = userEvent.setup()
+      setActiveShellNavGuard(() => false)
+      render(
+        <MemoryRouter initialEntries={['/teacher/register/c1']}>
+          <Routes>
+            <Route path="*" element={
+              <TeacherLayout>
+                {/* Shared chrome rendered inside <main> — NOT register-owned.
+                    The old closest('main') exemption let this slip through. */}
+                <Link to="/teacher/library" data-testid="shared">Shared</Link>
+                {/* The register's own content marks itself; its links already
+                    call guardLink, so the capture listener must NOT re-gate it. */}
+                <div data-register-self-guarded>
+                  <Link to="/teacher/register/c1/attendance" data-testid="owned">Owned</Link>
+                </div>
+                <LocationSink />
+              </TeacherLayout>
+            } />
+          </Routes>
+        </MemoryRouter>,
+      )
+      // Shared in-<main> link is gated → navigation cancelled.
+      await user.click(screen.getByTestId('shared'))
+      expect(screen.getByTestId('loc')).toHaveTextContent('/teacher/register/c1')
+      // Register-owned link is exempt from the capture listener → proceeds.
+      await user.click(screen.getByTestId('owned'))
+      expect(screen.getByTestId('loc')).toHaveTextContent('/teacher/register/c1/attendance')
     })
   })
 

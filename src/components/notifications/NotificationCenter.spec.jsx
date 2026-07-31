@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { setActiveShellNavGuard, __resetShellNavGuard } from '../teacher/register/shellNavGuardCore'
 
 // Mock the context so we drive the center with a controlled notification set.
 vi.mock('../../contexts/NotificationContext', () => ({
@@ -162,5 +163,49 @@ describe('NotificationCenter', () => {
     const more = screen.getByText('Load older notifications')
     fireEvent.click(more)
     expect(loadMore).toHaveBeenCalled()
+  })
+
+  // The center's rows and settings button navigate imperatively (not <a href>),
+  // so the shell's anchor-only capture listener can't see them — they consult
+  // the module-scope gate directly, like the account menu does. Without this a
+  // notification tap on a dirty register page discarded the unsaved marks.
+  describe('unsaved-changes shell gate', () => {
+    afterEach(() => __resetShellNavGuard())
+
+    it('a denying gate blocks an in-app notification navigation (no read, no close)', () => {
+      setActiveShellNavGuard(() => false)
+      setCtx({ notifications: [makeNotif()] }) // action.url '/quiz/1' is in-app
+      renderCenter()
+      fireEvent.click(screen.getByText('New quiz assigned'))
+      expect(markRead).not.toHaveBeenCalled()
+      expect(setOpen).not.toHaveBeenCalled() // close() never reached
+    })
+
+    it('an allowing gate lets an in-app notification navigation through', () => {
+      setActiveShellNavGuard(() => true)
+      setCtx({ notifications: [makeNotif()] })
+      renderCenter()
+      fireEvent.click(screen.getByText('New quiz assigned'))
+      expect(markRead).toHaveBeenCalledWith('n1')
+    })
+
+    it('an external (http) notification link is never gated', () => {
+      const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+      setActiveShellNavGuard(() => false) // even a denying gate must not block a new tab
+      setCtx({ notifications: [makeNotif({ action: { label: 'Open', url: 'https://example.com/x' } })] })
+      renderCenter()
+      fireEvent.click(screen.getByText('New quiz assigned'))
+      expect(markRead).toHaveBeenCalledWith('n1')
+      expect(openSpy).toHaveBeenCalled()
+      openSpy.mockRestore()
+    })
+
+    it('a denying gate blocks the Notification settings navigation', () => {
+      setActiveShellNavGuard(() => false)
+      setCtx({ notifications: [makeNotif()] })
+      renderCenter()
+      fireEvent.click(screen.getByRole('button', { name: 'Notification settings' }))
+      expect(setOpen).not.toHaveBeenCalled()
+    })
   })
 })

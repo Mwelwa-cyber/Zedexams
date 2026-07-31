@@ -64,14 +64,19 @@ export default function TeacherLayout({ children, variant = 'studio' }) {
   // via the module-scope shell-nav registry. The shell's own nav lives outside
   // that page's React context, so we intercept anchor navigations in the CAPTURE
   // phase — before React Router's <Link> handler runs — and cancel the ones the
-  // gate refuses. Scoped to the shell chrome OUTSIDE <main>: page content
-  // (including the register's own in-panel links) guards its own navigations, so
-  // gating those here too would double-prompt. A no-op when no page has an
-  // unsaved gate registered, which is every teacher page but a dirty register.
+  // gate refuses. A no-op when no page has an unsaved gate registered, which is
+  // every teacher page but a dirty register.
+  //
+  // The exemption is by the `data-register-self-guarded` marker, NOT by <main>.
+  // Only the register's OWN content (whose links already call guardLink) marks
+  // itself, so gating it here too would double-prompt. Everything else is
+  // gated — crucially including shared chrome that also renders inside <main>
+  // (TeacherTopBar's Quick Create links), which an earlier `closest('main')`
+  // exemption let slip through and discard unsaved marks.
   useEffect(() => {
     const onCaptureClick = (e) => {
       const anchor = e.target?.closest?.('a[href]')
-      if (!anchor || anchor.closest('main')) return
+      if (!anchor || anchor.closest('[data-register-self-guarded]')) return
       if (!isPlainInAppLinkClick(e, anchor, window.location.origin)) return
       if (!confirmShellNavigation()) {
         e.preventDefault()
