@@ -152,6 +152,9 @@ export default function TeacherDashboard() {
   // empty) — Prepare This Week shows its error state with a retry instead
   // of a misleading "set up your week" empty state.
   const [gensError, setGensError] = useState(false)
+  // True when the assessments fetch failed (not merely empty) — shown as an
+  // inline error notice so the teacher knows their papers are not really gone.
+  const [papersError, setPapersError] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const [searchTerm, setSearchTerm] = useState('')
   const [activityRange, setActivityRange] = useState('week')
@@ -173,14 +176,16 @@ export default function TeacherDashboard() {
     let cancelled = false
     async function load() {
       let gensFailed = false
+      let papersFailed = false
       const [gens, papers] = await Promise.all([
         listMyGenerations({ uid: currentUser.uid }).catch(() => { gensFailed = true; return [] }),
-        getMyAssessments(currentUser.uid).catch(() => []),
+        getMyAssessments(currentUser.uid).catch(() => { papersFailed = true; return [] }),
       ])
       if (cancelled) return
       setGenerations(gens)
       setAssessments(papers)
       setGensError(gensFailed)
+      setPapersError(papersFailed)
       // A failed summary query hides saved-count badges rather than showing
       // wrong zeros — record it so we can see how often that path is hit.
       if (gensFailed) capture('workspace_count_query_failed', {})
@@ -731,6 +736,25 @@ export default function TeacherDashboard() {
 
       {/* ── AI Recommendations (actionable; replaces AI insights) ─── */}
       {!loading && <AiRecommendations recommendations={recommendations} />}
+
+      {/* ── Assessment papers load error (network blip, offline-cache miss) ──
+           Shown only when the read threw — never on a genuine empty library.
+           "Try again" triggers the same reload as PrepareThisWeek's retry. */}
+      {papersError && !loading && (
+        <div className="teacher-celebrate" role="alert">
+          <span className="teacher-celebrate__text" style={{ flex: 1 }}>
+            Couldn't load your assessment papers — your saved tests and exam papers may not be showing.
+          </span>
+          <button
+            type="button"
+            className="teacher-section-head__link"
+            style={{ flexShrink: 0 }}
+            onClick={() => { setLoading(true); setPapersError(false); setReloadKey((k) => k + 1) }}
+          >
+            Try again
+          </button>
+        </div>
+      )}
 
       {/* ── Recent documents ──────────────────────────────────────── */}
       <RecentDocuments

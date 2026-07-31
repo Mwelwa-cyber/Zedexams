@@ -167,6 +167,24 @@ assert.equal(feed[2].kind, 'error')
 assert.equal(feed[2].retry, true)
 assert.deepEqual(feedFromState({ resources: [], gensError: false, now: NOW }), [])
 
+// papersError — assessment read failure surfaces as a retryable error card
+const papersFeed = feedFromState({ resources: [], papersError: true, now: NOW })
+assert.equal(papersFeed.length, 1)
+assert.equal(papersFeed[0].kind, 'error')
+assert.equal(papersFeed[0].id, 'feed-papers-error')
+assert.equal(papersFeed[0].retry, true)
+assert.ok(papersFeed[0].title.includes('assessment'))
+
+// both errors → two error cards (gensError first, papersError second)
+const bothFeed = feedFromState({ resources: [], gensError: true, papersError: true, now: NOW })
+assert.equal(bothFeed.length, 2)
+assert.equal(bothFeed[0].id, 'feed-error')
+assert.equal(bothFeed[1].id, 'feed-papers-error')
+
+// papersError with no gensError → no "library" error card
+const papersOnlyFeed = feedFromState({ resources: [], gensError: false, papersError: true, now: NOW })
+assert.ok(!papersOnlyFeed.some((i) => i.id === 'feed-error'))
+
 // ── activity rows ────────────────────────────────────────────────────
 const activity = activityFromResources(resources, { limit: 3, now: NOW })
 assert.equal(activity[0].title, 'Test Paper created')
