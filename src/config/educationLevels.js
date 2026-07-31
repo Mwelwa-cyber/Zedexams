@@ -27,8 +27,21 @@
  * A level with no syllabus content is not offered, because a paper generated
  * against content we do not have would be invented.
  *
+ * WHERE THE RUNGS COME FROM
+ * ─────────────────────────
+ * The ladder is DERIVED from src/config/canonicalEducation.js — the one
+ * declaration of which curriculum years exist and which curriculum defines
+ * each. This module used to declare its own three arrays, which is how it came
+ * to stop at Form 5 while the Curriculum Reference page advertised Forms 1-6.
+ * What stays local here is everything paper-specific that the canonical model
+ * deliberately does not model: the STORED `value` scheme (primary levels store
+ * a bare number, secondary stores its G-code), the assessmentBands `band` id,
+ * and the alias list.
+ *
  * Pure — no React, no Firebase — so the plain-node suite imports it directly.
  */
+
+import { CANONICAL_GRADES } from './canonicalEducation.js'
 
 /** Stage groupings, in ladder order. */
 export const LEVEL_STAGES = ['ece', 'primary', 'secondary']
@@ -39,90 +52,92 @@ export const LEVEL_STAGE_LABELS = {
   secondary: 'Secondary',
 }
 
-const BOTH = ['2023', '2013']
+/** Canonical curriculum id → the framework token this module speaks. */
+const FRAMEWORK_FOR_CURRICULUM = { cbc: '2023', obc: '2013' }
 
 /**
- * Early Childhood — exactly two levels: Nursery then Reception. They line up
- * one-to-one with the two age bands the CBC ECE syllabus actually publishes
- * (3-4 and 4-5 years), so each has its own content and neither is an alias of
- * the other.
+ * The assessmentBands document governing a rung. Bands are a pedagogical
+ * grouping of the ladder — they are not curriculum structure, so they live here
+ * with the rest of the paper-specific detail rather than in the canonical model.
+ */
+function bandForRung(rung) {
+  if (rung.stage === 'ece') return 'early_childhood'
+  if (rung.formNumber != null) return rung.formNumber <= 2 ? 'junior_secondary' : 'senior_secondary'
+  return rung.gradeNumber <= 4 ? 'lower_primary' : 'upper_primary'
+}
+
+/**
+ * The value a paper STORES for a rung. Primary levels store the bare number and
+ * secondary levels store the G-code — a historical split that predates the
+ * canonical model and that thousands of saved papers depend on, so it is
+ * preserved exactly rather than normalised.
+ */
+function storedValueForRung(rung) {
+  if (rung.stage === 'ece') return rung.code
+  if (rung.formNumber != null) return rung.code
+  return String(rung.gradeNumber)
+}
+
+/**
+ * Every spelling that names a rung. "Form 3" and "Grade 10" are both declared
+ * here — that is the whole point of the alias list, and why there is no second
+ * copy of the Grade 10 syllabus sitting behind a different name.
+ */
+function aliasesForRung(rung) {
+  if (rung.stage === 'ece') return [rung.code, rung.properName]
+  if (rung.formNumber != null) {
+    return [`Form ${rung.formNumber}`, `Grade ${rung.gradeNumber}`, rung.code, `F${rung.formNumber}`]
+  }
+  return [`Grade ${rung.gradeNumber}`, rung.code]
+}
+
+/**
+ * The complete ladder, Nursery → Form 6, in educational order.
  *
  * "Baby Class" and "Middle Class" are NOT levels here and are never displayed.
  * They are accepted only as LEGACY aliases, so a record saved under either name
  * still opens — normalised onto Nursery rather than left pointing at a level no
  * picker offers. See LEGACY_LEVEL_ALIASES.
  */
-const ECE_LEVELS = [
-  {
-    id: 'nursery',
-    value: 'ECE_N',
-    label: 'Nursery',
-    stage: 'ece',
-    order: 10,
-    kbGrade: 'ECE_N',
-    band: 'early_childhood',
-    aliases: ['ECE_N', 'Nursery'],
-    ageLabel: '3–4 yrs',
-    frameworks: ['2023'],
-  },
-  {
-    id: 'reception',
-    value: 'ECE_R',
-    label: 'Reception',
-    stage: 'ece',
-    order: 20,
-    kbGrade: 'ECE_R',
-    band: 'early_childhood',
-    aliases: ['ECE_R', 'Reception'],
-    ageLabel: '4–5 yrs',
-    frameworks: ['2023'],
-  },
-]
-
-/** Primary. Grade 7 exists only under the previous syllabus. */
-const PRIMARY_LEVELS = [1, 2, 3, 4, 5, 6, 7].map((n) => ({
-  id: `grade-${n}`,
-  value: String(n),
-  label: `Grade ${n}`,
-  stage: 'primary',
-  order: 30 + n * 10,
-  kbGrade: `G${n}`,
-  band: n <= 4 ? 'lower_primary' : 'upper_primary',
-  aliases: [`Grade ${n}`, `G${n}`],
-  frameworks: n === 7 ? ['2013'] : BOTH,
-}))
+export const EDUCATION_LEVELS = Object.freeze(
+  CANONICAL_GRADES.map((rung) => {
+    const isEce = rung.stage === 'ece'
+    const isSecondary = rung.formNumber != null
+    const level = {
+      id: isEce ? rung.properName.toLowerCase() : rung.id,
+      value: storedValueForRung(rung),
+      label: isEce ? rung.properName : (isSecondary ? `Form ${rung.formNumber}` : `Grade ${rung.gradeNumber}`),
+      stage: isSecondary ? 'secondary' : rung.stage,
+      order: rung.order,
+      kbGrade: rung.code,
+      band: bandForRung(rung),
+      aliases: Object.freeze(aliasesForRung(rung)),
+      frameworks: Object.freeze(rung.curricula.map((c) => FRAMEWORK_FOR_CURRICULUM[c]).filter(Boolean)),
+    }
+    if (isEce) level.ageLabel = rung.ageLabel
+    if (isSecondary) level.gradeAlias = `Grade ${rung.gradeNumber}`
+    // Which TIER this rung sits in, per curriculum. The distinction only bites
+    // at Form 5: under the 2013 set it is the final O-Level year (Grade 12),
+    // under the CBC it is the first of the two A-Level years. Recorded per
+    // framework rather than resolved to one answer, because both are true.
+    level.tierByFramework = Object.freeze(Object.fromEntries(
+      rung.curricula.map((c) => [
+        FRAMEWORK_FOR_CURRICULUM[c],
+        (rung.stageByCurriculum && rung.stageByCurriculum[c]) || rung.stage,
+      ]),
+    ))
+    return Object.freeze(level)
+  }),
+)
 
 /**
- * Secondary. The syllabus keys these years G8–G12 and Zambian schools call them
- * Form 1–5, so the value stays the KB code while the label is the Form. Both
- * "Form 3" and "Grade 10" are declared aliases of the one level — that is the
- * whole point of the alias list, and why there is no second copy of the Grade
- * 10 syllabus sitting behind a different name. Form 5 exists only under the
- * previous syllabus.
+ * The Advanced-Level tier: the two post-School-Certificate years the 2023
+ * framework introduces (§4.3.2, Form 5 → Form 6). It is deliberately NOT part
+ * of the ladder `levelsForFramework` returns, because that ladder drives
+ * O-Level paper generation and an A-Level paper is a different instrument with
+ * no syllabus on file. Ask for it explicitly.
  */
-const SECONDARY_LEVELS = [1, 2, 3, 4, 5].map((n) => {
-  const grade = n + 7
-  return {
-    id: `form-${n}`,
-    value: `G${grade}`,
-    label: `Form ${n}`,
-    stage: 'secondary',
-    order: 100 + n * 10,
-    kbGrade: `G${grade}`,
-    band: n <= 2 ? 'junior_secondary' : 'senior_secondary',
-    // "Grade 10" is the display alias some schools use for Form 3.
-    aliases: [`Form ${n}`, `Grade ${grade}`, `G${grade}`, `F${n}`],
-    gradeAlias: `Grade ${grade}`,
-    frameworks: n === 5 ? ['2013'] : BOTH,
-  }
-})
-
-/** The complete ladder, Nursery → Form 5, in educational order. */
-export const EDUCATION_LEVELS = Object.freeze(
-  [...ECE_LEVELS, ...PRIMARY_LEVELS, ...SECONDARY_LEVELS]
-    .sort((a, b) => a.order - b.order)
-    .map((level) => Object.freeze({ ...level, aliases: Object.freeze(level.aliases) })),
-)
+export const ADVANCED_TIER = 'advanced'
 
 const BY_VALUE = new Map(EDUCATION_LEVELS.map((l) => [l.value, l]))
 
@@ -254,10 +269,33 @@ export function reportLevelResolution(value, where = '') {
   return res
 }
 
-/** The levels a curriculum framework defines, in ladder order. */
-export function levelsForFramework(framework = '2023') {
+/**
+ * The levels a curriculum framework defines, in ladder order.
+ *
+ * The Advanced-Level tier is excluded by default. Under the CBC, Forms 5-6 are
+ * A-Level years — a different instrument from the School Certificate papers
+ * this ladder feeds, with no syllabus on file — so offering them in an O-Level
+ * grade picker would dead-end the teacher. Under the 2013 set, Form 5 IS the
+ * final O-Level year and is included, which is why the tier is read per
+ * framework rather than off the rung.
+ *
+ * Pass `{ includeAdvanced: true }` for a surface that genuinely spans both
+ * tiers (the Curriculum Reference page, an admin catalogue).
+ */
+export function levelsForFramework(framework = '2023', { includeAdvanced = false } = {}) {
   const fw = String(framework) === '2013' ? '2013' : '2023'
-  return EDUCATION_LEVELS.filter((l) => l.frameworks.includes(fw))
+  return EDUCATION_LEVELS.filter((l) => (
+    l.frameworks.includes(fw) &&
+    (includeAdvanced || l.tierByFramework[fw] !== ADVANCED_TIER)
+  ))
+}
+
+/** The A-Level rungs a framework defines, in ladder order. [] for the 2013 set. */
+export function advancedLevelsForFramework(framework = '2023') {
+  const fw = String(framework) === '2013' ? '2013' : '2023'
+  return EDUCATION_LEVELS.filter((l) => (
+    l.frameworks.includes(fw) && l.tierByFramework[fw] === ADVANCED_TIER
+  ))
 }
 
 /** The syllabus/KB grade code a level grounds on ('ECE_B' → 'ECE_N'). */

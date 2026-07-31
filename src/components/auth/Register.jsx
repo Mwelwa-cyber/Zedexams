@@ -12,23 +12,17 @@ import GoogleSignInButton from './GoogleSignInButton'
 import SeoHelmet from '../seo/SeoHelmet'
 import { ZAMBIAN_PROVINCES } from '../../config/zambia'
 import AgeGateStep from './AgeGateStep'
+import { CANONICAL_SUBJECTS, subjectName } from '../../config/canonicalEducation'
 
 // Auth-error copy is centralised in src/utils/friendlyErrors.js
 // (friendlyAuthMessage with flow: 'signup') so Login + Register share one
 // source of truth. The sign-up phrasing of the native Google failures lives
 // there too.
 
-const TEACHER_SUBJECTS = [
-  'English',
-  'Integrated Science',
-  'Mathematics',
-  'Social Studies',
-  'Expressive Art',
-  'Technology Studies',
-  'Cinyanja',
-  'Home Economics',
-  'Other',
-]
+// Every canonical subject a teacher could teach, plus an escape hatch.
+// This used to be the learner catalogue's eight upper-primary subjects,
+// so a secondary teacher signing up had to pick 'Other'.
+const TEACHER_SUBJECTS = [...CANONICAL_SUBJECTS.map((s) => subjectName(s.id)), 'Other']
 
 const STRENGTH_COLORS = ['#E05C4E', '#E8872A', '#F0C040', '#1E9E6B']
 const STRENGTH_MSGS   = ['Too short', 'Weak — add numbers', 'Almost there…', 'Strong ✓']

@@ -2,22 +2,41 @@ import { normalizeMarks, MARKS_BOUNDS } from '../../utils/questionType.js'
 import { createPartGroup, createPassageSection, createStandaloneSection } from '../../utils/quizSections.js'
 import { extractKeywords, keywordsForQuestion, assignByKeywords } from '../../utils/comprehensionGrouping.js'
 import { stripImportJunkChars } from '../../utils/textJunk.js'
+import { SUBJECTS as CURRICULUM_SUBJECTS } from '../../config/curriculum.js'
+import { getSubject } from '../../config/canonicalEducation.js'
 
-// Each entry maps a detectable label (used in doc headers) to the curriculum
-// subject ID used by the form and Firestore. Must stay in sync with
-// src/config/curriculum.js SUBJECTS[].id.
-const SUBJECTS = [
-  { label: 'English',            id: 'english' },
-  { label: 'Integrated Science', id: 'science' },
-  { label: 'Science',            id: 'science' },
-  { label: 'Mathematics',        id: 'mathematics' },
-  { label: 'Social Studies',     id: 'social-studies' },
-  { label: 'Expressive Art',     id: 'expressive-arts' },
-  { label: 'Expressive Arts',    id: 'expressive-arts' },
-  { label: 'Technology Studies', id: 'technology' },
-  { label: 'Cinyanja',           id: 'cinyanja' },
-  { label: 'Home Economics',     id: 'home-economics' },
-]
+/**
+ * Labels this parser can detect in a document header, each mapped to the
+ * learner-catalogue subject id the form and Firestore use.
+ *
+ * DERIVED, not listed. A parser genuinely needs several spellings per subject —
+ * a teacher's document says "Science" or "Integrated Science" depending on
+ * which syllabus they printed from — but those spellings are the canonical
+ * model's names, so they are read from it rather than retyped here. Retyping
+ * them is how this list came to know "Expressive Art" and "Expressive Arts"
+ * but not "English Language" or "Zambian Languages".
+ *
+ * Longest label first, so "Integrated Science" is matched before "Science".
+ */
+const SUBJECTS = (() => {
+  const seen = new Set()
+  const out = []
+  const add = (label, id) => {
+    const key = String(label || '').trim().toLowerCase()
+    if (!key || seen.has(key)) return
+    seen.add(key)
+    out.push({ label: String(label).trim(), id })
+  }
+  for (const subject of CURRICULUM_SUBJECTS) {
+    add(subject.label, subject.id)
+    if (!subject.canonicalId) continue
+    const canonical = getSubject(subject.canonicalId)
+    if (!canonical) continue
+    add(canonical.name, subject.id)
+    for (const name of Object.values(canonical.namesByCurriculum || {})) add(name, subject.id)
+  }
+  return out.sort((a, b) => b.label.length - a.label.length)
+})()
 
 const QUESTION_RE = /^(?:q(?:uestion)?\s*)?(\d{1,3})\s*[).:-]\s*(.+)$/i
 const QUESTION_NO_PUNCT_RE = /^(?:q(?:uestion)?\s*)?(\d{1,3})\s+(.+\?)$/i

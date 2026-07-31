@@ -10,13 +10,14 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { listLearnerClasses } from '../../utils/classes'
-import { SUBJECTS } from '../../config/curriculum'
+import { subjectVisualsFor } from '../../config/curriculum'
+import { storedGradeLabel, storedSubjectName } from '../../config/canonicalEducation'
 import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
 import SubjectIcon from '../ui/SubjectIcon'
 
 function ClassCard({ klass, currentUid }) {
-  const subjectMeta = SUBJECTS.find((s) => s.id === klass.subject)
+  const subjectMeta = subjectVisualsFor(klass.subject)
   const learners = Array.isArray(klass.learners) ? klass.learners : []
   const memberCount = learners.length
   const isOnlyMember = memberCount === 1 && currentUid && learners[0] === currentUid
@@ -39,8 +40,8 @@ function ClassCard({ klass, currentUid }) {
           )}
         </p>
         <p className="theme-text-muted text-xs mt-1">
-          Grade {klass.grade}
-          {subjectMeta ? ` · ${subjectMeta.label}` : ''}
+          {storedGradeLabel(klass.grade)}
+          {klass.subject ? ` · ${storedSubjectName(klass.subject)}` : ''}
           {klass.school ? ` · ${klass.school}` : ''}
         </p>
         <p className="theme-text-muted text-[11px] mt-1">

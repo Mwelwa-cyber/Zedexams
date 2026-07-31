@@ -4,7 +4,7 @@
  * spot mistakes before the assignment fans out.
  */
 
-import { SUBJECTS } from '../../../config/curriculum'
+import { storedGradeLabel, storedSubjectName } from '../../../config/canonicalEducation'
 import { getTemplate } from '../../../utils/assignmentTemplates'
 
 function fmtDate(value) {
@@ -23,7 +23,6 @@ export default function AssignmentSummary({
   template = null,
   quizTitle = '',
 }) {
-  const subjects = SUBJECTS
   const tpl = template ? getTemplate(template) : null
   const openLabel = fmtDate(options.openAt)
   const dueLabel = fmtDate(options.dueAt)
@@ -69,14 +68,13 @@ export default function AssignmentSummary({
           </p>
           <ul className="theme-card theme-border rounded-2xl border divide-y divide-current/10 overflow-hidden">
             {targets.slice(0, 6).map((target) => {
-              const subjectMeta = subjects.find((s) => s.id === target.classSubject)
               return (
                 <li key={target.classId} className="p-3 flex items-center justify-between gap-3 text-sm">
                   <div className="min-w-0">
                     <p className="theme-text font-bold truncate">{target.className || 'Class'}</p>
                     <p className="theme-text-muted text-xs truncate">
-                      Grade {target.classGrade}
-                      {subjectMeta ? ` · ${subjectMeta.label}` : ''}
+                      {storedGradeLabel(target.classGrade)}
+                      {target.classSubject ? ` · ${storedSubjectName(target.classSubject)}` : ''}
                       {Array.isArray(target.classLearners)
                         ? ` · ${target.classLearners.length} learner${target.classLearners.length === 1 ? '' : 's'}`
                         : ''}

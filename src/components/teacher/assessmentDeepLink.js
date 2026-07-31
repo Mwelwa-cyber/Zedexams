@@ -9,35 +9,23 @@
 // with no studio equivalent (secondary-only subjects) still fall back to the
 // form default. This module owns that mapping so it stays unit-testable.
 
-import { STUDIO_SUBJECTS } from './assessmentStudioMeta'
-import { subjectLabel, normalizePaperGrade, isPaperGrade } from './paperTaxonomy'
+import { normalizePaperGrade, isPaperGrade } from './paperTaxonomy'
+import { resolveStoredSubject, subjectName } from '../../config/canonicalEducation'
 
-// CBC subject slug → one of AssessmentStudio's 8 subjects. Secondary-only
-// subjects (biology, geography, history, …) have no studio equivalent and are
-// intentionally absent so they fall through to the default.
-const KIT_SUBJECT_TO_STUDIO = {
-  english: 'English',
-  mathematics: 'Mathematics',
-  numeracy: 'Mathematics',
-  integrated_science: 'Integrated Science',
-  environmental_science: 'Integrated Science',
-  science: 'Integrated Science',
-  social_studies: 'Social Studies',
-  expressive_arts: 'Expressive Art',
-  creative_and_technology_studies: 'Technology Studies',
-  technology_studies: 'Technology Studies',
-  home_economics: 'Home Economics',
-  zambian_language: 'Cinyanja',
-}
-
+/**
+ * A lesson kit's subject slug → the name the studio prints on the paper.
+ *
+ * This was a hand-kept table folding twelve slugs onto the studio's own eight
+ * labels, which is where a kit for `zambian_language` became a paper for
+ * "Cinyanja" and a kit for `creative_and_technology_studies` became one for
+ * "Technology Studies" — both silent relabellings of the teacher's subject.
+ * The canonical model resolves the slug and names it, so a kit for a subject
+ * the studio previously had no label for (Biology, Geography, History) now
+ * carries through instead of falling back to the form default.
+ */
 function studioSubjectFromCbc(slug) {
-  const k = String(slug || '').trim().toLowerCase()
-  if (!k) return ''
-  if (KIT_SUBJECT_TO_STUDIO[k]) return KIT_SUBJECT_TO_STUDIO[k]
-  // Fall back to the generic label only if it is itself one of the 8 studio
-  // subjects (so an already-canonical display name still resolves).
-  const label = subjectLabel(k)
-  return STUDIO_SUBJECTS.includes(label) ? label : ''
+  const subject = resolveStoredSubject(slug)
+  return subject ? subjectName(subject.id) : ''
 }
 
 /**

@@ -31,6 +31,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
 import { generateAIQuizQuestions } from '../../utils/aiAssistant'
 import { normalizeSubject, SUBJECT_LABELS } from '../../config/curriculum.js'
+import { gradesForFeature, gradeNumberOf } from '../../config/canonicalEducation'
 
 const MAX_BATCH = 10
 const QUESTIONS_PER_QUIZ = 5
@@ -39,7 +40,9 @@ const QUESTIONS_PER_QUIZ = 5
 // Firestore rules' _validGrade helper (PSLE focus). Filtering here
 // keeps the bulk action consistent with the rule — a topic for G8+
 // would fail at addDoc with 'permission-denied' otherwise.
-const LEARNER_GRADES = new Set(['4', '5', '6', '7'])
+const LEARNER_GRADES = new Set(
+  gradesForFeature('learner-catalogue').map((g) => gradeNumberOf(g.code)),
+)
 
 function gradeForLearnerCollection(grade) {
   // The CBC KB uses 'G6' / 'G7' / 'ECE'. The learner-facing /quizzes

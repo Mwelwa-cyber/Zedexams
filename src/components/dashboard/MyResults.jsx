@@ -9,11 +9,10 @@ import Skeleton from '../ui/Skeleton'
 import ContentLoadError from '../ui/ContentLoadError'
 import SeoHelmet from '../seo/SeoHelmet'
 import { computeStreak } from '../../utils/streak'
+import { SUBJECTS as CURRICULUM_SUBJECTS } from '../../config/curriculum'
 
-const SUBJECTS = [
-  'English', 'Integrated Science', 'Mathematics', 'Social Studies',
-  'Expressive Art', 'Technology Studies', 'Cinyanja', 'Home Economics',
-]
+// The learner catalogue's own labels — no second copy of them here.
+const SUBJECTS = CURRICULUM_SUBJECTS.map((s) => s.label)
 
 const subjectBadge = {
   English:               'bg-violet-100 text-violet-700',

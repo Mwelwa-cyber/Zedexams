@@ -23,15 +23,20 @@ const baseWrite = {
 }
 
 describe('Class Register grade options', () => {
-  it('spans early-childhood, primary and lower-secondary', () => {
+  it('spans the whole ladder — early childhood to Form 6', () => {
     const values = CLASS_REGISTER_GRADE_OPTIONS.map((o) => o.value)
     // Zambian early childhood has TWO levels on a printed register — Nursery
     // and Reception. The retired 'baby'/'middle' values are legacy only and
     // must never be OFFERED (see the normalisation tests below).
+    //
+    // The list is DERIVED from the canonical ladder rather than declared here,
+    // so it can no longer stop at Form 4 while the studios offer more: a
+    // register is an organisational tool and must cover every class a teacher
+    // actually teaches.
     expect(values).toEqual([
       'nursery', 'reception',
       '1', '2', '3', '4', '5', '6', '7',
-      'form-1', 'form-2', 'form-3', 'form-4',
+      'form-1', 'form-2', 'form-3', 'form-4', 'form-5', 'form-6',
     ])
     expect(values).not.toContain('baby')
     expect(values).not.toContain('middle')
@@ -73,9 +78,16 @@ describe('classRegisterWriteSchema grade validation', () => {
     expect(parsed.grade).toBe('5')
   })
 
-  it('rejects an unsupported grade', () => {
-    expect(() => classRegisterWriteSchema.parse({ ...baseWrite, grade: 'form-5' })).toThrow()
+  it('accepts every grade on the canonical ladder', () => {
+    // Form 5 and Form 6 used to be rejected here, so a register for either
+    // could not be saved at all.
+    expect(classRegisterWriteSchema.parse({ ...baseWrite, grade: 'form-5' }).grade).toBe('form-5')
+    expect(classRegisterWriteSchema.parse({ ...baseWrite, grade: 'form-6' }).grade).toBe('form-6')
+  })
+
+  it('rejects a grade that is not on the ladder', () => {
     expect(() => classRegisterWriteSchema.parse({ ...baseWrite, grade: '13' })).toThrow()
+    expect(() => classRegisterWriteSchema.parse({ ...baseWrite, grade: 'form-7' })).toThrow()
   })
 })
 

@@ -37,7 +37,8 @@ import {
   listAssignmentsForClass,
   removeClassAssignment,
 } from '../../../utils/assignments'
-import { SUBJECTS } from '../../../config/curriculum'
+import { subjectVisualsFor } from '../../../config/curriculum'
+import { storedGradeLabel, storedSubjectName } from '../../../config/canonicalEducation'
 import SeoHelmet from '../../seo/SeoHelmet'
 import Skeleton from '../../ui/Skeleton'
 import SubjectIcon from '../../ui/SubjectIcon'
@@ -288,7 +289,6 @@ export default function TeacherClassDetail() {
     )
   }
 
-  const subjectMeta = SUBJECTS.find((s) => s.id === klass.subject)
   const archived = klass.active === false
 
   return (
@@ -308,8 +308,8 @@ export default function TeacherClassDetail() {
           )}
         </h1>
         <p className="theme-text-muted text-sm mt-1">
-          Grade {klass.grade}
-          {subjectMeta ? ` · ${subjectMeta.label}` : ''}
+          {storedGradeLabel(klass.grade)}
+          {klass.subject ? ` · ${storedSubjectName(klass.subject)}` : ''}
           {klass.school ? ` · ${klass.school}` : ''}
         </p>
         {klass.description && (
@@ -388,7 +388,7 @@ export default function TeacherClassDetail() {
         ) : (
           <ul className="divide-y divide-current/10">
             {assignments.map((a) => {
-              const subjectMeta = SUBJECTS.find((s) => s.id === a.subject)
+              const subjectMeta = subjectVisualsFor(a.subject)
               const dueLabel = a.dueAt
                 ? `due ${(a.dueAt.toDate?.() || new Date(a.dueAt)).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`
                 : null
@@ -399,7 +399,7 @@ export default function TeacherClassDetail() {
                     <p className="theme-text font-bold text-sm truncate">{a.resourceTitle}</p>
                     <p className="theme-text-muted text-xs mt-0.5">
                       {a.resourceType === 'exam' ? 'Daily exam' : 'Quiz'}
-                      {subjectMeta ? ` · ${subjectMeta.label}` : ''}
+                      {a.subject ? ` · ${storedSubjectName(a.subject)}` : ''}
                       {dueLabel ? ` · ${dueLabel}` : ''}
                     </p>
                   </div>

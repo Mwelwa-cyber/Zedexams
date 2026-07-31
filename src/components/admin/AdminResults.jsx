@@ -6,19 +6,15 @@ import PageHeader from '../ui/PageHeader'
 import EmptyState from '../ui/EmptyState'
 import Skeleton from '../ui/Skeleton'
 import SeoHelmet from '../seo/SeoHelmet'
+import { PAPER_SUBJECTS } from '../../config/curriculum'
+import { gradesForFeature, gradeNumberOf } from '../../config/canonicalEducation'
 
-const SUBJECTS = [
-  'English',
-  'Integrated Science',
-  'Mathematics',
-  'Social Studies',
-  'Expressive Art',
-  'Technology Studies',
-  'Cinyanja',
-  'Home Economics',
-  'Special Paper 1',
-]
-const GRADES = ['4', '5', '6', '7']
+// Both lists derive from the learner catalogue + the canonical ladder.
+const SUBJECTS = PAPER_SUBJECTS.map((s) => s.label)
+// The learner catalogue's grades, from the canonical model — a documented
+// FILTER on the one ladder (quizzes and lessons are authored for upper
+// primary only), never a list of its own.
+const GRADES = gradesForFeature('learner-catalogue').map((g) => gradeNumberOf(g.code))
 
 function pctColor(p) {
   if (p >= 70) return 'text-green-600'

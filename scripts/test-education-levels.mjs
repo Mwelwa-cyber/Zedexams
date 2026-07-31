@@ -19,6 +19,7 @@ import {
   EDUCATION_LEVELS, LEVEL_STAGES, LEVEL_STAGE_LABELS, resolveLevel,
   levelsForFramework, levelKbGrade, levelBandId, levelLabel, isSameLevel,
   levelResolution, levelAvailability, LEVEL_AVAILABILITY,
+  advancedLevelsForFramework,
 } from '../src/config/educationLevels.js'
 import { BAND_IDS, ASSESSMENT_BAND_SEED } from '../src/config/assessmentBands.js'
 
@@ -35,16 +36,33 @@ function test(name, fn) {
 
 /* ── the ladder is complete ─────────────────────────────────────────────── */
 
-test('covers Nursery through Form 5', () => {
+test('covers Nursery through Form 6 — the full range the product claims', () => {
   const labels = EDUCATION_LEVELS.map((l) => l.label)
   for (const expected of [
     'Nursery', 'Reception',
     'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7',
-    'Form 1', 'Form 2', 'Form 3', 'Form 4', 'Form 5',
+    // Form 6 is the second CBC A-Level year. The Curriculum Reference page has
+    // always advertised "Forms 1 – 6"; until the ladder carried Form 6 that was
+    // a claim no picker could honour.
+    'Form 1', 'Form 2', 'Form 3', 'Form 4', 'Form 5', 'Form 6',
   ]) {
     assert.ok(labels.includes(expected), `${expected} missing from the ladder`)
   }
-  assert.equal(EDUCATION_LEVELS.length, 14)
+  assert.equal(EDUCATION_LEVELS.length, 15)
+})
+
+test('the A-Level tier is reachable, but never in an O-Level grade picker', () => {
+  // Under the CBC, Forms 5-6 are A-Level years; under the 2013 set, Form 5 is
+  // the final O-Level year. Same rung, different tier — so the tier is read per
+  // framework, and the O-Level ladder each framework returns differs.
+  assert.deepEqual(
+    advancedLevelsForFramework('2023').map((l) => l.id), ['form-5', 'form-6'],
+  )
+  assert.deepEqual(advancedLevelsForFramework('2013').map((l) => l.id), [])
+  assert.ok(
+    levelsForFramework('2023', { includeAdvanced: true }).some((l) => l.id === 'form-6'),
+    'a surface spanning both tiers can ask for Form 6',
+  )
 })
 
 test('Early Childhood is exactly Nursery and Reception', () => {

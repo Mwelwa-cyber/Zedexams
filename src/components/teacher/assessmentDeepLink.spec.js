@@ -18,21 +18,34 @@ describe('assessmentDefaultsFromParams', () => {
     expect(assessmentDefaultsFromParams(params('')).grade).toBeUndefined()
   })
 
-  it('maps CBC subject slugs to the studio subject labels', () => {
+  it('names a subject exactly as the canonical model does', () => {
     expect(assessmentDefaultsFromParams(params('subject=mathematics')).subject).toBe('Mathematics')
-    expect(assessmentDefaultsFromParams(params('subject=integrated_science')).subject).toBe('Integrated Science')
     expect(assessmentDefaultsFromParams(params('subject=social_studies')).subject).toBe('Social Studies')
-    // Slug whose generic label ("Expressive Arts") differs from the studio's ("Expressive Art").
-    expect(assessmentDefaultsFromParams(params('subject=expressive_arts')).subject).toBe('Expressive Art')
-    expect(assessmentDefaultsFromParams(params('subject=zambian_language')).subject).toBe('Cinyanja')
-    // Lower-primary combined learning area folds into Mathematics.
-    expect(assessmentDefaultsFromParams(params('subject=numeracy')).subject).toBe('Mathematics')
+    // The canonical name comes from the Syllabus Studio, which titles the CBC
+    // Grades 4-6 document "Science". The studio's own list said "Integrated
+    // Science", so a paper and a syllabus disagreed on the subject's name.
+    expect(assessmentDefaultsFromParams(params('subject=integrated_science')).subject).toBe('Science')
+    // Was silently relabelled "Expressive Art" (singular) by the studio's list.
+    expect(assessmentDefaultsFromParams(params('subject=expressive_arts')).subject).toBe('Expressive Arts')
+    // Was silently relabelled "Cinyanja" — one zoned language standing in for
+    // the whole learning area.
+    expect(assessmentDefaultsFromParams(params('subject=zambian_language')).subject).toBe('Zambian Languages')
+    // The combined lower-primary learning area keeps its own name rather than
+    // being folded into Mathematics.
+    expect(assessmentDefaultsFromParams(params('subject=numeracy')).subject).toBe('Mathematics and Science')
   })
 
-  it('omits subjects with no studio equivalent so the form keeps its default', () => {
-    expect(assessmentDefaultsFromParams(params('subject=geography')).subject).toBeUndefined()
-    expect(assessmentDefaultsFromParams(params('subject=biology')).subject).toBeUndefined()
+  it('carries through every canonical subject, not just a studio subset', () => {
+    // These used to be dropped because the studio kept a local list of eight
+    // subjects: a Geography lesson kit deep-linked into a paper for whatever
+    // the form defaulted to, silently.
+    expect(assessmentDefaultsFromParams(params('subject=geography')).subject).toBe('Geography')
+    expect(assessmentDefaultsFromParams(params('subject=biology')).subject).toBe('Biology')
+  })
+
+  it('omits a subject it cannot resolve, so the form keeps its default', () => {
     expect(assessmentDefaultsFromParams(params('subject=')).subject).toBeUndefined()
+    expect(assessmentDefaultsFromParams(params('subject=not_a_subject')).subject).toBeUndefined()
   })
 
   it('passes topic through (trimmed) and validates term to 1–3', () => {

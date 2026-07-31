@@ -70,19 +70,15 @@ import QuizPublishStep from './assignment/QuizPublishStep'
 import { deriveQuizStatus, listAssignmentsForResource } from '../../utils/quizAssignments'
 import { normalizeSubject } from '../../config/curriculum.js'
 import SeoHelmet from '../seo/SeoHelmet'
+import { PAPER_SUBJECTS } from '../../config/curriculum'
+import { gradesForFeature, gradeNumberOf } from '../../config/canonicalEducation'
 
-const SUBJECTS = [
-  'English',
-  'Integrated Science',
-  'Mathematics',
-  'Social Studies',
-  'Expressive Art',
-  'Technology Studies',
-  'Cinyanja',
-  'Home Economics',
-  'Special Paper 1',
-]
-const GRADES = ['4', '5', '6', '7']
+// Both lists derive from the learner catalogue + the canonical ladder.
+const SUBJECTS = PAPER_SUBJECTS.map((s) => s.label)
+// The learner catalogue's grades, from the canonical model — a documented
+// FILTER on the one ladder (quizzes and lessons are authored for upper
+// primary only), never a list of its own.
+const GRADES = gradesForFeature('learner-catalogue').map((g) => gradeNumberOf(g.code))
 // Common quiz lengths offered in the duration dropdown so admins pick rather
 // than type a free-form number. Any saved value outside this list is still
 // preserved and shown via durationOptions below.

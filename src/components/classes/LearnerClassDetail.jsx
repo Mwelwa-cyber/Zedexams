@@ -21,7 +21,7 @@ import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firesto
 import { db } from '../../firebase/config'
 import { useAuth } from '../../contexts/AuthContext'
 import { getClass, leaveClass } from '../../utils/classes'
-import { SUBJECTS } from '../../config/curriculum'
+import { storedGradeLabel, storedSubjectName } from '../../config/canonicalEducation'
 import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
 import ConfirmDialog from '../ui/ConfirmDialog'
@@ -152,7 +152,6 @@ export default function LearnerClassDetail() {
     )
   }
 
-  const subjectMeta = SUBJECTS.find((s) => s.id === klass.subject)
 
   return (
     <div className="min-h-screen theme-bg pb-20">
@@ -165,8 +164,8 @@ export default function LearnerClassDetail() {
           </Link>
           <h1 className="text-white text-2xl sm:text-3xl font-black">{klass.name}</h1>
           <p className="text-white/80 text-sm mt-2">
-            Grade {klass.grade}
-            {subjectMeta ? ` · ${subjectMeta.label}` : ''}
+            {storedGradeLabel(klass.grade)}
+            {klass.subject ? ` · ${storedSubjectName(klass.subject)}` : ''}
             {klass.school ? ` · ${klass.school}` : ''}
           </p>
           {teacher?.displayName && (

@@ -204,6 +204,7 @@ const BLOCKS = (arr) => ({ preferredBlocks: arr, allowSingles: true, maxBlockLen
 const ECE_SUBJECTS = [
   {
     id: 'ece-english', canonicalName: 'English Language', shortName: 'English',
+    canonicalSubjectId: 'english',
     aliases: ['english', 'eng', 'english language'],
     weeklyPeriods: 5, weeklyMinutes: 150, timeAllocation: '2 h 30 min',
     compulsory: true, optionGroupId: 'ece-language', subjectType: 'language',
@@ -211,6 +212,7 @@ const ECE_SUBJECTS = [
   },
   {
     id: 'ece-sign-language', canonicalName: 'Sign Language Literacy', shortName: 'Sign Language',
+    canonicalSubjectId: null,
     aliases: ['sign language', 'sign'],
     weeklyPeriods: 5, weeklyMinutes: 150, timeAllocation: '2 h 30 min',
     compulsory: true, optionGroupId: 'ece-language', subjectType: 'language',
@@ -218,6 +220,7 @@ const ECE_SUBJECTS = [
   },
   {
     id: 'ece-braille', canonicalName: 'Braille', shortName: 'Braille',
+    canonicalSubjectId: null,
     aliases: ['braille literacy'],
     weeklyPeriods: 5, weeklyMinutes: 150, timeAllocation: '2 h 30 min',
     compulsory: true, optionGroupId: 'ece-language', subjectType: 'language',
@@ -225,6 +228,7 @@ const ECE_SUBJECTS = [
   },
   {
     id: 'ece-zambian-language', canonicalName: 'Zambian Language', shortName: 'Zambian Lang',
+    canonicalSubjectId: 'zambian_language',
     aliases: ['zambian', 'zambian lang', 'local language'],
     weeklyPeriods: 5, weeklyMinutes: 150, timeAllocation: '2 h 30 min',
     compulsory: true, optionGroupId: null, subjectType: 'language',
@@ -235,6 +239,7 @@ const ECE_SUBJECTS = [
     // "…and Pre-Science" spelling stays an alias so a saved timetable or an
     // imported allocation written against it still resolves to this subject.
     id: 'pre-mathematics-science', canonicalName: 'Pre-Mathematics and Science', shortName: 'Pre-Maths & Sci',
+    canonicalSubjectId: 'numeracy',
     aliases: [
       'pre maths', 'pre mathematics', 'pre science', 'pre-maths and pre-science',
       'pre-mathematics and pre-science', 'pre-maths & science', 'pre-maths and science',
@@ -245,6 +250,7 @@ const ECE_SUBJECTS = [
   },
   {
     id: 'ece-creative-technology', canonicalName: 'Creative and Technology Studies', shortName: 'CTS',
+    canonicalSubjectId: 'creative_and_technology_studies',
     aliases: ['cts', 'creative & technology studies', 'creative and technology'],
     weeklyPeriods: 10, weeklyMinutes: 300, timeAllocation: '5 h 00 min',
     compulsory: true, optionGroupId: null, subjectType: 'integrated',
@@ -255,6 +261,7 @@ const ECE_SUBJECTS = [
 const LOWER_PRIMARY_SUBJECTS = [
   {
     id: 'literacy-language-english', canonicalName: 'Literacy and Language — English Language', shortName: 'English',
+    canonicalSubjectId: 'english',
     aliases: ['english', 'eng', 'english language', 'literacy & language — english', 'literacy english', 'literacy-english'],
     weeklyPeriods: 11, weeklyMinutes: 330, timeAllocation: '5 h 30 min',
     compulsory: true, optionGroupId: null, subjectType: 'language',
@@ -262,6 +269,7 @@ const LOWER_PRIMARY_SUBJECTS = [
   },
   {
     id: 'literacy-language-zambian', canonicalName: 'Literacy and Language — Zambian Language', shortName: 'Zambian Lang',
+    canonicalSubjectId: 'zambian_language',
     aliases: ['zambian', 'zambian language', 'zambian lang', 'literacy & language — zambian', 'literacy zambian', 'literacy-zambian', 'local language'],
     weeklyPeriods: 11, weeklyMinutes: 330, timeAllocation: '5 h 30 min',
     compulsory: true, optionGroupId: null, subjectType: 'language',
@@ -273,6 +281,7 @@ const LOWER_PRIMARY_SUBJECTS = [
     // they must never spawn a second subject or cause the official area to be
     // dropped from the Grade 1–3 allocation.
     id: 'mathematics-and-science', canonicalName: 'Mathematics and Science', shortName: 'Maths & Science',
+    canonicalSubjectId: 'numeracy',
     aliases: [
       'mathematics and science', 'maths and science', 'mathematics & science', 'maths & science',
       'maths', 'mathematics', 'science', 'mathematics-science',
@@ -284,6 +293,7 @@ const LOWER_PRIMARY_SUBJECTS = [
   },
   {
     id: 'creative-and-technology-studies', canonicalName: 'Creative and Technology Studies', shortName: 'CTS',
+    canonicalSubjectId: 'creative_and_technology_studies',
     aliases: ['cts', 'creative and technology studies', 'creative & technology studies', 'creative and technology', 'creative studies', 'creative-technology'],
     weeklyPeriods: 10, weeklyMinutes: 300, timeAllocation: '5 h 00 min',
     compulsory: true, optionGroupId: null, subjectType: 'integrated',
@@ -294,6 +304,7 @@ const LOWER_PRIMARY_SUBJECTS = [
 const UPPER_PRIMARY_SUBJECTS = [
   {
     id: 'english-language', canonicalName: 'English Language', shortName: 'English',
+    canonicalSubjectId: 'english',
     aliases: ['english', 'eng'],
     weeklyPeriods: 6, weeklyMinutes: 240, timeAllocation: '4 h 00 min',
     compulsory: true, optionGroupId: null, subjectType: 'academic',
@@ -301,6 +312,7 @@ const UPPER_PRIMARY_SUBJECTS = [
   },
   {
     id: 'mathematics', canonicalName: 'Mathematics', shortName: 'Maths',
+    canonicalSubjectId: 'mathematics',
     aliases: ['maths', 'math'],
     weeklyPeriods: 6, weeklyMinutes: 240, timeAllocation: '4 h 00 min',
     compulsory: true, optionGroupId: null, subjectType: 'academic',
@@ -310,6 +322,7 @@ const UPPER_PRIMARY_SUBJECTS = [
     // Official canonical name is "Science" in the 2023 framework — Agricultural
     // Science content is integrated inside it, not a separate compulsory subject.
     id: 'science', canonicalName: 'Science', shortName: 'Science',
+    canonicalSubjectId: 'integrated_science',
     aliases: ['integrated science', 'sci', 'science (incl. agricultural science)', 'agricultural science'],
     weeklyPeriods: 6, weeklyMinutes: 240, timeAllocation: '4 h 00 min',
     compulsory: true, optionGroupId: null, subjectType: 'academic',
@@ -317,6 +330,7 @@ const UPPER_PRIMARY_SUBJECTS = [
   },
   {
     id: 'zambian-language', canonicalName: 'Zambian Language', shortName: 'Zambian Lang',
+    canonicalSubjectId: 'zambian_language',
     aliases: ['zambian', 'zambian lang', 'local language', 'bemba', 'nyanja', 'tonga', 'lozi', 'kaonde', 'lunda', 'luvale'],
     weeklyPeriods: 5, weeklyMinutes: 200, timeAllocation: '3 h 20 min',
     compulsory: true, optionGroupId: null, subjectType: 'language',
@@ -325,6 +339,7 @@ const UPPER_PRIMARY_SUBJECTS = [
   {
     // Mining content is included within Social Studies — never an extra subject.
     id: 'social-studies', canonicalName: 'Social Studies', shortName: 'Soc Studies',
+    canonicalSubjectId: 'social_studies',
     aliases: ['ss', 'social', 'social studies (incl. mining content)'],
     weeklyPeriods: 5, weeklyMinutes: 200, timeAllocation: '3 h 20 min',
     compulsory: true, optionGroupId: null, subjectType: 'academic',
@@ -332,6 +347,7 @@ const UPPER_PRIMARY_SUBJECTS = [
   },
   {
     id: 'technology-studies', canonicalName: 'Technology Studies', shortName: 'Tech Studies',
+    canonicalSubjectId: 'technology_studies',
     aliases: ['tech studies', 'tech', 'ict', 'computers', 'computer studies'],
     weeklyPeriods: 7, weeklyMinutes: 280, timeAllocation: '4 h 40 min',
     compulsory: true, optionGroupId: null, subjectType: 'practical',
@@ -339,6 +355,7 @@ const UPPER_PRIMARY_SUBJECTS = [
   },
   {
     id: 'expressive-arts', canonicalName: 'Expressive Arts', shortName: 'Expr Arts',
+    canonicalSubjectId: 'expressive_arts',
     aliases: ['ea', 'art', 'arts', 'pe', 'physical education', 'music'],
     weeklyPeriods: 7, weeklyMinutes: 280, timeAllocation: '4 h 40 min',
     compulsory: true, optionGroupId: 'practical', subjectType: 'practical',
@@ -346,6 +363,7 @@ const UPPER_PRIMARY_SUBJECTS = [
   },
   {
     id: 'home-economics', canonicalName: 'Home Economics', shortName: 'Home Econ',
+    canonicalSubjectId: 'home_economics',
     aliases: ['home ec', 'homeec', 'h/econ', 'home management'],
     weeklyPeriods: 7, weeklyMinutes: 280, timeAllocation: '4 h 40 min',
     compulsory: true, optionGroupId: 'practical', subjectType: 'practical',
@@ -356,6 +374,7 @@ const UPPER_PRIMARY_SUBJECTS = [
 const ADAPTED_SUBJECTS = [
   {
     id: 'adapted-maths-science', canonicalName: 'Mathematics and Science', shortName: 'Maths & Science',
+    canonicalSubjectId: 'numeracy',
     aliases: ['maths and science', 'maths', 'mathematics', 'science'],
     weeklyPeriods: 4, weeklyMinutes: 160, timeAllocation: '2 h 40 min',
     compulsory: true, optionGroupId: null, subjectType: 'integrated',
@@ -363,6 +382,7 @@ const ADAPTED_SUBJECTS = [
   },
   {
     id: 'adapted-english', canonicalName: 'English Language', shortName: 'English',
+    canonicalSubjectId: 'english',
     aliases: ['english', 'eng'],
     weeklyPeriods: 4, weeklyMinutes: 160, timeAllocation: '2 h 40 min',
     compulsory: true, optionGroupId: 'adapted-language', subjectType: 'language',
@@ -370,6 +390,7 @@ const ADAPTED_SUBJECTS = [
   },
   {
     id: 'adapted-sign-language', canonicalName: 'Sign Language', shortName: 'Sign Language',
+    canonicalSubjectId: null,
     aliases: ['sign', 'sign language literacy'],
     weeklyPeriods: 4, weeklyMinutes: 160, timeAllocation: '2 h 40 min',
     compulsory: true, optionGroupId: 'adapted-language', subjectType: 'language',
@@ -377,6 +398,7 @@ const ADAPTED_SUBJECTS = [
   },
   {
     id: 'adapted-creative-technology', canonicalName: 'Creative and Technology Studies', shortName: 'CTS',
+    canonicalSubjectId: 'creative_and_technology_studies',
     aliases: ['cts', 'creative and technology'],
     weeklyPeriods: 10, weeklyMinutes: 400, timeAllocation: '6 h 40 min',
     compulsory: true, optionGroupId: null, subjectType: 'integrated',
@@ -384,6 +406,7 @@ const ADAPTED_SUBJECTS = [
   },
   {
     id: 'activities-daily-living', canonicalName: 'Activities for Daily Living', shortName: 'Daily Living',
+    canonicalSubjectId: null,
     aliases: ['adl', 'daily living'],
     weeklyPeriods: 4, weeklyMinutes: 160, timeAllocation: '2 h 40 min',
     compulsory: true, optionGroupId: null, subjectType: 'living-skills',
@@ -402,6 +425,7 @@ const ADAPTED_SUBJECTS = [
 const OBC_LOWER_PRIMARY_SUBJECTS = [
   {
     id: 'obc-lp-literacy-languages', canonicalName: 'Literacy and Languages', shortName: 'Literacy & Lang',
+    canonicalSubjectId: 'literacy',
     aliases: ['literacy', 'literacy and languages', 'literacy & languages', 'languages', 'english', 'zambian language', 'zambian languages', 'local language'],
     weeklyPeriods: 13, weeklyMinutes: 390, timeAllocation: '6 h 30 min',
     compulsory: true, optionGroupId: null, subjectType: 'language',
@@ -409,6 +433,7 @@ const OBC_LOWER_PRIMARY_SUBJECTS = [
   },
   {
     id: 'obc-lp-mathematics', canonicalName: 'Mathematics', shortName: 'Maths',
+    canonicalSubjectId: 'mathematics',
     aliases: ['maths', 'math', 'numeracy'],
     weeklyPeriods: 10, weeklyMinutes: 300, timeAllocation: '5 h 00 min',
     compulsory: true, optionGroupId: null, subjectType: 'academic',
@@ -416,6 +441,7 @@ const OBC_LOWER_PRIMARY_SUBJECTS = [
   },
   {
     id: 'obc-lp-social-studies', canonicalName: 'Social Studies', shortName: 'Soc Studies',
+    canonicalSubjectId: 'social_studies',
     aliases: ['ss', 'social', 'social studies'],
     weeklyPeriods: 5, weeklyMinutes: 150, timeAllocation: '2 h 30 min',
     compulsory: true, optionGroupId: null, subjectType: 'academic',
@@ -423,6 +449,7 @@ const OBC_LOWER_PRIMARY_SUBJECTS = [
   },
   {
     id: 'obc-lp-integrated-science', canonicalName: 'Integrated Science', shortName: 'Int Science',
+    canonicalSubjectId: 'integrated_science',
     aliases: ['integrated science', 'science', 'sci', 'environmental science'],
     weeklyPeriods: 5, weeklyMinutes: 150, timeAllocation: '2 h 30 min',
     compulsory: true, optionGroupId: null, subjectType: 'academic',
@@ -430,6 +457,7 @@ const OBC_LOWER_PRIMARY_SUBJECTS = [
   },
   {
     id: 'obc-lp-creative-technology', canonicalName: 'Creative and Technology Studies', shortName: 'CTS',
+    canonicalSubjectId: 'creative_and_technology_studies',
     aliases: ['cts', 'creative and technology studies', 'creative & technology studies', 'creative and technology'],
     weeklyPeriods: 9, weeklyMinutes: 270, timeAllocation: '4 h 30 min',
     compulsory: true, optionGroupId: null, subjectType: 'integrated',
@@ -442,6 +470,7 @@ const OBC_LOWER_PRIMARY_SUBJECTS = [
 const OBC_UPPER_PRIMARY_SUBJECTS = [
   {
     id: 'obc-up-english', canonicalName: 'English Language', shortName: 'English',
+    canonicalSubjectId: 'english',
     aliases: ['english', 'eng'],
     weeklyPeriods: 6, weeklyMinutes: 240, timeAllocation: '4 h 00 min',
     compulsory: true, optionGroupId: null, subjectType: 'language',
@@ -449,6 +478,7 @@ const OBC_UPPER_PRIMARY_SUBJECTS = [
   },
   {
     id: 'obc-up-mathematics', canonicalName: 'Mathematics', shortName: 'Maths',
+    canonicalSubjectId: 'mathematics',
     aliases: ['maths', 'math', 'numeracy'],
     weeklyPeriods: 7, weeklyMinutes: 280, timeAllocation: '4 h 40 min',
     compulsory: true, optionGroupId: null, subjectType: 'academic',
@@ -456,6 +486,7 @@ const OBC_UPPER_PRIMARY_SUBJECTS = [
   },
   {
     id: 'obc-up-integrated-science', canonicalName: 'Integrated Science', shortName: 'Int Science',
+    canonicalSubjectId: 'integrated_science',
     aliases: ['integrated science', 'science', 'sci', 'environmental science'],
     weeklyPeriods: 6, weeklyMinutes: 240, timeAllocation: '4 h 00 min',
     compulsory: true, optionGroupId: null, subjectType: 'academic',
@@ -463,6 +494,7 @@ const OBC_UPPER_PRIMARY_SUBJECTS = [
   },
   {
     id: 'obc-up-zambian-languages', canonicalName: 'Zambian Languages', shortName: 'Zambian Lang',
+    canonicalSubjectId: 'zambian_language',
     aliases: ['zambian', 'zambian language', 'zambian languages', 'zambian lang', 'local language', 'bemba', 'nyanja', 'tonga', 'lozi', 'kaonde', 'lunda', 'luvale'],
     weeklyPeriods: 6, weeklyMinutes: 240, timeAllocation: '4 h 00 min',
     compulsory: true, optionGroupId: null, subjectType: 'language',
@@ -470,6 +502,7 @@ const OBC_UPPER_PRIMARY_SUBJECTS = [
   },
   {
     id: 'obc-up-expressive-arts', canonicalName: 'Expressive Arts', shortName: 'Expr Arts',
+    canonicalSubjectId: 'expressive_arts',
     aliases: ['ea', 'art', 'arts', 'pe', 'physical education', 'music'],
     weeklyPeriods: 4, weeklyMinutes: 160, timeAllocation: '2 h 40 min',
     compulsory: true, optionGroupId: null, subjectType: 'practical',
@@ -477,6 +510,7 @@ const OBC_UPPER_PRIMARY_SUBJECTS = [
   },
   {
     id: 'obc-up-social-studies', canonicalName: 'Social Studies', shortName: 'Soc Studies',
+    canonicalSubjectId: 'social_studies',
     aliases: ['ss', 'social', 'social studies'],
     weeklyPeriods: 5, weeklyMinutes: 200, timeAllocation: '3 h 20 min',
     compulsory: true, optionGroupId: null, subjectType: 'academic',
@@ -484,6 +518,7 @@ const OBC_UPPER_PRIMARY_SUBJECTS = [
   },
   {
     id: 'obc-up-technology-studies', canonicalName: 'Technology Studies', shortName: 'Tech Studies',
+    canonicalSubjectId: 'technology_studies',
     aliases: ['tech studies', 'tech', 'ict', 'computers', 'computer studies'],
     weeklyPeriods: 4, weeklyMinutes: 160, timeAllocation: '2 h 40 min',
     compulsory: true, optionGroupId: null, subjectType: 'practical',
@@ -491,6 +526,7 @@ const OBC_UPPER_PRIMARY_SUBJECTS = [
   },
   {
     id: 'obc-up-home-economics', canonicalName: 'Home Economics', shortName: 'Home Econ',
+    canonicalSubjectId: 'home_economics',
     aliases: ['home ec', 'homeec', 'h/econ', 'home management'],
     weeklyPeriods: 4, weeklyMinutes: 160, timeAllocation: '2 h 40 min',
     compulsory: true, optionGroupId: null, subjectType: 'practical',

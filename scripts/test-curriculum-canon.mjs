@@ -40,9 +40,11 @@ const THRESHOLD = 4
 const ALLOWLIST = new Set([
   // Label/key plumbing + static taxonomy the catalogue itself builds on.
   'src/components/teacher/paperTaxonomy.js',
-  'src/components/teacher/assessmentStudioMeta.js',
-  // Label ⇄ deep-link resolution (not a picker source).
-  'src/components/teacher/assessmentDeepLink.js',
+  // MIGRATED, entries deleted (see git history for this file):
+  //   assessmentStudioMeta.js  — STUDIO_SUBJECTS / STUDIO_GRADES now derive
+  //     from src/config/canonicalEducation.js.
+  //   assessmentDeepLink.js    — the slug→label table is gone; it resolves
+  //     through the canonical model.
   // Studio shell that re-exports the meta lists (STUDIO_SUBJECTS) — tracked for
   // migration onto the catalogue.
   'src/components/teacher/AssessmentStudio.jsx',

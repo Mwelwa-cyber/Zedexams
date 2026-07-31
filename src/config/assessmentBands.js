@@ -244,8 +244,12 @@ export const ASSESSMENT_BAND_SEED = {
 
   senior_secondary: {
     id: 'senior_secondary',
-    label: 'Forms 3–5',
-    levels: ['form-3', 'form-4', 'form-5'],
+    label: 'Forms 3–6',
+    // Form 6 is the second CBC A-Level year. It has no A-Level syllabus on file
+    // and no band rules of its own, so it is governed by the senior-secondary
+    // band — the closest correct pedagogy, and the alternative (leaving a rung
+    // of the ladder unclaimed) is what a paper generator would crash on.
+    levels: ['form-3', 'form-4', 'form-5', 'form-6'],
     reading: {
       requirement: 'full',
       note: 'The full subject register, at examination standard.',

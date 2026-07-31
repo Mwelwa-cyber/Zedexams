@@ -12,12 +12,34 @@ import { useEffect, useMemo, useState } from 'react'
 import { collection, getDocs, limit as fsLimit, orderBy, query, where } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { coerceQuiz } from '../../../schemas/quiz.js'
-import { SUBJECTS } from '../../../config/curriculum'
+import { subjectVisualsFor } from '../../../config/curriculum'
+import {
+  gradeNumberOf, resolveStoredGrade, resolveStoredSubject, storedGradeLabel,
+} from '../../../config/canonicalEducation'
 import Skeleton from '../../ui/Skeleton'
 import SubjectIcon from '../../ui/SubjectIcon'
 import AssignmentWizard from '../../quiz/assignment/AssignmentWizard'
 
-async function fetchAssignableQuizzes({ grade, subject }) {
+/**
+ * The class stores canonical values ('G5', 'integrated_science'); the learner
+ * quiz catalogue is keyed by a bare grade number ('5') and the learner-facing
+ * subject label ('Integrated Science'). This is the ONE boundary that
+ * translates between them — the alternative, matching the two vocabularies at
+ * every call site, is what let a Grade 5 class find no Grade 5 quizzes.
+ */
+function toQuizCatalogueQuery({ grade, subject }) {
+  const rung = resolveStoredGrade(grade)
+  const canonicalSubject = resolveStoredSubject(subject)
+  return {
+    grade: rung ? gradeNumberOf(rung.code) : String(grade || ''),
+    subject: canonicalSubject
+      ? (subjectVisualsFor(canonicalSubject.id)?.label || '')
+      : (subject || ''),
+  }
+}
+
+async function fetchAssignableQuizzes(selection) {
+  const { grade, subject } = toQuizCatalogueQuery(selection)
   const filters = [where('isPublished', '==', true)]
   if (grade) filters.push(where('grade', '==', String(grade)))
   if (subject) filters.push(where('subject', '==', subject))
@@ -136,7 +158,7 @@ export default function ClassAssignmentPicker({
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder={`Search ${classGrade ? `Grade ${classGrade} ` : ''}quizzes…`}
+            placeholder={`Search ${classGrade ? `${storedGradeLabel(classGrade)} ` : ''}quizzes…`}
             className="w-full rounded-xl border-2 theme-border theme-input px-3 py-2 text-sm"
           />
         </div>
@@ -150,12 +172,12 @@ export default function ClassAssignmentPicker({
             <div className="p-6 text-center text-sm theme-text-muted">
               {search
                 ? 'No quizzes match that search.'
-                : `No published Grade ${classGrade} quizzes yet.`}
+                : `No published ${storedGradeLabel(classGrade)} quizzes yet.`}
             </div>
           ) : (
             <ul className="divide-y divide-current/10">
               {filtered.map((q) => {
-                const subjectMeta = SUBJECTS.find((s) => s.id === q.subject)
+                const subjectMeta = subjectVisualsFor(q.subject)
                 return (
                   <li key={q.id}>
                     <button

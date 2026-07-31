@@ -26,26 +26,39 @@ import ContentLoadError from '../ui/ContentLoadError'
 import SeoHelmet from '../seo/SeoHelmet'
 import GameStickerStyles from '../games/GameStickerStyles'
 import { QuizzesHubTour } from '../ui/learnerTours'
+import { gradesForFeature, gradeNumberOf } from '../../config/canonicalEducation'
+import { PAPER_SUBJECTS } from '../../config/curriculum'
 
 // ── Config ────────────────────────────────────────────────────────────────
-const GRADES = ['4', '5', '6', '7']
+// A filter on the canonical ladder — see FEATURE_GRADE_RESTRICTIONS.
+const GRADES = gradesForFeature('learner-catalogue').map((g) => gradeNumberOf(g.code))
 const TERMS  = ['1', '2', '3']
 
-// Each CBC subject is presented as a mascot tile, mirroring the /games hub.
+// Each subject is presented as a mascot tile, mirroring the /games hub.
 // `slug` matches the keys in gamesUi SUBJECT_MASCOTS and SUBJECT_TILE_BG.
-// "Special Paper 1" is the PSLE special-paper category; it sits alongside CBC
-// subjects so learners can find papers admins publish under that subject.
-const SUBJECTS = [
-  { id: 'English',             slug: 'english',         tile: 'bg-blue-100',   bar: 'bg-blue-600',    mascot: '🦉', mascotName: 'Story Owl' },
-  { id: 'Integrated Science',  slug: 'science',         tile: 'bg-green-100',  bar: 'bg-green-600',   mascot: '🐢', mascotName: 'Science Turtle' },
-  { id: 'Mathematics',         slug: 'mathematics',     tile: 'bg-orange-100', bar: 'bg-orange-500',  mascot: '🦊', mascotName: 'Maths Fox' },
-  { id: 'Social Studies',      slug: 'social',          tile: 'bg-yellow-100', bar: 'bg-yellow-500',  mascot: '🦁', mascotName: 'Adventure Lion' },
-  { id: 'Expressive Art',      slug: 'arts',            tile: 'bg-rose-100',   bar: 'bg-rose-500',    mascot: '🎨', mascotName: 'Art Parrot' },
-  { id: 'Technology Studies',  slug: 'technology',      tile: 'bg-cyan-100',   bar: 'bg-cyan-500',    mascot: '🤖', mascotName: 'Tech Robot' },
-  { id: 'Cinyanja',            slug: 'cinyanja',        tile: 'bg-pink-100',   bar: 'bg-pink-500',    mascot: '🦜', mascotName: 'Nyanja Parrot' },
-  { id: 'Home Economics',      slug: 'home',            tile: 'bg-rose-100',   bar: 'bg-rose-500',    mascot: '🐝', mascotName: 'Home Bee' },
-  { id: 'Special Paper 1',     slug: 'special-paper-1', tile: 'bg-purple-100', bar: 'bg-purple-600',  mascot: '📝', mascotName: 'Exam Scholar' },
-]
+//
+// The presentation (mascot, colours, slug) is this page's own and is keyed by
+// the learner-catalogue subject id; the `id` a tile FILTERS on is the
+// catalogue's own label, read from it rather than retyped. Retyping is what let
+// this list drift — a label edited in the catalogue and not here would leave a
+// tile that matches no quiz and silently shows an empty subject.
+const SUBJECT_PRESENTATION = {
+  english:         { slug: 'english',         tile: 'bg-blue-100',   bar: 'bg-blue-600',    mascot: '🦉', mascotName: 'Story Owl' },
+  science:         { slug: 'science',         tile: 'bg-green-100',  bar: 'bg-green-600',   mascot: '🐢', mascotName: 'Science Turtle' },
+  mathematics:     { slug: 'mathematics',     tile: 'bg-orange-100', bar: 'bg-orange-500',  mascot: '🦊', mascotName: 'Maths Fox' },
+  'social-studies':{ slug: 'social',          tile: 'bg-yellow-100', bar: 'bg-yellow-500',  mascot: '🦁', mascotName: 'Adventure Lion' },
+  'expressive-arts':{ slug: 'arts',           tile: 'bg-rose-100',   bar: 'bg-rose-500',    mascot: '🎨', mascotName: 'Art Parrot' },
+  technology:      { slug: 'technology',      tile: 'bg-cyan-100',   bar: 'bg-cyan-500',    mascot: '🤖', mascotName: 'Tech Robot' },
+  cinyanja:        { slug: 'cinyanja',        tile: 'bg-pink-100',   bar: 'bg-pink-500',    mascot: '🦜', mascotName: 'Nyanja Parrot' },
+  'home-economics':{ slug: 'home',            tile: 'bg-rose-100',   bar: 'bg-rose-500',    mascot: '🐝', mascotName: 'Home Bee' },
+  // The PSLE special-paper category — an ECZ exam category rather than a
+  // subject, which is why it has no canonical subject behind it.
+  'special-paper-1':{ slug: 'special-paper-1', tile: 'bg-purple-100', bar: 'bg-purple-600', mascot: '📝', mascotName: 'Exam Scholar' },
+}
+
+const SUBJECTS = PAPER_SUBJECTS
+  .filter((s) => SUBJECT_PRESENTATION[s.id])
+  .map((s) => ({ id: s.label, ...SUBJECT_PRESENTATION[s.id] }))
 
 // Process-lived cache of fetched quiz lists, keyed by `grade|term`. The library
 // is read on every mount of this page — and learners bounce in and out of it

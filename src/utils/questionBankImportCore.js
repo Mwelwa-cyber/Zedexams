@@ -6,8 +6,12 @@
  */
 
 import { TOPICS, SUBTOPICS, TEACHER_SUBJECT_TO_CURRICULUM } from '../config/curriculum.js'
+import { gradesForFeature, gradeNumberOf } from '../config/canonicalEducation.js'
 
-export const VALID_GRADES = new Set(['4', '5', '6', '7'])
+// A filter on the canonical ladder — see FEATURE_GRADE_RESTRICTIONS.
+export const VALID_GRADES = new Set(
+  gradesForFeature('learner-catalogue').map((g) => gradeNumberOf(g.code)),
+)
 
 /** Map any subject spelling to the curriculum-catalogue id (integrated_science → science). */
 export function toCurriculumSubject(subject) {
