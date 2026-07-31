@@ -125,8 +125,13 @@ describe('Table of Specifications', () => {
       ] }],
     }), 'revised')
     expect(rows).toHaveLength(1)
+    // The Total column is the sum of the cognitive-level cells, so the row adds
+    // up across the way the handwritten table it replaces does. The item with an
+    // unrecognised level is NOT folded into that total — it is carried as
+    // `untagged` and reported to the teacher, because a row that does not
+    // reconcile on a sheet a head teacher signs reads as an export that broke.
     expect(rows[0]).toMatchObject({
-      topic: 'General coverage', analyse: 1, questions: 2, marks: 3,
+      topic: 'General coverage', analyse: 1, questions: 1, untagged: 1, marks: 3,
     })
   })
 

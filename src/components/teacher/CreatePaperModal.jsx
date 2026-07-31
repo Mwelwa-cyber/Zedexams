@@ -1099,6 +1099,7 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
               blueprint={plan?.blueprint || null}
               problems={plan?.problems || []}
               topicsOnFile={plan?.topicsOnFile || 0}
+              paperMeta={paperMeta}
               presetId={presetId}
               onPresetChange={changePreset}
               onGenerate={onGenerate}

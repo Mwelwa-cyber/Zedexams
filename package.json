@@ -180,6 +180,7 @@
     "test:diagram-label": "node scripts/test-diagram-label-grading.mjs",
     "test:question-parts": "node src/utils/questionParts.test.js",
     "test:paper-health": "node src/utils/paperHealth.test.js",
+    "test:table-of-specifications": "node src/utils/tableOfSpecifications.test.js",
     "test:paper-templates": "node src/utils/paperTemplates.test.js",
     "test:sub-status": "node scripts/test-subscription-status.mjs",
     "test:teacher-plan": "node scripts/test-teacher-plan-resolution.mjs",
