@@ -18,9 +18,9 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
-        <!-- Paint the window brand-cream (not the default white) so the frame
+        <!-- Paint the window splash-navy (not the default white) so the frame
              shown between the splash dismissing and the WebView's first paint
-             matches the boot skeleton instead of flashing white. -->
+             matches the animated in-page splash instead of flashing white. -->
         <item name="android:windowBackground">@color/zed_splash_bg</item>
     </style>
 

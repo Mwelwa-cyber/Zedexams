@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-      Brand cream. Matches the inline boot skeleton background in index.html
-      (#FDF6EC) so the Android launch sequence is seamless:
-        system splash (cream) → post-splash window (cream) → WebView boot
-        skeleton (cream) → app.
-      Before this, the Android 12+ SplashScreen API ignored the old
-      android:background=@drawable/splash and fell back to a WHITE
-      windowSplashScreenBackground, and the post-splash window was
-      transparent/white until the WebView painted — the "white screen for a
-      bit on launch" report.
+      Splash navy. Matches the animated in-app splash background in
+      index.html (#081226, the zx-splash radial-gradient base) so the Android
+      launch sequence is seamless:
+        system splash (navy) → post-splash window (navy) → in-page animated
+        splash (navy, covers the boot skeleton at z-index 9999) → app.
+      MainActivity holds the system splash until the WebView paints
+      index.html, and /public/zx-splash.js un-hides #zx-splash before that
+      first paint, so the whole launch reads as one continuous navy sequence.
+      History: this was brand cream (#FDF6EC) matching the boot skeleton
+      before the animated splash existed; and before THAT, the Android 12+
+      SplashScreen API ignored the old android:background=@drawable/splash
+      and fell back to a WHITE windowSplashScreenBackground — the "white
+      screen for a bit on launch" report.
     -->
-    <color name="zed_splash_bg">#FDF6EC</color>
+    <color name="zed_splash_bg">#081226</color>
 </resources>

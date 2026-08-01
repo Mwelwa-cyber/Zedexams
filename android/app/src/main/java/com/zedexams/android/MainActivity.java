@@ -13,13 +13,14 @@ import com.getcapacitor.WebViewListener;
 public class MainActivity extends BridgeActivity {
     // Keep the AndroidX splash on screen until the WebView paints the app's
     // first frame. Without this, installSplashScreen() dismisses the splash as
-    // soon as the activity window is ready — which is the blank cream
+    // soon as the activity window is ready — which is the blank navy
     // windowBackground (@color/zed_splash_bg) — and the user then stares at an
-    // empty cream screen for the several seconds the WebView takes to cold-start
+    // empty navy screen for the several seconds the WebView takes to cold-start
     // and paint index.html (the "splash shows for some seconds, then opens"
-    // report). Holding the branded splash (ZedExams launcher icon on cream) over
+    // report). Holding the branded splash (ZedExams launcher icon on navy) over
     // that gap makes the wait feel intentional and hands off straight to the
-    // in-page boot skeleton.
+    // in-page animated splash (#zx-splash in index.html, un-hidden by
+    // /zx-splash.js before the WebView's first paint).
     private volatile boolean keepSplashOnScreen = true;
 
     // Safety backstop: never trap the user behind the splash if onPageLoaded()

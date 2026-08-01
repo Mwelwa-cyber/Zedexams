@@ -312,6 +312,7 @@
     "test:record-of-work": "node scripts/test-record-of-work.mjs",
     "test:storage-rules-text": "node scripts/test-storage-rules-text.mjs",
     "test:android-release-config": "node scripts/test-android-release-config.mjs",
+    "test:android-splash": "node scripts/test-android-splash.mjs",
     "test:boot-watchdog": "node scripts/test-boot-watchdog.mjs",
     "test:exam-grading": "node functions/grading/dailyExamGrading.test.js",
     "test:assessment-exports-core": "node functions/assessmentExports/exportsCore.test.js",
