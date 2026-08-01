@@ -367,6 +367,12 @@ function RouteErrorBoundary({ children }) {
 }
 
 export default function App() {
+  // Dismiss the Android in-app splash (index.html + /public/zx-splash.js)
+  // once React has committed its first frame. No-op on the website — the
+  // splash controller already removed itself there — and deliberately not
+  // gated on auth/network state: the splash's own 2.6s minimum show covers
+  // the animation, and its 10s failsafe covers a hung boot.
+  useEffect(() => { window.ZedSplash?.hide?.() }, [])
   return (
     <BrowserRouter>
       <PlatformSettingsProvider>
