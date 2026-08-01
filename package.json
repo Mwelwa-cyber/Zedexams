@@ -710,7 +710,8 @@
     "test:past-paper-quiz-access": "node scripts/test-past-paper-quiz-access.mjs",
     "audit:paper-quiz-access": "node scripts/audit-past-paper-quiz-access.mjs",
     "audit:paper-quiz-access:live": "node scripts/audit-past-paper-quiz-access.mjs --live",
-    "test:quiz-paper-link": "node src/components/admin/quizPaperLink.test.js"
+    "test:quiz-paper-link": "node src/components/admin/quizPaperLink.test.js",
+    "test:glass-tokens": "node scripts/test-glass-tokens.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

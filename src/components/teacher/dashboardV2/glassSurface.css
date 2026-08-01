@@ -1,0 +1,360 @@
+/* ────────────────────────────────────────────────────────────────────────
+   "Intelligent glass" — the ONE style source for every glass surface on
+   the teacher dashboard: the Teacher Workspace cards (desktop), the mobile
+   tool tiles (Recently Used, All Teacher Tools, Quick Create sheet), the
+   Quick Create tiles, the AI Recommendations cards, the Recent Documents
+   rows, the hero inset and the search bar. Surfaces compose these classes
+   next to their own layout classes; none of them re-declares the recipe.
+
+   Tokens are declared on .tdv2 (the design-system scope every dashboard
+   surface sits inside) with a full Night override on .tdv2.is-dark — dark
+   glass is its own recipe, not a dimmed copy. Accents are RGB TRIPLETS so
+   alpha applies at the use site: rgba(var(--ws-accent), .14). --ws-accent
+   itself is set by a glass-panel / glass-accent-- modifier and inherited.
+
+   Hard rules (from the glass design brief):
+   - NO backdrop-filter here, ever — true blur is reserved for the
+     sticky/auto-hiding chrome bars, which own their own styles.
+   - Only transform / opacity / background animate. The sheen and badge
+     shimmer sweep with translateX, never `left`.
+   - No timer- or randomness-driven motion. Everything is caused by the
+     user (hover, press, focus, scroll-into-view); the NEW badge shimmer
+     is the single allowed loop.
+   `npm run test:glass-tokens` enforces the no-backdrop-filter rule and
+   that every themed token has a Night override.
+   ──────────────────────────────────────────────────────────────────────── */
+
+.tdv2 {
+  /* section accents */
+  --ws-accent-planning: 232, 131, 74;
+  --ws-accent-materials: 63, 165, 131;
+  --ws-accent-assessment: 217, 89, 107;
+  --ws-accent-more: 122, 110, 168;
+  --ws-accent-ai: 88, 101, 214;
+  /* Quick Create tone accents — matched to the existing icon-chip colour
+     families so nothing shifts hue */
+  --ws-accent-tone-copper: 214, 108, 66;
+  --ws-accent-tone-teal: 23, 135, 128;
+  --ws-accent-tone-green: 34, 148, 88;
+  --ws-accent-tone-blue: 62, 108, 230;
+  /* quiet list-row accent (Recent Documents) — neutral navy */
+  --ws-accent-row: 30, 50, 80;
+
+  /* section panel tints */
+  --ws-panel-planning: linear-gradient(150deg, rgba(255, 213, 180, 0.55), rgba(255, 236, 220, 0.35));
+  --ws-panel-materials: linear-gradient(150deg, rgba(186, 232, 214, 0.5), rgba(224, 245, 236, 0.32));
+  --ws-panel-assessment: linear-gradient(150deg, rgba(250, 199, 208, 0.5), rgba(253, 231, 235, 0.32));
+  --ws-panel-more: linear-gradient(150deg, rgba(228, 221, 240, 0.42), rgba(242, 238, 249, 0.3));
+  --ws-panel-ai: linear-gradient(150deg, rgba(205, 214, 252, 0.5), rgba(228, 233, 252, 0.32));
+  /* Quick Create wrapper — deliberately quieter than the section panels */
+  --ws-panel-create: linear-gradient(150deg, rgba(255, 231, 209, 0.28), rgba(255, 244, 232, 0.18));
+
+  /* faked-glass tile surface */
+  --ws-tile-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.5) 55%, rgba(255, 255, 255, 0.62) 100%);
+  --ws-tile-border: rgba(255, 255, 255, 0.85);
+  --ws-tile-inset: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --ws-tile-shadow: 0 10px 28px rgba(29, 44, 76, 0.08);
+  --ws-specular: rgba(255, 255, 255, 0.75);
+
+  /* white edges of the hover/press gradients (accent mid-stop applied at
+     the use site so it resolves against the inherited --ws-accent) */
+  --ws-hover-edge: rgba(255, 255, 255, 0.82);
+  --ws-hover-end: rgba(255, 255, 255, 0.6);
+  --ws-ambient-shadow: rgba(29, 44, 76, 0.1);
+
+  /* one-time sheen sweep + NEW-badge shimmer */
+  --ws-sheen-soft: rgba(255, 255, 255, 0.55);
+  --ws-sheen-peak: rgba(255, 255, 255, 0.75);
+  --ws-badge-shine: rgba(255, 255, 255, 0.8);
+
+  /* quiet glass list rows — same surface at lower intensity */
+  --ws-row-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.5));
+  --ws-row-border: rgba(255, 255, 255, 0.8);
+  --ws-row-shadow: 0 5px 14px rgba(29, 44, 76, 0.04);
+
+  /* The accent every glass surface reads. Declared ONCE here as the
+     neutral fallback and re-declared by glass-panel / glass-accent--
+     modifiers, so a tile simply inherits whichever is nearest. */
+  --ws-accent: var(--ws-accent-more);
+}
+
+/* Dark glass on a surface that is dark in EVERY theme (the greeting hero).
+   Theme-invariant on purpose, so no Night override — the hero never changes. */
+.tdv2 {
+  --ws-dark-glass-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  --ws-dark-glass-border: rgba(255, 255, 255, 0.14);
+  --ws-dark-glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --ws-dark-glass-hover: linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.08));
+  --ws-dark-glass-press: linear-gradient(145deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.1));
+}
+
+/* ── Night (dark glass) ─────────────────────────────────────────────── */
+.tdv2.is-dark {
+  --ws-accent-planning: 224, 138, 92;
+  --ws-accent-materials: 92, 178, 148;
+  --ws-accent-assessment: 214, 110, 126;
+  --ws-accent-more: 140, 130, 180;
+  --ws-accent-ai: 130, 140, 220;
+  --ws-accent-tone-copper: 216, 130, 96;
+  --ws-accent-tone-teal: 78, 160, 152;
+  --ws-accent-tone-green: 84, 168, 120;
+  --ws-accent-tone-blue: 110, 140, 224;
+  --ws-accent-row: 148, 163, 184;
+
+  --ws-panel-planning: linear-gradient(150deg, rgba(224, 138, 92, 0.1), rgba(224, 138, 92, 0.04));
+  --ws-panel-materials: linear-gradient(150deg, rgba(92, 178, 148, 0.1), rgba(92, 178, 148, 0.04));
+  --ws-panel-assessment: linear-gradient(150deg, rgba(214, 110, 126, 0.1), rgba(214, 110, 126, 0.04));
+  --ws-panel-more: linear-gradient(150deg, rgba(140, 130, 180, 0.1), rgba(140, 130, 180, 0.04));
+  --ws-panel-ai: linear-gradient(150deg, rgba(130, 140, 220, 0.1), rgba(130, 140, 220, 0.04));
+  --ws-panel-create: linear-gradient(150deg, rgba(224, 138, 92, 0.06), rgba(224, 138, 92, 0.02));
+
+  --ws-tile-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 55%, rgba(255, 255, 255, 0.08) 100%);
+  --ws-tile-border: rgba(255, 255, 255, 0.14);
+  --ws-tile-inset: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --ws-tile-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  --ws-specular: rgba(255, 255, 255, 0.22);
+
+  --ws-hover-edge: rgba(255, 255, 255, 0.13);
+  --ws-hover-end: rgba(255, 255, 255, 0.07);
+  --ws-ambient-shadow: rgba(0, 0, 0, 0.4);
+
+  --ws-sheen-soft: rgba(255, 255, 255, 0.1);
+  --ws-sheen-peak: rgba(255, 255, 255, 0.16);
+  --ws-badge-shine: rgba(255, 255, 255, 0.5);
+
+  --ws-row-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.04));
+  --ws-row-border: rgba(255, 255, 255, 0.12);
+  --ws-row-shadow: 0 5px 14px rgba(0, 0, 0, 0.25);
+}
+
+/* ── Tinted panels — set the accent their glass children inherit ─────── */
+.tdv2 .glass-panel {
+  background: var(--ws-panel-more);
+  --ws-accent: var(--ws-accent-more);
+}
+.tdv2 .glass-panel--planning { background: var(--ws-panel-planning); --ws-accent: var(--ws-accent-planning); }
+.tdv2 .glass-panel--materials { background: var(--ws-panel-materials); --ws-accent: var(--ws-accent-materials); }
+.tdv2 .glass-panel--assessment { background: var(--ws-panel-assessment); --ws-accent: var(--ws-accent-assessment); }
+.tdv2 .glass-panel--ai { background: var(--ws-panel-ai); --ws-accent: var(--ws-accent-ai); }
+.tdv2 .glass-panel--create { background: var(--ws-panel-create); }
+
+/* Per-tile accents, for surfaces whose tiles carry their own accent
+   (Quick Create tones, mobile tiles keyed by studio category). */
+.tdv2 .glass-accent--planning { --ws-accent: var(--ws-accent-planning); }
+.tdv2 .glass-accent--materials { --ws-accent: var(--ws-accent-materials); }
+.tdv2 .glass-accent--assessment { --ws-accent: var(--ws-accent-assessment); }
+.tdv2 .glass-accent--setup,
+.tdv2 .glass-accent--more { --ws-accent: var(--ws-accent-more); }
+.tdv2 .glass-accent--ai { --ws-accent: var(--ws-accent-ai); }
+.tdv2 .glass-accent--tone-copper { --ws-accent: var(--ws-accent-tone-copper); }
+.tdv2 .glass-accent--tone-teal { --ws-accent: var(--ws-accent-tone-teal); }
+.tdv2 .glass-accent--tone-green { --ws-accent: var(--ws-accent-tone-green); }
+.tdv2 .glass-accent--tone-blue { --ws-accent: var(--ws-accent-tone-blue); }
+
+/* ── glass-surface: the base recipe, no interaction ──────────────────
+   For glass that is not itself clickable (the AI primary card). */
+.tdv2 .glass-surface,
+.tdv2 .glass-tile {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--ws-tile-bg);
+  border: 1px solid var(--ws-tile-border);
+  border-radius: 20px;
+  box-shadow: var(--ws-tile-inset), var(--ws-tile-shadow);
+}
+
+/* ── glass-tile: the full interactive recipe ─────────────────────────
+   Only transform / opacity / background animate; box-shadow moves only on
+   hover/press, never on scroll. */
+.tdv2 .glass-tile {
+  transform: translateZ(0);
+  --mx: 50%;
+  --my: 50%;
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.3, 1), box-shadow 0.25s ease, background 0.3s ease;
+}
+
+/* Specular highlight — position driven by --mx/--my from useSpecular. */
+.tdv2 .glass-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0;
+  background: radial-gradient(
+    220px circle at var(--mx) var(--my),
+    var(--ws-specular) 0%,
+    rgba(255, 255, 255, 0.18) 35%,
+    transparent 60%
+  );
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+
+/* Thin accent ring, faded in on hover / focus. */
+.tdv2 .glass-tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: 4;
+  border: 1.5px solid rgba(var(--ws-accent), 0);
+  transition: border-color 0.25s ease;
+  pointer-events: none;
+}
+
+/* Hover — pointer devices only, so nothing leaks onto touch. */
+@media (hover: hover) {
+  .tdv2 .glass-tile:hover,
+  .tdv2 :is(a, button):hover > .glass-tile {
+    transform: translateY(-4px) scale(1.015);
+    box-shadow: var(--ws-tile-inset), 0 18px 40px rgba(var(--ws-accent), 0.22), 0 8px 18px var(--ws-ambient-shadow);
+    background: linear-gradient(145deg, var(--ws-hover-edge) 0%, rgba(var(--ws-accent), 0.14) 60%, var(--ws-hover-end) 100%);
+  }
+  .tdv2 .glass-tile:hover::before,
+  .tdv2 :is(a, button):hover > .glass-tile::before { opacity: 1; }
+  .tdv2 .glass-tile:hover::after,
+  .tdv2 :is(a, button):hover > .glass-tile::after { border-color: rgba(var(--ws-accent), 0.45); }
+}
+
+/* Keyboard focus mirrors the hover affordance (centred highlight) — both
+   for tiles that are themselves focusable and for a tile inside a
+   focusable host (the mobile tool links). */
+.tdv2 .glass-tile:focus-visible,
+.tdv2 :is(a, button):focus-visible > .glass-tile {
+  outline: 3px solid rgba(var(--ws-accent), 0.55);
+  outline-offset: 2px;
+  transform: translateY(-4px) scale(1.015);
+  box-shadow: var(--ws-tile-inset), 0 18px 40px rgba(var(--ws-accent), 0.22), 0 8px 18px var(--ws-ambient-shadow);
+  background: linear-gradient(145deg, var(--ws-hover-edge) 0%, rgba(var(--ws-accent), 0.14) 60%, var(--ws-hover-end) 100%);
+}
+.tdv2 .glass-tile:focus-visible::before,
+.tdv2 :is(a, button):focus-visible > .glass-tile::before { opacity: 1; }
+.tdv2 .glass-tile:focus-visible::after,
+.tdv2 :is(a, button):focus-visible > .glass-tile::after { border-color: rgba(var(--ws-accent), 0.45); }
+
+/* Touch press — class added by usePressFeedback on non-mouse pointerdown.
+   Fast on purpose: the response must feel caused by the finger. */
+.tdv2 .glass-tile.is-pressed {
+  transform: scale(0.965);
+  background: linear-gradient(145deg, var(--ws-hover-edge) 0%, rgba(var(--ws-accent), 0.18) 60%, var(--ws-hover-end) 100%);
+  transition: transform 0.09s ease, background 0.09s ease;
+}
+
+/* ── One-time sheen sweep ────────────────────────────────────────────
+   Armed by useSheenOnce the first time the tile scrolls into view.
+   Animates transform/opacity only (never `left`). */
+.tdv2 .glass-sheen {
+  position: absolute;
+  top: -30%;
+  bottom: -30%;
+  left: -80%;
+  width: 55%;
+  z-index: 2;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    var(--ws-sheen-soft) 45%,
+    var(--ws-sheen-peak) 50%,
+    var(--ws-sheen-soft) 55%,
+    transparent 100%
+  );
+  transform: skewX(-18deg);
+  pointer-events: none;
+  opacity: 0;
+}
+.tdv2 .glass-tile.is-inview .glass-sheen {
+  animation: tdv2-glass-sweep 1.1s ease-out 0.15s 1 forwards;
+}
+@keyframes tdv2-glass-sweep {
+  0% { transform: translateX(0) skewX(-18deg); opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateX(440%) skewX(-18deg); opacity: 0; }
+}
+
+/* ── NEW-badge shimmer — the ONE looping animation glass allows ─────── */
+.tdv2 .glass-badge-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.tdv2 .glass-badge-shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -60%;
+  width: 45%;
+  background: linear-gradient(105deg, transparent, var(--ws-badge-shine), transparent);
+  transform: skewX(-20deg);
+  animation: tdv2-glass-badgeshine 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes tdv2-glass-badgeshine {
+  0%, 55% { transform: translateX(0) skewX(-20deg); }
+  80%, 100% { transform: translateX(430%) skewX(-20deg); }
+}
+
+/* ── glass-row: the quiet list-row recipe (Recent Documents) ─────────
+   Same surface at lower intensity. Hover is a tint only — no lift, no
+   specular, no ring; list rows that jump feel unstable. */
+.tdv2 .glass-row {
+  --ws-accent: var(--ws-accent-row);
+  position: relative;
+  background: var(--ws-row-bg);
+  border: 1px solid var(--ws-row-border);
+  border-radius: 14px;
+  box-shadow: var(--ws-row-shadow);
+  transform: translateZ(0);
+  transition: transform 0.15s ease, background 0.2s ease;
+}
+@media (hover: hover) {
+  .tdv2 .glass-row:hover {
+    background: linear-gradient(145deg, var(--ws-hover-edge), rgba(var(--ws-accent), 0.06));
+  }
+}
+.tdv2 .glass-row.is-pressed {
+  transform: scale(0.985);
+  background: linear-gradient(145deg, var(--ws-hover-edge), rgba(var(--ws-accent), 0.09));
+  transition: transform 0.09s ease, background 0.09s ease;
+}
+
+/* ── glass-dark-inset: dark glass on the always-dark hero ────────────
+   Subdued by design: hover tints toward white, no lift, no specular. */
+.tdv2 .glass-dark-inset {
+  background: var(--ws-dark-glass-bg);
+  border: 1px solid var(--ws-dark-glass-border);
+  box-shadow: var(--ws-dark-glass-inset);
+  transform: translateZ(0);
+  transition: transform 0.15s ease, background 0.25s ease;
+}
+@media (hover: hover) {
+  .tdv2 .glass-dark-inset:hover {
+    background: var(--ws-dark-glass-hover);
+  }
+}
+.tdv2 .glass-dark-inset.is-pressed {
+  transform: scale(0.965);
+  background: var(--ws-dark-glass-press);
+  transition: transform 0.09s ease, background 0.09s ease;
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────
+   Motion goes, feedback stays: tint changes on hover/press still apply
+   instantly, but nothing lifts, sweeps or shimmers. */
+@media (prefers-reduced-motion: reduce) {
+  .tdv2 .glass-tile,
+  .tdv2 .glass-tile::before,
+  .tdv2 .glass-tile::after,
+  .tdv2 .glass-row,
+  .tdv2 .glass-dark-inset { transition: none !important; }
+  .tdv2 .glass-tile:hover,
+  .tdv2 :is(a, button):hover > .glass-tile,
+  .tdv2 .glass-tile:focus-visible,
+  .tdv2 :is(a, button):focus-visible > .glass-tile,
+  .tdv2 .glass-tile.is-pressed,
+  .tdv2 .glass-row.is-pressed,
+  .tdv2 .glass-dark-inset.is-pressed { transform: none; }
+  .tdv2 .glass-sheen { display: none; }
+  .tdv2 .glass-badge-shimmer::after { animation: none; display: none; }
+}

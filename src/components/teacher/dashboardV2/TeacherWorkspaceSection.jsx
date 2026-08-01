@@ -12,6 +12,7 @@ import {
 import { STUDIO_CATEGORIES, TEACHER_STUDIOS } from './launcher/teacherStudios'
 import { resolveBadge } from './launcher/teacherLauncherCore'
 import useGlassTile from '../../../hooks/useGlassTile'
+import './glassSurface.css'
 import './teacherWorkspaceSection.css'
 
 /**
@@ -52,10 +53,10 @@ function StudioCard({ studio, badge, pending }) {
     <Link
       ref={tileRef}
       to={studio.route}
-      className="tws-card"
+      className="tws-card glass-tile"
       aria-label={`${studio.title}${badgeLabel}. Open studio`}
     >
-      <span className="tws-sheen" aria-hidden="true" />
+      <span className="glass-sheen" aria-hidden="true" />
       <span className="tws-card-top">
         <span
           className={`tws-card-icon ${studio.image ? 'is-img' : `tint-${studio.tint || 'teal'}`}`}
@@ -72,7 +73,7 @@ function StudioCard({ studio, badge, pending }) {
         ) : badge?.type === 'saved' ? (
           <span className="tws-pill kind-saved" aria-hidden="true">{badge.count} SAVED</span>
         ) : badge?.type === 'new' ? (
-          <span className="tws-pill kind-new" aria-hidden="true">NEW</span>
+          <span className="tws-pill kind-new glass-badge-shimmer" aria-hidden="true">NEW</span>
         ) : badge?.type === 'warning' ? (
           <span className="tws-dot" aria-hidden="true" />
         ) : null}
@@ -110,7 +111,7 @@ export default function TeacherWorkspaceSection({
       {STUDIO_CATEGORIES.filter((c) => FEATURED[c.id]).map((c) => {
         const SecIcon = SECTION_META[c.id].icon
         return (
-          <div key={c.id} className={`tws-sec tws-sec--${c.id}`}>
+          <div key={c.id} className={`tws-sec glass-panel glass-panel--${c.id}`}>
             <div className="tws-sec-head">
               <span className="tws-sec-chip" aria-hidden="true">
                 <SecIcon size={16} strokeWidth={2} />
@@ -140,7 +141,7 @@ export default function TeacherWorkspaceSection({
       })}
 
       {allToolsOpen ? (
-        <div className="tws-sec tws-sec--more" id="tws-all-tools">
+        <div className="tws-sec glass-panel" id="tws-all-tools">
           <div className="tws-sec-head">
             <span className="tws-sec-chip" aria-hidden="true">
               <LayoutGrid size={16} strokeWidth={2} />
