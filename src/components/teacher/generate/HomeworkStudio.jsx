@@ -11,8 +11,8 @@ import { downloadHomeworkDocx } from '../../../utils/homeworkToDocx'
 import { downloadHomeworkPdf } from '../../../utils/homeworkToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
-import StudioPageHeader from '../StudioPageHeader'
-import SeoHelmet from '../../seo/SeoHelmet'
+import { House } from 'lucide-react'
+import GeneratorStudioShell, { useStudioSetupForYou } from './GeneratorStudioShell'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { captureQuestionsToBank } from '../../../utils/questionBankService'
 import { homeworkQuestionToBank } from '../../../utils/questionBankCore'
@@ -27,7 +27,6 @@ import {
   FieldGrid,
   AdvancedOptions,
   GenerateButton,
-  StudioEmptyState,
 } from './studioFields'
 import Icon from '../../ui/Icon'
 import { Download, Key } from '../../ui/icons'
@@ -38,8 +37,6 @@ import { useAiOperationLock } from '../../../hooks/useAiOperationLock'
 import { stableFingerprint } from '../../../hooks/aiOperationLockCore'
 import { useStudioInputDraft } from '../../../hooks/draft/useStudioInputDraft'
 import { homeworkInputDescriptor } from '../../../hooks/draft/descriptors'
-import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
-import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
 import { curriculumSeedFromProfile, preferredDifficulty, preferredTermYear } from '../../../utils/teacherDefaults'
 import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
 import CreatedFromLessonPlanNotice from './CreatedFromLessonPlanNotice'
@@ -73,14 +70,17 @@ export default function HomeworkStudio() {
   const [curr, setCurr] = useState({})
   // Selector seed: a deep-link handoff (?grade=…) wins; otherwise the
   // teacher's saved curriculum defaults (Teacher Settings → My Teaching).
-  // Read once on mount by the selector — never re-seeds reactively.
-  const [selectorSeed, setSelectorSeed] = useState(() =>
+  // Read once on mount by the selector — never re-seeds reactively. The
+  // INITIAL seed is kept separately so useStudioSetupForYou can tell whether
+  // the studio opened empty (only then may the suggestion seed the selector).
+  const [initialSeed] = useState(() =>
     resolveStudioSeed({
       urlSeed: urlDefaults,
       activeSeed: readActiveAssignmentSeed(currentUser?.uid),
       profileSeed: curriculumSeedFromProfile(userProfile),
     }),
   )
+  const [selectorSeed, setSelectorSeed] = useState(initialSeed)
   const [selectorKey, setSelectorKey] = useState(0)
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
@@ -111,6 +111,18 @@ export default function HomeworkStudio() {
     uid: currentUser?.uid,
     form, setForm, curr, setCurr,
     onReseedSelector: (c) => { setSelectorSeed(c); setSelectorKey((k) => k + 1) },
+  })
+
+  // "Set up for you" (I3): when the studio opened with no grade/subject seed,
+  // prefill from the teacher's Weekly Forecast and show the suggestion card.
+  // Chips derive from the LIVE `curr` payload — see GeneratorStudioShell.
+  const selectorAnchorRef = useRef(null)
+  const setupForYou = useStudioSetupForYou({
+    uid: currentUser?.uid,
+    initialSeed,
+    curr,
+    applySeed: (seed) => { setSelectorSeed(seed); setSelectorKey((k) => k + 1) },
+    selectorAnchorRef,
   })
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
@@ -300,86 +312,102 @@ export default function HomeworkStudio() {
   }
 
   return (
-    <div className="studio-page">
-      <SeoHelmet title="Homework studio" noIndex />
-      <div className="w-full">
-        <StudioPageHeader
-          eyebrow="Homework Studio"
-          title="Short take-home practice"
-          subtitle="Grounded on the verified curriculum module — questions, answer key and a note for parents."
-          emoji="🏠"
-        />
-        <CreatedFromLessonPlanNotice urlDefaults={urlDefaults} />
-        <StudioAssignmentChangeNotice
-          uid={currentUser?.uid}
-          currentSeed={{ grade: curr.grade || selectorSeed?.grade || '', subject: curr.subject || selectorSeed?.subject || '', curriculum: curr.curriculum || selectorSeed?.curriculum || '' }}
-          onApply={(seed) => { setSelectorSeed(seed); setSelectorKey((k) => k + 1); setCurr({}) }}
-        hasUnsavedChanges={draft.status !== 'idle'}
-        saveDraft={draft.flush}
-        />
-        <div className="mb-4">
-          <DraftRecoveryPrompt {...draft} label="homework" />
+    <GeneratorStudioShell
+      seoTitle="Homework studio"
+      header={{
+        eyebrow: 'Teaching materials',
+        title: 'Homework Studio',
+        description: 'Short take-home practice grounded on the verified curriculum module — questions, answer key and a note for parents.',
+        icon: House,
+      }}
+      notices={
+        <>
+          <CreatedFromLessonPlanNotice urlDefaults={urlDefaults} />
+          <StudioAssignmentChangeNotice
+            uid={currentUser?.uid}
+            currentSeed={{ grade: curr.grade || selectorSeed?.grade || '', subject: curr.subject || selectorSeed?.subject || '', curriculum: curr.curriculum || selectorSeed?.curriculum || '' }}
+            onApply={(seed) => { setSelectorSeed(seed); setSelectorKey((k) => k + 1); setCurr({}) }}
+            hasUnsavedChanges={draft.status !== 'idle'}
+            saveDraft={draft.flush}
+          />
+        </>
+      }
+      draft={draft}
+      draftLabel="homework"
+      setupForYou={setupForYou}
+      onSubmit={onGenerate}
+      selector={
+        <div ref={selectorAnchorRef}>
+          <StudioCurriculumSelector
+            key={selectorKey}
+            value={selectorSeed}
+            onChange={setCurr}
+            curriculumPickerVariant="segmented"
+            defaultCurriculumMode="cbc"
+          />
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6">
-          <form onSubmit={onGenerate}
-            className="studio-card p-5 space-y-4 h-fit">
-            <div className="flex justify-end">
-              <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
-            </div>
-            <StudioCurriculumSelector
-              key={selectorKey}
-              value={selectorSeed}
-              onChange={setCurr}
-            />
+      }
+      form={
+        <>
+          <FieldGrid>
+            <FieldSelect label="Number of questions"
+              value={String(form.count)}
+              options={[3, 5, 6, 8, 10, 12].map((n) => ({
+                value: String(n), label: `${n} questions`,
+              }))}
+              onChange={(v) => set('count', Number(v))} />
+            <FieldSelect label="Time at home (estimate)"
+              value={String(form.estimatedMinutes)}
+              options={[10, 15, 20, 30, 45, 60].map((m) => ({
+                value: String(m), label: `${m} min`,
+              }))}
+              onChange={(v) => set('estimatedMinutes', Number(v))} />
+          </FieldGrid>
+          <AdvancedOptions hint="Term, lesson numbering, language">
+            <FieldSelect label="Term" value={form.term}
+              options={CURRICULUM_TERMS} onChange={(v) => set('term', v)} />
             <FieldGrid>
-              <FieldSelect label="Number of questions"
-                value={String(form.count)}
-                options={[3, 5, 6, 8, 10, 12].map((n) => ({
-                  value: String(n), label: `${n} questions`,
-                }))}
-                onChange={(v) => set('count', Number(v))} />
-              <FieldSelect label="Time at home (estimate)"
-                value={String(form.estimatedMinutes)}
-                options={[10, 15, 20, 30, 45, 60].map((m) => ({
-                  value: String(m), label: `${m} min`,
-                }))}
-                onChange={(v) => set('estimatedMinutes', Number(v))} />
+              <FieldSelect label="Lessons for this sub-topic"
+                value={form.totalLessons} options={TOTAL_LESSONS_OPTIONS}
+                onChange={(v) => set('totalLessons', v)} />
+              <FieldSelect label="Lesson number" value={form.lessonNumber}
+                options={LESSON_NUMBER_OPTIONS}
+                onChange={(v) => set('lessonNumber', v)} />
             </FieldGrid>
-            <AdvancedOptions hint="Term, lesson numbering, language">
-              <FieldSelect label="Term" value={form.term}
-                options={CURRICULUM_TERMS} onChange={(v) => set('term', v)} />
-              <FieldGrid>
-                <FieldSelect label="Lessons for this sub-topic"
-                  value={form.totalLessons} options={TOTAL_LESSONS_OPTIONS}
-                  onChange={(v) => set('totalLessons', v)} />
-                <FieldSelect label="Lesson number" value={form.lessonNumber}
-                  options={LESSON_NUMBER_OPTIONS}
-                  onChange={(v) => set('lessonNumber', v)} />
-              </FieldGrid>
-              <FieldSelect label="Learning environment"
-                value={form.learningEnvironment}
-                options={LEARNING_ENVIRONMENT_OPTIONS}
-                onChange={(v) => set('learningEnvironment', v)} />
-              <FieldSelect label="Language" value={form.language}
-                options={TEACHER_LANGUAGES} onChange={(v) => set('language', v)} />
-            </AdvancedOptions>
-            <FieldTextarea label="Extra instructions (optional)"
-              placeholder="e.g. One word problem about the market."
-              value={form.instructions}
-              onChange={(v) => set('instructions', v)} maxLength={500} />
-            <GenerateButton generating={status === 'generating'}>
-              Generate Homework
-            </GenerateButton>
-            {usage && (
-              <div className="text-xs theme-text-secondary text-center">
-                {usage.used}/{usage.limit} homeworks used on the{' '}
-                <span className="font-bold capitalize">{usage.plan}</span>{' '}
-                plan this month
-              </div>
-            )}
-          </form>
-
-          <StudioOutputBoundary onRetry={() => setStatus('idle')}>
+            <FieldSelect label="Learning environment"
+              value={form.learningEnvironment}
+              options={LEARNING_ENVIRONMENT_OPTIONS}
+              onChange={(v) => set('learningEnvironment', v)} />
+            <FieldSelect label="Language" value={form.language}
+              options={TEACHER_LANGUAGES} onChange={(v) => set('language', v)} />
+          </AdvancedOptions>
+          <FieldTextarea label="Extra instructions (optional)"
+            placeholder="e.g. One word problem about the market."
+            value={form.instructions}
+            onChange={(v) => set('instructions', v)} maxLength={500} />
+        </>
+      }
+      generateButton={
+        <GenerateButton generating={status === 'generating'}>
+          Generate Homework
+        </GenerateButton>
+      }
+      usageLine={usage ? (
+        <>
+          {usage.used}/{usage.limit} homeworks used on the{' '}
+          <span className="font-bold capitalize">{usage.plan}</span>{' '}
+          plan this month
+        </>
+      ) : null}
+      status={status}
+      emptyState={{
+        icon: House,
+        tone: '#dbe7f4',
+        title: 'Ready to set homework',
+        text: 'Pick the grade, subject and (ideally) a stored sub-topic — you get questions, an answer key and a parent note.',
+      }}
+      output={
+        <StudioOutputBoundary onRetry={() => setStatus('idle')}>
           {handedOff && status === 'success' && homework ? (
           <section className="studio-card p-5 min-h-[400px]">
               <>
@@ -435,12 +463,6 @@ export default function HomeworkStudio() {
               result={homework}
               docTitle={homework?.header?.title}
               title="Setting homework…"
-              emptyState={
-                <StudioEmptyState emoji="🏠" tone="#dbe7f4" title="Ready to set homework">
-                  Pick the grade, subject and (ideally) a stored sub-topic. You'll
-                  get questions, an answer key and a parent note.
-                </StudioEmptyState>
-              }
               errorMessage={errorMessage}
               savedToLibrary={Boolean(generationId)}
               onStop={() => { runRef.current += 1; setStatus('idle') }}
@@ -452,10 +474,9 @@ export default function HomeworkStudio() {
               continueLabel="Continue to editing & export"
             />
           )}
-          </StudioOutputBoundary>
-        </div>
-      </div>
-    </div>
+        </StudioOutputBoundary>
+      }
+    />
   )
 }
 

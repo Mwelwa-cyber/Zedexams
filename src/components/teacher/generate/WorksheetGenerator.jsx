@@ -20,8 +20,8 @@ import { buildDownloadName } from '../../../utils/downloadFilename'
 import { checkDownload } from '../../../utils/downloadGuard'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import { friendlyMessage } from '../../../utils/friendlyErrors'
-import StudioPageHeader from '../StudioPageHeader'
-import SeoHelmet from '../../seo/SeoHelmet'
+import { PencilRuler } from 'lucide-react'
+import GeneratorStudioShell, { useStudioSetupForYou } from './GeneratorStudioShell'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useGenerationGate } from '../../../hooks/useGenerationGate'
@@ -32,15 +32,12 @@ import { useAiOperationLock } from '../../../hooks/useAiOperationLock'
 import { stableFingerprint } from '../../../hooks/aiOperationLockCore'
 import { useStudioInputDraft } from '../../../hooks/draft/useStudioInputDraft'
 import { worksheetInputDescriptor } from '../../../hooks/draft/descriptors'
-import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
-import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
 import {
   FieldTextarea,
   FieldSelect,
   FieldGrid,
   AdvancedOptions,
   GenerateButton,
-  StudioEmptyState,
 } from './studioFields'
 import Icon from '../../ui/Icon'
 import { Download, Key } from '../../ui/icons'
@@ -85,14 +82,17 @@ export default function WorksheetGenerator() {
   // Selector seed: deep-link handoff wins; else the teacher's saved
   // curriculum defaults (read once on mount by the selector). Recovering a draft
   // re-seeds it and bumps selectorKey to remount the selector on the saved
-  // curriculum (the selector reads its seed once on mount).
-  const [selectorSeed, setSelectorSeed] = useState(() =>
+  // curriculum (the selector reads its seed once on mount). The INITIAL seed is
+  // kept separately so useStudioSetupForYou can tell whether the studio opened
+  // empty (only then may the Weekly-Forecast suggestion seed the selector).
+  const [initialSeed] = useState(() =>
     resolveStudioSeed({
       urlSeed: urlDefaults,
       activeSeed: readActiveAssignmentSeed(currentUser?.uid),
       profileSeed: curriculumSeedFromProfile(userProfile),
     }),
   )
+  const [selectorSeed, setSelectorSeed] = useState(initialSeed)
   const [selectorKey, setSelectorKey] = useState(0)
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
@@ -133,6 +133,18 @@ export default function WorksheetGenerator() {
     uid: currentUser?.uid,
     form, setForm, curr, setCurr,
     onReseedSelector: (c) => { setSelectorSeed(c); setSelectorKey((k) => k + 1) },
+  })
+
+  // "Set up for you" (I3): when the studio opened with no grade/subject seed,
+  // prefill from the teacher's Weekly Forecast and show the suggestion card.
+  // Chips derive from the LIVE `curr` payload — see GeneratorStudioShell.
+  const selectorAnchorRef = useRef(null)
+  const setupForYou = useStudioSetupForYou({
+    uid: currentUser?.uid,
+    initialSeed,
+    curr,
+    applySeed: (seed) => { setSelectorSeed(seed); setSelectorKey((k) => k + 1) },
+    selectorAnchorRef,
   })
 
   useEffect(() => {
@@ -354,41 +366,63 @@ export default function WorksheetGenerator() {
   }
 
   return (
-    <div className="studio-page">
-      <SeoHelmet title="Worksheet studio" noIndex />
-      <div className="w-full">
-        <StudioPageHeader
-          eyebrow="Worksheet Studio"
-          title="Print-ready practice"
-          subtitle="Zambian CBC worksheets with a separate, fully-answered marking key — in under a minute."
-          emoji="🐢"
-        />
-
-        <CreatedFromLessonPlanNotice urlDefaults={urlDefaults} />
-        <StudioAssignmentChangeNotice
-          uid={currentUser?.uid}
-          currentSeed={{ grade: curr.grade || selectorSeed?.grade || '', subject: curr.subject || selectorSeed?.subject || '', curriculum: curr.curriculum || selectorSeed?.curriculum || '' }}
-          onApply={(seed) => { setSelectorSeed(seed); setSelectorKey((k) => k + 1); setCurr({}) }}
-        hasUnsavedChanges={draft.status !== 'idle'}
-        saveDraft={draft.flush}
-        />
-        <div className="mb-4">
-          <DraftRecoveryPrompt {...draft} label="worksheet" />
+    <GeneratorStudioShell
+      seoTitle="Worksheet studio"
+      header={{
+        eyebrow: 'Teaching materials',
+        title: 'Worksheet Studio',
+        description: 'Print-ready practice — Zambian CBC worksheets with a separate, fully-answered marking key, in under a minute.',
+        icon: PencilRuler,
+      }}
+      notices={
+        <>
+          <CreatedFromLessonPlanNotice urlDefaults={urlDefaults} />
+          <StudioAssignmentChangeNotice
+            uid={currentUser?.uid}
+            currentSeed={{ grade: curr.grade || selectorSeed?.grade || '', subject: curr.subject || selectorSeed?.subject || '', curriculum: curr.curriculum || selectorSeed?.curriculum || '' }}
+            onApply={(seed) => { setSelectorSeed(seed); setSelectorKey((k) => k + 1); setCurr({}) }}
+            hasUnsavedChanges={draft.status !== 'idle'}
+            saveDraft={draft.flush}
+          />
+        </>
+      }
+      draft={draft}
+      draftLabel="worksheet"
+      setupForYou={setupForYou}
+      onSubmit={onGenerate}
+      selector={
+        <div ref={selectorAnchorRef}>
+          <StudioCurriculumSelector
+            key={selectorKey}
+            value={selectorSeed}
+            onChange={setCurr}
+            curriculumPickerVariant="segmented"
+            defaultCurriculumMode="cbc"
+          />
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6">
-          {/* Input panel */}
-          <form
-            onSubmit={onGenerate}
-            className="studio-card p-5 space-y-4 h-fit"
-          >
-            <div className="flex justify-end">
-              <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
-            </div>
-            <StudioCurriculumSelector
-              key={selectorKey}
-              value={selectorSeed}
-              onChange={setCurr}
+      }
+      form={
+        <>
+          <FieldGrid>
+            <FieldSelect
+              label="Number of questions"
+              value={String(form.count)}
+              options={WORKSHEET_QUESTION_COUNTS.map((p) => ({
+                value: String(p.value), label: p.label,
+              }))}
+              onChange={(v) => updateField('count', Number(v))}
             />
+            <FieldSelect
+              label="Difficulty"
+              value={form.difficulty}
+              options={WORKSHEET_DIFFICULTIES}
+              onChange={(v) => updateField('difficulty', v)}
+            />
+          </FieldGrid>
+          <AdvancedOptions
+            label="Format & style"
+            hint="Auto ✓ — worksheet style, grid columns, passage length"
+          >
             <FieldSelect
               label="Worksheet style"
               value={form.style}
@@ -413,88 +447,80 @@ export default function WorksheetGenerator() {
                 onChange={(v) => updateField('passageLength', v)}
               />
             )}
+          </AdvancedOptions>
+          <AdvancedOptions hint="Term, lesson numbering, timing, language">
+            <FieldSelect
+              label="Term"
+              value={form.term}
+              options={CURRICULUM_TERMS}
+              onChange={(v) => updateField('term', v)}
+            />
             <FieldGrid>
               <FieldSelect
-                label="Number of questions"
-                value={String(form.count)}
-                options={WORKSHEET_QUESTION_COUNTS.map((p) => ({
-                  value: String(p.value), label: p.label,
-                }))}
-                onChange={(v) => updateField('count', Number(v))}
+                label="Lessons for this sub-topic"
+                value={form.totalLessons}
+                options={TOTAL_LESSONS_OPTIONS}
+                onChange={(v) => updateField('totalLessons', v)}
               />
               <FieldSelect
-                label="Difficulty"
-                value={form.difficulty}
-                options={WORKSHEET_DIFFICULTIES}
-                onChange={(v) => updateField('difficulty', v)}
+                label="Lesson number"
+                value={form.lessonNumber}
+                options={LESSON_NUMBER_OPTIONS}
+                onChange={(v) => updateField('lessonNumber', v)}
               />
             </FieldGrid>
-            <AdvancedOptions hint="Term, lesson numbering, timing, language">
-              <FieldSelect
-                label="Term"
-                value={form.term}
-                options={CURRICULUM_TERMS}
-                onChange={(v) => updateField('term', v)}
-              />
-              <FieldGrid>
-                <FieldSelect
-                  label="Lessons for this sub-topic"
-                  value={form.totalLessons}
-                  options={TOTAL_LESSONS_OPTIONS}
-                  onChange={(v) => updateField('totalLessons', v)}
-                />
-                <FieldSelect
-                  label="Lesson number"
-                  value={form.lessonNumber}
-                  options={LESSON_NUMBER_OPTIONS}
-                  onChange={(v) => updateField('lessonNumber', v)}
-                />
-              </FieldGrid>
-              <FieldSelect
-                label="Learning environment"
-                value={form.learningEnvironment}
-                options={LEARNING_ENVIRONMENT_OPTIONS}
-                onChange={(v) => updateField('learningEnvironment', v)}
-              />
-              <FieldGrid>
-                <FieldSelect
-                  label="Pupil time (estimate)"
-                  value={String(form.durationMinutes)}
-                  options={WORKSHEET_DURATIONS.map((p) => ({
-                    value: String(p.value), label: p.label,
-                  }))}
-                  onChange={(v) => updateField('durationMinutes', Number(v))}
-                />
-                <FieldSelect
-                  label="Language"
-                  value={form.language}
-                  options={TEACHER_LANGUAGES}
-                  onChange={(v) => updateField('language', v)}
-                />
-              </FieldGrid>
-            </AdvancedOptions>
-            <FieldTextarea
-              label="Extra instructions (optional)"
-              placeholder="e.g. Include at least one word problem about the market."
-              value={form.instructions}
-              onChange={(v) => updateField('instructions', v)}
-              maxLength={500}
+            <FieldSelect
+              label="Learning environment"
+              value={form.learningEnvironment}
+              options={LEARNING_ENVIRONMENT_OPTIONS}
+              onChange={(v) => updateField('learningEnvironment', v)}
             />
-
-            <GenerateButton generating={status === 'generating'}>
-              Generate Worksheet
-            </GenerateButton>
-
-            {usage && (
-              <div className="text-xs theme-text-secondary text-center">
-                {usage.used}/{usage.limit} worksheets used on the{' '}
-                <span className="font-bold capitalize">{usage.plan}</span> plan this month
-              </div>
-            )}
-          </form>
-
-          {/* Output panel */}
-          <StudioOutputBoundary onRetry={() => setStatus('idle')}>
+            <FieldGrid>
+              <FieldSelect
+                label="Pupil time (estimate)"
+                value={String(form.durationMinutes)}
+                options={WORKSHEET_DURATIONS.map((p) => ({
+                  value: String(p.value), label: p.label,
+                }))}
+                onChange={(v) => updateField('durationMinutes', Number(v))}
+              />
+              <FieldSelect
+                label="Language"
+                value={form.language}
+                options={TEACHER_LANGUAGES}
+                onChange={(v) => updateField('language', v)}
+              />
+            </FieldGrid>
+          </AdvancedOptions>
+          <FieldTextarea
+            label="Extra instructions (optional)"
+            placeholder="e.g. Include at least one word problem about the market."
+            value={form.instructions}
+            onChange={(v) => updateField('instructions', v)}
+            maxLength={500}
+          />
+        </>
+      }
+      generateButton={
+        <GenerateButton generating={status === 'generating'}>
+          Generate Worksheet
+        </GenerateButton>
+      }
+      usageLine={usage ? (
+        <>
+          {usage.used}/{usage.limit} worksheets used on the{' '}
+          <span className="font-bold capitalize">{usage.plan}</span> plan this month
+        </>
+      ) : null}
+      status={status}
+      emptyState={{
+        icon: PencilRuler,
+        tone: '#d8ecd0',
+        title: 'Ready to make a worksheet',
+        text: 'Pick the grade, subject and topic on the left — you get a printable worksheet plus a separate answer key.',
+      }}
+      output={
+        <StudioOutputBoundary onRetry={() => setStatus('idle')}>
           {handedOff && status === 'success' && worksheet ? (
           <section className="studio-card p-5 min-h-[400px]">
               <>
@@ -554,7 +580,6 @@ export default function WorksheetGenerator() {
               result={worksheet}
               docTitle={worksheet?.header?.title}
               title="Writing your worksheet…"
-              emptyState={<EmptyState />}
               errorMessage={errorMessage}
               progress={progress}
               savedToLibrary={Boolean(generationId)}
@@ -567,21 +592,9 @@ export default function WorksheetGenerator() {
               continueLabel="Continue to editing & export"
             />
           )}
-          </StudioOutputBoundary>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/* ── States ─────────────────────────────────────────────────── */
-
-function EmptyState() {
-  return (
-    <StudioEmptyState emoji="🐢" tone="#d8ecd0" title="Ready to make a worksheet">
-      Pick the grade, subject and topic on the left. You'll get a printable
-      worksheet plus a separate answer key file for marking.
-    </StudioEmptyState>
+        </StudioOutputBoundary>
+      }
+    />
   )
 }
 
