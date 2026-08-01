@@ -16,11 +16,21 @@ export function newRequestId() {
 }
 
 /**
- * Return a copy of `headers` with `x-request-id` set. Never mutates the input;
- * an existing id is preserved so a retry of the SAME logical request keeps its
- * id.
+ * Return a copy of `headers` with a single `x-request-id` entry. Never mutates
+ * the input; an existing id (in EITHER case spelling) is preserved so a retry
+ * of the same logical request keeps its id.
+ *
+ * Critically, it emits only ONE spelling: if the caller passed `X-Request-Id`,
+ * that case-variant key is dropped rather than left alongside a new lowercase
+ * one — otherwise `fetch`'s Headers would fold the two into `"id, id"`, which
+ * the server then reads as a doubled id.
  */
 export function withRequestId(headers = {}, id) {
-  const existing = headers['x-request-id'] || headers['X-Request-Id']
-  return { ...headers, 'x-request-id': existing || id || newRequestId() }
+  const rest = {}
+  let existing
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() === 'x-request-id') existing = value
+    else rest[key] = value
+  }
+  return { ...rest, 'x-request-id': existing || id || newRequestId() }
 }

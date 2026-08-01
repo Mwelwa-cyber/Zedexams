@@ -41,7 +41,10 @@ function isAllowedOrigin(origin) {
   return PREVIEW_ORIGIN_RE.test(origin);
 }
 
-const DEFAULT_HEADERS = "Content-Type, Authorization, X-Firebase-AppCheck";
+// X-Request-Id lets the client send a correlation id (OBS-003); without it a
+// cross-origin caller (e.g. the Capacitor app hitting zedexams.com) would fail
+// the preflight the moment it adds the header, and the request never sends.
+const DEFAULT_HEADERS = "Content-Type, Authorization, X-Firebase-AppCheck, X-Request-Id";
 const DEFAULT_METHODS = "GET, POST, OPTIONS";
 
 /**

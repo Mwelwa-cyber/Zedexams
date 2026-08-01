@@ -35,4 +35,14 @@ ok('withRequestId preserves an existing id (a retry keeps its id)', () => {
   assert.equal(withRequestId({ 'X-Request-Id': 'ORIG' }, 'new')['x-request-id'], 'ORIG')
 })
 
+ok('withRequestId emits only ONE spelling (no X-Request-Id + x-request-id pair)', () => {
+  // Both keys would make fetch fold them into "ORIG, ORIG" → a doubled id.
+  const out = withRequestId({ 'X-Request-Id': 'ORIG', 'Content-Type': 'application/json' }, 'new')
+  const idKeys = Object.keys(out).filter((k) => k.toLowerCase() === 'x-request-id')
+  assert.equal(idKeys.length, 1)
+  assert.equal(out['x-request-id'], 'ORIG')
+  assert.equal('X-Request-Id' in out, false)
+  assert.equal(out['Content-Type'], 'application/json') // other headers untouched
+})
+
 console.log(`All requestId tests passed (${passed}).`)
