@@ -9,10 +9,13 @@ import useHideOnScroll from '../../../../hooks/useHideOnScroll'
  * (short version: a fixed bar covered the teacher sidebar's logout row, and
  * the hand-reserved body padding that kept it off the form kept going stale).
  *
- *   Step 1:        [ Save & exit ]            [ Next: Topic → ]
- *   Steps 2–4:     [ ← Back ]                 [ Next: Context → ]
- *   Edit detour:   [ ← Back ]                 [ Back to Review ]
- *   Final step:    [ ← Back ]                 [ Generate Lesson Plan ]
+ *   Step 1:        [ Save & exit ]  (progress)  [ Next: Topic → ]
+ *   Steps 2–4:     [ ← Back ]       (progress)  [ Next: Context → ]
+ *   Edit detour:   [ ← Back ]       (progress)  [ Back to Review ]
+ *   Final step:    [ ← Back ]       (progress)  [ Generate Lesson Plan ]
+ *
+ * (progress) is the centre block: a "Step {n} of 5 — {title}" caption above a
+ * slim 5px bar filled to n/5 — the wizard's persistent position indicator.
  *
  * The Generate action exists ONLY here on the final step — earlier steps never
  * show a disabled Generate button. When Next is blocked, the reason renders
@@ -45,6 +48,8 @@ export function StickyWizardNav({
   const isFirst = currentStep === 0
   const isReview = currentStep === REVIEW_STEP
   const nextTitle = WIZARD_STEPS[currentStep + 1]?.short ?? ''
+  const stepTitle = WIZARD_STEPS[currentStep]?.title ?? ''
+  const progressPct = ((currentStep + 1) / WIZARD_STEPS.length) * 100
   const hint = stepError || (!canProceed ? nextDisabledReason : null)
 
   // Floating-bar behaviour: the bar shrinks to a compact strip while the
@@ -60,7 +65,7 @@ export function StickyWizardNav({
     <div className={`lpw-nav${compact ? ' lpw-nav--compact' : ''}`}>
       {/* Same cap as the wizard's `.lpw-steps`, so the buttons line up with the
           fields above them while the bar itself spans the content column. */}
-      <div className="mx-auto w-full max-w-3xl lg:max-w-5xl">
+      <div className="mx-auto w-full max-w-3xl">
         {hint && (
           <p
             className="mb-1.5 text-center text-[12px] font-semibold leading-snug text-[#b45309]"
@@ -75,7 +80,7 @@ export function StickyWizardNav({
             <button
               type="button"
               onClick={onSaveExit}
-              className="lps-btn-ghost min-h-[48px] flex-1 px-4 text-[13px] sm:flex-none sm:min-w-[150px]"
+              className="lps-btn-ghost min-h-[48px] flex-none px-4 text-[13px] sm:min-w-[150px]"
             >
               <LogOut size={18} aria-hidden="true" className="rotate-180" />
               Save &amp; exit
@@ -84,12 +89,22 @@ export function StickyWizardNav({
             <button
               type="button"
               onClick={onBack}
-              className="lps-btn-ghost min-h-[48px] flex-1 px-4 text-[13px] sm:flex-none sm:min-w-[130px]"
+              className="lps-btn-ghost min-h-[48px] flex-none px-4 text-[13px] sm:min-w-[130px]"
             >
               <ChevronLeft size={18} aria-hidden="true" />
               Back
             </button>
           )}
+
+          {/* Centre progress block — caption + slim filled bar. */}
+          <div className="lpw-nav-progress min-w-0 flex-1">
+            <p className="truncate text-center text-[11px] font-bold leading-tight text-ink-muted">
+              Step {currentStep + 1} of {WIZARD_STEPS.length} — {stepTitle}
+            </p>
+            <div className="lpw-nav-track" aria-hidden="true">
+              <div className="lpw-nav-fill" style={{ width: `${progressPct}%` }} />
+            </div>
+          </div>
 
           {isReview ? (
             <button
@@ -97,7 +112,7 @@ export function StickyWizardNav({
               onClick={onGenerate}
               disabled={isGenerating}
               aria-describedby={hint ? 'lpw-nav-hint' : undefined}
-              className="lps-btn-primary min-h-[52px] flex-[2] rounded-2xl px-4 text-[14px] lps-btn-ready"
+              className="lps-btn-primary min-h-[52px] flex-none rounded-2xl px-4 text-[14px] lps-btn-ready"
             >
               {isGenerating ? (
                 <span className="inline-flex items-center justify-center gap-2">
@@ -115,7 +130,7 @@ export function StickyWizardNav({
             <button
               type="button"
               onClick={onBackToReview}
-              className="lps-btn-primary min-h-[48px] flex-[2] px-4 text-[13px]"
+              className="lps-btn-primary min-h-[48px] flex-none px-4 text-[13px]"
             >
               Back to Review
               <ChevronRight size={18} aria-hidden="true" />
@@ -126,7 +141,7 @@ export function StickyWizardNav({
               onClick={onNext}
               disabled={!canProceed}
               aria-describedby={hint ? 'lpw-nav-hint' : undefined}
-              className="lps-btn-primary min-h-[48px] flex-[2] px-4 text-[13px]"
+              className="lps-btn-primary min-h-[48px] flex-none px-4 text-[13px]"
             >
               Next{nextTitle ? `: ${nextTitle}` : ''}
               <ChevronRight size={18} aria-hidden="true" />
