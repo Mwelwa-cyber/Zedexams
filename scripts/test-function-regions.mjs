@@ -8,7 +8,7 @@
 
 import assert from 'node:assert'
 import { createRequire } from 'node:module'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
@@ -126,6 +126,90 @@ for (const name of registry.migrated) {
   ok(
     `${name} does not hard-code region: "${registry.legacyRegion}"`,
     !options.includes(`region: "${registry.legacyRegion}"`),
+  )
+}
+
+// ── Nothing ineligible may be marked migrated ────────────────────────────
+// Two hard platform limits, enforced here rather than left in the runbook —
+// prose does not fail a build.
+//
+// Resolving an export's KIND needs one hop: most scheduled functions are
+// defined in another file (functions/agents/cron.js, opsHeartbeat.js, …) and
+// re-exported from index.js as a bare identifier
+// (`exports.nightlyQaSmoke = nightlyQaSmokeCron;`), so reading the text at
+// the export site alone sees nothing and the guard silently passes everything.
+function collectKinds() {
+  const kinds = new Map() // identifier → 'schedule' | 'gen1'
+  const files = readdirSync(join(root, 'functions'), { recursive: true })
+    .filter((f) => typeof f === 'string' && f.endsWith('.js'))
+    .filter((f) => !f.includes('node_modules') && !f.includes('.test.'))
+  for (const rel of files) {
+    let src
+    try { src = readFileSync(join(root, 'functions', rel), 'utf8') } catch { continue }
+    for (const m of src.matchAll(/(?:const|let|var)\s+(\w+)\s*=\s*onSchedule\s*\(/g)) {
+      kinds.set(m[1], 'schedule')
+    }
+    for (const m of src.matchAll(/(?:const|let|var)\s+(\w+)\s*=\s*functions\s*\./g)) {
+      kinds.set(m[1], 'gen1')
+    }
+  }
+  return kinds
+}
+const identifierKinds = collectKinds()
+
+/**
+ * index.js renames most of what it re-exports on the way in
+ * (`const { nightlyQaSmoke: nightlyQaSmokeCron } = require("./agents/cron")`),
+ * so the local identifier at the export site is not the name the function was
+ * defined under. Resolve the alias back to the original.
+ */
+function originalNameOf(local) {
+  const m = indexSrc.match(new RegExp(`(\\w+)\\s*:\\s*${local}\\s*[,}]`))
+  return m ? m[1] : null
+}
+
+/** The trigger kind of an index.js export, following the re-export hops. */
+function exportKind(name) {
+  const m = indexSrc.match(new RegExp(`^exports\\.${name}\\s*=\\s*([\\s\\S]{0,80})`, 'm'))
+  if (!m) return 'unknown'
+  const rhs = m[1]
+  if (/^\s*onSchedule\s*\(/.test(rhs)) return 'schedule'
+  if (/^\s*functions\s*\./.test(rhs)) return 'gen1'
+  const alias = rhs.match(/^\s*(\w+)\s*;/)
+  if (!alias) return 'other'
+  const local = alias[1]
+  if (identifierKinds.has(local)) return identifierKinds.get(local)
+  const original = originalNameOf(local)
+  if (original && identifierKinds.has(original)) return identifierKinds.get(original)
+  return 'other'
+}
+
+console.log('\nonly functions that CAN run in the target region are migrated')
+
+// Self-check: the resolver must actually recognise the two kinds in this repo,
+// or every assertion below passes vacuously.
+ok(
+  'the kind resolver recognises a 1st-gen export (setUserRole)',
+  exportKind('setUserRole') === 'gen1',
+)
+ok(
+  'the kind resolver recognises a re-exported scheduled function (nightlyQaSmoke)',
+  exportKind('nightlyQaSmoke') === 'schedule',
+)
+
+for (const name of registry.migrated) {
+  const kind = exportKind(name)
+  // africa-south1 is 2nd-generation ONLY. A 1st-gen export (the
+  // `functions.<trigger>` builder from firebase-functions/v1) cannot deploy
+  // there at all — e.g. setUserRole, which uses functions.auth.user(), a
+  // trigger type with no 2nd-gen equivalent.
+  ok(`${name} is not a 1st-generation (firebase-functions/v1) export`, kind !== 'gen1')
+  // Cloud Scheduler has no African region, so an onSchedule function cannot
+  // be scheduled from africa-south1. Moving one means splitting the schedule
+  // from the work — a design change, not a region flip.
+  ok(
+    `${name} is not an onSchedule export (Cloud Scheduler has no africa-south1)`,
+    kind !== 'schedule',
   )
 }
 

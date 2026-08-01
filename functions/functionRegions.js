@@ -15,25 +15,33 @@
 // URL on. scripts/test-function-regions.mjs fails CI if the two disagree —
 // the arrangement passkeyRegions.js ⇄ passkeyRegionCore.js already uses.
 //
-// HOW A MIGRATION WAVE WORKS:
-//   1. Add the export name(s) to `migrated` in functionRegions.json.
-//   2. Replace the literal `region: "us-central1"` at the export with
-//      `region: regionFor("<exportName>")`.
-//   3. Client side: replace `getFunctions(app, 'us-central1')` with
-//      `getFunctions(app, regionFor('<exportName>'))` from
-//      src/config/functionRegions.js.
-//   4. If the function is a Hosting rewrite target, update its `region` in
-//      firebase.json in the SAME change — a rewrite pointing at a region the
-//      function no longer serves from is a 404 on a public URL.
-// Steps 2–4 land together with step 1 on purpose: converting a call site to
-// the registry while it still resolves to us-central1 would hide a wrong
-// export name until the wave that flips it.
+// HOW A MIGRATION WAVE WORKS — deploy a TWIN, never move the original:
+//   1. Add the export name(s) to `migrated` in functionRegions.json AND to
+//      MIGRATED_FUNCTIONS in src/config/functionRegions.js.
+//   2. Export the same handler under `<baseName>Africa` with
+//      `region: regionFor("<baseName>")` — see passkeyRegionalCallable() in
+//      index.js. Both regions serve at once; the original is untouched.
+//   3. Verify the twin in production BEFORE any caller points at it.
+//   4. Move callers to `getFunctions(app, regionFor('<exportName>'))`.
+//   5. Hosting rewrite targets: update `region` in firebase.json only after
+//      step 3 — a rewrite naming a region the function does not serve from is
+//      a 404 on a PUBLIC url (lencoWebhook, apiWhatsAppWebhook are called by
+//      third parties).
 //
-// A REGION CHANGE IS DELETE-AND-RECREATE, NOT A MOVE. Firebase creates the
-// function in the new region and the old one must be deleted separately; for
-// the window between the two, a caller can reach neither. Waves are therefore
-// small and never include a Hosting rewrite target and its callers in
-// different deploys.
+// WHY A TWIN AND NOT A SAME-NAME CUTOVER. Firebase will not change a live
+// function's region in place; the documented procedure is to run both versions
+// and retire the old one afterwards. The reason that matters here is Android:
+// an installed APK calls whatever region its bundled JS names, and it does not
+// update until the user takes a new build. Deleting a us-central1 endpoint
+// while old installs still call it breaks those users. Retiring an original is
+// a separate, explicitly-approved step behind the checklist in
+// docs/architecture/27-function-region-migration.md — never automatic.
+//
+// NOT EVERYTHING IS ELIGIBLE. africa-south1 is 2nd-generation ONLY, so 1st-gen
+// exports (e.g. setUserRole, a functions.auth.user() trigger) cannot move at
+// all; and Cloud Scheduler has no African region, so onSchedule functions
+// cannot be scheduled from there. Both are enforced by
+// scripts/test-function-regions.mjs, not left to this comment.
 
 const registry = require("./functionRegions.json");
 
