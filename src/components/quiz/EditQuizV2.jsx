@@ -20,6 +20,7 @@ import {
 } from '../../utils/quizSections.js'
 import { regroupComprehensionSections, moveQuestionToPassage } from '../../utils/comprehensionGrouping.js'
 import { richTextHasContent } from '../../utils/quizRichText.js'
+import { assertFileSignature } from '../../utils/fileSignature'
 import { clampInt } from '../../utils/inputs.js'
 import { getErrorMessage } from '../../utils/errors.js'
 import { classifyOnPublish } from '../../utils/quizClassification.js'
@@ -1055,6 +1056,13 @@ export default function EditQuizV2() {
       show('Only JPG, PNG, and WEBP images are allowed.', true)
       return
     }
+    try {
+      // Declared type is the client's word — verify the real bytes (STOR-003).
+      await assertFileSignature(file, ALLOWED_TYPES, { label: 'a JPG, PNG or WebP image' })
+    } catch (err) {
+      show(err.message, true)
+      return
+    }
     if (file.size > 15 * 1024 * 1024) {
       show('Image must be under 15 MB.', true)
       return
@@ -1132,6 +1140,13 @@ export default function EditQuizV2() {
   const uploadPassageImage = useCallback(async function uploadPassageImage(sectionIndex, file) {
     if (!ALLOWED_TYPES.includes(file.type)) {
       show('Only JPG, PNG, and WEBP images are allowed.', true)
+      return
+    }
+    try {
+      // Declared type is the client's word — verify the real bytes (STOR-003).
+      await assertFileSignature(file, ALLOWED_TYPES, { label: 'a JPG, PNG or WebP image' })
+    } catch (err) {
+      show(err.message, true)
       return
     }
     if (file.size > 15 * 1024 * 1024) {
@@ -1214,6 +1229,13 @@ export default function EditQuizV2() {
       show('Only JPG, PNG, and WEBP images are allowed.', true)
       return
     }
+    try {
+      // Declared type is the client's word — verify the real bytes (STOR-003).
+      await assertFileSignature(file, ALLOWED_TYPES, { label: 'a JPG, PNG or WebP image' })
+    } catch (err) {
+      show(err.message, true)
+      return
+    }
     if (file.size > 15 * 1024 * 1024) {
       show('Image must be under 15 MB.', true)
       return
@@ -1287,6 +1309,13 @@ export default function EditQuizV2() {
   const uploadPassageQuestionOptionImage = useCallback(async function uploadPassageQuestionOptionImage(sectionIndex, questionIndex, optionIndex, file) {
     if (!ALLOWED_TYPES.includes(file.type)) {
       show('Only JPG, PNG, and WEBP images are allowed.', true)
+      return
+    }
+    try {
+      // Declared type is the client's word — verify the real bytes (STOR-003).
+      await assertFileSignature(file, ALLOWED_TYPES, { label: 'a JPG, PNG or WebP image' })
+    } catch (err) {
+      show(err.message, true)
       return
     }
     if (file.size > 15 * 1024 * 1024) {

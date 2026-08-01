@@ -9,6 +9,7 @@ import SlideRenderer from './SlideRenderer'
 import { convertQuickLessonToSlides } from './quickLessonConverter'
 import { importPowerPointLesson } from './pptxImporter'
 import { renderPowerPointToImages } from './pptxPresentationRenderer'
+import { assertFileSignature } from '../../utils/fileSignature'
 import { SAMPLE_QUICK_NOTES, SAMPLE_RESPIRATORY_LESSON } from './sampleLesson'
 import { GRADE4_CONTRACTIONS_LESSON, GRADE4_CONTRACTIONS_QUICK_NOTES } from './grade4ContractionsLesson'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -31,6 +32,7 @@ import {
   slidesToPlainText,
 } from './lessonConstants'
 
+const PPTX_MIME = 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
 const INPUT = 'w-full rounded-xl border-2 border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-gray-800 outline-none transition-colors focus:border-emerald-500'
 const LABEL = 'mb-1.5 block text-xs font-black uppercase tracking-wide text-gray-500'
 
@@ -694,6 +696,9 @@ export default function LessonEditor() {
   async function importPptx(file) {
     setImportingPptx(true)
     try {
+      // Verify the real bytes are a genuine (ZIP-based) .pptx before the parser
+      // opens the archive — the extension/declared type is forgeable (STOR-003).
+      await assertFileSignature(file, [PPTX_MIME], { label: 'a PowerPoint (.pptx) file' })
       const imported = await importPowerPointLesson(file)
       const { imageAssets = [], ...importedLesson } = imported
       setPendingImageAssets(assetsById(imageAssets))
@@ -723,6 +728,7 @@ export default function LessonEditor() {
   async function preparePowerPointViewer(file) {
     setConvertingPresentation(true)
     try {
+      await assertFileSignature(file, [PPTX_MIME], { label: 'a PowerPoint (.pptx) file' })
       let rendered = null
       let renderError = null
       try {

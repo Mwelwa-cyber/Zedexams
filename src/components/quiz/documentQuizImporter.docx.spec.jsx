@@ -94,4 +94,14 @@ describe('extractDocx on tab-stop + bold-prefix layouts', () => {
     expect(result.summary.needsReview).toBe(0)
     expect(result.summary.importerVersion).toBeTruthy()
   })
+
+  it('rejects a non-document payload disguised as .docx before parsing (STOR-003)', async () => {
+    // A "<script>" blob renamed with a .docx name + the docx MIME. The extension
+    // and declared type say Word; the bytes say otherwise. It must be refused up
+    // front, never handed to the ZIP/XML parser (the SEC-007 adm-zip concern).
+    const evil = new File([new Uint8Array([0x3c, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x3e])], 'paper.docx', {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    })
+    await expect(importQuizDocument(evil)).rejects.toThrow(/contents don't match/i)
+  })
 })

@@ -1,5 +1,6 @@
 import { unzipSync, strFromU8 } from 'fflate'
 import { loadPdfjs } from '../../utils/pdfjsLoader.js'
+import { assertFileSignature } from '../../utils/fileSignature.js'
 import { createPassageSection, createStandaloneSection } from '../../utils/quizSections.js'
 import {
   metadataFromText as buildImportMetadata,
@@ -58,6 +59,17 @@ const IMAGE_MIME = {
   png: 'image/png',
   webp: 'image/webp',
 }
+
+// The genuine byte formats an import may be, for magic-byte verification —
+// PDF, legacy .doc (OLE) + .docx (ZIP), and the picture formats.
+const IMPORT_ALLOWED_MIMES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+]
 
 // ─── Core Patterns ───────────────────────────────────────────────────────────
 
@@ -1278,6 +1290,15 @@ export async function importQuizDocument(input, options = {}) {
   // Accept a single File (Word/PDF/image) or several image Files at once.
   const files = normalizeImportInput(input)
   if (!files.length) throw new Error('Choose a Word, PDF, or image file first.')
+
+  // Verify each file's real leading bytes BEFORE any parser (fflate/adm-zip,
+  // mammoth, pdfjs) touches it — the extension/declared type is the client's
+  // word, and a disguised payload is exactly how a hostile .docx reaches the
+  // ZIP parser (STOR-003 / SEC-007). A payload that isn't a genuine PDF / OLE /
+  // ZIP / JPEG / PNG / WebP is rejected here rather than fed to a parser.
+  for (const file of files) {
+    await assertFileSignature(file, IMPORT_ALLOWED_MIMES, { label: 'a Word, PDF or image file' })
+  }
 
   const importOptions = { ...DEFAULT_IMPORT_OPTIONS, ...options }
 

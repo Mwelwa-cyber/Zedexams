@@ -11,6 +11,7 @@ import {
 } from '../../hooks/useCreateQuizDraft'
 import { storage } from '../../firebase/config'
 import { generateAIQuizQuestions } from '../../utils/aiAssistant'
+import { assertFileSignature } from '../../utils/fileSignature'
 import { richifyGeneratedQuestions } from '../quiz/generatedQuizRichText'
 import AiGenerationProgress from '../ui/AiGenerationProgress'
 import {
@@ -894,6 +895,13 @@ export default function CreateQuizV2() {
       show('Only JPG, PNG, and WEBP images are allowed.', true)
       return
     }
+    try {
+      // Declared type is the client's word — verify the real bytes (STOR-003).
+      await assertFileSignature(file, ALLOWED_TYPES, { label: 'a JPG, PNG or WebP image' })
+    } catch (err) {
+      show(err.message, true)
+      return
+    }
     if (file.size > 15 * 1024 * 1024) {
       show('Image must be under 15 MB.', true)
       return
@@ -955,6 +963,13 @@ export default function CreateQuizV2() {
   async function uploadPassageImage(sectionIndex, file) {
     if (!ALLOWED_TYPES.includes(file.type)) {
       show('Only JPG, PNG, and WEBP images are allowed.', true)
+      return
+    }
+    try {
+      // Declared type is the client's word — verify the real bytes (STOR-003).
+      await assertFileSignature(file, ALLOWED_TYPES, { label: 'a JPG, PNG or WebP image' })
+    } catch (err) {
+      show(err.message, true)
       return
     }
     if (file.size > 15 * 1024 * 1024) {
@@ -1032,6 +1047,13 @@ export default function CreateQuizV2() {
       show('Only JPG, PNG, and WEBP images are allowed.', true)
       return
     }
+    try {
+      // Declared type is the client's word — verify the real bytes (STOR-003).
+      await assertFileSignature(file, ALLOWED_TYPES, { label: 'a JPG, PNG or WebP image' })
+    } catch (err) {
+      show(err.message, true)
+      return
+    }
     if (file.size > 15 * 1024 * 1024) {
       show('Image must be under 15 MB.', true)
       return
@@ -1104,6 +1126,13 @@ export default function CreateQuizV2() {
   async function uploadPassageQuestionOptionImage(sectionIndex, questionIndex, optionIndex, file) {
     if (!ALLOWED_TYPES.includes(file.type)) {
       show('Only JPG, PNG, and WEBP images are allowed.', true)
+      return
+    }
+    try {
+      // Declared type is the client's word — verify the real bytes (STOR-003).
+      await assertFileSignature(file, ALLOWED_TYPES, { label: 'a JPG, PNG or WebP image' })
+    } catch (err) {
+      show(err.message, true)
       return
     }
     if (file.size > 15 * 1024 * 1024) {
