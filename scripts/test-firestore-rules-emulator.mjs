@@ -513,17 +513,111 @@ async function main() {
     await assertSucceeds(getDoc(doc(admin, 'users', LEARNER_A)))
   })
 
+  // Safe signup defaults, shared by the age-answer tests below so each one
+  // only varies the field it is actually about.
+  const SIGNUP_DEFAULTS = {
+    plan: 'free',
+    premium: false,
+    isPremium: false,
+    paymentStatus: 'inactive',
+    subscriptionStatus: 'inactive',
+    subscriptionPlan: 'free',
+  }
+
   await test('self-create with safe defaults succeeds', async () => {
     const newUid = 'new_learner_signup'
     const newCtx = testEnv.authenticatedContext(newUid, unverifiedToken(newUid)).firestore()
     await assertSucceeds(setDoc(doc(newCtx, 'users', newUid), {
       role: 'learner',
-      plan: 'free',
-      premium: false,
-      isPremium: false,
-      paymentStatus: 'inactive',
-      subscriptionStatus: 'inactive',
-      subscriptionPlan: 'free',
+      // A learner must declare a date of birth — see below.
+      dob: '2015-06-03',
+      isMinor: true,
+      ...SIGNUP_DEFAULTS,
+    }))
+  })
+
+  await test('a learner cannot be created without a date of birth', async () => {
+    // The neutral age screen is only as good as this rule. Without it a
+    // crafted setDoc creates a learner with no declared age, which resolves
+    // to the `unknown` consent status — the MIGRATION state, deliberately
+    // permissive, so the account would come up with full capabilities.
+    const newUid = 'ageless_learner_signup'
+    const newCtx = testEnv.authenticatedContext(newUid, unverifiedToken(newUid)).firestore()
+    await assertFails(setDoc(doc(newCtx, 'users', newUid), {
+      role: 'learner',
+      ...SIGNUP_DEFAULTS,
+    }))
+  })
+
+  await test('a learner cannot smuggle a non-date past the dob check', async () => {
+    const newUid = 'fake_dob_learner_signup'
+    const newCtx = testEnv.authenticatedContext(newUid, unverifiedToken(newUid)).firestore()
+    for (const dob of [true, 20150603, '2015', '']) {
+      await assertFails(setDoc(doc(newCtx, 'users', newUid), {
+        role: 'learner', dob, ...SIGNUP_DEFAULTS,
+      }))
+    }
+  })
+
+  await test('a teacher signs up with an attestation and no date of birth', async () => {
+    const newUid = 'new_teacher_signup'
+    const newCtx = testEnv.authenticatedContext(newUid, unverifiedToken(newUid)).firestore()
+    await assertSucceeds(setDoc(doc(newCtx, 'users', newUid), {
+      role: 'teacher',
+      ageConfirmed18Plus: true,
+      ...SIGNUP_DEFAULTS,
+    }))
+  })
+
+  await test('a parent can create their own profile', async () => {
+    // 'parent' was missing from the create allow-list while the signup page
+    // offered a Parent role, so every parent signup failed its first write.
+    const newUid = 'new_parent_signup'
+    const newCtx = testEnv.authenticatedContext(newUid, unverifiedToken(newUid)).firestore()
+    await assertSucceeds(setDoc(doc(newCtx, 'users', newUid), {
+      role: 'parent',
+      ageConfirmed18Plus: true,
+      ...SIGNUP_DEFAULTS,
+    }))
+  })
+
+  await test('a teacher or parent may not send a date of birth', async () => {
+    // "We stopped collecting it" is not the same as "it cannot be written".
+    // A stale client is exactly how the Privacy Policy and Play Data safety
+    // declarations stop being true without anyone noticing.
+    for (const role of ['teacher', 'parent']) {
+      const newUid = `dob_carrying_${role}_signup`
+      const newCtx = testEnv.authenticatedContext(newUid, unverifiedToken(newUid)).firestore()
+      await assertFails(setDoc(doc(newCtx, 'users', newUid), {
+        role, dob: '1988-05-05', ...SIGNUP_DEFAULTS,
+      }))
+      await assertFails(setDoc(doc(newCtx, 'users', newUid), {
+        role, isMinor: false, ...SIGNUP_DEFAULTS,
+      }))
+    }
+  })
+
+  await test('a signup cannot pre-approve its own guardian consent', async () => {
+    // Only confirmGuardianConsent writes 'granted', reached by a link sent to
+    // the guardian. Without this pin the whole flow is theatre.
+    const newUid = 'self_approving_signup'
+    const newCtx = testEnv.authenticatedContext(newUid, unverifiedToken(newUid)).firestore()
+    await assertFails(setDoc(doc(newCtx, 'users', newUid), {
+      role: 'learner',
+      dob: '2015-06-03',
+      isMinor: true,
+      guardian: { contact: 'me@example.com', method: 'email', consentStatus: 'granted' },
+      ...SIGNUP_DEFAULTS,
+    }))
+  })
+
+  await test('a learner cannot rewrite their own age answer', async () => {
+    // Ageing out of the restricted experience from the client is the neutral
+    // age screen's one forbidden outcome.
+    await assertFails(updateDoc(doc(learnerA, 'users', LEARNER_A), { isMinor: false }))
+    await assertFails(updateDoc(doc(learnerA, 'users', LEARNER_A), { dob: '1990-01-01' }))
+    await assertFails(updateDoc(doc(learnerA, 'users', LEARNER_A), {
+      guardian: { consentStatus: 'granted' },
     }))
   })
 

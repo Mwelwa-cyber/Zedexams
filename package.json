@@ -697,6 +697,8 @@
     "test:guardian-consent": "node functions/shared/consent/guardianConsentCore.test.js && node functions/guardianConsent/guardianConsent.test.js",
     "test:shared-consent-neutral": "node functions/shared/consent/neutrality.test.js",
     "test:consent-guard": "node functions/consentGuard.test.js",
+    "test:signup-flow": "node scripts/test-signup-flow.mjs",
+    "test:user-age-bootstrap": "node functions/guardianConsent/userAgeBootstrap.test.js",
     "test:learner-safety": "node functions/learnerSafety/learnerSafetyCore.test.js",
     "test:android-manifest": "node scripts/test-android-manifest.mjs",
     "audit:colors": "node scripts/audit-hardcoded-colors.mjs",

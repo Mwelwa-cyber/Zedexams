@@ -1,14 +1,15 @@
-import { useCallback, useMemo, useState } from 'react'
-import { requiresGuardianConsent, ageInYears } from '../../utils/guardianConsent'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ageInYears } from '../../utils/guardianConsent'
 import { recordAgeGateAttempt } from '../../utils/ageGateService'
+import { checkAgeAnswer } from '../../utils/signupFlowCore'
 
 /**
- * The neutral age screen (Play Families policy), plus guardian capture.
+ * The neutral age screen (Play Families policy).
  *
  * ZedExams is a MIXED-AUDIENCE app — children in Grades 4–7 and adult
  * teachers in one product — which is exactly the case Play requires a neutral
- * age screen for. "Neutral" is a specific claim with four parts, and each one
- * is a decision in this file rather than a comment:
+ * age screen for. "Neutral" is a specific claim with several parts, and each
+ * one is a decision in this file rather than a comment:
  *
  *   1. ASK PLAINLY. The question is "When were you born?" and nothing on this
  *      screen explains what happens next. A hint that a younger answer means
@@ -17,20 +18,27 @@ import { recordAgeGateAttempt } from '../../utils/ageGateService'
  *
  *   2. NOTHING IS PRE-FILLED. No default year, no "18+" preselected. The
  *      year list starts empty and runs oldest-last so the first tap is not
- *      an adult date.
+ *      an adult date. (A LOCKED answer is pre-filled — see below — but that
+ *      is the user's own earlier answer, not a suggestion from us.)
  *
- *   3. NO IMMEDIATE RETRY WITH AN OLDER AGE. Enforced SERVER-SIDE
- *      (recordAgeGateAttempt), not here — a cooldown a client owns is a
- *      cooldown a client can clear. This component reports the attempt and
- *      honours the answer.
+ *   3. NO RETRY WITH AN OLDER AGE. Two layers, neither of which is this
+ *      component's alone: the server-side cooldown (recordAgeGateAttempt) and
+ *      the per-device lock the sign-up flow passes in as `lockedDob`. Backing
+ *      out of sign-up and returning shows the first answer, read-only.
  *
- *   4. THE ANSWER IS NOT REVERSIBLE ON THIS SCREEN. Once a date is submitted
- *      there is no "go back and change it" affordance, because that is retry
- *      with extra steps.
+ *   4. NO MINIMUM AGE. Every real, plausible date proceeds. Rejecting young
+ *      answers would tell the user which answer is accepted, and there is
+ *      nothing to gain: routing by age is what the screen is for.
  *
- * The age threshold and the "unreadable date means child" rule both come from
- * the shared consent core, so the client and the server route the same person
- * the same way.
+ * It renders BEFORE any sign-up method. That placement is the substance of
+ * the whole thing — while the age question lived inside the email form, the
+ * Google button was a way around it, and a bypassable age screen counts as no
+ * age screen at all.
+ *
+ * What this screen does NOT do any more: collect a guardian contact. That
+ * moved to GuardianConsentStep, after the account exists, so a learner starts
+ * practising immediately in limited mode instead of being held at a form
+ * asking for their parent's email address.
  */
 
 const MONTHS = [
@@ -40,41 +48,77 @@ const MONTHS = [
 
 const FIELD =
   'w-full rounded-[10px] border border-[#E3D9CC] bg-white px-3 py-2.5 text-[14px] ' +
-  'text-[#1A1F2E] focus:outline-none focus:ring-2 focus:ring-[#C5613F]'
+  'text-[#1A1F2E] focus:outline-none focus:ring-2 focus:ring-[#C5613F] ' +
+  'disabled:bg-[#F6F1EA] disabled:text-[#6B6560] disabled:cursor-not-allowed'
 
 function pad(n) {
   return String(n).padStart(2, '0')
 }
 
-export default function AgeGateStep({ onAdult, onChild }) {
-  const [day, setDay] = useState('')
-  const [month, setMonth] = useState('')
-  const [year, setYear] = useState('')
-  const [phase, setPhase] = useState('dob') // 'dob' | 'guardian'
-  const [dob, setDob] = useState('')
-  const [method, setMethod] = useState('email')
-  const [contact, setContact] = useState('')
+/** Split an ISO date into the three select values, or blanks. */
+function splitIso(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || '').trim())
+  if (!m) return { day: '', month: '', year: '' }
+  return { day: String(Number(m[3])), month: String(Number(m[2]) - 1), year: m[1] }
+}
+
+/**
+ * @param {object} props
+ * @param {(answer: {dob: string}) => void} props.onAnswer  Called once with a
+ *   valid date. Routing by age happens in the flow, not here.
+ * @param {string} [props.lockedDob]  A date this device already answered with,
+ *   inside the retry window. Shown, pre-filled and read-only.
+ */
+export default function AgeGateStep({ onAnswer, lockedDob = null }) {
+  const initial = useMemo(() => splitIso(lockedDob), [lockedDob])
+  const [day, setDay] = useState(initial.day)
+  const [month, setMonth] = useState(initial.month)
+  const [year, setYear] = useState(initial.year)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
+  const locked = Boolean(lockedDob)
+
+  // A lock that arrives after mount (storage read resolving, or a second
+  // visit within the window) still has to reach the fields.
+  useEffect(() => {
+    if (!locked) return
+    setDay(initial.day)
+    setMonth(initial.month)
+    setYear(initial.year)
+  }, [locked, initial])
+
   // Oldest year last: the first option a user lands on must not be an adult
-  // date. 100 years covers any adult teacher.
+  // date. 100 years covers any adult teacher and matches the plausibility
+  // ceiling in checkAgeAnswer.
   const years = useMemo(() => {
     const current = new Date().getFullYear()
     return Array.from({ length: 100 }, (_, i) => current - i)
   }, [])
 
-  const submitDob = useCallback(async (event) => {
+  const submit = useCallback(async (event) => {
     event.preventDefault()
     setError('')
+
+    // A locked answer is confirmed, not re-validated. It already passed this
+    // screen once, and re-running the server cooldown on it would block the
+    // user with their own previous answer.
+    if (locked) {
+      onAnswer({ dob: lockedDob })
+      return
+    }
+
     if (!day || !month || !year) {
       setError('Please choose the day, month and year.')
       return
     }
     const iso = `${year}-${pad(Number(month) + 1)}-${pad(Number(day))}`
-    // The shared core rejects impossible dates (31 February) rather than
-    // letting Date roll them into the next month and invent an age.
-    if (ageInYears(iso) === null) {
+    // ageInYears rejects impossible dates (31 February) rather than letting
+    // Date roll them into the next month and invent an age, and returns null
+    // for a future date. checkAgeAnswer turns that into the two things this
+    // screen refuses: an unreadable date, and one over 100 years ago.
+    const verdict = checkAgeAnswer(ageInYears(iso))
+    if (!verdict.ok) {
       setError("That date doesn't look right — please check it.")
       return
     }
@@ -100,92 +144,30 @@ export default function AgeGateStep({ onAdult, onChild }) {
       setBusy(false)
     }
 
-    setDob(iso)
-    if (requiresGuardianConsent(iso)) setPhase('guardian')
-    else onAdult({ dob: iso })
-  }, [day, month, year, onAdult])
-
-  const submitGuardian = useCallback((event) => {
-    event.preventDefault()
-    setError('')
-    const value = contact.trim()
-    const okEmail = method === 'email' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
-    const okPhone = method === 'whatsapp' && /^\+?\d{9,15}$/.test(value.replace(/[\s-]/g, ''))
-    if (!okEmail && !okPhone) {
-      setError(method === 'email'
-        ? "Please enter your parent or guardian's email address."
-        : "Please enter your parent or guardian's WhatsApp number, e.g. +260 97 1234567.")
-      return
-    }
-    onChild({ dob, guardian: { contact: value, method, consentStatus: 'pending' } })
-  }, [contact, method, dob, onChild])
-
-  if (phase === 'guardian') {
-    return (
-      <form onSubmit={submitGuardian} noValidate className="space-y-3.5">
-        <div>
-          <h2 className="font-display font-black text-[18px] text-[#1A1F2E]">One more step</h2>
-          <p className="text-[13px] text-[#6B6560] mt-1">
-            We need a parent or guardian to approve your account. We&apos;ll send them a
-            link. You can start reading lessons and past papers straight away, and
-            everything else unlocks once they approve.
-          </p>
-        </div>
-
-        <div className="flex gap-2" role="group" aria-label="How should we contact them?">
-          {[['email', 'Email'], ['whatsapp', 'WhatsApp']].map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => { setMethod(value); setContact(''); setError('') }}
-              aria-pressed={method === value}
-              className={`px-3 py-2 rounded-[10px] border text-[13px] font-bold ${
-                method === value
-                  ? 'border-[#C5613F] text-[#C5613F] bg-[#F8EADF]'
-                  : 'border-[#E3D9CC] text-[#6B6560]'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <div>
-          <label htmlFor="guardian-contact" className="block text-[13px] font-medium text-[#1A1F2E] mb-1.5">
-            {method === 'email' ? "Parent or guardian's email" : "Parent or guardian's WhatsApp number"}
-          </label>
-          <input
-            id="guardian-contact"
-            type={method === 'email' ? 'email' : 'tel'}
-            value={contact}
-            onChange={(e) => setContact(e.target.value)}
-            autoComplete="off"
-            placeholder={method === 'email' ? 'parent@example.com' : '+260 97 1234567'}
-            className={FIELD}
-          />
-        </div>
-
-        {error && <p role="alert" className="text-red-600 text-[11.5px]">{error}</p>}
-
-        <button
-          type="submit"
-          className="w-full rounded-[10px] bg-[#C5613F] text-white font-black py-3 text-[14px]"
-        >
-          Continue
-        </button>
-      </form>
-    )
-  }
+    onAnswer({ dob: iso })
+  }, [day, month, year, locked, lockedDob, onAnswer])
 
   return (
-    <form onSubmit={submitDob} noValidate className="space-y-3.5">
-      {/* Neutral by construction: the question, and nothing about consequences. */}
-      <h2 className="font-display font-black text-[18px] text-[#1A1F2E]">When were you born?</h2>
+    <form onSubmit={submit} noValidate className="space-y-3.5">
+      {/* Neutral by construction: the question, a reason that reveals
+          nothing, and no mention of what any answer leads to. */}
+      <div>
+        <h2 className="font-display font-black text-[18px] text-[#1A1F2E]">When were you born?</h2>
+        <p className="text-[13px] text-[#6B6560] mt-1">
+          This helps us set ZedExams up right for you.
+        </p>
+      </div>
 
       <div className="grid grid-cols-3 gap-2">
         <div>
           <label htmlFor="dob-day" className="block text-[12px] text-[#6B6560] mb-1">Day</label>
-          <select id="dob-day" value={day} onChange={(e) => setDay(e.target.value)} className={FIELD}>
+          <select
+            id="dob-day"
+            value={day}
+            disabled={locked}
+            onChange={(e) => setDay(e.target.value)}
+            className={FIELD}
+          >
             <option value="">–</option>
             {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
               <option key={d} value={d}>{d}</option>
@@ -194,14 +176,26 @@ export default function AgeGateStep({ onAdult, onChild }) {
         </div>
         <div>
           <label htmlFor="dob-month" className="block text-[12px] text-[#6B6560] mb-1">Month</label>
-          <select id="dob-month" value={month} onChange={(e) => setMonth(e.target.value)} className={FIELD}>
+          <select
+            id="dob-month"
+            value={month}
+            disabled={locked}
+            onChange={(e) => setMonth(e.target.value)}
+            className={FIELD}
+          >
             <option value="">–</option>
             {MONTHS.map((label, i) => <option key={label} value={i}>{label}</option>)}
           </select>
         </div>
         <div>
           <label htmlFor="dob-year" className="block text-[12px] text-[#6B6560] mb-1">Year</label>
-          <select id="dob-year" value={year} onChange={(e) => setYear(e.target.value)} className={FIELD}>
+          <select
+            id="dob-year"
+            value={year}
+            disabled={locked}
+            onChange={(e) => setYear(e.target.value)}
+            className={FIELD}
+          >
             <option value="">–</option>
             {years.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>

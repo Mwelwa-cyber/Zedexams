@@ -9,6 +9,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
  * "under 13? your parent will need to approve" line, or pre-selects a year to
  * save a tap, and the screen becomes a quiz with the answer on the back.
  * These tests are what makes the declaration checkable.
+ *
+ * The guardian capture that used to live on this screen moved to
+ * GuardianConsentStep, after the account exists — see that spec.
  */
 
 const recordAgeGateAttempt = vi.fn()
@@ -20,11 +23,10 @@ vi.mock('../../utils/ageGateService', () => ({
 
 import AgeGateStep from './AgeGateStep'
 
-const onAdult = vi.fn()
-const onChild = vi.fn()
+const onAnswer = vi.fn()
 
-function setup() {
-  return render(<AgeGateStep onAdult={onAdult} onChild={onChild} />)
+function setup(props = {}) {
+  return render(<AgeGateStep onAnswer={onAnswer} {...props} />)
 }
 
 function enterDob({ day, month, year }) {
@@ -49,6 +51,20 @@ describe('AgeGateStep — neutrality', () => {
     expect(text).not.toMatch(/parent|guardian|approve|under 1[38]|adult|age/i)
   })
 
+  it('gives a reason for asking that reveals nothing', () => {
+    setup()
+    expect(screen.getByText(/helps us set zedexams up right for you/i)).toBeInTheDocument()
+  })
+
+  it('carries no sign-up method of its own', () => {
+    // The structural rule: both auth methods live on a screen that comes
+    // AFTER this one. A Google button here would be the bypass all over again.
+    setup()
+    expect(screen.queryByRole('button', { name: /google/i })).toBeNull()
+    expect(screen.queryByLabelText(/password/i)).toBeNull()
+    expect(screen.queryByLabelText(/email/i)).toBeNull()
+  })
+
   it('pre-fills nothing', () => {
     setup()
     for (const label of [/^day$/i, /^month$/i, /^year$/i]) {
@@ -66,38 +82,20 @@ describe('AgeGateStep — neutrality', () => {
   })
 })
 
-describe('AgeGateStep — routing', () => {
-  it('routes an adult straight through', async () => {
+describe('AgeGateStep — the answer', () => {
+  it('hands back a real date', async () => {
     setup()
     enterDob({ day: 1, month: 0, year: 1990 })
-    await waitFor(() => expect(onAdult).toHaveBeenCalledWith({ dob: '1990-01-01' }))
-    expect(onChild).not.toHaveBeenCalled()
+    await waitFor(() => expect(onAnswer).toHaveBeenCalledWith({ dob: '1990-01-01' }))
   })
 
-  it('routes a child to the guardian step', async () => {
+  it('hands back a child date on exactly the same terms', async () => {
+    // Routing by age happens in the flow, not here. This screen must not
+    // behave differently for a younger answer — behaving differently is how a
+    // user learns what the screen is for.
     setup()
     enterDob({ day: 3, month: 5, year: 2015 })
-    await waitFor(() =>
-      expect(screen.getByLabelText(/parent or guardian's email/i)).toBeInTheDocument(),
-    )
-    expect(onAdult).not.toHaveBeenCalled()
-  })
-
-  it('treats someone one day short of 18 as a child', async () => {
-    // The boundary is where an off-by-one silently routes a 17-year-old into
-    // the adult flow, which is the exact failure the gate exists to prevent.
-    const tomorrow = new Date()
-    tomorrow.setFullYear(tomorrow.getFullYear() - 18)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    setup()
-    enterDob({
-      day: tomorrow.getDate(),
-      month: tomorrow.getMonth(),
-      year: tomorrow.getFullYear(),
-    })
-    await waitFor(() =>
-      expect(screen.getByLabelText(/parent or guardian's email/i)).toBeInTheDocument(),
-    )
+    await waitFor(() => expect(onAnswer).toHaveBeenCalledWith({ dob: '2015-06-03' }))
   })
 
   it('rejects an impossible date instead of inventing an age', async () => {
@@ -108,8 +106,23 @@ describe('AgeGateStep — routing', () => {
     await waitFor(() =>
       expect(screen.getByText(/doesn't look right/i)).toBeInTheDocument(),
     )
-    expect(onAdult).not.toHaveBeenCalled()
-    expect(onChild).not.toHaveBeenCalled()
+    expect(onAnswer).not.toHaveBeenCalled()
+  })
+
+  it('rejects a date in the future', async () => {
+    setup()
+    const next = new Date().getFullYear() + 1
+    // The year list only runs backwards, so a future year has to be forced in
+    // — which is exactly what a tampered client would do.
+    const yearSelect = screen.getByLabelText(/^year$/i)
+    const option = document.createElement('option')
+    option.value = String(next)
+    yearSelect.appendChild(option)
+    enterDob({ day: 1, month: 0, year: next })
+    await waitFor(() =>
+      expect(screen.getByText(/doesn't look right/i)).toBeInTheDocument(),
+    )
+    expect(onAnswer).not.toHaveBeenCalled()
   })
 
   it('will not continue on a partial date', async () => {
@@ -119,7 +132,29 @@ describe('AgeGateStep — routing', () => {
     await waitFor(() =>
       expect(screen.getByText(/choose the day, month and year/i)).toBeInTheDocument(),
     )
-    expect(onChild).not.toHaveBeenCalled()
+    expect(onAnswer).not.toHaveBeenCalled()
+  })
+})
+
+describe('AgeGateStep — the locked first answer', () => {
+  it('shows the first answer, read-only, on a return visit', async () => {
+    // Criterion 5: backing out and coming back must not be a way to try a
+    // different birthday.
+    setup({ lockedDob: '2015-06-03' })
+    expect(screen.getByLabelText(/^day$/i).value).toBe('3')
+    expect(screen.getByLabelText(/^month$/i).value).toBe('5')
+    expect(screen.getByLabelText(/^year$/i).value).toBe('2015')
+    for (const label of [/^day$/i, /^month$/i, /^year$/i]) {
+      expect(screen.getByLabelText(label)).toBeDisabled()
+    }
+  })
+
+  it('confirms the locked answer without re-running the cooldown', async () => {
+    // Re-reporting it would block the user with their own previous answer.
+    setup({ lockedDob: '2015-06-03' })
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
+    await waitFor(() => expect(onAnswer).toHaveBeenCalledWith({ dob: '2015-06-03' }))
+    expect(recordAgeGateAttempt).not.toHaveBeenCalled()
   })
 })
 
@@ -137,7 +172,7 @@ describe('AgeGateStep — retry cooldown', () => {
     await waitFor(() =>
       expect(screen.getByText(/already answered this today/i)).toBeInTheDocument(),
     )
-    expect(onAdult).not.toHaveBeenCalled()
+    expect(onAnswer).not.toHaveBeenCalled()
   })
 
   it('still lets a real person sign up when the cooldown check fails', async () => {
@@ -146,60 +181,6 @@ describe('AgeGateStep — retry cooldown', () => {
     recordAgeGateAttempt.mockRejectedValue(new Error('offline'))
     setup()
     enterDob({ day: 1, month: 0, year: 1990 })
-    await waitFor(() => expect(onAdult).toHaveBeenCalled())
-  })
-})
-
-describe('AgeGateStep — guardian capture', () => {
-  async function reachGuardianStep() {
-    setup()
-    enterDob({ day: 3, month: 5, year: 2015 })
-    await waitFor(() =>
-      expect(screen.getByLabelText(/parent or guardian's email/i)).toBeInTheDocument(),
-    )
-  }
-
-  it('hands back the contact, method and a pending status', async () => {
-    await reachGuardianStep()
-    fireEvent.change(screen.getByLabelText(/parent or guardian's email/i), {
-      target: { value: 'parent@example.com' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
-    expect(onChild).toHaveBeenCalledWith({
-      dob: '2015-06-03',
-      guardian: { contact: 'parent@example.com', method: 'email', consentStatus: 'pending' },
-    })
-  })
-
-  it('accepts a WhatsApp number when that method is chosen', async () => {
-    await reachGuardianStep()
-    fireEvent.click(screen.getByRole('button', { name: /^whatsapp$/i }))
-    fireEvent.change(screen.getByLabelText(/parent or guardian's whatsapp/i), {
-      target: { value: '+260 97 1234567' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
-    expect(onChild).toHaveBeenCalledWith(expect.objectContaining({
-      guardian: expect.objectContaining({ method: 'whatsapp' }),
-    }))
-  })
-
-  it('will not continue without a usable contact', async () => {
-    await reachGuardianStep()
-    fireEvent.change(screen.getByLabelText(/parent or guardian's email/i), {
-      target: { value: 'not-an-email' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: /continue/i }))
-    await waitFor(() =>
-      expect(screen.getByText(/enter your parent or guardian's email/i)).toBeInTheDocument(),
-    )
-    expect(onChild).not.toHaveBeenCalled()
-  })
-
-  it('offers no way back to the date screen', async () => {
-    // Going back to change the answer is retry-with-an-older-age wearing a
-    // different hat, and it would sidestep the server cooldown entirely.
-    await reachGuardianStep()
-    expect(screen.queryByRole('button', { name: /back|change|previous/i })).toBeNull()
-    expect(screen.queryByLabelText(/^year$/i)).toBeNull()
+    await waitFor(() => expect(onAnswer).toHaveBeenCalled())
   })
 })

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { getRoleLandingPath } from '../../utils/navigation'
@@ -6,12 +6,29 @@ import { captureReferralFromUrl } from '../../utils/referrals'
 import { friendlyAuthMessage } from '../../utils/friendlyErrors'
 import { assessAction, shouldBlock } from '../../utils/recaptcha'
 import { validateFields, hasErrors, focusFirstError } from '../../utils/formValidation'
+import { requiresGuardianConsent } from '../../utils/guardianConsent'
 import Logo from '../ui/Logo'
 import Button from '../ui/Button'
 import GoogleSignInButton from './GoogleSignInButton'
 import SeoHelmet from '../seo/SeoHelmet'
 import { ZAMBIAN_PROVINCES } from '../../config/zambia'
 import AgeGateStep from './AgeGateStep'
+import GuardianConsentStep from './GuardianConsentStep'
+import GuardianConsentSent from './GuardianConsentSent'
+import {
+  STEP,
+  SIGNUP_ROLES,
+  needsAdultConfirmation,
+  needsAgeAnswer,
+  resolveStep,
+} from '../../utils/signupFlowCore'
+import {
+  clearSignupFlow,
+  lockAgeAnswer,
+  readLockedAgeAnswer,
+  readSignupFlow,
+  writeSignupFlow,
+} from '../../utils/signupOnboarding'
 import { CANONICAL_SUBJECTS, subjectName } from '../../config/canonicalEducation'
 
 // Auth-error copy is centralised in src/utils/friendlyErrors.js
@@ -44,10 +61,38 @@ const INPUT_CLASS =
 
 const SELECT_CLASS = INPUT_CLASS + ' appearance-none pr-8 cursor-pointer'
 
+/**
+ * Sign-up, as a sequence of screens rather than one page.
+ *
+ *   role select ─┬─ learner ─► age ─► auth ─┬─ 18+ ─► done
+ *                │                          └─ <18 ─► guardian ─► done (limited)
+ *                ├─ teacher ─► auth (18+ confirmation, no date of birth)
+ *                └─ parent  ─► auth (18+ confirmation, no date of birth)
+ *
+ * Two things changed and both are structural rather than cosmetic:
+ *
+ * 1. THE AGE QUESTION MOVED IN FRONT OF EVERY SIGN-UP METHOD. It used to sit
+ *    inside the email form while "Sign up with Google" sat above it, so a
+ *    learner who tapped Google never saw it. An age screen one button avoids
+ *    is, for Play's Families policy, not an age screen. Both methods now live
+ *    on a screen that comes after it, and the guard is a rule in
+ *    signupFlowCore.resolveStep rather than a conditional here — a deep link,
+ *    a refresh and the back button all go through the same check.
+ *
+ * 2. TEACHERS AND PARENTS ARE NO LONGER ASKED THEIR BIRTHDAY. It fed no
+ *    feature and no obligation, and a data type we collect is one we have to
+ *    declare in the Privacy Policy and the Play Data safety form and defend
+ *    on request. They tick a box confirming they are 18+; no date is stored.
+ *
+ * The URL carries the step (?step=age) so the flow is addressable and the
+ * browser's own back button works, but the URL is never trusted — whatever it
+ * asks for is passed through resolveStep, which answers with the furthest
+ * step the answers on file have actually earned.
+ */
 export default function Register() {
   const { register, loginWithGoogle, ensureUserProfile } = useAuth()
   const navigate     = useNavigate()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   // Audit C7 — capture ?ref= once on mount and stash in localStorage.
   // The actual write into users/{uid}.referredBy happens inside
   // register() / loginWithGoogle() because the user doc is created
@@ -70,13 +115,22 @@ export default function Register() {
     role: searchParams.get('role') === 'teacher' ? 'teacher' : 'learner',
     province: '',
     subject: '',
+    // Teacher/parent only. Stored as the boolean attestation it is —
+    // `ageConfirmed18Plus: true` — never as a date, because a checkbox is not
+    // a birthday and recording it as one would put us back where we started.
+    ageConfirmed18Plus: false,
   })
-  // Age gate (Play Families policy). It runs BEFORE the account-details form
-  // — a mixed-audience app must route by age before it collects anything —
-  // and its result is carried here until register() writes it.
-  //   null            → the age screen is still showing
-  //   {dob, guardian} → answered; guardian is null for an adult
-  const [ageResult, setAgeResult] = useState(null)
+  // What the flow has established so far. Mirrored into sessionStorage on
+  // every change so a Google sign-in that tears the page down (the native
+  // Android shell, or any browser that falls back to a redirect) comes back
+  // to a page that still knows the learner's answer.
+  //   dob            — the captured date of birth (learners only)
+  //   isMinor        — derived from it, for routing only; the account's real
+  //                    value is recomputed server-side
+  //   accountCreated — auth has succeeded; there is no going back
+  //   guardianEmail  — set once the consent request is away
+  const [flow, setFlow] = useState(() => readSignupFlow())
+  const [lockedDob, setLockedDob] = useState(() => readLockedAgeAnswer())
   const [showPw, setShowPw]           = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [loading, setLoading]         = useState(false)
@@ -89,6 +143,36 @@ export default function Register() {
   const isTeacher = form.role === 'teacher'
   const isParent = form.role === 'parent'
   const isLearner = form.role === 'learner'
+
+  // ── The step machine ────────────────────────────────────────────────
+  // The URL proposes; resolveStep decides. Everything downstream reads
+  // `step`, so there is exactly one place a screen can be reached from and
+  // exactly one rule saying whether it may be.
+  const requestedStep = searchParams.get('step')
+  const step = resolveStep({
+    requested: requestedStep,
+    role: form.role,
+    dob: flow.dob,
+    isMinor: flow.isMinor,
+    accountCreated: flow.accountCreated,
+  })
+
+  // Keep the URL honest about where the user actually is. `replace` so the
+  // back button walks the flow rather than bouncing off a redirect.
+  useEffect(() => {
+    if (requestedStep === step) return
+    const next = new URLSearchParams(searchParams)
+    next.set('step', step)
+    setSearchParams(next, { replace: true })
+  }, [step, requestedStep, searchParams, setSearchParams])
+
+  const advance = useCallback((patch, nextStep) => {
+    setFlow(writeSignupFlow(patch))
+    const next = new URLSearchParams(searchParams)
+    next.set('step', nextStep)
+    setSearchParams(next, { replace: false })
+  }, [searchParams, setSearchParams])
+
   const score = useMemo(() => passwordScore(form.password), [form.password])
   const strengthHint =
     form.password.length === 0 ? 'Enter at least 6 characters' :
@@ -111,6 +195,29 @@ export default function Register() {
     setFieldErrors({})
   }
 
+  function continueFromRole() {
+    if (!SIGNUP_ROLES.includes(form.role)) return
+    // A learner meets the age screen; everyone else goes straight to auth.
+    advance({ role: form.role }, needsAgeAnswer(form.role) ? STEP.AGE : STEP.AUTH)
+  }
+
+  /**
+   * The age screen's one output.
+   *
+   * `isMinor` is derived here for ROUTING ONLY — it decides which screen comes
+   * next and nothing else. The value written to the account is recomputed from
+   * the date, server-side, on the user document's creation; a client that
+   * could decide its own minor status would make the whole screen decorative.
+   */
+  function handleAgeAnswer({ dob }) {
+    // Hold this device to its first answer. lockAgeAnswer ignores a second
+    // call while the first is fresh, so backing out and returning re-shows
+    // this date rather than accepting a new one.
+    lockAgeAnswer(dob)
+    setLockedDob(readLockedAgeAnswer())
+    advance({ dob, isMinor: requiresGuardianConsent(dob) }, STEP.AUTH)
+  }
+
   // Friendlier field nouns than the humanised defaults ("full name", not
   // "display name"). See src/utils/formValidation.js.
   const VALIDATION_LABELS = { displayName: 'full name', school: 'school name' }
@@ -128,12 +235,48 @@ export default function Register() {
     }
   }
 
+  /** Shared bail-out for both auth methods: no confirmation, no account. */
+  function blockedByAdultConfirmation() {
+    if (!needsAdultConfirmation(form.role) || form.ageConfirmed18Plus) return false
+    setFieldErrors(prev => ({
+      ...prev,
+      ageConfirmed18Plus: 'Please confirm that you are 18 years or older.',
+    }))
+    return true
+  }
+
   async function handleGoogleSignUp() {
     setError('')
+    if (blockedByAdultConfirmation()) return
     setGoogleLoading(true)
     try {
-      const cred = await loginWithGoogle({ role: form.role })
+      const cred = await loginWithGoogle({
+        role: form.role,
+        // Onboarding answers, applied ONLY when this Google sign-in mints a
+        // new account. An existing user's saved date of birth is never
+        // overwritten by whatever was typed on the way in.
+        onboarding: isLearner
+          ? { dob: flow.dob }
+          : { ageConfirmed18Plus: form.ageConfirmed18Plus === true },
+      })
       const profile = await ensureUserProfile(cred.user)
+
+      // An account that already existed means this was a sign-IN through the
+      // sign-up page. No onboarding writes happened; send them to their
+      // dashboard rather than through a flow their account has outgrown.
+      if (cred.isNewAccount === false) {
+        clearSignupFlow()
+        navigate(getRoleLandingPath(profile, '/'), { replace: true })
+        return
+      }
+
+      if (isLearner && flow.isMinor) {
+        // Stay on the page — the account exists and is already usable in
+        // limited mode; the guardian screen attaches a consent request to it.
+        advance({ accountCreated: true, provider: 'google' }, STEP.GUARDIAN)
+        return
+      }
+      clearSignupFlow()
       // A null profile after successful auth is most likely a transient network
       // read error, not a missing profile. AuthContext's onSnapshot listener
       // runs concurrently and will populate the profile or set profileIssue on
@@ -149,6 +292,7 @@ export default function Register() {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (blockedByAdultConfirmation()) return
     // Client-side validation: name the exact field, show its message inline,
     // and scroll to + focus the first offending field (spec requirement).
     const errors = validateFields(form, buildSchema(), VALIDATION_LABELS)
@@ -178,19 +322,36 @@ export default function Register() {
         form.role,
         {
           ...(isTeacher ? { province: form.province, subject: form.subject } : {}),
-          // The age screen ran before this form, so these are always present.
-          // register() derives isMinor from the DOB via the shared consent
-          // core rather than trusting a flag the client computed.
-          dob: ageResult?.dob || null,
-          guardian: ageResult?.guardian || null,
+          // Learners only. The age screen ran before this form and
+          // resolveStep refuses to render it without an answer, so this is
+          // always present on the learner path — and always absent on the
+          // other two, which are not asked. register() derives isMinor from
+          // the date via the shared consent core rather than trusting a flag
+          // the client computed.
+          ...(isLearner ? { dob: flow.dob || null } : {}),
+          // Teachers and parents attest instead. A boolean, not a date.
+          ...(needsAdultConfirmation(form.role)
+            ? { ageConfirmed18Plus: form.ageConfirmed18Plus === true }
+            : {}),
         },
       )
+      // Warm the profile read in the background so the dashboard is ready the
+      // moment they verify (failure is fine: AuthContext's onSnapshot listener
+      // populates it on its own).
+      ensureUserProfile(cred.user).catch(() => null)
+
+      if (isLearner && flow.isMinor) {
+        // The guardian hand-off comes before the verification page. The
+        // account exists and works in limited mode either way, but this is
+        // the one moment the learner is still in front of the form and can
+        // type an address they actually know.
+        advance({ accountCreated: true, provider: 'email' }, STEP.GUARDIAN)
+        return
+      }
+      clearSignupFlow()
       // A fresh email/password signup is always unverified at this instant —
       // the dashboard is gated behind verification, so land directly on the
-      // verification page. Warm the profile read in the background so the
-      // dashboard is ready the moment they verify (failure is fine:
-      // AuthContext's onSnapshot listener populates it on its own).
-      ensureUserProfile(cred.user).catch(() => null)
+      // verification page.
       navigate('/verify-email', { replace: true })
     } catch (err) {
       // Never echo a raw Firebase message to the learner — map the code, and
@@ -198,6 +359,22 @@ export default function Register() {
       setError(friendlyAuthMessage(err.code, { flow: 'signup', online: navigator.onLine }))
     } finally { setLoading(false) }
   }
+
+  /**
+   * Leave sign-up. The account already exists by the time any of the guardian
+   * screens render, so every exit from here is a normal navigation, never a
+   * rollback.
+   *
+   * Google sign-ups land on "/" and let RootRedirect route by role; email
+   * sign-ups land on the verification page, which is what gates their
+   * dashboard. Both clear the in-progress flow — but NOT the age answer,
+   * which stays locked for its 24 hours.
+   */
+  const finishSignup = useCallback(() => {
+    const viaGoogle = flow.provider === 'google'
+    clearSignupFlow()
+    navigate(viaGoogle ? '/' : '/verify-email', { replace: true })
+  }, [flow.provider, navigate])
 
   return (
     <div
@@ -232,60 +409,140 @@ export default function Register() {
 
         <div className="text-center mb-6">
           <h2 className="text-[20px] font-bold text-[#1A1F2E]">Create account</h2>
-          <p className="text-[13px] text-[#6E7280] mt-1">First — who's joining us today?</p>
+          {step === STEP.ROLE && (
+            <p className="text-[13px] text-[#6E7280] mt-1">First — who's joining us today?</p>
+          )}
         </div>
 
-        {/* Role picker */}
-        <div className="text-[10.5px] font-bold uppercase tracking-[1px] text-[#6E7280] text-center mb-2.5">
-          I am a
-        </div>
-        <div className="grid grid-cols-3 gap-2.5 mb-4">
-          <RoleCard
-            active={isLearner}
-            onClick={() => pickRole('learner')}
-            emoji="🎓"
-            name="Learner"
-            hint={<>Grades 4–7<br />Exam practice</>}
-          />
-          <RoleCard
-            active={isTeacher}
-            onClick={() => pickRole('teacher')}
-            emoji="👩‍🏫"
-            name="Teacher"
-            hint={<>Lesson plans<br />&amp; tools</>}
-          />
-          <RoleCard
-            active={isParent}
-            onClick={() => pickRole('parent')}
-            emoji="👪"
-            name="Parent"
-            hint={<>Follow your<br />child's progress</>}
-          />
-        </div>
+        {/* ── Step: role select ─────────────────────────────────────────
+            No date of birth here and no sign-up buttons here. Both moved
+            behind Continue so the learner path can put the age question in
+            front of them. */}
+        {step === STEP.ROLE && (
+          <>
+            <div className="text-[10.5px] font-bold uppercase tracking-[1px] text-[#6E7280] text-center mb-2.5">
+              I am a
+            </div>
+            <div className="grid grid-cols-3 gap-2.5 mb-4">
+              <RoleCard
+                active={isLearner}
+                onClick={() => pickRole('learner')}
+                emoji="🎓"
+                name="Learner"
+                hint={<>Grades 4–7<br />Exam practice</>}
+              />
+              <RoleCard
+                active={isTeacher}
+                onClick={() => pickRole('teacher')}
+                emoji="👩‍🏫"
+                name="Teacher"
+                hint={<>Lesson plans<br />&amp; tools</>}
+              />
+              <RoleCard
+                active={isParent}
+                onClick={() => pickRole('parent')}
+                emoji="👪"
+                name="Parent"
+                hint={<>Follow your<br />child's progress</>}
+              />
+            </div>
 
-        {/* Context strip */}
-        <div
-          className="flex items-center gap-2 rounded-[10px] px-3.5 py-2.5 mb-4 min-h-[38px] border"
-          style={
-            isTeacher
-              ? { background: '#EBF5F1', borderColor: 'rgba(28,100,70,0.2)' }
-              : isParent
-                ? { background: '#EEF2FF', borderColor: 'rgba(79,70,229,0.22)' }
-                : { background: '#FFF5EC', borderColor: 'rgba(198,123,79,0.25)' }
-          }
-        >
-          <span className="text-[14px] flex-shrink-0" aria-hidden="true">{isParent ? '👪' : '📚'}</span>
-          <span
-            className="text-[12.5px] font-medium"
-            style={{ color: isTeacher ? '#1C6446' : isParent ? '#4338CA' : '#96552F' }}
-          >
-            {isTeacher
-              ? 'Access lesson plans, schemes of work & teaching tools'
-              : isParent
-                ? "Follow your child's quiz scores, streaks & subjects"
-                : "You'll get access to Grade 4–7 quizzes & exam practice"}
-          </span>
-        </div>
+            {/* Context strip */}
+            <div
+              className="flex items-center gap-2 rounded-[10px] px-3.5 py-2.5 mb-4 min-h-[38px] border"
+              style={
+                isTeacher
+                  ? { background: '#EBF5F1', borderColor: 'rgba(28,100,70,0.2)' }
+                  : isParent
+                    ? { background: '#EEF2FF', borderColor: 'rgba(79,70,229,0.22)' }
+                    : { background: '#FFF5EC', borderColor: 'rgba(198,123,79,0.25)' }
+              }
+            >
+              <span className="text-[14px] flex-shrink-0" aria-hidden="true">{isParent ? '👪' : '📚'}</span>
+              <span
+                className="text-[12.5px] font-medium"
+                style={{ color: isTeacher ? '#1C6446' : isParent ? '#4338CA' : '#96552F' }}
+              >
+                {isTeacher
+                  ? 'Access lesson plans, schemes of work & teaching tools'
+                  : isParent
+                    ? "Follow your child's quiz scores, streaks & subjects"
+                    : "You'll get access to Grade 4–7 quizzes & exam practice"}
+              </span>
+            </div>
+
+            <Button type="button" variant="primary" size="lg" fullWidth onClick={continueFromRole}>
+              Continue
+            </Button>
+          </>
+        )}
+
+        {/* ── Step: the neutral age screen (learners only) ──────────────
+            Before any sign-up method, on its own, with a locked first answer
+            if this device already gave one today. */}
+        {step === STEP.AGE && (
+          <AgeGateStep onAnswer={handleAgeAnswer} lockedDob={lockedDob} />
+        )}
+
+        {/* ── Step: guardian hand-off (minors only, account already made) ─ */}
+        {step === STEP.GUARDIAN && (
+          flow.guardianEmail ? (
+            <GuardianConsentSent guardianEmail={flow.guardianEmail} onContinue={finishSignup} />
+          ) : (
+            <GuardianConsentStep
+              onSent={({ guardianEmail }) => setFlow(writeSignupFlow({ guardianEmail }))}
+              onSkip={finishSignup}
+            />
+          )
+        )}
+
+        {/* ── Step: auth. Both methods, on one screen, after the age
+            question has already been answered. ───────────────────────── */}
+        {step === STEP.AUTH && (
+        <>
+        {/* The adult attestation for teachers and parents.
+            It sits ABOVE both methods and gates BOTH, which is a deliberate
+            difference from the brief: that asked for the checkbox on the email
+            form and for the Google path to carry the same confirmation in a
+            post-Google completion step. No such step exists in this codebase
+            — the teacher's subject/province and the parent's child link are
+            collected later, from inside the app, not in a signup completion
+            screen — so building one to hold a checkbox would be inventing a
+            screen. Gating both methods here is simpler and strictly stronger:
+            no teacher or parent account is created without the confirmation,
+            by either route. It is stored as `ageConfirmed18Plus: true`, never
+            as a date. */}
+        {needsAdultConfirmation(form.role) && (
+          <div className="mb-4">
+            <label
+              htmlFor="ageConfirmed18Plus"
+              className="flex items-start gap-2.5 rounded-[10px] border border-[#E4E9F0] px-3 py-2.5 cursor-pointer"
+            >
+              <input
+                id="ageConfirmed18Plus"
+                name="ageConfirmed18Plus"
+                type="checkbox"
+                checked={form.ageConfirmed18Plus}
+                onChange={(e) => {
+                  const { checked } = e.target
+                  setForm(f => ({ ...f, ageConfirmed18Plus: checked }))
+                  setFieldErrors(prev => (prev.ageConfirmed18Plus ? { ...prev, ageConfirmed18Plus: '' } : prev))
+                }}
+                aria-invalid={fieldErrors.ageConfirmed18Plus ? 'true' : undefined}
+                aria-describedby={fieldErrors.ageConfirmed18Plus ? 'ageConfirmed18Plus-error' : undefined}
+                className="mt-0.5 h-[18px] w-[18px] flex-shrink-0 accent-[var(--accent)]"
+              />
+              <span className="text-[13px] text-[#1A1F2E] leading-[1.45]">
+                I confirm that I am 18 years or older
+              </span>
+            </label>
+            {fieldErrors.ageConfirmed18Plus && (
+              <p id="ageConfirmed18Plus-error" role="alert" className="text-red-600 text-[11.5px] mt-1">
+                {fieldErrors.ageConfirmed18Plus}
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="mb-4">
           <GoogleSignInButton
@@ -316,18 +573,8 @@ export default function Register() {
           </div>
         )}
 
-        {/* Age gate first. A mixed-audience app must route by age BEFORE it
-            collects an account, and the screen has to stay neutral — so it
-            renders instead of the form rather than alongside it, with nothing
-            on it hinting what a younger answer leads to. */}
-        {!ageResult ? (
-          <AgeGateStep
-            onAdult={({ dob }) => setAgeResult({ dob, guardian: null })}
-            onChild={({ dob, guardian }) => setAgeResult({ dob, guardian })}
-          />
-        ) : (
-        /* noValidate: our own validateFields drives friendly inline errors +
-           scroll-to-first-invalid instead of the browser's native bubbles. */
+        {/* noValidate: our own validateFields drives friendly inline errors +
+           scroll-to-first-invalid instead of the browser's native bubbles. */}
         <form onSubmit={handleSubmit} noValidate className="space-y-3.5">
           <Field
             label="Full Name"
@@ -522,21 +769,29 @@ export default function Register() {
               : (isTeacher ? 'Request Teacher Account' : 'Create Free Account')}
           </Button>
         </form>
+        </>
         )}
 
-        <p className="text-[11.5px] text-[#6E7280] text-center mt-3 leading-[1.5]">
-          By registering you agree to our{' '}
-          <Link to="/terms" className="text-[var(--accent)] font-medium hover:underline">Terms of Service</Link>
-          {' '}and{' '}
-          <Link to="/privacy" className="text-[var(--accent)] font-medium hover:underline">Privacy Policy</Link>
-        </p>
+        {step === STEP.AUTH && (
+          <p className="text-[11.5px] text-[#6E7280] text-center mt-3 leading-[1.5]">
+            By registering you agree to our{' '}
+            <Link to="/terms" className="text-[var(--accent)] font-medium hover:underline">Terms of Service</Link>
+            {' '}and{' '}
+            <Link to="/privacy" className="text-[var(--accent)] font-medium hover:underline">Privacy Policy</Link>
+          </p>
+        )}
 
-        <p className="text-center text-[13px] text-[#6E7280] mt-4">
-          Already registered?{' '}
-          <Link to="/login" className="text-[var(--accent)] font-semibold hover:underline">
-            Sign In
-          </Link>
-        </p>
+        {/* Once the account exists there is nothing left to sign in to — and
+            offering "Already registered?" on the neutral age screen would put
+            an escape hatch next to the one question we need answered. */}
+        {(step === STEP.ROLE || step === STEP.AUTH) && (
+          <p className="text-center text-[13px] text-[#6E7280] mt-4">
+            Already registered?{' '}
+            <Link to="/login" className="text-[var(--accent)] font-semibold hover:underline">
+              Sign In
+            </Link>
+          </p>
+        )}
       </div>
     </div>
   )

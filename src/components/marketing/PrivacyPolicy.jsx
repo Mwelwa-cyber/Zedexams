@@ -77,13 +77,18 @@ export default function PrivacyPolicy() {
           <strong>Guardian contact and consent records</strong> — for learners under 18,
           a parent or guardian's email address or WhatsApp number so they can approve the
           account, plus a record of that approval (when the link was used, and the device
-          it was used from). We use this contact only for consent, account safety, and the
-          parental rights described in section 4 — never for marketing.
+          it was used from). We use this contact <strong>only</strong> to ask for and
+          record that approval, plus account safety and the parental rights described in
+          section 4 — never for marketing, and we send the guardian nothing else.
         </li>
         <li>
-          <strong>Date of birth</strong> — asked once at sign-up so we know whether an
-          account needs a guardian's approval. We store the date, not a photograph or a
-          document.
+          <strong>Date of birth — learner accounts only.</strong> Asked once at sign-up,
+          so we can set up an age-appropriate experience and know whether an account needs
+          a guardian&apos;s approval. We store the date, not a photograph or a document.
+          {' '}
+          <strong>Teacher and parent accounts are not asked for a date of birth at all</strong>
+          {' '}— they simply confirm that they are 18 or older, and we record that
+          confirmation as a yes/no answer rather than as a date.
         </li>
         <li>
           <strong>Ask Zed conversations</strong> — the messages you send to our AI study

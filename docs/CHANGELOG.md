@@ -5,6 +5,44 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+### Changed
+- **Sign-up is now a sequence of screens, and the age question comes before
+  every sign-up method.** It used to sit inside the email form while "Sign up
+  with Google" sat above it, so a learner who tapped Google created an account
+  with no declared age at all — and an age screen one button avoids is, for
+  Play's Families policy, not an age screen. Both methods now live on a screen
+  that comes after it, and the guard is a rule (`signupFlowCore.resolveStep`)
+  rather than a conditional in a component, so a deep link, a refresh and the
+  back button all hit the same check. A learner's first age answer is held for
+  24 hours per device: backing out and returning shows it pre-filled and
+  read-only.
+- **Teachers and parents are no longer asked their date of birth.** It fed no
+  feature and no compliance requirement. They confirm they are 18 or older with
+  a checkbox, stored as `ageConfirmed18Plus: true` — a boolean, never a date.
+  Firestore rules now refuse a `dob` on a teacher or parent document, so a
+  stale client cannot reintroduce the field. **Existing teacher and parent
+  documents are not migrated**: any `dob` already stored on one stays there
+  until an account-data cleanup is run separately. Privacy Policy updated to
+  say date of birth is collected from learners only.
+- **The guardian hand-off moved to after account creation.** A learner under 18
+  now gets an account immediately, usable in limited mode, and is then asked
+  for a guardian's email — so nothing on that screen can cost them the account
+  and skipping it leaves a working one behind. The consent plumbing (hashed
+  single-use token, POST-only approve/decline, TTL, once-a-day resend) is
+  unchanged; this is a new entry point into it.
+
+### Fixed
+- **Parent sign-up could never write its own user document.** The Firestore
+  create rule's role allow-list was `['learner', 'teacher']` while the sign-up
+  page has offered a Parent role since the parent portal shipped.
+- **`isMinor` is now derived server-side.** A new `learnerAgeOnUserCreated`
+  trigger (africa-south1, alongside the database) re-derives it from the
+  declared date of birth using the shared consent core, so the flag the
+  guardian gate reads is never the one the client wrote. Rules additionally
+  refuse to create a learner document with no date of birth — without that, a
+  crafted signup produced a learner whose consent status read as `unknown`,
+  the permissive migration state, and therefore full capabilities.
+
 ## 2026-07-08 — Android closed testing (v1.2.8)
 
 Features bundled into the Android closed-testing App Bundle since v1.2.7.
