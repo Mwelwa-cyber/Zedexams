@@ -112,13 +112,21 @@ export default function AttendanceGridView({
   const shownDays = useMemo(() => weeks.flatMap((w) => w.days), [weeks])
 
   // Whole-term totals per learner (the shared engine — matches print/exports).
+  // Totals run over MARKABLE days only (teaching days up to today) — the raw
+  // calendar includes weekends/holidays/future dates, which inflates Elig and
+  // makes % meaningless. Every other surface (Term Summary, exports) filters
+  // the same way. `hasMarks` gates the % column: no marks → nothing to say.
+  const countableDays = useMemo(() => markableDays(daysWithRecords), [daysWithRecords])
   const totalsByLearner = useMemo(() => {
     const map = new Map()
     for (const learner of learners) {
-      map.set(learner.id, computeLearnerTotals({ learner, days: daysWithRecords, term: termWindow, policy }))
+      map.set(learner.id, {
+        totals: computeLearnerTotals({ learner, days: countableDays, term: termWindow, policy }),
+        hasMarks: daysWithRecords.some((d) => d.records?.[learner.id]?.status),
+      })
     }
     return map
-  }, [learners, daysWithRecords, termWindow, policy])
+  }, [learners, countableDays, daysWithRecords, termWindow, policy])
 
   // Class totals per shown column: how many learners marked present+late that day.
   const columnTotals = useMemo(() => shownDays.map((day) => {
@@ -184,8 +192,10 @@ export default function AttendanceGridView({
             {m.label}
           </button>
         ))}
-        <span className="theme-text-muted text-xs ml-auto hidden sm:block">
-          Click a cell to cycle P→A→S→L→E→– · arrow keys to move
+        <span className="theme-text-muted text-xs ml-auto">
+          {coarsePointer
+            ? 'Tap a cell to cycle P → A → S → L → E → –'
+            : 'Click a cell to cycle P → A → S → L → E → – · arrow keys to move'}
         </span>
       </div>
 
@@ -235,7 +245,8 @@ export default function AttendanceGridView({
                 position={i + 1}
                 weeks={weeks}
                 termWindow={termWindow}
-                totals={totalsByLearner.get(learner.id)}
+                totals={totalsByLearner.get(learner.id).totals}
+                hasMarks={totalsByLearner.get(learner.id).hasMarks}
                 disabled={!canEdit}
                 onCell={setStatusOn}
                 registerRef={registerRef}
@@ -255,6 +266,26 @@ export default function AttendanceGridView({
             </tr>
           </tfoot>
         </table>
+      </div>
+
+      {/* Legend — the same colours the cells mark in (each status's chipClass),
+          so the key under the grid never disagrees with the grid. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5" data-testid="attendance-grid-legend">
+        {ATTENDANCE_STATUS_ORDER.map((id) => {
+          const cfg = ATTENDANCE_STATUSES[id]
+          return (
+            <span key={id} className="inline-flex items-center gap-1.5 theme-text-muted text-xs font-bold">
+              <span
+                aria-hidden="true"
+                className={`inline-flex h-4 w-4 items-center justify-center rounded border text-[10px] font-black leading-none ${cfg.chipClass}`}
+              >
+                {cfg.symbol}
+              </span>
+              {cfg.label}
+            </span>
+          )
+        })}
+        <span className="theme-text-muted text-xs ml-auto">% appears once days are marked</span>
       </div>
     </div>
   )

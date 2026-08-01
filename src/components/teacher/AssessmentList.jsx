@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { where } from 'firebase/firestore'
 import { Link, useNavigate } from 'react-router-dom'
+import { ClipboardList, Search, FileText, Download, MoreHorizontal, Trash2 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
 import { db } from '../../firebase/config'
@@ -19,14 +20,18 @@ import {
   logAssessmentDeletion,
   filterDeleted,
 } from '../../utils/assessmentDeletion'
-import ImportReviewBadge from '../quiz/ImportReviewBadge'
 import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
 import PaginationFooter from '../ui/PaginationFooter'
 import { useToast } from '../ui/Toast'
 import ConfirmDialog from '../ui/ConfirmDialog'
+import Chip from '../ui/Chip'
+import ActionMenu from '../ui/ActionMenu'
+import StudioPageHeader from './StudioPageHeader'
+import { subjectVisual } from './subjectVisuals'
 import { ASSESSMENT_TYPE_LABELS } from './assessmentStudioMeta'
 import { assessmentCategory } from './paperTaxonomy'
+import { readPaperTerm, readPaperLevelWord, assessmentTypePhrase } from './assessmentTitle'
 import { buildSavedAssessmentExportReadiness } from '../../utils/assessmentExportReadiness'
 import { renderDiagramSvg } from '../diagrams/diagramCatalog'
 
@@ -46,9 +51,59 @@ function assessmentFileName(assessment, variant, ext = 'docx') {
   })
 }
 
+// Words that stay lowercase mid-title ("End of Term 2 Test", not "End Of…").
+const TITLE_SMALL_WORDS = new Set(['of', 'and', 'the', 'a', 'an', 'in', 'on', 'for', 'to', 'with'])
+
+function capitalizeWord(word) {
+  // Capitalize each hyphen-joined part so "MID-TERM" reads "Mid-Term".
+  return word
+    .split('-')
+    .map((part) => (part ? part.charAt(0).toUpperCase() + part.slice(1) : part))
+    .join('-')
+}
+
+function toTitleCase(text) {
+  return String(text || '')
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word, i) => (i > 0 && TITLE_SMALL_WORDS.has(word) ? word : capitalizeWord(word)))
+    .join(' ')
+}
+
+/**
+ * The name a paper is SHOWN under in this list — derived at render time, no
+ * Firestore writes.
+ *
+ * A manually-titled paper keeps its own words verbatim. Everything else is
+ * rebuilt from the paper's own fields so the displayed term always comes from
+ * `readPaperTerm(assessment)` — never from term text embedded in a stored
+ * free-text title (an earlier build stamped a DEFAULT term into titles, so a
+ * Term 2 paper can be carrying "END OF TERM 1 TEST" in `title`).
+ */
+function paperDisplayTitle(assessment, fallbackLabel) {
+  const stored = String(assessment?.title || '').trim()
+  if (assessment?.titleSource === 'manual' && stored) return stored
+  const gradeWord = toTitleCase(readPaperLevelWord(assessment))
+  const subject = toTitleCase(String(assessment?.subject || '').trim())
+  const lead = [gradeWord, subject].filter(Boolean).join(' ')
+  if (lead) {
+    const phrase = toTitleCase(assessmentTypePhrase({
+      assessmentType: assessment?.assessmentType,
+      term: readPaperTerm(assessment),
+    }))
+    return `${lead} — ${phrase}`
+  }
+  return stored || `Untitled ${String(fallbackLabel || 'paper').toLowerCase()}`
+}
+
 function AssessmentRow({ assessment, onDelete, onExport, busy, routeBase, fallbackLabel }) {
   const id = assessment.id
   const typeLabel = ASSESSMENT_TYPE_LABELS[assessment.assessmentType] || fallbackLabel
+  const term = readPaperTerm(assessment)
+  const review = summarizeImportReview(assessment)
+  const visual = subjectVisual(assessment.subject)
+  const SubjectIcon = visual.icon
   const [exporting, setExporting] = useState(null)
   const toast = useToast()
 
@@ -74,76 +129,75 @@ function AssessmentRow({ assessment, onDelete, onExport, busy, routeBase, fallba
   }
 
   return (
-    <div className="studio-card space-y-3 p-4">
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-lg" style={{ background: '#e8d8f0' }}>
-          🦅
+    <div className="studio-card p-4">
+      <div className="flex flex-wrap items-start gap-3">
+        {/* Subject icon tile — colour-coded so a subject keeps one identity
+            across chips, tiles and palette pills. */}
+        <div
+          className="flex flex-shrink-0 items-center justify-center rounded-xl"
+          style={{ width: 46, height: 46, background: visual.bg, color: visual.fg }}
+          aria-hidden="true"
+        >
+          <SubjectIcon size={22} />
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-black text-sm leading-snug" style={{ color: 'var(--zt-text)' }}>{assessment.title || `Untitled ${fallbackLabel.toLowerCase()}`}</p>
-          <div className="flex flex-wrap gap-1.5 mt-1.5 items-center">
-            <span className="text-xs font-bold" style={{ color: 'var(--zt-text-muted)' }}>{typeLabel}</span>
-            {assessment.grade && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#e6f5ed', color: 'var(--success-fg)' }}>Grade {assessment.grade}</span>}
-            {assessment.subject && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#e3eef0', color: '#16505d' }}>{assessment.subject}</span>}
-            {assessment.term && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--sv-canvas)', color: 'var(--sv-muted)' }}>T{assessment.term}</span>}
-            {assessment.totalMarks != null && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#fde9b8', color: '#8a3d12' }}>{assessment.totalMarks} marks</span>}
-            {assessment.duration != null && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#fff5e6', color: '#a5523a' }}>{assessment.duration} min</span>}
+        <div className="min-w-0 flex-1 basis-52">
+          <p className="font-black text-sm leading-snug" style={{ color: 'var(--zt-text)', margin: 0 }}>
+            {paperDisplayTitle(assessment, fallbackLabel)}
+          </p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <Chip variant="neutral">{typeLabel}{term ? ` · T${term}` : ''}</Chip>
+            {assessment.totalMarks != null && <Chip variant="amber">{assessment.totalMarks} marks</Chip>}
+            {assessment.duration != null && <Chip variant="blue">{assessment.duration} min</Chip>}
+            <Chip variant="neutral">{assessment.questionCount ?? 0} questions</Chip>
             {/* Phase 7: surface import-review state on the list so the teacher
-                doesn't have to open every imported draft to find the ones
-                that flagged warnings during parsing. */}
-            <ImportReviewBadge record={assessment} />
+                doesn't have to open every imported draft to find the ones that
+                flagged warnings during parsing. One red chip, not a chip AND
+                the old badge. */}
+            {review.needsReview && (
+              <Chip variant="red" title={review.sampleWarnings?.[0]}>⚠ Needs review</Chip>
+            )}
           </div>
-          <p className="mt-1.5 text-xs" style={{ color: 'var(--zt-text-muted)' }}>
-            {assessment.questionCount ?? 0} questions · Created {formatDate(assessment.createdAt)}
-            {assessment.updatedAt && ` · Updated ${formatDate(assessment.updatedAt)}`}
+          <p className="text-xs" style={{ color: 'var(--zt-text-muted)', margin: '6px 0 0' }}>
+            {assessment.updatedAt
+              ? `Updated ${formatDate(assessment.updatedAt)}`
+              : `Created ${formatDate(assessment.createdAt)}`}
           </p>
         </div>
-      </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Link
-          to={`${routeBase}/${id}/edit`}
-          className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold no-underline transition-colors"
-          style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-card-border)', color: 'var(--zt-text)' }}
-        >
-          ✏️ Edit
-        </Link>
-        <button
-          type="button"
-          onClick={() => handleExport('docx', 'paper')}
-          disabled={!!exporting || busy}
-          className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50"
-          style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-card-border)', color: 'var(--zt-text)' }}
-        >
-          {exporting === 'docx-paper' ? 'Building…' : '📝 Paper (Word)'}
-        </button>
-        <button
-          type="button"
-          onClick={() => handleExport('pdf', 'paper')}
-          disabled={!!exporting || busy}
-          className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50"
-          style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-card-border)', color: 'var(--zt-text)' }}
-        >
-          {exporting === 'pdf-paper' ? 'Opening…' : '📄 Paper (PDF)'}
-        </button>
-        <button
-          type="button"
-          onClick={() => handleExport('docx', 'scheme')}
-          disabled={!!exporting || busy}
-          className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50"
-          style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-card-border)', color: 'var(--zt-text)' }}
-        >
-          {exporting === 'docx-scheme' ? 'Building…' : '🗒️ Scheme (Word)'}
-        </button>
-        <button
-          type="button"
-          onClick={() => onDelete(assessment)}
-          disabled={busy}
-          className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50"
-          style={{ borderColor: 'var(--danger)', color: 'var(--danger-fg)', background: 'var(--zt-card)' }}
-        >
-          🗑 Delete
-        </button>
+        {/* Max three visible actions; destructive ones live behind the kebab.
+            flex-wrap lets the whole row drop below the text on narrow screens. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            to={`${routeBase}/${id}/edit`}
+            className="studio-btn-primary text-xs no-underline"
+            style={{ padding: '8px 14px', borderRadius: 12 }}
+          >
+            Open
+          </Link>
+          <ActionMenu
+            label={exporting ? (exporting === 'pdf-paper' ? 'Opening…' : 'Building…') : 'Download'}
+            icon={Download}
+            caret
+            disabled={!!exporting || busy}
+            buttonClassName="studio-btn-ghost !px-3.5 !py-2 text-xs"
+            items={[
+              { label: 'Paper (Word)', icon: FileText, onSelect: () => handleExport('docx', 'paper') },
+              // The PDF item opens its print window synchronously inside
+              // handleExport, before any await — see the comment there.
+              { label: 'Paper (PDF)', icon: FileText, onSelect: () => handleExport('pdf', 'paper') },
+              { label: 'Marking scheme (Word)', icon: FileText, onSelect: () => handleExport('docx', 'scheme') },
+            ]}
+          />
+          <ActionMenu
+            icon={MoreHorizontal}
+            ariaLabel="More actions"
+            disabled={busy}
+            buttonClassName="studio-btn-ghost !px-2.5 !py-2 text-xs"
+            items={[
+              { label: 'Delete', icon: Trash2, danger: true, onSelect: () => onDelete(assessment) },
+            ]}
+          />
+        </div>
       </div>
     </div>
   )
@@ -187,6 +241,8 @@ export default function AssessmentList() {
   // the list to imports the parser flagged for review. Off by default so
   // a teacher landing here still sees everything.
   const [needsReviewOnly, setNeedsReviewOnly] = useState(false)
+  // Client-side text search over the ALREADY-LOADED rows (title/subject/type).
+  const [searchQuery, setSearchQuery] = useState('')
   // Assessment queued for deletion — drives the ConfirmDialog.
   const [pendingDelete, setPendingDelete] = useState(null)
   // Bumped whenever the deletion registry changes (a local delete, or another
@@ -247,19 +303,31 @@ export default function AssessmentList() {
   // sitting on an unfetched page, a filter that currently shows nothing does
   // NOT prove none exist. Compute the filtered views here (not inside the JSX)
   // so the auto-continue effect below can react to them.
-  const byCategory = useMemo(
-    () => {
-      const scoped = categoryFilter === 'all'
-        ? assessments
-        : assessments.filter(a => assessmentCategory(a.assessmentType) === categoryFilter)
-      // Defensive last line against resurrection: never render a paper whose id
-      // is tombstoned this session, even if a page loaded after the delete
-      // returned it from Firestore's offline cache. deletionVersion re-runs this
-      // whenever the registry changes.
-      return filterDeleted(scoped)
-    },
+  //
+  // Defensive last line against resurrection: never render a paper whose id
+  // is tombstoned this session, even if a page loaded after the delete
+  // returned it from Firestore's offline cache. deletionVersion re-runs this
+  // whenever the registry changes.
+  const loadedRows = useMemo(
+    () => filterDeleted(assessments),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [assessments, categoryFilter, deletionVersion],
+    [assessments, deletionVersion],
+  )
+  // Per-category counts for the toolbar chips — counts of the LOADED rows, so
+  // while more pages remain they render with a trailing "+".
+  const categoryCounts = useMemo(() => {
+    const counts = { all: loadedRows.length, test: 0, examination: 0 }
+    for (const a of loadedRows) {
+      const cat = assessmentCategory(a.assessmentType)
+      if (counts[cat] != null) counts[cat] += 1
+    }
+    return counts
+  }, [loadedRows])
+  const byCategory = useMemo(
+    () => (categoryFilter === 'all'
+      ? loadedRows
+      : loadedRows.filter(a => assessmentCategory(a.assessmentType) === categoryFilter)),
+    [loadedRows, categoryFilter],
   )
   const needsReviewCount = useMemo(
     () => byCategory.reduce((n, a) => (summarizeImportReview(a).needsReview ? n + 1 : n), 0),
@@ -269,6 +337,19 @@ export default function AssessmentList() {
     () => (needsReviewOnly ? byCategory.filter(a => summarizeImportReview(a).needsReview) : byCategory),
     [byCategory, needsReviewOnly],
   )
+  // Search runs ON TOP of the category/needs-review view. It deliberately does
+  // NOT feed the auto-continue effect below — a non-matching keystroke must
+  // not walk the whole library.
+  const searchText = searchQuery.trim().toLowerCase()
+  const searched = useMemo(() => {
+    if (!searchText) return visible
+    return visible.filter(a => [
+      a.title,
+      paperDisplayTitle(a, cfg.Noun),
+      a.subject,
+      ASSESSMENT_TYPE_LABELS[a.assessmentType],
+    ].filter(Boolean).join(' ').toLowerCase().includes(searchText))
+  }, [visible, searchText, cfg.Noun])
   const filterActive = categoryFilter !== 'all' || needsReviewOnly
   // True only once the whole library has been walked — the point at which an
   // empty filtered view really does mean "none exist".
@@ -414,73 +495,25 @@ export default function AssessmentList() {
   return (
     <div>
       <SeoHelmet title={cfg.NounPlural} noIndex />
-      {/* Page header — brand on the left, action on the right */}
-      <div className="flex items-center justify-between gap-3 mb-5">
-        <Link to="/teacher" className="flex items-center gap-2.5 no-underline" style={{ color: 'var(--zt-text)' }}>
-          <span style={{ fontSize: 22 }}>🦅</span>
-          <div className="leading-tight">
-            <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 16, margin: 0, color: 'var(--zt-text)' }}>
-              ZedExams <span style={{ color: '#d97757' }}>•</span>
-            </p>
-            <p style={{ fontSize: 11.5, color: 'var(--zt-text-muted)', margin: 0, fontWeight: 600 }}>
-              {cfg.studioName}
-            </p>
-          </div>
-        </Link>
-        <Link
-          to="/teacher"
-          className="inline-flex items-center gap-2 rounded-xl border-2 font-bold no-underline transition-colors"
-          style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-card-border)', color: 'var(--zt-text)', padding: '8px 14px', fontSize: 13 }}
-          onMouseEnter={e => { e.currentTarget.style.background = '#f5efe1' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'var(--zt-card)' }}
-        >
-          ← Dashboard
-        </Link>
-      </div>
 
-      {/* Dark brand hero */}
-      <div
-        className="rounded-3xl p-7 sm:p-9 mb-8 flex items-center gap-6 flex-wrap"
-        style={{ background: 'linear-gradient(135deg, #0e2a32 0%, #16505d 100%)', color: '#fff', boxShadow: '0 12px 32px rgba(14,42,50,.18)' }}
-      >
-        <div style={{ flex: 1, minWidth: 260 }}>
-          <span
-            className="inline-flex items-center gap-2 mb-3 rounded-full text-xs font-bold uppercase tracking-wider"
-            style={{ background: '#d97757', color: '#fff', padding: '7px 14px' }}
-          >
-            🦅 Sharp Eagle
-          </span>
-          <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 36, lineHeight: 1.05, margin: '0 0 8px', letterSpacing: '-.3px' }}>
-            {cfg.heroTitle}
-          </h1>
-          <p style={{ fontSize: 14.5, opacity: .88, marginBottom: 16, maxWidth: 520, lineHeight: 1.55 }}>
-            Topic tests, weekly tests, end-of-term tests, mock examinations, and formal
-            examination papers you've created for your class — private to you, never
-            shown to learners. Download as Word (.docx), print, or open the marking scheme.
-          </p>
-          <div className="flex gap-4 flex-wrap mb-5" style={{ fontSize: 13, opacity: .78, fontWeight: 500 }}>
-            <span>📝 Word (.docx) export</span>
-            <span>🗒️ Marking scheme</span>
-            <span>🔒 Teacher-private</span>
-          </div>
+      <StudioPageHeader
+        eyebrow="Assessment Studio"
+        title={cfg.heroTitle}
+        subtitle="Topic tests, end-of-term tests and exams for your class — private to you, never shown to learners."
+        icon={ClipboardList}
+        metaItems={['Word & PDF export', 'Marking scheme', 'Teacher-private']}
+        backTo="/teacher"
+        backLabel="Dashboard"
+        primaryAction={(
           <button
             type="button"
+            className="studio-btn-primary"
             onClick={() => navigate(`${cfg.routeBase}/new`)}
-            className="inline-flex items-center gap-2.5 rounded-2xl font-bold no-underline transition-colors"
-            style={{ background: '#d97757', color: '#fff', padding: '13px 22px', fontSize: 14.5, border: 'none', cursor: 'pointer' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#c5613f' }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#d97757' }}
           >
-            ▶ New {cfg.noun}
+            + New paper
           </button>
-        </div>
-        <div
-          className="flex-shrink-0 hidden sm:grid place-items-center"
-          style={{ width: 150, height: 150, borderRadius: '50%', background: 'var(--zt-card)', fontSize: 68, boxShadow: '0 8px 28px rgba(0,0,0,.25)' }}
-        >
-          🦅
-        </div>
-      </div>
+        )}
+      />
 
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 mb-5">
@@ -493,54 +526,47 @@ export default function AssessmentList() {
           className="text-center py-12 rounded-2xl border-2 border-dashed"
           style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-line)' }}
         >
-          <div style={{ fontSize: 40, marginBottom: 12, opacity: .5 }}>📂</div>
-          <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 17, color: 'var(--zt-text)', marginBottom: 6 }}>
+          <div className="mx-auto mb-3 flex items-center justify-center" style={{ color: 'var(--zt-text-muted)' }}>
+            <FileText size={40} aria-hidden="true" />
+          </div>
+          <p className="text-base font-bold" style={{ color: 'var(--zt-text)', margin: '0 0 6px' }}>
             No {cfg.nounPlural} yet
           </p>
-          <p style={{ fontSize: 13, color: 'var(--zt-text-muted)', margin: '0 0 16px' }}>
+          <p className="text-[13px]" style={{ color: 'var(--zt-text-muted)', margin: '0 0 16px' }}>
             Create your first topic test, end-of-term test, or examination paper.
           </p>
           <button
             type="button"
+            className="studio-btn-primary"
             onClick={() => navigate(`${cfg.routeBase}/new`)}
-            className="inline-flex items-center gap-2 rounded-xl font-bold transition-colors"
-            style={{ background: '#d97757', color: '#fff', border: 'none', cursor: 'pointer', padding: '10px 18px', fontSize: 14 }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#c5613f' }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#d97757' }}
           >
-            + Create {cfg.noun}
+            + New paper
           </button>
         </div>
       ) : (
           <>
-            <div className="flex items-center gap-2.5 mb-3" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#d97757' }}>
-              <span style={{ width: 32, height: 3, background: '#d97757', borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
-              Saved
-            </div>
-            <div className="flex flex-wrap items-center gap-2 mb-4" role="group" aria-label="Filter by category">
-              {CATEGORY_FILTERS.map(f => (
-                <button
-                  key={f.value}
-                  type="button"
-                  onClick={() => setCategoryFilter(f.value)}
-                  aria-pressed={categoryFilter === f.value}
-                  className="rounded-full border-2 px-3 py-1.5 text-xs font-bold transition-colors"
-                  style={{
-                    borderColor: categoryFilter === f.value ? 'var(--zt-sidebar-bg)' : 'var(--zt-line)',
-                    background: categoryFilter === f.value ? 'var(--zt-sidebar-bg)' : 'var(--zt-card)',
-                    color: categoryFilter === f.value ? 'var(--zt-on-dark)' : 'var(--zt-text)',
-                  }}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-            <div className="flex flex-wrap items-baseline justify-between gap-3 mb-4">
-              <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 24, color: 'var(--zt-text)', margin: 0 }}>
-                {needsReviewOnly
-                  ? `${visible.length} of ${byCategory.length}${hasNextPage ? '+' : ''} need review`
-                  : `${byCategory.length}${hasNextPage ? '+' : ''} ${cfg.noun}${byCategory.length === 1 && !hasNextPage ? '' : 's'}`}
-              </h2>
+            {/* Toolbar — one row: category chips + needs-review chip on the
+                left, search on the right. Wraps on narrow screens. */}
+            <div className="mb-4 flex flex-wrap items-center gap-2" role="group" aria-label="Filter papers">
+              {CATEGORY_FILTERS.map(f => {
+                const active = categoryFilter === f.value
+                return (
+                  <button
+                    key={f.value}
+                    type="button"
+                    onClick={() => setCategoryFilter(f.value)}
+                    aria-pressed={active}
+                    className="rounded-full border-2 px-3 py-1.5 text-xs font-bold transition-colors"
+                    style={{
+                      borderColor: active ? 'var(--zt-sidebar-bg, #22304A)' : 'var(--zt-line)',
+                      background: active ? 'var(--zt-sidebar-bg, #22304A)' : 'var(--zt-card)',
+                      color: active ? 'var(--zt-on-dark, #ffffff)' : 'var(--zt-text)',
+                    }}
+                  >
+                    {f.label} · {categoryCounts[f.value] ?? 0}{hasNextPage ? '+' : ''}
+                  </button>
+                )
+              })}
               <button
                 type="button"
                 onClick={() => setNeedsReviewOnly(v => !v)}
@@ -551,9 +577,9 @@ export default function AssessmentList() {
                 disabled={!needsReviewOnly && needsReviewCount === 0 && fullyLoaded}
                 className="rounded-full border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
-                  borderColor: needsReviewOnly ? '#d97706' : 'var(--zt-line)',
-                  background: needsReviewOnly ? '#fef3c7' : '#fff',
-                  color: needsReviewOnly ? '#92400e' : 'var(--zt-text)',
+                  borderColor: '#d97706',
+                  background: needsReviewOnly ? '#fef3c7' : 'var(--zt-card)',
+                  color: needsReviewOnly ? '#92400e' : '#b45309',
                 }}
                 title={needsReviewOnly
                   ? `Click to show all ${cfg.nounPlural}`
@@ -563,19 +589,37 @@ export default function AssessmentList() {
                       ? 'Load more to check the rest of your library for imports needing review'
                       : 'No imports currently need review'}
               >
-                ⚠️ Needs review
-                {needsReviewCount > 0 && (
-                  <span
-                    className="ml-1.5 inline-flex items-center justify-center rounded-full px-1.5 text-[11px] font-black text-white min-w-[20px]"
-                    style={{ background: '#d97706' }}
-                  >
-                    {needsReviewCount}
-                  </span>
-                )}
+                ⚠ Needs review · {needsReviewCount}{hasNextPage ? '+' : ''}
               </button>
+              <div className="relative ml-auto w-full sm:w-64">
+                <Search
+                  size={15}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2"
+                  style={{ color: 'var(--zt-text-muted)' }}
+                />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Search papers…"
+                  aria-label="Search papers"
+                  className="w-full rounded-full border-2 py-1.5 pl-9 pr-3 text-xs font-bold outline-none"
+                  style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-line)', color: 'var(--zt-text)' }}
+                />
+              </div>
             </div>
+
+            <div className="flex flex-wrap items-baseline justify-between gap-3 mb-4">
+              <h2 className="text-xl font-bold" style={{ color: 'var(--zt-text)', margin: 0 }}>
+                {needsReviewOnly
+                  ? `${visible.length} of ${byCategory.length}${hasNextPage ? '+' : ''} need review`
+                  : `${byCategory.length}${hasNextPage ? '+' : ''} ${cfg.noun}${byCategory.length === 1 && !hasNextPage ? '' : 's'}`}
+              </h2>
+            </div>
+
             <div className="space-y-3">
-              {visible.map(a => (
+              {searched.map(a => (
                 <AssessmentRow
                   key={a.id}
                   assessment={a}
@@ -600,6 +644,13 @@ export default function AssessmentList() {
               noun={cfg.noun}
               nounPlural={cfg.nounPlural}
             />
+            {/* Search hides rows client-side only — say so rather than looking
+                like an empty library. */}
+            {searchText && searched.length === 0 && visible.length > 0 && (
+              <p className="text-center text-sm font-bold mt-6" style={{ color: 'var(--zt-text-muted)' }}>
+                No {cfg.nounPlural} match "{searchQuery.trim()}".
+              </p>
+            )}
             {/* While pages are still auto-loading to satisfy an active filter,
                 say so — never claim "none" for rows that just haven't loaded. */}
             {filterActive && visible.length === 0 && !fullyLoaded && (
@@ -623,7 +674,7 @@ export default function AssessmentList() {
       <ConfirmDialog
         open={Boolean(pendingDelete)}
         title={`Delete this ${cfg.noun}?`}
-        message={<>You're about to permanently delete <strong className="theme-text">"{pendingDelete?.title || `this ${cfg.noun}`}"</strong>. This cannot be undone.</>}
+        message={<>You're about to permanently delete <strong className="theme-text">"{pendingDelete ? paperDisplayTitle(pendingDelete, cfg.Noun) : `this ${cfg.noun}`}"</strong>. This cannot be undone.</>}
         confirmLabel="Delete"
         variant="danger"
         loading={Boolean(pendingDelete) && busyId === pendingDelete.id}
