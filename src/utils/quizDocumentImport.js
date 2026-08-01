@@ -13,12 +13,8 @@
  * are easy to unit-test.
  */
 
-import {
-  ref as storageRef,
-  uploadBytes,
-  getDownloadURL,
-  deleteObject,
-} from 'firebase/storage'
+import { ref as storageRef, getDownloadURL } from 'firebase/storage'
+import { uploadBytes, deleteObject } from '../firebase/attestedStorage'
 import { createStandaloneSection } from './quizSections.js'
 
 export function safeStorageName(value, fallback = 'asset') {

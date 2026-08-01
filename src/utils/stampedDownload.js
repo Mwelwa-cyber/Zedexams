@@ -67,7 +67,10 @@ export async function saveViaStampedUrl(blob, filename) {
   if (!uid) return false
 
   try {
-    const { ref, uploadBytes, getDownloadURL, deleteObject } = await import('firebase/storage')
+    const { ref, getDownloadURL } = await import('firebase/storage')
+    // Writes go through the attested wrappers: App Check enforcement rejects
+    // an upload carrying the fail-open placeholder token (see attestedStorage.js).
+    const { uploadBytes, deleteObject } = await import('../firebase/attestedStorage')
 
     const name = filename || 'download'
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`

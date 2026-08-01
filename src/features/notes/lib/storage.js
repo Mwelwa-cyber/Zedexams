@@ -5,9 +5,8 @@
 //   1. Whole-note files (PDF/Word) — used for "file" content notes
 //   2. Inline images (under .../inline/) — used by the rich-text editor
 
-import {
-  ref, uploadBytesResumable, getDownloadURL, deleteObject,
-} from 'firebase/storage'
+import { ref, getDownloadURL } from 'firebase/storage'
+import { uploadBytesResumable, deleteObject } from '../../../firebase/attestedStorage'
 import { storage } from '../../../firebase/config'
 import { assertFileSignature } from '../../../utils/fileSignature'
 
@@ -49,7 +48,8 @@ export async function uploadNoteFile({ ownerUid, assetBatchId, file, onProgress 
   const safeName = sanitize(file.name)
   const path = `lesson-files/${ownerUid}/${assetBatchId}/${Date.now()}-${safeName}`
   const fileRef = ref(storage, path)
-  const task = uploadBytesResumable(fileRef, file, { contentType: file.type })
+  // `await`: the attested wrapper settles App Check before the upload starts.
+  const task = await uploadBytesResumable(fileRef, file, { contentType: file.type })
 
   return new Promise((resolve, reject) => {
     task.on(
@@ -111,7 +111,8 @@ export async function uploadInlineImage({ ownerUid, assetBatchId, file }) {
   const safeName = sanitize(file.name)
   const path = `lesson-files/${ownerUid}/${assetBatchId}/inline/${Date.now()}-${safeName}`
   const imgRef = ref(storage, path)
-  const task = uploadBytesResumable(imgRef, file, { contentType: file.type })
+  // `await`: the attested wrapper settles App Check before the upload starts.
+  const task = await uploadBytesResumable(imgRef, file, { contentType: file.type })
 
   await task
   return getDownloadURL(task.snapshot.ref)

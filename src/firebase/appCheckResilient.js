@@ -22,11 +22,22 @@
  * The fix: RACE the real token fetch against a short timeout and NEVER reject.
  * On crash / hang / empty result we yield a short-lived placeholder token so the
  * request proceeds immediately instead of stalling. This is harmless for the
- * Monitoring-only products (Auth / Firestore / Storage) — a placeholder token is
- * logged exactly like a missing one. The enforced products (Firebase AI Logic)
- * simply keep failing while reCAPTCHA is down, which is already what happens
- * today — no regression, and sign-in is never held hostage again. When reCAPTCHA
- * is healthy the real token flows through unchanged.
+ * Monitoring-only products (Auth / Firestore) — a placeholder token is logged
+ * exactly like a missing one. The enforced products simply keep failing while
+ * reCAPTCHA is down, which is already what happens today — no regression, and
+ * sign-in is never held hostage again. When reCAPTCHA is healthy the real token
+ * flows through unchanged.
+ *
+ * ⚠️ STORAGE IS NO LONGER MONITORING-ONLY (2026-08). App Check enforcement is
+ * enabled on Cloud Storage, and an enforced bucket answers a request whose
+ * token is absent or unrecognised with
+ *   401 {"error":{"code":401,"message":"Firebase App Check token is invalid."}}
+ * — so the placeholder below is REJECTED there rather than logged, and because
+ * the SDK caches it for the full TTL a single stall would refuse every upload
+ * for a minute. Storage READS are unaffected (a download URL carrying a valid
+ * download token serves without App Check being consulted). Storage WRITES must
+ * therefore go through the gate in appCheckWriteGate.js — do not spend a
+ * placeholder on one.
  */
 
 // How long to wait for a real reCAPTCHA token before proceeding without one.

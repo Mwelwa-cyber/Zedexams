@@ -16,7 +16,8 @@ import {
   collection, deleteDoc, doc, getDocs, query, where, limit,
   serverTimestamp, setDoc, updateDoc,
 } from 'firebase/firestore'
-import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
+import { ref as storageRef, getDownloadURL } from 'firebase/storage'
+import { uploadBytes, deleteObject } from '../firebase/attestedStorage'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app, { db, storage } from '../firebase/config'
 import { generateDiagram } from './generateDiagram'

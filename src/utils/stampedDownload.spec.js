@@ -6,11 +6,16 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 vi.mock('../firebase/config.js', () => ({
   storage: { __type: 'storage' },
   auth: { currentUser: { uid: 'teacher-1' } },
+  // Storage writes go through the attested wrappers (App Check enforcement);
+  // an attested device is the default for these tests.
+  assertStorageWriteAttested: vi.fn(() => Promise.resolve({ ok: true, reason: 'attested' })),
 }))
 
 vi.mock('firebase/storage', () => ({
   ref: vi.fn((_storage, path) => ({ path })),
   uploadBytes: vi.fn(() => Promise.resolve()),
+  uploadBytesResumable: vi.fn(() => Promise.resolve()),
+  uploadString: vi.fn(() => Promise.resolve()),
   getDownloadURL: vi.fn(() =>
     Promise.resolve('https://firebasestorage.googleapis.com/v0/b/x/o/tmp%2Ffile?alt=media&token=abc'),
   ),

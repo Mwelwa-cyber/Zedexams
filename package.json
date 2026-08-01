@@ -651,6 +651,7 @@
     "test:mark-schedule-xlsx": "node scripts/test-mark-schedule-xlsx.mjs",
     "test:paste-parser": "node scripts/test-paste-question-parser.mjs",
     "test:appcheck-resilient": "node src/firebase/appCheckResilient.test.js",
+    "test:appcheck-write-gate": "node src/firebase/appCheckWriteGate.test.js",
     "test:offline-security": "node src/offline/offlineSecurity.test.js",
     "test:offline-cache": "node src/offline/contentCacheCore.test.js",
     "test:offline-sync": "node src/offline/syncQueueCore.test.js",

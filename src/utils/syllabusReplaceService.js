@@ -22,11 +22,8 @@ import {
   serverTimestamp,
 } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
-import {
-  getStorage,
-  ref as storageRef,
-  uploadBytesResumable,
-} from 'firebase/storage'
+import { getStorage, ref as storageRef } from 'firebase/storage'
+import { uploadBytesResumable } from '../firebase/attestedStorage'
 
 import app, { db } from '../firebase/config'
 import { getActiveKbVersion } from './adminCbcKbService'
@@ -90,24 +87,32 @@ export function uploadSyllabusFile({ version, file, onProgress }) {
     const contentType =
       file.type ||
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    const task = uploadBytesResumable(
+    // The attested wrapper settles App Check BEFORE the upload starts, so it
+    // hands back a promise of the task rather than the task itself. Chained
+    // rather than awaited because this is a (non-async) Promise executor;
+    // .catch(reject) keeps an unattested device surfacing as a rejection of
+    // this promise, exactly like an upload error would.
+    uploadBytesResumable(
       storageRef(storage, path),
       file,
       { contentType, customMetadata: { uploadedBy: 'syllabus-replace-studio' } },
     )
-    task.on(
-      'state_changed',
-      (snap) => {
-        if (typeof onProgress === 'function') {
-          onProgress({
-            bytesTransferred: snap.bytesTransferred,
-            totalBytes: snap.totalBytes,
-          })
-        }
-      },
-      (err) => reject(err),
-      () => resolve({ path, filename: file.name }),
-    )
+      .then((task) => {
+        task.on(
+          'state_changed',
+          (snap) => {
+            if (typeof onProgress === 'function') {
+              onProgress({
+                bytesTransferred: snap.bytesTransferred,
+                totalBytes: snap.totalBytes,
+              })
+            }
+          },
+          (err) => reject(err),
+          () => resolve({ path, filename: file.name }),
+        )
+      })
+      .catch(reject)
   })
 }
 

@@ -10,7 +10,8 @@ import {
   serverTimestamp, setDoc,
 } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
-import { ref as storageRef, uploadBytes } from 'firebase/storage'
+import { ref as storageRef } from 'firebase/storage'
+import { uploadBytes } from '../firebase/attestedStorage'
 import app, { db, storage } from '../firebase/config'
 import { LEARNING_ENVIRONMENT_VALUES } from '../config/learningEnvironments'
 import { compressImportedImage } from './quizDocumentImport'

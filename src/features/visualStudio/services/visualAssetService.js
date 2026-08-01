@@ -16,9 +16,8 @@ import {
   collection, doc, deleteDoc, getDoc, getDocs, setDoc, updateDoc,
   query, where, orderBy, limit, serverTimestamp,
 } from 'firebase/firestore'
-import {
-  ref as storageRef, uploadBytes, getDownloadURL, deleteObject,
-} from 'firebase/storage'
+import { ref as storageRef, getDownloadURL } from 'firebase/storage'
+import { uploadBytes, deleteObject } from '../../../firebase/attestedStorage'
 import { db, storage } from '../../../firebase/config'
 import {
   visualAssetWriteSchema, visualAssetUpdateSchema, coerceVisualAsset,

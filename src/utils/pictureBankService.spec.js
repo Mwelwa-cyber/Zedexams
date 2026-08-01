@@ -35,6 +35,9 @@ vi.mock('../firebase/config', () => ({
   default: {},
   db: {},
   storage: {},
+  // Storage writes go through the attested wrappers (App Check enforcement);
+  // an attested device is the default for these tests.
+  assertStorageWriteAttested: vi.fn(() => Promise.resolve({ ok: true, reason: 'attested' })),
 }))
 vi.mock('./generateDiagram', () => ({ generateDiagram: vi.fn() }))
 
