@@ -34,6 +34,14 @@
  *                      independently selectable (selecting one never selects
  *                      its siblings). '' = whole subtopic.
  *   showCurriculumPicker default true.
+ *   curriculumPickerVariant  'cards' (default — the reference two-card
+ *                      picker) or 'segmented' (the compact CurriculumToggle
+ *                      row used by generator studios).
+ *   defaultCurriculumMode  optional 'cbc'|'previous' applied when the seed
+ *                      carries no curriculum — generator studios pass 'cbc'
+ *                      so the cascade is live immediately instead of a
+ *                      chain of disabled "Choose a curriculum first…"
+ *                      dropdowns.
  *   gradeFieldLabel / subjectFieldLabel  optional label text overrides for the
  *                      two cascade fields (e.g. the Teaching Profile's
  *                      "Grade or Form") — the cascade behaviour is identical.
@@ -64,6 +72,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import { CurriculumPicker } from '../studio/sections/CurriculumPicker.jsx'
+import CurriculumToggle from './CurriculumToggle.jsx'
 import { useAvailableGrades } from '../studio/hooks/useAvailableGrades.js'
 import { useSubjectsForGrade } from '../studio/hooks/useSubjectsForGrade.js'
 import { useSubjectTopics } from '../studio/hooks/useSubjectTopics.js'
@@ -88,6 +97,8 @@ export default function StudioCurriculumSelector({
   showTopicSubtopic = true,
   showSpecificOutcome = false,
   showCurriculumPicker = true,
+  curriculumPickerVariant = 'cards',
+  defaultCurriculumMode = null,
   gradeOptions = null,
   subjectFallback = null,
   disabled = false,
@@ -100,7 +111,7 @@ export default function StudioCurriculumSelector({
   const uid = useId()
   // Normalize the loose seed once (state initializers run only on mount).
   const [seed] = useState(() => normalizeSelectorSeed(value))
-  const [curriculumMode, setCurriculumMode] = useState(seed.curriculumMode)
+  const [curriculumMode, setCurriculumMode] = useState(seed.curriculumMode || defaultCurriculumMode)
   const [gradeLabel, setGradeLabel] = useState(seed.gradeLabel)
   const [subjectKey, setSubjectKey] = useState(seed.subjectKey)
   const [topic, setTopic] = useState(seed.topic)
@@ -291,7 +302,14 @@ export default function StudioCurriculumSelector({
 
   return (
     <div className={`space-y-4 ${className}`.trim()}>
-      {showCurriculumPicker && (
+      {showCurriculumPicker && curriculumPickerVariant === 'segmented' && (
+        <CurriculumToggle
+          value={curriculumMode}
+          onSelect={chooseCurriculum}
+          disabled={disabled}
+        />
+      )}
+      {showCurriculumPicker && curriculumPickerVariant !== 'segmented' && (
         <div className="overflow-hidden rounded-2xl border border-[#e5ddd0]">
           <CurriculumPicker
             curriculumMode={curriculumMode}

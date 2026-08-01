@@ -765,6 +765,19 @@ html[data-theme='night'] body {
   [data-theme='night'] .studio-theme .studio-page-header__emoji {
     background: linear-gradient(180deg, #D8D2C6 0%, #B9B2A3 100%);
   }
+  /* The 54px icon tile is deliberately kept white-on-Night: it sits inside
+     the dark gradient band (not on the page surface) where the small bright
+     disc is the icon's contrast backing, matching the light themes. */
+  /* Chips: same hues, dark-direction surfaces — a translucent wash of the
+     colour over whatever card it lands on, with a lightened ink on top
+     (mirrors the --success-bg/-fg night pattern declared above). */
+  [data-theme='night'] .studio-theme .zx-chip--green   { background: rgba(16,134,78,.22);  color: #4ADE80; }
+  [data-theme='night'] .studio-theme .zx-chip--amber   { background: rgba(217,119,6,.22);  color: #FBBF24; }
+  [data-theme='night'] .studio-theme .zx-chip--blue    { background: rgba(59,130,246,.22); color: #93C5FD; }
+  [data-theme='night'] .studio-theme .zx-chip--red     { background: rgba(185,28,28,.22);  color: #F87171; }
+  [data-theme='night'] .studio-theme .zx-chip--purple  { background: rgba(124,58,237,.22); color: #C4B5FD; }
+  [data-theme='night'] .studio-theme .zx-chip--pink    { background: rgba(190,24,93,.22);  color: #F9A8D4; }
+  [data-theme='night'] .studio-theme .zx-chip--neutral { background: rgba(255,255,255,.10); color: var(--zt-text-muted); }
   [data-theme='night'] .studio-theme .studio-label { color: var(--zt-text-muted); }
   /* #0e2a32 is very nearly the Night surface itself — the badge disappeared. */
   [data-theme='night'] .studio-theme .studio-badge {
@@ -1279,6 +1292,80 @@ html[data-theme='night'] body {
     box-shadow: 0 8px 24px rgba(0,0,0,.25), 0 0 0 6px rgba(255,255,255,.10);
   }
   @media (min-width: 640px) { .studio-theme .studio-page-header__emoji { display: grid; } }
+  /* The Lucide icon tile — the compact band's replacement for the emoji
+     medallion. Always visible (it is only 54px), teal stroke on white so it
+     reads identically on every OS. */
+  .studio-theme .studio-page-header__icon {
+    display: grid; place-items: center; flex-shrink: 0;
+    width: 54px; height: 54px; border-radius: 50%;
+    background: #ffffff; color: #0e2a32;
+    box-shadow: 0 6px 18px rgba(0,0,0,.22), 0 0 0 5px rgba(255,255,255,.10);
+  }
+  .studio-theme .studio-page-header__meta {
+    display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px;
+    font-size: 11.5px; font-weight: 600; color: rgba(255,255,255,.72);
+  }
+  .studio-theme .studio-page-header__meta-dot { margin: 0 6px; opacity: .6; }
+  /* Compact treatment (~130px band) — applied automatically when the header
+     carries a Lucide icon, i.e. on studios converted to the shared system. */
+  .studio-theme .studio-page-header--compact { padding: 18px 20px; border-radius: 18px; }
+  @media (min-width: 640px) { .studio-theme .studio-page-header--compact { padding: 20px 24px; } }
+  .studio-theme .studio-page-header--compact .studio-page-header__eyebrow {
+    margin-bottom: 8px; padding: 4px 10px; font-size: 10.5px;
+  }
+  .studio-theme .studio-page-header--compact .studio-page-header__title {
+    font-size: 24px; margin: 0 0 4px;
+  }
+  @media (min-width: 640px) {
+    .studio-theme .studio-page-header--compact .studio-page-header__title { font-size: 25px; }
+  }
+  .studio-theme .studio-page-header--compact .studio-page-header__subtitle {
+    font-size: 13px; max-width: 520px;
+  }
+
+  /* ── Chip (ui/Chip.jsx) — one pill, colour = meaning ─────────────
+     green good/synced · amber attention/draft · blue info/time · red problem
+     purple special · pink subject accent · neutral plain metadata.
+     Night remaps live with the other studio component remaps above. */
+  .zx-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11.5px; font-weight: 600; line-height: 1.35;
+    border-radius: 999px; padding: 3px 10px; white-space: nowrap;
+  }
+  /* ── Studio sticky wizard bar ────────────────────────────────────
+     The generic version of the Lesson Plan Studio's .lpw-nav, for wizards
+     that sit directly inside `.studio-shell` (no .lps-game wrapper).
+     position: sticky INSIDE the content column, never fixed — a fixed bar
+     covered the sidebar's logout row (see lessonStudio.css:332). The
+     margin-inline cancels exactly .studio-shell's px-3/sm:px-5/lg:px-8
+     gutters so the bar runs edge-to-edge under the content. */
+  .studio-theme .studio-sticky-bar {
+    position: sticky; bottom: 0; z-index: 30;
+    border-top: 1px solid var(--zt-line);
+    background: color-mix(in srgb, var(--zt-surface) 96%, transparent);
+    backdrop-filter: blur(6px);
+    padding: 10px 0.75rem;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    margin-inline: -0.75rem;
+  }
+  @media (min-width: 640px)  { .studio-theme .studio-sticky-bar { margin-inline: -1.25rem; padding-inline: 1.25rem; } }
+  @media (min-width: 1024px) { .studio-theme .studio-sticky-bar { margin-inline: -2rem; padding-inline: 2rem; } }
+  .studio-theme .studio-sticky-bar__progress-track {
+    height: 5px; border-radius: 99px; overflow: hidden; margin-top: 5px;
+    background: color-mix(in srgb, var(--zt-text) 12%, transparent);
+  }
+  .studio-theme .studio-sticky-bar__progress-fill {
+    display: block; height: 100%; border-radius: 99px; background: var(--zt-accent);
+    transition: width .25s ease;
+  }
+
+  .zx-chip--green   { background: #dff0e5; color: #1e7a4c; }
+  .zx-chip--amber   { background: #fbefd2; color: #8a5a00; }
+  .zx-chip--blue    { background: #e2ecf8; color: #2b5fa3; }
+  .zx-chip--red     { background: #f9e3de; color: #b3402e; }
+  .zx-chip--purple  { background: #ece5f8; color: #6b4fa3; }
+  .zx-chip--pink    { background: #f8e2ec; color: #b04a78; }
+  .zx-chip--neutral { background: #f1eadb; color: #5b6472; }
   .studio-theme .studio-label {
     display: block; font-size: 11px; font-weight: 700;
     text-transform: uppercase; letter-spacing: .8px; color: #566f76; margin-bottom: 6px;
