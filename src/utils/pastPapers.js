@@ -26,12 +26,8 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore'
-import {
-  deleteObject,
-  getDownloadURL,
-  ref as storageRef,
-  uploadBytes,
-} from 'firebase/storage'
+import { getDownloadURL, ref as storageRef } from 'firebase/storage'
+import { deleteObject, uploadBytes } from '../firebase/attestedStorage'
 import { db, storage } from '../firebase/config'
 import { capture } from './analytics'
 import { normalizePaperFields } from './pastPaperNormalize.js'

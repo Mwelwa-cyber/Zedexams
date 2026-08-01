@@ -21,7 +21,8 @@
  */
 
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
-import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage'
+import { getDownloadURL, ref as storageRef } from 'firebase/storage'
+import { uploadBytes } from '../firebase/attestedStorage'
 import { db, storage } from '../firebase/config'
 import { resolvePaperUrl } from './pastPapers.js'
 import { loadPdfDocument } from '../components/quiz/documentQuizImporter.js'

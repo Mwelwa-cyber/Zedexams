@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage'
+import { getDownloadURL, ref as storageRef } from 'firebase/storage'
+import { uploadBytes } from '../../firebase/attestedStorage'
 import { useAuth } from '../../contexts/AuthContext'
 import { storage } from '../../firebase/config'
 import { useFirestore } from '../../hooks/useFirestore'

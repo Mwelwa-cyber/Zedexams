@@ -13,7 +13,8 @@
 // and letterheads go through preparePngImage, which PRESERVES ALPHA — a
 // signature flattened to JPEG would print as a white box on papers.
 
-import { getDownloadURL, ref as storageRef, uploadBytes, deleteObject } from 'firebase/storage'
+import { getDownloadURL, ref as storageRef } from 'firebase/storage'
+import { uploadBytes, deleteObject } from '../../../firebase/attestedStorage'
 import { storage } from '../../../firebase/config'
 import { compressImage } from '../../../utils/imageCompression'
 import { assertFileSignature } from '../../../utils/fileSignature'

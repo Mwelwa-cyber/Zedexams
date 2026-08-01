@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app'
 import { initializeAppCheck, ReCaptchaEnterpriseProvider, CustomProvider, getToken } from 'firebase/app-check'
 import { resilientGetToken, APPCHECK_PLACEHOLDER_TOKEN } from './appCheckResilient'
+import { resolveWriteAttestation, WRITE_BLOCKED_MESSAGE } from './appCheckWriteGate'
 import {
   getAuth,
   setPersistence,
@@ -398,6 +399,63 @@ export async function getAppCheckToken() {
 }
 
 /**
+ * Gate a Cloud Storage WRITE on GENUINE attestation.
+ *
+ * App Check enforcement is ON for Storage (2026-08). Reads are unaffected —
+ * a download URL carrying a valid download token serves without App Check
+ * being consulted, which is why images keep rendering — but every SDK
+ * operation (uploadBytes / getDownloadURL / deleteObject / listAll) is
+ * rejected unless it carries a real token:
+ *   401 {"error":{"code":401,"message":"Firebase App Check token is invalid."}}
+ *
+ * The fail-open placeholder from appCheckResilient.js is exactly such an
+ * unrecognised token, and the SDK caches it for its whole 60s TTL, so
+ * without this gate one reCAPTCHA stall would refuse every upload for a
+ * minute and report it as `storage/unauthorized` — a permissions error the
+ * teacher cannot act on. Awaiting readiness first also closes the
+ * deferred-init race (scheduleAppCheckInit runs on an idle callback, so an
+ * upload issued in the first couple of seconds could otherwise outrun the
+ * first mint).
+ *
+ * Never throws. See assertStorageWriteAttested() for the throwing form.
+ *
+ * @returns {Promise<{ok: boolean, reason: string}>}
+ */
+export async function ensureStorageWriteAttestation() {
+  await whenAppCheckReady()
+  return resolveWriteAttestation({
+    configured: Boolean(jsAppCheck || nativeAppCheck),
+    placeholderToken: APPCHECK_PLACEHOLDER_TOKEN,
+    mintToken: async (forceRefresh) => {
+      if (isNativePlatform()) {
+        if (!nativeAppCheck) return ''
+        const res = await nativeAppCheck.getToken({ forceRefresh: Boolean(forceRefresh) })
+        return (res && res.token) || ''
+      }
+      if (!jsAppCheck) return ''
+      const res = await getToken(jsAppCheck, Boolean(forceRefresh))
+      return (res && res.token) || ''
+    },
+  })
+}
+
+/**
+ * ensureStorageWriteAttestation() in throwing form, for the upload paths.
+ * The message is about the DEVICE CHECK, not about permission: the user is
+ * entitled to upload, and retrying genuinely works once a real token mints.
+ *
+ * @throws {Error & {code: 'appcheck/unattested', reason: string}}
+ */
+export async function assertStorageWriteAttested() {
+  const verdict = await ensureStorageWriteAttestation()
+  if (verdict.ok) return verdict
+  const err = new Error(WRITE_BLOCKED_MESSAGE)
+  err.code = 'appcheck/unattested'
+  err.reason = verdict.reason
+  throw err
+}
+
+/**
  * Client-side App Check state for the /admin/app-check "this device"
  * self-test. Answers, from inside the deployed bundle, the questions the
  * server-side counters can't: did this build ship with a reCAPTCHA site key
@@ -438,15 +496,21 @@ export function whenAppCheckReady(timeoutMs = 3000) {
 // the first idle slot after paint frees the main thread for the app to render
 // first, then attestation initialises a beat later.
 //
-// Why this is safe: enforcement is soft today — the server LOGS unattested
-// calls rather than rejecting them (see the App Check note above) — and even
-// with eager init the earliest boot requests already raced ahead of the async
-// token mint, so the security posture is unchanged. The hard `timeout` cap
-// guarantees init still runs within a couple of seconds even on a busy thread,
-// so tokens are ready well before any user-driven AI call. NOTE: if hard
-// enforcement is ever turned on, revisit this deferral so the first protected
-// requests aren't issued before the first token mints. Failures inside
-// initAppCheck never reject (every path is caught internally).
+// Why this is safe: for the products still in Monitoring mode the server LOGS
+// unattested calls rather than rejecting them, and even with eager init the
+// earliest boot requests already raced ahead of the async token mint, so the
+// security posture is unchanged. The hard `timeout` cap guarantees init still
+// runs within a couple of seconds even on a busy thread, so tokens are ready
+// well before any user-driven AI call. Failures inside initAppCheck never
+// reject (every path is caught internally).
+//
+// STORAGE IS ENFORCED (2026-08), so the race this comment used to wave off is
+// real for Storage SDK calls issued during the first idle slot. Rather than
+// un-defer init — which would put reCAPTCHA back on the LCP critical path for
+// every visitor, including the ones who never touch Storage — the Storage
+// WRITE paths await whenAppCheckReady() through assertStorageWriteAttested().
+// A Storage READ needs no such gate: the download URL it produces carries its
+// own token and App Check is not consulted on that path.
 function scheduleAppCheckInit() {
   // Resolve the readiness promise once init settles, whatever path it takes
   // (initAppCheck never rejects — every failure is caught internally).

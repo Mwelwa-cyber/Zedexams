@@ -20,7 +20,8 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ref as storageRef, uploadBytes } from 'firebase/storage'
+import { ref as storageRef } from 'firebase/storage'
+import { uploadBytes } from '../../firebase/attestedStorage'
 import { assertFileSignature } from '../../utils/fileSignature'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import {
