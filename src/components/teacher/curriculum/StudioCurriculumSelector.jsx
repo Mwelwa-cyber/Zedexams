@@ -29,6 +29,9 @@
  *   onChange(payload)  fired on any change with the payload documented below.
  *   showTopicSubtopic  default true; false for roster/marks tools (Class
  *                      Register, Mark Schedule) that stop at subject.
+ *   showSubject        default true; false for tools where the subject list
+ *                      lives elsewhere (Mark Schedule's per-column subjects)
+ *                      — the cascade then stops at grade.
  *   showSpecificOutcome default false; true adds a per-outcome dropdown under
  *                      the subtopic where EACH specific outcome is
  *                      independently selectable (selecting one never selects
@@ -95,6 +98,7 @@ export default function StudioCurriculumSelector({
   value = null,
   onChange,
   showTopicSubtopic = true,
+  showSubject = true,
   showSpecificOutcome = false,
   showCurriculumPicker = true,
   curriculumPickerVariant = 'cards',
@@ -346,6 +350,7 @@ export default function StudioCurriculumSelector({
       </div>
 
       {/* Subject */}
+      {showSubject && (
       <div>
         <label htmlFor={`${uid}-subject`} className={labelClassName}>{subjectFieldLabel}</label>
         <select
@@ -380,6 +385,7 @@ export default function StudioCurriculumSelector({
           </p>
         )}
       </div>
+      )}
 
       {showTopicSubtopic && (
         <>
