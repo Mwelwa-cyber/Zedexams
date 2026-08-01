@@ -1697,6 +1697,14 @@ exports.apiAiChat = onRequest(
     res.write(": connected\n\n");
 
     try {
+      // AI-003: the model OUTPUT must be moderated BEFORE it reaches the child,
+      // same as the aiChat callable. Streaming tokens live would display unsafe
+      // text before we could screen it, so the reply is accumulated, moderated,
+      // then sent as one chunk — the client already supports a single-chunk
+      // reply (its Android SSE fallback). Input was already moderated above; this
+      // closes the output half of the guardrail on the path the SPA actually
+      // uses. `checkLearnerText` owns its own error policy (MODERATION_FAIL_CLOSED).
+      let full = "";
       await callOpenAIStream(
         apiKey,
         {
@@ -1708,9 +1716,15 @@ exports.apiAiChat = onRequest(
           track: {uid: decoded.uid, tool: "apiAiChat"},
         },
         (token) => {
-          res.write(`data: ${JSON.stringify({text: token})}\n\n`);
+          full += token;
         },
       );
+      const outputModeration = await checkLearnerText(apiKey, full, {label: "apiAiChat:output"});
+      if (outputModeration.blocked) {
+        log.warn("chat_output_moderated", {uid: decoded.uid, categories: outputModeration.matchedCategories});
+      }
+      const reply = outputModeration.blocked ? LEARNER_BLOCK_MESSAGE : full;
+      res.write(`data: ${JSON.stringify({text: reply})}\n\n`);
       res.write("data: [DONE]\n\n");
     } catch (error) {
       // Route through the request-bound logger so provider outages + mid-stream
