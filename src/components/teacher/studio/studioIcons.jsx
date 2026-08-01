@@ -20,7 +20,7 @@ import {
   ChartBarIcon, Layers, Clock, ChevronUp, ChevronDown, Trash2, Copy, StarIcon,
   RefreshCw, X, Plus, Check, CheckCircleIcon, ClipboardList, Menu, Scissors,
   BookOpen, BeakerIcon, Globe, DocumentTextIcon, ListChecks, ListOrdered, Table,
-  Calculator, ArrowLeftRight, Maximize2, PaintBrushIcon, Target, Lightbulb,
+  Calculator, ArrowLeftRight, Maximize2, Minimize2, PaintBrushIcon, Target, Lightbulb,
   Camera, Scale, Files, AlignLeft, Download, Printer, User, Users, Calendar,
   Info, Layout, Lock,
 } from '../../ui/icons'
@@ -113,6 +113,8 @@ const ICONS = {
   pictureBank: Files,
   shape: ImageIcon,
   crop: Maximize2,
+  fullscreen: Maximize2,
+  exitFullscreen: Minimize2,
   replace: RefreshCw,
   enhance: Sparkles,
   bloom: Lightbulb,
