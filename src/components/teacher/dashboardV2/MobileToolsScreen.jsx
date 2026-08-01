@@ -8,6 +8,17 @@ import {
   resolveBadge,
   searchStudios,
 } from './launcher/teacherLauncherCore'
+import GlassToolTile from './GlassToolTile'
+import './glassSurface.css'
+
+/* Category groups get the same tinted glass panels as the desktop
+   workspace sections; search results and Planning & Setup take the
+   neutral panel. */
+const PANEL_CLASS = {
+  planning: 'glass-panel glass-panel--planning',
+  materials: 'glass-panel glass-panel--materials',
+  assessment: 'glass-panel glass-panel--assessment',
+}
 
 /**
  * "All Teacher Tools" — the dedicated full-screen mobile launcher opened
@@ -127,12 +138,15 @@ export default function MobileToolsScreen({ onClose, savedCounts = null, warning
           </div>
         ) : (
           groups.filter((g) => g.studios.length > 0).map((group) => (
-            <section key={group.id} aria-label={group.label}>
+            <section
+              key={group.id}
+              aria-label={group.label}
+              className={`tdv2m-tools-panel ${PANEL_CLASS[group.id] || 'glass-panel'}`}
+            >
               <h2 className="tdv2-eyebrow tdv2m-tools-group">{group.label}</h2>
               <div className="tdv2m-tool-grid">
                 {group.studios.map((studio) => {
                   const badge = resolveBadge(studio, savedCounts, { warnings: warningSet })
-                  const StudioIcon = studio.icon
                   return (
                     <Link
                       key={studio.id}
@@ -140,19 +154,7 @@ export default function MobileToolsScreen({ onClose, savedCounts = null, warning
                       className="tdv2m-tool"
                       aria-label={`${studio.title}${badge ? `, ${badge.label}` : ''}`}
                     >
-                      <span
-                        className={`tdv2m-tool-tile ${studio.image ? 'is-img' : `tint-${studio.tint || 'teal'}`}`}
-                        aria-hidden="true"
-                      >
-                        {studio.image ? (
-                          <img src={studio.image} alt="" loading="lazy" draggable="false" />
-                        ) : (
-                          <StudioIcon size={26} strokeWidth={1.9} />
-                        )}
-                        {badge?.type === 'new' ? (
-                          <span className="tdv2m-tool-new" aria-hidden="true">New</span>
-                        ) : null}
-                      </span>
+                      <GlassToolTile studio={studio} badge={badge} sizeClass="tdv2m-tool-tile" />
                       <span className="tdv2m-tool-name">{studio.title}</span>
                       {badge?.type === 'saved' ? (
                         <span className="tdv2m-tool-saved" aria-hidden="true">

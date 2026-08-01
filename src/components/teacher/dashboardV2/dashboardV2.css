@@ -234,13 +234,11 @@
   color-scheme: dark;
 }
 
-.tdv2.is-dark .tdv2-doc-row:hover,
 .tdv2.is-dark .tdv2-activity-row:hover,
 .tdv2.is-dark a.tdv2-check-row:hover {
   background: rgba(255, 255, 255, 0.05);
 }
 
-.tdv2.is-dark .tdv2-doc-row + .tdv2-doc-row,
 .tdv2.is-dark .tdv2-check-row + .tdv2-check-row,
 .tdv2.is-dark .tdv2-activity-row + .tdv2-activity-row,
 .tdv2.is-dark .tdv2-faq + .tdv2-faq,
@@ -258,10 +256,6 @@
   background: rgba(199, 116, 86, 0.14);
 }
 
-.tdv2.is-dark .tdv2-tile:hover {
-  background: linear-gradient(180deg, var(--surface) 55%, rgba(199, 116, 86, 0.12) 160%);
-}
-
 .tdv2.is-dark .tdv2-check-bar {
   background: rgba(255, 255, 255, 0.12);
 }
@@ -276,21 +270,6 @@
   color: #f5c469;
   background: rgba(245, 158, 11, 0.13);
   border-color: rgba(245, 158, 11, 0.35);
-}
-
-.tdv2.is-dark .tdv2-ai-card {
-  background: linear-gradient(180deg, #10233c 0%, #0d1d33 100%);
-  border-color: rgba(37, 99, 235, 0.35);
-}
-
-.tdv2.is-dark .tdv2-ai-body,
-.tdv2.is-dark .tdv2-ai-more {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(37, 99, 235, 0.3);
-}
-
-.tdv2.is-dark .tdv2-ai-more:hover {
-  background: rgba(255, 255, 255, 0.09);
 }
 
 .tdv2.is-dark .tdv2-btn-outline {
@@ -658,6 +637,8 @@
   padding: 18px 28px;
 }
 
+/* Faked-glass surface (glassSurface.css row tokens) — the bar is not
+   sticky, so it takes no backdrop-filter like everything else here. */
 .tdv2-search {
   display: flex;
   align-items: center;
@@ -667,9 +648,9 @@
   min-height: 44px;
   padding: 0 14px;
   border-radius: 14px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  box-shadow: 0 1px 3px rgba(16, 36, 62, 0.05);
+  background: var(--ws-row-bg);
+  border: 1px solid var(--ws-row-border);
+  box-shadow: var(--ws-row-shadow);
   color: var(--ink-2);
   transition: border-color 180ms var(--ease), box-shadow 180ms var(--ease);
 }
@@ -870,6 +851,9 @@
   max-width: 46ch;
 }
 
+/* Surface comes from glass-dark-inset (glassSurface.css) — the dark glass
+   recipe, replacing the old backdrop-filter blur: the inset is content,
+   not chrome, so real blur is not allowed here. */
 .tdv2-hero-inset {
   position: relative;
   display: flex;
@@ -877,11 +861,8 @@
   gap: 16px;
   padding: 14px 16px;
   border-radius: 16px;
-  background: rgba(4, 18, 26, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
   max-width: 640px;
+  cursor: pointer;
 }
 
 .tdv2-hero-inset-icon {
@@ -1054,47 +1035,26 @@
   gap: 16px;
 }
 
+/* Layout only — surface, hover, press and sheen come from glass-tile
+   (glassSurface.css); each tile's accent is its glass-accent--tone-*. */
 .tdv2-tile {
-  position: relative;
   display: flex;
   flex-direction: column;
   gap: 10px;
   padding: 18px;
   min-height: 168px;
-  border-radius: var(--radius-tile);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-card);
   text-align: left;
-  transition: transform 200ms var(--ease), box-shadow 200ms var(--ease),
-    border-color 200ms var(--ease), background 200ms var(--ease);
-}
-
-.tdv2-tile:hover {
-  transform: translateY(-4px);
-  border-color: rgba(170, 89, 67, 0.55);
-  box-shadow: var(--shadow-card-hover);
-  background: linear-gradient(180deg, var(--surface) 55%, var(--copper-tint) 160%);
-}
-
-.tdv2-tile:active {
-  transform: translateY(1px) scale(0.985);
-  box-shadow: 0 2px 8px rgba(16, 36, 62, 0.08), inset 0 2px 4px rgba(16, 36, 62, 0.05);
 }
 
 .tdv2-tile-icon {
+  position: relative;
+  z-index: 3;
   width: 46px;
   height: 46px;
   display: grid;
   place-items: center;
   border-radius: 13px;
   box-shadow: 0 4px 10px rgba(16, 36, 62, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.7);
-  transition: transform 200ms var(--ease), filter 200ms var(--ease);
-}
-
-.tdv2-tile:hover .tdv2-tile-icon {
-  filter: brightness(1.06);
-  transform: translateY(-1px);
 }
 
 /* Category tone chips are a fixed decorative palette, deliberately NOT
@@ -1107,12 +1067,16 @@
 .tdv2-tile-icon.tone-blue   { background: linear-gradient(160deg, #dde9fd, #b9d1fa); color: #1d4fbe; }
 
 .tdv2-tile-title {
+  position: relative;
+  z-index: 3;
   font-size: 16px;
   font-weight: 600;
   color: var(--ink);
 }
 
 .tdv2-tile-desc {
+  position: relative;
+  z-index: 3;
   font-size: 14px;
   line-height: 1.45;
   color: var(--ink-2);
@@ -1124,6 +1088,7 @@
   position: absolute;
   right: 16px;
   bottom: 16px;
+  z-index: 3;
   width: 36px;
   height: 36px;
   display: grid;
@@ -1135,37 +1100,37 @@
   transition: transform 200ms var(--ease), background 200ms var(--ease), color 200ms var(--ease);
 }
 
-.tdv2-tile:hover .tdv2-tile-arrow {
-  transform: translateX(4px);
-  background: var(--copper);
-  color: var(--zt-on-accent);
+@media (hover: hover) {
+  .tdv2-tile:hover .tdv2-tile-arrow {
+    transform: translateX(4px);
+    background: var(--copper);
+    color: var(--zt-on-accent);
+  }
 }
 
 /* ── AI recommendations ──────────────────────────────────────────────── */
 
+/* Panel tint comes from glass-panel--ai (glassSurface.css); the border
+   picks up the same accent so the panel reads as one piece. */
 .tdv2-ai-card {
   display: flex;
   flex-direction: column;
   /* Hug the content instead of stretching to Quick Create's height — the
      recommendation panel was mostly empty space below its copy. */
   align-self: start;
-  background: linear-gradient(180deg, #f4f8ff 0%, #e9f1fe 100%);
-  border-color: #d5e3f8;
+  border-color: rgba(var(--ws-accent-ai), 0.25);
 }
 
 .tdv2-ai-card .tdv2-eyebrow {
-  color: var(--blue);
+  color: rgb(var(--ws-accent-ai));
 }
 
+/* Surface comes from glass-surface — layout only here. */
 .tdv2-ai-body {
   display: flex;
   flex-direction: column;
   gap: 10px;
   padding: 18px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.85);
-  border: 1px solid #dde8f9;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.06);
 }
 
 /* Context chips: which class/subject the recommendation is about */
@@ -1214,27 +1179,25 @@
   max-width: 42ch;
 }
 
-/* Secondary recommendation rows below the primary card */
+/* Secondary recommendation rows below the primary card — glass tiles
+   (hover/press from glassSurface.css, deliberately no sheen). */
 .tdv2-ai-more {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-top: 10px;
   padding: 10px 14px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid #dde8f9;
-  transition: background 160ms var(--ease), border-color 160ms var(--ease);
-}
-
-.tdv2-ai-more:hover {
-  background: var(--surface);
-  border-color: rgba(37, 99, 235, 0.45);
 }
 
 .tdv2-ai-more svg {
   flex-shrink: 0;
-  color: var(--blue);
+  color: rgb(var(--ws-accent-ai));
+}
+
+.tdv2-ai-more-title,
+.tdv2-ai-more-text {
+  position: relative;
+  z-index: 3;
 }
 
 .tdv2-ai-more-title {
@@ -1258,26 +1221,18 @@
 .tdv2-doc-list {
   display: flex;
   flex-direction: column;
+  gap: 8px;
 }
 
+/* Quiet glass rows (glass-row in glassSurface.css): hover is a tint only,
+   touch presses gently — no lift, no specular, no sheen. */
 .tdv2-doc-row {
   display: flex;
   align-items: center;
   gap: 13px;
-  padding: 11px 10px;
-  margin: 0 -10px;
-  border-radius: 12px;
+  padding: 11px 12px;
   text-align: left;
-  width: calc(100% + 20px);
-  transition: background 160ms var(--ease);
-}
-
-.tdv2-doc-row:hover {
-  background: color-mix(in srgb, var(--ink) 4%, var(--surface));
-}
-
-.tdv2-doc-row + .tdv2-doc-row {
-  border-top: 1px solid var(--border);
+  width: 100%;
 }
 
 .tdv2-doc-icon {
@@ -3154,43 +3109,50 @@ a.tdv2-check-row:hover {
   -webkit-tap-highlight-color: transparent;
 }
 
-.tdv2m-recent-tool:active .tdv2m-recent-tile {
-  transform: scale(0.94);
-}
-
+/* Sizing only — the tile surface, press, sheen and NEW-badge shimmer all
+   come from GlassToolTile + glassSurface.css. */
 .tdv2m-recent-tile {
-  position: relative;
-  display: grid;
-  place-items: center;
   width: 100%;
   max-width: 84px;
   aspect-ratio: 1;
-  border-radius: 22px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-card);
-  transition: transform 130ms var(--ease);
 }
 
-.tdv2m-recent-tile.is-img {
-  background: transparent;
-  border: 0;
-  box-shadow: none;
+/* ── Shared mobile glass tool tile (GlassToolTile.jsx) ───────────────
+   The studio's 3D artwork sits ON the glass rather than being the whole
+   tile, so mobile matches the desktop cards' glass-with-artwork look. */
+.tdv2m-glass-tile {
+  display: grid;
+  place-items: center;
 }
 
-.tdv2m-recent-tile img {
-  width: 100%;
-  height: 100%;
+.tdv2m-glass-tile img {
+  position: relative;
+  z-index: 1;
+  width: 82%;
+  height: 82%;
   object-fit: contain;
-  border-radius: 22px;
+  border-radius: 14px;
+  -webkit-user-drag: none;
 }
 
-.tdv2m-recent-tile.tint-teal { color: #0e7490; background: #e0f2f7; }
-.tdv2m-recent-tile.tint-orange { color: var(--copper); background: var(--copper-tint); }
-.tdv2m-recent-tile.tint-purple { color: #7c3aed; background: #f1e9fe; }
-.tdv2m-recent-tile.tint-green { color: #15803d; background: #e3f5e9; }
-.tdv2m-recent-tile.tint-blue { color: #1d4ed8; background: #e5edfd; }
-.tdv2m-recent-tile.tint-rose { color: #be123c; background: #fde8ec; }
+/* Icon-only studios keep their tinted identity chip, matching the desktop
+   cards' icon chips. Fixed decorative palette, deliberately NOT themed —
+   the same tint identifies the same tool in every theme. */
+.tdv2m-glass-chip {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 68%;
+  height: 68%;
+  border-radius: 14px;
+}
+.tdv2m-glass-chip.tint-teal { color: #0e7490; background: #e0f2f7; }
+.tdv2m-glass-chip.tint-orange { color: var(--copper); background: var(--copper-tint); }
+.tdv2m-glass-chip.tint-purple { color: #7c3aed; background: #f1e9fe; }
+.tdv2m-glass-chip.tint-green { color: #15803d; background: #e3f5e9; }
+.tdv2m-glass-chip.tint-blue { color: #1d4ed8; background: #e5edfd; }
+.tdv2m-glass-chip.tint-rose { color: #be123c; background: #fde8ec; }
 
 .tdv2m-recent-name {
   font-size: 13px;
@@ -3203,6 +3165,15 @@ a.tdv2-check-row:hover {
   line-clamp: 2;
   overflow: hidden;
   overflow-wrap: break-word;
+}
+
+/* Inside a glass tile the badge must sit within the tile's bounds — the
+   glass surface clips at its edge (overflow: hidden for the sheen), so the
+   old overhanging offsets would cut it off. */
+.tdv2m-glass-tile .tdv2m-tool-new {
+  top: 4px;
+  right: 4px;
+  z-index: 3;
 }
 
 /* Small NEW badge — upper-right of the tile, clear of the artwork */
@@ -3374,6 +3345,13 @@ a.tdv2-check-row:hover {
   margin: 0 0 12px;
 }
 
+/* Tinted glass panel behind each category group — the tint itself comes
+   from the glass-panel--* class (glassSurface.css). */
+.tdv2m-tools-panel {
+  padding: 14px 12px 16px;
+  border-radius: 22px;
+}
+
 .tdv2m-tools-empty {
   display: flex;
   flex-direction: column;
@@ -3400,43 +3378,12 @@ a.tdv2-check-row:hover {
   -webkit-tap-highlight-color: transparent;
 }
 
-.tdv2m-tool:active .tdv2m-tool-tile {
-  transform: scale(0.94);
-}
-
+/* Sizing only — surface and behaviours come from GlassToolTile. */
 .tdv2m-tool-tile {
-  position: relative;
-  display: grid;
-  place-items: center;
   width: 100%;
   max-width: 74px;
   aspect-ratio: 1;
-  border-radius: 20px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-card);
-  transition: transform 130ms var(--ease);
 }
-
-.tdv2m-tool-tile.is-img {
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-}
-
-.tdv2m-tool-tile img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  border-radius: 20px;
-}
-
-.tdv2m-tool-tile.tint-teal { color: #0e7490; background: #e0f2f7; }
-.tdv2m-tool-tile.tint-orange { color: var(--copper); background: var(--copper-tint); }
-.tdv2m-tool-tile.tint-purple { color: #7c3aed; background: #f1e9fe; }
-.tdv2m-tool-tile.tint-green { color: #15803d; background: #e3f5e9; }
-.tdv2m-tool-tile.tint-blue { color: #1d4ed8; background: #e5edfd; }
-.tdv2m-tool-tile.tint-rose { color: #be123c; background: #fde8ec; }
 
 .tdv2m-tool-name {
   font-size: 13px;
@@ -3671,20 +3618,11 @@ a.tdv2-check-row:hover {
   background: var(--copper-tint);
 }
 
+/* Sizing only — surface and behaviours come from GlassToolTile. */
 .tdv2m-qcsheet-tile {
-  display: grid;
-  place-items: center;
   width: 68px;
   height: 68px;
-  border-radius: 18px;
   color: var(--copper);
-}
-
-.tdv2m-qcsheet-tile img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  border-radius: 18px;
 }
 
 .tdv2m-qcsheet-label {
