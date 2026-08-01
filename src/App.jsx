@@ -259,6 +259,37 @@ const GamesSeedAdmin = lazy(() => import('./components/admin/GamesSeedAdmin'))
 // Quiz editor (shared by admin + teacher)
 const EditQuiz = lazy(() => import('./components/quiz/EditQuizV2'))
 
+// Lifts the Android in-app splash (index.html + /public/zx-splash.js) once
+// the app has DECIDED its first real screen — not on bare App mount. The
+// splash overlays the whole boot at max z-index, so FullScreenLoader
+// ("Welcome back… / Loading your workspace…") runs invisibly underneath it;
+// calling hide() before the auth decision would lift the splash onto that
+// loader mid-boot (the recorded launch-order bug). `settled` mirrors the
+// conditions under which RootRedirect/ProtectedRoute stop rendering
+// FullScreenLoader: auth restore finished, and — for a signed-in user — the
+// profile round-trip resolved one way or the other (profileIssue renders
+// MissingProfileRecovery, which IS a decided screen). The double
+// requestAnimationFrame lets the decided screen commit AND paint before the
+// splash starts its exit fade, so it reveals a finished screen. The splash's
+// own 2.6s minimum and 10s failsafe bound both ends; on the website this is
+// a no-op because the splash controller already removed itself.
+function SplashDismissal() {
+  const { currentUser, userProfile, loading, profileIssue } = useAuth()
+  const settled = !loading && (!currentUser || !!userProfile || !!profileIssue)
+  useEffect(() => {
+    if (!settled) return undefined
+    let raf2 = null
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => { window.ZedSplash?.hide?.() })
+    })
+    return () => {
+      cancelAnimationFrame(raf1)
+      if (raf2 !== null) cancelAnimationFrame(raf2)
+    }
+  }, [settled])
+  return null
+}
+
 function RootRedirect() {
   const { currentUser, userProfile, loading, isAdmin, isTeacher, profileIssue, needsEmailVerification } = useAuth()
   // Cold-start race: Firebase restores the persisted session asynchronously,
@@ -367,12 +398,6 @@ function RouteErrorBoundary({ children }) {
 }
 
 export default function App() {
-  // Dismiss the Android in-app splash (index.html + /public/zx-splash.js)
-  // once React has committed its first frame. No-op on the website — the
-  // splash controller already removed itself there — and deliberately not
-  // gated on auth/network state: the splash's own 2.6s minimum show covers
-  // the animation, and its 10s failsafe covers a hung boot.
-  useEffect(() => { window.ZedSplash?.hide?.() }, [])
   return (
     <BrowserRouter>
       <PlatformSettingsProvider>
@@ -413,6 +438,10 @@ export default function App() {
           default. Self-hides once a decision is recorded. */}
       <CookieConsentBanner />
       <ThemeApplicator />
+      {/* Lifts the Android in-app splash once the auth boot decision is made
+          and the first real screen has painted (see SplashDismissal above).
+          Headless; no-op on the website. */}
+      <SplashDismissal />
       {/* Binds the teacher workspace theme to users/{uid}.preferences.theme.
           Mounted here rather than in ThemeProvider because that provider sits
           above AuthProvider and so cannot read auth (headless; no-op when
