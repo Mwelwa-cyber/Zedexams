@@ -8,6 +8,7 @@ import {
   ArrowRightStartOnRectangleIcon,
   ArrowRightIcon,
   ArrowTrendingUpIcon,
+  ArrowsPointingInIcon,
   ArrowsPointingOutIcon,
   ArrowUpTrayIcon,
   ArrowUturnLeftIcon,
@@ -216,6 +217,7 @@ const RotateCcw = /*#__PURE__*/ withSize(ArrowPathIcon)
 const LogOut = /*#__PURE__*/ withSize(ArrowRightStartOnRectangleIcon)
 const TrendingUp = /*#__PURE__*/ withSize(ArrowTrendingUpIcon)
 const Maximize2 = /*#__PURE__*/ withSize(ArrowsPointingOutIcon)
+const Minimize2 = /*#__PURE__*/ withSize(ArrowsPointingInIcon)
 const Upload = /*#__PURE__*/ withSize(ArrowUpTrayIcon)
 const Undo2 = /*#__PURE__*/ withSize(ArrowUturnLeftIcon)
 const Redo2 = /*#__PURE__*/ withSize(ArrowUturnRightIcon)
@@ -354,6 +356,7 @@ export {
   LogOut,
   TrendingUp,
   Maximize2,
+  Minimize2,
   Upload,
   Undo2,
   Redo2,

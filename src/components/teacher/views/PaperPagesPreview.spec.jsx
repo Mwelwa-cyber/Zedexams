@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import PaperPagesPreview from './PaperPagesPreview.jsx'
 import { PAGINATION_STATES } from '../../../utils/paperPaginationCore.js'
@@ -196,6 +196,113 @@ describe('PaperPagesPreview — zoom is independent of pagination', () => {
     await user.click(screen.getByRole('button', { name: '100%' }))
     expect(screen.getByRole('button', { name: '100%' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: '75%' })).toHaveAttribute('aria-pressed', 'false')
+  })
+})
+
+describe('PaperPagesPreview — pinch zoom', () => {
+  const pagination = measured([
+    { pageNumber: 1, blockIndexes: [0, 1] },
+    { pageNumber: 2, blockIndexes: [2, 3] },
+  ])
+  const twoTouches = (d) => [
+    { clientX: 100, clientY: 100 },
+    { clientX: 100 + d, clientY: 100 },
+  ]
+
+  it('a two-finger spread scales the sheet continuously — no preset needed', () => {
+    const { container } = render(<PaperPagesPreview blocks={blocks} pagination={pagination} />)
+    const scroll = container.querySelector('.pp-scroll')
+
+    fireEvent.touchStart(scroll, { touches: twoTouches(100) })
+    fireEvent.touchMove(scroll, { touches: twoTouches(200) })
+
+    // Starts from the unmeasured-container default of 100%, so twice the
+    // finger distance is exactly scale(2).
+    expect(sheets(container)[0].style.transform).toBe('scale(2)')
+    // The pinch names no preset, so none may claim to be active.
+    for (const label of ['Fit page', 'Fit width', '75%', '100%', '125%']) {
+      expect(screen.getByRole('button', { name: label })).toHaveAttribute('aria-pressed', 'false')
+    }
+    expect(screen.getByText(/200%/)).toBeInTheDocument()
+  })
+
+  it('a pinch changes the scale and NOTHING about the pages', () => {
+    const { container } = render(<PaperPagesPreview blocks={blocks} pagination={pagination} />)
+    const scroll = container.querySelector('.pp-scroll')
+    const before = [...sheets(container)].map((s) => s.textContent)
+
+    fireEvent.touchStart(scroll, { touches: twoTouches(100) })
+    fireEvent.touchMove(scroll, { touches: twoTouches(150) })
+
+    expect(sheets(container)).toHaveLength(2)
+    expect([...sheets(container)].map((s) => s.textContent)).toEqual(before)
+  })
+
+  it('choosing a preset afterwards takes back over from the pinch', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<PaperPagesPreview blocks={blocks} pagination={pagination} />)
+    const scroll = container.querySelector('.pp-scroll')
+
+    fireEvent.touchStart(scroll, { touches: twoTouches(100) })
+    fireEvent.touchMove(scroll, { touches: twoTouches(200) })
+    await user.click(screen.getByRole('button', { name: '75%' }))
+
+    expect(sheets(container)[0].style.transform).toBe('scale(0.75)')
+    expect(screen.getByRole('button', { name: '75%' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('the sheet scales from its top-left corner, so no overhang can escape the scroll range', () => {
+    // With `top center` a zoomed sheet spilled LEFT of the scroll origin, and
+    // that overhang cannot be reached: browsers only extend scrolling right
+    // and bottom. This is the phone "can't pan to the left edge" regression.
+    const { container } = render(<PaperPagesPreview blocks={blocks} pagination={pagination} />)
+    expect(sheets(container)[0].style.transformOrigin).toBe('top left')
+  })
+})
+
+describe('PaperPagesPreview — full screen', () => {
+  const pagination = measured([{ pageNumber: 1, blockIndexes: [0, 1, 2, 3] }])
+
+  it('portals the preview over the whole viewport and back', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<PaperPagesPreview blocks={blocks} pagination={pagination} />)
+    expect(container.querySelector('.pp-preview')).not.toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Full screen' }))
+
+    // Out of the studio panel, onto document.body — an ancestor transform
+    // would otherwise re-anchor the fixed overlay to the panel.
+    expect(container.querySelector('.pp-preview')).toBeNull()
+    const overlay = document.body.querySelector(':scope > .pp-preview')
+    expect(overlay).not.toBeNull()
+    expect(overlay.classList.contains('pp-fullscreen')).toBe(true)
+    // The paper fills the screen: full screen enters at fit-width.
+    expect(screen.getByRole('button', { name: 'Fit width' })).toHaveAttribute('aria-pressed', 'true')
+
+    await user.click(screen.getByRole('button', { name: 'Exit full screen' }))
+    expect(container.querySelector('.pp-preview')).not.toBeNull()
+    expect(document.body.querySelector(':scope > .pp-preview')).toBeNull()
+  })
+
+  it('Escape leaves full screen', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<PaperPagesPreview blocks={blocks} pagination={pagination} />)
+    await user.click(screen.getByRole('button', { name: 'Full screen' }))
+    expect(document.body.querySelector(':scope > .pp-preview')).not.toBeNull()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    expect(document.body.querySelector(':scope > .pp-preview')).toBeNull()
+    expect(container.querySelector('.pp-preview')).not.toBeNull()
+  })
+
+  it('locks the page behind while the overlay is up', async () => {
+    const user = userEvent.setup()
+    render(<PaperPagesPreview blocks={blocks} pagination={pagination} />)
+    await user.click(screen.getByRole('button', { name: 'Full screen' }))
+    expect(document.body.style.overflow).toBe('hidden')
+    await user.click(screen.getByRole('button', { name: 'Exit full screen' }))
+    expect(document.body.style.overflow).toBe('')
   })
 })
 

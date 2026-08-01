@@ -91,6 +91,7 @@
     "test:assessment-document": "node src/utils/assessmentDocument.test.js",
     "test:paper-page-plan": "node src/utils/paperPagePlan.test.js",
     "test:preview-zoom": "node src/utils/paperPreviewZoom.test.js",
+    "test:preview-gestures": "node src/utils/paperPreviewGestures.test.js",
     "test:paper-acceptance": "node src/utils/paperAcceptance.test.js",
     "test:validation-report": "node src/utils/assessmentValidationReport.test.js",
     "test:server-export-readiness": "node functions/assessmentExports/exportReadiness.test.js",
