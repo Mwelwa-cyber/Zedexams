@@ -91,18 +91,18 @@
 - [x] `functions/` critical/high dependency vulns cleared (adm-zip, websocket-driver → `npm audit` 0; SEC-007)
 - [x] DOCX archive hardened (magic bytes, size/ratio/entry caps, traversal/encrypted rejection; SEC-007)
 - [?] Rules-emulator/build as *required* checks (CICD-001)
-- [~] Dependabot **is configured** (`.github/dependabot.yml` — weekly grouped npm + github-actions updates, CICD-002/CICD-007), alongside the required `dependency-audit` CI job; secret scanning / push protection (CICD-003) is a GitHub repo setting, not visible from the tree — verify in Settings → Code security
+- [~] Dependabot **version updates are configured** in-repo (`.github/dependabot.yml` — weekly grouped npm + github-actions, CICD-002/CICD-007), and a `dependency-audit` job is defined in `ci.yml`. Three **console-only** steps are NOT visible from the tree and remain to be verified in GitHub Settings (see [`runbooks/ci-supply-chain.md`](./runbooks/ci-supply-chain.md) §Operator steps): (a) whether `Dependency audit (prod deps)` is actually a **required** status check in `main` branch protection — defining the job does not make it required; (b) **Secret scanning + push protection** (CICD-003); (c) **Dependabot alerts + security updates**, which the YAML does *not* enable and which are what surface out-of-band advisories between weekly runs
 - [ ] Staging/prod project separation (CICD-004)
 - [x] Rollback runbook (CICD-005 — `runbooks/deploy-rollback.md`; rehearsal drill is the operator step)
 - [~] Third-party actions pinned to mutable tags/@main (CICD-007)
 
 ## Backups
-- [~] Daily Firestore export **configured** — `FIRESTORE_BACKUP_BUCKET=gs://zedexams-backups` IS set in `functions/.env.examsprepzambia`, which records the bucket + IAM as provisioned 2026-07-19. Still to close DR-001 (per that same note): confirm a **first real export** landed (`opsBackups/{date}.status`) and rehearse the **restore drill**
-- [~] Restore script + runbook exist and are tested; **restore drill not yet rehearsed** (DR-002)
+- [x] Daily Firestore export **configured, runtime-verified, and restore-drilled** — `FIRESTORE_BACKUP_BUCKET=gs://zedexams-backups` is set (#1802); a real managed export was observed, and the restore drill **PASSED 2026-07-22** (27,192 docs, RTO 25m50s). Per `remediation/dr-001-infrastructure-readiness.md` §10 the Firestore restore path is proven and **must not be re-run**; what's still open there is a DOCX runtime test, a dedicated least-privileged backup SA, and the **Auth + Storage + provider-reconciliation** gaps the Firestore export doesn't cover
+- [x] Restore script + runbook exist and are tested, and the **drill was rehearsed 2026-07-22** — 27,192 docs restored into a scratch database, RTO 25m50s, scratch DB deleted, nothing imported into `(default)` (DR-002; evidence in `remediation/dr-001-infrastructure-readiness.md` §13)
 - [x] Misconfigured prod backup alerts (was silent); prod/dev skip distinguished; structured logs (DR-005 code)
 - [x] Retention selector can never delete newest/incomplete backup (tested); bucket lifecycle documented
 - [ ] Storage backup (DR-003); Firebase Auth export (DR-002 gap)
-- [~] Deletion protection (DR-004) + 7-day PITR (DR-006) — `functions/.env.examsprepzambia` records both as **enabled 2026-07-19**; not independently verifiable from the tree, so confirm in the GCP console rather than re-running the enable commands
+- [x] Deletion protection (DR-004) + 7-day PITR (DR-006) — provisioned **2026-07-19**, recorded in `functions/.env.examsprepzambia` and `remediation/dr-001-infrastructure-readiness.md`. Console-only state, so confirm there if in doubt — do not re-run the enable commands
 
 ## Privacy
 - [x] Privacy Policy + Terms, data export, cookie/analytics consent, AI + processor disclosure

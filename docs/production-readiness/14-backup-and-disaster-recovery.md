@@ -2,6 +2,24 @@
 
 > Snapshot as of 2026-07-19. Layer 16. Finding IDs: `DR-*`.
 
+> ## ⚠️ READ FIRST — this document's DR-001 verdict is SUPERSEDED (2026-08-01)
+> Everything below describes the **pre-provisioning** state, including the
+> summary and the "effective RPO = total loss" verdict. Since it was written:
+> - `FIRESTORE_BACKUP_BUCKET=gs://zedexams-backups` is **set** (#1802);
+> - the bucket, IAM, 7-day **PITR** and **deletion protection** were provisioned
+>   **2026-07-19**;
+> - a **real managed export** was observed, and a **restore drill PASSED
+>   2026-07-22** — 27,192 documents restored into a scratch database, measured
+>   **RTO 25m50s**.
+>
+> **The Firestore restore path is proven and does NOT need re-running.** The
+> authoritative, current record is
+> [`remediation/dr-001-infrastructure-readiness.md`](./remediation/dr-001-infrastructure-readiness.md)
+> — read it before acting on anything here. Per its §10 the genuinely open items
+> are: a DOCX runtime test (SEC-007), a dedicated least-privileged backup service
+> account, and the **Firebase Auth + Cloud Storage + provider-reconciliation** DR
+> gaps that the Firestore export does not cover.
+
 > **Remediation status (this PR) — Implemented, pending runtime verification:**
 > the *code-side* gaps are fixed. The runner now distinguishes **`misconfigured`**
 > (production, no bucket → **error alert**) from **`skipped-non-production`**
@@ -33,11 +51,11 @@ undefined.
 - **Affected:** `functions/firestoreBackup.js:68-77`, `functions/index.js:2994-2998`,
   `functions/.env.examsprepzambia`.
 - **⚠️ SUPERSEDED (2026-08-01):** the "no `FIRESTORE_BACKUP_BUCKET`" finding below was true when
-  this audit was written and is **no longer accurate**. `FIRESTORE_BACKUP_BUCKET=gs://zedexams-backups`
-  has been set since #1802 (2026-07-20), and the env file records the bucket, IAM, 7-day PITR and
-  deletion protection as provisioned 2026-07-19. What remains of DR-001 is the **first real export
-  confirmation + the restore drill** — read the env file and the GCP console before acting on the
-  paragraphs below, which describe the pre-provisioning state.
+  this audit was written and is **no longer accurate** — the bucket variable is set, and the export
+  **and** restore drill have both since passed. See the banner at the top of this document and the
+  authoritative record in
+  [`remediation/dr-001-infrastructure-readiness.md`](./remediation/dr-001-infrastructure-readiness.md).
+  Do **not** schedule a restore drill on the strength of the paragraphs below.
 - **Current behaviour:** `dailyFirestoreBackup` runs `onSchedule("every day 01:30")`, but
   `resolveBackupBucket(env.FIRESTORE_BACKUP_BUCKET)` returns falsy when the var is unset → the run
   writes `opsBackups/{date} = {status:"skipped-unconfigured"}` and returns **without exporting**.
