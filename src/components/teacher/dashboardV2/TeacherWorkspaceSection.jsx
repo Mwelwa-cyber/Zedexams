@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { STUDIO_CATEGORIES, TEACHER_STUDIOS } from './launcher/teacherStudios'
 import { resolveBadge } from './launcher/teacherLauncherCore'
+import useGlassTile from '../../../hooks/useGlassTile'
 import './teacherWorkspaceSection.css'
 
 /**
@@ -46,12 +47,15 @@ const MORE_TOOLS = TEACHER_STUDIOS.filter((s) => !FEATURED_IDS.has(s.id))
 function StudioCard({ studio, badge, pending }) {
   const Icon = studio.icon
   const badgeLabel = badge ? `, ${badge.label}` : ''
+  const tileRef = useGlassTile()
   return (
     <Link
+      ref={tileRef}
       to={studio.route}
       className="tws-card"
       aria-label={`${studio.title}${badgeLabel}. Open studio`}
     >
+      <span className="tws-sheen" aria-hidden="true" />
       <span className="tws-card-top">
         <span
           className={`tws-card-icon ${studio.image ? 'is-img' : `tint-${studio.tint || 'teal'}`}`}
@@ -106,7 +110,7 @@ export default function TeacherWorkspaceSection({
       {STUDIO_CATEGORIES.filter((c) => FEATURED[c.id]).map((c) => {
         const SecIcon = SECTION_META[c.id].icon
         return (
-          <div key={c.id} className="tws-sec">
+          <div key={c.id} className={`tws-sec tws-sec--${c.id}`}>
             <div className="tws-sec-head">
               <span className="tws-sec-chip" aria-hidden="true">
                 <SecIcon size={16} strokeWidth={2} />
@@ -136,7 +140,7 @@ export default function TeacherWorkspaceSection({
       })}
 
       {allToolsOpen ? (
-        <div className="tws-sec" id="tws-all-tools">
+        <div className="tws-sec tws-sec--more" id="tws-all-tools">
           <div className="tws-sec-head">
             <span className="tws-sec-chip" aria-hidden="true">
               <LayoutGrid size={16} strokeWidth={2} />
