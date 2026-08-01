@@ -31,7 +31,13 @@ undefined.
 ### DR-001 — Firestore backups are almost certainly not running
 - **Severity:** Critical · **Confidence:** High confidence (config) / Requires runtime verification (prod env)
 - **Affected:** `functions/firestoreBackup.js:68-77`, `functions/index.js:2994-2998`,
-  `functions/.env.examsprepzambia` (verified: **no `FIRESTORE_BACKUP_BUCKET`**).
+  `functions/.env.examsprepzambia`.
+- **⚠️ SUPERSEDED (2026-08-01):** the "no `FIRESTORE_BACKUP_BUCKET`" finding below was true when
+  this audit was written and is **no longer accurate**. `FIRESTORE_BACKUP_BUCKET=gs://zedexams-backups`
+  has been set since #1802 (2026-07-20), and the env file records the bucket, IAM, 7-day PITR and
+  deletion protection as provisioned 2026-07-19. What remains of DR-001 is the **first real export
+  confirmation + the restore drill** — read the env file and the GCP console before acting on the
+  paragraphs below, which describe the pre-provisioning state.
 - **Current behaviour:** `dailyFirestoreBackup` runs `onSchedule("every day 01:30")`, but
   `resolveBackupBucket(env.FIRESTORE_BACKUP_BUCKET)` returns falsy when the var is unset → the run
   writes `opsBackups/{date} = {status:"skipped-unconfigured"}` and returns **without exporting**.

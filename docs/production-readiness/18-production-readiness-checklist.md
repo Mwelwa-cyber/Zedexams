@@ -91,18 +91,18 @@
 - [x] `functions/` critical/high dependency vulns cleared (adm-zip, websocket-driver → `npm audit` 0; SEC-007)
 - [x] DOCX archive hardened (magic bytes, size/ratio/entry caps, traversal/encrypted rejection; SEC-007)
 - [?] Rules-emulator/build as *required* checks (CICD-001)
-- [ ] Dependency scanning / Dependabot (CICD-002); secret scanning/push protection (CICD-003)
+- [~] Dependabot **is configured** (`.github/dependabot.yml` — weekly grouped npm + github-actions updates, CICD-002/CICD-007), alongside the required `dependency-audit` CI job; secret scanning / push protection (CICD-003) is a GitHub repo setting, not visible from the tree — verify in Settings → Code security
 - [ ] Staging/prod project separation (CICD-004)
 - [x] Rollback runbook (CICD-005 — `runbooks/deploy-rollback.md`; rehearsal drill is the operator step)
 - [~] Third-party actions pinned to mutable tags/@main (CICD-007)
 
 ## Backups
-- [?] Daily Firestore export **configured & running** (code implemented; `FIRESTORE_BACKUP_BUCKET` still unset — operator step; DR-001)
+- [~] Daily Firestore export **configured** — `FIRESTORE_BACKUP_BUCKET=gs://zedexams-backups` IS set in `functions/.env.examsprepzambia`, which records the bucket + IAM as provisioned 2026-07-19. Still to close DR-001 (per that same note): confirm a **first real export** landed (`opsBackups/{date}.status`) and rehearse the **restore drill**
 - [~] Restore script + runbook exist and are tested; **restore drill not yet rehearsed** (DR-002)
 - [x] Misconfigured prod backup alerts (was silent); prod/dev skip distinguished; structured logs (DR-005 code)
 - [x] Retention selector can never delete newest/incomplete backup (tested); bucket lifecycle documented
 - [ ] Storage backup (DR-003); Firebase Auth export (DR-002 gap)
-- [ ] Deletion protection (DR-004); PITR (DR-006) — operator step in runbook
+- [~] Deletion protection (DR-004) + 7-day PITR (DR-006) — `functions/.env.examsprepzambia` records both as **enabled 2026-07-19**; not independently verifiable from the tree, so confirm in the GCP console rather than re-running the enable commands
 
 ## Privacy
 - [x] Privacy Policy + Terms, data export, cookie/analytics consent, AI + processor disclosure
