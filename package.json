@@ -474,6 +474,7 @@
     "test:google-play-core": "node functions/googlePlayBillingCore.test.js",
     "test:google-play-verify": "node functions/googlePlayVerify.test.js",
     "test:play-catalog-mirror": "node scripts/test-play-catalog-mirror.mjs",
+    "test:play-catalog-health": "node scripts/test-play-catalog-health.mjs",
     "test:subscription-upgrade": "node functions/subscriptionUpgrade.test.js",
     "test:payment-initiation": "node functions/paymentInitiationCore.test.js",
     "test:lesson-plan-schema": "node functions/teacherTools/lessonPlanSchema.test.js",

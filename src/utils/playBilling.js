@@ -29,14 +29,44 @@ import { NativePurchases, PURCHASE_TYPE } from '@capgo/native-purchases'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app from '../firebase/config'
 import { PLAY_SUBS, playProductForPlan, planIdForPlayProduct, obfuscatedAccountIdForUid } from './playBillingCatalog'
+import {
+  diffPlayCatalog,
+  describePlayCatalogShortfall,
+  playCatalogShortfallProperties,
+} from './playCatalogHealth'
+import { capture } from './analytics'
 
 const fns = getFunctions(app, 'us-central1')
 const verifyCallable = httpsCallable(fns, 'verifyGooglePlayPurchase')
 
 /**
+ * Announce a catalogue shortfall on every channel we have. `console.error`
+ * (not `warn`) because this is a revenue-losing misconfiguration, not a
+ * curiosity — it reaches `adb logcat` during a device test. The analytics
+ * event is what makes it visible AFTER release, alongside play_verify_failed.
+ * Never throws: a broken reporter must not take down the upgrade panel.
+ */
+function reportPlayCatalogShortfall(diff) {
+  const message = describePlayCatalogShortfall(diff)
+  try {
+    console.error(`[playBilling] ${message}`)
+  } catch { /* console unavailable — telemetry below still runs */ }
+  try {
+    capture('play_products_missing', playCatalogShortfallProperties(diff))
+  } catch { /* capture() already swallows its own errors; belt and braces */ }
+}
+
+/**
  * Fetch Play products for a list of plan ids. Products not returned by
- * Play (not yet created/activated in the Console) are omitted with a
- * warning rather than failing the whole panel.
+ * Play (not yet created/activated in the Console) are omitted rather than
+ * failing the whole panel — a partial catalogue still lets someone buy.
+ *
+ * A drop is NOT silent: the shortfall is reported to the console AND to
+ * analytics (`play_products_missing`) from inside this function, so it can't
+ * be lost by a caller that forgets to check. That matters because the panel
+ * only shows the buyer an error when NOTHING comes back; a partial catalogue
+ * renders as a normal, shorter plan list. See playCatalogHealth.js.
+ *
  * @returns {Promise<Array<{planId, productId, priceString, price, title}>>}
  */
 export async function fetchPlayProducts(planIds) {
@@ -63,13 +93,15 @@ export async function fetchPlayProducts(planIds) {
     if (productId && !byProductId.has(productId)) byProductId.set(productId, p)
   }
 
+  // Report the shortfall BEFORE building the result, so a throw while mapping
+  // products can't swallow the diagnosis.
+  const diff = diffPlayCatalog(wanted, byProductId.keys())
+  if (!diff.complete) reportPlayCatalogShortfall(diff)
+
   const out = []
   for (const w of wanted) {
     const p = byProductId.get(w.productId)
-    if (!p) {
-      console.warn(`[playBilling] Play did not return product "${w.productId}" — is it active in the Play Console?`)
-      continue
-    }
+    if (!p) continue
     out.push({
       planId: w.planId,
       productId: w.productId,
