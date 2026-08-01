@@ -1149,6 +1149,9 @@ exports.sendPasswordResetEmail = onCall(
 // without touching any other OpenAI call. When unset, callOpenAI/
 // callOpenAIStream fall back to OPENAI_MODEL, then "gpt-4o-mini".
 const ZED_CHAT_MODEL = process.env.ZED_CHAT_MODEL || undefined;
+// SSE keep-alive interval while apiAiChat buffers + moderates. Comfortably under
+// the client's 30s stall watchdog (src/utils/aiAssistant.js AI_CHAT_STREAM_STALL_MS).
+const CHAT_HEARTBEAT_MS = 10000;
 
 // Zed study assistant — runs on OpenAI (gpt-4o-mini by default; override with
 // ZED_CHAT_MODEL). buildAnthropicChat returns a provider-neutral
@@ -1696,6 +1699,8 @@ exports.apiAiChat = onRequest(
     // Flush an initial keep-alive comment so the client knows the connection opened.
     res.write(": connected\n\n");
 
+    // Heartbeat lives outside the try so `finally` can always clear it.
+    let heartbeatTimer = null;
     try {
       // AI-003: the model OUTPUT must be moderated BEFORE it reaches the child,
       // same as the aiChat callable. Streaming tokens live would display unsafe
@@ -1704,13 +1709,15 @@ exports.apiAiChat = onRequest(
       // reply (its Android SSE fallback). Input was already moderated above.
       //
       // While buffering + moderating the connection would otherwise go silent,
-      // tripping the client's 30s stall watchdog (which resets on ANY bytes it
-      // reads). An SSE comment line carries no data event, so periodic
-      // heartbeats keep the connection alive without displaying anything.
+      // tripping the client's stall watchdog (AI_CHAT_STREAM_STALL_MS = 30s,
+      // which resets on ANY bytes it reads). An SSE comment carries no data
+      // event, so a TIME-based heartbeat keeps the connection alive. It must be
+      // time-based, not token-count-based: a slow or sparse token stream (a long
+      // first-token latency) could otherwise miss the 30s window entirely.
       const heartbeat = () => {
         try { res.write(": keepalive\n\n"); } catch (e) { /* client already gone */ }
       };
-      let sinceBeat = 0;
+      heartbeatTimer = setInterval(heartbeat, CHAT_HEARTBEAT_MS);
       let full = "";
       await callOpenAIStream(
         apiKey,
@@ -1724,10 +1731,8 @@ exports.apiAiChat = onRequest(
         },
         (token) => {
           full += token;
-          if (++sinceBeat >= 24) { sinceBeat = 0; heartbeat(); }
         },
       );
-      heartbeat(); // keep the connection alive across the moderation call (~8s)
       // Screen the ENTIRE reply — moderateText clamps one call to 8000 chars, so
       // a long reply is windowed; content past the first window can't slip through.
       const outputModeration = await checkLearnerTextWindowed(apiKey, full, {label: "apiAiChat:output"});
@@ -1748,6 +1753,7 @@ exports.apiAiChat = onRequest(
       // surface a user-facing message and fall back gracefully.
       res.write(`data: [ERROR] ${JSON.stringify({error: error?.message || "Zed is unavailable right now."})}\n\n`);
     } finally {
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
       res.end();
     }
   },
