@@ -210,6 +210,16 @@ jobs:
           VITE_POSTHOG_HOST:                ${{ secrets.VITE_POSTHOG_HOST }}
           # External services
           VITE_GOOGLE_MAPS_STATIC_KEY:      ${{ secrets.VITE_GOOGLE_MAPS_STATIC_KEY }}
+          # Sentry source-map upload (build-time only — NOT VITE_ vars, so they
+          # never enter the bundle). Without all three, maybeSentryPlugin() in
+          # vite.config.js returns no plugin and this build's frames stay
+          # MINIFIED in Sentry even though VITE_SENTRY_DSN above makes it report
+          # errors — which is exactly the gap this closes. Unset ⇒ upload
+          # skipped, build unchanged; an upload failure is non-fatal
+          # (errorHandler), so a symbol hiccup can't block a release.
+          SENTRY_AUTH_TOKEN:                ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG:                       ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT:                   ${{ secrets.SENTRY_PROJECT }}
         run: npm run build
 
       # Firebase native config — required for @capacitor-firebase/authentication
