@@ -59,7 +59,23 @@ check(
   'hidden attribute beats display:flex (#zx-splash[hidden] rule)',
   /#zx-splash\[hidden\]\s*\{\s*display:\s*none/.test(indexHtml)
 )
-check('splash sits at z-index 9999', /#zx-splash\s*\{[^}]*z-index:\s*9999/.test(indexHtml))
+// The splash must stack above EVERY app layer. It shipped at 9999, which tied
+// FullScreenLoader (fixed, 9999, later in the DOM → painted on top) and sat
+// under PageLoader (10000) — on a real device the cream "Welcome back…"
+// loader covered the splash mid-boot and it re-emerged after auth resolved.
+const splashZ = Number((splashStyleZ().match(/z-index:\s*(\d+)/) || [])[1])
+check('splash sits at max z-index (2147483647)', splashZ === 2147483647, `found ${splashZ}`)
+const loaderZ = Number((read('src/components/ui/FullScreenLoader.jsx').match(/zIndex:\s*(\d+)/) || [])[1])
+const pageLoaderZ = Number((read('src/components/ui/PageLoader.jsx').match(/zIndex:\s*(\d+)/) || [])[1])
+check(
+  'splash z-index beats FullScreenLoader and PageLoader',
+  Number.isFinite(loaderZ) && Number.isFinite(pageLoaderZ) && splashZ > loaderZ && splashZ > pageLoaderZ,
+  `splash ${splashZ} vs FullScreenLoader ${loaderZ} / PageLoader ${pageLoaderZ}`
+)
+function splashStyleZ() {
+  const m = indexHtml.match(/#zx-splash\s*\{[\s\S]*?\}/)
+  return m ? m[0] : ''
+}
 check('prefers-reduced-motion handled inside the splash style', indexHtml.includes('prefers-reduced-motion'))
 // Every splash keyframe must be zx-prefixed so it can't collide with app CSS.
 const splashStyle = indexHtml.split('<style id="zx-splash-style">')[1].split('</style>')[0]
@@ -84,6 +100,20 @@ check('exposes window.ZedSplash.hide', /window\.ZedSplash\s*=\s*\{\s*hide:\s*hid
 
 console.log('src/App.jsx')
 check('App signals ready via window.ZedSplash?.hide?.()', appJsx.includes('window.ZedSplash?.hide?.()'))
+// hide() must be anchored to the auth boot decision, never bare App mount —
+// otherwise the splash's exit isn't tied to a decided first screen and the
+// user can watch it lift onto FullScreenLoader mid-boot.
+const dismissal = (appJsx.match(/function SplashDismissal\(\)[\s\S]*?\n\}/) || [''])[0]
+check(
+  'hide() lives in SplashDismissal, gated on auth settle (useAuth + loading + userProfile)',
+  dismissal.includes('useAuth()') && dismissal.includes('window.ZedSplash?.hide?.()') &&
+    /settled/.test(dismissal) && /loading/.test(dismissal) && /userProfile/.test(dismissal)
+)
+check('SplashDismissal is mounted in the App tree', appJsx.includes('<SplashDismissal />'))
+check(
+  'no bare-mount hide effect in App()',
+  !/function App\(\)[\s\S]{0,400}ZedSplash/.test(appJsx)
+)
 
 console.log('android/')
 check(

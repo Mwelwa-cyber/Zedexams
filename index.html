@@ -213,11 +213,18 @@
       the splash renders instantly and offline with no external requests; the
       controller script is external because the CSP has no 'unsafe-inline' in
       script-src. All selectors are zx-prefixed and scoped so Tailwind/app CSS
-      can't collide; the splash sits above the boot skeleton at z-index 9999.
+      can't collide; the splash sits above every app layer (boot skeleton,
+      FullScreenLoader, PageLoader) at the max z-index.
       Guarded by test:android-splash. -->
     <style id="zx-splash-style">
       #zx-splash {
-        position: fixed; inset: 0; z-index: 9999;
+        /* Max int32: the splash must beat EVERY app layer. It shipped at 9999,
+           which tied FullScreenLoader (fixed, z-index 9999, later in the DOM →
+           painted on top) and sat under PageLoader (10000) — on a real device
+           the cream "Welcome back…" loader covered the splash mid-boot and the
+           splash re-emerged after auth resolved. Nothing in src/ may stack
+           above this (guarded by test:android-splash). */
+        position: fixed; inset: 0; z-index: 2147483647;
         display: flex; flex-direction: column;
         align-items: center; justify-content: center;
         overflow: hidden;
