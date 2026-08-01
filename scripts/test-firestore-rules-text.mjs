@@ -707,6 +707,71 @@ test('the signup surface stays available to unverified users', () => {
   )
 })
 
+// ── the age answer is a create-time requirement, per role ─────────
+
+console.log('\nusers — the age answer is required of learners and refused of everyone else')
+
+function usersCreateRule() {
+  const slice = rules.slice(
+    rules.indexOf('match /users/{userId}'),
+    rules.indexOf('match /settings/'),
+  )
+  const start = slice.indexOf('allow create:')
+  assert(start >= 0, 'users create rule not found')
+  return slice.slice(start, slice.indexOf(';', start))
+}
+
+test('every self-selectable signup role can create its own document', () => {
+  // 'parent' was missing from this list while the signup page offered a
+  // Parent role, so every parent signup failed on its very first write.
+  const rule = usersCreateRule()
+  for (const role of ['learner', 'teacher', 'parent']) {
+    assert(rule.includes(`'${role}'`), `users create must accept role '${role}'`)
+  }
+})
+
+test('a learner user doc cannot be created without a date of birth', () => {
+  // Without this the neutral age screen is advisory: a crafted setDoc makes a
+  // learner with no declared age, which resolves to the `unknown` consent
+  // status — the migration state, which grants FULL capabilities.
+  const rule = usersCreateRule()
+  assert(
+    /incoming\(\)\.role != 'learner'\s*\|\|\s*\(incoming\(\)\.get\('dob', null\) is string/.test(rule),
+    'users create must require a `dob` string on learner documents',
+  )
+})
+
+test('teachers and parents may not send a date of birth at all', () => {
+  // The field's absence is a promise made in the Privacy Policy and the Play
+  // Data safety form. "We stopped collecting it" is not the same as "it
+  // cannot be written".
+  const rule = usersCreateRule()
+  assert(
+    /incoming\(\)\.role == 'learner'\s*\|\|\s*\(incoming\(\)\.get\('dob', null\) == null/.test(rule),
+    'users create must refuse `dob` on non-learner documents',
+  )
+  assert(
+    rule.includes("incoming().get('isMinor', null) == null"),
+    'users create must refuse `isMinor` on non-learner documents',
+  )
+})
+
+test('the age answer stays server-owned after creation', () => {
+  // `isMinor` is re-derived by learnerAgeOnUserCreated; letting a learner
+  // rewrite it — or the date behind it — would be aging out of the restricted
+  // experience from the client, the neutral age screen's one forbidden outcome.
+  const slice = rules.slice(
+    rules.indexOf('match /users/{userId}'),
+    rules.indexOf('match /settings/'),
+  )
+  for (const field of ['guardian', 'dob', 'isMinor']) {
+    assert(
+      slice.includes(`'${field}'`),
+      `users self-update blocklist must include ${field}`,
+    )
+  }
+})
+
 // ── teachingAssignments — optional numerics accept explicit null ─
 
 console.log('\nteachingAssignments — optional numerics accept explicit null')

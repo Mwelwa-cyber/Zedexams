@@ -4475,6 +4475,11 @@ exports.apiRequestAccountDeletion =
 exports.sendGuardianConsent = require('./guardianConsent').sendGuardianConsent;
 exports.apiGuardianConsent = require('./guardianConsent').apiGuardianConsent;
 exports.recordAgeGateAttempt = require('./guardianConsent').recordAgeGateAttempt;
+// Re-derives isMinor from the declared date of birth on user-doc creation, so
+// the flag the consent gate reads is never the one the client wrote. Pinned to
+// africa-south1 with the (default) database.
+exports.learnerAgeOnUserCreated =
+  require('./guardianConsent/onUserCreated').learnerAgeOnUserCreated;
 
 // Server-generated library downloads: regenerate a saved document on the server
 // and stream it from zedexams.com with the correct filename — no upload, no

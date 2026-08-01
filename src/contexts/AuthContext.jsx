@@ -21,7 +21,8 @@ import { isSuperAdmin as isSuperAdminRole, resolvePermissionFlags } from '../uti
 import { setSentryUser, clearSentryUser } from '../utils/sentry'
 import { capture, identifyUser, resetAnalytics } from '../utils/analytics'
 import { requiresGuardianConsent } from '../utils/guardianConsent'
-import { sendGuardianConsentRequest } from '../utils/ageGateService'
+// (The guardian consent request is sent from the sign-up flow's guardian
+// screen, which is the only place a guardian's address is collected.)
 import { refreshTokenIfGranted, clearPushUser } from '../utils/fcm'
 import { mintAndPersistReferralCode, readPendingReferral, clearPendingReferral } from '../utils/referrals'
 import { clearAllSearchCaches } from '../utils/cache/searchCache.js'
@@ -197,10 +198,16 @@ async function signInWithGoogleNative() {
 // Shared first-time-profile bootstrap for both the popup (web) and native
 // Google flows. New users get a default profile + referral mint; existing
 // users keep their saved doc untouched.
-async function ensureGoogleUserProfile(cred, targetRole) {
+//
+// Returns whether an account was CREATED. That answer is the difference
+// between signing up and signing in through the sign-up page, and the caller
+// needs it: an existing user must not be walked through onboarding, and above
+// all must not have a date of birth they gave us years ago overwritten by one
+// typed on the way past a screen.
+async function ensureGoogleUserProfile(cred, targetRole, onboarding = {}) {
   const userRef = doc(db, 'users', cred.user.uid)
   const snap = await getDoc(userRef)
-  if (snap.exists()) return
+  if (snap.exists()) return false
   // Audit C7 — same referral mint + capture as the email path.
   let referralCode = null
   try {
@@ -209,18 +216,42 @@ async function ensureGoogleUserProfile(cred, targetRole) {
     console.warn('[loginWithGoogle] referral code mint failed', err)
   }
   const referredBy = readPendingReferral()
-  await setDoc(userRef, defaultUserRecord({
+  const record = defaultUserRecord({
     displayName: cred.user.displayName ?? '',
     email: cred.user.email ?? '',
     role: targetRole,
     referralCode,
     referredBy,
     emailVerified: cred.user.emailVerified === true,
-  }))
+  })
+
+  // The age answer, on the same terms as the email path — this is what closes
+  // the bypass. The Google button used to sit above the age question, so a
+  // learner who tapped it created an account with no declared age at all,
+  // which reads as `unknown` and therefore as FULL access. Same derivation,
+  // same server-side recomputation, same pending guardian record.
+  if (targetRole === ROLES.LEARNER) {
+    if (onboarding.dob) record.dob = String(onboarding.dob)
+    const minor = requiresGuardianConsent(onboarding.dob)
+    record.isMinor = minor
+    if (minor) {
+      record.guardian = {
+        contact: '',
+        method: 'email',
+        consentStatus: 'pending',
+        requestedAt: new Date().toISOString(),
+      }
+    }
+  } else if (onboarding.ageConfirmed18Plus === true) {
+    record.ageConfirmed18Plus = true
+  }
+
+  await setDoc(userRef, record)
   if (referredBy) clearPendingReferral()
   // Audit B2 — only emit on the first-time path so Google sign-IN by an
   // existing user doesn't get counted as a signup.
   capture('signup_completed', { role: targetRole, provider: 'google' })
+  return true
 }
 
 export function AuthProvider({ children }) {
@@ -281,40 +312,48 @@ export function AuthProvider({ children }) {
 
     // Age gate + guardian consent (Play Families policy / Zambia DPA).
     //
-    // `isMinor` is DERIVED from the declared date of birth via the shared
-    // consent core, never taken as a flag from the caller — the whole point of
-    // the age screen is that the answer decides the routing, and a client that
-    // could send `isMinor: false` alongside a 2016 birthday would make the
-    // screen decorative. requiresGuardianConsent also treats an absent or
-    // unreadable date as a child, so a tampered payload fails towards the
-    // restricted experience rather than out of it.
-    if (extras.dob) userRecord.dob = String(extras.dob)
-    const minor = requiresGuardianConsent(extras.dob)
-    userRecord.isMinor = minor
-    if (minor) {
-      const guardian = extras.guardian || {}
-      userRecord.guardian = {
-        contact: String(guardian.contact || '').trim(),
-        method: guardian.method === 'whatsapp' ? 'whatsapp' : 'email',
-        // Always 'pending' at creation. A client cannot self-approve: the only
-        // writer of 'granted' is the confirmGuardianConsent server path, and
-        // firestore.rules pins this field against client updates.
-        consentStatus: 'pending',
-        requestedAt: new Date().toISOString(),
+    // ONLY LEARNERS CARRY A DATE OF BIRTH. Teachers and parents used to be
+    // asked for one too; it fed no feature and no obligation, so it is a data
+    // type we would have to declare in the Privacy Policy and the Play Data
+    // safety form and justify on request, for nothing. They attest instead:
+    // `ageConfirmed18Plus`, a boolean, which is what a checkbox actually is.
+    // The guard is on the ROLE rather than on the presence of `extras.dob`,
+    // so a stale client that still sends one cannot reintroduce the field.
+    if (isLearnerSignup) {
+      // `isMinor` is DERIVED from the declared date of birth via the shared
+      // consent core, never taken as a flag from the caller — the whole point
+      // of the age screen is that the answer decides the routing, and a client
+      // that could send `isMinor: false` alongside a 2016 birthday would make
+      // the screen decorative. requiresGuardianConsent also treats an absent
+      // or unreadable date as a child, so a tampered payload fails towards the
+      // restricted experience rather than out of it. The value written here is
+      // re-derived server-side by the users-create trigger regardless.
+      if (extras.dob) userRecord.dob = String(extras.dob)
+      const minor = requiresGuardianConsent(extras.dob)
+      userRecord.isMinor = minor
+      if (minor) {
+        // A pending guardian record is written even though no contact has been
+        // collected yet — the guardian screen comes AFTER the account exists,
+        // and it can be skipped. This is load-bearing: with no guardian object
+        // at all the consent status reads as `unknown`, which is the migration
+        // state that grants FULL capabilities. A minor created without this
+        // would land in full mode, which is the opposite of the intent.
+        userRecord.guardian = {
+          contact: '',
+          method: 'email',
+          // Always 'pending' at creation. A client cannot self-approve: the
+          // only writer of 'granted' is the confirmGuardianConsent server
+          // path, and firestore.rules pins this field against client updates.
+          consentStatus: 'pending',
+          requestedAt: new Date().toISOString(),
+        }
       }
+    } else if (extras.ageConfirmed18Plus === true) {
+      userRecord.ageConfirmed18Plus = true
     }
 
     await setDoc(doc(db, 'users', cred.user.uid), userRecord)
 
-    // Message the guardian. Best-effort: a failed send must not fail signup —
-    // the learner lands in limited mode with a Resend control either way.
-    if (minor) {
-      try {
-        await sendGuardianConsentRequest()
-      } catch (err) {
-        console.warn('[register] guardian consent send failed', err)
-      }
-    }
     if (referredBy) clearPendingReferral()
     // Fire the verification email but don't fail signup if delivery hiccups
     // (e.g. rate-limited, transient Firebase Auth outage). The user lands on
@@ -353,12 +392,22 @@ export function AuthProvider({ children }) {
   // New users get a default profile; the caller can pass `role` (used only on
   // first sign-in) so the Register page can honour the selected
   // Learner/Teacher tab. Existing users keep their saved role.
-  async function loginWithGoogle({ role } = {}) {
+  //
+  // `onboarding` carries the sign-up flow's answers (a learner's date of
+  // birth, a teacher/parent's 18+ confirmation) and is applied ONLY when this
+  // sign-in mints a new account.
+  //
+  // The returned credential is tagged with `isNewAccount`. Tagging the SDK
+  // object rather than changing the return shape keeps the other caller
+  // (Login.jsx, which only wants the credential) working unchanged — this is
+  // a sign-up concern and should not ripple into sign-in.
+  async function loginWithGoogle({ role, onboarding } = {}) {
     const targetRole = (role === ROLES.TEACHER || role === ROLES.PARENT) ? role : ROLES.LEARNER
     const cred = isNativePlatform()
       ? await signInWithGoogleNative()
       : await signInWithPopup(auth, googleProvider)
-    await ensureGoogleUserProfile(cred, targetRole)
+    const created = await ensureGoogleUserProfile(cred, targetRole, onboarding || {})
+    try { cred.isNewAccount = created } catch { /* frozen credential — caller falls back */ }
     return cred
   }
 

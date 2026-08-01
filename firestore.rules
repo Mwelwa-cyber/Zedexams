@@ -415,7 +415,30 @@ service cloud.firestore {
       // phone numbers, payment IDs, and plan/billing fields.
       allow read: if isAuthed() && (isOwner(userId) || isAdmin());
       allow create: if isAuthed() && isOwner(userId)
-        && incoming().role in ['learner', 'teacher']
+        // 'parent' belongs here: the signup page has offered a Parent role
+        // since the parent portal shipped, and this list did not, so every
+        // parent signup failed its very first write.
+        && incoming().role in ['learner', 'teacher', 'parent']
+        // ── The age answer ───────────────────────────────────────────
+        // A learner account MUST carry a declared date of birth. Without
+        // this the neutral age screen is advisory: a crafted setDoc creates
+        // a learner with no age at all, which resolves to the `unknown`
+        // consent status — the migration state, which grants FULL
+        // capabilities. Shape only (an ISO YYYY-MM-DD). Whether the date is
+        // real, and what age it implies, is settled server-side by
+        // learnerAgeOnUserCreated, which rules cannot do without doing date
+        // arithmetic on a string.
+        && (incoming().role != 'learner'
+            || (incoming().get('dob', null) is string && incoming().dob.size() == 10))
+        // Teachers and parents are not asked, so they may not send one.
+        // Enforced rather than merely not-collected: the field's absence is
+        // a promise made in the Privacy Policy and the Play Data safety
+        // form, and a stale client is exactly how such a promise stops
+        // being true without anyone noticing. They attest with a boolean.
+        && (incoming().role == 'learner'
+            || (incoming().get('dob', null) == null
+                && incoming().get('isMinor', null) == null))
+        && incoming().get('ageConfirmed18Plus', false) is bool
         && incoming().get('plan', 'free') == 'free'
         && incoming().get('premium', false) == false
         && incoming().isPremium == false
