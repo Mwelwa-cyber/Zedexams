@@ -276,9 +276,14 @@ export default function ZedChat({ onClose, mode = 'panel' }) {
     cancelStreamRef.current?.()
     cancelStreamRef.current = null
     setStreaming(false)
-    // Mark any still-streaming message as done so the UI clears the
-    // typing dots. Keep the partial text — it might still be useful.
-    setMessages((prev) => prev.map((m) => (m.streaming ? { ...m, streaming: false } : m)))
+    // Clear the typing dots. Keep partial text if any was delivered, but DROP an
+    // empty placeholder — with server-side output moderation the reply is
+    // buffered, so a stop before it arrives leaves no tokens, and clearing the
+    // streaming flag first would otherwise strand a blank assistant bubble
+    // (sanitizeForPersist only drops empty bubbles still marked streaming).
+    setMessages((prev) => prev
+      .filter((m) => !(m.streaming && !String(m.text || '').trim()))
+      .map((m) => (m.streaming ? { ...m, streaming: false } : m)))
   }, [])
 
   const handleClear = useCallback(() => {
