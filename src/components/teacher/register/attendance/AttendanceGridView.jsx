@@ -11,9 +11,9 @@
  */
 
 import { memo, useMemo, useRef, useState } from 'react'
-import { ATTENDANCE_STATUSES, MARKABLE_STATUSES } from '../../../../utils/attendanceConstants'
+import { ATTENDANCE_STATUSES, ATTENDANCE_STATUS_ORDER, MARKABLE_STATUSES } from '../../../../utils/attendanceConstants'
 import { computeLearnerTotals, formatPercent, isLearnerEligibleOn } from '../../../../utils/attendanceCalculator'
-import { groupDaysByMonth, groupDaysByWeek } from '../../../../utils/attendanceCalendarResolver'
+import { groupDaysByMonth, groupDaysByWeek, markableDays } from '../../../../utils/attendanceCalendarResolver'
 
 // Click cycles through the statuses in marking order; keyboard uses the same.
 function nextStatus(current) {
@@ -22,7 +22,7 @@ function nextStatus(current) {
 }
 
 const GridRow = memo(function GridRow({
-  learner, position, weeks, termWindow, totals, disabled, onCell, registerRef, firstCellKey,
+  learner, position, weeks, termWindow, totals, hasMarks, disabled, onCell, registerRef, firstCellKey,
 }) {
   return (
     <tr className="border-b theme-border">
@@ -62,20 +62,39 @@ const GridRow = memo(function GridRow({
       <td className="px-2 py-1 text-xs font-black text-center text-amber-700">{totals.lateDays}</td>
       <td className="px-2 py-1 text-xs font-black text-center text-purple-700">{totals.excusedDays}</td>
       <td className="px-2 py-1 text-xs font-black text-center theme-text-muted">{totals.eligibleDays}</td>
-      <td className="px-2 py-1 text-xs font-black text-center theme-text whitespace-nowrap">{formatPercent(totals.attendancePercentage)}</td>
+      {/* No marks yet → the formula has nothing to say. formatPercent already
+          renders '—' for null; this gate is belt-and-braces for a draft term. */}
+      <td
+        className="px-2 py-1 text-xs font-black text-center theme-text whitespace-nowrap"
+        title={hasMarks ? undefined : 'Calculates as you mark'}
+      >
+        {hasMarks ? formatPercent(totals.attendancePercentage) : '—'}
+      </td>
     </tr>
   )
 })
 
-export default function AttendanceGridView({ registerHook, canEdit, policy }) {
+export default function AttendanceGridView({
+  registerHook, canEdit, policy, monthKey: monthKeyProp = null, onMonthChange = null,
+}) {
   const { roster, termInfo, daysWithRecords, todayIso, setStatusOn } = registerHook
   const months = useMemo(() => groupDaysByMonth(daysWithRecords), [daysWithRecords])
   const defaultMonth = useMemo(() => {
     const current = months.find((m) => m.key === todayIso.slice(0, 7))
     return (current || months[months.length - 1])?.key || null
   }, [months, todayIso])
-  const [monthKey, setMonthKey] = useState(null)
+  // Month selection normally lives in AttendanceWorkspace (one control drives
+  // grid + paper preview); the local state is a fallback for standalone use.
+  const [localMonthKey, setLocalMonthKey] = useState(null)
+  const monthKey = monthKeyProp ?? localMonthKey
+  const setMonthKey = onMonthChange ?? setLocalMonthKey
   const activeMonth = months.find((m) => m.key === (monthKey || defaultMonth)) || months[0]
+
+  // Coarse pointer (touch) → "tap" wording, no keyboard hint. Detected once —
+  // the input class of a device doesn't change mid-session.
+  const [coarsePointer] = useState(
+    () => typeof window !== 'undefined' && Boolean(window.matchMedia?.('(pointer: coarse)')?.matches),
+  )
 
   const learners = useMemo(
     () => [...roster].sort((a, b) => (a.order || 0) - (b.order || 0)),
@@ -203,7 +222,8 @@ export default function AttendanceGridView({ registerHook, canEdit, policy }) {
                 </th>
               )))}
               {['P', 'A', 'S', 'L', 'E', 'Elig', '%'].map((h, i) => (
-                <th key={h} className={`sticky top-8 z-30 theme-card px-2 py-1 text-center text-[10px] font-black theme-text-muted ${i === 0 ? 'border-l theme-border' : ''}`}>{h}</th>
+                <th key={h} title={h === 'Elig' ? 'Eligible days' : undefined}
+                  className={`sticky top-8 z-30 theme-card px-2 py-1 text-center text-[10px] font-black theme-text-muted ${i === 0 ? 'border-l theme-border' : ''}`}>{h}</th>
               ))}
             </tr>
           </thead>
