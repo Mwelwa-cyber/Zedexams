@@ -55,6 +55,8 @@ ok("allowed origin is echoed (never *)",
 ok("Vary: Origin always set", res.headers["Vary"] === "Origin");
 ok("default headers include AppCheck",
   /X-Firebase-AppCheck/.test(res.headers["Access-Control-Allow-Headers"]));
+ok("default headers include X-Request-Id (OBS-003 correlation header)",
+  /X-Request-Id/.test(res.headers["Access-Control-Allow-Headers"]));
 
 res = fakeRes();
 applyCors(fakeReq("https://evil.com"), res);

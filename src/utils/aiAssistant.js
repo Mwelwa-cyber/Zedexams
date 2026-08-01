@@ -445,6 +445,7 @@ export async function sendAIChat({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-request-id': newRequestId(),
           Authorization: `Bearer ${token}`,
           ...(appCheckToken ? { 'X-Firebase-AppCheck': appCheckToken } : {}),
         },

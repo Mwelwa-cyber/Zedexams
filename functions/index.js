@@ -1661,7 +1661,7 @@ exports.apiAiChat = onRequest(
     } catch (error) {
       log.error("chat_auth_error", {
         code: error?.code,
-        message: error?.message,
+        errorMessage: error?.message,
       });
       res.status(httpStatusForError(error)).json({
         error: error?.message || "Zed is unavailable right now.",
@@ -1713,9 +1713,11 @@ exports.apiAiChat = onRequest(
       );
       res.write("data: [DONE]\n\n");
     } catch (error) {
-      console.error("apiAiChat stream error", {
+      // Route through the request-bound logger so provider outages + mid-stream
+      // failures — the incidents most in need of correlation — carry `rid`.
+      log.error("chat_stream_error", {
         code: error?.code,
-        message: error?.message,
+        errorMessage: error?.message,
       });
       // Best-effort: send error event then close. The client uses [ERROR] to
       // surface a user-facing message and fall back gracefully.

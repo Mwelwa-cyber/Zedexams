@@ -46,6 +46,17 @@ ok("per-call fields override base fields", () => {
   assert.strictEqual(lines[0].obj.uid, "call");
 });
 
+ok("reserved keys (message/severity/module) are never clobbered by fields", () => {
+  const { log, lines } = capturingLogger("mymod");
+  // A caller that puts the exception text under `message` must NOT overwrite the
+  // event name — filters/alerts match on it. Use errorMessage for the detail.
+  log.error("chat_auth_error", { message: "boom", severity: "DEBUG", module: "evil", errorMessage: "boom" });
+  assert.strictEqual(lines[0].obj.message, "chat_auth_error");
+  assert.strictEqual(lines[0].obj.severity, "ERROR");
+  assert.strictEqual(lines[0].obj.module, "mymod");
+  assert.strictEqual(lines[0].obj.errorMessage, "boom");
+});
+
 ok("a throwing sink never propagates into the caller", () => {
   const log = createLogger("m", {}, () => { throw new Error("sink down"); });
   assert.doesNotThrow(() => log.error("still fine"));

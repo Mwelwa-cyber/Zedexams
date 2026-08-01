@@ -61,7 +61,11 @@ function createLogger(module, baseFields = {}, write = defaultWrite) {
 
   const at = (levelKey) => (message, fields = {}) => {
     const severity = SEVERITY[levelKey];
-    const entry = { severity, message, module, ...base, ...fields };
+    // Reserved keys are written LAST so a caller field named `message`,
+    // `severity` or `module` can never clobber the event name / level / source
+    // (which is what log filters and alerts match on). Put a varying value under
+    // its own field (e.g. `errorMessage`) instead.
+    const entry = { ...base, ...fields, module, severity, message };
     // Never let a broken logger throw into the caller's happy path.
     try {
       write(severity, JSON.stringify(entry));
