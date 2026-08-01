@@ -50,6 +50,39 @@ function freshModule(env = {}) {
     ok("disabled flag skips (allowed)", off.allowed && off.skipped);
   }
 
+  // Windowed screening covers content BEYOND the first 8000-char clamp (the
+  // single-call path would miss it) — the AI-003 streaming-output fix.
+  {
+    const m = freshModule({});
+    const realFetch = global.fetch;
+    const calls = [];
+    global.fetch = async (_url, opts) => {
+      const body = JSON.parse(opts.body);
+      calls.push(body.input);
+      const flagged = body.input.includes("__BADWORD__");
+      return {
+        ok: true,
+        json: async () => ({results: [{flagged, categories: flagged ? {sexual: true} : {}, category_scores: {}}]}),
+      };
+    };
+    try {
+      // Prohibited marker sits AFTER the first 8000-char window.
+      const longText = "a".repeat(8200) + " __BADWORD__ ";
+      const single = await m.checkLearnerText("sk-test", longText);
+      ok("single checkLearnerText misses content past 8000 chars", single.blocked === false);
+      calls.length = 0;
+      const windowed = await m.checkLearnerTextWindowed("sk-test", longText);
+      ok("windowed screening blocks content past the first window", windowed.blocked === true);
+      ok("windowed made more than one moderation call", calls.length >= 2);
+      // Short text still takes exactly one call.
+      calls.length = 0;
+      await m.checkLearnerTextWindowed("sk-test", "hello there");
+      ok("short text windows to a single call", calls.length === 1);
+    } finally {
+      global.fetch = realFetch;
+    }
+  }
+
   // Restore a clean env for any later test in a shared runner.
   freshModule({});
 

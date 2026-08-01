@@ -42,7 +42,7 @@ const {
   toAnthropicShape,
 } = require("./aiService");
 const {UNTRUSTED_DATA_NOTICE, fenceUntrusted} = require("./promptInjectionGuard");
-const {checkLearnerText, LEARNER_BLOCK_MESSAGE} = require("./contentModeration");
+const {checkLearnerText, checkLearnerTextWindowed, LEARNER_BLOCK_MESSAGE} = require("./contentModeration");
 const {screenLearnerMessage, redactForLogs} = require("./learnerSafety/learnerSafetyCore");
 // Email-verification gate shared by callables + HTTP endpoints (see
 // authGuard.js for the exemption list).
@@ -1701,9 +1701,16 @@ exports.apiAiChat = onRequest(
       // same as the aiChat callable. Streaming tokens live would display unsafe
       // text before we could screen it, so the reply is accumulated, moderated,
       // then sent as one chunk — the client already supports a single-chunk
-      // reply (its Android SSE fallback). Input was already moderated above; this
-      // closes the output half of the guardrail on the path the SPA actually
-      // uses. `checkLearnerText` owns its own error policy (MODERATION_FAIL_CLOSED).
+      // reply (its Android SSE fallback). Input was already moderated above.
+      //
+      // While buffering + moderating the connection would otherwise go silent,
+      // tripping the client's 30s stall watchdog (which resets on ANY bytes it
+      // reads). An SSE comment line carries no data event, so periodic
+      // heartbeats keep the connection alive without displaying anything.
+      const heartbeat = () => {
+        try { res.write(": keepalive\n\n"); } catch (e) { /* client already gone */ }
+      };
+      let sinceBeat = 0;
       let full = "";
       await callOpenAIStream(
         apiKey,
@@ -1717,9 +1724,13 @@ exports.apiAiChat = onRequest(
         },
         (token) => {
           full += token;
+          if (++sinceBeat >= 24) { sinceBeat = 0; heartbeat(); }
         },
       );
-      const outputModeration = await checkLearnerText(apiKey, full, {label: "apiAiChat:output"});
+      heartbeat(); // keep the connection alive across the moderation call (~8s)
+      // Screen the ENTIRE reply — moderateText clamps one call to 8000 chars, so
+      // a long reply is windowed; content past the first window can't slip through.
+      const outputModeration = await checkLearnerTextWindowed(apiKey, full, {label: "apiAiChat:output"});
       if (outputModeration.blocked) {
         log.warn("chat_output_moderated", {uid: decoded.uid, categories: outputModeration.matchedCategories});
       }

@@ -22,6 +22,13 @@ const {decideContentOutcome, DEFAULT_BLOCKED_CATEGORIES} = require("./contentMod
 const MODERATION_ENDPOINT = "https://api.openai.com/v1/moderations";
 const MODERATION_MODEL = process.env.OPENAI_MODERATION_MODEL || "omni-moderation-latest";
 const MODERATION_TIMEOUT_MS = 8000;
+// The omni-moderation API caps a single request; we clamp to this many chars
+// per call. Named so `checkLearnerTextWindowed` screens longer text in windows
+// of exactly this size instead of silently ignoring the overflow.
+const MODERATION_INPUT_CHARS = 8000;
+// Overlap between windows so a phrase straddling a window boundary is still
+// seen whole by at least one call.
+const MODERATION_WINDOW_OVERLAP = 256;
 
 // Friendly, non-scary refusal shown to a child when their message is blocked.
 const LEARNER_BLOCK_MESSAGE =
@@ -52,7 +59,7 @@ async function moderateText(apiKey, input) {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({model: MODERATION_MODEL, input: String(input || "").slice(0, 8000)}),
+      body: JSON.stringify({model: MODERATION_MODEL, input: String(input || "").slice(0, MODERATION_INPUT_CHARS)}),
       signal: controller.signal,
     });
     if (!res.ok) {
@@ -103,10 +110,37 @@ async function checkLearnerText(apiKey, text, opts = {}) {
   return outcome;
 }
 
+/**
+ * Screen text of ANY length. `moderateText` clamps a single call to
+ * MODERATION_INPUT_CHARS, so a long reply (a model reply is only token-capped,
+ * not char-capped) is screened here in overlapping windows and blocked if ANY
+ * window is flagged — content after the first window must not slip through.
+ * Short text takes exactly one call, identical to `checkLearnerText`.
+ *
+ * @returns {Promise<{allowed:boolean, blocked:boolean, reason:string, matchedCategories:string[], flaggedCategories:string[], skipped?:boolean}>}
+ */
+async function checkLearnerTextWindowed(apiKey, text, opts = {}) {
+  const str = String(text || "");
+  if (str.length <= MODERATION_INPUT_CHARS) {
+    return checkLearnerText(apiKey, str, opts);
+  }
+  const step = MODERATION_INPUT_CHARS - MODERATION_WINDOW_OVERLAP;
+  let last = null;
+  for (let start = 0; start < str.length; start += step) {
+    const verdict = await checkLearnerText(apiKey, str.slice(start, start + MODERATION_INPUT_CHARS), opts);
+    last = verdict;
+    if (verdict.blocked) return verdict;
+    if (start + MODERATION_INPUT_CHARS >= str.length) break;
+  }
+  return last || {allowed: true, blocked: false, reason: "skipped", matchedCategories: [], flaggedCategories: [], skipped: true};
+}
+
 module.exports = {
   LEARNER_BLOCK_MESSAGE,
   moderationEnabled,
   failClosedOnError,
   moderateText,
   checkLearnerText,
+  checkLearnerTextWindowed,
+  MODERATION_INPUT_CHARS,
 };
