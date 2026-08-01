@@ -1,6 +1,7 @@
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app, { auth, getAppCheckToken } from '../firebase/config'
 import { apiUrl, isNativePlatform } from './runtime'
+import { newRequestId } from './requestId'
 import { toFriendlyError } from './friendlyErrors'
 
 const functions = getFunctions(app, 'us-central1')
@@ -343,6 +344,7 @@ export function sendAIChatStream({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'x-request-id': newRequestId(),
             Authorization: `Bearer ${token}`,
             ...(appCheckToken ? { 'X-Firebase-AppCheck': appCheckToken } : {}),
           },

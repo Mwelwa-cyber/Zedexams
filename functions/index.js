@@ -1570,6 +1570,14 @@ exports.apiAiChat = onRequest(
     // set already includes X-Firebase-AppCheck (Audit B3).
     applyCors(req, res);
 
+    // Structured logging + correlation id (OBS-003): trace this request by the
+    // id the client sent (src/utils/requestId.js), or mint one, and echo it back
+    // so a browser can report it. Every log line below carries `rid`.
+    const {createLogger, requestIdFromReq} = require("./logger");
+    const rid = requestIdFromReq(req);
+    res.set("x-request-id", rid);
+    const log = createLogger("apiAiChat", {rid});
+
     if (req.method === "OPTIONS") {
       res.status(204).send("");
       return;
@@ -1616,6 +1624,8 @@ exports.apiAiChat = onRequest(
       const role = await getUserRole(decoded.uid);
       await assertDailyLimit(decoded.uid, role, "chat");
 
+      log.info("chat_request", {uid: decoded.uid, role});
+
       // Deterministic child-safety handling, ahead of moderation and the
       // model — same rule as the `aiChat` callable. A child disclosing
       // self-harm or abuse gets a fixed, careful reply naming a trusted adult
@@ -1649,7 +1659,7 @@ exports.apiAiChat = onRequest(
       const inputModeration = await checkLearnerText(apiKey, message, {label: "apiAiChat:input"});
       moderationBlocked = inputModeration.blocked;
     } catch (error) {
-      console.error("apiAiChat auth/validation error", {
+      log.error("chat_auth_error", {
         code: error?.code,
         message: error?.message,
       });
