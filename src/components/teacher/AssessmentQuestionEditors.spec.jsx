@@ -1,15 +1,19 @@
 /**
- * Vitest spec for McqOptions in AssessmentQuestionEditors.jsx — M1 regression.
+ * Vitest spec for AssessmentQuestionEditors.jsx.
  *
- * Guards the maxOptions / hidden-option behaviour introduced by M1:
+ * McqOptions — M1 regression. Guards the maxOptions / hidden-option behaviour:
  *   - 4 rows rendered by default (no maxOptions)
  *   - 2 rows rendered when maxOptions=2 (options C and D not in DOM)
  *   - hidden-content hint shown when any hidden option has text
  *   - hidden-correct warning shown when correctAnswer >= maxOptions
+ *
+ * CardQuestionText — the builder half of the "reopened paper shows machinery"
+ * regression. See the describe block for what it pins and why.
  */
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { McqOptions } from './AssessmentQuestionEditors.jsx'
+import { McqOptions, CardQuestionText, toEditableText } from './AssessmentQuestionEditors.jsx'
+import { richTextToPaperHtml } from '../../editor/utils/safeRender.js'
 
 // DiagramSvg renders an <svg> that needs real DOM measurements — stub it.
 vi.mock('../diagrams/DiagramSvg', () => ({ default: () => null }))
@@ -128,5 +132,59 @@ describe('McqOptions — maxOptions / hidden behaviour (M1)', () => {
     expect(screen.getByDisplayValue('Delta')).toBeInTheDocument()
     // No hint because nothing is hidden.
     expect(screen.queryByText(/more option\(s\) hidden/)).not.toBeInTheDocument()
+  })
+})
+
+/**
+ * A question stem does not live in Firestore as a plain string. The studio's
+ * write path (`serializeRichField`) stores a Tiptap doc as a JSON STRING, and
+ * the load path (`hydrateRichField`) parses it back to an OBJECT — so the
+ * builder card is handed whichever shape the paper arrived in.
+ *
+ * When neither shape was decoded, reopening a saved paper on a phone showed the
+ * teacher `[object Object]` in the question box (the object reaching String())
+ * and a wall of `{"type":"doc",…}` on the preview page (the JSON string treated
+ * as prose). The preview half is pinned in assessmentPaperLayout.test.js; this
+ * is the builder half, plus the `textHtml` twin that needs a DOM to build and
+ * therefore cannot be exercised by that plain-node script.
+ *
+ * The stakes are higher than a cosmetic glitch: the card renders the decoded
+ * text into a live <textarea>, so whatever it shows is what the next keystroke
+ * writes back. An undecoded stem is not just displayed wrong, it is one edit
+ * away from replacing the teacher's question with the literal text
+ * "[object Object]".
+ */
+describe('CardQuestionText — a Tiptap stem is readable, never machinery', () => {
+  const STEM = 'Which of the following is the BEST way to keep food safe from germs?'
+  const DOC = {
+    type: 'doc',
+    content: [
+      { type: 'paragraph', attrs: { textAlign: null }, content: [{ type: 'text', text: STEM }] },
+    ],
+  }
+  const SHAPES = [['object', DOC], ['stringified', JSON.stringify(DOC)]]
+
+  it.each(SHAPES)('toEditableText decodes a %s doc to the question text', (_label, value) => {
+    expect(toEditableText(value)).toBe(STEM)
+  })
+
+  it.each(SHAPES)('the %s doc reaches the textarea as text, not machinery', (_label, value) => {
+    const { container } = render(
+      <CardQuestionText value={value} onChange={vi.fn()} onEditDetail={vi.fn()} />,
+    )
+    // The editable value is the assertion that matters: it is what the next
+    // keystroke sends to onChange and what then gets saved over the question.
+    expect(screen.getByDisplayValue(STEM)).toBeInTheDocument()
+    expect(container.textContent).not.toContain('[object Object]')
+    for (const symbol of ['{', '"type"', 'textAlign', 'paragraph']) {
+      expect(container.innerHTML).not.toContain(symbol)
+    }
+  })
+
+  it.each(SHAPES)('richTextToPaperHtml renders a %s doc as prose', (_label, value) => {
+    const html = richTextToPaperHtml(value)
+    expect(html).toContain(STEM)
+    expect(html).not.toContain('"type"')
+    expect(html).not.toContain('[object Object]')
   })
 })

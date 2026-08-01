@@ -386,6 +386,48 @@ assert(
 )
 assert(latexToReadableText('\\pu{22.4 L/mol}') === '22.4 L/mol', 'units pass through')
 
+// A question's stem does not reach here as a plain string. `serializeRichField`
+// writes a Tiptap doc to Firestore as a JSON STRING, and `hydrateRichField`
+// parses it back to an OBJECT for the live studio, so the layout is handed both
+// shapes depending on where the paper came from. When `plain()` stringified
+// either one before extracting, the preview page printed the teacher's question
+// as a wall of `{"type":"doc","content":[…]}` — reported from a phone running a
+// build that predated the fix. `text` is the field PaperBlocks renders, so it is
+// the one that has to be readable; `textHtml` is asserted alongside it because a
+// build that predated the fix. `text` is the field PaperBlocks renders, so it is
+// the one asserted here. The `textHtml` twin needs a DOM to build at all, so it
+// is pinned in AssessmentQuestionEditors.spec.jsx under jsdom rather than here,
+// where it would be '' and the assertion would pass without proving anything.
+console.log('\nbuildPaperLayout — a Tiptap stem is readable, never raw JSON')
+{
+  const STEM = 'Who is a consumer?'
+  const doc = {
+    type: 'doc',
+    content: [
+      { type: 'paragraph', attrs: { textAlign: null }, content: [{ type: 'text', text: STEM }] },
+    ],
+  }
+  const shapes = [
+    ['object', doc],
+    ['stringified', JSON.stringify(doc)],
+  ]
+  for (const [label, stem] of shapes) {
+    const blocks = buildPaperLayout(baseAssessment, [
+      {
+        localId: 'q1', order: 1, type: 'mcq', marks: 1, text: stem, correctAnswer: 0,
+        options: ['A person who buys goods', 'A farmer', 'A driver', 'A banker'],
+      },
+    ])
+    const block = blocks.find(b => b.kind === 'question')
+    assert(!!block, `${label} stem — a question block is produced`)
+    assert(block.text === STEM, `${label} stem — block.text is the readable question`)
+    for (const symbol of ['{', '"type"', 'textAlign', 'paragraph']) {
+      assert(!block.text.includes(symbol), `${label} stem — no ${symbol} leaks into block.text`)
+    }
+    assert(!block.text.includes('[object Object]'), `${label} stem — never stringified to [object Object]`)
+  }
+}
+
 if (failures > 0) {
   console.error(`\n${failures} assertion(s) failed.`)
   process.exit(1)
