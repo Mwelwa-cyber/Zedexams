@@ -494,6 +494,82 @@ describe('LessonDetailsForm — school resources', () => {
   })
 })
 
+// ── Compact layout (B3): two-column + three-column rows ──────────────────────
+
+describe('LessonDetailsForm — compact grid layout', () => {
+  it('lays Class | Subject in a two-column row (≥640px)', () => {
+    const { container } = renderForm()
+    const row = container.querySelector('.sm\\:grid-cols-2')
+    expect(row).toBeTruthy()
+    expect(row.contains(document.getElementById('ldf-grade'))).toBe(true)
+    expect(row.contains(document.getElementById('ldf-subject'))).toBe(true)
+  })
+
+  it('lays Duration | Date | Time in a three-column row (≥640px)', () => {
+    const { container } = renderForm()
+    const row = container.querySelector('.sm\\:grid-cols-3')
+    expect(row).toBeTruthy()
+    expect(row.contains(document.getElementById('ldf-duration'))).toBe(true)
+    expect(row.contains(document.getElementById('ldf-date'))).toBe(true)
+    expect(row.contains(document.getElementById('ldf-time'))).toBe(true)
+  })
+
+  it('labels Time as optional', () => {
+    renderForm()
+    expect(screen.getByLabelText(/time \(optional\)/i)).toBe(document.getElementById('ldf-time'))
+  })
+
+  it('keeps the School Resources helper line visible', () => {
+    renderForm()
+    expect(screen.getByText(/activities and materials will only use what your school has/i)).toBeInTheDocument()
+  })
+})
+
+// ── Formatted date hint ───────────────────────────────────────────────────────
+
+describe('LessonDetailsForm — friendly date hint', () => {
+  it('shows the formatted weekday hint once a date is picked', () => {
+    renderForm({ lessonDetails: { ...DEFAULT_DETAILS, date: '2026-08-04' } })
+    expect(screen.getByText('Tue, 4 Aug 2026')).toBeInTheDocument()
+  })
+
+  it('shows no formatted hint without a date', () => {
+    const { container } = renderForm()
+    expect(container.querySelector('#ldf-date-friendly')).toBeNull()
+  })
+})
+
+// ── Teacher & school collapsed row ────────────────────────────────────────────
+
+describe('LessonDetailsForm — teacher & school details row', () => {
+  it('collapses Teacher Name + School into a <details> row, keeping the field ids', () => {
+    const { container } = renderForm()
+    const details = container.querySelector('details')
+    expect(details).toBeTruthy()
+    expect(details.contains(document.getElementById('ldf-teacher'))).toBe(true)
+    expect(details.contains(document.getElementById('ldf-school'))).toBe(true)
+    const summary = details.querySelector('summary')
+    expect(summary.textContent).toContain('Teacher & school details')
+    // No prefilled claim while either field is empty.
+    expect(summary.textContent).not.toContain('✓')
+  })
+
+  it('shows the prefilled ✓ once both teacher and school carry values', () => {
+    const { container } = renderForm({
+      lessonDetails: { ...DEFAULT_DETAILS, teacherName: 'Mr Banda', school: 'Kabulonga Primary' },
+    })
+    const summary = container.querySelector('details summary')
+    expect(summary.textContent).toContain('prefilled from last time ✓')
+  })
+
+  it('shows no ✓ when only one of the two is prefilled', () => {
+    const { container } = renderForm({
+      lessonDetails: { ...DEFAULT_DETAILS, teacherName: 'Mr Banda', school: '' },
+    })
+    expect(container.querySelector('details summary').textContent).not.toContain('✓')
+  })
+})
+
 // ── Disabled state ────────────────────────────────────────────────────────────
 
 describe('LessonDetailsForm — disabled state', () => {

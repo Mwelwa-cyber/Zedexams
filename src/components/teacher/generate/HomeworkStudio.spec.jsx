@@ -70,6 +70,12 @@ vi.mock('../../ui/LiveGenerationCanvas', () => ({ default: () => null }))
 // useSubjectsForGrade — irrelevant to the generate path, so stub it out.
 vi.mock('./StudioAssignmentChangeNotice', () => ({ default: () => null }))
 
+// The shell's "Set up for you" prefill reads the teacher's Weekly Forecast
+// (Firestore via teacherLibraryService) — no suggestion in these tests.
+vi.mock('../studio/hooks/useTeacherPlanContext', () => ({
+  useTeacherPlanContext: () => ({ loading: false, suggestion: null }),
+}))
+
 // The curriculum selector is mocked to a single button that, when clicked,
 // hands the studio a fully-satisfied curriculum payload (curriculumMode/grade/
 // subject/topic) via its onChange — so onGenerate's guards pass without driving

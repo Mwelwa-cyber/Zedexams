@@ -15,12 +15,13 @@ import useClassRegister from '../../../../hooks/useClassRegister'
 import { resolveAttendancePolicy, REGISTER_STATES } from '../../../../utils/attendanceConstants'
 import { canMarkDay } from '../../../../utils/attendanceDayCore'
 import {
-  calendarMetaForTerm, formatDateLong, isValidIsoDate, markableDays,
+  calendarMetaForTerm, formatDateLong, groupDaysByMonth, isValidIsoDate, markableDays,
 } from '../../../../utils/attendanceCalendarResolver'
 import { classDisplayName } from '../../../../schemas/classRegister'
 import { saveAttendanceTermSettings, setAttendanceTermState } from '../../../../utils/attendanceService'
 import { useToast } from '../../../ui/Toast'
 import Button from '../../../ui/Button'
+import Chip from '../../../ui/Chip'
 import ConfirmDialog from '../../../ui/ConfirmDialog'
 import Skeleton from '../../../ui/Skeleton'
 import MarkAttendanceView from './MarkAttendanceView'
@@ -47,11 +48,13 @@ const SECTIONS = [
   { key: 'export', label: 'Print & Export' },
 ]
 
-const STATE_TONE = {
-  draft: 'bg-gray-100 text-gray-700 border-gray-300',
-  submitted: 'bg-blue-100 text-blue-800 border-blue-300',
-  locked: 'bg-red-100 text-red-800 border-red-300',
-  reopened: 'bg-amber-100 text-amber-800 border-amber-300',
+// Register lifecycle state → Chip variant (colours carry meaning: amber =
+// still being worked on, blue = handed in, red = closed).
+const STATE_CHIP_VARIANT = {
+  draft: 'amber',
+  submitted: 'blue',
+  locked: 'red',
+  reopened: 'amber',
 }
 
 function defaultSection() {
@@ -64,6 +67,10 @@ export default function AttendanceWorkspace({ register, termSelection }) {
   const uid = currentUser?.uid
   const toast = useToast()
   const [section, setSection] = useState(defaultSection)
+  // ONE month selection for the whole grid tab: the month chips drive both
+  // the term grid AND the paper preview underneath it (D3). `null` until the
+  // teacher picks — the default is the month containing today, else the last.
+  const [pickedMonthKey, setPickedMonthKey] = useState(null)
   const [lockConfirm, setLockConfirm] = useState(false)
   const [reopenOpen, setReopenOpen] = useState(false)
   const [reopenReason, setReopenReason] = useState('')
@@ -86,6 +93,15 @@ export default function AttendanceWorkspace({ register, termSelection }) {
     () => resolveAttendancePolicy(registerHook.termDoc?.policy),
     [registerHook.termDoc],
   )
+
+  // Default month = the one containing today, else the last register month —
+  // the same rule the grid used when it owned this state.
+  const monthKey = useMemo(() => {
+    if (pickedMonthKey) return pickedMonthKey
+    const months = groupDaysByMonth(days)
+    const current = months.find((m) => m.key === registerHook.todayIso?.slice(0, 7))
+    return (current || months[months.length - 1])?.key || null
+  }, [pickedMonthKey, days, registerHook.todayIso])
 
   const selectedDay = days.find((d) => d.date === selectedDate) || null
   const canMark = useMemo(
@@ -183,9 +199,9 @@ export default function AttendanceWorkspace({ register, termSelection }) {
         <div className="min-w-0 mr-auto">
           <p className="theme-text font-display font-black text-base">
             {classDisplayName(register)}
-            <span className={`ml-2 inline-block px-2 py-0.5 rounded-radius-md border text-xs font-black align-middle ${STATE_TONE[termState] || STATE_TONE.draft}`}>
+            <Chip variant={STATE_CHIP_VARIANT[termState] || STATE_CHIP_VARIANT.draft} className="ml-2 align-middle">
               {stateInfo.label}
-            </span>
+            </Chip>
           </p>
           <p className="theme-text-muted text-sm">
             {termSelection?.year} Academic Year · {termSelection?.term}
@@ -210,9 +226,9 @@ export default function AttendanceWorkspace({ register, termSelection }) {
             rather than keeping learners of its own (§9). */}
         <Link
           to={`/teacher/register/${register.id}/class-list`}
-          className="inline-flex items-center gap-1.5 rounded-radius-sm border border-emerald-300 bg-emerald-50 px-3 py-2 text-emerald-800 text-xs font-black min-h-[44px]"
+          className="zx-chip zx-chip--green"
         >
-          {registerHook.roster?.length || 0} learners synced from Class List →
+          ✓ {registerHook.roster?.length || 0} learners synced from Class List
         </Link>
         {termState === 'draft' && (
           <Button type="button" size="sm" variant="secondary" loading={stateBusy} onClick={() => moveState('submitted')}>
@@ -255,12 +271,19 @@ export default function AttendanceWorkspace({ register, termSelection }) {
         <MarkAttendanceView registerHook={registerHook} canMark={canMark} />
       )}
       {hydrated && section === 'grid' && (
-        <AttendanceGridView registerHook={registerHook} canEdit={canEdit} policy={policy} />
+        <AttendanceGridView
+          registerHook={registerHook}
+          canEdit={canEdit}
+          policy={policy}
+          monthKey={monthKey}
+          onMonthChange={setPickedMonthKey}
+        />
       )}
       {/* The paper preview belongs to the grid, not to daily marking. On a
           phone it was a permanently-visible, unreadably small sheet under the
           attendance rows (§24); the Print & Export tab is where a teacher goes
-          when they want to see the page. */}
+          when they want to see the page. It previews the SAME month the grid's
+          chips select — one month control for the whole tab (D3). */}
       {hydrated && section === 'grid' && (
         <RegisterPaperPreview
           registerHook={registerHook}
@@ -268,7 +291,7 @@ export default function AttendanceWorkspace({ register, termSelection }) {
           uid={uid}
           teacherName={userProfile?.displayName || ''}
           policy={policy}
-          focusDate={selectedDate}
+          monthKey={monthKey}
         />
       )}
       {hydrated && section === 'summary' && (

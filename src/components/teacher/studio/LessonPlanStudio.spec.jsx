@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { StrictMode, useState } from 'react'
 import LessonPlanStudio from './LessonPlanStudio'
 import { LIBRARY_TYPES } from '../../../config/library'
+import { useTeacherPlanContext } from './hooks/useTeacherPlanContext'
 
 // ── Firebase mocks ────────────────────────────────────────────────────────────
 // vi.hoisted() runs before vi.mock() hoisting so innerCallable is defined
@@ -44,6 +45,13 @@ vi.mock('./hooks/useLessonSeries', () => ({
     seriesLoading: false,
     seriesError: null,
   })),
+}))
+
+// "This week's lesson" weekly-forecast suggestion. Defaults to none (matching
+// the real hook's fail-closed behaviour in tests); the applied-context tests
+// below override it per test.
+vi.mock('./hooks/useTeacherPlanContext', () => ({
+  useTeacherPlanContext: vi.fn(() => ({ loading: false, suggestion: null })),
 }))
 
 vi.mock('../../../firebase/config', () => ({ default: {}, db: {} }))
@@ -106,13 +114,15 @@ vi.mock('./StudioShell', () => ({
 }))
 
 vi.mock('./wizard/LessonPlanWizard', () => ({
-  LessonPlanWizard: ({ studioState, isValid, onGenerate, onContinue, onViewCompleted, aiState, seriesState }) => (
+  LessonPlanWizard: ({ studioState, isValid, onGenerate, onContinue, onViewCompleted, aiState, seriesState, appliedContext, appliedWeekNumber }) => (
     <div data-testid="studio-sidebar">
       <span data-testid="is-valid">{String(isValid)}</span>
       <span data-testid="curriculum-mode">{studioState.curriculumMode ?? 'null'}</span>
       <span data-testid="generation-status">{studioState.generationStatus}</span>
       <span data-testid="ai-loading">{String(aiState.loading)}</span>
       <span data-testid="series-completed">{seriesState.completedCount}</span>
+      <span data-testid="applied-context">{String(appliedContext)}</span>
+      <span data-testid="applied-week">{String(appliedWeekNumber ?? '')}</span>
       <button data-testid="trigger-generate" onClick={() => onGenerate(0)}>
         Generate
       </button>
@@ -305,6 +315,55 @@ describe('LessonPlanStudio — rendering', () => {
   it('passes null generationError to canvas on mount', () => {
     renderStudio()
     expect(screen.getByTestId('canvas-error')).toHaveTextContent('')
+  })
+})
+
+describe('LessonPlanStudio — "Set up for you" applied-context flag', () => {
+  const SUGGESTION = {
+    grade: 'Grade 4',
+    subject: 'Grade4 Math',
+    subjectLabel: 'Grade4 Math',
+    topic: '',
+    subtopic: '',
+    date: '2026-08-04',
+    weekNumber: 11,
+  }
+
+  afterEach(() => {
+    useTeacherPlanContext.mockImplementation(() => ({ loading: false, suggestion: null }))
+  })
+
+  it('flags appliedContext (with the week) once the suggestion actually seeds fields', async () => {
+    useTeacherPlanContext.mockImplementation(() => ({ loading: false, suggestion: SUGGESTION }))
+    renderStudio()
+    await waitFor(() => expect(screen.getByTestId('applied-context')).toHaveTextContent('true'))
+    expect(screen.getByTestId('applied-week')).toHaveTextContent('11')
+  })
+
+  it('stays false without a suggestion', () => {
+    renderStudio()
+    expect(screen.getByTestId('applied-context')).toHaveTextContent('false')
+    expect(screen.getByTestId('applied-week')).toHaveTextContent('')
+  })
+
+  it('stays false for a Previous-curriculum teacher (the suggestion is refused, not deferred)', () => {
+    useTeacherPlanContext.mockImplementation(() => ({ loading: false, suggestion: SUGGESTION }))
+    renderStudio({ curriculumMode: 'previous' })
+    expect(screen.getByTestId('applied-context')).toHaveTextContent('false')
+    expect(screen.getByTestId('applied-week')).toHaveTextContent('')
+  })
+
+  it('stays false when every field is already filled — nothing was actually seeded', () => {
+    useTeacherPlanContext.mockImplementation(() => ({ loading: false, suggestion: SUGGESTION }))
+    renderStudio({
+      curriculumMode: 'cbc',
+      lessonDetails: {
+        grade: 'Grade 3', subject: 'Grade3 Math', duration: '40', medium: 'English',
+        term: '', week: '', date: '2026-08-03', time: '', teacherName: '', school: '',
+      },
+      topicData: { topic: '3.1 Shapes', subtopic: '3.1.1 Circles', subtopicRow: null },
+    })
+    expect(screen.getByTestId('applied-context')).toHaveTextContent('false')
   })
 })
 

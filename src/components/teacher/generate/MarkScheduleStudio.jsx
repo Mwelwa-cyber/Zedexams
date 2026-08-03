@@ -6,13 +6,20 @@
  * positions (dense ranking — ties share a place) and suggested report
  * comments in a teacher's voice, with raw-marks and percentage views of
  * the same data. Outputs the official two-page document (schedule +
- * Report Comments Sheet) on screen and as DOCX.
+ * Report Comments Sheet) on screen and as DOCX/XLSX, plus per-pupil
+ * report cards.
+ *
+ * The marks table shows LIVE Total / % / Position columns (computed via
+ * utils/markSchedule's rankPupils — the same maths the exports use), and
+ * pupils can be imported straight from a Class Register class list
+ * (ImportFromClassListModal): active learners fill the rows in register
+ * order, rows the teacher already named are never wiped.
  *
  * Comments: each pupil row's comment input shows the suggestion as its
  * placeholder; typing replaces it, clearing falls back to the suggestion.
  *
- * Drafts autosave to localStorage per teacher so an 80-pupil class
- * survives a refresh.
+ * Drafts autosave (Universal Draft Manager) so an 80-pupil class survives
+ * a refresh.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -24,14 +31,19 @@ import { buildDownloadName } from '../../../utils/downloadFilename'
 import { downloadMarkScheduleXlsx } from '../../../utils/markScheduleToXlsx'
 import { downloadReportCardsDocx } from '../../../utils/reportCardsToDocx'
 import { saveMarkScheduleGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
+import { listTeacherRegisters } from '../../../utils/classRegister'
+import { formatClassGrade } from '../../../schemas/classRegister'
 import { useLibraryAutoSave } from '../../../hooks/useLibraryAutoSave'
 import { clampInt } from '../../../utils/inputs.js'
 import { Link } from 'react-router-dom'
+import { Calculator, Users, Download, Plus } from 'lucide-react'
 import MarkScheduleView from '../views/MarkScheduleView'
 import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
 import StudioPageHeader from '../StudioPageHeader'
+import ImportFromClassListModal from './ImportFromClassListModal'
 import SeoHelmet from '../../seo/SeoHelmet'
 import ConfirmDialog from '../../ui/ConfirmDialog'
+import ActionMenu from '../../ui/ActionMenu'
 import { useToast } from '../../ui/Toast'
 import { useDraftManager } from '../../../hooks/draft/useDraftManager'
 import { markScheduleDescriptor } from '../../../hooks/draft/descriptors/handBuilt'
@@ -52,10 +64,10 @@ const DEFAULT_SUBJECTS = [
 // pick a value from the dropdown OR type their own — picking is faster than
 // typing, but nothing is locked to the list.
 //
-// The subject suggestions are exactly the CBC syllabus learning areas
-// (uppercased to match the schedule's house style); a teacher who runs a
-// subject that isn't in the syllabus just types it in.
-const SUBJECT_SUGGESTIONS = SUBJECTS.map((s) => s.label.toUpperCase())
+// The subject suggestions are exactly the CBC syllabus learning areas, shown
+// in Title Case; what the teacher TYPES is kept verbatim (no forced
+// uppercasing — the old `.toUpperCase()` on change is gone on purpose).
+const SUBJECT_SUGGESTIONS = SUBJECTS.map((s) => s.label)
 // Common out-of marks teachers set per subject. Not exhaustive — the field
 // still accepts any 1–300 value typed by hand.
 const MAX_MARK_SUGGESTIONS = [10, 15, 20, 25, 30, 40, 50, 60, 70, 75, 80, 100]
@@ -63,6 +75,20 @@ const MAX_MARK_SUGGESTIONS = [10, 15, 20, 25, 30, 40, 50, 60, 70, 75, 80, 100]
 let rowSeq = 0
 const newPupil = () => ({ id: `p${Date.now()}-${rowSeq += 1}`, name: '', marks: {}, comment: '' })
 const blankPupils = (n) => Array.from({ length: n }, () => newPupil())
+
+/**
+ * Class Register grade scheme ('4' | 'form-1' | 'nursery') → the studio's
+ * wire code + human label. Digits map to G-codes, 'form-N' to F-codes;
+ * anything else (nursery/reception/baby/middle) returns null so the
+ * schedule header's grade is left untouched.
+ */
+function registerGradeToWire(grade) {
+  const g = String(grade ?? '').trim()
+  if (/^\d+$/.test(g)) return { grade: `G${g}`, gradeLabel: formatClassGrade(g) }
+  const m = g.match(/^form-(\d+)$/i)
+  if (m) return { grade: `F${m[1]}`, gradeLabel: formatClassGrade(g) }
+  return null
+}
 
 export default function MarkScheduleStudio() {
   const { currentUser, userProfile, isAdmin } = useAuth()
@@ -79,10 +105,14 @@ export default function MarkScheduleStudio() {
   const [subjects, setSubjects] = useState(DEFAULT_SUBJECTS)
   const [pupils, setPupils] = useState(() => blankPupils(5))
   const [mode, setMode] = useState('marks')
-  // Standardized curriculum selection (curriculum → grade → subject). Drives the
-  // schedule's class grade; the marks grid keeps its own per-column subjects.
+  // Standardized curriculum selection (curriculum → grade; the marks grid
+  // keeps its own per-column subjects, so the selector's subject step is off).
   const [curr, setCurr] = useState({})
   const [confirmClear, setConfirmClear] = useState(false)
+  // Class Register import: the teacher's registers (null until the lazy
+  // fire-and-forget fetch lands — silent on failure, the modal refetches).
+  const [registers, setRegisters] = useState(null)
+  const [importOpen, setImportOpen] = useState(false)
   // Library persistence: the saved generation id (create once, then
   // update) and whether edits happened after the last save.
   const [generationId, setGenerationId] = useState(null)
@@ -90,7 +120,7 @@ export default function MarkScheduleStudio() {
   const [dirtySinceSave, setDirtySinceSave] = useState(false)
   // The dirty-marking effect below fires on the initial mount and again on the
   // re-render the draft-restore triggers. Skip those runs so a freshly-loaded
-  // saved sheet shows "✓ Saved" rather than "Update in library".
+  // saved sheet shows "Saved" rather than "Update in library".
   const dirtySkipRef = useRef(1)
 
   // Universal Draft Manager: cross-device auto-save + recovery (replaces the old
@@ -123,19 +153,35 @@ export default function MarkScheduleStudio() {
 
   const setH = (field, value) => setHeader((h) => ({ ...h, [field]: value }))
 
-  // Feed the standardized selector's grade + subject into the schedule header.
-  // Grade keeps BOTH shapes: `grade` ('G5'/'F1') is the wire code the download
-  // names and legacy consumers use, `gradeLabel` ('Grade 5'/'Form 1') is the
-  // human label the headings prefer (so Form picks don't print "GRADE F1").
-  // Subject is kept as class context (the exports read the per-column
-  // subjects, not this field). Only overwrite once the selector yields a
-  // value so the default grade isn't wiped beforehand.
+  // Feed the standardized selector's grade into the schedule header. Grade
+  // keeps BOTH shapes: `grade` ('G5'/'F1') is the wire code the download names
+  // and legacy consumers use, `gradeLabel` ('Grade 5'/'Form 1') is the human
+  // label the headings prefer (so Form picks don't print "GRADE F1"). Only
+  // overwrite once the selector yields a value so the default grade isn't
+  // wiped beforehand. (The selector's subject step is hidden here — the old
+  // header.subject write was dead: nothing ever read it.)
   useEffect(() => {
     if (curr.grade) {
       setHeader((h) => ({ ...h, grade: curr.grade, gradeLabel: curr.gradeLabel || '' }))
     }
-    if (curr.subjectLabel) setH('subject', curr.subjectLabel)
-  }, [curr.grade, curr.gradeLabel, curr.subjectLabel])
+  }, [curr.grade, curr.gradeLabel])
+
+  // Lazy learner-count badge for the Import button: fire-and-forget, silent
+  // on failure (the modal does its own fetch if this one never landed).
+  useEffect(() => {
+    if (!uid) return undefined
+    let on = true
+    listTeacherRegisters(uid)
+      .then((list) => { if (on) setRegisters(list) })
+      .catch(() => {})
+    return () => { on = false }
+  }, [uid])
+  const learnerTotal = useMemo(
+    () => (Array.isArray(registers)
+      ? registers.reduce((n, r) => n + (Number(r.learnerCount) || 0), 0)
+      : 0),
+    [registers],
+  )
 
   /* ── subjects ── */
   function updateSubject(key, field, value) {
@@ -164,8 +210,54 @@ export default function MarkScheduleStudio() {
   const addPupils = (n) => setPupils((list) => [...list, ...blankPupils(n)])
   const removePupil = (id) => setPupils((list) => list.filter((p) => p.id !== id))
 
+  /**
+   * Apply a Class Register import: active learners become pupil rows in
+   * register order. REPLACES rows with no name, APPENDS after existing named
+   * rows — typed data is never wiped. Header school/year/grade are seeded
+   * only where the teacher hasn't set them (grade only while it is still the
+   * untouched default AND the selector hasn't been used).
+   */
+  function applyImport({ register, entries }) {
+    setImportOpen(false)
+    if (!entries.length) {
+      toast.info(`"${register.className}" has no active learners yet — add learners in the Class Register first.`)
+      return
+    }
+    const kept = pupils.filter((p) => p.name.trim())
+    const seen = new Set(kept.map((p) => p.id))
+    const imported = entries
+      .map((e) => ({ id: `p-${e.id}`, name: e.fullName || '', marks: {}, comment: '' }))
+      .filter((p) => !seen.has(p.id)) // re-importing the same class never duplicates rows
+    setPupils([...kept, ...imported])
+
+    const wire = registerGradeToWire(register.grade)
+    const gradeStillDefault = !curr.grade && !header.gradeLabel && (!header.grade || header.grade === 'G4')
+    setHeader((h) => {
+      const next = { ...h }
+      if (!String(h.school || '').trim() && register.school) next.school = register.school
+      if (register.year) next.year = String(register.year)
+      if (wire && gradeStillDefault) {
+        next.grade = wire.grade
+        next.gradeLabel = wire.gradeLabel
+      }
+      return next
+    })
+    toast.success(`Imported ${imported.length} learner${imported.length === 1 ? '' : 's'} from ${register.className}.`)
+  }
+
   /* ── derived schedule ── */
   const named = useMemo(() => pupils.filter((p) => p.name.trim()), [pupils])
+
+  // Live Total / % / Position columns for the marks table — the same
+  // rankPupils maths the exports use (dense ranking, ties share a place).
+  const maxTotal = useMemo(
+    () => subjects.reduce((sum, s) => sum + (Number(s.max) || 0), 0),
+    [subjects],
+  )
+  const rankedById = useMemo(() => {
+    if (!named.length) return new Map()
+    return new Map(rankPupils(named, subjects).map((p) => [p.id, p]))
+  }, [named, subjects])
 
   // Suggested comment per row (placeholder text) follows live ranking.
   const suggestions = useMemo(() => {
@@ -260,30 +352,37 @@ export default function MarkScheduleStudio() {
     }
   }
 
+  const exportDisabledReason = 'Add pupils and marks first'
+
   return (
     <div className="studio-page">
       <SeoHelmet title="Mark schedule" noIndex />
       <div className="w-full">
         <StudioPageHeader
-          eyebrow="Mark Schedule"
-          title="Marks in — positions and comments out"
-          subtitle="Enter each pupil's marks once. Totals, class positions and report comments are calculated for you, in raw marks or percentages."
-          emoji="🧮"
+          eyebrow="Class administration"
+          title="Mark Schedule Studio"
+          subtitle="Marks in — positions and comments out. Enter each pupil's marks once; totals, class positions and report comments are calculated for you."
+          icon={Calculator}
         />
 
         <div className="space-y-6">
           <DraftRecoveryPrompt {...draft} label="mark schedule" />
           {/* ── Class details ── */}
           <section className="studio-card p-5 space-y-4">
-            {/* Standardized curriculum + grade + subject selector (no topic/subtopic). */}
-            <StudioCurriculumSelector showTopicSubtopic={false} onChange={setCurr} />
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <div>
-                <label className="studio-label">School</label>
-                <input type="text" value={header.school} maxLength={120}
-                  onChange={(e) => setH('school', e.target.value)}
-                  placeholder="School name" className="studio-input" />
-              </div>
+            {/* Segmented curriculum row on top (CBC pre-selected so the grade
+                cascade is live immediately), then Class/Grade | Term | Year on
+                one row ≥640px. The selector renders `display: contents` so its
+                two children (toggle row + grade field) sit directly in this
+                grid — the toggle spans the full row, the grade takes column 1. */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <StudioCurriculumSelector
+                curriculumPickerVariant="segmented"
+                defaultCurriculumMode="cbc"
+                showSubject={false}
+                showTopicSubtopic={false}
+                onChange={setCurr}
+                className="contents [&>*+*]:!mt-0 sm:[&>*:first-child]:col-span-3"
+              />
               <div>
                 <label className="studio-label">Term</label>
                 <select value={String(header.term)} onChange={(e) => setH('term', Number(e.target.value))} className="studio-input">
@@ -296,7 +395,15 @@ export default function MarkScheduleStudio() {
                   onChange={(e) => setH('year', e.target.value.replace(/[^\d]/g, ''))}
                   className="studio-input" />
               </div>
-              <div className="col-span-2">
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="studio-label">School</label>
+                <input type="text" value={header.school} maxLength={120}
+                  onChange={(e) => setH('school', e.target.value)}
+                  placeholder="School name" className="studio-input" />
+              </div>
+              <div>
                 <label className="studio-label">Next term opens (printed on report cards, optional)</label>
                 <input type="text" value={header.nextTermOpens || ''} maxLength={40}
                   onChange={(e) => setH('nextTermOpens', e.target.value)}
@@ -327,7 +434,7 @@ export default function MarkScheduleStudio() {
                       value={s.label}
                       maxLength={20}
                       aria-label="Subject name"
-                      onChange={(e) => updateSubject(s.key, 'label', e.target.value.toUpperCase())}
+                      onChange={(e) => updateSubject(s.key, 'label', e.target.value)}
                       className="w-28 text-xs font-bold outline-none bg-transparent"
                     />
                     <span className="text-xs theme-text-secondary">/</span>
@@ -363,20 +470,35 @@ export default function MarkScheduleStudio() {
           <section className="studio-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
-                <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>Pupils and marks</h2>
+                <h2 className="m-0 text-[15px] font-bold">Pupils and marks</h2>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
-                  {named.length} pupil{named.length === 1 ? '' : 's'} entered · rows without a name are ignored
+                  {named.length} pupil{named.length === 1 ? '' : 's'} entered · rows without a name are
+                  ignored · positions update as you type — ties share a position
                 </p>
               </div>
               <div className="flex gap-2 flex-wrap">
-                <button type="button" onClick={() => addPupils(1)} className="studio-btn-ghost text-xs">+ Add pupil</button>
-                <button type="button" onClick={() => addPupils(5)} className="studio-btn-ghost text-xs">+ Add 5</button>
+                <button
+                  type="button"
+                  onClick={() => setImportOpen(true)}
+                  className="studio-btn-primary text-xs inline-flex items-center gap-1.5"
+                >
+                  <Users size={14} aria-hidden="true" />
+                  Import from Class List{learnerTotal > 0 ? ` · ${learnerTotal}` : ''}
+                </button>
+                <button type="button" onClick={() => addPupils(1)} className="studio-btn-ghost text-xs inline-flex items-center gap-1">
+                  <Plus size={13} aria-hidden="true" />
+                  Add pupil
+                </button>
+                <button type="button" onClick={() => addPupils(5)} className="studio-btn-ghost text-xs inline-flex items-center gap-1">
+                  <Plus size={13} aria-hidden="true" />
+                  Add 5
+                </button>
                 <button type="button" onClick={() => setConfirmClear(true)} className="studio-btn-ghost text-xs text-rose-700">Clear all</button>
               </div>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-sm border-collapse min-w-[680px]">
+              <table className="w-full text-sm border-collapse min-w-[860px]">
                 <thead>
                   <tr className="text-left text-[11px] font-black uppercase tracking-wide" style={{ color: 'var(--zt-text-muted)' }}>
                     <th className="py-1.5 pr-2 w-8">SN</th>
@@ -384,62 +506,79 @@ export default function MarkScheduleStudio() {
                     {subjects.map((s) => (
                       <th key={s.key} className="py-1.5 px-1 text-center">{s.label || '—'} /{s.max}</th>
                     ))}
+                    <th className="py-1.5 px-2 text-center">Total /{maxTotal}</th>
+                    <th className="py-1.5 px-2 text-center">%</th>
+                    <th className="py-1.5 px-2 text-center">Pos</th>
                     <th className="py-1.5 pl-2">Comment (optional — suggestion shown)</th>
                     <th className="w-8" />
                   </tr>
                 </thead>
                 <tbody>
-                  {pupils.map((p, idx) => (
-                    <tr key={p.id} className="border-t theme-border align-middle">
-                      <td className="py-1.5 pr-2 text-xs theme-text-secondary">{idx + 1}</td>
-                      <td className="py-1.5 pr-2">
-                        <input
-                          type="text"
-                          value={p.name}
-                          maxLength={60}
-                          placeholder="Full name"
-                          aria-label={`Pupil ${idx + 1} name`}
-                          onChange={(e) => updatePupil(p.id, (row) => ({ ...row, name: e.target.value }))}
-                          className="studio-input !py-1.5 text-sm"
-                        />
-                      </td>
-                      {subjects.map((s) => (
-                        <td key={s.key} className="py-1.5 px-1 text-center">
+                  {pupils.map((p, idx) => {
+                    const ranked = rankedById.get(p.id) || null
+                    const percent = ranked && maxTotal > 0 ? Math.round((ranked.total / maxTotal) * 100) : null
+                    return (
+                      <tr key={p.id} className="border-t theme-border align-middle">
+                        <td className="py-1.5 pr-2 text-xs theme-text-secondary">{idx + 1}</td>
+                        <td className="py-1.5 pr-2">
                           <input
-                            type="number"
-                            inputMode="numeric"
-                            min={0}
-                            max={s.max}
-                            value={p.marks?.[s.key] ?? ''}
-                            aria-label={`${p.name || `Pupil ${idx + 1}`} ${s.label} mark`}
-                            onChange={(e) => setMark(p.id, s.key, e.target.value, s.max)}
-                            className="studio-input !py-1.5 !px-1 text-sm text-center w-16"
+                            type="text"
+                            value={p.name}
+                            maxLength={60}
+                            placeholder="Full name"
+                            aria-label={`Pupil ${idx + 1} name`}
+                            onChange={(e) => updatePupil(p.id, (row) => ({ ...row, name: e.target.value }))}
+                            className="studio-input !py-1.5 text-sm"
                           />
                         </td>
-                      ))}
-                      <td className="py-1.5 pl-2">
-                        <input
-                          type="text"
-                          value={p.comment}
-                          maxLength={160}
-                          placeholder={p.name.trim() ? (suggestions[p.id] || '') : '—'}
-                          aria-label={`${p.name || `Pupil ${idx + 1}`} comment`}
-                          onChange={(e) => updatePupil(p.id, (row) => ({ ...row, comment: e.target.value }))}
-                          className="studio-input !py-1.5 text-xs min-w-[220px]"
-                        />
-                      </td>
-                      <td className="py-1.5 text-center">
-                        <button
-                          type="button"
-                          onClick={() => removePupil(p.id)}
-                          aria-label={`Remove ${p.name || `pupil ${idx + 1}`}`}
-                          className="text-rose-500 hover:text-rose-700 font-black"
-                        >
-                          ×
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                        {subjects.map((s) => (
+                          <td key={s.key} className="py-1.5 px-1 text-center">
+                            <input
+                              type="number"
+                              inputMode="numeric"
+                              min={0}
+                              max={s.max}
+                              value={p.marks?.[s.key] ?? ''}
+                              aria-label={`${p.name || `Pupil ${idx + 1}`} ${s.label} mark`}
+                              onChange={(e) => setMark(p.id, s.key, e.target.value, s.max)}
+                              className="studio-input !py-1.5 !px-1 text-sm text-center w-16"
+                            />
+                          </td>
+                        ))}
+                        {/* Live computed columns — visually distinct from the inputs. */}
+                        <td data-testid={`pupil-total-${idx}`} className="py-1.5 px-2 text-center font-bold tabular-nums bg-[#FDFBF5]">
+                          {ranked ? ranked.total : '—'}
+                        </td>
+                        <td data-testid={`pupil-percent-${idx}`} className="py-1.5 px-2 text-center font-bold tabular-nums bg-[#FDFBF5]">
+                          {percent == null ? '—' : `${percent}%`}
+                        </td>
+                        <td data-testid={`pupil-pos-${idx}`} className="py-1.5 px-2 text-center font-bold tabular-nums bg-[#FDFBF5]">
+                          {ranked ? ranked.position : '—'}
+                        </td>
+                        <td className="py-1.5 pl-2">
+                          <input
+                            type="text"
+                            value={p.comment}
+                            maxLength={160}
+                            placeholder={p.name.trim() ? (suggestions[p.id] || '') : '—'}
+                            aria-label={`${p.name || `Pupil ${idx + 1}`} comment`}
+                            onChange={(e) => updatePupil(p.id, (row) => ({ ...row, comment: e.target.value }))}
+                            className="studio-input !py-1.5 text-xs min-w-[220px]"
+                          />
+                        </td>
+                        <td className="py-1.5 text-center">
+                          <button
+                            type="button"
+                            onClick={() => removePupil(p.id)}
+                            aria-label={`Remove ${p.name || `pupil ${idx + 1}`}`}
+                            className="text-rose-500 hover:text-rose-700 font-black"
+                          >
+                            ×
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -449,7 +588,7 @@ export default function MarkScheduleStudio() {
           <section className="studio-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
-                <h2 className="studio-display" style={{ fontSize: 20, margin: 0 }}>Your mark schedule</h2>
+                <h2 className="m-0 text-[15px] font-bold">Your mark schedule</h2>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
                   Positions update as you type — ties share a position.
                 </p>
@@ -475,19 +614,37 @@ export default function MarkScheduleStudio() {
                   type="button"
                   onClick={onSaveToLibrary}
                   disabled={!artifact || saving || (generationId && !dirtySinceSave)}
-                  className="studio-btn-ghost disabled:opacity-50"
+                  className="studio-btn-primary disabled:opacity-50"
                 >
-                  {saving ? 'Saving…' : generationId ? (dirtySinceSave ? '💾 Update in library' : '✓ Saved') : '💾 Save to library'}
+                  {saving ? 'Saving…' : generationId ? (dirtySinceSave ? 'Update in library' : 'Saved') : 'Save to library'}
                 </button>
-                <button type="button" onClick={onExportXlsx} disabled={!artifact} className="studio-btn-ghost disabled:opacity-50">
-                  📊 Download .xlsx (live formulas)
-                </button>
-                <button type="button" onClick={onExportReportCards} disabled={!artifact} className="studio-btn-ghost disabled:opacity-50">
-                  🪪 Report cards (.docx)
-                </button>
-                <button type="button" onClick={onExportDocx} disabled={!artifact} className="studio-btn-primary disabled:opacity-50">
-                  📄 Download .docx (landscape)
-                </button>
+                <ActionMenu
+                  label="Download"
+                  icon={Download}
+                  caret
+                  ariaLabel="Download"
+                  buttonClassName="studio-btn-ghost"
+                  items={[
+                    {
+                      label: 'Excel (live formulas)',
+                      onSelect: onExportXlsx,
+                      disabled: !artifact,
+                      disabledReason: exportDisabledReason,
+                    },
+                    {
+                      label: 'Word (landscape)',
+                      onSelect: onExportDocx,
+                      disabled: !artifact,
+                      disabledReason: exportDisabledReason,
+                    },
+                    {
+                      label: 'Report cards (.docx)',
+                      onSelect: onExportReportCards,
+                      disabled: !artifact,
+                      disabledReason: exportDisabledReason,
+                    },
+                  ]}
+                />
               </div>
             </div>
             {generationId && (
@@ -506,6 +663,15 @@ export default function MarkScheduleStudio() {
           </section>
         </div>
       </div>
+
+      {importOpen && (
+        <ImportFromClassListModal
+          uid={uid}
+          registers={registers}
+          onClose={() => setImportOpen(false)}
+          onImport={applyImport}
+        />
+      )}
 
       <ConfirmDialog
         open={confirmClear}

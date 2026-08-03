@@ -12,6 +12,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { CalendarCheck } from 'lucide-react'
 import { useAuth } from '../../../../contexts/AuthContext'
 import { listTeacherRegisters } from '../../../../utils/classRegister'
 import { getSchoolProfile } from '../../../../utils/schoolProfileService'
@@ -110,7 +111,7 @@ export default function ClassRegisterStudio() {
         eyebrow="Class administration"
         title="Class Register Studio"
         subtitle="Record daily attendance, review the term, and print the official register."
-        emoji="🗓️"
+        icon={CalendarCheck}
       />
 
       {loadError && (

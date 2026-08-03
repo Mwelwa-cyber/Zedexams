@@ -127,11 +127,11 @@ describe('TimetableConflictPanel', () => {
     expect(handlers.onSelectConflict).toHaveBeenCalledWith(expect.objectContaining({ conflictId: teacherConflict.conflictId }))
     fireEvent.click(screen.getAllByRole('button', { name: /Open the conflicting timetable/ })[0])
     expect(handlers.onOpenTimetable).toHaveBeenCalledWith('sib1')
-    fireEvent.click(screen.getByRole('button', { name: '👤 Change teacher' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Change teacher' }))
     expect(handlers.onChangeTeacher).toHaveBeenCalledWith('blk_monday_1')
-    fireEvent.click(screen.getByRole('button', { name: '🚪 Change room' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Change room' }))
     expect(handlers.onChangeRoom).toHaveBeenCalledWith('blk_tuesday_1')
-    fireEvent.click(screen.getAllByRole('button', { name: '➜ Move lesson' })[0])
+    fireEvent.click(screen.getAllByRole('button', { name: 'Move lesson' })[0])
     expect(handlers.onMoveLesson).toHaveBeenCalledWith('blk_monday_1')
   })
 
@@ -153,7 +153,7 @@ describe('TimetableConflictPanel', () => {
   it('shows partial coverage so "0 conflicts" is never fully trusted, and the failure state', () => {
     renderPanel({ conflicts: [] })
     expect(screen.getByText(/Account-level · Partial/)).toBeInTheDocument()
-    expect(screen.getByText('No confirmed conflicts found')).toBeInTheDocument()
+    expect(screen.getByText(/No confirmed conflicts — checked against/)).toBeInTheDocument()
     expect(screen.getByText(/could not be fully checked/)).toBeInTheDocument()
     renderPanel({ status: 'error', errorMessage: 'network down' })
     expect(screen.getByText(/Conflict check failed — network down/)).toBeInTheDocument()
@@ -164,9 +164,9 @@ describe('TimetableConflictPanel', () => {
       conflicts: [],
       coverage: { ...coverage, status: 'complete', legacyTeacherNameBlocks: 0, labelOnlyRoomBlocks: 0, notes: [] },
     })
-    expect(screen.getByText('No conflicts found')).toBeInTheDocument()
+    expect(screen.getByText(/No conflicts — checked against/)).toBeInTheDocument()
     renderPanel({ conflicts: [], coverage: { ...coverage, siblingsChecked: 0, notes: [] } })
-    expect(screen.getByText('No sibling timetables found')).toBeInTheDocument()
+    expect(screen.getByText(/No conflicts — no other active class timetables were found/)).toBeInTheDocument()
   })
 
   it('marks offline results as potentially stale and lists freshly-updated siblings', () => {
