@@ -765,6 +765,10 @@ html[data-theme='night'] body {
   [data-theme='night'] .studio-theme .studio-page-header__emoji {
     background: linear-gradient(180deg, #D8D2C6 0%, #B9B2A3 100%);
   }
+  [data-theme='night'] .studio-theme .studio-page-header__icon {
+    background: #ffffff;
+    color: #0e2a32;
+  }
   /* The 54px icon tile is deliberately kept white-on-Night: it sits inside
      the dark gradient band (not on the page surface) where the small bright
      disc is the icon's contrast backing, matching the light themes. */
