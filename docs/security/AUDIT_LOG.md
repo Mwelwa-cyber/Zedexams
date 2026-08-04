@@ -246,10 +246,11 @@ it is confirmed to have no IAM bindings and no code references.
 
 ---
 
-## 2026-08-05 — External probe traffic on the Gemini API, blocked by existing key restrictions
+## 2026-08-05 — External probe traffic on the Gemini API, none of it successful
 
-**Verdict: no incident, and a load-bearing control proved. Every request failed.
-The client keys' API restrictions are what stopped them.**
+**Verdict: no incident. Every request failed. Which control did the failing is
+established for the 403s and unconfirmed for the 429s — see "Two failure modes"
+below before citing this entry as proof that key restrictions held.**
 
 **Trigger.** Console-track review of API traffic.
 
@@ -279,16 +280,36 @@ attributed to a *client* key is by construction not ours.
 JS bundle and the APK, probing for an unrestricted key, and bounced by the
 Firebase default 25-API allowlist, which does not include the Gemini API.
 
-**Significance — read this before changing a key restriction.** This is the
-dated record that the client keys' **API restrictions are load-bearing and are
-actively repelling traffic**. They are not a formality left over from setup.
-Do not loosen them without revisiting this entry. Client keys ship to every
-browser and every APK; the restriction list, not the key's secrecy, is the
-control.
+**Two failure modes, and they are not the same control.** The errors were
+recorded as "403 and 429" without a split by status code, and the two mean
+different things:
 
-**Optional future confirmation, not yet done.** Logs Explorer should show
-`PERMISSION_DENIED` with a key-restriction reason and callers that are not our
-origins.
+- **403** is the API-key allowlist denying the call — the control this entry is
+  about. It holds regardless of load and does not lift.
+- **429** is quota or rate limiting. A request that 429'd was **not** repelled
+  by the API restriction; it was throttled, and throttling can lift if quota
+  changes. It also does not prove the caller lacked permission.
+
+Because the split was not captured, **the share of the 127 attributable to the
+key restriction versus to throttling is unknown.** The conclusion that nothing
+succeeded is solid; the conclusion that key restrictions are what stopped it is
+established only for the 403 portion. This distinction was missed on first
+writing and is corrected here rather than silently — a security record that
+credits the wrong control is worse than one that admits the gap, because the
+next person may relax the control that was actually doing the work.
+
+**Significance — read this before changing a key restriction.** Client keys ship
+to every browser and every APK, so the restriction list, not the key's secrecy,
+is the control. The 403 portion of this traffic is the dated evidence that the
+list is doing real work and is not a formality left over from setup. Do not
+loosen it without revisiting this entry — and note that if any of these probes
+were merely throttled, loosening quota alone could let them start succeeding.
+
+**Required confirmation, not yet done** (upgraded from "optional" by the above).
+Logs Explorer should show, per request: `PERMISSION_DENIED` with a
+key-restriction reason such as `API_KEY_SERVICE_BLOCKED` versus
+`RESOURCE_EXHAUSTED`, broken down by credential and method, and callers that are
+not our origins. Until that runs, treat the 429 subset as unconfirmed.
 
 ---
 
