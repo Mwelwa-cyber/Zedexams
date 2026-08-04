@@ -93,6 +93,105 @@ bound with `defineSecret()`.
 
 **Open follow-ups (owner action, outside this audit):**
 
-- Confirm in the Google Cloud console that every bound secret has a current
-  enabled version.
-- Review GitHub's Secret scanning alerts for the repository.
+- ~~Confirm in the Google Cloud console that every bound secret has a current
+  enabled version.~~ → Closed by the Secret Manager review entry below.
+- Review GitHub's Secret scanning alerts for the repository. → See the
+  2026-08-04 `.playwright/` entry below, which identifies alert #1.
+
+---
+
+## 2026-08-04 — Secret-scanning alert #1: the committed `.playwright/` browser profile
+
+**Verdict: key material was committed, but it protected nothing. No credential
+was exposed, no rotation is required. The tree is untracked and a CI guard now
+prevents recommitting it.**
+
+**Trigger.** GitHub secret-scanning alert #1, raised against tracked browser
+profile directories.
+
+**What was tracked.** 318 files across two directories, added April 2026 in
+`bff30e37` and `fa6b9fd0`:
+
+| Path | Contents | Assessment |
+|---|---|---|
+| `.playwright/qa-profile/` (206 files, 27 MB) | A real Chromium profile: `Network/Cookies`, `Login Data`, `Login Data For Account`, `Trust Tokens`, `Device Bound Sessions`, `Session Storage`, `passkey_enclave_state`, and `Local State` | Credential-**shaped**; see below |
+| `.playwright-cli/` (112 files) | Dated `page-<timestamp>.yml` page snapshots, 15–19 April 2026 | Session scratch |
+
+**The finding.** `Local State` carries an `os_crypt.encrypted_key` — 392
+characters of base64 key material, the key Chromium uses to encrypt cookie
+values. Committing it beside the cookie database is what makes stored cookies
+recoverable, and it is the most likely trigger for the alert.
+
+**Why this is not an incident.** Every credential store was **empty in every
+committed version**. Both commits that carried the profile have `cookies = 0`
+and `logins = 0`; the two earlier commits did not include those files at all.
+The key therefore protected nothing that was ever committed. The 112 page
+snapshots contain no credential-format matches; the only email addresses in
+them are test fixtures (`@email.com`, `@example.com`) plus two personal
+`@gmail.com` addresses — PII in a public repo, not credentials.
+
+**Consumer check before removal.** `.playwright/` was referenced only by
+*exclusion* rules (`eslint.config.js`, `check-file-integrity.mjs`'s skip list,
+`.gitignore`), which stay in place. `.playwright-cli/` was referenced by three
+documents as "the Playwright smoke harness" (`.claude/agents/qa-smoke.md`,
+`ORG.md`, `src/config/agents.js`) — but it held only page snapshots, never a
+harness. Those references now point at `npm run smoke`, the harness that
+actually exists. `.playwright-mcp.config.json` is a genuine tracked config with
+a live consumer (`test:playwright-mcp-env`) and was deliberately left alone.
+
+**Actions taken.** Both directories untracked (`git rm --cached`, left on disk),
+`.playwright-cli/` added to `.gitignore` — `.playwright/` was already ignored,
+which is why this went unnoticed: an ignore rule does nothing about a file that
+is already tracked. `test:secret-hygiene` now matches these trees by
+**directory**, because the credential-bearing members have innocuous,
+extensionless names (`Local State`, `Login Data`, `Network/Cookies`) that no
+per-file rule would catch.
+
+**History.** The files remain in git history and untracking does not remove
+them. Given that the stores were empty and the key protects nothing, a history
+rewrite is **not** warranted; the alert should be resolved in the GitHub UI as
+used-in-tests/revoked rather than by rewriting a public repository's history.
+
+**Open follow-up (owner action):** close alert #1 in the repository's
+Security → Secret scanning view.
+
+---
+
+## 2026-08-04 — Secret Manager review: orphaned secrets removed
+
+**Verdict: no incident. Housekeeping that closes the Phase 0A step-4 follow-up.**
+
+The Phase 0A audit could verify secret *bindings* statically but not live Secret
+Manager state, which needs console access. That review has now been done by the
+project owner, with two outcomes.
+
+**Superseded versions are disabled after every rotation.** A rotation that
+leaves the previous version enabled has not reduced the blast radius of the leak
+it was answering, because both values still authenticate.
+
+**Secrets no longer referenced by any code were removed** — RevenueCat,
+`ZED_GITHUB_TOKEN`, and the Firebase App Hosting secrets. All three are
+confirmed absent from the tree: the repository contains zero references to
+RevenueCat or `ZED_GITHUB_TOKEN`, and no `apphosting.yaml` (deploys go through
+Firebase Hosting via GitHub Actions). `ZED_GITHUB_TOKEN` is most likely a
+leftover of the Telegram `zedAssistant`, removed in #181. An orphaned secret is
+worse than an unused one: nothing in the codebase says what it grants, so no
+review notices when it should have been revoked.
+
+**Order matters when removing one.** Delete the `defineSecret()` reference and
+deploy *before* destroying the secret. A `defineSecret()` bound to a secret with
+no value makes `firebase deploy` hard-fail and blocks **every** functions
+deploy — the trap already documented for `RECRAFT_API_KEY` and `OPS_ALERT_WEBHOOK_URL`.
+
+**Not an orphan: `META_WHATSAPP_APP_SECRET`.** It is unset, and the inbound
+WhatsApp webhook (`apiWhatsAppWebhook`) therefore answers **403 to every
+request** — `functions/index.js` fails closed in both directions (bad signature
+*and* unverifiable), and the `WHATSAPP_ALLOW_UNVERIFIED` staged-rollout escape
+hatch was deliberately removed. This is the designed posture, not a gap: an
+unverified public webhook that can trigger Anthropic spend, auto-sent WhatsApp
+replies and Firestore writes must refuse traffic rather than accept it. The
+consequence to be aware of is operational, not security-related — **Bonga cannot
+receive inbound messages until the secret is bound.** Binding it is what turns
+the channel on; the binding itself is correct as it stands.
+
+Recorded as principle 8 in [`docs/architecture.md`](../architecture.md) §11.
