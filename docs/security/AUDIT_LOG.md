@@ -195,3 +195,138 @@ receive inbound messages until the secret is bound.** Binding it is what turns
 the channel on; the binding itself is correct as it stands.
 
 Recorded as principle 8 in [`docs/architecture.md`](../architecture.md) §11.
+
+---
+
+## 2026-08-05 — Vertex Express API keys deleted
+
+**Verdict: no incident. Two unused, unrestricted-by-application API keys removed
+before they could be found. Reversible until 2026-09-04.**
+
+**Trigger.** Console-track review of the project's API credentials.
+
+**What was deleted.**
+
+| Credential ID | Created (GMT+2) | Bound to |
+|---|---|---|
+| `e3c34aaf-dab6-49a7-85bf-fb2042a51cf6` | 2026-04-18 23:03 | `vertex-express@examsprepzambia.iam.gserviceaccount.com` |
+| `f628b584-5d08-4fbf-b312-31b596dc0327` | 2026-04-18 23:58 | `vertex-express@examsprepzambia.iam.gserviceaccount.com` |
+
+Both carried **no API restrictions and no application restrictions**. (These are
+GCP credential *resource IDs*, not key material — recording them does not
+breach this log's no-quoting rule, and they are what the restore flow needs.)
+
+**Evidence they were unused.** Three independent reads, all negative:
+
+- Zero requests attributable to either key UUID across all APIs over a six-week
+  Cloud Monitoring window (`serviceruntime` `api_request_count`, grouped by
+  service and `credential_id`).
+- "No data" on Gemini API, Vertex AI, Firebase AI Logic and Firestore with the
+  console metrics view filtered to these two credentials over its maximum
+  30-day window.
+- Neither key is registered to Firebase AI Logic, which runs on the Browser and
+  Android keys.
+
+**Correction to an earlier characterisation.** These keys were initially
+described as "uncapped". **They were not.** A service-account-bound key is
+limited by Google to the Agent Platform (Vertex) API and the Gemini API
+regardless of local configuration, so the API axis was never wide open. The
+genuinely open axis was **Application restrictions = None** — any caller from
+anywhere could have used one had it leaked. The distinction matters because it
+changes what the exposure would have been, and this log is where a future reader
+will look to find out.
+
+**Reversibility. RESTORE WINDOW ENDS 2026-09-04.** Deletion is a GCP soft-delete;
+until that date both keys can be restored via **APIs & Services → Credentials →
+Restore deleted credentials**. After it, they are unrecoverable.
+
+**Open follow-up (owner action):** `vertex-express@` now holds no keys. Disable
+the service account — itself reversible — **after 2026-09-04**, and only once
+it is confirmed to have no IAM bindings and no code references.
+
+---
+
+## 2026-08-05 — External probe traffic on the Gemini API, blocked by existing key restrictions
+
+**Verdict: no incident, and a load-bearing control proved. Every request failed.
+The client keys' API restrictions are what stopped them.**
+
+**Trigger.** Console-track review of API traffic.
+
+**What was observed.** Over the 30 days to 2026-08-05,
+`generativelanguage.googleapis.com` received **127 requests, 100% of them
+errors** (403 and 429):
+
+| Method | Requests |
+|---|---|
+| `ModelService.ListModels` | 69 |
+| `GenerativeService.GenerateContent` | 44 |
+| `v1beta ModelService.ListModels` | 14 |
+
+The traffic was spread across the Browser key, the Android key, and
+`zedexams-maps-static` — **a Maps-only key, which is the tell.** Nothing in this
+product would ever ask a Maps key for a language model.
+
+**Why none of it can be ours.** All legitimate *client* AI goes through Firebase
+AI Logic (`firebasevertexai`), not this API. The repository does call
+`generativelanguage.googleapis.com` directly, but only **server-side** —
+`functions/geminiClient.js` and `functions/geminiImageClient.js` — and those
+authenticate with the `GEMINI_API_KEY` Secret Manager value, a different
+credential from the three client keys this traffic used. So traffic on this API
+attributed to a *client* key is by construction not ours.
+
+**Assessment.** External abuse of public client keys harvested from the shipped
+JS bundle and the APK, probing for an unrestricted key, and bounced by the
+Firebase default 25-API allowlist, which does not include the Gemini API.
+
+**Significance — read this before changing a key restriction.** This is the
+dated record that the client keys' **API restrictions are load-bearing and are
+actively repelling traffic**. They are not a formality left over from setup.
+Do not loosen them without revisiting this entry. Client keys ship to every
+browser and every APK; the restriction list, not the key's secrecy, is the
+control.
+
+**Optional future confirmation, not yet done.** Logs Explorer should show
+`PERMISSION_DENIED` with a key-restriction reason and callers that are not our
+origins.
+
+---
+
+## 2026-08-05 — Client-side Firebase AI Logic: two consumers, one request in six weeks, failing on quota
+
+**Verdict: not a security issue. A product bug — two teacher features are
+silently failing — plus an open architecture question.**
+
+**Trigger.** Console-track review of API traffic.
+
+**What was observed.** `firebasevertexai.googleapis.com` served **exactly one
+production request over six weeks, and it returned 429.**
+
+**Consumers.** The codebase has exactly two, both verified against the tree:
+
+| File | How it calls AI Logic |
+|---|---|
+| `src/utils/timetableExtraction.js` | dynamic `await import('./aiLogic.js')` → `generateJSON` |
+| `src/utils/forecastResourceSuggest.js` | static `import { generateJSON } from './aiLogic'` |
+
+Both reach Gemini through `src/utils/aiLogic.js` → `src/firebase/ai.js`. No
+other module imports either.
+
+**Assessment.** A product bug rather than a security issue: the AI Logic path
+appears to have **no paid quota configured**, so the rare teacher who reaches
+either feature gets a silent failure. The single request in six weeks is also
+the measure of the blast radius — whatever is decided below, almost nobody is
+currently affected.
+
+**Open follow-ups:**
+
+- **(a) Quota — file and fix.** Filed as `AI-004` in
+  [`BUG_REPORT.md`](../../BUG_REPORT.md).
+- **(b) Architecture — should these two features route through the server-side
+  Cloud Functions AI stack instead of calling AI Logic from the client?**
+  Recorded against the existing **P1-c** item in
+  [`docs/architecture/25-remediation-plan.md`](../architecture/25-remediation-plan.md),
+  which already tracks exactly this migration (`RISK-4`, "Client-side Gemini
+  bypasses AI budget/quota/cost"). It is filed there rather than in a new
+  open-questions section so it resurfaces where a migration PR will actually
+  read it.
