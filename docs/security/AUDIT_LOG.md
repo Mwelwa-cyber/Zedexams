@@ -211,8 +211,8 @@ provisioned, or what these two keys were meant to serve, survives in this
 repository or in the material reviewed on 2026-08-05: the name appears nowhere
 in the codebase, and both keys were created within an hour of each other on
 2026-04-18 and then never used. The plausible reading is an abandoned Vertex AI
-Express-mode experiment from the project's first weeks, but **that is a guess
-and is recorded as one.** The absence matters on its own terms: a credential
+Express-mode experiment from the project's first weeks, but no record survives
+to confirm it. The absence matters on its own terms: a credential
 nobody can explain is exactly the kind that survives reviews, because each
 reviewer assumes someone else knows what it is for.
 
@@ -225,15 +225,12 @@ reviewer assumes someone else knows what it is for.
 
 Both carried **no API restrictions and no application restrictions**.
 
-*On recording the IDs:* these are GCP credential **resource identifiers**, not
-key strings. They cannot be used to authenticate to anything — restoring or
-inspecting the credential they name requires console access to the project — so
-they are not what this log's no-quoting rule protects against, which is
-reproducing a value that itself grants access. They are recorded because the
-restore flow below is keyed on them, and because a deletion record that cannot
-identify what was deleted is not a record. The project id they are scoped to is
-already public in `.firebaserc`, as are the bucket names, service-account
-addresses and function names used throughout this log.
+*On recording the IDs:* they are here for audit-trail completeness — a deletion
+record that cannot identify what was deleted is not a record. They are GCP
+credential **resource identifiers**, not key strings: they authenticate to
+nothing, and inspecting or restoring what they name requires console access to
+the project, so they are outside what this log's no-quoting rule protects
+against.
 
 **Evidence they were unused.** Three independent reads, all negative:
 
@@ -319,17 +316,25 @@ different things:
   changes. It also does not prove the caller lacked permission.
 
 Because the split was not captured, **the share of the 127 attributable to the
-key restriction versus to throttling is unknown.** The conclusion that nothing
-succeeded is solid; the conclusion that key restrictions are what stopped it is
-established only for the 403 portion. This distinction was missed on first
-writing and is corrected here rather than silently — a security record that
-credits the wrong control is worse than one that admits the gap, because the
-next person may relax the control that was actually doing the work.
+key restriction versus to throttling is unknown.** Stated precisely, what this
+traffic establishes is:
+
+- **None of it succeeded.** Solid — every one of the 127 returned an error.
+- **Some requests were refused by the key restrictions.** Established only in
+  that 403s occurred at all; *how many* is unknown, so no portion of the 127 can
+  be sized.
+
+Anything stronger than those two — including "the restrictions repelled this
+traffic" as a claim about the whole 127 — is not supported by what was measured.
+This was missed on first writing and is corrected here rather than silently: a
+security record that credits the wrong control is worse than one that admits the
+gap, because the next person may relax the control that was actually doing the
+work.
 
 **Significance — read this before changing a key restriction.** Client keys ship
 to every browser and every APK, so the restriction list, not the key's secrecy,
-is the control. The 403 portion of this traffic is the dated evidence that the
-list is doing real work and is not a formality left over from setup.
+is the control. That 403s appear at all is dated evidence that the list is doing
+real work and is not a formality left over from setup.
 
 > **Do not loosen the API restrictions on the Browser, Android or
 > `zedexams-maps-static` keys without revisiting this entry.** And note the
@@ -458,12 +463,12 @@ Distribution by storage prefix, counted by Firestore `COUNT` aggregations on
 | `slide-notes-images/` | 324 |
 | `lesson-files/` | 28 |
 | `visual-studio/` | 12 |
-| `user-branding/` | 8 |
+| `user-branding/` (profile photos) | 8 |
 | **Total** | **3,944** |
 
-All eight prefixes are user-uploaded content. `user-branding/` is profile
-photos, and those documents carry `Person` and `Clothing` labels — **object
-detection was running over user profile pictures.**
+All eight prefixes are user-uploaded content, and the last row is the one to
+read twice: those eight documents carry `Person` and `Clothing` labels —
+**object detection was running over user profile pictures.**
 
 **Nothing ever read it — verified against `HEAD`. It was write-only *and*
 client-unreadable.** `detectedObjects` appears nowhere in this repository: no
