@@ -212,9 +212,17 @@ before they could be found. Reversible until 2026-09-04.**
 | `e3c34aaf-dab6-49a7-85bf-fb2042a51cf6` | 2026-04-18 23:03 | `vertex-express@examsprepzambia.iam.gserviceaccount.com` |
 | `f628b584-5d08-4fbf-b312-31b596dc0327` | 2026-04-18 23:58 | `vertex-express@examsprepzambia.iam.gserviceaccount.com` |
 
-Both carried **no API restrictions and no application restrictions**. (These are
-GCP credential *resource IDs*, not key material — recording them does not
-breach this log's no-quoting rule, and they are what the restore flow needs.)
+Both carried **no API restrictions and no application restrictions**.
+
+*On recording the IDs:* these are GCP credential **resource identifiers**, not
+key strings. They cannot be used to authenticate to anything — restoring or
+inspecting the credential they name requires console access to the project — so
+they are not what this log's no-quoting rule protects against, which is
+reproducing a value that itself grants access. They are recorded because the
+restore flow below is keyed on them, and because a deletion record that cannot
+identify what was deleted is not a record. The project id they are scoped to is
+already public in `.firebaserc`, as are the bucket names, service-account
+addresses and function names used throughout this log.
 
 **Evidence they were unused.** Three independent reads, all negative:
 
@@ -276,9 +284,17 @@ authenticate with the `GEMINI_API_KEY` Secret Manager value, a different
 credential from the three client keys this traffic used. So traffic on this API
 attributed to a *client* key is by construction not ours.
 
-**Assessment.** External abuse of public client keys harvested from the shipped
-JS bundle and the APK, probing for an unrestricted key, and bounced by the
-Firebase default 25-API allowlist, which does not include the Gemini API.
+**Assessment — an inference, and labelled as one.** The pattern is *consistent
+with* external abuse of public client keys harvested from the shipped JS bundle
+and the APK, probing for an unrestricted key and bounced by the Firebase default
+25-API allowlist, which does not include the Gemini API. That is the most
+economical explanation, and a Maps-only key asking for a language model is
+difficult to explain any other way. It is **not proven**: the same traffic would
+also be consistent with a misconfigured internal test, a third-party SDK
+bundling the wrong key, or a developer's local experiment. What *is* established
+rather than inferred is narrower and sufficient — none of it succeeded, and none
+of it was ours (see above). The Logs Explorer check below is what would settle
+the mechanism.
 
 **Two failure modes, and they are not the same control.** The errors were
 recorded as "403 and 429" without a split by status code, and the two mean
@@ -301,9 +317,12 @@ next person may relax the control that was actually doing the work.
 **Significance — read this before changing a key restriction.** Client keys ship
 to every browser and every APK, so the restriction list, not the key's secrecy,
 is the control. The 403 portion of this traffic is the dated evidence that the
-list is doing real work and is not a formality left over from setup. Do not
-loosen it without revisiting this entry — and note that if any of these probes
-were merely throttled, loosening quota alone could let them start succeeding.
+list is doing real work and is not a formality left over from setup.
+
+> **Do not loosen the API restrictions on the Browser, Android or
+> `zedexams-maps-static` keys without revisiting this entry.** And note the
+> second-order version: if any of these probes were merely throttled rather than
+> refused, loosening *quota* alone could let them start succeeding.
 
 **Required confirmation, not yet done** (upgraded from "optional" by the above).
 Logs Explorer should show, per request: `PERMISSION_DENIED` with a
@@ -334,10 +353,23 @@ Both reach Gemini through `src/utils/aiLogic.js` → `src/firebase/ai.js`. No
 other module imports either.
 
 **Assessment.** A product bug rather than a security issue: the AI Logic path
-appears to have **no paid quota configured**, so the rare teacher who reaches
-either feature gets a silent failure. The single request in six weeks is also
-the measure of the blast radius — whatever is decided below, almost nobody is
-currently affected.
+appears to have **no paid quota configured**. The single request in six weeks is
+also the measure of the blast radius — whatever is decided below, almost nobody
+is currently affected.
+
+**How each one fails — checked against the error paths, not assumed.** The two
+consumers do *not* behave the same way on a 429, and the initial "both fail
+silently" characterisation was only half right:
+
+- `forecastResourceSuggest.js:65-68` catches, `console.warn`s, and returns
+  `{ teacherResources: [], learnerResources: [] }`. **Genuinely silent** — the
+  teacher sees empty suggestions with no indication anything failed.
+- `timetableExtraction.js:342-346` catches and **throws a user-facing message**,
+  so it is *not* silent. But the message is *"Could not read the timetable. Try
+  a clearer photo, or upload a PDF / Excel version."* — which on a quota failure
+  is **actively misleading**, blaming the teacher's file and sending them off to
+  re-photograph a timetable that was never the problem. Distinguishing a
+  transport/quota failure from an unreadable file belongs in the fix.
 
 **Open follow-ups:**
 
@@ -403,7 +435,7 @@ is no timestamp, no user-identifier field and no reference back to any app
 entity; **the only link to a user is the uid embedded in the storage path.**
 
 Distribution by storage prefix, counted by Firestore `COUNT` aggregations on
-2026-08-05 (the eight figures reconcile exactly to the 3,944 total):
+2026-08-05, totalling 3,944:
 
 | Prefix | Documents |
 |---|---|
@@ -449,11 +481,30 @@ Uninstalling stopped both the per-upload Cloud Vision calls and the third-party
 extension's read access to the bucket.
 
 **Pending — the collection is still present.** The 3,944 `detectedObjects`
-documents remain. **The decision is to delete them.** Derived analysis of user
-uploads that no code reads is retained data with zero function, and data
-minimisation argues for keeping *the record of what was processed* rather than
-*the product of the processing*. This entry is that record, and is deliberately
-detailed enough that the collection adds nothing.
+documents remain. **The decision is to delete them.** Data minimisation argues
+for keeping *the record of what was processed* rather than *the product of the
+processing*. This entry is that record, and is deliberately detailed enough that
+the collection adds little.
+
+**The trade-off, stated rather than assumed away.** Deleting it does forfeit
+something: the collection is the only per-object list of exactly which files
+Vision analysed, which could in principle matter in a future dispute about what
+was processed. Three things make that value thin, and they are why the decision
+stands:
+
+- **There is no timestamp on any document** (the schema is `file` + `objects`,
+  nothing else), so it cannot establish *when* anything was processed — only
+  that it was, at some point inside a 110-day window this entry already records.
+- The **prefix distribution above, plus the total, plus the dated active
+  period** preserve the shape of what was processed without retaining a
+  per-file index of user uploads.
+- Keeping a derived index of user content *specifically as evidence* is itself a
+  retention decision that would need a privacy basis, and the extension it came
+  from was never disclosed to users in the first place.
+
+The honest summary is that this is a judgement, not an arithmetic result:
+thin evidentiary value against continued retention of user-derived data that
+nothing reads and no purge path covers.
 
 Deletion is a permanent Firestore operation with **no undo and no restore
 window**, so it will be run by the project owner — not by an agent or an
