@@ -205,6 +205,17 @@ before they could be found. Reversible until 2026-09-04.**
 
 **Trigger.** Console-track review of the project's API credentials.
 
+**What "Vertex Express" was — not established, and that is part of the
+finding.** No record of why the `vertex-express@` service account was
+provisioned, or what these two keys were meant to serve, survives in this
+repository or in the material reviewed on 2026-08-05: the name appears nowhere
+in the codebase, and both keys were created within an hour of each other on
+2026-04-18 and then never used. The plausible reading is an abandoned Vertex AI
+Express-mode experiment from the project's first weeks, but **that is a guess
+and is recorded as one.** The absence matters on its own terms: a credential
+nobody can explain is exactly the kind that survives reviews, because each
+reviewer assumes someone else knows what it is for.
+
 **What was deleted.**
 
 | Credential ID | Created (GMT+2) | Bound to |
@@ -263,8 +274,9 @@ below before citing this entry as proof that key restrictions held.**
 **Trigger.** Console-track review of API traffic.
 
 **What was observed.** Over the 30 days to 2026-08-05,
-`generativelanguage.googleapis.com` received **127 requests, 100% of them
-errors** (403 and 429):
+`generativelanguage.googleapis.com` received **127 requests, all of which
+failed** — 403 or 429, with the split between the two never captured (this
+matters; see "Two failure modes" below):
 
 | Method | Requests |
 |---|---|
@@ -447,15 +459,16 @@ Distribution by storage prefix, counted by Firestore `COUNT` aggregations on
 | `lesson-files/` | 28 |
 | `visual-studio/` | 12 |
 | `user-branding/` | 8 |
+| **Total** | **3,944** |
 
 All eight prefixes are user-uploaded content. `user-branding/` is profile
 photos, and those documents carry `Person` and `Clothing` labels — **object
 detection was running over user profile pictures.**
 
-**Nothing ever read it — verified against `HEAD`, and it is stronger than
-write-only.** `detectedObjects` appears nowhere in this repository: no reads, no
-writes, no security rule, no composite index, no cleanup path. Two consequences
-follow from that absence:
+**Nothing ever read it — verified against `HEAD`. It was write-only *and*
+client-unreadable.** `detectedObjects` appears nowhere in this repository: no
+reads, no writes, no security rule, no composite index, no cleanup path. Two
+consequences follow from that absence:
 
 - Having **no `match` block in `firestore.rules`**, the collection falls to the
   default-deny catch-all (`match /{document=**}`), so no client could read it
