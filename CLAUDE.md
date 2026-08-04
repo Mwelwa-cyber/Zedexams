@@ -53,7 +53,7 @@ npm run test:exam-grading         # functions/grading/dailyExamGrading.test.js
 npm run test:ai-prompt-policy     # functions/aiPromptPolicy.test.js
 npm run test:cors                 # functions/cors.test.js
 npm run test:storage-cleanup      # functions/storageCleanup helpers
-npm run test:secret-hygiene       # release-safety: no committed credential/artifact + .gitignore policy guard
+npm run test:secret-hygiene       # release-safety: .gitignore policy + no committed credential/artifact + dotenv CONTENT scan
 npm run test:shim-guard           # fails if a src/utils shim grows a rule the server won't enforce
 npm run test:shared-assessment-neutral  # fails if functions/shared/ imports React/DOM/Firebase/docx
 npm run test:paper-pagination     # measured Print/PDF page flow (pure core)
