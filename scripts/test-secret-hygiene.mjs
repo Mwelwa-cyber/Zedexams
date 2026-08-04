@@ -109,6 +109,11 @@ const REQUIRED_IGNORES = [
   '*-firebase-adminsdk-*.json',
   '*.pem',
   'id_rsa',
+  // Browser profiles: credential-shaped trees (cookie stores, Login Data,
+  // Trust Tokens, passkey state, and a Local State holding os_crypt key
+  // material). Untracked 2026-08-04 after raising a secret-scanning alert.
+  '.playwright/',
+  '.playwright-cli/',
 ]
 for (const pat of REQUIRED_IGNORES) {
   test(`.gitignore ignores '${pat}'`, () => {
@@ -141,6 +146,12 @@ const SENSITIVE = [
   // WhatsApp (Baileys) session material
   [/(^|\/)app-state-sync-.*\.json$/, 'WhatsApp session state'],
   [/(^|\/)(pre-key|sender-key|session)-.*\.json$/, 'WhatsApp session key'],
+  // Browser profile / session-scratch trees. Matched by DIRECTORY rather than
+  // by filename because the credential-bearing members have innocuous, often
+  // extensionless names — `Local State`, `Login Data`, `Network/Cookies` — that
+  // no per-file rule would recognise. Committing this tree is what raised
+  // secret-scanning alert #1.
+  [/^\.playwright(-cli|-mcp)?\//, 'browser profile / session scratch'],
 ]
 test('no tracked file matches a sensitive name pattern', () => {
   const hits = []

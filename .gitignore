@@ -158,8 +158,21 @@ dist_test*/
 dist-test*/
 
 # Playwright browser profiles created by tests. Tens of MB of binary
-# Chromium cache — has no business being in version control.
+# Chromium cache — has no business being in version control. It is also a
+# CREDENTIAL-SHAPED tree: a Chromium profile carries Network/Cookies,
+# Login Data, Trust Tokens, passkey_enclave_state, and a Local State holding
+# os_crypt key material. This directory was tracked from April 2026 until it
+# was untracked, and that key material is what raised secret-scanning alert #1
+# (the stores themselves were empty in every committed version — see
+# docs/security/AUDIT_LOG.md).
 .playwright/
+
+# Per-session scratch from the Playwright CLI: dated `page-<timestamp>.yml`
+# snapshots of whatever page the run was looking at, written into the
+# directory the tool was started from. Debris, not a harness — and a snapshot
+# of an authenticated page is exactly the sort of thing you do not want
+# accruing in a public repo.
+.playwright-cli/
 
 # Per-session scratch from the Playwright MCP server (.mcp.json): page
 # snapshots, traces and downloads, written into whatever directory the

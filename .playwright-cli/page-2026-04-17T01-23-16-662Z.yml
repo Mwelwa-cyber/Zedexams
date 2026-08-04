@@ -1,5 +1,0 @@
-- main [ref=e3]:
-  - heading "Import Debug" [level=1] [ref=e4]
-  - paragraph [ref=e5]: Upload a document to inspect the raw importer output without the admin UI.
-  - button "Choose File" [ref=e6]
-  - paragraph
