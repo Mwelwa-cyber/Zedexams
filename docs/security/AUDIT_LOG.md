@@ -351,3 +351,119 @@ currently affected.
   bypasses AI budget/quota/cost"). It is filed there rather than in a new
   open-questions section so it resurfaces where a migration PR will actually
   read it.
+
+---
+
+## 2026-08-05 — `storage-detect-objects` extension uninstalled; derived Vision output pending deletion
+
+**Verdict: undisclosed third-party processing of user uploads, now stopped. No
+breach and no credential exposure, but for about 110 days every image finalized
+in the default bucket — including user profile photos — was sent to Cloud Vision
+by a third-party extension, and the results were written to a collection nothing
+ever read. The processing has ended; the residue has not yet been deleted.**
+
+**Trigger.** Console-track review of installed Firebase Extensions.
+
+**What was installed.**
+
+| | |
+|---|---|
+| Extension | `jauntybrain/storage-detect-objects@0.1.0`, instance ID `storage-detect-objects` |
+| Publisher | **`jauntybrain` — a third party, not Firebase or Google** |
+| Function | `ext-storage-detect-objects-detectObjects`, Node.js 20, 1 GB, `us-central1` |
+| Trigger | Cloud Storage **finalize** on `examsprepzambia.firebasestorage.app` |
+| Deployed | 2026-04-17 23:27 CAT |
+| Uninstalled | 2026-08-05 (active ≈110 days) |
+
+**Removal verified twice:** the extension no longer appears under Installed
+extensions, and `ext-storage-detect-objects-detectObjects` no longer appears in
+the 1st-gen functions list.
+
+**Scope as configured — the finding is in what was left blank.**
+
+| Parameter | Value |
+|---|---|
+| Bucket | `examsprepzambia.firebasestorage.app` |
+| Paths containing images to detect objects in | **not set** |
+| Absolute paths not enabled for object detection | **not set** |
+| Collection path | `detectedObjects` |
+| Detail level | basic |
+
+Both path parameters unset means it watched **the entire default bucket with no
+exclusions** and ran Cloud Vision `BatchAnnotateImages` on every finalized
+object for the full active period. It also processed the derivative thumbnails
+written by `storage-resize-images` (`_200x200`, `_400x400`, `_800x800` `.webp`),
+so a single user upload could produce up to four Vision calls and four
+documents.
+
+**What it produced.** 3,944 documents in the root collection `detectedObjects`.
+The schema is exactly two fields — `file` (string, `gs://` URI of the analysed
+object) and `objects` (array of Vision label strings, frequently empty). There
+is no timestamp, no user-identifier field and no reference back to any app
+entity; **the only link to a user is the uid embedded in the storage path.**
+
+Distribution by storage prefix, counted by Firestore `COUNT` aggregations on
+2026-08-05 (the eight figures reconcile exactly to the 3,944 total):
+
+| Prefix | Documents |
+|---|---|
+| `papers/` | 1,492 |
+| `quiz-images/` | 944 |
+| `assessment-images/` | 772 |
+| `picture-bank/` | 364 |
+| `slide-notes-images/` | 324 |
+| `lesson-files/` | 28 |
+| `visual-studio/` | 12 |
+| `user-branding/` | 8 |
+
+All eight prefixes are user-uploaded content. `user-branding/` is profile
+photos, and those documents carry `Person` and `Clothing` labels — **object
+detection was running over user profile pictures.**
+
+**Nothing ever read it — verified against `HEAD`, and it is stronger than
+write-only.** `detectedObjects` appears nowhere in this repository: no reads, no
+writes, no security rule, no composite index, no cleanup path. Two consequences
+follow from that absence:
+
+- Having **no `match` block in `firestore.rules`**, the collection falls to the
+  default-deny catch-all (`match /{document=**}`), so no client could read it
+  either. It was write-only *and* client-unreadable for its entire life.
+- It is **absent from the account-deletion purge lists** in
+  `functions/accountDeletion.js` (drift-tested by
+  `accountDeletionDrift.test.js`). A user who deleted their account therefore
+  left these documents behind. This is moot once the collection is deleted, and
+  it is one more reason to delete rather than keep.
+
+**Status at removal — this was live, billable traffic, not a dormant leftover.**
+`vision.googleapis.com` metrics over the 30 days to 2026-08-05 showed only
+`google.cloud.vision.v1.ImageAnnotator.BatchAnnotateImages`, **100% HTTP 200,
+zero errors**, still ticking at the moment of uninstall.
+
+**What the uninstall removed.** Per the uninstall dialog: the `detectObjects`
+function and its service account, which held **Storage Object Admin** and
+**Cloud Datastore User**. Artifacts it created remain — see Pending below.
+
+**Privacy note.** This extension was never named in any privacy disclosure, Play
+data-safety declaration, or user-facing policy — and now never needs to be.
+Uninstalling stopped both the per-upload Cloud Vision calls and the third-party
+extension's read access to the bucket.
+
+**Pending — the collection is still present.** The 3,944 `detectedObjects`
+documents remain. **The decision is to delete them.** Derived analysis of user
+uploads that no code reads is retained data with zero function, and data
+minimisation argues for keeping *the record of what was processed* rather than
+*the product of the processing*. This entry is that record, and is deliberately
+detailed enough that the collection adds nothing.
+
+Deletion is a permanent Firestore operation with **no undo and no restore
+window**, so it will be run by the project owner — not by an agent or an
+assistant.
+
+**Collection deleted: pending** *(fill in the date once done).*
+
+**Forward note.** The finding that detect-objects was analysing
+`storage-resize-images` output feeds the next console item:
+`storage-resize-images` stays installed but needs its path scope narrowed and
+its "make public" setting reviewed, and the eight prefixes above are the real
+map of what it is producing derivatives for. Recorded in
+[`docs/security/storage-hardening.md`](./storage-hardening.md) §6.
