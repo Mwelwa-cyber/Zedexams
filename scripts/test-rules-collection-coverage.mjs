@@ -1,38 +1,58 @@
 #!/usr/bin/env node
 /**
- * Do the Firestore rules emulator suites actually exercise the collections the
- * binding architecture names?
+ * Do the Firestore rules emulator suites exercise the collections that actually
+ * exist, and does `docs/architecture.md` §10 still describe them correctly?
  *
- * `docs/architecture.md` §10 enumerates the Firestore domain (the ER diagram,
- * the server-only list, the public-read list) and §13 Phase 0B requires
- * confirming "rules emulator suites cover collections about to be touched"
- * before any migration PR moves code. That confirmation was a one-off reading
- * of six test files — which is exactly the kind of answer that is true the day
- * it is written and quietly false a month later, because nothing notices when a
- * suite stops addressing a collection or a new collection joins §10 unclassified.
+ * ## Why this was rewritten (2026-08-05)
  *
- * So the answer lives here instead, as a ratchet:
+ * The first version classified collections through two hand-maintained
+ * constants — a `COVERED` list and an `UNCOVERED` map — transcribed once from
+ * §10. It checked that a covered collection stayed covered and that the two
+ * lists did not overlap, and it printed "28/50 §10 collections exercised".
  *
- *   • every collection in COVERED must still be addressed by some emulator
- *     suite — losing coverage FAILS (that is the regression this guards);
- *   • every collection in §10 must appear in COVERED or UNCOVERED, each of the
- *     latter with a stated reason — an unclassified collection FAILS, so adding
- *     one to §10 forces a decision rather than a silent gap;
- *   • gaining coverage does NOT fail (following the repo's other ratchets,
- *     which fail on regression, not on improvement) — it prints a nudge to
- *     promote the entry.
+ * Nothing in it ever read `firestore.rules`. So its universe was 50 while the
+ * rules file declared **116** top-level collections, and the 66 it had never
+ * heard of could not fail it in either direction — they were not covered, and
+ * they were not flagged as uncovered. The gap was found while planning Phase 3,
+ * which writes three of them (`paperAttempts`, `daily_exam_locks`,
+ * `learner_profiles`). A guard whose universe is a copy of the thing it is
+ * guarding is not a guard.
  *
- * "Addressed" is deliberately crude and deliberately comment-blind: a
- * collection named only in a comment is not tested, and reading it as covered
- * would be worse than not checking at all. Comments are stripped before the
- * scan. This is a static check, so it runs under plain `node` in `test:all`
- * and needs no emulator.
+ * ## What is derived, and what is written down
+ *
+ * Everything that can be derived is derived, because a derived fact is true by
+ * construction and a typed one is true on the day it is typed:
+ *
+ *   • the UNIVERSE — every top-level `match /<collection>/{…}` in firestore.rules
+ *   • COVERAGE — whether any emulator suite addresses that collection
+ *   • POSTURE — what the rules allow, as two facets (read / write), parsed from
+ *     the `allow` statements rather than pattern-matched
+ *   • §10's CLAIMS — the server-only and public-read bullets are parsed out of
+ *     `docs/architecture.md`, so a doc edit is compared against the rules on the
+ *     next run instead of quietly diverging
+ *
+ * Three lists are written down, and all three are SHRINK-ONLY in the sense the
+ * Phase 1 debt lists established: an addition fails, and clearing an entry means
+ * deleting its line (an entry that no longer applies also fails, so the list
+ * cannot silently keep stale rows).
+ *
+ * ## What it does NOT claim
+ *
+ * "Uncovered" is not "unruled" — most uncovered collections have perfectly good
+ * rules, they simply have no emulator test asserting those rules behave. And the
+ * posture facets describe what the rules ALLOW, not whether the condition is
+ * correct; `client-write` on a collection whose rule is `isOwner(uid)` is normal
+ * and safe. The point of recording it is burn-down ordering: a client-writable
+ * collection with no test is a more interesting gap than a server-only one.
+ *
+ * Static check — plain `node`, no emulator, runs inside `test:all`.
  */
 import { readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const read = (rel) => readFileSync(join(ROOT, rel), 'utf8')
 
 /** The rules-behaviour suites. All six run against the emulator in CI. */
 const SUITES = [
@@ -44,105 +64,341 @@ const SUITES = [
   'functions/paymentLifecycleEmulator.test.js',
 ]
 
-/**
- * Collections from `docs/architecture.md` §10, under their REAL Firestore
- * names, because the ER diagram names three of them differently and a reader
- * checking coverage against the diagram would conclude they are untested:
- *
- *   §10 NOTES      → `lessons`     (src/features/notes/lib/firestore.js: `const NOTES = 'lessons'`)
- *   §10 CURRICULA  → `curriculum`  (singular, firestore.rules:1577)
- *   §10 PAPERS     → `pastPapers`  (firestore.rules:2833 — `papers` is the STORAGE path, storage.rules:226)
- */
-const COVERED = [
-  'users', 'payments', 'invoices', 'subscriptionEvents', 'aiGenerations',
-  'usageMeters', 'passkeyCredentials', 'progressShares', 'assessments',
-  'quizzes', 'exam_attempts', 'results', 'scores', 'classRegisters',
-  'pastPapers', 'curriculum',
-  'adminAuditLogs', 'securityAuditLogs', 'aiUsage', 'aiDailyLimits',
-  'aiOperations', 'rateLimits', 'downloadTickets', 'referralCodes',
-  'webauthnChallenges', 'agentJobs', 'settings', 'publicStats',
-]
+// ── Parsing ──────────────────────────────────────────────────────────────────
 
-/**
- * Named in §10, NOT exercised by any emulator suite today. Every entry states
- * what the rules do instead, so "uncovered" is never mistaken for "unruled".
- * Phase 4 migrations that touch one of these must add its emulator test in the
- * same PR (`docs/architecture.md` §14 rule 12).
- */
-const UNCOVERED = {
-  notifications: 'match block at firestore.rules /notifications/{uid}; no emulator test',
-  consentRequests: 'match block; server-only writes; consent flow tested in functions/shared, not rules',
-  ageGateAttempts: 'match block; server-only writes; no emulator test',
-  teacherLibraries: 'match block /teacherLibraries/{uid}; the library suite covers library ITEMS (aiGenerations/assessments), not the per-teacher meta doc',
-  badges: 'match block /badges/{userId}; no emulator test',
-  dailyStreaks: 'match block; no emulator test',
-  learnerStats: 'match block; no emulator test',
-  classes: 'match block /classes/{classId}; no emulator test — Phase 4 (classes) must add one',
-  lessons: 'match block; also the collection behind §10 NOTES; no emulator test',
-  cbcKnowledgeBase: 'match block; no emulator test',
-  rag_chunks: 'match block; no emulator test',
-  processedEvents: 'match block, server-only; webhook idempotency is tested in functions, not rules',
-  referralRedemptions: 'match block, server-only; no emulator test',
-  deletionRequests: 'match block, server-only; no emulator test',
-  paymentLocks: 'NO match block — reaches the explicit default-deny catch-all; no emulator test asserts that denial',
-  opsBackups: 'NO match block — reaches the explicit default-deny catch-all; no emulator test asserts that denial',
-  visitorStats: 'match block, server-only; no emulator test',
-  examTimetables: 'match block, public read; no emulator test',
-  announcements: 'match block, public read; no emulator test',
-  games: 'match block, public read; no emulator test',
-  leaderboards: 'match block, public read; no emulator test',
-  daily_challenges: 'match block, public read; no emulator test',
-}
-
-/** Strip block and line comments so prose never reads as coverage. */
+/** Strip block and line comments so prose never reads as a rule or a test. */
 const stripComments = (src) =>
   src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1')
 
-/** Does this suite address a document in `collection`? */
-const addresses = (body, collection) =>
-  new RegExp(`['\`"]${collection}['\`"]|['\`"]${collection}/|/${collection}/|/${collection}['\`"]`).test(body)
+/**
+ * Every top-level collection block in firestore.rules, as { name → body }.
+ *
+ * "Top-level" means one level inside `match /databases/{db}/documents` — the
+ * depth where a collection lives. Subcollection matches nested deeper belong to
+ * their parent and are not separate entries.
+ */
+function collectionBlocks(rulesSrc) {
+  const lines = stripComments(rulesSrc).split('\n')
+  const out = new Map()
+  let depth = 0
+  let base = null
+  let current = null
+  let currentDepth = null
+  let buf = []
 
-const suites = SUITES.map((rel) => {
-  const src = readFileSync(join(ROOT, rel), 'utf8')
-  return { rel, body: stripComments(src) }
-})
+  for (const line of lines) {
+    const m = /match\s+(\/[^\s{]+)/.exec(line)
+    if (m) {
+      const path = m[1]
+      if (path.includes('databases')) {
+        base = depth + 1
+      } else if (base !== null && depth === base) {
+        if (current) out.set(current, (out.get(current) || '') + buf.join('\n'))
+        current = path.replace(/^\//, '').split('/')[0]
+        currentDepth = depth
+        buf = []
+      }
+    }
+    if (current) buf.push(line)
+    depth += (line.match(/\{/g) || []).length - (line.match(/\}/g) || []).length
+    if (current && depth <= currentDepth) {
+      out.set(current, (out.get(current) || '') + buf.join('\n'))
+      current = null
+      buf = []
+    }
+  }
+  if (current) out.set(current, (out.get(current) || '') + buf.join('\n'))
+  // A wildcard top-level match is the default-deny catch-all, not a collection.
+  for (const k of [...out.keys()]) if (k.startsWith('{')) out.delete(k)
+  return out
+}
 
-const exercisedBy = (collection) =>
-  suites.filter((s) => addresses(s.body, collection)).map((s) => s.rel)
+const WRITE_VERBS = new Set(['write', 'create', 'update', 'delete'])
+const READ_VERBS = new Set(['read', 'get', 'list'])
+const ADMIN_GUARDS = ['isAdmin', 'isSuperAdmin', 'isStaff']
 
-const failures = []
-const nudges = []
-
-// 1. Regression: a covered collection must stay covered.
-for (const collection of COVERED) {
-  if (exercisedBy(collection).length === 0) {
-    failures.push(
-      `${collection}: was exercised by an emulator suite and no longer is. ` +
-      'Restore the test, or move it to UNCOVERED with the reason.',
-    )
+/**
+ * Every `allow <verbs>: if <condition>;` in a block, with the verb LIST parsed.
+ *
+ * Parsing the list rather than matching a leading verb is the whole reason this
+ * function exists: the first draft used /allow\s+(write|create|…)/ and so read
+ * `allow read, write: if false` — the commonest spelling of a server-only
+ * collection — as having no write denial at all. That mistake reported
+ * `consentRequests` and `deletionRequests` as client-writable, which is exactly
+ * the sort of confident wrong answer this file is supposed to prevent.
+ */
+function* allowStatements(body) {
+  const re = /allow\s+([a-z,\s]+?)\s*:\s*if\s+([\s\S]*?);/g
+  let m
+  while ((m = re.exec(body)) !== null) {
+    const verbs = new Set(m[1].split(',').map((v) => v.trim()).filter(Boolean))
+    yield { verbs, condition: m[2].split(/\s+/).join(' ').trim() }
   }
 }
 
-// 2. Improvement: an uncovered collection that gained a test should be promoted.
-for (const collection of Object.keys(UNCOVERED)) {
-  const hits = exercisedBy(collection)
-  if (hits.length) nudges.push(`${collection}: now exercised by ${hits.join(', ')} — promote it to COVERED.`)
+const intersects = (set, other) => [...set].some((v) => other.has(v))
+
+/** What the rules ALLOW, as two independent facets. */
+export function posture(body) {
+  const statements = [...allowStatements(body)]
+  const writes = statements.filter((s) => intersects(s.verbs, WRITE_VERBS))
+  const reads = statements.filter((s) => intersects(s.verbs, READ_VERBS))
+  const liveWrites = writes.filter((s) => s.condition !== 'false').map((s) => s.condition)
+
+  let write
+  if (writes.length === 0) write = 'no-write-rule'
+  else if (liveWrites.length === 0) write = 'server-only'
+  else if (liveWrites.every((c) => ADMIN_GUARDS.some((g) => c.includes(g)))) write = 'admin-only'
+  else write = 'client-write'
+
+  let readFacet
+  if (reads.length === 0) readFacet = 'no-read-rule'
+  else if (reads.some((s) => s.condition === 'true')) readFacet = 'public-read'
+  else if (reads.length === 1 && reads[0].condition === 'false') readFacet = 'no-client-read'
+  else readFacet = 'conditional-read'
+
+  return { read: readFacet, write }
 }
 
-// 3. Classification: overlap between the two lists is a contradiction.
-const both = COVERED.filter((c) => c in UNCOVERED)
-if (both.length) failures.push(`declared both covered and uncovered: ${both.join(', ')}`)
-
-// 4. Drift guard on the scanner itself. If the regexes stop matching anything,
-//    every collection reads as uncovered and this file becomes a rubber stamp.
-const totalHits = COVERED.reduce((n, c) => n + exercisedBy(c).length, 0)
-if (totalHits < COVERED.length) {
-  failures.push(`only ${totalHits} suite/collection hits across ${COVERED.length} covered collections — scanner drifted?`)
+/**
+ * §10's own claims, parsed out of the doc rather than transcribed here.
+ *
+ * Transcribing them is what produced the bug this file was rewritten to fix, so
+ * the bullets are read at runtime and compared against the rules. If either
+ * bullet is reworded past recognition the extraction returns empty, which the
+ * self-check below treats as a failure rather than as "no discrepancies".
+ */
+function architectureClaims(archSrc) {
+  const names = (line) => (line.match(/`([A-Za-z_][\w]*)`/g) || []).map((s) => s.replace(/`/g, ''))
+  const serverLine = /Supporting server-only collections[^\n]*/.exec(archSrc)
+  const publicLine = /Public-read surfaces are deliberate[^\n]*/.exec(archSrc)
+  return {
+    serverOnly: serverLine ? names(serverLine[0]) : [],
+    publicRead: publicLine ? names(publicLine[0]) : [],
+  }
 }
 
-const total = COVERED.length + Object.keys(UNCOVERED).length
-console.log(`rules-collection-coverage: ${COVERED.length}/${total} §10 collections exercised by an emulator suite`)
-for (const n of nudges) console.log(`  nudge: ${n}`)
+// ── The three written-down lists (all shrink-only) ───────────────────────────
+
+/**
+ * Collections an emulator suite exercises TODAY. Losing coverage on one fails —
+ * that is the regression this guards. Gaining coverage on a collection not
+ * listed here also fails, with an instruction to add it: the list is the record,
+ * so it must not drift behind reality in either direction.
+ */
+const COVERED = [
+  'adminAuditLogs', 'agentControl', 'agentJobs', 'aiDailyLimits', 'aiGenerations',
+  'aiOperations', 'aiUsage', 'aiUsageDaily', 'assessmentExports', 'assessments',
+  'classRegisters', 'curriculum', 'downloadTickets', 'exam_attempts',
+  'familyInviteCodes', 'flashcardProgress', 'generatedContent', 'invoices',
+  'newsletterSignupRateLimit', 'noteProgress', 'parentDigestEvents', 'parentLinks',
+  'passkeyAuditLog', 'passkeyCredentials', 'passkeyUserHandles', 'pastPapers',
+  'pastPapersIndex', 'payments', 'progressShares', 'publicStats', 'questionBank',
+  'quizzes', 'rateLimits', 'referralCodes', 'results', 'schoolLicences', 'schools',
+  'scores', 'securityAuditLogs', 'settings', 'shares', 'subscriptionEvents',
+  'teacherProfiles', 'topicMisconceptions', 'usageMeters', 'users', 'webauthnChallenges',
+]
+
+/**
+ * Collections with rules and NO emulator test — acknowledged, not blessed.
+ *
+ * SHRINK-ONLY: a new entry fails (write the test, or add the line deliberately),
+ * and an entry that gains coverage fails with "delete its line". Ordered by
+ * burn-down priority rather than alphabetically, so the list reads as a queue:
+ *
+ *   1. entries carrying a §10 DISCREPANCY (see below) — not backlog, defects
+ *   2. payment / consent / deletion / entitlement-adjacent
+ *   3. Phase 3 write targets, cleared by its cutovers per §14.12
+ *   4. everything else
+ */
+const ACKNOWLEDGED_UNCOVERED = [
+  // 1 — carries a §10 discrepancy (see KNOWN_DISCREPANCIES)
+  'games',
+  // 2 — payment / consent / deletion / entitlement-adjacent
+  'ageGateAttempts', 'consentRequests', 'deletionRequests', 'processedEvents',
+  'referralRedemptions',
+  // 3 — Phase 3 write targets, cleared by its cutovers (docs/phase3-plan.md §5.1)
+  'badges', 'dailyStreaks', 'daily_exam_locks', 'learner_profiles', 'paperAttempts',
+  // 4 — the rest
+  'aiAgentControls', 'aiAgentLogs', 'aiAgentTasks', 'aiAutomationSettings',
+  'aiContentReports', 'aiGeneratedContent', 'aiGeneratedContentVersions',
+  'aiGenerationLog', 'aiLiveAgentStates', 'aiSupervisorLogs', 'aiTaskSteps',
+  'announcements', 'appCheckHealth', 'approvedSyllabi', 'assessmentBands',
+  'assessmentDrafts', 'assessmentStandards', 'assignments', 'cbcKnowledgeBase',
+  'classInvites', 'classes', 'contactMessages', 'curriculumUpdateReports',
+  'curriculumUploads', 'daily_challenges', 'dawnConfig', 'dawnRuns', 'drafts',
+  'examTimetables', 'feedback', 'leaderboards', 'learnerProgress', 'learnerStats',
+  'learnerWeaknessProfiles', 'lessonPlanTemplates', 'lessonPlans', 'lessonProgress',
+  'lessonSeries', 'lessons', 'newsletterSubscribers', 'noteInsights', 'noteSmart',
+  'notifications', 'pictureBank', 'playBindingHealth', 'promptTemplates',
+  'publicStatus', 'questionBankFavourites', 'quizSummaries', 'rag_chunks',
+  'schoolProfiles', 'studyPlanProgress', 'teacherLibraries', 'teacherLibraryItems',
+  'visitorStats', 'visits', 'visualAssets', 'visualProjects',
+]
+
+/**
+ * Where the rules and §10 DISAGREE. These are defects in one artifact or the
+ * other, not test gaps — recorded so they are visible and so a NEW one fails.
+ *
+ * SHRINK-ONLY: a discrepancy not listed here fails; a listed one that no longer
+ * disagrees fails with "resolved — delete its line".
+ */
+const KNOWN_DISCREPANCIES = {
+  referralCodes:
+    '§10 lists it under "server-only (all `write: if false` to clients)", but the rule is ' +
+    '`allow create: isAuthed() && keys().hasOnly([uid, createdAt]) && uid == request.auth.uid`. ' +
+    'A signed-in client can create its own tightly-constrained code. The rule looks deliberate; ' +
+    'the DOC is what is wrong.',
+  agentJobs:
+    '§10 lists it as server-only, but the rules allow `create: isTeacherOrAbove()` plus ' +
+    'admin update/delete. Worth more than a doc fix: the teacher-facing agent-submission ' +
+    'surface was REMOVED in 2026-06 (CLAUDE.md), so this may be a live write grant for a ' +
+    'surface that no longer exists — check before simply correcting the doc.',
+  games:
+    '§10 counts it among the `if true` public reads, but the rule is ' +
+    "`allow read: resource.data.get('active', true) == true || isAdmin()`. Effectively public " +
+    'for active games, but an inactive game is NOT publicly readable, so §10\'s "13 `if true` ' +
+    'reads" is overcounted.',
+}
+
+/**
+ * Named in §10 as having no match block at all, relying on the default-deny
+ * catch-all. Asserted rather than assumed — if one grows a block, the rules
+ * changed and the note in §10 is stale.
+ */
+const NO_MATCH_BLOCK = ['paymentLocks', 'opsBackups']
+
+/**
+ * Hand-verified facts the parser must keep reproducing.
+ *
+ * Without these a parser regression is invisible: if `allowStatements` stopped
+ * matching, every collection would read `no-write-rule` and this file would
+ * become a rubber stamp that passes. Each entry below was read out of
+ * firestore.rules by hand.
+ */
+const PARSER_SELF_CHECK = [
+  ['consentRequests', 'server-only', 'no-client-read'],  // allow read, write: if false
+  ['deletionRequests', 'server-only', 'no-client-read'], // allow read, write: if false
+  ['publicStats', 'server-only', 'public-read'],         // read: true; create,delete,update: false
+  ['results', 'client-write', 'conditional-read'],
+  ['settings', 'admin-only', 'public-read'],
+]
+
+// ── Run ──────────────────────────────────────────────────────────────────────
+
+const blocks = collectionBlocks(read('firestore.rules'))
+const universe = [...blocks.keys()].sort()
+const suites = SUITES.map((rel) => ({ rel, body: stripComments(read(rel)) }))
+
+const addresses = (body, c) =>
+  new RegExp(`['\`"]${c}['\`"]|['\`"]${c}/|/${c}/|/${c}['\`"]`).test(body)
+const exercisedBy = (c) => suites.filter((s) => addresses(s.body, c)).map((s) => s.rel)
+
+const failures = []
+const postures = new Map(universe.map((c) => [c, posture(blocks.get(c))]))
+
+// 0. Self-checks first — every assertion below is worthless if the parser broke.
+if (universe.length < 100) {
+  failures.push(`parsed only ${universe.length} collections from firestore.rules — parser drifted?`)
+}
+for (const [name, write, readFacet] of PARSER_SELF_CHECK) {
+  const p = postures.get(name)
+  if (!p) { failures.push(`self-check: ${name} has no block — rules changed or parser broke`); continue }
+  if (p.write !== write || p.read !== readFacet) {
+    failures.push(
+      `self-check: ${name} parsed as ${p.write}/${p.read}, hand-verified as ${write}/${readFacet}`,
+    )
+  }
+}
+const claims = architectureClaims(read('docs/architecture.md'))
+if (claims.serverOnly.length === 0 || claims.publicRead.length === 0) {
+  failures.push('could not extract §10 server-only / public-read bullets — doc reworded?')
+}
+
+// 1. Universe: every collection is classified.
+for (const c of universe) {
+  const inCovered = COVERED.includes(c)
+  const inAck = ACKNOWLEDGED_UNCOVERED.includes(c)
+  if (!inCovered && !inAck) {
+    const p = postures.get(c)
+    failures.push(
+      `${c}: in firestore.rules but classified nowhere (${p.write}, ${p.read}). ` +
+      'Add an emulator test and list it in COVERED, or add it to ACKNOWLEDGED_UNCOVERED deliberately.',
+    )
+  }
+  if (inCovered && inAck) failures.push(`${c}: declared both covered and acknowledged-uncovered`)
+}
+
+// 2. Both lists are shrink-only and must not drift behind reality.
+for (const c of COVERED) {
+  if (!blocks.has(c)) {
+    failures.push(`${c}: listed as covered but has no match block in firestore.rules — delete its line`)
+  } else if (exercisedBy(c).length === 0) {
+    failures.push(`${c}: was exercised by an emulator suite and no longer is. Restore the test, or move it to ACKNOWLEDGED_UNCOVERED.`)
+  }
+}
+for (const c of ACKNOWLEDGED_UNCOVERED) {
+  if (!blocks.has(c)) {
+    failures.push(`${c}: acknowledged as uncovered but has no match block — delete its line`)
+  } else {
+    const hits = exercisedBy(c)
+    if (hits.length) {
+      failures.push(`${c}: now exercised by ${hits.join(', ')} — the list is shrink-only, so delete its line and add it to COVERED.`)
+    }
+  }
+}
+
+// 3. §10 discrepancies, derived and compared against the known set.
+const derivedDiscrepancies = new Map()
+for (const c of claims.serverOnly) {
+  if (!blocks.has(c)) continue // §10 also names the two no-match-block collections
+  const p = postures.get(c)
+  if (p.write !== 'server-only' && p.write !== 'no-write-rule') {
+    derivedDiscrepancies.set(c, `§10 says server-only writes; rules allow ${p.write}`)
+  }
+}
+for (const c of claims.publicRead) {
+  if (!blocks.has(c)) continue
+  const p = postures.get(c)
+  if (p.read !== 'public-read') {
+    derivedDiscrepancies.set(c, `§10 says public read (\`if true\`); rules give ${p.read}`)
+  }
+}
+for (const [c, why] of derivedDiscrepancies) {
+  if (!(c in KNOWN_DISCREPANCIES)) {
+    failures.push(`${c}: NEW discrepancy between firestore.rules and §10 — ${why}. Fix one of them, or record it in KNOWN_DISCREPANCIES.`)
+  }
+}
+for (const c of Object.keys(KNOWN_DISCREPANCIES)) {
+  if (!derivedDiscrepancies.has(c)) {
+    failures.push(`${c}: recorded as a §10 discrepancy but the rules and the doc now agree — resolved, so delete its line.`)
+  }
+}
+
+// 4. The two collections §10 says have no match block.
+for (const c of NO_MATCH_BLOCK) {
+  if (blocks.has(c)) {
+    failures.push(`${c}: §10 says it has no match block, but firestore.rules now declares one — update §10.`)
+  }
+}
+
+// ── Report ───────────────────────────────────────────────────────────────────
+
+const covered = universe.filter((c) => exercisedBy(c).length > 0)
+const byWrite = (list, kind) => list.filter((c) => postures.get(c).write === kind).length
+console.log(
+  `rules-collection-coverage: ${covered.length}/${universe.length} collections in firestore.rules ` +
+  'are exercised by an emulator suite',
+)
+console.log(
+  `  uncovered by write posture: ${byWrite(ACKNOWLEDGED_UNCOVERED, 'client-write')} client-write, ` +
+  `${byWrite(ACKNOWLEDGED_UNCOVERED, 'admin-only')} admin-only, ` +
+  `${byWrite(ACKNOWLEDGED_UNCOVERED, 'server-only')} server-only, ` +
+  `${byWrite(ACKNOWLEDGED_UNCOVERED, 'no-write-rule')} no-write-rule`,
+)
+if (derivedDiscrepancies.size) {
+  console.log(`  §10 discrepancies (recorded, shrink-only): ${[...derivedDiscrepancies.keys()].join(', ')}`)
+}
 
 if (failures.length) {
   console.error('\nFAIL — rules emulator collection coverage:')
