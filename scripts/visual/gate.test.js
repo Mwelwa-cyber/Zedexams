@@ -18,7 +18,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import yaml from 'js-yaml'
 import {
-  GATE_MODES, RENDERER_FAMILIES, REQUIRED_ARTEFACTS, FAILURE_ARTEFACTS,
+  GATE_MODES, RENDERER_FAMILIES, UPDATABLE_FAMILIES, REQUIRED_ARTEFACTS, FAILURE_ARTEFACTS,
   mayWriteBaseline, validateUpdateRequest, baselineWriteFilter, planBaselineUpdate,
   validateBootstrapRequest, planBaselineBootstrap,
   validateSweepUpdateRequest, assertBaselineDestination,
@@ -402,7 +402,10 @@ test('the update workflow always requires a reason and a source', () => {
   // The family is a choice, so a typo cannot silently target nothing. The empty
   // option is the sweep's "every family" and is only reachable there — the
   // validator below refuses it for a one-baseline update.
-  assert.deepEqual(inputs.family.options, ['', ...RENDERER_FAMILIES])
+  // The UPDATABLE subset, not every family. Replacing goes through the sweep
+  // path, which is not routed to the screen runner — an option reaching an
+  // unrouted path would silently record nothing while reporting success.
+  assert.deepEqual(inputs.family.options, ['', ...UPDATABLE_FAMILIES])
 })
 
 test('fixture and family are optional to the WORKFLOW and required by the RECORDER', () => {
