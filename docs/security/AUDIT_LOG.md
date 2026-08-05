@@ -404,7 +404,7 @@ silently" characterisation was only half right:
 
 ---
 
-## 2026-08-05 — `storage-detect-objects` extension uninstalled; derived Vision output pending deletion
+## 2026-08-05 — `storage-detect-objects` extension uninstalled; derived Vision output deleted
 
 **Verdict: undisclosed third-party processing of user uploads, now stopped. No
 breach and no credential exposure, but for about 110 days every image finalized
@@ -497,27 +497,29 @@ zero errors**, still ticking at the moment of uninstall.
 
 **What the uninstall removed.** Per the uninstall dialog: the `detectObjects`
 function and its service account, which held **Storage Object Admin** and
-**Cloud Datastore User**. Artifacts it created remain — see Pending below.
+**Cloud Datastore User**. Artifacts it created were left behind by the
+uninstall and were removed separately — see "The output it left behind" below.
 
 **Privacy note.** This extension was never named in any privacy disclosure, Play
 data-safety declaration, or user-facing policy — and now never needs to be.
 Uninstalling stopped both the per-upload Cloud Vision calls and the third-party
 extension's read access to the bucket.
 
-**Pending — the collection is still present.** The 3,944 `detectedObjects`
-documents remain. **The decision is to delete them.** Data minimisation argues
-for keeping *the record of what was processed* rather than *the product of the
-processing*. This entry is that record, and is deliberately detailed enough that
-the collection adds little.
+**The output it left behind — deleted.** The uninstall stopped the processing
+but left its 3,944 `detectedObjects` documents in place; they were deleted
+separately (see the closing line). Data minimisation argued for keeping *the
+record of what was processed* rather than *the product of the processing*. This
+entry is that record, and is deliberately detailed enough that the collection
+added little.
 
-**The trade-off, stated rather than assumed away.** Deleting it does forfeit
-something: the collection is the only per-object list of exactly which files
-Vision analysed, which could in principle matter in a future dispute about what
-was processed. Three things make that value thin, and they are why the decision
-stands:
+**The trade-off, stated rather than assumed away.** Deleting it did forfeit
+something: the collection was the only per-object list of exactly which files
+Vision analysed, which could in principle have mattered in a future dispute
+about what was processed. Three things made that value thin, and they are why
+the decision stood:
 
-- **There is no timestamp on any document** (the schema is `file` + `objects`,
-  nothing else), so it cannot establish *when* anything was processed — only
+- **There was no timestamp on any document** (the schema is `file` + `objects`,
+  nothing else), so it could not establish *when* anything was processed — only
   that it was, at some point inside a 110-day window this entry already records.
 - The **prefix distribution above, plus the total, plus the dated active
   period** preserve the shape of what was processed without retaining a
@@ -526,15 +528,20 @@ stands:
   retention decision that would need a privacy basis, and the extension it came
   from was never disclosed to users in the first place.
 
-The honest summary is that this is a judgement, not an arithmetic result:
-thin evidentiary value against continued retention of user-derived data that
-nothing reads and no purge path covers.
+The honest summary is that this was a judgement, not an arithmetic result: thin
+evidentiary value against continued retention of user-derived data that nothing
+read and no purge path covered.
 
-Deletion is a permanent Firestore operation with **no undo and no restore
-window**, so it will be run by the project owner — not by an agent or an
-assistant.
+Deletion was a permanent Firestore operation with **no undo and no restore
+window**, so it was run by the project owner — not by an agent or an assistant.
 
-**Collection deleted: pending** *(fill in the date once done).*
+**Collection deleted: 2026-08-05.** All 3,944 documents removed. Verified two
+ways by the owner at the time of deletion: `detectedObjects` no longer appears
+in the Firestore root collection list (which now runs `dailyStreaks`,
+`daily_exam_locks`, `drafts` with nothing between them), and navigating directly
+to the `detectedObjects` panel URL renders an empty collection with zero
+documents. **This entry is now the only surviving record of what was
+processed** — which is what it was written to be.
 
 **Forward note.** The finding that detect-objects was analysing
 `storage-resize-images` output feeds the next console item:
