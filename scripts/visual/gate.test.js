@@ -151,6 +151,21 @@ test('the gate reports on every pull request, under one stable name', () => {
   }
 })
 
+test('the screen job asserts only the tools it actually needs', () => {
+  // It renders in Chromium and does not install LibreOffice. Asserting the
+  // paper toolchain there fails a job that has everything it needs — which is
+  // what happened on this job's first run, reporting "LibreOffice not
+  // available" for a render that never wanted it.
+  const steps = compareWorkflow.jobs.screen.steps
+  const env = steps.find((st) => /reportEnvironment/.test(st.run || ''))
+  assert.ok(env, 'the screen job records its rendering environment')
+  assert.match(env.run, /--stages=screen/,
+    'the screen job must assert the SCREEN toolchain, not the paper one')
+  assert.ok(!steps.some((st) => /libreoffice|soffice/i.test(st.run || '')),
+    'the screen family renders in Chromium only — installing LibreOffice here buys nothing '
+    + 'and asserting it fails the job')
+})
+
 test('the gate\u2019s verdict is a tested module, not an untestable expression', () => {
   // Every way this can be wrong is silent — passing on a cancelled render, on a
   // skip it should have refused, or when scope resolution failed and nothing

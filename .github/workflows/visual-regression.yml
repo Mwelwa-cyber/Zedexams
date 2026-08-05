@@ -242,8 +242,12 @@ jobs:
           PUPPETEER_SKIP_DOWNLOAD: "false"
         run: npm ci
 
+      # `--stages=screen`: this family renders in Chromium only and does not
+      # install LibreOffice. Asserting the paper toolchain here fails a job
+      # that has everything it needs — which is exactly what happened on this
+      # job's first run.
       - name: Record the rendering environment
-        run: node scripts/visual/reportEnvironment.mjs
+        run: node scripts/visual/reportEnvironment.mjs --stages=screen
 
       # Fixtures validate their own contents before anything renders — a
       # fixture whose subject was deleted must fail here rather than have its
