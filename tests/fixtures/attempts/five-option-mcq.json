@@ -1,0 +1,34 @@
+{
+  "note": "Five options. The schema admits 20 and past-paper import produces up to 10; this is the shape that made D4 print 'undefined'.",
+  "quiz": {
+    "id": "quiz-2",
+    "title": "Past Paper 2019",
+    "subject": "Science",
+    "grade": "7",
+    "duration": 45
+  },
+  "questions": [
+    {
+      "id": "q1",
+      "type": "mcq",
+      "text": "What is 1 + 1?",
+      "options": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e"
+      ],
+      "correctAnswer": 4,
+      "marks": 2,
+      "topic": "Addition"
+    }
+  ],
+  "answers": {
+    "q1": 4
+  },
+  "mode": "practice",
+  "userId": "learner-2",
+  "startTime": 2000000,
+  "nowMs": 2030000
+}
