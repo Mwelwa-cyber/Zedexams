@@ -18,7 +18,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import yaml from 'js-yaml'
 import {
-  GATE_MODES, RENDERER_FAMILIES, REQUIRED_ARTEFACTS, FAILURE_ARTEFACTS,
+  GATE_MODES, RENDERER_FAMILIES, UPDATABLE_FAMILIES, REQUIRED_ARTEFACTS, FAILURE_ARTEFACTS,
   mayWriteBaseline, validateUpdateRequest, baselineWriteFilter, planBaselineUpdate,
   validateBootstrapRequest, planBaselineBootstrap,
   validateSweepUpdateRequest, assertBaselineDestination,
@@ -136,9 +136,34 @@ test('the gate reports on every pull request, under one stable name', () => {
     'the required check name is stable')
   assert.equal(compareWorkflow.jobs.gate.if, 'always()',
     'the gate reports whatever the other jobs did')
-  assert.deepEqual(compareWorkflow.jobs.gate.needs, ['scope', 'visual'])
-  // And the expensive job is NOT the one to require: it legitimately skips.
+  // Both render families report through this one check. A second required
+  // check would need a second branch-protection entry with the same wedging
+  // risk, and the question a pull request needs answered is one question.
+  assert.deepEqual(compareWorkflow.jobs.gate.needs, ['scope', 'visual', 'screen'])
+  // And the expensive jobs are NOT the ones to require: they legitimately skip.
   assert.equal(compareWorkflow.jobs.visual.if, "needs.scope.outputs.requires_visual == 'true'")
+  assert.equal(compareWorkflow.jobs.screen.if, "needs.scope.outputs.requires_screen == 'true'")
+  // Neither expensive job may acquire a path filter of its own either: the gate
+  // reads their results, so a filtered job is an absence the gate must judge
+  // rather than a job that quietly did not matter.
+  for (const job of ['visual', 'screen']) {
+    assert.ok(!compareWorkflow.jobs[job].paths, `${job} must not filter by path`)
+  }
+})
+
+test('the screen job asserts only the tools it actually needs', () => {
+  // It renders in Chromium and does not install LibreOffice. Asserting the
+  // paper toolchain there fails a job that has everything it needs — which is
+  // what happened on this job's first run, reporting "LibreOffice not
+  // available" for a render that never wanted it.
+  const steps = compareWorkflow.jobs.screen.steps
+  const env = steps.find((st) => /reportEnvironment/.test(st.run || ''))
+  assert.ok(env, 'the screen job records its rendering environment')
+  assert.match(env.run, /--stages=screen/,
+    'the screen job must assert the SCREEN toolchain, not the paper one')
+  assert.ok(!steps.some((st) => /libreoffice|soffice/i.test(st.run || '')),
+    'the screen family renders in Chromium only — installing LibreOffice here buys nothing '
+    + 'and asserting it fails the job')
 })
 
 test('the gate\u2019s verdict is a tested module, not an untestable expression', () => {
@@ -147,7 +172,8 @@ test('the gate\u2019s verdict is a tested module, not an untestable expression',
   // ran. A GitHub `if:` expression cannot be tested.
   const decide = compareWorkflow.jobs.gate.steps.find((st) => /gateVerdict/.test(st.run || ''))
   assert.ok(decide, 'the gate decides through gateVerdict.js')
-  for (const key of ['SCOPE_RESULT', 'VISUAL_RESULT', 'REQUIRES_VISUAL']) {
+  for (const key of ['SCOPE_RESULT', 'VISUAL_RESULT', 'REQUIRES_VISUAL',
+    'SCREEN_RESULT', 'REQUIRES_SCREEN']) {
     assert.ok(key in (decide.env || {}), `the verdict is given ${key}`)
   }
 })
@@ -391,7 +417,10 @@ test('the update workflow always requires a reason and a source', () => {
   // The family is a choice, so a typo cannot silently target nothing. The empty
   // option is the sweep's "every family" and is only reachable there — the
   // validator below refuses it for a one-baseline update.
-  assert.deepEqual(inputs.family.options, ['', ...RENDERER_FAMILIES])
+  // The UPDATABLE subset, not every family. Replacing goes through the sweep
+  // path, which is not routed to the screen runner — an option reaching an
+  // unrouted path would silently record nothing while reporting success.
+  assert.deepEqual(inputs.family.options, ['', ...UPDATABLE_FAMILIES])
 })
 
 test('fixture and family are optional to the WORKFLOW and required by the RECORDER', () => {

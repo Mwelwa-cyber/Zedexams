@@ -4,7 +4,19 @@
  * Recorded in the CI log and in every comparison summary so a reviewer can tell
  * an environment drift from a regression without rerunning anything.
  *
- *   node scripts/visual/reportEnvironment.mjs
+ *   node scripts/visual/reportEnvironment.mjs                 # both paper renderers
+ *   node scripts/visual/reportEnvironment.mjs --stages=screen  # Chromium only
+ *
+ * ## The stages are an argument because the families need different tools
+ *
+ * The paper families need Chromium AND LibreOffice. The learner-SCREEN family
+ * renders in Chromium only and deliberately does not install LibreOffice — so
+ * asserting the paper toolchain there fails a job that has everything it needs.
+ * That is not hypothetical: it is what this script did on the screen job's
+ * first run, reporting "cannot render: LibreOffice (soffice) not available" for
+ * a render that never wanted it.
+ *
+ * The default is unchanged, so every existing caller keeps asserting both.
  */
 
 import fs from 'node:fs'
@@ -31,9 +43,12 @@ for (const [key, value] of Object.entries(environment)) {
   console.log(`  ${key.padEnd(20)} ${shown}`)
 }
 
+const stagesArg = process.argv.find((a) => a.startsWith('--stages='))
+const stages = stagesArg ? stagesArg.slice('--stages='.length).split(',').filter(Boolean) : ['browser-print', 'docx']
+
 try {
-  assertToolchain(['browser-print', 'docx'], environment)
-  console.log('\n✓ both renderers are available')
+  assertToolchain(stages, environment)
+  console.log(`\n✓ the tools for ${stages.join(' + ')} are available`)
 } catch (err) {
   if (err instanceof RenderEnvironmentError) {
     console.error(`\n✗ ${err.message}`)
