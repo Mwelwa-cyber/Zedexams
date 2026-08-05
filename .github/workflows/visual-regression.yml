@@ -83,6 +83,8 @@ jobs:
       summary: ${{ steps.scope.outputs.summary }}
       fixture: ${{ steps.scope.outputs.fixture }}
       family: ${{ steps.scope.outputs.family }}
+      requires_screen: ${{ steps.scope.outputs.requires_screen }}
+      screen_summary: ${{ steps.scope.outputs.screen_summary }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -102,6 +104,8 @@ jobs:
           node scripts/visual/baselinePrScope.test.js
           node scripts/visual/printAffectingPaths.test.js
           node scripts/visual/gateVerdict.test.js
+          node scripts/visual/screen/screenScope.test.js
+          node scripts/visual/screen/screenFixtures.test.js
 
       - name: Resolve scope
         id: scope
@@ -203,10 +207,71 @@ jobs:
           path: |
             tests/visual/output/**
 
+  # ── The learner SCREEN. Runs only when what a learner sees can be affected. ─
+  #
+  # Classified INSIDE the workflow, never by a `paths:` filter. The gate below
+  # is a required check and must report on every pull request; a filtered job
+  # is MISSING rather than passed, and branch protection then holds every
+  # unrelated pull request open waiting for a result that never arrives.
+  #
+  # No LibreOffice: this family renders in Chromium only. Papers and screens
+  # are separate renderers with separate baselines, and neither vouches for the
+  # other.
+  screen:
+    name: Visual regression (learner screen)
+    needs: scope
+    if: needs.scope.outputs.requires_screen == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Explicit, because ci.yml skips the puppeteer browser download globally.
+      # The gate renders with the browser puppeteer downloads here and records
+      # ITS version into the baseline identity.
+      - name: Install dependencies
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "false"
+        run: npm ci
+
+      - name: Record the rendering environment
+        run: node scripts/visual/reportEnvironment.mjs
+
+      # Fixtures validate their own contents before anything renders — a
+      # fixture whose subject was deleted must fail here rather than have its
+      # empty page compared against a baseline nobody can read.
+      - name: Validate the screen fixtures
+        run: node scripts/visual/screen/screenFixtures.test.js
+
+      - name: Compare against baselines
+        run: node scripts/visual/screen/runScreenGate.mjs --mode=compare
+
+      # Published whatever happened: a failed comparison is exactly when
+      # someone needs to look at what was drawn.
+      - name: Upload the rendered screens
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-screen-${{ github.run_id }}
+          path: tests/visual/output/screen/**
+          retention-days: 14
+          if-no-files-found: warn
+
   # ── The one required check. Always runs, always reports, same name. ───────
+  #
+  # BOTH families report through it. A second required check would need a
+  # second branch-protection entry with the same wedging risk, and the question
+  # a pull request needs answered is one question, not two.
   gate:
     name: Visual regression gate
-    needs: [scope, visual]
+    needs: [scope, visual, screen]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -231,6 +296,9 @@ jobs:
           VISUAL_RESULT: ${{ needs.visual.result }}
           REQUIRES_VISUAL: ${{ needs.scope.outputs.requires_visual }}
           SCOPE_SUMMARY: ${{ needs.scope.outputs.summary }}
+          SCREEN_RESULT: ${{ needs.screen.result }}
+          REQUIRES_SCREEN: ${{ needs.scope.outputs.requires_screen }}
+          SCREEN_SUMMARY: ${{ needs.scope.outputs.screen_summary }}
         run: |
           node --input-type=module -e '
             import { gateVerdict } from "./scripts/visual/gateVerdict.js"
@@ -240,6 +308,9 @@ jobs:
               visualResult: process.env.VISUAL_RESULT,
               requiresVisual: process.env.REQUIRES_VISUAL,
               summary: process.env.SCOPE_SUMMARY,
+              screenResult: process.env.SCREEN_RESULT,
+              requiresScreen: process.env.REQUIRES_SCREEN,
+              screenSummary: process.env.SCREEN_SUMMARY,
             })
             const line = `${v.passed ? "✓" : "✗"} ${v.conclusion}: ${v.message}`
             console.log(line)

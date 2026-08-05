@@ -55,6 +55,7 @@ on:
           - all
           - browser-print
           - docx
+          - screen
 
 concurrency:
   group: visual-baseline-write
@@ -100,6 +101,7 @@ jobs:
       # whose subject was deleted must fail here rather than have its empty paper
       # recorded as the reference every later comparison trusts.
       - name: Validate the fixtures before recording them
+        if: inputs.family != 'screen'
         run: |
           if [ -n "${{ inputs.fixture }}" ]; then
             node scripts/visual/validateFixtures.mjs --fixture="${{ inputs.fixture }}"
@@ -107,10 +109,29 @@ jobs:
             node scripts/visual/validateFixtures.mjs
           fi
 
+      - name: Validate the SCREEN fixtures before recording them
+        if: inputs.family == 'all' || inputs.family == 'screen'
+        run: node scripts/visual/screen/screenFixtures.test.js
+
       # Not `continue-on-error`. A bootstrap run that cannot render a fixture must
       # stop before the pull-request step, so nothing is committed from a run that
       # did not complete — the gate's own rule, applied to its first recording.
+      # The SCREEN family is its own renderer with its own runner. It is
+      # skipped when the dispatch narrows to a paper family, and it is the only
+      # thing that runs when the dispatch narrows to `screen` — a paper
+      # bootstrap must not quietly record screen baselines, and vice versa.
+      - name: Record the missing SCREEN baselines
+        if: inputs.family == 'all' || inputs.family == 'screen'
+        run: |
+          set -euo pipefail
+          ARGS=(--mode=update --bootstrap-missing)
+          ARGS+=(--reason="${{ inputs.reason }}")
+          ARGS+=(--source="${{ inputs.source }}")
+          if [ -n "${{ inputs.fixture }}" ]; then ARGS+=(--fixture="${{ inputs.fixture }}"); fi
+          node scripts/visual/screen/runScreenGate.mjs "${ARGS[@]}"
+
       - name: Record the missing baselines
+        if: inputs.family != 'screen'
         run: |
           set -euo pipefail
           ARGS=(--mode=update --bootstrap-missing)

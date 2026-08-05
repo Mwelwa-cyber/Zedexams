@@ -22,6 +22,23 @@
  * scope says so: a job skipped for any other reason — a cancelled run, a
  * dependency failure, a `if:` someone edited — is an absence of evidence, and
  * this gate treats absence of evidence as failure.
+ *
+ * ## Two render families, one check
+ *
+ * The learner-SCREEN family reports through this same check, under the same
+ * rule, and that is deliberate. A second required check would need a second
+ * branch-protection entry and would have the same wedging risk; and the
+ * question the owner of a pull request needs answered is one question — "is
+ * what this ships acceptable to look at" — not two.
+ *
+ * Each family is judged independently and BOTH must be acceptable. A screen
+ * render that failed is a failure even when the papers are untouched, and vice
+ * versa, because each is the output some real user receives.
+ *
+ * The screen inputs are OPTIONAL: absent, they read as a family that was not
+ * required and did not run, which is exactly what an older workflow produces.
+ * That keeps this callable from a workflow that predates the screen job rather
+ * than failing every pull request during the changeover.
  */
 
 /** The GitHub job results this reasons about. */
@@ -35,14 +52,65 @@ export const JOB_RESULTS = Object.freeze(['success', 'failure', 'cancelled', 'sk
  * @param {string} input.summary          the scope job's human summary
  * @returns {{passed: boolean, conclusion: string, message: string}}
  */
+/**
+ * One family's verdict, under the rule above.
+ *
+ * Extracted so the screen family cannot drift from the paper family by being
+ * judged with a second, subtly different set of branches — the exact way a
+ * gate acquires a hole nobody reads.
+ */
+function familyVerdict({ label, result, required, summary }) {
+  if (required) {
+    if (result === 'success') {
+      return { passed: true, conclusion: 'compared', message: summary || `${label} compared against the recorded baselines.` }
+    }
+    if (result === 'skipped') {
+      // The dangerous one. The render was required and did not happen, which
+      // reads on the run page as a tidy grey "skipped" rather than as a hole.
+      return {
+        passed: false,
+        conclusion: 'skipped',
+        message: `The ${label.toLowerCase()} comparison was required for this pull request and did not run. `
+          + 'A skipped render is not a pass — nothing was compared.',
+      }
+    }
+    return {
+      passed: false,
+      conclusion: result === 'cancelled' ? 'cancelled' : 'failed',
+      message: result === 'cancelled'
+        ? `The ${label.toLowerCase()} comparison was cancelled before it could report, so it is unverified.`
+        : `The ${label.toLowerCase()} comparison failed — the output does not match the recorded baselines.`,
+    }
+  }
+
+  // Not required. The only acceptable outcome is that it did not run; a render
+  // that happened anyway and FAILED is still a failure, because the output it
+  // rendered is the output this pull request produces.
+  if (result === 'skipped' || result === '') {
+    return { passed: true, conclusion: 'unaffected', message: summary || `${label} not affected by this pull request.` }
+  }
+  if (result === 'success') {
+    return { passed: true, conclusion: 'compared', message: summary || `${label} compared against the recorded baselines.` }
+  }
+  return {
+    passed: false,
+    conclusion: result === 'cancelled' ? 'cancelled' : 'failed',
+    message: result === 'cancelled'
+      ? `The ${label.toLowerCase()} comparison was cancelled before it could report.`
+      : `The ${label.toLowerCase()} comparison ran and failed, so the output is not acceptable `
+        + 'even though the changed files were not expected to affect it.',
+  }
+}
+
 export function gateVerdict({
   scopeResult = '',
   visualResult = '',
   requiresVisual = '',
   summary = '',
+  screenResult = '',
+  requiresScreen = '',
+  screenSummary = '',
 } = {}) {
-  const needed = String(requiresVisual) === 'true'
-
   if (scopeResult !== 'success') {
     return {
       passed: false,
@@ -52,56 +120,27 @@ export function gateVerdict({
     }
   }
 
-  if (needed) {
-    if (visualResult === 'success') {
-      return {
-        passed: true,
-        conclusion: 'compared',
-        message: summary || 'Printed output compared against the recorded baselines.',
-      }
-    }
-    if (visualResult === 'skipped') {
-      // The dangerous one. The render was required and did not happen, which
-      // reads on the run page as a tidy grey "skipped" rather than as a hole.
-      return {
-        passed: false,
-        conclusion: 'visual-skipped',
-        message: 'The visual comparison was required for this pull request and did not run. '
-          + 'A skipped render is not a pass — nothing was compared.',
-      }
-    }
-    return {
-      passed: false,
-      conclusion: visualResult === 'cancelled' ? 'visual-cancelled' : 'visual-failed',
-      message: visualResult === 'cancelled'
-        ? 'The visual comparison was cancelled before it could report, so printed output is unverified.'
-        : 'The visual comparison failed — the printed output does not match the recorded baselines.',
-    }
-  }
+  const print = familyVerdict({
+    label: 'Printed output',
+    result: visualResult,
+    required: String(requiresVisual) === 'true',
+    summary,
+  })
+  const screen = familyVerdict({
+    label: 'Learner screen',
+    result: screenResult,
+    required: String(requiresScreen) === 'true',
+    summary: screenSummary,
+  })
 
-  // Not required. The only acceptable outcome is that it did not run; a render
-  // that happened anyway and FAILED is still a failure, because the paper it
-  // rendered is the paper this pull request produces.
-  if (visualResult === 'skipped' || visualResult === '') {
-    return {
-      passed: true,
-      conclusion: 'unaffected',
-      message: summary || 'Printed output not affected by this pull request.',
-    }
-  }
-  if (visualResult === 'success') {
-    return {
-      passed: true,
-      conclusion: 'compared',
-      message: summary || 'Printed output compared against the recorded baselines.',
-    }
-  }
+  // BOTH must be acceptable. Reported failure-first so the message names what
+  // is wrong rather than leading with the half that passed.
+  if (!print.passed) return { passed: false, conclusion: `visual-${print.conclusion}`, message: print.message }
+  if (!screen.passed) return { passed: false, conclusion: `screen-${screen.conclusion}`, message: screen.message }
+
   return {
-    passed: false,
-    conclusion: visualResult === 'cancelled' ? 'visual-cancelled' : 'visual-failed',
-    message: visualResult === 'cancelled'
-      ? 'The visual comparison was cancelled before it could report.'
-      : 'The visual comparison ran and failed, so printed output is not acceptable '
-        + 'even though the changed files were not expected to affect it.',
+    passed: true,
+    conclusion: print.conclusion === 'compared' || screen.conclusion === 'compared' ? 'compared' : 'unaffected',
+    message: `${print.message} ${screen.message}`,
   }
 }

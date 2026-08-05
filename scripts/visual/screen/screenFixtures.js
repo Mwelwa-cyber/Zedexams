@@ -35,6 +35,19 @@
  * `.math-frac-den` — stacked, no slash on the page — inside the §4 single
  * column with A/B/C/D badges.
  *
+ * ## Named page checks
+ *
+ * Each fixture declares `pageChecks` — assertions the stage runs IN THE PAGE
+ * before the screenshot, implemented in `screenStage.mjs`. A pixel baseline
+ * answers "did this change"; it cannot answer "was it ever right", and a
+ * baseline recorded from wrong output looks identical to one recorded from
+ * right output forever after. `stackedNotation` is the check that would have
+ * caught #2128 — it measures that the numerator's box sits ABOVE the
+ * denominator's, which class-presence alone cannot tell you.
+ *
+ * An empty list is allowed and must still be written down: absent, a fixture
+ * opts out of every check silently.
+ *
  * ## A fixture validates itself
  *
  * Same rule as the paper set, for the same reason: someone edits a fixture,
@@ -109,6 +122,7 @@ const hasAnswer = { name: 'an answered option', test: (f) => typeof f.answer ===
 export const SCREEN_FIXTURES = [
   {
     id: 'scr-001',
+    pageChecks: ['letteredChoices', 'singleColumn', 'noVerdictLeak'],
     title: 'Four-option MCQ, unanswered',
     protects: ['the §4 single vertical column', 'A/B/C/D letter badges', 'the unanswered resting state'],
     requires: [hasOptions(4), isUnrevealed],
@@ -122,6 +136,7 @@ export const SCREEN_FIXTURES = [
   },
   {
     id: 'scr-002',
+    pageChecks: ['letteredChoices', 'singleColumn', 'noVerdictLeak'],
     title: 'Four-option MCQ, answered but not revealed',
     protects: ['the selected state', 'that NO verdict is painted before reveal'],
     requires: [hasOptions(4), hasAnswer, isUnrevealed],
@@ -136,6 +151,7 @@ export const SCREEN_FIXTURES = [
   },
   {
     id: 'scr-003',
+    pageChecks: ['letteredChoices', 'singleColumn'],
     title: 'Revealed, answered wrongly',
     protects: ['the correct/incorrect verdict pair', 'the ✓ and ✗ marks that stop colour being the only signal'],
     requires: [hasOptions(4), hasAnswer, isRevealed],
@@ -150,6 +166,7 @@ export const SCREEN_FIXTURES = [
   },
   {
     id: 'scr-004',
+    pageChecks: ['letteredChoices', 'singleColumn'],
     title: 'Five options — the D4 defect\'s shape',
     protects: ['that a fifth option is lettered E rather than left blank'],
     requires: [hasOptions(5)],
@@ -164,6 +181,7 @@ export const SCREEN_FIXTURES = [
   },
   {
     id: 'scr-005',
+    pageChecks: ['letteredChoices', 'singleColumn'],
     title: 'Long options — the reason the column is vertical',
     protects: ['that a sentence-length option gets a full-width row and wraps rather than truncating'],
     requires: [hasOptions(4), everyOptionLongerThan(70)],
@@ -183,6 +201,7 @@ export const SCREEN_FIXTURES = [
   },
   {
     id: 'scr-006',
+    pageChecks: ['stackedNotation', 'letteredChoices', 'singleColumn'],
     title: 'School notation — a stacked fraction in the prompt',
     protects: [
       '§4.1 school notation: a stacked fraction with a horizontal bar',
@@ -210,6 +229,7 @@ export const SCREEN_FIXTURES = [
   },
   {
     id: 'scr-007',
+    pageChecks: ['letteredChoices', 'singleColumn'],
     title: 'True/false',
     protects: ['that a two-choice question is lettered A and B, not left unlettered'],
     requires: [hasOptions(2)],
@@ -225,6 +245,7 @@ export const SCREEN_FIXTURES = [
   },
   {
     id: 'scr-008',
+    pageChecks: [],
     title: 'A question stored with no answer choices',
     protects: ['that an unanswerable question is REPORTED to the learner, not drawn as a bare prompt'],
     requires: [hasOptions(0)],
@@ -259,6 +280,12 @@ export function screenFixtureProblems(fixture) {
     problems.push(`${where}: declares no requirement, so nothing checks its purpose is still in it`)
   }
   if (!fixture?.question) problems.push(`${where}: has no question`)
+  // `pageChecks` must be DECLARED, even as an empty list. Absent, a fixture
+  // silently opts out of every named check and its baseline records whatever
+  // it drew — which is how the fraction bug would have been enshrined.
+  if (!Array.isArray(fixture?.pageChecks)) {
+    problems.push(`${where}: declares no pageChecks list (use [] to opt out deliberately)`)
+  }
 
   for (const requirement of fixture?.requires ?? []) {
     let held = false

@@ -15,6 +15,7 @@ import fs from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { classifyVisualPullRequest } from './baselinePrScope.js'
 import { classifyPrintScope } from './printAffectingPaths.js'
+import { classifyScreenScope } from './screen/screenAffectingPaths.js'
 
 const eventName = process.env.GITHUB_EVENT_NAME || ''
 const eventPath = process.env.GITHUB_EVENT_PATH || ''
@@ -81,6 +82,19 @@ const print = isPullRequest && !forced
 const requiresVisual = print.requiresVisual || Boolean(baseline.fixture)
 
 writeOutput('requires_visual', requiresVisual ? 'true' : 'false')
+
+// The learner-SCREEN family, classified by its own list. Separate from the
+// print one because the two answer different questions: a paper change must
+// not render screens and a screen change must not render papers. Both report
+// through the one required check (`gateVerdict`), and both must be acceptable.
+const screen = isPullRequest && !forced
+  ? classifyScreenScope(changedFiles)
+  : { requiresScreen: true, reason: forced ? 'forced' : 'not-a-pull-request', summary: forced
+      ? 'Forced by the manual dispatch, whatever changed.'
+      : 'Not a pull request, so the full screen suite runs.', matched: [] }
+const requiresScreen = screen.requiresScreen || Boolean(baseline.fixture)
+writeOutput('requires_screen', requiresScreen ? 'true' : 'false')
+writeOutput('screen_summary', screen.summary)
 writeOutput('reason', baseline.fixture ? 'baseline' : print.reason)
 writeOutput('summary', baseline.fixture
   ? `Reviewed baseline pull request: validating ${baseline.fixture} (${baseline.family || 'all families'}).`

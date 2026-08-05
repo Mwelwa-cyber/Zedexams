@@ -6,13 +6,19 @@ A third render family alongside `browser-print` and `docx`. Those protect
 printed papers; this protects what a learner sees on a phone, which is the
 first engine code they will meet and is measured by nothing today.
 
-**Status: the fixtures, their self-validation and the baseline identity have
-landed. The Chromium stage and the CI workflows have not.** The gate therefore
-reports nothing yet — it is not wired to a workflow, and it must be green
-before a cutover shows engine renderers to a learner.
+**Status: complete except for the baselines themselves.** Fixtures, stage,
+runner, named page checks and CI wiring have all landed. `tests/visual/baselines/screen/`
+is empty, so the gate reports RED — and that is correct, not broken:
+`runScreenGate.mjs` never creates a baseline from a comparison run, so it
+cannot approve its own first render.
 
-This is the same order the write differ shipped in: the rules first, reviewed,
-before anything depends on them passing.
+To record them: dispatch **Visual baseline bootstrap** from `main` with
+`family=screen`. It opens a draft pull request with the recorded pages, which
+is the one human look this gate gets — baselines lock whatever they show.
+
+Replacing an approved screen baseline is NOT yet supported (the update
+workflow's sweep path is not routed to this runner), and nothing is blocked by
+that: a baseline that does not exist cannot be replaced.
 
 ## The finding that decided the design
 
@@ -60,20 +66,32 @@ slash anywhere on the page: none
 
 Stacked, single-column, lettered. That is the §4 and §4.1 contract, drawn.
 
-## What is left
+## Named page checks — what a pixel baseline cannot tell you
 
-- `screenStage.mjs` — build CSS + bundle, launch Chromium, screenshot each
-  fixture × viewport, returning PNGs with the captured environment.
-- A runner alongside `runVisualGate.mjs`, reusing `comparePages`,
-  `assertComparableEnvironment` and the summary format.
-- CI: the render job, plus `screen` in the bootstrap and update workflows. Both
-  stay `workflow_dispatch`-only and open a draft PR, and
-  `assertComparableEnvironment` still rejects a locally recorded baseline — so
-  **baselines are recorded by CI or not at all**, exactly as for papers.
-- Scope: the `Visual regression gate` check is required and must report on
-  every PR, so the screen render is gated by its own classification inside the
-  workflow rather than by a `paths:` filter. A filtered required check is
-  *missing*, not passed, and wedges every unrelated PR.
+A baseline answers "did this change". It cannot answer "was it ever right": a
+baseline recorded from wrong output looks identical to one recorded from right
+output, forever. So each fixture declares `pageChecks`, run IN THE PAGE before
+the screenshot, and a failure refuses the capture rather than recording it.
+
+| check | what it measures |
+|---|---|
+| `stackedNotation` | the numerator's box sits ABOVE the denominator's, there is a bar, and no slash appears |
+| `letteredChoices` | every row carries a letter, in order from A |
+| `singleColumn` | all rows start at one x position — a column, not a grid |
+| `noVerdictLeak` | an unrevealed question carries no correctness signal in its markup |
+
+`stackedNotation` measures geometry, not markup, and that distinction is the
+whole point: before #2128 the classes were all present and both boxes had
+`top: 58`. Verified by reverting that fix against the live stage — the render
+refuses with *"numerator and denominator are side by side (num top 60, den top
+60)"*.
+
+## Scope, and why it is not a `paths:` filter
+
+The `Visual regression gate` check is required and must report on every pull
+request. The screen render is therefore gated by `screenAffectingPaths.js`
+INSIDE the workflow. A filtered required check is *missing*, not passed, and
+branch protection then holds every unrelated pull request open forever.
 
 ## Rules carried over from the paper gate
 

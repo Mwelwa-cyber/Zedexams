@@ -19,6 +19,7 @@ import {
   screenBaselineTargets,
 } from './screenFixtures.js'
 import { baselineIdentity, assertToolchain, RenderEnvironmentError } from '../renderEnvironment.js'
+import { SCREEN_PAGE_CHECKS } from './screenStage.mjs'
 
 let passed = 0
 function test(name, fn) {
@@ -172,6 +173,60 @@ test('a missing Chromium is an INFRASTRUCTURE refusal, not a blank baseline', ()
   // an empty page accepted as the reference.
   assert.throws(() => assertToolchain(['screen'], {}), /infrastructure failure/)
   assert.doesNotThrow(() => assertToolchain(['screen'], { chromium: '1.2.3' }))
+})
+
+// ── Named page checks ────────────────────────────────────────────────────────
+
+test('every fixture declares a pageChecks list, even if empty', () => {
+  // Absent, a fixture silently opts out of every named check and its baseline
+  // records whatever it drew.
+  for (const f of SCREEN_FIXTURES) {
+    assert.ok(Array.isArray(f.pageChecks), `${f.id}: no pageChecks list`)
+  }
+})
+
+test('every declared check is implemented by the stage', () => {
+  // A typo'd name would otherwise mean a fixture claiming a guarantee nothing
+  // provides. The stage treats an unknown name as a failure; this catches it
+  // without needing a browser.
+  const declared = new Set(SCREEN_FIXTURES.flatMap((f) => f.pageChecks))
+  const implemented = new Set(Object.keys(SCREEN_PAGE_CHECKS))
+  assert.deepEqual([...declared].filter((n) => !implemented.has(n)), [])
+})
+
+test('the maths fixture declares stackedNotation — the check that would have caught #2128', () => {
+  // Named explicitly. This is the assertion that measures geometry rather than
+  // markup, and the fixture that carries a fraction is the only one that can
+  // run it; a later edit moving it elsewhere must fail here.
+  const maths = SCREEN_FIXTURES.find((f) => f.id === 'scr-006')
+  assert.ok(maths.pageChecks.includes('stackedNotation'))
+  assert.deepEqual(
+    SCREEN_FIXTURES.filter((f) => f.pageChecks.includes('stackedNotation')).map((f) => f.id),
+    ['scr-006'],
+    'only the fixture that actually contains a fraction may claim this check',
+  )
+})
+
+test('every unrevealed fixture with an answer checks for a verdict leak', () => {
+  // The rule a learner could exploit, asserted at the level it matters: an
+  // exam that painted the key into the DOM.
+  for (const f of SCREEN_FIXTURES) {
+    if (f.revealed || typeof f.answer !== 'number') continue
+    assert.ok(f.pageChecks.includes('noVerdictLeak'), `${f.id}: an unrevealed answered fixture must check for a leak`)
+  }
+})
+
+test('every implemented check is used by at least one fixture', () => {
+  // A check nothing runs is a check nobody has seen work.
+  const declared = new Set(SCREEN_FIXTURES.flatMap((f) => f.pageChecks))
+  assert.deepEqual(Object.keys(SCREEN_PAGE_CHECKS).filter((n) => !declared.has(n)), [])
+})
+
+test('every check explains itself', () => {
+  for (const [name, check] of Object.entries(SCREEN_PAGE_CHECKS)) {
+    assert.equal(typeof check.run, 'function', name)
+    assert.ok((check.describe ?? '').length > 20, `${name}: describe is too thin`)
+  }
 })
 
 console.log(`\nvisual screen fixtures: ${passed} passed`)
