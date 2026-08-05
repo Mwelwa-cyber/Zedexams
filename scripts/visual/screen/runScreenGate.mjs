@@ -28,6 +28,7 @@ import { fileURLToPath } from 'node:url'
 import { comparePages } from '../compareRender.js'
 import {
   baselineIdentity, captureRenderEnvironment, assertToolchain, assertComparableEnvironment,
+  resolveRenderChromium,
 } from '../renderEnvironment.js'
 import { renderScreenFixtures } from './screenStage.mjs'
 import { SCREEN_FIXTURES, SCREEN_VIEWPORTS } from './screenFixtures.js'
@@ -46,7 +47,14 @@ const mode = arg('mode', 'compare')
 const bootstrapMissing = flag('bootstrap-missing')
 const onlyFixture = arg('fixture')
 
-const environment = captureRenderEnvironment()
+// Chromium must be RESOLVED before the environment is captured. Puppeteer's
+// browser is not on PATH, so `captureRenderEnvironment()` alone records an
+// empty `chromium` and `assertToolchain` then reports "Chromium not available"
+// on a runner that has it — which is exactly what this did on its first CI run,
+// one step after `reportEnvironment.mjs` reported the browser present. That
+// script resolves first; so does this one now.
+const chromiumPath = await resolveRenderChromium()
+const environment = captureRenderEnvironment({ chromiumPath })
 assertToolchain(['screen'], environment)
 const identity = baselineIdentity('screen', environment)
 const dir = path.join(BASELINES, identity.replace('screen/', ''))
