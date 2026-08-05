@@ -1,20 +1,25 @@
 # Phase 3 — Assessment Engine implementation plan
 
 > Snapshot as of 2026-08-05 — verify before acting.
+>
+> **All eight decisions in §10 are settled** (2026-08-05). The scope and order
+> below reflect them, and the binding changes they implied are in
+> [`architecture.md`](architecture.md) §4, §4.1, §10, §13 and §14.5. §10 of this
+> document now records what was decided and why, not what is open.
 
 The plan for [`docs/architecture.md`](architecture.md) §4 and its Phase 3 entry in
-§13: extract one Assessment Engine and retire the four parallel runners. Written
-after reading the four runners and their service layers, not from the
-architecture doc's description of them — where the two disagree, this document
-says so and the disagreement is a decision in §10.
+§13: extract one Assessment Engine and retire the parallel runners. Written after
+reading the four surfaces §4 named and their service layers, not from the
+architecture doc's description of them — where the two disagreed, this document
+said so, and every disagreement is now settled in §10 and reflected back into the
+binding doc.
 
-**No code in this PR.** Every line number below is evidence for a claim, at
-`main` = `6edaf22f`.
+Every line number below is evidence for a claim, verified at `main` = `6edaf22f`.
 
 The rule Phase 2 established and this phase inherits: **a migration is a move,
 not a rewrite** ([`MIGRATION_TEMPLATE.md`](MIGRATION_TEMPLATE.md)). Phase 3
-strains it harder than Phase 2 did, because one engine replacing four runners
-*cannot* be a pure move — the four disagree, and unifying them means picking a
+strains it harder than Phase 2 did, because one engine replacing several runners
+*cannot* be a pure move — they disagree, and unifying them means picking a
 behaviour. The discipline that survives is: **pick the behaviour in a PR that
 changes nothing else**, and prove the writes did not move.
 
@@ -22,9 +27,9 @@ changes nothing else**, and prove the writes did not move.
 
 ## 0. The finding that shapes everything else
 
-§4 describes "four parallel runners … each with its own results rendering",
-implying four implementations of one thing. That is not what is there. Reading
-them:
+§4 described "four parallel runners … each with its own results rendering",
+implying four implementations of one thing. That was not what was there. Reading
+them (the corrections this produced are now in §4 itself):
 
 | | Reads | Grades | Writes | Timer | Resume |
 |---|---|---|---|---|---|
@@ -32,7 +37,7 @@ them:
 | **DailyExamRunner** | `quizzes` + questions via callable | **server** | `exam_attempts` + `daily_exam_locks` + (later) `learnerStats` | client start, **server-recomputed** deadline | localStorage + Firestore attempt |
 | **PublicQuizRunner** | `pastPapers` + `quizzes` + `questions` | client, **discarded** | **nothing** | none | none |
 | **PastPaperPractice** | `pastPapers` (a PDF) | n/a — **no questions** | `paperAttempts` | client stopwatch | none |
-| **games (`timed_quiz`)** | `games` doc, questions **inline** | client | `scores` + `dailyStreaks` + badges | round countdown | none |
+| **games (`timed_quiz`)** | `games` doc, questions **inline** | client | `scores` + `dailyStreaks` + `badges` + `learner_profiles` | round countdown | none |
 
 Three consequences run through the rest of this plan:
 
@@ -63,9 +68,13 @@ Three consequences run through the rest of this plan:
    `{question, options, answer}`, a third vocabulary that is neither the
    editor's nor the assessment's.
 
-So Phase 3's real scope is **three question runners** —
-`QuizRunnerV2`, `DailyExamRunner`, `PublicQuizRunner` — plus **one game engine**,
-`TimedQuizGame`.
+So Phase 3's real scope is **two question runners** — `QuizRunnerV2` and
+`PublicQuizRunner` — plus **one game engine**, `TimedQuizGame`.
+
+`DailyExamRunner` was in this list until the scope decision (§6): it stays on
+its own path untouched, and the Daily Quiz rework becomes a **new consumer** of
+the engine rather than a migration of the old runner. Its inventory in §1.2
+stays in this document, because that rework needs it.
 
 ---
 
@@ -101,9 +110,16 @@ So Phase 3's real scope is **three question runners** —
 - **Existing coverage**: `QuizRunnerV2.spec.jsx`, 559 lines, 20 cases including
   the submit payload and the two answer-loss recoveries.
 
-### 1.2 DailyExamRunner — `/exam/:examId`
+### 1.2 DailyExamRunner — `/exam/:examId` — **out of Phase 3's scope**
 
 `src/components/exams/DailyExamRunner.jsx`, 856 lines. Route at `src/App.jsx:580`.
+
+**Not migrated by this phase** (§6). It keeps running unchanged, and none of the
+writes below enter §3's byte-compatibility surface. This inventory stays because
+the Daily Quiz rework is built on the engine as a new consumer, and everything
+recorded here — the privacy split, the server-derived deadline, the lock, the
+downstream `learnerStats` write — is a requirement that rework inherits whether
+or not it reuses a line of this runner's code.
 
 This is the one runner with a **server-authoritative submit**, and it is the
 most divergent of the four.
@@ -194,8 +210,8 @@ parameterises it. "Resolve" = the engine picks one and something changes.
 
 | # | Divergence | Evidence | Disposition |
 |---|---|---|---|
-| D1 | Marking is client-side (quiz, public, game) vs server-side (daily) | `quizScoring.js` vs `dailyExamGradingFns.js:144` | **Preserve.** A marking *strategy* is engine config. Moving quizzes to server marking would break practice mode's live reveal |
-| D2 | The client holds the answer key (quiz, public, game) or does not (daily) | `getExamQuestions` withholds it | **Preserve** — it is a security posture, not a style |
+| D1 | Marking is client-side (quiz, public, game) vs server-side (daily) | `quizScoring.js` vs `dailyExamGradingFns.js:144` | **Out of scope.** With daily deferred, every Phase 3 consumer marks client-side. The engine ships `clientKey` + `none` behind an isolated verdict seam; no `serverCallable` interface until a real consumer defines its shape (§2.4) |
+| D2 | The client holds the answer key (quiz, public, game) or does not (daily) | `getExamQuestions` withholds it | **Out of scope** for the same reason — but it is a security posture, not a style, and the rework re-decides it rather than inheriting the engine's default |
 | D3 | MCQ options: `.opt-grid` is `grid-template-columns: 1fr` (`src/index.css:5030`) — single column ✅; DailyExamRunner is `sm:grid-cols-2` (`:574`) — two columns ❌ | | **Resolve** to vertical, per §4. Visible UI change on one runner |
 | D4 | Option letters: `['A','B','C','D'][i]` (quiz `:1716`, daily `:578`) vs `String.fromCharCode(65+i)` (public `:167`) | | **Resolve.** The array form yields `undefined` past D — a latent bug in two runners, not a preference |
 | D5 | Identity fields: `scores` stores grade as Number + subject lowercased; everything else uses string grade + display-label subject | `gamesService.js:132-139` | **Preserve, loudly.** Encode it as a per-target write adapter with the comment attached |
@@ -231,14 +247,14 @@ Per §4.1 note 5 and §14.10, the contract extends what exists:
 **`questionTypeCore` documents two live vocabularies** — the editor's (`mcq`,
 `tf`, `short_answer`, …) and the assessment paper's (`multiple_choice`,
 `true_false`, `structured`, …) — kept separate on purpose, bridged by one tested
-pair of functions. The engine consumes the **editor vocabulary** (all four
-runners are on it) and reaches the assessment side only through that bridge. It
+pair of functions. The engine consumes the **editor vocabulary** (every
+runner is on it) and reaches the assessment side only through that bridge. It
 must not introduce a third.
 
 ### 2.2 RichContent
 
 `RichContent` (Tiptap JSON + KaTeX school notation) is already rendered by three
-of the four runners via `src/editor/RichContent.jsx`, with
+of the runners via `src/editor/RichContent.jsx`, with
 `getRichPlainText` as the fallback. Two constraints from §4.1:
 
 - **Legacy plain strings stay byte-compatible** — the normaliser wraps at read
@@ -264,7 +280,7 @@ That collides with Phase 3's own byte-compatibility rule:
 
 This plan proposes **read-time only for Phase 3**, with a stamped
 `schemaVersion` deferred to whichever phase changes those documents for another
-reason. It is **Decision 1** in §10.
+reason. Decided read-time only — see §10, decision 1.
 
 ### 2.4 What the engine owns, and what it does not
 
@@ -276,7 +292,7 @@ src/engines/assessment/
 ├── normalise/                   ← quiz | dailyExam | pastPaperQuiz | game
 │                                  → one AssessmentSession input
 ├── session/                     ← navigation, timing, answer capture, autosave
-├── marking/                     ← strategy: clientKey | serverCallable | none
+├── marking/                     ← clientKey | none, behind one verdict seam
 ├── render/                      ← question renderers (MCQ vertical, short, …)
 └── persist/                     ← per-target write adapters (§3)
 ```
@@ -289,6 +305,18 @@ SDK — the write adapters describe *what* to write and a caller in
 **Not in the engine**: the paywall bus, subject-integrity validation, premium
 gating, mascots/streak chrome, `recordExamCompletion`, badges. These wrap it.
 
+**Marking ships as two strategies, not three.** Every Phase 3 consumer marks
+client-side from the answer key, so `serverCallable` would be an interface with
+no caller — designed from the shape of the runner being retired rather than from
+the consumer that will actually need it. What the engine builds instead is the
+**seam**: the session asks one function for a verdict and never scores inline, so
+adding a strategy later is an addition rather than a refactor of the session.
+This is deliberately not the same as building the abstraction. If the Daily Quiz
+rework wants per-question server marking mid-session, a synchronous verdict
+function is the wrong seam and gets replaced — and that is the cheaper mistake,
+because it is discovered by a consumer that exists rather than baked in by one
+that does not.
+
 ---
 
 ## 3. Byte-compatibility, and how it is proved
@@ -298,16 +326,23 @@ gating, mascots/streak chrome, `recordExamCompletion`, badges. These wrap it.
 | Write | Path | Producer today |
 |---|---|---|
 | `results/{auto}` | quizzes | `useFirestore.saveResult` |
-| `exam_attempts/{auto}` (create) | daily | `examService.startExam` |
-| `exam_attempts/{id}` (submit) + `private/detail` | daily | `submitDailyExam` (server) |
-| `daily_exam_locks/{uid}_{subject}_{date}` | daily | `startExam` + server flip |
+| PostHog `quiz_completed` | quizzes | `saveResult` |
+| *(none)* | past-paper | — the surface is that this stays empty |
 | `scores/{auto}` | games | `gamesService.saveScore` |
 | `dailyStreaks/{uid}` | games | `recordDailyPlay` |
-| `learnerStats/{uid}` | daily, **downstream** | `recordExamCompletion` |
-| PostHog `quiz_completed` | quizzes | `saveResult` |
+| `badges/{uid}` | games | `gameBadgesService.js:84` |
+| `learner_profiles/{uid}` | games | `gamesIntelligence.js:109`, fire-and-forget |
 
-`learnerStats` is on the list because it is computed from the attempt: unchanged
-code, changed input, is still a changed write.
+Deferring daily removes four rows — `exam_attempts` (create and submit),
+`exam_attempts/{id}/private/detail`, `daily_exam_locks`, and the downstream
+`learnerStats` write from `ExamResultsPage`. That is the single largest
+simplification the scope decision buys: **the whole server-side half of the
+comparison problem leaves Phase 3**, including the one comparison that could not
+run in the replay harness at all (§3.3).
+
+What it leaves is one write for quizzes, none for past-paper, and **four for
+games** — which makes games the write-heaviest consumer in the phase, not the
+lightest, and is why it stays last on every reading of the order.
 
 ### 3.2 The definition
 
@@ -351,12 +386,14 @@ body to a pure function *before* the engine exists. **The extraction is the
 better first PR**: it is a move, it is independently reviewable, and it makes the
 old path measurable while it is still the only path.
 
-**The server path cannot be replayed this way.** `submitDailyExam` grades inside
-a Firestore transaction with the admin SDK. Its comparison runs in the **rules
-emulator** suite instead, which already covers `exam_attempts`, asserting the
-attempt doc + `private/detail` pair against a recorded expectation. That is a
-different harness with a different runtime, and pretending otherwise would
-produce a green test that never executed the server code.
+**The server path is no longer in scope, and that is why.** `submitDailyExam`
+grades inside a Firestore transaction with the admin SDK, so it can never be
+replayed through this harness — its comparison would have needed the rules
+emulator, a different runtime asserting a different thing, and a green result
+there would not have meant the replay harness had covered it. Deferring daily
+removes that split entirely: **every write Phase 3 must prove is reachable from
+one harness.** Kept here as the reason, because if daily is ever pulled back into
+a migration this constraint returns with it.
 
 **A recorded journal is a snapshot of today's behaviour, not a specification of
 correct behaviour.** If a fixture encodes a bug, the harness will faithfully
@@ -371,19 +408,18 @@ a reviewer can see the write change on purpose.
 |---|---|---|
 | `test:engine-replay-results` | node | `results` journal identical, quiz fixtures |
 | `test:engine-replay-scores` | node | `scores` journal identical — **including `grade` as Number and lowercased `subject`** (D5) |
-| `test:engine-replay-attempt-start` | node | `exam_attempts` create + lock write identical |
-| `test:engine-contract` | node | normaliser output for all four sources against the canonical model; legacy plain-string in, RichContent out, stored doc untouched |
+| `test:engine-replay-game-side-writes` | node | `badges` + `dailyStreaks` + `learner_profiles` journals identical — the three writes that are easiest to forget because two are fire-and-forget |
+| `test:engine-contract` | node | normaliser output for all three in-scope sources against the canonical model; legacy plain-string in, RichContent out, stored doc untouched |
 | `test:engine-no-write-public` | node | the public path's journal is **empty** (§0.2) |
-| daily-exam submit comparison | rules emulator | attempt doc + `private/detail` field-for-field; the public doc carries no answers |
 | `assessmentEngine.spec.jsx` | Vitest | vertical single-column MCQ, letters past D, keyboard nav, the pending-answer path |
 | `test:engine-flag-resolution` | node | flag table (§4), fail-closed default, one runner's flag cannot move another's |
 
 Each `test:*` key is added in the same commit as its file
-(`MIGRATION_TEMPLATE.md` §5). Six of the eight are plain-node scripts, so the
+(`MIGRATION_TEMPLATE.md` §5). Six of the seven are plain-node scripts, so the
 discovered-script count moves **633 → 639** and is reported in each PR; the
-emulator suite and the Vitest spec are deliberately *not* discovered by
-`run-all-tests.mjs` (it only runs `test:*` scripts whose command starts with
-`node`), so neither can be counted as evidence that the node suite grew.
+Vitest spec is deliberately *not* discovered by `run-all-tests.mjs` (it only runs
+`test:*` scripts whose command starts with `node`), so it cannot be counted as
+evidence that the node suite grew.
 
 ---
 
@@ -402,16 +438,25 @@ requirement, satisfied by the mechanism the passkey rollout already uses
 
 | Flag | Gates | Default |
 |---|---|---|
-| `featureFlags.assessmentEngine.quiz` | `/quiz/:quizId` | `off` |
 | `featureFlags.assessmentEngine.pastPaperQuiz` | `/papers/:paperId/quiz` | `off` |
-| `featureFlags.assessmentEngine.dailyQuiz` | `/exam/:examId` | `off` |
+| `featureFlags.assessmentEngine.quiz` | `/quiz/:quizId` | `off` |
 | `featureFlags.assessmentEngine.game` | `timed_quiz` | `off` |
-| `featureFlags.assessmentEngine.rolloutUids` | narrows all four | `[]` |
+| `featureFlags.assessmentEngine.rolloutPercent` | narrows all three | `0` |
+| `featureFlags.assessmentEngine.rolloutUids` | narrows all three | `[]` |
+
+No `dailyQuiz` flag: `/exam/:examId` is not migrated (§6), and a flag that
+nothing reads is a promise the code does not keep.
+
+`rolloutPercent` exists because past-paper flips first and is public — the one
+route where a bad render is visible to anyone, including search crawlers. It
+buckets on the stable visitor id the free-limit counter already mints
+(`pastPaperQuiz.js:60-72`), so a given visitor gets a consistent answer rather
+than flapping between runners on reload.
 
 Five rules:
 
 1. **Per-runner, never one master switch.** A cutover that cannot be reverted
-   independently is not four cutovers.
+   independently is not three cutovers.
 2. **Fail closed.** Anything but `=== true` is off, so an unreadable
    `settings/global` serves the old runner. This inverts the usual availability
    default deliberately: the old runner is the known-good path.
@@ -423,10 +468,12 @@ Five rules:
    stay whole and mounted lazily, so a stale client either runs the old path
    completely or the new one completely — never a half-migrated hybrid whose
    state nothing has ever tested.
-5. **No flag on a server write.** `submitDailyExam` is called by both paths and
-   must behave identically for both. If the daily rework later needs a different
-   server shape, that is a new callable, not a branch inside the existing one
-   (§14.3 freezes export names; adding one is fine, changing one silently is not).
+5. **No flag on a server write.** No in-scope consumer has one, and the rule is
+   kept because the Daily Quiz rework will: when it needs a server shape that
+   `submitDailyExam` does not have, that is a **new callable**, not a branch
+   inside the existing one, which must keep behaving identically for the
+   un-migrated runner still calling it (§14.3 freezes export names; adding one is
+   fine, changing one silently is not).
 
 ### 4.3 What the flags cannot do
 
@@ -439,31 +486,43 @@ anyway.
 
 ## 5. Order and entry criteria
 
-**Proposed order — quizzes → past-paper quizzes → daily quiz → games** (§13's
-order). Rationale, in migration-risk terms:
+**Build order and cutover order are two decisions, and they differ.** The plan
+originally treated "quizzes first" as one; separating them takes the better half
+of each argument instead of trading one for the other.
 
-1. **Quizzes first** — highest engine coverage per unit of risk. It exercises
-   every question type, both modes, the AI marking path and the resume path; it
-   has the strongest existing spec (559 lines); its single write is a create in a
-   collection with emulator coverage; and its blast radius is one route.
-2. **Past-paper quizzes second** — the same reads, and **zero writes**, so §3's
-   assertion is "the journal is empty", the cheapest possible proof. It adds
-   anonymous users and the paywall interaction. It is second rather than first
-   only because it renders a strict subset of what quizzes render.
-3. **Daily quiz third** — everything unique and dangerous is here: server
-   marking, the privacy split, the lock, the leaderboard, `learnerStats`, and a
-   once-per-day irreversible attempt. A learner who loses a daily attempt cannot
-   retake it. By this point the engine has been in production on two routes.
-4. **Games last** — least shared with the other three (inline questions, a
-   deliberately divergent write shape, its own chrome and scoring), and lowest
-   stakes. It is also where the *unification* payoff is smallest, which is
-   itself worth knowing before the work starts.
+### 5.0 Build against quizzes; flip past-paper first
 
-**One deviation is worth considering**: swapping 1 and 2, on the grounds that a
-first cutover with no writes at all is the safest possible way to put the engine
-in front of real users. The counter is that the public route is unauthenticated
-and SEO-visible, so a rendering regression there is more publicly embarrassing
-than a logged-in one. This plan keeps §13's order; it is **Decision 4**.
+**Build order: quizzes sets the contract.** The engine is designed and built to
+`QuizRunnerV2`'s full spec — every question type, both modes, AI marking, resume,
+provisional grading — before any flag exists. The hardest consumer sets the
+shape, and generalising from a lesser one is how a wrong abstraction gets baked
+in: an engine designed around past-paper would be designed around a runner that
+renders a strict subset and persists nothing, and the missing joints would surface
+later, when it is already live. Quizzes is also validated in the replay harness
+first, because its single `results` write is the phase's only non-trivial
+comparison until games.
+
+**Cutover order: past-paper → quizzes → games.**
+
+1. **Past-paper is the canary**, and it is the only cutover that persists
+   nothing. If the engine is wrong here there is no corrupted document, no
+   cleanup, and no comparison to trust — the failure mode is a bad render, which
+   is visible immediately and reverts in seconds. It is also the
+   highest-traffic route, so it produces the most evidence fastest. Its one
+   risk — the route is public and SEO-visible — is what `rolloutPercent` is for
+   (§4.2), which is why gradual rollout is a requirement of this order rather
+   than a nicety.
+2. **Quizzes second**, now against an engine that has rendered real questions to
+   real visitors. Its write is the first one the harness has to prove in
+   production conditions.
+3. **Games last** — four write targets, a documented "do NOT normalize"
+   divergence, inline questions, and its own chrome. It is the write-heaviest
+   consumer in the phase and the one where the unification payoff is smallest.
+
+The one thing this order costs: the engine is *built* against a consumer whose
+flag flips second. Nothing goes to production unproven — quizzes' replay
+comparison is an entry criterion for the past-paper flip too (§5.1), because the
+engine serving past-paper is the same engine.
 
 ### 5.1 A flag does not flip until all of these hold
 
@@ -475,7 +534,9 @@ than a logged-in one. This plan keeps §13's order; it is **Decision 4**.
    Phase 2 control-case rule: a passing test that would pass with the code
    removed proves nothing).
 4. Rules + emulator coverage per §14.12 for every collection the runner touches,
-   in the same PR.
+   in the same PR. For games that is four, of which `badges` and
+   `learner_profiles` have **no emulator coverage today** and `learner_profiles`
+   was not in the binding doc's inventory until this phase found it.
 5. The old runner is still mounted, reachable by flipping one boolean, and
    **deleted in Phase 6, not here** (§14.11).
 6. A Vitest spec renders the engine's version of that runner and asserts the
@@ -486,41 +547,47 @@ than a logged-in one. This plan keeps §13's order; it is **Decision 4**.
 
 ---
 
-## 6. The Daily Quiz rework — recommendation
+## 6. The Daily Quiz — deferred out of Phase 3 (decided)
 
 The product intent (Daily Exams retired in favour of a Zed-hosted Daily Quiz —
-one per day, leaderboard) collides with the cutover at exactly one runner.
+one per day, leaderboard) collided with the cutover at exactly one runner. Three
+options were live: migrate-then-rework, rework-riding-the-cutover, or defer.
 
-**Recommendation: migrate `DailyExamRunner` to the engine as-is first, then
-rework the product on top of the engine.** Four reasons:
+**Decided: `DailyExamRunner` is out of Phase 3 entirely.** It stays on its own
+path, untouched, and the Daily Quiz rework is built directly on the engine as a
+**new consumer**. The old runner retires at that product switch.
 
-1. **It keeps §3 provable.** Byte-compatibility is a comparison against a
-   recorded baseline. If the product changes in the same PR, there is no
-   baseline to compare against — the writes are *supposed* to differ, and the
-   only remaining check is human review of a diff that also contains an engine
-   swap. The single strongest guarantee in this plan evaporates precisely where
-   the stakes are highest (a once-daily attempt a learner cannot retake).
-2. **It keeps rollback meaningful.** Reverting a flag on a combined
-   migrate-and-rework returns learners to a *different product*, and any
-   documents the new path wrote are in the new shape. Rollback stops being a
-   boolean.
-3. **The rework is cheaper afterwards.** Most of what the rework needs —
-   one-per-day locking, server marking, the leaderboard read, streaks — already
-   exists in this runner and would have to be rebuilt if the rework replaced it
-   wholesale. Migrating first turns the rework into a change of *policy and
-   presentation* over an engine, which is where §4 says that logic belongs.
-4. **It is the order §13 already implies** — "then the Daily Quiz rework (which
-   retires `DailyExamRunner`)" reads as rework-after-engine.
+Why not migrate-then-rework, which this plan originally recommended: the rework
+replaces the product rather than adjusting it, so most of the migration would be
+discarded weeks later — the same waste the plan warned about, just paid in a
+different order.
 
-**The cost, stated plainly**: `DailyExamRunner` gets migrated and then
-significantly reworked, so some of the migration is thrown away. If the rework
-is imminent *and* it replaces the runner's UI wholesale, that waste is real —
-and in that case the honest alternative is not "ride the cutover" but **drop
-daily from Phase 3 entirely**: leave `DailyExamRunner` on its own path, ship the
-other three, and build the new Daily Quiz on the engine as a **new** surface with
-its own collections and no byte-compatibility obligation at all. That is strictly
-safer than merging the two jobs, and it is the option to take if the answer to
-"is the rework close?" is yes. **Decision 2.**
+Why not ride the cutover: byte-compatibility is a comparison against a recorded
+baseline, and a product change removes the baseline. The writes are *supposed* to
+differ, so the only remaining check is human review of a diff that also contains
+an engine swap — the strongest guarantee in this plan evaporating exactly where
+the stakes are highest, since a learner cannot re-sit today's exam. Rollback
+degrades the same way: reverting a flag would return learners to a *different
+product*, with documents already written in the new shape.
+
+**What deferring buys**, beyond avoiding both of those:
+
+- The **entire server-side half of the comparison problem leaves Phase 3** — and
+  with it the one write that could never have gone through the replay harness
+  (§3.3). Every write the phase must prove is now reachable from one harness.
+- The engine ships **two marking strategies instead of three** (§2.4), with no
+  interface guessed from a runner that is being retired.
+- The privacy split, the daily lock, `learnerStats` and the leaderboard read all
+  leave the byte-compatibility surface.
+
+**What it costs, stated plainly**: `/exam/:examId` keeps running an unmigrated
+runner past the end of Phase 3, so §14.5's "no parallel runners" holds with one
+scoped exception rather than absolutely. That exception is written into
+[`architecture.md`](architecture.md) §14.5 with an end date attached — the runner
+retires at the product switch — and narrowed to that one file, so "the daily path
+is exempt" cannot be read as a licence to build anything new outside the engine.
+`DailyExamRunner`'s inventory stays in §1.2 because the rework inherits its
+requirements whether or not it reuses its code.
 
 ---
 
@@ -547,10 +614,10 @@ else needed is already emitted or queryable:
 | Completion rate per runner | existing `quiz_completed` / attempt docs | a drop after the flip |
 | Submit failure rate | Sentry, `reportClientError` | any new error signature |
 | Provisional-grading rate | `results.gradingStatus === 'pending'` | a rise = AI marking path regressed |
-| Daily submit errors | Cloud Logging on `submitDailyExam` | non-idempotent resubmits |
-| **Lock-flip failures** | the existing ERROR log (`dailyExamGradingFns.js:270`) | already alertable — wire the alert *before* the daily flip |
 | Score distribution per quiz | `results.percentage` | a shifted mean = a marking change |
 | `scores` write rate + shape | games leaderboard queries | a query returning nothing = D5 regression |
+| **Past-paper: no writes appear** | `results` / any collection, filtered to the paper-quiz route | a single document is a P1 — the canary's whole premise is that it persists nothing |
+| Paywall trigger rate | existing paywall bus events | the free-limit counter is localStorage, easy to break silently in a rewrite |
 
 The score-distribution one deserves emphasis: **a marking regression does not
 throw.** It produces plausible numbers that are wrong. Error rates will not catch
@@ -563,10 +630,13 @@ Flip the flag off, without discussion, on any of:
 - any write mismatch observed in production that the harness did not predict;
 - submit failure rate above its pre-flip baseline on a meaningful sample;
 - any learner-reported lost attempt or lost marks, unreproduced (one report is
-  enough — the attempt is unrecoverable);
+  enough);
+- **any Firestore write at all from the past-paper route** (§0.2);
 - completion rate down materially against the same weekday;
 - a mean-score shift not explained by a content change;
-- for daily: **any** increase in lock-flip failures, or any duplicate attempt.
+- for games: a leaderboard query returning fewer rows than before the flip (the
+  D5 identity-field regression is invisible in the write itself and only shows
+  up in the read).
 
 Rollback is a toggle in `/admin`, so the cost of being wrong about a trigger is
 minutes. Bias toward flipping off and re-diagnosing.
@@ -577,11 +647,11 @@ minutes. Bias toward flipping off and re-diagnosing.
 
 | Lesson | Where it applies in Phase 3 |
 |---|---|
-| **Consumer discovery beyond grep** | `vi.mock('…/QuizRunnerV2')`-style paths in specs; `lazy(() => import(…))` in `App.jsx` for all four runners; `scripts/aiGenerators/inventory.js`; and the case that bit Phase 2 — a module loaded through a **variable**, found by `test:all`, not by grep. Run the full node suite before trusting the surface map |
+| **Consumer discovery beyond grep** | `vi.mock('…/QuizRunnerV2')`-style paths in specs; `lazy(() => import(…))` in `App.jsx` for each runner; `scripts/aiGenerators/inventory.js`; and the case that bit Phase 2 — a module loaded through a **variable**, found by `test:all`, not by grep. Run the full node suite before trusting the surface map |
 | **Exact-path CI gates** | `scripts/visual/printAffectingPaths.js` lists `src/utils/quizRichText.js` by exact path. Phase 3 does not move it — but if the engine absorbs any of `assessmentToDocx.js` / `assessmentPaperLayout.js` / `paperContentModel.js`, the list is updated **in the same commit**, per that file's own note: *"a pattern for a moved file protects nothing and reads exactly like one that works"* |
-| **Rules coverage moves with the collection** | §14.12. `quizzes`, `exam_attempts`, `results`, `scores` are covered; `dailyStreaks` and `learnerStats` are **not**, and both are written on paths this phase touches. Each cutover adds its collection's emulator cases in its own PR — with the control case that succeeds when only the tested field changes |
+| **Rules coverage moves with the collection** | §14.12. `quizzes`, `results` and `scores` are covered; `badges`, `dailyStreaks` and `learner_profiles` are **not**, and all three are written by the games cutover. Each cutover adds its collections' emulator cases in its own PR — with the control case that succeeds when only the tested field changes |
 | **Fail-loud verification** | §3.3's substitution list is asserted rather than being a loose matcher; §5.1's criterion 3 requires the comparison test to fail when the adapter is deleted; the flag test lints a synthetic wrong-flag case |
-| **Measure the bundle, don't assume** | The engine is imported by four routes that are lazy today. Chunk counts and sizes before/after each cutover, as in Phase 2 (565 chunks, +95 bytes) — an engine barrel pulling KaTeX or the marking path into a public route is exactly the failure that measurement catches |
+| **Measure the bundle, don't assume** | The engine is imported by three routes that are lazy today. Chunk counts and sizes before/after each cutover, as in Phase 2 (565 chunks, +95 bytes) — an engine barrel pulling KaTeX or the marking path into a public route is exactly the failure that measurement catches |
 | **Debt lists shrink, never grow** | `test:import-boundaries`. `src/engines/` may not import `src/features/**`, and the Firebase prohibition on the lower layers is why the write adapters describe writes instead of performing them |
 
 ### 8.1 One gap this plan found, worth closing regardless
@@ -593,15 +663,16 @@ that the two lists do not overlap — but **nothing enumerates the collections
 that exist**, from §10 or from `firestore.rules`. A collection in neither list is
 invisible to it.
 
-Two such collections are written on Phase 3's paths: **`paperAttempts`**
-(`firestore.rules:2761`) and **`daily_exam_locks`** (`:694`). Both have rules,
-both are absent from §10's data model and from both lists, so the ratchet cannot
-fail on them and never has.
+Three such collections were found: **`paperAttempts`** (`firestore.rules:2761`),
+**`daily_exam_locks`** (`:694`) and **`learner_profiles`** (`:1887`, written by
+the games path this phase migrates). All three have rules, all three were absent
+from §10's data model *and* from both lists, so the ratchet could not fail on
+them and never has.
 
 This is the Phase 2 lesson exactly — a guard that is wrong quietly. The fix is
 small (derive the universe from `firestore.rules`' match blocks and fail on any
 collection classified as neither) and belongs in its own PR, not smuggled into a
-cutover. **Decision 5.**
+cutover. Green-lit as its own PR — see §10, decision 5.
 
 ---
 
@@ -609,44 +680,66 @@ cutover. **Decision 5.**
 
 | Risk | Why it is real here | Mitigation |
 |---|---|---|
-| A marking regression that looks like a normal result | Marking rules are spread across `quizScoring.js`, four grading modules and the server grader | §3 replay over recorded attempts + §7.2 score-distribution watch |
-| A daily attempt lost mid-cutover | Once per day, not retakeable | Daily goes third; rehearsed rollback; lock-flip alert wired first |
-| The engine starts writing on the public route | An anonymous surface gaining a personal-data write | `test:engine-no-write-public` asserts an empty journal |
+| A marking regression that looks like a normal result | Marking rules are spread across `quizScoring.js` and four grading modules | §3 replay over recorded attempts + §7.2 score-distribution watch |
+| The engine starts writing on the public route | An anonymous surface gaining a personal-data write — and it flips **first** | `test:engine-no-write-public` asserts an empty journal; a single production write is a rollback trigger |
+| A bad render is public and crawlable | Past-paper is the canary and is SEO-visible | `rolloutPercent` bucketed on the existing stable visitor id; rollback is a toggle |
 | Games leaderboards silently return nothing | An engine "normalising" `grade`/`subject` (D5) | Comparison test asserts types, not just values; the divergence comment travels with the adapter |
+| Two of games' four writes are fire-and-forget | `badges` and `learner_profiles` fail silently by design, so a regression is invisible | `test:engine-replay-game-side-writes` compares all four journals; emulator coverage added in the same PR |
 | The 1,985-line component resists extraction | `handleSubmit` is a closure over 15 state values | Extract to a pure function **first**, in its own PR, before the engine exists |
-| Phase 3 becomes a rewrite | Four runners disagreeing forces choices | Every "resolve" row in §1.6 ships as its own PR, before or after the cutover it touches — never inside it |
-| The rework and the cutover entangle | §6 | Decision 2, answered before the daily work starts |
+| Phase 3 becomes a rewrite | The runners disagreeing forces choices | Every "resolve" row in §1.6 ships as its own PR, before or after the cutover it touches — never inside it |
+| The engine is built against a consumer that flips second | §5.0 splits build order from cutover order | Quizzes' replay comparison is an entry criterion for the past-paper flip too — the engine serving both is the same engine |
 
 ---
 
-## 10. Decisions for the owner
+## 10. Decisions taken
 
-1. **`schemaVersion` (§2.3).** §4.1 requires it; no quiz-path document has it.
-   Read-time only for Phase 3 (proposed), or stamped onto new writes — which
-   makes every new `results` doc differ from every old one and changes what §3
-   compares.
-2. **The Daily Quiz rework (§6).** Recommended: migrate as-is, rework after.
-   The alternative worth taking *if the rework is imminent and replaces the UI
-   wholesale* is to drop daily from Phase 3 entirely and build the new Daily Quiz
-   as a new surface on the engine, with no byte-compatibility obligation. What is
-   not recommended is merging the two jobs into one cutover.
-3. **`PastPaperPractice` (§0.1).** This plan removes it from Phase 3 — it is a
-   PDF reader with a stopwatch, not a runner. Confirm, and confirm whether §4's
-   text should be corrected to match.
-4. **Order (§5).** §13's `quizzes → past-paper → daily → games` is kept.
-   Swapping the first two puts a zero-write cutover in front of users first, at
-   the cost of a public, SEO-visible route going first.
-5. **The coverage-ratchet gap (§8.1).** Fix it in its own PR before Phase 3
-   starts, or accept that `paperAttempts` and `daily_exam_locks` stay outside the
-   ratchet for the duration.
-6. **The two known bugs D3/D4 (§1.6).** Fix them *before* the cutover (the
-   fixtures then encode correct behaviour, and the cutover is a pure move), or
-   *after* (the cutover stays byte-identical and the fix is visible on its own).
-   Both are defensible; doing them *inside* a cutover is not.
-7. **Games (§0.3, §1.5).** Only `timed_quiz` is a question loop, and the shared
-   `useGameFinish` hook is already forked with `TimedQuizGame` on the forked
-   side. Confirm Phase 3 covers `timed_quiz` only, and that unifying the other
-   seven games' end-of-round path is out of scope.
-8. **Scope of the first PR.** Proposed: extract `QuizRunnerV2.handleSubmit` to a
-   pure function, no engine, no flag — a move that makes the current path
-   measurable while it is still the only path.
+All eight were settled on 2026-08-05. Recorded with the reasoning, because a
+decision without its reason is re-litigated the first time it becomes
+inconvenient.
+
+1. **`schemaVersion` — read-time only for all of Phase 3** (§2.3). Stamping it
+   onto writes becomes a separate post-cutover change once no old runner still
+   writes those collections; until then two writers would disagree about whether
+   the field exists. Recorded as a phasing note in `architecture.md` §4.1.
+2. **The Daily Quiz — deferred out of Phase 3 entirely** (§6). `DailyExamRunner`
+   stays on its own path untouched; the rework is built on the engine as a new
+   consumer and the old runner retires at that switch. Neither
+   migrate-then-rework (discards the migration weeks later) nor
+   rework-riding-the-cutover (destroys the comparison baseline where a lost
+   attempt is unrecoverable). §14.5 carries the scoped exception this creates.
+3. **`PastPaperPractice` — out of scope** (§0.1), and `architecture.md` §4 is
+   corrected to stop describing it as a runner. It renders no questions, holds no
+   answer key and awards no marks.
+4. **Build order and cutover order are separate** (§5.0). Build against quizzes,
+   the hardest consumer, so the contract is not generalised from a subset. Flip
+   past-paper first, the only cutover that persists nothing, on the
+   highest-traffic route, with gradual rollout covering the public-render risk.
+   Then quizzes, then games.
+5. **The coverage-ratchet gap — fixed in its own PR, before the engine work**
+   (§8.1), covering `paperAttempts`, `daily_exam_locks` and `learner_profiles`,
+   with the universe derived from `firestore.rules` rather than hand-maintained.
+   All three are also added to `architecture.md` §10.
+6. **D3/D4 — fixed in the current runners before any cutover**, one PR each, with
+   production soak time (§1.6). The comparison fixtures then encode corrected
+   behaviour, and each cutover stays a pure move.
+7. **Games — `timed_quiz` only, migrated as it stands** (§1.5). The resulting
+   third end-of-round path is counted debt on a shrink-only list, unified by the
+   Phase 4/6 games tidy-up. Folding it onto `useGameFinish` first would mean
+   preparatory surgery on the path with four write targets and a documented
+   "do NOT normalize" divergence, in the area sequenced last for being
+   lowest-stakes — and that area has its own product rework coming.
+8. **Marking ships as `clientKey` + `none` behind an isolated verdict seam**
+   (§2.4). No `serverCallable` interface until a real consumer defines its shape:
+   committed is not the same as shaped, and an interface designed from the
+   retiring runner would be refactored by the rework anyway. Build the seam, not
+   the abstraction.
+
+### 10.1 Work order
+
+1. `handleSubmit` extraction to a pure function — no engine, no flag. Makes the
+   current path measurable while it is still the only path.
+2. The coverage-ratchet fix (decision 5).
+3. D3 and D4, one PR each, with soak time (decision 6).
+4. The engine contract + normaliser, built against quizzes, with the replay
+   harness and fixtures.
+5. Cutovers: past-paper → quizzes → games, each gated on §5.1.
