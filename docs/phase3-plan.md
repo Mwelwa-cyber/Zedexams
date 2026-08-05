@@ -779,5 +779,16 @@ happened.
    reality rather than of an intention. ✅ session (#2124), ✅ marking +
    `persist/` (#2125 — the first engine writes, and the point at which §3.3's
    comparison became real: every recorded attempt now replays through BOTH
-   paths and the journals are diffed). Renderers remain.
+   paths and the journals are diffed), ✅ renderers (#2126 — the §4 choice
+   layout, plus two ratchets: every canonical question type must have a replay
+   fixture, and must be either drawn or declared undrawn).
+
+   **The screen visual gate is its own PR and lands before the flag plumbing.**
+   `scripts/visual/` renders PAPERS — `buildPrintableHtml` / `buildDocxDocument`
+   through Chromium and LibreOffice, compared as A4 pages with anchors. A
+   learner-screen baseline is a different render family (mount React at a
+   viewport, screenshot), reusing only the baseline-identity and comparison
+   machinery. Bolting it onto the paper pipeline would produce something that
+   looked wired and measured nothing, so it is scoped separately — and it must
+   be green before a cutover shows engine renderers to a learner.
 7. Cutovers: past-paper → quizzes → games, each gated on §5.1.
