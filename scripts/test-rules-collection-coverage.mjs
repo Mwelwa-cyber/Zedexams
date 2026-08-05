@@ -244,21 +244,11 @@ const ACKNOWLEDGED_UNCOVERED = [
  * disagrees fails with "resolved — delete its line".
  */
 const KNOWN_DISCREPANCIES = {
-  referralCodes:
-    '§10 lists it under "server-only (all `write: if false` to clients)", but the rule is ' +
-    '`allow create: isAuthed() && keys().hasOnly([uid, createdAt]) && uid == request.auth.uid`. ' +
-    'A signed-in client can create its own tightly-constrained code. The rule looks deliberate; ' +
-    'the DOC is what is wrong.',
   agentJobs:
     '§10 lists it as server-only, but the rules allow `create: isTeacherOrAbove()` plus ' +
     'admin update/delete. Worth more than a doc fix: the teacher-facing agent-submission ' +
     'surface was REMOVED in 2026-06 (CLAUDE.md), so this may be a live write grant for a ' +
     'surface that no longer exists — check before simply correcting the doc.',
-  games:
-    '§10 counts it among the `if true` public reads, but the rule is ' +
-    "`allow read: resource.data.get('active', true) == true || isAdmin()`. Effectively public " +
-    'for active games, but an inactive game is NOT publicly readable, so §10\'s "13 `if true` ' +
-    'reads" is overcounted.',
 }
 
 /**

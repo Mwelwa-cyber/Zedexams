@@ -54,6 +54,24 @@ Record the answer to two questions before writing any code:
 
 ## 1. Move files with `git mv`
 
+**Cut the branch only after an explicit `git fetch origin`.** `git checkout -B
+<branch> origin/main` resolves `origin/main` from the last fetch, not from the
+remote — so in a session that has merged a PR since, it silently branches from
+a base that is already behind:
+
+```bash
+git fetch origin main && git checkout -B <branch> origin/main   # not checkout -B alone
+```
+
+This bit during Phase 3: a branch cut this way missed the PR that had merged
+minutes earlier, and would have run CI against a base that no longer existed.
+It was caught because **the harness flags a file whose on-disk content differs
+from what this session last wrote** — the stale ratchet script showed up as
+"modified" when nothing had modified it. That backstop is real but incidental;
+it only fires for files the session happens to have touched before. The fetch
+is the procedure. Rebasing onto `origin/main` before pushing is the second
+chance, and step 7's ladder should be re-run after any rebase, not only before.
+
 ```bash
 mkdir -p src/features/<name>/{components,pages,hooks,services,export}
 git mv src/components/<area>/<Thing>.jsx src/features/<name>/components/<Thing>.jsx
