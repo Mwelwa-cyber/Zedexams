@@ -285,17 +285,29 @@ reason. Decided read-time only — see §10, decision 1.
 ### 2.4 What the engine owns, and what it does not
 
 ```
-src/engines/assessment/
-├── index.js                     ← public API
-├── contract/                    ← the normalised model + validators (zod),
-│                                  re-exporting functions/shared/assessment
-├── normalise/                   ← quiz | dailyExam | pastPaperQuiz | game
-│                                  → one AssessmentSession input
+src/engines/assessment-engine/
+├── index.js                     ← public API                        ✅ landed
+├── schemas/                     ← the canonical model + zod          ✅ landed
+├── normalise/                   ← quiz | pastPaperQuiz | game        ✅ landed
+├── purity.test.js               ← the node-tested layers, enforced   ✅ landed
 ├── session/                     ← navigation, timing, answer capture, autosave
 ├── marking/                     ← clientKey | none, behind one verdict seam
 ├── render/                      ← question renderers (MCQ vertical, short, …)
 └── persist/                     ← per-target write adapters (§3)
 ```
+
+Three corrections to what this section originally said, all made by building it:
+
+- **The directory is `assessment-engine/`, not `assessment/`.** Phase 1 scaffolded
+  that name and the layering rules in `eslint.config.js` cover it; the plan was
+  wrong, so the plan moved rather than the directory.
+- **`contract/` is `schemas/`** — again the scaffold's name, and the one its own
+  docblock already described as "client-side zod schemas for the assessment
+  contract".
+- **`normalise/` has three adapters, not four.** `dailyExam` left with the scope
+  decision (§6), and `quiz`/`pastPaperQuiz` share one adapter because they read
+  the same two collections and differ only in what the consumer does with the
+  result.
 
 `src/engines/` exists and is empty (Phase 1). It sits **below** features in the
 layering, so it may not import `src/features/**` and may not touch the Firebase
@@ -415,11 +427,16 @@ a reviewer can see the write change on purpose.
 | `test:engine-flag-resolution` | node | flag table (§4), fail-closed default, one runner's flag cannot move another's |
 
 Each `test:*` key is added in the same commit as its file
-(`MIGRATION_TEMPLATE.md` §5). Six of the seven are plain-node scripts, so the
-discovered-script count moves **633 → 639** and is reported in each PR; the
-Vitest spec is deliberately *not* discovered by `run-all-tests.mjs` (it only runs
-`test:*` scripts whose command starts with `node`), so it cannot be counted as
-evidence that the node suite grew.
+(`MIGRATION_TEMPLATE.md` §5), and the discovered-script count is reported in
+every PR — an absolute target stated once here would be stale by the second
+merge, which is what happened to the figure this paragraph used to carry.
+**Baseline: 637 at the contract merge (#2120)**, from 633 when this plan was
+written; the four already landed are `test:quiz-result-payload`,
+`test:option-letters`, `test:assessment-normalise` and
+`test:assessment-engine-purity`. The Vitest spec is deliberately *not*
+discovered by `run-all-tests.mjs` (it only runs `test:*` scripts whose command
+starts with `node`), so it can never be counted as evidence that the node suite
+grew.
 
 ---
 
@@ -460,7 +477,7 @@ Five rules:
 2. **Fail closed.** Anything but `=== true` is off, so an unreadable
    `settings/global` serves the old runner. This inverts the usual availability
    default deliberately: the old runner is the known-good path.
-3. **Resolved in exactly one module** — `src/engines/assessment/flags.js`, with
+3. **Resolved in exactly one module** — `src/engines/assessment-engine/flags.js`, with
    its own node test. `passkeyRegionCore.js` is the precedent, and the reason is
    that a flag read in four components drifts into four subtly different
    conditions.
@@ -736,10 +753,22 @@ inconvenient.
 
 ### 10.1 Work order
 
-1. `handleSubmit` extraction to a pure function — no engine, no flag. Makes the
-   current path measurable while it is still the only path.
-2. The coverage-ratchet fix (decision 5).
-3. D3 and D4, one PR each, with soak time (decision 6).
-4. The engine contract + normaliser, built against quizzes, with the replay
-   harness and fixtures.
-5. Cutovers: past-paper → quizzes → games, each gated on §5.1.
+Steps 1–4 are done. Ticked here rather than deleted, because the order was a
+decision and a plan that erases what it decided cannot be checked against what
+happened.
+
+1. ✅ `handleSubmit` extracted to `buildQuizResultPayload` (#2114) — no engine,
+   no flag. The seam the replay harness will compare through.
+2. ✅ The coverage-ratchet fix (#2115), which turned out to be 69 collections
+   rather than the 3 that prompted it.
+3. ✅ D4 (#2116) and D3 (#2117), one PR each, now soaking.
+4. ✅ The engine contract + normaliser (#2120), built against quizzes. **The
+   replay harness and fixtures did NOT ship with it** — the contract was sent
+   for review before it grew consumers, and a harness with no consumer to
+   compare against would have been fixtures checked against themselves.
+5. **The replay harness and fixtures** (§3.3), against the extracted payload
+   builder from step 1 — the first thing the engine can actually be measured
+   with.
+6. Session, marking (`clientKey` + `none` behind the verdict seam) and the
+   renderers, built against quizzes as §5.0 sets out.
+7. Cutovers: past-paper → quizzes → games, each gated on §5.1.
