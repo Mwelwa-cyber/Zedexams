@@ -214,7 +214,11 @@ const usedAllowances = new Set();
 function assertNoUnknownAliases() {
   for (const config of ['vite.config.js', 'vitest.config.js']) {
     const source = readFileSync(join(root, config), 'utf8');
-    if (/\balias\s*:/.test(source)) {
+    // Bare and quoted keys, with any whitespace or comment lines before the
+    // colon. A COMPUTED key (`[someName]: …`) is out of reach of a source scan
+    // and stays the honest residual: closing it means resolving the real Vite
+    // config, which trades this gap for a dependency on Vite's internals.
+    if (/['"]?\balias\b['"]?\s*:/.test(source)) {
       fail(
         `${config} now configures resolve.alias. Aliased specifiers do not start with "." and are ` +
         'skipped by this scan as packages — teach the resolver below about the alias before adding it, ' +

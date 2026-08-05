@@ -51,10 +51,18 @@ if (collisions.length) {
   );
 }
 
-// 1
+// 1. A colliding name is ALSO missing from the catalog, because that is what
+// ESM does with an ambiguous `export *` — so report the cause once rather than
+// the symptom four more times. The message below still names the collision as a
+// possible cause, so the diagnosis does not depend on these checks staying in
+// this order.
 for (const name of [...canonicalNames, ...levelNames]) {
+  if (collisions.includes(name)) continue;
   if (!catalogNames.includes(name)) {
-    fail(`src/curriculum/catalog does not re-export "${name}" — the catalog is not the whole taxonomy`);
+    fail(
+      `src/curriculum/catalog does not re-export "${name}" — the catalog is not the whole taxonomy. ` +
+      'If both roots export that name, THAT is the cause: ESM omits an ambiguous `export *` name rather than failing.'
+    );
   }
 }
 
@@ -71,9 +79,11 @@ for (const name of catalogNames) {
 // Identity, not just presence: a re-export must be the same binding, or the
 // catalog is a copy of the registry rather than a view of it.
 for (const name of canonicalNames) {
+  if (collisions.includes(name)) continue;
   if (catalog[name] !== canonical[name]) fail(`catalog.${name} is not the same binding as canonicalEducation.${name}`);
 }
 for (const name of levelNames) {
+  if (collisions.includes(name)) continue;
   if (catalog[name] !== levels[name]) fail(`catalog.${name} is not the same binding as educationLevels.${name}`);
 }
 
