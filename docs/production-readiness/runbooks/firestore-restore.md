@@ -1,6 +1,7 @@
 # Runbook — Firestore Backup & Restore (DR-001)
 
-> Snapshot as of 2026-07-19. Owner: platform/reliability. Companion code:
+> Snapshot as of 2026-08-04 (Parts 1–2 as of 2026-07-19; **Appendix A** added
+> 2026-08-04 for the Phase 0B migration baseline). Owner: platform/reliability. Companion code:
 > `functions/firestoreBackup.js`, `functions/firestoreBackupCore.js`,
 > `scripts/restore-firestore.mjs`. Audit finding: [`../14-backup-and-disaster-recovery.md`](../14-backup-and-disaster-recovery.md).
 
@@ -225,6 +226,190 @@ Record and attach to the DR ticket:
 - collection row-count spot-checks (before/after expectations)
 - **measured RTO** (wall-clock from decision to validated scratch DB) — this
   is the number that closes the RTO gap in the audit.
+
+---
+
+## Appendix A — Migration restore rehearsal (Phase 0B / post-Phase 5)
+
+> Added 2026-08-04 for the Phase 0B migration baseline (`docs/architecture.md`
+> §11.2, §13). The **Phase 0B gate itself is already closed** by the restore
+> drill of 2026-07-22 (27,192 docs, RTO 25m50s — DR-001 §13); this appendix is
+> the ready-to-run sequence for the **post-Phase-5 rehearsal**, and for any
+> re-run triggered by a change to the export destination, the database region,
+> or `scripts/restore-firestore.mjs`.
+>
+> **Run it in an authorised operator's Cloud Shell session.** Cloud Shell is
+> already authenticated as the operator, so no service-account key is needed and
+> none should be created. Nothing in this appendix may be executed from a CI job
+> or an agent session.
+>
+> **The import target must be a scratch database — never `(default)`.** Every
+> command below names the scratch database explicitly. `importDocuments` is a
+> merge-by-overwrite (Part 2's warning), so an unqualified import is not a
+> "restore" but a silent overwrite of live data.
+
+### A.1 Pick the export day and confirm it is complete
+
+```bash
+PROJECT=examsprepzambia
+BUCKET=gs://zedexams-backups
+
+gcloud config set project "$PROJECT"
+
+# Which days exist? (Remember the UTC date-key caveat at the top of this file:
+# a 01:30 Africa/Lusaka run writes the PREVIOUS UTC day's folder.)
+gsutil ls "$BUCKET/firestore-exports/"
+
+# Pick one, then prove it finished — the metadata object only appears on a
+# completed export. An export folder with no metadata object is NOT restorable.
+DATE=<YYYY-MM-DD>
+gsutil ls -l "$BUCKET/firestore-exports/$DATE/" | grep overall_export_metadata
+```
+
+Cross-check `opsBackups/{DATE}.status` is `started` or `completed`. A `failed`
+status on a date that *also* has a metadata object is the known same-UTC-date
+collision artifact (§12 of the DR-001 record), not a bad export — but confirm
+the metadata object before relying on that.
+
+### A.2 Create the scratch database
+
+It must be in **`africa-south1`**, matching the source database's location.
+Give it a name that says what it is and when, so an abandoned one is obvious.
+
+```bash
+SCRATCH="restore-$(echo "$DATE" | tr -d '-')-drill"
+
+gcloud firestore databases create \
+  --database="$SCRATCH" \
+  --location=africa-south1 \
+  --type=firestore-native \
+  --project="$PROJECT"
+```
+
+### A.3 The import command
+
+**Dry run first** — the repo script prints the exact request and exits without
+writing. It reuses `buildImportRequest` from `functions/firestoreBackupCore.js`,
+so the request shape provably cannot drift from what the backup wrote:
+
+```bash
+node scripts/restore-firestore.mjs --date="$DATE"
+```
+
+Then the import itself. Either form is fine; they issue the same
+`importDocuments` operation against the same prefix:
+
+```bash
+# Form 1 — gcloud (preferred in Cloud Shell: uses your own credentials).
+gcloud firestore import "$BUCKET/firestore-exports/$DATE" \
+  --database="$SCRATCH" \
+  --project="$PROJECT" \
+  --async
+
+# Form 2 — the repo script (the tested inverse of the backup).
+FIRESTORE_BACKUP_BUCKET="$BUCKET" \
+  node scripts/restore-firestore.mjs --date="$DATE" --database="$SCRATCH" --live
+```
+
+> **Do not** add `--i-understand-this-overwrites-production`, and do not omit
+> `--database`. Both roads lead to `(default)`. The script refuses the default
+> database without that flag precisely so the refusal, not the flag, is the
+> normal outcome.
+
+Track it to completion, and **record the operation name** — it is the evidence:
+
+```bash
+gcloud firestore operations list --project="$PROJECT" --database="$SCRATCH"
+# note the operation name; wait for done: true with no error
+```
+
+### A.4 Verification checklist
+
+**Establish the expectations BEFORE importing, not after.** Read the counts off
+the production database first and write them down; a restore of day *D*'s export
+should match production as of *D*, i.e. within roughly one day's growth of the
+pre-drill reading. There is no per-collection count committed to this repo on
+purpose — a number in a doc is stale the week after it is written, and comparing
+a restore against a stale number is worse than not comparing at all. The one
+durable yardstick is the **whole-database total: 27,192 documents at
+2026-07-22**; a total wildly below that means a partial import, and a re-run is
+cheaper than a wrong conclusion.
+
+Spot-check these, in this order — money first, because it is the only category
+where a silently wrong restore causes harm outside the app:
+
+| # | Collection | What to check | Why this one |
+|---|---|---|---|
+| 1 | `payments` | count; then 3–5 docs: `status`, `amountZmw`, `planId`, `userId` present and internally consistent | Server-only writes; the restore must not have invented or lost a payment |
+| 2 | `invoices`, `subscriptionEvents` | count; each invoice resolves to a `payments` doc | The ledger either reconciles with `payments` or the restore is not trustworthy |
+| 3 | `users` | count; then 5–10 docs: `role`, `plan`, `premium`, `subscriptionStatus/Expiry` | Entitlements — and the join point for the Auth check below |
+| 4 | `assessments` + its `questions` **subcollections** | count parents, then confirm ≥2 parents have non-empty `questions` | §4.1: questions are a subcollection, not an array. A restore that brought back parents but no subcollections looks fine at the top level and is empty underneath |
+| 5 | `quizzes` + `questions` subcollections | same as above | Same subcollection shape |
+| 6 | `results`, `exam_attempts`, `scores` | counts | Highest-volume learner data — the best signal for a truncated import |
+| 7 | `classRegisters` + `attendance` / `attendanceTerms` subcollections | count; one class has dated attendance docs | Dated subcollection docs, server-written; a distinct write path from the rest |
+| 8 | `aiGenerations` | count | Teacher library contents |
+| 9 | `pastPapers` | count | §10's PAPERS entity — the collection is `pastPapers` |
+| 10 | `settings/global` | exists, readable | One-doc smoke test of a public-read surface |
+
+Then the three checks that fail for reasons the Firestore export cannot fix —
+each one is a **known gap, not a drill defect**, and should be recorded as
+observed rather than treated as a failure:
+
+- **Auth references.** Take 5–10 `users/{uid}` from the scratch DB and confirm
+  each uid resolves to a real Firebase Auth user
+  (`gcloud identity` / Firebase console). **Firebase Auth is not part of this
+  export** (§2.6). A restore into a project whose Auth was also lost yields
+  orphaned user documents — this check measures that gap, it does not close it.
+- **Storage references.** Take docs carrying `storagePath` or download URLs
+  (past papers, assessment exports, branding) and confirm the objects still
+  exist. **Cloud Storage is not covered by this export** (DR-003).
+- **Provider state.** Do **not** treat restored `payments`/entitlement rows as
+  authoritative. Reconcile from Lenco and Google Play through the existing paths
+  (Till, `verifyGooglePlayPurchase`) — a restored snapshot lags live provider
+  state by up to the RPO.
+
+Index-dependent queries will not work in the scratch DB until indexes are
+deployed there (`firestore.indexes.json` is not part of the export). Deploy them
+if a query-driven view is being validated; otherwise note it and move on.
+
+### A.5 Record the evidence, then delete the scratch database
+
+Fill this in and attach it to the DR ticket **and** to
+`docs/production-readiness/remediation/dr-001-infrastructure-readiness.md`.
+The 2026-07-22 drill recorded the count, the RTO and the verdict but not the
+operation names or per-collection counts; this template exists so the next one
+does.
+
+```text
+Source export prefix:      gs://zedexams-backups/firestore-exports/<DATE>
+Metadata object present:   yes / no
+Export operation:          <name>
+Scratch database:          <name>            (location africa-south1)
+Import operation:          <name>            done: true / error
+Pre-drill production counts (captured before import):
+  payments / invoices / subscriptionEvents / users / assessments / quizzes /
+  results / exam_attempts / scores / classRegisters / aiGenerations / pastPapers
+Restored counts (same order):
+Total documents restored:                    (2026-07-22 baseline: 27,192)
+Subcollections verified:   assessments/questions: y/n   quizzes/questions: y/n
+                           classRegisters/attendance: y/n
+Auth references checked:   <n of m uids resolved>
+Storage references checked:<n of m objects present>
+Provider reconciliation:   noted as required / performed
+Drill start (UTC / Lusaka):
+Import start / complete:
+Validation complete:
+Measured RTO:                                (2026-07-22 baseline: 25m50s)
+No data imported into (default): confirm
+Scratch database deleted:  confirm
+Result:                    PASS / FAIL
+```
+
+```bash
+# Abort or finish — a scratch database left running is both a cost and a
+# future reader's ambiguity about whether a restore is still in progress.
+gcloud firestore databases delete --database="$SCRATCH" --project="$PROJECT"
+```
 
 ---
 
