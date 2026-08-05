@@ -20,10 +20,19 @@ found in the existing runners rather than invented:
 | `legacy-plain-string.json` | a question stored before RichContent existed |
 | `zero-score.json` | every answer wrong — distinguishable from "nothing answered" |
 | `typed-answer-keys.json` | the four types whose answer key is not `correctAnswer` — fill_blanks, matching, sequence, diagram_label |
+| `objective-types.json` | tf, numeric, hotspot, and the legacy `fill` spelling |
+| `text-answer-types.json` | the AI-marked family (essay, diagram) and the legacy `short` spelling, which is NOT in it |
 
 A fixture is added when a real edge case is found, and the case it represents
 is named in the table above. An unexplained fixture is a fixture nobody can
 tell is still needed.
+
+**Coverage is now a build failure, not a discipline.** `scripts/replay/fixtureCoverage.test.js`
+derives the universe from `QUESTION_TYPES` — the shared package's registry — and fails if any
+canonical type has no fixture. A fourteenth type fails it the moment it is declared, before
+anything can be built on the assumption that it is covered. There is no exemption list, because
+every type in the registry is reachable: `coerceQuestion` accepts each one, so a stored quiz can
+hold one, so a learner can meet one.
 
 `typed-answer-keys.json` is the one that earned its place after the fact. Every
 other fixture is MCQ, so all of them passed whether or not the normaliser

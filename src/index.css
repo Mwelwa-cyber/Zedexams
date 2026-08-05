@@ -6309,6 +6309,22 @@ body.data-saver [data-bg-gradient] {
 /* 1 ─ Content typography. Normal text is weight 500; marks are the only
  *     things that visually pop. Size/line-height read the reading-prefs vars
  *     (fallbacks make the classes work even outside a .quiz-shell). */
+/* The Assessment Engine's one new class: a question that cannot be answered as
+ * drawn — a choice question stored with no options. It is deliberately styled
+ * as a WARNING rather than as body text, because the failure it reports is
+ * silent otherwise: a prompt with nothing under it reads as a paragraph, and a
+ * learner skips it without knowing they were meant to answer. Every other class
+ * the engine's renderers use is a shipping quiz class, reused so the engine and
+ * the old runner stay visually indistinguishable through the cutover. */
+.zx-render-problem {
+  display: block;
+  border: 2px dashed var(--danger, #EF4444);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: var(--danger, #EF4444);
+  font-weight: 600;
+}
+
 .question-text {
   font-weight: 500;
   font-size: calc(clamp(1.15rem, 4.5vw, 1.45rem) * var(--quiz-text-scale, 1));
