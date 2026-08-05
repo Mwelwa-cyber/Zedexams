@@ -7,14 +7,26 @@ printed papers; this protects what a learner sees on a phone, which is the
 first engine code they will meet and is measured by nothing today.
 
 **Status: complete except for the baselines themselves.** Fixtures, stage,
-runner, named page checks and CI wiring have all landed. `tests/visual/baselines/screen/`
-is empty, so the gate reports RED — and that is correct, not broken:
-`runScreenGate.mjs` never creates a baseline from a comparison run, so it
-cannot approve its own first render.
+runner, named page checks and CI wiring have all landed.
+`tests/visual/baselines/screen/` is empty, so the gate reports **green and
+UNARMED** — it renders every fixture, runs every page check, and compares
+nothing, saying so loudly on every run.
 
-To record them: dispatch **Visual baseline bootstrap** from `main` with
+To arm it: dispatch **Visual baseline bootstrap** from `main` with
 `family=screen`. It opens a draft pull request with the recorded pages, which
 is the one human look this gate gets — baselines lock whatever they show.
+
+### Three states, three different claims
+
+| state | verdict | why |
+|---|---|---|
+| every baseline missing | **green, UNARMED** | nothing has been approved, so nothing can differ from it. Failing here would block the pull request that introduces the gate, and "does not match the recorded baselines" would be false — there are none |
+| some missing | **red**, "NO BASELINE RECORDED" | a fixture added after the bootstrap has no approved appearance; skipping it would let it ride in unwatched |
+| none missing | compare | any difference fails |
+
+The unarmed window is real: between the gate landing and the bootstrap running,
+the screen family is green and watching nothing. It is bounded by one dispatch,
+shouted on every run, and ends the moment a single baseline exists.
 
 Replacing an approved screen baseline is NOT yet supported (the update
 workflow's sweep path is not routed to this runner), and nothing is blocked by

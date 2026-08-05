@@ -23,6 +23,7 @@
  * what makes "CI-recorded or not at all" a mechanism rather than a policy.
  */
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { PNG } from 'pngjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { comparePages } from '../compareRender.js'
@@ -106,27 +107,74 @@ if (mode === 'update') {
 }
 
 // ── compare ──────────────────────────────────────────────────────────────────
+//
+// Three states, and they are three different claims. Collapsing them is how a
+// gate ends up saying something untrue about what it checked.
+//
+//   • EVERY baseline missing  → the family is UNARMED. Nothing has been
+//     approved, so nothing can differ from it. Reporting "does not match the
+//     recorded baselines" here is false — there are none — and failing on it
+//     blocks the very pull request that introduces the gate. Green, and loud.
+//   • SOME missing            → FAIL. A fixture added after the bootstrap has
+//     no approved appearance, and quietly skipping it would let a new fixture
+//     ride in unwatched behind a green gate. Its baseline must be recorded
+//     deliberately, through the reviewed workflow.
+//   • NONE missing            → compare, and fail on any difference.
+//
+// The unarmed window is real and worth naming: between this merging and the
+// bootstrap running, the screen family is green and watching nothing. It is
+// bounded by one dispatch, the state is shouted on every run, and the moment a
+// single baseline exists the middle rule takes over.
 const missing = captures.filter((c) => !existsSync(baselinePath(c.target)))
+
+if (missing.length === captures.length) {
+  console.warn('')
+  console.warn('  ╔════════════════════════════════════════════════════════════════════╗')
+  console.warn('  ║  SCREEN GATE UNARMED: 0 baselines recorded — comparisons skipped.  ║')
+  console.warn('  ║  Dispatch the baseline bootstrap to arm.                           ║')
+  console.warn('  ╚════════════════════════════════════════════════════════════════════╝')
+  console.warn('')
+  console.warn(`  ${captures.length} captures rendered and every declared page check passed, so the`)
+  console.warn('  renderers are working — but NOTHING was compared, because no appearance')
+  console.warn('  has been approved yet. This is not a pass for the pixels.')
+  console.warn('')
+  console.warn('  Arm it:  Actions → "Visual baseline bootstrap" → Run workflow')
+  console.warn('           from main, with family=screen')
+  console.warn(`\n  The rendered pages are in tests/visual/output/screen (${identity}).`)
+  process.exit(0)
+}
+
 if (missing.length) {
-  console.error(`\n${missing.length} screen baseline${missing.length === 1 ? '' : 's'} do not exist yet:`)
+  // Partial: some appearances are approved and some are not. Never green — a
+  // fixture with no baseline is a fixture nobody has looked at.
+  console.error(`\n${missing.length} of ${captures.length} screen captures have NO BASELINE RECORDED:`)
   for (const c of missing) console.error(`  ${identity}/${c.target}`)
-  console.error('\nA comparison run never creates a baseline — it cannot approve its own first render.')
+  console.error('\nThis is not a difference — these appearances have never been approved.')
+  console.error('A comparison run never creates a baseline; it cannot approve its own first render.')
   console.error('Dispatch the "Visual baseline bootstrap" workflow from main with family=screen.')
   process.exit(1)
 }
 
 assertComparableEnvironment(JSON.parse(readFileSync(envPath, 'utf8')).environment, environment)
 
+// `comparePages` takes DECODED pages — `{width, height, data}` — and reports
+// `changed`, not `identical`. Handing it raw bytes makes every comparison
+// report "a page could not be read", and reading a non-existent `identical`
+// makes that read as a difference: a gate that fails 100% of the time the
+// moment it is armed, with a message that names the wrong cause. Caught by a
+// control that recorded baselines and immediately re-compared against them.
+const decode = (bytes) => PNG.sync.read(Buffer.from(bytes))
+
 let differing = 0
 for (const c of captures) {
-  const result = comparePages(readFileSync(baselinePath(c.target)), c.png)
-  if (result.identical) { console.log(`  ok  ${c.target}`); continue }
+  const result = comparePages(decode(readFileSync(baselinePath(c.target))), decode(c.png))
+  if (!result.changed) { console.log(`  ok  ${c.target}`); continue }
   differing += 1
-  console.error(`  ✗   ${c.target}: ${result.summary ?? 'differs from its baseline'}`)
+  console.error(`  ✗   ${c.target}: ${(result.reasons ?? []).join('; ') || 'differs from its baseline'}`)
 }
 
 if (differing) {
-  console.error(`\n${differing} screen capture${differing === 1 ? '' : 's'} differ from their baselines.`)
+  console.error(`\n${differing} screen capture${differing === 1 ? ' DIFFERS' : 's DIFFER'} from the recorded baselines.`)
   console.error('The rendered pages are in tests/visual/output/screen for inspection.')
   process.exit(1)
 }
