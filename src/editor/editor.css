@@ -597,131 +597,15 @@
    matches the editor preview.
    ══════════════════════════════════════════════════════════════ */
 
-/* ── Vertical arithmetic ── */
-.vert-arith {
-  display: inline-block;
-  margin: 6px 8px 6px 0;
-  font-family: 'Cambria Math', 'Cambria', ui-monospace, Menlo, Consolas, monospace;
-  font-size: 18px;
-  line-height: 1.25;
-  vertical-align: middle;
-  cursor: pointer;
-  user-select: none;
-  padding: 6px 10px;
-  border-radius: 6px;
-  transition: background .12s, box-shadow .12s;
-}
-.editor-area .vert-arith:hover,
-.pcard .vert-arith:hover,
-.viewer .vert-arith:hover {
-  background: var(--vi3, #ede9fe);
-  box-shadow: 0 0 0 2px var(--vi4, #c4b5fd) inset;
-}
-.vert-arith .va-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: flex-end;
-  gap: 8px;
-  white-space: pre;
-}
-.vert-arith .va-op {
-  display: inline-block;
-  width: 18px;
-  text-align: left;
-  font-weight: 700;
-}
-.vert-arith .va-num {
-  display: inline-block;
-  text-align: right;
-  font-feature-settings: 'tnum' 1;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 1.5px;
-}
-.vert-arith .va-rule {
-  border-top: 2px solid currentColor;
-  margin: 2px 0 2px 22px;
-  min-width: 70px;
-}
-.vert-arith .va-answer-row .va-num { min-height: 1em; }
-.vert-arith .va-working {
-  border-top: 1px dashed var(--sl4, #94a3b8);
-  margin-top: 6px;
-  padding-top: 4px;
-}
-.vert-arith .va-working-line {
-  border-bottom: 1px solid var(--sl4, #94a3b8);
-  height: 18px;
-  width: 130px;
-  margin: 4px 0;
-}
-
-/* ── Fractions ── */
-.math-frac {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  vertical-align: middle;
-  line-height: 1;
-  margin: 0 2px;
-  font-family: 'Cambria Math', 'Cambria', 'Times New Roman', serif;
-  cursor: pointer;
-  user-select: none;
-  padding: 1px 3px;
-  border-radius: 4px;
-}
-.editor-area .math-frac:hover,
-.pcard .math-frac:hover,
-.viewer .math-frac:hover {
-  background: var(--vi3, #ede9fe);
-}
-.math-frac-whole { padding-right: 4px; font-weight: 500; }
-.math-frac-stack {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  vertical-align: middle;
-  text-align: center;
-}
-.math-frac-num,
-.math-frac-den {
-  display: block;
-  font-size: 0.78em;
-  padding: 0 2px;
-  line-height: 1.1;
-  text-align: center;
-}
-.math-frac-num {
-  border-bottom: 1.5px solid currentColor;
-  padding-bottom: 1px;
-}
-.math-frac-den { padding-top: 1px; }
-
-/* ── Number bases ── */
-.num-base {
-  display: inline-flex;
-  align-items: baseline;
-  vertical-align: baseline;
-  cursor: pointer;
-  user-select: none;
-  padding: 0 2px;
-  border-radius: 4px;
-  font-family: inherit;
-}
-.editor-area .num-base:hover,
-.pcard .num-base:hover,
-.viewer .num-base:hover {
-  background: var(--vi3, #ede9fe);
-}
-.num-base-num { font: inherit; }
-.num-base-sub {
-  font-size: 0.65em;
-  position: relative;
-  bottom: -0.35em;
-  margin-left: 1px;
-  font-weight: 500;
-}
+/* ── Vertical arithmetic, fractions, number bases ──
+ *
+ * MOVED to `mathNotation.css` and imported by `safeRender.js` alongside KaTeX,
+ * so the stacking travels with the renderer instead of with the editor. These
+ * rules were unreachable on the learner quiz route, where the markup is emitted
+ * but this stylesheet is never loaded — a fraction printed as "6 8".
+ *
+ * Do not copy them back here. `editor.css` is imported only by the authoring
+ * surfaces, which is exactly why the gap was invisible from them. */
 
 /* ── Math toolbar buttons (extra styling) ── */
 .tbb.tbmath {

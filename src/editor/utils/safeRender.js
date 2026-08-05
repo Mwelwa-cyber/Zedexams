@@ -40,8 +40,16 @@ import { latexToSegments } from '../../utils/latexToUnicode.js'
 // dynamic CSS import at build time and inlines the styles; under a plain
 // `node` test runner there's no window, the import never fires, and the
 // `.css` file no longer trips Node's ESM loader.
+// School notation — the CSS that makes a fraction STACKED rather than two
+// numbers side by side, plus vertical arithmetic and number bases. It is
+// imported HERE, next to KaTeX, because the stylesheet a renderer needs must
+// travel with the renderer: these rules lived in `editor.css`, which only the
+// authoring surfaces import, so the learner quiz route emitted
+// `.math-frac-num` / `.math-frac-den` markup with nothing to stack it and a
+// learner met "6 8". See `mathNotation.css` for the full account.
 if (typeof window !== 'undefined') {
   import('katex/dist/katex.min.css').catch(() => {})
+  import('../mathNotation.css').catch(() => {})
 }
 
 /**
