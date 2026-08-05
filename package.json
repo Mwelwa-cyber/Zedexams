@@ -141,6 +141,7 @@
     "test:visual-exporters": "node scripts/visual/renderStages.contract.test.js",
     "test:visual-paths": "node scripts/visual/printAffectingPaths.test.js",
     "test:visual-verdict": "node scripts/visual/gateVerdict.test.js",
+    "test:visual-screen-fixtures": "node scripts/visual/screen/screenFixtures.test.js",
     "test:deploy-log": "node scripts/deploy/functionsDeployLog.test.js",
     "test:visual-baseline-scope": "node scripts/visual/baselinePrScope.test.js",
     "test:visual-anchors": "node scripts/visual/anchors.test.js",

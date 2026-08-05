@@ -751,6 +751,29 @@ inconvenient.
    retiring runner would be refactored by the rework anyway. Build the seam, not
    the abstraction.
 
+### 10.0 Deferred to after the cutover
+
+Decisions taken during step 6 that are deliberately NOT taken during it. Kept
+here rather than as TODOs in the code, because the reason they are deferred is
+the same in every case and it is a rule about cutovers rather than a note about
+a file.
+
+**The rule: during a canary, any visible difference must mean defect.** A
+product change riding a cutover destroys the only cheap signal available — an
+operator seeing a difference and knowing, without investigation, that something
+is wrong. Every improvement identified while building the engine therefore
+conforms to the old behaviour first and changes afterwards, for both renderers,
+as its own decision.
+
+1. **The marks pill on 1-mark questions.** Both renderers hide it
+   (`QuizRunnerV2.jsx:745`; `QuestionPrompt.jsx`). ECZ printed convention marks
+   every question, so always-showing is defensible and probably right — but it
+   would differ from the old runner on most questions in most quizzes, and it
+   interacts with two things that are not settled: the printed-paper convention
+   the engine will eventually have to agree with, and the learner-side redesign.
+   Post-cutover, for both renderers, with the visual baselines re-recorded in
+   the same change. (Owner decision, 2026-08-05.)
+
 ### 10.1 Work order
 
 Steps 1–4 are done. Ticked here rather than deleted, because the order was a
@@ -782,6 +805,14 @@ happened.
    paths and the journals are diffed), ✅ renderers (#2126 — the §4 choice
    layout, plus two ratchets: every canonical question type must have a replay
    fixture, and must be either drawn or declared undrawn).
+
+   **The screen visual gate lands before the flag plumbing**, in two PRs
+   (#2127 the fixtures + baseline identity, then the Chromium stage + CI).
+   Splitting it followed a finding: `renderToStaticMarkup` renders a stacked
+   fraction as a bare slash, because `RichContent` hydrates KaTeX in an effect
+   — so an SSR gate would have recorded the exact output §4.1 forbids as its
+   reference. The stage must render client-side in a real browser, which is a
+   build step and a browser rather than a function call.
 
    **The screen visual gate is its own PR and lands before the flag plumbing.**
    `scripts/visual/` renders PAPERS — `buildPrintableHtml` / `buildDocxDocument`
