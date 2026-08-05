@@ -424,7 +424,9 @@ a reviewer can see the write change on purpose.
 | `test:engine-contract` | node | normaliser output for all three in-scope sources against the canonical model; legacy plain-string in, RichContent out, stored doc untouched |
 | `test:engine-no-write-public` | node | the public path's journal is **empty** (§0.2) |
 | `assessmentEngine.spec.jsx` | Vitest | vertical single-column MCQ, letters past D, keyboard nav, the pending-answer path |
-| `test:engine-flag-resolution` | node | flag table (§4), fail-closed default, one runner's flag cannot move another's |
+| `test:engine-flag-resolution` | node | flag table (§4), fail-closed default, one runner's flag cannot move another's, the ramp is stable + monotonic + unsalted |
+| `test:engine-flag-single-reader` | node | §4 rule 3 as a build failure: one module names the flag, one hook calls the resolver, every runner has a reachable rollback |
+| `test:visitor-id` | node | the id the rollout and the free-preview counter share |
 
 Each `test:*` key is added in the same commit as its file
 (`MIGRATION_TEMPLATE.md` §5), and the discovered-script count is reported in
@@ -466,9 +468,58 @@ nothing reads is a promise the code does not keep.
 
 `rolloutPercent` exists because past-paper flips first and is public — the one
 route where a bad render is visible to anyone, including search crawlers. It
-buckets on the stable visitor id the free-limit counter already mints
-(`pastPaperQuiz.js:60-72`), so a given visitor gets a consistent answer rather
-than flapping between runners on reload.
+buckets on the stable visitor id the free-limit counter already mints, so a
+given visitor gets a consistent answer rather than flapping between runners on
+reload. That id moved out of `pastPaperQuiz.js` into `src/utils/visitorId.js`
+when this landed: two derivations of "who is this visitor" would agree right up
+until one changed, and the failure would be silent — one person to the paywall,
+a different person to the rollout.
+
+### 4.2.1 What the mechanism actually does (built #2130)
+
+Resolution is `resolveEngineDecision({featureFlags, runner, uid, visitorId})` →
+`{runner, engine, source}`. `source` is §7.2's `flagSource` dimension and is
+also the answer to "why am I not on it": `unknown-runner`, `runner-off`,
+`rollout-uid`, `rollout-zero`, `rollout-all`, `rollout-bucket`,
+`not-in-rollout`, `no-visitor-id`. The list is closed in both directions — a
+source the resolver cannot produce, or produces without declaring, fails
+`test:engine-flag-resolution`.
+
+Four decisions the table above does not carry, each of which changes what a
+number in `/admin` means:
+
+- **A switch on its own changes nothing.** `rolloutPercent` defaults to 0, so
+  turning a runner on and choosing an exposure are two deliberate acts, and the
+  fail-closed direction for a forgotten one is nobody.
+- **The ramp is monotonic.** `bucket < percent` against a fixed hash, so raising
+  the percentage only ADDS visitors — the population at 25% contains the
+  population at 10%. A ramp that reshuffled would change what was being measured
+  at the moment it was measured.
+- **The bucket is NOT salted per runner.** All three share one bucketing, so
+  `rolloutPercent: 10` means *ten percent of visitors*, and the same ten percent
+  everywhere. Salting would spread exposure, but at 10/10/10 it would put up to
+  27% of visitors on some engine surface while every dashboard still read "10",
+  and the un-exposed population would stop being a clean control.
+- **The allow-list does not survive the switch.** `rolloutUids` is checked
+  *after* the per-runner boolean, so flipping a runner off reverts everyone,
+  allow-listed accounts included. A rollback that spares the people most likely
+  to be staff leaves the failure running for exactly the group that would
+  otherwise notice it had stopped.
+
+`rolloutUids` has no control in `/admin` and is edited through the config JSON,
+the same as `passkeyRolloutUids`. It is how one account gets the engine before
+any stranger does. The three switches and the percentage are controls under
+Developer → Feature flags, and `test:engine-flag-single-reader` fails the build
+if a runner exists without one — an unreachable rollback is not a rollback.
+
+**The one thing a consumer must not get wrong:** `useAssessmentEngineFlag`
+returns `resolved` alongside the decision. Before the `settings/global` snapshot
+arrives the flags are the context's defaults, which resolve — correctly, fail-
+closed — to the old runner. Mounting on that answer and re-mounting when the
+real document lands swaps the runner out from under a learner who may already
+have answered something, and an answer held in the old runner's state does not
+survive into the new one. Gate the mount on `resolved`. The cost is a skeleton
+frame on a public, crawled route, and it belongs to the cutover PR to weigh.
 
 Five rules:
 
@@ -480,7 +531,11 @@ Five rules:
 3. **Resolved in exactly one module** — `src/engines/assessment-engine/flags.js`, with
    its own node test. `passkeyRegionCore.js` is the precedent, and the reason is
    that a flag read in four components drifts into four subtly different
-   conditions.
+   conditions. Enforced rather than agreed: `test:engine-flag-single-reader`
+   fails if any second file in `src/` names the flag namespace or calls the
+   resolver. Consumers go through `src/hooks/useAssessmentEngineFlag.js`, the
+   one binding, which supplies the inputs and decides nothing (the same test
+   fails if it starts naming a runner or reading a rollout field).
 4. **The flag chooses a runner; it never branches inside one.** Both components
    stay whole and mounted lazily, so a stale client either runs the old path
    completely or the new one completely — never a half-migrated hybrid whose
@@ -822,4 +877,18 @@ happened.
    machinery. Bolting it onto the paper pipeline would produce something that
    looked wired and measured nothing, so it is scoped separately — and it must
    be green before a cutover shows engine renderers to a learner.
-7. Cutovers: past-paper → quizzes → games, each gated on §5.1.
+   ✅ the screen gate (#2127 fixtures + identity, #2129 the Chromium stage and
+   the CI wiring). It lands **green and UNARMED** until the baselines are
+   recorded — a family with no approved appearance cannot differ from one, and
+   saying "does not match the recorded baselines" when there are none would be
+   false. Recording them is a `workflow_dispatch` from `main` that opens a
+   draft PR; that PR is the one human look this gate gets, because baselines
+   lock whatever they show.
+
+7. ✅ **Flag plumbing** (#2130) — the resolver, the one React binding, the
+   admin controls, and the guard that keeps it one reader. It ships with
+   nothing calling it, deliberately: the rollback path should be
+   already-deployed, already-soaked code by the time anything depends on it,
+   and a flipped switch that changes nothing is the cheapest possible way to
+   discover the switch does not reach production.
+8. Cutovers: past-paper → quizzes → games, each gated on §5.1.
