@@ -1,0 +1,59 @@
+{
+  "note": "The objective types that are neither MCQ nor covered by typed-answer-keys: tf, numeric, hotspot, and the legacy `fill` spelling. Each carries its own topic so a failing diff names the type. `fill` and `short` are separate canonical enum values from `fill_blanks` and `short_answer` — legacy documents carry them, and they grade by plain equality rather than through a per-type grader, which is behaviour worth pinning rather than assuming.",
+  "quiz": {
+    "id": "quiz-objective",
+    "title": "Objective Types",
+    "subject": "Science",
+    "grade": "5",
+    "duration": 15
+  },
+  "questions": [
+    {
+      "id": "q1",
+      "type": "tf",
+      "text": "Water boils at 100 degrees Celsius at sea level.",
+      "options": ["True", "False"],
+      "correctAnswer": 0,
+      "marks": 1,
+      "topic": "TrueFalse"
+    },
+    {
+      "id": "q2",
+      "type": "numeric",
+      "text": "What is the value of pi to two decimal places?",
+      "options": [],
+      "correctAnswer": 3.14,
+      "tolerance": 0.01,
+      "marks": 2,
+      "topic": "Numeric"
+    },
+    {
+      "id": "q3",
+      "type": "hotspot",
+      "text": "Tap the heart on the diagram.",
+      "options": [],
+      "correctRegion": { "x": 0.5, "y": 0.4, "radius": 0.1 },
+      "marks": 1,
+      "topic": "Hotspot"
+    },
+    {
+      "id": "q4",
+      "type": "fill",
+      "text": "The capital of Zambia is ______.",
+      "options": [],
+      "correctAnswer": "Lusaka",
+      "marks": 1,
+      "topic": "LegacyFill"
+    }
+  ],
+  "answers": {
+    "q1": 0,
+    "q2": 3.14,
+    "q3": { "x": 0.52, "y": 0.41 },
+    "q4": "Lusaka"
+  },
+  "mode": "practice",
+  "userId": "learner-1",
+  "startTime": 3000000,
+  "nowMs": 3061000
+}

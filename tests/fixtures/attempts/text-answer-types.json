@@ -1,0 +1,46 @@
+{
+  "note": "The AI-marked text family — essay and diagram — plus the legacy `short` spelling, which is NOT in that family. `isTextAnswerType` covers short_answer/diagram/essay, so those three trust the marker's verdict on the answer object; `short` falls through to plain equality despite reading like a sibling. That asymmetry is the reason this fixture exists: it is invisible from the type name and would otherwise be discovered by a learner.",
+  "quiz": {
+    "id": "quiz-text",
+    "title": "Text Answer Types",
+    "subject": "English",
+    "grade": "8",
+    "duration": 25
+  },
+  "questions": [
+    {
+      "id": "q1",
+      "type": "essay",
+      "text": "Discuss the causes of soil erosion in Zambia.",
+      "options": [],
+      "marks": 5,
+      "topic": "Essay"
+    },
+    {
+      "id": "q2",
+      "type": "diagram",
+      "text": "Describe what the diagram shows.",
+      "options": [],
+      "marks": 3,
+      "topic": "Diagram"
+    },
+    {
+      "id": "q3",
+      "type": "short",
+      "text": "Name the longest river in Zambia.",
+      "options": [],
+      "correctAnswer": "Zambezi",
+      "marks": 1,
+      "topic": "LegacyShort"
+    }
+  ],
+  "answers": {
+    "q1": { "text": "Deforestation and overgrazing…", "correct": true, "graded": true },
+    "q2": { "text": "A water cycle", "correct": false, "graded": true },
+    "q3": "Zambezi"
+  },
+  "mode": "practice",
+  "userId": "learner-1",
+  "startTime": 4000000,
+  "nowMs": 4120000
+}
