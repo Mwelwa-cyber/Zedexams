@@ -28,8 +28,6 @@ import QuizReviewScreen from './review/QuizReviewScreen'
 import { optionsToReadAloudText, questionToReadAloudText } from '../../utils/readAloudText'
 import { saveQuizSession, loadQuizSession, clearQuizSession } from '../../hooks/useQuizPersistence'
 import {
-  computeQuizScore,
-  buildResultGrading,
   isTextAnswerType,
   isNumericType,
   isHotspotType,
@@ -38,6 +36,7 @@ import {
   isMatchingType,
   isSequenceType,
 } from '../../utils/quizScoring'
+import { buildQuizResultPayload } from '../../utils/quizResultPayload'
 import { fillBlanksLayout, gradeFillBlanks } from '../../utils/fillBlanks'
 import { diagramLabelLayout, gradeDiagramLabels } from '../../utils/diagramLabelGrading'
 import { gradeMatching } from '../../utils/matchingGrading'
@@ -607,35 +606,20 @@ export default function QuizRunnerV2() {
     if (!auto) setShowSubmit(false)
     setSubmitting(true)
     try {
-      const timeSpent = startTime ? Math.round((Date.now() - startTime) / 1000) : 0
-      // Server-authoritative scoring: computeQuizScore re-grades each question
-      // from its persisted answer key (correctAnswer / tolerance / correctRegion)
-      // rather than trusting any client-stored `correct` flag.
-      const scoreResult = computeQuizScore(questions, answers)
-      const { score, total, percentage, topicScores } = scoreResult
-      // Gate 1: if any text answer is still awaiting AI marking (a burst
-      // throttle / provider timeout / budget rejection at submit), persist the
-      // attempt as PROVISIONAL — the partial percentage is recorded but
-      // finalScore is null and gradingStatus is 'pending', so nothing
-      // downstream (pass/fail, badges, leaderboards, class analytics) treats
-      // an inflated partial mark as settled. This state lives in the durable
-      // Firestore doc (not just React memory), and a later re-grade settles it.
-      const grading = buildResultGrading(scoreResult)
-      const resultId = await saveResult({
-        userId: currentUser.uid,
+      // The payload is built by a pure function so the exact document this
+      // path writes can be produced without rendering the runner — see
+      // src/utils/quizResultPayload.js. Scoring, provisional grading and the
+      // field set all live there now; this call site owns only the I/O.
+      const resultId = await saveResult(buildQuizResultPayload({
+        quiz,
         quizId,
-        quizTitle: quiz.title,
-        subject: quiz.subject,
-        grade: quiz.grade,
-        score,
-        totalMarks: total,
-        percentage,
-        mode,
+        questions,
         answers,
-        topicScores,
-        timeSpent,
-        ...grading,
-      })
+        mode,
+        userId: currentUser.uid,
+        startTime,
+        nowMs: Date.now(),
+      }))
       // Clear saved session now that results are safely in Firestore
       clearQuizSession(quizId, currentUser.uid)
       navigate(`/results/${resultId}`)
