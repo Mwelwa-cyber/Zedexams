@@ -244,11 +244,6 @@ const ACKNOWLEDGED_UNCOVERED = [
  * disagrees fails with "resolved — delete its line".
  */
 const KNOWN_DISCREPANCIES = {
-  agentJobs:
-    '§10 lists it as server-only, but the rules allow `create: isTeacherOrAbove()` plus ' +
-    'admin update/delete. Worth more than a doc fix: the teacher-facing agent-submission ' +
-    'surface was REMOVED in 2026-06 (CLAUDE.md), so this may be a live write grant for a ' +
-    'surface that no longer exists — check before simply correcting the doc.',
 }
 
 /**

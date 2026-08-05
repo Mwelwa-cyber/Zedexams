@@ -2217,36 +2217,51 @@ async function main() {
     await assertSucceeds(getDoc(doc(admin, 'agentJobs', 'job_teacher_a')))
   })
 
-  await test('a teacher CAN create a valid queued job they own', async () => {
-    await assertSucceeds(setDoc(doc(teacherA, 'agentJobs', 'job_new_valid'), {
+  // Create is ADMIN-ONLY (narrowed 2026-08-05). Both directions are asserted:
+  // the grant that was removed must stay closed, and the two admin surfaces
+  // that genuinely create jobs — BulkGenerateButton and GenerateFromTopicMenu —
+  // must keep working. Testing only the denial would let a later tightening
+  // break both without a single test going red.
+  await test('an ADMIN can create a valid queued job (BulkGenerateButton / GenerateFromTopicMenu)', async () => {
+    await assertSucceeds(setDoc(doc(admin, 'agentJobs', 'job_new_valid'), {
+      agentId: 'aria', department: 'content', status: 'queued',
+      createdBy: ADMIN, input: { topic: 'Decimals' },
+    }))
+  })
+
+  await test('a teacher CANNOT create a job — the /teacher/agents surface was removed in 2026-06', async () => {
+    await assertFails(setDoc(doc(teacherA, 'agentJobs', 'job_teacher_create'), {
       agentId: 'aria', department: 'content', status: 'queued',
       createdBy: TEACHER_A, input: { topic: 'Decimals' },
     }))
   })
 
-  await test('a learner CANNOT create a job (paid teacher tools behind the dispatcher)', async () => {
+  await test('a learner CANNOT create a job (paid runners behind the dispatcher)', async () => {
     await assertFails(setDoc(doc(learnerA, 'agentJobs', 'job_learner'), {
       agentId: 'aria', department: 'content', status: 'queued',
       createdBy: LEARNER_A, input: {},
     }))
   })
 
+  // These three run as ADMIN on purpose. Run as a teacher they would now pass
+  // because the ROLE is refused, never reaching the field checks — a denial
+  // that proves nothing about the constraint it claims to test.
   await test('create with a non-queued status is refused (no skipping the pipeline)', async () => {
-    await assertFails(setDoc(doc(teacherA, 'agentJobs', 'job_pre_approved'), {
+    await assertFails(setDoc(doc(admin, 'agentJobs', 'job_pre_approved'), {
       agentId: 'aria', department: 'content', status: 'approved',
-      createdBy: TEACHER_A, input: {},
+      createdBy: ADMIN, input: {},
     }))
   })
 
   await test('create smuggling an output field is refused', async () => {
-    await assertFails(setDoc(doc(teacherA, 'agentJobs', 'job_with_output'), {
+    await assertFails(setDoc(doc(admin, 'agentJobs', 'job_with_output'), {
       agentId: 'aria', department: 'content', status: 'queued',
-      createdBy: TEACHER_A, input: {}, output: { forged: true },
+      createdBy: ADMIN, input: {}, output: { forged: true },
     }))
   })
 
   await test('create under someone else’s createdBy is refused', async () => {
-    await assertFails(setDoc(doc(teacherA, 'agentJobs', 'job_spoofed'), {
+    await assertFails(setDoc(doc(admin, 'agentJobs', 'job_spoofed'), {
       agentId: 'aria', department: 'content', status: 'queued',
       createdBy: TEACHER_B, input: {},
     }))
