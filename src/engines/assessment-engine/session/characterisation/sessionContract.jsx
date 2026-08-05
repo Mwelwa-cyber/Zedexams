@@ -45,12 +45,64 @@
  * item across it is a decision to state in a PR, not one to make while making a
  * test pass.
  *
+ * ## Approved deviations — where the engine must NOT match the old runner
+ *
+ * One so far. Recorded here rather than discovered at cutover, so the
+ * conformance suite demonstrably does not enforce a bug and the write differ
+ * knows the difference is expected rather than a surprise.
+ *
+ * **`timeSpent` when the true start is unknown.** On resume the old runner does
+ * `setStartTime(saved.startTime || Date.now())`, so a draft missing `startTime`
+ * yields a duration measured from the RESUME rather than from the attempt — a
+ * number indistinguishable from a measured one, which is worse than an honest
+ * absence. The engine records `null`. The old runner is left alone; it retires
+ * with the quirk. Two constraints ride with this, and both are on the PR that
+ * gives the engine a write path (`persist/`), because that is the first moment
+ * anything can write null:
+ *
+ *   1. **`QuizResultsV2:228` must be fixed in that same PR.** It reads
+ *      `result.timeSpent ? … : 0` and would render an honest null to a learner
+ *      as a confident "0m 0s" — the exact failure this deviation avoids, just
+ *      displayed instead of averaged. The other three readers already treat
+ *      absence as unknown (both admin `fmtTime`s return '—', the CSV export
+ *      writes an empty cell), and NOTHING aggregates the field: `classAnalytics`
+ *      does not read it, so there is no average to poison.
+ *   2. **The nullability belongs in `persist/`'s own contract.** There is no zod
+ *      write schema for `results` to amend — `src/schemas/result.js` is a
+ *      read-side coercer that says in its own docblock why no write schema
+ *      exists yet, and does not touch `timeSpent`, which passes through as an
+ *      undocumented extra.
+ *
+ * ## A premise this suite was nearly built on, and the correction
+ *
+ * The deviation above was first raised as a fairness bug: that a refresh resets
+ * the clock, letting a learner extend a timed quiz. **It does not.** Reading the
+ * runner: `endTime` IS persisted and restored (`:390`), and the countdown reads
+ * `endTime` and nothing else (`:460`). `startTime` is used in exactly two
+ * places — the autosave payload and the submitted `timeSpent`. The deadline was
+ * never resettable, so there is no fairness edge, nothing competitive is
+ * affected, and the residual bug is one under-reported duration on a corrupt or
+ * legacy draft.
+ *
+ * Written down because a stale premise outlives the conversation that produced
+ * it, and the next person to touch the timer should meet the correction rather
+ * than re-derive it. It is the second time in this phase a confident claim
+ * shrank once someone read the artifact — the first was the `agentJobs` grant.
+ *
+ * The **third** was mine, and it is recorded in `beforeEach` below: this suite
+ * timed out on all 24 assertions, the fake clock was blamed in detail and with
+ * a comparison table, and the clock had nothing to do with it. The pattern is
+ * consistent enough to name — a confident diagnosis of a symptom, held until
+ * someone measured the thing itself.
+ *
  * ## Timers
  *
- * Every timing assertion runs on fake timers with explicit advancement. A
- * characterisation suite that waits on real time is flaky in CI, and a suite
- * that goes flaky gets retried, then skipped, then deleted — losing exactly the
- * authority it was written to hold.
+ * Every timing assertion runs on a FROZEN fake clock that moves only where a
+ * test says `tick`. A characterisation suite that waits on real time is flaky
+ * in CI, and a suite that goes flaky gets retried, then skipped, then deleted
+ * — losing exactly the authority it was written to hold. A clock that advances
+ * on its own to help a render settle is the quieter version of the same
+ * problem: the assertion still passes, on time nobody asked for.
  *
  * ## The harness
  *
@@ -65,18 +117,34 @@
  * @property {() => Promise<void>} prev
  * @property {() => Promise<void>} openSubmit
  * @property {() => Promise<void>} confirmSubmit
+ * @property {() => boolean} isStarted             is the learner in the session
  * @property {() => object|null} lastSavedSession   the autosave payload
- * @property {() => number} savedSessionCount       how many saves have happened
  * @property {() => object|null} submittedResult    the result payload, or null
+ * @property {() => number} submitCount             SUCCESSFUL submits, not attempts
  * @property {() => boolean} canGoPrev
  * @property {() => boolean} hasNext
  * @property {(ms: number) => Promise<void>} tick  advance the clock, inside act
  * @property {() => boolean} hasSubmit
+ *
+ * There is deliberately no `savedSessionCount`. It was here, and nothing
+ * asserted it once autosave cadence was classified as incidental — an unused
+ * method in a conformance contract is work every future implementation has to
+ * do for nobody, and a standing invitation to write the cadence assertion the
+ * classification rules out.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
-/** The exact keys the session persists. Field set, not a sample. */
-export const SESSION_AUTOSAVE_KEYS = Object.freeze([
+/**
+ * The fields the CURRENT runner's autosave writes.
+ *
+ * DESCRIPTIVE, not a contract. It records the mechanism as it stands so a
+ * reader can see what a persisted draft looks like today — it is deliberately
+ * not asserted, because the promise to a learner is that the answer survives,
+ * not that it survives in this shape. An engine that persists a different set,
+ * or writes deltas, or debounces, conforms as long as the durability
+ * assertions stay green. (Owner decision, 2026-08-05.)
+ */
+export const SESSION_AUTOSAVE_MECHANISM_KEYS = Object.freeze([
   'mode', 'answers', 'flagged', 'revealed', 'shortText', 'aiResults',
   'activeSectionIndex', 'endTime', 'startTime', 'savedAt',
 ])
@@ -97,23 +165,23 @@ export function describeSessionContract(name, makeHarness) {
     const T0 = 1_700_000_000_000
 
     beforeEach(() => {
-      // `shouldAdvanceTime` is load-bearing, and was established by isolating
-      // three configurations rather than guessed at. A frozen fake clock hangs
-      // the mount outright: React Testing Library's async act schedules through
-      // the timer APIs, so with them faked and never advanced the render never
-      // settles and every assertion reports a 5s TIMEOUT rather than a failure
-      // — which reads as a broken suite instead of wrong behaviour. The first
-      // run of this suite did exactly that, 24 for 24.
+      // A FROZEN clock: it moves only where a test says `tick`. Nothing here
+      // waits on real time, and no helper advances the clock to make progress
+      // — which is what makes a timing assertion mean what it says.
       //
-      //   A. real timers                        → mounts
-      //   B. fake timers + shouldAdvanceTime    → mounts   ← this
-      //   C. mount real, then install fake ones → hangs
+      // This was `{ shouldAdvanceTime: true }`, adopted after the suite's first
+      // run reported a 5-second TIMEOUT on all 24 assertions and the clock was
+      // blamed. It was not the clock. The harness's mocked hooks returned a
+      // fresh object per render, the runner's loader effect depends on two of
+      // them, and the resulting render loop meant `await act(async …)` never
+      // resolved — identically under REAL timers, which is the observation
+      // that settled it. With the mocks stable a frozen clock settles a mount
+      // in ~50ms. See the harness's own note and its self-check.
       //
-      // The cost is that the clock also creeps with real time, so nothing here
-      // asserts an absolute instant — deadlines are asserted as DURATIONS
-      // (endTime - startTime), which is the property that matters and which
-      // cancels the drift.
-      vi.useFakeTimers({ shouldAdvanceTime: true })
+      // One thing from that detour is kept because it was a real improvement:
+      // deadlines are asserted as DURATIONS (endTime - startTime) rather than
+      // as absolute instants.
+      vi.useFakeTimers()
       vi.setSystemTime(T0)
       h = makeHarness()
     })
@@ -180,46 +248,74 @@ export function describeSessionContract(name, makeHarness) {
       })
     })
 
-    // ── Autosave ─────────────────────────────────────────────────────────────
+    // ── Durability ───────────────────────────────────────────────────────────
+    //
+    // What the old runner promises a learner is not "a write per keystroke" —
+    // it is "your answer survives". The mechanism today is an effect that
+    // serialises the whole session on every state change, including every
+    // keystroke; that is an implementation, and pinning it here would force the
+    // engine to conform to an inefficiency it should be free to fix. The engine
+    // may debounce, may write deltas, may batch — so long as every assertion
+    // below stays green.
+    //
+    // So these assert OUTCOMES: put an answer in, lose the session the way a
+    // learner actually loses one, come back, and find the answer. No assertion
+    // counts writes or inspects cadence.
 
-    describe('autosave', () => {
-      it('persists exactly the declared field set', async () => {
+    describe('durability', () => {
+      it('an answer survives losing the session and coming back', async () => {
         await h.mount({})
         await h.start('practice')
-        expect(Object.keys(h.lastSavedSession()).sort())
-          .toEqual([...SESSION_AUTOSAVE_KEYS].sort())
+        await h.answerCurrent(1)
+
+        // What a tab kill leaves behind is whatever was last persisted.
+        const survived = h.lastSavedSession()
+        const reopened = makeHarness()
+        await reopened.mount({ savedSession: survived })
+
+        expect(reopened.isStarted()).toBe(true)
+        expect(Object.keys(reopened.lastSavedSession().answers)).toHaveLength(1)
       })
 
-      it('saves when an answer changes', async () => {
-        await h.mount({})
+      it('an answer survives navigating away and back', async () => {
+        await h.mount({ sections: 2 })
         await h.start('practice')
-        const before = h.savedSessionCount()
         await h.answerCurrent(1)
-        expect(h.savedSessionCount()).toBeGreaterThan(before)
+        await h.next()
+        await h.prev()
         expect(Object.keys(h.lastSavedSession().answers)).toHaveLength(1)
       })
 
-      it('saves when the section changes', async () => {
-        await h.mount({ sections: 2 })
-        await h.start('practice')
-        const before = h.savedSessionCount()
-        await h.next()
-        expect(h.savedSessionCount()).toBeGreaterThan(before)
-        expect(h.lastSavedSession().activeSectionIndex).toBe(1)
-      })
-
-      it('does not save before the session starts', async () => {
-        await h.mount({})
-        expect(h.savedSessionCount()).toBe(0)
-      })
-
-      it('carries the answers forward, not just the latest one', async () => {
+      it('answers from different sections all survive', async () => {
         await h.mount({ sections: 2 })
         await h.start('practice')
         await h.answerCurrent(1)
         await h.next()
         await h.answerCurrent(0)
-        expect(Object.keys(h.lastSavedSession().answers)).toHaveLength(2)
+
+        const survived = h.lastSavedSession()
+        const reopened = makeHarness()
+        await reopened.mount({ sections: 2, savedSession: survived })
+        expect(Object.keys(reopened.lastSavedSession().answers)).toHaveLength(2)
+      })
+
+      it('the section the learner was on survives', async () => {
+        await h.mount({ sections: 3 })
+        await h.start('practice')
+        await h.next()
+
+        const survived = h.lastSavedSession()
+        const reopened = makeHarness()
+        await reopened.mount({ sections: 3, savedSession: survived })
+        expect(reopened.lastSavedSession().activeSectionIndex).toBe(1)
+      })
+
+      it('nothing is persisted before the learner starts', async () => {
+        // Not a cadence assertion: an unstarted quiz has no attempt to
+        // recover, and writing one would resume a learner into a session they
+        // never began.
+        await h.mount({})
+        expect(h.lastSavedSession()).toBeNull()
       })
     })
 
@@ -335,12 +431,18 @@ export function describeSessionContract(name, makeHarness) {
       })
 
       it('a failed save leaves the learner able to retry', async () => {
+        // The retry goes through the WHOLE path — Submit, then confirm —
+        // because a failed save closes the confirmation. Written as a second
+        // confirm alone this failed, and the guarantee under test is that the
+        // attempt is still recoverable, not that a particular dialog stays
+        // open. An implementation that leaves it open also passes this.
         await h.mount({ failSubmitOnce: true })
         await h.start('practice')
         await h.answerCurrent(1)
         await h.openSubmit()
         await h.confirmSubmit()
         expect(h.submittedResult()).toBeNull()
+        await h.openSubmit()
         await h.confirmSubmit()
         expect(h.submittedResult()).not.toBeNull()
       })
