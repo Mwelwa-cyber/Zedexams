@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronDown, ChevronUp, RotateCcw, ListChecks, Sparkles, Check, Volume2, VolumeX } from '../ui/icons'
 import { useFirestore } from '../../hooks/useFirestore'
+import { optionLabel } from '../../utils/mcqChoices'
 import { useAuth } from '../../contexts/AuthContext'
 import { buildQuizDisplaySections } from '../../utils/quizSections.js'
 import { getRoleLandingPath } from '../../utils/navigation'
@@ -272,7 +273,7 @@ export default function QuizResultsV2() {
                     : 'theme-text-muted'
                 }`}>
                   <div className="flex items-baseline gap-1">
-                    <span className="font-bold">{['A', 'B', 'C', 'D'][optionIndex]}.</span>
+                    <span className="font-bold">{optionLabel(optionIndex)}.</span>
                     {/* RichContent transparently handles strings + Tiptap
                         JSON. Avoids losing fractions / math when teachers
                         wrote rich options. */}

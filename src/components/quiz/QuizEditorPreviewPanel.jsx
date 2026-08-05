@@ -1,5 +1,6 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import { buildQuizDisplaySections } from '../../utils/quizSections.js'
+import { optionLabel } from '../../utils/mcqChoices'
 // Format-aware renderer: handles both legacy HTML and Tiptap JSON quizzes.
 import RichContent from '../../editor/RichContent'
 import ZoomableImage from './ZoomableImage'
@@ -74,7 +75,7 @@ function PreviewQuestion({ question }) {
                 )}
               >
                 <div className="flex items-start gap-2">
-                  <span className="text-xs font-black">{['A', 'B', 'C', 'D'][index]}.</span>
+                  <span className="text-xs font-black">{optionLabel(index)}.</span>
                   <div className="flex-1 space-y-2">
                     {/* Option media (diagram preferred over image) — was
                         silently dropped before; teachers couldn't see the

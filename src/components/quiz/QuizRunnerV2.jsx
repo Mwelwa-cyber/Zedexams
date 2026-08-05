@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useFirestore } from '../../hooks/useFirestore'
+import { optionLabel } from '../../utils/mcqChoices'
 import { useAuth } from '../../contexts/AuthContext'
 import { useDataSaver } from '../../contexts/DataSaverContext'
 import { useSubscription } from '../../hooks/useSubscription'
@@ -1697,7 +1698,7 @@ export default function QuizRunnerV2() {
                 return (
                   <OptionButton
                     key={`${question.id}-${optionIndex}`}
-                    label={['A', 'B', 'C', 'D'][optionIndex]}
+                    label={optionLabel(optionIndex)}
                     selected={!isRevealed && userAnswer === optionIndex}
                     revealed={isRevealed}
                     correct={isRevealed && optionIndex === question.correctAnswer}

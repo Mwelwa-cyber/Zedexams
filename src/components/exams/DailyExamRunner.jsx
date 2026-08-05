@@ -24,6 +24,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { optionLabel } from '../../utils/mcqChoices'
 import {
   getExamWithQuestions,
   checkDailyLock,
@@ -575,7 +576,7 @@ function DailyExamRunnerInner() {
             {question.options?.map((option, idx) => (
               <OptionButton
                 key={`${question.id}-${idx}`}
-                label={['A', 'B', 'C', 'D'][idx]}
+                label={optionLabel(idx)}
                 selected={userAnswer === idx}
                 onClick={() => pickAnswer(question.id, idx)}
               >

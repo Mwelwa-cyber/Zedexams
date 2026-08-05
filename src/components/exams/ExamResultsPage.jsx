@@ -9,6 +9,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { optionLabel } from '../../utils/mcqChoices'
 import { getExamAttempt, getExamWithQuestions } from '../../utils/examService'
 import { subscribeToDailyLeaderboard, getDailyLeaderboard, fmtDuration } from '../../utils/examLeaderboardService'
 import { recordExamCompletion, computeRivalry } from '../../utils/gamificationService'
@@ -230,7 +231,7 @@ function CorrectionsView({ attempt, questions }) {
                             : 'theme-text-muted'
                         }`}
                       >
-                        <span>{['A', 'B', 'C', 'D'][optionIndex] ?? optionIndex + 1}.</span>
+                        <span>{optionLabel(optionIndex)}.</span>
                         <RichContent value={option} className="rich-option" fallback={<span />} />
                         {optionIndex === q.correctAnswer && <span>✅</span>}
                         {optionIndex === given && !isCorrect && <span>(your answer)</span>}

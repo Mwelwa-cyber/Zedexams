@@ -56,6 +56,7 @@
     "audit:word-breaks": "node scripts/audit-syllabus-word-breaks.mjs",
     "test:sanitize": "node scripts/test-rich-text-sanitize.mjs",
     "test:quiz-result-payload": "node src/utils/quizResultPayload.test.js",
+    "test:option-letters": "node scripts/test-option-letters.mjs",
     "test:live-canvas": "node scripts/test-live-generation-sections.mjs",
     "test:ui-audit-tokens": "node src/components/dev/uiAudit/tokenReader.test.js",
     "test:ui-audit-forced-states": "node src/components/dev/uiAudit/forcedStates.test.js",
