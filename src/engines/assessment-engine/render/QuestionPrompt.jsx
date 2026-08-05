@@ -23,12 +23,12 @@
  * class would drop them silently.
  *
  * **Marks are shown only above 1**, which is the runner's rule
- * (`QuizRunnerV2.jsx:745`). Printed papers mark every question, so showing
- * "1 mark" everywhere is defensible — and it is a change, on the first engine
- * code a learner will see, that would differ from the old runner on most
- * questions in most quizzes. The visual gate exists to catch exactly that. If
- * the rule should change it should change for both, as its own decision, not
- * as a side effect of the migration.
+ * (`QuizRunnerV2.jsx:745`). ECZ printed convention marks every question, so
+ * always-showing is defensible and probably right — but during a canary any
+ * visible difference must mean DEFECT, and a product change riding a cutover
+ * destroys the one cheap signal an operator has. Deferred to after the cutover,
+ * for both renderers, with the visual baselines re-recorded in the same change:
+ * `docs/phase3-plan.md` §10.0. (Owner decision, 2026-08-05.)
  */
 import RichContent from '../../../editor/RichContent'
 

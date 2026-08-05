@@ -232,6 +232,16 @@ export function baselineIdentity(stage, environment) {
     if (!v) throw new RenderEnvironmentError('LibreOffice version unknown — cannot file a baseline')
     return `docx/libreoffice-${v}`
   }
+  // The learner SCREEN. Chromium again, but a separate identity from
+  // `browser-print` on purpose: the two render different documents at
+  // different sizes, and a baseline recorded for one must never be reached for
+  // by the other. Sharing the identity would let a print baseline satisfy a
+  // screen comparison the day someone passed the wrong stage string.
+  if (stage === 'screen') {
+    const v = environment?.chromium
+    if (!v) throw new RenderEnvironmentError('Chromium version unknown — cannot file a baseline')
+    return `screen/chromium-${v}`
+  }
   throw new RenderEnvironmentError(`unknown render stage "${stage}"`)
 }
 
@@ -289,6 +299,7 @@ export function assertComparableEnvironment(baselineEnv, currentEnv) {
 export function assertToolchain(stages, environment) {
   const missing = []
   if (stages.includes('browser-print') && !environment.chromium) missing.push('Chromium')
+  if (stages.includes('screen') && !environment.chromium) missing.push('Chromium')
   if (stages.includes('docx') && !environment.libreoffice) missing.push('LibreOffice (soffice)')
   if (missing.length) {
     throw new RenderEnvironmentError(
