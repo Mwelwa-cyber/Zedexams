@@ -36,6 +36,7 @@ export default [
       // warnings about a third party's code on an otherwise clean tree.
       'coverage/**',
       'coverage-functions/**',
+      'coverage-src/**',
       'public/**',
       'postman/**',
       'qa-samples/**',
@@ -139,20 +140,29 @@ export default [
   // Cross-feature imports go through a feature's public `index.js` so one
   // feature never reaches into another's internals.
   //
-  // These use core `no-restricted-imports` — no new lint plugin — which matches
-  // the import SPECIFIER, not the resolved path. That has one consequence worth
-  // stating, because it looks like a gap and is one:
+  // These use core `no-restricted-imports` — no new lint plugin — which checks
+  // static import/export declarations by SPECIFIER, not by resolved path. Three
+  // consequences, all of them gaps, all covered by
+  // `npm run test:import-boundaries` (which resolves every import in src/ to a
+  // real path, and lints synthetic violations through this very file so a
+  // pattern that stops matching fails a test instead of reading as a clean
+  // codebase):
   //
-  //   Every layer rule below is total, because the layers are sibling
-  //   directories under src/: a file in `src/shared/` cannot reach a feature
-  //   without writing `features/` in the path. The cross-FEATURE rule is not.
-  //   A file in `src/features/A/`
-  //   reaches `src/features/B/` as `../../B/lib/x`, which names no layer at
-  //   all — indistinguishable, as a string, from its own `../lib/x`. ESLint
-  //   cannot see that one. `npm run test:import-boundaries` resolves specifiers
-  //   to real paths and covers it, and also asserts the rules below actually
-  //   fire, so a pattern that stops matching is a failing test rather than
-  //   silence.
+  //   • Sibling features are invisible. Every layer rule below is total,
+  //     because the layers are sibling directories under src/ and the path has
+  //     to name them — but `src/features/A/` reaching `src/features/B/` is
+  //     written `../../B/lib/x`, which names no layer at all and is
+  //     indistinguishable, as a string, from its own `../lib/x`.
+  //   • Dynamic `import()` is not checked at all, by any of these rules. A
+  //     lazily-loaded module crosses any boundary it likes in silence.
+  //   • Warnings do not fail `eslint .`, so the legacy debt below could double
+  //     without a red build. The test ratchets it.
+  //
+  // One imprecision to know about: the patterns match a path SEGMENT, so
+  // `**/curriculum/**` also matches the unrelated `src/components/teacher/
+  // curriculum/`. Nothing hits it today (only the new, empty layers carry that
+  // rule) and such an import would be refused on its own merits anyway — but
+  // the message it prints would name the wrong reason.
   //
   // Rules are ordered general → specific: flat config replaces (not merges) a
   // rule's options when a later block names the same rule, so each specific
@@ -164,7 +174,9 @@ export default [
       // feature's internals. `warn`, not `error`, because 11 such imports exist
       // today and predate the boundary — they are Phase 4 debt, and each one
       // clears when its caller migrates. It flips to `error` once the last is
-      // gone; do not add the twelfth.
+      // gone. A twelfth is not merely discouraged: it fails
+      // `npm run test:import-boundaries`, which holds the eleven as a
+      // shrink-only list precisely because a warning cannot fail a build.
       'no-restricted-imports': ['warn', {
         patterns: [{
           group: ['**/features/*/**', '!**/features/*/index.js', '!**/features/*/index.jsx'],

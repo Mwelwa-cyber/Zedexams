@@ -9,17 +9,22 @@
 //     the import specifier by a glob library, so a pattern that quietly stops
 //     matching looks exactly like a codebase with no violations.
 //
-//  2. The one case those patterns structurally cannot see is resolved here.
-//     `src/features/A/pages/X.jsx` reaching into `src/features/B` is written
-//     `../../B/lib/y`, which names no layer — as a string it is identical in
-//     shape to its own `../lib/y`. So this part resolves every relative
-//     specifier under src/features/ to a real path and fails on any that lands
-//     inside a DIFFERENT feature, anywhere but that feature's index.
+//  2. Every import in src/ is resolved to a real path and checked against the
+//     layering. This is not a duplicate of part 1 — it sees three things the
+//     lint rules structurally cannot:
 //
-// Deliberately not covered here: the legacy tree (src/components, src/hooks,
-// src/utils) reaching into feature internals. Those are Phase 4 migration debt,
-// and ESLint reports each as a warning at the call site — recording them in a
-// second place would only add something to update when one clears.
+//       • Sibling features. `src/features/A/pages/X.jsx` reaching
+//         `src/features/B` is written `../../B/lib/y`, which names no layer —
+//         as a string it is identical in shape to its own `../lib/y`.
+//       • Dynamic `import('…')`. `no-restricted-imports` inspects static
+//         import/export declarations only, so a lazily-loaded module crosses
+//         any boundary it likes without a word from ESLint.
+//       • Growth. Warnings do not fail `eslint .`, so the legacy debt below
+//         could double without a red build. Here it is a shrink-only list.
+//
+// Both debt lists only shrink: an import that is NOT recorded fails, and a
+// recorded entry that no longer exists fails too, so clearing one means
+// deleting its line rather than leaving a note about work already done.
 //
 // Plain-node test, auto-discovered by scripts/run-all-tests.mjs via the
 // test:import-boundaries script.
@@ -28,8 +33,11 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { ESLint } from 'eslint';
+import { APP_PATH, TEACHER_ROUTES_PATH } from './lib/declaredRoutes.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const SRC = join(root, 'src');
+const FEATURES_DIR = join(SRC, 'features');
 const BOUNDARY_RULE = 'no-restricted-imports';
 
 let failures = 0;
@@ -72,6 +80,15 @@ const lintCases = [
   { file: 'src/hooks/probe.js', spec: '../features/notes/lib/firestore', severity: 1,
     why: 'legacy tree reaching into a feature warns (Phase 4 debt), it does not fail the build' },
 
+  // The repo configures no path aliases today (no jsconfig/tsconfig, no
+  // resolve.alias), and `assertNoUnknownAliases` below fails if one appears.
+  // These pin that the patterns would hold anyway: the `**/` prefix matches an
+  // alias segment, so `@/features/…` is caught exactly like the relative form.
+  { file: 'src/shared/utils/probe.js', spec: '@/features/notes/lib/x', severity: 2,
+    why: 'an alias must not be a way around the layer rule' },
+  { file: 'src/features/notes/pages/Probe.jsx', spec: '@/features/learnerHome/lib/x', severity: 2,
+    why: 'an alias must not be a way around the cross-feature rule' },
+
   // The imports each layer is supposed to be able to make.
   { file: 'src/shared/utils/probe.js', spec: '../../config/canonicalEducation.js', severity: 0,
     why: 'shared may read config' },
@@ -111,26 +128,68 @@ for (const { file, spec, severity, why } of lintCases) {
 }
 
 // ---------------------------------------------------------------------------
-// Part 2 — no feature reaches into a sibling feature's internals.
+// Part 2 — every import in src/, resolved.
 // ---------------------------------------------------------------------------
 
-const FEATURES_DIR = join(root, 'src', 'features');
+// Which layer may not import which. A layer may always use what is below it;
+// these are the upward edges (docs/architecture.md §12). `legacy` is everything
+// in src/ that has not migrated into a layer yet — it is not restricted here,
+// but its reach INTO feature internals is ratcheted below.
+const FORBIDDEN_TARGETS = {
+  app: [],
+  features: ['app'],
+  engines: ['app', 'features'],
+  curriculum: ['app', 'features', 'engines'],
+  shared: ['app', 'features', 'engines', 'curriculum'],
+  legacy: [],
+};
 
-// Cross-feature imports that predate the boundary. They are Phase 4 debt: the
-// lessons feature reads three things out of notes, and the honest fix is the
-// migration that gives notes a public index — not a re-export added now, which
-// would pull the notes pages into the lessons chunk to satisfy a lint rule.
-//
-// This list only shrinks. A cross-feature import that is NOT here fails the
-// test, and an entry here that no longer exists fails it too, so clearing one
-// means deleting its line rather than leaving a comment about work already
-// done.
+// Cross-feature imports that predate the boundary. The fix is the Phase 4
+// migration that gives notes a public index — a re-export added now would pull
+// the notes pages into the lessons chunk to satisfy a lint rule.
 const KNOWN_CROSS_FEATURE_IMPORTS = new Set([
   'src/features/lessons/components/LearnerLessonCard.jsx → ../../notes/lib/format',
   'src/features/lessons/pages/LearnerLessonsList.jsx → ../../notes/hooks/useLearnerProfile',
   'src/features/lessons/pages/LearnerLessonsList.jsx → ../../notes/styles/notes.css',
 ]);
+
+// The legacy tree reaching into feature internals. ESLint reports each as a
+// warning at the call site, and warnings do not fail `eslint .` — this list is
+// what stops a twelfth from arriving unnoticed. Each clears when its caller
+// migrates into a feature (Phase 4).
+const KNOWN_LEGACY_FEATURE_IMPORTS = new Set([
+  'src/components/admin/VisualStudioAdmin.jsx → ../../features/visualStudio/services/visualAssetService',
+  'src/components/lessons/LessonPlayer.jsx → ../../features/learnerHome/lib/lessonResume',
+  'src/components/papers/PastPaperViewer.jsx → ../../features/learnerHome/lib/paperResumeSync',
+  'src/components/teacher/TeacherDashboard.jsx → ../../features/teacherSettings/lib/useTeachingProfile',
+  'src/components/teacher/TeacherTopBar.jsx → ../../features/teacherSettings/lib/useTeachingProfile',
+  'src/components/teacher/dashboardV2/useTeacherDashboardData.js → ../../../features/teacherSettings/lib/useTeachingProfile',
+  'src/components/teacher/generate/ClassTimetableStudio.jsx → ../../../features/teacherSettings/lib/useTeachingProfile',
+  'src/components/teacher/studio/hooks/useActiveAssignmentContext.js → ../../../../features/teacherSettings/lib/useTeachingProfile',
+  'src/hooks/useFlashcardProgress.js → ../features/flashcards/lib/progress',
+  'src/hooks/useFlashcardProgress.spec.js → ../features/flashcards/lib/progress',
+  'src/hooks/useLearnerSearch.js → ../features/notes/lib/firestore',
+]);
+
 const usedAllowances = new Set();
+
+/**
+ * Non-relative specifiers are treated as packages and skipped, which is only
+ * safe while no path alias maps one back into src/. Fail closed rather than
+ * quietly stop covering half the tree the day someone adds one.
+ */
+function assertNoUnknownAliases() {
+  for (const config of ['vite.config.js', 'vitest.config.js']) {
+    const source = readFileSync(join(root, config), 'utf8');
+    if (/\balias\s*:/.test(source)) {
+      fail(
+        `${config} now configures resolve.alias. Aliased specifiers do not start with "." and are ` +
+        'skipped by this scan as packages — teach the resolver below about the alias before adding it, ' +
+        'or the layering stops being checked for every import that uses it.'
+      );
+    }
+  }
+}
 
 /** Every .js/.jsx file under a directory, recursively. */
 function walk(dir) {
@@ -148,7 +207,9 @@ function walk(dir) {
 
 /**
  * Import specifiers in a module: static `… from '…'`, side-effect `import '…'`,
- * and dynamic `import('…')`. Regex rather than a parser because only the
+ * dynamic `import('…')`, and `require('…')` — src/ is ESM and has none today,
+ * but a boundary that stops applying the moment someone writes one is not a
+ * boundary. Regex rather than a parser because only the
  * specifier matters and every form above puts it in quotes. Over-collecting is
  * harmless — a non-import match (`Array.from('x')`) yields a bare string that
  * is skipped below as a package name, while a pattern narrow enough to be
@@ -157,56 +218,88 @@ function walk(dir) {
 function importSpecifiers(source) {
   const specs = [];
   const patterns = [
-    /\bfrom\s*['"]([^'"]+)['"]/g,
-    /(?:^|\n)\s*import\s*['"]([^'"]+)['"]/g,
-    /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
+    [/\bfrom\s*['"]([^'"]+)['"]/g, false],
+    [/(?:^|\n)\s*import\s*['"]([^'"]+)['"]/g, false],
+    [/\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g, true],
+    [/\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g, false],
   ];
-  for (const pattern of patterns) {
-    for (const match of source.matchAll(pattern)) specs.push(match[1]);
+  for (const [pattern, dynamic] of patterns) {
+    for (const match of source.matchAll(pattern)) specs.push({ spec: match[1], dynamic });
   }
   return specs;
 }
 
-/** The feature a path under src/features/ belongs to, or null. */
-function featureOf(absPath) {
-  const rel = relative(FEATURES_DIR, absPath);
+/**
+ * The two files that declare routes, per scripts/lib/declaredRoutes.mjs — the
+ * one module that knows where routes are declared, so this cannot drift from
+ * the route-parsing guards.
+ *
+ * A route mount is the one place allowed to name a page module inside a
+ * feature, and only through `lazy(() => import(…))`. Sending it through the
+ * feature's index would load the whole front door to render one route, which is
+ * the opposite of what a lazy route is for. A STATIC deep import from a route
+ * table gets no such licence — it defeats the split and crosses the boundary.
+ */
+const ROUTE_TABLES = new Set([join(root, APP_PATH), join(root, TEACHER_ROUTES_PATH)]);
+
+/** `{layer, feature}` for a path under src/, or null if it is outside src/. */
+function locate(absPath) {
+  const rel = relative(SRC, absPath);
   if (!rel || rel.startsWith('..')) return null;
-  return rel.split(sep)[0];
+  const segments = rel.split(sep);
+  const layer = Object.hasOwn(FORBIDDEN_TARGETS, segments[0]) ? segments[0] : 'legacy';
+  return { layer, feature: layer === 'features' ? segments[1] : null };
 }
 
+const posix = (absPath) => relative(root, absPath).split(sep).join('/');
+
+assertNoUnknownAliases();
+
 let scanned = 0;
-for (const file of walk(FEATURES_DIR)) {
-  const owner = featureOf(file);
+for (const file of walk(SRC)) {
+  const from = locate(file);
   scanned += 1;
-  for (const spec of importSpecifiers(readFileSync(file, 'utf8'))) {
-    if (!spec.startsWith('.')) continue;                       // a package, not our tree
-    const target = resolve(dirname(file), spec);
-    const targetFeature = featureOf(target);
-    if (!targetFeature || targetFeature === owner) continue;   // own feature, or out of src/features
 
-    const frontDoor = join(FEATURES_DIR, targetFeature);
-    const isFrontDoor = target === frontDoor ||
-      target === join(frontDoor, 'index') ||
-      target === join(frontDoor, 'index.js') ||
-      target === join(frontDoor, 'index.jsx');
-    if (isFrontDoor) continue;
+  for (const { spec, dynamic } of importSpecifiers(readFileSync(file, 'utf8'))) {
+    if (!spec.startsWith('.')) continue;              // a package, not our tree
+    const target = locate(resolve(dirname(file), spec));
+    if (!target) continue;                            // resolves outside src/
 
-    const entry = `${relative(root, file).split(sep).join('/')} → ${spec}`;
-    if (KNOWN_CROSS_FEATURE_IMPORTS.has(entry)) {
-      usedAllowances.add(entry);
+    if (FORBIDDEN_TARGETS[from.layer].includes(target.layer)) {
+      fail(
+        `${posix(file)} imports '${spec}', which resolves into src/${target.layer}/. ` +
+        `src/${from.layer}/ sits below it — the layering is one-way (docs/architecture.md §12).`
+      );
       continue;
     }
+
+    if (target.layer !== 'features' || target.feature === from.feature) continue;
+    if (dynamic && ROUTE_TABLES.has(file)) continue;  // a lazily-mounted route
+
+    const frontDoor = join(FEATURES_DIR, target.feature);
+    const resolved = resolve(dirname(file), spec);
+    const isFrontDoor = [frontDoor, join(frontDoor, 'index'), join(frontDoor, 'index.js'), join(frontDoor, 'index.jsx')]
+      .includes(resolved);
+    if (isFrontDoor) continue;
+
+    const entry = `${posix(file)} → ${spec}`;
+    const list = from.layer === 'features' ? KNOWN_CROSS_FEATURE_IMPORTS : KNOWN_LEGACY_FEATURE_IMPORTS;
+    if (from.layer === 'features' || from.layer === 'legacy') {
+      if (list.has(entry)) {
+        usedAllowances.add(entry);
+        continue;
+      }
+    }
     fail(
-      `${relative(root, file)} imports '${spec}', which resolves inside the ` +
-      `"${targetFeature}" feature. Cross-feature imports go through ` +
-      `src/features/${targetFeature}/index.js (docs/architecture.md §14.7).`
+      `${posix(file)} imports '${spec}', which resolves inside the "${target.feature}" feature. ` +
+      `Cross-feature imports go through src/features/${target.feature}/index.js (docs/architecture.md §14.7).`
     );
   }
 }
 
-for (const entry of KNOWN_CROSS_FEATURE_IMPORTS) {
+for (const entry of [...KNOWN_CROSS_FEATURE_IMPORTS, ...KNOWN_LEGACY_FEATURE_IMPORTS]) {
   if (!usedAllowances.has(entry)) {
-    fail(`KNOWN_CROSS_FEATURE_IMPORTS still lists "${entry}", which no longer exists — delete the line.`);
+    fail(`A recorded import no longer exists: "${entry}". Delete the line — the lists only shrink.`);
   }
 }
 
@@ -216,7 +309,7 @@ if (failures) {
 }
 
 console.log(
-  `ok: ${lintCases.length} boundary cases verified against eslint.config.js, ` +
-  `${scanned} feature files scanned, ` +
-  `${KNOWN_CROSS_FEATURE_IMPORTS.size} recorded cross-feature imports and no new ones`
+  `ok: ${lintCases.length} boundary cases verified against eslint.config.js; ` +
+  `${scanned} src files resolved, no layering violation; ` +
+  `${KNOWN_CROSS_FEATURE_IMPORTS.size} cross-feature and ${KNOWN_LEGACY_FEATURE_IMPORTS.size} legacy imports recorded, and no new ones`
 );
