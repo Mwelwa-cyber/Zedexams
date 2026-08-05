@@ -110,6 +110,7 @@ ZedExams ships via GitHub Actions. As of 2026-05-14 the project owner delegated 
 
 ```
 src/
+  app/ engines/ shared/ curriculum/ — MIGRATION SCAFFOLD (architecture.md Phase 1), empty apart from `curriculum/catalog/`, which re-exports the taxonomy roots `config/canonicalEducation.js` + `config/educationLevels.js`. Nothing has moved in yet: App.jsx, src/contexts/, the four quiz runners and the exporters are all still canonical where they are. What IS live is the layering — `app → features → engines/curriculum → shared/services/config`, one-way, enforced by the `no-restricted-imports` blocks in `eslint.config.js` plus `test:import-boundaries` (which resolves every import in `src/` to a real path — covering the sibling-feature case ESLint's string matching cannot see, **dynamic `import()` which it does not inspect at all**, and the shrink-only debt lists a warning could never fail a build over — and asserts the lint rules still fire). Each directory index is a namespace marker, NOT a barrel — import the area (`src/shared/utils`), never the root
   App.jsx                       — router; nearly every route is React.lazy(); ThemeApplicator pins public routes to brand default
   main.jsx                      — entry; wraps <App /> in ErrorBoundary + AuthProvider + ThemeProvider + DataSaverProvider + PlatformSettingsProvider
   firebase/config.js            — Firebase init; sets auth persistence, App Check (reCAPTCHA Enterprise on web, Play Integrity on Android via Capacitor plugin), multi-tab IndexedDB persistence, FCM (web-push only)
