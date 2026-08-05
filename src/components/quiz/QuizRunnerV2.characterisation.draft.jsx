@@ -57,8 +57,9 @@
  * because a spec edited to make the thing under test pass is not a spec.
  */
 import { vi } from 'vitest'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { ThemeProvider } from '../../contexts/ThemeContext'
 import { describeSessionContract } from '../../engines/assessment-engine/session/characterisation/sessionContract.jsx'
 
 vi.mock('../../firebase/config', () => ({ default: {}, auth: {}, db: {} }))
@@ -135,21 +136,26 @@ function makeHarness() {
 
   let container = null
 
-  // Drain BOTH queues. Microtasks alone are not enough — the runner's load()
-  // awaits several promises in sequence — and neither are microtasks by
-  // themselves under fake timers: React Testing Library's async act schedules
-  // through setTimeout, so with the clock frozen and never advanced the await
-  // simply never returns and every test reports a 5s timeout instead of a
-  // failure. Advancing by 0 inside act runs those due callbacks without moving
-  // the session clock, which the timer assertions advance deliberately.
-  const flush = async () => {
-    await act(async () => {
-      for (let i = 0; i < 4; i += 1) {
-        await Promise.resolve()
-        await vi.advanceTimersByTimeAsync(0)
-      }
+  // Settle with waitFor; advance the clock with the SYNCHRONOUS API inside act.
+  //
+  // Both halves were established by isolation, not preference:
+  //
+  //   • `vi.advanceTimersByTimeAsync()` called inside `act()` while fake timers
+  //     run with `shouldAdvanceTime: true` NEVER RESOLVES. Every assertion then
+  //     reports a 5s timeout instead of a failure, and the component renders
+  //     nothing at all — a probe showed zero buttons after mount. `waitFor`
+  //     settles the same render fine, which is what isolated the culprit to
+  //     that one API pairing rather than to mocks or a surviving tree.
+  //   • The clock still has to move deliberately for the timer assertions, so
+  //     `tick` uses the synchronous `vi.advanceTimersByTime()` inside `act`.
+  //
+  // `assertHarnessDiscipline` below fails if the async variant comes back.
+  const settle = async () => {
+    await waitFor(() => {
+      if (!container.querySelector('button')) throw new Error('not settled')
     })
   }
+  const flush = async () => { await act(async () => { await Promise.resolve() }) }
 
   const optionButtons = () => Array.from(container.querySelectorAll('.zx-opt'))
   const byText = (re) => screen.queryAllByRole('button').find((b) => re.test(b.textContent || ''))
@@ -170,11 +176,14 @@ function makeHarness() {
           .mockRejectedValueOnce(new Error('network'))
           .mockResolvedValue('result-1')
       }
+      // ThemeProvider is required: the started view reaches useTheme, which
+      // throws without it. Omitting it made every post-start assertion fail
+      // with a context error that looked like a behaviour failure.
       const view = render(
-        <MemoryRouter><QuizRunnerV2 /></MemoryRouter>,
+        <MemoryRouter><ThemeProvider><QuizRunnerV2 /></ThemeProvider></MemoryRouter>,
       )
       container = view.container
-      await flush()
+      await settle()
       return view
     },
 
@@ -216,7 +225,7 @@ function makeHarness() {
 
     /** Advance the session clock inside act so React applies what fires. */
     async tick(ms) {
-      await act(async () => { await vi.advanceTimersByTimeAsync(ms) })
+      await act(async () => { vi.advanceTimersByTime(ms) })
       await flush()
     },
 

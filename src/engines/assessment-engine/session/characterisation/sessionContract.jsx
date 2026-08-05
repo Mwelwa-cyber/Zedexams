@@ -45,6 +45,50 @@
  * item across it is a decision to state in a PR, not one to make while making a
  * test pass.
  *
+ * ## Approved deviations — where the engine must NOT match the old runner
+ *
+ * One so far. Recorded here rather than discovered at cutover, so the
+ * conformance suite demonstrably does not enforce a bug and the write differ
+ * knows the difference is expected rather than a surprise.
+ *
+ * **`timeSpent` when the true start is unknown.** On resume the old runner does
+ * `setStartTime(saved.startTime || Date.now())`, so a draft missing `startTime`
+ * yields a duration measured from the RESUME rather than from the attempt — a
+ * number indistinguishable from a measured one, which is worse than an honest
+ * absence. The engine records `null`. The old runner is left alone; it retires
+ * with the quirk. Two constraints ride with this, and both are on the PR that
+ * gives the engine a write path (`persist/`), because that is the first moment
+ * anything can write null:
+ *
+ *   1. **`QuizResultsV2:228` must be fixed in that same PR.** It reads
+ *      `result.timeSpent ? … : 0` and would render an honest null to a learner
+ *      as a confident "0m 0s" — the exact failure this deviation avoids, just
+ *      displayed instead of averaged. The other three readers already treat
+ *      absence as unknown (both admin `fmtTime`s return '—', the CSV export
+ *      writes an empty cell), and NOTHING aggregates the field: `classAnalytics`
+ *      does not read it, so there is no average to poison.
+ *   2. **The nullability belongs in `persist/`'s own contract.** There is no zod
+ *      write schema for `results` to amend — `src/schemas/result.js` is a
+ *      read-side coercer that says in its own docblock why no write schema
+ *      exists yet, and does not touch `timeSpent`, which passes through as an
+ *      undocumented extra.
+ *
+ * ## A premise this suite was nearly built on, and the correction
+ *
+ * The deviation above was first raised as a fairness bug: that a refresh resets
+ * the clock, letting a learner extend a timed quiz. **It does not.** Reading the
+ * runner: `endTime` IS persisted and restored (`:390`), and the countdown reads
+ * `endTime` and nothing else (`:460`). `startTime` is used in exactly two
+ * places — the autosave payload and the submitted `timeSpent`. The deadline was
+ * never resettable, so there is no fairness edge, nothing competitive is
+ * affected, and the residual bug is one under-reported duration on a corrupt or
+ * legacy draft.
+ *
+ * Written down because a stale premise outlives the conversation that produced
+ * it, and the next person to touch the timer should meet the correction rather
+ * than re-derive it. It is the second time in this phase a confident claim
+ * shrank once someone read the artifact — the first was the `agentJobs` grant.
+ *
  * ## Timers
  *
  * Every timing assertion runs on fake timers with explicit advancement. A
@@ -75,8 +119,17 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
-/** The exact keys the session persists. Field set, not a sample. */
-export const SESSION_AUTOSAVE_KEYS = Object.freeze([
+/**
+ * The fields the CURRENT runner's autosave writes.
+ *
+ * DESCRIPTIVE, not a contract. It records the mechanism as it stands so a
+ * reader can see what a persisted draft looks like today — it is deliberately
+ * not asserted, because the promise to a learner is that the answer survives,
+ * not that it survives in this shape. An engine that persists a different set,
+ * or writes deltas, or debounces, conforms as long as the durability
+ * assertions stay green. (Owner decision, 2026-08-05.)
+ */
+export const SESSION_AUTOSAVE_MECHANISM_KEYS = Object.freeze([
   'mode', 'answers', 'flagged', 'revealed', 'shortText', 'aiResults',
   'activeSectionIndex', 'endTime', 'startTime', 'savedAt',
 ])
@@ -180,46 +233,74 @@ export function describeSessionContract(name, makeHarness) {
       })
     })
 
-    // ── Autosave ─────────────────────────────────────────────────────────────
+    // ── Durability ───────────────────────────────────────────────────────────
+    //
+    // What the old runner promises a learner is not "a write per keystroke" —
+    // it is "your answer survives". The mechanism today is an effect that
+    // serialises the whole session on every state change, including every
+    // keystroke; that is an implementation, and pinning it here would force the
+    // engine to conform to an inefficiency it should be free to fix. The engine
+    // may debounce, may write deltas, may batch — so long as every assertion
+    // below stays green.
+    //
+    // So these assert OUTCOMES: put an answer in, lose the session the way a
+    // learner actually loses one, come back, and find the answer. No assertion
+    // counts writes or inspects cadence.
 
-    describe('autosave', () => {
-      it('persists exactly the declared field set', async () => {
+    describe('durability', () => {
+      it('an answer survives losing the session and coming back', async () => {
         await h.mount({})
         await h.start('practice')
-        expect(Object.keys(h.lastSavedSession()).sort())
-          .toEqual([...SESSION_AUTOSAVE_KEYS].sort())
+        await h.answerCurrent(1)
+
+        // What a tab kill leaves behind is whatever was last persisted.
+        const survived = h.lastSavedSession()
+        const reopened = makeHarness()
+        await reopened.mount({ savedSession: survived })
+
+        expect(reopened.isStarted()).toBe(true)
+        expect(Object.keys(reopened.lastSavedSession().answers)).toHaveLength(1)
       })
 
-      it('saves when an answer changes', async () => {
-        await h.mount({})
+      it('an answer survives navigating away and back', async () => {
+        await h.mount({ sections: 2 })
         await h.start('practice')
-        const before = h.savedSessionCount()
         await h.answerCurrent(1)
-        expect(h.savedSessionCount()).toBeGreaterThan(before)
+        await h.next()
+        await h.prev()
         expect(Object.keys(h.lastSavedSession().answers)).toHaveLength(1)
       })
 
-      it('saves when the section changes', async () => {
-        await h.mount({ sections: 2 })
-        await h.start('practice')
-        const before = h.savedSessionCount()
-        await h.next()
-        expect(h.savedSessionCount()).toBeGreaterThan(before)
-        expect(h.lastSavedSession().activeSectionIndex).toBe(1)
-      })
-
-      it('does not save before the session starts', async () => {
-        await h.mount({})
-        expect(h.savedSessionCount()).toBe(0)
-      })
-
-      it('carries the answers forward, not just the latest one', async () => {
+      it('answers from different sections all survive', async () => {
         await h.mount({ sections: 2 })
         await h.start('practice')
         await h.answerCurrent(1)
         await h.next()
         await h.answerCurrent(0)
-        expect(Object.keys(h.lastSavedSession().answers)).toHaveLength(2)
+
+        const survived = h.lastSavedSession()
+        const reopened = makeHarness()
+        await reopened.mount({ sections: 2, savedSession: survived })
+        expect(Object.keys(reopened.lastSavedSession().answers)).toHaveLength(2)
+      })
+
+      it('the section the learner was on survives', async () => {
+        await h.mount({ sections: 3 })
+        await h.start('practice')
+        await h.next()
+
+        const survived = h.lastSavedSession()
+        const reopened = makeHarness()
+        await reopened.mount({ sections: 3, savedSession: survived })
+        expect(reopened.lastSavedSession().activeSectionIndex).toBe(1)
+      })
+
+      it('nothing is persisted before the learner starts', async () => {
+        // Not a cadence assertion: an unstarted quiz has no attempt to
+        // recover, and writing one would resume a learner into a session they
+        // never began.
+        await h.mount({})
+        expect(h.lastSavedSession()).toBeNull()
       })
     })
 
