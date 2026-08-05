@@ -195,3 +195,350 @@ receive inbound messages until the secret is bound.** Binding it is what turns
 the channel on; the binding itself is correct as it stands.
 
 Recorded as principle 8 in [`docs/architecture.md`](../architecture.md) §11.
+
+---
+
+## 2026-08-05 — Vertex Express API keys deleted
+
+**Verdict: no incident. Two unused, unrestricted-by-application API keys removed
+before they could be found. Reversible until 2026-09-04.**
+
+**Trigger.** Console-track review of the project's API credentials.
+
+**What "Vertex Express" was — not established, and that is part of the
+finding.** No record of why the `vertex-express@` service account was
+provisioned, or what these two keys were meant to serve, survives in this
+repository or in the material reviewed on 2026-08-05: the name appears nowhere
+in the codebase, and both keys were created within an hour of each other on
+2026-04-18 and then never used. The plausible reading is an abandoned Vertex AI
+Express-mode experiment from the project's first weeks, but no record survives
+to confirm it. The absence matters on its own terms: a credential
+nobody can explain is exactly the kind that survives reviews, because each
+reviewer assumes someone else knows what it is for.
+
+**What was deleted.**
+
+| Credential ID | Created (GMT+2) | Bound to |
+|---|---|---|
+| `e3c34aaf-dab6-49a7-85bf-fb2042a51cf6` | 2026-04-18 23:03 | `vertex-express@examsprepzambia.iam.gserviceaccount.com` |
+| `f628b584-5d08-4fbf-b312-31b596dc0327` | 2026-04-18 23:58 | `vertex-express@examsprepzambia.iam.gserviceaccount.com` |
+
+Both carried **no API restrictions and no application restrictions**.
+
+*On recording the IDs:* they are here for audit-trail completeness — a deletion
+record that cannot identify what was deleted is not a record. They are GCP
+credential **resource identifiers**, not key strings: they authenticate to
+nothing, and inspecting or restoring what they name requires console access to
+the project, so they are outside what this log's no-quoting rule protects
+against.
+
+**Evidence they were unused.** Three independent reads, all negative:
+
+- Zero requests attributable to either key UUID across all APIs over a six-week
+  Cloud Monitoring window (`serviceruntime` `api_request_count`, grouped by
+  service and `credential_id`).
+- "No data" on Gemini API, Vertex AI, Firebase AI Logic and Firestore with the
+  console metrics view filtered to these two credentials over its maximum
+  30-day window.
+- Neither key is registered to Firebase AI Logic, which runs on the Browser and
+  Android keys.
+
+**Correction to an earlier characterisation.** These keys were initially
+described as "uncapped". **They were not.** A service-account-bound key is
+limited by Google to the Agent Platform (Vertex) API and the Gemini API
+regardless of local configuration, so the API axis was never wide open. The
+genuinely open axis was **Application restrictions = None** — any caller from
+anywhere could have used one had it leaked. The distinction matters because it
+changes what the exposure would have been, and this log is where a future reader
+will look to find out.
+
+**Reversibility. RESTORE WINDOW ENDS 2026-09-04.** Deletion is a GCP soft-delete;
+until that date both keys can be restored via **APIs & Services → Credentials →
+Restore deleted credentials**. After it, they are unrecoverable.
+
+**Open follow-up (owner action):** `vertex-express@` now holds no keys. Disable
+the service account — itself reversible — **after 2026-09-04**, and only once
+it is confirmed to have no IAM bindings and no code references.
+
+---
+
+## 2026-08-05 — External probe traffic on the Gemini API, none of it successful
+
+**Verdict: no incident. Every request failed. Which control did the failing is
+only partly established — 403s and 429s are different controls and the split
+between them was never captured, so no portion can be sized. Read "Two failure
+modes" below before citing this entry as proof that key restrictions held.**
+
+**Trigger.** Console-track review of API traffic.
+
+**What was observed.** Over the 30 days to 2026-08-05,
+`generativelanguage.googleapis.com` received **127 requests, all of which
+failed** — 403 or 429, with the split between the two never captured (this
+matters; see "Two failure modes" below):
+
+| Method | Requests |
+|---|---|
+| `ModelService.ListModels` | 69 |
+| `GenerativeService.GenerateContent` | 44 |
+| `v1beta ModelService.ListModels` | 14 |
+
+The traffic was spread across the Browser key, the Android key, and
+`zedexams-maps-static` — **a Maps-only key, which is the tell.** Nothing in this
+product would ever ask a Maps key for a language model.
+
+**Why none of it can be ours.** All legitimate *client* AI goes through Firebase
+AI Logic (`firebasevertexai`), not this API. The repository does call
+`generativelanguage.googleapis.com` directly, but only **server-side** —
+`functions/geminiClient.js` and `functions/geminiImageClient.js` — and those
+authenticate with the `GEMINI_API_KEY` Secret Manager value, a different
+credential from the three client keys this traffic used. So traffic on this API
+attributed to a *client* key is by construction not ours.
+
+**Assessment — an inference, and labelled as one.** The pattern is *consistent
+with* external abuse of public client keys harvested from the shipped JS bundle
+and the APK, probing for an unrestricted key and bounced by the Firebase default
+25-API allowlist, which does not include the Gemini API. That is the most
+economical explanation, and a Maps-only key asking for a language model is
+difficult to explain any other way. It is **not proven**: the same traffic would
+also be consistent with a misconfigured internal test, a third-party SDK
+bundling the wrong key, or a developer's local experiment. What *is* established
+rather than inferred is narrower and sufficient — none of it succeeded, and none
+of it was ours (see above). The Logs Explorer check below is what would settle
+the mechanism.
+
+**Two failure modes, and they are not the same control.** The errors were
+recorded as "403 and 429" without a split by status code, and the two mean
+different things:
+
+- **403** is the API-key allowlist denying the call — the control this entry is
+  about. It holds regardless of load and does not lift.
+- **429** is quota or rate limiting. A request that 429'd was **not** repelled
+  by the API restriction; it was throttled, and throttling can lift if quota
+  changes. It also does not prove the caller lacked permission.
+
+Because the split was not captured, **the share of the 127 attributable to the
+key restriction versus to throttling is unknown.** Stated precisely, what this
+traffic establishes is:
+
+- **None of it succeeded.** Solid — every one of the 127 returned an error.
+- **Some requests were refused by the key restrictions.** Established only in
+  that 403s occurred at all; *how many* is unknown, so no portion of the 127 can
+  be sized.
+
+Anything stronger than those two — including "the restrictions repelled this
+traffic" as a claim about the whole 127 — is not supported by what was measured.
+This was missed on first writing and is corrected here rather than silently: a
+security record that credits the wrong control is worse than one that admits the
+gap, because the next person may relax the control that was actually doing the
+work.
+
+**Significance — read this before changing a key restriction.** Client keys ship
+to every browser and every APK, so the restriction list, not the key's secrecy,
+is the control. That 403s appear at all is dated evidence that the list is doing
+real work and is not a formality left over from setup.
+
+> **Do not loosen the API restrictions on the Browser, Android or
+> `zedexams-maps-static` keys without revisiting this entry.** And note the
+> second-order version: if any of these probes were merely throttled rather than
+> refused, loosening *quota* alone could let them start succeeding.
+
+**Required confirmation, not yet done** (upgraded from "optional" by the above).
+Logs Explorer should show, per request: `PERMISSION_DENIED` with a
+key-restriction reason such as `API_KEY_SERVICE_BLOCKED` versus
+`RESOURCE_EXHAUSTED`, broken down by credential and method, and callers that are
+not our origins. Until that runs, treat the 429 subset as unconfirmed.
+
+---
+
+## 2026-08-05 — Client-side Firebase AI Logic: two consumers, one request in six weeks, failing on quota
+
+**Verdict: not a security issue. A product bug — two teacher features are
+silently failing — plus an open architecture question.**
+
+**Trigger.** Console-track review of API traffic.
+
+**What was observed.** `firebasevertexai.googleapis.com` served **exactly one
+production request over six weeks, and it returned 429.**
+
+**Consumers.** The codebase has exactly two, both verified against the tree:
+
+| File | How it calls AI Logic |
+|---|---|
+| `src/utils/timetableExtraction.js` | dynamic `await import('./aiLogic.js')` → `generateJSON` |
+| `src/utils/forecastResourceSuggest.js` | static `import { generateJSON } from './aiLogic'` |
+
+Both reach Gemini through `src/utils/aiLogic.js` → `src/firebase/ai.js`. No
+other module imports either.
+
+**Assessment.** A product bug rather than a security issue: the AI Logic path
+appears to have **no paid quota configured**. The single request in six weeks is
+also the measure of the blast radius — whatever is decided below, almost nobody
+is currently affected.
+
+**How each one fails — checked against the error paths, not assumed.** The two
+consumers do *not* behave the same way on a 429, and the initial "both fail
+silently" characterisation was only half right:
+
+- `forecastResourceSuggest.js:65-68` catches, `console.warn`s, and returns
+  `{ teacherResources: [], learnerResources: [] }`. **Genuinely silent** — the
+  teacher sees empty suggestions with no indication anything failed.
+- `timetableExtraction.js:342-346` catches and **throws a user-facing message**,
+  so it is *not* silent. But the message is *"Could not read the timetable. Try
+  a clearer photo, or upload a PDF / Excel version."* — which on a quota failure
+  is **actively misleading**, blaming the teacher's file and sending them off to
+  re-photograph a timetable that was never the problem. Distinguishing a
+  transport/quota failure from an unreadable file belongs in the fix.
+
+**Open follow-ups:**
+
+- **(a) Quota — file and fix.** Filed as `AI-004` in
+  [`BUG_REPORT.md`](../../BUG_REPORT.md).
+- **(b) Architecture — should these two features route through the server-side
+  Cloud Functions AI stack instead of calling AI Logic from the client?**
+  Recorded against the existing **P1-c** item in
+  [`docs/architecture/25-remediation-plan.md`](../architecture/25-remediation-plan.md),
+  which already tracks exactly this migration (`RISK-4`, "Client-side Gemini
+  bypasses AI budget/quota/cost"). It is filed there rather than in a new
+  open-questions section so it resurfaces where a migration PR will actually
+  read it.
+
+---
+
+## 2026-08-05 — `storage-detect-objects` extension uninstalled; derived Vision output pending deletion
+
+**Verdict: undisclosed third-party processing of user uploads, now stopped. No
+breach and no credential exposure, but for about 110 days every image finalized
+in the default bucket — including user profile photos — was sent to Cloud Vision
+by a third-party extension, and the results were written to a collection nothing
+ever read. The processing has ended; the residue has not yet been deleted.**
+
+**Trigger.** Console-track review of installed Firebase Extensions.
+
+**What was installed.**
+
+| | |
+|---|---|
+| Extension | `jauntybrain/storage-detect-objects@0.1.0`, instance ID `storage-detect-objects` |
+| Publisher | **`jauntybrain` — a third party, not Firebase or Google** |
+| Function | `ext-storage-detect-objects-detectObjects`, Node.js 20, 1 GB, `us-central1` |
+| Trigger | Cloud Storage **finalize** on `examsprepzambia.firebasestorage.app` |
+| Deployed | 2026-04-17 23:27 CAT |
+| Uninstalled | 2026-08-05 (active ≈110 days) |
+
+**Removal verified twice:** the extension no longer appears under Installed
+extensions, and `ext-storage-detect-objects-detectObjects` no longer appears in
+the 1st-gen functions list.
+
+**Scope as configured — the finding is in what was left blank.**
+
+| Parameter | Value |
+|---|---|
+| Bucket | `examsprepzambia.firebasestorage.app` |
+| Paths containing images to detect objects in | **not set** |
+| Absolute paths not enabled for object detection | **not set** |
+| Collection path | `detectedObjects` |
+| Detail level | basic |
+
+Both path parameters unset means it watched **the entire default bucket with no
+exclusions** and ran Cloud Vision `BatchAnnotateImages` on every finalized
+object for the full active period. It also processed the derivative thumbnails
+written by `storage-resize-images` (`_200x200`, `_400x400`, `_800x800` `.webp`),
+so a single user upload could produce up to four Vision calls and four
+documents.
+
+**What it produced.** 3,944 documents in the root collection `detectedObjects`.
+The schema is exactly two fields — `file` (string, `gs://` URI of the analysed
+object) and `objects` (array of Vision label strings, frequently empty). There
+is no timestamp, no user-identifier field and no reference back to any app
+entity; **the primary link to a user is the uid embedded in the storage path.**
+"Primary" rather than "only" deliberately: most upload paths are owner-scoped
+(`papers/{uid}/{paperId}/…` and siblings), but not provably all of them — the
+legacy single-segment `papers/{fileName}` form noted in
+[`storage-hardening.md`](./storage-hardening.md) §6 carries no uid, and the
+3,944 `file` values were not enumerated to confirm the shape of every one.
+
+Distribution by storage prefix, counted by Firestore `COUNT` aggregations on
+2026-08-05, totalling 3,944:
+
+| Prefix | Documents |
+|---|---|
+| `papers/` | 1,492 |
+| `quiz-images/` | 944 |
+| `assessment-images/` | 772 |
+| `picture-bank/` | 364 |
+| `slide-notes-images/` | 324 |
+| `lesson-files/` | 28 |
+| `visual-studio/` | 12 |
+| `user-branding/` (profile photos) | 8 |
+| **Total** | **3,944** |
+
+All eight prefixes are user-uploaded content, and the last row is the one to
+read twice: those eight documents carry `Person` and `Clothing` labels —
+**object detection was running over user profile pictures.**
+
+**Nothing ever read it — verified against `HEAD`. It was write-only *and*
+client-unreadable.** `detectedObjects` appears nowhere in this repository: no
+reads, no writes, no security rule, no composite index, no cleanup path. Two
+consequences follow from that absence:
+
+- Having **no `match` block in `firestore.rules`**, the collection falls to the
+  default-deny catch-all (`match /{document=**}`), so no client could read it
+  either. It was write-only *and* client-unreadable for its entire life.
+- It is **absent from the account-deletion purge lists** in
+  `functions/accountDeletion.js` (drift-tested by
+  `accountDeletionDrift.test.js`). A user who deleted their account therefore
+  left these documents behind. This is moot once the collection is deleted, and
+  it is one more reason to delete rather than keep.
+
+**Status at removal — this was live, billable traffic, not a dormant leftover.**
+`vision.googleapis.com` metrics over the 30 days to 2026-08-05 showed only
+`google.cloud.vision.v1.ImageAnnotator.BatchAnnotateImages`, **100% HTTP 200,
+zero errors**, still ticking at the moment of uninstall.
+
+**What the uninstall removed.** Per the uninstall dialog: the `detectObjects`
+function and its service account, which held **Storage Object Admin** and
+**Cloud Datastore User**. Artifacts it created remain — see Pending below.
+
+**Privacy note.** This extension was never named in any privacy disclosure, Play
+data-safety declaration, or user-facing policy — and now never needs to be.
+Uninstalling stopped both the per-upload Cloud Vision calls and the third-party
+extension's read access to the bucket.
+
+**Pending — the collection is still present.** The 3,944 `detectedObjects`
+documents remain. **The decision is to delete them.** Data minimisation argues
+for keeping *the record of what was processed* rather than *the product of the
+processing*. This entry is that record, and is deliberately detailed enough that
+the collection adds little.
+
+**The trade-off, stated rather than assumed away.** Deleting it does forfeit
+something: the collection is the only per-object list of exactly which files
+Vision analysed, which could in principle matter in a future dispute about what
+was processed. Three things make that value thin, and they are why the decision
+stands:
+
+- **There is no timestamp on any document** (the schema is `file` + `objects`,
+  nothing else), so it cannot establish *when* anything was processed — only
+  that it was, at some point inside a 110-day window this entry already records.
+- The **prefix distribution above, plus the total, plus the dated active
+  period** preserve the shape of what was processed without retaining a
+  per-file index of user uploads.
+- Keeping a derived index of user content *specifically as evidence* is itself a
+  retention decision that would need a privacy basis, and the extension it came
+  from was never disclosed to users in the first place.
+
+The honest summary is that this is a judgement, not an arithmetic result:
+thin evidentiary value against continued retention of user-derived data that
+nothing reads and no purge path covers.
+
+Deletion is a permanent Firestore operation with **no undo and no restore
+window**, so it will be run by the project owner — not by an agent or an
+assistant.
+
+**Collection deleted: pending** *(fill in the date once done).*
+
+**Forward note.** The finding that detect-objects was analysing
+`storage-resize-images` output feeds the next console item:
+`storage-resize-images` stays installed but needs its path scope narrowed and
+its "make public" setting reviewed, and the eight prefixes above are the real
+map of what it is producing derivatives for. Recorded in
+[`docs/security/storage-hardening.md`](./storage-hardening.md) §6.
