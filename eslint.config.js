@@ -179,7 +179,7 @@ export default [
       // shrink-only list precisely because a warning cannot fail a build.
       'no-restricted-imports': ['warn', {
         patterns: [{
-          group: ['**/features/*/**', '!**/features/*/index.js', '!**/features/*/index.jsx'],
+          group: ['**/features/*/**', '!**/features/*/index', '!**/features/*/index.js', '!**/features/*/index.jsx'],
           message:
             'Import a feature through its public index.js (docs/architecture.md §14.7). ' +
             'Reaching past it couples you to internals the feature is free to change.',
@@ -194,7 +194,7 @@ export default [
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [{
-          group: ['**/features/*/**', '!**/features/*/index.js', '!**/features/*/index.jsx'],
+          group: ['**/features/*/**', '!**/features/*/index', '!**/features/*/index.js', '!**/features/*/index.jsx'],
           message: 'Import a feature through its public index.js (docs/architecture.md §14.7).',
         }],
       }],
@@ -206,7 +206,7 @@ export default [
       'no-restricted-imports': ['error', {
         patterns: [
           {
-            group: ['**/features/*/**', '!**/features/*/index.js', '!**/features/*/index.jsx'],
+            group: ['**/features/*/**', '!**/features/*/index', '!**/features/*/index.js', '!**/features/*/index.jsx'],
             message: 'Import another feature through its public index.js (docs/architecture.md §14.7).',
           },
           {
@@ -265,6 +265,33 @@ export default [
             message: 'Shared code must not touch the Firebase SDK (docs/architecture.md §14.2) — that is what makes it shareable.',
           },
         ],
+      }],
+    },
+  },
+  {
+    // src/services/ and src/config/ are the other two bottom layers — the arrow
+    // ends at them. They may not reach back up, and config additionally refuses
+    // services: config is data, and data that reaches a Firebase-backed service
+    // inverts the direction the whole taxonomy depends on. Both directories
+    // predate the scaffold and neither violates this today.
+    files: ['src/services/**/*.{js,jsx}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [{
+          group: ['**/app/**', '**/features/**', '**/engines/**', '**/curriculum/**'],
+          message: 'Services sit at the bottom of the layering (docs/architecture.md §12) — a feature or engine calls a service, never the reverse.',
+        }],
+      }],
+    },
+  },
+  {
+    files: ['src/config/**/*.{js,jsx}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [{
+          group: ['**/app/**', '**/features/**', '**/engines/**', '**/curriculum/**', '**/services/**'],
+          message: 'src/config is data at the bottom of the layering (docs/architecture.md §12). canonicalEducation.js is the taxonomy root — everything reads it, it reads nothing above.',
+        }],
       }],
     },
   },

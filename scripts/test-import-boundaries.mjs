@@ -80,6 +80,16 @@ const lintCases = [
   { file: 'src/hooks/probe.js', spec: '../features/notes/lib/firestore', severity: 1,
     why: 'legacy tree reaching into a feature warns (Phase 4 debt), it does not fail the build' },
 
+  // The two bottom layers that predate the scaffold.
+  { file: 'src/services/probe.js', spec: '../features/notes/lib/firestore', severity: 2,
+    why: 'a feature calls a service, never the reverse' },
+  { file: 'src/services/probe.js', spec: '../engines/export-engine', severity: 2,
+    why: 'services sit below the engines that call them' },
+  { file: 'src/config/probe.js', spec: '../services/passkeyService.js', severity: 2,
+    why: 'config is data — reaching a service inverts what the taxonomy depends on' },
+  { file: 'src/config/probe.js', spec: '../curriculum/catalog', severity: 2,
+    why: 'the catalog reads config, not the other way round' },
+
   // The repo configures no path aliases today (no jsconfig/tsconfig, no
   // resolve.alias), and `assertNoUnknownAliases` below fails if one appears.
   // These pin that the patterns would hold anyway: the `**/` prefix matches an
@@ -102,6 +112,10 @@ const lintCases = [
     why: 'a feature reads its own internals' },
   { file: 'src/features/notes/pages/Probe.jsx', spec: '../../visualStudio/index.js', severity: 0,
     why: 'a feature index is the front door, and it stays open' },
+  { file: 'src/features/notes/pages/Probe.jsx', spec: '../../visualStudio/index', severity: 0,
+    why: 'the repo omits extensions, and the front door with one omitted is still the front door' },
+  { file: 'src/hooks/probe.js', spec: '../features/visualStudio/index', severity: 0,
+    why: 'lint and the path resolver must agree on what the front door is' },
   { file: 'src/app/routes/probe.js', spec: '../../features/notes/index.js', severity: 0,
     why: 'the app shell mounts features through their index' },
 ];
@@ -135,14 +149,33 @@ for (const { file, spec, severity, why } of lintCases) {
 // these are the upward edges (docs/architecture.md §12). `legacy` is everything
 // in src/ that has not migrated into a layer yet — it is not restricted here,
 // but its reach INTO feature internals is ratcheted below.
+//
+// `services` and `config` are bottom layers too, not `legacy`: the arrow ends
+// at them. `config` additionally refuses `services`, because it is data, and
+// data that reaches a Firebase-backed service inverts the direction the whole
+// taxonomy depends on. `firebase` is listed so that src/firebase/ is a
+// destination the three lowest layers can be kept away from — the SDK reached
+// by a relative path is the same dependency as the SDK reached by package name.
 const FORBIDDEN_TARGETS = {
   app: [],
   features: ['app'],
-  engines: ['app', 'features'],
-  curriculum: ['app', 'features', 'engines'],
-  shared: ['app', 'features', 'engines', 'curriculum'],
+  engines: ['app', 'features', 'firebase'],
+  curriculum: ['app', 'features', 'engines', 'firebase'],
+  shared: ['app', 'features', 'engines', 'curriculum', 'firebase'],
+  services: ['app', 'features', 'engines', 'curriculum'],
+  config: ['app', 'features', 'engines', 'curriculum', 'services'],
+  firebase: [],
   legacy: [],
 };
+
+/**
+ * The layers that must not touch the Firebase SDK at all (§14.2). ESLint
+ * refuses the static form; this catches `await import('firebase/firestore')`
+ * and `require('firebase/auth')`, which it does not see, and which would
+ * otherwise be skipped below as ordinary package specifiers.
+ */
+const NO_FIREBASE_LAYERS = new Set(['shared', 'engines', 'curriculum']);
+const isFirebasePackage = (spec) => spec === 'firebase' || spec.startsWith('firebase/');
 
 // Cross-feature imports that predate the boundary. The fix is the Phase 4
 // migration that gives notes a public index — a re-export added now would pull
@@ -216,6 +249,15 @@ function walk(dir) {
  * exact is a pattern that can silently skip a real import.
  */
 function importSpecifiers(source) {
+  // Specifiers appearing in a `lazy(() => import('…'))` route mount. Matched
+  // separately so the route-table exemption below can require the mount
+  // pattern itself rather than trusting any dynamic import in those files:
+  // a bare `import('../../features/notes/lib/firestore')` prefetch is not a
+  // route mount and does not inherit its licence.
+  const routeMounts = new Set(
+    [...source.matchAll(/\blazy\s*\(\s*\(\s*\)\s*=>\s*import\s*\(\s*['"]([^'"]+)['"]/g)].map((m) => m[1])
+  );
+
   const specs = [];
   const patterns = [
     [/\bfrom\s*['"]([^'"]+)['"]/g, false],
@@ -224,7 +266,9 @@ function importSpecifiers(source) {
     [/\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g, false],
   ];
   for (const [pattern, dynamic] of patterns) {
-    for (const match of source.matchAll(pattern)) specs.push({ spec: match[1], dynamic });
+    for (const match of source.matchAll(pattern)) {
+      specs.push({ spec: match[1], dynamic, routeMount: dynamic && routeMounts.has(match[1]) });
+    }
   }
   return specs;
 }
@@ -235,10 +279,12 @@ function importSpecifiers(source) {
  * the route-parsing guards.
  *
  * A route mount is the one place allowed to name a page module inside a
- * feature, and only through `lazy(() => import(…))`. Sending it through the
- * feature's index would load the whole front door to render one route, which is
- * the opposite of what a lazy route is for. A STATIC deep import from a route
- * table gets no such licence — it defeats the split and crosses the boundary.
+ * feature, and only through `lazy(() => import(…))` — the pattern is matched,
+ * not assumed from the file. Sending a mount through the feature's index would
+ * load the whole front door to render one route, which is the opposite of what
+ * a lazy route is for. Nothing else in these files inherits that licence: a
+ * static deep import defeats the split AND crosses the boundary, and a bare
+ * dynamic prefetch crosses it without even being a route.
  */
 const ROUTE_TABLES = new Set([join(root, APP_PATH), join(root, TEACHER_ROUTES_PATH)]);
 
@@ -260,7 +306,15 @@ for (const file of walk(SRC)) {
   const from = locate(file);
   scanned += 1;
 
-  for (const { spec, dynamic } of importSpecifiers(readFileSync(file, 'utf8'))) {
+  for (const { spec, routeMount } of importSpecifiers(readFileSync(file, 'utf8'))) {
+    if (isFirebasePackage(spec) && NO_FIREBASE_LAYERS.has(from.layer)) {
+      fail(
+        `${posix(file)} imports '${spec}'. src/${from.layer}/ reaches Firebase through src/services/ ` +
+        '(docs/architecture.md §14.2) — the dynamic and require() forms are not an exemption, ' +
+        'they are only the forms ESLint cannot see.'
+      );
+      continue;
+    }
     if (!spec.startsWith('.')) continue;              // a package, not our tree
     const target = locate(resolve(dirname(file), spec));
     if (!target) continue;                            // resolves outside src/
@@ -274,7 +328,7 @@ for (const file of walk(SRC)) {
     }
 
     if (target.layer !== 'features' || target.feature === from.feature) continue;
-    if (dynamic && ROUTE_TABLES.has(file)) continue;  // a lazily-mounted route
+    if (routeMount && ROUTE_TABLES.has(file)) continue;  // a lazily-mounted route
 
     const frontDoor = join(FEATURES_DIR, target.feature);
     const resolved = resolve(dirname(file), spec);
