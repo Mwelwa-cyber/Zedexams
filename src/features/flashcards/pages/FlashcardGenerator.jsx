@@ -5,38 +5,38 @@ import {
   WORKSHEET_DIFFICULTIES,
   FLASHCARD_COUNTS,
 } from '../../../utils/teacherTools'
-import { downloadFlashcardsDocx } from '../../../utils/flashcardsToDocx'
-import { downloadFlashcardsPdf } from '../../../utils/flashcardsToPdf'
+import { downloadFlashcardsDocx } from '../export/flashcardsToDocx'
+import { downloadFlashcardsPdf } from '../export/flashcardsToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
-import StudioPageHeader from '../StudioPageHeader'
-import SeoHelmet from '../../seo/SeoHelmet'
+import StudioPageHeader from '../../../components/teacher/StudioPageHeader'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { useIsMounted } from '../../../hooks/useIsMounted'
 import { LIBRARY_TYPES } from '../../../config/library'
-import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
+import StudioCurriculumSelector from '../../../components/teacher/curriculum/StudioCurriculumSelector'
 import { curriculumSeedFromProfile } from '../../../utils/teacherDefaults'
 import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
-import StudioAssignmentChangeNotice from './StudioAssignmentChangeNotice'
-import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
+import StudioAssignmentChangeNotice from '../../../components/teacher/generate/StudioAssignmentChangeNotice'
+import LiveGenerationCanvas from '../../../components/ui/LiveGenerationCanvas'
 import {
   FieldTextarea,
   FieldSelect,
   FieldGrid,
   GenerateButton,
   StudioEmptyState,
-} from './studioFields'
-import Icon from '../../ui/Icon'
-import { Download, Play } from '../../ui/icons'
-import StudioOutputBoundary from '../StudioOutputBoundary'
-import { useFlashcardProgress } from '../../../hooks/useFlashcardProgress'
-import FlashcardStudyOverlay from '../views/FlashcardStudyOverlay'
+} from '../../../components/teacher/generate/studioFields'
+import Icon from '../../../components/ui/Icon'
+import { Download, Play } from '../../../components/ui/icons'
+import StudioOutputBoundary from '../../../components/teacher/StudioOutputBoundary'
+import { useFlashcardProgress } from '../hooks/useFlashcardProgress'
+import FlashcardStudyOverlay from '../components/FlashcardStudyOverlay'
 import { useStudioInputDraft } from '../../../hooks/draft/useStudioInputDraft'
 import { flashcardsInputDescriptor } from '../../../hooks/draft/descriptors'
-import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
-import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
+import DraftStatusIndicator from '../../../components/draft/DraftStatusIndicator'
+import DraftRecoveryPrompt from '../../../components/draft/DraftRecoveryPrompt'
 import { useAiOperationLock } from '../../../hooks/useAiOperationLock'
 import { stableFingerprint } from '../../../hooks/aiOperationLockCore'
 

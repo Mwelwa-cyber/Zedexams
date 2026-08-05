@@ -1,8 +1,14 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
 import LockedStudio from './LockedStudio.jsx'
+
+// LockedStudio renders sample artifacts through the flashcards feature index,
+// which re-exports useFlashcardProgress → AuthContext → firebase/config. The
+// sample view needs none of that, so stub the front door rather than configure
+// Firebase for a render test.
+vi.mock('../../features/flashcards', () => ({ FlashcardsView: () => null }))
 import { paywall } from '../../utils/paywall.js'
 import { SAMPLE_TOOL_KEYS, STUDIO_SAMPLES } from '../../data/studioSamples.js'
 

@@ -3,8 +3,8 @@
  * with the back of each card on the following line for easy folding.
  */
 
-import { saveBlob } from './saveBlob.js'
-import { sanitizeXmlText } from './xmlText.js'
+import { saveBlob } from '../../../utils/saveBlob.js'
+import { sanitizeXmlText } from '../../../utils/xmlText.js'
 import {
   AlignmentType,
   BorderStyle,
@@ -18,7 +18,7 @@ import {
   TextRun,
   WidthType,
 } from 'docx'
-import { attributionSection } from './docxAttribution.js'
+import { attributionSection } from '../../../utils/docxAttribution.js'
 
 const DASH_BORDER = {
   top:    { style: BorderStyle.DASHED, size: 6, color: '9ca3af' },

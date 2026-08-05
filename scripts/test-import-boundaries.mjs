@@ -29,7 +29,7 @@
 // Plain-node test, auto-discovered by scripts/run-all-tests.mjs via the
 // test:import-boundaries script.
 
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { ESLint } from 'eslint';
@@ -188,8 +188,12 @@ const KNOWN_CROSS_FEATURE_IMPORTS = new Set([
 
 // The legacy tree reaching into feature internals. ESLint reports each as a
 // warning at the call site, and warnings do not fail `eslint .` — this list is
-// what stops a twelfth from arriving unnoticed. Each clears when its caller
-// migrates into a feature (Phase 4).
+// what stops a new one arriving unnoticed. Each clears when its caller migrates
+// into a feature.
+//
+// Was eleven at the end of Phase 1. Phase 2 cleared two by moving
+// useFlashcardProgress (and its spec) into src/features/flashcards/hooks/,
+// where reaching the progress repository is an intra-feature import.
 const KNOWN_LEGACY_FEATURE_IMPORTS = new Set([
   'src/components/admin/VisualStudioAdmin.jsx → ../../features/visualStudio/services/visualAssetService',
   'src/components/lessons/LessonPlayer.jsx → ../../features/learnerHome/lib/lessonResume',
@@ -199,8 +203,6 @@ const KNOWN_LEGACY_FEATURE_IMPORTS = new Set([
   'src/components/teacher/dashboardV2/useTeacherDashboardData.js → ../../../features/teacherSettings/lib/useTeachingProfile',
   'src/components/teacher/generate/ClassTimetableStudio.jsx → ../../../features/teacherSettings/lib/useTeachingProfile',
   'src/components/teacher/studio/hooks/useActiveAssignmentContext.js → ../../../../features/teacherSettings/lib/useTeachingProfile',
-  'src/hooks/useFlashcardProgress.js → ../features/flashcards/lib/progress',
-  'src/hooks/useFlashcardProgress.spec.js → ../features/flashcards/lib/progress',
   'src/hooks/useLearnerSearch.js → ../features/notes/lib/firestore',
 ]);
 
@@ -274,6 +276,24 @@ function importSpecifiers(source) {
     [...source.matchAll(/\blazy\s*\(\s*\(\s*\)\s*=>\s*import\s*\(\s*['"]([^'"]+)['"]/g)].map((m) => m[1])
   );
 
+  // Comments are scanned too — a JSDoc `@example` block writes imports that
+  // look exactly like real ones. That over-collection is safe for the boundary
+  // checks (a documented import that would be a violation is worth seeing) but
+  // NOT for the resolution check: `src/editor/utils/migration.js` documents a
+  // `./db.js` that has not existed for some time, and failing the build over a
+  // stale code sample would be the guard crying wolf.
+  //
+  // So each match is classified where it SITS, by the text before it on its own
+  // line. The first attempt stripped comments from the whole file instead, and a
+  // `/*` inside a string ate 22 KB of App.jsx — every import in the deleted span
+  // silently stopped being resolved, which is the failure mode this check exists
+  // to prevent. A line-local test cannot do that: if it is ever wrong it
+  // over-reports, and an over-report is visible.
+  const isCommentLine = (index) => {
+    const before = source.slice(source.lastIndexOf('\n', index) + 1, index).trimStart();
+    return before.startsWith('*') || before.startsWith('//') || before.startsWith('/*');
+  };
+
   const specs = [];
   const patterns = [
     [/\bfrom\s*['"]([^'"]+)['"]/g, false],
@@ -283,7 +303,12 @@ function importSpecifiers(source) {
   ];
   for (const [pattern, dynamic] of patterns) {
     for (const match of source.matchAll(pattern)) {
-      specs.push({ spec: match[1], dynamic, routeMount: dynamic && routeMounts.has(match[1]) });
+      specs.push({
+        spec: match[1],
+        dynamic,
+        routeMount: dynamic && routeMounts.has(match[1]),
+        inCode: !isCommentLine(match.index),
+      });
     }
   }
   return specs;
@@ -304,6 +329,23 @@ function importSpecifiers(source) {
  */
 const ROUTE_TABLES = new Set([join(root, APP_PATH), join(root, TEACHER_ROUTES_PATH)]);
 
+/**
+ * Does a relative specifier point at a file that exists?
+ *
+ * Vite resolves these at build time, so a broken STATIC import fails the build.
+ * A broken DYNAMIC one does not: `lazy(() => import('./gone'))` is a runtime
+ * chunk-load error on the route that uses it, which is why a migration that
+ * moves a lazily-mounted page needs this and not just the layering check.
+ * Extensionless imports are the repo's normal style, so try what Vite tries.
+ */
+const RESOLVE_SUFFIXES = ['', '.js', '.jsx', '.mjs', '.json', '.css', '/index.js', '/index.jsx'];
+function resolvesToFile(abs) {
+  return RESOLVE_SUFFIXES.some((suffix) => {
+    const candidate = abs + suffix;
+    return existsSync(candidate) && statSync(candidate).isFile();
+  });
+}
+
 /** `{layer, feature}` for a path under src/, or null if it is outside src/. */
 function locate(absPath) {
   const rel = relative(SRC, absPath);
@@ -322,7 +364,7 @@ for (const file of walk(SRC)) {
   const from = locate(file);
   scanned += 1;
 
-  for (const { spec, routeMount } of importSpecifiers(readFileSync(file, 'utf8'))) {
+  for (const { spec, dynamic, routeMount, inCode } of importSpecifiers(readFileSync(file, 'utf8'))) {
     if (isFirebasePackage(spec) && NO_FIREBASE_LAYERS.has(from.layer)) {
       fail(
         `${posix(file)} imports '${spec}'. src/${from.layer}/ reaches Firebase through src/services/ ` +
@@ -332,7 +374,15 @@ for (const file of walk(SRC)) {
       continue;
     }
     if (!spec.startsWith('.')) continue;              // a package, not our tree
-    const target = locate(resolve(dirname(file), spec));
+    const resolvedPath = resolve(dirname(file), spec);
+    if (inCode && !resolvesToFile(resolvedPath)) {
+      fail(
+        `${posix(file)} imports '${spec}', which resolves to nothing on disk` +
+        (dynamic ? ' — and a dynamic import that resolves to nothing is a runtime chunk-load error, not a build failure.' : '.')
+      );
+      continue;
+    }
+    const target = locate(resolvedPath);
     if (!target) continue;                            // resolves outside src/
 
     if (FORBIDDEN_TARGETS[from.layer].includes(target.layer)) {

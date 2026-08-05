@@ -1,34 +1,31 @@
-// Per-user mastery progress for a saved flashcard deck.
-// One document per user+deck in `flashcardProgress`, keyed `{uid}_{deckId}`.
+// Per-user mastery progress for a saved flashcard deck — the feature's only
+// Firestore access. One document per user+deck in `flashcardProgress`, keyed
+// `{uid}_{deckId}`.
 //
 // Document shape:
 //   { uid, deckId, masteredCards: number[], totalCards: number,
 //     status: 'not-started'|'in-progress'|'completed',
 //     startedAt?, lastStudiedAt?, updatedAt }
+//
+// The rules for this collection are in firestore.rules and exercised by
+// scripts/test-firestore-rules-emulator.mjs: owner-scoped read, owner-scoped
+// create/update with a field allowlist, admin-only delete. The client cannot
+// write another learner's progress, and nothing here should be read as the
+// enforcement — the rules are.
+//
+// Decisions live in ../lib/flashcardProgressCore.js so they are testable
+// without Firebase; this file is the I/O half and holds no rule of its own.
 
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
+import { deriveFlashcardStatus, flashcardProgressId } from '../lib/flashcardProgressCore.js'
 
 const COL = 'flashcardProgress'
-
-export const FLASHCARD_PROGRESS_STATUS = {
-  NOT_STARTED: 'not-started',
-  IN_PROGRESS:  'in-progress',
-  COMPLETED:    'completed',
-}
-
-const idFor = (uid, deckId) => `${uid}_${deckId}`
-
-function deriveStatus(masteredCount, totalCards) {
-  if (masteredCount === 0) return FLASHCARD_PROGRESS_STATUS.NOT_STARTED
-  if (masteredCount >= totalCards) return FLASHCARD_PROGRESS_STATUS.COMPLETED
-  return FLASHCARD_PROGRESS_STATUS.IN_PROGRESS
-}
 
 /** Read a single progress record, or null if not started. */
 export async function getFlashcardProgress(uid, deckId) {
   if (!uid || !deckId) return null
-  const snap = await getDoc(doc(db, COL, idFor(uid, deckId)))
+  const snap = await getDoc(doc(db, COL, flashcardProgressId(uid, deckId)))
   return snap.exists() ? { id: snap.id, ...snap.data() } : null
 }
 
@@ -41,8 +38,8 @@ export async function getFlashcardProgress(uid, deckId) {
  */
 export async function saveFlashcardProgress(uid, deckId, masteredCards, totalCards) {
   if (!uid || !deckId) return
-  const status = deriveStatus(masteredCards.length, totalCards)
-  const ref = doc(db, COL, idFor(uid, deckId))
+  const status = deriveFlashcardStatus(masteredCards.length, totalCards)
+  const ref = doc(db, COL, flashcardProgressId(uid, deckId))
   const patch = {
     uid,
     deckId,

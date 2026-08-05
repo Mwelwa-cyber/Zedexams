@@ -8,17 +8,17 @@ import { renderHook, act, waitFor } from '@testing-library/react'
 // mastered indices persisted sorted. useAuth + the Firestore-backed progress
 // lib are mocked; this spec owns the hook's own load/persist/idempotency logic.
 
-vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
-vi.mock('../features/flashcards/lib/progress', () => ({
+vi.mock('../../../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
+vi.mock('../services/flashcardProgress', () => ({
   getFlashcardProgress: vi.fn(),
   saveFlashcardProgress: vi.fn(),
 }))
 
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../../../contexts/AuthContext'
 import {
   getFlashcardProgress,
   saveFlashcardProgress,
-} from '../features/flashcards/lib/progress'
+} from '../services/flashcardProgress'
 import { useFlashcardProgress } from './useFlashcardProgress.js'
 
 beforeEach(() => {

@@ -16,7 +16,13 @@ import {
 } from '../../../utils/teacherLibraryService'
 import LessonPlanView from '../views/LessonPlanView'
 import WorksheetView from '../views/WorksheetView'
-import FlashcardsView from '../views/FlashcardsView'
+import {
+  FlashcardsView,
+  FlashcardStudyOverlay,
+  useFlashcardProgress,
+  downloadFlashcardsDocx,
+  downloadFlashcardsPdf,
+} from '../../../features/flashcards'
 import SchemeOfWorkView from '../views/SchemeOfWorkView'
 import MarkScheduleView from '../views/MarkScheduleView'
 import WeeklyForecastView from '../views/WeeklyForecastView'
@@ -37,7 +43,6 @@ import SeoHelmet from '../../seo/SeoHelmet'
 import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
 import { downloadLibraryItemViaServer } from '../../../utils/serverLibraryDownload'
 import { downloadWorksheetDocx } from '../../../utils/worksheetToDocx'
-import { downloadFlashcardsDocx } from '../../../utils/flashcardsToDocx'
 import { downloadSchemeOfWorkDocx } from '../../../utils/schemeOfWorkToDocx'
 import { downloadMarkScheduleDocx } from '../../../utils/markScheduleToDocx'
 import { downloadMarkScheduleXlsx } from '../../../utils/markScheduleToXlsx'
@@ -50,7 +55,6 @@ import { downloadClassTimetableDocx } from '../../../utils/classTimetableToDocx'
 import { downloadClassTimetableXlsx } from '../../../utils/classTimetableToXlsx'
 import { downloadClassTimetablePdf } from '../../../utils/classTimetableToPdf'
 import { downloadLessonPlanPdf } from '../../../utils/lessonPlanToPdf'
-import { downloadFlashcardsPdf } from '../../../utils/flashcardsToPdf'
 import { downloadRubricPdf } from '../../../utils/rubricToPdf'
 import { downloadNotesPdf } from '../../../utils/notesToPdf'
 import { downloadHomeworkPdf } from '../../../utils/homeworkToPdf'
@@ -101,8 +105,6 @@ import { publishShare, revokeShare, listSharesForGeneration } from '../../../uti
 import { useAuth } from '../../../contexts/AuthContext'
 import { useToast } from '../../ui/Toast'
 import ConfirmDialog from '../../ui/ConfirmDialog'
-import { useFlashcardProgress } from '../../../hooks/useFlashcardProgress'
-import FlashcardStudyOverlay from '../views/FlashcardStudyOverlay'
 
 // Tools whose library detail offers a direct HTML→PDF download (beyond the
 // lesson-plan / class-timetable specials handled separately in onExportPdf).

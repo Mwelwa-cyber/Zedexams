@@ -1,6 +1,10 @@
 /**
- * Regression tests for the studio PDF exporters (flashcards, rubric, notes,
- * homework, full lesson, scheme of work, SBA task).
+ * Regression tests for the studio PDF exporters (rubric, notes, homework,
+ * full lesson, scheme of work, SBA task).
+ *
+ * The flashcard exporter moved to src/features/flashcards/export/ with its
+ * feature (architecture.md Phase 2); its case lives there, colocated, and
+ * checks the same properties through printableHtmlChecks.js.
  *
  * For each exporter's pure `build*PrintableHtml` this guards:
  *   1. Content — the key strings from a realistic fixture land in the HTML.
@@ -15,14 +19,13 @@
  * Run: node src/utils/studioPdfExporters.test.js
  */
 
-import { buildFlashcardsPrintableHtml } from './flashcardsToPdf.js'
 import { buildRubricPrintableHtml } from './rubricToPdf.js'
 import { buildNotesPrintableHtml } from './notesToPdf.js'
 import { buildHomeworkPrintableHtml } from './homeworkToPdf.js'
 import { buildFullLessonPrintableHtml } from './fullLessonToPdf.js'
 import { buildSchemeOfWorkPrintableHtml } from './schemeOfWorkToPdf.js'
 import { buildSbaTaskPrintableHtml } from './sbaTaskToPdf.js'
-import { withWatermark } from './htmlPdfExport.js'
+import { makePrintableHtmlChecks, XSS } from './printableHtmlChecks.js'
 
 // NOTE: the fixtures below are trimmed copies of the locked-studio sample
 // artifacts in src/data/studioSamples.js / teacherSamples.js. We can't import
@@ -42,91 +45,10 @@ function assert(cond, msg) {
 }
 
 // ── Shared checks ──────────────────────────────────────────────────
+// One copy, in printableHtmlChecks.js, so the flashcard exporter's colocated
+// test in src/features/flashcards/ checks the same properties as the six here.
 
-const XSS = '<script>alert("pwn")</script>'
-
-function checkDocumentShell(html, label) {
-  assert(html.startsWith('<!DOCTYPE html>'), `${label}: full HTML document`)
-  assert(html.includes('</head>') && html.includes('</body>'), `${label}: has head + body`)
-}
-
-// The keep-together rules must be screen-visible (base stylesheet), never
-// trapped inside @media print — same assertion style as lessonPlanToPdf.test.js.
-function checkPagination(html, label) {
-  assert(/page-break-inside:avoid/.test(html), `${label}: keep-together rule present`)
-  const mp = html.indexOf('@media print{')
-  const printBlock = mp >= 0 ? html.slice(mp, html.indexOf('</style>', mp)) : ''
-  assert(printBlock.length > 0, `${label}: @media print block exists`)
-  assert(!/page-break-inside:avoid/.test(printBlock), `${label}: keep-together rules are NOT trapped inside @media print`)
-}
-
-function checkEscaped(html, label) {
-  assert(!html.includes('<script>'), `${label}: <script> in user content is escaped`)
-  assert(html.includes('&lt;script&gt;'), `${label}: escaped entity form present`)
-}
-
-// The watermark style marker (the SVG data-URI body background) must appear
-// with attribution:true and be absent otherwise.
-function checkWatermark(html, label) {
-  const marked = withWatermark(html, true)
-  assert(marked.includes('background-image:url("data:image/svg+xml'), `${label}: watermark injected with attribution:true`)
-  const clean = withWatermark(html, false)
-  assert(!clean.includes('background-image:url("data:image/svg+xml'), `${label}: no watermark without attribution`)
-}
-
-function checkAll(html, label) {
-  checkDocumentShell(html, label)
-  checkPagination(html, label)
-  checkWatermark(html, label)
-}
-
-// ── Flashcards ─────────────────────────────────────────────────────
-
-{
-  console.log('flashcards PDF')
-  // Trimmed from the flashcards sample artifact (teacherSamples.js).
-  const sample = {
-    schemaVersion: '1.0',
-    header: {
-      title: 'Social & Commercial Arithmetic — Quick Drill',
-      subject: 'Mathematics', grade: 'Grade 7',
-      topic: 'Unit 5: Social and Commercial Arithmetic', cardCount: 3,
-    },
-    cards: [
-      {
-        front: 'What is PROFIT?',
-        back: 'The money gained when the selling price is higher than the cost price. Profit = Selling Price − Cost Price.',
-        example: 'Bought a crate of drinks for K180, sold all for K240 → profit K60.',
-        hint: 'Selling for MORE than you paid.',
-      },
-      {
-        front: 'Formula for SIMPLE INTEREST',
-        back: 'I = (P × R × T) ÷ 100, where P is the principal, R the rate per year, and T the time in years.',
-        example: 'K500 at 10% for 2 years: I = (500 × 10 × 2) ÷ 100 = K100.',
-        hint: 'P, R and T multiplied, then divide by 100.',
-      },
-      {
-        front: 'What is a DISCOUNT?',
-        back: 'An amount taken off the marked price to get the actual selling price.',
-        example: null,
-        hint: 'The shop "cuts" the price for you.',
-      },
-    ],
-  }
-  const html = buildFlashcardsPrintableHtml(sample)
-  checkAll(html, 'flashcards')
-  assert(html.includes('Social &amp; Commercial Arithmetic — Quick Drill') || html.includes('Quick Drill'), 'flashcards: title rendered')
-  assert(html.includes('What is PROFIT?'), 'flashcards: card front rendered')
-  assert(html.includes('Profit = Selling Price − Cost Price.'), 'flashcards: card back rendered')
-  assert(html.includes('QUESTION') && html.includes('ANSWER'), 'flashcards: front/back labels rendered')
-  assert(html.includes('Bought a crate of drinks for K180'), 'flashcards: example rendered')
-
-  const xss = buildFlashcardsPrintableHtml({
-    header: { title: `T ${XSS}` },
-    cards: [{ front: `F ${XSS}`, back: `B ${XSS}`, example: XSS, hint: XSS }],
-  })
-  checkEscaped(xss, 'flashcards')
-}
+const { checkEscaped, checkAll } = makePrintableHtmlChecks(assert)
 
 // ── Rubric ─────────────────────────────────────────────────────────
 
