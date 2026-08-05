@@ -1,0 +1,171 @@
+/**
+ * src/editor/mathNotation.css — the CSS that makes school notation STACKED.
+ *
+ * Extracted from `editor.css` because it was unreachable where it mattered.
+ *
+ * ## The bug this file exists to end
+ *
+ * `safeRender.toHTML()` emits `.math-frac-stack` / `.math-frac-num` /
+ * `.math-frac-den` for a fraction, `.vert-arith` for long-form arithmetic and
+ * `.num-base` for a number base. Those class names mean nothing without these
+ * rules — the numerator and denominator simply sit side by side.
+ *
+ * Every one of those rules lived in `editor.css`, which is imported by
+ * `RichEditor.jsx` and `NoteEditor.jsx` and by nothing else. `index.css` has no
+ * `@import` and no `math-frac` rule. So on the LEARNER quiz route the markup
+ * was emitted and the CSS was absent: a Grade 4 learner met "6 8" where their
+ * exercise book, their teacher\'s board and their printed paper all show a
+ * stacked fraction with a bar. `architecture.md` §4.1 requires the stacked form
+ * and forbids slash forms; what shipped was neither.
+ *
+ * It went unnoticed because the authoring surfaces — where anyone building this
+ * would look at a fraction — import `editor.css` and therefore look correct.
+ *
+ * ## Why the RENDERER imports it, not a route
+ *
+ * `safeRender.js` already imports `katex/dist/katex.min.css` when a window
+ * exists, for exactly this reason: the stylesheet a renderer needs should
+ * travel with the renderer. This file joins it, so stacking reaches every
+ * surface that renders rich content — the quiz runner, the engine\'s renderers,
+ * the notes reader, anything added later — by construction rather than by each
+ * route remembering.
+ *
+ * Adding `editor.css` to those routes instead would have worked and would have
+ * been wrong: it is the whole authoring design system, ~50 KB that `main.jsx`
+ * deliberately keeps off public pages, and it would make every future renderer
+ * depend on the editor.
+ *
+ * ## What must not drift
+ *
+ * `assessmentToPdf.js` and `assessmentToDocx.js` carry their own copies of the
+ * printed equivalents, marked "must match editor.css visually". They still say
+ * editor.css; they now mean this file. Three copies is one more than anyone
+ * wants, and merging them is its own piece of work — the print copies are
+ * scoped to a paper and reference print units.
+ */
+
+/* ── Vertical arithmetic ── */
+.vert-arith {
+  display: inline-block;
+  margin: 6px 8px 6px 0;
+  font-family: 'Cambria Math', 'Cambria', ui-monospace, Menlo, Consolas, monospace;
+  font-size: 18px;
+  line-height: 1.25;
+  vertical-align: middle;
+  cursor: pointer;
+  user-select: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: background .12s, box-shadow .12s;
+}
+.editor-area .vert-arith:hover,
+.pcard .vert-arith:hover,
+.viewer .vert-arith:hover {
+  background: var(--vi3, #ede9fe);
+  box-shadow: 0 0 0 2px var(--vi4, #c4b5fd) inset;
+}
+.vert-arith .va-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 8px;
+  white-space: pre;
+}
+.vert-arith .va-op {
+  display: inline-block;
+  width: 18px;
+  text-align: left;
+  font-weight: 700;
+}
+.vert-arith .va-num {
+  display: inline-block;
+  text-align: right;
+  font-feature-settings: 'tnum' 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1.5px;
+}
+.vert-arith .va-rule {
+  border-top: 2px solid currentColor;
+  margin: 2px 0 2px 22px;
+  min-width: 70px;
+}
+.vert-arith .va-answer-row .va-num { min-height: 1em; }
+.vert-arith .va-working {
+  border-top: 1px dashed var(--sl4, #94a3b8);
+  margin-top: 6px;
+  padding-top: 4px;
+}
+.vert-arith .va-working-line {
+  border-bottom: 1px solid var(--sl4, #94a3b8);
+  height: 18px;
+  width: 130px;
+  margin: 4px 0;
+}
+
+/* ── Fractions ── */
+.math-frac {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  vertical-align: middle;
+  line-height: 1;
+  margin: 0 2px;
+  font-family: 'Cambria Math', 'Cambria', 'Times New Roman', serif;
+  cursor: pointer;
+  user-select: none;
+  padding: 1px 3px;
+  border-radius: 4px;
+}
+.editor-area .math-frac:hover,
+.pcard .math-frac:hover,
+.viewer .math-frac:hover {
+  background: var(--vi3, #ede9fe);
+}
+.math-frac-whole { padding-right: 4px; font-weight: 500; }
+.math-frac-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  vertical-align: middle;
+  text-align: center;
+}
+.math-frac-num,
+.math-frac-den {
+  display: block;
+  font-size: 0.78em;
+  padding: 0 2px;
+  line-height: 1.1;
+  text-align: center;
+}
+.math-frac-num {
+  border-bottom: 1.5px solid currentColor;
+  padding-bottom: 1px;
+}
+.math-frac-den { padding-top: 1px; }
+
+/* ── Number bases ── */
+.num-base {
+  display: inline-flex;
+  align-items: baseline;
+  vertical-align: baseline;
+  cursor: pointer;
+  user-select: none;
+  padding: 0 2px;
+  border-radius: 4px;
+  font-family: inherit;
+}
+.editor-area .num-base:hover,
+.pcard .num-base:hover,
+.viewer .num-base:hover {
+  background: var(--vi3, #ede9fe);
+}
+.num-base-num { font: inherit; }
+.num-base-sub {
+  font-size: 0.65em;
+  position: relative;
+  bottom: -0.35em;
+  margin-left: 1px;
+  font-weight: 500;
+}
