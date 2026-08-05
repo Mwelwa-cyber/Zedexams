@@ -1,6 +1,6 @@
 {
-  "chromium": "150.0.7871.24",
-  "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
+  "chromium": "151.0.7922.47",
+  "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-151.0.7922.47/chrome-linux64/chrome",
   "libreoffice": "24.2.7.2",
   "os": "Linux 6.17.0-1020-azure",
   "platform": "linux-x64",
