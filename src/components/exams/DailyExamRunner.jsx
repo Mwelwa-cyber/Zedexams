@@ -572,7 +572,16 @@ function DailyExamRunnerInner() {
               />
             </div>
           )}
-          <div className="grid gap-3 sm:grid-cols-2">
+          {/* Single vertical column with letter badges — the ECZ past-paper
+              form, and a binding engine requirement (docs/architecture.md §4:
+              "single vertical column with A/B/C/D letter badges … so long
+              options get a full-width row"). This was `sm:grid-cols-2`, which
+              put two options side by side on anything tablet-width and up:
+              a long option wrapped inside half a row, and the reading order
+              of a four-option question became a 2x2 grid rather than a list.
+              `.opt-grid` is the same class QuizRunnerV2 uses, so the two
+              runners now lay choices out identically. */}
+          <div className="opt-grid">
             {question.options?.map((option, idx) => (
               <OptionButton
                 key={`${question.id}-${idx}`}
