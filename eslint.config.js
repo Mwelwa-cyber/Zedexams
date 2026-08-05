@@ -127,6 +127,136 @@ export default [
     },
   },
 
+  // ---- Import boundaries (docs/architecture.md §3, §12, §14.7) ----
+  //
+  // The target architecture layers src/ top-down:
+  //
+  //   app  →  features  →  engines / curriculum  →  shared / services / config
+  //
+  // An arrow may only be followed downwards. `src/shared/` importing a feature,
+  // or an engine importing `src/app/`, is the cycle that turns a layer into a
+  // synonym for "everything", and it is cheap to prevent and expensive to undo.
+  // Cross-feature imports go through a feature's public `index.js` so one
+  // feature never reaches into another's internals.
+  //
+  // These use core `no-restricted-imports` — no new lint plugin — which matches
+  // the import SPECIFIER, not the resolved path. That has one consequence worth
+  // stating, because it looks like a gap and is one:
+  //
+  //   Every layer rule below is total, because the layers are sibling
+  //   directories under src/: a file in `src/shared/` cannot reach a feature
+  //   without writing `features/` in the path. The cross-FEATURE rule is not.
+  //   A file in `src/features/A/`
+  //   reaches `src/features/B/` as `../../B/lib/x`, which names no layer at
+  //   all — indistinguishable, as a string, from its own `../lib/x`. ESLint
+  //   cannot see that one. `npm run test:import-boundaries` resolves specifiers
+  //   to real paths and covers it, and also asserts the rules below actually
+  //   fire, so a pattern that stops matching is a failing test rather than
+  //   silence.
+  //
+  // Rules are ordered general → specific: flat config replaces (not merges) a
+  // rule's options when a later block names the same rule, so each specific
+  // block below restates everything that applies to it.
+  {
+    files: ['src/**/*.{js,jsx}'],
+    rules: {
+      // Legacy tree (src/components, src/hooks, src/utils, ...) reaching into a
+      // feature's internals. `warn`, not `error`, because 11 such imports exist
+      // today and predate the boundary — they are Phase 4 debt, and each one
+      // clears when its caller migrates. It flips to `error` once the last is
+      // gone; do not add the twelfth.
+      'no-restricted-imports': ['warn', {
+        patterns: [{
+          group: ['**/features/*/**', '!**/features/*/index.js', '!**/features/*/index.jsx'],
+          message:
+            'Import a feature through its public index.js (docs/architecture.md §14.7). ' +
+            'Reaching past it couples you to internals the feature is free to change.',
+        }],
+      }],
+    },
+  },
+  {
+    // The app shell may use every layer below it, but still only through a
+    // feature's front door.
+    files: ['src/app/**/*.{js,jsx}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [{
+          group: ['**/features/*/**', '!**/features/*/index.js', '!**/features/*/index.jsx'],
+          message: 'Import a feature through its public index.js (docs/architecture.md §14.7).',
+        }],
+      }],
+    },
+  },
+  {
+    files: ['src/features/**/*.{js,jsx}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          {
+            group: ['**/features/*/**', '!**/features/*/index.js', '!**/features/*/index.jsx'],
+            message: 'Import another feature through its public index.js (docs/architecture.md §14.7).',
+          },
+          {
+            group: ['**/app/**'],
+            message: 'A feature must not import the app shell — routes, providers and guards mount features, not the reverse.',
+          },
+        ],
+      }],
+    },
+  },
+  {
+    files: ['src/engines/**/*.{js,jsx}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          {
+            group: ['**/app/**', '**/features/**'],
+            message: 'An engine is consumed BY features (docs/architecture.md §2). Importing one inverts that and makes the engine unusable elsewhere.',
+          },
+          {
+            group: ['firebase', '**/firebase/**'],
+            message: 'Engines reach Firebase through src/services/ (docs/architecture.md §14.2), which is what keeps an engine testable without the SDK.',
+          },
+        ],
+      }],
+    },
+  },
+  {
+    files: ['src/curriculum/**/*.{js,jsx}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          {
+            group: ['**/app/**', '**/features/**', '**/engines/**'],
+            message: 'The Curriculum Engine is upstream of every consumer (docs/architecture.md §5). It may read src/config/ and src/shared/, nothing above.',
+          },
+          {
+            group: ['firebase', '**/firebase/**'],
+            message: 'Curriculum resolution reaches Firebase through src/services/ (docs/architecture.md §14.2).',
+          },
+        ],
+      }],
+    },
+  },
+  {
+    files: ['src/shared/**/*.{js,jsx}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          {
+            group: ['**/app/**', '**/features/**', '**/engines/**', '**/curriculum/**'],
+            message: 'src/shared is the bottom layer (docs/architecture.md §12). Anything that needs a feature, an engine or curriculum knowledge belongs to that layer, not to shared.',
+          },
+          {
+            group: ['firebase', '**/firebase/**'],
+            message: 'Shared code must not touch the Firebase SDK (docs/architecture.md §14.2) — that is what makes it shareable.',
+          },
+        ],
+      }],
+    },
+  },
+
   // Tests and Cloud Functions: allow Node globals, relax a bit.
   {
     files: ['**/*.test.js', '**/*.test.jsx', 'functions/**/*.js'],

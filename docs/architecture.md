@@ -1254,7 +1254,16 @@ Every phase ends with: the app builds, all routes render, all nine required CI c
 
 No code moves in Phase 0. Phase 1 scaffolding begins only after **every** Phase 0 gate is closed.
 
-**Phase 1 — Scaffold.** Create `src/app/`, `src/engines/`, `src/shared/`, `src/curriculum/` skeletons with `index.js` files. Add ESLint import-boundary rules. Wire `src/curriculum/catalog/` to re-export `canonicalEducation.js`/`educationLevels.js`. Nothing user-facing changes.
+**Phase 1 — Scaffold. CLOSED 2026-08-05.** Created `src/app/`, `src/engines/`, `src/shared/`, `src/curriculum/` with an `index.js` in every area, added the ESLint import-boundary rules, and wired `src/curriculum/catalog/` to re-export `canonicalEducation.js`/`educationLevels.js`. No file moved, no import changed, no route touched — the build output is unchanged.
+
+Four things it established that later phases inherit:
+
+- **The layering is `app → features → engines / curriculum → shared / services / config`**, and each arrow is one-way. The rules live in `eslint.config.js` as core `no-restricted-imports` (no new lint plugin); the three new lower layers additionally refuse the Firebase SDK, since reaching it through `src/services/` is what keeps them testable (§14.2).
+- **Every directory index is a namespace marker, not a barrel.** Only `curriculum/catalog/` re-exports anything. A root barrel would pull all four engines into the chunk of anything that wanted one — the router is fully lazy and that is worth keeping.
+- **The rules are matched against the import SPECIFIER, which leaves exactly one blind spot**, and it is the one that matters most: `src/features/A/` reaching `src/features/B/` is written `../../B/lib/x`, naming no layer, indistinguishable as a string from its own `../lib/x`. `npm run test:import-boundaries` resolves specifiers to real paths and covers it — and asserts the ESLint rules themselves still fire, so a pattern that quietly stops matching fails a test instead of reading as a clean codebase.
+- **It measured the existing debt rather than assuming there was none.** Three cross-feature imports exist (`features/lessons` reads `format`, `useLearnerProfile` and `notes.css` out of `features/notes`); they are recorded in that test as a shrink-only list, because the fix is the Phase 4 migration that gives `notes` a public index — a re-export added now would pull the notes pages into the lessons chunk to satisfy a lint rule. Eleven more imports reach from the legacy tree (`src/components`, `src/hooks`) into feature internals; those are ESLint **warnings**, clearing as each caller migrates, and the rule flips to `error` when the last one goes.
+
+`npm run test:curriculum-engine-catalog` pins the catalog to being a view rather than a copy: every name both roots export is reachable through it, it exports nothing of its own, and the two roots share no export name — an `export *` collision is silent in ESM, so it is asserted rather than trusted.
 
 **Phase 2 — Reference migration.** Migrate exactly one small feature end-to-end (Flashcard generator is a good candidate) including repository, schemas, colocated tests, and rules test. Review before proceeding; this is the template.
 
