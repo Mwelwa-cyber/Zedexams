@@ -208,8 +208,20 @@ const usedAllowances = new Set();
 
 /**
  * Non-relative specifiers are treated as packages and skipped, which is only
- * safe while no path alias maps one back into src/. Fail closed rather than
- * quietly stop covering half the tree the day someone adds one.
+ * safe while no path alias maps one back into src/.
+ *
+ * What this detects, stated exactly: a literal `alias:` key — bare or quoted,
+ * with any whitespace or comment lines before the colon — in either Vite
+ * config. That is the form an alias is added in, and catching it stops the scan
+ * from quietly covering half the tree. It is NOT every form an alias can arrive
+ * in: a computed key (`[someName]: …`), or an alias object spread in from
+ * another module, leaves no `alias:` token in these two files and passes.
+ *
+ * The residual is deliberate. Closing it means resolving the real Vite config,
+ * which trades a narrow gap for a dependency on Vite's internals inside a
+ * migration guard — and the build-plugin version of that puts the dependency in
+ * the production build path. If an alias is ever added by one of the forms
+ * above, teach this resolver about it in the same change.
  */
 function assertNoUnknownAliases() {
   for (const config of ['vite.config.js', 'vitest.config.js']) {
