@@ -4,27 +4,26 @@
  * This is the machinery behind `docs/phase3-plan.md` §3 — the byte-compatibility
  * guarantee that lets a cutover be a comparison rather than a code review.
  *
- * ## What it is for, and what it cannot do yet
+ * ## What it is for
  *
  * The plan's §3.3 describes replaying a recorded attempt through BOTH paths and
- * diffing the journals. The engine has no write adapter yet (`persist/` does not
- * exist), so there is no second path, and a "comparison" run today would be one
- * path checked against itself.
- *
- * So this ships as two separable things, and only the first is finished:
+ * diffing the journals. Three things make that up, and they landed in this
+ * order deliberately:
  *
  *   1. **The rules** (`diffJournals`) — pure, and tested against every way two
- *      journals can differ. Reviewing them NOW is the point: once a cutover is
- *      in flight there is pressure to make the comparison pass, and a rule
- *      loosened under that pressure is how byte-compatibility quietly becomes a
- *      formality.
- *   2. **A baseline pin** (`scripts/replay/replayQuizResults.test.js`) — the
- *      current path's journal, recorded and asserted. That is not the old-vs-new
- *      diff; it is the OLD side of it, captured while the old path is still the
- *      only one, plus a guard against the old path drifting before cutover.
+ *      journals can differ. Reviewing them BEFORE a cutover existed was the
+ *      point: once one is in flight there is pressure to make the comparison
+ *      pass, and a rule loosened under that pressure is how byte-compatibility
+ *      quietly becomes a formality.
+ *   2. **A baseline pin** (`replayQuizResults.test.js`) — the old path's
+ *      journal, recorded and asserted while it was still the only one. Not the
+ *      comparison; the OLD side of it, plus a guard against the old path
+ *      drifting.
+ *   3. **The comparison** (`replayEngineComparison.test.js`) — both paths, per
+ *      fixture, diffed. This exists as of `persist/`.
  *
- * The old-vs-new diff lands with the first write adapter, and at that point
- * `diffJournals` is already reviewed and already has controls.
+ * So the rules arrived reviewed, with controls, before anything depended on
+ * them passing.
  *
  * ## The rules (§3.2)
  *
@@ -77,6 +76,37 @@ export function isVolatile(field) {
 }
 
 /**
+ * A difference the two paths are SUPPOSED to have.
+ *
+ * Byte-compatibility is the rule; a deviation is a decided, reviewed exception
+ * to it, and there is exactly one so far (`timeSpent: 0` → `null` when the
+ * attempt's start is unknown — see `persist/resultDocument.js`).
+ *
+ * Two properties make this different from adding a field to `VOLATILE`:
+ *
+ *   1. **It states both sides.** `{ from: 0, to: null }` — not "this field may
+ *      differ", but "it differs in exactly this way". A path that starts
+ *      writing `-1` fails.
+ *   2. **A deviation that does NOT occur is itself a difference.** If the
+ *      engine stops writing null, this reports it. An exception nobody
+ *      re-examines is how a temporary allowance becomes permanent, and the
+ *      usual failure of an allow-list is that entries outlive their reason
+ *      in silence.
+ *
+ * @typedef {object} Deviation
+ * @property {number} write   index into the journal
+ * @property {string} field   dotted field path within that write's payload
+ * @property {*} from         the value A is required to have
+ * @property {*} to           the value B is required to have
+ * @property {string} reason  why this is allowed — shown when it fails
+ */
+
+/** Same-value test that treats NaN as equal to itself and distinguishes types. */
+function sameValue(a, b) {
+  return Object.is(a, b)
+}
+
+/**
  * A fake Firestore that records instead of writing.
  *
  * Deliberately not a mock of the SDK's surface — it records the four operations
@@ -118,8 +148,12 @@ function isPlainObject(v) {
 /**
  * Compare one payload against another, recursively.
  * `path` is the dotted field path, used only for the difference message.
+ *
+ * @param {object} ctx  `{ compareWallClock, deviations, satisfied }` — the
+ *   options that reach the leaves, plus the set recording which declared
+ *   deviations actually occurred, so an unused one can be reported.
  */
-function comparePayload(a, b, path, out) {
+function comparePayload(a, b, path, out, ctx) {
   const aKeys = Object.keys(a ?? {}).sort()
   const bKeys = Object.keys(b ?? {}).sort()
 
@@ -130,18 +164,47 @@ function comparePayload(a, b, path, out) {
     if (!bKeys.includes(key)) continue
     const av = a[key]
     const bv = b[key]
+    const fieldPath = `${path}${key}`
+
+    // A DECLARED deviation is checked before anything else, and checked
+    // exactly: both sides must be what the declaration says. Anything else at
+    // this field is a real difference, including a deviation that half
+    // happened.
+    const declared = ctx.deviations.find((d) => d.path === fieldPath)
+    if (declared) {
+      if (sameValue(av, declared.from) && sameValue(bv, declared.to)) {
+        ctx.satisfied.add(declared)
+        continue
+      }
+      out.push(
+        `${fieldPath}: declared deviation not met — expected ${JSON.stringify(declared.from)} → ` +
+        `${JSON.stringify(declared.to)}, got ${JSON.stringify(av)} → ${JSON.stringify(bv)} ` +
+        `(${declared.reason})`,
+      )
+      continue
+    }
 
     // A volatile field must still be PRESENT in both — only its value is
     // exempt. A path that stopped writing `completedAt` entirely is a real
     // difference, and exempting the value must not exempt the field.
-    if (isVolatile(key)) continue
+    //
+    // `compareWallClock` turns the wall-clock half of that off, and the reason
+    // is a finding from the baseline run: the exemption is a property of LIVE
+    // capture, where the same attempt replayed a moment later genuinely yields
+    // a different elapsed value. A replay from a fixture INJECTS the clock, so
+    // the duration is fully determined — and exempting it there let a changed
+    // rounding rule through, which a control proved.
+    if (isVolatile(key)) {
+      const isWallClock = VOLATILE.wallClockFields.includes(key)
+      if (!(isWallClock && ctx.compareWallClock)) continue
+    }
 
     if (typeName(av) !== typeName(bv)) {
       out.push(`${path}${key}: type ${typeName(av)} vs ${typeName(bv)} (${JSON.stringify(av)} vs ${JSON.stringify(bv)})`)
       continue
     }
     if (isPlainObject(av)) {
-      comparePayload(av, bv, `${path}${key}.`, out)
+      comparePayload(av, bv, `${path}${key}.`, out, ctx)
       continue
     }
     if (Array.isArray(av)) {
@@ -150,7 +213,7 @@ function comparePayload(a, b, path, out) {
         continue
       }
       av.forEach((item, i) => {
-        if (isPlainObject(item)) comparePayload(item, bv[i], `${path}${key}[${i}].`, out)
+        if (isPlainObject(item)) comparePayload(item, bv[i], `${path}${key}[${i}].`, out, ctx)
         else if (item !== bv[i]) out.push(`${path}${key}[${i}]: ${JSON.stringify(item)} vs ${JSON.stringify(bv[i])}`)
       })
       continue
@@ -162,13 +225,33 @@ function comparePayload(a, b, path, out) {
 /**
  * Diff two write journals under §3.2's rules.
  *
+ * @param {Array} a  the journal to treat as the baseline (the OLD path)
+ * @param {Array} b  the journal being compared to it (the ENGINE)
+ * @param {object} [options]
+ * @param {Deviation[]} [options.deviations]  decided, reviewed exceptions. Each
+ *   states both sides; one that does not occur is reported as a difference in
+ *   its own right, so an allowance cannot outlive its reason unnoticed.
+ * @param {boolean} [options.compareWallClock]  compare `timeSpent` and friends
+ *   instead of exempting them. Correct whenever BOTH journals were produced
+ *   from an injected clock — a fixture replay — and wrong for a live capture.
  * @returns {{ identical: boolean, differences: string[] }}
  *   `differences` is empty exactly when `identical` is true. Every entry names
  *   the write index, the field path and both values, because a diff that says
  *   "journals differ" sends whoever hits it back to reading two payloads by eye.
  */
-export function diffJournals(a, b) {
+export function diffJournals(a, b, { deviations = [], compareWallClock = false } = {}) {
   const differences = []
+
+  // Deviations are declared per write index and field; flattening them to a
+  // dotted path up front is what lets the leaf comparison find one without
+  // knowing how deep it is.
+  const resolved = deviations.map((d) => ({ ...d, path: `write[${d.write}].${d.field}` }))
+  for (const d of resolved) {
+    if (!('from' in d) || !('to' in d)) {
+      throw new Error(`deviation at ${d.path} must state both \`from\` and \`to\``)
+    }
+  }
+  const ctx = { deviations: resolved, compareWallClock, satisfied: new Set() }
 
   if (a.length !== b.length) {
     differences.push(`write count: ${a.length} vs ${b.length}`)
@@ -179,7 +262,16 @@ export function diffJournals(a, b) {
     const label = `write[${i}]`
     if (a[i].op !== b[i].op) differences.push(`${label}.op: ${a[i].op} vs ${b[i].op}`)
     if (a[i].path !== b[i].path) differences.push(`${label}.path: ${a[i].path} vs ${b[i].path}`)
-    comparePayload(a[i].payload, b[i].payload, `${label}.`, differences)
+    comparePayload(a[i].payload, b[i].payload, `${label}.`, differences, ctx)
+  }
+
+  // A declared deviation that never fired is a difference too. Otherwise the
+  // list becomes a set of claims nobody checks — and the first thing that
+  // rots is the one whose reason has been fixed.
+  for (const d of resolved) {
+    if (!ctx.satisfied.has(d)) {
+      differences.push(`${d.path}: declared deviation never occurred — the field was not compared, or is absent`)
+    }
   }
 
   // Writes past the shorter journal are reported individually — "count differs"

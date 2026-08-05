@@ -4,24 +4,19 @@
  * ## What this is, precisely
  *
  * `docs/phase3-plan.md` §3.3 describes replaying an attempt through BOTH paths
- * and diffing the journals. **The engine has no write adapter yet**, so there is
- * no second path and this is not that test. It is the OLD side of it, captured
- * while the old path is still the only one.
+ * and diffing the journals. That comparison now exists and lives in
+ * `replayEngineComparison.test.js`. **This file is not it, and is not made
+ * redundant by it** — it is the OLD side on its own, and both are needed:
  *
- * That is worth having on its own, for two reasons:
- *
- *   1. **The baseline is recorded and reviewed BEFORE a cutover exists.** When
- *      the engine's adapter lands, the comparison runs against a journal a
- *      reviewer already agreed to, rather than one produced under pressure to
- *      make a cutover pass. A baseline captured at cutover time is a baseline
- *      that encodes whatever the new code happens to do.
- *   2. **The old path can drift before then.** `buildQuizResultPayload` is live
- *      and editable today. If it changes, this fails, and that is a real signal
- *      whether the change was intended or not.
- *
- * When `persist/` exists, `assertSameJournal` below gains a second argument and
- * this becomes the comparison §3.3 asks for. `diffJournals` is already written
- * and already has its own controls, so that step adds a caller, not a rule.
+ *   1. **The baseline was recorded and reviewed BEFORE a cutover existed.** The
+ *      comparison therefore runs against a journal a reviewer already agreed
+ *      to, rather than one produced under pressure to make a cutover pass. A
+ *      baseline captured at cutover time encodes whatever the new code happens
+ *      to do.
+ *   2. **A comparison cannot tell you WHICH side moved.** If both paths changed
+ *      together — a shared helper edited, a scoring rule adjusted — the
+ *      comparison stays green and reports nothing. This pins the old path's
+ *      actual numbers, so that shows up here.
  *
  * ## Why the expectations are computed, not stored
  *
