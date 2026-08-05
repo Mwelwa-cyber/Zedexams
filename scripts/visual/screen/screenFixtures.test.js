@@ -19,7 +19,7 @@ import {
   screenBaselineTargets,
 } from './screenFixtures.js'
 import { baselineIdentity, assertToolchain, RenderEnvironmentError } from '../renderEnvironment.js'
-import { SCREEN_PAGE_CHECKS } from './screenStage.mjs'
+import { SCREEN_PAGE_CHECKS } from './screenPageChecks.js'
 
 let passed = 0
 function test(name, fn) {

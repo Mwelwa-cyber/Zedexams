@@ -106,6 +106,7 @@ jobs:
           node scripts/visual/gateVerdict.test.js
           node scripts/visual/screen/screenScope.test.js
           node scripts/visual/screen/screenFixtures.test.js
+          node scripts/visual/screen/screenPurity.test.js
 
       - name: Resolve scope
         id: scope
