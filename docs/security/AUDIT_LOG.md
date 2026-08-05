@@ -265,8 +265,9 @@ it is confirmed to have no IAM bindings and no code references.
 ## 2026-08-05 — External probe traffic on the Gemini API, none of it successful
 
 **Verdict: no incident. Every request failed. Which control did the failing is
-established for the 403s and unconfirmed for the 429s — see "Two failure modes"
-below before citing this entry as proof that key restrictions held.**
+only partly established — 403s and 429s are different controls and the split
+between them was never captured, so no portion can be sized. Read "Two failure
+modes" below before citing this entry as proof that key restrictions held.**
 
 **Trigger.** Console-track review of API traffic.
 
@@ -449,7 +450,12 @@ documents.
 The schema is exactly two fields — `file` (string, `gs://` URI of the analysed
 object) and `objects` (array of Vision label strings, frequently empty). There
 is no timestamp, no user-identifier field and no reference back to any app
-entity; **the only link to a user is the uid embedded in the storage path.**
+entity; **the primary link to a user is the uid embedded in the storage path.**
+"Primary" rather than "only" deliberately: most upload paths are owner-scoped
+(`papers/{uid}/{paperId}/…` and siblings), but not provably all of them — the
+legacy single-segment `papers/{fileName}` form noted in
+[`storage-hardening.md`](./storage-hardening.md) §6 carries no uid, and the
+3,944 `file` values were not enumerated to confirm the shape of every one.
 
 Distribution by storage prefix, counted by Firestore `COUNT` aggregations on
 2026-08-05, totalling 3,944:
