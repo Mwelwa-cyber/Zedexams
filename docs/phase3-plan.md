@@ -766,9 +766,15 @@ happened.
    replay harness and fixtures did NOT ship with it** — the contract was sent
    for review before it grew consumers, and a harness with no consumer to
    compare against would have been fixtures checked against themselves.
-5. **The replay harness and fixtures** (§3.3), against the extracted payload
+5. ✅ **The replay harness and fixtures** (#2122), against the extracted payload
    builder from step 1 — the first thing the engine can actually be measured
-   with.
+   with. The differ's rules and the old path's baseline; the old-vs-new
+   comparison lands with `persist/`.
 6. Session, marking (`clientKey` + `none` behind the verdict seam) and the
-   renderers, built against quizzes as §5.0 sets out.
+   renderers, built against quizzes as §5.0 sets out. The session goes first
+   and by a different discipline — **characterise-then-conform**, since there
+   is no seam to extract from 1,985 lines of React state. The contract suite is
+   `src/engines/assessment-engine/session/characterisation/sessionContract.jsx`
+   and the old runner passes it, which is what makes it a description of
+   reality rather than of an intention.
 7. Cutovers: past-paper → quizzes → games, each gated on §5.1.
