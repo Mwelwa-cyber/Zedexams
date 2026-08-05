@@ -225,8 +225,21 @@ export default function QuizResultsV2() {
       })).sort((left, right) => left.pct - right.pct)
     : []
 
-  const mins = result.timeSpent ? Math.floor(result.timeSpent / 60) : 0
-  const secs = result.timeSpent ? result.timeSpent % 60 : 0
+  // An attempt whose start was never recorded has NO duration, and saying so is
+  // the whole point of writing null for it (the Assessment Engine's approved
+  // deviation — src/engines/assessment-engine/persist/resultDocument.js). This
+  // read was `result.timeSpent ? … : 0`, which turned that honest absence into
+  // a confident "0m 0s" — the exact failure the deviation exists to avoid, just
+  // rendered instead of averaged.
+  //
+  // Only null/undefined is unknown. A stored `0` stays "0m 0s": every result
+  // written before this reads 0 for "unknown", and re-interpreting those would
+  // change what is displayed for records already in Firestore, which is a
+  // separate decision from what the engine writes next.
+  const timeSpent = result.timeSpent ?? null
+  const timeLabel = timeSpent === null
+    ? '—'
+    : `${Math.floor(timeSpent / 60)}m ${timeSpent % 60}s`
 
   function renderQuestion(question) {
     const userAnswer = result.answers?.[question.id]
@@ -371,7 +384,7 @@ export default function QuizResultsV2() {
         {[
           { label: 'Score', value: `${result.score}/${result.totalMarks}` },
           { label: 'Mode', value: result.mode === 'exam' ? '🏆 Exam' : '🌱 Practice' },
-          { label: 'Time', value: `${mins}m ${secs}s` },
+          { label: 'Time', value: timeLabel },
           { label: 'Grade', value: `Grade ${result.grade}` },
         ].map(stat => (
           <div key={stat.label} className="theme-card theme-border rounded-2xl border p-3 text-center shadow-elev-sm animate-slide-in-soft">

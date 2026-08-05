@@ -771,10 +771,13 @@ happened.
    with. The differ's rules and the old path's baseline; the old-vs-new
    comparison lands with `persist/`.
 6. Session, marking (`clientKey` + `none` behind the verdict seam) and the
-   renderers, built against quizzes as §5.0 sets out. The session goes first
+   renderers, built against quizzes as §5.0 sets out. The session went first
    and by a different discipline — **characterise-then-conform**, since there
    is no seam to extract from 1,985 lines of React state. The contract suite is
    `src/engines/assessment-engine/session/characterisation/sessionContract.jsx`
    and the old runner passes it, which is what makes it a description of
-   reality rather than of an intention.
+   reality rather than of an intention. ✅ session (#2124), ✅ marking +
+   `persist/` (#2125 — the first engine writes, and the point at which §3.3's
+   comparison became real: every recorded attempt now replays through BOTH
+   paths and the journals are diffed). Renderers remain.
 7. Cutovers: past-paper → quizzes → games, each gated on §5.1.
