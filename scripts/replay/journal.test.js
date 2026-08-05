@@ -170,6 +170,106 @@ test('volatility is an exact field match, not a prefix or substring rule', () =>
   assert.equal(diffJournals(j(w({ myTimeSpent: 1 })), j(w({ myTimeSpent: 2 }))).identical, false)
 })
 
+// ── compareWallClock ─────────────────────────────────────────────────────────
+//
+// The exemption is a property of LIVE capture. Two journals replayed from a
+// fixture were handed the same injected clock, so the duration is fully
+// determined and must be compared — exempting it there is how a changed
+// rounding rule gets through, which a control on the baseline proved.
+
+test('a wall-clock field IS compared when the clock was injected', () => {
+  const a = j(w({ timeSpent: 42 }))
+  const b = j(w({ timeSpent: 43 }))
+  assert.equal(diffJournals(a, b).identical, true, 'live capture: still exempt')
+  assert.equal(diffJournals(a, b, { compareWallClock: true }).identical, false)
+})
+
+test('compareWallClock does NOT un-exempt server timestamps or auto-ids', () => {
+  // Those are assigned by Firestore, not by either path, and no injected clock
+  // makes them deterministic. Widening one exemption must not widen the others.
+  const a = j(w({ completedAt: 'A', id: 'x1' }))
+  const b = j(w({ completedAt: 'B', id: 'x2' }))
+  assert.equal(diffJournals(a, b, { compareWallClock: true }).identical, true)
+})
+
+// ── Declared deviations ──────────────────────────────────────────────────────
+
+const DEV = (over = {}) => ({
+  write: 0, field: 'timeSpent', from: 0, to: null, reason: 'unknown start', ...over,
+})
+
+test('a declared deviation is accepted when it occurs EXACTLY as declared', () => {
+  const a = j(w({ score: 1, timeSpent: 0 }))
+  const b = j(w({ score: 1, timeSpent: null }))
+  const { identical, differences } = diffJournals(a, b, { deviations: [DEV()], compareWallClock: true })
+  assert.equal(identical, true, differences.join('; '))
+})
+
+test('a deviation to a DIFFERENT value than declared is still a difference', () => {
+  // "this field may differ" would pass here. Stating both sides is what makes
+  // the exception a decision rather than a hole.
+  const a = j(w({ timeSpent: 0 }))
+  const b = j(w({ timeSpent: -1 }))
+  const { identical, differences } = diffJournals(a, b, { deviations: [DEV()], compareWallClock: true })
+  assert.equal(identical, false)
+  assert.ok(differences.some((d) => d.includes('declared deviation not met')))
+  assert.ok(differences.some((d) => d.includes('unknown start')), 'the reason must be shown at the failure')
+})
+
+test('a deviation whose FROM side is wrong is caught', () => {
+  // The old path changing is as much a break as the new one changing.
+  const a = j(w({ timeSpent: 5 }))
+  const b = j(w({ timeSpent: null }))
+  assert.equal(diffJournals(a, b, { deviations: [DEV()], compareWallClock: true }).identical, false)
+})
+
+test('a declared deviation that never occurs is itself a difference', () => {
+  // The half that stops an allowance outliving its reason. Both paths agreeing
+  // is normally the goal — here it means the declaration is stale.
+  const a = j(w({ timeSpent: 7 }))
+  const b = j(w({ timeSpent: 7 }))
+  const { identical, differences } = diffJournals(a, b, { deviations: [DEV()], compareWallClock: true })
+  assert.equal(identical, false)
+  assert.ok(differences.some((d) => d.includes('never occurred')))
+})
+
+test('a deviation declared on a field that is absent is reported, not ignored', () => {
+  const a = j(w({ score: 1 }))
+  const b = j(w({ score: 1 }))
+  assert.equal(diffJournals(a, b, { deviations: [DEV()] }).identical, false)
+})
+
+test('a deviation applies to ONE write, not to every write of that shape', () => {
+  const a = j(w({ timeSpent: 0 }), w({ timeSpent: 0 }))
+  const b = j(w({ timeSpent: null }), w({ timeSpent: null }))
+  const { identical, differences } = diffJournals(a, b, { deviations: [DEV()], compareWallClock: true })
+  assert.equal(identical, false, 'the second write was never declared')
+  assert.ok(differences.some((d) => d.includes('write[1].timeSpent')))
+})
+
+test('a deviation reaches a NESTED field by its dotted path', () => {
+  const a = j(w({ topicScores: { Addition: { correct: 1, total: 2 } } }))
+  const b = j(w({ topicScores: { Addition: { correct: null, total: 2 } } }))
+  const dev = { write: 0, field: 'topicScores.Addition.correct', from: 1, to: null, reason: 'x' }
+  assert.equal(diffJournals(a, b, { deviations: [dev] }).identical, true)
+})
+
+test('a deviation missing a side is refused outright', () => {
+  // A half-written declaration would otherwise read as "from: undefined",
+  // which quietly matches an absent field.
+  assert.throws(
+    () => diffJournals(j(w({ x: 1 })), j(w({ x: 2 })), { deviations: [{ write: 0, field: 'x', to: 2, reason: 'r' }] }),
+    /must state both/,
+  )
+})
+
+test('with no options, the differ behaves exactly as it did before', () => {
+  // The signature grew; the default must not have moved. A silent change here
+  // would rewrite what every existing comparison means.
+  assert.equal(diffJournals(j(w({ timeSpent: 1 })), j(w({ timeSpent: 2 }))).identical, true)
+  assert.equal(diffJournals(j(w({ score: 1 })), j(w({ score: 2 }))).identical, false)
+})
+
 // ── The recorder ─────────────────────────────────────────────────────────────
 
 test('the recorder records operation, path and payload in order', () => {

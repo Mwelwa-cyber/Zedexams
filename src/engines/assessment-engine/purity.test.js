@@ -34,8 +34,16 @@ import { dirname, join, relative } from 'node:path'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 
-/** The directories whose contents must run under plain node. */
-const PURE_DIRS = ['schemas', 'normalise']
+/**
+ * The directories whose contents must run under plain node.
+ *
+ * `marking` and `persist` joined when they landed. They are the layers that
+ * decide a learner's mark and what is written for it, so "can this be asserted
+ * without a browser" is not a stylistic question about them — the replay
+ * comparison in `scripts/replay/` runs them under plain node and could not
+ * exist otherwise.
+ */
+const PURE_DIRS = ['schemas', 'normalise', 'marking', 'persist']
 
 /** [pattern, why]. The "why" prints on failure — a bare token teaches nothing. */
 const FORBIDDEN = [
@@ -94,7 +102,7 @@ const scanned = PURE_DIRS.flatMap(filesIn)
 // A scan over nothing passes vacuously, which is the failure mode that makes a
 // guard look green while guarding an empty set.
 test('the scan actually found files to scan', () => {
-  assert.ok(scanned.length >= 3, `expected at least 3 source files, found ${scanned.length}`)
+  assert.ok(scanned.length >= 8, `expected at least 8 source files, found ${scanned.length}`)
 })
 
 for (const file of scanned) {

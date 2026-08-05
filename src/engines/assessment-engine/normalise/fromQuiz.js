@@ -41,6 +41,34 @@ function correctIndexOf(question) {
 }
 
 /**
+ * The question fields the grading modules read, other than the canonical ones
+ * (`id`, `type`, `marks`, `topic`) the marking projection supplies itself.
+ *
+ * **This list is derived, not chosen.** `answerKeyCoverage.test.js` scans the
+ * grading modules for every `question.X` they read and fails if this drops one
+ * — or carries one nothing reads.
+ *
+ * It had to. The list shipped in #2120 carried `blanks` and `labels`, which no
+ * grader has ever read, and omitted `statements`, `diagramLabels`,
+ * `matchingLeft` and `sequenceItems`, which four of them do. Nothing consumed
+ * the canonical `answerKey` yet, so it cost nothing — until `persist/` became
+ * its first consumer, at which point every fill-in-the-blanks, diagram-label,
+ * matching and sequence question would have graded as a silent zero. An empty
+ * answer key does not throw; it just marks the learner wrong.
+ */
+export const ANSWER_KEY_FIELDS = Object.freeze([
+  'correctAnswer',   // mcq / truefalse / numeric — the key itself
+  'tolerance',       // numeric
+  'correctRegion',   // hotspot
+  'statements',      // fill_blanks — the blanks are counted out of these
+  'diagramLabels',   // diagram_label
+  'matchingLeft',    // matching — the response array is aligned to it
+  'matchingAnswer',  // matching
+  'sequenceItems',   // sequence — likewise
+  'sequenceAnswer',  // sequence
+])
+
+/**
  * Everything type-specific that is NOT the choice index.
  *
  * Passed through untouched. The grading modules (`numericGrading`,
@@ -50,10 +78,7 @@ function correctIndexOf(question) {
  */
 function answerKeyOf(question) {
   const key = {}
-  for (const field of [
-    'correctAnswer', 'tolerance', 'correctRegion',
-    'blanks', 'labels', 'matchingAnswer', 'sequenceAnswer',
-  ]) {
+  for (const field of ANSWER_KEY_FIELDS) {
     if (question[field] !== undefined) key[field] = question[field]
   }
   return key

@@ -19,7 +19,15 @@ found in the existing runners rather than invented:
 | `five-option-mcq.json` | more than four options (the schema admits 20) — the D4 defect's shape |
 | `legacy-plain-string.json` | a question stored before RichContent existed |
 | `zero-score.json` | every answer wrong — distinguishable from "nothing answered" |
+| `typed-answer-keys.json` | the four types whose answer key is not `correctAnswer` — fill_blanks, matching, sequence, diagram_label |
 
 A fixture is added when a real edge case is found, and the case it represents
 is named in the table above. An unexplained fixture is a fixture nobody can
 tell is still needed.
+
+`typed-answer-keys.json` is the one that earned its place after the fact. Every
+other fixture is MCQ, so all of them passed whether or not the normaliser
+carried `statements`, `diagramLabels`, `matchingLeft` and `sequenceItems` — and
+it did not. Four question types would have marked as a silent zero through the
+engine behind a green comparison. A fixture set that agrees with itself about
+which shapes matter is the one blind spot a comparison harness cannot report.
