@@ -1,8 +1,8 @@
 {
-  "fixtureId": "vr-004",
-  "family": "docx",
+  "fixtureId": "vr-005",
+  "family": "browser-print",
   "copy": "paper",
-  "identity": "docx/libreoffice-24.2.7.2",
+  "identity": "browser-print/chromium-151.0.7922.47",
   "sourceCommit": "7cc469fd9cb1baa63ea7fcb8b265cd3372cca213",
   "source": "2108",
   "reason": "puppeteer 25.4.0 rolls its pinned Chrome from 150.0.7871.24 to 151.0.7922.47. Every fixture is re-rendered by a different browser build, so all 18 baselines move at once: the 9 browser-print targets change baseline identity to chromium-151.0.7922.47, and the 9 docx targets are refused by assertComparableEnvironment because the docx stage rasterises library SVG figures through Chromium. No paper content, layout code or export rule changed in this PR - the renderer did.",
@@ -50,48 +50,49 @@
     "timeZone": "Africa/Lusaka",
     "fixedDate": "2026-01-15"
   },
-  "command": "soffice --headless --norestore --nolockcheck --nodefault --nofirststartwizard -env:UserInstallation=file:///tmp/visual-vr-004-bHQlj9/.loprofile --convert-to pdf:writer_pdf_Export --outdir /tmp/visual-vr-004-bHQlj9 /tmp/visual-vr-004-bHQlj9/vr-004.docx",
+  "command": "chromium page.pdf (preferCSSPageSize)",
   "pageCount": 1,
   "anchors": {
     "question_1": 1,
+    "question_2": 1,
     "header": 1,
-    "diagram_1": 1
+    "diagram_1": 1,
+    "diagram_2": 1
   },
   "inkByPage": {
-    "1": 0.021602236362967594
+    "1": 0.045010919351409856
   },
   "figures": {
     "unresolvedFigureCount": 0,
     "unresolvedFigures": [],
     "placeholders": 0,
-    "docx": {
-      "drawings": 1,
-      "blips": 1,
-      "svgBlips": 0,
-      "svgParts": [],
-      "pngParts": [
-        "word/media/75536aa7e81ee4acd0822d0731f788b71689b365.png"
-      ],
-      "imageRelationships": 1,
-      "placeholders": 0
-    },
+    "docx": null,
     "detected": {
       "1": [
         {
-          "x": 448,
-          "y": 404,
-          "width": 344,
-          "height": 344,
-          "cells": 1846,
-          "source": "placement",
+          "x": 104,
+          "y": 696,
+          "width": 1032,
+          "height": 208,
+          "cells": 874,
+          "source": "ink",
           "anchor": "diagram_1"
+        },
+        {
+          "x": 456,
+          "y": 1200,
+          "width": 328,
+          "height": 264,
+          "cells": 689,
+          "source": "ink",
+          "anchor": "diagram_2"
         }
       ]
     }
   },
   "hashes": {
     "environment.json": "ddaae25a7baa8b065fdc6e21c679c77fc80d72c31e35bfc77ab198b7bf5254c9",
-    "layout.json": "7f7e2d1da92585fd92472791b17541558caf6e89f669a223cd181c769832b641",
-    "page-01.png": "1a5e68b79af6ee312f1dbbb68f7b5fa85db2a5a15665c37c53068bc07ca14bb2"
+    "layout.json": "ad828055bb2e4db90b3fb79347f0489ec84761326318591f7a2926edace55193",
+    "page-01.png": "fb431a3c3507739f09899a40468ec909f0b22639e7306c49b1ceda80d69f48bc"
   }
 }
