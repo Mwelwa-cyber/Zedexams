@@ -38,7 +38,11 @@ vi.mock('../../seo/SeoHelmet', () => ({ default: () => null }))
 // ── Already-handled view stubs (plain null — we don't need to inspect them) ──
 vi.mock('../views/LessonPlanView',    () => ({ default: () => <div data-testid="lesson-plan-view" /> }))
 vi.mock('../views/WorksheetView',     () => ({ default: () => <div data-testid="worksheet-view" /> }))
-vi.mock('../views/FlashcardsView',    () => ({ default: () => <div data-testid="flashcards-view" /> }))
+// Mocked at the feature's front door, which is how the component imports it.
+// This also keeps the spec off the feature's module graph: the index re-exports
+// useFlashcardProgress, which pulls AuthContext and firebase/config in at import
+// time — a presentational stub should not need Firebase configured.
+vi.mock('../../../features/flashcards', () => ({ FlashcardsView: () => <div data-testid="flashcards-view" /> }))
 vi.mock('../views/SchemeOfWorkView',  () => ({ default: () => <div data-testid="scheme-of-work-view" /> }))
 vi.mock('../views/WeeklyForecastView',() => ({ default: () => <div data-testid="weekly-forecast-view" /> }))
 vi.mock('../views/RecordOfWorkView',  () => ({ default: () => <div data-testid="record-of-work-view" /> }))

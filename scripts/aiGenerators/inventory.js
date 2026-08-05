@@ -262,7 +262,7 @@ export const INVENTORY = Object.freeze([
       + 'scanLessonPlanArtifactReads, orthogonal to this idempotency migration.',
   }),
   g('functions/teacherTools/generateFlashcards.js', {
-    clientModule: 'src/components/teacher/generate/FlashcardGenerator.jsx',
+    clientModule: 'src/features/flashcards/pages/FlashcardGenerator.jsx',
     clientLockKey: 'flashcards-studio:generate',
     tier: 3,
     state: 'migrated',

@@ -19,7 +19,7 @@ import { paywall } from '../../utils/paywall'
 import { getStudioSample } from '../../data/studioSamples'
 
 import WorksheetView from './views/WorksheetView'
-import FlashcardsView from './views/FlashcardsView'
+import { FlashcardsView } from '../../features/flashcards'
 import SchemeOfWorkView from './views/SchemeOfWorkView'
 import WeeklyForecastView from './views/WeeklyForecastView'
 import RecordOfWorkView from './views/RecordOfWorkView'

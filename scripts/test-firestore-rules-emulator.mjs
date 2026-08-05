@@ -2387,6 +2387,89 @@ async function main() {
     }))
   })
 
+  // ── flashcardProgress ────────────────────────────────────────
+  // Per-learner mastery for a saved deck, one document per user+deck keyed
+  // `{uid}_{deckId}` (src/features/flashcards/services/flashcardProgress.js).
+  // The rules existed before this suite covered them; the migration that gave
+  // the feature a home is what put a test behind them (architecture.md §14.12).
+  //
+  // The id is derived, not server-assigned, so the interesting question is not
+  // "can a learner write progress" but "can a learner write progress into
+  // ANOTHER learner's document" — the id is the only thing standing between
+  // the two, and it comes from the client.
+  section('flashcardProgress — owner-scoped, id is not authority, admin-only delete')
+
+  const DECK = 'deck_alpha'
+  const progressIdFor = (uid) => `${uid}_${DECK}`
+
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'flashcardProgress', progressIdFor(LEARNER_A)), {
+      uid: LEARNER_A, deckId: DECK, masteredCards: [0, 1], totalCards: 10, status: 'in-progress',
+    })
+  })
+
+  await test('a learner can read their own flashcard progress', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'flashcardProgress', progressIdFor(LEARNER_A))))
+  })
+
+  await test("a learner cannot read another learner's flashcard progress", async () => {
+    await assertFails(getDoc(doc(learnerB, 'flashcardProgress', progressIdFor(LEARNER_A))))
+  })
+
+  await test('an admin can read any learner flashcard progress', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'flashcardProgress', progressIdFor(LEARNER_A))))
+  })
+
+  await test('a learner can create their own progress document', async () => {
+    await assertSucceeds(setDoc(doc(learnerB, 'flashcardProgress', progressIdFor(LEARNER_B)), {
+      uid: LEARNER_B, deckId: DECK, masteredCards: [], totalCards: 10, status: 'not-started',
+    }))
+  })
+
+  await test('a learner cannot create a progress document claiming another uid', async () => {
+    // The document id is the client's to choose, so the rule that matters is
+    // the one comparing the uid FIELD to the token — not the id.
+    await assertFails(setDoc(doc(learnerB, 'flashcardProgress', 'forged_id'), {
+      uid: LEARNER_A, deckId: DECK, masteredCards: [9], totalCards: 10, status: 'in-progress',
+    }))
+  })
+
+  await test("a learner cannot overwrite another learner's progress", async () => {
+    await assertFails(setDoc(doc(learnerB, 'flashcardProgress', progressIdFor(LEARNER_A)), {
+      uid: LEARNER_B, deckId: DECK, masteredCards: [0], totalCards: 10, status: 'in-progress',
+    }, { merge: true }))
+  })
+
+  // Control for the two field-validation cases below: the same write, by the
+  // same learner, differing ONLY in the field under test. Without it a denial
+  // proves nothing — every one of these writes would also fail if the owner
+  // check were broken, and the test would stay green with the field validator
+  // deleted.
+  await test('the owner CAN update their own progress with valid fields', async () => {
+    await assertSucceeds(setDoc(doc(learnerA, 'flashcardProgress', progressIdFor(LEARNER_A)), {
+      uid: LEARNER_A, deckId: DECK, masteredCards: [0, 1, 2], totalCards: 10, status: 'in-progress',
+    }, { merge: true }))
+  })
+
+  await test('a status outside the allowed vocabulary is rejected', async () => {
+    // The client half derives this string (flashcardProgressCore.js); a fourth
+    // status added there without the rule would be refused here, on a device.
+    await assertFails(setDoc(doc(learnerA, 'flashcardProgress', progressIdFor(LEARNER_A)), {
+      uid: LEARNER_A, deckId: DECK, masteredCards: [0], totalCards: 10, status: 'mastered',
+    }, { merge: true }))
+  })
+
+  await test('a totalCards beyond the field ceiling is rejected', async () => {
+    await assertFails(setDoc(doc(learnerA, 'flashcardProgress', progressIdFor(LEARNER_A)), {
+      uid: LEARNER_A, deckId: DECK, masteredCards: [0], totalCards: 5000, status: 'in-progress',
+    }, { merge: true }))
+  })
+
+  await test('a learner cannot delete their own progress; an admin can', async () => {
+    await assertFails(deleteDoc(doc(learnerA, 'flashcardProgress', progressIdFor(LEARNER_A))))
+    await assertSucceeds(deleteDoc(doc(admin, 'flashcardProgress', progressIdFor(LEARNER_A))))
+  })
+
   await testEnv.cleanup()
 
   // ── summary ──────────────────────────────────────────────────

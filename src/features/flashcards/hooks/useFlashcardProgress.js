@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../../../contexts/AuthContext'
 import {
   getFlashcardProgress,
   saveFlashcardProgress,
-} from '../features/flashcards/lib/progress'
+} from '../services/flashcardProgress'
 
 /**
  * Loads and persists mastery state for a single flashcard deck.
