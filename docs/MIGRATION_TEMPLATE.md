@@ -32,6 +32,17 @@ Four places the grep above will *not* find, and all four bit during Phase 2:
 | Machine-readable inventories (`scripts/aiGenerators/inventory.js`) | Path lives in a data record | A contract clause that does `existsSync` flips to false and a CI guard goes red |
 | `lazy(() => import('<old path>'))` | ESLint does not inspect dynamic imports | **Runtime** chunk-load error on that route only |
 | A test that covers your file *and others* | The file name never appears | Your move orphans one case of a shared test |
+| A **path-classified CI list** — `scripts/visual/printAffectingPaths.js` | The path is a string in a list, not an import | A renderer that leaves the list stops triggering the visual gate, which then reports green **because it never ran** |
+
+The last row did not bite in Phase 2 — the flashcard exporters were never on the
+print-affecting list, because the visual fixtures render assessment papers, and
+the gate correctly skipped. **Phase 4 will bite**: `assessmentToDocx.js`,
+`assessmentPaperLayout.js`, `paperContentModel.js` and their neighbours are on
+that list by exact path. `npm run test:visual-paths` fails when a listed non-glob
+path stops existing, so the guard is real — but update the list in the same
+commit as the move rather than discovering it from a red build, and read that
+file's own note about `src/config/paperTaxonomy.js`: *"a pattern for a moved file
+protects nothing and reads exactly like one that works."*
 
 Record the answer to two questions before writing any code:
 
