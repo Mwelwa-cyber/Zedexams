@@ -147,8 +147,32 @@ test('the allow-list matches a uid exactly, and tolerates a pasted space', () =>
   assert.equal(decide(config, { uid: null, visitorId: 'staff-1' }).engine, false)
 })
 
+test('the allow-list reads as TEXT or as an array — two doors, one meaning', () => {
+  // The admin control is a textarea, so it stores text however the operator
+  // pasted it; a value written by hand through the Firebase console is an
+  // array. Accepting one shape and not the other makes the allow-list work
+  // depending on which door it came through, and the failure is silent — the
+  // pilot account just does not get the engine.
+  const shapes = [
+    ['staff-1\nstaff-2', ['staff-1', 'staff-2']],
+    ['staff-1, staff-2', ['staff-1', 'staff-2']],
+    ['  staff-1  ', ['staff-1']],
+    ['staff-1\r\n\r\nstaff-2\n', ['staff-1', 'staff-2']],
+    ['', []],
+    ['   ', []],
+    [['staff-1', 'staff-2'], ['staff-1', 'staff-2']],
+  ]
+  for (const [written, expected] of shapes) {
+    assert.deepEqual(normaliseRolloutUids(written), expected, JSON.stringify(written))
+  }
+  for (const rolloutUids of ['staff-1\nstaff-2', ['staff-1', 'staff-2']]) {
+    assert.equal(decide({ pastPaperQuiz: true, rolloutUids }, { uid: 'staff-2' }).engine, true)
+    assert.equal(decide({ pastPaperQuiz: true, rolloutUids }, { uid: 'staff-3' }).engine, false)
+  }
+})
+
 test('a malformed allow-list is an EMPTY list, never a partial read', () => {
-  for (const rolloutUids of ['staff-1', { 0: 'staff-1' }, 42, null]) {
+  for (const rolloutUids of [{ 0: 'staff-1' }, 42, null, true]) {
     assert.deepEqual(normaliseRolloutUids(rolloutUids), [])
     assert.equal(decide({ pastPaperQuiz: true, rolloutUids }, { uid: 'staff-1' }).engine, false)
   }
