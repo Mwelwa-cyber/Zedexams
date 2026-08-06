@@ -284,6 +284,7 @@
     "test:launcher-core": "node src/components/teacher/dashboardV2/launcher/teacherLauncherCore.test.js",
     "test:dashboard-v2-links": "node scripts/test-dashboard-v2-links.mjs",
     "test:teacher-nav-active": "node src/components/teacher/dashboardV2/teacherNavActive.test.js",
+    "test:shared-primitive-theming": "node src/components/ui/sharedPrimitiveTheming.test.js",
     "test:notification-links": "node scripts/test-notification-links.mjs",
     "test:route-targets": "node scripts/test-route-targets.mjs",
     "test:dashboard-v2-tour": "node src/components/teacher/dashboardV2/onboardingTourCore.test.js",

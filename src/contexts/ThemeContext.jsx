@@ -1,7 +1,9 @@
-import { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react'
+import { createContext, useContext, useCallback, useEffect, useState } from 'react'
 import { TEACHER_THEMES, isTeacherThemeId } from './teacherThemeCore'
 import {
   applyTeacherThemeAttribute,
+  hydrateTeacherTheme as hydrateTeacherThemeValue,
+  registerTeacherThemePersister,
   useTeacherThemeValue,
   writeTeacherTheme,
 } from './teacherThemeStore'
@@ -179,25 +181,22 @@ export function ThemeProvider({ children }) {
    * make the theme layer untestable without Firebase.
    *
    * So <TeacherThemeSync> (rendered inside AuthProvider, in App.jsx)
-   * registers the writer here. Until it does, setTeacherTheme still works
-   * fully — it just persists to localStorage only, which is exactly the
-   * right behaviour for a signed-out visitor.
+   * registers the writer, and does so ON THE STORE rather than here. This
+   * provider is only one of the two routes to a theme write — the dashboard's
+   * light/dark toggle is the other, and it cannot use context because those
+   * surfaces render standalone in their specs. A persister held here was
+   * therefore reachable from the settings picker and invisible to the toggle,
+   * which is what left the profile holding Night while the device held light
+   * and made every reload flip back to dark. See teacherThemeStore.js.
+   *
+   * Until a writer is registered, setTeacherTheme still works fully — it just
+   * persists to localStorage only, which is exactly the right behaviour for a
+   * signed-out visitor.
    */
-  const persistRef = useRef(null)
-
-  const registerTeacherThemePersister = useCallback((fn) => {
-    persistRef.current = fn
-    return () => { if (persistRef.current === fn) persistRef.current = null }
-  }, [])
 
   /** A deliberate choice by the user — applies everywhere and persists. */
   const setTeacherTheme = useCallback((id) => {
-    // Apply first, on its own line. Folding this into the argument of an
-    // optional call — `persistRef.current?.(writeTeacherTheme(id))` — means
-    // the argument is never evaluated when no persister is registered, so
-    // the theme silently fails to apply for every signed-out visitor.
-    const next = writeTeacherTheme(id)
-    persistRef.current?.(next)
+    writeTeacherTheme(id)
   }, [])
 
   /**
@@ -207,7 +206,7 @@ export function ThemeProvider({ children }) {
    */
   const hydrateTeacherTheme = useCallback((id) => {
     if (!isTeacherThemeId(id)) return
-    writeTeacherTheme(id)
+    hydrateTeacherThemeValue(id)
   }, [])
 
   // boot.js already set the attribute pre-paint from the same localStorage
