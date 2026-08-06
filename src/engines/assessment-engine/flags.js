@@ -127,11 +127,25 @@ export function normaliseRolloutPercent(value) {
   return Math.floor(raw)
 }
 
-/** The uid allow-list, normalised. Anything that is not an array of non-empty
- *  strings is an empty list — fail closed, never a partial read. */
+/**
+ * The uid allow-list, normalised.
+ *
+ * Two shapes, because two things write it. The admin control is a textarea, so
+ * it stores TEXT — one uid per line, or comma-separated, however the operator
+ * pasted them. A value written by hand through the Firebase console is an
+ * ARRAY. Accepting only one of those would make the allow-list work depending
+ * on which door it came through, and the failure is silent: the pilot account
+ * simply does not get the engine and nothing says why.
+ *
+ * Anything else is an empty list — fail closed, never a partial read.
+ */
 export function normaliseRolloutUids(value) {
-  if (!Array.isArray(value)) return []
-  return value
+  const entries = typeof value === 'string'
+    // Whitespace and commas both separate. A uid contains neither, so this
+    // cannot split one in half.
+    ? value.split(/[\s,]+/)
+    : (Array.isArray(value) ? value : [])
+  return entries
     .filter((entry) => typeof entry === 'string')
     .map((entry) => entry.trim())
     .filter(Boolean)

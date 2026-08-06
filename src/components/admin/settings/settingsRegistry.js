@@ -335,9 +335,14 @@ export const SETTINGS_CATEGORIES = [
           { key: 'featureFlags.assessmentEngine.quiz', label: 'Learner quizzes', type: 'toggle', default: false, help: 'The /quiz/:quizId route. Writes a results document — do not flip before the past-paper canary has run clean.', keywords: ['assessment engine', 'quiz', 'rollout', 'cutover'] },
           { key: 'featureFlags.assessmentEngine.game', label: 'Timed quiz game', type: 'toggle', default: false, help: 'The timed_quiz game engine. Flipped LAST — four write targets, including the leaderboard.', keywords: ['assessment engine', 'game', 'timed quiz', 'rollout', 'cutover'] },
           { key: 'featureFlags.assessmentEngine.rolloutPercent', label: 'Rollout (%)', type: 'number', default: 0, min: 0, max: 100, help: 'Narrows all three switches to a share of visitors, bucketed on a stable per-visitor id. 0 = nobody (so a switch on its own changes nothing), 100 = everyone. Raising it only ADDS visitors — nobody already on the engine is moved off by a ramp-up. Below 1% rounds to nobody.', keywords: ['assessment engine', 'rollout', 'percent', 'canary', 'gradual'] },
-          // rolloutUids is an array and has no control type here — same as
-          // passkeyRolloutUids. Editing it via the config JSON is how a single
-          // account gets the engine before strangers do.
+          // A real control rather than "edit the config JSON". The registry is
+          // the ONLY thing normalizeSettings, exportConfig and validateImport
+          // traverse, so an unregistered key is silently dropped on import and
+          // absent from every export — which made the documented staff-pilot
+          // path impossible to perform. Text, not an array, because that is
+          // what a textarea stores; the resolver accepts both shapes so a value
+          // written through the Firebase console still works.
+          { key: 'featureFlags.assessmentEngine.rolloutUids', label: 'Always on for these accounts', type: 'textarea', default: '', help: 'Account UIDs, one per line (or comma-separated), that get the engine regardless of the rollout percentage — how you try a runner on your own account before any learner sees it. It does NOT survive the switch above: turning a runner off reverts these accounts too, so a rollback is total.', keywords: ['assessment engine', 'rollout', 'allow list', 'pilot', 'staff', 'uid'] },
         ],
       },
     ],

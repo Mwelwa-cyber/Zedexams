@@ -29,9 +29,11 @@ import assert from 'node:assert/strict'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, relative } from 'node:path'
-import { ENGINE_FLAG_KEY, ENGINE_RUNNERS } from '../src/engines/assessment-engine/flags.js'
+import { ENGINE_FLAG_KEY, ENGINE_RUNNERS, normaliseRolloutUids } from '../src/engines/assessment-engine/flags.js'
 import { SETTINGS_CATEGORIES } from '../src/components/admin/settings/settingsRegistry.js'
-import { allFields } from '../src/components/admin/settings/settingsCore.js'
+import {
+  allFields, exportConfig, getPath, normalizeSettings, validateImport,
+} from '../src/components/admin/settings/settingsCore.js'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SRC = join(ROOT, 'src')
@@ -158,13 +160,45 @@ test('the ramp has an admin control, defaulting to nobody', () => {
   assert.equal(field.max, 100)
 })
 
+test('the allow-list has an admin control, and it is REACHABLE', () => {
+  // It shipped without one, documented as "edit the config JSON". That path
+  // does not exist: `normalizeSettings`, `exportConfig` and `validateImport`
+  // traverse the registry and nothing else, so an unregistered key is dropped
+  // on import and missing from every export. The staff pilot — one account on
+  // the engine before any learner — was therefore impossible to perform
+  // through the advertised workflow, silently.
+  const field = fields.get(`featureFlags.${ENGINE_FLAG_KEY}.rolloutUids`)
+  assert.ok(field, 'no allow-list control — the staff-pilot step cannot be performed at all')
+  assert.equal(field.type, 'textarea', 'a textarea stores text; there is no array control type')
+  assert.equal(field.default, '')
+})
+
+test('the staff pilot survives a config export and re-import', () => {
+  // The claim, end to end, rather than "a field is declared". `validateImport`
+  // and `exportConfig` traverse `allFields()`, so an unregistered key is
+  // dropped on the way in and absent on the way out — and both halves fail
+  // silently, which is why this is asserted rather than eyeballed.
+  const key = `featureFlags.${ENGINE_FLAG_KEY}.rolloutUids`
+  const blank = normalizeSettings({})
+  const imported = validateImport({ featureFlags: { [ENGINE_FLAG_KEY]: { rolloutUids: 'staff-1\nstaff-2' } } }, blank)
+  assert.deepEqual(imported.errors, [], imported.errors.join('; '))
+  assert.ok(imported.applied.includes(key), 'an imported allow-list is silently discarded')
+  assert.equal(getPath(imported.values, key), 'staff-1\nstaff-2')
+  assert.equal(getPath(exportConfig(imported.values).values, key), 'staff-1\nstaff-2',
+    'the allow-list is missing from the export, so it cannot be round-tripped')
+  // And the resolver reads what the admin page stored, without a translation
+  // step in between — that is the whole point of one normaliser.
+  assert.deepEqual(normaliseRolloutUids(getPath(imported.values, key)), ['staff-1', 'staff-2'])
+})
+
 test('no admin control exists for a runner the engine does not have', () => {
   // The mirror of the check above. A leftover toggle reads as a live switch
   // and resolves to `unknown-runner` — off, silently, forever.
+  const NARROWING_CONTROLS = ['rolloutPercent', 'rolloutUids']
   const declared = [...fields.keys()].filter((k) => k.startsWith(`featureFlags.${ENGINE_FLAG_KEY}.`))
   const unknown = declared.filter((k) => {
     const leaf = k.split('.').pop()
-    return leaf !== 'rolloutPercent' && !ENGINE_RUNNERS.includes(leaf)
+    return !NARROWING_CONTROLS.includes(leaf) && !ENGINE_RUNNERS.includes(leaf)
   })
   assert.deepEqual(unknown, [], `these controls flip nothing: ${unknown.join(', ')}`)
 })
