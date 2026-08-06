@@ -43,6 +43,19 @@ an artifact and `collectBootstrapRecordings.mjs` merges them — including the
 review-sheet sidecars, since taking either one whole would describe half the
 diff.
 
+The merge alone could not tell that half the diff was *missing*, though: a union
+of the entries that arrived has no gap where the ones that never arrived would
+have been. `open-pull-request`'s `if:` proves neither recorder failed, not what
+either delivered — so a successful recorder whose artifact was lost (an upload
+matching no files, an expired artifact, an edited download `pattern`) produced
+the same half-a-diff by silence. The collector is therefore handed each
+recorder's job result: `success` owes an artifact and a lost one fails the step
+by name, `skipped` owes nothing. A result it was **not** given is refused rather
+than read as nothing-owed, so dropping the `env:` block that supplies them
+breaks the dispatch instead of quietly disarming it. The uploads also carry
+`if-no-files-found: error`, which puts a recorder that hands over nothing on the
+job whose log says why.
+
 ### The first dispatch failed, and where
 
 Run `31072103730` rendered all 16 captures, wrote them, committed them and

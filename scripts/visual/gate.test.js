@@ -26,6 +26,11 @@ import {
 } from './gateCore.js'
 import { VISUAL_FIXTURES } from './fixtures.js'
 import { PRINT_AFFECTING_PATHS } from './printAffectingPaths.js'
+// The bootstrap's recorders as the COLLECTOR declares them. Imported rather
+// than re-listed here: the arrival check is a pairing between a job result the
+// workflow sets and an env var the script reads, and a list copied into the
+// test would agree with itself while the two halves drifted apart.
+import { RECORDERS as COLLECTOR_RECORDERS } from './collectBootstrapRecordings.mjs'
 
 let passed = 0
 function test(name, fn) {
@@ -689,6 +694,54 @@ test('the recordings reach the pull-request job as artifacts', () => {
   assert.ok(download, 'the pull-request job collects them')
   assert.equal(download.with.pattern, 'bootstrap-recording-*',
     'it must collect BOTH recorders by pattern rather than naming one')
+})
+
+test('a recorder that hands over nothing fails where the reason for it is', () => {
+  // `if-no-files-found: warn` was the default this inherited, and on a job whose
+  // entire product is an artifact it is the wrong one: the upload matches no
+  // files, no artifact is created, the recorder goes green, and the loss appears
+  // two jobs later as a pull request quietly missing a family. `error` puts the
+  // failure in the job whose log says why it rendered nothing.
+  for (const [name, job] of Object.entries(RECORDERS)) {
+    const upload = job.steps.find((s) => /upload-artifact/.test(s.uses || ''))
+    assert.equal(upload.with['if-no-files-found'], 'error',
+      `${name}: an empty upload must fail the recorder, not travel on as an absence`)
+  }
+})
+
+test('the collection is TOLD what each recorder produced', () => {
+  // The merge cannot notice an absence — entries never downloaded are not
+  // missing from a union of the ones that were — so the arrival check reads the
+  // job results instead of inferring them from what came back.
+  //
+  // Asserted against the script's own declaration rather than a literal list:
+  // the env var it reads and the one the workflow sets are the two halves of one
+  // pairing, and a rename that changes only one is the way this quietly stops
+  // working. (The script refuses a result it was not given, so a dropped `env:`
+  // block fails the dispatch rather than disarming it — this test moves that
+  // failure to CI, before anyone spends a recording run on it.)
+  const step = bootstrapWorkflow.jobs['open-pull-request'].steps
+    .find((s) => /collectBootstrapRecordings/.test(s.run || ''))
+  assert.ok(step, 'the pull-request job collects the recordings')
+  for (const recorder of COLLECTOR_RECORDERS) {
+    assert.ok(Object.hasOwn(bootstrapWorkflow.jobs, recorder.job),
+      `${recorder.job}: the collector expects a recorder job the workflow does not have`)
+    const supplied = String((step.env || {})[recorder.env] || '')
+    assert.match(supplied, new RegExp(`needs\\.${recorder.job}\\.result`),
+      `${recorder.env} must carry ${recorder.job}'s result, or a lost recording cannot be told `
+      + 'from one that was never dispatched')
+  }
+  // And each declared artifact is one the download pattern actually collects.
+  const download = bootstrapWorkflow.jobs['open-pull-request'].steps
+    .find((s) => /download-artifact/.test(s.uses || ''))
+  const pattern = new RegExp(`^${String(download.with.pattern).replace('*', '.*')}$`)
+  for (const recorder of COLLECTOR_RECORDERS) {
+    assert.match(recorder.artifact, pattern, `${recorder.job}: looked for by a name nothing downloads`)
+    const upload = bootstrapWorkflow.jobs[recorder.job].steps
+      .find((s) => /upload-artifact/.test(s.uses || ''))
+    assert.equal(upload.with.name, recorder.artifact,
+      `${recorder.job}: uploads under a different name than the collector looks for`)
+  }
 })
 
 test('every writer takes its review sheet from the recorder, not from YAML', () => {

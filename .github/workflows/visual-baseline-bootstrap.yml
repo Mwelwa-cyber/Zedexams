@@ -136,6 +136,10 @@ jobs:
           if [ "${{ inputs.family }}" != "all" ]; then ARGS+=(--family="${{ inputs.family }}"); fi
           node scripts/visual/runVisualGate.mjs "${ARGS[@]}"
 
+      # `error`, not `warn`. A recorder that renders and hands over nothing must
+      # say so HERE, where the log explaining why is — with `warn` the job goes
+      # green, no artifact is created, and the loss surfaces two jobs later as a
+      # pull request quietly missing this family's baselines.
       - name: Hand the recording to the pull-request job
         uses: actions/upload-artifact@v4
         with:
@@ -144,7 +148,7 @@ jobs:
             tests/visual/baselines/**
             tests/visual/output/**
           retention-days: 30
-          if-no-files-found: warn
+          if-no-files-found: error
 
   record-screen:
     name: Record the missing SCREEN baselines
@@ -189,6 +193,7 @@ jobs:
           if [ -n "${{ inputs.fixture }}" ]; then ARGS+=(--fixture="${{ inputs.fixture }}"); fi
           node scripts/visual/screen/runScreenGate.mjs "${ARGS[@]}"
 
+      # `error` for the same reason as the paper recorder above.
       - name: Hand the recording to the pull-request job
         uses: actions/upload-artifact@v4
         with:
@@ -197,7 +202,7 @@ jobs:
             tests/visual/baselines/**
             tests/visual/output/**
           retention-days: 30
-          if-no-files-found: warn
+          if-no-files-found: error
 
   open-pull-request:
     name: Open a pull request for the new baselines
@@ -241,7 +246,18 @@ jobs:
       # sidecar on its own runner, so neither is the whole story — merged here
       # rather than letting the second overwrite the first, which is how a pull
       # request ends up describing half its own diff.
+      #
+      # The recorder RESULTS are passed in because the merge cannot notice an
+      # absence: entries that were never downloaded are not missing from a union
+      # of the ones that were. `success` means that recorder owes an artifact and
+      # a lost one fails this step by name; `skipped` means the dispatch narrowed
+      # it away and nothing is owed. The step refuses a result it was not given
+      # rather than reading silence as "nothing owed" — dropping this `env:` block
+      # must break the collection, not quietly disarm it.
       - name: Collect the recordings into one review sheet
+        env:
+          RECORD_PAPER_RESULT: ${{ needs.record-paper.result }}
+          RECORD_SCREEN_RESULT: ${{ needs.record-screen.result }}
         run: node scripts/visual/collectBootstrapRecordings.mjs incoming
 
       # The pages that are about to become the reference, published whatever
