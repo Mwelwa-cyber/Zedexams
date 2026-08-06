@@ -32,20 +32,27 @@ export function HeaderIconButton({ label, icon: ActionIcon, active = false, impo
     <div className="group/tt relative flex flex-col items-center">
       <button
         type="button"
+        // `active` and `important` are the semantic info/warning tokens, not
+        // fixed blue-50/amber-50 pairs: those have no dark treatment, so on
+        // Night the one button carrying state was a pale box in a dark header
+        // — the state read as a rendering fault rather than as emphasis.
         className={`zx-card relative flex items-center justify-center border shadow-elev-sm transition-all min-h-0 ${s.button} ${
           active
-            ? 'border-blue-200 bg-blue-50 text-blue-700'
+            ? 'bg-info-subtle text-info theme-border'
             : important
-              ? 'border-amber-200 bg-amber-50 text-amber-700'
+              ? 'bg-warning-subtle text-warning theme-border'
               : 'theme-card theme-border learner-chrome-icon hover:theme-accent-bg hover:theme-accent-text'
         }`}
         {...buttonProps}
       >
         <Icon as={ActionIcon} size={s.icon} strokeWidth={2.1} />
         {badge ? (
+          // The ring separates the badge from the button beneath it, so it has
+          // to be the SURFACE colour, not white — a fixed white ring is a halo
+          // on a dark header.
           <span
             aria-hidden="true"
-            className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black leading-none text-white ring-2 ring-white"
+            className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-black leading-none text-white ring-2 ring-[color:var(--card)]"
           >
             {badge}
           </span>
