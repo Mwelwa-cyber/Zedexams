@@ -28,7 +28,7 @@
  * for the two directories where a violation would also break `test:all`.
  */
 import assert from 'node:assert/strict'
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, relative } from 'node:path'
 
@@ -44,6 +44,17 @@ const HERE = dirname(fileURLToPath(import.meta.url))
  * exist otherwise.
  */
 const PURE_DIRS = ['schemas', 'normalise', 'marking', 'persist']
+
+/**
+ * Individual files at the engine root that must run under node too.
+ *
+ * `flags.js` decides which runner a learner gets. Its React binding lives in
+ * `src/hooks/`, and the split only holds while the decision itself imports
+ * nothing that needs a browser — the moment it reads `window` or a context,
+ * the "resolved in exactly one module" rule has quietly become "resolved in
+ * one module and whatever that module can see".
+ */
+const PURE_FILES = ['flags.js']
 
 /** [pattern, why]. The "why" prints on failure — a bare token teaches nothing. */
 const FORBIDDEN = [
@@ -97,12 +108,18 @@ function test(name, fn) {
 
 console.log('assessment engine — purity of the node-tested layers')
 
-const scanned = PURE_DIRS.flatMap(filesIn)
+const scanned = [...PURE_DIRS.flatMap(filesIn), ...PURE_FILES.map((f) => join(HERE, f))]
 
 // A scan over nothing passes vacuously, which is the failure mode that makes a
 // guard look green while guarding an empty set.
 test('the scan actually found files to scan', () => {
-  assert.ok(scanned.length >= 8, `expected at least 8 source files, found ${scanned.length}`)
+  assert.ok(scanned.length >= 9, `expected at least 9 source files, found ${scanned.length}`)
+})
+
+test('every named root file exists — a renamed one would silently leave the scan', () => {
+  for (const file of PURE_FILES) {
+    assert.ok(existsSync(join(HERE, file)), `${file} is listed as pure but is not there`)
+  }
 })
 
 for (const file of scanned) {
