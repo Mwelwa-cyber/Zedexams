@@ -311,9 +311,27 @@ nobody is looking at the pull request any more.
 
 ```bash
 # the sweep, before dispatching dependent work
-gh pr view <n>  -R Mwelwa-cyber/Zedexams --json reviewThreads,comments
-gh api repos/Mwelwa-cyber/Zedexams/pulls/<n>/comments --jq '.[] | {user: .user.login, path, body: .body[:120]}'
+node scripts/sweepPrReviewThreads.mjs 2143          # unresolved threads
+node scripts/sweepPrReviewThreads.mjs 2143 --all    # resolved ones too
 ```
+
+It flags the comments that arrived **after** the merge, which is the question
+this section actually asks. Needs `gh`, authenticated.
+
+> The command printed here used to be
+> `gh pr view <n> --json reviewThreads,comments`, and it **exits 1**:
+> `reviewThreads` is a field on the GraphQL `PullRequest` type, and
+> `gh pr view --json` accepts a different, fixed set that does not include it.
+> So the documented sweep had never been run by anyone — in a section written
+> *because* unread review comments had cost two days. A rule its reader cannot
+> execute is worse than no rule: it produces confidence in sweeps that never
+> happened.
+>
+> Hence a script rather than prose. `npm run test:pr-sweep` fails if this
+> document stops naming it or starts inlining a `gh pr view --json` call asking
+> for a GraphQL-only field, and `sweep-command-check.yml` runs it daily against
+> a real merged pull request — because a shape check cannot tell you a query is
+> valid against GitHub's schema, and that is exactly what went wrong here.
 
 A comment on a merged pull request is not stale by virtue of the merge. Either
 it is wrong — say so in a reply and resolve it — or it describes something now

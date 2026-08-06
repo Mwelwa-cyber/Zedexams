@@ -741,7 +741,8 @@
     "test:visitor-id": "node src/utils/visitorId.test.js",
     "test:baseline-summary": "node scripts/visual/baselineSummary.test.js",
     "test:bootstrap-collect": "node scripts/visual/collectBootstrapRecordings.test.js",
-    "test:render-environment": "node scripts/visual/renderEnvironment.test.js"
+    "test:render-environment": "node scripts/visual/renderEnvironment.test.js",
+    "test:pr-sweep": "node scripts/test-pr-review-sweep.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
