@@ -16,6 +16,33 @@ To arm it: dispatch **Visual baseline bootstrap** from `main` with
 `family=screen`. It opens a draft pull request with the recorded pages, which
 is the one human look this gate gets — baselines lock whatever they show.
 
+### The second dispatch succeeded and was still unusable
+
+Run `31089421536` recorded all 16, opened #2137 — and stamped
+`libreoffice: 24.2.7.2` into `environment.json`, with a 54-font digest that
+includes `fonts-liberation`.
+
+The bootstrap installed LibreOffice unconditionally, for the paper families,
+and then recorded the screen family in the same job. Both of those values are
+compared by `assertComparableEnvironment` (`libreoffice` is an identity field;
+`fonts.digest` is checked separately), and the comparing job in
+`visual-regression.yml` installs neither. So the baselines were
+**irreproducible by construction**: correct images, a clean review sheet, and
+every later comparison throwing an environment error instead of comparing
+anything.
+
+The bootstrap now records in two jobs, mirroring the compare workflow's own
+split — `record-paper` with LibreOffice, `record-screen` with Chromium alone —
+and `open-pull-request` needs both, tolerating whichever the dispatch skipped.
+Two guards hold it: `assertScreenEnvironmentIsClean` refuses the recording
+before a single byte is written, and `test:visual-gate` refuses a workflow edit
+that puts LibreOffice back in the screen job. Neither is a comment.
+
+Because the recorders no longer share a workspace, each hands its work over as
+an artifact and `collectBootstrapRecordings.mjs` merges them — including the
+review-sheet sidecars, since taking either one whole would describe half the
+diff.
+
 ### The first dispatch failed, and where
 
 Run `31072103730` rendered all 16 captures, wrote them, committed them and

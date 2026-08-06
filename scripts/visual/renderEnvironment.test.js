@@ -19,7 +19,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import {
   RenderEnvironmentError, RENDER_SETTINGS, CHROMIUM_FLAGS, LIBREOFFICE_ARGS,
   captureRenderEnvironment, baselineIdentity, assertComparableEnvironment,
-  assertToolchain, chromiumVersion, libreOfficeVersion, fontDigest,
+  assertToolchain, assertScreenEnvironmentIsClean, chromiumVersion, libreOfficeVersion, fontDigest,
   resolveRenderChromium,
 } from './renderEnvironment.js'
 
@@ -315,6 +315,56 @@ await (async () => {
       /Chromium/,
       'a missing browser is an infrastructure failure',
     )
+  })
+})()
+
+/* ── A screen baseline may not be recorded in a paper environment ──────────
+   The failure is silent in every way that usually catches things: the render
+   succeeds, the images are correct, the page checks pass, the pull request
+   opens. What breaks is the NEXT run — `libreoffice` is an identity field and
+   the same apt install shifts `fonts.digest`, so the comparing job, which
+   installs neither, can only ever throw. #2137 recorded sixteen such baselines.
+   Refused at RECORD time, because by compare time they are already approved. */
+;(() => {
+  const clean = { chromium: '151.0.0.0', fonts: { count: 40, digest: 'abc' } }
+
+  test('a Chromium-only environment records fine', () => {
+    assert.doesNotThrow(() => assertScreenEnvironmentIsClean(clean))
+    assert.doesNotThrow(() => assertScreenEnvironmentIsClean({ ...clean, libreoffice: '' }))
+    assert.doesNotThrow(() => assertScreenEnvironmentIsClean({ ...clean, libreoffice: null }))
+    assert.doesNotThrow(() => assertScreenEnvironmentIsClean({}))
+  })
+
+  test('LibreOffice in the environment refuses the recording, and names it', () => {
+    assert.throws(
+      () => assertScreenEnvironmentIsClean({ ...clean, libreoffice: '24.2.7.2' }),
+      (err) => err instanceof RenderEnvironmentError
+        && /LibreOffice \(24\.2\.7\.2\)/.test(err.message)
+        && /comparing job can reproduce|never installs LibreOffice/.test(err.message),
+      'the refusal must say which version it found and why it matters',
+    )
+  })
+
+  test('the environment #2137 actually recorded is refused', () => {
+    // Not a synthetic case: these are the values from
+    // tests/visual/baselines/screen/chromium-151.0.7922.47/environment.json on
+    // the branch that bootstrap opened.
+    assert.throws(() => assertScreenEnvironmentIsClean({
+      chromium: '151.0.7922.47',
+      libreoffice: '24.2.7.2',
+      fonts: { count: 54, digest: '20b5398451fb9a3a' },
+    }), RenderEnvironmentError)
+  })
+
+  test('the recorder calls it BEFORE it writes anything', () => {
+    // Order is the whole point: called after the loop, sixteen unusable
+    // baselines are already on disk and the run has already "succeeded".
+    const src = readFileSync(new URL('./screen/runScreenGate.mjs', import.meta.url), 'utf8')
+    const guard = src.indexOf('assertScreenEnvironmentIsClean(environment)')
+    const write = src.indexOf('writeFileSync(file, c.png)')
+    assert.ok(guard > 0, 'the screen recorder does not call the guard at all')
+    assert.ok(write > 0, 'the screen recorder no longer writes baselines?')
+    assert.ok(guard < write, 'the guard runs after the first baseline is written')
   })
 })()
 
