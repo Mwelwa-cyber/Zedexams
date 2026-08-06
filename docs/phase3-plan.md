@@ -513,13 +513,54 @@ Developer → Feature flags, and `test:engine-flag-single-reader` fails the buil
 if a runner exists without one — an unreachable rollback is not a rollback.
 
 **The one thing a consumer must not get wrong:** `useAssessmentEngineFlag`
-returns `resolved` alongside the decision. Before the `settings/global` snapshot
-arrives the flags are the context's defaults, which resolve — correctly, fail-
-closed — to the old runner. Mounting on that answer and re-mounting when the
-real document lands swaps the runner out from under a learner who may already
+returns `resolved` alongside the decision. Before the inputs are final the flags
+are the context's defaults and `currentUser` is null, which resolve — correctly,
+fail-closed — to the old runner. Mounting on that answer and re-mounting when
+the real inputs land swaps the runner out from under a learner who may already
 have answered something, and an answer held in the old runner's state does not
 survive into the new one. Gate the mount on `resolved`. The cost is a skeleton
 frame on a public, crawled route, and it belongs to the cutover PR to weigh.
+
+### 4.2.2 When the decision is final, and when it may change (#2134, #2135)
+
+Three corrections from the Codex review of #2130, each of which made a
+documented property false rather than merely incomplete.
+
+- **`resolved` waits for BOTH inputs.** It read only the settings snapshot.
+  `settings/global` is world-readable and served from Firestore's IndexedDB
+  cache, while Firebase restores the auth session asynchronously —
+  `AuthContext.jsx` documents that "for the first frames `auth.currentUser` is
+  null even for a returning logged-in user". Settings can win that race, and
+  `resolved` then marked an ANONYMOUS-id decision final.
+- **The decision is latched once resolved, in ONE direction.** A flag change is
+  a live snapshot, so a ramp from 10% to 25% would move a learner already
+  answering onto the other runner and discard the answers held in the
+  runner being unmounted. An **upgrade waits**; a **rollback applies at once**,
+  because §7.3 says flip the flag off without discussion and a symmetric latch
+  would spare exactly the population a rollback is for. The latch is per hook
+  instance — per attempt, not per device — so the next mount decides afresh.
+  (Owner decision, 2026-08-06.)
+- **A dead settings listener no longer preserves an enabled rollout.** Firestore
+  does not resume a listener after `onError`, and the provider kept the last
+  snapshot, so a client in that state held an enabled flag until it reloaded.
+  `PlatformSettingsContext` now reports `live`; the binding withholds the flags
+  when the read has died and the resolver reaches its own fail-closed answer.
+
+**The rollback's cost, stated per runner rather than in general**, because "the
+attempt" and "since the last autosave" are different promises:
+
+| runner | what a rollback mid-attempt costs |
+|---|---|
+| past-paper | in-memory answers only — `PublicQuizRunner` persists no draft at all, just the free-preview tally. Nothing to resume in either direction, which is part of why it is the canary. |
+| quizzes | **conditional.** The old runner's draft is `useQuizPersistence`, keyed `examprep:quiz:session:{quizId}:{uid}`, written by an effect on every meaningful state change rather than on a timer. If the engine's session writes that same key and shape, the old runner resumes it and the cost is at most the change in flight. If it writes anywhere else, `loadQuizSession` returns null and the cost is the whole attempt. |
+| games | not analysed; four write targets and its own chrome. |
+
+The engine has **no session module today** (`session/` holds only the
+characterisation contract), so there is no engine-written draft to resume and
+the answer above is a requirement rather than a description. **Draft
+byte-compatibility is therefore an entry criterion for the QUIZZES cutover**,
+in the same sense §3 makes the `results` write one: proven by replay before the
+flag flips, not discovered during a rollback.
 
 Five rules:
 

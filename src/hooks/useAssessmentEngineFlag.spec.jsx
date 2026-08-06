@@ -14,7 +14,7 @@ import { useAssessmentEngineFlag } from './useAssessmentEngineFlag.js'
 
 // Stable mock objects: a fresh object per call re-renders forever.
 const platform = { settings: { featureFlags: {} }, loaded: true, live: true }
-const auth = { currentUser: null }
+const auth = { currentUser: null, loading: false }
 vi.mock('../contexts/PlatformSettingsContext', () => ({ usePlatformSettings: () => platform }))
 vi.mock('../contexts/AuthContext', () => ({ useAuth: () => auth }))
 
@@ -26,6 +26,7 @@ beforeEach(() => {
   platform.loaded = true
   platform.live = true
   auth.currentUser = null
+  auth.loading = false
 })
 
 describe('useAssessmentEngineFlag', () => {
@@ -104,6 +105,125 @@ describe('useAssessmentEngineFlag', () => {
     rerender()
     expect(result.current.engine).toBe(false)
     expect(result.current.source).toBe('runner-off')
+    expect(result.current.latched).toBe(false)
+  })
+
+  // ── The latch: an upgrade waits, a rollback does not ───────────────────────
+
+  it('a ramp-up does NOT move a learner already on the old runner', () => {
+    // The failure: 10% → 25% includes this visitor, the documented conditional
+    // render unmounts the runner they are answering in, and the answers held in
+    // its state do not survive into the replacement.
+    window.localStorage.setItem('zedexams:anonId', 'anon-device-2') // bucket 87
+    setFlags({ pastPaperQuiz: true, rolloutPercent: 50 })
+    const { result, rerender } = renderHook(() => useAssessmentEngineFlag('pastPaperQuiz'))
+    expect(result.current.engine).toBe(false)
+
+    setFlags({ pastPaperQuiz: true, rolloutPercent: 90 }) // 87 < 90 — now included
+    rerender()
+    expect(result.current.engine).toBe(false)
+    // The flags DO say yes; the hook is holding the runner it started on, and
+    // says so rather than pretending the flags disagree.
+    expect(result.current.source).toBe('rollout-bucket')
+    expect(result.current.latched).toBe(true)
+  })
+
+  it('a rollback moves them AT ONCE, latch or no latch', () => {
+    // §7.3: flip the flag off without discussion. A latch that spared the
+    // learners already mid-attempt would leave the failure running for exactly
+    // the population the rollback exists for.
+    setFlags({ pastPaperQuiz: true, rolloutPercent: 100 })
+    const { result, rerender } = renderHook(() => useAssessmentEngineFlag('pastPaperQuiz'))
+    expect(result.current.engine).toBe(true)
+
+    setFlags({ pastPaperQuiz: false, rolloutPercent: 100 })
+    rerender()
+    expect(result.current.engine).toBe(false)
+  })
+
+  it('a rollback is not undone by turning the flag back on', () => {
+    // Re-enabling after an incident must not drag every learner mid-attempt
+    // back onto the engine. They finish where they are; the next mount decides
+    // afresh.
+    setFlags({ pastPaperQuiz: true, rolloutPercent: 100 })
+    const { result, rerender } = renderHook(() => useAssessmentEngineFlag('pastPaperQuiz'))
+    setFlags({ pastPaperQuiz: false, rolloutPercent: 100 })
+    rerender()
+    expect(result.current.engine).toBe(false)
+    setFlags({ pastPaperQuiz: true, rolloutPercent: 100 })
+    rerender()
+    expect(result.current.engine).toBe(false)
+    expect(result.current.latched).toBe(true)
+  })
+
+  it('a fresh mount decides afresh — the latch is per attempt, not per device', () => {
+    setFlags({ pastPaperQuiz: true, rolloutPercent: 100 })
+    const first = renderHook(() => useAssessmentEngineFlag('pastPaperQuiz'))
+    setFlags({ pastPaperQuiz: false, rolloutPercent: 100 })
+    first.rerender()
+    expect(first.result.current.engine).toBe(false)
+
+    setFlags({ pastPaperQuiz: true, rolloutPercent: 100 })
+    expect(renderHook(() => useAssessmentEngineFlag('pastPaperQuiz')).result.current.engine).toBe(true)
+  })
+
+  it('nothing is latched before the decision is final', () => {
+    // Latching the pre-resolution answer would freeze every learner onto the
+    // old runner permanently — the flag would appear to do nothing at all.
+    setFlags({ pastPaperQuiz: true, rolloutPercent: 100 })
+    platform.loaded = false
+    const { result, rerender } = renderHook(() => useAssessmentEngineFlag('pastPaperQuiz'))
+    expect(result.current.resolved).toBe(false)
+    platform.loaded = true
+    rerender()
+    expect(result.current.resolved).toBe(true)
+    expect(result.current.engine).toBe(true)
+  })
+
+  it('switching runner re-decides rather than carrying the other one over', () => {
+    setFlags({ pastPaperQuiz: false, quiz: true, rolloutPercent: 100 })
+    const { result, rerender } = renderHook(({ r }) => useAssessmentEngineFlag(r), {
+      initialProps: { r: 'pastPaperQuiz' },
+    })
+    expect(result.current.engine).toBe(false)
+    rerender({ r: 'quiz' })
+    expect(result.current.engine).toBe(true)
+  })
+
+  // ── Auth is the second input, and it can arrive last ───────────────────────
+
+  it('is NOT resolved while auth is still restoring', () => {
+    // The race: settings arrive from Firestore's IndexedDB cache while Firebase
+    // is still restoring the auth session, so `currentUser` is null for a
+    // returning learner. Marking that final would tell the consumer to mount on
+    // an ANONYMOUS-id decision, and the uid then lands in a different bucket.
+    setFlags({ pastPaperQuiz: true, rolloutPercent: 50 })
+    auth.loading = true
+    const { result, rerender } = renderHook(() => useAssessmentEngineFlag('pastPaperQuiz'))
+    expect(result.current.resolved).toBe(false)
+
+    auth.loading = false
+    auth.currentUser = { uid: 'learner-3' } // bucket 10 — inside 50%
+    rerender()
+    expect(result.current.resolved).toBe(true)
+    expect(result.current.engine).toBe(true)
+  })
+
+  it('the answer that lands is the UID answer, not the one auth had not supplied yet', () => {
+    // Decisive: the device buckets out of the ramp and the account buckets in.
+    // A hook that resolved before auth would commit the anonymous answer and
+    // latch the learner onto the old runner for the whole attempt.
+    window.localStorage.setItem('zedexams:anonId', 'anon-device-2') // bucket 87 — out
+    setFlags({ pastPaperQuiz: true, rolloutPercent: 50 })
+    auth.loading = true
+    const { result, rerender } = renderHook(() => useAssessmentEngineFlag('pastPaperQuiz'))
+    expect(result.current.engine).toBe(false)
+    expect(result.current.resolved).toBe(false)
+
+    auth.loading = false
+    auth.currentUser = { uid: 'learner-3' } // bucket 10 — in
+    rerender()
+    expect(result.current.engine).toBe(true)
   })
 
   it('reports whether the decision is final, and is fail-closed until it is', () => {
