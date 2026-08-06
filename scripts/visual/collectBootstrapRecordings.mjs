@@ -79,6 +79,46 @@ export function resolveVisualRoot(artifactDir) {
   return null
 }
 
+/**
+ * An artifact that describes baselines it did not bring.
+ *
+ * The count invariant compares what the recorders WROTE against what the review
+ * sheet DESCRIBES, and both of those live in the summary sidecar. An artifact
+ * that arrived carrying its `output/` tree but not its `baselines/` tree
+ * satisfies it perfectly: sixteen entries expected, sixteen entries merged,
+ * green — and then `git add tests/visual/baselines` stages nothing and the run
+ * prints "nothing to commit". A pull request whose body approves sixteen
+ * baselines over an empty diff, or no pull request at all.
+ *
+ * Which is worse than an obviously empty hand-off, because the body reads as
+ * evidence. Found by the parallel implementation in #2142, whose arrival check
+ * covers a case the count check structurally cannot: the count is derived from
+ * one half of the artifact and cannot notice the other half missing.
+ *
+ * @returns {string[]} why each hollow artifact is hollow; empty when all are whole
+ */
+export function hollowArtifacts(dirs) {
+  const hollow = []
+  for (const dir of dirs) {
+    const visualRoot = resolveVisualRoot(dir)
+    if (!visualRoot) continue                       // reported separately, as UNREADABLE
+    const sidecar = path.join(visualRoot, 'output', BASELINE_SUMMARY_ENTRIES)
+    if (!existsSync(sidecar)) continue              // describes nothing, so owes nothing
+    let describes = 0
+    try {
+      const parsed = JSON.parse(readFileSync(sidecar, 'utf8'))
+      describes = Array.isArray(parsed) ? parsed.length : 0
+    } catch { continue }
+    if (!describes) continue
+    if (!existsSync(path.join(visualRoot, 'baselines'))) {
+      hollow.push(
+        `${path.basename(dir)} describes ${describes} baseline(s) but carries no baselines/ tree`,
+      )
+    }
+  }
+  return hollow
+}
+
 /** Every artifact directory under `incoming`, in a stable order. */
 export function artifactDirs(incoming) {
   if (!existsSync(incoming)) return []
@@ -166,6 +206,20 @@ export function collectRecordings({ incoming, destRoot, jobs, log = () => {} }) 
       const from = path.join(visualRoot, tree)
       if (existsSync(from)) cpSync(from, path.join(destRoot, 'tests/visual', tree), { recursive: true })
     }
+  }
+
+  // Checked BEFORE the counts, because a hollow artifact PASSES the count
+  // invariant — both sides of that comparison are read from the sidecar this
+  // artifact still has. Reported on its own terms rather than as a miscount.
+  const hollow = hollowArtifacts(dirs)
+  if (hollow.length) {
+    throw new Error(
+      `HANDOFF HOLLOW: ${hollow.length} artifact(s) describe baselines they did not bring:\n`
+      + hollow.map((h) => `  ${h}`).join('\n')
+      + '\n\nThe review sheet would approve baselines that are not in the diff — a body that reads '
+      + 'as evidence over a pull request that changes nothing. Re-run the dispatch; if the recorder '
+      + 'logs show it wrote baselines, its upload lost them.',
+    )
   }
 
   const entries = mergeSummaryEntries(dirs)

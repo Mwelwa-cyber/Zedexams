@@ -15,8 +15,8 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import os from 'node:os'
 import path from 'node:path'
 import {
-  ARTIFACT_ROOT_CANDIDATES, artifactDirs, collectRecordings, mergeSummaryEntries, recorderJobsFromEnv,
-  resolveVisualRoot,
+  ARTIFACT_ROOT_CANDIDATES, artifactDirs, collectRecordings, hollowArtifacts, mergeSummaryEntries,
+  recorderJobsFromEnv, resolveVisualRoot,
 } from './collectBootstrapRecordings.mjs'
 import { BASELINE_SUMMARY_ENTRIES, renderBaselineSummary } from './baselineSummary.js'
 import { assertHandoffComplete, resolveExpectedRecordings, writeRecordedCount } from './handoffInvariant.js'
@@ -311,6 +311,65 @@ try {
     assert.throws(
       () => collectRecordings({ incoming, destRoot: dest, jobs: succeeded(16) }),
       /HANDOFF INCOMPLETE: the recorders wrote 16 baseline\(s\) but only 0 arrived/,
+    )
+  })
+
+  /* ── an artifact that describes what it did not bring ──────────────────── */
+
+  test('a hollow artifact — sidecar present, baselines tree gone — is named', () => {
+    // The case the COUNT invariant structurally cannot catch: both sides of that
+    // comparison are read from the sidecar this artifact still has, so sixteen
+    // expected meets sixteen merged and it passes. Then `git add` stages nothing
+    // and the run reports "nothing to commit" — over a body approving sixteen
+    // baselines. Found by the parallel implementation in #2142.
+    const root = path.join(tmp, 'hollow')
+    const dir = path.join(root, 'bootstrap-recording-screen')
+    mkdirSync(path.join(dir, 'output'), { recursive: true })
+    writeFileSync(path.join(dir, 'output', BASELINE_SUMMARY_ENTRIES),
+      JSON.stringify([entry('screen/a', 'screen', 'A'), entry('screen/b', 'screen', 'B')]))
+    const hollow = hollowArtifacts([dir])
+    assert.equal(hollow.length, 1)
+    assert.match(hollow[0], /describes 2 baseline\(s\) but carries no baselines\/ tree/)
+  })
+
+  test('a WHOLE artifact is not hollow, and neither is one describing nothing', () => {
+    // The second half matters as much: a recorder that wrote no new baselines
+    // legitimately ships no baselines tree, and calling that hollow would fail
+    // every already-exists re-dispatch.
+    const root = path.join(tmp, 'whole')
+    const whole = artifact(root, 'bootstrap-recording-screen', [entry('screen/a', 'screen', 'A')])
+    assert.deepEqual(hollowArtifacts([whole]), [])
+    // Two ways to describe nothing, and they take different paths through the
+    // check. No sidecar at all exits early; a sidecar holding an EMPTY list gets
+    // as far as the count — and only the second exercises `if (!describes)`,
+    // which is why the first alone left that line untested and a mutation
+    // deleting it uncaught.
+    const noSidecar = path.join(root, 'bootstrap-recording-paper')
+    mkdirSync(path.join(noSidecar, 'output'), { recursive: true })
+    assert.deepEqual(hollowArtifacts([noSidecar]), [])
+
+    const emptySidecar = path.join(root, 'bootstrap-recording-docx')
+    mkdirSync(path.join(emptySidecar, 'output'), { recursive: true })
+    writeFileSync(path.join(emptySidecar, 'output', BASELINE_SUMMARY_ENTRIES), '[]')
+    assert.deepEqual(hollowArtifacts([emptySidecar]), [],
+      'a recorder that wrote nothing ships no baselines tree, and that is not hollow')
+  })
+
+  test('END TO END: a hollow artifact stops the run instead of opening an empty PR', () => {
+    const incoming = path.join(tmp, 'e2e-hollow/incoming')
+    const dest = path.join(tmp, 'e2e-hollow/dest')
+    mkdirSync(incoming, { recursive: true })
+    const dir = recording(incoming, 'bootstrap-recording-screen', 16)
+    rmSync(path.join(dir, 'baselines'), { recursive: true })
+
+    assert.throws(
+      () => collectRecordings({ incoming, destRoot: dest, jobs: succeeded(16) }),
+      (err) => /HANDOFF HOLLOW/.test(err.message)
+        && /describes 16 baseline\(s\)/.test(err.message)
+        // Named on its own terms — this is not a miscount, and calling it one
+        // would send whoever reads it looking in the wrong place.
+        && !/HANDOFF INCOMPLETE/.test(err.message),
+      'a hollow artifact is reported as hollow, not as a count mismatch',
     )
   })
 
