@@ -258,6 +258,14 @@ export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null)
   const [userProfile, setUserProfile] = useState(null)
   const [loading, setLoading]         = useState(true)
+  // Has `onAuthStateChanged` actually fired? Distinct from `loading`, which the
+  // restoration watchdog also clears — after 5 s with no session hint, 30 s
+  // with one — so that a page renders rather than hanging on a slow cold start.
+  // In that window `loading === false` while `currentUser` is still null for a
+  // returning learner, which is fine for "show something" and wrong for
+  // "commit to an answer". Anything that FREEZES a per-user decision must wait
+  // for this one instead. Never set by the watchdog, by design.
+  const [authSettled, setAuthSettled] = useState(false)
   const [profileIssue, setProfileIssue] = useState(null)
   // Explicit React state, NOT derived from currentUser at render time:
   // user.reload() mutates the Firebase User in place, so a verification that
@@ -748,6 +756,16 @@ export function AuthProvider({ children }) {
 
     const unsub = onAuthStateChanged(auth, (user) => {
       clearTimeout(timeout)
+      // Firebase has actually spoken. Set HERE and nowhere else — in particular
+      // NOT by the watchdog above, which drops `loading` without knowing who
+      // the user is. `loading === false` therefore means "stop waiting", which
+      // is the right signal for rendering something; `authSettled` means "this
+      // is the answer", which is the only safe signal for a decision that gets
+      // frozen for the rest of a session. Conflating them lets a slow cold
+      // start latch a returning learner as anonymous. See
+      // `useAssessmentEngineFlag`, which is the first consumer to need the
+      // distinction.
+      setAuthSettled(true)
       if (import.meta.env.DEV) {
         console.info('[auth] auth state resolved:', user ? `uid=${user.uid}` : 'no user (signed out)')
       }
@@ -837,7 +855,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={{
-      currentUser, userProfile, loading, profileIssue,
+      currentUser, userProfile, loading, authSettled, profileIssue,
       emailVerified,
       needsEmailVerification: !!currentUser && emailVerified === false,
       refreshEmailVerification, resendVerificationEmail,
