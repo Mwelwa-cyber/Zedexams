@@ -95,6 +95,21 @@ export function resolveVisualRoot(artifactDir) {
  * covers a case the count check structurally cannot: the count is derived from
  * one half of the artifact and cannot notice the other half missing.
  *
+ * ## Each DESCRIBED FILE is checked, never the tree
+ *
+ * The first version of this asked whether a `baselines/` directory existed, and
+ * that proves nothing. Every recorder uploads `tests/visual/baselines/**` from a
+ * checkout that ALREADY contains the committed browser-print and docx
+ * baselines — so a screen artifact that lost all sixteen of its new pages still
+ * carries a large, non-empty `baselines/` tree of unrelated tracked files, and
+ * the check passed on precisely the dispatch it exists for. Raised by Codex on
+ * #2142 (`r3729107231`), three minutes after that pull request merged.
+ *
+ * So every entry names the file it describes and every named file must be
+ * present. An entry that names nothing is itself a failure: it cannot be
+ * verified, and treating unverifiable as acceptable is how the tree check
+ * passed.
+ *
  * @returns {string[]} why each hollow artifact is hollow; empty when all are whole
  */
 export function hollowArtifacts(dirs) {
@@ -104,15 +119,28 @@ export function hollowArtifacts(dirs) {
     if (!visualRoot) continue                       // reported separately, as UNREADABLE
     const sidecar = path.join(visualRoot, 'output', BASELINE_SUMMARY_ENTRIES)
     if (!existsSync(sidecar)) continue              // describes nothing, so owes nothing
-    let describes = 0
+    let entries = []
     try {
       const parsed = JSON.parse(readFileSync(sidecar, 'utf8'))
-      describes = Array.isArray(parsed) ? parsed.length : 0
+      entries = Array.isArray(parsed) ? parsed : []
     } catch { continue }
-    if (!describes) continue
-    if (!existsSync(path.join(visualRoot, 'baselines'))) {
+    if (!entries.length) continue
+
+    const unnamed = entries.filter((e) => typeof e?.path !== 'string' || !e.path)
+    if (unnamed.length) {
       hollow.push(
-        `${path.basename(dir)} describes ${describes} baseline(s) but carries no baselines/ tree`,
+        `${path.basename(dir)} has ${unnamed.length} entr${unnamed.length === 1 ? 'y' : 'ies'} that `
+        + 'do not name the baseline file they describe, so arrival cannot be verified',
+      )
+      continue
+    }
+    const missing = entries
+      .map((e) => e.path)
+      .filter((rel) => !existsSync(path.join(visualRoot, 'baselines', rel)))
+    if (missing.length) {
+      hollow.push(
+        `${path.basename(dir)} describes ${entries.length} baseline(s) but ${missing.length} did `
+        + `not arrive: ${missing.slice(0, 4).join(', ')}${missing.length > 4 ? ', …' : ''}`,
       )
     }
   }

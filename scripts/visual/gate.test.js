@@ -691,6 +691,19 @@ test('the recordings reach the pull-request job as artifacts', () => {
     'it must collect BOTH recorders by pattern rather than naming one')
 })
 
+test('every review-sheet entry names the baseline file it describes', () => {
+  // The collector verifies each described baseline actually arrived, and it can
+  // only do that if the entry says WHICH file it is. A builder that stopped
+  // setting `path` would make every entry unverifiable — and the check would
+  // then be refusing whole dispatches, or (worse, if that refusal were softened)
+  // waving them through. Both builders, because there are two and they are
+  // edited independently.
+  for (const builder of ['screen/screenBaselineSummary.js', 'runVisualGate.mjs']) {
+    const src = readFileSync(new URL(`./${builder}`, import.meta.url), 'utf8')
+    assert.match(src, /^\s*path: `/m, `${builder}: its entry names the baseline file`)
+  }
+})
+
 test('a recorder that hands over NOTHING fails on its own job', () => {
   // `if-no-files-found: error`, not the inherited `warn`. A recorder's entire
   // product is this artifact: with `warn` the upload matches no files, no

@@ -100,10 +100,18 @@ Every rendered page is attached to the workflow run.
 
 /** The whole entry, ready for `appendBaselineSummaryEntry`. */
 export function screenBaselineEntry(input) {
-  const { fixture, viewport, width, height } = input
+  const { fixture, viewport, width, height, identity } = input
   return {
     key: `screen/${fixture.id}/${viewport.id}`,
     family: 'screen',
+    // WHICH FILE this entry describes, relative to `tests/visual/baselines/`.
+    //
+    // The collector verifies every described baseline actually arrived in the
+    // artifact. Checking that a `baselines/` tree merely EXISTS proves nothing
+    // here: the recorder uploads the whole tree from a checkout that already
+    // contains the committed browser-print and docx baselines, so an artifact
+    // that lost every newly recorded screen page still has a non-empty one.
+    path: `${identity}/${fixture.id}/${viewport.id}.png`,
     columns: ['Fixture', 'Viewport', 'Image'],
     cells: [`${fixture.id} — ${fixture.title}`, viewport.id, `${width} × ${height}`],
     section: screenBaselineSection(input),
