@@ -346,6 +346,31 @@ function resolvesToFile(abs) {
   });
 }
 
+/**
+ * The file a relative specifier names, ignoring any query or hash.
+ *
+ * A specifier may carry one. Vite defines several (`?raw`, `?url`, `?worker`)
+ * and Node treats a query as part of the module KEY — which is how a test loads
+ * a fresh instance of a module holding page-load state, as
+ * `src/utils/visitorId.test.js` does to exercise its per-load memo. Both forms
+ * name the same file on disk. Stripping is not a loosening: the layer checks
+ * still apply to the resolved path, and a specifier whose BASE does not exist
+ * still fails, which is what the self-check below pins.
+ */
+function specifierPath(fromFile, spec) {
+  return resolve(dirname(fromFile), spec.replace(/[?#].*$/, ''));
+}
+
+{
+  const self = join(root, 'scripts/test-import-boundaries.mjs');
+  if (!resolvesToFile(specifierPath(self, './lib/declaredRoutes.mjs?fresh=1'))) {
+    fail('the resolver no longer sees through a query suffix — every ?query import now reads as missing');
+  }
+  if (resolvesToFile(specifierPath(self, './lib/does-not-exist.mjs?fresh=1'))) {
+    fail('a query suffix hides a missing file from the resolver — the check has been loosened, not taught');
+  }
+}
+
 /** `{layer, feature}` for a path under src/, or null if it is outside src/. */
 function locate(absPath) {
   const rel = relative(SRC, absPath);
@@ -374,7 +399,7 @@ for (const file of walk(SRC)) {
       continue;
     }
     if (!spec.startsWith('.')) continue;              // a package, not our tree
-    const resolvedPath = resolve(dirname(file), spec);
+    const resolvedPath = specifierPath(file, spec);
     if (inCode && !resolvesToFile(resolvedPath)) {
       fail(
         `${posix(file)} imports '${spec}', which resolves to nothing on disk` +

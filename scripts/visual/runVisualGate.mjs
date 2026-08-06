@@ -45,6 +45,7 @@ import {
 import {
   assertRenderComplete, assertBaselineExists, isInfrastructureFailure, RenderIncompleteError,
 } from './renderGuards.js'
+import { appendBaselineSummaryEntry } from './baselineSummary.js'
 import { comparePages, summarisePageComparison } from './compareRender.js'
 import { comparePagination } from './comparePagination.js'
 import {
@@ -196,10 +197,6 @@ console.log(`  ${fixtures.length} fixture(s), stages: ${stages.join(', ')}\n`)
 
 const verdicts = []
 const infrastructure = []
-// Every baseline this run wrote, in the order it wrote them. The review sheet is
-// rebuilt from the whole list after each one, so a run that dies partway still
-// leaves a sheet describing exactly what it managed to record.
-const baselineRecords = []
 let browser = null
 
 try {
@@ -746,35 +743,19 @@ function writeBaseline(fixture, identity, copy, render, layoutJson) {
   }
   guard('recorded.json')
   fs.writeFileSync(path.join(dir, 'recorded.json'), JSON.stringify(record, null, 2))
-  // Collected rather than written here. A bootstrap records many baselines and
-  // this file is the pull request's whole body: written per-record it would
-  // describe only the LAST one, and a reviewer would approve eighteen baselines
-  // from evidence about one.
-  baselineRecords.push({ fixture, record })
-  writeBaselineSummary(baselineRecords)
-}
-
-/**
- * The review sheet that becomes the baseline pull request's body.
- *
- * Written as a file rather than assembled in YAML because a reviewer approving
- * the FIRST appearance of a paper needs every one of these facts in front of
- * them, and a shell heredoc is where such a list quietly loses an item.
- *
- * Takes every record written so far, not one, because a bootstrap run records
- * many. The count leads the sheet: a reviewer must be able to see at a glance
- * that the number of baselines in the diff is the number described below it.
- */
-function writeBaselineSummary(records) {
-  const sections = records.map(({ fixture, record }) => baselineSummarySection(fixture, record))
-  const head = records.length === 1 ? '' : `# ${records.length} baselines recorded\n\n`
-    + '| Fixture | Family | Copy | Pages |\n|---|---|---|---|\n'
-    + records.map(({ record: r }) => `| ${r.fixtureId} | ${r.family} | ${r.copy} | ${r.pageCount} |`).join('\n')
-    + '\n\nEvery one is described in full below. Approving this pull request '
-    + 'approves all of them as the reference each later comparison is measured '
-    + 'against.\n\n---\n\n'
-  fs.mkdirSync(OUTPUT_DIR, { recursive: true })
-  fs.writeFileSync(path.join(OUTPUT_DIR, 'baseline-summary.md'), head + sections.join('\n\n---\n\n'))
+  // Appended rather than written outright. This file is the pull request's whole
+  // body: written per-record it would describe only the LAST one, and a reviewer
+  // would approve eighteen baselines from evidence about one. The accumulation
+  // now lives in `baselineSummary.js` and spans BOTH recorders, so a
+  // `family=all` dispatch cannot have one recorder erase the other's half of the
+  // sheet.
+  appendBaselineSummaryEntry(OUTPUT_DIR, {
+    key: `${record.family}/${record.fixtureId}/${record.copy}`,
+    family: record.family,
+    columns: ['Fixture', 'Copy', 'Pages'],
+    cells: [record.fixtureId, record.copy, String(record.pageCount)],
+    section: baselineSummarySection(fixture, record),
+  })
 }
 
 /** One baseline's section of the review sheet. */

@@ -16,6 +16,29 @@ To arm it: dispatch **Visual baseline bootstrap** from `main` with
 `family=screen`. It opens a draft pull request with the recorded pages, which
 is the one human look this gate gets — baselines lock whatever they show.
 
+### The first dispatch failed, and where
+
+Run `31072103730` rendered all 16 captures, wrote them, committed them and
+pushed `baseline/bootstrap-31072103730` — then died at `gh pr create`. The
+workflow treats a missing `tests/visual/output/baseline-summary.md` as a hard
+stop (baselines nobody can review must not become a pull request), and only the
+PAPER recorder wrote one. Everything expensive succeeded; the cheap part did not
+exist; and the images were stranded on an orphan branch.
+
+The review sheet now comes from `scripts/visual/baselineSummary.js`, which both
+recorders share, and each screen section states the fixture's claims, its
+viewport, the environment, the page checks that passed before the shutter, the
+sha256 of the approved bytes, and a checklist of what to look at. Entries
+ACCUMULATE across recorders rather than overwrite, so a `family=all` dispatch
+cannot have one recorder erase the other's half of its own diff.
+
+Why it reached main green: the workflow-side assertion existed from the start
+(`gate.test.js` — every writer reads the sheet and exits 1 without it); its
+recorder-side twin did not, so "a recorder that writes baselines writes a sheet"
+was true of one recorder and untested for the other. Both halves are asserted
+now, and `test:baseline-summary` builds the sheet the screen bootstrap would
+build, from the real fixture set, without a browser.
+
 ### Three states, three different claims
 
 | state | verdict | why |

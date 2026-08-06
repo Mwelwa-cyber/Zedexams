@@ -26,6 +26,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { PNG } from 'pngjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { appendBaselineSummaryEntry, BASELINE_SUMMARY_FILE } from '../baselineSummary.js'
 import { comparePages } from '../compareRender.js'
 import {
   baselineIdentity, captureRenderEnvironment, assertToolchain, assertComparableEnvironment,
@@ -33,10 +34,15 @@ import {
 } from '../renderEnvironment.js'
 import { renderScreenFixtures } from './screenStage.mjs'
 import { SCREEN_FIXTURES, SCREEN_VIEWPORTS } from './screenFixtures.js'
+import { screenBaselineEntry } from './screenBaselineSummary.js'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
 const BASELINES = path.join(ROOT, 'tests/visual/baselines/screen')
 const OUTPUT = path.join(ROOT, 'tests/visual/output/screen')
+// The review sheet sits one level up, beside the paper recorder's, because the
+// writer workflows read ONE path (`tests/visual/output/baseline-summary.md`) and
+// a `family=all` dispatch runs both recorders into it.
+const SUMMARY_DIR = path.join(ROOT, 'tests/visual/output')
 
 const arg = (name, fallback = '') => {
   const hit = process.argv.find((a) => a.startsWith(`--${name}=`))
@@ -100,9 +106,27 @@ if (mode === 'update') {
     writeFileSync(file, c.png)
     wrote += 1
     console.log(`record ${c.target}`)
+    // The review sheet, appended per recording — the same obligation the paper
+    // recorder has, and the one this runner did not meet. Its absence is not a
+    // cosmetic gap: `visual-baseline-bootstrap.yml` hard-stops when the sheet is
+    // missing, so a `family=screen` dispatch rendered, committed and pushed 16
+    // baselines and then failed at the pull-request step, every time.
+    appendBaselineSummaryEntry(SUMMARY_DIR, screenBaselineEntry({
+      fixture: fixtures.find((f) => f.id === c.fixtureId),
+      viewport: SCREEN_VIEWPORTS.find((v) => v.id === c.viewportId),
+      png: c.png,
+      width: c.width,
+      height: c.height,
+      identity,
+      environment,
+      reason,
+      source,
+      sourceCommit: process.env.GITHUB_SHA || '',
+    }))
   }
   writeFileSync(envPath, `${JSON.stringify({ environment, reason, source }, null, 2)}\n`)
   console.log(`\n${wrote} baseline${wrote === 1 ? '' : 's'} recorded under ${identity}`)
+  if (wrote) console.log(`review sheet: ${path.join(SUMMARY_DIR, BASELINE_SUMMARY_FILE)}`)
   process.exit(0)
 }
 

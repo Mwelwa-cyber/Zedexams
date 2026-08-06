@@ -1,6 +1,6 @@
 # ZedExams — Bug & Cleanup Report
 
-> Snapshot as of 2026-06-07 — verify before acting.
+> Snapshot as of 2026-08-06 — verify before acting.
 
 **Original audit:** 2026-04-18
 **Re-verified:** 2026-06-07 — almost everything below has shipped. Read "Current status" before acting on anything; the original audit's line/file references have drifted.
@@ -14,6 +14,10 @@ The 2026-04-18 audit found **no P0/P1 issues** and a list of P2 hardening + P3 c
 A teacher-side audit on 2026-07-11 (157 raw findings, 24 adversarially verified) fixed 23 issues — data-loss, silent-failure, and input bugs across the studios, register, library, scan import, and dashboard. The items below were confirmed real but deliberately deferred.
 
 ### Still open
+
+- **PASSKEY-001 · Two flaws inherited from the passkey rollout, found while copying it** — surfaced 2026-08-06 by Codex review of #2130 (the Assessment Engine flag plumbing), which modelled itself on the passkey rollout as `docs/phase3-plan.md` §4.1 directs. Both were verified against the passkey code, not assumed from the copy; both are fixed on the engine's side and left open here so the passkey work inherits them deliberately rather than by accident.
+  - **`passkeyRolloutUids` / `passkeyRolloutRoles` cannot be edited through the advertised path.** `settingsRegistry.js` documents them as "arrays, edited via config JSON", but `settingsCore.js`'s `normalizeSettings`, `exportConfig` and `validateImport` all traverse `allFields()` — the registry and nothing else. An unregistered key is therefore **silently dropped on import and absent from every export**, so the staged-rollout step those arrays exist for cannot be performed in the Platform Control Center at all. (Non-issue: `AdminSettings.jsx` saves with `setDoc(…, {merge: true})`, so a value written by other means is not destroyed by a settings save.) The engine's equivalent is now a registered `textarea` whose resolver accepts both text and an array; the same shape would work here.
+  - **`featureFlags.passkeyAuthenticationEnabled` is not fail-closed against a dead listener.** `PlatformSettingsContext`'s `onSnapshot` error callback warns and sets `loaded = true` but leaves the last settings object in place, and Firestore does not resume a listener after `onError`. A client whose subscription dies after a successful snapshot therefore keeps the last value **indefinitely**, so disabling passkeys cannot reach it until the page reloads — contradicting the fail-closed property `passkeyService.js:242` and `PasskeySection.jsx:34` both rely on. `settings/global` is world-readable (`firestore.rules:585-588`), so this is a terminal-failure path rather than a routine one, but the guarantee is still false as stated. Fix belongs in the context (expose subscription health) rather than at each consumer.
 
 - **AI-004 · Client-side Firebase AI Logic fails on quota (two teacher features broken, in two different ways)** — found in the 2026-08-05 console review ([`docs/security/AUDIT_LOG.md`](docs/security/AUDIT_LOG.md)). `firebasevertexai.googleapis.com` served **one production request in six weeks and it returned 429**; no paid quota appears to be configured on the AI Logic path. The two consumers are `src/utils/timetableExtraction.js` (timetable extraction) and `src/utils/forecastResourceSuggest.js` (weekly-forecast resource suggestions) — both reach Gemini via `src/utils/aiLogic.js` → `src/firebase/ai.js`. **The failure is not the same on both, checked against the error paths rather than assumed:**
   - `forecastResourceSuggest.js:65-68` catches, `console.warn`s, and returns `{ teacherResources: [], learnerResources: [] }` — a genuinely **silent** failure. The teacher sees empty suggestions and no indication anything went wrong.
