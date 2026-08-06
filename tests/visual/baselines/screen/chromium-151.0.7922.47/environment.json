@@ -1,0 +1,32 @@
+{
+  "environment": {
+    "chromium": "151.0.7922.47",
+    "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-151.0.7922.47/chrome-linux64/chrome",
+    "libreoffice": "24.2.7.2",
+    "os": "Linux 6.17.0-1020-azure",
+    "platform": "linux-x64",
+    "node": "v22.23.1",
+    "fonts": {
+      "count": 54,
+      "digest": "20b5398451fb9a3a"
+    },
+    "pageSize": "A4",
+    "pageWidthMm": 210,
+    "pageHeightMm": 297,
+    "marginsMm": {
+      "top": 20,
+      "right": 18,
+      "bottom": 16,
+      "left": 18
+    },
+    "dpi": 150,
+    "deviceScaleFactor": 1,
+    "locale": "en-GB",
+    "timeZone": "Africa/Lusaka",
+    "fixedDate": "2026-01-15",
+    "chromiumFlags": "--headless=new --disable-gpu --force-device-scale-factor=1 --font-render-hinting=none --disable-lcd-text --hide-scrollbars --no-first-run --disable-extensions --disable-features=NetworkService",
+    "libreOfficeArgs": "--headless --norestore --nolockcheck --nodefault --nofirststartwizard"
+  },
+  "reason": "First recording of the screen-family baselines. The screen visual gate landed on main in #2129 with no baselines, so it is green-unarmed; these renders are its first reference and are reviewed as the draft PR diff before the gate can compare against them. No existing baseline is replaced.",
+  "source": "#2129 (merge commit 15f4523)"
+}
