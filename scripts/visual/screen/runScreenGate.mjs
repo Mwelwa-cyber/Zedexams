@@ -27,6 +27,7 @@ import { PNG } from 'pngjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { appendBaselineSummaryEntry, BASELINE_SUMMARY_FILE } from '../baselineSummary.js'
+import { RECORDED_COUNT_OUTPUT, writeRecordedCount } from '../handoffInvariant.js'
 import { comparePages } from '../compareRender.js'
 import {
   baselineIdentity, captureRenderEnvironment, assertToolchain, assertComparableEnvironment,
@@ -133,6 +134,14 @@ if (mode === 'update') {
   writeFileSync(envPath, `${JSON.stringify({ environment, reason, source }, null, 2)}\n`)
   console.log(`\n${wrote} baseline${wrote === 1 ? '' : 's'} recorded under ${identity}`)
   if (wrote) console.log(`review sheet: ${path.join(SUMMARY_DIR, BASELINE_SUMMARY_FILE)}`)
+  // The count leaves by the Actions API, not inside the artifact — it is what
+  // the pull-request job checks the arriving recordings against, so it must
+  // travel by a channel the archive layout cannot lose. `wrote` is the loop's
+  // own counter rather than a re-count of the directory, because a re-count can
+  // agree with a broken write.
+  if (writeRecordedCount(wrote, process.env.GITHUB_OUTPUT)) {
+    console.log(`reported to the next job: ${RECORDED_COUNT_OUTPUT}=${wrote}`)
+  }
   process.exit(0)
 }
 

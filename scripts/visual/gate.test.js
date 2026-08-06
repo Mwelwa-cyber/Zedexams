@@ -691,6 +691,54 @@ test('the recordings reach the pull-request job as artifacts', () => {
     'it must collect BOTH recorders by pattern rather than naming one')
 })
 
+test('each recorder publishes what it wrote as a JOB OUTPUT, not inside the artifact', () => {
+  // The handoff invariant's channel, and the reason it is this channel.
+  //
+  // Run 31094944867 uploaded 4,990,794 bytes of correct renders and collected
+  // zero of them, because `upload-artifact@v4` roots the archive at the least
+  // common ancestor of its search paths and the collector looked one level too
+  // deep. Nothing failed: it reported "nothing to commit" — the message for a
+  // completely different, legitimate outcome — and exited 0.
+  //
+  // A count packed INTO the artifact would have been lost by the same bug and
+  // agreed with itself at zero. It therefore leaves through the Actions API.
+  for (const [name, job] of Object.entries(RECORDERS)) {
+    assert.equal(job.outputs?.recorded, '${{ steps.record.outputs.recorded }}',
+      `${name}: publishes its recorded count for the pull-request job`)
+    const record = (job.steps || []).find((s) => s.id === 'record')
+    assert.ok(record, `${name}: the step producing that output is identified`)
+    assert.match(String(record.run), /runVisualGate\.mjs|runScreenGate\.mjs/,
+      `${name}: the count comes from the recorder itself, not a later re-count`)
+  }
+})
+
+test('both recorders actually WRITE the count the workflow re-exports', () => {
+  // The other half of the assertion above, and it has to be stated separately:
+  // `outputs.recorded` resolves to an empty string when the step never writes
+  // one, and YAML that declares an output no runner produces looks identical to
+  // YAML that works. The failure would then land at the far end as
+  // "HANDOFF UNREPORTED" — loudly, but a whole render later.
+  for (const runner of ['runVisualGate.mjs', 'screen/runScreenGate.mjs']) {
+    const src = readFileSync(new URL(`./${runner}`, import.meta.url), 'utf8')
+    assert.match(src, /writeRecordedCount\(/, `${runner}: publishes what it recorded`)
+    assert.match(src, /process\.env\.GITHUB_OUTPUT/, `${runner}: to the job-output channel`)
+  }
+})
+
+test('the collector is handed each recorder\'s RESULT as well as its count', () => {
+  // Both, because they answer different questions: a `skipped` family
+  // contributes zero correctly, while a `success` that reported no count means
+  // the invariant itself went missing and must fail rather than default to 0.
+  const step = bootstrapWorkflow.jobs['open-pull-request'].steps
+    .find((s) => /collectBootstrapRecordings/.test(s.run || ''))
+  assert.ok(step, 'the pull-request job collects through the script, not inline YAML')
+  const env = step.env || {}
+  assert.equal(env.PAPER_RESULT, '${{ needs.record-paper.result }}')
+  assert.equal(env.PAPER_RECORDED, '${{ needs.record-paper.outputs.recorded }}')
+  assert.equal(env.SCREEN_RESULT, '${{ needs.record-screen.result }}')
+  assert.equal(env.SCREEN_RECORDED, '${{ needs.record-screen.outputs.recorded }}')
+})
+
 test('every writer takes its review sheet from the recorder, not from YAML', () => {
   // The sheet lists the environment, page count, anchors, figure proof and file
   // hashes. A shell heredoc is where such a list quietly loses an item — and on
