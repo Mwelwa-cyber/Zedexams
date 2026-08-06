@@ -310,3 +310,41 @@ export function assertToolchain(stages, environment) {
     )
   }
 }
+
+/**
+ * Refuse to RECORD a screen baseline in a paper environment.
+ *
+ * The screen family renders in Chromium alone. LibreOffice is never used for
+ * it — but installing it changes the environment the baseline is stamped with,
+ * in two ways that both reach `assertComparableEnvironment`:
+ *
+ *   • `libreoffice` is an IDENTITY_FIELD, so a version recorded here can never
+ *     match the comparing job, which does not install it;
+ *   • the same apt install pulls in `fonts-liberation`, which shifts
+ *     `fonts.digest` — and that is compared too.
+ *
+ * The result is a baseline that is IRREPRODUCIBLE BY CONSTRUCTION: the render
+ * succeeds, the images are correct, the pull request opens, and every later
+ * comparison throws an environment error instead of comparing anything. That is
+ * exactly what #2137 recorded — `libreoffice: 24.2.7.2` and a 54-font digest —
+ * because `visual-baseline-bootstrap.yml` installed LibreOffice unconditionally
+ * for the paper families and then recorded screen baselines in the same job.
+ *
+ * Checked at RECORD time rather than at compare time, because by compare time
+ * the useless baseline is already committed and approved. And checked HERE
+ * rather than in the workflow, so re-adding the install to the screen job fails
+ * the run instead of quietly producing another sixteen unusable references.
+ */
+export function assertScreenEnvironmentIsClean(environment) {
+  const libreoffice = environment?.libreoffice
+  if (libreoffice) {
+    throw new RenderEnvironmentError(
+      `refusing to record a screen baseline in an environment that has LibreOffice (${libreoffice}) `
+      + 'installed. The screen family renders in Chromium alone, and this run would stamp a '
+      + 'libreoffice version and a shifted font digest into the baseline — neither of which the '
+      + 'comparing job can reproduce, so every later comparison would throw instead of comparing. '
+      + 'Record the screen family in a job that never installs LibreOffice.',
+      { libreoffice },
+    )
+  }
+}

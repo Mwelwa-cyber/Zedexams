@@ -65,18 +65,33 @@ permissions:
   contents: read
 
 jobs:
-  bootstrap:
-    name: Record every missing baseline
+  # ── Two recorders, because the two families need incompatible environments ──
+  #
+  # This was ONE job that installed LibreOffice unconditionally and then
+  # recorded both families in it. The paper families need LibreOffice; the
+  # screen family must never see it, because installing it stamps a
+  # `libreoffice` version into the recorded environment AND pulls in
+  # `fonts-liberation`, which shifts `fonts.digest`. Both are compared by
+  # `assertComparableEnvironment`, and the comparing job in
+  # `visual-regression.yml` installs neither — so a screen baseline recorded
+  # here was IRREPRODUCIBLE BY CONSTRUCTION. #2137 is exactly that: sixteen
+  # correct images stamped `libreoffice: 24.2.7.2`, against which every later
+  # comparison throws an environment error instead of comparing anything.
+  #
+  # The split mirrors `visual-regression.yml`, which already runs the screen
+  # family as its own Chromium-only job for the same reason. The recorders now
+  # hand their work to the pull-request job as artifacts, since they no longer
+  # share a workspace.
+  record-paper:
+    name: Record the missing PAPER baselines
+    if: inputs.family != 'screen'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
-    # Writing is scoped to this job, which only a maintainer can start.
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
-          # A branch, never main. Branch protection applies to the result.
           ref: ${{ github.ref }}
 
       - uses: actions/setup-node@v4
@@ -101,7 +116,6 @@ jobs:
       # whose subject was deleted must fail here rather than have its empty paper
       # recorded as the reference every later comparison trusts.
       - name: Validate the fixtures before recording them
-        if: inputs.family != 'screen'
         run: |
           if [ -n "${{ inputs.fixture }}" ]; then
             node scripts/visual/validateFixtures.mjs --fixture="${{ inputs.fixture }}"
@@ -109,29 +123,10 @@ jobs:
             node scripts/visual/validateFixtures.mjs
           fi
 
-      - name: Validate the SCREEN fixtures before recording them
-        if: inputs.family == 'all' || inputs.family == 'screen'
-        run: node scripts/visual/screen/screenFixtures.test.js
-
       # Not `continue-on-error`. A bootstrap run that cannot render a fixture must
       # stop before the pull-request step, so nothing is committed from a run that
       # did not complete — the gate's own rule, applied to its first recording.
-      # The SCREEN family is its own renderer with its own runner. It is
-      # skipped when the dispatch narrows to a paper family, and it is the only
-      # thing that runs when the dispatch narrows to `screen` — a paper
-      # bootstrap must not quietly record screen baselines, and vice versa.
-      - name: Record the missing SCREEN baselines
-        if: inputs.family == 'all' || inputs.family == 'screen'
-        run: |
-          set -euo pipefail
-          ARGS=(--mode=update --bootstrap-missing)
-          ARGS+=(--reason="${{ inputs.reason }}")
-          ARGS+=(--source="${{ inputs.source }}")
-          if [ -n "${{ inputs.fixture }}" ]; then ARGS+=(--fixture="${{ inputs.fixture }}"); fi
-          node scripts/visual/screen/runScreenGate.mjs "${ARGS[@]}"
-
       - name: Record the missing baselines
-        if: inputs.family != 'screen'
         run: |
           set -euo pipefail
           ARGS=(--mode=update --bootstrap-missing)
@@ -140,6 +135,114 @@ jobs:
           if [ -n "${{ inputs.fixture }}" ]; then ARGS+=(--fixture="${{ inputs.fixture }}"); fi
           if [ "${{ inputs.family }}" != "all" ]; then ARGS+=(--family="${{ inputs.family }}"); fi
           node scripts/visual/runVisualGate.mjs "${ARGS[@]}"
+
+      - name: Hand the recording to the pull-request job
+        uses: actions/upload-artifact@v4
+        with:
+          name: bootstrap-recording-paper
+          path: |
+            tests/visual/baselines/**
+            tests/visual/output/**
+          retention-days: 30
+          if-no-files-found: warn
+
+  record-screen:
+    name: Record the missing SCREEN baselines
+    if: inputs.family == 'all' || inputs.family == 'screen'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "false"
+        run: npm ci
+
+      # ⚠️ NO LIBREOFFICE STEP HERE, EVER.
+      #
+      # This family renders in Chromium alone. Installing LibreOffice would
+      # stamp its version and a shifted font digest into every baseline this job
+      # writes, and the comparing job — which does not install it — could never
+      # match them. `assertScreenEnvironmentIsClean` refuses the recording if
+      # anyone adds it back, and `test:visual-gate` refuses the workflow edit,
+      # so this comment is not the only thing holding the line.
+
+      - name: Validate the SCREEN fixtures before recording them
+        run: node scripts/visual/screen/screenFixtures.test.js
+
+      - name: Record the missing SCREEN baselines
+        run: |
+          set -euo pipefail
+          ARGS=(--mode=update --bootstrap-missing)
+          ARGS+=(--reason="${{ inputs.reason }}")
+          ARGS+=(--source="${{ inputs.source }}")
+          if [ -n "${{ inputs.fixture }}" ]; then ARGS+=(--fixture="${{ inputs.fixture }}"); fi
+          node scripts/visual/screen/runScreenGate.mjs "${ARGS[@]}"
+
+      - name: Hand the recording to the pull-request job
+        uses: actions/upload-artifact@v4
+        with:
+          name: bootstrap-recording-screen
+          path: |
+            tests/visual/baselines/**
+            tests/visual/output/**
+          retention-days: 30
+          if-no-files-found: warn
+
+  open-pull-request:
+    name: Open a pull request for the new baselines
+    needs: [record-paper, record-screen]
+    # Tolerant of whichever subset ran, intolerant of one that FAILED.
+    #
+    # `family=screen` skips the paper recorder and `browser-print`/`docx` skips
+    # the screen one, so a skipped need is a normal outcome and must not block
+    # the pull request. A failed one must: a half-recorded run is exactly what
+    # the old single job's "not continue-on-error" rule refused to commit, and
+    # splitting the jobs must not lose that. Both skipped means the dispatch
+    # recorded nothing at all, so there is nothing to review.
+    if: >-
+      !cancelled()
+      && (needs.record-paper.result == 'success' || needs.record-paper.result == 'skipped')
+      && (needs.record-screen.result == 'success' || needs.record-screen.result == 'skipped')
+      && !(needs.record-paper.result == 'skipped' && needs.record-screen.result == 'skipped')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # Writing is scoped to this job, which only a maintainer can start.
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # A branch, never main. Branch protection applies to the result.
+          ref: ${{ github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Download whatever was recorded
+        uses: actions/download-artifact@v4
+        with:
+          pattern: bootstrap-recording-*
+          path: incoming
+
+      # One tree and ONE review sheet. Each recorder wrote its own summary
+      # sidecar on its own runner, so neither is the whole story — merged here
+      # rather than letting the second overwrite the first, which is how a pull
+      # request ends up describing half its own diff.
+      - name: Collect the recordings into one review sheet
+        run: node scripts/visual/collectBootstrapRecordings.mjs incoming
 
       # The pages that are about to become the reference, published whatever
       # happened — a bootstrap that failed halfway is exactly when a reviewer

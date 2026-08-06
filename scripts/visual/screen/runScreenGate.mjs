@@ -30,7 +30,7 @@ import { appendBaselineSummaryEntry, BASELINE_SUMMARY_FILE } from '../baselineSu
 import { comparePages } from '../compareRender.js'
 import {
   baselineIdentity, captureRenderEnvironment, assertToolchain, assertComparableEnvironment,
-  resolveRenderChromium,
+  assertScreenEnvironmentIsClean, resolveRenderChromium,
 } from '../renderEnvironment.js'
 import { renderScreenFixtures } from './screenStage.mjs'
 import { SCREEN_FIXTURES, SCREEN_VIEWPORTS } from './screenFixtures.js'
@@ -95,6 +95,12 @@ if (mode === 'update') {
     console.error('refusing to write without --reason and --source: a baseline recorded with no stated reason is indistinguishable from a regression nobody noticed')
     process.exit(1)
   }
+  // The environment must be one the COMPARING job can reproduce. A screen
+  // baseline recorded beside a LibreOffice install is irreproducible by
+  // construction — see `assertScreenEnvironmentIsClean`. Checked before the
+  // first byte is written, because the failure is invisible in the images:
+  // they are correct, and every later comparison throws anyway.
+  assertScreenEnvironmentIsClean(environment)
   let wrote = 0
   for (const c of captures) {
     const file = baselinePath(c.target)

@@ -315,8 +315,25 @@ test('the writers are separate from the comparison, and it can never write', () 
   for (const [name, workflow] of Object.entries(WRITERS)) {
     assert.ok(!workflow.on.pull_request, `${name} never triggers on a pull request`)
     assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch'], `${name} is manual only`)
-    const job = Object.values(workflow.jobs)[0]
-    assert.equal(job.permissions.contents, 'write', `${name} writes from the job, not the workflow`)
+    // Found by what it DOES, not by position. The bootstrap now has three jobs
+    // and the writing one is last; anchoring on `jobs[0]` silently moved this
+    // assertion onto a job that holds no credentials, which is the shape of a
+    // security test that passes while checking nothing.
+    const writers = Object.entries(workflow.jobs)
+      .filter(([, job]) => job.permissions?.contents === 'write')
+    assert.equal(writers.length, 1, `${name} grants write to EXACTLY one job`)
+    const [writerName, writer] = writers[0]
+    assert.ok(
+      (writer.steps || []).some((st) => /gh pr create/.test(st.run || '')),
+      `${name}: the job that can write (${writerName}) is the one that opens the pull request`,
+    )
+    // Every OTHER job — including the recorders, which run render code — is
+    // read-only. They render and upload; they never touch the repository.
+    for (const [other, job] of Object.entries(workflow.jobs)) {
+      if (other === writerName) continue
+      assert.equal(job.permissions?.contents, 'read',
+        `${name}: ${other} renders but must not be able to write`)
+    }
     // Scoped to the job: the workflow-level default stays read, so a step added
     // outside that job cannot inherit the ability to write.
     assert.deepEqual(workflow.permissions, { contents: 'read' }, `${name} defaults to read`)
@@ -325,7 +342,11 @@ test('the writers are separate from the comparison, and it can never write', () 
 
 test('no writer pushes to the protected default branch', () => {
   for (const [name, workflow] of Object.entries(WRITERS)) {
-    const runs = JSON.stringify(Object.values(workflow.jobs)[0].steps)
+    // The job that pushes, wherever it sits in the file.
+    const pusher = Object.values(workflow.jobs)
+      .find((job) => (job.steps || []).some((st) => /git push/.test(st.run || '')))
+    assert.ok(pusher, `${name} has a job that pushes`)
+    const runs = JSON.stringify(pusher.steps)
     assert.ok(/checkout -b/.test(runs), `${name} works on a branch`)
     assert.ok(/gh pr create/.test(runs), `${name} opens a pull request for review`)
     assert.ok(/--draft/.test(runs), `${name} opens it as a draft`)
@@ -584,24 +605,90 @@ test('the bootstrap workflow requires a reason and a source, and nothing else', 
   assert.equal(inputs.family.default, 'all')
 })
 
+/** The bootstrap's two recorders. Split because the families need
+ *  incompatible environments — see the LibreOffice test below. */
+const RECORDERS = {
+  'record-paper': bootstrapWorkflow.jobs['record-paper'],
+  'record-screen': bootstrapWorkflow.jobs['record-screen'],
+}
+
 test('the bootstrap validates fixtures BEFORE recording them', () => {
-  const steps = bootstrapWorkflow.jobs.bootstrap.steps
-  const order = steps.map((s) => String(s.name || ''))
-  const validate = order.findIndex((n) => /Validate the fixtures/.test(n))
-  const record = order.findIndex((n) => /Record the missing baselines/.test(n))
-  assert.ok(validate >= 0 && record >= 0, 'both steps exist')
-  assert.ok(validate < record, 'a fixture that no longer validates is not recorded')
+  for (const [name, job] of Object.entries(RECORDERS)) {
+    const order = job.steps.map((s) => String(s.name || ''))
+    const validate = order.findIndex((n) => /^Validate the .*fixtures/i.test(n))
+    const record = order.findIndex((n) => /^Record the missing/i.test(n))
+    assert.ok(validate >= 0 && record >= 0, `${name}: both steps exist`)
+    assert.ok(validate < record, `${name}: a fixture that no longer validates is not recorded`)
+  }
 })
 
-test('the bootstrap run passes the flag that makes it non-destructive', () => {
-  const step = bootstrapWorkflow.jobs.bootstrap.steps.find((s) => /--mode=update/.test(s.run || ''))
-  assert.ok(step, 'it runs through the shared entry point, not a second harness')
-  assert.match(step.run, /--bootstrap-missing/)
-  assert.match(step.run, /--reason=/)
-  assert.match(step.run, /--source=/)
-  // Not continue-on-error: a run that could not render must stop before the
-  // pull-request step, so nothing is committed from an incomplete recording.
-  assert.ok(!step['continue-on-error'], 'an incomplete recording fails the job')
+test('every recorder passes the flag that makes it non-destructive', () => {
+  for (const [name, job] of Object.entries(RECORDERS)) {
+    const step = job.steps.find((s) => /--mode=update/.test(s.run || ''))
+    assert.ok(step, `${name}: runs through the shared entry point, not a second harness`)
+    assert.match(step.run, /--bootstrap-missing/, name)
+    assert.match(step.run, /--reason=/, name)
+    assert.match(step.run, /--source=/, name)
+    // Not continue-on-error: a run that could not render must stop before the
+    // pull-request step, so nothing is committed from an incomplete recording.
+    assert.ok(!step['continue-on-error'], `${name}: an incomplete recording fails the job`)
+  }
+})
+
+test('the SCREEN recorder never installs LibreOffice', () => {
+  // The bug this splits the workflow to fix. One job installed LibreOffice for
+  // the paper families and then recorded screen baselines in the same
+  // environment, which stamped `libreoffice: 24.2.7.2` and a font digest
+  // shifted by `fonts-liberation` into all sixteen. Both are compared by
+  // `assertComparableEnvironment`, and the comparing job in
+  // visual-regression.yml installs neither — so those baselines were
+  // irreproducible by construction, and #2137 is red for exactly that.
+  //
+  // Matched against the whole job, not just a step called "Install
+  // LibreOffice": the way this comes back is somebody adding `soffice` to an
+  // existing apt line.
+  const screen = JSON.stringify(RECORDERS['record-screen'])
+  assert.ok(!/libreoffice|soffice/i.test(screen),
+    'the screen recorder installs or references LibreOffice — a screen baseline recorded '
+    + 'beside it can never be reproduced by the comparing job, which installs neither it '
+    + 'nor the fonts it brings')
+  // …and the paper recorder still DOES, or the docx family cannot render at all.
+  assert.match(JSON.stringify(RECORDERS['record-paper']), /libreoffice/i,
+    'the paper recorder lost its LibreOffice install')
+})
+
+test('the pull-request job needs both recorders and tolerates a skipped one', () => {
+  const job = bootstrapWorkflow.jobs['open-pull-request']
+  assert.deepEqual(job.needs, ['record-paper', 'record-screen'])
+  const cond = String(job.if)
+  // A narrowed dispatch skips one recorder; that must not block the review.
+  for (const recorder of ['record-paper', 'record-screen']) {
+    assert.ok(cond.includes(`needs.${recorder}.result == 'skipped'`), `${recorder} skipping is tolerated`)
+    assert.ok(cond.includes(`needs.${recorder}.result == 'success'`), `${recorder} succeeding is required`)
+  }
+  // But a FAILED recorder must not produce a pull request — the old single
+  // job's "not continue-on-error" rule, kept across the split.
+  assert.ok(!/failure/.test(cond), 'a failed recording must not open a pull request')
+  assert.ok(cond.includes('!cancelled()'), 'a cancelled run must not open a pull request')
+  // Both skipped means nothing was recorded at all.
+  assert.ok(/!\(needs\.record-paper\.result == 'skipped' && needs\.record-screen\.result == 'skipped'\)/.test(cond),
+    'a run that recorded nothing must not open a pull request')
+})
+
+test('the recordings reach the pull-request job as artifacts', () => {
+  // They no longer share a workspace, so a recorder that renders and uploads
+  // nothing would leave the PR job opening an empty pull request.
+  for (const [name, job] of Object.entries(RECORDERS)) {
+    const upload = job.steps.find((s) => /upload-artifact/.test(s.uses || ''))
+    assert.ok(upload, `${name}: hands its recording on`)
+    assert.match(String(upload.with.name), /^bootstrap-recording-/, `${name}: artifact name is matchable`)
+    assert.match(String(upload.with.path), /tests\/visual\/baselines/, `${name}: uploads the baselines it wrote`)
+  }
+  const download = bootstrapWorkflow.jobs['open-pull-request'].steps
+    .find((s) => /download-artifact/.test(s.uses || ''))
+  assert.ok(download, 'the pull-request job collects them')
+  assert.equal(download.with.pattern, 'bootstrap-recording-*',
+    'it must collect BOTH recorders by pattern rather than naming one')
 })
 
 test('every writer takes its review sheet from the recorder, not from YAML', () => {
@@ -609,7 +696,12 @@ test('every writer takes its review sheet from the recorder, not from YAML', () 
   // hashes. A shell heredoc is where such a list quietly loses an item — and on
   // the bootstrap path it must describe EVERY baseline recorded, not the last.
   for (const [name, workflow] of Object.entries(WRITERS)) {
-    const step = Object.values(workflow.jobs)[0].steps.find((s) => /gh pr create/.test(s.run || ''))
+    // Searched across EVERY job, not `jobs[0]`: the bootstrap now records in
+    // two jobs and opens the pull request in a third, so "the first job" stopped
+    // being the one that creates it.
+    const step = Object.values(workflow.jobs)
+      .flatMap((job) => job.steps || [])
+      .find((s) => /gh pr create/.test(s.run || ''))
     assert.match(step.run, /--body-file/, `${name} uses the recorder's sheet`)
     assert.ok(!/--body ["']/.test(step.run), `${name} does not assemble a body inline`)
     assert.match(step.run, /baseline-summary\.md/, `${name} reads the file the recorder writes`)
