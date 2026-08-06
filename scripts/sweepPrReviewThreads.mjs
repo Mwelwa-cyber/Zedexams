@@ -32,6 +32,7 @@
  * that exits non-zero on the normal case teaches its user to ignore it.
  */
 import { spawnSync } from 'node:child_process'
+import { isDirectRun } from './lib/isDirectRun.mjs'
 
 export const DEFAULT_REPO = 'Mwelwa-cyber/Zedexams'
 
@@ -42,18 +43,21 @@ export const DEFAULT_REPO = 'Mwelwa-cyber/Zedexams'
  * comments arrived after the merge — the exact question §7a asks.
  */
 export const REVIEW_THREADS_QUERY = `
-query($owner: String!, $repo: String!, $pr: Int!) {
+query($owner: String!, $repo: String!, $pr: Int!, $after: String) {
   repository(owner: $owner, name: $repo) {
     pullRequest(number: $pr) {
       title
       mergedAt
-      reviewThreads(first: 100) {
+      reviewThreads(first: 100, after: $after) {
+        pageInfo { hasNextPage endCursor }
         nodes {
           id
           isResolved
           isOutdated
           path
-          comments(first: 25) {
+          comments(first: 100) {
+            pageInfo { hasNextPage }
+            totalCount
             nodes { author { login } body createdAt url }
           }
         }
@@ -63,14 +67,50 @@ query($owner: String!, $repo: String!, $pr: Int!) {
 }`.trim()
 
 /** The exact `gh` invocation, as an argv. Built here so the test can read it. */
-export function ghArgs({ owner, repo, pr }) {
+export function ghArgs({ owner, repo, pr, after = null }) {
   return [
     'api', 'graphql',
     '-f', `query=${REVIEW_THREADS_QUERY}`,
     '-f', `owner=${owner}`,
     '-f', `repo=${repo}`,
     '-F', `pr=${pr}`,          // -F, not -f: `pr` is Int! and a string is rejected
+    // `after` is String (nullable), so -f is right here — and it must be sent
+    // even on the first page, because gh rejects a query whose declared
+    // variable was never supplied.
+    '-f', `after=${after ?? ''}`,
   ]
+}
+
+/**
+ * Every review thread, following the cursor to the end.
+ *
+ * `reviewThreads(first: 100)` alone silently drops thread 101 onward, and a
+ * sweep that omits threads while reporting "no post-merge comments" is the
+ * failure this whole script exists to prevent, wearing a different hat. Raised
+ * by Codex on #2146 (`r3730024087`).
+ *
+ * `fetchPage` is injected so the loop is testable without a network: the thing
+ * worth proving is that it keeps going while `hasNextPage` is true, and that it
+ * cannot spin forever on a server that says `hasNextPage` without moving the
+ * cursor.
+ */
+export function collectThreadPages(fetchPage, { maxPages = 50 } = {}) {
+  const nodes = []
+  let after = null
+  let pullRequest = null
+  for (let page = 0; page < maxPages; page += 1) {
+    const result = fetchPage(after)
+    if (result.error) return { error: result.error }
+    pullRequest = result.pullRequest
+    const connection = pullRequest?.reviewThreads ?? {}
+    nodes.push(...(connection.nodes ?? []))
+    const info = connection.pageInfo ?? {}
+    // A cursor that does not advance would loop forever; treat it as the end
+    // rather than trusting `hasNextPage` on its own.
+    if (!info.hasNextPage || !info.endCursor || info.endCursor === after) break
+    after = info.endCursor
+  }
+  return { pullRequest: { ...pullRequest, reviewThreads: { nodes } } }
 }
 
 /**
@@ -123,12 +163,18 @@ export function summariseThreads(pullRequest, { includeResolved = false } = {}) 
         // it describes something now on main.
         afterMerge: Boolean(mergedAt && Date.parse(c.createdAt) > mergedAt),
       }))
+      // Comments are fetched 100 at a time and NOT paged further. A thread with
+      // more than that is vanishingly rare next to a pull request with more than
+      // 100 threads, but the difference that matters is not rarity — it is that
+      // this says so out loud instead of quietly showing fewer.
+      const total = t.comments?.totalCount ?? comments.length
       return {
         id: t.id,
         path: t.path,
         isResolved: Boolean(t.isResolved),
         isOutdated: Boolean(t.isOutdated),
         comments,
+        truncatedComments: Math.max(0, total - comments.length),
         hasPostMergeComment: comments.some((c) => c.afterMerge),
       }
     })
@@ -152,21 +198,20 @@ function main() {
     return 1
   }
 
-  const run = spawnSync('gh', ghArgs({ owner, repo, pr }), { encoding: 'utf8' })
-  if (run.error?.code === 'ENOENT') {
-    console.error('gh is not installed. This sweep needs the GitHub CLI, authenticated (gh auth login).')
+  const fetchPage = (after) => {
+    const run = spawnSync('gh', ghArgs({ owner, repo, pr, after }), { encoding: 'utf8' })
+    if (run.error?.code === 'ENOENT') {
+      return { error: 'gh is not installed. This sweep needs the GitHub CLI, authenticated (gh auth login).' }
+    }
+    if (run.status !== 0) return { error: `gh exited ${run.status}:\n${run.stderr || run.stdout}` }
+    return interpretSweepResponse(run.stdout, { owner, repo, pr })
+  }
+  const collected = collectThreadPages(fetchPage)
+  if (collected.error) {
+    console.error(collected.error)
     return 1
   }
-  if (run.status !== 0) {
-    console.error(`gh exited ${run.status}:\n${run.stderr || run.stdout}`)
-    return 1
-  }
-  const interpreted = interpretSweepResponse(run.stdout, { owner, repo, pr })
-  if (interpreted.error) {
-    console.error(interpreted.error)
-    return 1
-  }
-  const { pullRequest } = interpreted
+  const { pullRequest } = collected
 
   const threads = summariseThreads(pullRequest, { includeResolved })
   const label = `${owner}/${repo}#${pr} — ${pullRequest.title}`
@@ -184,6 +229,9 @@ function main() {
       t.hasPostMergeComment ? 'POST-MERGE' : null,
     ].filter(Boolean).join(' · ')
     console.log(`  ${t.path ?? '(no file)'}  [${flags}]`)
+    if (t.truncatedComments) {
+      console.log(`    (${t.truncatedComments} further comment(s) in this thread are NOT shown)`)
+    }
     for (const c of t.comments) {
       console.log(`    ${c.afterMerge ? '→ ' : '  '}${c.author} ${c.createdAt}`)
       console.log(`      ${firstLines(c.body)}`)
@@ -249,4 +297,4 @@ function selfCheck() {
   return 0
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) process.exit(main())
+if (isDirectRun(import.meta.url)) process.exit(main())

@@ -20,11 +20,12 @@
  */
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  ghArgs, interpretSweepResponse, REVIEW_THREADS_QUERY, summariseThreads,
+  collectThreadPages, ghArgs, interpretSweepResponse, REVIEW_THREADS_QUERY, summariseThreads,
 } from './sweepPrReviewThreads.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -84,24 +85,39 @@ export function brokenSweepCommands(markdown) {
   return found
 }
 
-test('NO runnable block asks `gh pr view --json` for a GraphQL-only field', () => {
+/**
+ * Every Markdown file git tracks.
+ *
+ * The first version walked `docs/` plus four hand-picked root files, while the
+ * test's name claimed "no runnable block in ANY document" — so the exact broken
+ * command could be added to `README.md`, `DEPLOY.md`, or anything under
+ * `functions/` or `scripts/` and this stayed green. 109 tracked `.md` files sat
+ * outside the four. Raised by Codex on #2146 (`r3730024116`).
+ *
+ * `git ls-files` rather than a walk with an exclusion list: it already excludes
+ * `node_modules`, build output and everything else ignored, and it cannot drift
+ * from what is actually in the repository. A failure to run git is reported,
+ * never treated as "no files to check" — a guard that inspects nothing must not
+ * look like a guard that found nothing.
+ */
+function trackedMarkdown() {
+  const run = spawnSync('git', ['ls-files', '*.md', '*.mdx'], { cwd: ROOT, encoding: 'utf8' })
+  if (run.status !== 0) throw new Error(`could not list tracked markdown: ${run.stderr}`)
+  return run.stdout.split('\n').filter(Boolean)
+}
+
+test('NO runnable block in ANY tracked document asks for a GraphQL-only field', () => {
+  const files = trackedMarkdown()
+  assert.ok(files.length > 50, `expected the whole repository's markdown, got ${files.length}`)
+  // The files the old allowlist missed, named so a future narrowing is visible.
+  for (const outside of ['README.md']) {
+    assert.ok(files.includes(outside), `${outside} must be inspected`)
+  }
   const offenders = []
-  const inspect = (full) => {
-    const rel = path.relative(ROOT, full)
-    for (const hit of brokenSweepCommands(readFileSync(full, 'utf8'))) {
+  for (const rel of files) {
+    for (const hit of brokenSweepCommands(readFileSync(path.join(ROOT, rel), 'utf8'))) {
       offenders.push(`${rel}: --json ${hit}`)
     }
-  }
-  const walk = (dir) => {
-    for (const name of readdirSync(dir)) {
-      const full = path.join(dir, name)
-      if (statSync(full).isDirectory()) { walk(full); continue }
-      if (/\.mdx?$/.test(name)) inspect(full)
-    }
-  }
-  walk(path.join(ROOT, 'docs'))
-  for (const root of ['CLAUDE.md', 'ORG.md', 'BUG_REPORT.md', 'AI_DEVELOPMENT_GUIDE.md']) {
-    try { inspect(path.join(ROOT, root)) } catch { /* the file need not exist */ }
   }
   assert.deepEqual(offenders, [], `these commands exit 1 when run:\n    ${offenders.join('\n    ')}`)
 })
@@ -175,6 +191,79 @@ test('a comment after the merge is flagged; one before it is not', () => {
   assert.equal(threads.length, 1)
   assert.equal(threads[0].hasPostMergeComment, true)
   assert.deepEqual(threads[0].comments.map((c) => c.afterMerge), [false, true])
+})
+
+test('every page of review threads is followed, not just the first', () => {
+  // `reviewThreads(first: 100)` alone drops thread 101 onward, and a sweep that
+  // omits threads while reporting "no post-merge comments" is this script's own
+  // failure mode wearing a different hat.
+  const pages = [
+    { pullRequest: { title: 't', mergedAt: null, reviewThreads: {
+      pageInfo: { hasNextPage: true, endCursor: 'A' }, nodes: [{ id: '1' }, { id: '2' }] } } },
+    { pullRequest: { title: 't', mergedAt: null, reviewThreads: {
+      pageInfo: { hasNextPage: true, endCursor: 'B' }, nodes: [{ id: '3' }] } } },
+    { pullRequest: { title: 't', mergedAt: null, reviewThreads: {
+      pageInfo: { hasNextPage: false, endCursor: null }, nodes: [{ id: '4' }] } } },
+  ]
+  const seen = []
+  let i = 0
+  const result = collectThreadPages((after) => { seen.push(after); return pages[i++] })
+  assert.deepEqual(result.pullRequest.reviewThreads.nodes.map((n) => n.id), ['1', '2', '3', '4'])
+  assert.deepEqual(seen, [null, 'A', 'B'], 'the cursor is carried forward each time')
+})
+
+test('a cursor that does not advance ends the loop instead of spinning forever', () => {
+  // A server insisting hasNextPage while returning the same cursor would hang
+  // the sweep. Trusting hasNextPage alone is the version of this that looks
+  // right and never returns.
+  let calls = 0
+  const result = collectThreadPages(() => {
+    calls += 1
+    return { pullRequest: { reviewThreads: { pageInfo: { hasNextPage: true, endCursor: 'SAME' }, nodes: [{ id: 'x' }] } } }
+  })
+  assert.equal(calls, 2, 'it stops as soon as the cursor repeats')
+  assert.equal(result.pullRequest.reviewThreads.nodes.length, 2)
+})
+
+test('an error on ANY page fails the sweep rather than returning a partial one', () => {
+  const result = collectThreadPages((after) => (after === null
+    ? { pullRequest: { reviewThreads: { pageInfo: { hasNextPage: true, endCursor: 'A' }, nodes: [{ id: '1' }] } } }
+    : { error: 'the query was rejected' }))
+  assert.match(result.error ?? '', /rejected/)
+  assert.equal(result.pullRequest, undefined, 'a partial sweep is not handed on as a complete one')
+})
+
+test('comments beyond the first page are REPORTED, never silently dropped', () => {
+  const threads = summariseThreads({
+    mergedAt: null,
+    reviewThreads: { nodes: [{
+      isResolved: false,
+      comments: { totalCount: 130, nodes: Array.from({ length: 100 }, () => ({ createdAt: '2026-01-01T00:00:00Z' })) },
+    }] },
+  })
+  assert.equal(threads[0].truncatedComments, 30)
+  const whole = summariseThreads({
+    mergedAt: null,
+    reviewThreads: { nodes: [{ isResolved: false, comments: { totalCount: 2, nodes: [{ createdAt: 'x' }, { createdAt: 'y' }] } }] },
+  })
+  assert.equal(whole[0].truncatedComments, 0)
+})
+
+test('the script runs from a path containing a space', () => {
+  // `import.meta.url === \`file://${process.argv[1]}\`` is false when the path
+  // is percent-encoded, so main() never ran: exit 0, no output, for a tool whose
+  // whole job is to print what it found. Reproduced before the fix.
+  const tmp = mkdtempSync(path.join(os.tmpdir(), 'zed sweep '))
+  try {
+    mkdirSync(path.join(tmp, 'lib'), { recursive: true })
+    cpSync(path.join(ROOT, 'scripts/sweepPrReviewThreads.mjs'), path.join(tmp, 'sweepPrReviewThreads.mjs'))
+    cpSync(path.join(ROOT, 'scripts/lib/isDirectRun.mjs'), path.join(tmp, 'lib/isDirectRun.mjs'))
+    const run = spawnSync(process.execPath, [path.join(tmp, 'sweepPrReviewThreads.mjs'), '--self-check'], { encoding: 'utf8' })
+    assert.equal(run.status, 0, run.stderr)
+    assert.match(run.stdout, /self-check passed/, 'silence here is the bug, not a pass')
+  } finally {
+    rmSync(tmp, { recursive: true, force: true })
+  }
 })
 
 test('a REJECTED query is an error, never an empty sweep', () => {

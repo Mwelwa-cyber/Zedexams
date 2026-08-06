@@ -51,6 +51,7 @@ import {
   BASELINE_SUMMARY_FILE, BASELINE_SUMMARY_ENTRIES, renderBaselineSummary,
 } from './baselineSummary.js'
 import { assertHandoffComplete, resolveExpectedRecordings } from './handoffInvariant.js'
+import { isDirectRun } from '../lib/isDirectRun.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
@@ -313,4 +314,4 @@ function main() {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main()
+if (isDirectRun(import.meta.url)) main()

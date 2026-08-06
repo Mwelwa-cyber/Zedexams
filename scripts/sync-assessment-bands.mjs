@@ -19,6 +19,7 @@ import {
   ASSESSMENT_BAND_SEED, BAND_IDS, ALL_QUESTION_TYPES, DIFFICULTY_TIERS, validateBand,
 } from '../src/config/assessmentBands.js'
 import { QUESTION_ACTIVITIES } from '../src/config/questionActivities.js'
+import { isDirectRun } from './lib/isDirectRun.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -48,7 +49,7 @@ if (problems.length > 0) {
   process.exit(1)
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isDirectRun(import.meta.url)) {
   writeFileSync(BANDS_JSON_PATH, renderBandsJson())
   console.log(`✓ wrote ${path.relative(ROOT, BANDS_JSON_PATH)} (${BAND_IDS.length} bands)`)
 }
