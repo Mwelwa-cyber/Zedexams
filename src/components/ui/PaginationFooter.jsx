@@ -40,7 +40,10 @@ export default function PaginationFooter({
   if (error && !isLoadingNextPage) {
     return (
       <div className={`flex flex-col items-center gap-2 py-4 ${className}`}>
-        <p role="alert" className="text-sm font-bold" style={{ color: '#b91c1c' }}>
+        {/* text-danger, not a literal: --danger-fg is tuned per theme to clear
+            AA against that theme's surface. The literal this replaces was a
+            light-theme red sitting at roughly 3:1 on Night. */}
+        <p role="alert" className="text-sm font-bold text-danger">
           Couldn't load more {plural}.
         </p>
         <Button variant="secondary" size="sm" onClick={onLoadMore}>

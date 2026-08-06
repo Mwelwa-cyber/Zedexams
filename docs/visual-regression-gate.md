@@ -17,6 +17,25 @@ baseline recorded on a laptop is dead weight the gate will never match — the
 font digest alone is enough to make it unusable, and the `docx` family needs
 LibreOffice's Writer filters, which a developer machine often lacks entirely.
 
+### The OS is compared as a family, not as a kernel build
+
+`os` is **recorded** in full (`Linux 6.17.0-1021-azure`) and **compared** as its
+family (`Linux`). On 2026-08-06 GitHub rolled its hosted runner image from
+`-1020` to `-1021` and every paper baseline became incomparable within the hour:
+the gate refused every comparison, on every print-affecting pull request and on
+`main`, over a change that cannot move a glyph. Keying a required check on a
+string somebody else bumps fortnightly makes it red for reasons unrelated to
+printed output, and a permanently red required check is one people route around.
+
+Nothing else was loosened, and that is testable rather than asserted: every
+genuine cause of a pixel shift — the Chromium build, the LibreOffice build,
+`fonts.digest`, DPI, scale factor, page size, locale, time zone and both flag
+lists — is still refused, and `renderEnvironment.test.js` proves each one is
+still refused *across* a kernel bump. An image change that really does alter
+rendering moves one of those; in particular a different font set moves the
+digest. What remains in the OS field is the distinction it was actually for:
+Linux → macOS → Windows.
+
 `visual-baseline-update.yml` has two scopes, both `workflow_dispatch`-only and
 both requiring a written reason and a source:
 

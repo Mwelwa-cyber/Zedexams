@@ -444,11 +444,31 @@ html[data-theme='night'] body {
 }
 
 /* ── Design System v2 — alias tokens ───────────────────────────
- * Maps the design-system spec's token names onto the existing
- * theme-aware vars. var(--accent) etc resolve at use time, so all
- * 6 themes work transparently through these aliases.
+ * Maps the design-system spec's token names onto the existing theme-aware
+ * vars.
+ *
+ * DECLARED ON `body` AS WELL AS `:root`, AND THAT IS THE WHOLE POINT.
+ * This block used to be `:root` alone, on the stated reasoning that
+ * "var(--accent) etc resolve at use time, so all themes work transparently
+ * through these aliases". That is not how custom properties work: a var() in
+ * a custom-property value is substituted where the property is DECLARED, not
+ * where it is used, and every descendant then inherits the already-resolved
+ * value. So every alias here froze to whatever :root happened to hold — the
+ * Sky defaults — and none of them followed a theme.
+ *
+ * It was easy to miss because the reading palettes and the Night bridge are
+ * declared on `body`, and most consumers sit inside `.tdv2` or the learner
+ * shell, which redeclare the aliases themselves. What was left was surfaces
+ * using them unscoped: LessonLibrary's filter selects kept a white fill and a
+ * pale-blue border in every theme, including Night.
+ *
+ * Adding `body` gives the aliases a second declaration that resolves against
+ * body's OWN palette, which is exactly where the theme lives. Deeper scopes
+ * that redeclare these still win inside their subtree, so nothing that was
+ * already correct changes.
  */
-:root {
+:root,
+body {
   /* Brand → existing theme tokens */
   --purple:      var(--accent);
   --purple-50:   var(--accent-bg);

@@ -24,10 +24,20 @@ const { ThemeProvider, useTheme } = await import('./ThemeContext')
 const { resetTeacherThemeStore } = await import('./teacherThemeStore')
 const { TEACHER_THEME_STORAGE_KEY } = await import('./teacherThemeCore')
 const TeacherThemeSync = (await import('./TeacherThemeSync')).default
+const useDashboardTheme = (await import('../components/teacher/dashboardV2/useDashboardTheme')).default
 
 let ctx
 function Probe() {
   ctx = useTheme()
+  return null
+}
+
+// The dashboard's light/dark toggle. It reads the module store directly and
+// never touches ThemeProvider — which is the whole reason it was able to
+// bypass persistence — so the probe for it has to be the real hook.
+let dash
+function DashboardProbe() {
+  dash = useDashboardTheme()
   return null
 }
 
@@ -36,6 +46,7 @@ function mount() {
     <ThemeProvider>
       <TeacherThemeSync />
       <Probe />
+      <DashboardProbe />
     </ThemeProvider>,
   )
 }
@@ -119,6 +130,56 @@ describe('TeacherThemeSync', () => {
     expect(document.documentElement.getAttribute('data-theme')).toBe('night')
     expect(localStorage.getItem(TEACHER_THEME_STORAGE_KEY)).toBe('night')
     expect(setDoc).not.toHaveBeenCalled()
+  })
+
+  /*
+   * The regression this file exists to prevent a second time.
+   *
+   * The dashboard light/dark toggle is a SECOND write path, separate from the
+   * settings picker, and it used to persist to the device only. The profile
+   * kept the old value, so the next load applied the new one pre-paint and
+   * then hydrated the old one back over it: a teacher turned dark mode off,
+   * reloaded, and the app was dark again. Asserting the write is what pins it
+   * — asserting the applied theme would have passed throughout, because the
+   * bug was never in what the toggle applied.
+   */
+  it('persists a dark-mode toggle to the profile, not just to the device', async () => {
+    auth.currentUser = { uid: 'u1' }
+    auth.userProfile = { preferences: { theme: 'night' } }
+    mount()
+
+    await waitFor(() => expect(dash?.dark).toBe(true))
+    dash.toggleTheme()
+
+    await waitFor(() => expect(setDoc).toHaveBeenCalledTimes(1))
+    const [ref, payload, options] = setDoc.mock.calls[0]
+    expect(ref.path).toBe('users/u1')
+    expect(payload.preferences.theme).not.toBe('night')
+    expect(options).toEqual({ merge: true })
+  })
+
+  it('survives the reload that used to undo it', async () => {
+    // Signed in on Night, the teacher toggles to light.
+    auth.currentUser = { uid: 'u1' }
+    auth.userProfile = { preferences: { theme: 'night' } }
+    const first = mount()
+
+    await waitFor(() => expect(dash?.dark).toBe(true))
+    dash.toggleTheme()
+    await waitFor(() => expect(setDoc).toHaveBeenCalled())
+
+    const chosen = setDoc.mock.calls[0][1].preferences.theme
+    first.unmount()
+
+    // Reload: the module store is rebuilt from localStorage, and the profile
+    // now carries what the toggle wrote rather than the value it replaced.
+    resetTeacherThemeStore()
+    auth.userProfile = { preferences: { theme: chosen } }
+    mount()
+
+    await waitFor(() => expect(dash).toBeTruthy())
+    expect(document.documentElement.getAttribute('data-theme')).toBe(chosen)
+    expect(dash.dark).toBe(false)
   })
 
   it('keeps the theme applied when the profile write fails', async () => {
