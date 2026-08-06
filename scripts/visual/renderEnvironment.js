@@ -173,7 +173,10 @@ export function captureRenderEnvironment(opts = {}) {
     // at differs between a runner and a workstation while the build is the same.
     chromiumPath: opts.chromiumPath || '',
     libreoffice,
+    // Recorded in full — a reviewer should be able to see the exact kernel a
+    // baseline was drawn on. COMPARED as `osFamily` only; see IDENTITY_FIELDS.
     os: `${os.type()} ${os.release()}`,
+    osFamily: os.type(),
     platform: `${process.platform}-${process.arch}`,
     node: process.version,
     fonts,
@@ -247,9 +250,48 @@ export function baselineIdentity(stage, environment) {
 
 /** Fields that must match for a comparison to mean anything. */
 const IDENTITY_FIELDS = [
-  'chromium', 'libreoffice', 'os', 'dpi', 'deviceScaleFactor',
+  'chromium', 'libreoffice', 'dpi', 'deviceScaleFactor',
   'pageSize', 'locale', 'timeZone', 'chromiumFlags', 'libreOfficeArgs',
 ]
+
+/**
+ * The OS is compared as a FAMILY, not as a kernel build.
+ *
+ * `os` is recorded as `${os.type()} ${os.release()}` — e.g.
+ * `Linux 6.17.0-1021-azure` — and was compared with exact string equality. On
+ * 2026-08-06 GitHub rolled its hosted image from `-1020` to `-1021` and every
+ * paper baseline became incomparable inside one hour: the gate refused every
+ * comparison, on every print-affecting pull request and on `main`, for a change
+ * that cannot move a glyph.
+ *
+ * That is the gate invalidating itself on a schedule somebody else controls,
+ * roughly fortnightly, and a required check that is red for reasons unrelated to
+ * printed output is one people learn to route around.
+ *
+ * Narrowing it to the family costs almost nothing, because the kernel revision
+ * was carrying nearly all of `os`'s discriminating power and none of its
+ * meaning. Everything that actually decides how a paper renders is already its
+ * own identity field: the Chromium build, the LibreOffice build, `fonts.digest`,
+ * DPI, scale factor, page size, locale, time zone, and both flag lists. An image
+ * bump that genuinely changes rendering moves one of THOSE — in particular a
+ * different font set changes the digest, which is checked separately and still
+ * refuses. What remains here is the real distinction the field was for:
+ * Linux → macOS → Windows.
+ *
+ * The fallback derivation matters as much as the change. Baselines recorded
+ * before this carry no `osFamily`, and treating that as a mismatch would be the
+ * same wall wearing a different sign.
+ */
+const DERIVED_IDENTITY_FIELDS = [
+  { field: 'os family', read: osFamilyOf },
+]
+
+/** A recorded environment's OS family, derived from `os` when not recorded. */
+export function osFamilyOf(environment) {
+  const recorded = environment?.osFamily
+  if (typeof recorded === 'string' && recorded) return recorded
+  return String(environment?.os ?? '').split(' ')[0]
+}
 
 /**
  * Refuse to compare across environments.
@@ -271,6 +313,13 @@ export function assertComparableEnvironment(baselineEnv, currentEnv) {
     const before = baselineEnv[field]
     const after = currentEnv?.[field]
     if (before === undefined && after === undefined) continue
+    if (String(before) !== String(after)) {
+      differences.push({ field, baseline: before, current: after })
+    }
+  }
+  for (const { field, read } of DERIVED_IDENTITY_FIELDS) {
+    const before = read(baselineEnv)
+    const after = read(currentEnv)
     if (String(before) !== String(after)) {
       differences.push({ field, baseline: before, current: after })
     }
