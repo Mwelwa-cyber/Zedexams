@@ -81,6 +81,28 @@ export function resolveVisualRoot(artifactDir) {
 }
 
 /**
+ * The baseline files one entry describes, relative to `baselines/`.
+ *
+ * A screen capture is one file; a paper baseline is a directory of rendered
+ * pages plus its metadata, and naming the DIRECTORY was the defect — it exists
+ * as long as any single file inside it survives, so an artifact that lost every
+ * `page-N.png` but kept `environment.json` passed arrival.
+ *
+ * The legacy single `path` is still read, as one file. Sidecars are written and
+ * consumed within one run so no old one can be in flight, but a normaliser that
+ * silently returns nothing for a shape it does not recognise would report the
+ * entry as unverifiable rather than crash — and this is the function that
+ * decides what "names nothing" means.
+ */
+export function entryPaths(entry) {
+  if (Array.isArray(entry?.paths)) {
+    return entry.paths.filter((p) => typeof p === 'string' && p)
+  }
+  if (typeof entry?.path === 'string' && entry.path) return [entry.path]
+  return []
+}
+
+/**
  * An artifact that describes baselines it did not bring.
  *
  * The count invariant compares what the recorders WROTE against what the review
@@ -113,28 +135,6 @@ export function resolveVisualRoot(artifactDir) {
  *
  * @returns {string[]} why each hollow artifact is hollow; empty when all are whole
  */
-/**
- * The baseline files one entry describes, relative to `baselines/`.
- *
- * A screen capture is one file; a paper baseline is a directory of rendered
- * pages plus its metadata, and naming the DIRECTORY was the defect — it exists
- * as long as any single file inside it survives, so an artifact that lost every
- * `page-N.png` but kept `environment.json` passed arrival.
- *
- * The legacy single `path` is still read, as one file. Sidecars are written and
- * consumed within one run so no old one can be in flight, but a normaliser that
- * silently returns nothing for a shape it does not recognise would report the
- * entry as unverifiable rather than crash — and this is the function that
- * decides what "names nothing" means.
- */
-export function entryPaths(entry) {
-  if (Array.isArray(entry?.paths)) {
-    return entry.paths.filter((p) => typeof p === 'string' && p)
-  }
-  if (typeof entry?.path === 'string' && entry.path) return [entry.path]
-  return []
-}
-
 export function hollowArtifacts(dirs) {
   const hollow = []
   for (const dir of dirs) {
