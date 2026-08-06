@@ -21,6 +21,7 @@
  * plain-node suite on a runner with no Chromium.
  */
 import { createHash } from 'node:crypto'
+import { screenBaselinePaths } from '../baselinePaths.js'
 import { SCREEN_PAGE_CHECKS } from './screenPageChecks.js'
 
 /**
@@ -104,14 +105,15 @@ export function screenBaselineEntry(input) {
   return {
     key: `screen/${fixture.id}/${viewport.id}`,
     family: 'screen',
-    // WHICH FILE this entry describes, relative to `tests/visual/baselines/`.
+    // EVERY FILE this entry describes, relative to `tests/visual/baselines/`.
     //
-    // The collector verifies every described baseline actually arrived in the
-    // artifact. Checking that a `baselines/` tree merely EXISTS proves nothing
-    // here: the recorder uploads the whole tree from a checkout that already
-    // contains the committed browser-print and docx baselines, so an artifact
-    // that lost every newly recorded screen page still has a non-empty one.
-    path: `${identity}/${fixture.id}/${viewport.id}.png`,
+    // The collector verifies each one arrived. Checking that a `baselines/` tree
+    // merely EXISTS proves nothing here: the recorder uploads the whole tree
+    // from a checkout that already contains the committed browser-print and
+    // docx baselines, so an artifact that lost every newly recorded screen page
+    // still has a non-empty one. A screen capture is one file; the paper
+    // families are many, which is why this is a list either way.
+    paths: screenBaselinePaths({ identity, fixtureId: fixture.id, viewportId: viewport.id }),
     columns: ['Fixture', 'Viewport', 'Image'],
     cells: [`${fixture.id} — ${fixture.title}`, viewport.id, `${width} × ${height}`],
     section: screenBaselineSection(input),

@@ -112,6 +112,28 @@ export function resolveVisualRoot(artifactDir) {
  *
  * @returns {string[]} why each hollow artifact is hollow; empty when all are whole
  */
+/**
+ * The baseline files one entry describes, relative to `baselines/`.
+ *
+ * A screen capture is one file; a paper baseline is a directory of rendered
+ * pages plus its metadata, and naming the DIRECTORY was the defect — it exists
+ * as long as any single file inside it survives, so an artifact that lost every
+ * `page-N.png` but kept `environment.json` passed arrival.
+ *
+ * The legacy single `path` is still read, as one file. Sidecars are written and
+ * consumed within one run so no old one can be in flight, but a normaliser that
+ * silently returns nothing for a shape it does not recognise would report the
+ * entry as unverifiable rather than crash — and this is the function that
+ * decides what "names nothing" means.
+ */
+export function entryPaths(entry) {
+  if (Array.isArray(entry?.paths)) {
+    return entry.paths.filter((p) => typeof p === 'string' && p)
+  }
+  if (typeof entry?.path === 'string' && entry.path) return [entry.path]
+  return []
+}
+
 export function hollowArtifacts(dirs) {
   const hollow = []
   for (const dir of dirs) {
@@ -126,21 +148,24 @@ export function hollowArtifacts(dirs) {
     } catch { continue }
     if (!entries.length) continue
 
-    const unnamed = entries.filter((e) => typeof e?.path !== 'string' || !e.path)
+    const unnamed = entries.filter((e) => !entryPaths(e).length)
     if (unnamed.length) {
       hollow.push(
-        `${path.basename(dir)} has ${unnamed.length} entr${unnamed.length === 1 ? 'y' : 'ies'} that `
-        + 'do not name the baseline file they describe, so arrival cannot be verified',
+        `${path.basename(dir)} has ${unnamed.length} `
+        + (unnamed.length === 1
+          ? 'entry that does not name the baseline files it describes'
+          : 'entries that do not name the baseline files they describe')
+        + ', so arrival cannot be verified',
       )
       continue
     }
     const missing = entries
-      .map((e) => e.path)
+      .flatMap(entryPaths)
       .filter((rel) => !existsSync(path.join(visualRoot, 'baselines', rel)))
     if (missing.length) {
       hollow.push(
-        `${path.basename(dir)} describes ${entries.length} baseline(s) but ${missing.length} did `
-        + `not arrive: ${missing.slice(0, 4).join(', ')}${missing.length > 4 ? ', …' : ''}`,
+        `${path.basename(dir)} describes ${entries.length} baseline(s) but ${missing.length} file(s) `
+        + `did not arrive: ${missing.slice(0, 4).join(', ')}${missing.length > 4 ? ', …' : ''}`,
       )
     }
   }

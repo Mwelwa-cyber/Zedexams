@@ -691,16 +691,27 @@ test('the recordings reach the pull-request job as artifacts', () => {
     'it must collect BOTH recorders by pattern rather than naming one')
 })
 
-test('every review-sheet entry names the baseline file it describes', () => {
+test('every review-sheet entry names the baseline FILES it describes', () => {
   // The collector verifies each described baseline actually arrived, and it can
   // only do that if the entry says WHICH file it is. A builder that stopped
   // setting `path` would make every entry unverifiable — and the check would
   // then be refusing whole dispatches, or (worse, if that refusal were softened)
   // waving them through. Both builders, because there are two and they are
   // edited independently.
-  for (const builder of ['screen/screenBaselineSummary.js', 'runVisualGate.mjs']) {
+  // Both delegate to `baselinePaths.js`, which is where the computation is
+  // reachable by a test. Inlining it at the call site is how the paper builder
+  // came to declare its copy DIRECTORY with nothing able to catch it:
+  // `runVisualGate.mjs` has top-level await, so importing it runs the gate.
+  const BUILDERS = {
+    'screen/screenBaselineSummary.js': 'screenBaselinePaths',
+    'runVisualGate.mjs': 'paperBaselinePaths',
+  }
+  for (const [builder, fn] of Object.entries(BUILDERS)) {
     const src = readFileSync(new URL(`./${builder}`, import.meta.url), 'utf8')
-    assert.match(src, /^\s*path: `/m, `${builder}: its entry names the baseline file`)
+    assert.match(src, new RegExp(`^\\s*paths: ${fn}\\(`, 'm'),
+      `${builder}: its entry names its files through ${fn}`)
+    assert.match(src, new RegExp(`import \\{ ${fn} \\} from '\\.\\.?/?[a-zA-Z/]*baselinePaths\\.js'`),
+      `${builder}: from the one module a test can exercise`)
   }
 })
 
