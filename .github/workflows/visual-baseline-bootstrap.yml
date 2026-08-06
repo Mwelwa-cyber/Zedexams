@@ -144,6 +144,10 @@ jobs:
           if [ "${{ inputs.family }}" != "all" ]; then ARGS+=(--family="${{ inputs.family }}"); fi
           node scripts/visual/runVisualGate.mjs "${ARGS[@]}"
 
+      # `error`, not `warn`. A recorder whose entire product is this artifact
+      # must fail HERE, on the job whose log explains why, rather than going
+      # green having handed over nothing and surfacing two jobs later as a
+      # pull request quietly missing a family's baselines.
       - name: Hand the recording to the pull-request job
         uses: actions/upload-artifact@v4
         with:
@@ -152,7 +156,7 @@ jobs:
             tests/visual/baselines/**
             tests/visual/output/**
           retention-days: 30
-          if-no-files-found: warn
+          if-no-files-found: error
 
   record-screen:
     name: Record the missing SCREEN baselines
@@ -200,6 +204,7 @@ jobs:
           if [ -n "${{ inputs.fixture }}" ]; then ARGS+=(--fixture="${{ inputs.fixture }}"); fi
           node scripts/visual/screen/runScreenGate.mjs "${ARGS[@]}"
 
+      # `error` for the same reason as the paper recorder above.
       - name: Hand the recording to the pull-request job
         uses: actions/upload-artifact@v4
         with:
@@ -208,7 +213,7 @@ jobs:
             tests/visual/baselines/**
             tests/visual/output/**
           retention-days: 30
-          if-no-files-found: warn
+          if-no-files-found: error
 
   open-pull-request:
     name: Open a pull request for the new baselines

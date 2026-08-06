@@ -691,6 +691,26 @@ test('the recordings reach the pull-request job as artifacts', () => {
     'it must collect BOTH recorders by pattern rather than naming one')
 })
 
+test('a recorder that hands over NOTHING fails on its own job', () => {
+  // `if-no-files-found: error`, not the inherited `warn`. A recorder's entire
+  // product is this artifact: with `warn` the upload matches no files, no
+  // artifact is created, the job goes green, and the loss surfaces two jobs
+  // later as a pull request quietly missing a family's baselines — far from the
+  // log that explains why. Raised by the parallel implementation in #2142.
+  for (const [name, job] of Object.entries(RECORDERS)) {
+    const upload = job.steps.find((s) => /upload-artifact/.test(s.uses || ''))
+    assert.equal(upload.with['if-no-files-found'], 'error',
+      `${name}: an empty hand-off fails here, not silently two jobs later`)
+  }
+  // The EVIDENCE upload in the pull-request job legitimately may have nothing —
+  // a run where every baseline already existed renders no new pages. It stays
+  // `warn` on purpose, and stating that here stops a later sweep "fixing" it.
+  const evidence = bootstrapWorkflow.jobs['open-pull-request'].steps
+    .find((s) => /upload-artifact/.test(s.uses || ''))
+  assert.equal(evidence.with['if-no-files-found'], 'warn',
+    'the evidence upload may legitimately find nothing')
+})
+
 test('each recorder publishes what it wrote as a JOB OUTPUT, not inside the artifact', () => {
   // The handoff invariant's channel, and the reason it is this channel.
   //
