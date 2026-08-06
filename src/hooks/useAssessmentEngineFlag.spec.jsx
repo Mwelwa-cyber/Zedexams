@@ -13,7 +13,7 @@ import { ENGINE_FLAG_KEY } from '../engines/assessment-engine/flags.js'
 import { useAssessmentEngineFlag } from './useAssessmentEngineFlag.js'
 
 // Stable mock objects: a fresh object per call re-renders forever.
-const platform = { settings: { featureFlags: {} }, loaded: true }
+const platform = { settings: { featureFlags: {} }, loaded: true, live: true }
 const auth = { currentUser: null }
 vi.mock('../contexts/PlatformSettingsContext', () => ({ usePlatformSettings: () => platform }))
 vi.mock('../contexts/AuthContext', () => ({ useAuth: () => auth }))
@@ -24,6 +24,7 @@ beforeEach(() => {
   window.localStorage.clear()
   platform.settings = { featureFlags: {} }
   platform.loaded = true
+  platform.live = true
   auth.currentUser = null
 })
 
@@ -116,6 +117,30 @@ describe('useAssessmentEngineFlag', () => {
     platform.loaded = true
     rerender()
     expect(result.current.resolved).toBe(true)
+  })
+
+  it('fails closed once the settings read has DIED', () => {
+    // The rollback's safety argument is that flipping a runner off reverts
+    // every client within seconds. Firestore never resumes a listener after
+    // `onError`, so a client that kept its last snapshot would hold an enabled
+    // rollout until it reloaded — unreachable by the toggle, silently, on
+    // exactly the client already having a bad time.
+    setFlags({ pastPaperQuiz: true, rolloutPercent: 100 })
+    const { result, rerender } = renderHook(() => useAssessmentEngineFlag('pastPaperQuiz'))
+    expect(result.current.engine).toBe(true)
+
+    platform.live = false
+    rerender()
+    expect(result.current.engine).toBe(false)
+    expect(result.current.source).toBe('runner-off')
+    // Reported, not merely acted on: a client that lost its read and one the
+    // flag legitimately excluded look identical in an event stream otherwise.
+    expect(result.current.live).toBe(false)
+  })
+
+  it('reports a live read as live', () => {
+    setFlags({ pastPaperQuiz: true, rolloutPercent: 100 })
+    expect(renderHook(() => useAssessmentEngineFlag('pastPaperQuiz')).result.current.live).toBe(true)
   })
 
   it('a runner name that does not exist is off, not a crash', () => {
