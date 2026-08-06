@@ -46,6 +46,7 @@ import {
   assertRenderComplete, assertBaselineExists, isInfrastructureFailure, RenderIncompleteError,
 } from './renderGuards.js'
 import { appendBaselineSummaryEntry } from './baselineSummary.js'
+import { RECORDED_COUNT_OUTPUT, writeRecordedCount } from './handoffInvariant.js'
 import { comparePages, summarisePageComparison } from './compareRender.js'
 import { comparePagination } from './comparePagination.js'
 import {
@@ -327,6 +328,12 @@ if (gateMode === 'update') {
   const kept = verdicts.filter((v) => !v.updated)
   console.log(`\n✓ ${recorded.length} first baseline(s) recorded; ${kept.length} left untouched.`)
   for (const v of kept) console.log(`    kept ${v.fixtureId} [${v.family}/${v.copy}] — ${v.keptReason}`)
+  // Published for the pull-request job to check the arriving recordings
+  // against. Out of band, through the Actions API — a count carried inside the
+  // artifact would be lost by the very layout bug it exists to catch.
+  if (writeRecordedCount(recorded.length, process.env.GITHUB_OUTPUT)) {
+    console.log(`reported to the next job: ${RECORDED_COUNT_OUTPUT}=${recorded.length}`)
+  }
   if (!recorded.length) {
     console.log('\nNothing was missing, so nothing was recorded. Replacing an existing '
       + 'baseline is the reviewed update path, which names its fixture and states why.')

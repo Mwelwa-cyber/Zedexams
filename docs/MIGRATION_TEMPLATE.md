@@ -289,6 +289,40 @@ fails if you:
 
 ---
 
+## 7a. After the merge, read the review comments that arrived after it
+
+**Before starting anything that depends on a merged pull request, re-open it and
+read every review thread — including ones posted after the merge — and resolve
+or answer each.** Not "glance at the merge notification": open the PR, list its
+unresolved threads, and act on them before the dependent work is dispatched.
+
+This is a step because skipping it has now cost two consecutive days:
+
+| | the merged change | the comment | what it cost |
+|---|---|---|---|
+| #2136 | auth watchdog latch | Codex P1 on the *previous* PR, unread until after merge | a follow-up PR |
+| #2138 | bootstrap job split | Codex P1 posted **four minutes after merge**, naming the exact artifact-layout failure | a full 16-render bootstrap dispatch that recorded everything and collected nothing, reported green |
+
+Both comments named the defect precisely, before the failure happened, and both
+were sitting unread while the next step was dispatched. The window that matters
+is small and predictable: review bots finish *after* CI does, so the comments
+most worth reading routinely land in the minutes around a merge — the one moment
+nobody is looking at the pull request any more.
+
+```bash
+# the sweep, before dispatching dependent work
+gh pr view <n>  -R Mwelwa-cyber/Zedexams --json reviewThreads,comments
+gh api repos/Mwelwa-cyber/Zedexams/pulls/<n>/comments --jq '.[] | {user: .user.login, path, body: .body[:120]}'
+```
+
+A comment on a merged pull request is not stale by virtue of the merge. Either
+it is wrong — say so in a reply and resolve it — or it describes something now
+on `main`, which makes it more urgent than it was while the PR was open, not
+less. "It already merged" is a statement about process, not about whether the
+code is correct.
+
+---
+
 ## 8. What Phase 2 changed in the debt lists
 
 Migrating a feature should *shrink* the Phase 1 lists, never grow them. Moving

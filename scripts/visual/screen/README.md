@@ -43,6 +43,35 @@ an artifact and `collectBootstrapRecordings.mjs` merges them — including the
 review-sheet sidecars, since taking either one whole would describe half the
 diff.
 
+### The third dispatch recorded everything and delivered none of it
+
+Run `31094944867` proved the environment fix — `record-screen` ran Chromium
+alone, clean digest, all 16 rendered — and then **lost them in the handoff**.
+`upload-artifact@v4` roots its archive at the least common ancestor of its
+search paths, so two paths under `tests/visual/` produced a zip holding
+`baselines/…` and `output/…` with the prefix stripped, while the collector
+looked under `tests/visual/…`. It found nothing, and printed *"Every baseline
+already exists — nothing was recorded"* — the message for a completely
+different, legitimate outcome — and exited **0**. A green run, 4,990,794 bytes
+of correct renders, zero delivered.
+
+The bug did not break a check. It walked into an existing success path. So the
+fix is two things, and the second matters more:
+
+- the artifact's root is **found**, against `ARTIFACT_ROOT_CANDIDATES`, rather
+  than assumed — the action's rooting rule is its business, not ours;
+- each recorder publishes **how many baselines it wrote** as a job output, and
+  the pull-request job refuses to continue unless that many arrive. The count
+  travels through the Actions API, never inside the artifact: a count packed
+  into the archive would be lost by the very bug it exists to catch and would
+  agree with itself at zero. `"nothing to commit"` is now reachable only when
+  the recorder independently reported zero.
+
+Codex predicted this in a review comment posted four minutes after #2138 merged,
+naming the least-common-ancestor rule and the two exact line numbers. Nobody
+read it before the dispatch. `docs/MIGRATION_TEMPLATE.md` §7a is the standing
+fix for that.
+
 ### The first dispatch failed, and where
 
 Run `31072103730` rendered all 16 captures, wrote them, committed them and
