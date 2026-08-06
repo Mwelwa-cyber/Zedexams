@@ -28,8 +28,11 @@ function test(name, fn) {
   console.log(`  ✓ ${name}`)
 }
 
-const entry = (key, family, section) => ({
-  key, family, columns: ['Fixture'], cells: [key], section,
+// `path` is the baseline file this entry describes, relative to `baselines/`.
+// The collector verifies each named file actually arrived, so a fixture that
+// omitted it would be asserting against a check that cannot run.
+const entry = (key, family, section, file = `${key}.png`) => ({
+  key, family, path: file, columns: ['Fixture'], cells: [key], section,
 })
 
 /**
@@ -45,8 +48,17 @@ function artifact(root, name, entries, prefix = '') {
   const artifactRoot = path.join(root, name)
   const dir = path.join(artifactRoot, prefix, 'output')
   mkdirSync(dir, { recursive: true })
-  // A baselines tree is what makes this recognisable as a recording at all.
-  mkdirSync(path.join(artifactRoot, prefix, 'baselines'), { recursive: true })
+  // A baselines tree is what makes this recognisable as a recording at all —
+  // and every entry's DECLARED file is written, because the collector verifies
+  // each one arrived. A fixture that declared files it did not write would be
+  // asserting against a check it permanently fails.
+  const baselines = path.join(artifactRoot, prefix, 'baselines')
+  mkdirSync(baselines, { recursive: true })
+  for (const e of entries ?? []) {
+    if (!e.path) continue
+    mkdirSync(path.join(baselines, path.dirname(e.path)), { recursive: true })
+    writeFileSync(path.join(baselines, e.path), `baseline-${e.key}`)
+  }
   if (entries) writeFileSync(path.join(dir, BASELINE_SUMMARY_ENTRIES), JSON.stringify(entries))
   return artifactRoot
 }
@@ -246,7 +258,8 @@ try {
     const entries = []
     for (let i = 1; i <= count; i += 1) {
       const id = `scr-${String(i).padStart(3, '0')}`
-      entries.push(entry(`screen/${id}/phone`, 'screen', `SECTION-${i}`))
+      entries.push(entry(`screen/${id}/phone`, 'screen', `SECTION-${i}`,
+        `screen/chromium-1/${id}/phone.png`))
       const baseline = path.join(visual, 'baselines/screen/chromium-1', id)
       mkdirSync(baseline, { recursive: true })
       writeFileSync(path.join(baseline, 'phone.png'), `png-${i}`)
@@ -325,11 +338,50 @@ try {
     const root = path.join(tmp, 'hollow')
     const dir = path.join(root, 'bootstrap-recording-screen')
     mkdirSync(path.join(dir, 'output'), { recursive: true })
+    mkdirSync(path.join(dir, 'baselines'), { recursive: true })
     writeFileSync(path.join(dir, 'output', BASELINE_SUMMARY_ENTRIES),
       JSON.stringify([entry('screen/a', 'screen', 'A'), entry('screen/b', 'screen', 'B')]))
     const hollow = hollowArtifacts([dir])
     assert.equal(hollow.length, 1)
-    assert.match(hollow[0], /describes 2 baseline\(s\) but carries no baselines\/ tree/)
+    assert.match(hollow[0], /describes 2 baseline\(s\) but 2 did not arrive/)
+  })
+
+  test('THE DEFECT: a screen artifact carrying only the OTHER families\' baselines', () => {
+    // Codex on #2142 (r3729107231), three minutes after that pull request
+    // merged. Every recorder uploads `tests/visual/baselines/**` from a checkout
+    // that ALREADY holds the committed browser-print and docx baselines, so
+    // "does a baselines/ tree exist" is true of an artifact that lost every one
+    // of its own new pages. The check passed on exactly the dispatch it exists
+    // for. Each described FILE is checked now.
+    const root = path.join(tmp, 'other-families-only')
+    const dir = path.join(root, 'bootstrap-recording-screen')
+    mkdirSync(path.join(dir, 'output'), { recursive: true })
+    // The tracked tree the checkout brings, entirely unrelated to this dispatch.
+    for (const tracked of ['browser-print/chromium-151/vr-001/paper', 'docx/libreoffice-24/vr-001/paper']) {
+      mkdirSync(path.join(dir, 'baselines', tracked), { recursive: true })
+      writeFileSync(path.join(dir, 'baselines', tracked, 'page-1.png'), 'committed')
+    }
+    writeFileSync(path.join(dir, 'output', BASELINE_SUMMARY_ENTRIES), JSON.stringify([
+      entry('screen/scr-001/phone', 'screen', 'A', 'screen/chromium-1/scr-001/phone.png'),
+      entry('screen/scr-001/desktop', 'screen', 'B', 'screen/chromium-1/scr-001/desktop.png'),
+    ]))
+    const hollow = hollowArtifacts([dir])
+    assert.equal(hollow.length, 1, 'a non-empty baselines/ tree of OTHER files is not arrival')
+    assert.match(hollow[0], /2 did not arrive/)
+    assert.match(hollow[0], /screen\/chromium-1\/scr-001\/phone\.png/)
+  })
+
+  test('an entry that names no file is refused, not waved through', () => {
+    // Unverifiable is not fine. Accepting it is how the tree check passed.
+    const root = path.join(tmp, 'unnamed')
+    const dir = path.join(root, 'bootstrap-recording-screen')
+    mkdirSync(path.join(dir, 'output'), { recursive: true })
+    mkdirSync(path.join(dir, 'baselines'), { recursive: true })
+    writeFileSync(path.join(dir, 'output', BASELINE_SUMMARY_ENTRIES),
+      JSON.stringify([{ key: 'screen/a', family: 'screen', columns: ['F'], cells: ['a'], section: 'A' }]))
+    const hollow = hollowArtifacts([dir])
+    assert.equal(hollow.length, 1, 'an entry naming no file must be reported, not skipped')
+    assert.match(hollow[0], /do not name the baseline file they describe/)
   })
 
   test('a WHOLE artifact is not hollow, and neither is one describing nothing', () => {
@@ -360,12 +412,15 @@ try {
     const dest = path.join(tmp, 'e2e-hollow/dest')
     mkdirSync(incoming, { recursive: true })
     const dir = recording(incoming, 'bootstrap-recording-screen', 16)
-    rmSync(path.join(dir, 'baselines'), { recursive: true })
+    // ONE page lost, not the whole tree — the realistic shape, and the one a
+    // tree-existence check cannot see at all.
+    rmSync(path.join(dir, 'baselines/screen/chromium-1/scr-007'), { recursive: true })
 
     assert.throws(
       () => collectRecordings({ incoming, destRoot: dest, jobs: succeeded(16) }),
       (err) => /HANDOFF HOLLOW/.test(err.message)
-        && /describes 16 baseline\(s\)/.test(err.message)
+        && /1 did not arrive/.test(err.message)
+        && /scr-007/.test(err.message)
         // Named on its own terms — this is not a miscount, and calling it one
         // would send whoever reads it looking in the wrong place.
         && !/HANDOFF INCOMPLETE/.test(err.message),

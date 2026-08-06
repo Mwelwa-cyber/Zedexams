@@ -759,6 +759,12 @@ function writeBaseline(fixture, identity, copy, render, layoutJson) {
   appendBaselineSummaryEntry(OUTPUT_DIR, {
     key: `${record.family}/${record.fixtureId}/${record.copy}`,
     family: record.family,
+    // WHICH baseline this entry describes, relative to `tests/visual/baselines/`
+    // — the directory holding this fixture's pages. The collector verifies every
+    // described baseline actually arrived in the artifact, and it cannot do that
+    // from a tree that merely exists: the recorder uploads a checkout that
+    // already contains every OTHER family's committed baselines.
+    path: `${record.identity}/${record.fixtureId}/${record.copy}`,
     columns: ['Fixture', 'Copy', 'Pages'],
     cells: [record.fixtureId, record.copy, String(record.pageCount)],
     section: baselineSummarySection(fixture, record),
