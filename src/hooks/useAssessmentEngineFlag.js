@@ -39,15 +39,27 @@ import { resolveEngineDecision } from '../engines/assessment-engine/flags.js'
 
 /**
  * @param {string} runner one of `ENGINE_RUNNERS` ('pastPaperQuiz' | 'quiz' | 'game')
- * @returns {{runner: string, engine: boolean, source: string, resolved: boolean}}
+ * @returns {{runner: string, engine: boolean, source: string, resolved: boolean, live: boolean}}
  *   `source` is §7.2's `flagSource` telemetry dimension — pass it through to
- *   `assessment_engine_path` rather than re-deriving why.
+ *   `assessment_engine_path` rather than re-deriving why. `live` is false once
+ *   the settings subscription has died, which forces the decision closed; send
+ *   it too, or a client that lost its read is indistinguishable from one the
+ *   flag legitimately excluded.
  */
 export function useAssessmentEngineFlag(runner) {
-  const { settings, loaded } = usePlatformSettings()
+  const { settings, loaded, live } = usePlatformSettings()
   const { currentUser } = useAuth()
   const uid = currentUser?.uid ?? null
-  const featureFlags = settings?.featureFlags
+  // A dead subscription means these flags are the last thing we HEARD, not the
+  // current value — and Firestore never resumes a listener after `onError`. A
+  // client in that state would hold an enabled rollout until it reloaded, so
+  // the admin toggle could not reach it: the rollback's whole safety argument,
+  // gone silently, on exactly the client that is having a bad time.
+  //
+  // Withholding the input is not the hook deciding. There are no current flags
+  // to read, so it passes none, and the resolver reaches its own fail-closed
+  // answer — the same one it gives for an unreadable settings document.
+  const featureFlags = live === false ? undefined : settings?.featureFlags
 
   return useMemo(() => {
     const decision = resolveEngineDecision({
@@ -58,8 +70,12 @@ export function useAssessmentEngineFlag(runner) {
       // visitor to both.
       visitorId: resolveVisitorId(uid),
     })
-    return { ...decision, resolved: loaded === true }
-  }, [featureFlags, runner, uid, loaded])
+    // `live` travels with the decision so §7.2's telemetry can tell a client
+    // that is off because of the flag from one that is off because its read
+    // died. Those look identical in an event stream otherwise, and only one of
+    // them is worth investigating.
+    return { ...decision, resolved: loaded === true, live: live !== false }
+  }, [featureFlags, runner, uid, loaded, live])
 }
 
 export default useAssessmentEngineFlag
