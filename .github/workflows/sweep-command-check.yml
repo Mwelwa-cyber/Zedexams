@@ -1,0 +1,82 @@
+name: The §7a sweep command still runs
+
+# `docs/MIGRATION_TEMPLATE.md` §7a tells a reader to sweep a merged pull request
+# for review comments that arrived after the merge. It used to print
+#
+#     gh pr view <n> --json reviewThreads,comments
+#
+# which exits 1: `reviewThreads` is a field on the GraphQL `PullRequest` type and
+# `gh pr view --json` accepts a different, fixed set. Nobody had ever run it — in
+# a section written because unread review comments had cost two days.
+#
+# `npm run test:pr-sweep` checks the shape of the replacement offline. It cannot
+# check the one thing that was actually wrong: whether the query is VALID
+# AGAINST GITHUB'S SCHEMA. Only running it can, so this runs it.
+#
+# ## Why this is not a required check, and must not become one
+#
+# It calls GitHub over the network, so it can fail for reasons that have nothing
+# to do with the change under review. A required check that does that teaches
+# people to re-run checks until they go green, which is how a real failure gets
+# clicked past. It runs on a schedule instead: drift is caught within a day,
+# which is fast enough for a documented command and slow enough to be honest
+# about what it is.
+#
+# It is deliberately NOT triggered by pull_request for the same reason.
+
+on:
+  schedule:
+    # 06:15 UTC daily — after the nightly agents, before the working day here.
+    - cron: '15 6 * * *'
+  workflow_dispatch:
+    inputs:
+      pull_request:
+        description: 'Pull request to sweep (any merged one will do)'
+        required: false
+        type: string
+        default: '2143'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  sweep:
+    name: Run the documented sweep against a real pull request
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # The offline half first: if the shape is wrong there is no point paying
+      # for a network call to find out, and its failure message is clearer.
+      - name: The offline checks
+        run: node scripts/test-pr-review-sweep.mjs
+
+      # The half that matters. A merged pull request with a known post-merge
+      # review comment, so a silent "no threads found" — which is what a
+      # malformed query would look like if the script did not check for GraphQL
+      # errors explicitly — cannot pass as success.
+      - name: Run the sweep exactly as §7a documents it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PR="${{ inputs.pull_request || '2143' }}"
+          node scripts/sweepPrReviewThreads.mjs "$PR" --all | tee /tmp/sweep.txt
+
+          # #2143 carries the Codex thread that produced #2145, posted after the
+          # merge. If the sweep reports nothing for it, the query returned
+          # nothing — which is the failure this workflow exists to catch, and it
+          # looks exactly like success unless something asserts otherwise.
+          if [ "$PR" = "2143" ]; then
+            grep -q 'POST-MERGE' /tmp/sweep.txt || {
+              echo "::error::The sweep ran but found no post-merge comment on #2143, which has one."
+              echo "Either the query stopped returning threads, or the post-merge flag stopped working."
+              exit 1
+            }
+          fi
