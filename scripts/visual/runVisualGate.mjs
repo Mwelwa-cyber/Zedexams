@@ -46,6 +46,7 @@ import {
   assertRenderComplete, assertBaselineExists, isInfrastructureFailure, RenderIncompleteError,
 } from './renderGuards.js'
 import { appendBaselineSummaryEntry } from './baselineSummary.js'
+import { paperBaselinePaths } from './baselinePaths.js'
 import { RECORDED_COUNT_OUTPUT, writeRecordedCount } from './handoffInvariant.js'
 import { comparePages, summarisePageComparison } from './compareRender.js'
 import { comparePagination } from './comparePagination.js'
@@ -759,12 +760,24 @@ function writeBaseline(fixture, identity, copy, render, layoutJson) {
   appendBaselineSummaryEntry(OUTPUT_DIR, {
     key: `${record.family}/${record.fixtureId}/${record.copy}`,
     family: record.family,
-    // WHICH baseline this entry describes, relative to `tests/visual/baselines/`
-    // — the directory holding this fixture's pages. The collector verifies every
-    // described baseline actually arrived in the artifact, and it cannot do that
-    // from a tree that merely exists: the recorder uploads a checkout that
-    // already contains every OTHER family's committed baselines.
-    path: `${record.identity}/${record.fixtureId}/${record.copy}`,
+    // EVERY FILE this entry describes, relative to `tests/visual/baselines/`.
+    //
+    // The collector verifies each one arrived. This named the copy DIRECTORY,
+    // which an artifact keeps as long as any single file inside it survives —
+    // so a paper artifact that lost every rendered `page-N.png` but kept
+    // `environment.json` passed arrival and could reach review as an unusable
+    // baseline. The pages are the baseline; the metadata beside them is not a
+    // substitute for it. Raised by Codex on #2143 (`r3729416392`).
+    //
+    // Computed in `baselinePaths.js` so a test can exercise it: this file is a
+    // script with top-level await, so importing it runs the gate — which is why
+    // the directory-shaped version this replaces was caught by nothing.
+    paths: paperBaselinePaths({
+      identity: record.identity,
+      fixtureId: record.fixtureId,
+      copy: record.copy,
+      hashes: record.hashes,
+    }),
     columns: ['Fixture', 'Copy', 'Pages'],
     cells: [record.fixtureId, record.copy, String(record.pageCount)],
     section: baselineSummarySection(fixture, record),

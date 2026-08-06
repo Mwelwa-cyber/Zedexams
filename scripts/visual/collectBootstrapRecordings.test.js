@@ -15,11 +15,13 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import os from 'node:os'
 import path from 'node:path'
 import {
-  ARTIFACT_ROOT_CANDIDATES, artifactDirs, collectRecordings, hollowArtifacts, mergeSummaryEntries,
+  ARTIFACT_ROOT_CANDIDATES, artifactDirs, collectRecordings, entryPaths, hollowArtifacts,
+  mergeSummaryEntries,
   recorderJobsFromEnv, resolveVisualRoot,
 } from './collectBootstrapRecordings.mjs'
 import { BASELINE_SUMMARY_ENTRIES, renderBaselineSummary } from './baselineSummary.js'
 import { assertHandoffComplete, resolveExpectedRecordings, writeRecordedCount } from './handoffInvariant.js'
+import { paperBaselinePaths, screenBaselinePaths } from './baselinePaths.js'
 
 let passed = 0
 function test(name, fn) {
@@ -31,8 +33,8 @@ function test(name, fn) {
 // `path` is the baseline file this entry describes, relative to `baselines/`.
 // The collector verifies each named file actually arrived, so a fixture that
 // omitted it would be asserting against a check that cannot run.
-const entry = (key, family, section, file = `${key}.png`) => ({
-  key, family, path: file, columns: ['Fixture'], cells: [key], section,
+const entry = (key, family, section, files = [`${key}.png`]) => ({
+  key, family, paths: [].concat(files), columns: ['Fixture'], cells: [key], section,
 })
 
 /**
@@ -55,9 +57,10 @@ function artifact(root, name, entries, prefix = '') {
   const baselines = path.join(artifactRoot, prefix, 'baselines')
   mkdirSync(baselines, { recursive: true })
   for (const e of entries ?? []) {
-    if (!e.path) continue
-    mkdirSync(path.join(baselines, path.dirname(e.path)), { recursive: true })
-    writeFileSync(path.join(baselines, e.path), `baseline-${e.key}`)
+    for (const rel of e.paths ?? (e.path ? [e.path] : [])) {
+      mkdirSync(path.join(baselines, path.dirname(rel)), { recursive: true })
+      writeFileSync(path.join(baselines, rel), `baseline-${e.key}`)
+    }
   }
   if (entries) writeFileSync(path.join(dir, BASELINE_SUMMARY_ENTRIES), JSON.stringify(entries))
   return artifactRoot
@@ -259,7 +262,7 @@ try {
     for (let i = 1; i <= count; i += 1) {
       const id = `scr-${String(i).padStart(3, '0')}`
       entries.push(entry(`screen/${id}/phone`, 'screen', `SECTION-${i}`,
-        `screen/chromium-1/${id}/phone.png`))
+        [`screen/chromium-1/${id}/phone.png`]))
       const baseline = path.join(visual, 'baselines/screen/chromium-1', id)
       mkdirSync(baseline, { recursive: true })
       writeFileSync(path.join(baseline, 'phone.png'), `png-${i}`)
@@ -343,7 +346,7 @@ try {
       JSON.stringify([entry('screen/a', 'screen', 'A'), entry('screen/b', 'screen', 'B')]))
     const hollow = hollowArtifacts([dir])
     assert.equal(hollow.length, 1)
-    assert.match(hollow[0], /describes 2 baseline\(s\) but 2 did not arrive/)
+    assert.match(hollow[0], /describes 2 baseline\(s\) but 2 file\(s\) did not arrive/)
   })
 
   test('THE DEFECT: a screen artifact carrying only the OTHER families\' baselines', () => {
@@ -362,12 +365,12 @@ try {
       writeFileSync(path.join(dir, 'baselines', tracked, 'page-1.png'), 'committed')
     }
     writeFileSync(path.join(dir, 'output', BASELINE_SUMMARY_ENTRIES), JSON.stringify([
-      entry('screen/scr-001/phone', 'screen', 'A', 'screen/chromium-1/scr-001/phone.png'),
-      entry('screen/scr-001/desktop', 'screen', 'B', 'screen/chromium-1/scr-001/desktop.png'),
+      entry('screen/scr-001/phone', 'screen', 'A', ['screen/chromium-1/scr-001/phone.png']),
+      entry('screen/scr-001/desktop', 'screen', 'B', ['screen/chromium-1/scr-001/desktop.png']),
     ]))
     const hollow = hollowArtifacts([dir])
     assert.equal(hollow.length, 1, 'a non-empty baselines/ tree of OTHER files is not arrival')
-    assert.match(hollow[0], /2 did not arrive/)
+    assert.match(hollow[0], /2 file\(s\) did not arrive/)
     assert.match(hollow[0], /screen\/chromium-1\/scr-001\/phone\.png/)
   })
 
@@ -381,7 +384,7 @@ try {
       JSON.stringify([{ key: 'screen/a', family: 'screen', columns: ['F'], cells: ['a'], section: 'A' }]))
     const hollow = hollowArtifacts([dir])
     assert.equal(hollow.length, 1, 'an entry naming no file must be reported, not skipped')
-    assert.match(hollow[0], /do not name the baseline file they describe/)
+    assert.match(hollow[0], /does not name the baseline files it describes/)
   })
 
   test('a WHOLE artifact is not hollow, and neither is one describing nothing', () => {
@@ -419,13 +422,98 @@ try {
     assert.throws(
       () => collectRecordings({ incoming, destRoot: dest, jobs: succeeded(16) }),
       (err) => /HANDOFF HOLLOW/.test(err.message)
-        && /1 did not arrive/.test(err.message)
+        && /1 file\(s\) did not arrive/.test(err.message)
         && /scr-007/.test(err.message)
         // Named on its own terms — this is not a miscount, and calling it one
         // would send whoever reads it looking in the wrong place.
         && !/HANDOFF INCOMPLETE/.test(err.message),
       'a hollow artifact is reported as hollow, not as a count mismatch',
     )
+  })
+
+  test('THE PAPER DEFECT: metadata survived, every rendered page did not', () => {
+    // Codex on #2143 (r3729416392). The paper entry named the COPY DIRECTORY,
+    // which exists as long as any one file inside it survives — so an artifact
+    // that lost every page-N.png but kept environment.json passed arrival, and
+    // an unusable paper baseline could reach review. Each file is named now.
+    const root = path.join(tmp, 'paper-pages-lost')
+    const dir = path.join(root, 'bootstrap-recording-paper')
+    const copy = 'docx/libreoffice-24.2.7.2/vr-001/paper'
+    mkdirSync(path.join(dir, 'output'), { recursive: true })
+    // The metadata arrived; the pages did not.
+    mkdirSync(path.join(dir, 'baselines', copy), { recursive: true })
+    for (const kept of ['environment.json', 'layout.json', 'recorded.json']) {
+      writeFileSync(path.join(dir, 'baselines', copy, kept), '{}')
+    }
+    writeFileSync(path.join(dir, 'output', BASELINE_SUMMARY_ENTRIES), JSON.stringify([
+      entry('docx/vr-001/paper', 'docx', 'PAPER', [
+        `${copy}/page-1.png`, `${copy}/page-2.png`,
+        `${copy}/environment.json`, `${copy}/layout.json`, `${copy}/recorded.json`,
+      ]),
+    ]))
+    const hollow = hollowArtifacts([dir])
+    assert.equal(hollow.length, 1, 'a surviving copy directory is not arrival')
+    assert.match(hollow[0], /2 file\(s\) did not arrive/)
+    assert.match(hollow[0], /page-1\.png/)
+    // And it must NOT be reported when every page is present.
+    for (const page of ['page-1.png', 'page-2.png']) {
+      writeFileSync(path.join(dir, 'baselines', copy, page), 'png')
+    }
+    assert.deepEqual(hollowArtifacts([dir]), [])
+  })
+
+  test('the PAPER builder declares every page, never the copy directory', () => {
+    // The computation the recorder actually runs, not a hand-built entry.
+    // `runVisualGate.mjs` has top-level await, so importing it runs the gate —
+    // which is exactly why the directory-shaped version was caught by nothing
+    // and had to be extracted before a control could reach it.
+    const paths = paperBaselinePaths({
+      identity: 'docx/libreoffice-24.2.7.2',
+      fixtureId: 'vr-001',
+      copy: 'paper',
+      hashes: {
+        'page-1.png': 'aa', 'page-2.png': 'bb',
+        'layout.json': 'cc', 'environment.json': 'dd',
+      },
+    })
+    const dir = 'docx/libreoffice-24.2.7.2/vr-001/paper'
+    assert.deepEqual(paths, [
+      `${dir}/environment.json`, `${dir}/layout.json`,
+      `${dir}/page-1.png`, `${dir}/page-2.png`, `${dir}/recorded.json`,
+    ])
+    // The property that matters, stated on its own: EVERY page is named, and
+    // the bare copy directory — which survives any single file — is not.
+    assert.ok(paths.every((p) => p !== dir), 'the copy directory is not a declared path')
+    for (const page of ['page-1.png', 'page-2.png']) {
+      assert.ok(paths.includes(`${dir}/${page}`), `${page} is declared`)
+    }
+    // recorded.json is written AFTER the hashes are taken, so it is not in the
+    // manifest and would be lost by the same accident that loses the pages.
+    assert.ok(paths.includes(`${dir}/recorded.json`))
+  })
+
+  test('the SCREEN builder declares its one image', () => {
+    assert.deepEqual(
+      screenBaselinePaths({ identity: 'screen/chromium-151.0.7922.47', fixtureId: 'scr-001', viewportId: 'phone' }),
+      ['screen/chromium-151.0.7922.47/scr-001/phone.png'],
+    )
+  })
+
+  test('an entry declaring an EMPTY file list names nothing', () => {
+    // `paths: []` is not "nothing to check" — it is an entry that cannot be
+    // verified, which is the same failure as omitting the field.
+    const root = path.join(tmp, 'empty-paths')
+    const dir = path.join(root, 'bootstrap-recording-screen')
+    mkdirSync(path.join(dir, 'output'), { recursive: true })
+    mkdirSync(path.join(dir, 'baselines'), { recursive: true })
+    writeFileSync(path.join(dir, 'output', BASELINE_SUMMARY_ENTRIES),
+      JSON.stringify([{ key: 'screen/a', family: 'screen', paths: [], columns: ['F'], cells: ['a'], section: 'A' }]))
+    assert.match(hollowArtifacts([dir])[0], /does not name the baseline files it describes/)
+    assert.deepEqual(entryPaths({ paths: [] }), [])
+    assert.deepEqual(entryPaths({ paths: ['a.png', '', null, 'b.png'] }), ['a.png', 'b.png'])
+    // The legacy single `path` is still read, as one file.
+    assert.deepEqual(entryPaths({ path: 'a.png' }), ['a.png'])
+    assert.deepEqual(entryPaths({}), [])
   })
 
   test('END TO END: the genuine already-exists re-dispatch stays green and quiet', () => {
