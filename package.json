@@ -737,7 +737,8 @@
     "test:glass-tokens": "node scripts/test-glass-tokens.mjs",
     "test:engine-flag-resolution": "node src/engines/assessment-engine/flags.test.js",
     "test:engine-flag-single-reader": "node scripts/test-engine-flag-single-reader.mjs",
-    "test:visitor-id": "node src/utils/visitorId.test.js"
+    "test:visitor-id": "node src/utils/visitorId.test.js",
+    "test:baseline-summary": "node scripts/visual/baselineSummary.test.js"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

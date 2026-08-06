@@ -618,6 +618,33 @@ test('every writer takes its review sheet from the recorder, not from YAML', () 
   }
 })
 
+test('every RECORDER produces the sheet its workflow demands', () => {
+  // The twin of the test above, and the one that was missing.
+  //
+  // The workflow-side half was asserted from the day the bootstrap landed: each
+  // writer reads `baseline-summary.md` and exits 1 without it. The recorder-side
+  // half — that a recorder capable of writing a baseline actually WRITES that
+  // file — was true of `runVisualGate.mjs` and untested, so when a second
+  // recorder arrived it did not write one and nothing failed. A `family=screen`
+  // dispatch then rendered 16 baselines, committed them, pushed the branch, and
+  // died at `gh pr create`: recording worked, the review sheet did not exist,
+  // and the images were stranded on an orphan branch.
+  //
+  // Read as source rather than imported: these are top-level scripts that render
+  // on import. What is asserted is narrow and load-bearing — the recorder reaches
+  // the ONE writer, so a third family gets the sheet by construction instead of
+  // by somebody remembering.
+  const RECORDERS = ['runVisualGate.mjs', 'screen/runScreenGate.mjs']
+  for (const name of RECORDERS) {
+    const src = readFileSync(new URL(`./${name}`, import.meta.url), 'utf8')
+    assert.match(src, /from '\.{1,2}\/baselineSummary\.js'/,
+      `${name} does not use the shared review-sheet writer`)
+    assert.match(src, /appendBaselineSummaryEntry\(/,
+      `${name} imports the writer but never calls it — a recorder that writes baselines and no sheet `
+      + 'makes the bootstrap workflow fail after it has already pushed them')
+  }
+})
+
 test('editing a writer workflow runs the gate that proves it is still safe', () => {
   for (const name of Object.keys(WRITERS)) {
     assert.ok(PRINT_AFFECTING_PATHS.includes(`.github/workflows/${name}`), `${name} is watched`)
