@@ -14,7 +14,7 @@ import { useAssessmentEngineFlag } from './useAssessmentEngineFlag.js'
 
 // Stable mock objects: a fresh object per call re-renders forever.
 const platform = { settings: { featureFlags: {} }, loaded: true, live: true }
-const auth = { currentUser: null, loading: false }
+const auth = { currentUser: null, loading: false, authSettled: true }
 vi.mock('../contexts/PlatformSettingsContext', () => ({ usePlatformSettings: () => platform }))
 vi.mock('../contexts/AuthContext', () => ({ useAuth: () => auth }))
 
@@ -27,6 +27,7 @@ beforeEach(() => {
   platform.live = true
   auth.currentUser = null
   auth.loading = false
+  auth.authSettled = true
 })
 
 describe('useAssessmentEngineFlag', () => {
@@ -207,6 +208,51 @@ describe('useAssessmentEngineFlag', () => {
     rerender()
     expect(result.current.resolved).toBe(true)
     expect(result.current.engine).toBe(true)
+  })
+
+  it('the AUTH WATCHDOG does not latch a returning learner as anonymous', () => {
+    // The state Codex found, and it is reachable rather than theoretical:
+    // `AuthContext`'s restoration watchdog clears `loading` after 5s (30s with
+    // a session hint) WITHOUT an auth event, so a returning learner on a slow
+    // cold start is `loading === false` with `currentUser === null`.
+    //
+    // Latching there would commit the anonymous answer, and the real uid
+    // arriving afterwards would look to the latch like a ramp-up — refused —
+    // leaving that learner on the wrong runner for the whole attempt. That is
+    // strictly worse than the swap the latch exists to prevent: a transient
+    // turned permanent.
+    window.localStorage.setItem('zedexams:anonId', 'anon-device-2') // bucket 87 — out
+    setFlags({ pastPaperQuiz: true, rolloutPercent: 50 })
+    auth.loading = false        // the watchdog gave up…
+    auth.authSettled = false    // …but Firebase has still said nothing
+    auth.currentUser = null
+
+    const { result, rerender } = renderHook(() => useAssessmentEngineFlag('pastPaperQuiz'))
+    // The page may mount — a public, crawled route that never resolves is worse
+    // than one showing the old runner.
+    expect(result.current.resolved).toBe(true)
+    expect(result.current.engine).toBe(false)
+
+    // Firebase finally speaks, and the answer is CORRECTABLE.
+    auth.authSettled = true
+    auth.currentUser = { uid: 'learner-3' } // bucket 10 — in
+    rerender()
+    expect(result.current.engine).toBe(true)
+  })
+
+  it('once auth has genuinely settled, the latch is back in force', () => {
+    // The other half: the fix must not disable the latch, only delay it until
+    // the inputs are real.
+    setFlags({ pastPaperQuiz: true, rolloutPercent: 50 })
+    window.localStorage.setItem('zedexams:anonId', 'anon-device-2') // bucket 87 — out
+    auth.authSettled = true
+    const { result, rerender } = renderHook(() => useAssessmentEngineFlag('pastPaperQuiz'))
+    expect(result.current.engine).toBe(false)
+
+    setFlags({ pastPaperQuiz: true, rolloutPercent: 90 }) // a ramp now includes them
+    rerender()
+    expect(result.current.engine).toBe(false)
+    expect(result.current.latched).toBe(true)
   })
 
   it('the answer that lands is the UID answer, not the one auth had not supplied yet', () => {

@@ -54,7 +54,7 @@ import { resolveEngineDecision } from '../engines/assessment-engine/flags.js'
  */
 export function useAssessmentEngineFlag(runner) {
   const { settings, loaded, live } = usePlatformSettings()
-  const { currentUser, loading: authLoading } = useAuth()
+  const { currentUser, loading: authLoading, authSettled } = useAuth()
   const uid = currentUser?.uid ?? null
   // A dead subscription means these flags are the last thing we HEARD, not the
   // current value — and Firestore never resumes a listener after `onError`. A
@@ -67,16 +67,32 @@ export function useAssessmentEngineFlag(runner) {
   // answer — the same one it gives for an unreadable settings document.
   const featureFlags = live === false ? undefined : settings?.featureFlags
 
-  // BOTH inputs must be final, not just the settings.
+  // ── Two different questions, and they take two different signals ───────────
   //
+  // `resolved` — MAY A CONSUMER MOUNT? Both reads must have stopped waiting.
   // `settings/global` is world-readable and served from Firestore's IndexedDB
-  // cache, while Firebase restores the auth session from IndexedDB
-  // asynchronously — `AuthContext.jsx` documents that "for the first frames
+  // cache, while Firebase restores the auth session asynchronously —
+  // `AuthContext.jsx:41` documents that "for the first frames
   // `auth.currentUser` is null even for a returning logged-in user". Settings
-  // can easily win that race. Reporting `resolved` there would mark an
-  // ANONYMOUS-id decision final, the consumer would mount on it, and the uid
-  // would then arrive into a different bucket.
+  // can easily win that race, and reporting `resolved` on the settings alone
+  // would tell the consumer to mount on an ANONYMOUS-id decision.
+  //
+  // `settled` — MAY THE ANSWER BE FROZEN? A stricter question, and `loading`
+  // is the wrong signal for it: `AuthContext`'s restoration watchdog clears
+  // `loading` after 5 s (30 s on a device with a session hint) WITHOUT an auth
+  // event, so a returning learner on a slow cold start is `loading === false`
+  // with `currentUser === null`. Latching there would commit the anonymous
+  // answer, and the real uid arriving afterwards would look to the latch like
+  // a ramp-up — refused — leaving that learner on the wrong runner for the
+  // whole attempt. `authSettled` is set only by `onAuthStateChanged`, never by
+  // the watchdog, so it means "this IS the answer" rather than "stop waiting".
+  //
+  // Keeping `resolved` on the looser signal is deliberate: `/papers/:paperId/
+  // quiz` is public and crawled, and a page that never resolves is worse than
+  // one that renders the old runner. What the strict signal buys is that a
+  // decision taken in that window stays CORRECTABLE.
   const resolved = loaded === true && authLoading !== true
+  const settled = resolved && authSettled === true
 
   const decision = useMemo(() => resolveEngineDecision({
     featureFlags,
@@ -111,10 +127,14 @@ export function useAssessmentEngineFlag(runner) {
   // state from changing inputs: it settles before paint, so no frame ever
   // renders the pre-latch answer, and unlike a ref it is safe under concurrent
   // rendering.
+  // Gated on `settled`, not `resolved`. The latch's premise is that the answer
+  // WAS right and then the flags moved under a learner; a decision computed
+  // from inputs that had not arrived yet has nothing legitimate to protect, and
+  // freezing it converts a transient into a permanent.
   const [committed, setCommitted] = useState(null)
   let engine = decision.engine
   let latched = false
-  if (resolved) {
+  if (settled) {
     const held = committed?.runner === runner ? committed.engine : null
     // First resolved answer for this runner is a MOUNT, not a transition, so it
     // is taken as-is however it lands.

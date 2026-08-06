@@ -371,3 +371,85 @@ describe('AuthProvider profile-snapshot auth-error recovery', () => {
     expect(h.signOut).not.toHaveBeenCalled()
   })
 })
+
+/* ── authSettled vs loading ──────────────────────────────────────────────────
+   Two signals that look interchangeable and are not. `loading` answers "stop
+   waiting, render something" and is ALSO cleared by the restoration watchdog —
+   after 5s with no session hint, 30s with one — precisely so a slow cold start
+   shows a page instead of hanging. In that window a returning learner is
+   `loading === false` with `currentUser === null`.
+
+   `authSettled` answers "this IS the answer" and is set only by
+   `onAuthStateChanged`. Anything that FREEZES a per-user decision must wait for
+   it; `useAssessmentEngineFlag`'s latch is the first such consumer, and gating
+   it on `loading` would have committed a returning learner to the anonymous
+   rollout bucket for the whole attempt. */
+
+function SettleProbe() {
+  const { loading, authSettled, currentUser } = useAuth()
+  return (
+    <span data-testid="settle">
+      {JSON.stringify({ loading, authSettled, uid: currentUser?.uid ?? null })}
+    </span>
+  )
+}
+const readSettle = () => JSON.parse(screen.getByTestId('settle').textContent)
+
+describe('AuthProvider authSettled', () => {
+  beforeEach(() => {
+    h.onAuthCb.current = null
+    h.snap.next = null
+    h.snap.error = null
+    h.signOut.mockClear()
+    window.localStorage.clear()
+  })
+
+  it('starts false — nothing has been heard yet', () => {
+    render(<AuthProvider><SettleProbe /></AuthProvider>)
+    expect(readSettle()).toEqual({ loading: true, authSettled: false, uid: null })
+  })
+
+  it('the WATCHDOG clears loading without settling auth', () => {
+    // The state the engine flag's latch must not commit on. Driven through the
+    // real timer the provider installs, so this fails if the watchdog is ever
+    // rewired to set both.
+    vi.useFakeTimers()
+    try {
+      render(<AuthProvider><SettleProbe /></AuthProvider>)
+      act(() => { vi.advanceTimersByTime(31_000) })
+      const state = readSettle()
+      expect(state.loading).toBe(false)   // render something
+      expect(state.authSettled).toBe(false) // but do not claim to know who
+      expect(state.uid).toBe(null)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('the first auth event settles it, signed in or out', () => {
+    render(<AuthProvider><SettleProbe /></AuthProvider>)
+    act(() => { h.onAuthCb.current({ uid: 'u1', getIdToken: vi.fn() }) })
+    expect(readSettle().authSettled).toBe(true)
+    expect(readSettle().uid).toBe('u1')
+  })
+
+  it('a signed-OUT answer settles it too — "nobody" is an answer', () => {
+    render(<AuthProvider><SettleProbe /></AuthProvider>)
+    act(() => { h.onAuthCb.current(null) })
+    expect(readSettle()).toEqual({ loading: false, authSettled: true, uid: null })
+  })
+
+  it('a late auth event after the watchdog still settles it', () => {
+    // The correctable path: the watchdog gave up, then Firebase spoke.
+    vi.useFakeTimers()
+    try {
+      render(<AuthProvider><SettleProbe /></AuthProvider>)
+      act(() => { vi.advanceTimersByTime(31_000) })
+      expect(readSettle().authSettled).toBe(false)
+      act(() => { h.onAuthCb.current({ uid: 'late-1', getIdToken: vi.fn() }) })
+      expect(readSettle()).toMatchObject({ authSettled: true, uid: 'late-1' })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
