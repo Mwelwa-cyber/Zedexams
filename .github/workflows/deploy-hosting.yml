@@ -166,6 +166,10 @@ jobs:
           VITE_GOOGLE_MAPS_STATIC_KEY:      ${{ secrets.VITE_GOOGLE_MAPS_STATIC_KEY }}
           VITE_SENTRY_DSN:                  ${{ secrets.VITE_SENTRY_DSN }}
           VITE_APP_VERSION:                 ${{ secrets.VITE_APP_VERSION }}
+          # The commit this shell was built from. VITE_APP_VERSION is a
+          # manually-bumped secret, identical across deploys, so it cannot
+          # tell two shells apart during a rollout hold — the sha can.
+          VITE_BUILD_SHA:                   ${{ github.sha }}
           VITE_FIREBASE_VAPID_KEY:          ${{ secrets.VITE_FIREBASE_VAPID_KEY }}
           VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY: ${{ secrets.VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY }}
           VITE_POSTHOG_KEY:                 ${{ secrets.VITE_POSTHOG_KEY }}
