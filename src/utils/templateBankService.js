@@ -24,6 +24,9 @@ import app, { db } from '../firebase/config'
 import { saveLessonPlanGeneration } from './teacherLibraryService'
 import { LIBRARY_TYPES } from '../config/library'
 import { renderPlanHtml } from '../components/teacher/studio/utils/renderPlanHtml'
+import {
+  templateCurriculumMode, templatePreviewMeta, templateSyllabusHint,
+} from '../components/teacher/templates/templatePlanPreview'
 
 const functions = getFunctions(app, 'us-central1')
 const interactionCallable = httpsCallable(functions, 'recordTemplateInteraction', { timeout: 30_000 })
@@ -203,12 +206,21 @@ export async function createLessonPlanFromTemplate({ uid, template, header = {} 
       : header.learningEnvironment
   }
 
+  // The SAME rendering options the Template Bank previewed it with, now
+  // carrying the teacher's own header instead of the template's blanks. The
+  // preview and the saved plan drawing the same document is the whole point:
+  // this used to save `format: 'modern'` under a preview that had drawn
+  // something else, so the plan a teacher chose was not the plan they got.
+  const curriculumMode = templateCurriculumMode(template)
   const meta = {
-    format: 'modern',
+    ...templatePreviewMeta(template, {
+      school: header.school || '',
+      teacherName: header.teacherName || '',
+      date: header.date || '',
+      time: header.time || '',
+      class: header.class || '',
+    }),
     grade: template.grade,
-    subject: template.subject,
-    topic: template.topic,
-    subtopic: template.subtopic,
     // Tag the save so the Template Bank trigger does NOT re-ingest a
     // template-derived plan back into the bank.
     fromTemplateId: template.id,
@@ -216,7 +228,7 @@ export async function createLessonPlanFromTemplate({ uid, template, header = {} 
 
   let html = ''
   try {
-    html = renderPlanHtml(content, meta, 'cbc')
+    html = renderPlanHtml(content, meta, curriculumMode)
   } catch (err) {
     html = ''
   }
@@ -226,7 +238,7 @@ export async function createLessonPlanFromTemplate({ uid, template, header = {} 
     planJson: content,
     html,
     meta,
-    studioFormat: 'modern',
+    studioFormat: meta.format,
     inputs: {
       grade: template.grade || null,
       subject: template.subject || null,
@@ -235,6 +247,9 @@ export async function createLessonPlanFromTemplate({ uid, template, header = {} 
     },
     classification: {
       libraryType: LIBRARY_TYPES.LESSON_PLANS,
+      // Without the hint an OBC template's plan files under CBC, and the studio
+      // reopens it in the wrong curriculum's vocabulary.
+      syllabusHint: templateSyllabusHint(template),
       grade: template.grade,
       subject: template.subject,
     },
