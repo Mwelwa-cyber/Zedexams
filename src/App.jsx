@@ -231,7 +231,7 @@ const WorksheetGenerator = lazy(() => import('./components/teacher/generate/Work
 const FlashcardGenerator = lazy(() => import('./features/flashcards/pages/FlashcardGenerator'))
 const SchemeOfWorkGenerator = lazy(() => import('./components/teacher/generate/SchemeOfWorkGenerator'))
 const ClassTimetableStudio = lazy(() => import('./components/teacher/generate/ClassTimetableStudio'))
-const RubricGenerator = lazy(() => import('./components/teacher/generate/RubricGenerator'))
+const RubricGenerator = lazy(() => import('./features/rubric/pages/RubricGenerator'))
 const NotesStudio = lazy(() => import('./components/teacher/generate/NotesStudio'))
 // Teacher — Visual Studio (ZedExams Picture & Diagram Studio). Self-contained
 // feature module under src/features/visualStudio/.
