@@ -404,4 +404,46 @@ describe('HeaderBlock — collapse-when-valid', () => {
     fireEvent.click(screen.getByRole('button', { name: /close paper details/i }))
     expect(onCloseHeader).toHaveBeenCalled()
   })
+
+  it('Escape closes the drawer', () => {
+    // It is aria-modal; Escape is the one dismissal a keyboard user expects
+    // without being shown it. The scrim needs a pointer and the two buttons
+    // need finding.
+    const onCloseHeader = vi.fn()
+    renderHeader({ mode: 'drawer', onCloseHeader })
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onCloseHeader).toHaveBeenCalledTimes(1)
+  })
+
+  it('Escape does NOT collapse the inline form', () => {
+    // Inline is not an overlay. Collapsing a form the teacher is filling in,
+    // from a key they pressed to dismiss something else, is a different bug
+    // from the one Escape is here to fix.
+    const onCloseHeader = vi.fn()
+    renderHeader({ mode: 'form', onCloseHeader })
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onCloseHeader).not.toHaveBeenCalled()
+  })
+
+  it('the drawer stops listening once it is closed', () => {
+    // A listener left on the document would fire for every Escape anywhere in
+    // the studio, closing a header that is not open.
+    const onCloseHeader = vi.fn()
+    const { unmount } = renderHeader({ mode: 'drawer', onCloseHeader })
+    unmount()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onCloseHeader).not.toHaveBeenCalled()
+  })
+
+  it('marks the FORM, not the summary card, as the focus-deferral target', () => {
+    // The collapse defers while the cursor is in the header form. Both the form
+    // and the summary card carry `.b-header`, so the hook keys off this
+    // attribute instead — otherwise tabbing onto the summary's "Edit" button
+    // would read as "still typing" and re-expand the form.
+    const { container, unmount } = renderHeader({ mode: 'form' })
+    expect(container.querySelector('[data-paper-header-form]')).toBeInTheDocument()
+    unmount()
+    const summary = renderHeader({ mode: 'summary' })
+    expect(summary.container.querySelector('[data-paper-header-form]')).toBeNull()
+  })
 })
