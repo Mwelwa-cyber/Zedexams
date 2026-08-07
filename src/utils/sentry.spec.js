@@ -183,8 +183,10 @@ describe('sentry — the re-arm serialises behind a pending stop', () => {
     replayInstance.stop.mockImplementationOnce(() => new Promise((res) => { settleStop = res }))
     const { setSentryUser, clearSentryUser } = await loadSentry()
     setSentryUser('uid-teacher', 'teacher')
-    clearSentryUser()                       // stop() begins its final flush
+    clearSentryUser()
+    await flushMicrotasks()                 // the queued stop() begins its final flush
     setSentryUser('uid-teacher-2', 'teacher')
+    await flushMicrotasks()
 
     // The re-arm must WAIT — buffering started now would be destroyed by the
     // teardown still in flight.
@@ -201,7 +203,8 @@ describe('sentry — the re-arm serialises behind a pending stop', () => {
     const { setSentryUser, clearSentryUser } = await loadSentry()
     setSentryUser('uid-teacher', 'teacher')
     clearSentryUser()
-    setSentryUser('uid-teacher-2', 'teacher') // queued behind the flush…
+    await flushMicrotasks()                    // the stop's flush is now pending
+    setSentryUser('uid-teacher-2', 'teacher')  // queued behind the flush…
     clearSentryUser()                          // …and withdrawn before it lands
 
     settleStop()
@@ -210,11 +213,41 @@ describe('sentry — the re-arm serialises behind a pending stop', () => {
   })
 })
 
+describe('sentry — a second sign-out keeps the ONE stop chain', () => {
+  it('sign-out, sign-in, sign-out, sign-in serialises everything behind the original flush', async () => {
+    // Codex P2 on #2158 (r3734356773): the first fix kept only the LATEST
+    // stop's promise. A second sign-out while the first flush was pending
+    // invoked stop() again on the already-stopped recorder and REPLACED the
+    // reference — the no-op stop settled first, and the next re-arm fired
+    // while the original teardown was still in flight: the silent replay
+    // loss again, one level up.
+    let settleStop
+    replayInstance.stop.mockImplementationOnce(() => new Promise((res) => { settleStop = res }))
+    const { setSentryUser, clearSentryUser } = await loadSentry()
+    setSentryUser('uid-a', 'teacher')
+    clearSentryUser()
+    await flushMicrotasks()                   // stop A's final flush is pending
+    setSentryUser('uid-b', 'teacher')         // queued re-arm…
+    clearSentryUser()                         // …withdrawn; must NOT stop again or replace the chain
+    setSentryUser('uid-c', 'teacher')
+    await flushMicrotasks()
+
+    // C's re-arm must still be waiting on A's ORIGINAL flush.
+    expect(replayInstance.startBuffering).not.toHaveBeenCalled()
+    expect(replayInstance.stop).toHaveBeenCalledTimes(1)
+
+    settleStop()
+    await flushMicrotasks()
+    expect(replayInstance.startBuffering).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('sentry — shared devices', () => {
   it('stops the recorder on sign-out', async () => {
     const { setSentryUser, clearSentryUser } = await loadSentry()
     setSentryUser('uid-teacher', 'teacher')
     clearSentryUser()
+    await flushMicrotasks()
     expect(replayInstance.stop).toHaveBeenCalled()
   })
 
