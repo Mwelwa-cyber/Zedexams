@@ -2485,6 +2485,78 @@ async function main() {
     await assertSucceeds(deleteDoc(doc(admin, 'flashcardProgress', progressIdFor(LEARNER_A))))
   })
 
+  // ── announcements ────────────────────────────────────────────
+  // Platform-wide banner messages: written in /admin/announcements, read by
+  // the banner in the app shell (src/features/announcements/). The rules
+  // predate this suite; the Phase 4 migration that gave the feature a home is
+  // what put a test behind them (architecture.md §14.12).
+  //
+  // The rule is two lines — `allow read: if true` and admin-only writes — and
+  // both halves are load-bearing in a way a "does it work" test would miss.
+  // The public read is deliberate, not an oversight to be tightened later: the
+  // banner renders on the signed-out landing page, so a read gated on auth
+  // would silently stop showing an outage notice to exactly the visitors who
+  // cannot sign in. And the write side is the whole security story — an
+  // announcement is UNAUTHENTICATED-READABLE PLATFORM-WIDE TEXT, so a learner
+  // who could publish one would be addressing every visitor in the product's
+  // own voice.
+  section('announcements — world-readable by design, admin-only writes')
+
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'announcements', 'ann_live'), {
+      title: 'Maintenance on Friday', body: 'Papers may be slow 18:00–20:00.',
+      severity: 'warn', audience: 'all', active: true, createdBy: ADMIN,
+    })
+  })
+
+  await test('a signed-out visitor CAN read an announcement (the landing-page banner)', async () => {
+    await assertSucceeds(getDoc(doc(guest, 'announcements', 'ann_live')))
+  })
+
+  await test('the banner’s active-only query works for a signed-out visitor', async () => {
+    // The banner does not fetch by id — it subscribes to
+    // `where('active','==',true)`. A list is a separate rules evaluation from a
+    // get, so covering only the get above would leave the query the product
+    // actually runs untested.
+    await assertSucceeds(getDocs(query(collection(guest, 'announcements'), where('active', '==', true))))
+  })
+
+  await test('a learner CANNOT publish an announcement', async () => {
+    await assertFails(setDoc(doc(learnerA, 'announcements', 'ann_forged'), {
+      title: 'Free premium for everyone', severity: 'success', audience: 'all', active: true,
+    }))
+  })
+
+  await test('a teacher CANNOT publish an announcement', async () => {
+    // Nothing in the rule is scoped by role beyond isAdmin(); this is the case
+    // that would pass if someone widened it to isTeacherOrAbove().
+    await assertFails(setDoc(doc(teacherA, 'announcements', 'ann_forged_teacher'), {
+      title: 'School closed tomorrow', severity: 'warn', audience: 'all', active: true,
+    }))
+  })
+
+  await test('a learner CANNOT edit or deactivate a live announcement', async () => {
+    await assertFails(updateDoc(doc(learnerA, 'announcements', 'ann_live'), { active: false }))
+    await assertFails(updateDoc(doc(learnerA, 'announcements', 'ann_live'), { title: 'Ignore this' }))
+  })
+
+  await test('a learner CANNOT delete an announcement', async () => {
+    await assertFails(deleteDoc(doc(learnerA, 'announcements', 'ann_live')))
+  })
+
+  // The control for the four denials above: the same writes, differing only in
+  // who makes them. Without it every denial would still pass with the rule
+  // replaced by a blanket deny, and the admin surface would be broken in
+  // production with a green suite.
+  await test('an admin CAN publish, edit and delete an announcement', async () => {
+    await assertSucceeds(setDoc(doc(admin, 'announcements', 'ann_by_admin'), {
+      title: 'Term 3 results are out', severity: 'info', audience: 'learners', active: true,
+      createdBy: ADMIN,
+    }))
+    await assertSucceeds(updateDoc(doc(admin, 'announcements', 'ann_by_admin'), { active: false }))
+    await assertSucceeds(deleteDoc(doc(admin, 'announcements', 'ann_by_admin')))
+  })
+
   await testEnv.cleanup()
 
   // ── summary ──────────────────────────────────────────────────

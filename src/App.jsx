@@ -5,7 +5,7 @@ import { useTheme, applyThemeToBody, DEFAULT_THEME } from './contexts/ThemeConte
 import TeacherThemeSync from './contexts/TeacherThemeSync'
 import { PlatformSettingsProvider } from './contexts/PlatformSettingsContext'
 import MaintenanceBanner from './components/banners/MaintenanceBanner'
-import AnnouncementBanner from './components/banners/AnnouncementBanner'
+import { AnnouncementBanner } from './features/announcements'
 import AndroidUpdateBanner from './components/banners/AndroidUpdateBanner'
 import SubscriptionStatusBanner from './components/subscription/SubscriptionStatusBanner'
 import ProtectedRoute from './components/layout/ProtectedRoute'
@@ -190,7 +190,7 @@ const AdminAppCheck = lazy(() => import('./components/admin/AdminAppCheck'))
 const AdminUsersList = lazy(() => import('./components/admin/users/AdminUsersList'))
 const AdminUserProfile = lazy(() => import('./components/admin/users/AdminUserProfile'))
 const AdminSettings = lazy(() => import('./components/admin/settings/AdminSettings'))
-const AnnouncementsAdmin = lazy(() => import('./components/admin/announcements/AnnouncementsAdmin'))
+const AnnouncementsAdmin = lazy(() => import('./features/announcements/pages/AnnouncementsAdmin'))
 const AdminActivityLog = lazy(() => import('./components/admin/AdminActivityLog'))
 const AdminAnalytics = lazy(() => import('./components/admin/AdminAnalytics'))
 const AdminVisitors = lazy(() => import('./components/admin/AdminVisitors'))
