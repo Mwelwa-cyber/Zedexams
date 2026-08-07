@@ -212,17 +212,68 @@ test('every page of review threads is followed, not just the first', () => {
   assert.deepEqual(seen, [null, 'A', 'B'], 'the cursor is carried forward each time')
 })
 
-test('a cursor that does not advance ends the loop instead of spinning forever', () => {
+test('a cursor that does not advance stops the loop AND reports the sweep incomplete', () => {
   // A server insisting hasNextPage while returning the same cursor would hang
-  // the sweep. Trusting hasNextPage alone is the version of this that looks
-  // right and never returns.
+  // the sweep. Stopping is the anti-spin half; the other half is that the stop
+  // is an ERROR — the server said more pages exist, so threads are known to be
+  // missing, and returning the accumulated nodes would print a confident
+  // undercount (the failure this script exists to prevent).
   let calls = 0
   const result = collectThreadPages(() => {
     calls += 1
     return { pullRequest: { reviewThreads: { pageInfo: { hasNextPage: true, endCursor: 'SAME' }, nodes: [{ id: 'x' }] } } }
   })
   assert.equal(calls, 2, 'it stops as soon as the cursor repeats')
-  assert.equal(result.pullRequest.reviewThreads.nodes.length, 2)
+  assert.match(result.error ?? '', /cursor did not advance/)
+  assert.match(result.error ?? '', /2 threads collected/, 'the error says how much WAS swept')
+  assert.equal(result.pullRequest, undefined, 'an incomplete sweep is not handed on as a complete one')
+})
+
+test('an exhausted page cap is an error, never a silent undercount', () => {
+  // Codex P2 on #2148 (r3733144557): with more than maxPages of threads, the
+  // loop used to end at the cap and return the accumulated nodes as a
+  // successful complete sweep. A 5,000-thread pull request is absurd — which
+  // is exactly why this exit would never be looked at if it lied.
+  const result = collectThreadPages(
+    (after) => ({ pullRequest: { reviewThreads: {
+      pageInfo: { hasNextPage: true, endCursor: `${after ?? 'C'}+` }, nodes: [{ id: 'x' }] } } }),
+    { maxPages: 3 },
+  )
+  assert.match(result.error ?? '', /cap exhausted/)
+  assert.match(result.error ?? '', /3 threads collected/)
+  assert.equal(result.pullRequest, undefined)
+})
+
+test('the completing page cap boundary is NOT an error', () => {
+  // Exactly maxPages pages where the last one reports completion: legitimate.
+  // The cap is only exhausted when the last page still promised more.
+  let i = 0
+  const result = collectThreadPages(
+    () => (i++ < 2
+      ? { pullRequest: { reviewThreads: { pageInfo: { hasNextPage: true, endCursor: `P${i}` }, nodes: [{ id: `${i}` }] } } }
+      : { pullRequest: { reviewThreads: { pageInfo: { hasNextPage: false }, nodes: [{ id: '3' }] } } }),
+    { maxPages: 3 },
+  )
+  assert.equal(result.error, undefined)
+  assert.equal(result.pullRequest.reviewThreads.nodes.length, 3)
+})
+
+test('the first page sends a TYPED null cursor, later pages the raw cursor', () => {
+  // Codex P1 on #2148 (r3733144550): `-f after=` sends the EMPTY STRING, and a
+  // connection cursor must be a valid opaque cursor — GitHub rejects "" rather
+  // than reading it as "start at the beginning", so the sweep failed before
+  // its first page. `-F after=null` supplies the declared variable as JSON
+  // null, which is both accepted and what the query means.
+  const first = ghArgs({ owner: 'o', repo: 'r', pr: 1 })
+  const firstIdx = first.indexOf('after=null')
+  assert.ok(firstIdx > 0, 'the first page supplies after')
+  assert.equal(first[firstIdx - 1], '-F', 'null is typed (-F), not the raw string "null"')
+  assert.ok(!first.includes('after='), 'the empty-string cursor is gone')
+
+  const later = ghArgs({ owner: 'o', repo: 'r', pr: 1, after: 'Y3Vyc29y' })
+  const laterIdx = later.indexOf('after=Y3Vyc29y')
+  assert.ok(laterIdx > 0, 'later pages carry the cursor')
+  assert.equal(later[laterIdx - 1], '-f', 'a real cursor is a raw string (-f), never re-typed')
 })
 
 test('an error on ANY page fails the sweep rather than returning a partial one', () => {
