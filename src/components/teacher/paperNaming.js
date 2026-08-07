@@ -1,23 +1,22 @@
-// The paper's name as the BUILDER'S DOCUMENT TITLE BAR shows it.
+// The paper's name as a TEACHER READS it — on the library card and in the
+// builder's document title bar.
 //
-// A fourth string, alongside three that already exist:
+// One of three names a paper has, and the only one written for a screen:
 //
 //   • assessmentTitle.buildAssessmentDocumentTitle — the FILED name. Uppercase,
 //     hyphen-separated, safe in a download filename. It is what the paper is
 //     stored as.
 //   • assessmentTitle.buildAssessmentHeaderTitle   — the name PRINTED on the
 //     paper, which omits the subject because the header prints it below.
-//   • AssessmentList.jsx's `paperDisplayTitle`     — the LIBRARY CARD's name.
-//   • this module                                  — the TITLE BAR's name,
-//     which is the only one that has to survive a 200px column.
+//   • this module                                  — the READ name, in one line
+//     for a card and in three width-dependent forms for the bar.
 //
-// KNOWN DUPLICATION, deliberately left rather than merged mid-flight: the
-// library card's title (AssessmentList.jsx) derives the same grade + subject +
-// type-with-term phrase this module does, and the two disagree on one rule —
-// the card treats `titleSource === 'manual'` as the teacher's own name, this
-// module asks isGeneratedAssessmentTitle (which also spares a name typed before
-// that flag existed). Unifying them changes what the library prints, so it
-// wants its own change and its own review.
+// The card and the bar used to derive this separately, and disagreed about
+// whose name a stored title was — the card asked `titleSource === 'manual'`,
+// the bar asked isGeneratedAssessmentTitle. Both were half of the decision
+// `planTitleBackfill` already had to make correctly, so they now share it:
+// assessmentTitle.isTeacherAuthoredTitle. See the note there for why the
+// precedence is the backfill's rather than either renderer's.
 //
 // Two rules make this more than formatting:
 //
@@ -26,8 +25,8 @@
 //      here are always derived from `assessmentType` + `term` (via
 //      readPaperTerm, which returns '' rather than defaulting), so a stale
 //      generated title cannot misreport the paper. A title a HUMAN chose is
-//      still theirs — isGeneratedAssessmentTitle decides which is which, the
-//      same test the studio and the backfill use.
+//      still theirs — isTeacherAuthoredTitle decides which is which, and it is
+//      the same call the unattended title backfill makes before it writes.
 //
 //   2. **Degradation is by priority, never by ellipsis.** A CSS ellipsis on
 //      "GRADE 4 INTEGRATED SCIENCE - END OF TERM 1 TEST - 2026" eats the type
@@ -41,7 +40,7 @@
 
 import { paperGradeLabel, normalizeAssessmentType } from './paperTaxonomy.js'
 import {
-  assessmentTypePhrase, readPaperTerm, readPaperYear, isGeneratedAssessmentTitle,
+  assessmentTypePhrase, readPaperTerm, readPaperYear, teacherAuthoredTitle,
 } from './assessmentTitle.js'
 
 // Words that stay lowercase inside a title — never as the first word. Without
@@ -115,14 +114,39 @@ export function paperTypeAbbrev(paper = {}) {
 }
 
 /**
- * A teacher-authored name for this paper, or '' when the stored title is one
- * this codebase generated (and therefore says nothing the derived facts don't
- * already say, possibly with the wrong term).
+ * How a stored subject should READ.
+ *
+ * Left exactly as stored whenever the author cased it themselves — a subject
+ * containing any lowercase letter is a deliberate spelling ("Integrated
+ * Science", "iGCSE Mathematics") and re-casing it can only damage it. Only a
+ * subject stored in full capitals is re-cased, because "INTEGRATED SCIENCE"
+ * shouted in the middle of a sentence is a rendering accident, not a choice.
+ *
+ * Short all-caps words survive that pass: ICT, PE and R.E are acronyms, and
+ * blanket title-casing turns them into "Ict", "Pe" and "R.e" — which is what
+ * the library did before this module owned the rule.
+ */
+export function readableSubject(subject) {
+  const text = String(subject ?? '').trim()
+  if (!text) return ''
+  if (/[a-z]/.test(text)) return text
+  return text
+    .split(/\s+/)
+    .map((word) => {
+      const letters = word.replace(/[^A-Z]/g, '')
+      // 3 letters or fewer with no lowercase anywhere: an acronym, kept as-is.
+      if (letters.length <= 3) return word
+      return titleCasePhrase(word)
+    })
+    .join(' ')
+}
+
+/**
+ * A teacher-authored name for this paper, or '' when the name is ours — the
+ * one decision, shared with the title backfill (see assessmentTitle.js).
  */
 export function paperCustomName(paper = {}, { fallbackYear } = {}) {
-  const stored = String(paper?.title ?? '').trim()
-  if (!stored) return ''
-  return isGeneratedAssessmentTitle(stored, paper, { fallbackYear }) ? '' : stored
+  return teacherAuthoredTitle(paper, { fallbackYear })
 }
 
 /**
@@ -134,7 +158,7 @@ export function paperCustomName(paper = {}, { fallbackYear } = {}) {
  */
 export function paperDisplayFacts(paper = {}, { fallbackYear } = {}) {
   const level = paperGradeLabel(paper?.grade)
-  const subject = String(paper?.subject ?? '').trim()
+  const subject = readableSubject(paper?.subject)
   return {
     level,
     subject,
@@ -148,6 +172,28 @@ export function paperDisplayFacts(paper = {}, { fallbackYear } = {}) {
     paperName: String(paper?.paperName ?? '').trim(),
     customName: paperCustomName(paper, { fallbackYear }),
   }
+}
+
+/**
+ * The library card's one-line name.
+ *
+ * "Grade 4 Integrated Science — End of Term 2 Test"
+ *
+ * Always carries the SUBJECT, and always the term the paper's own `term` field
+ * states — the two facts whose absence let seven different Grade 4 papers read
+ * as one name, and whose staleness in a stored title let a Term 2 paper call
+ * itself Term 1.
+ *
+ * `fallbackLabel` names the kind of thing this is for a paper that carries
+ * neither a level nor a subject nor a name — the only case with nothing to
+ * build from.
+ */
+export function paperCardTitle(paper = {}, { fallbackYear, fallbackLabel = 'assessment paper' } = {}) {
+  const f = paperDisplayFacts(paper, { fallbackYear })
+  if (f.customName) return f.customName
+  const lead = f.levelSubject
+  if (lead) return `${lead} — ${f.type}`
+  return String(paper?.title ?? '').trim() || `Untitled ${String(fallbackLabel).toLowerCase()}`
 }
 
 // Width thresholds for the document title bar. These are CONTAINER widths, not

@@ -139,9 +139,14 @@ beforeEach(() => {
   _resetForTests()
   // Real assessments carry a subject and grade; without them the export gate
   // correctly blocks on paper details, which would mask the rule under test.
+  // Titles + titleSource as the studio ACTUALLY saves them: a paper nobody
+  // named carries the generator's own uppercase string and `titleSource:
+  // 'auto'`. The earlier fixtures used readable hand-written prose, which is
+  // the one thing a machine-titled paper never carries — and which the shared
+  // rule now (correctly) reads as a name a teacher chose.
   paginated.items = [
-    { id: 'a1', title: 'Grade 5 Maths Test', assessmentType: 'topic_test', questionCount: 3, subject: 'Mathematics', grade: '5' },
-    { id: 'a2', title: 'Form 1 Science Exam', assessmentType: 'examination', questionCount: 5, subject: 'Integrated Science', grade: '8' },
+    { id: 'a1', title: 'GRADE 5 MATHEMATICS - TOPIC TEST - 2026', titleSource: 'auto', year: 2026, assessmentType: 'topic_test', questionCount: 3, subject: 'Mathematics', grade: '5' },
+    { id: 'a2', title: 'GRADE 8 INTEGRATED SCIENCE - EXAMINATION - 2026', titleSource: 'auto', year: 2026, assessmentType: 'examination', questionCount: 5, subject: 'Integrated Science', grade: '8' },
   ]
 })
 
@@ -150,7 +155,7 @@ describe('AssessmentList — deletion flow', () => {
     renderList()
     requestDeleteViaMenu(0)
     const dialog = screen.getByRole('alertdialog')
-    // a1 has no manual title, so the dialog carries the render-derived name.
+    // a1 is machine-titled, so the dialog carries the render-derived name.
     expect(dialog).toHaveTextContent('Grade 5 Mathematics — Topic Test')
   })
 
@@ -337,6 +342,35 @@ describe('AssessmentList — display titles', () => {
     expect(screen.getByText('Grade 4 Integrated Science — End of Term 2 Test')).toBeInTheDocument()
     // The stored title's wrong term never reaches the screen.
     expect(screen.queryByText(/END OF TERM 1/i)).not.toBeInTheDocument()
+  })
+
+  it('keeps a name typed before the titleSource flag existed', () => {
+    // The card used to ask ONLY for `titleSource === 'manual'`, so a paper
+    // named before that field was added had its name rebuilt on screen — a
+    // rename the title backfill would have refused to write. Both now ask the
+    // same question (assessmentTitle.isTeacherAuthoredTitle).
+    paginated.items = [{
+      id: 'b3',
+      title: 'Chalimbana Mock 2024',
+      assessmentType: 'mock_exam',
+      subject: 'Integrated Science',
+      grade: '8',
+      questionCount: 30,
+    }]
+    renderList()
+    expect(screen.getByText('Chalimbana Mock 2024')).toBeInTheDocument()
+    expect(screen.queryByText('Grade 8 Integrated Science — Mock Examination')).not.toBeInTheDocument()
+  })
+
+  it('reads a subject stored in capitals without shouting or mangling it', () => {
+    paginated.items = [
+      { id: 'c1', title: '', assessmentType: 'topic_test', subject: 'INTEGRATED SCIENCE', grade: '4', questionCount: 5 },
+      { id: 'c2', title: '', assessmentType: 'topic_test', subject: 'ICT', grade: '4', questionCount: 5 },
+    ]
+    renderList()
+    expect(screen.getByText('Grade 4 Integrated Science — Topic Test')).toBeInTheDocument()
+    // Blanket title-casing turned this into "Ict".
+    expect(screen.getByText('Grade 4 ICT — Topic Test')).toBeInTheDocument()
   })
 
   it('renders a manually-titled paper verbatim', () => {

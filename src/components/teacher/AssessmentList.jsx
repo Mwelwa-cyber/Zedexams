@@ -31,7 +31,8 @@ import StudioPageHeader from './StudioPageHeader'
 import { subjectVisual } from './subjectVisuals'
 import { ASSESSMENT_TYPE_LABELS } from './assessmentStudioMeta'
 import { assessmentCategory } from './paperTaxonomy'
-import { readPaperTerm, readPaperLevelWord, assessmentTypePhrase } from './assessmentTitle'
+import { readPaperTerm } from './assessmentTitle'
+import { paperCardTitle } from './paperNaming'
 import { buildSavedAssessmentExportReadiness } from '../../utils/assessmentExportReadiness'
 import { renderDiagramSvg } from '../diagrams/diagramCatalog'
 
@@ -49,52 +50,6 @@ function assessmentFileName(assessment, variant, ext = 'docx') {
     variant,
     ext,
   })
-}
-
-// Words that stay lowercase mid-title ("End of Term 2 Test", not "End Of…").
-const TITLE_SMALL_WORDS = new Set(['of', 'and', 'the', 'a', 'an', 'in', 'on', 'for', 'to', 'with'])
-
-function capitalizeWord(word) {
-  // Capitalize each hyphen-joined part so "MID-TERM" reads "Mid-Term".
-  return word
-    .split('-')
-    .map((part) => (part ? part.charAt(0).toUpperCase() + part.slice(1) : part))
-    .join('-')
-}
-
-function toTitleCase(text) {
-  return String(text || '')
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((word, i) => (i > 0 && TITLE_SMALL_WORDS.has(word) ? word : capitalizeWord(word)))
-    .join(' ')
-}
-
-/**
- * The name a paper is SHOWN under in this list — derived at render time, no
- * Firestore writes.
- *
- * A manually-titled paper keeps its own words verbatim. Everything else is
- * rebuilt from the paper's own fields so the displayed term always comes from
- * `readPaperTerm(assessment)` — never from term text embedded in a stored
- * free-text title (an earlier build stamped a DEFAULT term into titles, so a
- * Term 2 paper can be carrying "END OF TERM 1 TEST" in `title`).
- */
-function paperDisplayTitle(assessment, fallbackLabel) {
-  const stored = String(assessment?.title || '').trim()
-  if (assessment?.titleSource === 'manual' && stored) return stored
-  const gradeWord = toTitleCase(readPaperLevelWord(assessment))
-  const subject = toTitleCase(String(assessment?.subject || '').trim())
-  const lead = [gradeWord, subject].filter(Boolean).join(' ')
-  if (lead) {
-    const phrase = toTitleCase(assessmentTypePhrase({
-      assessmentType: assessment?.assessmentType,
-      term: readPaperTerm(assessment),
-    }))
-    return `${lead} — ${phrase}`
-  }
-  return stored || `Untitled ${String(fallbackLabel || 'paper').toLowerCase()}`
 }
 
 function AssessmentRow({ assessment, onDelete, onExport, busy, routeBase, fallbackLabel }) {
@@ -142,7 +97,7 @@ function AssessmentRow({ assessment, onDelete, onExport, busy, routeBase, fallba
         </div>
         <div className="min-w-0 flex-1 basis-52">
           <p className="font-black text-sm leading-snug" style={{ color: 'var(--zt-text)', margin: 0 }}>
-            {paperDisplayTitle(assessment, fallbackLabel)}
+            {paperCardTitle(assessment, { fallbackLabel })}
           </p>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <Chip variant="neutral">{typeLabel}{term ? ` · T${term}` : ''}</Chip>
@@ -345,7 +300,7 @@ export default function AssessmentList() {
     if (!searchText) return visible
     return visible.filter(a => [
       a.title,
-      paperDisplayTitle(a, cfg.Noun),
+      paperCardTitle(a, { fallbackLabel: cfg.Noun }),
       a.subject,
       ASSESSMENT_TYPE_LABELS[a.assessmentType],
     ].filter(Boolean).join(' ').toLowerCase().includes(searchText))
@@ -674,7 +629,7 @@ export default function AssessmentList() {
       <ConfirmDialog
         open={Boolean(pendingDelete)}
         title={`Delete this ${cfg.noun}?`}
-        message={<>You're about to permanently delete <strong className="theme-text">"{pendingDelete ? paperDisplayTitle(pendingDelete, cfg.Noun) : `this ${cfg.noun}`}"</strong>. This cannot be undone.</>}
+        message={<>You're about to permanently delete <strong className="theme-text">"{pendingDelete ? paperCardTitle(pendingDelete, { fallbackLabel: cfg.Noun }) : `this ${cfg.noun}`}"</strong>. This cannot be undone.</>}
         confirmLabel="Delete"
         variant="danger"
         loading={Boolean(pendingDelete) && busyId === pendingDelete.id}

@@ -200,3 +200,42 @@ export function isGeneratedAssessmentTitle(title, paper = {}, { fallbackYear } =
   return generatedAssessmentTitleVariants(paper, { fallbackYear })
     .some((variant) => normalizeTitleForCompare(variant) === candidate)
 }
+
+/**
+ * Did a TEACHER name this paper — i.e. is the stored title theirs rather than
+ * ours to replace?
+ *
+ * This is the one question three surfaces were each answering differently:
+ *
+ *   • the backfill (planTitleBackfill) checked `titleSource === 'manual'` and
+ *     THEN fell back to isGeneratedAssessmentTitle;
+ *   • the library card checked only the flag, so a paper named before the flag
+ *     existed had its name rebuilt — a rename the backfill would have skipped;
+ *   • the builder's title bar checked only the recogniser, because the live
+ *     studio form carries no flag to check.
+ *
+ * The precedence below is the backfill's, unchanged, because it is the one that
+ * already has to be right: it decides what an unattended migration WRITES, not
+ * merely what a screen shows. The two signals answer different halves —
+ * `titleSource` is exact but only exists on papers saved since it was added,
+ * and the recogniser covers everything older by asking whether the words could
+ * have come out of our own generator.
+ *
+ * NOT symmetric on the flag on purpose: `titleSource: 'auto'` does not
+ * short-circuit to "ours". A paper saved as auto whose fields were edited
+ * afterwards can carry a title no current variant matches, and treating that as
+ * ours would let the backfill rewrite it on the strength of a stale flag.
+ */
+export function isTeacherAuthoredTitle(paper = {}, { fallbackYear } = {}) {
+  const stored = String(paper?.title ?? '').trim()
+  if (!stored) return false
+  if (paper?.titleSource === 'manual') return true
+  return !isGeneratedAssessmentTitle(stored, paper, { fallbackYear })
+}
+
+/** The teacher's own name for this paper, or '' when the name is ours. */
+export function teacherAuthoredTitle(paper = {}, { fallbackYear } = {}) {
+  return isTeacherAuthoredTitle(paper, { fallbackYear })
+    ? String(paper.title).trim()
+    : ''
+}
