@@ -217,7 +217,7 @@ export const INVENTORY = Object.freeze([
       + 'not carry the key at all.',
   }),
   g('functions/teacherTools/generateHomework.js', {
-    clientModule: 'src/components/teacher/generate/HomeworkStudio.jsx',
+    clientModule: 'src/features/homework/pages/HomeworkStudio.jsx',
     clientLockKey: 'homework-studio:generate',
     tier: 2,
     state: 'migrated',
