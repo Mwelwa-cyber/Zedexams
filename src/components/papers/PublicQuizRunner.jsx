@@ -40,6 +40,7 @@ import { useAssessmentEngineFlag } from '../../hooks/useAssessmentEngineFlag'
 import { fromQuiz, markAttempt, unrenderableTypes } from '../../engines/assessment-engine'
 import { ChoiceQuestion } from '../../engines/assessment-engine/render'
 import { capture } from '../../utils/analytics'
+import { BUILD_ID } from '../../utils/buildId'
 import { paywall } from '../../utils/paywall'
 import { validateQuizSubjectIntegrity } from '../../utils/quizSubjectIntegrity'
 import { PAPER_SUBJECTS } from '../../config/curriculum'
@@ -398,6 +399,10 @@ export default function PublicQuizRunner() {
       // the hold's frequency cannot be counted (Codex P2 on #2152,
       // r3733390982).
       latched: engineFlag.latched,
+      // The shell mix during a hold (see buildId.js): rows from stale shells
+      // are expected while the service worker turns over, and this is what
+      // separates them from rows that need explaining.
+      build: BUILD_ID,
     })
   }, [engineFlag.final, engineFlag.source, engineFlag.latched, engineActive, loading, quiz])
 

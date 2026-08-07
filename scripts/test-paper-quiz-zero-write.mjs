@@ -171,7 +171,7 @@ test('the §7.2 observability event is wired, with the fields the dashboard read
   // query watching the ramp.
   const source = readFileSync(path.join(ROOT, RUNNER), 'utf8')
   assert.match(source, /capture\('assessment_engine_path'/, 'the runner emits assessment_engine_path')
-  for (const field of ['runner:', 'engine:', 'flagSource:']) {
+  for (const field of ['runner:', 'engine:', 'flagSource:', 'build:']) {
     assert.match(source, new RegExp(field), `the event carries ${field.replace(':', '')}`)
   }
 })

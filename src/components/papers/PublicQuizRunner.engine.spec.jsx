@@ -176,7 +176,7 @@ describe('the past-paper canary card swap', () => {
     await screen.findByText('What is 2 + 2?')
     expect(container.querySelector('[data-engine-runner]')).toBeNull()
     await waitFor(() => expect(capture).toHaveBeenCalledWith('assessment_engine_path', {
-      runner: 'pastPaperQuiz', engine: false, flagSource: 'rollout-all', latched: false,
+      runner: 'pastPaperQuiz', engine: false, flagSource: 'rollout-all', latched: false, build: 'dev',
     }))
   })
 
@@ -224,7 +224,7 @@ describe('the past-paper canary card swap', () => {
     await screen.findByText('What is 2 + 2?')
     await waitFor(() => expect(capture).toHaveBeenCalledTimes(1))
     expect(capture).toHaveBeenCalledWith('assessment_engine_path', {
-      runner: 'pastPaperQuiz', engine: true, flagSource: 'rollout-all', latched: false,
+      runner: 'pastPaperQuiz', engine: true, flagSource: 'rollout-all', latched: false, build: 'dev',
     })
   })
 
@@ -238,7 +238,7 @@ describe('the past-paper canary card swap', () => {
     mountRunner()
     await screen.findByText('What is 2 + 2?')
     await waitFor(() => expect(capture).toHaveBeenCalledWith('assessment_engine_path', {
-      runner: 'pastPaperQuiz', engine: false, flagSource: 'rollout-bucket', latched: true,
+      runner: 'pastPaperQuiz', engine: false, flagSource: 'rollout-bucket', latched: true, build: 'dev',
     }))
   })
 
@@ -248,7 +248,7 @@ describe('the past-paper canary card swap', () => {
     mountRunner()
     await screen.findByText('What is 2 + 2?')
     await waitFor(() => expect(capture).toHaveBeenCalledWith('assessment_engine_path', {
-      runner: 'pastPaperQuiz', engine: false, flagSource: 'runner-off', latched: false,
+      runner: 'pastPaperQuiz', engine: false, flagSource: 'runner-off', latched: false, build: 'dev',
     }))
   })
 })
