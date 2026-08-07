@@ -1,0 +1,173 @@
+/* ── StudioHeader — the teacher-studio identity band ────────────────────────
+ *
+ * One slim utility row (back link + quiet secondary navigation on the left,
+ * the autosave chip on the right) above a compact dark band carrying the
+ * workspace CATEGORY as an eyebrow pill, the studio name as the page's only
+ * serif line, and a one-line description.
+ *
+ * Why a stylesheet rather than Tailwind utilities: the band is a themed
+ * surface. `--studio-header-from` / `--studio-header-to` / `--studio-header-muted`
+ * are re-declared per teacher theme below, and a utility-class gradient cannot
+ * be re-pointed by an ancestor `[data-theme]` selector.
+ *
+ * The default (and Terracotta) reading is the ZedExams planning teal
+ * #0F3B40 → #1E5A50. The other three themes derive their own dark end from
+ * `--zt-sidebar-bg`, the token every dark chrome surface in the teacher area
+ * already follows (sidebar, dashboard hero, toast), so the band belongs to the
+ * theme rather than punching a fixed teal hole through Miombo or Night. Text
+ * on the band is `--zt-on-dark`, the same token those surfaces use — never a
+ * literal #fff, and never `--zt-on-accent` (near-black on Miombo and Night).
+ */
+
+.studio-header {
+  margin-bottom: 16px;
+}
+
+/* ── Utility row ── One row, never two stacked boxes. Navigation clusters on
+   the left beside Back; the autosave chip is the only thing on the right. */
+.studio-header__utility {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 10px;
+}
+
+.studio-header__utility-left,
+.studio-header__utility-right {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.studio-header__utility-right {
+  flex: none;
+}
+
+.studio-header__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 2px;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--zt-text-muted, #736c5f);
+  transition: color 0.15s ease;
+}
+
+.studio-header__back:hover,
+.studio-header__back:focus-visible {
+  color: var(--zt-text, #2e2a24);
+  text-decoration: underline;
+}
+
+/* ── The band ── */
+.studio-header__band {
+  --studio-header-from: #0f3b40;
+  --studio-header-to: #1e5a50;
+  --studio-header-muted: #cbdcd6;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 130px;
+  padding: 20px 24px;
+  border-radius: 16px;
+  background-image: linear-gradient(115deg, var(--studio-header-from), var(--studio-header-to));
+  color: var(--zt-on-dark, #ffffff);
+  box-shadow: 0 10px 26px rgba(9, 32, 35, 0.22);
+}
+
+.studio-header__text {
+  min-width: 0;
+}
+
+.studio-header__eyebrow {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: var(--zt-on-dark, #ffffff);
+}
+
+/* The ONE serif line on the page. */
+.studio-header__title {
+  margin: 9px 0 4px;
+  font-family: 'Fraunces', serif;
+  font-size: 25px;
+  font-weight: 700;
+  line-height: 1.16;
+  letter-spacing: -0.01em;
+  color: var(--zt-on-dark, #ffffff);
+}
+
+.studio-header__desc {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  max-width: 56ch;
+  color: var(--studio-header-muted);
+}
+
+/* White circle so the studio's mark reads as an object ON the band rather
+   than a tint of it. The glyph takes the band's own dark end, so it restyles
+   with the theme without a second token. */
+.studio-header__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 54px;
+  height: 54px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--studio-header-from);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+/* ── Themes ── Miombo / Copperbelt / Night take their band from the theme's
+   own dark chrome. The light end is a small white mix rather than a hand-
+   picked hex so the gradient stays a gradient without anyone re-checking
+   contrast per theme: at 12% white the lightest end of all three still clears
+   7:1 against --zt-on-dark. */
+[data-theme='miombo'] .studio-header__band,
+[data-theme='copperbelt'] .studio-header__band,
+[data-theme='night'] .studio-header__band {
+  --studio-header-from: color-mix(in srgb, var(--zt-sidebar-bg) 92%, #000000);
+  --studio-header-to: color-mix(in srgb, var(--zt-sidebar-bg) 88%, #ffffff);
+  --studio-header-muted: rgba(255, 255, 255, 0.8);
+}
+
+/* ── Narrow screens ── The band keeps its shape; only the type and the icon
+   step down, so the header never eats a phone's first screenful. */
+@media (max-width: 639px) {
+  .studio-header__band {
+    min-height: 0;
+    gap: 12px;
+    padding: 16px 16px;
+    border-radius: 14px;
+  }
+
+  .studio-header__title {
+    margin: 7px 0 3px;
+    font-size: 21px;
+  }
+
+  .studio-header__desc {
+    font-size: 12.5px;
+  }
+
+  .studio-header__icon {
+    width: 42px;
+    height: 42px;
+  }
+}
