@@ -742,7 +742,8 @@
     "test:baseline-summary": "node scripts/visual/baselineSummary.test.js",
     "test:bootstrap-collect": "node scripts/visual/collectBootstrapRecordings.test.js",
     "test:render-environment": "node scripts/visual/renderEnvironment.test.js",
-    "test:pr-sweep": "node scripts/test-pr-review-sweep.mjs"
+    "test:pr-sweep": "node scripts/test-pr-review-sweep.mjs",
+    "test:paper-quiz-zero-write": "node scripts/test-paper-quiz-zero-write.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
