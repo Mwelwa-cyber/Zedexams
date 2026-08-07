@@ -48,10 +48,16 @@ let pendingUserId
 // Same for the role: it decides whether error-replay may be enabled, and it
 // can arrive before Sentry has finished loading.
 let pendingRole
-// The replay integration, created and registered lazily. Null means no
-// replay is being captured — which is the state for learners, for parents,
-// and for every session before a role is known.
+// The replay integration, created and registered lazily — and at most ONCE
+// per page load, because Sentry's Replay class is a singleton: constructing a
+// second instance throws "Multiple Sentry Session Replay instances are not
+// supported". Stop-and-recreate is therefore not a lifecycle this module can
+// have. `replay` keeps the one instance for the life of the page; whether it
+// is currently recording is `replayActive`. Null means no instance has ever
+// been built — the state for learners, for parents, and for every session
+// before a recordable role is known.
 let replay = null
+let replayActive = false
 
 /**
  * Register Sentry's error-triggered session replay, but only for a role that
@@ -63,8 +69,24 @@ let replay = null
  * with no recording attached — not a recording we later decline to upload.
  */
 function enableReplayForRole(Sentry, role) {
-  if (!Sentry || replay) return
+  if (!Sentry) return
   if (!resolveAnalyticsPolicy(role).sessionRecording) return
+  if (replay) {
+    // The instance already exists — sign-out stopped it, it did not destroy
+    // it (it cannot: Sentry allows one Replay per page load). Re-arm the
+    // error-mode buffer instead of constructing a second instance, which
+    // throws, and — because the catch used to null `replay` — used to retry
+    // and throw again on every profile snapshot for the rest of the session,
+    // leaving no replay at all.
+    if (replayActive) return
+    try {
+      replay.startBuffering()
+      replayActive = true
+    } catch (err) {
+      console.warn('[sentry] replay re-arm failed:', err)
+    }
+    return
+  }
   try {
     replay = Sentry.replayIntegration({
       // Everything on screen is masked and media blocked. Teachers' papers
@@ -74,6 +96,7 @@ function enableReplayForRole(Sentry, role) {
       blockAllMedia: true,
     })
     Sentry.addIntegration(replay)
+    replayActive = true
   } catch (err) {
     // A failed replay registration must never cost us the error reporting
     // itself — that is the reason Sentry is here at all.
@@ -169,11 +192,14 @@ export function clearSentryUser() {
   // Stop and forget the recorder BEFORE dropping the user tag. On a shared
   // school phone the next person to sign in may be a learner, and a replay
   // left running would capture them under the previous user's permission.
-  if (replay) {
+  if (replay && replayActive) {
     try { replay.stop() } catch (err) {
       console.warn('[sentry] replay stop failed:', err)
     }
-    replay = null
+    // The INSTANCE is kept — Sentry permits exactly one per page load, so
+    // destroying our reference would leave re-registration with no legal
+    // move. Stopped is the off state; startBuffering() is the on switch.
+    replayActive = false
   }
   pendingRole = undefined
   if (sentryModule) {
