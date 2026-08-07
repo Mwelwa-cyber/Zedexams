@@ -126,9 +126,9 @@ order:
    `features/lessons/lib/firestore.js`, `features/notes/lib/firestore.js`,
    `utils/lessonMemoryService.js` — convert to a bounded first-page listener +
    paginated older pages (§17).
-3. `components/banners/AnnouncementBanner.jsx` — unbounded listener open for
+3. `features/announcements/components/AnnouncementBanner.jsx` — unbounded listener open for
    every visitor; bound with `limit()` + `where('active','==',true)`.
-4. `components/admin/announcements/AnnouncementsAdmin.jsx`,
+4. `features/announcements/pages/AnnouncementsAdmin.jsx`,
    `utils/adminCbcKbService.js` (pastPapers/approvedSyllabi), `utils/classes.js`,
    `utils/assignments.js`, `utils/classRecords.js`, `utils/attendanceService.js`
    — route through `usePaginatedQuery` / add `limit()`.

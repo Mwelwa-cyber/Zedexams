@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { collection, onSnapshot, query, where } from 'firebase/firestore'
-import { db } from '../../firebase/config'
-import { useAuth } from '../../contexts/AuthContext'
+import { db } from '../../../firebase/config'
+import { useAuth } from '../../../contexts/AuthContext'
 
 const SEVERITY_STYLE = {
   info:    { background: '#dbeafe', color: '#1e3a8a' },
