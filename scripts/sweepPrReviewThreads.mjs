@@ -74,10 +74,14 @@ export function ghArgs({ owner, repo, pr, after = null }) {
     '-f', `owner=${owner}`,
     '-f', `repo=${repo}`,
     '-F', `pr=${pr}`,          // -F, not -f: `pr` is Int! and a string is rejected
-    // `after` is String (nullable), so -f is right here — and it must be sent
-    // even on the first page, because gh rejects a query whose declared
-    // variable was never supplied.
-    '-f', `after=${after ?? ''}`,
+    // `after` is String (nullable). The variable is always supplied — but the
+    // FIRST page supplies a typed null (`-F` parses the literal `null` into
+    // JSON null), never `-f after=` : that sends the EMPTY STRING, and a
+    // connection cursor must be a valid opaque cursor, so GitHub rejects ""
+    // rather than reading it as "start from the beginning". The sweep then
+    // failed before its first page — Codex P1 on #2148 (r3733144550). Later
+    // pages carry the real cursor as a raw string.
+    ...(after == null ? ['-F', 'after=null'] : ['-f', `after=${after}`]),
   ]
 }
 
@@ -105,12 +109,23 @@ export function collectThreadPages(fetchPage, { maxPages = 50 } = {}) {
     const connection = pullRequest?.reviewThreads ?? {}
     nodes.push(...(connection.nodes ?? []))
     const info = connection.pageInfo ?? {}
-    // A cursor that does not advance would loop forever; treat it as the end
-    // rather than trusting `hasNextPage` on its own.
-    if (!info.hasNextPage || !info.endCursor || info.endCursor === after) break
+    if (!info.hasNextPage) {
+      return { pullRequest: { ...pullRequest, reviewThreads: { nodes } } }
+    }
+    // A cursor that does not advance would loop forever. Stopping is right;
+    // REPORTING the stop as a finished sweep was not — the server said more
+    // pages exist, so threads are known to be missing.
+    if (!info.endCursor || info.endCursor === after) {
+      return { error: `the server reports more pages but the cursor did not advance past ${JSON.stringify(after)} — ${nodes.length} threads collected, an unknown number missing` }
+    }
     after = info.endCursor
   }
-  return { pullRequest: { ...pullRequest, reviewThreads: { nodes } } }
+  // The page cap exhausted while the last page still said hasNextPage. A
+  // 5,000-thread pull request is absurd, which is exactly why this exit would
+  // otherwise never be looked at: returning the accumulated nodes here prints
+  // a confident undercount — the silent under-reporting this pagination exists
+  // to prevent. Codex P2 on #2148 (r3733144557).
+  return { error: `the ${maxPages}-page cap exhausted with more pages still available — ${nodes.length} threads collected, an unknown number missing` }
 }
 
 /**
