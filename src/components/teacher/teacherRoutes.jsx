@@ -70,8 +70,8 @@ const VisualStudioPage = lazy(() =>
 const TeacherLibrary = lazy(() => import('./library/TeacherLibrary'))
 const LibraryItemDetail = lazy(() => import('./library/LibraryItemDetail'))
 const RecoveryCentre = lazy(() => import('../../features/drafts/RecoveryCentre'))
-const TemplateBank = lazy(() => import('./templates/TemplateBank'))
-const TemplateBankDetail = lazy(() => import('./templates/TemplateBankDetail'))
+const TemplateBank = lazy(() => import('../../features/templateBank/pages/TemplateBank'))
+const TemplateBankDetail = lazy(() => import('../../features/templateBank/pages/TemplateBankDetail'))
 
 const SchoolCalendar = lazy(() => import('./SchoolCalendar'))
 const SyllabiLibrary = lazy(() => import('./SyllabiLibrary'))

@@ -17,7 +17,7 @@ import {
   templatePreviewMeta,
   templateSyllabusHint,
 } from './templatePlanPreview.js'
-import { renderPlanHtml } from '../studio/utils/renderPlanHtml.js'
+import { renderPlanHtml } from '../../../components/teacher/studio/utils/renderPlanHtml.js'
 
 const TEMPLATE = {
   id: 'tpl_1',

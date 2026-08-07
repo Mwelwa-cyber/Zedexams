@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
-import SeoHelmet from '../../seo/SeoHelmet'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
 import {
   getTemplate, rateTemplate, createLessonPlanFromTemplate,
-} from '../../../utils/templateBankService'
-import LessonPlanDocumentPreview from '../studio/LessonPlanDocumentPreview'
-import { templateCurriculumMode, templatePreviewMeta } from './templatePlanPreview'
+} from '../services/templateBankService'
+import LessonPlanDocumentPreview from '../../../components/teacher/studio/LessonPlanDocumentPreview'
+import { templateCurriculumMode, templatePreviewMeta } from '../lib/templatePlanPreview'
 import { formatDate } from '../../../utils/teacherLibraryService'
 
 const AXIS_LABELS = {

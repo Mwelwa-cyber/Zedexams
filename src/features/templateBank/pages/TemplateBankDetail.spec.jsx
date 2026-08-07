@@ -22,7 +22,7 @@ vi.mock('react-router-dom', async () => {
 vi.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: { uid: 'teacher-1' } }),
 }))
-vi.mock('../../seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
 vi.mock('../../../utils/teacherLibraryService', () => ({ formatDate: () => '1 Aug 2026' }))
 
 const service = vi.hoisted(() => ({
@@ -30,12 +30,12 @@ const service = vi.hoisted(() => ({
   rateTemplate: vi.fn().mockResolvedValue(true),
   createLessonPlanFromTemplate: vi.fn().mockResolvedValue('new-plan-id'),
 }))
-vi.mock('../../../utils/templateBankService', () => service)
+vi.mock('../services/templateBankService', () => service)
 
 // The shared studio renderer, stubbed so the test can assert on WHAT it was
 // handed. Its own output is covered by templatePlanPreview.test.js.
 const preview = vi.hoisted(() => ({ calls: [] }))
-vi.mock('../studio/LessonPlanDocumentPreview', () => ({
+vi.mock('../../../components/teacher/studio/LessonPlanDocumentPreview', () => ({
   default: (props) => {
     preview.calls.push(props)
     return <div data-testid="studio-document-preview" />
