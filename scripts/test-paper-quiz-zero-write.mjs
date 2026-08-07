@@ -192,8 +192,25 @@ export function unstampedBuildSteps(source) {
   const lines = source.split('\n')
   const offenders = []
   lines.forEach((line, i) => {
-    if (!/^\s*run:.*\b(npm run build|vite build)\b/.test(line)) return
-    const runIndent = line.match(/^\s*/)[0].length
+    const runKey = line.match(/^(\s*)run:\s*(.*)$/)
+    if (!runKey) return
+    const runIndent = runKey[1].length
+    // The run command may be inline, or a YAML block scalar (`run: |`,
+    // `run: >`, with optional chomping/indent indicators) whose text lives on
+    // the FOLLOWING deeper-indented lines. Matching only the run: line made
+    // block-scalar builds invisible — not flagged, not passed, just skipped
+    // (github-actions security review on #2163): the guard's own
+    // never-show-less-than-you-found rule, violated by the guard.
+    let command = runKey[2]
+    if (/^[|>][+-]?\d*\s*(#.*)?$/.test(runKey[2])) {
+      for (let j = i + 1; j < lines.length; j += 1) {
+        if (lines[j].trim() === '') { command += '\n'; continue }
+        const indent = lines[j].match(/^\s*/)[0].length
+        if (indent <= runIndent) break
+        command += '\n' + lines[j]
+      }
+    }
+    if (!/\b(npm run build|vite build)\b/.test(command)) return
     // Walk up to the step's `- ` marker (shallower indent than the run key).
     let start = i
     for (let j = i; j >= 0; j -= 1) {
@@ -254,6 +271,33 @@ test('the step guard is not fooled by a stamp elsewhere in the same file', () =>
   const offenders = unstampedBuildSteps(fixture)
   assert.equal(offenders.length, 1, 'exactly the unstamped step is flagged')
   assert.match(offenders[0], /line 9/)
+})
+
+test('a block-scalar run is READ, not silently skipped', () => {
+  // github-actions security review on #2163: `run: |` puts the command on the
+  // FOLLOWING line, which the run-line regex never saw — a build step written
+  // that way was not flagged and not passed, just invisible. Both scalar
+  // styles are pinned, stamped and not.
+  const fixture = [
+    'jobs:',
+    '  build:',
+    '    steps:',
+    '      - name: stamped block-scalar build',
+    '        env:',
+    '          VITE_BUILD_SHA: abc123',
+    '        run: |',
+    '          echo building',
+    '          npm run build',
+    '      - name: unstamped folded build',
+    '        run: >',
+    '          npm run build',
+    '      - name: unrelated block scalar',
+    '        run: |',
+    '          echo not a build',
+  ].join('\n')
+  const offenders = unstampedBuildSteps(fixture)
+  assert.equal(offenders.length, 1, 'exactly the unstamped block-scalar build is flagged')
+  assert.match(offenders[0], /line 10/)
 })
 
 console.log(`\npaper-quiz zero-write: ${passed} passed`)
