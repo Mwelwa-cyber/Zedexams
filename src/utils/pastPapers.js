@@ -227,13 +227,11 @@ export async function listAllPapersForAdmin({ limit = 200 } = {}) {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
 }
 
-export async function getPaper(paperId) {
-  const snap = await getDoc(doc(db, COLLECTION, paperId))
-  return snap.exists() ? { id: snap.id, ...snap.data() } : null
-}
-
-/** Alias kept for readability at call sites that fetch by id. */
-export const getPaperById = getPaper
+// The implementation lives in pastPaperLookup.js — the read-only module the
+// public quiz route imports so the zero-write guard can walk its whole graph
+// (this module's admin write helpers forced it to be a skipped boundary).
+export { getPaperById } from './pastPaperLookup.js'
+export { getPaperById as getPaper } from './pastPaperLookup.js'
 
 /**
  * Read-only peek at the lightweight metadata of a paper's linked quiz —

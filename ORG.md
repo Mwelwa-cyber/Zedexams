@@ -123,8 +123,7 @@ budget governor (below) is the company's CFO.
   every night; surface regressions as queued `agentJobs`.
 - **Schedule:** `every day 02:00` (Africa/Lusaka).
 - **Wraps:** `scripts/check-file-integrity.mjs`,
-  `scripts/test-question-schema.mjs`, the Playwright harness in
-  `.playwright-cli/`.
+  `scripts/test-question-schema.mjs`, `npm run smoke`.
 
 #### Rex — Code Reviewer
 - **Mission:** Review every PR diff for repo conventions, schema/rule

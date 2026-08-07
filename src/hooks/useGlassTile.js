@@ -26,10 +26,10 @@ const reducedMotion = () =>
   typeof window.matchMedia === 'function' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-export function useSpecular(ref) {
+export function useSpecular(ref, { enabled = true } = {}) {
   useEffect(() => {
     const el = ref.current
-    if (!el) return undefined
+    if (!el || !enabled) return undefined
     const onMove = (e) => {
       if (e.pointerType !== 'mouse') return
       const r = el.getBoundingClientRect()
@@ -39,13 +39,13 @@ export function useSpecular(ref) {
     }
     el.addEventListener('pointermove', onMove)
     return () => el.removeEventListener('pointermove', onMove)
-  }, [ref])
+  }, [ref, enabled])
 }
 
-export function usePressFeedback(ref) {
+export function usePressFeedback(ref, { enabled = true } = {}) {
   useEffect(() => {
     const el = ref.current
-    if (!el) return undefined
+    if (!el || !enabled) return undefined
     const down = (e) => {
       if (e.pointerType === 'mouse') return
       el.classList.add(PRESSED_CLASS)
@@ -61,13 +61,13 @@ export function usePressFeedback(ref) {
       el.removeEventListener('pointercancel', up)
       el.removeEventListener('pointerleave', up)
     }
-  }, [ref])
+  }, [ref, enabled])
 }
 
-export function useSheenOnce(ref) {
+export function useSheenOnce(ref, { enabled = true } = {}) {
   useEffect(() => {
     const el = ref.current
-    if (!el) return undefined
+    if (!el || !enabled) return undefined
     // No observer at all under reduced motion or where the API is missing —
     // the class never lands, so the sweep simply never plays.
     if (reducedMotion() || typeof IntersectionObserver !== 'function') return undefined
@@ -84,13 +84,18 @@ export function useSheenOnce(ref) {
     )
     io.observe(el)
     return () => io.disconnect()
-  }, [ref])
+  }, [ref, enabled])
 }
 
-export default function useGlassTile() {
+/**
+ * Options let quieter surfaces opt out of a behaviour (the AI cards take
+ * no sheen; list rows take press only) while everything still runs through
+ * this one hook — never a re-implementation.
+ */
+export default function useGlassTile({ specular = true, press = true, sheen = true } = {}) {
   const ref = useRef(null)
-  useSpecular(ref)
-  usePressFeedback(ref)
-  useSheenOnce(ref)
+  useSpecular(ref, { enabled: specular })
+  usePressFeedback(ref, { enabled: press })
+  useSheenOnce(ref, { enabled: sheen })
   return ref
 }

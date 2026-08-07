@@ -18,8 +18,8 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import {
   RenderEnvironmentError, RENDER_SETTINGS, CHROMIUM_FLAGS, LIBREOFFICE_ARGS,
-  captureRenderEnvironment, baselineIdentity, assertComparableEnvironment,
-  assertToolchain, chromiumVersion, libreOfficeVersion, fontDigest,
+  captureRenderEnvironment, baselineIdentity, assertComparableEnvironment, osFamilyOf,
+  assertToolchain, assertScreenEnvironmentIsClean, chromiumVersion, libreOfficeVersion, fontDigest,
   resolveRenderChromium,
 } from './renderEnvironment.js'
 
@@ -127,10 +127,12 @@ test('an identical environment compares happily', () => {
 test('every pinned field, changed alone, is refused', () => {
   // Each of these would shift pixels across every fixture at once. Reported as
   // one environment error instead of hundreds of page failures.
+  // `os` is deliberately NOT in this list any more — it is compared as a family
+  // rather than as a kernel build, and the section below states both halves of
+  // that: what now compares, and what still refuses.
   const changes = {
     chromium: '142.0.0.0',
     libreoffice: '7.5.0.1',
-    os: 'Linux 7.0.0',
     dpi: 300,
     deviceScaleFactor: 2,
     locale: 'en-US',
@@ -158,6 +160,92 @@ test('a changed Chromium FLAG is refused, not just a changed version', () => {
     () => assertComparableEnvironment(env(), env({ chromiumFlags: '--headless=new' })),
     RenderEnvironmentError,
   )
+})
+
+/* ── the OS is an identity, the kernel build is not ─────────────────────── */
+
+console.log('\n— the OS family, not the kernel build —')
+
+// The exact strings from the failure. On 2026-08-06 GitHub rolled its hosted
+// image from `-1020` to `-1021` and every paper baseline became incomparable
+// within the hour — the gate refused every comparison, on every print-affecting
+// pull request and on `main`, for a change that cannot move a glyph.
+const KERNEL_BEFORE = 'Linux 6.17.0-1020-azure'
+const KERNEL_AFTER = 'Linux 6.17.0-1021-azure'
+
+test('a runner kernel bump no longer refuses the comparison', () => {
+  assert.doesNotThrow(() => assertComparableEnvironment(
+    env({ os: KERNEL_BEFORE, osFamily: 'Linux' }),
+    env({ os: KERNEL_AFTER, osFamily: 'Linux' }),
+  ))
+})
+
+test('a baseline recorded BEFORE osFamily existed still compares', () => {
+  // Every baseline on main predates the field. Treating its absence as a
+  // mismatch would be the same wall wearing a different sign — and it is the
+  // half of this change most likely to be dropped by a later refactor.
+  assert.doesNotThrow(() => assertComparableEnvironment(
+    env({ os: KERNEL_BEFORE }),                        // no osFamily at all
+    env({ os: KERNEL_AFTER, osFamily: 'Linux' }),
+  ))
+  assert.equal(osFamilyOf({ os: KERNEL_BEFORE }), 'Linux')
+  assert.equal(osFamilyOf({ os: KERNEL_AFTER, osFamily: 'Linux' }), 'Linux')
+  assert.equal(osFamilyOf({}), '')
+})
+
+test('a different OS FAMILY is still refused — that is what the field was for', () => {
+  for (const family of ['Darwin', 'Windows_NT']) {
+    assert.throws(
+      () => assertComparableEnvironment(
+        env({ os: KERNEL_BEFORE, osFamily: 'Linux' }),
+        env({ os: `${family} 24.0.0`, osFamily: family }),
+      ),
+      (err) => err.detail.differences.some((d) => d.field === 'os family'),
+      `${family} is not Linux`,
+    )
+  }
+})
+
+test('THE CONTROL: every real renderer change is still refused ACROSS a kernel bump', () => {
+  // The question this change has to answer. Narrowing `os` to its family must
+  // not narrow anything else — so each genuine cause of a pixel shift is paired
+  // with the kernel bump that now gets a pass, and must still be caught.
+  const before = env({ os: KERNEL_BEFORE, osFamily: 'Linux' })
+  const realChanges = {
+    chromium: { chromium: '152.0.0.0' },
+    libreoffice: { libreoffice: '25.2.0.1' },
+    'fonts.digest': { fonts: { count: 57, digest: 'deadbeefcafe0000' } },
+    chromiumFlags: { chromiumFlags: '--headless=new' },
+    libreOfficeArgs: { libreOfficeArgs: '--convert-to pdf' },
+    dpi: { dpi: 300 },
+    deviceScaleFactor: { deviceScaleFactor: 2 },
+    pageSize: { pageSize: 'Letter' },
+    locale: { locale: 'en-US' },
+    // NOT 'Africa/Lusaka' — that is the pinned value, so it would have been a
+    // no-op dressed as a change, and the control would have been asserting that
+    // an identical environment compares. The control caught it.
+    timeZone: { timeZone: 'UTC' },
+  }
+  for (const [field, change] of Object.entries(realChanges)) {
+    assert.throws(
+      () => assertComparableEnvironment(before, env({
+        os: KERNEL_AFTER, osFamily: 'Linux', ...change,
+      })),
+      (err) => err instanceof RenderEnvironmentError
+        && err.detail.differences.some((d) => d.field === field),
+      `${field} changing is STILL refused, kernel bump or not`,
+    )
+  }
+})
+
+test('the environment records the full kernel even though it does not compare it', () => {
+  // A reviewer must still be able to see exactly what drew a baseline. The
+  // change is to what REFUSES a comparison, not to what is written down.
+  const captured = captureRenderEnvironment({ chromiumPath: '' })
+  assert.match(captured.os, /^\w+ \S+/, 'the full type and release are recorded')
+  assert.equal(captured.osFamily, captured.os.split(' ')[0])
+  assert.ok(captured.os.length > captured.osFamily.length,
+    'the recorded string carries more than the compared one')
 })
 
 test('a baseline with no recorded environment is refused, not assumed to match', () => {
@@ -315,6 +403,56 @@ await (async () => {
       /Chromium/,
       'a missing browser is an infrastructure failure',
     )
+  })
+})()
+
+/* ── A screen baseline may not be recorded in a paper environment ──────────
+   The failure is silent in every way that usually catches things: the render
+   succeeds, the images are correct, the page checks pass, the pull request
+   opens. What breaks is the NEXT run — `libreoffice` is an identity field and
+   the same apt install shifts `fonts.digest`, so the comparing job, which
+   installs neither, can only ever throw. #2137 recorded sixteen such baselines.
+   Refused at RECORD time, because by compare time they are already approved. */
+;(() => {
+  const clean = { chromium: '151.0.0.0', fonts: { count: 40, digest: 'abc' } }
+
+  test('a Chromium-only environment records fine', () => {
+    assert.doesNotThrow(() => assertScreenEnvironmentIsClean(clean))
+    assert.doesNotThrow(() => assertScreenEnvironmentIsClean({ ...clean, libreoffice: '' }))
+    assert.doesNotThrow(() => assertScreenEnvironmentIsClean({ ...clean, libreoffice: null }))
+    assert.doesNotThrow(() => assertScreenEnvironmentIsClean({}))
+  })
+
+  test('LibreOffice in the environment refuses the recording, and names it', () => {
+    assert.throws(
+      () => assertScreenEnvironmentIsClean({ ...clean, libreoffice: '24.2.7.2' }),
+      (err) => err instanceof RenderEnvironmentError
+        && /LibreOffice \(24\.2\.7\.2\)/.test(err.message)
+        && /comparing job can reproduce|never installs LibreOffice/.test(err.message),
+      'the refusal must say which version it found and why it matters',
+    )
+  })
+
+  test('the environment #2137 actually recorded is refused', () => {
+    // Not a synthetic case: these are the values from
+    // tests/visual/baselines/screen/chromium-151.0.7922.47/environment.json on
+    // the branch that bootstrap opened.
+    assert.throws(() => assertScreenEnvironmentIsClean({
+      chromium: '151.0.7922.47',
+      libreoffice: '24.2.7.2',
+      fonts: { count: 54, digest: '20b5398451fb9a3a' },
+    }), RenderEnvironmentError)
+  })
+
+  test('the recorder calls it BEFORE it writes anything', () => {
+    // Order is the whole point: called after the loop, sixteen unusable
+    // baselines are already on disk and the run has already "succeeded".
+    const src = readFileSync(new URL('./screen/runScreenGate.mjs', import.meta.url), 'utf8')
+    const guard = src.indexOf('assertScreenEnvironmentIsClean(environment)')
+    const write = src.indexOf('writeFileSync(file, c.png)')
+    assert.ok(guard > 0, 'the screen recorder does not call the guard at all')
+    assert.ok(write > 0, 'the screen recorder no longer writes baselines?')
+    assert.ok(guard < write, 'the guard runs after the first baseline is written')
   })
 })()
 

@@ -2217,36 +2217,51 @@ async function main() {
     await assertSucceeds(getDoc(doc(admin, 'agentJobs', 'job_teacher_a')))
   })
 
-  await test('a teacher CAN create a valid queued job they own', async () => {
-    await assertSucceeds(setDoc(doc(teacherA, 'agentJobs', 'job_new_valid'), {
+  // Create is ADMIN-ONLY (narrowed 2026-08-05). Both directions are asserted:
+  // the grant that was removed must stay closed, and the two admin surfaces
+  // that genuinely create jobs — BulkGenerateButton and GenerateFromTopicMenu —
+  // must keep working. Testing only the denial would let a later tightening
+  // break both without a single test going red.
+  await test('an ADMIN can create a valid queued job (BulkGenerateButton / GenerateFromTopicMenu)', async () => {
+    await assertSucceeds(setDoc(doc(admin, 'agentJobs', 'job_new_valid'), {
+      agentId: 'aria', department: 'content', status: 'queued',
+      createdBy: ADMIN, input: { topic: 'Decimals' },
+    }))
+  })
+
+  await test('a teacher CANNOT create a job — the /teacher/agents surface was removed in 2026-06', async () => {
+    await assertFails(setDoc(doc(teacherA, 'agentJobs', 'job_teacher_create'), {
       agentId: 'aria', department: 'content', status: 'queued',
       createdBy: TEACHER_A, input: { topic: 'Decimals' },
     }))
   })
 
-  await test('a learner CANNOT create a job (paid teacher tools behind the dispatcher)', async () => {
+  await test('a learner CANNOT create a job (paid runners behind the dispatcher)', async () => {
     await assertFails(setDoc(doc(learnerA, 'agentJobs', 'job_learner'), {
       agentId: 'aria', department: 'content', status: 'queued',
       createdBy: LEARNER_A, input: {},
     }))
   })
 
+  // These three run as ADMIN on purpose. Run as a teacher they would now pass
+  // because the ROLE is refused, never reaching the field checks — a denial
+  // that proves nothing about the constraint it claims to test.
   await test('create with a non-queued status is refused (no skipping the pipeline)', async () => {
-    await assertFails(setDoc(doc(teacherA, 'agentJobs', 'job_pre_approved'), {
+    await assertFails(setDoc(doc(admin, 'agentJobs', 'job_pre_approved'), {
       agentId: 'aria', department: 'content', status: 'approved',
-      createdBy: TEACHER_A, input: {},
+      createdBy: ADMIN, input: {},
     }))
   })
 
   await test('create smuggling an output field is refused', async () => {
-    await assertFails(setDoc(doc(teacherA, 'agentJobs', 'job_with_output'), {
+    await assertFails(setDoc(doc(admin, 'agentJobs', 'job_with_output'), {
       agentId: 'aria', department: 'content', status: 'queued',
-      createdBy: TEACHER_A, input: {}, output: { forged: true },
+      createdBy: ADMIN, input: {}, output: { forged: true },
     }))
   })
 
   await test('create under someone else’s createdBy is refused', async () => {
-    await assertFails(setDoc(doc(teacherA, 'agentJobs', 'job_spoofed'), {
+    await assertFails(setDoc(doc(admin, 'agentJobs', 'job_spoofed'), {
       agentId: 'aria', department: 'content', status: 'queued',
       createdBy: TEACHER_B, input: {},
     }))
@@ -2385,6 +2400,89 @@ async function main() {
     await assertFails(setDoc(doc(admin, 'passkeyAuditLog', 'pk_evt_forged'), {
       event: 'fake', at: serverTimestamp(),
     }))
+  })
+
+  // ── flashcardProgress ────────────────────────────────────────
+  // Per-learner mastery for a saved deck, one document per user+deck keyed
+  // `{uid}_{deckId}` (src/features/flashcards/services/flashcardProgress.js).
+  // The rules existed before this suite covered them; the migration that gave
+  // the feature a home is what put a test behind them (architecture.md §14.12).
+  //
+  // The id is derived, not server-assigned, so the interesting question is not
+  // "can a learner write progress" but "can a learner write progress into
+  // ANOTHER learner's document" — the id is the only thing standing between
+  // the two, and it comes from the client.
+  section('flashcardProgress — owner-scoped, id is not authority, admin-only delete')
+
+  const DECK = 'deck_alpha'
+  const progressIdFor = (uid) => `${uid}_${DECK}`
+
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'flashcardProgress', progressIdFor(LEARNER_A)), {
+      uid: LEARNER_A, deckId: DECK, masteredCards: [0, 1], totalCards: 10, status: 'in-progress',
+    })
+  })
+
+  await test('a learner can read their own flashcard progress', async () => {
+    await assertSucceeds(getDoc(doc(learnerA, 'flashcardProgress', progressIdFor(LEARNER_A))))
+  })
+
+  await test("a learner cannot read another learner's flashcard progress", async () => {
+    await assertFails(getDoc(doc(learnerB, 'flashcardProgress', progressIdFor(LEARNER_A))))
+  })
+
+  await test('an admin can read any learner flashcard progress', async () => {
+    await assertSucceeds(getDoc(doc(admin, 'flashcardProgress', progressIdFor(LEARNER_A))))
+  })
+
+  await test('a learner can create their own progress document', async () => {
+    await assertSucceeds(setDoc(doc(learnerB, 'flashcardProgress', progressIdFor(LEARNER_B)), {
+      uid: LEARNER_B, deckId: DECK, masteredCards: [], totalCards: 10, status: 'not-started',
+    }))
+  })
+
+  await test('a learner cannot create a progress document claiming another uid', async () => {
+    // The document id is the client's to choose, so the rule that matters is
+    // the one comparing the uid FIELD to the token — not the id.
+    await assertFails(setDoc(doc(learnerB, 'flashcardProgress', 'forged_id'), {
+      uid: LEARNER_A, deckId: DECK, masteredCards: [9], totalCards: 10, status: 'in-progress',
+    }))
+  })
+
+  await test("a learner cannot overwrite another learner's progress", async () => {
+    await assertFails(setDoc(doc(learnerB, 'flashcardProgress', progressIdFor(LEARNER_A)), {
+      uid: LEARNER_B, deckId: DECK, masteredCards: [0], totalCards: 10, status: 'in-progress',
+    }, { merge: true }))
+  })
+
+  // Control for the two field-validation cases below: the same write, by the
+  // same learner, differing ONLY in the field under test. Without it a denial
+  // proves nothing — every one of these writes would also fail if the owner
+  // check were broken, and the test would stay green with the field validator
+  // deleted.
+  await test('the owner CAN update their own progress with valid fields', async () => {
+    await assertSucceeds(setDoc(doc(learnerA, 'flashcardProgress', progressIdFor(LEARNER_A)), {
+      uid: LEARNER_A, deckId: DECK, masteredCards: [0, 1, 2], totalCards: 10, status: 'in-progress',
+    }, { merge: true }))
+  })
+
+  await test('a status outside the allowed vocabulary is rejected', async () => {
+    // The client half derives this string (flashcardProgressCore.js); a fourth
+    // status added there without the rule would be refused here, on a device.
+    await assertFails(setDoc(doc(learnerA, 'flashcardProgress', progressIdFor(LEARNER_A)), {
+      uid: LEARNER_A, deckId: DECK, masteredCards: [0], totalCards: 10, status: 'mastered',
+    }, { merge: true }))
+  })
+
+  await test('a totalCards beyond the field ceiling is rejected', async () => {
+    await assertFails(setDoc(doc(learnerA, 'flashcardProgress', progressIdFor(LEARNER_A)), {
+      uid: LEARNER_A, deckId: DECK, masteredCards: [0], totalCards: 5000, status: 'in-progress',
+    }, { merge: true }))
+  })
+
+  await test('a learner cannot delete their own progress; an admin can', async () => {
+    await assertFails(deleteDoc(doc(learnerA, 'flashcardProgress', progressIdFor(LEARNER_A))))
+    await assertSucceeds(deleteDoc(doc(admin, 'flashcardProgress', progressIdFor(LEARNER_A))))
   })
 
   await testEnv.cleanup()

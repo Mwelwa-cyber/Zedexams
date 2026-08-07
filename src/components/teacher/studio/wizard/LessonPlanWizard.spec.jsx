@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, screen, fireEvent, act, within } from '@testing-library/react'
 import { useStudioState } from '../hooks/useStudioState'
 import { LessonPlanWizard } from './LessonPlanWizard'
 
@@ -370,27 +370,113 @@ describe('LessonPlanWizard — step restore', () => {
   })
 })
 
-// ── Progress overlay ──────────────────────────────────────────────────────────
+// ── Saved-lessons overlay (opened from "My lessons") ─────────────────────────
 
-describe('LessonPlanWizard — Progress panel', () => {
+describe('LessonPlanWizard — My lessons panel', () => {
   it('is closed by default and opens from the header button', () => {
     renderWizard()
     expect(screen.queryByRole('dialog', { name: /your progress/i })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /progress/i }))
+    fireEvent.click(screen.getByRole('button', { name: /my lessons/i }))
     expect(screen.getByRole('dialog', { name: /your progress/i })).toBeInTheDocument()
   })
 
   it('explains what to do when no class/subject is chosen yet', () => {
     renderWizard()
-    fireEvent.click(screen.getByRole('button', { name: /progress/i }))
+    fireEvent.click(screen.getByRole('button', { name: /my lessons/i }))
     expect(screen.getByText(/pick a class and subject/i)).toBeInTheDocument()
   })
 
   it('closes on Escape', () => {
     renderWizard()
-    fireEvent.click(screen.getByRole('button', { name: /progress/i }))
+    fireEvent.click(screen.getByRole('button', { name: /my lessons/i }))
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('dialog', { name: /your progress/i })).not.toBeInTheDocument()
+  })
+})
+
+// ── Horizontal stepper (StudioStepper) ────────────────────────────────────────
+
+describe('LessonPlanWizard — horizontal stepper', () => {
+  const stepper = () => screen.getByRole('navigation', { name: /lesson plan steps/i })
+
+  it('renders one StudioStepper with all five short labels', () => {
+    renderWizard()
+    const nav = stepper()
+    for (const label of ['Setup', 'Topic', 'Context', 'Format', 'Review']) {
+      expect(within(nav).getByRole('button', { name: label })).toBeInTheDocument()
+    }
+  })
+
+  it('marks the active step and disables unreachable steps', () => {
+    renderWizard()
+    const nav = stepper()
+    expect(within(nav).getByRole('button', { name: 'Setup' })).toHaveAttribute('aria-current', 'step')
+    expect(within(nav).getByRole('button', { name: 'Review' })).toBeDisabled()
+  })
+
+  it('navigates back to a visited step on click', () => {
+    renderWizard()
+    completeStep1(); next()
+    expect(screen.getByRole('heading', { name: 'Topic & Curriculum' })).toBeInTheDocument()
+    fireEvent.click(within(stepper()).getByRole('button', { name: 'Setup' }))
+    expect(screen.getByRole('heading', { name: 'Lesson Setup' })).toBeInTheDocument()
+  })
+})
+
+// ── "Set up for you" card (single-source rule) ───────────────────────────────
+
+describe('LessonPlanWizard — Set up for you card', () => {
+  const chipLabels = () => [...document.querySelectorAll('.zx-chip')].map((el) => el.textContent)
+
+  it('derives its chips from the LIVE form state, so a changed subject updates the card', () => {
+    renderWizard({ extra: { appliedContext: true, appliedWeekNumber: 11 } })
+    completeStep1()
+    expect(chipLabels()).toEqual(['Week 11', 'Grade 4', 'Grade4 Math', '✓ CBC curriculum'])
+    // Change the class in the form — subject clears, then pick the Grade 3 one.
+    fireEvent.change(document.getElementById('ldf-grade'), { target: { value: 'Grade 3' } })
+    fireEvent.change(document.getElementById('ldf-subject'), { target: { value: 'Grade3 Math' } })
+    // The card followed the form: no stale "Grade 4 / Grade4 Math" chips.
+    expect(chipLabels()).toEqual(['Week 11', 'Grade 3', 'Grade3 Math', '✓ CBC curriculum'])
+  })
+
+  it('does not render when no context was applied', () => {
+    renderWizard()
+    completeStep1()
+    expect(screen.queryByText(/set up for you/i)).not.toBeInTheDocument()
+  })
+
+  it('only renders on the setup step', () => {
+    renderWizard({ extra: { appliedContext: true, appliedWeekNumber: 11 } })
+    completeStep1(); next()
+    expect(screen.queryByText(/set up for you/i)).not.toBeInTheDocument()
+  })
+
+  it('dismisses via the × button', () => {
+    const onDismissPlanContext = vi.fn()
+    renderWizard({ extra: { appliedContext: true, onDismissPlanContext } })
+    completeStep1()
+    fireEvent.click(screen.getByRole('button', { name: /dismiss suggestion/i }))
+    expect(onDismissPlanContext).toHaveBeenCalledTimes(1)
+  })
+
+  it('Change focuses the Class picker', () => {
+    renderWizard({ extra: { appliedContext: true } })
+    completeStep1()
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }))
+    expect(document.activeElement).toBe(document.getElementById('ldf-grade'))
+  })
+})
+
+// ── Teaching Profile mapping notice ──────────────────────────────────────────
+
+describe('LessonPlanWizard — mapping notice', () => {
+  it('renders the amber warning line with the Teaching Profile link on step 1', () => {
+    renderWizard({ extra: { mappingNotice: 'Grade "Baby Class" could not be matched.' } })
+    expect(screen.getByText(/could not be selected automatically/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /review teaching profile/i })).toHaveAttribute(
+      'href',
+      '/settings/teaching-profile',
+    )
   })
 })
 

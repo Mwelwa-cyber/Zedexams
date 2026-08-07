@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChartNoAxesColumnIncreasing } from 'lucide-react'
 import { WIZARD_STEPS, REVIEW_STEP, clampStep, validateStep, firstInvalidStep, maxReachableStep } from './wizardSteps'
-import { WizardProgress } from './WizardProgress.jsx'
+import StudioStepper from '../../StudioStepper.jsx'
+import SetupForYouCard from '../../SetupForYouCard.jsx'
+import { cleanSubjectName } from '../utils/subjectName.js'
 import { StickyWizardNav } from './StickyWizardNav.jsx'
 import { ProgressPanel } from './ProgressPanel.jsx'
 import { LessonSetupStep } from './steps/LessonSetupStep.jsx'
@@ -15,13 +17,17 @@ import { ReviewGenerateStep } from './steps/ReviewGenerateStep.jsx'
  * LessonPlanWizard — the guided five-step creation flow of the Lesson Plan
  * Studio (replaces the old single long-scroll StudioSidebar).
  *
- * One step renders at a time on EVERY breakpoint; desktop (lg+) adds a
- * two-column layout with a vertical step rail on the left. All form state
- * lives in useStudioState (single source of truth) — the wizard only decides
- * WHICH slice is visible and paces the teacher with per-step validation.
+ * One step renders at a time on EVERY breakpoint, with ONE horizontal
+ * StudioStepper above the step header as the single step indicator (the old
+ * desktop rail + mobile dots pair is gone). All form state lives in
+ * useStudioState (single source of truth) — the wizard only decides WHICH
+ * slice is visible and paces the teacher with per-step validation.
  *
  * Prop contract matches what LessonPlanStudio used to hand StudioSidebar,
- * plus wizard-specific additions (draftStatus, onSaveExit, hasPlan/onViewPlan).
+ * plus wizard-specific additions (draftStatus, onSaveExit, hasPlan/onViewPlan,
+ * and the "Set up for you" context flags appliedContext/appliedWeekNumber —
+ * the card's CHIPS are always derived from the live studioState here, never
+ * from the raw suggestion that seeded it).
  */
 export function LessonPlanWizard({
   studioState,
@@ -32,9 +38,9 @@ export function LessonPlanWizard({
   onViewCompleted,
   isValid,
   generateLabel = 'Generate Lesson Plan',
-  planContext = null,
+  appliedContext = false,
+  appliedWeekNumber = null,
   onDismissPlanContext,
-  activeAssignmentLabel = '',
   mappingNotice = '',
   dateHint = '',
   dateWarning = '',
@@ -186,6 +192,26 @@ export function LessonPlanWizard({
       }
     : null
 
+  // ── "Set up for you" chips (single-source rule) ──
+  // Derived from the LIVE studioState — the same state the form's selects
+  // render — never from the raw planContext suggestion. Changing Class or
+  // Subject in the form therefore updates the card automatically, so it can
+  // never describe a different lesson than the form holds (the pre-rework
+  // bug). The Week chip is the one suggestion-owned datum, passed in only
+  // when the weekly forecast was actually applied.
+  const setupChips = appliedContext
+    ? [
+        appliedWeekNumber ? { label: `Week ${appliedWeekNumber}`, variant: 'blue' } : null,
+        lessonDetails.grade ? { label: lessonDetails.grade } : null,
+        lessonDetails.subject ? { label: cleanSubjectName(lessonDetails.subject) } : null,
+        curriculumMode === 'cbc'
+          ? { label: '✓ CBC curriculum', variant: 'green' }
+          : curriculumMode === 'previous'
+            ? { label: '✓ Previous curriculum', variant: 'green' }
+            : null,
+      ].filter(Boolean)
+    : []
+
   // Layout contract (see .lpw-nav in lessonStudio.css): `.lpw-body` spans the
   // full width of TeacherLayout's content column and holds exactly two things —
   // the scrolling step content, capped to a reading width by `.lpw-steps`, and
@@ -194,105 +220,77 @@ export function LessonPlanWizard({
   // stopping at the form's reading width; it must not move back out here.
   return (
     <div className="lpw-body w-full pt-1">
-      <div className="lpw-steps mx-auto w-full max-w-3xl lg:max-w-5xl">
-        <div className="lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-8">
-          {/* ── Desktop step rail ── */}
-          <div className="hidden lg:block">
-            <div className="sticky top-4 space-y-4">
-              <WizardProgress
-                variant="rail"
-                currentStep={currentStep}
-                completed={completed}
-                maxReachable={maxReachable}
-                onStepClick={(i) => goToStep(i)}
-              />
+      <div className="lpw-steps mx-auto w-full max-w-3xl">
+        {/* ── The ONE step indicator: horizontal stepper, every breakpoint ── */}
+        <div className="mb-3">
+          <StudioStepper
+            steps={WIZARD_STEPS}
+            currentIndex={currentStep}
+            completed={completed}
+            maxReachable={maxReachable}
+            onStepClick={(i) => goToStep(i)}
+            ariaLabel="Lesson plan steps"
+          />
+        </div>
+
+        {/* ── Active step ── */}
+        <div className="min-w-0">
+          {/* Compact step header. "My lessons" opens the saved-lessons +
+              coverage overlay (ProgressPanel) — it is NOT a step indicator. */}
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-extrabold uppercase tracking-widest text-accent-text">
+                Step {currentStep + 1} of {WIZARD_STEPS.length}
+              </p>
+              <h2
+                ref={headingRef}
+                tabIndex={-1}
+                className="font-display mt-0.5 text-[19px] font-extrabold leading-tight text-ink outline-none"
+              >
+                {step.title}
+              </h2>
+              <p className="mt-0.5 text-[12.5px] font-semibold text-ink-muted">{step.description}</p>
+            </div>
+            <div className="flex flex-none flex-col items-stretch gap-2 sm:flex-row sm:items-center">
               {hasPlan && (
-                <button type="button" onClick={onViewPlan} className="lps-btn-ghost w-full px-3 py-2 text-[12px]">
+                <button type="button" onClick={onViewPlan} className="lps-btn-ghost min-h-[44px] px-3 py-2 text-[12px]">
                   {isGenerating ? 'View generation progress' : 'View generated plan'}
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => setProgressOpen(true)}
+                className="lps-btn-ghost min-h-[44px] flex-shrink-0 px-3 py-2 text-[12px]"
+              >
+                <ChartNoAxesColumnIncreasing size={16} aria-hidden="true" />
+                My lessons
+              </button>
             </div>
           </div>
 
-          {/* ── Active step column ── */}
-          <div className="min-w-0">
-            {/* Compact step header + five-point progress (mobile/tablet). */}
-            <div className="mb-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[11px] font-extrabold uppercase tracking-widest text-accent-text">
-                    Step {currentStep + 1} of {WIZARD_STEPS.length}
-                  </p>
-                  <h2
-                    ref={headingRef}
-                    tabIndex={-1}
-                    className="font-display mt-0.5 text-[19px] font-extrabold leading-tight text-ink outline-none"
-                  >
-                    {step.title}
-                  </h2>
-                  <p className="mt-0.5 text-[12.5px] font-semibold text-ink-muted">{step.description}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setProgressOpen(true)}
-                  className="lps-btn-ghost min-h-[44px] flex-shrink-0 px-3 py-2 text-[12px]"
-                >
-                  <ChartNoAxesColumnIncreasing size={16} aria-hidden="true" />
-                  Progress
-                </button>
-              </div>
-              <div className="mt-2.5 lg:hidden">
-                <WizardProgress
-                  currentStep={currentStep}
-                  completed={completed}
-                  maxReachable={maxReachable}
-                  onStepClick={(i) => goToStep(i)}
-                />
-              </div>
+          {/* ── Notice stack (setup step only) — at most two rows: the studio's
+              DraftRecoveryPrompt strip above the shell, then this ONE card
+              merging the old prefill banner + "Teaching:" chip block. ── */}
+          {currentStep === 0 && setupChips.length > 0 && (
+            <div className="mb-3">
+              <SetupForYouCard
+                chips={setupChips}
+                onChange={() => document.getElementById('ldf-grade')?.focus()}
+                onDismiss={typeof onDismissPlanContext === 'function' ? onDismissPlanContext : null}
+              />
             </div>
+          )}
 
-            {/* ── Contextual banners (setup step only) ── */}
-            {currentStep === 0 && planContext && (planContext.topic || planContext.subjectLabel) && (
-              <div className="mb-3 flex items-start gap-2 rounded-[14px] bg-accent-tint px-3 py-2 lps-soft-shadow">
-                <span className="mt-0.5 text-[14px] leading-none" aria-hidden="true">📅</span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11.5px] font-semibold text-ink">This week&rsquo;s lesson — filled in for you</p>
-                  <p className="truncate text-[11px] text-ink-muted">
-                    {[planContext.subjectLabel, planContext.topic, planContext.subtopic].filter(Boolean).join(' · ')}
-                    {planContext.weekNumber ? ` · Week ${planContext.weekNumber}` : ''}
-                  </p>
-                </div>
-                {typeof onDismissPlanContext === 'function' && (
-                  <button
-                    type="button"
-                    onClick={onDismissPlanContext}
-                    aria-label="Dismiss this week's lesson suggestion"
-                    className="-mr-1 -mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-md text-ink-muted hover:bg-card/60 hover:text-ink-muted"
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            )}
-
-            {currentStep === 0 && (activeAssignmentLabel || mappingNotice) && (
-              <div className="mb-3 rounded-[14px] bg-[#EEF4FF] px-3 py-2 lps-soft-shadow">
-                {activeAssignmentLabel && (
-                  <p className="text-[11.5px] font-semibold text-[#1d3b53]">Teaching: {activeAssignmentLabel}</p>
-                )}
-                {mappingNotice && (
-                  <div className={activeAssignmentLabel ? 'mt-1' : ''}>
-                    <p className="text-[11px] leading-snug text-[#b45309]">
-                      Some Teaching Profile details could not be selected automatically. {mappingNotice} Choose the correct class and subject below before creating the Lesson Plan.
-                    </p>
-                    <Link to="/settings/teaching-profile" className="text-[11px] font-semibold text-[#b45309] underline">Review Teaching Profile</Link>
-                  </div>
-                )}
-              </div>
-            )}
+          {/* Teaching Profile mapping warning — a warning, not marketing, so it
+              stays its own small amber line below the card. */}
+          {currentStep === 0 && mappingNotice && (
+            <div className="mb-3 px-1">
+              <p className="text-[11px] leading-snug text-[#b45309]">
+                Some Teaching Profile details could not be selected automatically. {mappingNotice} Choose the correct class and subject below before creating the Lesson Plan.
+              </p>
+              <Link to="/settings/teaching-profile" className="text-[11px] font-semibold text-[#b45309] underline">Review Teaching Profile</Link>
+            </div>
+          )}
 
             {/* ── Active step content (one step at a time, subtle slide) ── */}
             <div
@@ -353,7 +351,6 @@ export function LessonPlanWizard({
                   onViewPlan={onViewPlan}
                 />
               )}
-            </div>
           </div>
         </div>
       </div>

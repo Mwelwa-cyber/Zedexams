@@ -1,0 +1,85 @@
+{
+  "fixtureId": "vr-007",
+  "family": "browser-print",
+  "copy": "paper",
+  "identity": "browser-print/chromium-151.0.7922.47",
+  "sourceCommit": "7cc469fd9cb1baa63ea7fcb8b265cd3372cca213",
+  "source": "2108",
+  "reason": "puppeteer 25.4.0 rolls its pinned Chrome from 150.0.7871.24 to 151.0.7922.47. Every fixture is re-rendered by a different browser build, so all 18 baselines move at once: the 9 browser-print targets change baseline identity to chromium-151.0.7922.47, and the 9 docx targets are refused by assertComparableEnvironment because the docx stage rasterises library SVG figures through Chromium. No paper content, layout code or export rule changed in this PR - the renderer did.",
+  "environment": {
+    "chromium": "151.0.7922.47",
+    "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-151.0.7922.47/chrome-linux64/chrome",
+    "libreoffice": "24.2.7.2",
+    "os": "Linux 6.17.0-1020-azure",
+    "platform": "linux-x64",
+    "node": "v22.23.1",
+    "fonts": {
+      "count": 54,
+      "digest": "20b5398451fb9a3a"
+    },
+    "pageSize": "A4",
+    "pageWidthMm": 210,
+    "pageHeightMm": 297,
+    "marginsMm": {
+      "top": 20,
+      "right": 18,
+      "bottom": 16,
+      "left": 18
+    },
+    "dpi": 150,
+    "deviceScaleFactor": 1,
+    "locale": "en-GB",
+    "timeZone": "Africa/Lusaka",
+    "fixedDate": "2026-01-15",
+    "chromiumFlags": "--headless=new --disable-gpu --force-device-scale-factor=1 --font-render-hinting=none --disable-lcd-text --hide-scrollbars --no-first-run --disable-extensions --disable-features=NetworkService",
+    "libreOfficeArgs": "--headless --norestore --nolockcheck --nodefault --nofirststartwizard"
+  },
+  "settings": {
+    "pageSize": "A4",
+    "pageWidthMm": 210,
+    "pageHeightMm": 297,
+    "marginsMm": {
+      "top": 20,
+      "right": 18,
+      "bottom": 16,
+      "left": 18
+    },
+    "dpi": 150,
+    "deviceScaleFactor": 1,
+    "locale": "en-GB",
+    "timeZone": "Africa/Lusaka",
+    "fixedDate": "2026-01-15"
+  },
+  "command": "chromium page.pdf (preferCSSPageSize)",
+  "pageCount": 1,
+  "anchors": {
+    "question_1": 1,
+    "header": 1
+  },
+  "inkByPage": {
+    "1": 0.02686307694714629
+  },
+  "figures": {
+    "unresolvedFigureCount": 0,
+    "unresolvedFigures": [],
+    "placeholders": 0,
+    "docx": null,
+    "detected": {
+      "1": [
+        {
+          "x": 106,
+          "y": 189,
+          "width": 145,
+          "height": 145,
+          "cells": 330,
+          "source": "placement"
+        }
+      ]
+    }
+  },
+  "hashes": {
+    "environment.json": "ddaae25a7baa8b065fdc6e21c679c77fc80d72c31e35bfc77ab198b7bf5254c9",
+    "layout.json": "487ea3ae6c9bd007bc6f0fe58778435c19a75d82ed6a94c39b69417feff5ad0b",
+    "page-01.png": "3c56b54a5a241ffe02dbf6e5759ed2f61bb5826233093cb92cd62e0642f893e6"
+  }
+}

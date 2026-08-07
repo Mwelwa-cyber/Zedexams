@@ -172,6 +172,23 @@ describe('DailyExamRunner — taking the exam', () => {
     expect(screen.getByText('1 answered')).toBeInTheDocument()
   })
 
+  // §4 makes a single vertical column with letter badges a binding engine
+  // requirement — the ECZ past-paper form. This runner used `sm:grid-cols-2`,
+  // which laid choices out 2x2 on tablet and up, so a long option wrapped
+  // inside half a row and the reading order stopped being a list.
+  it('lays answer options out in one vertical column, like the quiz runner', async () => {
+    const { container } = renderRunner()
+    await screen.findByText(/What is 2 \+ 2\?/)
+
+    const optionList = container.querySelector('.opt-grid')
+    expect(optionList).not.toBeNull()
+    // The class carries `grid-template-columns: 1fr` (src/index.css). Assert the
+    // multi-column utility is gone rather than only that the new class is
+    // present — both could be on the element at once.
+    expect(optionList.className).not.toMatch(/grid-cols-\d/)
+    expect(container.querySelectorAll('.opt-grid .zx-opt').length).toBeGreaterThan(1)
+  })
+
   it('lets the learner skip an unanswered question — Next always advances', async () => {
     renderRunner()
     await screen.findByText(/What is 2 \+ 2\?/)

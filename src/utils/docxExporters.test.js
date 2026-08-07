@@ -1,7 +1,9 @@
 /**
  * Golden-file regression tests for the studio Word (.docx) exporters.
  *
- * One harness, fifteen exporters: each case builds its document from a small
+ * One harness, fourteen exporters (the flashcard case moved to
+ * src/features/flashcards/export/ with its exporter — same assertions, from the
+ * one copy in docxExportChecks.js): each case builds its document from a small
  * inline fixture, unzips the .docx (a ZIP of XML parts) and asserts
  *   1. distinctive fixture strings landed in word/document.xml (the body),
  *   2. `{ attribution: true }` adds the diagonal watermark (a `textpath`
@@ -16,8 +18,7 @@
  */
 
 import { registerHooks } from 'node:module'
-import { Packer } from 'docx'
-import { unzipSync, strFromU8 } from 'fflate'
+import { assertExporterDocument, unzipDoc } from './docxExportChecks.js'
 
 // Some exporters use Vite-style extensionless relative imports (e.g.
 // schemeOfWorkToDocx.js imports './weeklyForecast'). Plain node refuses
@@ -52,7 +53,6 @@ async function loadModule(path) {
 }
 
 const worksheetMod = await loadModule('./worksheetToDocx.js')
-const flashcardsMod = await loadModule('./flashcardsToDocx.js')
 const notesMod = await loadModule('./notesToDocx.js')
 const rubricMod = await loadModule('./rubricToDocx.js')
 const homeworkMod = await loadModule('./homeworkToDocx.js')
@@ -80,23 +80,6 @@ function assert(cond, msg) {
 }
 
 /** Pack + unzip a docx Document and pull out the parts the assertions read. */
-async function unzipDoc(doc) {
-  const files = unzipSync(new Uint8Array(await Packer.toBuffer(doc)))
-  const names = Object.keys(files)
-  const headerXml = names
-    .filter((n) => /word\/header\d+\.xml/.test(n))
-    .map((n) => strFromU8(files[n]))
-    .join('')
-  const footerNames = names.filter((n) => /word\/footer\d+\.xml/.test(n))
-  const footerXml = footerNames.map((n) => strFromU8(files[n])).join('')
-  return {
-    docXml: strFromU8(files['word/document.xml']),
-    headerXml,
-    footerNames,
-    footerXml,
-  }
-}
-
 /* ── Inline fixtures ─────────────────────────────────────────────────── */
 
 const WORKSHEET = {
@@ -121,14 +104,6 @@ const WORKSHEET = {
     },
   ],
   answerKey: { markingNotes: 'Award one mark for correct working.', totalMarks: 20 },
-}
-
-const FLASHCARDS = {
-  header: { title: 'Photosynthesis Flashcards', grade: 'Grade 8', subject: 'Science', topic: 'Plants' },
-  cards: [
-    { front: 'What gas do plants absorb for photosynthesis?', back: 'Carbon dioxide', example: 'Leaves take in air through stomata', hint: 'It is what we breathe out' },
-    { front: 'Where does photosynthesis happen?', back: 'In the chloroplasts' },
-  ],
 }
 
 const NOTES = {
@@ -365,13 +340,6 @@ const CASES = [
     attribution: true,
   },
   {
-    name: 'flashcardsToDocx',
-    mod: flashcardsMod,
-    build: (opts) => flashcardsMod.buildFlashcardsDocument(FLASHCARDS, { mode: 'cutout', ...opts }),
-    expected: ['Photosynthesis Flashcards', 'What gas do plants absorb for photosynthesis?', 'Carbon dioxide', 'In the chloroplasts'],
-    attribution: true,
-  },
-  {
     name: 'notesToDocx',
     mod: notesMod,
     build: (opts) => notesMod.buildNotesDocument(NOTES, opts),
@@ -503,23 +471,7 @@ for (const c of CASES) {
   console.log(`\n${c.name}`)
   const before = failures
   try {
-    // Free-plan export: body content + watermark header + attribution footer.
-    const branded = await unzipDoc(await c.build({ attribution: true }))
-    for (const s of c.expected) {
-      assert(branded.docXml.includes(s), `body contains ${JSON.stringify(s)}`)
-    }
-    if (c.attribution) {
-      assert(branded.headerXml.includes('textpath'), 'attribution:true — header part carries the diagonal watermark')
-      assert(branded.footerNames.length >= 1, 'attribution:true — document carries a real footer part')
-      assert(branded.footerXml.includes('Made with ZedExams'), 'attribution:true — footer carries the attribution line')
-
-      // Paid/admin export stays clean — no branding anywhere. (A footer part
-      // may legitimately exist for page furniture, e.g. the Record of Work's
-      // "Page X of Y"; the invariant is no ATTRIBUTION, not no footer.)
-      const clean = await unzipDoc(await c.build({ attribution: false }))
-      assert(!clean.headerXml.includes('textpath'), 'attribution:false — no watermark in any header part')
-      assert(!clean.footerXml.includes('Made with ZedExams'), 'attribution:false — no attribution line in any footer part')
-    }
+    await assertExporterDocument(c, assert)
     if (c.extra) await c.extra()
   } catch (err) {
     failures += 1

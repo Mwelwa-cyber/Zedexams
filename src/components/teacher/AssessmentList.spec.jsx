@@ -1,6 +1,7 @@
 /**
- * Behaviour tests for AssessmentList.jsx's deletion flow — the fix for the
- * "deleted assessment comes back after refresh / re-entry" bug.
+ * Behaviour tests for AssessmentList.jsx — the deletion flow (the fix for the
+ * "deleted assessment comes back after refresh / re-entry" bug), the export
+ * readiness gate, and the render-level display-title/search UI.
  *
  * The list performs a persisted, awaited hard delete and coordinates it through
  * the session deletion registry (src/utils/assessmentDeletion.js) so a deleted
@@ -11,6 +12,12 @@
  *   • a failed (e.g. permission-denied) delete keeps the row, lifts the
  *     tombstone, and shows an error — never a silent optimistic drop;
  *   • a deletion coming from another tab removes the row here too.
+ *
+ * UI shape (2026-08 overhaul): actions live behind menus — Open (link),
+ * Download ▾ (Word / PDF / marking scheme via ActionMenu) and a "More actions"
+ * kebab holding Delete. Titles are derived at render time from the paper's own
+ * fields, so the term shown always comes from the `term` FIELD, never from
+ * term text embedded in a stored free-text title.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
@@ -100,7 +107,6 @@ vi.mock('../../utils/assessmentToPdf', () => ({
   openPrintWindow: vi.fn(() => printWindow),
 }))
 vi.mock('../../utils/importReviewSummary.js', () => ({ summarizeImportReview: () => ({ needsReview: false }) }))
-vi.mock('../quiz/ImportReviewBadge', () => ({ default: () => null }))
 vi.mock('../seo/SeoHelmet', () => ({ default: () => null }))
 vi.mock('../ui/Skeleton', () => ({ default: () => null }))
 vi.mock('../ui/PaginationFooter', () => ({ default: () => null }))
@@ -116,6 +122,18 @@ function renderList() {
   return render(<MemoryRouter><AssessmentList /></MemoryRouter>)
 }
 
+/** Open the first row's Download ▾ menu and pick an item by its exact label. */
+function pickDownloadItem(itemLabel) {
+  fireEvent.click(screen.getAllByRole('button', { name: 'Download' })[0])
+  fireEvent.click(screen.getByRole('menuitem', { name: itemLabel }))
+}
+
+/** Open the first row's "More actions" kebab and pick Delete. */
+function requestDeleteViaMenu(rowIndex = 0) {
+  fireEvent.click(screen.getAllByRole('button', { name: 'More actions' })[rowIndex])
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   _resetForTests()
@@ -128,17 +146,18 @@ beforeEach(() => {
 })
 
 describe('AssessmentList — deletion flow', () => {
-  it('confirm dialog names the paper before deleting', () => {
+  it('confirm dialog names the paper (by its display title) before deleting', () => {
     renderList()
-    fireEvent.click(screen.getAllByRole('button', { name: /Delete/ })[0])
+    requestDeleteViaMenu(0)
     const dialog = screen.getByRole('alertdialog')
-    expect(dialog).toHaveTextContent('Grade 5 Maths Test')
+    // a1 has no manual title, so the dialog carries the render-derived name.
+    expect(dialog).toHaveTextContent('Grade 5 Mathematics — Topic Test')
   })
 
   it('a confirmed delete persists, removes the row, tombstones the id, and toasts success', async () => {
     mockDeleteAssessment.mockResolvedValueOnce(undefined)
     renderList()
-    fireEvent.click(screen.getAllByRole('button', { name: /🗑 Delete/ })[0])
+    requestDeleteViaMenu(0)
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
     await waitFor(() => expect(mockDeleteAssessment).toHaveBeenCalledWith('a1'))
@@ -152,7 +171,7 @@ describe('AssessmentList — deletion flow', () => {
   it('a failed delete keeps the row, lifts the tombstone, and shows an error', async () => {
     mockDeleteAssessment.mockRejectedValueOnce(Object.assign(new Error('Missing or insufficient permissions.'), { code: 'permission-denied' }))
     renderList()
-    fireEvent.click(screen.getAllByRole('button', { name: /🗑 Delete/ })[0])
+    requestDeleteViaMenu(0)
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
     await waitFor(() => expect(toast.error).toHaveBeenCalled())
@@ -192,9 +211,9 @@ const storedQuestion = (id, over = {}) => ({
   ...over,
 })
 
-async function clickExport(label = '📝 Paper (Word)') {
+async function clickExport(itemLabel = 'Paper (Word)') {
   renderList()
-  fireEvent.click(screen.getAllByRole('button', { name: label })[0])
+  pickDownloadItem(itemLabel)
   await waitFor(() => expect(mockGetQuestions).toHaveBeenCalled())
 }
 
@@ -247,7 +266,7 @@ describe('AssessmentList — export readiness', () => {
     // browser does not treat it as a popup. Blocked must not leave it standing.
     const { printAssessmentAsPdf } = await import('../../utils/assessmentToPdf')
     mockGetQuestions.mockResolvedValueOnce([storedQuestion('q1', { text: '' })])
-    await clickExport('📄 Paper (PDF)')
+    await clickExport('Paper (PDF)')
     await waitFor(() => expect(toast.error).toHaveBeenCalled())
     expect(printAssessmentAsPdf).not.toHaveBeenCalled()
     // Opened before the gate ran, so blocked must also mean closed — otherwise
@@ -285,15 +304,78 @@ describe('AssessmentList — export readiness', () => {
   it('fixing the paper makes it exportable again, with no reload', async () => {
     mockGetQuestions.mockResolvedValueOnce([storedQuestion('q1', { text: '' })])
     renderList()
-    fireEvent.click(screen.getAllByRole('button', { name: '📝 Paper (Word)' })[0])
+    pickDownloadItem('Paper (Word)')
     await waitFor(() => expect(toast.error).toHaveBeenCalled())
     expect(exportSpies.startBrandedDownload).not.toHaveBeenCalled()
 
-    // Same mounted list, same button: the paper was repaired elsewhere and the
+    // Same mounted list, same menu: the paper was repaired elsewhere and the
     // next click reads the repaired paper rather than a cached verdict.
     mockGetQuestions.mockResolvedValueOnce([storedQuestion('q1')])
-    fireEvent.click(screen.getAllByRole('button', { name: '📝 Paper (Word)' })[0])
+    pickDownloadItem('Paper (Word)')
     await waitFor(() => expect(exportSpies.startBrandedDownload).toHaveBeenCalledTimes(1))
     expect(toast.success).toHaveBeenCalledTimes(1)
+  })
+})
+
+/* ── display titles, search, and the no-emoji rule ───────────────────────── */
+
+describe('AssessmentList — display titles', () => {
+  it('derives the displayed term from the term FIELD, never from the stored title text', () => {
+    // An earlier build stamped a DEFAULT term into generated titles, so a
+    // Term 2 paper can be stored carrying "END OF TERM 1 TEST". The list must
+    // rebuild the name from the paper's own fields.
+    paginated.items = [{
+      id: 'b1',
+      title: 'GRADE 4 INTEGRATED SCIENCE - END OF TERM 1 TEST - 2026',
+      assessmentType: 'end_of_term',
+      term: 2,
+      subject: 'Integrated Science',
+      grade: '4',
+      questionCount: 10,
+    }]
+    renderList()
+    expect(screen.getByText('Grade 4 Integrated Science — End of Term 2 Test')).toBeInTheDocument()
+    // The stored title's wrong term never reaches the screen.
+    expect(screen.queryByText(/END OF TERM 1/i)).not.toBeInTheDocument()
+  })
+
+  it('renders a manually-titled paper verbatim', () => {
+    paginated.items = [{
+      id: 'b2',
+      title: 'Mrs Zulu Friday Revision Special',
+      titleSource: 'manual',
+      assessmentType: 'topic_test',
+      subject: 'Mathematics',
+      grade: '5',
+      questionCount: 4,
+    }]
+    renderList()
+    expect(screen.getByText('Mrs Zulu Friday Revision Special')).toBeInTheDocument()
+    expect(screen.queryByText('Grade 5 Mathematics — Topic Test')).not.toBeInTheDocument()
+  })
+})
+
+describe('AssessmentList — toolbar', () => {
+  it('the search input filters the visible papers client-side', () => {
+    renderList()
+    // Both display titles render before any search.
+    expect(screen.getByText('Grade 5 Mathematics — Topic Test')).toBeInTheDocument()
+    expect(screen.getByText('Grade 8 Integrated Science — Examination')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByPlaceholderText('Search papers…'), { target: { value: 'science' } })
+    expect(screen.queryByText('Grade 5 Mathematics — Topic Test')).not.toBeInTheDocument()
+    expect(screen.getByText('Grade 8 Integrated Science — Examination')).toBeInTheDocument()
+
+    // Clearing the search brings everything back — no refetch, no reload.
+    fireEvent.change(screen.getByPlaceholderText('Search papers…'), { target: { value: '' } })
+    expect(screen.getByText('Grade 5 Mathematics — Topic Test')).toBeInTheDocument()
+  })
+
+  it('renders no emoji glyphs anywhere (the eagle mascot is gone)', () => {
+    renderList()
+    expect(document.body.textContent).not.toContain('🦅')
+    // The old emoji action buttons are gone too — actions are Open/Download/⋯.
+    expect(document.body.textContent).not.toContain('📝')
+    expect(document.body.textContent).not.toContain('🗑')
   })
 })

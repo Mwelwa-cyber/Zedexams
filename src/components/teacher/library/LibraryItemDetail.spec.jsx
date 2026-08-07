@@ -37,7 +37,6 @@ vi.mock('../../../utils/assessmentToDocx', () => ({
 vi.mock('../../../utils/lessonPlanToDocx',    () => ({ downloadLessonPlanDocx:    vi.fn(async () => {}) }))
 vi.mock('../../../utils/serverLibraryDownload',()=>({ downloadLibraryItemViaServer:vi.fn(async()=>false) }))
 vi.mock('../../../utils/worksheetToDocx',     () => ({ downloadWorksheetDocx:     vi.fn(async () => {}) }))
-vi.mock('../../../utils/flashcardsToDocx',    () => ({ downloadFlashcardsDocx:    vi.fn(async () => {}) }))
 vi.mock('../../../utils/schemeOfWorkToDocx',  () => ({ downloadSchemeOfWorkDocx:  vi.fn(async () => {}) }))
 vi.mock('../../../utils/markScheduleToDocx',  () => ({ downloadMarkScheduleDocx:  vi.fn(async () => {}) }))
 vi.mock('../../../utils/markScheduleToXlsx',  () => ({ downloadMarkScheduleXlsx:  vi.fn(async () => {}) }))
@@ -49,7 +48,6 @@ vi.mock('../../../utils/classTimetableToDocx',() => ({ downloadClassTimetableDoc
 vi.mock('../../../utils/classTimetableToXlsx',() => ({ downloadClassTimetableXlsx:vi.fn(async () => {}) }))
 vi.mock('../../../utils/classTimetableToPdf', () => ({ downloadClassTimetablePdf: vi.fn(async () => {}) }))
 vi.mock('../../../utils/lessonPlanToPdf',     () => ({ downloadLessonPlanPdf:     vi.fn(async () => {}) }))
-vi.mock('../../../utils/flashcardsToPdf',     () => ({ downloadFlashcardsPdf:     vi.fn(async () => {}) }))
 vi.mock('../../../utils/rubricToPdf',         () => ({ downloadRubricPdf:         vi.fn(async () => {}) }))
 vi.mock('../../../utils/notesToPdf',          () => ({ downloadNotesPdf:          vi.fn(async () => {}) }))
 vi.mock('../../../utils/homeworkToPdf',       () => ({ downloadHomeworkPdf:       vi.fn(async () => {}) }))
@@ -139,7 +137,16 @@ vi.mock('../../../utils/teacherLibraryService', () => ({
 }))
 
 // ── Hooks with Firebase side-effects ─────────────────────────────────────────
-vi.mock('../../../hooks/useFlashcardProgress', () => ({
+// The flashcards feature is consumed through its public index, so ONE mock
+// replaces the five that used to target its parts individually (two exporters,
+// the progress hook, and two view components). Vitest does not warn when a
+// vi.mock path matches no imported module, so a move that leaves the old paths
+// behind gives a spec that still passes while testing something else.
+vi.mock('../../../features/flashcards', () => ({
+  FlashcardsView:         () => null,
+  FlashcardStudyOverlay:  () => null,
+  downloadFlashcardsDocx: vi.fn(async () => {}),
+  downloadFlashcardsPdf:  vi.fn(async () => {}),
   useFlashcardProgress: () => ({
     masteredCards: {},
     markMastered: vi.fn(),
@@ -150,7 +157,6 @@ vi.mock('../../../hooks/useFlashcardProgress', () => ({
 // ── View component stubs — all rendered as null except lesson_activities ──────
 vi.mock('../views/LessonPlanView',        () => ({ default: () => null }))
 vi.mock('../views/WorksheetView',         () => ({ default: () => null }))
-vi.mock('../views/FlashcardsView',        () => ({ default: () => null }))
 vi.mock('../views/SchemeOfWorkView',      () => ({ default: () => null }))
 vi.mock('../views/MarkScheduleView',      () => ({ default: () => null }))
 vi.mock('../views/WeeklyForecastView',    () => ({ default: () => null }))
@@ -165,7 +171,6 @@ vi.mock('../views/SbaTrackerView',        () => ({ default: () => null }))
 vi.mock('../views/SbaPlanView',           () => ({ default: () => null }))
 vi.mock('../views/AssessmentPaperView',   () => ({ default: () => null }))
 vi.mock('../views/FullLessonView',        () => ({ default: () => null }))
-vi.mock('../views/FlashcardStudyOverlay', () => ({ default: () => null }))
 vi.mock('../generate/SchemeEditableTable',        () => ({ default: () => null }))
 vi.mock('../generate/WeeklyForecastEditableTable',() => ({ default: () => null }))
 vi.mock('../../ui/ConfirmDialog', () => ({ default: () => null }))

@@ -11,18 +11,33 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
  * would look entirely reasonable and silently re-record children.
  */
 
-const replayInstance = { stop: vi.fn(), start: vi.fn() }
+const replayInstance = { stop: vi.fn(), start: vi.fn(), startBuffering: vi.fn() }
+
+// Faithful to the real SDK: Sentry's Replay class is a SINGLETON, and
+// constructing a second instance throws. The previous mock allowed unlimited
+// re-construction, which is exactly why the sign-out → sign-in cycle bug
+// (#2156) passed this suite while throwing on every profile snapshot in
+// production.
+let replayConstructed = false
 
 const Sentry = {
   init: vi.fn((opts) => { Sentry.__opts = opts }),
   setUser: vi.fn(),
   addIntegration: vi.fn(),
-  replayIntegration: vi.fn(() => replayInstance),
+  replayIntegration: vi.fn(() => {
+    if (replayConstructed) throw new Error('Multiple Sentry Session Replay instances are not supported')
+    replayConstructed = true
+    return replayInstance
+  }),
   browserTracingIntegration: vi.fn(() => ({ name: 'tracing' })),
   __opts: null,
 }
 
 vi.mock('@sentry/react', () => Sentry)
+
+// The re-arm serialises behind the stop's promise chain, so it lands a few
+// microtasks after the call that requested it. One macrotask drains them all.
+const flushMicrotasks = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 async function loadSentry() {
   vi.resetModules()
@@ -35,6 +50,8 @@ async function loadSentry() {
 beforeEach(() => {
   for (const fn of Object.values(Sentry)) if (typeof fn?.mockClear === 'function') fn.mockClear()
   replayInstance.stop.mockClear()
+  replayInstance.startBuffering.mockClear()
+  replayConstructed = false
   Sentry.__opts = null
 })
 
@@ -112,12 +129,129 @@ describe('sentry — error reporting survives replay problems', () => {
   })
 })
 
+describe('sentry — the recorder survives a sign-out (one instance per page load)', () => {
+  it('a teacher after a teacher re-ARMS the one instance, never constructs a second', async () => {
+    // The live failure: sign-out stopped the recorder and dropped the
+    // reference; the next recordable sign-in constructed a second Replay,
+    // which the SDK refuses — and because the failure path also dropped the
+    // reference, every later profile snapshot retried and threw again. Net
+    // effect on zedexams.com: "[sentry] replay registration failed" in a
+    // loop, and no session replay at all.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const { setSentryUser, clearSentryUser } = await loadSentry()
+      setSentryUser('uid-teacher', 'teacher')
+      clearSentryUser()
+      setSentryUser('uid-teacher-2', 'teacher')
+      await flushMicrotasks()
+
+      expect(Sentry.replayIntegration).toHaveBeenCalledTimes(1)
+      expect(replayInstance.startBuffering).toHaveBeenCalledTimes(1)
+      const warned = warn.mock.calls.some((c) => String(c[0]).includes('replay registration failed'))
+      expect(warned, 'the singleton throw must never be reachable').toBe(false)
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('a learner after a teacher does not re-arm the stopped instance', async () => {
+    const { setSentryUser, clearSentryUser } = await loadSentry()
+    setSentryUser('uid-teacher', 'teacher')
+    clearSentryUser()
+    setSentryUser('uid-learner', 'learner')
+    await flushMicrotasks()
+    expect(replayInstance.startBuffering).not.toHaveBeenCalled()
+  })
+
+  it('a repeat role while already recording does not re-arm or re-add', async () => {
+    const { setSentryUser } = await loadSentry()
+    setSentryUser('uid-teacher', 'teacher')
+    setSentryUser('uid-teacher', 'teacher')
+    expect(replayInstance.startBuffering).not.toHaveBeenCalled()
+    expect(Sentry.addIntegration).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('sentry — the re-arm serialises behind a pending stop', () => {
+  it('a quick sign-out → sign-in does not lose the recorder to the stop\'s final flush', async () => {
+    // Codex P2 on #2156 (r3733994279): stop() is async — after an error has
+    // promoted buffering to session mode it awaits a final flush before
+    // destroying the buffer. A startBuffering() issued while that teardown is
+    // pending gets torn down WITH it, and replayActive stays true, so nothing
+    // ever retries: replay is silently off for the rest of the session.
+    let settleStop
+    replayInstance.stop.mockImplementationOnce(() => new Promise((res) => { settleStop = res }))
+    const { setSentryUser, clearSentryUser } = await loadSentry()
+    setSentryUser('uid-teacher', 'teacher')
+    clearSentryUser()
+    await flushMicrotasks()                 // the queued stop() begins its final flush
+    setSentryUser('uid-teacher-2', 'teacher')
+    await flushMicrotasks()
+
+    // The re-arm must WAIT — buffering started now would be destroyed by the
+    // teardown still in flight.
+    expect(replayInstance.startBuffering).not.toHaveBeenCalled()
+
+    settleStop()
+    await flushMicrotasks()
+    expect(replayInstance.startBuffering).toHaveBeenCalledTimes(1)
+  })
+
+  it('a sign-out while the stop is still settling withdraws the queued re-arm', async () => {
+    let settleStop
+    replayInstance.stop.mockImplementationOnce(() => new Promise((res) => { settleStop = res }))
+    const { setSentryUser, clearSentryUser } = await loadSentry()
+    setSentryUser('uid-teacher', 'teacher')
+    clearSentryUser()
+    await flushMicrotasks()                    // the stop's flush is now pending
+    setSentryUser('uid-teacher-2', 'teacher')  // queued behind the flush…
+    clearSentryUser()                          // …and withdrawn before it lands
+
+    settleStop()
+    await flushMicrotasks()
+    expect(replayInstance.startBuffering).not.toHaveBeenCalled()
+  })
+})
+
+describe('sentry — a second sign-out keeps the ONE stop chain', () => {
+  it('sign-out, sign-in, sign-out, sign-in serialises everything behind the original flush', async () => {
+    // Codex P2 on #2158 (r3734356773): the first fix kept only the LATEST
+    // stop's promise. A second sign-out while the first flush was pending
+    // invoked stop() again on the already-stopped recorder and REPLACED the
+    // reference — the no-op stop settled first, and the next re-arm fired
+    // while the original teardown was still in flight: the silent replay
+    // loss again, one level up.
+    let settleStop
+    replayInstance.stop.mockImplementationOnce(() => new Promise((res) => { settleStop = res }))
+    const { setSentryUser, clearSentryUser } = await loadSentry()
+    setSentryUser('uid-a', 'teacher')
+    clearSentryUser()
+    await flushMicrotasks()                   // stop A's final flush is pending
+    setSentryUser('uid-b', 'teacher')         // queued re-arm…
+    clearSentryUser()                         // …withdrawn; must NOT stop again or replace the chain
+    setSentryUser('uid-c', 'teacher')
+    await flushMicrotasks()
+
+    // C's re-arm must still be waiting on A's ORIGINAL flush.
+    expect(replayInstance.startBuffering).not.toHaveBeenCalled()
+    expect(replayInstance.stop).toHaveBeenCalledTimes(1)
+
+    settleStop()
+    await flushMicrotasks()
+    expect(replayInstance.startBuffering).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('sentry — shared devices', () => {
   it('stops the recorder on sign-out', async () => {
     const { setSentryUser, clearSentryUser } = await loadSentry()
     setSentryUser('uid-teacher', 'teacher')
     clearSentryUser()
-    expect(replayInstance.stop).toHaveBeenCalled()
+    // SYNCHRONOUSLY — Codex P1 on #2160 (r3734894933): a stop whose
+    // invocation is queued gives React a microtask gap to commit the next
+    // user's UI while the previous user's recorder is still rolling. Only
+    // the FLUSH may be asynchronous.
+    expect(replayInstance.stop).toHaveBeenCalledTimes(1)
   })
 
   it('a learner signing in after a teacher is not recorded', async () => {

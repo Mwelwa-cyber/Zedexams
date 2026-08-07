@@ -13,9 +13,9 @@ QA reports and report regressions back to the operator.
 1. `node scripts/check-file-integrity.mjs` — schema/import sanity.
 2. `node scripts/test-question-schema.mjs` — Zod question schema tests.
 3. `node scripts/test-rich-text-sanitize.mjs` — HTML sanitiser tests.
-4. The Playwright smoke harness in `.playwright-cli/` for the auth + the
-   authoring routes. Outputs land at `.auth-qa-report.json` and
-   `.authoring-qa-report.json`.
+4. `npm run smoke` — the mobile smoke harness (build + phone-sized headless
+   Chromium over the auth and authoring routes). Outputs land at
+   `.auth-qa-report.json` and `.authoring-qa-report.json`.
 
 ## Output (return as a fenced JSON block)
 

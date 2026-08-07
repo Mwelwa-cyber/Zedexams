@@ -94,6 +94,24 @@ function isDone(lessonDetails) {
   return Boolean(lessonDetails.grade && lessonDetails.subject)
 }
 
+/**
+ * "2026-08-04" → "Tue, 4 Aug 2026" — the friendly confirmation line under the
+ * Date input. Built from formatToParts so the shape is locale-stable (en-GB
+ * puts no comma after the short weekday on some ICU builds). Empty string for
+ * no/invalid date. Parsed as LOCAL midnight so the weekday never shifts a day
+ * on either side of UTC.
+ */
+export function formatFriendlyDate(iso) {
+  if (!iso) return ''
+  const d = new Date(`${iso}T00:00:00`)
+  if (Number.isNaN(d.getTime())) return ''
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+  }).formatToParts(d)
+  const get = (type) => parts.find((p) => p.type === type)?.value ?? ''
+  return `${get('weekday')}, ${get('day')} ${get('month')} ${get('year')}`
+}
+
 // Shared Tailwind classes for form controls inside the section body.
 // `pl-9` leaves room for the leading field icon rendered by <FieldIcon/>.
 const INPUT_CLS =
@@ -184,6 +202,8 @@ export function LessonDetailsForm({ lessonDetails, curriculumMode, onChange, dis
     : gradeListFor(curriculumMode)
   const grouped   = groupedGrades(grades)
   const done      = isDone(lessonDetails)
+  const friendlyDate = formatFriendlyDate(lessonDetails.date)
+  const teacherSchoolPrefilled = Boolean(lessonDetails.teacherName && lessonDetails.school)
 
   return (
     <div
@@ -240,86 +260,87 @@ export function LessonDetailsForm({ lessonDetails, curriculumMode, onChange, dis
         <div className={embedded ? '' : 'lps-section-enter px-4 pb-4'}>
           <div className={embedded ? 'space-y-3.5' : 'space-y-3.5 rounded-2xl border border-[#ece4d6] bg-white/60 p-3.5 lps-soft-shadow'}>
 
-          {/* Class */}
-          <div>
-            <label htmlFor="ldf-grade" className={LABEL_CLS}>Class</label>
-            <div className="relative">
-              <FieldIcon><GraduationCap size={15} /></FieldIcon>
-              <select
-                id="ldf-grade"
-                value={lessonDetails.grade}
-                onChange={(e) => onChange('grade', e.target.value)}
-                className={INPUT_CLS}
-                disabled={disabled}
-              >
-                <option value="">
-                  {gradesLoading && !availableGrades ? 'Loading classes…' : 'Select class…'}
-                </option>
-                {[...grouped.entries()].map(([groupLabel, items]) => (
-                  <optgroup key={groupLabel} label={groupLabel}>
-                    {items.map((g) => (
-                      <option key={g.value} value={g.value}>{g.label}</option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
+          {/* Class | Subject — two columns from 640px up */}
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <div>
+              <label htmlFor="ldf-grade" className={LABEL_CLS}>Class</label>
+              <div className="relative">
+                <FieldIcon><GraduationCap size={15} /></FieldIcon>
+                <select
+                  id="ldf-grade"
+                  value={lessonDetails.grade}
+                  onChange={(e) => onChange('grade', e.target.value)}
+                  className={INPUT_CLS}
+                  disabled={disabled}
+                >
+                  <option value="">
+                    {gradesLoading && !availableGrades ? 'Loading classes…' : 'Select class…'}
+                  </option>
+                  {[...grouped.entries()].map(([groupLabel, items]) => (
+                    <optgroup key={groupLabel} label={groupLabel}>
+                      {items.map((g) => (
+                        <option key={g.value} value={g.value}>{g.label}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="ldf-subject" className={LABEL_CLS}>Subject</label>
+              <div className="relative">
+                <FieldIcon><BookOpen size={15} /></FieldIcon>
+                <select
+                  id="ldf-subject"
+                  value={lessonDetails.subject}
+                  onChange={(e) => onChange('subject', e.target.value)}
+                  className={INPUT_CLS}
+                  disabled={disabled || !lessonDetails.grade || subjectsLoading}
+                >
+                  <option value="">
+                    {!lessonDetails.grade
+                      ? 'Select a class first…'
+                      : subjectsLoading
+                        ? 'Loading subjects…'
+                        : subjects.length === 0
+                          ? 'No subjects for this class yet'
+                          : 'Select subject…'}
+                  </option>
+                  {subjects.map((s) => (
+                    <option key={s} value={s}>{subjectLabel(s)}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 
-          {/* Subject */}
-          <div>
-            <label htmlFor="ldf-subject" className={LABEL_CLS}>Subject</label>
-            <div className="relative">
-              <FieldIcon><BookOpen size={15} /></FieldIcon>
-              <select
-                id="ldf-subject"
-                value={lessonDetails.subject}
-                onChange={(e) => onChange('subject', e.target.value)}
-                className={INPUT_CLS}
-                disabled={disabled || !lessonDetails.grade || subjectsLoading}
-              >
-                <option value="">
-                  {!lessonDetails.grade
-                    ? 'Select a class first…'
-                    : subjectsLoading
-                      ? 'Loading subjects…'
-                      : subjects.length === 0
-                        ? 'No subjects for this class yet'
-                        : 'Select subject…'}
-                </option>
-                {subjects.map((s) => (
-                  <option key={s} value={s}>{subjectLabel(s)}</option>
-                ))}
-              </select>
+          {/* Duration | Date | Time — one compact row from 640px up.
+              Medium now lives in Format & Options → Advanced. */}
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+            <div>
+              <label htmlFor="ldf-duration" className={LABEL_CLS}>Duration</label>
+              <div className="relative">
+                <FieldIcon><Clock size={15} /></FieldIcon>
+                <select
+                  id="ldf-duration"
+                  value={lessonDetails.duration}
+                  onChange={(e) => onChange('duration', e.target.value)}
+                  className={INPUT_CLS}
+                  disabled={disabled}
+                >
+                  {/* Keep any saved value not in the preset list selectable. */}
+                  {lessonDetails.duration &&
+                    !DURATION_OPTIONS.some((o) => o.value === String(lessonDetails.duration)) && (
+                      <option value={lessonDetails.duration}>{lessonDetails.duration} mins</option>
+                    )}
+                  {DURATION_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
 
-          {/* Duration — Medium now lives in Format & Options → Advanced */}
-          <div>
-            <label htmlFor="ldf-duration" className={LABEL_CLS}>Duration</label>
-            <div className="relative">
-              <FieldIcon><Clock size={15} /></FieldIcon>
-              <select
-                id="ldf-duration"
-                value={lessonDetails.duration}
-                onChange={(e) => onChange('duration', e.target.value)}
-                className={INPUT_CLS}
-                disabled={disabled}
-              >
-                {/* Keep any saved value not in the preset list selectable. */}
-                {lessonDetails.duration &&
-                  !DURATION_OPTIONS.some((o) => o.value === String(lessonDetails.duration)) && (
-                    <option value={lessonDetails.duration}>{lessonDetails.duration} mins</option>
-                  )}
-                {DURATION_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Date + Time — two columns */}
-          <div className="grid grid-cols-2 gap-2.5">
             <div>
               <label htmlFor="ldf-date" className={LABEL_CLS}>Date</label>
               <div className="relative">
@@ -343,10 +364,13 @@ export function LessonDetailsForm({ lessonDetails, curriculumMode, onChange, dis
                   {dateHint}
                 </p>
               ) : null}
+              {friendlyDate && (
+                <p id="ldf-date-friendly" className="mt-1 text-[11px] text-[#a39d8e]">{friendlyDate}</p>
+              )}
             </div>
 
             <div>
-              <label htmlFor="ldf-time" className={LABEL_CLS}>Time</label>
+              <label htmlFor="ldf-time" className={LABEL_CLS}>Time <span className="font-normal text-[#a39d8e]">(optional)</span></label>
               <div className="relative">
                 <FieldIcon><Clock size={15} /></FieldIcon>
                 <input
@@ -361,37 +385,48 @@ export function LessonDetailsForm({ lessonDetails, curriculumMode, onChange, dis
             </div>
           </div>
 
-          {/* Teacher Name */}
-          <div>
-            <label htmlFor="ldf-teacher" className={LABEL_CLS}>Teacher Name <span className="font-normal text-[#a39d8e]">(optional)</span></label>
-            <div className="relative">
-              <FieldIcon><User size={15} /></FieldIcon>
-              <input
-                id="ldf-teacher"
-                type="text"
-                value={lessonDetails.teacherName}
-                onChange={(e) => onChange('teacherName', e.target.value)}
-                className={INPUT_CLS}
-                disabled={disabled}
-              />
-            </div>
-          </div>
+          {/* Teacher Name + School — collapsed by default: both are usually
+              prefilled from the teacher's last plan, so they rarely need
+              editing. Field ids and values are untouched — only the
+              disclosure wrapper is new. */}
+          <details className="rounded-xl border border-dashed border-[#e0d7c8] bg-white/50 px-3 py-2">
+            <summary className="cursor-pointer select-none text-[12px] font-semibold text-[#7a6d5d]">
+              {teacherSchoolPrefilled
+                ? 'Teacher & school details — prefilled from last time ✓'
+                : 'Teacher & school details (optional)'}
+            </summary>
+            <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <div>
+                <label htmlFor="ldf-teacher" className={LABEL_CLS}>Teacher Name <span className="font-normal text-[#a39d8e]">(optional)</span></label>
+                <div className="relative">
+                  <FieldIcon><User size={15} /></FieldIcon>
+                  <input
+                    id="ldf-teacher"
+                    type="text"
+                    value={lessonDetails.teacherName}
+                    onChange={(e) => onChange('teacherName', e.target.value)}
+                    className={INPUT_CLS}
+                    disabled={disabled}
+                  />
+                </div>
+              </div>
 
-          {/* School */}
-          <div>
-            <label htmlFor="ldf-school" className={LABEL_CLS}>School <span className="font-normal text-[#a39d8e]">(optional)</span></label>
-            <div className="relative">
-              <FieldIcon><School size={15} /></FieldIcon>
-              <input
-                id="ldf-school"
-                type="text"
-                value={lessonDetails.school}
-                onChange={(e) => onChange('school', e.target.value)}
-                className={INPUT_CLS}
-                disabled={disabled}
-              />
+              <div>
+                <label htmlFor="ldf-school" className={LABEL_CLS}>School <span className="font-normal text-[#a39d8e]">(optional)</span></label>
+                <div className="relative">
+                  <FieldIcon><School size={15} /></FieldIcon>
+                  <input
+                    id="ldf-school"
+                    type="text"
+                    value={lessonDetails.school}
+                    onChange={(e) => onChange('school', e.target.value)}
+                    className={INPUT_CLS}
+                    disabled={disabled}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
+          </details>
 
           {/* School resources — constrains generated activities/materials to
               what the school actually has (rural-teacher feedback). */}

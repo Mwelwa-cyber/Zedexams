@@ -45,6 +45,9 @@ import {
 import {
   assertRenderComplete, assertBaselineExists, isInfrastructureFailure, RenderIncompleteError,
 } from './renderGuards.js'
+import { appendBaselineSummaryEntry } from './baselineSummary.js'
+import { paperBaselinePaths } from './baselinePaths.js'
+import { RECORDED_COUNT_OUTPUT, writeRecordedCount } from './handoffInvariant.js'
 import { comparePages, summarisePageComparison } from './compareRender.js'
 import { comparePagination } from './comparePagination.js'
 import {
@@ -196,10 +199,6 @@ console.log(`  ${fixtures.length} fixture(s), stages: ${stages.join(', ')}\n`)
 
 const verdicts = []
 const infrastructure = []
-// Every baseline this run wrote, in the order it wrote them. The review sheet is
-// rebuilt from the whole list after each one, so a run that dies partway still
-// leaves a sheet describing exactly what it managed to record.
-const baselineRecords = []
 let browser = null
 
 try {
@@ -330,6 +329,12 @@ if (gateMode === 'update') {
   const kept = verdicts.filter((v) => !v.updated)
   console.log(`\n✓ ${recorded.length} first baseline(s) recorded; ${kept.length} left untouched.`)
   for (const v of kept) console.log(`    kept ${v.fixtureId} [${v.family}/${v.copy}] — ${v.keptReason}`)
+  // Published for the pull-request job to check the arriving recordings
+  // against. Out of band, through the Actions API — a count carried inside the
+  // artifact would be lost by the very layout bug it exists to catch.
+  if (writeRecordedCount(recorded.length, process.env.GITHUB_OUTPUT)) {
+    console.log(`reported to the next job: ${RECORDED_COUNT_OUTPUT}=${recorded.length}`)
+  }
   if (!recorded.length) {
     console.log('\nNothing was missing, so nothing was recorded. Replacing an existing '
       + 'baseline is the reviewed update path, which names its fixture and states why.')
@@ -746,35 +751,37 @@ function writeBaseline(fixture, identity, copy, render, layoutJson) {
   }
   guard('recorded.json')
   fs.writeFileSync(path.join(dir, 'recorded.json'), JSON.stringify(record, null, 2))
-  // Collected rather than written here. A bootstrap records many baselines and
-  // this file is the pull request's whole body: written per-record it would
-  // describe only the LAST one, and a reviewer would approve eighteen baselines
-  // from evidence about one.
-  baselineRecords.push({ fixture, record })
-  writeBaselineSummary(baselineRecords)
-}
-
-/**
- * The review sheet that becomes the baseline pull request's body.
- *
- * Written as a file rather than assembled in YAML because a reviewer approving
- * the FIRST appearance of a paper needs every one of these facts in front of
- * them, and a shell heredoc is where such a list quietly loses an item.
- *
- * Takes every record written so far, not one, because a bootstrap run records
- * many. The count leads the sheet: a reviewer must be able to see at a glance
- * that the number of baselines in the diff is the number described below it.
- */
-function writeBaselineSummary(records) {
-  const sections = records.map(({ fixture, record }) => baselineSummarySection(fixture, record))
-  const head = records.length === 1 ? '' : `# ${records.length} baselines recorded\n\n`
-    + '| Fixture | Family | Copy | Pages |\n|---|---|---|---|\n'
-    + records.map(({ record: r }) => `| ${r.fixtureId} | ${r.family} | ${r.copy} | ${r.pageCount} |`).join('\n')
-    + '\n\nEvery one is described in full below. Approving this pull request '
-    + 'approves all of them as the reference each later comparison is measured '
-    + 'against.\n\n---\n\n'
-  fs.mkdirSync(OUTPUT_DIR, { recursive: true })
-  fs.writeFileSync(path.join(OUTPUT_DIR, 'baseline-summary.md'), head + sections.join('\n\n---\n\n'))
+  // Appended rather than written outright. This file is the pull request's whole
+  // body: written per-record it would describe only the LAST one, and a reviewer
+  // would approve eighteen baselines from evidence about one. The accumulation
+  // now lives in `baselineSummary.js` and spans BOTH recorders, so a
+  // `family=all` dispatch cannot have one recorder erase the other's half of the
+  // sheet.
+  appendBaselineSummaryEntry(OUTPUT_DIR, {
+    key: `${record.family}/${record.fixtureId}/${record.copy}`,
+    family: record.family,
+    // EVERY FILE this entry describes, relative to `tests/visual/baselines/`.
+    //
+    // The collector verifies each one arrived. This named the copy DIRECTORY,
+    // which an artifact keeps as long as any single file inside it survives —
+    // so a paper artifact that lost every rendered `page-N.png` but kept
+    // `environment.json` passed arrival and could reach review as an unusable
+    // baseline. The pages are the baseline; the metadata beside them is not a
+    // substitute for it. Raised by Codex on #2143 (`r3729416392`).
+    //
+    // Computed in `baselinePaths.js` so a test can exercise it: this file is a
+    // script with top-level await, so importing it runs the gate — which is why
+    // the directory-shaped version this replaces was caught by nothing.
+    paths: paperBaselinePaths({
+      identity: record.identity,
+      fixtureId: record.fixtureId,
+      copy: record.copy,
+      hashes: record.hashes,
+    }),
+    columns: ['Fixture', 'Copy', 'Pages'],
+    cells: [record.fixtureId, record.copy, String(record.pageCount)],
+    section: baselineSummarySection(fixture, record),
+  })
 }
 
 /** One baseline's section of the review sheet. */

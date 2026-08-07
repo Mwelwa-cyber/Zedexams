@@ -1,0 +1,44 @@
+{
+  "note": "A short answer the AI grader could not evaluate. The attempt must be provisional: finalScore null, gradingStatus pending. A transient marking failure must never lower a learner's mark.",
+  "quiz": {
+    "id": "quiz-1",
+    "title": "Addition Basics",
+    "subject": "Mathematics",
+    "grade": "4",
+    "duration": 30
+  },
+  "questions": [
+    {
+      "id": "q1",
+      "type": "mcq",
+      "text": "What is 1 + 1?",
+      "options": [
+        "1",
+        "2",
+        "3",
+        "4"
+      ],
+      "correctAnswer": 1,
+      "marks": 1,
+      "topic": "Addition"
+    },
+    {
+      "id": "q2",
+      "type": "short_answer",
+      "text": "Explain your working.",
+      "marks": 2,
+      "topic": "Method"
+    }
+  ],
+  "answers": {
+    "q1": 1,
+    "q2": {
+      "text": "I counted up",
+      "pending": true
+    }
+  },
+  "mode": "exam",
+  "userId": "learner-1",
+  "startTime": 1000000,
+  "nowMs": 1180000
+}

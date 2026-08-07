@@ -11,8 +11,8 @@ import { downloadRubricPdf } from '../../../utils/rubricToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import RubricView from '../views/RubricView'
-import StudioPageHeader from '../StudioPageHeader'
-import SeoHelmet from '../../seo/SeoHelmet'
+import { ListChecks } from 'lucide-react'
+import GeneratorStudioShell, { useStudioSetupForYou } from './GeneratorStudioShell'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useGenerationGate } from '../../../hooks/useGenerationGate'
@@ -29,7 +29,6 @@ import {
   FieldNumberCombo,
   FieldGrid,
   GenerateButton,
-  StudioEmptyState,
 } from './studioFields'
 import Icon from '../../ui/Icon'
 import { Download, RefreshCw } from '../../ui/icons'
@@ -38,8 +37,6 @@ import { useAiOperationLock } from '../../../hooks/useAiOperationLock'
 import { stableFingerprint } from '../../../hooks/aiOperationLockCore'
 import { useStudioInputDraft } from '../../../hooks/draft/useStudioInputDraft'
 import { rubricInputDescriptor } from '../../../hooks/draft/descriptors'
-import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
-import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
 
 export default function RubricGenerator() {
   const { currentUser, userProfile, isAdmin } = useAuth()
@@ -47,14 +44,17 @@ export default function RubricGenerator() {
   const urlDefaults = useFormDefaultsFromUrl()
   // Selector seed: a deep-link handoff (?grade=…) wins; otherwise the
   // teacher's saved curriculum defaults (Teacher Settings → My Teaching).
-  // Read once on mount by the selector — never re-seeds reactively.
-  const [selectorSeed, setSelectorSeed] = useState(() =>
+  // Read once on mount by the selector — never re-seeds reactively. The
+  // INITIAL seed is kept separately so useStudioSetupForYou can tell whether
+  // the studio opened empty (only then may the suggestion seed the selector).
+  const [initialSeed] = useState(() =>
     resolveStudioSeed({
       urlSeed: urlDefaults,
       activeSeed: readActiveAssignmentSeed(currentUser?.uid),
       profileSeed: curriculumSeedFromProfile(userProfile),
     }),
   )
+  const [selectorSeed, setSelectorSeed] = useState(initialSeed)
   const [selectorKey, setSelectorKey] = useState(0)
   const [form, setForm] = useState(() => ({
     taskType: 'essay',
@@ -96,6 +96,18 @@ export default function RubricGenerator() {
     uid: currentUser?.uid,
     form, setForm, curr, setCurr,
     onReseedSelector: (c) => { setSelectorSeed(c); setSelectorKey((k) => k + 1) },
+  })
+
+  // "Set up for you" (I3): when the studio opened with no grade/subject seed,
+  // prefill from the teacher's Weekly Forecast and show the suggestion card.
+  // Chips derive from the LIVE `curr` payload — see GeneratorStudioShell.
+  const selectorAnchorRef = useRef(null)
+  const setupForYou = useStudioSetupForYou({
+    uid: currentUser?.uid,
+    initialSeed,
+    curr,
+    applySeed: (seed) => { setSelectorSeed(seed); setSelectorKey((k) => k + 1) },
+    selectorAnchorRef,
   })
 
   function updateField(key, value) {
@@ -251,95 +263,106 @@ export default function RubricGenerator() {
   }
 
   return (
-    <div className="studio-page">
-      <SeoHelmet title="Rubric studio" noIndex />
-      <div className="w-full">
-        <StudioPageHeader
-          eyebrow="Rubric Studio"
-          title="Mark consistently"
-          subtitle="Four-level rubrics with clear descriptors for essays, projects, presentations, and practicals."
-          emoji="📋"
-        />
-
+    <GeneratorStudioShell
+      seoTitle="Rubric studio"
+      header={{
+        eyebrow: 'Assessment',
+        title: 'Rubric Studio',
+        description: 'Mark consistently — four-level rubrics with clear descriptors for essays, projects, presentations, and practicals.',
+        icon: ListChecks,
+      }}
+      notices={
         <StudioAssignmentChangeNotice
           uid={currentUser?.uid}
           currentSeed={{ grade: curr.grade || selectorSeed?.grade || '', subject: curr.subject || selectorSeed?.subject || '', curriculum: curr.curriculum || selectorSeed?.curriculum || '' }}
           onApply={(seed) => { setSelectorSeed(seed); setSelectorKey((k) => k + 1); setCurr({}) }}
-        hasUnsavedChanges={draft.status !== 'idle'}
-        saveDraft={draft.flush}
+          hasUnsavedChanges={draft.status !== 'idle'}
+          saveDraft={draft.flush}
         />
-        <div className="mb-4"><DraftRecoveryPrompt {...draft} label="rubric" /></div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6">
-          <form
-            onSubmit={onGenerate}
-            className="studio-card p-5 space-y-4 h-fit sticky top-4"
-          >
-            <div className="flex justify-end">
-              <DraftStatusIndicator status={draft.status} savedAt={draft.savedAt} online={draft.online} />
-            </div>
-            <StudioCurriculumSelector
-              key={selectorKey}
-              value={selectorSeed}
-              onChange={setCurr}
-              showTopicSubtopic={false}
+      }
+      draft={draft}
+      draftLabel="rubric"
+      setupForYou={setupForYou}
+      onSubmit={onGenerate}
+      formCardClassName="sticky top-4"
+      selector={
+        <div ref={selectorAnchorRef}>
+          <StudioCurriculumSelector
+            key={selectorKey}
+            value={selectorSeed}
+            onChange={setCurr}
+            showTopicSubtopic={false}
+            curriculumPickerVariant="segmented"
+            defaultCurriculumMode="cbc"
+          />
+        </div>
+      }
+      form={
+        <>
+          <FieldSelect
+            label="Task type"
+            value={form.taskType}
+            options={RUBRIC_TASK_TYPES}
+            onChange={(v) => updateField('taskType', v)}
+          />
+          <FieldTextarea
+            label="What are you grading? *"
+            placeholder="e.g. 250-300 word argumentative essay on mobile phones in schools"
+            value={form.taskDescription}
+            onChange={(v) => updateField('taskDescription', v)}
+            maxLength={500}
+          />
+          <FieldGrid>
+            <FieldNumberCombo
+              label="Total marks"
+              value={form.totalMarks}
+              min={5}
+              max={100}
+              options={RUBRIC_TOTAL_MARKS.map((m) => ({ value: m.value, label: m.label }))}
+              onChange={(v) => updateField('totalMarks', v)}
             />
             <FieldSelect
-              label="Task type"
-              value={form.taskType}
-              options={RUBRIC_TASK_TYPES}
-              onChange={(v) => updateField('taskType', v)}
+              label="# of criteria"
+              value={String(form.numberOfCriteria)}
+              options={RUBRIC_CRITERIA_COUNTS.map((c) => ({ value: String(c.value), label: c.label }))}
+              onChange={(v) => updateField('numberOfCriteria', Number(v))}
             />
-            <FieldTextarea
-              label="What are you grading? *"
-              placeholder="e.g. 250-300 word argumentative essay on mobile phones in schools"
-              value={form.taskDescription}
-              onChange={(v) => updateField('taskDescription', v)}
-              maxLength={500}
-            />
-            <FieldGrid>
-              <FieldNumberCombo
-                label="Total marks"
-                value={form.totalMarks}
-                min={5}
-                max={100}
-                options={RUBRIC_TOTAL_MARKS.map((m) => ({ value: m.value, label: m.label }))}
-                onChange={(v) => updateField('totalMarks', v)}
-              />
-              <FieldSelect
-                label="# of criteria"
-                value={String(form.numberOfCriteria)}
-                options={RUBRIC_CRITERIA_COUNTS.map((c) => ({ value: String(c.value), label: c.label }))}
-                onChange={(v) => updateField('numberOfCriteria', Number(v))}
-              />
-            </FieldGrid>
-            <FieldSelect
-              label="Language"
-              value={form.language}
-              options={TEACHER_LANGUAGES}
-              onChange={(v) => updateField('language', v)}
-            />
-            <FieldTextarea
-              label="Extra instructions (optional)"
-              placeholder="e.g. Emphasise citation of Zambian sources."
-              value={form.instructions}
-              onChange={(v) => updateField('instructions', v)}
-              maxLength={500}
-            />
-
-            <GenerateButton generating={status === 'generating'}>
-              Generate Rubric
-            </GenerateButton>
-
-            {usage && (
-              <div className="text-xs theme-text-secondary text-center">
-                {usage.used}/{usage.limit} rubrics used on the{' '}
-                <span className="font-bold capitalize">{usage.plan}</span> plan this month
-              </div>
-            )}
-          </form>
-
-          <StudioOutputBoundary onRetry={() => setStatus('idle')}>
+          </FieldGrid>
+          <FieldSelect
+            label="Language"
+            value={form.language}
+            options={TEACHER_LANGUAGES}
+            onChange={(v) => updateField('language', v)}
+          />
+          <FieldTextarea
+            label="Extra instructions (optional)"
+            placeholder="e.g. Emphasise citation of Zambian sources."
+            value={form.instructions}
+            onChange={(v) => updateField('instructions', v)}
+            maxLength={500}
+          />
+        </>
+      }
+      generateButton={
+        <GenerateButton generating={status === 'generating'}>
+          Generate Rubric
+        </GenerateButton>
+      }
+      usageLine={usage ? (
+        <>
+          {usage.used}/{usage.limit} rubrics used on the{' '}
+          <span className="font-bold capitalize">{usage.plan}</span> plan this month
+        </>
+      ) : null}
+      status={status}
+      emptyState={{
+        icon: ListChecks,
+        tone: '#f0d6e0',
+        title: 'Consistent marking in seconds',
+        text: 'Describe the task and pick total marks — you get a four-level rubric with clear descriptors.',
+      }}
+      output={
+        <StudioOutputBoundary onRetry={() => setStatus('idle')}>
           {handedOff && status === 'success' && rubric ? (
           <section className="studio-card p-5 min-h-[400px]">
               <>
@@ -382,7 +405,6 @@ export default function RubricGenerator() {
               result={rubric}
               docTitle={rubric?.header?.title}
               title="Designing your rubric…"
-              emptyState={<EmptyState />}
               errorMessage={errorMessage}
               savedToLibrary={Boolean(generationId)}
               onStop={() => { runRef.current += 1; setStatus('idle') }}
@@ -394,21 +416,9 @@ export default function RubricGenerator() {
               continueLabel="Continue to editing & export"
             />
           )}
-          </StudioOutputBoundary>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/* ── States ─────────────────────────────────────────────────── */
-
-function EmptyState() {
-  return (
-    <StudioEmptyState emoji="📋" tone="#f0d6e0" title="Consistent marking in seconds">
-      Describe the task and pick total marks. You'll get a four-level rubric with clear
-      descriptors so every teacher marks the same piece the same way.
-    </StudioEmptyState>
+        </StudioOutputBoundary>
+      }
+    />
   )
 }
 

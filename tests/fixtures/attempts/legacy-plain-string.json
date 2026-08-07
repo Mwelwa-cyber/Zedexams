@@ -1,0 +1,31 @@
+{
+  "note": "A question stored before RichContent \u2014 text and options are plain strings. The normaliser wraps on read; the stored shape is never mutated.",
+  "quiz": {
+    "id": "quiz-3",
+    "title": "Old Quiz",
+    "subject": "English",
+    "grade": "5"
+  },
+  "questions": [
+    {
+      "id": "q1",
+      "type": "mcq",
+      "text": "Pick the noun.",
+      "options": [
+        "run",
+        "dog",
+        "quickly",
+        "blue"
+      ],
+      "correctAnswer": 1,
+      "marks": 1
+    }
+  ],
+  "answers": {
+    "q1": 1
+  },
+  "mode": "practice",
+  "userId": "learner-3",
+  "startTime": null,
+  "nowMs": 3000000
+}

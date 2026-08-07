@@ -6,6 +6,7 @@ import { measurePlanPages } from './utils/paginatePlan'
 import { fitToPage, pageCountVerdict } from '../../../utils/lessonPlanPagination'
 import { formatCssVariableString, lessonPlanPrintCss } from '../../../utils/lessonPlanPrintCss'
 import { useLessonPlanDocumentCss } from './hooks/useLessonPlanDocumentCss'
+import { useStudioLessonCss } from './hooks/useStudioLessonCss'
 import { resolveLessonFormat } from '../../../utils/lessonPlanFormat'
 
 /**
@@ -106,20 +107,9 @@ export function StudioCanvas({
     }
     prevStatusRef.current = generationStatus
   }, [generationStatus])
-  // Inject lesson.css from /public/studio/ on mount.
-  // The file lives in public/ so Vite won't bundle it; we inject a <link>
-  // instead. We intentionally do NOT remove it on unmount — the styles are
-  // needed for window.print() even after client-side navigation.
-  useEffect(() => {
-    const id = 'studio-lesson-css'
-    if (!document.getElementById(id)) {
-      const link = document.createElement('link')
-      link.rel = 'stylesheet'
-      link.href = '/studio/lesson.css'
-      link.id = id
-      document.head.appendChild(link)
-    }
-  }, [])
+  // The studio's document stylesheet. Shared with every other surface that
+  // draws a plan, so none of them can drift onto a different one.
+  useStudioLessonCss()
 
   const [fitting, setFitting] = useState(false)
   const fmt = resolveLessonFormat(lessonFormat || {})

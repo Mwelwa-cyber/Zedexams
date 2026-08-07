@@ -16,11 +16,11 @@
  * behind a modal CTA.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { hasPremiumAccess } from '../../utils/subscriptionConfig'
-import { getPaperById } from '../../utils/pastPapers'
+import { getPaperById } from '../../utils/pastPaperLookup'
 import {
   LEARNER_QUIZ_PENDING_TEXT,
   paperQuizIsAttached,
@@ -36,6 +36,11 @@ import {
   resetCounter,
 } from '../../utils/pastPaperQuiz'
 import { reportClientError } from '../../utils/clientErrorReporting'
+import { useAssessmentEngineFlag } from '../../hooks/useAssessmentEngineFlag'
+import { fromQuiz, markAttempt, unrenderableTypes } from '../../engines/assessment-engine'
+import { ChoiceQuestion } from '../../engines/assessment-engine/render'
+import { capture } from '../../utils/analytics'
+import { BUILD_ID } from '../../utils/buildId'
 import { paywall } from '../../utils/paywall'
 import { validateQuizSubjectIntegrity } from '../../utils/quizSubjectIntegrity'
 import { PAPER_SUBJECTS } from '../../config/curriculum'
@@ -317,15 +322,112 @@ export default function PublicQuizRunner() {
   const total = questions.length
   const subjectMeta = paper && PAPER_SUBJECTS.find((s) => s.id === paper.subject)
 
+  // ── The Phase 3 canary (docs/phase3-plan.md §5.0) ─────────────────────────
+  //
+  // This route is the first cutover because it persists nothing: if the engine
+  // is wrong here the failure is a bad render, visible immediately, reverted by
+  // one toggle. The flag selects the QUESTION CARD and the VERDICT — the chrome
+  // around them (loading, SEO, the free-preview counter, the paywall, the score
+  // card) is shared code, so it cannot differ between paths by construction.
+  // During a canary any visible difference must mean defect, and the way to
+  // afford that rule is to keep everything that is not under test identical.
+  const engineFlag = useAssessmentEngineFlag('pastPaperQuiz')
+
+  // The canonical assessment, or null when the engine path must not serve.
+  //
+  // Null on ANY doubt — a normalise failure, a question type the renderers
+  // refuse, or an index misalignment — because the fallback is the old runner,
+  // which is known-good. The alignment check matters most: `fromQuiz` validates
+  // rather than filters, but if the two lists ever disagreed on order or
+  // length, the free-limit tally, "Question 3 of 20" and the score would each
+  // silently describe a DIFFERENT question per path. That class of bug does not
+  // throw; it has to be refused structurally.
+  const engineAssessment = useMemo(() => {
+    // `resolved` gates the mount (the hook's own contract): before both reads
+    // have settled the hook reports a PROVISIONAL decision, and serving the
+    // engine card on it briefly shows a returning learner a card their eventual
+    // uid may not be in the rollout for — then swaps it mid-question.
+    if (!engineFlag.resolved || !engineFlag.engine || !quiz || questions.length === 0) return null
+    try {
+      const assessment = fromQuiz({ quiz, questions, source: 'pastPaperQuiz' })
+      const aligned = assessment.questions.length === questions.length
+        && assessment.questions.every((q, i) => q.id === questions[i]?.id)
+      if (!aligned) {
+        reportClientError(new Error('canonical questions misaligned with source'), 'paper-quiz-engine')
+        return null
+      }
+      // The canonical key is derived ONLY from an integer `correctAnswer`
+      // today; the legacy shapes the old card scores (`correctAnswerIndex`,
+      // `correctIndex`, option-level `isCorrect`, a string/letter key)
+      // normalise to a null correctIndex — a card that paints no answer green
+      // and marks every selection wrong. Until the normaliser learns those
+      // shapes, a paper carrying one is the old runner's to serve.
+      if (assessment.questions.some((q) => q.correctIndex == null)) return null
+      // "Can this learner be shown this whole paper" — one unsupported type
+      // anywhere and the old runner serves all of it. A per-question mix of
+      // engine and old cards would make a render bug impossible to attribute.
+      if (unrenderableTypes(assessment).length > 0) return null
+      return assessment
+    } catch (err) {
+      reportClientError(err, 'paper-quiz-engine')
+      return null
+    }
+  }, [engineFlag.resolved, engineFlag.engine, quiz, questions])
+  const engineActive = engineAssessment != null
+  const engineQuestion = engineActive ? engineAssessment.questions[currentIndex] || null : null
+
+  // §7.2: ONE PostHog event per runner entry, both paths, aggregate only.
+  // `engine` records which card actually SERVED — a flag that said engine while
+  // normalisation refused it reports false, because false is what the learner
+  // saw. Fired once per mount, after the decision is resolved and the quiz has
+  // loaded (an event for a quiz that never rendered would count phantom entries).
+  const pathReported = useRef(false)
+  useEffect(() => {
+    // Gated on `final`, not `resolved`: in the watchdog window under a partial
+    // rollout the hook's answer (and `latched` with it) is provisional, and a
+    // once-only event recorded then is permanently wrong whenever settlement
+    // overturns it (Codex P2 on #2153, r3733460759).
+    if (pathReported.current || !engineFlag.final || loading || !quiz) return
+    pathReported.current = true
+    capture('assessment_engine_path', {
+      runner: 'pastPaperQuiz',
+      engine: engineActive,
+      flagSource: engineFlag.source,
+      // Distinguishes the watchdog hold (engine:false, latched:true, an
+      // engine-selecting source) from a normalisation refusal (engine:false,
+      // latched:false) — without this the two are one telemetry bucket and
+      // the hold's frequency cannot be counted (Codex P2 on #2152,
+      // r3733390982).
+      latched: engineFlag.latched,
+      // The shell mix during a hold (see buildId.js): rows from stale shells
+      // are expected while the service worker turns over, and this is what
+      // separates them from rows that need explaining.
+      build: BUILD_ID,
+    })
+  }, [engineFlag.final, engineFlag.source, engineFlag.latched, engineActive, loading, quiz])
+
   function handleSelect(idx) {
-    if (revealed) return
+    // `lockedOut` was enforced only by the old card's disabled attribute; the
+    // engine card routes every press through here, so the guard lives here for
+    // both paths.
+    if (revealed || lockedOut) return
     setSelection(idx)
   }
 
   function handleCheck() {
     if (selection == null || !question || revealed) return
     setRevealed(true)
-    const correct = isCorrectChoice(question, selection)
+    // The verdict seam. On the engine path the session asks `markAttempt` and
+    // never scores inline (the marking rule the engine was built around); the
+    // card paints its ✓/✗ from the same canonical `correctIndex`, so the tally
+    // and the highlight cannot disagree. The old path is untouched.
+    const correct = engineActive
+      ? markAttempt({
+        assessment: engineAssessment,
+        answers: { [engineQuestion.id]: selection },
+        strategy: 'clientKey',
+      }).score > 0
+      : isCorrectChoice(question, selection)
     if (correct) setScore((s) => s + 1)
 
     // Only the FIRST time this question is graded counts toward the
@@ -601,32 +703,51 @@ export default function PublicQuizRunner() {
               />
             </div>
           )}
-          <div className="space-y-2.5">
-            {options.map((opt, idx) => {
-              const label = plainTextFromOption(opt)
-              const optObj = (opt && typeof opt === 'object') ? opt : null
-              return (
-                <OptionButton
-                  key={idx}
-                  index={idx}
-                  label={label}
-                  optionValue={richOptionValue(opt)}
-                  imageUrl={optObj?.imageUrl}
-                  diagram={optObj?.diagram}
-                  selected={selection === idx}
-                  revealed={revealed}
-                  correct={isCorrectChoice(question, idx)}
-                  onClick={() => handleSelect(idx)}
-                  disabled={revealed || lockedOut}
-                />
-              )
-            })}
-            {options.length === 0 && (
-              <p className="theme-text-muted text-sm italic">
-                This question has no options configured yet.
-              </p>
-            )}
-          </div>
+          {/* The canary's flag boundary (docs/phase3-plan.md §5.0): the
+              CHOICE CARD is the engine's or the old runner's, never a mix.
+              Everything around it — stem, TTS, explanation, navigation, the
+              free-limit counter — is the same code on both paths, which is
+              what makes "any visible difference means defect" an enforceable
+              rule rather than a hope. `data-engine-runner` is how a test (and
+              a bug report) tells the two cards apart. */}
+          {engineActive ? (
+            <div data-engine-runner="pastPaperQuiz" className="space-y-2.5">
+              <ChoiceQuestion
+                question={engineQuestion}
+                answer={selection}
+                revealed={revealed}
+                onAnswer={handleSelect}
+                disabled={lockedOut}
+              />
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {options.map((opt, idx) => {
+                const label = plainTextFromOption(opt)
+                const optObj = (opt && typeof opt === 'object') ? opt : null
+                return (
+                  <OptionButton
+                    key={idx}
+                    index={idx}
+                    label={label}
+                    optionValue={richOptionValue(opt)}
+                    imageUrl={optObj?.imageUrl}
+                    diagram={optObj?.diagram}
+                    selected={selection === idx}
+                    revealed={revealed}
+                    correct={isCorrectChoice(question, idx)}
+                    onClick={() => handleSelect(idx)}
+                    disabled={revealed || lockedOut}
+                  />
+                )
+              })}
+              {options.length === 0 && (
+                <p className="theme-text-muted text-sm italic">
+                  This question has no options configured yet.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Explanation after reveal */}
           {revealed && (question.explanation || question.explanationJSON) && (
