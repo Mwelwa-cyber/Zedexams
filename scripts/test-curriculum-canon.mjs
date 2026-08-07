@@ -55,6 +55,14 @@ const ALLOWLIST = new Set([
   // Library filter surfaces (display/grouping, not curriculum selection).
   'src/components/teacher/SyllabiLibrary.jsx',
   'src/components/teacher/library/TeacherLibrary.jsx',
+  // Subject → icon + tone for the papers list. It OFFERS nothing: it is handed
+  // whatever subject a saved paper already carries and answers with a glyph, so
+  // it cannot put a subject in front of a teacher whose grade does not teach it
+  // — the failure this guard exists to prevent. Its keys are deliberately fuzzy
+  // (slug + keyword) and an unmatched subject gets the neutral document tile,
+  // which is what every row looked like before. It belongs on the ledger
+  // because the icon/tone pair would sit naturally on the canonical catalogue.
+  'src/components/teacher/subjectIcons.jsx',
 ])
 
 function walk(dir) {

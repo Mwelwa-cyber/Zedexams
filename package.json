@@ -273,6 +273,8 @@
     "test:free-preview": "node functions/teacherTools/freePreview.test.js",
     "test:assessment-autosave": "node scripts/test-assessment-autosave.mjs",
     "test:assessment-title": "node scripts/test-assessment-title.mjs",
+    "test:paper-display-title": "node scripts/test-paper-display-title.mjs",
+    "test:assessment-header-summary": "node scripts/test-assessment-header-summary.mjs",
     "test:phantom-assessments": "node scripts/test-phantom-assessments.mjs",
     "test:assessment-load-guard": "node scripts/test-assessment-load-guard.mjs",
     "test:assessment-deletion": "node scripts/test-assessment-deletion.mjs",

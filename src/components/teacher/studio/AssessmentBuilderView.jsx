@@ -6,6 +6,7 @@ import { QUIZ_DOCUMENT_ACCEPT } from '../../quiz/documentQuizImporter'
 import { SECTION_LETTERS } from '../assessmentStudioMeta'
 import { normalizeMarksMode, resolveQuestionMarks, marksLabel } from '../../../utils/paperMarksModel'
 import { CHOICE_COUNT_OPTIONS, normalizeChoiceCount } from '../../../utils/mcqChoices'
+import MenuButton, { MenuItem } from '../../ui/MenuButton'
 import Icon from './studioIcons'
 import {
   HeaderBlock,
@@ -14,6 +15,15 @@ import {
   FooterBlock,
 } from './AssessmentBlocks'
 
+// One row, four destinations. The chips this replaced were three separate
+// buttons plus a fourth added later, so nothing said they were one choice.
+const VIEW_SEGMENTS = [
+  { view: 'builder', icon: 'builder', label: 'Builder' },
+  { view: 'preview', icon: 'preview', label: 'Preview' },
+  { view: 'marking-key', icon: 'key', label: 'Key' },
+  { view: 'tos', icon: 'target', label: 'Spec', title: 'Table of Specifications — the copy for your teacher’s file' },
+]
+
 /* ==================================================================
  * BUILDER VIEW
  * ================================================================== */
@@ -21,7 +31,7 @@ export function BuilderView(props) {
   const {
     form, setF, sections, parts, questionNumbers, questionIssues, questionCount, totalMarks,
     pagination, estimatedMinutes, footerCode, changeView, warnings = [],
-    onAddBlock, onOpenBank, onEditQuestion, onMoveSection, onMoveGroup, onRemoveSection, onDuplicateSection, onSaveToBank,
+    onAddBlock, onOpenBank, onEditQuestion, onMoveSection, onReorderSection, onMoveGroup, onRemoveSection, onDuplicateSection, onSaveToBank,
     onToggleLock, onRewriteQuestion, rewritingKey,
     onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage,
     onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage,
@@ -29,13 +39,26 @@ export function BuilderView(props) {
     onUpdatePart, onRemovePart, onAssignSectionToPart,
     onImportDocument, onScan, importing, importSummary, onDismissImportSummary,
     onCreatePaper, onVerifyPaper, onClearAll, onOpenDiagramFix, diagramsNeeded = 0, onOpenAi,
-    onSave, saving = false, health, onShowHealth, onShowTemplates,
+    health, onShowHealth, onShowTemplates,
+    canUndo = false, canRedo = false, onUndo, onRedo,
+    headerMode = 'form', onOpenHeader, onCloseHeader,
     assessmentTypes = ['topic', 'weekly', 'mid_term', 'end_of_term'],
     assessmentTypeLabel = 'Assessment',
   } = props
 
   const emptyPaper = hasOnlyEmptyStarterSection(sections)
   const importInputRef = useRef(null)
+
+  // The timing note ("Estimated ~1 min — well under the 60 min allowed") is a
+  // HEADER fact — it answers "is this paper the right length for the duration I
+  // set?" — so it rides on the header block (summary card included) rather than
+  // in the general warnings stack, where collapsing the header would have lost
+  // it. Pulled out here so it is never rendered twice.
+  const timingWarning = warnings.find(w => String(w.key || '').startsWith('timing-'))
+  const otherWarnings = useMemo(
+    () => warnings.filter(w => !String(w.key || '').startsWith('timing-')),
+    [warnings],
+  )
 
   // Group sections by their Part membership for rendering Section headers, then
   // lay the groups out in the teacher-chosen order (sections by their order, the
@@ -63,48 +86,90 @@ export function BuilderView(props) {
 
   return (
     <section className="sv-view">
-      <div className="sv-builder-bar">
-        <button className="sv-chip active"><Icon name="builder" size={14} /> Builder</button>
-        <button className="sv-chip" onClick={() => changeView('preview')}><Icon name="preview" size={14} /> Preview</button>
-        <button className="sv-chip" onClick={() => changeView('marking-key')}><Icon name="key" size={14} /> Marking key</button>
-        {/* The teacher's filing copy, alongside the two documents the learner
-            and the marker get. It used to be a download button on the plan
-            step only, so a saved paper had no route back to it at all. */}
-        <button className="sv-chip" onClick={() => changeView('tos')} title="Table of Specifications — the copy for your teacher's file"><Icon name="target" size={14} /> Spec table</button>
+      {/* ONE toolbar row. This was two rows of nine chips — four view links and
+          nine tools, all shouting at the same volume, with the destructive
+          "Clear all" sitting immediately beside Save. Navigation is now a
+          segmented control, the tools are one menu, and the one destructive
+          action is behind the overflow AND a confirm.
+
+          On a phone the segment row hides entirely: the bottom dock (Home ·
+          Build · Preview · Key · AI) already owns that navigation, and two
+          controls for one job is how a small screen runs out of room. */}
+      <div className="sv-builder-bar sv-builder-tools">
+        <div className="sv-seg-nav" role="group" aria-label="Paper view">
+          {VIEW_SEGMENTS.map(seg => (
+            <button
+              key={seg.view}
+              type="button"
+              className={`sv-seg-nav-btn${seg.view === 'builder' ? ' active' : ''}`}
+              aria-pressed={seg.view === 'builder'}
+              title={seg.title}
+              onClick={() => changeView(seg.view)}
+            >
+              <Icon name={seg.icon} size={14} /> <span>{seg.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <MenuButton
+          wrapClassName="sv-menu-wrap"
+          menuClassName="sv-menu"
+          triggerClassName="sv-chip"
+          align="start"
+          label={<><Icon name="more" size={14} /> Tools <Icon name="moveDown" size={13} /></>}
+        >
+          {({ close }) => (
+            <>
+              <MenuItem className="sv-menu-item" icon={<Icon name="sections" size={15} />}
+                onClick={() => { close(); onShowTemplates() }}>Templates</MenuItem>
+              <MenuItem className="sv-menu-item" icon={<Icon name="ai" size={15} />}
+                onClick={() => { close(); onCreatePaper() }}>Create with AI</MenuItem>
+              {onOpenBank && (
+                <MenuItem className="sv-menu-item" icon={<Icon name="bank" size={15} />}
+                  onClick={() => { close(); onOpenBank() }}>Question bank</MenuItem>
+              )}
+              <MenuItem className="sv-menu-item" icon={<Icon name={importing ? 'spinner' : 'import'} size={15} spin={importing} />}
+                disabled={importing}
+                onClick={() => { close(); importInputRef.current?.click() }}>
+                {importing ? 'Importing…' : 'Import paper'}
+              </MenuItem>
+              <MenuItem className="sv-menu-item" icon={<Icon name="verify" size={15} />}
+                disabled={questionCount === 0}
+                onClick={() => { close(); onVerifyPaper() }}>Check paper</MenuItem>
+              <MenuItem className="sv-menu-item" icon={<Icon name="diagrams" size={15} />}
+                onClick={() => { close(); onOpenDiagramFix() }}>
+                Diagrams{diagramsNeeded > 0 ? ` (${diagramsNeeded})` : ''}
+              </MenuItem>
+              <MenuItem className="sv-menu-item" icon={<Icon name="generate" size={15} />}
+                onClick={() => { close(); onOpenAi() }}>More AI</MenuItem>
+            </>
+          )}
+        </MenuButton>
+
+        {/* Undo/redo left the app bar so the document title could have that
+            room; they belong with the editing tools anyway. */}
+        <button
+          type="button"
+          className="sv-chip sv-chip-icon"
+          onClick={onUndo}
+          disabled={!canUndo}
+          aria-label="Undo"
+          title="Undo (Ctrl+Z)"
+        ><Icon name="undo" size={14} /></button>
+        <button
+          type="button"
+          className="sv-chip sv-chip-icon"
+          onClick={onRedo}
+          disabled={!canRedo}
+          aria-label="Redo"
+          title="Redo (Ctrl+Shift+Z)"
+        ><Icon name="redo" size={14} /></button>
+
         {/* Measured, not estimated — "Calculating pages…" until it is, because
             a placeholder number reads as a fact. See usePaperPagination. */}
-        <span className="sv-pages mono"><Icon name="pages" size={13} /> {pagination?.label ?? 'Calculating pages…'} · A4</span>
-      </div>
+        <span className="sv-pages mono"><Icon name="pages" size={13} /> {pagination?.label ?? 'Calculating pages…'}</span>
 
-      {/* The teacher's main tools, always one tap away (they used to live
-          only inside the AI slide-over, which read as "missing"). Wraps on
-          phones; same actions on desktop. */}
-      <div className="sv-builder-bar sv-builder-tools">
-        <button className="sv-chip" onClick={onShowTemplates}><Icon name="sections" size={14} /> Templates</button>
-        <button className="sv-chip" onClick={onCreatePaper}><Icon name="ai" size={14} /> Create with AI</button>
-        {onOpenBank && (
-          <button className="sv-chip" onClick={onOpenBank}><Icon name="bank" size={14} /> Question bank</button>
-        )}
-        <button className="sv-chip" onClick={() => importInputRef.current?.click()} disabled={importing}>
-          <Icon name={importing ? 'spinner' : 'import'} size={14} spin={importing} /> {importing ? 'Importing…' : 'Import paper'}
-        </button>
-        <button className="sv-chip" onClick={onVerifyPaper} disabled={questionCount === 0}><Icon name="verify" size={14} /> Check paper</button>
-        <button className="sv-chip" onClick={onOpenDiagramFix}>
-          <Icon name="diagrams" size={14} /> Diagrams{diagramsNeeded > 0 ? ` (${diagramsNeeded})` : ''}
-        </button>
-        <button className="sv-chip" onClick={onOpenAi}><Icon name="more" size={14} /> More AI tools</button>
-        {/* Right-aligned group: the "Paper health" status chip opens the single
-            pre-save checklist; the Save chip files the paper. On a phone the
-            bar wraps and the group drops to the next row. */}
         <div className="sv-builder-bar-right">
-          <button
-            className="sv-chip sv-chip-danger"
-            onClick={onClearAll}
-            disabled={emptyPaper}
-            title="Remove every question and start over"
-          >
-            <Icon name="delete" size={14} /> Clear all
-          </button>
           {!emptyPaper && health && (
             <button
               className={`sv-chip sv-chip-health ${health.status}`}
@@ -119,14 +184,25 @@ export function BuilderView(props) {
                   : 'Paper health'}
             </button>
           )}
-          <button
-            className="sv-chip sv-chip-save"
-            onClick={onSave}
-            disabled={saving || questionCount === 0}
-            title="Save this paper to your library"
+          {/* Two steps to clear the paper: open the menu, then confirm. It used
+              to be a single click, one chip away from Save. */}
+          <MenuButton
+            wrapClassName="sv-menu-wrap"
+            menuClassName="sv-menu"
+            triggerClassName="sv-chip sv-chip-icon"
+            ariaLabel="More paper actions"
+            label={<Icon name="more" size={15} />}
           >
-            <Icon name={saving ? 'spinner' : 'save'} size={14} spin={saving} /> {saving ? 'Saving…' : 'Save to library'}
-          </button>
+            {({ close }) => (
+              <MenuItem
+                className="sv-menu-item"
+                danger
+                disabled={emptyPaper}
+                icon={<Icon name="delete" size={15} />}
+                onClick={() => { close(); onClearAll() }}
+              >Clear all questions…</MenuItem>
+            )}
+          </MenuButton>
         </div>
         <input
           ref={importInputRef}
@@ -148,9 +224,24 @@ export function BuilderView(props) {
           a property of the paper rather than of each card. */}
       <MathsEditingProvider>
       <div className="sv-doc-canvas">
-        <SmartWarningsBanner warnings={warnings} />
+        <SmartWarningsBanner warnings={otherWarnings} />
 
-        <HeaderBlock form={form} setF={setF} footerCode={footerCode} importing={importing} importSummary={importSummary} onDismissImportSummary={onDismissImportSummary} onImportDocument={onImportDocument} onScan={onScan} assessmentTypes={assessmentTypes} assessmentTypeLabel={assessmentTypeLabel} />
+        <HeaderBlock
+          form={form}
+          setF={setF}
+          footerCode={footerCode}
+          importing={importing}
+          importSummary={importSummary}
+          onDismissImportSummary={onDismissImportSummary}
+          onImportDocument={onImportDocument}
+          onScan={onScan}
+          assessmentTypes={assessmentTypes}
+          assessmentTypeLabel={assessmentTypeLabel}
+          mode={headerMode}
+          timingNote={timingWarning?.message || ''}
+          onOpenHeader={onOpenHeader}
+          onCloseHeader={onCloseHeader}
+        />
 
         {/* No-content recovery: route the teacher into a template, AI, import,
             or hand-building — instead of an empty canvas with no next step. */}
@@ -196,6 +287,7 @@ export function BuilderView(props) {
             onAddBlock={onAddBlock}
             onEditQuestion={onEditQuestion}
             onMoveSection={onMoveSection}
+            onReorderSection={onReorderSection}
             onMoveGroup={onMoveGroup}
             onRemoveSection={onRemoveSection}
             onDuplicateSection={onDuplicateSection}
@@ -266,7 +358,7 @@ export function SmartWarningsBanner({ warnings }) {
   )
 }
 
-export function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, questionNumbers, questionIssues, paperMeta, onAddBlock, onEditQuestion, onMoveSection, onMoveGroup, onRemoveSection, onDuplicateSection, onSaveToBank, onToggleLock, onRewriteQuestion, rewritingKey, onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage, onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage, onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onUpdatePart, onRemovePart, onAssignSectionToPart }) {
+export function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, questionNumbers, questionIssues, paperMeta, onAddBlock, onEditQuestion, onMoveSection, onReorderSection, onMoveGroup, onRemoveSection, onDuplicateSection, onSaveToBank, onToggleLock, onRewriteQuestion, rewritingKey, onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage, onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage, onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onUpdatePart, onRemovePart, onAssignSectionToPart }) {
   const partIndex = allParts.findIndex(p => p.id === group.part?.id)
   const letter = partIndex >= 0 ? SECTION_LETTERS[partIndex] || '·' : null
 
@@ -346,6 +438,7 @@ export function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, 
           paperMeta={paperMeta}
           onEditQuestion={onEditQuestion}
           onMoveSection={onMoveSection}
+          onReorderSection={onReorderSection}
           onRemoveSection={onRemoveSection}
           onDuplicateSection={onDuplicateSection}
           onSaveToBank={onSaveToBank}

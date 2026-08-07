@@ -1,6 +1,10 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { where } from 'firebase/firestore'
 import { Link, useNavigate } from 'react-router-dom'
+import {
+  ClipboardList, Search, ChevronDown, MoreHorizontal, Download, Plus,
+  TriangleAlert, FolderOpen, Copy, Pencil, Trash2, FileText, FileType2,
+} from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
 import { db } from '../../firebase/config'
@@ -19,16 +23,19 @@ import {
   logAssessmentDeletion,
   filterDeleted,
 } from '../../utils/assessmentDeletion'
-import ImportReviewBadge from '../quiz/ImportReviewBadge'
 import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
 import PaginationFooter from '../ui/PaginationFooter'
+import MenuButton, { MenuItem } from '../ui/MenuButton'
 import { useToast } from '../ui/Toast'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { ASSESSMENT_TYPE_LABELS } from './assessmentStudioMeta'
 import { assessmentCategory } from './paperTaxonomy'
+import { paperCardTitle, paperDisplayFacts } from './paperDisplayTitle'
+import { SubjectTile } from './subjectIcons'
 import { buildSavedAssessmentExportReadiness } from '../../utils/assessmentExportReadiness'
 import { renderDiagramSvg } from '../diagrams/diagramCatalog'
+import './assessmentLibrary.css'
 
 function formatDate(ts) {
   if (!ts) return '—'
@@ -46,11 +53,32 @@ function assessmentFileName(assessment, variant, ext = 'docx') {
   })
 }
 
-function AssessmentRow({ assessment, onDelete, onExport, busy, routeBase, fallbackLabel }) {
+/**
+ * Everything the search box matches against — the words a teacher would type
+ * to find this paper. Built from the DERIVED facts rather than the stored
+ * title, so searching "Term 2" finds the paper whose stored title still says
+ * Term 1 (the same drift the card title corrects).
+ */
+function paperSearchText(assessment) {
+  const facts = paperDisplayFacts(assessment)
+  return [
+    paperCardTitle(assessment),
+    facts.level,
+    facts.subject,
+    facts.type,
+    facts.year,
+    assessment.className,
+    facts.term ? `term ${facts.term} t${facts.term}` : '',
+  ].filter(Boolean).join(' ').toLowerCase()
+}
+
+function PaperCard({ assessment, onDelete, onRename, onDuplicate, onExport, busy, routeBase }) {
   const id = assessment.id
-  const typeLabel = ASSESSMENT_TYPE_LABELS[assessment.assessmentType] || fallbackLabel
+  const typeLabel = ASSESSMENT_TYPE_LABELS[assessment.assessmentType] || 'Assessment paper'
   const [exporting, setExporting] = useState(null)
   const toast = useToast()
+  const needsReview = summarizeImportReview(assessment).needsReview
+  const facts = paperDisplayFacts(assessment)
 
   async function handleExport(format, mode) {
     // For PDF: open the window now, synchronously, while still in the direct
@@ -73,77 +101,102 @@ function AssessmentRow({ assessment, onDelete, onExport, busy, routeBase, fallba
     }
   }
 
+  // "Updated" only. The card used to print both dates plus the question count,
+  // which is three facts competing for the one line a teacher scans.
+  const updated = assessment.updatedAt || assessment.createdAt
+
   return (
-    <div className="studio-card space-y-3 p-4">
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-lg" style={{ background: '#e8d8f0' }}>
-          🦅
+    <div className="zt-paper-card">
+      <SubjectTile subject={assessment.subject} />
+
+      <div className="zt-paper-card-body">
+        <p className="zt-paper-card-title">{paperCardTitle(assessment)}</p>
+        <div className="zt-paper-card-chips">
+          <span className="zt-pill zt-pill-neutral">
+            {typeLabel}{facts.term ? ` · T${facts.term}` : ''}
+          </span>
+          {assessment.totalMarks != null && (
+            <span className="zt-pill zt-pill-warn">{assessment.totalMarks} marks</span>
+          )}
+          {assessment.duration != null && (
+            <span className="zt-pill zt-pill-info">{assessment.duration} min</span>
+          )}
+          <span className="zt-pill zt-pill-neutral">
+            {assessment.questionCount ?? 0} question{(assessment.questionCount ?? 0) === 1 ? '' : 's'}
+          </span>
+          {needsReview && (
+            <span className="zt-pill zt-pill-bad">
+              <TriangleAlert size={12} aria-hidden="true" /> Needs review
+            </span>
+          )}
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-black text-sm leading-snug" style={{ color: 'var(--zt-text)' }}>{assessment.title || `Untitled ${fallbackLabel.toLowerCase()}`}</p>
-          <div className="flex flex-wrap gap-1.5 mt-1.5 items-center">
-            <span className="text-xs font-bold" style={{ color: 'var(--zt-text-muted)' }}>{typeLabel}</span>
-            {assessment.grade && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#e6f5ed', color: 'var(--success-fg)' }}>Grade {assessment.grade}</span>}
-            {assessment.subject && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#e3eef0', color: '#16505d' }}>{assessment.subject}</span>}
-            {assessment.term && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--sv-canvas)', color: 'var(--sv-muted)' }}>T{assessment.term}</span>}
-            {assessment.totalMarks != null && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#fde9b8', color: '#8a3d12' }}>{assessment.totalMarks} marks</span>}
-            {assessment.duration != null && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#fff5e6', color: '#a5523a' }}>{assessment.duration} min</span>}
-            {/* Phase 7: surface import-review state on the list so the teacher
-                doesn't have to open every imported draft to find the ones
-                that flagged warnings during parsing. */}
-            <ImportReviewBadge record={assessment} />
-          </div>
-          <p className="mt-1.5 text-xs" style={{ color: 'var(--zt-text-muted)' }}>
-            {assessment.questionCount ?? 0} questions · Created {formatDate(assessment.createdAt)}
-            {assessment.updatedAt && ` · Updated ${formatDate(assessment.updatedAt)}`}
-          </p>
-        </div>
+        <p className="zt-paper-card-meta">Updated {formatDate(updated)}</p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="zt-paper-card-actions">
         <Link
           to={`${routeBase}/${id}/edit`}
-          className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold no-underline transition-colors"
-          style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-card-border)', color: 'var(--zt-text)' }}
+          className="zt-btn zt-btn-primary zt-btn-sm"
+          style={{ textDecoration: 'none' }}
         >
-          ✏️ Edit
+          Open
         </Link>
-        <button
-          type="button"
-          onClick={() => handleExport('docx', 'paper')}
-          disabled={!!exporting || busy}
-          className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50"
-          style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-card-border)', color: 'var(--zt-text)' }}
+
+        <MenuButton
+          triggerClassName="zt-btn zt-btn-secondary zt-btn-sm"
+          disabled={Boolean(exporting) || busy}
+          label={<>
+            <Download size={14} aria-hidden="true" />
+            {exporting ? 'Preparing…' : 'Download'}
+            <ChevronDown size={14} aria-hidden="true" />
+          </>}
+          title={`Download ${paperCardTitle(assessment)}`}
         >
-          {exporting === 'docx-paper' ? 'Building…' : '📝 Paper (Word)'}
-        </button>
-        <button
-          type="button"
-          onClick={() => handleExport('pdf', 'paper')}
-          disabled={!!exporting || busy}
-          className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50"
-          style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-card-border)', color: 'var(--zt-text)' }}
-        >
-          {exporting === 'pdf-paper' ? 'Opening…' : '📄 Paper (PDF)'}
-        </button>
-        <button
-          type="button"
-          onClick={() => handleExport('docx', 'scheme')}
-          disabled={!!exporting || busy}
-          className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50"
-          style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-card-border)', color: 'var(--zt-text)' }}
-        >
-          {exporting === 'docx-scheme' ? 'Building…' : '🗒️ Scheme (Word)'}
-        </button>
-        <button
-          type="button"
-          onClick={() => onDelete(assessment)}
+          {({ close }) => (
+            <>
+              <MenuItem
+                icon={<FileText size={15} aria-hidden="true" />}
+                onClick={() => { close(); handleExport('docx', 'paper') }}
+              >Paper (Word)</MenuItem>
+              <MenuItem
+                icon={<FileType2 size={15} aria-hidden="true" />}
+                onClick={() => { close(); handleExport('pdf', 'paper') }}
+              >Paper (PDF)</MenuItem>
+              <MenuItem
+                icon={<ClipboardList size={15} aria-hidden="true" />}
+                onClick={() => { close(); handleExport('docx', 'scheme') }}
+              >Marking scheme (Word)</MenuItem>
+            </>
+          )}
+        </MenuButton>
+
+        {/* Destructive actions never sit as buttons on the card — Delete lives
+            here and then asks. */}
+        <MenuButton
+          triggerClassName="zt-btn zt-btn-quiet zt-btn-sm zt-btn-icon"
+          ariaLabel={`More actions for ${paperCardTitle(assessment)}`}
           disabled={busy}
-          className="rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50"
-          style={{ borderColor: 'var(--danger)', color: 'var(--danger-fg)', background: 'var(--zt-card)' }}
+          label={<MoreHorizontal size={17} aria-hidden="true" />}
         >
-          🗑 Delete
-        </button>
+          {({ close }) => (
+            <>
+              <MenuItem
+                icon={<Copy size={15} aria-hidden="true" />}
+                onClick={() => { close(); onDuplicate(assessment) }}
+              >Duplicate</MenuItem>
+              <MenuItem
+                icon={<Pencil size={15} aria-hidden="true" />}
+                onClick={() => { close(); onRename(assessment) }}
+              >Rename</MenuItem>
+              <div className="zt-menu-sep" />
+              <MenuItem
+                danger
+                icon={<Trash2 size={15} aria-hidden="true" />}
+                onClick={() => { close(); onDelete(assessment) }}
+              >Delete</MenuItem>
+            </>
+          )}
+        </MenuButton>
       </div>
     </div>
   )
@@ -154,7 +207,7 @@ function AssessmentRow({ assessment, onDelete, onExport, busy, routeBase, fallba
 // `assessments` collection; the category filter below narrows the VIEW, it
 // never scopes the query into two disjoint libraries.
 const STUDIO_COPY = {
-  studioName: 'Assessment Paper Studio',
+  studioName: 'Assessment Studio',
   heroTitle: 'My assessment papers',
   routeBase: '/teacher/assessment-papers',
   noun: 'assessment paper',
@@ -171,7 +224,10 @@ const CATEGORY_FILTERS = [
 
 export default function AssessmentList() {
   const { currentUser, userProfile, isAdmin } = useAuth()
-  const { getAssessmentQuestions, deleteAssessment } = useFirestore()
+  const {
+    getAssessmentQuestions, deleteAssessment, updateAssessment,
+    createAssessment, saveAssessmentQuestions,
+  } = useFirestore()
   const navigate = useNavigate()
   const toast = useToast()
   const cfg = STUDIO_COPY
@@ -187,12 +243,19 @@ export default function AssessmentList() {
   // the list to imports the parser flagged for review. Off by default so
   // a teacher landing here still sees everything.
   const [needsReviewOnly, setNeedsReviewOnly] = useState(false)
-  // Assessment queued for deletion — drives the ConfirmDialog.
+  const [search, setSearch] = useState('')
+  // Assessment queued for deletion / rename — drives the dialogs.
   const [pendingDelete, setPendingDelete] = useState(null)
+  const [pendingRename, setPendingRename] = useState(null)
+  const [renameText, setRenameText] = useState('')
   // Bumped whenever the deletion registry changes (a local delete, or another
   // tab's) so the filtered views below recompute and drop tombstoned rows even
   // if a page loaded after the delete re-introduced one from a stale cache.
   const [deletionVersion, setDeletionVersion] = useState(0)
+  // Titles renamed this session, applied over the loaded pages. The pagination
+  // hook can remove a row but not rewrite one, and refetching the whole library
+  // to show one new name would throw away every page the teacher has loaded.
+  const [renamedTitles, setRenamedTitles] = useState({})
 
   // Cursor-based pagination over the teacher's own assessments (newest first).
   // Replaces the old "read up to 300 in one shot" load: a prolific author now
@@ -247,29 +310,51 @@ export default function AssessmentList() {
   // sitting on an unfetched page, a filter that currently shows nothing does
   // NOT prove none exist. Compute the filtered views here (not inside the JSX)
   // so the auto-continue effect below can react to them.
-  const byCategory = useMemo(
-    () => {
-      const scoped = categoryFilter === 'all'
-        ? assessments
-        : assessments.filter(a => assessmentCategory(a.assessmentType) === categoryFilter)
-      // Defensive last line against resurrection: never render a paper whose id
-      // is tombstoned this session, even if a page loaded after the delete
-      // returned it from Firestore's offline cache. deletionVersion re-runs this
-      // whenever the registry changes.
-      return filterDeleted(scoped)
-    },
+  //
+  // Defensive last line against resurrection: never render a paper whose id is
+  // tombstoned this session, even if a page loaded after the delete returned it
+  // from Firestore's offline cache. deletionVersion re-runs this whenever the
+  // registry changes.
+  const live = useMemo(
+    () => filterDeleted(assessments).map(a => (
+      renamedTitles[a.id]
+        ? { ...a, title: renamedTitles[a.id], titleSource: 'manual' }
+        : a
+    )),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [assessments, categoryFilter, deletionVersion],
+    [assessments, deletionVersion, renamedTitles],
+  )
+
+  // Counts sit ON the filter chips, so a teacher can see how their library
+  // splits without clicking through each filter to find out.
+  const counts = useMemo(() => ({
+    all: live.length,
+    test: live.filter(a => assessmentCategory(a.assessmentType) === 'test').length,
+    examination: live.filter(a => assessmentCategory(a.assessmentType) === 'examination').length,
+  }), [live])
+
+  const byCategory = useMemo(
+    () => (categoryFilter === 'all'
+      ? live
+      : live.filter(a => assessmentCategory(a.assessmentType) === categoryFilter)),
+    [live, categoryFilter],
   )
   const needsReviewCount = useMemo(
     () => byCategory.reduce((n, a) => (summarizeImportReview(a).needsReview ? n + 1 : n), 0),
     [byCategory],
   )
+  const searchTerm = search.trim().toLowerCase()
   const visible = useMemo(
-    () => (needsReviewOnly ? byCategory.filter(a => summarizeImportReview(a).needsReview) : byCategory),
-    [byCategory, needsReviewOnly],
+    () => {
+      const scoped = needsReviewOnly
+        ? byCategory.filter(a => summarizeImportReview(a).needsReview)
+        : byCategory
+      if (!searchTerm) return scoped
+      return scoped.filter(a => paperSearchText(a).includes(searchTerm))
+    },
+    [byCategory, needsReviewOnly, searchTerm],
   )
-  const filterActive = categoryFilter !== 'all' || needsReviewOnly
+  const filterActive = categoryFilter !== 'all' || needsReviewOnly || Boolean(searchTerm)
   // True only once the whole library has been walked — the point at which an
   // empty filtered view really does mean "none exist".
   const fullyLoaded = !hasNextPage && !isLoadingNextPage && !isInitialLoading
@@ -351,6 +436,64 @@ export default function AssessmentList() {
     }
   }
 
+  function openRename(assessment) {
+    setPendingRename(assessment)
+    // Seed with the name the teacher currently READS, so renaming starts from
+    // what is on the card rather than from a stored string they never saw.
+    setRenameText(paperCardTitle(assessment))
+  }
+
+  async function confirmRename() {
+    const assessment = pendingRename
+    const title = renameText.trim()
+    if (!assessment || !title) return
+    setBusyId(assessment.id)
+    try {
+      // `titleSource: 'manual'` is the flag the title backfill and the phantom
+      // cleanup both honour — it is what stops a migration rewriting a name a
+      // teacher chose.
+      await updateAssessment(assessment.id, { title, titleSource: 'manual' })
+      setRenamedTitles(prev => ({ ...prev, [assessment.id]: title }))
+      toast.success('Paper renamed.')
+    } catch (err) {
+      toast.error(`Rename failed: ${err.message || 'unexpected error'}`)
+    } finally {
+      setBusyId(null)
+      setPendingRename(null)
+    }
+  }
+
+  async function handleDuplicate(assessment) {
+    setBusyId(assessment.id)
+    try {
+      const questions = await getAssessmentQuestions(assessment.id)
+      // Copy the paper's own fields only. The document id, the server
+      // timestamps and the questionCount are re-established by the write path;
+      // carrying them over would file a copy that claims to be the original.
+      const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...fields } = assessment
+      const copyTitle = `${paperCardTitle(assessment)} (copy)`
+      const newId = await createAssessment({
+        ...fields,
+        title: copyTitle,
+        titleSource: 'manual',
+        createdBy: uid,
+        questionCount: questions.length,
+      })
+      if (questions.length) {
+        // Strip the source question ids — these are NEW documents in a new
+        // subcollection, and a carried-over id is the one field that could make
+        // the copy write over its original.
+        await saveAssessmentQuestions(newId, questions.map(({ id: _qid, ...q }) => q))
+      }
+      toast.success('Paper duplicated — opening the copy.')
+      navigate(`${cfg.routeBase}/${newId}/edit`)
+    } catch (err) {
+      toast.error(`Duplicate failed: ${err.message || 'unexpected error'}`)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   async function handleExport(assessment, format, mode, win = null) {
     try {
       const questions = await getAssessmentQuestions(assessment.id)
@@ -403,7 +546,7 @@ export default function AssessmentList() {
 
   if (loading) {
     return (
-      <div className="space-y-3">
+      <div className="zt-lib space-y-3">
         {[1, 2, 3].map(n => (
           <Skeleton key={n} height={96} className="!rounded-2xl" />
         ))}
@@ -412,223 +555,188 @@ export default function AssessmentList() {
   }
 
   return (
-    <div>
+    <div className="zt-lib">
       <SeoHelmet title={cfg.NounPlural} noIndex />
-      {/* Page header — brand on the left, action on the right */}
-      <div className="flex items-center justify-between gap-3 mb-5">
-        <Link to="/teacher" className="flex items-center gap-2.5 no-underline" style={{ color: 'var(--zt-text)' }}>
-          <span style={{ fontSize: 22 }}>🦅</span>
-          <div className="leading-tight">
-            <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 16, margin: 0, color: 'var(--zt-text)' }}>
-              ZedExams <span style={{ color: '#d97757' }}>•</span>
-            </p>
-            <p style={{ fontSize: 11.5, color: 'var(--zt-text-muted)', margin: 0, fontWeight: 600 }}>
-              {cfg.studioName}
-            </p>
-          </div>
-        </Link>
-        <Link
-          to="/teacher"
-          className="inline-flex items-center gap-2 rounded-xl border-2 font-bold no-underline transition-colors"
-          style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-card-border)', color: 'var(--zt-text)', padding: '8px 14px', fontSize: 13 }}
-          onMouseEnter={e => { e.currentTarget.style.background = '#f5efe1' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'var(--zt-card)' }}
-        >
-          ← Dashboard
-        </Link>
-      </div>
 
-      {/* Dark brand hero */}
-      <div
-        className="rounded-3xl p-7 sm:p-9 mb-8 flex items-center gap-6 flex-wrap"
-        style={{ background: 'linear-gradient(135deg, #0e2a32 0%, #16505d 100%)', color: '#fff', boxShadow: '0 12px 32px rgba(14,42,50,.18)' }}
-      >
-        <div style={{ flex: 1, minWidth: 260 }}>
-          <span
-            className="inline-flex items-center gap-2 mb-3 rounded-full text-xs font-bold uppercase tracking-wider"
-            style={{ background: '#d97757', color: '#fff', padding: '7px 14px' }}
-          >
-            🦅 Sharp Eagle
-          </span>
-          <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 36, lineHeight: 1.05, margin: '0 0 8px', letterSpacing: '-.3px' }}>
-            {cfg.heroTitle}
-          </h1>
-          <p style={{ fontSize: 14.5, opacity: .88, marginBottom: 16, maxWidth: 520, lineHeight: 1.55 }}>
-            Topic tests, weekly tests, end-of-term tests, mock examinations, and formal
-            examination papers you've created for your class — private to you, never
-            shown to learners. Download as Word (.docx), print, or open the marking scheme.
+      {/* Compact header band. This replaced a ~450px dark hero (with a codename
+          badge and a mascot) that pushed every paper below the fold on a
+          1366×768 laptop — the library's whole job is to show the papers. */}
+      <header className="zt-lib-header">
+        <span className="zt-lib-header-icon">
+          <ClipboardList size={27} strokeWidth={2} aria-hidden="true" />
+        </span>
+        <div className="zt-lib-header-body">
+          <span className="zt-lib-eyebrow">Assessment Studio</span>
+          <h1 className="zt-lib-title">{cfg.heroTitle}</h1>
+          <p className="zt-lib-lede">
+            Topic tests, end-of-term tests and exams for your class — private to you,
+            never shown to learners.
           </p>
-          <div className="flex gap-4 flex-wrap mb-5" style={{ fontSize: 13, opacity: .78, fontWeight: 500 }}>
-            <span>📝 Word (.docx) export</span>
-            <span>🗒️ Marking scheme</span>
-            <span>🔒 Teacher-private</span>
-          </div>
+          <p className="zt-lib-meta">Word &amp; PDF export · Marking scheme · Teacher-private</p>
+        </div>
+        <div className="zt-lib-header-action">
           <button
             type="button"
+            className="zt-btn zt-btn-primary"
             onClick={() => navigate(`${cfg.routeBase}/new`)}
-            className="inline-flex items-center gap-2.5 rounded-2xl font-bold no-underline transition-colors"
-            style={{ background: '#d97757', color: '#fff', padding: '13px 22px', fontSize: 14.5, border: 'none', cursor: 'pointer' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#c5613f' }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#d97757' }}
           >
-            ▶ New {cfg.noun}
+            <Plus size={16} aria-hidden="true" /> New paper
           </button>
         </div>
-        <div
-          className="flex-shrink-0 hidden sm:grid place-items-center"
-          style={{ width: 150, height: 150, borderRadius: '50%', background: 'var(--zt-card)', fontSize: 68, boxShadow: '0 8px 28px rgba(0,0,0,.25)' }}
-        >
-          🦅
-        </div>
-      </div>
+      </header>
 
-      {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 mb-5">
-          {error}
-        </div>
-      )}
+      {error && <div className="zt-lib-error">{error}</div>}
 
       {assessments.length === 0 ? (
-        <div
-          className="text-center py-12 rounded-2xl border-2 border-dashed"
-          style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-line)' }}
-        >
-          <div style={{ fontSize: 40, marginBottom: 12, opacity: .5 }}>📂</div>
-          <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 17, color: 'var(--zt-text)', marginBottom: 6 }}>
-            No {cfg.nounPlural} yet
-          </p>
-          <p style={{ fontSize: 13, color: 'var(--zt-text-muted)', margin: '0 0 16px' }}>
-            Create your first topic test, end-of-term test, or examination paper.
-          </p>
+        <div className="zt-lib-empty">
+          <FolderOpen size={38} strokeWidth={1.6} aria-hidden="true" style={{ opacity: 0.5 }} />
+          <h2>No {cfg.nounPlural} yet</h2>
+          <p>Create your first topic test, end-of-term test, or examination paper.</p>
           <button
             type="button"
+            className="zt-btn zt-btn-primary"
             onClick={() => navigate(`${cfg.routeBase}/new`)}
-            className="inline-flex items-center gap-2 rounded-xl font-bold transition-colors"
-            style={{ background: '#d97757', color: '#fff', border: 'none', cursor: 'pointer', padding: '10px 18px', fontSize: 14 }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#c5613f' }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#d97757' }}
           >
-            + Create {cfg.noun}
+            <Plus size={16} aria-hidden="true" /> Create {cfg.noun}
           </button>
         </div>
       ) : (
-          <>
-            <div className="flex items-center gap-2.5 mb-3" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#d97757' }}>
-              <span style={{ width: 32, height: 3, background: '#d97757', borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
-              Saved
-            </div>
-            <div className="flex flex-wrap items-center gap-2 mb-4" role="group" aria-label="Filter by category">
+        <>
+          <div className="zt-lib-toolbar">
+            <div
+              role="group"
+              aria-label="Filter by category"
+              style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}
+            >
               {CATEGORY_FILTERS.map(f => (
                 <button
                   key={f.value}
                   type="button"
+                  className="zt-lib-chip"
                   onClick={() => setCategoryFilter(f.value)}
                   aria-pressed={categoryFilter === f.value}
-                  className="rounded-full border-2 px-3 py-1.5 text-xs font-bold transition-colors"
-                  style={{
-                    borderColor: categoryFilter === f.value ? 'var(--zt-sidebar-bg)' : 'var(--zt-line)',
-                    background: categoryFilter === f.value ? 'var(--zt-sidebar-bg)' : 'var(--zt-card)',
-                    color: categoryFilter === f.value ? 'var(--zt-on-dark)' : 'var(--zt-text)',
-                  }}
                 >
-                  {f.label}
+                  {/* The space is deliberate: without a text node between the
+                      label and the count, the accessible name comes out as
+                      "All· 2". Layout spacing is the flex gap's job. */}
+                  {f.label}{' '}
+                  <span className="zt-chip-count">· {counts[f.value]}{hasNextPage ? '+' : ''}</span>
                 </button>
               ))}
             </div>
-            <div className="flex flex-wrap items-baseline justify-between gap-3 mb-4">
-              <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 24, color: 'var(--zt-text)', margin: 0 }}>
-                {needsReviewOnly
-                  ? `${visible.length} of ${byCategory.length}${hasNextPage ? '+' : ''} need review`
-                  : `${byCategory.length}${hasNextPage ? '+' : ''} ${cfg.noun}${byCategory.length === 1 && !hasNextPage ? '' : 's'}`}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setNeedsReviewOnly(v => !v)}
-                aria-pressed={needsReviewOnly}
-                // Only disable once the whole library is loaded and still shows
-                // nothing to review — while more pages remain, a flagged import
-                // could be on one of them, so keep the chip enabled.
-                disabled={!needsReviewOnly && needsReviewCount === 0 && fullyLoaded}
-                className="rounded-full border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  borderColor: needsReviewOnly ? '#d97706' : 'var(--zt-line)',
-                  background: needsReviewOnly ? '#fef3c7' : '#fff',
-                  color: needsReviewOnly ? '#92400e' : 'var(--zt-text)',
-                }}
-                title={needsReviewOnly
-                  ? `Click to show all ${cfg.nounPlural}`
-                  : needsReviewCount > 0
-                    ? `${needsReviewCount}${hasNextPage ? '+' : ''} imported ${cfg.noun}${needsReviewCount === 1 && !hasNextPage ? '' : 's'} flagged for review`
-                    : hasNextPage
-                      ? 'Load more to check the rest of your library for imports needing review'
-                      : 'No imports currently need review'}
-              >
-                ⚠️ Needs review
-                {needsReviewCount > 0 && (
-                  <span
-                    className="ml-1.5 inline-flex items-center justify-center rounded-full px-1.5 text-[11px] font-black text-white min-w-[20px]"
-                    style={{ background: '#d97706' }}
-                  >
-                    {needsReviewCount}
-                  </span>
-                )}
-              </button>
-            </div>
-            <div className="space-y-3">
-              {visible.map(a => (
-                <AssessmentRow
-                  key={a.id}
-                  assessment={a}
-                  onDelete={setPendingDelete}
-                  onExport={handleExport}
-                  busy={busyId === a.id}
-                  routeBase={cfg.routeBase}
-                  fallbackLabel={cfg.Noun}
-                />
-              ))}
-            </div>
+            <button
+              type="button"
+              className="zt-lib-chip zt-lib-chip-warn"
+              onClick={() => setNeedsReviewOnly(v => !v)}
+              aria-pressed={needsReviewOnly}
+              // Only disable once the whole library is loaded and still shows
+              // nothing to review — while more pages remain, a flagged import
+              // could be on one of them, so keep the chip enabled.
+              disabled={!needsReviewOnly && needsReviewCount === 0 && fullyLoaded}
+              title={needsReviewOnly
+                ? `Click to show all ${cfg.nounPlural}`
+                : needsReviewCount > 0
+                  ? `${needsReviewCount}${hasNextPage ? '+' : ''} imported ${cfg.noun}${needsReviewCount === 1 && !hasNextPage ? '' : 's'} flagged for review`
+                  : hasNextPage
+                    ? 'Load more to check the rest of your library for imports needing review'
+                    : 'No imports currently need review'}
+            >
+              <TriangleAlert size={13} aria-hidden="true" />
+              Needs review{' '}
+              <span className="zt-chip-count">· {needsReviewCount}{hasNextPage ? '+' : ''}</span>
+            </button>
 
-            {/* Load-More paging — pulls the next page from the full library
-                regardless of the Test/Examination or Needs-review view filter.
-                Existing rows stay visible while the next page loads (§8/§9). */}
-            <PaginationFooter
-              hasNextPage={hasNextPage}
-              isLoadingNextPage={isLoadingNextPage}
-              error={pageError}
-              onLoadMore={loadNextPage}
-              loadedCount={assessments.length}
-              noun={cfg.noun}
-              nounPlural={cfg.nounPlural}
-            />
-            {/* While pages are still auto-loading to satisfy an active filter,
-                say so — never claim "none" for rows that just haven't loaded. */}
-            {filterActive && visible.length === 0 && !fullyLoaded && (
-              <p className="text-center text-sm font-bold mt-6" style={{ color: 'var(--zt-text-muted)' }}>
-                Searching the rest of your library…
-              </p>
-            )}
-            {needsReviewOnly && visible.length === 0 && fullyLoaded && (
-              <p className="text-center text-sm font-bold mt-6" style={{ color: 'var(--zt-text-muted)' }}>
-                No {cfg.nounPlural} need review right now. Click the chip again to see all of them.
-              </p>
-            )}
-            {!needsReviewOnly && byCategory.length === 0 && fullyLoaded && (
-              <p className="text-center text-sm font-bold mt-6" style={{ color: 'var(--zt-text-muted)' }}>
-                No {categoryFilter === 'test' ? 'tests' : 'examinations'} yet — try the "All" filter or create one.
-              </p>
-            )}
-          </>
+            <div className="zt-lib-search">
+              <Search size={15} aria-hidden="true" />
+              <input
+                type="search"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search papers…"
+                aria-label={`Search ${cfg.nounPlural}`}
+              />
+            </div>
+          </div>
+
+          <div className="zt-paper-list">
+            {visible.map(a => (
+              <PaperCard
+                key={a.id}
+                assessment={a}
+                onDelete={setPendingDelete}
+                onRename={openRename}
+                onDuplicate={handleDuplicate}
+                onExport={handleExport}
+                busy={busyId === a.id}
+                routeBase={cfg.routeBase}
+              />
+            ))}
+          </div>
+
+          {/* Load-More paging — pulls the next page from the full library
+              regardless of the Test/Examination or Needs-review view filter.
+              Existing rows stay visible while the next page loads (§8/§9). */}
+          <PaginationFooter
+            hasNextPage={hasNextPage}
+            isLoadingNextPage={isLoadingNextPage}
+            error={pageError}
+            onLoadMore={loadNextPage}
+            loadedCount={assessments.length}
+            noun={cfg.noun}
+            nounPlural={cfg.nounPlural}
+          />
+          {/* While pages are still auto-loading to satisfy an active filter,
+              say so — never claim "none" for rows that just haven't loaded. */}
+          {filterActive && visible.length === 0 && !fullyLoaded && (
+            <p className="zt-lib-note">Searching the rest of your library…</p>
+          )}
+          {filterActive && visible.length === 0 && fullyLoaded && (
+            <p className="zt-lib-note">
+              {searchTerm
+                ? `No ${cfg.nounPlural} match “${search.trim()}”.`
+                : needsReviewOnly
+                  ? `No ${cfg.nounPlural} need review right now. Click the chip again to see all of them.`
+                  : `No ${categoryFilter === 'test' ? 'tests' : 'examinations'} yet — try the “All” filter or create one.`}
+            </p>
+          )}
+        </>
       )}
 
       <ConfirmDialog
         open={Boolean(pendingDelete)}
         title={`Delete this ${cfg.noun}?`}
-        message={<>You're about to permanently delete <strong className="theme-text">"{pendingDelete?.title || `this ${cfg.noun}`}"</strong>. This cannot be undone.</>}
+        message={<>You&apos;re about to permanently delete <strong className="theme-text">&quot;{pendingDelete ? paperCardTitle(pendingDelete) : `this ${cfg.noun}`}&quot;</strong>. This cannot be undone.</>}
         confirmLabel="Delete"
         variant="danger"
         loading={Boolean(pendingDelete) && busyId === pendingDelete.id}
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(pendingRename)}
+        title="Rename this paper"
+        message={(
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600 }}>
+            Paper name
+            <input
+              type="text"
+              value={renameText}
+              onChange={e => setRenameText(e.target.value)}
+              style={{
+                display: 'block', width: '100%', marginTop: 6, padding: '9px 11px',
+                borderRadius: 10, border: '1.5px solid var(--zt-line)',
+                background: 'var(--zt-card)', color: 'var(--zt-text)',
+                fontSize: 14, fontWeight: 500,
+              }}
+            />
+          </label>
+        )}
+        confirmLabel="Rename"
+        variant="primary"
+        loading={Boolean(pendingRename) && busyId === pendingRename.id}
+        onConfirm={confirmRename}
+        onCancel={() => setPendingRename(null)}
       />
     </div>
   )

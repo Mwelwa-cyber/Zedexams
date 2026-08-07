@@ -13,7 +13,7 @@
  *   • a deletion coming from another tab removes the row here too.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 // ── Firebase / pagination plumbing (usePaginatedQuery is mocked, so the real
@@ -116,6 +116,21 @@ function renderList() {
   return render(<MemoryRouter><AssessmentList /></MemoryRouter>)
 }
 
+// The card's five buttons became three: Open, a Download menu and a "⋯"
+// overflow. Delete is no longer a button on the card at all — that is the
+// change these helpers encode, and the behaviour below is unchanged.
+function openRowMenu(index = 0, name = /more actions/i) {
+  fireEvent.click(screen.getAllByRole('button', { name })[index])
+  return screen.getByRole('menu')
+}
+function clickDownload(item, index = 0) {
+  fireEvent.click(screen.getAllByRole('button', { name: /^Download/ })[index])
+  fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: item }))
+}
+function clickDelete(index = 0) {
+  fireEvent.click(within(openRowMenu(index)).getByRole('menuitem', { name: 'Delete' }))
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   _resetForTests()
@@ -128,17 +143,26 @@ beforeEach(() => {
 })
 
 describe('AssessmentList — deletion flow', () => {
+  it('delete is not a button on the card — it lives behind the overflow', () => {
+    renderList()
+    // The inline red Delete button is gone; nothing destructive is one click
+    // away from Open and Download.
+    expect(screen.queryByRole('button', { name: /^Delete$/ })).toBeNull()
+  })
+
   it('confirm dialog names the paper before deleting', () => {
     renderList()
-    fireEvent.click(screen.getAllByRole('button', { name: /Delete/ })[0])
+    clickDelete()
     const dialog = screen.getByRole('alertdialog')
+    // "Grade 5 Maths Test" is not a title this codebase generates, so it is
+    // read as the teacher's own name and shown back to them unchanged.
     expect(dialog).toHaveTextContent('Grade 5 Maths Test')
   })
 
   it('a confirmed delete persists, removes the row, tombstones the id, and toasts success', async () => {
     mockDeleteAssessment.mockResolvedValueOnce(undefined)
     renderList()
-    fireEvent.click(screen.getAllByRole('button', { name: /🗑 Delete/ })[0])
+    clickDelete()
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
     await waitFor(() => expect(mockDeleteAssessment).toHaveBeenCalledWith('a1'))
@@ -152,7 +176,7 @@ describe('AssessmentList — deletion flow', () => {
   it('a failed delete keeps the row, lifts the tombstone, and shows an error', async () => {
     mockDeleteAssessment.mockRejectedValueOnce(Object.assign(new Error('Missing or insufficient permissions.'), { code: 'permission-denied' }))
     renderList()
-    fireEvent.click(screen.getAllByRole('button', { name: /🗑 Delete/ })[0])
+    clickDelete()
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
     await waitFor(() => expect(toast.error).toHaveBeenCalled())
@@ -192,9 +216,9 @@ const storedQuestion = (id, over = {}) => ({
   ...over,
 })
 
-async function clickExport(label = '📝 Paper (Word)') {
+async function clickExport(label = 'Paper (Word)') {
   renderList()
-  fireEvent.click(screen.getAllByRole('button', { name: label })[0])
+  clickDownload(label)
   await waitFor(() => expect(mockGetQuestions).toHaveBeenCalled())
 }
 
@@ -247,7 +271,7 @@ describe('AssessmentList — export readiness', () => {
     // browser does not treat it as a popup. Blocked must not leave it standing.
     const { printAssessmentAsPdf } = await import('../../utils/assessmentToPdf')
     mockGetQuestions.mockResolvedValueOnce([storedQuestion('q1', { text: '' })])
-    await clickExport('📄 Paper (PDF)')
+    await clickExport('Paper (PDF)')
     await waitFor(() => expect(toast.error).toHaveBeenCalled())
     expect(printAssessmentAsPdf).not.toHaveBeenCalled()
     // Opened before the gate ran, so blocked must also mean closed — otherwise
@@ -285,15 +309,105 @@ describe('AssessmentList — export readiness', () => {
   it('fixing the paper makes it exportable again, with no reload', async () => {
     mockGetQuestions.mockResolvedValueOnce([storedQuestion('q1', { text: '' })])
     renderList()
-    fireEvent.click(screen.getAllByRole('button', { name: '📝 Paper (Word)' })[0])
+    clickDownload('Paper (Word)')
     await waitFor(() => expect(toast.error).toHaveBeenCalled())
     expect(exportSpies.startBrandedDownload).not.toHaveBeenCalled()
 
     // Same mounted list, same button: the paper was repaired elsewhere and the
     // next click reads the repaired paper rather than a cached verdict.
     mockGetQuestions.mockResolvedValueOnce([storedQuestion('q1')])
-    fireEvent.click(screen.getAllByRole('button', { name: '📝 Paper (Word)' })[0])
+    clickDownload('Paper (Word)')
     await waitFor(() => expect(exportSpies.startBrandedDownload).toHaveBeenCalledTimes(1))
     expect(toast.success).toHaveBeenCalledTimes(1)
+  })
+})
+
+/* ── the library screen itself ───────────────────────────────────────────── */
+
+/**
+ * What the list LOOKS like is not usually worth a test. These are, because each
+ * one is a fact a teacher acts on:
+ *
+ *   • the card title has to say which paper it is. Seven Grade 4 papers used to
+ *     share the name "GRADE 4 END OF TERM 1 TEST - 2026".
+ *   • the term shown has to be the paper's own. One live paper's stored title
+ *     says Term 1 while its term field says 2.
+ *   • the header has to be small enough that papers are visible without
+ *     scrolling — the ~450px hero it replaced was the reason they weren't.
+ */
+describe('AssessmentList — the library screen', () => {
+  const generated = (over = {}) => ({
+    id: 'g1',
+    // A title THIS codebase generated: no subject, and the wrong term.
+    title: 'GRADE 4 END OF TERM 1 TEST - 2026',
+    grade: '4',
+    subject: 'Integrated Science',
+    assessmentType: 'end_of_term',
+    term: '2',
+    year: 2026,
+    questionCount: 12,
+    totalMarks: 40,
+    duration: 60,
+    ...over,
+  })
+
+  it('a generated title is replaced by one carrying the subject and the real term', () => {
+    paginated.items = [generated()]
+    renderList()
+    expect(screen.getByText('Grade 4 Integrated Science — End of Term 2 Test')).toBeInTheDocument()
+    expect(screen.queryByText(/END OF TERM 1 TEST/)).toBeNull()
+  })
+
+  it('two papers differing only in subject cannot render the same name', () => {
+    paginated.items = [
+      generated(),
+      generated({ id: 'g2', subject: 'Technology Studies' }),
+    ]
+    renderList()
+    expect(screen.getByText('Grade 4 Integrated Science — End of Term 2 Test')).toBeInTheDocument()
+    expect(screen.getByText('Grade 4 Technology Studies — End of Term 2 Test')).toBeInTheDocument()
+  })
+
+  it('the card shows exactly three actions', () => {
+    paginated.items = [generated()]
+    renderList()
+    const card = document.querySelector('.zt-paper-card')
+    const actions = within(card).getAllByRole('link').concat(within(card).getAllByRole('button'))
+    expect(actions).toHaveLength(3)
+    expect(within(card).getByRole('link', { name: 'Open' })).toBeInTheDocument()
+  })
+
+  it('carries no codename badge and no mascot', () => {
+    paginated.items = [generated()]
+    const { container } = renderList()
+    expect(screen.queryByText(/sharp eagle/i)).toBeNull()
+    expect(container.textContent).not.toMatch(/🦅/)
+  })
+
+  it('the filter chips carry counts, so the split is visible without clicking', () => {
+    paginated.items = [generated(), generated({ id: 'g2', assessmentType: 'examination' })]
+    renderList()
+    expect(screen.getByRole('button', { name: /All · 2/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Tests · 1/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Examinations · 1/ })).toBeInTheDocument()
+  })
+
+  it('search narrows by facts the paper states, not by its stored title', () => {
+    paginated.items = [generated(), generated({ id: 'g2', subject: 'Home Economics' })]
+    renderList()
+    fireEvent.change(screen.getByRole('searchbox', { name: /search assessment papers/i }), {
+      target: { value: 'home economics' },
+    })
+    expect(screen.getByText(/Home Economics/)).toBeInTheDocument()
+    expect(screen.queryByText(/Integrated Science/)).toBeNull()
+  })
+
+  it('a search that matches nothing says so rather than showing an empty page', () => {
+    paginated.items = [generated()]
+    renderList()
+    fireEvent.change(screen.getByRole('searchbox', { name: /search assessment papers/i }), {
+      target: { value: 'geography' },
+    })
+    expect(screen.getByText(/No assessment papers match/)).toBeInTheDocument()
   })
 })
