@@ -13,6 +13,14 @@
 import { AlertTriangle } from 'lucide-react'
 import { FRAMEWORK_SOURCE } from '../../../../utils/curriculumFramework'
 import { SCHOOL_ACTIVITIES } from '../../../../utils/timetableBlocks'
+import { ZAMBIAN_LANGUAGE_SUGGESTIONS, isZambianLanguageSubject } from '../../../../utils/classTimetable'
+import {
+  ALLOCATION_STRATEGIES,
+  formatDuration,
+  formatAllocation,
+  describeConversion,
+} from '../../../../utils/timetableCoverage'
+import { resolveSubjectAbbreviation } from '../../../../utils/subjectAbbreviations'
 import { clampInt } from '../../../../utils/inputs.js'
 
 export default function SubjectsPanel({
@@ -36,6 +44,14 @@ export default function SubjectsPanel({
   subjects,
   validation,
   capacity,
+  capacityMinutes = 0,
+  lessonProfile = { minutes: 40, uniform: true },
+  targets = { rows: [], schoolRows: [], scaled: false, totals: {} },
+  sessionIsShift = false,
+  allocationStrategy,
+  onAllocationStrategyChange,
+  languageName = '',
+  onLanguageNameChange,
   allocated,
   overAllocated,
   spareSlots,
@@ -46,6 +62,8 @@ export default function SubjectsPanel({
   onAutoFill,
   onRequestClear,
 }) {
+  const targetById = new Map((targets.rows || []).map((r) => [r.id, r]))
+  const hasLanguageSubject = subjects.some(isZambianLanguageSubject)
   return (
     <section className="studio-card space-y-3 p-4 sm:p-5">
       <div className="min-w-0">
@@ -155,11 +173,62 @@ export default function SubjectsPanel({
         </div>
       ))}
 
+      {/* ── The language this school actually teaches ──
+          Cells, palette, key and print show the language name; the week is
+          still accounted for as the Zambian Language provision. */}
+      {hasLanguageSubject && (
+        <div className="theme-border flex flex-wrap items-end gap-2 rounded-xl border bg-white px-3 py-2.5">
+          <div className="min-w-[180px] flex-1">
+            <label className="studio-label" htmlFor="tt-language-name">Language taught (Zambian Language)</label>
+            <input id="tt-language-name" type="text" value={languageName} maxLength={40}
+              list="tt-language-suggestions"
+              placeholder="e.g. Chinyanja"
+              onChange={(e) => onLanguageNameChange(e.target.value)}
+              className="studio-input !py-1.5 text-xs" />
+            <datalist id="tt-language-suggestions">
+              {ZAMBIAN_LANGUAGE_SUGGESTIONS.map((l) => <option key={l} value={l} />)}
+            </datalist>
+          </div>
+          <p className="flex-[2] text-[11px]" style={{ color: 'var(--zt-text-muted)' }}>
+            The name printed on the grid, the key and every export. The curriculum still counts it as
+            Zambian Language, so the weekly allocation and the checks are unaffected.
+          </p>
+        </div>
+      )}
+
+      {/* ── How a shift session's shortfall is shared out ──
+          Shown only when the session genuinely cannot hold the full
+          curriculum load — otherwise there is nothing to allocate. */}
+      {targets.scaled && (
+        <div className="theme-border space-y-1.5 rounded-xl border bg-white px-3 py-2.5">
+          <div className="text-xs font-black">
+            This session holds {formatDuration(capacityMinutes)} a week — how should the subjects share it?
+          </div>
+          <div className="theme-border inline-flex overflow-hidden rounded-xl border text-xs font-black">
+            {ALLOCATION_STRATEGIES.map((st) => {
+              const on = allocationStrategy === st.id
+              return (
+                <button key={st.id} type="button" onClick={() => onAllocationStrategyChange(st.id)}
+                  aria-pressed={on} title={st.hint}
+                  className={`px-3 py-2 transition-all ${on ? 'theme-accent-fill theme-on-accent' : 'theme-text-muted bg-white hover:theme-text'}`}>
+                  {st.label}
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-[11px]" style={{ color: 'var(--zt-text-muted)' }}>
+            {ALLOCATION_STRATEGIES.find((st) => st.id === allocationStrategy)?.hint}
+          </p>
+        </div>
+      )}
+
       {/* Per-subject cards with live placed counts. */}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {subjects.map((s) => {
           const report = validation.bySubject.find((r) => r.label === s.label)
           const unselected = s.selected === false
+          const target = targetById.get(s.id)
+          const abbr = resolveSubjectAbbreviation(s)
           return (
             <div key={s.id}
               className={`theme-border rounded-xl border bg-white px-2.5 py-1.5 ${unselected ? 'opacity-50' : ''}`}>
@@ -168,6 +237,11 @@ export default function SubjectsPanel({
                   aria-label="Subject name"
                   onChange={(e) => onUpdateSubject(s.id, 'label', e.target.value)}
                   className="min-w-0 flex-1 bg-transparent text-sm font-bold outline-none" />
+                <input type="text" value={abbr} maxLength={6}
+                  aria-label={`${s.label} cell abbreviation`}
+                  title="The code printed in narrow cells — a key prints under the grid."
+                  onChange={(e) => onUpdateSubject(s.id, 'abbreviation', e.target.value.toUpperCase())}
+                  className="w-14 rounded-md bg-slate-50 py-1 text-center text-[10px] font-black outline-none" />
                 <input type="number" min={0} max={capacity || 40} value={s.periodsPerWeek}
                   aria-label={`${s.label} periods per week`}
                   onChange={(e) => onUpdateSubject(s.id, 'periodsPerWeek', clampInt(e.target.value, 0, capacity || 40))}
@@ -189,7 +263,29 @@ export default function SubjectsPanel({
                         {report.placed} of {report.target} placed
                       </span>
                     )}
-                    {s.timeAllocation && <span>{s.timeAllocation}/wk</span>}
+                    {s.displayLabel && s.displayLabel !== s.label && (
+                      <span className="font-bold">prints as {s.displayLabel}</span>
+                    )}
+                    {s.schoolSubject ? (
+                      <span className="font-bold uppercase" title="Taught and printed, but not one of the curriculum's official learning areas — it never counts toward curriculum coverage.">
+                        School subject
+                      </span>
+                    ) : target ? (
+                      /* Official TIME first, then what it becomes in this
+                         school's own lessons — converting the period count
+                         would be wrong the moment a lesson is not 40 minutes. */
+                      <span title={describeConversion({
+                        label: s.label,
+                        weeklyMinutes: target.officialMinutes,
+                        lessons: target.lessons,
+                        remainderMinutes: target.remainderMinutes,
+                        lessonMinutes: lessonProfile.minutes,
+                      })}>
+                        {formatAllocation(target.officialMinutes)}/wk → {target.lessons} × {lessonProfile.minutes}-min
+                        {target.remainderMinutes ? ` (${Math.abs(target.remainderMinutes)} min ${target.remainderMinutes > 0 ? 'over' : 'under'})` : ''}
+                        {target.scaled ? ' · scaled to the session' : ''}
+                      </span>
+                    ) : s.timeAllocation ? <span>{s.timeAllocation}/wk</span> : null}
                     {s.compulsory && <span className="font-bold uppercase">Compulsory</span>}
                     {(s.blockPreference?.preferredBlocks || []).some((b) => b >= 2) && (
                       <span>{(s.blockPreference.preferredBlocks.filter((b) => b >= 2).length)}× double preferred</span>
@@ -201,13 +297,24 @@ export default function SubjectsPanel({
           )
         })}
         <button type="button" onClick={onAddSubject}
+          title="A subject your school teaches beyond the curriculum — placed and printed like any other, and never counted toward curriculum coverage."
           className="theme-border theme-text-secondary rounded-xl border border-dashed bg-white/60 px-2.5 py-1.5 text-xs font-bold hover:theme-text">
           + Add subject
         </button>
       </div>
 
+      {/* School subjects listed apart from the curriculum totals. */}
+      {validation.summary?.schoolSubjects?.length > 0 && (
+        <div className="text-[11px]" style={{ color: 'var(--zt-text-muted)' }}>
+          {validation.summary.schoolSubjects
+            .map((s) => `+ ${s.label} · school subject · ${s.placed} lesson${s.placed === 1 ? '' : 's'}`)
+            .join(' · ')}
+        </div>
+      )}
+
       <div className={`text-xs font-bold ${overAllocated ? 'text-rose-700' : ''}`} style={overAllocated ? undefined : { color: 'var(--zt-text-muted)' }}>
         {allocated} periods allocated · {capacity} slots available
+        {sessionIsShift && ` · this session holds ${formatDuration(capacityMinutes)} a week`}
         {overAllocated && ' — over capacity: not everything will fit. Add lesson periods or reduce allocations.'}
         {!overAllocated && spareSlots > 0 && curriculum && (
           weekMode === 'activities'
