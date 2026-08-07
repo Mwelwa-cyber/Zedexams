@@ -2557,6 +2557,105 @@ async function main() {
     await assertSucceeds(deleteDoc(doc(admin, 'announcements', 'ann_by_admin')))
   })
 
+  // ── lessonPlanTemplates ──────────────────────────────────────
+  // The Template Bank: shared, anonymised lesson-plan templates every teacher
+  // draws from (src/features/templateBank/). Built and merged exclusively by
+  // the lessonPlanTemplateOnWrite trigger, and mutated only through the
+  // recordTemplateInteraction callable — both run with the admin SDK and
+  // bypass these rules entirely. The Phase 4 migration that gave the feature a
+  // home is what put a test behind them (architecture.md §14.12).
+  //
+  // What makes the write side worth asserting: a template is CROSS-TENANT
+  // content. Every other teacher's "Use template" lands on it, and the ranking
+  // that decides which templates get seen is `usageCount` / `qualityScore` /
+  // `ratingCount` on the document. A client that could touch those fields could
+  // either publish its own material into other teachers' recommendations or
+  // promote an existing template to the top of them — which is why the counters
+  // travel through a callable rather than a client write, and why the tamper
+  // shapes below are asserted specifically rather than left to a blanket
+  // "cannot update".
+  section('lessonPlanTemplates — teacher-read, server-built, counters untouchable')
+
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const seedDb = ctx.firestore()
+    await setDoc(doc(seedDb, 'lessonPlanTemplates', 'tpl_fractions'), {
+      title: 'Fractions — equivalent fractions', grade: 'Grade 4',
+      subject: 'Mathematics', curriculum: 'cbc',
+      usageCount: 12, qualityScore: 0.82, ratingCount: 3,
+    })
+    await setDoc(doc(seedDb, 'lessonPlanTemplates', 'tpl_fractions', 'ratings', TEACHER_A), {
+      uid: TEACHER_A, rating: 5,
+    })
+  })
+
+  await test('a teacher CAN read a template (the bank is shared on purpose)', async () => {
+    await assertSucceeds(getDoc(doc(teacherA, 'lessonPlanTemplates', 'tpl_fractions')))
+  })
+
+  await test('the bank’s browse query works for a teacher', async () => {
+    // TemplateBank.jsx lists rather than gets; a list is a separate rules
+    // evaluation, so the get above does not cover the screen teachers open.
+    await assertSucceeds(getDocs(query(
+      collection(teacherA, 'lessonPlanTemplates'), where('curriculum', '==', 'cbc'),
+    )))
+  })
+
+  await test('a learner CANNOT read a template', async () => {
+    await assertFails(getDoc(doc(learnerA, 'lessonPlanTemplates', 'tpl_fractions')))
+  })
+
+  await test('a signed-out visitor CANNOT read a template', async () => {
+    await assertFails(getDoc(doc(guest, 'lessonPlanTemplates', 'tpl_fractions')))
+  })
+
+  await test('an unverified teacher CANNOT read a template', async () => {
+    // isTeacherOrAbove() folds verification in; this is the case that would
+    // pass if the read were widened to a bare role check.
+    await assertFails(getDoc(doc(unverifiedTeacher, 'lessonPlanTemplates', 'tpl_fractions')))
+  })
+
+  await test('a teacher CANNOT publish a template into the shared bank', async () => {
+    await assertFails(setDoc(doc(teacherA, 'lessonPlanTemplates', 'tpl_forged'), {
+      title: 'Buy my notes', grade: 'Grade 4', subject: 'Mathematics', curriculum: 'cbc',
+    }))
+  })
+
+  await test('a teacher CANNOT inflate a template’s usage count or quality score', async () => {
+    // The two fields the recommendation ranking reads. They move only through
+    // recordTemplateInteraction, which is the reason this rule is read-only.
+    await assertFails(updateDoc(doc(teacherA, 'lessonPlanTemplates', 'tpl_fractions'), { usageCount: 9999 }))
+    await assertFails(updateDoc(doc(teacherA, 'lessonPlanTemplates', 'tpl_fractions'), { qualityScore: 1 }))
+  })
+
+  await test('a teacher CANNOT delete a template out of the shared bank', async () => {
+    await assertFails(deleteDoc(doc(teacherA, 'lessonPlanTemplates', 'tpl_fractions')))
+  })
+
+  // The control for the four denials above: the same collection, the same
+  // writes, differing only in who makes them. Without it every denial would
+  // still pass with the rule replaced by a blanket deny.
+  await test('an admin CAN create, update and delete a template', async () => {
+    await assertSucceeds(setDoc(doc(admin, 'lessonPlanTemplates', 'tpl_by_admin'), {
+      title: 'Admin-seeded template', grade: 'Grade 4', subject: 'Mathematics', curriculum: 'cbc',
+    }))
+    await assertSucceeds(updateDoc(doc(admin, 'lessonPlanTemplates', 'tpl_by_admin'), { qualityScore: 0.9 }))
+    await assertSucceeds(deleteDoc(doc(admin, 'lessonPlanTemplates', 'tpl_by_admin')))
+  })
+
+  await test('a teacher cannot read their OWN rating sub-doc; an admin can', async () => {
+    await assertFails(getDoc(doc(teacherA, 'lessonPlanTemplates', 'tpl_fractions', 'ratings', TEACHER_A)))
+    await assertSucceeds(getDoc(doc(admin, 'lessonPlanTemplates', 'tpl_fractions', 'ratings', TEACHER_A)))
+  })
+
+  await test('NOBODY writes a rating sub-doc from a client — not even an admin', async () => {
+    // `allow write: if false` is stronger than admin-only, and deliberately so:
+    // the callable writes the rating and the parent's aggregate in one
+    // transaction, so a client write at any privilege would leave the
+    // ratingCount describing a different set of ratings than exists.
+    await assertFails(setDoc(doc(teacherA, 'lessonPlanTemplates', 'tpl_fractions', 'ratings', TEACHER_A), { rating: 5 }))
+    await assertFails(setDoc(doc(admin, 'lessonPlanTemplates', 'tpl_fractions', 'ratings', TEACHER_A), { rating: 5 }))
+  })
+
   await testEnv.cleanup()
 
   // ── summary ──────────────────────────────────────────────────

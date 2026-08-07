@@ -20,13 +20,13 @@ import {
   collection, doc, getDoc, getDocs, query, where, orderBy, limit,
 } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
-import app, { db } from '../firebase/config'
-import { saveLessonPlanGeneration } from './teacherLibraryService'
-import { LIBRARY_TYPES } from '../config/library'
-import { renderPlanHtml } from '../components/teacher/studio/utils/renderPlanHtml'
+import app, { db } from '../../../firebase/config'
+import { saveLessonPlanGeneration } from '../../../utils/teacherLibraryService'
+import { LIBRARY_TYPES } from '../../../config/library'
+import { renderPlanHtml } from '../../../components/teacher/studio/utils/renderPlanHtml'
 import {
   templateCurriculumMode, templatePreviewMeta, templateSyllabusHint,
-} from '../components/teacher/templates/templatePlanPreview'
+} from '../lib/templatePlanPreview'
 
 const functions = getFunctions(app, 'us-central1')
 const interactionCallable = httpsCallable(functions, 'recordTemplateInteraction', { timeout: 30_000 })
