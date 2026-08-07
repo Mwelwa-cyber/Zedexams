@@ -59,13 +59,17 @@ function resolveRelative(fromFile, spec) {
   return null
 }
 
-/** Every file reachable from `entry` through relative imports. */
-function reachableFrom(entry) {
+/**
+ * Every file reachable from `entry` through relative imports. A file in `skip`
+ * is neither scanned nor walked THROUGH — it is a declared boundary, and its
+ * subtree is covered by the boundary's stated reason.
+ */
+function reachableFrom(entry, skip = new Set()) {
   const seen = new Set()
   const queue = [entry]
   while (queue.length) {
     const file = queue.pop()
-    if (seen.has(file)) continue
+    if (seen.has(file) || skip.has(file)) continue
     seen.add(file)
     const source = readFileSync(path.join(ROOT, file), 'utf8')
     for (const spec of importsOf(source)) {
@@ -115,6 +119,47 @@ test('nothing reachable from the canary\'s engine imports touches firebase', () 
   }
   assert.deepEqual(offenders, [],
     `the engine graph reached firebase:\n    ${offenders.join('\n    ')}`)
+})
+
+test('no Firestore WRITE API is importable anywhere in the route\'s own graph', () => {
+  // Codex P2 on #2149 (r3733259619): the walk above covers the ENGINE graph,
+  // and the runner check reads only its direct specifiers — so a write added
+  // to an existing helper (pastPaperQuiz.js is the natural place) stayed
+  // invisible to a guard advertised as enforcing zero writes. This walks the
+  // runner's whole relative-import graph and refuses the write APIs by NAME,
+  // because the loaders legitimately read.
+  //
+  // The allowlist names modules that carried writes BEFORE the canary, for
+  // jobs that are not this route's: an entry here needs a reason, and a new
+  // module cannot ride in on an old one's.
+  // BOUNDARY modules: neither scanned nor walked through. AuthContext is the
+  // app session — profile bootstrap, FCM tokens, referral redemption all live
+  // behind it, on every route; none of that is the canary's write path. What
+  // the boundary buys is that a NEW write cannot ride into the route through
+  // any module that is not one of these two, and adding a third boundary is a
+  // reviewed diff of this list, with a reason.
+  const PREEXISTING_WRITERS = new Map([
+    ['src/contexts/AuthContext.jsx', 'the app session (profile bootstrap, FCM, referrals); mounted on every route, not a canary path'],
+    ['src/utils/pastPapers.js', 'admin save/import helpers share the module; the route calls only getPaperById'],
+  ])
+  const WRITE_APIS = /\b(addDoc|setDoc|updateDoc|deleteDoc|writeBatch|runTransaction)\b/
+  const offenders = []
+  for (const file of reachableFrom(RUNNER, new Set(PREEXISTING_WRITERS.keys()))) {
+    const source = readFileSync(path.join(ROOT, file), 'utf8')
+    for (const m of source.matchAll(/import\s+([^'"]+?)\s+from\s+['"][^'"]*firestore[^'"]*['"]/g)) {
+      const hit = m[1].match(WRITE_APIS)
+      if (hit) offenders.push(`${file} imports ${hit[1]}`)
+    }
+  }
+  assert.deepEqual(offenders, [],
+    `a Firestore write API is importable from the past-paper route — §7.3 calls one write a P1:\n    ${offenders.join('\n    ')}`)
+  // The allowlist must describe reality: an entry for a module that no longer
+  // carries a write (or is no longer reached) is stale cover for a future one.
+  for (const [file, reason] of PREEXISTING_WRITERS) {
+    assert.ok(reason.length > 10, `${file} needs a real reason`)
+    assert.match(readFileSync(path.join(ROOT, file), 'utf8'), WRITE_APIS,
+      `${file} is allowlisted but carries no write API — remove the stale entry`)
+  }
 })
 
 test('the §7.2 observability event is wired, with the fields the dashboard reads', () => {

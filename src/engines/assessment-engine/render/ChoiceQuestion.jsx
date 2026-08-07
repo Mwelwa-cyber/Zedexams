@@ -44,8 +44,13 @@ import { buildChoiceRows, isAnswerable } from './choiceRows.js'
  * @param {number|null} props.answer   the index the learner picked
  * @param {boolean} [props.revealed]   show verdicts
  * @param {(index: number) => void} props.onAnswer
+ * @param {boolean} [props.disabled]  lock every row (e.g. a paywall), beyond
+ *                                    the per-row lock reveal already applies —
+ *                                    real `disabled`, not a swallowed click,
+ *                                    so assistive tech hears the same state
+ *                                    sighted users see
  */
-export default function ChoiceQuestion({ question, answer, revealed = false, onAnswer }) {
+export default function ChoiceQuestion({ question, answer, revealed = false, onAnswer, disabled = false }) {
   // A choice question with no options is not a question a learner can answer.
   // Drawing the prompt alone would present it as one.
   if (!isAnswerable(question)) {
@@ -65,7 +70,7 @@ export default function ChoiceQuestion({ question, answer, revealed = false, onA
           key={row.index}
           type="button"
           onClick={() => onAnswer?.(row.index)}
-          disabled={row.revealed}
+          disabled={row.revealed || disabled}
           aria-pressed={row.selected}
           data-selected={row.selected ? 'true' : 'false'}
           data-correct={row.correct ? 'true' : 'false'}

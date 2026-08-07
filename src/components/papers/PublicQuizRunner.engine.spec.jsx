@@ -20,6 +20,8 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
 const flagState = { engine: true, resolved: true, source: 'rollout-all', runner: 'pastPaperQuiz', live: true, latched: false }
+// Per-test knobs for the quiz mock, mutated in tests and reset in beforeEach.
+const quizState = { correctAnswer: 1, lockedOut: false }
 
 vi.mock('../../hooks/useAssessmentEngineFlag', () => ({
   useAssessmentEngineFlag: () => flagState,
@@ -67,11 +69,11 @@ vi.mock('../../utils/pastPaperQuiz', async () => {
         // yielding undefined past D, and the §2 requirement is letters from a
         // rule that does not stop at four.
         options: ['3', '4', '5', '6', '22'],
-        correctAnswer: 1,
+        get correctAnswer() { return quizState.correctAnswer },
       }],
     })),
     getAnsweredCount: vi.fn(() => 0),
-    hasReachedFreeLimit: vi.fn(() => false),
+    hasReachedFreeLimit: vi.fn(() => quizState.lockedOut),
     recordAnsweredQuestion: vi.fn(() => 1),
     resetCounter: vi.fn(),
   }
@@ -93,7 +95,10 @@ function mountRunner() {
 beforeEach(() => {
   vi.clearAllMocks()
   flagState.engine = true
+  flagState.resolved = true
   flagState.source = 'rollout-all'
+  quizState.correctAnswer = 1
+  quizState.lockedOut = false
 })
 
 describe('the past-paper canary card swap', () => {
@@ -156,6 +161,46 @@ describe('the past-paper canary card swap', () => {
     expect(container.querySelector('.zx-opt')).toBeNull()
     // The old card's letters come from its own badge span; still A..E.
     expect(screen.getByText('E')).toBeTruthy()
+  })
+
+  it('a legacy answer-key shape refuses the engine and the OLD card scores it', async () => {
+    // Codex P1 on #2149 (r3733259611): the canonical key derives only from an
+    // integer correctAnswer, so a legacy string/letter key normalises to a
+    // null correctIndex — an engine card that paints nothing green and marks
+    // every selection wrong. Until the normaliser learns the legacy shapes,
+    // such a paper is the old runner's to serve, and telemetry must say so.
+    quizState.correctAnswer = 'B'
+    const { container } = mountRunner()
+    await screen.findByText('What is 2 + 2?')
+    expect(container.querySelector('[data-engine-runner]')).toBeNull()
+    await waitFor(() => expect(capture).toHaveBeenCalledWith('assessment_engine_path', {
+      runner: 'pastPaperQuiz', engine: false, flagSource: 'rollout-all',
+    }))
+  })
+
+  it('an unresolved flag serves the OLD card and reports nothing yet', async () => {
+    // Codex P2 on #2149 (r3733259614): before both flag reads settle the hook
+    // reports a provisional decision; serving the engine card on it can show a
+    // returning learner a card their eventual uid is not rolled out to, then
+    // swap it mid-question.
+    flagState.resolved = false
+    const { container } = mountRunner()
+    await screen.findByText('What is 2 + 2?')
+    expect(container.querySelector('[data-engine-runner]')).toBeNull()
+    expect(capture).not.toHaveBeenCalled()
+  })
+
+  it('a locked-out preview DISABLES the engine rows, not just their handler', async () => {
+    // Codex P2 on #2149 (r3733259617): the old card disables its buttons when
+    // the free quota is spent; swallowing clicks in the handler leaves the
+    // engine rows focusable and apparently actionable — an unresponsive card,
+    // and a different story for assistive tech than for sighted users.
+    quizState.lockedOut = true
+    const { container } = mountRunner()
+    await screen.findByText('What is 2 + 2?')
+    const rows = container.querySelectorAll('[data-engine-runner] .zx-opt')
+    expect(rows.length).toBe(5)
+    for (const row of rows) expect(row.disabled).toBe(true)
   })
 
   it('reports which path SERVED, once, to PostHog — both ways', async () => {
