@@ -458,6 +458,7 @@
     "test:ai-image-blocks": "node functions/aiImageBlocks.test.js",
     "test:curriculum-upload": "node functions/teacherTools/uploadCurriculumModule.test.js",
     "test:template-bank": "node functions/teacherTools/lessonPlanTemplateBank.test.js",
+    "test:template-preview": "node src/components/teacher/templates/templatePlanPreview.test.js",
     "test:cors": "node functions/cors.test.js",
     "test:quiz-subject-integrity": "node scripts/test-quiz-subject-integrity.mjs",
     "test:public-status": "node functions/agents/publicStatusCore.test.js",
