@@ -227,7 +227,7 @@ export const INVENTORY = Object.freeze([
     incompleteResultSaveable: true,
   }),
   g('functions/teacherTools/generateRubric.js', {
-    clientModule: 'src/components/teacher/generate/RubricGenerator.jsx',
+    clientModule: 'src/features/rubric/pages/RubricGenerator.jsx',
     clientLockKey: 'rubric-studio:generate',
     tier: 2,
     state: 'migrated',
