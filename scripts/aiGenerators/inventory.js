@@ -205,7 +205,7 @@ export const INVENTORY = Object.freeze([
       + 'rewrite — the first migration of an inline-return generator.',
   }),
   g('functions/teacherTools/generateWorksheet.js', {
-    clientModule: 'src/components/teacher/generate/WorksheetGenerator.jsx',
+    clientModule: 'src/features/worksheet/pages/WorksheetGenerator.jsx',
     clientLockKey: 'worksheet-studio:generate',
     tier: 2,
     state: 'migrated',

@@ -18,7 +18,7 @@ import StudioPageHeader from './StudioPageHeader'
 import { paywall } from '../../utils/paywall'
 import { getStudioSample } from '../../data/studioSamples'
 
-import WorksheetView from './views/WorksheetView'
+import { WorksheetView } from '../../features/worksheet'
 import { FlashcardsView } from '../../features/flashcards'
 import SchemeOfWorkView from './views/SchemeOfWorkView'
 import WeeklyForecastView from './views/WeeklyForecastView'

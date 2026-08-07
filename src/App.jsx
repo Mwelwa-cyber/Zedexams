@@ -227,7 +227,7 @@ const ChildProgressPage = lazy(() => import('./components/parent/ChildProgressPa
 const TeacherLayout = lazy(() => import('./components/teacher/TeacherLayout'))
 // Class List + Register preview — mock data only, intentionally unguarded.
 // Teacher — AI Generators
-const WorksheetGenerator = lazy(() => import('./components/teacher/generate/WorksheetGenerator'))
+const WorksheetGenerator = lazy(() => import('./features/worksheet/pages/WorksheetGenerator'))
 const FlashcardGenerator = lazy(() => import('./features/flashcards/pages/FlashcardGenerator'))
 const SchemeOfWorkGenerator = lazy(() => import('./components/teacher/generate/SchemeOfWorkGenerator'))
 const ClassTimetableStudio = lazy(() => import('./components/teacher/generate/ClassTimetableStudio'))
