@@ -35,6 +35,10 @@ const Sentry = {
 
 vi.mock('@sentry/react', () => Sentry)
 
+// The re-arm serialises behind the stop's promise chain, so it lands a few
+// microtasks after the call that requested it. One macrotask drains them all.
+const flushMicrotasks = () => new Promise((resolve) => setTimeout(resolve, 0))
+
 async function loadSentry() {
   vi.resetModules()
   vi.stubEnv('VITE_SENTRY_DSN', 'https://key@o1.ingest.sentry.io/1')
@@ -139,6 +143,7 @@ describe('sentry — the recorder survives a sign-out (one instance per page loa
       setSentryUser('uid-teacher', 'teacher')
       clearSentryUser()
       setSentryUser('uid-teacher-2', 'teacher')
+      await flushMicrotasks()
 
       expect(Sentry.replayIntegration).toHaveBeenCalledTimes(1)
       expect(replayInstance.startBuffering).toHaveBeenCalledTimes(1)
@@ -154,6 +159,7 @@ describe('sentry — the recorder survives a sign-out (one instance per page loa
     setSentryUser('uid-teacher', 'teacher')
     clearSentryUser()
     setSentryUser('uid-learner', 'learner')
+    await flushMicrotasks()
     expect(replayInstance.startBuffering).not.toHaveBeenCalled()
   })
 
@@ -163,6 +169,44 @@ describe('sentry — the recorder survives a sign-out (one instance per page loa
     setSentryUser('uid-teacher', 'teacher')
     expect(replayInstance.startBuffering).not.toHaveBeenCalled()
     expect(Sentry.addIntegration).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('sentry — the re-arm serialises behind a pending stop', () => {
+  it('a quick sign-out → sign-in does not lose the recorder to the stop\'s final flush', async () => {
+    // Codex P2 on #2156 (r3733994279): stop() is async — after an error has
+    // promoted buffering to session mode it awaits a final flush before
+    // destroying the buffer. A startBuffering() issued while that teardown is
+    // pending gets torn down WITH it, and replayActive stays true, so nothing
+    // ever retries: replay is silently off for the rest of the session.
+    let settleStop
+    replayInstance.stop.mockImplementationOnce(() => new Promise((res) => { settleStop = res }))
+    const { setSentryUser, clearSentryUser } = await loadSentry()
+    setSentryUser('uid-teacher', 'teacher')
+    clearSentryUser()                       // stop() begins its final flush
+    setSentryUser('uid-teacher-2', 'teacher')
+
+    // The re-arm must WAIT — buffering started now would be destroyed by the
+    // teardown still in flight.
+    expect(replayInstance.startBuffering).not.toHaveBeenCalled()
+
+    settleStop()
+    await flushMicrotasks()
+    expect(replayInstance.startBuffering).toHaveBeenCalledTimes(1)
+  })
+
+  it('a sign-out while the stop is still settling withdraws the queued re-arm', async () => {
+    let settleStop
+    replayInstance.stop.mockImplementationOnce(() => new Promise((res) => { settleStop = res }))
+    const { setSentryUser, clearSentryUser } = await loadSentry()
+    setSentryUser('uid-teacher', 'teacher')
+    clearSentryUser()
+    setSentryUser('uid-teacher-2', 'teacher') // queued behind the flush…
+    clearSentryUser()                          // …and withdrawn before it lands
+
+    settleStop()
+    await flushMicrotasks()
+    expect(replayInstance.startBuffering).not.toHaveBeenCalled()
   })
 })
 
