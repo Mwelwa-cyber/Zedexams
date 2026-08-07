@@ -319,6 +319,34 @@ describe('useAssessmentEngineFlag', () => {
     expect(result.current.final).toBe(true)           // identity-free, settlement irrelevant
   })
 
+  it('a staff pilot makes the percentage provisional: the window holds and telemetry waits', () => {
+    // Codex P2 on #2154 (r3733581237), in the exact configuration a ramp runs
+    // under: a percentage plus a staff allow-list. The watchdog window's
+    // rollout-all/rollout-zero answer is one auth event away from being
+    // overturned by the allow-list, so it must NOT be final — the old card
+    // serves, and the once-only event waits for settlement to record the
+    // truthful source (rollout-uid) instead of misattributing the percentage.
+    setFlags({ pastPaperQuiz: true, rolloutPercent: 100, rolloutUids: ['staff-1'] })
+    auth.loading = false
+    auth.authSettled = false   // the watchdog window
+    auth.currentUser = null
+    const { result, rerender } = renderHook(() => useAssessmentEngineFlag('pastPaperQuiz'))
+    expect(result.current.resolved).toBe(true)
+    expect(result.current.engine).toBe(false)   // held — the answer can still move
+    expect(result.current.final).toBe(false)    // …so nothing records yet
+
+    // The staff uid settles: entitled either way, but the visit mounted the
+    // old card, so it finishes there (the upgrade waits) — and the event that
+    // now fires carries the TRUE source and the hold.
+    auth.authSettled = true
+    auth.currentUser = { uid: 'staff-1' }
+    rerender()
+    expect(result.current.final).toBe(true)
+    expect(result.current.engine).toBe(false)
+    expect(result.current.latched).toBe(true)
+    expect(result.current.source).toBe('rollout-uid')
+  })
+
   it('once auth has genuinely settled, the latch is back in force', () => {
     // The other half: the fix must not disable the latch, only delay it until
     // the inputs are real.
