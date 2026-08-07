@@ -21,6 +21,7 @@ import {
   PAPER_TERMS, INSTRUCTION_REGISTER, FORBIDDEN_ON_PAPER, CURRICULA, CURRICULUM_ALIASES,
   DEFAULT_CURRICULUM,
 } from '../src/config/paperTerminology.js'
+import { isDirectRun } from './lib/isDirectRun.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -67,7 +68,7 @@ if (problems.length > 0) {
   process.exit(1)
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isDirectRun(import.meta.url)) {
   writeFileSync(TERMINOLOGY_JSON_PATH, renderTerminologyJson())
   console.log(
     `✓ wrote ${path.relative(ROOT, TERMINOLOGY_JSON_PATH)} `
