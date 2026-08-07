@@ -7,6 +7,8 @@ import {
   CreditCard,
   LogOut,
   Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
   Settings,
   Sun,
   UserRound,
@@ -133,8 +135,17 @@ export default function Sidebar({
   // groups it gives the mobile drawer (plus the admin shortcut), so the
   // desktop panel and the drawer cannot list different things.
   groups = TEACHER_NAV_GROUPS,
+  // Collapsed = the icon rail. Owned by TeacherLayout (useSidebarCollapsed)
+  // because the shell column has to shrink with the panel; the sidebar itself
+  // stays presentational about it.
+  collapsed = false,
+  onToggleCollapse,
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  // The collapsed rail's hover/focus tooltip. One at a time, positioned from
+  // the hovered item's own rect: .tdv2-nav scrolls, so a tooltip parented to
+  // the item would be clipped by its overflow — this one is position:fixed.
+  const [tip, setTip] = useState(null)
   const wrapRef = useRef(null)
   const menuRef = useRef(null)
   const triggerRef = useRef(null)
@@ -149,6 +160,17 @@ export default function Sidebar({
     setMenuOpen(false)
     if (refocus) triggerRef.current?.focus()
   }, [])
+
+  const hideTip = useCallback(() => setTip(null), [])
+  const showTip = useCallback((el, label) => {
+    const rect = el?.getBoundingClientRect?.()
+    if (!rect) return
+    setTip({ label, top: rect.top + rect.height / 2, left: rect.right + 10 })
+  }, [])
+
+  // Expanding must not leave a rail tooltip painted over the labels it was
+  // standing in for.
+  useEffect(() => { setTip(null) }, [collapsed])
 
   useEffect(() => {
     if (!menuOpen) return
@@ -166,8 +188,23 @@ export default function Sidebar({
     }
   }, [menuOpen, closeMenu])
 
+  // Hover/focus handlers only exist on the rail: expanded items already show
+  // their name, and a tooltip repeating a visible label is noise.
+  const tipHandlers = (label) => (collapsed
+    ? {
+      onMouseEnter: (e) => showTip(e.currentTarget, label),
+      onMouseLeave: hideTip,
+      onFocus: (e) => showTip(e.currentTarget, label),
+      onBlur: hideTip,
+    }
+    : null)
+
   return (
-    <aside className="tdv2-sidebar" aria-label="Teacher navigation">
+    <aside
+      className={`tdv2-sidebar ${collapsed ? 'is-collapsed' : 'is-expanded'}`}
+      aria-label="Teacher navigation"
+      data-collapsed={collapsed ? 'true' : 'false'}
+    >
       <div className="tdv2-logo">
         <span className="tdv2-logo-chip">
           <picture>
@@ -180,9 +217,34 @@ export default function Sidebar({
           <br />
           <span className="tdv2-logo-sub">Teacher Dashboard</span>
         </span>
+        {onToggleCollapse ? (
+          <button
+            type="button"
+            className="tdv2-sidebar-toggle"
+            onClick={onToggleCollapse}
+            aria-expanded={!collapsed}
+            aria-controls="tdv2-primary-nav"
+            aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+            title={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+          >
+            {collapsed ? (
+              <PanelLeftOpen size={18} strokeWidth={1.75} aria-hidden="true" />
+            ) : (
+              <PanelLeftClose size={18} strokeWidth={1.75} aria-hidden="true" />
+            )}
+          </button>
+        ) : null}
       </div>
 
-      <nav className="tdv2-nav" aria-label="Primary" data-tour="nav">
+      <nav
+        className="tdv2-nav"
+        id="tdv2-primary-nav"
+        aria-label="Primary"
+        data-tour="nav"
+        // The tooltip is placed from a rect read at hover time, so a scroll
+        // underneath it would leave it pointing at the wrong item.
+        onScroll={collapsed ? hideTip : undefined}
+      >
         {groups.map((group) => (
           <div className="tdv2-nav-group" key={group.id}>
             {group.label ? (
@@ -193,11 +255,14 @@ export default function Sidebar({
               const inner = (
                 <>
                   <ItemIcon size={20} strokeWidth={1.75} aria-hidden="true" />
+                  {/* Collapsed, this span is visually hidden rather than
+                      removed — an icon-only link still has to have a name in
+                      the accessibility tree. */}
                   <span className="tdv2-nav-text">{label}</span>
                 </>
               )
               return href ? (
-                <a key={id} href={href} className="tdv2-nav-item">
+                <a key={id} href={href} className="tdv2-nav-item" {...tipHandlers(label)}>
                   {inner}
                 </a>
               ) : (
@@ -206,6 +271,7 @@ export default function Sidebar({
                   to={to}
                   className={`tdv2-nav-item ${active ? 'is-active' : ''}`}
                   aria-current={active ? 'page' : undefined}
+                  {...tipHandlers(label)}
                 >
                   {inner}
                 </Link>
@@ -236,7 +302,9 @@ export default function Sidebar({
           className="tdv2-profile"
           aria-haspopup="menu"
           aria-expanded={menuOpen}
+          aria-label={collapsed ? `${teacher.name} — account menu` : undefined}
           onClick={() => setMenuOpen((v) => !v)}
+          {...tipHandlers(teacher.name)}
         >
           <span className="tdv2-avatar" aria-hidden="true">{teacher.initials}</span>
           <span className="tdv2-profile-text" style={{ minWidth: 0 }}>
@@ -252,6 +320,18 @@ export default function Sidebar({
           />
         </button>
       </div>
+
+      {/* Purely visual: the item it names is already reachable by its own
+          accessible name, so announcing it twice would only add noise. */}
+      {collapsed && tip ? (
+        <div
+          className="tdv2-nav-tip"
+          aria-hidden="true"
+          style={{ top: `${tip.top}px`, left: `${tip.left}px` }}
+        >
+          {tip.label}
+        </div>
+      ) : null}
     </aside>
   )
 }
