@@ -19,7 +19,7 @@
 // (scripts/test-assessment-header-summary.mjs).
 
 import { PAGE_SIZES } from '../../config/paperLayoutTokens.js'
-import { paperDisplayFacts } from './docTitleModel.js'
+import { paperDisplayFacts } from './paperNaming.js'
 
 // The fields a paper cannot print correctly without. Kept short on purpose:
 // this decides whether a form is allowed to get out of the teacher's way, so

@@ -9,7 +9,7 @@
 // than "2026".
 //
 // So the title is composed from the paper's FIELDS at three widths
-// (docTitleModel.composeDocTitle) and degrades by priority: drop the
+// (paperNaming.composeDocTitle) and degrades by priority: drop the
 // redundant word "Test" → abbreviate "End of Term" to "EOT" → move facts to a
 // second line. At 360px every distinguishing fact is still on screen.
 //
@@ -18,7 +18,7 @@
 // about. Tests pass `width` directly rather than faking layout.
 
 import { useEffect, useRef, useState } from 'react'
-import { composeDocTitle, DOC_TITLE_MEDIUM } from '../docTitleModel'
+import { composeDocTitle, DOC_TITLE_MEDIUM } from '../paperNaming'
 import { ASSESSMENT_TYPE_LABELS, TERMS } from '../assessmentStudioMeta'
 import { assessmentCategory } from '../paperTaxonomy'
 import Icon from './studioIcons'

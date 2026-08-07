@@ -74,7 +74,7 @@
 
 import {
   buildAssessmentDocumentTitle,
-  isGeneratedAssessmentTitle,
+  isTeacherAuthoredTitle,
   normalizeTitleForCompare,
 } from '../src/components/teacher/assessmentTitle.js'
 import { confirmByTyping } from './lib/confirmPrompt.mjs'
@@ -98,10 +98,16 @@ const BATCH_SIZE = 400
 export function planTitleBackfill({ assessment = {}, createdYear } = {}) {
   const from = String(assessment.title ?? '').trim()
   const to = buildAssessmentDocumentTitle(assessment, { fallbackYear: createdYear })
+  // The two signals this used to check inline now live together as
+  // isTeacherAuthoredTitle (assessmentTitle.js) — the same call the library card
+  // and the builder's title bar make, so a name this script would refuse to
+  // rewrite is a name neither of them rewrites on screen either. The reasons
+  // stay separate because an operator reading the dry run needs to know WHICH
+  // signal spared a paper.
   if (assessment.titleSource === 'manual') {
     return { action: 'skip', from, to, reason: 'the teacher named it' }
   }
-  if (!isGeneratedAssessmentTitle(from, assessment, { fallbackYear: createdYear })) {
+  if (isTeacherAuthoredTitle(assessment, { fallbackYear: createdYear })) {
     return { action: 'skip', from, to, reason: 'its title is not one we generated' }
   }
   if (from === to) return { action: 'skip', from, to, reason: 'already up to date' }
