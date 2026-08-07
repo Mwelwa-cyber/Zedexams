@@ -249,7 +249,7 @@ export const INVENTORY = Object.freeze([
 
   // ── Tier 3 · notes and study content ──────────────────────────────────
   g('functions/teacherTools/generateNotes.js', {
-    clientModule: 'src/components/teacher/generate/NotesStudio.jsx',
+    clientModule: 'src/features/teacherNotes/pages/NotesStudio.jsx',
     clientLockKey: 'notes-studio:generate',
     tier: 3,
     state: 'migrated',

@@ -69,18 +69,18 @@ vi.mock('../../../hooks/draft/useDraftManager', () => ({
     clear: vi.fn(() => Promise.resolve()),
   }),
 }))
-vi.mock('../../draft/DraftStatusIndicator', () => ({ default: () => null }))
-vi.mock('../../draft/DraftRecoveryPrompt', () => ({ default: () => null }))
+vi.mock('../../../components/draft/DraftStatusIndicator', () => ({ default: () => null }))
+vi.mock('../../../components/draft/DraftRecoveryPrompt', () => ({ default: () => null }))
 
 // Helmet needs a provider we don't want to stand up here.
-vi.mock('../../seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
 
 // Presentational bits with no bearing on the generate path.
-vi.mock('../../ui/LiveGenerationCanvas', () => ({ default: () => null }))
-vi.mock('../views/NotesView', () => ({ default: () => null }))
-vi.mock('../StudioPageHeader', () => ({ default: () => null }))
-vi.mock('../StudioOutputBoundary', () => ({ default: ({ children }) => children }))
-vi.mock('./StudioAssignmentChangeNotice', () => ({ default: () => null }))
+vi.mock('../../../components/ui/LiveGenerationCanvas', () => ({ default: () => null }))
+vi.mock('../components/NotesView', () => ({ default: () => null }))
+vi.mock('../../../components/teacher/StudioPageHeader', () => ({ default: () => null }))
+vi.mock('../../../components/teacher/StudioOutputBoundary', () => ({ default: ({ children }) => children }))
+vi.mock('../../../components/teacher/generate/StudioAssignmentChangeNotice', () => ({ default: () => null }))
 
 // The curriculum selector is mocked to a single button that, when clicked,
 // hands the studio a fully-satisfied curriculum payload via its onChange — so
@@ -95,7 +95,7 @@ const VALID_CURR = {
   curriculum: 'cbc',
   framework: '2023',
 }
-vi.mock('../curriculum/StudioCurriculumSelector', () => ({
+vi.mock('../../../components/teacher/curriculum/StudioCurriculumSelector', () => ({
   default: ({ onChange }) => (
     <button type="button" onClick={() => onChange(VALID_CURR)}>
       seed-curriculum
