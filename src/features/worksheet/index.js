@@ -1,0 +1,30 @@
+/**
+ * Public surface of the Worksheet studio — the worksheet generator at
+ * `/teacher/worksheets` (and `/admin/generate/worksheet`) and its renderer.
+ *
+ * Migrated under docs/architecture.md Phase 4, following
+ * docs/MIGRATION_TEMPLATE.md. A move: same components, same routes, same
+ * callable, same exporter output.
+ *
+ * ONE name, consumed by FOUR surfaces outside the studio — the teacher
+ * library's detail view, the public share page, the locked-studio sample, and
+ * `/teachers`, the marketing page. That last consumer is why this front door
+ * is the one where the exporter rule is least optional.
+ *
+ * THE PAGE IS DELIBERATELY NOT EXPORTED. `pages/WorksheetGenerator.jsx` is
+ * reached only by `lazy(() => import('…/pages/WorksheetGenerator'))` in the two
+ * route tables, under the route-mount exception Phase 1 recorded.
+ *
+ * The exporters stay in `src/utils/` (#2172, #2173, #2177): behind a feature
+ * index a docx exporter makes Rollup group the view into its chunk, and that
+ * chunk statically imports a 382 kB `docx-vendor`. Three of the four consumers
+ * above export nothing and would have downloaded a Word runtime to draw a
+ * worksheet. They move to `src/engines/export-engine/` when it exists, which is
+ * where §12 puts them, and this file will not change when they do.
+ *
+ * This is no longer a rule anyone has to remember: `npm run check:bundle-edges`
+ * runs in the required "Build + mobile smoke" job and fails if any declared
+ * light page — `TeachersLanding` among them — gains that edge.
+ */
+
+export { default as WorksheetView } from './components/WorksheetView'

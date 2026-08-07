@@ -51,7 +51,7 @@ const LessonEditor = lazy(() => import('../lessons/LessonEditor'))
 
 const LessonPlanStudio = lazy(() => import('./generate/LessonPlanStudio'))
 const HomeworkStudio = lazy(() => import('../../features/homework/pages/HomeworkStudio'))
-const WorksheetGenerator = lazy(() => import('./generate/WorksheetGenerator'))
+const WorksheetGenerator = lazy(() => import('../../features/worksheet/pages/WorksheetGenerator'))
 const FlashcardGenerator = lazy(() => import('../../features/flashcards/pages/FlashcardGenerator'))
 const SchemeOfWorkGenerator = lazy(() => import('./generate/SchemeOfWorkGenerator'))
 const MarkScheduleStudio = lazy(() => import('./generate/MarkScheduleStudio'))

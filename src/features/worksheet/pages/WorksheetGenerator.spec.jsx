@@ -63,18 +63,18 @@ vi.mock('../../../hooks/draft/useStudioInputDraft', () => ({
     clear: vi.fn(() => Promise.resolve()),
   }),
 }))
-vi.mock('../../draft/DraftStatusIndicator', () => ({ default: () => null }))
-vi.mock('../../draft/DraftRecoveryPrompt', () => ({ default: () => null }))
+vi.mock('../../../components/draft/DraftStatusIndicator', () => ({ default: () => null }))
+vi.mock('../../../components/draft/DraftRecoveryPrompt', () => ({ default: () => null }))
 
-vi.mock('../../seo/SeoHelmet', () => ({ default: () => null }))
-vi.mock('../../ui/LiveGenerationCanvas', () => ({ default: () => null }))
-vi.mock('../views/WorksheetView', () => ({ default: () => null }))
-vi.mock('./StudioAssignmentChangeNotice', () => ({ default: () => null }))
-vi.mock('./CreatedFromLessonPlanNotice', () => ({ default: () => null }))
+vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../components/ui/LiveGenerationCanvas', () => ({ default: () => null }))
+vi.mock('../components/WorksheetView', () => ({ default: () => null }))
+vi.mock('../../../components/teacher/generate/StudioAssignmentChangeNotice', () => ({ default: () => null }))
+vi.mock('../../../components/teacher/generate/CreatedFromLessonPlanNotice', () => ({ default: () => null }))
 
 // The Weekly-Forecast suggestion the shell's useStudioSetupForYou consumes —
 // present, so the card shows on an empty-seeded studio.
-vi.mock('../studio/hooks/useTeacherPlanContext', () => ({
+vi.mock('../../../components/teacher/studio/hooks/useTeacherPlanContext', () => ({
   useTeacherPlanContext: () => ({
     loading: false,
     suggestion: {
@@ -107,7 +107,7 @@ function payload(subjectKey, subjectLabel) {
     subject: subjectKey,
   }
 }
-vi.mock('../curriculum/StudioCurriculumSelector', () => ({
+vi.mock('../../../components/teacher/curriculum/StudioCurriculumSelector', () => ({
   default: ({ onChange }) => (
     <div>
       <button type="button" onClick={() => onChange(payload('mathematics', 'Mathematics'))}>

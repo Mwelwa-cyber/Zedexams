@@ -15,7 +15,7 @@ import {
   LIBRARY_ACCESS,
 } from '../../../utils/teacherLibraryService'
 import LessonPlanView from '../views/LessonPlanView'
-import WorksheetView from '../views/WorksheetView'
+import { WorksheetView } from '../../../features/worksheet'
 import {
   FlashcardsView,
   FlashcardStudyOverlay,
