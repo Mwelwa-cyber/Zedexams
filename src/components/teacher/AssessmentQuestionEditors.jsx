@@ -12,6 +12,7 @@ import { subPartLabel, sumSubPartMarks, emptySubPart, normalizeSubParts } from '
 import DiagramSvg from '../diagrams/DiagramSvg'
 import { SECTION_LETTERS } from './assessmentStudioMeta'
 import Icon from './studio/studioIcons'
+import StudioMenu from './studio/StudioMenu'
 import { richTextToPlainText, richTextHasFormatting } from '../../utils/quizRichText.js'
 import MathsRichField from './MathsRichField.jsx'
 
@@ -132,63 +133,44 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
           )}
         </div>
       ) : onUploadOptionImage ? (
-        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            title="Upload an image for this option"
-            style={{
-              width: 32, height: 32, borderRadius: 4,
-              border: '1.5px dashed var(--sv-border-strong)',
-              background: 'transparent', color: 'var(--sv-ink)',
-              display: 'grid', placeItems: 'center', cursor: 'pointer',
-              fontSize: 14,
+        // ONE affordance per option, not three. Four options × three dashed
+        // squares was twelve controls on a question that, in the overwhelming
+        // majority of papers, has no option pictures at all — and they sat
+        // between the letter badge and the text field, so they read as part of
+        // the answer rather than as an optional extra.
+        <div className="sv-opt-img" onClick={e => e.stopPropagation()}>
+          <StudioMenu
+            label="+ img"
+            className="sv-opt-img-btn"
+            align="left"
+            ariaLabel={`Add a picture to option ${SECTION_LETTERS[optIndex]}`}
+            buttonTitle={`Add a picture to option ${SECTION_LETTERS[optIndex]}`}
+            items={[
+              { label: 'Upload an image', icon: 'import', onSelect: () => fileRef.current?.click() },
+              onPickFromBank && {
+                label: 'Picture bank / AI picture',
+                icon: 'pictureBank',
+                onSelect: () => onPickFromBank(optIndex),
+              },
+              onPickDiagram && {
+                label: 'Shape · diagram',
+                icon: 'shape',
+                hint: 'An exact maths shape',
+                onSelect: () => onPickDiagram(optIndex),
+              },
+            ]}
+          />
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={e => {
+              const file = e.target.files?.[0]
+              if (file && onUploadOptionImage) onUploadOptionImage(optIndex, file)
+              e.target.value = ''
             }}
-          ><Icon name="diagrams" size={15} />
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={e => {
-                const file = e.target.files?.[0]
-                if (file && onUploadOptionImage) onUploadOptionImage(optIndex, file)
-                e.target.value = ''
-              }}
-            />
-          </button>
-          {onPickFromBank && (
-            <button
-              type="button"
-              onClick={() => onPickFromBank(optIndex)}
-              title="Pick from the picture bank or generate with AI"
-              style={{
-                width: 32, height: 32, borderRadius: 4,
-                border: '1.5px dashed var(--sv-border-strong)',
-                background: 'transparent', color: 'var(--sv-ink)',
-                display: 'grid', placeItems: 'center', cursor: 'pointer',
-                fontSize: 14,
-              }}
-            >
-              <Icon name="pictureBank" size={15} />
-            </button>
-          )}
-          {onPickDiagram && (
-            <button
-              type="button"
-              onClick={() => onPickDiagram(optIndex)}
-              title="Insert an exact maths shape for this option"
-              style={{
-                width: 32, height: 32, borderRadius: 4,
-                border: '1.5px dashed var(--sv-border-strong)',
-                background: 'transparent', color: 'var(--sv-ink)',
-                display: 'grid', placeItems: 'center', cursor: 'pointer',
-                fontSize: 14,
-              }}
-            >
-              <Icon name="shape" size={15} />
-            </button>
-          )}
+          />
         </div>
       ) : <span />}
       {/* A rich option gets the rich field even on a non-mathematics paper.

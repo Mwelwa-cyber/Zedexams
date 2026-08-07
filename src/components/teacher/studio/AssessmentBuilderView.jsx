@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react'
+import { useRef, useMemo, useState } from 'react'
 import { hasOnlyEmptyStarterSection, orderPaperGroups } from '../../../utils/quizSections.js'
 import { toEditableText } from '../AssessmentQuestionEditors'
 import { MathsEditingProvider } from '../MathsRichField.jsx'
@@ -7,12 +7,26 @@ import { SECTION_LETTERS } from '../assessmentStudioMeta'
 import { normalizeMarksMode, resolveQuestionMarks, marksLabel } from '../../../utils/paperMarksModel'
 import { CHOICE_COUNT_OPTIONS, normalizeChoiceCount } from '../../../utils/mcqChoices'
 import Icon from './studioIcons'
+import StudioMenu from './StudioMenu'
+import { headerIsComplete, missingHeaderFields } from './paperHeaderSummary'
 import {
   HeaderBlock,
   InstructionsBlock,
   SectionBlock,
   FooterBlock,
 } from './AssessmentBlocks'
+
+// The four documents a paper can be looked at as. One segmented control, so
+// "which view am I in" is answered by where the highlight sits rather than by
+// reading four separate chips. Hidden below 768px — the bottom dock already
+// owns this navigation there, and two navigations for one decision is how a
+// teacher ends up tapping the one that isn't the current view.
+const VIEW_SEGMENTS = [
+  { value: 'builder', icon: 'builder', label: 'Builder' },
+  { value: 'preview', icon: 'preview', label: 'Preview' },
+  { value: 'marking-key', icon: 'key', label: 'Key' },
+  { value: 'tos', icon: 'target', label: 'Spec', title: 'Table of Specifications — the copy for your teacher’s file' },
+]
 
 /* ==================================================================
  * BUILDER VIEW
@@ -30,12 +44,18 @@ export function BuilderView(props) {
     onImportDocument, onScan, importing, importSummary, onDismissImportSummary,
     onCreatePaper, onVerifyPaper, onClearAll, onOpenDiagramFix, diagramsNeeded = 0, onOpenAi,
     onSave, saving = false, health, onShowHealth, onShowTemplates,
+    canUndo = false, canRedo = false, onUndo, onRedo,
+    headerOpen = true, onToggleHeader, headerVariant = 'inline',
+    onReorderSection,
     assessmentTypes = ['topic', 'weekly', 'mid_term', 'end_of_term'],
     assessmentTypeLabel = 'Assessment',
   } = props
 
   const emptyPaper = hasOnlyEmptyStarterSection(sections)
   const importInputRef = useRef(null)
+  // The block currently being dragged by its handle, or null. Held here rather
+  // than in the dragged card because the DROP targets are its siblings.
+  const [dragIndex, setDragIndex] = useState(null)
 
   // Group sections by their Part membership for rendering Section headers, then
   // lay the groups out in the teacher-chosen order (sections by their order, the
@@ -63,48 +83,78 @@ export function BuilderView(props) {
 
   return (
     <section className="sv-view">
-      <div className="sv-builder-bar">
-        <button className="sv-chip active"><Icon name="builder" size={14} /> Builder</button>
-        <button className="sv-chip" onClick={() => changeView('preview')}><Icon name="preview" size={14} /> Preview</button>
-        <button className="sv-chip" onClick={() => changeView('marking-key')}><Icon name="key" size={14} /> Marking key</button>
-        {/* The teacher's filing copy, alongside the two documents the learner
-            and the marker get. It used to be a download button on the plan
-            step only, so a saved paper had no route back to it at all. */}
-        <button className="sv-chip" onClick={() => changeView('tos')} title="Table of Specifications — the copy for your teacher's file"><Icon name="target" size={14} /> Spec table</button>
+      {/* ONE toolbar row. It used to be two rows of nine chips — every tool the
+          studio has, all at the same visual weight, with a destructive "Clear
+          all" sitting beside Save. Now: where you are (segments), what you can
+          do (Tools ▾), the two edit verbs, the overflow, and the one durable
+          action. */}
+      <div className="sv-builder-bar sv-builder-tools">
+        <div className="sv-seg" role="group" aria-label="Paper view">
+          {VIEW_SEGMENTS.map(seg => (
+            <button
+              key={seg.value}
+              type="button"
+              className={`sv-seg-btn${seg.value === 'builder' ? ' active' : ''}`}
+              aria-current={seg.value === 'builder' ? 'page' : undefined}
+              title={seg.title}
+              onClick={() => changeView(seg.value)}
+            >
+              <Icon name={seg.icon} size={14} /> {seg.label}
+            </button>
+          ))}
+        </div>
+
+        <StudioMenu
+          label="Tools"
+          icon="more"
+          caret
+          align="left"
+          items={[
+            { label: 'Templates', icon: 'sections', onSelect: onShowTemplates },
+            { label: 'Create with AI', icon: 'ai', onSelect: onCreatePaper },
+            onOpenBank && { label: 'Question bank', icon: 'bank', onSelect: onOpenBank },
+            {
+              label: importing ? 'Importing…' : 'Import paper',
+              icon: importing ? 'spinner' : 'import',
+              disabled: importing,
+              onSelect: () => importInputRef.current?.click(),
+            },
+            {
+              label: 'Check paper',
+              icon: 'verify',
+              disabled: questionCount === 0,
+              disabledReason: 'Add a question first',
+              onSelect: onVerifyPaper,
+            },
+            {
+              label: diagramsNeeded > 0 ? `Diagrams (${diagramsNeeded})` : 'Diagrams',
+              icon: 'diagrams',
+              onSelect: onOpenDiagramFix,
+            },
+            { label: 'More AI', icon: 'ai', onSelect: onOpenAi },
+          ]}
+        />
+
+        <button
+          className="sv-icon-btn sv-tb-icon"
+          onClick={onUndo}
+          disabled={!canUndo}
+          aria-label="Undo"
+          title="Undo (Ctrl+Z)"
+        ><Icon name="undo" size={16} /></button>
+        <button
+          className="sv-icon-btn sv-tb-icon"
+          onClick={onRedo}
+          disabled={!canRedo}
+          aria-label="Redo"
+          title="Redo (Ctrl+Shift+Z)"
+        ><Icon name="redo" size={16} /></button>
+
         {/* Measured, not estimated — "Calculating pages…" until it is, because
             a placeholder number reads as a fact. See usePaperPagination. */}
         <span className="sv-pages mono"><Icon name="pages" size={13} /> {pagination?.label ?? 'Calculating pages…'} · A4</span>
-      </div>
 
-      {/* The teacher's main tools, always one tap away (they used to live
-          only inside the AI slide-over, which read as "missing"). Wraps on
-          phones; same actions on desktop. */}
-      <div className="sv-builder-bar sv-builder-tools">
-        <button className="sv-chip" onClick={onShowTemplates}><Icon name="sections" size={14} /> Templates</button>
-        <button className="sv-chip" onClick={onCreatePaper}><Icon name="ai" size={14} /> Create with AI</button>
-        {onOpenBank && (
-          <button className="sv-chip" onClick={onOpenBank}><Icon name="bank" size={14} /> Question bank</button>
-        )}
-        <button className="sv-chip" onClick={() => importInputRef.current?.click()} disabled={importing}>
-          <Icon name={importing ? 'spinner' : 'import'} size={14} spin={importing} /> {importing ? 'Importing…' : 'Import paper'}
-        </button>
-        <button className="sv-chip" onClick={onVerifyPaper} disabled={questionCount === 0}><Icon name="verify" size={14} /> Check paper</button>
-        <button className="sv-chip" onClick={onOpenDiagramFix}>
-          <Icon name="diagrams" size={14} /> Diagrams{diagramsNeeded > 0 ? ` (${diagramsNeeded})` : ''}
-        </button>
-        <button className="sv-chip" onClick={onOpenAi}><Icon name="more" size={14} /> More AI tools</button>
-        {/* Right-aligned group: the "Paper health" status chip opens the single
-            pre-save checklist; the Save chip files the paper. On a phone the
-            bar wraps and the group drops to the next row. */}
         <div className="sv-builder-bar-right">
-          <button
-            className="sv-chip sv-chip-danger"
-            onClick={onClearAll}
-            disabled={emptyPaper}
-            title="Remove every question and start over"
-          >
-            <Icon name="delete" size={14} /> Clear all
-          </button>
           {!emptyPaper && health && (
             <button
               className={`sv-chip sv-chip-health ${health.status}`}
@@ -119,13 +169,42 @@ export function BuilderView(props) {
                   : 'Paper health'}
             </button>
           )}
+          {/* Clear all lives HERE, behind an overflow and a confirm — it used to
+              sit on the surface next to Save, which is a destructive action one
+              slip away from the action a teacher reaches for most. */}
+          <StudioMenu
+            icon="menu"
+            ariaLabel="More paper actions"
+            className="sv-chip sv-chip-icon"
+            items={[
+              onToggleHeader && {
+                label: headerOpen ? 'Collapse paper header' : 'Edit paper header',
+                icon: 'header',
+                // A header still missing a required field refuses to collapse
+                // (HeaderBlock fails open), so offering the collapse would be
+                // an action that visibly does nothing. Name the reason instead.
+                disabled: headerOpen && !headerIsComplete(form),
+                disabledReason: `Still to fill in: ${missingHeaderFields(form).join(', ')}`,
+                onSelect: onToggleHeader,
+              },
+              {
+                label: 'Clear all questions',
+                icon: 'delete',
+                danger: true,
+                disabled: emptyPaper,
+                disabledReason: 'This paper has no questions yet',
+                hint: 'Asks you to confirm first',
+                onSelect: onClearAll,
+              },
+            ]}
+          />
           <button
             className="sv-chip sv-chip-save"
             onClick={onSave}
             disabled={saving || questionCount === 0}
             title="Save this paper to your library"
           >
-            <Icon name={saving ? 'spinner' : 'save'} size={14} spin={saving} /> {saving ? 'Saving…' : 'Save to library'}
+            <Icon name={saving ? 'spinner' : 'save'} size={14} spin={saving} /> {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
         <input
@@ -150,7 +229,22 @@ export function BuilderView(props) {
       <div className="sv-doc-canvas">
         <SmartWarningsBanner warnings={warnings} />
 
-        <HeaderBlock form={form} setF={setF} footerCode={footerCode} importing={importing} importSummary={importSummary} onDismissImportSummary={onDismissImportSummary} onImportDocument={onImportDocument} onScan={onScan} assessmentTypes={assessmentTypes} assessmentTypeLabel={assessmentTypeLabel} />
+        <HeaderBlock
+          form={form}
+          setF={setF}
+          footerCode={footerCode}
+          importing={importing}
+          importSummary={importSummary}
+          onDismissImportSummary={onDismissImportSummary}
+          onImportDocument={onImportDocument}
+          onScan={onScan}
+          assessmentTypes={assessmentTypes}
+          assessmentTypeLabel={assessmentTypeLabel}
+          open={headerOpen}
+          onToggleOpen={onToggleHeader}
+          variant={headerVariant}
+          timingWarning={timingWarning(warnings)}
+        />
 
         {/* No-content recovery: route the teacher into a template, AI, import,
             or hand-building — instead of an empty canvas with no next step. */}
@@ -217,6 +311,9 @@ export function BuilderView(props) {
             onUpdatePart={onUpdatePart}
             onRemovePart={onRemovePart}
             onAssignSectionToPart={onAssignSectionToPart}
+            onReorderSection={onReorderSection}
+            dragIndex={dragIndex}
+            onDragStateChange={setDragIndex}
           />
         ))}
 
@@ -252,11 +349,22 @@ export function AddHere({ onAdd }) {
  * one short row per warning at the top of the builder. Errors block
  * save (validated separately); warnings are advisory.
  * ================================================================== */
+/** The paper's estimated completion time, which the header summary shows as a
+ *  chip rather than the banner showing as a row. `null` when the paper has not
+ *  said anything about its timing yet. */
+export function timingWarning(warnings = []) {
+  return warnings.find(w => w.key === 'timing-over' || w.key === 'timing-under') || null
+}
+
 export function SmartWarningsBanner({ warnings }) {
-  if (!warnings || !warnings.length) return null
+  // Timing is the one warning that is really a FACT about the paper, and it is
+  // permanent — every paper has an estimated duration. It reads as noise in a
+  // list of things to fix, so it lives on the header summary card instead.
+  const rows = (warnings || []).filter(w => w.key !== 'timing-over' && w.key !== 'timing-under')
+  if (!rows.length) return null
   return (
     <div className="sv-warnings">
-      {warnings.map(w => (
+      {rows.map(w => (
         <div key={w.key} className={`sv-warn sv-warn-${w.severity}`}>
           <span className="sv-warn-ic"><Icon name={w.severity === 'error' ? 'warn' : w.severity === 'warn' ? 'more' : 'info'} size={15} /></span>
           <span className="sv-warn-msg">{w.message}</span>
@@ -266,7 +374,7 @@ export function SmartWarningsBanner({ warnings }) {
   )
 }
 
-export function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, questionNumbers, questionIssues, paperMeta, onAddBlock, onEditQuestion, onMoveSection, onMoveGroup, onRemoveSection, onDuplicateSection, onSaveToBank, onToggleLock, onRewriteQuestion, rewritingKey, onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage, onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage, onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onUpdatePart, onRemovePart, onAssignSectionToPart }) {
+export function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, questionNumbers, questionIssues, paperMeta, onAddBlock, onEditQuestion, onMoveSection, onMoveGroup, onRemoveSection, onDuplicateSection, onSaveToBank, onToggleLock, onRewriteQuestion, rewritingKey, onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage, onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage, onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onUpdatePart, onRemovePart, onAssignSectionToPart, onReorderSection, dragIndex, onDragStateChange }) {
   const partIndex = allParts.findIndex(p => p.id === group.part?.id)
   const letter = partIndex >= 0 ? SECTION_LETTERS[partIndex] || '·' : null
 
@@ -364,6 +472,9 @@ export function BuilderGroup({ group, groupIndex = 0, groupCount = 1, allParts, 
           onAddPassageQuestion={onAddPassageQuestion}
           onRemovePassageQuestion={onRemovePassageQuestion}
           onAssignSectionToPart={onAssignSectionToPart}
+          onReorderSection={onReorderSection}
+          dragIndex={dragIndex}
+          onDragStateChange={onDragStateChange}
         />
       ))}
 

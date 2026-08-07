@@ -74,12 +74,15 @@ vi.mock('./studio/AssessmentHomeView', () => ({
 }))
 vi.mock('./studio/AssessmentBuilderView', () => ({
   // Expose form.title and sections.length as data attributes. Also expose
-  // onImportDocument so B1 tests can trigger an import without a real file UI.
-  BuilderView: ({ form, sections = [], onImportDocument }) => (
+  // onImportDocument so B1 tests can trigger an import without a real file UI,
+  // and onReorderSection + the resulting order so the drag-reorder test can
+  // assert on what the studio actually did to the array.
+  BuilderView: ({ form, sections = [], onImportDocument, onReorderSection }) => (
     <div
       data-testid="builder-view"
       data-form-title={form?.title ?? ''}
       data-section-count={sections.length}
+      data-section-order={sections.map(s => s?.question?.localId ?? s?.id ?? '?').join(',')}
     >
       builder-view
       <button
@@ -90,6 +93,8 @@ vi.mock('./studio/AssessmentBuilderView', () => ({
       >
         stub-import-doc
       </button>
+      <button type="button" onClick={() => onReorderSection?.(3, 0)}>stub-drag-4-to-1</button>
+      <button type="button" onClick={() => onReorderSection?.(0, 9)}>stub-drag-off-the-end</button>
     </div>
   ),
 }))
@@ -310,6 +315,69 @@ describe('AssessmentStudio — zero-extraction import guard (B1)', () => {
 
     // Guard fired before mutations: starter section is preserved (count stays 1).
     expect(screen.getByTestId('builder-view').dataset.sectionCount).toBe('1')
+  })
+})
+
+/*
+ * Drag-reorder (§2.4) — the drag handle replaced the ↑↓ buttons, and a drag is
+ * NOT a repeated swap.
+ *
+ * A one-step ↑ press swaps two neighbours, which is right for a one-step move.
+ * Dragging question 4 to the top must LIFT it out and re-insert it, leaving
+ * 1, 2 and 3 in their own order below it. Swapping instead would fling
+ * question 1 down to position 4 — a reorder the teacher never asked for, on a
+ * paper where question order is the paper.
+ */
+describe('AssessmentStudio — dragging a block reorders, it does not swap', () => {
+  const fourQuestions = {
+    sections: [],
+    questions: [1, 2, 3, 4].map(n => ({
+      type: 'mcq',
+      question: `Question ${n}?`,
+      options: ['a', 'b', 'c', 'd'],
+      correctAnswer: 0,
+      marks: 1,
+    })),
+    imageAssets: [],
+    quiz: { title: 'Four', grade: '4', subject: 'Mathematics', sourceFileName: 'stub.pdf', sourceContentType: 'application/pdf' },
+    importStatus: 'ok',
+    warnings: [],
+    summary: {},
+    scanned: false,
+    smartApplied: false,
+    pageImageUrls: {},
+    parts: [],
+  }
+
+  beforeEach(() => {
+    mockParams = {}
+    mockImportQuizDocument.mockResolvedValue(fourQuestions)
+  })
+
+  async function seedFourQuestions() {
+    renderStudioFresh('test')
+    fireEvent.click(screen.getByRole('button', { name: 'stub-new-paper' }))
+    await waitFor(() => expect(screen.getByTestId('builder-view')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'stub-import-doc' }))
+    await waitFor(() => expect(screen.getByTestId('builder-view').dataset.sectionCount).toBe('4'))
+    return screen.getByTestId('builder-view').dataset.sectionOrder.split(',')
+  }
+
+  it('lifts the dragged block out and re-inserts it, leaving the others in order', async () => {
+    const before = await seedFourQuestions()
+    fireEvent.click(screen.getByRole('button', { name: 'stub-drag-4-to-1' }))
+    await waitFor(() => {
+      const after = screen.getByTestId('builder-view').dataset.sectionOrder.split(',')
+      expect(after).toEqual([before[3], before[0], before[1], before[2]])
+    })
+  })
+
+  it('a drop outside the paper changes nothing', async () => {
+    const before = await seedFourQuestions()
+    fireEvent.click(screen.getByRole('button', { name: 'stub-drag-off-the-end' }))
+    await waitFor(() => {
+      expect(screen.getByTestId('builder-view').dataset.sectionOrder.split(',')).toEqual(before)
+    })
   })
 })
 

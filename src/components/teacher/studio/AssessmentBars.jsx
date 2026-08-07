@@ -1,4 +1,5 @@
 import Icon from './studioIcons'
+import DocTitle from './DocTitle'
 
 /* ==================================================================
  * TOP BAR
@@ -16,19 +17,21 @@ export function describeSaveStatus({ saving, dirty, draftSavedAt, savedToLibrary
   if (autosaveFailed) {
     return {
       text: '⚠ Autosave failed',
+      word: 'Autosave failed',
       title: 'Saving to your library keeps failing — your changes are still safe on this device and will retry as you edit. Check your connection, or use "Save to library" to retry now.',
       cls: 'is-autosave-failed', dot: 'var(--sv-gold)', ring: 'rgba(200,146,61,0.28)',
     }
   }
   if (savedToLibrary) {
-    return { text: '✓ Saved to library', title: 'This paper is saved in your library — available across your devices.', cls: 'is-library', dot: 'var(--sv-sage)', ring: 'rgba(62,123,90,0.20)' }
+    return { text: '✓ Saved to library', word: 'Saved', title: 'This paper is saved in your library — available across your devices.', cls: 'is-library', dot: 'var(--sv-sage)', ring: 'rgba(62,123,90,0.20)' }
   }
   if (saving) {
-    return { text: 'Saving…', title: 'Saving to your library…', cls: 'is-saving', dot: 'var(--sv-muted-2)', ring: 'rgba(163,157,142,0.18)' }
+    return { text: 'Saving…', word: 'Saving…', title: 'Saving to your library…', cls: 'is-saving', dot: 'var(--sv-muted-2)', ring: 'rgba(163,157,142,0.18)' }
   }
   if (dirty) {
     return {
       text: '● Unsaved changes',
+      word: 'Unsaved',
       title: "Your latest edits haven’t been auto-saved yet — they save to this device a moment after you stop typing.",
       cls: 'is-unsaved', dot: 'var(--sv-gold)', ring: 'rgba(200,146,61,0.20)',
     }
@@ -37,14 +40,31 @@ export function describeSaveStatus({ saving, dirty, draftSavedAt, savedToLibrary
     const t = new Date(draftSavedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     return {
       text: `✓ Saved locally · ${t}`,
+      word: 'Saved locally',
       title: 'Auto-saved to this device and the cloud draft. Use "Save to library" to keep a durable, shareable copy.',
       cls: 'is-local', dot: 'var(--sv-sage)', ring: 'rgba(62,123,90,0.18)',
     }
   }
-  return { text: 'Draft', title: 'Not saved yet — start typing and your work auto-saves.', cls: 'is-idle', dot: 'var(--sv-muted-2)', ring: 'rgba(163,157,142,0.18)' }
+  return { text: 'Draft', word: 'Draft', title: 'Not saved yet — start typing and your work auto-saves.', cls: 'is-idle', dot: 'var(--sv-muted-2)', ring: 'rgba(163,157,142,0.18)' }
 }
 
-export function TopBar({ title, saving, dirty, draftSavedAt, savedToLibrary, autosaveFailed, canUndo, canRedo, onUndo, onRedo, onBack, onAi }) {
+/**
+ * back · document title · status chip · Save. Four things, in that order.
+ *
+ * Undo/redo and the standalone AI sparkle used to sit here too, which is four
+ * icon buttons competing with the title for a 360px bar — and the title is the
+ * one element that says WHICH paper is open. They moved to the builder toolbar
+ * (undo/redo) and its `Tools ▾` menu (AI), both of which are one tap away and
+ * neither of which is useful outside the builder anyway. The keyboard
+ * shortcuts are unchanged.
+ *
+ * The status chip prints the whole word — "Draft", never "DR". An abbreviation
+ * a teacher has to decode is not a saving.
+ */
+export function TopBar({
+  paper, status: statusWord, saving, dirty, draftSavedAt, savedToLibrary, autosaveFailed,
+  onBack, onSave, onOpenDetails, canSave = true,
+}) {
   // Distinct, honest states so the teacher always knows where their
   // work lives:
   //   • Autosave failed   — the library autosave keeps failing (work is
@@ -58,26 +78,22 @@ export function TopBar({ title, saving, dirty, draftSavedAt, savedToLibrary, aut
       <button className="sv-icon-btn" onClick={onBack} aria-label="Back"><Icon name="back" size={18} /></button>
       <div className="sv-app-bar-title">
         <span className="sv-status-dot" aria-hidden="true" style={{ background: status.dot, boxShadow: `0 0 0 3px ${status.ring}` }} />
-        {title}
-        <span className={`sv-badge-mini ${status.cls}`} title={status.title}>
-          {status.text}
-        </span>
+        <DocTitle paper={paper} status={statusWord ?? status.word} onOpenDetails={onOpenDetails} />
       </div>
-      <button
-        className="sv-icon-btn"
-        onClick={onUndo}
-        disabled={!canUndo}
-        aria-label="Undo"
-        title="Undo (Ctrl+Z)"
-      ><Icon name="undo" size={17} /></button>
-      <button
-        className="sv-icon-btn"
-        onClick={onRedo}
-        disabled={!canRedo}
-        aria-label="Redo"
-        title="Redo (Ctrl+Shift+Z)"
-      ><Icon name="redo" size={17} /></button>
-      <button className="sv-icon-btn" onClick={onAi} title="AI assistant"><Icon name="ai" size={17} /></button>
+      <span className={`sv-badge-mini ${status.cls}`} title={status.title}>
+        {status.text}
+      </span>
+      {onSave && (
+        <button
+          className="sv-appbar-save"
+          onClick={onSave}
+          disabled={saving || !canSave}
+          title="Save this paper to your library"
+        >
+          <Icon name={saving ? 'spinner' : 'save'} size={14} spin={saving} />
+          <span className="sv-appbar-save-lbl">{saving ? 'Saving…' : 'Save'}</span>
+        </button>
+      )}
     </header>
   )
 }

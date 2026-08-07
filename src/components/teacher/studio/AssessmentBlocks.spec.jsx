@@ -137,6 +137,81 @@ describe('HeaderBlock — the header title and the library name are shown separa
   })
 })
 
+/*
+ * The header is thirteen controls a teacher answers once and then scrolls past
+ * on every visit. Collapsed, it is the sentence of those answers. The rule that
+ * makes that safe: an INCOMPLETE header never collapses, because a summary
+ * reading "· · 2026 · 60 min" hides the fields that still need answering.
+ */
+describe('HeaderBlock — collapse to a one-line summary', () => {
+  it('collapsed, states every decision the form holds, with one Edit affordance', () => {
+    const onToggleOpen = vi.fn()
+    renderHeader({ open: false, onToggleOpen })
+    expect(screen.getByText(/Test School/)).toBeInTheDocument()
+    expect(screen.getByText(/Grade 4/)).toBeInTheDocument()
+    expect(screen.getByText(/Mathematics/)).toBeInTheDocument()
+    expect(screen.getByText(/60 min/)).toBeInTheDocument()
+    expect(screen.getByText(/MCQ A–D vertical/)).toBeInTheDocument()
+    // The form itself is gone — that is the point.
+    expect(screen.queryByLabelText(/School name/i)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /edit/i }))
+    expect(onToggleOpen).toHaveBeenCalled()
+  })
+
+  it('an incomplete header stays OPEN even when the parent asks it to collapse', () => {
+    // Fail-open: the summary's whole job is to state the answers, so it must
+    // never stand in for a field that has no answer yet.
+    renderHeader({ open: false, form: { ...baseForm, subject: '' }, onToggleOpen: vi.fn() })
+    expect(screen.getByText('Paper Header')).toBeInTheDocument()
+  })
+
+  it('the estimated-time chip rides on the summary card, not the warnings list', () => {
+    renderHeader({
+      open: false,
+      onToggleOpen: vi.fn(),
+      timingWarning: { key: 'timing-under', severity: 'info', message: 'Estimated ~1 min — well under the 60 min allowed.' },
+    })
+    expect(screen.getByText(/Estimated ~1 min/)).toBeInTheDocument()
+  })
+
+  it('an import summary is still shown while the header is collapsed', () => {
+    renderHeader({
+      open: false,
+      onToggleOpen: vi.fn(),
+      importSummary: { fileName: 'paper.docx', totalQuestions: 12 },
+    })
+    expect(screen.getByRole('status')).toHaveTextContent('paper.docx')
+  })
+
+  it('reopened as a drawer, the summary stays on the page behind it', () => {
+    const { container } = renderHeader({ open: true, variant: 'drawer', onToggleOpen: vi.fn() })
+    expect(container.querySelector('.sv-header-drawer')).toBeInTheDocument()
+    expect(container.querySelector('.sv-header-summary')).toBeInTheDocument()
+    expect(screen.getByText('Paper Header')).toBeInTheDocument()
+  })
+
+  it('the drawer has a visible way out, and Escape is one of them', () => {
+    // The scrim is a way out only if you know it is one. A drawer whose only
+    // close affordance is "click the dimmed area" is a drawer a teacher gets
+    // stuck in.
+    const onToggleOpen = vi.fn()
+    renderHeader({ open: true, variant: 'drawer', onToggleOpen })
+    fireEvent.click(screen.getByRole('button', { name: /done/i }))
+    expect(onToggleOpen).toHaveBeenCalledTimes(1)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onToggleOpen).toHaveBeenCalledTimes(2)
+  })
+
+  it('an inline header — a paper still being set up — has no Escape-to-close', () => {
+    // Inline is not an overlay; Escape there would collapse a form the teacher
+    // is filling in, from a key they pressed to dismiss something else.
+    const onToggleOpen = vi.fn()
+    renderHeader({ open: true, variant: 'inline', onToggleOpen })
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onToggleOpen).not.toHaveBeenCalled()
+  })
+})
+
 describe('HeaderBlock — import summary banner', () => {
   it('renders no banner when importSummary is null', () => {
     renderHeader({ importSummary: null })

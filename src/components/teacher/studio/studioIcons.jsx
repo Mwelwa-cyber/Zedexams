@@ -22,8 +22,24 @@ import {
   BookOpen, BeakerIcon, Globe, DocumentTextIcon, ListChecks, ListOrdered, Table,
   Calculator, ArrowLeftRight, Maximize2, Minimize2, PaintBrushIcon, Target, Lightbulb,
   Camera, Scale, Files, AlignLeft, Download, Printer, User, Users, Calendar,
-  Info, Layout, Lock,
+  Info, Layout, Lock, MoreHorizontal,
 } from '../../ui/icons'
+
+/**
+ * A drag grip. The shared icon set has no grip glyph, and the alternatives —
+ * three stacked bars, an ellipsis — already mean "menu" elsewhere in this
+ * studio, so reusing one would give a teacher the same picture for two
+ * different affordances. Six dots is the conventional handle.
+ */
+function GripVertical({ size = 16, className, ...rest }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} {...rest}>
+      <circle cx="9" cy="6" r="1.6" /><circle cx="15" cy="6" r="1.6" />
+      <circle cx="9" cy="12" r="1.6" /><circle cx="15" cy="12" r="1.6" />
+      <circle cx="9" cy="18" r="1.6" /><circle cx="15" cy="18" r="1.6" />
+    </svg>
+  )
+}
 
 // Semantic name → icon component. Names describe ROLE, not glyph, so the
 // underlying icon can change without touching call sites.
@@ -125,6 +141,13 @@ const ICONS = {
   // or migration may rewrite it — see src/utils/questionRegeneration.js.
   lock: Lock,
   rewrite: RefreshCw,
+
+  // ── Grouped controls ─────────────────────────────────────────────────
+  // `menu` is the ⋯ overflow every destructive action lives behind; `drag`
+  // is the block reorder handle that replaced the ↑↓ pair.
+  menu: MoreHorizontal,
+  drag: GripVertical,
+  caret: ChevronDown,
 }
 
 export function hasIcon(name) {

@@ -119,6 +119,9 @@ import Icon from './studio/studioIcons'
 import { TopBar, BottomBar } from './studio/AssessmentBars'
 import { HomeView } from './studio/AssessmentHomeView'
 import { BuilderView } from './studio/AssessmentBuilderView'
+import PaperDetailsSheet from './studio/PaperDetailsSheet'
+import { headerIsComplete } from './studio/paperHeaderSummary'
+import { paperFromStudioForm } from './studio/docTitleParts'
 import PaperHealthModal from './PaperHealthModal'
 import TableOfSpecificationView from './views/TableOfSpecificationView'
 import PaperTemplatePicker from './PaperTemplatePicker'
@@ -608,6 +611,15 @@ export default function AssessmentStudio() {
     })
   }, [reviewPageImages])
   const [importSummary, setImportSummary] = useState(null)
+  // The Paper Header form's open/closed state, and whether it has ever been
+  // collapsed. A brand-new paper lands with the form OPEN and inline — it is
+  // the first thing to fill in. Once it has collapsed to its one-line summary,
+  // reopening it opens a DRAWER instead, so the questions the builder is
+  // actually about don't get pushed down the page again.
+  const [headerOpen, setHeaderOpen] = useState(true)
+  const [headerCollapsedOnce, setHeaderCollapsedOnce] = useState(false)
+  // The phone's paper-details sheet, opened by tapping the document title.
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const [importedAssets, setImportedAssets] = useState({})
   const [exporting, setExporting] = useState(false)
   const [recentPapers, setRecentPapers] = useState([])
@@ -1332,6 +1344,13 @@ export default function AssessmentStudio() {
         // The loaded paper is the new undo baseline — not the empty starter.
         resetUndoBaseline()
         setView('builder')
+        // A paper that already exists has already had its header answered, so
+        // it opens on its questions rather than on thirteen settled controls.
+        // The header still fails open if the paper is missing a required field
+        // (see headerIsComplete) — this asks for the collapse, it does not
+        // force one.
+        setHeaderOpen(false)
+        setHeaderCollapsedOnce(true)
         // The loaded paper is already in the library and not yet edited.
         setSavedToLibrary(true)
         setDirty(false)
@@ -1369,6 +1388,25 @@ export default function AssessmentStudio() {
     setLibraryDirty(true)
     setSavedToLibrary(false)
   }, [form, sections, parts, paperIsUntouched])
+
+  // The Paper Header collapses to its one-line summary the first time this
+  // paper reaches the library — the point at which its identity is settled and
+  // there is nothing left in the form to decide. ONCE only: after that the
+  // teacher owns the open/closed state, so a later autosave can never shut a
+  // header they deliberately reopened mid-edit.
+  useEffect(() => {
+    if (headerCollapsedOnce || !savedToLibrary) return
+    if (!headerIsComplete(form)) return
+    // Never fold a form the teacher's cursor is currently inside. The library
+    // autosave is on a 2s debounce, so it can land while they are back in the
+    // header correcting a field — collapsing then would take the input away
+    // mid-keystroke. The next edit re-runs this, so the collapse is deferred,
+    // not cancelled.
+    if (typeof document !== 'undefined'
+      && document.activeElement?.closest?.('.b-header')) return
+    setHeaderOpen(false)
+    setHeaderCollapsedOnce(true)
+  }, [savedToLibrary, form, headerCollapsedOnce])
 
   useEffect(() => () => revokeImportedQuizAssets(importedAssets), [importedAssets])
 
@@ -1544,6 +1582,21 @@ export default function AssessmentStudio() {
       const target = sectionIndex + direction
       if (target < 0 || target >= next.length) return next
       ;[next[sectionIndex], next[target]] = [next[target], next[sectionIndex]]
+      return next
+    })
+  }
+  // Drag-and-drop reorder: LIFT the block out and re-insert it at the drop
+  // position, rather than swapping the two. Swapping is right for a one-step
+  // ↑/↓ press and wrong for a drag — dragging question 8 to position 2 must
+  // leave 2–7 in order, not fling question 2 down to position 8.
+  function reorderSection(fromIndex, toIndex) {
+    setSections(prev => {
+      if (fromIndex === toIndex) return prev
+      if (fromIndex < 0 || fromIndex >= prev.length) return prev
+      if (toIndex < 0 || toIndex >= prev.length) return prev
+      const next = [...prev]
+      const [moved] = next.splice(fromIndex, 1)
+      next.splice(toIndex, 0, moved)
       return next
     })
   }
@@ -3193,6 +3246,11 @@ export default function AssessmentStudio() {
     setSavedToLibrary(false)
     setDirty(false)
     setLibraryDirty(false)
+    // A brand-new paper starts on its header again — that is the first thing
+    // to fill in — and is eligible to auto-collapse once more when it lands in
+    // the library.
+    setHeaderOpen(true)
+    setHeaderCollapsedOnce(false)
     // Reset undo stack so Ctrl+Z on the new blank paper doesn't resurface the
     // previous paper.
     resetUndoBaseline()
@@ -3277,18 +3335,34 @@ export default function AssessmentStudio() {
       <SeoHelmet title={isEditing ? `Edit ${cfg.noun}` : cfg.studioName} noIndex />
 
       <TopBar
-        title={autoTitle}
+        // The bar composes the title from the paper's own fields per width
+        // (DocTitle) instead of ellipsing one string — see docTitleParts.js.
+        // paperFromStudioForm is what keeps a teacher's own name for the paper
+        // (form.title, empty unless they typed one) from reading as generated.
+        paper={paperFromStudioForm(form)}
         saving={Boolean(saving)}
         dirty={dirty}
         draftSavedAt={draftSavedAt}
         savedToLibrary={savedToLibrary}
         autosaveFailed={autosaveFailed}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        onUndo={undo}
-        onRedo={redo}
         onBack={() => navigate(cfg.routeBase)}
-        onAi={() => openSlide('ai')}
+        onSave={view === 'home' ? null : handleSave}
+        canSave={questionCount > 0}
+        onOpenDetails={view === 'home' ? null : () => setDetailsOpen(true)}
+      />
+
+      {/* Phone only — the two-line title is necessarily terser than the wide
+          one, so tapping it opens the full name and the fields behind it. */}
+      <PaperDetailsSheet
+        open={detailsOpen}
+        form={form}
+        setF={setF}
+        onClose={() => setDetailsOpen(false)}
+        onEditHeader={() => {
+          setDetailsOpen(false)
+          setHeaderOpen(true)
+          changeView('builder')
+        }}
       />
 
       {view === 'home' && (
@@ -3350,6 +3424,7 @@ export default function AssessmentStudio() {
           onOpenBank={() => setBankPicker({ open: true, afterIndex: null })}
           onEditQuestion={(key) => openSlide('editor', { questionKey: key })}
           onMoveSection={moveSection}
+          onReorderSection={reorderSection}
           onMoveGroup={moveSectionGroup}
           onRemoveSection={removeSectionAt}
           onDuplicateSection={duplicateSectionAt}
@@ -3387,6 +3462,15 @@ export default function AssessmentStudio() {
           health={paperHealth}
           onShowHealth={() => setHealthOpen(true)}
           onShowTemplates={() => setTemplateOpen(true)}
+          // Undo/redo moved off the app bar so the document title has room —
+          // they belong to the builder, which is the only view they act on.
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={undo}
+          onRedo={redo}
+          headerOpen={headerOpen}
+          headerVariant={headerCollapsedOnce ? 'drawer' : 'inline'}
+          onToggleHeader={() => setHeaderOpen(v => !v)}
           assessmentTypes={ASSESSMENT_TYPE_VALUES}
           assessmentTypeLabel="Assessment type"
         />

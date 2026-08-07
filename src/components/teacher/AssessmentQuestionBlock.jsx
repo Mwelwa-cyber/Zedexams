@@ -17,6 +17,7 @@ import { reviseQuestion as reviseQuestionCall } from '../../utils/reviseQuestion
 import { useAiOperationLock } from '../../hooks/useAiOperationLock'
 import { stableFingerprint } from '../../hooks/aiOperationLockCore'
 import Icon from './studio/studioIcons'
+import StudioMenu from './studio/StudioMenu'
 import DiagramSvg from '../diagrams/DiagramSvg'
 import DiagramPicker from '../diagrams/DiagramPicker'
 import PictureBankPicker from './PictureBankPicker'
@@ -245,7 +246,7 @@ function ReviseQuestionPopover({
   )
 }
 
-export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, questionIssues, paperMeta, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onSaveToBank, onUpdateQuestion, onUploadImage, onRemoveImage, onUploadOptionImage, onRemoveOptionImage, onAssignSectionToPart, onToggleLock, onRewriteQuestion, rewriting = false }) {
+export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, questionIssues, paperMeta, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onSaveToBank, onUpdateQuestion, onUploadImage, onRemoveImage, onUploadOptionImage, onRemoveOptionImage, onAssignSectionToPart, onToggleLock, onRewriteQuestion, onReorderSection, onDragStateChange, rewriting = false }) {
   const question = section.question
   // Does this paper get the mathematics tools? Resolved from the paper's
   // subject through the canonical key system (mathsSubjects.js) — so a Grade 2
@@ -294,9 +295,34 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
   const [reviseTargetGrade, setReviseTargetGrade] = useState('')
   const [reviseModifier, setReviseModifier] = useState('')
   const [revisedPreview, setRevisedPreview] = useState(null) // suggested new text
+  // Delete is the one block action that cannot be undone from the card, so it
+  // asks first — inline rather than in a modal, because the question it is
+  // about is the thing directly above it.
+  const [confirmDelete, setConfirmDelete] = useState(false)
   // Guards setState after unmount during an in-flight suggestion call.
   const mountedRef = useRef(true)
   useEffect(() => () => { mountedRef.current = false }, [])
+
+  const questionNumber = questionNumbers?.[question.localId] || sectionIndex + 1
+
+  // Reordering, two ways from one control. The pointer path is HTML5 drag
+  // (the drop targets live on the block wrapper in AssessmentBlocks); the
+  // keyboard path moves the block one place per arrow press, which is what the
+  // ↑↓ buttons did — so replacing them with a handle costs a keyboard user
+  // nothing.
+  function handleDragStart(e) {
+    if (!onReorderSection) { e.preventDefault(); return }
+    e.dataTransfer.effectAllowed = 'move'
+    // Some browsers refuse to start a drag with no payload set.
+    try { e.dataTransfer.setData('text/plain', String(sectionIndex)) } catch { /* older WebViews */ }
+    onDragStateChange?.(sectionIndex)
+  }
+
+  function handleHandleKey(e) {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
+    e.preventDefault()
+    onMoveSection(sectionIndex, e.key === 'ArrowUp' ? -1 : 1)
+  }
 
   // Idempotency locks: one intentional Revise / Suggest → one provider call +
   // one charge, even across a double-click / rapid tap / refresh / a second tab.
@@ -533,8 +559,34 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
 
   return (
     <div className={`sv-block b-question nested${blockers.length ? ' is-incomplete' : ''}`}>
+      {/* Header row: a drag handle and an overflow. It used to be eight icon
+          buttons in a row (up, down, edit, regenerate, lock, duplicate, star,
+          delete) — a control density that made the block header louder than the
+          question inside it, with the destructive one at the end of the row and
+          nothing between it and a mis-tap. Reordering is now the handle
+          (pointer drag, or focus it and press ↑/↓); everything else is behind
+          the ⋯, and Delete asks first. */}
       <div className="sv-block-head">
-        <span className="sv-ic"><Icon name={meta.icon} size={15} /></span> {meta.label}
+        <button
+          type="button"
+          className="sv-drag-handle"
+          draggable={Boolean(onReorderSection)}
+          onDragStart={handleDragStart}
+          onDragEnd={() => onDragStateChange?.(null)}
+          onKeyDown={handleHandleKey}
+          aria-label={`Reorder question ${questionNumber} — drag, or press the up and down arrow keys`}
+          title="Drag to reorder (or press ↑ / ↓)"
+        >
+          <Icon name="drag" size={15} />
+        </button>
+        {/* The block's own label, like "Paper Header" and "General
+            Instructions" above it — NOT the question's type. The type dropdown
+            two rows down states that, in the one place it can also be changed;
+            printing it here as well (and again in the badge that used to sit
+            beside the dropdown) said the same word three times. The type ICON
+            stays: scanning a thirty-question paper for the essay is what it is
+            for, and a picture is not a second copy of a sentence. */}
+        <span className="sv-ic" title={meta.label}><Icon name={meta.icon} size={15} /></span> Question
         {blockers.length > 0 && (
           <span className="sv-q-incomplete-tag" title={blockers.join(' ')}>
             <Icon name="warn" size={12} /> Not finished
@@ -546,46 +598,58 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
           </span>
         )}
         <span className="sv-tools">
-          <button className="sv-tool" title="Move up" onClick={() => onMoveSection(sectionIndex, -1)}><Icon name="moveUp" size={14} /></button>
-          <button className="sv-tool" title="Move down" onClick={() => onMoveSection(sectionIndex, 1)}><Icon name="moveDown" size={14} /></button>
-          <button className="sv-tool" title="Edit in detail" onClick={() => onEditQuestion(question.localId)}><Icon name="edit" size={14} /></button>
-          {/* Rewrite THIS question only. Every other question on the paper —
-              including the teacher's edits to them — is left exactly as it is.
-              Refused outright on a locked question. */}
-          {onRewriteQuestion && (
-            <button className="sv-tool" type="button"
-              disabled={rewriting || question.locked}
-              title={question.locked
-                ? 'Unlock this question first if you want it rewritten'
-                : 'Rewrite just this question — the rest of the paper is untouched'}
-              onClick={() => onRewriteQuestion(question.localId)}>
-              <Icon name={rewriting ? 'spinner' : 'rewrite'} size={14} />
-            </button>
-          )}
-          {/* The teacher's own "this one is finished" marker. Nothing — not a
-              rewrite, not a validation pass, not a future migration — may
-              overwrite a locked question. */}
-          {onToggleLock && (
-            <button className={`sv-tool${question.locked ? ' active' : ''}`} type="button"
-              aria-pressed={Boolean(question.locked)}
-              title={question.locked
-                ? 'Unlock this question'
-                : 'Lock this question so nothing rewrites it'}
-              onClick={() => onToggleLock(question.localId, !question.locked)}>
-              <Icon name="lock" size={14} />
-            </button>
-          )}
-          <button className="sv-tool" title="Duplicate" onClick={() => onDuplicateSection(sectionIndex)}><Icon name="duplicate" size={14} /></button>
-          {onSaveToBank && (
-            <button className="sv-tool" title="Save to your question bank" onClick={() => onSaveToBank(question)}><Icon name="bank" size={14} /></button>
-          )}
-          <button className="sv-tool danger" title="Delete" onClick={() => onRemoveSection(sectionIndex)}><Icon name="delete" size={14} /></button>
+          <StudioMenu
+            icon="menu"
+            ariaLabel={`More actions for question ${questionNumber}`}
+            className="sv-tool"
+            items={[
+              { label: 'Edit in detail', icon: 'edit', onSelect: () => onEditQuestion(question.localId) },
+              { label: 'Duplicate', icon: 'duplicate', onSelect: () => onDuplicateSection(sectionIndex) },
+              // The teacher's own "this one is finished" marker. Nothing — not a
+              // rewrite, not a validation pass, not a future migration — may
+              // overwrite a locked question.
+              onToggleLock && {
+                key: 'lock',
+                label: question.locked ? 'Unlock this question' : 'Lock this question so nothing rewrites it',
+                icon: 'lock',
+                active: Boolean(question.locked),
+                onSelect: () => onToggleLock(question.localId, !question.locked),
+              },
+              onSaveToBank && {
+                label: 'Save to your question bank',
+                icon: 'bank',
+                onSelect: () => onSaveToBank(question),
+              },
+              {
+                label: 'Delete this question',
+                icon: 'delete',
+                danger: true,
+                hint: 'Asks you to confirm first',
+                onSelect: () => setConfirmDelete(true),
+              },
+            ]}
+          />
         </span>
       </div>
 
+      {confirmDelete && (
+        <div className="sv-confirm-inline" role="alertdialog" aria-label="Delete this question?">
+          <span>Delete question {questionNumber}? This cannot be undone from here.</span>
+          <button type="button" className="sv-btn sv-btn-outline sv-btn-sm" onClick={() => setConfirmDelete(false)}>Keep it</button>
+          <button
+            type="button"
+            className="sv-btn sv-btn-danger sv-btn-sm"
+            onClick={() => { setConfirmDelete(false); onRemoveSection(sectionIndex) }}
+          >
+            Delete
+          </button>
+        </div>
+      )}
+
       <div className="sv-q-card-top">
-        <div className="sv-q-num">{questionNumbers[question.localId] || sectionIndex + 1}.</div>
-        <div className={`sv-q-type-tag ${meta.tag}`}>{meta.label.toUpperCase()}</div>
+        <div className="sv-q-num">{questionNumber}.</div>
+        {/* No type BADGE here: the dropdown beside it already says the type,
+            and states it in the one place the teacher can also change it. */}
         <select
           value={typeSelectValue(type)}
           onChange={e => {
@@ -611,70 +675,55 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
           />
         </label>
         <DifficultySelect question={question} onUpdateQuestion={onUpdateQuestion} />
-        <button
-          type="button"
-          onClick={handleSuggestAnswer}
-          disabled={suggesting}
-          title={isEssay
-            ? 'Ask AI to suggest marking notes / a sample answer for this essay'
-            : 'Ask AI to suggest the correct answer for this question'}
-          style={{
-            marginLeft: 'auto',
-            background: suggesting ? 'var(--sv-tinted)' : 'var(--sv-paper)',
-            border: '1px solid var(--sv-border)',
-            borderRadius: 'var(--sv-r-sm)',
-            padding: '3px 10px',
-            fontSize: 11.5,
-            cursor: suggesting ? 'default' : 'pointer',
-            color: 'var(--sv-text)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 4,
-          }}
-        >
-          {suggesting
-            ? <><Icon name="spinner" size={13} spin /> Thinking…</>
-            : <><Icon name="ai" size={13} /> {isEssay ? 'Suggest marking notes' : 'Suggest answer'}</>}
-        </button>
-        <button
-          type="button"
-          onClick={handleImprove}
-          disabled={revising}
-          title="Fix grammar & clarity at the same grade and difficulty"
-          style={{
-            background: 'var(--sv-paper)',
-            border: '1px solid var(--sv-border)',
-            borderRadius: 'var(--sv-r-sm)',
-            padding: '3px 10px',
-            fontSize: 11.5,
-            cursor: revising ? 'default' : 'pointer',
-            color: 'var(--sv-text)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 4,
-          }}
-        >
-          <Icon name="ai" size={13} /> Improve
-        </button>
-        <button
-          type="button"
-          onClick={() => setReviseOpen(o => !o)}
-          title="Rewrite the question for a different grade level or tone"
-          style={{
-            background: reviseOpen ? 'var(--sv-tinted)' : 'var(--sv-paper)',
-            border: '1px solid var(--sv-border)',
-            borderRadius: 'var(--sv-r-sm)',
-            padding: '3px 10px',
-            fontSize: 11.5,
-            cursor: 'pointer',
-            color: 'var(--sv-text)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 4,
-          }}
-        >
-          <Icon name="ai" size={13} /> Revise {reviseOpen ? '▾' : '▸'}
-        </button>
+        {/* One AI entry, not three side by side. Every one of these hands the
+            question to a model; which model and which prompt is an
+            implementation detail the teacher was being asked to choose between
+            in the toolbar. */}
+        <StudioMenu
+          label={suggesting || revising || rewriting ? 'Thinking…' : 'AI'}
+          icon={suggesting || revising || rewriting ? 'spinner' : 'ai'}
+          caret
+          className="sv-q-ai-btn"
+          ariaLabel={`AI actions for question ${questionNumber}`}
+          items={[
+            {
+              key: 'suggest',
+              label: isEssay ? 'Suggest marking notes' : 'Suggest the answer',
+              icon: 'ai',
+              disabled: suggesting,
+              hint: isEssay ? 'A sample answer to mark against' : 'Fills in the correct answer for you',
+              onSelect: handleSuggestAnswer,
+            },
+            {
+              key: 'improve',
+              label: 'Improve the wording',
+              icon: 'enhance',
+              disabled: revising,
+              hint: 'Grammar and clarity, same grade and difficulty',
+              onSelect: handleImprove,
+            },
+            {
+              key: 'revise',
+              label: 'Revise for another grade or tone…',
+              icon: 'difficulty',
+              onSelect: () => setReviseOpen(true),
+            },
+            // Rewrite THIS question only. Every other question on the paper —
+            // including the teacher's edits to them — is left exactly as it is.
+            // Refused outright on a locked question.
+            onRewriteQuestion && {
+              key: 'rewrite',
+              label: 'Rewrite this question',
+              icon: 'rewrite',
+              disabled: rewriting || question.locked,
+              disabledReason: question.locked
+                ? 'Unlock this question first if you want it rewritten'
+                : 'A rewrite is already running',
+              hint: 'The rest of the paper is untouched',
+              onSelect: () => onRewriteQuestion(question.localId),
+            },
+          ]}
+        />
       </div>
 
       {mathsPaper && <ConvertMathsNotation question={question} onUpdate={updateQuestion} />}
@@ -788,9 +837,13 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
             <div>Uploading image…</div>
           </div>
         ) : (
-          <>
+          // ONE row for the stem's figure, with the four sources inside it.
+          // They used to be three permanent buttons stacked under the drop
+          // zone, on every question, whether or not the paper had a single
+          // figure in it — four affordances for one decision.
+          <div className="sv-q-media-row">
             <button type="button" className="sv-q-media" onClick={() => imageInputRef.current?.click()}>
-              <div className="sv-ic"><Icon name="diagrams" size={24} /></div>
+              <div className="sv-ic"><Icon name="diagrams" size={22} /></div>
               <div>Add a diagram or image (optional)</div>
               <small>JPG, PNG or WEBP · up to 15 MB</small>
               <input
@@ -805,31 +858,19 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
                 }}
               />
             </button>
-            <button
-              type="button"
-              className="sv-btn sv-btn-outline"
-              style={{ marginTop: 6, fontSize: 13 }}
-              onClick={() => setBankTarget('question')}
-            >
-              <Icon name="pictureBank" size={14} /> Picture bank / AI picture
-            </button>
-            <button
-              type="button"
-              className="sv-btn sv-btn-outline"
-              style={{ marginTop: 6, fontSize: 13 }}
-              onClick={() => setDiagramTarget('question')}
-            >
-              <Icon name="shape" size={14} /> Shape / diagram
-            </button>
-            <button
-              type="button"
-              className="sv-btn sv-btn-outline"
-              style={{ marginTop: 6, fontSize: 13 }}
-              onClick={() => setCameraOpen(true)}
-            >
-              <Icon name="camera" size={14} /> Camera
-            </button>
-          </>
+            <StudioMenu
+              label="Or pick a source"
+              icon="pictureBank"
+              caret
+              className="sv-btn sv-btn-outline sv-btn-sm"
+              ariaLabel={`Pick a figure source for question ${questionNumber}`}
+              items={[
+                { label: 'Picture bank / AI picture', icon: 'pictureBank', onSelect: () => setBankTarget('question') },
+                { label: 'Shape · diagram', icon: 'shape', onSelect: () => setDiagramTarget('question') },
+                { label: 'Camera', icon: 'camera', onSelect: () => setCameraOpen(true) },
+              ]}
+            />
+          </div>
         )
       )}
 

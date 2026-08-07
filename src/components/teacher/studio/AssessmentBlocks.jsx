@@ -24,6 +24,7 @@ import {
 } from '../syllabusTopicOptions'
 import { LEVEL_STAGE_LABELS, assessmentCategory } from '../paperTaxonomy'
 import { CHOICE_COUNT_OPTIONS, recommendedChoiceCount, resolveChoiceCount } from '../../../utils/mcqChoices'
+import { headerIsComplete, headerSummarySegments } from './paperHeaderSummary'
 import { PAGE_SIZES, MARGIN_PRESETS } from '../../../config/paperLayoutTokens'
 import { GRADE_NUMBER_STYLES, LEARNER_NAME_LABELS } from '../../../utils/paperMetadata'
 
@@ -144,9 +145,51 @@ function ImportSummaryBanner({ summary, onDismiss }) {
 }
 
 /* ==================================================================
+ * HEADER SUMMARY — what the Paper Header collapses to once it is filled
+ *
+ * The builder is about questions. The header is thirteen controls that a
+ * teacher answers once and then scrolls past on every visit. Once the paper
+ * states everything the summary would have to show, it collapses to the
+ * sentence of those answers plus one Edit affordance.
+ *
+ * The estimated-time chip rides here rather than in the warnings banner: it is
+ * a permanent fact about the paper, not something to fix, and the teacher wants
+ * it beside the duration it is being compared against.
+ * ================================================================== */
+function HeaderSummaryCard({ form, onEdit, timingWarning }) {
+  const segments = headerSummarySegments(form)
+  return (
+    <div className="sv-block b-header sv-header-summary">
+      <div className="sv-header-summary-row">
+        <span className="sv-ic"><Icon name="header" size={15} /></span>
+        <p className="sv-header-summary-line">
+          {segments.map((seg, i) => (
+            <span key={seg + i}>
+              {i > 0 && <span className="sv-header-summary-sep" aria-hidden="true"> · </span>}
+              {seg}
+            </span>
+          ))}
+        </p>
+        <button type="button" className="sv-btn sv-btn-outline sv-btn-sm" onClick={onEdit}>
+          <Icon name="edit" size={13} /> Edit
+        </button>
+      </div>
+      {timingWarning && (
+        <span
+          className={`sv-time-chip${timingWarning.key === 'timing-over' ? ' over' : ''}`}
+          title={timingWarning.message}
+        >
+          <Icon name="time" size={12} /> {timingWarning.message}
+        </span>
+      )}
+    </div>
+  )
+}
+
+/* ==================================================================
  * HEADER BLOCK
  * ================================================================== */
-export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, assessmentTypes = ['topic_test', 'weekly_test', 'mid_term', 'end_of_term', 'mock_exam', 'examination', 'final_exam'], assessmentTypeLabel = 'Assessment type', importSummary, onDismissImportSummary }) {
+export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, assessmentTypes = ['topic_test', 'weekly_test', 'mid_term', 'end_of_term', 'mock_exam', 'examination', 'final_exam'], assessmentTypeLabel = 'Assessment type', importSummary, onDismissImportSummary, open = true, onToggleOpen, timingWarning = null, variant = 'inline' }) {
   const docInputRef = useRef(null)
   // Import options — both default ON; threaded into the parser via onImportDocument.
   const [preserveNumbering, setPreserveNumbering] = useState(true)
@@ -201,10 +244,48 @@ export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, a
     // (reset above) keeps this to a single snap per user change.
   }, [validSubjectsLoading, validSubjectLabels, form.subject, form.topic, setF])
 
-  return (
-    <div className="sv-block b-header">
+  // Escape closes the reopened form, the way it closes every other overlay in
+  // the studio. Declared before the early returns below so the hook order is
+  // the same on every render.
+  useEffect(() => {
+    if (!(open && variant === 'drawer' && onToggleOpen)) return undefined
+    const onKey = (e) => { if (e.key === 'Escape') onToggleOpen() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open, variant, onToggleOpen])
+
+  // Collapsed — but only when the header actually states everything the summary
+  // would have to show. A summary reading "· · 2026 · 60 min" would be HIDING
+  // the fields that still need answering, which is the opposite of its job, so
+  // an incomplete header stays open no matter what the parent asked for.
+  const complete = headerIsComplete(form)
+  if (!open && complete) {
+    return (
+      <>
+        {importSummary && (
+          <ImportSummaryBanner summary={importSummary} onDismiss={onDismissImportSummary} />
+        )}
+        <HeaderSummaryCard form={form} onEdit={onToggleOpen} timingWarning={timingWarning} />
+      </>
+    )
+  }
+
+  const body = (
+    <>
       <div className="sv-block-head">
         <span className="sv-ic"><Icon name="header" size={15} /></span> Paper Header
+        {onToggleOpen && complete && (
+          <span className="sv-tools">
+            <button
+              type="button"
+              className="sv-header-done"
+              onClick={onToggleOpen}
+              title="Collapse this back to a one-line summary"
+            >
+              <Icon name="check" size={13} /> Done
+            </button>
+          </span>
+        )}
       </div>
 
       {importSummary && (
@@ -552,8 +633,28 @@ export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, a
           </div>
         </div>
       </div>
-    </div>
+    </>
   )
+
+  // A paper that has already collapsed its header once reopens the form as a
+  // DRAWER over the canvas, rather than pushing every question down the page
+  // again. A paper that has never collapsed it (a brand-new one, still being
+  // set up) gets it inline, where it reads as the first thing to fill in.
+  if (variant === 'drawer') {
+    return (
+      <>
+        {complete && (
+          <HeaderSummaryCard form={form} onEdit={onToggleOpen} timingWarning={timingWarning} />
+        )}
+        <div className="sv-scrim open" onClick={onToggleOpen} />
+        <div className="sv-header-drawer" role="dialog" aria-modal="true" aria-label="Paper header">
+          <div className="sv-block b-header">{body}</div>
+        </div>
+      </>
+    )
+  }
+
+  return <div className="sv-block b-header">{body}</div>
 }
 
 export function Toggle({ label, icon, on, onChange }) {
@@ -660,7 +761,7 @@ export function SectionBlock(props) {
     onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage,
     onUpdateSection, onUploadPassageImage, onRemovePassageImage,
     onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion,
-    onAssignSectionToPart,
+    onAssignSectionToPart, onReorderSection, dragIndex, onDragStateChange,
   } = props
 
   if (section.kind === 'pagebreak') {
@@ -694,7 +795,22 @@ export function SectionBlock(props) {
       />
     )
   }
+  // Drop target for the handle-driven reorder. It wraps the card rather than
+  // living on it so the whole block — including the space beside a short
+  // question — accepts the drop, and so `onDragOver`'s preventDefault (without
+  // which the browser refuses every drop) is declared once.
+  const dragging = dragIndex != null && dragIndex !== sectionIndex
   return (
+    <div
+      className={`sv-drop${dragging ? ' is-target' : ''}`}
+      onDragOver={onReorderSection ? (e) => { if (dragIndex != null) e.preventDefault() } : undefined}
+      onDrop={onReorderSection ? (e) => {
+        if (dragIndex == null) return
+        e.preventDefault()
+        if (dragIndex !== sectionIndex) onReorderSection(dragIndex, sectionIndex)
+        onDragStateChange?.(null)
+      } : undefined}
+    >
     <QuestionBlock
       section={section}
       sectionIndex={sectionIndex}
@@ -709,6 +825,8 @@ export function SectionBlock(props) {
       onSaveToBank={onSaveToBank}
       onToggleLock={onToggleLock}
       onRewriteQuestion={onRewriteQuestion}
+      onReorderSection={onReorderSection}
+      onDragStateChange={onDragStateChange}
       rewriting={rewritingKey === section.question?.localId}
       onUpdateQuestion={(field, value) => onUpdateStandaloneQuestion(sectionIndex, field, value)}
       onUploadImage={file => onUploadStandaloneImage(sectionIndex, file)}
@@ -717,6 +835,7 @@ export function SectionBlock(props) {
       onRemoveOptionImage={optIndex => onRemoveStandaloneOptionImage(sectionIndex, optIndex)}
       onAssignSectionToPart={onAssignSectionToPart}
     />
+    </div>
   )
 }
 

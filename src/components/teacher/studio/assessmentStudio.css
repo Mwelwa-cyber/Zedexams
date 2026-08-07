@@ -790,6 +790,11 @@
   transition: opacity 0.15s;
 }
 .studio-v2 .sv-block:hover .sv-block-head .sv-tools { opacity: 1; }
+/* An OPEN ⋯ menu must survive the pointer leaving the block — the menu takes
+   focus when it opens, so focus-within is what holds the row visible while the
+   teacher moves down onto an item. Without it the whole group faded out from
+   under the cursor mid-choice. */
+.studio-v2 .sv-block-head .sv-tools:focus-within { opacity: 1; }
 @media (hover: none) {
   .studio-v2 .sv-block-head .sv-tools { opacity: 1; }
 }
@@ -3542,3 +3547,413 @@
   background: var(--sv-paper);
   color: var(--sv-text);
 }
+
+/* ============================================================
+   TOP BAR — document title, status, Save
+   ============================================================
+   The title is COMPOSED per width by DocTitle (docTitleParts.js), not
+   ellipsed: an ellipsis truncates by position, and the facts identifying one
+   paper among a teacher's others (its type, its term, its year) all sit at the
+   end of the string. So nothing here may reintroduce `text-overflow: ellipsis`
+   on the title itself — `min-width: 0` is what lets the flex row shrink.
+   ============================================================ */
+.studio-v2 .sv-doc-title {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.2;
+  text-align: left;
+  color: inherit;
+}
+.studio-v2 .sv-doc-title-line1 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 600;
+  font-size: 16px;
+  /* The one place a clamp is safe: the wide/medium forms are already sized to
+     their tier, and the narrow form puts every fact on line 2. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.studio-v2 .sv-doc-title.is-narrow .sv-doc-title-line1 { font-size: 14px; }
+.studio-v2 .sv-doc-title-line2 {
+  font-family: 'Geist', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--sv-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.studio-v2 button.sv-doc-title { cursor: pointer; }
+.studio-v2 button.sv-doc-title:hover .sv-doc-title-line1 { text-decoration: underline; }
+
+/* The bar's own Save. Primary weight, because it is the one durable action on
+   a surface whose every other control is an edit. */
+.studio-v2 .sv-appbar-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 99px;
+  background: var(--sv-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+.studio-v2 .sv-appbar-save:hover { background: var(--sv-primary-dark); }
+.studio-v2 .sv-appbar-save:disabled { opacity: 0.45; cursor: default; }
+.studio-v2 .sv-appbar-save:disabled:hover { background: var(--sv-primary); }
+@media (max-width: 400px) {
+  /* Below this the title needs every pixel; the icon still reads as Save. */
+  .studio-v2 .sv-appbar-save-lbl { display: none; }
+  .studio-v2 .sv-appbar-save { padding: 8px 10px; }
+  .studio-v2 .sv-app-bar .sv-badge-mini { display: none; }
+}
+
+/* ============================================================
+   STUDIO MENU — the one dropdown behind Tools ▾ / ✦ AI ▾ / ⋯
+   ============================================================ */
+.studio-v2 .sv-menu { position: relative; display: inline-flex; }
+.studio-v2 .sv-menu-caret { font-size: 10px; line-height: 1; opacity: 0.7; }
+.studio-v2 .sv-menu-list {
+  position: absolute;
+  top: 100%;
+  margin-top: 6px;
+  z-index: 120;
+  min-width: 210px;
+  max-width: min(280px, calc(100vw - 24px));
+  padding: 4px;
+  background: var(--sv-paper);
+  border: 1px solid var(--sv-border-strong);
+  border-radius: var(--sv-r);
+  box-shadow: var(--sv-shadow-md);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.studio-v2 .sv-menu-list.right { right: 0; }
+.studio-v2 .sv-menu-list.left { left: 0; }
+.studio-v2 .sv-menu-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--sv-r-sm);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  color: var(--sv-text);
+  white-space: normal;
+  transition: background 0.12s;
+}
+.studio-v2 .sv-menu-item:hover:not(:disabled) { background: var(--sv-canvas-2); }
+.studio-v2 .sv-menu-item:disabled { opacity: 0.42; cursor: not-allowed; }
+.studio-v2 .sv-menu-item.danger { color: var(--sv-primary); }
+.studio-v2 .sv-menu-item.danger:hover:not(:disabled) { background: var(--sv-primary-soft); }
+.studio-v2 .sv-menu-item.active { background: var(--sv-canvas-2); }
+.studio-v2 .sv-menu-item .sv-icon { margin-top: 1px; flex-shrink: 0; }
+.studio-v2 .sv-menu-item-text { min-width: 0; }
+.studio-v2 .sv-menu-item-text small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--sv-muted);
+  margin-top: 1px;
+}
+
+/* ============================================================
+   BUILDER TOOLBAR — one row: segments · Tools ▾ · undo/redo · ⋯ · Save
+   ============================================================ */
+.studio-v2 .sv-seg {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  background: var(--sv-canvas-2);
+  border: 1px solid var(--sv-border);
+  border-radius: 99px;
+  flex-shrink: 0;
+}
+.studio-v2 .sv-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 99px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--sv-muted);
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.studio-v2 .sv-seg-btn:hover { color: var(--sv-ink); }
+.studio-v2 .sv-seg-btn.active {
+  background: var(--sv-paper);
+  color: var(--sv-ink);
+  box-shadow: var(--sv-shadow-xs);
+}
+/* Below 768px the bottom dock (Home · Build · Preview · Key · AI) already owns
+   this navigation. Two navigations for one decision is how a teacher ends up
+   tapping the one that isn't the current view. */
+@media (max-width: 767px) {
+  .studio-v2 .sv-seg { display: none; }
+}
+.studio-v2 .sv-builder-bar .sv-tb-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+.studio-v2 .sv-chip.sv-chip-icon { padding: 6px 9px; }
+
+/* ============================================================
+   PAPER HEADER — collapsed summary + reopened drawer
+   ============================================================ */
+.studio-v2 .sv-header-summary { padding: var(--sv-s3) var(--sv-s4); }
+.studio-v2 .sv-header-summary-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-s3);
+  flex-wrap: wrap;
+}
+.studio-v2 .sv-header-summary-line {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--sv-text);
+  line-height: 1.5;
+}
+.studio-v2 .sv-header-summary-sep { color: var(--sv-muted-2); }
+/* The estimated-completion-time chip. Blue = information; amber only when the
+   paper is estimated to run OVER the time it allows. */
+.studio-v2 .sv-time-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: var(--sv-s2);
+  padding: 3px 9px;
+  border-radius: 99px;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: var(--sv-indigo-soft);
+  color: var(--sv-indigo);
+}
+.studio-v2 .sv-time-chip.over {
+  background: var(--sv-gold-soft);
+  color: #7A5A1F;
+}
+
+/* "Done" is the drawer's only close affordance besides the scrim and Escape, so
+   it is never hover-revealed the way the block tool rows are. */
+.studio-v2 .sv-header-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: 99px;
+  background: var(--sv-ink);
+  color: var(--sv-canvas);
+  font-family: 'Geist', sans-serif;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.studio-v2 .sv-header-done:hover { background: var(--sv-ink-soft); }
+.studio-v2 .b-header .sv-block-head .sv-tools { opacity: 1; }
+
+.studio-v2 .sv-header-drawer {
+  position: fixed;
+  z-index: 101;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(520px, 100vw);
+  overflow-y: auto;
+  padding: var(--sv-s4);
+  background: var(--sv-canvas);
+  box-shadow: var(--sv-shadow-lg);
+}
+@media (max-width: 640px) {
+  .studio-v2 .sv-header-drawer {
+    top: auto;
+    left: 0;
+    width: auto;
+    max-height: 90vh;
+    border-radius: var(--sv-r-xl) var(--sv-r-xl) 0 0;
+  }
+}
+
+/* ============================================================
+   PAPER DETAILS SHEET (phone) — behind the document title
+   ============================================================ */
+.studio-v2 .sv-sheet {
+  position: fixed;
+  z-index: 101;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: var(--sv-s3) var(--sv-s4) calc(env(safe-area-inset-bottom) + var(--sv-s4));
+  background: var(--sv-paper);
+  border-radius: var(--sv-r-xl) var(--sv-r-xl) 0 0;
+  box-shadow: var(--sv-shadow-lg);
+}
+@media (min-width: 768px) {
+  /* Desktop opens it as a centred card — the title is not a tap target there,
+     but the sheet is still reachable from the header's own controls. */
+  .studio-v2 .sv-sheet {
+    left: 50%;
+    bottom: auto;
+    top: 12vh;
+    transform: translateX(-50%);
+    width: min(460px, calc(100vw - 32px));
+    border-radius: var(--sv-r-lg);
+  }
+}
+.studio-v2 .sv-sheet-grabber {
+  width: 40px;
+  height: 4px;
+  margin: 0 auto var(--sv-s3);
+  background: var(--sv-border-strong);
+  border-radius: 99px;
+}
+.studio-v2 .sv-sheet-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sv-s2);
+  margin-bottom: var(--sv-s2);
+}
+.studio-v2 .sv-sheet-title {
+  flex: 1;
+  min-width: 0;
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.3;
+}
+.studio-v2 .sv-sheet-facts {
+  display: flex;
+  gap: var(--sv-s4);
+  flex-wrap: wrap;
+  padding-bottom: var(--sv-s3);
+  margin-bottom: var(--sv-s3);
+  border-bottom: 1px solid var(--sv-border);
+  font-size: 12px;
+  color: var(--sv-muted);
+}
+.studio-v2 .sv-sheet-facts strong { color: var(--sv-text); font-weight: 600; }
+.studio-v2 .sv-sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-s3);
+}
+.studio-v2 .sv-sheet-foot {
+  display: flex;
+  gap: var(--sv-s2);
+  justify-content: flex-end;
+  margin-top: var(--sv-s4);
+}
+
+/* ============================================================
+   QUESTION BLOCK — drag handle, inline confirm, AI entry, option image
+   ============================================================ */
+.studio-v2 .sv-drag-handle {
+  width: 26px;
+  height: 26px;
+  margin-left: -4px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  color: var(--sv-muted-2);
+  cursor: grab;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.studio-v2 .sv-drag-handle:hover,
+.studio-v2 .sv-drag-handle:focus-visible {
+  background: var(--sv-canvas-2);
+  color: var(--sv-ink);
+}
+.studio-v2 .sv-drag-handle:active { cursor: grabbing; }
+.studio-v2 .sv-drop.is-target > .sv-block {
+  outline: 2px dashed var(--sv-indigo);
+  outline-offset: 3px;
+}
+
+.studio-v2 .sv-confirm-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-s2);
+  flex-wrap: wrap;
+  margin-bottom: var(--sv-s3);
+  padding: 8px 10px;
+  border-radius: var(--sv-r-sm);
+  background: var(--sv-primary-soft);
+  color: var(--sv-primary-dark);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.studio-v2 .sv-confirm-inline > span { flex: 1; min-width: 160px; }
+.studio-v2 .sv-btn-danger { background: var(--sv-primary); color: #fff; }
+.studio-v2 .sv-btn-danger:hover { background: var(--sv-primary-dark); }
+
+.studio-v2 .sv-q-ai-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--sv-r-sm);
+  border: 1px solid var(--sv-border);
+  background: var(--sv-paper);
+  color: var(--sv-text);
+  font-size: 11.5px;
+}
+.studio-v2 .sv-q-ai-btn:hover { background: var(--sv-tinted); }
+
+.studio-v2 .sv-q-media-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-s2);
+  flex-wrap: wrap;
+}
+.studio-v2 .sv-q-media-row .sv-q-media { flex: 1; min-width: 200px; }
+
+.studio-v2 .sv-opt-img { flex-shrink: 0; }
+.studio-v2 .sv-opt-img-btn {
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1.5px dashed var(--sv-border-strong);
+  background: transparent;
+  color: var(--sv-muted);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.studio-v2 .sv-opt-img-btn:hover { color: var(--sv-ink); border-color: var(--sv-ink); }
+
+/* ============================================================
+   FAB CLEARANCE
+
+   The + FAB is fixed above the dock, so the last block's controls and the
+   totals below the canvas used to sit under it. Reserve the height of both
+   at the foot of the scroll instead of letting the FAB cover them.
+   ============================================================ */
+.studio-v2 .sv-doc-canvas {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 148px);
+}
+
+/* Night: the tinted chips take their ink up with the wash, same rule as the
+   rest of the studio's semantic tints. */
+[data-theme='night'] .studio-v2 .sv-time-chip { color: #8FA3E0; }
+[data-theme='night'] .studio-v2 .sv-time-chip.over { color: #E5B55F; }
+[data-theme='night'] .studio-v2 .sv-confirm-inline { color: #EE8A9B; }
+[data-theme='night'] .studio-v2 .sv-menu-item.danger { color: #EE8A9B; }

@@ -56,55 +56,71 @@ function renderCard({ locked = false, rewriting = false, ...props } = {}) {
   return { onToggleLock, onRewriteQuestion }
 }
 
-const lockButton = () => screen.getByRole('button', { name: /lock this question/i })
-const rewriteButton = () => screen.getByRole('button', { name: /rewrite just this question|unlock this question first/i })
+// Both controls now live behind a grouped menu on the block header (#2.4): the
+// ⋯ overflow owns lock/duplicate/delete, the ✦ AI entry owns everything that
+// hands the question to a model. Open the right one, then act.
+function openOverflow() {
+  fireEvent.click(screen.getByRole('button', { name: /more actions for question 1/i }))
+}
+function openAiMenu() {
+  fireEvent.click(screen.getByRole('button', { name: /ai actions for question 1/i }))
+}
+const lockItem = () => screen.getByRole('menuitem', { name: /lock this question/i })
+const rewriteItem = () => screen.getByRole('menuitem', { name: /rewrite this question/i })
 
 describe('QuestionBlock — lock and single-question rewrite', () => {
   it('offers to rewrite just this question, not the paper', () => {
     const { onRewriteQuestion } = renderCard()
-    const btn = rewriteButton()
-    expect(btn).toHaveAttribute('title', expect.stringMatching(/the rest of the paper is untouched/i))
-    fireEvent.click(btn)
+    openAiMenu()
+    const item = rewriteItem()
+    expect(item).toHaveTextContent(/the rest of the paper is untouched/i)
+    fireEvent.click(item)
     expect(onRewriteQuestion).toHaveBeenCalledWith('q-1')
   })
 
   it('locks a question on request', () => {
     const { onToggleLock } = renderCard()
-    expect(lockButton()).toHaveAttribute('aria-pressed', 'false')
-    fireEvent.click(lockButton())
+    openOverflow()
+    expect(lockItem()).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(lockItem())
     expect(onToggleLock).toHaveBeenCalledWith('q-1', true)
   })
 
   it('a locked question says so and cannot be rewritten', () => {
     const { onRewriteQuestion } = renderCard({ locked: true })
     expect(screen.getByText('Locked')).toBeInTheDocument()
-    const btn = screen.getByRole('button', { name: /unlock this question first/i })
-    expect(btn).toBeDisabled()
-    fireEvent.click(btn)
+    openAiMenu()
+    const item = rewriteItem()
+    expect(item).toBeDisabled()
+    expect(item).toHaveAttribute('title', expect.stringMatching(/unlock this question first/i))
+    fireEvent.click(item)
     expect(onRewriteQuestion).not.toHaveBeenCalled()
   })
 
   it('unlocking is the same control, pressed', () => {
     const { onToggleLock } = renderCard({ locked: true })
-    const btn = screen.getByRole('button', { name: /unlock this question$/i })
-    expect(btn).toHaveAttribute('aria-pressed', 'true')
-    fireEvent.click(btn)
+    openOverflow()
+    const item = screen.getByRole('menuitem', { name: /unlock this question/i })
+    expect(item).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(item)
     expect(onToggleLock).toHaveBeenCalledWith('q-1', false)
   })
 
   it('the rewrite control is disabled while a rewrite is in flight', () => {
     const { onRewriteQuestion } = renderCard({ rewriting: true })
-    const btn = rewriteButton()
-    expect(btn).toBeDisabled()
-    fireEvent.click(btn)
+    openAiMenu()
+    expect(rewriteItem()).toBeDisabled()
+    fireEvent.click(rewriteItem())
     expect(onRewriteQuestion).not.toHaveBeenCalled()
   })
 
   it('a studio that has not wired the controls shows neither', () => {
     // The card is shared; a caller that passes no handlers must not render dead
-    // buttons.
+    // menu items.
     renderCard({ onToggleLock: undefined, onRewriteQuestion: undefined })
-    expect(screen.queryByRole('button', { name: /lock this question/i })).toBeNull()
-    expect(screen.queryByRole('button', { name: /rewrite just this question/i })).toBeNull()
+    openOverflow()
+    expect(screen.queryByRole('menuitem', { name: /lock this question/i })).toBeNull()
+    openAiMenu()
+    expect(screen.queryByRole('menuitem', { name: /rewrite this question/i })).toBeNull()
   })
 })
