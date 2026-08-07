@@ -342,25 +342,36 @@ export default function PublicQuizRunner() {
   // silently describe a DIFFERENT question per path. That class of bug does not
   // throw; it has to be refused structurally.
   const engineAssessment = useMemo(() => {
-    if (!engineFlag.engine || !quiz || questions.length === 0) return null
+    // `resolved` gates the mount (the hook's own contract): before both reads
+    // have settled the hook reports a PROVISIONAL decision, and serving the
+    // engine card on it briefly shows a returning learner a card their eventual
+    // uid may not be in the rollout for — then swaps it mid-question.
+    if (!engineFlag.resolved || !engineFlag.engine || !quiz || questions.length === 0) return null
     try {
       const assessment = fromQuiz({ quiz, questions, source: 'pastPaperQuiz' })
       const aligned = assessment.questions.length === questions.length
         && assessment.questions.every((q, i) => q.id === questions[i]?.id)
       if (!aligned) {
-        reportClientError('paper-quiz-engine', new Error('canonical questions misaligned with source'), { paperId })
+        reportClientError(new Error('canonical questions misaligned with source'), 'paper-quiz-engine')
         return null
       }
+      // The canonical key is derived ONLY from an integer `correctAnswer`
+      // today; the legacy shapes the old card scores (`correctAnswerIndex`,
+      // `correctIndex`, option-level `isCorrect`, a string/letter key)
+      // normalise to a null correctIndex — a card that paints no answer green
+      // and marks every selection wrong. Until the normaliser learns those
+      // shapes, a paper carrying one is the old runner's to serve.
+      if (assessment.questions.some((q) => q.correctIndex == null)) return null
       // "Can this learner be shown this whole paper" — one unsupported type
       // anywhere and the old runner serves all of it. A per-question mix of
       // engine and old cards would make a render bug impossible to attribute.
       if (unrenderableTypes(assessment).length > 0) return null
       return assessment
     } catch (err) {
-      reportClientError('paper-quiz-engine', err, { paperId })
+      reportClientError(err, 'paper-quiz-engine')
       return null
     }
-  }, [engineFlag.engine, quiz, questions, paperId])
+  }, [engineFlag.resolved, engineFlag.engine, quiz, questions])
   const engineActive = engineAssessment != null
   const engineQuestion = engineActive ? engineAssessment.questions[currentIndex] || null : null
 
@@ -691,6 +702,7 @@ export default function PublicQuizRunner() {
                 answer={selection}
                 revealed={revealed}
                 onAnswer={handleSelect}
+                disabled={lockedOut}
               />
             </div>
           ) : (
