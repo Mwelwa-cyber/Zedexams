@@ -18,7 +18,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import yaml from 'js-yaml'
 import {
-  GATE_MODES, RENDERER_FAMILIES, REQUIRED_ARTEFACTS, FAILURE_ARTEFACTS,
+  GATE_MODES, RENDERER_FAMILIES, UPDATABLE_FAMILIES, REQUIRED_ARTEFACTS, FAILURE_ARTEFACTS,
   mayWriteBaseline, validateUpdateRequest, baselineWriteFilter, planBaselineUpdate,
   validateBootstrapRequest, planBaselineBootstrap,
   validateSweepUpdateRequest, assertBaselineDestination,
@@ -136,9 +136,34 @@ test('the gate reports on every pull request, under one stable name', () => {
     'the required check name is stable')
   assert.equal(compareWorkflow.jobs.gate.if, 'always()',
     'the gate reports whatever the other jobs did')
-  assert.deepEqual(compareWorkflow.jobs.gate.needs, ['scope', 'visual'])
-  // And the expensive job is NOT the one to require: it legitimately skips.
+  // Both render families report through this one check. A second required
+  // check would need a second branch-protection entry with the same wedging
+  // risk, and the question a pull request needs answered is one question.
+  assert.deepEqual(compareWorkflow.jobs.gate.needs, ['scope', 'visual', 'screen'])
+  // And the expensive jobs are NOT the ones to require: they legitimately skip.
   assert.equal(compareWorkflow.jobs.visual.if, "needs.scope.outputs.requires_visual == 'true'")
+  assert.equal(compareWorkflow.jobs.screen.if, "needs.scope.outputs.requires_screen == 'true'")
+  // Neither expensive job may acquire a path filter of its own either: the gate
+  // reads their results, so a filtered job is an absence the gate must judge
+  // rather than a job that quietly did not matter.
+  for (const job of ['visual', 'screen']) {
+    assert.ok(!compareWorkflow.jobs[job].paths, `${job} must not filter by path`)
+  }
+})
+
+test('the screen job asserts only the tools it actually needs', () => {
+  // It renders in Chromium and does not install LibreOffice. Asserting the
+  // paper toolchain there fails a job that has everything it needs — which is
+  // what happened on this job's first run, reporting "LibreOffice not
+  // available" for a render that never wanted it.
+  const steps = compareWorkflow.jobs.screen.steps
+  const env = steps.find((st) => /reportEnvironment/.test(st.run || ''))
+  assert.ok(env, 'the screen job records its rendering environment')
+  assert.match(env.run, /--stages=screen/,
+    'the screen job must assert the SCREEN toolchain, not the paper one')
+  assert.ok(!steps.some((st) => /libreoffice|soffice/i.test(st.run || '')),
+    'the screen family renders in Chromium only — installing LibreOffice here buys nothing '
+    + 'and asserting it fails the job')
 })
 
 test('the gate\u2019s verdict is a tested module, not an untestable expression', () => {
@@ -147,7 +172,8 @@ test('the gate\u2019s verdict is a tested module, not an untestable expression',
   // ran. A GitHub `if:` expression cannot be tested.
   const decide = compareWorkflow.jobs.gate.steps.find((st) => /gateVerdict/.test(st.run || ''))
   assert.ok(decide, 'the gate decides through gateVerdict.js')
-  for (const key of ['SCOPE_RESULT', 'VISUAL_RESULT', 'REQUIRES_VISUAL']) {
+  for (const key of ['SCOPE_RESULT', 'VISUAL_RESULT', 'REQUIRES_VISUAL',
+    'SCREEN_RESULT', 'REQUIRES_SCREEN']) {
     assert.ok(key in (decide.env || {}), `the verdict is given ${key}`)
   }
 })
@@ -289,8 +315,25 @@ test('the writers are separate from the comparison, and it can never write', () 
   for (const [name, workflow] of Object.entries(WRITERS)) {
     assert.ok(!workflow.on.pull_request, `${name} never triggers on a pull request`)
     assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch'], `${name} is manual only`)
-    const job = Object.values(workflow.jobs)[0]
-    assert.equal(job.permissions.contents, 'write', `${name} writes from the job, not the workflow`)
+    // Found by what it DOES, not by position. The bootstrap now has three jobs
+    // and the writing one is last; anchoring on `jobs[0]` silently moved this
+    // assertion onto a job that holds no credentials, which is the shape of a
+    // security test that passes while checking nothing.
+    const writers = Object.entries(workflow.jobs)
+      .filter(([, job]) => job.permissions?.contents === 'write')
+    assert.equal(writers.length, 1, `${name} grants write to EXACTLY one job`)
+    const [writerName, writer] = writers[0]
+    assert.ok(
+      (writer.steps || []).some((st) => /gh pr create/.test(st.run || '')),
+      `${name}: the job that can write (${writerName}) is the one that opens the pull request`,
+    )
+    // Every OTHER job — including the recorders, which run render code — is
+    // read-only. They render and upload; they never touch the repository.
+    for (const [other, job] of Object.entries(workflow.jobs)) {
+      if (other === writerName) continue
+      assert.equal(job.permissions?.contents, 'read',
+        `${name}: ${other} renders but must not be able to write`)
+    }
     // Scoped to the job: the workflow-level default stays read, so a step added
     // outside that job cannot inherit the ability to write.
     assert.deepEqual(workflow.permissions, { contents: 'read' }, `${name} defaults to read`)
@@ -299,7 +342,11 @@ test('the writers are separate from the comparison, and it can never write', () 
 
 test('no writer pushes to the protected default branch', () => {
   for (const [name, workflow] of Object.entries(WRITERS)) {
-    const runs = JSON.stringify(Object.values(workflow.jobs)[0].steps)
+    // The job that pushes, wherever it sits in the file.
+    const pusher = Object.values(workflow.jobs)
+      .find((job) => (job.steps || []).some((st) => /git push/.test(st.run || '')))
+    assert.ok(pusher, `${name} has a job that pushes`)
+    const runs = JSON.stringify(pusher.steps)
     assert.ok(/checkout -b/.test(runs), `${name} works on a branch`)
     assert.ok(/gh pr create/.test(runs), `${name} opens a pull request for review`)
     assert.ok(/--draft/.test(runs), `${name} opens it as a draft`)
@@ -391,7 +438,10 @@ test('the update workflow always requires a reason and a source', () => {
   // The family is a choice, so a typo cannot silently target nothing. The empty
   // option is the sweep's "every family" and is only reachable there — the
   // validator below refuses it for a one-baseline update.
-  assert.deepEqual(inputs.family.options, ['', ...RENDERER_FAMILIES])
+  // The UPDATABLE subset, not every family. Replacing goes through the sweep
+  // path, which is not routed to the screen runner — an option reaching an
+  // unrouted path would silently record nothing while reporting success.
+  assert.deepEqual(inputs.family.options, ['', ...UPDATABLE_FAMILIES])
 })
 
 test('fixture and family are optional to the WORKFLOW and required by the RECORDER', () => {
@@ -555,24 +605,182 @@ test('the bootstrap workflow requires a reason and a source, and nothing else', 
   assert.equal(inputs.family.default, 'all')
 })
 
+/** The bootstrap's two recorders. Split because the families need
+ *  incompatible environments — see the LibreOffice test below. */
+const RECORDERS = {
+  'record-paper': bootstrapWorkflow.jobs['record-paper'],
+  'record-screen': bootstrapWorkflow.jobs['record-screen'],
+}
+
 test('the bootstrap validates fixtures BEFORE recording them', () => {
-  const steps = bootstrapWorkflow.jobs.bootstrap.steps
-  const order = steps.map((s) => String(s.name || ''))
-  const validate = order.findIndex((n) => /Validate the fixtures/.test(n))
-  const record = order.findIndex((n) => /Record the missing baselines/.test(n))
-  assert.ok(validate >= 0 && record >= 0, 'both steps exist')
-  assert.ok(validate < record, 'a fixture that no longer validates is not recorded')
+  for (const [name, job] of Object.entries(RECORDERS)) {
+    const order = job.steps.map((s) => String(s.name || ''))
+    const validate = order.findIndex((n) => /^Validate the .*fixtures/i.test(n))
+    const record = order.findIndex((n) => /^Record the missing/i.test(n))
+    assert.ok(validate >= 0 && record >= 0, `${name}: both steps exist`)
+    assert.ok(validate < record, `${name}: a fixture that no longer validates is not recorded`)
+  }
 })
 
-test('the bootstrap run passes the flag that makes it non-destructive', () => {
-  const step = bootstrapWorkflow.jobs.bootstrap.steps.find((s) => /--mode=update/.test(s.run || ''))
-  assert.ok(step, 'it runs through the shared entry point, not a second harness')
-  assert.match(step.run, /--bootstrap-missing/)
-  assert.match(step.run, /--reason=/)
-  assert.match(step.run, /--source=/)
-  // Not continue-on-error: a run that could not render must stop before the
-  // pull-request step, so nothing is committed from an incomplete recording.
-  assert.ok(!step['continue-on-error'], 'an incomplete recording fails the job')
+test('every recorder passes the flag that makes it non-destructive', () => {
+  for (const [name, job] of Object.entries(RECORDERS)) {
+    const step = job.steps.find((s) => /--mode=update/.test(s.run || ''))
+    assert.ok(step, `${name}: runs through the shared entry point, not a second harness`)
+    assert.match(step.run, /--bootstrap-missing/, name)
+    assert.match(step.run, /--reason=/, name)
+    assert.match(step.run, /--source=/, name)
+    // Not continue-on-error: a run that could not render must stop before the
+    // pull-request step, so nothing is committed from an incomplete recording.
+    assert.ok(!step['continue-on-error'], `${name}: an incomplete recording fails the job`)
+  }
+})
+
+test('the SCREEN recorder never installs LibreOffice', () => {
+  // The bug this splits the workflow to fix. One job installed LibreOffice for
+  // the paper families and then recorded screen baselines in the same
+  // environment, which stamped `libreoffice: 24.2.7.2` and a font digest
+  // shifted by `fonts-liberation` into all sixteen. Both are compared by
+  // `assertComparableEnvironment`, and the comparing job in
+  // visual-regression.yml installs neither — so those baselines were
+  // irreproducible by construction, and #2137 is red for exactly that.
+  //
+  // Matched against the whole job, not just a step called "Install
+  // LibreOffice": the way this comes back is somebody adding `soffice` to an
+  // existing apt line.
+  const screen = JSON.stringify(RECORDERS['record-screen'])
+  assert.ok(!/libreoffice|soffice/i.test(screen),
+    'the screen recorder installs or references LibreOffice — a screen baseline recorded '
+    + 'beside it can never be reproduced by the comparing job, which installs neither it '
+    + 'nor the fonts it brings')
+  // …and the paper recorder still DOES, or the docx family cannot render at all.
+  assert.match(JSON.stringify(RECORDERS['record-paper']), /libreoffice/i,
+    'the paper recorder lost its LibreOffice install')
+})
+
+test('the pull-request job needs both recorders and tolerates a skipped one', () => {
+  const job = bootstrapWorkflow.jobs['open-pull-request']
+  assert.deepEqual(job.needs, ['record-paper', 'record-screen'])
+  const cond = String(job.if)
+  // A narrowed dispatch skips one recorder; that must not block the review.
+  for (const recorder of ['record-paper', 'record-screen']) {
+    assert.ok(cond.includes(`needs.${recorder}.result == 'skipped'`), `${recorder} skipping is tolerated`)
+    assert.ok(cond.includes(`needs.${recorder}.result == 'success'`), `${recorder} succeeding is required`)
+  }
+  // But a FAILED recorder must not produce a pull request — the old single
+  // job's "not continue-on-error" rule, kept across the split.
+  assert.ok(!/failure/.test(cond), 'a failed recording must not open a pull request')
+  assert.ok(cond.includes('!cancelled()'), 'a cancelled run must not open a pull request')
+  // Both skipped means nothing was recorded at all.
+  assert.ok(/!\(needs\.record-paper\.result == 'skipped' && needs\.record-screen\.result == 'skipped'\)/.test(cond),
+    'a run that recorded nothing must not open a pull request')
+})
+
+test('the recordings reach the pull-request job as artifacts', () => {
+  // They no longer share a workspace, so a recorder that renders and uploads
+  // nothing would leave the PR job opening an empty pull request.
+  for (const [name, job] of Object.entries(RECORDERS)) {
+    const upload = job.steps.find((s) => /upload-artifact/.test(s.uses || ''))
+    assert.ok(upload, `${name}: hands its recording on`)
+    assert.match(String(upload.with.name), /^bootstrap-recording-/, `${name}: artifact name is matchable`)
+    assert.match(String(upload.with.path), /tests\/visual\/baselines/, `${name}: uploads the baselines it wrote`)
+  }
+  const download = bootstrapWorkflow.jobs['open-pull-request'].steps
+    .find((s) => /download-artifact/.test(s.uses || ''))
+  assert.ok(download, 'the pull-request job collects them')
+  assert.equal(download.with.pattern, 'bootstrap-recording-*',
+    'it must collect BOTH recorders by pattern rather than naming one')
+})
+
+test('every review-sheet entry names the baseline FILES it describes', () => {
+  // The collector verifies each described baseline actually arrived, and it can
+  // only do that if the entry says WHICH file it is. A builder that stopped
+  // setting `path` would make every entry unverifiable — and the check would
+  // then be refusing whole dispatches, or (worse, if that refusal were softened)
+  // waving them through. Both builders, because there are two and they are
+  // edited independently.
+  // Both delegate to `baselinePaths.js`, which is where the computation is
+  // reachable by a test. Inlining it at the call site is how the paper builder
+  // came to declare its copy DIRECTORY with nothing able to catch it:
+  // `runVisualGate.mjs` has top-level await, so importing it runs the gate.
+  const BUILDERS = {
+    'screen/screenBaselineSummary.js': 'screenBaselinePaths',
+    'runVisualGate.mjs': 'paperBaselinePaths',
+  }
+  for (const [builder, fn] of Object.entries(BUILDERS)) {
+    const src = readFileSync(new URL(`./${builder}`, import.meta.url), 'utf8')
+    assert.match(src, new RegExp(`^\\s*paths: ${fn}\\(`, 'm'),
+      `${builder}: its entry names its files through ${fn}`)
+    assert.match(src, new RegExp(`import \\{ ${fn} \\} from '\\.\\.?/?[a-zA-Z/]*baselinePaths\\.js'`),
+      `${builder}: from the one module a test can exercise`)
+  }
+})
+
+test('a recorder that hands over NOTHING fails on its own job', () => {
+  // `if-no-files-found: error`, not the inherited `warn`. A recorder's entire
+  // product is this artifact: with `warn` the upload matches no files, no
+  // artifact is created, the job goes green, and the loss surfaces two jobs
+  // later as a pull request quietly missing a family's baselines — far from the
+  // log that explains why. Raised by the parallel implementation in #2142.
+  for (const [name, job] of Object.entries(RECORDERS)) {
+    const upload = job.steps.find((s) => /upload-artifact/.test(s.uses || ''))
+    assert.equal(upload.with['if-no-files-found'], 'error',
+      `${name}: an empty hand-off fails here, not silently two jobs later`)
+  }
+  // The EVIDENCE upload in the pull-request job legitimately may have nothing —
+  // a run where every baseline already existed renders no new pages. It stays
+  // `warn` on purpose, and stating that here stops a later sweep "fixing" it.
+  const evidence = bootstrapWorkflow.jobs['open-pull-request'].steps
+    .find((s) => /upload-artifact/.test(s.uses || ''))
+  assert.equal(evidence.with['if-no-files-found'], 'warn',
+    'the evidence upload may legitimately find nothing')
+})
+
+test('each recorder publishes what it wrote as a JOB OUTPUT, not inside the artifact', () => {
+  // The handoff invariant's channel, and the reason it is this channel.
+  //
+  // Run 31094944867 uploaded 4,990,794 bytes of correct renders and collected
+  // zero of them, because `upload-artifact@v4` roots the archive at the least
+  // common ancestor of its search paths and the collector looked one level too
+  // deep. Nothing failed: it reported "nothing to commit" — the message for a
+  // completely different, legitimate outcome — and exited 0.
+  //
+  // A count packed INTO the artifact would have been lost by the same bug and
+  // agreed with itself at zero. It therefore leaves through the Actions API.
+  for (const [name, job] of Object.entries(RECORDERS)) {
+    assert.equal(job.outputs?.recorded, '${{ steps.record.outputs.recorded }}',
+      `${name}: publishes its recorded count for the pull-request job`)
+    const record = (job.steps || []).find((s) => s.id === 'record')
+    assert.ok(record, `${name}: the step producing that output is identified`)
+    assert.match(String(record.run), /runVisualGate\.mjs|runScreenGate\.mjs/,
+      `${name}: the count comes from the recorder itself, not a later re-count`)
+  }
+})
+
+test('both recorders actually WRITE the count the workflow re-exports', () => {
+  // The other half of the assertion above, and it has to be stated separately:
+  // `outputs.recorded` resolves to an empty string when the step never writes
+  // one, and YAML that declares an output no runner produces looks identical to
+  // YAML that works. The failure would then land at the far end as
+  // "HANDOFF UNREPORTED" — loudly, but a whole render later.
+  for (const runner of ['runVisualGate.mjs', 'screen/runScreenGate.mjs']) {
+    const src = readFileSync(new URL(`./${runner}`, import.meta.url), 'utf8')
+    assert.match(src, /writeRecordedCount\(/, `${runner}: publishes what it recorded`)
+    assert.match(src, /process\.env\.GITHUB_OUTPUT/, `${runner}: to the job-output channel`)
+  }
+})
+
+test('the collector is handed each recorder\'s RESULT as well as its count', () => {
+  // Both, because they answer different questions: a `skipped` family
+  // contributes zero correctly, while a `success` that reported no count means
+  // the invariant itself went missing and must fail rather than default to 0.
+  const step = bootstrapWorkflow.jobs['open-pull-request'].steps
+    .find((s) => /collectBootstrapRecordings/.test(s.run || ''))
+  assert.ok(step, 'the pull-request job collects through the script, not inline YAML')
+  const env = step.env || {}
+  assert.equal(env.PAPER_RESULT, '${{ needs.record-paper.result }}')
+  assert.equal(env.PAPER_RECORDED, '${{ needs.record-paper.outputs.recorded }}')
+  assert.equal(env.SCREEN_RESULT, '${{ needs.record-screen.result }}')
+  assert.equal(env.SCREEN_RECORDED, '${{ needs.record-screen.outputs.recorded }}')
 })
 
 test('every writer takes its review sheet from the recorder, not from YAML', () => {
@@ -580,12 +788,44 @@ test('every writer takes its review sheet from the recorder, not from YAML', () 
   // hashes. A shell heredoc is where such a list quietly loses an item — and on
   // the bootstrap path it must describe EVERY baseline recorded, not the last.
   for (const [name, workflow] of Object.entries(WRITERS)) {
-    const step = Object.values(workflow.jobs)[0].steps.find((s) => /gh pr create/.test(s.run || ''))
+    // Searched across EVERY job, not `jobs[0]`: the bootstrap now records in
+    // two jobs and opens the pull request in a third, so "the first job" stopped
+    // being the one that creates it.
+    const step = Object.values(workflow.jobs)
+      .flatMap((job) => job.steps || [])
+      .find((s) => /gh pr create/.test(s.run || ''))
     assert.match(step.run, /--body-file/, `${name} uses the recorder's sheet`)
     assert.ok(!/--body ["']/.test(step.run), `${name} does not assemble a body inline`)
     assert.match(step.run, /baseline-summary\.md/, `${name} reads the file the recorder writes`)
     // A missing sheet is a hard stop, not a pull request with an empty body.
     assert.match(step.run, /exit 1/, `${name} refuses to open an unreviewable pull request`)
+  }
+})
+
+test('every RECORDER produces the sheet its workflow demands', () => {
+  // The twin of the test above, and the one that was missing.
+  //
+  // The workflow-side half was asserted from the day the bootstrap landed: each
+  // writer reads `baseline-summary.md` and exits 1 without it. The recorder-side
+  // half — that a recorder capable of writing a baseline actually WRITES that
+  // file — was true of `runVisualGate.mjs` and untested, so when a second
+  // recorder arrived it did not write one and nothing failed. A `family=screen`
+  // dispatch then rendered 16 baselines, committed them, pushed the branch, and
+  // died at `gh pr create`: recording worked, the review sheet did not exist,
+  // and the images were stranded on an orphan branch.
+  //
+  // Read as source rather than imported: these are top-level scripts that render
+  // on import. What is asserted is narrow and load-bearing — the recorder reaches
+  // the ONE writer, so a third family gets the sheet by construction instead of
+  // by somebody remembering.
+  const RECORDERS = ['runVisualGate.mjs', 'screen/runScreenGate.mjs']
+  for (const name of RECORDERS) {
+    const src = readFileSync(new URL(`./${name}`, import.meta.url), 'utf8')
+    assert.match(src, /from '\.{1,2}\/baselineSummary\.js'/,
+      `${name} does not use the shared review-sheet writer`)
+    assert.match(src, /appendBaselineSummaryEntry\(/,
+      `${name} imports the writer but never calls it — a recorder that writes baselines and no sheet `
+      + 'makes the bootstrap workflow fail after it has already pushed them')
   }
 })
 

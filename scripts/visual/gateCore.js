@@ -23,8 +23,33 @@
 /** The two run modes. `compare` can never write; `update` is the only writer. */
 export const GATE_MODES = ['compare', 'update']
 
-/** Renderer families, matching `baselineIdentity` in renderEnvironment.js. */
-export const RENDERER_FAMILIES = ['browser-print', 'docx']
+/**
+ * Renderer families, matching `baselineIdentity` in renderEnvironment.js.
+ *
+ * `screen` is the learner viewport (`scripts/visual/screen/`). It is offered by
+ * the BOOTSTRAP workflow and validated here, but it is not a family
+ * `runVisualGate.mjs` itself renders — it has its own runner, because it has
+ * its own renderer. `validateBaselineUpdateRequest` still recognises the name
+ * so a dispatch naming it is a real narrowing rather than a typo that silently
+ * targets everything.
+ */
+export const RENDERER_FAMILIES = ['browser-print', 'docx', 'screen']
+
+/**
+ * The families whose approved baselines can be REPLACED.
+ *
+ * A subset, and deliberately so. Replacing goes through the sweep path —
+ * `validateSweepUpdateRequest`, the before/after audit record,
+ * `runVisualGate.mjs` — and none of that is routed to the screen runner, which
+ * has its own renderer. Offering `screen` there would reach an unrouted path
+ * and silently record nothing while reporting success, which is worse than its
+ * absence.
+ *
+ * Screen baselines are BOOTSTRAP-only until that path exists. Nothing is
+ * blocked by it: a baseline that does not exist cannot be replaced, and none
+ * exist yet.
+ */
+export const UPDATABLE_FAMILIES = ['browser-print', 'docx']
 
 /**
  * Artefacts that must be published for a failed comparison to be reviewable.

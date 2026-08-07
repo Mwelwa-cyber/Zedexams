@@ -63,7 +63,7 @@ function renderBar(props = {}) {
 }
 
 const openTools = () => {
-  fireEvent.click(screen.getByRole('button', { name: /^Tools/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'Tools' }))
   return screen.getByRole('menu')
 }
 const openOverflow = () => {
@@ -85,7 +85,7 @@ describe('BuilderView — one toolbar row', () => {
   it('the nine tool chips are one menu', () => {
     const { onShowTemplates } = renderBar()
     const menu = openTools()
-    const labels = within(menu).getAllByRole('menuitem').map(i => i.textContent)
+    const labels = within(menu).getAllByRole('menuitem').map(i => i.textContent.trim())
     expect(labels).toEqual([
       'Templates', 'Create with AI', 'Question bank', 'Import paper',
       'Check paper', 'Diagrams', 'More AI',
@@ -114,7 +114,8 @@ describe('BuilderView — one toolbar row', () => {
     const menu = openOverflow()
     fireEvent.click(within(menu).getByRole('menuitem', { name: /clear all questions/i }))
     // The ellipsis in the label is the promise: this opens the studio's
-    // confirm dialog, it does not clear anything.
+    // confirm dialog, it does not clear anything. That is the pattern
+    // ActionMenu documents for every danger item — the caller owns the confirm.
     expect(onClearAll).toHaveBeenCalledTimes(1)
   })
 

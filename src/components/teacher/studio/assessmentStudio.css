@@ -3675,66 +3675,6 @@
 }
 .studio-v2 .sv-chip:disabled { opacity: 0.4; cursor: default; }
 
-/* ── Menus (Tools ▾, ⋯, ✦ AI ▾, + img) ──────────────────────────────── */
-.studio-v2 .sv-menu-wrap { position: relative; display: inline-flex; }
-.studio-v2 .sv-menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  z-index: 60;
-  min-width: 210px;
-  padding: 5px;
-  border-radius: var(--sv-r);
-  border: 1px solid var(--sv-border-strong);
-  background: var(--sv-paper);
-  box-shadow: var(--sv-shadow-md);
-  white-space: normal;
-}
-.studio-v2 .sv-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 10px;
-  border-radius: var(--sv-r-sm);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--sv-text);
-  text-align: left;
-  background: transparent;
-}
-.studio-v2 .sv-menu-item:hover:not(:disabled) { background: var(--sv-canvas-2); }
-.studio-v2 .sv-menu-item:disabled { opacity: 0.45; cursor: default; }
-.studio-v2 .sv-menu-item.danger { color: var(--sv-primary); }
-.studio-v2 .sv-menu-sep { height: 1px; margin: 4px 6px; background: var(--sv-border); }
-.studio-v2 .sv-menu-confirm {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  padding: 8px 10px;
-  border-radius: var(--sv-r-sm);
-  background: var(--sv-primary-soft);
-  font-size: 12px;
-  color: var(--sv-primary-dark);
-}
-.studio-v2 .sv-menu-confirm > span { flex-basis: 100%; font-weight: 600; }
-.studio-v2 .sv-menu-confirm .confirm {
-  padding: 4px 10px;
-  border-radius: var(--sv-r-sm);
-  background: var(--sv-primary);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-}
-.studio-v2 .sv-menu-confirm .cancel {
-  padding: 4px 10px;
-  border-radius: var(--sv-r-sm);
-  border: 1px solid var(--sv-border-strong);
-  color: var(--sv-text);
-  font-size: 12px;
-}
-
 /* ── Block grip + drop target ───────────────────────────────────────── */
 .studio-v2 .sv-drag-handle {
   display: inline-grid;
@@ -3948,9 +3888,10 @@
 .studio-v2 .sv-builder-bar.sv-builder-tools { overflow: visible; }
 
 /* `.sv-block-head` is 11px uppercase monospace with wide tracking — correct
-   for a block label, wrong for menu copy that inherits it. */
-.studio-v2 .sv-menu,
-.studio-v2 .sv-menu-confirm {
+   for a block label, wrong for the menu copy that inherits it. ActionMenu's
+   own classes set size and weight but not the three properties that make a
+   block LABEL a block label, so they are reset here at the boundary. */
+.studio-v2 [role='menu'] {
   font-family: 'Geist', sans-serif;
   text-transform: none;
   letter-spacing: normal;

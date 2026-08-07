@@ -32,6 +32,42 @@ const LEGACY_DASHBOARD_KEY = 'zedexams:tdv2-theme'
 let current = null
 const listeners = new Set()
 
+/**
+ * The Firestore writer, registered by <TeacherThemeSync> once a user is
+ * signed in. Null when signed out, which is not an error state — the choice
+ * still applies and still persists to this device.
+ *
+ * WHY IT LIVES HERE AND NOT IN ThemeProvider
+ * ------------------------------------------
+ * It used to live in the provider, so only `setTeacherTheme` from context
+ * reached it. But this store has TWO callers, by design (see the note above):
+ * the settings picker goes through context, and the dashboard's light/dark
+ * toggle (useDashboardTheme) calls writeTeacherTheme directly — it cannot use
+ * context, because the dashboard surfaces render standalone in their specs
+ * with no ThemeProvider above them.
+ *
+ * That made the toggle a write path with no persistence, and the failure was
+ * not "the choice is forgotten" — it was worse and looked like a different
+ * bug entirely. Toggling to light saved locally but left the profile on
+ * Night, so the next load applied light pre-paint and TeacherThemeSync then
+ * hydrated Night back over it. The teacher sets light mode, reloads, and the
+ * app is dark again — with the setting they chose still showing in
+ * localStorage.
+ *
+ * So the persister belongs on the value, not on one of the two routes to it.
+ * Hydration is the one path that must NOT write (see hydrateTeacherTheme).
+ */
+let persister = null
+
+/**
+ * Register the Firestore writer. Returns an unregister function; the
+ * identity check means a stale cleanup cannot clear a newer registration.
+ */
+export function registerTeacherThemePersister(fn) {
+  persister = fn
+  return () => { if (persister === fn) persister = null }
+}
+
 function readInitial() {
   try {
     const saved = localStorage.getItem(TEACHER_THEME_STORAGE_KEY)
@@ -65,12 +101,8 @@ export function subscribeTeacherTheme(listener) {
   return () => listeners.delete(listener)
 }
 
-/**
- * Apply + persist locally. Returns the normalised id actually applied.
- * Does NOT write to Firestore — see TeacherThemeSync for that half, which is
- * registered separately so this module stays free of Firebase.
- */
-export function writeTeacherTheme(id) {
+/** Apply to the DOM + this device. Returns the normalised id applied. */
+function applyAndStore(id) {
   const next = normalizeTeacherThemeId(id)
   const changed = next !== getTeacherThemeSnapshot()
   current = next
@@ -86,6 +118,34 @@ export function writeTeacherTheme(id) {
   return next
 }
 
+/**
+ * A deliberate choice by the user: apply, save to this device, and sync to
+ * the signed-in profile. Returns the normalised id actually applied.
+ *
+ * Every user-facing write goes through here — the settings picker and the
+ * dashboard light/dark toggle alike — which is what makes the profile agree
+ * with the device instead of overwriting it on the next load.
+ *
+ * The Firestore call is fire-and-forget by design: the choice is already
+ * applied and already saved locally, so a rejected or offline write costs
+ * cross-device sync and nothing else. It must never be awaited here, or a
+ * slow network would stall the palette change.
+ */
+export function writeTeacherTheme(id) {
+  const next = applyAndStore(id)
+  persister?.(next)
+  return next
+}
+
+/**
+ * Apply a value that CAME FROM the profile. Identical to writeTeacherTheme
+ * except that it does not persist — echoing a value straight back to the
+ * server it was just read from would bill a write on every sign-in.
+ */
+export function hydrateTeacherTheme(id) {
+  return applyAndStore(id)
+}
+
 /** Subscribe a component to the active teacher theme. */
 export function useTeacherThemeValue() {
   return useSyncExternalStore(
@@ -99,4 +159,5 @@ export function useTeacherThemeValue() {
 export function resetTeacherThemeStore() {
   current = null
   listeners.clear()
+  persister = null
 }

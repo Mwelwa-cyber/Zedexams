@@ -21,24 +21,25 @@ const renderSection = (props = {}) =>
   )
 
 describe('TeacherWorkspaceSection glass tiles', () => {
-  it('gives each category section its accent modifier class', () => {
+  it('gives each category section its glass-panel accent class', () => {
     const { container } = renderSection()
-    expect(container.querySelector('.tws-sec--planning')).toBeInTheDocument()
-    expect(container.querySelector('.tws-sec--materials')).toBeInTheDocument()
-    expect(container.querySelector('.tws-sec--assessment')).toBeInTheDocument()
+    expect(container.querySelector('.tws-sec.glass-panel--planning')).toBeInTheDocument()
+    expect(container.querySelector('.tws-sec.glass-panel--materials')).toBeInTheDocument()
+    expect(container.querySelector('.tws-sec.glass-panel--assessment')).toBeInTheDocument()
   })
 
-  it('marks the expander section with the neutral modifier', () => {
+  it('marks the expander section as the neutral glass panel', () => {
     const { container } = renderSection({ allToolsOpen: true })
-    expect(container.querySelector('#tws-all-tools')).toHaveClass('tws-sec--more')
+    expect(container.querySelector('#tws-all-tools')).toHaveClass('glass-panel')
   })
 
-  it('renders an aria-hidden sheen span inside every tile', () => {
+  it('renders every card as a glass tile with an aria-hidden sheen span', () => {
     const { container } = renderSection({ allToolsOpen: true })
     const cards = container.querySelectorAll('.tws-card')
     expect(cards.length).toBeGreaterThan(0)
     for (const card of cards) {
-      const sheen = card.querySelector('.tws-sheen')
+      expect(card).toHaveClass('glass-tile')
+      const sheen = card.querySelector('.glass-sheen')
       expect(sheen).not.toBeNull()
       expect(sheen).toHaveAttribute('aria-hidden', 'true')
     }

@@ -5,7 +5,8 @@ import SeoHelmet from '../../seo/SeoHelmet'
 import {
   getTemplate, rateTemplate, createLessonPlanFromTemplate,
 } from '../../../utils/templateBankService'
-import { renderPlanHtml } from '../studio/utils/renderPlanHtml'
+import LessonPlanDocumentPreview from '../studio/LessonPlanDocumentPreview'
+import { templateCurriculumMode, templatePreviewMeta } from './templatePlanPreview'
 import { formatDate } from '../../../utils/teacherLibraryService'
 
 const AXIS_LABELS = {
@@ -61,14 +62,12 @@ export default function TemplateBankDetail() {
     return () => { alive = false }
   }, [id])
 
-  const previewHtml = useMemo(() => {
-    if (!template?.content) return ''
-    try {
-      return renderPlanHtml(template.content, { format: 'modern' }, 'cbc')
-    } catch (e) {
-      return ''
-    }
-  }, [template])
+  // A template is previewed as the finished document — same renderer, same
+  // stylesheets, same A4 sheets as the Lesson Plan Studio's Preview tab — with
+  // the teacher's own fields left as blanks to fill in.
+  const previewMeta = useMemo(() => (template ? templatePreviewMeta(template) : null), [template])
+  const curriculumMode = useMemo(() => templateCurriculumMode(template), [template])
+  const [previewPages, setPreviewPages] = useState(null)
 
   const handleUse = async () => {
     if (!currentUser?.uid || !template) return
@@ -77,7 +76,11 @@ export default function TemplateBankDetail() {
       const newId = await createLessonPlanFromTemplate({
         uid: currentUser.uid, template, header,
       })
-      navigate(`/teacher/library/${newId}`)
+      // Straight into the studio, hydrated from the structured plan we just
+      // saved — the teacher lands on the document they previewed and can edit
+      // and export it there. Sending them to the library instead showed them a
+      // read-only copy of a plan they had just chosen to work on.
+      navigate(`/teacher/lesson-plans/${newId}/edit`)
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e))
       setBusy(false)
@@ -198,16 +201,26 @@ export default function TemplateBankDetail() {
       ) : null}
 
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
-        {/* Plan preview */}
+        {/* Plan preview — the whole document, on real A4 sheets */}
         <div className="lg:col-span-2">
-          <h2 className="mb-2 text-sm font-semibold text-gray-900">Preview</h2>
-          {previewHtml ? (
-            <div
-              className="overflow-x-auto rounded-2xl border border-gray-200 bg-white p-4 text-sm"
-              // Template content is server-anonymised + AI-reviewed; rendered
-              // through the same studio renderer the library uses.
-              dangerouslySetInnerHTML={{ __html: previewHtml }}
-            />
+          <h2 className="mb-2 flex flex-wrap items-baseline gap-x-2 text-sm font-semibold text-gray-900">
+            Preview
+            {previewPages ? (
+              <span className="text-xs font-normal text-gray-500">
+                {previewPages} {previewPages === 1 ? 'page' : 'pages'} · A4
+              </span>
+            ) : null}
+          </h2>
+          {template.content ? (
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-2 sm:p-4">
+              <LessonPlanDocumentPreview
+                planJson={template.content}
+                meta={previewMeta}
+                curriculumMode={curriculumMode}
+                onPageCount={setPreviewPages}
+                className="w-full"
+              />
+            </div>
           ) : (
             <div className="rounded-2xl border border-gray-200 bg-white p-4 text-sm text-gray-600">
               {template.preview || 'No preview available.'}

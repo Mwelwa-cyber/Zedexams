@@ -27,7 +27,9 @@ import { CHOICE_COUNT_OPTIONS, recommendedChoiceCount, resolveChoiceCount } from
 import { PAGE_SIZES, MARGIN_PRESETS } from '../../../config/paperLayoutTokens'
 import { GRADE_NUMBER_STYLES, LEARNER_NAME_LABELS } from '../../../utils/paperMetadata'
 import { paperHeaderSummarySegments } from '../assessmentHeaderSummary'
-import MenuButton, { ConfirmMenuItem } from '../../ui/MenuButton'
+import { MoreHorizontal } from 'lucide-react'
+import ActionMenu from '../../ui/ActionMenu'
+import ConfirmDialog from '../../ui/ConfirmDialog'
 import { BlockDragHandle, useBlockDropTarget } from './BlockDragHandle'
 
 /**
@@ -810,6 +812,8 @@ export function SectionBlock(props) {
 
 export function PassageBlock({ section, sectionIndex, parts, questionNumbers, questionIssues, paperMeta, onEditQuestion, onMoveSection, onReorderSection, onRemoveSection, onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onAssignSectionToPart }) {
   const { isOver, dropProps } = useBlockDropTarget({ index: sectionIndex, onReorder: onReorderSection })
+  // Deleting takes the passage AND every question under it, so it asks first.
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const passage = section.passage
   const kind = passage.passageKind || 'comprehension'
   const isMap = kind === 'map'
@@ -911,23 +915,12 @@ export function PassageBlock({ section, sectionIndex, parts, questionNumbers, qu
             Total: {totalMarks} mark{totalMarks === 1 ? '' : 's'}
           </span>
           <span className="sv-tools">
-            <MenuButton
-              wrapClassName="sv-menu-wrap"
-              menuClassName="sv-menu"
-              triggerClassName="sv-tool"
+            <ActionMenu
+              icon={MoreHorizontal}
               ariaLabel="More actions for this passage"
-              label={<Icon name="more" size={14} />}
-            >
-              {({ close }) => (
-                <ConfirmMenuItem
-                  className="sv-menu-item"
-                  confirmClassName="sv-menu-confirm"
-                  icon={<Icon name="delete" size={15} />}
-                  question="Delete this passage and its questions?"
-                  onConfirm={() => { close(); onRemoveSection(sectionIndex) }}
-                >Delete passage</ConfirmMenuItem>
-              )}
-            </MenuButton>
+              buttonClassName="sv-tool"
+              items={[{ label: 'Delete passage', danger: true, onSelect: () => setConfirmDeleteOpen(true) }]}
+            />
           </span>
         </div>
         <div className="sv-passage-content">
@@ -1145,6 +1138,16 @@ export function PassageBlock({ section, sectionIndex, parts, questionNumbers, qu
           + Add short answer
         </button>
       </div>
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title="Delete this passage?"
+        message={`The passage and its ${(passage.questions || []).length} question${(passage.questions || []).length === 1 ? '' : 's'} are removed from this paper. You can undo this with Ctrl+Z.`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => { setConfirmDeleteOpen(false); onRemoveSection(sectionIndex) }}
+        onCancel={() => setConfirmDeleteOpen(false)}
+      />
     </>
   )
 }
@@ -1164,23 +1167,12 @@ export function PagebreakBlock({ sectionIndex, onMoveSection, onRemoveSection, o
         <BlockDragHandle index={sectionIndex} label="page break" onMove={onMoveSection} />
         <span className="sv-ic"><Icon name="pagebreak" size={15} /></span> Page break
         <span className="sv-tools">
-          <MenuButton
-            wrapClassName="sv-menu-wrap"
-            menuClassName="sv-menu"
-            triggerClassName="sv-tool"
+          <ActionMenu
+            icon={MoreHorizontal}
             ariaLabel="More actions for this page break"
-            label={<Icon name="more" size={14} />}
-          >
-            {({ close }) => (
-              <ConfirmMenuItem
-                className="sv-menu-item"
-                confirmClassName="sv-menu-confirm"
-                icon={<Icon name="delete" size={15} />}
-                question="Remove this page break?"
-                onConfirm={() => { close(); onRemoveSection(sectionIndex) }}
-              >Delete</ConfirmMenuItem>
-            )}
-          </MenuButton>
+            buttonClassName="sv-tool"
+            items={[{ label: 'Delete', danger: true, onSelect: () => onRemoveSection(sectionIndex) }]}
+          />
         </span>
       </div>
       <div style={{ textAlign: 'center', color: 'var(--zt-text-muted)', fontSize: 11, padding: '4px 0 8px', textTransform: 'uppercase', letterSpacing: 1 }}>

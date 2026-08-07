@@ -61,9 +61,16 @@ bootstrapCurriculumCatalogue({ capture: captureAnalytics, reportError: reportCli
 // onNeedRefresh callback into React state. The hook is consumed by
 // <UpdatePrompt /> mounted inside <App />. Capacitor still skips the SW
 // entirely — the hook returns no-ops on native.
-// editor.css and katex CSS are imported from the editor/viewer entry modules
-// (QuizEditor, QuizViewer, QuizPreview via safeRender). Keeping them out of the
-// root entry trims ~50 KB of parse-time CSS on public pages.
+// editor.css is imported by the AUTHORING surfaces only (RichEditor,
+// NoteEditor). Keeping it out of the root entry trims ~50 KB of parse-time CSS
+// on public pages, and that is still right.
+//
+// It used to say editor.css arrived "via safeRender". It did not, and the gap
+// was real: safeRender imports katex.min.css and, since the fix, the school
+// notation rules it emits markup for (`editor/mathNotation.css`). Before that
+// the learner quiz route rendered a stacked fraction with no CSS to stack it.
+// A renderer's stylesheet travels with the renderer; the editor's stays with
+// the editor.
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

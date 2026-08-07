@@ -48,10 +48,38 @@ let pendingUserId
 // Same for the role: it decides whether error-replay may be enabled, and it
 // can arrive before Sentry has finished loading.
 let pendingRole
-// The replay integration, created and registered lazily. Null means no
-// replay is being captured — which is the state for learners, for parents,
-// and for every session before a role is known.
+// The replay integration, created and registered lazily — and at most ONCE
+// per page load, because Sentry's Replay class is a singleton: constructing a
+// second instance throws "Multiple Sentry Session Replay instances are not
+// supported". Stop-and-recreate is therefore not a lifecycle this module can
+// have. `replay` keeps the one instance for the life of the page; whether it
+// is currently recording is `replayActive`. Null means no instance has ever
+// been built — the state for learners, for parents, and for every session
+// before a recordable role is known.
 let replay = null
+// The learner-visible INTENT: should the recorder be running for the current
+// session? Claimed synchronously on an eligible sign-in, withdrawn on
+// sign-out — so one snapshot's claim stops the next snapshot re-queueing.
+let replayActive = false
+// Whether the recorder is ACTUALLY armed. Diverges from `replayActive` while
+// a queued transition is waiting its turn on the chain below; the stop task
+// reads this so a sign-out whose queued re-arm never ran does not stop an
+// already-stopped recorder.
+let replayArmed = false
+// ONE serialised chain for every recorder transition. Sentry's stop() is
+// async — after an error has promoted buffering to session mode it awaits a
+// final flush before destroying the event buffer, and a startBuffering()
+// issued while that teardown is pending gets torn down WITH it, silently
+// (Codex P2 on #2156, r3733994279). #2158's first fix kept only the LATEST
+// stop's promise, which a second sign-out replaced — its no-op stop settled
+// first and the next re-arm fired under the ORIGINAL flush still in flight
+// (Codex P2 on #2158, r3734356773). Every transition now appends to one
+// chain, in order, and never replaces what it is waiting on.
+let replayChain = Promise.resolve()
+// Bumped on every sign-out. A queued re-arm carries the generation it was
+// queued in and refuses to run if a sign-out has intervened — withdrawal by
+// token, not by mutating shared state the queue is also reading.
+let replayGeneration = 0
 
 /**
  * Register Sentry's error-triggered session replay, but only for a role that
@@ -63,8 +91,33 @@ let replay = null
  * with no recording attached — not a recording we later decline to upload.
  */
 function enableReplayForRole(Sentry, role) {
-  if (!Sentry || replay) return
+  if (!Sentry) return
   if (!resolveAnalyticsPolicy(role).sessionRecording) return
+  if (replay) {
+    // The instance already exists — sign-out stopped it, it did not destroy
+    // it (it cannot: Sentry allows one Replay per page load). Re-arm the
+    // error-mode buffer instead of constructing a second instance, which
+    // throws, and — because the catch used to null `replay` — used to retry
+    // and throw again on every profile snapshot for the rest of the session,
+    // leaving no replay at all.
+    if (replayActive) return
+    // Claim the slot BEFORE any await, so a second snapshot in the same
+    // window cannot queue a second re-arm; remember the generation so a
+    // sign-out BEFORE this re-arm's turn on the chain withdraws it.
+    replayActive = true
+    const generation = replayGeneration
+    replayChain = replayChain.then(() => {
+      if (generation !== replayGeneration || !replay) return
+      try {
+        replay.startBuffering()
+        replayArmed = true
+      } catch (err) {
+        replayActive = false
+        console.warn('[sentry] replay re-arm failed:', err)
+      }
+    }).catch(() => {})
+    return
+  }
   try {
     replay = Sentry.replayIntegration({
       // Everything on screen is masked and media blocked. Teachers' papers
@@ -74,6 +127,8 @@ function enableReplayForRole(Sentry, role) {
       blockAllMedia: true,
     })
     Sentry.addIntegration(replay)
+    replayActive = true
+    replayArmed = true
   } catch (err) {
     // A failed replay registration must never cost us the error reporting
     // itself — that is the reason Sentry is here at all.
@@ -169,11 +224,37 @@ export function clearSentryUser() {
   // Stop and forget the recorder BEFORE dropping the user tag. On a shared
   // school phone the next person to sign in may be a learner, and a replay
   // left running would capture them under the previous user's permission.
-  if (replay) {
-    try { replay.stop() } catch (err) {
-      console.warn('[sentry] replay stop failed:', err)
+  if (replay && replayActive) {
+    replayActive = false
+    replayGeneration += 1
+    if (replayArmed) {
+      // The recorder is CAPTURING, so stop() must begin NOW, in this same
+      // task — queueing even the invocation defers it a microtask, and React
+      // can commit the next user's UI in that gap while the previous user's
+      // recorder is still rolling (Codex P1 on #2160, r3734894933). Invoking
+      // synchronously is safe here: `replayArmed` is only ever set by a
+      // transition that has already RUN, so nothing can be pending ahead of
+      // this stop on the chain. Only the FLUSH is asynchronous, and its
+      // promise joins the chain so a later re-arm still waits behind it.
+      replayArmed = false
+      let stopping
+      try {
+        stopping = Promise.resolve(replay.stop())
+          .catch((err) => { console.warn('[sentry] replay stop failed:', err) })
+      } catch (err) {
+        console.warn('[sentry] replay stop failed:', err)
+        stopping = Promise.resolve()
+      }
+      replayChain = replayChain.then(() => stopping).catch(() => {})
     }
-    replay = null
+    // NOT armed: the claim being withdrawn belongs to a QUEUED re-arm that
+    // has not run — and the generation bump above withdraws it, so it never
+    // will. There is nothing recording and nothing to stop; appending a
+    // conditional stop task here is how r3734356773's early-settling no-op
+    // promise crept in the first time.
+    // The INSTANCE is kept — Sentry permits exactly one per page load, so
+    // destroying our reference would leave re-registration with no legal
+    // move. Stopped is the off state; startBuffering() is the on switch.
   }
   pendingRole = undefined
   if (sentryModule) {

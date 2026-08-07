@@ -17,7 +17,9 @@ import { reviseQuestion as reviseQuestionCall } from '../../utils/reviseQuestion
 import { useAiOperationLock } from '../../hooks/useAiOperationLock'
 import { stableFingerprint } from '../../hooks/aiOperationLockCore'
 import Icon from './studio/studioIcons'
-import MenuButton, { MenuItem, ConfirmMenuItem } from '../ui/MenuButton'
+import { MoreHorizontal, Sparkles } from 'lucide-react'
+import ActionMenu from '../ui/ActionMenu'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import { BlockDragHandle, useBlockDropTarget } from './studio/BlockDragHandle'
 import DiagramSvg from '../diagrams/DiagramSvg'
 import DiagramPicker from '../diagrams/DiagramPicker'
@@ -301,6 +303,9 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
   useEffect(() => () => { mountedRef.current = false }, [])
   // Drop target for another block's drag handle.
   const { isOver, dropProps } = useBlockDropTarget({ index: sectionIndex, onReorder: onReorderSection })
+  // Deleting a question asks first. The menu row opens this; the dialog does
+  // the removing — the pattern ActionMenu documents for every danger item.
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
 
   // Idempotency locks: one intentional Revise / Suggest → one provider call +
   // one charge, even across a double-click / rapid tap / refresh / a second tab.
@@ -563,43 +568,27 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
           </span>
         )}
         <span className="sv-tools">
-          <MenuButton
-            wrapClassName="sv-menu-wrap"
-            menuClassName="sv-menu"
-            triggerClassName="sv-tool"
+          <ActionMenu
+            icon={MoreHorizontal}
             ariaLabel={`More actions for question ${questionNumber}`}
-            label={<Icon name="more" size={14} />}
-          >
-            {({ close }) => (
-              <>
-                <MenuItem className="sv-menu-item" icon={<Icon name="edit" size={15} />}
-                  onClick={() => { close(); onEditQuestion(question.localId) }}>Edit in detail</MenuItem>
-                <MenuItem className="sv-menu-item" icon={<Icon name="duplicate" size={15} />}
-                  onClick={() => { close(); onDuplicateSection(sectionIndex) }}>Duplicate</MenuItem>
-                {/* The teacher's own "this one is finished" marker. Nothing — not
-                    a rewrite, not a validation pass, not a future migration —
-                    may overwrite a locked question. */}
-                {onToggleLock && (
-                  <MenuItem className="sv-menu-item" icon={<Icon name="lock" size={15} />}
-                    onClick={() => { close(); onToggleLock(question.localId, !question.locked) }}>
-                    {question.locked ? 'Unlock this question' : 'Lock this question'}
-                  </MenuItem>
-                )}
-                {onSaveToBank && (
-                  <MenuItem className="sv-menu-item" icon={<Icon name="bank" size={15} />}
-                    onClick={() => { close(); onSaveToBank(question) }}>Save to your question bank</MenuItem>
-                )}
-                <div className="sv-menu-sep" />
-                <ConfirmMenuItem
-                  className="sv-menu-item"
-                  confirmClassName="sv-menu-confirm"
-                  icon={<Icon name="delete" size={15} />}
-                  question={`Delete question ${questionNumber}?`}
-                  onConfirm={() => { close(); onRemoveSection(sectionIndex) }}
-                >Delete</ConfirmMenuItem>
-              </>
-            )}
-          </MenuButton>
+            buttonClassName="sv-tool"
+            items={[
+              { label: 'Edit in detail', onSelect: () => onEditQuestion(question.localId) },
+              { label: 'Duplicate', onSelect: () => onDuplicateSection(sectionIndex) },
+              // The teacher's own "this one is finished" marker. Nothing — not a
+              // rewrite, not a validation pass, not a future migration — may
+              // overwrite a locked question.
+              onToggleLock ? {
+                label: question.locked ? 'Unlock this question' : 'Lock this question',
+                onSelect: () => onToggleLock(question.localId, !question.locked),
+              } : null,
+              onSaveToBank ? {
+                label: 'Save to your question bank',
+                onSelect: () => onSaveToBank(question),
+              } : null,
+              { label: 'Delete', danger: true, onSelect: () => setConfirmDeleteOpen(true) },
+            ]}
+          />
         </span>
       </div>
 
@@ -635,52 +624,37 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
         <DifficultySelect question={question} onUpdateQuestion={onUpdateQuestion} />
         {/* Three AI buttons sat here — Suggest answer, Improve, Revise ▾ — each
             wide enough to push the marks stepper off a phone. One menu. */}
-        <MenuButton
-          wrapClassName="sv-menu-wrap sv-q-ai-menu"
-          menuClassName="sv-menu"
-          triggerClassName="sv-q-ai-trigger"
-          label={suggesting || revising
-            ? <><Icon name="spinner" size={13} spin /> Thinking…</>
-            : <><Icon name="ai" size={13} /> AI <Icon name="moveDown" size={12} /></>}
-          title="AI help for this question"
-        >
-          {({ close }) => (
-            <>
-              <MenuItem
-                className="sv-menu-item"
-                icon={<Icon name="ai" size={15} />}
-                disabled={suggesting}
-                onClick={() => { close(); handleSuggestAnswer() }}
-              >{isEssay ? 'Suggest marking notes' : 'Suggest answer'}</MenuItem>
-              <MenuItem
-                className="sv-menu-item"
-                icon={<Icon name="enhance" size={15} />}
-                disabled={revising}
-                onClick={() => { close(); handleImprove() }}
-              >Improve grammar &amp; clarity</MenuItem>
-              <MenuItem
-                className="sv-menu-item"
-                icon={<Icon name="rewrite" size={15} />}
-                onClick={() => { close(); setReviseOpen(true) }}
-              >Revise for another grade or tone…</MenuItem>
-              {/* Rewrite THIS question only. Every other question on the paper —
-                  including the teacher's edits to them — is left exactly as it
-                  is. Refused outright on a locked question. */}
-              {onRewriteQuestion && (
-                <MenuItem
-                  className="sv-menu-item"
-                  icon={<Icon name={rewriting ? 'spinner' : 'generate'} size={15} spin={rewriting} />}
-                  disabled={rewriting || question.locked}
-                  onClick={() => { close(); onRewriteQuestion(question.localId) }}
-                >
-                  {question.locked
-                    ? 'Locked — unlock to rewrite'
-                    : 'Rewrite just this question'}
-                </MenuItem>
-              )}
-            </>
-          )}
-        </MenuButton>
+        <ActionMenu
+          label={suggesting || revising ? 'Thinking…' : 'AI'}
+          icon={Sparkles}
+          caret
+          buttonClassName="sv-q-ai-trigger"
+          items={[
+            {
+              label: isEssay ? 'Suggest marking notes' : 'Suggest answer',
+              disabled: suggesting,
+              onSelect: handleSuggestAnswer,
+            },
+            {
+              label: 'Improve grammar & clarity',
+              disabled: revising,
+              onSelect: handleImprove,
+            },
+            {
+              label: 'Revise for another grade or tone…',
+              onSelect: () => setReviseOpen(true),
+            },
+            // Rewrite THIS question only. Every other question on the paper —
+            // including the teacher's edits to them — is left exactly as it is.
+            // Refused outright on a locked question.
+            onRewriteQuestion ? {
+              label: question.locked ? 'Locked — unlock to rewrite' : 'Rewrite just this question',
+              disabled: rewriting || question.locked,
+              disabledReason: question.locked ? 'Unlock this question first' : 'A rewrite is already running',
+              onSelect: () => onRewriteQuestion(question.localId),
+            } : null,
+          ]}
+        />
       </div>
 
       {mathsPaper && <ConvertMathsNotation question={question} onUpdate={updateQuestion} />}
@@ -1096,6 +1070,16 @@ export function QuestionBlock({ section, sectionIndex, parts, questionNumbers, q
           <button onClick={() => onEditQuestion(question.localId)}><Icon name="edit" size={13} /> Edit details</button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title={`Delete question ${questionNumber}?`}
+        message="The question and everything on it — options, answer, marks and any figure — are removed from this paper. You can undo this with Ctrl+Z."
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => { setConfirmDeleteOpen(false); onRemoveSection(sectionIndex) }}
+        onCancel={() => setConfirmDeleteOpen(false)}
+      />
     </div>
   )
 }

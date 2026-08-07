@@ -430,6 +430,28 @@
   }
 }
 
+/* Centre progress block inside the sticky bar: a "Step n of 5 — Title"
+   caption above a slim 5px track filled to n/5. Uses the theme accent for
+   the fill on a translucent ink track so it reads in every theme. */
+.lpw-nav-track {
+  height: 5px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: rgba(15, 27, 45, 0.14);
+  overflow: hidden;
+}
+.lpw-nav-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--zt-accent);
+  transition: width 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .lpw-nav-fill {
+    transition: none;
+  }
+}
+
 /* Gentle slide/fade when the active step changes. */
 @keyframes lpwStepEnter {
   from {

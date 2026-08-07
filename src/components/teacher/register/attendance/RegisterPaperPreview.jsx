@@ -37,12 +37,11 @@ function loadOpen() {
 }
 
 export default function RegisterPaperPreview({
-  registerHook, register, uid, teacherName, policy, focusDate,
+  registerHook, register, uid, teacherName, policy, monthKey = null,
 }) {
   const toast = useToast()
   const [open, setOpen] = useState(loadOpen)
   const [doc, setDoc] = useState('register')
-  const [monthKey, setMonthKey] = useState(null)
   const [zoom, setZoom] = useState('fit') // 'fit' | 'actual'
 
   const { model } = useRegisterExportModel({
@@ -53,15 +52,21 @@ export default function RegisterPaperPreview({
     try { localStorage.setItem(OPEN_KEY, open ? '1' : '0') } catch { /* storage blocked */ }
   }, [open])
 
-  // Follow the day being marked: the sheet shows that day's month unless the
-  // teacher has picked a different page.
-  const focusMonthKey = focusDate ? focusDate.slice(0, 7) : null
-  const pickedRef = useRef(false)
-  useEffect(() => {
-    if (!pickedRef.current) setMonthKey(focusMonthKey)
-  }, [focusMonthKey])
+  const months = useMemo(() => model?.months || [], [model])
 
-  const months = model?.months || []
+  // The register sheet previews the month selected by the grid's month chips
+  // above — ONE month control for the whole tab, no second picker here. The
+  // preview only carries non-future months, so a future month falls back to
+  // the nearest earlier available one, else the last.
+  const previewMonthKey = useMemo(() => {
+    if (!months.length) return null
+    if (monthKey && months.some((m) => m.key === monthKey)) return monthKey
+    if (monthKey) {
+      const earlier = months.filter((m) => m.key < monthKey)
+      if (earlier.length) return earlier[earlier.length - 1].key
+    }
+    return months[months.length - 1].key
+  }, [months, monthKey])
 
   // Marking must not re-render the sheet on every tap, so the MODEL settles on
   // a debounce. Choosing a different document or page is a direct request and
@@ -80,8 +85,8 @@ export default function RegisterPaperPreview({
   }, [model])
 
   const sheet = useMemo(
-    () => (settledModel ? buildPaperPreview(settledModel, { doc, monthKey }) : null),
-    [settledModel, doc, monthKey],
+    () => (settledModel ? buildPaperPreview(settledModel, { doc, monthKey: previewMonthKey }) : null),
+    [settledModel, doc, previewMonthKey],
   )
 
   // ── fit the A4 sheet to the column ──────────────────────────────
@@ -144,7 +149,9 @@ export default function RegisterPaperPreview({
           Paper preview
         </button>
         <span className="theme-text-muted text-xs hidden sm:inline">
-          Exactly what prints — updates as you mark.
+          {doc === 'register' && open && sheet?.label
+            ? `— ${sheet.label} — follows the month selected above · A4 landscape · exactly what prints`
+            : 'Exactly what prints — updates as you mark.'}
         </span>
         {open && (
           <div className="flex flex-wrap items-center gap-2 ml-auto">
@@ -153,16 +160,6 @@ export default function RegisterPaperPreview({
               className="rounded-radius-md border theme-border theme-card theme-text px-2 py-1 text-xs font-bold">
               {PREVIEW_DOCUMENTS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
             </select>
-            {doc === 'register' && months.length > 1 && (
-              <>
-                <label className="sr-only" htmlFor="preview-month">Preview page</label>
-                <select id="preview-month" value={sheet?.monthKey || ''}
-                  onChange={(e) => { pickedRef.current = true; setMonthKey(e.target.value) }}
-                  className="rounded-radius-md border theme-border theme-card theme-text px-2 py-1 text-xs font-bold">
-                  {months.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
-                </select>
-              </>
-            )}
             <button type="button" onClick={() => setZoom((z) => (z === 'fit' ? 'actual' : 'fit'))}
               className="theme-text-muted text-xs font-black underline">
               {zoom === 'fit' ? 'Actual size' : 'Fit width'}

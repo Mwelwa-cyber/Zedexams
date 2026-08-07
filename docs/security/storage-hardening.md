@@ -139,6 +139,22 @@ deliberately **not** bundled into this security fix:
   objects. Candidate for removal after a bucket scan confirms none remain.
 - **Legacy migration + IAM least-privilege + App Check enforcement staging** —
   see the prompt's sections 26–35; tracked, not started here.
+- **`storage-resize-images`: narrow the path scope and review "make public"**
+  (added 2026-08-05 — see the `storage-detect-objects` entry in
+  [`AUDIT_LOG.md`](./AUDIT_LOG.md)). The extension stays installed; the concern
+  is that it, like the detect-objects extension uninstalled on 2026-08-05, is
+  configured bucket-wide. Two things to settle: **which paths it should produce
+  derivatives for**, and **whether its "make public" setting is on**, since a
+  public derivative of an owner-scoped original silently defeats that scoping
+  for the resized copy. The audit gives the real map of what it is currently
+  producing derivatives for — every prefix that appeared in `detectedObjects`,
+  which only saw an image because something finalized it in the bucket:
+  `papers/`, `quiz-images/`, `assessment-images/`, `picture-bank/`,
+  `slide-notes-images/`, `lesson-files/`, `visual-studio/`, `user-branding/`.
+  Note `user-branding/` is user profile photos. Scope this against the path
+  inventory in §1 rather than from the prefix list alone — the list is evidence
+  of what *was* uploaded during one window, not a declaration of what *should*
+  be resized.
 
 ## 7. Test & tooling map
 

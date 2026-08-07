@@ -98,7 +98,7 @@ export const AGENTS = [
     mission: 'Refreshes auth + authoring QA reports nightly; surfaces regressions as queued jobs.',
     inputs: 'cron schedule',
     outputs: '.auth-qa-report.json, .authoring-qa-report.json + summary job',
-    wraps: 'scripts/check-file-integrity.mjs, scripts/test-question-schema.mjs, .playwright-cli/',
+    wraps: 'scripts/check-file-integrity.mjs, scripts/test-question-schema.mjs, npm run smoke',
     runtime: ['subagent', 'cloud-function'],
     invocation: 'Cron: nightly 02:00 Africa/Lusaka. Manually: invoke the qa-smoke subagent.',
   },

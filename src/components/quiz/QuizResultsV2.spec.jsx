@@ -58,11 +58,11 @@ import QuizResultsV2 from './QuizResultsV2'
 // confetti render?".
 const CONFETTI_MARKER = '🎊'
 
-function setupResult(percentage) {
+function setupResult(percentage, over = {}) {
   mockGetResultById.mockResolvedValue({
     quizId: 'q1', percentage, score: percentage, totalMarks: 100,
     grade: 7, subject: 'Mathematics', mode: 'practice', timeSpent: 60,
-    answers: {}, topicScores: {},
+    answers: {}, topicScores: {}, ...over,
   })
   mockGetQuizById.mockResolvedValue({ passages: [] })
   mockGetQuestions.mockResolvedValue([])
@@ -103,5 +103,47 @@ describe('QuizResultsV2 — pass-state celebration', () => {
     renderResults()
     await waitFor(() => expect(screen.getByText('Excellent!')).toBeInTheDocument())
     expect(screen.queryByText(CONFETTI_MARKER)).not.toBeInTheDocument()
+  })
+})
+
+describe('QuizResultsV2 — the Time stat', () => {
+  // The Assessment Engine writes `timeSpent: null` when an attempt's start was
+  // never recorded, rather than the old path's 0 — an honest absence instead of
+  // a duration that reads as measured (the approved deviation in
+  // src/engines/assessment-engine/persist/resultDocument.js). This component
+  // read `result.timeSpent ? … : 0`, which would have shown a learner a
+  // confident "0m 0s" for a duration nobody measured.
+
+  it('renders a measured duration', async () => {
+    setupResult(80, { timeSpent: 125 })
+    renderResults()
+    await waitFor(() => expect(screen.getByText('Excellent!')).toBeInTheDocument())
+    expect(screen.getByText('2m 5s')).toBeInTheDocument()
+  })
+
+  it('renders an UNKNOWN duration as —, never as a zero', async () => {
+    setupResult(80, { timeSpent: null })
+    renderResults()
+    await waitFor(() => expect(screen.getByText('Excellent!')).toBeInTheDocument())
+    expect(screen.getByText('—')).toBeInTheDocument()
+    expect(screen.queryByText('0m 0s')).not.toBeInTheDocument()
+  })
+
+  it('treats a MISSING field as unknown too', async () => {
+    // Legacy documents predate the field entirely.
+    setupResult(80, { timeSpent: undefined })
+    renderResults()
+    await waitFor(() => expect(screen.getByText('Excellent!')).toBeInTheDocument())
+    expect(screen.getByText('—')).toBeInTheDocument()
+  })
+
+  it('still renders a stored 0 as "0m 0s" — a real zero is not an absence', async () => {
+    // Every result written before the engine records 0 for "unknown".
+    // Re-interpreting those would change what is displayed for records already
+    // in Firestore, which is a separate decision from what the engine writes.
+    setupResult(80, { timeSpent: 0 })
+    renderResults()
+    await waitFor(() => expect(screen.getByText('Excellent!')).toBeInTheDocument())
+    expect(screen.getByText('0m 0s')).toBeInTheDocument()
   })
 })

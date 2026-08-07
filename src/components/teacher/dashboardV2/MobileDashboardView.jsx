@@ -35,6 +35,7 @@ import { useNotifications } from '../../../contexts/NotificationContext'
 import useHideOnScroll from '../../../hooks/useHideOnScroll'
 import NotificationCenter from '../../notifications/NotificationCenter'
 import BottomSheet from './BottomSheet'
+import GlassToolTile from './GlassToolTile'
 import MobileToolsScreen from './MobileToolsScreen'
 import { TEACHER_NAV_GROUPS, canonicalToolLabel } from './dashboardV2Config'
 import { buildActiveMatcher } from './teacherNavActive'
@@ -353,16 +354,14 @@ function QuickCreateSheet({ open, onClose }) {
       <div className="tdv2m-qcsheet-grid">
         {QUICK_CREATE.map(({ id, label, to }) => {
           const studio = STUDIO_BY_ID[id]
-          const TileIcon = studio?.icon
+          if (!studio) return null
           return (
             <Link key={id} to={to} className="tdv2m-qcsheet-item" onClick={onClose}>
-              <span className="tdv2m-qcsheet-tile" aria-hidden="true">
-                {studio?.image ? (
-                  <img src={studio.image} alt="" loading="lazy" draggable="false" />
-                ) : TileIcon ? (
-                  <TileIcon size={26} strokeWidth={1.9} />
-                ) : null}
-              </span>
+              {/* No sheen inside the sheet — it remounts on every open, and a
+                  sweep replaying each time would break "once per page load".
+                  No tile press either: the item card around it already gives
+                  the press response, and two nested scales read as jitter. */}
+              <GlassToolTile studio={studio} sizeClass="tdv2m-qcsheet-tile" sheen={false} press={false} />
               <span className="tdv2m-qcsheet-label">{label}</span>
             </Link>
           )
@@ -806,7 +805,6 @@ function RecentlyUsedTools({ savedCounts, warnings = [], onViewAll }) {
       <div className="tdv2m-recent-grid">
         {studios.map((studio) => {
           const badge = resolveBadge(studio, savedCounts, { warnings: warningSet })
-          const StudioIcon = studio.icon
           return (
             <Link
               key={studio.id}
@@ -814,19 +812,12 @@ function RecentlyUsedTools({ savedCounts, warnings = [], onViewAll }) {
               className="tdv2m-recent-tool"
               aria-label={`${studio.title}${badge ? `, ${badge.label}` : ''}`}
             >
-              <span
-                className={`tdv2m-recent-tile ${studio.image ? 'is-img' : `tint-${studio.tint || 'teal'}`}`}
-                aria-hidden="true"
-              >
-                {studio.image ? (
-                  <img src={studio.image} alt="" loading="lazy" draggable="false" />
-                ) : (
-                  <StudioIcon size={30} strokeWidth={1.8} />
-                )}
-                {badge?.type === 'new' ? (
-                  <span className="tdv2m-tool-new" aria-hidden="true">New</span>
-                ) : null}
-              </span>
+              <GlassToolTile
+                studio={studio}
+                badge={badge}
+                sizeClass="tdv2m-recent-tile"
+                iconSize={30}
+              />
               <span className="tdv2m-recent-name">{studio.title}</span>
               {badge?.type === 'saved' ? (
                 <span className="tdv2m-tool-saved" aria-hidden="true">{badge.count} saved</span>

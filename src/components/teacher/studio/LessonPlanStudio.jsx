@@ -24,7 +24,6 @@ import { useTeacherPlanContext } from './hooks/useTeacherPlanContext'
 import { useActiveAssignmentContext } from './hooks/useActiveAssignmentContext'
 import { buildPlannedTeachingMeta } from '../../../utils/plannedTeachingMeta'
 import { isNonTeachingDay, isWeekend, publicHolidayOn } from '../../../utils/calendarResolver'
-import { gradeLabel as tpGradeLabel, subjectLabel as tpSubjectLabel } from '../../../utils/teachingProfileCore'
 import { useCoverageAnalysis } from './hooks/useCoverageAnalysis'
 import { buildAlignmentInstructions } from './utils/teacherPlanContext'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
@@ -428,6 +427,15 @@ export default function LessonPlanStudio() {
   const [kitBusy, setKitBusy] = useState(false)
   // "This week's lesson" auto-fill banner dismissal (session-only).
   const [planContextDismissed, setPlanContextDismissed] = useState(false)
+  // True once a Teaching-Profile assignment or weekly-forecast suggestion has
+  // ACTUALLY written values into the form. The wizard's "Set up for you" card
+  // renders only then — and its chips are derived from the LIVE studioState,
+  // never from the raw suggestion, so the card can never describe a different
+  // lesson than the form holds.
+  const [appliedContext, setAppliedContext] = useState(false)
+  // Week number for the card's Week chip — set only when the weekly-forecast
+  // suggestion itself was applied (an assignment seed carries no week).
+  const [appliedWeekNumber, setAppliedWeekNumber] = useState(null)
 
   // Duplicate-lesson guard (requirement #6). Holds { lessonNumber,
   // nextLessonNumber } when the teacher is about to (re)create a lesson that
@@ -492,6 +500,15 @@ export default function LessonPlanStudio() {
     if (!seed || appliedAssignmentRef.current) return
     if (restoredDraftRef.current) return // a restored draft always wins
     appliedAssignmentRef.current = true
+    // Did this seed ACTUALLY write anything? The "Set up for you" card only
+    // renders when a suggestion really filled fields in.
+    const d = s.lessonDetails
+    const wrote = Boolean(
+      (!s.curriculumMode && seed.curriculumMode) ||
+      (!d.grade && seed.grade) ||
+      (!d.subject && seed.subject) ||
+      (!d.date && seed.date),
+    )
     if (!s.curriculumMode) s.setCurriculumMode(seed.curriculumMode)
     s.setLessonDetails((prev) => {
       const next = { ...prev }
@@ -500,6 +517,7 @@ export default function LessonPlanStudio() {
       if (!next.date && seed.date) next.date = seed.date
       return next
     })
+    if (wrote) setAppliedContext(true)
   }, [assignmentContext.seed])
 
   // ── "This week's lesson" auto-fill ──────────────────────────────────────────
@@ -509,12 +527,30 @@ export default function LessonPlanStudio() {
   // anything the teacher has typed, and no-op cleanly when there's no forecast.
   const { suggestion: planContext } = useTeacherPlanContext(uid)
   const appliedPlanContextRef = useRef(false)
+  // Mirrored into a ref so restoreDraft (stable identity, no deps) can compare
+  // the restored fields against the suggestion without a stale closure.
+  const planContextRef = useRef(null)
+  planContextRef.current = planContext
   useEffect(() => {
     if (!planContext || appliedPlanContextRef.current) return
     const s = studioStateRef.current
+    // Evaluated exactly once — the ref is set BEFORE any early return, so a
+    // later state change can never re-run the fill against a form the teacher
+    // has since edited (the old 'previous' early return left the ref unset).
+    appliedPlanContextRef.current = true
     // Forecasts are CBC; don't touch a teacher who has chosen Previous.
     if (s.curriculumMode === 'previous') return
-    appliedPlanContextRef.current = true
+    // Blanks-only merge: record whether the suggestion ACTUALLY writes
+    // anything, so the "Set up for you" card only appears when it did (the
+    // Teaching-Profile seed may have won every field already).
+    const d = s.lessonDetails
+    const wrote = Boolean(
+      !s.curriculumMode ||
+      (!d.grade && planContext.grade) ||
+      (!d.subject && planContext.subject) ||
+      (!d.date && planContext.date) ||
+      (planContext.topic && !s.topicData.topic),
+    )
     if (!s.curriculumMode) s.setCurriculumMode('cbc')
     s.setLessonDetails((prev) => ({
       ...prev,
@@ -526,6 +562,10 @@ export default function LessonPlanStudio() {
       // setTopicField('topic') resets subtopic; set topic first, then subtopic.
       s.setTopicField('topic', planContext.topic)
       if (planContext.subtopic) s.setTopicField('subtopic', planContext.subtopic)
+    }
+    if (wrote) {
+      setAppliedContext(true)
+      if (planContext.weekNumber) setAppliedWeekNumber(planContext.weekNumber)
     }
   }, [planContext])
 
@@ -550,6 +590,17 @@ export default function LessonPlanStudio() {
     applyLessonPlanRestore(studioStateRef.current, payload)
     // The recovered draft wins over "This week's lesson" auto-fill.
     appliedPlanContextRef.current = true
+    // The "Set up for you" card only survives a restore when the restored
+    // fields still MATCH the suggestion it advertises — otherwise it would
+    // describe a different lesson than the form now holds.
+    const pc = planContextRef.current
+    const restored = payload?.lessonDetails ?? {}
+    const matches = Boolean(
+      pc && restored.grade && restored.grade === pc.grade &&
+      restored.subject && restored.subject === pc.subject,
+    )
+    setAppliedContext(matches)
+    setAppliedWeekNumber(matches && pc.weekNumber ? pc.weekNumber : null)
   }, [])
 
   // ── Persistent lesson memory ────────────────────────────────────────────────
@@ -1565,13 +1616,10 @@ export default function LessonPlanStudio() {
   }, [dupModal, handleGenerate])
 
   // ── Teaching Profile context surfacing (read-only) ──────────────────────────
-  // A confidence line + non-blocking notices so an unsupported assignment or an
-  // unresolved/invalid teaching date is never a silent empty field.
-  const activeAssignment = assignmentContext.assignment
-  const activeAssignmentLabel = activeAssignment
-    ? [tpGradeLabel(activeAssignment.grade), tpSubjectLabel(activeAssignment.subject), activeAssignment.className]
-        .filter(Boolean).join(' · ')
-    : ''
+  // Non-blocking notices so an unsupported assignment or an unresolved/invalid
+  // teaching date is never a silent empty field. (The old "Teaching: …" label
+  // is folded into the wizard's "Set up for you" card, whose chips derive from
+  // the live form state.)
   const mappingNotice =
     assignmentContext.mappingNotice && (!studioState.lessonDetails.grade || !studioState.lessonDetails.subject)
       ? assignmentContext.mappingNotice
@@ -1647,9 +1695,9 @@ export default function LessonPlanStudio() {
             onViewCompleted={handleViewCompleted}
             isValid={isValid}
             generateLabel={genButton.label}
-            planContext={planContextDismissed ? null : planContext}
+            appliedContext={appliedContext && !planContextDismissed}
+            appliedWeekNumber={appliedWeekNumber}
             onDismissPlanContext={() => setPlanContextDismissed(true)}
-            activeAssignmentLabel={activeAssignmentLabel}
             mappingNotice={mappingNotice}
             dateHint={dateHint}
             dateWarning={dateWarning}

@@ -243,6 +243,28 @@ describe('QuizRunnerV2 — answering', () => {
     return Array.from(container.querySelectorAll('.zx-opt'))
   }
 
+  // Regression: the schema admits up to 20 options and past-paper import
+  // produces up to 10, but this runner labelled choices with a literal
+  // ['A','B','C','D'][i] — so a fifth option printed "undefined" as its letter.
+  it('labels a five-option question A-E, never undefined', async () => {
+    mockGetQuizById.mockResolvedValue(quizDoc())
+    mockGetQuestions.mockResolvedValue([
+      mcq({ options: ['3', '4', '5', '6', '7'], correctAnswer: 1 }),
+    ])
+    const { container } = renderRunner()
+    fireEvent.click(await screen.findByRole('button', { name: /Start Practice/i }))
+    await screen.findByText('What is 2 + 2?')
+
+    const opts = optionButtons(container)
+    expect(opts).toHaveLength(5)
+    expect(opts.map((o) => o.textContent)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('A'), expect.stringContaining('E'),
+      ]),
+    )
+    expect(container.textContent).not.toContain('undefined')
+  })
+
   it('marks the clicked option as selected in exam mode', async () => {
     // Exam mode is the only mode where data-selected stays true after a tap:
     // in practice, pick() reveals immediately so selected flips back to false

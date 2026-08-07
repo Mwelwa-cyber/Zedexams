@@ -11,9 +11,9 @@
  */
 
 import { memo, useMemo, useRef, useState } from 'react'
-import { ATTENDANCE_STATUSES, MARKABLE_STATUSES } from '../../../../utils/attendanceConstants'
+import { ATTENDANCE_STATUSES, ATTENDANCE_STATUS_ORDER, MARKABLE_STATUSES } from '../../../../utils/attendanceConstants'
 import { computeLearnerTotals, formatPercent, isLearnerEligibleOn } from '../../../../utils/attendanceCalculator'
-import { groupDaysByMonth, groupDaysByWeek } from '../../../../utils/attendanceCalendarResolver'
+import { groupDaysByMonth, groupDaysByWeek, markableDays } from '../../../../utils/attendanceCalendarResolver'
 
 // Click cycles through the statuses in marking order; keyboard uses the same.
 function nextStatus(current) {
@@ -22,7 +22,7 @@ function nextStatus(current) {
 }
 
 const GridRow = memo(function GridRow({
-  learner, position, weeks, termWindow, totals, disabled, onCell, registerRef, firstCellKey,
+  learner, position, weeks, termWindow, totals, hasMarks, disabled, onCell, registerRef, firstCellKey,
 }) {
   return (
     <tr className="border-b theme-border">
@@ -62,20 +62,39 @@ const GridRow = memo(function GridRow({
       <td className="px-2 py-1 text-xs font-black text-center text-amber-700">{totals.lateDays}</td>
       <td className="px-2 py-1 text-xs font-black text-center text-purple-700">{totals.excusedDays}</td>
       <td className="px-2 py-1 text-xs font-black text-center theme-text-muted">{totals.eligibleDays}</td>
-      <td className="px-2 py-1 text-xs font-black text-center theme-text whitespace-nowrap">{formatPercent(totals.attendancePercentage)}</td>
+      {/* No marks yet → the formula has nothing to say. formatPercent already
+          renders '—' for null; this gate is belt-and-braces for a draft term. */}
+      <td
+        className="px-2 py-1 text-xs font-black text-center theme-text whitespace-nowrap"
+        title={hasMarks ? undefined : 'Calculates as you mark'}
+      >
+        {hasMarks ? formatPercent(totals.attendancePercentage) : '—'}
+      </td>
     </tr>
   )
 })
 
-export default function AttendanceGridView({ registerHook, canEdit, policy }) {
+export default function AttendanceGridView({
+  registerHook, canEdit, policy, monthKey: monthKeyProp = null, onMonthChange = null,
+}) {
   const { roster, termInfo, daysWithRecords, todayIso, setStatusOn } = registerHook
   const months = useMemo(() => groupDaysByMonth(daysWithRecords), [daysWithRecords])
   const defaultMonth = useMemo(() => {
     const current = months.find((m) => m.key === todayIso.slice(0, 7))
     return (current || months[months.length - 1])?.key || null
   }, [months, todayIso])
-  const [monthKey, setMonthKey] = useState(null)
+  // Month selection normally lives in AttendanceWorkspace (one control drives
+  // grid + paper preview); the local state is a fallback for standalone use.
+  const [localMonthKey, setLocalMonthKey] = useState(null)
+  const monthKey = monthKeyProp ?? localMonthKey
+  const setMonthKey = onMonthChange ?? setLocalMonthKey
   const activeMonth = months.find((m) => m.key === (monthKey || defaultMonth)) || months[0]
+
+  // Coarse pointer (touch) → "tap" wording, no keyboard hint. Detected once —
+  // the input class of a device doesn't change mid-session.
+  const [coarsePointer] = useState(
+    () => typeof window !== 'undefined' && Boolean(window.matchMedia?.('(pointer: coarse)')?.matches),
+  )
 
   const learners = useMemo(
     () => [...roster].sort((a, b) => (a.order || 0) - (b.order || 0)),
@@ -93,13 +112,21 @@ export default function AttendanceGridView({ registerHook, canEdit, policy }) {
   const shownDays = useMemo(() => weeks.flatMap((w) => w.days), [weeks])
 
   // Whole-term totals per learner (the shared engine — matches print/exports).
+  // Totals run over MARKABLE days only (teaching days up to today) — the raw
+  // calendar includes weekends/holidays/future dates, which inflates Elig and
+  // makes % meaningless. Every other surface (Term Summary, exports) filters
+  // the same way. `hasMarks` gates the % column: no marks → nothing to say.
+  const countableDays = useMemo(() => markableDays(daysWithRecords), [daysWithRecords])
   const totalsByLearner = useMemo(() => {
     const map = new Map()
     for (const learner of learners) {
-      map.set(learner.id, computeLearnerTotals({ learner, days: daysWithRecords, term: termWindow, policy }))
+      map.set(learner.id, {
+        totals: computeLearnerTotals({ learner, days: countableDays, term: termWindow, policy }),
+        hasMarks: daysWithRecords.some((d) => d.records?.[learner.id]?.status),
+      })
     }
     return map
-  }, [learners, daysWithRecords, termWindow, policy])
+  }, [learners, countableDays, daysWithRecords, termWindow, policy])
 
   // Class totals per shown column: how many learners marked present+late that day.
   const columnTotals = useMemo(() => shownDays.map((day) => {
@@ -165,8 +192,10 @@ export default function AttendanceGridView({ registerHook, canEdit, policy }) {
             {m.label}
           </button>
         ))}
-        <span className="theme-text-muted text-xs ml-auto hidden sm:block">
-          Click a cell to cycle P→A→S→L→E→– · arrow keys to move
+        <span className="theme-text-muted text-xs ml-auto">
+          {coarsePointer
+            ? 'Tap a cell to cycle P → A → S → L → E → –'
+            : 'Click a cell to cycle P → A → S → L → E → – · arrow keys to move'}
         </span>
       </div>
 
@@ -203,7 +232,8 @@ export default function AttendanceGridView({ registerHook, canEdit, policy }) {
                 </th>
               )))}
               {['P', 'A', 'S', 'L', 'E', 'Elig', '%'].map((h, i) => (
-                <th key={h} className={`sticky top-8 z-30 theme-card px-2 py-1 text-center text-[10px] font-black theme-text-muted ${i === 0 ? 'border-l theme-border' : ''}`}>{h}</th>
+                <th key={h} title={h === 'Elig' ? 'Eligible days' : undefined}
+                  className={`sticky top-8 z-30 theme-card px-2 py-1 text-center text-[10px] font-black theme-text-muted ${i === 0 ? 'border-l theme-border' : ''}`}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -215,7 +245,8 @@ export default function AttendanceGridView({ registerHook, canEdit, policy }) {
                 position={i + 1}
                 weeks={weeks}
                 termWindow={termWindow}
-                totals={totalsByLearner.get(learner.id)}
+                totals={totalsByLearner.get(learner.id).totals}
+                hasMarks={totalsByLearner.get(learner.id).hasMarks}
                 disabled={!canEdit}
                 onCell={setStatusOn}
                 registerRef={registerRef}
@@ -235,6 +266,26 @@ export default function AttendanceGridView({ registerHook, canEdit, policy }) {
             </tr>
           </tfoot>
         </table>
+      </div>
+
+      {/* Legend — the same colours the cells mark in (each status's chipClass),
+          so the key under the grid never disagrees with the grid. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5" data-testid="attendance-grid-legend">
+        {ATTENDANCE_STATUS_ORDER.map((id) => {
+          const cfg = ATTENDANCE_STATUSES[id]
+          return (
+            <span key={id} className="inline-flex items-center gap-1.5 theme-text-muted text-xs font-bold">
+              <span
+                aria-hidden="true"
+                className={`inline-flex h-4 w-4 items-center justify-center rounded border text-[10px] font-black leading-none ${cfg.chipClass}`}
+              >
+                {cfg.symbol}
+              </span>
+              {cfg.label}
+            </span>
+          )
+        })}
+        <span className="theme-text-muted text-xs ml-auto">% appears once days are marked</span>
       </div>
     </div>
   )

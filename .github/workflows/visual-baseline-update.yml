@@ -75,6 +75,14 @@ on:
           - ''
           - browser-print
           - docx
+          # NOT `screen` yet. Replacing an approved baseline goes through the
+          # sweep path (`validateSweepUpdateRequest`, `--allow-failure`, the
+          # before/after audit record), and none of that is routed to the
+          # screen runner. An option that reached an unrouted path would
+          # silently record nothing while reporting success, which is worse
+          # than its absence. Screen baselines are BOOTSTRAP-only until that
+          # path exists — and a baseline that does not exist cannot be
+          # replaced, so nothing is currently blocked by this.
       reason:
         description: 'Why is the new appearance correct? Recorded in the commit.'
         required: true

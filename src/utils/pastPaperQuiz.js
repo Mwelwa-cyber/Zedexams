@@ -14,7 +14,10 @@
  * Counter scope: keyed by paperId + a stable visitor id. For signed-in
  * users the visitor id IS the uid (so the count survives sign-out /
  * sign-in on the same device). For anon visitors we mint a long-lived
- * browser id and store it under `zedexams:anonId`.
+ * browser id and store it under `zedexams:anonId`. That rule now lives in
+ * `visitorId.js` because the engine's rollout buckets on the same id
+ * (docs/phase3-plan.md §4.2); both names are re-exported here so existing
+ * importers are unaffected.
  *
  * Counter storage: per choice, localStorage everywhere. This is per-
  * device by design — clearing cookies resets it, and a learner on two
@@ -37,9 +40,14 @@ import { QUIZ_LOAD, isPermissionDenied } from './pastPaperQuizLoad'
 // callers keep importing the loader and its outcomes from one place.
 export { QUIZ_LOAD, QUIZ_LOAD_TEXT, isPermissionDenied } from './pastPaperQuizLoad'
 
+// The visitor-id rule lives in its own module — the engine's rollout flags
+// bucket on the SAME id, and two derivations of it would drift silently.
+import { resolveVisitorId } from './visitorId'
+
+export { getOrCreateAnonId, resolveVisitorId } from './visitorId'
+
 export const FREE_QUESTION_LIMIT = 30
 const COUNTER_PREFIX = 'zedexams:pastPaperQuiz:'
-const ANON_ID_KEY = 'zedexams:anonId'
 
 function safeStorage() {
   try {
@@ -50,24 +58,8 @@ function safeStorage() {
   }
 }
 
-/** Stable per-browser id for anon visitors. Created lazily. */
-export function getOrCreateAnonId() {
-  const ls = safeStorage()
-  if (!ls) return 'anon-no-storage'
-  let id = ls.getItem(ANON_ID_KEY)
-  if (!id) {
-    id = `anon-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`
-    try { ls.setItem(ANON_ID_KEY, id) } catch { /* quota — accept duplicate counters */ }
-  }
-  return id
-}
-
 function counterKey(paperId, visitorId) {
   return `${COUNTER_PREFIX}${paperId}:${visitorId}`
-}
-
-function resolveVisitorId(uid) {
-  return uid || getOrCreateAnonId()
 }
 
 export function getAnsweredCount(paperId, uid) {

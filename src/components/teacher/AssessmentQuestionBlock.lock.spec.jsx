@@ -56,7 +56,7 @@ function renderCard({ locked = false, rewriting = false, ...props } = {}) {
   return { onToggleLock, onRewriteQuestion }
 }
 
-// The eight-icon header row became a grip plus two menus (#2.4), so every
+// The eight-icon header row became a grip plus two ActionMenus (#2.4), so every
 // control below is now one click deeper. The BEHAVIOUR asserted is unchanged —
 // that is the point of re-pointing these rather than rewriting them.
 function openOverflowMenu() {
@@ -64,7 +64,7 @@ function openOverflowMenu() {
   return screen.getByRole('menu')
 }
 function openAiMenu() {
-  fireEvent.click(screen.getByRole('button', { name: /^ai/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^(ai|thinking)/i }))
   return screen.getByRole('menu')
 }
 
@@ -137,8 +137,11 @@ describe('QuestionBlock — the header carries a grip, not two arrows', () => {
     const onRemoveSection = vi.fn()
     renderCard({ onRemoveSection })
     fireEvent.click(within(openOverflowMenu()).getByRole('menuitem', { name: /^delete$/i }))
+    // The menu row opens the dialog; the dialog does the removing.
     expect(onRemoveSection).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    const dialog = screen.getByRole('alertdialog')
+    expect(dialog).toHaveTextContent('Delete question 1?')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
     expect(onRemoveSection).toHaveBeenCalledWith(0)
   })
 })

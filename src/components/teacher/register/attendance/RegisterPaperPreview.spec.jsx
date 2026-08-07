@@ -1,8 +1,9 @@
 /**
  * Paper preview behaviour: it starts closed (and costs nothing closed), the
- * sheet it renders is the printed page, it follows the day being marked, it
- * picks up marks that are still only in the outbox, and Print sends the FULL
- * document — not the one page on screen.
+ * sheet it renders is the printed page, it follows the month selected by the
+ * grid's month chips (the `monthKey` prop — there is no second month picker),
+ * it picks up marks that are still only in the outbox, and Print sends the
+ * FULL document — not the one page on screen.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
@@ -64,7 +65,7 @@ function renderPreview(props = {}) {
       uid="t1"
       teacherName="Mr M. Chisenga"
       policy={undefined}
-      focusDate={TODAY}
+      monthKey="2026-06"
       {...props}
     />,
   )
@@ -117,16 +118,28 @@ describe('RegisterPaperPreview', () => {
     expect(screen.getByText(/A4 landscape · page \d+ of \d+/)).toBeInTheDocument()
   })
 
-  it('opens on the month of the day being marked', async () => {
-    renderPreview({ focusDate: '2026-05-20' })
+  it('previews the month selected above (the monthKey prop) and says so', async () => {
+    renderPreview({ monthKey: '2026-05' })
     await openPreview()
     expect(srcdoc()).toContain('CLASS REGISTER — May 2026')
+    // The header line names the month and where the selection lives.
+    expect(
+      screen.getByText(/— May 2026 — follows the month selected above · A4 landscape · exactly what prints/),
+    ).toBeInTheDocument()
+  })
+
+  it('falls back to the nearest earlier month when the selected month has no sheet yet', async () => {
+    // The preview only carries non-future months (May + June as of TODAY), so
+    // a July selection in the grid previews June — never a blank sheet.
+    renderPreview({ monthKey: '2026-07' })
+    await openPreview()
+    expect(srcdoc()).toContain('CLASS REGISTER — June 2026')
   })
 
   it('shows marks that are still unsaved', async () => {
     const { rerender } = render(
       <RegisterPaperPreview registerHook={hookWith()} register={register} uid="t1"
-        teacherName="T" policy={undefined} focusDate={TODAY} />,
+        teacherName="T" policy={undefined} monthKey="2026-06" />,
     )
     await openPreview()
     // Nobody marked yet: the June sheet carries no absence cell.
@@ -137,7 +150,7 @@ describe('RegisterPaperPreview', () => {
     try {
       rerender(
         <RegisterPaperPreview registerHook={hookWith({ b: { status: 'absent' } })} register={register}
-          uid="t1" teacherName="T" policy={undefined} focusDate={TODAY} />,
+          uid="t1" teacherName="T" policy={undefined} monthKey="2026-06" />,
       )
       expect(srcdoc()).not.toContain(ABSENT_CELL) // debounced, not dropped
       await act(async () => { vi.advanceTimersByTime(600) })
@@ -160,12 +173,19 @@ describe('RegisterPaperPreview', () => {
     expect(printed).toContain('CLASS REGISTER — June 2026')
   })
 
-  it('switches document and page at once — only marking is debounced', async () => {
-    renderPreview({ focusDate: '2026-05-20' })
+  it('switches month and document at once — only marking is debounced', async () => {
+    const { rerender } = renderPreview({ monthKey: '2026-05' })
     await openPreview()
+    expect(srcdoc()).toContain('CLASS REGISTER — May 2026')
 
-    fireEvent.change(screen.getByLabelText('Preview page'), { target: { value: '2026-06' } })
+    // The month comes from the grid's chips (the prop) — no local picker, no
+    // debounce: a direct request redraws immediately.
+    rerender(
+      <RegisterPaperPreview registerHook={hookWith()} register={register} uid="t1"
+        teacherName="Mr M. Chisenga" policy={undefined} monthKey="2026-06" />,
+    )
     expect(srcdoc()).toContain('CLASS REGISTER — June 2026')
+    expect(screen.queryByLabelText('Preview page')).toBeNull()
 
     fireEvent.change(screen.getByLabelText('Preview document'), { target: { value: 'summary' } })
     expect(srcdoc()).toContain('TERM ATTENDANCE SUMMARY')

@@ -1,0 +1,105 @@
+{
+  "fixtureId": "vr-006",
+  "family": "browser-print",
+  "copy": "paper",
+  "identity": "browser-print/chromium-151.0.7922.47",
+  "sourceCommit": "7cc469fd9cb1baa63ea7fcb8b265cd3372cca213",
+  "source": "2108",
+  "reason": "puppeteer 25.4.0 rolls its pinned Chrome from 150.0.7871.24 to 151.0.7922.47. Every fixture is re-rendered by a different browser build, so all 18 baselines move at once: the 9 browser-print targets change baseline identity to chromium-151.0.7922.47, and the 9 docx targets are refused by assertComparableEnvironment because the docx stage rasterises library SVG figures through Chromium. No paper content, layout code or export rule changed in this PR - the renderer did.",
+  "environment": {
+    "chromium": "151.0.7922.47",
+    "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-151.0.7922.47/chrome-linux64/chrome",
+    "libreoffice": "24.2.7.2",
+    "os": "Linux 6.17.0-1020-azure",
+    "platform": "linux-x64",
+    "node": "v22.23.1",
+    "fonts": {
+      "count": 54,
+      "digest": "20b5398451fb9a3a"
+    },
+    "pageSize": "A4",
+    "pageWidthMm": 210,
+    "pageHeightMm": 297,
+    "marginsMm": {
+      "top": 20,
+      "right": 18,
+      "bottom": 16,
+      "left": 18
+    },
+    "dpi": 150,
+    "deviceScaleFactor": 1,
+    "locale": "en-GB",
+    "timeZone": "Africa/Lusaka",
+    "fixedDate": "2026-01-15",
+    "chromiumFlags": "--headless=new --disable-gpu --force-device-scale-factor=1 --font-render-hinting=none --disable-lcd-text --hide-scrollbars --no-first-run --disable-extensions --disable-features=NetworkService",
+    "libreOfficeArgs": "--headless --norestore --nolockcheck --nodefault --nofirststartwizard"
+  },
+  "settings": {
+    "pageSize": "A4",
+    "pageWidthMm": 210,
+    "pageHeightMm": 297,
+    "marginsMm": {
+      "top": 20,
+      "right": 18,
+      "bottom": 16,
+      "left": 18
+    },
+    "dpi": 150,
+    "deviceScaleFactor": 1,
+    "locale": "en-GB",
+    "timeZone": "Africa/Lusaka",
+    "fixedDate": "2026-01-15"
+  },
+  "command": "chromium page.pdf (preferCSSPageSize)",
+  "pageCount": 5,
+  "anchors": {
+    "question_1": 1,
+    "question_2": 1,
+    "question_3": 1,
+    "question_4": 1,
+    "question_5": 2,
+    "question_6": 2,
+    "question_7": 2,
+    "question_8": 2,
+    "question_9": 3,
+    "question_10": 3,
+    "question_11": 3,
+    "question_12": 3,
+    "question_13": 3,
+    "question_14": 4,
+    "question_15": 4,
+    "question_16": 4,
+    "question_17": 4,
+    "question_18": 4,
+    "header": 1
+  },
+  "inkByPage": {
+    "1": 0.031203668681201873,
+    "2": 0.029253094276382452,
+    "3": 0.029827821200567272,
+    "4": 0.030368957199639612,
+    "5": 0.0028147354645624944
+  },
+  "figures": {
+    "unresolvedFigureCount": 0,
+    "unresolvedFigures": [],
+    "placeholders": 0,
+    "docx": null,
+    "detected": {
+      "1": [],
+      "2": [],
+      "3": [],
+      "4": [],
+      "5": []
+    }
+  },
+  "hashes": {
+    "environment.json": "ddaae25a7baa8b065fdc6e21c679c77fc80d72c31e35bfc77ab198b7bf5254c9",
+    "layout.json": "8366edb0a9d33556c076ce1d0ec148e6b44a639ff7d96434ff0da13d782c1cfb",
+    "page-01.png": "31a6600deae5b966cc5dad3330f59d42f97338f502237b8785843264b3d9a715",
+    "page-02.png": "a34f493144fc2961aae70ced261c99ac94ffb4ea6b4d112d5e4c80d296081a0f",
+    "page-03.png": "a90f0ff01ebfb024304042a6d8ecc83d2a8783029d97bd189a9198d30faaa5cf",
+    "page-04.png": "5e31c482fb1c157c008bb2d7c8c4359cd6e2b835f56467c9db94fb2f107cd8d3",
+    "page-05.png": "58a548162517f0221d1d3eca7545ad70a30bfa471b11b532f01bc707d4350c35"
+  }
+}

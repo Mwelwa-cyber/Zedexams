@@ -1,23 +1,26 @@
 /**
  * Timetable conflicts panel — the Class Timetable Studio's cross-timetable
- * conflict section. Purely presentational + local filter state: the sibling
- * loading and the pure engine run live in the studio; this renders their
- * results, so it tests cleanly in Vitest with plain props.
+ * conflict surface (opened as a drawer from the workspace's conflicts
+ * chip). Purely presentational + local filter state: the sibling loading
+ * and the pure engine run live in the studio; this renders their results,
+ * so it tests cleanly in Vitest with plain props.
  *
- * Shows: summary counts, coverage (complete / partial / failed — a "0
- * conflicts" result never looks fully trustworthy when coverage is
- * partial), grouped conflict cards with resolution actions, presentation
- * filters, refresh status with last-checked time, offline staleness, and
- * empty/success states. Severity is communicated with text + icons, never
- * colour alone.
+ * Clean result = ONE line ("No conflicts — checked against your other
+ * timetables…") + Refresh. Conflicted result = stat tiles, presentation
+ * filters and grouped conflict cards with resolution actions. The coverage
+ * diagnostics (sibling/block counts, id coverage, normalisation failures)
+ * are developer telemetry, not teacher copy — they always sit behind a
+ * <details> "Details" disclosure. Severity is communicated with text +
+ * icons, never colour alone.
  */
 
 import { useMemo, useState } from 'react'
+import { AlertTriangle, Check, Eye, Users, Settings, LayoutGrid, Grid3x3 } from 'lucide-react'
 import { summariseConflicts } from '../../../utils/timetableConflictEngine'
 
 const SEVERITY_META = {
-  error: { icon: '⛔', label: 'Error', color: 'var(--danger-fg)' },
-  warning: { icon: '⚠️', label: 'Warning', color: 'var(--warning-fg)' },
+  error: { label: 'Error', color: 'var(--danger-fg)' },
+  warning: { label: 'Warning', color: 'var(--warning-fg)' },
 }
 
 const FILTERS = [
@@ -50,6 +53,42 @@ function BlockLine({ label, block, className }) {
       {block.timeReview ? '(time needs review)' : `${block.startTime}–${block.endTime}`}
       {block.length > 1 ? ' · double period' : ''}
     </div>
+  )
+}
+
+/** Developer telemetry — always behind a disclosure, never teacher copy. */
+function CoverageDetails({ coverage }) {
+  const [open, setOpen] = useState(false)
+  if (!coverage) return null
+  const coverageTone = coverage.status === 'complete'
+    ? { color: 'var(--success-fg)', label: 'Complete' }
+    : coverage.status === 'partial'
+      ? { color: 'var(--warning-fg)', label: 'Partial' }
+      : { color: 'var(--danger-fg)', label: 'Failed' }
+  return (
+    <details open={open} className="theme-border rounded-xl border bg-white px-3 py-2 text-[11px]" style={{ color: 'var(--zt-text-muted)' }}>
+      <summary
+        onClick={(e) => { e.preventDefault(); setOpen((v) => !v) }}
+        className="cursor-pointer select-none font-black"
+      >
+        Details
+      </summary>
+      <div className="mt-1 space-y-0.5">
+        <div className="font-black" style={{ color: coverageTone.color }}>
+          Conflict coverage: Account-level · {coverageTone.label}
+        </div>
+        <div>
+          Timetables accessible to this account and matching the current school name, term and year were checked.
+          Timetables owned by other school accounts may not be included.
+        </div>
+        <div>
+          Sibling timetables checked: {coverage.siblingsChecked} · Blocks checked: {coverage.blocksChecked} ·
+          Blocks with teacher links: {coverage.blocksWithTeacherIds} · Legacy teacher-name blocks: {coverage.legacyTeacherNameBlocks} ·
+          Blocks with room ids: {coverage.blocksWithRoomIds} · Time-normalisation failures: {coverage.timeNormalisationFailures}
+        </div>
+        {coverage.notes.map((n) => <div key={n}>• {n}</div>)}
+      </div>
+    </details>
   )
 }
 
@@ -87,18 +126,14 @@ export default function TimetableConflictPanel({
     return list
   }, [conflicts, filter, dayFilter])
 
-  const coverageTone = coverage?.status === 'complete'
-    ? { color: 'var(--success-fg)', label: 'Complete' }
-    : coverage?.status === 'partial'
-      ? { color: 'var(--warning-fg)', label: 'Partial' }
-      : { color: 'var(--danger-fg)', label: 'Failed' }
+  const clean = status !== 'error' && conflicts.length === 0
 
   return (
-    <section className="studio-card p-5 space-y-3" aria-label="Timetable conflicts">
+    <section className="studio-card space-y-3 p-5" aria-label="Timetable conflicts">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="studio-display" style={{ fontSize: 18, margin: 0 }}>Timetable conflicts</h2>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--zt-text-muted)' }}>
+          <h2 className="m-0 text-base font-black">Timetable conflicts</h2>
+          <p className="mt-0.5 text-xs" style={{ color: 'var(--zt-text-muted)' }}>
             Checks this week against your other saved class timetables for the same school, term and year.
           </p>
         </div>
@@ -106,20 +141,21 @@ export default function TimetableConflictPanel({
           <span className="text-[11px]" style={{ color: 'var(--zt-text-muted)' }} aria-live="polite">
             {status === 'loading' ? 'Checking conflicts…'
               : status === 'error' ? 'Conflict check failed'
-                : lastCheckedAt ? `Conflicts up to date · last checked ${fmtClock(lastCheckedAt)}` : ''}
+                : !clean && lastCheckedAt ? `Conflicts up to date · last checked ${fmtClock(lastCheckedAt)}` : ''}
           </span>
           <button type="button" onClick={onRefresh} disabled={status === 'loading'}
             className="studio-btn-ghost text-xs disabled:opacity-50"
             aria-label="Refresh conflicts from your saved timetables">
-            ↻ Refresh conflicts
+            Refresh conflicts
           </button>
         </div>
       </div>
 
       {offline && (
-        <div className="rounded-xl border px-3 py-2 text-xs font-bold"
+        <div className="flex items-start gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold"
           style={{ borderColor: 'rgba(212,160,23,0.4)', background: 'rgba(212,160,23,0.08)', color: 'var(--warning-fg)' }}>
-          ⚠️ You are offline. Cross-class conflict results may be outdated — reconnect before a final save.
+          <AlertTriangle size={13} aria-hidden="true" className="mt-0.5 shrink-0" />
+          <span>You are offline. Cross-class conflict results may be outdated — reconnect before a final save.</span>
         </div>
       )}
 
@@ -132,161 +168,150 @@ export default function TimetableConflictPanel({
       )}
 
       {status === 'error' && (
-        <div className="rounded-xl border px-3 py-2 text-xs font-bold"
+        <div className="flex items-start gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold"
           style={{ borderColor: 'rgba(190,49,68,0.4)', background: 'rgba(190,49,68,0.06)', color: 'var(--danger-fg)' }}>
-          ⛔ Conflict check failed{errorMessage ? ` — ${errorMessage}` : ''}. Your timetable edits are unaffected; try refreshing.
+          <AlertTriangle size={13} aria-hidden="true" className="mt-0.5 shrink-0" />
+          <span>Conflict check failed{errorMessage ? ` — ${errorMessage}` : ''}. Your timetable edits are unaffected; try refreshing.</span>
         </div>
       )}
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" aria-live="polite">
-        {[
-          { label: 'Teacher conflicts', value: summary.teacher },
-          { label: 'Room conflicts', value: summary.room },
-          { label: 'Class conflicts', value: summary.class },
-          { label: 'Warnings', value: summary.warnings },
-        ].map((card) => (
-          <div key={card.label} className="rounded-xl border theme-border bg-white px-3 py-2">
-            <div className="text-lg font-black" style={{ color: card.value > 0 ? '#be3144' : '#1E8449' }}>
-              {card.value}
-            </div>
-            <div className="text-[11px] font-bold" style={{ color: 'var(--zt-text-muted)' }}>{card.label}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Coverage. Scope is stated honestly: sibling loading is account-level
-          (owner-scoped reads) until a canonical schoolId + school membership
-          model exists — never claim "all school timetables checked". */}
-      {coverage && (
-        <div className="rounded-xl border theme-border bg-white px-3 py-2 text-[11px] space-y-0.5" style={{ color: 'var(--zt-text-muted)' }}>
-          <div className="font-black" style={{ color: coverageTone.color }}>
-            Conflict coverage: Account-level · {coverageTone.label}
-          </div>
-          <div>
-            Timetables accessible to this account and matching the current school name, term and year were checked.
-            Timetables owned by other school accounts may not be included.
-          </div>
-          <div>
-            Sibling timetables checked: {coverage.siblingsChecked} · Blocks checked: {coverage.blocksChecked} ·
-            Blocks with teacher links: {coverage.blocksWithTeacherIds} · Legacy teacher-name blocks: {coverage.legacyTeacherNameBlocks} ·
-            Blocks with room ids: {coverage.blocksWithRoomIds} · Time-normalisation failures: {coverage.timeNormalisationFailures}
-          </div>
-          {coverage.notes.map((n) => <div key={n}>• {n}</div>)}
-        </div>
-      )}
-
-      {/* Filters (presentation only) */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        {FILTERS.map((f) => {
-          const on = filter === f.id
-          return (
-            <button key={f.id} type="button" onClick={() => setFilter(f.id)}
-              aria-pressed={on}
-              className={`rounded-full px-2.5 py-1 text-[11px] font-black border ${on ? 'theme-accent-fill theme-on-accent border-transparent' : 'bg-white theme-text-muted theme-border'}`}>
-              {f.label}
-            </button>
-          )
-        })}
-        <select value={dayFilter} onChange={(e) => setDayFilter(e.target.value)}
-          aria-label="Filter conflicts by day"
-          className="studio-input !py-1 !px-2 text-[11px] w-auto">
-          <option value="all">All days</option>
-          {days.map((d) => <option key={d} value={d}>{d}</option>)}
-        </select>
-      </div>
-
-      {/* Conflict list / empty states */}
-      {status === 'idle' && !conflicts.length ? (
-        <p className="text-xs" style={{ color: 'var(--zt-text-muted)' }}>
-          Refresh to check this timetable against your other saved class timetables.
-        </p>
-      ) : coverage && coverage.siblingsChecked === 0 && !conflicts.length ? (
-        <div className="rounded-xl border border-dashed theme-border bg-white/60 px-3 py-4 text-center text-xs" style={{ color: 'var(--zt-text-muted)' }}>
-          <div className="font-black">No sibling timetables found</div>
-          No other active class timetables were found for this school, term and year.
-          {conflicts.length === 0 && ' Internal class checks still ran on this timetable.'}
-        </div>
-      ) : visible.length === 0 ? (
-        <div className="rounded-xl border border-dashed theme-border bg-white/60 px-3 py-4 text-center text-xs" style={{ color: 'var(--success-fg)' }}>
-          <div className="font-black">
-            {coverage?.status === 'partial' ? 'No confirmed conflicts found' : 'No conflicts found'}
-          </div>
-          <span style={{ color: 'var(--zt-text-muted)' }}>
-            {conflicts.length > 0
-              ? 'No conflicts match the current filter.'
-              : coverage?.status === 'partial'
-                ? 'Some legacy blocks could not be fully checked because teacher or room ids are missing.'
-                : 'No teacher, room or class overlaps were detected across the timetables checked.'}
-          </span>
-        </div>
+      {/* Clean result: one line. Scope stays honest — sibling loading is
+          account-level, and a partial check is never sold as a clean pass. */}
+      {clean ? (
+        <>
+          <p className="flex items-start gap-1.5 text-xs font-bold" style={{ color: 'var(--success-fg)' }}>
+            <Check size={14} aria-hidden="true" className="mt-0.5 shrink-0" />
+            <span>
+              {status === 'idle' && !lastCheckedAt
+                ? 'No conflicts recorded yet — refresh to check this timetable against your other saved class timetables.'
+                : coverage && coverage.siblingsChecked === 0
+                  ? `No conflicts — no other active class timetables were found for this school, term and year${lastCheckedAt ? ` · ${fmtClock(lastCheckedAt)}` : ''}.`
+                  : coverage?.status === 'partial'
+                    ? `No confirmed conflicts — checked against your other timetables for this school, term and year${lastCheckedAt ? ` · ${fmtClock(lastCheckedAt)}` : ''}. Some legacy blocks could not be fully checked.`
+                    : `No conflicts — checked against your other timetables for this school, term and year${lastCheckedAt ? ` · ${fmtClock(lastCheckedAt)}` : ''}.`}
+            </span>
+          </p>
+          <CoverageDetails coverage={coverage} />
+        </>
       ) : (
-        <ul className="space-y-2" aria-label="Conflict list">
-          {visible.map((c) => {
-            const sev = SEVERITY_META[c.severity] || SEVERITY_META.warning
-            const selected = c.conflictId === selectedConflictId
-            const isSibling = Boolean(c.siblingTimetableId) && c.siblingTimetableId !== currentTimetableId
-            return (
-              <li key={c.conflictId}>
-                <div
-                  className="rounded-xl border bg-white px-3 py-2.5 space-y-1.5"
-                  style={{
-                    borderColor: selected ? '#2a6f97' : sev.color + '55',
-                    boxShadow: selected ? '0 0 0 2px rgba(42,111,151,0.35)' : undefined,
-                  }}>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-black" style={{ color: sev.color }}>
-                      {sev.icon} {sev.label} · {c.type === 'teacher' ? 'Teacher conflict' : c.type === 'room' ? 'Room conflict' : 'Class conflict'}
-                      {c.identityUnverified ? ' · identity unverified' : ''}
-                    </span>
-                    {c.siblingTimetableTitle && (
-                      <span className="text-[10px] font-bold" style={{ color: 'var(--zt-text-muted)' }}>
-                        vs {c.siblingTimetableTitle}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs" style={{ color: '#33474d' }}>{c.message}</p>
-                  <BlockLine label="This timetable" block={c.currentBlock} className={currentClassName} />
-                  <BlockLine label="Conflicting" block={c.siblingBlock || c.conflictingBlock} />
-                  <div className="flex flex-wrap gap-1.5 pt-0.5">
-                    {c.currentBlock && (
-                      <button type="button" onClick={() => onSelectConflict?.(c)}
-                        className="studio-btn-ghost !py-1 !px-2 text-[11px]"
-                        aria-label={`Show the affected ${c.currentBlock.subjectDisplayName} block on the timetable`}>
-                        🔍 Show on timetable
-                      </button>
-                    )}
-                    {isSibling && c.siblingTimetableId && (
-                      <button type="button" onClick={() => onOpenTimetable?.(c.siblingTimetableId)}
-                        className="studio-btn-ghost !py-1 !px-2 text-[11px]"
-                        aria-label={`Open the conflicting timetable ${c.siblingTimetableTitle || ''}`}>
-                        ↗ Open conflicting timetable
-                      </button>
-                    )}
-                    {c.type === 'teacher' && c.currentBlock && (
-                      <button type="button" onClick={() => onChangeTeacher?.(c.currentBlock.blockId)}
-                        className="studio-btn-ghost !py-1 !px-2 text-[11px]">
-                        👤 Change teacher
-                      </button>
-                    )}
-                    {c.type === 'room' && c.currentBlock && (
-                      <button type="button" onClick={() => onChangeRoom?.(c.currentBlock.blockId)}
-                        className="studio-btn-ghost !py-1 !px-2 text-[11px]">
-                        🚪 Change room
-                      </button>
-                    )}
-                    {c.currentBlock && (
-                      <button type="button" onClick={() => onMoveLesson?.(c.currentBlock.blockId)}
-                        className="studio-btn-ghost !py-1 !px-2 text-[11px]">
-                        ➜ Move lesson
-                      </button>
-                    )}
-                  </div>
+        <>
+          {/* Summary cards */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-live="polite">
+            {[
+              { label: 'Teacher conflicts', value: summary.teacher },
+              { label: 'Room conflicts', value: summary.room },
+              { label: 'Class conflicts', value: summary.class },
+              { label: 'Warnings', value: summary.warnings },
+            ].map((card) => (
+              <div key={card.label} className="theme-border rounded-xl border bg-white px-3 py-2">
+                <div className="text-lg font-black" style={{ color: card.value > 0 ? '#be3144' : '#1E8449' }}>
+                  {card.value}
                 </div>
-              </li>
-            )
-          })}
-        </ul>
+                <div className="text-[11px] font-bold" style={{ color: 'var(--zt-text-muted)' }}>{card.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <CoverageDetails coverage={coverage} />
+
+          {/* Filters (presentation only) */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {FILTERS.map((f) => {
+              const on = filter === f.id
+              return (
+                <button key={f.id} type="button" onClick={() => setFilter(f.id)}
+                  aria-pressed={on}
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${on ? 'theme-accent-fill theme-on-accent border-transparent' : 'theme-text-muted theme-border bg-white'}`}>
+                  {f.label}
+                </button>
+              )
+            })}
+            <select value={dayFilter} onChange={(e) => setDayFilter(e.target.value)}
+              aria-label="Filter conflicts by day"
+              className="studio-input w-auto !py-1 !px-2 text-[11px]">
+              <option value="all">All days</option>
+              {days.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+
+          {/* Conflict list / filtered-empty state */}
+          {visible.length === 0 ? (
+            <div className="theme-border rounded-xl border border-dashed bg-white/60 px-3 py-4 text-center text-xs" style={{ color: 'var(--success-fg)' }}>
+              <div className="font-black">No conflicts match the current filter</div>
+              <span style={{ color: 'var(--zt-text-muted)' }}>
+                Switch the filter back to All to see every conflict.
+              </span>
+            </div>
+          ) : (
+            <ul className="space-y-2" aria-label="Conflict list">
+              {visible.map((c) => {
+                const sev = SEVERITY_META[c.severity] || SEVERITY_META.warning
+                const selected = c.conflictId === selectedConflictId
+                const isSibling = Boolean(c.siblingTimetableId) && c.siblingTimetableId !== currentTimetableId
+                return (
+                  <li key={c.conflictId}>
+                    <div
+                      className="space-y-1.5 rounded-xl border bg-white px-3 py-2.5"
+                      style={{
+                        borderColor: selected ? '#2a6f97' : sev.color + '55',
+                        boxShadow: selected ? '0 0 0 2px rgba(42,111,151,0.35)' : undefined,
+                      }}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center gap-1 text-xs font-black" style={{ color: sev.color }}>
+                          <AlertTriangle size={12} aria-hidden="true" />
+                          {sev.label} · {c.type === 'teacher' ? 'Teacher conflict' : c.type === 'room' ? 'Room conflict' : 'Class conflict'}
+                          {c.identityUnverified ? ' · identity unverified' : ''}
+                        </span>
+                        {c.siblingTimetableTitle && (
+                          <span className="text-[10px] font-bold" style={{ color: 'var(--zt-text-muted)' }}>
+                            vs {c.siblingTimetableTitle}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs" style={{ color: '#33474d' }}>{c.message}</p>
+                      <BlockLine label="This timetable" block={c.currentBlock} className={currentClassName} />
+                      <BlockLine label="Conflicting" block={c.siblingBlock || c.conflictingBlock} />
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {c.currentBlock && (
+                          <button type="button" onClick={() => onSelectConflict?.(c)}
+                            className="studio-btn-ghost inline-flex items-center gap-1 !py-1 !px-2 text-[11px]"
+                            aria-label={`Show the affected ${c.currentBlock.subjectDisplayName} block on the timetable`}>
+                            <Eye size={12} aria-hidden="true" /> Show on timetable
+                          </button>
+                        )}
+                        {isSibling && c.siblingTimetableId && (
+                          <button type="button" onClick={() => onOpenTimetable?.(c.siblingTimetableId)}
+                            className="studio-btn-ghost inline-flex items-center gap-1 !py-1 !px-2 text-[11px]"
+                            aria-label={`Open the conflicting timetable ${c.siblingTimetableTitle || ''}`}>
+                            <LayoutGrid size={12} aria-hidden="true" /> Open conflicting timetable
+                          </button>
+                        )}
+                        {c.type === 'teacher' && c.currentBlock && (
+                          <button type="button" onClick={() => onChangeTeacher?.(c.currentBlock.blockId)}
+                            className="studio-btn-ghost inline-flex items-center gap-1 !py-1 !px-2 text-[11px]">
+                            <Users size={12} aria-hidden="true" /> Change teacher
+                          </button>
+                        )}
+                        {c.type === 'room' && c.currentBlock && (
+                          <button type="button" onClick={() => onChangeRoom?.(c.currentBlock.blockId)}
+                            className="studio-btn-ghost inline-flex items-center gap-1 !py-1 !px-2 text-[11px]">
+                            <Settings size={12} aria-hidden="true" /> Change room
+                          </button>
+                        )}
+                        {c.currentBlock && (
+                          <button type="button" onClick={() => onMoveLesson?.(c.currentBlock.blockId)}
+                            className="studio-btn-ghost inline-flex items-center gap-1 !py-1 !px-2 text-[11px]">
+                            <Grid3x3 size={12} aria-hidden="true" /> Move lesson
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </>
       )}
     </section>
   )

@@ -11,7 +11,7 @@ import { countBlanks, statementLabel, BLANK_TOKEN } from '../../utils/fillBlanks
 import { subPartLabel, sumSubPartMarks, emptySubPart, normalizeSubParts } from '../../utils/questionParts.js'
 import DiagramSvg from '../diagrams/DiagramSvg'
 import { SECTION_LETTERS } from './assessmentStudioMeta'
-import MenuButton, { MenuItem } from '../ui/MenuButton'
+import ActionMenu from '../ui/ActionMenu'
 import Icon from './studio/studioIcons'
 import { richTextToPlainText, richTextHasFormatting } from '../../utils/quizRichText.js'
 import MathsRichField from './MathsRichField.jsx'
@@ -142,29 +142,16 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
         // option correct, so opening the picture menu must not silently change
         // the answer key.
         <div style={{ flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-          <MenuButton
-            wrapClassName="sv-menu-wrap"
-            menuClassName="sv-menu"
-            triggerClassName="sv-opt-img-btn"
+          <ActionMenu
+            label="+ img"
             ariaLabel={`Add a picture to option ${SECTION_LETTERS[optIndex]}`}
-            title={`Add a picture to option ${SECTION_LETTERS[optIndex]}`}
-            label={<><Icon name="add" size={11} /> img</>}
-          >
-            {({ close }) => (
-              <>
-                <MenuItem className="sv-menu-item" icon={<Icon name="import" size={15} />}
-                  onClick={() => { close(); fileRef.current?.click() }}>Upload a picture</MenuItem>
-                {onPickFromBank && (
-                  <MenuItem className="sv-menu-item" icon={<Icon name="pictureBank" size={15} />}
-                    onClick={() => { close(); onPickFromBank(optIndex) }}>Picture bank / AI picture</MenuItem>
-                )}
-                {onPickDiagram && (
-                  <MenuItem className="sv-menu-item" icon={<Icon name="shape" size={15} />}
-                    onClick={() => { close(); onPickDiagram(optIndex) }}>Shape · diagram</MenuItem>
-                )}
-              </>
-            )}
-          </MenuButton>
+            buttonClassName="sv-opt-img-btn"
+            items={[
+              { label: 'Upload a picture', onSelect: () => fileRef.current?.click() },
+              onPickFromBank ? { label: 'Picture bank / AI picture', onSelect: () => onPickFromBank(optIndex) } : null,
+              onPickDiagram ? { label: 'Shape · diagram', onSelect: () => onPickDiagram(optIndex) } : null,
+            ]}
+          />
           <input
             ref={fileRef}
             type="file"

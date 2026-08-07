@@ -1,5 +1,7 @@
 import { ChartNoAxesColumnIncreasing, Moon, Sun, Sunset } from 'lucide-react'
 import CopperButton from './CopperButton'
+import useGlassTile from '../../../hooks/useGlassTile'
+import './glassSurface.css'
 // Same 3D study-desk illustration the legacy hero used — brand teal, so it
 // blends straight into this hero's gradient.
 import heroDesk from '../../../assets/teacher/hero-desk.webp'
@@ -22,6 +24,17 @@ function sublineFor(lastOpened) {
  */
 export default function GreetingHero({ greeting, lastOpened, ctaState = 'default', onContinue }) {
   const PartIcon = PART_ICON[greeting.part] || Sunset
+  // Dark-glass press feedback for the inset; specular/sheen stay off — the
+  // hero supports the workspace tiles, it doesn't compete with them.
+  const insetRef = useGlassTile({ specular: false, sheen: false })
+
+  // The whole row acts as a convenience tap target for the same action as
+  // its CTA. The CopperButton remains the accessible control; clicks that
+  // originate on it are left alone so the action never fires twice.
+  const onInsetClick = (e) => {
+    if (e.target.closest('button')) return
+    onContinue?.()
+  }
 
   return (
     <section className="tdv2-hero" aria-label="Greeting" data-tour="hero">
@@ -40,7 +53,7 @@ export default function GreetingHero({ greeting, lastOpened, ctaState = 'default
         <p className="tdv2-hero-sub">{sublineFor(lastOpened)}</p>
       </div>
 
-      <div className="tdv2-hero-inset">
+      <div className="tdv2-hero-inset glass-dark-inset" ref={insetRef} onClick={onInsetClick}>
         <span className="tdv2-hero-inset-icon" aria-hidden="true">
           <ChartNoAxesColumnIncreasing size={22} strokeWidth={2} />
         </span>

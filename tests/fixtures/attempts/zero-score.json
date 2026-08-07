@@ -1,0 +1,48 @@
+{
+  "note": "Every answer wrong. Distinct from unanswered-submit: answers exist and are graded.",
+  "quiz": {
+    "id": "quiz-1",
+    "title": "Addition Basics",
+    "subject": "Mathematics",
+    "grade": "4",
+    "duration": 30
+  },
+  "questions": [
+    {
+      "id": "q1",
+      "type": "mcq",
+      "text": "What is 1 + 1?",
+      "options": [
+        "1",
+        "2",
+        "3",
+        "4"
+      ],
+      "correctAnswer": 1,
+      "marks": 1,
+      "topic": "Addition"
+    },
+    {
+      "id": "q2",
+      "type": "mcq",
+      "text": "What is 2 + 2?",
+      "options": [
+        "1",
+        "2",
+        "3",
+        "4"
+      ],
+      "correctAnswer": 1,
+      "marks": 1,
+      "topic": "Addition"
+    }
+  ],
+  "answers": {
+    "q1": 0,
+    "q2": 3
+  },
+  "mode": "practice",
+  "userId": "learner-1",
+  "startTime": 1000000,
+  "nowMs": 1060000
+}

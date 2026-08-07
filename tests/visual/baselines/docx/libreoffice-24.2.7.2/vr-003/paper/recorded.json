@@ -3,12 +3,12 @@
   "family": "docx",
   "copy": "paper",
   "identity": "docx/libreoffice-24.2.7.2",
-  "sourceCommit": "8f46a3f8a198c112075e023e7918fb86d962e930",
-  "source": "1995",
-  "reason": "The grade now prints as the teacher typed it (GRADE 7, not GRADE SEVEN) per §9, the learner-field label is shared across renderers, and the Word export uses the paper's own margins instead of Word's 1-inch default so all three renderers set the same 174mm column per §2.",
+  "sourceCommit": "7cc469fd9cb1baa63ea7fcb8b265cd3372cca213",
+  "source": "2108",
+  "reason": "puppeteer 25.4.0 rolls its pinned Chrome from 150.0.7871.24 to 151.0.7922.47. Every fixture is re-rendered by a different browser build, so all 18 baselines move at once: the 9 browser-print targets change baseline identity to chromium-151.0.7922.47, and the 9 docx targets are refused by assertComparableEnvironment because the docx stage rasterises library SVG figures through Chromium. No paper content, layout code or export rule changed in this PR - the renderer did.",
   "environment": {
-    "chromium": "150.0.7871.24",
-    "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-150.0.7871.24/chrome-linux64/chrome",
+    "chromium": "151.0.7922.47",
+    "chromiumPath": "/home/runner/.cache/puppeteer/chrome/linux-151.0.7922.47/chrome-linux64/chrome",
     "libreoffice": "24.2.7.2",
     "os": "Linux 6.17.0-1020-azure",
     "platform": "linux-x64",
@@ -50,7 +50,7 @@
     "timeZone": "Africa/Lusaka",
     "fixedDate": "2026-01-15"
   },
-  "command": "soffice --headless --norestore --nolockcheck --nodefault --nofirststartwizard -env:UserInstallation=file:///tmp/visual-vr-003-aUTTQe/.loprofile --convert-to pdf:writer_pdf_Export --outdir /tmp/visual-vr-003-aUTTQe /tmp/visual-vr-003-aUTTQe/vr-003.docx",
+  "command": "soffice --headless --norestore --nolockcheck --nodefault --nofirststartwizard -env:UserInstallation=file:///tmp/visual-vr-003-D6zyG8/.loprofile --convert-to pdf:writer_pdf_Export --outdir /tmp/visual-vr-003-D6zyG8 /tmp/visual-vr-003-D6zyG8/vr-003.docx",
   "pageCount": 1,
   "anchors": {
     "question_1": 1,
@@ -80,7 +80,7 @@
     }
   },
   "hashes": {
-    "environment.json": "b2f17e99379eb5bd77dfa1b676a07a9ce6c7992d74ca3f7fc9b47b38d3fd855b",
+    "environment.json": "ddaae25a7baa8b065fdc6e21c679c77fc80d72c31e35bfc77ab198b7bf5254c9",
     "layout.json": "6f1241542d4a964c857091ee2c8af067d6bcd1f77c67bb140aba85029fb31145",
     "page-01.png": "89824b316631279474de369dc7d6f3864db7326cc02b87ee083c67d31a833b4f"
   }

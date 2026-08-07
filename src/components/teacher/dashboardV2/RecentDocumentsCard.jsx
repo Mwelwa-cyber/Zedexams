@@ -8,6 +8,8 @@ import {
   MoreVertical,
 } from 'lucide-react'
 import { iconForTool } from './dashboardV2Config'
+import useGlassTile from '../../../hooks/useGlassTile'
+import './glassSurface.css'
 
 export function RowMenu({ doc, onClose }) {
   const ref = useRef(null)
@@ -46,6 +48,18 @@ export function RowMenu({ doc, onClose }) {
   )
 }
 
+/* Quiet glass list row: press feedback only (gentler scale via .glass-row),
+   hover is a pure CSS tint — no lift, no specular, no sheen. Rows that jump
+   feel unstable. */
+function DocRow({ children }) {
+  const rowRef = useGlassTile({ specular: false, sheen: false })
+  return (
+    <div ref={rowRef} className="tdv2-doc-row glass-row">
+      {children}
+    </div>
+  )
+}
+
 /** documents: [{ id, title, meta, date, status, tool, to }] */
 export default function RecentDocumentsCard({ documents = [], loading = false }) {
   const [menuFor, setMenuFor] = useState(null)
@@ -74,7 +88,7 @@ export default function RecentDocumentsCard({ documents = [], loading = false })
             const DocIcon = iconForTool(doc.tool)
             const ready = doc.status !== 'Draft'
             return (
-              <div key={doc.id} className="tdv2-doc-row">
+              <DocRow key={doc.id}>
                 <Link
                   to={doc.to}
                   aria-label={`Open ${doc.title}`}
@@ -112,7 +126,7 @@ export default function RecentDocumentsCard({ documents = [], loading = false })
                     <RowMenu doc={doc} onClose={() => setMenuFor(null)} />
                   ) : null}
                 </span>
-              </div>
+              </DocRow>
             )
           })
         )}

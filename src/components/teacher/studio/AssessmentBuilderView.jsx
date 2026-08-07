@@ -6,7 +6,8 @@ import { QUIZ_DOCUMENT_ACCEPT } from '../../quiz/documentQuizImporter'
 import { SECTION_LETTERS } from '../assessmentStudioMeta'
 import { normalizeMarksMode, resolveQuestionMarks, marksLabel } from '../../../utils/paperMarksModel'
 import { CHOICE_COUNT_OPTIONS, normalizeChoiceCount } from '../../../utils/mcqChoices'
-import MenuButton, { MenuItem } from '../../ui/MenuButton'
+import { MoreHorizontal } from 'lucide-react'
+import ActionMenu from '../../ui/ActionMenu'
 import Icon from './studioIcons'
 import {
   HeaderBlock,
@@ -111,40 +112,33 @@ export function BuilderView(props) {
           ))}
         </div>
 
-        <MenuButton
-          wrapClassName="sv-menu-wrap"
-          menuClassName="sv-menu"
-          triggerClassName="sv-chip"
-          align="start"
-          label={<><Icon name="more" size={14} /> Tools <Icon name="moveDown" size={13} /></>}
-        >
-          {({ close }) => (
-            <>
-              <MenuItem className="sv-menu-item" icon={<Icon name="sections" size={15} />}
-                onClick={() => { close(); onShowTemplates() }}>Templates</MenuItem>
-              <MenuItem className="sv-menu-item" icon={<Icon name="ai" size={15} />}
-                onClick={() => { close(); onCreatePaper() }}>Create with AI</MenuItem>
-              {onOpenBank && (
-                <MenuItem className="sv-menu-item" icon={<Icon name="bank" size={15} />}
-                  onClick={() => { close(); onOpenBank() }}>Question bank</MenuItem>
-              )}
-              <MenuItem className="sv-menu-item" icon={<Icon name={importing ? 'spinner' : 'import'} size={15} spin={importing} />}
-                disabled={importing}
-                onClick={() => { close(); importInputRef.current?.click() }}>
-                {importing ? 'Importing…' : 'Import paper'}
-              </MenuItem>
-              <MenuItem className="sv-menu-item" icon={<Icon name="verify" size={15} />}
-                disabled={questionCount === 0}
-                onClick={() => { close(); onVerifyPaper() }}>Check paper</MenuItem>
-              <MenuItem className="sv-menu-item" icon={<Icon name="diagrams" size={15} />}
-                onClick={() => { close(); onOpenDiagramFix() }}>
-                Diagrams{diagramsNeeded > 0 ? ` (${diagramsNeeded})` : ''}
-              </MenuItem>
-              <MenuItem className="sv-menu-item" icon={<Icon name="generate" size={15} />}
-                onClick={() => { close(); onOpenAi() }}>More AI</MenuItem>
-            </>
-          )}
-        </MenuButton>
+        {/* One menu for the nine tool chips. ActionMenu is the shared studio
+            dropdown (the same one the papers list uses for Download ▾ and ⋯),
+            so there is one dropdown behaviour in the teacher app, not two. */}
+        <ActionMenu
+          label="Tools"
+          caret
+          align="left"
+          buttonClassName="sv-chip"
+          items={[
+            { label: 'Templates', onSelect: onShowTemplates },
+            { label: 'Create with AI', onSelect: onCreatePaper },
+            onOpenBank ? { label: 'Question bank', onSelect: onOpenBank } : null,
+            {
+              label: importing ? 'Importing…' : 'Import paper',
+              disabled: importing,
+              onSelect: () => importInputRef.current?.click(),
+            },
+            {
+              label: 'Check paper',
+              disabled: questionCount === 0,
+              disabledReason: 'Add a question first',
+              onSelect: onVerifyPaper,
+            },
+            { label: `Diagrams${diagramsNeeded > 0 ? ` (${diagramsNeeded})` : ''}`, onSelect: onOpenDiagramFix },
+            { label: 'More AI', onSelect: onOpenAi },
+          ]}
+        />
 
         {/* Undo/redo left the app bar so the document title could have that
             room; they belong with the editing tools anyway. */}
@@ -184,25 +178,21 @@ export function BuilderView(props) {
                   : 'Paper health'}
             </button>
           )}
-          {/* Two steps to clear the paper: open the menu, then confirm. It used
-              to be a single click, one chip away from Save. */}
-          <MenuButton
-            wrapClassName="sv-menu-wrap"
-            menuClassName="sv-menu"
-            triggerClassName="sv-chip sv-chip-icon"
+          {/* Two steps to clear the paper: open the menu, then confirm in the
+              studio's own dialog. It used to be a single click, one chip away
+              from Save. */}
+          <ActionMenu
+            icon={MoreHorizontal}
             ariaLabel="More paper actions"
-            label={<Icon name="more" size={15} />}
-          >
-            {({ close }) => (
-              <MenuItem
-                className="sv-menu-item"
-                danger
-                disabled={emptyPaper}
-                icon={<Icon name="delete" size={15} />}
-                onClick={() => { close(); onClearAll() }}
-              >Clear all questions…</MenuItem>
-            )}
-          </MenuButton>
+            buttonClassName="sv-chip sv-chip-icon"
+            items={[{
+              label: 'Clear all questions…',
+              danger: true,
+              disabled: emptyPaper,
+              disabledReason: 'There is nothing to clear yet',
+              onSelect: onClearAll,
+            }]}
+          />
         </div>
         <input
           ref={importInputRef}

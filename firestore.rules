@@ -1187,10 +1187,22 @@ service cloud.firestore {
 
       // Clients create a job by setting agentId, department, input only.
       // Status is forced to 'queued'; output, error, reviewedBy stay
-      // empty until the dispatcher / admin acts. Restricted to teachers
-      // and admins because the dispatcher invokes server-side runners
-      // (e.g. runLessonPlan) that are paid teacher tools.
-      allow create: if isTeacherOrAbove()
+      // empty until the dispatcher / admin acts.
+      //
+      // ADMIN ONLY (narrowed 2026-08-05, was isTeacherOrAbove()). The
+      // teacher half of that grant was written for the teacher-facing
+      // agent-submission surface (AgentBriefForm + AgentJobsList at
+      // /teacher/agents), which was REMOVED in 2026-06 because it
+      // duplicated the direct studios behind an approval gate nobody
+      // staffed. The grant outlived it, leaving every teacher able to
+      // queue work onto the dispatcher — which invokes paid server-side
+      // runners — from a surface that no longer exists.
+      //
+      // Client creates are still real and must keep working: admin
+      // BulkGenerateButton and GenerateFromTopicMenu both addDoc here.
+      // The emulator suite asserts BOTH directions, so this stays
+      // protected by a test rather than by nobody touching it.
+      allow create: if isAdmin()
                        && incoming().agentId is string
                        && incoming().agentId.size() <= 64
                        && incoming().department is string

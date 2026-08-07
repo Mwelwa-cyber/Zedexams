@@ -4,6 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **Binding standards:** every AI session must follow [`AI_DEVELOPMENT_GUIDE.md`](./AI_DEVELOPMENT_GUIDE.md) — Definition of Done, coding standards, schema rules, and test rules. Read it before making changes; it is enforced in CI by `npm run test:ai-dev-guide`.
 
+## Binding architecture
+
+[`docs/architecture.md`](./docs/architecture.md) is the binding target architecture and migration contract (verified at commit `79ff3d2`). Read it before any restructuring or migration work. Migration PRs implement it; they do not reinterpret it. On frozen surfaces (collections, function exports, rewrite paths, regions), stop and report conflicts instead of choosing an interpretation.
+
 ## Repo at a glance
 
 ZedExams is a CBC-aligned learning platform for Zambian learners, teachers, and admins, live at zedexams.com. It is a Vite/React 18 SPA backed by Firebase (Auth, Firestore, Storage, Cloud Functions v2 on Node 22). AI runs server-side via Anthropic Claude (Sonnet 4.5 default — `claude-sonnet-4-5`, overridable per-runtime with `ANTHROPIC_MODEL` — for generators; Haiku 4.5 `claude-haiku-4-5-20251001` for quiz verification), OpenAI for Zed chat + short-answer marking, and Firebase AI Logic / Gemini for client-side helpers. **Image generation** (question/passage diagrams, note pictures, visual notes) runs on OpenAI gpt-image-1 (with a Gemini path via `geminiImageClient.js`) — see `generateDiagram` / `generateNotePictures` / `generateVisualNotes`. The Recraft and Kie providers were decommissioned (2026-06 / 2026-07); their style selectors (`recraft` line-art, `kie` colour illustration) now render through gpt-image-1. Payments run through Lenco (MTN, Airtel, and Zamtel mobile money plus cards, in ZMW) on the web, and through **Google Play Billing** (in-app subscriptions) on the Android build — see `functions/googlePlayBilling.js` + `verifyGooglePlayPurchase`. A Capacitor wrapper produces Android builds.
@@ -49,7 +53,7 @@ npm run test:exam-grading         # functions/grading/dailyExamGrading.test.js
 npm run test:ai-prompt-policy     # functions/aiPromptPolicy.test.js
 npm run test:cors                 # functions/cors.test.js
 npm run test:storage-cleanup      # functions/storageCleanup helpers
-npm run test:secret-hygiene       # release-safety: no committed credential/artifact + .gitignore policy guard
+npm run test:secret-hygiene       # release-safety: .gitignore policy + no committed credential/artifact + dotenv CONTENT scan
 npm run test:shim-guard           # fails if a src/utils shim grows a rule the server won't enforce
 npm run test:shared-assessment-neutral  # fails if functions/shared/ imports React/DOM/Firebase/docx
 npm run test:paper-pagination     # measured Print/PDF page flow (pure core)
@@ -106,6 +110,8 @@ ZedExams ships via GitHub Actions. As of 2026-05-14 the project owner delegated 
 
 ```
 src/
+  features/flashcards/ — the REFERENCE MIGRATION (architecture.md Phase 2, steps written up in `docs/MIGRATION_TEMPLATE.md` — read it before migrating another feature). Page, components, hook, `services/` (the only Firebase access), `lib/*Core.js` (pure, node-tested) and `export/` behind one public `index.js`. The page is deliberately NOT exported: route tables mount it with `lazy(() => import('…/pages/FlashcardGenerator'))`, because a page in a front door lands in the chunk of every consumer — one of which is the public marketing page
+  app/ engines/ shared/ curriculum/ — MIGRATION SCAFFOLD (architecture.md Phase 1), empty apart from `curriculum/catalog/`, which re-exports the taxonomy roots `config/canonicalEducation.js` + `config/educationLevels.js`. Nothing has moved in yet: App.jsx, src/contexts/, the four quiz runners and the exporters are all still canonical where they are. What IS live is the layering — `app → features → engines/curriculum → shared/services/config`, one-way, enforced by the `no-restricted-imports` blocks in `eslint.config.js` plus `test:import-boundaries` (which resolves every import in `src/` to a real path — covering the sibling-feature case ESLint's string matching cannot see, **dynamic `import()` which it does not inspect at all**, and the shrink-only debt lists a warning could never fail a build over — and asserts the lint rules still fire). Each directory index is a namespace marker, NOT a barrel — import the area (`src/shared/utils`), never the root
   App.jsx                       — router; nearly every route is React.lazy(); ThemeApplicator pins public routes to brand default
   main.jsx                      — entry; wraps <App /> in ErrorBoundary + AuthProvider + ThemeProvider + DataSaverProvider + PlatformSettingsProvider
   firebase/config.js            — Firebase init; sets auth persistence, App Check (reCAPTCHA Enterprise on web, Play Integrity on Android via Capacitor plugin), multi-tab IndexedDB persistence, FCM (web-push only)

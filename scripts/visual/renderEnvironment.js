@@ -173,7 +173,10 @@ export function captureRenderEnvironment(opts = {}) {
     // at differs between a runner and a workstation while the build is the same.
     chromiumPath: opts.chromiumPath || '',
     libreoffice,
+    // Recorded in full — a reviewer should be able to see the exact kernel a
+    // baseline was drawn on. COMPARED as `osFamily` only; see IDENTITY_FIELDS.
     os: `${os.type()} ${os.release()}`,
+    osFamily: os.type(),
     platform: `${process.platform}-${process.arch}`,
     node: process.version,
     fonts,
@@ -232,14 +235,63 @@ export function baselineIdentity(stage, environment) {
     if (!v) throw new RenderEnvironmentError('LibreOffice version unknown — cannot file a baseline')
     return `docx/libreoffice-${v}`
   }
+  // The learner SCREEN. Chromium again, but a separate identity from
+  // `browser-print` on purpose: the two render different documents at
+  // different sizes, and a baseline recorded for one must never be reached for
+  // by the other. Sharing the identity would let a print baseline satisfy a
+  // screen comparison the day someone passed the wrong stage string.
+  if (stage === 'screen') {
+    const v = environment?.chromium
+    if (!v) throw new RenderEnvironmentError('Chromium version unknown — cannot file a baseline')
+    return `screen/chromium-${v}`
+  }
   throw new RenderEnvironmentError(`unknown render stage "${stage}"`)
 }
 
 /** Fields that must match for a comparison to mean anything. */
 const IDENTITY_FIELDS = [
-  'chromium', 'libreoffice', 'os', 'dpi', 'deviceScaleFactor',
+  'chromium', 'libreoffice', 'dpi', 'deviceScaleFactor',
   'pageSize', 'locale', 'timeZone', 'chromiumFlags', 'libreOfficeArgs',
 ]
+
+/**
+ * The OS is compared as a FAMILY, not as a kernel build.
+ *
+ * `os` is recorded as `${os.type()} ${os.release()}` — e.g.
+ * `Linux 6.17.0-1021-azure` — and was compared with exact string equality. On
+ * 2026-08-06 GitHub rolled its hosted image from `-1020` to `-1021` and every
+ * paper baseline became incomparable inside one hour: the gate refused every
+ * comparison, on every print-affecting pull request and on `main`, for a change
+ * that cannot move a glyph.
+ *
+ * That is the gate invalidating itself on a schedule somebody else controls,
+ * roughly fortnightly, and a required check that is red for reasons unrelated to
+ * printed output is one people learn to route around.
+ *
+ * Narrowing it to the family costs almost nothing, because the kernel revision
+ * was carrying nearly all of `os`'s discriminating power and none of its
+ * meaning. Everything that actually decides how a paper renders is already its
+ * own identity field: the Chromium build, the LibreOffice build, `fonts.digest`,
+ * DPI, scale factor, page size, locale, time zone, and both flag lists. An image
+ * bump that genuinely changes rendering moves one of THOSE — in particular a
+ * different font set changes the digest, which is checked separately and still
+ * refuses. What remains here is the real distinction the field was for:
+ * Linux → macOS → Windows.
+ *
+ * The fallback derivation matters as much as the change. Baselines recorded
+ * before this carry no `osFamily`, and treating that as a mismatch would be the
+ * same wall wearing a different sign.
+ */
+const DERIVED_IDENTITY_FIELDS = [
+  { field: 'os family', read: osFamilyOf },
+]
+
+/** A recorded environment's OS family, derived from `os` when not recorded. */
+export function osFamilyOf(environment) {
+  const recorded = environment?.osFamily
+  if (typeof recorded === 'string' && recorded) return recorded
+  return String(environment?.os ?? '').split(' ')[0]
+}
 
 /**
  * Refuse to compare across environments.
@@ -261,6 +313,13 @@ export function assertComparableEnvironment(baselineEnv, currentEnv) {
     const before = baselineEnv[field]
     const after = currentEnv?.[field]
     if (before === undefined && after === undefined) continue
+    if (String(before) !== String(after)) {
+      differences.push({ field, baseline: before, current: after })
+    }
+  }
+  for (const { field, read } of DERIVED_IDENTITY_FIELDS) {
+    const before = read(baselineEnv)
+    const after = read(currentEnv)
     if (String(before) !== String(after)) {
       differences.push({ field, baseline: before, current: after })
     }
@@ -289,6 +348,7 @@ export function assertComparableEnvironment(baselineEnv, currentEnv) {
 export function assertToolchain(stages, environment) {
   const missing = []
   if (stages.includes('browser-print') && !environment.chromium) missing.push('Chromium')
+  if (stages.includes('screen') && !environment.chromium) missing.push('Chromium')
   if (stages.includes('docx') && !environment.libreoffice) missing.push('LibreOffice (soffice)')
   if (missing.length) {
     throw new RenderEnvironmentError(
@@ -296,6 +356,44 @@ export function assertToolchain(stages, environment) {
       + 'infrastructure failure, not a visual difference — no comparison was attempted '
       + 'and no baseline was written.',
       { missing },
+    )
+  }
+}
+
+/**
+ * Refuse to RECORD a screen baseline in a paper environment.
+ *
+ * The screen family renders in Chromium alone. LibreOffice is never used for
+ * it — but installing it changes the environment the baseline is stamped with,
+ * in two ways that both reach `assertComparableEnvironment`:
+ *
+ *   • `libreoffice` is an IDENTITY_FIELD, so a version recorded here can never
+ *     match the comparing job, which does not install it;
+ *   • the same apt install pulls in `fonts-liberation`, which shifts
+ *     `fonts.digest` — and that is compared too.
+ *
+ * The result is a baseline that is IRREPRODUCIBLE BY CONSTRUCTION: the render
+ * succeeds, the images are correct, the pull request opens, and every later
+ * comparison throws an environment error instead of comparing anything. That is
+ * exactly what #2137 recorded — `libreoffice: 24.2.7.2` and a 54-font digest —
+ * because `visual-baseline-bootstrap.yml` installed LibreOffice unconditionally
+ * for the paper families and then recorded screen baselines in the same job.
+ *
+ * Checked at RECORD time rather than at compare time, because by compare time
+ * the useless baseline is already committed and approved. And checked HERE
+ * rather than in the workflow, so re-adding the install to the screen job fails
+ * the run instead of quietly producing another sixteen unusable references.
+ */
+export function assertScreenEnvironmentIsClean(environment) {
+  const libreoffice = environment?.libreoffice
+  if (libreoffice) {
+    throw new RenderEnvironmentError(
+      `refusing to record a screen baseline in an environment that has LibreOffice (${libreoffice}) `
+      + 'installed. The screen family renders in Chromium alone, and this run would stamp a '
+      + 'libreoffice version and a shifted font digest into the baseline — neither of which the '
+      + 'comparing job can reproduce, so every later comparison would throw instead of comparing. '
+      + 'Record the screen family in a job that never installs LibreOffice.',
+      { libreoffice },
     )
   }
 }

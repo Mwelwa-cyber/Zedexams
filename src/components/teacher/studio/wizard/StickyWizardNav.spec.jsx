@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { act, render } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import { StickyWizardNav } from './StickyWizardNav.jsx'
 
 // The floating-bar shrink relies on real window-scroll events + rAF, so drive
@@ -55,5 +55,32 @@ describe('StickyWizardNav — floating shrink-on-scroll', () => {
     await scrollTo(0)
     await scrollTo(400)
     expect(container.querySelector('.lpw-nav')).not.toHaveClass('lpw-nav--compact')
+  })
+})
+
+describe('StickyWizardNav — centre progress block', () => {
+  const baseProps = {
+    currentStep: 0,
+    canProceed: true,
+    onBack: () => {},
+    onNext: () => {},
+    onGenerate: () => {},
+    onSaveExit: () => {},
+    onBackToReview: () => {},
+  }
+
+  it('shows the "Step n of 5 — Title" caption for the active step', () => {
+    render(<StickyWizardNav {...baseProps} currentStep={0} />)
+    expect(screen.getByText('Step 1 of 5 — Lesson Setup')).toBeInTheDocument()
+  })
+
+  it('fills the slim bar to n/5 of the width', () => {
+    const { container, rerender } = render(<StickyWizardNav {...baseProps} currentStep={0} />)
+    expect(container.querySelector('.lpw-nav-fill').style.width).toBe('20%')
+    rerender(<StickyWizardNav {...baseProps} currentStep={2} />)
+    expect(screen.getByText('Step 3 of 5 — Lesson Context')).toBeInTheDocument()
+    expect(container.querySelector('.lpw-nav-fill').style.width).toBe('60%')
+    rerender(<StickyWizardNav {...baseProps} currentStep={4} />)
+    expect(container.querySelector('.lpw-nav-fill').style.width).toBe('100%')
   })
 })

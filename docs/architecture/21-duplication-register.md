@@ -1,6 +1,7 @@
 # 21 — Duplication & Inconsistency Register
 
 > Snapshot as of 2026-07-17 — verify before acting. Audited commit `0cd4c49`.
+> **D19 added 2026-08-05** and is not part of that audit: its display half is resolved and guarded; its parsing half is recorded, open, and deliberately out of scope.
 > Read-only findings. Nothing was modified. "Canonical" = the implementation to keep; "duplicates" = candidates to migrate onto it.
 
 | # | Cluster | Canonical | Duplicates to migrate | Risk | Tests |
@@ -23,6 +24,7 @@
 | D16 | **Error reporting** | `utils/clientErrorReporting.reportClientError` | bypassed by inline `console.warn`/`toast.error` (clearest: `NotificationContext` 5 blocks) | Low | client-errors test |
 | D17 | **Toasts/notifications** | `components/ui/Toast.useToast` | healthy — `NotificationContext` is a complementary durable feed; only leftover `alert()` is legacy | Low | — |
 | D18 | **Mobile breakpoints** | **NONE** (a ready `useIsMobile` is trapped in `zedexams-settings:101`) | inline `window.innerWidth`/`matchMedia` in `statusBarManager`, `AttendanceWorkspace:45`, `AdminLayout`; `prefers-reduced-motion` matchMedia duplicated ~8× | Low | — |
+| D19 | **MCQ option letters** | `functions/shared/assessment/answerChoicesCore.js` (`OPTION_LETTERS` A–Z, `optionLabel(i)`), reached from `src/` via the `utils/mcqChoices.js` re-export shim | **Display sites: consolidated 2026-08-05** — the five learner/author surfaces each indexed a literal `['A','B','C','D'][i]`, which printed `undefined` past option D (the schema admits 20; past-paper import produces up to 10). **Parsing tables remain, deliberately**: `scannedQuizImporter.js:684` (A–F), `importFormatChecks.js:18` (A–H), `documentQuizTableBlocks.js:9` (A–D), plus bare `String.fromCharCode(65+i)` in `QuestionAiAssistant.jsx` and `PublicQuizRunner.jsx`. Each bound encodes what its own source format can hold, so folding them onto the canonical helper changes parsing behaviour and needs its own PR | Low (display, now guarded) / Med (parsers — changing a bound changes what imports accept) | `test:option-letters`, `QuizRunnerV2.spec` |
 
 ## Highest-priority consolidations
 

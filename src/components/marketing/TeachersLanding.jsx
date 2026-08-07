@@ -28,7 +28,7 @@ import TestPaperOfficial from './TestPaperOfficial'
 import MarkScheduleView from '../teacher/views/MarkScheduleView'
 import ReportCardView from '../teacher/views/ReportCardView'
 import { buildReportCards } from '../../utils/markSchedule'
-import FlashcardsView from '../teacher/views/FlashcardsView'
+import { FlashcardsView } from '../../features/flashcards'
 
 function Section({ children, className = '', id }) {
   return (
