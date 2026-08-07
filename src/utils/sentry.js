@@ -58,6 +58,13 @@ let pendingRole
 // before a recordable role is known.
 let replay = null
 let replayActive = false
+// The in-flight stop(), if any. Sentry's stop() is async: after an error has
+// promoted buffering to session mode it awaits a final flush before
+// destroying the event buffer — and a startBuffering() issued while that
+// teardown is pending gets torn down WITH it, silently, with our own
+// replayActive still true so nothing ever retries. Re-arming therefore
+// serialises behind this promise (Codex P2 on #2156, r3733994279).
+let replayStopping = null
 
 /**
  * Register Sentry's error-triggered session replay, but only for a role that
@@ -79,12 +86,25 @@ function enableReplayForRole(Sentry, role) {
     // and throw again on every profile snapshot for the rest of the session,
     // leaving no replay at all.
     if (replayActive) return
-    try {
-      replay.startBuffering()
-      replayActive = true
-    } catch (err) {
-      console.warn('[sentry] replay re-arm failed:', err)
+    // Claim the active slot BEFORE any await, so a second snapshot in the
+    // same window cannot queue a second re-arm.
+    replayActive = true
+    const arm = () => {
+      // Re-checked at arm time: a sign-out while the stop was settling
+      // withdraws the claim, and the recorder stays off.
+      if (!replayActive || !replay) return
+      try {
+        replay.startBuffering()
+      } catch (err) {
+        replayActive = false
+        console.warn('[sentry] replay re-arm failed:', err)
+      }
     }
+    // replayStopping never rejects (its own chain catches), so arm is the
+    // only continuation; the trailing catch is for the linter's benefit and
+    // for any future edit that removes the upstream catch.
+    if (replayStopping) replayStopping.then(arm).catch(() => {})
+    else arm()
     return
   }
   try {
@@ -193,13 +213,20 @@ export function clearSentryUser() {
   // school phone the next person to sign in may be a learner, and a replay
   // left running would capture them under the previous user's permission.
   if (replay && replayActive) {
-    try { replay.stop() } catch (err) {
+    replayActive = false
+    try {
+      // stop() may flush asynchronously; the promise is what a later re-arm
+      // serialises behind. Errors are logged, never thrown — and the settled
+      // promise clears itself so a re-arm long after does not wait on history.
+      replayStopping = Promise.resolve(replay.stop())
+        .catch((err) => { console.warn('[sentry] replay stop failed:', err) })
+        .finally(() => { replayStopping = null })
+    } catch (err) {
       console.warn('[sentry] replay stop failed:', err)
     }
     // The INSTANCE is kept — Sentry permits exactly one per page load, so
     // destroying our reference would leave re-registration with no legal
     // move. Stopped is the off state; startBuffering() is the on switch.
-    replayActive = false
   }
   pendingRole = undefined
   if (sentryModule) {
