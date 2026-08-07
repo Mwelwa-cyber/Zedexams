@@ -117,6 +117,8 @@ import { mapAiQuestion } from '../../utils/aiPaperToSections'
 import { instantiateTemplate } from '../../utils/paperTemplates'
 import Icon from './studio/studioIcons'
 import { TopBar, BottomBar } from './studio/AssessmentBars'
+import { PaperDetailsSheet } from './studio/DocTitle'
+import { shouldCollapsePaperHeader } from './assessmentHeaderSummary'
 import { HomeView } from './studio/AssessmentHomeView'
 import { BuilderView } from './studio/AssessmentBuilderView'
 import PaperHealthModal from './PaperHealthModal'
@@ -181,7 +183,9 @@ export const SUBJECTS = STUDIO_SUBJECTS
 // source their levels from the Syllabi Studio (useSyllabusLevelOptions), not
 // this flat curriculum-blind list.
 export const GRADES = STUDIO_GRADES
-export const TERMS = ['1', '2', '3']
+// Re-exported from assessmentStudioMeta.js — see the note there on why the
+// small shared studio pieces read it from the neutral module instead.
+export { TERMS } from './assessmentStudioMeta'
 
 // Re-exported from assessmentStudioMeta.js — the canonical single source of
 // truth for assessment type labels shared by both AssessmentStudio and
@@ -491,6 +495,12 @@ export default function AssessmentStudio() {
   const bankRowsRef = useRef(null) // cached bank rows for the nudge count
   const [pasteSlide, setPasteSlide] = useState({ open: false, afterIndex: null })
   const [toast, setToast] = useState(null)
+  // The phone's paper-details sheet, opened by tapping the document title.
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  // The Paper Header form. Once the paper's required details are filled and it
+  // has been filed once, the long form collapses to a one-line summary and this
+  // reopens it as a drawer — the builder page is about questions, not settings.
+  const [headerEditorOpen, setHeaderEditorOpen] = useState(false)
 
   // Data state (compatible with existing schema). The initializer spreads the
   // deep-link params on top so a "Create for this lesson" link lands correctly.
@@ -637,6 +647,19 @@ export default function AssessmentStudio() {
   )
   const autoTitle = form.title.trim() || buildTitleFromForm(form)
   const footerCode = buildFooterCode(form)
+
+  // How the Paper Header renders. A paper that has been filed at least once
+  // (opened from the library, or saved from here) AND whose required details
+  // are filled shows the one-line summary; anything else keeps the form open,
+  // because on a new paper those settings ARE the task. `drawer` is the summary
+  // with the full form over it — see assessmentHeaderSummary.js.
+  const headerCollapsible = shouldCollapsePaperHeader({
+    form,
+    savedOnce: isEditing || savedToLibrary,
+  })
+  const headerMode = headerCollapsible
+    ? (headerEditorOpen ? 'drawer' : 'summary')
+    : 'form'
 
   // The single source-of-truth `assessment` document. Preview, PDF, DOCX,
   // warnings, and the marking key all consume this same shape.
@@ -1544,6 +1567,20 @@ export default function AssessmentStudio() {
       const target = sectionIndex + direction
       if (target < 0 || target >= next.length) return next
       ;[next[sectionIndex], next[target]] = [next[target], next[sectionIndex]]
+      return next
+    })
+  }
+  // Drag-to-reorder. moveSection swaps with a neighbour, which is the right
+  // primitive for ↑/↓ but wrong for a drop three blocks away: replaying it as N
+  // swaps moves every block in between as a side effect. This is one splice.
+  function reorderSection(fromIndex, toIndex) {
+    setSections(prev => {
+      if (!Number.isInteger(fromIndex) || fromIndex < 0 || fromIndex >= prev.length) return prev
+      const target = Math.max(0, Math.min(prev.length - 1, toIndex))
+      if (target === fromIndex) return prev
+      const next = [...prev]
+      const [moved] = next.splice(fromIndex, 1)
+      next.splice(target, 0, moved)
       return next
     })
   }
@@ -3277,18 +3314,29 @@ export default function AssessmentStudio() {
       <SeoHelmet title={isEditing ? `Edit ${cfg.noun}` : cfg.studioName} noIndex />
 
       <TopBar
-        title={autoTitle}
+        paper={form}
         saving={Boolean(saving)}
         dirty={dirty}
         draftSavedAt={draftSavedAt}
         savedToLibrary={savedToLibrary}
         autosaveFailed={autosaveFailed}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        onUndo={undo}
-        onRedo={redo}
         onBack={() => navigate(cfg.routeBase)}
-        onAi={() => openSlide('ai')}
+        onSave={view === 'home' ? null : handleSave}
+        canSave={questionCount > 0}
+        onOpenDetails={() => setDetailsOpen(true)}
+      />
+
+      {/* Tapping the title on a phone. The sheet carries the FULL name — the
+          one thing a cut title could not — plus the paper-level fields that
+          stand on their own; grade/subject/curriculum route to the header form
+          that knows how they scope each other. */}
+      <PaperDetailsSheet
+        open={detailsOpen}
+        paper={form}
+        assessmentTypes={ASSESSMENT_TYPE_VALUES}
+        onChange={(key, value) => setF(key, value)}
+        onClose={() => setDetailsOpen(false)}
+        onEditAll={() => { changeView('builder'); setHeaderEditorOpen(true) }}
       />
 
       {view === 'home' && (
@@ -3350,6 +3398,7 @@ export default function AssessmentStudio() {
           onOpenBank={() => setBankPicker({ open: true, afterIndex: null })}
           onEditQuestion={(key) => openSlide('editor', { questionKey: key })}
           onMoveSection={moveSection}
+          onReorderSection={reorderSection}
           onMoveGroup={moveSectionGroup}
           onRemoveSection={removeSectionAt}
           onDuplicateSection={duplicateSectionAt}
@@ -3382,8 +3431,13 @@ export default function AssessmentStudio() {
           onOpenDiagramFix={() => setDiagramFixOpen(true)}
           diagramsNeeded={countDiagramsNeeded(sections)}
           onOpenAi={() => openSlide('ai')}
-          onSave={handleSave}
-          saving={saving}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={undo}
+          onRedo={redo}
+          headerMode={headerMode}
+          onOpenHeader={() => setHeaderEditorOpen(true)}
+          onCloseHeader={() => setHeaderEditorOpen(false)}
           health={paperHealth}
           onShowHealth={() => setHealthOpen(true)}
           onShowTemplates={() => setTemplateOpen(true)}

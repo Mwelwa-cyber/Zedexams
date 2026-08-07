@@ -61,6 +61,12 @@ export const STUDIO_GRADES = CANONICAL_GRADES.map((g) => (
   g.stage === 'ece' || g.formNumber != null ? g.code : String(g.gradeNumber)
 ))
 
+// The terms a Zambian school year has. Declared HERE rather than in
+// AssessmentStudio.jsx so the small shared pieces (the paper-details sheet, the
+// header summary) can read it without importing the 3,700-line studio module
+// back into themselves.
+export const TERMS = ['1', '2', '3']
+
 // Option / column letters (A, B, C, …) — shared by the studio shell and the
 // per-question-type editors (MCQ option labels, matching column headers).
 export const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')

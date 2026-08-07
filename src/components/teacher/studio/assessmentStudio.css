@@ -132,15 +132,17 @@
 .studio-v2 .sv-icon-btn:hover { background: rgba(14,44,48,0.06); }
 .studio-v2 .sv-icon-btn:disabled { opacity: 0.32; cursor: default; }
 .studio-v2 .sv-icon-btn:disabled:hover { background: transparent; }
+/* NOTE: no `text-overflow: ellipsis` here, and that is the whole point.
+   This bar used to clip its one long title string, which threw away the type
+   and the year — the two facts that identify the paper — before it threw away
+   a single letter of "Integrated". The title is now composed per width by
+   <DocTitle>; see studio/DocTitle.jsx. */
 .studio-v2 .sv-app-bar-title {
   flex: 1;
   min-width: 0;
   font-family: 'Fraunces', serif;
   font-weight: 600;
   font-size: 16px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   display: flex;
   align-items: center;
   gap: var(--sv-s2);
@@ -3542,3 +3544,360 @@
   background: var(--sv-paper);
   color: var(--sv-text);
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+ * ASSESSMENT STUDIO — UI POLISH
+ *
+ * The document title, the one-row builder toolbar, the collapsed paper
+ * header, the block grip and the menus that replaced the rows of
+ * always-visible buttons. Everything here resolves through the --sv-*
+ * tokens, which carry a Night override at the top of this file, so none
+ * of it needs a second palette.
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/* ── The document title ─────────────────────────────────────────────── */
+.studio-v2 .sv-doctitle { min-width: 0; flex: 1; }
+.studio-v2 .sv-doctitle-line1 {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  /* An ellipsis is the LAST resort here, not the mechanism: composeDocTitle
+     has already dropped and abbreviated by priority, so anything reaching
+     this rule is a genuinely extreme width. */
+  text-overflow: ellipsis;
+}
+/* The narrow line 1 is the SUBJECT — the fact that tells two open papers
+   apart — so it wraps rather than clipping. "Mathematics and Science" does
+   not fit a 320px phone's title column on one line, and half of it is not a
+   subject. */
+.studio-v2 .sv-doctitle-line1.narrow {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+/* Line 2 WRAPS rather than clipping. It carries grade, type, term, year and
+   the save state — five facts — and at a ~200px container (a 360px phone,
+   once the back button and Save have taken their room) they do not fit on one
+   line. Wrapping costs 15px of bar height; clipping costs the year. */
+.studio-v2 .sv-doctitle-line2 {
+  display: block;
+  font-family: 'Geist', sans-serif;
+  font-weight: 500;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--sv-muted);
+  overflow-wrap: anywhere;
+}
+.studio-v2 .sv-doctitle-tap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+  padding: 2px 4px;
+  margin-left: -4px;
+  border-radius: var(--sv-r-sm);
+  color: inherit;
+  font: inherit;
+}
+.studio-v2 .sv-doctitle-lines {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.studio-v2 .sv-doctitle-tap > span { min-width: 0; }
+.studio-v2 .sv-doctitle-tap:hover { background: var(--sv-canvas-2); }
+.studio-v2 .sv-doctitle-tap .sv-icon { flex-shrink: 0; color: var(--sv-muted); }
+
+.studio-v2 .sv-app-bar-save { flex-shrink: 0; }
+/* Below the medium breakpoint the title already carries the status word on its
+   second line — the chip would be saying it twice, in the room the title needs. */
+@media (max-width: 639px) {
+  .studio-v2 .sv-app-bar-status { display: none; }
+  .studio-v2 .sv-app-bar-save-label { display: none; }
+  /* `height` becomes a minimum: a wrapped second line must grow the bar, not
+     be cut off by it. */
+  .studio-v2 .sv-app-bar {
+    gap: var(--sv-s2);
+    padding: var(--sv-s2);
+    height: auto;
+    min-height: var(--sv-topbar-h);
+  }
+}
+
+/* ── Segmented view control ─────────────────────────────────────────── */
+.studio-v2 .sv-seg-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 99px;
+  background: var(--sv-canvas-2);
+  border: 1px solid var(--sv-border);
+  flex-shrink: 0;
+}
+.studio-v2 .sv-seg-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 99px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--sv-muted);
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.studio-v2 .sv-seg-nav-btn:hover { color: var(--sv-text); }
+.studio-v2 .sv-seg-nav-btn.active {
+  background: var(--sv-paper);
+  color: var(--sv-text);
+  font-weight: 600;
+  box-shadow: var(--sv-shadow-xs);
+}
+
+/* On a phone the bottom dock already owns view navigation. Two controls for
+   one job is how a small screen runs out of room. */
+@media (max-width: 767px) {
+  .studio-v2 .sv-seg-nav { display: none; }
+}
+
+.studio-v2 .sv-chip.sv-chip-icon {
+  padding: 6px 8px;
+  min-width: 32px;
+  justify-content: center;
+}
+.studio-v2 .sv-chip:disabled { opacity: 0.4; cursor: default; }
+
+/* ── Block grip + drop target ───────────────────────────────────────── */
+.studio-v2 .sv-drag-handle {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: var(--sv-r-sm);
+  color: var(--sv-muted-2);
+  font-size: 15px;
+  line-height: 1;
+  cursor: grab;
+  transition: background 0.15s, color 0.15s;
+}
+.studio-v2 .sv-drag-handle:hover { background: var(--sv-canvas-2); color: var(--sv-text); }
+.studio-v2 .sv-drag-handle:active { cursor: grabbing; }
+.studio-v2 .sv-drag-handle:focus-visible {
+  outline: 2px solid var(--sv-primary);
+  outline-offset: 1px;
+}
+.studio-v2 .sv-block.is-drop-target {
+  outline: 2px dashed var(--sv-primary);
+  outline-offset: 2px;
+}
+
+/* ── Collapsed paper header ─────────────────────────────────────────── */
+.studio-v2 .sv-block.sv-header-summary { padding: var(--sv-s3) var(--sv-s4); }
+.studio-v2 .sv-header-summary-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-s2);
+}
+.studio-v2 .sv-header-summary-line {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--sv-text);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 0;
+}
+.studio-v2 .sv-header-summary-seg { white-space: nowrap; }
+.studio-v2 .sv-header-summary-seg + .sv-header-summary-seg::before {
+  content: '·';
+  margin: 0 6px;
+  color: var(--sv-muted-2);
+}
+.studio-v2 .sv-header-summary-timing { margin: var(--sv-s2) 0 0; }
+.studio-v2 .sv-pill-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 99px;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: var(--sv-indigo-soft);
+  color: var(--sv-indigo);
+}
+
+/* ── Header drawer ──────────────────────────────────────────────────── */
+.studio-v2 .sv-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 70;
+  width: min(560px, 100vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--sv-canvas);
+  border-left: 1px solid var(--sv-border-strong);
+  box-shadow: var(--sv-shadow-lg);
+}
+.studio-v2 .sv-drawer-head,
+.studio-v2 .sv-drawer-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-s2);
+  padding: var(--sv-s3) var(--sv-s4);
+  flex-shrink: 0;
+}
+.studio-v2 .sv-drawer-head { border-bottom: 1px solid var(--sv-border); }
+.studio-v2 .sv-drawer-head strong { flex: 1; font-size: 15px; }
+.studio-v2 .sv-drawer-foot {
+  border-top: 1px solid var(--sv-border);
+  justify-content: flex-end;
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--sv-s3));
+}
+.studio-v2 .sv-drawer-body { flex: 1; overflow-y: auto; padding: var(--sv-s3); }
+
+/* ── Paper-details bottom sheet (phone) ─────────────────────────────── */
+.studio-v2 .sv-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 70;
+  max-height: 82vh;
+  overflow-y: auto;
+  border-radius: var(--sv-r-xl) var(--sv-r-xl) 0 0;
+  background: var(--sv-canvas);
+  box-shadow: var(--sv-shadow-lg);
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--sv-s4));
+}
+.studio-v2 .sv-sheet-grip {
+  width: 40px;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--sv-border-strong);
+  margin: var(--sv-s2) auto 0;
+}
+.studio-v2 .sv-sheet-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sv-s2);
+  padding: var(--sv-s3) var(--sv-s4) 0;
+}
+.studio-v2 .sv-sheet-title {
+  flex: 1;
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-weight: 700;
+  font-size: 17px;
+  line-height: 1.25;
+}
+.studio-v2 .sv-sheet-body { padding: var(--sv-s3) var(--sv-s4) 0; }
+.studio-v2 .sv-sheet-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sv-s3);
+}
+.studio-v2 .sv-sheet-grid .sv-field > span {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--sv-muted);
+  margin-bottom: 4px;
+}
+
+/* ── Question card: the AI menu, the option picture button, the stem row ── */
+.studio-v2 .sv-q-ai-menu { margin-left: auto; }
+.studio-v2 .sv-q-ai-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--sv-r-sm);
+  border: 1px solid var(--sv-border);
+  background: var(--sv-paper);
+  color: var(--sv-text);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+.studio-v2 .sv-q-ai-trigger:hover { background: var(--sv-tinted); }
+
+.studio-v2 .sv-opt-img-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: var(--sv-r-sm);
+  border: 1.5px dashed var(--sv-border-strong);
+  background: transparent;
+  color: var(--sv-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.studio-v2 .sv-opt-img-btn:hover { color: var(--sv-text); border-color: var(--sv-muted); }
+
+.studio-v2 .sv-q-media-row { display: block; }
+.studio-v2 .sv-q-media-routes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.studio-v2 .sv-q-media-route {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 99px;
+  border: 1px solid var(--sv-border);
+  background: var(--sv-paper);
+  color: var(--sv-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.studio-v2 .sv-q-media-route:hover { color: var(--sv-text); border-color: var(--sv-border-strong); }
+
+/* ── The FAB must never sit on top of the last block's controls ─────── */
+@media (max-width: 767px) {
+  .studio-v2 .sv-view {
+    /* dock (64) + FAB reach (76 + 56) + breathing room, plus the safe area. */
+    padding-bottom: calc(env(safe-area-inset-bottom) + 168px);
+  }
+  .studio-v2 .sv-sheet-grid { grid-template-columns: 1fr; }
+  .studio-v2 .sv-drawer { width: 100vw; }
+}
+
+/* ── Menus must escape the bars they open from ──────────────────────── */
+/* `.sv-builder-bar` sets `overflow-x: auto`, and a box that scrolls on one
+   axis computes `auto` on the other — so an absolutely-positioned dropdown
+   inside it is CLIPPED. The tools row wraps instead of scrolling (it has
+   `flex-wrap: wrap`), so it has no need to clip. */
+.studio-v2 .sv-builder-bar.sv-builder-tools { overflow: visible; }
+
+/* `.sv-block-head` is 11px uppercase monospace with wide tracking — correct
+   for a block label, wrong for the menu copy that inherits it. ActionMenu's
+   own classes set size and weight but not the three properties that make a
+   block LABEL a block label, so they are reset here at the boundary. */
+.studio-v2 [role='menu'] {
+  font-family: 'Geist', sans-serif;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* The overflow trigger is now the ONLY route to duplicate / lock / delete a
+   block. Hiding it until hover was right when it was one of eight buttons;
+   it is not right when it is the only one. Quiet at rest, full on hover. */
+.studio-v2 .sv-block-head .sv-tools { opacity: 0.55; }

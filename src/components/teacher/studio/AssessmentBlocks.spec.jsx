@@ -356,3 +356,52 @@ describe('PassageBlock — marks input never stores 0 while displaying 1 (F23)',
     expect(onUpdatePassageQuestion).toHaveBeenCalledWith(0, 0, 'marks', 5)
   })
 })
+
+/*
+ * The collapsed header.
+ *
+ * The form asks for eighteen things. All of them matter once; none of them
+ * matter on the tenth question, and while they were on screen the builder page
+ * was mostly settings. The rule for WHEN it collapses is tested under plain
+ * node (scripts/test-assessment-header-summary.mjs); these cover what the
+ * teacher can see and reach in each of the three modes.
+ */
+describe('HeaderBlock — collapse-when-valid', () => {
+  it('mode "form" renders the full form, as a new paper should', () => {
+    renderHeader({ mode: 'form' })
+    expect(screen.getByPlaceholderText('e.g. Jemareen Academy')).toBeInTheDocument()
+  })
+
+  it('mode "summary" states the paper on one line, with an Edit route back', () => {
+    const onOpenHeader = vi.fn()
+    renderHeader({ mode: 'summary', onOpenHeader })
+    // Every fact the form was holding, in the order the header states them.
+    for (const fact of ['Test School', 'Grade 4', 'Mathematics', '2026', '60 min', 'A4 portrait', 'MCQ A–D vertical']) {
+      expect(screen.getByText(fact)).toBeInTheDocument()
+    }
+    // …and none of the form itself.
+    expect(screen.queryByPlaceholderText('e.g. Jemareen Academy')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /edit/i }))
+    expect(onOpenHeader).toHaveBeenCalled()
+  })
+
+  it('the estimated-time note stays visible on the collapsed card', () => {
+    // It is the one header fact that keeps changing as questions are added, so
+    // collapsing the form must not take it away.
+    renderHeader({
+      mode: 'summary',
+      timingNote: 'Estimated ~1 min — well under the 60 min allowed; there’s room for more.',
+    })
+    expect(screen.getByText(/Estimated ~1 min/)).toBeInTheDocument()
+  })
+
+  it('mode "drawer" keeps the summary in place and opens the form over it', () => {
+    const onCloseHeader = vi.fn()
+    renderHeader({ mode: 'drawer', onCloseHeader })
+    expect(screen.getByText('Test School')).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: /paper details/i })).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('e.g. Jemareen Academy')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /close paper details/i }))
+    expect(onCloseHeader).toHaveBeenCalled()
+  })
+})

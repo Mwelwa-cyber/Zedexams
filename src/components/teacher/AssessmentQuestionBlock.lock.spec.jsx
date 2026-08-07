@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { QuestionBlock } from './AssessmentQuestionBlock.jsx'
 
 // The card pulls in the picture bank, the diagram library and the AI helpers,
@@ -56,55 +56,92 @@ function renderCard({ locked = false, rewriting = false, ...props } = {}) {
   return { onToggleLock, onRewriteQuestion }
 }
 
-const lockButton = () => screen.getByRole('button', { name: /lock this question/i })
-const rewriteButton = () => screen.getByRole('button', { name: /rewrite just this question|unlock this question first/i })
+// The eight-icon header row became a grip plus two ActionMenus (#2.4), so every
+// control below is now one click deeper. The BEHAVIOUR asserted is unchanged —
+// that is the point of re-pointing these rather than rewriting them.
+function openOverflowMenu() {
+  fireEvent.click(screen.getByRole('button', { name: /more actions for question 1/i }))
+  return screen.getByRole('menu')
+}
+function openAiMenu() {
+  fireEvent.click(screen.getByRole('button', { name: /^(ai|thinking)/i }))
+  return screen.getByRole('menu')
+}
 
 describe('QuestionBlock — lock and single-question rewrite', () => {
   it('offers to rewrite just this question, not the paper', () => {
     const { onRewriteQuestion } = renderCard()
-    const btn = rewriteButton()
-    expect(btn).toHaveAttribute('title', expect.stringMatching(/the rest of the paper is untouched/i))
-    fireEvent.click(btn)
+    const item = within(openAiMenu()).getByRole('menuitem', { name: /rewrite just this question/i })
+    fireEvent.click(item)
     expect(onRewriteQuestion).toHaveBeenCalledWith('q-1')
   })
 
   it('locks a question on request', () => {
     const { onToggleLock } = renderCard()
-    expect(lockButton()).toHaveAttribute('aria-pressed', 'false')
-    fireEvent.click(lockButton())
+    fireEvent.click(within(openOverflowMenu()).getByRole('menuitem', { name: /lock this question/i }))
     expect(onToggleLock).toHaveBeenCalledWith('q-1', true)
   })
 
   it('a locked question says so and cannot be rewritten', () => {
     const { onRewriteQuestion } = renderCard({ locked: true })
     expect(screen.getByText('Locked')).toBeInTheDocument()
-    const btn = screen.getByRole('button', { name: /unlock this question first/i })
-    expect(btn).toBeDisabled()
-    fireEvent.click(btn)
+    const item = within(openAiMenu()).getByRole('menuitem', { name: /unlock to rewrite/i })
+    expect(item).toBeDisabled()
+    fireEvent.click(item)
     expect(onRewriteQuestion).not.toHaveBeenCalled()
   })
 
   it('unlocking is the same control, pressed', () => {
     const { onToggleLock } = renderCard({ locked: true })
-    const btn = screen.getByRole('button', { name: /unlock this question$/i })
-    expect(btn).toHaveAttribute('aria-pressed', 'true')
-    fireEvent.click(btn)
+    fireEvent.click(within(openOverflowMenu()).getByRole('menuitem', { name: /unlock this question/i }))
     expect(onToggleLock).toHaveBeenCalledWith('q-1', false)
   })
 
   it('the rewrite control is disabled while a rewrite is in flight', () => {
     const { onRewriteQuestion } = renderCard({ rewriting: true })
-    const btn = rewriteButton()
-    expect(btn).toBeDisabled()
-    fireEvent.click(btn)
+    const item = within(openAiMenu()).getByRole('menuitem', { name: /rewrite just this question/i })
+    expect(item).toBeDisabled()
+    fireEvent.click(item)
     expect(onRewriteQuestion).not.toHaveBeenCalled()
   })
 
   it('a studio that has not wired the controls shows neither', () => {
     // The card is shared; a caller that passes no handlers must not render dead
-    // buttons.
+    // menu rows either.
     renderCard({ onToggleLock: undefined, onRewriteQuestion: undefined })
-    expect(screen.queryByRole('button', { name: /lock this question/i })).toBeNull()
-    expect(screen.queryByRole('button', { name: /rewrite just this question/i })).toBeNull()
+    expect(within(openAiMenu()).queryByRole('menuitem', { name: /rewrite just this question/i })).toBeNull()
+    // Close the AI menu before opening the other, so only one is in the tree.
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(within(openOverflowMenu()).queryByRole('menuitem', { name: /lock this question/i })).toBeNull()
+  })
+})
+
+describe('QuestionBlock — the header carries a grip, not two arrows', () => {
+  it('the grip moves the block with the arrow keys', () => {
+    const onMoveSection = vi.fn()
+    renderCard({ onMoveSection })
+    const grip = screen.getByRole('button', { name: /reorder question 1/i })
+    fireEvent.keyDown(grip, { key: 'ArrowUp' })
+    expect(onMoveSection).toHaveBeenCalledWith(0, -1)
+    fireEvent.keyDown(grip, { key: 'ArrowDown' })
+    expect(onMoveSection).toHaveBeenCalledWith(0, 1)
+  })
+
+  it('the type is stated once — the dropdown, not a badge repeating it', () => {
+    renderCard()
+    expect(screen.queryByText('MULTIPLE CHOICE')).toBeNull()
+    expect(screen.getByRole('combobox', { name: '' })).toBeTruthy()
+  })
+
+  it('deleting asks first, and only then removes the question', () => {
+    const onRemoveSection = vi.fn()
+    renderCard({ onRemoveSection })
+    fireEvent.click(within(openOverflowMenu()).getByRole('menuitem', { name: /^delete$/i }))
+    // The menu row opens the dialog; the dialog does the removing.
+    expect(onRemoveSection).not.toHaveBeenCalled()
+    const dialog = screen.getByRole('alertdialog')
+    expect(dialog).toHaveTextContent('Delete question 1?')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    expect(onRemoveSection).toHaveBeenCalledWith(0)
   })
 })

@@ -11,6 +11,7 @@ import { countBlanks, statementLabel, BLANK_TOKEN } from '../../utils/fillBlanks
 import { subPartLabel, sumSubPartMarks, emptySubPart, normalizeSubParts } from '../../utils/questionParts.js'
 import DiagramSvg from '../diagrams/DiagramSvg'
 import { SECTION_LETTERS } from './assessmentStudioMeta'
+import ActionMenu from '../ui/ActionMenu'
 import Icon from './studio/studioIcons'
 import { richTextToPlainText, richTextHasFormatting } from '../../utils/quizRichText.js'
 import MathsRichField from './MathsRichField.jsx'
@@ -132,63 +133,36 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
           )}
         </div>
       ) : onUploadOptionImage ? (
-        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            title="Upload an image for this option"
-            style={{
-              width: 32, height: 32, borderRadius: 4,
-              border: '1.5px dashed var(--sv-border-strong)',
-              background: 'transparent', color: 'var(--sv-ink)',
-              display: 'grid', placeItems: 'center', cursor: 'pointer',
-              fontSize: 14,
+        // ONE affordance per option. This was three permanent dashed squares —
+        // upload, picture bank, shape — on every option of every MCQ, so a
+        // four-option question carried twelve buttons for a feature most
+        // questions never use. The three routes now live behind "+ img".
+        //
+        // stopPropagation on the wrapper: the option row's own click marks that
+        // option correct, so opening the picture menu must not silently change
+        // the answer key.
+        <div style={{ flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+          <ActionMenu
+            label="+ img"
+            ariaLabel={`Add a picture to option ${SECTION_LETTERS[optIndex]}`}
+            buttonClassName="sv-opt-img-btn"
+            items={[
+              { label: 'Upload a picture', onSelect: () => fileRef.current?.click() },
+              onPickFromBank ? { label: 'Picture bank / AI picture', onSelect: () => onPickFromBank(optIndex) } : null,
+              onPickDiagram ? { label: 'Shape · diagram', onSelect: () => onPickDiagram(optIndex) } : null,
+            ]}
+          />
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={e => {
+              const file = e.target.files?.[0]
+              if (file && onUploadOptionImage) onUploadOptionImage(optIndex, file)
+              e.target.value = ''
             }}
-          ><Icon name="diagrams" size={15} />
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={e => {
-                const file = e.target.files?.[0]
-                if (file && onUploadOptionImage) onUploadOptionImage(optIndex, file)
-                e.target.value = ''
-              }}
-            />
-          </button>
-          {onPickFromBank && (
-            <button
-              type="button"
-              onClick={() => onPickFromBank(optIndex)}
-              title="Pick from the picture bank or generate with AI"
-              style={{
-                width: 32, height: 32, borderRadius: 4,
-                border: '1.5px dashed var(--sv-border-strong)',
-                background: 'transparent', color: 'var(--sv-ink)',
-                display: 'grid', placeItems: 'center', cursor: 'pointer',
-                fontSize: 14,
-              }}
-            >
-              <Icon name="pictureBank" size={15} />
-            </button>
-          )}
-          {onPickDiagram && (
-            <button
-              type="button"
-              onClick={() => onPickDiagram(optIndex)}
-              title="Insert an exact maths shape for this option"
-              style={{
-                width: 32, height: 32, borderRadius: 4,
-                border: '1.5px dashed var(--sv-border-strong)',
-                background: 'transparent', color: 'var(--sv-ink)',
-                display: 'grid', placeItems: 'center', cursor: 'pointer',
-                fontSize: 14,
-              }}
-            >
-              <Icon name="shape" size={15} />
-            </button>
-          )}
+          />
         </div>
       ) : <span />}
       {/* A rich option gets the rich field even on a non-mathematics paper.

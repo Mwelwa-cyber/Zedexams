@@ -26,6 +26,11 @@ import { LEVEL_STAGE_LABELS, assessmentCategory } from '../paperTaxonomy'
 import { CHOICE_COUNT_OPTIONS, recommendedChoiceCount, resolveChoiceCount } from '../../../utils/mcqChoices'
 import { PAGE_SIZES, MARGIN_PRESETS } from '../../../config/paperLayoutTokens'
 import { GRADE_NUMBER_STYLES, LEARNER_NAME_LABELS } from '../../../utils/paperMetadata'
+import { paperHeaderSummarySegments } from '../assessmentHeaderSummary'
+import { MoreHorizontal } from 'lucide-react'
+import ActionMenu from '../../ui/ActionMenu'
+import ConfirmDialog from '../../ui/ConfirmDialog'
+import { BlockDragHandle, useBlockDropTarget } from './BlockDragHandle'
 
 /**
  * Render an ordered level list as <optgroup>s by education stage (Early
@@ -144,9 +149,52 @@ function ImportSummaryBanner({ summary, onDismiss }) {
 }
 
 /* ==================================================================
+ * PAPER HEADER SUMMARY
+ *
+ * The collapsed form. Eighteen settings matter once and then get in the
+ * way of the thing the page is actually for, so a paper whose header is
+ * complete AND filed shows one line instead — see
+ * assessmentHeaderSummary.js for the rule.
+ *
+ * The timing note rides here rather than being lost with the form: it is
+ * the one header fact that keeps changing as questions are added.
+ * ================================================================== */
+export function PaperHeaderSummaryCard({ form, onEdit, timingNote }) {
+  const segments = paperHeaderSummarySegments(form)
+  return (
+    <div className="sv-block b-header sv-header-summary">
+      <div className="sv-header-summary-row">
+        <span className="sv-ic"><Icon name="header" size={15} /></span>
+        <p className="sv-header-summary-line" title={segments.join(' · ')}>
+          {segments.map((segment, i) => (
+            <span key={segment + i} className="sv-header-summary-seg">{segment}</span>
+          ))}
+        </p>
+        <button type="button" className="sv-btn sv-btn-outline sv-btn-sm" onClick={onEdit}>
+          <Icon name="edit" size={13} /> Edit
+        </button>
+      </div>
+      {timingNote && (
+        <p className="sv-header-summary-timing">
+          <span className="sv-pill-time"><Icon name="time" size={12} /> {timingNote}</span>
+        </p>
+      )}
+    </div>
+  )
+}
+
+/* ==================================================================
  * HEADER BLOCK
  * ================================================================== */
-export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, assessmentTypes = ['topic_test', 'weekly_test', 'mid_term', 'end_of_term', 'mock_exam', 'examination', 'final_exam'], assessmentTypeLabel = 'Assessment type', importSummary, onDismissImportSummary }) {
+export function HeaderBlock({
+  form, setF, importing, onImportDocument, onScan,
+  assessmentTypes = ['topic_test', 'weekly_test', 'mid_term', 'end_of_term', 'mock_exam', 'examination', 'final_exam'],
+  assessmentTypeLabel = 'Assessment type', importSummary, onDismissImportSummary,
+  // 'form'    — inline, the way a new paper starts
+  // 'summary' — the one-line card
+  // 'drawer'  — the card, with the full form over it
+  mode = 'form', onOpenHeader, onCloseHeader, timingNote,
+}) {
   const docInputRef = useRef(null)
   // Import options — both default ON; threaded into the parser via onImportDocument.
   const [preserveNumbering, setPreserveNumbering] = useState(true)
@@ -201,10 +249,15 @@ export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, a
     // (reset above) keeps this to a single snap per user change.
   }, [validSubjectsLoading, validSubjectLabels, form.subject, form.topic, setF])
 
-  return (
+  const formBody = (
     <div className="sv-block b-header">
       <div className="sv-block-head">
         <span className="sv-ic"><Icon name="header" size={15} /></span> Paper Header
+        {timingNote && (
+          <span className="sv-pill-time" style={{ marginLeft: 'auto' }}>
+            <Icon name="time" size={12} /> {timingNote}
+          </span>
+        )}
       </div>
 
       {importSummary && (
@@ -554,6 +607,40 @@ export function HeaderBlock({ form, setF, importing, onImportDocument, onScan, a
       </div>
     </div>
   )
+
+  if (mode === 'summary') {
+    return <PaperHeaderSummaryCard form={form} onEdit={onOpenHeader} timingNote={timingNote} />
+  }
+
+  if (mode === 'drawer') {
+    // The summary card stays where it was so the page does not jump under the
+    // drawer, and closing returns the teacher to exactly the line they opened.
+    return (
+      <>
+        <PaperHeaderSummaryCard form={form} onEdit={onOpenHeader} timingNote={timingNote} />
+        <div className="sv-scrim open" onClick={onCloseHeader} />
+        <aside className="sv-drawer" role="dialog" aria-modal="true" aria-label="Paper details">
+          <div className="sv-drawer-head">
+            <strong>Paper details</strong>
+            <button
+              type="button"
+              className="sv-icon-btn"
+              onClick={onCloseHeader}
+              aria-label="Close paper details"
+            ><Icon name="remove" size={18} /></button>
+          </div>
+          <div className="sv-drawer-body">{formBody}</div>
+          <div className="sv-drawer-foot">
+            <button type="button" className="sv-btn sv-btn-primary" onClick={onCloseHeader}>
+              <Icon name="check" size={14} /> Done
+            </button>
+          </div>
+        </aside>
+      </>
+    )
+  }
+
+  return formBody
 }
 
 export function Toggle({ label, icon, on, onChange }) {
@@ -654,7 +741,7 @@ Choose and circle the correct answer from the given options A, B, C, and D."
 export function SectionBlock(props) {
   const {
     section, sectionIndex, parts, questionNumbers, questionIssues, paperMeta,
-    onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onSaveToBank,
+    onEditQuestion, onMoveSection, onReorderSection, onRemoveSection, onDuplicateSection, onSaveToBank,
     onToggleLock, onRewriteQuestion, rewritingKey,
     onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage,
     onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage,
@@ -668,6 +755,7 @@ export function SectionBlock(props) {
       <PagebreakBlock
         sectionIndex={sectionIndex}
         onMoveSection={onMoveSection}
+        onReorderSection={onReorderSection}
         onRemoveSection={onRemoveSection}
       />
     )
@@ -683,6 +771,7 @@ export function SectionBlock(props) {
         paperMeta={paperMeta}
         onEditQuestion={onEditQuestion}
         onMoveSection={onMoveSection}
+        onReorderSection={onReorderSection}
         onRemoveSection={onRemoveSection}
         onUpdateSection={onUpdateSection}
         onUploadPassageImage={onUploadPassageImage}
@@ -704,6 +793,7 @@ export function SectionBlock(props) {
       paperMeta={paperMeta}
       onEditQuestion={onEditQuestion}
       onMoveSection={onMoveSection}
+      onReorderSection={onReorderSection}
       onRemoveSection={onRemoveSection}
       onDuplicateSection={onDuplicateSection}
       onSaveToBank={onSaveToBank}
@@ -720,7 +810,10 @@ export function SectionBlock(props) {
   )
 }
 
-export function PassageBlock({ section, sectionIndex, parts, questionNumbers, questionIssues, paperMeta, onEditQuestion, onMoveSection, onRemoveSection, onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onAssignSectionToPart }) {
+export function PassageBlock({ section, sectionIndex, parts, questionNumbers, questionIssues, paperMeta, onEditQuestion, onMoveSection, onReorderSection, onRemoveSection, onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onAssignSectionToPart }) {
+  const { isOver, dropProps } = useBlockDropTarget({ index: sectionIndex, onReorder: onReorderSection })
+  // Deleting takes the passage AND every question under it, so it asks first.
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const passage = section.passage
   const kind = passage.passageKind || 'comprehension'
   const isMap = kind === 'map'
@@ -795,8 +888,12 @@ export function PassageBlock({ section, sectionIndex, parts, questionNumbers, qu
 
   return (
     <>
-      <div className={`sv-block b-passage${isImageLed ? ' b-passage-map' : ''}${passageBlockers.length ? ' is-incomplete' : ''}`}>
+      <div
+        className={`sv-block b-passage${isImageLed ? ' b-passage-map' : ''}${passageBlockers.length ? ' is-incomplete' : ''}${isOver ? ' is-drop-target' : ''}`}
+        {...dropProps}
+      >
         <div className="sv-block-head">
+          <BlockDragHandle index={sectionIndex} label={meta.label.toLowerCase()} onMove={onMoveSection} />
           <span className="sv-ic"><Icon name={meta.icon} size={15} /></span> {meta.label}
           {passageBlockers.length > 0 && (
             <span className="sv-q-incomplete-tag" title={passageBlockers.join(' ')}>
@@ -818,9 +915,12 @@ export function PassageBlock({ section, sectionIndex, parts, questionNumbers, qu
             Total: {totalMarks} mark{totalMarks === 1 ? '' : 's'}
           </span>
           <span className="sv-tools">
-            <button className="sv-tool" title="Move up" onClick={() => onMoveSection(sectionIndex, -1)}><Icon name="moveUp" size={14} /></button>
-            <button className="sv-tool" title="Move down" onClick={() => onMoveSection(sectionIndex, 1)}><Icon name="moveDown" size={14} /></button>
-            <button className="sv-tool danger" title="Delete passage" onClick={() => onRemoveSection(sectionIndex)}><Icon name="delete" size={14} /></button>
+            <ActionMenu
+              icon={MoreHorizontal}
+              ariaLabel="More actions for this passage"
+              buttonClassName="sv-tool"
+              items={[{ label: 'Delete passage', danger: true, onSelect: () => setConfirmDeleteOpen(true) }]}
+            />
           </span>
         </div>
         <div className="sv-passage-content">
@@ -1038,6 +1138,16 @@ export function PassageBlock({ section, sectionIndex, parts, questionNumbers, qu
           + Add short answer
         </button>
       </div>
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title="Delete this passage?"
+        message={`The passage and its ${(passage.questions || []).length} question${(passage.questions || []).length === 1 ? '' : 's'} are removed from this paper. You can undo this with Ctrl+Z.`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => { setConfirmDeleteOpen(false); onRemoveSection(sectionIndex) }}
+        onCancel={() => setConfirmDeleteOpen(false)}
+      />
     </>
   )
 }
@@ -1045,15 +1155,24 @@ export function PassageBlock({ section, sectionIndex, parts, questionNumbers, qu
 // Page break marker in the builder. Has no editable content — just a
 // visible "PAGE BREAK" divider that the teacher can reorder or delete.
 // The actual page-break behaviour lives in the PDF/DOCX exporters.
-export function PagebreakBlock({ sectionIndex, onMoveSection, onRemoveSection }) {
+export function PagebreakBlock({ sectionIndex, onMoveSection, onRemoveSection, onReorderSection }) {
+  const { isOver, dropProps } = useBlockDropTarget({ index: sectionIndex, onReorder: onReorderSection })
   return (
-    <div className="sv-block b-pagebreak" style={{ background: '#f8fafc', border: '1px dashed #94a3b8', borderRadius: 6 }}>
-      <div className="sv-block-head" style={{ color: 'var(--zt-text-muted)' }}>
+    <div
+      className={`sv-block b-pagebreak${isOver ? ' is-drop-target' : ''}`}
+      style={{ background: 'var(--sv-canvas-2)', border: '1px dashed var(--sv-border-strong)', borderRadius: 6 }}
+      {...dropProps}
+    >
+      <div className="sv-block-head" style={{ color: 'var(--sv-muted)' }}>
+        <BlockDragHandle index={sectionIndex} label="page break" onMove={onMoveSection} />
         <span className="sv-ic"><Icon name="pagebreak" size={15} /></span> Page break
         <span className="sv-tools">
-          <button className="sv-tool" title="Move up" onClick={() => onMoveSection(sectionIndex, -1)}><Icon name="moveUp" size={14} /></button>
-          <button className="sv-tool" title="Move down" onClick={() => onMoveSection(sectionIndex, 1)}><Icon name="moveDown" size={14} /></button>
-          <button className="sv-tool danger" title="Delete" onClick={() => onRemoveSection(sectionIndex)}><Icon name="delete" size={14} /></button>
+          <ActionMenu
+            icon={MoreHorizontal}
+            ariaLabel="More actions for this page break"
+            buttonClassName="sv-tool"
+            items={[{ label: 'Delete', danger: true, onSelect: () => onRemoveSection(sectionIndex) }]}
+          />
         </span>
       </div>
       <div style={{ textAlign: 'center', color: 'var(--zt-text-muted)', fontSize: 11, padding: '4px 0 8px', textTransform: 'uppercase', letterSpacing: 1 }}>
