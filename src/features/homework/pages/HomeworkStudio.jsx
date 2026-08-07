@@ -12,7 +12,7 @@ import { downloadHomeworkPdf } from '../../../utils/homeworkToPdf'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import { House } from 'lucide-react'
-import GeneratorStudioShell, { useStudioSetupForYou } from './GeneratorStudioShell'
+import GeneratorStudioShell, { useStudioSetupForYou } from '../../../components/teacher/generate/GeneratorStudioShell'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { captureQuestionsToBank } from '../../../utils/questionBankService'
 import { homeworkQuestionToBank } from '../../../utils/questionBankCore'
@@ -20,27 +20,27 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { useGenerationGate } from '../../../hooks/useGenerationGate'
 import { useIsMounted } from '../../../hooks/useIsMounted'
 import { LIBRARY_TYPES } from '../../../config/library'
-import LiveGenerationCanvas from '../../ui/LiveGenerationCanvas'
+import LiveGenerationCanvas from '../../../components/ui/LiveGenerationCanvas'
 import {
   FieldTextarea,
   FieldSelect,
   FieldGrid,
   AdvancedOptions,
   GenerateButton,
-} from './studioFields'
-import Icon from '../../ui/Icon'
-import { Download, Key } from '../../ui/icons'
-import StudioCurriculumSelector from '../curriculum/StudioCurriculumSelector'
-import StudioOutputBoundary from '../StudioOutputBoundary'
-import HomeworkView from '../views/HomeworkView'
+} from '../../../components/teacher/generate/studioFields'
+import Icon from '../../../components/ui/Icon'
+import { Download, Key } from '../../../components/ui/icons'
+import StudioCurriculumSelector from '../../../components/teacher/curriculum/StudioCurriculumSelector'
+import StudioOutputBoundary from '../../../components/teacher/StudioOutputBoundary'
+import HomeworkView from '../components/HomeworkView'
 import { useAiOperationLock } from '../../../hooks/useAiOperationLock'
 import { stableFingerprint } from '../../../hooks/aiOperationLockCore'
 import { useStudioInputDraft } from '../../../hooks/draft/useStudioInputDraft'
 import { homeworkInputDescriptor } from '../../../hooks/draft/descriptors'
 import { curriculumSeedFromProfile, preferredDifficulty, preferredTermYear } from '../../../utils/teacherDefaults'
 import { readActiveAssignmentSeed, resolveStudioSeed } from '../../../utils/activeAssignmentSeed'
-import CreatedFromLessonPlanNotice from './CreatedFromLessonPlanNotice'
-import StudioAssignmentChangeNotice from './StudioAssignmentChangeNotice'
+import CreatedFromLessonPlanNotice from '../../../components/teacher/generate/CreatedFromLessonPlanNotice'
+import StudioAssignmentChangeNotice from '../../../components/teacher/generate/StudioAssignmentChangeNotice'
 
 /**
  * Homework Studio — short take-home practice grounded on the stored

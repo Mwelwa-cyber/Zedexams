@@ -57,22 +57,22 @@ vi.mock('../../../hooks/draft/useStudioInputDraft', () => ({
     clear: vi.fn(() => Promise.resolve()),
   }),
 }))
-vi.mock('../../draft/DraftStatusIndicator', () => ({ default: () => null }))
-vi.mock('../../draft/DraftRecoveryPrompt', () => ({ default: () => null }))
+vi.mock('../../../components/draft/DraftStatusIndicator', () => ({ default: () => null }))
+vi.mock('../../../components/draft/DraftRecoveryPrompt', () => ({ default: () => null }))
 
 // Helmet needs a provider we don't want to stand up here.
-vi.mock('../../seo/SeoHelmet', () => ({ default: () => null }))
+vi.mock('../../../components/seo/SeoHelmet', () => ({ default: () => null }))
 
 // LiveGenerationCanvas has no bearing on the generate path — render nothing.
-vi.mock('../../ui/LiveGenerationCanvas', () => ({ default: () => null }))
+vi.mock('../../../components/ui/LiveGenerationCanvas', () => ({ default: () => null }))
 
 // The assignment-change notice pulls in the syllabus KB service (firebase) via
 // useSubjectsForGrade — irrelevant to the generate path, so stub it out.
-vi.mock('./StudioAssignmentChangeNotice', () => ({ default: () => null }))
+vi.mock('../../../components/teacher/generate/StudioAssignmentChangeNotice', () => ({ default: () => null }))
 
 // The shell's "Set up for you" prefill reads the teacher's Weekly Forecast
 // (Firestore via teacherLibraryService) — no suggestion in these tests.
-vi.mock('../studio/hooks/useTeacherPlanContext', () => ({
+vi.mock('../../../components/teacher/studio/hooks/useTeacherPlanContext', () => ({
   useTeacherPlanContext: () => ({ loading: false, suggestion: null }),
 }))
 
@@ -90,7 +90,7 @@ const VALID_CURR = {
   curriculum: 'cbc',
   framework: '2023',
 }
-vi.mock('../curriculum/StudioCurriculumSelector', () => ({
+vi.mock('../../../components/teacher/curriculum/StudioCurriculumSelector', () => ({
   default: ({ onChange }) => (
     <button type="button" onClick={() => onChange(VALID_CURR)}>
       seed-curriculum
