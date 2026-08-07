@@ -140,16 +140,20 @@
 .tdv2-shell .tdv2-sidebar {
   width: 248px;
   height: 100%;
+  /* The main column is flex-1 beside this one, so animating the width here is
+     what makes the page grow into the freed space rather than jump into it.
+     Neutralised by the prefers-reduced-motion block at the end of the file,
+     which zeroes every transition inside .tdv2. */
+  transition: width 240ms var(--ease);
 }
 
-/* 768–1023px: the compact icon rail. The rail's own rules live in the
-   max-width:1023px block below and apply to .tdv2-sidebar wherever it is
-   mounted; only the width has to be restated, because the line above pins
-   the full-panel width. */
-@media (max-width: 1023px) {
-  .tdv2-shell .tdv2-sidebar {
-    width: 76px;
-  }
+/* The collapsed icon rail. Class-driven, not width-driven: the toggle works
+   at every width the sidebar renders at (≥768px), and 768–1023px only decides
+   which state a teacher who has never toggled STARTS in (useSidebarCollapsed).
+   Below 768px the sidebar is unmounted entirely, so none of this reaches the
+   phone layout. */
+.tdv2-shell.is-collapsed .tdv2-sidebar {
+  width: 76px;
 }
 
 /* Page scope: a .tdv2 root for a page that brings its own grid (the
@@ -352,6 +356,7 @@
 }
 
 .tdv2-logo {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -557,6 +562,138 @@
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+
+/* ── Collapse toggle + the collapsed rail ─────────────────────────────────
+   Every rule here is scoped to .tdv2-sidebar (the DESKTOP panel). The mobile
+   drawer reuses .tdv2-nav-item / .tdv2-nav-label / .tdv2-nav-text and must
+   keep its full labels. */
+
+/* Expanded, the toggle is taken OUT of the logo row's flow and pinned to its
+   top-right corner: as a flex sibling it stole 44px from the wordmark and
+   wrapped "Teacher Dashboard" onto a third line. It sits clear of the text —
+   the wordmark ends well before the button's left edge — and the row keeps
+   the height it had before the toggle existed. Collapsed, it goes back into
+   flow and stacks under the logo chip (76px has no corner to spare). */
+.tdv2-sidebar-toggle {
+  position: absolute;
+  top: 11px;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.72);
+  transition: background 180ms var(--ease), color 180ms var(--ease),
+    border-color 180ms var(--ease);
+}
+
+.tdv2-sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 0.13);
+  border-color: rgba(199, 116, 86, 0.7);
+  color: var(--on-sidebar);
+}
+
+.tdv2-sidebar.is-collapsed .tdv2-sidebar-toggle {
+  position: static;
+}
+
+.tdv2-sidebar.is-collapsed {
+  padding: 14px 10px 10px;
+}
+
+/* Logo and toggle stack instead of sitting side by side — 76px has room for
+   one 46px chip, not for a chip and a button. */
+.tdv2-sidebar.is-collapsed .tdv2-logo {
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  padding: 2px 0 12px;
+}
+
+.tdv2-sidebar.is-collapsed .tdv2-logo-text {
+  display: none;
+}
+
+/* Group headings become thin dividers: the uppercase text cannot fit 76px
+   without clipping, but the grouping it conveys still has to be visible. */
+.tdv2-sidebar.is-collapsed .tdv2-nav-label {
+  height: 1px;
+  padding: 0;
+  margin: 14px 10px 10px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+  font-size: 0;
+  color: transparent;
+}
+
+.tdv2-sidebar.is-collapsed .tdv2-nav-item {
+  justify-content: center;
+  padding: 10px;
+}
+
+/* Visually hidden, NOT display:none. The item is now an icon with no visible
+   text, so this span is the only accessible name it has left — removing it
+   from the box tree would take it out of the accessibility tree with it. */
+.tdv2-sidebar.is-collapsed .tdv2-nav-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The active pill keeps its gold background and its edge marker; only the
+   marker's offset changes, following the rail's narrower padding. */
+.tdv2-sidebar.is-collapsed .tdv2-nav-item.is-active::before {
+  left: -10px;
+}
+
+.tdv2-sidebar.is-collapsed .tdv2-profile {
+  justify-content: center;
+  padding: 8px;
+}
+
+.tdv2-sidebar.is-collapsed .tdv2-profile-text,
+.tdv2-sidebar.is-collapsed .tdv2-profile-chevron {
+  display: none;
+}
+
+/* The account menu is far wider than the rail, so it opens to the right of it
+   instead of above. Same menu, same trigger — only the anchor moves. */
+.tdv2-sidebar.is-collapsed .tdv2-menu {
+  left: calc(100% + 10px);
+  bottom: 0;
+  transform-origin: bottom left;
+}
+
+/* Rail tooltip. position:fixed because .tdv2-nav scrolls (overflow-x:hidden),
+   which would clip anything parented to the item it names; Sidebar.jsx places
+   it from the hovered item's rect and drops it on scroll. */
+.tdv2-nav-tip {
+  position: fixed;
+  z-index: 60;
+  transform: translateY(-50%);
+  padding: 6px 10px;
+  border-radius: 9px;
+  background: rgba(9, 27, 48, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
+  color: var(--on-sidebar);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .tdv2-menu-header {
@@ -2468,43 +2605,29 @@ a.tdv2-check-row:hover {
 @media (max-width: 1023px) {
   .tdv2 { grid-template-columns: 76px minmax(0, 1fr); }
 
-  .tdv2-sidebar { padding: 14px 10px 10px; }
-  .tdv2-logo { justify-content: center; padding: 2px 0 12px; }
-  .tdv2-logo-text { display: none; }
-  /* On the icon rail, group labels become thin dividers — the uppercase
-     text can't fit 76px without clipping. Scoped to the DESKTOP sidebar:
-     the mobile drawer reuses these classes and must keep full labels. */
-  .tdv2-sidebar .tdv2-nav-label {
-    height: 1px;
-    padding: 0;
-    margin: 14px 10px 10px;
-    background: rgba(255, 255, 255, 0.14);
-    overflow: hidden;
-    font-size: 0;
-    color: transparent;
-  }
-  .tdv2-sidebar .tdv2-nav-item {
-    justify-content: center;
-    padding: 10px;
-  }
-  .tdv2-sidebar .tdv2-nav-item .tdv2-nav-text { display: none; }
-  .tdv2-sidebar .tdv2-nav-item.is-active::before { left: -10px; }
-
-  .tdv2-sidebar .tdv2-profile { justify-content: center; padding: 8px; }
-  .tdv2-sidebar .tdv2-profile-text,
-  .tdv2-sidebar .tdv2-profile-chevron { display: none; }
-  /* Menu escapes the rail to the right; sidebar keeps overflow visible for it */
-  .tdv2-sidebar .tdv2-menu {
-    left: calc(100% + 10px);
-    bottom: 0;
-    transform-origin: bottom left;
-  }
+  /* The rail's appearance used to live here, keyed to this width. It is now
+     keyed to `.tdv2-sidebar.is-collapsed` (see "Collapse toggle + the
+     collapsed rail" above), because a teacher can collapse the panel on a
+     desktop and expand it on a tablet — a width can no longer answer which
+     state the sidebar is in. This breakpoint still picks the DEFAULT, in
+     useSidebarCollapsed. */
 
   .tdv2-row-1,
   .tdv2-row-2 { grid-template-columns: minmax(0, 1fr); }
   .tdv2-hero-art { display: none; }
   .tdv2-search { max-width: none; }
   .tdv2-preview-banner { left: 96px; }
+}
+
+/* The preview banner is fixed and clears the sidebar by a hard-coded offset,
+   which a width alone can no longer compute now that the panel collapses on
+   command. TeacherLayout publishes the state on <html> while the sidebar is
+   mounted, so the banner follows the panel instead of the breakpoint.
+   Scoped ≥768px: below that the sidebar is gone and the banner spans the
+   viewport (the max-width:767px rule further down). */
+@media (min-width: 768px) {
+  :root[data-teacher-sidebar='expanded'] .tdv2-preview-banner { left: 268px; }
+  :root[data-teacher-sidebar='collapsed'] .tdv2-preview-banner { left: 96px; }
 }
 
 /* ── Below 768px: the desktop sidebar is REMOVED from layout entirely.

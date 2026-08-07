@@ -14,6 +14,7 @@ import { TEACHER_NAV_GROUPS } from './dashboardV2/dashboardV2Config'
 import { teacherFromAuth } from './dashboardV2/dashboardV2Data'
 import useDashboardTheme from './dashboardV2/useDashboardTheme'
 import useIsMobile from './dashboardV2/useIsMobile'
+import useSidebarCollapsed from './dashboardV2/useSidebarCollapsed'
 import useRecordStudioVisit from './dashboardV2/launcher/useRecordStudioVisit'
 import './dashboardV2/dashboardV2.css'
 
@@ -55,6 +56,10 @@ export default function TeacherLayout({ children, variant = 'studio' }) {
   // at the wrong width are a backstop for the frame where this state could be
   // stale (first paint, mid-rotate), never the mechanism.
   const isMobile = useIsMobile()
+  // Desktop/tablet only. The hook is still called on a phone (hooks are not
+  // conditional) but nothing reads it there: the sidebar isn't mounted, so a
+  // remembered collapse can't reach the mobile chrome.
+  const { collapsed, toggleCollapsed } = useSidebarCollapsed()
 
   // Every route into a studio (sidebar, bottom nav, deep link) counts as a
   // "recently used" visit — not only taps on the dashboard launcher.
@@ -86,6 +91,20 @@ export default function TeacherLayout({ children, variant = 'studio' }) {
     document.addEventListener('click', onCaptureClick, true)
     return () => document.removeEventListener('click', onCaptureClick, true)
   }, [])
+
+  // Publish the sidebar's state on <html> while the panel is mounted, for the
+  // one piece of fixed chrome that has to clear it and lives outside this tree
+  // (the dashboard-preview banner). Removed when the sidebar isn't there, so a
+  // phone never inherits a desktop offset.
+  useEffect(() => {
+    const root = document.documentElement
+    if (isMobile) {
+      delete root.dataset.teacherSidebar
+      return undefined
+    }
+    root.dataset.teacherSidebar = collapsed ? 'collapsed' : 'expanded'
+    return () => { delete root.dataset.teacherSidebar }
+  }, [isMobile, collapsed])
 
   const teacher = teacherFromAuth({
     displayName: userProfile?.displayName || currentUser?.displayName,
@@ -142,16 +161,23 @@ export default function TeacherLayout({ children, variant = 'studio' }) {
       {/* ── Desktop sidebar (≥768px) — the V2 panel carrying the one teacher
              map (TEACHER_NAV_GROUPS). Scoped under .tdv2 so the dashboard
              design system styles the panel without leaking into the page
-             content. 768–1023px renders it as the compact icon rail (CSS);
-             the full panel returns at 1024px. ─────────────────────────── */}
+             content.
+
+             The panel collapses to a 76px icon rail from its own toggle, at
+             every width it renders at. The rail is driven by `is-collapsed`
+             on this column, not by a media query: the width only picks the
+             DEFAULT (rail on a tablet, full panel on a desktop), and a
+             teacher's stored choice outranks it. ────────────────────────── */}
       {!isMobile && (
-        <div className={`tdv2 tdv2-shell ${dark ? 'is-dark' : ''}`}>
+        <div className={`tdv2 tdv2-shell ${collapsed ? 'is-collapsed' : ''} ${dark ? 'is-dark' : ''}`}>
           <Sidebar
             teacher={teacher}
             groups={groups}
             onRequestLogout={requestLogout}
             dark={dark}
             onToggleTheme={toggleTheme}
+            collapsed={collapsed}
+            onToggleCollapse={toggleCollapsed}
           />
         </div>
       )}
