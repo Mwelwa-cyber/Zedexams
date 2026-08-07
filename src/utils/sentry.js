@@ -227,20 +227,31 @@ export function clearSentryUser() {
   if (replay && replayActive) {
     replayActive = false
     replayGeneration += 1
-    // Queued IN ORDER on the one chain, and conditional on the recorder
-    // actually being armed when its turn comes: a sign-out whose queued
-    // re-arm was withdrawn has nothing to stop, and calling stop() there
-    // would enqueue a no-op whose early settling is exactly the confusion
-    // r3734356773 describes.
-    replayChain = replayChain.then(async () => {
-      if (!replayArmed) return
+    if (replayArmed) {
+      // The recorder is CAPTURING, so stop() must begin NOW, in this same
+      // task — queueing even the invocation defers it a microtask, and React
+      // can commit the next user's UI in that gap while the previous user's
+      // recorder is still rolling (Codex P1 on #2160, r3734894933). Invoking
+      // synchronously is safe here: `replayArmed` is only ever set by a
+      // transition that has already RUN, so nothing can be pending ahead of
+      // this stop on the chain. Only the FLUSH is asynchronous, and its
+      // promise joins the chain so a later re-arm still waits behind it.
       replayArmed = false
+      let stopping
       try {
-        await replay.stop()
+        stopping = Promise.resolve(replay.stop())
+          .catch((err) => { console.warn('[sentry] replay stop failed:', err) })
       } catch (err) {
         console.warn('[sentry] replay stop failed:', err)
+        stopping = Promise.resolve()
       }
-    }).catch(() => {})
+      replayChain = replayChain.then(() => stopping).catch(() => {})
+    }
+    // NOT armed: the claim being withdrawn belongs to a QUEUED re-arm that
+    // has not run — and the generation bump above withdraws it, so it never
+    // will. There is nothing recording and nothing to stop; appending a
+    // conditional stop task here is how r3734356773's early-settling no-op
+    // promise crept in the first time.
     // The INSTANCE is kept — Sentry permits exactly one per page load, so
     // destroying our reference would leave re-registration with no legal
     // move. Stopped is the off state; startBuffering() is the on switch.

@@ -247,8 +247,11 @@ describe('sentry — shared devices', () => {
     const { setSentryUser, clearSentryUser } = await loadSentry()
     setSentryUser('uid-teacher', 'teacher')
     clearSentryUser()
-    await flushMicrotasks()
-    expect(replayInstance.stop).toHaveBeenCalled()
+    // SYNCHRONOUSLY — Codex P1 on #2160 (r3734894933): a stop whose
+    // invocation is queued gives React a microtask gap to commit the next
+    // user's UI while the previous user's recorder is still rolling. Only
+    // the FLUSH may be asynchronous.
+    expect(replayInstance.stop).toHaveBeenCalledTimes(1)
   })
 
   it('a learner signing in after a teacher is not recorded', async () => {
