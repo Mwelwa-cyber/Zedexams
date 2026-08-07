@@ -57,14 +57,29 @@ let pendingRole
 // been built — the state for learners, for parents, and for every session
 // before a recordable role is known.
 let replay = null
+// The learner-visible INTENT: should the recorder be running for the current
+// session? Claimed synchronously on an eligible sign-in, withdrawn on
+// sign-out — so one snapshot's claim stops the next snapshot re-queueing.
 let replayActive = false
-// The in-flight stop(), if any. Sentry's stop() is async: after an error has
-// promoted buffering to session mode it awaits a final flush before
-// destroying the event buffer — and a startBuffering() issued while that
-// teardown is pending gets torn down WITH it, silently, with our own
-// replayActive still true so nothing ever retries. Re-arming therefore
-// serialises behind this promise (Codex P2 on #2156, r3733994279).
-let replayStopping = null
+// Whether the recorder is ACTUALLY armed. Diverges from `replayActive` while
+// a queued transition is waiting its turn on the chain below; the stop task
+// reads this so a sign-out whose queued re-arm never ran does not stop an
+// already-stopped recorder.
+let replayArmed = false
+// ONE serialised chain for every recorder transition. Sentry's stop() is
+// async — after an error has promoted buffering to session mode it awaits a
+// final flush before destroying the event buffer, and a startBuffering()
+// issued while that teardown is pending gets torn down WITH it, silently
+// (Codex P2 on #2156, r3733994279). #2158's first fix kept only the LATEST
+// stop's promise, which a second sign-out replaced — its no-op stop settled
+// first and the next re-arm fired under the ORIGINAL flush still in flight
+// (Codex P2 on #2158, r3734356773). Every transition now appends to one
+// chain, in order, and never replaces what it is waiting on.
+let replayChain = Promise.resolve()
+// Bumped on every sign-out. A queued re-arm carries the generation it was
+// queued in and refuses to run if a sign-out has intervened — withdrawal by
+// token, not by mutating shared state the queue is also reading.
+let replayGeneration = 0
 
 /**
  * Register Sentry's error-triggered session replay, but only for a role that
@@ -86,25 +101,21 @@ function enableReplayForRole(Sentry, role) {
     // and throw again on every profile snapshot for the rest of the session,
     // leaving no replay at all.
     if (replayActive) return
-    // Claim the active slot BEFORE any await, so a second snapshot in the
-    // same window cannot queue a second re-arm.
+    // Claim the slot BEFORE any await, so a second snapshot in the same
+    // window cannot queue a second re-arm; remember the generation so a
+    // sign-out BEFORE this re-arm's turn on the chain withdraws it.
     replayActive = true
-    const arm = () => {
-      // Re-checked at arm time: a sign-out while the stop was settling
-      // withdraws the claim, and the recorder stays off.
-      if (!replayActive || !replay) return
+    const generation = replayGeneration
+    replayChain = replayChain.then(() => {
+      if (generation !== replayGeneration || !replay) return
       try {
         replay.startBuffering()
+        replayArmed = true
       } catch (err) {
         replayActive = false
         console.warn('[sentry] replay re-arm failed:', err)
       }
-    }
-    // replayStopping never rejects (its own chain catches), so arm is the
-    // only continuation; the trailing catch is for the linter's benefit and
-    // for any future edit that removes the upstream catch.
-    if (replayStopping) replayStopping.then(arm).catch(() => {})
-    else arm()
+    }).catch(() => {})
     return
   }
   try {
@@ -117,6 +128,7 @@ function enableReplayForRole(Sentry, role) {
     })
     Sentry.addIntegration(replay)
     replayActive = true
+    replayArmed = true
   } catch (err) {
     // A failed replay registration must never cost us the error reporting
     // itself — that is the reason Sentry is here at all.
@@ -214,16 +226,21 @@ export function clearSentryUser() {
   // left running would capture them under the previous user's permission.
   if (replay && replayActive) {
     replayActive = false
-    try {
-      // stop() may flush asynchronously; the promise is what a later re-arm
-      // serialises behind. Errors are logged, never thrown — and the settled
-      // promise clears itself so a re-arm long after does not wait on history.
-      replayStopping = Promise.resolve(replay.stop())
-        .catch((err) => { console.warn('[sentry] replay stop failed:', err) })
-        .finally(() => { replayStopping = null })
-    } catch (err) {
-      console.warn('[sentry] replay stop failed:', err)
-    }
+    replayGeneration += 1
+    // Queued IN ORDER on the one chain, and conditional on the recorder
+    // actually being armed when its turn comes: a sign-out whose queued
+    // re-arm was withdrawn has nothing to stop, and calling stop() there
+    // would enqueue a no-op whose early settling is exactly the confusion
+    // r3734356773 describes.
+    replayChain = replayChain.then(async () => {
+      if (!replayArmed) return
+      replayArmed = false
+      try {
+        await replay.stop()
+      } catch (err) {
+        console.warn('[sentry] replay stop failed:', err)
+      }
+    }).catch(() => {})
     // The INSTANCE is kept — Sentry permits exactly one per page load, so
     // destroying our reference would leave re-registration with no legal
     // move. Stopped is the off state; startBuffering() is the on switch.
