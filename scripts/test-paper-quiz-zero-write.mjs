@@ -176,26 +176,128 @@ test('the §7.2 observability event is wired, with the fields the dashboard read
   }
 })
 
-test('every workflow that builds the web bundle stamps VITE_BUILD_SHA', () => {
-  // Codex P1 on #2159 (r3734454514): the hosting deploy stamped the sha, the
-  // two Android release workflows did not — so every installed Android app
-  // reported build:'dev', collapsing old and new shells into one telemetry
-  // bucket on a route the Capacitor bundle serves. Pinned here so the NEXT
-  // bundle-producing workflow cannot ship unstamped either: any workflow that
-  // passes VITE_APP_VERSION into a build is building the real app, and must
-  // stamp the sha beside it. (The smoke build is deliberately absent: it uses
-  // the fake .env.smoke config and never reports.)
+/**
+ * The STEPS of a workflow that build the web bundle, each paired with whether
+ * its own step text carries the VITE_BUILD_SHA stamp. Per-STEP, not per-file
+ * (Codex P2 on #2161, r3735391298): a file-wide substring search is satisfied
+ * by a comment or by a different, correctly stamped job, so a second
+ * unstamped build step added to an already-stamped workflow would sail
+ * through — the exact future this guard exists to refuse.
+ *
+ * A step runs from its `- ` list marker to the next marker at the same
+ * indent; the env block that stamps a build lives INSIDE the step, so the
+ * stamp must appear within that slice.
+ */
+export function unstampedBuildSteps(source) {
+  const lines = source.split('\n')
+  const offenders = []
+  lines.forEach((line, i) => {
+    const runKey = line.match(/^(\s*)run:\s*(.*)$/)
+    if (!runKey) return
+    const runIndent = runKey[1].length
+    // The run command may be inline, or a YAML block scalar (`run: |`,
+    // `run: >`, with optional chomping/indent indicators) whose text lives on
+    // the FOLLOWING deeper-indented lines. Matching only the run: line made
+    // block-scalar builds invisible — not flagged, not passed, just skipped
+    // (github-actions security review on #2163): the guard's own
+    // never-show-less-than-you-found rule, violated by the guard.
+    let command = runKey[2]
+    if (/^[|>][+-]?\d*\s*(#.*)?$/.test(runKey[2])) {
+      for (let j = i + 1; j < lines.length; j += 1) {
+        if (lines[j].trim() === '') { command += '\n'; continue }
+        const indent = lines[j].match(/^\s*/)[0].length
+        if (indent <= runIndent) break
+        command += '\n' + lines[j]
+      }
+    }
+    if (!/\b(npm run build|vite build)\b/.test(command)) return
+    // Walk up to the step's `- ` marker (shallower indent than the run key).
+    let start = i
+    for (let j = i; j >= 0; j -= 1) {
+      const m = lines[j].match(/^(\s*)- /)
+      if (m && m[1].length < runIndent) { start = j; break }
+    }
+    const stepIndent = lines[start].match(/^\s*/)[0].length
+    // Walk down to the next sibling step (or the end of the block).
+    let end = lines.length
+    for (let j = start + 1; j < lines.length; j += 1) {
+      const m = lines[j].match(/^(\s*)\S/)
+      if (m && m[1].length <= stepIndent && /^\s*- /.test(lines[j])) { end = j; break }
+      if (m && m[1].length < stepIndent) { end = j; break }
+    }
+    const step = lines.slice(start, end).join('\n')
+    if (!step.includes('VITE_BUILD_SHA')) offenders.push(`step at line ${start + 1}`)
+  })
+  return offenders
+}
+
+test('every BUILD STEP in a real-app workflow stamps VITE_BUILD_SHA — per step, not per file', () => {
+  // Codex P1 on #2159 (r3734454514) + P2 on #2161 (r3735391298). Any workflow
+  // that passes VITE_APP_VERSION into a build is building the real app, and
+  // every one of its bundle-building steps must stamp the sha in ITS OWN env
+  // — not somewhere else in the file. (The smoke build is deliberately
+  // outside the rule: fake .env.smoke config, never reports.)
   const dir = path.join(ROOT, '.github', 'workflows')
   const offenders = []
+  let checked = 0
   for (const file of readdirSync(dir)) {
     if (!/\.ya?ml$/.test(file)) continue
     const source = readFileSync(path.join(dir, file), 'utf8')
     if (!source.includes('VITE_APP_VERSION')) continue
-    if (!source.includes('VITE_BUILD_SHA')) offenders.push(file)
+    checked += 1
+    for (const where of unstampedBuildSteps(source)) offenders.push(`${file}: ${where}`)
   }
-  assert.ok(offenders.length === 0,
-    `these workflows build the real app without stamping the sha — their events all say build:'dev':\n    ${offenders.join('\n    ')}`)
-  assert.ok(readdirSync(dir).length > 3, 'the workflows directory has gone missing from under this test')
+  assert.ok(checked >= 4, `only ${checked} real-app workflows found — the filter has gone blind`)
+  assert.deepEqual(offenders, [],
+    `these build steps ship a real bundle whose events all say build:'dev':\n    ${offenders.join('\n    ')}`)
+})
+
+test('the step guard is not fooled by a stamp elsewhere in the same file', () => {
+  // The bypass r3735391298 names, pinned as a fixture so it cannot return:
+  // one correctly stamped build step, one unstamped, plus the string in a
+  // comment — the unstamped STEP must still be flagged.
+  const fixture = [
+    '# VITE_BUILD_SHA is mentioned here in prose, which proves nothing',
+    'jobs:',
+    '  build:',
+    '    steps:',
+    '      - name: stamped build',
+    '        env:',
+    '          VITE_BUILD_SHA: abc123',
+    '        run: npm run build',
+    '      - name: unstamped second build',
+    '        run: npm run build',
+  ].join('\n')
+  const offenders = unstampedBuildSteps(fixture)
+  assert.equal(offenders.length, 1, 'exactly the unstamped step is flagged')
+  assert.match(offenders[0], /line 9/)
+})
+
+test('a block-scalar run is READ, not silently skipped', () => {
+  // github-actions security review on #2163: `run: |` puts the command on the
+  // FOLLOWING line, which the run-line regex never saw — a build step written
+  // that way was not flagged and not passed, just invisible. Both scalar
+  // styles are pinned, stamped and not.
+  const fixture = [
+    'jobs:',
+    '  build:',
+    '    steps:',
+    '      - name: stamped block-scalar build',
+    '        env:',
+    '          VITE_BUILD_SHA: abc123',
+    '        run: |',
+    '          echo building',
+    '          npm run build',
+    '      - name: unstamped folded build',
+    '        run: >',
+    '          npm run build',
+    '      - name: unrelated block scalar',
+    '        run: |',
+    '          echo not a build',
+  ].join('\n')
+  const offenders = unstampedBuildSteps(fixture)
+  assert.equal(offenders.length, 1, 'exactly the unstamped block-scalar build is flagged')
+  assert.match(offenders[0], /line 10/)
 })
 
 console.log(`\npaper-quiz zero-write: ${passed} passed`)
