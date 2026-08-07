@@ -11,13 +11,24 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
  * would look entirely reasonable and silently re-record children.
  */
 
-const replayInstance = { stop: vi.fn(), start: vi.fn() }
+const replayInstance = { stop: vi.fn(), start: vi.fn(), startBuffering: vi.fn() }
+
+// Faithful to the real SDK: Sentry's Replay class is a SINGLETON, and
+// constructing a second instance throws. The previous mock allowed unlimited
+// re-construction, which is exactly why the sign-out → sign-in cycle bug
+// (#2156) passed this suite while throwing on every profile snapshot in
+// production.
+let replayConstructed = false
 
 const Sentry = {
   init: vi.fn((opts) => { Sentry.__opts = opts }),
   setUser: vi.fn(),
   addIntegration: vi.fn(),
-  replayIntegration: vi.fn(() => replayInstance),
+  replayIntegration: vi.fn(() => {
+    if (replayConstructed) throw new Error('Multiple Sentry Session Replay instances are not supported')
+    replayConstructed = true
+    return replayInstance
+  }),
   browserTracingIntegration: vi.fn(() => ({ name: 'tracing' })),
   __opts: null,
 }
@@ -35,6 +46,8 @@ async function loadSentry() {
 beforeEach(() => {
   for (const fn of Object.values(Sentry)) if (typeof fn?.mockClear === 'function') fn.mockClear()
   replayInstance.stop.mockClear()
+  replayInstance.startBuffering.mockClear()
+  replayConstructed = false
   Sentry.__opts = null
 })
 
@@ -109,6 +122,47 @@ describe('sentry — error reporting survives replay problems', () => {
     const { setSentryUser } = await loadSentry()
     expect(() => setSentryUser('uid-teacher', 'teacher')).not.toThrow()
     expect(Sentry.setUser).toHaveBeenCalledWith({ id: 'uid-teacher' })
+  })
+})
+
+describe('sentry — the recorder survives a sign-out (one instance per page load)', () => {
+  it('a teacher after a teacher re-ARMS the one instance, never constructs a second', async () => {
+    // The live failure: sign-out stopped the recorder and dropped the
+    // reference; the next recordable sign-in constructed a second Replay,
+    // which the SDK refuses — and because the failure path also dropped the
+    // reference, every later profile snapshot retried and threw again. Net
+    // effect on zedexams.com: "[sentry] replay registration failed" in a
+    // loop, and no session replay at all.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const { setSentryUser, clearSentryUser } = await loadSentry()
+      setSentryUser('uid-teacher', 'teacher')
+      clearSentryUser()
+      setSentryUser('uid-teacher-2', 'teacher')
+
+      expect(Sentry.replayIntegration).toHaveBeenCalledTimes(1)
+      expect(replayInstance.startBuffering).toHaveBeenCalledTimes(1)
+      const warned = warn.mock.calls.some((c) => String(c[0]).includes('replay registration failed'))
+      expect(warned, 'the singleton throw must never be reachable').toBe(false)
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('a learner after a teacher does not re-arm the stopped instance', async () => {
+    const { setSentryUser, clearSentryUser } = await loadSentry()
+    setSentryUser('uid-teacher', 'teacher')
+    clearSentryUser()
+    setSentryUser('uid-learner', 'learner')
+    expect(replayInstance.startBuffering).not.toHaveBeenCalled()
+  })
+
+  it('a repeat role while already recording does not re-arm or re-add', async () => {
+    const { setSentryUser } = await loadSentry()
+    setSentryUser('uid-teacher', 'teacher')
+    setSentryUser('uid-teacher', 'teacher')
+    expect(replayInstance.startBuffering).not.toHaveBeenCalled()
+    expect(Sentry.addIntegration).toHaveBeenCalledTimes(1)
   })
 })
 
