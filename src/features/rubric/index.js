@@ -43,9 +43,17 @@
  * export engine lands they move there, and this file does not change — which
  * is the point of a front door.
  *
- * The flashcards front door has the same shape and does NOT currently pull
- * docx onto those pages. That is emergent from Rollup's chunk grouping, not a
- * property anything enforces, so it is worth re-checking rather than trusting.
+ * A correction to what this comment said when it was written: the flashcards
+ * front door, which has the same shape, was described here as NOT pulling docx
+ * onto those pages. It does. The check that produced that claim looked for a
+ * DIRECT edge, and the real path is three hops —
+ * `PublicShareView → flashcards → flashcardsToPdf → docx-vendor`. The
+ * measurement was in the pull request, a reviewer had it, and it was still
+ * wrong, because the question asked ("does this chunk mention docx") was one
+ * hop away from the question that matters ("does this page download docx").
+ * That is why the rule is now a script — `npm run check:bundle-edges`, which
+ * walks the graph transitively and holds the flashcards path as the one
+ * recorded, shrink-only violation.
  */
 
 export { default as RubricView } from './components/RubricView'
