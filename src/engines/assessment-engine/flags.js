@@ -171,8 +171,24 @@ export const IDENTITY_FREE_SOURCES = Object.freeze([
   'unknown-runner', 'runner-off',
 ])
 
-function decision(runner, engine, source, stable = IDENTITY_FREE_SOURCES.includes(source)) {
-  return Object.freeze({ runner, engine, source, stable })
+/**
+ * Two stabilities, not one (Codex P1 on #2155, r3733931683). `stable` answers
+ * "can a late identity change the ENGINE outcome" — the watchdog hold's
+ * question, because a swap is only possible when the outcome can move.
+ * `sourceStable` answers "can a late identity change the SOURCE" — telemetry's
+ * question, because a recorded event must attribute the path truthfully.
+ * They part company at a full rollout with a staff allow-list: every identity
+ * gets the engine (outcome stable — serve it through the watchdog window),
+ * but an allow-listed uid arrives as `rollout-uid` (source unstable — the
+ * once-only event waits for settlement). Collapsing them held slow-restoring
+ * visitors OUT of a nominal 100% rollout merely because the pilot list was
+ * still configured.
+ */
+function decision(runner, engine, source, {
+  stable = IDENTITY_FREE_SOURCES.includes(source),
+  sourceStable = IDENTITY_FREE_SOURCES.includes(source),
+} = {}) {
+  return Object.freeze({ runner, engine, source, stable, sourceStable })
 }
 
 /**
@@ -212,8 +228,13 @@ export function resolveEngineDecision({ featureFlags, runner, uid = null, visito
   // late match out.
   const allowListEmpty = normaliseRolloutUids(config.rolloutUids).length === 0
   const percent = normaliseRolloutPercent(config.rolloutPercent)
-  if (percent <= 0) return decision(runner, false, 'rollout-zero', allowListEmpty)
-  if (percent >= ROLLOUT_BUCKETS) return decision(runner, true, 'rollout-all', allowListEmpty)
+  // 0%: a late allow-listed uid flips the ENGINE itself, so with a non-empty
+  // list neither the outcome nor the source is settled.
+  if (percent <= 0) return decision(runner, false, 'rollout-zero', { stable: allowListEmpty, sourceStable: allowListEmpty })
+  // 100%: the allow-list can only AGREE with the outcome (everyone gets the
+  // engine), so the outcome is stable regardless — only the source label can
+  // still move to rollout-uid.
+  if (percent >= ROLLOUT_BUCKETS) return decision(runner, true, 'rollout-all', { stable: true, sourceStable: allowListEmpty })
 
   const bucket = rolloutBucket(visitorId)
   if (bucket === null) return decision(runner, false, 'no-visitor-id')

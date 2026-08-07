@@ -184,7 +184,11 @@ export function useAssessmentEngineFlag(runner) {
     // direction, so an event recorded then counts holds wrongly both ways
     // (Codex P2 on #2153, r3733460759). A visit whose auth never settles goes
     // unreported, which undercounts the route but never miscounts it.
-    final: resolved && (settled || decision.stable === true),
+    // `sourceStable`, not `stable`: the engine may legitimately SERVE through
+    // the watchdog window (outcome stable at a full rollout) while the source
+    // label is still one auth event from becoming rollout-uid — telemetry
+    // waits for the label, not the card (Codex P1 on #2155, r3733931683).
+    final: resolved && (settled || decision.sourceStable === true),
     // `live` travels with the decision so §7.2's telemetry can tell a client
     // that is off because of the flag from one that is off because its read
     // died. Those look identical in an event stream otherwise, and only one of

@@ -293,7 +293,7 @@ test('every source the resolver can return is declared, and every declared one i
 test('a decision is frozen — it is a telemetry payload, not a scratchpad', () => {
   const got = decide({ pastPaperQuiz: true, rolloutPercent: 100 })
   assert.throws(() => { got.engine = false }, TypeError)
-  assert.deepEqual(Object.keys(got).sort(), ['engine', 'runner', 'source', 'stable'])
+  assert.deepEqual(Object.keys(got).sort(), ['engine', 'runner', 'source', 'sourceStable', 'stable'])
 })
 
 console.log(`\nassessment engine flags: ${passed} passed`)
@@ -334,14 +334,20 @@ test('a percentage decision is only stable when the allow-list rules a late uid 
   // staff pilot, the exact configuration a ramp runs under.
   const decide = (flags, ids = {}) =>
     resolveEngineDecision({ featureFlags: { assessmentEngine: flags }, runner: 'pastPaperQuiz', ...ids })
+  const pick = (d) => ({ stable: d.stable, sourceStable: d.sourceStable })
 
-  // Empty allow-list: a late match is ruled out, the percentage answer holds.
-  assert.equal(decide({ pastPaperQuiz: true, rolloutPercent: 100 }).stable, true)
-  assert.equal(decide({ pastPaperQuiz: true, rolloutPercent: 0 }).stable, true)
+  // Empty allow-list: a late match is ruled out, the percentage answer holds
+  // on both axes.
+  assert.deepEqual(pick(decide({ pastPaperQuiz: true, rolloutPercent: 100 })), { stable: true, sourceStable: true })
+  assert.deepEqual(pick(decide({ pastPaperQuiz: true, rolloutPercent: 0 })), { stable: true, sourceStable: true })
 
-  // Non-empty allow-list: the same decisions are one auth event from changing.
-  assert.equal(decide({ pastPaperQuiz: true, rolloutPercent: 100, rolloutUids: ['staff-1'] }).stable, false)
-  assert.equal(decide({ pastPaperQuiz: true, rolloutPercent: 0, rolloutUids: ['staff-1'] }).stable, false)
+  // Non-empty allow-list — the two axes PART COMPANY (Codex P1 on #2155,
+  // r3733931683). At 100% the list can only agree with the outcome, so the
+  // ENGINE is stable (serve it through the watchdog window) while the SOURCE
+  // can still become rollout-uid (telemetry waits). At 0% the list can flip
+  // the engine itself, so nothing is settled.
+  assert.deepEqual(pick(decide({ pastPaperQuiz: true, rolloutPercent: 100, rolloutUids: ['staff-1'] })), { stable: true, sourceStable: false })
+  assert.deepEqual(pick(decide({ pastPaperQuiz: true, rolloutPercent: 0, rolloutUids: ['staff-1'] })), { stable: false, sourceStable: false })
 
   // What the late uid actually does — the two overturns the instability names:
   const atZero = decide({ pastPaperQuiz: true, rolloutPercent: 0, rolloutUids: ['staff-1'] }, { uid: 'staff-1' })
@@ -350,7 +356,10 @@ test('a percentage decision is only stable when the allow-list rules a late uid 
   const atFull = decide({ pastPaperQuiz: true, rolloutPercent: 100, rolloutUids: ['staff-1'] }, { uid: 'staff-1' })
   assert.equal(atFull.source, 'rollout-uid', 'at 100% the source is rewritten')
 
-  // The pre-identity sources are stable regardless — the allow-list is never
-  // reached when the runner is off.
-  assert.equal(decide({ pastPaperQuiz: false, rolloutUids: ['staff-1'] }).stable, true)
+  // The pre-identity sources are stable on both axes regardless — the
+  // allow-list is never reached when the runner is off.
+  assert.deepEqual(pick(decide({ pastPaperQuiz: false, rolloutUids: ['staff-1'] })), { stable: true, sourceStable: true })
+
+  // Bucketed decisions stay unstable on both axes.
+  assert.deepEqual(pick(decide({ pastPaperQuiz: true, rolloutPercent: 50 }, { visitorId: 'anon-1' })), { stable: false, sourceStable: false })
 })
