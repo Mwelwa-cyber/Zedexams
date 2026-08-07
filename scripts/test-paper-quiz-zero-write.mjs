@@ -188,21 +188,44 @@ test('the §7.2 observability event is wired, with the fields the dashboard read
  * indent; the env block that stamps a build lives INSIDE the step, so the
  * stamp must appear within that slice.
  */
+/** package.json's script table, for resolving `npm run x` aliases. */
+const NPM_SCRIPTS = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')).scripts
+
+/**
+ * Does this shell command produce the real web bundle — directly (`vite
+ * build`) or through any chain of `npm run` aliases? `android:apk:debug` runs
+ * `npm run android:sync` runs `vite build`: two hops, and a workflow moved
+ * onto either alias ships a bundle the direct-match filter never saw
+ * (Codex P2 on #2163, r3735614144).
+ */
+export function buildsBundle(command, scripts = NPM_SCRIPTS, seen = new Set()) {
+  if (/\bvite build\b/.test(command)) return true
+  for (const m of command.matchAll(/\bnpm run ([\w:.-]+)/g)) {
+    const name = m[1]
+    if (seen.has(name) || !scripts[name]) continue
+    seen.add(name)
+    if (buildsBundle(scripts[name], scripts, seen)) return true
+  }
+  return false
+}
+
 export function unstampedBuildSteps(source) {
   const lines = source.split('\n')
   const offenders = []
   lines.forEach((line, i) => {
-    const runKey = line.match(/^(\s*)run:\s*(.*)$/)
+    // `- run:` shorthand is valid step syntax (Codex P2 on #2163,
+    // r3735614129) — the list marker and the run key share a line, and a
+    // pattern demanding run: first skipped the whole step.
+    const runKey = line.match(/^(\s*)(?:- )?run:\s*(.*)$/)
     if (!runKey) return
-    const runIndent = runKey[1].length
-    // The run command may be inline, or a YAML block scalar (`run: |`,
-    // `run: >`, with optional chomping/indent indicators) whose text lives on
-    // the FOLLOWING deeper-indented lines. Matching only the run: line made
-    // block-scalar builds invisible — not flagged, not passed, just skipped
-    // (github-actions security review on #2163): the guard's own
-    // never-show-less-than-you-found rule, violated by the guard.
+    const runIndent = line.match(/^\s*/)[0].length + (/^\s*- /.test(line) ? 2 : 0)
+    // The run command may be inline, or a YAML block scalar whose text lives
+    // on the FOLLOWING deeper-indented lines. The header allows chomping and
+    // indentation indicators IN EITHER ORDER (`|2-` is as valid as `|-2` —
+    // Codex P2 on #2163, r3735614151); matching only one order silently
+    // dropped the other's command lines.
     let command = runKey[2]
-    if (/^[|>][+-]?\d*\s*(#.*)?$/.test(runKey[2])) {
+    if (/^[|>](?:[+-][0-9]?|[0-9][+-]?)?\s*(#.*)?$/.test(runKey[2])) {
       for (let j = i + 1; j < lines.length; j += 1) {
         if (lines[j].trim() === '') { command += '\n'; continue }
         const indent = lines[j].match(/^\s*/)[0].length
@@ -210,12 +233,14 @@ export function unstampedBuildSteps(source) {
         command += '\n' + lines[j]
       }
     }
-    if (!/\b(npm run build|vite build)\b/.test(command)) return
-    // Walk up to the step's `- ` marker (shallower indent than the run key).
+    if (!buildsBundle(command)) return
+    // Walk up to the step's `- ` marker (the run line itself, for shorthand).
     let start = i
-    for (let j = i; j >= 0; j -= 1) {
-      const m = lines[j].match(/^(\s*)- /)
-      if (m && m[1].length < runIndent) { start = j; break }
+    if (!/^\s*- /.test(line)) {
+      for (let j = i; j >= 0; j -= 1) {
+        const m = lines[j].match(/^(\s*)- /)
+        if (m && m[1].length < runIndent) { start = j; break }
+      }
     }
     const stepIndent = lines[start].match(/^\s*/)[0].length
     // Walk down to the next sibling step (or the end of the block).
@@ -225,8 +250,12 @@ export function unstampedBuildSteps(source) {
       if (m && m[1].length <= stepIndent && /^\s*- /.test(lines[j])) { end = j; break }
       if (m && m[1].length < stepIndent) { end = j; break }
     }
+    // The stamp must be a real env KEY in this step — `^\s*VITE_BUILD_SHA:`
+    // as a mapping entry — never a substring: a `# TODO: add VITE_BUILD_SHA`
+    // comment satisfied the old includes() and re-created the comment bypass
+    // one level down (Codex P2 on #2163, r3735614138).
     const step = lines.slice(start, end).join('\n')
-    if (!step.includes('VITE_BUILD_SHA')) offenders.push(`step at line ${start + 1}`)
+    if (!/^\s*VITE_BUILD_SHA\s*:/m.test(step)) offenders.push(`step at line ${start + 1}`)
   })
   return offenders
 }
@@ -298,6 +327,47 @@ test('a block-scalar run is READ, not silently skipped', () => {
   const offenders = unstampedBuildSteps(fixture)
   assert.equal(offenders.length, 1, 'exactly the unstamped block-scalar build is flagged')
   assert.match(offenders[0], /line 10/)
+})
+
+test('the four bypasses from #2163\'s definitive sweep are each pinned', () => {
+  // All four Codex P2s (r3735614129/138/144/151), as one fixture per bypass.
+  const flag = (fixture) => unstampedBuildSteps(fixture.join('\n')).length
+
+  // 1. Shorthand `- run:` is a real step, not invisible.
+  assert.equal(flag([
+    'jobs:', '  b:', '    steps:',
+    '      - run: npm run build',
+  ]), 1, 'shorthand unstamped build is flagged')
+
+  // 2. A comment mentioning the stamp is NOT a stamp — the key is.
+  assert.equal(flag([
+    'jobs:', '  b:', '    steps:',
+    '      - name: build',
+    '        # TODO: add VITE_BUILD_SHA',
+    '        run: npm run build',
+  ]), 1, 'comment-only stamp is refused')
+  assert.equal(flag([
+    'jobs:', '  b:', '    steps:',
+    '      - name: build',
+    '        env:',
+    '          VITE_BUILD_SHA: abc',
+    '        run: npm run build',
+  ]), 0, 'a real env key passes')
+
+  // 3. An npm alias that TRANSITIVELY builds the bundle counts as a build.
+  assert.ok(buildsBundle('npm run android:apk:debug'), 'two hops to vite build')
+  assert.equal(flag([
+    'jobs:', '  b:', '    steps:',
+    '      - run: npm run android:sync',
+  ]), 1, 'unstamped alias build is flagged')
+
+  // 4. Indentation-first block headers are parsed.
+  assert.equal(flag([
+    'jobs:', '  b:', '    steps:',
+    '      - name: build',
+    '        run: |2-',
+    '          npm run build',
+  ]), 1, 'a |2- block scalar build is flagged')
 })
 
 console.log(`\npaper-quiz zero-write: ${passed} passed`)
