@@ -97,6 +97,7 @@ beforeEach(() => {
   flagState.engine = true
   flagState.resolved = true
   flagState.source = 'rollout-all'
+  flagState.latched = false
   quizState.correctAnswer = 1
   quizState.lockedOut = false
 })
@@ -174,7 +175,7 @@ describe('the past-paper canary card swap', () => {
     await screen.findByText('What is 2 + 2?')
     expect(container.querySelector('[data-engine-runner]')).toBeNull()
     await waitFor(() => expect(capture).toHaveBeenCalledWith('assessment_engine_path', {
-      runner: 'pastPaperQuiz', engine: false, flagSource: 'rollout-all',
+      runner: 'pastPaperQuiz', engine: false, flagSource: 'rollout-all', latched: false,
     }))
   })
 
@@ -208,8 +209,22 @@ describe('the past-paper canary card swap', () => {
     await screen.findByText('What is 2 + 2?')
     await waitFor(() => expect(capture).toHaveBeenCalledTimes(1))
     expect(capture).toHaveBeenCalledWith('assessment_engine_path', {
-      runner: 'pastPaperQuiz', engine: true, flagSource: 'rollout-all',
+      runner: 'pastPaperQuiz', engine: true, flagSource: 'rollout-all', latched: false,
     })
+  })
+
+  it('the watchdog hold is countable: latched travels with the event', async () => {
+    // engine:false with an engine-selecting source happens two ways — the
+    // watchdog held the visit, or normalisation refused the paper. `latched`
+    // is what tells them apart in PostHog (Codex P2 on #2152, r3733390982).
+    flagState.engine = false
+    flagState.latched = true
+    flagState.source = 'rollout-bucket'
+    mountRunner()
+    await screen.findByText('What is 2 + 2?')
+    await waitFor(() => expect(capture).toHaveBeenCalledWith('assessment_engine_path', {
+      runner: 'pastPaperQuiz', engine: false, flagSource: 'rollout-bucket', latched: true,
+    }))
   })
 
   it('reports engine:false when the flag is off', async () => {
@@ -218,7 +233,7 @@ describe('the past-paper canary card swap', () => {
     mountRunner()
     await screen.findByText('What is 2 + 2?')
     await waitFor(() => expect(capture).toHaveBeenCalledWith('assessment_engine_path', {
-      runner: 'pastPaperQuiz', engine: false, flagSource: 'runner-off',
+      runner: 'pastPaperQuiz', engine: false, flagSource: 'runner-off', latched: false,
     }))
   })
 })

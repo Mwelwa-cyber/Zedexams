@@ -134,7 +134,7 @@ export function useAssessmentEngineFlag(runner) {
   const [committed, setCommitted] = useState(null)
   let engine = decision.engine
   let latched = false
-  if (resolved && !settled) {
+  if (resolved && !settled && !decision.stable) {
     // The watchdog window (Codex P2 on #2151, r3733319245): the restoration
     // watchdog has cleared `authLoading` without an auth answer, so `resolved`
     // is true while the visitor's identity is still provisional. An engine
@@ -149,7 +149,12 @@ export function useAssessmentEngineFlag(runner) {
     if (committed?.runner !== runner) setCommitted({ runner, engine: false })
     engine = false
     latched = decision.engine === true
-  } else if (settled) {
+  } else if (resolved && (settled || decision.stable)) {
+    // `decision.stable` widens the latch to the watchdog window for decisions
+    // no identity can overturn (rollout at 100, flag off): there is no swap a
+    // late uid could cause, so excluding slow restorations from a full rollout
+    // would just bifurcate the fleet for no protection. Identity-dependent
+    // decisions take the hold branch above until auth genuinely settles.
     const held = committed?.runner === runner ? committed.engine : null
     // First resolved answer for this runner is a MOUNT, not a transition, so it
     // is taken as-is however it lands.

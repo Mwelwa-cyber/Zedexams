@@ -388,8 +388,14 @@ export default function PublicQuizRunner() {
       runner: 'pastPaperQuiz',
       engine: engineActive,
       flagSource: engineFlag.source,
+      // Distinguishes the watchdog hold (engine:false, latched:true, an
+      // engine-selecting source) from a normalisation refusal (engine:false,
+      // latched:false) — without this the two are one telemetry bucket and
+      // the hold's frequency cannot be counted (Codex P2 on #2152,
+      // r3733390982).
+      latched: engineFlag.latched,
     })
-  }, [engineFlag.resolved, engineFlag.source, engineActive, loading, quiz])
+  }, [engineFlag.resolved, engineFlag.source, engineFlag.latched, engineActive, loading, quiz])
 
   function handleSelect(idx) {
     // `lockedOut` was enforced only by the old card's disabled attribute; the
