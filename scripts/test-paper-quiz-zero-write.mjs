@@ -140,7 +140,10 @@ test('no Firestore WRITE API is importable anywhere in the route\'s own graph', 
   // reviewed diff of this list, with a reason.
   const PREEXISTING_WRITERS = new Map([
     ['src/contexts/AuthContext.jsx', 'the app session (profile bootstrap, FCM, referrals); mounted on every route, not a canary path'],
-    ['src/utils/pastPapers.js', 'admin save/import helpers share the module; the route calls only getPaperById'],
+    // pastPapers.js is deliberately NOT here any more: the route now imports
+    // its one read from pastPaperLookup.js, which the walk covers in full —
+    // a write inside the loader the route actually calls fails this test
+    // (Codex P2 on #2151, r3733319248).
   ])
   const WRITE_APIS = /\b(addDoc|setDoc|updateDoc|deleteDoc|writeBatch|runTransaction)\b/
   const offenders = []

@@ -134,7 +134,22 @@ export function useAssessmentEngineFlag(runner) {
   const [committed, setCommitted] = useState(null)
   let engine = decision.engine
   let latched = false
-  if (settled) {
+  if (resolved && !settled) {
+    // The watchdog window (Codex P2 on #2151, r3733319245): the restoration
+    // watchdog has cleared `authLoading` without an auth answer, so `resolved`
+    // is true while the visitor's identity is still provisional. An engine
+    // decision bucketed on the anonymous visitor id here can differ from the
+    // one the late-arriving uid gets, and the conditional render would swap
+    // the card mid-question — the exact transition the latch exists to
+    // prevent. So this window SERVES the old card and COMMITS that answer:
+    // when settlement does arrive, the ordinary asymmetric rule below holds
+    // the visit on `false` (an upgrade waits for a mount; this mount already
+    // happened, on the old card). A visitor whose auth never settles keeps
+    // the old card for the visit, which is the canary's fail-closed default.
+    if (committed?.runner !== runner) setCommitted({ runner, engine: false })
+    engine = false
+    latched = decision.engine === true
+  } else if (settled) {
     const held = committed?.runner === runner ? committed.engine : null
     // First resolved answer for this runner is a MOUNT, not a transition, so it
     // is taken as-is however it lands.
