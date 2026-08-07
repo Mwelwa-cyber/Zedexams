@@ -177,6 +177,12 @@ jobs:
         run: npm ci
       - name: Build (smoke mode — fake public Firebase config)
         run: npm run smoke:build
+      # Needs the build above, which is why it lives here and not in test:all
+      # (plain node, no dist/). It walks the emitted chunks' STATIC import graph
+      # and fails if a page declared light reaches a heavy vendor — the
+      # regression #2172 measured by hand and, one hop deeper, missed.
+      - name: Bundle edges (light pages stay free of heavy vendors)
+        run: npm run check:bundle-edges
       - name: Mobile smoke (public routes)
         run: npm run smoke:mobile
       - name: Dashboard responsive navigation (viewport matrix)
