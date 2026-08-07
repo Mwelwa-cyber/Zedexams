@@ -20,13 +20,27 @@
  * what is actually consumed, not what might be one day — `FLASHCARD_PROGRESS_STATUS`
  * and the progress repository are used only inside the feature, so they stay
  * inside it until something outside asks.
+ *
+ * ── The two exporters that used to be listed here ───────────────────────
+ *
+ * `downloadFlashcardsDocx` / `downloadFlashcardsPdf` were on this list from
+ * Phase 2 until #2177, and their absence is the point rather than an oversight.
+ *
+ * Listing them made Rollup group the exporters into the chunk this front door
+ * resolves to, so every consumer of ANY name here gained a static edge to a
+ * 382 kB `docx-vendor` chunk. Three of the four consumers export nothing: the
+ * public share page, the locked-studio sample, and — the one the comment above
+ * already warned about for a different reason — the `/teachers` marketing page.
+ * They were downloading a Word-document runtime to draw a card.
+ *
+ * The exporters live in `src/utils/` until `src/engines/export-engine/` exists,
+ * which is where §12's target map puts document exporters; `LibraryItemDetail`,
+ * the one consumer that really does export, imports them from there directly.
+ * `npm run check:bundle-edges` now fails if any of those pages regains the edge.
  */
 
 export { default as FlashcardsView } from './components/FlashcardsView'
 export { default as FlashcardStudyOverlay } from './components/FlashcardStudyOverlay'
 
 export { useFlashcardProgress } from './hooks/useFlashcardProgress'
-
-export { downloadFlashcardsDocx } from './export/flashcardsToDocx'
-export { downloadFlashcardsPdf, buildFlashcardsPrintableHtml } from './export/flashcardsToPdf'
 

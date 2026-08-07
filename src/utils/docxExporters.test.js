@@ -1,9 +1,17 @@
 /**
  * Golden-file regression tests for the studio Word (.docx) exporters.
  *
- * One harness, fourteen exporters (the flashcard case moved to
- * src/features/flashcards/export/ with its exporter — same assertions, from the
- * one copy in docxExportChecks.js): each case builds its document from a small
+ * One harness, fifteen exporters across sixteen cases (two of them are
+ * schemeOfWorkToDocx's official and legacy shapes).
+ *
+ * The flashcard case LEFT here in Phase 2, moving to
+ * src/features/flashcards/export/ with its exporter, and came BACK in Phase 4
+ * (#2176): behind the feature index, that exporter gave the public share page,
+ * the locked-studio sample and the /teachers marketing page a static edge to a
+ * 382 kB docx-vendor chunk. The exporter is back in src/utils/ until
+ * src/engines/export-engine/ exists — where §12 puts document exporters — so
+ * its case is back here with it. The rubric exporter never moved, for the same
+ * reason. Each case builds its document from a small
  * inline fixture, unzips the .docx (a ZIP of XML parts) and asserts
  *   1. distinctive fixture strings landed in word/document.xml (the body),
  *   2. `{ attribution: true }` adds the diagonal watermark (a `textpath`
@@ -52,6 +60,7 @@ async function loadModule(path) {
   }
 }
 
+const flashcardsMod = await loadModule('./flashcardsToDocx.js')
 const worksheetMod = await loadModule('./worksheetToDocx.js')
 const notesMod = await loadModule('./notesToDocx.js')
 const rubricMod = await loadModule('./rubricToDocx.js')
@@ -104,6 +113,14 @@ const WORKSHEET = {
     },
   ],
   answerKey: { markingNotes: 'Award one mark for correct working.', totalMarks: 20 },
+}
+
+const FLASHCARDS = {
+  header: { title: 'Photosynthesis Flashcards', grade: 'Grade 8', subject: 'Science', topic: 'Plants' },
+  cards: [
+    { front: 'What gas do plants absorb for photosynthesis?', back: 'Carbon dioxide', example: 'Leaves take in air through stomata', hint: 'It is what we breathe out' },
+    { front: 'Where does photosynthesis happen?', back: 'In the chloroplasts' },
+  ],
 }
 
 const NOTES = {
@@ -337,6 +354,13 @@ const CASES = [
     mod: worksheetMod,
     build: (opts) => worksheetMod.buildWorksheetDocument(WORKSHEET, { mode: 'worksheet', ...opts }),
     expected: ['WORKSHEET', 'Long Division Practice', 'Section A: Calculations', 'Work out 672 divided by 12.'],
+    attribution: true,
+  },
+  {
+    name: 'flashcardsToDocx',
+    mod: flashcardsMod,
+    build: (opts) => flashcardsMod.buildFlashcardsDocument(FLASHCARDS, { mode: 'cutout', ...opts }),
+    expected: ['Photosynthesis Flashcards', 'What gas do plants absorb for photosynthesis?', 'Carbon dioxide', 'In the chloroplasts'],
     attribution: true,
   },
   {

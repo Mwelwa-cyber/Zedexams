@@ -65,6 +65,7 @@ const LIGHT_PAGES = {
   PublicShareView: 'the public share page: signed-out, SEO-visible, renders a saved document and offers no export',
   LockedStudio: 'the free-plan paywall sample: renders a specimen document behind a locked studio',
   index: 'the entry chunk: every visitor downloads it, including on the marketing page',
+  TeachersLanding: 'the /teachers marketing page: top-of-funnel, signed-out, and it renders a flashcards specimen',
 };
 
 /**
@@ -86,17 +87,10 @@ const HEAVY_VENDORS = {
  * Keyed `<page> → <vendor>`.
  */
 const ACKNOWLEDGED = new Map([
-  [
-    'PublicShareView → docx-vendor',
-    'src/features/flashcards/index.js re-exports its two exporters (Phase 2), so the front door ' +
-    'reaches docx-vendor through flashcardsToPdf. The rubric and homework migrations (#2172, #2173) ' +
-    'chose the other way and left their exporters in src/utils/; clearing this means flashcards ' +
-    'doing the same, or the exporters moving to src/engines/export-engine/ where §12 puts them.',
-  ],
-  [
-    'LockedStudio → docx-vendor',
-    'Same cause as the row above — the locked studio renders the flashcards sample through the same front door.',
-  ],
+  // Empty, and kept rather than deleted: the mechanism is the point. #2176 added
+  // this check and recorded the two flashcards paths here; #2177 cleared them by
+  // moving the exporters back to src/utils/, which is what deleting a row looks
+  // like. The next violation gets recorded here with its reason, or fixed.
 ]);
 
 let failures = 0;

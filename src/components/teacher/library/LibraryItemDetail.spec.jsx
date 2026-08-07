@@ -142,11 +142,11 @@ vi.mock('../../../utils/teacherLibraryService', () => ({
 // the progress hook, and two view components). Vitest does not warn when a
 // vi.mock path matches no imported module, so a move that leaves the old paths
 // behind gives a spec that still passes while testing something else.
+vi.mock('../../../utils/flashcardsToDocx', () => ({ downloadFlashcardsDocx: vi.fn(async () => {}) }))
+vi.mock('../../../utils/flashcardsToPdf', () => ({ downloadFlashcardsPdf: vi.fn(async () => {}) }))
 vi.mock('../../../features/flashcards', () => ({
   FlashcardsView:         () => null,
   FlashcardStudyOverlay:  () => null,
-  downloadFlashcardsDocx: vi.fn(async () => {}),
-  downloadFlashcardsPdf:  vi.fn(async () => {}),
   useFlashcardProgress: () => ({
     masteredCards: {},
     markMastered: vi.fn(),

@@ -20,9 +20,9 @@ import {
   FlashcardsView,
   FlashcardStudyOverlay,
   useFlashcardProgress,
-  downloadFlashcardsDocx,
-  downloadFlashcardsPdf,
 } from '../../../features/flashcards'
+import { downloadFlashcardsDocx } from '../../../utils/flashcardsToDocx'
+import { downloadFlashcardsPdf } from '../../../utils/flashcardsToPdf'
 import SchemeOfWorkView from '../views/SchemeOfWorkView'
 import MarkScheduleView from '../views/MarkScheduleView'
 import WeeklyForecastView from '../views/WeeklyForecastView'

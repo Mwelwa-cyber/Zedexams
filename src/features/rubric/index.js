@@ -52,8 +52,10 @@
  * wrong, because the question asked ("does this chunk mention docx") was one
  * hop away from the question that matters ("does this page download docx").
  * That is why the rule is now a script — `npm run check:bundle-edges`, which
- * walks the graph transitively and holds the flashcards path as the one
- * recorded, shrink-only violation.
+ * walks the graph transitively rather than looking for a direct edge. It found
+ * a third page nobody had thought to check, `/teachers`, and #2177 then moved
+ * the flashcards exporters back to `src/utils/` under this same rule, so its
+ * recorded-violation list is empty and all four light pages are clean.
  */
 
 export { default as RubricView } from './components/RubricView'

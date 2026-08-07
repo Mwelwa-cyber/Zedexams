@@ -263,8 +263,6 @@
     "test:full-lesson-docx": "node src/utils/fullLessonToDocx.test.js",
     "test:docx-exporters": "node src/utils/docxExporters.test.js",
     "test:studio-pdf-exporters": "node src/utils/studioPdfExporters.test.js",
-    "test:flashcards-pdf": "node src/features/flashcards/export/flashcardsToPdf.test.js",
-    "test:flashcards-docx": "node src/features/flashcards/export/flashcardsToDocx.test.js",
     "test:flashcard-progress-core": "node src/features/flashcards/lib/flashcardProgressCore.test.js",
     "test:download-guard": "node src/utils/downloadGuard.test.js",
     "test:curriculum-options": "node scripts/test-curriculum-options.mjs",
