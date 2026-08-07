@@ -48,10 +48,28 @@ export function headerIsComplete(form = {}) {
  *                                 landed, or it was opened from the library)
  * @param {boolean|null} override  the teacher's explicit open/closed choice;
  *                                 `null` = they haven't said, so the rule decides
+ * @param {boolean} cursorInside   focus is currently in the header form. The
+ *                                 collapse is DEFERRED while it is, never
+ *                                 cancelled — see below.
+ *
+ * `savedOnce` flips when the 2-second library autosave lands, which is a moment
+ * the teacher does not choose and cannot see coming. If it lands while they are
+ * typing in the header of a new paper, the form they are typing into is
+ * replaced by a one-line summary mid-keystroke: the caret goes, the half-typed
+ * school name goes with it, and the next character lands nowhere. So a collapse
+ * that would fire under a cursor waits for it to leave. Nothing is cancelled —
+ * the moment focus moves out, the rule is re-evaluated and the header collapses
+ * as it would have.
+ *
+ * This is the only input that is about the DOM rather than the paper, and it
+ * arrives as a plain boolean so this module stays pure and node-testable.
  */
-export function shouldCollapsePaperHeader({ form, savedOnce = false, override = null } = {}) {
+export function shouldCollapsePaperHeader({
+  form, savedOnce = false, override = null, cursorInside = false,
+} = {}) {
   if (override === true) return false   // the teacher opened it
   if (override === false) return true   // the teacher closed it
+  if (cursorInside) return false        // deferred, not cancelled
   return Boolean(savedOnce) && headerIsComplete(form)
 }
 

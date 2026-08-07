@@ -84,6 +84,39 @@ test('called with nothing at all, it does not collapse', () => {
   assert.equal(shouldCollapsePaperHeader(), false)
 })
 
+// The autosave lands on a 2-second debounce — a moment the teacher does not
+// choose and cannot see coming. Collapsing then, while they are mid-word in the
+// school name, takes the field out from under the caret.
+test('a collapse that would fire under the cursor waits', () => {
+  assert.equal(
+    shouldCollapsePaperHeader({ form: complete, savedOnce: true, cursorInside: true }),
+    false,
+  )
+})
+
+test('and it is deferred, not cancelled — it collapses the moment focus leaves', () => {
+  const args = { form: complete, savedOnce: true }
+  assert.equal(shouldCollapsePaperHeader({ ...args, cursorInside: true }), false)
+  assert.equal(shouldCollapsePaperHeader({ ...args, cursorInside: false }), true)
+})
+
+test('the teacher’s explicit choice still outranks the cursor', () => {
+  // They closed it deliberately; a caret that happens to be inside must not
+  // reopen what they just shut.
+  assert.equal(
+    shouldCollapsePaperHeader({ form: complete, savedOnce: true, override: false, cursorInside: true }),
+    true,
+  )
+})
+
+test('the cursor cannot collapse a header the rule would keep open', () => {
+  // cursorInside only ever DEFERS; it is never a reason to collapse.
+  assert.equal(
+    shouldCollapsePaperHeader({ form: { ...complete, duration: '' }, savedOnce: true, cursorInside: false }),
+    false,
+  )
+})
+
 console.log('\nassessmentHeaderSummary — the one line')
 
 test('reads as the header does', () => {

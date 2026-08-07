@@ -119,6 +119,7 @@ import Icon from './studio/studioIcons'
 import { TopBar, BottomBar } from './studio/AssessmentBars'
 import { PaperDetailsSheet } from './studio/DocTitle'
 import { shouldCollapsePaperHeader } from './assessmentHeaderSummary'
+import useFocusWithin from './studio/useFocusWithin'
 import { HomeView } from './studio/AssessmentHomeView'
 import { BuilderView } from './studio/AssessmentBuilderView'
 import PaperHealthModal from './PaperHealthModal'
@@ -653,9 +654,19 @@ export default function AssessmentStudio() {
   // are filled shows the one-line summary; anything else keeps the form open,
   // because on a new paper those settings ARE the task. `drawer` is the summary
   // with the full form over it — see assessmentHeaderSummary.js.
+  //
+  // `savedOnce` flips when the 2-second library autosave lands — a moment the
+  // teacher does not choose. Landing it while they are typing in the INLINE
+  // form would swap the field under the caret for a summary line, so the
+  // collapse waits for focus to leave. Scoped to the inline case: when the
+  // drawer is open the header is already collapsed behind it, and letting a
+  // cursor in the drawer read as "keep the form" would turn the drawer back
+  // into an inline form mid-edit — the same interruption, wearing a hat.
+  const cursorInHeader = useFocusWithin('[data-paper-header-form]')
   const headerCollapsible = shouldCollapsePaperHeader({
     form,
     savedOnce: isEditing || savedToLibrary,
+    cursorInside: cursorInHeader && !headerEditorOpen,
   })
   const headerMode = headerCollapsible
     ? (headerEditorOpen ? 'drawer' : 'summary')

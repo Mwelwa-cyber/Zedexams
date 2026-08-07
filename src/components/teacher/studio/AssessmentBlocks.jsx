@@ -196,6 +196,17 @@ export function HeaderBlock({
   mode = 'form', onOpenHeader, onCloseHeader, timingNote,
 }) {
   const docInputRef = useRef(null)
+  // Escape closes the drawer. It is `role="dialog" aria-modal="true"`, and
+  // dismissing a modal with Escape is the one interaction a keyboard user
+  // expects without being told — the scrim is only discoverable with a pointer,
+  // and the two close buttons have to be found. Declared above the mode
+  // branches below so the hook order is identical on every render.
+  useEffect(() => {
+    if (mode !== 'drawer' || !onCloseHeader) return undefined
+    const onKey = (e) => { if (e.key === 'Escape') onCloseHeader() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [mode, onCloseHeader])
   // Import options — both default ON; threaded into the parser via onImportDocument.
   const [preserveNumbering, setPreserveNumbering] = useState(true)
   const [groupComprehension, setGroupComprehension] = useState(true)
@@ -250,7 +261,12 @@ export function HeaderBlock({
   }, [validSubjectsLoading, validSubjectLabels, form.subject, form.topic, setF])
 
   const formBody = (
-    <div className="sv-block b-header">
+    // `data-paper-header-form` is the hook the collapse-deferral watches
+    // (useFocusWithin in AssessmentStudio). It marks the FORM specifically —
+    // not `.b-header`, which the one-line summary card carries too, so tabbing
+    // onto that card's "Edit" button would read as "the teacher is typing in
+    // the header" and re-expand the form they had just collapsed.
+    <div className="sv-block b-header" data-paper-header-form>
       <div className="sv-block-head">
         <span className="sv-ic"><Icon name="header" size={15} /></span> Paper Header
         {timingNote && (
