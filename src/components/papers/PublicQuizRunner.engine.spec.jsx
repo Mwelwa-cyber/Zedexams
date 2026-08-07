@@ -19,7 +19,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
-const flagState = { engine: true, resolved: true, source: 'rollout-all', runner: 'pastPaperQuiz', live: true, latched: false }
+const flagState = { engine: true, resolved: true, final: true, source: 'rollout-all', runner: 'pastPaperQuiz', live: true, latched: false }
 // Per-test knobs for the quiz mock, mutated in tests and reset in beforeEach.
 const quizState = { correctAnswer: 1, lockedOut: false }
 
@@ -96,6 +96,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   flagState.engine = true
   flagState.resolved = true
+  flagState.final = true
   flagState.source = 'rollout-all'
   flagState.latched = false
   quizState.correctAnswer = 1
@@ -185,6 +186,7 @@ describe('the past-paper canary card swap', () => {
     // returning learner a card their eventual uid is not rolled out to, then
     // swap it mid-question.
     flagState.resolved = false
+    flagState.final = false
     const { container } = mountRunner()
     await screen.findByText('What is 2 + 2?')
     expect(container.querySelector('[data-engine-runner]')).toBeNull()
@@ -202,6 +204,19 @@ describe('the past-paper canary card swap', () => {
     const rows = container.querySelectorAll('[data-engine-runner] .zx-opt')
     expect(rows.length).toBe(5)
     for (const row of rows) expect(row.disabled).toBe(true)
+  })
+
+  it('a provisional answer is never recorded: no event until the decision is final', async () => {
+    // Codex P2 on #2153 (r3733460759): resolved-but-not-final is the watchdog
+    // window under a partial rollout — the card renders (old), but `latched`
+    // is provisional and a once-only event captured here counts holds wrongly
+    // in both directions. The event waits for `final`.
+    flagState.engine = false
+    flagState.final = false
+    flagState.source = 'rollout-bucket'
+    mountRunner()
+    await screen.findByText('What is 2 + 2?')
+    expect(capture).not.toHaveBeenCalled()
   })
 
   it('reports which path SERVED, once, to PostHog — both ways', async () => {

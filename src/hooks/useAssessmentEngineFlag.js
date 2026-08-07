@@ -146,7 +146,16 @@ export function useAssessmentEngineFlag(runner) {
     // the visit on `false` (an upgrade waits for a mount; this mount already
     // happened, on the old card). A visitor whose auth never settles keeps
     // the old card for the visit, which is the canary's fail-closed default.
-    if (committed?.runner !== runner) setCommitted({ runner, engine: false })
+    // Commit false even OVER an existing engine:true commitment: a full
+    // rollout can mount the engine in this same window and then ramp down to
+    // a partial percentage, which lands here with the stale `true` still
+    // committed — and settlement into the partial ramp would read it back and
+    // REMOUNT the engine, swapping the learner engine → old → engine and
+    // losing both cards' state (Codex P2 on #2153, r3733460764). The ramp-down
+    // itself is the one mandated swap; this makes it the only one.
+    if (committed?.runner !== runner || committed.engine !== false) {
+      setCommitted({ runner, engine: false })
+    }
     engine = false
     latched = decision.engine === true
   } else if (resolved && (settled || decision.stable)) {
@@ -168,6 +177,14 @@ export function useAssessmentEngineFlag(runner) {
     ...decision,
     engine,
     resolved,
+    // `final` — MAY TELEMETRY RECORD THIS? True once the answer cannot change
+    // under the visit: auth genuinely settled, or the decision is identity-
+    // free. In the watchdog window under a PARTIAL rollout it stays false —
+    // `latched` there is provisional and settlement can invert it in either
+    // direction, so an event recorded then counts holds wrongly both ways
+    // (Codex P2 on #2153, r3733460759). A visit whose auth never settles goes
+    // unreported, which undercounts the route but never miscounts it.
+    final: resolved && (settled || decision.stable === true),
     // `live` travels with the decision so §7.2's telemetry can tell a client
     // that is off because of the flag from one that is off because its read
     // died. Those look identical in an event stream otherwise, and only one of
@@ -179,7 +196,7 @@ export function useAssessmentEngineFlag(runner) {
     // and describes the FLAGS, not what a mounted component decided to do
     // about them.
     latched,
-  }), [decision, engine, resolved, live, latched])
+  }), [decision, engine, resolved, settled, live, latched])
 }
 
 export default useAssessmentEngineFlag
