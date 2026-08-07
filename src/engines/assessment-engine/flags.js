@@ -151,8 +151,21 @@ export function normaliseRolloutUids(value) {
     .filter(Boolean)
 }
 
+/**
+ * Sources decided WITHOUT consulting `uid` or `visitorId`. A decision from one
+ * of these cannot change when a late-arriving uid replaces the provisional
+ * anonymous identity — which is what lets the flag binding serve it during the
+ * auth watchdog window instead of holding the visit on the old runner
+ * (Codex P2 on #2152, r3733390985). The identity-consulting sources
+ * (`rollout-uid`, `rollout-bucket`, `not-in-rollout`, `no-visitor-id`) are
+ * exactly the ones a settled uid can overturn, so they stay held.
+ */
+export const IDENTITY_FREE_SOURCES = Object.freeze([
+  'unknown-runner', 'runner-off', 'rollout-zero', 'rollout-all',
+])
+
 function decision(runner, engine, source) {
-  return Object.freeze({ runner, engine, source })
+  return Object.freeze({ runner, engine, source, stable: IDENTITY_FREE_SOURCES.includes(source) })
 }
 
 /**

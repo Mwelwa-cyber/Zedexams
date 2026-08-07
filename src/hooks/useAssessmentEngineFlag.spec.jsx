@@ -248,6 +248,27 @@ describe('useAssessmentEngineFlag', () => {
     expect(result.current.latched).toBe(true)
   })
 
+  it('a FULL rollout serves the engine through the watchdog window — no identity, no hold', () => {
+    // Codex P2 on #2152 (r3733390985): at rolloutPercent 100 the decision is
+    // identity-free — no late uid can overturn it, so there is no swap the
+    // hold could be protecting against. Excluding every slow restoration from
+    // a full rollout would bifurcate the fleet for no protection.
+    setFlags({ pastPaperQuiz: true, rolloutPercent: 100 })
+    auth.loading = false
+    auth.authSettled = false   // the watchdog window
+    auth.currentUser = null
+    const { result, rerender } = renderHook(() => useAssessmentEngineFlag('pastPaperQuiz'))
+    expect(result.current.resolved).toBe(true)
+    expect(result.current.engine).toBe(true)
+    expect(result.current.latched).toBe(false)
+
+    // Settlement changes nothing — the answer was never identity-dependent.
+    auth.authSettled = true
+    auth.currentUser = { uid: 'learner-3' }
+    rerender()
+    expect(result.current.engine).toBe(true)
+  })
+
   it('once auth has genuinely settled, the latch is back in force', () => {
     // The other half: the fix must not disable the latch, only delay it until
     // the inputs are real.

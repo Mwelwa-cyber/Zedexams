@@ -293,7 +293,34 @@ test('every source the resolver can return is declared, and every declared one i
 test('a decision is frozen — it is a telemetry payload, not a scratchpad', () => {
   const got = decide({ pastPaperQuiz: true, rolloutPercent: 100 })
   assert.throws(() => { got.engine = false }, TypeError)
-  assert.deepEqual(Object.keys(got).sort(), ['engine', 'runner', 'source'])
+  assert.deepEqual(Object.keys(got).sort(), ['engine', 'runner', 'source', 'stable'])
 })
 
 console.log(`\nassessment engine flags: ${passed} passed`)
+
+test('a decision says whether identity could overturn it — stable vs held', () => {
+  // Codex P2 on #2152 (r3733390985): the auth-watchdog hold exists because a
+  // late uid can overturn an identity-bucketed decision mid-question. The four
+  // sources decided WITHOUT consulting uid/visitorId cannot be overturned, so
+  // the flag binding serves them during the watchdog window instead of
+  // excluding every slow restoration from a full rollout. This pins the
+  // classification — a new source added without deciding its stability lands
+  // unstable, which is the fail-closed side.
+  const decide = (flags, ids = {}) =>
+    resolveEngineDecision({ featureFlags: { assessmentEngine: flags }, runner: 'pastPaperQuiz', ...ids })
+
+  // Identity-free: no late uid changes these.
+  assert.equal(decide({ pastPaperQuiz: true, rolloutPercent: 100 }).stable, true, 'rollout-all')
+  assert.equal(decide({ pastPaperQuiz: true }).stable, true, 'rollout-zero')
+  assert.equal(decide({ pastPaperQuiz: false }).stable, true, 'runner-off')
+  assert.equal(resolveEngineDecision({ featureFlags: {}, runner: 'nope' }).stable, true, 'unknown-runner')
+
+  // Identity-consulting: a settled uid CAN change the answer, so these hold.
+  assert.equal(decide({ pastPaperQuiz: true, rolloutUids: ['s'] }, { uid: 's' }).stable, false, 'rollout-uid')
+  assert.equal(decide({ pastPaperQuiz: true, rolloutPercent: 50 }, { visitorId: null }).stable, false, 'no-visitor-id')
+  const ids = Array.from({ length: 200 }, (_, i) => `anon-${i}`)
+  for (const visitorId of ids) {
+    const d = decide({ pastPaperQuiz: true, rolloutPercent: 50 }, { visitorId })
+    assert.equal(d.stable, false, `${d.source} must be unstable`)
+  }
+})
