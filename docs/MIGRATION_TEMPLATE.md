@@ -28,7 +28,7 @@ Four places the grep above will *not* find, and all four bit during Phase 2:
 
 | Hiding place | Why grep misses it | How it fails if missed |
 |---|---|---|
-| `vi.mock('<old path>')` in a spec | The path is a string in a mock, not an import | **Silent.** Vitest does not warn when a mock matches no imported module — the spec keeps passing while exercising the real module |
+| `vi.mock('<old path>')` in a spec | The path is a string in a mock, not an import | **Silent.** Vitest does not warn when a mock matches no imported module — the spec keeps passing while exercising the real module. **The one that gets missed is the CONSUMER's spec, not the moved file's** — Phase 4 re-anchored the moved spec correctly four times running and left eight dead mocks behind in `LibraryItemDetail.spec.jsx` and `PublicShareView.spec.jsx`, across four merged PRs, every suite green. `npm run test:mock-paths` now fails on a relative `vi.mock` path that resolves to nothing, so this row is checked rather than remembered |
 | Machine-readable inventories (`scripts/aiGenerators/inventory.js`) | Path lives in a data record | A contract clause that does `existsSync` flips to false and a CI guard goes red |
 | `lazy(() => import('<old path>'))` | ESLint does not inspect dynamic imports | **Runtime** chunk-load error on that route only |
 | A test that covers your file *and others* | The file name never appears | Your move orphans one case of a shared test |

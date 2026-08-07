@@ -37,7 +37,7 @@ vi.mock('../../seo/SeoHelmet', () => ({ default: () => null }))
 
 // ── Already-handled view stubs (plain null — we don't need to inspect them) ──
 vi.mock('../views/LessonPlanView',    () => ({ default: () => <div data-testid="lesson-plan-view" /> }))
-vi.mock('../views/WorksheetView',     () => ({ default: () => <div data-testid="worksheet-view" /> }))
+vi.mock('../../../features/worksheet',     () => ({ WorksheetView: () => <div data-testid="worksheet-view" /> }))
 // Mocked at the feature's front door, which is how the component imports it.
 // This also keeps the spec off the feature's module graph: the index re-exports
 // useFlashcardProgress, which pulls AuthContext and firebase/config in at import
@@ -46,15 +46,15 @@ vi.mock('../../../features/flashcards', () => ({ FlashcardsView: () => <div data
 vi.mock('../views/SchemeOfWorkView',  () => ({ default: () => <div data-testid="scheme-of-work-view" /> }))
 vi.mock('../views/WeeklyForecastView',() => ({ default: () => <div data-testid="weekly-forecast-view" /> }))
 vi.mock('../views/RecordOfWorkView',  () => ({ default: () => <div data-testid="record-of-work-view" /> }))
-vi.mock('../views/RubricView',        () => ({ default: () => <div data-testid="rubric-view" /> }))
+vi.mock('../../../features/rubric',        () => ({ RubricView: () => <div data-testid="rubric-view" /> }))
 
 // ── NotesView: renders a testid so we can confirm the right component was used.
-vi.mock('../views/NotesView', () => ({
-  default: ({ notes }) => <div data-testid="notes-view">{notes?.header?.title}</div>,
+vi.mock('../../../features/teacherNotes', () => ({
+  NotesView: ({ notes }) => <div data-testid="notes-view">{notes?.header?.title}</div>,
 }))
 
-vi.mock('../views/HomeworkView', () => ({
-  default: ({ showAnswers }) => <div data-testid="homework-view" data-show-answers={String(showAnswers)} />,
+vi.mock('../../../features/homework', () => ({
+  HomeworkView: ({ showAnswers }) => <div data-testid="homework-view" data-show-answers={String(showAnswers)} />,
 }))
 
 vi.mock('../views/LessonActivitiesView', () => ({

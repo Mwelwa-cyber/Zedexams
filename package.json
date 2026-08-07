@@ -270,6 +270,7 @@
     "test:curriculum-engine-catalog": "node scripts/test-curriculum-engine-catalog.mjs",
     "test:import-boundaries": "node scripts/test-import-boundaries.mjs",
     "test:bundle-graph": "node scripts/test-bundle-graph.mjs",
+    "test:mock-paths": "node scripts/test-mock-paths.mjs",
     "test:curriculum-canon": "node scripts/test-curriculum-canon.mjs",
     "test:curriculum-diagnostics": "node scripts/test-curriculum-diagnostics.mjs",
     "test:client-errors": "node scripts/test-client-error-reporting.mjs",

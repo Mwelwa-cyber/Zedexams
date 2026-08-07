@@ -59,7 +59,7 @@ const WeeklyForecastStudio = lazy(() => import('./generate/WeeklyForecastStudio'
 const RecordOfWorkStudio = lazy(() => import('./generate/RecordOfWorkStudio'))
 const ClassTimetableStudio = lazy(() => import('./generate/ClassTimetableStudio'))
 const RubricGenerator = lazy(() => import('../../features/rubric/pages/RubricGenerator'))
-const NotesStudio = lazy(() => import('./generate/NotesStudio'))
+const NotesStudio = lazy(() => import('../../features/teacherNotes/pages/NotesStudio'))
 const SbaTaskStudio = lazy(() => import('./generate/SbaTaskStudio'))
 const SbaMarkTracker = lazy(() => import('./generate/SbaMarkTracker'))
 const SbaYearPlanner = lazy(() => import('./generate/SbaYearPlanner'))
