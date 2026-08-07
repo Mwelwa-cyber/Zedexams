@@ -152,20 +152,27 @@ export function normaliseRolloutUids(value) {
 }
 
 /**
- * Sources decided WITHOUT consulting `uid` or `visitorId`. A decision from one
+ * Sources decided before ANY identity input could matter. A decision from one
  * of these cannot change when a late-arriving uid replaces the provisional
  * anonymous identity — which is what lets the flag binding serve it during the
  * auth watchdog window instead of holding the visit on the old runner
- * (Codex P2 on #2152, r3733390985). The identity-consulting sources
- * (`rollout-uid`, `rollout-bucket`, `not-in-rollout`, `no-visitor-id`) are
- * exactly the ones a settled uid can overturn, so they stay held.
+ * (Codex P2 on #2152, r3733390985).
+ *
+ * `rollout-zero` and `rollout-all` are deliberately NOT on this list any more
+ * (Codex P2 on #2154, r3733581237): the resolver checks `rolloutUids` BEFORE
+ * the percentage, so with a non-empty allow-list a late uid can overturn a
+ * percentage decision — at 0% it flips the engine itself, at 100% it rewrites
+ * `source` to `rollout-uid` — and telemetry that already recorded the
+ * "stable" answer misattributes its own path. Those two sources declare their
+ * stability per-decision instead: stable exactly when the allow-list is
+ * empty, i.e. when a late uid is RULED OUT rather than assumed away.
  */
 export const IDENTITY_FREE_SOURCES = Object.freeze([
-  'unknown-runner', 'runner-off', 'rollout-zero', 'rollout-all',
+  'unknown-runner', 'runner-off',
 ])
 
-function decision(runner, engine, source) {
-  return Object.freeze({ runner, engine, source, stable: IDENTITY_FREE_SOURCES.includes(source) })
+function decision(runner, engine, source, stable = IDENTITY_FREE_SOURCES.includes(source)) {
+  return Object.freeze({ runner, engine, source, stable })
 }
 
 /**
@@ -199,9 +206,14 @@ export function resolveEngineDecision({ featureFlags, runner, uid = null, visito
     return decision(runner, true, 'rollout-uid')
   }
 
+  // A percentage decision is only as stable as the allow-list permits: the
+  // allow-list is checked above, so a late uid that lands on it overturns
+  // what the percentage said. An empty list is the one case that rules a
+  // late match out.
+  const allowListEmpty = normaliseRolloutUids(config.rolloutUids).length === 0
   const percent = normaliseRolloutPercent(config.rolloutPercent)
-  if (percent <= 0) return decision(runner, false, 'rollout-zero')
-  if (percent >= ROLLOUT_BUCKETS) return decision(runner, true, 'rollout-all')
+  if (percent <= 0) return decision(runner, false, 'rollout-zero', allowListEmpty)
+  if (percent >= ROLLOUT_BUCKETS) return decision(runner, true, 'rollout-all', allowListEmpty)
 
   const bucket = rolloutBucket(visitorId)
   if (bucket === null) return decision(runner, false, 'no-visitor-id')

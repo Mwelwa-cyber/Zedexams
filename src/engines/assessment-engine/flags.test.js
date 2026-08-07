@@ -324,3 +324,33 @@ test('a decision says whether identity could overturn it — stable vs held', ()
     assert.equal(d.stable, false, `${d.source} must be unstable`)
   }
 })
+
+test('a percentage decision is only stable when the allow-list rules a late uid out', () => {
+  // Codex P2 on #2154 (r3733581237). The allow-list is checked BEFORE the
+  // percentage, so with a non-empty list a late-restoring allow-listed uid
+  // overturns what the percentage said: at 0% it flips the engine itself, at
+  // 100% it rewrites `source` to rollout-uid. A telemetry event recorded on
+  // the "stable" percentage answer then misattributes its own path — during a
+  // staff pilot, the exact configuration a ramp runs under.
+  const decide = (flags, ids = {}) =>
+    resolveEngineDecision({ featureFlags: { assessmentEngine: flags }, runner: 'pastPaperQuiz', ...ids })
+
+  // Empty allow-list: a late match is ruled out, the percentage answer holds.
+  assert.equal(decide({ pastPaperQuiz: true, rolloutPercent: 100 }).stable, true)
+  assert.equal(decide({ pastPaperQuiz: true, rolloutPercent: 0 }).stable, true)
+
+  // Non-empty allow-list: the same decisions are one auth event from changing.
+  assert.equal(decide({ pastPaperQuiz: true, rolloutPercent: 100, rolloutUids: ['staff-1'] }).stable, false)
+  assert.equal(decide({ pastPaperQuiz: true, rolloutPercent: 0, rolloutUids: ['staff-1'] }).stable, false)
+
+  // What the late uid actually does — the two overturns the instability names:
+  const atZero = decide({ pastPaperQuiz: true, rolloutPercent: 0, rolloutUids: ['staff-1'] }, { uid: 'staff-1' })
+  assert.equal(atZero.engine, true, 'at 0% the allow-list flips the engine itself')
+  assert.equal(atZero.source, 'rollout-uid')
+  const atFull = decide({ pastPaperQuiz: true, rolloutPercent: 100, rolloutUids: ['staff-1'] }, { uid: 'staff-1' })
+  assert.equal(atFull.source, 'rollout-uid', 'at 100% the source is rewritten')
+
+  // The pre-identity sources are stable regardless — the allow-list is never
+  // reached when the runner is off.
+  assert.equal(decide({ pastPaperQuiz: false, rolloutUids: ['staff-1'] }).stable, true)
+})
