@@ -382,7 +382,11 @@ export default function PublicQuizRunner() {
   // loaded (an event for a quiz that never rendered would count phantom entries).
   const pathReported = useRef(false)
   useEffect(() => {
-    if (pathReported.current || !engineFlag.resolved || loading || !quiz) return
+    // Gated on `final`, not `resolved`: in the watchdog window under a partial
+    // rollout the hook's answer (and `latched` with it) is provisional, and a
+    // once-only event recorded then is permanently wrong whenever settlement
+    // overturns it (Codex P2 on #2153, r3733460759).
+    if (pathReported.current || !engineFlag.final || loading || !quiz) return
     pathReported.current = true
     capture('assessment_engine_path', {
       runner: 'pastPaperQuiz',
@@ -395,7 +399,7 @@ export default function PublicQuizRunner() {
       // r3733390982).
       latched: engineFlag.latched,
     })
-  }, [engineFlag.resolved, engineFlag.source, engineFlag.latched, engineActive, loading, quiz])
+  }, [engineFlag.final, engineFlag.source, engineFlag.latched, engineActive, loading, quiz])
 
   function handleSelect(idx) {
     // `lockedOut` was enforced only by the old card's disabled attribute; the

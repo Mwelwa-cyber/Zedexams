@@ -269,6 +269,56 @@ describe('useAssessmentEngineFlag', () => {
     expect(result.current.engine).toBe(true)
   })
 
+  it('a ramp-down during the watchdog window commits — settlement cannot remount the engine', () => {
+    // Codex P2 on #2153 (r3733460764): a full rollout mounts the engine in the
+    // watchdog window and commits engine:true; ramping down to a partial
+    // percentage mid-window forces the old card (mandated, at once) — but the
+    // stale true commitment survived, and settlement into the partial ramp
+    // read it back and REMOUNTED the engine: engine → old → engine, two
+    // swaps. The hold must commit false OVER the stale true, making the
+    // ramp-down the only swap.
+    window.localStorage.setItem('zedexams:anonId', 'anon-device-2') // bucket 87 — out
+    setFlags({ pastPaperQuiz: true, rolloutPercent: 100 })
+    auth.loading = false
+    auth.authSettled = false
+    auth.currentUser = null
+    const { result, rerender } = renderHook(() => useAssessmentEngineFlag('pastPaperQuiz'))
+    expect(result.current.engine).toBe(true)          // stable, serves through the window
+
+    setFlags({ pastPaperQuiz: true, rolloutPercent: 50 }) // ramp down mid-window
+    rerender()
+    expect(result.current.engine).toBe(false)         // the one mandated swap
+
+    auth.authSettled = true
+    auth.currentUser = { uid: 'learner-3' }           // bucket 10 — inside the 50% ramp
+    rerender()
+    expect(result.current.engine).toBe(false)         // …and it stays down
+    expect(result.current.latched).toBe(true)
+  })
+
+  it('`final` says when telemetry may record: settled or identity-free, never provisional', () => {
+    // Codex P2 on #2153 (r3733460759): a once-only event captured in the
+    // watchdog window under a partial rollout records a provisional `latched`
+    // that settlement can invert either way.
+    setFlags({ pastPaperQuiz: true, rolloutPercent: 50 })
+    window.localStorage.setItem('zedexams:anonId', 'anon-device-2')
+    auth.loading = false
+    auth.authSettled = false
+    auth.currentUser = null
+    const { result, rerender } = renderHook(() => useAssessmentEngineFlag('pastPaperQuiz'))
+    expect(result.current.resolved).toBe(true)
+    expect(result.current.final).toBe(false)          // identity-dependent + unsettled
+
+    auth.authSettled = true
+    rerender()
+    expect(result.current.final).toBe(true)           // settled
+
+    setFlags({ pastPaperQuiz: true, rolloutPercent: 100 })
+    auth.authSettled = false
+    rerender()
+    expect(result.current.final).toBe(true)           // identity-free, settlement irrelevant
+  })
+
   it('once auth has genuinely settled, the latch is back in force', () => {
     // The other half: the fix must not disable the latch, only delay it until
     // the inputs are real.
