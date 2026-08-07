@@ -54,11 +54,26 @@ import {
   buildTimetableArtifact,
   dayEndTime,
   timeToMinutes,
+  minutesToTime,
   templatesForDayType,
   resolveCapacityFit,
   withCalendarOverride,
   removeCalendarOverride,
+  weeklyLessonMinutes,
+  lessonLengthProfile,
+  applySessionToTiming,
+  withLanguageName,
+  subjectDisplayLabel,
 } from '../../../utils/classTimetable'
+import { isShiftSession, sessionLabel, SHIFT_COVERAGE_NOTE } from '../../../utils/timetableSessions'
+import {
+  resolveSubjectTargets,
+  resolveCoverageUnit,
+  formatCoverage,
+  formatDuration,
+  DEFAULT_ALLOCATION_STRATEGY,
+} from '../../../utils/timetableCoverage'
+import { resolveSubjectAbbreviation } from '../../../utils/subjectAbbreviations'
 import {
   DEFAULT_CURRICULUM_ID,
   getCurriculum,
@@ -125,6 +140,11 @@ import WorkspaceDrawer from './timetable/WorkspaceDrawer'
 
 const DEFAULT_ACTIVITIES = ['Remedial work', 'Library', 'Clubs']
 const HISTORY_LIMIT = 60
+
+/** "08:00" + 60 → "09:00". Used to seed a newly inserted custom row. */
+function minutesToTimeSafe(start, minutes) {
+  return minutesToTime(timeToMinutes(start) + Math.max(1, Math.round(Number(minutes) || 0)))
+}
 
 /** Where the setup-vs-workspace progress for one timetable is remembered. */
 function phaseStorageKey(uid, generationId) {
@@ -194,14 +214,24 @@ export default function ClassTimetableStudio() {
   }))
   const [days, setDays] = useState(DEFAULT_DAYS)
   const [timing, setTiming] = useState(() => ({
+    session: DEFAULT_TIMING.session,
+    timingMode: DEFAULT_TIMING.timingMode,
     startTime: DEFAULT_TIMING.startTime,
     endTime: DEFAULT_TIMING.endTime,
     fitToEndTime: DEFAULT_TIMING.fitToEndTime,
     periodMinutes: DEFAULT_TIMING.periodMinutes,
     // Right-size the grid to the framework's weekly load for the starting grade.
     lessonPeriods: lessonPeriodsForGrade(initialGrade, DEFAULT_DAYS, DEFAULT_CURRICULUM_ID),
+    customRows: [],
     breaks: DEFAULT_TIMING.breaks.map((b) => ({ ...b, enabled: true })),
   }))
+  // The language a school actually teaches under the Zambian Language
+  // provision (Chinyanja, IciBemba, …). Display only — the week is still
+  // accounted for as Zambian Language.
+  const [languageName, setLanguageName] = useState('')
+  // How a shift session's shortfall is shared out (timetableCoverage.js).
+  const [allocationStrategy, setAllocationStrategy] = useState(DEFAULT_ALLOCATION_STRATEGY)
+  const [shiftNoteDismissed, setShiftNoteDismissed] = useState(false)
   const [dayTemplate, setDayTemplate] = useState('full-day-break-lunch')
   const [subjects, setSubjects] = useState(() => seedSubjects(initialGrade, DEFAULT_CURRICULUM_ID, {}))
   // Week mode: 'exact' = Mode A (per-day lesson counts sum to the curriculum
@@ -349,14 +379,50 @@ export default function ClassTimetableStudio() {
     }
   }, [weekMode, dayCounts, days, periods, daySchedules])
 
-  const capacity = useMemo(() => weeklyCapacity(periods, days, dayStructure), [periods, days, dayStructure])
+  const capacity = useMemo(
+    () => weeklyCapacity(periods, days, dayStructure, timing),
+    [periods, days, dayStructure, timing],
+  )
   // Can the complete weekly curriculum allocation physically fit the current
   // per-day capacity? Auto-fill/generation are blocked (never silently
   // truncated) when it cannot.
   const capacityFit = useMemo(
-    () => resolveCapacityFit({ subjects, days, periods, dayStructure }),
-    [subjects, days, periods, dayStructure],
+    () => resolveCapacityFit({ subjects, days, periods, dayStructure, timing }),
+    [subjects, days, periods, dayStructure, timing],
   )
+
+  /* ── Session, lesson length and the coverage target ──
+   *
+   * The week is measured in TIME, then converted into this school's own
+   * lessons — a 60-minute-lesson school owes 4 hours of English, which is 4
+   * lessons, not the 6 periods a 40-minute table happens to list.
+   *
+   * A SHIFT session cannot hold the official week at all, so its target
+   * becomes its own capacity and every subject is scaled into it. That is a
+   * system constraint, not a scheduling mistake, so nothing here ever reads
+   * as a deficit. */
+  const sessionIsShift = isShiftSession(timing.session)
+  const sessionLabelText = sessionLabel(timing.session)
+  const lessonProfile = useMemo(
+    () => lessonLengthProfile({ periods, days, dayStructure, timing }),
+    [periods, days, dayStructure, timing],
+  )
+  const capacityMinutes = useMemo(
+    () => weeklyLessonMinutes({ periods, days, dayStructure, timing }),
+    [periods, days, dayStructure, timing],
+  )
+  const targets = useMemo(() => resolveSubjectTargets({
+    subjects,
+    lessonMinutes: lessonProfile.minutes,
+    curriculumPeriodMinutes: curriculum?.periodMinutes || 0,
+    // Only a shift session is capped by its capacity. A full day converts
+    // the official time into its own lessons and is not scaled at all.
+    capacityLessons: sessionIsShift ? capacity : null,
+    strategy: allocationStrategy,
+  }), [subjects, lessonProfile.minutes, curriculum, sessionIsShift, capacity, allocationStrategy])
+  // The strategy control only means anything when the session genuinely
+  // cannot hold the full curriculum load.
+  const allocationScaled = targets.scaled
 
   /* Timing readouts. In fit mode the period length is derived (shown to the
    * teacher); in fixed mode the day end is computed and checked against the
@@ -369,19 +435,50 @@ export default function ClassTimetableStudio() {
     return Math.round(total / lessons.length)
   }, [timing.fitToEndTime, periods])
   const computedEnd = useMemo(() => dayEndTime(periods), [periods])
+  /* The knock-off check is SESSION-AWARE by construction: it compares the
+   * built day against the teacher's own knock-off time for THIS session, so
+   * an afternoon session ending 16:50 against a 16:50 target is simply
+   * correct. Fit and custom modes end exactly when they were told to, so
+   * there is nothing to check. */
   const knockOffDelta = useMemo(() => {
-    if (timing.fitToEndTime || !computedEnd || !timing.endTime) return null
+    if (timing.timingMode === 'custom' || timing.fitToEndTime) return null
+    if (!computedEnd || !timing.endTime) return null
     return timeToMinutes(computedEnd) - timeToMinutes(timing.endTime)
-  }, [timing.fitToEndTime, timing.endTime, computedEnd])
+  }, [timing.timingMode, timing.fitToEndTime, timing.endTime, computedEnd])
   const allocated = useMemo(() => totalAllocated(subjects), [subjects])
   const filled = useMemo(
     () => blocks.reduce((n, b) => n + (b.type === BLOCK_TYPES.CURRICULUM ? b.length : 0), 0),
     [blocks],
   )
   const validation = useMemo(
-    () => validateTimetableBlocks({ blocks, subjects, periods, days, dayStructure, curriculum }),
-    [blocks, subjects, periods, days, dayStructure, curriculum],
+    () => validateTimetableBlocks({
+      blocks, subjects, periods, days, dayStructure, timing, curriculum,
+      allocationScaled, lessonMinutes: lessonProfile.minutes,
+    }),
+    [blocks, subjects, periods, days, dayStructure, timing, curriculum, allocationScaled, lessonProfile.minutes],
   )
+
+  /* The workspace coverage chip, in whichever unit is TRUTHFUL for this
+   * school's day (see resolveCoverageUnit). The target is always the one the
+   * per-subject counts add up to, so "placed ✓" and every subject's "✓"
+   * agree by construction. */
+  const coverage = useMemo(() => {
+    const unit = resolveCoverageUnit({
+      lessonMinutes: lessonProfile.minutes,
+      curriculumPeriodMinutes: curriculum?.periodMinutes || 0,
+      uniformLessons: lessonProfile.uniform,
+    })
+    return {
+      unit,
+      ...formatCoverage({
+        placedLessons: validation.summary.curriculumPeriods,
+        targetLessons: targets.totals.targetLessons,
+        placedMinutes: validation.summary.contactMinutes,
+        targetMinutes: targets.totals.targetMinutes,
+        unit,
+      }),
+    }
+  }, [lessonProfile, curriculum, validation.summary, targets.totals])
 
   const artifact = useMemo(() => buildTimetableArtifact({
     header: { ...header, term: header.term === '' ? '' : Number(header.term) },
@@ -394,7 +491,10 @@ export default function ClassTimetableStudio() {
     selectedOptions,
     subjectAllocations: subjects,
     calendarOverrides,
-  }), [header, days, periods, blocks, dayStructure, displayPreferences, curriculumId, selectedOptions, subjects, calendarOverrides])
+    timing,
+    languageName,
+    allocationStrategy: allocationScaled ? allocationStrategy : null,
+  }), [header, days, periods, blocks, dayStructure, displayPreferences, curriculumId, selectedOptions, subjects, calendarOverrides, timing, languageName, allocationScaled, allocationStrategy])
 
   // The editable grid + preview render from the same shared model.
   const gridModel = useMemo(() => buildTimetableGridModel(artifact), [artifact])
@@ -484,6 +584,7 @@ export default function ClassTimetableStudio() {
       header, days, timing, subjects, generationId, blocks,
       curriculumId, selectedOptions, weekMode, dayCounts, activities,
       displayPreferences, dayTemplate, daySchedules, calendarOverrides,
+      languageName, allocationStrategy,
       slots: artifact.slots, // legacy readers of old drafts
     },
     enabled: Boolean(uid && featureFlags?.universalDrafts !== false),
@@ -508,6 +609,8 @@ export default function ClassTimetableStudio() {
       if (Array.isArray(p.activities)) setActivities(p.activities)
       if (p.displayPreferences) setDisplayPreferences((d) => ({ ...d, ...p.displayPreferences }))
       if (p.dayTemplate) setDayTemplate(p.dayTemplate)
+      if (typeof p.languageName === 'string') setLanguageName(p.languageName)
+      if (p.allocationStrategy) setAllocationStrategy(p.allocationStrategy)
       if (p.daySchedules && typeof p.daySchedules === 'object') setDaySchedules(normalizeDaySchedulesBreaks(p.daySchedules))
       if (Array.isArray(p.calendarOverrides)) setCalendarOverrides(p.calendarOverrides)
       let restoredBlocks = []
@@ -582,6 +685,42 @@ export default function ClassTimetableStudio() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [curriculumId, header.grade, days])
 
+  /* Re-derive the weekly TARGETS when a structural input changes — the
+   * session, the allocation strategy, the school's lesson length, or (for a
+   * shift) how much the session actually holds.
+   *
+   * These are structural decisions about the week, not per-subject edits, so
+   * recomputing is the honest response: leaving a 6-period English target in
+   * place after switching to 60-minute lessons would state a requirement
+   * that is 2 hours too big. Per-subject counts stay editable afterwards,
+   * and the seed key is skipped on the first pass so a restored draft is
+   * never rewritten on load. */
+  const lastTargetKeyRef = useRef(null)
+  useEffect(() => {
+    const key = [
+      curriculumId, header.grade, JSON.stringify(selectedOptions),
+      timing.session, allocationStrategy, lessonProfile.minutes,
+      sessionIsShift ? capacity : '',
+    ].join('|')
+    if (lastTargetKeyRef.current === null) { lastTargetKeyRef.current = key; return }
+    if (lastTargetKeyRef.current === key) return
+    lastTargetKeyRef.current = key
+    if (!targets.rows.length) return
+    const byId = new Map(targets.rows.map((r) => [r.id, r.lessons]))
+    setSubjects((list) => list.map((s) => (
+      byId.has(s.id) ? { ...s, periodsPerWeek: byId.get(s.id) } : s
+    )))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [curriculumId, header.grade, selectedOptions, timing.session, allocationStrategy, lessonProfile.minutes, sessionIsShift, capacity])
+
+  /* The language display name follows the subject list. */
+  useEffect(() => {
+    setSubjects((list) => {
+      const next = withLanguageName(list, languageName)
+      return next.some((s, i) => s !== list[i]) ? next : list
+    })
+  }, [languageName])
+
   /* Option-group changes swap the allocations without touching the grid. */
   useEffect(() => {
     if (!curriculum) return
@@ -599,7 +738,7 @@ export default function ClassTimetableStudio() {
   useEffect(() => {
     if (dirtySkipRef.current > 0) { dirtySkipRef.current -= 1; return }
     setDirtySinceSave(true)
-  }, [header, days, timing, subjects, blocks, curriculumId, selectedOptions, weekMode, dayCounts, activities, displayPreferences, daySchedules, calendarOverrides])
+  }, [header, days, timing, subjects, blocks, curriculumId, selectedOptions, weekMode, dayCounts, activities, displayPreferences, daySchedules, calendarOverrides, languageName, allocationStrategy])
 
   const setH = (field, value) => setHeader((h) => ({ ...h, [field]: value }))
   const setT = (field, value) => setTiming((t) => ({ ...t, [field]: value }))
@@ -646,8 +785,12 @@ export default function ClassTimetableStudio() {
   function updateSubject(id, field, value) {
     setSubjects((list) => list.map((s) => (s.id === id ? { ...s, [field]: value } : s)))
   }
+  /* A subject added by hand is a SCHOOL subject — real teaching time that
+   * is not one of the curriculum's official learning areas (Literacy at a
+   * private school, say). It is placed and printed like any other and is
+   * kept out of curriculum coverage totals. */
   function addSubject() {
-    setSubjects((list) => [...list, newSubject(`Subject ${list.length + 1}`)])
+    setSubjects((list) => [...list, newSubject(`Subject ${list.length + 1}`, { periodsPerWeek: 2 })])
   }
   function requestRemoveSubject(id) {
     const s = subjects.find((x) => x.id === id)
@@ -685,10 +828,74 @@ export default function ClassTimetableStudio() {
     setTiming((t) => ({
       ...t,
       ...tpl.timing,
-      lessonPeriods: t.lessonPeriods, // keep the grade-sized grid
+      // A template that states its own lesson count means it (a 12:40
+      // afternoon session holds six 40-minute periods and no more);
+      // otherwise the grade-sized grid is kept.
+      lessonPeriods: tpl.timing.lessonPeriods ?? t.lessonPeriods,
+      customRows: tpl.timing.customRows ? tpl.timing.customRows.map((r) => ({ ...r })) : [],
       breaks: tpl.timing.breaks.map((b) => ({ ...b })),
     }))
     toast.info(`${tpl.label} times applied — adjust anything below.`)
+  }
+
+  /* ── School session (shift) ── */
+  function changeSession(sessionId) {
+    setTiming((t) => applySessionToTiming(t, sessionId))
+    setShiftNoteDismissed(false)
+  }
+
+  /* ── Timing mode: fixed length / fit to knock-off / custom times ── */
+  function changeTimingMode(mode) {
+    setTiming((t) => {
+      const next = { ...t, timingMode: mode, fitToEndTime: mode === 'fit' }
+      // Entering custom mode with nothing typed yet: seed the rows from the
+      // day the teacher is looking at, so they EDIT their day rather than
+      // rebuilding it from an empty list.
+      if (mode === 'custom' && !(Array.isArray(t.customRows) && t.customRows.length)) {
+        next.customRows = buildPeriods(t).map((r) => ({
+          kind: r.kind === 'lesson' ? 'lesson' : 'break',
+          event: r.kind === 'lesson' ? null : (r.event || 'break'),
+          name: r.kind === 'lesson' ? '' : r.label,
+          start: r.start,
+          end: r.end,
+        }))
+      }
+      return next
+    })
+  }
+  function updateCustomRow(idx, field, value) {
+    setTiming((t) => ({
+      ...t,
+      customRows: (t.customRows || []).map((r, i) => (i === idx ? { ...r, [field]: value } : r)),
+    }))
+  }
+  function insertCustomRow(idx, kind = 'lesson') {
+    setTiming((t) => {
+      const rows = [...(t.customRows || [])]
+      const prev = rows[idx] || rows[rows.length - 1]
+      const start = prev?.end || t.startTime
+      rows.splice(idx + 1, 0, {
+        kind,
+        event: kind === 'break' ? 'break' : null,
+        name: kind === 'break' ? 'BREAK' : '',
+        start,
+        end: minutesToTimeSafe(start, kind === 'break' ? 20 : Number(t.periodMinutes) || 40),
+      })
+      return { ...t, customRows: rows }
+    })
+  }
+  function removeCustomRow(idx) {
+    setTiming((t) => ({ ...t, customRows: (t.customRows || []).filter((_, i) => i !== idx) }))
+  }
+  function moveCustomRow(idx, delta) {
+    setTiming((t) => {
+      const rows = [...(t.customRows || [])]
+      const target = idx + delta
+      if (target < 0 || target >= rows.length) return t
+      const [row] = rows.splice(idx, 1)
+      rows.splice(target, 0, row)
+      return { ...t, customRows: rows }
+    })
   }
 
   /* ── day-specific school structures (recurring, saved with this week) ── */
@@ -824,7 +1031,8 @@ export default function ClassTimetableStudio() {
     const effPeriods = opts.periods || periods
     const effStructure = opts.dayStructure !== undefined ? opts.dayStructure : dayStructure
     const effActivities = opts.activities !== undefined ? opts.activities : (weekMode === 'activities' && curriculum ? activities : [])
-    const fit = resolveCapacityFit({ subjects: subjectList, days, periods: effPeriods, dayStructure: effStructure })
+    const effTiming = opts.timing !== undefined ? opts.timing : timing
+    const fit = resolveCapacityFit({ subjects: subjectList, days, periods: effPeriods, dayStructure: effStructure, timing: effTiming })
     if (!fit.fits) {
       toast.error(`This week needs ${fit.required} periods but the current day structures only hold ${fit.capacity} (${fit.shortfall} short) — add lesson periods or change a day's structure first.`)
       return
@@ -835,6 +1043,7 @@ export default function ClassTimetableStudio() {
       days,
       periods: effPeriods,
       dayStructure: effStructure,
+      timing: effTiming,
       lockedBlocks,
       activities: effActivities,
     })
@@ -868,10 +1077,13 @@ export default function ClassTimetableStudio() {
       return
     }
     const fresh = seedSubjects(header.grade, curriculumId, selectedOptions)
-    setSubjects(fresh)
     if (curriculum) {
+      // A shift session cannot hold the official week and a school running
+      // 60-minute lessons does not owe the 40-minute table's period counts.
+      // Resize the grid ONLY when the session is not the constraint — a
+      // shift's lesson count is set by its window, not by the curriculum.
       const rec = recommendedLessonPeriods(curriculum.totalPeriods, days)
-      if (rec !== timing.lessonPeriods) {
+      if (!sessionIsShift && rec !== timing.lessonPeriods) {
         const nextTiming = { ...timing, lessonPeriods: rec }
         setTiming(nextTiming)
         const nextPeriods = buildPeriods(nextTiming)
@@ -881,16 +1093,50 @@ export default function ClassTimetableStudio() {
           ? { ...(nextCounts ? { periodsPerDay: nextCounts } : {}), ...(hasDaySchedules ? { daySchedules } : {}) }
           : null
         if (weekMode === 'exact') setDayCounts(nextCounts)
-        runAutoFill(fresh, {
+        const scaled = applyWeeklyTargets(fresh, {
+          periods: nextPeriods, dayStructure: nextStructure, timing: nextTiming,
+        })
+        setSubjects(scaled)
+        runAutoFill(scaled, {
           periods: nextPeriods,
           dayStructure: nextStructure,
+          timing: nextTiming,
           activities: weekMode === 'activities' ? activities : [],
         })
         return
       }
       if (weekMode === 'exact') setDayCounts(distributePeriodsPerDay(curriculum.totalPeriods, days))
     }
-    runAutoFill(fresh)
+    const scaled = applyWeeklyTargets(fresh)
+    setSubjects(scaled)
+    runAutoFill(scaled)
+  }
+
+  /**
+   * Convert a freshly seeded curriculum allocation into THIS school's weekly
+   * targets: official time → the school's own lesson length, then (for a
+   * shift session only) scaled into the session's capacity by the chosen
+   * strategy. Returns a new subject list; the official minutes are kept on
+   * each row so the Subjects step can show both figures.
+   */
+  function applyWeeklyTargets(list, opts = {}) {
+    const effPeriods = opts.periods || periods
+    const effStructure = opts.dayStructure !== undefined ? opts.dayStructure : dayStructure
+    const effTiming = opts.timing !== undefined ? opts.timing : timing
+    const profile = lessonLengthProfile({ periods: effPeriods, days, dayStructure: effStructure, timing: effTiming })
+    const cap = weeklyCapacity(effPeriods, days, effStructure, effTiming)
+    const resolved = resolveSubjectTargets({
+      subjects: list,
+      lessonMinutes: profile.minutes,
+      curriculumPeriodMinutes: curriculum?.periodMinutes || 0,
+      capacityLessons: isShiftSession(effTiming?.session) ? cap : null,
+      strategy: allocationStrategy,
+    })
+    const byId = new Map(resolved.rows.map((r) => [r.id, r.lessons]))
+    return withLanguageName(
+      list.map((s) => (byId.has(s.id) ? { ...s, periodsPerWeek: byId.get(s.id) } : s)),
+      languageName,
+    )
   }
 
   function onClearGrid() {
@@ -1086,8 +1332,13 @@ export default function ClassTimetableStudio() {
   }
 
   const overAllocated = allocated > capacity
-  const subjectLabels = subjects.filter((s) => s.selected !== false || (Number(s.periodsPerWeek) || 0) > 0)
-    .map((s) => s.label).filter(Boolean)
+  // Cell options carry the CANONICAL label as their value (block identity)
+  // and the display name as their text, so relabelling the language to
+  // "Chinyanja" never rewrites the schedule underneath it.
+  const subjectOptions = subjects
+    .filter((s) => s.selected !== false || (Number(s.periodsPerWeek) || 0) > 0)
+    .filter((s) => s.label)
+    .map((s) => ({ value: s.label, label: subjectDisplayLabel(s) }))
   const canUndo = historyRef.current.past.length > 0
   const canRedo = historyRef.current.future.length > 0
   const spareSlots = Math.max(0, capacity - allocated)
@@ -1101,7 +1352,14 @@ export default function ClassTimetableStudio() {
     .filter((s) => s.selected !== false && (Number(s.periodsPerWeek) || 0) > 0 && s.label)
     .map((s) => {
       const report = validation.bySubject.find((r) => r.label === s.label)
-      return { label: s.label, target: Number(s.periodsPerWeek) || 0, placed: report?.placed || 0 }
+      return {
+        label: s.label,
+        displayLabel: subjectDisplayLabel(s),
+        abbreviation: resolveSubjectAbbreviation(s),
+        schoolSubject: Boolean(s.schoolSubject),
+        target: Number(s.periodsPerWeek) || 0,
+        placed: report?.placed || 0,
+      }
     }), [subjects, validation])
 
   const gradeLabelText = useMemo(() => {
@@ -1177,10 +1435,22 @@ export default function ClassTimetableStudio() {
         <div style={{ color: 'var(--zt-text-muted)' }}>
           {curriculum.curriculumName} · {curriculum.levelLabel} · {curriculum.periodMinutes}-min periods ·
           required {curriculum.totalPeriods} periods / {curriculum.contactLabel}
+          {lessonProfile.minutes !== curriculum.periodMinutes && (
+            <> · this school teaches {lessonProfile.minutes}-minute lessons, so the weekly TIME is converted, not the period count</>
+          )}
+        </div>
+      )}
+      {sessionIsShift && (
+        <div style={{ color: 'var(--zt-text-muted)' }}>
+          {sessionLabelText} session · holds {formatDuration(capacityMinutes)} of teaching a week.
+          {allocationScaled && ` Subjects are shared out ${allocationStrategy === 'core-first' ? 'core-first' : 'proportionally'} — this session cannot hold the full curriculum week, and that is a shift-school constraint rather than a scheduling mistake.`}
         </div>
       )}
       <div className="flex flex-wrap gap-x-4 gap-y-0.5 font-bold">
-        <span>Curriculum periods: {validation.summary.curriculumPeriods} of {validation.summary.requiredPeriods}</span>
+        <span>
+          {sessionIsShift ? 'Session periods placed' : 'Curriculum periods'}: {validation.summary.curriculumPeriods}
+          {' of '}{sessionIsShift ? targets.totals.targetLessons : validation.summary.requiredPeriods}
+        </span>
         <span>Contact time: {Math.floor(validation.summary.contactMinutes / 60)} h {validation.summary.contactMinutes % 60 ? `${validation.summary.contactMinutes % 60} min` : ''}{validation.summary.requiredContactMinutes ? ` of ${Math.floor(validation.summary.requiredContactMinutes / 60)} h` : ''}</span>
         <span>Valid double periods: {validation.summary.validDoubles}</span>
         <span>School-activity slots: {validation.summary.activityPeriods}</span>
@@ -1188,15 +1458,25 @@ export default function ClassTimetableStudio() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
-        {validation.bySubject.filter((r) => r.selected || r.placed > 0).map((r) => (
+        {validation.bySubject.filter((r) => !r.schoolSubject && (r.selected || r.placed > 0)).map((r) => (
           <div key={r.label} className="flex items-center justify-between gap-2">
-            <span>{r.label}</span>
+            <span>{r.displayLabel}{r.displayLabel !== r.label ? ` (${r.label})` : ''}</span>
             <span className="font-black" style={{ color: r.status === 'ok' ? '#1E8449' : r.status === 'over' ? '#9a7000' : '#be3144' }}>
               {r.placed} of {r.target}
             </span>
           </div>
         ))}
       </div>
+
+      {/* School subjects are taught and printed, and are listed APART — they
+          are never counted toward the curriculum totals above. */}
+      {validation.summary.schoolSubjects.length > 0 && (
+        <div style={{ color: 'var(--zt-text-muted)' }}>
+          {validation.summary.schoolSubjects
+            .map((s) => `+ ${s.label} · school subject · ${s.placed} lesson${s.placed === 1 ? '' : 's'}`)
+            .join(' · ')}
+        </div>
+      )}
       {curriculum?.optionGroups?.map((g) => {
         const chosen = g.options.find((o) => o.id === g.selectedOptionId)
         const others = g.options.filter((o) => o.id !== g.selectedOptionId)
@@ -1233,6 +1513,12 @@ export default function ClassTimetableStudio() {
       updateBreak={updateBreak}
       dayTemplate={dayTemplate}
       applyDayTemplate={applyDayTemplate}
+      onChangeSession={changeSession}
+      onChangeTimingMode={changeTimingMode}
+      updateCustomRow={updateCustomRow}
+      insertCustomRow={insertCustomRow}
+      removeCustomRow={removeCustomRow}
+      moveCustomRow={moveCustomRow}
       derivedPeriodMinutes={derivedPeriodMinutes}
       computedEnd={computedEnd}
       knockOffDelta={knockOffDelta}
@@ -1282,6 +1568,14 @@ export default function ClassTimetableStudio() {
       subjects={subjects}
       validation={validation}
       capacity={capacity}
+      capacityMinutes={capacityMinutes}
+      lessonProfile={lessonProfile}
+      targets={targets}
+      sessionIsShift={sessionIsShift}
+      allocationStrategy={allocationStrategy}
+      onAllocationStrategyChange={setAllocationStrategy}
+      languageName={languageName}
+      onLanguageNameChange={setLanguageName}
       allocated={allocated}
       overAllocated={overAllocated}
       spareSlots={spareSlots}
@@ -1403,6 +1697,10 @@ export default function ClassTimetableStudio() {
               classLabel={classLabel}
               filled={filled}
               allocated={allocated}
+              coverage={coverage}
+              sessionIsShift={sessionIsShift}
+              shiftNote={sessionIsShift && !shiftNoteDismissed ? SHIFT_COVERAGE_NOTE : null}
+              onDismissShiftNote={() => setShiftNoteDismissed(true)}
               conflictsCount={conflictResult.conflicts.length}
               knockOffDelta={knockOffDelta}
               paletteSubjects={paletteSubjects}
@@ -1410,7 +1708,7 @@ export default function ClassTimetableStudio() {
               gridModel={gridModel}
               blocks={blocks}
               segments={segments}
-              subjectLabels={subjectLabels}
+              subjectOptions={subjectOptions}
               days={days}
               visibleDays={visibleDays}
               mobileDay={mobileDay}

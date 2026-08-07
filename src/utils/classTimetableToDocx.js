@@ -24,7 +24,20 @@ import {
   WidthType,
 } from 'docx'
 import { attributionSection } from './docxAttribution.js'
-import { buildTimetableGridModel, cellState, dayRowForSlot } from './timetableGridModel.js'
+import {
+  buildTimetableGridModel,
+  dayRowForSlot,
+  resolveDayCell,
+  cellTextFor,
+  subjectTintMap,
+} from './timetableGridModel.js'
+import {
+  resolvePrintSettings,
+  verticalBandLetters,
+  officialTimetableTitle,
+  MINISTRY_HEADER_TEXT,
+} from './timetablePrintTemplates.js'
+import { buildAbbreviationLegend, legendLine } from './subjectAbbreviations.js'
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '000000' },
@@ -53,43 +66,110 @@ function cell(content, { bold = false, italics = false, shade, colSpan, vertical
   })
 }
 
-function titleBlock(h) {
+function titleBlock(h, settings) {
   const gradeLabel = String(h.grade || '').replace(/^G/i, '')
   const lines = []
-  if (h.school) {
-    lines.push(new Paragraph({
-      children: [text(h.school, { bold: true, size: 24 })],
-      alignment: AlignmentType.CENTER, spacing: { after: 40 },
-    }))
+  const official = settings.template.id === 'government'
+  const centre = (runs, spacing) => new Paragraph({
+    children: Array.isArray(runs) ? runs : [runs],
+    alignment: AlignmentType.CENTER,
+    spacing,
+  })
+
+  if (official) {
+    // The Ministry format: underlined header lines, plain, no colour, and
+    // the title written the official way — grade in words AND numeral.
+    if (settings.ministryHeader) {
+      lines.push(centre(text(MINISTRY_HEADER_TEXT, { bold: true, size: 26, underline: {} }), { after: 40 }))
+    }
+    if (h.school) {
+      lines.push(centre(text(h.school, { bold: true, size: 24, underline: {} }), { after: 40 }))
+    }
+    lines.push(centre(
+      text(officialTimetableTitle({ grade: h.grade, className: h.className }), { bold: true, size: 28, underline: {} }),
+      { after: 40 },
+    ))
+    const meta = [h.term && `TERM ${h.term}`, h.year && String(h.year)].filter(Boolean).join('   ·   ')
+    lines.push(meta
+      ? centre(text(meta, { bold: true, size: 20 }), { after: 160 })
+      : centre(text(' ', { size: 8 }), { after: 120 }))
+    return lines
   }
-  lines.push(new Paragraph({
-    children: [text('CLASS TIMETABLE', { bold: true, size: 28 })],
-    alignment: AlignmentType.CENTER, spacing: { after: 40 },
-  }))
+
+  if (h.school) lines.push(centre(text(h.school, { bold: true, size: 24 }), { after: 40 }))
+  lines.push(centre(text('CLASS TIMETABLE', { bold: true, size: 28 }), { after: 40 }))
   const meta = [
     h.className && String(h.className).trim(),
     gradeLabel && `Grade ${gradeLabel}`,
     h.term && `Term ${h.term}`,
     h.year && String(h.year),
   ].filter(Boolean).join('   ·   ')
-  if (meta) {
-    lines.push(new Paragraph({
-      children: [text(meta, { bold: true, size: 20 })],
-      alignment: AlignmentType.CENTER, spacing: { after: 40 },
-    }))
-  }
-  if (h.teacherName) {
-    lines.push(new Paragraph({
-      children: [text(`Class teacher: ${h.teacherName}`, { size: 18 })],
-      alignment: AlignmentType.CENTER, spacing: { after: 160 },
-    }))
-  } else {
-    lines.push(new Paragraph({ children: [text(' ', { size: 8 })], spacing: { after: 120 } }))
-  }
+  if (meta) lines.push(centre(text(meta, { bold: true, size: 20 }), { after: 40 }))
+  lines.push(h.teacherName
+    ? centre(text(`Class teacher: ${h.teacherName}`, { size: 18 }), { after: 160 })
+    : centre(text(' ', { size: 8 }), { after: 120 }))
   return lines
 }
 
-function signatureBlock(h) {
+/** The abbreviation key printed under an abbreviated grid. */
+function legendBlock(model, settings) {
+  if (!settings.showLegend) return []
+  const entries = buildAbbreviationLegend(
+    model.subjectAllocations?.length ? model.subjectAllocations : model.subjects.map((label) => ({ label })),
+    new Set(model.subjects),
+  )
+  if (!entries.length) return []
+  return [new Paragraph({
+    children: [text('KEY: ', { bold: true, size: 16 }), text(legendLine(entries), { size: 16 })],
+    spacing: { before: 160 },
+  })]
+}
+
+function signatureBlock(h, settings) {
+  if (settings.signatures) {
+    // Signature lines and a clear space for the school stamp — what makes
+    // this an official document rather than a printout. The rules are drawn
+    // as a bordered table so Word keeps them on the page.
+    const line = (label) => new TableCell({
+      children: [
+        new Paragraph({ children: [text(' ', { size: 18 })], spacing: { before: 320 } }),
+        new Paragraph({ children: [text(label, { size: 16 })] }),
+      ],
+      borders: {
+        top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+        bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+        left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+        right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+      },
+      width: { size: 33, type: WidthType.PERCENTAGE },
+    })
+    const underlined = (label) => new TableCell({
+      children: [
+        new Paragraph({ children: [text(' ', { size: 18 })], spacing: { before: 320 } }),
+        new Paragraph({ children: [text(label, { size: 16 })] }),
+      ],
+      borders: {
+        top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+        bottom: { style: BorderStyle.SINGLE, size: 4, color: '000000' },
+        left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+        right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+      },
+      width: { size: 33, type: WidthType.PERCENTAGE },
+    })
+    return [
+      new Paragraph({ children: [text(' ', { size: 12 })], spacing: { before: 240 } }),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [new TableRow({
+          children: [
+            underlined(h.teacherName ? `Class teacher: ${h.teacherName}` : 'Class teacher'),
+            underlined('Senior teacher / Head'),
+            line('School stamp'),
+          ],
+        })],
+      }),
+    ]
+  }
   const bits = [
     h.preparedBy && `Prepared by: ${h.preparedBy}`,
     h.approvedBy && `Approved by: ${h.approvedBy}`,
@@ -112,9 +192,9 @@ function dayTimeCaption(model, day, slot) {
 }
 
 /** Content runs for a placed block cell. */
-function blockCellOpts(block, span, layout, caption) {
+function blockCellOpts(model, block, span, layout, caption, settings, tints) {
   const isActivity = block.type === 'school-activity'
-  const runs = [text(block.label, { bold: !isActivity, italics: isActivity })]
+  const runs = [text(cellTextFor(model, block.label, settings.cellText), { bold: !isActivity, italics: isActivity })]
   if (span > 1) {
     runs.push(new TextRun({ break: 1 }))
     runs.push(text('DOUBLE PERIOD', { size: 12, color: '666666' }))
@@ -123,13 +203,22 @@ function blockCellOpts(block, span, layout, caption) {
     runs.push(new TextRun({ break: 1 }))
     runs.push(text(caption, { size: 12, color: '888888' }))
   }
+  const shade = settings.colour
+    ? (isActivity ? 'F6F3EA' : (tints[block.label] || '').replace('#', '').toUpperCase() || null)
+    : null
   return {
     runs,
     opts: {
-      ...(isActivity ? { shade: 'F6F3EA' } : {}),
+      ...(shade ? { shade } : {}),
       ...(span > 1 && layout === 'days-as-rows' ? { colSpan: span } : {}),
     },
   }
+}
+
+/** A day that has a non-teaching row where the other days have a lesson —
+ * the assembly occupying Period 1 on Monday only. */
+function dayBandCell(label, settings) {
+  return cell(label, { bold: true, ...(settings.colour ? { shade: 'F1ECE0' } : {}) })
 }
 
 function timeLabelRuns(model, p) {
@@ -142,13 +231,15 @@ function timeLabelRuns(model, p) {
   return runs
 }
 
-function daysAsColumnsRows(model) {
+function daysAsColumnsRows(model, settings, tints) {
   const dayWidth = model.days.length ? Math.floor(86 / model.days.length) : 86
+  const headShade = settings.colour ? 'E2E8F0' : undefined
+  const bandShade = settings.colour ? 'F1ECE0' : undefined
   const headerRow = new TableRow({
     tableHeader: true,
     children: [
-      cell('TIME', { bold: true, shade: 'E2E8F0', widthPct: 14 }),
-      ...model.days.map((d) => cell(d.toUpperCase(), { bold: true, shade: 'E2E8F0', widthPct: dayWidth })),
+      cell('TIME', { bold: true, shade: headShade, widthPct: 14 }),
+      ...model.days.map((d) => cell(d.toUpperCase(), { bold: true, shade: headShade, widthPct: dayWidth })),
     ],
   })
 
@@ -157,7 +248,7 @@ function daysAsColumnsRows(model) {
       return new TableRow({
         children: [
           cell(`${p.start}–${p.end}`, { bold: true }),
-          cell(p.label, { bold: true, shade: 'F1ECE0', colSpan: model.days.length || 1 }),
+          cell(p.label, { bold: true, shade: bandShade, colSpan: model.days.length || 1 }),
         ],
       })
     }
@@ -165,14 +256,18 @@ function daysAsColumnsRows(model) {
       children: [
         cell(timeLabelRuns(model, p), {}),
         ...model.days.map((d) => {
-          const c = cellState(model, d, p.slot)
+          const c = resolveDayCell(model, d, p)
           if (c.state === 'covered') {
             // Word merges vertically: continuation cells carry CONTINUE.
             return cell('', { verticalMerge: VerticalMergeType.CONTINUE })
           }
-          if (c.state === 'off') return cell('—', { shade: 'EFECE3' })
+          if (c.state === 'off') return cell('—', { shade: settings.colour ? 'EFECE3' : undefined })
+          if (c.state === 'band') return dayBandCell(c.bandLabel, settings)
           if (!c.block) return cell('', {})
-          const { runs, opts } = blockCellOpts(c.block, c.block.length, 'days-as-columns', dayTimeCaption(model, d, p.slot))
+          const slot = c.row?.slot ?? p.slot
+          const { runs, opts } = blockCellOpts(
+            model, c.block, c.block.length, 'days-as-columns', dayTimeCaption(model, d, slot), settings, tints,
+          )
           return cell(runs, {
             ...opts,
             ...(c.block.length > 1 ? { verticalMerge: VerticalMergeType.RESTART } : {}),
@@ -184,20 +279,22 @@ function daysAsColumnsRows(model) {
   return [headerRow, ...bodyRows]
 }
 
-function daysAsRowsRows(model) {
+function daysAsRowsRows(model, settings, tints) {
   const n = model.rows.length || 1
   const colWidth = Math.floor(91 / n)
+  const headShade = settings.colour ? 'E2E8F0' : undefined
+  const bandShade = settings.colour ? 'F1ECE0' : undefined
   const headerRow = new TableRow({
     tableHeader: true,
     children: [
-      cell('DAY', { bold: true, shade: 'E2E8F0', widthPct: 9 }),
+      cell('DAY', { bold: true, shade: headShade, widthPct: 9 }),
       ...model.rows.map((p) => {
         if (p.kind === 'break') {
           return cell([
             text(p.label, { bold: true, size: 12 }),
             new TextRun({ break: 1 }),
             text(`${p.start}–${p.end}`, { size: 11, color: '555555' }),
-          ], { shade: 'F1ECE0', widthPct: colWidth })
+          ], { shade: bandShade, widthPct: colWidth })
         }
         const runs = []
         if (model.labelMode !== 'time') runs.push(text(`P${p.slot}`, { bold: true, size: 14 }))
@@ -205,21 +302,37 @@ function daysAsRowsRows(model) {
           if (runs.length) runs.push(new TextRun({ break: 1 }))
           runs.push(text(`${p.start}–${p.end}`, { size: 11, color: '555555' }))
         }
-        return cell(runs, { shade: 'E2E8F0', widthPct: colWidth })
+        return cell(runs, { shade: headShade, widthPct: colWidth })
       }),
     ],
   })
 
-  const bodyRows = model.days.map((day) => new TableRow({
+  // BREAK spelled one letter per day-row down its own column.
+  const bandLetters = new Map()
+  if (settings.spellBands) {
+    for (const p of model.rows) {
+      if (p.kind === 'break') bandLetters.set(p.id, verticalBandLetters(p.label, model.days.length))
+    }
+  }
+
+  const bodyRows = model.days.map((day, dayIndex) => new TableRow({
     children: [
       cell(day.toUpperCase(), { bold: true }),
       ...model.rows.map((p) => {
-        if (p.kind === 'break') return cell(p.label, { bold: true, shade: 'F1ECE0' })
-        const c = cellState(model, day, p.slot)
+        if (p.kind === 'break') {
+          const letters = bandLetters.get(p.id)
+          if (letters) return cell(letters[dayIndex] || '', { bold: true, shade: bandShade })
+          return cell(p.label, { bold: true, shade: bandShade })
+        }
+        const c = resolveDayCell(model, day, p)
         if (c.state === 'covered') return null // consumed by the colSpan
-        if (c.state === 'off') return cell('—', { shade: 'EFECE3' })
+        if (c.state === 'off') return cell('—', { shade: settings.colour ? 'EFECE3' : undefined })
+        if (c.state === 'band') return dayBandCell(c.bandLabel, settings)
         if (!c.block) return cell('', {})
-        const { runs, opts } = blockCellOpts(c.block, c.block.length, 'days-as-rows', dayTimeCaption(model, day, p.slot))
+        const slot = c.row?.slot ?? p.slot
+        const { runs, opts } = blockCellOpts(
+          model, c.block, c.block.length, 'days-as-rows', dayTimeCaption(model, day, slot), settings, tints,
+        )
         return cell(runs, opts)
       }).filter(Boolean),
     ],
@@ -228,10 +341,17 @@ function daysAsRowsRows(model) {
 }
 
 export function buildClassTimetableDocument(timetable, opts = {}) {
-  const model = buildTimetableGridModel(timetable, opts.layout ? { layout: opts.layout } : {})
+  const model = buildTimetableGridModel(timetable)
+  const settings = resolvePrintSettings(model, opts)
+  // `opts.layout` is the explicit caller override (the library view's own
+  // toggle); otherwise the print template + preference decide.
+  model.layout = opts.layout || settings.layout
   const h = model?.header || {}
+  const tints = settings.colour ? subjectTintMap(model) : {}
 
-  const rows = model.layout === 'days-as-rows' ? daysAsRowsRows(model) : daysAsColumnsRows(model)
+  const rows = model.layout === 'days-as-rows'
+    ? daysAsRowsRows(model, settings, tints)
+    : daysAsColumnsRows(model, settings, tints)
   const table = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows,
@@ -245,7 +365,12 @@ export function buildClassTimetableDocument(timetable, opts = {}) {
     sections: [{
       ...attributionSection(opts),
       properties: { page: { size: { orientation: PageOrientation.LANDSCAPE } } },
-      children: [...titleBlock(h), table, ...signatureBlock(h)],
+      children: [
+        ...titleBlock(h, settings),
+        table,
+        ...legendBlock(model, settings),
+        ...signatureBlock(h, settings),
+      ],
     }],
   })
 }

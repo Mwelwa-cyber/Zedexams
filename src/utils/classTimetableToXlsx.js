@@ -16,7 +16,15 @@
  */
 
 import { saveBlob } from './saveBlob.js'
-import { buildTimetableGridModel, cellState, dayRowForSlot } from './timetableGridModel.js'
+import {
+  buildTimetableGridModel,
+  dayRowForSlot,
+  resolveDayCell,
+  cellTextFor,
+  displayLabelFor,
+} from './timetableGridModel.js'
+import { resolvePrintSettings } from './timetablePrintTemplates.js'
+import { buildAbbreviationLegend } from './subjectAbbreviations.js'
 
 const XML_HEAD ='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
 
@@ -148,7 +156,7 @@ function dayTimeSuffix(model, day, slot) {
 
 /** "Days across the top": TIME rows down, day columns across, doubles merge
  * vertically across the covered rows. */
-function daysAsColumnsSheet(model, metaLine) {
+function daysAsColumnsSheet(model, metaLine, settings) {
   const days = model.days
   const ncols = 1 + days.length
   const lastCol = colLetter(ncols - 1)
@@ -184,16 +192,20 @@ function daysAsColumnsSheet(model, metaLine) {
     const cells = [strCell(`A${r}`, timeLabel(model, p), S.TIME)]
     days.forEach((d, i) => {
       const ref = `${colLetter(i + 1)}${r}`
-      const c = cellState(model, d, p.slot)
+      const c = resolveDayCell(model, d, p)
       if (c.state === 'covered') { cells.push(strCell(ref, '', blockStyle(c.block))); return }
       if (c.state === 'off') { cells.push(strCell(ref, '—', S.OFF)); return }
+      // This day has a band (the assembly occupying Period 1) where the
+      // other days have a lesson.
+      if (c.state === 'band') { cells.push(strCell(ref, c.bandLabel, S.BREAK)); return }
       if (!c.block) { cells.push(strCell(ref, '', S.CELL)); return }
+      const slot = c.row?.slot ?? p.slot
       if (c.block.length > 1) {
         // The covered lesson rows are consecutive sheet rows (a double never
         // crosses a break), so a straight vertical merge is safe.
         merges.push(`${ref}:${colLetter(i + 1)}${r + c.block.length - 1}`)
       }
-      cells.push(strCell(ref, `${c.block.label}${dayTimeSuffix(model, d, p.slot)}`, blockStyle(c.block)))
+      cells.push(strCell(ref, `${cellTextFor(model, c.block.label, settings.cellText)}${dayTimeSuffix(model, d, slot)}`, blockStyle(c.block)))
     })
     rows.push({ r, cells })
   })
@@ -204,7 +216,7 @@ function daysAsColumnsSheet(model, metaLine) {
 
 /** "Days down the left": day rows down, period columns across, doubles merge
  * horizontally. */
-function daysAsRowsSheet(model, metaLine) {
+function daysAsRowsSheet(model, metaLine, settings) {
   const ncols = 1 + model.rows.length
   const lastCol = colLetter(ncols - 1)
   const merges = [`A1:${lastCol}1`, `A2:${lastCol}2`]
@@ -230,14 +242,16 @@ function daysAsRowsSheet(model, metaLine) {
     model.rows.forEach((p, i) => {
       const ref = `${colLetter(i + 1)}${r}`
       if (p.kind === 'break') { cells.push(strCell(ref, p.label, S.BREAK)); return }
-      const c = cellState(model, day, p.slot)
+      const c = resolveDayCell(model, day, p)
       if (c.state === 'covered') { cells.push(strCell(ref, '', blockStyle(c.block))); return }
       if (c.state === 'off') { cells.push(strCell(ref, '—', S.OFF)); return }
+      if (c.state === 'band') { cells.push(strCell(ref, c.bandLabel, S.BREAK)); return }
       if (!c.block) { cells.push(strCell(ref, '', S.CELL)); return }
+      const slot = c.row?.slot ?? p.slot
       if (c.block.length > 1) {
         merges.push(`${ref}:${colLetter(i + c.block.length)}${r}`)
       }
-      cells.push(strCell(ref, `${c.block.label}${dayTimeSuffix(model, day, p.slot)}`, blockStyle(c.block)))
+      cells.push(strCell(ref, `${cellTextFor(model, c.block.label, settings.cellText)}${dayTimeSuffix(model, day, slot)}`, blockStyle(c.block)))
     })
     rows.push({ r, cells })
   })
@@ -248,7 +262,7 @@ function daysAsRowsSheet(model, metaLine) {
 
 /** Second worksheet: curriculum, official vs actual allocations, options,
  * activities and validation results — the audit trail beside the grid. */
-function detailsSheet(model, timetable, validation) {
+function detailsSheet(model, timetable, validation, settings = { cellText: 'full' }) {
   const rows = []
   let r = 0
   const line = (label, value, style = S.LEFT) => {
@@ -284,8 +298,23 @@ function detailsSheet(model, timetable, validation) {
   const allocations = Array.isArray(timetable?.subjectAllocations) ? timetable.subjectAllocations : []
   if (allocations.length) {
     section('Official weekly allocations')
-    for (const s of allocations) {
-      line(s.label, s.selected === false ? 'Not selected (option group)' : `${s.periodsPerWeek} periods/week`)
+    for (const s of allocations.filter((x) => !x.schoolSubject)) {
+      line(displayLabelFor(model, s.label), s.selected === false ? 'Not selected (option group)' : `${s.periodsPerWeek} periods/week`)
+    }
+    // School subjects are taught and printed, and are deliberately listed
+    // apart — they are never part of the curriculum totals above.
+    const schoolSubjects = allocations.filter((x) => x.schoolSubject)
+    if (schoolSubjects.length) {
+      section('School subjects (outside the curriculum)')
+      for (const s of schoolSubjects) line(s.label, `${s.periodsPerWeek} lessons/week`)
+    }
+  }
+
+  if (settings.cellText === 'abbrev') {
+    const legend = buildAbbreviationLegend(allocations.length ? allocations : model.subjects.map((label) => ({ label })), new Set(model.subjects))
+    if (legend.length) {
+      section('Key')
+      for (const e of legend) line(e.abbr, e.label)
     }
   }
 
@@ -325,7 +354,11 @@ const SHEET2 = 'Details'
 
 /** The full workbook as { path → XML string } — pure, so node can test it. */
 export function buildClassTimetableWorkbookFiles(timetable, opts = {}) {
-  const model = buildTimetableGridModel(timetable, opts.layout ? { layout: opts.layout } : {})
+  const model = buildTimetableGridModel(timetable)
+  const settings = resolvePrintSettings(model, opts)
+  // The workbook follows the same print orientation and cell text as the
+  // PDF and Word downloads — one resolution, four renderers.
+  model.layout = opts.layout || settings.layout
   const h = model.header || {}
   const gradeLabel = String(h.grade || '').replace(/^G/i, '')
   const metaLine = [
@@ -334,9 +367,9 @@ export function buildClassTimetableWorkbookFiles(timetable, opts = {}) {
   ].filter(Boolean).join('  ·  ')
 
   const sheet1 = model.layout === 'days-as-rows'
-    ? daysAsRowsSheet(model, metaLine)
-    : daysAsColumnsSheet(model, metaLine)
-  const sheet2 = detailsSheet(model, timetable, opts.validation)
+    ? daysAsRowsSheet(model, metaLine, settings)
+    : daysAsColumnsSheet(model, metaLine, settings)
+  const sheet2 = detailsSheet(model, timetable, opts.validation, settings)
 
   const contentTypes = XML_HEAD +
     '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +

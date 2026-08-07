@@ -805,7 +805,11 @@ function sampleArtifact(layout) {
     days: DEFAULT_DAYS,
     periods: G5_PERIODS,
     blocks,
-    displayPreferences: layout ? { timetableLayout: layout } : null,
+    // `layout` seeds BOTH the on-screen and the print orientation so the
+    // existing assertions keep addressing one grid. Print orientation is a
+    // separate preference now (it defaults to days-left, per the Ministry
+    // format) — see the dedicated test below.
+    displayPreferences: layout ? { timetableLayout: layout, printLayout: layout } : null,
     curriculumId: 'cbc-2023',
     selectedOptions: { practical: 'expressive-arts' },
     subjectAllocations: subjects,

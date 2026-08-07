@@ -30,8 +30,10 @@
 import {
   Activity,
   AlertTriangle,
+  ArrowDown,
   ArrowLeft,
   ArrowRight,
+  ArrowUp,
   Award,
   BadgeCheck,
   BarChart3,
@@ -158,8 +160,10 @@ import {
 export const LUCIDE_ICONS = Object.freeze({
   Activity,
   AlertTriangle,
+  ArrowDown,
   ArrowLeft,
   ArrowRight,
+  ArrowUp,
   Award,
   BadgeCheck,
   BarChart3,
