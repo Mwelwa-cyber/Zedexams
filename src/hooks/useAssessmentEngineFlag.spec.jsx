@@ -210,17 +210,22 @@ describe('useAssessmentEngineFlag', () => {
     expect(result.current.engine).toBe(true)
   })
 
-  it('the AUTH WATCHDOG does not latch a returning learner as anonymous', () => {
+  it('the WATCHDOG WINDOW serves the old card and holds the visit there', () => {
     // The state Codex found, and it is reachable rather than theoretical:
     // `AuthContext`'s restoration watchdog clears `loading` after 5s (30s with
     // a session hint) WITHOUT an auth event, so a returning learner on a slow
     // cold start is `loading === false` with `currentUser === null`.
     //
-    // Latching there would commit the anonymous answer, and the real uid
-    // arriving afterwards would look to the latch like a ramp-up — refused —
-    // leaving that learner on the wrong runner for the whole attempt. That is
-    // strictly worse than the swap the latch exists to prevent: a transient
-    // turned permanent.
+    // RE-DECIDED on #2151 (Codex r3733319245). The first version of this test
+    // demanded the late uid answer be "correctable" — i.e. the card SWAPS to
+    // the engine when auth finally settles. That contradicts the latch's own
+    // asymmetry ("an UPGRADE waits; nobody needs to be moved onto the engine
+    // mid-question"): the old runner is a correct experience that most
+    // visitors get by design, while a mid-question swap unmounts the card and
+    // loses the learner's in-progress answer. So the watchdog window serves
+    // the old card, COMMITS that answer for the visit, and the late uid — even
+    // one inside the ramp — finishes the visit where it started. `latched`
+    // reports the hold, so telemetry can count how often the window bites.
     window.localStorage.setItem('zedexams:anonId', 'anon-device-2') // bucket 87 — out
     setFlags({ pastPaperQuiz: true, rolloutPercent: 50 })
     auth.loading = false        // the watchdog gave up…
@@ -233,11 +238,14 @@ describe('useAssessmentEngineFlag', () => {
     expect(result.current.resolved).toBe(true)
     expect(result.current.engine).toBe(false)
 
-    // Firebase finally speaks, and the answer is CORRECTABLE.
+    // Firebase finally speaks with a uid the ramp INCLUDES — and the visit
+    // stays where it mounted. The next visit gets the engine from its first
+    // frame.
     auth.authSettled = true
     auth.currentUser = { uid: 'learner-3' } // bucket 10 — in
     rerender()
-    expect(result.current.engine).toBe(true)
+    expect(result.current.engine).toBe(false)
+    expect(result.current.latched).toBe(true)
   })
 
   it('once auth has genuinely settled, the latch is back in force', () => {

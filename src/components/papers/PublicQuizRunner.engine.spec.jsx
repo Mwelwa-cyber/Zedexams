@@ -29,7 +29,7 @@ vi.mock('../../hooks/useAssessmentEngineFlag', () => ({
 vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: null, userProfile: null }),
 }))
-vi.mock('../../utils/pastPapers', () => ({
+vi.mock('../../utils/pastPaperLookup', () => ({
   getPaperById: vi.fn(async () => ({
     id: 'p1', title: 'Mathematics P1 2024', subject: 'mathematics',
     grade: '7', year: 2024, quizId: 'quiz-1', quizStatus: 'attached',
