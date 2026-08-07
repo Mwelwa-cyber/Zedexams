@@ -46,6 +46,21 @@ export {
   fromGame,
 } from './normalise/index.js'
 
+// The verdict seam and the render-refusal question, exported for the FIRST
+// cutover (the past-paper canary). Per the rule above, each part of the engine
+// reaches the front door with the cutover that needs it — this is that cutover.
+//
+// Two deliberate absences:
+//   • `persist/` — the canary route persists nothing; the quiz cutover that
+//     writes will export it when it arrives (and `test:paper-quiz-zero-write`
+//     fails the build if it arrives early).
+//   • the RENDER COMPONENTS — they are .jsx, and this front door must load
+//     under plain node, which is what lets the contract be tested at all. A
+//     consumer imports the render AREA (`…/assessment-engine/render`) directly,
+//     same rule as every other area index in the repo.
+export { markAttempt, MARKING_STRATEGIES } from './marking/index.js'
+export { canRender, unrenderableTypes } from './render/supportedTypes.js'
+
 export {
   // The contract itself
   assessmentSchema,
