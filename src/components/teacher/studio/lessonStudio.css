@@ -798,6 +798,16 @@
 /* The wizard sheet and the live-generation strip along the bottom — the
    reported "sticky bottom action bar" that stayed cream. */
 [data-theme='night'] .lpw-sheet { background: #1A222E; }
+/* .lpw-nav is the OTHER bar along the bottom, and it stayed cream too: the
+   fix above named `.lpw-sheet`, so the wizard's action bar kept its parchment
+   fill and its dark-ink progress track over a dark page. Same treatment —
+   the surface token, the night line colour, and a track light enough to be
+   seen against it. */
+[data-theme='night'] .lpw-nav {
+  background: rgba(26, 34, 46, 0.96);
+  border-top-color: #6B7A8D;
+}
+[data-theme='night'] .lpw-nav-track { background: rgba(255, 255, 255, 0.16); }
 [data-theme='night'] .lp-live-label { color: #EDE7DC; }
 [data-theme='night'] .lp-live-stop {
   background: #232D3B;
@@ -806,3 +816,71 @@
 }
 [data-theme='night'] .lp-live-track { background: #3B4757; }
 [data-theme='night'] .lp-live-foot { color: #94A0AF; }
+
+/* ── Date control: the field shows the date the way a teacher reads it ──────
+ *
+ * A native date input prints 07/08/2026, which is 7 August or 8 July depending
+ * on where you learned to read a date, and the studio used to answer that by
+ * repeating the value as "Fri, 7 Aug 2026" on a line UNDERNEATH — two
+ * renderings of one value, and the ambiguous one in the control.
+ *
+ * The <input type="date"> is still the control: same id, same value, same
+ * picker, same keyboard behaviour, same validation. Only its own text is made
+ * transparent, and the readable form is painted over it by the sibling
+ * `.ldf-date-display` span (aria-hidden — assistive tech reads the input's
+ * real value, so a second copy would only be heard twice).
+ *
+ * `color: transparent` rather than the ::-webkit-datetime-edit pseudo-element:
+ * that pseudo doesn't exist in Firefox, which would then draw the native text
+ * UNDER the overlay and show both. Chrome's picker indicator is drawn from its
+ * own colour, not currentColor, so it survives.
+ */
+.ldf-date-input {
+  color: transparent;
+}
+.ldf-date-input::-webkit-datetime-edit {
+  color: transparent;
+}
+/* The :not() chain is copied from the `.lps-game` form rules above and from
+   their Night twin, for the reason documented there: each :not([type=…])
+   contributes its argument's specificity, so those rules score five and six
+   selectors and a plain `.ldf-date-input` loses to both. It measured as
+   `color: #3d3529` in the light skin and `#EDE7DC` under Night — i.e. the
+   native 07/08/2026 printing UNDERNEATH the readable overlay, which is the one
+   failure this whole treatment exists to avoid. Matching the chain is what
+   makes it apply. */
+.lps-game input.ldf-date-input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+[data-theme='night'] .lps-game input.ldf-date-input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']) {
+  color: transparent;
+}
+
+.ldf-date-display {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  /* Clears the leading FieldIcon on the left and the browser's calendar
+     button on the right; pointer-events off so every click still lands on
+     the input beneath. */
+  padding-left: 2.25rem;
+  padding-right: 2.25rem;
+  font-size: 13px;
+  line-height: 1.2;
+  color: #3d3529;
+  pointer-events: none;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ldf-date-display--empty {
+  color: #8b8271;
+}
+
+/* Night repaints the studio inputs dark (see the block above), so the overlay
+   has to follow or the date reads as invisible text on a dark field. */
+[data-theme='night'] .lps-game .ldf-date-display {
+  color: #EDE7DC;
+}
+[data-theme='night'] .lps-game .ldf-date-display--empty {
+  color: #94A0AF;
+}

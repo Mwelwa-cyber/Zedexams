@@ -130,7 +130,7 @@ beforeEach(() => {
 describe('LessonPlanWizard — one step at a time', () => {
   it('starts on Step 1 of 5: Lesson Setup', () => {
     renderWizard()
-    expect(screen.getByText('Step 1 of 5')).toBeInTheDocument()
+    expect(screen.getByText('Step 1 of 5 — Lesson Setup')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Lesson Setup' })).toBeInTheDocument()
   })
 
@@ -211,7 +211,7 @@ describe('LessonPlanWizard — per-step validation', () => {
     renderWizard()
     completeStep1()
     next()
-    expect(screen.getByText('Step 2 of 5')).toBeInTheDocument()
+    expect(screen.getByText('Step 2 of 5 — Topic & Curriculum')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Topic & Curriculum' })).toBeInTheDocument()
   })
 
@@ -301,7 +301,7 @@ describe('LessonPlanWizard — Review & Generate', () => {
   it('reaches Review with a grouped summary of every choice', () => {
     renderWizard()
     walkToReview()
-    expect(screen.getByText('Step 5 of 5')).toBeInTheDocument()
+    expect(screen.getByText('Step 5 of 5 — Review & Generate')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Review & Generate' })).toBeInTheDocument()
     expect(screen.getByText('Grade 4')).toBeInTheDocument()
     expect(screen.getByText('4.1 Numbers')).toBeInTheDocument()
@@ -360,7 +360,7 @@ describe('LessonPlanWizard — step restore', () => {
     renderWizard()
     act(() => studioStateRef.setWizardStep(3))
     expect(screen.getByRole('heading', { name: 'Format & Options' })).toBeInTheDocument()
-    expect(screen.getByText('Step 4 of 5')).toBeInTheDocument()
+    expect(screen.getByText('Step 4 of 5 — Format & Options')).toBeInTheDocument()
   })
 
   it('clamps a corrupt restored step instead of blanking the wizard', () => {
@@ -370,27 +370,37 @@ describe('LessonPlanWizard — step restore', () => {
   })
 })
 
-// ── Saved-lessons overlay (opened from "My lessons") ─────────────────────────
+// ── Saved-lessons overlay ("My lessons") ─────────────────────────────────────
+// The TRIGGER lives in the studio header's utility row (one navigation cluster
+// per page), so the wizard takes the open state as a prop and renders only the
+// panel. These tests drive that prop directly.
 
 describe('LessonPlanWizard — My lessons panel', () => {
-  it('is closed by default and opens from the header button', () => {
+  it('renders no trigger of its own — the header owns it', () => {
+    renderWizard()
+    expect(screen.queryByRole('button', { name: /my lessons/i })).not.toBeInTheDocument()
+  })
+
+  it('is closed unless the studio says it is open', () => {
     renderWizard()
     expect(screen.queryByRole('dialog', { name: /your progress/i })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /my lessons/i }))
+  })
+
+  it('opens when the studio passes progressOpen', () => {
+    renderWizard({ extra: { progressOpen: true, onCloseProgress: vi.fn() } })
     expect(screen.getByRole('dialog', { name: /your progress/i })).toBeInTheDocument()
   })
 
   it('explains what to do when no class/subject is chosen yet', () => {
-    renderWizard()
-    fireEvent.click(screen.getByRole('button', { name: /my lessons/i }))
+    renderWizard({ extra: { progressOpen: true, onCloseProgress: vi.fn() } })
     expect(screen.getByText(/pick a class and subject/i)).toBeInTheDocument()
   })
 
-  it('closes on Escape', () => {
-    renderWizard()
-    fireEvent.click(screen.getByRole('button', { name: /my lessons/i }))
+  it('asks the studio to close it on Escape', () => {
+    const onCloseProgress = vi.fn()
+    renderWizard({ extra: { progressOpen: true, onCloseProgress } })
     fireEvent.keyDown(document, { key: 'Escape' })
-    expect(screen.queryByRole('dialog', { name: /your progress/i })).not.toBeInTheDocument()
+    expect(onCloseProgress).toHaveBeenCalled()
   })
 })
 
@@ -459,11 +469,32 @@ describe('LessonPlanWizard — Set up for you card', () => {
     expect(onDismissPlanContext).toHaveBeenCalledTimes(1)
   })
 
-  it('Change focuses the Class picker', () => {
+  // ── One curriculum affordance at a time ──
+  // The card already carries the "✓ CBC curriculum" chip and a Change action,
+  // so the setup step's own curriculum row stands down while it is on screen.
+  // Both Change controls open the SAME picker: if the card's did anything
+  // else, hiding the row would leave no way to change curriculum at all.
+
+  it('suppresses the setup step\'s curriculum row while the card is showing', () => {
+    renderWizard({ extra: { appliedContext: true } })
+    completeStep1()
+    expect(screen.queryByRole('button', { name: /change curriculum/i })).not.toBeInTheDocument()
+  })
+
+  it('restores the curriculum row once the card is gone', () => {
+    renderWizard()
+    completeStep1()
+    expect(screen.getByRole('button', { name: /change curriculum/i })).toBeInTheDocument()
+  })
+
+  it('Change re-opens the curriculum picker', () => {
     renderWizard({ extra: { appliedContext: true } })
     completeStep1()
     fireEvent.click(screen.getByRole('button', { name: 'Change' }))
-    expect(document.activeElement).toBe(document.getElementById('ldf-grade'))
+    expect(screen.getByRole('radio', { name: /previous curriculum/i })).toBeInTheDocument()
+    // The class and subject the teacher already chose stay on screen — Change
+    // was about the curriculum, not about clearing the form under it.
+    expect(document.getElementById('ldf-grade')).toBeTruthy()
   })
 })
 

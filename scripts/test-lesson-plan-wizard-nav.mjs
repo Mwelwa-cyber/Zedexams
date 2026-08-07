@@ -111,4 +111,36 @@ ok(
   'the action bar renders AFTER the step content, so scrolling to the end clears the last field',
 )
 
+// One bar for all five steps. This is what makes "the bar behaves the same on
+// steps 2–5" a property of the markup rather than something to re-check by
+// hand at each breakpoint: there is no per-step branch that could give one
+// step different positioning.
+ok(
+  wizard.split('<StickyWizardNav').length - 1 === 1,
+  'StickyWizardNav is rendered exactly once, outside the per-step switch',
+)
+ok(
+  stepsClose > wizard.lastIndexOf('currentStep === REVIEW_STEP'),
+  'the action bar renders outside every `currentStep === …` branch',
+)
+
+// The bar bleeds out to the CONTENT COLUMN's edges by cancelling its two
+// ancestor gutters. Every value must therefore be negative: a positive or
+// `auto` margin here would push it past the column it is supposed to match —
+// which is the fixed-bar bug arriving through a different door.
+const bleeds = [...navCss.matchAll(/margin-inline:\s*([^;]+);/g)].map((m) => m[1].trim())
+ok(bleeds.length >= 3, 'the bar declares its column bleed at each breakpoint (base / 640 / 1024)')
+ok(
+  bleeds.every((v) => /^-[\d.]+rem$/.test(v)),
+  `every .lpw-nav margin-inline cancels a gutter (negative rem); got ${bleeds.join(', ')}`,
+)
+
+// ── The step number is stated twice, not three times ────────────────────────
+// The stepper says it (dots) and the sticky bar says it ("Step n of 5 — …").
+// The step HEADER used to say it a third time, in caps, directly between them.
+ok(
+  !/Step \{currentStep \+ 1\} of \{WIZARD_STEPS\.length\}/.test(wizard),
+  'the step header does not restate the step number — the stepper and the sticky bar already do',
+)
+
 console.log(`lesson-plan wizard nav: ${passed} checks passed`)

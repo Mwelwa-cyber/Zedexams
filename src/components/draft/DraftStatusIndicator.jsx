@@ -2,19 +2,27 @@
  * DraftStatusIndicator — the always-visible "your work is safe" pill for every
  * studio, driven by useDraftManager's return value.
  *
- *   🟡 Saving…    🟢 Saved just now    ☁ Synced    🔴 Offline — saved on device
- *   💾 Saved on this device only (too large to sync)
+ *   ● Saving…    ● Saved just now    ⚠ Save issue
+ *   ⚡ Offline — saved on this device    ▤ Saved on this device only
  *
  * Presentational only: pass `status`, `savedAt`, `online` straight from the hook.
+ *
+ * The two ordinary states (saving / saved) draw a plain dot in the row's own
+ * tone rather than a 🟡/🟢 emoji; the three exceptional ones draw a Lucide
+ * glyph. Emoji render at the platform's size and colour, not the row's, so a
+ * "green dot" was a different green on every device — and the teacher surfaces
+ * are Lucide-only by convention.
  */
+
+import { AlertTriangle, HardDrive, WifiOff } from 'lucide-react'
 
 const CONFIG = {
   idle: null, // nothing to show before the first edit
-  saving: { dot: '🟡', label: 'Saving…', tone: 'text-amber-600 dark:text-amber-400' },
-  saved: { dot: '🟢', label: 'Saved', tone: 'text-emerald-600 dark:text-emerald-400' },
-  offline: { dot: '🔴', label: 'Offline — saved on this device', tone: 'text-rose-600 dark:text-rose-400' },
-  'local-only': { dot: '💾', label: 'Saved on this device only (too large to sync)', tone: 'text-slate-600 dark:text-slate-300' },
-  error: { dot: '⚠️', label: 'Save issue — will retry', tone: 'text-rose-600 dark:text-rose-400' },
+  saving: { icon: null, label: 'Saving…', tone: 'text-amber-600 dark:text-amber-400' },
+  saved: { icon: null, label: 'Saved', tone: 'text-emerald-600 dark:text-emerald-400' },
+  offline: { icon: WifiOff, label: 'Offline — saved on this device', tone: 'text-rose-600 dark:text-rose-400' },
+  'local-only': { icon: HardDrive, label: 'Saved on this device only (too large to sync)', tone: 'text-slate-600 dark:text-slate-300' },
+  error: { icon: AlertTriangle, label: 'Save issue — will retry', tone: 'text-rose-600 dark:text-rose-400' },
 }
 
 function relative(ms) {
@@ -43,6 +51,7 @@ export default function DraftStatusIndicator({ status = 'idle', savedAt, online 
   const cfg = CONFIG[effective]
   if (!cfg) return null
 
+  const Icon = cfg.icon
   const showTime = effective === 'saved' && savedAt
   return (
     <div
@@ -52,7 +61,11 @@ export default function DraftStatusIndicator({ status = 'idle', savedAt, online 
       className={`inline-flex items-center gap-1.5 rounded-full bg-white/70 px-2.5 py-1 text-xs font-medium shadow-sm ring-1 ring-black/5 backdrop-blur dark:bg-slate-800/70 dark:ring-white/10 ${cfg.tone}`}
       title={savedAt ? `Last synced ${clock(savedAt)}` : undefined}
     >
-      <span aria-hidden="true">{cfg.dot}</span>
+      {Icon ? (
+        <Icon size={13} strokeWidth={2.4} aria-hidden="true" className="shrink-0" />
+      ) : (
+        <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-current" />
+      )}
       <span>{cfg.label}{showTime ? ` ${relative(savedAt)}` : ''}</span>
     </div>
   )

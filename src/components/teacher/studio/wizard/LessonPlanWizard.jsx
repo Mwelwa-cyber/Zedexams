@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChartNoAxesColumnIncreasing } from 'lucide-react'
 import { WIZARD_STEPS, REVIEW_STEP, clampStep, validateStep, firstInvalidStep, maxReachableStep } from './wizardSteps'
 import StudioStepper from '../../StudioStepper.jsx'
 import SetupForYouCard from '../../SetupForYouCard.jsx'
@@ -24,10 +23,14 @@ import { ReviewGenerateStep } from './steps/ReviewGenerateStep.jsx'
  * slice is visible and paces the teacher with per-step validation.
  *
  * Prop contract matches what LessonPlanStudio used to hand StudioSidebar,
- * plus wizard-specific additions (draftStatus, onSaveExit, hasPlan/onViewPlan,
- * and the "Set up for you" context flags appliedContext/appliedWeekNumber —
- * the card's CHIPS are always derived from the live studioState here, never
- * from the raw suggestion that seeded it).
+ * plus wizard-specific additions (onSaveExit, the "Set up for you" context
+ * flags appliedContext/appliedWeekNumber — the card's CHIPS are always derived
+ * from the live studioState here, never from the raw suggestion that seeded it
+ * — and the CONTROLLED "My lessons" overlay: its trigger lives in the studio
+ * header's utility row so the page has one navigation cluster, but the panel
+ * renders here, where the coverage and lesson-memory data already are.
+ * hasPlan/onViewPlan still drive Review's in-flow "view the plan you already
+ * generated" button; the header carries the same target on every step).
  */
 export function LessonPlanWizard({
   studioState,
@@ -49,6 +52,8 @@ export function LessonPlanWizard({
   onSaveExit,
   hasPlan = false,
   onViewPlan,
+  progressOpen = false,
+  onCloseProgress,
 }) {
   const {
     curriculumMode, setCurriculumMode,
@@ -70,8 +75,11 @@ export function LessonPlanWizard({
   // ── Local wizard chrome state ──
   const [stepError, setStepError] = useState(null) // set on a failed Next/Generate attempt
   const [returnToReview, setReturnToReview] = useState(false) // arrived via Review's Edit
-  const [progressOpen, setProgressOpen] = useState(false)
   const [direction, setDirection] = useState('forward') // step-transition slide direction
+  // Whether the full curriculum picker is re-opened over an existing choice.
+  // Owned here rather than in LessonSetupStep because the "Set up for you"
+  // card — which lives in this file — is the OTHER control that opens it.
+  const [changingCurriculum, setChangingCurriculum] = useState(false)
   const headingRef = useRef(null)
   const mountedRef = useRef(false)
 
@@ -165,6 +173,7 @@ export function LessonPlanWizard({
       resetTopicData()
     }
     setCurriculumMode(mode)
+    setChangingCurriculum(false)
   }, [curriculumMode, topicData.topic, topicData.subtopic, resetTopicData, setCurriculumMode])
 
   const handleChangeDetail = useCallback((field, value) => {
@@ -212,6 +221,14 @@ export function LessonPlanWizard({
       ].filter(Boolean)
     : []
 
+  // ── One curriculum affordance at a time ──
+  // The context card already carries the "✓ CBC curriculum" chip and a Change
+  // action, so while it is on screen the setup step's own curriculum row is a
+  // duplicate and is suppressed. Both Change controls open the SAME picker —
+  // if the card's did anything else, dismissing the row would leave the
+  // teacher no way to change curriculum at all.
+  const contextCardVisible = currentStep === 0 && setupChips.length > 0
+
   // Layout contract (see .lpw-nav in lessonStudio.css): `.lpw-body` spans the
   // full width of TeacherLayout's content column and holds exactly two things —
   // the scrolling step content, capped to a reading width by `.lpw-steps`, and
@@ -235,47 +252,33 @@ export function LessonPlanWizard({
 
         {/* ── Active step ── */}
         <div className="min-w-0">
-          {/* Compact step header. "My lessons" opens the saved-lessons +
-              coverage overlay (ProgressPanel) — it is NOT a step indicator. */}
-          <div className="mb-4 flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[11px] font-extrabold uppercase tracking-widest text-accent-text">
-                Step {currentStep + 1} of {WIZARD_STEPS.length}
-              </p>
-              <h2
-                ref={headingRef}
-                tabIndex={-1}
-                className="font-display mt-0.5 text-[19px] font-extrabold leading-tight text-ink outline-none"
-              >
-                {step.title}
-              </h2>
-              <p className="mt-0.5 text-[12.5px] font-semibold text-ink-muted">{step.description}</p>
-            </div>
-            <div className="flex flex-none flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-              {hasPlan && (
-                <button type="button" onClick={onViewPlan} className="lps-btn-ghost min-h-[44px] px-3 py-2 text-[12px]">
-                  {isGenerating ? 'View generation progress' : 'View generated plan'}
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setProgressOpen(true)}
-                className="lps-btn-ghost min-h-[44px] flex-shrink-0 px-3 py-2 text-[12px]"
-              >
-                <ChartNoAxesColumnIncreasing size={16} aria-hidden="true" />
-                My lessons
-              </button>
-            </div>
+          {/* ONE sub-heading line. The step NUMBER is deliberately absent: the
+              stepper above and the sticky bar below both state it, and a third
+              copy beside them was the loudest thing on the screen. The <h2>
+              keeps the bare step title as its accessible name (focus lands
+              here on every navigation) with the description as a sibling, so
+              the line reads "Lesson Setup — choose your class, subject …". */}
+          <div className="mb-4 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <h2
+              ref={headingRef}
+              tabIndex={-1}
+              className="font-display text-[17px] font-extrabold leading-tight text-ink outline-none"
+            >
+              {step.title}
+            </h2>
+            <p className="text-[12.5px] font-semibold leading-snug text-ink-muted">
+              <span aria-hidden="true">— </span>{step.description}
+            </p>
           </div>
 
           {/* ── Notice stack (setup step only) — at most two rows: the studio's
               DraftRecoveryPrompt strip above the shell, then this ONE card
               merging the old prefill banner + "Teaching:" chip block. ── */}
-          {currentStep === 0 && setupChips.length > 0 && (
+          {contextCardVisible && (
             <div className="mb-3">
               <SetupForYouCard
                 chips={setupChips}
-                onChange={() => document.getElementById('ldf-grade')?.focus()}
+                onChange={() => setChangingCurriculum(true)}
                 onDismiss={typeof onDismissPlanContext === 'function' ? onDismissPlanContext : null}
               />
             </div>
@@ -301,6 +304,10 @@ export function LessonPlanWizard({
                 <LessonSetupStep
                   curriculumMode={curriculumMode}
                   onSelectCurriculum={handleSelectCurriculum}
+                  changingCurriculum={changingCurriculum}
+                  onChangeCurriculum={() => setChangingCurriculum(true)}
+                  onKeepCurriculum={() => setChangingCurriculum(false)}
+                  showCurriculumRow={!contextCardVisible}
                   lessonDetails={lessonDetails}
                   onChangeDetail={handleChangeDetail}
                   dateHint={dateHint}
@@ -378,7 +385,7 @@ export function LessonPlanWizard({
       {/* ── Progress overlay (Saved Lessons + Coverage + series progress) ── */}
       <ProgressPanel
         open={progressOpen}
-        onClose={() => setProgressOpen(false)}
+        onClose={onCloseProgress}
         lessonMemory={lessonMemory}
         coverageState={coverageState}
         grade={lessonDetails.grade}
