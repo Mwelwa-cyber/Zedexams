@@ -7,17 +7,23 @@ import { recoverMyPendingPayments } from '../../utils/lenco'
 import { isNativePlatform } from '../../utils/runtime'
 import { MAX_ONLY_TOOLS } from '../../utils/teacherPlans'
 import { ensureProFonts } from '../../utils/proFonts'
+import useStudioAvailability from '../../hooks/useStudioAvailability'
 import { useEffect, useState } from 'react'
 
 // One row per metered studio the teacher can reach. Keys map 1:1 to
 // TOOL_TO_FEATURE in useTeacherUsage.js so each bar reads the right counter.
+//
+// "Can reach" is the operative word: a row deep-links into its studio, so a
+// studio that is no longer offered must not have one. Rubrics is gone with its
+// studio; Worksheets is filtered at render because its studio is behind a flag
+// (`visibleFeatures` below). The COUNTERS are untouched either way — a
+// teacher's historical worksheet usage still counts against the month.
 const FEATURES = [
   { key: 'plans',        label: 'Lesson plans',    icon: '🦊' },
   { key: 'worksheets',   label: 'Worksheets',      icon: '🐢' },
   { key: 'flashcards',   label: 'Flashcards',      icon: '🦒' },
   { key: 'notes',        label: 'Teacher notes',   icon: '🦉' },
   { key: 'homework',     label: 'Homework',        icon: '🦝' },
-  { key: 'rubric',       label: 'Rubrics',         icon: '🦔' },
   { key: 'assessments',  label: 'Test papers',     icon: '🦅' },
   { key: 'exams',        label: 'Exam papers',     icon: '🦬' },
   { key: 'schemes',      label: 'Schemes of work', icon: '🦁' },
@@ -34,7 +40,6 @@ const FEATURE_ROUTE = {
   flashcards: '/teacher/generate/flashcards',
   notes: '/teacher/generate/notes',
   homework: '/teacher/generate/homework',
-  rubric: '/teacher/generate/rubric',
   // Tests and examinations are one merged Assessment Paper Studio now — both
   // feature keys deep-link into the same "Generate" entry point.
   assessments: '/teacher/assessment-papers/new',
@@ -93,6 +98,8 @@ function MeterRow({ feature, used, cap, plan, onUnlockClick }) {
 export default function UsageMeter() {
   const { currentUser } = useAuth()
   const navigate = useNavigate()
+  const { isRouteAvailable } = useStudioAvailability()
+  const visibleFeatures = FEATURES.filter((f) => isRouteAvailable(FEATURE_ROUTE[f.key]))
   // Android shell: hide the K25 Lenco one-off + mobile-money recovery link
   // (Play policy — in-app purchases go through Google Play Billing only).
   const native = isNativePlatform()
@@ -141,7 +148,7 @@ export default function UsageMeter() {
   const upgradeLabel = data.plan === 'free' ? 'Go Pro →' : 'Upgrade →'
   const showUpgrade = data.plan !== 'max'
 
-  const cappedFeature = FEATURES.find(
+  const cappedFeature = visibleFeatures.find(
     (f) => data.caps[f.key] > 0 && data.used[f.key] >= data.caps[f.key]
   )
 
@@ -194,7 +201,7 @@ export default function UsageMeter() {
         </div>
 
         <div className="zum-meter-list">
-          {FEATURES.map((f) => (
+          {visibleFeatures.map((f) => (
             <MeterRow
               key={f.key}
               feature={f}

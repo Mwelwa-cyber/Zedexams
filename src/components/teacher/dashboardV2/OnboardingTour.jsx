@@ -54,9 +54,9 @@ const STEPS = [
     icon: LayoutGrid,
     target: 'quick-create',
     title: 'Create in one tap',
-    body: 'Lesson plans, assessment papers, worksheets, notes and more — every studio starts here, and every document exports to PDF or Word.',
+    body: 'Lesson plans, assessment papers, homework, notes and more — every studio starts here, and every document exports to PDF or Word.',
     bodyMobile:
-      'Tap the orange plus button any time to start a lesson plan, worksheet, test paper or weekly focus.',
+      'Tap the orange plus button any time to start a lesson plan, homework, test paper or weekly focus.',
   },
   {
     id: 'ai-recs',

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, ClipboardList } from 'lucide-react'
-import { QUICK_CREATE_TILES } from './dashboardV2Config'
+import { QUICK_CREATE_TILES, QUICK_CREATE_TILE_COUNT } from './dashboardV2Config'
+import useStudioAvailability from '../../../hooks/useStudioAvailability'
 import useGlassTile from '../../../hooks/useGlassTile'
 import './glassSurface.css'
 
@@ -29,6 +30,9 @@ function QuickCreateTile({ tile }) {
 }
 
 export default function QuickCreateCard({ onViewAllTools }) {
+  const { filterEntries } = useStudioAvailability()
+  // Five declared, four shown — see QUICK_CREATE_TILES.
+  const tiles = filterEntries(QUICK_CREATE_TILES).slice(0, QUICK_CREATE_TILE_COUNT)
   return (
     <section
       className="tdv2-card glass-panel glass-panel--create"
@@ -53,7 +57,7 @@ export default function QuickCreateCard({ onViewAllTools }) {
         )}
       </div>
       <div className="tdv2-tile-grid">
-        {QUICK_CREATE_TILES.map((tile) => (
+        {tiles.map((tile) => (
           <QuickCreateTile key={tile.id} tile={tile} />
         ))}
       </div>

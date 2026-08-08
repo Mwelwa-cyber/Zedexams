@@ -8,6 +8,7 @@ import {
   resolveBadge,
   searchStudios,
 } from './launcher/teacherLauncherCore'
+import useStudioAvailability from '../../../hooks/useStudioAvailability'
 import GlassToolTile from './GlassToolTile'
 import './glassSurface.css'
 
@@ -36,6 +37,7 @@ export default function MobileToolsScreen({ onClose, savedCounts = null, warning
   // still show the full registry. Signed-in non-teachers keep the filter.
   const auth = useAuth() || {}
   const isTeacher = auth.currentUser ? auth.isTeacher : true
+  const { filterEntries } = useStudioAvailability()
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('all')
   const backRef = useRef(null)
@@ -54,9 +56,12 @@ export default function MobileToolsScreen({ onClose, savedCounts = null, warning
   }, [onClose])
 
   const warningSet = useMemo(() => new Set(warnings), [warnings])
+  // Permission ("may this teacher open it") and availability ("is it offered
+  // at all") are separate questions; both narrow the same list so search can
+  // never surface a withdrawn studio the grid has hidden.
   const permitted = useMemo(
-    () => filterStudiosByPermission(TEACHER_STUDIOS, { isTeacher }),
-    [isTeacher],
+    () => filterEntries(filterStudiosByPermission(TEACHER_STUDIOS, { isTeacher }), 'route'),
+    [isTeacher, filterEntries],
   )
 
   const searching = query.trim().length > 0

@@ -129,6 +129,10 @@ vi.mock('../../../utils/teacherLibraryService', () => ({
       icon:  '📝',
       route: '/teacher/generate/lesson-activities',
     },
+    // Kept with its route so the retired-tool tests below prove the button is
+    // suppressed by AVAILABILITY, not merely absent from the metadata.
+    rubric:    { label: 'Rubric',    icon: '📋', route: '/teacher/generate/rubric' },
+    worksheet: { label: 'Worksheet', icon: '📝', route: '/teacher/generate/worksheet' },
   },
   titleForGeneration: (item) => item.title || item.id,
   formatDate:         () => '1 Jan 2026',
@@ -416,5 +420,56 @@ describe('LibraryItemDetail — load failure vs not found', () => {
     // Same mounted view: the item loads on the retry and the error panel clears.
     expect(await screen.findByTestId('la-view')).toBeInTheDocument()
     expect(screen.queryByText(/Couldn’t load this item/i)).not.toBeInTheDocument()
+  })
+})
+
+
+/**
+ * A retired or withdrawn studio's saved documents stay fully readable and
+ * exportable. What they lose is every route back INTO the studio.
+ *
+ * No PlatformSettingsProvider is mounted here, so the flags are the context's
+ * defaults — which is exactly the launch state: Rubric retired, Worksheet
+ * withdrawn.
+ */
+describe('LibraryItemDetail — documents of a studio that is no longer offered', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockPaperConversion.current = null
+  })
+
+  it('labels a saved rubric and offers no way back into the retired studio', async () => {
+    mockItem.current = {
+      id: 'gen-r', tool: 'rubric', title: 'Project rubric',
+      output: { header: {} }, inputs: {}, createdAt: null, status: 'ready',
+    }
+    renderDetail()
+    await screen.findByText('Rubric (retired tool)')
+    expect(screen.queryByText(/Generate similar/)).toBeNull()
+    // Still a document: the export controls are untouched.
+    expect(screen.getByText(/Export \.docx/)).toBeInTheDocument()
+    expect(screen.getByText(/Export PDF/)).toBeInTheDocument()
+  })
+
+  it('labels a saved worksheet as returning, and keeps its answer key', async () => {
+    mockItem.current = {
+      id: 'gen-w', tool: 'worksheet', title: 'Fractions practice',
+      output: { header: {}, questions: [] }, inputs: {}, createdAt: null, status: 'ready',
+    }
+    renderDetail()
+    await screen.findByText('Worksheet (tool returning soon)')
+    expect(screen.queryByText(/Generate similar/)).toBeNull()
+    expect(screen.getByText(/Answer key/i)).toBeInTheDocument()
+  })
+
+  it('a lesson plan no longer offers "Create Worksheet", but still offers Homework', async () => {
+    mockItem.current = {
+      id: 'gen-p', tool: 'lesson_plan', title: 'Fractions',
+      output: { header: {} }, inputs: {}, createdAt: null, status: 'ready',
+    }
+    renderDetail()
+    await screen.findByText('Fractions')
+    expect(screen.queryByText(/Create Worksheet/)).toBeNull()
+    expect(screen.getByText(/Create Homework/)).toBeInTheDocument()
   })
 })

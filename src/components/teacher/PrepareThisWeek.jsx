@@ -27,6 +27,7 @@ import {
 } from '../ui/icons'
 import { capture } from '../../utils/analytics'
 import { gradeLabel, subjectLabel } from '../../utils/teachingProfileCore'
+import useStudioAvailability from '../../hooks/useStudioAvailability'
 
 const STAGES = [
   { key: 'plan', label: 'Plan', icon: ClipboardList },
@@ -94,6 +95,7 @@ function PrepRow({ row }) {
 
 export default function PrepareThisWeek({ loading, error, prep, onRetry, assignments = [], activeAssignmentId, onSelectAssignment, termCoverage = null }) {
   const ready = !loading && !error && prep && !prep.empty
+  const { filterEntries } = useStudioAvailability()
   const openedRef = useRef(false)
   useEffect(() => {
     if (ready && !openedRef.current) {
@@ -186,7 +188,10 @@ export default function PrepareThisWeek({ loading, error, prep, onRetry, assignm
     )
   }
 
-  const { context, rows, stage } = prep
+  const { context, stage } = prep
+  // A step that opens a studio no longer on offer is not a step a teacher can
+  // take — it would sit permanently unticked with a button that redirects.
+  const rows = filterEntries(prep.rows, 'to')
   // During school holidays the card prepares NEXT term's Week 1 — the title
   // and date chip say so plainly instead of implying a live teaching week.
   const nextTerm = prep.mode === 'next-term'

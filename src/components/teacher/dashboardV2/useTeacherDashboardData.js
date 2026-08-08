@@ -10,6 +10,7 @@ import { isExamPaperType, assessmentEditPath } from '../paperTaxonomy'
 import { buildWeekPrep } from '../../../utils/prepareThisWeek'
 import { buildProfileRecommendations } from '../../../utils/teacherRecommendations'
 import { useTeachingProfile } from '../../../features/teacherSettings/lib/useTeachingProfile'
+import useStudioAvailability from '../../../hooks/useStudioAvailability'
 import { resolveActiveAssignmentId } from '../../../utils/teachingProfileCore'
 import {
   daysUntil,
@@ -51,6 +52,7 @@ function toMs(t) {
 export default function useTeacherDashboardData() {
   const { currentUser, userProfile } = useAuth()
   const { getMyAssessments } = useFirestore()
+  const { filterEntries } = useStudioAvailability()
 
   const [generations, setGenerations] = useState([])
   const [assessments, setAssessments] = useState([])
@@ -218,7 +220,15 @@ export default function useTeacherDashboardData() {
   }), [displayName, userProfile?.email, currentUser?.email])
 
   const now = Date.now()
-  const recommendationCards = recommendationCardsFrom(recommendations)
+  // Both of these carry a `to` into a studio, and a card or a checklist step
+  // that opens a studio no longer on offer is an entry point wearing a
+  // different hat — the recommendation to "create a worksheet" is exactly as
+  // much of a doorway as the tile is. Filtering here (rather than teaching the
+  // pure builders about feature flags) keeps the rule in one place and means
+  // flipping the flag back on restores the nudge with it.
+  // Filtered BEFORE the top-3 slice, or hiding one card would leave two.
+  const recommendationCards = recommendationCardsFrom(filterEntries(recommendations))
+  const checklistItems = filterEntries(checklistFromWeekPrep(weekPrep))
 
   return {
     teacher,
@@ -237,7 +247,7 @@ export default function useTeacherDashboardData() {
     // Null when either fetch failed — showing a wrong zero is worse than hiding
     // the counts until retry succeeds.
     savedCounts: (gensError || papersError) ? null : studioSavedCounts(librarySummary.byTool, assessments.length),
-    checklist: checklistFromWeekPrep(weekPrep),
+    checklist: checklistItems,
     feed: feedFromState({ resources, gensError, papersError, now }),
     launcherWarnings: launcherWarningsFromResources(resources),
     activity: activityFromResources(resources, { limit: 3, now }),

@@ -3,6 +3,13 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import PrepareThisWeek from './PrepareThisWeek'
 
+// Every teacher navigation surface now asks studioAvailability which studios
+// are on offer, and that reads settings/global. Stubbed to the LAUNCH state
+// (no flags set → Worksheet Studio withdrawn, Rubric Studio retired).
+vi.mock('../../contexts/PlatformSettingsContext', () => ({
+  usePlatformSettings: () => ({ settings: { featureFlags: {} }, loaded: true, live: true }),
+}))
+
 vi.mock('../../utils/analytics', () => ({ capture: vi.fn() }))
 
 function renderCard(props) {

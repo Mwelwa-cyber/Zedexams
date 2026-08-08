@@ -3,6 +3,7 @@ import SeoHelmet from '../../seo/SeoHelmet'
 import { resolveGreeting } from './dashboardV2Core'
 import DashboardView from './DashboardView'
 import { PreviewBanner, PreviewControlPanel } from './PreviewChrome'
+import useStudioAvailability from '../../../hooks/useStudioAvailability'
 import {
   ACTIVITY_ITEMS,
   AI_RECOMMENDATION,
@@ -23,6 +24,9 @@ import {
  * and (outside production builds) the interaction-state control panel.
  */
 export default function TeacherDashboardV2() {
+  // The preview page is unguarded and its data is fixtures, but its links are
+  // real — a checklist row for a withdrawn studio would still be a doorway.
+  const { filterEntries } = useStudioAvailability()
   const [greetingOverride, setGreetingOverride] = useState(null)
   const [ctaState, setCtaState] = useState('default')
 
@@ -64,10 +68,10 @@ export default function TeacherDashboardV2() {
         lastOpened={LAST_OPENED}
         ctaState={ctaState}
         onContinue={handleContinue}
-        recommendations={[AI_RECOMMENDATION]}
+        recommendations={filterEntries([AI_RECOMMENDATION])}
         documents={RECENT_DOCUMENTS}
         savedCounts={SAVED_COUNTS}
-        checklist={CHECKLIST_ITEMS}
+        checklist={filterEntries(CHECKLIST_ITEMS)}
         feed={FEED_ITEMS}
         activity={ACTIVITY_ITEMS}
         onRetryFeed={({ showToast }) => showToast('error', 'Still couldn’t save — check your connection.')}

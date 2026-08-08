@@ -29,6 +29,7 @@ import {
   LayoutGrid,
 } from '../ui/icons'
 import { capture } from '../../utils/analytics'
+import useStudioAvailability from '../../hooks/useStudioAvailability'
 // 3D studio tile icons (optimised WebP, ~2KB each), one per tile.
 import iconClassRegister from '../../assets/teacher-icons/class-register.webp'
 import iconVisualStudio from '../../assets/teacher-icons/visual-studio.webp'
@@ -41,7 +42,6 @@ import iconLessonPlan from '../../assets/teacher-icons/lesson-plan.webp'
 import iconNotesStudio from '../../assets/teacher-icons/notes-studio.webp'
 import iconWorksheet from '../../assets/teacher-icons/worksheet.webp'
 import iconFlashcards from '../../assets/teacher-icons/flashcards.webp'
-import iconRubric from '../../assets/teacher-icons/rubric.webp'
 import iconAssessments from '../../assets/teacher-icons/assessments.webp'
 import iconSbaStudio from '../../assets/teacher-icons/sba-studio.webp'
 import iconLibrary from '../../assets/teacher-icons/library.webp'
@@ -258,15 +258,6 @@ export const MORE_GROUPS = [
         tagline: 'Build short revision prompts for recall and practice.',
         to: '/teacher/generate/flashcards',
       },
-      {
-        img: iconRubric,
-        tone: 'rose',
-        badge: null,
-        libraryKey: 'rubric',
-        title: 'Rubrics',
-        tagline: 'Define criteria, levels, and marking guidance.',
-        to: '/teacher/generate/rubric',
-      },
     ],
   },
   {
@@ -318,7 +309,7 @@ export const MORE_GROUPS = [
         badge: null,
         isLibrary: true,
         title: 'My Library',
-        tagline: 'All saved plans, notes, worksheets, rubrics, and assessments.',
+        tagline: 'All your saved plans, notes, homework and assessments.',
         to: '/teacher/library',
       },
       {
@@ -347,14 +338,20 @@ const LOCKED_STUDIO_PATHS = new Set([
   '/teacher/generate/class-timetable',
   '/teacher/generate/notes',
   '/teacher/generate/flashcards',
-  '/teacher/generate/rubric',
   '/teacher/generate/mark-schedule',
   '/teacher/generate/sba',
   '/teacher/generate/sba-tracker',
   '/teacher/generate/sba-planner',
 ])
 
-const MORE_TOOL_COUNT = MORE_GROUPS.reduce((n, g) => n + g.items.length, 0)
+/* The expander's count follows what the expander will actually show — a
+   withdrawn studio must not be advertised as one of the "N more". */
+function moreToolCount(isRouteAvailable) {
+  return MORE_GROUPS.reduce(
+    (n, g) => n + g.items.filter((s) => isRouteAvailable(s.to)).length,
+    0,
+  )
+}
 
 function WorkspaceSectionHead({ icon, accent, label, viewAll, description }) {
   return (
@@ -439,6 +436,11 @@ function StudioCard({ img, tone, badge, libraryKey, isLibrary, title, tagline, t
 }
 
 function WorkspaceGroup({ group, librarySummary, isFreePlan, area }) {
+  const { filterEntries } = useStudioAvailability()
+  const items = filterEntries(group.items)
+  // A group whose every tile is a withdrawn studio would render a heading over
+  // an empty grid.
+  if (!items.length) return null
   return (
     <section className="teacher-workspace-section teacher-defer">
       <WorkspaceSectionHead
@@ -449,7 +451,7 @@ function WorkspaceGroup({ group, librarySummary, isFreePlan, area }) {
         description={group.description}
       />
       <div className="teacher-workspace-grid">
-        {group.items.map((s) => (
+        {items.map((s) => (
           <StudioCard
             key={s.title}
             {...s}
@@ -464,6 +466,8 @@ function WorkspaceGroup({ group, librarySummary, isFreePlan, area }) {
 }
 
 export default function TeacherWorkspace({ librarySummary, isFreePlan, expanded, onToggle }) {
+  const { isRouteAvailable } = useStudioAvailability()
+  const moreCount = moreToolCount(isRouteAvailable)
   // Uncontrolled fallback so the component also works standalone (tests).
   const [selfExpanded, setSelfExpanded] = useState(false)
   const isExpanded = expanded ?? selfExpanded
@@ -499,7 +503,7 @@ export default function TeacherWorkspace({ librarySummary, isFreePlan, expanded,
         aria-controls="teacher-workspace-more"
         onClick={toggle}
       >
-        {isExpanded ? 'Show fewer tools' : `View all teacher tools (${MORE_TOOL_COUNT} more)`}
+        {isExpanded ? 'Show fewer tools' : `View all teacher tools (${moreCount} more)`}
         <Icon
           as={ChevronDown}
           size="xs"

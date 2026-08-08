@@ -7,6 +7,13 @@ import TeacherLayout from '../TeacherLayout'
 import TeacherDashboardV2 from './TeacherDashboardV2'
 import { TOUR_STORAGE_KEY } from './onboardingTourCore'
 
+// Every teacher navigation surface now asks studioAvailability which studios
+// are on offer, and that reads settings/global. Stubbed to the LAUNCH state
+// (no flags set → Worksheet Studio withdrawn, Rubric Studio retired).
+vi.mock('../../../contexts/PlatformSettingsContext', () => ({
+  usePlatformSettings: () => ({ settings: { featureFlags: {} }, loaded: true, live: true }),
+}))
+
 // These specs exercise the mobile IA chrome — suppress the first-run tour
 // (its own behaviour is covered in OnboardingTour.spec.jsx).
 // The AI-recommendation dismiss store is keyed per signed-in teacher; the auth
@@ -105,7 +112,7 @@ describe('MobileDashboardView (via preview page)', () => {
     await user.click(screen.getByRole('button', { name: /View full checklist/ }))
     const sheet = screen.getByRole('dialog', { name: 'This Week’s Checklist' })
     expect(within(sheet).getByText('Record of Work')).toBeInTheDocument()
-    expect(within(sheet).getByText('Worksheets')).toBeInTheDocument()
+    expect(within(sheet).getByText('Homework')).toBeInTheDocument()
 
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog', { name: 'This Week’s Checklist' })).not.toBeInTheDocument()
@@ -144,16 +151,19 @@ describe('MobileDashboardView (via preview page)', () => {
     renderMobile()
     await user.click(screen.getByRole('button', { name: 'Quick create' }))
     const sheet = screen.getByRole('dialog', { name: 'Quick Create' })
+    // Worksheets is withdrawn behind a feature flag, so Homework fills the
+    // freed slot — the sheet stays four flows, never three.
     const expected = [
       ['Lesson Plans', '/teacher/lesson-plans/new'],
-      ['Worksheets', '/teacher/generate/worksheet'],
       ['Assessments', '/teacher/assessment-papers/new'],
       ['Weekly Focus', '/teacher/generate/weekly-forecast'],
+      ['Homework', '/teacher/generate/homework'],
     ]
     for (const [label, href] of expected) {
       const link = within(sheet).getByText(label).closest('a')
       expect(link).toHaveAttribute('href', href)
     }
+    expect(within(sheet).queryByText('Worksheets')).toBeNull()
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog', { name: 'Quick Create' })).not.toBeInTheDocument()
   })
@@ -173,9 +183,14 @@ describe('MobileDashboardView (via preview page)', () => {
     expect(register).toHaveAttribute('href', '/teacher/attendance')
 
     // Search narrows the grid
-    await user.type(within(toolsScreen).getByLabelText('Search teacher tools'), 'rubric')
-    expect(within(toolsScreen).getByRole('link', { name: /Rubrics/ })).toBeInTheDocument()
+    await user.type(within(toolsScreen).getByLabelText('Search teacher tools'), 'flashcard')
+    expect(within(toolsScreen).getByRole('link', { name: /Flashcards/ })).toBeInTheDocument()
     expect(within(toolsScreen).queryByRole('link', { name: /Class Register/ })).not.toBeInTheDocument()
+
+    // Search must not be a back door into a studio the grid has hidden.
+    await user.clear(within(toolsScreen).getByLabelText('Search teacher tools'))
+    await user.type(within(toolsScreen).getByLabelText('Search teacher tools'), 'worksheet')
+    expect(within(toolsScreen).queryByRole('link', { name: /Worksheets/ })).toBeNull()
 
     // Back button returns to the dashboard
     await user.click(within(toolsScreen).getByRole('button', { name: 'Back to dashboard' }))
@@ -194,7 +209,7 @@ describe('MobileDashboardView (via preview page)', () => {
     // studios the teacher has never opened.
     localStorage.setItem(
       'zedexams:teacher-recents:anon',
-      JSON.stringify({ ids: ['rubrics', 'homework'], at: { rubrics: 2, homework: 1 } }),
+      JSON.stringify({ ids: ['notes', 'homework'], at: { notes: 2, homework: 1 } }),
     )
     renderMobile()
     const region = screen.getByRole('region', { name: /Recently Used/i })
@@ -202,6 +217,19 @@ describe('MobileDashboardView (via preview page)', () => {
     // A default like the Assessment Paper Studio must NOT appear when real
     // recents exist.
     expect(within(region).queryByRole('link', { name: /Assessment Paper Studio/ })).not.toBeInTheDocument()
+  })
+
+  /* A stored visit is the one way a withdrawn studio can walk back onto the
+     dashboard: the id lives on the device, not in the registry. */
+  it('drops a withdrawn studio from "Recently Used" rather than replaying the visit', () => {
+    localStorage.setItem(
+      'zedexams:teacher-recents:anon',
+      JSON.stringify({ ids: ['worksheets', 'homework'], at: { worksheets: 2, homework: 1 } }),
+    )
+    renderMobile()
+    const region = screen.getByRole('region', { name: /Recently Used/i })
+    expect(region.querySelectorAll('.tdv2m-recent-tool').length).toBe(1)
+    expect(within(region).queryByRole('link', { name: /Worksheets/ })).toBeNull()
   })
 
   it('drawer opens from the hamburger, keeps Dashboard above CREATE, closes on Escape', async () => {

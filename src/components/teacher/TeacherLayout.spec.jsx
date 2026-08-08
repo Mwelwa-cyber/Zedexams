@@ -5,6 +5,13 @@ import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom
 import TeacherLayout from './TeacherLayout'
 import { setActiveShellNavGuard, __resetShellNavGuard } from './register/shellNavGuardCore'
 
+// Every teacher navigation surface now asks studioAvailability which studios
+// are on offer, and that reads settings/global. Stubbed to the LAUNCH state
+// (no flags set → Worksheet Studio withdrawn, Rubric Studio retired).
+vi.mock('../../contexts/PlatformSettingsContext', () => ({
+  usePlatformSettings: () => ({ settings: { featureFlags: {} }, loaded: true, live: true }),
+}))
+
 function LocationSink() {
   const { pathname } = useLocation()
   return <div data-testid="loc">{pathname}</div>

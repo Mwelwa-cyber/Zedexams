@@ -36,7 +36,7 @@ const WHATSAPP_HREF = 'https://wa.me/260977740465'
 const FAQS = [
   {
     id: 'create',
-    q: 'How do I create a lesson plan, test paper or worksheet?',
+    q: 'How do I create a lesson plan, test paper or homework activity?',
     a: 'Open the studio from the sidebar (or the Quick Create tiles on your dashboard), fill in the grade, subject and topic, and generate. You can edit every section before saving to your library.',
   },
   {
