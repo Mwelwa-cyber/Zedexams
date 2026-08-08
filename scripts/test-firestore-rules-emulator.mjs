@@ -1883,70 +1883,45 @@ async function main() {
     await assertFails(getDoc(doc(guest, 'pastPapers', 'paper_draft')))
   })
 
-  // ── Source labelling: a paper of unknown provenance is not a public paper ──
-  // These four are the whole acceptance criterion. A learner must never be
-  // handed a paper we cannot say is an official ECZ exam or a commercial mock,
-  // and the enforcement has to be here rather than in a client-side filter.
+  // ── Source labelling does NOT gate visibility ────────────────────────────
+  //
+  // #2191 withheld a published paper until its `sourceConfidence` was
+  // established. That gate failed closed on ABSENCE — the state every paper in
+  // the archive was already in — so shipping it emptied /papers in production
+  // until a manual migration ran. It was reverted, and these assertions are the
+  // regression net: a published paper is readable whatever its labelling says.
 
-  await test('anonymous CAN read a published MOCK paper (labelled, just not official)', async () => {
+  await test('anonymous CAN read a published MOCK paper', async () => {
     await assertSucceeds(getDoc(doc(guest, 'pastPapers', 'paper_mock_published')))
   })
 
-  await test('anonymous CANNOT read a published paper with sourceConfidence "unknown"', async () => {
-    await assertFails(getDoc(doc(guest, 'pastPapers', 'paper_unlabelled')))
+  await test('anonymous CAN read a published paper with sourceConfidence "unknown"', async () => {
+    // Unlabelled is a cosmetic gap (it renders with an "Unlabelled" badge),
+    // never a reason to withhold the paper.
+    await assertSucceeds(getDoc(doc(guest, 'pastPapers', 'paper_unlabelled')))
   })
 
-  await test('anonymous CANNOT read a published paper with NO source field at all', async () => {
-    await assertFails(getDoc(doc(guest, 'pastPapers', 'paper_legacy')))
+  await test('anonymous CAN read a published paper with NO source field at all', async () => {
+    // The un-migrated legacy shape — i.e. the whole archive. This is the exact
+    // read that #2191 broke.
+    await assertSucceeds(getDoc(doc(guest, 'pastPapers', 'paper_legacy')))
   })
 
-  await test('a signed-in LEARNER also cannot read an unlabelled paper', async () => {
-    // The gate is on the document, not on being signed out — an authenticated
-    // learner account is exactly who the rule protects.
-    await assertFails(getDoc(doc(learnerA, 'pastPapers', 'paper_unlabelled')))
-  })
-
-  await test('an ADMIN CAN read an unlabelled paper (that is how it gets labelled)', async () => {
-    await assertSucceeds(getDoc(doc(admin, 'pastPapers', 'paper_unlabelled')))
-  })
-
-  await test('THE PUBLIC LIST QUERY WORKS — status + established confidence', async () => {
-    // A list is refused WHOLESALE if any document it returns fails the read
-    // rule, so this is the assertion that /papers renders at all. It must keep
-    // passing with paper_unlabelled and paper_legacy sitting in the same
-    // collection: the query has to exclude them, not merely be allowed to.
+  await test('THE PUBLIC LIST QUERY RETURNS THE WHOLE PUBLISHED ARCHIVE', async () => {
+    // The assertion that /papers renders at all. A list is refused wholesale if
+    // any document it returns fails the read rule, so this covers both the
+    // labelled and the un-migrated papers in one go.
     const snap = await assertSucceeds(getDocs(query(
       collection(guest, 'pastPapers'),
       where('status', '==', 'published'),
-      where('sourceConfidence', 'in', ['explicit', 'inferred']),
     )))
     const ids = snap.docs.map((d) => d.id).sort()
-    assert.deepEqual(ids, ['paper_mock_published', 'paper_published'])
+    assert.deepEqual(ids, ['paper_legacy', 'paper_mock_published', 'paper_published', 'paper_unlabelled'])
   })
 
-  await test('the same list WITHOUT the confidence filter is refused', async () => {
-    // Proves the filter is what makes the query legal — otherwise the test
-    // above would pass for the wrong reason.
-    await assertFails(getDocs(query(
-      collection(guest, 'pastPapers'),
-      where('status', '==', 'published'),
-    )))
-  })
-
-  await test('an admin CANNOT write "explicit" confidence with no source', async () => {
-    // The invariant the read rule depends on. One such document would fail the
-    // read rule while still matching the public query's filters — and a list
-    // is refused wholesale, so it would blank /papers for every visitor.
-    await assertFails(setDoc(doc(admin, 'pastPapers', 'paper_bad_label'), {
-      title: 'Broken', grade: '7', subject: 'Mathematics', year: 2020,
-      status: 'published', uploadedBy: ADMIN,
-      source: null, sourceConfidence: 'explicit',
-    }))
-  })
-
-  await test('an admin CAN write "unknown" confidence with no source', async () => {
-    // That combination is the migration's honest "we do not know", and it is
-    // excluded by the query rather than by being unwritable.
+  await test('an admin CAN still write "unknown" confidence with no source', async () => {
+    // What the migration writes when it refuses to guess. Still legal, still
+    // visible — it just means the badge reads "Unlabelled".
     await assertSucceeds(setDoc(doc(admin, 'pastPapers', 'paper_ok_unknown'), {
       title: 'Not yet labelled', grade: '7', subject: 'Mathematics', year: 2020,
       status: 'published', uploadedBy: ADMIN,
@@ -1955,6 +1930,7 @@ async function main() {
   })
 
   await test('an admin CANNOT write a source outside the registry', async () => {
+    // The write-side validation is untouched by the revert.
     await assertFails(setDoc(doc(admin, 'pastPapers', 'paper_bad_source'), {
       title: 'Longman', grade: '7', subject: 'Mathematics', year: 2020,
       status: 'published', uploadedBy: ADMIN,

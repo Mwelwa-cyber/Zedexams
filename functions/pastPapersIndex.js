@@ -33,11 +33,7 @@
 const admin = require("firebase-admin");
 const {onDocumentWritten} = require("firebase-functions/v2/firestore");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
-const {
-  isPublishablePaper,
-  lightEntry,
-  lightSignature,
-} = require("./pastPapersIndexHelpers");
+const {lightEntry, lightSignature} = require("./pastPapersIndexHelpers");
 
 const COLLECTION = "pastPapers";
 const INDEX_DOC = "pastPapersIndex/published";
@@ -58,15 +54,13 @@ async function rebuildPastPapersIndex(db) {
     .limit(MAX_PAPERS)
     .get();
 
-  // The index doc is world-readable as ONE document, so the per-paper read
-  // rule cannot filter it — whatever lands in here is published, full stop.
-  // Papers whose provenance is unknown are therefore dropped at build time,
-  // matching `_paperSourceEstablished()` in firestore.rules. Filtered in
-  // memory rather than in the query so a legacy paper missing the field
-  // entirely is excluded too (an inequality would silently match none of them).
-  const papers = snap.docs
-    .filter((d) => isPublishablePaper(d.data()))
-    .map((d) => lightEntry(d.id, d.data()));
+  // Every published paper goes into the index.
+  //
+  // #2191 filtered this on established provenance, matching a rules gate that
+  // has since been reverted — together they emptied the public archive because
+  // no paper carried the field yet. An unlabelled paper belongs in the index
+  // and renders with an "Unlabelled" badge; it is not withheld.
+  const papers = snap.docs.map((d) => lightEntry(d.id, d.data()));
   await db.doc(INDEX_DOC).set({
     papers,
     count: papers.length,

@@ -29,8 +29,6 @@ const LIGHT_FIELDS = [
   "session",
 ];
 
-/** The confidences that make a paper publishable. Mirror of LEARNER_VISIBLE_CONFIDENCE. */
-const PUBLISHABLE_CONFIDENCE = ["explicit", "inferred"];
 /**
  * Mirror of PAPER_SOURCES (src/config/paperSources.js) — the id set, and the
  * subset that is official.
@@ -43,25 +41,6 @@ const PUBLISHABLE_CONFIDENCE = ["explicit", "inferred"];
  */
 const KNOWN_SOURCES = ["ecz", "prisca", "school_mock", "other"];
 const OFFICIAL_SOURCES = ["ecz"];
-
-/**
- * May this paper appear in the public index?
- *
- * The index doc is world-readable in one piece, so the per-document read rule
- * cannot protect it — whatever is written here IS published. This function is
- * therefore the same gate as `_paperSourceEstablished()` in firestore.rules,
- * applied at build time: a paper whose provenance is unknown is left out
- * entirely rather than written and filtered client-side.
- */
-function isPublishablePaper(data) {
-  if (!data || data.status !== "published") return false;
-  const source = typeof data.source === "string" ? data.source.trim().toLowerCase() : "";
-  if (!KNOWN_SOURCES.includes(source)) return false;
-  const confidence = typeof data.sourceConfidence === "string"
-    ? data.sourceConfidence.trim().toLowerCase()
-    : "unknown";
-  return PUBLISHABLE_CONFIDENCE.includes(confidence);
-}
 
 /**
  * Mirror of `derivePaperQuizStatus` in src/utils/pastPaperQuizStatus.js.
@@ -136,9 +115,7 @@ module.exports = {
   LIGHT_FIELDS,
   KNOWN_SOURCES,
   OFFICIAL_SOURCES,
-  PUBLISHABLE_CONFIDENCE,
   deriveQuizStatus,
-  isPublishablePaper,
   lightEntry,
   lightSignature,
 };

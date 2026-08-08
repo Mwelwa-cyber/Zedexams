@@ -12,9 +12,7 @@ const assert = require("node:assert");
 const {
   KNOWN_SOURCES,
   OFFICIAL_SOURCES,
-  PUBLISHABLE_CONFIDENCE,
   deriveQuizStatus,
-  isPublishablePaper,
   lightEntry,
   lightSignature,
 } = require("./pastPapersIndexHelpers");
@@ -163,21 +161,6 @@ const labelled = {
   grade: "7", subject: "mathematics", year: 2023,
 };
 
-ok("a labelled published paper is publishable",
-  isPublishablePaper(labelled) === true);
-ok("an inferred source is publishable too",
-  isPublishablePaper({...labelled, source: "prisca", sourceConfidence: "inferred"}) === true);
-ok("sourceConfidence 'unknown' is NOT publishable",
-  isPublishablePaper({...labelled, sourceConfidence: "unknown"}) === false);
-ok("a legacy paper with NO source fields is NOT publishable",
-  isPublishablePaper({status: "published", grade: "7", year: 2021}) === false);
-ok("an unrecognised source is NOT publishable",
-  isPublishablePaper({...labelled, source: "longman"}) === false);
-ok("a draft is never publishable, however well labelled",
-  isPublishablePaper({...labelled, status: "draft"}) === false);
-ok("null/undefined are handled without throwing, and fail closed",
-  isPublishablePaper(null) === false && isPublishablePaper(undefined) === false);
-
 ok("lightEntry carries the source, the derived official flag and the session",
   lightEntry("p9", {...labelled, session: "october"}).source === "ecz" &&
   lightEntry("p9", {...labelled, session: "october"}).isOfficial === true &&
@@ -202,8 +185,5 @@ ok("labelling a paper changes the signature, so the trigger rebuilds",
   ok("OFFICIAL_SOURCES mirrors the registry's isOfficial flags",
     JSON.stringify([...OFFICIAL_SOURCES].sort()) === JSON.stringify(
       ids.filter((id) => registry.PAPER_SOURCES[id].isOfficial).sort()));
-  ok("PUBLISHABLE_CONFIDENCE mirrors LEARNER_VISIBLE_CONFIDENCE",
-    JSON.stringify([...PUBLISHABLE_CONFIDENCE].sort()) ===
-      JSON.stringify([...registry.LEARNER_VISIBLE_CONFIDENCE].sort()));
   console.log(`\n${passed} passed`);
 })();

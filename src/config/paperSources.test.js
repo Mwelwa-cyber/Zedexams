@@ -1,11 +1,11 @@
 /**
- * The source registry, and the two things it must never get wrong:
+ * The source registry, and the thing it must never get wrong: a mock is never
+ * reported as official. That is fail-closed, so every "unknown input" case here
+ * asserts the CLOSED answer rather than merely asserting no throw.
  *
- *   1. a mock is never reported as official
- *   2. a paper of unknown provenance is never reported as showable
- *
- * Both are fail-closed, so every "unknown input" case here asserts the CLOSED
- * answer rather than merely asserting no throw.
+ * Note what is NOT here: a visibility rule. Labelling decides what BADGE a
+ * paper wears, never whether a learner may see it — see the note on
+ * SOURCE_CONFIDENCE.
  *
  * Plain-node script — `npm run test:paper-sources`.
  */
@@ -16,18 +16,15 @@ import {
   PAPER_META_VERSION,
   PAPER_NUMBERS,
   PAPER_SOURCES,
-  SOURCE_CONFIDENCE,
   comparePapersBySource,
   getPaperSource,
   isOfficialSource,
   listPaperNumbers,
   listPaperSources,
   normalizePaperNumberToken,
-  normalizeSourceConfidence,
   normalizeSourceId,
   paperNumberLabel,
   paperSourceDescriptor,
-  paperSourceIsLearnerVisible,
   paperSourceLabel,
 } from './paperSources.js'
 
@@ -158,35 +155,6 @@ test('labels come from the registry, and a legacy number still gets one', () => 
 
 test('the picker offers exactly what the registry declares', () => {
   assert.deepEqual(listPaperNumbers().map((n) => n.value), [1, 2, 'special', 'mock'])
-})
-
-console.log('\npaperSources — learner visibility is fail-closed')
-
-test('an explicit or inferred source is visible', () => {
-  assert.equal(paperSourceIsLearnerVisible({ source: 'ecz', sourceConfidence: 'explicit' }), true)
-  assert.equal(paperSourceIsLearnerVisible({ source: 'prisca', sourceConfidence: 'inferred' }), true)
-})
-
-test('an unknown confidence is NOT visible', () => {
-  assert.equal(paperSourceIsLearnerVisible({ source: 'ecz', sourceConfidence: 'unknown' }), false)
-})
-
-test('a missing source is NOT visible even at explicit confidence', () => {
-  // "A human confirmed there is no source" is not a source.
-  assert.equal(paperSourceIsLearnerVisible({ source: null, sourceConfidence: 'explicit' }), false)
-  assert.equal(paperSourceIsLearnerVisible({ sourceConfidence: 'explicit' }), false)
-})
-
-test('a legacy paper carrying neither field is NOT visible', () => {
-  assert.equal(paperSourceIsLearnerVisible({ title: 'Grade 7 Maths 2021' }), false)
-  assert.equal(paperSourceIsLearnerVisible(null), false)
-  assert.equal(paperSourceIsLearnerVisible('paper'), false)
-})
-
-test('an unrecognised confidence reads as unknown, not as a pass', () => {
-  assert.equal(normalizeSourceConfidence('probably'), SOURCE_CONFIDENCE.UNKNOWN)
-  assert.equal(normalizeSourceConfidence(null), SOURCE_CONFIDENCE.UNKNOWN)
-  assert.equal(paperSourceIsLearnerVisible({ source: 'ecz', sourceConfidence: 'probably' }), false)
 })
 
 console.log('\npaperSources — ordering inside a subject')

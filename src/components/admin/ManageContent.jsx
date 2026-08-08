@@ -22,7 +22,6 @@ import { SUBJECTS as CURRICULUM_SUBJECTS } from '../../config/curriculum'
 import {
   PAPER_STATUSES, listAllPapersForAdmin, updatePaper, deletePaper, splitAssetsByRole,
 } from '../../utils/pastPapers'
-import { paperSourceIsLearnerVisible } from '../../config/paperSources'
 import { convertPaperToQuizDraft } from '../../utils/paperToQuizConverter'
 import ImportReviewBadge from '../quiz/ImportReviewBadge'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -685,26 +684,15 @@ export default function ManageContent() {
   }
 
   // ── Past paper actions ──────────────────────────────────────────────────
-
-  // A paper with no established source is invisible to learners: firestore.rules
-  // refuses the read and the published-list index leaves it out. Publishing one
-  // is therefore a write that SUCCEEDS and achieves nothing — the admin is told
-  // "✅ Paper published" and no learner will ever see it.
   //
-  // The Past Paper Studio blocks this at its own Publish step, but this screen
-  // is a second publish path (row toggle + bulk), and it is the one an admin
-  // reaches for when working through the archive right after the migration —
-  // exactly when unlabelled papers are most common. Refusing here is not
-  // duplicated validation; it is the same rule applied at the other door.
-  const PUBLISH_NEEDS_LABEL =
-    'needs a source before it can be published — label it under Past papers in /admin/papers.'
-
+  // NOTE — publishing is NOT gated on the paper having a source. #2193 added
+  // such a guard, because at the time an unlabelled paper was invisible to
+  // learners and "publish" was therefore a silent no-op. That visibility gate
+  // has since been reverted (it emptied the archive), so an unlabelled paper
+  // publishes and shows normally, carrying an "Unlabelled" badge. Keeping the
+  // guard would now block publishing for a reason that no longer exists.
   async function togglePaperPublish(paper) {
     const next = paper.status === 'published' ? PAPER_STATUSES.DRAFT : PAPER_STATUSES.PUBLISHED
-    if (next === PAPER_STATUSES.PUBLISHED && !paperSourceIsLearnerVisible(paper)) {
-      show(`❌ "${paper.title || 'This paper'}" ${PUBLISH_NEEDS_LABEL}`, true)
-      return
-    }
     await updatePaper(paper.id, { status: next })
     setPapers(ps => ps.map(p => p.id === paper.id ? { ...p, status: next } : p))
     show(next === PAPER_STATUSES.PUBLISHED ? '✅ Paper published.' : '📦 Paper unpublished.')
@@ -789,21 +777,9 @@ export default function ManageContent() {
         await Promise.all(targets.map(l => updateLesson(l.id, { isPublished: true, status: 'published' })))
         setLessons(ls => ls.map(l => selected.has(l.id) ? { ...l, isPublished: true, status: 'published' } : l))
       } else {
-        const chosen = papers.filter(p => selected.has(p.id) && p.status !== 'published')
-        // Unlabelled papers are held back rather than published invisibly, and
-        // the count is REPORTED — a bulk action that silently does less than it
-        // was asked to is how an admin ends up believing the archive is live.
-        const targets = chosen.filter(paperSourceIsLearnerVisible)
-        const held = chosen.length - targets.length
+        const targets = papers.filter(p => selected.has(p.id) && p.status !== 'published')
         await Promise.all(targets.map(p => updatePaper(p.id, { status: PAPER_STATUSES.PUBLISHED })))
-        const publishedIds = new Set(targets.map(p => p.id))
-        setPapers(ps => ps.map(p => publishedIds.has(p.id) ? { ...p, status: PAPER_STATUSES.PUBLISHED } : p))
-        show(held
-          ? `✅ Published ${targets.length}. ${held} held back — each ${PUBLISH_NEEDS_LABEL}`
-          : `✅ Published ${targets.length} item${targets.length === 1 ? '' : 's'}`,
-        held > 0)
-        clearSelection()
-        return
+        setPapers(ps => ps.map(p => selected.has(p.id) ? { ...p, status: PAPER_STATUSES.PUBLISHED } : p))
       }
       show(`✅ Published ${selected.size} item${selected.size === 1 ? '' : 's'}`)
       clearSelection()
