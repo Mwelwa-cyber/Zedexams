@@ -19,7 +19,15 @@ import { extractExports, extractRewrites, classify, RISK_RANK, followDelegation 
 
 /** Resolve a functions-relative require specifier to its source, or null. */
 function readFunctionsModule(rel) {
-  const base = path.join(ROOT, 'functions', rel.replace(/^\.\//, ''))
+  // Containment: a require specifier is source text, and the follower reads
+  // whatever it names. `../../../.env.production` would resolve fine and hand
+  // this script a credentials file to parse (github-actions security review
+  // on #2197). Anything resolving outside functions/ is refused — the
+  // follower's job is reading OUR modules, and a specifier that leaves the
+  // tree is a finding in its own right, not a path to follow.
+  const functionsDir = path.join(ROOT, 'functions')
+  const base = path.resolve(functionsDir, rel.replace(/^\.\//, ''))
+  if (base !== functionsDir && !base.startsWith(functionsDir + path.sep)) return null
   for (const candidate of [base, `${base}.js`, path.join(base, 'index.js')]) {
     try { return readFileSync(candidate, 'utf8') } catch { /* next */ }
   }

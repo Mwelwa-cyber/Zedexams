@@ -23,7 +23,15 @@ import { fileURLToPath } from 'node:url'
 import { extractExports, extractRewrites, classify, RISK_RANK, followDelegation } from './lib/functionsManifest.mjs'
 
 function readFunctionsModule(rel) {
-  const base = path.join(ROOT, 'functions', rel.replace(/^\.\//, ''))
+  // Containment: a require specifier is source text, and the follower reads
+  // whatever it names. `../../../.env.production` would resolve fine and hand
+  // this script a credentials file to parse (github-actions security review
+  // on #2197). Anything resolving outside functions/ is refused — the
+  // follower's job is reading OUR modules, and a specifier that leaves the
+  // tree is a finding in its own right, not a path to follow.
+  const functionsDir = path.join(ROOT, 'functions')
+  const base = path.resolve(functionsDir, rel.replace(/^\.\//, ''))
+  if (base !== functionsDir && !base.startsWith(functionsDir + path.sep)) return null
   for (const candidate of [base, `${base}.js`, path.join(base, 'index.js')]) {
     try { return readFileSync(candidate, 'utf8') } catch { /* next */ }
   }
@@ -191,6 +199,18 @@ test('a DELEGATED export\'s options are frozen where they actually live', () => 
   }
   assert.deepEqual(drifts, [],
     `a delegated export's wrapper drifted in its own module:\n    ${drifts.join('\n    ')}`)
+})
+
+test('the follower refuses a specifier that escapes functions/', () => {
+  // github-actions security review on #2197: the follower reads what a
+  // require() specifier names, so a traversal like ../../../.env.production
+  // would have had this script parse a credentials file. Refused, and refused
+  // in a way a test can see.
+  for (const escape of ['../../secrets', '../../../.env.production', '/etc/passwd']) {
+    assert.equal(readFunctionsModule(escape), null, `${escape} must not be readable`)
+  }
+  // …while a legitimate sibling module still resolves.
+  assert.ok(readFunctionsModule('./imageProxy'), './imageProxy must still resolve')
 })
 
 test('the guard\'s blind spot is measured and may only shrink', () => {
