@@ -97,14 +97,14 @@ const STUDIO_BUCKETS = [
   {
     icon: FileText,
     title: 'Teaching resources',
-    count: '5 studios',
-    body: 'Notes, worksheets, flashcards, homework and the visual studio for diagrams.',
+    count: '4 studios',
+    body: 'Notes, flashcards, homework and the visual studio for diagrams.',
   },
   {
     icon: ClipboardCheckList,
     title: 'Assessment',
-    count: '7 studios',
-    body: 'Tests, exam papers, rubrics, mark schedules and SBA task, tracker and planner.',
+    count: '6 studios',
+    body: 'Tests, exam papers, mark schedules and SBA task, tracker and planner.',
   },
   {
     icon: BookMarked,
@@ -132,8 +132,8 @@ const AUDIENCES = [
     title: 'Teachers',
     tag: 'AI co-pilot',
     bullets: [
-      'Generate lesson plans, worksheets, flashcards, and schemes of work',
-      'Build assessments, exam papers and rubrics aligned to CBC or OBC',
+      'Generate lesson plans, homework, flashcards, and schemes of work',
+      'Build assessments and exam papers aligned to CBC or OBC',
       'Export everything to DOCX or PDF — print and go',
     ],
     cta: { label: 'Start free', to: '/register' },
@@ -158,7 +158,7 @@ const PRICING = [
     priceNative: 'Free to start',
     note: `Pro · 10 generations a day · or K${PRO_YEARLY}/yr`,
     noteNative: 'Pro · 10 generations a day',
-    bullets: ['AI lesson plans, worksheets & notes', 'Assessments, exam papers & rubrics', 'DOCX / PDF export'],
+    bullets: ['AI lesson plans, homework & notes', 'Assessments & exam papers', 'DOCX / PDF export'],
     cta: { label: 'See teacher plans', to: '/pricing' },
     primary: false,
   },
@@ -190,7 +190,7 @@ const FAQ = [
     a: 'Yes. Pages are light, there is a data-saver mode in your dashboard settings, and most things still work on slower 3G. We test on common Zambian network conditions.',
   },
   {
-    q: 'Can I print worksheets and lesson plans?',
+    q: 'Can I print lesson plans and assessments?',
     a: 'Every teacher generation downloads as DOCX (editable in Word) or PDF (ready to print). No copying-and-pasting from a chat window.',
   },
   {
@@ -541,7 +541,7 @@ export default function Marketing() {
               <span style={{ color: '#F9A825' }}>Learners</span>
             </h1>
             <p className="marketing-hero-copy">
-              AI lesson plans, worksheets, quizzes, exams and notes for teachers — plus daily CBC
+              AI lesson plans, homework, quizzes, exams and notes for teachers — plus daily CBC
               exams, quizzes and study help for Grade 4–7 learners. All aligned to the CBC (2023)
               and OBC (2013) curricula.
             </p>

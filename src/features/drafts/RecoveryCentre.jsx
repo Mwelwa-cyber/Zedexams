@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import useStudioAvailability from '../../hooks/useStudioAvailability'
 import { useNetworkStatus } from '../../hooks/useNetworkStatus'
 import { listDraftsRemote, deleteDraftRemote } from '../../hooks/draft/draftCloudSync'
 import { idbListDrafts, idbDeleteDraft } from '../../hooks/draft/draftIdbStore'
@@ -33,6 +34,10 @@ const iconFor = (studioId) => TOOL_META[studioId]?.icon || EXTRA_ICONS[studioId]
 
 export default function RecoveryCentre() {
   const { currentUser } = useAuth()
+  // A draft for a studio that is no longer offered is still the teacher's — it
+  // is listed, and it can still be discarded. What it loses is "Continue
+  // editing", which would bounce off the studio's redirect.
+  const { isAvailable, retiredLabel } = useStudioAvailability()
   const navigate = useNavigate()
   const online = useNetworkStatus()
   const toast = useToast()
@@ -127,6 +132,8 @@ export default function RecoveryCentre() {
             {rows.map((row) => {
               const sync = syncStatus(row.source)
               const summary = summarizeDraft(row.studioId, row.payload)
+              const resumable = isAvailable(row.studioId)
+              const retired = retiredLabel(row.studioId)
               return (
                 <div key={row.draftId} className="studio-card p-4 flex flex-col gap-3">
                   <div className="flex items-start gap-3">
@@ -145,7 +152,10 @@ export default function RecoveryCentre() {
                       <p className="text-xs theme-text-secondary mt-0.5">Last edited {timeAgo(row.savedAt)}</p>
                     </div>
                   </div>
-                  <div className="flex gap-2 justify-end">
+                  <div className="flex gap-2 justify-end items-center">
+                    {!resumable && retired && (
+                      <span className="mr-auto text-xs theme-text-secondary">{retired}</span>
+                    )}
                     <button
                       type="button"
                       onClick={() => setPendingDiscard(row)}
@@ -153,13 +163,15 @@ export default function RecoveryCentre() {
                     >
                       Discard
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => navigate(resumeRoute(row.studioId, row.draftId))}
-                      className="studio-btn-primary text-xs"
-                    >
-                      Continue editing
-                    </button>
+                    {resumable && (
+                      <button
+                        type="button"
+                        onClick={() => navigate(resumeRoute(row.studioId, row.draftId))}
+                        className="studio-btn-primary text-xs"
+                      >
+                        Continue editing
+                      </button>
+                    )}
                   </div>
                 </div>
               )

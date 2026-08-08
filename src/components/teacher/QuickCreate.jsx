@@ -18,6 +18,13 @@ import iconLessonPlan from '../../assets/teacher-icons/lesson-plan.webp'
 import iconWeeklyForecast from '../../assets/teacher-icons/weekly-forecast.webp'
 import iconWorksheet from '../../assets/teacher-icons/worksheet.webp'
 import iconAssessments from '../../assets/teacher-icons/assessments.webp'
+import useStudioAvailability from '../../hooks/useStudioAvailability'
+
+/* Five declared, four shown. Worksheets is withdrawn behind a feature flag,
+   and Homework — the practice-generation surface while worksheets are away —
+   takes the freed slot rather than leaving the row of four a row of three.
+   Homework is last because it is the entry that yields when the flag is on. */
+const ACTION_COUNT = 4
 
 const ACTIONS = [
   {
@@ -52,9 +59,20 @@ const ACTIONS = [
     text: 'Build tests, mock exams and formal examinations.',
     to: '/teacher/assessment-papers/new',
   },
+  {
+    key: 'homework',
+    // This icon set has no homework artwork; the classic workspace's Homework
+    // Studio tile reuses the worksheet icon for the same reason.
+    img: iconWorksheet,
+    tone: 'green',
+    title: 'Homework',
+    text: 'Set homework with model answers and marking guidance.',
+    to: '/teacher/generate/homework',
+  },
 ]
 
 export default function QuickCreate({ context = null, onViewAllTools }) {
+  const { filterEntries } = useStudioAvailability()
   // Seed each studio with the active Teaching Profile context (grade/subject/
   // term) when one is available, so Quick Create opens on the right teaching
   // context rather than the generic profile default.
@@ -81,7 +99,7 @@ export default function QuickCreate({ context = null, onViewAllTools }) {
         </button>
       </div>
       <div className="teacher-quickcreate__grid">
-        {ACTIONS.map((a) => (
+        {filterEntries(ACTIONS).slice(0, ACTION_COUNT).map((a) => (
           <Link
             key={a.key}
             to={`${a.to}${qs}`}

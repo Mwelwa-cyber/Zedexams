@@ -19,6 +19,10 @@
 import { lazy } from 'react'
 import { Navigate, useLocation, useParams } from 'react-router-dom'
 import ProtectedRoute from '../layout/ProtectedRoute'
+import PageLoader from '../ui/PageLoader'
+import { usePlatformSettings } from '../../contexts/PlatformSettingsContext'
+import { redirectTargetForTool } from '../../config/studioAvailability'
+import useStudioAvailability from '../../hooks/useStudioAvailability'
 // Lazy, like the pages: this module is statically imported by App.jsx (it is
 // the route table), so a static import here would pull the shell — and the
 // whole dashboard design system behind it — into the entry chunk for every
@@ -58,7 +62,9 @@ const MarkScheduleStudio = lazy(() => import('./generate/MarkScheduleStudio'))
 const WeeklyForecastStudio = lazy(() => import('./generate/WeeklyForecastStudio'))
 const RecordOfWorkStudio = lazy(() => import('./generate/RecordOfWorkStudio'))
 const ClassTimetableStudio = lazy(() => import('./generate/ClassTimetableStudio'))
-const RubricGenerator = lazy(() => import('../../features/rubric/pages/RubricGenerator'))
+// Rubric Studio is retired (2026-08) — no page is mounted for it any more.
+// `src/features/rubric` stays for `RubricView`, which My Library still needs
+// to render the rubrics teachers already saved.
 const NotesStudio = lazy(() => import('../../features/teacherNotes/pages/NotesStudio'))
 const SbaTaskStudio = lazy(() => import('./generate/SbaTaskStudio'))
 const SbaMarkTracker = lazy(() => import('./generate/SbaMarkTracker'))
@@ -125,6 +131,33 @@ function LegacyAssessmentPaperRedirect({ suffix = '' }) {
 function LegacyLessonPlanStudioRedirect() {
   const { search } = useLocation()
   return <Navigate to={`/teacher/lesson-plans/new${search}`} replace />
+}
+
+/**
+ * A studio that is no longer offered: send the teacher to the studios list
+ * with the reason in the URL (StudioUnavailableNotice renders it there).
+ */
+function UnavailableStudioRedirect({ tool }) {
+  return <Navigate to={redirectTargetForTool(tool)} replace />
+}
+
+/**
+ * A studio held behind a feature flag — Worksheet Studio, withdrawn for launch
+ * and due back once the curated Diagram Library exists.
+ *
+ * The wait on `loaded` is not decoration. `settings/global` arrives over a
+ * snapshot, so for the first frames of a cold load the flags are the context's
+ * defaults and the studio resolves, correctly and fail-closed, to unavailable.
+ * Redirecting on that answer would bounce a teacher who legitimately has the
+ * flag on, and the redirect is `replace` — they would not even be able to go
+ * back. A skeleton frame is the cheaper mistake.
+ */
+export function FlaggedStudioRoute({ tool, children }) {
+  const { loaded } = usePlatformSettings()
+  const { isAvailable } = useStudioAvailability()
+  if (!loaded) return <PageLoader />
+  if (!isAvailable(tool)) return <UnavailableStudioRedirect tool={tool} />
+  return children
 }
 
 /** Shell-wrapped route. */
@@ -225,14 +258,24 @@ export const TEACHER_ROUTES = [
 
   // ── Generator studios (Pro/Max — Free sees a read-only sample) ─────
   studio('/teacher/generate/homework', 'homework', <HomeworkStudio />),
-  studio('/teacher/generate/worksheet', 'worksheet', <WorksheetGenerator />),
+  // Worksheet Studio is WITHDRAWN for launch, not deleted: its
+  // picture-dependent output cannot be generated reliably yet. The module
+  // still builds and this route still mounts it — behind
+  // featureFlags.worksheetStudioEnabled (default off, admin-toggleable).
+  studio('/teacher/generate/worksheet', 'worksheet', (
+    <FlaggedStudioRoute tool="worksheet"><WorksheetGenerator /></FlaggedStudioRoute>
+  )),
   studio('/teacher/generate/flashcards', 'flashcards', <FlashcardGenerator />),
   studio('/teacher/generate/scheme-of-work', 'scheme_of_work', <SchemeOfWorkGenerator />),
   studio('/teacher/generate/mark-schedule', 'mark_schedule', <MarkScheduleStudio />),
   studio('/teacher/generate/weekly-forecast', 'weekly_forecast', <WeeklyForecastStudio />),
   studio('/teacher/generate/record-of-work', 'record_of_work', <RecordOfWorkStudio />),
   studio('/teacher/generate/class-timetable', 'class_timetable', <ClassTimetableStudio />),
-  studio('/teacher/generate/rubric', 'rubric', <RubricGenerator />),
+  // Rubric Studio is RETIRED — 4-level descriptor rubrics are not part of the
+  // Zambian curriculum or the school teaching file. Saved rubrics stay in My
+  // Library, read-only; the studio itself is gone and the path is kept only so
+  // an old bookmark lands somewhere useful instead of on the SPA fallback.
+  redirect('/teacher/generate/rubric', <UnavailableStudioRedirect tool="rubric" />),
   studio('/teacher/generate/notes', 'notes', <NotesStudio />),
   studio('/teacher/generate/sba', 'sba_task', <SbaTaskStudio />),
   studio('/teacher/generate/sba-tracker', 'sba_tracker', <SbaMarkTracker />),

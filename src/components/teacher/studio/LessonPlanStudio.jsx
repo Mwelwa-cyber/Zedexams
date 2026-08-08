@@ -79,6 +79,7 @@ import { useAiOperationLock } from '../../../hooks/useAiOperationLock'
 import { stableFingerprint } from '../../../hooks/aiOperationLockCore'
 import { applyLessonPlanRestore } from '../../../hooks/draft/restoreLessonPlan'
 import { usePlatformSettings } from '../../../contexts/PlatformSettingsContext'
+import useStudioAvailability from '../../../hooks/useStudioAvailability'
 import DraftRecoveryPrompt from '../../draft/DraftRecoveryPrompt'
 import DraftStatusIndicator from '../../draft/DraftStatusIndicator'
 
@@ -88,12 +89,15 @@ const generateCallable = httpsCallable(functions, 'studioGenerateLessonPlan', { 
 // Teaching Kit tools surfaced once a plan exists. `id` drives openKitTool().
 // Lucide components, not emoji — the teacher surfaces draw every icon at the
 // row's own size and colour rather than the platform's.
+// `to` is what the availability filter reads; openKitTool() still resolves
+// the real destination (it saves the plan first for some tools), so the two
+// must name the same route.
 const KIT_TOOLS = [
-  { id: 'worksheet',  label: 'Worksheet',  Icon: FileText },
-  { id: 'homework',   label: 'Homework',   Icon: House },
-  { id: 'notes',      label: 'Notes',      Icon: BookOpen },
-  { id: 'flashcards', label: 'Flashcards', Icon: Layers },
-  { id: 'test',       label: 'Test Paper', Icon: FileCheck },
+  { id: 'worksheet',  label: 'Worksheet',  Icon: FileText,  to: '/teacher/generate/worksheet' },
+  { id: 'homework',   label: 'Homework',   Icon: House,     to: '/teacher/generate/homework' },
+  { id: 'notes',      label: 'Notes',      Icon: BookOpen,  to: '/teacher/generate/notes' },
+  { id: 'flashcards', label: 'Flashcards', Icon: Layers,    to: '/teacher/generate/flashcards' },
+  { id: 'test',       label: 'Test Paper', Icon: FileCheck, to: '/teacher/assessment-papers/new' },
 ]
 
 // Map a studioGenerateLessonPlan quota rejection to the matching upgrade
@@ -737,6 +741,9 @@ export default function LessonPlanStudio() {
     studioState.wizardStep,
   ])
   const { featureFlags } = usePlatformSettings().settings
+  // Teaching Kit hands off into other studios; a withdrawn one must not be
+  // offered a doorway from here either.
+  const { filterEntries } = useStudioAvailability()
   const draft = useDraftManager({
     studioId: 'lesson_plan',
     uid,
@@ -1838,7 +1845,7 @@ export default function LessonPlanStudio() {
               <p className="text-[11px] font-semibold text-[#4A5A6E]">Aligned to this lesson</p>
             </div>
             <div className="flex flex-1 gap-2 overflow-x-auto">
-              {KIT_TOOLS.map(({ id, label, Icon }) => {
+              {filterEntries(KIT_TOOLS).map(({ id, label, Icon }) => {
                 const busy = id === 'notes' && kitBusy
                 return (
                   <button

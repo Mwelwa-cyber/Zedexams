@@ -5,6 +5,13 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import TeacherAppLauncher from './TeacherAppLauncher'
 import { STUDIO_CATEGORIES, TEACHER_STUDIOS } from './teacherStudios'
 
+// Every teacher navigation surface now asks studioAvailability which studios
+// are on offer, and that reads settings/global. Stubbed to the LAUNCH state
+// (no flags set → Worksheet Studio withdrawn, Rubric Studio retired).
+vi.mock('../../../../contexts/PlatformSettingsContext', () => ({
+  usePlatformSettings: () => ({ settings: { featureFlags: {} }, loaded: true, live: true }),
+}))
+
 // ── Auth mock (favourites persistence hooks read this) ──────────────────
 const updateProfileFields = vi.fn().mockResolvedValue()
 let authValue
@@ -41,10 +48,15 @@ afterEach(() => { vi.useRealTimers() })
 const lessonIcon = () => screen.getByLabelText(/^Lesson Plans.*Open studio$/)
 
 describe('registry integrity', () => {
-  it('has 21 unique studios across the four categories with real /teacher routes', () => {
-    expect(TEACHER_STUDIOS).toHaveLength(21)
+  it('has 20 unique studios across the four categories with real /teacher routes', () => {
+    // 21 until Rubric Studio was retired (2026-08). Worksheets is still here:
+    // it is withdrawn behind a feature flag, and the launcher filters it at
+    // render — the registry keeps it so flipping the flag restores it.
+    expect(TEACHER_STUDIOS).toHaveLength(20)
     const ids = new Set(TEACHER_STUDIOS.map((s) => s.id))
-    expect(ids.size).toBe(21)
+    expect(ids.size).toBe(20)
+    expect(ids.has('rubrics')).toBe(false)
+    expect(ids.has('worksheets')).toBe(true)
     const cats = new Set(STUDIO_CATEGORIES.map((c) => c.id))
     for (const s of TEACHER_STUDIOS) {
       expect(s.route.startsWith('/teacher')).toBe(true)
@@ -141,21 +153,39 @@ describe('TeacherAppLauncher', () => {
   })
 
   it('surfaces a Recently used row in most-recent-first order', () => {
-    localStorage.setItem('zedexams:teacher-recents:u1', JSON.stringify({ ids: ['worksheets', 'schemes'], at: {} }))
+    localStorage.setItem('zedexams:teacher-recents:u1', JSON.stringify({ ids: ['notes', 'schemes'], at: {} }))
     const { container } = renderLauncher()
     const recent = container.querySelector('.tsl-recent')
     expect(recent).toBeTruthy()
     const names = within(recent).getAllByLabelText(/Open studio$/).map((n) => n.getAttribute('data-studio'))
-    expect(names.slice(0, 2)).toEqual(['worksheets', 'schemes'])
+    expect(names.slice(0, 2)).toEqual(['notes', 'schemes'])
+  })
+
+  /* Recents and favourites are stored on the DEVICE, so they are the one way
+     a studio the registry no longer offers could walk back onto the grid. */
+  it('drops a withdrawn studio from recents and favourites', () => {
+    localStorage.setItem('zedexams:teacher-recents:u1', JSON.stringify({ ids: ['worksheets', 'schemes'], at: {} }))
+    localStorage.setItem('zedexams:teacher-favourites:u1', JSON.stringify(['worksheets', 'notes']))
+    const { container } = renderLauncher()
+    const recentIds = within(container.querySelector('.tsl-recent'))
+      .getAllByLabelText(/Open studio$/).map((n) => n.getAttribute('data-studio'))
+    expect(recentIds).not.toContain('worksheets')
+    const favIds = within(container.querySelector('.tsl-favs'))
+      .getAllByLabelText(/Open studio$/).map((n) => n.getAttribute('data-studio'))
+    expect(favIds).toEqual(['notes'])
   })
 
   it('search filters to matching tools and shows an empty state otherwise', async () => {
     const user = userEvent.setup()
     renderLauncher()
     const box = screen.getByRole('searchbox', { name: 'Search teacher tools' })
-    await user.type(box, 'rubric')
-    expect(screen.getByLabelText(/^Rubrics.*Open studio$/)).toBeInTheDocument()
+    await user.type(box, 'flashcard')
+    expect(screen.getByLabelText(/^Flashcards.*Open studio$/)).toBeInTheDocument()
     expect(screen.queryByLabelText(/^Lesson Plans.*Open studio$/)).not.toBeInTheDocument()
+    // Search must not be a back door into a studio the grid has hidden.
+    await user.clear(box)
+    await user.type(box, 'worksheet')
+    expect(screen.queryByLabelText(/^Worksheets.*Open studio$/)).not.toBeInTheDocument()
     await user.clear(box)
     await user.type(box, 'zzznope')
     expect(screen.getByText(/No tools match/)).toBeInTheDocument()
@@ -254,12 +284,12 @@ describe('TeacherAppLauncher', () => {
   })
 
   it('pinned favourites surface as a row on the default view', () => {
-    localStorage.setItem('zedexams:teacher-favourites:u1', JSON.stringify(['notes', 'rubrics']))
+    localStorage.setItem('zedexams:teacher-favourites:u1', JSON.stringify(['notes', 'flashcards']))
     const { container } = renderLauncher()
     const favRow = container.querySelector('.tsl-favs')
     expect(favRow).toBeTruthy()
     const ids = within(favRow).getAllByLabelText(/Open studio$/).map((n) => n.getAttribute('data-studio'))
-    expect(ids).toEqual(['notes', 'rubrics'])
+    expect(ids).toEqual(['notes', 'flashcards'])
   })
 
   it('warning dot renders from the warnings prop and outranks the saved count', () => {

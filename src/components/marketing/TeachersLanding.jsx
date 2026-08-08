@@ -8,7 +8,7 @@
  * with /pricing so the numbers can't drift.
  */
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import Logo from '../ui/Logo'
@@ -29,6 +29,7 @@ import MarkScheduleView from '../teacher/views/MarkScheduleView'
 import ReportCardView from '../teacher/views/ReportCardView'
 import { buildReportCards } from '../../utils/markSchedule'
 import { FlashcardsView } from '../../features/flashcards'
+import useStudioAvailability from '../../hooks/useStudioAvailability'
 
 function Section({ children, className = '', id }) {
   return (
@@ -133,6 +134,14 @@ function SampleRenderer({ sample, showAnswers, planLayout, testVariant, schedule
 }
 
 function SampleLibrary() {
+  // The sample library is a promise: a tab here says "this studio exists and
+  // produces this". A withdrawn studio must not be advertised on the public
+  // page, and restoring the flag restores the tab with the studio.
+  const { isAvailable } = useStudioAvailability()
+  const samples = useMemo(
+    () => TEACHER_SAMPLES.filter((s) => isAvailable(s.tool)),
+    [isAvailable],
+  )
   const [activeId, setActiveId] = useState(TEACHER_SAMPLES[0].id)
   const [showAnswers, setShowAnswers] = useState(false)
   const [expanded, setExpanded] = useState(false)
@@ -142,7 +151,10 @@ function SampleLibrary() {
   const [testVariant, setTestVariant] = useState('midterm')
   // Mark schedule view: 'marks' (raw, out of each subject max) | 'percent'.
   const [scheduleMode, setScheduleMode] = useState('marks')
-  const active = TEACHER_SAMPLES.find((s) => s.id === activeId) || TEACHER_SAMPLES[0]
+  // Falls back to the first AVAILABLE sample: the flag can turn off under a
+  // page that is already open, and `activeId` would then name a missing tab.
+  const active = samples.find((s) => s.id === activeId) || samples[0]
+  if (!active) return null
   // Flashcards are a compact grid — collapsing them just hides half the fun.
   const collapsible = active.tool !== 'flashcards'
   const isCollapsed = collapsible && !expanded
@@ -164,7 +176,7 @@ function SampleLibrary() {
         role="tablist"
         aria-label="Sample documents by studio"
       >
-        {TEACHER_SAMPLES.map((s) => (
+        {samples.map((s) => (
           <button
             key={s.id}
             type="button"
@@ -369,8 +381,8 @@ export default function TeachersLanding() {
   return (
     <>
       <SeoHelmet
-        title="AI lesson plans, worksheets & schemes for Zambian teachers"
-        description="Generate CBC-aligned lesson plans, worksheets, term tests, schemes of work, weekly forecasts, records of work and flashcards in about a minute. See real samples, start free — no card required."
+        title="AI lesson plans, homework & schemes for Zambian teachers"
+        description="Generate CBC-aligned lesson plans, homework, term tests, schemes of work, weekly forecasts, records of work and flashcards in about a minute. See real samples, start free — no card required."
         path="/teachers"
       />
       <div className="marketing-page min-h-screen theme-bg theme-text font-body">
@@ -410,7 +422,7 @@ export default function TeachersLanding() {
               Sunday-night planning, done in about a minute.
             </h1>
             <p className="text-lg text-white/80 max-w-xl">
-              CBC-aligned lesson plans, worksheets, term tests, schemes of work, weekly forecasts,
+              CBC-aligned lesson plans, homework, term tests, schemes of work, weekly forecasts,
               records of work and flashcards — generated from the official syllabus, edited by you, exported to DOCX or PDF.
             </p>
             <div className="mt-7 flex flex-wrap items-center gap-3">

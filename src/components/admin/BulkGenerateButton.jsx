@@ -14,15 +14,19 @@ import { useNavigate } from 'react-router-dom'
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { useAuth } from '../../contexts/AuthContext'
+import useStudioAvailability from '../../hooks/useStudioAvailability'
 
 const MAX_BATCH = 20
 
+// Rubric left this list with its studio (retired 2026-08); worksheet is
+// filtered at render while its studio is withdrawn. Queueing a brief for a
+// document type nothing creates any more just produces content no surface
+// reaches.
 const TOOLS = [
   { key: 'lesson_plan', label: 'Lesson plans' },
   { key: 'worksheet',   label: 'Worksheets' },
   { key: 'notes',       label: 'Teacher notes' },
   { key: 'flashcards',  label: 'Flashcards' },
-  { key: 'rubric',      label: 'Rubrics' },
 ]
 
 function firstSubtopicName(subtopics) {
@@ -35,6 +39,8 @@ function firstSubtopicName(subtopics) {
 
 export default function BulkGenerateButton({ topics }) {
   const { currentUser } = useAuth()
+  const { isAvailable } = useStudioAvailability()
+  const tools = TOOLS.filter((t) => isAvailable(t.key))
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [tool, setTool] = useState('lesson_plan')
@@ -114,7 +120,7 @@ export default function BulkGenerateButton({ topics }) {
               What to draft
             </label>
             <div className="mt-2 grid grid-cols-2 gap-2">
-              {TOOLS.map((t) => (
+              {tools.map((t) => (
                 <button
                   key={t.key}
                   type="button"

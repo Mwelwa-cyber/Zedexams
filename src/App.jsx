@@ -9,7 +9,7 @@ import { AnnouncementBanner } from './features/announcements'
 import AndroidUpdateBanner from './components/banners/AndroidUpdateBanner'
 import SubscriptionStatusBanner from './components/subscription/SubscriptionStatusBanner'
 import ProtectedRoute from './components/layout/ProtectedRoute'
-import { TEACHER_ROUTES } from './components/teacher/teacherRoutes'
+import { TEACHER_ROUTES, FlaggedStudioRoute } from './components/teacher/teacherRoutes'
 import AdminMfaGate from './components/layout/AdminMfaGate'
 import LearnerOnlyRoute from './components/auth/LearnerOnlyRoute'
 import MissingProfileRecovery from './components/auth/MissingProfileRecovery'
@@ -231,7 +231,8 @@ const WorksheetGenerator = lazy(() => import('./features/worksheet/pages/Workshe
 const FlashcardGenerator = lazy(() => import('./features/flashcards/pages/FlashcardGenerator'))
 const SchemeOfWorkGenerator = lazy(() => import('./components/teacher/generate/SchemeOfWorkGenerator'))
 const ClassTimetableStudio = lazy(() => import('./components/teacher/generate/ClassTimetableStudio'))
-const RubricGenerator = lazy(() => import('./features/rubric/pages/RubricGenerator'))
+// Rubric Studio is retired (2026-08); no admin route mounts it either. Saved
+// rubrics still render in My Library via features/rubric's RubricView.
 const NotesStudio = lazy(() => import('./features/teacherNotes/pages/NotesStudio'))
 // Teacher — Visual Studio (ZedExams Picture & Diagram Studio). Self-contained
 // feature module under src/features/visualStudio/.
@@ -684,11 +685,17 @@ export default function App() {
           <Route path="/admin/results"                  element={<AdminRoute><AdminResults /></AdminRoute>} />
           <Route path="/admin/payments"                 element={<AdminRoute><PaymentsPanel /></AdminRoute>} />
           <Route path="/admin/demo-trials"              element={<AdminRoute><BulkGrantTrialsPanel /></AdminRoute>} />
-          <Route path="/admin/generate/worksheet"       element={<AdminRoute><WorksheetGenerator /></AdminRoute>} />
+          {/* Worksheet Studio rides the same feature flag as the teacher route
+              — the admin copy of a withdrawn studio is still the withdrawn
+              studio, and leaving it open would be a second door into output
+              we have said is not fit to print. */}
+          <Route path="/admin/generate/worksheet"       element={<AdminRoute><FlaggedStudioRoute tool="worksheet"><WorksheetGenerator /></FlaggedStudioRoute></AdminRoute>} />
           <Route path="/admin/generate/flashcards"      element={<AdminRoute><FlashcardGenerator /></AdminRoute>} />
           <Route path="/admin/generate/scheme-of-work"  element={<AdminRoute><SchemeOfWorkGenerator /></AdminRoute>} />
           <Route path="/admin/generate/class-timetable" element={<AdminRoute><ClassTimetableStudio /></AdminRoute>} />
-          <Route path="/admin/generate/rubric"          element={<AdminRoute><RubricGenerator /></AdminRoute>} />
+          {/* /admin/generate/rubric is gone with the studio — an admin path is
+              internal, so there is no bookmark to preserve and no teacher-facing
+              notice to route an admin through. */}
           <Route path="/admin/generate/notes"           element={<AdminRoute><NotesStudio /></AdminRoute>} />
           <Route path="/admin/company"                  element={<AdminRoute><CompanyHQ /></AdminRoute>} />
           <Route path="/admin/agents"                   element={<AdminRoute><AgentsHome /></AdminRoute>} />

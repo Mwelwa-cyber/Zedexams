@@ -20,6 +20,20 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
 import { TEACHER_ROUTES } from './teacherRoutes'
 
+// Worksheet Studio is withdrawn behind a feature flag, and with the flag off
+// its route resolves to a redirect — which has no shell, correctly, and would
+// make this guard fail for the wrong reason. The flag is stubbed ON so every
+// shell route mounts its PAGE and the guard keeps answering the one question
+// it exists for. The withdrawal itself is asserted separately below, with the
+// flag off.
+vi.mock('../../contexts/PlatformSettingsContext', () => ({
+  usePlatformSettings: () => ({
+    settings: { featureFlags: { worksheetStudioEnabled: true } },
+    loaded: true,
+    live: true,
+  }),
+}))
+
 // Two components on this path boot Firebase for live usage data
 // (useTeacherReminders / useTeacherUsage). Neither has any bearing on whether
 // a route is inside the shell, and StudioGate — which pulls the second — sits
@@ -110,6 +124,24 @@ describe('every teacher route renders inside TeacherLayout', () => {
       cleanup()
     },
   )
+
+  /* Rubric Studio is retired and Worksheet Studio is withdrawn. Neither may
+     be reachable from the route table at launch — the first permanently, the
+     second while featureFlags.worksheetStudioEnabled is off. */
+  it('the retired Rubric Studio has no page, only a redirect', () => {
+    const rubric = TEACHER_ROUTES.find((r) => r.path === '/teacher/generate/rubric')
+    expect(rubric, 'the path is kept so an old bookmark lands somewhere').toBeTruthy()
+    expect(rubric.shell).toBe(false)
+    renderRoute(rubric)
+    expect(shellRoot()).toBeNull()
+    cleanup()
+  })
+
+  it('the withdrawn Worksheet Studio keeps its route and its page', () => {
+    const worksheet = TEACHER_ROUTES.find((r) => r.path === '/teacher/generate/worksheet')
+    expect(worksheet, 'the studio is hidden, never deleted').toBeTruthy()
+    expect(worksheet.shell).toBe(true)
+  })
 
   it('every route path is unique', () => {
     const paths = TEACHER_ROUTES.map((r) => r.path)
