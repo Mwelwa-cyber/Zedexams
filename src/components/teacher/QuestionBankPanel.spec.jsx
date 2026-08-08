@@ -1,11 +1,18 @@
+/**
+ * The Question Bank drawer / bottom sheet inside the builder.
+ *
+ * The bank UI itself is covered by QuestionBankBrowser.spec.jsx. What is pinned
+ * here is what the SHELL is responsible for: the paper's grade/subject/topic
+ * seed the filters, the builder is left interactive on desktop, and Use hands
+ * the row up rather than inserting — placement is a separate, explicit step
+ * (see QuestionBankPlacementPicker).
+ */
+
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import QuestionBankPanel from './QuestionBankPanel.jsx'
 import { _resetSearchCachesForTests } from '../../utils/cache/searchCache.js'
 
-// The bank fixture the mocked service serves. `data` carries the full question
-// (stem, options, answer key, diagram params) exactly as the real bank stores
-// it — a JSON string — so the panel's parse + insert path runs for real.
 const ROWS = [
   {
     id: 'q-frac-1', ownerId: 'u1', type: 'mcq', grade: '4', subject: 'Mathematics',
@@ -28,18 +35,19 @@ const ROWS = [
 ]
 
 const searchQuestionBank = vi.fn()
-const bumpQuestionUsage = vi.fn()
 
-vi.mock('../../utils/questionBankService', async () => {
-  return {
-    searchQuestionBank: (...args) => searchQuestionBank(...args),
-    // Use the real parse so the insert payload is a genuine deep-decoded object.
-    parseBankQuestion: (row) => { try { return JSON.parse(row?.data || 'null') } catch { return null } },
-    bumpQuestionUsage: (...args) => bumpQuestionUsage(...args),
-  }
-})
+vi.mock('../../utils/questionBankService', () => ({
+  searchQuestionBank: (...a) => searchQuestionBank(...a),
+  parseBankQuestion: (row) => { try { return JSON.parse(row?.data || 'null') } catch { return null } },
+  duplicateBankQuestion: vi.fn(async () => 'new-id'),
+  editMyBankQuestion: vi.fn(async () => {}),
+  toggleFavouriteQuestion: vi.fn(async () => {}),
+  listFavouriteIds: vi.fn(async () => new Set()),
+  deleteBankQuestion: vi.fn(async () => {}),
+  getBankQuestion: vi.fn(async () => null),
+  saveQuestionToBank: vi.fn(async () => 'new-id'),
+}))
 
-// The diagram renderer + rich-text plain-text extractor aren't under test here.
 vi.mock('../diagrams/DiagramSvg', () => ({ default: () => <div data-testid="diagram" /> }))
 vi.mock('../../utils/quizRichText', () => ({ extractRichTextPlain: (v) => (typeof v === 'string' ? v : '') }))
 
@@ -47,57 +55,79 @@ describe('QuestionBankPanel', () => {
   beforeEach(() => {
     _resetSearchCachesForTests()
     searchQuestionBank.mockReset().mockResolvedValue({ rows: ROWS, error: null })
-    bumpQuestionUsage.mockReset()
   })
 
   const context = { grade: '4', subject: 'Mathematics', topic: 'Fractions' }
 
-  it('auto-scopes to the paper topic and lists only matching questions', async () => {
-    render(<QuestionBankPanel open uid="u1" context={context} onInsert={vi.fn()} onClose={vi.fn()} />)
+  it('opens pre-filtered to the paper’s grade, subject and topic', async () => {
+    render(<QuestionBankPanel open uid="u1" context={context} onUse={vi.fn()} onClose={vi.fn()} />)
     await waitFor(() => expect(screen.getByText('Add 1/2 and 1/4')).toBeInTheDocument())
-    // Two Fractions questions show; the Geometry one is filtered out by context.
     expect(screen.getByText('Simplify 6/8')).toBeInTheDocument()
+    // Off-topic questions are filtered out, and the topic filter says so.
     expect(screen.queryByText('Name the shape')).not.toBeInTheDocument()
-    // Context header names the topic.
-    expect(screen.getByText(/Fractions/)).toBeInTheDocument()
+    // The applied topic is stated, with a way out of it.
+    expect(screen.getByRole('button', { name: /Clear topic/i })).toBeInTheDocument()
   })
 
-  it('widens to subject level and says so when no topic matches', async () => {
-    render(<QuestionBankPanel open uid="u1" context={{ grade: '4', subject: 'Mathematics', topic: 'Statistics' }} onInsert={vi.fn()} onClose={vi.fn()} />)
-    await waitFor(() => expect(screen.getByText(/widened to all/i)).toBeInTheDocument())
-    // All three subject questions are now visible.
-    expect(screen.getByText('Name the shape')).toBeInTheDocument()
+  it('the pre-applied topic is a filter, not a fixed scope', async () => {
+    render(<QuestionBankPanel open uid="u1" context={context} onUse={vi.fn()} onClose={vi.fn()} />)
+    await waitFor(() => expect(screen.getByText('Add 1/2 and 1/4')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /Clear topic/i }))
+    await waitFor(() => expect(screen.getByText('Name the shape')).toBeInTheDocument())
   })
 
-  it('one-click insert calls onInsert with a deep-cloned payload + row, and fires the usage bump', async () => {
-    const onInsert = vi.fn()
-    render(<QuestionBankPanel open uid="u1" context={context} onInsert={onInsert} onClose={vi.fn()} />)
+  it('Use hands the row and parsed question up — the drawer never inserts', async () => {
+    const onUse = vi.fn()
+    render(<QuestionBankPanel open uid="u1" context={context} onUse={onUse} onClose={vi.fn()} />)
     await waitFor(() => expect(screen.getByText('Add 1/2 and 1/4')).toBeInTheDocument())
 
-    const card = screen.getByText('Add 1/2 and 1/4').closest('div.bg-white')
-    fireEvent.click(within(card).getByRole('button', { name: /Insert into paper/i }))
+    const card = screen.getByText('Add 1/2 and 1/4').closest('[data-bank-row]')
+    fireEvent.click(within(card).getByRole('button', { name: 'Use' }))
 
-    expect(onInsert).toHaveBeenCalledTimes(1)
-    const [question, row] = onInsert.mock.calls[0]
-    // The payload preserves the diagram params + answer key exactly.
-    expect(question.imageDiagram).toEqual({ libraryKey: 'fraction_bar', params: { parts: 4 } })
-    expect(question.correctAnswer).toBe(0)
+    expect(onUse).toHaveBeenCalledTimes(1)
+    const [row, question] = onUse.mock.calls[0]
     expect(row.id).toBe('q-frac-1')
-    // It's a parsed copy — mutating it must not touch the source row string.
+    // A parsed copy: mutating it must not reach the stored row string.
+    expect(question.imageDiagram).toEqual({ libraryKey: 'fraction_bar', params: { parts: 4 } })
     question.imageDiagram.params.parts = 99
     expect(JSON.parse(ROWS[0].data).imageDiagram.params.parts).toBe(4)
   })
 
-  it('free-text search filters the visible cards', async () => {
-    render(<QuestionBankPanel open uid="u1" context={context} onInsert={vi.fn()} onClose={vi.fn()} />)
+  it('the builder stays interactive behind the drawer on desktop', async () => {
+    const { container } = render(
+      <QuestionBankPanel open uid="u1" context={context} onUse={vi.fn()} onClose={vi.fn()} />,
+    )
     await waitFor(() => expect(screen.getByText('Add 1/2 and 1/4')).toBeInTheDocument())
-    fireEvent.change(screen.getByPlaceholderText(/Search question text/i), { target: { value: 'simplify' } })
-    await waitFor(() => expect(screen.queryByText('Add 1/2 and 1/4')).not.toBeInTheDocument())
-    expect(screen.getByText('Simplify 6/8')).toBeInTheDocument()
+    // The scrim that would block the paper is small-screen only, so the drawer
+    // sits BESIDE the builder on desktop rather than over it.
+    const scrim = container.querySelector('.fixed.inset-0.bg-black\\/30')
+    expect(scrim).toBeTruthy()
+    expect(scrim.className).toMatch(/md:hidden/)
   })
 
-  it('shows "used N×" so teachers can spot over-reused questions', async () => {
-    render(<QuestionBankPanel open uid="u1" context={context} onInsert={vi.fn()} onClose={vi.fn()} />)
-    await waitFor(() => expect(screen.getByText('used 3×')).toBeInTheDocument())
+  it('renders as a bottom sheet on a phone and a right-hand drawer on desktop', async () => {
+    render(<QuestionBankPanel open uid="u1" context={context} onUse={vi.fn()} onClose={vi.fn()} />)
+    const panel = screen.getByLabelText('Question bank')
+    // Phone: pinned to the bottom edge. Desktop: released and pinned right.
+    expect(panel.className).toMatch(/inset-x-0/)
+    expect(panel.className).toMatch(/bottom-0/)
+    expect(panel.className).toMatch(/md:right-0/)
+    expect(panel.className).toMatch(/md:top-0/)
+  })
+
+  it('is closed and inert until opened, and closes on the ×', async () => {
+    const onClose = vi.fn()
+    const { rerender } = render(
+      <QuestionBankPanel open={false} uid="u1" context={context} onUse={vi.fn()} onClose={onClose} />,
+    )
+    const panel = screen.getByLabelText('Question bank')
+    expect(panel).toHaveAttribute('aria-hidden', 'true')
+    // A closed drawer does not read the bank.
+    expect(searchQuestionBank).not.toHaveBeenCalled()
+
+    rerender(<QuestionBankPanel open uid="u1" context={context} onUse={vi.fn()} onClose={onClose} />)
+    await waitFor(() => expect(screen.getByText('Add 1/2 and 1/4')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /Close question bank/i }))
+    expect(onClose).toHaveBeenCalled()
   })
 })

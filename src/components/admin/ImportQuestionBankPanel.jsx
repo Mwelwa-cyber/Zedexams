@@ -164,7 +164,8 @@ export default function ImportQuestionBankPanel() {
           {phase === 'done' && (
             <p className="text-sm text-green-700 font-bold">
               Added {progress.imported + (progress.promoted || 0)} questions to the Master Bank. They’re now visible
-              to every teacher in the <a className="underline" href="/teacher/question-bank">Question Bank</a>.
+              to every teacher in the Question Bank, inside the{' '}
+              <a className="underline" href="/teacher/assessment-papers/new?view=bank">Assessment Paper Studio</a>.
             </p>
           )}
         </div>

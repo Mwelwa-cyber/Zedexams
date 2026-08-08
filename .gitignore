@@ -183,8 +183,10 @@ dist-test*/
 # `playwright-cli install --skills`, which generates .claude/skills/playwright-cli/.
 # Vendoring generated tooling means re-syncing it by hand every time the
 # installer changes; anyone who wants these runs the installer. Hand-authored
-# Claude tooling (.claude/agents/, .claude/launch.json) stays tracked.
-.claude/skills/
+# Claude tooling (.claude/agents/, .claude/launch.json) stays tracked, and so
+# do deliberately vendored third-party skills, each negated by name below.
+.claude/skills/*
+!.claude/skills/ian-xiaohei-illustrations/
 
 # Firebase Functions build output.
 functions/lib/

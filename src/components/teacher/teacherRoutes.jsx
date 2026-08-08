@@ -32,6 +32,7 @@ const TeacherLayout = lazy(() => import('./TeacherLayout'))
 // other studio renders a read-only sample behind a paywall. Imported eagerly
 // (it must decide synchronously from the already-loaded plan).
 import StudioGate from './StudioGate'
+import { questionBankRedirectPath } from './questionBankDeepLink'
 
 const TeacherDashboard = lazy(() => import('./TeacherDashboard'))
 const TeacherDashboardLive = lazy(() => import('./dashboardV2/TeacherDashboardLive'))
@@ -48,7 +49,6 @@ const CapturePreview = lazy(() => import('./classList/preview/CapturePreview'))
 
 const AssessmentStudio = lazy(() => import('./AssessmentStudio'))
 const AssessmentList = lazy(() => import('./AssessmentList'))
-const CentralQuestionBank = lazy(() => import('./CentralQuestionBank'))
 
 const LessonDashboard = lazy(() => import('../lessons/LessonDashboard'))
 const LessonEditor = lazy(() => import('../lessons/LessonEditor'))
@@ -122,6 +122,17 @@ function LegacyAssessmentPaperRedirect({ suffix = '' }) {
     ? `/teacher/assessment-papers/${paperId}${suffix}${search}`
     : `/teacher/assessment-papers${suffix}${search}`
   return <Navigate to={target} replace />
+}
+
+// The Question Bank stopped being a page of its own: it is a view inside the
+// Assessment Paper Studio, because a bank you can search but not insert from
+// made the teacher copy questions out by hand. The route stays as a redirect so
+// bookmarks, dashboard links and anything already sent to a teacher keep
+// working — with the query string carried across, so a link that arrived
+// filtered opens filtered.
+function LegacyQuestionBankRedirect() {
+  const { search } = useLocation()
+  return <Navigate to={questionBankRedirectPath(search)} replace />
 }
 
 // Legacy Lesson Plan Studio path → the canonical /teacher/lesson-plans/new
@@ -293,7 +304,7 @@ export const TEACHER_ROUTES = [
   page('/teacher/library', <TeacherLibrary />),
   page('/teacher/library/:id', <LibraryItemDetail />),
   page('/teacher/drafts', <RecoveryCentre />),
-  page('/teacher/question-bank', <CentralQuestionBank />),
+  redirect('/teacher/question-bank', <LegacyQuestionBankRedirect />),
 
   // ── Syllabi, curriculum, calendar ─────────────────────────────────
   page('/teacher/syllabi', <SyllabiLibrary />),
