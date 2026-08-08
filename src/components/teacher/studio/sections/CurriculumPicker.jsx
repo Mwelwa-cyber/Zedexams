@@ -9,6 +9,12 @@
  * The radiogroup / role="radio" / aria-checked semantics are kept intact so the
  * control stays accessible and the existing behaviour tests pass.
  *
+ * Colours all come from the workspace theme tokens (--zt-*) via the
+ * `.lps-curriculum-*` classes in lessonStudio.css — this component mounts in
+ * three different hosts (lesson wizard, StudioCurriculumSelector, assessment
+ * slide-over) and hard-coded light values here used to leave it cream-on-dark
+ * under the Night theme.
+ *
  * Props:
  *   curriculumMode: 'cbc' | 'previous' | null
  *   onSelect: (mode: 'cbc' | 'previous') => void
@@ -16,7 +22,7 @@
 
 const CHECK = (
   <span
-    className="ml-auto grid h-5 w-5 flex-shrink-0 place-items-center self-center rounded-full bg-blue-600 text-white"
+    className="lps-curriculum-card__check ml-auto grid h-5 w-5 flex-shrink-0 place-items-center self-center rounded-full"
     aria-hidden="true"
   >
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -33,17 +39,12 @@ function CurriculumCard({ mode, emoji, title, description, recommended, selected
       aria-checked={selected}
       onClick={() => onSelect(mode)}
       className={[
-        'lps-lift flex w-full items-start gap-3 rounded-2xl border px-3.5 py-3 text-left transition-all',
-        selected
-          ? 'border-blue-500 bg-blue-50 lps-card-glow'
-          : 'border-[#e0d7c8] bg-white hover:border-[#cfc3ae] hover:bg-[#fdfbf7] lps-soft-shadow',
-      ].join(' ')}
+        'lps-lift lps-curriculum-card flex w-full items-start gap-3 rounded-2xl px-3.5 py-3 text-left transition-all',
+        selected ? 'is-selected' : '',
+      ].join(' ').trim()}
     >
       <span
-        className={[
-          'grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl text-[20px] leading-none',
-          selected ? 'bg-blue-100' : 'bg-[#f5efe1]',
-        ].join(' ')}
+        className="lps-curriculum-card__tile grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl text-[20px] leading-none"
         aria-hidden="true"
       >
         {emoji}
@@ -51,21 +52,16 @@ function CurriculumCard({ mode, emoji, title, description, recommended, selected
 
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span
-            className={[
-              'text-[12.5px] font-bold leading-tight',
-              selected ? 'text-blue-700' : 'text-[#3d3529]',
-            ].join(' ')}
-          >
+          <span className="lps-curriculum-card__title text-[12.5px] font-bold leading-tight">
             {title}
           </span>
           {recommended && (
-            <span className="inline-flex items-center rounded-full border border-[#0F1B2D] bg-[#D97757] px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-white">
+            <span className="lps-curriculum-card__badge inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide">
               Recommended
             </span>
           )}
         </span>
-        <span className="mt-0.5 block text-[11px] leading-snug text-[#8a7d6b]">
+        <span className="lps-curriculum-card__desc mt-0.5 block text-[11px] leading-snug">
           {description}
         </span>
       </span>
@@ -77,7 +73,7 @@ function CurriculumCard({ mode, emoji, title, description, recommended, selected
 
 export function CurriculumPicker({ curriculumMode, onSelect, embedded = false }) {
   return (
-    <div className={embedded ? '' : 'sticky top-0 z-10 border-b border-[#e5ddd0] bg-[#f5efe1]/95 px-4 pb-3.5 pt-3.5 backdrop-blur'}>
+    <div className={embedded ? '' : 'lps-curriculum-banner sticky top-0 z-10 border-b px-4 pb-3.5 pt-3.5 backdrop-blur'}>
       <p className="mb-2.5">
         <span className="lps-eyebrow">Curriculum</span>
       </p>

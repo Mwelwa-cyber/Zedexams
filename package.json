@@ -774,7 +774,8 @@
     "test:curriculum-diagrams": "node functions/shared/assessment/curriculumDiagramsCore.test.js",
     "test:learner-notes": "node functions/teacherTools/generateLearnerNotes.test.js",
     "test:learner-notes-schema": "node functions/teacherTools/learnerNotesSchema.test.js",
-    "test:learner-notes-printable": "node src/utils/learnerNotesPrintable.test.js"
+    "test:learner-notes-printable": "node src/utils/learnerNotesPrintable.test.js",
+    "contrast:routes": "node scripts/test-route-contrast.mjs"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",

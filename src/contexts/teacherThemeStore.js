@@ -77,6 +77,10 @@ function readInitial() {
     // Only consulted when the new key is unset, so it never overrides a
     // deliberate choice.
     if (localStorage.getItem(LEGACY_DASHBOARD_KEY) === 'dark') return 'night'
+    // No stored choice: seed from the OS colour scheme, mirroring boot.js's
+    // pre-paint guard (and ThemeContext's learner seeding). NOT persisted —
+    // an absent key keeps following the OS until the teacher picks a theme.
+    if (window.matchMedia?.('(prefers-color-scheme: dark)')?.matches) return 'night'
   } catch { /* storage unavailable — fall through to the default */ }
   return DEFAULT_TEACHER_THEME
 }

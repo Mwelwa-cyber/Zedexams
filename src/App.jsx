@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth, hasAuthSessionHint } from './contexts/AuthContext'
 import { useTheme, applyThemeToBody, DEFAULT_THEME } from './contexts/ThemeContext'
+import { getTeacherTheme } from './contexts/teacherThemeCore'
 import TeacherThemeSync from './contexts/TeacherThemeSync'
 import { PlatformSettingsProvider } from './contexts/PlatformSettingsContext'
 import MaintenanceBanner from './components/banners/MaintenanceBanner'
@@ -29,48 +30,44 @@ import ScrollToTop from './components/ui/ScrollToTop'
 import VisitorTracker from './components/ui/VisitorTracker'
 import { ActiveAssignmentSync } from './hooks/useActiveAssignmentSync'
 
-// Auth/legal routes always render in the brand-default theme so a
-// visitor's previously-saved preference (e.g. Midnight's dark page)
-// can't bleed onto the light-only login/register/legal screens. The
-// saved theme applies again as soon as they land on an authenticated
-// route.
+// The saved reading theme applies EVERYWHERE, public routes included. The
+// old PUBLIC_THEME_PATHS pin reset /login, /papers, /pricing, … to the brand
+// default on navigation, which meant a learner who chose Midnight watched
+// the site flash back to a light palette on every public page (and, worse,
+// mixed states: boot.js paints the saved theme pre-paint, then the pin
+// yanked it away after hydration). Public surfaces are Midnight-capable
+// now, so the pin's original job is gone.
 //
-// The marketing landing page ('/') is intentionally NOT pinned here: it
-// follows the active/saved theme so it matches the in-app look for
-// returning users. New visitors have no saved preference, so it still
-// resolves to the brand default via resolveInitialTheme().
-const PUBLIC_THEME_PATHS = new Set([
-  '/login', '/register', '/auth/action', '/verify-email',
-  '/pricing', '/teachers', '/privacy', '/terms', '/preferences', '/status',
-  '/delete-account', '/child-safety',
-  '/papers', '/company',
-  // Dashboard V2 preview ships its own scoped design system; pin it to the
-  // brand default so a saved learner theme can't bleed into the review.
-  '/teacher/dashboard-preview',
-])
-function isPublicThemePath(pathname) {
-  if (PUBLIC_THEME_PATHS.has(pathname)) return true
-  // Same reasoning as the dashboard preview above: a review of the Class List
-  // and Register redesign has to be looked at in the brand's own colours, not
-  // whichever theme the reviewing account happens to have saved.
-  if (pathname.startsWith('/teacher/register-preview')) return true
-  if (pathname.startsWith('/share/')) return true
-  if (pathname.startsWith('/papers/')) return true
-  if (pathname.startsWith('/grade-')) return true
-  if (pathname.startsWith('/parent/')) return true
-  if (pathname === '/blog' || pathname.startsWith('/blog/')) return true
-  // /my-papers is auth-only but visually shares the past-paper
-  // theme so we keep it on the brand default.
-  if (pathname === '/my-papers') return true
-  return false
+// The two REVIEW previews stay pinned: a redesign has to be looked at in
+// the brand's own colours, not whichever theme the reviewing account
+// happens to have saved.
+function isBrandPinnedPath(pathname) {
+  return pathname === '/teacher/dashboard-preview'
+    || pathname.startsWith('/teacher/register-preview')
+}
+
+// The teacher workspace paints its own surface (--zt-surface via the
+// data-theme tokens), so while it is showing, the browser-chrome colour must
+// come from the TEACHER theme, not the learner palette — otherwise a Night
+// workspace sits under a pale-blue status bar on mobile/PWA.
+function isTeacherWorkspacePath(pathname) {
+  return pathname.startsWith('/teacher') && !isBrandPinnedPath(pathname)
 }
 
 function ThemeApplicator() {
-  const { theme } = useTheme()
+  const { theme, teacherTheme } = useTheme()
   const { pathname } = useLocation()
   useEffect(() => {
-    applyThemeToBody(isPublicThemePath(pathname) ? DEFAULT_THEME : theme)
-  }, [pathname, theme])
+    applyThemeToBody(isBrandPinnedPath(pathname) ? DEFAULT_THEME : theme)
+    // applyThemeToBody just set <meta name="theme-color"> from the learner
+    // palette; override it with the workspace surface where that is what is
+    // actually on screen.
+    if (isTeacherWorkspacePath(pathname)) {
+      const meta = document.querySelector('meta[name="theme-color"]')
+      const surface = getTeacherTheme(teacherTheme)?.tokens?.surface
+      if (meta && surface) meta.setAttribute('content', surface)
+    }
+  }, [pathname, theme, teacherTheme])
   return null
 }
 

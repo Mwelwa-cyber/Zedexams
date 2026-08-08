@@ -27,6 +27,7 @@ export const ATTENDANCE_STATUSES = {
     activeClass: 'bg-green-600 text-white border-green-600',
     dotClass: 'bg-green-500',
     printColor: '#15803d',
+    screenColor: 'var(--att-present-fg, #15803d)',
   },
   absent: {
     id: 'absent',
@@ -40,6 +41,7 @@ export const ATTENDANCE_STATUSES = {
     activeClass: 'bg-red-600 text-white border-red-600',
     dotClass: 'bg-red-500',
     printColor: '#b91c1c',
+    screenColor: 'var(--att-absent-fg, #b91c1c)',
   },
   sick: {
     id: 'sick',
@@ -53,6 +55,7 @@ export const ATTENDANCE_STATUSES = {
     activeClass: 'bg-blue-600 text-white border-blue-600',
     dotClass: 'bg-blue-500',
     printColor: '#1d4ed8',
+    screenColor: 'var(--att-sick-fg, #1d4ed8)',
   },
   late: {
     id: 'late',
@@ -66,6 +69,7 @@ export const ATTENDANCE_STATUSES = {
     activeClass: 'bg-amber-500 text-white border-amber-500',
     dotClass: 'bg-amber-500',
     printColor: '#b45309',
+    screenColor: 'var(--att-late-fg, #b45309)',
   },
   excused: {
     id: 'excused',
@@ -79,6 +83,7 @@ export const ATTENDANCE_STATUSES = {
     activeClass: 'bg-purple-600 text-white border-purple-600',
     dotClass: 'bg-purple-500',
     printColor: '#7e22ce',
+    screenColor: 'var(--att-excused-fg, #7e22ce)',
   },
   not_applicable: {
     id: 'not_applicable',
@@ -92,6 +97,7 @@ export const ATTENDANCE_STATUSES = {
     activeClass: 'bg-gray-500 text-white border-gray-500',
     dotClass: 'bg-gray-400',
     printColor: '#4b5563',
+    screenColor: 'var(--zt-text-muted, #4b5563)',
   },
 };
 

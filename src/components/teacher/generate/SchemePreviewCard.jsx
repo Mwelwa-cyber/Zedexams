@@ -12,9 +12,9 @@ import { curriculumLabel, templateLabel } from '../../../utils/schemeFormat'
 
 function Row({ label, value, missing }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 py-1.5 border-b" style={{ borderColor: '#efe7d2' }}>
+    <div className="flex items-baseline justify-between gap-3 py-1.5 border-b" style={{ borderColor: 'var(--zt-line)' }}>
       <span className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--zt-text-muted)' }}>{label}</span>
-      <span className="text-sm font-bold text-right" style={{ color: missing ? '#b45309' : '#0e2a32' }}>
+      <span className="text-sm font-bold text-right" style={{ color: missing ? 'var(--warning-fg)' : 'var(--zt-text)' }}>
         {value || '—'}
       </span>
     </div>
@@ -35,12 +35,13 @@ export default function SchemePreviewCard({
 }) {
   const messages = Array.isArray(readiness.messages) ? readiness.messages : []
   return (
-    <div className="rounded-2xl border p-4 sm:p-5" style={{ background: '#fdfbf4', borderColor: '#e6dcc0' }}>
+    <div className="rounded-2xl border p-4 sm:p-5" style={{ background: 'var(--zt-card)', borderColor: 'var(--zt-line)' }}>
       <div className="flex items-center justify-between gap-2 mb-3">
         <h3 className="studio-display" style={{ fontSize: 16, margin: 0 }}>Before you generate</h3>
+        {/* zx-chip--purple/green carry a light wash + dark ink in the light
+            themes and flip to a translucent wash + light ink on Night. */}
         <span
-          className="text-[11px] font-black uppercase tracking-wide px-2.5 py-1 rounded-full"
-          style={{ background: curriculum === 'obc' ? '#ede9fe' : '#dcfce7', color: curriculum === 'obc' ? '#6b21a8' : '#166534' }}
+          className={`text-[11px] font-black uppercase tracking-wide px-2.5 py-1 rounded-full ${curriculum === 'obc' ? 'zx-chip--purple' : 'zx-chip--green'}`}
         >
           {templateLabel(curriculum)}
         </span>
@@ -65,7 +66,7 @@ export default function SchemePreviewCard({
         <span className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--zt-text-muted)' }}>Sources</span>
         <div className="flex flex-wrap gap-1.5 mt-1">
           {(sources.length ? sources : ['Syllabus Studio', 'Curriculum Framework', 'School Calendar']).map((s) => (
-            <span key={s} className="text-[11px] font-bold px-2 py-0.5 rounded-md" style={{ background: '#eef6f2', color: '#0e6b52' }}>
+            <span key={s} className="text-[11px] font-bold px-2 py-0.5 rounded-md" style={{ background: 'var(--success-bg)', color: 'var(--success-fg)' }}>
               {s}
             </span>
           ))}
@@ -81,8 +82,8 @@ export default function SchemePreviewCard({
                 key={i}
                 className="rounded-xl border px-3 py-2 text-sm flex items-start gap-2"
                 style={err
-                  ? { background: '#fffbeb', borderColor: '#fcd34d', color: '#92400e' }
-                  : { background: '#eff6ff', borderColor: '#bfdbfe', color: '#1e40af' }}
+                  ? { background: 'var(--warning-bg)', borderColor: 'var(--warning)', color: 'var(--warning-fg)' }
+                  : { background: 'var(--info-bg)', borderColor: 'var(--info)', color: 'var(--info-fg)' }}
               >
                 <span>{err ? '⚠️' : 'ℹ️'}</span>
                 <span>{m.text}</span>

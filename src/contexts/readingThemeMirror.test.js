@@ -122,15 +122,45 @@ assert.ok(
   "public/boot.js must read the 'examprep:theme' key",
 )
 
-// Both paths land on the default. A storage exception is not a reason to
-// paint an unstyled page, and an unrecognised stored id is not either.
+// No saved (or unrecognised) id seeds from the OS colour scheme: midnight
+// when the OS asks for dark, the brand default otherwise. Asserted as the
+// exact expression so the seeding and the fallback cannot be separated —
+// a boot.js that only falls back to the default silently un-seeds every
+// dark-OS first visit that ThemeContext would seed after hydration, which
+// paints light then flips dark.
 assert.ok(
-  boot.includes(`ids.indexOf(saved) !== -1 ? saved : '${DEFAULT_THEME}'`),
-  `public/boot.js must fall back to '${DEFAULT_THEME}' for an unrecognised stored id`,
+  boot.includes(
+    `ids.indexOf(saved) !== -1\n      ? saved\n      : (prefersDark ? 'midnight' : '${DEFAULT_THEME}');`,
+  ),
+  `public/boot.js must seed midnight on a dark OS and fall back to '${DEFAULT_THEME}' otherwise`,
+)
+assert.ok(
+  boot.includes("window.matchMedia('(prefers-color-scheme: dark)').matches"),
+  'public/boot.js no longer reads prefers-color-scheme for the reading-theme seed',
+)
+// ThemeContext's resolveInitialTheme must agree, or boot paints one thing
+// and hydration another.
+assert.ok(
+  ctx.includes(`prefersDarkColorScheme() ? 'midnight' : DEFAULT_THEME`),
+  'ThemeContext.resolveInitialTheme no longer mirrors the boot.js prefers-color-scheme seeding',
+)
+// Midnight must also flip <html class="dark"> pre-paint, because
+// `color-scheme` (native form controls, scrollbars) keys off it.
+assert.ok(
+  boot.includes(`if (resolved === 'midnight') document.documentElement.classList.add('dark');`),
+  'public/boot.js must add the dark class on <html> when the resolved reading theme is midnight',
 )
 assert.ok(
   boot.includes(`document.body.classList.add('theme-${DEFAULT_THEME}')`),
   `public/boot.js must fall back to '${DEFAULT_THEME}' when localStorage throws`,
+)
+// The seed must never be WRITTEN: an absent key means "not answered", which
+// is what keeps the site following the OS until the visitor picks a theme.
+// boot.js has no setItem at all for this key; ThemeContext writes it only
+// inside setTheme.
+assert.ok(
+  !boot.includes("localStorage.setItem('examprep:theme'"),
+  'public/boot.js must never write the reading-theme key — the OS seed is not a saved choice',
 )
 
 console.log(

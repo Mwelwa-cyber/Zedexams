@@ -99,6 +99,33 @@ assert.equal(
   `public/boot.js must fall back to '${DEFAULT_TEACHER_THEME}' on both paths`,
 )
 
+/* ── 2b. the no-saved-choice seeding mirrors teacherThemeStore ─────────── */
+
+// With nothing stored, boot seeds Night on a dark OS and the default
+// otherwise — the same decision teacherThemeStore.readInitial makes after
+// hydration. If either side loses the seed, a dark-OS first visit paints one
+// theme pre-paint and flips to the other when React mounts.
+assert.ok(
+  boot.includes(`? 'night'\n        : (teacherPrefersDark ? 'night' : '${DEFAULT_TEACHER_THEME}');`),
+  'public/boot.js must seed the teacher theme from prefers-color-scheme when nothing is saved',
+)
+// The retired dashboard key still counts as a saved dark choice in BOTH
+// readers (it outranks the OS seed in each).
+assert.ok(
+  boot.includes(`localStorage.getItem('zedexams:tdv2-theme') === 'dark'`),
+  'public/boot.js no longer honours the legacy tdv2 dashboard key',
+)
+const store = readFileSync(resolve(root, 'src/contexts/teacherThemeStore.js'), 'utf8')
+assert.ok(
+  store.includes(`window.matchMedia?.('(prefers-color-scheme: dark)')?.matches) return 'night'`),
+  'teacherThemeStore.readInitial no longer mirrors the boot.js prefers-color-scheme seed',
+)
+// The seed must never be written — an absent key keeps following the OS.
+assert.ok(
+  !boot.includes(`localStorage.setItem('${TEACHER_THEME_STORAGE_KEY}'`),
+  'public/boot.js must never write the teacher-theme key — the OS seed is not a saved choice',
+)
+
 /* ── 3. the pure decisions ─────────────────────────────────────────────── */
 
 for (const id of TEACHER_THEME_IDS) {

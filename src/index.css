@@ -279,8 +279,9 @@ html[data-theme='night'] body {
  * variant so the calendar stays legible without losing the
  * Navy/Gold identity entirely.
  *
- * Brand-stable accents (gold, red, the three term-card hues) are left
- * as hex in the components — only surfaces, text and borders flip.
+ * Brand-stable accents (gold, red) are left as hex in the components.
+ * The three term-card hues flip as INK (--moe-term-ink-*): as fixed hex
+ * the "TERM 1/2/3" eyebrows measured 1.7–2.3:1 on the dark surfaces.
  */
 .moe-calendar {
   --moe-page-bg:       #FAF7F2;
@@ -299,6 +300,12 @@ html[data-theme='night'] body {
   --moe-term-soft-1:   #EAF5F2;
   --moe-term-soft-2:   #EAF0FA;
   --moe-term-soft-3:   #F5EAF9;
+  /* The term hues as INK (eyebrow + selected border). Light themes keep the
+     brand-deep values; the dark block lifts each hue so 10px uppercase text
+     clears AA on the dark surfaces. */
+  --moe-term-ink-1:    #1A6B5A;
+  --moe-term-ink-2:    #1A4B8E;
+  --moe-term-ink-3:    #7B2D8B;
   --moe-past-bg:       #F0F0F0;
   --moe-past-fg:       #888888;
   --moe-past-card-bg:  #F7F7F7;
@@ -327,10 +334,44 @@ html[data-theme='night'] body {
   --moe-term-soft-1:   rgba(26,107,90,0.22);
   --moe-term-soft-2:   rgba(26,75,142,0.24);
   --moe-term-soft-3:   rgba(123,45,139,0.24);
+  --moe-term-ink-1:    #5AC2A7;
+  --moe-term-ink-2:    #8FB8F2;
+  --moe-term-ink-3:    #D09BE8;
   --moe-past-bg:       #263449;
   --moe-past-fg:       #94A3B8;
   --moe-past-card-bg:  #1E293B;
   --moe-progress-track:#334155;
+}
+
+/* ── My Library folder cards — scoped tokens ───────────────────
+ * FolderCard (TeacherLibrary.jsx) hands its pastel palette in as
+ * `--folder-tint-*` and paints from the derived `--folder-*` set. Light
+ * themes pass the tints straight through — the twelve pastels are the
+ * page's identity. Night derives a dark wash OF THE SAME HUE over the card
+ * token instead (a full pastel card is a glare spot on a dark page), and
+ * swaps the fixed on-pastel ink for theme ink. */
+.zx-folder-card {
+  --folder-from:   var(--folder-tint-from);
+  --folder-to:     var(--folder-tint-to);
+  --folder-border: var(--folder-tint-border);
+  --folder-tab:    var(--folder-tint-tab);
+  --folder-ink:       #0e2a32;
+  --folder-ink-soft:  #566f76;
+  --folder-ink-faint: #7c8c93;
+  --folder-chip:      rgba(255, 255, 255, 0.8);
+}
+html[data-theme='night'] .zx-folder-card {
+  /* The `to` stop is each palette's most saturated value, so it seeds every
+     derived fill; percentages stay low because the muted ink must still
+     clear AA on the strongest stop. */
+  --folder-from:   color-mix(in srgb, var(--folder-tint-to) 8%, var(--zt-card));
+  --folder-to:     color-mix(in srgb, var(--folder-tint-to) 16%, var(--zt-card));
+  --folder-border: color-mix(in srgb, var(--folder-tint-to) 34%, var(--zt-card));
+  --folder-tab:    color-mix(in srgb, var(--folder-tint-to) 20%, var(--zt-card));
+  --folder-ink:       var(--zt-text);
+  --folder-ink-soft:  #C2CBD6;
+  --folder-ink-faint: #C2CBD6;
+  --folder-chip:      rgba(255, 255, 255, 0.12);
 }
 
 /* ── Teacher workspace themes ──────────────────────────────────
@@ -663,10 +704,11 @@ body {
    * painted by the OS, not by our CSS, and default to a LIGHT rendering.
    * Without this they stay white boxes on a dark page: exactly the failure
    * this theme is most likely to ship with, because the surrounding CSS all
-   * looks correct. index.html pins the document to `color-scheme: light` for
-   * the learner surfaces, so this override is scoped to the studio shell
-   * rather than set on :root — a teacher on Night must not flip native
-   * controls dark on the learner pages they also visit.
+   * looks correct. index.html declares `color-scheme: light dark` and the
+   * per-theme rules below decide which applies where, so this override is
+   * scoped to the studio shell rather than set on :root — a teacher on Night
+   * must not flip native controls dark on the light learner pages they also
+   * visit.
    *
    * KaTeX renders formulas with `color: currentColor`, so tokenised --text
    * carries maths automatically; the one thing it does not inherit is the
@@ -689,6 +731,15 @@ body {
     --warning:      #F59E0B; --warning-bg: rgba(217,119,6,0.20);  --warning-fg: #FBBF24;
     --danger:       #EF4444; --danger-bg:  rgba(185,28,28,0.20);  --danger-fg:  #F87171;
     --info:         #3B82F6; --info-bg:    rgba(59,130,246,0.20); --info-fg:    #93C5FD;
+    /* Attendance-register status inks (see attendanceConstants.js
+     * `screenColor`). The light themes keep the print hues via the var()
+     * fallback; these lift each hue so a lone total digit clears AA on the
+     * dark card. The PRINT palette is untouched — paper stays paper. */
+    --att-present-fg: #4ADE80;
+    --att-absent-fg:  #F87171;
+    --att-sick-fg:    #93C5FD;
+    --att-late-fg:    #FBBF24;
+    --att-excused-fg: #C4B5FD;
   }
   [data-theme='night'] .studio-theme .katex-display {
     background: transparent;
@@ -801,7 +852,9 @@ body {
   [data-theme='night'] .studio-theme .zx-chip--red     { background: rgba(185,28,28,.22);  color: #F87171; }
   [data-theme='night'] .studio-theme .zx-chip--purple  { background: rgba(124,58,237,.22); color: #C4B5FD; }
   [data-theme='night'] .studio-theme .zx-chip--pink    { background: rgba(190,24,93,.22);  color: #F9A8D4; }
-  [data-theme='night'] .studio-theme .zx-chip--neutral { background: rgba(255,255,255,.10); color: var(--zt-text-muted); }
+  /* Full ink, not muted: the wash lightens the chip to ~#394253, where the
+     muted ink measured 3.79:1 — under AA for the 11px labels these carry. */
+  [data-theme='night'] .studio-theme .zx-chip--neutral { background: rgba(255,255,255,.10); color: var(--zt-text); }
   [data-theme='night'] .studio-theme .studio-label { color: var(--zt-text-muted); }
   /* #0e2a32 is very nearly the Night surface itself — the badge disappeared. */
   [data-theme='night'] .studio-theme .studio-badge {
@@ -3732,7 +3785,10 @@ body {
     --text:            #0F1B2D;
     --text-muted:      #4A5A6E;
     --border:          #0F1B2D;
-    --accent:          #D97757;
+    /* #D97757 in the source skin — darkened just enough that the white
+       on-accent ink clears 4.5:1 (3.12 → 4.51), same shift the terracotta
+       workspace theme made. The hue is unchanged side by side. */
+    --accent:          #B95C3A;
     --accent-text:     #FFFFFF;
     --accent-bg:       #F8EADF;
     --accent-fg:       #A3422E;
@@ -6114,7 +6170,7 @@ select {
  * and is scoped to the themes that are actually cream. Midnight gets its own
  * block after it: the same intent (cards that lift off the page, a firmer
  * hairline, solid form fields) expressed in its own direction. */
-body:not(.theme-midnight) .marketing-page {
+html:not([data-theme='night']) body:not(.theme-midnight) .marketing-page {
   --text:         #1F1F1F;   /* main text — was #1C1917 */
   --text-muted:   #4B5563;   /* secondary copy — was #78716C (too faint) */
   --border:       #E2D6C0;   /* firmer hairline on cream */
@@ -6128,6 +6184,13 @@ body:not(.theme-midnight) .marketing-page {
   --shadow-sm:    0 1px 2px rgba(28,25,23,0.06), 0 1px 3px rgba(28,25,23,0.10);
   --shadow-md:    0 2px 6px rgba(28,25,23,0.08), 0 10px 24px rgba(28,25,23,0.12);
   --shadow-lg:    0 8px 18px rgba(28,25,23,0.12), 0 22px 48px rgba(28,25,23,0.16);
+  /* The white CTA pill that sits on the hero gradient ("Go Pro", "Start
+     free", the "Most popular" badge). Declared as a PAIR because neither
+     half works alone: on the light themes the pill is white with the dark
+     accent ink; on the dark themes a white pill would carry Midnight's pale
+     accent ink at 1.6:1, so the pair flips to the accent fill instead. */
+  --hero-cta-bg:   #FFFFFF;
+  --hero-cta-text: var(--accent-fg);
 }
 
 /* Midnight's marketing surface. Only the four tokens the cream pass exists to
@@ -6136,7 +6199,7 @@ body:not(.theme-midnight) .marketing-page {
    draw an edge on it, and form fields sunk below the card so they still read
    as inputs. Everything else — ink, muted copy, the accent ramp — comes from
    the Midnight palette, which is already tuned for this background. */
-body.theme-midnight .marketing-page {
+:is(body.theme-midnight, html[data-theme='night'] body) .marketing-page {
   --card:         #1B2436;
   --card-hover:   #232E44;
   --border:       #37455C;
@@ -6146,16 +6209,45 @@ body.theme-midnight .marketing-page {
   --shadow-sm:    0 1px 2px rgba(0,0,0,0.45);
   --shadow-md:    0 2px 8px rgba(0,0,0,0.45), 0 10px 24px rgba(0,0,0,0.35);
   --shadow-lg:    0 8px 20px rgba(0,0,0,0.55), 0 22px 48px rgba(0,0,0,0.40);
+  /* See the light block: on a dark hero the CTA pill takes the accent fill
+     (#38BDF8) with Midnight's on-accent ink — 8.7:1, and it pops off the
+     near-black gradient the way the white pill does off the terracotta one. */
+  --hero-cta-bg:   var(--accent);
+  --hero-cta-text: var(--accent-text);
+}
+
+/* ── Logo variant swap ──────────────────────────────────────────
+ * Logo.jsx renders both wordmark variants; these rules show exactly one.
+ * The default art carries a navy wordmark that disappears on the dark
+ * headers, so the two dark hooks flip to the white-ink variant. `display`
+ * on the <picture> (not the <img>) so the hidden one costs no layout. */
+.zx-logo-on-dark { display: none; }
+:is(body.theme-midnight, html[data-theme='night'] body) .zx-logo-on-dark { display: block; }
+:is(body.theme-midnight, html[data-theme='night'] body) .zx-logo-default { display: none; }
+
+/* ── Auth surface (Login) ──────────────────────────────────────
+ * The page background follows the active reading theme, and the terracotta
+ * accent ramp is pinned ONLY on the light themes — under Midnight (or the
+ * teacher-Night bridge) the page inherits Midnight's own accent tokens, so
+ * "Forgot password?" / "Create a free account" read at 6.5:1 on the dark
+ * card instead of terracotta-on-navy at 2.7:1. */
+.auth-page { background-color: var(--bg); }
+html:not([data-theme='night']) body:not(.theme-midnight) .auth-page {
+  background-color: #FFF8F1;
+  --accent:      #B44F2D;
+  --accent-text: #FFFFFF;
+  --accent-bg:   #FFF3EA;
+  --accent-fg:   #83372C;
 }
 
 /* Muted/help fine print — the one tier lighter than secondary copy. Kept dark
    enough to clear WCAG AA on the cream --bg-subtle (#FEF3C7) preview cards,
    where the old #6B7280 only reached 4.34:1. #586273 lands at ~5.5:1. */
-body:not(.theme-midnight) .marketing-page .theme-text-help { color: #586273; }
+html:not([data-theme='night']) body:not(.theme-midnight) .marketing-page .theme-text-help { color: #586273; }
 /* The same tier on Midnight, read from the other side: #586273 is 2.9:1 on the
    navy page — the light-theme value is not merely suboptimal there, it is
    below AA for any text at all. #A9B4C6 lands at ~7.6:1 on --bg. */
-body.theme-midnight .marketing-page .theme-text-help { color: #A9B4C6; }
+:is(body.theme-midnight, html[data-theme='night'] body) .marketing-page .theme-text-help { color: #A9B4C6; }
 
 /* Flat feature/pricing cards ship with no shadow; give them a subtle one
  * so they still read as cards on cream. Elevated/hero cards already carry
@@ -7655,6 +7747,11 @@ body[data-a11y-font="small"]  { font-size: 14px; }
 body[data-a11y-font="medium"] { font-size: 16px; }
 body[data-a11y-font="large"]  { font-size: 18px; }
 
+/* High contrast strengthens toward the theme's OWN ink direction: darker
+   values on the light themes, LIGHTER values on Midnight/Night. The original
+   light-only rule pushed near-black borders and muted text onto the dark
+   surfaces (#0F1B2D on a #0F172A page ≈ 1.05:1), so switching the toggle ON
+   in a dark theme measurably reduced contrast. */
 body[data-a11y-contrast="high"] {
   --border:       #0F1B2D;
   --text-muted:   #1F2937;
@@ -7667,6 +7764,28 @@ body[data-a11y-contrast="high"] input,
 body[data-a11y-contrast="high"] select,
 body[data-a11y-contrast="high"] textarea {
   border-color: #0F1B2D !important;
+}
+/* Dark twin — the learner tokens, for Midnight AND the teacher-Night bridge. */
+:is(body.theme-midnight, html[data-theme='night'] body)[data-a11y-contrast="high"] {
+  --border:       #94A3B8;
+  --text-muted:   #CBD5E1;
+  --shadow:       rgba(0,0,0,0.6);
+}
+:is(body.theme-midnight, html[data-theme='night'] body)[data-a11y-contrast="high"] .zx-card,
+:is(body.theme-midnight, html[data-theme='night'] body)[data-a11y-contrast="high"] .theme-card,
+:is(body.theme-midnight, html[data-theme='night'] body)[data-a11y-contrast="high"] .theme-input,
+:is(body.theme-midnight, html[data-theme='night'] body)[data-a11y-contrast="high"] input,
+:is(body.theme-midnight, html[data-theme='night'] body)[data-a11y-contrast="high"] select,
+:is(body.theme-midnight, html[data-theme='night'] body)[data-a11y-contrast="high"] textarea {
+  border-color: #94A3B8 !important;
+}
+/* The teacher workspace tokens, only when the WORKSPACE theme is Night — a
+   learner on Midnight with a light workspace theme must not get light --zt-*
+   ink on the light teacher pages. Declared on <body> so it outranks the
+   theme block on <html>. */
+html[data-theme='night'] body[data-a11y-contrast="high"] {
+  --zt-line:       #7688A0;
+  --zt-text-muted: #B9C4D2;
 }
 
 /* Dyslexia-friendly reading mode (accessibility panel). No bundled font file,
@@ -7771,14 +7890,27 @@ body[data-a11y-colorblind="tritanopia"]   #root { filter: url(#cb-tritanopia); }
  * this the remap would darken the inside of the A4 preview and the image
  * canvas, which is the one place a dark surface is actively wrong. */
 :is(body.theme-midnight, html[data-theme='night'] body)
-  :is(.qe-page, .sv-paper, .vs-canvas, .vs-stage, .pp-sheet, .marketing-page) :is(
+  :is(.qe-page, .sv-paper, .vs-canvas, .vs-stage, .pp-sheet, .mk-sheet, .marketing-page) :is(
     .bg-white, .bg-gray-50, .bg-slate-50, .bg-stone-50, .bg-neutral-50,
     .bg-gray-100, .bg-slate-100, .bg-neutral-100) {
   background-color: #ffffff;
 }
 :is(body.theme-midnight, html[data-theme='night'] body)
-  :is(.qe-page, .sv-paper, .vs-canvas, .vs-stage, .pp-sheet, .marketing-page) :is(
+  :is(.qe-page, .sv-paper, .vs-canvas, .vs-stage, .pp-sheet, .mk-sheet, .marketing-page) :is(
     .text-black, .text-gray-900, .text-gray-800, .text-slate-900, .text-slate-800,
     .text-neutral-900, .text-neutral-800) {
   color: #111111;
+}
+/* The muted tier inside a light-pinned PAPER surface. The remap above sends
+ * .text-slate-500 & co to var(--text-muted) — a light ink — while the paper
+ * stays white, which is how the marketing lesson-plan sheet printed pale
+ * grey labels on a white page in Midnight. .mk-sheet is that sheet;
+ * .marketing-page itself is deliberately absent, because muted text on the
+ * marketing page's DARK background must stay light. */
+:is(body.theme-midnight, html[data-theme='night'] body)
+  :is(.qe-page, .sv-paper, .vs-canvas, .vs-stage, .pp-sheet, .mk-sheet) :is(
+    .text-gray-700, .text-gray-600, .text-gray-500, .text-slate-700,
+    .text-slate-600, .text-slate-500, .text-neutral-700, .text-neutral-600,
+    .text-neutral-500) {
+  color: #64748B;
 }

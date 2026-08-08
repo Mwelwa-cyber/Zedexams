@@ -39,7 +39,7 @@ Every route in the SPA is declared in `src/App.jsx` or the teacher route table. 
 `bare(path, element, shellExemptReason)` opts out of the shell and **must** state why;
 `redirect(path, element)` is a `bare()` whose reason is "renders no page".
 
-Theme pinning: `PUBLIC_THEME_PATHS` + `isPublicThemePath()` (`App.jsx`) force brand-default theme on public/auth/legal routes.
+Theme pinning: removed 2026-08 — the saved reading theme applies on public/auth/legal routes too. Only the two internal review previews are pinned to the brand default (`isBrandPinnedPath()` in `App.jsx`).
 
 ## Public / marketing / auth routes (no auth)
 
