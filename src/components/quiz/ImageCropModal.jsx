@@ -105,7 +105,7 @@ function sharpenCanvas(ctx, w, h, amount = 0.4) {
   ctx.putImageData(out, 0, 0)
 }
 
-export default function ImageCropModal({ imageUrl, onCropped, onCancel, initialBox = null, pageNumber = null, questionNumber = null }) {
+export default function ImageCropModal({ imageUrl, onCropped, onCancel, initialBox = null, pageNumber = null, questionNumber = null, onPrevPage = null, onNextPage = null }) {
   const imgRef = useRef(null)
   const scrollRef = useRef(null)
   const panelRef = useRef(null)
@@ -292,10 +292,35 @@ export default function ImageCropModal({ imageUrl, onCropped, onCancel, initialB
           <div>
             <h3 id="image-crop-modal-title" className="text-base font-black">✂️ Crop image</h3>
             {(pageNumber != null || questionNumber != null) && (
-              <p className="theme-text-muted text-xs font-bold mt-0.5">
-                {questionNumber != null && `Question ${questionNumber}`}
-                {questionNumber != null && pageNumber != null && ' · '}
-                {pageNumber != null && `Page ${pageNumber}`}
+              <p className="theme-text-muted text-xs font-bold mt-0.5 flex items-center gap-1.5">
+                {questionNumber != null && <span>Question {questionNumber}</span>}
+                {questionNumber != null && pageNumber != null && <span aria-hidden="true">·</span>}
+                {/* Optional page navigation (crop-from-source-paper flow): the
+                    parent re-renders with the neighbouring page's image; the
+                    buttons only exist when a neighbour exists. */}
+                {onPrevPage && (
+                  <button
+                    type="button"
+                    onClick={onPrevPage}
+                    disabled={busy}
+                    aria-label="Previous page"
+                    className="theme-card theme-border theme-text hover:theme-card-hover min-h-0 rounded border px-1.5 py-0.5 text-xs font-bold"
+                  >
+                    ‹
+                  </button>
+                )}
+                {pageNumber != null && <span>Page {pageNumber}</span>}
+                {onNextPage && (
+                  <button
+                    type="button"
+                    onClick={onNextPage}
+                    disabled={busy}
+                    aria-label="Next page"
+                    className="theme-card theme-border theme-text hover:theme-card-hover min-h-0 rounded border px-1.5 py-0.5 text-xs font-bold"
+                  >
+                    ›
+                  </button>
+                )}
               </p>
             )}
           </div>

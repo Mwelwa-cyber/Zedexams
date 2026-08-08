@@ -343,6 +343,31 @@ export async function normalizeQuestionPayload(q, order) {
       const n = Number(q.sourceQuestionNumber)
       return Number.isInteger(n) && n >= 1 && n <= 9999 ? n : null
     })(),
+    // Source-paper figure location ({ sourcePage, box }) — only written when
+    // the importer located this question's own printed figure, so "Crop from
+    // page" keeps its page + auto-box across saves. Keeps the .strict()
+    // schema lean for every other question.
+    ...(q.figureMeta && (q.figureMeta.sourcePage != null || q.figureMeta.box)
+      ? {
+        figureMeta: {
+          sourcePage: (() => {
+            const n = Number(q.figureMeta.sourcePage)
+            return Number.isInteger(n) && n >= 1 && n <= 9999 ? n : null
+          })(),
+          box: (() => {
+            const b = q.figureMeta.box
+            if (!b || typeof b !== 'object') return null
+            const x = Number(b.x)
+            const y = Number(b.y)
+            const w = Number(b.w)
+            const h = Number(b.h)
+            return [x, y, w, h].every(Number.isFinite) && w > 0 && h > 0
+              ? { x, y, w, h }
+              : null
+          })(),
+        },
+      }
+      : {}),
     // Bank lineage — only written when the question was inserted from the
     // Central Question Bank (keeps the .strict() schema lean for every other
     // question). See questionWriteSchema.sourceBankId.

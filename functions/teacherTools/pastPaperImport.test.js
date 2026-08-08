@@ -38,6 +38,7 @@ const {
   canonicalPassageKind,
   normalisePassageRef,
   collectPassages,
+  extractFigureDescription,
   textToParagraphHtml,
   normaliseTable,
   tableToHtml,
@@ -1022,6 +1023,63 @@ test('buildImportReport carries figures + engineVersion for the studio', () => {
   const bare = buildImportReport({questions: []});
   assert.deepEqual(bare.figures, []);
   assert.equal(bare.engineVersion, '');
+});
+
+// ── Question-own figures (crop-from-page pipeline) ──────────────────────────
+test('normaliseImportedQuestion carries hasFigure + figureBox', () => {
+  const n = normaliseImportedQuestion({
+    prompt: 'Which activity is being performed in the picture shown below?',
+    options: ['Field event', 'Track event', 'Relay', 'Gymnastics'],
+    type: 'mcq', sourceNumber: 6, sourcePageNumber: 3,
+    hasFigure: true, figureBox: {x: 0.1, y: 0.4, w: 0.5, h: 0.3},
+  }, 0);
+  assert.equal(n.hasFigure, true);
+  assert.deepEqual(n.figureBox, {x: 0.1, y: 0.4, w: 0.5, h: 0.3});
+  assert.equal(n.sourcePageNumber, 3);
+});
+
+test('normaliseImportedQuestion: a degenerate figureBox drops but hasFigure survives', () => {
+  const n = normaliseImportedQuestion({
+    prompt: 'Name the object shown.', type: 'short_answer',
+    sourceNumber: 2, sourcePageNumber: 1,
+    hasFigure: true, figureBox: {x: 0.1, y: 0.1, w: 0.001, h: 0.5},
+  }, 0);
+  assert.equal(n.hasFigure, true);
+  assert.equal(n.figureBox, undefined);
+});
+
+test('extractFigureDescription strips an inline "[Picture shows …]" into the description', () => {
+  const {prompt, figureDescription} = extractFigureDescription(
+    'Which activity is being performed in the picture shown below? [Picture shows a person performing a running/sprinting action]',
+  );
+  assert.equal(prompt, 'Which activity is being performed in the picture shown below?');
+  assert.ok(/running\/sprinting/.test(figureDescription));
+});
+
+test('extractFigureDescription leaves terse cross-references and [UNCLEAR] alone', () => {
+  const a = extractFigureDescription('Study the diagram (figure 2) and answer.');
+  assert.equal(a.prompt, 'Study the diagram (figure 2) and answer.');
+  assert.equal(a.figureDescription, '');
+  const b = extractFigureDescription('The result was [UNCLEAR] metres.');
+  assert.equal(b.prompt, 'The result was [UNCLEAR] metres.');
+  assert.equal(b.figureDescription, '');
+});
+
+test('extractFigureDescription never erases a description-only prompt', () => {
+  const {prompt, figureDescription} = extractFigureDescription('[Picture shows a maize plant with roots]');
+  assert.equal(prompt, '[Picture shows a maize plant with roots]');
+  assert.ok(/maize plant/.test(figureDescription));
+});
+
+test('normaliseImportedQuestion moves a prose picture-description out of the stem', () => {
+  const n = normaliseImportedQuestion({
+    prompt: 'Which activity is shown? [Picture shows a person sprinting on a track]',
+    options: ['Field event', 'Track event', 'Relay', 'Gymnastics'],
+    type: 'mcq', sourceNumber: 6, sourcePageNumber: 3,
+  }, 0);
+  assert.equal(n.prompt, 'Which activity is shown?');
+  assert.ok(/sprinting/.test(n.figureDescription));
+  assert.equal(n.hasFigure, true, 'a stripped description is itself a figure signal');
 });
 
 // ── Report ──────────────────────────────────────────────────────────────────

@@ -482,6 +482,28 @@ export const questionSchema = z
     // duplicate / out-of-order) in the editor — including after a reload.
     // null for hand-authored questions and papers with no usable numbering.
     sourceQuestionNumber: z.number().int().min(1).max(9999).nullable().default(null),
+    // Where this question's OWN printed figure sits on the uploaded source
+    // paper (importer-written): 1-based page + an optional {x,y,w,h}
+    // fractional crop box. Feeds the editor's "Crop from page" (which page to
+    // open, and the AI-detected initial crop rectangle). Optional so every
+    // existing question stays valid under .strict(); only written when the
+    // importer located a figure.
+    figureMeta: z
+      .object({
+        sourcePage: z.number().int().min(1).max(9999).nullable().default(null),
+        box: z
+          .object({
+            x: z.number(),
+            y: z.number(),
+            w: z.number(),
+            h: z.number(),
+          })
+          .strict()
+          .nullable()
+          .default(null),
+      })
+      .strict()
+      .optional(),
     // Lineage for a question inserted from the Central Question Bank: the
     // questionBank doc id it was deep-cloned from. Present only on bank-sourced
     // copies (hand-authored / imported / AI questions omit it). Lets the bank's

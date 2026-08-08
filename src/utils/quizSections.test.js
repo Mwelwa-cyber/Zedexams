@@ -520,3 +520,41 @@ function runWriteBackIsLoadBearingTest() {
 }
 
 runWriteBackIsLoadBearingTest()
+
+function runFigureMetaRoundTripTest() {
+  // figureMeta ({ sourcePage, box }) is importer-written and feeds the quiz
+  // editor's "Crop from page" (which page to open + the AI-detected initial
+  // crop box). It must survive a save → reload on questions AND passages —
+  // both hydrate paths use explicit field lists, so a missing entry here is
+  // exactly how the field would silently vanish.
+  const { sections, parts } = hydrateQuizSections(
+    [
+      { id: 'q006', type: 'mcq', text: 'Which activity is shown?', options: ['A', 'B', 'C', 'D'], correctAnswer: 0, sourcePage: 3, sourceQuestionNumber: 6, figureMeta: { sourcePage: 3, box: { x: 0.1, y: 0.4, w: 0.5, h: 0.3 } }, order: 0 },
+      { id: 'q007', type: 'mcq', text: 'Map question', options: ['A', 'B'], correctAnswer: 0, passageId: 'p001', figureMeta: { sourcePage: 2, box: null }, order: 1 },
+    ],
+    [{ id: 'p001', title: 'Map', passageText: '', imageUrl: '', passageKind: 'map', figureMeta: { sourcePage: 2, box: { x: 0, y: 0, w: 1, h: 0.5 } }, order: 1 }],
+    [], [],
+  )
+  const std = sections.find(s => s.kind !== 'passage' && s.kind !== 'pagebreak')
+  assert.deepEqual(std.question.figureMeta, { sourcePage: 3, box: { x: 0.1, y: 0.4, w: 0.5, h: 0.3 } }, 'standalone figureMeta hydrates')
+  const passageSection = sections.find(s => s.kind === 'passage')
+  assert.deepEqual(passageSection.passage.figureMeta, { sourcePage: 2, box: { x: 0, y: 0, w: 1, h: 0.5 } }, 'passage figureMeta hydrates')
+  assert.deepEqual(passageSection.passage.questions[0].figureMeta, { sourcePage: 2, box: null }, 'passage-child figureMeta hydrates (boxless page-only form)')
+
+  const serialized = serializeQuizSections(sections, parts)
+  assert.deepEqual(serialized.questions.find(q => q.sourceQuestionNumber === 6).figureMeta, { sourcePage: 3, box: { x: 0.1, y: 0.4, w: 0.5, h: 0.3 } }, 'standalone figureMeta serializes')
+  assert.deepEqual(serialized.passages[0].figureMeta, { sourcePage: 2, box: { x: 0, y: 0, w: 1, h: 0.5 } }, 'passage figureMeta serializes (explicit allow-list)')
+
+  // Garbage/absent forms hydrate to null, never a half-shaped object.
+  const { sections: bare } = hydrateQuizSections(
+    [{ id: 'q1', type: 'mcq', text: 'Plain', options: ['A', 'B'], correctAnswer: 0, order: 0 },
+     { id: 'q2', type: 'mcq', text: 'Bad', options: ['A', 'B'], correctAnswer: 0, figureMeta: { sourcePage: 'x', box: { x: 'a' } }, order: 1 }],
+    [], [], [],
+  )
+  assert.equal(bare[0].question.figureMeta, null, 'absent figureMeta hydrates to null')
+  assert.equal(bare[1].question.figureMeta, null, 'garbage figureMeta hydrates to null')
+
+  console.log('runFigureMetaRoundTripTest passed (question + passage figureMeta serialize → hydrate)')
+}
+
+runFigureMetaRoundTripTest()
