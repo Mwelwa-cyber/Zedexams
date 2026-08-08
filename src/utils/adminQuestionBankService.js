@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { parseBankQuestion, bumpQuestionUsage } from './questionBankService'
-import { bankPreview } from './questionBankCore.js'
+import { bankPreview, REVIEW_STATUS } from './questionBankCore.js'
 
 const QUEUE_LIMIT = 200
 
@@ -114,8 +114,12 @@ export async function keepPrivateQuestion(id, adminUid) {
 
 // Statuses that mean "captured but not yet in the Master Bank" — these are the
 // ones a bulk-approve sweeps into the bank. (We deliberately skip rejected /
-// archived / private_saved / already-approved.)
-const APPROVABLE_STATUSES = ['pending_review', 'needs_admin', 'duplicate']
+// archived / private_saved / merged / already-approved.)
+//
+// 'duplicate' is deliberately NOT here: those are copies Qix flagged that are
+// still waiting on a human verdict, so sweeping them in would push confirmed
+// duplicates straight into the shared Master Bank.
+const APPROVABLE_STATUSES = ['pending_review', 'needs_admin']
 
 /**
  * Approve every still-pending question owned by this admin into the Master Bank
@@ -164,17 +168,41 @@ export async function bulkApproveOwnedPending(adminUid, onProgress) {
   }
 }
 
-/** Confirm a duplicate: link to the original and bump its usage count. */
+/**
+ * Confirm a duplicate: link it to the original and bump the original's usage.
+ *
+ * This has to land on a *terminal* status. It previously wrote back
+ * `reviewStatus: 'duplicate'` — the very status loadReviewQueue() filters on —
+ * so a merged row never actually left the queue. Because the write also
+ * refreshes `updatedAt`, and the queue sorts newest-first, merged rows floated
+ * back to the TOP on the next load and looked like fresh work. The card
+ * disappearing was purely optimistic client-side state.
+ */
 export async function mergeWithExisting(id, targetId, adminUid) {
   if (!targetId) throw new Error('Pick the original question to merge into.')
-  await updateDoc(doc(db, 'questionBank', id), {
-    reviewStatus: 'duplicate',
+  if (id === targetId) throw new Error('A question cannot be merged into itself.')
+
+  const ref = doc(db, 'questionBank', id)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) throw new Error('Question no longer exists.')
+
+  // Don't double-count the original. If this row was already confirmed against
+  // the same target (e.g. re-merging rows that bounced back because of the bug
+  // above), re-stamp the status but skip the usageCount increment.
+  const prev = snap.data() || {}
+  const alreadyCounted = Boolean(prev.reviewedAt) && prev.duplicateOf === targetId
+
+  await updateDoc(ref, {
+    reviewStatus: REVIEW_STATUS.MERGED,
     masterEligible: false,
     duplicateOf: targetId,
     reviewedBy: adminUid || null,
     reviewedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
+
+  if (alreadyCounted) return
+
   await updateDoc(doc(db, 'questionBank', targetId), {
     usageCount: increment(1),
     updatedAt: serverTimestamp(),
